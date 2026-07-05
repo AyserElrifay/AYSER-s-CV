@@ -1,0 +1,23 @@
+{
+  "expo": {
+    "name": "Moments",
+    "slug": "moments",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "config": {
+        "googleMapsApiKey": ""
+      }
+    },
+    "android": {
+      "config": {
+        "googleMaps": {
+          "apiKey": ""
+        }
+      }
+    }
+  }
+}
