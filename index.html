@@ -1,0 +1,1239 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clay — Creative Agency · Shape Potential.</title>
+<meta name="description" content="Clay is a creative agency. We shape potential into meaningful brands — strategy, identity, messaging, experience, systems, evolution.">
+
+<style>
+/* ============================================================
+   CLAY — design tokens (from the official Brand Guidelines)
+   Black #000000 · White #FFFFFF · F5F5F5 · E0E0E0 · B3B3B3
+   Typeface: Suisse Int'l → Neue Haas Grotesk → Helvetica Neue → Inter
+   ============================================================ */
+:root{
+  --ink:#000000;
+  --paper:#ffffff;
+  --fog:#f5f5f5;
+  --mist:#e0e0e0;
+  --stone:#b3b3b3;
+  --clay:#8c7b6c;          /* reserved: Formed by Clay only */
+  --clay-deep:#6f6153;
+  --sans:"Suisse Int'l","Neue Haas Grotesk","Helvetica Neue",Inter,Helvetica,Arial,sans-serif;
+  --sig:Georgia,"Times New Roman",serif;
+  --ease:cubic-bezier(.16,1,.3,1);
+  --rail:clamp(20px,5vw,72px);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --ink:#f1f0ee;
+    --paper:#0e0e0d;
+    --fog:#171716;
+    --mist:#2b2b29;
+    --stone:#83837f;
+    --clay:#a89584;
+    --clay-deep:#c0ac99;
+  }
+}
+:root[data-theme="light"]{
+  --ink:#000000; --paper:#ffffff; --fog:#f5f5f5; --mist:#e0e0e0;
+  --stone:#b3b3b3; --clay:#8c7b6c; --clay-deep:#6f6153;
+}
+:root[data-theme="dark"]{
+  --ink:#f1f0ee; --paper:#0e0e0d; --fog:#171716; --mist:#2b2b29;
+  --stone:#83837f; --clay:#a89584; --clay-deep:#c0ac99;
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  font-family:var(--sans);
+  background:var(--paper);
+  color:var(--ink);
+  font-size:17px;
+  line-height:1.55;
+  font-weight:400;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+::selection{background:var(--ink);color:var(--paper)}
+img,svg{display:block;max-width:100%}
+a{color:inherit;text-decoration:none}
+button,input,select,textarea{font:inherit;color:inherit;background:none;border:none}
+button{cursor:pointer}
+
+/* ---------- type scale ---------- */
+.display{
+  font-weight:300;
+  font-size:clamp(52px,9.5vw,150px);
+  line-height:.98;
+  letter-spacing:-.035em;
+  text-wrap:balance;
+}
+.display b,.display strong{font-weight:700;letter-spacing:-.04em}
+.h2{
+  font-weight:300;
+  font-size:clamp(36px,5.4vw,76px);
+  line-height:1.02;
+  letter-spacing:-.03em;
+  text-wrap:balance;
+}
+.h2 b{font-weight:700}
+.h3{font-weight:500;font-size:clamp(21px,2.4vw,28px);letter-spacing:-.015em;line-height:1.2}
+.label{
+  font-size:11px;
+  font-weight:500;
+  letter-spacing:.16em;
+  text-transform:uppercase;
+  color:var(--stone);
+}
+.body-lg{font-size:clamp(18px,1.6vw,22px);line-height:1.5;max-width:34em}
+.muted{color:var(--stone)}
+.num{font-variant-numeric:tabular-nums}
+
+/* ---------- layout primitives ---------- */
+.wrap{padding-left:var(--rail);padding-right:var(--rail);max-width:1560px;margin:0 auto}
+.section{padding-top:clamp(90px,12vh,170px);padding-bottom:clamp(90px,12vh,170px)}
+.rule{height:1px;background:var(--mist);border:none}
+.sec-head{
+  display:flex;justify-content:space-between;align-items:baseline;
+  border-top:1px solid var(--mist);
+  padding-top:18px;margin-bottom:clamp(44px,7vh,96px);
+  gap:16px;flex-wrap:wrap;
+}
+
+/* ---------- reveal motion ---------- */
+.rv{opacity:0;transform:translateY(26px);transition:opacity .8s var(--ease),transform .8s var(--ease)}
+.rv.in{opacity:1;transform:none}
+.rv.d1{transition-delay:.08s}.rv.d2{transition-delay:.16s}.rv.d3{transition-delay:.24s}.rv.d4{transition-delay:.32s}
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  .rv{transform:none;transition:opacity .3s}
+  *,*::before,*::after{animation:none!important;transition-duration:.01ms!important}
+}
+
+/* ---------- buttons & links ---------- */
+.btn{
+  display:inline-flex;align-items:center;gap:14px;
+  padding:16px 30px;
+  background:var(--ink);color:var(--paper);
+  font-size:14px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;
+  transition:background .35s var(--ease),color .35s var(--ease),opacity .35s;
+}
+.btn:hover{opacity:.82}
+.btn.ghost{background:transparent;color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
+.btn.ghost:hover{background:var(--ink);color:var(--paper);opacity:1}
+.btn.quiet{background:transparent;color:var(--stone);padding-left:0;box-shadow:none}
+.btn.quiet:hover{color:var(--ink)}
+.btn[disabled]{opacity:.35;cursor:default}
+.ul-link{position:relative;padding-bottom:3px}
+.ul-link::after{
+  content:"";position:absolute;left:0;bottom:0;height:1px;width:100%;
+  background:var(--ink);transform:scaleX(0);transform-origin:left;
+  transition:transform .5s var(--ease);
+}
+.ul-link:hover::after{transform:scaleX(1)}
+
+/* ============================================================ NAV */
+.nav{
+  position:fixed;inset:0 0 auto 0;z-index:60;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 var(--rail);height:72px;
+  background:color-mix(in srgb,var(--paper) 86%,transparent);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  border-bottom:1px solid transparent;
+  transition:border-color .4s;
+}
+.nav.scrolled{border-bottom-color:var(--mist)}
+.logo{display:flex;align-items:center;gap:12px}
+.logo svg{height:26px;width:auto}
+.logo .mark-fill{fill:var(--ink)}
+.logo-word{display:flex;flex-direction:column;line-height:1}
+.logo-word .w{font-size:21px;font-weight:500;letter-spacing:.01em}
+.logo-word .s{font-size:7.5px;font-weight:500;letter-spacing:.34em;text-transform:uppercase;color:var(--stone);margin-top:3px}
+.nav-links{display:flex;gap:34px;align-items:center}
+.nav-links a{font-size:13.5px;font-weight:500;letter-spacing:.04em;color:var(--stone);transition:color .3s}
+.nav-links a:hover,.nav-links a.active{color:var(--ink)}
+.nav-cta{font-size:12px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;
+  padding:10px 18px;box-shadow:inset 0 0 0 1px var(--ink);transition:all .35s var(--ease)}
+.nav-cta:hover{background:var(--ink);color:var(--paper)}
+.burger{display:none;flex-direction:column;gap:5px;padding:8px}
+.burger span{display:block;width:22px;height:1.5px;background:var(--ink);transition:transform .4s var(--ease),opacity .3s}
+.mobile-menu{
+  position:fixed;inset:0;z-index:55;background:var(--paper);
+  display:flex;flex-direction:column;justify-content:center;gap:8px;
+  padding:0 var(--rail);
+  opacity:0;pointer-events:none;transition:opacity .4s var(--ease);
+}
+.mobile-menu.open{opacity:1;pointer-events:auto}
+.mobile-menu a{font-size:clamp(34px,9vw,54px);font-weight:300;letter-spacing:-.02em;padding:6px 0;border-bottom:1px solid var(--mist)}
+body.menu-locked{overflow:hidden}
+@media (max-width:880px){
+  .nav-links{display:none}
+  .burger{display:flex}
+  body.menu-locked .burger span:nth-child(1){transform:translateY(6.5px) rotate(45deg)}
+  body.menu-locked .burger span:nth-child(2){opacity:0}
+  body.menu-locked .burger span:nth-child(3){transform:translateY(-6.5px) rotate(-45deg)}
+}
+
+/* ============================================================ HERO */
+.hero{min-height:100svh;display:flex;flex-direction:column;justify-content:flex-end;
+  padding-top:140px;padding-bottom:clamp(48px,8vh,96px);position:relative}
+.hero .eyebrow{display:flex;gap:26px;align-items:center;margin-bottom:clamp(28px,5vh,56px)}
+.hero .eyebrow .line{flex:0 0 56px;height:1px;background:var(--ink)}
+.hero-foot{
+  display:flex;justify-content:space-between;align-items:flex-end;gap:32px;
+  margin-top:clamp(40px,7vh,84px);flex-wrap:wrap;
+}
+.hero-manifesto{max-width:30em;color:var(--stone);font-size:15.5px;line-height:1.7}
+.hero-manifesto em{font-style:normal;color:var(--ink)}
+.scroll-cue{display:flex;align-items:center;gap:12px;color:var(--stone);font-size:11px;letter-spacing:.16em;text-transform:uppercase}
+.scroll-cue .tick{width:1px;height:44px;background:var(--stone);position:relative;overflow:hidden}
+.scroll-cue .tick::after{content:"";position:absolute;left:0;top:-100%;width:1px;height:100%;background:var(--ink);animation:drip 2.4s var(--ease) infinite}
+@keyframes drip{0%{top:-100%}55%{top:100%}100%{top:100%}}
+
+/* ============================================================ PHILOSOPHY */
+.philo{background:var(--fog)}
+.philo-grid{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,4fr);gap:clamp(40px,6vw,110px)}
+.philo-copy p{margin-bottom:1.2em;max-width:36em}
+.philo-copy .lede{font-size:clamp(19px,1.8vw,24px);line-height:1.45;color:var(--ink)}
+.approach{list-style:none;border-top:1px solid var(--mist)}
+.approach li{
+  display:grid;grid-template-columns:56px 1fr;gap:14px;align-items:baseline;
+  padding:20px 0;border-bottom:1px solid var(--mist);
+  transition:padding-left .45s var(--ease);
+}
+.approach li:hover{padding-left:10px}
+.approach .no{font-size:12px;color:var(--stone);letter-spacing:.1em}
+.approach .t{font-weight:500;font-size:18px}
+.approach .d{grid-column:2;color:var(--stone);font-size:14.5px;margin-top:2px}
+.method{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--mist);
+  border:1px solid var(--mist);margin-top:clamp(60px,9vh,120px)}
+.method .cell{background:var(--fog);padding:clamp(24px,3vw,44px) clamp(20px,2.4vw,36px);transition:background .5s var(--ease)}
+.method .cell:hover{background:var(--paper)}
+.method .glyph{font-size:clamp(56px,6vw,96px);font-weight:700;line-height:1;letter-spacing:-.03em}
+.method .name{font-weight:500;margin-top:18px}
+.method .desc{color:var(--stone);font-size:14px;margin-top:6px}
+@media (max-width:880px){
+  .philo-grid{grid-template-columns:1fr}
+  .method{grid-template-columns:repeat(2,1fr)}
+}
+
+/* ============================================================ WORKS */
+.filters{display:flex;gap:26px;flex-wrap:wrap}
+.filters button{
+  font-size:14px;font-weight:500;color:var(--stone);
+  padding-bottom:4px;position:relative;transition:color .3s;letter-spacing:.02em;
+}
+.filters button::after{content:"";position:absolute;left:0;bottom:0;height:1px;width:100%;
+  background:var(--ink);transform:scaleX(0);transform-origin:left;transition:transform .5s var(--ease)}
+.filters button.active{color:var(--ink)}
+.filters button.active::after{transform:scaleX(1)}
+.works-grid{display:grid;grid-template-columns:repeat(12,1fr);gap:clamp(20px,3vw,48px) clamp(16px,2.4vw,40px)}
+.work{grid-column:span 12;cursor:pointer;transition:opacity .5s var(--ease),transform .5s var(--ease)}
+.work.hidden-by-filter{display:none}
+.work .frame{overflow:hidden;background:var(--fog);aspect-ratio:4/3;position:relative}
+.work.wide .frame{aspect-ratio:21/10}
+.work .frame svg{width:100%;height:100%;object-fit:cover;transform:scale(1.001);transition:transform 1.4s var(--ease)}
+.work:hover .frame svg{transform:scale(1.035)}
+.work .plate{display:flex;justify-content:space-between;align-items:baseline;gap:16px;
+  padding-top:16px;border-top:1px solid transparent;transition:border-color .5s}
+.work:hover .plate{border-top-color:var(--mist)}
+.work .plate .t{font-weight:500;font-size:clamp(18px,1.7vw,22px);letter-spacing:-.01em}
+.work .plate .meta{font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--stone);white-space:nowrap}
+@media (max-width:680px){.work .plate{flex-wrap:wrap}.work .plate .meta{white-space:normal}}
+.work .desc{color:var(--stone);font-size:14.5px;margin-top:6px;max-width:34em}
+@media (min-width:881px){
+  .work.w7{grid-column:span 7}
+  .work.w5{grid-column:span 5}
+  .work.wide{grid-column:span 12}
+}
+@media (prefers-color-scheme:dark){.work .frame svg{filter:brightness(.82)}}
+:root[data-theme="dark"] .work .frame svg{filter:brightness(.82)}
+:root[data-theme="light"] .work .frame svg{filter:none}
+.works-foot{margin-top:clamp(48px,7vh,90px);display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap}
+
+/* ============================================================ BEGIN — intake & contract */
+.begin{background:var(--fog)}
+.wizard{max-width:880px}
+.progress{display:flex;align-items:center;gap:0;margin-bottom:clamp(40px,6vh,72px)}
+.progress .node{display:flex;align-items:center;gap:12px;white-space:nowrap}
+.progress .dotno{font-size:12px;letter-spacing:.12em;color:var(--mist);transition:color .4s;font-weight:500}
+.progress .dotname{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--mist);transition:color .4s;font-weight:500}
+.progress .node.done .dotno,.progress .node.done .dotname{color:var(--stone)}
+.progress .node.now .dotno,.progress .node.now .dotname{color:var(--ink)}
+.progress .bar{flex:1;height:1px;background:var(--mist);margin:0 18px;position:relative;min-width:20px}
+.progress .bar i{position:absolute;inset:0 auto 0 0;width:0;background:var(--ink);transition:width .7s var(--ease)}
+.progress .bar.done i{width:100%}
+@media (max-width:680px){.progress .dotname{display:none}}
+.step{display:none}
+.step.on{display:block;animation:stepin .7s var(--ease)}
+@keyframes stepin{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+.step .q{font-weight:300;font-size:clamp(26px,3.4vw,42px);letter-spacing:-.02em;margin-bottom:10px;text-wrap:balance}
+.step .hint{color:var(--stone);font-size:15px;margin-bottom:clamp(30px,4vh,52px);max-width:36em}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:34px 40px}
+.fgrid .full{grid-column:1/-1}
+@media (max-width:680px){.fgrid{grid-template-columns:1fr}}
+.field label{display:block;font-size:11px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--stone);margin-bottom:10px}
+.field input,.field select,.field textarea{
+  width:100%;padding:10px 0 12px;font-size:19px;font-weight:400;
+  border-bottom:1px solid var(--mist);border-radius:0;
+  transition:border-color .35s;background:transparent;
+}
+.field textarea{resize:vertical;min-height:96px;line-height:1.5}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-bottom-color:var(--ink)}
+.field.err input,.field.err select,.field.err textarea{border-bottom-color:var(--clay-deep)}
+.field select{appearance:none;-webkit-appearance:none;cursor:pointer;
+  background-image:linear-gradient(45deg,transparent 49%,var(--stone) 50%),linear-gradient(135deg,var(--stone) 50%,transparent 51%);
+  background-position:calc(100% - 14px) 55%,calc(100% - 9px) 55%;background-size:5px 5px;background-repeat:no-repeat}
+.chips{display:flex;flex-wrap:wrap;gap:12px}
+.chip{
+  padding:12px 22px;font-size:14px;font-weight:500;letter-spacing:.02em;
+  box-shadow:inset 0 0 0 1px var(--mist);color:var(--stone);
+  transition:all .35s var(--ease);
+}
+.chip:hover{box-shadow:inset 0 0 0 1px var(--ink);color:var(--ink)}
+.chip.on{background:var(--ink);color:var(--paper);box-shadow:inset 0 0 0 1px var(--ink)}
+.radio-row{display:flex;flex-wrap:wrap;gap:12px}
+.wiz-foot{display:flex;justify-content:space-between;align-items:center;margin-top:clamp(40px,6vh,64px);gap:16px}
+.wiz-note{font-size:13.5px;color:var(--clay-deep);min-height:1.4em;transition:opacity .3s;opacity:0}
+.wiz-note.show{opacity:1}
+
+/* contract document */
+.contract-wrap{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:clamp(28px,4vw,64px)}
+@media (max-width:880px){.contract-wrap{grid-template-columns:1fr}}
+.doc{background:var(--paper);border:1px solid var(--mist);padding:clamp(28px,4vw,56px)}
+.doc .doc-head{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;
+  padding-bottom:26px;border-bottom:1px solid var(--ink);margin-bottom:30px}
+.doc .doc-title{font-weight:300;font-size:clamp(24px,2.8vw,34px);letter-spacing:-.02em;line-height:1.05}
+.doc .ref{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--stone);text-align:right;line-height:2}
+.doc dl{display:grid;grid-template-columns:150px 1fr;gap:10px 20px;font-size:15px;margin-bottom:30px}
+.doc dt{color:var(--stone);font-size:11px;letter-spacing:.14em;text-transform:uppercase;padding-top:3px}
+.doc dd{font-weight:500}
+.terms{border-top:1px solid var(--mist);padding-top:24px;max-height:300px;overflow-y:auto;padding-right:14px}
+.terms h4{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--stone);margin:20px 0 8px;font-weight:500}
+.terms h4:first-child{margin-top:0}
+.terms p{font-size:14px;color:var(--ink);opacity:.82;margin-bottom:10px;line-height:1.6}
+.signblock{margin-top:34px;border-top:1px solid var(--mist);padding-top:28px}
+.sig-line{border-bottom:1px solid var(--ink);min-height:74px;display:flex;align-items:flex-end;padding-bottom:8px;margin-bottom:8px}
+.sig-render{font-family:var(--sig);font-style:italic;font-size:clamp(30px,4vw,44px);line-height:1;color:var(--ink);min-height:1em}
+.sig-render.empty{color:var(--mist);font-size:16px;font-family:var(--sans);font-style:normal;letter-spacing:.1em;text-transform:uppercase}
+.accept-row{display:flex;gap:12px;align-items:flex-start;margin:22px 0}
+.accept-row input{width:16px;height:16px;margin-top:3px;accent-color:var(--ink);flex:none}
+.accept-row span{font-size:13.5px;color:var(--stone);line-height:1.55}
+.doc-aside{display:flex;flex-direction:column;gap:26px}
+.doc-aside .box{border-top:1px solid var(--mist);padding-top:16px}
+.doc-aside .box .k{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--stone);margin-bottom:8px;font-weight:500}
+.doc-aside .box .v{font-size:14.5px;line-height:1.6}
+.signed-plate{text-align:center;padding:clamp(50px,9vh,110px) 20px;border:1px solid var(--mist);background:var(--paper)}
+.signed-plate .big{font-weight:300;font-size:clamp(30px,4.5vw,56px);letter-spacing:-.025em;margin:18px 0 12px}
+.signed-plate .refnum{font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--stone)}
+.checkmark{width:52px;height:52px;margin:0 auto;border:1px solid var(--ink);border-radius:50%;display:grid;place-items:center}
+.checkmark svg{width:20px;height:20px;stroke:var(--ink);fill:none;stroke-width:1.6}
+
+/* ============================================================ ACADEMY */
+.academy-shell{display:grid;grid-template-columns:230px minmax(0,1fr);gap:clamp(30px,5vw,90px)}
+@media (max-width:880px){.academy-shell{grid-template-columns:1fr}}
+.rail-nav{position:sticky;top:110px;align-self:start;display:flex;flex-direction:column;gap:2px}
+@media (max-width:880px){.rail-nav{position:static;flex-direction:row;border-bottom:1px solid var(--mist);gap:24px;overflow-x:auto}}
+.rail-nav button{
+  text-align:left;padding:14px 0 14px 18px;font-size:15px;font-weight:500;color:var(--stone);
+  border-left:1px solid var(--mist);transition:color .35s,border-color .35s;white-space:nowrap;
+}
+.rail-nav button:hover{color:var(--ink)}
+.rail-nav button.active{color:var(--ink);border-left:1px solid var(--ink)}
+.rail-nav .cap{font-size:11px;font-weight:400;letter-spacing:.05em;color:var(--stone);display:block;margin-top:3px}
+@media (max-width:880px){
+  .rail-nav button{border-left:none;border-bottom:1px solid transparent;padding:12px 0}
+  .rail-nav button.active{border-bottom-color:var(--ink)}
+  .rail-nav .cap{display:none}
+}
+.panel{display:none}
+.panel.on{display:block;animation:stepin .7s var(--ease)}
+.panel-intro{max-width:36em;color:var(--stone);margin-bottom:clamp(34px,5vh,60px);font-size:16px}
+.panel-intro b{color:var(--ink);font-weight:500}
+
+/* roles table */
+.rolelist{border-top:1px solid var(--mist)}
+.role{border-bottom:1px solid var(--mist)}
+.role-row{
+  display:grid;grid-template-columns:minmax(0,2.4fr) 1fr 1fr auto;gap:18px;align-items:center;
+  padding:22px 0;cursor:pointer;transition:padding-left .4s var(--ease);
+}
+.role-row:hover{padding-left:10px}
+.role-row .rt{font-weight:500;font-size:clamp(17px,1.8vw,21px);letter-spacing:-.01em}
+.role-row .rm{font-size:13px;color:var(--stone)}
+.role-row .go{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--stone);transition:color .3s}
+.role-row:hover .go{color:var(--ink)}
+@media (max-width:680px){.role-row{grid-template-columns:1fr auto}.role-row .rm{display:none}}
+.drawer{max-height:0;overflow:hidden;transition:max-height .7s var(--ease)}
+.drawer.open{max-height:900px}
+.drawer-inner{padding:8px 0 40px;max-width:640px}
+.drawer .fgrid{gap:26px 34px}
+.received{padding:28px 0 40px;display:flex;gap:16px;align-items:center}
+.received .checkmark{width:40px;height:40px;margin:0}
+.received .checkmark svg{width:15px;height:15px}
+.received .t{font-weight:500}
+.received .s{font-size:14px;color:var(--stone)}
+
+/* programs */
+.programs{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--mist);border:1px solid var(--mist)}
+@media (max-width:880px){.programs{grid-template-columns:1fr}}
+.program{background:var(--paper);padding:clamp(28px,3.6vw,52px)}
+.begin .program,.academy .program{background:var(--paper)}
+.program .dur{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--stone);font-weight:500}
+.program h4{font-weight:300;font-size:clamp(26px,3vw,40px);letter-spacing:-.02em;margin:14px 0 10px;line-height:1.05}
+.program .pdesc{color:var(--stone);font-size:15px;max-width:30em}
+.program ol{list-style:none;margin:26px 0;border-top:1px solid var(--mist)}
+.program ol li{display:flex;gap:16px;padding:12px 0;border-bottom:1px solid var(--mist);font-size:14.5px}
+.program ol .n{color:var(--stone);font-size:12px;letter-spacing:.1em;padding-top:2px}
+.program .cohort{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:22px;gap:12px;flex-wrap:wrap}
+.program .cohort .cd{font-weight:500}
+.program .cohort .cs{font-size:12.5px;color:var(--stone)}
+
+/* courses */
+.courses{display:grid;grid-template-columns:1fr 1fr;gap:clamp(20px,3vw,44px)}
+@media (max-width:880px){.courses{grid-template-columns:1fr}}
+.course{border:1px solid var(--mist);padding:clamp(24px,3vw,42px);display:flex;flex-direction:column;transition:border-color .4s}
+.course:hover{border-color:var(--ink)}
+.course .cmeta{display:flex;justify-content:space-between;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--stone);font-weight:500;gap:10px}
+.course h4{font-weight:300;font-size:clamp(24px,2.6vw,34px);letter-spacing:-.02em;margin:16px 0 8px;line-height:1.08}
+.course .cdesc{color:var(--stone);font-size:14.5px;flex:1}
+.course .cfoot{display:flex;justify-content:space-between;align-items:center;margin-top:26px;padding-top:18px;border-top:1px solid var(--mist)}
+.course .price{font-weight:500;font-size:17px}
+.course .price small{color:var(--stone);font-weight:400;font-size:12px}
+.sessions{margin-top:20px;border-top:1px solid var(--mist);display:none}
+.sessions.open{display:block;animation:stepin .5s var(--ease)}
+.session-row{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:14px 0;border-bottom:1px solid var(--mist)}
+.session-row .sd{font-weight:500;font-size:15px}
+.session-row .seats{font-size:12px;color:var(--stone);letter-spacing:.06em}
+.session-row .pick{font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:500;padding:8px 14px;box-shadow:inset 0 0 0 1px var(--mist);transition:all .3s}
+.session-row .pick:hover{box-shadow:inset 0 0 0 1px var(--ink)}
+.session-row.soldout{opacity:.4}
+.bookform{padding:18px 0 6px;display:none}
+.bookform.open{display:block;animation:stepin .5s var(--ease)}
+.bookform .fgrid{gap:20px 26px;margin-bottom:20px}
+.booked{padding:20px 0 6px;display:none}
+.booked.open{display:flex;gap:14px;align-items:center;animation:stepin .5s var(--ease)}
+
+/* ============================================================ FORMED BY CLAY */
+/* Formed by Clay is a committed dark room — theme-independent by design */
+.formed{background:#0b0b0a;color:#f2f1ef;position:relative;overflow:hidden}
+.formed ::selection{background:#f2f1ef;color:#0b0b0a}
+.formed .label{color:#a89584}
+.formed .h2{color:#f2f1ef}
+.formed .h2 b{color:#a89584}
+.formed-grid{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,4fr);gap:clamp(40px,6vw,110px);align-items:end}
+@media (max-width:880px){.formed-grid{grid-template-columns:1fr}}
+.formed p{color:rgba(242,241,239,.6);max-width:32em;margin-bottom:1.1em}
+.formed p em{font-style:normal;color:#f2f1ef}
+.formed .btn{background:#f2f1ef;color:#0b0b0a}
+.formed .btn:hover{opacity:.85}
+.formed .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:rgba(242,241,239,.16);margin-top:48px;border:1px solid rgba(242,241,239,.16)}
+.formed .stat{background:#0b0b0a;padding:22px 20px}
+.formed .stat .v{font-weight:300;font-size:clamp(28px,3.4vw,44px);letter-spacing:-.02em}
+.formed .stat .k{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#a89584;margin-top:6px;font-weight:500}
+
+/* ============================================================ FOOTER */
+.footer{padding-top:clamp(80px,11vh,150px)}
+.foot-cta{border-top:1px solid var(--mist);padding-top:clamp(40px,6vh,70px);
+  display:flex;justify-content:space-between;align-items:flex-end;gap:30px;flex-wrap:wrap;
+  padding-bottom:clamp(60px,9vh,120px)}
+.foot-cta .mail{font-weight:300;font-size:clamp(24px,3.4vw,44px);letter-spacing:-.02em}
+.foot-grid{display:flex;justify-content:space-between;gap:28px;flex-wrap:wrap;
+  border-top:1px solid var(--mist);padding:26px 0 40px;font-size:12.5px;color:var(--stone)}
+.foot-grid a{transition:color .3s}
+.foot-grid a:hover{color:var(--ink)}
+.foot-grid .cols{display:flex;gap:34px;flex-wrap:wrap}
+</style>
+
+<!-- ============================================================ NAV -->
+<header class="nav" id="nav">
+  <a class="logo" href="#top" aria-label="Clay — home">
+    <svg viewBox="0 0 64 52" aria-hidden="true">
+      <path class="mark-fill" d="M38 8c-7-6-19-7-27 0C3 15 1 27 5 35c4 9 14 14 23 12 5-1 8-3 10-6 1-2 0-4-2-4-5 1-11 1-15-3-5-4-6-11-3-16 3-6 10-8 15-5 2 1 5 1 6-1 1-2 0-3-1-4z"/>
+      <ellipse class="mark-fill" cx="46" cy="36" rx="9" ry="11" transform="rotate(-18 46 36)"/>
+    </svg>
+    <span class="logo-word"><span class="w">clay</span><span class="s">Creative Agency</span></span>
+  </a>
+  <nav class="nav-links" aria-label="Primary">
+    <a href="#studio">Studio</a>
+    <a href="#work">Work</a>
+    <a href="#academy">Academy</a>
+    <a href="#formed">Formed by Clay</a>
+    <a class="nav-cta" href="#begin">Start a project</a>
+  </nav>
+  <button class="burger" id="burger" aria-label="Menu" aria-expanded="false">
+    <span></span><span></span><span></span>
+  </button>
+</header>
+<div class="mobile-menu" id="mmenu">
+  <a href="#studio">Studio</a>
+  <a href="#work">Work</a>
+  <a href="#begin">Start a project</a>
+  <a href="#academy">Academy</a>
+  <a href="#formed">Formed by Clay</a>
+</div>
+
+<main id="top">
+
+<!-- ============================================================ HERO -->
+<section class="hero wrap">
+  <div class="eyebrow rv">
+    <span class="line"></span>
+    <span class="label" style="color:var(--ink)">Clay — Creative Agency</span>
+  </div>
+  <h1 class="display rv d1">shape<br><b>Potential.</b></h1>
+  <div class="hero-foot">
+    <p class="hero-manifesto rv d2">
+      Before technology. Before markets. Before anything — there was clay.
+      Raw. Silent. Full of potential. <em>We shape it into brands that endure.</em>
+    </p>
+    <div class="scroll-cue rv d3"><span>Scroll</span><span class="tick"></span></div>
+  </div>
+</section>
+
+<!-- ============================================================ PHILOSOPHY -->
+<section class="section philo" id="studio">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="label">01 — The Studio</span>
+      <span class="label">Potential, made visible</span>
+    </div>
+    <h2 class="h2 rv" style="margin-bottom:clamp(44px,7vh,90px)">Marketing is not noise.<br><b>It is form given to feeling.</b></h2>
+    <div class="philo-grid">
+      <div class="philo-copy rv d1">
+        <p class="lede">Clay is the original material. Formed by nature, shaped by human hands — raw, honest, and endlessly adaptable. It is more than a material. It is our mindset.</p>
+        <p class="muted">We believe in starting from what is real. In ideas that take shape. In work that leaves a mark. We are not here to follow — we are here to shape: to design with purpose and build what matters.</p>
+        <p class="muted">We remove the unnecessary. We shape with clarity. We design with intention. We build systems, not just visuals. We create brands that endure.</p>
+      </div>
+      <div class="rv d2">
+        <p class="label" style="margin-bottom:18px">Our approach</p>
+        <ol class="approach">
+          <li><span class="no num">01</span><span class="t">Listen</span><span class="d">Understand what is real.</span></li>
+          <li><span class="no num">02</span><span class="t">Discover</span><span class="d">Reveal what others overlook.</span></li>
+          <li><span class="no num">03</span><span class="t">Shape</span><span class="d">Transform insight into direction.</span></li>
+          <li><span class="no num">04</span><span class="t">Build</span><span class="d">Craft systems with purpose.</span></li>
+          <li><span class="no num">05</span><span class="t">Evolve</span><span class="d">Grow with clarity and intent.</span></li>
+        </ol>
+      </div>
+    </div>
+    <div class="method rv">
+      <div class="cell"><div class="glyph">C</div><div class="name">Create</div><div class="desc">Every brand begins as possibility. We define direction and create what comes next.</div></div>
+      <div class="cell"><div class="glyph">L</div><div class="name">Listen</div><div class="desc">People first. Context first. We don't assume — we uncover. Only then do we shape.</div></div>
+      <div class="cell"><div class="glyph">A</div><div class="name">Adapt</div><div class="desc">Nothing meaningful is made in a single shape. We refine to stay relevant, human, true.</div></div>
+      <div class="cell"><div class="glyph">Y</div><div class="name">Yield</div><div class="desc">Potential, made real. Not for attention or trends — for people, growth, lasting value.</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ SELECTED WORKS -->
+<section class="section" id="work">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="label">02 — Selected Works</span>
+      <span class="label">From raw material to meaningful form</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:24px;flex-wrap:wrap;margin-bottom:clamp(40px,6vh,80px)">
+      <h2 class="h2 rv">Work that<br><b>leaves a mark.</b></h2>
+      <div class="filters rv d1" role="tablist" aria-label="Filter works">
+        <button class="active" data-f="all">All</button>
+        <button data-f="identity">Identity</button>
+        <button data-f="campaign">Campaign</button>
+        <button data-f="digital">Digital</button>
+        <button data-f="motion">Motion</button>
+      </div>
+    </div>
+
+    <div class="works-grid" id="worksGrid">
+
+      <article class="work wide rv" data-cat="identity">
+        <div class="frame">
+          <svg viewBox="0 0 1260 600" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Meridian — monochrome clay relief">
+            <filter id="tx1"><feTurbulence type="fractalNoise" baseFrequency="0.006 0.014" numOctaves="5" seed="11"/>
+              <feDiffuseLighting lighting-color="#dcdcda" surfaceScale="7" diffuseConstant="1.15"><feDistantLight azimuth="235" elevation="52"/></feDiffuseLighting></filter>
+            <rect width="1260" height="600" filter="url(#tx1)"/>
+          </svg>
+        </div>
+        <div class="plate">
+          <span class="t">Meridian Private Bank</span>
+          <span class="meta num">№ 01 — Identity · Systems, 2026</span>
+        </div>
+        <p class="desc">A wealth brand stripped to its essentials: one wordmark, two weights, and a typographic system that says discretion louder than gold ever could.</p>
+      </article>
+
+      <article class="work w7 rv" data-cat="campaign">
+        <div class="frame">
+          <svg viewBox="0 0 840 630" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Terra — clay texture">
+            <filter id="tx2"><feTurbulence type="fractalNoise" baseFrequency="0.011 0.007" numOctaves="4" seed="3"/>
+              <feDiffuseLighting lighting-color="#cfcfcd" surfaceScale="9" diffuseConstant="1.05"><feDistantLight azimuth="120" elevation="46"/></feDiffuseLighting></filter>
+            <rect width="840" height="630" filter="url(#tx2)"/>
+          </svg>
+        </div>
+        <div class="plate"><span class="t">Terra Ceramics</span><span class="meta num">№ 02 — Campaign, 2026</span></div>
+        <p class="desc">A launch built on stillness: fourteen photographs, no headlines, and a nation of hands reaching for the kiln.</p>
+      </article>
+
+      <article class="work w5 rv d1" data-cat="identity">
+        <div class="frame">
+          <svg viewBox="0 0 600 450" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Aya — clay texture">
+            <filter id="tx3"><feTurbulence type="fractalNoise" baseFrequency="0.02 0.03" numOctaves="4" seed="27"/>
+              <feDiffuseLighting lighting-color="#e6e6e4" surfaceScale="4.5" diffuseConstant="1.2"><feDistantLight azimuth="300" elevation="60"/></feDiffuseLighting></filter>
+            <rect width="600" height="450" filter="url(#tx3)"/>
+          </svg>
+        </div>
+        <div class="plate"><span class="t">Aya Atelier</span><span class="meta num">№ 03 — Identity, 2025</span></div>
+        <p class="desc">Couture identity where the negative space is the garment.</p>
+      </article>
+
+      <article class="work w5 rv" data-cat="digital">
+        <div class="frame">
+          <svg viewBox="0 0 600 450" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Nile House — clay texture">
+            <filter id="tx4"><feTurbulence type="fractalNoise" baseFrequency="0.008 0.022" numOctaves="5" seed="42"/>
+              <feDiffuseLighting lighting-color="#d4d4d2" surfaceScale="6" diffuseConstant="1.1"><feDistantLight azimuth="200" elevation="40"/></feDiffuseLighting></filter>
+            <rect width="600" height="450" filter="url(#tx4)"/>
+          </svg>
+        </div>
+        <div class="plate"><span class="t">Nile House Hotels</span><span class="meta num">№ 04 — Digital, 2025</span></div>
+        <p class="desc">A booking experience that behaves like a lobby: quiet, unhurried, impossible to get lost in.</p>
+      </article>
+
+      <article class="work w7 rv d1" data-cat="motion">
+        <div class="frame">
+          <svg viewBox="0 0 840 630" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Halo — clay texture">
+            <filter id="tx5"><feTurbulence type="fractalNoise" baseFrequency="0.016 0.005" numOctaves="4" seed="8"/>
+              <feDiffuseLighting lighting-color="#c6c6c4" surfaceScale="8" diffuseConstant="1"><feDistantLight azimuth="80" elevation="50"/></feDiffuseLighting></filter>
+            <rect width="840" height="630" filter="url(#tx5)"/>
+          </svg>
+        </div>
+        <div class="plate"><span class="t">Halo Audio</span><span class="meta num">№ 05 — Motion · Launch film, 2025</span></div>
+        <p class="desc">Ninety seconds of product film with a single cut. The restraint became the story — and the story became four million organic views.</p>
+      </article>
+
+      <article class="work w7 rv" data-cat="campaign">
+        <div class="frame">
+          <svg viewBox="0 0 840 630" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Onsi Foundation — clay texture">
+            <filter id="tx6"><feTurbulence type="fractalNoise" baseFrequency="0.009 0.016" numOctaves="5" seed="63"/>
+              <feDiffuseLighting lighting-color="#dededc" surfaceScale="5.5" diffuseConstant="1.15"><feDistantLight azimuth="255" elevation="58"/></feDiffuseLighting></filter>
+            <rect width="840" height="630" filter="url(#tx6)"/>
+          </svg>
+        </div>
+        <div class="plate"><span class="t">Onsi Foundation</span><span class="meta num">№ 06 — Campaign · Messaging, 2024</span></div>
+        <p class="desc">A literacy campaign written at a reading level every billboard critic missed and every intended reader didn't.</p>
+      </article>
+
+      <article class="work w5 rv d1" data-cat="digital">
+        <div class="frame">
+          <svg viewBox="0 0 600 450" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Basalt — clay texture">
+            <filter id="tx7"><feTurbulence type="fractalNoise" baseFrequency="0.024 0.012" numOctaves="4" seed="90"/>
+              <feDiffuseLighting lighting-color="#d0d0ce" surfaceScale="5" diffuseConstant="1.05"><feDistantLight azimuth="160" elevation="44"/></feDiffuseLighting></filter>
+            <rect width="600" height="450" filter="url(#tx7)"/>
+          </svg>
+        </div>
+        <div class="plate"><span class="t">Basalt Architecture</span><span class="meta num">№ 07 — Digital · Systems, 2024</span></div>
+        <p class="desc">A portfolio platform where the grid is the architecture.</p>
+      </article>
+
+    </div>
+
+    <div class="works-foot rv">
+      <p class="muted" style="font-size:14.5px;max-width:30em">Each engagement is documented as a full case study — strategy, identity, messaging, experience, systems, evolution.</p>
+      <a class="btn ghost" href="#begin">Commission a project</a>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ BEGIN — CLIENT INTAKE & CONTRACT -->
+<section class="section begin" id="begin">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="label">03 — Begin</span>
+      <span class="label">Client intake &amp; agreement</span>
+    </div>
+    <h2 class="h2 rv" style="margin-bottom:14px">Every brand begins<br><b>as possibility.</b></h2>
+    <p class="body-lg muted rv d1" style="margin-bottom:clamp(48px,7vh,88px)">Tell us what is real. Four quiet steps — and a signed agreement at the end, without a single email attachment.</p>
+
+    <div class="wizard" id="wizard">
+      <div class="progress" aria-hidden="true">
+        <span class="node now" data-n="1"><span class="dotno num">01</span><span class="dotname">Company</span></span>
+        <span class="bar" data-b="1"><i></i></span>
+        <span class="node" data-n="2"><span class="dotno num">02</span><span class="dotname">Project</span></span>
+        <span class="bar" data-b="2"><i></i></span>
+        <span class="node" data-n="3"><span class="dotno num">03</span><span class="dotname">Scope</span></span>
+        <span class="bar" data-b="3"><i></i></span>
+        <span class="node" data-n="4"><span class="dotno num">04</span><span class="dotname">Agreement</span></span>
+      </div>
+
+      <!-- STEP 1 -->
+      <div class="step on" data-step="1">
+        <p class="q">Who are we shaping this for?</p>
+        <p class="hint">We listen before we shape. Start with the essentials — everything stays between us.</p>
+        <div class="fgrid">
+          <div class="field"><label for="f-company">Company name</label><input id="f-company" autocomplete="organization" placeholder="Acme &amp; Co."></div>
+          <div class="field"><label for="f-contact">Your name</label><input id="f-contact" autocomplete="name" placeholder="Full name"></div>
+          <div class="field"><label for="f-email">Email</label><input id="f-email" type="email" autocomplete="email" placeholder="you@company.com"></div>
+          <div class="field"><label for="f-industry">Industry</label>
+            <select id="f-industry">
+              <option value="" selected>Select</option>
+              <option>Finance &amp; Banking</option><option>Fashion &amp; Retail</option><option>Hospitality &amp; Travel</option>
+              <option>Technology</option><option>Culture &amp; Non-profit</option><option>Food &amp; Beverage</option><option>Other</option>
+            </select>
+          </div>
+          <div class="field full"><label for="f-size">Company size</label>
+            <select id="f-size">
+              <option value="" selected>Select</option>
+              <option>Founding team (1–10)</option><option>Growing (11–50)</option><option>Established (51–250)</option><option>Enterprise (250+)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 2 -->
+      <div class="step" data-step="2">
+        <p class="q">What should take shape?</p>
+        <p class="hint">Choose every discipline that applies — we build systems, not just visuals.</p>
+        <div class="field" style="margin-bottom:34px">
+          <label>Disciplines</label>
+          <div class="chips" id="serviceChips">
+            <button class="chip" data-v="Strategy" type="button">Strategy</button>
+            <button class="chip" data-v="Identity" type="button">Identity</button>
+            <button class="chip" data-v="Messaging" type="button">Messaging</button>
+            <button class="chip" data-v="Experience" type="button">Experience</button>
+            <button class="chip" data-v="Systems" type="button">Systems</button>
+            <button class="chip" data-v="Evolution" type="button">Evolution</button>
+          </div>
+        </div>
+        <div class="field">
+          <label for="f-brief">The brief, in your own words</label>
+          <textarea id="f-brief" placeholder="What exists today, and what do you want it to become?"></textarea>
+        </div>
+      </div>
+
+      <!-- STEP 3 -->
+      <div class="step" data-step="3">
+        <p class="q">Scope and rhythm.</p>
+        <p class="hint">An honest frame lets us shape an honest proposal. Bands, not commitments.</p>
+        <div class="field" style="margin-bottom:34px">
+          <label>Investment band (USD)</label>
+          <div class="radio-row chips" id="budgetChips">
+            <button class="chip" data-v="10–25k" type="button">10–25k</button>
+            <button class="chip" data-v="25–60k" type="button">25–60k</button>
+            <button class="chip" data-v="60–120k" type="button">60–120k</button>
+            <button class="chip" data-v="120k+" type="button">120k+</button>
+          </div>
+        </div>
+        <div class="fgrid">
+          <div class="field"><label for="f-timeline">Timeline</label>
+            <select id="f-timeline">
+              <option value="" selected>Select</option>
+              <option>6–8 weeks</option><option>2–4 months</option><option>4–8 months</option><option>Ongoing partnership</option>
+            </select>
+          </div>
+          <div class="field"><label for="f-start">Ideal start</label>
+            <select id="f-start">
+              <option value="" selected>Select</option>
+              <option>As soon as possible</option><option>Within a month</option><option>This quarter</option><option>Exploring for later</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 4 — CONTRACT -->
+      <div class="step" data-step="4">
+        <div id="contractLive">
+          <p class="q">Your agreement, already taking shape.</p>
+          <p class="hint">Everything you told us, set into terms. Review, sign with your name, and we begin.</p>
+          <div class="contract-wrap">
+            <div class="doc" id="docEl">
+              <div class="doc-head">
+                <div>
+                  <div class="label" style="margin-bottom:8px">Engagement Agreement</div>
+                  <div class="doc-title">Clay ✕ <span id="c-company">—</span></div>
+                </div>
+                <div class="ref num">Ref <span id="c-ref">CLA-2026-····</span><br>Issued <span id="c-date">—</span></div>
+              </div>
+              <dl>
+                <dt>Prepared for</dt><dd><span id="c-contact">—</span>, <span id="c-company2">—</span></dd>
+                <dt>Disciplines</dt><dd id="c-services">—</dd>
+                <dt>Investment band</dt><dd id="c-budget">—</dd>
+                <dt>Timeline</dt><dd id="c-timeline">—</dd>
+                <dt>Commencement</dt><dd id="c-start">—</dd>
+              </dl>
+              <div class="terms" tabindex="0" aria-label="Terms of engagement">
+                <h4>1 — Engagement</h4>
+                <p>Clay Creative Agency ("Clay") will provide the disciplines listed above for the client named in this agreement. A detailed scope of work, deliverables schedule, and project plan will be issued within five working days of acceptance and will form an annex to this agreement.</p>
+                <h4>2 — Process</h4>
+                <p>Work proceeds through Clay's five movements — Listen, Discover, Shape, Build, Evolve. Each movement closes with a review milestone. Two rounds of refinement are included per milestone; further rounds are scoped transparently before any work begins.</p>
+                <h4>3 — Investment &amp; schedule</h4>
+                <p>Fees are fixed against the agreed scope within the stated investment band. 40% is due on commencement, 40% at the midpoint milestone, and 20% on delivery. Invoices are payable within 14 days.</p>
+                <h4>4 — Ownership</h4>
+                <p>Upon final payment, all approved deliverables and their intellectual property transfer to the client in full. Clay retains the right to document the work for its portfolio unless confidentiality is requested in writing.</p>
+                <h4>5 — Confidentiality</h4>
+                <p>Both parties treat all shared materials, strategies, and commercial information as confidential, during and after the engagement.</p>
+                <h4>6 — Withdrawal</h4>
+                <p>Either party may end the engagement with 14 days' written notice. Work completed to date is invoiced pro rata; all materials paid for are released.</p>
+              </div>
+              <div class="signblock">
+                <div class="label" style="margin-bottom:14px">Signature of acceptance</div>
+                <div class="sig-line"><div class="sig-render empty" id="sigRender">Type your full legal name below</div></div>
+                <div class="field">
+                  <label for="f-sig">Full legal name</label>
+                  <input id="f-sig" autocomplete="off" placeholder="e.g. Nadia El Amin">
+                </div>
+                <label class="accept-row">
+                  <input type="checkbox" id="f-accept">
+                  <span>I have read the terms of engagement and accept them on behalf of the company named above. I understand this constitutes a binding digital signature, recorded with a timestamp and document integrity hash.</span>
+                </label>
+                <button class="btn" id="signBtn" type="button">Accept &amp; sign</button>
+              </div>
+            </div>
+            <aside class="doc-aside">
+              <div class="box"><div class="k">What happens next</div><div class="v">A countersigned copy arrives by email within the hour. Your project lead makes contact within one working day. Movement 01 — Listen — is scheduled within the week.</div></div>
+              <div class="box"><div class="k">Integrity</div><div class="v">The document text is hashed at the moment of signing. What you accept is exactly what we keep — nothing can change after the fact.</div></div>
+              <div class="box"><div class="k">Questions first?</div><div class="v">Write to <a class="ul-link" href="mailto:new@clay.agency">new@clay.agency</a> — a human answers, not a pipeline.</div></div>
+            </aside>
+          </div>
+        </div>
+
+        <div id="contractSigned" style="display:none">
+          <div class="signed-plate">
+            <div class="checkmark"><svg viewBox="0 0 24 24"><path d="M4 12.5l5.5 5.5L20 6.5"/></svg></div>
+            <div class="big">Agreed, <span id="s-name">—</span>.</div>
+            <p class="muted" style="max-width:30em;margin:0 auto 22px">Your engagement with Clay is signed and recorded. We begin by listening.</p>
+            <div class="refnum num" id="s-meta">—</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="wiz-foot" id="wizFoot">
+        <button class="btn quiet" id="backBtn" type="button" style="visibility:hidden">← Back</button>
+        <p class="wiz-note num" id="wizNote" role="status">A few details are missing.</p>
+        <button class="btn" id="nextBtn" type="button">Continue →</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ ACADEMY -->
+<section class="section" id="academy">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="label">04 — Talent &amp; Academy</span>
+      <span class="label">People first. Context first.</span>
+    </div>
+    <h2 class="h2 rv" style="margin-bottom:14px">Potential exists everywhere.<br><b>We help shape it.</b></h2>
+    <p class="body-lg muted rv d1" style="margin-bottom:clamp(48px,7vh,88px)">Three ways in: join the studio, train inside it, or learn the craft in our courses.</p>
+
+    <div class="academy-shell">
+      <nav class="rail-nav rv" aria-label="Academy sections">
+        <button class="active" data-p="careers">Careers<span class="cap">Open positions at Clay</span></button>
+        <button data-p="training">Training<span class="cap">Internships &amp; residencies</span></button>
+        <button data-p="courses">Courses<span class="cap">Learn the craft</span></button>
+      </nav>
+
+      <div class="rv d1">
+        <!-- CAREERS -->
+        <div class="panel on" data-panel="careers">
+          <p class="panel-intro">We hire slowly and deliberately. <b>Every application is read by a person</b> — usually the one you'd be working beside.</p>
+          <div class="rolelist" id="rolelist"></div>
+        </div>
+
+        <!-- TRAINING -->
+        <div class="panel" data-panel="training">
+          <p class="panel-intro">Structured programs inside a working studio. <b>Real briefs, real clients, real critique</b> — not observation from the corner.</p>
+          <div class="programs" id="programs"></div>
+        </div>
+
+        <!-- COURSES -->
+        <div class="panel" data-panel="courses">
+          <p class="panel-intro">Short, rigorous courses taught by the people who do the work. <b>Small cohorts, evening sessions, no recordings</b> — presence is the point.</p>
+          <div class="courses" id="courses"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ FORMED BY CLAY -->
+<section class="section formed" id="formed">
+  <div class="wrap">
+    <div class="sec-head rv" style="border-top-color:rgba(242,241,239,.2)">
+      <span class="label">05 — The Initiative</span>
+      <span class="label">A Clay commitment</span>
+    </div>
+    <div class="formed-grid">
+      <div>
+        <h2 class="h2 rv">Formed<br><b>by Clay.</b></h2>
+      </div>
+      <div class="rv d1">
+        <p><em>Where raw talent takes shape.</em> Formed by Clay is our open initiative: scholarships for the training program, free public critique nights, and pro-bono brand work for cultural organisations that shape their communities.</p>
+        <p>Because clay was never precious about where it came from — only about what it became.</p>
+        <a class="btn" href="#academy" style="margin-top:10px">Enter through the Academy</a>
+      </div>
+    </div>
+    <div class="stats rv d2">
+      <div class="stat"><div class="v num">24</div><div class="k">Scholarship seats / year</div></div>
+      <div class="stat"><div class="v num">06</div><div class="k">Pro-bono briefs / year</div></div>
+      <div class="stat"><div class="v num">12</div><div class="k">Open critique nights</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ FOOTER -->
+<footer class="footer">
+  <div class="wrap">
+    <div class="foot-cta rv">
+      <div>
+        <p class="label" style="margin-bottom:16px">This is who we are. This is how we work.</p>
+        <p class="h2">We shape <b>potential.</b></p>
+      </div>
+      <a class="mail ul-link" href="mailto:hello@clay.agency">hello@clay.agency</a>
+    </div>
+    <div class="foot-grid">
+      <span>© 2026 Clay Creative Agency — Making ideas shape brands.</span>
+      <div class="cols">
+        <a class="num" href="#work">Work</a>
+        <a href="#studio">Studio</a>
+        <a href="#begin">Begin</a>
+        <a href="#academy">Academy</a>
+        <a href="#formed">Formed by Clay</a>
+        <a href="https://grapheg.com/" rel="noopener">Archive ↗</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+</main>
+
+<script>
+/* ============================================================
+   CLAY — interactions. Vanilla, dependency-free.
+   ============================================================ */
+(function(){
+"use strict";
+var $=function(s,c){return (c||document).querySelector(s)};
+var $$=function(s,c){return Array.prototype.slice.call((c||document).querySelectorAll(s))};
+
+/* ---------- reveal on scroll ---------- */
+var io=new IntersectionObserver(function(es){
+  es.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add("in"); io.unobserve(e.target);} });
+},{threshold:.12,rootMargin:"0px 0px -6% 0px"});
+$$(".rv").forEach(function(el){io.observe(el)});
+
+/* ---------- nav ---------- */
+var nav=$("#nav");
+addEventListener("scroll",function(){ nav.classList.toggle("scrolled",scrollY>10) },{passive:true});
+var burger=$("#burger"),mmenu=$("#mmenu");
+function closeMenu(){ document.body.classList.remove("menu-locked"); mmenu.classList.remove("open"); burger.setAttribute("aria-expanded","false"); }
+burger.addEventListener("click",function(){
+  var open=mmenu.classList.toggle("open");
+  document.body.classList.toggle("menu-locked",open);
+  burger.setAttribute("aria-expanded",open?"true":"false");
+});
+$$("a",mmenu).forEach(function(a){a.addEventListener("click",closeMenu)});
+
+/* ---------- works filter ---------- */
+$$(".filters button").forEach(function(b){
+  b.addEventListener("click",function(){
+    $$(".filters button").forEach(function(x){x.classList.remove("active")});
+    b.classList.add("active");
+    var f=b.dataset.f;
+    $$("#worksGrid .work").forEach(function(w){
+      w.classList.toggle("hidden-by-filter", f!=="all" && w.dataset.cat!==f);
+      w.classList.add("in");
+    });
+  });
+});
+
+/* ============================================================
+   INTAKE WIZARD + DIGITAL CONTRACT
+   ============================================================ */
+var intake={company:"",contact:"",email:"",industry:"",size:"",services:[],brief:"",budget:"",timeline:"",start:""};
+var stepNow=1, TOTAL=4;
+var nextBtn=$("#nextBtn"),backBtn=$("#backBtn"),note=$("#wizNote");
+
+function toggleChip(containerId,single){
+  $$("#"+containerId+" .chip").forEach(function(ch){
+    ch.addEventListener("click",function(){
+      if(single){ $$("#"+containerId+" .chip").forEach(function(x){x.classList.remove("on")}); ch.classList.add("on"); }
+      else ch.classList.toggle("on");
+    });
+  });
+}
+toggleChip("serviceChips",false);
+toggleChip("budgetChips",true);
+
+function collect(){
+  intake.company=$("#f-company").value.trim();
+  intake.contact=$("#f-contact").value.trim();
+  intake.email=$("#f-email").value.trim();
+  intake.industry=$("#f-industry").value;
+  intake.size=$("#f-size").value;
+  intake.services=$$("#serviceChips .chip.on").map(function(c){return c.dataset.v});
+  intake.brief=$("#f-brief").value.trim();
+  var b=$("#budgetChips .chip.on"); intake.budget=b?b.dataset.v:"";
+  intake.timeline=$("#f-timeline").value;
+  intake.start=$("#f-start").value;
+}
+function flagErr(el,bad){ el.closest(".field") && el.closest(".field").classList.toggle("err",bad); }
+function validate(step){
+  collect();
+  var ok=true;
+  if(step===1){
+    [["#f-company",!intake.company],["#f-contact",!intake.contact],
+     ["#f-email",!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(intake.email)]].forEach(function(p){
+      flagErr($(p[0]),p[1]); if(p[1])ok=false;
+    });
+  }
+  if(step===2 && intake.services.length===0) ok=false;
+  if(step===3){
+    if(!intake.budget) ok=false;
+    flagErr($("#f-timeline"),!intake.timeline); if(!intake.timeline)ok=false;
+  }
+  return ok;
+}
+function paintProgress(){
+  $$(".progress .node").forEach(function(n){
+    var i=+n.dataset.n;
+    n.classList.toggle("now",i===stepNow);
+    n.classList.toggle("done",i<stepNow);
+  });
+  $$(".progress .bar").forEach(function(b){ b.classList.toggle("done",+b.dataset.b<stepNow) });
+}
+function ref(prefix){ return prefix+"-2026-"+String(Math.floor(1000+Math.random()*9000)) }
+var contractRef=ref("CLA");
+function fillContract(){
+  collect();
+  $("#c-company").textContent=intake.company||"—";
+  $("#c-company2").textContent=intake.company||"—";
+  $("#c-contact").textContent=intake.contact||"—";
+  $("#c-services").textContent=intake.services.join(" · ")||"—";
+  $("#c-budget").textContent=intake.budget?("USD "+intake.budget):"—";
+  $("#c-timeline").textContent=intake.timeline||"—";
+  $("#c-start").textContent=intake.start||"—";
+  $("#c-ref").textContent=contractRef;
+  $("#c-date").textContent=new Date().toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"});
+}
+function goto(step){
+  stepNow=Math.min(Math.max(step,1),TOTAL);
+  $$(".step").forEach(function(s){ s.classList.toggle("on",+s.dataset.step===stepNow) });
+  paintProgress();
+  backBtn.style.visibility=stepNow===1?"hidden":"visible";
+  nextBtn.style.display=stepNow===TOTAL?"none":"";
+  note.classList.remove("show");
+  if(stepNow===TOTAL) fillContract();
+  $("#wizard").scrollIntoView({behavior:"smooth",block:"start"});
+}
+nextBtn.addEventListener("click",function(){
+  if(!validate(stepNow)){
+    note.textContent = stepNow===2 ? "Choose at least one discipline." :
+                       stepNow===3 ? "Choose an investment band and timeline." :
+                       "A few details are missing above.";
+    note.classList.add("show"); return;
+  }
+  goto(stepNow+1);
+});
+backBtn.addEventListener("click",function(){ goto(stepNow-1) });
+
+/* signature */
+var sigInput=$("#f-sig"),sigRender=$("#sigRender");
+sigInput.addEventListener("input",function(){
+  var v=sigInput.value.trim();
+  sigRender.textContent=v||"Type your full legal name below";
+  sigRender.classList.toggle("empty",!v);
+});
+function hashDoc(text){
+  var h1=0x811c9dc5,h2=0x1000193^text.length,i;
+  for(i=0;i<text.length;i++){ h1=((h1^text.charCodeAt(i))*16777619)>>>0; h2=((h2<<5)-h2+text.charCodeAt(i))>>>0; }
+  return (h1.toString(16)+h2.toString(16)).padStart(16,"0").slice(0,16);
+}
+$("#signBtn").addEventListener("click",function(){
+  var name=sigInput.value.trim();
+  var accepted=$("#f-accept").checked;
+  if(!name||!accepted){
+    note.textContent=!name?"Type your full legal name to sign.":"Please confirm you accept the terms.";
+    note.classList.add("show");
+    return;
+  }
+  note.classList.remove("show");
+  var stamp=new Date();
+  var digest=hashDoc($("#docEl").innerText+name+stamp.toISOString());
+  $("#s-name").textContent=name.split(" ")[0];
+  $("#s-meta").textContent=contractRef+" · signed "+stamp.toLocaleString("en-GB",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"})+" · sha "+digest;
+  $("#contractLive").style.display="none";
+  $("#wizFoot").style.display="none";
+  $("#contractSigned").style.display="block";
+  $("#contractSigned").scrollIntoView({behavior:"smooth",block:"center"});
+});
+
+/* ============================================================
+   ACADEMY — data + rendering
+   ============================================================ */
+var roles=[
+  {t:"Senior Brand Designer",d:"Identity",loc:"Cairo · Hybrid",type:"Full-time"},
+  {t:"Brand Strategist",d:"Strategy",loc:"Cairo · Hybrid",type:"Full-time"},
+  {t:"Motion Designer",d:"Motion",loc:"Remote-first",type:"Full-time"},
+  {t:"Account &amp; Production Lead",d:"Experience",loc:"Cairo",type:"Full-time"}
+];
+var programsData=[
+  {t:"The Shaping Program",dur:"12-week internship",cohort:"Autumn cohort — 05 Oct 2026",seats:"8 seats · paid",
+   desc:"A full rotation through the studio's five movements, on live client work, with a dedicated mentor.",
+   steps:["Listen — research & discovery","Discover — strategy rooms","Shape — identity sprints","Build — systems & delivery","Evolve — your own brief, critiqued"]},
+  {t:"Summer Residency",dur:"6-week residency",cohort:"Summer cohort — 06 Jul 2026",seats:"4 seats · stipend",
+   desc:"For practitioners one project away from great. Bring a real brief; leave with it shaped, built, and reviewed.",
+   steps:["Week 1 — the honest audit","Weeks 2–4 — shaping under critique","Weeks 5–6 — build & present"]}
+];
+var coursesData=[
+  {t:"Brand Identity Foundations",lvl:"Foundation",dur:"6 weeks",price:"EGP 9,500",
+   desc:"From raw material to meaningful form: research, concept, mark, system.",
+   sessions:[{d:"Mon &amp; Wed evenings — starts 07 Sep 2026",seats:6},{d:"Sat mornings — starts 03 Oct 2026",seats:2}]},
+  {t:"Typography &amp; Grid Systems",lvl:"Intermediate",dur:"4 weeks",price:"EGP 7,000",
+   desc:"The Swiss discipline behind quiet luxury: scale, rhythm, restraint.",
+   sessions:[{d:"Tue &amp; Thu evenings — starts 15 Sep 2026",seats:5},{d:"Sat mornings — starts 10 Oct 2026",seats:0}]},
+  {t:"Strategy for Designers",lvl:"Intermediate",dur:"4 weeks",price:"EGP 7,500",
+   desc:"Listen before shaping. Positioning, messaging architecture, and the brief behind the brief.",
+   sessions:[{d:"Mon evenings — starts 21 Sep 2026",seats:9}]},
+  {t:"Motion Principles",lvl:"Foundation",dur:"5 weeks",price:"EGP 8,000",
+   desc:"Ease, weight, and intention — movement that serves the idea, never the trend.",
+   sessions:[{d:"Wed evenings — starts 30 Sep 2026",seats:7}]}
+];
+
+/* panel switching */
+$$(".rail-nav button").forEach(function(b){
+  b.addEventListener("click",function(){
+    $$(".rail-nav button").forEach(function(x){x.classList.remove("active")});
+    b.classList.add("active");
+    $$(".panel").forEach(function(p){ p.classList.toggle("on",p.dataset.panel===b.dataset.p) });
+  });
+});
+
+function applyFormHTML(id,cta){
+  return '<div class="drawer-inner"><div class="fgrid">'+
+    '<div class="field"><label>Full name</label><input data-req placeholder="Full name"></div>'+
+    '<div class="field"><label>Email</label><input data-req data-mail type="email" placeholder="you@email.com"></div>'+
+    '<div class="field"><label>Portfolio / LinkedIn</label><input placeholder="https://"></div>'+
+    '<div class="field"><label>CV</label><input type="file" style="font-size:14px;padding-top:14px"></div>'+
+    '<div class="field full"><label>One honest note</label><textarea placeholder="Why this, why now, why you — three sentences are plenty."></textarea></div>'+
+    '</div><div style="display:flex;align-items:center;gap:18px;margin-top:28px;flex-wrap:wrap">'+
+    '<button class="btn" data-apply="'+id+'" type="button">'+cta+'</button>'+
+    '<span class="wiz-note num" data-note style="min-height:auto">Name and a valid email, please.</span></div></div>';
+}
+function receivedHTML(msg){
+  return '<div class="received"><div class="checkmark"><svg viewBox="0 0 24 24"><path d="M4 12.5l5.5 5.5L20 6.5"/></svg></div>'+
+  '<div><div class="t">Received.</div><div class="s">'+msg+'</div></div></div>';
+}
+function wireApply(scope){
+  $$("[data-apply]",scope).forEach(function(btn){
+    btn.addEventListener("click",function(){
+      var inner=btn.closest(".drawer-inner");
+      var ok=true;
+      $$("[data-req]",inner).forEach(function(inp){
+        var bad=!inp.value.trim()||(inp.hasAttribute("data-mail")&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inp.value));
+        inp.closest(".field").classList.toggle("err",bad); if(bad)ok=false;
+      });
+      var n=$("[data-note]",inner);
+      if(!ok){ n.classList.add("show"); return; }
+      n.classList.remove("show");
+      var host=btn.closest(".drawer")||btn.closest(".appform-host");
+      host.innerHTML=receivedHTML("We read everything. You'll hear from a person within five working days.");
+      if(host.classList.contains("drawer")) host.classList.add("open"),host.style.maxHeight="200px";
+    });
+  });
+}
+
+/* careers */
+var rolelist=$("#rolelist");
+rolelist.innerHTML=roles.map(function(r,i){
+  return '<div class="role"><div class="role-row" role="button" tabindex="0" aria-expanded="false" data-role="'+i+'">'+
+    '<span class="rt">'+r.t+'</span><span class="rm">'+r.d+' · '+r.loc+'</span><span class="rm">'+r.type+'</span>'+
+    '<span class="go">Apply ↓</span></div>'+
+    '<div class="drawer" data-drawer="'+i+'">'+applyFormHTML("role-"+i,"Submit application")+'</div></div>';
+}).join("");
+$$(".role-row").forEach(function(row){
+  function tog(){
+    var d=$('[data-drawer="'+row.dataset.role+'"]');
+    var open=d.classList.toggle("open");
+    row.setAttribute("aria-expanded",open?"true":"false");
+    $(".go",row).textContent=open?"Close ↑":"Apply ↓";
+  }
+  row.addEventListener("click",tog);
+  row.addEventListener("keydown",function(e){ if(e.key==="Enter"||e.key===" "){e.preventDefault();tog();} });
+});
+wireApply(rolelist);
+
+/* training */
+var programs=$("#programs");
+programs.innerHTML=programsData.map(function(p,i){
+  return '<div class="program"><div class="dur">'+p.dur+'</div><h4>'+p.t+'</h4><p class="pdesc">'+p.desc+'</p>'+
+    '<ol>'+p.steps.map(function(s,j){return '<li><span class="n num">0'+(j+1)+'</span><span>'+s+'</span></li>'}).join("")+'</ol>'+
+    '<div class="cohort"><span class="cd">'+p.cohort+'</span><span class="cs">'+p.seats+'</span></div>'+
+    '<div class="appform-host"><button class="btn ghost" data-open-training="'+i+'" type="button">Apply to the program</button>'+
+    '<div class="drawer" data-tdrawer="'+i+'">'+applyFormHTML("tr-"+i,"Submit application")+'</div></div></div>';
+}).join("");
+$$("[data-open-training]").forEach(function(b){
+  b.addEventListener("click",function(){
+    var d=$('[data-tdrawer="'+b.dataset.openTraining+'"]');
+    var open=d.classList.toggle("open");
+    b.textContent=open?"Close":"Apply to the program";
+  });
+});
+wireApply(programs);
+
+/* courses */
+var courses=$("#courses");
+courses.innerHTML=coursesData.map(function(c,i){
+  return '<div class="course"><div class="cmeta"><span>'+c.lvl+' · '+c.dur+'</span><span class="num">'+(c.sessions.reduce(function(a,s){return a+s.seats},0))+' seats open</span></div>'+
+    '<h4>'+c.t+'</h4><p class="cdesc">'+c.desc+'</p>'+
+    '<div class="cfoot"><span class="price num">'+c.price+' <small>/ person</small></span>'+
+    '<button class="btn ghost" data-course="'+i+'" type="button" style="padding:12px 22px">View sessions</button></div>'+
+    '<div class="sessions" data-sess="'+i+'">'+
+      c.sessions.map(function(s,j){
+        var out=s.seats===0;
+        return '<div class="session-row'+(out?" soldout":"")+'"><div><div class="sd">'+s.d+'</div>'+
+        '<div class="seats num">'+(out?"Sold out":s.seats+" seats remaining")+'</div></div>'+
+        (out?"":'<button class="pick" data-book="'+i+'-'+j+'" type="button">Book seat</button>')+'</div>';
+      }).join("")+
+      '<div class="bookform" data-bform="'+i+'"><p class="label" style="margin:18px 0 20px">Reserve — <span data-chosen></span></p>'+
+      '<div class="fgrid">'+
+      '<div class="field"><label>Full name</label><input data-req placeholder="Full name"></div>'+
+      '<div class="field"><label>Email</label><input data-req data-mail type="email" placeholder="you@email.com"></div>'+
+      '</div><div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap">'+
+      '<button class="btn" data-confirm="'+i+'" type="button">Confirm booking</button>'+
+      '<span class="wiz-note num" data-note style="min-height:auto">Name and a valid email, please.</span></div></div>'+
+      '<div class="booked" data-booked="'+i+'"><div class="checkmark" style="width:40px;height:40px;margin:0"><svg viewBox="0 0 24 24" style="width:15px;height:15px"><path d="M4 12.5l5.5 5.5L20 6.5"/></svg></div>'+
+      '<div><div style="font-weight:500">Seat reserved.</div><div class="s muted num" data-bref style="font-size:14px"></div></div></div>'+
+    '</div></div>';
+}).join("");
+$$("[data-course]").forEach(function(b){
+  b.addEventListener("click",function(){
+    var s=$('[data-sess="'+b.dataset.course+'"]');
+    var open=s.classList.toggle("open");
+    b.textContent=open?"Hide sessions":"View sessions";
+  });
+});
+$$("[data-book]").forEach(function(b){
+  b.addEventListener("click",function(){
+    var pair=b.dataset.book.split("-"),ci=+pair[0],si=+pair[1];
+    var f=$('[data-bform="'+ci+'"]');
+    f.classList.add("open");
+    $("[data-chosen]",f).innerHTML=coursesData[ci].sessions[si].d;
+    f.scrollIntoView({behavior:"smooth",block:"nearest"});
+  });
+});
+$$("[data-confirm]").forEach(function(b){
+  b.addEventListener("click",function(){
+    var f=b.closest(".bookform"),ok=true;
+    $$("[data-req]",f).forEach(function(inp){
+      var bad=!inp.value.trim()||(inp.hasAttribute("data-mail")&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inp.value));
+      inp.closest(".field").classList.toggle("err",bad); if(bad)ok=false;
+    });
+    var n=$("[data-note]",f);
+    if(!ok){ n.classList.add("show"); return; }
+    var ci=b.dataset.confirm;
+    f.classList.remove("open");
+    var done=$('[data-booked="'+ci+'"]');
+    $("[data-bref]",done).textContent=ref("ACD")+" · confirmation &amp; payment link sent by email".replace("&amp;","&");
+    done.classList.add("open");
+  });
+});
+
+})();
+</script>
