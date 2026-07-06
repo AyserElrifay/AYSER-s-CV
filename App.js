@@ -17,18 +17,33 @@
  */
 
 import React from 'react';
+import { View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { C } from './src/constants/theme';
+import { AuthProvider, useAuth } from './src/context/AuthContext';
+import { AuthScreen } from './src/screens/AuthScreen';
 import { TabNavigator, NavTheme } from './src/navigation/TabNavigator';
+
+const Root = () => {
+  const { loading, isAuthenticated } = useAuth();
+  if (loading) return <View style={{ flex: 1, backgroundColor: C.bg }} />;
+  if (!isAuthenticated) return <AuthScreen />;
+  return (
+    <NavigationContainer theme={NavTheme}>
+      <TabNavigator />
+    </NavigationContainer>
+  );
+};
 
 export default function App() {
   return (
     <SafeAreaProvider>
-      <NavigationContainer theme={NavTheme}>
+      <AuthProvider>
         <StatusBar style="light" />
-        <TabNavigator />
-      </NavigationContainer>
+        <Root />
+      </AuthProvider>
     </SafeAreaProvider>
   );
 }

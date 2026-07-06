@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { C, R } from '../constants/theme';
 import { INITIAL_TX, PLANNER_INIT, FIXERS, SQUADS } from '../constants/mockData';
+import { useAuth } from '../context/AuthContext';
 import {
   Page, ScreenHeader, SectionHeader, Glass, Micro, Chip,
   NeonButton, AvatarStack, RatingBar,
@@ -12,6 +13,7 @@ import {
 /* ──────────── TAB 5 · VAULT — LIFE PLANNER & FINTECH ───────────────── */
 
 export const VaultScreen = () => {
+  const { signOut, isDemo, user } = useAuth();
   const [tx, setTx] = useState(INITIAL_TX);
   const [split, setSplit] = useState(false);
   const [planner, setPlanner] = useState(PLANNER_INIT);
@@ -181,6 +183,22 @@ export const VaultScreen = () => {
           </View>
         </Glass>
       ))}
+
+      {/* ACCOUNT */}
+      <SectionHeader title="Account" style={{ marginTop: 26 }} />
+      <Glass style={{ padding: 15, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <View style={{ flex: 1, marginRight: 12 }}>
+          <Text style={{ color: C.text, fontWeight: 'bold' }}>
+            {isDemo ? 'Demo session' : (user && user.email) || 'Signed in'}
+          </Text>
+          <Text style={{ color: C.faint, fontSize: 11, marginTop: 2 }}>
+            {isDemo ? 'Nothing is saved — connect Supabase to go live' : 'Powered by Supabase Auth ⚡'}
+          </Text>
+        </View>
+        <Pressable onPress={signOut} style={{ backgroundColor: C.coralSoft, borderWidth: 1, borderColor: 'rgba(244,63,94,0.4)', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12 }}>
+          <Text style={{ color: C.coral, fontSize: 12, fontWeight: '900' }}>SIGN OUT</Text>
+        </Pressable>
+      </Glass>
     </Page>
   );
 };
