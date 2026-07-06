@@ -3,13 +3,14 @@ import { View, Text, FlatList } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { C } from '../constants/theme';
-import { FEED } from '../constants/mockData';
+import { useFeed } from '../hooks/useFeed';
 import { StoriesBar, PostCard, MagicFlowModal, ProfileModal } from '../components';
 
 /* ───────────────────── TAB 1 · HOME — THE ACTION FEED ──────────────── */
 
 export const HomeScreen = () => {
   const insets = useSafeAreaInsets();
+  const { posts, refreshing, refresh } = useFeed();
   const [joined, setJoined] = useState({});
   const [magicPost, setMagicPost] = useState(null);
   const [profileUser, setProfileUser] = useState(null);
@@ -17,8 +18,10 @@ export const HomeScreen = () => {
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
       <FlatList
-        data={FEED}
+        data={posts}
         keyExtractor={(p) => p.id}
+        refreshing={refreshing}
+        onRefresh={refresh}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingTop: insets.top + 14, paddingBottom: 130, paddingHorizontal: 16 }}
         ListHeaderComponent={

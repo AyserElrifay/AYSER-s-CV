@@ -48,6 +48,15 @@ Sign-up now creates a real account, a `profiles` row appears automatically, the
 vibe you pick during onboarding is saved to your profile, and sessions persist
 across app restarts. Sign out from **VAULT → Account**.
 
+The HOME feed also goes live: it loads from the `posts` table (pull to refresh),
+and keeps showing the built-in sample feed until your table has real rows —
+insert one from the SQL editor to see it appear:
+
+```sql
+insert into public.posts (user_id, caption, place, type)
+select id, 'My first real moment! 🎉', 'Cairo', 'post' from public.profiles limit 1;
+```
+
 > Tip: new Supabase projects have email confirmation ON by default
 > (Dashboard → Authentication → Providers → Email). The app handles both settings,
 > but for quick testing you may want to turn it off.
@@ -66,11 +75,14 @@ src/
 │   └── supabase.js          Supabase client (or null → demo mode, no .env needed)
 ├── services/
 │   ├── auth.js              signUp / signIn / signOut / session helpers
-│   └── profiles.js          getProfile, updateProfile
+│   ├── profiles.js          getProfile, updateProfile
+│   └── posts.js             fetchFeed (posts + author join), createPost
 ├── context/
 │   └── AuthContext.js       AuthProvider + useAuth() — session state for the app
 ├── hooks/
-│   └── usePulse.js          Looping breathe animation (drives every neon glow)
+│   ├── usePulse.js          Looping breathe animation (drives every neon glow)
+│   └── useFeed.js           Feed source: Supabase rows → PostCard shape,
+│                            mock fallback in demo mode / while DB is empty
 ├── utils/
 │   ├── maps.js              Native-only react-native-maps loader + MAPS_READY
 │   └── geo.js               regionFor, kmBetween
