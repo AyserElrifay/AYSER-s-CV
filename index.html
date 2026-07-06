@@ -504,6 +504,55 @@ body.menu-locked{overflow:hidden}
 .formed .stats{background:transparent;border:none;gap:14px}
 .formed .stat{background:#141412;border-radius:22px}
 
+/* ============================================================ STATS BAND (proof) */
+.statband{background:#0b0b0a;color:#f2f1ef;padding:clamp(80px,11vh,150px) 0}
+.statband ::selection{background:#f2f1ef;color:#0b0b0a}
+.statband .kicker{text-align:center;margin-bottom:clamp(44px,7vh,80px)}
+.statband .kicker .label{color:rgba(242,241,239,.45)}
+.statband .kicker h3{font-weight:300;font-size:clamp(26px,3.2vw,44px);letter-spacing:-.02em;margin-top:12px}
+.statband .kicker h3 b{font-weight:700}
+.statgrid{display:grid;grid-template-columns:repeat(3,1fr)}
+.statgrid .cellstat{padding:6px clamp(20px,3vw,56px);text-align:center;border-left:1px solid rgba(242,241,239,.14)}
+.statgrid .cellstat:first-child{border-left:none}
+.statgrid .v{font-weight:300;font-size:clamp(38px,4.6vw,76px);letter-spacing:-.03em;line-height:1;font-variant-numeric:tabular-nums;white-space:nowrap}
+.statgrid .v .plus{color:rgba(242,241,239,.4)}
+.statgrid .k{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:rgba(242,241,239,.45);margin-top:16px;font-weight:500}
+@media (max-width:880px){
+  .statgrid{grid-template-columns:1fr;gap:44px}
+  .statgrid .cellstat{border-left:none;padding:0}
+}
+
+/* ============================================================ SERVICES (Gretel-style type list) */
+.svc-list{border-top:1px solid var(--mist);margin-top:clamp(40px,6vh,80px)}
+.svc{
+  border-bottom:1px solid var(--mist);
+  display:grid;grid-template-columns:64px minmax(0,1fr) minmax(0,340px);
+  align-items:center;gap:clamp(16px,2.5vw,40px);
+  padding:clamp(22px,3.4vh,40px) 0;
+}
+.svc .no{font-size:12px;letter-spacing:.12em;color:var(--stone);font-weight:500}
+.svc .w{
+  font-weight:300;font-size:clamp(36px,5.6vw,88px);letter-spacing:-.035em;line-height:1;
+  color:var(--stone);transition:color .5s var(--ease),transform .6s var(--ease);
+}
+.svc:hover .w{color:var(--ink);transform:translateX(14px)}
+.svc .dd{text-align:right}
+.svc .dd .d{display:block;color:var(--stone);font-size:14.5px;line-height:1.55;opacity:0;transform:translateY(6px);transition:opacity .5s var(--ease),transform .5s var(--ease)}
+.svc:hover .dd .d{opacity:1;transform:none}
+.svc .dd .tags{display:block;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--stone);margin-top:8px;font-weight:500;opacity:0;transition:opacity .5s var(--ease) .06s}
+.svc:hover .dd .tags{opacity:.7}
+@media (max-width:880px){
+  .svc{grid-template-columns:44px 1fr}
+  .svc .dd{grid-column:2;text-align:left;margin-top:10px}
+  .svc .dd .d,.svc .dd .tags{opacity:1;transform:none}
+  .svc:hover .w{transform:none}
+  .svc .w{color:var(--ink)}
+}
+@media (hover:none){
+  .svc .w{color:var(--ink)}
+  .svc .dd .d,.svc .dd .tags{opacity:1;transform:none}
+}
+
 /* apple-style footer ground */
 .footer{background:var(--fog);margin-top:clamp(60px,9vh,120px)}
 .footer .foot-cta{border-top:none}
@@ -518,6 +567,7 @@ body.menu-locked{overflow:hidden}
   <nav class="nav-links" aria-label="Primary">
     <a href="#studio">Studio</a>
     <a href="#work">Work</a>
+    <a href="#services">Services</a>
     <a href="#academy">Academy</a>
     <a href="#formed">Formed by Clay</a>
     <a class="nav-cta" href="#begin">Start a project</a>
@@ -529,6 +579,7 @@ body.menu-locked{overflow:hidden}
 <div class="mobile-menu" id="mmenu">
   <a href="#studio">Studio</a>
   <a href="#work">Work</a>
+  <a href="#services">Services</a>
   <a href="#begin">Start a project</a>
   <a href="#academy">Academy</a>
   <a href="#formed">Formed by Clay</a>
@@ -707,11 +758,71 @@ body.menu-locked{overflow:hidden}
   </div>
 </section>
 
+<!-- ============================================================ PROOF — THE NUMBERS -->
+<section class="statband" id="proof">
+  <div class="wrap">
+    <div class="kicker rv">
+      <span class="label">The proof</span>
+      <h3>Quiet work. <b>Loud results.</b></h3>
+    </div>
+    <div class="statgrid">
+      <div class="cellstat rv"><div class="v num"><span class="plus">+</span><span class="count" data-count="200000000">0</span></div><div class="k">EGP · Managed ad spend</div></div>
+      <div class="cellstat rv d1"><div class="v num"><span class="plus">+</span><span class="count" data-count="925000">0</span></div><div class="k">Precision leads acquired</div></div>
+      <div class="cellstat rv d2"><div class="v num"><span class="plus">+</span><span class="count" data-count="7350">0</span></div><div class="k">Closed transactions</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ SERVICES -->
+<section class="section" id="services">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="label">03 — What We Do</span>
+      <span class="label">Systems, not just visuals</span>
+    </div>
+    <h2 class="h2 rv center" style="margin-bottom:14px">We shape potential<br><b>into meaningful brands.</b></h2>
+    <p class="body-lg muted rv d1 center">From strategy to systems — clarity, direction, and lasting impact.</p>
+
+    <div class="svc-list rv">
+      <div class="svc">
+        <span class="no num">01</span>
+        <span class="w">Strategy</span>
+        <span class="dd"><span class="d">Define what matters. We start from what is real and turn it into direction.</span><span class="tags">Positioning · Research · Architecture</span></span>
+      </div>
+      <div class="svc">
+        <span class="no num">02</span>
+        <span class="w">Identity</span>
+        <span class="dd"><span class="d">Shape how it is seen. Marks, visual language, and guidelines built to endure.</span><span class="tags">Logo systems · Visual language · Guidelines</span></span>
+      </div>
+      <div class="svc">
+        <span class="no num">03</span>
+        <span class="w">Messaging</span>
+        <span class="dd"><span class="d">Shape how it is heard. Real words, real conversations — certain, never loud.</span><span class="tags">Voice · Naming · Campaign copy</span></span>
+      </div>
+      <div class="svc">
+        <span class="no num">04</span>
+        <span class="w">Experience</span>
+        <span class="dd"><span class="d">Shape how it is felt. Websites, products, and spaces that behave like the brand.</span><span class="tags">Web · Product · Spatial</span></span>
+      </div>
+      <div class="svc">
+        <span class="no num">05</span>
+        <span class="w">Systems</span>
+        <span class="dd"><span class="d">Shape how it grows. Design systems and performance media that compound.</span><span class="tags">Design systems · Media · Performance</span></span>
+      </div>
+      <div class="svc">
+        <span class="no num">06</span>
+        <span class="w">Evolution</span>
+        <span class="dd"><span class="d">Shape what comes next. Stewardship that keeps the brand relevant, human, true.</span><span class="tags">Stewardship · Growth · Optimisation</span></span>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- ============================================================ BEGIN — CLIENT INTAKE & CONTRACT -->
 <section class="section begin" id="begin">
   <div class="wrap">
     <div class="sec-head rv">
-      <span class="label">03 — Begin</span>
+      <span class="label">04 — Begin</span>
       <span class="label">Client intake &amp; agreement</span>
     </div>
     <h2 class="h2 rv center" style="margin-bottom:14px">Every brand begins<br><b>as possibility.</b></h2>
@@ -882,7 +993,7 @@ body.menu-locked{overflow:hidden}
 <section class="section" id="academy">
   <div class="wrap">
     <div class="sec-head rv">
-      <span class="label">04 — Talent &amp; Academy</span>
+      <span class="label">05 — Talent &amp; Academy</span>
       <span class="label">People first. Context first.</span>
     </div>
     <h2 class="h2 rv center" style="margin-bottom:14px">Potential exists everywhere.<br><b>We help shape it.</b></h2>
@@ -922,7 +1033,7 @@ body.menu-locked{overflow:hidden}
 <section class="section formed" id="formed">
   <div class="wrap">
     <div class="sec-head rv" style="border-top-color:rgba(242,241,239,.2)">
-      <span class="label">05 — The Initiative</span>
+      <span class="label">06 — The Initiative</span>
       <span class="label">A Clay commitment</span>
     </div>
     <div class="formed-grid">
@@ -1024,6 +1135,26 @@ function onScrollFx(){
 addEventListener("scroll",function(){ requestAnimationFrame(onScrollFx) },{passive:true});
 onScrollFx();
 if(noMotion&&scrubWords.length) scrubWords.forEach(function(w){w.classList.add("lit")});
+
+/* ---------- count-up stats ---------- */
+function animateCount(el){
+  var target=+el.dataset.count, dur=2000, t0=null;
+  if(noMotion){ el.textContent=target.toLocaleString("en-US"); return; }
+  function tick(t){
+    if(!t0)t0=t;
+    var p=Math.min((t-t0)/dur,1);
+    var e=1-Math.pow(1-p,4);
+    el.textContent=Math.round(target*e).toLocaleString("en-US");
+    if(p<1)requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+var countIO=new IntersectionObserver(function(es){
+  es.forEach(function(e){
+    if(e.isIntersecting){ animateCount(e.target); countIO.unobserve(e.target); }
+  });
+},{threshold:.5});
+$$(".count").forEach(function(el){ countIO.observe(el) });
 
 /* ---------- works filter ---------- */
 $$(".filters button").forEach(function(b){
