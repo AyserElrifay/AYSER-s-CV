@@ -443,6 +443,69 @@ body.menu-locked{overflow:hidden}
 .foot-grid a{transition:color .3s}
 .foot-grid a:hover{color:var(--ink)}
 .foot-grid .cols{display:flex;gap:34px;flex-wrap:wrap}
+
+/* ============================================================
+   V2 — Apple-style presentation layer
+   Centered storytelling, pill controls, large-radius tiles,
+   scroll-driven hero and statement. Brand tokens unchanged.
+   ============================================================ */
+:root{--r:28px}
+
+/* pills */
+.btn{border-radius:999px;text-transform:none;letter-spacing:0;font-size:15px;padding:14px 30px;font-weight:500}
+.nav-cta{border-radius:999px;text-transform:none;letter-spacing:.01em;font-size:13px;padding:9px 20px}
+.chip{border-radius:999px}
+.session-row .pick{border-radius:999px;text-transform:none;letter-spacing:.01em;font-size:12.5px}
+
+/* slim nav */
+.nav{height:56px}
+.logo svg{height:22px}
+.logo-word .w{font-size:18px}
+.nav-links a{font-size:13px}
+
+/* centered hero with scroll fade */
+.hero{align-items:center;text-align:center;justify-content:center;padding-top:110px}
+.hero-inner{display:flex;flex-direction:column;align-items:center;will-change:transform,opacity}
+.hero .eyebrow{justify-content:center;margin-bottom:clamp(20px,3.5vh,36px)}
+.hero .eyebrow .line{display:none}
+.hero-manifesto{max-width:36em;margin:clamp(24px,4vh,40px) auto 0;font-size:clamp(16px,1.5vw,19px)}
+.hero-ctas{display:flex;gap:14px;margin-top:clamp(28px,4.5vh,48px);flex-wrap:wrap;justify-content:center}
+.hero-foot{justify-content:center;margin-top:clamp(36px,6vh,64px)}
+
+/* scroll-lit statement */
+.scrub{cursor:default}
+.scrub .wd{color:var(--mist);transition:color .35s linear}
+.scrub .wd.lit{color:var(--ink)}
+
+/* centered section intros */
+.center{text-align:center;margin-left:auto;margin-right:auto}
+.works-head{display:flex;flex-direction:column;align-items:center;gap:28px;margin-bottom:clamp(40px,6vh,80px)}
+.filters{justify-content:center}
+
+/* bento tiles */
+.work .frame{border-radius:var(--r)}
+.method{background:transparent;border:none;gap:16px;grid-template-columns:repeat(4,1fr)}
+.method .cell{background:var(--paper);border-radius:var(--r);transition:transform .6s var(--ease),background .5s var(--ease)}
+.method .cell:hover{transform:translateY(-5px);background:var(--paper)}
+.method .cell.dark{background:#0b0b0a;color:#f2f1ef}
+.method .cell.dark .desc{color:rgba(242,241,239,.6)}
+.method .cell.dark:hover{background:#0b0b0a}
+@media (max-width:880px){.method{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:560px){.method{grid-template-columns:1fr}}
+
+/* documents & portal tiles */
+.doc,.signed-plate{border-radius:var(--r);border-color:transparent}
+.begin .doc,.begin .signed-plate{box-shadow:0 1px 0 rgba(0,0,0,.02)}
+.course{border-radius:var(--r);border-color:transparent;background:var(--fog);transition:transform .6s var(--ease)}
+.course:hover{border-color:transparent;transform:translateY(-5px)}
+.panel .programs{background:transparent;border:none;gap:16px}
+.panel .program{background:var(--fog);border-radius:var(--r)}
+.formed .stats{background:transparent;border:none;gap:14px}
+.formed .stat{background:#141412;border-radius:22px}
+
+/* apple-style footer ground */
+.footer{background:var(--fog);margin-top:clamp(60px,9vh,120px)}
+.footer .foot-cta{border-top:none}
 </style>
 
 <!-- ============================================================ NAV -->
@@ -477,17 +540,22 @@ body.menu-locked{overflow:hidden}
 
 <!-- ============================================================ HERO -->
 <section class="hero wrap">
-  <div class="eyebrow rv">
-    <span class="line"></span>
-    <span class="label" style="color:var(--ink)">Clay — Creative Agency</span>
-  </div>
-  <h1 class="display rv d1">shape<br><b>Potential.</b></h1>
-  <div class="hero-foot">
+  <div class="hero-inner" id="heroInner">
+    <div class="eyebrow rv">
+      <span class="label" style="color:var(--ink)">Clay — Creative Agency</span>
+    </div>
+    <h1 class="display rv d1">shape<br><b>Potential.</b></h1>
     <p class="hero-manifesto rv d2">
       Before technology. Before markets. Before anything — there was clay.
       Raw. Silent. Full of potential. <em>We shape it into brands that endure.</em>
     </p>
-    <div class="scroll-cue rv d3"><span>Scroll</span><span class="tick"></span></div>
+    <div class="hero-ctas rv d3">
+      <a class="btn" href="#begin">Start a project</a>
+      <a class="btn ghost" href="#work">See the work</a>
+    </div>
+    <div class="hero-foot">
+      <div class="scroll-cue rv d4"><span>Scroll</span><span class="tick"></span></div>
+    </div>
   </div>
 </section>
 
@@ -498,7 +566,7 @@ body.menu-locked{overflow:hidden}
       <span class="label">01 — The Studio</span>
       <span class="label">Potential, made visible</span>
     </div>
-    <h2 class="h2 rv" style="margin-bottom:clamp(44px,7vh,90px)">Marketing is not noise.<br><b>It is form given to feeling.</b></h2>
+    <h2 class="h2 center scrub" id="scrubStatement" style="margin-bottom:clamp(44px,7vh,90px);max-width:14em">Marketing is not noise. It is form given to feeling.</h2>
     <div class="philo-grid">
       <div class="philo-copy rv d1">
         <p class="lede">Clay is the original material. Formed by nature, shaped by human hands — raw, honest, and endlessly adaptable. It is more than a material. It is our mindset.</p>
@@ -517,7 +585,7 @@ body.menu-locked{overflow:hidden}
       </div>
     </div>
     <div class="method rv">
-      <div class="cell"><div class="glyph">C</div><div class="name">Create</div><div class="desc">Every brand begins as possibility. We define direction and create what comes next.</div></div>
+      <div class="cell dark"><div class="glyph">C</div><div class="name">Create</div><div class="desc">Every brand begins as possibility. We define direction and create what comes next.</div></div>
       <div class="cell"><div class="glyph">L</div><div class="name">Listen</div><div class="desc">People first. Context first. We don't assume — we uncover. Only then do we shape.</div></div>
       <div class="cell"><div class="glyph">A</div><div class="name">Adapt</div><div class="desc">Nothing meaningful is made in a single shape. We refine to stay relevant, human, true.</div></div>
       <div class="cell"><div class="glyph">Y</div><div class="name">Yield</div><div class="desc">Potential, made real. Not for attention or trends — for people, growth, lasting value.</div></div>
@@ -532,8 +600,8 @@ body.menu-locked{overflow:hidden}
       <span class="label">02 — Selected Works</span>
       <span class="label">From raw material to meaningful form</span>
     </div>
-    <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:24px;flex-wrap:wrap;margin-bottom:clamp(40px,6vh,80px)">
-      <h2 class="h2 rv">Work that<br><b>leaves a mark.</b></h2>
+    <div class="works-head">
+      <h2 class="h2 rv center">Work that <b>leaves a mark.</b></h2>
       <div class="filters rv d1" role="tablist" aria-label="Filter works">
         <button class="active" data-f="all">All</button>
         <button data-f="identity">Identity</button>
@@ -648,10 +716,10 @@ body.menu-locked{overflow:hidden}
       <span class="label">03 — Begin</span>
       <span class="label">Client intake &amp; agreement</span>
     </div>
-    <h2 class="h2 rv" style="margin-bottom:14px">Every brand begins<br><b>as possibility.</b></h2>
-    <p class="body-lg muted rv d1" style="margin-bottom:clamp(48px,7vh,88px)">Tell us what is real. Four quiet steps — and a signed agreement at the end, without a single email attachment.</p>
+    <h2 class="h2 rv center" style="margin-bottom:14px">Every brand begins<br><b>as possibility.</b></h2>
+    <p class="body-lg muted rv d1 center" style="margin-bottom:clamp(48px,7vh,88px)">Tell us what is real. Four quiet steps — and a signed agreement at the end, without a single email attachment.</p>
 
-    <div class="wizard" id="wizard">
+    <div class="wizard" id="wizard" style="margin:0 auto">
       <div class="progress" aria-hidden="true">
         <span class="node now" data-n="1"><span class="dotno num">01</span><span class="dotname">Company</span></span>
         <span class="bar" data-b="1"><i></i></span>
@@ -819,8 +887,8 @@ body.menu-locked{overflow:hidden}
       <span class="label">04 — Talent &amp; Academy</span>
       <span class="label">People first. Context first.</span>
     </div>
-    <h2 class="h2 rv" style="margin-bottom:14px">Potential exists everywhere.<br><b>We help shape it.</b></h2>
-    <p class="body-lg muted rv d1" style="margin-bottom:clamp(48px,7vh,88px)">Three ways in: join the studio, train inside it, or learn the craft in our courses.</p>
+    <h2 class="h2 rv center" style="margin-bottom:14px">Potential exists everywhere.<br><b>We help shape it.</b></h2>
+    <p class="body-lg muted rv d1 center" style="margin-bottom:clamp(48px,7vh,88px)">Three ways in: join the studio, train inside it, or learn the craft in our courses.</p>
 
     <div class="academy-shell">
       <nav class="rail-nav rv" aria-label="Academy sections">
@@ -929,6 +997,35 @@ burger.addEventListener("click",function(){
   burger.setAttribute("aria-expanded",open?"true":"false");
 });
 $$("a",mmenu).forEach(function(a){a.addEventListener("click",closeMenu)});
+
+/* ---------- scroll-driven hero + lit statement (Apple-style) ---------- */
+var noMotion=matchMedia("(prefers-reduced-motion: reduce)").matches;
+var heroInner=$("#heroInner");
+var scrub=$("#scrubStatement");
+if(scrub){
+  scrub.innerHTML=scrub.textContent.trim().split(/\s+/).map(function(w){
+    return '<span class="wd">'+w+'</span>';
+  }).join(" ");
+}
+var scrubWords=scrub?$$(".wd",scrub):[];
+function onScrollFx(){
+  if(noMotion)return;
+  var y=scrollY,vh=innerHeight;
+  if(heroInner){
+    var p=Math.min(y/(vh*.7),1);
+    heroInner.style.opacity=String(1-p*.95);
+    heroInner.style.transform="translateY("+(y*.18)+"px) scale("+(1-p*.05)+")";
+  }
+  if(scrub&&scrubWords.length){
+    var r=scrub.getBoundingClientRect();
+    var prog=(vh*.82-r.top)/(vh*.55);
+    var lit=Math.round(Math.max(0,Math.min(1,prog))*scrubWords.length);
+    scrubWords.forEach(function(w,i){ w.classList.toggle("lit",i<lit) });
+  }
+}
+addEventListener("scroll",function(){ requestAnimationFrame(onScrollFx) },{passive:true});
+onScrollFx();
+if(noMotion&&scrubWords.length) scrubWords.forEach(function(w){w.classList.add("lit")});
 
 /* ---------- works filter ---------- */
 $$(".filters button").forEach(function(b){
