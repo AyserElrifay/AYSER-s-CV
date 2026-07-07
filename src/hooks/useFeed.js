@@ -66,5 +66,10 @@ export function useFeed() {
     setRefreshing(false);
   }, [load]);
 
-  return { posts, refreshing, refresh, isLive };
+  /* Optimistic insert — a just-shared moment appears at the top instantly. */
+  const prependPost = useCallback((card) => {
+    setPosts((p) => [card, ...p]);
+  }, []);
+
+  return { posts, refreshing, refresh, isLive, prependPost };
 }

@@ -19,3 +19,6 @@ export { RouteMap } from './RouteMap';
 export { MagicFlowModal } from './MagicFlowModal';
 export { StoriesBar } from './StoriesBar';
 export { PostCard } from './PostCard';
+export { CommentsSheet } from './CommentsSheet';
+export { ComposeModal } from './ComposeModal';
+export { SearchModal } from './SearchModal';

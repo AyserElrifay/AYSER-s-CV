@@ -70,6 +70,23 @@ create table if not exists public.squad_members (
   primary key (squad_id, user_id)
 );
 
+-- ── VIBES · one tap per user per post (the ⚡ reaction) ───────
+create table if not exists public.post_vibes (
+  post_id    uuid references public.posts(id) on delete cascade,
+  user_id    uuid references public.profiles(id) on delete cascade,
+  created_at timestamptz default now(),
+  primary key (post_id, user_id)
+);
+
+-- ── COMMENTS · what people write under a post ────────────────
+create table if not exists public.comments (
+  id         uuid primary key default gen_random_uuid(),
+  post_id    uuid not null references public.posts(id) on delete cascade,
+  user_id    uuid not null references public.profiles(id) on delete cascade,
+  body       text not null,
+  created_at timestamptz default now()
+);
+
 -- ── ROW LEVEL SECURITY ────────────────────────────────────────
 -- The golden rule: everyone can look, only owners can touch.
 
@@ -77,6 +94,8 @@ alter table public.profiles      enable row level security;
 alter table public.posts         enable row level security;
 alter table public.squads        enable row level security;
 alter table public.squad_members enable row level security;
+alter table public.post_vibes    enable row level security;
+alter table public.comments      enable row level security;
 
 -- Profiles: public read, self-service write
 create policy "profiles are viewable by everyone"
@@ -107,3 +126,32 @@ create policy "users join squads as themselves"
   on public.squad_members for insert with check (auth.uid() = user_id);
 create policy "users can leave squads"
   on public.squad_members for delete using (auth.uid() = user_id);
+
+-- Vibes: public read; react/unreact only as yourself
+create policy "vibes are viewable by everyone"
+  on public.post_vibes for select using (true);
+create policy "users vibe as themselves"
+  on public.post_vibes for insert with check (auth.uid() = user_id);
+create policy "users can remove own vibe"
+  on public.post_vibes for delete using (auth.uid() = user_id);
+
+-- Comments: public read; write/delete only your own
+create policy "comments are viewable by everyone"
+  on public.comments for select using (true);
+create policy "users comment as themselves"
+  on public.comments for insert with check (auth.uid() = user_id);
+create policy "users can delete own comments"
+  on public.comments for delete using (auth.uid() = user_id);
+
+-- ── STORAGE · photos for posts ────────────────────────────────
+-- Create a PUBLIC bucket named  media  (Dashboard → Storage → New bucket),
+-- then run these policies so users can upload into their own folder:
+insert into storage.buckets (id, name, public)
+  values ('media', 'media', true)
+  on conflict (id) do nothing;
+
+create policy "media is publicly readable"
+  on storage.objects for select using (bucket_id = 'media');
+create policy "users upload media to own folder"
+  on storage.objects for insert
+  with check (bucket_id = 'media' and auth.uid()::text = (storage.foldername(name))[1]);
