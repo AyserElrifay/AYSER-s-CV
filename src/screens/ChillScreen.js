@@ -69,7 +69,7 @@ export const ChillScreen = () => {
                     key={i}
                     style={{
                       width: 22, height: 6, borderRadius: 3, marginRight: 5,
-                      backgroundColor: i < q.done ? C.purple : 'rgba(255,255,255,0.1)',
+                      backgroundColor: i < q.done ? C.purple : C.glassHi,
                     }}
                   />
                 ))}
@@ -79,7 +79,7 @@ export const ChillScreen = () => {
                 <Chip label="COMPLETED ✓" color={C.green} tint={C.greenSoft} style={{ borderColor: 'rgba(16,185,129,0.4)' }} />
               ) : (
                 <Pressable>
-                  <Text style={{ color: '#CDB4FF', fontSize: 12.5, fontWeight: '900' }}>Start quest →</Text>
+                  <Text style={{ color: C.purple, fontSize: 12.5, fontWeight: '900' }}>Start quest →</Text>
                 </Pressable>
               )}
             </View>

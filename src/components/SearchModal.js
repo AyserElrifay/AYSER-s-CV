@@ -112,7 +112,7 @@ export const SearchModal = ({ onClose, onOpenProfile }) => {
                   </View>
                   <Text style={{ color: C.faint, fontSize: 12, marginTop: 2 }}>{item.handle}</Text>
                 </View>
-                <Chip label={item.intent} tint={C.purpleSoft} color="#CDB4FF" style={{ borderColor: 'rgba(124,58,237,0.35)' }} />
+                <Chip label={item.intent} tint={C.purpleSoft} color={C.purple} style={{ borderColor: 'rgba(124,58,237,0.35)' }} />
               </View>
             </Pressable>
           )}

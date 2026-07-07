@@ -30,7 +30,7 @@ export const ChatsScreen = () => (
             <View style={{ flex: 1 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '800', flexShrink: 1 }} numberOfLines={1}>{s.name}</Text>
-                <Chip label={s.activity} color="#9EC5FF" tint="rgba(59,130,246,0.16)" style={{ marginLeft: 8, borderColor: 'rgba(59,130,246,0.35)' }} />
+                <Chip label={s.activity} color={C.blue} tint="rgba(59,130,246,0.16)" style={{ marginLeft: 8, borderColor: 'rgba(59,130,246,0.35)' }} />
               </View>
               <Text style={{ color: C.dim, fontSize: 12, marginTop: 4 }} numberOfLines={1}>{s.last}</Text>
             </View>

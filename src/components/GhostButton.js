@@ -7,8 +7,8 @@ export const GhostButton = ({ label, onPress, color = C.text, style, small }) =>
     {({ pressed }) => (
       <View
         style={{
-          borderRadius: R - 4, borderWidth: 1, borderColor: C.glassHi,
-          backgroundColor: pressed ? 'rgba(255,255,255,0.09)' : C.glass,
+          borderRadius: R - 4, borderWidth: 1, borderColor: C.line,
+          backgroundColor: pressed ? C.glassHi : C.glass,
           paddingVertical: small ? 10 : 15, paddingHorizontal: 18,
           alignItems: 'center',
         }}

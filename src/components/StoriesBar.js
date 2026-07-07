@@ -14,7 +14,7 @@ export const StoriesBar = ({ onOpenProfile }) => (
           borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', backgroundColor: C.purpleSoft,
         }}
       >
-        <Ionicons name="add" size={26} color="#CDB4FF" />
+        <Ionicons name="add" size={26} color={C.purple} />
       </View>
       <Text style={{ color: C.dim, fontSize: 11, marginTop: 6 }}>Your vibe</Text>
     </View>

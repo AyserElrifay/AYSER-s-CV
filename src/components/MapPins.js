@@ -5,7 +5,7 @@ import { usePulse } from '../hooks/usePulse';
 
 export const PersonPin = ({ p, onPress }) => (
   <Pressable onPress={onPress} style={{ alignItems: 'center' }}>
-    <View style={{ backgroundColor: 'rgba(18,18,20,0.85)', borderColor: C.line, borderWidth: 1, borderRadius: 12, paddingHorizontal: 8, paddingVertical: 4, marginBottom: 5 }}>
+    <View style={{ backgroundColor: 'rgba(255,255,255,0.95)', borderColor: C.line, borderWidth: 1, borderRadius: 12, paddingHorizontal: 8, paddingVertical: 4, marginBottom: 5 }}>
       <Text style={{ color: C.text, fontSize: 10.5, fontWeight: '800' }}>{p.intent}</Text>
     </View>
     <View
@@ -44,8 +44,8 @@ export const CampfirePin = ({ c }) => {
           <Text style={{ fontSize: 19 }}>🔥</Text>
         </View>
       </View>
-      <View style={{ backgroundColor: 'rgba(18,18,20,0.85)', borderColor: 'rgba(244,63,94,0.5)', borderWidth: 1, borderRadius: 10, paddingHorizontal: 7, paddingVertical: 2, marginTop: 2 }}>
-        <Text style={{ color: '#FFB3C0', fontSize: 10, fontWeight: '800' }}>🎧 {c.listeners}</Text>
+      <View style={{ backgroundColor: 'rgba(255,255,255,0.95)', borderColor: 'rgba(244,63,94,0.5)', borderWidth: 1, borderRadius: 10, paddingHorizontal: 7, paddingVertical: 2, marginTop: 2 }}>
+        <Text style={{ color: C.coral, fontSize: 10, fontWeight: '800' }}>🎧 {c.listeners}</Text>
       </View>
     </View>
   );

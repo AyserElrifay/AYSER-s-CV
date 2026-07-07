@@ -1,30 +1,31 @@
 /* ────────────────────────── DESIGN TOKENS ─────────────────────────
-   Neon-Glassmorphism on deep charcoal.
-   BG #121212 · Purple #7C3AED · Neon Green #10B981
-   Yala Blue #3B82F6 · Coral #F43F5E                                  */
+   Bright & airy: white cards on a soft cloud-gray canvas, generous
+   whitespace, and the neon accents kept for moments of delight.
+   Purple #7C3AED · Green #10B981 · Blue #3B82F6 · Coral #F43F5E     */
 
 export const C = {
-  bg: '#121212',
-  bg2: '#17171B',
-  glass: 'rgba(255,255,255,0.055)',
-  glassHi: 'rgba(255,255,255,0.10)',
-  line: 'rgba(255,255,255,0.10)',
+  bg: '#F4F5F7',                       // cloud-gray canvas
+  bg2: '#FFFFFF',                      // sheets & bars
+  glass: '#FFFFFF',                    // cards are clean white
+  glassHi: 'rgba(17,24,39,0.06)',      // subtle pressed / track fill
+  line: 'rgba(17,24,39,0.08)',         // hairline borders
   purple: '#7C3AED',
-  purpleSoft: 'rgba(124,58,237,0.16)',
+  purpleSoft: 'rgba(124,58,237,0.09)',
   green: '#10B981',
-  greenSoft: 'rgba(16,185,129,0.14)',
+  greenSoft: 'rgba(16,185,129,0.10)',
   blue: '#3B82F6',
-  blueSoft: 'rgba(59,130,246,0.14)',
+  blueSoft: 'rgba(59,130,246,0.09)',
   coral: '#F43F5E',
-  coralSoft: 'rgba(244,63,94,0.14)',
-  text: '#F5F5F7',
-  dim: 'rgba(245,245,247,0.55)',
-  faint: 'rgba(245,245,247,0.32)',
-  ink: '#06130D',
+  coralSoft: 'rgba(244,63,94,0.09)',
+  text: '#111827',                     // near-black ink
+  dim: 'rgba(17,24,39,0.60)',
+  faint: 'rgba(17,24,39,0.38)',
+  ink: '#FFFFFF',                      // label color on neon buttons
 };
 
 export const R = 20; // house border-radius
 
+/* Kept for an optional future dark mode. */
 export const DARK_MAP = [
   { elementType: 'geometry', stylers: [{ color: '#141416' }] },
   { elementType: 'labels.text.fill', stylers: [{ color: '#70707a' }] },

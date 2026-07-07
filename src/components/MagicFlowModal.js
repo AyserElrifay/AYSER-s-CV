@@ -52,7 +52,7 @@ export const MagicFlowModal = ({ post, onClose, onComplete }) => {
             <Ionicons name="close" size={19} color={C.text} />
           </Pressable>
           <View style={{ alignItems: 'center' }}>
-            <Micro color="#CDB4FF">Magic Flow ✨</Micro>
+            <Micro color={C.purple}>Magic Flow ✨</Micro>
             <Text style={{ color: C.dim, fontSize: 11, marginTop: 2 }}>{post.place}</Text>
           </View>
           <View style={{ width: 38 }} />
@@ -63,7 +63,7 @@ export const MagicFlowModal = ({ post, onClose, onComplete }) => {
           <RouteMap post={post} />
           <Chip
             label={roadTrip ? '🛰 3D ROUTE · ROAD-TRIP MODE' : '🛰 3D ROUTE LOCKED'}
-            tint="rgba(18,18,20,0.8)"
+            tint="rgba(255,255,255,0.94)"
             color={C.green}
             style={{ position: 'absolute', top: 12, left: 12 }}
           />
@@ -105,7 +105,7 @@ export const MagicFlowModal = ({ post, onClose, onComplete }) => {
                       border={sel ? 'rgba(16,185,129,0.55)' : C.line}
                       style={{ flexDirection: 'row', alignItems: 'center', padding: 14, marginBottom: 10 }}
                     >
-                      <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.06)', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                      <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: C.glassHi, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
                         <Text style={{ fontSize: 22 }}>{r.emoji}</Text>
                       </View>
                       <View style={{ flex: 1 }}>
@@ -151,7 +151,7 @@ export const MagicFlowModal = ({ post, onClose, onComplete }) => {
                 <Text style={{ fontSize: 24, marginRight: 12 }}>🏕️</Text>
                 <View style={{ flex: 1 }}>
                   <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>{post.squad}</Text>
-                  <Text style={{ color: '#9EC5FF', fontSize: 12, marginTop: 2 }}>
+                  <Text style={{ color: C.blue, fontSize: 12, marginTop: 2 }}>
                     Roam Mates squad created · chat is live in 💬
                   </Text>
                 </View>

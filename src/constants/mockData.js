@@ -58,7 +58,7 @@ export const FEED = [
     caption: 'Behind the scenes — the "Neon Desert" shoot. Cranes up at golden hour, lasers after dark. Come watch the magic (and eat from the catering truck).',
     place: 'Katameya Dunes Backlot', startsIn: 'Live now',
     coords: { latitude: 29.966, longitude: 31.361 },
-    vibes: 47, comments: 18, squad: 'Neon Desert Crew',
+    vibes: 47, comments: 18, squad: 'Neon Desert Crew', joinable: true,
   },
   {
     id: 'p2', user: USERS.nour, type: 'reel',
@@ -66,7 +66,7 @@ export const FEED = [
     caption: 'Saturday 5:30AM. Moqattam ridge, tea at the top, zero excuses. I bring the flask, you bring the legs.',
     place: 'Moqattam Trailhead', startsIn: 'in 14h',
     coords: { latitude: 30.01, longitude: 31.276 },
-    vibes: 23, comments: 9, squad: 'Sunrise Hike · Moqattam',
+    vibes: 23, comments: 9, squad: 'Sunrise Hike · Moqattam', joinable: true,
   },
   {
     id: 'p3', user: USERS.farida, type: 'post',
@@ -74,7 +74,7 @@ export const FEED = [
     caption: 'Cupping session — three Ethiopian lots, one mystery Yemeni. Six seats, slow morning, loud opinions welcome.',
     place: 'Kafein, Zamalek', startsIn: 'in 2h',
     coords: { latitude: 30.058, longitude: 31.222 },
-    vibes: 11, comments: 5, squad: 'Slow Coffee Circle',
+    vibes: 11, comments: 5, squad: 'Slow Coffee Circle', joinable: false,
   },
   {
     id: 'p4', user: USERS.omar, type: 'reel',
@@ -82,7 +82,7 @@ export const FEED = [
     caption: 'The Blue Hole at 7AM is a different planet. One breath, forty seconds, total silence. Beginners welcome — we buddy up, always.',
     place: 'Blue Hole, Dahab', startsIn: 'Fri 7AM',
     coords: { latitude: 28.495, longitude: 34.513 },
-    vibes: 34, comments: 21, squad: 'Blue Hole Buddies',
+    vibes: 34, comments: 21, squad: 'Blue Hole Buddies', joinable: true,
   },
   {
     id: 'p5', user: USERS.malak, type: 'post',
@@ -90,7 +90,7 @@ export const FEED = [
     caption: 'Vinyl night, downtown rooftop. Bring one record that explains who you are. I will start: side B only.',
     place: 'Rooftop 44, Downtown', startsIn: 'in 5h',
     coords: { latitude: 30.047, longitude: 31.243 },
-    vibes: 29, comments: 12, squad: 'Side B Society',
+    vibes: 29, comments: 12, squad: 'Side B Society', joinable: false,
   },
 ];
 

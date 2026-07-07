@@ -146,7 +146,7 @@ export const VaultScreen = () => {
             “The desert shoot wrapped at 2AM and nobody wanted to leave. Maybe the point was never the footage…”
           </Text>
           <Pressable style={{ marginTop: 12 }}>
-            <Text style={{ color: '#CDB4FF', fontSize: 12.5, fontWeight: '900' }}>Continue writing →</Text>
+            <Text style={{ color: C.purple, fontSize: 12.5, fontWeight: '900' }}>Continue writing →</Text>
           </Pressable>
         </Glass>
       </ScrollView>
@@ -156,7 +156,7 @@ export const VaultScreen = () => {
       {FIXERS.map((f) => (
         <Glass key={f.id} style={{ padding: 14, marginBottom: 12 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <View style={{ width: 46, height: 46, borderRadius: 15, backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+            <View style={{ width: 46, height: 46, borderRadius: 15, backgroundColor: C.glassHi, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
               <Text style={{ fontSize: 22 }}>{f.emoji}</Text>
             </View>
             <View style={{ flex: 1 }}>

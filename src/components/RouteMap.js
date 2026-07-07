@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import { View, Text } from 'react-native';
-import { C, DARK_MAP } from '../constants/theme';
+import { C } from '../constants/theme';
 import { ME } from '../constants/mockData';
 import { MapView, Marker, Polyline, MAPS_READY } from '../utils/maps';
 import { regionFor } from '../utils/geo';
@@ -16,8 +16,7 @@ export const RouteMap = ({ post }) => {
         ref={mapRef}
         style={{ flex: 1 }}
         initialRegion={region}
-        customMapStyle={DARK_MAP}
-        userInterfaceStyle="dark"
+        userInterfaceStyle="light"
         pitchEnabled
         onMapReady={() => {
           if (region.latitudeDelta < 0.25 && mapRef.current && mapRef.current.animateCamera) {

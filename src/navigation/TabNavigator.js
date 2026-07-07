@@ -1,6 +1,6 @@
 import React from 'react';
 import { Platform } from 'react-native';
-import { DarkTheme } from '@react-navigation/native';
+import { DefaultTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { C } from '../constants/theme';
@@ -34,11 +34,11 @@ const UNREAD_TOTAL =
   SQUADS.reduce((n, s) => n + s.unread, 0) + DMS.reduce((n, d) => n + d.unread, 0);
 
 export const NavTheme = {
-  ...DarkTheme,
+  ...DefaultTheme,
   colors: {
-    ...DarkTheme.colors,
+    ...DefaultTheme.colors,
     background: C.bg,
-    card: '#141418',
+    card: '#FFFFFF',
     border: C.line,
     primary: C.purple,
     text: C.text,
@@ -49,10 +49,10 @@ export const TabNavigator = () => (
   <Tab.Navigator
     screenOptions={({ route }) => ({
       headerShown: false,
-      tabBarActiveTintColor: '#CDB4FF',
+      tabBarActiveTintColor: C.purple,
       tabBarInactiveTintColor: C.faint,
       tabBarStyle: {
-        backgroundColor: '#141418',
+        backgroundColor: '#FFFFFF',
         borderTopColor: C.line,
         borderTopWidth: 1,
         height: Platform.OS === 'ios' ? 84 : 66,

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, ScrollView, Pressable, Modal, TextInput, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { C, DARK_MAP } from '../constants/theme';
+import { C } from '../constants/theme';
 import { ME, MAP_PEOPLE, CAMPFIRES } from '../constants/mockData';
 import { MapView, Marker, MAPS_READY } from '../utils/maps';
 import {
@@ -24,7 +24,7 @@ export const MapScreen = () => {
         <View
           style={{
             flexDirection: 'row', alignItems: 'center',
-            backgroundColor: 'rgba(18,18,20,0.82)', borderWidth: 1, borderColor: C.line,
+            backgroundColor: 'rgba(255,255,255,0.94)', borderWidth: 1, borderColor: C.line,
             borderRadius: 999, paddingHorizontal: 16, paddingVertical: Platform.OS === 'ios' ? 12 : 4,
           }}
         >
@@ -38,7 +38,7 @@ export const MapScreen = () => {
         </View>
         <Chip
           label="🟢 5 friends vibing nearby · 2 live campfires"
-          tint="rgba(18,18,20,0.8)"
+          tint="rgba(255,255,255,0.94)"
           color={C.dim}
           style={{ alignSelf: 'flex-start', marginTop: 10 }}
         />
@@ -51,10 +51,10 @@ export const MapScreen = () => {
 
       {/* live campfires rail */}
       <View style={{ position: 'absolute', bottom: 14, left: 0, right: 0 }}>
-        <Micro style={{ marginLeft: 16, marginBottom: 8 }} color="#FFB3C0">Live Campfires 🏕️</Micro>
+        <Micro style={{ marginLeft: 16, marginBottom: 8 }} color={C.coral}>Live Campfires 🏕️</Micro>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
           {CAMPFIRES.map((c) => (
-            <Glass key={c.id} tint="rgba(18,18,20,0.88)" style={{ width: 252, padding: 13, marginRight: 12 }}>
+            <Glass key={c.id} tint="rgba(255,255,255,0.96)" style={{ width: 252, padding: 13, marginRight: 12 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <Text style={{ fontSize: 20, marginRight: 8 }}>🔥</Text>
                 <View style={{ flex: 1 }}>
@@ -81,8 +81,7 @@ export const MapScreen = () => {
         <MapView
           style={{ flex: 1 }}
           initialRegion={{ latitude: 30.048, longitude: 31.2315, latitudeDelta: 0.042, longitudeDelta: 0.03 }}
-          customMapStyle={DARK_MAP}
-          userInterfaceStyle="dark"
+          userInterfaceStyle="light"
         >
           <Marker coordinate={ME.coords}>
             <MePin />

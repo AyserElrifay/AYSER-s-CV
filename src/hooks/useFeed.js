@@ -37,6 +37,7 @@ const toCard = (row) => ({
   vibes: row.vibes || 0,
   comments: row.comments || 0,
   squad: row.squad_name || 'New Vibe Squad',
+  joinable: row.starts_at != null, // scheduled moments are invitations; plain posts are not
 });
 
 export function useFeed() {

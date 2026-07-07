@@ -41,7 +41,7 @@ export const ProfileModal = ({ user, onClose }) => {
           <View style={{ paddingHorizontal: 20, marginTop: -44 }}>
             <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' }}>
               <AvatarRing uri={user.avatar} size={88} live={user.live} />
-              <Chip label={user.intent} tint={C.purpleSoft} color="#CDB4FF" style={{ marginBottom: 8, borderColor: 'rgba(124,58,237,0.45)' }} />
+              <Chip label={user.intent} tint={C.purpleSoft} color={C.purple} style={{ marginBottom: 8, borderColor: 'rgba(124,58,237,0.45)' }} />
             </View>
 
             <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
@@ -49,7 +49,7 @@ export const ProfileModal = ({ user, onClose }) => {
               {user.verified ? <Tick size={17} /> : null}
             </View>
             <Text style={{ color: C.dim, fontSize: 13, marginTop: 2 }}>
-              {user.handle} · <Text style={{ color: '#9EC5FF' }}>ID Verified</Text>
+              {user.handle} · <Text style={{ color: C.blue }}>ID Verified</Text>
             </Text>
 
             <VouchBadge tag={user.vouchTag} count={user.vouches} style={{ marginTop: 14, alignSelf: 'flex-start' }} />

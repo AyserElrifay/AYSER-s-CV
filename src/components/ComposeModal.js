@@ -103,7 +103,7 @@ export const ComposeModal = ({ onClose, onPosted }) => {
           >
             <Ionicons name="close" size={19} color={C.text} />
           </Pressable>
-          <Micro color="#CDB4FF">New Moment ✨</Micro>
+          <Micro color={C.purple}>New Moment ✨</Micro>
           <View style={{ width: 38 }} />
         </View>
 

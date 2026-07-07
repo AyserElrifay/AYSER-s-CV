@@ -8,27 +8,28 @@ import { Chip } from './Chip';
 import { Tick } from './Tick';
 import { NeonButton } from './NeonButton';
 
+/* Chips sit on photos, so they stay dark with light text for contrast. */
 const typeChip = (post) => {
-  if (post.type === 'reel') return { label: 'REEL ✦', tint: C.purpleSoft, color: '#CDB4FF' };
-  if (post.type === 'vod') return { label: '▶ WATCH · ' + post.duration, tint: 'rgba(18,18,20,0.75)', color: C.text };
-  return { label: 'MOMENT', tint: 'rgba(18,18,20,0.75)', color: C.dim };
+  if (post.type === 'reel') return { label: 'REEL ✦', tint: 'rgba(124,58,237,0.9)', color: '#FFF' };
+  if (post.type === 'vod') return { label: '▶ WATCH · ' + post.duration, tint: 'rgba(17,24,39,0.65)', color: '#FFF' };
+  return { label: 'MOMENT', tint: 'rgba(17,24,39,0.65)', color: 'rgba(255,255,255,0.85)' };
 };
 
 export const PostCard = ({ post, joined, vibed, onJoin, onVibe, onComment, onOpenProfile }) => {
   const mediaH = post.type === 'reel' ? 470 : post.type === 'vod' ? 208 : 250;
   const tc = typeChip(post);
   return (
-    <Glass style={{ marginBottom: 20, overflow: 'hidden' }}>
-      {/* header */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', padding: 13 }}>
+    <Glass style={{ marginBottom: 24, overflow: 'hidden' }}>
+      {/* header — a touch larger, with room to breathe */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', padding: 15 }}>
         <Pressable onPress={() => onOpenProfile(post.user)} style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-          <Image source={{ uri: post.user.avatar }} style={{ width: 40, height: 40, borderRadius: 20 }} />
-          <View style={{ marginLeft: 10, flex: 1 }}>
+          <Image source={{ uri: post.user.avatar }} style={{ width: 44, height: 44, borderRadius: 22 }} />
+          <View style={{ marginLeft: 11, flex: 1 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>{post.user.name}</Text>
+              <Text style={{ color: C.text, fontSize: 15.5, fontWeight: '800' }}>{post.user.name}</Text>
               {post.user.verified ? <Tick /> : null}
             </View>
-            <Text style={{ color: C.faint, fontSize: 11, marginTop: 1 }}>
+            <Text style={{ color: C.faint, fontSize: 12, marginTop: 2 }}>
               {post.place} · {post.startsIn}
             </Text>
           </View>
@@ -45,56 +46,55 @@ export const PostCard = ({ post, joined, vibed, onJoin, onVibe, onComment, onOpe
           </View>
           {post.type === 'vod' ? (
             <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, alignItems: 'center', justifyContent: 'center' }}>
-              <View style={{ width: 54, height: 54, borderRadius: 27, backgroundColor: 'rgba(18,18,20,0.6)', borderWidth: 1, borderColor: C.glassHi, alignItems: 'center', justifyContent: 'center' }}>
-                <Ionicons name="play" size={24} color={C.text} style={{ marginLeft: 3 }} />
+              <View style={{ width: 54, height: 54, borderRadius: 27, backgroundColor: 'rgba(17,24,39,0.55)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)', alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="play" size={24} color="#FFF" style={{ marginLeft: 3 }} />
               </View>
             </View>
           ) : null}
-          <LinearGradient colors={['transparent', 'rgba(0,0,0,0.88)']} style={{ padding: 13, paddingTop: 44 }}>
-            <Text style={{ color: C.text, fontSize: 13.5, lineHeight: 19, fontWeight: '500' }} numberOfLines={3}>
+          <LinearGradient colors={['transparent', 'rgba(0,0,0,0.82)']} style={{ padding: 14, paddingTop: 44 }}>
+            <Text style={{ color: '#FFF', fontSize: 14.5, lineHeight: 21, fontWeight: '500' }} numberOfLines={3}>
               {post.caption}
             </Text>
           </LinearGradient>
         </ImageBackground>
       ) : (
-        <LinearGradient
-          colors={[C.purpleSoft, 'rgba(124,58,237,0.03)']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={{ paddingHorizontal: 18, paddingVertical: 26, minHeight: 120, justifyContent: 'center' }}
-        >
-          <Text style={{ color: C.text, fontSize: 19, lineHeight: 28, fontWeight: '700' }}>
+        <View style={{ paddingHorizontal: 18, paddingVertical: 24, minHeight: 110, justifyContent: 'center' }}>
+          <Text style={{ color: C.text, fontSize: 21, lineHeight: 31, fontWeight: '700' }}>
             {post.caption}
           </Text>
-        </LinearGradient>
+        </View>
       )}
 
-      {/* footer */}
-      <View style={{ padding: 13 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+      {/* footer — reactions always; JOIN only on real invitations */}
+      <View style={{ padding: 15, paddingTop: 13 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <Pressable onPress={onVibe} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Text style={{ fontSize: 15, opacity: vibed ? 1 : 0.55 }}>⚡</Text>
-            <Text style={{ color: vibed ? C.green : C.dim, fontSize: 12.5, fontWeight: '800', marginLeft: 4 }}>
+            <Text style={{ fontSize: 16, opacity: vibed ? 1 : 0.5 }}>⚡</Text>
+            <Text style={{ color: vibed ? C.green : C.dim, fontSize: 13.5, fontWeight: '800', marginLeft: 5 }}>
               {post.vibes + (joined ? 1 : 0) + (vibed ? 1 : 0)}
             </Text>
           </Pressable>
-          <Pressable onPress={onComment} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 16 }}>
-            <Text style={{ fontSize: 14, opacity: 0.7 }}>💬</Text>
-            <Text style={{ color: C.dim, fontSize: 12.5, fontWeight: '700', marginLeft: 4 }}>{post.comments}</Text>
+          <Pressable onPress={onComment} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 18 }}>
+            <Text style={{ fontSize: 15, opacity: 0.65 }}>💬</Text>
+            <Text style={{ color: C.dim, fontSize: 13.5, fontWeight: '700', marginLeft: 5 }}>{post.comments}</Text>
           </Pressable>
           <View style={{ flex: 1 }} />
-          <Ionicons name="paper-plane-outline" size={18} color={C.dim} style={{ marginRight: 16 }} />
-          <Ionicons name="bookmark-outline" size={18} color={C.dim} />
+          <Ionicons name="paper-plane-outline" size={19} color={C.dim} style={{ marginRight: 16 }} />
+          <Ionicons name="bookmark-outline" size={19} color={C.dim} />
         </View>
-        {joined ? (
-          <Glass tint={C.greenSoft} border="rgba(16,185,129,0.5)" style={{ paddingVertical: 13, alignItems: 'center', borderRadius: R - 4 }}>
-            <Text style={{ color: C.green, fontSize: 13, fontWeight: '900', letterSpacing: 1 }}>
-              ✓ VIBE JOINED · {post.squad.toUpperCase()} IS LIVE
-            </Text>
-          </Glass>
-        ) : (
-          <NeonButton label="JOIN THE VIBE" icon="⚡" onPress={() => onJoin(post)} />
-        )}
+        {post.joinable ? (
+          <View style={{ marginTop: 13 }}>
+            {joined ? (
+              <Glass tint={C.greenSoft} border="rgba(16,185,129,0.5)" style={{ paddingVertical: 13, alignItems: 'center', borderRadius: R - 4 }}>
+                <Text style={{ color: C.green, fontSize: 13, fontWeight: '900', letterSpacing: 1 }}>
+                  ✓ VIBE JOINED · {post.squad.toUpperCase()} IS LIVE
+                </Text>
+              </Glass>
+            ) : (
+              <NeonButton label="JOIN THE VIBE" icon="⚡" onPress={() => onJoin(post)} />
+            )}
+          </View>
+        ) : null}
       </View>
     </Glass>
   );
