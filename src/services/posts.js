@@ -13,7 +13,7 @@ export async function fetchFeed() {
   return data;
 }
 
-export async function createPost({ userId, type = 'post', caption, place, mediaUrl, lat, lng, squadName }) {
+export async function createPost({ userId, type = 'post', caption, place, mediaUrl, textBg, lat, lng, squadName }) {
   const { data, error } = await supabase
     .from('posts')
     .insert({
@@ -22,6 +22,7 @@ export async function createPost({ userId, type = 'post', caption, place, mediaU
       caption,
       place,
       media_url: mediaUrl,
+      text_bg: textBg,
       lat,
       lng,
       squad_name: squadName,

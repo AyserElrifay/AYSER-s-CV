@@ -9,7 +9,7 @@ import { toggleVibe } from '../services/social';
 import { useAuth } from '../context/AuthContext';
 import { useFeed } from '../hooks/useFeed';
 import {
-  StoriesBar, PostCard, MagicFlowModal, ProfileModal,
+  Glass, StoriesBar, PostCard, MagicFlowModal, ProfileModal,
   CommentsSheet, ComposeModal, SearchModal,
 } from '../components';
 
@@ -89,6 +89,25 @@ export const HomeScreen = () => {
               </View>
             </View>
             <StoriesBar onOpenProfile={setProfileUser} />
+
+            {/* share box — your moment or your opinion, one tap away */}
+            <Glass style={{ flexDirection: 'row', alignItems: 'center', padding: 12, marginTop: 18 }}>
+              <Image source={{ uri: me.avatar }} style={{ width: 40, height: 40, borderRadius: 20 }} />
+              <Pressable
+                testID="share-box"
+                onPress={() => setComposing(true)}
+                style={{
+                  flex: 1, marginLeft: 10,
+                  backgroundColor: C.bg, borderWidth: 1, borderColor: C.line,
+                  borderRadius: 999, paddingVertical: 11, paddingHorizontal: 16,
+                }}
+              >
+                <Text style={{ color: C.faint, fontSize: 13.5 }}>What&apos;s your moment? ✨</Text>
+              </Pressable>
+              <Pressable onPress={() => setComposing(true)} hitSlop={8} style={{ marginLeft: 12 }}>
+                <Ionicons name="image" size={22} color={C.green} />
+              </Pressable>
+            </Glass>
           </View>
         }
         renderItem={({ item }) => (

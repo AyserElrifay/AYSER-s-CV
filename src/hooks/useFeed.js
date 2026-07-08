@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { SUPABASE_READY } from '../lib/supabase';
 import { fetchFeed } from '../services/posts';
-import { FEED, ME, av, pic } from '../constants/mockData';
+import { FEED, ME, av } from '../constants/mockData';
 
 /* Feed source for HomeScreen.
    Real mode  — loads posts from Supabase; falls back to the mock FEED
@@ -27,7 +27,8 @@ const toCard = (row) => ({
     verified: !!(row.user && row.user.verified),
   },
   type: row.type || 'post',
-  media: row.media_url || pic('m' + row.id, 900, 640),
+  media: row.media_url || null, // no photo → renders as a text moment
+  textBg: row.text_bg || null,
   caption: row.caption || '',
   place: row.place || 'Somewhere out there',
   startsIn: relTime(row.starts_at),

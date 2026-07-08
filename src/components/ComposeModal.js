@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { View, Text, Modal, TextInput, Pressable, Image, ScrollView, Platform } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { C, R } from '../constants/theme';
+import { C, R, TEXT_BGS } from '../constants/theme';
 import { ME, av } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
 import { createPost } from '../services/posts';
@@ -21,6 +22,7 @@ export const ComposeModal = ({ onClose, onPosted }) => {
   const [caption, setCaption] = useState('');
   const [place, setPlace] = useState('');
   const [imageUri, setImageUri] = useState(null);
+  const [textBg, setTextBg] = useState('plain');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
 
@@ -50,6 +52,7 @@ export const ComposeModal = ({ onClose, onPosted }) => {
           caption: caption.trim(),
           place: place.trim() || null,
           mediaUrl,
+          textBg: mediaUrl || textBg === 'plain' ? null : textBg,
         });
         card = {
           id: row.id,
@@ -60,6 +63,7 @@ export const ComposeModal = ({ onClose, onPosted }) => {
           },
           type: 'post',
           media: row.media_url,
+          textBg: row.text_bg,
           caption: row.caption,
           place: row.place || 'Somewhere out there',
           startsIn: 'Live now',
@@ -72,6 +76,7 @@ export const ComposeModal = ({ onClose, onPosted }) => {
           user: { name: 'You', avatar: av(60), verified: false },
           type: 'post',
           media: imageUri,
+          textBg: imageUri ? null : textBg,
           caption: caption.trim(),
           place: place.trim() || 'Right here',
           startsIn: 'Live now',
@@ -108,18 +113,50 @@ export const ComposeModal = ({ onClose, onPosted }) => {
         </View>
 
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 24 }} keyboardShouldPersistTaps="handled">
-          <TextInput
-            placeholder="What's your moment?"
-            placeholderTextColor={C.faint}
-            value={caption}
-            onChangeText={setCaption}
-            multiline
-            autoFocus
-            style={{
-              color: C.text, fontSize: 18, lineHeight: 26, minHeight: 120,
-              textAlignVertical: 'top', padding: 4,
-            }}
-          />
+          {/* the caption canvas — takes on the chosen text background */}
+          <LinearGradient
+            colors={imageUri ? ['transparent', 'transparent'] : TEXT_BGS[textBg].colors}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={{ borderRadius: R - 4, paddingHorizontal: textBg === 'plain' || imageUri ? 4 : 16, paddingVertical: textBg === 'plain' || imageUri ? 0 : 20 }}
+          >
+            <TextInput
+              placeholder="What's your moment?"
+              placeholderTextColor={imageUri || textBg === 'plain' ? C.faint : TEXT_BGS[textBg].text + '99'}
+              value={caption}
+              onChangeText={setCaption}
+              multiline
+              autoFocus
+              style={{
+                color: imageUri || textBg === 'plain' ? C.text : TEXT_BGS[textBg].text,
+                fontSize: 19, lineHeight: 28, minHeight: 110,
+                textAlignVertical: 'top',
+                textAlign: imageUri || textBg === 'plain' ? 'left' : 'center',
+                fontWeight: imageUri || textBg === 'plain' ? '400' : '700',
+              }}
+            />
+          </LinearGradient>
+
+          {/* colored backgrounds for text moments — Facebook style, pastel calm */}
+          {!imageUri ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 14 }}>
+              {Object.keys(TEXT_BGS).map((key) => (
+                <Pressable key={key} onPress={() => setTextBg(key)} hitSlop={4}>
+                  <LinearGradient
+                    colors={TEXT_BGS[key].colors}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={{
+                      width: 34, height: 34, borderRadius: 17, marginRight: 10,
+                      borderWidth: textBg === key ? 2.5 : 1,
+                      borderColor: textBg === key ? C.purple : C.line,
+                    }}
+                  />
+                </Pressable>
+              ))}
+              <Text style={{ color: C.faint, fontSize: 11.5, marginLeft: 2 }}>Text background</Text>
+            </View>
+          ) : null}
 
           {imageUri ? (
             <View style={{ marginTop: 12 }}>

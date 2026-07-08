@@ -45,6 +45,7 @@ create table if not exists public.posts (
   user_id    uuid not null references public.profiles(id) on delete cascade,
   type       text not null default 'post' check (type in ('post','reel','vod')),
   media_url  text,
+  text_bg    text,                     -- colored canvas id for text-only posts
   caption    text,
   place      text,
   lat        double precision,
@@ -53,6 +54,9 @@ create table if not exists public.posts (
   squad_name text,
   created_at timestamptz default now()
 );
+
+-- Safe upgrade for databases created before text backgrounds existed.
+alter table public.posts add column if not exists text_bg text;
 
 -- ── SQUADS · created by "JOIN THE VIBE" (phase 4) ────────────
 create table if not exists public.squads (

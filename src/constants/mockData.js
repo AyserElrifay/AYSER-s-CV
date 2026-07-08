@@ -58,7 +58,15 @@ export const FEED = [
     caption: 'Behind the scenes — the "Neon Desert" shoot. Cranes up at golden hour, lasers after dark. Come watch the magic (and eat from the catering truck).',
     place: 'Katameya Dunes Backlot', startsIn: 'Live now',
     coords: { latitude: 29.966, longitude: 31.361 },
-    vibes: 47, comments: 18, squad: 'Neon Desert Crew', joinable: true,
+    vibes: 47, comments: 18, squad: 'Neon Desert Crew', joinable: true, topFan: 'Nour',
+  },
+  {
+    id: 'p6', user: USERS.zeyad, type: 'post',
+    media: null, textBg: 'mint',
+    caption: 'Unpopular opinion: padel at 6AM beats any party. Fight me. 🎾',
+    place: 'El Gezira Club', startsIn: 'now',
+    coords: { latitude: 30.041, longitude: 31.221 },
+    vibes: 14, comments: 7, squad: 'Padel Heads', joinable: false, topFan: 'Omar',
   },
   {
     id: 'p2', user: USERS.nour, type: 'reel',

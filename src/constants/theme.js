@@ -25,6 +25,16 @@ export const C = {
 
 export const R = 20; // house border-radius
 
+/* Gentle gradient canvases for text-only posts (à la Facebook's
+   colored status backgrounds) — soft pastels, easy on the eyes. */
+export const TEXT_BGS = {
+  plain:    { colors: ['#FFFFFF', '#FFFFFF'], text: '#111827' },
+  lavender: { colors: ['#EDE9FE', '#FCE7F3'], text: '#4C1D95' },
+  mint:     { colors: ['#D1FAE5', '#ECFDF5'], text: '#065F46' },
+  sky:      { colors: ['#DBEAFE', '#E0F2FE'], text: '#1E3A8A' },
+  night:    { colors: ['#4C1D95', '#7C3AED'], text: '#FFFFFF' },
+};
+
 /* Kept for an optional future dark mode. */
 export const DARK_MAP = [
   { elementType: 'geometry', stylers: [{ color: '#141416' }] },
