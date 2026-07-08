@@ -6,6 +6,13 @@
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "assetBundlePatterns": ["**/*"],
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
+    "experiments": {
+      "baseUrl": "/AYSER-s-CV"
+    },
     "ios": {
       "supportsTablet": true,
       "config": {
