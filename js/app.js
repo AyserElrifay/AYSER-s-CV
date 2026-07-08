@@ -44,11 +44,13 @@
     { id: "study", ico: "📖" }, { id: "work", ico: "🎯" },
   ];
 
-  const VIEWS = ["today", "coach", "pages", "projects", "library", "plan", "settings"];
+  const VIEWS = ["coach", "today", "pages", "projects", "library", "plan", "settings"];
 
   /* ════════════ Onboarding ════════════ */
 
-  const OB_STEPS = ["welcome", "lang", "name", "contact", "goal", "why", "values", "focus", "done"];
+  /* Steve Jobs rule: remove everything that isn't essential.
+     The coach asks the deeper questions naturally, inside the chat. */
+  const OB_STEPS = ["welcome", "lang", "name", "goal", "done"];
   let obStep = 0;
   const obData = { values: [], focus: [] };
 
@@ -67,7 +69,7 @@
     let inner = "";
     if (step === "welcome") {
       inner = `
-        <div class="ob-step-label">Ayser AI</div>
+        <div class="ob-step-label">بردي · Bardi</div>
         <h1 class="ob-title">${esc(t("ob_welcome_title"))}</h1>
         <p class="ob-sub">${esc(t("ob_welcome_sub"))}</p>
         <div class="ob-actions"><button class="btn" data-ob="next">${esc(t("ob_start"))}</button></div>`;
@@ -112,7 +114,7 @@
         </div>`;
     } else if (step === "done") {
       inner = `
-        <div class="ob-step-label">Ayser AI</div>
+        <div class="ob-step-label">بردي · Bardi</div>
         <h1 class="ob-title">${esc(t("ob_done_title", { name: obData.name || "" }))}</h1>
         <p class="ob-sub">${esc(t("ob_done_sub"))}</p>
         <div class="ob-actions"><button class="btn" data-ob="finish">${esc(t("ob_finish"))}</button></div>`;
@@ -180,17 +182,17 @@
 
   /* ════════════ Shell / routing ════════════ */
 
-  let view = "today";
+  let view = "coach";
   let openPageId = null;
 
   function startApp() {
     $("#app").classList.remove("hidden");
     renderNav();
-    go(location.hash.replace("#/", "") || "today");
+    go(location.hash.replace("#/", "") || "coach");
   }
 
   function go(v) {
-    view = VIEWS.includes(v) ? v : "today";
+    view = VIEWS.includes(v) ? v : "coach";
     openPageId = null;
     location.hash = "/" + view;
     renderNav();
@@ -203,15 +205,54 @@
   });
 
   function renderNav() {
-    const items = VIEWS.map(v => ({
-      v, label: t("nav_" + v), icon: IC[v],
-    }));
-    $("#nav").innerHTML = items.map(i =>
-      `<button class="nav-item ${i.v === view ? "active" : ""}" data-go="${i.v}">${i.icon}<span>${esc(i.label)}</span></button>`).join("");
-    $("#tabbar").innerHTML = items.filter(i => ["today","coach","pages","projects","settings"].includes(i.v)).map(i =>
-      `<button class="tab-item ${i.v === view ? "active" : ""}" data-go="${i.v}">${i.icon}<span>${esc(i.label)}</span></button>`).join("");
+    const tools = ["today", "pages", "projects", "library", "plan", "settings"];
+
+    const chatList = S.chats.slice(0, 20).map(c => `
+      <div class="chat-item ${view === "coach" && c.id === S.activeChatId ? "active" : ""}" data-chat="${c.id}">
+        <span class="c-title">${esc(c.title || t("untitled_chat"))}</span>
+        <button class="c-del" data-cdel="${c.id}" title="${esc(t("delete_chat"))}">✕</button>
+      </div>`).join("");
+
+    $("#nav").innerHTML = `
+      <button class="new-chat-btn" id="navNewChat">＋ ${esc(t("new_chat"))}</button>
+      ${S.chats.length ? `<div class="nav-label">${esc(t("chats_label"))}</div><div class="chat-list">${chatList}</div>` : ""}
+      <div class="nav-label">${esc(t("tools_label"))}</div>
+      ${tools.map(v => `<button class="nav-item ${v === view ? "active" : ""}" data-go="${v}">${IC[v]}<span>${esc(t("nav_" + v))}</span></button>`).join("")}`;
+
+    $("#tabbar").innerHTML = ["coach", "today", "pages", "projects", "settings"].map(v =>
+      `<button class="tab-item ${v === view ? "active" : ""}" data-go="${v}">${IC[v]}<span>${esc(t("nav_" + v))}</span></button>`).join("");
+
     $("#sidebarFooter").innerHTML = `🔒 ${esc(t("made_with"))}`;
+
     $$("[data-go]").forEach(b => b.addEventListener("click", () => go(b.dataset.go)));
+    $("#navNewChat").addEventListener("click", () => { newChat(); go("coach"); });
+    $$("[data-chat]").forEach(el => el.addEventListener("click", () => {
+      S.activeChatId = el.dataset.chat; Store.save(); go("coach");
+    }));
+    $$("[data-cdel]").forEach(b => b.addEventListener("click", (e) => {
+      e.stopPropagation();
+      S.chats = S.chats.filter(c => c.id !== b.dataset.cdel);
+      if (S.activeChatId === b.dataset.cdel) S.activeChatId = null;
+      Store.save(); renderNav(); if (view === "coach") render();
+    }));
+  }
+
+  /* ── chat helpers ── */
+  function activeChat() {
+    return S.chats.find(c => c.id === S.activeChatId) || null;
+  }
+  function newChat() {
+    S.activeChatId = null;
+    Store.save();
+  }
+  function ensureChat() {
+    let c = activeChat();
+    if (!c) {
+      c = { id: Store.uid(), title: "", messages: [], updatedAt: Date.now() };
+      S.chats.unshift(c);
+      S.activeChatId = c.id;
+    }
+    return c;
   }
 
   function render() {
@@ -328,35 +369,33 @@
   let sending = false;
 
   function renderCoach(main) {
-    const provider = S.settings.provider;
+    const c = activeChat();
+    const msgs = c ? c.messages : [];
+
     main.innerHTML = `
-      <div class="view-head">
-        <h1 class="view-title">${esc(t("coach_title"))}</h1>
-        <p class="view-sub">${esc(t("coach_sub"))}</p>
-      </div>
-
-      <div class="provider-row">
-        ${["claude", "openai", "gemini"].map(p => `
-          <button class="chip ${p === provider ? "active" : ""}" data-provider="${p}">${AI.PROVIDER_NAMES[p]}</button>`).join("")}
-        <span style="flex:1"></span>
-        <button class="chip" id="newChat">＋ ${esc(t("new_chat"))}</button>
-      </div>
-
-      <div class="chat-wrap">
+      <div class="chat-wrap chat-first">
         <div class="chat-scroll" id="chatScroll">
-          ${S.chat.length ? S.chat.map(m => msgHTML(m)).join("") : `
-            <div class="chat-empty">
-              <div class="big">🧭</div>
-              <h2 style="font-family:var(--font-display);letter-spacing:-.02em">${esc(t("coach_empty_hi", { name: S.profile.name || "" }))}</h2>
-              <p>${esc(t("coach_empty_sub"))}</p>
-              <div class="chat-suggestions">
-                ${["sug1","sug2","sug3","sug4"].map(k => `<button class="chip" data-sug>${esc(t(k))}</button>`).join("")}
-              </div>
-            </div>`}
+          <div class="chat-col">
+            ${msgs.length ? msgs.map(m => msgHTML(m)).join("") : `
+              <div class="chat-empty">
+                <div class="hero-mark">ب</div>
+                <h2 class="hero-title">${esc(t("coach_empty_hi", { name: S.profile.name || "" }))}</h2>
+                <p class="hero-sub">${esc(t("coach_empty_sub"))}</p>
+                <div class="chat-suggestions">
+                  ${["sug1","sug2","sug3","sug4"].map(k => `<button class="chip" data-sug>${esc(t(k))}</button>`).join("")}
+                </div>
+              </div>`}
+          </div>
         </div>
-        <div class="chat-input-bar">
-          <textarea id="chatInput" rows="1" placeholder="${esc(t("chat_ph"))}"></textarea>
-          <button class="send-btn" id="sendBtn">➤</button>
+        <div class="chat-input-area">
+          <div class="chat-input-bar">
+            <textarea id="chatInput" rows="1" placeholder="${esc(t("chat_ph"))}"></textarea>
+            <button class="send-btn" id="sendBtn">➤</button>
+          </div>
+          <div class="provider-row center">
+            ${["claude", "openai", "gemini"].map(p => `
+              <button class="chip tiny ${p === S.settings.provider ? "active" : ""}" data-provider="${p}">${AI.PROVIDER_NAMES[p]}</button>`).join("")}
+          </div>
         </div>
       </div>`;
 
@@ -366,7 +405,6 @@
     $$("[data-provider]").forEach(b => b.addEventListener("click", () => {
       S.settings.provider = b.dataset.provider; Store.save(); render();
     }));
-    $("#newChat").addEventListener("click", () => { S.chat = []; Store.save(); render(); });
     $$("[data-sug]").forEach(b => b.addEventListener("click", () => sendMsg(b.textContent.trim())));
 
     const input = $("#chatInput");
@@ -382,40 +420,51 @@
   }
 
   function msgHTML(m) {
-    return `<div class="msg ${m.role}">${esc(m.content)}</div>`;
+    if (m.role === "user") return `<div class="msg user">${esc(m.content)}</div>`;
+    return `
+      <div class="msg-row">
+        <div class="avatar">ب</div>
+        <div class="msg assistant">${esc(m.content)}</div>
+      </div>`;
   }
 
   async function sendMsg(text) {
     text = (text || "").trim();
     if (!text || sending) return;
 
+    const scroll = $("#chatScroll");
+    const col = $(".chat-col", scroll);
+
     const key = (S.settings.keys[S.settings.provider] || "").trim();
     if (!key) {
-      const scroll = $("#chatScroll");
-      scroll.insertAdjacentHTML("beforeend",
-        `<div class="msg assistant">${esc(t("no_key_msg"))}\n</div>
-         <div style="align-self:flex-start"><button class="btn small" data-go="settings">${esc(t("go_settings"))}</button></div>`);
-      $$("[data-go]", scroll).forEach(b => b.addEventListener("click", () => go("settings")));
+      col.insertAdjacentHTML("beforeend",
+        `<div class="msg-row"><div class="avatar">ب</div><div class="msg assistant">${esc(t("no_key_msg"))}</div></div>
+         <div style="margin-top:8px"><button class="btn small" data-go="settings">${esc(t("go_settings"))}</button></div>`);
+      $$("[data-go]", col).forEach(b => b.addEventListener("click", () => go("settings")));
       scroll.scrollTop = scroll.scrollHeight;
       return;
     }
 
     sending = true;
-    S.chat.push({ role: "user", content: text });
+    const chat = ensureChat();
+    chat.messages.push({ role: "user", content: text });
+    if (!chat.title) chat.title = text.slice(0, 42);
+    chat.updatedAt = Date.now();
     Store.save();
+    renderNav(); // refresh chat list titles
 
-    const scroll = $("#chatScroll");
-    const empty = $(".chat-empty", scroll);
+    const empty = $(".chat-empty", col);
     if (empty) empty.remove();
-    scroll.insertAdjacentHTML("beforeend", msgHTML({ role: "user", content: text }));
-    scroll.insertAdjacentHTML("beforeend", `<div class="msg assistant thinking" id="live"><i></i><i></i><i></i></div>`);
+    col.insertAdjacentHTML("beforeend", msgHTML({ role: "user", content: text }));
+    col.insertAdjacentHTML("beforeend",
+      `<div class="msg-row"><div class="avatar">ب</div><div class="msg assistant thinking" id="live"><i></i><i></i><i></i></div></div>`);
     scroll.scrollTop = scroll.scrollHeight;
     const inp = $("#chatInput");
     if (inp) { inp.value = ""; inp.style.height = "auto"; }
 
     const live = $("#live");
     try {
-      const full = await AI.chat(S, S.chat.slice(-24), (sofar) => {
+      const full = await AI.chat(S, chat.messages.slice(-24), (sofar) => {
         live.classList.remove("thinking");
         live.textContent = sofar;
         scroll.scrollTop = scroll.scrollHeight;
@@ -425,7 +474,8 @@
       live.classList.remove("thinking");
       live.textContent = clean;
       live.removeAttribute("id");
-      S.chat.push({ role: "assistant", content: clean });
+      chat.messages.push({ role: "assistant", content: clean });
+      chat.updatedAt = Date.now();
       if (memory) {
         S.memory.push(memory);
         toast(t("learned"));
@@ -825,7 +875,7 @@
     let body = "";
     if (s.kind === "cover") {
       body = `<div class="slide-rule"></div>
-        <div class="slide-kicker">Ayser AI — ${esc(t("plan_title"))}</div>
+        <div class="slide-kicker">بردي · Bardi</div>
         <h1>${esc(s.title)}</h1>
         ${s.sub ? `<p class="sub">${esc(s.sub)}</p>` : ""}`;
     } else if (s.kind === "quote") {
@@ -862,7 +912,7 @@
     const deckEl = $("#deck");
     deckEl.innerHTML = slides.map(s => {
       let body = "";
-      if (s.kind === "cover") body = `<div class="slide-rule"></div><div class="slide-kicker">Ayser AI</div><h1>${esc(s.title)}</h1>${s.sub ? `<p class="sub">${esc(s.sub)}</p>` : ""}`;
+      if (s.kind === "cover") body = `<div class="slide-rule"></div><div class="slide-kicker">بردي · Bardi</div><h1>${esc(s.title)}</h1>${s.sub ? `<p class="sub">${esc(s.sub)}</p>` : ""}`;
       else if (s.kind === "quote") body = `<div class="slide-rule"></div><p class="quote">“${esc(s.quote)}”</p>`;
       else body = `<div class="slide-rule"></div>${s.kicker ? `<div class="slide-kicker">${esc(s.kicker)}</div>` : ""}<h2>${esc(s.title)}</h2><ul>${(s.points || []).map(p => `<li>${esc(p)}</li>`).join("")}</ul>`;
       return `<div class="slide" dir="${I18N[LANG].dir}">${body}</div>`;

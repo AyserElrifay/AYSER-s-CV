@@ -30,7 +30,8 @@ const Store = (() => {
     pages: [],          // {id, title, blocks:[{id,type,text,done}], updatedAt}
     projects: [],       // {id, name, cols:[{id, key, cards:[{id,title}]}]}
     books: [],          // {id, title, size, chunks:[string], addedAt}
-    chat: [],           // [{role:"user"|"assistant", content}]
+    chats: [],          // [{id, title, messages:[{role,content}], updatedAt}]
+    activeChatId: null,
     memory: [],         // strings the coach learned about the user
     plans: [],          // {id, goal, deck:{title,subtitle,slides:[]}, createdAt}
   });
@@ -41,6 +42,18 @@ const Store = (() => {
     try {
       const raw = localStorage.getItem(KEY);
       state = raw ? Object.assign(DEFAULTS(), JSON.parse(raw)) : DEFAULTS();
+      // migrate old single-chat format → multi-chat
+      if (Array.isArray(state.chat)) {
+        if (state.chat.length) {
+          state.chats.unshift({
+            id: uid(),
+            title: (state.chat.find(m => m.role === "user") || {}).content || "",
+            messages: state.chat,
+            updatedAt: Date.now(),
+          });
+        }
+        delete state.chat;
+      }
     } catch (e) {
       state = DEFAULTS();
     }
