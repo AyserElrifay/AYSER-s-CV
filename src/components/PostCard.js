@@ -15,19 +15,22 @@ const typeChip = (post) => {
   return { label: 'MOMENT', tint: 'rgba(17,24,39,0.65)', color: 'rgba(255,255,255,0.85)' };
 };
 
-export const PostCard = ({ post, joined, vibed, onJoin, onVibe, onComment, onOpenProfile }) => {
+export const PostCard = ({ post, joined, vibed, onJoin, onVibe, onComment, onOpenProfile, onOpenReel }) => {
   const mediaH = post.type === 'reel' ? 470 : post.type === 'vod' ? 208 : 250;
   const tc = typeChip(post);
   const textBg = TEXT_BGS[post.textBg] || TEXT_BGS.plain;
 
-  /* Instagram-style double-tap to vibe, with a ⚡ burst. */
+  /* Instagram-style double-tap to vibe (⚡ burst); a single tap on a
+     reel opens the full-screen TikTok-style viewer instead. */
   const lastTap = useRef(0);
+  const singleTimer = useRef(null);
   const burst = useRef(new Animated.Value(0)).current;
   const [bursting, setBursting] = useState(false);
   const handleMediaTap = () => {
     const now = Date.now();
     if (now - lastTap.current < 300) {
       lastTap.current = 0;
+      if (singleTimer.current) { clearTimeout(singleTimer.current); singleTimer.current = null; }
       if (!vibed) onVibe();
       setBursting(true);
       burst.setValue(0);
@@ -35,6 +38,9 @@ export const PostCard = ({ post, joined, vibed, onJoin, onVibe, onComment, onOpe
         .start(() => setBursting(false));
     } else {
       lastTap.current = now;
+      if (post.type === 'reel' && onOpenReel) {
+        singleTimer.current = setTimeout(() => { singleTimer.current = null; onOpenReel(post); }, 320);
+      }
     }
   };
 

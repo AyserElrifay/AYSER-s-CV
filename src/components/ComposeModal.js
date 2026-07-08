@@ -12,43 +12,77 @@ import { uploadMedia } from '../services/social';
 import { useAuth } from '../context/AuthContext';
 import { Micro } from './Micro';
 import { NeonButton } from './NeonButton';
+import { SoundPicker } from './SoundPicker';
+import { SoundChip } from './SoundChip';
 
-/* One screen, one thought: what's your moment?
-   Text is enough; a photo and a place are optional. */
+/* The creation studio — one place to share a Moment, a Reel, or a
+   Story. Shoot from the camera or pick from the gallery, add a sound
+   (IG/TikTok style), and go. */
 
-export const ComposeModal = ({ onClose, onPosted }) => {
+const MODES = [
+  { id: 'post', label: 'Moment', emoji: '✨' },
+  { id: 'reel', label: 'Reel', emoji: '🎬' },
+  { id: 'story', label: 'Story', emoji: '⭕' },
+];
+
+export const ComposeModal = ({ initialMode = 'post', onClose, onPosted, onPostedStory }) => {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const [mode, setMode] = useState(initialMode);
   const [caption, setCaption] = useState('');
   const [place, setPlace] = useState('');
   const [imageUri, setImageUri] = useState(null);
   const [textBg, setTextBg] = useState('plain');
+  const [sound, setSound] = useState(null);
+  const [pickingSound, setPickingSound] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
 
-  const pickImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      quality: 0.8,
-      allowsEditing: true,
-    });
+  const isReel = mode === 'reel';
+  const isStory = mode === 'story';
+
+  const pick = async (fromCamera) => {
+    const opts = { mediaTypes: ['images'], quality: 0.8, allowsEditing: true };
+    let result;
+    if (fromCamera) {
+      const perm = await ImagePicker.requestCameraPermissionsAsync();
+      if (!perm.granted) { setError('Camera permission needed to shoot 🎥'); return; }
+      result = await ImagePicker.launchCameraAsync(opts);
+    } else {
+      result = await ImagePicker.launchImageLibraryAsync(opts);
+    }
     if (!result.canceled && result.assets && result.assets[0]) {
       setImageUri(result.assets[0].uri);
+      setError(null);
     }
   };
 
   const share = async () => {
-    if (!caption.trim() || busy) return;
+    if (busy) return;
+    if (isStory && !imageUri) { setError('A story needs a photo — shoot one! 📸'); return; }
+    if (!isStory && !caption.trim()) return;
     setError(null);
     setBusy(true);
     try {
+      if (isStory) {
+        // Stories live in the rail (local for now; stories table is ready in schema.sql)
+        onPostedStory({
+          user: { id: 'me', name: 'You', avatar: av(60) },
+          media: imageUri,
+          sound,
+          caption: caption.trim() || null,
+        });
+        onClose();
+        return;
+      }
+
       let card;
       if (SUPABASE_READY && user) {
         let mediaUrl = null;
         if (imageUri) mediaUrl = await uploadMedia(user.id, imageUri);
         const row = await createPost({
           userId: user.id,
-          type: 'post',
+          type: isReel ? 'reel' : 'post',
           caption: caption.trim(),
           place: place.trim() || null,
           mediaUrl,
@@ -61,37 +95,42 @@ export const ComposeModal = ({ onClose, onPosted }) => {
             avatar: (row.user && row.user.avatar_url) || av(60),
             verified: !!(row.user && row.user.verified),
           },
-          type: 'post',
+          type: row.type,
           media: row.media_url,
           textBg: row.text_bg,
           caption: row.caption,
           place: row.place || 'Somewhere out there',
           startsIn: 'Live now',
           coords: ME.coords,
+          sound,
           vibes: 0, comments: 0, squad: 'New Vibe Squad',
         };
       } else {
         card = {
           id: 'local-' + Date.now(),
           user: { name: 'You', avatar: av(60), verified: false },
-          type: 'post',
+          type: isReel ? 'reel' : 'post',
           media: imageUri,
           textBg: imageUri ? null : textBg,
           caption: caption.trim(),
           place: place.trim() || 'Right here',
           startsIn: 'Live now',
           coords: ME.coords,
+          sound,
           vibes: 0, comments: 0, squad: 'New Vibe Squad',
         };
       }
       onPosted(card);
       onClose();
     } catch (e) {
-      setError(e.message || 'Could not share your moment. Try again.');
+      setError(e.message || 'Could not share. Try again.');
     } finally {
       setBusy(false);
     }
   };
+
+  const shareLabel = busy ? 'SHARING…' : isStory ? 'ADD TO YOUR STORY' : isReel ? 'POST REEL 🎬' : 'SHARE THE MOMENT';
+  const canShare = isStory ? !!imageUri : !!caption.trim();
 
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
@@ -108,37 +147,55 @@ export const ComposeModal = ({ onClose, onPosted }) => {
           >
             <Ionicons name="close" size={19} color={C.text} />
           </Pressable>
-          <Micro color={C.purple}>New Moment ✨</Micro>
+          <Micro color={C.purple}>Create ✨</Micro>
           <View style={{ width: 38 }} />
         </View>
 
+        {/* mode switch: Moment / Reel / Story */}
+        <View style={{ flexDirection: 'row', marginHorizontal: 16, backgroundColor: C.glassHi, borderRadius: 999, padding: 4 }}>
+          {MODES.map((m) => (
+            <Pressable
+              key={m.id}
+              testID={'mode-' + m.id}
+              onPress={() => setMode(m.id)}
+              style={{
+                flex: 1, alignItems: 'center', paddingVertical: 9, borderRadius: 999,
+                backgroundColor: mode === m.id ? '#FFFFFF' : 'transparent',
+              }}
+            >
+              <Text style={{ color: mode === m.id ? C.text : C.dim, fontSize: 13, fontWeight: '800' }}>
+                {m.emoji} {m.label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 24 }} keyboardShouldPersistTaps="handled">
-          {/* the caption canvas — takes on the chosen text background */}
+          {/* caption canvas */}
           <LinearGradient
-            colors={imageUri ? ['transparent', 'transparent'] : TEXT_BGS[textBg].colors}
+            colors={imageUri || isStory ? ['transparent', 'transparent'] : TEXT_BGS[textBg].colors}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
-            style={{ borderRadius: R - 4, paddingHorizontal: textBg === 'plain' || imageUri ? 4 : 16, paddingVertical: textBg === 'plain' || imageUri ? 0 : 20 }}
+            style={{ borderRadius: R - 4, paddingHorizontal: textBg === 'plain' || imageUri || isStory ? 4 : 16, paddingVertical: textBg === 'plain' || imageUri || isStory ? 0 : 20 }}
           >
             <TextInput
-              placeholder="What's your moment?"
-              placeholderTextColor={imageUri || textBg === 'plain' ? C.faint : TEXT_BGS[textBg].text + '99'}
+              placeholder={isStory ? 'Say something (optional)…' : isReel ? 'Describe your reel…' : "What's your moment?"}
+              placeholderTextColor={imageUri || isStory || textBg === 'plain' ? C.faint : TEXT_BGS[textBg].text + '99'}
               value={caption}
               onChangeText={setCaption}
               multiline
-              autoFocus
               style={{
-                color: imageUri || textBg === 'plain' ? C.text : TEXT_BGS[textBg].text,
-                fontSize: 19, lineHeight: 28, minHeight: 110,
+                color: imageUri || isStory || textBg === 'plain' ? C.text : TEXT_BGS[textBg].text,
+                fontSize: 19, lineHeight: 28, minHeight: isStory ? 60 : 100,
                 textAlignVertical: 'top',
-                textAlign: imageUri || textBg === 'plain' ? 'left' : 'center',
-                fontWeight: imageUri || textBg === 'plain' ? '400' : '700',
+                textAlign: imageUri || isStory || textBg === 'plain' ? 'left' : 'center',
+                fontWeight: imageUri || isStory || textBg === 'plain' ? '400' : '700',
               }}
             />
           </LinearGradient>
 
-          {/* colored backgrounds for text moments — Facebook style, pastel calm */}
-          {!imageUri ? (
+          {/* text backgrounds — only for photo-less Moments */}
+          {!imageUri && mode === 'post' ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 14 }}>
               {Object.keys(TEXT_BGS).map((key) => (
                 <Pressable key={key} onPress={() => setTextBg(key)} hitSlop={4}>
@@ -160,36 +217,73 @@ export const ComposeModal = ({ onClose, onPosted }) => {
 
           {imageUri ? (
             <View style={{ marginTop: 12 }}>
-              <Image source={{ uri: imageUri }} style={{ width: '100%', height: 260, borderRadius: R }} />
+              <Image source={{ uri: imageUri }} style={{ width: '100%', height: isStory || isReel ? 340 : 260, borderRadius: R }} />
               <Pressable
                 onPress={() => setImageUri(null)}
                 style={{
                   position: 'absolute', top: 10, right: 10, width: 32, height: 32, borderRadius: 16,
-                  backgroundColor: 'rgba(18,18,20,0.8)', alignItems: 'center', justifyContent: 'center',
+                  backgroundColor: 'rgba(17,24,39,0.7)', alignItems: 'center', justifyContent: 'center',
                 }}
               >
-                <Ionicons name="trash-outline" size={16} color={C.text} />
+                <Ionicons name="trash-outline" size={16} color="#FFF" />
               </Pressable>
+              {sound ? (
+                <View style={{ position: 'absolute', bottom: 10, left: 10 }}>
+                  <SoundChip sound={sound} />
+                </View>
+              ) : null}
             </View>
           ) : null}
 
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 16 }}>
+          {/* capture row: camera · gallery · sound */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 16, flexWrap: 'wrap', gap: 10 }}>
             <Pressable
-              onPress={pickImage}
+              testID="btn-camera"
+              onPress={() => pick(true)}
+              style={{
+                flexDirection: 'row', alignItems: 'center',
+                backgroundColor: C.coralSoft, borderWidth: 1, borderColor: 'rgba(244,63,94,0.35)',
+                borderRadius: 999, paddingHorizontal: 14, paddingVertical: 10,
+              }}
+            >
+              <Ionicons name="camera" size={16} color={C.coral} />
+              <Text style={{ color: C.text, fontSize: 12.5, fontWeight: '700', marginLeft: 7 }}>Shoot</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => pick(false)}
               style={{
                 flexDirection: 'row', alignItems: 'center',
                 backgroundColor: C.glass, borderWidth: 1, borderColor: C.line,
-                borderRadius: 999, paddingHorizontal: 14, paddingVertical: 10, marginRight: 10,
+                borderRadius: 999, paddingHorizontal: 14, paddingVertical: 10,
               }}
             >
               <Ionicons name="image-outline" size={16} color={C.green} />
-              <Text style={{ color: C.text, fontSize: 12.5, fontWeight: '700', marginLeft: 7 }}>
-                {imageUri ? 'Change photo' : 'Add photo'}
-              </Text>
+              <Text style={{ color: C.text, fontSize: 12.5, fontWeight: '700', marginLeft: 7 }}>Gallery</Text>
             </Pressable>
+            {isReel || isStory ? (
+              <Pressable
+                testID="btn-sound"
+                onPress={() => setPickingSound(true)}
+                style={{
+                  flexDirection: 'row', alignItems: 'center',
+                  backgroundColor: sound ? C.purpleSoft : C.glass,
+                  borderWidth: 1, borderColor: sound ? 'rgba(124,58,237,0.45)' : C.line,
+                  borderRadius: 999, paddingHorizontal: 14, paddingVertical: 10,
+                }}
+              >
+                <Text style={{ fontSize: 13 }}>🎵</Text>
+                <Text style={{ color: sound ? C.purple : C.text, fontSize: 12.5, fontWeight: '700', marginLeft: 7 }} numberOfLines={1}>
+                  {sound ? sound.title : 'Add sound'}
+                </Text>
+              </Pressable>
+            ) : null}
+          </View>
+
+          {/* place — for Moments & Reels */}
+          {!isStory ? (
             <View
               style={{
-                flex: 1, flexDirection: 'row', alignItems: 'center',
+                flexDirection: 'row', alignItems: 'center', marginTop: 12,
                 backgroundColor: C.glass, borderWidth: 1, borderColor: C.line,
                 borderRadius: 999, paddingHorizontal: 14,
               }}
@@ -203,19 +297,24 @@ export const ComposeModal = ({ onClose, onPosted }) => {
                 style={{ flex: 1, color: C.text, fontSize: 12.5, marginLeft: 6, paddingVertical: Platform.OS === 'ios' ? 10 : 8 }}
               />
             </View>
-          </View>
+          ) : null}
 
           {error ? (
             <Text style={{ color: C.coral, fontSize: 12, textAlign: 'center', marginTop: 14 }}>{error}</Text>
           ) : null}
 
           <NeonButton
-            label={busy ? 'SHARING…' : 'SHARE THE MOMENT'}
+            label={shareLabel}
             icon="⚡"
-            style={{ marginTop: 22, opacity: caption.trim() ? 1 : 0.45 }}
+            color={isStory ? C.purple : C.green}
+            style={{ marginTop: 22, opacity: canShare ? 1 : 0.45 }}
             onPress={busy ? undefined : share}
           />
         </ScrollView>
+
+        {pickingSound ? (
+          <SoundPicker selected={sound} onSelect={setSound} onClose={() => setPickingSound(false)} />
+        ) : null}
       </View>
     </Modal>
   );

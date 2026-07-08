@@ -74,6 +74,30 @@ create table if not exists public.squad_members (
   primary key (squad_id, user_id)
 );
 
+-- ── STORIES · 24h moments with sounds (IG style) ──────────────
+create table if not exists public.stories (
+  id           uuid primary key default gen_random_uuid(),
+  user_id      uuid not null references public.profiles(id) on delete cascade,
+  media_url    text not null,
+  caption      text,
+  sound_title  text,
+  sound_artist text,
+  created_at   timestamptz default now(),
+  expires_at   timestamptz default (now() + interval '24 hours')
+);
+
+alter table public.stories enable row level security;
+create policy "active stories are viewable by everyone"
+  on public.stories for select using (expires_at > now());
+create policy "users create own stories"
+  on public.stories for insert with check (auth.uid() = user_id);
+create policy "users delete own stories"
+  on public.stories for delete using (auth.uid() = user_id);
+
+-- Sounds on posts (reels)
+alter table public.posts add column if not exists sound_title text;
+alter table public.posts add column if not exists sound_artist text;
+
 -- ── VIBES · one tap per user per post (the ⚡ reaction) ───────
 create table if not exists public.post_vibes (
   post_id    uuid references public.posts(id) on delete cascade,

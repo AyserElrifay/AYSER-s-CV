@@ -2,12 +2,12 @@ import React from 'react';
 import { View, Text, ScrollView, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { C } from '../constants/theme';
-import { STORIES } from '../constants/mockData';
 import { AvatarRing } from './AvatarRing';
 
-export const StoriesBar = ({ onOpenProfile }) => (
+/* Moments rail — stories with sounds. Tap to watch, + to add yours. */
+export const StoriesBar = ({ stories, onOpenStory, onAddStory }) => (
   <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 14 }} contentContainerStyle={{ paddingRight: 8 }}>
-    <View style={{ alignItems: 'center', marginRight: 14 }}>
+    <Pressable testID="add-story" onPress={onAddStory} style={{ alignItems: 'center', marginRight: 14 }}>
       <View
         style={{
           width: 62, height: 62, borderRadius: 31, borderWidth: 1.5, borderColor: C.purple,
@@ -17,11 +17,11 @@ export const StoriesBar = ({ onOpenProfile }) => (
         <Ionicons name="add" size={26} color={C.purple} />
       </View>
       <Text style={{ color: C.dim, fontSize: 11, marginTop: 6 }}>Your vibe</Text>
-    </View>
-    {STORIES.map((u) => (
-      <Pressable key={u.id} onPress={() => onOpenProfile(u)} style={{ alignItems: 'center', marginRight: 14 }}>
-        <AvatarRing uri={u.avatar} size={62} live={u.live} />
-        <Text style={{ color: C.dim, fontSize: 11, marginTop: 6 }}>{u.name.split(' ')[0]}</Text>
+    </Pressable>
+    {stories.map((s, i) => (
+      <Pressable key={s.user.id + i} onPress={() => onOpenStory(i)} style={{ alignItems: 'center', marginRight: 14 }}>
+        <AvatarRing uri={s.user.avatar} size={62} live={s.user.live} />
+        <Text style={{ color: C.dim, fontSize: 11, marginTop: 6 }}>{s.user.name.split(' ')[0]}</Text>
       </Pressable>
     ))}
   </ScrollView>

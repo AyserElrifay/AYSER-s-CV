@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { SUPABASE_READY } from '../lib/supabase';
 import { fetchFeed } from '../services/posts';
+import { rankFeed } from '../services/algorithm';
 import { FEED, ME, av } from '../constants/mockData';
 
 /* Feed source for HomeScreen.
@@ -47,11 +48,15 @@ export function useFeed() {
   const [isLive, setIsLive] = useState(false); // true once real rows are shown
 
   const load = useCallback(async () => {
-    if (!SUPABASE_READY) return;
+    if (!SUPABASE_READY) {
+      // Demo mode still gets the preference-ranked ordering.
+      setPosts(await rankFeed(FEED));
+      return;
+    }
     try {
       const rows = await fetchFeed();
       if (rows && rows.length > 0) {
-        setPosts(rows.map(toCard));
+        setPosts(await rankFeed(rows.map(toCard)));
         setIsLive(true);
       }
       // Empty table → keep the mock feed so the app stays alive.

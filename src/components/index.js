@@ -22,3 +22,7 @@ export { PostCard } from './PostCard';
 export { CommentsSheet } from './CommentsSheet';
 export { ComposeModal } from './ComposeModal';
 export { SearchModal } from './SearchModal';
+export { SoundChip } from './SoundChip';
+export { SoundPicker } from './SoundPicker';
+export { StoryViewer } from './StoryViewer';
+export { ReelsViewer } from './ReelsViewer';

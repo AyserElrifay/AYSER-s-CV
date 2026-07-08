@@ -49,7 +49,25 @@ export const USERS = {
   },
 };
 
-export const STORIES = [USERS.malak, USERS.nour, USERS.clay, USERS.omar, USERS.zeyad, USERS.farida];
+/* ── SOUNDS · attach a track to stories & reels (IG/TikTok style) ── */
+export const SOUNDS = [
+  { id: 'snd1', title: 'Neon Nights', artist: 'Cairokee', emoji: '🎸', uses: '12.4K' },
+  { id: 'snd2', title: 'Ya Habibi (Remix)', artist: 'Disco Misr', emoji: '🪩', uses: '9.1K' },
+  { id: 'snd3', title: 'Golden Hour Drive', artist: 'Sharmoofers', emoji: '🚗', uses: '6.8K' },
+  { id: 'snd4', title: 'Nile Lo-Fi', artist: 'Moseqar', emoji: '🌙', uses: '5.2K' },
+  { id: 'snd5', title: 'Desert Bass', artist: 'El Waili', emoji: '🏜️', uses: '3.7K' },
+  { id: 'snd6', title: 'Original sound', artist: 'Your recording', emoji: '🎤', uses: '—' },
+];
+
+/* Each story: a moment that disappears after the vibe. */
+export const STORIES = [
+  { user: USERS.malak, media: pic('storymalak', 700, 1200), sound: SOUNDS[1], caption: 'Tonight we go LIVE 🔥' },
+  { user: USERS.nour, media: pic('storynour', 700, 1200), sound: SOUNDS[2], caption: 'Trail check ⛰️' },
+  { user: USERS.clay, media: pic('storyclay', 700, 1200), sound: SOUNDS[0], caption: 'Set life 🎬' },
+  { user: USERS.omar, media: pic('storyomar', 700, 1200), sound: SOUNDS[3], caption: 'Blue therapy 🌊' },
+  { user: USERS.zeyad, media: pic('storyzeyad', 700, 1200), sound: null, caption: 'Court booked 🎾' },
+  { user: USERS.farida, media: pic('storyfarida', 700, 1200), sound: SOUNDS[4], caption: 'First pour ☕' },
+];
 
 export const FEED = [
   {
@@ -74,7 +92,7 @@ export const FEED = [
     caption: 'Saturday 5:30AM. Moqattam ridge, tea at the top, zero excuses. I bring the flask, you bring the legs.',
     place: 'Moqattam Trailhead', startsIn: 'in 14h',
     coords: { latitude: 30.01, longitude: 31.276 },
-    vibes: 23, comments: 9, squad: 'Sunrise Hike · Moqattam', joinable: true,
+    vibes: 23, comments: 9, squad: 'Sunrise Hike · Moqattam', joinable: true, topFan: 'Malak', sound: SOUNDS[2],
   },
   {
     id: 'p3', user: USERS.farida, type: 'post',
@@ -90,7 +108,7 @@ export const FEED = [
     caption: 'The Blue Hole at 7AM is a different planet. One breath, forty seconds, total silence. Beginners welcome — we buddy up, always.',
     place: 'Blue Hole, Dahab', startsIn: 'Fri 7AM',
     coords: { latitude: 28.495, longitude: 34.513 },
-    vibes: 34, comments: 21, squad: 'Blue Hole Buddies', joinable: true,
+    vibes: 34, comments: 21, squad: 'Blue Hole Buddies', joinable: true, topFan: 'Nour', sound: SOUNDS[3],
   },
   {
     id: 'p5', user: USERS.malak, type: 'post',

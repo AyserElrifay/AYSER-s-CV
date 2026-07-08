@@ -3,6 +3,7 @@ import { View, Text, TextInput, Pressable, KeyboardAvoidingView, Platform, Scrol
 import { C, R } from '../constants/theme';
 import { useAuth } from '../context/AuthContext';
 import { updateProfile } from '../services/profiles';
+import { setIntent } from '../services/algorithm';
 import { Glass, Micro, NeonButton, GhostButton } from '../components';
 
 /* ─────────────── PASSWORDLESS-STYLE ONBOARDING · AUTH GATE ───────────
@@ -59,6 +60,7 @@ export const AuthScreen = () => {
   };
 
   const pickVibe = async (vibe) => {
+    setIntent(vibe); // seed the reach algorithm with your vibe
     if (isDemo) { enterDemo(); return; }
     const id = pendingUserId || (user ? user.id : null);
     if (id) {
