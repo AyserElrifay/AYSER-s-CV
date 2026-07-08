@@ -7,6 +7,7 @@ import { av, STORIES } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
 import { toggleVibe } from '../services/social';
 import { recordSignal } from '../services/algorithm';
+import { tapLight, tapSuccess } from '../utils/feedback';
 import { useAuth } from '../context/AuthContext';
 import { useFeed } from '../hooks/useFeed';
 import {
@@ -43,7 +44,7 @@ export const HomeScreen = () => {
   const onVibe = (post) => {
     const next = !vibes[post.id];
     setVibes((v) => ({ ...v, [post.id]: next })); // instant feedback
-    if (next) recordSignal('vibe', post); // the algorithm learns what you love
+    if (next) { tapLight(); recordSignal('vibe', post); } // buzz + the algorithm learns
     if (SUPABASE_READY && user) {
       toggleVibe(post.id, user.id, next).catch(() => {});
     }
@@ -157,6 +158,7 @@ export const HomeScreen = () => {
           onClose={() => setMagicPost(null)}
           onComplete={(id) => {
             setJoined((j) => ({ ...j, [id]: true }));
+            tapSuccess();
             recordSignal('join', magicPost);
             setMagicPost(null);
           }}

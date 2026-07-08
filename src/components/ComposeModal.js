@@ -10,6 +10,7 @@ import { SUPABASE_READY } from '../lib/supabase';
 import { createPost } from '../services/posts';
 import { uploadMedia } from '../services/social';
 import { useAuth } from '../context/AuthContext';
+import { tapSuccess } from '../utils/feedback';
 import { Micro } from './Micro';
 import { NeonButton } from './NeonButton';
 import { SoundPicker } from './SoundPicker';
@@ -72,6 +73,7 @@ export const ComposeModal = ({ initialMode = 'post', onClose, onPosted, onPosted
           sound,
           caption: caption.trim() || null,
         });
+        tapSuccess();
         onClose();
         return;
       }
@@ -120,6 +122,7 @@ export const ComposeModal = ({ initialMode = 'post', onClose, onPosted, onPosted
           vibes: 0, comments: 0, squad: 'New Vibe Squad',
         };
       }
+      tapSuccess();
       onPosted(card);
       onClose();
     } catch (e) {

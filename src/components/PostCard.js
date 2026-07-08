@@ -31,7 +31,7 @@ export const PostCard = ({ post, joined, vibed, onJoin, onVibe, onComment, onOpe
     if (now - lastTap.current < 300) {
       lastTap.current = 0;
       if (singleTimer.current) { clearTimeout(singleTimer.current); singleTimer.current = null; }
-      if (!vibed) onVibe();
+      if (!vibed) onVibe(); // onVibe fires the haptic
       setBursting(true);
       burst.setValue(0);
       Animated.timing(burst, { toValue: 1, duration: 650, easing: Easing.out(Easing.cubic), useNativeDriver: true })
