@@ -26,3 +26,4 @@ export { SoundChip } from './SoundChip';
 export { SoundPicker } from './SoundPicker';
 export { StoryViewer } from './StoryViewer';
 export { ReelsViewer } from './ReelsViewer';
+export { StarButton } from './StarButton';

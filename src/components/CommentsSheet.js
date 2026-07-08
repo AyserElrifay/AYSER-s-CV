@@ -7,6 +7,8 @@ import { av } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
 import { fetchComments, addComment } from '../services/social';
 import { useAuth } from '../context/AuthContext';
+import { sfxPop } from '../utils/sfx';
+import { tapSelection } from '../utils/feedback';
 import { Micro } from './Micro';
 
 /* Bottom sheet of what people wrote under a post. One list, one input —
@@ -47,6 +49,7 @@ export const CommentsSheet = ({ post, onClose }) => {
     const body = text.trim();
     if (!body || sending) return;
     setText('');
+    sfxPop(); tapSelection();
     if (SUPABASE_READY && user) {
       setSending(true);
       try {

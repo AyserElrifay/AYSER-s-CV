@@ -1,12 +1,13 @@
 import React, { useRef, useState } from 'react';
 import { View, Text, Pressable, Image, ImageBackground, Animated, Easing } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { C, R, TEXT_BGS } from '../constants/theme';
 import { Glass } from './Glass';
 import { Chip } from './Chip';
 import { Tick } from './Tick';
 import { NeonButton } from './NeonButton';
+import { StarButton } from './StarButton';
 
 /* Chips sit on photos, so they stay dark with light text for contrast. */
 const typeChip = (post) => {
@@ -54,7 +55,7 @@ export const PostCard = ({ post, joined, vibed, onJoin, onVibe, onComment, onOpe
         transform: [{ scale: burst.interpolate({ inputRange: [0, 0.3, 1], outputRange: [0.4, 1.25, 1] }) }],
       }}
     >
-      <Text style={{ fontSize: 84 }}>⚡</Text>
+      <MaterialCommunityIcons name="star-four-points" size={96} color={C.gold} />
     </Animated.View>
   ) : null;
 
@@ -122,14 +123,16 @@ export const PostCard = ({ post, joined, vibed, onJoin, onVibe, onComment, onOpe
       {/* footer — reactions always; JOIN only on real invitations */}
       <View style={{ padding: 15, paddingTop: 13 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <Pressable onPress={onVibe} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Text style={{ fontSize: 16, opacity: vibed ? 1 : 0.5 }}>⚡</Text>
-            <Text style={{ color: vibed ? C.green : C.dim, fontSize: 13.5, fontWeight: '800', marginLeft: 5 }}>
-              {totalVibes}
-            </Text>
-          </Pressable>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <StarButton starred={vibed} onPress={onVibe} size={22} />
+            <Pressable onPress={onVibe} hitSlop={8}>
+              <Text style={{ color: vibed ? C.gold : C.dim, fontSize: 13.5, fontWeight: '800', marginLeft: 6 }}>
+                {totalVibes}
+              </Text>
+            </Pressable>
+          </View>
           <Pressable onPress={onComment} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 18 }}>
-            <Text style={{ fontSize: 15, opacity: 0.65 }}>💬</Text>
+            <MaterialCommunityIcons name="script-text-outline" size={21} color={C.dim} />
             <Text style={{ color: C.dim, fontSize: 13.5, fontWeight: '700', marginLeft: 5 }}>{post.comments}</Text>
           </Pressable>
           <View style={{ flex: 1 }} />
@@ -140,7 +143,7 @@ export const PostCard = ({ post, joined, vibed, onJoin, onVibe, onComment, onOpe
         {/* social proof, Instagram style */}
         {totalVibes > 0 ? (
           <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 9 }}>
-            ⚡ Vibed by{' '}
+            <MaterialCommunityIcons name="star-four-points" size={12} color={C.gold} /> Starred by{' '}
             <Text style={{ fontWeight: '800', color: C.text }}>
               {vibed ? 'you' : post.topFan || 'the crew'}
             </Text>

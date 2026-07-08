@@ -8,6 +8,7 @@ import { SUPABASE_READY } from '../lib/supabase';
 import { toggleVibe } from '../services/social';
 import { recordSignal } from '../services/algorithm';
 import { tapLight, tapSuccess } from '../utils/feedback';
+import { sfxStar, sfxSuccess } from '../utils/sfx';
 import { useAuth } from '../context/AuthContext';
 import { useFeed } from '../hooks/useFeed';
 import {
@@ -44,7 +45,7 @@ export const HomeScreen = () => {
   const onVibe = (post) => {
     const next = !vibes[post.id];
     setVibes((v) => ({ ...v, [post.id]: next })); // instant feedback
-    if (next) { tapLight(); recordSignal('vibe', post); } // buzz + the algorithm learns
+    if (next) { tapLight(); sfxStar(); recordSignal('vibe', post); } // buzz + sparkle + the algorithm learns
     if (SUPABASE_READY && user) {
       toggleVibe(post.id, user.id, next).catch(() => {});
     }
@@ -159,6 +160,7 @@ export const HomeScreen = () => {
           onComplete={(id) => {
             setJoined((j) => ({ ...j, [id]: true }));
             tapSuccess();
+            sfxSuccess();
             recordSignal('join', magicPost);
             setMagicPost(null);
           }}

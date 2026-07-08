@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, Modal, Pressable, ImageBackground, FlatList, Dimensions, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { C, TEXT_BGS } from '../constants/theme';
 import { SoundChip } from './SoundChip';
 
@@ -53,13 +53,13 @@ export const ReelsViewer = ({ reels, startIndex = 0, vibes, onVibe, onComment, o
         {/* action rail */}
         <View style={{ alignItems: 'center' }}>
           <Pressable onPress={() => onVibe(item)} hitSlop={8} style={{ alignItems: 'center', marginBottom: 18 }}>
-            <Text style={{ fontSize: 30, opacity: vibed ? 1 : 0.85 }}>⚡</Text>
-            <Text style={{ color: vibed ? C.green : '#FFF', fontSize: 12, fontWeight: '800', marginTop: 3 }}>
+            <MaterialCommunityIcons name={vibed ? 'star-four-points' : 'star-four-points-outline'} size={32} color={vibed ? C.gold : '#FFF'} />
+            <Text style={{ color: vibed ? C.gold : '#FFF', fontSize: 12, fontWeight: '800', marginTop: 3 }}>
               {(item.vibes || 0) + (vibed ? 1 : 0)}
             </Text>
           </Pressable>
           <Pressable onPress={() => onComment(item)} hitSlop={8} style={{ alignItems: 'center', marginBottom: 18 }}>
-            <Text style={{ fontSize: 27 }}>💬</Text>
+            <MaterialCommunityIcons name="script-text-outline" size={30} color="#FFF" />
             <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '800', marginTop: 3 }}>{item.comments || 0}</Text>
           </Pressable>
           <Pressable hitSlop={8} style={{ alignItems: 'center' }}>

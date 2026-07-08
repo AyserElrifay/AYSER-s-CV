@@ -17,6 +17,8 @@ export const C = {
   blueSoft: 'rgba(59,130,246,0.09)',
   coral: '#F43F5E',
   coralSoft: 'rgba(244,63,94,0.09)',
+  gold: '#F5B301',                     // the signature Star reaction
+  goldSoft: 'rgba(245,179,1,0.12)',
   text: '#111827',                     // near-black ink
   dim: 'rgba(17,24,39,0.60)',
   faint: 'rgba(17,24,39,0.38)',
