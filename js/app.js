@@ -436,7 +436,8 @@
     const col = $(".chat-col", scroll);
 
     const key = (S.settings.keys[S.settings.provider] || "").trim();
-    if (!key) {
+    const demo = typeof window !== "undefined" && window.BARDI_DEMO;
+    if (!key && !demo) {
       col.insertAdjacentHTML("beforeend",
         `<div class="msg-row"><div class="avatar">ب</div><div class="msg assistant">${esc(t("no_key_msg"))}</div></div>
          <div style="margin-top:8px"><button class="btn small" data-go="settings">${esc(t("go_settings"))}</button></div>`);

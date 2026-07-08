@@ -90,6 +90,11 @@ MEMORY: <one short sentence in English capturing it>
   async function chat(state, messages, onDelta) {
     const provider = state.settings.provider;
     const key = (state.settings.keys[provider] || "").trim();
+
+    // Demo mode (trial build only): let Bardi talk without a key / without network.
+    if (typeof window !== "undefined" && window.BARDI_DEMO && !key) {
+      return demoReply(state, messages, onDelta);
+    }
     if (!key) throw new Error("NO_KEY");
 
     const lastUser = [...messages].reverse().find(m => m.role === "user");
@@ -311,6 +316,58 @@ Rules: 4 to 6 slides. Each slide = one phase or theme (mindset, weekly routine, 
     const deck = JSON.parse(cleaned.slice(start, end + 1));
     if (!deck.slides || !deck.slides.length) throw new Error("empty plan");
     return deck;
+  }
+
+  /* ── Demo responder (trial only) — warm Egyptian coaching, no network ── */
+  async function demoReply(state, messages, onDelta) {
+    const lang = state.settings.language || "ar";
+    const name = (state.profile.name || "").trim();
+    const lastUser = ([...messages].reverse().find(m => m.role === "user") || {}).content || "";
+    const low = lastUser.toLowerCase();
+
+    const pick = (obj) => {
+      const has = (arr) => arr.some(w => low.includes(w));
+      if (has(["نظم","يوم","خطط","وقت","plan","day","organ","jour"])) return obj.plan;
+      if (has(["ضغط","توتر","قلق","تعب","زهق","stress","anxious","tired","stressé"])) return obj.stress;
+      if (has(["هدف","حلم","goal","dream","objectif"])) return obj.goal;
+      if (has(["نفسي","هويتي","مين","who am i","identit","اعرف نفسي"])) return obj.identity;
+      return obj.default;
+    };
+
+    const R = {
+      ar: {
+        plan: `تمام يا${name ? " " + name : ""} 🌿 خلينا نبسّطها. بلاش تفكر في اليوم كله مرة واحدة — قوللي بس: إيه *أهم* حاجة واحدة لو عملتها النهارده هتحس إن يومك مشي صح؟ ابدأ بيها، والباقي هنرتّبه سوا.`,
+        stress: `حاسس بيك، والإحساس ده طبيعي جدًا وإنت مش لوحدك فيه. خُد نفس عميق كده معايا 🌬️. قوللي — الضغط ده جاي من حاجة واحدة معيّنة، ولا كتير متكوّمين فوق بعض؟ أول ما نسمّيهم بيخفّوا.`,
+        goal: `الهدف ده جميل ✨ بس خليني أسألك سؤال مهم: *ليه* الهدف ده بالذات؟ إيه اللي هيتغيّر في حياتك لو وصلتله؟ الإجابة دي هي وقودك لما الحماس يقل.`,
+        identity: `سؤال جامد إنك بتدوّر على ده 🙏. طيب نبدأ من هنا: افتكر لحظة حسّيت فيها إنك "ده أنا بجد" — إمتى كانت؟ وإيه اللي كنت بتعمله؟ اللحظات دي بتقول عليك أكتر من أي كلام.`,
+        default: `أنا معاك وسامعك 🌿. احكيلي أكتر — إيه اللي حاسس بيه دلوقتي بالظبط؟ مفيش إجابة غلط، أنا هنا عشان أفهمك مش أحكم عليك.`,
+      },
+      en: {
+        plan: `Alright${name ? " " + name : ""} 🌿 let's keep it simple. Don't try to plan the whole day at once — just tell me: what's the *one* thing that, if you did it today, would make the day feel right? Start there.`,
+        stress: `I hear you, and what you're feeling is completely human. Take one deep breath with me 🌬️. Tell me — is this pressure coming from one specific thing, or a pile of things stacked together? Naming them makes them lighter.`,
+        goal: `Beautiful goal ✨ — but let me ask the real question: *why* this goal? What changes in your life when you reach it? That answer is your fuel when motivation dips.`,
+        identity: `I love that you're asking this 🙏. Let's start here: think of a moment you felt truly like yourself. When was it, and what were you doing? Those moments say more about you than any label.`,
+        default: `I'm here and I'm listening 🌿. Tell me more — what are you feeling right now, exactly? There's no wrong answer; I'm here to understand you, not judge you.`,
+      },
+      fr: {
+        plan: `D'accord${name ? " " + name : ""} 🌿 restons simples. N'essaie pas de planifier toute la journée d'un coup — dis-moi juste : quelle est la *seule* chose qui, si tu la faisais aujourd'hui, rendrait ta journée réussie ? Commence par là.`,
+        stress: `Je te comprends, et ce que tu ressens est tout à fait humain. Respire profondément avec moi 🌬️. Dis-moi — cette pression vient-elle d'une chose précise, ou de plusieurs empilées ? Les nommer les allège.`,
+        goal: `Bel objectif ✨ — mais la vraie question : *pourquoi* celui-ci ? Qu'est-ce qui change dans ta vie quand tu l'atteins ? Cette réponse sera ton carburant.`,
+        identity: `J'aime que tu te poses cette question 🙏. Commençons ici : pense à un moment où tu t'es senti pleinement toi-même. Quand était-ce, et que faisais-tu ?`,
+        default: `Je suis là et je t'écoute 🌿. Dis-m'en plus — que ressens-tu exactement maintenant ? Il n'y a pas de mauvaise réponse.`,
+      },
+    };
+
+    const full = pick(R[lang] || R.ar);
+    // stream it word by word for a live feel
+    let out = "";
+    const parts = full.split(/(\s+)/);
+    for (const p of parts) {
+      out += p;
+      onDelta(out);
+      await new Promise(r => setTimeout(r, 22));
+    }
+    return out;
   }
 
   return { chat, generatePlan, extractMemory, MODELS, PROVIDER_NAMES };
