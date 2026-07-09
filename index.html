@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0B0B0F">
+  <meta name="description" content="بردي — كوتشك الشخصي بالذكاء الاصطناعي. مساحة واحدة بسيطة تنظّم حياتك: شغل، دراسة، صلاة، نوم، وتمرين.">
+  <title>Bardi · بردي</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='24' fill='%23E8442E'/%3E%3Ctext x='50' y='70' font-size='58' font-family='Georgia,serif' font-weight='bold' fill='white' text-anchor='middle'%3E%D8%A8%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- ══════════ Onboarding ══════════ -->
+  <div id="onboarding" class="onboarding hidden" aria-hidden="true"></div>
+
+  <!-- ══════════ App shell ══════════ -->
+  <div id="app" class="app hidden">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <div class="brand-mark">ب</div>
+        <div class="brand-name">Bardi <span>بردي</span></div>
+      </div>
+      <nav class="nav" id="nav"></nav>
+      <div class="sidebar-footer" id="sidebarFooter"></div>
+    </aside>
+
+    <main class="main" id="main"></main>
+
+    <nav class="tabbar" id="tabbar"></nav>
+  </div>
+
+  <!-- ══════════ Presentation overlay ══════════ -->
+  <div id="deck" class="deck hidden" aria-hidden="true"></div>
+
+  <!-- ══════════ Toast ══════════ -->
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="js/i18n.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/ai.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
