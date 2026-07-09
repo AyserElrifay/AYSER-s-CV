@@ -538,6 +538,11 @@ input, textarea, select { font-family: inherit; color: inherit; }
 
 .chip.small { padding: 6px 13px; font-size: 12.5px; }
 
+.local-ai-box { margin-top: 12px; }
+.local-ai-box .seg button { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; text-align: start; }
+.local-ai-box .seg button small { font-weight: 500; color: var(--text-3); font-size: 10.5px; }
+.local-ai-box .seg button.on small { color: var(--text-2); }
+
 details.help-details { margin-top: 10px; }
 details.help-details summary { cursor: pointer; color: var(--accent); font-size: 13.5px; font-weight: 600; }
 details.help-details .help-body { font-size: 13.5px; color: var(--text-2); padding: 10px 4px; line-height: 1.8; }

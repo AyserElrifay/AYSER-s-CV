@@ -1,8 +1,8 @@
-# Ayser AI — Your Life, Beautifully Organized ✦
+# Bardi · بردي — Your Life, Beautifully Organized ✦
 
-**Ayser AI** هو مدرب حياتك الذكي — موقع بسيط جدًا (بفلسفة Steve Jobs في التصميم) بيتكلم **عربي، إنجليزي، وفرنسي**، وبينظم حياتك كلها في مكان واحد: الشغل، الدراسة، الصلاة، النوم، الأكل، والتمرين.
+**بردي** هو مدرب حياتك الذكي — موقع بسيط جدًا (بفلسفة Steve Jobs في التصميم) بيتكلم **عربي، إنجليزي، فرنسي، ألماني، وإسباني**، وبينظم حياتك كلها في مكان واحد: الشغل، الدراسة، الصلاة، النوم، الأكل، والتمرين.
 
-A trilingual (Arabic / English / French) AI life-coach web app. Notion-simple, Apple-minimal, Swiss-designed.
+A chat-first, 5-language AI life-coach web app. Notion-simple, Apple-minimal, Swiss-designed.
 
 ---
 
@@ -11,15 +11,27 @@ A trilingual (Arabic / English / French) AI life-coach web app. Notion-simple, A
 | | |
 |---|---|
 | 🧭 **الكوتش الذكي** | شات مع مدرب حياة/ثيرابست حقيقي الإحساس — بيسألك أسئلة تبني هويتك وتوصلك لهدفك، وبيتعلم عنك مع الوقت |
-| 🤖 **٣ عقول AI** | Claude (موصى به) + ChatGPT + Gemini — بتحط مفتاحك مرة واحدة وتبدّل بينهم بضغطة |
+| 🖥️ **محطة العمل** | داشبورد واحد يجمع مهامك، مشروعك النشط، وآخر إضافات مكتبتك في شاشة واحدة |
 | ☀️ **يومك** | مهام اليوم + عاداتك (الصلوات الخمس، تمرين، نوم، أكل، مذاكرة، شغل عميق) + دايرة إنجاز |
 | 📄 **صفحات** | زي Notion بس بسيط: نصوص، عناوين، مهام، نقاط |
-| 📊 **مشاريع** | لوحات كانبان بالسحب والإفلات |
-| 📚 **المكتبة** | ارفع كتب (.txt / .md) — الكوتش يقراها ويستخدمها وهو بيرد عليك |
+| 📊 **مشاريع** | لوحات كانبان بالسحب والإفلات — وتقدر **تشارك مشروع كامل مع زميلك** بملف واحد |
+| 📚 **المكتبة** | كتب (.txt / .md) وفيديوهات تعلّم — الكوتش يستخدمها وهو بيرد عليك |
 | ✦ **الخطة** | قول هدفك، ياخد منك خطة كاملة في شكل **برزنتيشن Swiss Design** أنيق + طباعة PDF |
-| 🔒 **الخصوصية** | كل بياناتك على جهازك فقط (localStorage). المفاتيح تروح مباشرة لمزود الـAI — لا سيرفر، لا تتبع |
-| 🌍 **ثلاث لغات** | عربي (RTL كامل) / English / Français — بتتبدل من الإعدادات |
+| 🔒 **الخصوصية** | كل بياناتك على جهازك فقط (localStorage). كل مصدر AI متاح ومُفصح عنه بوضوح |
+| 🌍 **٥ لغات** | عربي (RTL كامل) / English / Français / Deutsch / Español |
 | 📱 **PWA** | يتفتح على الموبايل ويتثبت كأنه تطبيق |
+
+## 🤖 مصادر الذكاء الاصطناعي | AI Providers
+
+كل مصدر مُفصح عنه بوضوح في الإعدادات — **Claude هو الافتراضي دايمًا**، والباقي اختياري بالكامل:
+
+| المصدر | الوصف |
+|---|---|
+| **Claude** (افتراضي، موصى به) | مفتاحك الخاص → مباشرة لـ Anthropic |
+| **ChatGPT** | مفتاحك الخاص → مباشرة لـ OpenAI |
+| **Gemini** | مفتاحك الخاص → مباشرة لـ Google |
+| **Bardi Local** 💻 | موديلات **مفتوحة المصدر حقيقية** — Llama (Meta)، Phi (Microsoft)، Qwen (Alibaba) — بتشتغل **بالكامل جوه متصفحك** عن طريق [WebLLM](https://github.com/mlc-ai/web-llm) و WebGPU. مجاني، من غير مفتاح، ومحادثاتك متسيبش جهازك خالص بعد أول تنزيل. محتاج متصفح Chrome أو Edge |
+| **Bardi Free** 🌐 | مجاني وبدون مفتاح، بس بيوجّه رسايلك لخدمة تالتة مفتوحة اسمها [Pollinations](https://pollinations.ai) — اختياري بالكامل ومُفصح عنه بوضوح |
 
 ## 🚀 التشغيل | Run it
 
@@ -31,7 +43,7 @@ python3 -m http.server 8080
 # ثم افتح  http://localhost:8080
 ```
 
-أو انشره مجانًا على **GitHub Pages**: Settings → Pages → Deploy from branch.
+أو انشره مجانًا على **GitHub Pages**: Settings → Pages → Deploy from branch (أو استخدم الـ workflow الجاهز في `.github/workflows/pages.yml`).
 
 ## 🔑 مفاتيح الذكاء الاصطناعي | AI Keys (BYOK)
 
@@ -41,23 +53,23 @@ python3 -m http.server 8080
 - **ChatGPT**: [platform.openai.com](https://platform.openai.com) → API Keys
 - **Gemini**: [aistudio.google.com](https://aistudio.google.com) → Get API Key
 
-حط المفتاح في **الإعدادات** داخل الموقع (فيه شرح خطوة بخطوة). المفتاح يتخزن محليًا فقط.
+حط المفتاح في **الإعدادات** داخل الموقع (فيه شرح خطوة بخطوة). المفتاح يتخزن محليًا فقط. ولو عايز تشتغل من غير أي مفتاح خالص، فعّل **Bardi Local** من نفس الصفحة.
 
 ## 🗺️ المرحلة القادمة | Phase 2 (roadmap)
 
 - حسابات حقيقية (رقم تليفون / إيميل) ومزامنة سحابية (Supabase)
-- تعاون لحظي مع الزملاء أونلاين
-- قراءة ملفات PDF مباشرة، وأدوات إبداع (صور/ميديا)
+- تعاون لحظي (realtime) مع الزملاء أونلاين على نفس اللوحة
+- قراءة ملفات PDF مباشرة
 
 ## 🧱 Structure
 
 ```
 index.html      app shell
 css/style.css   design system (Apple-minimal × Swiss, RTL, dark/light)
-js/i18n.js      ar / en / fr strings
-js/store.js     local data layer + export/import
-js/ai.js        Claude / OpenAI / Gemini adapters (streaming, coach persona, book retrieval)
-js/app.js       views & interactions
+js/i18n.js      ar / en / fr / de / es strings
+js/store.js     local data layer + export/import (+ per-project share)
+js/ai.js        Claude / OpenAI / Gemini / Pollinations / WebLLM adapters
+js/app.js       views & interactions (chat-first, Workstation, Library, Projects)
 ```
 
 ---

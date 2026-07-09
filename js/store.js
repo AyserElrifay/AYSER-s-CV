@@ -22,11 +22,14 @@ const Store = (() => {
     settings: {
       language: "ar",
       theme: "light",
-      // "free" (a third-party keyless gateway) is available but never the
-      // default — a user must explicitly opt into it in Settings, since it
-      // means their messages go to a service Bardi doesn't control.
+      // "free" (a third-party keyless gateway) and "local" (on-device open
+      // models) are both available but never the default — a user must
+      // explicitly opt into either, since "free" means their messages go
+      // to a service Bardi doesn't control, and "local" means a real
+      // model download before it can answer.
       provider: "claude",
       keys: { claude: "", openai: "", gemini: "" },
+      localModel: "Llama-3.2-1B-Instruct-q4f16_1-MLC",
     },
     tasks: [],          // {id, title, done, date}
     habitLog: {},       // { "YYYY-MM-DD": { habitId: true } }

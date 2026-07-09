@@ -17,7 +17,63 @@ const AI = (() => {
   // Free, keyless open-model endpoint (runs open-source models like Llama / DeepSeek / Mistral).
   const FREE_ENDPOINT = "https://text.pollinations.ai/openai";
 
-  const PROVIDER_NAMES = { free: "Bardi Free", claude: "Claude", openai: "ChatGPT", gemini: "Gemini" };
+  const PROVIDER_NAMES = { free: "Bardi Free", claude: "Claude", openai: "ChatGPT", gemini: "Gemini", local: "Bardi Local" };
+
+  /* ── On-device open-source models (WebLLM / WebGPU) ──
+     Real open-weight models — Meta Llama, Microsoft Phi, Alibaba Qwen —
+     downloaded once from Hugging Face (via the MLC-AI WebLLM CDN library)
+     and run entirely inside the browser afterward. No server, no key, and
+     after the one-time download nothing about the conversation ever
+     leaves the device — this is more private than any hosted provider. */
+  const LOCAL_MODELS = [
+    { id: "Llama-3.2-1B-Instruct-q4f16_1-MLC", name: "Llama 3.2 · 1B (Meta)", size: "~700 MB" },
+    { id: "Qwen2.5-1.5B-Instruct-q4f16_1-MLC", name: "Qwen 2.5 · 1.5B (Alibaba)", size: "~1 GB" },
+    { id: "Phi-3.5-mini-instruct-q4f16_1-MLC", name: "Phi-3.5 mini (Microsoft)", size: "~2.2 GB" },
+    { id: "Llama-3.2-3B-Instruct-q4f16_1-MLC", name: "Llama 3.2 · 3B (Meta)", size: "~1.9 GB" },
+  ];
+  const WEBLLM_CDN = "https://esm.run/@mlc-ai/web-llm";
+
+  let localEngine = null;
+  let localEngineModelId = null;
+  let localEngineLoading = null; // in-flight load promise, so concurrent calls share it
+
+  function localSupported() {
+    return typeof navigator !== "undefined" && !!navigator.gpu;
+  }
+
+  function localStatus() {
+    return { ready: !!localEngine, modelId: localEngineModelId };
+  }
+
+  /* Loads (or reuses) the WebLLM engine for the given model, reporting
+     download/compile progress via onProgress({text, progress}). */
+  async function ensureLocalEngine(modelId, onProgress) {
+    if (!localSupported()) throw new Error("WEBGPU_UNSUPPORTED");
+    if (localEngine && localEngineModelId === modelId) return localEngine;
+    if (localEngineLoading && localEngineModelId === modelId) return localEngineLoading;
+
+    localEngineModelId = modelId;
+    localEngineLoading = (async () => {
+      const webllm = await import(/* webpackIgnore: true */ WEBLLM_CDN);
+      const engine = await webllm.CreateMLCEngine(modelId, {
+        initProgressCallback: (report) => {
+          if (onProgress) onProgress({ text: report.text || "", progress: report.progress || 0 });
+        },
+      });
+      localEngine = engine;
+      return engine;
+    })();
+
+    try {
+      return await localEngineLoading;
+    } catch (e) {
+      localEngine = null;
+      localEngineModelId = null;
+      throw e;
+    } finally {
+      localEngineLoading = null;
+    }
+  }
 
   /* ── Coach persona system prompt ── */
   function coachSystem(state) {
@@ -102,14 +158,14 @@ MEMORY: <one short sentence in English capturing it>
      messages: [{role:"user"|"assistant", content}]
      onDelta(textSoFar) called as tokens arrive.
      Returns the full final text. */
-  async function chat(state, messages, onDelta) {
+  async function chat(state, messages, onDelta, onProgress) {
     const provider = state.settings.provider;
     const key = (state.settings.keys[provider] || "").trim();
+    const needsNoKey = provider === "free" || provider === "local";
 
-    // Demo mode (trial build only): if the free endpoint is unreachable in a
+    // Demo mode (trial build only): if a keyless endpoint is unreachable in a
     // sandboxed preview, fall back to canned Egyptian coaching so the UI still talks.
-    // The "free" provider needs no key.
-    if (provider !== "free" && !key) {
+    if (!needsNoKey && !key) {
       if (typeof window !== "undefined" && window.BARDI_DEMO) return demoReply(state, messages, onDelta);
       throw new Error("NO_KEY");
     }
@@ -117,6 +173,7 @@ MEMORY: <one short sentence in English capturing it>
     const lastUser = [...messages].reverse().find(m => m.role === "user");
     const sys = withKnowledge(coachSystem(state), state, lastUser ? lastUser.content : "");
 
+    if (provider === "local") return chatLocal(state, sys, messages, onDelta, onProgress);
     if (provider === "free") {
       try {
         return await chatFree(sys, messages, onDelta);
@@ -130,6 +187,30 @@ MEMORY: <one short sentence in English capturing it>
     if (provider === "openai") return chatOpenAI(key, sys, messages, onDelta);
     if (provider === "gemini") return chatGemini(key, sys, messages, onDelta);
     throw new Error("Unknown provider");
+  }
+
+  /* ── On-device open-source model chat (WebLLM, streaming) ── */
+  async function chatLocal(state, system, messages, onDelta, onProgress) {
+    const modelId = state.settings.localModel || LOCAL_MODELS[0].id;
+    let engine;
+    try {
+      engine = await ensureLocalEngine(modelId, onProgress);
+    } catch (e) {
+      if (e.message === "WEBGPU_UNSUPPORTED") throw new Error("WEBGPU_UNSUPPORTED");
+      throw new Error("Couldn't load the local model: " + (e.message || e));
+    }
+
+    const stream = await engine.chat.completions.create({
+      stream: true,
+      messages: [{ role: "system", content: system }, ...messages.map(m => ({ role: m.role, content: m.content }))],
+    });
+
+    let full = "";
+    for await (const chunk of stream) {
+      const delta = chunk.choices && chunk.choices[0] && chunk.choices[0].delta && chunk.choices[0].delta.content;
+      if (delta) { full += delta; onDelta(full); }
+    }
+    return full;
   }
 
   /* ── Free open-model provider (keyless, streaming, OpenAI-compatible) ── */
@@ -285,7 +366,7 @@ MEMORY: <one short sentence in English capturing it>
   async function generatePlan(state, goal) {
     const provider = state.settings.provider;
     const key = (state.settings.keys[provider] || "").trim();
-    if (provider !== "free" && !key) throw new Error("NO_KEY");
+    if (provider !== "free" && provider !== "local" && !key) throw new Error("NO_KEY");
 
     const langNames = { ar: "Arabic", en: "English", fr: "French", de: "German", es: "Spanish" };
     const lang = langNames[state.settings.language] || "Arabic";
@@ -313,7 +394,15 @@ Respond with ONLY valid JSON (no markdown, no backticks) in exactly this shape:
 Rules: 4 to 6 slides. Each slide = one phase or theme (mindset, weekly routine, obstacles, tracking...). 3–5 short concrete points per slide. Points are actions, not theory.`;
 
     let text;
-    if (provider === "free") {
+    if (provider === "local") {
+      const modelId = state.settings.localModel || LOCAL_MODELS[0].id;
+      const engine = await ensureLocalEngine(modelId, null);
+      const res = await engine.chat.completions.create({
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" },
+      });
+      text = (res.choices && res.choices[0] && res.choices[0].message && res.choices[0].message.content) || "";
+    } else if (provider === "free") {
       const res = await fetch(FREE_ENDPOINT, {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -434,5 +523,12 @@ Rules: 4 to 6 slides. Each slide = one phase or theme (mindset, weekly routine, 
     return out;
   }
 
-  return { chat, generatePlan, extractMemory, MODELS, PROVIDER_NAMES };
+  /* ── Preload a local model from Settings (before any chat message) ── */
+  async function loadLocalModel(modelId, onProgress) {
+    return ensureLocalEngine(modelId, (report) => {
+      if (onProgress) onProgress(Math.round((report.progress || 0) * 100));
+    });
+  }
+
+  return { chat, generatePlan, extractMemory, MODELS, PROVIDER_NAMES, LOCAL_MODELS, localSupported, localStatus, loadLocalModel };
 })();

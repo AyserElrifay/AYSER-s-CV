@@ -401,7 +401,7 @@
             <button class="send-btn" id="sendBtn">➤</button>
           </div>
           <div class="provider-row center">
-            ${["free", "claude", "openai", "gemini"].map(p => `
+            ${["claude", "openai", "gemini", "free", "local"].map(p => `
               <button class="chip tiny ${p === S.settings.provider ? "active" : ""}" data-provider="${p}">${AI.PROVIDER_NAMES[p]}</button>`).join("")}
           </div>
         </div>
@@ -445,7 +445,8 @@
 
     const key = (S.settings.keys[S.settings.provider] || "").trim();
     const demo = typeof window !== "undefined" && window.BARDI_DEMO;
-    if (S.settings.provider !== "free" && !key && !demo) {
+    const needsNoKey = S.settings.provider === "free" || S.settings.provider === "local";
+    if (!needsNoKey && !key && !demo) {
       col.insertAdjacentHTML("beforeend",
         `<div class="msg-row"><div class="avatar">ب</div><div class="msg assistant">${esc(t("no_key_msg"))}</div></div>
          <div style="margin-top:8px"><button class="btn small" data-go="settings">${esc(t("go_settings"))}</button></div>`);
@@ -473,11 +474,20 @@
 
     const live = $("#live");
     try {
-      const full = await AI.chat(S, chat.messages.slice(-24), (sofar) => {
-        live.classList.remove("thinking");
-        live.textContent = sofar;
-        scroll.scrollTop = scroll.scrollHeight;
-      });
+      const full = await AI.chat(
+        S, chat.messages.slice(-24),
+        (sofar) => {
+          live.classList.remove("thinking");
+          live.textContent = sofar;
+          scroll.scrollTop = scroll.scrollHeight;
+        },
+        (pct) => {
+          // Local model still downloading/compiling on first use.
+          live.classList.remove("thinking");
+          live.textContent = t("local_downloading", { pct });
+          scroll.scrollTop = scroll.scrollHeight;
+        }
+      );
 
       const { clean, memory } = AI.extractMemory(full);
       live.classList.remove("thinking");
@@ -491,7 +501,9 @@
       }
       Store.save();
     } catch (err) {
-      const msg = err.message === "NO_KEY" ? t("no_key_msg") : t("ai_error", { err: err.message });
+      const msg = err.message === "NO_KEY" ? t("no_key_msg")
+        : err.message === "WEBGPU_UNSUPPORTED" ? t("local_webgpu_needed")
+        : t("ai_error", { err: err.message });
       live.classList.remove("thinking");
       live.textContent = msg;
       live.removeAttribute("id");
@@ -989,7 +1001,8 @@
       const goal = $("#planGoal").value.trim() || S.profile.goal;
       if (!goal) return;
       const key = (S.settings.keys[S.settings.provider] || "").trim();
-      if (S.settings.provider !== "free" && !key) { toast(t("no_key_msg")); go("settings"); return; }
+      const needsNoKey = S.settings.provider === "free" || S.settings.provider === "local";
+      if (!needsNoKey && !key) { toast(t("no_key_msg")); go("settings"); return; }
 
       const btn = $("#genPlan"), st = $("#planStatus");
       btn.disabled = true;
@@ -1140,6 +1153,19 @@
       <div class="card">
         <p class="s-sub" style="margin-bottom:14px">🔒 ${esc(t("s_ai_sub"))}</p>
 
+        <div class="settings-row" style="flex-direction:column;align-items:stretch">
+          <div class="s-info"><div class="s-title">💻 ${esc(t("key_local_title"))}</div><div class="s-sub">${esc(t("key_local_sub"))}</div></div>
+          ${AI.localSupported() ? `
+            <div class="local-ai-box">
+              <div class="seg wrap" id="localModelPicker">
+                ${AI.LOCAL_MODELS.map(m => `<button data-localmodel="${m.id}" class="${st.localModel === m.id ? "on" : ""}">${esc(m.name)} <small>${m.size}</small></button>`).join("")}
+              </div>
+              <button class="btn small" id="loadLocalBtn" style="margin-top:10px">${esc(t("local_download_btn"))}</button>
+              <span id="localStatus" class="s-sub" style="margin-inline-start:10px"></span>
+            </div>
+          ` : `<p class="s-sub" style="color:var(--accent)">⚠️ ${esc(t("local_unsupported_msg"))}</p>`}
+        </div>
+
         <div class="settings-row">
           <div class="s-info"><div class="s-title">🌐 ${esc(t("key_free_title"))}</div><div class="s-sub">${esc(t("key_free_sub"))}</div></div>
         </div>
@@ -1168,7 +1194,7 @@
         <div class="settings-row">
           <div class="s-info"><div class="s-title">${esc(t("s_provider"))}</div><div class="s-sub">${esc(t("s_provider_sub"))}</div></div>
           <div class="seg wrap">
-            ${["free","claude","openai","gemini"].map(p => `<button data-setprov="${p}" class="${st.provider === p ? "on" : ""}">${AI.PROVIDER_NAMES[p]}</button>`).join("")}
+            ${["claude","openai","gemini","free","local"].map(p => `<button data-setprov="${p}" class="${st.provider === p ? "on" : ""}">${AI.PROVIDER_NAMES[p]}</button>`).join("")}
           </div>
         </div>
 
@@ -1205,6 +1231,30 @@
     $$("[data-setprov]").forEach(b => b.addEventListener("click", () => {
       st.provider = b.dataset.setprov; Store.save(); render();
     }));
+
+    if (AI.localSupported()) {
+      $$("[data-localmodel]").forEach(b => b.addEventListener("click", () => {
+        st.localModel = b.dataset.localmodel; Store.save(); render();
+      }));
+      const localStatusEl = $("#localStatus");
+      const stat = AI.localStatus();
+      if (stat.ready && stat.modelId === st.localModel) localStatusEl.textContent = t("local_ready_badge");
+      $("#loadLocalBtn").addEventListener("click", async () => {
+        const btn = $("#loadLocalBtn");
+        btn.disabled = true;
+        try {
+          const modelId = st.localModel || AI.LOCAL_MODELS[0].id;
+          await AI.loadLocalModel(modelId, (pct) => {
+            localStatusEl.textContent = t("local_downloading", { pct });
+          });
+          localStatusEl.textContent = t("local_ready_badge");
+        } catch (e) {
+          localStatusEl.textContent = t("ai_error", { err: e.message || String(e) });
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    }
 
     $("#saveProfile").addEventListener("click", () => {
       S.profile.name = $("#sName").value.trim();
