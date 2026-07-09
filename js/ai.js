@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════
-   Ayser AI — AI layer
+   Bardi — AI layer
    Direct browser → provider calls (BYOK).
    Providers: Claude (Anthropic), ChatGPT (OpenAI), Gemini (Google)
    Keys are stored locally and sent only to the provider itself.
@@ -8,12 +8,16 @@
 const AI = (() => {
 
   const MODELS = {
+    free: "openai",            // Pollinations: routes to strong open/GPT-class models, keyless
     claude: "claude-opus-4-8",
     openai: "gpt-4o",
     gemini: "gemini-2.0-flash",
   };
 
-  const PROVIDER_NAMES = { claude: "Claude", openai: "ChatGPT", gemini: "Gemini" };
+  // Free, keyless open-model endpoint (runs open-source models like Llama / DeepSeek / Mistral).
+  const FREE_ENDPOINT = "https://text.pollinations.ai/openai";
+
+  const PROVIDER_NAMES = { free: "Bardi Free", claude: "Claude", openai: "ChatGPT", gemini: "Gemini" };
 
   /* ── Coach persona system prompt ── */
   function coachSystem(state) {
@@ -22,6 +26,8 @@ const AI = (() => {
       ar: "Egyptian Arabic (العامية المصرية) — warm, simple, everyday masri like a close Egyptian friend; use فصحى only for Quran/quotes",
       en: "English",
       fr: "French",
+      de: "German",
+      es: "Spanish",
     };
     const lang = langNames[state.settings.language] || langNames.ar;
 
@@ -36,6 +42,11 @@ How you work:
 - Help them design their life: work, study, prayer (salah), sleep, food, training, creativity. Suggest tiny concrete next steps.
 - Be encouraging but honest. Celebrate small wins. Normalize struggle.
 - Faith-sensitive: the user may be Muslim; treat prayer and spirituality with deep respect.
+
+How you think (reason before you answer):
+- Before replying, think it through internally: what is the person really asking beneath the words? what do you already know about them? what would genuinely help vs. just sound nice? Consider a couple of angles, then give the one clear, grounded response — never show this internal reasoning, only the final warm answer.
+- Understand deeply, don't pattern-match. Connect what they say now to their goal, values and past messages. If something doesn't add up, gently ask instead of assuming.
+- Be honest and specific over generic. A real, slightly harder truth delivered kindly beats an empty reassurance.
 
 Memory:
 - When you learn something genuinely important and lasting about the user (a value, fear, pattern, preference, life fact), end your reply with a separate final line:
@@ -53,6 +64,10 @@ MEMORY: <one short sentence in English capturing it>
 
     if (state.memory && state.memory.length) {
       sys += `\n\nThings you have learned about them over time:\n- ` + state.memory.slice(-30).join("\n- ");
+    }
+    if (state.videos && state.videos.length) {
+      sys += `\n\nVideos/skills they're studying (you can reference or encourage progress on these, but you cannot watch them):\n- ` +
+        state.videos.slice(-15).map(v => v.title + (v.notes ? ` (${v.notes})` : "")).join("\n- ");
     }
     return sys;
   }
@@ -91,19 +106,55 @@ MEMORY: <one short sentence in English capturing it>
     const provider = state.settings.provider;
     const key = (state.settings.keys[provider] || "").trim();
 
-    // Demo mode (trial build only): let Bardi talk without a key / without network.
-    if (typeof window !== "undefined" && window.BARDI_DEMO && !key) {
-      return demoReply(state, messages, onDelta);
+    // Demo mode (trial build only): if the free endpoint is unreachable in a
+    // sandboxed preview, fall back to canned Egyptian coaching so the UI still talks.
+    // The "free" provider needs no key.
+    if (provider !== "free" && !key) {
+      if (typeof window !== "undefined" && window.BARDI_DEMO) return demoReply(state, messages, onDelta);
+      throw new Error("NO_KEY");
     }
-    if (!key) throw new Error("NO_KEY");
 
     const lastUser = [...messages].reverse().find(m => m.role === "user");
     const sys = withKnowledge(coachSystem(state), state, lastUser ? lastUser.content : "");
 
+    if (provider === "free") {
+      try {
+        return await chatFree(sys, messages, onDelta);
+      } catch (e) {
+        // Preview sandboxes block external calls — degrade to demo so it still responds.
+        if (typeof window !== "undefined" && window.BARDI_DEMO) return demoReply(state, messages, onDelta);
+        throw e;
+      }
+    }
     if (provider === "claude") return chatClaude(key, sys, messages, onDelta);
     if (provider === "openai") return chatOpenAI(key, sys, messages, onDelta);
     if (provider === "gemini") return chatGemini(key, sys, messages, onDelta);
     throw new Error("Unknown provider");
+  }
+
+  /* ── Free open-model provider (keyless, streaming, OpenAI-compatible) ── */
+  async function chatFree(system, messages, onDelta) {
+    const res = await fetch(FREE_ENDPOINT, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        model: MODELS.free,
+        stream: true,
+        messages: [{ role: "system", content: system }, ...messages],
+      }),
+    });
+    if (!res.ok) throw new Error(await apiErr(res));
+
+    let full = "";
+    await readSSE(res, (data) => {
+      if (data === "[DONE]") return;
+      try {
+        const ev = JSON.parse(data);
+        const d = ev.choices && ev.choices[0] && (ev.choices[0].delta || ev.choices[0].message);
+        if (d && d.content) { full += d.content; onDelta(full); }
+      } catch (_) {}
+    });
+    return full;
   }
 
   /* ── Anthropic (Claude) — direct browser call ── */
@@ -234,9 +285,9 @@ MEMORY: <one short sentence in English capturing it>
   async function generatePlan(state, goal) {
     const provider = state.settings.provider;
     const key = (state.settings.keys[provider] || "").trim();
-    if (!key) throw new Error("NO_KEY");
+    if (provider !== "free" && !key) throw new Error("NO_KEY");
 
-    const langNames = { ar: "Arabic", en: "English", fr: "French" };
+    const langNames = { ar: "Arabic", en: "English", fr: "French", de: "German", es: "Spanish" };
     const lang = langNames[state.settings.language] || "Arabic";
     const p = state.profile;
 
@@ -262,7 +313,20 @@ Respond with ONLY valid JSON (no markdown, no backticks) in exactly this shape:
 Rules: 4 to 6 slides. Each slide = one phase or theme (mindset, weekly routine, obstacles, tracking...). 3–5 short concrete points per slide. Points are actions, not theory.`;
 
     let text;
-    if (provider === "claude") {
+    if (provider === "free") {
+      const res = await fetch(FREE_ENDPOINT, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          model: MODELS.free,
+          response_format: { type: "json_object" },
+          messages: [{ role: "user", content: prompt }],
+        }),
+      });
+      if (!res.ok) throw new Error(await apiErr(res));
+      const j = await res.json();
+      text = (j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content) || "";
+    } else if (provider === "claude") {
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: {

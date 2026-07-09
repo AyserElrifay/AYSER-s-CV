@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════
-   Ayser AI — Store (localStorage data layer)
+   Bardi — Store (localStorage data layer)
    All data lives on the user's device. Nothing is sent
    anywhere except AI requests, which go directly from
    the browser to the chosen AI provider.
@@ -22,6 +22,9 @@ const Store = (() => {
     settings: {
       language: "ar",
       theme: "light",
+      // "free" (a third-party keyless gateway) is available but never the
+      // default — a user must explicitly opt into it in Settings, since it
+      // means their messages go to a service Bardi doesn't control.
       provider: "claude",
       keys: { claude: "", openai: "", gemini: "" },
     },
@@ -30,6 +33,7 @@ const Store = (() => {
     pages: [],          // {id, title, blocks:[{id,type,text,done}], updatedAt}
     projects: [],       // {id, name, cols:[{id, key, cards:[{id,title}]}]}
     books: [],          // {id, title, size, chunks:[string], addedAt}
+    videos: [],         // {id, title, url, notes, addedAt} — study/skill videos
     chats: [],          // [{id, title, messages:[{role,content}], updatedAt}]
     activeChatId: null,
     memory: [],         // strings the coach learned about the user
@@ -79,7 +83,7 @@ const Store = (() => {
     const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = "ayser-ai-backup-" + todayKey() + ".json";
+    a.download = "bardi-backup-" + todayKey() + ".json";
     a.click();
     URL.revokeObjectURL(a.href);
   }
@@ -94,6 +98,34 @@ const Store = (() => {
     return state;
   }
 
+  /* ── Share a single project with a colleague (download → they import) ── */
+  function exportProject(project) {
+    const payload = { bardiProject: 1, project };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "bardi-project-" + (project.name || "untitled").replace(/[^\w\-]+/g, "-").slice(0, 40) + ".json";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  function importProjectFile(json) {
+    const data = JSON.parse(json);
+    const src = data && data.bardiProject && data.project;
+    if (!src || !src.name || !Array.isArray(src.cols)) throw new Error("bad project file");
+    // Regenerate every ID so importing the same file twice (or on the same
+    // device that exported it) never collides with existing projects.
+    return {
+      id: uid(),
+      name: src.name,
+      cols: src.cols.map(c => ({
+        id: uid(),
+        key: c.key,
+        cards: (c.cards || []).map(k => ({ id: uid(), title: k.title })),
+      })),
+    };
+  }
+
   function uid() {
     return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   }
@@ -103,5 +135,5 @@ const Store = (() => {
     return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
   }
 
-  return { load, save, get, reset, exportData, importData, uid, todayKey };
+  return { load, save, get, reset, exportData, importData, exportProject, importProjectFile, uid, todayKey };
 })();

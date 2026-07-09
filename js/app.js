@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════
-   Ayser AI — App (views, routing, interactions)
+   Bardi — App (views, routing, interactions)
    ═══════════════════════════════════════════════════ */
 
 (() => {
@@ -13,6 +13,10 @@
   const esc = (s) => String(s == null ? "" : s)
     .replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;").replaceAll("'", "&#39;");
+
+  // Defense in depth: only ever render http(s) URLs as href — blocks
+  // javascript:/data: schemes even from imported backup files.
+  const safeUrl = (u) => /^https?:\/\//i.test(u || "") ? u : "#";
 
   function toast(msg) {
     const el = $("#toast");
@@ -35,6 +39,7 @@
     library: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V2H6.5A2.5 2.5 0 0 0 4 4.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/></svg>',
     plan: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2l2.4 6.9L21 11l-6.6 2.1L12 20l-2.4-6.9L3 11l6.6-2.1z"/></svg>',
     settings: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3h0a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5h0a1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9v0a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
+    workstation: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="5" rx="1.5"/><rect x="13" y="10" width="8" height="11" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/></svg>',
   };
 
   const HABITS = [
@@ -44,7 +49,7 @@
     { id: "study", ico: "📖" }, { id: "work", ico: "🎯" },
   ];
 
-  const VIEWS = ["coach", "today", "pages", "projects", "library", "plan", "settings"];
+  const VIEWS = ["coach", "workstation", "today", "pages", "projects", "library", "plan", "settings"];
 
   /* ════════════ Onboarding ════════════ */
 
@@ -81,6 +86,8 @@
           <button class="ob-lang-btn" data-lang="ar">العربية <small>Arabic</small></button>
           <button class="ob-lang-btn" data-lang="en">English <small>English</small></button>
           <button class="ob-lang-btn" data-lang="fr">Français <small>French</small></button>
+          <button class="ob-lang-btn" data-lang="de">Deutsch <small>German</small></button>
+          <button class="ob-lang-btn" data-lang="es">Español <small>Spanish</small></button>
         </div>`;
     } else if (step === "name" || step === "contact" || step === "goal" || step === "why") {
       const key = step;
@@ -205,7 +212,7 @@
   });
 
   function renderNav() {
-    const tools = ["today", "pages", "projects", "library", "plan", "settings"];
+    const tools = ["workstation", "today", "pages", "projects", "library", "plan", "settings"];
 
     const chatList = S.chats.slice(0, 20).map(c => `
       <div class="chat-item ${view === "coach" && c.id === S.activeChatId ? "active" : ""}" data-chat="${c.id}">
@@ -219,7 +226,7 @@
       <div class="nav-label">${esc(t("tools_label"))}</div>
       ${tools.map(v => `<button class="nav-item ${v === view ? "active" : ""}" data-go="${v}">${IC[v]}<span>${esc(t("nav_" + v))}</span></button>`).join("")}`;
 
-    $("#tabbar").innerHTML = ["coach", "today", "pages", "projects", "settings"].map(v =>
+    $("#tabbar").innerHTML = ["coach", "workstation", "today", "pages", "projects", "settings"].map(v =>
       `<button class="tab-item ${v === view ? "active" : ""}" data-go="${v}">${IC[v]}<span>${esc(t("nav_" + v))}</span></button>`).join("");
 
     $("#sidebarFooter").innerHTML = `🔒 ${esc(t("made_with"))}`;
@@ -259,6 +266,7 @@
     const main = $("#main");
     if (view === "today") return renderToday(main);
     if (view === "coach") return renderCoach(main);
+    if (view === "workstation") return renderWorkstation(main);
     if (view === "pages") return openPageId ? renderEditor(main) : renderPages(main);
     if (view === "projects") return renderProjects(main);
     if (view === "library") return renderLibrary(main);
@@ -288,7 +296,7 @@
       </div>
 
       <div class="coach-line">
-        <div class="avatar">A</div>
+        <div class="avatar">ب</div>
         <p><b>${esc(t("coach_says"))}</b>${esc(t("daily_quote", { name: S.profile.name || "✦", goal: S.profile.goal || "…" }))}</p>
       </div>
 
@@ -393,7 +401,7 @@
             <button class="send-btn" id="sendBtn">➤</button>
           </div>
           <div class="provider-row center">
-            ${["claude", "openai", "gemini"].map(p => `
+            ${["free", "claude", "openai", "gemini"].map(p => `
               <button class="chip tiny ${p === S.settings.provider ? "active" : ""}" data-provider="${p}">${AI.PROVIDER_NAMES[p]}</button>`).join("")}
           </div>
         </div>
@@ -437,7 +445,7 @@
 
     const key = (S.settings.keys[S.settings.provider] || "").trim();
     const demo = typeof window !== "undefined" && window.BARDI_DEMO;
-    if (!key && !demo) {
+    if (S.settings.provider !== "free" && !key && !demo) {
       col.insertAdjacentHTML("beforeend",
         `<div class="msg-row"><div class="avatar">ب</div><div class="msg assistant">${esc(t("no_key_msg"))}</div></div>
          <div style="margin-top:8px"><button class="btn small" data-go="settings">${esc(t("go_settings"))}</button></div>`);
@@ -492,6 +500,100 @@
       sending = false;
       scroll.scrollTop = scroll.scrollHeight;
     }
+  }
+
+  /* ════════════ Workstation ════════════ */
+
+  function renderWorkstation(main) {
+    const today = Store.todayKey();
+    const tasks = S.tasks.filter(x => x.date === today);
+    const log = S.habitLog[today] || {};
+    const doneHabits = HABITS.filter(h => log[h.id]).length;
+
+    if (S.projects.length && !S.projects.find(x => x.id === activeProject)) activeProject = S.projects[0].id;
+    const proj = S.projects.find(x => x.id === activeProject);
+
+    const libItems = [
+      ...S.books.map(b => ({ kind: "book", ico: "📖", title: b.title, meta: `${b.chunks.length} ${t("chunks")}`, addedAt: b.addedAt })),
+      ...S.videos.map(v => ({ kind: "video", ico: "🎬", title: v.title, meta: t("open_video"), url: v.url, addedAt: v.addedAt })),
+    ].sort((a, b) => b.addedAt - a.addedAt).slice(0, 6);
+
+    main.innerHTML = `
+      <div class="view-head">
+        <h1 class="view-title">${esc(t("workstation_title"))}</h1>
+        <p class="view-sub">${esc(t("workstation_sub"))}</p>
+      </div>
+
+      <div class="ws-stats">
+        <div class="ws-stat"><div class="ws-stat-n">${tasks.filter(x => x.done).length}/${tasks.length}</div><div class="ws-stat-l">${esc(t("ws_stat_tasks"))}</div></div>
+        <div class="ws-stat"><div class="ws-stat-n">${doneHabits}/${HABITS.length}</div><div class="ws-stat-l">${esc(t("ws_stat_habits"))}</div></div>
+        <div class="ws-stat"><div class="ws-stat-n">${S.projects.length}</div><div class="ws-stat-l">${esc(t("ws_stat_projects"))}</div></div>
+        <div class="ws-stat"><div class="ws-stat-n">${S.books.length + S.videos.length}</div><div class="ws-stat-l">${esc(t("ws_stat_library"))}</div></div>
+      </div>
+
+      <div class="card" style="margin-top:20px">
+        <div class="section-label" style="margin-top:0">${esc(t("ws_ask_title"))}</div>
+        <div class="add-row">
+          <input id="wsAsk" class="input" placeholder="${esc(t("ws_ask_ph"))}">
+          <button id="wsAskBtn" class="btn small">${esc(t("ws_ask_btn"))}</button>
+        </div>
+      </div>
+
+      <div class="ws-grid">
+        <div class="card">
+          <div class="section-label" style="margin-top:0">${esc(t("ws_quick_tasks"))}</div>
+          ${tasks.length ? tasks.slice(0, 6).map(x => `
+            <div class="task-row ${x.done ? "done" : ""}">
+              <button class="check ${x.done ? "on" : ""}" data-wstoggle="${x.id}">✓</button>
+              <span class="task-title">${esc(x.title)}</span>
+            </div>`).join("") : `<p style="color:var(--text-3);padding:10px 4px">${esc(t("no_tasks"))}</p>`}
+        </div>
+
+        <div class="card">
+          <div class="section-label" style="margin-top:0">${esc(t("ws_active_project"))}</div>
+          ${proj ? `
+            <div class="ws-mini-cols">
+              ${proj.cols.map(c => `
+                <div class="ws-mini-col">
+                  <div class="ws-mini-col-h">${esc(t(c.key))} <span>${c.cards.length}</span></div>
+                  ${c.cards.slice(0, 3).map(k => `<div class="ws-mini-card">${esc(k.title)}</div>`).join("")}
+                </div>`).join("")}
+            </div>
+            <button class="chip small" data-go="projects" style="margin-top:12px">${esc(t("ws_open_projects"))}</button>
+          ` : `<p style="color:var(--text-3);padding:6px 4px">${esc(t("ws_no_project"))}</p>
+            <button class="chip small" data-go="projects">${esc(t("ws_open_projects"))}</button>`}
+        </div>
+
+        <div class="card">
+          <div class="section-label" style="margin-top:0">${esc(t("ws_recent_library"))}</div>
+          ${libItems.length ? libItems.map(it => `
+            <div class="book-row">
+              <div class="book-ico">${it.ico}</div>
+              <div class="b-info">
+                <div class="b-title">${esc(it.title)}</div>
+                <div class="b-meta">${it.url ? `<a href="${esc(safeUrl(it.url))}" target="_blank" rel="noopener noreferrer">${esc(it.meta)}</a>` : esc(it.meta)}</div>
+              </div>
+            </div>`).join("") : `<p style="color:var(--text-3);padding:10px 4px">${esc(t("ws_no_library"))}</p>`}
+          <button class="chip small" data-go="library" style="margin-top:10px">${esc(t("ws_open_library"))}</button>
+        </div>
+      </div>`;
+
+    $$("[data-go]").forEach(b => b.addEventListener("click", () => go(b.dataset.go)));
+    $$("[data-wstoggle]").forEach(b => b.addEventListener("click", () => {
+      const x = S.tasks.find(x => x.id === b.dataset.wstoggle);
+      x.done = !x.done; Store.save(); render();
+    }));
+
+    const ask = $("#wsAsk");
+    const doAsk = () => { const v = ask.value.trim(); if (!v) return; askFromWorkstation(v); };
+    $("#wsAskBtn").addEventListener("click", doAsk);
+    ask.addEventListener("keydown", e => { if (e.key === "Enter") doAsk(); });
+  }
+
+  function askFromWorkstation(text) {
+    newChat();
+    go("coach");
+    sendMsg(text);
   }
 
   /* ════════════ Pages ════════════ */
@@ -624,6 +726,9 @@
       <div class="project-tabs">
         ${S.projects.map(pr => `<button class="chip ${pr.id === activeProject ? "active" : ""}" data-proj="${pr.id}">${esc(pr.name)}</button>`).join("")}
         <button class="chip" id="newProj">＋ ${esc(t("new_project"))}</button>
+        <span style="flex:1"></span>
+        <button class="chip" id="importProj">${esc(t("import_project"))}</button>
+        <input type="file" id="importProjFile" accept="application/json" hidden>
       </div>
       ${proj ? boardHTML(proj) : `<p style="color:var(--text-3)">${esc(t("no_projects"))}</p>`}`;
 
@@ -643,7 +748,23 @@
     });
     $$("[data-proj]").forEach(b => b.addEventListener("click", () => { activeProject = b.dataset.proj; render(); }));
 
+    $("#importProj").addEventListener("click", () => $("#importProjFile").click());
+    $("#importProjFile").addEventListener("change", async (e) => {
+      const f = e.target.files[0];
+      if (!f) return;
+      try {
+        const json = await f.text();
+        const pr = Store.importProjectFile(json);
+        S.projects.push(pr); activeProject = pr.id;
+        Store.save();
+        toast(t("project_imported"));
+        render();
+      } catch (_) { toast(t("import_project_bad")); }
+    });
+
     if (!proj) return;
+
+    $("#shareProj") && $("#shareProj").addEventListener("click", () => Store.exportProject(proj));
 
     $("#delProj") && $("#delProj").addEventListener("click", () => {
       if (!confirm(t("delete_confirm"))) return;
@@ -702,10 +823,16 @@
             <button class="add-card" data-addcard="${c.id}">${esc(t("add_card"))}</button>
           </div>`).join("")}
       </div>
-      <button class="chip" id="delProj" style="color:var(--accent)">🗑 ${esc(t("delete_project"))}</button>`;
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:4px">
+        <button class="chip" id="shareProj">${esc(t("share_project"))}</button>
+        <button class="chip" id="delProj" style="color:var(--accent)">🗑 ${esc(t("delete_project"))}</button>
+      </div>
+      <p class="s-sub" style="margin-top:10px;max-width:520px">${esc(t("share_project_hint"))}</p>`;
   }
 
-  /* ════════════ Library ════════════ */
+  /* ════════════ Library (books + videos) ════════════ */
+
+  let libTab = "books";
 
   function renderLibrary(main) {
     main.innerHTML = `
@@ -714,6 +841,51 @@
         <p class="view-sub">${esc(t("library_sub"))}</p>
       </div>
 
+      <div class="project-tabs">
+        <button class="chip ${libTab === "books" ? "active" : ""}" data-libtab="books">${esc(t("library_tab_books"))}</button>
+        <button class="chip ${libTab === "videos" ? "active" : ""}" data-libtab="videos">${esc(t("library_tab_videos"))}</button>
+      </div>
+
+      ${libTab === "books" ? libraryBooksHTML() : libraryVideosHTML()}`;
+
+    $$("[data-libtab]").forEach(b => b.addEventListener("click", () => { libTab = b.dataset.libtab; render(); }));
+
+    if (libTab === "books") {
+      const drop = $("#drop");
+      const fi = $("#fileInput");
+      drop.addEventListener("click", () => fi.click());
+      drop.addEventListener("dragover", (e) => { e.preventDefault(); drop.classList.add("over"); });
+      drop.addEventListener("dragleave", () => drop.classList.remove("over"));
+      drop.addEventListener("drop", (e) => {
+        e.preventDefault(); drop.classList.remove("over");
+        handleFiles(e.dataTransfer.files);
+      });
+      fi.addEventListener("change", () => handleFiles(fi.files));
+
+      $$("[data-bookdel]").forEach(b => b.addEventListener("click", () => {
+        S.books = S.books.filter(x => x.id !== b.dataset.bookdel);
+        Store.save(); render();
+      }));
+    } else {
+      $("#addVideo").addEventListener("click", () => {
+        const title = $("#vidTitle").value.trim();
+        const url = $("#vidUrl").value.trim();
+        const notes = $("#vidNotes").value.trim();
+        if (!title || !/^https?:\/\//i.test(url)) { toast(t("video_bad")); return; }
+        S.videos.unshift({ id: Store.uid(), title, url, notes, addedAt: Date.now() });
+        Store.save();
+        toast(t("video_added", { t: title }));
+        render();
+      });
+      $$("[data-videodel]").forEach(b => b.addEventListener("click", () => {
+        S.videos = S.videos.filter(x => x.id !== b.dataset.videodel);
+        Store.save(); render();
+      }));
+    }
+  }
+
+  function libraryBooksHTML() {
+    return `
       <div class="drop-zone" id="drop">
         <span class="big">📚</span>
         <div style="font-weight:600;font-size:16px">${esc(t("drop_hint"))}</div>
@@ -733,22 +905,29 @@
             <button class="task-del" style="opacity:1" data-bookdel="${b.id}">✕</button>
           </div>`).join("") : `<p style="color:var(--text-3);padding:14px 0">${esc(t("no_books"))}</p>`}
       </div>`;
+  }
 
-    const drop = $("#drop");
-    const fi = $("#fileInput");
-    drop.addEventListener("click", () => fi.click());
-    drop.addEventListener("dragover", (e) => { e.preventDefault(); drop.classList.add("over"); });
-    drop.addEventListener("dragleave", () => drop.classList.remove("over"));
-    drop.addEventListener("drop", (e) => {
-      e.preventDefault(); drop.classList.remove("over");
-      handleFiles(e.dataTransfer.files);
-    });
-    fi.addEventListener("change", () => handleFiles(fi.files));
+  function libraryVideosHTML() {
+    return `
+      <div class="card">
+        <div class="ob-field"><input id="vidTitle" class="input" placeholder="${esc(t("video_title_ph"))}"></div>
+        <div class="ob-field"><input id="vidUrl" class="input" style="direction:ltr;text-align:left" placeholder="${esc(t("video_url_ph"))}"></div>
+        <div class="ob-field"><input id="vidNotes" class="input" placeholder="${esc(t("video_notes_ph"))}"></div>
+        <button class="btn small" id="addVideo">${esc(t("add_video_btn"))}</button>
+      </div>
 
-    $$("[data-bookdel]").forEach(b => b.addEventListener("click", () => {
-      S.books = S.books.filter(x => x.id !== b.dataset.bookdel);
-      Store.save(); render();
-    }));
+      <div class="section-label">${esc(t("videos_label", { n: S.videos.length }))}</div>
+      <div class="card" style="padding:8px 20px">
+        ${S.videos.length ? S.videos.map(v => `
+          <div class="book-row">
+            <div class="book-ico">🎬</div>
+            <div class="b-info">
+              <div class="b-title">${esc(v.title)}</div>
+              <div class="b-meta">${v.notes ? esc(v.notes) + " · " : ""}<a href="${esc(safeUrl(v.url))}" target="_blank" rel="noopener noreferrer">${esc(t("open_video"))}</a></div>
+            </div>
+            <button class="task-del" style="opacity:1" data-videodel="${v.id}">✕</button>
+          </div>`).join("") : `<p style="color:var(--text-3);padding:14px 0">${esc(t("no_videos"))}</p>`}
+      </div>`;
   }
 
   async function handleFiles(files) {
@@ -810,7 +989,7 @@
       const goal = $("#planGoal").value.trim() || S.profile.goal;
       if (!goal) return;
       const key = (S.settings.keys[S.settings.provider] || "").trim();
-      if (!key) { toast(t("no_key_msg")); go("settings"); return; }
+      if (S.settings.provider !== "free" && !key) { toast(t("no_key_msg")); go("settings"); return; }
 
       const btn = $("#genPlan"), st = $("#planStatus");
       btn.disabled = true;
@@ -936,8 +1115,8 @@
       <div class="card">
         <div class="settings-row">
           <div class="s-info"><div class="s-title">${esc(t("s_lang"))}</div><div class="s-sub">${esc(t("s_lang_sub"))}</div></div>
-          <div class="seg">
-            ${["ar","en","fr"].map(l => `<button data-setlang="${l}" class="${st.language === l ? "on" : ""}">${I18N[l].lang_name}</button>`).join("")}
+          <div class="seg wrap">
+            ${["ar","en","fr","de","es"].map(l => `<button data-setlang="${l}" class="${st.language === l ? "on" : ""}">${I18N[l].lang_name}</button>`).join("")}
           </div>
         </div>
         <div class="settings-row">
@@ -962,6 +1141,10 @@
         <p class="s-sub" style="margin-bottom:14px">🔒 ${esc(t("s_ai_sub"))}</p>
 
         <div class="settings-row">
+          <div class="s-info"><div class="s-title">🌐 ${esc(t("key_free_title"))}</div><div class="s-sub">${esc(t("key_free_sub"))}</div></div>
+        </div>
+
+        <div class="settings-row">
           <div class="s-info"><div class="s-title">Claude</div><div class="s-sub">${esc(t("key_claude_sub"))}</div>
             <details class="help-details"><summary>${esc(t("how_get_key"))}</summary><div class="help-body">${esc(t("key_help_claude")).replaceAll("\n", "<br>")}</div></details>
           </div>
@@ -984,8 +1167,8 @@
 
         <div class="settings-row">
           <div class="s-info"><div class="s-title">${esc(t("s_provider"))}</div><div class="s-sub">${esc(t("s_provider_sub"))}</div></div>
-          <div class="seg">
-            ${["claude","openai","gemini"].map(p => `<button data-setprov="${p}" class="${st.provider === p ? "on" : ""}">${AI.PROVIDER_NAMES[p]}</button>`).join("")}
+          <div class="seg wrap">
+            ${["free","claude","openai","gemini"].map(p => `<button data-setprov="${p}" class="${st.provider === p ? "on" : ""}">${AI.PROVIDER_NAMES[p]}</button>`).join("")}
           </div>
         </div>
 
