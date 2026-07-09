@@ -6,7 +6,6 @@ import { C, R, TEXT_BGS } from '../constants/theme';
 import { Glass } from './Glass';
 import { Chip } from './Chip';
 import { Tick } from './Tick';
-import { NeonButton } from './NeonButton';
 import { StarButton } from './StarButton';
 
 /* Chips sit on photos, so they stay dark with light text for contrast. */
@@ -27,6 +26,7 @@ export const PostCard = ({ post, joined, vibed, onJoin, onVibe, onComment, onOpe
   const singleTimer = useRef(null);
   const burst = useRef(new Animated.Value(0)).current;
   const [bursting, setBursting] = useState(false);
+  const [reposted, setReposted] = useState(false);
   const handleMediaTap = () => {
     const now = Date.now();
     if (now - lastTap.current < 300) {
@@ -120,49 +120,63 @@ export const PostCard = ({ post, joined, vibed, onJoin, onVibe, onComment, onOpe
         </Pressable>
       )}
 
-      {/* footer — reactions always; JOIN only on real invitations */}
+      {/* footer — compact action row; JOIN is a small pill on the right */}
       <View style={{ padding: 15, paddingTop: 13 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <StarButton starred={vibed} onPress={onVibe} size={22} />
-            <Pressable onPress={onVibe} hitSlop={8}>
-              <Text style={{ color: vibed ? C.gold : C.dim, fontSize: 13.5, fontWeight: '800', marginLeft: 6 }}>
-                {totalVibes}
-              </Text>
-            </Pressable>
-          </View>
-          <Pressable onPress={onComment} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 18 }}>
-            <MaterialCommunityIcons name="script-text-outline" size={21} color={C.dim} />
-            <Text style={{ color: C.dim, fontSize: 13.5, fontWeight: '700', marginLeft: 5 }}>{post.comments}</Text>
+          {/* Star */}
+          <StarButton starred={vibed} onPress={onVibe} size={21} />
+          <Pressable onPress={onVibe} hitSlop={8}>
+            <Text style={{ color: vibed ? C.gold : C.dim, fontSize: 13, fontWeight: '800', marginLeft: 5, marginRight: 16 }}>
+              {totalVibes}
+            </Text>
           </Pressable>
+          {/* Comment scroll */}
+          <Pressable onPress={onComment} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', marginRight: 16 }}>
+            <MaterialCommunityIcons name="script-text-outline" size={20} color={C.dim} />
+            <Text style={{ color: C.dim, fontSize: 13, fontWeight: '700', marginLeft: 4 }}>{post.comments}</Text>
+          </Pressable>
+          {/* Repost */}
+          <Pressable onPress={() => setReposted((r) => !r)} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', marginRight: 16 }}>
+            <MaterialCommunityIcons name="repeat-variant" size={22} color={reposted ? C.green : C.dim} />
+            <Text style={{ color: reposted ? C.green : C.dim, fontSize: 13, fontWeight: '700', marginLeft: 3 }}>
+              {(post.reposts || 0) + (reposted ? 1 : 0)}
+            </Text>
+          </Pressable>
+          {/* Share */}
+          <Pressable hitSlop={8}>
+            <Ionicons name="paper-plane-outline" size={19} color={C.dim} />
+          </Pressable>
+
           <View style={{ flex: 1 }} />
-          <Ionicons name="paper-plane-outline" size={19} color={C.dim} style={{ marginRight: 16 }} />
-          <Ionicons name="bookmark-outline" size={19} color={C.dim} />
+
+          {post.joinable ? (
+            joined ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.greenSoft, borderWidth: 1, borderColor: 'rgba(16,185,129,0.45)', borderRadius: 999, paddingHorizontal: 13, paddingVertical: 7 }}>
+                <Ionicons name="checkmark" size={14} color={C.green} />
+                <Text style={{ color: C.green, fontSize: 12, fontWeight: '900', marginLeft: 4 }}>Joined</Text>
+              </View>
+            ) : (
+              <Pressable
+                onPress={() => onJoin(post)}
+                style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 8, shadowColor: C.purple, shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: { width: 0, height: 4 } }}
+              >
+                <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '900', letterSpacing: 0.4 }}>Join the Vibe</Text>
+              </Pressable>
+            )
+          ) : (
+            <Ionicons name="bookmark-outline" size={20} color={C.dim} />
+          )}
         </View>
 
         {/* social proof, Instagram style */}
         {totalVibes > 0 ? (
-          <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 9 }}>
+          <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 10 }}>
             <MaterialCommunityIcons name="star-four-points" size={12} color={C.gold} /> Starred by{' '}
             <Text style={{ fontWeight: '800', color: C.text }}>
               {vibed ? 'you' : post.topFan || 'the crew'}
             </Text>
             {totalVibes > 1 ? ' and ' + (totalVibes - 1) + ' others' : ''}
           </Text>
-        ) : null}
-
-        {post.joinable ? (
-          <View style={{ marginTop: 13 }}>
-            {joined ? (
-              <Glass tint={C.greenSoft} border="rgba(16,185,129,0.5)" style={{ paddingVertical: 13, alignItems: 'center', borderRadius: R - 4 }}>
-                <Text style={{ color: C.green, fontSize: 13, fontWeight: '900', letterSpacing: 1 }}>
-                  ✓ VIBE JOINED · {post.squad.toUpperCase()} IS LIVE
-                </Text>
-              </Glass>
-            ) : (
-              <NeonButton label="JOIN THE VIBE" icon="⚡" onPress={() => onJoin(post)} />
-            )}
-          </View>
         ) : null}
       </View>
     </Glass>
