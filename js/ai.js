@@ -173,7 +173,15 @@ MEMORY: <one short sentence in English capturing it>
     const lastUser = [...messages].reverse().find(m => m.role === "user");
     const sys = withKnowledge(coachSystem(state), state, lastUser ? lastUser.content : "");
 
-    if (provider === "local") return chatLocal(state, sys, messages, onDelta, onProgress);
+    if (provider === "local") {
+      try {
+        return await chatLocal(state, sys, messages, onDelta, onProgress);
+      } catch (e) {
+        // Preview sandboxes can't reach the model CDN or lack WebGPU — degrade to demo.
+        if (typeof window !== "undefined" && window.BARDI_DEMO) return demoReply(state, messages, onDelta);
+        throw e;
+      }
+    }
     if (provider === "free") {
       try {
         return await chatFree(sys, messages, onDelta);
