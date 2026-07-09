@@ -249,3 +249,21 @@ export const RIDES = [
   { id: 'r2', name: 'Yala XL', sub: '6 seats · squad size', eta: '7 min', price: 'E£95', emoji: '🚐' },
   { id: 'r3', name: 'Yala Lux', sub: 'Arrive like the moment matters', eta: '9 min', price: 'E£140', emoji: '🖤' },
 ];
+
+/* ── SEARCH · trending topics & public groups (X / Facebook style) ── */
+export const TRENDING = [
+  { id: 't1', tag: '#NeonDesert', category: 'Trending in Cairo', moments: '2,481' },
+  { id: 't2', tag: '#SunriseHike', category: 'Outdoors', moments: '1,204' },
+  { id: 't3', tag: '#BlueHoleDahab', category: 'Trending', moments: '958' },
+  { id: 't4', tag: '#CairoCoffee', category: 'Food & Drink', moments: '742' },
+  { id: 't5', tag: '#VinylNight', category: 'Music', moments: '531' },
+  { id: 't6', tag: '#PadelAt6', category: 'Sports', moments: '410' },
+];
+
+export const GROUPS = [
+  { id: 'g1', name: 'Cairo Explorers', emoji: '🎒', members: '12.3K', about: 'Hidden spots, day trips, and spontaneous adventures around Cairo.', members_avatars: [av(12), av(47), av(15)] },
+  { id: 'g2', name: 'Sunrise Hikers EG', emoji: '⛰️', members: '4.8K', about: 'We chase the 5AM light. Moqattam, Galala, and beyond.', members_avatars: [av(47), av(32), av(45)] },
+  { id: 'g3', name: 'Third-Wave Coffee', emoji: '☕', members: '7.1K', about: 'Cuppings, new roasters, and where to find the best pour in town.', members_avatars: [av(32), av(8), av(60)] },
+  { id: 'g4', name: 'Blue Hole Buddies', emoji: '🤿', members: '2.2K', about: 'Freedivers and scuba folks planning Dahab trips together.', members_avatars: [av(15), av(5), av(8)] },
+  { id: 'g5', name: 'Downtown Vinyl Society', emoji: '🎧', members: '3.6K', about: 'Rooftop record nights and crate-digging meetups.', members_avatars: [av(45), av(12), av(47)] },
+];
