@@ -6,9 +6,64 @@ export const pic = (seed, w, h) => 'https://picsum.photos/seed/' + seed + '/' + 
 export const ME = {
   id: 'me',
   name: 'You',
+  handle: '@you.moments',
   emoji: '🧿',
+  avatar: av(5),
+  verified: true,
+  intent: 'Living it 🌙',
+  vouchTag: 'Trusted Explorer',
+  vouches: 18,
+  bio: 'Leave a moment or live a memory. 🌙\nZamalek · chasing golden hours & good company.',
+  moments: 96, mates: 240, campfires: 12,
   coords: { latitude: 30.0459, longitude: 31.2243 }, // Zamalek
 };
+
+/* Story highlights — the little pinned circles under a profile (IG style) */
+export const HIGHLIGHTS = [
+  { id: 'h1', label: 'Dahab', cover: pic('hldahab', 200, 200) },
+  { id: 'h2', label: 'Sunrise', cover: pic('hlsun', 200, 200) },
+  { id: 'h3', label: 'Nights', cover: pic('hlnight', 200, 200) },
+  { id: 'h4', label: 'Coffee', cover: pic('hlcoffee', 200, 200) },
+  { id: 'h5', label: 'Padel', cover: pic('hlpadel', 200, 200) },
+];
+
+/* The moment grid on your own space — photos, reels and a couple of text cards */
+export const MY_MOMENTS = [
+  { id: 'g1', media: pic('mine1', 400, 400), kind: 'reel', vibes: 218 },
+  { id: 'g2', media: pic('mine2', 400, 400), vibes: 64 },
+  { id: 'g3', text: 'padel at 6am beats any party. fight me 🎾', textBg: 'mint', vibes: 41 },
+  { id: 'g4', media: pic('mine4', 400, 400), vibes: 132 },
+  { id: 'g5', media: pic('mine5', 400, 400), kind: 'reel', vibes: 97 },
+  { id: 'g6', media: pic('mine6', 400, 400), vibes: 58 },
+  { id: 'g7', text: 'golden hour hits different from a rooftop 🌇', textBg: 'sky', vibes: 73 },
+  { id: 'g8', media: pic('mine8', 400, 400), vibes: 45 },
+  { id: 'g9', media: pic('mine9', 400, 400), vibes: 189 },
+];
+
+/* Little badges that sit on your space — the identity layer */
+export const BADGES = [
+  { id: 'b1', emoji: '🛡️', label: 'Trusted Explorer' },
+  { id: 'b2', emoji: '🔥', label: '12 Campfires hosted' },
+  { id: 'b3', emoji: '🌅', label: 'Sunrise Club' },
+];
+
+/* Settings — the app drawer, grouped like iOS Settings */
+export const SETTINGS_GROUPS = [
+  { title: 'Account', rows: [
+    { icon: 'person-outline', label: 'Edit your space', hint: 'Name, bio & vibe' },
+    { icon: 'shield-checkmark-outline', label: 'Privacy & safety' },
+    { icon: 'notifications-outline', label: 'Notifications' },
+  ] },
+  { title: 'Preferences', rows: [
+    { icon: 'language-outline', label: 'Language', value: 'English' },
+    { icon: 'color-palette-outline', label: 'Appearance', value: 'Light' },
+    { icon: 'musical-notes-outline', label: 'Sounds & haptics', value: 'On' },
+  ] },
+  { title: 'More', rows: [
+    { icon: 'help-circle-outline', label: 'Help & support' },
+    { icon: 'information-circle-outline', label: 'About Moments' },
+  ] },
+];
 
 export const USERS = {
   clay: {

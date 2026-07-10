@@ -9,7 +9,7 @@ import { HomeScreen } from '../screens/HomeScreen';
 import { MapScreen } from '../screens/MapScreen';
 import { ChillScreen } from '../screens/ChillScreen';
 import { ChatsScreen } from '../screens/ChatsScreen';
-import { VaultScreen } from '../screens/VaultScreen';
+import { ProfileScreen } from '../screens/ProfileScreen';
 
 /* ─────────────────────── NAVIGATION SHELL ─────────────────────── */
 
@@ -20,7 +20,7 @@ const TAB_ICONS = {
   MAP: { lib: 'ion', on: 'map', off: 'map-outline' },
   CHILL: { lib: 'mci', on: 'popcorn', off: 'popcorn' },
   CHATS: { lib: 'ion', on: 'chatbubbles', off: 'chatbubbles-outline' },
-  VAULT: { lib: 'mci', on: 'safe', off: 'safe' },
+  SPACE: { lib: 'ion', on: 'person', off: 'person-outline' },
 };
 
 const renderTabIcon = (routeName, focused, color) => {
@@ -73,6 +73,6 @@ export const TabNavigator = () => (
         tabBarBadgeStyle: { backgroundColor: C.coral, color: '#fff', fontSize: 10, fontWeight: '900' },
       }}
     />
-    <Tab.Screen name="VAULT" component={VaultScreen} />
+    <Tab.Screen name="SPACE" component={ProfileScreen} />
   </Tab.Navigator>
 );

@@ -99,7 +99,8 @@ src/
 │   ├── MapScreen.js         TAB 2 · The living world: pins, campfires, SOS
 │   ├── ChillScreen.js       TAB 3 · VOD rows, order-to-pin, AR quests
 │   ├── ChatsScreen.js       TAB 4 · Squads + DMs (with translation hints)
-│   └── VaultScreen.js       TAB 5 · Moment Bank, planner, home fixers
+│   ├── ProfileScreen.js     TAB 5 · Your Space — profile, highlights, moment grid
+│   └── SettingsScreen.js    Settings drawer — wallet, planner, fixers, account
 └── navigation/
     └── TabNavigator.js      Bottom-tab shell, icons, unread badge, NavTheme
 ```
