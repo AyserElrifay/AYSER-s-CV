@@ -558,6 +558,14 @@ body.menu-locked{overflow:hidden}
 .studio-caps .cap{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--stone);font-weight:500;padding:9px 18px;box-shadow:inset 0 0 0 1px var(--mist);border-radius:999px}
 .feat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-bottom:clamp(44px,6vh,80px)}
 @media(max-width:760px){.feat-grid{grid-template-columns:1fr}}
+.feat.wide{grid-column:1/-1;background:#0b0b0a;color:#f2f1ef}
+.feat.wide ::selection{background:#f2f1ef;color:#0b0b0a}
+.feat.wide h4{font-size:clamp(26px,3vw,40px)}
+.feat.wide .ft{color:rgba(242,241,239,.5)}
+.feat.wide p{color:rgba(242,241,239,.66);max-width:44em;font-size:clamp(16px,1.6vw,19px)}
+.feat.wide p b{color:#f2f1ef}
+.feat.wide .tags{border-top-color:rgba(242,241,239,.16)}
+.feat.wide .tags span{color:rgba(242,241,239,.55)}
 .feat{background:var(--fog);border-radius:var(--r);padding:clamp(28px,3.2vw,46px);display:flex;flex-direction:column;gap:16px;transition:transform .6s var(--ease)}
 .feat:hover{transform:translateY(-5px)}
 .feat .fc{display:flex;justify-content:space-between;align-items:baseline;gap:16px}
@@ -832,6 +840,11 @@ body.menu-locked{overflow:hidden}
     </div>
 
     <div class="feat-grid">
+      <article class="feat wide rv">
+        <div class="fc"><h4>J&amp;T Express</h4><span class="ft">Launch · Campaign</span></div>
+        <p>When the global courier <b>J&amp;T Express</b> entered Egypt, we shaped the arrival — a creative rebranding campaign, an online communication campaign, and a full design system, headlined by <b>Lionel Messi</b> as brand ambassador under one line: <b>دقة، سرعة</b> — Accuracy. Speed.</p>
+        <div class="tags"><span>Rebranding</span><span>Campaign</span><span>Social</span><span>Design</span></div>
+      </article>
       <article class="feat rv">
         <div class="fc"><h4>Market Standard</h4><span class="ft">Brand · Events</span></div>
         <p>A full-house brand build with lead generation and <b>4 successful events</b> — including the <b>first and largest Red Sea expo in Egypt</b>, a major real-estate show, and a family fun day.</p>
