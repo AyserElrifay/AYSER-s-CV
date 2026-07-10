@@ -97,9 +97,10 @@ src/
 │   ├── AuthScreen.js        Login / sign-up + vibe-picker onboarding gate
 │   ├── HomeScreen.js        TAB 1 · The action feed + Magic Flow entry
 │   ├── MapScreen.js         TAB 2 · The living world: pins, campfires, SOS
-│   ├── ChillScreen.js       TAB 3 · VOD rows, order-to-pin, AR quests
-│   ├── ChatsScreen.js       TAB 4 · Squads + DMs (with translation hints)
-│   ├── ProfileScreen.js     TAB 5 · Your Space — profile, highlights, moment grid
+│   ├── ReelsScreen.js       TAB 3 · Standalone vertical reels + sponsored reels
+│   ├── ChillScreen.js       TAB 4 · VOD rows, order-to-pin, AR quests
+│   ├── ChatsScreen.js       TAB 5 · Squads + DMs (with translation hints)
+│   ├── ProfileScreen.js     TAB 6 · Your Space — profile, highlights, moment grid
 │   └── SettingsScreen.js    Settings drawer — wallet, planner, fixers, account
 └── navigation/
     └── TabNavigator.js      Bottom-tab shell, icons, unread badge, NavTheme

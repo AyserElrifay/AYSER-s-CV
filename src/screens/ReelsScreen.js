@@ -1,0 +1,178 @@
+import React, { useState, useRef } from 'react';
+import { View, Text, Pressable, ImageBackground, FlatList, Image, Animated, Easing } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { C } from '../constants/theme';
+import { REELS } from '../constants/mockData';
+import { SoundChip } from '../components/SoundChip';
+import { CommentsSheet } from '../components/CommentsSheet';
+import { tapLight, tapMedium } from '../utils/feedback';
+import { sfxStar, sfxPop } from '../utils/sfx';
+
+/* ─── TAB 3 · REELS — the standalone vertical feed ───
+   TikTok-style full-screen pager with the Moments identity: the gold
+   four-point star, the scroll for comments, repost, and a clearly
+   labeled sponsored reel every few swipes. */
+
+const RailButton = ({ children, label, color = '#FFF', onPress }) => (
+  <Pressable onPress={onPress} hitSlop={8} style={{ alignItems: 'center', marginBottom: 20 }}>
+    {children}
+    {label != null ? (
+      <Text style={{ color, fontSize: 12, fontWeight: '800', marginTop: 3 }}>{label}</Text>
+    ) : null}
+  </Pressable>
+);
+
+export const ReelsScreen = () => {
+  const insets = useSafeAreaInsets();
+  const [pageH, setPageH] = useState(0);
+  const [vibes, setVibes] = useState({});
+  const [reposts, setReposts] = useState({});
+  const [following, setFollowing] = useState({});
+  const [commentsPost, setCommentsPost] = useState(null);
+  const burst = useRef(new Animated.Value(0)).current;
+  const [burstId, setBurstId] = useState(null);
+
+  const toggleVibe = (item) => {
+    const next = !vibes[item.id];
+    setVibes((v) => ({ ...v, [item.id]: next }));
+    if (next) {
+      tapLight(); sfxStar();
+      setBurstId(item.id);
+      burst.setValue(0);
+      Animated.timing(burst, { toValue: 1, duration: 650, easing: Easing.out(Easing.cubic), useNativeDriver: true })
+        .start(() => setBurstId(null));
+    }
+  };
+
+  const lastTap = useRef(0);
+  const onMediaTap = (item) => {
+    const now = Date.now();
+    if (now - lastTap.current < 300) { lastTap.current = 0; if (!vibes[item.id]) toggleVibe(item); }
+    else lastTap.current = now;
+  };
+
+  const renderReel = ({ item }) => {
+    const vibed = !!vibes[item.id];
+    const reposted = !!reposts[item.id];
+    return (
+      <Pressable onPress={() => onMediaTap(item)} style={{ height: pageH }}>
+        <ImageBackground source={{ uri: item.media }} style={{ height: pageH, justifyContent: 'flex-end' }} resizeMode="cover">
+          {/* gold star burst on double-tap */}
+          {burstId === item.id ? (
+            <Animated.View
+              pointerEvents="none"
+              style={{
+                position: 'absolute', top: 0, bottom: 0, left: 0, right: 0,
+                alignItems: 'center', justifyContent: 'center',
+                opacity: burst.interpolate({ inputRange: [0, 0.15, 0.75, 1], outputRange: [0, 1, 1, 0] }),
+                transform: [{ scale: burst.interpolate({ inputRange: [0, 0.3, 1], outputRange: [0.4, 1.25, 1] }) }],
+              }}
+            >
+              <MaterialCommunityIcons name="star-four-points" size={110} color={C.gold} />
+            </Animated.View>
+          ) : null}
+
+          <LinearGradient colors={['transparent', 'rgba(0,0,0,0.78)']} style={{ paddingHorizontal: 16, paddingBottom: 18, paddingTop: 90 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
+              {/* caption column */}
+              <View style={{ flex: 1, marginRight: 14 }}>
+                {item.sponsored ? (
+                  <View style={{ alignSelf: 'flex-start', backgroundColor: 'rgba(255,255,255,0.22)', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3, marginBottom: 9 }}>
+                    <Text style={{ color: '#FFF', fontSize: 10.5, fontWeight: '800', letterSpacing: 1 }}>SPONSORED</Text>
+                  </View>
+                ) : null}
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 9 }}>
+                  <Image source={{ uri: item.user.avatar }} style={{ width: 38, height: 38, borderRadius: 19, borderWidth: 1.5, borderColor: '#FFF' }} />
+                  <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '800', marginLeft: 9 }}>{item.user.name}</Text>
+                  {!item.sponsored ? (
+                    <Pressable
+                      onPress={() => { tapMedium(); sfxPop(); setFollowing((f) => ({ ...f, [item.user.id]: !f[item.user.id] })); }}
+                      style={{ marginLeft: 10, borderWidth: 1, borderColor: following[item.user.id] ? 'rgba(255,255,255,0.45)' : '#FFF', borderRadius: 7, paddingHorizontal: 9, paddingVertical: 3 }}
+                    >
+                      <Text style={{ color: '#FFF', fontSize: 11.5, fontWeight: '800' }}>
+                        {following[item.user.id] ? 'Mates ✓' : '+ Mate up'}
+                      </Text>
+                    </Pressable>
+                  ) : null}
+                </View>
+                <Text style={{ color: 'rgba(255,255,255,0.95)', fontSize: 13.5, lineHeight: 19, marginBottom: 10 }} numberOfLines={3}>
+                  {item.caption}
+                </Text>
+                {item.sponsored ? (
+                  <Pressable onPress={() => { tapMedium(); sfxPop(); }}>
+                    <LinearGradient
+                      colors={[C.purple, '#5B21B6']}
+                      start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                      style={{ borderRadius: 12, paddingVertical: 12, alignItems: 'center', flexDirection: 'row', justifyContent: 'center' }}
+                    >
+                      <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '900', letterSpacing: 0.4 }}>{item.cta}</Text>
+                      <Ionicons name="chevron-forward" size={15} color="#FFF" style={{ marginLeft: 4 }} />
+                    </LinearGradient>
+                  </Pressable>
+                ) : (
+                  <SoundChip sound={item.sound} />
+                )}
+              </View>
+
+              {/* action rail — the Moments identity column */}
+              <View style={{ alignItems: 'center' }}>
+                <RailButton label={(item.vibes || 0) + (vibed ? 1 : 0)} color={vibed ? C.gold : '#FFF'} onPress={() => toggleVibe(item)}>
+                  <MaterialCommunityIcons name={vibed ? 'star-four-points' : 'star-four-points-outline'} size={33} color={vibed ? C.gold : '#FFF'} />
+                </RailButton>
+                <RailButton label={item.comments || 0} onPress={() => setCommentsPost({ ...item, place: item.place || 'Reels' })}>
+                  <MaterialCommunityIcons name="script-text-outline" size={30} color="#FFF" />
+                </RailButton>
+                <RailButton
+                  label={(item.reposts || 0) + (reposted ? 1 : 0)}
+                  color={reposted ? C.green : '#FFF'}
+                  onPress={() => { tapLight(); setReposts((r) => ({ ...r, [item.id]: !r[item.id] })); }}
+                >
+                  <MaterialCommunityIcons name="repeat-variant" size={32} color={reposted ? C.green : '#FFF'} />
+                </RailButton>
+                <RailButton label="Send" onPress={tapLight}>
+                  <Ionicons name="paper-plane-outline" size={27} color="#FFF" />
+                </RailButton>
+                {item.sound ? (
+                  <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.18)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.4)', alignItems: 'center', justifyContent: 'center' }}>
+                    <Text style={{ fontSize: 15 }}>{item.sound.emoji}</Text>
+                  </View>
+                ) : null}
+              </View>
+            </View>
+          </LinearGradient>
+        </ImageBackground>
+      </Pressable>
+    );
+  };
+
+  return (
+    <View style={{ flex: 1, backgroundColor: '#000' }} onLayout={(e) => setPageH(e.nativeEvent.layout.height)}>
+      {pageH > 0 ? (
+        <FlatList
+          data={REELS}
+          keyExtractor={(r) => r.id}
+          renderItem={renderReel}
+          pagingEnabled
+          getItemLayout={(_, i) => ({ length: pageH, offset: pageH * i, index: i })}
+          showsVerticalScrollIndicator={false}
+          snapToInterval={pageH}
+          decelerationRate="fast"
+        />
+      ) : null}
+
+      {/* header — title + create, floating over the reel */}
+      <View style={{ position: 'absolute', top: insets.top + 10, left: 16, right: 16, flexDirection: 'row', alignItems: 'center' }}>
+        <Text style={{ color: '#FFF', fontSize: 17, fontWeight: '900', letterSpacing: 2, flex: 1 }}>
+          REELS <Text style={{ color: C.gold }}>✦</Text>
+        </Text>
+        <Pressable onPress={() => { tapMedium(); sfxPop(); }} hitSlop={8}>
+          <Ionicons name="camera-outline" size={26} color="#FFF" />
+        </Pressable>
+      </View>
+
+      {commentsPost ? <CommentsSheet post={commentsPost} onClose={() => setCommentsPost(null)} /> : null}
+    </View>
+  );
+};

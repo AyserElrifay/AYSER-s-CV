@@ -51,6 +51,7 @@ export const BADGES = [
 export const SETTINGS_GROUPS = [
   { title: 'Account', rows: [
     { icon: 'person-outline', label: 'Edit your space', hint: 'Name, bio & vibe' },
+    { icon: 'megaphone-outline', label: 'Moments Ads', hint: 'Boost your moments · media buying' },
     { icon: 'shield-checkmark-outline', label: 'Privacy & safety' },
     { icon: 'notifications-outline', label: 'Notifications' },
   ] },
@@ -140,6 +141,15 @@ export const FEED = [
     place: 'El Gezira Club', startsIn: 'now',
     coords: { latitude: 30.041, longitude: 31.221 },
     vibes: 14, comments: 7, squad: 'Padel Heads', joinable: false, topFan: 'Omar',
+  },
+  {
+    id: 'sp1', sponsored: true, type: 'post',
+    user: { id: 'brand1', name: 'Wadi Degla Clubs', avatar: av(20), verified: true },
+    media: pic('adpitch', 900, 520),
+    caption: 'Padel, football and pool — all courts bookable from your phone. First session free this week 🎾',
+    place: 'Sponsored', startsIn: 'Ad', cta: 'Book now',
+    coords: { latitude: 29.96, longitude: 31.27 },
+    vibes: 88, comments: 9, joinable: false, topFan: 'Zeyad',
   },
   {
     id: 'p2', user: USERS.nour, type: 'reel',
@@ -313,6 +323,55 @@ export const TRENDING = [
   { id: 't4', tag: '#CairoCoffee', category: 'Food & Drink', moments: '742' },
   { id: 't5', tag: '#VinylNight', category: 'Music', moments: '531' },
   { id: 't6', tag: '#PadelAt6', category: 'Sports', moments: '410' },
+];
+
+/* ── REELS · the standalone vertical feed (TikTok-style, Moments identity).
+   Every few reels a sponsored one slips in — clearly labeled. ── */
+export const REELS = [
+  {
+    id: 'rl1', user: USERS.nour, media: pic('reelnour', 700, 1400),
+    caption: 'POV: you said yes to the 5AM hike 🌄 worth it. every. time.',
+    sound: SOUNDS[2], vibes: 1204, comments: 89, reposts: 41,
+  },
+  {
+    id: 'rl2', user: USERS.malak, media: pic('reelmalak', 700, 1400),
+    caption: 'Rooftop session got out of hand (in the best way) 🎧🔥',
+    sound: SOUNDS[1], vibes: 3418, comments: 214, reposts: 120,
+  },
+  {
+    id: 'ad1', sponsored: true,
+    user: { id: 'brand1', name: 'Wadi Degla Clubs', avatar: av(20), verified: true },
+    media: pic('adpadel', 700, 1400),
+    caption: 'Book your padel court in 30 seconds — first session on us 🎾',
+    cta: 'Book now', vibes: 230, comments: 12, reposts: 4, sound: null,
+  },
+  {
+    id: 'rl3', user: USERS.omar, media: pic('reelomar', 700, 1400),
+    caption: 'One breath. 30 meters. Blue Hole never gets old 🤿💙',
+    sound: SOUNDS[3], vibes: 2876, comments: 167, reposts: 98,
+  },
+  {
+    id: 'rl4', user: USERS.zeyad, media: pic('reelzeyad', 700, 1400),
+    caption: 'Golden goal at golden hour ⚽🌇 sound ON for the crowd',
+    sound: SOUNDS[0], vibes: 954, comments: 63, reposts: 22,
+  },
+  {
+    id: 'ad2', sponsored: true,
+    user: { id: 'brand2', name: 'Cairo Coffee Fest', avatar: av(25), verified: true },
+    media: pic('adcoffee', 700, 1400),
+    caption: 'The city’s biggest coffee weekend is back — 40+ roasters, one park ☕',
+    cta: 'Get tickets', vibes: 512, comments: 30, reposts: 15, sound: null,
+  },
+  {
+    id: 'rl5', user: USERS.farida, media: pic('reelfarida', 700, 1400),
+    caption: 'Rating every pour in Downtown until someone stops me ☕ part 7',
+    sound: SOUNDS[4], vibes: 1688, comments: 143, reposts: 57,
+  },
+  {
+    id: 'rl6', user: USERS.clay, media: pic('reelclay', 700, 1400),
+    caption: 'Lasers, cranes and 40 crew members — the Neon Desert BTS cut 🎬',
+    sound: SOUNDS[0], vibes: 5203, comments: 391, reposts: 260,
+  },
 ];
 
 export const GROUPS = [

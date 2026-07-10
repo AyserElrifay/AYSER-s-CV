@@ -7,6 +7,7 @@ import { C } from '../constants/theme';
 import { SQUADS, DMS } from '../constants/mockData';
 import { HomeScreen } from '../screens/HomeScreen';
 import { MapScreen } from '../screens/MapScreen';
+import { ReelsScreen } from '../screens/ReelsScreen';
 import { ChillScreen } from '../screens/ChillScreen';
 import { ChatsScreen } from '../screens/ChatsScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
@@ -18,6 +19,7 @@ const Tab = createBottomTabNavigator();
 const TAB_ICONS = {
   HOME: { lib: 'ion', on: 'home', off: 'home-outline' },
   MAP: { lib: 'ion', on: 'map', off: 'map-outline' },
+  REELS: { lib: 'mci', on: 'star-four-points', off: 'star-four-points-outline' },
   CHILL: { lib: 'mci', on: 'popcorn', off: 'popcorn' },
   CHATS: { lib: 'ion', on: 'chatbubbles', off: 'chatbubbles-outline' },
   SPACE: { lib: 'ion', on: 'person', off: 'person-outline' },
@@ -64,6 +66,7 @@ export const TabNavigator = () => (
   >
     <Tab.Screen name="HOME" component={HomeScreen} />
     <Tab.Screen name="MAP" component={MapScreen} />
+    <Tab.Screen name="REELS" component={ReelsScreen} />
     <Tab.Screen name="CHILL" component={ChillScreen} />
     <Tab.Screen
       name="CHATS"

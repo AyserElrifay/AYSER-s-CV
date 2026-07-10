@@ -10,6 +10,7 @@ import { StarButton } from './StarButton';
 
 /* Chips sit on photos, so they stay dark with light text for contrast. */
 const typeChip = (post) => {
+  if (post.sponsored) return { label: 'SPONSORED', tint: 'rgba(17,24,39,0.65)', color: 'rgba(255,255,255,0.9)' };
   if (post.type === 'reel') return { label: 'REEL ✦', tint: 'rgba(124,58,237,0.9)', color: '#FFF' };
   if (post.type === 'vod') return { label: '▶ WATCH · ' + post.duration, tint: 'rgba(17,24,39,0.65)', color: '#FFF' };
   return { label: 'MOMENT', tint: 'rgba(17,24,39,0.65)', color: 'rgba(255,255,255,0.85)' };
@@ -73,7 +74,7 @@ export const PostCard = ({ post, joined, vibed, onJoin, onVibe, onComment, onOpe
               {post.user.verified ? <Tick /> : null}
             </View>
             <Text style={{ color: C.faint, fontSize: 12, marginTop: 2 }}>
-              {post.place} · {post.startsIn}
+              {post.sponsored ? 'Sponsored' : post.place + ' · ' + post.startsIn}
             </Text>
           </View>
         </Pressable>
@@ -149,7 +150,11 @@ export const PostCard = ({ post, joined, vibed, onJoin, onVibe, onComment, onOpe
 
           <View style={{ flex: 1 }} />
 
-          {post.joinable ? (
+          {post.sponsored ? (
+            <Pressable style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 8, shadowColor: C.purple, shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: { width: 0, height: 4 } }}>
+              <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '900', letterSpacing: 0.4 }}>{post.cta || 'Learn more'}</Text>
+            </Pressable>
+          ) : post.joinable ? (
             joined ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.greenSoft, borderWidth: 1, borderColor: 'rgba(16,185,129,0.45)', borderRadius: 999, paddingHorizontal: 13, paddingVertical: 7 }}>
                 <Ionicons name="checkmark" size={14} color={C.green} />
