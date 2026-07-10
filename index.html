@@ -553,6 +553,29 @@ body.menu-locked{overflow:hidden}
   .svc .dd .d,.svc .dd .tags{opacity:1;transform:none}
 }
 
+/* ============================================================ CLAY STUDIO (content / film / events) */
+.studio-caps{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-bottom:clamp(44px,7vh,84px)}
+.studio-caps .cap{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--stone);font-weight:500;padding:9px 18px;box-shadow:inset 0 0 0 1px var(--mist);border-radius:999px}
+.feat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-bottom:clamp(44px,6vh,80px)}
+@media(max-width:760px){.feat-grid{grid-template-columns:1fr}}
+.feat{background:var(--fog);border-radius:var(--r);padding:clamp(28px,3.2vw,46px);display:flex;flex-direction:column;gap:16px;transition:transform .6s var(--ease)}
+.feat:hover{transform:translateY(-5px)}
+.feat .fc{display:flex;justify-content:space-between;align-items:baseline;gap:16px}
+.feat h4{font-weight:500;font-size:clamp(22px,2.4vw,30px);letter-spacing:-.02em;line-height:1.05}
+.feat .ft{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--stone);font-weight:500;white-space:nowrap}
+.feat p{color:var(--stone);font-size:15.5px;line-height:1.6}
+.feat p b{color:var(--ink);font-weight:600}
+.feat .tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:auto;padding-top:18px;border-top:1px solid var(--mist)}
+.feat .tags span{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--stone);font-weight:500}
+.feat .tags span:not(:last-child)::after{content:"·";margin-left:8px}
+.clients-head{display:flex;justify-content:space-between;align-items:baseline;gap:16px;margin-bottom:18px;flex-wrap:wrap}
+.clients-head .label{color:var(--stone)}
+.clients{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:1px;background:var(--mist);border:1px solid var(--mist);border-radius:var(--r);overflow:hidden}
+.client{background:var(--paper);padding:20px 22px;transition:background .4s var(--ease)}
+.client:hover{background:var(--fog)}
+.client .cn{font-weight:500;font-size:17px;letter-spacing:-.01em}
+.client .ck{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--stone);margin-top:6px;font-weight:500}
+
 /* apple-style footer ground */
 .footer{background:var(--fog);margin-top:clamp(60px,9vh,120px)}
 .footer .foot-cta{border-top:none}
@@ -568,6 +591,7 @@ body.menu-locked{overflow:hidden}
     <a href="#studio">Studio</a>
     <a href="#work">Work</a>
     <a href="#services">Services</a>
+    <a href="#clients">Clients</a>
     <a href="#academy">Academy</a>
     <a href="#formed">Formed by Clay</a>
     <a class="nav-cta" href="#begin">Start a project</a>
@@ -580,6 +604,7 @@ body.menu-locked{overflow:hidden}
   <a href="#studio">Studio</a>
   <a href="#work">Work</a>
   <a href="#services">Services</a>
+  <a href="#clients">Clients</a>
   <a href="#begin">Start a project</a>
   <a href="#academy">Academy</a>
   <a href="#formed">Formed by Clay</a>
@@ -755,11 +780,76 @@ body.menu-locked{overflow:hidden}
   </div>
 </section>
 
+<!-- ============================================================ CLAY STUDIO -->
+<section class="section" id="clients">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="label">03 — Clay Studio</span>
+    </div>
+    <h2 class="h2 rv center" style="margin-bottom:14px">We make brands <b>move.</b></h2>
+    <p class="body-lg muted rv d1 center" style="margin-bottom:clamp(40px,6vh,72px)">Content, film, copywriting, visuals, and events — the living side of the brand.</p>
+
+    <div class="studio-caps rv">
+      <span class="cap">Content</span><span class="cap">Film &amp; Video</span><span class="cap">Copywriting</span>
+      <span class="cap">Visuals</span><span class="cap">Events</span><span class="cap">Social</span>
+    </div>
+
+    <div class="feat-grid">
+      <article class="feat rv">
+        <div class="fc"><h4>Market Standard</h4><span class="ft">Brand · Events</span></div>
+        <p>A full-house brand build with lead generation and <b>4 successful events</b> — including the <b>first and largest Red Sea expo in Egypt</b>, a major real-estate show, and a family fun day.</p>
+        <div class="tags"><span>Branding</span><span>Lead Gen</span><span>Events</span></div>
+      </article>
+      <article class="feat rv">
+        <div class="fc"><h4>AGIC Development</h4><span class="ft">Rebrand · Events</span></div>
+        <p>A full-house rebrand, a mega suhoor night at Dusit featuring <b>Aida El Ayouby</b>, and a padel tournament that drew <b>93 companies</b> to the court.</p>
+        <div class="tags"><span>Rebrand</span><span>Event</span><span>Activation</span></div>
+      </article>
+      <article class="feat rv">
+        <div class="fc"><h4>Incandies</h4><span class="ft">Film · Media</span></div>
+        <p>Short intro films made for the iPhone screens, full media coverage, and on-screen motion design.</p>
+        <div class="tags"><span>Film</span><span>Media</span><span>Motion</span></div>
+      </article>
+      <article class="feat rv">
+        <div class="fc"><h4>Rivan — Nora</h4><span class="ft">Outdoor · Social</span></div>
+        <p>Billboards, social-media branding, and outdoor campaigns for the Nora launch.</p>
+        <div class="tags"><span>Billboards</span><span>Social</span><span>Design</span></div>
+      </article>
+    </div>
+
+    <div class="clients-head rv">
+      <span class="label">Selected clients</span>
+      <span class="label">Content · Video · Design · Copy · Events</span>
+    </div>
+    <div class="clients rv">
+        <div class="client"><div class="cn">Arafa Roby</div><div class="ck">Content · Design</div></div>
+        <div class="client"><div class="cn">Set El Habayeb</div><div class="ck">Campaign · Morocco</div></div>
+        <div class="client"><div class="cn">Zeitoun</div><div class="ck">Content · Design</div></div>
+        <div class="client"><div class="cn">Margins</div><div class="ck">Content · Design</div></div>
+        <div class="client"><div class="cn">Capital Hills</div><div class="ck">Real Estate</div></div>
+        <div class="client"><div class="cn">Sheraton</div><div class="ck">Hospitality</div></div>
+        <div class="client"><div class="cn">Cashcow</div><div class="ck">Content · Video</div></div>
+        <div class="client"><div class="cn">Grow</div><div class="ck">Video</div></div>
+        <div class="client"><div class="cn">Magna</div><div class="ck">Content · Design</div></div>
+        <div class="client"><div class="cn">Qurtoba</div><div class="ck">Content · Design</div></div>
+        <div class="client"><div class="cn">Raq</div><div class="ck">Video</div></div>
+        <div class="client"><div class="cn">Naval Academy</div><div class="ck">Institutional</div></div>
+        <div class="client"><div class="cn">Ripple Summit</div><div class="ck">Event</div></div>
+        <div class="client"><div class="cn">Shima</div><div class="ck">Direction · Video</div></div>
+        <div class="client"><div class="cn">Astella</div><div class="ck">Brand · France</div></div>
+        <div class="client"><div class="cn">Majestic</div><div class="ck">Brand · USA</div></div>
+        <div class="client"><div class="cn">Pharmacon</div><div class="ck">Pharma</div></div>
+        <div class="client"><div class="cn">Xeedia Pharma</div><div class="ck">Pharma</div></div>
+        <div class="client"><div class="cn">Zeta Pharma</div><div class="ck">Pharma</div></div>
+    </div>
+  </div>
+</section>
+
 <!-- ============================================================ SERVICES -->
 <section class="section" id="services">
   <div class="wrap">
     <div class="sec-head rv">
-      <span class="label">03 — What We Do</span>
+      <span class="label">04 — What We Do</span>
     </div>
     <h2 class="h2 rv center" style="margin-bottom:14px">We shape potential<br><b>into meaningful brands.</b></h2>
     <p class="body-lg muted rv d1 center">From strategy to systems — clarity, direction, and lasting impact.</p>
@@ -803,7 +893,7 @@ body.menu-locked{overflow:hidden}
 <section class="section begin" id="begin">
   <div class="wrap">
     <div class="sec-head rv">
-      <span class="label">04 — Begin</span>
+      <span class="label">05 — Begin</span>
     </div>
     <h2 class="h2 rv center" style="margin-bottom:14px">Every brand begins<br><b>as possibility.</b></h2>
     <p class="body-lg muted rv d1 center" style="margin-bottom:clamp(48px,7vh,88px)">Tell us what is real. Four quiet steps — and a signed agreement at the end, without a single email attachment.</p>
@@ -973,7 +1063,7 @@ body.menu-locked{overflow:hidden}
 <section class="section" id="academy">
   <div class="wrap">
     <div class="sec-head rv">
-      <span class="label">05 — Talent &amp; Academy</span>
+      <span class="label">06 — Talent &amp; Academy</span>
     </div>
     <h2 class="h2 rv center" style="margin-bottom:14px">Potential exists everywhere.<br><b>We help shape it.</b></h2>
     <p class="body-lg muted rv d1 center" style="margin-bottom:clamp(48px,7vh,88px)">Three ways in: join the studio, train inside it, or learn the craft in our courses.</p>
@@ -1012,7 +1102,7 @@ body.menu-locked{overflow:hidden}
 <section class="section formed" id="formed">
   <div class="wrap">
     <div class="sec-head rv" style="border-top-color:rgba(242,241,239,.2)">
-      <span class="label">06 — The Initiative</span>
+      <span class="label">07 — The Initiative</span>
     </div>
     <div class="formed-grid">
       <div>
