@@ -26,12 +26,24 @@ const AI = (() => {
      after the one-time download nothing about the conversation ever
      leaves the device — this is more private than any hosted provider. */
   const LOCAL_MODELS = [
+    { id: "Llama-3.2-3B-Instruct-q4f16_1-MLC", name: "Llama 3.2 · 3B (Meta)", size: "~1.9 GB", recommended: true },
     { id: "Llama-3.2-1B-Instruct-q4f16_1-MLC", name: "Llama 3.2 · 1B (Meta)", size: "~700 MB" },
     { id: "Qwen2.5-1.5B-Instruct-q4f16_1-MLC", name: "Qwen 2.5 · 1.5B (Alibaba)", size: "~1 GB" },
+    { id: "gemma-2-2b-it-q4f16_1-MLC", name: "Gemma 2 · 2B (Google)", size: "~1.6 GB" },
     { id: "Phi-3.5-mini-instruct-q4f16_1-MLC", name: "Phi-3.5 mini (Microsoft)", size: "~2.2 GB" },
-    { id: "Llama-3.2-3B-Instruct-q4f16_1-MLC", name: "Llama 3.2 · 3B (Meta)", size: "~1.9 GB" },
+    { id: "Mistral-7B-Instruct-v0.3-q4f16_1-MLC", name: "Mistral 7B (Mistral AI)", size: "~4 GB" },
   ];
   const WEBLLM_CDN = "https://esm.run/@mlc-ai/web-llm";
+
+  /* Simple device-aware pick — favors a small model on modest devices,
+     the recommended mid-size one otherwise. Not literal model-merging
+     (that needs a real training pipeline) — this is what actually
+     ships: one "Bardi" experience that quietly picks a good open model. */
+  function recommendedLocalModel() {
+    const mem = (typeof navigator !== "undefined" && navigator.deviceMemory) || 8;
+    if (mem <= 4) return LOCAL_MODELS.find(m => m.id === "Llama-3.2-1B-Instruct-q4f16_1-MLC");
+    return LOCAL_MODELS.find(m => m.recommended) || LOCAL_MODELS[0];
+  }
 
   let localEngine = null;
   let localEngineModelId = null;
@@ -93,21 +105,45 @@ const AI = (() => {
 How you work:
 - ALWAYS reply in ${lang}, unless the user clearly writes in another language — then mirror their language.
 - When speaking Egyptian Arabic: be natural and simple (بلاش تكلّف)، زي صاحب قريب بيطمّنك ويشدّ من ضهرك.
-- Listen first. Ask powerful, short coaching questions that help the person discover their identity, values and real motivations (like a great coach or therapist would).
 - Keep answers SHORT and human: 2–6 sentences usually. One question at a time. Never lecture or dump long lists unless asked.
-- Help them design their life: work, study, prayer (salah), sleep, food, training, creativity. Suggest tiny concrete next steps.
 - Be encouraging but honest. Celebrate small wins. Normalize struggle.
-- Faith-sensitive: the user may be Muslim; treat prayer and spirituality with deep respect.
+
+Ask before you advise (this matters a lot):
+- Don't jump to advice on the first message. A real coach asks 2–4 grounding questions first: what's the situation, exactly? how do they feel about it? what have they already tried? what does "better" look like to them? Only after you understand the specific person, moment, and feeling do you offer a concrete suggestion — generic advice to a stranger is worthless; specific advice to someone you understand is gold.
+- Keep questions short and one at a time, never a checklist. Let the conversation breathe like a real one would.
+
+Emotional intelligence:
+- Name and reflect the feeling before problem-solving it ("that sounds exhausting" before "here's what to do"). People need to feel understood before they can hear a suggestion.
+- Notice what's underneath the words — stress often hides as irritation, fear often hides as procrastination. Gently name what you notice, as a question, not a diagnosis.
+- Regulate before you strategize: for real distress, first offer a small grounding step (a breath, naming the feeling, a moment of quiet) — then, once they're steadier, help them think.
+
+Social intelligence — be a practically useful friend, not just a listener:
+- When someone mentions a real-world situation (a proposal/engagement, a job interview, a wedding, a big meeting, moving house), think like a friend who'd actually help: budget considerations, what to wear, logistics, timing, a thoughtful gift idea, who to ask for help. Offer 1–2 concrete, practical suggestions, not a generic list.
+- If a specific nearby place would genuinely help them (a shop, a tailor, a florist, a venue), you may suggest they search for it and end your reply with a separate final line so the app can offer a one-tap map search:
+MAP: <short, general search query, e.g. "menswear tailor" or "flower shop"> — never a specific address, never fabricate a business name.
+- Only use MAP when it's genuinely useful in the moment; don't force it into every reply.
+
+Life organization — universal wisdom, told without naming any religion:
+- Draw on timeless principles of a well-ordered, meaningful life: structured daily rhythm, a few minutes of real quiet/reflection each day, gratitude, patience, honesty, generosity, strong family and community ties, treating your body and time as things worth caring for, regulating anger and impulse, keeping promises.
+- Speak of these in universal, secular language that fits anyone regardless of faith or culture — e.g. suggest "a few minutes of quiet reflection" or "your own practice, whatever that looks like for you," not a specific religious ritual. Never assume or state someone's religion, and never describe a practice (prayer times, fasting, rituals) as if it applies to everyone.
+- Exception: if the user tells you their own faith or practice (e.g. they mention salah, church, meditation, shabbat), meet them there specifically and respect it fully — you're adapting to what they've told you about themselves, not assuming it.
+
+Calendar — when someone mentions a real appointment, meeting, or event with a rough date/time, offer to save it (never save silently). End your reply with a separate final line:
+EVENT: <short title> | <YYYY-MM-DD> | <HH:MM or "">  | <one short note or "">
+- Only emit this when they've given you an actual date or clear enough time ("tomorrow at 6", "next Thursday morning"); resolve relative dates using today's date: ${new Date().toISOString().slice(0, 10)}. If the time is unclear, leave the HH:MM field empty rather than guessing.
+- Use it only when it's clearly useful; don't manufacture an event from vague chatter.
 
 How you think (reason before you answer):
 - Before replying, think it through internally: what is the person really asking beneath the words? what do you already know about them? what would genuinely help vs. just sound nice? Consider a couple of angles, then give the one clear, grounded response — never show this internal reasoning, only the final warm answer.
 - Understand deeply, don't pattern-match. Connect what they say now to their goal, values and past messages. If something doesn't add up, gently ask instead of assuming.
 - Be honest and specific over generic. A real, slightly harder truth delivered kindly beats an empty reassurance.
 
-Memory:
+Memory — you learn about the person over time, on your own, without being told to:
 - When you learn something genuinely important and lasting about the user (a value, fear, pattern, preference, life fact), end your reply with a separate final line:
 MEMORY: <one short sentence in English capturing it>
-- Use it rarely (only for real insights). Never mention this mechanism to the user.`;
+- Use it rarely (only for real insights). Never mention this mechanism to the user.
+
+Output format: if you emit MEMORY / EVENT / MAP lines, each goes on its own final line, in that order if more than one applies, after your normal warm reply — never inside the reply text itself, and never mention these tags exist to the user.`;
 
     const facts = [];
     if (p.name) facts.push(`Name: ${p.name}`);
@@ -124,6 +160,19 @@ MEMORY: <one short sentence in English capturing it>
     if (state.videos && state.videos.length) {
       sys += `\n\nVideos/skills they're studying (you can reference or encourage progress on these, but you cannot watch them):\n- ` +
         state.videos.slice(-15).map(v => v.title + (v.notes ? ` (${v.notes})` : "")).join("\n- ");
+    }
+    if (state.events && state.events.length) {
+      const today = new Date().toISOString().slice(0, 10);
+      const upcoming = state.events.filter(e => e.date >= today).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 8);
+      if (upcoming.length) {
+        sys += `\n\nUpcoming things on their calendar (reference naturally if relevant, e.g. checking in before something stressful):\n- ` +
+          upcoming.map(e => `${e.title} — ${e.date}${e.time ? " " + e.time : ""}`).join("\n- ");
+      }
+    }
+    if (state.journal && state.journal.length) {
+      const recent = state.journal.slice(-5);
+      sys += `\n\nRecent private journal entries they chose to share with you (use gently, only if relevant — never quote them back verbatim):\n- ` +
+        recent.map(j => (j.mood ? `[${j.mood}] ` : "") + j.text.slice(0, 200)).join("\n- ");
     }
     return sys;
   }
@@ -363,11 +412,48 @@ MEMORY: <one short sentence in English capturing it>
     return msg;
   }
 
-  /* ── Extract MEMORY: line from a reply ── */
+  /* ── One-shot text completion (no persona, no history) — used by Studio
+     for scene/shot-prompt writing help. Reuses whichever provider/key the
+     user already configured; never streams, just returns the final text. */
+  async function completeText(state, prompt, onProgress) {
+    const provider = state.settings.provider;
+    const key = (state.settings.keys[provider] || "").trim();
+    const needsNoKey = provider === "free" || provider === "local";
+    if (!needsNoKey && !key) throw new Error("NO_KEY");
+
+    const sys = "You are a concise, skilled creative writing assistant.";
+    const messages = [{ role: "user", content: prompt }];
+    const noop = () => {};
+    if (provider === "local") return chatLocal(state, sys, messages, noop, onProgress);
+    if (provider === "free") return chatFree(sys, messages, noop);
+    if (provider === "claude") return chatClaude(key, sys, messages, noop);
+    if (provider === "openai") return chatOpenAI(key, sys, messages, noop);
+    if (provider === "gemini") return chatGemini(key, sys, messages, noop);
+    throw new Error("Unknown provider");
+  }
+
+  /* ── Extract trailing MEMORY: / EVENT: / MAP: lines from a reply ── */
   function extractMemory(text) {
-    const m = text.match(/\n\s*MEMORY:\s*(.+)\s*$/);
-    if (!m) return { clean: text, memory: null };
-    return { clean: text.replace(/\n\s*MEMORY:.*$/, "").trimEnd(), memory: m[1].trim() };
+    let clean = text;
+    let memory = null, event = null, map = null;
+
+    const mMem = clean.match(/\n\s*MEMORY:\s*(.+?)\s*$/m);
+    if (mMem) { memory = mMem[1].trim(); clean = clean.slice(0, mMem.index).trimEnd(); }
+
+    const mMap = clean.match(/\n\s*MAP:\s*(.+?)\s*$/m);
+    if (mMap) { map = mMap[1].trim(); clean = clean.slice(0, mMap.index).trimEnd(); }
+
+    const mEvt = clean.match(/\n\s*EVENT:\s*(.+?)\s*$/m);
+    if (mEvt) {
+      const parts = mEvt[1].split("|").map(s => s.trim());
+      const [title, date, time, note] = parts;
+      if (title && /^\d{4}-\d{2}-\d{2}$/.test(date || "")) {
+        event = { title, date, time: (time && /^\d{2}:\d{2}$/.test(time)) ? time : "", note: note || "" };
+      }
+      clean = clean.slice(0, mEvt.index).trimEnd();
+    }
+
+    return { clean, memory, event, map };
   }
 
   /* ── Plan generation (non-streaming, JSON) ── */
@@ -538,5 +624,5 @@ Rules: 4 to 6 slides. Each slide = one phase or theme (mindset, weekly routine, 
     });
   }
 
-  return { chat, generatePlan, extractMemory, MODELS, PROVIDER_NAMES, LOCAL_MODELS, localSupported, localStatus, loadLocalModel };
+  return { chat, generatePlan, completeText, extractMemory, MODELS, PROVIDER_NAMES, LOCAL_MODELS, localSupported, localStatus, loadLocalModel, recommendedLocalModel };
 })();

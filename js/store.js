@@ -29,7 +29,8 @@ const Store = (() => {
       // model download before it can answer.
       provider: "claude",
       keys: { claude: "", openai: "", gemini: "" },
-      localModel: "Llama-3.2-1B-Instruct-q4f16_1-MLC",
+      localModel: "Llama-3.2-3B-Instruct-q4f16_1-MLC",
+      notifications: false, // browser reminder notifications — off until the user opts in
     },
     tasks: [],          // {id, title, done, date}
     habitLog: {},       // { "YYYY-MM-DD": { habitId: true } }
@@ -41,6 +42,9 @@ const Store = (() => {
     activeChatId: null,
     memory: [],         // strings the coach learned about the user
     plans: [],          // {id, goal, deck:{title,subtitle,slides:[]}, createdAt}
+    journal: [],         // {id, text, mood, createdAt}
+    events: [],          // {id, title, date:"YYYY-MM-DD", time:"HH:MM"|"", note, remindMin, reminded, createdAt}
+    scripts: [],          // {id, title, logline, scenes:[{id,text,prompt}], updatedAt} — Studio story/script drafts
   });
 
   let state = null;

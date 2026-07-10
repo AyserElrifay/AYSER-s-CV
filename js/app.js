@@ -40,7 +40,11 @@
     plan: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2l2.4 6.9L21 11l-6.6 2.1L12 20l-2.4-6.9L3 11l6.6-2.1z"/></svg>',
     settings: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3h0a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5h0a1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9v0a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
     workstation: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="5" rx="1.5"/><rect x="13" y="10" width="8" height="11" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/></svg>',
+    journal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 3h11a2 2 0 0 1 2 2v16l-4-2-4 2-4-2-4 2V6a3 3 0 0 1 3-3z"/><path d="M8 8h6M8 12h6"/></svg>',
+    calendar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/><circle cx="8.5" cy="14.5" r="1.1" fill="currentColor" stroke="none"/><circle cx="12" cy="14.5" r="1.1" fill="currentColor" stroke="none"/><circle cx="15.5" cy="14.5" r="1.1" fill="currentColor" stroke="none"/></svg>',
   };
+
+  const MOOD_EMOJI = (label) => (label || "").split(" ")[0];
 
   const HABITS = [
     { id: "fajr", ico: "🕌" }, { id: "dhuhr", ico: "🕌" }, { id: "asr", ico: "🕌" },
@@ -49,7 +53,7 @@
     { id: "study", ico: "📖" }, { id: "work", ico: "🎯" },
   ];
 
-  const VIEWS = ["coach", "workstation", "today", "pages", "projects", "library", "plan", "settings"];
+  const VIEWS = ["coach", "workstation", "today", "journal", "calendar", "pages", "projects", "library", "plan", "settings"];
 
   /* ════════════ Onboarding ════════════ */
 
@@ -191,16 +195,19 @@
 
   let view = "coach";
   let openPageId = null;
+  let openScriptId = null;
 
   function startApp() {
     $("#app").classList.remove("hidden");
     renderNav();
     go(location.hash.replace("#/", "") || "coach");
+    scheduleReminders();
   }
 
   function go(v) {
     view = VIEWS.includes(v) ? v : "coach";
     openPageId = null;
+    openScriptId = null;
     location.hash = "/" + view;
     renderNav();
     render();
@@ -212,7 +219,7 @@
   });
 
   function renderNav() {
-    const tools = ["workstation", "today", "pages", "projects", "library", "plan", "settings"];
+    const tools = ["workstation", "today", "journal", "calendar", "pages", "projects", "library", "plan", "settings"];
 
     const chatList = S.chats.slice(0, 20).map(c => `
       <div class="chat-item ${view === "coach" && c.id === S.activeChatId ? "active" : ""}" data-chat="${c.id}">
@@ -226,7 +233,7 @@
       <div class="nav-label">${esc(t("tools_label"))}</div>
       ${tools.map(v => `<button class="nav-item ${v === view ? "active" : ""}" data-go="${v}">${IC[v]}<span>${esc(t("nav_" + v))}</span></button>`).join("")}`;
 
-    $("#tabbar").innerHTML = ["coach", "workstation", "today", "pages", "projects", "settings"].map(v =>
+    $("#tabbar").innerHTML = ["coach", "workstation", "today", "journal", "calendar", "pages", "projects", "library", "plan", "settings"].map(v =>
       `<button class="tab-item ${v === view ? "active" : ""}" data-go="${v}">${IC[v]}<span>${esc(t("nav_" + v))}</span></button>`).join("");
 
     $("#sidebarFooter").innerHTML = `🔒 ${esc(t("made_with"))}`;
@@ -267,8 +274,10 @@
     if (view === "today") return renderToday(main);
     if (view === "coach") return renderCoach(main);
     if (view === "workstation") return renderWorkstation(main);
+    if (view === "journal") return renderJournal(main);
+    if (view === "calendar") return renderCalendar(main);
     if (view === "pages") return openPageId ? renderEditor(main) : renderPages(main);
-    if (view === "projects") return renderProjects(main);
+    if (view === "projects") return openScriptId ? renderScriptEditor(main) : renderProjects(main);
     if (view === "library") return renderLibrary(main);
     if (view === "plan") return renderPlan(main);
     if (view === "settings") return renderSettings(main);
@@ -489,9 +498,10 @@
         }
       );
 
-      const { clean, memory } = AI.extractMemory(full);
+      const { clean, memory, event, map } = AI.extractMemory(full);
       live.classList.remove("thinking");
       live.textContent = clean;
+      const msgRow = live.closest(".msg-row");
       live.removeAttribute("id");
       chat.messages.push({ role: "assistant", content: clean });
       chat.updatedAt = Date.now();
@@ -500,6 +510,30 @@
         toast(t("learned"));
       }
       Store.save();
+
+      if (event && msgRow) {
+        const chipId = "evchip_" + Store.uid();
+        msgRow.insertAdjacentHTML("afterend", `
+          <div class="tag-chips" id="${chipId}">
+            <button class="chip small" data-addevent="${chipId}">${esc(t("add_to_calendar_btn"))}: ${esc(event.title)}</button>
+            <button class="chip small ghost" data-dismiss="${chipId}">${esc(t("dismiss_btn"))}</button>
+          </div>`);
+        $(`[data-addevent="${chipId}"]`).addEventListener("click", () => {
+          S.events.push({ id: Store.uid(), title: event.title, date: event.date, time: event.time, note: event.note, remindMin: 30, reminded: false, createdAt: Date.now() });
+          Store.save(); scheduleReminders();
+          toast(t("event_added_toast", { t: event.title }));
+          $(`#${chipId}`).remove();
+        });
+        $(`[data-dismiss="${chipId}"]`).addEventListener("click", () => $(`#${chipId}`).remove());
+      }
+      if (map && msgRow) {
+        const chipId = "mapchip_" + Store.uid();
+        msgRow.insertAdjacentHTML("afterend", `
+          <div class="tag-chips" id="${chipId}">
+            <a class="chip small" target="_blank" rel="noopener noreferrer" href="${esc(safeUrl("https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(map)))}">${esc(t("open_in_maps_btn"))}: ${esc(map)}</a>
+          </div>`);
+      }
+      scroll.scrollTop = scroll.scrollHeight;
     } catch (err) {
       const msg = err.message === "NO_KEY" ? t("no_key_msg")
         : err.message === "WEBGPU_UNSUPPORTED" ? t("local_webgpu_needed")
@@ -606,6 +640,184 @@
     newChat();
     go("coach");
     sendMsg(text);
+  }
+
+  /* ════════════ Journal ════════════ */
+
+  let journalMood = "";
+
+  function renderJournal(main) {
+    main.innerHTML = `
+      <div class="view-head">
+        <h1 class="view-title">${esc(t("journal_title"))}</h1>
+        <p class="view-sub">${esc(t("journal_sub"))}</p>
+      </div>
+
+      <div class="card">
+        <div class="section-label" style="margin-top:0">${esc(t("journal_mood_label"))}</div>
+        <div class="ob-chips" id="moodChips">
+          ${t("moods_list").map(m => `<button class="chip ${journalMood === m ? "active" : ""}" data-mood="${esc(m)}">${esc(m)}</button>`).join("")}
+        </div>
+        <textarea id="journalText" class="input" rows="4" style="margin-top:14px" placeholder="${esc(t("journal_ph"))}"></textarea>
+        <button class="btn small" id="addJournal" style="margin-top:10px">${esc(t("journal_add_btn"))}</button>
+      </div>
+
+      <p class="s-sub" style="margin:14px 2px;max-width:640px">${esc(t("journal_privacy_note"))}</p>
+
+      <div class="section-label">${esc(t("journal_entries_label", { n: S.journal.length }))}</div>
+      <div id="journalList">
+        ${S.journal.length ? S.journal.slice().reverse().map(j => journalRowHTML(j)).join("")
+          : `<p style="color:var(--text-3);padding:10px 4px">${esc(t("journal_empty"))}</p>`}
+      </div>`;
+
+    $$("[data-mood]").forEach(b => b.addEventListener("click", () => {
+      journalMood = journalMood === b.dataset.mood ? "" : b.dataset.mood;
+      render();
+    }));
+
+    $("#addJournal").addEventListener("click", () => {
+      const text = $("#journalText").value.trim();
+      if (!text) return;
+      S.journal.push({ id: Store.uid(), text, mood: journalMood, createdAt: Date.now() });
+      journalMood = "";
+      Store.save();
+      render();
+    });
+
+    $$("[data-jdel]").forEach(b => b.addEventListener("click", () => {
+      S.journal = S.journal.filter(x => x.id !== b.dataset.jdel);
+      Store.save(); render();
+    }));
+    $$("[data-jreflect]").forEach(b => b.addEventListener("click", () => {
+      const j = S.journal.find(x => x.id === b.dataset.jreflect);
+      if (!j) return;
+      askFromWorkstation(j.text);
+    }));
+  }
+
+  function journalRowHTML(j) {
+    const d = new Date(j.createdAt).toLocaleString(localeOf(), { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+    return `
+      <div class="card journal-entry">
+        <div class="journal-meta">
+          ${j.mood ? `<span class="journal-mood">${esc(j.mood)}</span>` : ""}
+          <span class="s-sub">${esc(d)}</span>
+          <span style="flex:1"></span>
+          <button class="task-del" style="opacity:1" data-jdel="${j.id}" title="${esc(t("journal_delete"))}">✕</button>
+        </div>
+        <p class="journal-text">${esc(j.text)}</p>
+        <button class="chip small" data-jreflect="${j.id}">${esc(t("journal_reflect_btn"))}</button>
+      </div>`;
+  }
+
+  /* ════════════ Calendar ════════════ */
+
+  function renderCalendar(main) {
+    const today = Store.todayKey();
+    const past = S.events.filter(e => e.date < today);
+    const todays = S.events.filter(e => e.date === today).sort((a, b) => (a.time || "99:99").localeCompare(b.time || "99:99"));
+    const upcoming = S.events.filter(e => e.date > today).sort((a, b) => (a.date + (a.time || "")).localeCompare(b.date + (b.time || "")));
+    const notifOn = S.settings.notifications && typeof Notification !== "undefined" && Notification.permission === "granted";
+
+    main.innerHTML = `
+      <div class="view-head">
+        <h1 class="view-title">${esc(t("calendar_title"))}</h1>
+        <p class="view-sub">${esc(t("calendar_sub"))}</p>
+      </div>
+
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:18px">
+        <button class="btn small" id="newEvent">${esc(t("calendar_add_btn"))}</button>
+        ${notifOn
+          ? `<span class="chip small active">🔔 ${esc(t("calendar_notif_enabled"))}</span>`
+          : `<button class="chip small" id="enableNotif">${esc(t("calendar_enable_notif_btn"))}</button><span class="s-sub">${esc(t("calendar_notif_off_note"))}</span>`}
+      </div>
+
+      <div id="eventForm" class="card hidden" style="margin-bottom:18px">
+        <div class="ob-field"><input id="evTitle" class="input" placeholder="${esc(t("event_title_ph"))}"></div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <div class="ob-field" style="flex:1;min-width:160px"><label class="s-sub">${esc(t("event_date_label"))}</label><input id="evDate" type="date" class="input" value="${esc(today)}"></div>
+          <div class="ob-field" style="flex:1;min-width:140px"><label class="s-sub">${esc(t("event_time_label"))}</label><input id="evTime" type="time" class="input"></div>
+        </div>
+        <div class="ob-field"><input id="evNote" class="input" placeholder="${esc(t("event_note_ph"))}"></div>
+        <div class="ob-field">
+          <label class="s-sub">${esc(t("event_remind_label"))}</label>
+          <select id="evRemind" class="input">
+            <option value="0">${esc(t("remind_none"))}</option>
+            <option value="10">${esc(t("remind_10"))}</option>
+            <option value="30" selected>${esc(t("remind_30"))}</option>
+            <option value="60">${esc(t("remind_60"))}</option>
+            <option value="1440">${esc(t("remind_1440"))}</option>
+          </select>
+        </div>
+        <button class="btn small" id="saveEvent">${esc(t("save"))}</button>
+      </div>
+
+      ${todays.length ? `<div class="section-label" style="margin-top:0">${esc(t("calendar_today_label"))}</div>${todays.map(eventRowHTML).join("")}` : ""}
+      ${upcoming.length ? `<div class="section-label">${esc(t("calendar_upcoming_label"))}</div>${upcoming.map(eventRowHTML).join("")}` : ""}
+      ${!todays.length && !upcoming.length ? `<p style="color:var(--text-3);padding:14px 4px">${esc(t("calendar_empty"))}</p>` : ""}
+      ${past.length ? `<div class="section-label">${esc(t("edited"))}</div>${past.slice(-5).reverse().map(eventRowHTML).join("")}` : ""}`;
+
+    $("#newEvent").addEventListener("click", () => $("#eventForm").classList.toggle("hidden"));
+    $("#enableNotif") && $("#enableNotif").addEventListener("click", async () => {
+      if (typeof Notification === "undefined") return;
+      const perm = await Notification.requestPermission();
+      S.settings.notifications = perm === "granted";
+      Store.save(); render(); scheduleReminders();
+    });
+    $("#saveEvent").addEventListener("click", () => {
+      const title = $("#evTitle").value.trim();
+      const date = $("#evDate").value;
+      if (!title || !date) return;
+      S.events.push({
+        id: Store.uid(), title, date,
+        time: $("#evTime").value || "",
+        note: $("#evNote").value.trim(),
+        remindMin: parseInt($("#evRemind").value, 10) || 0,
+        reminded: false,
+        createdAt: Date.now(),
+      });
+      Store.save(); render(); scheduleReminders();
+    });
+    $$("[data-evdel]").forEach(b => b.addEventListener("click", () => {
+      S.events = S.events.filter(x => x.id !== b.dataset.evdel);
+      Store.save(); render();
+    }));
+  }
+
+  function eventRowHTML(e) {
+    const dateStr = new Date(e.date + "T00:00:00").toLocaleDateString(localeOf(), { day: "numeric", month: "short" });
+    return `
+      <div class="task-row" style="align-items:flex-start">
+        <div style="flex:1">
+          <div class="task-title" style="font-weight:600">${esc(e.title)}</div>
+          <div class="s-sub">${esc(dateStr)}${e.time ? " · " + esc(e.time) : ""}${e.note ? " · " + esc(e.note) : ""}</div>
+        </div>
+        <button class="task-del" style="opacity:1" data-evdel="${e.id}" title="${esc(t("calendar_delete"))}">✕</button>
+      </div>`;
+  }
+
+  /* Reminder scheduling — best-effort, client-side only: fires a browser
+     Notification while Bardi is open in a tab. There is no backend, so
+     this cannot wake a closed tab or send push notifications. */
+  let reminderTimers = [];
+  function scheduleReminders() {
+    reminderTimers.forEach(clearTimeout);
+    reminderTimers = [];
+    if (!S.settings.notifications || typeof Notification === "undefined" || Notification.permission !== "granted") return;
+
+    for (const e of S.events) {
+      if (e.reminded || !e.remindMin) continue;
+      const when = new Date(`${e.date}T${e.time || "09:00"}:00`);
+      const fireAt = when.getTime() - e.remindMin * 60000;
+      const delay = fireAt - Date.now();
+      if (delay <= 0 || delay > 24 * 60 * 60000) continue; // only schedule within the next 24h
+      const timer = setTimeout(() => {
+        try { new Notification("بردي · Bardi", { body: e.title, icon: undefined }); } catch (_) {}
+        e.reminded = true;
+        Store.save();
+      }, delay);
+      reminderTimers.push(timer);
+    }
   }
 
   /* ════════════ Pages ════════════ */
@@ -739,10 +951,25 @@
         ${S.projects.map(pr => `<button class="chip ${pr.id === activeProject ? "active" : ""}" data-proj="${pr.id}">${esc(pr.name)}</button>`).join("")}
         <button class="chip" id="newProj">＋ ${esc(t("new_project"))}</button>
         <span style="flex:1"></span>
+        <button class="chip" id="newScript">${esc(t("studio_new_btn"))}</button>
         <button class="chip" id="importProj">${esc(t("import_project"))}</button>
         <input type="file" id="importProjFile" accept="application/json" hidden>
       </div>
-      ${proj ? boardHTML(proj) : `<p style="color:var(--text-3)">${esc(t("no_projects"))}</p>`}`;
+      ${proj ? boardHTML(proj) : `<p style="color:var(--text-3)">${esc(t("no_projects"))}</p>`}
+
+      ${S.scripts.length ? `
+        <div class="section-label">${esc(t("studio_scripts_label", { n: S.scripts.length }))}</div>
+        <div class="card" style="padding:8px 20px">
+          ${S.scripts.map(sc => `
+            <div class="book-row">
+              <div class="book-ico">🎬</div>
+              <div class="b-info">
+                <div class="b-title">${esc(sc.title || t("untitled"))}</div>
+                <div class="b-meta">${esc(sc.logline || "")}</div>
+              </div>
+              <button class="chip small" data-openscript="${sc.id}">${esc(t("studio_open"))}</button>
+            </div>`).join("")}
+        </div>` : ""}`;
 
     $("#newProj").addEventListener("click", () => {
       const name = prompt(t("project_name_ph"));
@@ -759,6 +986,13 @@
       Store.save(); render();
     });
     $$("[data-proj]").forEach(b => b.addEventListener("click", () => { activeProject = b.dataset.proj; render(); }));
+
+    $("#newScript").addEventListener("click", () => {
+      const sc = { id: Store.uid(), title: "", logline: "", scenes: [{ id: Store.uid(), text: "", prompt: "" }], updatedAt: Date.now() };
+      S.scripts.unshift(sc); Store.save();
+      openScriptId = sc.id; render();
+    });
+    $$("[data-openscript]").forEach(b => b.addEventListener("click", () => { openScriptId = b.dataset.openscript; render(); }));
 
     $("#importProj").addEventListener("click", () => $("#importProjFile").click());
     $("#importProjFile").addEventListener("change", async (e) => {
@@ -840,6 +1074,112 @@
         <button class="chip" id="delProj" style="color:var(--accent)">🗑 ${esc(t("delete_project"))}</button>
       </div>
       <p class="s-sub" style="margin-top:10px;max-width:520px">${esc(t("share_project_hint"))}</p>`;
+  }
+
+  /* ════════════ Studio (story/script writer, lives inside Projects) ════════════ */
+
+  function renderScriptEditor(main) {
+    const sc = S.scripts.find(x => x.id === openScriptId);
+    if (!sc) { openScriptId = null; return render(); }
+    const saveNow = () => { sc.updatedAt = Date.now(); Store.save(); };
+
+    main.innerHTML = `
+      <button class="back-link" id="backStudio">← ${esc(t("back"))}</button>
+      <input class="editor-title" id="scTitle" placeholder="${esc(t("studio_title_ph"))}" value="${esc(sc.title)}">
+      <textarea id="scLogline" class="input" rows="2" style="margin-bottom:20px" placeholder="${esc(t("studio_logline_ph"))}">${esc(sc.logline)}</textarea>
+
+      <div class="section-label" style="margin-top:0">${esc(t("studio_scenes_label"))}</div>
+      <div id="scenes">
+        ${sc.scenes.length ? sc.scenes.map((s, i) => sceneHTML(s, i)).join("") : `<p style="color:var(--text-3)">${esc(t("studio_no_scenes"))}</p>`}
+      </div>
+      <div class="editor-toolbar">
+        <button class="chip" id="addScene">${esc(t("studio_add_scene"))}</button>
+        <span style="flex:1"></span>
+        <button class="chip" id="exportShots">${esc(t("studio_export_btn"))}</button>
+        <button class="chip" id="delScript" style="color:var(--accent)">🗑 ${esc(t("studio_delete"))}</button>
+      </div>
+      <p class="s-sub" style="max-width:640px;margin-top:6px">${esc(t("studio_export_note"))}</p>`;
+
+    $("#backStudio").addEventListener("click", () => { openScriptId = null; render(); });
+    $("#scTitle").addEventListener("input", e => { sc.title = e.target.value; saveNow(); });
+    $("#scLogline").addEventListener("input", e => { sc.logline = e.target.value; saveNow(); });
+    $("#delScript").addEventListener("click", () => {
+      if (!confirm(t("delete_confirm"))) return;
+      S.scripts = S.scripts.filter(x => x.id !== sc.id);
+      Store.save(); openScriptId = null; render();
+    });
+    $("#addScene").addEventListener("click", () => {
+      sc.scenes.push({ id: Store.uid(), text: "", prompt: "" });
+      saveNow(); render();
+    });
+    $("#exportShots").addEventListener("click", () => exportShotList(sc));
+
+    $$("[data-scenetext]").forEach(el => el.addEventListener("input", () => {
+      const s = sc.scenes.find(x => x.id === el.dataset.scenetext);
+      if (s) { s.text = el.value; saveNow(); }
+    }));
+    $$("[data-scenedel]").forEach(b => b.addEventListener("click", () => {
+      sc.scenes = sc.scenes.filter(x => x.id !== b.dataset.scenedel);
+      saveNow(); render();
+    }));
+    $$("[data-genprompt]").forEach(b => b.addEventListener("click", () => genScenePrompt(sc, b.dataset.genprompt, saveNow)));
+    $$("[data-copyprompt]").forEach(b => b.addEventListener("click", () => {
+      const s = sc.scenes.find(x => x.id === b.dataset.copyprompt);
+      if (s && s.prompt) { navigator.clipboard.writeText(s.prompt).catch(() => {}); toast(t("studio_copied")); }
+    }));
+  }
+
+  function sceneHTML(s, i) {
+    return `
+      <div class="card scene-card">
+        <div style="display:flex;gap:10px;align-items:flex-start">
+          <span class="s-sub" style="padding-top:10px;font-weight:700">${i + 1}</span>
+          <textarea class="input" rows="2" data-scenetext="${s.id}" placeholder="${esc(t("studio_scene_ph"))}">${esc(s.text)}</textarea>
+          <button class="task-del" style="opacity:1" data-scenedel="${s.id}">✕</button>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap">
+          <button class="chip small" data-genprompt="${s.id}">${esc(t("studio_gen_prompt_btn"))}</button>
+          ${s.prompt ? `<button class="chip small" data-copyprompt="${s.id}">${esc(t("studio_copy_btn"))}</button>` : ""}
+        </div>
+        ${s.prompt ? `<pre class="scene-prompt">${esc(s.prompt)}</pre>` : ""}
+      </div>`;
+  }
+
+  async function genScenePrompt(sc, sceneId, saveNow) {
+    const s = sc.scenes.find(x => x.id === sceneId);
+    if (!s || !s.text.trim()) return;
+    const btn = $(`[data-genprompt="${sceneId}"]`);
+    const origLabel = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = t("studio_generating");
+    try {
+      const prompt =
+        `Story: ${sc.title || "(untitled)"} — ${sc.logline || ""}\n\nWrite ONE short, vivid, cinematic visual prompt (2-3 sentences, present tense, describing shot/camera/lighting/mood) for a text-to-video AI generator, based on this scene:\n\n${s.text}\n\nReply with ONLY the prompt text, nothing else.`;
+      const text = await AI.completeText(S, prompt);
+      s.prompt = text.trim();
+      saveNow();
+      render();
+    } catch (e) {
+      toast(t("ai_error", { err: e.message === "NO_KEY" ? "no key" : e.message }));
+      btn.disabled = false;
+      btn.textContent = origLabel;
+    }
+  }
+
+  function exportShotList(sc) {
+    const lines = [
+      sc.title || t("untitled"),
+      sc.logline || "",
+      "",
+      ...sc.scenes.map((s, i) => `${i + 1}. ${s.text}\n   → ${s.prompt || "(" + t("studio_no_scenes") + ")"}\n`),
+    ];
+    const text = lines.join("\n");
+    const blob = new Blob([text], { type: "text/plain" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = (sc.title || "shot-list").replace(/[^\w\-]+/g, "-").slice(0, 40) + ".txt";
+    a.click();
+    URL.revokeObjectURL(a.href);
   }
 
   /* ════════════ Library (books + videos) ════════════ */

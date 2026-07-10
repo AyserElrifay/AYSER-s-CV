@@ -135,13 +135,16 @@ input, textarea, select { font-family: inherit; color: inherit; }
   border-top: 1px solid var(--line);
   padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
   z-index: 60;
-  justify-content: space-around;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
 }
+.tabbar::-webkit-scrollbar { display: none; }
 .tab-item {
   display: flex; flex-direction: column; align-items: center; gap: 2px;
   border: none; background: none; color: var(--text-2);
-  font-size: 10px; font-weight: 500; padding: 6px 6px; border-radius: 10px;
-  min-width: 50px; flex: 1;
+  font-size: 10px; font-weight: 500; padding: 6px 8px; border-radius: 10px;
+  flex: 0 0 auto;
 }
 .tab-item svg { width: 21px; height: 21px; }
 .tab-item.active { color: var(--accent); }
@@ -591,4 +594,30 @@ details.help-details a { color: var(--accent); }
   background: var(--surface); border: 1px solid var(--line); border-radius: 8px;
   padding: 7px 9px; font-size: 12px; margin-bottom: 6px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* ═══════════ Journal ═══════════ */
+
+.journal-entry { margin-bottom: 14px; }
+.journal-meta { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.journal-mood { font-size: 15px; background: var(--surface-2); border-radius: 999px; padding: 3px 11px; }
+.journal-text { font-size: 15px; line-height: 1.7; white-space: pre-wrap; margin-bottom: 12px; }
+
+/* ═══════════ Chat tag chips (calendar / map suggestions) ═══════════ */
+
+.tag-chips {
+  display: flex; gap: 8px; flex-wrap: wrap;
+  margin: -8px 0 4px calc(30px + 12px); /* align under the assistant bubble, past the avatar */
+}
+[dir="rtl"] .tag-chips { margin: -8px calc(30px + 12px) 4px 0; }
+.chip.ghost { background: transparent; border-color: var(--line); color: var(--text-2); }
+
+/* ═══════════ Studio (script editor) ═══════════ */
+
+.scene-card { margin-bottom: 14px; }
+.scene-card textarea { flex: 1; }
+.scene-prompt {
+  margin-top: 10px; background: var(--surface-2); border-radius: 10px;
+  padding: 12px 14px; font-size: 13px; white-space: pre-wrap; font-family: ui-monospace, monospace;
+  color: var(--text-2); line-height: 1.6;
 }
