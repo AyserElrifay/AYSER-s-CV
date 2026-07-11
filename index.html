@@ -584,6 +584,15 @@ body.menu-locked{overflow:hidden}
 .client .cn{font-weight:500;font-size:17px;letter-spacing:-.01em}
 .client .ck{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--stone);margin-top:6px;font-weight:500}
 
+/* home index (quiet table of contents) */
+.home-index{margin-top:clamp(44px,7vh,80px);width:100%;max-width:520px;border-top:1px solid var(--mist);text-align:left}
+.home-index a{display:flex;justify-content:space-between;align-items:baseline;gap:16px;
+  padding:15px 2px;border-bottom:1px solid var(--mist);
+  font-size:15px;font-weight:500;color:var(--stone);
+  transition:color .3s,padding-left .45s var(--ease)}
+.home-index a:hover{color:var(--ink);padding-left:10px}
+.home-index .no{font-size:11px;letter-spacing:.12em}
+
 /* apple-style footer ground */
 .footer{background:var(--fog);margin-top:clamp(60px,9vh,120px)}
 .footer .foot-cta{border-top:none}
@@ -621,7 +630,7 @@ body.menu-locked{overflow:hidden}
 <main id="top">
 
 <!-- ============================================================ HERO -->
-<section class="hero wrap">
+<section class="hero wrap" id="home">
   <div class="hero-inner" id="heroInner">
     <div class="eyebrow rv">
       <span class="label" style="color:var(--ink)">Clay — Creative Agency</span>
@@ -632,11 +641,15 @@ body.menu-locked{overflow:hidden}
     </p>
     <div class="hero-ctas rv d3">
       <a class="btn" href="#begin">Start a project</a>
-      <a class="btn ghost" href="#work">See the work</a>
     </div>
-    <div class="hero-foot">
-      <div class="scroll-cue rv d4"><span>Scroll</span><span class="tick"></span></div>
-    </div>
+    <nav class="home-index rv d4" aria-label="Site index">
+      <a href="#work"><span>Work — Graph by Clay</span><span class="no num">01</span></a>
+      <a href="#services"><span>Services</span><span class="no num">02</span></a>
+      <a href="#clients"><span>Clay Studio</span><span class="no num">03</span></a>
+      <a href="#studio"><span>The Studio</span><span class="no num">04</span></a>
+      <a href="#academy"><span>Academy</span><span class="no num">05</span></a>
+      <a href="#formed"><span>Formed by Clay</span><span class="no num">06</span></a>
+    </nav>
   </div>
 </section>
 
@@ -1253,6 +1266,35 @@ function onScrollFx(){
 addEventListener("scroll",function(){ requestAnimationFrame(onScrollFx) },{passive:true});
 onScrollFx();
 if(noMotion&&scrubWords.length) scrubWords.forEach(function(w){w.classList.add("lit")});
+
+/* ---------- page router: each menu item is its own page ---------- */
+var PAGES={home:["home"],studio:["studio"],work:["work","proof"],services:["services"],
+           clients:["clients"],begin:["begin"],academy:["academy"],formed:["formed"]};
+var ALL_IDS=Object.keys(PAGES).reduce(function(a,k){return a.concat(PAGES[k])},[]);
+function pageOf(target){
+  if(target==="top"||target==="")return "home";
+  for(var k in PAGES){ if(k===target||PAGES[k].indexOf(target)>-1) return k; }
+  return null;
+}
+function showPage(pg){
+  if(!PAGES[pg])pg="home";
+  ALL_IDS.forEach(function(id){ var el=document.getElementById(id); if(el)el.style.display="none"; });
+  PAGES[pg].forEach(function(id){ var el=document.getElementById(id); if(el)el.style.display=""; });
+  $$(".nav-links a").forEach(function(a){
+    a.classList.toggle("active",(a.getAttribute("href")||"")==="#"+pg);
+  });
+  try{ history.replaceState(null,"","#"+pg); }catch(e){}
+  window.scrollTo(0,0);
+  requestAnimationFrame(onScrollFx);
+}
+document.addEventListener("click",function(e){
+  var a=e.target.closest('a[href^="#"]');
+  if(!a)return;
+  var pg=pageOf(a.getAttribute("href").slice(1));
+  if(pg){ e.preventDefault(); closeMenu(); showPage(pg); }
+});
+addEventListener("hashchange",function(){ showPage(pageOf((location.hash||"#home").slice(1))||"home"); });
+showPage(pageOf((location.hash||"#home").slice(1))||"home");
 
 /* ---------- count-up stats ---------- */
 function animateCount(el){
