@@ -7,8 +7,10 @@ import { createClient } from '@supabase/supabase-js';
    locally and nothing is persisted. Add a .env (see .env.example) to
    switch to the real backend; no code changes needed. */
 
-const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
-const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from './supabaseConfig';
+
+const url = SUPABASE_URL;
+const anonKey = SUPABASE_ANON_KEY;
 
 export const SUPABASE_READY = !!(url && anonKey);
 
