@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { C, R } from '../constants/theme';
 import { INITIAL_TX, PLANNER_INIT, FIXERS, SQUADS, SETTINGS_GROUPS } from '../constants/mockData';
 import { useAuth } from '../context/AuthContext';
+import { useLang } from '../context/LanguageContext';
 import {
   Glass, Micro, Chip, SectionHeader,
   NeonButton, AvatarStack, RatingBar,
@@ -19,10 +20,12 @@ import { tapLight, tapSelection } from '../utils/feedback';
 export const SettingsScreen = ({ onClose }) => {
   const insets = useSafeAreaInsets();
   const { signOut, isDemo, user } = useAuth();
+  const { t, lang, setLang, langs, meta } = useLang();
   const [tx, setTx] = useState(INITIAL_TX);
   const [split, setSplit] = useState(false);
   const [planner, setPlanner] = useState(PLANNER_INIT);
   const [booked, setBooked] = useState({});
+  const [langOpen, setLangOpen] = useState(false);
 
   const togglePlan = (cardId, idx) =>
     setPlanner((prev) =>
@@ -48,7 +51,7 @@ export const SettingsScreen = ({ onClose }) => {
         <Pressable onPress={() => { tapLight(); onClose(); }} hitSlop={10} style={{ marginRight: 6 }}>
           <Ionicons name="chevron-back" size={26} color={C.text} />
         </Pressable>
-        <Text style={{ color: C.text, fontSize: 20, fontWeight: '900' }}>Settings</Text>
+        <Text style={{ color: C.text, fontSize: 20, fontWeight: '900' }}>{t('settings')}</Text>
       </View>
 
       <ScrollView
@@ -125,7 +128,7 @@ export const SettingsScreen = ({ onClose }) => {
             <SectionHeader title={group.title} style={{ marginTop: 26 }} />
             <Glass style={{ paddingHorizontal: 4, paddingVertical: 2 }}>
               {group.rows.map((row, i) => (
-                <Pressable key={row.label} onPress={tapSelection}>
+                <Pressable key={row.label} onPress={() => { tapSelection(); if (row.icon === 'language-outline') setLangOpen(true); }}>
                   {({ pressed }) => (
                     <View
                       style={{
@@ -138,10 +141,14 @@ export const SettingsScreen = ({ onClose }) => {
                         <Ionicons name={row.icon} size={16} color={C.purple} />
                       </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={{ color: C.text, fontSize: 14, fontWeight: '700' }}>{row.label}</Text>
+                        <Text style={{ color: C.text, fontSize: 14, fontWeight: '700' }}>
+                          {row.icon === 'language-outline' ? t('language') : row.label}
+                        </Text>
                         {row.hint ? <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 1 }}>{row.hint}</Text> : null}
                       </View>
-                      {row.value ? <Text style={{ color: C.faint, fontSize: 13, marginRight: 6 }}>{row.value}</Text> : null}
+                      {row.icon === 'language-outline'
+                        ? <Text style={{ color: C.faint, fontSize: 13, marginRight: 6 }}>{meta.flag} {meta.native}</Text>
+                        : row.value ? <Text style={{ color: C.faint, fontSize: 13, marginRight: 6 }}>{row.value}</Text> : null}
                       <Ionicons name="chevron-forward" size={16} color={C.faint} />
                     </View>
                   )}
@@ -236,10 +243,35 @@ export const SettingsScreen = ({ onClose }) => {
             </Text>
           </View>
           <Pressable onPress={signOut} style={{ backgroundColor: C.coralSoft, borderWidth: 1, borderColor: 'rgba(244,63,94,0.4)', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12 }}>
-            <Text style={{ color: C.coral, fontSize: 12, fontWeight: '900' }}>SIGN OUT</Text>
+            <Text style={{ color: C.coral, fontSize: 12, fontWeight: '900' }}>{t('sign_out')}</Text>
           </Pressable>
         </Glass>
       </ScrollView>
+
+      {/* language picker */}
+      {langOpen ? (
+        <Pressable onPress={() => setLangOpen(false)} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end' }}>
+          <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, paddingBottom: insets.bottom + 20, paddingHorizontal: 16 }}>
+            <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 14 }} />
+            <Text style={{ color: C.text, fontSize: 18, fontWeight: '900', marginBottom: 6 }}>{t('language')} 🌍</Text>
+            {langs.map((l) => {
+              const on = l.code === lang;
+              return (
+                <Pressable key={l.code} onPress={() => { tapSelection(); setLang(l.code); setLangOpen(false); }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.line }}>
+                    <Text style={{ fontSize: 24, marginRight: 14 }}>{l.flag}</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: C.text, fontSize: 15, fontWeight: on ? '900' : '600' }}>{l.native}</Text>
+                      <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 1 }}>{l.label}</Text>
+                    </View>
+                    {on ? <Ionicons name="checkmark-circle" size={22} color={C.purple} /> : <View style={{ width: 22, height: 22, borderRadius: 11, borderWidth: 1.5, borderColor: C.line }} />}
+                  </View>
+                </Pressable>
+              );
+            })}
+          </Pressable>
+        </Pressable>
+      ) : null}
     </View>
   );
 };

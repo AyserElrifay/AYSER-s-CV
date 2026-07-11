@@ -23,6 +23,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { C } from './src/constants/theme';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
+import { LanguageProvider } from './src/context/LanguageContext';
 import { AuthScreen } from './src/screens/AuthScreen';
 import { TabNavigator, NavTheme } from './src/navigation/TabNavigator';
 
@@ -40,10 +41,12 @@ const Root = () => {
 export default function App() {
   return (
     <SafeAreaProvider>
-      <AuthProvider>
-        <StatusBar style="dark" />
-        <Root />
-      </AuthProvider>
+      <LanguageProvider>
+        <AuthProvider>
+          <StatusBar style="dark" />
+          <Root />
+        </AuthProvider>
+      </LanguageProvider>
     </SafeAreaProvider>
   );
 }

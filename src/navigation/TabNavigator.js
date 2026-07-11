@@ -4,6 +4,7 @@ import { DefaultTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { C } from '../constants/theme';
+import { useLang } from '../context/LanguageContext';
 import { SQUADS, DMS } from '../constants/mockData';
 import { HomeScreen } from '../screens/HomeScreen';
 import { MapScreen } from '../screens/MapScreen';
@@ -47,7 +48,13 @@ export const NavTheme = {
   },
 };
 
-export const TabNavigator = () => (
+const TAB_LABEL_KEY = {
+  HOME: 'tab_home', MAP: 'tab_map', REELS: 'tab_reels', CHILL: 'tab_chill', CHATS: 'tab_chats', SPACE: 'tab_space',
+};
+
+export const TabNavigator = () => {
+  const { t } = useLang();
+  return (
   <Tab.Navigator
     screenOptions={({ route }) => ({
       headerShown: false,
@@ -61,6 +68,7 @@ export const TabNavigator = () => (
         paddingTop: 6,
       },
       tabBarLabelStyle: { fontSize: 9.5, fontWeight: '800', letterSpacing: 1.4 },
+      tabBarLabel: t(TAB_LABEL_KEY[route.name]),
       tabBarIcon: ({ focused, color }) => renderTabIcon(route.name, focused, color),
     })}
   >
@@ -78,4 +86,5 @@ export const TabNavigator = () => (
     />
     <Tab.Screen name="SPACE" component={ProfileScreen} />
   </Tab.Navigator>
-);
+  );
+};
