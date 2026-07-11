@@ -17,6 +17,12 @@ export const PersonPin = ({ p, onPress }) => (
       }}
     >
       <Text style={{ fontSize: 20 }}>{p.emoji}</Text>
+      {/* the activity they chose to show — what they're up to right now */}
+      {p.doing ? (
+        <View style={{ position: 'absolute', bottom: -5, right: -7, width: 22, height: 22, borderRadius: 11, backgroundColor: '#FFF', borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ fontSize: 11 }}>{p.doing}</Text>
+        </View>
+      ) : null}
     </View>
   </Pressable>
 );
@@ -51,7 +57,7 @@ export const CampfirePin = ({ c }) => {
   );
 };
 
-export const MePin = () => {
+export const MePin = ({ doing }) => {
   const pulse = usePulse(1600);
   return (
     <View style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}>
@@ -63,6 +69,11 @@ export const MePin = () => {
         }}
       />
       <View style={{ width: 18, height: 18, borderRadius: 9, backgroundColor: C.purple, borderWidth: 3, borderColor: '#fff' }} />
+      {doing ? (
+        <View style={{ position: 'absolute', top: -12, right: -12, width: 24, height: 24, borderRadius: 12, backgroundColor: '#FFF', borderWidth: 1, borderColor: C.purple, alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ fontSize: 12 }}>{doing}</Text>
+        </View>
+      ) : null}
     </View>
   );
 };

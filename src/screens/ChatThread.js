@@ -5,6 +5,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { C } from '../constants/theme';
 import { av, USERS } from '../constants/mockData';
 import { TruthOrDare } from '../components/TruthOrDare';
+import { WouldYouRather } from '../components/WouldYouRather';
 import { CallScreen } from '../components/CallScreen';
 import { tapLight, tapMedium } from '../utils/feedback';
 import { sfxPop } from '../utils/sfx';
@@ -39,6 +40,7 @@ export const ChatThread = ({ chat, group, onClose }) => {
   const [msgs, setMsgs] = useState(() => SEED(peer, group));
   const [draft, setDraft] = useState('');
   const [todOn, setTodOn] = useState(false);
+  const [wyrOn, setWyrOn] = useState(false);
   const [menu, setMenu] = useState(false);
   const [call, setCall] = useState(null); // {video:bool}
   const scroller = useRef(null);
@@ -99,6 +101,7 @@ export const ChatThread = ({ chat, group, onClose }) => {
             })}
 
             {todOn ? <TruthOrDare players={players} onRemove={() => setTodOn(false)} /> : null}
+            {wyrOn ? <WouldYouRather onRemove={() => setWyrOn(false)} /> : null}
           </ScrollView>
 
           {/* games menu */}
@@ -114,13 +117,15 @@ export const ChatThread = ({ chat, group, onClose }) => {
                 </View>
               </Pressable>
               <View style={{ height: 1, backgroundColor: C.line, marginHorizontal: 10 }} />
-              <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 11, opacity: 0.5 }}>
-                <Text style={{ fontSize: 20 }}>🏃</Text>
-                <View style={{ marginLeft: 10 }}>
-                  <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>Catch Your Mate</Text>
-                  <Text style={{ color: C.faint, fontSize: 11 }}>Soon in chat</Text>
+              <Pressable onPress={() => { tapLight(); setMenu(false); setWyrOn(true); setTimeout(() => scroller.current && scroller.current.scrollToEnd({ animated: true }), 80); }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 11 }}>
+                  <Text style={{ fontSize: 20 }}>🤔</Text>
+                  <View style={{ marginLeft: 10 }}>
+                    <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>Would You Rather</Text>
+                    <Text style={{ color: C.faint, fontSize: 11 }}>Pick a side, see the split</Text>
+                  </View>
                 </View>
-              </View>
+              </Pressable>
             </View>
           ) : null}
 

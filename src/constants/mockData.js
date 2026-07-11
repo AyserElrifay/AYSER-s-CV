@@ -185,12 +185,24 @@ export const FEED = [
   },
 ];
 
+/* `doing` = the activity badge a person chose to show on their pin */
 export const MAP_PEOPLE = [
-  { ...USERS.nour, coords: { latitude: 30.0609, longitude: 31.2197 }, fx: '22%', fy: '18%' },
-  { ...USERS.farida, coords: { latitude: 30.0421, longitude: 31.2229 }, fx: '16%', fy: '58%' },
-  { ...USERS.omar, coords: { latitude: 30.0511, longitude: 31.2409 }, fx: '68%', fy: '38%' },
-  { ...USERS.zeyad, coords: { latitude: 30.033, longitude: 31.2336 }, fx: '44%', fy: '74%' },
-  { ...USERS.malak, coords: { latitude: 30.0566, longitude: 31.2394 }, fx: '60%', fy: '12%' },
+  { ...USERS.nour, doing: '⛰️', coords: { latitude: 30.0609, longitude: 31.2197 }, fx: '22%', fy: '18%' },
+  { ...USERS.farida, doing: '☕', coords: { latitude: 30.0421, longitude: 31.2229 }, fx: '16%', fy: '58%' },
+  { ...USERS.omar, doing: '🤿', coords: { latitude: 30.0511, longitude: 31.2409 }, fx: '68%', fy: '38%' },
+  { ...USERS.zeyad, doing: '⚽', coords: { latitude: 30.033, longitude: 31.2336 }, fx: '44%', fy: '74%' },
+  { ...USERS.malak, doing: '🎧', coords: { latitude: 30.0566, longitude: 31.2394 }, fx: '60%', fy: '12%' },
+];
+
+export const DOING_OPTIONS = ['⚽', '🎾', '☕', '🎬', '🤿', '🎧', '⛰️', '🏊', '🎮', '📚'];
+
+/* ── MAP BOOKINGS · courts, hotels & experiences you grab in two taps ── */
+export const BOOKINGS = [
+  { id: 'bk1', emoji: '🎾', name: 'Padel Court · Gezira Club', sub: 'Next slot 6:00 PM · 4 players', price: 'E£220/hr', kind: 'Sport' },
+  { id: 'bk2', emoji: '⚽', name: 'Football Pitch · Zamalek 5-a-side', sub: 'Tonight 8:00 PM · turf', price: 'E£350/hr', kind: 'Sport' },
+  { id: 'bk3', emoji: '🏨', name: 'Nile View Hotel', sub: 'Tonight · king room · breakfast', price: 'E£1,900', kind: 'Stay' },
+  { id: 'bk4', emoji: '🛶', name: 'Sunset Felucca Hour', sub: 'Daily 5:30 PM · up to 8 mates', price: 'E£120/pp', kind: 'Experience' },
+  { id: 'bk5', emoji: '🍽️', name: 'Rooftop Dinner · Downtown', sub: 'Table for 4 · 9:00 PM', price: 'E£300/pp', kind: 'Food' },
 ];
 
 export const CAMPFIRES = [
@@ -274,6 +286,28 @@ export const TOD = {
     'Speak only in emojis for the next 3 messages.',
   ],
 };
+
+/* ── LEARN LANGUAGES · exchange partners (HelloTalk/Lingbe style).
+   Chat with a native speaker who's learning YOUR language; hop on a
+   call right from the thread. ── */
+export const LANG_PARTNERS = [
+  { id: 'lp1', name: 'Yuna', avatar: av(44), speaks: '한국어 Korean', learning: 'Arabic', flag: '🇰🇷', level: 'B1', online: true },
+  { id: 'lp2', name: 'Mateo', avatar: av(53), speaks: 'Español Spanish', learning: 'English', flag: '🇪🇸', level: 'A2', online: true },
+  { id: 'lp3', name: 'Chloé', avatar: av(38), speaks: 'Français French', learning: 'Arabic', flag: '🇫🇷', level: 'B2', online: false },
+  { id: 'lp4', name: 'Haruto', avatar: av(59), speaks: '日本語 Japanese', learning: 'English', flag: '🇯🇵', level: 'A1', online: true },
+  { id: 'lp5', name: 'Lena', avatar: av(41), speaks: 'Русский Russian', learning: 'Arabic', flag: '🇷🇺', level: 'B1', online: false },
+];
+
+/* ── COURSES · long-form learning that's actually curated.
+   Free courses: anyone can teach. Paid courses: certified creators
+   only — every instructor applies with proof and every course is
+   reviewed before it goes live. No junk long-form. ── */
+export const COURSES = [
+  { id: 'co1', emoji: '📸', title: 'Phone Photography — golden hour to night', by: 'Clay Agency', certified: true, price: 'E£450', rating: 4.9, students: '1.2K', lessons: 14, paid: true },
+  { id: 'co2', emoji: '☕', title: 'Home Brewing 101 — your best cup yet', by: 'Farida Aziz', certified: true, price: 'Free', rating: 4.7, students: '3.4K', lessons: 8, paid: false },
+  { id: 'co3', emoji: '🤿', title: 'Freediving basics — safe & certified', by: 'Omar Farouk', certified: true, price: 'E£800', rating: 5.0, students: '640', lessons: 12, paid: true },
+  { id: 'co4', emoji: '🎧', title: 'Host your first Campfire', by: 'Malak Hassan', certified: false, price: 'Free', rating: 4.5, students: '2.1K', lessons: 5, paid: false },
+];
 
 export const QUESTS = [
   {

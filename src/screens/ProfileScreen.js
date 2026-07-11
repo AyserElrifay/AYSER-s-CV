@@ -63,6 +63,8 @@ export const ProfileScreen = () => {
   const [category, setCategory] = useState('Creator');
   const [dash, setDash] = useState(false);            // professional dashboard
   const [pageMade, setPageMade] = useState(false);
+  const [adsOpen, setAdsOpen] = useState(false);      // ads manager
+  const [boosted, setBoosted] = useState(false);
 
   const CATEGORIES = ['Creator', 'Photographer', 'Coach', 'Musician', 'Local Business', 'Community'];
 
@@ -290,9 +292,54 @@ export const ProfileScreen = () => {
               onPress={() => setPageMade(true)}
               right={pageMade ? <Ionicons name="checkmark-circle" size={20} color={C.green} /> : null}
             />
-            <MenuRow icon="megaphone-outline" label="Moments Ads" sub="Boost a moment · media buying" />
+            <MenuRow icon="megaphone-outline" label="Ads Manager" sub="Boost moments · campaigns · media buying" onPress={() => { setMenu(false); setAdsOpen(true); }} />
             <MenuRow icon="star-outline" label="Close Friends" sub="Share some moments with your inner circle" />
             <MenuRow icon="create-outline" label="Edit your space" sub="Name, bio, vibe & links" />
+          </Pressable>
+        </Pressable>
+      ) : null}
+
+      {/* Ads Manager — boost, track, spend. Meta-style but honest & simple */}
+      {adsOpen ? (
+        <Pressable onPress={() => setAdsOpen(false)} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end' }}>
+          <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, paddingBottom: insets.bottom + 22, paddingHorizontal: 16 }}>
+            <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 12 }} />
+            <Text style={{ color: C.text, fontSize: 18, fontWeight: '900' }}>Ads Manager 📣</Text>
+            <Text style={{ color: C.faint, fontSize: 12, marginTop: 2, marginBottom: 14 }}>Put your moments in front of the right crowd</Text>
+
+            {/* active campaign */}
+            <View style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 16, padding: 14, marginBottom: 10 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={{ fontSize: 20, marginRight: 9 }}>🌇</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800' }}>Rooftop reel · boost</Text>
+                  <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 2 }}>E£150 spent · 8.2K reach · Cairo 18–30</Text>
+                </View>
+                <View style={{ backgroundColor: C.greenSoft, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 }}>
+                  <Text style={{ color: C.green, fontSize: 10.5, fontWeight: '900' }}>ACTIVE</Text>
+                </View>
+              </View>
+            </View>
+
+            <View style={{ flexDirection: 'row', marginBottom: 12 }}>
+              {[{ n: '11.6K', l: 'Reach' }, { n: 'E£210', l: 'Spend' }, { n: '3.1%', l: 'Star rate' }].map((s) => (
+                <View key={s.l} style={{ flex: 1, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 14, padding: 11, marginRight: s.l !== 'Star rate' ? 8 : 0, alignItems: 'center' }}>
+                  <Text style={{ color: C.text, fontSize: 16, fontWeight: '900' }}>{s.n}</Text>
+                  <Text style={{ color: C.faint, fontSize: 10.5, marginTop: 2 }}>{s.l}</Text>
+                </View>
+              ))}
+            </View>
+
+            <Pressable onPress={() => { tapSelection(); setBoosted(true); }}>
+              <LinearGradient colors={[C.purple, '#5B21B6']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ borderRadius: 14, paddingVertical: 14, alignItems: 'center' }}>
+                <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '900', letterSpacing: 0.4 }}>
+                  {boosted ? 'Boost submitted — under review ✓' : '✦ Boost a moment'}
+                </Text>
+              </LinearGradient>
+            </Pressable>
+            <Text style={{ color: C.faint, fontSize: 11, textAlign: 'center', marginTop: 10 }}>
+              Every ad is reviewed and always labeled “Sponsored” — no sneaky ads on Moments.
+            </Text>
           </Pressable>
         </Pressable>
       ) : null}

@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, Pressable, Image } from 'react-native';
+import { View, Text, Pressable, Image, ScrollView } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { C } from '../constants/theme';
-import { SQUADS, DMS } from '../constants/mockData';
+import { SQUADS, DMS, LANG_PARTNERS } from '../constants/mockData';
 import { Page, ScreenHeader, SectionHeader, Glass, Chip, Tick, AvatarStack } from '../components';
 import { ChatThread } from './ChatThread';
 import { tapLight } from '../utils/feedback';
@@ -22,6 +22,32 @@ export const ChatsScreen = () => {
         </View>
       }
     />
+
+    {/* ── LEARN LANGUAGES — exchange partners, HelloTalk style ── */}
+    <SectionHeader title="Learn languages 🌍" />
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 20 }}>
+      {LANG_PARTNERS.map((lp) => (
+        <Pressable key={lp.id} onPress={() => { tapLight(); setThread({ chat: { user: lp }, group: false }); }}>
+          <Glass style={{ width: 148, padding: 12, marginRight: 10, alignItems: 'center' }}>
+            <View>
+              <Image source={{ uri: lp.avatar }} style={{ width: 52, height: 52, borderRadius: 26 }} />
+              {lp.online ? <View style={{ position: 'absolute', bottom: 0, right: 0, width: 13, height: 13, borderRadius: 7, backgroundColor: C.green, borderWidth: 2, borderColor: '#FFF' }} /> : null}
+            </View>
+            <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800', marginTop: 7 }}>{lp.name} {lp.flag}</Text>
+            <Text style={{ color: C.dim, fontSize: 10.5, marginTop: 3, textAlign: 'center' }} numberOfLines={1}>Speaks {lp.speaks.split(' ')[0]}</Text>
+            <Text style={{ color: C.faint, fontSize: 10.5, marginTop: 1 }}>Learning {lp.learning} · {lp.level}</Text>
+            <View style={{ flexDirection: 'row', marginTop: 8 }}>
+              <View style={{ backgroundColor: C.purpleSoft, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5, marginRight: 6 }}>
+                <Text style={{ color: C.purple, fontSize: 10.5, fontWeight: '900' }}>💬 Chat</Text>
+              </View>
+              <View style={{ backgroundColor: C.greenSoft, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5 }}>
+                <Text style={{ color: C.green, fontSize: 10.5, fontWeight: '900' }}>📞 Call</Text>
+              </View>
+            </View>
+          </Glass>
+        </Pressable>
+      ))}
+    </ScrollView>
 
     <SectionHeader title="Roam Mates · Active Squads" />
     {SQUADS.map((s) => (
