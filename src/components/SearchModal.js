@@ -3,17 +3,19 @@ import { View, Text, Modal, TextInput, Pressable, Image, ScrollView, Platform } 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { C } from '../constants/theme';
-import { USERS, FEED, TRENDING, GROUPS, av } from '../constants/mockData';
+import { USERS, FEED, TRENDING, GROUPS, PLAY_GAMES, av } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
 import { searchProfiles } from '../services/social';
 import { Chip } from './Chip';
 import { Tick } from './Tick';
 import { Micro } from './Micro';
+import { GameRunner } from './GameRunner';
+import { tapLight } from '../utils/feedback';
 
 /* Discover — people, groups, posts and what's trending (X / Facebook style).
    One search box, a tab row, and results that filter as you type. */
 
-const TABS = ['Top', 'People', 'Groups', 'Posts'];
+const TABS = ['Top', 'People', 'Groups', 'Posts', 'Play'];
 
 const fromProfileRow = (row) => ({
   id: row.id,
@@ -34,6 +36,7 @@ export const SearchModal = ({ onClose, onOpenProfile }) => {
   const [query, setQuery] = useState('');
   const [tab, setTab] = useState('Top');
   const [remote, setRemote] = useState(null);
+  const [game, setGame] = useState(null);
 
   const q = query.trim().toLowerCase();
   const mockPeople = useMemo(() => Object.values(USERS), []);
@@ -53,6 +56,35 @@ export const SearchModal = ({ onClose, onOpenProfile }) => {
   const groups = GROUPS.filter((g) => !q || g.name.toLowerCase().includes(q) || g.about.toLowerCase().includes(q));
   const posts = FEED.filter((p) => !q || (p.caption || '').toLowerCase().includes(q) || (p.place || '').toLowerCase().includes(q));
   const trends = TRENDING.filter((t) => !q || t.tag.toLowerCase().includes(q));
+  const games = PLAY_GAMES.filter((g) => !q || g.name.toLowerCase().includes(q) || g.tag.toLowerCase().includes(q));
+
+  const launchGame = (g) => {
+    tapLight();
+    if (g.kind === 'runner') setGame(g);
+    // 'chat' games (Truth or Dare) are added from inside a conversation
+  };
+
+  const GameRow = ({ item }) => (
+    <Pressable onPress={() => launchGame(item)}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 11 }}>
+        <View style={{ width: 52, height: 52, borderRadius: 15, backgroundColor: C.purpleSoft, borderWidth: 1, borderColor: 'rgba(124,58,237,0.3)', alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ fontSize: 26 }}>{item.emoji}</Text>
+        </View>
+        <View style={{ flex: 1, marginLeft: 12, marginRight: 10 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '800' }}>{item.name}</Text>
+            <View style={{ backgroundColor: C.purpleSoft, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, marginLeft: 7 }}>
+              <Text style={{ color: C.purple, fontSize: 10, fontWeight: '800' }}>{item.tag}</Text>
+            </View>
+          </View>
+          <Text style={{ color: C.faint, fontSize: 12, marginTop: 3 }} numberOfLines={2}>{item.players} · {item.plays} plays</Text>
+        </View>
+        <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 15, paddingVertical: 8 }}>
+          <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '900' }}>{item.kind === 'runner' ? 'Play' : 'In chat'}</Text>
+        </View>
+      </View>
+    </Pressable>
+  );
 
   const PersonRow = ({ item }) => (
     <Pressable onPress={() => onOpenProfile(item)}>
@@ -174,6 +206,7 @@ export const SearchModal = ({ onClose, onOpenProfile }) => {
               ) : null}
               {people.length ? <><Section title="People" />{people.slice(0, 3).map((u) => <PersonRow key={u.id} item={u} />)}</> : null}
               {groups.length ? <><Section title="Groups" />{groups.slice(0, 3).map((g) => <GroupRow key={g.id} item={g} />)}</> : null}
+              {!q && games.length ? <><Section title="Play together 🎮" />{games.slice(0, 3).map((g) => <GameRow key={g.id} item={g} />)}</> : null}
               {q && posts.length ? <><Section title="Posts" />{posts.slice(0, 3).map((p) => <PostRow key={p.id} item={p} />)}</> : null}
             </View>
           ) : null}
@@ -181,8 +214,10 @@ export const SearchModal = ({ onClose, onOpenProfile }) => {
           {tab === 'People' ? (people.length ? people.map((u) => <PersonRow key={u.id} item={u} />) : <Empty q={q} />) : null}
           {tab === 'Groups' ? (groups.length ? groups.map((g) => <GroupRow key={g.id} item={g} />) : <Empty q={q} />) : null}
           {tab === 'Posts' ? (posts.length ? posts.map((p) => <PostRow key={p.id} item={p} />) : <Empty q={q} />) : null}
+          {tab === 'Play' ? (games.length ? games.map((g) => <GameRow key={g.id} item={g} />) : <Empty q={q} />) : null}
         </ScrollView>
       </View>
+      {game ? <GameRunner onClose={() => setGame(null)} /> : null}
     </Modal>
   );
 };

@@ -234,6 +234,23 @@ export const GAMES = [
   { id: 'g4', name: 'Poker Set', emoji: '♠️', price: 'E£350', eta: '30 min' },
 ];
 
+/* ── PLAY · games you launch with mates. Egypt is home base; the same
+   run is playable across cities. ── */
+export const GAME_LOCATIONS = [
+  { id: 'eg', city: 'Cairo', country: 'Egypt', flag: '🇪🇬', landmark: '🐫', colors: ['#F59E0B', '#B45309'], home: true },
+  { id: 'ro', city: 'Bucharest', country: 'Romania', flag: '🇷🇴', landmark: '🏰', colors: ['#3B82F6', '#1E3A8A'] },
+  { id: 'fr', city: 'Paris', country: 'France', flag: '🇫🇷', landmark: '🗼', colors: ['#6366F1', '#312E81'] },
+  { id: 'es', city: 'Barcelona', country: 'Spain', flag: '🇪🇸', landmark: '🏟️', colors: ['#EF4444', '#7F1D1D'] },
+  { id: 'ma', city: 'Marrakech', country: 'Morocco', flag: '🇲🇦', landmark: '🕌', colors: ['#F97316', '#7C2D12'] },
+  { id: 'ba', city: 'Sarajevo', country: 'Bosnia', flag: '🇧🇦', landmark: '⛰️', colors: ['#10B981', '#064E3B'] },
+];
+
+export const PLAY_GAMES = [
+  { id: 'run1', name: 'Catch Your Mate', emoji: '🏃', tag: 'Run together', players: '2–4 mates', plays: '48K', desc: 'Chase your friend through the streets and dodge everything in your path. Crash and you’re out — last one running wins the round.', kind: 'runner' },
+  { id: 'run2', name: 'Rooftop Rush', emoji: '🏙️', tag: 'Race', players: '2 mates', plays: '31K', desc: 'Sprint across the skyline neck-and-neck. First to trip loses. Best of three.', kind: 'runner' },
+  { id: 'tod', name: 'Truth or Dare', emoji: '🎲', tag: 'In chat', players: '2+ mates', plays: '92K', desc: 'Drop it into any chat — a mate one-on-one or the whole gang. Spin, dare, laugh, remove it anytime.', kind: 'chat' },
+];
+
 export const QUESTS = [
   {
     id: 'q1', emoji: '👻', title: 'Ghost Signs of Downtown',
