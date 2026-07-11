@@ -11,4 +11,5 @@ export const SUPABASE_URL =
   process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://dvddiyztpyyuultndzso.supabase.co';
 
 export const SUPABASE_ANON_KEY =
-  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || ''; // ← paste the anon public key here to go live
+  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ||
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR2ZGRpeXp0cHl5dXVsdG5kenNvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM3ODUzOTYsImV4cCI6MjA5OTM2MTM5Nn0.Q4I0ZTuXl_nx9INUV3Knod8Rq5gWQOms0jpDATcX15c';
