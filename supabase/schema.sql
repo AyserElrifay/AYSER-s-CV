@@ -87,10 +87,13 @@ create table if not exists public.stories (
 );
 
 alter table public.stories enable row level security;
+drop policy if exists "active stories are viewable by everyone" on public.stories;
 create policy "active stories are viewable by everyone"
   on public.stories for select using (expires_at > now());
+drop policy if exists "users create own stories" on public.stories;
 create policy "users create own stories"
   on public.stories for insert with check (auth.uid() = user_id);
+drop policy if exists "users delete own stories" on public.stories;
 create policy "users delete own stories"
   on public.stories for delete using (auth.uid() = user_id);
 
@@ -126,48 +129,65 @@ alter table public.post_vibes    enable row level security;
 alter table public.comments      enable row level security;
 
 -- Profiles: public read, self-service write
+drop policy if exists "profiles are viewable by everyone" on public.profiles;
 create policy "profiles are viewable by everyone"
   on public.profiles for select using (true);
+drop policy if exists "users can update own profile" on public.profiles;
 create policy "users can update own profile"
   on public.profiles for update using (auth.uid() = id);
 
 -- Posts: public read, author-only write
+drop policy if exists "posts are viewable by everyone" on public.posts;
 create policy "posts are viewable by everyone"
   on public.posts for select using (true);
+drop policy if exists "users can create own posts" on public.posts;
 create policy "users can create own posts"
   on public.posts for insert with check (auth.uid() = user_id);
+drop policy if exists "users can update own posts" on public.posts;
 create policy "users can update own posts"
   on public.posts for update using (auth.uid() = user_id);
+drop policy if exists "users can delete own posts" on public.posts;
 create policy "users can delete own posts"
   on public.posts for delete using (auth.uid() = user_id);
 
 -- Squads: public read; any signed-in user can create one
+drop policy if exists "squads are viewable by everyone" on public.squads;
 create policy "squads are viewable by everyone"
   on public.squads for select using (true);
+drop policy if exists "signed-in users can create squads" on public.squads;
 create policy "signed-in users can create squads"
   on public.squads for insert with check (auth.uid() is not null);
 
 -- Membership: public read; you can only join/leave as yourself
+drop policy if exists "squad members are viewable by everyone" on public.squad_members;
 create policy "squad members are viewable by everyone"
   on public.squad_members for select using (true);
+drop policy if exists "users join squads as themselves" on public.squad_members;
 create policy "users join squads as themselves"
   on public.squad_members for insert with check (auth.uid() = user_id);
+drop policy if exists "users can leave squads" on public.squad_members;
 create policy "users can leave squads"
   on public.squad_members for delete using (auth.uid() = user_id);
 
 -- Vibes: public read; react/unreact only as yourself
+drop policy if exists "vibes are viewable by everyone" on public.post_vibes;
 create policy "vibes are viewable by everyone"
   on public.post_vibes for select using (true);
+drop policy if exists "users vibe as themselves" on public.post_vibes;
 create policy "users vibe as themselves"
   on public.post_vibes for insert with check (auth.uid() = user_id);
+drop policy if exists "users can remove own vibe" on public.post_vibes;
 create policy "users can remove own vibe"
   on public.post_vibes for delete using (auth.uid() = user_id);
 
 -- Comments: public read; write/delete only your own
+drop policy if exists "comments are viewable by everyone" on public.comments;
 create policy "comments are viewable by everyone"
   on public.comments for select using (true);
+drop policy if exists "users comment as themselves" on public.comments;
 create policy "users comment as themselves"
   on public.comments for insert with check (auth.uid() = user_id);
+drop policy if exists "users can delete own comments" on public.comments;
 create policy "users can delete own comments"
   on public.comments for delete using (auth.uid() = user_id);
 
@@ -178,8 +198,10 @@ insert into storage.buckets (id, name, public)
   values ('media', 'media', true)
   on conflict (id) do nothing;
 
+drop policy if exists "media is publicly readable" on storage.objects;
 create policy "media is publicly readable"
   on storage.objects for select using (bucket_id = 'media');
+drop policy if exists "users upload media to own folder" on storage.objects;
 create policy "users upload media to own folder"
   on storage.objects for insert
   with check (bucket_id = 'media' and auth.uid()::text = (storage.foldername(name))[1]);
