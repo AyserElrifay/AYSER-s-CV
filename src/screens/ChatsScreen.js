@@ -1,13 +1,17 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, Pressable, Image } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { C } from '../constants/theme';
 import { SQUADS, DMS } from '../constants/mockData';
 import { Page, ScreenHeader, SectionHeader, Glass, Chip, Tick, AvatarStack } from '../components';
+import { ChatThread } from './ChatThread';
+import { tapLight } from '../utils/feedback';
 
-/* ─────────────────── TAB 4 · CHATS — CONNECTIONS ───────────────────── */
+/* ─────────────────── TAB 5 · CHATS — CONNECTIONS ───────────────────── */
 
-export const ChatsScreen = () => (
+export const ChatsScreen = () => {
+  const [thread, setThread] = useState(null); // { chat, group }
+  return (
   <Page>
     <ScreenHeader
       kicker="Connections"
@@ -21,7 +25,7 @@ export const ChatsScreen = () => (
 
     <SectionHeader title="Roam Mates · Active Squads" />
     {SQUADS.map((s) => (
-      <Pressable key={s.id}>
+      <Pressable key={s.id} onPress={() => { tapLight(); setThread({ chat: s, group: true }); }}>
         <Glass tint={C.blueSoft} border="rgba(59,130,246,0.35)" style={{ padding: 14, marginBottom: 12 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <View style={{ width: 46, height: 46, borderRadius: 15, backgroundColor: 'rgba(59,130,246,0.18)', borderWidth: 1, borderColor: 'rgba(59,130,246,0.4)', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
@@ -55,7 +59,7 @@ export const ChatsScreen = () => (
 
     <SectionHeader title="Direct" style={{ marginTop: 14 }} />
     {DMS.map((d) => (
-      <Pressable key={d.id}>
+      <Pressable key={d.id} onPress={() => { tapLight(); setThread({ chat: d, group: false }); }}>
         <Glass style={{ padding: 12, marginBottom: 10, flexDirection: 'row', alignItems: 'center' }}>
           <Image source={{ uri: d.user.avatar }} style={{ width: 46, height: 46, borderRadius: 23 }} />
           <View style={{ flex: 1, marginLeft: 12 }}>
@@ -82,5 +86,8 @@ export const ChatsScreen = () => (
         </Glass>
       </Pressable>
     ))}
+
+    {thread ? <ChatThread chat={thread.chat} group={thread.group} onClose={() => setThread(null)} /> : null}
   </Page>
-);
+  );
+};

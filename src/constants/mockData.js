@@ -251,6 +251,30 @@ export const PLAY_GAMES = [
   { id: 'tod', name: 'Truth or Dare', emoji: '🎲', tag: 'In chat', players: '2+ mates', plays: '92K', desc: 'Drop it into any chat — a mate one-on-one or the whole gang. Spin, dare, laugh, remove it anytime.', kind: 'chat' },
 ];
 
+/* Truth or Dare — the chat game. Light, playful, safe-for-friends. */
+export const TOD = {
+  truths: [
+    'What’s the last thing you screenshotted?',
+    'Who in this chat would you swap lives with for a day?',
+    'What’s a moment you’d relive if you could?',
+    'Most embarrassing song on your playlist — no lying.',
+    'What’s a tiny thing that instantly makes your day?',
+    'Last person you stalked on Moments? 👀',
+    'Biggest fear you never talk about?',
+    'What’s your most-used emoji, and why that one?',
+  ],
+  dares: [
+    'Post a story with the front camera right now — no filter.',
+    'Send a voice note singing the last song you heard.',
+    'Text your oldest chat “I was just thinking about you”.',
+    'Change your profile pic to the 4th photo in your camera roll.',
+    'Do your best impression of someone in this chat.',
+    'Share your screen-time number with the group.',
+    'Reply to a stranger’s moment with a compliment.',
+    'Speak only in emojis for the next 3 messages.',
+  ],
+};
+
 export const QUESTS = [
   {
     id: 'q1', emoji: '👻', title: 'Ghost Signs of Downtown',
