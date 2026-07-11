@@ -387,7 +387,7 @@
 
   function renderCoach(main) {
     const c = activeChat();
-    const msgs = c ? c.messages : [];
+    const msgs = (c ? c.messages : []).filter(m => !m.hidden);
 
     main.innerHTML = `
       <div class="chat-wrap chat-first">
@@ -481,24 +481,62 @@
     const inp = $("#chatInput");
     if (inp) { inp.value = ""; inp.style.height = "auto"; }
 
-    const live = $("#live");
+    let live = $("#live");
     try {
-      const full = await AI.chat(
-        S, chat.messages.slice(-24),
-        (sofar) => {
-          live.classList.remove("thinking");
-          live.textContent = sofar;
-          scroll.scrollTop = scroll.scrollHeight;
-        },
-        (pct) => {
-          // Local model still downloading/compiling on first use.
-          live.classList.remove("thinking");
-          live.textContent = t("local_downloading", { pct });
-          scroll.scrollTop = scroll.scrollHeight;
-        }
-      );
+      let clean, memory, event, map;
+      // Up to 2 rounds: if the model asks for a web lookup (SEARCH: tag),
+      // fetch Wikipedia results, hand them back, and let it answer again.
+      for (let round = 0; round < 2; round++) {
+        const full = await AI.chat(
+          S, chat.messages.slice(-24),
+          (sofar) => {
+            live.classList.remove("thinking");
+            live.textContent = sofar;
+            scroll.scrollTop = scroll.scrollHeight;
+          },
+          (pct) => {
+            // Local model still downloading/compiling on first use.
+            live.classList.remove("thinking");
+            live.textContent = t("local_downloading", { pct });
+            scroll.scrollTop = scroll.scrollHeight;
+          }
+        );
 
-      const { clean, memory, event, map } = AI.extractMemory(full);
+        const ex = AI.extractMemory(full);
+        clean = ex.clean; memory = ex.memory; event = ex.event; map = ex.map;
+
+        if (!(ex.search && round === 0 && S.settings.webSearch !== false)) break;
+
+        // Visible search round — the user always sees when Bardi looks
+        // something up (only the short query is sent to Wikipedia).
+        if (clean) {
+          live.classList.remove("thinking");
+          live.textContent = clean;
+          live.removeAttribute("id");
+          chat.messages.push({ role: "assistant", content: clean });
+        } else {
+          live.closest(".msg-row").remove();
+        }
+        col.insertAdjacentHTML("beforeend",
+          `<div class="tag-chips search-note">${esc(t("searching_web", { q: ex.search }))}</div>`);
+        scroll.scrollTop = scroll.scrollHeight;
+
+        const results = await AI.webSearch(ex.search, S.settings.language);
+        chat.messages.push({
+          role: "user",
+          hidden: true,
+          content: results
+            ? `[Web lookup results for "${ex.search}" from ${results.source} — answer my previous question naturally and warmly using these; don't dump them raw]\n\n${results.text}`
+            : `[Web lookup for "${ex.search}" returned no results — tell me honestly you couldn't confirm, and answer from what you know with appropriate caution]`,
+        });
+        Store.save();
+
+        col.insertAdjacentHTML("beforeend",
+          `<div class="msg-row"><div class="avatar">ب</div><div class="msg assistant thinking" id="live"><i></i><i></i><i></i></div></div>`);
+        live = $("#live");
+        scroll.scrollTop = scroll.scrollHeight;
+      }
+
       live.classList.remove("thinking");
       live.textContent = clean;
       const msgRow = live.closest(".msg-row");
@@ -586,6 +624,8 @@
       </div>
 
       <div class="ws-grid">
+        ${focusCardHTML()}
+
         <div class="card">
           <div class="section-label" style="margin-top:0">${esc(t("ws_quick_tasks"))}</div>
           ${tasks.length ? tasks.slice(0, 6).map(x => `
@@ -634,12 +674,82 @@
     const doAsk = () => { const v = ask.value.trim(); if (!v) return; askFromWorkstation(v); };
     $("#wsAskBtn").addEventListener("click", doAsk);
     ask.addEventListener("keydown", e => { if (e.key === "Enter") doAsk(); });
+
+    bindFocusCard();
   }
 
   function askFromWorkstation(text) {
     newChat();
     go("coach");
     sendMsg(text);
+  }
+
+  /* ── Focus timer (Pomodoro-style, for study/deep work) ──
+     Runs on a wall-clock deadline so it stays accurate even if the tab
+     throttles setInterval. Purely local, like everything else. */
+  const FOCUS_MIN = 25;
+  let focus = { running: false, endsAt: 0, remainMs: FOCUS_MIN * 60000, interval: null };
+
+  function focusTick() {
+    if (!focus.running) return;
+    focus.remainMs = Math.max(0, focus.endsAt - Date.now());
+    const el = $("#focusTime");
+    if (el) el.textContent = focusFmt(focus.remainMs);
+    if (focus.remainMs <= 0) {
+      clearInterval(focus.interval);
+      focus.running = false;
+      focus.remainMs = FOCUS_MIN * 60000;
+      const today = Store.todayKey();
+      S.focusLog[today] = (S.focusLog[today] || 0) + 1;
+      Store.save();
+      toast(t("focus_done_toast"));
+      if (S.settings.notifications && typeof Notification !== "undefined" && Notification.permission === "granted") {
+        try { new Notification("بردي · Bardi", { body: t("focus_done_toast") }); } catch (_) {}
+      }
+      if (view === "workstation") render();
+    }
+  }
+
+  function focusFmt(ms) {
+    const s = Math.round(ms / 1000);
+    return String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0");
+  }
+
+  function focusCardHTML() {
+    const today = Store.todayKey();
+    const n = S.focusLog[today] || 0;
+    return `
+      <div class="card focus-card">
+        <div class="section-label" style="margin-top:0">${esc(t("focus_title"))}</div>
+        <div class="focus-time" id="focusTime">${focusFmt(focus.remainMs)}</div>
+        <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+          <button class="btn small" id="focusToggle">${esc(focus.running ? t("focus_pause") : t("focus_start"))}</button>
+          <button class="chip small" id="focusReset">${esc(t("focus_reset"))}</button>
+        </div>
+        <p class="s-sub" style="text-align:center;margin-top:10px">${esc(t("focus_sessions", { n }))}</p>
+      </div>`;
+  }
+
+  function bindFocusCard() {
+    $("#focusToggle").addEventListener("click", () => {
+      if (focus.running) {
+        focus.running = false;
+        focus.remainMs = Math.max(0, focus.endsAt - Date.now());
+        clearInterval(focus.interval);
+      } else {
+        focus.running = true;
+        focus.endsAt = Date.now() + focus.remainMs;
+        clearInterval(focus.interval);
+        focus.interval = setInterval(focusTick, 500);
+      }
+      render();
+    });
+    $("#focusReset").addEventListener("click", () => {
+      focus.running = false;
+      clearInterval(focus.interval);
+      focus.remainMs = FOCUS_MIN * 60000;
+      render();
+    });
   }
 
   /* ════════════ Journal ════════════ */
@@ -1010,6 +1120,37 @@
 
     if (!proj) return;
 
+    // ── Project file attachments (stored in IndexedDB, on-device only) ──
+    const MAX_FILE = 25 * 1024 * 1024;
+    $("#addProjFile").addEventListener("click", () => $("#projFileInput").click());
+    $("#projFileInput").addEventListener("change", async (e) => {
+      if (!proj.files) proj.files = [];
+      for (const f of e.target.files) {
+        if (f.size > MAX_FILE) { toast(t("file_too_big", { name: f.name })); continue; }
+        const id = Store.uid();
+        try {
+          await Store.putFile(id, f);
+          proj.files.push({ id, name: f.name, size: f.size, type: f.type });
+        } catch (_) { toast(t("file_save_err")); }
+      }
+      Store.save(); render();
+    });
+    $$("[data-fdown]").forEach(b => b.addEventListener("click", async () => {
+      const meta = (proj.files || []).find(x => x.id === b.dataset.fdown);
+      const blob = meta && await Store.getFile(meta.id);
+      if (!blob) { toast(t("file_save_err")); return; }
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = meta.name;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }));
+    $$("[data-fdel]").forEach(b => b.addEventListener("click", async () => {
+      proj.files = (proj.files || []).filter(x => x.id !== b.dataset.fdel);
+      try { await Store.delFile(b.dataset.fdel); } catch (_) {}
+      Store.save(); render();
+    }));
+
     $("#shareProj") && $("#shareProj").addEventListener("click", () => Store.exportProject(proj));
 
     $("#delProj") && $("#delProj").addEventListener("click", () => {
@@ -1069,7 +1210,26 @@
             <button class="add-card" data-addcard="${c.id}">${esc(t("add_card"))}</button>
           </div>`).join("")}
       </div>
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:4px">
+      <div class="section-label">${esc(t("files_label", { n: (proj.files || []).length }))}</div>
+      <div class="card" style="padding:8px 20px">
+        ${(proj.files || []).length ? (proj.files || []).map(f => `
+          <div class="book-row">
+            <div class="book-ico">📎</div>
+            <div class="b-info">
+              <div class="b-title">${esc(f.name)}</div>
+              <div class="b-meta">${(f.size / 1024).toFixed(0)} KB</div>
+            </div>
+            <button class="chip small" data-fdown="${f.id}">⬇</button>
+            <button class="task-del" style="opacity:1" data-fdel="${f.id}">✕</button>
+          </div>`).join("") : `<p style="color:var(--text-3);padding:12px 0">${esc(t("no_files"))}</p>`}
+        <div style="padding:10px 0">
+          <button class="chip small" id="addProjFile">${esc(t("add_file_btn"))}</button>
+          <input type="file" id="projFileInput" multiple hidden>
+        </div>
+      </div>
+      <p class="s-sub" style="margin-top:6px;max-width:560px">${esc(t("files_note"))}</p>
+
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:14px">
         <button class="chip" id="shareProj">${esc(t("share_project"))}</button>
         <button class="chip" id="delProj" style="color:var(--accent)">🗑 ${esc(t("delete_project"))}</button>
       </div>
@@ -1218,6 +1378,11 @@
         S.books = S.books.filter(x => x.id !== b.dataset.bookdel);
         Store.save(); render();
       }));
+      $$("[data-bookstatus]").forEach(b => b.addEventListener("click", () => {
+        const [id, stt] = b.dataset.bookstatus.split("|");
+        const book = S.books.find(x => x.id === id);
+        if (book) { book.status = stt; Store.save(); render(); }
+      }));
     } else {
       $("#addVideo").addEventListener("click", () => {
         const title = $("#vidTitle").value.trim();
@@ -1248,11 +1413,15 @@
       <div class="section-label">${esc(t("books_label", { n: S.books.length }))}</div>
       <div class="card" style="padding:8px 20px">
         ${S.books.length ? S.books.map(b => `
-          <div class="book-row">
+          <div class="book-row" style="flex-wrap:wrap">
             <div class="book-ico">📖</div>
             <div class="b-info">
               <div class="b-title">${esc(b.title)}</div>
               <div class="b-meta">${b.chunks.length} ${esc(t("chunks"))} · ${(b.size / 1024).toFixed(0)} KB</div>
+            </div>
+            <div style="display:flex;gap:6px">
+              ${["toread", "reading", "done"].map(stt => `
+                <button class="chip tiny ${(b.status || "reading") === stt ? "active" : ""}" data-bookstatus="${b.id}|${stt}">${esc(t("book_status_" + stt))}</button>`).join("")}
             </div>
             <button class="task-del" style="opacity:1" data-bookdel="${b.id}">✕</button>
           </div>`).join("") : `<p style="color:var(--text-3);padding:14px 0">${esc(t("no_books"))}</p>`}
@@ -1538,6 +1707,14 @@
           </div>
         </div>
 
+        <div class="settings-row">
+          <div class="s-info"><div class="s-title">🔎 ${esc(t("s_websearch"))}</div><div class="s-sub">${esc(t("s_websearch_sub"))}</div></div>
+          <div class="seg">
+            <button data-setws="1" class="${st.webSearch !== false ? "on" : ""}">${esc(t("on_label"))}</button>
+            <button data-setws="0" class="${st.webSearch === false ? "on" : ""}">${esc(t("off_label"))}</button>
+          </div>
+        </div>
+
         <div style="margin-top:10px"><button class="btn small" id="saveKeys">${esc(t("save"))}</button></div>
       </div>
 
@@ -1570,6 +1747,9 @@
     }));
     $$("[data-setprov]").forEach(b => b.addEventListener("click", () => {
       st.provider = b.dataset.setprov; Store.save(); render();
+    }));
+    $$("[data-setws]").forEach(b => b.addEventListener("click", () => {
+      st.webSearch = b.dataset.setws === "1"; Store.save(); render();
     }));
 
     if (AI.localSupported()) {

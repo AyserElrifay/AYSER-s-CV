@@ -268,6 +268,34 @@ const I18N = {
     reset_confirm: "متأكد؟ كل بياناتك هتتمسح من الجهاز ده.",
     delete_confirm: "متأكد من الحذف؟",
 
+    // Web search
+    searching_web: "🔎 بردي بيدور على النت عن: «{q}»…",
+    s_websearch: "البحث على الإنترنت",
+    s_websearch_sub: "لو بردي مش متأكد من معلومة، بيبعت كلمة البحث بس (مش محادثتك) لويكيبيديا ويرجعلك بالإجابة. بتشوف كل مرة بيدور فيها.",
+    on_label: "شغّال",
+    off_label: "مقفول",
+
+    // Focus timer
+    focus_title: "⏱ جلسة تركيز",
+    focus_start: "▶ ابدأ",
+    focus_pause: "⏸ وقّف",
+    focus_reset: "↺ من الأول",
+    focus_done_toast: "خلصت جلسة تركيز! 🍅 خد بريك ٥ دقايق — تستاهل.",
+    focus_sessions: "جلسات النهارده: {n} 🍅",
+
+    // Project files
+    files_label: "ملفات المشروع ({n})",
+    no_files: "لسه مفيش ملفات. حط هنا أي ملف يخص المشروع 📎",
+    add_file_btn: "📎 ضيف ملف",
+    file_too_big: "«{name}» أكبر من ٢٥ ميجا — قسّمه أو صغّره الأول.",
+    file_save_err: "معرفتش أحفظ الملف — جرّب تاني.",
+    files_note: "الملفات بتتحفظ على جهازك بس، ومش بتتبعت مع مشاركة المشروع.",
+
+    // Book status
+    book_status_toread: "هقرأه",
+    book_status_reading: "بقرأه",
+    book_status_done: "خلصته",
+
     // Coach persona bits
     lang_name: "العربية",
   },
@@ -523,6 +551,34 @@ const I18N = {
     reset_confirm: "Are you sure? All your data on this device will be erased.",
     delete_confirm: "Delete — are you sure?",
 
+    // Web search
+    searching_web: "🔎 Bardi is looking up: “{q}”…",
+    s_websearch: "Web lookup",
+    s_websearch_sub: "When Bardi isn't sure about a fact, it sends just the search query (never your conversation) to Wikipedia and answers from the results. You see it every time it happens.",
+    on_label: "On",
+    off_label: "Off",
+
+    // Focus timer
+    focus_title: "⏱ Focus session",
+    focus_start: "▶ Start",
+    focus_pause: "⏸ Pause",
+    focus_reset: "↺ Reset",
+    focus_done_toast: "Focus session done! 🍅 Take a 5-minute break — you earned it.",
+    focus_sessions: "Sessions today: {n} 🍅",
+
+    // Project files
+    files_label: "Project files ({n})",
+    no_files: "No files yet. Drop anything related to this project here 📎",
+    add_file_btn: "📎 Add file",
+    file_too_big: "“{name}” is over 25 MB — split or compress it first.",
+    file_save_err: "Couldn't save the file — try again.",
+    files_note: "Files are stored on your device only, and are not included when you share a project.",
+
+    // Book status
+    book_status_toread: "To read",
+    book_status_reading: "Reading",
+    book_status_done: "Finished",
+
     lang_name: "English",
   },
 
@@ -776,6 +832,34 @@ const I18N = {
     reset_btn: "Tout effacer",
     reset_confirm: "Sûr(e) ? Toutes vos données sur cet appareil seront effacées.",
     delete_confirm: "Supprimer — êtes-vous sûr(e) ?",
+
+    // Web search
+    searching_web: "🔎 Bardi cherche : « {q} »…",
+    s_websearch: "Recherche web",
+    s_websearch_sub: "Quand Bardi n'est pas sûr d'un fait, il envoie uniquement la requête (jamais votre conversation) à Wikipédia et répond à partir des résultats. Vous le voyez à chaque fois.",
+    on_label: "Activé",
+    off_label: "Désactivé",
+
+    // Focus timer
+    focus_title: "⏱ Session de concentration",
+    focus_start: "▶ Démarrer",
+    focus_pause: "⏸ Pause",
+    focus_reset: "↺ Réinitialiser",
+    focus_done_toast: "Session terminée ! 🍅 Prends 5 minutes de pause — tu l'as mérité.",
+    focus_sessions: "Sessions aujourd'hui : {n} 🍅",
+
+    // Project files
+    files_label: "Fichiers du projet ({n})",
+    no_files: "Aucun fichier pour l'instant. Dépose ici tout ce qui concerne ce projet 📎",
+    add_file_btn: "📎 Ajouter un fichier",
+    file_too_big: "« {name} » dépasse 25 Mo — divise-le ou compresse-le d'abord.",
+    file_save_err: "Impossible d'enregistrer le fichier — réessaie.",
+    files_note: "Les fichiers restent sur votre appareil uniquement, et ne sont pas inclus lors du partage d'un projet.",
+
+    // Book status
+    book_status_toread: "À lire",
+    book_status_reading: "En cours",
+    book_status_done: "Terminé",
 
     lang_name: "Français",
   },
@@ -1031,6 +1115,34 @@ const I18N = {
     reset_confirm: "Bist du sicher? Alle Daten auf diesem Gerät werden gelöscht.",
     delete_confirm: "Löschen — bist du sicher?",
 
+    // Web search
+    searching_web: "🔎 Bardi sucht nach: „{q}“…",
+    s_websearch: "Websuche",
+    s_websearch_sub: "Wenn Bardi sich bei einem Fakt unsicher ist, sendet es nur die Suchanfrage (nie dein Gespräch) an Wikipedia und antwortet aus den Ergebnissen. Du siehst es jedes Mal.",
+    on_label: "An",
+    off_label: "Aus",
+
+    // Focus timer
+    focus_title: "⏱ Fokus-Session",
+    focus_start: "▶ Start",
+    focus_pause: "⏸ Pause",
+    focus_reset: "↺ Zurücksetzen",
+    focus_done_toast: "Fokus-Session geschafft! 🍅 Gönn dir 5 Minuten Pause — verdient.",
+    focus_sessions: "Sessions heute: {n} 🍅",
+
+    // Project files
+    files_label: "Projektdateien ({n})",
+    no_files: "Noch keine Dateien. Leg hier alles ab, was zu diesem Projekt gehört 📎",
+    add_file_btn: "📎 Datei hinzufügen",
+    file_too_big: "„{name}“ ist größer als 25 MB — teile oder komprimiere sie zuerst.",
+    file_save_err: "Datei konnte nicht gespeichert werden — versuch es nochmal.",
+    files_note: "Dateien bleiben nur auf deinem Gerät und werden beim Teilen eines Projekts nicht mitgeschickt.",
+
+    // Book status
+    book_status_toread: "Zu lesen",
+    book_status_reading: "Lese ich",
+    book_status_done: "Fertig",
+
     lang_name: "Deutsch",
   },
 
@@ -1284,6 +1396,34 @@ const I18N = {
     reset_btn: "Borrar todo",
     reset_confirm: "¿Seguro? Todos tus datos en este dispositivo se borrarán.",
     delete_confirm: "Eliminar — ¿estás seguro?",
+
+    // Web search
+    searching_web: "🔎 Bardi está buscando: «{q}»…",
+    s_websearch: "Búsqueda web",
+    s_websearch_sub: "Cuando Bardi no está seguro de un dato, envía solo la consulta (nunca tu conversación) a Wikipedia y responde con los resultados. Lo ves cada vez que ocurre.",
+    on_label: "Activada",
+    off_label: "Desactivada",
+
+    // Focus timer
+    focus_title: "⏱ Sesión de concentración",
+    focus_start: "▶ Empezar",
+    focus_pause: "⏸ Pausar",
+    focus_reset: "↺ Reiniciar",
+    focus_done_toast: "¡Sesión completada! 🍅 Tómate 5 minutos de descanso — te lo has ganado.",
+    focus_sessions: "Sesiones hoy: {n} 🍅",
+
+    // Project files
+    files_label: "Archivos del proyecto ({n})",
+    no_files: "Aún no hay archivos. Guarda aquí todo lo relacionado con este proyecto 📎",
+    add_file_btn: "📎 Añadir archivo",
+    file_too_big: "«{name}» supera los 25 MB — divídelo o comprímelo primero.",
+    file_save_err: "No se pudo guardar el archivo — inténtalo de nuevo.",
+    files_note: "Los archivos se guardan solo en tu dispositivo y no se incluyen al compartir un proyecto.",
+
+    // Book status
+    book_status_toread: "Por leer",
+    book_status_reading: "Leyendo",
+    book_status_done: "Terminado",
 
     lang_name: "Español",
   },

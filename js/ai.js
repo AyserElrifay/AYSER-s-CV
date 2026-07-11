@@ -133,6 +133,17 @@ EVENT: <short title> | <YYYY-MM-DD> | <HH:MM or "">  | <one short note or "">
 - Only emit this when they've given you an actual date or clear enough time ("tomorrow at 6", "next Thursday morning"); resolve relative dates using today's date: ${new Date().toISOString().slice(0, 10)}. If the time is unclear, leave the HH:MM field empty rather than guessing.
 - Use it only when it's clearly useful; don't manufacture an event from vague chatter.
 
+Honest discussion — you can disagree, kindly:
+- You're a real conversation partner, not a yes-machine. When you see it differently, say so — but always start from what's right or understandable in their view ("فاهم ليه شايفها كده، وفيه جزء حقيقي في كلامك...") before offering the other side. Disagree with the idea, never with the person.
+- If they state something factually wrong, correct it gently and without embarrassing them — frame it as new information, not as their mistake ("في نقطة هنا ممكن تكون اتغيرت..." / "المعلومة الأدق إن..."). Never mock, never say "غلط" bluntly, never make anyone feel stupid for asking or believing something.
+- Admit not knowing, plainly and without shame, instead of inventing an answer. Not knowing and finding out together beats a confident wrong answer every time.
+${state.settings.webSearch !== false ? `
+Web lookup — when you genuinely don't know:
+- If they ask a factual question you're unsure about, or about something recent that may have changed since your knowledge, do NOT guess. Reply with only a very short natural line (e.g. "ثواني، خليني أتأكدلك 🔎") and end with a separate final line:
+SEARCH: <a short, focused search query in the best language for the topic>
+- The app will fetch encyclopedia results and hand them back to you; then answer warmly and naturally from them, weaving the facts in like a knowledgeable friend — mention "بصيت في ويكيبيديا" casually only if it fits. If the results don't actually answer it, say honestly that you couldn't confirm.
+- Use SEARCH only for real factual gaps (people, places, events, dates, definitions, how-things-work) — never for feelings, personal advice, or things you already know well. At most one SEARCH per question.` : ""}
+
 How you think (reason before you answer):
 - Before replying, think it through internally: what is the person really asking beneath the words? what do you already know about them? what would genuinely help vs. just sound nice? Consider a couple of angles, then give the one clear, grounded response — never show this internal reasoning, only the final warm answer.
 - Understand deeply, don't pattern-match. Connect what they say now to their goal, values and past messages. If something doesn't add up, gently ask instead of assuming.
@@ -143,7 +154,7 @@ Memory — you learn about the person over time, on your own, without being told
 MEMORY: <one short sentence in English capturing it>
 - Use it rarely (only for real insights). Never mention this mechanism to the user.
 
-Output format: if you emit MEMORY / EVENT / MAP lines, each goes on its own final line, in that order if more than one applies, after your normal warm reply — never inside the reply text itself, and never mention these tags exist to the user.`;
+Output format: if you emit MEMORY / EVENT / MAP / SEARCH lines, each goes on its own final line, in that order if more than one applies, after your normal warm reply — never inside the reply text itself, and never mention these tags exist to the user.`;
 
     const facts = [];
     if (p.name) facts.push(`Name: ${p.name}`);
@@ -278,7 +289,7 @@ Output format: if you emit MEMORY / EVENT / MAP lines, each goes on its own fina
       body: JSON.stringify({
         model: MODELS.free,
         stream: true,
-        messages: [{ role: "system", content: system }, ...messages],
+        messages: [{ role: "system", content: system }, ...messages.map(m => ({ role: m.role, content: m.content }))],
       }),
     });
     if (!res.ok) throw new Error(await apiErr(res));
@@ -339,7 +350,7 @@ Output format: if you emit MEMORY / EVENT / MAP lines, each goes on its own fina
       body: JSON.stringify({
         model: MODELS.openai,
         stream: true,
-        messages: [{ role: "system", content: system }, ...messages],
+        messages: [{ role: "system", content: system }, ...messages.map(m => ({ role: m.role, content: m.content }))],
       }),
     });
     if (!res.ok) throw new Error(await apiErr(res));
@@ -432,10 +443,13 @@ Output format: if you emit MEMORY / EVENT / MAP lines, each goes on its own fina
     throw new Error("Unknown provider");
   }
 
-  /* ── Extract trailing MEMORY: / EVENT: / MAP: lines from a reply ── */
+  /* ── Extract trailing MEMORY: / EVENT: / MAP: / SEARCH: lines from a reply ── */
   function extractMemory(text) {
     let clean = text;
-    let memory = null, event = null, map = null;
+    let memory = null, event = null, map = null, search = null;
+
+    const mSearch = clean.match(/\n?\s*SEARCH:\s*(.+?)\s*$/m);
+    if (mSearch) { search = mSearch[1].trim(); clean = clean.slice(0, mSearch.index).trimEnd(); }
 
     const mMem = clean.match(/\n\s*MEMORY:\s*(.+?)\s*$/m);
     if (mMem) { memory = mMem[1].trim(); clean = clean.slice(0, mMem.index).trimEnd(); }
@@ -453,7 +467,35 @@ Output format: if you emit MEMORY / EVENT / MAP lines, each goes on its own fina
       clean = clean.slice(0, mEvt.index).trimEnd();
     }
 
-    return { clean, memory, event, map };
+    return { clean, memory, event, map, search };
+  }
+
+  /* ── Web lookup (Wikipedia only, CORS-friendly, keyless) ──
+     Privacy: only the short search query is sent to Wikipedia — never the
+     conversation, profile, or anything else. The app shows a visible
+     "searching…" line in the chat whenever this runs, and it can be
+     turned off entirely in Settings. */
+  async function webSearch(query, lang) {
+    const wikis = [];
+    if (lang && lang !== "en") wikis.push(lang);
+    wikis.push("en");
+
+    for (const w of wikis) {
+      try {
+        const url = `https://${w}.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(query)}&gsrlimit=3&prop=extracts&exintro=1&explaintext=1&exchars=900&format=json&origin=*`;
+        const res = await fetch(url);
+        if (!res.ok) continue;
+        const j = await res.json();
+        const pages = j.query && j.query.pages ? Object.values(j.query.pages) : [];
+        if (!pages.length) continue;
+        pages.sort((a, b) => (a.index || 99) - (b.index || 99));
+        const parts = pages
+          .filter(p => p.extract && p.extract.trim())
+          .map(p => `## ${p.title}\n${p.extract.trim()}`);
+        if (parts.length) return { source: `${w}.wikipedia.org`, text: parts.join("\n\n") };
+      } catch (_) { /* try the next wiki */ }
+    }
+    return null;
   }
 
   /* ── Plan generation (non-streaming, JSON) ── */
@@ -624,5 +666,5 @@ Rules: 4 to 6 slides. Each slide = one phase or theme (mindset, weekly routine, 
     });
   }
 
-  return { chat, generatePlan, completeText, extractMemory, MODELS, PROVIDER_NAMES, LOCAL_MODELS, localSupported, localStatus, loadLocalModel, recommendedLocalModel };
+  return { chat, generatePlan, completeText, extractMemory, webSearch, MODELS, PROVIDER_NAMES, LOCAL_MODELS, localSupported, localStatus, loadLocalModel, recommendedLocalModel };
 })();

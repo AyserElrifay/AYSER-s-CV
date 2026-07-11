@@ -31,12 +31,18 @@ const Store = (() => {
       keys: { claude: "", openai: "", gemini: "" },
       localModel: "Llama-3.2-3B-Instruct-q4f16_1-MLC",
       notifications: false, // browser reminder notifications — off until the user opts in
+      // When Bardi isn't sure about a factual question it can look it up on
+      // Wikipedia. Only the short search query is sent — never the
+      // conversation itself. Visible in the chat every time it happens,
+      // and can be switched off in Settings.
+      webSearch: true,
     },
     tasks: [],          // {id, title, done, date}
     habitLog: {},       // { "YYYY-MM-DD": { habitId: true } }
+    focusLog: {},       // { "YYYY-MM-DD": completedFocusSessions }
     pages: [],          // {id, title, blocks:[{id,type,text,done}], updatedAt}
-    projects: [],       // {id, name, cols:[{id, key, cards:[{id,title}]}]}
-    books: [],          // {id, title, size, chunks:[string], addedAt}
+    projects: [],       // {id, name, cols:[{id, key, cards:[{id,title}]}], files:[{id,name,size,type}]}
+    books: [],          // {id, title, size, chunks:[string], addedAt, status:"toread"|"reading"|"done"}
     videos: [],         // {id, title, url, notes, addedAt} — study/skill videos
     chats: [],          // [{id, title, messages:[{role,content}], updatedAt}]
     activeChatId: null,
@@ -133,6 +139,48 @@ const Store = (() => {
     };
   }
 
+  /* ── Project file attachments (IndexedDB — localStorage is too small
+     for real files). Blobs never leave the device and are NOT included
+     in exports or project sharing. ── */
+  const FDB = "bardi_files";
+  let fdbPromise = null;
+  function fdb() {
+    if (fdbPromise) return fdbPromise;
+    fdbPromise = new Promise((resolve, reject) => {
+      const req = indexedDB.open(FDB, 1);
+      req.onupgradeneeded = () => req.result.createObjectStore("files");
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+    return fdbPromise;
+  }
+  async function putFile(id, blob) {
+    const db = await fdb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction("files", "readwrite");
+      tx.objectStore("files").put(blob, id);
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+  async function getFile(id) {
+    const db = await fdb();
+    return new Promise((resolve, reject) => {
+      const req = db.transaction("files").objectStore("files").get(id);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => reject(req.error);
+    });
+  }
+  async function delFile(id) {
+    const db = await fdb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction("files", "readwrite");
+      tx.objectStore("files").delete(id);
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
   function uid() {
     return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   }
@@ -142,5 +190,5 @@ const Store = (() => {
     return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
   }
 
-  return { load, save, get, reset, exportData, importData, exportProject, importProjectFile, uid, todayKey };
+  return { load, save, get, reset, exportData, importData, exportProject, importProjectFile, putFile, getFile, delFile, uid, todayKey };
 })();

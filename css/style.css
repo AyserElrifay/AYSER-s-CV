@@ -621,3 +621,20 @@ details.help-details a { color: var(--accent); }
   padding: 12px 14px; font-size: 13px; white-space: pre-wrap; font-family: ui-monospace, monospace;
   color: var(--text-2); line-height: 1.6;
 }
+
+/* ═══════════ Focus timer ═══════════ */
+
+.focus-card { text-align: center; }
+.focus-time {
+  font-size: 52px; font-weight: 800; letter-spacing: 2px;
+  font-variant-numeric: tabular-nums; margin: 10px 0 14px;
+  font-family: var(--font-display);
+}
+
+/* ═══════════ Web-search note in chat ═══════════ */
+
+.search-note {
+  color: var(--text-2); font-size: 13px;
+  background: var(--surface-2); border-radius: 999px;
+  padding: 6px 14px; width: fit-content;
+}
