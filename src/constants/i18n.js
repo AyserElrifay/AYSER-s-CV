@@ -10,6 +10,8 @@ export const LANGS = [
   { code: 'es', label: 'Spanish', native: 'Español', flag: '🇪🇸', rtl: false },
   { code: 'ru', label: 'Russian', native: 'Русский', flag: '🇷🇺', rtl: false },
   { code: 'zh', label: 'Chinese', native: '中文', flag: '🇨🇳', rtl: false },
+  { code: 'ko', label: 'Korean', native: '한국어', flag: '🇰🇷', rtl: false },
+  { code: 'ja', label: 'Japanese', native: '日本語', flag: '🇯🇵', rtl: false },
 ];
 
 export const STRINGS = {
@@ -84,5 +86,29 @@ export const STRINGS = {
     trending_now: '正在热门 🔥', people: '用户', groups: '群组', posts: '帖子', play_together: '一起玩 🎮',
     active_now: '在线', tagline: '留下一个瞬间，或活出一段回忆。',
     moments: '瞬间', mates: '好友', campfires: '篝火',
+  },
+  ko: {
+    tab_home: '홈', tab_map: '지도', tab_reels: '릴스', tab_chill: '휴식', tab_chats: '채팅', tab_space: '내 공간',
+    search_placeholder: 'Moments 검색…', cancel: '취소', join: '참여', joined: '참여함',
+    play: '플레이', in_chat: '채팅에서', message: '메시지…', send: '보내기', spin: '돌리기', spin_again: '다시 돌리기',
+    truth: '진실', dare: '도전', start_run: '달리기 시작', rematch: '재대결', calling: '전화 거는 중…', video_calling: '영상 통화 중…',
+    settings: '설정', language: '언어', appearance: '테마', notifications: '알림',
+    wallet: '지갑', account: '계정', sign_out: '로그아웃',
+    edit_space: '내 공간 편집', share_profile: '프로필 공유',
+    trending_now: '지금 인기 🔥', people: '사람', groups: '그룹', posts: '게시물', play_together: '같이 놀기 🎮',
+    active_now: '활동 중', tagline: '순간을 남기거나, 추억을 살아라.',
+    moments: '모먼츠', mates: '메이트', campfires: '캠프파이어',
+  },
+  ja: {
+    tab_home: 'ホーム', tab_map: 'マップ', tab_reels: 'リール', tab_chill: 'チル', tab_chats: 'チャット', tab_space: 'スペース',
+    search_placeholder: 'Momentsを検索…', cancel: 'キャンセル', join: '参加', joined: '参加済み',
+    play: 'プレイ', in_chat: 'チャット内', message: 'メッセージ…', send: '送信', spin: '回す', spin_again: 'もう一回',
+    truth: '真実', dare: '挑戦', start_run: 'スタート', rematch: '再戦', calling: '発信中…', video_calling: 'ビデオ通話中…',
+    settings: '設定', language: '言語', appearance: '外観', notifications: '通知',
+    wallet: 'ウォレット', account: 'アカウント', sign_out: 'ログアウト',
+    edit_space: 'スペースを編集', share_profile: 'プロフィールを共有',
+    trending_now: 'トレンド 🔥', people: 'ユーザー', groups: 'グループ', posts: '投稿', play_together: '一緒に遊ぶ 🎮',
+    active_now: 'オンライン', tagline: '瞬間を残すか、思い出を生きるか。',
+    moments: 'モーメンツ', mates: 'メイト', campfires: 'キャンプファイア',
   },
 };

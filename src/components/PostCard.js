@@ -7,6 +7,8 @@ import { Glass } from './Glass';
 import { Chip } from './Chip';
 import { Tick } from './Tick';
 import { StarButton } from './StarButton';
+import { sfxLaugh, sfxLaughBig } from '../utils/sfx';
+import { tapLight } from '../utils/feedback';
 
 /* Chips sit on photos, so they stay dark with light text for contrast. */
 const typeChip = (post) => {
@@ -28,6 +30,18 @@ export const PostCard = ({ post, joined, vibed, onJoin, onVibe, onComment, onOpe
   const burst = useRef(new Animated.Value(0)).current;
   const [bursting, setBursting] = useState(false);
   const [reposted, setReposted] = useState(false);
+  const [laughed, setLaughed] = useState(false);
+  const laughStreak = useRef({ n: 0, at: 0 });
+  const onLaugh = () => {
+    tapLight();
+    const now = Date.now();
+    const s = laughStreak.current;
+    s.n = now - s.at < 1200 ? s.n + 1 : 1;
+    s.at = now;
+    // three quick taps (or more) escalates the giggle into the belly laugh
+    if (s.n >= 3) sfxLaughBig(); else sfxLaugh();
+    setLaughed(true);
+  };
   const handleMediaTap = () => {
     const now = Date.now();
     if (now - lastTap.current < 300) {
@@ -129,6 +143,13 @@ export const PostCard = ({ post, joined, vibed, onJoin, onVibe, onComment, onOpe
           <Pressable onPress={onVibe} hitSlop={8}>
             <Text style={{ color: vibed ? C.gold : C.dim, fontSize: 13, fontWeight: '800', marginLeft: 5, marginRight: 16 }}>
               {totalVibes}
+            </Text>
+          </Pressable>
+          {/* Laugh — tap for a giggle, three quick taps for the belly laugh */}
+          <Pressable onPress={onLaugh} onLongPress={() => { tapLight(); sfxLaughBig(); setLaughed(true); }} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', marginRight: 16 }}>
+            <Text style={{ fontSize: 17, opacity: laughed ? 1 : 0.55 }}>😂</Text>
+            <Text style={{ color: laughed ? C.text : C.dim, fontSize: 13, fontWeight: '700', marginLeft: 3 }}>
+              {(post.laughs || 0) + (laughed ? 1 : 0)}
             </Text>
           </Pressable>
           {/* Comment scroll */}

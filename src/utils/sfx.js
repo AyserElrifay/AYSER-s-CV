@@ -36,17 +36,48 @@ function tone(freq, start, dur, type, peak) {
   osc.stop(t0 + dur + 0.02);
 }
 
-/* Bright rising sparkle — the Star reaction. */
+/* ── The Moments sound identity ──────────────────────────────────
+   The star sings solfège: the first tap plays Mi, and each quick
+   tap after that walks up the scale (Fa, Sol, La, Si, Do…) — tap a
+   feed and you're playing a melody. Idle for a moment and it resets
+   back to Mi. Capped at the octave so it stays sweet, never shrill. */
+const SCALE = [659.25, 698.46, 783.99, 880.0, 987.77, 1046.5, 1174.7, 1318.5]; // Mi..Mi'
+let scaleStep = 0;
+let lastStarAt = 0;
+
 export function sfxStar() {
-  tone(660, 0, 0.14, 'triangle', 0.12);
-  tone(990, 0.05, 0.16, 'triangle', 0.11);
-  tone(1320, 0.1, 0.18, 'sine', 0.09);
+  const now = Date.now();
+  if (now - lastStarAt > 2500) scaleStep = 0; // fresh melody after a pause
+  lastStarAt = now;
+  const f = SCALE[Math.min(scaleStep, SCALE.length - 1)];
+  scaleStep = Math.min(scaleStep + 1, SCALE.length - 1);
+  tone(f, 0, 0.16, 'triangle', 0.12);
+  tone(f * 2, 0.03, 0.12, 'sine', 0.05); // airy octave shimmer
 }
 
-/* Two-tone ding — notifications. */
+/* Notifications land on a soft Major 7th chord (C·E·G·B), rolled
+   like a harp so it feels like good news, not an alarm. */
 export function sfxNotify() {
-  tone(880, 0, 0.16, 'sine', 0.12);
-  tone(1174, 0.12, 0.22, 'sine', 0.1);
+  tone(523.25, 0, 0.5, 'sine', 0.09);   // C
+  tone(659.25, 0.05, 0.5, 'sine', 0.08); // E
+  tone(783.99, 0.1, 0.5, 'sine', 0.08);  // G
+  tone(987.77, 0.15, 0.6, 'sine', 0.07); // B — the sparkle on top
+}
+
+/* The laugh — Sol·Sol·Sol staccato, paced like a real giggle. */
+export function sfxLaugh() {
+  tone(783.99, 0, 0.07, 'triangle', 0.11);
+  tone(783.99, 0.11, 0.07, 'triangle', 0.1);
+  tone(783.99, 0.22, 0.08, 'triangle', 0.09);
+}
+
+/* Held / kept tapping? The laugh grows into a staccato Major 6th
+   (C+A) burst — the belly-laugh version. */
+export function sfxLaughBig() {
+  for (let i = 0; i < 4; i++) {
+    tone(523.25, i * 0.09, 0.06, 'triangle', 0.1);
+    tone(880.0, i * 0.09 + 0.01, 0.06, 'triangle', 0.09);
+  }
 }
 
 /* Warm confirmation chord — join / share success. */
