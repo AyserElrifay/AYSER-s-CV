@@ -1,16 +1,56 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, Pressable, Image, ScrollView } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { C } from '../constants/theme';
-import { SQUADS, DMS, LANG_PARTNERS } from '../constants/mockData';
+import { SQUADS, DMS, LANG_PARTNERS } from '../constants/mockData'; // demo-mode fallback only
+import { SUPABASE_READY } from '../lib/supabase';
+import { useAuth } from '../context/AuthContext';
+import { fetchMyDmThreads, fetchMySquads } from '../services/messages';
+import { fetchLanguagePartners } from '../services/social';
 import { Page, ScreenHeader, SectionHeader, Glass, Chip, Tick, AvatarStack } from '../components';
 import { ChatThread } from './ChatThread';
 import { tapLight } from '../utils/feedback';
 
-/* ─────────────────── TAB 5 · CHATS — CONNECTIONS ───────────────────── */
+/* ─────────────────── TAB 5 · CHATS — CONNECTIONS ─────────────────────
+   Real mode: your actual DM threads, actual squads you've joined, and
+   actual people who opted into language exchange — no scripted
+   contacts. Everything starts empty and fills in as you use the app. */
+
+const timeAgo = (iso) => {
+  if (!iso) return '';
+  const min = Math.max(0, Math.round((Date.now() - new Date(iso)) / 60000));
+  if (min < 1) return 'now';
+  if (min < 60) return min + 'm';
+  if (min < 24 * 60) return Math.round(min / 60) + 'h';
+  return Math.round(min / (60 * 24)) + 'd';
+};
 
 export const ChatsScreen = () => {
+  const { user } = useAuth();
   const [thread, setThread] = useState(null); // { chat, group }
+  const [realDms, setRealDms] = useState([]);
+  const [realSquads, setRealSquads] = useState([]);
+  const [realPartners, setRealPartners] = useState([]);
+
+  const reload = useCallback(() => {
+    if (!SUPABASE_READY || !user) return;
+    fetchMyDmThreads(user.id).then(setRealDms).catch(() => {});
+    fetchMySquads(user.id).then(setRealSquads).catch(() => {});
+    fetchLanguagePartners(user.id).then(setRealPartners).catch(() => {});
+  }, [user]);
+
+  useEffect(() => { reload(); }, [reload]);
+  // refresh the DM previews when you come back from a conversation
+  useEffect(() => { if (!thread) reload(); }, [thread, reload]);
+
+  const squads = SUPABASE_READY ? realSquads : SQUADS;
+  const dms = SUPABASE_READY
+    ? realDms.map((d) => ({ id: d.threadId, threadId: d.threadId, user: { name: d.user.name, avatar: d.user.avatar_url, verified: d.user.verified }, last: d.last, time: timeAgo(d.time), unread: 0, translated: false }))
+    : DMS;
+  const partners = SUPABASE_READY
+    ? realPartners.map((p) => ({ id: p.id, name: p.name, avatar: p.avatar_url, flag: '🌍', speaks: p.speaks_language || 'Not set', learning: p.learning_language || '—', level: p.learning_level || '', online: false }))
+    : LANG_PARTNERS;
+
   return (
   <Page>
     <ScreenHeader
@@ -23,34 +63,42 @@ export const ChatsScreen = () => {
       }
     />
 
-    {/* ── LEARN LANGUAGES — exchange partners, HelloTalk style ── */}
+    {/* ── LEARN LANGUAGES — real exchange partners, HelloTalk style ── */}
     <SectionHeader title="Learn languages 🌍" />
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 20 }}>
-      {LANG_PARTNERS.map((lp) => (
-        <Pressable key={lp.id} onPress={() => { tapLight(); setThread({ chat: { user: lp }, group: false }); }}>
-          <Glass style={{ width: 148, padding: 12, marginRight: 10, alignItems: 'center' }}>
-            <View>
-              <Image source={{ uri: lp.avatar }} style={{ width: 52, height: 52, borderRadius: 26 }} />
-              {lp.online ? <View style={{ position: 'absolute', bottom: 0, right: 0, width: 13, height: 13, borderRadius: 7, backgroundColor: C.green, borderWidth: 2, borderColor: '#FFF' }} /> : null}
-            </View>
-            <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800', marginTop: 7 }}>{lp.name} {lp.flag}</Text>
-            <Text style={{ color: C.dim, fontSize: 10.5, marginTop: 3, textAlign: 'center' }} numberOfLines={1}>Speaks {lp.speaks.split(' ')[0]}</Text>
-            <Text style={{ color: C.faint, fontSize: 10.5, marginTop: 1 }}>Learning {lp.learning} · {lp.level}</Text>
-            <View style={{ flexDirection: 'row', marginTop: 8 }}>
-              <View style={{ backgroundColor: C.purpleSoft, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5, marginRight: 6 }}>
-                <Text style={{ color: C.purple, fontSize: 10.5, fontWeight: '900' }}>💬 Chat</Text>
+    {partners.length ? (
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 20 }}>
+        {partners.map((lp) => (
+          <Pressable key={lp.id} onPress={() => { tapLight(); setThread({ chat: { user: lp }, group: false }); }}>
+            <Glass style={{ width: 148, padding: 12, marginRight: 10, alignItems: 'center' }}>
+              <View>
+                <Image source={{ uri: lp.avatar }} style={{ width: 52, height: 52, borderRadius: 26 }} />
+                {lp.online ? <View style={{ position: 'absolute', bottom: 0, right: 0, width: 13, height: 13, borderRadius: 7, backgroundColor: C.green, borderWidth: 2, borderColor: '#FFF' }} /> : null}
               </View>
-              <View style={{ backgroundColor: C.greenSoft, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5 }}>
-                <Text style={{ color: C.green, fontSize: 10.5, fontWeight: '900' }}>📞 Call</Text>
+              <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800', marginTop: 7 }}>{lp.name} {lp.flag}</Text>
+              <Text style={{ color: C.dim, fontSize: 10.5, marginTop: 3, textAlign: 'center' }} numberOfLines={1}>Speaks {(lp.speaks || '').split(' ')[0]}</Text>
+              <Text style={{ color: C.faint, fontSize: 10.5, marginTop: 1 }}>Learning {lp.learning} {lp.level ? '· ' + lp.level : ''}</Text>
+              <View style={{ flexDirection: 'row', marginTop: 8 }}>
+                <View style={{ backgroundColor: C.purpleSoft, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5, marginRight: 6 }}>
+                  <Text style={{ color: C.purple, fontSize: 10.5, fontWeight: '900' }}>💬 Chat</Text>
+                </View>
+                <View style={{ backgroundColor: C.greenSoft, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5 }}>
+                  <Text style={{ color: C.green, fontSize: 10.5, fontWeight: '900' }}>📞 Call</Text>
+                </View>
               </View>
-            </View>
-          </Glass>
-        </Pressable>
-      ))}
-    </ScrollView>
+            </Glass>
+          </Pressable>
+        ))}
+      </ScrollView>
+    ) : (
+      <Glass style={{ padding: 16, marginBottom: 20, alignItems: 'center' }}>
+        <Text style={{ fontSize: 22 }}>🌍</Text>
+        <Text style={{ color: C.text, fontSize: 13, fontWeight: '800', marginTop: 6 }}>No exchange partners yet</Text>
+        <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 3, textAlign: 'center' }}>Turn on language exchange in Settings to appear here for others too</Text>
+      </Glass>
+    )}
 
-    <SectionHeader title="Roam Mates · Active Squads" />
-    {SQUADS.map((s) => (
+    <SectionHeader title="Squads" />
+    {squads.length ? squads.map((s) => (
       <Pressable key={s.id} onPress={() => { tapLight(); setThread({ chat: s, group: true }); }}>
         <Glass tint={C.blueSoft} border="rgba(59,130,246,0.35)" style={{ padding: 14, marginBottom: 12 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -60,12 +108,12 @@ export const ChatsScreen = () => {
             <View style={{ flex: 1 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '800', flexShrink: 1 }} numberOfLines={1}>{s.name}</Text>
-                <Chip label={s.activity} color={C.blue} tint="rgba(59,130,246,0.16)" style={{ marginLeft: 8, borderColor: 'rgba(59,130,246,0.35)' }} />
+                {s.activity ? <Chip label={s.activity} color={C.blue} tint="rgba(59,130,246,0.16)" style={{ marginLeft: 8, borderColor: 'rgba(59,130,246,0.35)' }} /> : null}
               </View>
-              <Text style={{ color: C.dim, fontSize: 12, marginTop: 4 }} numberOfLines={1}>{s.last}</Text>
+              {s.last ? <Text style={{ color: C.dim, fontSize: 12, marginTop: 4 }} numberOfLines={1}>{s.last}</Text> : null}
             </View>
             <View style={{ alignItems: 'flex-end', marginLeft: 10 }}>
-              <Text style={{ color: C.faint, fontSize: 11 }}>{s.time}</Text>
+              {s.time ? <Text style={{ color: C.faint, fontSize: 11 }}>{s.time}</Text> : null}
               {s.unread > 0 ? (
                 <View style={{ marginTop: 6, minWidth: 20, height: 20, borderRadius: 10, backgroundColor: C.blue, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 }}>
                   <Text style={{ color: '#fff', fontSize: 11, fontWeight: '900' }}>{s.unread}</Text>
@@ -73,18 +121,26 @@ export const ChatsScreen = () => {
               ) : null}
             </View>
           </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
-            <AvatarStack uris={s.members} />
-            <Text style={{ color: C.faint, fontSize: 11.5, marginLeft: 10 }}>
-              {s.members.length} Roam Mates · squad expires after the vibe
-            </Text>
-          </View>
+          {s.members ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
+              <AvatarStack uris={s.members} />
+              <Text style={{ color: C.faint, fontSize: 11.5, marginLeft: 10 }}>
+                {s.members.length} Roam Mates · squad expires after the vibe
+              </Text>
+            </View>
+          ) : null}
         </Glass>
       </Pressable>
-    ))}
+    )) : (
+      <Glass style={{ padding: 16, marginBottom: 12, alignItems: 'center' }}>
+        <Text style={{ fontSize: 22 }}>🏕️</Text>
+        <Text style={{ color: C.text, fontSize: 13, fontWeight: '800', marginTop: 6 }}>No squads yet</Text>
+        <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 3, textAlign: 'center' }}>Join the Vibe on a moment to start one</Text>
+      </Glass>
+    )}
 
     <SectionHeader title="Direct" style={{ marginTop: 14 }} />
-    {DMS.map((d) => (
+    {dms.length ? dms.map((d) => (
       <Pressable key={d.id} onPress={() => { tapLight(); setThread({ chat: d, group: false }); }}>
         <Glass style={{ padding: 12, marginBottom: 10, flexDirection: 'row', alignItems: 'center' }}>
           <Image source={{ uri: d.user.avatar }} style={{ width: 46, height: 46, borderRadius: 23 }} />
@@ -111,7 +167,13 @@ export const ChatsScreen = () => {
           </View>
         </Glass>
       </Pressable>
-    ))}
+    )) : (
+      <Glass style={{ padding: 16, alignItems: 'center' }}>
+        <Text style={{ fontSize: 22 }}>💬</Text>
+        <Text style={{ color: C.text, fontSize: 13, fontWeight: '800', marginTop: 6 }}>No conversations yet</Text>
+        <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 3, textAlign: 'center' }}>Wave at someone nearby or message a search result to start one</Text>
+      </Glass>
+    )}
 
     {thread ? <ChatThread chat={thread.chat} group={thread.group} onClose={() => setThread(null)} /> : null}
   </Page>

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { View, Text, FlatList, Pressable, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -6,6 +6,8 @@ import { C } from '../constants/theme';
 import { av, STORIES } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
 import { toggleVibe } from '../services/social';
+import { getProfile } from '../services/profiles';
+import { fetchMyPosts } from '../services/posts';
 import { recordSignal } from '../services/algorithm';
 import { tapLight, tapSuccess } from '../utils/feedback';
 import { sfxStar, sfxSuccess } from '../utils/sfx';
@@ -27,10 +29,12 @@ const headerBtn = {
 export const HomeScreen = () => {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { posts, refreshing, refresh, prependPost } = useFeed();
+  const { posts, refreshing, refresh, prependPost, loadError } = useFeed();
   const [joined, setJoined] = useState({});
   const [vibes, setVibes] = useState({});
   const [myStories, setMyStories] = useState([]);
+  const [myProfile, setMyProfile] = useState(null); // the real profiles row for the signed-in user
+  const [myMomentsCount, setMyMomentsCount] = useState(0);
   const [magicPost, setMagicPost] = useState(null);
   const [profileUser, setProfileUser] = useState(null);
   const [commentsPost, setCommentsPost] = useState(null);
@@ -39,8 +43,18 @@ export const HomeScreen = () => {
   const [storyIndex, setStoryIndex] = useState(null);
   const [reelStart, setReelStart] = useState(null);
 
-  const stories = useMemo(() => [...myStories, ...STORIES], [myStories]);
+  // Real mode never shows the seeded mock people's stories.
+  const stories = useMemo(
+    () => (SUPABASE_READY ? myStories : [...myStories, ...STORIES]),
+    [myStories]
+  );
   const reels = useMemo(() => posts.filter((p) => p.type === 'reel'), [posts]);
+
+  useEffect(() => {
+    if (!SUPABASE_READY || !user) return;
+    getProfile(user.id).then(setMyProfile).catch(() => {});
+    fetchMyPosts(user.id).then((rows) => setMyMomentsCount((rows || []).length)).catch(() => {});
+  }, [user, posts.length]);
 
   const onVibe = (post) => {
     const next = !vibes[post.id];
@@ -62,21 +76,22 @@ export const HomeScreen = () => {
     setReelStart(idx);
   };
 
-  /* You, shaped like a profile card — tap your avatar to see it. */
+  /* You, shaped like a profile card — tap your avatar to see it.
+     Real mode reads your actual profiles row; nothing here is fabricated. */
   const me = {
     id: user ? user.id : 'me',
-    name: (user && user.user_metadata && user.user_metadata.name) || 'You',
-    handle: user && user.email ? '@' + user.email.split('@')[0] : '@you',
-    emoji: '🧿',
-    avatar: av(60),
-    verified: false,
-    vouches: 3,
+    name: (myProfile && myProfile.name) || (user && user.user_metadata && user.user_metadata.name) || 'You',
+    handle: (myProfile && myProfile.handle && '@' + myProfile.handle) || (user && user.email ? '@' + user.email.split('@')[0] : '@you'),
+    emoji: (myProfile && myProfile.emoji) || '🧿',
+    avatar: (myProfile && myProfile.avatar_url) || av(60),
+    verified: !!(myProfile && myProfile.verified),
+    vouches: 0,
     vouchTag: 'New Explorer',
-    intent: 'Exploring 🧭',
-    moments: posts.filter((p) => p.user.name === 'You').length,
+    intent: (myProfile && myProfile.intent) || 'Exploring 🧭',
+    moments: SUPABASE_READY ? myMomentsCount : posts.filter((p) => p.user.name === 'You').length,
     mates: 0,
     campfires: 0,
-    bio: 'This is you. Share a moment, join a vibe, meet your people. ✨',
+    bio: (myProfile && myProfile.bio) || 'This is you. Share a moment, join a vibe, meet your people. ✨',
   };
 
   return (
@@ -151,6 +166,19 @@ export const HomeScreen = () => {
             onOpenReel={openReel}
           />
         )}
+        ListEmptyComponent={
+          SUPABASE_READY ? (
+            <View style={{ alignItems: 'center', paddingVertical: 60, paddingHorizontal: 30 }}>
+              <Text style={{ fontSize: 34 }}>{loadError ? '📡' : '✨'}</Text>
+              <Text style={{ color: C.text, fontSize: 15.5, fontWeight: '800', marginTop: 10, textAlign: 'center' }}>
+                {loadError ? "Couldn't load moments" : 'No moments yet — be the first 👋'}
+              </Text>
+              <Text style={{ color: C.faint, fontSize: 12.5, marginTop: 6, textAlign: 'center', lineHeight: 18 }}>
+                {loadError || 'Share a photo, a thought, or an invitation — real people will see it here.'}
+              </Text>
+            </View>
+          ) : null
+        }
       />
 
       {magicPost ? (

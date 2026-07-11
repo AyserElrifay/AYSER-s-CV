@@ -51,7 +51,9 @@ export const CampfirePin = ({ c }) => {
         </View>
       </View>
       <View style={{ backgroundColor: 'rgba(255,255,255,0.95)', borderColor: 'rgba(244,63,94,0.5)', borderWidth: 1, borderRadius: 10, paddingHorizontal: 7, paddingVertical: 2, marginTop: 2 }}>
-        <Text style={{ color: C.coral, fontSize: 10, fontWeight: '800' }}>🎧 {c.listeners}</Text>
+        <Text style={{ color: C.coral, fontSize: 10, fontWeight: '800' }}>
+          {c.listeners != null ? '🎧 ' + c.listeners : 'LIVE 🔥'}
+        </Text>
       </View>
     </View>
   );

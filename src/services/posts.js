@@ -13,6 +13,31 @@ export async function fetchFeed() {
   return data;
 }
 
+/* Your real moment grid — posts + a real star (vibe) count per post,
+   used by the profile screen. */
+export async function fetchMyMoments(userId) {
+  const { data, error } = await supabase
+    .from('posts')
+    .select('*, vibes:post_vibes(count)')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data || []).map((row) => ({
+    ...row,
+    vibesCount: (row.vibes && row.vibes[0] && row.vibes[0].count) || 0,
+  }));
+}
+
+export async function fetchMyPosts(userId) {
+  const { data, error } = await supabase
+    .from('posts')
+    .select('*, user:profiles(*)')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data;
+}
+
 export async function createPost({ userId, type = 'post', caption, place, mediaUrl, textBg, lat, lng, squadName }) {
   const { data, error } = await supabase
     .from('posts')

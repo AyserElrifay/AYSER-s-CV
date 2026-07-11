@@ -1,11 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, ScrollView, Pressable, Modal, TextInput, Platform, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { C } from '../constants/theme';
-import { ME, MAP_PEOPLE, CAMPFIRES, BOOKINGS, DOING_OPTIONS } from '../constants/mockData';
+import { ME, DOING_OPTIONS, av } from '../constants/mockData';
+import { MAP_PEOPLE, CAMPFIRES, BOOKINGS } from '../constants/mockData'; // demo-mode fallback only
 import { MapView, Marker, MAPS_READY } from '../utils/maps';
-import { kmBetween } from '../utils/geo';
+import { kmBetween, projectToMap } from '../utils/geo';
+import { requestLocationPermission, getCurrentCoords } from '../utils/location';
+import { SUPABASE_READY } from '../lib/supabase';
+import { useAuth } from '../context/AuthContext';
+import { shareMyLocation, goInvisible, fetchNearbyPeople, subscribeNearby } from '../services/locations';
+import { fetchLiveCampfires, hostCampfire } from '../services/campfires';
+import { fetchLiveVenues, applyAsVenue } from '../services/venues';
+import { getOrCreateDmThread, sendMessage } from '../services/messages';
 import {
   Glass, Micro, Chip, NeonButton, GhostButton, FauxMap,
   PersonPin, CampfirePin, MePin, SOSButton, ProfileModal,
@@ -14,23 +22,162 @@ import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
 import { sfxPop, sfxSuccess } from '../utils/sfx';
 
 /* ─────────────────── TAB 2 · MAP — THE LIVING WORLD ────────────────── */
+/* In real mode (SUPABASE_READY), every pin is a real signed-in person's
+   real shared location, every campfire is a real live room someone is
+   actually hosting, and every booking is a real venue that applied and
+   was reviewed. Nothing here is scripted content once the backend is
+   configured. Demo mode (no Supabase project) keeps the mock scene so
+   the app still runs for local development. */
+
+const normalizePerson = (row) => ({
+  id: row.user_id,
+  name: (row.profile && row.profile.name) || 'Explorer',
+  handle: row.profile && row.profile.handle,
+  avatar: (row.profile && row.profile.avatar_url) || av(60),
+  emoji: (row.profile && row.profile.emoji) || '🧿',
+  verified: !!(row.profile && row.profile.verified),
+  intent: (row.profile && row.profile.intent) || 'Exploring 🧭',
+  doing: row.doing,
+  coords: { latitude: row.lat, longitude: row.lng },
+});
+
+const normalizeCampfire = (row) => ({
+  id: row.id,
+  title: row.title,
+  topic: row.topic,
+  host: { name: (row.host && row.host.name) || 'Someone' },
+  coords: row.lat != null && row.lng != null ? { latitude: row.lat, longitude: row.lng } : null,
+});
+
+const VENUE_KINDS = ['Sport', 'Stay', 'Food', 'Experience'];
 
 export const MapScreen = () => {
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
   const [profileUser, setProfileUser] = useState(null);
   const [sos, setSos] = useState(null); // null | 'ask' | 'sent'
   const [nearby, setNearby] = useState(false);   // nearby-people sheet
   const [rail, setRail] = useState('fires');     // 'fires' | 'book'
-  const [booked, setBooked] = useState({});
   const [myDoing, setMyDoing] = useState(null);  // your activity badge
   const [doingOpen, setDoingOpen] = useState(false);
   const [waved, setWaved] = useState({});
   const [partnerOpen, setPartnerOpen] = useState(false); // business partner form
   const [partnerSent, setPartnerSent] = useState(false);
+  const [vName, setVName] = useState('');
+  const [vKind, setVKind] = useState('Sport');
+  const [vSub, setVSub] = useState('');
+  const [vPrice, setVPrice] = useState('');
+  const [booked, setBooked] = useState({});
 
-  const nearbyPeople = [...MAP_PEOPLE]
-    .map((p) => ({ ...p, km: kmBetween(ME.coords, p.coords) }))
-    .sort((a, b) => a.km - b.km);
+  const [myCoords, setMyCoords] = useState(ME.coords); // falls back until real GPS resolves
+  const [hasLocationPerm, setHasLocationPerm] = useState(false);
+  const [realPeople, setRealPeople] = useState([]);
+  const [realCampfires, setRealCampfires] = useState([]);
+  const [realVenues, setRealVenues] = useState([]);
+
+  /* ── real GPS: ask once, then use it as our center + our own pin ── */
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const granted = await requestLocationPermission();
+      if (cancelled) return;
+      setHasLocationPerm(granted);
+      if (!granted) return;
+      const coords = await getCurrentCoords();
+      if (coords && !cancelled) setMyCoords(coords);
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  /* ── real data: nearby people, campfires, venues ── */
+  const loadNearby = useCallback(() => {
+    if (!SUPABASE_READY) return;
+    fetchNearbyPeople()
+      .then((rows) => setRealPeople((rows || []).filter((r) => r.user_id !== (user && user.id)).map(normalizePerson)))
+      .catch(() => {});
+  }, [user]);
+
+  useEffect(() => {
+    if (!SUPABASE_READY) return;
+    loadNearby();
+    fetchLiveCampfires().then((rows) => setRealCampfires((rows || []).map(normalizeCampfire))).catch(() => {});
+    fetchLiveVenues().then(setRealVenues).catch(() => {});
+    const unsub = subscribeNearby(loadNearby);
+    return unsub;
+  }, [loadNearby]);
+
+  const people = SUPABASE_READY ? realPeople : MAP_PEOPLE;
+  const campfires = SUPABASE_READY ? realCampfires : CAMPFIRES;
+  const venues = SUPABASE_READY ? realVenues : BOOKINGS;
+
+  const nearbyPeople = useMemo(
+    () => [...people].map((p) => ({ ...p, km: kmBetween(myCoords, p.coords) })).sort((a, b) => a.km - b.km),
+    [people, myCoords]
+  );
+
+  /* ── your activity badge → a real row in live_locations ── */
+  const pickDoing = async (emoji) => {
+    tapSelection(); sfxPop();
+    const next = myDoing === emoji ? null : emoji;
+    setMyDoing(next);
+    setDoingOpen(false);
+    if (!SUPABASE_READY || !user) return;
+    try {
+      if (next) await shareMyLocation(user.id, myCoords, next);
+      else await goInvisible(user.id);
+      loadNearby();
+    } catch (e) {}
+  };
+
+  const goInvisibleNow = async () => {
+    tapLight();
+    setMyDoing(null);
+    setDoingOpen(false);
+    if (SUPABASE_READY && user) { try { await goInvisible(user.id); loadNearby(); } catch (e) {} }
+  };
+
+  /* ── SOS: real mode marks your real pin with 🚨 so it's visible ── */
+  const sendSos = async () => {
+    setSos('sent');
+    if (SUPABASE_READY && user) {
+      try { await shareMyLocation(user.id, myCoords, '🚨'); setMyDoing('🚨'); loadNearby(); } catch (e) {}
+    }
+  };
+
+  /* ── Wave → a real DM, not a fake local toggle ── */
+  const wave = async (person) => {
+    tapLight(); sfxPop();
+    setWaved((w) => ({ ...w, [person.id]: true }));
+    if (!SUPABASE_READY || !user) return;
+    try {
+      const threadId = await getOrCreateDmThread(person.id);
+      await sendMessage({ dmThreadId: threadId, userId: user.id, body: '👋' });
+    } catch (e) {}
+  };
+
+  /* ── Book → a real DM to the venue owner ── */
+  const bookVenue = async (venue) => {
+    tapSuccess(); sfxSuccess();
+    setBooked((x) => ({ ...x, [venue.id]: true }));
+    if (!SUPABASE_READY || !user || !venue.owner_id) return;
+    try {
+      const threadId = await getOrCreateDmThread(venue.owner_id);
+      await sendMessage({ dmThreadId: threadId, userId: user.id, body: 'Hi! I’d like to book: ' + venue.name + (venue.sub ? ' — ' + venue.sub : '') });
+    } catch (e) {}
+  };
+
+  /* ── Partner application → a real pending venue row ── */
+  const submitVenue = async () => {
+    if (!vName.trim()) return;
+    if (!SUPABASE_READY || !user) { setPartnerSent(true); return; }
+    try {
+      await applyAsVenue(user.id, {
+        name: vName.trim(), kind: vKind, emoji: vKind === 'Sport' ? '🎾' : vKind === 'Stay' ? '🏨' : vKind === 'Food' ? '🍽️' : '🛶',
+        sub: vSub.trim() || null, price: vPrice.trim() || null, lat: myCoords.latitude, lng: myCoords.longitude,
+      });
+      setPartnerSent(true);
+    } catch (e) {}
+  };
 
   const overlays = (
     <View pointerEvents="box-none" style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }}>
@@ -52,7 +199,7 @@ export const MapScreen = () => {
           <Text style={{ fontSize: 15 }}>🧿</Text>
         </View>
         <Chip
-          label="🟢 5 friends vibing nearby · 2 live campfires"
+          label={'🟢 ' + nearbyPeople.length + ' people nearby · ' + campfires.length + ' live campfires'}
           tint="rgba(255,255,255,0.94)"
           color={C.dim}
           style={{ alignSelf: 'flex-start', marginTop: 10 }}
@@ -89,59 +236,77 @@ export const MapScreen = () => {
           ))}
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
-          {rail === 'fires' ? CAMPFIRES.map((c) => (
-            <Glass key={c.id} tint="rgba(255,255,255,0.96)" style={{ width: 252, padding: 13, marginRight: 12 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Text style={{ fontSize: 20, marginRight: 8 }}>🔥</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800' }} numberOfLines={1}>{c.title}</Text>
-                  <Text style={{ color: C.dim, fontSize: 11, marginTop: 1 }}>
-                    {c.host.name.split(' ')[0]} hosting · 🎧 {c.listeners} inside
-                  </Text>
-                </View>
-              </View>
-              <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 8, fontStyle: 'italic' }} numberOfLines={1}>
-                “{c.topic}”
-              </Text>
-              <NeonButton small label="SLIP INTO THE CIRCLE" style={{ marginTop: 10 }} onPress={() => {}} />
-            </Glass>
-          )) : BOOKINGS.map((b) => (
-            <Glass key={b.id} tint="rgba(255,255,255,0.96)" style={{ width: 232, padding: 13, marginRight: 12 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Text style={{ fontSize: 22, marginRight: 9 }}>{b.emoji}</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ color: C.text, fontSize: 13, fontWeight: '800' }} numberOfLines={1}>{b.name}</Text>
-                  <Text style={{ color: C.dim, fontSize: 10.5, marginTop: 1 }} numberOfLines={1}>{b.sub}</Text>
-                </View>
-              </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10 }}>
-                <Text style={{ color: C.text, fontSize: 13, fontWeight: '900', flex: 1 }}>{b.price}</Text>
-                {booked[b.id] ? (
-                  <View style={{ backgroundColor: C.greenSoft, borderWidth: 1, borderColor: 'rgba(16,185,129,0.45)', borderRadius: 999, paddingHorizontal: 13, paddingVertical: 6 }}>
-                    <Text style={{ color: C.green, fontSize: 11.5, fontWeight: '900' }}>Booked ✓</Text>
+          {rail === 'fires' ? (
+            campfires.length ? campfires.map((c) => (
+              <Glass key={c.id} tint="rgba(255,255,255,0.96)" style={{ width: 252, padding: 13, marginRight: 12 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={{ fontSize: 20, marginRight: 8 }}>🔥</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800' }} numberOfLines={1}>{c.title}</Text>
+                    <Text style={{ color: C.dim, fontSize: 11, marginTop: 1 }}>
+                      {c.host.name.split(' ')[0]} hosting now
+                    </Text>
                   </View>
-                ) : (
-                  <Pressable onPress={() => { tapSuccess(); sfxSuccess(); setBooked((x) => ({ ...x, [b.id]: true })); }}>
-                    <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 15, paddingVertical: 6 }}>
-                      <Text style={{ color: '#FFF', fontSize: 11.5, fontWeight: '900' }}>Book</Text>
-                    </View>
-                  </Pressable>
-                )}
-              </View>
-            </Glass>
-          ))}
-          {rail === 'book' ? (
-            <Pressable onPress={() => { tapLight(); setPartnerOpen(true); }}>
-              <Glass tint="rgba(124,58,237,0.08)" border="rgba(124,58,237,0.35)" style={{ width: 200, padding: 13, marginRight: 12, alignItems: 'center', justifyContent: 'center' }}>
-                <Text style={{ fontSize: 24 }}>🤝</Text>
-                <Text style={{ color: C.text, fontSize: 13, fontWeight: '800', marginTop: 6, textAlign: 'center' }}>Own a place?</Text>
-                <Text style={{ color: C.dim, fontSize: 10.5, marginTop: 3, textAlign: 'center' }}>Get on the Moments map — people book you from here</Text>
-                <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 6, marginTop: 9 }}>
-                  <Text style={{ color: '#FFF', fontSize: 11, fontWeight: '900' }}>Partner with us</Text>
                 </View>
+                {c.topic ? (
+                  <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 8, fontStyle: 'italic' }} numberOfLines={1}>
+                    "{c.topic}"
+                  </Text>
+                ) : null}
+                <NeonButton small label="SLIP INTO THE CIRCLE" style={{ marginTop: 10 }} onPress={() => {}} />
               </Glass>
-            </Pressable>
-          ) : null}
+            )) : (
+              <Glass tint="rgba(255,255,255,0.96)" style={{ width: 252, padding: 16, marginRight: 12, alignItems: 'center' }}>
+                <Text style={{ fontSize: 22 }}>🔥</Text>
+                <Text style={{ color: C.text, fontSize: 13, fontWeight: '800', marginTop: 6, textAlign: 'center' }}>No live campfires yet</Text>
+                <Text style={{ color: C.faint, fontSize: 11, marginTop: 3, textAlign: 'center' }}>Be the first to host one</Text>
+              </Glass>
+            )
+          ) : (
+            <>
+              {venues.length ? venues.map((b) => (
+                <Glass key={b.id} tint="rgba(255,255,255,0.96)" style={{ width: 232, padding: 13, marginRight: 12 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Text style={{ fontSize: 22, marginRight: 9 }}>{b.emoji}</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: C.text, fontSize: 13, fontWeight: '800' }} numberOfLines={1}>{b.name}</Text>
+                      {b.sub ? <Text style={{ color: C.dim, fontSize: 10.5, marginTop: 1 }} numberOfLines={1}>{b.sub}</Text> : null}
+                    </View>
+                  </View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10 }}>
+                    <Text style={{ color: C.text, fontSize: 13, fontWeight: '900', flex: 1 }}>{b.price || ''}</Text>
+                    {booked[b.id] ? (
+                      <View style={{ backgroundColor: C.greenSoft, borderWidth: 1, borderColor: 'rgba(16,185,129,0.45)', borderRadius: 999, paddingHorizontal: 13, paddingVertical: 6 }}>
+                        <Text style={{ color: C.green, fontSize: 11.5, fontWeight: '900' }}>Requested ✓</Text>
+                      </View>
+                    ) : (
+                      <Pressable onPress={() => bookVenue(b)}>
+                        <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 15, paddingVertical: 6 }}>
+                          <Text style={{ color: '#FFF', fontSize: 11.5, fontWeight: '900' }}>Book</Text>
+                        </View>
+                      </Pressable>
+                    )}
+                  </View>
+                </Glass>
+              )) : (
+                <Glass tint="rgba(255,255,255,0.96)" style={{ width: 232, padding: 16, marginRight: 12, alignItems: 'center' }}>
+                  <Text style={{ fontSize: 22 }}>📅</Text>
+                  <Text style={{ color: C.text, fontSize: 13, fontWeight: '800', marginTop: 6, textAlign: 'center' }}>No venues yet</Text>
+                  <Text style={{ color: C.faint, fontSize: 11, marginTop: 3, textAlign: 'center' }}>Own a place? Get listed →</Text>
+                </Glass>
+              )}
+              <Pressable onPress={() => { tapLight(); setPartnerOpen(true); }}>
+                <Glass tint="rgba(124,58,237,0.08)" border="rgba(124,58,237,0.35)" style={{ width: 200, padding: 13, marginRight: 12, alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ fontSize: 24 }}>🤝</Text>
+                  <Text style={{ color: C.text, fontSize: 13, fontWeight: '800', marginTop: 6, textAlign: 'center' }}>Own a place?</Text>
+                  <Text style={{ color: C.dim, fontSize: 10.5, marginTop: 3, textAlign: 'center' }}>Get on the Moments map — people book you from here</Text>
+                  <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 6, marginTop: 9 }}>
+                    <Text style={{ color: '#FFF', fontSize: 11, fontWeight: '900' }}>Partner with us</Text>
+                  </View>
+                </Glass>
+              </Pressable>
+            </>
+          )}
         </ScrollView>
       </View>
     </View>
@@ -152,38 +317,45 @@ export const MapScreen = () => {
       {MAPS_READY ? (
         <MapView
           style={{ flex: 1 }}
-          initialRegion={{ latitude: 30.048, longitude: 31.2315, latitudeDelta: 0.042, longitudeDelta: 0.03 }}
+          initialRegion={{ latitude: myCoords.latitude, longitude: myCoords.longitude, latitudeDelta: 0.042, longitudeDelta: 0.03 }}
           userInterfaceStyle="light"
+          showsUserLocation={hasLocationPerm}
         >
-          <Marker coordinate={ME.coords}>
+          <Marker coordinate={myCoords}>
             <MePin doing={myDoing} />
           </Marker>
-          {MAP_PEOPLE.map((p) => (
+          {people.map((p) => (
             <Marker key={p.id} coordinate={p.coords} onPress={() => setProfileUser(p)}>
               <PersonPin p={p} onPress={() => setProfileUser(p)} />
             </Marker>
           ))}
-          {CAMPFIRES.map((c) => (
+          {campfires.filter((c) => c.coords).map((c) => (
             <Marker key={c.id} coordinate={c.coords}>
               <CampfirePin c={c} />
             </Marker>
           ))}
         </MapView>
       ) : (
-        <FauxMap>
+        <FauxMap center={myCoords}>
           <View style={{ position: 'absolute', left: '38%', top: '50%' }}>
             <MePin doing={myDoing} />
           </View>
-          {MAP_PEOPLE.map((p) => (
-            <View key={p.id} style={{ position: 'absolute', left: p.fx, top: p.fy }}>
-              <PersonPin p={p} onPress={() => setProfileUser(p)} />
-            </View>
-          ))}
-          {CAMPFIRES.map((c) => (
-            <View key={c.id} style={{ position: 'absolute', left: c.fx, top: c.fy }}>
-              <CampfirePin c={c} />
-            </View>
-          ))}
+          {people.map((p) => {
+            const pos = SUPABASE_READY ? projectToMap(myCoords, p.coords) : { left: p.fx, top: p.fy };
+            return (
+              <View key={p.id} style={{ position: 'absolute', left: pos.left, top: pos.top }}>
+                <PersonPin p={p} onPress={() => setProfileUser(p)} />
+              </View>
+            );
+          })}
+          {campfires.filter((c) => SUPABASE_READY ? c.coords : true).map((c) => {
+            const pos = SUPABASE_READY ? projectToMap(myCoords, c.coords) : { left: c.fx, top: c.fy };
+            return (
+              <View key={c.id} style={{ position: 'absolute', left: pos.left, top: pos.top }}>
+                <CampfirePin c={c} />
+              </View>
+            );
+          })}
         </FauxMap>
       )}
 
@@ -199,17 +371,17 @@ export const MapScreen = () => {
                   <Text style={{ fontSize: 34, textAlign: 'center' }}>🚨</Text>
                   <Text style={{ color: C.text, fontSize: 19, fontWeight: '900', textAlign: 'center', marginTop: 8 }}>Send SOS?</Text>
                   <Text style={{ color: C.dim, fontSize: 13, textAlign: 'center', marginTop: 8, lineHeight: 19 }}>
-                    Your live location will be shared with your 3 closest Roam Mates, and your squad chats get pinged instantly.
+                    Your live pin turns into an SOS marker so people around you on the map can see you need help.
                   </Text>
-                  <NeonButton color={C.coral} label="SEND SOS NOW" style={{ marginTop: 18 }} onPress={() => setSos('sent')} />
+                  <NeonButton color={C.coral} label="SEND SOS NOW" style={{ marginTop: 18 }} onPress={sendSos} />
                   <GhostButton small label="Cancel" style={{ marginTop: 10 }} onPress={() => setSos(null)} />
                 </View>
               ) : (
                 <View>
                   <Text style={{ fontSize: 34, textAlign: 'center' }}>📍</Text>
-                  <Text style={{ color: C.text, fontSize: 19, fontWeight: '900', textAlign: 'center', marginTop: 8 }}>Squad pinged</Text>
+                  <Text style={{ color: C.text, fontSize: 19, fontWeight: '900', textAlign: 'center', marginTop: 8 }}>Your SOS pin is live</Text>
                   <Text style={{ color: C.dim, fontSize: 13, textAlign: 'center', marginTop: 8, lineHeight: 19 }}>
-                    Nour, Omar and Malak can now see your live pin. Stay where you are — help is moving.
+                    Anyone nearby on the Moments map can see it right now. Stay where you are.
                   </Text>
                   <GhostButton small label="Close" style={{ marginTop: 18 }} onPress={() => setSos(null)} />
                 </View>
@@ -225,30 +397,44 @@ export const MapScreen = () => {
           <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, paddingBottom: insets.bottom + 20, paddingHorizontal: 16, maxHeight: '70%' }}>
             <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 12 }} />
             <Text style={{ color: C.text, fontSize: 18, fontWeight: '900' }}>Nearby people 📍</Text>
-            <Text style={{ color: C.faint, fontSize: 12, marginTop: 2, marginBottom: 10 }}>Mates & explorers around you right now</Text>
-            <ScrollView showsVerticalScrollIndicator={false}>
-              {nearbyPeople.map((p) => (
-                <View key={p.id} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: C.line }}>
-                  <Pressable onPress={() => { setNearby(false); setProfileUser(p); }} style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                    <View>
-                      <Image source={{ uri: p.avatar }} style={{ width: 46, height: 46, borderRadius: 23 }} />
-                      <View style={{ position: 'absolute', bottom: -2, right: -4, width: 20, height: 20, borderRadius: 10, backgroundColor: '#FFF', borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center' }}>
-                        <Text style={{ fontSize: 10 }}>{p.doing}</Text>
+            <Text style={{ color: C.faint, fontSize: 12, marginTop: 2, marginBottom: 10 }}>
+              {SUPABASE_READY ? 'People sharing their activity right now' : 'Mates & explorers around you right now'}
+            </Text>
+            {nearbyPeople.length ? (
+              <ScrollView showsVerticalScrollIndicator={false}>
+                {nearbyPeople.map((p) => (
+                  <View key={p.id} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: C.line }}>
+                    <Pressable onPress={() => { setNearby(false); setProfileUser(p); }} style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                      <View>
+                        <Image source={{ uri: p.avatar }} style={{ width: 46, height: 46, borderRadius: 23 }} />
+                        {p.doing ? (
+                          <View style={{ position: 'absolute', bottom: -2, right: -4, width: 20, height: 20, borderRadius: 10, backgroundColor: '#FFF', borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center' }}>
+                            <Text style={{ fontSize: 10 }}>{p.doing}</Text>
+                          </View>
+                        ) : null}
                       </View>
-                    </View>
-                    <View style={{ flex: 1, marginLeft: 12 }}>
-                      <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>{p.name}</Text>
-                      <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 2 }}>{p.intent} · {p.km.toFixed(1)} km away</Text>
-                    </View>
-                  </Pressable>
-                  <Pressable onPress={() => { tapLight(); sfxPop(); setWaved((w) => ({ ...w, [p.id]: true })); }}>
-                    <View style={{ backgroundColor: waved[p.id] ? C.greenSoft : C.purpleSoft, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8 }}>
-                      <Text style={{ color: waved[p.id] ? C.green : C.purple, fontSize: 12, fontWeight: '900' }}>{waved[p.id] ? 'Waved ✓' : 'Wave 👋'}</Text>
-                    </View>
-                  </Pressable>
-                </View>
-              ))}
-            </ScrollView>
+                      <View style={{ flex: 1, marginLeft: 12 }}>
+                        <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>{p.name}</Text>
+                        <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 2 }}>{p.intent} · {p.km.toFixed(1)} km away</Text>
+                      </View>
+                    </Pressable>
+                    <Pressable onPress={() => wave(p)}>
+                      <View style={{ backgroundColor: waved[p.id] ? C.greenSoft : C.purpleSoft, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8 }}>
+                        <Text style={{ color: waved[p.id] ? C.green : C.purple, fontSize: 12, fontWeight: '900' }}>{waved[p.id] ? 'Waved ✓' : 'Wave 👋'}</Text>
+                      </View>
+                    </Pressable>
+                  </View>
+                ))}
+              </ScrollView>
+            ) : (
+              <View style={{ alignItems: 'center', paddingVertical: 30 }}>
+                <Text style={{ fontSize: 28 }}>🧭</Text>
+                <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '700', marginTop: 8 }}>No one nearby yet</Text>
+                <Text style={{ color: C.faint, fontSize: 12, marginTop: 4, textAlign: 'center' }}>
+                  Set your activity below — you'll be the first pin on the map.
+                </Text>
+              </View>
+            )}
           </Pressable>
         </Pressable>
       ) : null}
@@ -259,12 +445,16 @@ export const MapScreen = () => {
           <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, paddingBottom: insets.bottom + 22, paddingHorizontal: 16 }}>
             <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 12 }} />
             <Text style={{ color: C.text, fontSize: 18, fontWeight: '900' }}>What are you up to? </Text>
-            <Text style={{ color: C.faint, fontSize: 12, marginTop: 2, marginBottom: 14 }}>This shows on your pin so the right people find you</Text>
+            <Text style={{ color: C.faint, fontSize: 12, marginTop: 2, marginBottom: 14 }}>
+              {SUPABASE_READY && !hasLocationPerm
+                ? 'Turn on location access to share your real pin with nearby people'
+                : 'This shows on your real pin so the right people find you'}
+            </Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
               {DOING_OPTIONS.map((e) => {
                 const on = myDoing === e;
                 return (
-                  <Pressable key={e} onPress={() => { tapSelection(); sfxPop(); setMyDoing(on ? null : e); setDoingOpen(false); }}>
+                  <Pressable key={e} onPress={() => pickDoing(e)}>
                     <View style={{ width: 56, height: 56, borderRadius: 18, backgroundColor: on ? C.purpleSoft : C.glass, borderWidth: on ? 2 : 1, borderColor: on ? C.purple : C.line, alignItems: 'center', justifyContent: 'center', marginRight: 10, marginBottom: 10 }}>
                       <Text style={{ fontSize: 26 }}>{e}</Text>
                     </View>
@@ -273,7 +463,7 @@ export const MapScreen = () => {
               })}
             </View>
             {myDoing ? (
-              <Pressable onPress={() => { tapLight(); setMyDoing(null); setDoingOpen(false); }}>
+              <Pressable onPress={goInvisibleNow}>
                 <Text style={{ color: C.coral, fontSize: 13, fontWeight: '800', marginTop: 6 }}>Go invisible (hide my activity)</Text>
               </Pressable>
             ) : null}
@@ -313,9 +503,41 @@ export const MapScreen = () => {
                     </View>
                   ))}
                 </View>
-                <Pressable onPress={() => { tapSuccess(); sfxSuccess(); setPartnerSent(true); }} style={{ marginTop: 14 }}>
-                  <View style={{ backgroundColor: C.purple, borderRadius: 14, paddingVertical: 14, alignItems: 'center' }}>
-                    <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '900' }}>Apply — takes 2 minutes</Text>
+
+                <TextInput
+                  placeholder="Venue or business name"
+                  placeholderTextColor={C.faint}
+                  value={vName}
+                  onChangeText={setVName}
+                  style={{ color: C.text, fontSize: 13, backgroundColor: '#FFF', borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginTop: 12 }}
+                />
+                <View style={{ flexDirection: 'row', marginTop: 9 }}>
+                  {VENUE_KINDS.map((k) => (
+                    <Pressable key={k} onPress={() => { tapSelection(); setVKind(k); }} style={{ marginRight: 8 }}>
+                      <View style={{ backgroundColor: vKind === k ? C.purple : C.glass, borderWidth: 1, borderColor: vKind === k ? C.purple : C.line, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 }}>
+                        <Text style={{ color: vKind === k ? '#FFF' : C.dim, fontSize: 11.5, fontWeight: '800' }}>{k}</Text>
+                      </View>
+                    </Pressable>
+                  ))}
+                </View>
+                <TextInput
+                  placeholder="What's the offer? (e.g. Padel court, 4 players)"
+                  placeholderTextColor={C.faint}
+                  value={vSub}
+                  onChangeText={setVSub}
+                  style={{ color: C.text, fontSize: 13, backgroundColor: '#FFF', borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginTop: 9 }}
+                />
+                <TextInput
+                  placeholder="Price (e.g. E£220/hr)"
+                  placeholderTextColor={C.faint}
+                  value={vPrice}
+                  onChangeText={setVPrice}
+                  style={{ color: C.text, fontSize: 13, backgroundColor: '#FFF', borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginTop: 9 }}
+                />
+
+                <Pressable onPress={submitVenue} style={{ marginTop: 14 }}>
+                  <View style={{ backgroundColor: vName.trim() ? C.purple : C.glassHi, borderRadius: 14, paddingVertical: 14, alignItems: 'center' }}>
+                    <Text style={{ color: vName.trim() ? '#FFF' : C.faint, fontSize: 14, fontWeight: '900' }}>Apply — takes 2 minutes</Text>
                   </View>
                 </Pressable>
               </View>

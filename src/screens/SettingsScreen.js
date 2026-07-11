@@ -1,17 +1,20 @@
-import React, { useState } from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, ScrollView, Pressable, StyleSheet, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { C, R } from '../constants/theme';
 import { INITIAL_TX, PLANNER_INIT, SQUADS, SETTINGS_GROUPS } from '../constants/mockData';
+import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LanguageContext';
+import { getProfile, updateProfile } from '../services/profiles';
 import {
   Glass, Micro, Chip, SectionHeader,
   NeonButton, AvatarStack,
 } from '../components';
-import { tapLight, tapSelection } from '../utils/feedback';
+import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
+import { sfxSuccess } from '../utils/sfx';
 
 /* ─── SETTINGS — the app drawer, opened from Your Space ───
    Wallet lives here now (moved out of the profile), alongside the
@@ -25,6 +28,38 @@ export const SettingsScreen = ({ onClose }) => {
   const [split, setSplit] = useState(false);
   const [planner, setPlanner] = useState(PLANNER_INIT);
   const [langOpen, setLangOpen] = useState(false);
+
+  // ── Real language-exchange opt-in (HelloTalk-style) ──
+  const [speaks, setSpeaks] = useState('');
+  const [learning, setLearning] = useState('');
+  const [level, setLevel] = useState('');
+  const [visible, setVisible] = useState(false);
+  const [savedExchange, setSavedExchange] = useState(false);
+
+  useEffect(() => {
+    if (!SUPABASE_READY || !user) return;
+    getProfile(user.id).then((p) => {
+      setSpeaks(p.speaks_language || '');
+      setLearning(p.learning_language || '');
+      setLevel(p.learning_level || '');
+      setVisible(!!p.learning_visible);
+    }).catch(() => {});
+  }, [user]);
+
+  const saveExchange = async (nextVisible) => {
+    if (!SUPABASE_READY || !user) return;
+    try {
+      await updateProfile(user.id, {
+        speaks_language: speaks.trim() || null,
+        learning_language: learning.trim() || null,
+        learning_level: level.trim() || null,
+        learning_visible: nextVisible,
+      });
+      tapSuccess(); sfxSuccess();
+      setSavedExchange(true);
+      setTimeout(() => setSavedExchange(false), 2000);
+    } catch (e) {}
+  };
 
   const togglePlan = (cardId, idx) =>
     setPlanner((prev) =>
@@ -156,6 +191,54 @@ export const SettingsScreen = ({ onClose }) => {
             </Glass>
           </View>
         ))}
+
+        {/* ── LANGUAGE EXCHANGE — real opt-in, HelloTalk-style ── */}
+        <SectionHeader title="Learn languages 🌍" style={{ marginTop: 26 }} />
+        {SUPABASE_READY ? (
+          <Glass style={{ padding: 15 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <View style={{ flex: 1, marginRight: 12 }}>
+                <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>Show me for language exchange</Text>
+                <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 2 }}>Real people will see you in Chats → Learn languages</Text>
+              </View>
+              <Pressable onPress={() => { const n = !visible; setVisible(n); saveExchange(n); }}>
+                <View style={{ width: 46, height: 27, borderRadius: 14, backgroundColor: visible ? C.purple : C.glassHi, padding: 3, justifyContent: 'center' }}>
+                  <View style={{ width: 21, height: 21, borderRadius: 11, backgroundColor: '#FFF', marginLeft: visible ? 19 : 0 }} />
+                </View>
+              </Pressable>
+            </View>
+            <TextInput
+              placeholder="Language you speak (e.g. Arabic)"
+              placeholderTextColor={C.faint}
+              value={speaks}
+              onChangeText={setSpeaks}
+              style={{ color: C.text, fontSize: 13, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 8 }}
+            />
+            <TextInput
+              placeholder="Language you're learning (e.g. Korean)"
+              placeholderTextColor={C.faint}
+              value={learning}
+              onChangeText={setLearning}
+              style={{ color: C.text, fontSize: 13, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 8 }}
+            />
+            <TextInput
+              placeholder="Level (e.g. A2, B1…)"
+              placeholderTextColor={C.faint}
+              value={level}
+              onChangeText={setLevel}
+              style={{ color: C.text, fontSize: 13, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 10 }}
+            />
+            <Pressable onPress={() => saveExchange(visible)}>
+              <View style={{ backgroundColor: C.purple, borderRadius: 12, paddingVertical: 11, alignItems: 'center' }}>
+                <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900' }}>{savedExchange ? 'Saved ✓' : 'Save'}</Text>
+              </View>
+            </Pressable>
+          </Glass>
+        ) : (
+          <Glass style={{ padding: 15, alignItems: 'center' }}>
+            <Text style={{ color: C.faint, fontSize: 12, textAlign: 'center' }}>Connect Supabase to turn on language exchange</Text>
+          </Glass>
+        )}
 
         {/* ── MINI BARDI — one small planner, nothing more ── */}
         <SectionHeader title="Mini Bardi 📓" style={{ marginTop: 26 }} />

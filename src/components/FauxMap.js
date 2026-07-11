@@ -2,17 +2,23 @@ import React from 'react';
 import { View, Platform } from 'react-native';
 
 /* ── The map canvas used when react-native-maps isn't available
-      (web + safety fallback). On web this is a REAL map — the actual
-      streets of Cairo from OpenStreetMap — with the pins layered on
-      top. On native it falls back to the hand-drawn light canvas. ── */
+      (web + safety fallback). On web this is a REAL map — real
+      OpenStreetMap tiles — centered on wherever `center` actually is
+      (the user's real GPS position), with pins layered on top.
+      On native it falls back to the hand-drawn light canvas. ── */
 
-// Zamalek / downtown Cairo — matches ME.coords and the pin layout
-const BBOX = '31.199,30.025,31.262,30.072';
+const DEFAULT_CENTER = { latitude: 30.048, longitude: 31.2315 }; // Cairo, used only until real GPS resolves
+const DELTA = 0.03;
 
-const RealWebMap = () => (
+const bboxFor = (center) => {
+  const { latitude: lat, longitude: lng } = center;
+  return [lng - DELTA, lat - DELTA, lng + DELTA, lat + DELTA].join(',');
+};
+
+const RealWebMap = ({ center }) => (
   <iframe
     title="Moments map"
-    src={'https://www.openstreetmap.org/export/embed.html?bbox=' + BBOX + '&layer=mapnik'}
+    src={'https://www.openstreetmap.org/export/embed.html?bbox=' + bboxFor(center) + '&layer=mapnik'}
     style={{
       position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
       border: 'none', pointerEvents: 'none', filter: 'saturate(0.9)',
@@ -20,10 +26,10 @@ const RealWebMap = () => (
   />
 );
 
-export const FauxMap = ({ children, style }) => (
+export const FauxMap = ({ children, style, center = DEFAULT_CENTER }) => (
   <View style={[{ flex: 1, backgroundColor: '#E8ECF2', overflow: 'hidden' }, style]}>
     {Platform.OS === 'web' ? (
-      <RealWebMap />
+      <RealWebMap center={center} />
     ) : (
       <>
         {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
@@ -47,3 +53,5 @@ export const FauxMap = ({ children, style }) => (
     {children}
   </View>
 );
+
+export { DEFAULT_CENTER, DELTA as FAUX_MAP_DELTA };

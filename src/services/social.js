@@ -53,6 +53,19 @@ export async function searchProfiles(query) {
   return data;
 }
 
+/* Real language-exchange partners — people who opted in on their own
+   profile (Settings → Learn languages), never a fabricated roster. */
+export async function fetchLanguagePartners(myUserId) {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('learning_visible', true)
+    .neq('id', myUserId)
+    .limit(30);
+  if (error) throw error;
+  return data;
+}
+
 /* Uploads a local image uri into the public `media` bucket under the
    user's folder; returns the public URL to store on the post. */
 export async function uploadMedia(userId, localUri) {

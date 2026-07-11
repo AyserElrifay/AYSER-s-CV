@@ -1,21 +1,34 @@
-import React, { useState } from 'react';
-import { View, Text, ScrollView, Pressable, Image, Modal, Dimensions } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, ScrollView, Pressable, Image, Modal, Dimensions, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { C, R, TEXT_BGS } from '../constants/theme';
-import { ME, HIGHLIGHTS, MY_MOMENTS, BADGES } from '../constants/mockData';
+import { ME, HIGHLIGHTS, MY_MOMENTS, BADGES, av } from '../constants/mockData'; // demo-mode fallback only
+import { SUPABASE_READY } from '../lib/supabase';
+import { useAuth } from '../context/AuthContext';
+import { getProfile, updateProfile } from '../services/profiles';
+import { fetchMyMoments } from '../services/posts';
+import { countMyCampfires } from '../services/campfires';
 import { Tick, GhostButton } from '../components';
 import { SettingsScreen } from './SettingsScreen';
-import { tapLight, tapSelection } from '../utils/feedback';
+import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
+import { sfxSuccess } from '../utils/sfx';
 
 /* ─── YOUR SPACE — the profile, Facebook / Instagram / X style ───
-   Clean identity header, stats, highlights, then your moment grid.
-   The gear opens Settings (where the wallet now lives). */
+   Real mode shows your actual profile, your actual posts (with real
+   star counts) and stats computed from real data — nothing fabricated.
+   Demo mode (no Supabase project) keeps the original mock scene. */
 
 const GAP = 3;
 const COL = 3;
 const SIZE = (Dimensions.get('window').width - 32 - GAP * (COL - 1)) / COL;
+
+const monthYear = (iso) => {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+};
 
 const Stat = ({ n, label }) => (
   <Pressable onPress={tapSelection} style={{ alignItems: 'center', flex: 1 }}>
@@ -56,6 +69,7 @@ const GridCell = ({ item }) => {
 
 export const ProfileScreen = () => {
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
   const [settings, setSettings] = useState(false);
   const [tab, setTab] = useState('grid');
   const [menu, setMenu] = useState(false);            // the ☰ sheet
@@ -64,7 +78,30 @@ export const ProfileScreen = () => {
   const [dash, setDash] = useState(false);            // professional dashboard
   const [pageMade, setPageMade] = useState(false);
   const [adsOpen, setAdsOpen] = useState(false);      // ads manager
-  const [boosted, setBoosted] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+
+  // ── real profile + real moments (empty/zero until data actually exists) ──
+  const [myProfile, setMyProfile] = useState(null);
+  const [myMoments, setMyMoments] = useState([]);
+  const [campfiresHosted, setCampfiresHosted] = useState(0);
+  const [editName, setEditName] = useState('');
+  const [editBio, setEditBio] = useState('');
+  const [editIntent, setEditIntent] = useState('');
+  const [savedEdit, setSavedEdit] = useState(false);
+
+  const reload = () => {
+    if (!SUPABASE_READY || !user) return;
+    getProfile(user.id).then((p) => {
+      setMyProfile(p);
+      setEditName(p.name || '');
+      setEditBio(p.bio || '');
+      setEditIntent(p.intent || '');
+    }).catch(() => {});
+    fetchMyMoments(user.id).then(setMyMoments).catch(() => {});
+    countMyCampfires(user.id).then(setCampfiresHosted).catch(() => {});
+  };
+
+  useEffect(reload, [user]);
 
   const CATEGORIES = ['Creator', 'Photographer', 'Coach', 'Musician', 'Local Business', 'Community'];
 
@@ -83,6 +120,46 @@ export const ProfileScreen = () => {
     </Pressable>
   );
 
+  const saveEdit = async () => {
+    if (!SUPABASE_READY || !user) { setEditOpen(false); return; }
+    try {
+      await updateProfile(user.id, { name: editName.trim() || 'Explorer', bio: editBio.trim() || null, intent: editIntent.trim() || null });
+      tapSuccess(); sfxSuccess();
+      setSavedEdit(true);
+      reload();
+      setTimeout(() => { setSavedEdit(false); setEditOpen(false); }, 900);
+    } catch (e) {}
+  };
+
+  /* Real mode: your actual profile row. Demo mode: the mock ME. */
+  const me = SUPABASE_READY
+    ? {
+        handle: (myProfile && myProfile.handle && '@' + myProfile.handle) || (user && user.email ? '@' + user.email.split('@')[0] : '@you'),
+        verified: !!(myProfile && myProfile.verified),
+        avatar: (myProfile && myProfile.avatar_url) || av(5),
+        name: (myProfile && myProfile.name) || 'Explorer',
+        intent: (myProfile && myProfile.intent) || null,
+        bio: (myProfile && myProfile.bio) || 'Add a bio — tell people what you\'re about ✨',
+      }
+    : ME;
+
+  const gridItems = SUPABASE_READY
+    ? myMoments.map((row) => row.media_url
+        ? { id: row.id, media: row.media_url, kind: row.type === 'reel' ? 'reel' : undefined, vibes: row.vibesCount }
+        : { id: row.id, text: row.caption, textBg: row.text_bg || 'plain', vibes: row.vibesCount })
+    : MY_MOMENTS;
+
+  const moments = SUPABASE_READY ? myMoments.length : ME.moments;
+  const mates = SUPABASE_READY ? 0 : ME.mates; // no follow/mates system built yet — honest zero, not fabricated
+  const campfires = SUPABASE_READY ? campfiresHosted : ME.campfires;
+
+  /* Real badges are derived, never invented: verified + how long you've been here. */
+  const realBadges = [
+    me.verified ? { id: 'b-verified', emoji: '✦', label: 'Verified' } : null,
+    myProfile && myProfile.created_at ? { id: 'b-joined', emoji: '📅', label: 'Joined ' + monthYear(myProfile.created_at) } : null,
+  ].filter(Boolean);
+  const badges = SUPABASE_READY ? realBadges : BADGES;
+
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
       <ScrollView
@@ -92,8 +169,8 @@ export const ProfileScreen = () => {
         {/* top bar — handle + gear */}
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Text style={{ color: C.text, fontSize: 20, fontWeight: '900' }}>{ME.handle}</Text>
-            {ME.verified ? <Tick /> : null}
+            <Text style={{ color: C.text, fontSize: 20, fontWeight: '900' }}>{me.handle}</Text>
+            {me.verified ? <Tick /> : null}
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Pressable onPress={tapLight} hitSlop={8} style={{ marginRight: 18 }}>
@@ -118,43 +195,47 @@ export const ProfileScreen = () => {
               style={{ width: 92, height: 92, borderRadius: 46, alignItems: 'center', justifyContent: 'center' }}
             >
               <View style={{ backgroundColor: C.bg, borderRadius: 46, padding: 3 }}>
-                <Image source={{ uri: ME.avatar }} style={{ width: 80, height: 80, borderRadius: 40 }} />
+                <Image source={{ uri: me.avatar }} style={{ width: 80, height: 80, borderRadius: 40 }} />
               </View>
             </LinearGradient>
             <View style={{ flex: 1, flexDirection: 'row', marginLeft: 6 }}>
-              <Stat n={ME.moments} label="Moments" />
-              <Stat n={ME.mates} label="Mates" />
-              <Stat n={ME.campfires} label="Campfires" />
+              <Stat n={moments} label="Moments" />
+              <Stat n={mates} label="Mates" />
+              <Stat n={campfires} label="Campfires" />
             </View>
           </View>
 
           <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 14, flexWrap: 'wrap' }}>
-            <Text style={{ color: C.text, fontSize: 16, fontWeight: '900' }}>{ME.name}</Text>
+            <Text style={{ color: C.text, fontSize: 16, fontWeight: '900' }}>{me.name}</Text>
             {accountType === 'private' ? (
               <Ionicons name="lock-closed" size={13} color={C.faint} style={{ marginLeft: 6 }} />
             ) : null}
             {accountType === 'professional' ? (
               <Text style={{ color: C.faint, fontSize: 12.5, marginLeft: 8 }}>· {category}</Text>
             ) : null}
-            <View style={{ backgroundColor: C.purpleSoft, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3, marginLeft: 8 }}>
-              <Text style={{ color: C.purple, fontSize: 11, fontWeight: '800' }}>{ME.intent}</Text>
-            </View>
+            {me.intent ? (
+              <View style={{ backgroundColor: C.purpleSoft, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3, marginLeft: 8 }}>
+                <Text style={{ color: C.purple, fontSize: 11, fontWeight: '800' }}>{me.intent}</Text>
+              </View>
+            ) : null}
           </View>
-          <Text style={{ color: C.dim, fontSize: 13.5, lineHeight: 20, marginTop: 6 }}>{ME.bio}</Text>
+          <Text style={{ color: C.dim, fontSize: 13.5, lineHeight: 20, marginTop: 6 }}>{me.bio}</Text>
 
           {/* badges */}
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 12 }}>
-            {BADGES.map((b) => (
-              <View key={b.id} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6, marginRight: 8, marginBottom: 8 }}>
-                <Text style={{ fontSize: 12 }}>{b.emoji}</Text>
-                <Text style={{ color: C.dim, fontSize: 11.5, fontWeight: '700', marginLeft: 5 }}>{b.label}</Text>
-              </View>
-            ))}
-          </View>
+          {badges.length ? (
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 12 }}>
+              {badges.map((b) => (
+                <View key={b.id} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6, marginRight: 8, marginBottom: 8 }}>
+                  <Text style={{ fontSize: 12 }}>{b.emoji}</Text>
+                  <Text style={{ color: C.dim, fontSize: 11.5, fontWeight: '700', marginLeft: 5 }}>{b.label}</Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
 
           {/* actions */}
           <View style={{ flexDirection: 'row', marginTop: 6 }}>
-            <GhostButton small label="Edit your space" onPress={tapLight} style={{ flex: 1, marginRight: 8 }} />
+            <GhostButton small label="Edit your space" onPress={() => { tapLight(); setEditOpen(true); }} style={{ flex: 1, marginRight: 8 }} />
             <GhostButton small label="Share profile" onPress={tapLight} style={{ flex: 1, marginRight: 8 }} />
             <Pressable onPress={tapLight} style={{ width: 44 }}>
               <View style={{ borderRadius: R - 4, borderWidth: 1, borderColor: C.line, backgroundColor: C.glass, paddingVertical: 10, alignItems: 'center' }}>
@@ -164,23 +245,20 @@ export const ProfileScreen = () => {
           </View>
         </View>
 
-        {/* highlights */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, marginTop: 20 }}>
-          {HIGHLIGHTS.map((h) => (
-            <Pressable key={h.id} onPress={tapSelection} style={{ alignItems: 'center', marginRight: 16 }}>
-              <View style={{ width: 62, height: 62, borderRadius: 31, borderWidth: 1.5, borderColor: C.line, padding: 3 }}>
-                <Image source={{ uri: h.cover }} style={{ width: '100%', height: '100%', borderRadius: 28 }} />
-              </View>
-              <Text style={{ color: C.dim, fontSize: 11.5, marginTop: 5, fontWeight: '600' }}>{h.label}</Text>
-            </Pressable>
-          ))}
-          <Pressable onPress={tapLight} style={{ alignItems: 'center', marginRight: 16 }}>
-            <View style={{ width: 62, height: 62, borderRadius: 31, borderWidth: 1.5, borderColor: C.line, alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name="add" size={26} color={C.faint} />
-            </View>
-            <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 5 }}>New</Text>
-          </Pressable>
-        </ScrollView>
+        {/* highlights — demo only; real story highlights need the stories
+            feature built first, so real mode simply doesn't show fake ones */}
+        {!SUPABASE_READY ? (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, marginTop: 20 }}>
+            {HIGHLIGHTS.map((h) => (
+              <Pressable key={h.id} onPress={tapSelection} style={{ alignItems: 'center', marginRight: 16 }}>
+                <View style={{ width: 62, height: 62, borderRadius: 31, borderWidth: 1.5, borderColor: C.line, padding: 3 }}>
+                  <Image source={{ uri: h.cover }} style={{ width: '100%', height: '100%', borderRadius: 28 }} />
+                </View>
+                <Text style={{ color: C.dim, fontSize: 11.5, marginTop: 5, fontWeight: '600' }}>{h.label}</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        ) : null}
 
         {/* tab strip */}
         <View style={{ flexDirection: 'row', marginTop: 18, borderTopWidth: 1, borderTopColor: C.line }}>
@@ -206,36 +284,46 @@ export const ProfileScreen = () => {
         ) : tab === 'posts' ? (
           /* written posts, X-style — your words front and centre */
           <View style={{ paddingHorizontal: 16, paddingTop: 6 }}>
-            {MY_MOMENTS.filter((m) => m.text).map((item) => (
+            {gridItems.filter((m) => m.text).length ? gridItems.filter((m) => m.text).map((item) => (
               <View key={item.id} style={{ flexDirection: 'row', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: C.line }}>
-                <Image source={{ uri: ME.avatar }} style={{ width: 40, height: 40, borderRadius: 20 }} />
+                <Image source={{ uri: me.avatar }} style={{ width: 40, height: 40, borderRadius: 20 }} />
                 <View style={{ flex: 1, marginLeft: 11 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>{ME.name}</Text>
-                    <Text style={{ color: C.faint, fontSize: 12.5, marginLeft: 6 }}>{ME.handle}</Text>
+                    <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>{me.name}</Text>
+                    <Text style={{ color: C.faint, fontSize: 12.5, marginLeft: 6 }}>{me.handle}</Text>
                   </View>
                   <Text style={{ color: C.text, fontSize: 15, lineHeight: 22, marginTop: 4 }}>{item.text}</Text>
                   <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 9 }}>
                     <MaterialCommunityIcons name="star-four-points" size={14} color={C.gold} />
-                    <Text style={{ color: C.dim, fontSize: 12, fontWeight: '700', marginLeft: 4, marginRight: 18 }}>{item.vibes}</Text>
-                    <MaterialCommunityIcons name="script-text-outline" size={14} color={C.dim} />
-                    <Text style={{ color: C.dim, fontSize: 12, fontWeight: '700', marginLeft: 4 }}>{Math.round(item.vibes / 6)}</Text>
+                    <Text style={{ color: C.dim, fontSize: 12, fontWeight: '700', marginLeft: 4 }}>{item.vibes}</Text>
                   </View>
                 </View>
               </View>
-            ))}
+            )) : (
+              <View style={{ alignItems: 'center', paddingVertical: 40 }}>
+                <Text style={{ fontSize: 26 }}>✍️</Text>
+                <Text style={{ color: C.faint, fontSize: 13, marginTop: 8 }}>No written moments yet</Text>
+              </View>
+            )}
           </View>
         ) : (
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, marginTop: GAP }}>
-            {(tab === 'reels' ? MY_MOMENTS.filter((m) => m.kind === 'reel') : MY_MOMENTS).map((item, i) => (
-              <Pressable
-                key={item.id}
-                onPress={tapSelection}
-                style={{ marginRight: (i % COL === COL - 1) ? 0 : GAP, marginBottom: GAP, borderRadius: 4, overflow: 'hidden' }}
-              >
-                <GridCell item={item} />
-              </Pressable>
-            ))}
+            {(tab === 'reels' ? gridItems.filter((m) => m.kind === 'reel') : gridItems).length ? (
+              (tab === 'reels' ? gridItems.filter((m) => m.kind === 'reel') : gridItems).map((item, i) => (
+                <Pressable
+                  key={item.id}
+                  onPress={tapSelection}
+                  style={{ marginRight: (i % COL === COL - 1) ? 0 : GAP, marginBottom: GAP, borderRadius: 4, overflow: 'hidden' }}
+                >
+                  <GridCell item={item} />
+                </Pressable>
+              ))
+            ) : (
+              <View style={{ width: '100%', alignItems: 'center', paddingVertical: 40 }}>
+                <Text style={{ fontSize: 26 }}>✨</Text>
+                <Text style={{ color: C.faint, fontSize: 13, marginTop: 8 }}>No moments yet — share your first one</Text>
+              </View>
+            )}
           </View>
         )}
       </ScrollView>
@@ -243,6 +331,43 @@ export const ProfileScreen = () => {
       <Modal visible={settings} animationType="slide" onRequestClose={() => setSettings(false)}>
         <SettingsScreen onClose={() => setSettings(false)} />
       </Modal>
+
+      {/* edit your space — real fields, saved to your real profile */}
+      {editOpen ? (
+        <Pressable onPress={() => setEditOpen(false)} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end' }}>
+          <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, paddingBottom: insets.bottom + 22, paddingHorizontal: 16 }}>
+            <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 12 }} />
+            <Text style={{ color: C.text, fontSize: 18, fontWeight: '900', marginBottom: 12 }}>Edit your space</Text>
+            <TextInput
+              placeholder="Name"
+              placeholderTextColor={C.faint}
+              value={editName}
+              onChangeText={setEditName}
+              style={{ color: C.text, fontSize: 14, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 11, marginBottom: 9 }}
+            />
+            <TextInput
+              placeholder="Bio"
+              placeholderTextColor={C.faint}
+              value={editBio}
+              onChangeText={setEditBio}
+              multiline
+              style={{ color: C.text, fontSize: 14, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 11, marginBottom: 9, minHeight: 70, textAlignVertical: 'top' }}
+            />
+            <TextInput
+              placeholder="Your vibe (e.g. Exploring 🧭)"
+              placeholderTextColor={C.faint}
+              value={editIntent}
+              onChangeText={setEditIntent}
+              style={{ color: C.text, fontSize: 14, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 11, marginBottom: 12 }}
+            />
+            <Pressable onPress={saveEdit}>
+              <View style={{ backgroundColor: C.purple, borderRadius: 14, paddingVertical: 14, alignItems: 'center' }}>
+                <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '900' }}>{savedEdit ? 'Saved ✓' : 'Save'}</Text>
+              </View>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      ) : null}
 
       {/* ☰ — creator & account tools, Instagram style */}
       {menu ? (
@@ -294,12 +419,13 @@ export const ProfileScreen = () => {
             />
             <MenuRow icon="megaphone-outline" label="Ads Manager" sub="Boost moments · campaigns · media buying" onPress={() => { setMenu(false); setAdsOpen(true); }} />
             <MenuRow icon="star-outline" label="Close Friends" sub="Share some moments with your inner circle" />
-            <MenuRow icon="create-outline" label="Edit your space" sub="Name, bio, vibe & links" />
+            <MenuRow icon="create-outline" label="Edit your space" sub="Name, bio, vibe & links" onPress={() => setEditOpen(true)} />
           </Pressable>
         </Pressable>
       ) : null}
 
-      {/* Ads Manager — boost, track, spend. Meta-style but honest & simple */}
+      {/* Ads Manager — boost, track, spend. Honest: no fabricated campaign
+          numbers, since there's no real ad-campaign backend yet. */}
       {adsOpen ? (
         <Pressable onPress={() => setAdsOpen(false)} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end' }}>
           <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, paddingBottom: insets.bottom + 22, paddingHorizontal: 16 }}>
@@ -307,38 +433,19 @@ export const ProfileScreen = () => {
             <Text style={{ color: C.text, fontSize: 18, fontWeight: '900' }}>Ads Manager 📣</Text>
             <Text style={{ color: C.faint, fontSize: 12, marginTop: 2, marginBottom: 14 }}>Put your moments in front of the right crowd</Text>
 
-            {/* active campaign */}
-            <View style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 16, padding: 14, marginBottom: 10 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Text style={{ fontSize: 20, marginRight: 9 }}>🌇</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800' }}>Rooftop reel · boost</Text>
-                  <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 2 }}>E£150 spent · 8.2K reach · Cairo 18–30</Text>
-                </View>
-                <View style={{ backgroundColor: C.greenSoft, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 }}>
-                  <Text style={{ color: C.green, fontSize: 10.5, fontWeight: '900' }}>ACTIVE</Text>
-                </View>
-              </View>
+            <View style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 16, padding: 16, alignItems: 'center', marginBottom: 12 }}>
+              <Text style={{ fontSize: 22 }}>📊</Text>
+              <Text style={{ color: C.text, fontSize: 13, fontWeight: '800', marginTop: 6 }}>No campaigns yet</Text>
+              <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 3, textAlign: 'center' }}>Boost a moment to put it in front of more people</Text>
             </View>
 
-            <View style={{ flexDirection: 'row', marginBottom: 12 }}>
-              {[{ n: '11.6K', l: 'Reach' }, { n: 'E£210', l: 'Spend' }, { n: '3.1%', l: 'Star rate' }].map((s) => (
-                <View key={s.l} style={{ flex: 1, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 14, padding: 11, marginRight: s.l !== 'Star rate' ? 8 : 0, alignItems: 'center' }}>
-                  <Text style={{ color: C.text, fontSize: 16, fontWeight: '900' }}>{s.n}</Text>
-                  <Text style={{ color: C.faint, fontSize: 10.5, marginTop: 2 }}>{s.l}</Text>
-                </View>
-              ))}
-            </View>
-
-            <Pressable onPress={() => { tapSelection(); setBoosted(true); }}>
+            <Pressable onPress={() => { tapSelection(); }}>
               <LinearGradient colors={[C.purple, '#5B21B6']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ borderRadius: 14, paddingVertical: 14, alignItems: 'center' }}>
-                <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '900', letterSpacing: 0.4 }}>
-                  {boosted ? 'Boost submitted — under review ✓' : '✦ Boost a moment'}
-                </Text>
+                <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '900', letterSpacing: 0.4 }}>✦ Boost a moment</Text>
               </LinearGradient>
             </Pressable>
             <Text style={{ color: C.faint, fontSize: 11, textAlign: 'center', marginTop: 10 }}>
-              Every ad is reviewed and always labeled “Sponsored” — no sneaky ads on Moments.
+              Every ad is reviewed and always labeled "Sponsored" — no sneaky ads on Moments.
             </Text>
           </Pressable>
         </Pressable>
@@ -350,22 +457,18 @@ export const ProfileScreen = () => {
           <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, paddingBottom: insets.bottom + 22, paddingHorizontal: 16 }}>
             <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 12 }} />
             <Text style={{ color: C.text, fontSize: 18, fontWeight: '900' }}>Dashboard 💼</Text>
-            <Text style={{ color: C.faint, fontSize: 12, marginTop: 2, marginBottom: 14 }}>{category} · last 7 days</Text>
+            <Text style={{ color: C.faint, fontSize: 12, marginTop: 2, marginBottom: 14 }}>{category} · your real numbers</Text>
             <View style={{ flexDirection: 'row', marginBottom: 12 }}>
               {[
-                { n: '12.4K', l: 'Reach', d: '+18%' },
-                { n: '842', l: 'Stars', d: '+31%' },
-                { n: '96', l: 'New mates', d: '+9%' },
+                { n: String(moments), l: 'Moments' },
+                { n: String(myMoments.reduce((s, r) => s + (r.vibesCount || 0), 0)), l: 'Total stars' },
+                { n: String(campfires), l: 'Campfires hosted' },
               ].map((s) => (
-                <View key={s.l} style={{ flex: 1, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 16, padding: 13, marginRight: s.l !== 'New mates' ? 8 : 0 }}>
+                <View key={s.l} style={{ flex: 1, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 16, padding: 13, marginRight: s.l !== 'Campfires hosted' ? 8 : 0 }}>
                   <Text style={{ color: C.text, fontSize: 19, fontWeight: '900' }}>{s.n}</Text>
                   <Text style={{ color: C.faint, fontSize: 11, marginTop: 2 }}>{s.l}</Text>
-                  <Text style={{ color: C.green, fontSize: 11, fontWeight: '800', marginTop: 4 }}>▲ {s.d}</Text>
                 </View>
               ))}
-            </View>
-            <View style={{ backgroundColor: C.purpleSoft, borderWidth: 1, borderColor: 'rgba(124,58,237,0.3)', borderRadius: 16, padding: 13 }}>
-              <Text style={{ color: C.purple, fontSize: 12.5, fontWeight: '800' }}>✦ Your text posts get 2.3× more stars than photos — keep writing.</Text>
             </View>
           </Pressable>
         </Pressable>

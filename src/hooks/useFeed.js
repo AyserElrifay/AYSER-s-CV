@@ -5,10 +5,11 @@ import { rankFeed } from '../services/algorithm';
 import { FEED, ME, av } from '../constants/mockData';
 
 /* Feed source for HomeScreen.
-   Real mode  — loads posts from Supabase; falls back to the mock FEED
-                while the database is still empty so the app never
-                looks broken.
-   Demo mode  — serves the mock FEED, same as the original prototype. */
+   Real mode  — loads real posts from Supabase, always. An empty table
+                shows a genuine empty state (HomeScreen renders it) —
+                never mock content pretending to be real people.
+   Demo mode  — serves the mock FEED, same as the original prototype
+                (used only when no Supabase project is configured). */
 
 const relTime = (startsAt) => {
   if (!startsAt) return 'Soon';
@@ -43,9 +44,10 @@ const toCard = (row) => ({
 });
 
 export function useFeed() {
-  const [posts, setPosts] = useState(FEED);
+  const [posts, setPosts] = useState(SUPABASE_READY ? [] : FEED);
   const [refreshing, setRefreshing] = useState(false);
-  const [isLive, setIsLive] = useState(false); // true once real rows are shown
+  const [isLive] = useState(SUPABASE_READY); // true whenever real mode is on, empty or not
+  const [loadError, setLoadError] = useState(null);
 
   const load = useCallback(async () => {
     if (!SUPABASE_READY) {
@@ -55,13 +57,10 @@ export function useFeed() {
     }
     try {
       const rows = await fetchFeed();
-      if (rows && rows.length > 0) {
-        setPosts(await rankFeed(rows.map(toCard)));
-        setIsLive(true);
-      }
-      // Empty table → keep the mock feed so the app stays alive.
+      setPosts(await rankFeed((rows || []).map(toCard)));
+      setLoadError(null);
     } catch (e) {
-      // Network/RLS error → keep whatever we have; pull-to-refresh retries.
+      setLoadError(e.message || 'Could not load moments');
     }
   }, []);
 
@@ -78,5 +77,5 @@ export function useFeed() {
     setPosts((p) => [card, ...p]);
   }, []);
 
-  return { posts, refreshing, refresh, isLive, prependPost };
+  return { posts, refreshing, refresh, isLive, prependPost, loadError };
 }

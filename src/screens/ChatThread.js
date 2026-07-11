@@ -1,9 +1,12 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, Pressable, Image, Modal, ScrollView, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { C } from '../constants/theme';
 import { av, USERS } from '../constants/mockData';
+import { SUPABASE_READY } from '../lib/supabase';
+import { useAuth } from '../context/AuthContext';
+import { getOrCreateDmThread, fetchMessages, sendMessage, subscribeMessages } from '../services/messages';
 import { TruthOrDare } from '../components/TruthOrDare';
 import { WouldYouRather } from '../components/WouldYouRather';
 import { CallScreen } from '../components/CallScreen';
@@ -30,6 +33,7 @@ const SEED = (peer, group) => group
 
 export const ChatThread = ({ chat, group, onClose }) => {
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
   const peer = group ? null : chat.user;
   const title = group ? chat.name : peer.name;
   const avatarUri = group ? null : peer.avatar;
@@ -37,7 +41,13 @@ export const ChatThread = ({ chat, group, onClose }) => {
     ? [USERS.nour, USERS.omar, USERS.zeyad, { id: 'me', name: 'You', avatar: av(5) }]
     : [peer, { id: 'me', name: 'You', avatar: av(5) }];
 
-  const [msgs, setMsgs] = useState(() => SEED(peer, group));
+  // Real only when the peer/squad is backed by a real uuid — a mock
+  // demo row (fake id like 's1') never touches the real database.
+  const REAL_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const isReal = SUPABASE_READY && !!user && (group ? REAL_ID.test(chat.id || '') : REAL_ID.test((peer && peer.id) || ''));
+
+  const [msgs, setMsgs] = useState(() => (isReal ? [] : SEED(peer, group)));
+  const [dmThreadId, setDmThreadId] = useState((!group && chat.threadId) || null);
   const [draft, setDraft] = useState('');
   const [todOn, setTodOn] = useState(false);
   const [wyrOn, setWyrOn] = useState(false);
@@ -45,12 +55,56 @@ export const ChatThread = ({ chat, group, onClose }) => {
   const [call, setCall] = useState(null); // {video:bool}
   const scroller = useRef(null);
 
-  const send = () => {
+  const toLocal = (row) => ({
+    id: row.id,
+    from: row.user_id === user.id
+      ? 'me'
+      : { name: (row.user && row.user.name) || (peer && peer.name) || 'Someone', avatar: (row.user && row.user.avatar_url) || (peer && peer.avatar) || av(60) },
+    text: row.body,
+  });
+
+  useEffect(() => {
+    if (!isReal) return;
+    let unsub = null;
+    let cancelled = false;
+    (async () => {
+      const squadId = group ? chat.id : null;
+      let threadId = dmThreadId;
+      if (!group && !threadId) {
+        threadId = await getOrCreateDmThread(peer.id).catch(() => null);
+        if (cancelled) return;
+        setDmThreadId(threadId);
+      }
+      if (!squadId && !threadId) return;
+      const rows = await fetchMessages({ squadId, dmThreadId: threadId }).catch(() => []);
+      if (cancelled) return;
+      setMsgs((rows || []).map(toLocal));
+      setTimeout(() => scroller.current && scroller.current.scrollToEnd({ animated: false }), 60);
+      unsub = subscribeMessages({ squadId, dmThreadId: threadId }, (payload) => {
+        const row = payload.new;
+        setMsgs((m) => (m.some((x) => x.id === row.id) ? m : [...m, toLocal(row)]));
+        setTimeout(() => scroller.current && scroller.current.scrollToEnd({ animated: true }), 60);
+      });
+    })();
+    return () => { cancelled = true; if (unsub) unsub(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const send = async () => {
     const t = draft.trim();
     if (!t) return;
     tapLight(); sfxPop();
-    setMsgs((m) => [...m, { id: 'x' + Date.now(), from: 'me', text: t }]);
     setDraft('');
+    if (isReal) {
+      const squadId = group ? chat.id : null;
+      if (!squadId && !dmThreadId) return;
+      try {
+        const row = await sendMessage({ squadId, dmThreadId, userId: user.id, body: t });
+        setMsgs((m) => (m.some((x) => x.id === row.id) ? m : [...m, { id: row.id, from: 'me', text: t }]));
+      } catch (e) {}
+    } else {
+      setMsgs((m) => [...m, { id: 'x' + Date.now(), from: 'me', text: t }]);
+    }
     setTimeout(() => scroller.current && scroller.current.scrollToEnd({ animated: true }), 60);
   };
 
