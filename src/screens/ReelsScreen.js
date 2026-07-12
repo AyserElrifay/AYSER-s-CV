@@ -1,10 +1,12 @@
-import React, { useState, useRef } from 'react';
-import { View, Text, Pressable, ImageBackground, FlatList, Image, Animated, Easing } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { View, Text, Pressable, ImageBackground, FlatList, Image, Animated, Easing, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { C } from '../constants/theme';
-import { REELS } from '../constants/mockData';
+import { REELS, av } from '../constants/mockData';
+import { SUPABASE_READY } from '../lib/supabase';
+import { fetchFeed } from '../services/posts';
 import { SoundChip } from '../components/SoundChip';
 import { CommentsSheet } from '../components/CommentsSheet';
 import { CaptureModal } from '../components/CaptureModal';
@@ -35,6 +37,27 @@ export const ReelsScreen = () => {
   const [shooting, setShooting] = useState(false);
   const burst = useRef(new Animated.Value(0)).current;
   const [burstId, setBurstId] = useState(null);
+  const [realReels, setRealReels] = useState(null); // null until loaded
+
+  useEffect(() => {
+    if (!SUPABASE_READY) return;
+    fetchFeed()
+      .then((rows) => setRealReels((rows || [])
+        .filter((r) => r.type === 'reel')
+        .map((r) => ({
+          id: r.id,
+          user: { id: r.user_id, name: (r.user && r.user.name) || 'Explorer', avatar: (r.user && r.user.avatar_url) || av(60), verified: !!(r.user && r.user.verified) },
+          media: r.media_url,
+          caption: r.caption || '',
+          sound: r.sound_title ? { title: r.sound_title, artist: r.sound_artist || '', emoji: '🎵' } : null,
+          vibes: 0, comments: 0, reposts: 0,
+        }))))
+      .catch(() => setRealReels([]));
+  }, []);
+
+  // Real mode shows only real reels (with an honest empty state); demo uses the mock set.
+  const data = SUPABASE_READY ? (realReels || []) : REELS;
+  const isVideo = (uri) => typeof uri === 'string' && /\.(webm|mp4|mov|m4v)(\?|$)/i.test(uri);
 
   const toggleVibe = (item) => {
     const next = !vibes[item.id];
@@ -60,7 +83,11 @@ export const ReelsScreen = () => {
     const reposted = !!reposts[item.id];
     return (
       <Pressable onPress={() => onMediaTap(item)} style={{ height: pageH }}>
-        <ImageBackground source={{ uri: item.media }} style={{ height: pageH, justifyContent: 'flex-end' }} resizeMode="cover">
+        <ImageBackground source={{ uri: isVideo(item.media) ? undefined : item.media }} style={{ height: pageH, justifyContent: 'flex-end' }} resizeMode="cover">
+          {/* real reels can be video — play it fullscreen behind the UI (web) */}
+          {isVideo(item.media) && Platform.OS === 'web' ? (
+            <video src={item.media} autoPlay loop muted playsInline style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+          ) : null}
           {/* gold star burst on double-tap */}
           {burstId === item.id ? (
             <Animated.View
@@ -151,9 +178,9 @@ export const ReelsScreen = () => {
 
   return (
     <View style={{ flex: 1, backgroundColor: '#000' }} onLayout={(e) => setPageH(e.nativeEvent.layout.height)}>
-      {pageH > 0 ? (
+      {pageH > 0 && data.length ? (
         <FlatList
-          data={REELS}
+          data={data}
           keyExtractor={(r) => r.id}
           renderItem={renderReel}
           pagingEnabled
@@ -162,6 +189,19 @@ export const ReelsScreen = () => {
           snapToInterval={pageH}
           decelerationRate="fast"
         />
+      ) : pageH > 0 ? (
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 }}>
+          <Text style={{ fontSize: 40 }}>🎬</Text>
+          <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '900', marginTop: 12, textAlign: 'center' }}>No reels yet</Text>
+          <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, marginTop: 6, textAlign: 'center', lineHeight: 19 }}>
+            Tap the camera to shoot the first one — hold to record 🎥
+          </Text>
+          <Pressable onPress={() => { tapMedium(); sfxPop(); setShooting(true); }} style={{ marginTop: 18 }}>
+            <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 26, paddingVertical: 13 }}>
+              <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '900' }}>Shoot a reel</Text>
+            </View>
+          </Pressable>
+        </View>
       ) : null}
 
       {/* header — title + create, floating over the reel */}

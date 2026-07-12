@@ -196,14 +196,22 @@ export const MAP_PEOPLE = [
 
 export const DOING_OPTIONS = ['⚽', '🎾', '☕', '🎬', '🤿', '🎧', '⛰️', '🏊', '🎮', '📚'];
 
-/* ── OUTING DEALS · real external offers (Waffarha & friends) opened
-   inside Moments. These deep-link to the real sites — an affiliate
-   revenue layer, clearly labeled as external. ── */
+/* ── OUTING DEALS · real external offers opened inside Moments (the
+   broker layer). Global coverage: Waffarha for Egypt, Groupon for
+   US/EU, Playtomic for courts worldwide, Meetup for playing with
+   strangers. Every click is logged (partner_clicks) = the referral
+   proof for our 10–20% commission, and users earn $MOMENT cashback. ── */
+export const DEAL_FILTERS = ['All', '🎢 Fun', '🍽️ Food', '🏨 Stay', '🎾 Sport', '👥 Meet'];
+
 export const DEALS = [
-  { id: 'dl1', emoji: '🎢', title: 'Waffarha · Outings & fun', sub: 'Discounts on parks, karting, escape rooms', badge: 'Up to 70% off', url: 'https://www.waffarha.com/' },
-  { id: 'dl2', emoji: '🍽️', title: 'Waffarha · Restaurants', sub: 'Deals on dining around you', badge: 'Save big', url: 'https://www.waffarha.com/en/category/restaurants' },
-  { id: 'dl3', emoji: '🏨', title: 'Booking.com · Hotels', sub: 'Stays in Egypt & worldwide', badge: 'Member prices', url: 'https://www.booking.com/' },
-  { id: 'dl4', emoji: '🚗', title: 'Uber · Get there', sub: 'Ride to your next moment', badge: 'Open app', url: 'https://m.uber.com/' },
+  { id: 'dl1', partner: 'waffarha', emoji: '🎢', cat: '🎢 Fun', region: '🇪🇬 Egypt', title: 'Waffarha · Outings & fun', sub: 'Parks, karting, escape rooms', badge: 'Up to 70% off', cashback: 15, url: 'https://www.waffarha.com/' },
+  { id: 'dl2', partner: 'waffarha', emoji: '🍽️', cat: '🍽️ Food', region: '🇪🇬 Egypt', title: 'Waffarha · Restaurants', sub: 'Dining deals around you', badge: 'Save big', cashback: 15, url: 'https://www.waffarha.com/en/category/restaurants' },
+  { id: 'dl3', partner: 'groupon', emoji: '🎟️', cat: '🎢 Fun', region: '🇺🇸🇪🇺 US & Europe', title: 'Groupon · Things to do', sub: 'Activities, spas, events', badge: 'Daily deals', cashback: 10, url: 'https://www.groupon.com/' },
+  { id: 'dl4', partner: 'booking', emoji: '🏨', cat: '🏨 Stay', region: '🌍 Worldwide', title: 'Booking.com · Hotels', sub: 'Stays anywhere on earth', badge: 'Member prices', cashback: 10, url: 'https://www.booking.com/' },
+  { id: 'dl5', partner: 'airbnb', emoji: '🏡', cat: '🏨 Stay', region: '🌍 Worldwide', title: 'Airbnb · Homes', sub: 'Unique stays & experiences', badge: 'Live anywhere', cashback: 8, url: 'https://www.airbnb.com/' },
+  { id: 'dl6', partner: 'playtomic', emoji: '🎾', cat: '🎾 Sport', region: '🌍 Worldwide', title: 'Playtomic · Book a court', sub: 'Padel & tennis courts near you', badge: 'Open matches', cashback: 8, url: 'https://playtomic.io/' },
+  { id: 'dl7', partner: 'meetup', emoji: '👥', cat: '👥 Meet', region: '🌍 Worldwide', title: 'Meetup · Play with strangers', sub: 'Groups & events for everything', badge: 'Find your people', cashback: 5, url: 'https://www.meetup.com/' },
+  { id: 'dl8', partner: 'uber', emoji: '🚗', cat: '🎢 Fun', region: '🌍 Worldwide', title: 'Uber · Get there', sub: 'Ride to your next moment', badge: 'Open app', cashback: 5, url: 'https://m.uber.com/' },
 ];
 
 /* ── MAP BOOKINGS · courts, hotels & experiences you grab in two taps ── */

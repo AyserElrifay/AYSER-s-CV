@@ -22,6 +22,14 @@ export async function hostCampfire(hostId, { title, topic, lat, lng }) {
   return data;
 }
 
+/* Join a gathering for real (campfire_members, schema v4). */
+export async function joinCampfire(campfireId, userId) {
+  const { error } = await supabase
+    .from('campfire_members')
+    .upsert({ campfire_id: campfireId, user_id: userId }, { onConflict: 'campfire_id,user_id', ignoreDuplicates: true });
+  if (error) throw error;
+}
+
 export async function countMyCampfires(hostId) {
   const { count, error } = await supabase
     .from('campfires')

@@ -55,7 +55,13 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
     try {
       if (streamRef.current) streamRef.current.getTracks().forEach((t) => t.stop());
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: face || facing },
+        // Capped to 720p (falls back to 480p) — keeps upload + storage
+        // costs down, which matters at scale.
+        video: {
+          facingMode: face || facing,
+          width: { ideal: 720, max: 1280 },
+          height: { ideal: 1280, max: 1280 },
+        },
         audio: true,
       });
       streamRef.current = stream;
@@ -91,11 +97,17 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
     if (!videoRef.current) return;
     tapMedium(); sfxPop();
     const v = videoRef.current;
+    // Downscale so the longest side is at most 1280px (720p-class).
+    const MAXL = 1280;
+    let w = v.videoWidth || 720;
+    let h = v.videoHeight || 1280;
+    const scale = Math.min(1, MAXL / Math.max(w, h));
+    w = Math.round(w * scale); h = Math.round(h * scale);
     const canvas = document.createElement('canvas');
-    canvas.width = v.videoWidth || 720;
-    canvas.height = v.videoHeight || 1280;
-    canvas.getContext('2d').drawImage(v, 0, 0, canvas.width, canvas.height);
-    setShot({ uri: canvas.toDataURL('image/jpeg', 0.85), kind: 'photo', ext: 'jpg', contentType: 'image/jpeg' });
+    canvas.width = w;
+    canvas.height = h;
+    canvas.getContext('2d').drawImage(v, 0, 0, w, h);
+    setShot({ uri: canvas.toDataURL('image/jpeg', 0.82), kind: 'photo', ext: 'jpg', contentType: 'image/jpeg' });
   };
 
   /* ── video: hold to record, release to stop ── */
@@ -105,7 +117,10 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
     chunksRef.current = [];
     try {
       const mime = window.MediaRecorder && MediaRecorder.isTypeSupported('video/webm') ? 'video/webm' : '';
-      const rec = new MediaRecorder(streamRef.current, mime ? { mimeType: mime } : undefined);
+      // ~2.5 Mbps keeps 30s clips small (~9MB) — friendly on storage & data.
+      const opts = { videoBitsPerSecond: 2500000 };
+      if (mime) opts.mimeType = mime;
+      const rec = new MediaRecorder(streamRef.current, opts);
       recorderRef.current = rec;
       rec.ondataavailable = (e) => { if (e.data && e.data.size) chunksRef.current.push(e.data); };
       rec.onstop = () => {
@@ -147,7 +162,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
   const nativeShoot = async () => {
     const perm = await ImagePicker.requestCameraPermissionsAsync();
     if (!perm.granted) { setCamError('Camera permission needed 🎥'); return; }
-    const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images', 'videos'], quality: 0.85 });
+    const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images', 'videos'], quality: 0.7, videoMaxDuration: 30, videoQuality: ImagePicker.UIImagePickerControllerQualityType && ImagePicker.UIImagePickerControllerQualityType.Medium });
     if (!result.canceled && result.assets && result.assets[0]) {
       const a = result.assets[0];
       const isVid = (a.type || '').startsWith('video');

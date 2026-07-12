@@ -3,7 +3,7 @@ import { View, Text, ScrollView, Pressable, Modal, TextInput, Platform, Image, L
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { C } from '../constants/theme';
-import { ME, DOING_OPTIONS, DEALS, av } from '../constants/mockData';
+import { ME, DOING_OPTIONS, DEALS, DEAL_FILTERS, av } from '../constants/mockData';
 import { MAP_PEOPLE, CAMPFIRES, BOOKINGS } from '../constants/mockData'; // demo-mode fallback only
 import { MapView, Marker, MAPS_READY } from '../utils/maps';
 import { kmBetween, projectToMap } from '../utils/geo';
@@ -11,9 +11,10 @@ import { requestLocationPermission, getCurrentCoords } from '../utils/location';
 import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { shareMyLocation, goInvisible, fetchNearbyPeople, subscribeNearby } from '../services/locations';
-import { fetchLiveCampfires, hostCampfire } from '../services/campfires';
+import { fetchLiveCampfires, hostCampfire, joinCampfire } from '../services/campfires';
 import { fetchLiveVenues, applyAsVenue } from '../services/venues';
 import { getOrCreateDmThread, sendMessage } from '../services/messages';
+import { openPartner } from '../services/broker';
 import {
   Glass, Micro, Chip, NeonButton, GhostButton, FauxMap,
   PersonPin, CampfirePin, MePin, SOSButton, ProfileModal,
@@ -45,6 +46,7 @@ const normalizeCampfire = (row) => ({
   id: row.id,
   title: row.title,
   topic: row.topic,
+  hostId: row.host_id,
   host: { name: (row.host && row.host.name) || 'Someone' },
   coords: row.lat != null && row.lng != null ? { latitude: row.lat, longitude: row.lng } : null,
 });
@@ -63,6 +65,10 @@ export const MapScreen = () => {
   const [waved, setWaved] = useState({});
   const [partnerOpen, setPartnerOpen] = useState(false); // business partner form
   const [partnerSent, setPartnerSent] = useState(false);
+  const [dealFilter, setDealFilter] = useState('All');
+  const [dropOpen, setDropOpen] = useState(false);       // drop-a-moment sheet
+  const [dropTitle, setDropTitle] = useState('');
+  const [joinedFires, setJoinedFires] = useState({});
   const [vName, setVName] = useState('');
   const [vKind, setVKind] = useState('Sport');
   const [vSub, setVSub] = useState('');
@@ -107,8 +113,9 @@ export const MapScreen = () => {
   }, [loadNearby]);
 
   const people = SUPABASE_READY ? realPeople : MAP_PEOPLE;
-  const campfires = SUPABASE_READY ? realCampfires : CAMPFIRES;
+  const campfires = SUPABASE_READY ? realCampfires : [...realCampfires, ...CAMPFIRES];
   const venues = SUPABASE_READY ? realVenues : BOOKINGS;
+  const filteredDeals = DEALS.filter((d) => dealFilter === 'All' || d.cat === dealFilter);
 
   const nearbyPeople = useMemo(
     () => [...people].map((p) => ({ ...p, km: kmBetween(myCoords, p.coords) })).sort((a, b) => a.km - b.km),
@@ -163,6 +170,35 @@ export const MapScreen = () => {
     try {
       const threadId = await getOrCreateDmThread(venue.owner_id);
       await sendMessage({ dmThreadId: threadId, userId: user.id, body: 'Hi! I’d like to book: ' + venue.name + (venue.sub ? ' — ' + venue.sub : '') });
+    } catch (e) {}
+  };
+
+  /* ── Drop a Moment: put YOURSELF on the map & let people join ── */
+  const dropMoment = async () => {
+    const title = dropTitle.trim();
+    if (!title) return;
+    tapSuccess(); sfxSuccess();
+    setDropOpen(false);
+    setDropTitle('');
+    if (SUPABASE_READY && user) {
+      try {
+        const row = await hostCampfire(user.id, { title, topic: null, lat: myCoords.latitude, lng: myCoords.longitude });
+        setRealCampfires((c) => [normalizeCampfire(row), ...c]);
+      } catch (e) {}
+    } else {
+      setRealCampfires((c) => [{ id: 'local-' + Date.now(), title, topic: null, host: { name: 'You' }, coords: myCoords }, ...c]);
+    }
+  };
+
+  /* ── Join the Moment — a real membership row + a hello to the host ── */
+  const joinFire = async (c) => {
+    tapSuccess(); sfxSuccess();
+    setJoinedFires((j) => ({ ...j, [c.id]: true }));
+    if (!SUPABASE_READY || !user || !c.hostId || c.hostId === user.id) return;
+    try {
+      await joinCampfire(c.id, user.id);
+      const threadId = await getOrCreateDmThread(c.hostId);
+      await sendMessage({ dmThreadId: threadId, userId: user.id, body: 'I’m in for “' + c.title + '”! 🙌' });
     } catch (e) {}
   };
 
@@ -235,25 +271,44 @@ export const MapScreen = () => {
               </View>
             </Pressable>
           ))}
+          <Pressable onPress={() => { tapLight(); setDropOpen(true); }}>
+            <View style={{ backgroundColor: C.gold, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 7 }}>
+              <Text style={{ color: '#4A3200', fontSize: 12, fontWeight: '900' }}>＋ Drop a Moment</Text>
+            </View>
+          </Pressable>
         </View>
+        {rail === 'deals' ? (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, marginBottom: 8 }}>
+            {DEAL_FILTERS.map((f) => (
+              <Pressable key={f} onPress={() => { tapSelection(); setDealFilter(f); }}>
+                <View style={{ backgroundColor: dealFilter === f ? C.text : 'rgba(255,255,255,0.94)', borderWidth: 1, borderColor: dealFilter === f ? C.text : C.line, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5, marginRight: 7 }}>
+                  <Text style={{ color: dealFilter === f ? '#FFF' : C.dim, fontSize: 11, fontWeight: '800' }}>{f}</Text>
+                </View>
+              </Pressable>
+            ))}
+          </ScrollView>
+        ) : null}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
           {rail === 'deals' ? (
-            DEALS.map((d) => (
-              <Pressable key={d.id} onPress={() => { tapLight(); sfxPop(); Linking.openURL(d.url).catch(() => {}); }}>
+            filteredDeals.map((d) => (
+              <Pressable key={d.id} onPress={() => { tapLight(); sfxPop(); openPartner(user, d); }}>
                 <Glass tint="rgba(255,255,255,0.96)" style={{ width: 236, padding: 13, marginRight: 12 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <Text style={{ fontSize: 22, marginRight: 9 }}>{d.emoji}</Text>
                     <View style={{ flex: 1 }}>
                       <Text style={{ color: C.text, fontSize: 13, fontWeight: '800' }} numberOfLines={1}>{d.title}</Text>
-                      <Text style={{ color: C.dim, fontSize: 10.5, marginTop: 1 }} numberOfLines={1}>{d.sub}</Text>
+                      <Text style={{ color: C.dim, fontSize: 10.5, marginTop: 1 }} numberOfLines={1}>{d.sub} · {d.region}</Text>
                     </View>
                   </View>
                   <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10 }}>
-                    <View style={{ backgroundColor: C.greenSoft, borderWidth: 1, borderColor: 'rgba(16,185,129,0.4)', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 }}>
+                    <View style={{ backgroundColor: C.greenSoft, borderWidth: 1, borderColor: 'rgba(16,185,129,0.4)', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, marginRight: 6 }}>
                       <Text style={{ color: C.green, fontSize: 10.5, fontWeight: '900' }}>{d.badge}</Text>
                     </View>
+                    <View style={{ backgroundColor: 'rgba(245,179,1,0.15)', borderWidth: 1, borderColor: 'rgba(245,179,1,0.45)', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 4 }}>
+                      <Text style={{ color: '#8A6400', fontSize: 10, fontWeight: '900' }}>✦ +{d.cashback} $M back</Text>
+                    </View>
                     <View style={{ flex: 1 }} />
-                    <Text style={{ color: C.faint, fontSize: 10 }}>external ↗</Text>
+                    <Text style={{ color: C.faint, fontSize: 10 }}>↗</Text>
                   </View>
                 </Glass>
               </Pressable>
@@ -275,7 +330,13 @@ export const MapScreen = () => {
                     "{c.topic}"
                   </Text>
                 ) : null}
-                <NeonButton small label="SLIP INTO THE CIRCLE" style={{ marginTop: 10 }} onPress={() => {}} />
+                {joinedFires[c.id] ? (
+                  <View style={{ marginTop: 10, borderRadius: 14, backgroundColor: C.greenSoft, borderWidth: 1, borderColor: 'rgba(16,185,129,0.5)', paddingVertical: 10, alignItems: 'center' }}>
+                    <Text style={{ color: C.green, fontSize: 12, fontWeight: '900' }}>You're in! 🙌 Host got your message</Text>
+                  </View>
+                ) : (
+                  <NeonButton small label="JOIN THE MOMENT 🙌" style={{ marginTop: 10 }} onPress={() => joinFire(c)} />
+                )}
               </Glass>
             )) : (
               <Glass tint="rgba(255,255,255,0.96)" style={{ width: 252, padding: 16, marginRight: 12, alignItems: 'center' }}>
@@ -356,6 +417,15 @@ export const MapScreen = () => {
               <CampfirePin c={c} />
             </Marker>
           ))}
+          {SUPABASE_READY ? realVenues.filter((v) => v.lat != null).map((v) => (
+            <Marker key={v.id} coordinate={{ latitude: v.lat, longitude: v.lng }} onPress={() => setRail('book')}>
+              <View style={{ alignItems: 'center' }}>
+                <View style={{ backgroundColor: '#FFF', borderWidth: 1.5, borderColor: C.purple, borderRadius: 12, paddingHorizontal: 8, paddingVertical: 5 }}>
+                  <Text style={{ fontSize: 14 }}>{v.emoji || '📍'}</Text>
+                </View>
+              </View>
+            </Marker>
+          )) : null}
         </MapView>
       ) : (
         <FauxMap center={myCoords}>
@@ -371,13 +441,23 @@ export const MapScreen = () => {
             );
           })}
           {campfires.filter((c) => SUPABASE_READY ? c.coords : true).map((c) => {
-            const pos = SUPABASE_READY ? projectToMap(myCoords, c.coords) : { left: c.fx, top: c.fy };
+            const pos = (SUPABASE_READY || !c.fx) ? projectToMap(myCoords, c.coords || myCoords) : { left: c.fx, top: c.fy };
             return (
               <View key={c.id} style={{ position: 'absolute', left: pos.left, top: pos.top }}>
                 <CampfirePin c={c} />
               </View>
             );
           })}
+          {SUPABASE_READY ? realVenues.filter((v) => v.lat != null).map((v) => {
+            const pos = projectToMap(myCoords, { latitude: v.lat, longitude: v.lng });
+            return (
+              <Pressable key={v.id} onPress={() => setRail('book')} style={{ position: 'absolute', left: pos.left, top: pos.top }}>
+                <View style={{ backgroundColor: '#FFF', borderWidth: 1.5, borderColor: C.purple, borderRadius: 12, paddingHorizontal: 8, paddingVertical: 5 }}>
+                  <Text style={{ fontSize: 14 }}>{v.emoji || '📍'}</Text>
+                </View>
+              </Pressable>
+            );
+          }) : null}
         </FauxMap>
       )}
 
@@ -489,6 +569,31 @@ export const MapScreen = () => {
                 <Text style={{ color: C.coral, fontSize: 13, fontWeight: '800', marginTop: 6 }}>Go invisible (hide my activity)</Text>
               </Pressable>
             ) : null}
+          </Pressable>
+        </Pressable>
+      ) : null}
+
+      {/* drop a moment — put yourself on the map so people gather around you */}
+      {dropOpen ? (
+        <Pressable onPress={() => setDropOpen(false)} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end' }}>
+          <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, paddingBottom: insets.bottom + 22, paddingHorizontal: 16 }}>
+            <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 12 }} />
+            <Text style={{ color: C.text, fontSize: 18, fontWeight: '900' }}>Drop a Moment 📍</Text>
+            <Text style={{ color: C.faint, fontSize: 12, marginTop: 2, marginBottom: 12 }}>
+              A pin lands on your exact spot — people around you can see it and join
+            </Text>
+            <TextInput
+              placeholder="What's happening? (e.g. Football at the club, 6PM ⚽)"
+              placeholderTextColor={C.faint}
+              value={dropTitle}
+              onChangeText={setDropTitle}
+              style={{ color: C.text, fontSize: 14, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 12, marginBottom: 12 }}
+            />
+            <Pressable onPress={dropMoment}>
+              <View style={{ backgroundColor: dropTitle.trim() ? C.purple : C.glassHi, borderRadius: 14, paddingVertical: 14, alignItems: 'center' }}>
+                <Text style={{ color: dropTitle.trim() ? '#FFF' : C.faint, fontSize: 14, fontWeight: '900' }}>Put it on the map 🔥</Text>
+              </View>
+            </Pressable>
           </Pressable>
         </Pressable>
       ) : null}
