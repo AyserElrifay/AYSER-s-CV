@@ -316,6 +316,40 @@ export const LANG_PARTNERS = [
   { id: 'lp5', name: 'Lena', avatar: av(41), speaks: 'Русский Russian', learning: 'Arabic', flag: '🇷🇺', level: 'B1', online: false },
 ];
 
+/* ── WATCH · "where to stream" discovery + affiliate (JustWatch-style).
+   We don't host films — we send people to the real platform and earn
+   an affiliate commission. Works worldwide; each provider gets your
+   affiliate tag in broker config. ── */
+export const WATCH_PROVIDERS = {
+  prime:   { name: 'Prime Video', emoji: '📦', color: '#1FA2FF', partner: 'amazon' },
+  appletv: { name: 'Apple TV',    emoji: '', color: '#111827', partner: 'appletv' },
+  netflix: { name: 'Netflix',     emoji: '🅽', color: '#E50914', partner: 'netflix' },
+  shahid:  { name: 'Shahid',      emoji: '🎬', color: '#00B0F0', partner: 'shahid' },
+  disney:  { name: 'Disney+',     emoji: '🏰', color: '#113CCF', partner: 'disney' },
+  youtube: { name: 'YouTube',     emoji: '▶️', color: '#FF0000', partner: 'youtube' },
+};
+
+export const WATCH_GENRES = ['All', '🍿 Trending', '🪐 Sci-Fi', '😂 Comedy', '🎭 Drama', '🇪🇬 Arabic'];
+
+export const MOVIES = [
+  { id: 'mv1', title: 'Dune: Part Two', year: 2024, genre: '🪐 Sci-Fi', rating: '8.5', colors: ['#B45309', '#7C2D12'],
+    on: [{ p: 'prime', url: 'https://www.primevideo.com/search/ref=atv_nb_sr?phrase=Dune%20Part%20Two' }, { p: 'appletv', url: 'https://tv.apple.com/search?term=Dune%20Part%20Two' }] },
+  { id: 'mv2', title: 'Oppenheimer', year: 2023, genre: '🎭 Drama', rating: '8.4', colors: ['#1F2937', '#111827'],
+    on: [{ p: 'prime', url: 'https://www.primevideo.com/search/ref=atv_nb_sr?phrase=Oppenheimer' }, { p: 'appletv', url: 'https://tv.apple.com/search?term=Oppenheimer' }] },
+  { id: 'mv3', title: 'Poor Things', year: 2023, genre: '🎭 Drama', rating: '8.0', colors: ['#6D28D9', '#4C1D95'],
+    on: [{ p: 'disney', url: 'https://www.disneyplus.com/' }, { p: 'appletv', url: 'https://tv.apple.com/search?term=Poor%20Things' }] },
+  { id: 'mv4', title: 'The Bear', year: 2024, genre: '😂 Comedy', rating: '8.6', colors: ['#065F46', '#064E3B'],
+    on: [{ p: 'disney', url: 'https://www.disneyplus.com/' }, { p: 'prime', url: 'https://www.primevideo.com/' }] },
+  { id: 'mv5', title: 'Ramy', year: 2022, genre: '🇪🇬 Arabic', rating: '7.7', colors: ['#B91C1C', '#7F1D1D'],
+    on: [{ p: 'shahid', url: 'https://shahid.mbc.net/' }, { p: 'prime', url: 'https://www.primevideo.com/' }] },
+  { id: 'mv6', title: 'Interstellar', year: 2014, genre: '🪐 Sci-Fi', rating: '8.7', colors: ['#0F172A', '#1E293B'],
+    on: [{ p: 'prime', url: 'https://www.primevideo.com/search/ref=atv_nb_sr?phrase=Interstellar' }, { p: 'netflix', url: 'https://www.netflix.com/search?q=Interstellar' }] },
+  { id: 'mv7', title: 'Barbie', year: 2023, genre: '😂 Comedy', rating: '7.0', colors: ['#DB2777', '#9D174D'],
+    on: [{ p: 'prime', url: 'https://www.primevideo.com/search/ref=atv_nb_sr?phrase=Barbie' }, { p: 'appletv', url: 'https://tv.apple.com/search?term=Barbie' }] },
+  { id: 'mv8', title: 'Blue Elephant 2', year: 2019, genre: '🇪🇬 Arabic', rating: '7.9', colors: ['#1E3A8A', '#172554'],
+    on: [{ p: 'shahid', url: 'https://shahid.mbc.net/' }, { p: 'youtube', url: 'https://www.youtube.com/results?search_query=Blue+Elephant+2' }] },
+];
+
 /* ── COURSES · long-form learning that's actually curated.
    Free courses: anyone can teach. Paid courses: certified creators
    only — every instructor applies with proof and every course is

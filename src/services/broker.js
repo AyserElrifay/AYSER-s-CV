@@ -19,9 +19,33 @@ export const COMMISSION = {
   airbnb:   { rate: '~3%',   cashback: 8 },
   uber:     { rate: 'per ride', cashback: 5 },
   meetup:   { rate: '—',     cashback: 5 },
+  // Movie/TV streaming affiliate programs (worldwide)
+  amazon:   { rate: 'Amazon Associates', cashback: 6 },
+  appletv:  { rate: 'Apple Services', cashback: 5 },
+  netflix:  { rate: 'referral', cashback: 4 },
+  shahid:   { rate: 'MENA affiliate', cashback: 6 },
+  disney:   { rate: 'Impact affiliate', cashback: 5 },
+  youtube:  { rate: '—', cashback: 2 },
 };
 
+/* Your affiliate tags go here — each partner appends its own so the
+   commission is credited to you. Fill these once approved; until then
+   links open the plain provider page (still tracked in partner_clicks). */
+export const AFFILIATE_TAGS = {
+  amazon: '',   // e.g. 'moments-20'  → appended as &tag=moments-20
+  // others use path-based affiliate links added when approved
+};
+
+export function withAffiliate(partner, url) {
+  const tag = AFFILIATE_TAGS[partner];
+  if (partner === 'amazon' && tag) {
+    return url + (url.includes('?') ? '&' : '?') + 'tag=' + tag;
+  }
+  return url;
+}
+
 export async function openPartner(user, deal) {
+  const url = withAffiliate(deal.partner, deal.url);
   // Log the referral first (that's the money trail), then open.
   if (SUPABASE_READY && user) {
     try {
@@ -29,11 +53,11 @@ export async function openPartner(user, deal) {
         user_id: user.id,
         partner: deal.partner,
         deal_id: deal.id,
-        url: deal.url,
+        url,
       });
     } catch (e) {}
   }
-  Linking.openURL(deal.url).catch(() => {});
+  Linking.openURL(url).catch(() => {});
 }
 
 export async function countMyReferrals(userId) {

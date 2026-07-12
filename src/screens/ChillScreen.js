@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, Pressable, TextInput } from 'react-native';
+import { View, Text, ScrollView, Pressable, TextInput, Modal } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { C, R } from '../constants/theme';
-import { COURSES, QUESTS } from '../constants/mockData';
+import { COURSES, QUESTS, MOVIES, WATCH_PROVIDERS, WATCH_GENRES } from '../constants/mockData';
+import { useAuth } from '../context/AuthContext';
+import { openPartner } from '../services/broker';
 import { Page, ScreenHeader, SectionHeader, Glass, Chip } from '../components';
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
 import { sfxSuccess, sfxPop } from '../utils/sfx';
@@ -14,12 +17,19 @@ import { sfxSuccess, sfxPop } from '../utils/sfx';
    coming soon. Zero clutter — that's the whole point. */
 
 export const ChillScreen = () => {
+  const insets = useSafeAreaInsets();
+  const { user } = useAuth();
   const [enrolled, setEnrolled] = useState({});
   const [teachOpen, setTeachOpen] = useState(false);
   const [applied, setApplied] = useState(false);
   const [skill, setSkill] = useState('');
+  const [genre, setGenre] = useState('All');
+  const [movie, setMovie] = useState(null); // the "watch on" sheet
+
+  const movies = MOVIES.filter((m) => genre === 'All' || genre === '🍿 Trending' || m.genre === genre);
 
   return (
+    <>
     <Page>
       <ScreenHeader kicker="Learn & unwind" title="Chill Zone 🍿" />
 
@@ -122,22 +132,44 @@ export const ChillScreen = () => {
         )}
       </Glass>
 
-      {/* ── MOVIES & SERIES — coming soon ── */}
-      <SectionHeader title="Movies & Series" />
-      <LinearGradient
-        colors={['#1E1B4B', '#0B1020']}
-        start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-        style={{ borderRadius: R, padding: 24, alignItems: 'center', marginBottom: 24 }}
-      >
-        <Text style={{ fontSize: 34 }}>🎬</Text>
-        <Text style={{ color: '#FFF', fontSize: 17, fontWeight: '900', marginTop: 8, letterSpacing: 0.5 }}>Coming soon</Text>
-        <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12.5, marginTop: 6, textAlign: 'center', lineHeight: 18 }}>
-          Movie nights with your mates — synced watching, live reactions.{'\n'}Worth the wait, we promise. 🍿
-        </Text>
-        <View style={{ backgroundColor: 'rgba(255,255,255,0.14)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 7, marginTop: 12 }}>
-          <Text style={{ color: '#FFF', fontSize: 11.5, fontWeight: '800' }}>🔔 We'll ping you (Major 7th, obviously)</Text>
-        </View>
-      </LinearGradient>
+      {/* ── WATCH — where to stream, anywhere in the world ── */}
+      <SectionHeader title="Watch 🍿" />
+      <Text style={{ color: C.dim, fontSize: 12.5, marginTop: -6, marginBottom: 12, lineHeight: 18 }}>
+        Find where to stream any film — we take you straight to Prime Video, Apple TV, Netflix, Shahid & more.
+      </Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+        {WATCH_GENRES.map((g) => (
+          <Pressable key={g} onPress={() => { tapSelection(); setGenre(g); }}>
+            <View style={{ backgroundColor: genre === g ? C.text : C.glass, borderWidth: 1, borderColor: genre === g ? C.text : C.line, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 7, marginRight: 8 }}>
+              <Text style={{ color: genre === g ? '#FFF' : C.dim, fontSize: 12, fontWeight: '800' }}>{g}</Text>
+            </View>
+          </Pressable>
+        ))}
+      </ScrollView>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 24 }}>
+        {movies.map((m) => (
+          <Pressable key={m.id} onPress={() => { tapLight(); sfxPop(); setMovie(m); }}>
+            <View style={{ width: 138, marginRight: 12 }}>
+              <LinearGradient colors={m.colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ height: 196, borderRadius: 16, padding: 12, justifyContent: 'space-between' }}>
+                <View style={{ alignSelf: 'flex-start', backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 }}>
+                  <Text style={{ color: '#FFF', fontSize: 10.5, fontWeight: '900' }}>⭐ {m.rating}</Text>
+                </View>
+                <View>
+                  <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '900', lineHeight: 19 }} numberOfLines={2}>{m.title}</Text>
+                  <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 11, marginTop: 3 }}>{m.genre} · {m.year}</Text>
+                </View>
+              </LinearGradient>
+              <View style={{ flexDirection: 'row', marginTop: 7 }}>
+                {m.on.slice(0, 3).map((o) => (
+                  <View key={o.p} style={{ width: 24, height: 24, borderRadius: 7, backgroundColor: WATCH_PROVIDERS[o.p].color, alignItems: 'center', justifyContent: 'center', marginRight: 5 }}>
+                    <Text style={{ fontSize: 12 }}>{WATCH_PROVIDERS[o.p].emoji || '▷'}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          </Pressable>
+        ))}
+      </ScrollView>
 
       {/* ── AR QUESTS ── */}
       <SectionHeader title="AR Quests · earn $MOMENT" />
@@ -180,5 +212,43 @@ export const ChillScreen = () => {
         );
       })}
     </Page>
+
+    {/* "where to watch" sheet — deep-links to the real platform (affiliate) */}
+    {movie ? (
+      <Modal visible transparent animationType="slide" onRequestClose={() => setMovie(null)}>
+        <Pressable onPress={() => setMovie(null)} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' }}>
+          <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, paddingBottom: insets.bottom + 22, paddingHorizontal: 16 }}>
+            <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 14 }} />
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+              <LinearGradient colors={movie.colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ width: 60, height: 84, borderRadius: 12, marginRight: 14 }} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: C.text, fontSize: 18, fontWeight: '900' }}>{movie.title}</Text>
+                <Text style={{ color: C.faint, fontSize: 12.5, marginTop: 3 }}>{movie.genre} · {movie.year} · ⭐ {movie.rating}</Text>
+              </View>
+            </View>
+            <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '800', letterSpacing: 1, marginBottom: 8 }}>WATCH ON</Text>
+            {movie.on.map((o) => {
+              const prov = WATCH_PROVIDERS[o.p];
+              return (
+                <Pressable key={o.p} onPress={() => { tapSuccess(); sfxSuccess(); openPartner(user, { id: movie.id, partner: prov.partner, url: o.url }); setMovie(null); }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 14, padding: 13, marginBottom: 9 }}>
+                    <View style={{ width: 40, height: 40, borderRadius: 11, backgroundColor: prov.color, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                      <Text style={{ fontSize: 19 }}>{prov.emoji || '▷'}</Text>
+                    </View>
+                    <Text style={{ color: C.text, fontSize: 15, fontWeight: '800', flex: 1 }}>{prov.name}</Text>
+                    <Text style={{ color: C.faint, fontSize: 11.5, marginRight: 6 }}>Watch ↗</Text>
+                    <Ionicons name="chevron-forward" size={16} color={C.faint} />
+                  </View>
+                </Pressable>
+              );
+            })}
+            <Text style={{ color: C.faint, fontSize: 11, textAlign: 'center', marginTop: 6 }}>
+              Opens the platform directly · Moments earns a small affiliate commission
+            </Text>
+          </Pressable>
+        </Pressable>
+      </Modal>
+    ) : null}
+    </>
   );
 };
