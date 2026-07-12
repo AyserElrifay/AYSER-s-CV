@@ -19,6 +19,11 @@ export const COMMISSION = {
   airbnb:   { rate: '~3%',   cashback: 8 },
   uber:     { rate: 'per ride', cashback: 5 },
   meetup:   { rate: '—',     cashback: 5 },
+  getyourguide: { rate: '~8%', cashback: 8 },
+  viator:   { rate: '~8%',   cashback: 8 },
+  hostelworld: { rate: '~7%', cashback: 7 },
+  travelpayouts: { rate: 'up to 7%', cashback: 6 },
+  yango:    { rate: 'MENA affiliate', cashback: 4 },
   // Movie/TV streaming affiliate programs (worldwide)
   amazon:   { rate: 'Amazon Associates', cashback: 6 },
   appletv:  { rate: 'Apple Services', cashback: 5 },

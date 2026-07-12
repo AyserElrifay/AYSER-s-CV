@@ -10,7 +10,7 @@ import { useAuth } from '../context/AuthContext';
 import { getProfile, updateProfile } from '../services/profiles';
 import { fetchMyMoments } from '../services/posts';
 import { countMyCampfires } from '../services/campfires';
-import { Tick, GhostButton } from '../components';
+import { Tick, GhostButton, BoostSheet } from '../components';
 import { SettingsScreen } from './SettingsScreen';
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
 import { sfxSuccess } from '../utils/sfx';
@@ -78,6 +78,7 @@ export const ProfileScreen = () => {
   const [dash, setDash] = useState(false);            // professional dashboard
   const [pageMade, setPageMade] = useState(false);
   const [adsOpen, setAdsOpen] = useState(false);      // ads manager
+  const [boostOpen, setBoostOpen] = useState(false);  // paid boost purchase
   const [editOpen, setEditOpen] = useState(false);
 
   // ── real profile + real moments (empty/zero until data actually exists) ──
@@ -439,13 +440,13 @@ export const ProfileScreen = () => {
               <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 3, textAlign: 'center' }}>Boost a moment to put it in front of more people</Text>
             </View>
 
-            <Pressable onPress={() => { tapSelection(); }}>
+            <Pressable onPress={() => { tapSelection(); setAdsOpen(false); setBoostOpen(true); }}>
               <LinearGradient colors={[C.purple, '#5B21B6']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ borderRadius: 14, paddingVertical: 14, alignItems: 'center' }}>
-                <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '900', letterSpacing: 0.4 }}>✦ Boost a moment</Text>
+                <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '900', letterSpacing: 0.4 }}>✦ Boost — Top of Search · Promoted Pin</Text>
               </LinearGradient>
             </Pressable>
             <Text style={{ color: C.faint, fontSize: 11, textAlign: 'center', marginTop: 10 }}>
-              Every ad is reviewed and always labeled "Sponsored" — no sneaky ads on Moments.
+              Every ad is labeled "Sponsored" · great reviews = cheaper clicks (Feedback Factor).
             </Text>
           </Pressable>
         </Pressable>
@@ -473,6 +474,8 @@ export const ProfileScreen = () => {
           </Pressable>
         </Pressable>
       ) : null}
+
+      {boostOpen ? <BoostSheet onClose={() => setBoostOpen(false)} /> : null}
     </View>
   );
 };

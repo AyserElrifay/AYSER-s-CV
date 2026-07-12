@@ -212,6 +212,10 @@ export const DEALS = [
   { id: 'dl6', partner: 'playtomic', emoji: '🎾', cat: '🎾 Sport', region: '🌍 Worldwide', title: 'Playtomic · Book a court', sub: 'Padel & tennis courts near you', badge: 'Open matches', cashback: 8, url: 'https://playtomic.io/' },
   { id: 'dl7', partner: 'meetup', emoji: '👥', cat: '👥 Meet', region: '🌍 Worldwide', title: 'Meetup · Play with strangers', sub: 'Groups & events for everything', badge: 'Find your people', cashback: 5, url: 'https://www.meetup.com/' },
   { id: 'dl8', partner: 'uber', emoji: '🚗', cat: '🎢 Fun', region: '🌍 Worldwide', title: 'Uber · Get there', sub: 'Ride to your next moment', badge: 'Open app', cashback: 5, url: 'https://m.uber.com/' },
+  { id: 'dl9', partner: 'getyourguide', emoji: '🗺️', cat: '🎢 Fun', region: '🌍 Worldwide', title: 'GetYourGuide · Tours', sub: 'Tickets & experiences everywhere', badge: 'Skip the line', cashback: 8, url: 'https://www.getyourguide.com/' },
+  { id: 'dl10', partner: 'viator', emoji: '🎫', cat: '🎢 Fun', region: '🌍 Worldwide', title: 'Viator · Things to do', sub: 'Day trips & activities', badge: 'Book ahead', cashback: 8, url: 'https://www.viator.com/' },
+  { id: 'dl11', partner: 'hostelworld', emoji: '🛏️', cat: '🏨 Stay', region: '🌍 Worldwide', title: 'Hostelworld · Hostels', sub: 'Budget stays for travelers', badge: 'Meet travelers', cashback: 7, url: 'https://www.hostelworld.com/' },
+  { id: 'dl12', partner: 'travelpayouts', emoji: '✈️', cat: '🏨 Stay', region: '🌍 Worldwide', title: 'Flights & Hotels', sub: 'Compare across every site', badge: 'Best price', cashback: 6, url: 'https://www.travelpayouts.com/' },
 ];
 
 /* ── MAP BOOKINGS · courts, hotels & experiences you grab in two taps ── */
@@ -327,6 +331,7 @@ export const WATCH_PROVIDERS = {
   shahid:  { name: 'Shahid',      emoji: '🎬', color: '#00B0F0', partner: 'shahid' },
   disney:  { name: 'Disney+',     emoji: '🏰', color: '#113CCF', partner: 'disney' },
   youtube: { name: 'YouTube',     emoji: '▶️', color: '#FF0000', partner: 'youtube' },
+  yango:   { name: 'Yango Play',  emoji: '🎵', color: '#FF3D00', partner: 'yango' },
 };
 
 export const WATCH_GENRES = ['All', '🍿 Trending', '🪐 Sci-Fi', '😂 Comedy', '🎭 Drama', '🇪🇬 Arabic'];
@@ -347,7 +352,9 @@ export const MOVIES = [
   { id: 'mv7', title: 'Barbie', year: 2023, genre: '😂 Comedy', rating: '7.0', colors: ['#DB2777', '#9D174D'],
     on: [{ p: 'prime', url: 'https://www.primevideo.com/search/ref=atv_nb_sr?phrase=Barbie' }, { p: 'appletv', url: 'https://tv.apple.com/search?term=Barbie' }] },
   { id: 'mv8', title: 'Blue Elephant 2', year: 2019, genre: '🇪🇬 Arabic', rating: '7.9', colors: ['#1E3A8A', '#172554'],
-    on: [{ p: 'shahid', url: 'https://shahid.mbc.net/' }, { p: 'youtube', url: 'https://www.youtube.com/results?search_query=Blue+Elephant+2' }] },
+    on: [{ p: 'shahid', url: 'https://shahid.mbc.net/' }, { p: 'yango', url: 'https://yango.com/en_int/play/' }] },
+  { id: 'mv9', title: 'Kira & El Gin', year: 2022, genre: '🇪🇬 Arabic', rating: '7.5', colors: ['#7C2D12', '#431407'],
+    on: [{ p: 'shahid', url: 'https://shahid.mbc.net/' }, { p: 'yango', url: 'https://yango.com/en_int/play/' }] },
 ];
 
 /* ── COURSES · long-form learning that's actually curated.
