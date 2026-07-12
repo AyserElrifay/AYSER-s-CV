@@ -5,12 +5,15 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { C } from '../constants/theme';
 import { USERS, FEED, TRENDING, GROUPS, PLAY_GAMES, av } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
+import { useAuth } from '../context/AuthContext';
 import { searchProfiles } from '../services/social';
+import { fetchGroups, createGroup, joinGroup, leaveGroup } from '../services/groups';
 import { Chip } from './Chip';
 import { Tick } from './Tick';
 import { Micro } from './Micro';
 import { GameRunner } from './GameRunner';
-import { tapLight } from '../utils/feedback';
+import { tapLight, tapSuccess } from '../utils/feedback';
+import { sfxSuccess } from '../utils/sfx';
 
 /* Discover — people, groups, posts and what's trending (X / Facebook style).
    One search box, a tab row, and results that filter as you type. */
@@ -33,10 +36,40 @@ const fromProfileRow = (row) => ({
 
 export const SearchModal = ({ onClose, onOpenProfile }) => {
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
   const [query, setQuery] = useState('');
   const [tab, setTab] = useState('Top');
   const [remote, setRemote] = useState(null);
   const [game, setGame] = useState(null);
+  const [realGroups, setRealGroups] = useState(null);
+  const [creating, setCreating] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newEmoji, setNewEmoji] = useState('🌐');
+  const [newAbout, setNewAbout] = useState('');
+
+  const loadGroups = () => {
+    if (!SUPABASE_READY) return;
+    fetchGroups(user && user.id).then(setRealGroups).catch(() => setRealGroups([]));
+  };
+  useEffect(loadGroups, [user]);
+
+  const toggleGroup = async (g) => {
+    if (!SUPABASE_READY || !user) return;
+    tapLight();
+    setRealGroups((gs) => gs.map((x) => x.id === g.id ? { ...x, joined: !x.joined, members: x.members + (x.joined ? -1 : 1) } : x));
+    try { g.joined ? await leaveGroup(g.id, user.id) : await joinGroup(g.id, user.id); }
+    catch (e) { loadGroups(); }
+  };
+
+  const submitGroup = async () => {
+    if (!newName.trim() || !SUPABASE_READY || !user) return;
+    tapSuccess(); sfxSuccess();
+    try {
+      await createGroup(user.id, { name: newName.trim(), emoji: newEmoji.trim() || '🌐', about: newAbout.trim() });
+      setCreating(false); setNewName(''); setNewAbout(''); setNewEmoji('🌐');
+      loadGroups();
+    } catch (e) {}
+  };
 
   const q = query.trim().toLowerCase();
   const mockPeople = useMemo(() => Object.values(USERS), []);
@@ -53,7 +86,8 @@ export const SearchModal = ({ onClose, onOpenProfile }) => {
 
   const people = (SUPABASE_READY && remote !== null ? remote : mockPeople).filter((u) =>
     !q || u.name.toLowerCase().includes(q) || (u.handle || '').toLowerCase().includes(q));
-  const groups = GROUPS.filter((g) => !q || g.name.toLowerCase().includes(q) || g.about.toLowerCase().includes(q));
+  const groupsSource = SUPABASE_READY ? (realGroups || []) : GROUPS;
+  const groups = groupsSource.filter((g) => !q || g.name.toLowerCase().includes(q) || (g.about || '').toLowerCase().includes(q));
   const posts = FEED.filter((p) => !q || (p.caption || '').toLowerCase().includes(q) || (p.place || '').toLowerCase().includes(q));
   const trends = TRENDING.filter((t) => !q || t.tag.toLowerCase().includes(q));
   const games = PLAY_GAMES.filter((g) => !q || g.name.toLowerCase().includes(q) || g.tag.toLowerCase().includes(q));
@@ -110,13 +144,48 @@ export const SearchModal = ({ onClose, onOpenProfile }) => {
         </View>
         <View style={{ flex: 1, marginLeft: 12, marginRight: 10 }}>
           <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '800' }}>{item.name}</Text>
-          <Text style={{ color: C.faint, fontSize: 12, marginTop: 2 }} numberOfLines={1}>{item.members} members · {item.about}</Text>
+          <Text style={{ color: C.faint, fontSize: 12, marginTop: 2 }} numberOfLines={1}>{item.members} members{item.about ? ' · ' + item.about : ''}</Text>
         </View>
-        <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 7 }}>
-          <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '900' }}>Join</Text>
-        </View>
+        {SUPABASE_READY ? (
+          <Pressable onPress={() => toggleGroup(item)}>
+            <View style={{ backgroundColor: item.joined ? C.greenSoft : C.purple, borderWidth: item.joined ? 1 : 0, borderColor: 'rgba(16,185,129,0.45)', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 7 }}>
+              <Text style={{ color: item.joined ? C.green : '#FFF', fontSize: 12, fontWeight: '900' }}>{item.joined ? 'Joined ✓' : 'Join'}</Text>
+            </View>
+          </Pressable>
+        ) : (
+          <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 7 }}>
+            <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '900' }}>Join</Text>
+          </View>
+        )}
       </View>
     </Pressable>
+  );
+
+  const CreateGroupCard = () => (
+    !SUPABASE_READY ? null : creating ? (
+      <View style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 16, padding: 14, marginTop: 12 }}>
+        <View style={{ flexDirection: 'row', marginBottom: 9 }}>
+          <TextInput value={newEmoji} onChangeText={setNewEmoji} style={{ width: 48, textAlign: 'center', fontSize: 20, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 12, marginRight: 8 }} />
+          <TextInput placeholder="Group name" placeholderTextColor={C.faint} value={newName} onChangeText={setNewName} style={{ flex: 1, color: C.text, fontSize: 14, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12 }} />
+        </View>
+        <TextInput placeholder="What's it about?" placeholderTextColor={C.faint} value={newAbout} onChangeText={setNewAbout} style={{ color: C.text, fontSize: 13, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 10 }} />
+        <View style={{ flexDirection: 'row' }}>
+          <Pressable onPress={() => setCreating(false)} style={{ flex: 1, marginRight: 8 }}>
+            <View style={{ borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingVertical: 11, alignItems: 'center' }}><Text style={{ color: C.dim, fontSize: 13, fontWeight: '800' }}>Cancel</Text></View>
+          </Pressable>
+          <Pressable onPress={submitGroup} style={{ flex: 1 }}>
+            <View style={{ backgroundColor: newName.trim() ? C.purple : C.glassHi, borderRadius: 12, paddingVertical: 11, alignItems: 'center' }}><Text style={{ color: newName.trim() ? '#FFF' : C.faint, fontSize: 13, fontWeight: '900' }}>Create</Text></View>
+          </Pressable>
+        </View>
+      </View>
+    ) : (
+      <Pressable onPress={() => { tapLight(); setCreating(true); }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: C.purpleSoft, borderWidth: 1, borderColor: 'rgba(124,58,237,0.35)', borderRadius: 14, paddingVertical: 13, marginTop: 12 }}>
+          <Ionicons name="add" size={18} color={C.purple} />
+          <Text style={{ color: C.purple, fontSize: 13.5, fontWeight: '900', marginLeft: 6 }}>Create a group</Text>
+        </View>
+      </Pressable>
+    )
   );
 
   const PostRow = ({ item }) => (
@@ -212,7 +281,7 @@ export const SearchModal = ({ onClose, onOpenProfile }) => {
           ) : null}
 
           {tab === 'People' ? (people.length ? people.map((u) => <PersonRow key={u.id} item={u} />) : <Empty q={q} />) : null}
-          {tab === 'Groups' ? (groups.length ? groups.map((g) => <GroupRow key={g.id} item={g} />) : <Empty q={q} />) : null}
+          {tab === 'Groups' ? (<>{groups.length ? groups.map((g) => <GroupRow key={g.id} item={g} />) : <Empty q={q} />}<CreateGroupCard /></>) : null}
           {tab === 'Posts' ? (posts.length ? posts.map((p) => <PostRow key={p.id} item={p} />) : <Empty q={q} />) : null}
           {tab === 'Play' ? (games.length ? games.map((g) => <GameRow key={g.id} item={g} />) : <Empty q={q} />) : null}
         </ScrollView>
