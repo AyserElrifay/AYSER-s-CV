@@ -8,6 +8,7 @@ import { SUPABASE_READY } from '../lib/supabase';
 import { toggleVibe } from '../services/social';
 import { getProfile } from '../services/profiles';
 import { fetchMyPosts } from '../services/posts';
+import { fetchActiveStories } from '../services/stories';
 import { recordSignal } from '../services/algorithm';
 import { tapLight, tapSuccess } from '../utils/feedback';
 import { sfxStar, sfxSuccess } from '../utils/sfx';
@@ -16,6 +17,7 @@ import { useFeed } from '../hooks/useFeed';
 import {
   Glass, StoriesBar, PostCard, MagicFlowModal, ProfileModal,
   CommentsSheet, ComposeModal, SearchModal, StoryViewer, ReelsViewer,
+  CaptureModal,
 } from '../components';
 
 /* ───────────────────── TAB 1 · HOME — THE ACTION FEED ──────────────── */
@@ -43,10 +45,11 @@ export const HomeScreen = () => {
   const [storyIndex, setStoryIndex] = useState(null);
   const [reelStart, setReelStart] = useState(null);
 
-  // Real mode never shows the seeded mock people's stories.
+  // Real mode shows real 24h stories from the database — never the mock cast.
+  const [realStories, setRealStories] = useState([]);
   const stories = useMemo(
-    () => (SUPABASE_READY ? myStories : [...myStories, ...STORIES]),
-    [myStories]
+    () => (SUPABASE_READY ? [...myStories, ...realStories] : [...myStories, ...STORIES]),
+    [myStories, realStories]
   );
   const reels = useMemo(() => posts.filter((p) => p.type === 'reel'), [posts]);
 
@@ -54,7 +57,13 @@ export const HomeScreen = () => {
     if (!SUPABASE_READY || !user) return;
     getProfile(user.id).then(setMyProfile).catch(() => {});
     fetchMyPosts(user.id).then((rows) => setMyMomentsCount((rows || []).length)).catch(() => {});
-  }, [user, posts.length]);
+    fetchActiveStories().then((rows) => setRealStories((rows || []).map((r) => ({
+      user: { id: r.user_id, name: (r.user && r.user.name) || 'Explorer', avatar: (r.user && r.user.avatar_url) || av(60) },
+      media: r.media_url,
+      caption: r.caption,
+      sound: r.sound_title ? { title: r.sound_title, artist: r.sound_artist || '', emoji: '🎵' } : null,
+    })))).catch(() => {});
+  }, [user, posts.length, myStories.length]);
 
   const onVibe = (post) => {
     const next = !vibes[post.id];
@@ -196,8 +205,18 @@ export const HomeScreen = () => {
       ) : null}
       {profileUser ? <ProfileModal user={profileUser} onClose={() => setProfileUser(null)} /> : null}
       {commentsPost ? <CommentsSheet post={commentsPost} onClose={() => setCommentsPost(null)} /> : null}
-      {composing ? (
+      {composing === 'post' ? (
         <ComposeModal
+          initialMode="post"
+          onClose={() => setComposing(null)}
+          onPosted={prependPost}
+          onPostedStory={(s) => setMyStories((prev) => [s, ...prev])}
+        />
+      ) : null}
+      {composing === 'story' || composing === 'reel' ? (
+        /* the one-tap camera: live viewfinder, tap=photo, hold=video,
+           sounds picked right on the capture screen */
+        <CaptureModal
           initialMode={composing}
           onClose={() => setComposing(null)}
           onPosted={prependPost}

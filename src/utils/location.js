@@ -29,12 +29,12 @@ export function getCurrentCoords() {
       navigator.geolocation.getCurrentPosition(
         (pos) => resolve({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
         () => resolve(null),
-        { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 }
+        { enableHighAccuracy: true, timeout: 12000, maximumAge: 15000 }
       );
       return;
     }
     if (!Location) return resolve(null);
-    Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
+    Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High })
       .then((pos) => resolve({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }))
       .catch(() => resolve(null));
   });

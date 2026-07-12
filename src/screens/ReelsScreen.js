@@ -7,6 +7,7 @@ import { C } from '../constants/theme';
 import { REELS } from '../constants/mockData';
 import { SoundChip } from '../components/SoundChip';
 import { CommentsSheet } from '../components/CommentsSheet';
+import { CaptureModal } from '../components/CaptureModal';
 import { tapLight, tapMedium } from '../utils/feedback';
 import { sfxStar, sfxPop } from '../utils/sfx';
 
@@ -31,6 +32,7 @@ export const ReelsScreen = () => {
   const [reposts, setReposts] = useState({});
   const [following, setFollowing] = useState({});
   const [commentsPost, setCommentsPost] = useState(null);
+  const [shooting, setShooting] = useState(false);
   const burst = useRef(new Animated.Value(0)).current;
   const [burstId, setBurstId] = useState(null);
 
@@ -167,12 +169,13 @@ export const ReelsScreen = () => {
         <Text style={{ color: '#FFF', fontSize: 17, fontWeight: '900', letterSpacing: 2, flex: 1 }}>
           REELS <Text style={{ color: C.gold }}>✦</Text>
         </Text>
-        <Pressable onPress={() => { tapMedium(); sfxPop(); }} hitSlop={8}>
+        <Pressable onPress={() => { tapMedium(); sfxPop(); setShooting(true); }} hitSlop={8}>
           <Ionicons name="camera-outline" size={26} color="#FFF" />
         </Pressable>
       </View>
 
       {commentsPost ? <CommentsSheet post={commentsPost} onClose={() => setCommentsPost(null)} /> : null}
+      {shooting ? <CaptureModal initialMode="reel" onClose={() => setShooting(false)} /> : null}
     </View>
   );
 };

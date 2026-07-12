@@ -39,7 +39,7 @@ export async function fetchMyPosts(userId) {
 }
 
 export async function createPost({ userId, type = 'post', caption, place, mediaUrl, textBg, lat, lng, squadName }) {
-  const { data, error } = await supabase
+  const insert = () => supabase
     .from('posts')
     .insert({
       user_id: userId,
@@ -54,6 +54,14 @@ export async function createPost({ userId, type = 'post', caption, place, mediaU
     })
     .select('*, user:profiles(*)')
     .single();
+
+  let { data, error } = await insert();
+  if (error && error.code === '23503') {
+    // Missing profiles row (account pre-dates the signup trigger):
+    // create it, then retry once. Needs the schema_v3 insert policy.
+    await supabase.from('profiles').upsert({ id: userId, name: 'Explorer' }, { onConflict: 'id', ignoreDuplicates: true });
+    ({ data, error } = await insert());
+  }
   if (error) throw error;
   return data;
 }

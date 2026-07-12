@@ -66,6 +66,21 @@ export async function fetchLanguagePartners(myUserId) {
   return data;
 }
 
+/* Uploads captured media (a blob/data URL from the in-app camera) into
+   the public `media` bucket. `ext` + `contentType` come from the
+   capture itself (jpg photo or webm/mp4 video). */
+export async function uploadCapture(userId, uri, ext, contentType) {
+  const path = userId + '/' + Date.now() + '.' + ext;
+  const res = await fetch(uri);
+  const body = await res.arrayBuffer();
+  const { error } = await supabase.storage
+    .from('media')
+    .upload(path, body, { contentType });
+  if (error) throw error;
+  const { data } = supabase.storage.from('media').getPublicUrl(path);
+  return data.publicUrl;
+}
+
 /* Uploads a local image uri into the public `media` bucket under the
    user's folder; returns the public URL to store on the post. */
 export async function uploadMedia(userId, localUri) {

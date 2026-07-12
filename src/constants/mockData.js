@@ -196,6 +196,16 @@ export const MAP_PEOPLE = [
 
 export const DOING_OPTIONS = ['⚽', '🎾', '☕', '🎬', '🤿', '🎧', '⛰️', '🏊', '🎮', '📚'];
 
+/* ── OUTING DEALS · real external offers (Waffarha & friends) opened
+   inside Moments. These deep-link to the real sites — an affiliate
+   revenue layer, clearly labeled as external. ── */
+export const DEALS = [
+  { id: 'dl1', emoji: '🎢', title: 'Waffarha · Outings & fun', sub: 'Discounts on parks, karting, escape rooms', badge: 'Up to 70% off', url: 'https://www.waffarha.com/' },
+  { id: 'dl2', emoji: '🍽️', title: 'Waffarha · Restaurants', sub: 'Deals on dining around you', badge: 'Save big', url: 'https://www.waffarha.com/en/category/restaurants' },
+  { id: 'dl3', emoji: '🏨', title: 'Booking.com · Hotels', sub: 'Stays in Egypt & worldwide', badge: 'Member prices', url: 'https://www.booking.com/' },
+  { id: 'dl4', emoji: '🚗', title: 'Uber · Get there', sub: 'Ride to your next moment', badge: 'Open app', url: 'https://m.uber.com/' },
+];
+
 /* ── MAP BOOKINGS · courts, hotels & experiences you grab in two taps ── */
 export const BOOKINGS = [
   { id: 'bk1', emoji: '🎾', name: 'Padel Court · Gezira Club', sub: 'Next slot 6:00 PM · 4 players', price: 'E£220/hr', kind: 'Sport' },

@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, Text, ScrollView, Pressable, Modal, TextInput, Platform, Image } from 'react-native';
+import { View, Text, ScrollView, Pressable, Modal, TextInput, Platform, Image, Linking } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { C } from '../constants/theme';
-import { ME, DOING_OPTIONS, av } from '../constants/mockData';
+import { ME, DOING_OPTIONS, DEALS, av } from '../constants/mockData';
 import { MAP_PEOPLE, CAMPFIRES, BOOKINGS } from '../constants/mockData'; // demo-mode fallback only
 import { MapView, Marker, MAPS_READY } from '../utils/maps';
 import { kmBetween, projectToMap } from '../utils/geo';
@@ -227,6 +227,7 @@ export const MapScreen = () => {
           {[
             { k: 'fires', label: '🔥 Campfires' },
             { k: 'book', label: '📅 Book' },
+            { k: 'deals', label: '🎟️ Deals' },
           ].map((o) => (
             <Pressable key={o.k} onPress={() => { tapSelection(); setRail(o.k); }}>
               <View style={{ backgroundColor: rail === o.k ? C.purple : 'rgba(255,255,255,0.94)', borderWidth: 1, borderColor: rail === o.k ? C.purple : C.line, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 7, marginRight: 8 }}>
@@ -236,7 +237,28 @@ export const MapScreen = () => {
           ))}
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
-          {rail === 'fires' ? (
+          {rail === 'deals' ? (
+            DEALS.map((d) => (
+              <Pressable key={d.id} onPress={() => { tapLight(); sfxPop(); Linking.openURL(d.url).catch(() => {}); }}>
+                <Glass tint="rgba(255,255,255,0.96)" style={{ width: 236, padding: 13, marginRight: 12 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Text style={{ fontSize: 22, marginRight: 9 }}>{d.emoji}</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: C.text, fontSize: 13, fontWeight: '800' }} numberOfLines={1}>{d.title}</Text>
+                      <Text style={{ color: C.dim, fontSize: 10.5, marginTop: 1 }} numberOfLines={1}>{d.sub}</Text>
+                    </View>
+                  </View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10 }}>
+                    <View style={{ backgroundColor: C.greenSoft, borderWidth: 1, borderColor: 'rgba(16,185,129,0.4)', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 }}>
+                      <Text style={{ color: C.green, fontSize: 10.5, fontWeight: '900' }}>{d.badge}</Text>
+                    </View>
+                    <View style={{ flex: 1 }} />
+                    <Text style={{ color: C.faint, fontSize: 10 }}>external ↗</Text>
+                  </View>
+                </Glass>
+              </Pressable>
+            ))
+          ) : rail === 'fires' ? (
             campfires.length ? campfires.map((c) => (
               <Glass key={c.id} tint="rgba(255,255,255,0.96)" style={{ width: 252, padding: 13, marginRight: 12 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
