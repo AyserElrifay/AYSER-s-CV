@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { SUPABASE_READY } from '../lib/supabase';
 import { fetchFeed } from '../services/posts';
 import { rankFeed } from '../services/algorithm';
+import { fetchFeedAds, injectAds } from '../services/nativeAds';
 import { FEED, ME, av } from '../constants/mockData';
 
 /* Feed source for HomeScreen.
@@ -56,8 +57,9 @@ export function useFeed() {
       return;
     }
     try {
-      const rows = await fetchFeed();
-      setPosts(await rankFeed((rows || []).map(toCard)));
+      const [rows, ads] = await Promise.all([fetchFeed(), fetchFeedAds()]);
+      const ranked = await rankFeed((rows || []).map(toCard));
+      setPosts(injectAds(ranked, ads)); // native Sponsored cards, always labeled
       setLoadError(null);
     } catch (e) {
       setLoadError(e.message || 'Could not load moments');

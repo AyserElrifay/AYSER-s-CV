@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { uploadMediaSmart } from '../lib/storage';
 
 /* Reactions, comments, account search, media upload.
    Screens call these only in real mode (SUPABASE_READY); demo mode
@@ -66,24 +67,22 @@ export async function fetchLanguagePartners(myUserId) {
   return data;
 }
 
-/* Uploads captured media (a blob/data URL from the in-app camera) into
-   the public `media` bucket. `ext` + `contentType` come from the
-   capture itself (jpg photo or webm/mp4 video). */
+/* Uploads captured media (a blob/data URL from the in-app camera).
+   Routes through R2 (zero egress) with a Supabase Storage fallback. */
 export async function uploadCapture(userId, uri, ext, contentType) {
-  const path = userId + '/' + Date.now() + '.' + ext;
-  const res = await fetch(uri);
-  const body = await res.arrayBuffer();
-  const { error } = await supabase.storage
-    .from('media')
-    .upload(path, body, { contentType });
-  if (error) throw error;
-  const { data } = supabase.storage.from('media').getPublicUrl(path);
-  return data.publicUrl;
+  return uploadMediaSmart(userId, uri, ext, contentType);
 }
 
-/* Uploads a local image uri into the public `media` bucket under the
-   user's folder; returns the public URL to store on the post. */
+/* Uploads a local image uri; returns the public URL to store on the post.
+   Also R2-first via uploadMediaSmart. */
 export async function uploadMedia(userId, localUri) {
+  const ext = (localUri.split('.').pop() || 'jpg').split('?')[0].toLowerCase();
+  const ct = 'image/' + (ext === 'jpg' ? 'jpeg' : ext);
+  return uploadMediaSmart(userId, localUri, ext, ct);
+}
+
+/* Legacy direct-to-Supabase path, kept for reference. */
+async function _uploadMediaSupabase(userId, localUri) {
   const ext = (localUri.split('.').pop() || 'jpg').split('?')[0].toLowerCase();
   const path = userId + '/' + Date.now() + '.' + ext;
   const res = await fetch(localUri);
