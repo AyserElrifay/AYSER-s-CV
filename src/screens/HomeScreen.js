@@ -19,6 +19,8 @@ import {
   CommentsSheet, ComposeModal, SearchModal, StoryViewer, ReelsViewer,
   CaptureModal,
 } from '../components';
+import { Modal } from 'react-native';
+import { ProfileScreen } from './ProfileScreen';
 
 /* ───────────────────── TAB 1 · HOME — THE ACTION FEED ──────────────── */
 
@@ -44,6 +46,7 @@ export const HomeScreen = () => {
   const [searching, setSearching] = useState(false);
   const [storyIndex, setStoryIndex] = useState(null);
   const [reelStart, setReelStart] = useState(null);
+  const [myProfileOpen, setMyProfileOpen] = useState(false); // one profile everywhere
 
   // Real mode shows real 24h stories from the database — never the mock cast.
   const [realStories, setRealStories] = useState([]);
@@ -128,7 +131,7 @@ export const HomeScreen = () => {
                 <Pressable testID="btn-compose" onPress={() => setComposing('post')} style={[headerBtn, { marginRight: 10, backgroundColor: C.greenSoft, borderColor: 'rgba(16,185,129,0.4)' }]}>
                   <Ionicons name="add" size={20} color={C.green} />
                 </Pressable>
-                <Pressable testID="btn-profile" onPress={() => setProfileUser(me)}>
+                <Pressable testID="btn-profile" onPress={() => { tapLight(); setMyProfileOpen(true); }}>
                   <Image source={{ uri: me.avatar }} style={{ width: 38, height: 38, borderRadius: 19, borderWidth: 1.5, borderColor: C.purple }} />
                 </Pressable>
               </View>
@@ -204,6 +207,15 @@ export const HomeScreen = () => {
         />
       ) : null}
       {profileUser ? <ProfileModal user={profileUser} onClose={() => setProfileUser(null)} /> : null}
+      {/* Your avatar opens the ONE real profile — same as the SPACE tab */}
+      <Modal visible={myProfileOpen} animationType="slide" onRequestClose={() => setMyProfileOpen(false)}>
+        <View style={{ flex: 1, backgroundColor: C.bg }}>
+          <Pressable onPress={() => setMyProfileOpen(false)} hitSlop={10} style={{ position: 'absolute', top: insets.top + 12, left: 14, zIndex: 20, width: 38, height: 38, borderRadius: 19, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center' }}>
+            <Ionicons name="chevron-back" size={22} color={C.text} />
+          </Pressable>
+          <ProfileScreen />
+        </View>
+      </Modal>
       {commentsPost ? <CommentsSheet post={commentsPost} onClose={() => setCommentsPost(null)} /> : null}
       {composing === 'post' ? (
         <ComposeModal

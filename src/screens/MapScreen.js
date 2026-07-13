@@ -17,7 +17,7 @@ import { getOrCreateDmThread, sendMessage } from '../services/messages';
 import { openPartner } from '../services/broker';
 import {
   Glass, Micro, Chip, NeonButton, GhostButton, FauxMap,
-  PersonPin, CampfirePin, MePin, SOSButton, ProfileModal,
+  PersonPin, CampfirePin, MePin, SOSButton, ProfileModal, BookingSheet,
 } from '../components';
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
 import { sfxPop, sfxSuccess } from '../utils/sfx';
@@ -74,6 +74,7 @@ export const MapScreen = () => {
   const [vSub, setVSub] = useState('');
   const [vPrice, setVPrice] = useState('');
   const [booked, setBooked] = useState({});
+  const [bookingVenue, setBookingVenue] = useState(null);
 
   const [myCoords, setMyCoords] = useState(ME.coords); // falls back until real GPS resolves
   const [hasLocationPerm, setHasLocationPerm] = useState(false);
@@ -162,15 +163,10 @@ export const MapScreen = () => {
     } catch (e) {}
   };
 
-  /* ── Book → a real DM to the venue owner ── */
-  const bookVenue = async (venue) => {
-    tapSuccess(); sfxSuccess();
-    setBooked((x) => ({ ...x, [venue.id]: true }));
-    if (!SUPABASE_READY || !user || !venue.owner_id) return;
-    try {
-      const threadId = await getOrCreateDmThread(venue.owner_id);
-      await sendMessage({ dmThreadId: threadId, userId: user.id, body: 'Hi! I’d like to book: ' + venue.name + (venue.sub ? ' — ' + venue.sub : '') });
-    } catch (e) {}
+  /* ── Book → open the pay-and-earn booking sheet (commission flows) ── */
+  const bookVenue = (venue) => {
+    tapLight();
+    setBookingVenue(venue);
   };
 
   /* ── Drop a Moment: put YOURSELF on the map & let people join ── */
@@ -674,6 +670,7 @@ export const MapScreen = () => {
       ) : null}
 
       {profileUser ? <ProfileModal user={profileUser} onClose={() => setProfileUser(null)} /> : null}
+      {bookingVenue ? <BookingSheet venue={bookingVenue} onClose={() => { setBooked((x) => ({ ...x, [bookingVenue.id]: true })); setBookingVenue(null); }} /> : null}
     </View>
   );
 };

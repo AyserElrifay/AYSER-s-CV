@@ -30,3 +30,4 @@ export { StarButton } from './StarButton';
 export { GameRunner } from './GameRunner';
 export { CaptureModal } from './CaptureModal';
 export { BoostSheet } from './BoostSheet';
+export { BookingSheet } from './BookingSheet';

@@ -9,7 +9,7 @@ import { ME, HIGHLIGHTS, MY_MOMENTS, BADGES, av } from '../constants/mockData'; 
 import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { getProfile, updateProfile } from '../services/profiles';
-import { uploadMedia } from '../services/social';
+import { uploadCapture } from '../services/social';
 import { fetchMyMoments } from '../services/posts';
 import { countMyCampfires } from '../services/campfires';
 import { Tick, GhostButton, BoostSheet } from '../components';
@@ -92,24 +92,35 @@ export const ProfileScreen = () => {
   const [editIntent, setEditIntent] = useState('');
   const [editAvatar, setEditAvatar] = useState(null); // new avatar url after upload
   const [avatarBusy, setAvatarBusy] = useState(false);
+  const [avatarErr, setAvatarErr] = useState(null);
   const [savedEdit, setSavedEdit] = useState(false);
 
-  /* Pick a new profile photo → upload → save avatar_url on your profile. */
+  /* Pick a new profile photo → upload → save avatar_url on your profile.
+     Derive the extension + content-type from the asset's real mime type
+     (a web blob:/data: URI has no file extension, which used to corrupt
+     the upload so the new photo never rendered). */
   const changeAvatar = async () => {
     if (avatarBusy) return;
+    setAvatarErr(null);
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (perm.status !== 'granted' && perm.canAskAgain !== false) { /* web grants implicitly */ }
     const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.7 });
     if (res.canceled || !res.assets || !res.assets[0]) return;
-    const uri = res.assets[0].uri;
-    setEditAvatar(uri); // instant preview
-    if (!SUPABASE_READY || !user) return;
+    const asset = res.assets[0];
+    setEditAvatar(asset.uri); // instant preview
+    if (!SUPABASE_READY || !user) { setAvatarErr('Sign in with a real account to save your photo.'); return; }
     setAvatarBusy(true);
     try {
-      const publicUrl = await uploadMedia(user.id, uri);
+      const mime = asset.mimeType || 'image/jpeg';
+      const ext = (mime.split('/')[1] === 'jpeg' ? 'jpg' : (mime.split('/')[1] || 'jpg'));
+      const publicUrl = await uploadCapture(user.id, asset.uri, ext, mime);
       await updateProfile(user.id, { avatar_url: publicUrl });
       setEditAvatar(publicUrl);
       tapSuccess(); sfxSuccess();
       reload();
-    } catch (e) {} finally { setAvatarBusy(false); }
+    } catch (e) {
+      setAvatarErr(e.message || 'Upload failed — is the “media” storage bucket created?');
+    } finally { setAvatarBusy(false); }
   };
 
   const reload = () => {
@@ -374,8 +385,8 @@ export const ProfileScreen = () => {
                 <Ionicons name={avatarBusy ? 'hourglass' : 'camera'} size={15} color="#FFF" />
               </View>
             </Pressable>
-            <Text style={{ color: C.faint, fontSize: 11.5, textAlign: 'center', marginTop: -8, marginBottom: 12 }}>
-              {avatarBusy ? 'Uploading…' : 'Tap the photo to change it'}
+            <Text style={{ color: avatarErr ? C.coral : C.faint, fontSize: 11.5, textAlign: 'center', marginTop: -8, marginBottom: 12 }}>
+              {avatarBusy ? 'Uploading…' : avatarErr ? avatarErr : 'Tap the photo to change it'}
             </Text>
 
             <TextInput
