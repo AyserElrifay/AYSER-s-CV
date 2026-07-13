@@ -160,6 +160,19 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
     else takePhoto();
   };
 
+  /* ── long-form video: pick an existing file (works on web + native) ── */
+  const pickVideoFile = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['videos'], quality: 0.7, videoMaxDuration: 900 });
+      if (!result.canceled && result.assets && result.assets[0]) {
+        const a = result.assets[0];
+        const raw = (a.fileName || a.uri || 'video.mp4').split('?')[0];
+        const ext = (raw.split('.').pop() || 'mp4').toLowerCase();
+        setShot({ uri: a.uri, kind: 'video', ext: ext || 'mp4', contentType: a.mimeType || ('video/' + (ext || 'mp4')) });
+      }
+    } catch (e) { setCamError('Could not open your videos'); }
+  };
+
   /* ── native: one tap into the system camera ── */
   const nativeShoot = async () => {
     const perm = await ImagePicker.requestCameraPermissionsAsync();
@@ -184,6 +197,9 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
         if (mode === 'story') {
           await createStory(user.id, { mediaUrl, caption: caption.trim(), sound });
           onPostedStory && onPostedStory({ user: { id: user.id, name: 'You', avatar: av(5) }, media: mediaUrl, sound, caption: caption.trim() || null });
+        } else if (mode === 'video') {
+          const row = await createPost({ userId: user.id, type: 'vod', caption: caption.trim() || '🎬 Video', mediaUrl });
+          onPosted && onPosted(row);
         } else {
           const row = await createPost({ userId: user.id, type: 'reel', caption: caption.trim() || '🎬', mediaUrl });
           onPosted && onPosted({
@@ -197,6 +213,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
       } else {
         // demo mode — local only
         if (mode === 'story') onPostedStory && onPostedStory({ user: { id: 'me', name: 'You', avatar: av(5) }, media: shot.uri, sound, caption: caption.trim() || null });
+        else if (mode === 'video') onPosted && onPosted({ id: 'local-' + Date.now(), type: 'vod', media_url: shot.uri, caption: caption.trim() || '🎬 Video', user: { name: 'You', avatar_url: av(5) } });
         else onPosted && onPosted({ id: 'local-' + Date.now(), user: { name: 'You', avatar: av(5), verified: false }, type: 'reel', media: shot.uri, caption: caption.trim() || '🎬', place: 'Right here', startsIn: 'Live now', coords: ME.coords, sound, vibes: 0, comments: 0, squad: 'New Vibe Squad' });
       }
       tapSuccess(); sfxSuccess();
@@ -319,12 +336,25 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
                 </View>
               ) : null}
 
+              {/* long-form: upload a full video (YouTube-style) */}
+              {mode === 'video' ? (
+                <View style={{ alignItems: 'center', marginBottom: 14 }}>
+                  <Pressable onPress={() => { tapLight(); pickVideoFile(); }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.16)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.4)', borderRadius: 999, paddingHorizontal: 18, paddingVertical: 11 }}>
+                      <Ionicons name="cloud-upload-outline" size={18} color="#FFF" />
+                      <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900', marginLeft: 8 }}>Upload a video 📁</Text>
+                    </View>
+                  </Pressable>
+                  <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, marginTop: 8 }}>Long-form · or hold the shutter to record</Text>
+                </View>
+              ) : null}
+
               {/* mode switch */}
               <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
-                {['story', 'reel'].map((m) => (
-                  <Pressable key={m} onPress={() => { tapLight(); setMode(m); }} style={{ marginHorizontal: 14 }}>
-                    <Text style={{ color: mode === m ? '#FFF' : 'rgba(255,255,255,0.5)', fontSize: 14, fontWeight: '900', letterSpacing: 1.5, textTransform: 'uppercase' }}>
-                      {m === 'story' ? '⭕ Story' : '🎬 Reel'}
+                {['story', 'reel', 'video'].map((m) => (
+                  <Pressable key={m} onPress={() => { tapLight(); setMode(m); }} style={{ marginHorizontal: 12 }}>
+                    <Text style={{ color: mode === m ? '#FFF' : 'rgba(255,255,255,0.5)', fontSize: 13.5, fontWeight: '900', letterSpacing: 1.2, textTransform: 'uppercase' }}>
+                      {m === 'story' ? '⭕ Story' : m === 'reel' ? '🎬 Reel' : '📺 Video'}
                     </Text>
                     {mode === m ? <View style={{ height: 3, borderRadius: 2, backgroundColor: C.gold, marginTop: 5 }} /> : null}
                   </Pressable>
@@ -343,7 +373,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 22, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', paddingHorizontal: 14, paddingVertical: Platform.OS === 'ios' ? 12 : 4, marginRight: 10 }}>
                   <TextInput
-                    placeholder={mode === 'story' ? 'Say something… (optional)' : 'Caption your reel…'}
+                    placeholder={mode === 'story' ? 'Say something… (optional)' : mode === 'video' ? 'Title your video…' : 'Caption your reel…'}
                     placeholderTextColor="rgba(255,255,255,0.55)"
                     value={caption}
                     onChangeText={setCaption}
@@ -352,7 +382,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
                 </View>
                 <Pressable onPress={share} disabled={busy}>
                   <LinearGradient colors={[C.purple, '#5B21B6']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, paddingHorizontal: 20, paddingVertical: 13, opacity: busy ? 0.6 : 1 }}>
-                    <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '900' }}>{busy ? 'Sharing…' : mode === 'story' ? 'Add to Story' : 'Post Reel'}</Text>
+                    <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '900' }}>{busy ? 'Sharing…' : mode === 'story' ? 'Add to Story' : mode === 'video' ? 'Post Video' : 'Post Reel'}</Text>
                     <MaterialCommunityIcons name="star-four-points" size={15} color={C.gold} style={{ marginLeft: 6 }} />
                   </LinearGradient>
                 </Pressable>

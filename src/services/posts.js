@@ -13,6 +13,19 @@ export async function fetchFeed() {
   return data;
 }
 
+/* Long-form videos (YouTube-style) — every post of type 'vod'.
+   Powers the Chill tab; newest first, author profile joined in. */
+export async function fetchVideos() {
+  const { data, error } = await supabase
+    .from('posts')
+    .select('*, user:profiles!posts_user_id_fkey(*)')
+    .eq('type', 'vod')
+    .order('created_at', { ascending: false })
+    .limit(40);
+  if (error) throw error;
+  return data;
+}
+
 /* Your real moment grid — posts + a real star (vibe) count per post,
    used by the profile screen. */
 export async function fetchMyMoments(userId) {

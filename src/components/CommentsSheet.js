@@ -12,12 +12,8 @@ import { tapSelection } from '../utils/feedback';
 import { Micro } from './Micro';
 
 /* Bottom sheet of what people wrote under a post. One list, one input —
-   nothing else. Demo mode keeps comments in local state. */
-
-const SEED = (post) => [
-  { id: 'c1', user: { name: 'Nour El-Sayed', avatar: av(47) }, body: 'Count me in! 🙌' },
-  { id: 'c2', user: { name: 'Omar Farouk', avatar: av(15) }, body: 'This is exactly my vibe. See you at ' + post.place + '?' },
-];
+   nothing else. Comments are real: fetched from the DB in real mode and
+   kept in local state as you add them. Nothing is ever fabricated. */
 
 const toRow = (row) => ({
   id: row.id,
@@ -36,7 +32,7 @@ export const CommentsSheet = ({ post, onClose }) => {
   const [sending, setSending] = useState(false);
 
   const load = useCallback(async () => {
-    if (!SUPABASE_READY) { setComments(SEED(post)); return; }
+    if (!SUPABASE_READY) { setComments([]); return; }
     try {
       const rows = await fetchComments(post.id);
       setComments(rows.map(toRow));

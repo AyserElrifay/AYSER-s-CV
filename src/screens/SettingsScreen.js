@@ -1,20 +1,33 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet, TextInput } from 'react-native';
+import { View, Text, ScrollView, Pressable, StyleSheet, TextInput, Linking } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { C, R } from '../constants/theme';
-import { INITIAL_TX, PLANNER_INIT, SQUADS, SETTINGS_GROUPS } from '../constants/mockData';
+import { INITIAL_TX, PLANNER_INIT, SQUADS } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LanguageContext';
 import { getProfile, updateProfile } from '../services/profiles';
+import { countMyReferrals } from '../services/broker';
+import { getPrefs, setPref, subscribePrefs } from '../services/prefs';
 import {
   Glass, Micro, Chip, SectionHeader,
   NeonButton, AvatarStack,
 } from '../components';
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
 import { sfxSuccess } from '../utils/sfx';
+
+const SUPPORT_EMAIL = 'ayseryourlifecoach@gmail.com';
+
+/* A real, persisted on/off switch. */
+const Toggle = ({ on, onToggle }) => (
+  <Pressable onPress={onToggle} hitSlop={6}>
+    <View style={{ width: 46, height: 27, borderRadius: 14, backgroundColor: on ? C.purple : C.glassHi, padding: 3, justifyContent: 'center' }}>
+      <View style={{ width: 21, height: 21, borderRadius: 11, backgroundColor: '#FFF', marginLeft: on ? 19 : 0 }} />
+    </View>
+  </Pressable>
+);
 
 /* ─── SETTINGS — the app drawer, opened from Your Space ───
    Wallet lives here now (moved out of the profile), alongside the
@@ -28,6 +41,23 @@ export const SettingsScreen = ({ onClose }) => {
   const [split, setSplit] = useState(false);
   const [planner, setPlanner] = useState(PLANNER_INIT);
   const [langOpen, setLangOpen] = useState(false);
+  const [prefs, setPrefs] = useState(getPrefs());
+  const [referrals, setReferrals] = useState(null);
+
+  // real, persisted preference toggles
+  useEffect(() => subscribePrefs(setPrefs), []);
+  const flip = (key) => { tapSelection(); setPref(key, !prefs[key]); };
+
+  // real earnings signal — how many mates you've referred to partners
+  useEffect(() => {
+    if (!SUPABASE_READY || !user) return;
+    countMyReferrals(user.id).then(setReferrals).catch(() => {});
+  }, [user]);
+
+  const openHelp = () => {
+    tapLight();
+    Linking.openURL('mailto:' + SUPPORT_EMAIL + '?subject=Moments%20support').catch(() => {});
+  };
 
   // ── Real language-exchange opt-in (HelloTalk-style) ──
   const [speaks, setSpeaks] = useState('');
@@ -101,26 +131,22 @@ export const SettingsScreen = ({ onClose }) => {
           style={{ borderRadius: R, padding: 18, marginTop: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)' }}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Micro color="rgba(255,255,255,0.75)">Moment Bank</Micro>
-            <Ionicons name="eye-outline" size={16} color="rgba(255,255,255,0.75)" />
+            <Micro color="rgba(255,255,255,0.75)">Referral earnings</Micro>
+            <Ionicons name="trending-up-outline" size={16} color="rgba(255,255,255,0.75)" />
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginTop: 14 }}>
-            <Text style={{ color: '#fff', fontSize: 36, fontWeight: '900', letterSpacing: 0.5 }}>1,284</Text>
-            <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 14, fontWeight: '800', marginLeft: 8, marginBottom: 6 }}>$MOMENT</Text>
+            <Text style={{ color: '#fff', fontSize: 36, fontWeight: '900', letterSpacing: 0.5 }}>
+              {referrals == null ? '—' : referrals}
+            </Text>
+            <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 14, fontWeight: '800', marginLeft: 8, marginBottom: 6 }}>
+              referral{referrals === 1 ? '' : 's'}
+            </Text>
           </View>
-          <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12.5, marginTop: 4 }}>≈ E£ 6,420 · ▲ 4.2% this week</Text>
+          <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12.5, marginTop: 4 }}>
+            You earn a commission when mates book or shop through your links.
+          </Text>
           <View style={{ flexDirection: 'row', marginTop: 18 }}>
-            <NeonButton small label="SPLIT BILL" icon="➗" style={{ flex: 1.2, marginRight: 8 }} onPress={() => setSplit((s) => !s)} />
-            <Pressable style={{ flex: 1, marginRight: 8 }}>
-              <View style={{ borderRadius: R - 4, backgroundColor: 'rgba(255,255,255,0.14)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)', paddingVertical: 10, alignItems: 'center' }}>
-                <Text style={{ color: '#fff', fontSize: 12, fontWeight: '800' }}>Send</Text>
-              </View>
-            </Pressable>
-            <Pressable style={{ flex: 1 }}>
-              <View style={{ borderRadius: R - 4, backgroundColor: 'rgba(255,255,255,0.14)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)', paddingVertical: 10, alignItems: 'center' }}>
-                <Text style={{ color: '#fff', fontSize: 12, fontWeight: '800' }}>Top Up</Text>
-              </View>
-            </Pressable>
+            <NeonButton small label="SPLIT A BILL" icon="➗" style={{ flex: 1 }} onPress={() => setSplit((s) => !s)} />
           </View>
         </LinearGradient>
 
@@ -156,41 +182,62 @@ export const SettingsScreen = ({ onClose }) => {
           ))}
         </Glass>
 
-        {/* ── SETTINGS LIST (iOS-style groups) ── */}
-        {SETTINGS_GROUPS.map((group) => (
-          <View key={group.title}>
-            <SectionHeader title={group.title} style={{ marginTop: 26 }} />
-            <Glass style={{ paddingHorizontal: 4, paddingVertical: 2 }}>
-              {group.rows.map((row, i) => (
-                <Pressable key={row.label} onPress={() => { tapSelection(); if (row.icon === 'language-outline') setLangOpen(true); }}>
-                  {({ pressed }) => (
-                    <View
-                      style={{
-                        flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 12,
-                        borderTopWidth: i === 0 ? 0 : StyleSheet.hairlineWidth, borderTopColor: C.line,
-                        backgroundColor: pressed ? C.glassHi : 'transparent', borderRadius: 12,
-                      }}
-                    >
-                      <View style={{ width: 30, height: 30, borderRadius: 9, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
-                        <Ionicons name={row.icon} size={16} color={C.purple} />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={{ color: C.text, fontSize: 14, fontWeight: '700' }}>
-                          {row.icon === 'language-outline' ? t('language') : row.label}
-                        </Text>
-                        {row.hint ? <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 1 }}>{row.hint}</Text> : null}
-                      </View>
-                      {row.icon === 'language-outline'
-                        ? <Text style={{ color: C.faint, fontSize: 13, marginRight: 6 }}>{meta.flag} {meta.native}</Text>
-                        : row.value ? <Text style={{ color: C.faint, fontSize: 13, marginRight: 6 }}>{row.value}</Text> : null}
-                      <Ionicons name="chevron-forward" size={16} color={C.faint} />
-                    </View>
-                  )}
-                </Pressable>
-              ))}
-            </Glass>
+        {/* ── PREFERENCES — real, persisted toggles ── */}
+        <SectionHeader title="Preferences" style={{ marginTop: 26 }} />
+        <Glass style={{ paddingHorizontal: 12, paddingVertical: 2 }}>
+          {/* Language — opens the picker */}
+          <Pressable onPress={() => { tapSelection(); setLangOpen(true); }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 14 }}>
+              <View style={{ width: 30, height: 30, borderRadius: 9, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                <Ionicons name="language-outline" size={16} color={C.purple} />
+              </View>
+              <Text style={{ color: C.text, fontSize: 14, fontWeight: '700', flex: 1 }}>{t('language')}</Text>
+              <Text style={{ color: C.faint, fontSize: 13, marginRight: 6 }}>{meta.flag} {meta.native}</Text>
+              <Ionicons name="chevron-forward" size={16} color={C.faint} />
+            </View>
+          </Pressable>
+
+          {[
+            { key: 'notifications', icon: 'notifications-outline', label: 'Notifications', hint: 'Vibes, comments & squad activity' },
+            { key: 'sound', icon: 'musical-notes-outline', label: 'Sounds', hint: 'The Moments sound identity' },
+            { key: 'haptics', icon: 'phone-portrait-outline', label: 'Haptics', hint: 'Tactile taps (on your phone)' },
+          ].map((row) => (
+            <View key={row.key} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.line }}>
+              <View style={{ width: 30, height: 30, borderRadius: 9, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                <Ionicons name={row.icon} size={16} color={C.purple} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: C.text, fontSize: 14, fontWeight: '700' }}>{row.label}</Text>
+                <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 1 }}>{row.hint}</Text>
+              </View>
+              <Toggle on={!!prefs[row.key]} onToggle={() => flip(row.key)} />
+            </View>
+          ))}
+        </Glass>
+
+        {/* ── SUPPORT ── */}
+        <SectionHeader title="Support" style={{ marginTop: 26 }} />
+        <Glass style={{ paddingHorizontal: 12, paddingVertical: 2 }}>
+          <Pressable onPress={openHelp}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 14 }}>
+              <View style={{ width: 30, height: 30, borderRadius: 9, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                <Ionicons name="help-circle-outline" size={16} color={C.purple} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: C.text, fontSize: 14, fontWeight: '700' }}>Help & support</Text>
+                <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 1 }}>Email us — we actually reply</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color={C.faint} />
+            </View>
+          </Pressable>
+          <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.line }}>
+            <View style={{ width: 30, height: 30, borderRadius: 9, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+              <Ionicons name="information-circle-outline" size={16} color={C.purple} />
+            </View>
+            <Text style={{ color: C.text, fontSize: 14, fontWeight: '700', flex: 1 }}>About Moments</Text>
+            <Text style={{ color: C.faint, fontSize: 13 }}>v1.0 · Live</Text>
           </View>
-        ))}
+        </Glass>
 
         {/* ── LANGUAGE EXCHANGE — real opt-in, HelloTalk-style ── */}
         <SectionHeader title="Learn languages 🌍" style={{ marginTop: 26 }} />

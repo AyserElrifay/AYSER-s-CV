@@ -1,13 +1,17 @@
 import { Platform } from 'react-native';
+import { flags } from '../services/prefs';
 
 /* Tiny synthesized sound effects — no audio files to bundle.
    On web we use the Web Audio API to shape short, pleasant blips.
    On native this is a no-op (haptics carry the feedback there);
-   expo-av can be layered in later without touching call sites. */
+   expo-av can be layered in later without touching call sites.
+   Respects the Settings → Sounds toggle (prefs.flags.sound). */
 
 let ctx = null;
 function audio() {
   if (Platform.OS !== 'web') return null;
+  if (!flags.sound) return null; // muted in Settings
+
   try {
     if (!ctx) {
       const AC = window.AudioContext || window.webkitAudioContext;
