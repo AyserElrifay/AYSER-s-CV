@@ -127,16 +127,22 @@ export const MapScreen = () => {
   /* Markers for the real (web) Leaflet map, on true coordinates. */
   const mapMarkers = useMemo(() => {
     const out = [];
-    people.forEach((p) => p.coords && out.push({ id: 'p_' + p.id, srcId: p.id, kind: 'person', lat: p.coords.latitude, lng: p.coords.longitude, emoji: p.doing || p.emoji || '🧿', flag: p.countryFlag, label: (p.countryFlag ? p.countryFlag + ' ' : '') + p.name }));
+    people.forEach((p) => p.coords && out.push({ id: 'p_' + p.id, srcId: p.id, kind: 'person', lat: p.coords.latitude, lng: p.coords.longitude, emoji: p.doing || p.emoji || '🧿', avatar: p.avatar, flag: p.countryFlag, label: (p.countryFlag ? p.countryFlag + ' ' : '') + p.name }));
     campfires.forEach((c) => c.coords && out.push({ id: 'c_' + c.id, srcId: c.id, kind: 'fire', lat: c.coords.latitude, lng: c.coords.longitude, emoji: '🔥', label: c.title }));
     (SUPABASE_READY ? realVenues : []).forEach((v) => v.lat != null && out.push({ id: 'v_' + v.id, srcId: v.id, kind: 'venue', lat: v.lat, lng: v.lng, emoji: v.emoji || '📍', label: v.name }));
+    // nearby offers (Waffarha, Booking…) placed around you so they're on the map, not just in a list
+    DEALS.forEach((d, i) => {
+      const ang = (i / DEALS.length) * Math.PI * 2;
+      out.push({ id: 'd_' + d.id, srcId: d.id, kind: 'deal', lat: myCoords.latitude + Math.cos(ang) * 0.006, lng: myCoords.longitude + Math.sin(ang) * 0.006, emoji: d.emoji, label: d.title + ' · ' + d.badge });
+    });
     return out;
-  }, [people, campfires, realVenues]);
+  }, [people, campfires, realVenues, myCoords]);
 
   const onMarkerPress = (m) => {
     if (m.kind === 'person') { const p = people.find((x) => x.id === m.srcId); if (p) setProfileUser(p); }
     else if (m.kind === 'venue') { const v = realVenues.find((x) => x.id === m.srcId); setRail('book'); if (v) setBookingVenue(v); }
     else if (m.kind === 'fire') { const c = campfires.find((x) => x.id === m.srcId); if (c) joinFire(c); }
+    else if (m.kind === 'deal') { const d = DEALS.find((x) => x.id === m.srcId); if (d) openPartner(user, d); }
   };
 
   /* ── your activity badge → a real row in live_locations ── */
@@ -228,7 +234,7 @@ export const MapScreen = () => {
   };
 
   const overlays = (
-    <View pointerEvents="box-none" style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }}>
+    <View pointerEvents="box-none" style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, zIndex: 10 }}>
       {/* floating glass search */}
       <View style={{ position: 'absolute', top: insets.top + 12, left: 16, right: 16 }}>
         <View

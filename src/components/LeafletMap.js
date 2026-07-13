@@ -25,15 +25,26 @@ function loadLeaflet() {
   return leafletPromise;
 }
 
-const pinHtml = (emoji, kind, flag) => {
-  const border = kind === 'fire' ? '#F43F5E' : '#7C3AED';
+const pinHtml = (m) => {
+  const flag = m.flag;
   const flagBadge = flag
-    ? '<div style="position:absolute;bottom:-4px;right:-6px;background:#fff;border-radius:8px;font-size:12px;line-height:16px;padding:0 2px;box-shadow:0 1px 3px rgba(0,0,0,0.3)">' + flag + '</div>'
+    ? '<div style="position:absolute;bottom:-3px;right:-5px;background:#fff;border-radius:8px;font-size:11px;line-height:15px;padding:0 2px;box-shadow:0 1px 3px rgba(0,0,0,0.3)">' + flag + '</div>'
     : '';
+  // People show their real photo (Snapchat-style); doing-badge on top.
+  if (m.kind === 'person' && m.avatar) {
+    const doing = m.emoji && m.emoji.length <= 3
+      ? '<div style="position:absolute;top:-6px;left:-6px;background:#fff;border-radius:9px;font-size:11px;line-height:16px;padding:0 2px;box-shadow:0 1px 3px rgba(0,0,0,0.3)">' + m.emoji + '</div>' : '';
+    return (
+      '<div style="position:relative;width:44px;height:44px">' +
+      '<img src="' + m.avatar + '" style="width:44px;height:44px;border-radius:50%;object-fit:cover;border:3px solid #7C3AED;box-shadow:0 2px 6px rgba(0,0,0,0.3)"/>' +
+      doing + flagBadge + '</div>'
+    );
+  }
+  const border = m.kind === 'fire' ? '#F43F5E' : m.kind === 'deal' ? '#10B981' : '#7C3AED';
   return (
     '<div style="position:relative;width:36px;height:36px;border-radius:12px;background:#fff;border:2px solid ' + border +
     ';display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 2px 6px rgba(0,0,0,0.25)">' +
-    emoji + flagBadge + '</div>'
+    (m.emoji || '📍') + flagBadge + '</div>'
   );
 };
 
@@ -76,7 +87,8 @@ export const LeafletMap = ({ center, markers = [], onPress }) => {
 
     markers.forEach((m) => {
       if (m.lat == null || m.lng == null) return;
-      const icon = L.divIcon({ html: pinHtml(m.emoji || '📍', m.kind, m.flag), className: '', iconSize: [36, 36], iconAnchor: [18, 36] });
+      const isPerson = m.kind === 'person' && m.avatar;
+      const icon = L.divIcon({ html: pinHtml(m), className: '', iconSize: isPerson ? [44, 44] : [36, 36], iconAnchor: isPerson ? [22, 22] : [18, 36] });
       const mk = L.marker([m.lat, m.lng], { icon }).addTo(layerRef.current);
       if (m.label) mk.bindTooltip(m.label, { direction: 'top', offset: [0, -34] });
       mk.on('click', () => onPress && onPress(m));
@@ -99,6 +111,8 @@ export const LeafletMap = ({ center, markers = [], onPress }) => {
   }, [center && center.latitude, center && center.longitude]);
 
   if (Platform.OS !== 'web') return null;
-  // react-dom renders lowercase host tags on web (same as the <video>/<iframe> used elsewhere)
-  return <div ref={elRef} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }} />;
+  // react-dom renders lowercase host tags on web (same as the <video>/<iframe> used elsewhere).
+  // zIndex:0 makes the map a stacking context so Leaflet's internal high
+  // z-index panes stay BELOW the app's overlay buttons.
+  return <div ref={elRef} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, zIndex: 0 }} />;
 };

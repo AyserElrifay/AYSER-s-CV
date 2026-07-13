@@ -111,10 +111,12 @@ export const ProfileScreen = () => {
   const [editName, setEditName] = useState('');
   const [editBio, setEditBio] = useState('');
   const [editIntent, setEditIntent] = useState('');
+  const [editHandle, setEditHandle] = useState('');
   const [editAvatar, setEditAvatar] = useState(null); // new avatar url after upload
   const [avatarBusy, setAvatarBusy] = useState(false);
   const [avatarErr, setAvatarErr] = useState(null);
   const [editFlag, setEditFlag] = useState('');
+  const [editErr, setEditErr] = useState(null);
   const [savedEdit, setSavedEdit] = useState(false);
 
   /* Pick a new profile photo → upload → save avatar_url on your profile.
@@ -160,6 +162,7 @@ export const ProfileScreen = () => {
       setEditName(p.name || '');
       setEditBio(p.bio || '');
       setEditIntent(p.intent || '');
+      setEditHandle(p.handle || '');
       setEditFlag(p.country_flag || '');
     }).catch(() => {});
     fetchMyMoments(user.id).then(setMyMoments).catch(() => {});
@@ -189,12 +192,16 @@ export const ProfileScreen = () => {
     if (!SUPABASE_READY || !user) { setEditOpen(false); return; }
     try {
       const c = COUNTRIES.find((x) => x.flag === editFlag);
-      await updateProfile(user.id, { name: editName.trim() || 'Explorer', bio: editBio.trim() || null, intent: editIntent.trim() || null, country: c ? c.name : null, country_flag: editFlag || null });
+      const cleanHandle = editHandle.trim().replace(/^@+/, '').replace(/[^a-zA-Z0-9._]/g, '').toLowerCase();
+      await updateProfile(user.id, { name: editName.trim() || 'Explorer', handle: cleanHandle || null, bio: editBio.trim() || null, intent: editIntent.trim() || null, country: c ? c.name : null, country_flag: editFlag || null });
       tapSuccess(); sfxSuccess();
       setSavedEdit(true);
+      setEditErr(null);
       reload();
       setTimeout(() => { setSavedEdit(false); setEditOpen(false); }, 900);
-    } catch (e) {}
+    } catch (e) {
+      setEditErr(e.code === '23505' || /duplicate|unique/i.test(e.message || '') ? 'That username is taken — try another.' : (e.message || 'Could not save.'));
+    }
   };
 
   /* Real mode: your actual profile row. Demo mode: the mock ME. */
@@ -428,6 +435,18 @@ export const ProfileScreen = () => {
               onChangeText={setEditName}
               style={{ color: C.text, fontSize: 14, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 11, marginBottom: 9 }}
             />
+            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 13, marginBottom: 9 }}>
+              <Text style={{ color: C.faint, fontSize: 14, fontWeight: '700' }}>@</Text>
+              <TextInput
+                placeholder="username"
+                placeholderTextColor={C.faint}
+                value={editHandle}
+                onChangeText={(t) => setEditHandle(t.replace(/[^a-zA-Z0-9._]/g, '').toLowerCase())}
+                autoCapitalize="none"
+                style={{ flex: 1, color: C.text, fontSize: 14, paddingVertical: 11, marginLeft: 2 }}
+              />
+            </View>
+            {editErr ? <Text style={{ color: C.coral, fontSize: 11.5, marginBottom: 9 }}>{editErr}</Text> : null}
             <TextInput
               placeholder="Bio"
               placeholderTextColor={C.faint}
