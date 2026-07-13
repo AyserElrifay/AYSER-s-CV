@@ -3,11 +3,13 @@ import { View, Text, ScrollView, Pressable, Image, Modal, Dimensions, TextInput 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { C, R, TEXT_BGS } from '../constants/theme';
 import { ME, HIGHLIGHTS, MY_MOMENTS, BADGES, av } from '../constants/mockData'; // demo-mode fallback only
 import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { getProfile, updateProfile } from '../services/profiles';
+import { uploadMedia } from '../services/social';
 import { fetchMyMoments } from '../services/posts';
 import { countMyCampfires } from '../services/campfires';
 import { Tick, GhostButton, BoostSheet } from '../components';
@@ -88,7 +90,27 @@ export const ProfileScreen = () => {
   const [editName, setEditName] = useState('');
   const [editBio, setEditBio] = useState('');
   const [editIntent, setEditIntent] = useState('');
+  const [editAvatar, setEditAvatar] = useState(null); // new avatar url after upload
+  const [avatarBusy, setAvatarBusy] = useState(false);
   const [savedEdit, setSavedEdit] = useState(false);
+
+  /* Pick a new profile photo → upload → save avatar_url on your profile. */
+  const changeAvatar = async () => {
+    if (avatarBusy) return;
+    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.7 });
+    if (res.canceled || !res.assets || !res.assets[0]) return;
+    const uri = res.assets[0].uri;
+    setEditAvatar(uri); // instant preview
+    if (!SUPABASE_READY || !user) return;
+    setAvatarBusy(true);
+    try {
+      const publicUrl = await uploadMedia(user.id, uri);
+      await updateProfile(user.id, { avatar_url: publicUrl });
+      setEditAvatar(publicUrl);
+      tapSuccess(); sfxSuccess();
+      reload();
+    } catch (e) {} finally { setAvatarBusy(false); }
+  };
 
   const reload = () => {
     if (!SUPABASE_READY || !user) return;
@@ -189,16 +211,21 @@ export const ProfileScreen = () => {
         {/* identity */}
         <View style={{ paddingHorizontal: 16, marginTop: 18 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <LinearGradient
-              colors={[C.gold, C.purple, C.green]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={{ width: 92, height: 92, borderRadius: 46, alignItems: 'center', justifyContent: 'center' }}
-            >
-              <View style={{ backgroundColor: C.bg, borderRadius: 46, padding: 3 }}>
-                <Image source={{ uri: me.avatar }} style={{ width: 80, height: 80, borderRadius: 40 }} />
+            <Pressable onPress={() => { tapLight(); setEditOpen(true); }}>
+              <LinearGradient
+                colors={[C.gold, C.purple, C.green]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={{ width: 92, height: 92, borderRadius: 46, alignItems: 'center', justifyContent: 'center' }}
+              >
+                <View style={{ backgroundColor: C.bg, borderRadius: 46, padding: 3 }}>
+                  <Image source={{ uri: me.avatar }} style={{ width: 80, height: 80, borderRadius: 40 }} />
+                </View>
+              </LinearGradient>
+              <View style={{ position: 'absolute', bottom: 0, right: 0, width: 26, height: 26, borderRadius: 13, backgroundColor: C.purple, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: C.bg }}>
+                <Ionicons name="camera" size={13} color="#FFF" />
               </View>
-            </LinearGradient>
+            </Pressable>
             <View style={{ flex: 1, flexDirection: 'row', marginLeft: 6 }}>
               <Stat n={moments} label="Moments" />
               <Stat n={mates} label="Mates" />
@@ -339,6 +366,18 @@ export const ProfileScreen = () => {
           <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, paddingBottom: insets.bottom + 22, paddingHorizontal: 16 }}>
             <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 12 }} />
             <Text style={{ color: C.text, fontSize: 18, fontWeight: '900', marginBottom: 12 }}>Edit your space</Text>
+
+            {/* tap to change your profile photo */}
+            <Pressable onPress={changeAvatar} style={{ alignSelf: 'center', marginBottom: 16 }}>
+              <Image source={{ uri: editAvatar || me.avatar }} style={{ width: 88, height: 88, borderRadius: 44, borderWidth: 2, borderColor: C.line }} />
+              <View style={{ position: 'absolute', bottom: 0, right: 0, width: 30, height: 30, borderRadius: 15, backgroundColor: C.purple, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: C.bg }}>
+                <Ionicons name={avatarBusy ? 'hourglass' : 'camera'} size={15} color="#FFF" />
+              </View>
+            </Pressable>
+            <Text style={{ color: C.faint, fontSize: 11.5, textAlign: 'center', marginTop: -8, marginBottom: 12 }}>
+              {avatarBusy ? 'Uploading…' : 'Tap the photo to change it'}
+            </Text>
+
             <TextInput
               placeholder="Name"
               placeholderTextColor={C.faint}

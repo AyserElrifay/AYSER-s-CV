@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase';
 export async function fetchLiveCampfires() {
   const { data, error } = await supabase
     .from('campfires')
-    .select('*, host:profiles(name, handle, avatar_url, emoji)')
+    .select('*, host:profiles!campfires_host_id_fkey(name, handle, avatar_url, emoji)')
     .is('ended_at', null)
     .order('created_at', { ascending: false });
   if (error) throw error;
@@ -16,7 +16,7 @@ export async function hostCampfire(hostId, { title, topic, lat, lng }) {
   const { data, error } = await supabase
     .from('campfires')
     .insert({ host_id: hostId, title, topic, lat, lng })
-    .select('*, host:profiles(name, handle, avatar_url, emoji)')
+    .select('*, host:profiles!campfires_host_id_fkey(name, handle, avatar_url, emoji)')
     .single();
   if (error) throw error;
   return data;

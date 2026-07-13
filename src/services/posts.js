@@ -6,7 +6,7 @@ import { supabase } from '../lib/supabase';
 export async function fetchFeed() {
   const { data, error } = await supabase
     .from('posts')
-    .select('*, user:profiles(*)')
+    .select('*, user:profiles!posts_user_id_fkey(*)')
     .order('created_at', { ascending: false })
     .limit(30);
   if (error) throw error;
@@ -31,7 +31,7 @@ export async function fetchMyMoments(userId) {
 export async function fetchMyPosts(userId) {
   const { data, error } = await supabase
     .from('posts')
-    .select('*, user:profiles(*)')
+    .select('*, user:profiles!posts_user_id_fkey(*)')
     .eq('user_id', userId)
     .order('created_at', { ascending: false });
   if (error) throw error;
@@ -52,7 +52,7 @@ export async function createPost({ userId, type = 'post', caption, place, mediaU
       lng,
       squad_name: squadName,
     })
-    .select('*, user:profiles(*)')
+    .select('*, user:profiles!posts_user_id_fkey(*)')
     .single();
 
   let { data, error } = await insert();
