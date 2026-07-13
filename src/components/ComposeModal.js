@@ -8,7 +8,7 @@ import { C, R, TEXT_BGS } from '../constants/theme';
 import { ME, av } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
 import { createPost } from '../services/posts';
-import { uploadMedia } from '../services/social';
+import { uploadMedia, uploadCapture } from '../services/social';
 import { useAuth } from '../context/AuthContext';
 import { tapSuccess } from '../utils/feedback';
 import { Micro } from './Micro';
@@ -33,6 +33,7 @@ export const ComposeModal = ({ initialMode = 'post', onClose, onPosted, onPosted
   const [caption, setCaption] = useState('');
   const [place, setPlace] = useState('');
   const [imageUri, setImageUri] = useState(null);
+  const [imageMime, setImageMime] = useState('image/jpeg');
   const [textBg, setTextBg] = useState('plain');
   const [sound, setSound] = useState(null);
   const [pickingSound, setPickingSound] = useState(false);
@@ -54,6 +55,7 @@ export const ComposeModal = ({ initialMode = 'post', onClose, onPosted, onPosted
     }
     if (!result.canceled && result.assets && result.assets[0]) {
       setImageUri(result.assets[0].uri);
+      setImageMime(result.assets[0].mimeType || 'image/jpeg');
       setError(null);
     }
   };
@@ -81,7 +83,10 @@ export const ComposeModal = ({ initialMode = 'post', onClose, onPosted, onPosted
       let card;
       if (SUPABASE_READY && user) {
         let mediaUrl = null;
-        if (imageUri) mediaUrl = await uploadMedia(user.id, imageUri);
+        if (imageUri) {
+          const ext = (imageMime.split('/')[1] === 'jpeg' ? 'jpg' : (imageMime.split('/')[1] || 'jpg'));
+          mediaUrl = await uploadCapture(user.id, imageUri, ext, imageMime);
+        }
         const row = await createPost({
           userId: user.id,
           type: isReel ? 'reel' : 'post',

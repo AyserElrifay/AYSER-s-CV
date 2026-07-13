@@ -17,7 +17,7 @@ import { getOrCreateDmThread, sendMessage } from '../services/messages';
 import { openPartner } from '../services/broker';
 import {
   Glass, Micro, Chip, NeonButton, GhostButton, FauxMap,
-  PersonPin, CampfirePin, MePin, SOSButton, ProfileModal, BookingSheet,
+  PersonPin, CampfirePin, MePin, SOSButton, ProfileModal, BookingSheet, LeafletMap,
 } from '../components';
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
 import { sfxPop, sfxSuccess } from '../utils/sfx';
@@ -122,6 +122,21 @@ export const MapScreen = () => {
     () => [...people].map((p) => ({ ...p, km: kmBetween(myCoords, p.coords) })).sort((a, b) => a.km - b.km),
     [people, myCoords]
   );
+
+  /* Markers for the real (web) Leaflet map, on true coordinates. */
+  const mapMarkers = useMemo(() => {
+    const out = [];
+    people.forEach((p) => p.coords && out.push({ id: 'p_' + p.id, srcId: p.id, kind: 'person', lat: p.coords.latitude, lng: p.coords.longitude, emoji: p.doing || p.emoji || '🧿', label: p.name }));
+    campfires.forEach((c) => c.coords && out.push({ id: 'c_' + c.id, srcId: c.id, kind: 'fire', lat: c.coords.latitude, lng: c.coords.longitude, emoji: '🔥', label: c.title }));
+    (SUPABASE_READY ? realVenues : []).forEach((v) => v.lat != null && out.push({ id: 'v_' + v.id, srcId: v.id, kind: 'venue', lat: v.lat, lng: v.lng, emoji: v.emoji || '📍', label: v.name }));
+    return out;
+  }, [people, campfires, realVenues]);
+
+  const onMarkerPress = (m) => {
+    if (m.kind === 'person') { const p = people.find((x) => x.id === m.srcId); if (p) setProfileUser(p); }
+    else if (m.kind === 'venue') { const v = realVenues.find((x) => x.id === m.srcId); setRail('book'); if (v) setBookingVenue(v); }
+    else if (m.kind === 'fire') { const c = campfires.find((x) => x.id === m.srcId); if (c) joinFire(c); }
+  };
 
   /* ── your activity badge → a real row in live_locations ── */
   const pickDoing = async (emoji) => {
@@ -423,6 +438,8 @@ export const MapScreen = () => {
             </Marker>
           )) : null}
         </MapView>
+      ) : Platform.OS === 'web' ? (
+        <LeafletMap center={myCoords} markers={mapMarkers} onPress={onMarkerPress} />
       ) : (
         <FauxMap center={myCoords}>
           <View style={{ position: 'absolute', left: '38%', top: '50%' }}>
