@@ -56,6 +56,11 @@ export const HomeScreen = () => {
   );
   const reels = useMemo(() => posts.filter((p) => p.type === 'reel'), [posts]);
 
+  // refresh your header avatar when you come back from the profile
+  useEffect(() => {
+    if (!myProfileOpen && SUPABASE_READY && user) getProfile(user.id).then(setMyProfile).catch(() => {});
+  }, [myProfileOpen, user]);
+
   useEffect(() => {
     if (!SUPABASE_READY || !user) return;
     getProfile(user.id).then(setMyProfile).catch(() => {});
@@ -95,7 +100,7 @@ export const HomeScreen = () => {
     name: (myProfile && myProfile.name) || (user && user.user_metadata && user.user_metadata.name) || 'You',
     handle: (myProfile && myProfile.handle && '@' + myProfile.handle) || (user && user.email ? '@' + user.email.split('@')[0] : '@you'),
     emoji: (myProfile && myProfile.emoji) || '🧿',
-    avatar: (myProfile && myProfile.avatar_url) || av(60),
+    avatar: (myProfile && myProfile.avatar_url) || av(5),
     verified: !!(myProfile && myProfile.verified),
     vouches: 0,
     vouchTag: 'New Explorer',

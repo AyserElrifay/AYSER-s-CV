@@ -1,6 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, Pressable, Image, Modal, Dimensions, TextInput } from 'react-native';
+import { View, Text, ScrollView, Pressable, Image, Modal, Dimensions, TextInput, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+/* Resize a picked image to a small square data URL (web) — cheap to
+   store and works even if the storage bucket isn't set up. */
+function resizeSquare(uri, size) {
+  return new Promise((resolve) => {
+    if (typeof window === 'undefined' || !window.document) return resolve(null);
+    try {
+      const img = new window.Image();
+      img.onload = () => {
+        const s = Math.min(img.width, img.height);
+        const sx = (img.width - s) / 2, sy = (img.height - s) / 2;
+        const canvas = window.document.createElement('canvas');
+        canvas.width = size; canvas.height = size;
+        canvas.getContext('2d').drawImage(img, sx, sy, s, s, 0, 0, size, size);
+        resolve(canvas.toDataURL('image/jpeg', 0.85));
+      };
+      img.onerror = () => resolve(null);
+      img.src = uri;
+    } catch (e) { resolve(null); }
+  });
+}
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -112,15 +133,23 @@ export const ProfileScreen = () => {
     if (!SUPABASE_READY || !user) { setAvatarErr('Sign in with a real account to save your photo.'); return; }
     setAvatarBusy(true);
     try {
-      const mime = asset.mimeType || 'image/jpeg';
-      const ext = (mime.split('/')[1] === 'jpeg' ? 'jpg' : (mime.split('/')[1] || 'jpg'));
-      const publicUrl = await uploadCapture(user.id, asset.uri, ext, mime);
-      await updateProfile(user.id, { avatar_url: publicUrl });
-      setEditAvatar(publicUrl);
+      // Shrink to a small square first (web) — small enough to store
+      // inline if the storage bucket isn't ready, so it ALWAYS saves.
+      const small = Platform.OS === 'web' ? await resizeSquare(asset.uri, 256) : null;
+      const src = small || asset.uri;
+      let finalUrl = small; // data URL fallback that needs no bucket
+      try {
+        finalUrl = await uploadCapture(user.id, src, 'jpg', 'image/jpeg'); // real hosted URL if storage works
+      } catch (e) {
+        if (!small) throw e; // native without a data-url fallback → surface the error
+      }
+      await updateProfile(user.id, { avatar_url: finalUrl });
+      setEditAvatar(finalUrl);
+      setMyProfile((p) => ({ ...(p || {}), avatar_url: finalUrl })); // reflect instantly everywhere
       tapSuccess(); sfxSuccess();
       reload();
     } catch (e) {
-      setAvatarErr(e.message || 'Upload failed — is the “media” storage bucket created?');
+      setAvatarErr(e.message || 'Could not save the photo — try again.');
     } finally { setAvatarBusy(false); }
   };
 
