@@ -22,7 +22,7 @@ export async function fetchNearbyPeople() {
   const cutoff = new Date(Date.now() - 30 * 60 * 1000).toISOString();
   const { data, error } = await supabase
     .from('live_locations')
-    .select('user_id, lat, lng, doing, updated_at, profile:profiles(name, handle, avatar_url, emoji, intent, verified)')
+    .select('user_id, lat, lng, doing, updated_at, profile:profiles(name, handle, avatar_url, emoji, intent, verified, country_flag)')
     .gt('updated_at', cutoff);
   if (error) throw error;
   return data;

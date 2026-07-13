@@ -25,12 +25,15 @@ function loadLeaflet() {
   return leafletPromise;
 }
 
-const pinHtml = (emoji, kind) => {
-  const border = kind === 'fire' ? '#F43F5E' : kind === 'venue' ? '#7C3AED' : '#7C3AED';
+const pinHtml = (emoji, kind, flag) => {
+  const border = kind === 'fire' ? '#F43F5E' : '#7C3AED';
+  const flagBadge = flag
+    ? '<div style="position:absolute;bottom:-4px;right:-6px;background:#fff;border-radius:8px;font-size:12px;line-height:16px;padding:0 2px;box-shadow:0 1px 3px rgba(0,0,0,0.3)">' + flag + '</div>'
+    : '';
   return (
-    '<div style="width:36px;height:36px;border-radius:12px;background:#fff;border:2px solid ' + border +
+    '<div style="position:relative;width:36px;height:36px;border-radius:12px;background:#fff;border:2px solid ' + border +
     ';display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 2px 6px rgba(0,0,0,0.25)">' +
-    emoji + '</div>'
+    emoji + flagBadge + '</div>'
   );
 };
 
@@ -73,7 +76,7 @@ export const LeafletMap = ({ center, markers = [], onPress }) => {
 
     markers.forEach((m) => {
       if (m.lat == null || m.lng == null) return;
-      const icon = L.divIcon({ html: pinHtml(m.emoji || '📍', m.kind), className: '', iconSize: [36, 36], iconAnchor: [18, 36] });
+      const icon = L.divIcon({ html: pinHtml(m.emoji || '📍', m.kind, m.flag), className: '', iconSize: [36, 36], iconAnchor: [18, 36] });
       const mk = L.marker([m.lat, m.lng], { icon }).addTo(layerRef.current);
       if (m.label) mk.bindTooltip(m.label, { direction: 'top', offset: [0, -34] });
       mk.on('click', () => onPress && onPress(m));

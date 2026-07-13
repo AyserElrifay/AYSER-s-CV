@@ -5,7 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { C, R, TEXT_BGS } from '../constants/theme';
-import { ME, HIGHLIGHTS, MY_MOMENTS, BADGES, av } from '../constants/mockData'; // demo-mode fallback only
+import { ME, HIGHLIGHTS, MY_MOMENTS, BADGES, COUNTRIES, av } from '../constants/mockData'; // demo-mode fallback only
 import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { getProfile, updateProfile } from '../services/profiles';
@@ -93,6 +93,7 @@ export const ProfileScreen = () => {
   const [editAvatar, setEditAvatar] = useState(null); // new avatar url after upload
   const [avatarBusy, setAvatarBusy] = useState(false);
   const [avatarErr, setAvatarErr] = useState(null);
+  const [editFlag, setEditFlag] = useState('');
   const [savedEdit, setSavedEdit] = useState(false);
 
   /* Pick a new profile photo → upload → save avatar_url on your profile.
@@ -130,6 +131,7 @@ export const ProfileScreen = () => {
       setEditName(p.name || '');
       setEditBio(p.bio || '');
       setEditIntent(p.intent || '');
+      setEditFlag(p.country_flag || '');
     }).catch(() => {});
     fetchMyMoments(user.id).then(setMyMoments).catch(() => {});
     countMyCampfires(user.id).then(setCampfiresHosted).catch(() => {});
@@ -157,7 +159,8 @@ export const ProfileScreen = () => {
   const saveEdit = async () => {
     if (!SUPABASE_READY || !user) { setEditOpen(false); return; }
     try {
-      await updateProfile(user.id, { name: editName.trim() || 'Explorer', bio: editBio.trim() || null, intent: editIntent.trim() || null });
+      const c = COUNTRIES.find((x) => x.flag === editFlag);
+      await updateProfile(user.id, { name: editName.trim() || 'Explorer', bio: editBio.trim() || null, intent: editIntent.trim() || null, country: c ? c.name : null, country_flag: editFlag || null });
       tapSuccess(); sfxSuccess();
       setSavedEdit(true);
       reload();
@@ -411,6 +414,25 @@ export const ProfileScreen = () => {
               onChangeText={setEditIntent}
               style={{ color: C.text, fontSize: 14, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 11, marginBottom: 12 }}
             />
+
+            {/* country — shows as a flag on your map avatar */}
+            <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', letterSpacing: 1, marginBottom: 8 }}>YOUR COUNTRY 🌍</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
+              {COUNTRIES.map((c) => {
+                const on = editFlag === c.flag;
+                return (
+                  <Pressable key={c.name} onPress={() => { tapSelection(); setEditFlag(on ? '' : c.flag); }}>
+                    <View style={{ alignItems: 'center', marginRight: 12 }}>
+                      <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: on ? C.purpleSoft : C.glass, borderWidth: on ? 2 : 1, borderColor: on ? C.purple : C.line, alignItems: 'center', justifyContent: 'center' }}>
+                        <Text style={{ fontSize: 22 }}>{c.flag}</Text>
+                      </View>
+                      <Text style={{ color: on ? C.purple : C.faint, fontSize: 9.5, fontWeight: '700', marginTop: 3 }}>{c.name}</Text>
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+
             <Pressable onPress={saveEdit}>
               <View style={{ backgroundColor: C.purple, borderRadius: 14, paddingVertical: 14, alignItems: 'center' }}>
                 <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '900' }}>{savedEdit ? 'Saved ✓' : 'Save'}</Text>

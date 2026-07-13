@@ -38,6 +38,7 @@ const normalizePerson = (row) => ({
   emoji: (row.profile && row.profile.emoji) || '🧿',
   verified: !!(row.profile && row.profile.verified),
   intent: (row.profile && row.profile.intent) || 'Exploring 🧭',
+  countryFlag: row.profile && row.profile.country_flag,
   doing: row.doing,
   coords: { latitude: row.lat, longitude: row.lng },
 });
@@ -126,7 +127,7 @@ export const MapScreen = () => {
   /* Markers for the real (web) Leaflet map, on true coordinates. */
   const mapMarkers = useMemo(() => {
     const out = [];
-    people.forEach((p) => p.coords && out.push({ id: 'p_' + p.id, srcId: p.id, kind: 'person', lat: p.coords.latitude, lng: p.coords.longitude, emoji: p.doing || p.emoji || '🧿', label: p.name }));
+    people.forEach((p) => p.coords && out.push({ id: 'p_' + p.id, srcId: p.id, kind: 'person', lat: p.coords.latitude, lng: p.coords.longitude, emoji: p.doing || p.emoji || '🧿', flag: p.countryFlag, label: (p.countryFlag ? p.countryFlag + ' ' : '') + p.name }));
     campfires.forEach((c) => c.coords && out.push({ id: 'c_' + c.id, srcId: c.id, kind: 'fire', lat: c.coords.latitude, lng: c.coords.longitude, emoji: '🔥', label: c.title }));
     (SUPABASE_READY ? realVenues : []).forEach((v) => v.lat != null && out.push({ id: 'v_' + v.id, srcId: v.id, kind: 'venue', lat: v.lat, lng: v.lng, emoji: v.emoji || '📍', label: v.name }));
     return out;

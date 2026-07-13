@@ -115,6 +115,27 @@ export const SOUNDS = [
   { id: 'snd6', title: 'Original sound', artist: 'Your recording', emoji: '🎤', uses: '—' },
 ];
 
+/* ── INDIE MUSIC HUB · demo tracks, categorized by how they SOUND
+   (mood / BPM / instruments) — never by artist name. ── */
+export const TRACK_MOODS = ['All', '🌙 Dreamy', '🔥 Hype', '🍂 Melancholic', '☀️ Warm', '🌊 Chill'];
+export const HUB_TRACKS = [
+  { id: 'hb1', title: 'Untitled Sunrise', cover_emoji: '🌅', mood: '☀️ Warm', bpm: 92, music_key: 'C major', timbre: 'warm', instruments: ['acoustic guitar', 'rhodes'], genre_shape: 'acoustic', uses_count: 812, by: 'indie producer' },
+  { id: 'hb2', title: '3AM Loops', cover_emoji: '🌙', mood: '🌙 Dreamy', bpm: 74, music_key: 'A minor', timbre: 'hazy', instruments: ['synth pad', 'vinyl'], genre_shape: 'lo-fi', uses_count: 1543, by: 'indie producer' },
+  { id: 'hb3', title: 'Concrete Bloom', cover_emoji: '🔥', mood: '🔥 Hype', bpm: 140, music_key: 'F# minor', timbre: 'gritty', instruments: ['808', 'hi-hats'], genre_shape: 'melodic trap', uses_count: 2210, by: 'indie producer' },
+  { id: 'hb4', title: 'Tideline', cover_emoji: '🌊', mood: '🌊 Chill', bpm: 100, music_key: 'D major', timbre: 'bright', instruments: ['guitar', 'shaker'], genre_shape: 'indie pop', uses_count: 640, by: 'indie producer' },
+  { id: 'hb5', title: 'Rain on Glass', cover_emoji: '🍂', mood: '🍂 Melancholic', bpm: 68, music_key: 'E minor', timbre: 'soft', instruments: ['piano', 'strings'], genre_shape: 'ambient', uses_count: 921, by: 'indie producer' },
+];
+
+/* Countries — for the flag on your map avatar (the light version of the
+   "national-outfit avatar" idea). */
+export const COUNTRIES = [
+  { name: 'Egypt', flag: '🇪🇬' }, { name: 'Saudi Arabia', flag: '🇸🇦' }, { name: 'UAE', flag: '🇦🇪' },
+  { name: 'Morocco', flag: '🇲🇦' }, { name: 'France', flag: '🇫🇷' }, { name: 'Spain', flag: '🇪🇸' },
+  { name: 'USA', flag: '🇺🇸' }, { name: 'UK', flag: '🇬🇧' }, { name: 'Germany', flag: '🇩🇪' },
+  { name: 'Korea', flag: '🇰🇷' }, { name: 'Japan', flag: '🇯🇵' }, { name: 'China', flag: '🇨🇳' },
+  { name: 'Russia', flag: '🇷🇺' }, { name: 'Bosnia', flag: '🇧🇦' }, { name: 'Romania', flag: '🇷🇴' },
+];
+
 /* Each story: a moment that disappears after the vibe. */
 export const STORIES = [
   { user: USERS.malak, media: pic('storymalak', 700, 1200), sound: SOUNDS[1], caption: 'Tonight we go LIVE 🔥' },

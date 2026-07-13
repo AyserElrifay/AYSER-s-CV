@@ -11,6 +11,7 @@ import { useAuth } from '../context/AuthContext';
 import { createPost } from '../services/posts';
 import { createStory } from '../services/stories';
 import { uploadCapture, uploadMedia } from '../services/social';
+import { MusicHubSheet } from './MusicHubSheet';
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
 import { sfxPop, sfxSuccess } from '../utils/sfx';
 
@@ -38,6 +39,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
   const [recMs, setRecMs] = useState(0);
   const [caption, setCaption] = useState('');
   const [busy, setBusy] = useState(false);
+  const [hubOpen, setHubOpen] = useState(false);
 
   const videoRef = useRef(null);
   const streamRef = useRef(null);
@@ -276,6 +278,12 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
             <>
               {/* TikTok-style sound rail — pick while you shoot */}
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 14, marginBottom: 16 }}>
+                <Pressable onPress={() => { tapLight(); setHubOpen(true); }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(124,58,237,0.9)', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7, marginRight: 8 }}>
+                    <Text style={{ fontSize: 13 }}>🎧</Text>
+                    <Text style={{ color: '#FFF', fontSize: 11.5, fontWeight: '900', marginLeft: 5 }}>Music Hub</Text>
+                  </View>
+                </Pressable>
                 {SOUNDS.map((s) => {
                   const on = sound && sound.id === s.id;
                   return (
@@ -352,6 +360,8 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
             </View>
           )}
         </View>
+
+        {hubOpen ? <MusicHubSheet onPick={(t) => setSound(t)} onClose={() => setHubOpen(false)} /> : null}
       </View>
     </Modal>
   );
