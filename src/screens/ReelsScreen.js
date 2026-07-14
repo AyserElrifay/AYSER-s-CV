@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { C } from '../constants/theme';
-import { REELS, av } from '../constants/mockData';
+import { REELS, AV_NEUTRAL } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { fetchFeed } from '../services/posts';
@@ -50,7 +50,7 @@ export const ReelsScreen = () => {
         .filter((r) => r.type === 'reel')
         .map((r) => ({
           id: r.id,
-          user: { id: r.user_id, name: (r.user && r.user.name) || 'Explorer', avatar: (r.user && r.user.avatar_url) || av(60), verified: !!(r.user && r.user.verified) },
+          user: { id: r.user_id, name: (r.user && r.user.name) || 'Explorer', avatar: (r.user && r.user.avatar_url) || AV_NEUTRAL, verified: !!(r.user && r.user.verified), flag: (r.user && r.user.country_flag) || '' },
           media: r.media_url,
           caption: r.caption || '',
           sound: r.sound_title ? { title: r.sound_title, artist: r.sound_artist || '', emoji: '🎵' } : null,
@@ -132,7 +132,7 @@ export const ReelsScreen = () => {
                 ) : null}
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 9 }}>
                   <Image source={{ uri: item.user.avatar }} style={{ width: 38, height: 38, borderRadius: 19, borderWidth: 1.5, borderColor: '#FFF' }} />
-                  <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '800', marginLeft: 9 }}>{item.user.name}</Text>
+                  <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '800', marginLeft: 9 }}>{item.user.name}{item.user.flag ? ' ' + item.user.flag : ''}</Text>
                   {!item.sponsored ? (
                     <Pressable
                       onPress={() => {

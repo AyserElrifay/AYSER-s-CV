@@ -103,14 +103,58 @@ export async function fetchComments(postId) {
   return data;
 }
 
-export async function addComment(postId, userId, body) {
-  const { data, error } = await supabase
-    .from('comments')
-    .insert({ post_id: postId, user_id: userId, body })
-    .select('*, user:profiles(*)')
-    .single();
-  if (error) throw error;
-  return data;
+export async function addComment(postId, userId, body, parentId) {
+  let payload = { post_id: postId, user_id: userId, body, parent_id: parentId || null };
+  for (let i = 0; i < 3; i++) {
+    const { data, error } = await supabase
+      .from('comments')
+      .insert(payload)
+      .select('*, user:profiles(*)')
+      .single();
+    if (!error) return data;
+    // DB without the replies column yet → post it as a normal comment
+    if (/find the 'parent_id' column/i.test(error.message || '') && 'parent_id' in payload) {
+      payload = { ...payload };
+      delete payload.parent_id;
+      continue;
+    }
+    throw error;
+  }
+  throw new Error('Could not post your comment.');
+}
+
+/* Likes on comments — restore + counts, fail-soft before the SQL runs. */
+export async function fetchCommentLikes(commentIds, myId) {
+  const out = { counts: {}, mine: {} };
+  if (!commentIds.length) return out;
+  try {
+    const { data } = await supabase
+      .from('comment_likes')
+      .select('comment_id, user_id')
+      .in('comment_id', commentIds)
+      .limit(2000);
+    (data || []).forEach((r) => {
+      out.counts[r.comment_id] = (out.counts[r.comment_id] || 0) + 1;
+      if (r.user_id === myId) out.mine[r.comment_id] = true;
+    });
+  } catch (e) {}
+  return out;
+}
+
+export async function toggleCommentLike(commentId, userId, on) {
+  if (on) {
+    const { error } = await supabase
+      .from('comment_likes')
+      .upsert({ comment_id: commentId, user_id: userId }, { onConflict: 'comment_id,user_id' });
+    if (error) throw error;
+  } else {
+    const { error } = await supabase
+      .from('comment_likes')
+      .delete()
+      .eq('comment_id', commentId)
+      .eq('user_id', userId);
+    if (error) throw error;
+  }
 }
 
 export async function searchProfiles(query) {

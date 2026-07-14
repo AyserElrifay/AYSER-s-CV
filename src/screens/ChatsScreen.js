@@ -6,7 +6,8 @@ import { SQUADS, DMS, LANG_PARTNERS } from '../constants/mockData'; // demo-mode
 import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { fetchMyDmThreads, fetchMySquads } from '../services/messages';
-import { fetchIncomingRequests, acceptRequest } from '../services/mates';
+import { fetchIncomingRequests, acceptRequest, fetchMyMates } from '../services/mates';
+import { AV_NEUTRAL } from '../constants/mockData';
 import { fetchLanguagePartners } from '../services/social';
 import { Page, ScreenHeader, SectionHeader, Glass, Chip, Tick, AvatarStack } from '../components';
 import { ChatThread } from './ChatThread';
@@ -34,6 +35,7 @@ export const ChatsScreen = () => {
   const [realPartners, setRealPartners] = useState([]);
   const [mateRequests, setMateRequests] = useState([]); // real pending friend requests
   const [justAccepted, setJustAccepted] = useState({});
+  const [myMates, setMyMates] = useState([]);           // your friends — one tap to chat
 
   const reload = useCallback(() => {
     if (!SUPABASE_READY || !user) return;
@@ -41,6 +43,7 @@ export const ChatsScreen = () => {
     fetchMySquads(user.id).then(setRealSquads).catch(() => {});
     fetchLanguagePartners(user.id).then(setRealPartners).catch(() => {});
     fetchIncomingRequests(user.id).then(setMateRequests).catch(() => {});
+    fetchMyMates(user.id).then(setMyMates).catch(() => {});
   }, [user]);
 
   const accept = async (req) => {
@@ -103,6 +106,34 @@ export const ChatsScreen = () => {
           );
         })}
         <View style={{ height: 10 }} />
+      </>
+    ) : null}
+
+    {/* ── YOUR MATES — one tap opens the chat ── */}
+    {myMates.length ? (
+      <>
+        <SectionHeader title="Your mates 🤝" />
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 20 }}>
+          {myMates.map((m) => (
+            <Pressable
+              key={m.id}
+              onPress={() => { tapLight(); setThread({ chat: { user: { id: m.id, name: m.name || 'Explorer', avatar: m.avatar_url || AV_NEUTRAL } }, group: false }); }}
+              style={{ alignItems: 'center', marginRight: 14, width: 64 }}
+            >
+              <View>
+                <Image source={{ uri: m.avatar_url || AV_NEUTRAL }} style={{ width: 56, height: 56, borderRadius: 28, borderWidth: 2, borderColor: C.purple }} />
+                {m.country_flag ? (
+                  <View style={{ position: 'absolute', bottom: -2, right: -3, backgroundColor: '#FFF', borderRadius: 8, paddingHorizontal: 2 }}>
+                    <Text style={{ fontSize: 11 }}>{m.country_flag}</Text>
+                  </View>
+                ) : null}
+              </View>
+              <Text style={{ color: C.dim, fontSize: 10.5, fontWeight: '700', marginTop: 5 }} numberOfLines={1}>
+                {(m.name || 'Explorer').split(' ')[0]}
+              </Text>
+            </Pressable>
+          ))}
+        </ScrollView>
       </>
     ) : null}
 

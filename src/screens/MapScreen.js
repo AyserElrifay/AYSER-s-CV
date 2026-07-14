@@ -3,7 +3,7 @@ import { View, Text, ScrollView, Pressable, Modal, TextInput, Platform, Image, L
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { C } from '../constants/theme';
-import { ME, DOING_OPTIONS, DEALS, DEAL_FILTERS, av } from '../constants/mockData';
+import { ME, DOING_OPTIONS, DEALS, DEAL_FILTERS, av, AV_NEUTRAL } from '../constants/mockData';
 import { MAP_PEOPLE, CAMPFIRES, BOOKINGS } from '../constants/mockData'; // demo-mode fallback only
 import { MapView, Marker, MAPS_READY } from '../utils/maps';
 import { kmBetween, projectToMap } from '../utils/geo';
@@ -38,7 +38,7 @@ const normalizePerson = (row) => ({
   id: row.user_id,
   name: (row.profile && row.profile.name) || 'Explorer',
   handle: row.profile && row.profile.handle,
-  avatar: (row.profile && row.profile.avatar_url) || av(60),
+  avatar: (row.profile && row.profile.avatar_url) || AV_NEUTRAL,
   emoji: (row.profile && row.profile.emoji) || '🧿',
   verified: !!(row.profile && row.profile.verified),
   intent: (row.profile && row.profile.intent) || 'Exploring 🧭',
@@ -278,15 +278,31 @@ export const MapScreen = () => {
     }
   };
 
-  /* ── Wave → a real DM, not a fake local toggle ── */
+  /* Map-level toast — honest feedback for every map action. */
+  const [mapNote, setMapNote] = useState(null);
+  const note = (msg) => {
+    setMapNote(msg);
+    setTimeout(() => setMapNote(null), 3200);
+  };
+  const explainMap = (e) => {
+    const m = (e && e.message) || '';
+    return /does not exist|schema cache|get_or_create/i.test(m)
+      ? 'One step left: run supabase/RUN_ME.sql to turn this on.'
+      : (m || 'Something went wrong — try again.');
+  };
+
+  /* ── Wave → a real DM. "Waved ✓" appears ONLY when it truly sent. ── */
   const wave = async (person) => {
-    tapLight(); sfxPop();
-    setWaved((w) => ({ ...w, [person.id]: true }));
-    if (!SUPABASE_READY || !user) return;
+    tapLight();
+    if (!SUPABASE_READY || !user) { setWaved((w) => ({ ...w, [person.id]: true })); return; }
     try {
       const threadId = await getOrCreateDmThread(person.id);
       await sendMessage({ dmThreadId: threadId, userId: user.id, body: '👋' });
-    } catch (e) {}
+      sfxPop();
+      setWaved((w) => ({ ...w, [person.id]: true }));
+    } catch (e) {
+      note('👋 ' + explainMap(e));
+    }
   };
 
   /* ── Book → open the pay-and-earn booking sheet (commission flows) ── */
@@ -312,16 +328,25 @@ export const MapScreen = () => {
     }
   };
 
-  /* ── Join the Moment — a real membership row + a hello to the host ── */
+  /* ── Join the Moment — "You're in!" ONLY after the real join lands ── */
   const joinFire = async (c) => {
-    tapSuccess(); sfxSuccess();
-    setJoinedFires((j) => ({ ...j, [c.id]: true }));
-    if (!SUPABASE_READY || !user || !c.hostId || c.hostId === user.id) return;
+    if (!SUPABASE_READY || !user || !c.hostId || c.hostId === user.id) {
+      tapSuccess(); sfxSuccess();
+      setJoinedFires((j) => ({ ...j, [c.id]: true }));
+      return;
+    }
     try {
       await joinCampfire(c.id, user.id);
-      const threadId = await getOrCreateDmThread(c.hostId);
-      await sendMessage({ dmThreadId: threadId, userId: user.id, body: 'I’m in for “' + c.title + '”! 🙌' });
-    } catch (e) {}
+      tapSuccess(); sfxSuccess();
+      setJoinedFires((j) => ({ ...j, [c.id]: true }));
+      // the hello to the host is best-effort — the join itself is done
+      try {
+        const threadId = await getOrCreateDmThread(c.hostId);
+        await sendMessage({ dmThreadId: threadId, userId: user.id, body: 'I’m in for “' + c.title + '”! 🙌' });
+      } catch (e2) {}
+    } catch (e) {
+      note('🔥 ' + explainMap(e));
+    }
   };
 
   /* ── Partner application → a real pending venue row ── */
@@ -591,6 +616,15 @@ export const MapScreen = () => {
       )}
 
       {overlays}
+
+      {/* honest toast — errors & confirmations for map actions */}
+      {mapNote ? (
+        <View pointerEvents="none" style={{ position: 'absolute', top: insets.top + 78, left: 24, right: 24, alignItems: 'center', zIndex: 40 }}>
+          <View style={{ backgroundColor: 'rgba(17,24,39,0.94)', borderRadius: 14, paddingHorizontal: 16, paddingVertical: 11 }}>
+            <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '700', lineHeight: 18 }}>{mapNote}</Text>
+          </View>
+        </View>
+      ) : null}
 
       {/* SOS confirm sheet */}
       {sos ? (
@@ -977,7 +1011,7 @@ export const MapScreen = () => {
               ) : (
                 destReviews.slice(0, 8).map((r) => (
                   <View key={r.id} style={{ flexDirection: 'row', marginTop: 12 }}>
-                    <Image source={{ uri: (r.user && r.user.avatar_url) || av(60) }} style={{ width: 32, height: 32, borderRadius: 16 }} />
+                    <Image source={{ uri: (r.user && r.user.avatar_url) || AV_NEUTRAL }} style={{ width: 32, height: 32, borderRadius: 16 }} />
                     <View style={{ flex: 1, marginLeft: 10, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 14, padding: 10 }}>
                       <Text style={{ color: C.text, fontSize: 12.5, fontWeight: '800' }}>
                         {(r.user && r.user.name) || 'Explorer'} {(r.user && r.user.country_flag) || ''}  <Text style={{ color: '#B8860B' }}>{'⭐'.repeat(r.stars)}</Text>

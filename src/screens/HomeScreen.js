@@ -3,7 +3,7 @@ import { View, Text, FlatList, Pressable, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { C } from '../constants/theme';
-import { av } from '../constants/mockData';
+import { av, AV_NEUTRAL } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
 import { toggleVibe, toggleLaugh, toggleRepost, joinPost, fetchEngagement } from '../services/social';
 import { getProfile } from '../services/profiles';
@@ -153,10 +153,10 @@ export const HomeScreen = () => {
     getProfile(user.id).then(setMyProfile).catch(() => {});
     fetchMyPosts(user.id).then((rows) => setMyMomentsCount((rows || []).length)).catch(() => {});
     fetchActiveStories().then((rows) => setRealStories((rows || []).map((r) => ({
-      user: { id: r.user_id, name: (r.user && r.user.name) || 'Explorer', avatar: (r.user && r.user.avatar_url) || av(60) },
+      user: { id: r.user_id, name: (r.user && r.user.name) || 'Explorer', avatar: (r.user && r.user.avatar_url) || AV_NEUTRAL },
       media: r.media_url,
       caption: r.caption,
-      sound: r.sound_title ? { title: r.sound_title, artist: r.sound_artist || '', emoji: '🎵' } : null,
+      sound: r.sound_title ? { title: r.sound_title, artist: r.sound_artist || '', emoji: '🎵', audio_url: r.sound_url || null } : null,
     })))).catch(() => {});
   }, [user, posts.length, myStories.length]);
 
@@ -194,7 +194,7 @@ export const HomeScreen = () => {
     name: (myProfile && myProfile.name) || (user && user.user_metadata && user.user_metadata.name) || 'You',
     handle: (myProfile && myProfile.handle && '@' + myProfile.handle) || (user && user.email ? '@' + user.email.split('@')[0] : '@you'),
     emoji: (myProfile && myProfile.emoji) || '🧿',
-    avatar: (myProfile && myProfile.avatar_url) || av(5),
+    avatar: (myProfile && myProfile.avatar_url) || AV_NEUTRAL,
     verified: !!(myProfile && myProfile.verified),
     vouches: 0,
     vouchTag: 'New Explorer',

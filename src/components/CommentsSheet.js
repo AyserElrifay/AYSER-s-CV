@@ -3,59 +3,109 @@ import { View, Text, Modal, FlatList, TextInput, Pressable, Image, KeyboardAvoid
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { C, R } from '../constants/theme';
-import { av } from '../constants/mockData';
+import { AV_NEUTRAL } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
-import { fetchComments, addComment } from '../services/social';
+import { fetchComments, addComment, fetchCommentLikes, toggleCommentLike } from '../services/social';
 import { useAuth } from '../context/AuthContext';
-import { sfxPop } from '../utils/sfx';
-import { tapSelection } from '../utils/feedback';
+import { sfxPop, sfxStar } from '../utils/sfx';
+import { tapSelection, tapLight } from '../utils/feedback';
 import { Micro } from './Micro';
 
-/* Bottom sheet of what people wrote under a post. One list, one input —
-   nothing else. Comments are real: fetched from the DB in real mode and
-   kept in local state as you add them. Nothing is ever fabricated. */
+/* Comments — real, with the full loop: reply to anyone (threads), and
+   react with a ❤️ that persists. Country flags next to names. */
 
 const toRow = (row) => ({
   id: row.id,
+  parentId: row.parent_id || null,
   user: {
     name: (row.user && row.user.name) || 'Explorer',
-    avatar: (row.user && row.user.avatar_url) || av(60),
+    avatar: (row.user && row.user.avatar_url) || AV_NEUTRAL,
+    flag: (row.user && row.user.country_flag) || '',
   },
   body: row.body,
 });
+
+/* parents first, each followed by its replies (one level, IG-style) */
+const toThread = (rows) => {
+  const parents = rows.filter((r) => !r.parentId);
+  const byParent = {};
+  rows.filter((r) => r.parentId).forEach((r) => {
+    (byParent[r.parentId] = byParent[r.parentId] || []).push(r);
+  });
+  const out = [];
+  parents.forEach((p) => {
+    out.push(p);
+    (byParent[p.id] || []).forEach((r) => out.push({ ...r, isReply: true }));
+  });
+  // replies whose parent vanished still show, un-indented
+  rows.filter((r) => r.parentId && !parents.some((p) => p.id === r.parentId)).forEach((r) => out.push(r));
+  return out;
+};
 
 export const CommentsSheet = ({ post, onClose }) => {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [comments, setComments] = useState([]);
+  const [likes, setLikes] = useState({});           // my hearts
+  const [likeCounts, setLikeCounts] = useState({}); // crowd totals (incl. me at load)
+  const [myInitialLikes, setMyInitialLikes] = useState({});
+  const [replyTo, setReplyTo] = useState(null);     // { id, name }
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
+  const [sendErr, setSendErr] = useState(null);
 
   const load = useCallback(async () => {
     if (!SUPABASE_READY) { setComments([]); return; }
     try {
-      const rows = await fetchComments(post.id);
-      setComments(rows.map(toRow));
+      const rows = (await fetchComments(post.id)).map(toRow);
+      setComments(toThread(rows));
+      const { counts, mine } = await fetchCommentLikes(rows.map((r) => r.id), user && user.id);
+      setLikeCounts(counts);
+      setMyInitialLikes(mine);
+      setLikes((l) => ({ ...mine, ...l }));
     } catch (e) { setComments([]); }
-  }, [post]);
+  }, [post, user]);
 
   useEffect(() => { load(); }, [load]);
+
+  const heart = (c) => {
+    const next = !likes[c.id];
+    tapLight(); if (next) sfxStar();
+    setLikes((l) => ({ ...l, [c.id]: next }));
+    if (SUPABASE_READY && user) toggleCommentLike(c.id, user.id, next).catch(() => {});
+  };
 
   const send = async () => {
     const body = text.trim();
     if (!body || sending) return;
     setText('');
     sfxPop(); tapSelection();
+    const parentId = replyTo ? replyTo.id : null;
     if (SUPABASE_READY && user) {
       setSending(true);
       try {
-        const row = await addComment(post.id, user.id, body);
-        setComments((c) => [...c, toRow(row)]);
+        const row = await addComment(post.id, user.id, body, parentId);
+        setSendErr(null);
+        setReplyTo(null);
+        const newRow = { ...toRow(row), isReply: !!parentId };
+        setComments((c) => {
+          if (!parentId) return [...c, newRow];
+          // slot the reply right after its parent's last reply
+          const out = [...c];
+          let at = out.findIndex((x) => x.id === parentId);
+          if (at === -1) return [...out, newRow];
+          while (at + 1 < out.length && out[at + 1].isReply) at++;
+          out.splice(at + 1, 0, newRow);
+          return out;
+        });
       } catch (e) {
-        setComments((c) => [...c, { id: 'x' + Date.now(), user: { name: 'You', avatar: av(60) }, body }]);
+        // honest failure — give the text back, say what went wrong
+        setText(body);
+        setSendErr((e && e.message) || 'Could not post your comment — try again.');
       } finally { setSending(false); }
     } else {
-      setComments((c) => [...c, { id: 'x' + Date.now(), user: { name: 'You', avatar: av(60) }, body }]);
+      setComments((c) => [...c, { id: 'x' + Date.now(), parentId, isReply: !!parentId, user: { name: 'You', avatar: AV_NEUTRAL, flag: '' }, body }]);
+      setReplyTo(null);
     }
   };
 
@@ -66,7 +116,7 @@ export const CommentsSheet = ({ post, onClose }) => {
         <View
           style={{
             backgroundColor: C.bg2, borderTopLeftRadius: R + 6, borderTopRightRadius: R + 6,
-            borderWidth: 1, borderColor: C.line, maxHeight: 480,
+            borderWidth: 1, borderColor: C.line, maxHeight: 520,
             paddingBottom: insets.bottom + 10,
           }}
         >
@@ -81,27 +131,59 @@ export const CommentsSheet = ({ post, onClose }) => {
           <FlatList
             data={comments}
             keyExtractor={(c) => c.id}
-            style={{ maxHeight: 320 }}
+            style={{ maxHeight: 340 }}
             contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 8 }}
             ListEmptyComponent={
               <Text style={{ color: C.faint, fontSize: 13, textAlign: 'center', paddingVertical: 24 }}>
                 No comments yet — say something nice ✨
               </Text>
             }
-            renderItem={({ item }) => (
-              <View style={{ flexDirection: 'row', marginBottom: 14 }}>
-                <Image source={{ uri: item.user.avatar }} style={{ width: 32, height: 32, borderRadius: 16 }} />
-                <View style={{ flex: 1, marginLeft: 10, backgroundColor: C.glass, borderRadius: 14, borderWidth: 1, borderColor: C.line, padding: 10 }}>
-                  <Text style={{ color: C.text, fontSize: 12.5, fontWeight: '800' }}>{item.user.name}</Text>
-                  <Text style={{ color: C.dim, fontSize: 13, marginTop: 3, lineHeight: 18 }}>{item.body}</Text>
+            renderItem={({ item }) => {
+              const liked = !!likes[item.id];
+              const baseLikes = Math.max(0, (likeCounts[item.id] || 0) - (myInitialLikes[item.id] ? 1 : 0));
+              return (
+                <View style={{ flexDirection: 'row', marginBottom: 12, marginLeft: item.isReply ? 34 : 0 }}>
+                  <Image source={{ uri: item.user.avatar }} style={{ width: item.isReply ? 26 : 32, height: item.isReply ? 26 : 32, borderRadius: 16 }} />
+                  <View style={{ flex: 1, marginLeft: 10 }}>
+                    <View style={{ backgroundColor: C.glass, borderRadius: 14, borderWidth: 1, borderColor: C.line, padding: 10 }}>
+                      <Text style={{ color: C.text, fontSize: 12.5, fontWeight: '800' }}>
+                        {item.user.name}{item.user.flag ? ' ' + item.user.flag : ''}
+                      </Text>
+                      <Text style={{ color: C.dim, fontSize: 13, marginTop: 3, lineHeight: 18 }}>{item.body}</Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4, marginLeft: 6 }}>
+                      <Pressable onPress={() => heart(item)} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', marginRight: 16 }}>
+                        <Text style={{ fontSize: 12, opacity: liked ? 1 : 0.45 }}>{liked ? '❤️' : '🤍'}</Text>
+                        {(baseLikes + (liked ? 1 : 0)) > 0 ? (
+                          <Text style={{ color: liked ? C.coral : C.faint, fontSize: 11, fontWeight: '800', marginLeft: 3 }}>
+                            {baseLikes + (liked ? 1 : 0)}
+                          </Text>
+                        ) : null}
+                      </Pressable>
+                      {!item.isReply ? (
+                        <Pressable onPress={() => { tapLight(); setReplyTo({ id: item.id, name: item.user.name }); }} hitSlop={8}>
+                          <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '800' }}>Reply</Text>
+                        </Pressable>
+                      ) : null}
+                    </View>
+                  </View>
                 </View>
-              </View>
-            )}
+              );
+            }}
           />
 
+          {replyTo ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.purpleSoft, paddingHorizontal: 18, paddingVertical: 7 }}>
+              <Text style={{ color: C.purple, fontSize: 11.5, fontWeight: '800', flex: 1 }}>↩︎ Replying to {replyTo.name}</Text>
+              <Pressable onPress={() => setReplyTo(null)} hitSlop={8}><Ionicons name="close" size={15} color={C.purple} /></Pressable>
+            </View>
+          ) : null}
+          {sendErr ? (
+            <Text style={{ color: C.coral, fontSize: 11.5, fontWeight: '700', paddingHorizontal: 18, paddingTop: 6 }}>⚠️ {sendErr}</Text>
+          ) : null}
           <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingTop: 8 }}>
             <TextInput
-              placeholder="Write a comment…"
+              placeholder={replyTo ? 'Reply to ' + replyTo.name + '…' : 'Write a comment…'}
               placeholderTextColor={C.faint}
               value={text}
               onChangeText={setText}

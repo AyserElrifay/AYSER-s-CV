@@ -224,6 +224,181 @@ do $$ begin
   end if;
 end $$;
 
+-- ═══════════ v2 · CHAT (DMs), LIVE MAP & VENUES — folded in ═══════════
+-- The reason "messages won't send": these tables come from
+-- schema_v2_live.sql. Now they're here so ONE paste covers everything.
+create table if not exists public.live_locations (
+  user_id    uuid primary key references public.profiles(id) on delete cascade,
+  lat double precision not null, lng double precision not null,
+  doing text, updated_at timestamptz default now()
+);
+alter table public.live_locations enable row level security;
+drop policy if exists "live locations are viewable by everyone" on public.live_locations;
+create policy "live locations are viewable by everyone" on public.live_locations for select using (true);
+drop policy if exists "users upsert own location" on public.live_locations;
+create policy "users upsert own location" on public.live_locations for insert with check (auth.uid() = user_id);
+drop policy if exists "users update own location" on public.live_locations;
+create policy "users update own location" on public.live_locations for update using (auth.uid() = user_id);
+drop policy if exists "users can go invisible" on public.live_locations;
+create policy "users can go invisible" on public.live_locations for delete using (auth.uid() = user_id);
+
+create table if not exists public.venues (
+  id uuid primary key default gen_random_uuid(),
+  owner_id uuid references public.profiles(id) on delete set null,
+  name text not null, kind text, emoji text default '📍', sub text, price text,
+  lat double precision, lng double precision,
+  status text not null default 'pending' check (status in ('pending','live','rejected')),
+  created_at timestamptz default now()
+);
+alter table public.venues enable row level security;
+drop policy if exists "live venues are viewable by everyone" on public.venues;
+create policy "live venues are viewable by everyone" on public.venues for select using (status = 'live' or auth.uid() = owner_id);
+drop policy if exists "signed-in users can apply as a venue" on public.venues;
+create policy "signed-in users can apply as a venue" on public.venues for insert with check (auth.uid() = owner_id);
+drop policy if exists "owners can update own pending venue" on public.venues;
+create policy "owners can update own pending venue" on public.venues for update using (auth.uid() = owner_id);
+
+create table if not exists public.campfires (
+  id uuid primary key default gen_random_uuid(),
+  host_id uuid not null references public.profiles(id) on delete cascade,
+  title text not null, topic text, lat double precision, lng double precision,
+  created_at timestamptz default now(), ended_at timestamptz
+);
+alter table public.campfires enable row level security;
+drop policy if exists "live campfires are viewable by everyone" on public.campfires;
+create policy "live campfires are viewable by everyone" on public.campfires for select using (ended_at is null or host_id = auth.uid());
+drop policy if exists "users can host a campfire" on public.campfires;
+create policy "users can host a campfire" on public.campfires for insert with check (auth.uid() = host_id);
+drop policy if exists "hosts can end own campfire" on public.campfires;
+create policy "hosts can end own campfire" on public.campfires for update using (auth.uid() = host_id);
+
+create table if not exists public.dm_threads (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz default now()
+);
+create table if not exists public.dm_participants (
+  thread_id uuid references public.dm_threads(id) on delete cascade,
+  user_id   uuid references public.profiles(id) on delete cascade,
+  primary key (thread_id, user_id)
+);
+alter table public.dm_threads      enable row level security;
+alter table public.dm_participants enable row level security;
+drop policy if exists "participants can view their dm threads" on public.dm_threads;
+create policy "participants can view their dm threads" on public.dm_threads for select using (
+  exists (select 1 from public.dm_participants p where p.thread_id = id and p.user_id = auth.uid())
+);
+drop policy if exists "participants are viewable by thread members" on public.dm_participants;
+create policy "participants are viewable by thread members" on public.dm_participants for select using (
+  exists (select 1 from public.dm_participants p2 where p2.thread_id = thread_id and p2.user_id = auth.uid())
+);
+
+create or replace function public.get_or_create_dm_thread(other_user uuid)
+returns uuid language plpgsql security definer set search_path = public as $$
+declare
+  found_id uuid; new_id uuid;
+begin
+  select p1.thread_id into found_id
+  from public.dm_participants p1
+  join public.dm_participants p2 on p1.thread_id = p2.thread_id
+  where p1.user_id = auth.uid() and p2.user_id = other_user
+  limit 1;
+  if found_id is not null then return found_id; end if;
+  insert into public.dm_threads default values returning id into new_id;
+  insert into public.dm_participants (thread_id, user_id) values (new_id, auth.uid());
+  insert into public.dm_participants (thread_id, user_id) values (new_id, other_user);
+  return new_id;
+end $$;
+
+create table if not exists public.messages (
+  id uuid primary key default gen_random_uuid(),
+  squad_id uuid references public.squads(id) on delete cascade,
+  dm_thread_id uuid references public.dm_threads(id) on delete cascade,
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  body text not null, created_at timestamptz default now(),
+  constraint messages_exactly_one_thread check (
+    (squad_id is not null and dm_thread_id is null) or
+    (squad_id is null and dm_thread_id is not null)
+  )
+);
+alter table public.messages enable row level security;
+drop policy if exists "squad members read squad messages" on public.messages;
+create policy "squad members read squad messages" on public.messages for select using (
+  (squad_id is not null and exists (select 1 from public.squad_members m where m.squad_id = messages.squad_id and m.user_id = auth.uid()))
+  or
+  (dm_thread_id is not null and exists (select 1 from public.dm_participants p where p.thread_id = messages.dm_thread_id and p.user_id = auth.uid()))
+);
+drop policy if exists "squad members send squad messages" on public.messages;
+create policy "squad members send squad messages" on public.messages for insert with check (
+  auth.uid() = user_id and (
+    (squad_id is not null and exists (select 1 from public.squad_members m where m.squad_id = messages.squad_id and m.user_id = auth.uid()))
+    or
+    (dm_thread_id is not null and exists (select 1 from public.dm_participants p where p.thread_id = messages.dm_thread_id and p.user_id = auth.uid()))
+  )
+);
+
+do $$ begin
+  begin alter publication supabase_realtime add table public.live_locations; exception when duplicate_object then null; end;
+  begin alter publication supabase_realtime add table public.messages;       exception when duplicate_object then null; end;
+  begin alter publication supabase_realtime add table public.campfires;      exception when duplicate_object then null; end;
+end $$;
+
+-- ═══════════ v7 · INDIE MUSIC HUB (real, playable tracks) ═══════════
+create table if not exists public.tracks (
+  id           uuid primary key default gen_random_uuid(),
+  uploader_id  uuid not null references public.profiles(id) on delete cascade,
+  title        text not null,
+  audio_url    text not null,
+  cover_emoji  text default '🎵',
+  duration_sec int,
+  bpm          int,
+  music_key    text,
+  mood         text,
+  timbre       text,
+  instruments  text[],
+  genre_shape  text,
+  uses_count   int not null default 0,
+  created_at   timestamptz not null default now()
+);
+alter table public.tracks enable row level security;
+drop policy if exists "tracks are listenable by everyone" on public.tracks;
+create policy "tracks are listenable by everyone" on public.tracks for select using (true);
+drop policy if exists "producers upload own tracks" on public.tracks;
+create policy "producers upload own tracks" on public.tracks for insert with check (auth.uid() = uploader_id);
+drop policy if exists "producers manage own tracks" on public.tracks;
+create policy "producers manage own tracks" on public.tracks for delete using (auth.uid() = uploader_id);
+
+-- attach a song to stories & reels (URL = actually playable)
+alter table public.stories add column if not exists sound_url text;
+alter table public.posts   add column if not exists sound_title  text;
+alter table public.posts   add column if not exists sound_artist text;
+alter table public.posts   add column if not exists sound_url    text;
+
+-- ═══════════ v14 · VENUE BOOKINGS (real reservation requests) ═══════════
+create table if not exists public.venue_bookings (
+  id           uuid primary key default gen_random_uuid(),
+  venue_id     uuid references public.venues(id) on delete cascade,
+  user_id      uuid references public.profiles(id) on delete set null,
+  venue_name   text,
+  full_name    text not null,
+  phone        text not null,
+  booking_date text,
+  people       int not null default 2 check (people between 1 and 50),
+  notes        text,
+  status       text not null default 'new' check (status in ('new','confirmed','cancelled')),
+  created_at   timestamptz not null default now()
+);
+alter table public.venue_bookings enable row level security;
+drop policy if exists "book as yourself" on public.venue_bookings;
+create policy "book as yourself" on public.venue_bookings for insert with check (auth.uid() = user_id);
+drop policy if exists "see own or incoming bookings" on public.venue_bookings;
+create policy "see own or incoming bookings" on public.venue_bookings for select using (
+  auth.uid() = user_id or auth.uid() = (select owner_id from public.venues v where v.id = venue_id)
+);
+drop policy if exists "venue owner updates booking status" on public.venue_bookings;
+create policy "venue owner updates booking status" on public.venue_bookings for update using (
+  auth.uid() = (select owner_id from public.venues v where v.id = venue_id)
+);
+
 -- ═══════════════ v13 · REPOSTS + JOINS persist ═══════════════
 create table if not exists public.post_reposts (
   post_id    uuid not null references public.posts(id) on delete cascade,
@@ -280,6 +455,24 @@ create policy "see own trip requests" on public.trip_requests
 
 create index if not exists trip_requests_status_idx on public.trip_requests (status, created_at desc);
 
+-- ═══════════ v15 · COMMENT REPLIES + REACTIONS ═══════════
+alter table public.comments add column if not exists parent_id uuid references public.comments(id) on delete cascade;
+create index if not exists comments_parent_idx on public.comments (parent_id);
+
+create table if not exists public.comment_likes (
+  comment_id uuid not null references public.comments(id) on delete cascade,
+  user_id    uuid not null references public.profiles(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (comment_id, user_id)
+);
+alter table public.comment_likes enable row level security;
+drop policy if exists "comment likes readable by everyone" on public.comment_likes;
+create policy "comment likes readable by everyone" on public.comment_likes for select using (true);
+drop policy if exists "like comments as yourself" on public.comment_likes;
+create policy "like comments as yourself" on public.comment_likes for insert with check (auth.uid() = user_id);
+drop policy if exists "unlike comments yourself" on public.comment_likes;
+create policy "unlike comments yourself" on public.comment_likes for delete using (auth.uid() = user_id);
+
 -- ═══════════════ PROFILE COLUMNS SELF-HEAL ═══════════════
 -- Columns added by earlier schema files (v2 languages, v7 country)
 -- that may be missing — safe to re-add, they no-op if present.
@@ -309,6 +502,9 @@ select
   (to_regclass('public.profiles')             is not null) as profiles_ready,
   (to_regclass('public.posts')                is not null) as posts_ready,
   (to_regclass('public.trip_requests')        is not null) as book_trip_ready,
+  (to_regclass('public.tracks')               is not null) as real_songs_ready,
+  (to_regclass('public.venue_bookings')       is not null) as venue_bookings_ready,
+  (to_regclass('public.post_reposts')         is not null) as reposts_ready,
   exists (select 1 from information_schema.columns
           where table_schema = 'public' and table_name = 'profiles'
             and column_name = 'country')                    as country_column_ready;

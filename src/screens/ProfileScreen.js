@@ -26,7 +26,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { C, R, TEXT_BGS } from '../constants/theme';
-import { ME, HIGHLIGHTS, MY_MOMENTS, BADGES, av } from '../constants/mockData'; // demo-mode fallback only
+import { ME, HIGHLIGHTS, MY_MOMENTS, BADGES, av, AV_NEUTRAL } from '../constants/mockData'; // demo-mode fallback only
 import { COUNTRY_LIST } from '../constants/countries';
 
 /* Hobbies — pick what you love; they show on your profile and (later)
@@ -231,7 +231,7 @@ export const ProfileScreen = () => {
     ? {
         handle: (myProfile && myProfile.handle && '@' + myProfile.handle) || (user && user.email ? '@' + user.email.split('@')[0] : '@you'),
         verified: !!(myProfile && myProfile.verified),
-        avatar: (myProfile && myProfile.avatar_url) || av(5),
+        avatar: (myProfile && myProfile.avatar_url) || AV_NEUTRAL,
         name: (myProfile && myProfile.name) || 'Explorer',
         intent: (myProfile && myProfile.intent) || null,
         bio: (myProfile && myProfile.bio) || 'Add a bio — tell people what you\'re about ✨',

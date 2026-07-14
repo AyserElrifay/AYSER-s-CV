@@ -3,7 +3,7 @@ import { SUPABASE_READY } from '../lib/supabase';
 import { fetchFeed } from '../services/posts';
 import { rankFeed } from '../services/algorithm';
 import { fetchFeedAds, injectAds } from '../services/nativeAds';
-import { FEED, ME, av } from '../constants/mockData';
+import { FEED, ME, AV_NEUTRAL } from '../constants/mockData';
 
 /* Feed source for HomeScreen.
    Real mode  — loads real posts from Supabase, always. An empty table
@@ -21,6 +21,18 @@ const relTime = (startsAt) => {
   return 'in ' + Math.round(diffMin / (60 * 24)) + 'd';
 };
 
+/* When the post was published — "12m ago", "3h ago", or "12 Aug". */
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const agoTime = (createdAt) => {
+  if (!createdAt) return 'now';
+  const d = new Date(createdAt);
+  const min = Math.max(1, Math.round((Date.now() - d) / 60000));
+  if (min < 60) return min + 'm ago';
+  if (min < 24 * 60) return Math.round(min / 60) + 'h ago';
+  if (min < 7 * 24 * 60) return Math.round(min / (24 * 60)) + 'd ago';
+  return d.getDate() + ' ' + MONTHS[d.getMonth()];
+};
+
 /* DB row → the shape PostCard/MagicFlow already consume.
    Exported so shared-link posts (?post=…) render identically. */
 export const toCard = (row) => ({
@@ -29,15 +41,17 @@ export const toCard = (row) => ({
   user: {
     id: row.user_id,
     name: (row.user && row.user.name) || 'Explorer',
-    avatar: (row.user && row.user.avatar_url) || av(60),
+    avatar: (row.user && row.user.avatar_url) || AV_NEUTRAL,
     verified: !!(row.user && row.user.verified),
+    flag: (row.user && row.user.country_flag) || null, // their country, right next to the name
   },
   type: row.type || 'post',
   media: row.media_url || null, // no photo → renders as a text moment
   textBg: row.text_bg || null,
   caption: row.caption || '',
   place: row.place || 'Somewhere out there',
-  startsIn: relTime(row.starts_at),
+  // scheduled moments count down; plain posts show WHEN they were posted
+  startsIn: row.starts_at ? relTime(row.starts_at) : agoTime(row.created_at),
   coords: row.lat != null && row.lng != null
     ? { latitude: row.lat, longitude: row.lng }
     : ME.coords,

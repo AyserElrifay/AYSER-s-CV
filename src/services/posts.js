@@ -81,30 +81,44 @@ export async function deletePost(postId, userId) {
   if (error) throw error;
 }
 
-export async function createPost({ userId, type = 'post', caption, place, mediaUrl, textBg, lat, lng, squadName }) {
+export async function createPost({ userId, type = 'post', caption, place, mediaUrl, textBg, lat, lng, squadName, sound }) {
+  let payload = {
+    user_id: userId,
+    type,
+    caption,
+    place,
+    media_url: mediaUrl,
+    text_bg: textBg,
+    lat,
+    lng,
+    squad_name: squadName,
+    sound_title: sound ? sound.title : null,
+    sound_artist: sound ? sound.artist : null,
+    sound_url: sound ? sound.audio_url || null : null,
+  };
   const insert = () => supabase
     .from('posts')
-    .insert({
-      user_id: userId,
-      type,
-      caption,
-      place,
-      media_url: mediaUrl,
-      text_bg: textBg,
-      lat,
-      lng,
-      squad_name: squadName,
-    })
+    .insert(payload)
     .select('*, user:profiles!posts_user_id_fkey(*)')
     .single();
 
-  let { data, error } = await insert();
-  if (error && error.code === '23503') {
-    // Missing profiles row (account pre-dates the signup trigger):
-    // create it, then retry once. Needs the schema_v3 insert policy.
-    await supabase.from('profiles').upsert({ id: userId, name: 'Explorer' }, { onConflict: 'id', ignoreDuplicates: true });
-    ({ data, error } = await insert());
+  for (let i = 0; i < 6; i++) {
+    const { data, error } = await insert();
+    if (!error) return data;
+    if (error.code === '23503') {
+      // Missing profiles row (account pre-dates the signup trigger):
+      // create it, then retry. Needs the schema_v3 insert policy.
+      await supabase.from('profiles').upsert({ id: userId, name: 'Explorer' }, { onConflict: 'id', ignoreDuplicates: true });
+      continue;
+    }
+    // strip columns this DB doesn't have yet (sound_url etc.) and retry
+    const missing = /find the '([^']+)' column/i.exec(error.message || '');
+    if (missing && Object.prototype.hasOwnProperty.call(payload, missing[1])) {
+      payload = { ...payload };
+      delete payload[missing[1]];
+      continue;
+    }
+    throw error;
   }
-  if (error) throw error;
-  return data;
+  throw new Error('Could not share — try again.');
 }

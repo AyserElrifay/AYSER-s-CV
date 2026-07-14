@@ -11,6 +11,7 @@ import { useAuth } from '../context/AuthContext';
 import { createPost } from '../services/posts';
 import { createStory } from '../services/stories';
 import { uploadCapture, uploadMedia } from '../services/social';
+import { fetchTracks } from '../services/music';
 import { MusicHubSheet } from './MusicHubSheet';
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
 import { sfxPop, sfxSuccess } from '../utils/sfx';
@@ -40,6 +41,22 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
   const [caption, setCaption] = useState('');
   const [busy, setBusy] = useState(false);
   const [hubOpen, setHubOpen] = useState(false);
+  const [realTracks, setRealTracks] = useState([]); // real playable Hub tracks
+
+  // Real mode: the rail shows REAL tracks (playable audio_url from the
+  // Indie Hub) — never made-up artist names.
+  useEffect(() => {
+    if (!SUPABASE_READY) return;
+    fetchTracks()
+      .then((rows) => setRealTracks((rows || []).slice(0, 10).map((t) => ({
+        id: t.id, title: t.title, artist: t.genre_shape || 'indie', emoji: t.cover_emoji || '🎵', audio_url: t.audio_url,
+      }))))
+      .catch(() => {});
+  }, []);
+
+  const railSounds = SUPABASE_READY
+    ? [...realTracks, { id: 'orig', title: 'Original sound', artist: 'Your recording', emoji: '🎤' }]
+    : SOUNDS;
 
   const videoRef = useRef(null);
   const streamRef = useRef(null);
@@ -216,7 +233,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
           const row = await createPost({ userId: user.id, type: 'vod', caption: caption.trim() || '🎬 Video', mediaUrl });
           onPosted && onPosted(row);
         } else {
-          const row = await createPost({ userId: user.id, type: 'reel', caption: caption.trim() || '🎬', mediaUrl });
+          const row = await createPost({ userId: user.id, type: 'reel', caption: caption.trim() || '🎬', mediaUrl, sound });
           onPosted && onPosted({
             id: row.id,
             user: { name: (row.user && row.user.name) || 'You', avatar: (row.user && row.user.avatar_url) || av(5), verified: !!(row.user && row.user.verified) },
@@ -252,7 +269,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
           <Text style={{ color: '#FFF', fontSize: 11.5, fontWeight: '900', marginLeft: 5 }}>Music Hub</Text>
         </View>
       </Pressable>
-      {SOUNDS.map((s) => {
+      {railSounds.map((s) => {
         const on = sound && sound.id === s.id;
         return (
           <Pressable key={s.id} onPress={() => { tapLight(); sfxPop(); setSound(on ? null : s); }}>

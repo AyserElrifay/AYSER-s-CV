@@ -3,7 +3,7 @@ import { View, Text, Modal, FlatList, Pressable, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { C, R } from '../constants/theme';
-import { av } from '../constants/mockData';
+import { AV_NEUTRAL } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { fetchMyNotifications, markAllRead } from '../services/notifications';
@@ -98,7 +98,7 @@ export const NotificationsSheet = ({ onClose }) => {
                 opacity: n.read ? 0.75 : 1,
               }}>
                 <View>
-                  <Image source={{ uri: (n.actor && n.actor.avatar_url) || av(60) }} style={{ width: 42, height: 42, borderRadius: 21 }} />
+                  <Image source={{ uri: (n.actor && n.actor.avatar_url) || AV_NEUTRAL }} style={{ width: 42, height: 42, borderRadius: 21 }} />
                   {!n.read ? <View style={{ position: 'absolute', top: -2, right: -2, width: 11, height: 11, borderRadius: 6, backgroundColor: C.purple, borderWidth: 2, borderColor: C.bg2 }} /> : null}
                 </View>
                 <View style={{ flex: 1, marginLeft: 11 }}>

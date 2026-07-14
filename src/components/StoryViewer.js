@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, Modal, Pressable, ImageBackground, Animated, Image, Dimensions } from 'react-native';
+import { View, Text, Modal, Pressable, ImageBackground, Animated, Image, Dimensions, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -39,6 +39,10 @@ export const StoryViewer = ({ stories, startIndex = 0, onClose }) => {
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: '#000' }}>
+        {/* the story's REAL song — plays while you watch (web) */}
+        {Platform.OS === 'web' && story.sound && story.sound.audio_url ? (
+          <audio key={story.sound.audio_url + index} src={story.sound.audio_url} autoPlay loop style={{ display: 'none' }} />
+        ) : null}
         <ImageBackground source={{ uri: story.media }} style={{ flex: 1 }} resizeMode="cover">
           <LinearGradient colors={['rgba(0,0,0,0.55)', 'transparent']} style={{ paddingTop: insets.top + 8, paddingHorizontal: 12, paddingBottom: 30 }}>
             {/* progress bars */}

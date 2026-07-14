@@ -3,7 +3,7 @@ import { View, Text, Modal, FlatList, Pressable, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { C, R } from '../constants/theme';
-import { av } from '../constants/mockData';
+import { AV_NEUTRAL } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { fetchMyMates, unmate } from '../services/mates';
@@ -68,10 +68,10 @@ export const MatesSheet = ({ onClose }) => {
             renderItem={({ item: m }) => (
               <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: C.line }}>
                 <Pressable
-                  onPress={() => { tapLight(); setOpenMate({ id: m.id, name: m.name || 'Explorer', handle: m.handle ? '@' + m.handle : null, avatar: m.avatar_url || av(60), verified: !!m.verified, intent: m.intent, bio: m.bio, countryFlag: m.country_flag }); }}
+                  onPress={() => { tapLight(); setOpenMate({ id: m.id, name: m.name || 'Explorer', handle: m.handle ? '@' + m.handle : null, avatar: m.avatar_url || AV_NEUTRAL, verified: !!m.verified, intent: m.intent, bio: m.bio, countryFlag: m.country_flag }); }}
                   style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}
                 >
-                  <Image source={{ uri: m.avatar_url || av(60) }} style={{ width: 46, height: 46, borderRadius: 23 }} />
+                  <Image source={{ uri: m.avatar_url || AV_NEUTRAL }} style={{ width: 46, height: 46, borderRadius: 23 }} />
                   <View style={{ flex: 1, marginLeft: 12 }}>
                     <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>{m.name || 'Explorer'} {m.country_flag || ''}</Text>
                     <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 2 }}>{m.intent || (m.handle ? '@' + m.handle : 'Explorer')}</Text>

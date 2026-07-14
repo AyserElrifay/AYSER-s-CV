@@ -85,7 +85,9 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
           <Image source={{ uri: post.user.avatar }} style={{ width: 44, height: 44, borderRadius: 22 }} />
           <View style={{ marginLeft: 11, flex: 1 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Text style={{ color: C.text, fontSize: 15.5, fontWeight: '800' }}>{post.user.name}</Text>
+              <Text style={{ color: C.text, fontSize: 15.5, fontWeight: '800' }}>
+                {post.user.name}{post.user.flag ? ' ' + post.user.flag : ''}
+              </Text>
               {post.user.verified ? <Tick /> : null}
             </View>
             <Text style={{ color: C.faint, fontSize: 12, marginTop: 2 }}>

@@ -3,6 +3,18 @@
 export const av = (n) => 'https://i.pravatar.cc/150?img=' + n;
 export const pic = (seed, w, h) => 'https://picsum.photos/seed/' + seed + '/' + w + '/' + h;
 
+/* Neutral fallback avatar — the Moments star on purple. Used in REAL
+   mode wherever a profile photo hasn't loaded/been set yet, so the app
+   never flashes random stock faces at startup. */
+export const AV_NEUTRAL =
+  'data:image/svg+xml;utf8,' +
+  encodeURIComponent(
+    "<svg xmlns='http://www.w3.org/2000/svg' width='96' height='96'>" +
+    "<rect width='96' height='96' rx='48' fill='#7C3AED'/>" +
+    "<text x='48' y='63' font-size='42' text-anchor='middle' fill='#F5B301'>✦</text>" +
+    '</svg>'
+  );
+
 export const ME = {
   id: 'me',
   name: 'You',

@@ -49,6 +49,15 @@ export const ChatThread = ({ chat, group, onClose }) => {
   const [msgs, setMsgs] = useState(() => (isReal ? [] : SEED(peer, group)));
   const [dmThreadId, setDmThreadId] = useState((!group && chat.threadId) || null);
   const [draft, setDraft] = useState('');
+  const [chatErr, setChatErr] = useState(null); // never pretend a send worked
+
+  const explainChat = (e) => {
+    const m = (e && e.message) || '';
+    if (/does not exist|schema cache|get_or_create_dm_thread/i.test(m)) {
+      return 'Messages need one more step: run supabase/RUN_ME.sql in the Supabase SQL Editor.';
+    }
+    return m || 'Could not send — try again.';
+  };
   const [todOn, setTodOn] = useState(false);
   const [wyrOn, setWyrOn] = useState(false);
   const [menu, setMenu] = useState(false);
@@ -71,7 +80,12 @@ export const ChatThread = ({ chat, group, onClose }) => {
       const squadId = group ? chat.id : null;
       let threadId = dmThreadId;
       if (!group && !threadId) {
-        threadId = await getOrCreateDmThread(peer.id).catch(() => null);
+        try {
+          threadId = await getOrCreateDmThread(peer.id);
+        } catch (e) {
+          if (!cancelled) setChatErr(explainChat(e));
+          threadId = null;
+        }
         if (cancelled) return;
         setDmThreadId(threadId);
       }
@@ -97,11 +111,19 @@ export const ChatThread = ({ chat, group, onClose }) => {
     setDraft('');
     if (isReal) {
       const squadId = group ? chat.id : null;
-      if (!squadId && !dmThreadId) return;
+      if (!squadId && !dmThreadId) {
+        setChatErr('Messages need one more step: run supabase/RUN_ME.sql in the Supabase SQL Editor.');
+        setDraft(t); // give the text back — nothing was sent
+        return;
+      }
       try {
         const row = await sendMessage({ squadId, dmThreadId, userId: user.id, body: t });
+        setChatErr(null);
         setMsgs((m) => (m.some((x) => x.id === row.id) ? m : [...m, { id: row.id, from: 'me', text: t }]));
-      } catch (e) {}
+      } catch (e) {
+        setChatErr(explainChat(e));
+        setDraft(t); // honest failure: keep the message in the box
+      }
     } else {
       setMsgs((m) => [...m, { id: 'x' + Date.now(), from: 'me', text: t }]);
     }
@@ -180,6 +202,13 @@ export const ChatThread = ({ chat, group, onClose }) => {
                   </View>
                 </View>
               </Pressable>
+            </View>
+          ) : null}
+
+          {/* honest failure banner — the message is still in the box */}
+          {chatErr ? (
+            <View style={{ backgroundColor: C.coralSoft, borderTopWidth: 1, borderTopColor: 'rgba(244,63,94,0.35)', paddingHorizontal: 14, paddingVertical: 9 }}>
+              <Text style={{ color: C.coral, fontSize: 12, fontWeight: '700', lineHeight: 17 }}>⚠️ {chatErr}</Text>
             </View>
           ) : null}
 
