@@ -26,6 +26,9 @@ import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { LanguageProvider } from './src/context/LanguageContext';
 import { AuthScreen } from './src/screens/AuthScreen';
 import { TabNavigator, NavTheme } from './src/navigation/TabNavigator';
+import { initPwa } from './src/lib/pwa';
+
+initPwa(); // installable app + offline shell (no-op on native)
 
 const Root = () => {
   const { loading, isAuthenticated } = useAuth();

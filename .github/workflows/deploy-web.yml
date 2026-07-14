@@ -33,6 +33,8 @@ jobs:
       - run: npm ci
       - name: Export web bundle
         run: npx expo export --platform web --output-dir dist
+      - name: Inject PWA manifest + Open Graph tags
+        run: node scripts/inject-html.mjs dist
       - name: Disable Jekyll (keep _expo folder)
         run: touch dist/.nojekyll
       - uses: actions/configure-pages@v5
