@@ -224,6 +224,33 @@ do $$ begin
   end if;
 end $$;
 
+-- ═══════════════ v12 · TRIP REQUESTS (Book Trip form) ═══════════════
+create table if not exists public.trip_requests (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid references public.profiles(id) on delete set null,
+  dest_id     text not null,
+  dest_name   text,
+  full_name   text not null,
+  phone       text not null,
+  travel_date text,
+  people      int  not null default 1 check (people between 1 and 50),
+  notes       text,
+  status      text not null default 'new' check (status in ('new','contacted','booked','cancelled')),
+  created_at  timestamptz not null default now()
+);
+
+alter table public.trip_requests enable row level security;
+
+drop policy if exists "request a trip as yourself" on public.trip_requests;
+create policy "request a trip as yourself" on public.trip_requests
+  for insert with check (auth.uid() = user_id);
+
+drop policy if exists "see own trip requests" on public.trip_requests;
+create policy "see own trip requests" on public.trip_requests
+  for select using (auth.uid() = user_id);
+
+create index if not exists trip_requests_status_idx on public.trip_requests (status, created_at desc);
+
 -- ═══════════════ PROFILE COLUMNS SELF-HEAL ═══════════════
 -- Columns added by earlier schema files (v2 languages, v7 country)
 -- that may be missing — safe to re-add, they no-op if present.
@@ -251,6 +278,7 @@ select
   (to_regclass('public.dm_threads')           is not null) as chat_ready,
   (to_regclass('public.profiles')             is not null) as profiles_ready,
   (to_regclass('public.posts')                is not null) as posts_ready,
+  (to_regclass('public.trip_requests')        is not null) as book_trip_ready,
   exists (select 1 from information_schema.columns
           where table_schema = 'public' and table_name = 'profiles'
             and column_name = 'country')                    as country_column_ready;

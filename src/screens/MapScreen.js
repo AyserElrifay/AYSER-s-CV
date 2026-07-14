@@ -16,6 +16,7 @@ import { fetchLiveVenues, applyAsVenue } from '../services/venues';
 import { fetchNearbyPlaces } from '../services/places';
 import { DESTINATIONS } from '../constants/destinations';
 import { fetchDestReviews, addDestReview } from '../services/destinations';
+import { requestTrip } from '../services/trips';
 import { getOrCreateDmThread, sendMessage } from '../services/messages';
 import { openPartner } from '../services/broker';
 import {
@@ -171,10 +172,40 @@ export const MapScreen = () => {
   const [revErr, setRevErr] = useState(null);
   const [revSaved, setRevSaved] = useState(false);
 
+  // Book Trip form (far destinations — Uber makes no sense at 500km)
+  const [tripOpen, setTripOpen] = useState(false);
+  const [tripName, setTripName] = useState('');
+  const [tripPhone, setTripPhone] = useState('');
+  const [tripDate, setTripDate] = useState('');
+  const [tripPeople, setTripPeople] = useState('2');
+  const [tripNotes, setTripNotes] = useState('');
+  const [tripErr, setTripErr] = useState(null);
+  const [tripSent, setTripSent] = useState(false);
+
   const openDest = (d) => {
     setDestOpen(d); setDestReviews(null); setRevStars(0); setRevText(''); setRevErr(null); setRevSaved(false);
+    setTripOpen(false); setTripErr(null); setTripSent(false);
     if (SUPABASE_READY) fetchDestReviews(d.id).then(setDestReviews).catch(() => setDestReviews([]));
     else setDestReviews([]);
+  };
+
+  const submitTrip = async () => {
+    if (!tripName.trim() || !tripPhone.trim()) { setTripErr('Name and phone are required so we can reach you.'); return; }
+    if (!SUPABASE_READY || !user) { setTripErr('Sign in to book a trip.'); return; }
+    setTripErr(null);
+    try {
+      await requestTrip({
+        userId: user.id, destId: destOpen.id, destName: destOpen.name,
+        fullName: tripName.trim(), phone: tripPhone.trim(),
+        travelDate: tripDate.trim(), people: tripPeople, notes: tripNotes.trim(),
+      });
+      tapSuccess(); sfxSuccess();
+      setTripSent(true);
+    } catch (e) {
+      setTripErr(/does not exist|schema cache/i.test(e.message || '')
+        ? 'One step left: run the updated supabase/RUN_ME.sql to turn on trip booking.'
+        : (e.message || 'Could not send your request — try again.'));
+    }
   };
 
   const submitReview = async () => {
@@ -832,19 +863,80 @@ export const MapScreen = () => {
 
               <Text style={{ color: C.text, fontSize: 13.5, lineHeight: 21, marginTop: 14 }}>{destOpen.desc}</Text>
 
-              {/* get there — Uber (tracked referral) or directions */}
-              <View style={{ flexDirection: 'row', marginTop: 16 }}>
-                <Pressable onPress={() => uberTo(destOpen)} style={{ flex: 1, marginRight: 10 }}>
-                  <View style={{ backgroundColor: '#111827', borderRadius: 14, paddingVertical: 13, alignItems: 'center' }}>
-                    <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '900' }}>🚗 Uber there</Text>
-                  </View>
-                </Pressable>
-                <Pressable onPress={() => directionsTo(destOpen)} style={{ width: 132 }}>
-                  <View style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 14, paddingVertical: 13, alignItems: 'center' }}>
-                    <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800' }}>🧭 Directions</Text>
-                  </View>
-                </Pressable>
-              </View>
+              {/* get there — Uber for nearby spots, Book Trip when it's far */}
+              {(() => {
+                const km = located ? kmBetween(myCoords, { latitude: destOpen.lat, longitude: destOpen.lng }) : null;
+                const nearEnough = km != null && km < 80;
+                return (
+                  <>
+                    {km != null ? (
+                      <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 10 }}>
+                        📍 {km < 1 ? 'Right next to you' : Math.round(km) + ' km from you'}
+                      </Text>
+                    ) : null}
+                    <View style={{ flexDirection: 'row', marginTop: 10 }}>
+                      {nearEnough ? (
+                        <Pressable onPress={() => uberTo(destOpen)} style={{ flex: 1, marginRight: 10 }}>
+                          <View style={{ backgroundColor: '#111827', borderRadius: 14, paddingVertical: 13, alignItems: 'center' }}>
+                            <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '900' }}>🚗 Uber there</Text>
+                          </View>
+                        </Pressable>
+                      ) : (
+                        <Pressable onPress={() => { tapLight(); setTripOpen((o) => !o); }} style={{ flex: 1, marginRight: 10 }}>
+                          <View style={{ backgroundColor: C.purple, borderRadius: 14, paddingVertical: 13, alignItems: 'center' }}>
+                            <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '900' }}>🧳 Book this trip</Text>
+                          </View>
+                        </Pressable>
+                      )}
+                      <Pressable onPress={() => directionsTo(destOpen)} style={{ width: 132 }}>
+                        <View style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 14, paddingVertical: 13, alignItems: 'center' }}>
+                          <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800' }}>🧭 Directions</Text>
+                        </View>
+                      </Pressable>
+                    </View>
+                  </>
+                );
+              })()}
+
+              {/* the Book Trip form — real request, we call you back */}
+              {tripOpen ? (
+                <Glass style={{ padding: 14, marginTop: 12 }}>
+                  {tripSent ? (
+                    <View style={{ alignItems: 'center', paddingVertical: 10 }}>
+                      <Text style={{ fontSize: 32 }}>🎉</Text>
+                      <Text style={{ color: C.text, fontSize: 15, fontWeight: '900', marginTop: 8 }}>Trip request received!</Text>
+                      <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 5, textAlign: 'center', lineHeight: 18 }}>
+                        Our crew will call you within 24h to plan {destOpen.name} — dates, group, budget, everything.
+                      </Text>
+                    </View>
+                  ) : (
+                    <>
+                      <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '900' }}>Plan my trip to {destOpen.name} {destOpen.flag}</Text>
+                      <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 3, marginBottom: 10 }}>
+                        Fill this in — we arrange transport, stay & guides, then call you to confirm.
+                      </Text>
+                      <TextInput placeholder="Your full name" placeholderTextColor={C.faint} value={tripName} onChangeText={setTripName}
+                        style={{ color: C.text, fontSize: 13, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 8 }} />
+                      <TextInput placeholder="Phone (WhatsApp) e.g. +20…" placeholderTextColor={C.faint} value={tripPhone} onChangeText={setTripPhone} keyboardType="phone-pad"
+                        style={{ color: C.text, fontSize: 13, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 8 }} />
+                      <View style={{ flexDirection: 'row', marginBottom: 8 }}>
+                        <TextInput placeholder="When? (e.g. 20 Aug)" placeholderTextColor={C.faint} value={tripDate} onChangeText={setTripDate}
+                          style={{ flex: 1, color: C.text, fontSize: 13, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginRight: 8 }} />
+                        <TextInput placeholder="People" placeholderTextColor={C.faint} value={tripPeople} onChangeText={setTripPeople} keyboardType="number-pad" maxLength={2}
+                          style={{ width: 86, color: C.text, fontSize: 13, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10 }} />
+                      </View>
+                      <TextInput placeholder="Anything else? (budget, camping vs hotel…)" placeholderTextColor={C.faint} value={tripNotes} onChangeText={setTripNotes}
+                        style={{ color: C.text, fontSize: 13, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 8 }} />
+                      {tripErr ? <Text style={{ color: C.coral, fontSize: 11.5, textAlign: 'center', marginBottom: 8 }}>{tripErr}</Text> : null}
+                      <Pressable onPress={submitTrip}>
+                        <View style={{ backgroundColor: tripName.trim() && tripPhone.trim() ? C.purple : C.glassHi, borderRadius: 12, paddingVertical: 13, alignItems: 'center' }}>
+                          <Text style={{ color: tripName.trim() && tripPhone.trim() ? '#FFF' : C.faint, fontSize: 13.5, fontWeight: '900' }}>Send trip request 🧳</Text>
+                        </View>
+                      </Pressable>
+                    </>
+                  )}
+                </Glass>
+              ) : null}
 
               {/* community feedback — real reviews, written right here */}
               <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '800', letterSpacing: 1, marginTop: 20, marginBottom: 8 }}>
