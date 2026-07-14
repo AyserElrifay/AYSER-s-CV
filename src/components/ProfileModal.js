@@ -7,6 +7,7 @@ import { C } from '../constants/theme';
 import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { fetchMyPosts } from '../services/posts';
+import { getProfile } from '../services/profiles';
 import { getMateStatus, mateUp, countMates } from '../services/mates';
 import { getOrCreateDmThread, sendMessage } from '../services/messages';
 import { Glass } from './Glass';
@@ -52,10 +53,13 @@ export const ProfileModal = ({ user, onClose }) => {
   const real = SUPABASE_READY && me && user && user.id && String(user.id).length > 20; // uuid = real account
   const isMe = me && user && user.id === me.id;
 
+  const [fullProfile, setFullProfile] = useState(null); // hydrated row (hobbies, bio…)
+
   const load = useCallback(async () => {
     if (!real) { setPosts([]); setMates(0); return; }
     fetchMyPosts(user.id).then((rows) => setPosts(rows || [])).catch(() => setPosts([]));
     countMates(user.id).then(setMates).catch(() => setMates(0));
+    getProfile(user.id).then(setFullProfile).catch(() => {});
     if (!isMe) getMateStatus(me.id, user.id).then(setMateState).catch(() => {});
   }, [user, real, isMe]);
 
@@ -139,7 +143,18 @@ export const ProfileModal = ({ user, onClose }) => {
               {user.countryFlag ? <Text style={{ fontSize: 18, marginLeft: 7 }}>{user.countryFlag}</Text> : null}
             </View>
             {user.handle ? <Text style={{ color: C.dim, fontSize: 13, marginTop: 2 }}>{user.handle}</Text> : null}
-            {user.bio ? <Text style={{ color: C.text, fontSize: 14, lineHeight: 21, marginTop: 12 }}>{user.bio}</Text> : null}
+            {(user.bio || (fullProfile && fullProfile.bio)) ? (
+              <Text style={{ color: C.text, fontSize: 14, lineHeight: 21, marginTop: 12 }}>{user.bio || fullProfile.bio}</Text>
+            ) : null}
+            {fullProfile && fullProfile.hobbies ? (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 10 }}>
+                {String(fullProfile.hobbies).split(',').map((h) => h.trim()).filter(Boolean).map((h) => (
+                  <View key={h} style={{ backgroundColor: C.purpleSoft, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5, marginRight: 6, marginBottom: 6 }}>
+                    <Text style={{ color: C.purple, fontSize: 11.5, fontWeight: '800' }}>{h}</Text>
+                  </View>
+                ))}
+              </View>
+            ) : null}
 
             <Glass style={{ flexDirection: 'row', marginTop: 16, paddingVertical: 14 }}>
               {stats.map((s, i) => (

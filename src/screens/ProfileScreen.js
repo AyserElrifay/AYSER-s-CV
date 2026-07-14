@@ -26,7 +26,17 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { C, R, TEXT_BGS } from '../constants/theme';
-import { ME, HIGHLIGHTS, MY_MOMENTS, BADGES, COUNTRIES, av } from '../constants/mockData'; // demo-mode fallback only
+import { ME, HIGHLIGHTS, MY_MOMENTS, BADGES, av } from '../constants/mockData'; // demo-mode fallback only
+import { COUNTRY_LIST } from '../constants/countries';
+
+/* Hobbies — pick what you love; they show on your profile and (later)
+   power matching with people into the same things. */
+const HOBBY_OPTIONS = [
+  '🥾 Hiking', '🏕️ Camping', '🤿 Diving', '📸 Photography', '🎬 Filmmaking',
+  '🎵 Music', '🎮 Gaming', '⚽ Football', '🎾 Padel', '🏋️ Gym',
+  '🧘 Yoga', '☕ Coffee', '🍳 Cooking', '📚 Reading', '✈️ Travel',
+  '🎨 Art', '🏄 Surfing', '🚴 Cycling', '♟️ Chess', '🌱 Volunteering',
+];
 import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { getProfile, updateProfile } from '../services/profiles';
@@ -119,6 +129,8 @@ export const ProfileScreen = () => {
   const [avatarBusy, setAvatarBusy] = useState(false);
   const [avatarErr, setAvatarErr] = useState(null);
   const [editFlag, setEditFlag] = useState('');
+  const [editHobbies, setEditHobbies] = useState([]); // array of hobby labels
+  const [countryQ, setCountryQ] = useState('');       // country search in edit
   const [editErr, setEditErr] = useState(null);
   const [savedEdit, setSavedEdit] = useState(false);
 
@@ -167,6 +179,7 @@ export const ProfileScreen = () => {
       setEditIntent(p.intent || '');
       setEditHandle(p.handle || '');
       setEditFlag(p.country_flag || '');
+      setEditHobbies(p.hobbies ? String(p.hobbies).split(',').map((h) => h.trim()).filter(Boolean) : []);
     }).catch(() => {});
     fetchMyMoments(user.id).then(setMyMoments).catch(() => {});
     countMyCampfires(user.id).then(setCampfiresHosted).catch(() => {});
@@ -195,9 +208,14 @@ export const ProfileScreen = () => {
   const saveEdit = async () => {
     if (!SUPABASE_READY || !user) { setEditOpen(false); return; }
     try {
-      const c = COUNTRIES.find((x) => x.flag === editFlag);
+      const c = COUNTRY_LIST.find((x) => x.flag === editFlag);
       const cleanHandle = editHandle.trim().replace(/^@+/, '').replace(/[^a-zA-Z0-9._]/g, '').toLowerCase();
-      await updateProfile(user.id, { name: editName.trim() || 'Explorer', handle: cleanHandle || null, bio: editBio.trim() || null, intent: editIntent.trim() || null, country: c ? c.name : null, country_flag: editFlag || null });
+      await updateProfile(user.id, {
+        name: editName.trim() || 'Explorer', handle: cleanHandle || null,
+        bio: editBio.trim() || null, intent: editIntent.trim() || null,
+        country: c ? c.name : null, country_flag: editFlag || null,
+        hobbies: editHobbies.length ? editHobbies.join(', ') : null,
+      });
       tapSuccess(); sfxSuccess();
       setSavedEdit(true);
       setEditErr(null);
@@ -302,6 +320,17 @@ export const ProfileScreen = () => {
             ) : null}
           </View>
           <Text style={{ color: C.dim, fontSize: 13.5, lineHeight: 20, marginTop: 6 }}>{me.bio}</Text>
+
+          {/* your hobbies — straight from the profile row */}
+          {myProfile && myProfile.hobbies ? (
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 10 }}>
+              {String(myProfile.hobbies).split(',').map((h) => h.trim()).filter(Boolean).map((h) => (
+                <View key={h} style={{ backgroundColor: C.purpleSoft, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5, marginRight: 6, marginBottom: 6 }}>
+                  <Text style={{ color: C.purple, fontSize: 11.5, fontWeight: '800' }}>{h}</Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
 
           {/* badges */}
           {badges.length ? (
@@ -467,23 +496,48 @@ export const ProfileScreen = () => {
               style={{ color: C.text, fontSize: 14, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 11, marginBottom: 12 }}
             />
 
-            {/* country — shows as a flag on your map avatar */}
+            {/* country — searchable, the whole planet; saves country + flag */}
             <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', letterSpacing: 1, marginBottom: 8 }}>YOUR COUNTRY 🌍</Text>
+            <TextInput
+              placeholder="Search country…"
+              placeholderTextColor={C.faint}
+              value={countryQ}
+              onChangeText={setCountryQ}
+              style={{ color: C.text, fontSize: 13, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 9, marginBottom: 8 }}
+            />
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
-              {COUNTRIES.map((c) => {
-                const on = editFlag === c.flag;
-                return (
-                  <Pressable key={c.name} onPress={() => { tapSelection(); setEditFlag(on ? '' : c.flag); }}>
-                    <View style={{ alignItems: 'center', marginRight: 12 }}>
-                      <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: on ? C.purpleSoft : C.glass, borderWidth: on ? 2 : 1, borderColor: on ? C.purple : C.line, alignItems: 'center', justifyContent: 'center' }}>
-                        <Text style={{ fontSize: 22 }}>{c.flag}</Text>
+              {COUNTRY_LIST
+                .filter((c) => !countryQ.trim() || c.name.toLowerCase().includes(countryQ.trim().toLowerCase()))
+                .slice(0, 20)
+                .map((c) => {
+                  const on = editFlag === c.flag;
+                  return (
+                    <Pressable key={c.code} onPress={() => { tapSelection(); setEditFlag(on ? '' : c.flag); }}>
+                      <View style={{ alignItems: 'center', marginRight: 12, width: 56 }}>
+                        <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: on ? C.purpleSoft : C.glass, borderWidth: on ? 2 : 1, borderColor: on ? C.purple : C.line, alignItems: 'center', justifyContent: 'center' }}>
+                          <Text style={{ fontSize: 22 }}>{c.flag}</Text>
+                        </View>
+                        <Text style={{ color: on ? C.purple : C.faint, fontSize: 9, fontWeight: '700', marginTop: 3 }} numberOfLines={1}>{c.name}</Text>
                       </View>
-                      <Text style={{ color: on ? C.purple : C.faint, fontSize: 9.5, fontWeight: '700', marginTop: 3 }}>{c.name}</Text>
+                    </Pressable>
+                  );
+                })}
+            </ScrollView>
+
+            {/* hobbies — pick everything you love, shows on your profile */}
+            <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', letterSpacing: 1, marginBottom: 8 }}>YOUR HOBBIES ✨ ({editHobbies.length})</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 12 }}>
+              {HOBBY_OPTIONS.map((h) => {
+                const on = editHobbies.includes(h);
+                return (
+                  <Pressable key={h} onPress={() => { tapSelection(); setEditHobbies((list) => on ? list.filter((x) => x !== h) : [...list, h]); }}>
+                    <View style={{ backgroundColor: on ? C.purple : C.glass, borderWidth: 1, borderColor: on ? C.purple : C.line, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7, marginRight: 7, marginBottom: 7 }}>
+                      <Text style={{ color: on ? '#FFF' : C.dim, fontSize: 12, fontWeight: '800' }}>{h}</Text>
                     </View>
                   </Pressable>
                 );
               })}
-            </ScrollView>
+            </View>
 
             <Pressable onPress={saveEdit}>
               <View style={{ backgroundColor: C.purple, borderRadius: 14, paddingVertical: 14, alignItems: 'center' }}>

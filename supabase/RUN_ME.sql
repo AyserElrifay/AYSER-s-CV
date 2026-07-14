@@ -262,6 +262,7 @@ alter table public.profiles add column if not exists learning_language text;
 alter table public.profiles add column if not exists learning_level    text;
 alter table public.profiles add column if not exists learning_visible  boolean default false;
 alter table public.profiles add column if not exists language          text;
+alter table public.profiles add column if not exists hobbies           text;
 
 -- PostgREST caches the schema — reload it so the new columns are
 -- visible to the app immediately, no waiting.
