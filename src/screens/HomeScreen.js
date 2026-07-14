@@ -21,7 +21,7 @@ import { sfxNotify } from '../utils/sfx';
 import {
   Glass, StoriesBar, PostCard, MagicFlowModal, ProfileModal,
   CommentsSheet, ComposeModal, SearchModal, StoryViewer, ReelsViewer,
-  CaptureModal, NotificationsSheet,
+  CaptureModal, NotificationsSheet, LikersSheet,
 } from '../components';
 import { Modal } from 'react-native';
 import { ProfileScreen } from './ProfileScreen';
@@ -87,6 +87,7 @@ export const HomeScreen = () => {
   const [notifOpen, setNotifOpen] = useState(false);
   const [unread, setUnread] = useState(0);
   const [sharedPost, setSharedPost] = useState(null); // opened from a ?post= link
+  const [likersPost, setLikersPost] = useState(null); // "who starred this"
   const [toast, setToast] = useState(null);
 
   const showToast = (msg) => {
@@ -295,6 +296,7 @@ export const HomeScreen = () => {
               onComment={() => openComments(item)}
               onOpenProfile={setProfileUser}
               onOpenReel={openReel}
+              onOpenLikers={setLikersPost}
             />
           );
         }}
@@ -340,6 +342,7 @@ export const HomeScreen = () => {
       </Modal>
       {commentsPost ? <CommentsSheet post={commentsPost} onClose={() => setCommentsPost(null)} /> : null}
       {notifOpen ? <NotificationsSheet onClose={() => setNotifOpen(false)} /> : null}
+      {likersPost ? <LikersSheet post={likersPost} onClose={() => setLikersPost(null)} /> : null}
 
       {/* a moment opened from a shared link — the full card, ready to vibe */}
       {sharedPost ? (
@@ -362,6 +365,7 @@ export const HomeScreen = () => {
                 onComment={() => openComments(sharedPost)}
                 onOpenProfile={(u) => { setSharedPost(null); setProfileUser(u); }}
                 onOpenReel={() => {}}
+                onOpenLikers={setLikersPost}
               />
             </Pressable>
             <Pressable onPress={() => setSharedPost(null)} style={{ alignSelf: 'center', marginTop: 6 }}>

@@ -10,6 +10,7 @@ import { useAuth } from '../context/AuthContext';
 import { sfxPop, sfxStar } from '../utils/sfx';
 import { tapSelection, tapLight } from '../utils/feedback';
 import { Micro } from './Micro';
+import { ProfileModal } from './ProfileModal';
 
 /* Comments — real, with the full loop: reply to anyone (threads), and
    react with a ❤️ that persists. Country flags next to names. */
@@ -22,6 +23,17 @@ const toRow = (row) => ({
     avatar: (row.user && row.user.avatar_url) || AV_NEUTRAL,
     flag: (row.user && row.user.country_flag) || '',
   },
+  // full profile so tapping the comment opens the real account
+  profile: row.user && row.user.id ? {
+    id: row.user.id,
+    name: row.user.name || 'Explorer',
+    handle: row.user.handle ? '@' + row.user.handle : null,
+    avatar: row.user.avatar_url || AV_NEUTRAL,
+    verified: !!row.user.verified,
+    intent: row.user.intent || null,
+    bio: row.user.bio || null,
+    countryFlag: row.user.country_flag || null,
+  } : null,
   body: row.body,
 });
 
@@ -53,6 +65,7 @@ export const CommentsSheet = ({ post, onClose }) => {
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const [sendErr, setSendErr] = useState(null);
+  const [openProfile, setOpenProfile] = useState(null); // tapped commenter's account
 
   const load = useCallback(async () => {
     if (!SUPABASE_READY) { setComments([]); return; }
@@ -143,12 +156,16 @@ export const CommentsSheet = ({ post, onClose }) => {
               const baseLikes = Math.max(0, (likeCounts[item.id] || 0) - (myInitialLikes[item.id] ? 1 : 0));
               return (
                 <View style={{ flexDirection: 'row', marginBottom: 12, marginLeft: item.isReply ? 34 : 0 }}>
-                  <Image source={{ uri: item.user.avatar }} style={{ width: item.isReply ? 26 : 32, height: item.isReply ? 26 : 32, borderRadius: 16 }} />
+                  <Pressable onPress={() => item.profile && setOpenProfile(item.profile)}>
+                    <Image source={{ uri: item.user.avatar }} style={{ width: item.isReply ? 26 : 32, height: item.isReply ? 26 : 32, borderRadius: 16 }} />
+                  </Pressable>
                   <View style={{ flex: 1, marginLeft: 10 }}>
                     <View style={{ backgroundColor: C.glass, borderRadius: 14, borderWidth: 1, borderColor: C.line, padding: 10 }}>
-                      <Text style={{ color: C.text, fontSize: 12.5, fontWeight: '800' }}>
-                        {item.user.name}{item.user.flag ? ' ' + item.user.flag : ''}
-                      </Text>
+                      <Pressable onPress={() => item.profile && setOpenProfile(item.profile)} hitSlop={4}>
+                        <Text style={{ color: C.text, fontSize: 12.5, fontWeight: '800' }}>
+                          {item.user.name}{item.user.flag ? ' ' + item.user.flag : ''}
+                        </Text>
+                      </Pressable>
                       <Text style={{ color: C.dim, fontSize: 13, marginTop: 3, lineHeight: 18 }}>{item.body}</Text>
                     </View>
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4, marginLeft: 6 }}>
@@ -209,6 +226,7 @@ export const CommentsSheet = ({ post, onClose }) => {
           </View>
         </View>
       </KeyboardAvoidingView>
+      {openProfile ? <ProfileModal user={openProfile} onClose={() => setOpenProfile(null)} /> : null}
     </Modal>
   );
 };

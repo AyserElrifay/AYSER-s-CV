@@ -92,6 +92,18 @@ export async function fetchEngagement(userId) {
   return out;
 }
 
+/* Who starred a post — the people behind the count, newest first. */
+export async function fetchVibers(postId) {
+  const { data, error } = await supabase
+    .from('post_vibes')
+    .select('created_at, user:profiles(*)')
+    .eq('post_id', postId)
+    .order('created_at', { ascending: false })
+    .limit(100);
+  if (error) throw error;
+  return (data || []).map((r) => r.user).filter(Boolean);
+}
+
 export async function fetchComments(postId) {
   const { data, error } = await supabase
     .from('comments')

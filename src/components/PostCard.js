@@ -18,7 +18,7 @@ const typeChip = (post) => {
   return { label: 'MOMENT', tint: 'rgba(17,24,39,0.65)', color: 'rgba(255,255,255,0.85)' };
 };
 
-export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onLaugh: onLaughProp, isMine, onDelete, onShare, onJoin, onVibe, onComment, onOpenProfile, onOpenReel }) => {
+export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onLaugh: onLaughProp, isMine, onDelete, onShare, onJoin, onVibe, onComment, onOpenProfile, onOpenReel, onOpenLikers }) => {
   const mediaH = post.type === 'reel' ? 470 : post.type === 'vod' ? 208 : 250;
   const tc = typeChip(post);
   const textBg = TEXT_BGS[post.textBg] || TEXT_BGS.plain;
@@ -236,15 +236,17 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
           )}
         </View>
 
-        {/* social proof, Instagram style */}
+        {/* social proof, Instagram style — tap to see who starred it */}
         {totalVibes > 0 ? (
-          <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 10 }}>
-            <MaterialCommunityIcons name="star-four-points" size={12} color={C.gold} /> Starred by{' '}
-            <Text style={{ fontWeight: '800', color: C.text }}>
-              {vibed ? 'you' : post.topFan || 'the crew'}
+          <Pressable onPress={() => { tapLight(); onOpenLikers && onOpenLikers(post); }} hitSlop={6}>
+            <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 10 }}>
+              <MaterialCommunityIcons name="star-four-points" size={12} color={C.gold} /> Starred by{' '}
+              <Text style={{ fontWeight: '800', color: C.text }}>
+                {vibed ? 'you' : post.topFan || 'the crew'}
+              </Text>
+              {totalVibes > 1 ? ' and ' + (totalVibes - 1) + ' others' : ''}
             </Text>
-            {totalVibes > 1 ? ' and ' + (totalVibes - 1) + ' others' : ''}
-          </Text>
+          </Pressable>
         ) : null}
       </View>
     </Glass>
