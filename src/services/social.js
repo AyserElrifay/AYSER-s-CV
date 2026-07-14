@@ -21,6 +21,41 @@ export async function toggleVibe(postId, userId, on) {
   }
 }
 
+export async function toggleLaugh(postId, userId, on) {
+  if (on) {
+    const { error } = await supabase
+      .from('post_laughs')
+      .upsert({ post_id: postId, user_id: userId }, { onConflict: 'post_id,user_id' });
+    if (error) throw error;
+  } else {
+    const { error } = await supabase
+      .from('post_laughs')
+      .delete()
+      .eq('post_id', postId)
+      .eq('user_id', userId);
+    if (error) throw error;
+  }
+}
+
+/* Everything needed to restore YOUR reactions after a refresh:
+   which posts you starred, which you laughed at, and laugh totals.
+   Each part fails soft so a missing table never breaks the feed. */
+export async function fetchEngagement(userId) {
+  const out = { myVibes: {}, myLaughs: {}, laughCounts: {} };
+  try {
+    const { data } = await supabase.from('post_vibes').select('post_id').eq('user_id', userId).limit(1000);
+    (data || []).forEach((r) => { out.myVibes[r.post_id] = true; });
+  } catch (e) {}
+  try {
+    const { data } = await supabase.from('post_laughs').select('post_id, user_id').limit(3000);
+    (data || []).forEach((r) => {
+      out.laughCounts[r.post_id] = (out.laughCounts[r.post_id] || 0) + 1;
+      if (r.user_id === userId) out.myLaughs[r.post_id] = true;
+    });
+  } catch (e) {}
+  return out;
+}
+
 export async function fetchComments(postId) {
   const { data, error } = await supabase
     .from('comments')

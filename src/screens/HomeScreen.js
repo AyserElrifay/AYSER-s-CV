@@ -1,11 +1,11 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { View, Text, FlatList, Pressable, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { C } from '../constants/theme';
 import { av } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
-import { toggleVibe } from '../services/social';
+import { toggleVibe, toggleLaugh, fetchEngagement } from '../services/social';
 import { getProfile } from '../services/profiles';
 import { fetchMyPosts, deletePost } from '../services/posts';
 import { fetchActiveStories } from '../services/stories';
@@ -36,6 +36,27 @@ export const HomeScreen = () => {
   const { posts, refreshing, refresh, prependPost, removePost, loadError } = useFeed();
   const [joined, setJoined] = useState({});
   const [vibes, setVibes] = useState({});
+  const [laughs, setLaughs] = useState({});
+  const [laughCounts, setLaughCounts] = useState({});
+  // snapshot of what was already YOURS at load time, so the base counts
+  // from the DB (which include you) aren't double-counted in the UI
+  const initialEng = useRef({ myVibes: {}, myLaughs: {} });
+
+  /* Restore your reactions after every refresh — nothing resets. */
+  useEffect(() => {
+    if (!SUPABASE_READY || !user || !posts.length) return;
+    fetchEngagement(user.id).then((e) => {
+      initialEng.current = e;
+      setVibes((v) => ({ ...e.myVibes, ...v }));
+      setLaughs((l) => ({ ...e.myLaughs, ...l }));
+      setLaughCounts(e.laughCounts);
+    }).catch(() => {});
+  }, [user, posts.length]);
+
+  const onLaugh = (post) => {
+    setLaughs((l) => ({ ...l, [post.id]: true }));
+    if (SUPABASE_READY && user) toggleLaugh(post.id, user.id, true).catch(() => {});
+  };
   const [myStories, setMyStories] = useState([]);
   const [myProfile, setMyProfile] = useState(null); // the real profiles row for the signed-in user
   const [myMomentsCount, setMyMomentsCount] = useState(0);
@@ -179,20 +200,27 @@ export const HomeScreen = () => {
             </Glass>
           </View>
         }
-        renderItem={({ item }) => (
-          <PostCard
-            post={item}
-            joined={!!joined[item.id]}
-            vibed={!!vibes[item.id]}
-            isMine={(user && item.userId === user.id) || item.user.name === 'You'}
-            onDelete={onDelete}
-            onJoin={setMagicPost}
-            onVibe={() => onVibe(item)}
-            onComment={() => openComments(item)}
-            onOpenProfile={setProfileUser}
-            onOpenReel={openReel}
-          />
-        )}
+        renderItem={({ item }) => {
+          // base counts exclude YOU — your live toggle adds the +1 back
+          const baseVibes = Math.max(0, (item.vibes || 0) - (initialEng.current.myVibes[item.id] ? 1 : 0));
+          const baseLaughs = Math.max(0, (laughCounts[item.id] || 0) - (initialEng.current.myLaughs[item.id] ? 1 : 0));
+          return (
+            <PostCard
+              post={{ ...item, vibes: baseVibes, laughs: baseLaughs }}
+              joined={!!joined[item.id]}
+              vibed={!!vibes[item.id]}
+              laughed={!!laughs[item.id]}
+              onLaugh={() => onLaugh(item)}
+              isMine={(user && item.userId === user.id) || item.user.name === 'You'}
+              onDelete={onDelete}
+              onJoin={setMagicPost}
+              onVibe={() => onVibe(item)}
+              onComment={() => openComments(item)}
+              onOpenProfile={setProfileUser}
+              onOpenReel={openReel}
+            />
+          );
+        }}
         ListEmptyComponent={
           SUPABASE_READY ? (
             <View style={{ alignItems: 'center', paddingVertical: 60, paddingHorizontal: 30 }}>

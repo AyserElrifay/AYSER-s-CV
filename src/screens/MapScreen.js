@@ -14,6 +14,8 @@ import { shareMyLocation, goInvisible, fetchNearbyPeople, subscribeNearby } from
 import { fetchLiveCampfires, hostCampfire, joinCampfire } from '../services/campfires';
 import { fetchLiveVenues, applyAsVenue } from '../services/venues';
 import { fetchNearbyPlaces } from '../services/places';
+import { DESTINATIONS } from '../constants/destinations';
+import { fetchDestReviews, addDestReview } from '../services/destinations';
 import { getOrCreateDmThread, sendMessage } from '../services/messages';
 import { openPartner } from '../services/broker';
 import {
@@ -80,33 +82,37 @@ export const MapScreen = () => {
   const [booked, setBooked] = useState({});
   const [bookingVenue, setBookingVenue] = useState(null);
 
-  const [myCoords, setMyCoords] = useState(ME.coords); // falls back until real GPS resolves
+  const [myCoords, setMyCoords] = useState(ME.coords); // internal fallback for distances only
+  const [located, setLocated] = useState(false);       // true ONLY when real GPS resolved
+  const [locating, setLocating] = useState(true);
   const [hasLocationPerm, setHasLocationPerm] = useState(false);
   const [realPeople, setRealPeople] = useState([]);
   const [realCampfires, setRealCampfires] = useState([]);
   const [realVenues, setRealVenues] = useState([]);
   const [realPlaces, setRealPlaces] = useState([]); // genuine venues from OpenStreetMap
 
-  /* ── REAL places around you (OpenStreetMap) — restaurants, cafés… ── */
+  /* ── REAL places around you (OpenStreetMap) — only once we know
+     where you ACTUALLY are; nothing is drawn around a fake default. ── */
   useEffect(() => {
+    if (!located) return;
     let cancelled = false;
     fetchNearbyPlaces(myCoords).then((rows) => { if (!cancelled) setRealPlaces(rows); });
     return () => { cancelled = true; };
-  }, [myCoords.latitude, myCoords.longitude]);
+  }, [located, myCoords.latitude, myCoords.longitude]);
 
-  /* ── real GPS: ask once, then use it as our center + our own pin ── */
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const granted = await requestLocationPermission();
-      if (cancelled) return;
-      setHasLocationPerm(granted);
-      if (!granted) return;
+  /* ── real GPS: your pin exists only where YOU really are ── */
+  const locateMe = useCallback(async () => {
+    setLocating(true);
+    const granted = await requestLocationPermission();
+    setHasLocationPerm(granted);
+    if (granted) {
       const coords = await getCurrentCoords();
-      if (coords && !cancelled) setMyCoords(coords);
-    })();
-    return () => { cancelled = true; };
+      if (coords) { setMyCoords(coords); setLocated(true); }
+    }
+    setLocating(false);
   }, []);
+
+  useEffect(() => { locateMe(); }, [locateMe]);
 
   /* ── real data: nearby people, campfires, venues ── */
   const loadNearby = useCallback(() => {
@@ -143,6 +149,8 @@ export const MapScreen = () => {
     (SUPABASE_READY ? realVenues : []).forEach((v) => v.lat != null && out.push({ id: 'v_' + v.id, srcId: v.id, kind: 'venue', lat: v.lat, lng: v.lng, emoji: v.emoji || '📍', label: v.name }));
     // REAL places from OpenStreetMap, pinned at their true coordinates
     realPlaces.forEach((pl) => out.push({ id: pl.id, srcId: pl.id, kind: 'place', lat: pl.lat, lng: pl.lng, emoji: pl.emoji, label: pl.name }));
+    // curated adventure destinations — real spots across the planet
+    DESTINATIONS.forEach((d) => out.push({ id: 'dest_' + d.id, srcId: d.id, kind: 'dest', lat: d.lat, lng: d.lng, emoji: d.emoji, flag: d.flag, label: d.name }));
     return out;
   }, [people, campfires, realVenues, realPlaces]);
 
@@ -152,6 +160,50 @@ export const MapScreen = () => {
     else if (m.kind === 'venue') { const v = realVenues.find((x) => x.id === m.srcId); setRail('book'); if (v) setBookingVenue(v); }
     else if (m.kind === 'fire') { const c = campfires.find((x) => x.id === m.srcId); if (c) joinFire(c); }
     else if (m.kind === 'place') { const pl = realPlaces.find((x) => x.id === m.srcId); if (pl) setPlaceOpen(pl); }
+    else if (m.kind === 'dest') { const d = DESTINATIONS.find((x) => x.id === m.srcId); if (d) openDest(d); }
+  };
+
+  /* ── curated destination sheet: guide + reviews + Uber ── */
+  const [destOpen, setDestOpen] = useState(null);
+  const [destReviews, setDestReviews] = useState(null);
+  const [revStars, setRevStars] = useState(0);
+  const [revText, setRevText] = useState('');
+  const [revErr, setRevErr] = useState(null);
+  const [revSaved, setRevSaved] = useState(false);
+
+  const openDest = (d) => {
+    setDestOpen(d); setDestReviews(null); setRevStars(0); setRevText(''); setRevErr(null); setRevSaved(false);
+    if (SUPABASE_READY) fetchDestReviews(d.id).then(setDestReviews).catch(() => setDestReviews([]));
+    else setDestReviews([]);
+  };
+
+  const submitReview = async () => {
+    if (!revStars || !destOpen) { setRevErr('Pick your stars first ⭐'); return; }
+    if (!SUPABASE_READY || !user) { setRevErr('Sign in to leave feedback'); return; }
+    setRevErr(null);
+    try {
+      const row = await addDestReview(destOpen.id, user.id, revStars, revText.trim());
+      tapSuccess(); sfxSuccess();
+      setRevSaved(true);
+      setDestReviews((r) => [row, ...(r || []).filter((x) => x.user_id !== user.id)]);
+      setRevText('');
+    } catch (e) {
+      setRevErr(/does not exist|schema cache/i.test(e.message || '')
+        ? 'Run supabase/schema_v10_destinations.sql to turn on reviews'
+        : (e.message || 'Could not save your feedback'));
+    }
+  };
+
+  /* Uber straight to the destination — tracked referral (the money trail). */
+  const uberTo = (d) => {
+    tapLight();
+    openPartner(user, {
+      id: d.id,
+      partner: 'uber',
+      url: 'https://m.uber.com/ul/?action=setPickup&pickup=my_location'
+        + '&dropoff[latitude]=' + d.lat + '&dropoff[longitude]=' + d.lng
+        + '&dropoff[nickname]=' + encodeURIComponent(d.name),
+    });
   };
 
   /* Directions to a real place — opens the maps app / Google Maps. */
@@ -281,8 +333,13 @@ export const MapScreen = () => {
         />
       </View>
 
-      {/* right-side actions: your activity · nearby people · SOS */}
+      {/* right-side actions: locate me · your activity · nearby people · SOS */}
       <View style={{ position: 'absolute', right: 14, bottom: 168, alignItems: 'center' }}>
+        <Pressable onPress={() => { tapLight(); locateMe(); }} style={{ marginBottom: 12 }}>
+          <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#FFF', borderWidth: 1, borderColor: located ? 'rgba(16,185,129,0.5)' : C.line, alignItems: 'center', justifyContent: 'center' }}>
+            <Ionicons name={locating ? 'ellipsis-horizontal' : 'locate'} size={21} color={located ? C.green : C.purple} />
+          </View>
+        </Pressable>
         <Pressable onPress={() => openSheet('doing')} style={{ marginBottom: 12 }}>
           <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#FFF', borderWidth: 1, borderColor: myDoing ? C.purple : C.line, alignItems: 'center', justifyContent: 'center' }}>
             {myDoing ? <Text style={{ fontSize: 21 }}>{myDoing}</Text> : <Ionicons name="happy-outline" size={21} color={C.purple} />}
@@ -467,7 +524,7 @@ export const MapScreen = () => {
           )) : null}
         </MapView>
       ) : Platform.OS === 'web' ? (
-        <LeafletMap center={myCoords} markers={mapMarkers} onPress={onMarkerPress} />
+        <LeafletMap center={myCoords} markers={mapMarkers} onPress={onMarkerPress} locate={located} />
       ) : (
         <FauxMap center={myCoords}>
           <View style={{ position: 'absolute', left: '38%', top: '50%' }}>
@@ -746,6 +803,99 @@ export const MapScreen = () => {
             <Text style={{ color: C.faint, fontSize: 10.5, textAlign: 'center', marginTop: 12 }}>
               Real place · OpenStreetMap — deals open Waffarha with your referral tracked
             </Text>
+          </Pressable>
+        </Pressable>
+      ) : null}
+
+      {/* curated destination — the guide sheet: story, reviews, Uber */}
+      {destOpen ? (
+        <Pressable onPress={() => setDestOpen(null)} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end', zIndex: 30 }}>
+          <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, maxHeight: '82%' }}>
+            <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 10 }} />
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 22 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <View style={{ width: 56, height: 56, borderRadius: 18, backgroundColor: 'rgba(245,179,1,0.14)', borderWidth: 1.5, borderColor: 'rgba(245,179,1,0.5)', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                  <Text style={{ fontSize: 28 }}>{destOpen.emoji}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: C.text, fontSize: 18, fontWeight: '900' }}>{destOpen.name} {destOpen.flag}</Text>
+                  <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 2 }}>{destOpen.area} · {destOpen.country}</Text>
+                  <View style={{ flexDirection: 'row', marginTop: 5 }}>
+                    {(destOpen.tags || []).map((t) => (
+                      <View key={t} style={{ backgroundColor: C.purpleSoft, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3, marginRight: 6 }}>
+                        <Text style={{ color: C.purple, fontSize: 10, fontWeight: '900' }}>{t}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              </View>
+
+              <Text style={{ color: C.text, fontSize: 13.5, lineHeight: 21, marginTop: 14 }}>{destOpen.desc}</Text>
+
+              {/* get there — Uber (tracked referral) or directions */}
+              <View style={{ flexDirection: 'row', marginTop: 16 }}>
+                <Pressable onPress={() => uberTo(destOpen)} style={{ flex: 1, marginRight: 10 }}>
+                  <View style={{ backgroundColor: '#111827', borderRadius: 14, paddingVertical: 13, alignItems: 'center' }}>
+                    <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '900' }}>🚗 Uber there</Text>
+                  </View>
+                </Pressable>
+                <Pressable onPress={() => directionsTo(destOpen)} style={{ width: 132 }}>
+                  <View style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 14, paddingVertical: 13, alignItems: 'center' }}>
+                    <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800' }}>🧭 Directions</Text>
+                  </View>
+                </Pressable>
+              </View>
+
+              {/* community feedback — real reviews, written right here */}
+              <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '800', letterSpacing: 1, marginTop: 20, marginBottom: 8 }}>
+                COMMUNITY FEEDBACK
+                {destReviews && destReviews.length
+                  ? ' · ⭐ ' + (destReviews.reduce((s, r) => s + r.stars, 0) / destReviews.length).toFixed(1) + ' (' + destReviews.length + ')'
+                  : ''}
+              </Text>
+
+              <Glass style={{ padding: 12 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'center', marginBottom: 8 }}>
+                  {[1, 2, 3, 4, 5].map((s) => (
+                    <Pressable key={s} onPress={() => { tapSelection(); setRevStars(s); }} hitSlop={6}>
+                      <Text style={{ fontSize: 26, marginHorizontal: 4, opacity: revStars >= s ? 1 : 0.25 }}>⭐</Text>
+                    </Pressable>
+                  ))}
+                </View>
+                <TextInput
+                  placeholder="Been here? Tell the crew how it was…"
+                  placeholderTextColor={C.faint}
+                  value={revText}
+                  onChangeText={setRevText}
+                  style={{ color: C.text, fontSize: 13, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10 }}
+                />
+                {revErr ? <Text style={{ color: C.coral, fontSize: 11.5, textAlign: 'center', marginTop: 8 }}>{revErr}</Text> : null}
+                {revSaved ? <Text style={{ color: C.green, fontSize: 11.5, fontWeight: '800', textAlign: 'center', marginTop: 8 }}>Feedback saved — thank you! 🙌</Text> : null}
+                <Pressable onPress={submitReview} style={{ marginTop: 10 }}>
+                  <View style={{ backgroundColor: revStars ? C.purple : C.glassHi, borderRadius: 12, paddingVertical: 11, alignItems: 'center' }}>
+                    <Text style={{ color: revStars ? '#FFF' : C.faint, fontSize: 13, fontWeight: '900' }}>Leave feedback ⭐</Text>
+                  </View>
+                </Pressable>
+              </Glass>
+
+              {destReviews === null ? (
+                <Text style={{ color: C.faint, fontSize: 12, textAlign: 'center', paddingVertical: 14 }}>Loading reviews…</Text>
+              ) : destReviews.length === 0 ? (
+                <Text style={{ color: C.faint, fontSize: 12, textAlign: 'center', paddingVertical: 14 }}>No feedback yet — be the first explorer to rate it ✨</Text>
+              ) : (
+                destReviews.slice(0, 8).map((r) => (
+                  <View key={r.id} style={{ flexDirection: 'row', marginTop: 12 }}>
+                    <Image source={{ uri: (r.user && r.user.avatar_url) || av(60) }} style={{ width: 32, height: 32, borderRadius: 16 }} />
+                    <View style={{ flex: 1, marginLeft: 10, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 14, padding: 10 }}>
+                      <Text style={{ color: C.text, fontSize: 12.5, fontWeight: '800' }}>
+                        {(r.user && r.user.name) || 'Explorer'} {(r.user && r.user.country_flag) || ''}  <Text style={{ color: '#B8860B' }}>{'⭐'.repeat(r.stars)}</Text>
+                      </Text>
+                      {r.body ? <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 3, lineHeight: 18 }}>{r.body}</Text> : null}
+                    </View>
+                  </View>
+                ))
+              )}
+            </ScrollView>
           </Pressable>
         </Pressable>
       ) : null}

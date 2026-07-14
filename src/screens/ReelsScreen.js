@@ -9,6 +9,7 @@ import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { fetchFeed } from '../services/posts';
 import { mateUp } from '../services/mates';
+import { toggleVibe as persistVibe, fetchEngagement } from '../services/social';
 import { SoundChip } from '../components/SoundChip';
 import { CommentsSheet } from '../components/CommentsSheet';
 import { CaptureModal } from '../components/CaptureModal';
@@ -53,10 +54,21 @@ export const ReelsScreen = () => {
           media: r.media_url,
           caption: r.caption || '',
           sound: r.sound_title ? { title: r.sound_title, artist: r.sound_artist || '', emoji: '🎵' } : null,
-          vibes: 0, comments: 0, reposts: 0,
+          vibes: r.vibes || 0, comments: r.comments || 0, reposts: 0,
         }))))
       .catch(() => setRealReels([]));
   }, []);
+
+  // restore YOUR stars after refresh (base counts already include you,
+  // so seed the toggle without adding +1 twice)
+  const [myInitialVibes, setMyInitialVibes] = useState({});
+  useEffect(() => {
+    if (!SUPABASE_READY || !user) return;
+    fetchEngagement(user.id).then((e) => {
+      setMyInitialVibes(e.myVibes);
+      setVibes((v) => ({ ...e.myVibes, ...v }));
+    }).catch(() => {});
+  }, [user]);
 
   // Real mode shows only real reels (with an honest empty state); demo uses the mock set.
   const data = SUPABASE_READY ? (realReels || []) : REELS;
@@ -65,6 +77,8 @@ export const ReelsScreen = () => {
   const toggleVibe = (item) => {
     const next = !vibes[item.id];
     setVibes((v) => ({ ...v, [item.id]: next }));
+    // persist — the star is still there after refresh
+    if (SUPABASE_READY && user) persistVibe(item.id, user.id, next).catch(() => {});
     if (next) {
       tapLight(); sfxStar();
       setBurstId(item.id);
@@ -157,7 +171,7 @@ export const ReelsScreen = () => {
 
               {/* action rail — the Moments identity column */}
               <View style={{ alignItems: 'center' }}>
-                <RailButton label={(item.vibes || 0) + (vibed ? 1 : 0)} color={vibed ? C.gold : '#FFF'} onPress={() => toggleVibe(item)}>
+                <RailButton label={Math.max(0, (item.vibes || 0) - (myInitialVibes[item.id] ? 1 : 0)) + (vibed ? 1 : 0)} color={vibed ? C.gold : '#FFF'} onPress={() => toggleVibe(item)}>
                   <MaterialCommunityIcons name={vibed ? 'star-four-points' : 'star-four-points-outline'} size={33} color={vibed ? C.gold : '#FFF'} />
                 </RailButton>
                 <RailButton label={item.comments || 0} onPress={() => setCommentsPost({ ...item, place: item.place || 'Reels' })}>

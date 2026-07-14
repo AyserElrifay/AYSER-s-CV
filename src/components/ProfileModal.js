@@ -38,6 +38,16 @@ export const ProfileModal = ({ user, onClose }) => {
   const [msgText, setMsgText] = useState('');
   const [msgSent, setMsgSent] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [actionErr, setActionErr] = useState(null); // never swallow failures silently
+
+  // "relation …mates… does not exist" → the SQL file wasn't run yet
+  const explain = (e) => {
+    const m = (e && e.message) || '';
+    if (/relation .*mates.* does not exist|schema cache/i.test(m)) {
+      return 'One step left: run supabase/schema_v8_mates.sql in the Supabase SQL Editor to turn on friends.';
+    }
+    return m || 'Something went wrong — try again.';
+  };
 
   const real = SUPABASE_READY && me && user && user.id && String(user.id).length > 20; // uuid = real account
   const isMe = me && user && user.id === me.id;
@@ -55,27 +65,33 @@ export const ProfileModal = ({ user, onClose }) => {
 
   const doMateUp = async () => {
     if (!real || isMe || busy) return;
-    tapSuccess(); sfxSuccess();
+    setActionErr(null);
     setBusy(true);
     try {
       const next = await mateUp(me.id, user.id);
       setMateState(next);
+      tapSuccess(); sfxSuccess(); // celebrate only when it actually worked
       if (next === 'mates') countMates(user.id).then(setMates).catch(() => {});
-    } catch (e) {} finally { setBusy(false); }
+    } catch (e) {
+      setActionErr(explain(e));
+    } finally { setBusy(false); }
   };
 
   const doSend = async () => {
     const body = msgText.trim();
     if (!body || !real || isMe || busy) return;
-    tapLight(); sfxPop();
+    setActionErr(null);
     setBusy(true);
     try {
       const threadId = await getOrCreateDmThread(user.id);
       await sendMessage({ dmThreadId: threadId, userId: me.id, body });
+      tapLight(); sfxPop();
       setMsgText('');
       setMsgSent(true);
       setTimeout(() => { setMsgSent(false); setMsgOpen(false); }, 1400);
-    } catch (e) {} finally { setBusy(false); }
+    } catch (e) {
+      setActionErr(explain(e));
+    } finally { setBusy(false); }
   };
 
   const mateLabel =
@@ -178,6 +194,14 @@ export const ProfileModal = ({ user, onClose }) => {
             {msgSent ? (
               <Text style={{ color: C.green, fontSize: 12, fontWeight: '800', textAlign: 'center', marginTop: 8 }}>
                 Sent! Continue in Chats 💬
+              </Text>
+            ) : null}
+            {busy ? (
+              <Text style={{ color: C.faint, fontSize: 12, textAlign: 'center', marginTop: 8 }}>Working…</Text>
+            ) : null}
+            {actionErr ? (
+              <Text style={{ color: C.coral, fontSize: 12, fontWeight: '700', textAlign: 'center', marginTop: 8, lineHeight: 17 }}>
+                {actionErr}
               </Text>
             ) : null}
 

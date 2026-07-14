@@ -18,7 +18,7 @@ const typeChip = (post) => {
   return { label: 'MOMENT', tint: 'rgba(17,24,39,0.65)', color: 'rgba(255,255,255,0.85)' };
 };
 
-export const PostCard = ({ post, joined, vibed, isMine, onDelete, onJoin, onVibe, onComment, onOpenProfile, onOpenReel }) => {
+export const PostCard = ({ post, joined, vibed, laughed, onLaugh: onLaughProp, isMine, onDelete, onJoin, onVibe, onComment, onOpenProfile, onOpenReel }) => {
   const mediaH = post.type === 'reel' ? 470 : post.type === 'vod' ? 208 : 250;
   const tc = typeChip(post);
   const textBg = TEXT_BGS[post.textBg] || TEXT_BGS.plain;
@@ -33,7 +33,6 @@ export const PostCard = ({ post, joined, vibed, isMine, onDelete, onJoin, onVibe
   const burst = useRef(new Animated.Value(0)).current;
   const [bursting, setBursting] = useState(false);
   const [reposted, setReposted] = useState(false);
-  const [laughed, setLaughed] = useState(false);
   const laughStreak = useRef({ n: 0, at: 0 });
   const onLaugh = () => {
     tapLight();
@@ -43,7 +42,7 @@ export const PostCard = ({ post, joined, vibed, isMine, onDelete, onJoin, onVibe
     s.at = now;
     // three quick taps (or more) escalates the giggle into the belly laugh
     if (s.n >= 3) sfxLaughBig(); else sfxLaugh();
-    setLaughed(true);
+    onLaughProp && onLaughProp(); // persisted upstream — survives refresh
   };
   const handleMediaTap = () => {
     const now = Date.now();
@@ -188,7 +187,7 @@ export const PostCard = ({ post, joined, vibed, isMine, onDelete, onJoin, onVibe
             </Text>
           </Pressable>
           {/* Laugh — tap for a giggle, three quick taps for the belly laugh */}
-          <Pressable onPress={onLaugh} onLongPress={() => { tapLight(); sfxLaughBig(); setLaughed(true); }} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', marginRight: 16 }}>
+          <Pressable onPress={onLaugh} onLongPress={() => { tapLight(); sfxLaughBig(); onLaughProp && onLaughProp(); }} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', marginRight: 16 }}>
             <Text style={{ fontSize: 17, opacity: laughed ? 1 : 0.55 }}>😂</Text>
             <Text style={{ color: laughed ? C.text : C.dim, fontSize: 13, fontWeight: '700', marginLeft: 3 }}>
               {(post.laughs || 0) + (laughed ? 1 : 0)}

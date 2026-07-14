@@ -6,11 +6,16 @@ import { supabase } from '../lib/supabase';
 export async function fetchFeed() {
   const { data, error } = await supabase
     .from('posts')
-    .select('*, user:profiles!posts_user_id_fkey(*)')
+    .select('*, user:profiles!posts_user_id_fkey(*), vibe_rows:post_vibes(count), comment_rows:comments(count)')
     .order('created_at', { ascending: false })
     .limit(30);
   if (error) throw error;
-  return data;
+  // flatten the embedded counts so every caller sees plain numbers
+  return (data || []).map((row) => ({
+    ...row,
+    vibes: (row.vibe_rows && row.vibe_rows[0] && row.vibe_rows[0].count) || 0,
+    comments: (row.comment_rows && row.comment_rows[0] && row.comment_rows[0].count) || 0,
+  }));
 }
 
 /* Long-form videos (YouTube-style) — every post of type 'vod'.

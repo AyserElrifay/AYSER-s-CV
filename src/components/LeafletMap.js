@@ -1,10 +1,11 @@
 import React, { useRef, useEffect } from 'react';
 import { Platform } from 'react-native';
 
-/* A REAL interactive map on web — Leaflet + OpenStreetMap tiles (free,
-   no API key). You can pan and zoom, markers sit on true coordinates
-   and stay put as you move. Native uses react-native-maps instead, so
-   this component only renders on web. */
+/* A REAL interactive map on web — Leaflet + OpenStreetMap data with
+   CARTO's playful "Voyager" tiles. Pannable, zoomable, opens on the
+   whole planet. Pins float gently and glow purple — the Snap-Map
+   energy, but in the Moments identity (purple + gold, name pills).
+   Native uses react-native-maps instead, so this renders web-only. */
 
 let leafletPromise = null;
 function loadLeaflet() {
@@ -25,21 +26,65 @@ function loadLeaflet() {
   return leafletPromise;
 }
 
+/* The Moments map identity — gentle float, purple glow, white pills. */
+function injectMapStyle() {
+  if (typeof document === 'undefined' || document.getElementById('mm-map-style')) return;
+  const st = document.createElement('style');
+  st.id = 'mm-map-style';
+  st.textContent = `
+    @keyframes mmFloat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+    @keyframes mmPulse { 0% { transform: scale(0.9); opacity: 0.55; } 70% { transform: scale(1.7); opacity: 0; } 100% { opacity: 0; } }
+    .mm-float { animation: mmFloat 3.2s ease-in-out infinite; }
+    .mm-pill {
+      background: #fff; border-radius: 10px; padding: 2px 7px; font-size: 10px;
+      font-weight: 800; color: #111827; white-space: nowrap; text-align: center;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.22); font-family: -apple-system, system-ui, sans-serif;
+      max-width: 110px; overflow: hidden; text-overflow: ellipsis;
+    }
+  `;
+  document.head.appendChild(st);
+}
+
+const glowRing = (color) =>
+  '<div style="position:absolute;left:50%;top:50%;width:56px;height:56px;margin:-28px 0 0 -28px;border-radius:50%;background:radial-gradient(circle,' + color + ' 0%,transparent 70%);animation:mmPulse 2.6s ease-out infinite"></div>';
+
 const pinHtml = (m) => {
   const flag = m.flag;
   const flagBadge = flag
-    ? '<div style="position:absolute;bottom:-3px;right:-5px;background:#fff;border-radius:8px;font-size:11px;line-height:15px;padding:0 2px;box-shadow:0 1px 3px rgba(0,0,0,0.3)">' + flag + '</div>'
+    ? '<div style="position:absolute;bottom:10px;right:-6px;background:#fff;border-radius:8px;font-size:11px;line-height:15px;padding:0 2px;box-shadow:0 1px 3px rgba(0,0,0,0.3)">' + flag + '</div>'
     : '';
-  // People show their real photo (Snapchat-style); doing-badge on top.
+
+  // People: real photo in a floating avatar with a purple glow — Snap
+  // energy, Moments identity. Name pill underneath.
   if (m.kind === 'person' && m.avatar) {
     const doing = m.emoji && m.emoji.length <= 3
-      ? '<div style="position:absolute;top:-6px;left:-6px;background:#fff;border-radius:9px;font-size:11px;line-height:16px;padding:0 2px;box-shadow:0 1px 3px rgba(0,0,0,0.3)">' + m.emoji + '</div>' : '';
+      ? '<div style="position:absolute;top:-7px;left:-7px;background:#fff;border-radius:9px;font-size:12px;line-height:17px;padding:0 2px;box-shadow:0 1px 3px rgba(0,0,0,0.3)">' + m.emoji + '</div>' : '';
+    const name = (m.label || '').replace(/^[^ ]+ /, '').split(' ')[0] || m.label;
     return (
-      '<div style="position:relative;width:44px;height:44px">' +
-      '<img src="' + m.avatar + '" style="width:44px;height:44px;border-radius:50%;object-fit:cover;border:3px solid #7C3AED;box-shadow:0 2px 6px rgba(0,0,0,0.3)"/>' +
-      doing + flagBadge + '</div>'
+      '<div class="mm-float" style="position:relative;width:52px;height:66px">' +
+      glowRing('rgba(124,58,237,0.45)') +
+      '<img src="' + m.avatar + '" style="position:relative;width:48px;height:48px;margin-left:2px;border-radius:50%;object-fit:cover;border:3px solid #fff;box-shadow:0 0 0 3px #7C3AED, 0 4px 10px rgba(0,0,0,0.3)"/>' +
+      doing + flagBadge +
+      '<div class="mm-pill" style="margin-top:3px">' + name + '</div>' +
+      '</div>'
     );
   }
+
+  // Curated destinations: white card pin with the emoji + name pill —
+  // the "Bootleg Theatre" label feel, in our colors.
+  if (m.kind === 'dest') {
+    return (
+      '<div class="mm-float" style="position:relative;width:96px;height:66px;display:flex;flex-direction:column;align-items:center">' +
+      glowRing('rgba(245,179,1,0.5)') +
+      '<div style="position:relative;width:42px;height:42px;border-radius:14px;background:#fff;border:2.5px solid #F5B301;display:flex;align-items:center;justify-content:center;font-size:21px;box-shadow:0 3px 8px rgba(0,0,0,0.28)">' +
+      (m.emoji || '📍') +
+      '<div style="position:absolute;bottom:-5px;right:-7px;background:#fff;border-radius:8px;font-size:11px;line-height:15px;padding:0 2px;box-shadow:0 1px 3px rgba(0,0,0,0.3)">' + (flag || '') + '</div>' +
+      '</div>' +
+      '<div class="mm-pill" style="margin-top:4px">' + (m.label || '') + '</div>' +
+      '</div>'
+    );
+  }
+
   const border = m.kind === 'fire' ? '#F43F5E' : m.kind === 'deal' ? '#10B981' : m.kind === 'place' ? '#F59E0B' : '#7C3AED';
   return (
     '<div style="position:relative;width:36px;height:36px;border-radius:12px;background:#fff;border:2px solid ' + border +
@@ -48,25 +93,25 @@ const pinHtml = (m) => {
   );
 };
 
-export const LeafletMap = ({ center, markers = [], onPress }) => {
+export const LeafletMap = ({ center, markers = [], onPress, locate = true }) => {
   const elRef = useRef(null);
   const mapRef = useRef(null);
   const layerRef = useRef(null);
   const meRef = useRef(null);
-
   const flownRef = useRef(false);
+  const locateRef = useRef(locate);
+  locateRef.current = locate;
 
-  // init once
+  // init once — open on the whole planet
   useEffect(() => {
     let cancelled = false;
+    injectMapStyle();
     loadLeaflet().then((L) => {
       if (cancelled || !L || !elRef.current || mapRef.current) return;
-      // Open on the whole planet, then fly down to the user — the
-      // "start on Earth, zoom into your street" Snap-Map feel.
       const map = L.map(elRef.current, {
         zoomControl: false, attributionControl: false,
         minZoom: 2, worldCopyJump: true, zoomSnap: 0.25,
-      }).setView([20, 0], 2.5);
+      }).setView([24, 14], 2.5); // Earth view — Egypt/Europe in frame
       // CARTO "Voyager" — clean, colourful, cartoonish-but-real (free, no key).
       L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
         maxZoom: 20, subdomains: 'abcd',
@@ -75,12 +120,6 @@ export const LeafletMap = ({ center, markers = [], onPress }) => {
       layerRef.current = L.layerGroup().addTo(map);
       draw(L);
       setTimeout(() => map.invalidateSize(), 250);
-      // Glide from the globe to the user's location.
-      setTimeout(() => {
-        if (cancelled || !mapRef.current) return;
-        flownRef.current = true;
-        map.flyTo([center.latitude, center.longitude], 14, { duration: 2.2 });
-      }, 700);
     });
     return () => {
       cancelled = true;
@@ -93,19 +132,27 @@ export const LeafletMap = ({ center, markers = [], onPress }) => {
     if (!L || !layerRef.current) return;
     layerRef.current.clearLayers();
 
-    // your own live pin
-    const meIcon = L.divIcon({
-      html: '<div style="width:22px;height:22px;border-radius:50%;background:#7C3AED;border:3px solid #fff;box-shadow:0 0 0 6px rgba(124,58,237,0.25)"></div>',
-      className: '', iconSize: [22, 22], iconAnchor: [11, 11],
-    });
-    meRef.current = L.marker([center.latitude, center.longitude], { icon: meIcon, zIndexOffset: 1000 }).addTo(layerRef.current);
+    // your own live pin — only once your REAL location is known
+    if (locateRef.current) {
+      const meIcon = L.divIcon({
+        html: '<div style="position:relative;width:22px;height:22px">' + glowRing('rgba(124,58,237,0.5)') +
+          '<div style="position:relative;width:22px;height:22px;border-radius:50%;background:#7C3AED;border:3px solid #fff;box-shadow:0 0 0 5px rgba(124,58,237,0.25)"></div></div>',
+        className: '', iconSize: [22, 22], iconAnchor: [11, 11],
+      });
+      meRef.current = L.marker([center.latitude, center.longitude], { icon: meIcon, zIndexOffset: 1000 }).addTo(layerRef.current);
+    }
 
     markers.forEach((m) => {
       if (m.lat == null || m.lng == null) return;
       const isPerson = m.kind === 'person' && m.avatar;
-      const icon = L.divIcon({ html: pinHtml(m), className: '', iconSize: isPerson ? [44, 44] : [36, 36], iconAnchor: isPerson ? [22, 22] : [18, 36] });
-      const mk = L.marker([m.lat, m.lng], { icon }).addTo(layerRef.current);
-      if (m.label) mk.bindTooltip(m.label, { direction: 'top', offset: [0, -34] });
+      const isDest = m.kind === 'dest';
+      const icon = L.divIcon({
+        html: pinHtml(m), className: '',
+        iconSize: isPerson ? [52, 66] : isDest ? [96, 66] : [36, 36],
+        iconAnchor: isPerson ? [26, 33] : isDest ? [48, 33] : [18, 36],
+      });
+      const mk = L.marker([m.lat, m.lng], { icon, zIndexOffset: isPerson ? 500 : isDest ? 300 : 0 }).addTo(layerRef.current);
+      if (m.label && !isPerson && !isDest) mk.bindTooltip(m.label, { direction: 'top', offset: [0, -34] });
       mk.on('click', () => onPress && onPress(m));
     });
   };
@@ -116,15 +163,19 @@ export const LeafletMap = ({ center, markers = [], onPress }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [markers]);
 
-  // recenter when the user's real location resolves — glide, don't jump,
-  // and only after the intro fly-in has taken over the view.
+  // glide down from the globe the moment the user's REAL location is
+  // known (never to a placeholder), and glide again on later GPS moves
   useEffect(() => {
-    if (mapRef.current && center && flownRef.current) {
-      mapRef.current.flyTo([center.latitude, center.longitude], Math.max(mapRef.current.getZoom() || 14, 13), { duration: 1.2 });
-      if (typeof window !== 'undefined' && window.L) draw(window.L);
+    if (!mapRef.current || !center || !locate) return;
+    if (!flownRef.current) {
+      flownRef.current = true;
+      mapRef.current.flyTo([center.latitude, center.longitude], 14, { duration: 2.4 });
+    } else {
+      mapRef.current.flyTo([center.latitude, center.longitude], Math.max(mapRef.current.getZoom() || 14, 13), { duration: 1.1 });
     }
+    if (typeof window !== 'undefined' && window.L) draw(window.L);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [center && center.latitude, center && center.longitude]);
+  }, [locate, center && center.latitude, center && center.longitude]);
 
   if (Platform.OS !== 'web') return null;
   // react-dom renders lowercase host tags on web (same as the <video>/<iframe> used elsewhere).
