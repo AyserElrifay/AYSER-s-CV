@@ -138,7 +138,7 @@ export const ReelsScreen = () => {
                       onPress={() => {
                         tapMedium(); sfxPop();
                         setFollowing((f) => ({ ...f, [item.user.id]: !f[item.user.id] }));
-                        // real friend request — needs schema_v8_mates.sql
+                        // real friend request — needs RUN_ME.sql
                         if (SUPABASE_READY && user && item.user.id && item.user.id !== user.id) {
                           mateUp(user.id, item.user.id).catch(() => {});
                         }

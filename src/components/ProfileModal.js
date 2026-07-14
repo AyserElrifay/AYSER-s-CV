@@ -45,7 +45,7 @@ export const ProfileModal = ({ user, onClose }) => {
   const explain = (e) => {
     const m = (e && e.message) || '';
     if (/relation .*mates.* does not exist|schema cache/i.test(m)) {
-      return 'One step left: run supabase/schema_v8_mates.sql in the Supabase SQL Editor to turn on friends.';
+      return 'One step left: open Supabase → SQL Editor and run the file supabase/RUN_ME.sql (one paste turns on friends, chat & everything).';
     }
     return m || 'Something went wrong — try again.';
   };

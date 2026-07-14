@@ -46,7 +46,7 @@ export const NotificationsSheet = ({ onClose }) => {
     } catch (e) {
       setItems([]);
       setLoadErr(/does not exist|schema cache/i.test(e.message || '')
-        ? 'One step left: run supabase/schema_v11_notifications.sql to turn on notifications.'
+        ? 'One step left: run supabase/RUN_ME.sql to turn on notifications.'
         : (e.message || 'Could not load activity'));
     }
   }, [user]);

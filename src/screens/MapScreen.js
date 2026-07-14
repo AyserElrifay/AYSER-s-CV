@@ -220,7 +220,7 @@ export const MapScreen = () => {
       setRevText('');
     } catch (e) {
       setRevErr(/does not exist|schema cache/i.test(e.message || '')
-        ? 'Run supabase/schema_v10_destinations.sql to turn on reviews'
+        ? 'Run supabase/RUN_ME.sql to turn on reviews'
         : (e.message || 'Could not save your feedback'));
     }
   };

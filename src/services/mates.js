@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 /* ── MATES · the real friend graph ─────────────────────────────────
    "Mate up" sends a real request row. If the other person already
    requested YOU, it auto-accepts — you're mates instantly (the
-   Snapchat add-back moment). Needs supabase/schema_v8_mates.sql. */
+   Snapchat add-back moment). Needs supabase/RUN_ME.sql. */
 
 // 'none' | 'requested' | 'incoming' | 'mates'
 export async function getMateStatus(myId, otherId) {
