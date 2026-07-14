@@ -20,6 +20,22 @@ const inputStyle = {
   color: C.text, paddingHorizontal: 16, paddingVertical: 13, fontSize: 14, marginBottom: 12,
 };
 
+/* Supabase auth errors, translated to something a human can act on.
+   The raw messages ("Signups not allowed for this instance") confuse
+   people into thinking the app is broken — name the real cause. */
+const friendlyAuthError = (e) => {
+  const m = ((e && e.message) || '').toLowerCase();
+  if (m.includes('already registered')) return 'This email already has an account — tap "I already have an account" and sign in.';
+  if (m.includes('not confirmed')) return 'Your email isn\'t confirmed yet. Check your inbox AND spam folder for the Moments link.';
+  if (m.includes('invalid login credentials')) return 'Wrong email or password. Forgot it? Use "Forgot password?" below.';
+  if (m.includes('signups not allowed')) return 'Sign-ups are currently switched off on the server (Supabase → Authentication → enable "Allow new users to sign up").';
+  if (m.includes('rate limit') || m.includes('too many')) return 'The server hit its email limit — wait a few minutes and try again. (Owner: disable "Confirm email" in Supabase for instant sign-ups.)';
+  if (m.includes('password should be')) return 'Password is too short — use at least 6 characters.';
+  if (m.includes('invalid email') || m.includes('validate email')) return 'That email doesn\'t look right — check for typos.';
+  if (m.includes('failed to fetch') || m.includes('network')) return 'Can\'t reach the server — check your internet and try again.';
+  return (e && e.message) || 'Something went wrong. Try again.';
+};
+
 export const AuthScreen = () => {
   const { isDemo, signIn, signUp, enterDemo, user, beginOnboarding, finishOnboarding } = useAuth();
   const [step, setStep] = useState(0);
@@ -108,11 +124,20 @@ export const AuthScreen = () => {
         beginOnboarding(); // hold this screen mounted even once the session goes live
         const { user: newUser, session } = await signUp(email.trim(), password, name.trim() || 'Explorer');
         if (!session) {
-          // Project has email confirmation enabled — no session until confirmed.
-          finishOnboarding();
-          setMode('signin');
-          setNotice('Account created! Check your email to confirm, then sign in.');
-          return;
+          // Email confirmation is ON server-side — try signing straight
+          // in anyway (covers "user exists but retried signup"), else
+          // explain the confirmation email clearly.
+          try {
+            await signIn(email.trim(), password);
+            setPendingUserId(newUser ? newUser.id : null);
+            setStep(1);
+            return;
+          } catch (e2) {
+            finishOnboarding();
+            setMode('signin');
+            setNotice('Account created! We sent a confirmation link to your email — check your inbox AND the spam folder, tap it, then sign in here.');
+            return;
+          }
         }
         setPendingUserId(newUser ? newUser.id : null);
         setStep(1);
@@ -121,7 +146,7 @@ export const AuthScreen = () => {
       }
     } catch (e) {
       finishOnboarding();
-      setError(e.message || 'Something went wrong. Try again.');
+      setError(friendlyAuthError(e));
     } finally {
       setBusy(false);
     }
