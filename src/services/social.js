@@ -37,11 +37,36 @@ export async function toggleLaugh(postId, userId, on) {
   }
 }
 
+export async function toggleRepost(postId, userId, on) {
+  if (on) {
+    const { error } = await supabase
+      .from('post_reposts')
+      .upsert({ post_id: postId, user_id: userId }, { onConflict: 'post_id,user_id' });
+    if (error) throw error;
+  } else {
+    const { error } = await supabase
+      .from('post_reposts')
+      .delete()
+      .eq('post_id', postId)
+      .eq('user_id', userId);
+    if (error) throw error;
+  }
+}
+
+/* Joining a moment ("Join the Vibe") — a real membership row. */
+export async function joinPost(postId, userId) {
+  const { error } = await supabase
+    .from('post_joins')
+    .upsert({ post_id: postId, user_id: userId }, { onConflict: 'post_id,user_id' });
+  if (error) throw error;
+}
+
 /* Everything needed to restore YOUR reactions after a refresh:
-   which posts you starred, which you laughed at, and laugh totals.
-   Each part fails soft so a missing table never breaks the feed. */
+   stars, laughs, reposts and joins — plus crowd totals for the ones
+   the feed query doesn't embed. Each part fails soft so a missing
+   table (SQL not run yet) never breaks the feed. */
 export async function fetchEngagement(userId) {
-  const out = { myVibes: {}, myLaughs: {}, laughCounts: {} };
+  const out = { myVibes: {}, myLaughs: {}, myReposts: {}, myJoins: {}, laughCounts: {}, repostCounts: {} };
   try {
     const { data } = await supabase.from('post_vibes').select('post_id').eq('user_id', userId).limit(1000);
     (data || []).forEach((r) => { out.myVibes[r.post_id] = true; });
@@ -52,6 +77,17 @@ export async function fetchEngagement(userId) {
       out.laughCounts[r.post_id] = (out.laughCounts[r.post_id] || 0) + 1;
       if (r.user_id === userId) out.myLaughs[r.post_id] = true;
     });
+  } catch (e) {}
+  try {
+    const { data } = await supabase.from('post_reposts').select('post_id, user_id').limit(3000);
+    (data || []).forEach((r) => {
+      out.repostCounts[r.post_id] = (out.repostCounts[r.post_id] || 0) + 1;
+      if (r.user_id === userId) out.myReposts[r.post_id] = true;
+    });
+  } catch (e) {}
+  try {
+    const { data } = await supabase.from('post_joins').select('post_id').eq('user_id', userId).limit(1000);
+    (data || []).forEach((r) => { out.myJoins[r.post_id] = true; });
   } catch (e) {}
   return out;
 }

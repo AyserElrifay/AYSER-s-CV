@@ -18,7 +18,7 @@ const typeChip = (post) => {
   return { label: 'MOMENT', tint: 'rgba(17,24,39,0.65)', color: 'rgba(255,255,255,0.85)' };
 };
 
-export const PostCard = ({ post, joined, vibed, laughed, onLaugh: onLaughProp, isMine, onDelete, onShare, onJoin, onVibe, onComment, onOpenProfile, onOpenReel }) => {
+export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onLaugh: onLaughProp, isMine, onDelete, onShare, onJoin, onVibe, onComment, onOpenProfile, onOpenReel }) => {
   const mediaH = post.type === 'reel' ? 470 : post.type === 'vod' ? 208 : 250;
   const tc = typeChip(post);
   const textBg = TEXT_BGS[post.textBg] || TEXT_BGS.plain;
@@ -32,7 +32,6 @@ export const PostCard = ({ post, joined, vibed, laughed, onLaugh: onLaughProp, i
   const singleTimer = useRef(null);
   const burst = useRef(new Animated.Value(0)).current;
   const [bursting, setBursting] = useState(false);
-  const [reposted, setReposted] = useState(false);
   const laughStreak = useRef({ n: 0, at: 0 });
   const onLaugh = () => {
     tapLight();
@@ -198,8 +197,8 @@ export const PostCard = ({ post, joined, vibed, laughed, onLaugh: onLaughProp, i
             <MaterialCommunityIcons name="script-text-outline" size={20} color={C.dim} />
             <Text style={{ color: C.dim, fontSize: 13, fontWeight: '700', marginLeft: 4 }}>{post.comments}</Text>
           </Pressable>
-          {/* Repost */}
-          <Pressable onPress={() => setReposted((r) => !r)} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', marginRight: 16 }}>
+          {/* Repost — persisted upstream, survives refresh */}
+          <Pressable onPress={() => { tapLight(); onRepost && onRepost(); }} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', marginRight: 16 }}>
             <MaterialCommunityIcons name="repeat-variant" size={22} color={reposted ? C.green : C.dim} />
             <Text style={{ color: reposted ? C.green : C.dim, fontSize: 13, fontWeight: '700', marginLeft: 3 }}>
               {(post.reposts || 0) + (reposted ? 1 : 0)}

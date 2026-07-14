@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { C } from '../constants/theme';
 import { av } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
-import { toggleVibe, toggleLaugh, fetchEngagement } from '../services/social';
+import { toggleVibe, toggleLaugh, toggleRepost, joinPost, fetchEngagement } from '../services/social';
 import { getProfile } from '../services/profiles';
 import { fetchMyPosts, deletePost } from '../services/posts';
 import { fetchActiveStories } from '../services/stories';
@@ -42,24 +42,36 @@ export const HomeScreen = () => {
   const [vibes, setVibes] = useState({});
   const [laughs, setLaughs] = useState({});
   const [laughCounts, setLaughCounts] = useState({});
+  const [reposts, setReposts] = useState({});
+  const [repostCounts, setRepostCounts] = useState({});
   // snapshot of what was already YOURS at load time, so the base counts
   // from the DB (which include you) aren't double-counted in the UI
-  const initialEng = useRef({ myVibes: {}, myLaughs: {} });
+  const initialEng = useRef({ myVibes: {}, myLaughs: {}, myReposts: {}, myJoins: {} });
 
-  /* Restore your reactions after every refresh — nothing resets. */
+  /* Restore EVERY reaction after every refresh — nothing resets:
+     stars, laughs, reposts and joins all come back exactly as left. */
   useEffect(() => {
     if (!SUPABASE_READY || !user || !posts.length) return;
     fetchEngagement(user.id).then((e) => {
       initialEng.current = e;
       setVibes((v) => ({ ...e.myVibes, ...v }));
       setLaughs((l) => ({ ...e.myLaughs, ...l }));
+      setReposts((r) => ({ ...e.myReposts, ...r }));
+      setJoined((j) => ({ ...e.myJoins, ...j }));
       setLaughCounts(e.laughCounts);
+      setRepostCounts(e.repostCounts);
     }).catch(() => {});
   }, [user, posts.length]);
 
   const onLaugh = (post) => {
     setLaughs((l) => ({ ...l, [post.id]: true }));
     if (SUPABASE_READY && user) toggleLaugh(post.id, user.id, true).catch(() => {});
+  };
+
+  const onRepost = (post) => {
+    const next = !reposts[post.id];
+    setReposts((r) => ({ ...r, [post.id]: next }));
+    if (SUPABASE_READY && user) toggleRepost(post.id, user.id, next).catch(() => {});
   };
   const [myStories, setMyStories] = useState([]);
   const [myProfile, setMyProfile] = useState(null); // the real profiles row for the signed-in user
@@ -265,12 +277,15 @@ export const HomeScreen = () => {
           // base counts exclude YOU — your live toggle adds the +1 back
           const baseVibes = Math.max(0, (item.vibes || 0) - (initialEng.current.myVibes[item.id] ? 1 : 0));
           const baseLaughs = Math.max(0, (laughCounts[item.id] || 0) - (initialEng.current.myLaughs[item.id] ? 1 : 0));
+          const baseReposts = Math.max(0, (repostCounts[item.id] || 0) - (initialEng.current.myReposts[item.id] ? 1 : 0));
           return (
             <PostCard
-              post={{ ...item, vibes: baseVibes, laughs: baseLaughs }}
+              post={{ ...item, vibes: baseVibes, laughs: baseLaughs, reposts: baseReposts }}
               joined={!!joined[item.id]}
               vibed={!!vibes[item.id]}
               laughed={!!laughs[item.id]}
+              reposted={!!reposts[item.id]}
+              onRepost={() => onRepost(item)}
               onLaugh={() => onLaugh(item)}
               isMine={(user && item.userId === user.id) || item.user.name === 'You'}
               onDelete={onDelete}
@@ -304,6 +319,8 @@ export const HomeScreen = () => {
           onClose={() => setMagicPost(null)}
           onComplete={(id) => {
             setJoined((j) => ({ ...j, [id]: true }));
+            // a real membership row — your join survives refresh
+            if (SUPABASE_READY && user) joinPost(id, user.id).catch(() => {});
             tapSuccess();
             sfxSuccess();
             recordSignal('join', magicPost);
@@ -334,6 +351,8 @@ export const HomeScreen = () => {
                 joined={!!joined[sharedPost.id]}
                 vibed={!!vibes[sharedPost.id]}
                 laughed={!!laughs[sharedPost.id]}
+                reposted={!!reposts[sharedPost.id]}
+                onRepost={() => onRepost(sharedPost)}
                 onLaugh={() => onLaugh(sharedPost)}
                 isMine={!!(user && sharedPost.userId === user.id)}
                 onDelete={(p) => { onDelete(p); setSharedPost(null); }}

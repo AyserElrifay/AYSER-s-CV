@@ -9,7 +9,7 @@ import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { fetchFeed } from '../services/posts';
 import { mateUp } from '../services/mates';
-import { toggleVibe as persistVibe, fetchEngagement } from '../services/social';
+import { toggleVibe as persistVibe, toggleRepost as persistRepost, fetchEngagement } from '../services/social';
 import { SoundChip } from '../components/SoundChip';
 import { CommentsSheet } from '../components/CommentsSheet';
 import { CaptureModal } from '../components/CaptureModal';
@@ -67,6 +67,7 @@ export const ReelsScreen = () => {
     fetchEngagement(user.id).then((e) => {
       setMyInitialVibes(e.myVibes);
       setVibes((v) => ({ ...e.myVibes, ...v }));
+      setReposts((r) => ({ ...e.myReposts, ...r })); // reposts come back too
     }).catch(() => {});
   }, [user]);
 
@@ -180,7 +181,12 @@ export const ReelsScreen = () => {
                 <RailButton
                   label={(item.reposts || 0) + (reposted ? 1 : 0)}
                   color={reposted ? C.green : '#FFF'}
-                  onPress={() => { tapLight(); setReposts((r) => ({ ...r, [item.id]: !r[item.id] })); }}
+                  onPress={() => {
+                    tapLight();
+                    const next = !reposts[item.id];
+                    setReposts((r) => ({ ...r, [item.id]: next }));
+                    if (SUPABASE_READY && user) persistRepost(item.id, user.id, next).catch(() => {});
+                  }}
                 >
                   <MaterialCommunityIcons name="repeat-variant" size={32} color={reposted ? C.green : '#FFF'} />
                 </RailButton>

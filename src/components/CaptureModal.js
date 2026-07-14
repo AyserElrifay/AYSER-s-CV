@@ -160,6 +160,21 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
     else takePhoto();
   };
 
+  /* ── gallery: upload a photo or video from your library into a
+     story/reel — with the full sound rail available in preview ── */
+  const pickFromLibrary = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images', 'videos'], quality: 1 });
+      if (!result.canceled && result.assets && result.assets[0]) {
+        const a = result.assets[0];
+        const isVid = (a.type || '').startsWith('video') || /^video\//.test(a.mimeType || '');
+        const mime = a.mimeType || (isVid ? 'video/mp4' : 'image/jpeg');
+        const ext = (mime.split('/')[1] || (isVid ? 'mp4' : 'jpg')).replace('jpeg', 'jpg');
+        setShot({ uri: a.uri, kind: isVid ? 'video' : 'photo', ext, contentType: mime });
+      }
+    } catch (e) { setCamError('Could not open your gallery'); }
+  };
+
   /* ── long-form video: pick an existing file (works on web + native) ── */
   const pickVideoFile = async () => {
     try {
@@ -227,6 +242,33 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
 
   const recPct = Math.min(1, recMs / MAX_VIDEO_MS);
 
+  /* TikTok-style sound rail — shown while shooting AND on the preview,
+     so an uploaded gallery photo can get a song too. */
+  const soundRail = (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 14, marginBottom: 16 }}>
+      <Pressable onPress={() => { tapLight(); setHubOpen(true); }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(124,58,237,0.9)', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7, marginRight: 8 }}>
+          <Text style={{ fontSize: 13 }}>🎧</Text>
+          <Text style={{ color: '#FFF', fontSize: 11.5, fontWeight: '900', marginLeft: 5 }}>Music Hub</Text>
+        </View>
+      </Pressable>
+      {SOUNDS.map((s) => {
+        const on = sound && sound.id === s.id;
+        return (
+          <Pressable key={s.id} onPress={() => { tapLight(); sfxPop(); setSound(on ? null : s); }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: on ? '#FFF' : 'rgba(255,255,255,0.16)', borderWidth: 1, borderColor: on ? '#FFF' : 'rgba(255,255,255,0.35)', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7, marginRight: 8 }}>
+              <Text style={{ fontSize: 13 }}>{s.emoji}</Text>
+              <Text style={{ color: on ? C.text : '#FFF', fontSize: 11.5, fontWeight: '800', marginLeft: 5 }} numberOfLines={1}>
+                {s.title}
+              </Text>
+              {on ? <Ionicons name="checkmark" size={13} color={C.purple} style={{ marginLeft: 4 }} /> : null}
+            </View>
+          </Pressable>
+        );
+      })}
+    </ScrollView>
+  );
+
   return (
     <Modal visible transparent={false} animationType="slide" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: '#000' }}>
@@ -253,6 +295,12 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
                   <Ionicons name="camera" size={38} color="#FFF" />
                 </View>
                 <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '800', marginTop: 12 }}>Tap to shoot</Text>
+              </View>
+            </Pressable>
+            <Pressable onPress={pickFromLibrary} style={{ marginTop: 22 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.14)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.4)', borderRadius: 999, paddingHorizontal: 16, paddingVertical: 10 }}>
+                <Ionicons name="images-outline" size={17} color="#FFF" />
+                <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '800', marginLeft: 7 }}>Upload from gallery</Text>
               </View>
             </Pressable>
           </View>
@@ -293,40 +341,27 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
         <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, paddingBottom: insets.bottom + 16 }}>
           {!shot ? (
             <>
-              {/* TikTok-style sound rail — pick while you shoot */}
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 14, marginBottom: 16 }}>
-                <Pressable onPress={() => { tapLight(); setHubOpen(true); }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(124,58,237,0.9)', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7, marginRight: 8 }}>
-                    <Text style={{ fontSize: 13 }}>🎧</Text>
-                    <Text style={{ color: '#FFF', fontSize: 11.5, fontWeight: '900', marginLeft: 5 }}>Music Hub</Text>
-                  </View>
-                </Pressable>
-                {SOUNDS.map((s) => {
-                  const on = sound && sound.id === s.id;
-                  return (
-                    <Pressable key={s.id} onPress={() => { tapLight(); sfxPop(); setSound(on ? null : s); }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: on ? '#FFF' : 'rgba(255,255,255,0.16)', borderWidth: 1, borderColor: on ? '#FFF' : 'rgba(255,255,255,0.35)', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7, marginRight: 8 }}>
-                        <Text style={{ fontSize: 13 }}>{s.emoji}</Text>
-                        <Text style={{ color: on ? C.text : '#FFF', fontSize: 11.5, fontWeight: '800', marginLeft: 5 }} numberOfLines={1}>
-                          {s.title}
-                        </Text>
-                        {on ? <Ionicons name="checkmark" size={13} color={C.purple} style={{ marginLeft: 4 }} /> : null}
-                      </View>
-                    </Pressable>
-                  );
-                })}
-              </ScrollView>
+              {/* pick a sound while you shoot */}
+              {soundRail}
 
-              {/* shutter row */}
+              {/* shutter row — gallery upload on the left, shutter center */}
               {isWeb ? (
                 <View style={{ alignItems: 'center', marginBottom: 14 }}>
-                  <Pressable onPressIn={onShutterDown} onPressOut={onShutterUp} disabled={!!camError}>
-                    <View style={{ width: 82, height: 82, borderRadius: 41, borderWidth: 5, borderColor: recording ? C.coral : '#FFF', alignItems: 'center', justifyContent: 'center' }}>
-                      <View style={{ width: recording ? 34 : 62, height: recording ? 34 : 62, borderRadius: recording ? 9 : 31, backgroundColor: recording ? C.coral : '#FFF' }} />
-                    </View>
-                  </Pressable>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Pressable onPress={() => { tapLight(); pickFromLibrary(); }} hitSlop={8} style={{ marginRight: 34 }}>
+                      <View style={{ width: 46, height: 46, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.16)', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.5)', alignItems: 'center', justifyContent: 'center' }}>
+                        <Ionicons name="images-outline" size={22} color="#FFF" />
+                      </View>
+                    </Pressable>
+                    <Pressable onPressIn={onShutterDown} onPressOut={onShutterUp} disabled={!!camError}>
+                      <View style={{ width: 82, height: 82, borderRadius: 41, borderWidth: 5, borderColor: recording ? C.coral : '#FFF', alignItems: 'center', justifyContent: 'center' }}>
+                        <View style={{ width: recording ? 34 : 62, height: recording ? 34 : 62, borderRadius: recording ? 9 : 31, backgroundColor: recording ? C.coral : '#FFF' }} />
+                      </View>
+                    </Pressable>
+                    <View style={{ width: 46, marginLeft: 34 }} />
+                  </View>
                   <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 11.5, fontWeight: '700', marginTop: 10 }}>
-                    Tap for photo · hold for video
+                    Tap for photo · hold for video · 🖼️ upload
                   </Text>
                   {recording ? (
                     <View style={{ height: 4, width: 160, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.25)', marginTop: 8, overflow: 'hidden' }}>
@@ -362,8 +397,11 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
               </View>
             </>
           ) : (
-            /* ── preview: caption + share ── */
-            <View style={{ paddingHorizontal: 16 }}>
+            /* ── preview: song rail + caption + share — an uploaded
+               photo gets its music right here ── */
+            <View>
+              {mode !== 'video' ? soundRail : null}
+              <View style={{ paddingHorizontal: 16 }}>
               {sound ? (
                 <View style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7, marginBottom: 10 }}>
                   <Text style={{ fontSize: 13 }}>{sound.emoji}</Text>
@@ -386,6 +424,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
                     <MaterialCommunityIcons name="star-four-points" size={15} color={C.gold} style={{ marginLeft: 6 }} />
                   </LinearGradient>
                 </Pressable>
+              </View>
               </View>
             </View>
           )}
