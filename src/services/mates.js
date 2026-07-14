@@ -70,6 +70,17 @@ export async function fetchIncomingRequests(myId) {
   return data || [];
 }
 
+/* Accept straight from a notification (actor = who asked you). */
+export async function acceptFromActor(actorId, myId) {
+  const { error } = await supabase
+    .from('mates')
+    .update({ status: 'accepted' })
+    .eq('requester_id', actorId)
+    .eq('addressee_id', myId)
+    .eq('status', 'pending');
+  if (error) throw error;
+}
+
 export async function acceptRequest(requestId) {
   const { error } = await supabase
     .from('mates')

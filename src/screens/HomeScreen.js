@@ -14,10 +14,12 @@ import { tapLight, tapSuccess } from '../utils/feedback';
 import { sfxStar, sfxSuccess } from '../utils/sfx';
 import { useAuth } from '../context/AuthContext';
 import { useFeed } from '../hooks/useFeed';
+import { countUnread, subscribeNotifications } from '../services/notifications';
+import { sfxNotify } from '../utils/sfx';
 import {
   Glass, StoriesBar, PostCard, MagicFlowModal, ProfileModal,
   CommentsSheet, ComposeModal, SearchModal, StoryViewer, ReelsViewer,
-  CaptureModal,
+  CaptureModal, NotificationsSheet,
 } from '../components';
 import { Modal } from 'react-native';
 import { ProfileScreen } from './ProfileScreen';
@@ -68,6 +70,20 @@ export const HomeScreen = () => {
   const [storyIndex, setStoryIndex] = useState(null);
   const [reelStart, setReelStart] = useState(null);
   const [myProfileOpen, setMyProfileOpen] = useState(false); // one profile everywhere
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [unread, setUnread] = useState(0);
+
+  /* Real notifications: load the unread count, then listen live —
+     a new star/comment/mate event lands with the Moments chime. */
+  useEffect(() => {
+    if (!SUPABASE_READY || !user) return;
+    countUnread(user.id).then(setUnread).catch(() => {});
+    const unsub = subscribeNotifications(user.id, () => {
+      setUnread((n) => n + 1);
+      sfxNotify();
+    });
+    return unsub;
+  }, [user]);
 
   // Stories are REAL only — yours + live 24h stories from the database.
   // The rail stays empty (just the + button) until someone actually posts.
@@ -159,6 +175,14 @@ export const HomeScreen = () => {
                 </Text>
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Pressable testID="btn-notifs" onPress={() => { tapLight(); setNotifOpen(true); setUnread(0); }} style={[headerBtn, { marginRight: 10 }]}>
+                  <Ionicons name={unread ? 'notifications' : 'notifications-outline'} size={17} color={unread ? C.purple : C.text} />
+                  {unread ? (
+                    <View style={{ position: 'absolute', top: -4, right: -4, minWidth: 17, height: 17, borderRadius: 9, backgroundColor: C.coral, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: 1.5, borderColor: C.bg }}>
+                      <Text style={{ color: '#FFF', fontSize: 9.5, fontWeight: '900' }}>{unread > 9 ? '9+' : unread}</Text>
+                    </View>
+                  ) : null}
+                </Pressable>
                 <Pressable testID="btn-search" onPress={() => setSearching(true)} style={[headerBtn, { marginRight: 10 }]}>
                   <Ionicons name="search" size={17} color={C.text} />
                 </Pressable>
@@ -260,6 +284,7 @@ export const HomeScreen = () => {
         </View>
       </Modal>
       {commentsPost ? <CommentsSheet post={commentsPost} onClose={() => setCommentsPost(null)} /> : null}
+      {notifOpen ? <NotificationsSheet onClose={() => setNotifOpen(false)} /> : null}
       {composing === 'post' ? (
         <ComposeModal
           initialMode="post"
