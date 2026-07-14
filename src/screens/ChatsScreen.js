@@ -6,6 +6,7 @@ import { SQUADS, DMS, LANG_PARTNERS } from '../constants/mockData'; // demo-mode
 import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { fetchMyDmThreads, fetchMySquads } from '../services/messages';
+import { fetchIncomingRequests, acceptRequest } from '../services/mates';
 import { fetchLanguagePartners } from '../services/social';
 import { Page, ScreenHeader, SectionHeader, Glass, Chip, Tick, AvatarStack } from '../components';
 import { ChatThread } from './ChatThread';
@@ -31,13 +32,23 @@ export const ChatsScreen = () => {
   const [realDms, setRealDms] = useState([]);
   const [realSquads, setRealSquads] = useState([]);
   const [realPartners, setRealPartners] = useState([]);
+  const [mateRequests, setMateRequests] = useState([]); // real pending friend requests
+  const [justAccepted, setJustAccepted] = useState({});
 
   const reload = useCallback(() => {
     if (!SUPABASE_READY || !user) return;
     fetchMyDmThreads(user.id).then(setRealDms).catch(() => {});
     fetchMySquads(user.id).then(setRealSquads).catch(() => {});
     fetchLanguagePartners(user.id).then(setRealPartners).catch(() => {});
+    fetchIncomingRequests(user.id).then(setMateRequests).catch(() => {});
   }, [user]);
+
+  const accept = async (req) => {
+    tapLight();
+    setJustAccepted((a) => ({ ...a, [req.id]: true }));
+    try { await acceptRequest(req.id); } catch (e) {}
+    setTimeout(() => setMateRequests((r) => r.filter((x) => x.id !== req.id)), 1200);
+  };
 
   useEffect(() => { reload(); }, [reload]);
   // refresh the DM previews when you come back from a conversation
@@ -62,6 +73,38 @@ export const ChatsScreen = () => {
         </View>
       }
     />
+
+    {/* ── MATE REQUESTS — real friend requests waiting on you ── */}
+    {mateRequests.length ? (
+      <>
+        <SectionHeader title={'Mate requests 🤝 (' + mateRequests.length + ')'} />
+        {mateRequests.map((req) => {
+          const p = req.requester || {};
+          const done = !!justAccepted[req.id];
+          return (
+            <Glass key={req.id} tint={C.purpleSoft} border="rgba(124,58,237,0.3)" style={{ padding: 13, marginBottom: 10, flexDirection: 'row', alignItems: 'center' }}>
+              <Image source={{ uri: p.avatar_url || 'https://i.pravatar.cc/100?img=60' }} style={{ width: 46, height: 46, borderRadius: 23 }} />
+              <View style={{ flex: 1, marginLeft: 11 }}>
+                <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>{p.name || 'Explorer'} {p.country_flag || ''}</Text>
+                <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 2 }}>wants to be your mate</Text>
+              </View>
+              {done ? (
+                <View style={{ backgroundColor: C.greenSoft, borderWidth: 1, borderColor: 'rgba(16,185,129,0.45)', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8 }}>
+                  <Text style={{ color: C.green, fontSize: 12, fontWeight: '900' }}>Mates ✓</Text>
+                </View>
+              ) : (
+                <Pressable onPress={() => accept(req)}>
+                  <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 8 }}>
+                    <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '900' }}>Accept 🤝</Text>
+                  </View>
+                </Pressable>
+              )}
+            </Glass>
+          );
+        })}
+        <View style={{ height: 10 }} />
+      </>
+    ) : null}
 
     {/* ── LEARN LANGUAGES — real exchange partners, HelloTalk style ── */}
     <SectionHeader title="Learn languages 🌍" />

@@ -9,7 +9,7 @@ import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LanguageContext';
 import { getProfile, updateProfile } from '../services/profiles';
-import { countMyReferrals } from '../services/broker';
+import { countMyReferrals, fetchMyReferralBreakdown } from '../services/broker';
 import { getPrefs, setPref, subscribePrefs } from '../services/prefs';
 import {
   Glass, Micro, Chip, SectionHeader,
@@ -49,9 +49,11 @@ export const SettingsScreen = ({ onClose }) => {
   const flip = (key) => { tapSelection(); setPref(key, !prefs[key]); };
 
   // real earnings signal — how many mates you've referred to partners
+  const [breakdown, setBreakdown] = useState([]);
   useEffect(() => {
     if (!SUPABASE_READY || !user) return;
     countMyReferrals(user.id).then(setReferrals).catch(() => {});
+    fetchMyReferralBreakdown(user.id).then(setBreakdown).catch(() => {});
   }, [user]);
 
   const openHelp = () => {
@@ -160,6 +162,30 @@ export const SettingsScreen = ({ onClose }) => {
             </View>
             <NeonButton small label="SEND SPLIT REQUEST" style={{ marginTop: 14 }} onPress={confirmSplit} />
           </Glass>
+        ) : null}
+
+        {/* ── EARNINGS BY PARTNER — real clicks, real money trail ── */}
+        {breakdown.length ? (
+          <>
+            <SectionHeader title="Earnings by partner 💸" style={{ marginTop: 22 }} />
+            <Glass style={{ paddingHorizontal: 14, paddingVertical: 4 }}>
+              {breakdown.map((b, i) => (
+                <View key={b.partner} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderTopWidth: i === 0 ? 0 : StyleSheet.hairlineWidth, borderTopColor: C.line }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800', textTransform: 'capitalize' }}>{b.partner}</Text>
+                    <Text style={{ color: C.faint, fontSize: 11, marginTop: 2 }}>Commission: {b.rate}</Text>
+                  </View>
+                  <Text style={{ color: C.text, fontSize: 14, fontWeight: '900', marginRight: 10 }}>{b.clicks} click{b.clicks === 1 ? '' : 's'}</Text>
+                  <View style={{ backgroundColor: b.active ? C.greenSoft : 'rgba(245,179,1,0.12)', borderWidth: 1, borderColor: b.active ? 'rgba(16,185,129,0.4)' : 'rgba(245,179,1,0.45)', borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3 }}>
+                    <Text style={{ color: b.active ? C.green : '#8A6400', fontSize: 9.5, fontWeight: '900' }}>{b.active ? 'EARNING' : 'TAG PENDING'}</Text>
+                  </View>
+                </View>
+              ))}
+            </Glass>
+            <Text style={{ color: C.faint, fontSize: 11, marginTop: 8, lineHeight: 16 }}>
+              "TAG PENDING" = clicks are tracked, but the affiliate account isn't connected yet — see MONETIZATION.md to activate each partner.
+            </Text>
+          </>
         ) : null}
 
         <SectionHeader title="Recent Activity" style={{ marginTop: 22 }} />

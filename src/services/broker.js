@@ -33,20 +33,52 @@ export const COMMISSION = {
   youtube:  { rate: '—', cashback: 2 },
 };
 
-/* Your affiliate tags go here — each partner appends its own so the
-   commission is credited to you. Fill these once approved; until then
-   links open the plain provider page (still tracked in partner_clicks). */
+/* ── YOUR AFFILIATE IDs — the single place to activate earnings ────
+   Open an account with each partner (see MONETIZATION.md for the exact
+   links + steps), then paste the ID they give you here. From that
+   moment every click carries your tag and the commission is yours.
+   Until then links open the plain page — still logged in partner_clicks
+   so you keep the proof of every referral you drove. */
 export const AFFILIATE_TAGS = {
-  amazon: '',   // e.g. 'moments-20'  → appended as &tag=moments-20
-  // others use path-based affiliate links added when approved
+  amazon: '',        // Amazon Associates "Store ID", e.g. moments07-20 → &tag=…
+  booking: '',       // Booking.com Partner "aid",     e.g. 2417739    → &aid=…
+  travelpayouts: '', // Travelpayouts "marker",        e.g. 463490     → &marker=…
+  getyourguide: '',  // GetYourGuide "partner_id"                      → &partner_id=…
+  viator: '',        // Viator "pid" (via Travelpayouts/direct)        → &pid=…
+  hostelworld: '',   // Hostelworld affiliate id (via Partnerize)      → &affiliate=…
+  waffarha: '',      // Waffarha — ask partnerships for a ref code     → &ref=…
+  groupon: '',       // Groupon via Rakuten/CJ — deep link id          → &utm_medium=afl&sid=…
+  uber: '',          // Uber referral/invite code                      → &invite=…
+  playtomic: '',     // Playtomic partner code (b2b@playtomic.io)      → &ref=…
+  meetup: '',        // Meetup has no affiliate — tracked click only
+  yango: '',         // Yango Play MENA affiliate id                   → &utm_source=…
+  shahid: '',        // Shahid via ArabClicks — tracking id            → &utm_source=…
+  appletv: '',       // Apple Services Performance Partners "at" token → &at=…
+  netflix: '',       // Netflix has no open program — tracked click only
+  disney: '',        // Disney+ via Impact.com — tracking id
+  epidemicsound: '', // Epidemic Sound partner id (music licensing)
+};
+
+/* How each partner's tag is appended to the URL. Anything not listed
+   falls back to a generic ?ref= parameter. */
+const TAG_PARAM = {
+  amazon: 'tag',
+  booking: 'aid',
+  travelpayouts: 'marker',
+  getyourguide: 'partner_id',
+  viator: 'pid',
+  hostelworld: 'affiliate',
+  waffarha: 'ref',
+  uber: 'invite',
+  playtomic: 'ref',
+  appletv: 'at',
 };
 
 export function withAffiliate(partner, url) {
   const tag = AFFILIATE_TAGS[partner];
-  if (partner === 'amazon' && tag) {
-    return url + (url.includes('?') ? '&' : '?') + 'tag=' + tag;
-  }
-  return url;
+  if (!tag) return url;
+  const param = TAG_PARAM[partner] || 'ref';
+  return url + (url.includes('?') ? '&' : '?') + param + '=' + encodeURIComponent(tag);
 }
 
 export async function openPartner(user, deal) {
@@ -72,4 +104,25 @@ export async function countMyReferrals(userId) {
     .eq('user_id', userId);
   if (error) throw error;
   return count || 0;
+}
+
+/* Your referrals grouped by partner — the earnings dashboard's data.
+   [{ partner: 'waffarha', clicks: 12, rate: '10–20%' }, …] best first. */
+export async function fetchMyReferralBreakdown(userId) {
+  const { data, error } = await supabase
+    .from('partner_clicks')
+    .select('partner')
+    .eq('user_id', userId)
+    .limit(1000);
+  if (error) throw error;
+  const byPartner = {};
+  (data || []).forEach((r) => { byPartner[r.partner] = (byPartner[r.partner] || 0) + 1; });
+  return Object.entries(byPartner)
+    .map(([partner, clicks]) => ({
+      partner,
+      clicks,
+      rate: (COMMISSION[partner] && COMMISSION[partner].rate) || '—',
+      active: !!AFFILIATE_TAGS[partner],
+    }))
+    .sort((a, b) => b.clicks - a.clicks);
 }
