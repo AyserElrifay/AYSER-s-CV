@@ -6,7 +6,9 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { C } from '../constants/theme';
 import { REELS, av } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
+import { useAuth } from '../context/AuthContext';
 import { fetchFeed } from '../services/posts';
+import { mateUp } from '../services/mates';
 import { SoundChip } from '../components/SoundChip';
 import { CommentsSheet } from '../components/CommentsSheet';
 import { CaptureModal } from '../components/CaptureModal';
@@ -29,6 +31,7 @@ const RailButton = ({ children, label, color = '#FFF', onPress }) => (
 
 export const ReelsScreen = () => {
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
   const [pageH, setPageH] = useState(0);
   const [vibes, setVibes] = useState({});
   const [reposts, setReposts] = useState({});
@@ -117,7 +120,14 @@ export const ReelsScreen = () => {
                   <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '800', marginLeft: 9 }}>{item.user.name}</Text>
                   {!item.sponsored ? (
                     <Pressable
-                      onPress={() => { tapMedium(); sfxPop(); setFollowing((f) => ({ ...f, [item.user.id]: !f[item.user.id] })); }}
+                      onPress={() => {
+                        tapMedium(); sfxPop();
+                        setFollowing((f) => ({ ...f, [item.user.id]: !f[item.user.id] }));
+                        // real friend request — needs schema_v8_mates.sql
+                        if (SUPABASE_READY && user && item.user.id && item.user.id !== user.id) {
+                          mateUp(user.id, item.user.id).catch(() => {});
+                        }
+                      }}
                       style={{ marginLeft: 10, borderWidth: 1, borderColor: following[item.user.id] ? 'rgba(255,255,255,0.45)' : '#FFF', borderRadius: 7, paddingHorizontal: 9, paddingVertical: 3 }}
                     >
                       <Text style={{ color: '#FFF', fontSize: 11.5, fontWeight: '800' }}>

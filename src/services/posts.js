@@ -51,6 +51,16 @@ export async function fetchMyPosts(userId) {
   return data;
 }
 
+/* Delete one of YOUR posts (RLS blocks deleting anyone else's). */
+export async function deletePost(postId, userId) {
+  const { error } = await supabase
+    .from('posts')
+    .delete()
+    .eq('id', postId)
+    .eq('user_id', userId);
+  if (error) throw error;
+}
+
 export async function createPost({ userId, type = 'post', caption, place, mediaUrl, textBg, lat, lng, squadName }) {
   const insert = () => supabase
     .from('posts')

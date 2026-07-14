@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { updateProfile } from '../services/profiles';
 import { setIntent } from '../services/algorithm';
 import { resetPasswordByEmail, sendPhoneOtp, verifyPhoneOtp, updatePassword } from '../services/auth';
+import { COUNTRY_LIST } from '../constants/countries';
 import { Glass, Micro, NeonButton, GhostButton } from '../components';
 
 /* ─────────────── PASSWORDLESS-STYLE ONBOARDING · AUTH GATE ───────────
@@ -124,6 +125,20 @@ export const AuthScreen = () => {
     } finally {
       setBusy(false);
     }
+  };
+
+  // ── "Where on the planet are you?" — sets your flag on the map ──
+  const [countrySearch, setCountrySearch] = useState('');
+  const countries = COUNTRY_LIST.filter((c) => c.name.toLowerCase().includes(countrySearch.trim().toLowerCase()));
+
+  const pickCountry = async (c) => {
+    if (!isDemo) {
+      const id = pendingUserId || (user ? user.id : null);
+      if (id) {
+        try { await updateProfile(id, { country: c.name, country_flag: c.flag }); } catch (e) { /* non-blocking */ }
+      }
+    }
+    setStep(2); // → pick your vibe
   };
 
   const pickVibe = async (vibe) => {
@@ -256,6 +271,44 @@ export const AuthScreen = () => {
                 {isDemo ? '⚡ Demo mode — no backend configured, nothing is saved' : 'Powered by Supabase Auth ⚡'}
               </Text>
             </Glass>
+          </View>
+        ) : step === 1 ? (
+          <View style={{ alignItems: 'center' }}>
+            <Text style={{ fontSize: 56, marginBottom: 14 }}>🌍</Text>
+            <Text style={{ color: C.text, fontSize: 24, fontWeight: '900', marginBottom: 8 }}>Where on the planet?</Text>
+            <Text style={{ color: C.dim, fontSize: 13.5, textAlign: 'center', marginBottom: 20, lineHeight: 19 }}>
+              Your flag shows on your map pin — friends spot you from anywhere on Earth ✨
+            </Text>
+            <TextInput
+              placeholder="Search your country…"
+              placeholderTextColor={C.faint}
+              value={countrySearch}
+              onChangeText={setCountrySearch}
+              style={[inputStyle, { alignSelf: 'stretch' }]}
+            />
+            <View style={{ alignSelf: 'stretch', maxHeight: 340 }}>
+              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8 }}>
+                  {countries.slice(0, 24).map((c) => (
+                    <Pressable
+                      key={c.code}
+                      onPress={() => pickCountry(c)}
+                      style={{
+                        flexDirection: 'row', alignItems: 'center',
+                        backgroundColor: C.glass, borderWidth: 1, borderColor: C.line,
+                        borderRadius: 999, paddingHorizontal: 14, paddingVertical: 10,
+                      }}
+                    >
+                      <Text style={{ fontSize: 18, marginRight: 7 }}>{c.flag}</Text>
+                      <Text style={{ color: C.text, fontSize: 13, fontWeight: '700' }}>{c.name}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </ScrollView>
+            </View>
+            <Pressable onPress={() => setStep(2)} style={{ marginTop: 18 }}>
+              <Text style={{ color: C.faint, fontSize: 12.5, fontWeight: '700' }}>Skip for now →</Text>
+            </Pressable>
           </View>
         ) : (
           <View style={{ alignItems: 'center' }}>

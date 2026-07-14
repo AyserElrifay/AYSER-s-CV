@@ -3,11 +3,11 @@ import { View, Text, FlatList, Pressable, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { C } from '../constants/theme';
-import { av, STORIES } from '../constants/mockData';
+import { av } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
 import { toggleVibe } from '../services/social';
 import { getProfile } from '../services/profiles';
-import { fetchMyPosts } from '../services/posts';
+import { fetchMyPosts, deletePost } from '../services/posts';
 import { fetchActiveStories } from '../services/stories';
 import { recordSignal } from '../services/algorithm';
 import { tapLight, tapSuccess } from '../utils/feedback';
@@ -33,7 +33,7 @@ const headerBtn = {
 export const HomeScreen = () => {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { posts, refreshing, refresh, prependPost, loadError } = useFeed();
+  const { posts, refreshing, refresh, prependPost, removePost, loadError } = useFeed();
   const [joined, setJoined] = useState({});
   const [vibes, setVibes] = useState({});
   const [myStories, setMyStories] = useState([]);
@@ -48,10 +48,11 @@ export const HomeScreen = () => {
   const [reelStart, setReelStart] = useState(null);
   const [myProfileOpen, setMyProfileOpen] = useState(false); // one profile everywhere
 
-  // Real mode shows real 24h stories from the database — never the mock cast.
+  // Stories are REAL only — yours + live 24h stories from the database.
+  // The rail stays empty (just the + button) until someone actually posts.
   const [realStories, setRealStories] = useState([]);
   const stories = useMemo(
-    () => (SUPABASE_READY ? [...myStories, ...realStories] : [...myStories, ...STORIES]),
+    () => [...myStories, ...realStories],
     [myStories, realStories]
   );
   const reels = useMemo(() => posts.filter((p) => p.type === 'reel'), [posts]);
@@ -91,6 +92,13 @@ export const HomeScreen = () => {
     recordSignal('watch', post);
     const idx = Math.max(0, reels.findIndex((r) => r.id === post.id));
     setReelStart(idx);
+  };
+
+  /* Delete one of YOUR moments — instant in the UI, real in the DB. */
+  const onDelete = (post) => {
+    tapLight();
+    removePost(post.id);
+    if (SUPABASE_READY && user) deletePost(post.id, user.id).catch(() => {});
   };
 
   /* You, shaped like a profile card — tap your avatar to see it.
@@ -176,6 +184,8 @@ export const HomeScreen = () => {
             post={item}
             joined={!!joined[item.id]}
             vibed={!!vibes[item.id]}
+            isMine={(user && item.userId === user.id) || item.user.name === 'You'}
+            onDelete={onDelete}
             onJoin={setMagicPost}
             onVibe={() => onVibe(item)}
             onComment={() => openComments(item)}

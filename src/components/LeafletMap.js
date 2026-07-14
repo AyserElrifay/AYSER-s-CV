@@ -40,7 +40,7 @@ const pinHtml = (m) => {
       doing + flagBadge + '</div>'
     );
   }
-  const border = m.kind === 'fire' ? '#F43F5E' : m.kind === 'deal' ? '#10B981' : '#7C3AED';
+  const border = m.kind === 'fire' ? '#F43F5E' : m.kind === 'deal' ? '#10B981' : m.kind === 'place' ? '#F59E0B' : '#7C3AED';
   return (
     '<div style="position:relative;width:36px;height:36px;border-radius:12px;background:#fff;border:2px solid ' + border +
     ';display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 2px 6px rgba(0,0,0,0.25)">' +
@@ -54,18 +54,33 @@ export const LeafletMap = ({ center, markers = [], onPress }) => {
   const layerRef = useRef(null);
   const meRef = useRef(null);
 
+  const flownRef = useRef(false);
+
   // init once
   useEffect(() => {
     let cancelled = false;
     loadLeaflet().then((L) => {
       if (cancelled || !L || !elRef.current || mapRef.current) return;
-      const map = L.map(elRef.current, { zoomControl: false, attributionControl: false })
-        .setView([center.latitude, center.longitude], 14);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+      // Open on the whole planet, then fly down to the user — the
+      // "start on Earth, zoom into your street" Snap-Map feel.
+      const map = L.map(elRef.current, {
+        zoomControl: false, attributionControl: false,
+        minZoom: 2, worldCopyJump: true, zoomSnap: 0.25,
+      }).setView([20, 0], 2.5);
+      // CARTO "Voyager" — clean, colourful, cartoonish-but-real (free, no key).
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        maxZoom: 20, subdomains: 'abcd',
+      }).addTo(map);
       mapRef.current = map;
       layerRef.current = L.layerGroup().addTo(map);
       draw(L);
       setTimeout(() => map.invalidateSize(), 250);
+      // Glide from the globe to the user's location.
+      setTimeout(() => {
+        if (cancelled || !mapRef.current) return;
+        flownRef.current = true;
+        map.flyTo([center.latitude, center.longitude], 14, { duration: 2.2 });
+      }, 700);
     });
     return () => {
       cancelled = true;
@@ -101,10 +116,11 @@ export const LeafletMap = ({ center, markers = [], onPress }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [markers]);
 
-  // recenter when the user's real location resolves
+  // recenter when the user's real location resolves — glide, don't jump,
+  // and only after the intro fly-in has taken over the view.
   useEffect(() => {
-    if (mapRef.current && center) {
-      mapRef.current.setView([center.latitude, center.longitude], mapRef.current.getZoom() || 14);
+    if (mapRef.current && center && flownRef.current) {
+      mapRef.current.flyTo([center.latitude, center.longitude], Math.max(mapRef.current.getZoom() || 14, 13), { duration: 1.2 });
       if (typeof window !== 'undefined' && window.L) draw(window.L);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

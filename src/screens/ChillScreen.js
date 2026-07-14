@@ -8,7 +8,7 @@ import { MOVIES, WATCH_PROVIDERS, WATCH_GENRES, av } from '../constants/mockData
 import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { openPartner } from '../services/broker';
-import { fetchVideos } from '../services/posts';
+import { fetchVideos, deletePost } from '../services/posts';
 import { Page, ScreenHeader, SectionHeader, Glass } from '../components';
 import { CaptureModal } from '../components/CaptureModal';
 import { CommentsSheet } from '../components/CommentsSheet';
@@ -27,6 +27,7 @@ const isWeb = Platform.OS === 'web';
 // Shape a DB 'vod' row (or a local optimistic one) into a video card.
 const toVideo = (r) => ({
   id: r.id,
+  userId: r.user_id, // owner — enables "delete my video"
   title: r.caption || 'Untitled video',
   media: r.media_url || r.media,
   author: (r.user && (r.user.name)) || 'Explorer',
@@ -60,6 +61,14 @@ export const ChillScreen = () => {
     // optimistic prepend, then reconcile with the server
     setVideos((v) => [toVideo(row), ...(v || [])]);
     loadVideos();
+  };
+
+  /* Delete YOUR video — gone from the list instantly, gone from the DB. */
+  const onDeleteVideo = (v) => {
+    tapLight();
+    setVideos((list) => (list || []).filter((x) => x.id !== v.id));
+    setPlayer(null);
+    if (SUPABASE_READY && user) deletePost(v.id, user.id).catch(() => {});
   };
 
   return (
@@ -187,6 +196,14 @@ export const ChillScreen = () => {
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Image source={{ uri: player.avatar }} style={{ width: 34, height: 34, borderRadius: 17 }} />
               <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '800', marginLeft: 10, flex: 1 }}>{player.author}</Text>
+              {user && player.userId === user.id ? (
+                <Pressable onPress={() => onDeleteVideo(player)} style={{ marginRight: 10 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(244,63,94,0.85)', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8 }}>
+                    <Ionicons name="trash-outline" size={15} color="#FFF" />
+                    <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '800', marginLeft: 5 }}>Delete</Text>
+                  </View>
+                </Pressable>
+              ) : null}
               <Pressable onPress={() => { tapLight(); setCommentsPost({ id: player.id, place: 'Video' }); }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.16)', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8 }}>
                   <Ionicons name="chatbubble-outline" size={16} color="#FFF" />

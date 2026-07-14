@@ -24,7 +24,9 @@ const relTime = (startsAt) => {
 /* DB row → the shape PostCard/MagicFlow already consume. */
 const toCard = (row) => ({
   id: row.id,
+  userId: row.user_id, // owner — powers "is this mine?" (delete, profile)
   user: {
+    id: row.user_id,
     name: (row.user && row.user.name) || 'Explorer',
     avatar: (row.user && row.user.avatar_url) || av(60),
     verified: !!(row.user && row.user.verified),
@@ -79,5 +81,10 @@ export function useFeed() {
     setPosts((p) => [card, ...p]);
   }, []);
 
-  return { posts, refreshing, refresh, isLive, prependPost, loadError };
+  /* Optimistic removal — a deleted moment disappears instantly. */
+  const removePost = useCallback((id) => {
+    setPosts((p) => p.filter((x) => x.id !== id));
+  }, []);
+
+  return { posts, refreshing, refresh, isLive, prependPost, removePost, loadError };
 }

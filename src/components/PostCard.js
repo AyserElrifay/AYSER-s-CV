@@ -18,10 +18,13 @@ const typeChip = (post) => {
   return { label: 'MOMENT', tint: 'rgba(17,24,39,0.65)', color: 'rgba(255,255,255,0.85)' };
 };
 
-export const PostCard = ({ post, joined, vibed, onJoin, onVibe, onComment, onOpenProfile, onOpenReel }) => {
+export const PostCard = ({ post, joined, vibed, isMine, onDelete, onJoin, onVibe, onComment, onOpenProfile, onOpenReel }) => {
   const mediaH = post.type === 'reel' ? 470 : post.type === 'vod' ? 208 : 250;
   const tc = typeChip(post);
   const textBg = TEXT_BGS[post.textBg] || TEXT_BGS.plain;
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [confirmDel, setConfirmDel] = useState(false);
+  const [reported, setReported] = useState(false);
 
   /* Instagram-style double-tap to vibe (⚡ burst); a single tap on a
      reel opens the full-screen TikTok-style viewer instead. */
@@ -92,8 +95,47 @@ export const PostCard = ({ post, joined, vibed, onJoin, onVibe, onComment, onOpe
             </Text>
           </View>
         </Pressable>
-        <Ionicons name="ellipsis-horizontal" size={18} color={C.faint} />
+        <Pressable onPress={() => { tapLight(); setMenuOpen((o) => !o); setConfirmDel(false); }} hitSlop={10}>
+          <Ionicons name="ellipsis-horizontal" size={18} color={C.faint} />
+        </Pressable>
       </View>
+
+      {/* ── the ⋯ menu — delete your own moment, report someone else's ── */}
+      {menuOpen ? (
+        <View style={{ marginHorizontal: 15, marginTop: -6, marginBottom: 10, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 14, overflow: 'hidden' }}>
+          {isMine && !post.sponsored ? (
+            confirmDel ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', padding: 12 }}>
+                <Text style={{ color: C.text, fontSize: 13, fontWeight: '700', flex: 1 }}>Delete this moment forever?</Text>
+                <Pressable onPress={() => { setMenuOpen(false); onDelete && onDelete(post); }} style={{ marginRight: 8 }}>
+                  <View style={{ backgroundColor: C.coral, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 7 }}>
+                    <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '900' }}>Delete</Text>
+                  </View>
+                </Pressable>
+                <Pressable onPress={() => setMenuOpen(false)}>
+                  <Text style={{ color: C.dim, fontSize: 12.5, fontWeight: '700' }}>Keep</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <Pressable onPress={() => setConfirmDel(true)}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', padding: 12 }}>
+                  <Ionicons name="trash-outline" size={17} color={C.coral} />
+                  <Text style={{ color: C.coral, fontSize: 13.5, fontWeight: '800', marginLeft: 9 }}>Delete moment</Text>
+                </View>
+              </Pressable>
+            )
+          ) : (
+            <Pressable onPress={() => { setReported(true); setTimeout(() => setMenuOpen(false), 900); }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', padding: 12 }}>
+                <Ionicons name={reported ? 'checkmark-circle' : 'flag-outline'} size={17} color={reported ? C.green : C.dim} />
+                <Text style={{ color: reported ? C.green : C.text, fontSize: 13.5, fontWeight: '700', marginLeft: 9 }}>
+                  {reported ? 'Thanks — we got it' : 'Report this moment'}
+                </Text>
+              </View>
+            </Pressable>
+          )}
+        </View>
+      ) : null}
 
       {/* media — or a colored text card when the moment is just words.
           Double-tap either one to vibe, Instagram style. */}

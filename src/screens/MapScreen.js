@@ -13,6 +13,7 @@ import { useAuth } from '../context/AuthContext';
 import { shareMyLocation, goInvisible, fetchNearbyPeople, subscribeNearby } from '../services/locations';
 import { fetchLiveCampfires, hostCampfire, joinCampfire } from '../services/campfires';
 import { fetchLiveVenues, applyAsVenue } from '../services/venues';
+import { fetchNearbyPlaces } from '../services/places';
 import { getOrCreateDmThread, sendMessage } from '../services/messages';
 import { openPartner } from '../services/broker';
 import {
@@ -59,15 +60,17 @@ export const MapScreen = () => {
   const { user } = useAuth();
   const [profileUser, setProfileUser] = useState(null);
   const [sos, setSos] = useState(null); // null | 'ask' | 'sent'
-  const [nearby, setNearby] = useState(false);   // nearby-people sheet
+  /* ONE sheet at a time — 'nearby' | 'doing' | 'drop' | 'partner' | null.
+     A single source of truth means sheets can never stack on each other. */
+  const [sheet, setSheet] = useState(null);
+  const openSheet = (name) => { tapLight(); setSheet(name); };
+  const closeSheet = () => setSheet(null);
+  const [placeOpen, setPlaceOpen] = useState(null); // a tapped real-world place
   const [rail, setRail] = useState('fires');     // 'fires' | 'book'
   const [myDoing, setMyDoing] = useState(null);  // your activity badge
-  const [doingOpen, setDoingOpen] = useState(false);
   const [waved, setWaved] = useState({});
-  const [partnerOpen, setPartnerOpen] = useState(false); // business partner form
   const [partnerSent, setPartnerSent] = useState(false);
   const [dealFilter, setDealFilter] = useState('All');
-  const [dropOpen, setDropOpen] = useState(false);       // drop-a-moment sheet
   const [dropTitle, setDropTitle] = useState('');
   const [joinedFires, setJoinedFires] = useState({});
   const [vName, setVName] = useState('');
@@ -82,6 +85,14 @@ export const MapScreen = () => {
   const [realPeople, setRealPeople] = useState([]);
   const [realCampfires, setRealCampfires] = useState([]);
   const [realVenues, setRealVenues] = useState([]);
+  const [realPlaces, setRealPlaces] = useState([]); // genuine venues from OpenStreetMap
+
+  /* ── REAL places around you (OpenStreetMap) — restaurants, cafés… ── */
+  useEffect(() => {
+    let cancelled = false;
+    fetchNearbyPlaces(myCoords).then((rows) => { if (!cancelled) setRealPlaces(rows); });
+    return () => { cancelled = true; };
+  }, [myCoords.latitude, myCoords.longitude]);
 
   /* ── real GPS: ask once, then use it as our center + our own pin ── */
   useEffect(() => {
@@ -130,19 +141,29 @@ export const MapScreen = () => {
     people.forEach((p) => p.coords && out.push({ id: 'p_' + p.id, srcId: p.id, kind: 'person', lat: p.coords.latitude, lng: p.coords.longitude, emoji: p.doing || p.emoji || '🧿', avatar: p.avatar, flag: p.countryFlag, label: (p.countryFlag ? p.countryFlag + ' ' : '') + p.name }));
     campfires.forEach((c) => c.coords && out.push({ id: 'c_' + c.id, srcId: c.id, kind: 'fire', lat: c.coords.latitude, lng: c.coords.longitude, emoji: '🔥', label: c.title }));
     (SUPABASE_READY ? realVenues : []).forEach((v) => v.lat != null && out.push({ id: 'v_' + v.id, srcId: v.id, kind: 'venue', lat: v.lat, lng: v.lng, emoji: v.emoji || '📍', label: v.name }));
-    // nearby offers (Waffarha, Booking…) placed around you so they're on the map, not just in a list
-    DEALS.forEach((d, i) => {
-      const ang = (i / DEALS.length) * Math.PI * 2;
-      out.push({ id: 'd_' + d.id, srcId: d.id, kind: 'deal', lat: myCoords.latitude + Math.cos(ang) * 0.006, lng: myCoords.longitude + Math.sin(ang) * 0.006, emoji: d.emoji, label: d.title + ' · ' + d.badge });
-    });
+    // REAL places from OpenStreetMap, pinned at their true coordinates
+    realPlaces.forEach((pl) => out.push({ id: pl.id, srcId: pl.id, kind: 'place', lat: pl.lat, lng: pl.lng, emoji: pl.emoji, label: pl.name }));
     return out;
-  }, [people, campfires, realVenues, myCoords]);
+  }, [people, campfires, realVenues, realPlaces]);
 
   const onMarkerPress = (m) => {
+    setSheet(null); // whatever's open, a map tap replaces it — never stacks
     if (m.kind === 'person') { const p = people.find((x) => x.id === m.srcId); if (p) setProfileUser(p); }
     else if (m.kind === 'venue') { const v = realVenues.find((x) => x.id === m.srcId); setRail('book'); if (v) setBookingVenue(v); }
     else if (m.kind === 'fire') { const c = campfires.find((x) => x.id === m.srcId); if (c) joinFire(c); }
-    else if (m.kind === 'deal') { const d = DEALS.find((x) => x.id === m.srcId); if (d) openPartner(user, d); }
+    else if (m.kind === 'place') { const pl = realPlaces.find((x) => x.id === m.srcId); if (pl) setPlaceOpen(pl); }
+  };
+
+  /* Directions to a real place — opens the maps app / Google Maps. */
+  const directionsTo = (pl) => {
+    tapLight();
+    Linking.openURL('https://www.google.com/maps/dir/?api=1&destination=' + pl.lat + ',' + pl.lng).catch(() => {});
+  };
+
+  /* Deals for a real place — a tracked Waffarha referral (the money trail). */
+  const dealsFor = (pl) => {
+    tapSuccess(); sfxSuccess();
+    openPartner(user, { id: pl.id, partner: 'waffarha', url: 'https://waffarha.com/ar/search?word=' + encodeURIComponent(pl.name) });
   };
 
   /* ── your activity badge → a real row in live_locations ── */
@@ -150,7 +171,7 @@ export const MapScreen = () => {
     tapSelection(); sfxPop();
     const next = myDoing === emoji ? null : emoji;
     setMyDoing(next);
-    setDoingOpen(false);
+    closeSheet();
     if (!SUPABASE_READY || !user) return;
     try {
       if (next) await shareMyLocation(user.id, myCoords, next);
@@ -162,7 +183,7 @@ export const MapScreen = () => {
   const goInvisibleNow = async () => {
     tapLight();
     setMyDoing(null);
-    setDoingOpen(false);
+    closeSheet();
     if (SUPABASE_READY && user) { try { await goInvisible(user.id); loadNearby(); } catch (e) {} }
   };
 
@@ -196,7 +217,7 @@ export const MapScreen = () => {
     const title = dropTitle.trim();
     if (!title) return;
     tapSuccess(); sfxSuccess();
-    setDropOpen(false);
+    closeSheet();
     setDropTitle('');
     if (SUPABASE_READY && user) {
       try {
@@ -253,7 +274,7 @@ export const MapScreen = () => {
           <Text style={{ fontSize: 15 }}>🧿</Text>
         </View>
         <Chip
-          label={'🟢 ' + nearbyPeople.length + ' people nearby · ' + campfires.length + ' live campfires'}
+          label={'🟢 ' + nearbyPeople.length + ' nearby · ' + campfires.length + ' campfires' + (realPlaces.length ? ' · ' + realPlaces.length + ' real places' : '')}
           tint="rgba(255,255,255,0.94)"
           color={C.dim}
           style={{ alignSelf: 'flex-start', marginTop: 10 }}
@@ -262,12 +283,12 @@ export const MapScreen = () => {
 
       {/* right-side actions: your activity · nearby people · SOS */}
       <View style={{ position: 'absolute', right: 14, bottom: 168, alignItems: 'center' }}>
-        <Pressable onPress={() => { tapLight(); setDoingOpen(true); }} style={{ marginBottom: 12 }}>
+        <Pressable onPress={() => openSheet('doing')} style={{ marginBottom: 12 }}>
           <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#FFF', borderWidth: 1, borderColor: myDoing ? C.purple : C.line, alignItems: 'center', justifyContent: 'center' }}>
             {myDoing ? <Text style={{ fontSize: 21 }}>{myDoing}</Text> : <Ionicons name="happy-outline" size={21} color={C.purple} />}
           </View>
         </Pressable>
-        <Pressable onPress={() => { tapLight(); setNearby(true); }} style={{ marginBottom: 12 }}>
+        <Pressable onPress={() => openSheet('nearby')} style={{ marginBottom: 12 }}>
           <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: C.purple, alignItems: 'center', justifyContent: 'center', shadowColor: C.purple, shadowOpacity: 0.35, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } }}>
             <Ionicons name="people" size={21} color="#FFF" />
           </View>
@@ -289,7 +310,7 @@ export const MapScreen = () => {
               </View>
             </Pressable>
           ))}
-          <Pressable onPress={() => { tapLight(); setDropOpen(true); }}>
+          <Pressable onPress={() => openSheet('drop')}>
             <View style={{ backgroundColor: C.gold, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 7 }}>
               <Text style={{ color: '#4A3200', fontSize: 12, fontWeight: '900' }}>＋ Drop a Moment</Text>
             </View>
@@ -396,7 +417,7 @@ export const MapScreen = () => {
                   <Text style={{ color: C.faint, fontSize: 11, marginTop: 3, textAlign: 'center' }}>Own a place? Get listed →</Text>
                 </Glass>
               )}
-              <Pressable onPress={() => { tapLight(); setPartnerOpen(true); }}>
+              <Pressable onPress={() => openSheet('partner')}>
                 <Glass tint="rgba(124,58,237,0.08)" border="rgba(124,58,237,0.35)" style={{ width: 200, padding: 13, marginRight: 12, alignItems: 'center', justifyContent: 'center' }}>
                   <Text style={{ fontSize: 24 }}>🤝</Text>
                   <Text style={{ color: C.text, fontSize: 13, fontWeight: '800', marginTop: 6, textAlign: 'center' }}>Own a place?</Text>
@@ -514,8 +535,8 @@ export const MapScreen = () => {
       ) : null}
 
       {/* nearby people — who's around you right now */}
-      {nearby ? (
-        <Pressable onPress={() => setNearby(false)} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end' }}>
+      {sheet === 'nearby' ? (
+        <Pressable onPress={closeSheet} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end', zIndex: 30 }}>
           <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, paddingBottom: insets.bottom + 20, paddingHorizontal: 16, maxHeight: '70%' }}>
             <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 12 }} />
             <Text style={{ color: C.text, fontSize: 18, fontWeight: '900' }}>Nearby people 📍</Text>
@@ -526,7 +547,7 @@ export const MapScreen = () => {
               <ScrollView showsVerticalScrollIndicator={false}>
                 {nearbyPeople.map((p) => (
                   <View key={p.id} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: C.line }}>
-                    <Pressable onPress={() => { setNearby(false); setProfileUser(p); }} style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                    <Pressable onPress={() => { closeSheet(); setProfileUser(p); }} style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
                       <View>
                         <Image source={{ uri: p.avatar }} style={{ width: 46, height: 46, borderRadius: 23 }} />
                         {p.doing ? (
@@ -562,8 +583,8 @@ export const MapScreen = () => {
       ) : null}
 
       {/* pick the activity you appear with on the map */}
-      {doingOpen ? (
-        <Pressable onPress={() => setDoingOpen(false)} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end' }}>
+      {sheet === 'doing' ? (
+        <Pressable onPress={closeSheet} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end', zIndex: 30 }}>
           <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, paddingBottom: insets.bottom + 22, paddingHorizontal: 16 }}>
             <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 12 }} />
             <Text style={{ color: C.text, fontSize: 18, fontWeight: '900' }}>What are you up to? </Text>
@@ -594,8 +615,8 @@ export const MapScreen = () => {
       ) : null}
 
       {/* drop a moment — put yourself on the map so people gather around you */}
-      {dropOpen ? (
-        <Pressable onPress={() => setDropOpen(false)} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end' }}>
+      {sheet === 'drop' ? (
+        <Pressable onPress={closeSheet} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end', zIndex: 30 }}>
           <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, paddingBottom: insets.bottom + 22, paddingHorizontal: 16 }}>
             <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 12 }} />
             <Text style={{ color: C.text, fontSize: 18, fontWeight: '900' }}>Drop a Moment 📍</Text>
@@ -619,8 +640,8 @@ export const MapScreen = () => {
       ) : null}
 
       {/* partner program — restaurants, cafés & venues join the map */}
-      {partnerOpen ? (
-        <Pressable onPress={() => setPartnerOpen(false)} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end' }}>
+      {sheet === 'partner' ? (
+        <Pressable onPress={closeSheet} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end', zIndex: 30 }}>
           <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, paddingBottom: insets.bottom + 22, paddingHorizontal: 16 }}>
             <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 12 }} />
             {partnerSent ? (
@@ -689,6 +710,42 @@ export const MapScreen = () => {
                 </Pressable>
               </View>
             )}
+          </Pressable>
+        </Pressable>
+      ) : null}
+
+      {/* a REAL place (OpenStreetMap) — directions + tracked deals */}
+      {placeOpen ? (
+        <Pressable onPress={() => setPlaceOpen(null)} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end', zIndex: 30 }}>
+          <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, paddingBottom: insets.bottom + 22, paddingHorizontal: 16 }}>
+            <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 14 }} />
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <View style={{ width: 52, height: 52, borderRadius: 16, backgroundColor: 'rgba(245,158,11,0.12)', borderWidth: 1, borderColor: 'rgba(245,158,11,0.4)', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                <Text style={{ fontSize: 26 }}>{placeOpen.emoji}</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: C.text, fontSize: 17, fontWeight: '900' }} numberOfLines={1}>{placeOpen.name}</Text>
+                <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 2 }}>
+                  {placeOpen.category}{placeOpen.cuisine ? ' · ' + placeOpen.cuisine : ''}
+                </Text>
+                {placeOpen.address ? <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 2 }} numberOfLines={1}>📍 {placeOpen.address}</Text> : null}
+              </View>
+            </View>
+            <View style={{ flexDirection: 'row', marginTop: 16 }}>
+              <Pressable onPress={() => dealsFor(placeOpen)} style={{ flex: 1, marginRight: 10 }}>
+                <View style={{ backgroundColor: C.green, borderRadius: 14, paddingVertical: 13, alignItems: 'center' }}>
+                  <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '900' }}>🎟️ Deals on Waffarha</Text>
+                </View>
+              </Pressable>
+              <Pressable onPress={() => directionsTo(placeOpen)} style={{ width: 132 }}>
+                <View style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 14, paddingVertical: 13, alignItems: 'center' }}>
+                  <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800' }}>🧭 Directions</Text>
+                </View>
+              </Pressable>
+            </View>
+            <Text style={{ color: C.faint, fontSize: 10.5, textAlign: 'center', marginTop: 12 }}>
+              Real place · OpenStreetMap — deals open Waffarha with your referral tracked
+            </Text>
           </Pressable>
         </Pressable>
       ) : null}
