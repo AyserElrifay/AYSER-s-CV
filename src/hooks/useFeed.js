@@ -21,8 +21,9 @@ const relTime = (startsAt) => {
   return 'in ' + Math.round(diffMin / (60 * 24)) + 'd';
 };
 
-/* DB row → the shape PostCard/MagicFlow already consume. */
-const toCard = (row) => ({
+/* DB row → the shape PostCard/MagicFlow already consume.
+   Exported so shared-link posts (?post=…) render identically. */
+export const toCard = (row) => ({
   id: row.id,
   userId: row.user_id, // owner — powers "is this mine?" (delete, profile)
   user: {

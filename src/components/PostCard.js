@@ -18,7 +18,7 @@ const typeChip = (post) => {
   return { label: 'MOMENT', tint: 'rgba(17,24,39,0.65)', color: 'rgba(255,255,255,0.85)' };
 };
 
-export const PostCard = ({ post, joined, vibed, laughed, onLaugh: onLaughProp, isMine, onDelete, onJoin, onVibe, onComment, onOpenProfile, onOpenReel }) => {
+export const PostCard = ({ post, joined, vibed, laughed, onLaugh: onLaughProp, isMine, onDelete, onShare, onJoin, onVibe, onComment, onOpenProfile, onOpenReel }) => {
   const mediaH = post.type === 'reel' ? 470 : post.type === 'vod' ? 208 : 250;
   const tc = typeChip(post);
   const textBg = TEXT_BGS[post.textBg] || TEXT_BGS.plain;
@@ -205,8 +205,8 @@ export const PostCard = ({ post, joined, vibed, laughed, onLaugh: onLaughProp, i
               {(post.reposts || 0) + (reposted ? 1 : 0)}
             </Text>
           </Pressable>
-          {/* Share */}
-          <Pressable hitSlop={8}>
+          {/* Share — a real link your friends can open */}
+          <Pressable onPress={() => { tapLight(); onShare && onShare(post); }} hitSlop={8}>
             <Ionicons name="paper-plane-outline" size={19} color={C.dim} />
           </Pressable>
 

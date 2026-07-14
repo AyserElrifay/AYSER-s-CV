@@ -33,7 +33,8 @@ import { getProfile, updateProfile } from '../services/profiles';
 import { uploadCapture } from '../services/social';
 import { fetchMyMoments } from '../services/posts';
 import { countMyCampfires } from '../services/campfires';
-import { Tick, GhostButton, BoostSheet } from '../components';
+import { countMates } from '../services/mates';
+import { Tick, GhostButton, BoostSheet, MatesSheet } from '../components';
 import { SettingsScreen } from './SettingsScreen';
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
 import { sfxSuccess } from '../utils/sfx';
@@ -53,8 +54,8 @@ const monthYear = (iso) => {
   return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
 };
 
-const Stat = ({ n, label }) => (
-  <Pressable onPress={tapSelection} style={{ alignItems: 'center', flex: 1 }}>
+const Stat = ({ n, label, onPress }) => (
+  <Pressable onPress={() => { tapSelection(); onPress && onPress(); }} style={{ alignItems: 'center', flex: 1 }}>
     <Text style={{ color: C.text, fontSize: 19, fontWeight: '900' }}>{n}</Text>
     <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 2, letterSpacing: 0.3 }}>{label}</Text>
   </Pressable>
@@ -108,6 +109,8 @@ export const ProfileScreen = () => {
   const [myProfile, setMyProfile] = useState(null);
   const [myMoments, setMyMoments] = useState([]);
   const [campfiresHosted, setCampfiresHosted] = useState(0);
+  const [matesCount, setMatesCount] = useState(0);
+  const [matesOpen, setMatesOpen] = useState(false);
   const [editName, setEditName] = useState('');
   const [editBio, setEditBio] = useState('');
   const [editIntent, setEditIntent] = useState('');
@@ -167,6 +170,7 @@ export const ProfileScreen = () => {
     }).catch(() => {});
     fetchMyMoments(user.id).then(setMyMoments).catch(() => {});
     countMyCampfires(user.id).then(setCampfiresHosted).catch(() => {});
+    countMates(user.id).then(setMatesCount).catch(() => {});
   };
 
   useEffect(reload, [user]);
@@ -223,7 +227,7 @@ export const ProfileScreen = () => {
     : MY_MOMENTS;
 
   const moments = SUPABASE_READY ? myMoments.length : ME.moments;
-  const mates = SUPABASE_READY ? 0 : ME.mates; // no follow/mates system built yet — honest zero, not fabricated
+  const mates = SUPABASE_READY ? matesCount : ME.mates; // real accepted mates (schema_v8)
   const campfires = SUPABASE_READY ? campfiresHosted : ME.campfires;
 
   /* Real badges are derived, never invented: verified + how long you've been here. */
@@ -278,7 +282,7 @@ export const ProfileScreen = () => {
             </Pressable>
             <View style={{ flex: 1, flexDirection: 'row', marginLeft: 6 }}>
               <Stat n={moments} label="Moments" />
-              <Stat n={mates} label="Mates" />
+              <Stat n={mates} label="Mates" onPress={() => setMatesOpen(true)} />
               <Stat n={campfires} label="Campfires" />
             </View>
           </View>
@@ -596,6 +600,7 @@ export const ProfileScreen = () => {
       ) : null}
 
       {boostOpen ? <BoostSheet onClose={() => setBoostOpen(false)} /> : null}
+      {matesOpen ? <MatesSheet onClose={() => { setMatesOpen(false); reload(); }} /> : null}
     </View>
   );
 };

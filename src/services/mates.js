@@ -58,6 +58,18 @@ export async function countMates(userId) {
   return count || 0;
 }
 
+/* Your accepted mates, as plain profiles (whichever side you were on). */
+export async function fetchMyMates(myId) {
+  const { data, error } = await supabase
+    .from('mates')
+    .select('*, requester:profiles!mates_requester_id_fkey(*), addressee:profiles!mates_addressee_id_fkey(*)')
+    .eq('status', 'accepted')
+    .or(`requester_id.eq.${myId},addressee_id.eq.${myId}`)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data || []).map((row) => (row.requester_id === myId ? row.addressee : row.requester)).filter(Boolean);
+}
+
 /* Incoming requests waiting on you — for a "Mate requests" inbox. */
 export async function fetchIncomingRequests(myId) {
   const { data, error } = await supabase

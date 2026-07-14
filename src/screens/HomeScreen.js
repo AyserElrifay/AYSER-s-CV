@@ -13,7 +13,9 @@ import { recordSignal } from '../services/algorithm';
 import { tapLight, tapSuccess } from '../utils/feedback';
 import { sfxStar, sfxSuccess } from '../utils/sfx';
 import { useAuth } from '../context/AuthContext';
-import { useFeed } from '../hooks/useFeed';
+import { useFeed, toCard } from '../hooks/useFeed';
+import { fetchPost } from '../services/posts';
+import { Platform } from 'react-native';
 import { countUnread, subscribeNotifications } from '../services/notifications';
 import { sfxNotify } from '../utils/sfx';
 import {
@@ -72,6 +74,41 @@ export const HomeScreen = () => {
   const [myProfileOpen, setMyProfileOpen] = useState(false); // one profile everywhere
   const [notifOpen, setNotifOpen] = useState(false);
   const [unread, setUnread] = useState(0);
+  const [sharedPost, setSharedPost] = useState(null); // opened from a ?post= link
+  const [toast, setToast] = useState(null);
+
+  const showToast = (msg) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 2200);
+  };
+
+  /* Share a moment OUT — one link your friends open anywhere. */
+  const onShare = async (post) => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+    const url = window.location.origin + window.location.pathname + '?post=' + post.id;
+    const payload = { title: 'Moments', text: (post.caption || 'Check this moment ✨').slice(0, 120), url };
+    try {
+      if (navigator.share) { await navigator.share(payload); return; }
+    } catch (e) { if (e && e.name === 'AbortError') return; }
+    try {
+      await navigator.clipboard.writeText(url);
+      showToast('Link copied — send it anywhere 🔗');
+    } catch (e) {
+      showToast(url); // last resort: show it so it can be copied manually
+    }
+  };
+
+  /* Open a moment shared IN — ?post=<id> lands right on the post. */
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined' || !SUPABASE_READY) return;
+    const id = new URLSearchParams(window.location.search).get('post');
+    if (!id) return;
+    fetchPost(id)
+      .then((row) => setSharedPost(toCard(row)))
+      .catch(() => showToast('That moment is gone or private'));
+    // clean the URL so refreshes go back to the normal feed
+    window.history.replaceState({}, '', window.location.pathname);
+  }, []);
 
   /* Real notifications: load the unread count, then listen live —
      a new star/comment/mate event lands with the Moments chime. */
@@ -237,6 +274,7 @@ export const HomeScreen = () => {
               onLaugh={() => onLaugh(item)}
               isMine={(user && item.userId === user.id) || item.user.name === 'You'}
               onDelete={onDelete}
+              onShare={onShare}
               onJoin={setMagicPost}
               onVibe={() => onVibe(item)}
               onComment={() => openComments(item)}
@@ -285,6 +323,45 @@ export const HomeScreen = () => {
       </Modal>
       {commentsPost ? <CommentsSheet post={commentsPost} onClose={() => setCommentsPost(null)} /> : null}
       {notifOpen ? <NotificationsSheet onClose={() => setNotifOpen(false)} /> : null}
+
+      {/* a moment opened from a shared link — the full card, ready to vibe */}
+      {sharedPost ? (
+        <Modal visible transparent animationType="slide" onRequestClose={() => setSharedPost(null)}>
+          <Pressable onPress={() => setSharedPost(null)} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', padding: 16 }}>
+            <Pressable onPress={() => {}}>
+              <PostCard
+                post={sharedPost}
+                joined={!!joined[sharedPost.id]}
+                vibed={!!vibes[sharedPost.id]}
+                laughed={!!laughs[sharedPost.id]}
+                onLaugh={() => onLaugh(sharedPost)}
+                isMine={!!(user && sharedPost.userId === user.id)}
+                onDelete={(p) => { onDelete(p); setSharedPost(null); }}
+                onShare={onShare}
+                onJoin={setMagicPost}
+                onVibe={() => onVibe(sharedPost)}
+                onComment={() => openComments(sharedPost)}
+                onOpenProfile={(u) => { setSharedPost(null); setProfileUser(u); }}
+                onOpenReel={() => {}}
+              />
+            </Pressable>
+            <Pressable onPress={() => setSharedPost(null)} style={{ alignSelf: 'center', marginTop: 6 }}>
+              <View style={{ backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 999, paddingHorizontal: 18, paddingVertical: 9 }}>
+                <Text style={{ color: C.text, fontSize: 13, fontWeight: '800' }}>Back to your feed ↓</Text>
+              </View>
+            </Pressable>
+          </Pressable>
+        </Modal>
+      ) : null}
+
+      {/* tiny toast — link copied etc. */}
+      {toast ? (
+        <View pointerEvents="none" style={{ position: 'absolute', bottom: 120, left: 30, right: 30, alignItems: 'center' }}>
+          <View style={{ backgroundColor: 'rgba(17,24,39,0.92)', borderRadius: 999, paddingHorizontal: 18, paddingVertical: 11 }}>
+            <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '700' }} numberOfLines={1}>{toast}</Text>
+          </View>
+        </View>
+      ) : null}
       {composing === 'post' ? (
         <ComposeModal
           initialMode="post"

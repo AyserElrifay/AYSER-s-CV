@@ -18,6 +18,21 @@ export async function fetchFeed() {
   }));
 }
 
+/* One post by id — powers shared links (?post=…). */
+export async function fetchPost(postId) {
+  const { data, error } = await supabase
+    .from('posts')
+    .select('*, user:profiles!posts_user_id_fkey(*), vibe_rows:post_vibes(count), comment_rows:comments(count)')
+    .eq('id', postId)
+    .single();
+  if (error) throw error;
+  return {
+    ...data,
+    vibes: (data.vibe_rows && data.vibe_rows[0] && data.vibe_rows[0].count) || 0,
+    comments: (data.comment_rows && data.comment_rows[0] && data.comment_rows[0].count) || 0,
+  };
+}
+
 /* Long-form videos (YouTube-style) — every post of type 'vod'.
    Powers the Chill tab; newest first, author profile joined in. */
 export async function fetchVideos() {
