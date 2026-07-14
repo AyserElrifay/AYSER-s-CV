@@ -283,13 +283,23 @@ create table if not exists public.dm_participants (
 );
 alter table public.dm_threads      enable row level security;
 alter table public.dm_participants enable row level security;
+
+-- security-definer helper — bypasses RLS internally so the policy
+-- below doesn't query dm_participants THROUGH dm_participants' own
+-- policy (that self-reference is what caused "infinite recursion
+-- detected in policy for relation dm_participants").
+create or replace function public.is_dm_participant(t_id uuid, u_id uuid)
+returns boolean language sql security definer set search_path = public stable as $$
+  select exists (select 1 from public.dm_participants p where p.thread_id = t_id and p.user_id = u_id);
+$$;
+
 drop policy if exists "participants can view their dm threads" on public.dm_threads;
 create policy "participants can view their dm threads" on public.dm_threads for select using (
-  exists (select 1 from public.dm_participants p where p.thread_id = id and p.user_id = auth.uid())
+  public.is_dm_participant(id, auth.uid())
 );
 drop policy if exists "participants are viewable by thread members" on public.dm_participants;
 create policy "participants are viewable by thread members" on public.dm_participants for select using (
-  exists (select 1 from public.dm_participants p2 where p2.thread_id = thread_id and p2.user_id = auth.uid())
+  public.is_dm_participant(thread_id, auth.uid())
 );
 
 create or replace function public.get_or_create_dm_thread(other_user uuid)
