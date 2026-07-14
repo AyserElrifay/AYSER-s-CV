@@ -224,6 +224,22 @@ do $$ begin
   end if;
 end $$;
 
+-- ═══════════════ PROFILE COLUMNS SELF-HEAL ═══════════════
+-- Columns added by earlier schema files (v2 languages, v7 country)
+-- that may be missing — safe to re-add, they no-op if present.
+-- Fixes: "Could not find the 'country' column of 'profiles'".
+alter table public.profiles add column if not exists country           text;
+alter table public.profiles add column if not exists country_flag      text;
+alter table public.profiles add column if not exists speaks_language   text;
+alter table public.profiles add column if not exists learning_language text;
+alter table public.profiles add column if not exists learning_level    text;
+alter table public.profiles add column if not exists learning_visible  boolean default false;
+alter table public.profiles add column if not exists language          text;
+
+-- PostgREST caches the schema — reload it so the new columns are
+-- visible to the app immediately, no waiting.
+notify pgrst, 'reload schema';
+
 -- ═══════════════════ READINESS CHECKLIST ═══════════════════
 -- Every column below should say TRUE. If chat_ready is FALSE,
 -- also run supabase/schema_v2_live.sql (messages & live map).
@@ -234,4 +250,7 @@ select
   (to_regclass('public.notifications')        is not null) as notifications_ready,
   (to_regclass('public.dm_threads')           is not null) as chat_ready,
   (to_regclass('public.profiles')             is not null) as profiles_ready,
-  (to_regclass('public.posts')                is not null) as posts_ready;
+  (to_regclass('public.posts')                is not null) as posts_ready,
+  exists (select 1 from information_schema.columns
+          where table_schema = 'public' and table_name = 'profiles'
+            and column_name = 'country')                    as country_column_ready;
