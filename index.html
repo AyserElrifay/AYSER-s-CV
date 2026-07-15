@@ -1,0 +1,1436 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clay — Creative Agency · Shape Potential.</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%22104%20112%20359%20338%22%3E%3Cpath%20fill%3D%22black%22%20d%3D%22M%20275.188%20113.126%20C%20244.947%20115.612%2C%20228.016%20120.937%2C%20195.067%20138.321%20C%20167.586%20152.821%2C%20140.016%20183.436%2C%20123.358%20217.951%20C%20109.323%20247.031%2C%20101.121%20289.107%2C%20105.316%20310.500%20C%20106.179%20314.900%2C%20107.167%20320.975%2C%20107.512%20324%20C%20108.460%20332.312%2C%20111.429%20342.545%2C%20118.150%20360.663%20C%20125.103%20379.406%2C%20125.167%20379.514%2C%20139.292%20396.134%20C%20152.022%20411.112%2C%20155.072%20414.060%2C%20166%20421.952%20C%20185.069%20435.723%2C%20183.951%20435.211%2C%20214.500%20444.159%20C%20236.435%20450.584%2C%20246.784%20451.290%2C%20257.797%20447.110%20C%20280.228%20438.599%2C%20287.588%20411.790%2C%20273.372%20390.374%20C%20269.543%20384.605%2C%20265.990%20381.911%2C%20251.664%20373.918%20C%20241.467%20368.228%2C%20236.931%20364.251%2C%20230.997%20355.802%20C%20222.676%20343.953%2C%20219.838%20335.689%2C%20218.874%20320.500%20C%20218.421%20313.350%2C%20217.599%20305.700%2C%20217.049%20303.500%20C%20216.498%20301.300%2C%20216.037%20296.223%2C%20216.024%20292.218%20C%20215.970%20275.761%2C%20224.114%20262.965%2C%20243.114%20249.652%20C%20250.843%20244.237%2C%20257.039%20237.804%2C%20259.870%20232.255%20C%20264.975%20222.247%2C%20281.363%20213.595%2C%20300.435%20210.838%20C%20308.345%20209.694%2C%20309.561%20209.770%2C%20317.917%20211.924%20C%20346.611%20219.322%2C%20366%20201.978%2C%20366%20168.913%20C%20366%20143.458%2C%20355.226%20128.670%2C%20330.760%20120.543%20C%20321.297%20117.400%2C%20292.656%20111.816%2C%20287.654%20112.139%20C%20286.469%20112.216%2C%20280.859%20112.660%2C%20275.188%20113.126%20M%20399.815%20290.450%20C%20378.229%20295.179%2C%20362.907%20314.446%2C%20360.599%20339.762%20C%20359.932%20347.079%2C%20357.846%20351.556%2C%20350.004%20362.500%20C%20334.657%20383.916%2C%20331.831%20404.094%2C%20341.461%20423.500%20C%20348.493%20437.671%2C%20356.316%20443.718%2C%20373%20447.880%20C%20391.363%20452.460%2C%20417.639%20445.957%2C%20433.525%20432.900%20C%20466.932%20405.442%2C%20473.585%20333.508%2C%20445.521%20303.196%20C%20434.255%20291.028%2C%20417.943%20286.479%2C%20399.815%20290.450%22%2F%3E%3C%2Fsvg%3E">
+<meta name="description" content="Clay is a creative agency. We shape potential into meaningful brands — strategy, identity, messaging, experience, systems, evolution.">
+
+<style>
+/* ============================================================
+   CLAY — design tokens (from the official Brand Guidelines)
+   Black #000000 · White #FFFFFF · F5F5F5 · E0E0E0 · B3B3B3
+   Typeface: Suisse Int'l → Neue Haas Grotesk → Helvetica Neue → Inter
+   ============================================================ */
+:root{
+  --ink:#000000;
+  --paper:#ffffff;
+  --fog:#f5f5f5;
+  --mist:#e0e0e0;
+  --stone:#b3b3b3;
+  --clay:#8c7b6c;          /* reserved: Formed by Clay only */
+  --clay-deep:#6f6153;
+  --sans:"Suisse Int'l","Neue Haas Grotesk","Helvetica Neue",Inter,Helvetica,Arial,sans-serif;
+  --sig:Georgia,"Times New Roman",serif;
+  --ease:cubic-bezier(.16,1,.3,1);
+  --rail:clamp(20px,5vw,72px);
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --ink:#f1f0ee;
+    --paper:#0e0e0d;
+    --fog:#171716;
+    --mist:#2b2b29;
+    --stone:#83837f;
+    --clay:#a89584;
+    --clay-deep:#c0ac99;
+  }
+}
+:root[data-theme="light"]{
+  --ink:#000000; --paper:#ffffff; --fog:#f5f5f5; --mist:#e0e0e0;
+  --stone:#b3b3b3; --clay:#8c7b6c; --clay-deep:#6f6153;
+}
+:root[data-theme="dark"]{
+  --ink:#f1f0ee; --paper:#0e0e0d; --fog:#171716; --mist:#2b2b29;
+  --stone:#83837f; --clay:#a89584; --clay-deep:#c0ac99;
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  font-family:var(--sans);
+  background:var(--paper);
+  color:var(--ink);
+  font-size:17px;
+  line-height:1.55;
+  font-weight:400;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+::selection{background:var(--ink);color:var(--paper)}
+img,svg{display:block;max-width:100%}
+a{color:inherit;text-decoration:none}
+button,input,select,textarea{font:inherit;color:inherit;background:none;border:none}
+button{cursor:pointer}
+
+/* ---------- type scale ---------- */
+.display{
+  font-weight:300;
+  font-size:clamp(52px,9.5vw,150px);
+  line-height:.98;
+  letter-spacing:-.035em;
+  text-wrap:balance;
+}
+.display b,.display strong{font-weight:700;letter-spacing:-.04em}
+.h2{
+  font-weight:300;
+  font-size:clamp(36px,5.4vw,76px);
+  line-height:1.02;
+  letter-spacing:-.03em;
+  text-wrap:balance;
+}
+.h2 b{font-weight:700}
+.h3{font-weight:500;font-size:clamp(21px,2.4vw,28px);letter-spacing:-.015em;line-height:1.2}
+.label{
+  font-size:11px;
+  font-weight:500;
+  letter-spacing:.16em;
+  text-transform:uppercase;
+  color:var(--stone);
+}
+.body-lg{font-size:clamp(18px,1.6vw,22px);line-height:1.5;max-width:34em}
+.muted{color:var(--stone)}
+.num{font-variant-numeric:tabular-nums}
+
+/* ---------- layout primitives ---------- */
+.wrap{padding-left:var(--rail);padding-right:var(--rail);max-width:1560px;margin:0 auto}
+.section{padding-top:clamp(90px,12vh,170px);padding-bottom:clamp(90px,12vh,170px)}
+.rule{height:1px;background:var(--mist);border:none}
+.sec-head{
+  display:flex;justify-content:space-between;align-items:baseline;
+  border-top:1px solid var(--mist);
+  padding-top:18px;margin-bottom:clamp(44px,7vh,96px);
+  gap:16px;flex-wrap:wrap;
+}
+
+/* ---------- reveal motion ---------- */
+.rv{opacity:0;transform:translateY(26px);transition:opacity .8s var(--ease),transform .8s var(--ease)}
+.rv.in{opacity:1;transform:none}
+.rv.d1{transition-delay:.08s}.rv.d2{transition-delay:.16s}.rv.d3{transition-delay:.24s}.rv.d4{transition-delay:.32s}
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  .rv{transform:none;transition:opacity .3s}
+  *,*::before,*::after{animation:none!important;transition-duration:.01ms!important}
+}
+
+/* ---------- buttons & links ---------- */
+.btn{
+  display:inline-flex;align-items:center;gap:14px;
+  padding:16px 30px;
+  background:var(--ink);color:var(--paper);
+  font-size:14px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;
+  transition:background .35s var(--ease),color .35s var(--ease),opacity .35s;
+}
+.btn:hover{opacity:.82}
+.btn.ghost{background:transparent;color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
+.btn.ghost:hover{background:var(--ink);color:var(--paper);opacity:1}
+.btn.quiet{background:transparent;color:var(--stone);padding-left:0;box-shadow:none}
+.btn.quiet:hover{color:var(--ink)}
+.btn[disabled]{opacity:.35;cursor:default}
+.ul-link{position:relative;padding-bottom:3px}
+.ul-link::after{
+  content:"";position:absolute;left:0;bottom:0;height:1px;width:100%;
+  background:var(--ink);transform:scaleX(0);transform-origin:left;
+  transition:transform .5s var(--ease);
+}
+.ul-link:hover::after{transform:scaleX(1)}
+
+/* ============================================================ NAV */
+.nav{
+  position:fixed;inset:0 0 auto 0;z-index:60;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 var(--rail);height:72px;
+  background:color-mix(in srgb,var(--paper) 86%,transparent);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  border-bottom:1px solid transparent;
+  transition:border-color .4s;
+}
+.nav.scrolled{border-bottom-color:var(--mist)}
+.logo{display:flex;align-items:center;gap:12px}
+.logo svg{height:26px;width:auto}
+.logo .mark-fill{fill:var(--ink)}
+.logo-word{display:flex;flex-direction:column;line-height:1}
+.logo-word .w{font-size:21px;font-weight:500;letter-spacing:.01em}
+.logo-word .s{font-size:7.5px;font-weight:500;letter-spacing:.34em;text-transform:uppercase;color:var(--stone);margin-top:3px}
+.nav-links{display:flex;gap:34px;align-items:center}
+.nav-links a{font-size:13.5px;font-weight:500;letter-spacing:.04em;color:var(--stone);transition:color .3s}
+.nav-links a:hover,.nav-links a.active{color:var(--ink)}
+.nav-cta{font-size:12px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;
+  padding:10px 18px;box-shadow:inset 0 0 0 1px var(--ink);transition:all .35s var(--ease)}
+.nav-cta:hover{background:var(--ink);color:var(--paper)}
+.burger{display:none;flex-direction:column;gap:5px;padding:8px}
+.burger span{display:block;width:22px;height:1.5px;background:var(--ink);transition:transform .4s var(--ease),opacity .3s}
+.mobile-menu{
+  position:fixed;inset:0;z-index:55;background:var(--paper);
+  display:flex;flex-direction:column;justify-content:center;gap:8px;
+  padding:0 var(--rail);
+  opacity:0;pointer-events:none;transition:opacity .4s var(--ease);
+}
+.mobile-menu.open{opacity:1;pointer-events:auto}
+.mobile-menu a{font-size:clamp(34px,9vw,54px);font-weight:300;letter-spacing:-.02em;padding:6px 0;border-bottom:1px solid var(--mist)}
+body.menu-locked{overflow:hidden}
+@media (max-width:880px){
+  .nav-links{display:none}
+  .burger{display:flex}
+  body.menu-locked .burger span:nth-child(1){transform:translateY(6.5px) rotate(45deg)}
+  body.menu-locked .burger span:nth-child(2){opacity:0}
+  body.menu-locked .burger span:nth-child(3){transform:translateY(-6.5px) rotate(-45deg)}
+}
+
+/* ============================================================ HERO */
+.hero{min-height:100svh;display:flex;flex-direction:column;justify-content:flex-end;
+  padding-top:140px;padding-bottom:clamp(48px,8vh,96px);position:relative}
+.hero .eyebrow{display:flex;gap:26px;align-items:center;margin-bottom:clamp(28px,5vh,56px)}
+.hero .eyebrow .line{flex:0 0 56px;height:1px;background:var(--ink)}
+.hero-foot{
+  display:flex;justify-content:space-between;align-items:flex-end;gap:32px;
+  margin-top:clamp(40px,7vh,84px);flex-wrap:wrap;
+}
+.hero-manifesto{max-width:30em;color:var(--stone);font-size:15.5px;line-height:1.7}
+.hero-manifesto em{font-style:normal;color:var(--ink)}
+.scroll-cue{display:flex;align-items:center;gap:12px;color:var(--stone);font-size:11px;letter-spacing:.16em;text-transform:uppercase}
+.scroll-cue .tick{width:1px;height:44px;background:var(--stone);position:relative;overflow:hidden}
+.scroll-cue .tick::after{content:"";position:absolute;left:0;top:-100%;width:1px;height:100%;background:var(--ink);animation:drip 2.4s var(--ease) infinite}
+@keyframes drip{0%{top:-100%}55%{top:100%}100%{top:100%}}
+
+/* ============================================================ PHILOSOPHY */
+.philo{background:var(--fog)}
+.philo-grid{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,4fr);gap:clamp(40px,6vw,110px)}
+.philo-copy p{margin-bottom:1.2em;max-width:36em}
+.philo-copy .lede{font-size:clamp(19px,1.8vw,24px);line-height:1.45;color:var(--ink)}
+.approach{list-style:none;border-top:1px solid var(--mist)}
+.approach li{
+  display:grid;grid-template-columns:56px 1fr;gap:14px;align-items:baseline;
+  padding:20px 0;border-bottom:1px solid var(--mist);
+  transition:padding-left .45s var(--ease);
+}
+.approach li:hover{padding-left:10px}
+.approach .no{font-size:12px;color:var(--stone);letter-spacing:.1em}
+.approach .t{font-weight:500;font-size:18px}
+.approach .d{grid-column:2;color:var(--stone);font-size:14.5px;margin-top:2px}
+.method{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--mist);
+  border:1px solid var(--mist);margin-top:clamp(60px,9vh,120px)}
+.method .cell{background:var(--fog);padding:clamp(24px,3vw,44px) clamp(20px,2.4vw,36px);transition:background .5s var(--ease)}
+.method .cell:hover{background:var(--paper)}
+.method .glyph{font-size:clamp(56px,6vw,96px);font-weight:700;line-height:1;letter-spacing:-.03em}
+.method .name{font-weight:500;margin-top:18px}
+.method .desc{color:var(--stone);font-size:14px;margin-top:6px}
+@media (max-width:880px){
+  .philo-grid{grid-template-columns:1fr}
+  .method{grid-template-columns:repeat(2,1fr)}
+}
+
+/* ============================================================ BEGIN — intake & contract */
+.begin{background:var(--fog)}
+.wizard{max-width:880px}
+.progress{display:flex;align-items:center;gap:0;margin-bottom:clamp(40px,6vh,72px)}
+.progress .node{display:flex;align-items:center;gap:12px;white-space:nowrap}
+.progress .dotno{font-size:12px;letter-spacing:.12em;color:var(--mist);transition:color .4s;font-weight:500}
+.progress .dotname{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--mist);transition:color .4s;font-weight:500}
+.progress .node.done .dotno,.progress .node.done .dotname{color:var(--stone)}
+.progress .node.now .dotno,.progress .node.now .dotname{color:var(--ink)}
+.progress .bar{flex:1;height:1px;background:var(--mist);margin:0 18px;position:relative;min-width:20px}
+.progress .bar i{position:absolute;inset:0 auto 0 0;width:0;background:var(--ink);transition:width .7s var(--ease)}
+.progress .bar.done i{width:100%}
+@media (max-width:680px){.progress .dotname{display:none}}
+.step{display:none}
+.step.on{display:block;animation:stepin .7s var(--ease)}
+@keyframes stepin{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+.step .q{font-weight:300;font-size:clamp(26px,3.4vw,42px);letter-spacing:-.02em;margin-bottom:10px;text-wrap:balance}
+.step .hint{color:var(--stone);font-size:15px;margin-bottom:clamp(30px,4vh,52px);max-width:36em}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:34px 40px}
+.fgrid .full{grid-column:1/-1}
+@media (max-width:680px){.fgrid{grid-template-columns:1fr}}
+.field label{display:block;font-size:11px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--stone);margin-bottom:10px}
+.field input,.field select,.field textarea{
+  width:100%;padding:10px 0 12px;font-size:19px;font-weight:400;
+  border-bottom:1px solid var(--mist);border-radius:0;
+  transition:border-color .35s;background:transparent;
+}
+.field textarea{resize:vertical;min-height:96px;line-height:1.5}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-bottom-color:var(--ink)}
+.field.err input,.field.err select,.field.err textarea{border-bottom-color:var(--clay-deep)}
+.field select{appearance:none;-webkit-appearance:none;cursor:pointer;
+  background-image:linear-gradient(45deg,transparent 49%,var(--stone) 50%),linear-gradient(135deg,var(--stone) 50%,transparent 51%);
+  background-position:calc(100% - 14px) 55%,calc(100% - 9px) 55%;background-size:5px 5px;background-repeat:no-repeat}
+.chips{display:flex;flex-wrap:wrap;gap:12px}
+.chip{
+  padding:12px 22px;font-size:14px;font-weight:500;letter-spacing:.02em;
+  box-shadow:inset 0 0 0 1px var(--mist);color:var(--stone);
+  transition:all .35s var(--ease);
+}
+.chip:hover{box-shadow:inset 0 0 0 1px var(--ink);color:var(--ink)}
+.chip.on{background:var(--ink);color:var(--paper);box-shadow:inset 0 0 0 1px var(--ink)}
+.radio-row{display:flex;flex-wrap:wrap;gap:12px}
+.wiz-foot{display:flex;justify-content:space-between;align-items:center;margin-top:clamp(40px,6vh,64px);gap:16px}
+.wiz-note{font-size:13.5px;color:var(--clay-deep);min-height:1.4em;transition:opacity .3s;opacity:0}
+.wiz-note.show{opacity:1}
+
+/* contract document */
+.contract-wrap{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:clamp(28px,4vw,64px)}
+@media (max-width:880px){.contract-wrap{grid-template-columns:1fr}}
+.doc{background:var(--paper);border:1px solid var(--mist);padding:clamp(28px,4vw,56px)}
+.doc .doc-head{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;
+  padding-bottom:26px;border-bottom:1px solid var(--ink);margin-bottom:30px}
+.doc .doc-title{font-weight:300;font-size:clamp(24px,2.8vw,34px);letter-spacing:-.02em;line-height:1.05}
+.doc .ref{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--stone);text-align:right;line-height:2}
+.doc dl{display:grid;grid-template-columns:150px 1fr;gap:10px 20px;font-size:15px;margin-bottom:30px}
+.doc dt{color:var(--stone);font-size:11px;letter-spacing:.14em;text-transform:uppercase;padding-top:3px}
+.doc dd{font-weight:500}
+.terms{border-top:1px solid var(--mist);padding-top:24px;max-height:300px;overflow-y:auto;padding-right:14px}
+.terms h4{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--stone);margin:20px 0 8px;font-weight:500}
+.terms h4:first-child{margin-top:0}
+.terms p{font-size:14px;color:var(--ink);opacity:.82;margin-bottom:10px;line-height:1.6}
+.signblock{margin-top:34px;border-top:1px solid var(--mist);padding-top:28px}
+.sig-line{border-bottom:1px solid var(--ink);min-height:74px;display:flex;align-items:flex-end;padding-bottom:8px;margin-bottom:8px}
+.sig-render{font-family:var(--sig);font-style:italic;font-size:clamp(30px,4vw,44px);line-height:1;color:var(--ink);min-height:1em}
+.sig-render.empty{color:var(--mist);font-size:16px;font-family:var(--sans);font-style:normal;letter-spacing:.1em;text-transform:uppercase}
+.accept-row{display:flex;gap:12px;align-items:flex-start;margin:22px 0}
+.accept-row input{width:16px;height:16px;margin-top:3px;accent-color:var(--ink);flex:none}
+.accept-row span{font-size:13.5px;color:var(--stone);line-height:1.55}
+.doc-aside{display:flex;flex-direction:column;gap:26px}
+.doc-aside .box{border-top:1px solid var(--mist);padding-top:16px}
+.doc-aside .box .k{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--stone);margin-bottom:8px;font-weight:500}
+.doc-aside .box .v{font-size:14.5px;line-height:1.6}
+.signed-plate{text-align:center;padding:clamp(50px,9vh,110px) 20px;border:1px solid var(--mist);background:var(--paper)}
+.signed-plate .big{font-weight:300;font-size:clamp(30px,4.5vw,56px);letter-spacing:-.025em;margin:18px 0 12px}
+.signed-plate .refnum{font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--stone)}
+.checkmark{width:52px;height:52px;margin:0 auto;border:1px solid var(--ink);border-radius:50%;display:grid;place-items:center}
+.checkmark svg{width:20px;height:20px;stroke:var(--ink);fill:none;stroke-width:1.6}
+
+/* ============================================================ ACADEMY */
+.academy-shell{display:grid;grid-template-columns:230px minmax(0,1fr);gap:clamp(30px,5vw,90px)}
+@media (max-width:880px){.academy-shell{grid-template-columns:1fr}}
+.rail-nav{position:sticky;top:110px;align-self:start;display:flex;flex-direction:column;gap:2px}
+@media (max-width:880px){.rail-nav{position:static;flex-direction:row;border-bottom:1px solid var(--mist);gap:24px;overflow-x:auto}}
+.rail-nav button{
+  text-align:left;padding:14px 0 14px 18px;font-size:15px;font-weight:500;color:var(--stone);
+  border-left:1px solid var(--mist);transition:color .35s,border-color .35s;white-space:nowrap;
+}
+.rail-nav button:hover{color:var(--ink)}
+.rail-nav button.active{color:var(--ink);border-left:1px solid var(--ink)}
+.rail-nav .cap{font-size:11px;font-weight:400;letter-spacing:.05em;color:var(--stone);display:block;margin-top:3px}
+@media (max-width:880px){
+  .rail-nav button{border-left:none;border-bottom:1px solid transparent;padding:12px 0}
+  .rail-nav button.active{border-bottom-color:var(--ink)}
+  .rail-nav .cap{display:none}
+}
+.panel{display:none}
+.panel.on{display:block;animation:stepin .7s var(--ease)}
+.panel-intro{max-width:36em;color:var(--stone);margin-bottom:clamp(34px,5vh,60px);font-size:16px}
+.panel-intro b{color:var(--ink);font-weight:500}
+
+/* roles table */
+.rolelist{border-top:1px solid var(--mist)}
+.role{border-bottom:1px solid var(--mist)}
+.role-row{
+  display:grid;grid-template-columns:minmax(0,2.4fr) 1fr 1fr auto;gap:18px;align-items:center;
+  padding:22px 0;cursor:pointer;transition:padding-left .4s var(--ease);
+}
+.role-row:hover{padding-left:10px}
+.role-row .rt{font-weight:500;font-size:clamp(17px,1.8vw,21px);letter-spacing:-.01em}
+.role-row .rm{font-size:13px;color:var(--stone)}
+.role-row .go{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--stone);transition:color .3s}
+.role-row:hover .go{color:var(--ink)}
+@media (max-width:680px){.role-row{grid-template-columns:1fr auto}.role-row .rm{display:none}}
+.drawer{max-height:0;overflow:hidden;transition:max-height .7s var(--ease)}
+.drawer.open{max-height:900px}
+.drawer-inner{padding:8px 0 40px;max-width:640px}
+.drawer .fgrid{gap:26px 34px}
+.received{padding:28px 0 40px;display:flex;gap:16px;align-items:center}
+.received .checkmark{width:40px;height:40px;margin:0}
+.received .checkmark svg{width:15px;height:15px}
+.received .t{font-weight:500}
+.received .s{font-size:14px;color:var(--stone)}
+
+/* programs */
+.programs{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--mist);border:1px solid var(--mist)}
+@media (max-width:880px){.programs{grid-template-columns:1fr}}
+.program{background:var(--paper);padding:clamp(28px,3.6vw,52px)}
+.begin .program,.academy .program{background:var(--paper)}
+.program .dur{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--stone);font-weight:500}
+.program h4{font-weight:300;font-size:clamp(26px,3vw,40px);letter-spacing:-.02em;margin:14px 0 10px;line-height:1.05}
+.program .pdesc{color:var(--stone);font-size:15px;max-width:30em}
+.program ol{list-style:none;margin:26px 0;border-top:1px solid var(--mist)}
+.program ol li{display:flex;gap:16px;padding:12px 0;border-bottom:1px solid var(--mist);font-size:14.5px}
+.program ol .n{color:var(--stone);font-size:12px;letter-spacing:.1em;padding-top:2px}
+.program .cohort{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:22px;gap:12px;flex-wrap:wrap}
+.program .cohort .cd{font-weight:500}
+.program .cohort .cs{font-size:12.5px;color:var(--stone)}
+
+/* courses */
+.courses{display:grid;grid-template-columns:1fr 1fr;gap:clamp(20px,3vw,44px)}
+@media (max-width:880px){.courses{grid-template-columns:1fr}}
+.course{border:1px solid var(--mist);padding:clamp(24px,3vw,42px);display:flex;flex-direction:column;transition:border-color .4s}
+.course:hover{border-color:var(--ink)}
+.course .cmeta{display:flex;justify-content:space-between;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--stone);font-weight:500;gap:10px}
+.course h4{font-weight:300;font-size:clamp(24px,2.6vw,34px);letter-spacing:-.02em;margin:16px 0 8px;line-height:1.08}
+.course .cdesc{color:var(--stone);font-size:14.5px;flex:1}
+.course .cfoot{display:flex;justify-content:space-between;align-items:center;margin-top:26px;padding-top:18px;border-top:1px solid var(--mist)}
+.course .price{font-weight:500;font-size:17px}
+.course .price small{color:var(--stone);font-weight:400;font-size:12px}
+.sessions{margin-top:20px;border-top:1px solid var(--mist);display:none}
+.sessions.open{display:block;animation:stepin .5s var(--ease)}
+.session-row{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:14px 0;border-bottom:1px solid var(--mist)}
+.session-row .sd{font-weight:500;font-size:15px}
+.session-row .seats{font-size:12px;color:var(--stone);letter-spacing:.06em}
+.session-row .pick{font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:500;padding:8px 14px;box-shadow:inset 0 0 0 1px var(--mist);transition:all .3s}
+.session-row .pick:hover{box-shadow:inset 0 0 0 1px var(--ink)}
+.session-row.soldout{opacity:.4}
+.bookform{padding:18px 0 6px;display:none}
+.bookform.open{display:block;animation:stepin .5s var(--ease)}
+.bookform .fgrid{gap:20px 26px;margin-bottom:20px}
+.booked{padding:20px 0 6px;display:none}
+.booked.open{display:flex;gap:14px;align-items:center;animation:stepin .5s var(--ease)}
+
+/* ============================================================ FORMED BY CLAY */
+/* Formed by Clay is a committed dark room — theme-independent by design */
+.formed{background:#0b0b0a;color:#f2f1ef;position:relative;overflow:hidden}
+.formed ::selection{background:#f2f1ef;color:#0b0b0a}
+.formed .label{color:#a89584}
+.formed .h2{color:#f2f1ef}
+.formed .h2 b{color:#a89584}
+.formed-grid{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,4fr);gap:clamp(40px,6vw,110px);align-items:end}
+@media (max-width:880px){.formed-grid{grid-template-columns:1fr}}
+.formed p{color:rgba(242,241,239,.6);max-width:32em;margin-bottom:1.1em}
+.formed p em{font-style:normal;color:#f2f1ef}
+.formed .btn{background:#f2f1ef;color:#0b0b0a}
+.formed .btn:hover{opacity:.85}
+.formed .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:rgba(242,241,239,.16);margin-top:48px;border:1px solid rgba(242,241,239,.16)}
+.formed .stat{background:#0b0b0a;padding:22px 20px}
+.formed .stat .v{font-weight:300;font-size:clamp(28px,3.4vw,44px);letter-spacing:-.02em}
+.formed .stat .k{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#a89584;margin-top:6px;font-weight:500}
+
+/* ============================================================ FOOTER */
+.footer{padding-top:clamp(80px,11vh,150px)}
+.foot-cta{border-top:1px solid var(--mist);padding-top:clamp(40px,6vh,70px);
+  display:flex;justify-content:space-between;align-items:flex-end;gap:30px;flex-wrap:wrap;
+  padding-bottom:clamp(60px,9vh,120px)}
+.foot-cta .mail{font-weight:300;font-size:clamp(24px,3.4vw,44px);letter-spacing:-.02em}
+.foot-grid{display:flex;justify-content:space-between;gap:28px;flex-wrap:wrap;
+  border-top:1px solid var(--mist);padding:26px 0 40px;font-size:12.5px;color:var(--stone)}
+.foot-grid a{transition:color .3s}
+.foot-grid a:hover{color:var(--ink)}
+.foot-grid .cols{display:flex;gap:34px;flex-wrap:wrap}
+
+/* ============================================================
+   V2 — Apple-style presentation layer
+   Centered storytelling, pill controls, large-radius tiles,
+   scroll-driven hero and statement. Brand tokens unchanged.
+   ============================================================ */
+:root{--r:28px}
+
+/* pills */
+.btn{border-radius:999px;text-transform:none;letter-spacing:0;font-size:15px;padding:14px 30px;font-weight:500}
+.nav-cta{border-radius:999px;text-transform:none;letter-spacing:.01em;font-size:13px;padding:9px 20px}
+.chip{border-radius:999px}
+.session-row .pick{border-radius:999px;text-transform:none;letter-spacing:.01em;font-size:12.5px}
+
+/* slim nav */
+.nav{height:56px}
+.logo svg{height:22px}
+.logo-word .w{font-size:18px}
+.nav-links a{font-size:13px}
+
+/* centered hero with scroll fade */
+.hero{align-items:center;text-align:center;justify-content:center;padding-top:110px}
+.hero-inner{display:flex;flex-direction:column;align-items:center;will-change:transform,opacity}
+.hero .eyebrow{justify-content:center;margin-bottom:clamp(20px,3.5vh,36px)}
+.hero .eyebrow .line{display:none}
+.hero-manifesto{max-width:36em;margin:clamp(24px,4vh,40px) auto 0;font-size:clamp(16px,1.5vw,19px)}
+.hero-ctas{display:flex;gap:14px;margin-top:clamp(28px,4.5vh,48px);flex-wrap:wrap;justify-content:center}
+.hero-foot{justify-content:center;margin-top:clamp(36px,6vh,64px)}
+
+/* scroll-lit statement */
+.scrub{cursor:default}
+.scrub .wd{color:var(--mist);transition:color .35s linear}
+.scrub .wd.lit{color:var(--ink)}
+
+/* centered section intros */
+.center{text-align:center;margin-left:auto;margin-right:auto}
+
+/* bento tiles */
+.method{background:transparent;border:none;gap:16px;grid-template-columns:repeat(4,1fr)}
+.method .cell{background:var(--paper);border-radius:var(--r);transition:transform .6s var(--ease),background .5s var(--ease)}
+.method .cell:hover{transform:translateY(-5px);background:var(--paper)}
+.method .cell.dark{background:#0b0b0a;color:#f2f1ef}
+.method .cell.dark .desc{color:rgba(242,241,239,.6)}
+.method .cell.dark:hover{background:#0b0b0a}
+@media (max-width:880px){.method{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:560px){.method{grid-template-columns:1fr}}
+
+/* documents & portal tiles */
+.doc,.signed-plate{border-radius:var(--r);border-color:transparent}
+.begin .doc,.begin .signed-plate{box-shadow:0 1px 0 rgba(0,0,0,.02)}
+.course{border-radius:var(--r);border-color:transparent;background:var(--fog);transition:transform .6s var(--ease)}
+.course:hover{border-color:transparent;transform:translateY(-5px)}
+.panel .programs{background:transparent;border:none;gap:16px}
+.panel .program{background:var(--fog);border-radius:var(--r)}
+.formed .stats{background:transparent;border:none;gap:14px}
+.formed .stat{background:#141412;border-radius:22px}
+
+/* ============================================================ STATS BAND (proof) */
+.statband{background:#0b0b0a;color:#f2f1ef;padding:clamp(80px,11vh,150px) 0}
+.statband ::selection{background:#f2f1ef;color:#0b0b0a}
+.statband .kicker{text-align:center;margin-bottom:clamp(44px,7vh,80px)}
+.statband .kicker .label{color:rgba(242,241,239,.45)}
+.statband .kicker h3{font-weight:300;font-size:clamp(26px,3.2vw,44px);letter-spacing:-.02em;margin-top:12px}
+.statband .kicker h3 b{font-weight:700}
+.statgrid{display:grid;grid-template-columns:repeat(3,1fr)}
+.statgrid .cellstat{padding:6px clamp(20px,3vw,56px);text-align:center;border-left:1px solid rgba(242,241,239,.14)}
+.statgrid .cellstat:first-child{border-left:none}
+.statgrid .v{font-weight:300;font-size:clamp(38px,4.6vw,76px);letter-spacing:-.03em;line-height:1;font-variant-numeric:tabular-nums;white-space:nowrap}
+.statgrid .v .plus{color:rgba(242,241,239,.4)}
+.statgrid .k{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:rgba(242,241,239,.45);margin-top:16px;font-weight:500}
+@media (max-width:880px){
+  .statgrid{grid-template-columns:1fr;gap:44px}
+  .statgrid .cellstat{border-left:none;padding:0}
+}
+
+/* ============================================================ SERVICES (Gretel-style type list) */
+.svc-list{border-top:1px solid var(--mist);margin-top:clamp(40px,6vh,80px)}
+.svc{
+  border-bottom:1px solid var(--mist);
+  display:grid;grid-template-columns:64px minmax(0,1fr) minmax(0,340px);
+  align-items:center;gap:clamp(16px,2.5vw,40px);
+  padding:clamp(22px,3.4vh,40px) 0;
+}
+.svc .no{font-size:12px;letter-spacing:.12em;color:var(--stone);font-weight:500}
+.svc .w{
+  font-weight:300;font-size:clamp(36px,5.6vw,88px);letter-spacing:-.035em;line-height:1;
+  color:var(--stone);transition:color .5s var(--ease),transform .6s var(--ease);
+}
+.svc:hover .w{color:var(--ink);transform:translateX(14px)}
+.svc .dd{text-align:right}
+.svc .dd .d{display:block;color:var(--stone);font-size:14.5px;line-height:1.55;opacity:0;transform:translateY(6px);transition:opacity .5s var(--ease),transform .5s var(--ease)}
+.svc:hover .dd .d{opacity:1;transform:none}
+.svc .dd .tags{display:block;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--stone);margin-top:8px;font-weight:500;opacity:0;transition:opacity .5s var(--ease) .06s}
+.svc:hover .dd .tags{opacity:.7}
+@media (max-width:880px){
+  .svc{grid-template-columns:44px 1fr}
+  .svc .dd{grid-column:2;text-align:left;margin-top:10px}
+  .svc .dd .d,.svc .dd .tags{opacity:1;transform:none}
+  .svc:hover .w{transform:none}
+  .svc .w{color:var(--ink)}
+}
+@media (hover:none){
+  .svc .w{color:var(--ink)}
+  .svc .dd .d,.svc .dd .tags{opacity:1;transform:none}
+}
+
+/* ============================================================ CLAY STUDIO (content / film / events) */
+.studio-caps{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-bottom:clamp(44px,7vh,84px)}
+.studio-caps .cap{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--stone);font-weight:500;padding:9px 18px;box-shadow:inset 0 0 0 1px var(--mist);border-radius:999px}
+.feat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-bottom:clamp(44px,6vh,80px)}
+@media(max-width:760px){.feat-grid{grid-template-columns:1fr}}
+.feat.wide{grid-column:1/-1;background:#0b0b0a;color:#f2f1ef}
+.feat.wide ::selection{background:#f2f1ef;color:#0b0b0a}
+.feat.wide h4{font-size:clamp(26px,3vw,40px)}
+.feat.wide .ft{color:rgba(242,241,239,.5)}
+.feat.wide p{color:rgba(242,241,239,.66);max-width:44em;font-size:clamp(16px,1.6vw,19px)}
+.feat.wide p b{color:#f2f1ef}
+.feat.wide .tags{border-top-color:rgba(242,241,239,.16)}
+.feat.wide .tags span{color:rgba(242,241,239,.55)}
+.feat{background:var(--fog);border-radius:var(--r);padding:clamp(28px,3.2vw,46px);display:flex;flex-direction:column;gap:16px;transition:transform .6s var(--ease)}
+.feat:hover{transform:translateY(-5px)}
+.feat .fc{display:flex;justify-content:space-between;align-items:baseline;gap:16px}
+.feat h4{font-weight:500;font-size:clamp(22px,2.4vw,30px);letter-spacing:-.02em;line-height:1.05}
+.feat .ft{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--stone);font-weight:500;white-space:nowrap}
+.feat p{color:var(--stone);font-size:15.5px;line-height:1.6}
+.feat p b{color:var(--ink);font-weight:600}
+.feat .tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:auto;padding-top:18px;border-top:1px solid var(--mist)}
+.feat .tags span{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--stone);font-weight:500}
+.feat .tags span:not(:last-child)::after{content:"·";margin-left:8px}
+.clients-head{display:flex;justify-content:space-between;align-items:baseline;gap:16px;margin-bottom:18px;flex-wrap:wrap}
+.clients-head .label{color:var(--stone)}
+.clients{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:1px;background:var(--mist);border:1px solid var(--mist);border-radius:var(--r);overflow:hidden}
+.client{background:var(--paper);padding:20px 22px;transition:background .4s var(--ease)}
+.client:hover{background:var(--fog)}
+.client .cn{font-weight:500;font-size:17px;letter-spacing:-.01em}
+.client .ck{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--stone);margin-top:6px;font-weight:500}
+
+/* home index (quiet table of contents) */
+.home-index{margin-top:clamp(44px,7vh,80px);width:100%;max-width:520px;border-top:1px solid var(--mist);text-align:left}
+.home-index a{display:flex;justify-content:space-between;align-items:baseline;gap:16px;
+  padding:15px 2px;border-bottom:1px solid var(--mist);
+  font-size:15px;font-weight:500;color:var(--stone);
+  transition:color .3s,padding-left .45s var(--ease)}
+.home-index a:hover{color:var(--ink);padding-left:10px}
+.home-index .no{font-size:11px;letter-spacing:.12em}
+
+/* apple-style footer ground */
+.footer{background:var(--fog);margin-top:clamp(60px,9vh,120px)}
+.footer .foot-cta{border-top:none}
+</style>
+</head>
+<body>
+
+<!-- ============================================================ NAV -->
+<header class="nav" id="nav">
+  <a class="logo" href="#top" aria-label="Clay — home">
+    <svg viewBox="104 112 359 338" aria-hidden="true"><path class="mark-fill" d="M 275.188 113.126 C 244.947 115.612, 228.016 120.937, 195.067 138.321 C 167.586 152.821, 140.016 183.436, 123.358 217.951 C 109.323 247.031, 101.121 289.107, 105.316 310.500 C 106.179 314.900, 107.167 320.975, 107.512 324 C 108.460 332.312, 111.429 342.545, 118.150 360.663 C 125.103 379.406, 125.167 379.514, 139.292 396.134 C 152.022 411.112, 155.072 414.060, 166 421.952 C 185.069 435.723, 183.951 435.211, 214.500 444.159 C 236.435 450.584, 246.784 451.290, 257.797 447.110 C 280.228 438.599, 287.588 411.790, 273.372 390.374 C 269.543 384.605, 265.990 381.911, 251.664 373.918 C 241.467 368.228, 236.931 364.251, 230.997 355.802 C 222.676 343.953, 219.838 335.689, 218.874 320.500 C 218.421 313.350, 217.599 305.700, 217.049 303.500 C 216.498 301.300, 216.037 296.223, 216.024 292.218 C 215.970 275.761, 224.114 262.965, 243.114 249.652 C 250.843 244.237, 257.039 237.804, 259.870 232.255 C 264.975 222.247, 281.363 213.595, 300.435 210.838 C 308.345 209.694, 309.561 209.770, 317.917 211.924 C 346.611 219.322, 366 201.978, 366 168.913 C 366 143.458, 355.226 128.670, 330.760 120.543 C 321.297 117.400, 292.656 111.816, 287.654 112.139 C 286.469 112.216, 280.859 112.660, 275.188 113.126 M 399.815 290.450 C 378.229 295.179, 362.907 314.446, 360.599 339.762 C 359.932 347.079, 357.846 351.556, 350.004 362.500 C 334.657 383.916, 331.831 404.094, 341.461 423.500 C 348.493 437.671, 356.316 443.718, 373 447.880 C 391.363 452.460, 417.639 445.957, 433.525 432.900 C 466.932 405.442, 473.585 333.508, 445.521 303.196 C 434.255 291.028, 417.943 286.479, 399.815 290.450"/></svg>
+    <span class="logo-word"><span class="w">clay</span><span class="s">Creative Agency</span></span>
+  </a>
+  <nav class="nav-links" aria-label="Primary">
+    <a href="#studio">Studio</a>
+    <a href="#services">Services</a>
+    <a href="#clients">Clients</a>
+    <a href="#academy">Academy</a>
+    <a href="#formed">Formed by Clay</a>
+    <a class="nav-cta" href="#begin">Start a project</a>
+  </nav>
+  <button class="burger" id="burger" aria-label="Menu" aria-expanded="false">
+    <span></span><span></span><span></span>
+  </button>
+</header>
+<div class="mobile-menu" id="mmenu">
+  <a href="#studio">Studio</a>
+  <a href="#services">Services</a>
+  <a href="#clients">Clients</a>
+  <a href="#begin">Start a project</a>
+  <a href="#academy">Academy</a>
+  <a href="#formed">Formed by Clay</a>
+</div>
+
+<main id="top">
+
+<!-- ============================================================ HERO -->
+<section class="hero wrap" id="home">
+  <div class="hero-inner" id="heroInner">
+    <div class="eyebrow rv">
+      <span class="label" style="color:var(--ink)">Clay — Creative Agency</span>
+    </div>
+    <h1 class="display rv d1">shape<br><b>Potential.</b></h1>
+    <p class="hero-manifesto rv d2">
+      <em>We shape potential into brands that endure.</em>
+    </p>
+    <div class="hero-ctas rv d3">
+      <a class="btn" href="#begin">Start a project</a>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ PHILOSOPHY -->
+<section class="section philo" id="studio">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="label">01 — The Studio</span>
+    </div>
+    <h2 class="h2 center scrub" id="scrubStatement" style="margin-bottom:clamp(44px,7vh,90px);max-width:14em">Marketing is not noise. It is form given to feeling.</h2>
+    <div class="philo-grid">
+      <div class="philo-copy rv d1">
+        <p class="lede">Clay is the original material. Formed by nature, shaped by human hands — raw, honest, and endlessly adaptable. It is more than a material. It is our mindset.</p>
+        <p class="muted">We believe in starting from what is real. In ideas that take shape. In work that leaves a mark. We are not here to follow — we are here to shape: to design with purpose and build what matters.</p>
+        <p class="muted">We remove the unnecessary. We shape with clarity. We design with intention. We build systems, not just visuals. We create brands that endure.</p>
+      </div>
+      <div class="rv d2">
+        <p class="label" style="margin-bottom:18px">Our approach</p>
+        <ol class="approach">
+          <li><span class="no num">01</span><span class="t">Listen</span><span class="d">Understand what is real.</span></li>
+          <li><span class="no num">02</span><span class="t">Discover</span><span class="d">Reveal what others overlook.</span></li>
+          <li><span class="no num">03</span><span class="t">Shape</span><span class="d">Transform insight into direction.</span></li>
+          <li><span class="no num">04</span><span class="t">Build</span><span class="d">Craft systems with purpose.</span></li>
+          <li><span class="no num">05</span><span class="t">Evolve</span><span class="d">Grow with clarity and intent.</span></li>
+        </ol>
+      </div>
+    </div>
+    <div class="method rv">
+      <div class="cell dark"><div class="glyph">C</div><div class="name">Create</div><div class="desc">Every brand begins as possibility. We define direction and create what comes next.</div></div>
+      <div class="cell"><div class="glyph">L</div><div class="name">Listen</div><div class="desc">People first. Context first. We don't assume — we uncover. Only then do we shape.</div></div>
+      <div class="cell"><div class="glyph">A</div><div class="name">Adapt</div><div class="desc">Nothing meaningful is made in a single shape. We refine to stay relevant, human, true.</div></div>
+      <div class="cell"><div class="glyph">Y</div><div class="name">Yield</div><div class="desc">Potential, made real. Not for attention or trends — for people, growth, lasting value.</div></div>
+    </div>
+  </div>
+</section>
+
+
+
+<!-- ============================================================ PROOF — THE NUMBERS -->
+<section class="statband" id="proof">
+  <div class="wrap">
+    <div class="kicker rv">
+      <span class="label">The proof</span>
+      <h3>Quiet work. <b>Loud results.</b></h3>
+    </div>
+    <div class="statgrid">
+      <div class="cellstat rv"><div class="v num"><span class="plus">+</span><span class="count" data-count="200000000">0</span></div><div class="k">EGP · Managed ad spend</div></div>
+      <div class="cellstat rv d1"><div class="v num"><span class="plus">+</span><span class="count" data-count="925000">0</span></div><div class="k">Precision leads acquired</div></div>
+      <div class="cellstat rv d2"><div class="v num"><span class="plus">+</span><span class="count" data-count="7350">0</span></div><div class="k">Closed transactions</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ CLAY STUDIO -->
+<section class="section" id="clients">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="label">02 — Clay Studio</span>
+    </div>
+    <h2 class="h2 rv center" style="margin-bottom:14px">We make brands <b>move.</b></h2>
+    <p class="body-lg muted rv d1 center" style="margin-bottom:clamp(40px,6vh,72px)">Content, film, copywriting, visuals, and events — the living side of the brand.</p>
+
+    <div class="studio-caps rv">
+      <span class="cap">Content</span><span class="cap">Film &amp; Video</span><span class="cap">Copywriting</span>
+      <span class="cap">Visuals</span><span class="cap">Events</span><span class="cap">Social</span>
+    </div>
+
+    <div class="feat-grid">
+      <article class="feat wide rv">
+        <div class="fc"><h4>J&amp;T Express</h4><span class="ft">Launch · Campaign</span></div>
+        <p>When the global courier <b>J&amp;T Express</b> entered Egypt, we shaped the arrival — a creative rebranding campaign, an online communication campaign, and a full design system, headlined by <b>Lionel Messi</b> as brand ambassador under one line: <b>دقة، سرعة</b> — Accuracy. Speed.</p>
+        <div class="tags"><span>Rebranding</span><span>Campaign</span><span>Social</span><span>Design</span></div>
+      </article>
+      <article class="feat rv">
+        <div class="fc"><h4>Market Standard</h4><span class="ft">Brand · Events</span></div>
+        <p>A full-house brand build with lead generation and <b>4 successful events</b> — including the <b>first and largest Red Sea expo in Egypt</b>, a major real-estate show, and a family fun day.</p>
+        <div class="tags"><span>Branding</span><span>Lead Gen</span><span>Events</span></div>
+      </article>
+      <article class="feat rv">
+        <div class="fc"><h4>AGEC Development</h4><span class="ft">Rebrand · Events</span></div>
+        <p>A full-house rebrand, a mega suhoor night at Dusit featuring <b>Aida El Ayouby</b>, and a padel tournament that drew <b>93 companies</b> to the court.</p>
+        <div class="tags"><span>Rebrand</span><span>Event</span><span>Activation</span></div>
+      </article>
+      <article class="feat rv">
+        <div class="fc"><h4>Incandies</h4><span class="ft">Film · Media</span></div>
+        <p>Short intro films made for the iPhone screens, full media coverage, and on-screen motion design.</p>
+        <div class="tags"><span>Film</span><span>Media</span><span>Motion</span></div>
+      </article>
+      <article class="feat rv">
+        <div class="fc"><h4>Rivan</h4><span class="ft">Outdoor · Social</span></div>
+        <p>Billboards, social-media branding, and outdoor campaigns for the launch.</p>
+        <div class="tags"><span>Billboards</span><span>Social</span><span>Design</span></div>
+      </article>
+    </div>
+
+    <div class="clients-head rv">
+      <span class="label">Selected clients</span>
+      <span class="label">Content · Video · Design · Copy · Events</span>
+    </div>
+    <div class="clients rv">
+        <div class="client"><div class="cn">Arafa Roby</div><div class="ck">Content · Design</div></div>
+        <div class="client"><div class="cn">Set El Habayeb</div><div class="ck">Campaign · Morocco</div></div>
+        <div class="client"><div class="cn">Zeitoun</div><div class="ck">Content · Design</div></div>
+        <div class="client"><div class="cn">Margins</div><div class="ck">Content · Design</div></div>
+        <div class="client"><div class="cn">Capital Hills</div><div class="ck">Real Estate</div></div>
+        <div class="client"><div class="cn">Sheraton</div><div class="ck">Hospitality</div></div>
+        <div class="client"><div class="cn">Cashcow</div><div class="ck">Content · Video</div></div>
+        <div class="client"><div class="cn">Grow</div><div class="ck">Video</div></div>
+        <div class="client"><div class="cn">Magna</div><div class="ck">Content · Design</div></div>
+        <div class="client"><div class="cn">Qurtoba</div><div class="ck">Content · Design</div></div>
+        <div class="client"><div class="cn">Raq</div><div class="ck">Video</div></div>
+        <div class="client"><div class="cn">Naval Academy</div><div class="ck">Institutional</div></div>
+        <div class="client"><div class="cn">Ripple Summit</div><div class="ck">Event</div></div>
+        <div class="client"><div class="cn">Shima</div><div class="ck">Direction · Video</div></div>
+        <div class="client"><div class="cn">Astella</div><div class="ck">Brand · France</div></div>
+        <div class="client"><div class="cn">Majestic</div><div class="ck">Brand · USA</div></div>
+        <div class="client"><div class="cn">Pharmacon</div><div class="ck">Pharma</div></div>
+        <div class="client"><div class="cn">Xeedia Pharma</div><div class="ck">Pharma</div></div>
+        <div class="client"><div class="cn">Zeta Pharma</div><div class="ck">Pharma</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ SERVICES -->
+<section class="section" id="services">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="label">03 — What We Do</span>
+    </div>
+    <h2 class="h2 rv center" style="margin-bottom:14px">We shape potential<br><b>into meaningful brands.</b></h2>
+    <p class="body-lg muted rv d1 center">From strategy to systems — clarity, direction, and lasting impact.</p>
+
+    <div class="svc-list rv">
+      <div class="svc">
+        <span class="no num">01</span>
+        <span class="w">Strategy</span>
+        <span class="dd"><span class="d">Define what matters. We start from what is real and turn it into direction.</span><span class="tags">Positioning · Research · Architecture</span></span>
+      </div>
+      <div class="svc">
+        <span class="no num">02</span>
+        <span class="w">Identity</span>
+        <span class="dd"><span class="d">Shape how it is seen. Marks, visual language, and guidelines built to endure.</span><span class="tags">Logo systems · Visual language · Guidelines</span></span>
+      </div>
+      <div class="svc">
+        <span class="no num">03</span>
+        <span class="w">Messaging</span>
+        <span class="dd"><span class="d">Shape how it is heard. Real words, real conversations — certain, never loud.</span><span class="tags">Voice · Naming · Campaign copy</span></span>
+      </div>
+      <div class="svc">
+        <span class="no num">04</span>
+        <span class="w">Experience</span>
+        <span class="dd"><span class="d">Shape how it is felt. Websites, products, and spaces that behave like the brand.</span><span class="tags">Web · Product · Spatial</span></span>
+      </div>
+      <div class="svc">
+        <span class="no num">05</span>
+        <span class="w">Systems</span>
+        <span class="dd"><span class="d">Shape how it grows. Design systems and performance media that compound.</span><span class="tags">Design systems · Media · Performance</span></span>
+      </div>
+      <div class="svc">
+        <span class="no num">06</span>
+        <span class="w">Evolution</span>
+        <span class="dd"><span class="d">Shape what comes next. Stewardship that keeps the brand relevant, human, true.</span><span class="tags">Stewardship · Growth · Optimisation</span></span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ BEGIN — CLIENT INTAKE & CONTRACT -->
+<section class="section begin" id="begin">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="label">04 — Begin</span>
+    </div>
+    <h2 class="h2 rv center" style="margin-bottom:14px">Every brand begins<br><b>as possibility.</b></h2>
+    <p class="body-lg muted rv d1 center" style="margin-bottom:clamp(48px,7vh,88px)">Tell us what is real. Four quiet steps — and a signed agreement at the end, without a single email attachment.</p>
+
+    <div class="wizard" id="wizard" style="margin:0 auto">
+      <div class="progress" aria-hidden="true">
+        <span class="node now" data-n="1"><span class="dotno num">01</span><span class="dotname">Company</span></span>
+        <span class="bar" data-b="1"><i></i></span>
+        <span class="node" data-n="2"><span class="dotno num">02</span><span class="dotname">Project</span></span>
+        <span class="bar" data-b="2"><i></i></span>
+        <span class="node" data-n="3"><span class="dotno num">03</span><span class="dotname">Scope</span></span>
+        <span class="bar" data-b="3"><i></i></span>
+        <span class="node" data-n="4"><span class="dotno num">04</span><span class="dotname">Agreement</span></span>
+      </div>
+
+      <!-- STEP 1 -->
+      <div class="step on" data-step="1">
+        <p class="q">Who are we shaping this for?</p>
+        <p class="hint">We listen before we shape. Start with the essentials — everything stays between us.</p>
+        <div class="fgrid">
+          <div class="field"><label for="f-company">Company name</label><input id="f-company" autocomplete="organization" placeholder="Acme &amp; Co."></div>
+          <div class="field"><label for="f-contact">Your name</label><input id="f-contact" autocomplete="name" placeholder="Full name"></div>
+          <div class="field"><label for="f-email">Email</label><input id="f-email" type="email" autocomplete="email" placeholder="you@company.com"></div>
+          <div class="field"><label for="f-industry">Industry</label>
+            <select id="f-industry">
+              <option value="" selected>Select</option>
+              <option>Finance &amp; Banking</option><option>Fashion &amp; Retail</option><option>Hospitality &amp; Travel</option>
+              <option>Technology</option><option>Culture &amp; Non-profit</option><option>Food &amp; Beverage</option><option>Other</option>
+            </select>
+          </div>
+          <div class="field full"><label for="f-size">Company size</label>
+            <select id="f-size">
+              <option value="" selected>Select</option>
+              <option>Founding team (1–10)</option><option>Growing (11–50)</option><option>Established (51–250)</option><option>Enterprise (250+)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 2 -->
+      <div class="step" data-step="2">
+        <p class="q">What should take shape?</p>
+        <p class="hint">Choose every discipline that applies — we build systems, not just visuals.</p>
+        <div class="field" style="margin-bottom:34px">
+          <label>Disciplines</label>
+          <div class="chips" id="serviceChips">
+            <button class="chip" data-v="Strategy" type="button">Strategy</button>
+            <button class="chip" data-v="Identity" type="button">Identity</button>
+            <button class="chip" data-v="Messaging" type="button">Messaging</button>
+            <button class="chip" data-v="Experience" type="button">Experience</button>
+            <button class="chip" data-v="Systems" type="button">Systems</button>
+            <button class="chip" data-v="Evolution" type="button">Evolution</button>
+          </div>
+        </div>
+        <div class="field">
+          <label for="f-brief">The brief, in your own words</label>
+          <textarea id="f-brief" placeholder="What exists today, and what do you want it to become?"></textarea>
+        </div>
+      </div>
+
+      <!-- STEP 3 -->
+      <div class="step" data-step="3">
+        <p class="q">Scope and rhythm.</p>
+        <p class="hint">An honest frame lets us shape an honest proposal. Bands, not commitments.</p>
+        <div class="field" style="margin-bottom:34px">
+          <label>Investment band (USD)</label>
+          <div class="radio-row chips" id="budgetChips">
+            <button class="chip" data-v="10–25k" type="button">10–25k</button>
+            <button class="chip" data-v="25–60k" type="button">25–60k</button>
+            <button class="chip" data-v="60–120k" type="button">60–120k</button>
+            <button class="chip" data-v="120k+" type="button">120k+</button>
+          </div>
+        </div>
+        <div class="fgrid">
+          <div class="field"><label for="f-timeline">Timeline</label>
+            <select id="f-timeline">
+              <option value="" selected>Select</option>
+              <option>6–8 weeks</option><option>2–4 months</option><option>4–8 months</option><option>Ongoing partnership</option>
+            </select>
+          </div>
+          <div class="field"><label for="f-start">Ideal start</label>
+            <select id="f-start">
+              <option value="" selected>Select</option>
+              <option>As soon as possible</option><option>Within a month</option><option>This quarter</option><option>Exploring for later</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 4 — CONTRACT -->
+      <div class="step" data-step="4">
+        <div id="contractLive">
+          <p class="q">Your agreement, already taking shape.</p>
+          <p class="hint">Everything you told us, set into terms. Review, sign with your name, and we begin.</p>
+          <div class="contract-wrap">
+            <div class="doc" id="docEl">
+              <div class="doc-head">
+                <div>
+                  <div class="label" style="margin-bottom:8px">Engagement Agreement</div>
+                  <div class="doc-title">Clay ✕ <span id="c-company">—</span></div>
+                </div>
+                <div class="ref num">Ref <span id="c-ref">CLA-2026-····</span><br>Issued <span id="c-date">—</span></div>
+              </div>
+              <dl>
+                <dt>Prepared for</dt><dd><span id="c-contact">—</span>, <span id="c-company2">—</span></dd>
+                <dt>Disciplines</dt><dd id="c-services">—</dd>
+                <dt>Investment band</dt><dd id="c-budget">—</dd>
+                <dt>Timeline</dt><dd id="c-timeline">—</dd>
+                <dt>Commencement</dt><dd id="c-start">—</dd>
+              </dl>
+              <div class="terms" tabindex="0" aria-label="Terms of engagement">
+                <h4>1 — Engagement</h4>
+                <p>Clay Creative Agency ("Clay") will provide the disciplines listed above for the client named in this agreement. A detailed scope of work, deliverables schedule, and project plan will be issued within five working days of acceptance and will form an annex to this agreement.</p>
+                <h4>2 — Process</h4>
+                <p>Work proceeds through Clay's five movements — Listen, Discover, Shape, Build, Evolve. Each movement closes with a review milestone. Two rounds of refinement are included per milestone; further rounds are scoped transparently before any work begins.</p>
+                <h4>3 — Investment &amp; schedule</h4>
+                <p>Fees are fixed against the agreed scope within the stated investment band. 40% is due on commencement, 40% at the midpoint milestone, and 20% on delivery. Invoices are payable within 14 days.</p>
+                <h4>4 — Ownership</h4>
+                <p>Upon final payment, all approved deliverables and their intellectual property transfer to the client in full. Clay retains the right to document the work for its portfolio unless confidentiality is requested in writing.</p>
+                <h4>5 — Confidentiality</h4>
+                <p>Both parties treat all shared materials, strategies, and commercial information as confidential, during and after the engagement.</p>
+                <h4>6 — Withdrawal</h4>
+                <p>Either party may end the engagement with 14 days' written notice. Work completed to date is invoiced pro rata; all materials paid for are released.</p>
+              </div>
+              <div class="signblock">
+                <div class="label" style="margin-bottom:14px">Signature of acceptance</div>
+                <div class="sig-line"><div class="sig-render empty" id="sigRender">Type your full legal name below</div></div>
+                <div class="field">
+                  <label for="f-sig">Full legal name</label>
+                  <input id="f-sig" autocomplete="off" placeholder="e.g. Nadia El Amin">
+                </div>
+                <label class="accept-row">
+                  <input type="checkbox" id="f-accept">
+                  <span>I have read the terms of engagement and accept them on behalf of the company named above. I understand this constitutes a binding digital signature, recorded with a timestamp and document integrity hash.</span>
+                </label>
+                <button class="btn" id="signBtn" type="button">Accept &amp; sign</button>
+              </div>
+            </div>
+            <aside class="doc-aside">
+              <div class="box"><div class="k">What happens next</div><div class="v">A countersigned copy arrives by email within the hour. Your project lead makes contact within one working day. Movement 01 — Listen — is scheduled within the week.</div></div>
+              <div class="box"><div class="k">Integrity</div><div class="v">The document text is hashed at the moment of signing. What you accept is exactly what we keep — nothing can change after the fact.</div></div>
+              <div class="box"><div class="k">Questions first?</div><div class="v">Write to <a class="ul-link" href="mailto:new@clay.agency">new@clay.agency</a> — a human answers, not a pipeline.</div></div>
+            </aside>
+          </div>
+        </div>
+
+        <div id="contractSigned" style="display:none">
+          <div class="signed-plate">
+            <div class="checkmark"><svg viewBox="0 0 24 24"><path d="M4 12.5l5.5 5.5L20 6.5"/></svg></div>
+            <div class="big">Agreed, <span id="s-name">—</span>.</div>
+            <p class="muted" style="max-width:30em;margin:0 auto 22px">Your engagement with Clay is signed and recorded. We begin by listening.</p>
+            <div class="refnum num" id="s-meta">—</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="wiz-foot" id="wizFoot">
+        <button class="btn quiet" id="backBtn" type="button" style="visibility:hidden">← Back</button>
+        <p class="wiz-note num" id="wizNote" role="status">A few details are missing.</p>
+        <button class="btn" id="nextBtn" type="button">Continue →</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ ACADEMY -->
+<section class="section" id="academy">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="label">05 — Talent &amp; Academy</span>
+    </div>
+    <h2 class="h2 rv center" style="margin-bottom:14px">Potential exists everywhere.<br><b>We help shape it.</b></h2>
+    <p class="body-lg muted rv d1 center" style="margin-bottom:clamp(48px,7vh,88px)">Three ways in: join the studio, train inside it, or learn the craft in our courses.</p>
+
+    <div class="academy-shell">
+      <nav class="rail-nav rv" aria-label="Academy sections">
+        <button class="active" data-p="careers">Careers<span class="cap">Open positions at Clay</span></button>
+        <button data-p="training">Training<span class="cap">Internships &amp; residencies</span></button>
+        <button data-p="courses">Courses<span class="cap">Learn the craft</span></button>
+      </nav>
+
+      <div class="rv d1">
+        <!-- CAREERS -->
+        <div class="panel on" data-panel="careers">
+          <p class="panel-intro">We hire slowly and deliberately. <b>Every application is read by a person</b> — usually the one you'd be working beside.</p>
+          <div class="rolelist" id="rolelist"></div>
+        </div>
+
+        <!-- TRAINING -->
+        <div class="panel" data-panel="training">
+          <p class="panel-intro">Structured programs inside a working studio. <b>Real briefs, real clients, real critique</b> — not observation from the corner.</p>
+          <div class="programs" id="programs"></div>
+        </div>
+
+        <!-- COURSES -->
+        <div class="panel" data-panel="courses">
+          <p class="panel-intro">Short, rigorous courses taught by the people who do the work. <b>Small cohorts, evening sessions, no recordings</b> — presence is the point.</p>
+          <div class="courses" id="courses"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ FORMED BY CLAY -->
+<section class="section formed" id="formed">
+  <div class="wrap">
+    <div class="sec-head rv" style="border-top-color:rgba(242,241,239,.2)">
+      <span class="label">06 — The Initiative</span>
+    </div>
+    <div class="formed-grid">
+      <div>
+        <h2 class="h2 rv">Formed<br><b>by Clay.</b></h2>
+      </div>
+      <div class="rv d1">
+        <p><em>Where raw talent takes shape.</em> Formed by Clay is our open initiative: scholarships for the training program, free public critique nights, and pro-bono brand work for cultural organisations that shape their communities.</p>
+        <p>Because clay was never precious about where it came from — only about what it became.</p>
+        <a class="btn" href="#academy" style="margin-top:10px">Enter through the Academy</a>
+      </div>
+    </div>
+    <div class="stats rv d2">
+      <div class="stat"><div class="v num">24</div><div class="k">Scholarship seats / year</div></div>
+      <div class="stat"><div class="v num">06</div><div class="k">Pro-bono briefs / year</div></div>
+      <div class="stat"><div class="v num">12</div><div class="k">Open critique nights</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ FOOTER -->
+<footer class="footer">
+  <div class="wrap">
+    <div class="foot-cta rv">
+      <div>
+        <p class="label" style="margin-bottom:16px">This is who we are. This is how we work.</p>
+        <p class="h2">We shape <b>potential.</b></p>
+      </div>
+      <a class="mail ul-link" href="mailto:hello@clay.agency">hello@clay.agency</a>
+    </div>
+    <div class="foot-grid">
+      <span>© 2026 Clay Creative Agency — Making ideas shape brands.</span>
+      <div class="cols">
+        <a class="num" href="#studio">Studio</a>
+        <a href="#begin">Begin</a>
+        <a href="#academy">Academy</a>
+        <a href="#formed">Formed by Clay</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+</main>
+
+<script>
+/* ============================================================
+   CLAY — interactions. Vanilla, dependency-free.
+   ============================================================ */
+(function(){
+"use strict";
+var $=function(s,c){return (c||document).querySelector(s)};
+var $$=function(s,c){return Array.prototype.slice.call((c||document).querySelectorAll(s))};
+
+/* ---------- reveal on scroll ---------- */
+var io=new IntersectionObserver(function(es){
+  es.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add("in"); io.unobserve(e.target);} });
+},{threshold:.12,rootMargin:"0px 0px -6% 0px"});
+$$(".rv").forEach(function(el){io.observe(el)});
+
+/* ---------- nav ---------- */
+var nav=$("#nav");
+addEventListener("scroll",function(){ nav.classList.toggle("scrolled",scrollY>10) },{passive:true});
+var burger=$("#burger"),mmenu=$("#mmenu");
+function closeMenu(){ document.body.classList.remove("menu-locked"); mmenu.classList.remove("open"); burger.setAttribute("aria-expanded","false"); }
+burger.addEventListener("click",function(){
+  var open=mmenu.classList.toggle("open");
+  document.body.classList.toggle("menu-locked",open);
+  burger.setAttribute("aria-expanded",open?"true":"false");
+});
+$$("a",mmenu).forEach(function(a){a.addEventListener("click",closeMenu)});
+
+/* ---------- scroll-driven hero + lit statement (Apple-style) ---------- */
+var noMotion=matchMedia("(prefers-reduced-motion: reduce)").matches;
+var heroInner=$("#heroInner");
+var scrub=$("#scrubStatement");
+if(scrub){
+  scrub.innerHTML=scrub.textContent.trim().split(/\s+/).map(function(w){
+    return '<span class="wd">'+w+'</span>';
+  }).join(" ");
+}
+var scrubWords=scrub?$$(".wd",scrub):[];
+function onScrollFx(){
+  if(noMotion)return;
+  var y=scrollY,vh=innerHeight;
+  if(heroInner){
+    var p=Math.min(y/(vh*.7),1);
+    heroInner.style.opacity=String(1-p*.95);
+    heroInner.style.transform="translateY("+(y*.18)+"px) scale("+(1-p*.05)+")";
+  }
+  if(scrub&&scrubWords.length){
+    var r=scrub.getBoundingClientRect();
+    var prog=(vh*.82-r.top)/(vh*.55);
+    var lit=Math.round(Math.max(0,Math.min(1,prog))*scrubWords.length);
+    scrubWords.forEach(function(w,i){ w.classList.toggle("lit",i<lit) });
+  }
+}
+addEventListener("scroll",function(){ requestAnimationFrame(onScrollFx) },{passive:true});
+onScrollFx();
+if(noMotion&&scrubWords.length) scrubWords.forEach(function(w){w.classList.add("lit")});
+
+/* ---------- page router: each menu item is its own page ---------- */
+var PAGES={home:["home"],studio:["studio"],services:["services"],
+           clients:["proof","clients"],begin:["begin"],academy:["academy"],formed:["formed"]};
+var ALL_IDS=Object.keys(PAGES).reduce(function(a,k){return a.concat(PAGES[k])},[]);
+function pageOf(target){
+  if(target==="top"||target==="")return "home";
+  for(var k in PAGES){ if(k===target||PAGES[k].indexOf(target)>-1) return k; }
+  return null;
+}
+function showPage(pg){
+  if(!PAGES[pg])pg="home";
+  ALL_IDS.forEach(function(id){ var el=document.getElementById(id); if(el)el.style.display="none"; });
+  PAGES[pg].forEach(function(id){ var el=document.getElementById(id); if(el)el.style.display=""; });
+  $$(".nav-links a").forEach(function(a){
+    a.classList.toggle("active",(a.getAttribute("href")||"")==="#"+pg);
+  });
+  try{ history.replaceState(null,"","#"+pg); }catch(e){}
+  window.scrollTo(0,0);
+  requestAnimationFrame(onScrollFx);
+}
+document.addEventListener("click",function(e){
+  var a=e.target.closest('a[href^="#"]');
+  if(!a)return;
+  var pg=pageOf(a.getAttribute("href").slice(1));
+  if(pg){ e.preventDefault(); closeMenu(); showPage(pg); }
+});
+addEventListener("hashchange",function(){ showPage(pageOf((location.hash||"#home").slice(1))||"home"); });
+showPage(pageOf((location.hash||"#home").slice(1))||"home");
+
+/* ---------- count-up stats ---------- */
+function animateCount(el){
+  var target=+el.dataset.count, dur=2000, t0=null;
+  if(noMotion){ el.textContent=target.toLocaleString("en-US"); return; }
+  function tick(t){
+    if(!t0)t0=t;
+    var p=Math.min((t-t0)/dur,1);
+    var e=1-Math.pow(1-p,4);
+    el.textContent=Math.round(target*e).toLocaleString("en-US");
+    if(p<1)requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+var countIO=new IntersectionObserver(function(es){
+  es.forEach(function(e){
+    if(e.isIntersecting){ animateCount(e.target); countIO.unobserve(e.target); }
+  });
+},{threshold:.5});
+$$(".count").forEach(function(el){ countIO.observe(el) });
+
+/* ============================================================
+   INTAKE WIZARD + DIGITAL CONTRACT
+   ============================================================ */
+var intake={company:"",contact:"",email:"",industry:"",size:"",services:[],brief:"",budget:"",timeline:"",start:""};
+var stepNow=1, TOTAL=4;
+var nextBtn=$("#nextBtn"),backBtn=$("#backBtn"),note=$("#wizNote");
+
+function toggleChip(containerId,single){
+  $$("#"+containerId+" .chip").forEach(function(ch){
+    ch.addEventListener("click",function(){
+      if(single){ $$("#"+containerId+" .chip").forEach(function(x){x.classList.remove("on")}); ch.classList.add("on"); }
+      else ch.classList.toggle("on");
+    });
+  });
+}
+toggleChip("serviceChips",false);
+toggleChip("budgetChips",true);
+
+function collect(){
+  intake.company=$("#f-company").value.trim();
+  intake.contact=$("#f-contact").value.trim();
+  intake.email=$("#f-email").value.trim();
+  intake.industry=$("#f-industry").value;
+  intake.size=$("#f-size").value;
+  intake.services=$$("#serviceChips .chip.on").map(function(c){return c.dataset.v});
+  intake.brief=$("#f-brief").value.trim();
+  var b=$("#budgetChips .chip.on"); intake.budget=b?b.dataset.v:"";
+  intake.timeline=$("#f-timeline").value;
+  intake.start=$("#f-start").value;
+}
+function flagErr(el,bad){ el.closest(".field") && el.closest(".field").classList.toggle("err",bad); }
+function validate(step){
+  collect();
+  var ok=true;
+  if(step===1){
+    [["#f-company",!intake.company],["#f-contact",!intake.contact],
+     ["#f-email",!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(intake.email)]].forEach(function(p){
+      flagErr($(p[0]),p[1]); if(p[1])ok=false;
+    });
+  }
+  if(step===2 && intake.services.length===0) ok=false;
+  if(step===3){
+    if(!intake.budget) ok=false;
+    flagErr($("#f-timeline"),!intake.timeline); if(!intake.timeline)ok=false;
+  }
+  return ok;
+}
+function paintProgress(){
+  $$(".progress .node").forEach(function(n){
+    var i=+n.dataset.n;
+    n.classList.toggle("now",i===stepNow);
+    n.classList.toggle("done",i<stepNow);
+  });
+  $$(".progress .bar").forEach(function(b){ b.classList.toggle("done",+b.dataset.b<stepNow) });
+}
+function ref(prefix){ return prefix+"-2026-"+String(Math.floor(1000+Math.random()*9000)) }
+var contractRef=ref("CLA");
+function fillContract(){
+  collect();
+  $("#c-company").textContent=intake.company||"—";
+  $("#c-company2").textContent=intake.company||"—";
+  $("#c-contact").textContent=intake.contact||"—";
+  $("#c-services").textContent=intake.services.join(" · ")||"—";
+  $("#c-budget").textContent=intake.budget?("USD "+intake.budget):"—";
+  $("#c-timeline").textContent=intake.timeline||"—";
+  $("#c-start").textContent=intake.start||"—";
+  $("#c-ref").textContent=contractRef;
+  $("#c-date").textContent=new Date().toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"});
+}
+function goto(step){
+  stepNow=Math.min(Math.max(step,1),TOTAL);
+  $$(".step").forEach(function(s){ s.classList.toggle("on",+s.dataset.step===stepNow) });
+  paintProgress();
+  backBtn.style.visibility=stepNow===1?"hidden":"visible";
+  nextBtn.style.display=stepNow===TOTAL?"none":"";
+  note.classList.remove("show");
+  if(stepNow===TOTAL) fillContract();
+  $("#wizard").scrollIntoView({behavior:"smooth",block:"start"});
+}
+nextBtn.addEventListener("click",function(){
+  if(!validate(stepNow)){
+    note.textContent = stepNow===2 ? "Choose at least one discipline." :
+                       stepNow===3 ? "Choose an investment band and timeline." :
+                       "A few details are missing above.";
+    note.classList.add("show"); return;
+  }
+  goto(stepNow+1);
+});
+backBtn.addEventListener("click",function(){ goto(stepNow-1) });
+
+/* signature */
+var sigInput=$("#f-sig"),sigRender=$("#sigRender");
+sigInput.addEventListener("input",function(){
+  var v=sigInput.value.trim();
+  sigRender.textContent=v||"Type your full legal name below";
+  sigRender.classList.toggle("empty",!v);
+});
+function hashDoc(text){
+  var h1=0x811c9dc5,h2=0x1000193^text.length,i;
+  for(i=0;i<text.length;i++){ h1=((h1^text.charCodeAt(i))*16777619)>>>0; h2=((h2<<5)-h2+text.charCodeAt(i))>>>0; }
+  return (h1.toString(16)+h2.toString(16)).padStart(16,"0").slice(0,16);
+}
+$("#signBtn").addEventListener("click",function(){
+  var name=sigInput.value.trim();
+  var accepted=$("#f-accept").checked;
+  if(!name||!accepted){
+    note.textContent=!name?"Type your full legal name to sign.":"Please confirm you accept the terms.";
+    note.classList.add("show");
+    return;
+  }
+  note.classList.remove("show");
+  var stamp=new Date();
+  var digest=hashDoc($("#docEl").innerText+name+stamp.toISOString());
+  $("#s-name").textContent=name.split(" ")[0];
+  $("#s-meta").textContent=contractRef+" · signed "+stamp.toLocaleString("en-GB",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"})+" · sha "+digest;
+  $("#contractLive").style.display="none";
+  $("#wizFoot").style.display="none";
+  $("#contractSigned").style.display="block";
+  $("#contractSigned").scrollIntoView({behavior:"smooth",block:"center"});
+});
+
+/* ============================================================
+   ACADEMY — data + rendering
+   ============================================================ */
+var roles=[
+  {t:"Senior Brand Designer",d:"Identity",loc:"Cairo · Hybrid",type:"Full-time"},
+  {t:"Brand Strategist",d:"Strategy",loc:"Cairo · Hybrid",type:"Full-time"},
+  {t:"Motion Designer",d:"Motion",loc:"Remote-first",type:"Full-time"},
+  {t:"Account &amp; Production Lead",d:"Experience",loc:"Cairo",type:"Full-time"}
+];
+var programsData=[
+  {t:"The Shaping Program",dur:"12-week internship",cohort:"Autumn cohort — 05 Oct 2026",seats:"8 seats · paid",
+   desc:"A full rotation through the studio's five movements, on live client work, with a dedicated mentor.",
+   steps:["Listen — research & discovery","Discover — strategy rooms","Shape — identity sprints","Build — systems & delivery","Evolve — your own brief, critiqued"]},
+  {t:"Summer Residency",dur:"6-week residency",cohort:"Summer cohort — 06 Jul 2026",seats:"4 seats · stipend",
+   desc:"For practitioners one project away from great. Bring a real brief; leave with it shaped, built, and reviewed.",
+   steps:["Week 1 — the honest audit","Weeks 2–4 — shaping under critique","Weeks 5–6 — build & present"]}
+];
+var coursesData=[
+  {t:"Brand Identity Foundations",lvl:"Foundation",dur:"6 weeks",price:"EGP 9,500",
+   desc:"From raw material to meaningful form: research, concept, mark, system.",
+   sessions:[{d:"Mon &amp; Wed evenings — starts 07 Sep 2026",seats:6},{d:"Sat mornings — starts 03 Oct 2026",seats:2}]},
+  {t:"Typography &amp; Grid Systems",lvl:"Intermediate",dur:"4 weeks",price:"EGP 7,000",
+   desc:"The Swiss discipline behind quiet luxury: scale, rhythm, restraint.",
+   sessions:[{d:"Tue &amp; Thu evenings — starts 15 Sep 2026",seats:5},{d:"Sat mornings — starts 10 Oct 2026",seats:0}]},
+  {t:"Strategy for Designers",lvl:"Intermediate",dur:"4 weeks",price:"EGP 7,500",
+   desc:"Listen before shaping. Positioning, messaging architecture, and the brief behind the brief.",
+   sessions:[{d:"Mon evenings — starts 21 Sep 2026",seats:9}]},
+  {t:"Motion Principles",lvl:"Foundation",dur:"5 weeks",price:"EGP 8,000",
+   desc:"Ease, weight, and intention — movement that serves the idea, never the trend.",
+   sessions:[{d:"Wed evenings — starts 30 Sep 2026",seats:7}]}
+];
+
+/* panel switching */
+$$(".rail-nav button").forEach(function(b){
+  b.addEventListener("click",function(){
+    $$(".rail-nav button").forEach(function(x){x.classList.remove("active")});
+    b.classList.add("active");
+    $$(".panel").forEach(function(p){ p.classList.toggle("on",p.dataset.panel===b.dataset.p) });
+  });
+});
+
+function applyFormHTML(id,cta){
+  return '<div class="drawer-inner"><div class="fgrid">'+
+    '<div class="field"><label>Full name</label><input data-req placeholder="Full name"></div>'+
+    '<div class="field"><label>Email</label><input data-req data-mail type="email" placeholder="you@email.com"></div>'+
+    '<div class="field"><label>Portfolio / LinkedIn</label><input placeholder="https://"></div>'+
+    '<div class="field"><label>CV</label><input type="file" style="font-size:14px;padding-top:14px"></div>'+
+    '<div class="field full"><label>One honest note</label><textarea placeholder="Why this, why now, why you — three sentences are plenty."></textarea></div>'+
+    '</div><div style="display:flex;align-items:center;gap:18px;margin-top:28px;flex-wrap:wrap">'+
+    '<button class="btn" data-apply="'+id+'" type="button">'+cta+'</button>'+
+    '<span class="wiz-note num" data-note style="min-height:auto">Name and a valid email, please.</span></div></div>';
+}
+function receivedHTML(msg){
+  return '<div class="received"><div class="checkmark"><svg viewBox="0 0 24 24"><path d="M4 12.5l5.5 5.5L20 6.5"/></svg></div>'+
+  '<div><div class="t">Received.</div><div class="s">'+msg+'</div></div></div>';
+}
+function wireApply(scope){
+  $$("[data-apply]",scope).forEach(function(btn){
+    btn.addEventListener("click",function(){
+      var inner=btn.closest(".drawer-inner");
+      var ok=true;
+      $$("[data-req]",inner).forEach(function(inp){
+        var bad=!inp.value.trim()||(inp.hasAttribute("data-mail")&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inp.value));
+        inp.closest(".field").classList.toggle("err",bad); if(bad)ok=false;
+      });
+      var n=$("[data-note]",inner);
+      if(!ok){ n.classList.add("show"); return; }
+      n.classList.remove("show");
+      var host=btn.closest(".drawer")||btn.closest(".appform-host");
+      host.innerHTML=receivedHTML("We read everything. You'll hear from a person within five working days.");
+      if(host.classList.contains("drawer")) host.classList.add("open"),host.style.maxHeight="200px";
+    });
+  });
+}
+
+/* careers */
+var rolelist=$("#rolelist");
+rolelist.innerHTML=roles.map(function(r,i){
+  return '<div class="role"><div class="role-row" role="button" tabindex="0" aria-expanded="false" data-role="'+i+'">'+
+    '<span class="rt">'+r.t+'</span><span class="rm">'+r.d+' · '+r.loc+'</span><span class="rm">'+r.type+'</span>'+
+    '<span class="go">Apply ↓</span></div>'+
+    '<div class="drawer" data-drawer="'+i+'">'+applyFormHTML("role-"+i,"Submit application")+'</div></div>';
+}).join("");
+$$(".role-row").forEach(function(row){
+  function tog(){
+    var d=$('[data-drawer="'+row.dataset.role+'"]');
+    var open=d.classList.toggle("open");
+    row.setAttribute("aria-expanded",open?"true":"false");
+    $(".go",row).textContent=open?"Close ↑":"Apply ↓";
+  }
+  row.addEventListener("click",tog);
+  row.addEventListener("keydown",function(e){ if(e.key==="Enter"||e.key===" "){e.preventDefault();tog();} });
+});
+wireApply(rolelist);
+
+/* training */
+var programs=$("#programs");
+programs.innerHTML=programsData.map(function(p,i){
+  return '<div class="program"><div class="dur">'+p.dur+'</div><h4>'+p.t+'</h4><p class="pdesc">'+p.desc+'</p>'+
+    '<ol>'+p.steps.map(function(s,j){return '<li><span class="n num">0'+(j+1)+'</span><span>'+s+'</span></li>'}).join("")+'</ol>'+
+    '<div class="cohort"><span class="cd">'+p.cohort+'</span><span class="cs">'+p.seats+'</span></div>'+
+    '<div class="appform-host"><button class="btn ghost" data-open-training="'+i+'" type="button">Apply to the program</button>'+
+    '<div class="drawer" data-tdrawer="'+i+'">'+applyFormHTML("tr-"+i,"Submit application")+'</div></div></div>';
+}).join("");
+$$("[data-open-training]").forEach(function(b){
+  b.addEventListener("click",function(){
+    var d=$('[data-tdrawer="'+b.dataset.openTraining+'"]');
+    var open=d.classList.toggle("open");
+    b.textContent=open?"Close":"Apply to the program";
+  });
+});
+wireApply(programs);
+
+/* courses */
+var courses=$("#courses");
+courses.innerHTML=coursesData.map(function(c,i){
+  return '<div class="course"><div class="cmeta"><span>'+c.lvl+' · '+c.dur+'</span><span class="num">'+(c.sessions.reduce(function(a,s){return a+s.seats},0))+' seats open</span></div>'+
+    '<h4>'+c.t+'</h4><p class="cdesc">'+c.desc+'</p>'+
+    '<div class="cfoot"><span class="price num">'+c.price+' <small>/ person</small></span>'+
+    '<button class="btn ghost" data-course="'+i+'" type="button" style="padding:12px 22px">View sessions</button></div>'+
+    '<div class="sessions" data-sess="'+i+'">'+
+      c.sessions.map(function(s,j){
+        var out=s.seats===0;
+        return '<div class="session-row'+(out?" soldout":"")+'"><div><div class="sd">'+s.d+'</div>'+
+        '<div class="seats num">'+(out?"Sold out":s.seats+" seats remaining")+'</div></div>'+
+        (out?"":'<button class="pick" data-book="'+i+'-'+j+'" type="button">Book seat</button>')+'</div>';
+      }).join("")+
+      '<div class="bookform" data-bform="'+i+'"><p class="label" style="margin:18px 0 20px">Reserve — <span data-chosen></span></p>'+
+      '<div class="fgrid">'+
+      '<div class="field"><label>Full name</label><input data-req placeholder="Full name"></div>'+
+      '<div class="field"><label>Email</label><input data-req data-mail type="email" placeholder="you@email.com"></div>'+
+      '</div><div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap">'+
+      '<button class="btn" data-confirm="'+i+'" type="button">Confirm booking</button>'+
+      '<span class="wiz-note num" data-note style="min-height:auto">Name and a valid email, please.</span></div></div>'+
+      '<div class="booked" data-booked="'+i+'"><div class="checkmark" style="width:40px;height:40px;margin:0"><svg viewBox="0 0 24 24" style="width:15px;height:15px"><path d="M4 12.5l5.5 5.5L20 6.5"/></svg></div>'+
+      '<div><div style="font-weight:500">Seat reserved.</div><div class="s muted num" data-bref style="font-size:14px"></div></div></div>'+
+    '</div></div>';
+}).join("");
+$$("[data-course]").forEach(function(b){
+  b.addEventListener("click",function(){
+    var s=$('[data-sess="'+b.dataset.course+'"]');
+    var open=s.classList.toggle("open");
+    b.textContent=open?"Hide sessions":"View sessions";
+  });
+});
+$$("[data-book]").forEach(function(b){
+  b.addEventListener("click",function(){
+    var pair=b.dataset.book.split("-"),ci=+pair[0],si=+pair[1];
+    var f=$('[data-bform="'+ci+'"]');
+    f.classList.add("open");
+    $("[data-chosen]",f).innerHTML=coursesData[ci].sessions[si].d;
+    f.scrollIntoView({behavior:"smooth",block:"nearest"});
+  });
+});
+$$("[data-confirm]").forEach(function(b){
+  b.addEventListener("click",function(){
+    var f=b.closest(".bookform"),ok=true;
+    $$("[data-req]",f).forEach(function(inp){
+      var bad=!inp.value.trim()||(inp.hasAttribute("data-mail")&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inp.value));
+      inp.closest(".field").classList.toggle("err",bad); if(bad)ok=false;
+    });
+    var n=$("[data-note]",f);
+    if(!ok){ n.classList.add("show"); return; }
+    var ci=b.dataset.confirm;
+    f.classList.remove("open");
+    var done=$('[data-booked="'+ci+'"]');
+    $("[data-bref]",done).textContent=ref("ACD")+" · confirmation &amp; payment link sent by email".replace("&amp;","&");
+    done.classList.add("open");
+  });
+});
+
+})();
+</script>
+
+</body>
+</html>
