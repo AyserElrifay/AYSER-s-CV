@@ -147,9 +147,12 @@ function injectMapStyle() {
       max-width: 108px; overflow: hidden; text-overflow: ellipsis;
     }
     /* Snap-Map energy: light, summery, colourful. Bright airy landcover
-       with lively blues & greens — playful and easy on the eyes, never
-       heavy or harsh. */
-    .mm-tiles { filter: saturate(1.5) contrast(0.98) brightness(1.12); }
+       with lively blues & greens — playful and easy on the eyes. A
+       touch lighter than before in the default (light) theme. */
+    .mm-tiles { filter: saturate(1.46) contrast(0.96) brightness(1.17); }
+    /* DARK MODE — a Snap-style dark planet; the dark tiles need almost
+       no filtering, just a hair of life. */
+    .mm-dark .mm-tiles { filter: saturate(1.15) contrast(1.02) brightness(0.95); }
     /* clean, chic ancient-atlas names — small editorial caps, widely
        tracked and softly muted, so the map reads calm and elegant, not
        crowded; a tiny civilization symbol sits delicately above each */
@@ -174,6 +177,40 @@ function injectMapStyle() {
        • closer in        → every region name appears */
     .mm-z-globe .mm-region { display: none; }
     .mm-z-far .mm-region-minor { display: none; }
+
+    /* ── CARTOON GLOBE (zoomed all the way out) ──
+       The flat world is masked into a floating round planet: a circular
+       window with a soft sky filling everything outside it, spherical
+       shading inside for the 3-D bulge, a chunky cartoon outline and a
+       drop shadow so it hovers. Pointer-events off → the map underneath
+       stays fully pannable/zoomable. */
+    .mm-globe-frame {
+      display: none; position: absolute; left: 50%; top: 48%;
+      width: min(92vw, 74vh); height: min(92vw, 74vh);
+      transform: translate(-50%, -50%); border-radius: 50%;
+      pointer-events: none; z-index: 450;
+      box-shadow:
+        0 0 0 9999px #e9f4ff,
+        inset -16px -20px 44px rgba(6,30,66,0.42),
+        inset 20px 16px 40px rgba(255,255,255,0.38),
+        0 16px 44px rgba(6,30,66,0.30);
+      border: 3px solid #16233d;
+    }
+    .mm-z-globe .mm-globe-frame { display: block; }
+    /* extra cartoon pop on the tiles while in globe mode */
+    .mm-z-globe .mm-tiles { filter: saturate(1.72) contrast(1.03) brightness(1.14); }
+    .mm-dark.mm-z-globe .mm-tiles { filter: saturate(1.2) contrast(1.04) brightness(0.98); }
+    /* dark-mode globe: a planet floating in deep space, not on white */
+    .mm-dark .mm-globe-frame {
+      box-shadow:
+        0 0 0 9999px #080c17,
+        inset -16px -20px 50px rgba(0,0,0,0.62),
+        inset 20px 16px 42px rgba(120,150,205,0.16),
+        0 16px 46px rgba(0,0,0,0.6);
+      border-color: #2a3550;
+    }
+    /* region names flip to light ink on the dark planet */
+    .mm-dark .mm-region { color: rgba(226,232,240,0.74); text-shadow: 0 1px 3px rgba(0,0,0,0.9); }
     /* the Snap "activity heatmap" glow that blooms under a live person */
     @keyframes mmHeat { 0%,100% { opacity: 0.55; } 50% { opacity: 0.8; } }
     .mm-heat {
@@ -279,18 +316,35 @@ export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus
         zoomControl: false, attributionControl: false,
         minZoom: 2, worldCopyJump: true, zoomSnap: 0.25,
       }).setView([24, 14], 2.5); // Earth view — Egypt/Europe in frame
-      // CARTO "Voyager · no labels" — colourful, cartoonish landcover
-      // with the modern administrative names stripped, so NO country's
-      // present-day name appears. Every land is named instead by OUR
-      // Ancient Atlas layer (REGIONS) — the same treatment for all,
-      // each with a symbol for its civilization. Modern labels option:
-      // swap 'voyager_nolabels' for 'voyager'.
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png', {
+      // CARTO no-labels basemap — colourful cartoonish landcover with
+      // modern country names stripped (lands are named by OUR Ancient
+      // Atlas layer instead). Theme-aware: the light "Voyager" tiles in
+      // normal mode, and the dark tiles when the device is in dark mode,
+      // so the planet goes Snap-dark to match the rest of the phone.
+      const LIGHT_TILES = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png';
+      const DARK_TILES = 'https://{s}.basemaps.cartocdn.com/rastertiles/dark_nolabels/{z}/{x}/{y}{r}.png';
+      const mq = (typeof window !== 'undefined' && window.matchMedia) ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+      const isDark = () => !!(mq && mq.matches);
+      const tiles = L.tileLayer(isDark() ? DARK_TILES : LIGHT_TILES, {
         maxZoom: 20, subdomains: 'abcd', className: 'mm-tiles',
         updateWhenIdle: true, keepBuffer: 4, // smoother panning, less churn
       }).addTo(map);
       mapRef.current = map;
       layerRef.current = L.layerGroup().addTo(map);
+      // follow the OS light/dark switch live: swap tiles + flag the
+      // container so the globe frame and names restyle for the theme
+      const applyTheme = () => {
+        if (cancelled || !mapRef.current) return;
+        map.getContainer().classList.toggle('mm-dark', isDark());
+        tiles.setUrl(isDark() ? DARK_TILES : LIGHT_TILES);
+      };
+      applyTheme();
+      if (mq) { try { mq.addEventListener('change', applyTheme); } catch (e) { mq.addListener && mq.addListener(applyTheme); } }
+      // the cartoon-globe frame — a pure-CSS overlay shown only at the
+      // far zoom; masks the flat map into a floating round planet
+      const globe = document.createElement('div');
+      globe.className = 'mm-globe-frame';
+      map.getContainer().appendChild(globe);
       // zoom-aware tidiness (Snap-clean): at the world/continent view
       // NO destination cards show at all — just the calm map, region
       // names and live people. Zoom into a country (z 6–7) and they
