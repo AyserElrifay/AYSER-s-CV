@@ -213,7 +213,7 @@ export const MapScreen = () => {
     // REAL places from OpenStreetMap, pinned at their true coordinates
     realPlaces.forEach((pl) => out.push({ id: pl.id, srcId: pl.id, kind: 'place', lat: pl.lat, lng: pl.lng, emoji: pl.emoji, label: pl.name }));
     // curated adventure destinations — real spots across the planet
-    DESTINATIONS.forEach((d) => out.push({ id: 'dest_' + d.id, srcId: d.id, kind: 'dest', lat: d.lat, lng: d.lng, emoji: d.emoji, flag: d.flag, label: d.name }));
+    DESTINATIONS.forEach((d) => out.push({ id: 'dest_' + d.id, srcId: d.id, kind: 'dest', lat: d.lat, lng: d.lng, emoji: d.emoji, flag: d.flag, label: d.name, hero: !!d.hero }));
     return out;
   }, [people, campfires, realVenues, realPlaces]);
 

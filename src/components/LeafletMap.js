@@ -226,10 +226,17 @@ function injectMapStyle() {
        you're zoomed far out and appear as you zoom into a region; at
        the mid zoom they drop their name pill and shrink a touch so a
        busy area never becomes a wall of overlapping cards. */
-    .mm-dest { transform-origin: center bottom; transition: transform 0.2s ease, opacity 0.2s ease; }
-    .mm-z-far .mm-dest { display: none; }
-    .mm-z-mid .mm-dest { transform: scale(0.62); }
-    .mm-z-mid .mm-dest .mm-pill { display: none; }
+    /* Only each COUNTRY'S most important place (its "hero") shows while
+       you're zoomed out — small and label-free — so the world stays
+       calm. Every other place stays hidden until you zoom hard into a
+       city, where all of them appear in full with their names. */
+    .mm-dest { transform-origin: center bottom; transition: transform 0.2s ease; }
+    .mm-dest:not(.mm-dest-hero) { display: none; }        /* minors: hidden until city zoom */
+    .mm-dest-hero { transform: scale(0.68); }             /* hero: small */
+    .mm-dest-hero .mm-pill { display: none; }             /* hero: no label yet */
+    .mm-z-globe .mm-dest { display: none !important; }    /* whole-planet view: nothing */
+    .mm-z-city .mm-dest { display: flex !important; transform: none; } /* zoomed in: show all, full */
+    .mm-z-city .mm-dest .mm-pill { display: block; }
   `;
   document.head.appendChild(st);
 }
@@ -265,7 +272,7 @@ const pinHtml = (m) => {
   // what made the map slow. Motion is saved for people, who are few.
   if (m.kind === 'dest') {
     return (
-      '<div class="mm-dest" style="position:relative;width:88px;height:54px;display:flex;flex-direction:column;align-items:center">' +
+      '<div class="mm-dest' + (m.hero ? ' mm-dest-hero' : '') + '" style="position:relative;width:88px;height:54px;display:flex;flex-direction:column;align-items:center">' +
       '<div style="position:relative;width:30px;height:30px;border-radius:50%;background:#fff;box-shadow:0 0 0 1.5px rgba(245,179,1,0.9),0 2px 5px rgba(0,0,0,0.15);display:flex;align-items:center;justify-content:center;font-size:15px">' +
       (m.emoji || '📍') +
       (flag ? '<div style="position:absolute;bottom:-3px;right:-4px;font-size:11px;line-height:11px;filter:drop-shadow(0 1px 1px rgba(0,0,0,0.3))">' + flag + '</div>' : '') +
@@ -353,10 +360,10 @@ export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus
       const applyZoomClasses = () => {
         const el = map.getContainer();
         const z = map.getZoom();
-        el.classList.toggle('mm-z-globe', z < 4);        // whole planet → names off
-        el.classList.toggle('mm-hide-regions', z >= 9);  // street level → names off
-        el.classList.toggle('mm-z-far', z < 6);          // world → majors only, no cards
-        el.classList.toggle('mm-z-mid', z >= 6 && z < 8); // region → cards as dots
+        el.classList.toggle('mm-z-globe', z < 4);        // whole planet → no names, no places
+        el.classList.toggle('mm-hide-regions', z >= 9);  // street level → region names off
+        el.classList.toggle('mm-z-far', z < 6);          // world → only major region names
+        el.classList.toggle('mm-z-city', z >= 8);        // zoomed hard → every place, in full
       };
       map.on('zoomend', applyZoomClasses);
       applyZoomClasses();
