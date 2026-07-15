@@ -140,12 +140,11 @@ function injectMapStyle() {
     @keyframes mmPulse { 0% { transform: scale(0.9); opacity: 0.55; } 70% { transform: scale(1.7); opacity: 0; } 100% { opacity: 0; } }
     .mm-float { animation: mmFloat 3.2s ease-in-out infinite; }
     .mm-pill {
-      background: #fff; border-radius: 11px; padding: 2.5px 8px; font-size: 10.5px;
-      font-weight: 800; color: #111827; white-space: nowrap; text-align: center;
-      border: 1.5px solid rgba(124,58,237,0.28);
-      box-shadow: 0 3px 10px rgba(124,58,237,0.22), 0 2px 5px rgba(0,0,0,0.14);
+      background: rgba(255,255,255,0.97); border-radius: 8px; padding: 1.5px 6.5px; font-size: 9.5px;
+      font-weight: 700; color: #1f2937; white-space: nowrap; text-align: center;
+      box-shadow: 0 1.5px 5px rgba(0,0,0,0.13);
       font-family: -apple-system, system-ui, sans-serif;
-      max-width: 116px; overflow: hidden; text-overflow: ellipsis;
+      max-width: 108px; overflow: hidden; text-overflow: ellipsis;
     }
     /* Snap-Map energy: light, summery, colourful. Bright airy landcover
        with lively blues & greens — playful and easy on the eyes, never
@@ -166,8 +165,8 @@ function injectMapStyle() {
       text-transform: none; letter-spacing: 0; font-size: 11px;
     }
     .mm-region-sym {
-      font-size: 10.5px; line-height: 11px; margin-bottom: 2px; opacity: 0.7;
-      filter: saturate(0.9) drop-shadow(0 1px 1px rgba(255,255,255,0.9));
+      font-size: 9.5px; line-height: 10px; margin-bottom: 2px; opacity: 0.6;
+      filter: saturate(0.85) drop-shadow(0 1px 1px rgba(255,255,255,0.9));
     }
     /* declutter: at the far world view only the major regions show */
     .mm-z-far .mm-region-minor { display: none; }
@@ -225,25 +224,25 @@ const pinHtml = (m) => {
   // what made the map slow. Motion is saved for people, who are few.
   if (m.kind === 'dest') {
     return (
-      '<div class="mm-dest" style="position:relative;width:96px;height:62px;display:flex;flex-direction:column;align-items:center">' +
-      '<div style="position:relative;width:38px;height:38px;border-radius:13px;background:#fff;border:2.5px solid #F5B301;display:flex;align-items:center;justify-content:center;font-size:19px;box-shadow:0 2px 6px rgba(0,0,0,0.22)">' +
+      '<div class="mm-dest" style="position:relative;width:88px;height:54px;display:flex;flex-direction:column;align-items:center">' +
+      '<div style="position:relative;width:30px;height:30px;border-radius:50%;background:#fff;box-shadow:0 0 0 1.5px rgba(245,179,1,0.9),0 2px 5px rgba(0,0,0,0.15);display:flex;align-items:center;justify-content:center;font-size:15px">' +
       (m.emoji || '📍') +
-      (flag ? '<div style="position:absolute;bottom:-5px;right:-7px;background:#fff;border-radius:8px;font-size:10px;line-height:14px;padding:0 2px;box-shadow:0 1px 3px rgba(0,0,0,0.3)">' + flag + '</div>' : '') +
+      (flag ? '<div style="position:absolute;bottom:-3px;right:-4px;font-size:11px;line-height:11px;filter:drop-shadow(0 1px 1px rgba(0,0,0,0.3))">' + flag + '</div>' : '') +
       '</div>' +
       '<div class="mm-pill" style="margin-top:4px">' + (m.label || '') + '</div>' +
       '</div>'
     );
   }
 
-  // Real going-out places (cafés, restaurants, bars…): a small, tidy
-  // teardrop dot — compact so a busy street doesn't turn into a wall
-  // of boxes — with the place's own emoji so it still reads at a glance.
+  // Real going-out places (cafés, restaurants, bars…): a tiny, clean
+  // round dot with a whisper-thin amber ring — small enough that a busy
+  // street stays tidy, with the place's own emoji still readable.
   if (m.kind === 'place') {
     return (
-      '<div style="position:relative;width:26px;height:26px;border-radius:50% 50% 50% 2px;transform:rotate(45deg);' +
-      'background:#fff;border:2px solid #F59E0B;box-shadow:0 2px 5px rgba(0,0,0,0.22);display:flex;align-items:center;justify-content:center">' +
-      '<span style="transform:rotate(-45deg);font-size:13px">' + (m.emoji || '📍') + '</span>' +
-      '</div>'
+      '<div style="width:20px;height:20px;border-radius:50%;background:#fff;' +
+      'box-shadow:0 0 0 1.3px rgba(245,158,11,0.85),0 1px 3px rgba(0,0,0,0.18);' +
+      'display:flex;align-items:center;justify-content:center;font-size:11px">' +
+      (m.emoji || '📍') + '</div>'
     );
   }
 
@@ -355,8 +354,8 @@ export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus
       const isPlace = m.kind === 'place';
       const icon = L.divIcon({
         html: pinHtml(m), className: '',
-        iconSize: isPerson ? [52, 66] : isDest ? [96, 62] : isPlace ? [26, 26] : [34, 34],
-        iconAnchor: isPerson ? [26, 33] : isDest ? [48, 31] : isPlace ? [13, 24] : [17, 34],
+        iconSize: isPerson ? [52, 66] : isDest ? [88, 54] : isPlace ? [20, 20] : [34, 34],
+        iconAnchor: isPerson ? [26, 33] : isDest ? [44, 27] : isPlace ? [10, 10] : [17, 34],
       });
       const mk = L.marker([m.lat, m.lng], { icon, zIndexOffset: isPerson ? 500 : isDest ? 300 : 0 }).addTo(layerRef.current);
       if (m.label && !isPerson && !isDest) mk.bindTooltip(m.label, { direction: 'top', offset: [0, -34] });
