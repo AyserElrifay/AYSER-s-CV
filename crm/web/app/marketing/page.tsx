@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { StatTile } from "@/components/stat-tile";
+import { MarketPulse } from "@/components/market-pulse";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -122,6 +123,11 @@ export default function MarketingDashboard() {
             </div>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Live, real-market data — self-updating */}
+      <div className="mt-6">
+        <MarketPulse />
       </div>
     </AppShell>
   );
