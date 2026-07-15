@@ -116,8 +116,13 @@ export const LeafletMap = ({ center, markers = [], onPress, locate = true }) => 
         zoomControl: false, attributionControl: false,
         minZoom: 2, worldCopyJump: true, zoomSnap: 0.25,
       }).setView([24, 14], 2.5); // Earth view — Egypt/Europe in frame
-      // CARTO "Voyager" — clean, colourful, cartoonish-but-real (free, no key).
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      // CARTO "Voyager · no labels" — the same colourful, cartoonish
+      // landcover with the entire text layer removed: NO administrative
+      // names appear for ANY country, worldwide, so the basemap stays
+      // purely visual and viewpoint-neutral. Names on this map come
+      // from OUR pins (people, real places, destinations) instead.
+      // Revert to labels: swap 'voyager_nolabels' back to 'voyager'.
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png', {
         maxZoom: 20, subdomains: 'abcd', className: 'mm-tiles',
       }).addTo(map);
       mapRef.current = map;
