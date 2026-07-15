@@ -168,7 +168,11 @@ function injectMapStyle() {
       font-size: 9.5px; line-height: 10px; margin-bottom: 2px; opacity: 0.6;
       filter: saturate(0.85) drop-shadow(0 1px 1px rgba(255,255,255,0.9));
     }
-    /* declutter: at the far world view only the major regions show */
+    /* declutter, tiered for a clean minimal feel:
+       • whole-globe view → NO names at all, just people & the map
+       • far world view   → only the major regions, no clutter
+       • closer in        → every region name appears */
+    .mm-z-globe .mm-region { display: none; }
     .mm-z-far .mm-region-minor { display: none; }
     /* the Snap "activity heatmap" glow that blooms under a live person */
     @keyframes mmHeat { 0%,100% { opacity: 0.55; } 50% { opacity: 0.8; } }
@@ -295,9 +299,10 @@ export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus
       const applyZoomClasses = () => {
         const el = map.getContainer();
         const z = map.getZoom();
-        el.classList.toggle('mm-hide-regions', z >= 9);
-        el.classList.toggle('mm-z-far', z < 6);
-        el.classList.toggle('mm-z-mid', z >= 6 && z < 8);
+        el.classList.toggle('mm-z-globe', z < 4);        // whole planet → names off
+        el.classList.toggle('mm-hide-regions', z >= 9);  // street level → names off
+        el.classList.toggle('mm-z-far', z < 6);          // world → majors only, no cards
+        el.classList.toggle('mm-z-mid', z >= 6 && z < 8); // region → cards as dots
       };
       map.on('zoomend', applyZoomClasses);
       applyZoomClasses();
