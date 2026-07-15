@@ -26,22 +26,96 @@ function loadLeaflet() {
   return leafletPromise;
 }
 
-/* Decorative cultural-region names — our own gentle text layer on the
-   otherwise label-free basemap. Shared geographic & cultural
-   identities only (deserts, seas, mountain ranges, the Holy Land) —
-   the kind of names people don't fight over. Purely decorative,
-   non-interactive, hidden once you zoom into street level. */
+/* The ANCIENT ATLAS — our own decorative text layer on the label-free
+   basemap. Instead of modern administrative names, every land on the
+   planet is called by its very ancient name — Kemet, Gaul, Hispania,
+   Persia, Nippon, Tawantinsuyu — applied to EVERYONE equally, so no
+   country is singled out for special treatment either way. The shared
+   geographic names (Sahara, Alps, the seas) and the three-faith
+   'الأرض المقدسة · Holy Land' live in the same layer. Purely
+   decorative, non-interactive, hidden once you zoom into street level. */
 const REGIONS = [
+  // ── MENA — the ancient heart (bilingual) ──
   { name: 'الأرض المقدسة · Holy Land', lat: 31.55, lng: 35.05 },
-  { name: 'Sinai', lat: 29.3, lng: 33.9 },
+  { name: 'كيمِت · Kemet', lat: 27.8, lng: 28.8 },
+  { name: 'النوبة · Nubia', lat: 21.0, lng: 31.0 },
+  { name: 'كوش · Kush', lat: 14.5, lng: 32.5 },
+  { name: 'Sinai · سيناء', lat: 29.3, lng: 33.9 },
   { name: 'Sahara', lat: 24.5, lng: 8.0 },
-  { name: 'The Nile', lat: 26.4, lng: 32.2 },
+  { name: 'The Nile · النيل', lat: 26.4, lng: 32.2 },
   { name: 'Red Sea', lat: 20.5, lng: 38.3 },
   { name: 'Mediterranean', lat: 35.2, lng: 17.5 },
+  { name: 'بلاد الشام · The Levant', lat: 34.8, lng: 38.2 },
+  { name: 'فينيقيا · Phoenicia', lat: 34.1, lng: 35.7 },
+  { name: 'بلاد الرافدين · Mesopotamia', lat: 33.2, lng: 43.5 },
+  { name: 'بلاد فارس · Persia', lat: 32.5, lng: 54.0 },
+  { name: 'الحجاز · Hejaz', lat: 24.0, lng: 39.5 },
+  { name: 'نجد · Najd', lat: 25.2, lng: 44.5 },
+  { name: 'سبأ · Sheba', lat: 15.5, lng: 47.5 },
+  { name: 'مجان · Magan', lat: 21.0, lng: 57.0 },
+  { name: 'دلمون · Dilmun', lat: 25.9, lng: 50.2 },
+  { name: 'الخليج · The Gulf', lat: 26.6, lng: 51.9 },
+  { name: 'The Empty Quarter · الربع الخالي', lat: 20.0, lng: 51.0 },
+  { name: 'ليبو · Libu', lat: 27.0, lng: 17.5 },
+  { name: 'قرطاج · Carthage', lat: 34.4, lng: 9.5 },
+  { name: 'نوميديا · Numidia', lat: 34.6, lng: 4.5 },
+  { name: 'موريطنية · Mauretania', lat: 32.6, lng: -7.5 },
+  { name: 'Atlas Mountains', lat: 30.6, lng: -5.5 },
+  // ── ancient Europe ──
+  { name: 'Hellas', lat: 39.2, lng: 22.0 },
+  { name: 'Italia', lat: 42.8, lng: 12.5 },
+  { name: 'Gaul · Gallia', lat: 47.0, lng: 2.5 },
+  { name: 'Hispania', lat: 40.0, lng: -4.0 },
+  { name: 'Lusitania', lat: 39.5, lng: -8.1 },
+  { name: 'Britannia', lat: 52.8, lng: -1.8 },
+  { name: 'Caledonia', lat: 56.8, lng: -4.2 },
+  { name: 'Hibernia', lat: 53.2, lng: -8.2 },
+  { name: 'Germania', lat: 51.0, lng: 10.0 },
+  { name: 'Bohemia', lat: 49.8, lng: 15.0 },
+  { name: 'Pannonia', lat: 47.2, lng: 19.2 },
+  { name: 'Dacia', lat: 45.2, lng: 24.8 },
+  { name: 'Carpathians', lat: 47.6, lng: 24.6 },
+  { name: 'Thrace', lat: 42.2, lng: 25.3 },
+  { name: 'The Balkans', lat: 43.5, lng: 20.6 },
+  { name: 'Sarmatia', lat: 51.5, lng: 23.0 },
+  { name: 'Rus', lat: 56.0, lng: 38.0 },
+  { name: 'Scandinavia', lat: 63.0, lng: 15.0 },
   { name: 'The Alps', lat: 46.4, lng: 9.8 },
-  { name: 'Carpathians', lat: 46.0, lng: 24.5 },
-  { name: 'Atlas Mountains', lat: 31.2, lng: -6.0 },
-  { name: 'The Empty Quarter', lat: 20.0, lng: 51.0 },
+  // ── ancient Asia ──
+  { name: 'Anatolia', lat: 39.0, lng: 33.5 },
+  { name: 'The Caucasus', lat: 42.5, lng: 44.0 },
+  { name: 'Sogdiana', lat: 40.5, lng: 65.5 },
+  { name: 'Bactria', lat: 34.8, lng: 66.5 },
+  { name: 'The Steppe · Scythia', lat: 48.5, lng: 66.0 },
+  { name: 'Siberia', lat: 62.0, lng: 95.0 },
+  { name: 'Bharat', lat: 22.5, lng: 79.0 },
+  { name: 'The Himalayas', lat: 28.5, lng: 84.0 },
+  { name: 'Cathay', lat: 34.5, lng: 105.0 },
+  { name: 'Nippon', lat: 36.8, lng: 138.5 },
+  { name: 'Joseon', lat: 36.5, lng: 127.8 },
+  { name: 'Siam', lat: 15.5, lng: 101.0 },
+  { name: 'Nusantara', lat: -1.5, lng: 113.0 },
+  // ── ancient Africa ──
+  { name: 'بونت · Punt', lat: 8.5, lng: 47.5 },
+  { name: 'الحبشة · Abyssinia', lat: 9.0, lng: 39.5 },
+  { name: 'Azania', lat: -6.5, lng: 38.5 },
+  { name: 'The Serengeti', lat: -2.5, lng: 34.8 },
+  { name: 'Mali Empire', lat: 14.8, lng: -5.0 },
+  { name: 'Songhai', lat: 16.5, lng: 1.5 },
+  { name: 'Kongo', lat: -5.5, lng: 16.5 },
+  { name: 'Congo Basin', lat: -0.8, lng: 23.0 },
+  { name: 'Great Zimbabwe', lat: -19.5, lng: 30.0 },
+  // ── the Americas & Oceania, by their oldest names ──
+  { name: 'Turtle Island', lat: 42.0, lng: -98.0 },
+  { name: 'The Rockies', lat: 46.5, lng: -113.0 },
+  { name: 'Anáhuac', lat: 22.5, lng: -101.5 },
+  { name: 'The Caribbean', lat: 15.5, lng: -72.0 },
+  { name: 'Tawantinsuyu', lat: -12.5, lng: -74.0 },
+  { name: 'The Amazon', lat: -4.0, lng: -62.0 },
+  { name: 'The Andes', lat: -22.0, lng: -67.5 },
+  { name: 'Patagonia', lat: -44.0, lng: -70.0 },
+  { name: 'The Outback', lat: -24.0, lng: 134.0 },
+  { name: 'Aotearoa', lat: -43.2, lng: 171.5 },
 ];
 
 /* The Moments map identity — gentle float, purple glow, white pills. */
@@ -54,20 +128,22 @@ function injectMapStyle() {
     @keyframes mmPulse { 0% { transform: scale(0.9); opacity: 0.55; } 70% { transform: scale(1.7); opacity: 0; } 100% { opacity: 0; } }
     .mm-float { animation: mmFloat 3.2s ease-in-out infinite; }
     .mm-pill {
-      background: #fff; border-radius: 10px; padding: 2px 7px; font-size: 10px;
+      background: #fff; border-radius: 11px; padding: 2.5px 8px; font-size: 10.5px;
       font-weight: 800; color: #111827; white-space: nowrap; text-align: center;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.22); font-family: -apple-system, system-ui, sans-serif;
-      max-width: 110px; overflow: hidden; text-overflow: ellipsis;
+      border: 1.5px solid rgba(124,58,237,0.28);
+      box-shadow: 0 3px 10px rgba(124,58,237,0.22), 0 2px 5px rgba(0,0,0,0.14);
+      font-family: -apple-system, system-ui, sans-serif;
+      max-width: 116px; overflow: hidden; text-overflow: ellipsis;
     }
-    /* Cartoonish, colourful, easy-on-the-eyes: a gentle pop on the base
-       map tiles (more saturated greens/blues, a touch of contrast) —
-       playful without turning harsh or hard to read. */
-    .mm-tiles { filter: saturate(1.35) contrast(1.06) brightness(1.03); }
-    /* soft italic region names, classic-atlas style */
+    /* Snap-Map energy in our identity: juicy saturated landcover, a
+       little extra warmth and light — playful and colourful without
+       turning harsh or hard to read. */
+    .mm-tiles { filter: saturate(1.6) contrast(1.07) brightness(1.05); }
+    /* soft italic ancient-atlas names, faint purple ink */
     .mm-region {
       font: italic 600 13px Georgia, 'Times New Roman', serif;
-      color: rgba(66, 70, 100, 0.72); letter-spacing: 2.5px;
-      text-shadow: 0 1px 4px rgba(255,255,255,0.95), 0 0 10px rgba(255,255,255,0.7);
+      color: rgba(84, 72, 130, 0.78); letter-spacing: 2.2px;
+      text-shadow: 0 1px 4px rgba(255,255,255,0.95), 0 0 10px rgba(255,255,255,0.75);
       white-space: nowrap; text-align: center; pointer-events: none;
     }
     .mm-hide-regions .mm-region { display: none; }
@@ -184,12 +260,18 @@ export const LeafletMap = ({ center, markers = [], onPress, locate = true }) => 
       L.marker([r.lat, r.lng], { icon, interactive: false, zIndexOffset: -100 }).addTo(layerRef.current);
     });
 
-    // your own live pin — only once your REAL location is known
+    // your own live pin — only once your REAL location is known.
+    // Purple dot + gold ring + a "You" pill, so there is never any
+    // doubt the map found your true spot.
     if (locateRef.current) {
       const meIcon = L.divIcon({
-        html: '<div style="position:relative;width:22px;height:22px">' + glowRing('rgba(124,58,237,0.5)') +
-          '<div style="position:relative;width:22px;height:22px;border-radius:50%;background:#7C3AED;border:3px solid #fff;box-shadow:0 0 0 5px rgba(124,58,237,0.25)"></div></div>',
-        className: '', iconSize: [22, 22], iconAnchor: [11, 11],
+        html:
+          '<div style="position:relative;width:56px;height:48px;display:flex;flex-direction:column;align-items:center">' +
+          glowRing('rgba(124,58,237,0.5)') +
+          '<div style="position:relative;width:22px;height:22px;border-radius:50%;background:#7C3AED;border:3px solid #fff;box-shadow:0 0 0 3px #F5B301, 0 0 0 7px rgba(124,58,237,0.22)"></div>' +
+          '<div class="mm-pill" style="margin-top:5px">You ✦</div>' +
+          '</div>',
+        className: '', iconSize: [56, 48], iconAnchor: [28, 11],
       });
       meRef.current = L.marker([center.latitude, center.longitude], { icon: meIcon, zIndexOffset: 1000 }).addTo(layerRef.current);
     }
@@ -216,16 +298,17 @@ export const LeafletMap = ({ center, markers = [], onPress, locate = true }) => 
   }, [markers]);
 
   // glide down from the globe the moment the user's REAL location is
-  // known (never to a placeholder), and glide again on later GPS moves
+  // known (never to a placeholder). Later GPS moves just slide the
+  // "You" pin — the camera stays wherever the user panned it.
   useEffect(() => {
     if (!mapRef.current || !center || !locate) return;
     if (!flownRef.current) {
       flownRef.current = true;
       mapRef.current.flyTo([center.latitude, center.longitude], 14, { duration: 2.4 });
-    } else {
-      mapRef.current.flyTo([center.latitude, center.longitude], Math.max(mapRef.current.getZoom() || 14, 13), { duration: 1.1 });
+      if (typeof window !== 'undefined' && window.L) draw(window.L);
+    } else if (meRef.current) {
+      meRef.current.setLatLng([center.latitude, center.longitude]);
     }
-    if (typeof window !== 'undefined' && window.L) draw(window.L);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [locate, center && center.latitude, center && center.longitude]);
 

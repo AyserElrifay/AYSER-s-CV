@@ -39,3 +39,28 @@ export function getCurrentCoords() {
       .catch(() => resolve(null));
   });
 }
+
+/* Follow the REAL GPS as it moves — the map keeps knowing where you
+   are, not just where you were when the screen opened. Returns an
+   unsubscribe function; safe to call anywhere (no-ops without GPS). */
+export function watchCoords(onCoords) {
+  if (Platform.OS === 'web') {
+    if (typeof navigator === 'undefined' || !navigator.geolocation || !navigator.geolocation.watchPosition) {
+      return () => {};
+    }
+    const id = navigator.geolocation.watchPosition(
+      (pos) => onCoords({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
+      () => {},
+      { enableHighAccuracy: true, maximumAge: 10000 }
+    );
+    return () => navigator.geolocation.clearWatch(id);
+  }
+  if (!Location) return () => {};
+  let sub = null;
+  let stopped = false;
+  Location.watchPositionAsync(
+    { accuracy: Location.Accuracy.High, timeInterval: 15000, distanceInterval: 25 },
+    (pos) => onCoords({ latitude: pos.coords.latitude, longitude: pos.coords.longitude })
+  ).then((s) => { if (stopped) s.remove(); else sub = s; }).catch(() => {});
+  return () => { stopped = true; if (sub) sub.remove(); };
+}

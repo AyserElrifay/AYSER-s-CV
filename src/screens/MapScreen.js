@@ -7,7 +7,7 @@ import { ME, DOING_OPTIONS, DEALS, DEAL_FILTERS, av, AV_NEUTRAL } from '../const
 import { MAP_PEOPLE, CAMPFIRES, BOOKINGS } from '../constants/mockData'; // demo-mode fallback only
 import { MapView, Marker, MAPS_READY } from '../utils/maps';
 import { kmBetween, projectToMap } from '../utils/geo';
-import { requestLocationPermission, getCurrentCoords } from '../utils/location';
+import { requestLocationPermission, getCurrentCoords, watchCoords } from '../utils/location';
 import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { shareMyLocation, goInvisible, fetchNearbyPeople, subscribeNearby, fetchMyLiveLocation } from '../services/locations';
@@ -103,19 +103,40 @@ export const MapScreen = () => {
     return () => { cancelled = true; };
   }, [located, myCoords.latitude, myCoords.longitude]);
 
-  /* ── real GPS: your pin exists only where YOU really are ── */
+  /* ── real GPS: your pin exists only where YOU really are.
+     Honest either way — when the browser blocks or fails the lookup,
+     the map SAYS so instead of silently staying on the globe. ── */
   const locateMe = useCallback(async () => {
     setLocating(true);
     const granted = await requestLocationPermission();
     setHasLocationPerm(granted);
-    if (granted) {
+    if (!granted) {
+      note('📍 Location is off — allow location access for Moments, then tap the locate button again.');
+    } else {
       const coords = await getCurrentCoords();
-      if (coords) { setMyCoords(coords); setLocated(true); }
+      if (coords) {
+        setMyCoords(coords);
+        setLocated(true);
+      } else {
+        note('📍 Couldn’t get a GPS fix — check your browser’s location permission and try again.');
+      }
     }
     setLocating(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => { locateMe(); }, [locateMe]);
+
+  /* Keep following the real GPS after the first fix — your pin moves
+     when you move, so the map truly knows where you are, live. GPS
+     jitter under ~10 m is ignored so the screen isn't re-rendered by
+     noise while you're standing still. */
+  useEffect(() => {
+    if (!located) return;
+    return watchCoords((coords) => {
+      setMyCoords((prev) => (kmBetween(prev, coords) < 0.01 ? prev : coords));
+    });
+  }, [located]);
 
   /* Rehydrate your real "doing" status from the server on load — the
      local myDoing state resets to null every time the app opens, but
