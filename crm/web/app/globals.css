@@ -1,0 +1,72 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Notion-inspired warm neutral palette */
+    --background: 40 20% 99%;          /* near-white, faint warmth */
+    --foreground: 40 8% 20%;           /* #37352F-ish soft black */
+    --subtle: 40 20% 97%;              /* sidebar / hover fills */
+
+    --card: 0 0% 100%;
+    --card-foreground: 40 8% 20%;
+
+    --primary: 222 76% 56%;            /* calm blue accent */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 40 14% 95%;
+    --secondary-foreground: 40 8% 25%;
+
+    --muted: 40 14% 95%;
+    --muted-foreground: 40 5% 48%;     /* #787774-ish */
+
+    --accent: 40 16% 94%;
+    --accent-foreground: 40 8% 20%;
+
+    --border: 40 12% 90%;              /* #E9E9E7-ish hairline */
+    --input: 40 12% 88%;
+    --ring: 222 76% 56%;
+
+    /* Pipeline stage accents — muted, never loud */
+    --stage-new: 222 60% 55%;
+    --stage-contacted: 262 52% 58%;
+    --stage-qualified: 190 60% 42%;
+    --stage-negotiation: 32 85% 52%;
+    --stage-won: 152 52% 42%;
+
+    --radius: 0.625rem;
+
+    --font-sans: "IBM Plex Sans Arabic", "Cairo", ui-sans-serif, system-ui,
+      -apple-system, "Segoe UI", "Noto Sans Arabic", "Noto Kufi Arabic", sans-serif;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "cv11", "ss01";
+  }
+
+  /* Thin, tidy scrollbars — Notion calm */
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(40 10% 85%);
+    border-radius: 10px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover { background: hsl(40 8% 75%); background-clip: content-box; }
+}
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+}
