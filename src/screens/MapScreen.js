@@ -17,6 +17,7 @@ import { buildAvatarUrl } from '../services/avatarBuilder';
 import { fetchNearbyPlaces } from '../services/places';
 import { DESTINATIONS } from '../constants/destinations';
 import { fetchDestReviews, addDestReview } from '../services/destinations';
+import { fetchPostsNearby } from '../services/posts';
 import { requestTrip } from '../services/trips';
 import { getOrCreateDmThread, sendMessage } from '../services/messages';
 import { openPartner } from '../services/broker';
@@ -71,6 +72,7 @@ export const MapScreen = () => {
   const openSheet = (name) => { tapLight(); setSheet(name); };
   const closeSheet = () => setSheet(null);
   const [placeOpen, setPlaceOpen] = useState(null); // a tapped real-world place
+  const [placePosts, setPlacePosts] = useState(null); // real moments shared there
   const [rail, setRail] = useState('fires');     // 'fires' | 'book'
   const [myDoing, setMyDoing] = useState(null);  // your activity badge
   const [waved, setWaved] = useState({});
@@ -137,6 +139,20 @@ export const MapScreen = () => {
       setMyCoords((prev) => (kmBetween(prev, coords) < 0.01 ? prev : coords));
     });
   }, [located]);
+
+  /* ── real moments shared AT a tapped place: photos & videos people
+     actually posted there. Nothing scripted — a genuine query around
+     the spot's coordinates (and its name). ── */
+  useEffect(() => {
+    if (!placeOpen) { setPlacePosts(null); return; }
+    if (!SUPABASE_READY) { setPlacePosts([]); return; }
+    let cancelled = false;
+    setPlacePosts(null); // loading
+    fetchPostsNearby({ lat: placeOpen.lat, lng: placeOpen.lng, name: placeOpen.name })
+      .then((rows) => { if (!cancelled) setPlacePosts(rows); })
+      .catch(() => { if (!cancelled) setPlacePosts([]); });
+    return () => { cancelled = true; };
+  }, [placeOpen]);
 
   /* Rehydrate your real "doing" status from the server on load — the
      local myDoing state resets to null every time the app opens, but
@@ -1029,7 +1045,54 @@ export const MapScreen = () => {
                 </View>
               </Pressable>
             </View>
-            <Text style={{ color: C.faint, fontSize: 10.5, textAlign: 'center', marginTop: 12 }}>
+            {/* real moments shared here — photos & videos, straight from
+                the feed, whenever someone posted from this exact spot */}
+            {placePosts === null ? (
+              <Text style={{ color: C.faint, fontSize: 11.5, textAlign: 'center', marginTop: 16 }}>Looking for moments here…</Text>
+            ) : placePosts.length ? (
+              <>
+                <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '800', letterSpacing: 1, marginTop: 18, marginBottom: 10 }}>
+                  📸 MOMENTS HERE · {placePosts.length}
+                </Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  {placePosts.map((p) => {
+                    const media = p.media_url;
+                    const isVid = p.type === 'vod' || p.type === 'reel' || /\.(mp4|mov|webm)(\?|$)/i.test(media || '');
+                    return (
+                      <Pressable key={p.id} onPress={() => {
+                        const author = p.user;
+                        if (author) { setPlaceOpen(null); setProfileUser({ id: author.id, name: author.name || 'Explorer', avatar: author.avatar_url || AV_NEUTRAL, handle: author.handle, verified: !!author.verified, intent: author.intent, bio: author.bio }); }
+                      }} style={{ marginRight: 10 }}>
+                        <View style={{ width: 108, height: 148, borderRadius: 14, overflow: 'hidden', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line }}>
+                          {media ? (
+                            <Image source={{ uri: media }} style={{ width: '100%', height: '100%' }} />
+                          ) : (
+                            <View style={{ flex: 1, padding: 8, justifyContent: 'center' }}>
+                              <Text style={{ color: C.text, fontSize: 12, fontWeight: '700' }} numberOfLines={5}>{p.caption || '✨'}</Text>
+                            </View>
+                          )}
+                          {isVid ? (
+                            <View style={{ position: 'absolute', top: 8, right: 8, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 999, width: 24, height: 24, alignItems: 'center', justifyContent: 'center' }}>
+                              <Ionicons name="play" size={13} color="#FFF" />
+                            </View>
+                          ) : null}
+                          <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.45)', paddingHorizontal: 7, paddingVertical: 5, flexDirection: 'row', alignItems: 'center' }}>
+                            <Image source={{ uri: (p.user && p.user.avatar_url) || AV_NEUTRAL }} style={{ width: 16, height: 16, borderRadius: 8, marginRight: 5 }} />
+                            <Text style={{ color: '#FFF', fontSize: 10, fontWeight: '700', flex: 1 }} numberOfLines={1}>{(p.user && p.user.name) || 'Explorer'}</Text>
+                          </View>
+                        </View>
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
+              </>
+            ) : SUPABASE_READY ? (
+              <Text style={{ color: C.faint, fontSize: 11.5, textAlign: 'center', marginTop: 16 }}>
+                No moments here yet — post from this spot to be the first ✨
+              </Text>
+            ) : null}
+
+            <Text style={{ color: C.faint, fontSize: 10.5, textAlign: 'center', marginTop: 14 }}>
               Real place · OpenStreetMap — deals open Waffarha with your referral tracked
             </Text>
           </Pressable>

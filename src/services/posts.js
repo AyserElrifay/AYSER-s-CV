@@ -37,6 +37,34 @@ export async function searchPosts(q) {
   }));
 }
 
+/* Posts & videos tagged AT a place — powers the map: tap a spot and
+   see the real moments people shared there. Matches two ways so it
+   works whether the poster typed the place name or just dropped a pin:
+   a small lat/lng bounding box around the point, OR a place-name match.
+   radiusKm defaults to ~0.4km (a block or two). */
+export async function fetchPostsNearby({ lat, lng, name }, radiusKm = 0.4) {
+  const dLat = radiusKm / 111; // ~111km per degree of latitude
+  const dLng = radiusKm / (111 * Math.max(0.2, Math.cos((lat * Math.PI) / 180)));
+  let filter = 'and(lat.gte.' + (lat - dLat) + ',lat.lte.' + (lat + dLat) +
+    ',lng.gte.' + (lng - dLng) + ',lng.lte.' + (lng + dLng) + ')';
+  if (name) {
+    const clean = name.replace(/[%_(),]/g, ' ').trim();
+    if (clean) filter += ',place.ilike.%' + clean + '%';
+  }
+  const { data, error } = await supabase
+    .from('posts')
+    .select('*, user:profiles!posts_user_id_fkey(*), vibe_rows:post_vibes(count), comment_rows:comments(count)')
+    .or(filter)
+    .order('created_at', { ascending: false })
+    .limit(24);
+  if (error) throw error;
+  return (data || []).map((row) => ({
+    ...row,
+    vibes: (row.vibe_rows && row.vibe_rows[0] && row.vibe_rows[0].count) || 0,
+    comments: (row.comment_rows && row.comment_rows[0] && row.comment_rows[0].count) || 0,
+  }));
+}
+
 /* One post by id — powers shared links (?post=…). */
 export async function fetchPost(postId) {
   const { data, error } = await supabase

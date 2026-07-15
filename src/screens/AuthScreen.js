@@ -20,20 +20,23 @@ const inputStyle = {
   color: C.text, paddingHorizontal: 16, paddingVertical: 13, fontSize: 14, marginBottom: 12,
 };
 
-/* Supabase auth errors, translated to something a human can act on.
-   The raw messages ("Signups not allowed for this instance") confuse
-   people into thinking the app is broken — name the real cause. */
+/* Auth errors, translated into clean, professional guidance for the
+   person signing in. Deliberately says NOTHING about the backend,
+   provider names, dashboards or server internals — end users should
+   never see our stack, both because it looks unprofessional and
+   because leaking infrastructure details is free reconnaissance for
+   an attacker. Owner-only fixes live in the docs, not on this screen. */
 const friendlyAuthError = (e) => {
   const m = ((e && e.message) || '').toLowerCase();
   if (m.includes('already registered')) return 'This email already has an account — tap "I already have an account" and sign in.';
-  if (m.includes('not confirmed')) return 'Your email isn\'t confirmed yet. Check your inbox AND spam folder for the Moments link.';
+  if (m.includes('not confirmed')) return 'Just one more step — open the verification link we emailed you, then sign in.';
   if (m.includes('invalid login credentials')) return 'Wrong email or password. Forgot it? Use "Forgot password?" below.';
-  if (m.includes('signups not allowed')) return 'Sign-ups are currently switched off on the server (Supabase → Authentication → enable "Allow new users to sign up").';
-  if (m.includes('rate limit') || m.includes('too many')) return 'The server hit its email limit — wait a few minutes and try again. (Owner: disable "Confirm email" in Supabase for instant sign-ups.)';
+  if (m.includes('signups not allowed')) return 'New sign-ups are paused right now. Please try again a little later.';
+  if (m.includes('rate limit') || m.includes('too many')) return 'Too many attempts — please wait a couple of minutes and try again.';
   if (m.includes('password should be')) return 'Password is too short — use at least 6 characters.';
   if (m.includes('invalid email') || m.includes('validate email')) return 'That email doesn\'t look right — check for typos.';
-  if (m.includes('failed to fetch') || m.includes('network')) return 'Can\'t reach the server — check your internet and try again.';
-  return (e && e.message) || 'Something went wrong. Try again.';
+  if (m.includes('failed to fetch') || m.includes('network')) return 'Can\'t reach the server — check your connection and try again.';
+  return 'Something went wrong. Please try again.';
 };
 
 export const AuthScreen = () => {
@@ -135,7 +138,7 @@ export const AuthScreen = () => {
           } catch (e2) {
             finishOnboarding();
             setMode('signin');
-            setNotice('Account created! We sent a confirmation link to your email — check your inbox AND the spam folder, tap it, then sign in here.');
+            setNotice('Account created 🎉 We emailed you a quick verification link — open it, then sign in here.');
             return;
           }
         }
@@ -293,7 +296,7 @@ export const AuthScreen = () => {
               ) : null}
 
               <Text style={{ color: C.faint, textAlign: 'center', fontSize: 12, marginTop: 16 }}>
-                {isDemo ? '⚡ Demo mode — no backend configured, nothing is saved' : 'Powered by Supabase Auth ⚡'}
+                {isDemo ? '⚡ Demo mode — nothing is saved' : '🔒 Your account is encrypted & private'}
               </Text>
             </Glass>
           </View>

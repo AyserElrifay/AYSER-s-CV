@@ -26,14 +26,96 @@ function loadLeaflet() {
   return leafletPromise;
 }
 
-/* A CLEAN, name-free planet — the owner's call, applied to everyone
-   equally: NO country on Earth carries a name on this map. The single
-   decorative label kept is the shared three-faith name for the region
-   between the river and the sea — 'الأرض المقدسة · Holy Land' — which
-   names no state and erases no one, because no state anywhere is
-   named. Non-interactive, hidden once you zoom into street level. */
+/* THE ANCIENT ATLAS — every land on the planet carries its very
+   ancient name, applied to EVERYONE equally: Kemet, Gaul, Hispania,
+   Persia, Cathay, Tawantinsuyu… with a small symbol expressing each
+   civilization. No modern state is named anywhere (the basemap is the
+   label-free tileset), so nobody is singled out either way. The land
+   between the river and the sea carries the shared three-faith name
+   'الأرض المقدسة · Holy Land'. Decorative, non-interactive, hidden
+   once you zoom into street level. */
 const REGIONS = [
-  { name: 'الأرض المقدسة · Holy Land', lat: 31.55, lng: 35.05 },
+  // ── MENA — the ancient heart (bilingual) ──
+  { emoji: '🕊️', name: 'الأرض المقدسة · Holy Land', lat: 31.55, lng: 35.05 },
+  { emoji: '🌞', name: 'كيمِت · Kemet', lat: 27.8, lng: 28.8 },
+  { emoji: '🏹', name: 'النوبة · Nubia', lat: 21.0, lng: 31.0 },
+  { emoji: '👑', name: 'كوش · Kush', lat: 14.5, lng: 32.5 },
+  { emoji: '⛰️', name: 'Sinai · سيناء', lat: 29.3, lng: 33.9 },
+  { emoji: '🏜️', name: 'Sahara', lat: 24.5, lng: 8.0 },
+  { emoji: '🛶', name: 'The Nile · النيل', lat: 26.4, lng: 32.2 },
+  { emoji: '🐠', name: 'Red Sea', lat: 20.5, lng: 38.3 },
+  { emoji: '⛵', name: 'Mediterranean', lat: 35.2, lng: 17.5 },
+  { emoji: '🫒', name: 'بلاد الشام · The Levant', lat: 34.8, lng: 38.2 },
+  { emoji: '🐚', name: 'فينيقيا · Phoenicia', lat: 34.1, lng: 35.7 },
+  { emoji: '📜', name: 'بلاد الرافدين · Mesopotamia', lat: 33.2, lng: 43.5 },
+  { emoji: '🦁', name: 'بلاد فارس · Persia', lat: 32.5, lng: 54.0 },
+  { emoji: '🕋', name: 'الحجاز · Hejaz', lat: 24.0, lng: 39.5 },
+  { emoji: '🐎', name: 'نجد · Najd', lat: 25.2, lng: 44.5 },
+  { emoji: '🌿', name: 'سبأ · Sheba', lat: 15.5, lng: 47.5 },
+  { emoji: '⛏️', name: 'مجان · Magan', lat: 21.0, lng: 57.0 },
+  { emoji: '🌴', name: 'دلمون · Dilmun', lat: 25.9, lng: 50.2 },
+  { emoji: '🦪', name: 'الخليج · The Gulf', lat: 26.6, lng: 51.9 },
+  { emoji: '🐫', name: 'The Empty Quarter · الربع الخالي', lat: 20.0, lng: 51.0 },
+  { emoji: '🐆', name: 'ليبو · Libu', lat: 27.0, lng: 17.5 },
+  { emoji: '⚓', name: 'قرطاج · Carthage', lat: 34.4, lng: 9.5 },
+  { emoji: '🐎', name: 'نوميديا · Numidia', lat: 34.6, lng: 4.5 },
+  { emoji: '🌅', name: 'موريطنية · Mauretania', lat: 32.6, lng: -7.5 },
+  { emoji: '🏔️', name: 'Atlas Mountains', lat: 30.6, lng: -5.5 },
+  // ── ancient Europe ──
+  { emoji: '🏛️', name: 'Hellas', lat: 39.2, lng: 22.0 },
+  { emoji: '🐺', name: 'Italia', lat: 42.8, lng: 12.5 },
+  { emoji: '🐓', name: 'Gaul · Gallia', lat: 47.0, lng: 2.5 },
+  { emoji: '🐂', name: 'Hispania', lat: 40.0, lng: -4.0 },
+  { emoji: '🧭', name: 'Lusitania', lat: 39.5, lng: -8.1 },
+  { emoji: '🛡️', name: 'Britannia', lat: 52.8, lng: -1.8 },
+  { emoji: '🦌', name: 'Caledonia', lat: 56.8, lng: -4.2 },
+  { emoji: '☘️', name: 'Hibernia', lat: 53.2, lng: -8.2 },
+  { emoji: '🌲', name: 'Germania', lat: 51.0, lng: 10.0 },
+  { emoji: '🏰', name: 'Bohemia', lat: 49.8, lng: 15.0 },
+  { emoji: '🌾', name: 'Pannonia', lat: 47.2, lng: 19.2 },
+  { emoji: '🐍', name: 'Dacia', lat: 45.2, lng: 24.8 },
+  { emoji: '🐻', name: 'Carpathians', lat: 47.6, lng: 24.6 },
+  { emoji: '⚔️', name: 'Thrace', lat: 42.2, lng: 25.3 },
+  { emoji: '⛰️', name: 'The Balkans', lat: 43.5, lng: 20.6 },
+  { emoji: '🏹', name: 'Sarmatia', lat: 51.5, lng: 23.0 },
+  { emoji: '❄️', name: 'Rus', lat: 56.0, lng: 38.0 },
+  { emoji: '🪓', name: 'Scandinavia', lat: 63.0, lng: 15.0 },
+  { emoji: '🏔️', name: 'The Alps', lat: 46.4, lng: 9.8 },
+  // ── ancient Asia ──
+  { emoji: '🐎', name: 'Anatolia', lat: 39.0, lng: 33.5 },
+  { emoji: '🦅', name: 'The Caucasus', lat: 42.5, lng: 44.0 },
+  { emoji: '🧵', name: 'Sogdiana', lat: 40.5, lng: 65.5 },
+  { emoji: '🐫', name: 'Bactria', lat: 34.8, lng: 66.5 },
+  { emoji: '🏇', name: 'The Steppe · Scythia', lat: 48.5, lng: 66.0 },
+  { emoji: '❄️', name: 'Siberia', lat: 62.0, lng: 95.0 },
+  { emoji: '🐘', name: 'Bharat', lat: 22.5, lng: 79.0 },
+  { emoji: '🗻', name: 'The Himalayas', lat: 28.5, lng: 84.0 },
+  { emoji: '🐉', name: 'Cathay', lat: 34.5, lng: 105.0 },
+  { emoji: '🌸', name: 'Nippon', lat: 36.8, lng: 138.5 },
+  { emoji: '🌄', name: 'Joseon', lat: 36.5, lng: 127.8 },
+  { emoji: '🛕', name: 'Siam', lat: 15.5, lng: 101.0 },
+  { emoji: '🌋', name: 'Nusantara', lat: -1.5, lng: 113.0 },
+  // ── ancient Africa ──
+  { emoji: '🌺', name: 'بونت · Punt', lat: 8.5, lng: 47.5 },
+  { emoji: '☕', name: 'الحبشة · Abyssinia', lat: 9.0, lng: 39.5 },
+  { emoji: '🐬', name: 'Azania', lat: -6.5, lng: 38.5 },
+  { emoji: '🦓', name: 'The Serengeti', lat: -2.5, lng: 34.8 },
+  { emoji: '🪙', name: 'Mali Empire', lat: 14.8, lng: -5.0 },
+  { emoji: '📚', name: 'Songhai', lat: 16.5, lng: 1.5 },
+  { emoji: '🥁', name: 'Kongo', lat: -5.5, lng: 16.5 },
+  { emoji: '🦍', name: 'Congo Basin', lat: -0.8, lng: 23.0 },
+  { emoji: '🪨', name: 'Great Zimbabwe', lat: -19.5, lng: 30.0 },
+  // ── the Americas & Oceania, by their oldest names ──
+  { emoji: '🐢', name: 'Turtle Island', lat: 42.0, lng: -98.0 },
+  { emoji: '⛰️', name: 'The Rockies', lat: 46.5, lng: -113.0 },
+  { emoji: '🦅', name: 'Anáhuac', lat: 22.5, lng: -101.5 },
+  { emoji: '🏝️', name: 'The Caribbean', lat: 15.5, lng: -72.0 },
+  { emoji: '🦙', name: 'Tawantinsuyu', lat: -12.5, lng: -74.0 },
+  { emoji: '🦜', name: 'The Amazon', lat: -4.0, lng: -62.0 },
+  { emoji: '🗻', name: 'The Andes', lat: -22.0, lng: -67.5 },
+  { emoji: '🐧', name: 'Patagonia', lat: -44.0, lng: -70.0 },
+  { emoji: '🦘', name: 'The Outback', lat: -24.0, lng: 134.0 },
+  { emoji: '🥝', name: 'Aotearoa', lat: -43.2, lng: 171.5 },
 ];
 
 /* The Moments map identity — gentle float, purple glow, white pills. */
@@ -57,12 +139,17 @@ function injectMapStyle() {
        little extra warmth and light — playful and colourful without
        turning harsh or hard to read. */
     .mm-tiles { filter: saturate(1.6) contrast(1.07) brightness(1.05); }
-    /* soft italic ancient-atlas names, faint purple ink */
+    /* soft italic ancient-atlas names, faint purple ink, with a small
+       civilization symbol floating above each one */
     .mm-region {
       font: italic 600 13px Georgia, 'Times New Roman', serif;
-      color: rgba(84, 72, 130, 0.78); letter-spacing: 2.2px;
+      color: rgba(84, 72, 130, 0.82); letter-spacing: 2.2px;
       text-shadow: 0 1px 4px rgba(255,255,255,0.95), 0 0 10px rgba(255,255,255,0.75);
       white-space: nowrap; text-align: center; pointer-events: none;
+    }
+    .mm-region-sym {
+      font-size: 15px; line-height: 15px; margin-bottom: 2px;
+      filter: drop-shadow(0 1px 2px rgba(255,255,255,0.9));
     }
     .mm-hide-regions .mm-region { display: none; }
     /* Destination pins are STATIC (no per-pin animations — with ~60 of
@@ -116,10 +203,22 @@ const pinHtml = (m) => {
     );
   }
 
-  const border = m.kind === 'fire' ? '#F43F5E' : m.kind === 'deal' ? '#10B981' : m.kind === 'place' ? '#F59E0B' : '#7C3AED';
+  // Real going-out places (cafés, restaurants, bars…): a small, tidy
+  // teardrop dot — compact so a busy street doesn't turn into a wall
+  // of boxes — with the place's own emoji so it still reads at a glance.
+  if (m.kind === 'place') {
+    return (
+      '<div style="position:relative;width:26px;height:26px;border-radius:50% 50% 50% 2px;transform:rotate(45deg);' +
+      'background:#fff;border:2px solid #F59E0B;box-shadow:0 2px 5px rgba(0,0,0,0.22);display:flex;align-items:center;justify-content:center">' +
+      '<span style="transform:rotate(-45deg);font-size:13px">' + (m.emoji || '📍') + '</span>' +
+      '</div>'
+    );
+  }
+
+  const border = m.kind === 'fire' ? '#F43F5E' : m.kind === 'deal' ? '#10B981' : '#7C3AED';
   return (
-    '<div style="position:relative;width:36px;height:36px;border-radius:12px;background:#fff;border:2px solid ' + border +
-    ';display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 2px 6px rgba(0,0,0,0.25)">' +
+    '<div style="position:relative;width:34px;height:34px;border-radius:12px;background:#fff;border:2px solid ' + border +
+    ';display:flex;align-items:center;justify-content:center;font-size:17px;box-shadow:0 2px 6px rgba(0,0,0,0.25)">' +
     (m.emoji || '📍') + flagBadge + '</div>'
   );
 };
@@ -143,12 +242,12 @@ export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus
         zoomControl: false, attributionControl: false,
         minZoom: 2, worldCopyJump: true, zoomSnap: 0.25,
       }).setView([24, 14], 2.5); // Earth view — Egypt/Europe in frame
-      // CARTO "Voyager · no labels" — the same colourful, cartoonish
-      // landcover with the entire text layer removed: NO administrative
-      // names appear for ANY country, worldwide, so the basemap stays
-      // purely visual and viewpoint-neutral. Names on this map come
-      // from OUR pins (people, real places, destinations) instead.
-      // Revert to labels: swap 'voyager_nolabels' back to 'voyager'.
+      // CARTO "Voyager · no labels" — colourful, cartoonish landcover
+      // with the modern administrative names stripped, so NO country's
+      // present-day name appears. Every land is named instead by OUR
+      // Ancient Atlas layer (REGIONS) — the same treatment for all,
+      // each with a symbol for its civilization. Modern labels option:
+      // swap 'voyager_nolabels' for 'voyager'.
       L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png', {
         maxZoom: 20, subdomains: 'abcd', className: 'mm-tiles',
         updateWhenIdle: true, keepBuffer: 4, // smoother panning, less churn
@@ -178,11 +277,13 @@ export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus
     if (!L || !layerRef.current) return;
     layerRef.current.clearLayers();
 
-    // decorative region names (our own text layer on the label-free map)
+    // the Ancient Atlas — our own text layer: every land by its very
+    // ancient name, each with a small civilization symbol above it
     REGIONS.forEach((r) => {
+      const sym = r.emoji ? '<div class="mm-region-sym">' + r.emoji + '</div>' : '';
       const icon = L.divIcon({
-        html: '<div class="mm-region">' + r.name + '</div>',
-        className: '', iconSize: [240, 20], iconAnchor: [120, 10],
+        html: '<div class="mm-region">' + sym + '<div>' + r.name + '</div></div>',
+        className: '', iconSize: [240, 34], iconAnchor: [120, 17],
       });
       L.marker([r.lat, r.lng], { icon, interactive: false, zIndexOffset: -100 }).addTo(layerRef.current);
     });
@@ -207,10 +308,11 @@ export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus
       if (m.lat == null || m.lng == null) return;
       const isPerson = m.kind === 'person' && m.avatar;
       const isDest = m.kind === 'dest';
+      const isPlace = m.kind === 'place';
       const icon = L.divIcon({
         html: pinHtml(m), className: '',
-        iconSize: isPerson ? [52, 66] : isDest ? [96, 62] : [36, 36],
-        iconAnchor: isPerson ? [26, 33] : isDest ? [48, 31] : [18, 36],
+        iconSize: isPerson ? [52, 66] : isDest ? [96, 62] : isPlace ? [26, 26] : [34, 34],
+        iconAnchor: isPerson ? [26, 33] : isDest ? [48, 31] : isPlace ? [13, 24] : [17, 34],
       });
       const mk = L.marker([m.lat, m.lng], { icon, zIndexOffset: isPerson ? 500 : isDest ? 300 : 0 }).addTo(layerRef.current);
       if (m.label && !isPerson && !isDest) mk.bindTooltip(m.label, { direction: 'top', offset: [0, -34] });

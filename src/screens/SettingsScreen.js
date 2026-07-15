@@ -352,7 +352,7 @@ export const SettingsScreen = ({ onClose }) => {
               {isDemo ? 'Demo session' : (user && user.email) || 'Signed in'}
             </Text>
             <Text style={{ color: C.faint, fontSize: 11, marginTop: 2 }}>
-              {isDemo ? 'Nothing is saved — connect Supabase to go live' : 'Powered by Supabase Auth ⚡'}
+              {isDemo ? 'Demo session — nothing is saved' : '🔒 Encrypted & private'}
             </Text>
           </View>
           <Pressable onPress={signOut} style={{ backgroundColor: C.coralSoft, borderWidth: 1, borderColor: 'rgba(244,63,94,0.4)', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12 }}>
