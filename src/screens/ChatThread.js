@@ -17,19 +17,8 @@ import { sfxPop } from '../utils/sfx';
    place you want to hang out in. Call & video in the header, and games
    (Truth or Dare) you can drop in and pull out anytime. ─── */
 
-const SEED = (peer, group) => group
-  ? [
-      { id: 'm1', from: USERS.nour, text: 'okay who’s actually awake for the 5AM hike 🥱' },
-      { id: 'm2', from: USERS.omar, text: 'me. bringing the flask ☕' },
-      { id: 'm3', from: 'me', text: 'save me a seat, I’m 5 min out' },
-      { id: 'm4', from: USERS.zeyad, text: 'someone start a truth or dare I’m bored 😂' },
-    ]
-  : [
-      { id: 'm1', from: peer, text: 'yooo you saw the rooftop moment? 🌇' },
-      { id: 'm2', from: 'me', text: 'just starred it 😍 who shot that?' },
-      { id: 'm3', from: peer, text: 'malak! she’s hosting again friday' },
-      { id: 'm4', from: 'me', text: 'say less. we’re going 🔥' },
-    ];
+/* No scripted messages — a conversation starts empty and fills with
+   REAL messages only. A brand-new chat should look brand new. */
 
 export const ChatThread = ({ chat, group, onClose }) => {
   const insets = useSafeAreaInsets();
@@ -46,7 +35,7 @@ export const ChatThread = ({ chat, group, onClose }) => {
   const REAL_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   const isReal = SUPABASE_READY && !!user && (group ? REAL_ID.test(chat.id || '') : REAL_ID.test((peer && peer.id) || ''));
 
-  const [msgs, setMsgs] = useState(() => (isReal ? [] : SEED(peer, group)));
+  const [msgs, setMsgs] = useState([]); // always starts empty — real messages only
   const [dmThreadId, setDmThreadId] = useState((!group && chat.threadId) || null);
   const [draft, setDraft] = useState('');
   const [chatErr, setChatErr] = useState(null); // never pretend a send worked

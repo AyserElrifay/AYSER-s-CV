@@ -287,16 +287,17 @@ export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus
       }).addTo(map);
       mapRef.current = map;
       layerRef.current = L.layerGroup().addTo(map);
-      // zoom-aware tidiness: region labels fade out at street zoom;
-      // destination cards are hidden at the far world view (z<5),
-      // shrink to pill-less minis in the mid range (5–7), and show in
-      // full only once you're zoomed into a region (z>=8-ish → 7+).
+      // zoom-aware tidiness (Snap-clean): at the world/continent view
+      // NO destination cards show at all — just the calm map, region
+      // names and live people. Zoom into a country (z 6–7) and they
+      // appear as tiny dots; zoom into a city (z≥8) and the full
+      // medallion + name shows. Region names fade at street zoom.
       const applyZoomClasses = () => {
         const el = map.getContainer();
         const z = map.getZoom();
-        el.classList.toggle('mm-hide-regions', z >= 8);
-        el.classList.toggle('mm-z-far', z < 5);
-        el.classList.toggle('mm-z-mid', z >= 5 && z < 8);
+        el.classList.toggle('mm-hide-regions', z >= 9);
+        el.classList.toggle('mm-z-far', z < 6);
+        el.classList.toggle('mm-z-mid', z >= 6 && z < 8);
       };
       map.on('zoomend', applyZoomClasses);
       applyZoomClasses();

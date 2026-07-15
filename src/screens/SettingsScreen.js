@@ -67,6 +67,7 @@ export const SettingsScreen = ({ onClose }) => {
   const [level, setLevel] = useState('');
   const [visible, setVisible] = useState(false);
   const [savedExchange, setSavedExchange] = useState(false);
+  const [exchangeErr, setExchangeErr] = useState(null);
 
   useEffect(() => {
     if (!SUPABASE_READY || !user) return;
@@ -80,6 +81,7 @@ export const SettingsScreen = ({ onClose }) => {
 
   const saveExchange = async (nextVisible) => {
     if (!SUPABASE_READY || !user) return;
+    setExchangeErr(null);
     try {
       await updateProfile(user.id, {
         speaks_language: speaks.trim() || null,
@@ -90,7 +92,12 @@ export const SettingsScreen = ({ onClose }) => {
       tapSuccess(); sfxSuccess();
       setSavedExchange(true);
       setTimeout(() => setSavedExchange(false), 2000);
-    } catch (e) {}
+    } catch (e) {
+      setVisible(!nextVisible); // revert the toggle — it did NOT save
+      setExchangeErr(/does not exist|schema cache|column/i.test(e.message || '')
+        ? 'One step left: run supabase/RUN_ME.sql to turn on language exchange.'
+        : (e.message || 'Could not save — try again.'));
+    }
   };
 
   const togglePlan = (cardId, idx) =>
@@ -306,6 +313,7 @@ export const SettingsScreen = ({ onClose }) => {
                 <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900' }}>{savedExchange ? 'Saved ✓' : 'Save'}</Text>
               </View>
             </Pressable>
+            {exchangeErr ? <Text style={{ color: C.coral, fontSize: 11.5, textAlign: 'center', marginTop: 8 }}>{exchangeErr}</Text> : null}
           </Glass>
         ) : (
           <Glass style={{ padding: 15, alignItems: 'center' }}>

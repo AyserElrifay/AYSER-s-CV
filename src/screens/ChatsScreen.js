@@ -61,8 +61,12 @@ export const ChatsScreen = () => {
   const dms = SUPABASE_READY
     ? realDms.map((d) => ({ id: d.threadId, threadId: d.threadId, user: { name: d.user.name, avatar: d.user.avatar_url, verified: d.user.verified }, last: d.last, time: timeAgo(d.time), unread: 0, translated: false }))
     : DMS;
+  const myFlag = user && user.country_flag;
   const partners = SUPABASE_READY
-    ? realPartners.map((p) => ({ id: p.id, name: p.name, avatar: p.avatar_url, flag: '🌍', speaks: p.speaks_language || 'Not set', learning: p.learning_language || '—', level: p.learning_level || '', online: false }))
+    ? realPartners
+        .map((p) => ({ id: p.id, name: p.name, avatar: p.avatar_url || AV_NEUTRAL, flag: p.country_flag || '🌍', country: p.country, speaks: p.speaks_language || 'Not set', learning: p.learning_language || '—', level: p.learning_level || '', online: false, abroad: !!(p.country_flag && myFlag && p.country_flag !== myFlag) }))
+        // people from ANOTHER country first — the whole point of exchange
+        .sort((a, b) => (b.abroad ? 1 : 0) - (a.abroad ? 1 : 0))
     : LANG_PARTNERS;
 
   return (
@@ -137,26 +141,32 @@ export const ChatsScreen = () => {
       </>
     ) : null}
 
-    {/* ── LEARN LANGUAGES — real exchange partners, HelloTalk style ── */}
-    <SectionHeader title="Learn languages 🌍" />
+    {/* ── EXCHANGE PARTNERS — meet people in other countries, HelloTalk
+        style: open it in Settings and you appear here for them too ── */}
+    <SectionHeader title="Exchange partners 🌍" />
+    <Text style={{ color: C.faint, fontSize: 11.5, marginTop: -6, marginBottom: 10, paddingHorizontal: 2 }}>
+      People abroad who opened language exchange — swap languages & cultures, chat and call across the world.
+    </Text>
     {partners.length ? (
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 20 }}>
         {partners.map((lp) => (
           <Pressable key={lp.id} onPress={() => { tapLight(); setThread({ chat: { user: lp }, group: false }); }}>
-            <Glass style={{ width: 148, padding: 12, marginRight: 10, alignItems: 'center' }}>
+            <Glass style={{ width: 152, padding: 12, marginRight: 10, alignItems: 'center' }}>
               <View>
                 <Image source={{ uri: lp.avatar }} style={{ width: 52, height: 52, borderRadius: 26 }} />
                 {lp.online ? <View style={{ position: 'absolute', bottom: 0, right: 0, width: 13, height: 13, borderRadius: 7, backgroundColor: C.green, borderWidth: 2, borderColor: '#FFF' }} /> : null}
               </View>
-              <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800', marginTop: 7 }}>{lp.name} {lp.flag}</Text>
-              <Text style={{ color: C.dim, fontSize: 10.5, marginTop: 3, textAlign: 'center' }} numberOfLines={1}>Speaks {(lp.speaks || '').split(' ')[0]}</Text>
-              <Text style={{ color: C.faint, fontSize: 10.5, marginTop: 1 }}>Learning {lp.learning} {lp.level ? '· ' + lp.level : ''}</Text>
-              <View style={{ flexDirection: 'row', marginTop: 8 }}>
-                <View style={{ backgroundColor: C.purpleSoft, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5, marginRight: 6 }}>
-                  <Text style={{ color: C.purple, fontSize: 10.5, fontWeight: '900' }}>💬 Chat</Text>
+              <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800', marginTop: 7 }} numberOfLines={1}>{lp.name} {lp.flag}</Text>
+              {lp.country ? (
+                <View style={{ backgroundColor: lp.abroad ? 'rgba(59,130,246,0.14)' : C.glass, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2, marginTop: 4 }}>
+                  <Text style={{ color: lp.abroad ? C.blue : C.faint, fontSize: 9.5, fontWeight: '800' }} numberOfLines={1}>{lp.abroad ? '🌍 ' : ''}{lp.country}</Text>
                 </View>
-                <View style={{ backgroundColor: C.greenSoft, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5 }}>
-                  <Text style={{ color: C.green, fontSize: 10.5, fontWeight: '900' }}>📞 Call</Text>
+              ) : null}
+              <Text style={{ color: C.dim, fontSize: 10.5, marginTop: 5, textAlign: 'center' }} numberOfLines={1}>Speaks {(lp.speaks || '').split(' ')[0]}</Text>
+              <Text style={{ color: C.faint, fontSize: 10.5, marginTop: 1 }} numberOfLines={1}>Learning {lp.learning} {lp.level ? '· ' + lp.level : ''}</Text>
+              <View style={{ flexDirection: 'row', marginTop: 8 }}>
+                <View style={{ backgroundColor: C.purpleSoft, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5 }}>
+                  <Text style={{ color: C.purple, fontSize: 10.5, fontWeight: '900' }}>💬 Chat</Text>
                 </View>
               </View>
             </Glass>
@@ -167,7 +177,7 @@ export const ChatsScreen = () => {
       <Glass style={{ padding: 16, marginBottom: 20, alignItems: 'center' }}>
         <Text style={{ fontSize: 22 }}>🌍</Text>
         <Text style={{ color: C.text, fontSize: 13, fontWeight: '800', marginTop: 6 }}>No exchange partners yet</Text>
-        <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 3, textAlign: 'center' }}>Turn on language exchange in Settings to appear here for others too</Text>
+        <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 3, textAlign: 'center' }}>Open language exchange in Settings → you'll appear here for people in other countries, and they'll appear for you</Text>
       </Glass>
     )}
 
