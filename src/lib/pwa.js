@@ -29,8 +29,34 @@ export function initPwa() {
     }
 
     if ('serviceWorker' in navigator) {
+      // When a new version is deployed, take it live automatically:
+      // once the updated worker takes control, reload once so the fresh
+      // code shows without the user having to clear anything.
+      let reloaded = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (reloaded) return;
+        reloaded = true;
+        window.location.reload();
+      });
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register(base + 'sw.js', { scope: base }).catch(() => {});
+        navigator.serviceWorker.register(base + 'sw.js', { scope: base }).then((reg) => {
+          // check for a new deploy right away, and whenever the tab
+          // regains focus (so returning to the app pulls the latest)
+          const check = () => reg.update().catch(() => {});
+          check();
+          document.addEventListener('visibilitychange', () => { if (!document.hidden) check(); });
+          reg.addEventListener('updatefound', () => {
+            const nw = reg.installing;
+            if (!nw) return;
+            nw.addEventListener('statechange', () => {
+              // a new worker is ready and an old one controls the page →
+              // tell it to activate; controllerchange above then reloads
+              if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+                nw.postMessage('skipWaiting');
+              }
+            });
+          });
+        }).catch(() => {});
       });
     }
   } catch (e) { /* never block the app on PWA extras */ }

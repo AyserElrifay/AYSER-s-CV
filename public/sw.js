@@ -1,10 +1,12 @@
-/* Moments service worker — makes the app installable and fast.
-   Strategy: network-first for navigations (always fresh app),
-   cache-first for hashed static assets (instant loads, offline shell). */
+/* Moments service worker — installable & fast, but never stale.
+   Strategy: network-first for the app shell AND the app's own JS
+   bundles (so a new deploy is picked up the moment you're online),
+   cache-first only for truly immutable assets (icons, fonts, images).
+   Falls back to the last good cached copy when offline. */
 
-const CACHE = 'moments-v1';
+const CACHE = 'moments-v3';
 
-self.addEventListener('install', (e) => {
+self.addEventListener('install', () => {
   self.skipWaiting();
 });
 
@@ -16,37 +18,49 @@ self.addEventListener('activate', (e) => {
   })());
 });
 
+// Let the page tell a waiting worker to take over immediately.
+self.addEventListener('message', (e) => {
+  if (e.data === 'skipWaiting') self.skipWaiting();
+});
+
+const networkFirst = async (request) => {
+  try {
+    const fresh = await fetch(request);
+    if (fresh && fresh.ok) {
+      const c = await caches.open(CACHE);
+      c.put(request, fresh.clone());
+    }
+    return fresh;
+  } catch (err) {
+    const cached = await caches.match(request);
+    return cached || Response.error();
+  }
+};
+
+const cacheFirst = async (request) => {
+  const cached = await caches.match(request);
+  if (cached) return cached;
+  const fresh = await fetch(request);
+  if (fresh && fresh.ok) {
+    const c = await caches.open(CACHE);
+    c.put(request, fresh.clone());
+  }
+  return fresh;
+};
+
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET' || url.origin !== self.location.origin) return;
 
-  // the app shell: try the network, fall back to the last good copy
-  if (e.request.mode === 'navigate') {
-    e.respondWith((async () => {
-      try {
-        const fresh = await fetch(e.request);
-        const c = await caches.open(CACHE);
-        c.put(e.request, fresh.clone());
-        return fresh;
-      } catch (err) {
-        const cached = await caches.match(e.request);
-        return cached || Response.error();
-      }
-    })());
+  // App shell + all JavaScript → always try the network first, so new
+  // code ships the instant it's deployed (no more "no difference").
+  if (e.request.mode === 'navigate' || /\.js$/.test(url.pathname) || /\/_expo\//.test(url.pathname)) {
+    e.respondWith(networkFirst(e.request));
     return;
   }
 
-  // hashed bundles / assets / icons: cache-first (they never change in place)
-  if (/\/_expo\/|\/assets\/|\.png$|\.ttf$|\.js$/.test(url.pathname)) {
-    e.respondWith((async () => {
-      const cached = await caches.match(e.request);
-      if (cached) return cached;
-      const fresh = await fetch(e.request);
-      if (fresh.ok) {
-        const c = await caches.open(CACHE);
-        c.put(e.request, fresh.clone());
-      }
-      return fresh;
-    })());
+  // Immutable static assets (icons, fonts, images) → cache-first.
+  if (/\/assets\/|\.png$|\.jpg$|\.ttf$|\.woff2?$|\.webp$|\.svg$/.test(url.pathname)) {
+    e.respondWith(cacheFirst(e.request));
   }
 });
