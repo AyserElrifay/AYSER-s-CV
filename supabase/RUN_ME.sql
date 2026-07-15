@@ -293,6 +293,14 @@ returns boolean language sql security definer set search_path = public stable as
   select exists (select 1 from public.dm_participants p where p.thread_id = t_id and p.user_id = u_id);
 $$;
 
+-- purge every legacy name these policies ever shipped under (earlier
+-- chat-pasted versions used short names) — a leftover recursive copy
+-- would keep recursing even after the fixed one is created
+drop policy if exists "dmp_sel" on public.dm_participants;
+drop policy if exists "p sel"   on public.dm_participants;
+drop policy if exists "dmt_sel" on public.dm_threads;
+drop policy if exists "t sel"   on public.dm_threads;
+
 drop policy if exists "participants can view their dm threads" on public.dm_threads;
 create policy "participants can view their dm threads" on public.dm_threads for select using (
   public.is_dm_participant(id, auth.uid())
@@ -331,6 +339,11 @@ create table if not exists public.messages (
   )
 );
 alter table public.messages enable row level security;
+-- purge legacy chat-pasted policy names (recursive versions) first
+drop policy if exists "msg_sel" on public.messages;
+drop policy if exists "msg sel" on public.messages;
+drop policy if exists "msg_ins" on public.messages;
+drop policy if exists "msg ins" on public.messages;
 drop policy if exists "squad members read squad messages" on public.messages;
 create policy "squad members read squad messages" on public.messages for select using (
   (squad_id is not null and exists (select 1 from public.squad_members m where m.squad_id = messages.squad_id and m.user_id = auth.uid()))
