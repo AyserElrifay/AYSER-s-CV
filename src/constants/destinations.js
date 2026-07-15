@@ -199,17 +199,21 @@ export const DESTINATIONS = [
     lat: 23.2500, lng: 25.8000, tags: ['Expedition', 'Extreme'],
     desc: 'The ultimate expedition: days of driving to the Cave of Swimmers and prehistoric rock art. A journey that changes how you see everything. Pros only.' },
 
-  // ── 🇵🇸 PALESTINE · heritage & highland trails ──
-  { id: 'ps_bethlehem', country: 'Palestine', flag: '🇵🇸', emoji: '⛪', name: 'Bethlehem Old City', area: 'Bethlehem',
+  // ── 🕊️ THE HOLY LAND · الأرض المقدسة — heritage sacred to three
+  //    faiths, grouped by its shared name (the owner's peaceful choice) ──
+  { id: 'hl_jerusalem', country: 'الأرض المقدسة · Holy Land', flag: '🕊️', emoji: '✨', name: 'Old City of Jerusalem', area: 'Jerusalem',
+    lat: 31.7767, lng: 35.2323, tags: ['Faith', 'Culture'],
+    desc: 'Al-Aqsa Mosque — the first qibla — the Church of the Holy Sepulchre and the Western Wall, all inside one square kilometre of walled stone lanes. Sacred to three faiths; there is nowhere else like it on Earth.' },
+  { id: 'ps_bethlehem', country: 'الأرض المقدسة · Holy Land', flag: '🕊️', emoji: '⛪', name: 'Bethlehem Old City', area: 'Bethlehem',
     lat: 31.7054, lng: 35.2024, tags: ['Culture', 'History'],
     desc: 'The Church of the Nativity and stone alleys layered with two thousand years of story. Craft workshops, olive-wood carvers, and a market that has never stopped.' },
-  { id: 'ps_jericho', country: 'Palestine', flag: '🇵🇸', emoji: '🏜️', name: 'Jericho & Mount of Temptation', area: 'Jordan Valley',
+  { id: 'ps_jericho', country: 'الأرض المقدسة · Holy Land', flag: '🕊️', emoji: '🏜️', name: 'Jericho & Mount of Temptation', area: 'Jordan Valley',
     lat: 31.8611, lng: 35.4444, tags: ['Hiking', 'History'],
     desc: 'One of the oldest cities on Earth, below sea level in the Jordan Valley. Cable car or hike up to the cliff monastery for the full valley panorama.' },
-  { id: 'ps_battir', country: 'Palestine', flag: '🇵🇸', emoji: '🌿', name: 'Battir Terraces', area: 'near Bethlehem',
+  { id: 'ps_battir', country: 'الأرض المقدسة · Holy Land', flag: '🕊️', emoji: '🌿', name: 'Battir Terraces', area: 'near Bethlehem',
     lat: 31.7275, lng: 35.1364, tags: ['Hiking', 'Culture'],
     desc: 'UNESCO-listed ancient irrigation terraces still farmed the same way after millennia. Green valley trails, spring water channels, and village hospitality.' },
-  { id: 'ps_wadi_qelt', country: 'Palestine', flag: '🇵🇸', emoji: '🏞️', name: 'Wadi Qelt · St. George Monastery', area: 'Jericho desert',
+  { id: 'ps_wadi_qelt', country: 'الأرض المقدسة · Holy Land', flag: '🕊️', emoji: '🏞️', name: 'Wadi Qelt · St. George Monastery', area: 'Jericho desert',
     lat: 31.8447, lng: 35.4139, tags: ['Hiking', 'Wellbeing'],
     desc: 'A dramatic desert canyon hike ending at a monastery carved into the cliff face. Silence, echoing rock walls, and one of the region\'s great walking routes.' },
 

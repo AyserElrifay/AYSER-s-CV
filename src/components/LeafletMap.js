@@ -26,6 +26,24 @@ function loadLeaflet() {
   return leafletPromise;
 }
 
+/* Decorative cultural-region names — our own gentle text layer on the
+   otherwise label-free basemap. Shared geographic & cultural
+   identities only (deserts, seas, mountain ranges, the Holy Land) —
+   the kind of names people don't fight over. Purely decorative,
+   non-interactive, hidden once you zoom into street level. */
+const REGIONS = [
+  { name: 'الأرض المقدسة · Holy Land', lat: 31.55, lng: 35.05 },
+  { name: 'Sinai', lat: 29.3, lng: 33.9 },
+  { name: 'Sahara', lat: 24.5, lng: 8.0 },
+  { name: 'The Nile', lat: 26.4, lng: 32.2 },
+  { name: 'Red Sea', lat: 20.5, lng: 38.3 },
+  { name: 'Mediterranean', lat: 35.2, lng: 17.5 },
+  { name: 'The Alps', lat: 46.4, lng: 9.8 },
+  { name: 'Carpathians', lat: 46.0, lng: 24.5 },
+  { name: 'Atlas Mountains', lat: 31.2, lng: -6.0 },
+  { name: 'The Empty Quarter', lat: 20.0, lng: 51.0 },
+];
+
 /* The Moments map identity — gentle float, purple glow, white pills. */
 function injectMapStyle() {
   if (typeof document === 'undefined' || document.getElementById('mm-map-style')) return;
@@ -45,6 +63,14 @@ function injectMapStyle() {
        map tiles (more saturated greens/blues, a touch of contrast) —
        playful without turning harsh or hard to read. */
     .mm-tiles { filter: saturate(1.35) contrast(1.06) brightness(1.03); }
+    /* soft italic region names, classic-atlas style */
+    .mm-region {
+      font: italic 600 13px Georgia, 'Times New Roman', serif;
+      color: rgba(66, 70, 100, 0.72); letter-spacing: 2.5px;
+      text-shadow: 0 1px 4px rgba(255,255,255,0.95), 0 0 10px rgba(255,255,255,0.7);
+      white-space: nowrap; text-align: center; pointer-events: none;
+    }
+    .mm-hide-regions .mm-region { display: none; }
   `;
   document.head.appendChild(st);
 }
@@ -127,6 +153,14 @@ export const LeafletMap = ({ center, markers = [], onPress, locate = true }) => 
       }).addTo(map);
       mapRef.current = map;
       layerRef.current = L.layerGroup().addTo(map);
+      // region names fade out at street zoom — they're world-view décor
+      const applyRegionVis = () => {
+        const el = map.getContainer();
+        if (map.getZoom() >= 8) el.classList.add('mm-hide-regions');
+        else el.classList.remove('mm-hide-regions');
+      };
+      map.on('zoomend', applyRegionVis);
+      applyRegionVis();
       draw(L);
       setTimeout(() => map.invalidateSize(), 250);
     });
@@ -140,6 +174,15 @@ export const LeafletMap = ({ center, markers = [], onPress, locate = true }) => 
   const draw = (L) => {
     if (!L || !layerRef.current) return;
     layerRef.current.clearLayers();
+
+    // decorative region names (our own text layer on the label-free map)
+    REGIONS.forEach((r) => {
+      const icon = L.divIcon({
+        html: '<div class="mm-region">' + r.name + '</div>',
+        className: '', iconSize: [240, 20], iconAnchor: [120, 10],
+      });
+      L.marker([r.lat, r.lng], { icon, interactive: false, zIndexOffset: -100 }).addTo(layerRef.current);
+    });
 
     // your own live pin — only once your REAL location is known
     if (locateRef.current) {
