@@ -3,7 +3,7 @@ import { View, Text, Pressable, Image, Modal, ScrollView, TextInput, KeyboardAvo
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { C } from '../constants/theme';
-import { av, USERS } from '../constants/mockData';
+import { USERS, AV_NEUTRAL } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { getOrCreateDmThread, fetchMessages, sendMessage, subscribeMessages } from '../services/messages';
@@ -38,8 +38,8 @@ export const ChatThread = ({ chat, group, onClose }) => {
   const title = group ? chat.name : peer.name;
   const avatarUri = group ? null : peer.avatar;
   const players = group
-    ? [USERS.nour, USERS.omar, USERS.zeyad, { id: 'me', name: 'You', avatar: av(5) }]
-    : [peer, { id: 'me', name: 'You', avatar: av(5) }];
+    ? [USERS.nour, USERS.omar, USERS.zeyad, { id: 'me', name: 'You', avatar: AV_NEUTRAL }]
+    : [peer, { id: 'me', name: 'You', avatar: AV_NEUTRAL }];
 
   // Real only when the peer/squad is backed by a real uuid — a mock
   // demo row (fake id like 's1') never touches the real database.
@@ -68,7 +68,7 @@ export const ChatThread = ({ chat, group, onClose }) => {
     id: row.id,
     from: row.user_id === user.id
       ? 'me'
-      : { name: (row.user && row.user.name) || (peer && peer.name) || 'Someone', avatar: (row.user && row.user.avatar_url) || (peer && peer.avatar) || av(60) },
+      : { name: (row.user && row.user.name) || (peer && peer.name) || 'Someone', avatar: (row.user && row.user.avatar_url) || (peer && peer.avatar) || AV_NEUTRAL },
     text: row.body,
   });
 
@@ -130,7 +130,7 @@ export const ChatThread = ({ chat, group, onClose }) => {
     setTimeout(() => scroller.current && scroller.current.scrollToEnd({ animated: true }), 60);
   };
 
-  const callPeer = group ? { name: chat.name, avatar: chat.members ? chat.members[0] : av(12) } : peer;
+  const callPeer = group ? { name: chat.name, avatar: chat.members ? chat.members[0] : AV_NEUTRAL } : peer;
 
   return (
     <Modal visible transparent={false} animationType="slide" onRequestClose={onClose}>

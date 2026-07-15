@@ -4,6 +4,7 @@ import { DefaultTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { C } from '../constants/theme';
+import { SUPABASE_READY } from '../lib/supabase';
 import { useLang } from '../context/LanguageContext';
 import { SQUADS, DMS } from '../constants/mockData';
 import { HomeScreen } from '../screens/HomeScreen';
@@ -33,8 +34,12 @@ const renderTabIcon = (routeName, focused, color) => {
   return <Ionicons name={name} size={21} color={color} />;
 };
 
-const UNREAD_TOTAL =
-  SQUADS.reduce((n, s) => n + s.unread, 0) + DMS.reduce((n, d) => n + d.unread, 0);
+/* Demo-mode only: the sample chats carry sample unread counts. In real
+   mode there is NO badge unless it reflects something true — a made-up
+   number on the tab bar is exactly the kind of fake we don't do. */
+const UNREAD_TOTAL = SUPABASE_READY
+  ? undefined
+  : SQUADS.reduce((n, s) => n + s.unread, 0) + DMS.reduce((n, d) => n + d.unread, 0);
 
 export const NavTheme = {
   ...DefaultTheme,

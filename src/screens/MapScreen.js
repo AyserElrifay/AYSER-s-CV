@@ -334,6 +334,81 @@ export const MapScreen = () => {
     }
   };
 
+  /* ── MAP SEARCH — find real going-out places, destinations, people,
+     campfires & venues, plus ANY place on Earth via OpenStreetMap's
+     free Nominatim geocoder. Picking a result flies the camera there
+     and opens the matching card. Nothing here is scripted. ── */
+  const [mapQ, setMapQ] = useState('');
+  const [geoResults, setGeoResults] = useState([]);
+  const [mapFocus, setMapFocus] = useState(null);
+
+  // world search (debounced) — real geocoding, no API key
+  useEffect(() => {
+    const q = mapQ.trim();
+    if (q.length < 3) { setGeoResults([]); return; }
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      try {
+        const res = await fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&q=' + encodeURIComponent(q));
+        if (!res.ok) { if (!cancelled) setGeoResults([]); return; }
+        const rows = await res.json();
+        if (cancelled) return;
+        setGeoResults((rows || []).map((r) => {
+          const parts = (r.display_name || '').split(',');
+          return {
+            id: 'geo_' + r.place_id, kind: 'geo', emoji: '🗺️',
+            name: parts[0].trim(), sub: parts.slice(1, 3).join(',').trim() || 'On the world map',
+            lat: parseFloat(r.lat), lng: parseFloat(r.lon),
+          };
+        }));
+      } catch (e) { if (!cancelled) setGeoResults([]); }
+    }, 450);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [mapQ]);
+
+  const searchResults = useMemo(() => {
+    const q = mapQ.trim().toLowerCase();
+    if (!q) return [];
+    const out = [];
+    DESTINATIONS.forEach((d) => {
+      if (d.name.toLowerCase().includes(q) || (d.country || '').toLowerCase().includes(q) || (d.desc || '').toLowerCase().includes(q)) {
+        out.push({ id: 'sd_' + d.id, kind: 'dest', name: d.name, sub: (d.flag ? d.flag + ' ' : '') + (d.country || 'Destination'), emoji: d.emoji || '🌍', lat: d.lat, lng: d.lng, src: d });
+      }
+    });
+    realPlaces.forEach((pl) => {
+      if (pl.name.toLowerCase().includes(q) || (pl.category || '').toLowerCase().includes(q) || (pl.cuisine || '').toLowerCase().includes(q)) {
+        out.push({ id: 'sp_' + pl.id, kind: 'place', name: pl.name, sub: pl.category + (pl.address ? ' · ' + pl.address : ''), emoji: pl.emoji, lat: pl.lat, lng: pl.lng, src: pl });
+      }
+    });
+    nearbyPeople.forEach((p) => {
+      if ((p.name || '').toLowerCase().includes(q)) {
+        out.push({ id: 'su_' + p.id, kind: 'person', name: p.name, sub: p.intent || 'On the map now', emoji: p.doing || p.emoji || '🧿', lat: p.coords && p.coords.latitude, lng: p.coords && p.coords.longitude, src: p });
+      }
+    });
+    campfires.forEach((c) => {
+      if ((c.title || '').toLowerCase().includes(q)) {
+        out.push({ id: 'sf_' + c.id, kind: 'fire', name: c.title, sub: 'Live campfire · ' + ((c.host && c.host.name) || 'someone') + ' hosting', emoji: '🔥', lat: c.coords && c.coords.latitude, lng: c.coords && c.coords.longitude, src: c });
+      }
+    });
+    venues.forEach((v) => {
+      if ((v.name || '').toLowerCase().includes(q)) {
+        out.push({ id: 'sv_' + v.id, kind: 'venue', name: v.name, sub: v.sub || 'Bookable on Moments', emoji: v.emoji || '📍', lat: v.lat, lng: v.lng, src: v });
+      }
+    });
+    return out.slice(0, 12);
+  }, [mapQ, realPlaces, nearbyPeople, campfires, venues]);
+
+  const pickSearchResult = (r) => {
+    tapLight();
+    setMapQ('');
+    if (r.lat != null && r.lng != null) setMapFocus({ lat: r.lat, lng: r.lng, zoom: r.kind === 'geo' ? 12 : 15, ts: Date.now() });
+    if (r.kind === 'dest') openDest(r.src);
+    else if (r.kind === 'place') setPlaceOpen(r.src);
+    else if (r.kind === 'person') setProfileUser(r.src);
+    else if (r.kind === 'venue') { setRail('book'); setBookingVenue(r.src); }
+    // 'fire' and 'geo' just fly there — the pin is already on the map
+  };
+
   /* Map-level toast — honest feedback for every map action. */
   const [mapNote, setMapNote] = useState(null);
   const note = (msg) => {
@@ -431,18 +506,51 @@ export const MapScreen = () => {
         >
           <Ionicons name="search" size={16} color={C.dim} />
           <TextInput
-            placeholder="Search vibes, people, places…"
+            placeholder="Search places to go, people, anywhere on Earth…"
             placeholderTextColor={C.faint}
+            value={mapQ}
+            onChangeText={setMapQ}
+            autoCapitalize="none"
             style={{ color: C.text, marginLeft: 10, flex: 1, fontSize: 13.5 }}
           />
-          <Text style={{ fontSize: 15 }}>🧿</Text>
+          {mapQ ? (
+            <Pressable onPress={() => setMapQ('')} hitSlop={8}>
+              <Ionicons name="close-circle" size={16} color={C.faint} />
+            </Pressable>
+          ) : (
+            <Text style={{ fontSize: 15 }}>🧿</Text>
+          )}
         </View>
-        <Chip
-          label={'🟢 ' + nearbyPeople.length + ' nearby · ' + campfires.length + ' campfires' + (realPlaces.length ? ' · ' + realPlaces.length + ' real places' : '')}
-          tint="rgba(255,255,255,0.94)"
-          color={C.dim}
-          style={{ alignSelf: 'flex-start', marginTop: 10 }}
-        />
+        {mapQ.trim() ? (
+          <View style={{ backgroundColor: 'rgba(255,255,255,0.97)', borderWidth: 1, borderColor: C.line, borderRadius: 18, marginTop: 8, maxHeight: 340, overflow: 'hidden' }}>
+            <ScrollView keyboardShouldPersistTaps="handled">
+              {[...searchResults, ...geoResults].map((r) => (
+                <Pressable key={r.id} onPress={() => pickSearchResult(r)}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.line }}>
+                    <Text style={{ fontSize: 19, marginRight: 11 }}>{r.emoji}</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800' }} numberOfLines={1}>{r.name}</Text>
+                      <Text style={{ color: C.faint, fontSize: 11, marginTop: 1 }} numberOfLines={1}>{r.sub}</Text>
+                    </View>
+                    <Ionicons name="navigate" size={14} color={C.purple} />
+                  </View>
+                </Pressable>
+              ))}
+              {!searchResults.length && !geoResults.length ? (
+                <Text style={{ color: C.faint, fontSize: 12, textAlign: 'center', paddingVertical: 16 }}>
+                  {mapQ.trim().length < 3 ? 'Keep typing…' : 'Searching the real world… nothing yet 🌍'}
+                </Text>
+              ) : null}
+            </ScrollView>
+          </View>
+        ) : (
+          <Chip
+            label={'🟢 ' + nearbyPeople.length + ' nearby · ' + campfires.length + ' campfires' + (realPlaces.length ? ' · ' + realPlaces.length + ' real places' : '')}
+            tint="rgba(255,255,255,0.94)"
+            color={C.dim}
+            style={{ alignSelf: 'flex-start', marginTop: 10 }}
+          />
+        )}
       </View>
 
       {/* right-side actions: locate me · your activity · nearby people · SOS */}
@@ -636,7 +744,7 @@ export const MapScreen = () => {
           )) : null}
         </MapView>
       ) : Platform.OS === 'web' ? (
-        <LeafletMap center={myCoords} markers={mapMarkers} onPress={onMarkerPress} locate={located} />
+        <LeafletMap center={myCoords} markers={mapMarkers} onPress={onMarkerPress} locate={located} focus={mapFocus} />
       ) : (
         <FauxMap center={myCoords}>
           <View style={{ position: 'absolute', left: '38%', top: '50%' }}>

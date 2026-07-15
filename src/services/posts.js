@@ -18,6 +18,25 @@ export async function fetchFeed() {
   }));
 }
 
+/* Real post search — matches captions and tagged places of ACTUAL
+   posts in the database. Powers the Discover "Posts" results. */
+export async function searchPosts(q) {
+  // strip the characters PostgREST's or() filter treats as syntax
+  const like = '%' + q.replace(/[%_(),]/g, ' ').trim() + '%';
+  const { data, error } = await supabase
+    .from('posts')
+    .select('*, user:profiles!posts_user_id_fkey(*), vibe_rows:post_vibes(count), comment_rows:comments(count)')
+    .or('caption.ilike.' + like + ',place.ilike.' + like)
+    .order('created_at', { ascending: false })
+    .limit(15);
+  if (error) throw error;
+  return (data || []).map((row) => ({
+    ...row,
+    vibes: (row.vibe_rows && row.vibe_rows[0] && row.vibe_rows[0].count) || 0,
+    comments: (row.comment_rows && row.comment_rows[0] && row.comment_rows[0].count) || 0,
+  }));
+}
+
 /* One post by id — powers shared links (?post=…). */
 export async function fetchPost(postId) {
   const { data, error } = await supabase

@@ -199,7 +199,7 @@ const pinHtml = (m) => {
   );
 };
 
-export const LeafletMap = ({ center, markers = [], onPress, locate = true }) => {
+export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus = null }) => {
   const elRef = useRef(null);
   const mapRef = useRef(null);
   const layerRef = useRef(null);
@@ -311,6 +311,13 @@ export const LeafletMap = ({ center, markers = [], onPress, locate = true }) => 
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [locate, center && center.latitude, center && center.longitude]);
+
+  // search → fly the camera to whatever the user picked
+  useEffect(() => {
+    if (!mapRef.current || !focus || focus.lat == null || focus.lng == null) return;
+    mapRef.current.flyTo([focus.lat, focus.lng], focus.zoom || 14, { duration: 1.6 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focus && focus.ts]);
 
   if (Platform.OS !== 'web') return null;
   // react-dom renders lowercase host tags on web (same as the <video>/<iframe> used elsewhere).

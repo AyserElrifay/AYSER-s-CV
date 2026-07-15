@@ -86,7 +86,7 @@ export const ChatsScreen = () => {
           const done = !!justAccepted[req.id];
           return (
             <Glass key={req.id} tint={C.purpleSoft} border="rgba(124,58,237,0.3)" style={{ padding: 13, marginBottom: 10, flexDirection: 'row', alignItems: 'center' }}>
-              <Image source={{ uri: p.avatar_url || 'https://i.pravatar.cc/100?img=60' }} style={{ width: 46, height: 46, borderRadius: 23 }} />
+              <Image source={{ uri: p.avatar_url || AV_NEUTRAL }} style={{ width: 46, height: 46, borderRadius: 23 }} />
               <View style={{ flex: 1, marginLeft: 11 }}>
                 <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>{p.name || 'Explorer'} {p.country_flag || ''}</Text>
                 <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 2 }}>wants to be your mate</Text>

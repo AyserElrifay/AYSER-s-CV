@@ -5,7 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { C } from '../constants/theme';
-import { SOUNDS, ME, av } from '../constants/mockData';
+import { SOUNDS, ME, AV_NEUTRAL } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { createPost } from '../services/posts';
@@ -243,7 +243,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
           if (sound && sound.audio_url) incrementTrackUse(sound.id);
           onPostedStory && onPostedStory({
             id: row.id, createdAt: row.created_at,
-            user: { id: user.id, name: 'You', avatar: av(5) }, media: mediaUrl, sound, caption: caption.trim() || null,
+            user: { id: user.id, name: 'You', avatar: AV_NEUTRAL }, media: mediaUrl, sound, caption: caption.trim() || null,
             stickerType: sticker && sticker.type, stickerData: sticker && sticker.data,
           });
         } else if (mode === 'video') {
@@ -254,7 +254,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
           if (sound && sound.audio_url) incrementTrackUse(sound.id);
           onPosted && onPosted({
             id: row.id,
-            user: { name: (row.user && row.user.name) || 'You', avatar: (row.user && row.user.avatar_url) || av(5), verified: !!(row.user && row.user.verified) },
+            user: { name: (row.user && row.user.name) || 'You', avatar: (row.user && row.user.avatar_url) || AV_NEUTRAL, verified: !!(row.user && row.user.verified) },
             type: 'reel', media: row.media_url, caption: row.caption,
             place: 'Right here', startsIn: 'Live now', coords: ME.coords,
             sound, vibes: 0, comments: 0, squad: 'New Vibe Squad',
@@ -262,9 +262,9 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
         }
       } else {
         // demo mode — local only
-        if (mode === 'story') onPostedStory && onPostedStory({ user: { id: 'me', name: 'You', avatar: av(5) }, media: shot.uri, sound, caption: caption.trim() || null });
-        else if (mode === 'video') onPosted && onPosted({ id: 'local-' + Date.now(), type: 'vod', media_url: shot.uri, caption: caption.trim() || '🎬 Video', user: { name: 'You', avatar_url: av(5) } });
-        else onPosted && onPosted({ id: 'local-' + Date.now(), user: { name: 'You', avatar: av(5), verified: false }, type: 'reel', media: shot.uri, caption: caption.trim() || '🎬', place: 'Right here', startsIn: 'Live now', coords: ME.coords, sound, vibes: 0, comments: 0, squad: 'New Vibe Squad' });
+        if (mode === 'story') onPostedStory && onPostedStory({ user: { id: 'me', name: 'You', avatar: AV_NEUTRAL }, media: shot.uri, sound, caption: caption.trim() || null });
+        else if (mode === 'video') onPosted && onPosted({ id: 'local-' + Date.now(), type: 'vod', media_url: shot.uri, caption: caption.trim() || '🎬 Video', user: { name: 'You', avatar_url: AV_NEUTRAL } });
+        else onPosted && onPosted({ id: 'local-' + Date.now(), user: { name: 'You', avatar: AV_NEUTRAL, verified: false }, type: 'reel', media: shot.uri, caption: caption.trim() || '🎬', place: 'Right here', startsIn: 'Live now', coords: ME.coords, sound, vibes: 0, comments: 0, squad: 'New Vibe Squad' });
       }
       tapSuccess(); sfxSuccess();
       onClose();

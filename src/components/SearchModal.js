@@ -3,10 +3,11 @@ import { View, Text, Modal, TextInput, Pressable, Image, ScrollView, Platform } 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { C } from '../constants/theme';
-import { USERS, FEED, TRENDING, GROUPS, PLAY_GAMES, av } from '../constants/mockData';
+import { USERS, FEED, TRENDING, GROUPS, PLAY_GAMES, AV_NEUTRAL } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { searchProfiles } from '../services/social';
+import { searchPosts } from '../services/posts';
 import { fetchGroups, createGroup, joinGroup, leaveGroup } from '../services/groups';
 import { fetchTrending } from '../services/trending';
 import { Chip } from './Chip';
@@ -26,7 +27,7 @@ const fromProfileRow = (row) => ({
   name: row.name || 'Explorer',
   handle: row.handle || '@' + (row.name || 'explorer').toLowerCase().replace(/\s+/g, '.'),
   emoji: row.emoji || '🧿',
-  avatar: row.avatar_url || av(60),
+  avatar: row.avatar_url || AV_NEUTRAL,
   verified: !!row.verified,
   vouches: row.vouches || 1,
   vouchTag: row.vouch_tag || 'New Explorer',
@@ -81,22 +82,35 @@ export const SearchModal = ({ onClose, onOpenProfile }) => {
 
   const q = query.trim().toLowerCase();
   const mockPeople = useMemo(() => Object.values(USERS), []);
+  const [realPosts, setRealPosts] = useState(null);
 
   useEffect(() => {
     if (!SUPABASE_READY) return;
-    if (!q) { setRemote(null); return; }
+    if (!q) { setRemote(null); setRealPosts(null); return; }
     const t = setTimeout(async () => {
       try { setRemote((await searchProfiles(query)).map(fromProfileRow)); }
       catch (e) { setRemote([]); }
+      try {
+        setRealPosts((await searchPosts(query)).map((r) => ({
+          id: r.id, caption: r.caption, place: r.place, media: r.media_url,
+          vibes: r.vibes, comments: r.comments,
+          user: { name: (r.user && r.user.name) || 'Explorer', avatar: (r.user && r.user.avatar_url) || AV_NEUTRAL },
+        })));
+      } catch (e) { setRealPosts([]); }
     }, 280);
     return () => clearTimeout(t);
   }, [query]);
 
-  const people = (SUPABASE_READY && remote !== null ? remote : mockPeople).filter((u) =>
-    !q || u.name.toLowerCase().includes(q) || (u.handle || '').toLowerCase().includes(q));
+  // Real mode NEVER shows scripted people or posts — only rows that
+  // actually exist in the database. Mock lists are demo-mode only.
+  const people = SUPABASE_READY
+    ? (remote || [])
+    : mockPeople.filter((u) => !q || u.name.toLowerCase().includes(q) || (u.handle || '').toLowerCase().includes(q));
   const groupsSource = SUPABASE_READY ? (realGroups || []) : GROUPS;
   const groups = groupsSource.filter((g) => !q || g.name.toLowerCase().includes(q) || (g.about || '').toLowerCase().includes(q));
-  const posts = FEED.filter((p) => !q || (p.caption || '').toLowerCase().includes(q) || (p.place || '').toLowerCase().includes(q));
+  const posts = SUPABASE_READY
+    ? (realPosts || [])
+    : FEED.filter((p) => !q || (p.caption || '').toLowerCase().includes(q) || (p.place || '').toLowerCase().includes(q));
   const trendsSource = SUPABASE_READY ? (realTrends || []) : TRENDING;
   const trends = trendsSource.filter((t) => !q || t.tag.toLowerCase().includes(q));
   const games = PLAY_GAMES.filter((g) => !q || g.name.toLowerCase().includes(q) || g.tag.toLowerCase().includes(q));
@@ -120,7 +134,7 @@ export const SearchModal = ({ onClose, onOpenProfile }) => {
               <Text style={{ color: C.purple, fontSize: 10, fontWeight: '800' }}>{item.tag}</Text>
             </View>
           </View>
-          <Text style={{ color: C.faint, fontSize: 12, marginTop: 3 }} numberOfLines={2}>{item.players} · {item.plays} plays</Text>
+          <Text style={{ color: C.faint, fontSize: 12, marginTop: 3 }} numberOfLines={2}>{item.players}</Text>
         </View>
         <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 15, paddingVertical: 8 }}>
           <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '900' }}>{item.kind === 'runner' ? 'Play' : 'In chat'}</Text>
@@ -204,7 +218,7 @@ export const SearchModal = ({ onClose, onOpenProfile }) => {
         <View style={{ flex: 1, marginLeft: 11 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800' }}>{item.user.name}</Text>
-            <Text style={{ color: C.faint, fontSize: 12, marginLeft: 6 }}>· {item.place}</Text>
+            {item.place ? <Text style={{ color: C.faint, fontSize: 12, marginLeft: 6 }}>· {item.place}</Text> : null}
           </View>
           <Text style={{ color: C.dim, fontSize: 13, marginTop: 3, lineHeight: 18 }} numberOfLines={2}>{item.caption}</Text>
           <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 5 }}>

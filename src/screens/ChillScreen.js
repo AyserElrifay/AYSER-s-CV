@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { C, R } from '../constants/theme';
-import { MOVIES, WATCH_PROVIDERS, WATCH_GENRES, av } from '../constants/mockData';
+import { MOVIES, WATCH_PROVIDERS, WATCH_GENRES, AV_NEUTRAL } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { openPartner } from '../services/broker';
@@ -31,7 +31,7 @@ const toVideo = (r) => ({
   title: r.caption || 'Untitled video',
   media: r.media_url || r.media,
   author: (r.user && (r.user.name)) || 'Explorer',
-  avatar: (r.user && (r.user.avatar_url || r.user.avatar)) || av(60),
+  avatar: (r.user && (r.user.avatar_url || r.user.avatar)) || AV_NEUTRAL,
   place: r.place || 'Video',
 });
 

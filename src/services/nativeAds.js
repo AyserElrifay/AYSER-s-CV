@@ -1,4 +1,4 @@
-import { av } from '../constants/mockData';
+import { AV_NEUTRAL } from '../constants/mockData';
 import { fetchActiveBoosts, feedbackFactor } from './ads';
 
 /* ── NATIVE ADS ───────────────────────────────────────────────
@@ -64,7 +64,7 @@ function boostToCard(boost, i) {
     id: 'ad-' + boost.id,
     sponsored: true,
     type: 'post',
-    user: { name: v.name || 'Sponsored', avatar: av(20), verified: true },
+    user: { name: v.name || 'Sponsored', avatar: AV_NEUTRAL, verified: true },
     media: null,
     textBg: GRADS[i % GRADS.length],
     caption: (v.emoji ? v.emoji + '  ' : '') + (v.name || 'A place near you') + (v.sub ? '\n' + v.sub : ''),
