@@ -26,96 +26,14 @@ function loadLeaflet() {
   return leafletPromise;
 }
 
-/* The ANCIENT ATLAS — our own decorative text layer on the label-free
-   basemap. Instead of modern administrative names, every land on the
-   planet is called by its very ancient name — Kemet, Gaul, Hispania,
-   Persia, Nippon, Tawantinsuyu — applied to EVERYONE equally, so no
-   country is singled out for special treatment either way. The shared
-   geographic names (Sahara, Alps, the seas) and the three-faith
-   'الأرض المقدسة · Holy Land' live in the same layer. Purely
-   decorative, non-interactive, hidden once you zoom into street level. */
+/* A CLEAN, name-free planet — the owner's call, applied to everyone
+   equally: NO country on Earth carries a name on this map. The single
+   decorative label kept is the shared three-faith name for the region
+   between the river and the sea — 'الأرض المقدسة · Holy Land' — which
+   names no state and erases no one, because no state anywhere is
+   named. Non-interactive, hidden once you zoom into street level. */
 const REGIONS = [
-  // ── MENA — the ancient heart (bilingual) ──
   { name: 'الأرض المقدسة · Holy Land', lat: 31.55, lng: 35.05 },
-  { name: 'كيمِت · Kemet', lat: 27.8, lng: 28.8 },
-  { name: 'النوبة · Nubia', lat: 21.0, lng: 31.0 },
-  { name: 'كوش · Kush', lat: 14.5, lng: 32.5 },
-  { name: 'Sinai · سيناء', lat: 29.3, lng: 33.9 },
-  { name: 'Sahara', lat: 24.5, lng: 8.0 },
-  { name: 'The Nile · النيل', lat: 26.4, lng: 32.2 },
-  { name: 'Red Sea', lat: 20.5, lng: 38.3 },
-  { name: 'Mediterranean', lat: 35.2, lng: 17.5 },
-  { name: 'بلاد الشام · The Levant', lat: 34.8, lng: 38.2 },
-  { name: 'فينيقيا · Phoenicia', lat: 34.1, lng: 35.7 },
-  { name: 'بلاد الرافدين · Mesopotamia', lat: 33.2, lng: 43.5 },
-  { name: 'بلاد فارس · Persia', lat: 32.5, lng: 54.0 },
-  { name: 'الحجاز · Hejaz', lat: 24.0, lng: 39.5 },
-  { name: 'نجد · Najd', lat: 25.2, lng: 44.5 },
-  { name: 'سبأ · Sheba', lat: 15.5, lng: 47.5 },
-  { name: 'مجان · Magan', lat: 21.0, lng: 57.0 },
-  { name: 'دلمون · Dilmun', lat: 25.9, lng: 50.2 },
-  { name: 'الخليج · The Gulf', lat: 26.6, lng: 51.9 },
-  { name: 'The Empty Quarter · الربع الخالي', lat: 20.0, lng: 51.0 },
-  { name: 'ليبو · Libu', lat: 27.0, lng: 17.5 },
-  { name: 'قرطاج · Carthage', lat: 34.4, lng: 9.5 },
-  { name: 'نوميديا · Numidia', lat: 34.6, lng: 4.5 },
-  { name: 'موريطنية · Mauretania', lat: 32.6, lng: -7.5 },
-  { name: 'Atlas Mountains', lat: 30.6, lng: -5.5 },
-  // ── ancient Europe ──
-  { name: 'Hellas', lat: 39.2, lng: 22.0 },
-  { name: 'Italia', lat: 42.8, lng: 12.5 },
-  { name: 'Gaul · Gallia', lat: 47.0, lng: 2.5 },
-  { name: 'Hispania', lat: 40.0, lng: -4.0 },
-  { name: 'Lusitania', lat: 39.5, lng: -8.1 },
-  { name: 'Britannia', lat: 52.8, lng: -1.8 },
-  { name: 'Caledonia', lat: 56.8, lng: -4.2 },
-  { name: 'Hibernia', lat: 53.2, lng: -8.2 },
-  { name: 'Germania', lat: 51.0, lng: 10.0 },
-  { name: 'Bohemia', lat: 49.8, lng: 15.0 },
-  { name: 'Pannonia', lat: 47.2, lng: 19.2 },
-  { name: 'Dacia', lat: 45.2, lng: 24.8 },
-  { name: 'Carpathians', lat: 47.6, lng: 24.6 },
-  { name: 'Thrace', lat: 42.2, lng: 25.3 },
-  { name: 'The Balkans', lat: 43.5, lng: 20.6 },
-  { name: 'Sarmatia', lat: 51.5, lng: 23.0 },
-  { name: 'Rus', lat: 56.0, lng: 38.0 },
-  { name: 'Scandinavia', lat: 63.0, lng: 15.0 },
-  { name: 'The Alps', lat: 46.4, lng: 9.8 },
-  // ── ancient Asia ──
-  { name: 'Anatolia', lat: 39.0, lng: 33.5 },
-  { name: 'The Caucasus', lat: 42.5, lng: 44.0 },
-  { name: 'Sogdiana', lat: 40.5, lng: 65.5 },
-  { name: 'Bactria', lat: 34.8, lng: 66.5 },
-  { name: 'The Steppe · Scythia', lat: 48.5, lng: 66.0 },
-  { name: 'Siberia', lat: 62.0, lng: 95.0 },
-  { name: 'Bharat', lat: 22.5, lng: 79.0 },
-  { name: 'The Himalayas', lat: 28.5, lng: 84.0 },
-  { name: 'Cathay', lat: 34.5, lng: 105.0 },
-  { name: 'Nippon', lat: 36.8, lng: 138.5 },
-  { name: 'Joseon', lat: 36.5, lng: 127.8 },
-  { name: 'Siam', lat: 15.5, lng: 101.0 },
-  { name: 'Nusantara', lat: -1.5, lng: 113.0 },
-  // ── ancient Africa ──
-  { name: 'بونت · Punt', lat: 8.5, lng: 47.5 },
-  { name: 'الحبشة · Abyssinia', lat: 9.0, lng: 39.5 },
-  { name: 'Azania', lat: -6.5, lng: 38.5 },
-  { name: 'The Serengeti', lat: -2.5, lng: 34.8 },
-  { name: 'Mali Empire', lat: 14.8, lng: -5.0 },
-  { name: 'Songhai', lat: 16.5, lng: 1.5 },
-  { name: 'Kongo', lat: -5.5, lng: 16.5 },
-  { name: 'Congo Basin', lat: -0.8, lng: 23.0 },
-  { name: 'Great Zimbabwe', lat: -19.5, lng: 30.0 },
-  // ── the Americas & Oceania, by their oldest names ──
-  { name: 'Turtle Island', lat: 42.0, lng: -98.0 },
-  { name: 'The Rockies', lat: 46.5, lng: -113.0 },
-  { name: 'Anáhuac', lat: 22.5, lng: -101.5 },
-  { name: 'The Caribbean', lat: 15.5, lng: -72.0 },
-  { name: 'Tawantinsuyu', lat: -12.5, lng: -74.0 },
-  { name: 'The Amazon', lat: -4.0, lng: -62.0 },
-  { name: 'The Andes', lat: -22.0, lng: -67.5 },
-  { name: 'Patagonia', lat: -44.0, lng: -70.0 },
-  { name: 'The Outback', lat: -24.0, lng: 134.0 },
-  { name: 'Aotearoa', lat: -43.2, lng: 171.5 },
 ];
 
 /* The Moments map identity — gentle float, purple glow, white pills. */
@@ -147,6 +65,13 @@ function injectMapStyle() {
       white-space: nowrap; text-align: center; pointer-events: none;
     }
     .mm-hide-regions .mm-region { display: none; }
+    /* Destination pins are STATIC (no per-pin animations — with ~60 of
+       them, infinite glows were what made the map feel heavy) and they
+       shrink to tidy dots when you're zoomed out, so the world view
+       stays organized instead of a wall of overlapping cards. */
+    .mm-dest { transform-origin: center bottom; transition: transform 0.25s ease; }
+    .mm-z-far .mm-dest { transform: scale(0.5); }
+    .mm-z-far .mm-dest .mm-pill { display: none; }
   `;
   document.head.appendChild(st);
 }
@@ -176,15 +101,15 @@ const pinHtml = (m) => {
     );
   }
 
-  // Curated destinations: white card pin with the emoji + name pill —
-  // the "Bootleg Theatre" label feel, in our colors.
+  // Curated destinations: a compact static gold-rim card + name pill.
+  // No float/glow animations here — sixty of those at once is exactly
+  // what made the map slow. Motion is saved for people, who are few.
   if (m.kind === 'dest') {
     return (
-      '<div class="mm-float" style="position:relative;width:96px;height:66px;display:flex;flex-direction:column;align-items:center">' +
-      glowRing('rgba(245,179,1,0.5)') +
-      '<div style="position:relative;width:42px;height:42px;border-radius:14px;background:#fff;border:2.5px solid #F5B301;display:flex;align-items:center;justify-content:center;font-size:21px;box-shadow:0 3px 8px rgba(0,0,0,0.28)">' +
+      '<div class="mm-dest" style="position:relative;width:96px;height:62px;display:flex;flex-direction:column;align-items:center">' +
+      '<div style="position:relative;width:38px;height:38px;border-radius:13px;background:#fff;border:2.5px solid #F5B301;display:flex;align-items:center;justify-content:center;font-size:19px;box-shadow:0 2px 6px rgba(0,0,0,0.22)">' +
       (m.emoji || '📍') +
-      '<div style="position:absolute;bottom:-5px;right:-7px;background:#fff;border-radius:8px;font-size:11px;line-height:15px;padding:0 2px;box-shadow:0 1px 3px rgba(0,0,0,0.3)">' + (flag || '') + '</div>' +
+      (flag ? '<div style="position:absolute;bottom:-5px;right:-7px;background:#fff;border-radius:8px;font-size:10px;line-height:14px;padding:0 2px;box-shadow:0 1px 3px rgba(0,0,0,0.3)">' + flag + '</div>' : '') +
       '</div>' +
       '<div class="mm-pill" style="margin-top:4px">' + (m.label || '') + '</div>' +
       '</div>'
@@ -226,17 +151,19 @@ export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus
       // Revert to labels: swap 'voyager_nolabels' back to 'voyager'.
       L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png', {
         maxZoom: 20, subdomains: 'abcd', className: 'mm-tiles',
+        updateWhenIdle: true, keepBuffer: 4, // smoother panning, less churn
       }).addTo(map);
       mapRef.current = map;
       layerRef.current = L.layerGroup().addTo(map);
-      // region names fade out at street zoom — they're world-view décor
-      const applyRegionVis = () => {
+      // zoom-aware tidiness: the region label fades out at street zoom,
+      // and destination pins collapse to dots when zoomed far out
+      const applyZoomClasses = () => {
         const el = map.getContainer();
-        if (map.getZoom() >= 8) el.classList.add('mm-hide-regions');
-        else el.classList.remove('mm-hide-regions');
+        el.classList.toggle('mm-hide-regions', map.getZoom() >= 8);
+        el.classList.toggle('mm-z-far', map.getZoom() < 5);
       };
-      map.on('zoomend', applyRegionVis);
-      applyRegionVis();
+      map.on('zoomend', applyZoomClasses);
+      applyZoomClasses();
       draw(L);
       setTimeout(() => map.invalidateSize(), 250);
     });
@@ -282,8 +209,8 @@ export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus
       const isDest = m.kind === 'dest';
       const icon = L.divIcon({
         html: pinHtml(m), className: '',
-        iconSize: isPerson ? [52, 66] : isDest ? [96, 66] : [36, 36],
-        iconAnchor: isPerson ? [26, 33] : isDest ? [48, 33] : [18, 36],
+        iconSize: isPerson ? [52, 66] : isDest ? [96, 62] : [36, 36],
+        iconAnchor: isPerson ? [26, 33] : isDest ? [48, 31] : [18, 36],
       });
       const mk = L.marker([m.lat, m.lng], { icon, zIndexOffset: isPerson ? 500 : isDest ? 300 : 0 }).addTo(layerRef.current);
       if (m.label && !isPerson && !isDest) mk.bindTooltip(m.label, { direction: 'top', offset: [0, -34] });
