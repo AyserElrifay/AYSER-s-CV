@@ -10,6 +10,7 @@ import { kmBetween, projectToMap } from '../utils/geo';
 import { requestLocationPermission, getCurrentCoords, watchCoords } from '../utils/location';
 import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
+import { useLang } from '../context/LanguageContext';
 import { shareMyLocation, goInvisible, fetchNearbyPeople, subscribeNearby, fetchMyLiveLocation } from '../services/locations';
 import { fetchLiveCampfires, hostCampfire, joinCampfire } from '../services/campfires';
 import { fetchLiveVenues, applyAsVenue } from '../services/venues';
@@ -64,6 +65,7 @@ const VENUE_KINDS = ['Sport', 'Stay', 'Food', 'Experience'];
 export const MapScreen = () => {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { lang } = useLang();
   const [profileUser, setProfileUser] = useState(null);
   const [sos, setSos] = useState(null); // null | 'ask' | 'sent'
   /* ONE sheet at a time — 'nearby' | 'doing' | 'drop' | 'partner' | null.
@@ -760,7 +762,7 @@ export const MapScreen = () => {
           )) : null}
         </MapView>
       ) : Platform.OS === 'web' ? (
-        <LeafletMap center={myCoords} markers={mapMarkers} onPress={onMarkerPress} locate={located} focus={mapFocus} />
+        <LeafletMap center={myCoords} markers={mapMarkers} onPress={onMarkerPress} locate={located} focus={mapFocus} lang={lang} />
       ) : (
         <FauxMap center={myCoords}>
           <View style={{ position: 'absolute', left: '38%', top: '50%' }}>
