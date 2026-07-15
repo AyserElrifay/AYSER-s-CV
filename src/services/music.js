@@ -15,6 +15,15 @@ export async function fetchTracks({ mood, bpmMin, bpmMax, instrument } = {}) {
   return data || [];
 }
 
+/* Real play/use count — called whenever someone actually attaches this
+   track to a story/reel, so producers see genuine usage, not just
+   uploads. Security-definer RPC (RUN_ME.sql) since the LISTENER, not
+   the uploader, triggers it. */
+export async function incrementTrackUse(trackId) {
+  if (!trackId) return;
+  try { await supabase.rpc('increment_track_use', { p_track_id: trackId }); } catch (e) { /* non-blocking */ }
+}
+
 export async function uploadTrack(userId, fileUri, ext, contentType, meta) {
   const audioUrl = await uploadMediaSmart(userId, fileUri, ext, contentType);
   const { data, error } = await supabase

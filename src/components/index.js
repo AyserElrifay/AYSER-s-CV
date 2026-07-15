@@ -23,6 +23,7 @@ export { CommentsSheet } from './CommentsSheet';
 export { NotificationsSheet } from './NotificationsSheet';
 export { MatesSheet } from './MatesSheet';
 export { LikersSheet } from './LikersSheet';
+export { AvatarBuilderSheet } from './AvatarBuilderSheet';
 export { ComposeModal } from './ComposeModal';
 export { SearchModal } from './SearchModal';
 export { SoundChip } from './SoundChip';

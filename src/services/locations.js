@@ -22,8 +22,21 @@ export async function fetchNearbyPeople() {
   const cutoff = new Date(Date.now() - 30 * 60 * 1000).toISOString();
   const { data, error } = await supabase
     .from('live_locations')
-    .select('user_id, lat, lng, doing, updated_at, profile:profiles(name, handle, avatar_url, emoji, intent, verified, country_flag)')
+    .select('user_id, lat, lng, doing, updated_at, profile:profiles(name, handle, avatar_url, avatar_dna, emoji, intent, verified, country_flag)')
     .gt('updated_at', cutoff);
+  if (error) throw error;
+  return data;
+}
+
+/* Your own current row — used to rehydrate the "doing" badge on load,
+   since the client's local state resets on every app open but your
+   real visibility on the map does not. */
+export async function fetchMyLiveLocation(userId) {
+  const { data, error } = await supabase
+    .from('live_locations')
+    .select('doing, updated_at')
+    .eq('user_id', userId)
+    .maybeSingle();
   if (error) throw error;
   return data;
 }

@@ -2,7 +2,7 @@ import { supabase } from '../lib/supabase';
 
 /* Real 24h stories — rows expire via the RLS policy (expires_at). */
 
-export async function createStory(userId, { mediaUrl, caption, sound }) {
+export async function createStory(userId, { mediaUrl, caption, sound, sticker }) {
   let payload = {
     user_id: userId,
     media_url: mediaUrl,
@@ -10,10 +10,12 @@ export async function createStory(userId, { mediaUrl, caption, sound }) {
     sound_title: sound ? sound.title : null,
     sound_artist: sound ? sound.artist : null,
     sound_url: sound ? sound.audio_url || null : null, // actually playable
+    sticker_type: sticker ? sticker.type : null,        // 'poll' | 'question'
+    sticker_data: sticker ? JSON.stringify(sticker.data) : null,
   };
   // strip any column this DB doesn't have yet and retry — a missing
   // optional column must never block posting a story
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < 6; i++) {
     const { data, error } = await supabase
       .from('stories')
       .insert(payload)
@@ -35,9 +37,54 @@ export async function createStory(userId, { mediaUrl, caption, sound }) {
 export async function fetchActiveStories() {
   const { data, error } = await supabase
     .from('stories')
-    .select('*, user:profiles(id, name, avatar_url)')
+    .select('*, user:profiles(id, name, avatar_url, country_flag)')
     .order('created_at', { ascending: false })
     .limit(50);
   if (error) throw error;
   return data;
+}
+
+/* A single story by id — powers ?story=<id> shared links. */
+export async function fetchStoryById(storyId) {
+  const { data, error } = await supabase
+    .from('stories')
+    .select('*, user:profiles(id, name, avatar_url, country_flag)')
+    .eq('id', storyId)
+    .gt('expires_at', new Date().toISOString())
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+/* Delete YOUR OWN story (RLS blocks anyone else's). */
+export async function deleteStory(storyId, userId) {
+  const { error } = await supabase
+    .from('stories')
+    .delete()
+    .eq('id', storyId)
+    .eq('user_id', userId);
+  if (error) throw error;
+}
+
+/* ── Poll sticker — real votes, real counts ── */
+export async function castPollVote(storyId, userId, choice) {
+  const { error } = await supabase
+    .from('story_poll_votes')
+    .upsert({ story_id: storyId, user_id: userId, choice }, { onConflict: 'story_id,user_id' });
+  if (error) throw error;
+}
+
+export async function fetchPollResults(storyId, myUserId) {
+  const { data, error } = await supabase
+    .from('story_poll_votes')
+    .select('user_id, choice')
+    .eq('story_id', storyId);
+  if (error) throw error;
+  const counts = [0, 0];
+  let mine = null;
+  (data || []).forEach((r) => {
+    counts[r.choice] = (counts[r.choice] || 0) + 1;
+    if (r.user_id === myUserId) mine = r.choice;
+  });
+  return { counts, mine, total: counts[0] + counts[1] };
 }

@@ -8,7 +8,7 @@ import { SUPABASE_READY } from '../lib/supabase';
 import { toggleVibe, toggleLaugh, toggleRepost, joinPost, fetchEngagement } from '../services/social';
 import { getProfile } from '../services/profiles';
 import { fetchMyPosts, deletePost } from '../services/posts';
-import { fetchActiveStories } from '../services/stories';
+import { fetchActiveStories, fetchStoryById } from '../services/stories';
 import { recordSignal } from '../services/algorithm';
 import { tapLight, tapSuccess } from '../utils/feedback';
 import { sfxStar, sfxSuccess } from '../utils/sfx';
@@ -27,6 +27,24 @@ import { Modal } from 'react-native';
 import { ProfileScreen } from './ProfileScreen';
 
 /* ───────────────────── TAB 1 · HOME — THE ACTION FEED ──────────────── */
+
+/* DB row → the shape StoryViewer/StoriesBar consume. Exported so a
+   shared ?story= link renders identically to one from the rail. */
+export const toStoryCard = (r) => ({
+  id: r.id,
+  createdAt: r.created_at,
+  user: {
+    id: r.user_id,
+    name: (r.user && r.user.name) || 'Explorer',
+    avatar: (r.user && r.user.avatar_url) || AV_NEUTRAL,
+    flag: (r.user && r.user.country_flag) || null,
+  },
+  media: r.media_url,
+  caption: r.caption,
+  sound: r.sound_title ? { title: r.sound_title, artist: r.sound_artist || '', emoji: '🎵', audio_url: r.sound_url || null } : null,
+  stickerType: r.sticker_type || null,
+  stickerData: r.sticker_data ? (() => { try { return JSON.parse(r.sticker_data); } catch (e) { return null; } })() : null,
+});
 
 const headerBtn = {
   width: 38, height: 38, borderRadius: 19,
@@ -87,6 +105,7 @@ export const HomeScreen = () => {
   const [notifOpen, setNotifOpen] = useState(false);
   const [unread, setUnread] = useState(0);
   const [sharedPost, setSharedPost] = useState(null); // opened from a ?post= link
+  const [sharedStory, setSharedStory] = useState(null); // opened from a ?story= link
   const [likersPost, setLikersPost] = useState(null); // "who starred this"
   const [toast, setToast] = useState(null);
 
@@ -111,17 +130,47 @@ export const HomeScreen = () => {
     }
   };
 
-  /* Open a moment shared IN — ?post=<id> lands right on the post. */
+  /* Open a moment or a story shared IN — ?post=<id> / ?story=<id>. */
   useEffect(() => {
     if (Platform.OS !== 'web' || typeof window === 'undefined' || !SUPABASE_READY) return;
-    const id = new URLSearchParams(window.location.search).get('post');
-    if (!id) return;
-    fetchPost(id)
-      .then((row) => setSharedPost(toCard(row)))
-      .catch(() => showToast('That moment is gone or private'));
-    // clean the URL so refreshes go back to the normal feed
-    window.history.replaceState({}, '', window.location.pathname);
+    const params = new URLSearchParams(window.location.search);
+    const postId = params.get('post');
+    const storyId = params.get('story');
+    if (postId) {
+      fetchPost(postId)
+        .then((row) => setSharedPost(toCard(row)))
+        .catch(() => showToast('That moment is gone or private'));
+    }
+    if (storyId) {
+      fetchStoryById(storyId)
+        .then((row) => setSharedStory(toStoryCard(row)))
+        .catch(() => showToast('That story has expired or is gone'));
+    }
+    if (postId || storyId) window.history.replaceState({}, '', window.location.pathname);
   }, []);
+
+  /* Share a story OUT — same link pattern as posts. */
+  const onShareStory = async (story) => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+    const url = window.location.origin + window.location.pathname + '?story=' + story.id;
+    const payload = { title: 'Moments', text: (story.caption || 'Check this story ✨').slice(0, 120), url };
+    try {
+      if (navigator.share) { await navigator.share(payload); return; }
+    } catch (e) { if (e && e.name === 'AbortError') return; }
+    try {
+      await navigator.clipboard.writeText(url);
+      showToast('Link copied — send it anywhere 🔗');
+    } catch (e) {
+      showToast(url);
+    }
+  };
+
+  /* A story you deleted disappears from every list it might be in. */
+  const onStoryDeleted = (storyId) => {
+    setMyStories((s) => s.filter((x) => x.id !== storyId));
+    setRealStories((s) => s.filter((x) => x.id !== storyId));
+    if (sharedStory && sharedStory.id === storyId) setSharedStory(null);
+  };
 
   /* Real notifications: load the unread count, then listen live —
      a new star/comment/mate event lands with the Moments chime. */
@@ -153,12 +202,7 @@ export const HomeScreen = () => {
     if (!SUPABASE_READY || !user) return;
     getProfile(user.id).then(setMyProfile).catch(() => {});
     fetchMyPosts(user.id).then((rows) => setMyMomentsCount((rows || []).length)).catch(() => {});
-    fetchActiveStories().then((rows) => setRealStories((rows || []).map((r) => ({
-      user: { id: r.user_id, name: (r.user && r.user.name) || 'Explorer', avatar: (r.user && r.user.avatar_url) || AV_NEUTRAL },
-      media: r.media_url,
-      caption: r.caption,
-      sound: r.sound_title ? { title: r.sound_title, artist: r.sound_artist || '', emoji: '🎵', audio_url: r.sound_url || null } : null,
-    })))).catch(() => {});
+    fetchActiveStories().then((rows) => setRealStories((rows || []).map(toStoryCard))).catch(() => {});
   }, [user, posts.length, myStories.length]);
 
   const onVibe = (post) => {
@@ -410,7 +454,22 @@ export const HomeScreen = () => {
         />
       ) : null}
       {storyIndex !== null ? (
-        <StoryViewer stories={stories} startIndex={storyIndex} onClose={() => setStoryIndex(null)} />
+        <StoryViewer
+          stories={stories}
+          startIndex={storyIndex}
+          onClose={() => setStoryIndex(null)}
+          onShare={onShareStory}
+          onDeleted={onStoryDeleted}
+        />
+      ) : null}
+      {sharedStory ? (
+        <StoryViewer
+          stories={[sharedStory]}
+          startIndex={0}
+          onClose={() => setSharedStory(null)}
+          onShare={onShareStory}
+          onDeleted={(id) => { onStoryDeleted(id); setSharedStory(null); }}
+        />
       ) : null}
       {reelStart !== null ? (
         <ReelsViewer

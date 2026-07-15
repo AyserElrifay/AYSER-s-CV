@@ -10,9 +10,10 @@ import { kmBetween, projectToMap } from '../utils/geo';
 import { requestLocationPermission, getCurrentCoords } from '../utils/location';
 import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-import { shareMyLocation, goInvisible, fetchNearbyPeople, subscribeNearby } from '../services/locations';
+import { shareMyLocation, goInvisible, fetchNearbyPeople, subscribeNearby, fetchMyLiveLocation } from '../services/locations';
 import { fetchLiveCampfires, hostCampfire, joinCampfire } from '../services/campfires';
 import { fetchLiveVenues, applyAsVenue } from '../services/venues';
+import { buildAvatarUrl } from '../services/avatarBuilder';
 import { fetchNearbyPlaces } from '../services/places';
 import { DESTINATIONS } from '../constants/destinations';
 import { fetchDestReviews, addDestReview } from '../services/destinations';
@@ -38,7 +39,8 @@ const normalizePerson = (row) => ({
   id: row.user_id,
   name: (row.profile && row.profile.name) || 'Explorer',
   handle: row.profile && row.profile.handle,
-  avatar: (row.profile && row.profile.avatar_url) || AV_NEUTRAL,
+  avatar: (row.profile && row.profile.avatar_url) || AV_NEUTRAL, // real photo — used in their full profile
+  cartoonAvatar: buildAvatarUrl(row.user_id, row.profile && row.profile.avatar_dna), // shown on the live map instead
   emoji: (row.profile && row.profile.emoji) || '🧿',
   verified: !!(row.profile && row.profile.verified),
   intent: (row.profile && row.profile.intent) || 'Exploring 🧭',
@@ -115,6 +117,27 @@ export const MapScreen = () => {
 
   useEffect(() => { locateMe(); }, [locateMe]);
 
+  /* Rehydrate your real "doing" status from the server on load — the
+     local myDoing state resets to null every time the app opens, but
+     your visibility on the map is whatever the DATABASE says, not what
+     the UI defaults to. Without this, the badge could show "not set"
+     while you were still actually visible to everyone (or the reverse). */
+  useEffect(() => {
+    if (!SUPABASE_READY || !user) return;
+    fetchMyLiveLocation(user.id).then((row) => setMyDoing(row ? row.doing : null)).catch(() => {});
+  }, [user]);
+
+  /* Heartbeat — while you're sharing, refresh your live_locations row
+     every few minutes so you don't silently expire off the map (the
+     "active in the last 30 min" cutoff) just from the app sitting open. */
+  useEffect(() => {
+    if (!SUPABASE_READY || !user || !myDoing || !located) return;
+    const id = setInterval(() => {
+      shareMyLocation(user.id, myCoords, myDoing).catch(() => {});
+    }, 5 * 60 * 1000);
+    return () => clearInterval(id);
+  }, [user, myDoing, located, myCoords.latitude, myCoords.longitude]);
+
   /* ── real data: nearby people, campfires, venues ── */
   const loadNearby = useCallback(() => {
     if (!SUPABASE_READY) return;
@@ -145,7 +168,7 @@ export const MapScreen = () => {
   /* Markers for the real (web) Leaflet map, on true coordinates. */
   const mapMarkers = useMemo(() => {
     const out = [];
-    people.forEach((p) => p.coords && out.push({ id: 'p_' + p.id, srcId: p.id, kind: 'person', lat: p.coords.latitude, lng: p.coords.longitude, emoji: p.doing || p.emoji || '🧿', avatar: p.avatar, flag: p.countryFlag, label: (p.countryFlag ? p.countryFlag + ' ' : '') + p.name }));
+    people.forEach((p) => p.coords && out.push({ id: 'p_' + p.id, srcId: p.id, kind: 'person', lat: p.coords.latitude, lng: p.coords.longitude, emoji: p.doing || p.emoji || '🧿', avatar: p.cartoonAvatar || p.avatar, flag: p.countryFlag, label: (p.countryFlag ? p.countryFlag + ' ' : '') + p.name }));
     campfires.forEach((c) => c.coords && out.push({ id: 'c_' + c.id, srcId: c.id, kind: 'fire', lat: c.coords.latitude, lng: c.coords.longitude, emoji: '🔥', label: c.title }));
     (SUPABASE_READY ? realVenues : []).forEach((v) => v.lat != null && out.push({ id: 'v_' + v.id, srcId: v.id, kind: 'venue', lat: v.lat, lng: v.lng, emoji: v.emoji || '📍', label: v.name }));
     // REAL places from OpenStreetMap, pinned at their true coordinates
@@ -249,25 +272,37 @@ export const MapScreen = () => {
     openPartner(user, { id: pl.id, partner: 'waffarha', url: 'https://waffarha.com/ar/search?word=' + encodeURIComponent(pl.name) });
   };
 
-  /* ── your activity badge → a real row in live_locations ── */
+  /* ── your activity badge → a real row in live_locations ──
+     Honesty fix: the UI used to flip to "invisible" instantly and
+     swallow any server error, so a failed delete left you SILENTLY
+     still visible to everyone while the app told you you'd vanished.
+     Now the badge only changes after the server confirms it. */
   const pickDoing = async (emoji) => {
     tapSelection(); sfxPop();
     const next = myDoing === emoji ? null : emoji;
-    setMyDoing(next);
     closeSheet();
-    if (!SUPABASE_READY || !user) return;
+    if (!SUPABASE_READY || !user) { setMyDoing(next); return; }
     try {
       if (next) await shareMyLocation(user.id, myCoords, next);
       else await goInvisible(user.id);
+      setMyDoing(next);
       loadNearby();
-    } catch (e) {}
+    } catch (e) {
+      note((next ? '🧿 ' : '👻 ') + explainMap(e));
+    }
   };
 
   const goInvisibleNow = async () => {
     tapLight();
-    setMyDoing(null);
     closeSheet();
-    if (SUPABASE_READY && user) { try { await goInvisible(user.id); loadNearby(); } catch (e) {} }
+    if (!SUPABASE_READY || !user) { setMyDoing(null); return; }
+    try {
+      await goInvisible(user.id);
+      setMyDoing(null);
+      loadNearby();
+    } catch (e) {
+      note('👻 ' + explainMap(e));
+    }
   };
 
   /* ── SOS: real mode marks your real pin with 🚨 so it's visible ── */
@@ -671,7 +706,7 @@ export const MapScreen = () => {
                   <View key={p.id} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: C.line }}>
                     <Pressable onPress={() => { closeSheet(); setProfileUser(p); }} style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
                       <View>
-                        <Image source={{ uri: p.avatar }} style={{ width: 46, height: 46, borderRadius: 23 }} />
+                        <Image source={{ uri: p.cartoonAvatar || p.avatar }} style={{ width: 46, height: 46, borderRadius: 23 }} />
                         {p.doing ? (
                           <View style={{ position: 'absolute', bottom: -2, right: -4, width: 20, height: 20, borderRadius: 10, backgroundColor: '#FFF', borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center' }}>
                             <Text style={{ fontSize: 10 }}>{p.doing}</Text>

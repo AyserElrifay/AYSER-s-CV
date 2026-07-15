@@ -11,7 +11,7 @@ import { useAuth } from '../context/AuthContext';
 import { createPost } from '../services/posts';
 import { createStory } from '../services/stories';
 import { uploadCapture, uploadMedia } from '../services/social';
-import { fetchTracks } from '../services/music';
+import { fetchTracks, incrementTrackUse } from '../services/music';
 import { MusicHubSheet } from './MusicHubSheet';
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
 import { sfxPop, sfxSuccess } from '../utils/sfx';
@@ -42,6 +42,13 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
   const [busy, setBusy] = useState(false);
   const [hubOpen, setHubOpen] = useState(false);
   const [realTracks, setRealTracks] = useState([]); // real playable Hub tracks
+
+  // story-only interactive stickers — poll or ask-a-question
+  const [stickerType, setStickerType] = useState(null); // null | 'poll' | 'question'
+  const [pollQ, setPollQ] = useState('');
+  const [pollA, setPollA] = useState('');
+  const [pollB, setPollB] = useState('');
+  const [askQ, setAskQ] = useState('');
 
   // Real mode: the rail shows REAL tracks (playable audio_url from the
   // Indie Hub) — never made-up artist names.
@@ -227,13 +234,24 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
           ? await uploadCapture(user.id, shot.uri, shot.ext, shot.contentType)
           : await uploadMedia(user.id, shot.uri);
         if (mode === 'story') {
-          await createStory(user.id, { mediaUrl, caption: caption.trim(), sound });
-          onPostedStory && onPostedStory({ user: { id: user.id, name: 'You', avatar: av(5) }, media: mediaUrl, sound, caption: caption.trim() || null });
+          const sticker = stickerType === 'poll' && pollQ.trim() && pollA.trim() && pollB.trim()
+            ? { type: 'poll', data: { question: pollQ.trim(), options: [pollA.trim(), pollB.trim()] } }
+            : stickerType === 'question' && askQ.trim()
+            ? { type: 'question', data: { question: askQ.trim() } }
+            : null;
+          const row = await createStory(user.id, { mediaUrl, caption: caption.trim(), sound, sticker });
+          if (sound && sound.audio_url) incrementTrackUse(sound.id);
+          onPostedStory && onPostedStory({
+            id: row.id, createdAt: row.created_at,
+            user: { id: user.id, name: 'You', avatar: av(5) }, media: mediaUrl, sound, caption: caption.trim() || null,
+            stickerType: sticker && sticker.type, stickerData: sticker && sticker.data,
+          });
         } else if (mode === 'video') {
           const row = await createPost({ userId: user.id, type: 'vod', caption: caption.trim() || '🎬 Video', mediaUrl });
           onPosted && onPosted(row);
         } else {
           const row = await createPost({ userId: user.id, type: 'reel', caption: caption.trim() || '🎬', mediaUrl, sound });
+          if (sound && sound.audio_url) incrementTrackUse(sound.id);
           onPosted && onPosted({
             id: row.id,
             user: { name: (row.user && row.user.name) || 'You', avatar: (row.user && row.user.avatar_url) || av(5), verified: !!(row.user && row.user.verified) },
@@ -419,6 +437,40 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
             <View>
               {mode !== 'video' ? soundRail : null}
               <View style={{ paddingHorizontal: 16 }}>
+              {/* story-only: add a Poll or an Ask-me-anything sticker */}
+              {mode === 'story' ? (
+                <View style={{ marginBottom: 12 }}>
+                  <View style={{ flexDirection: 'row' }}>
+                    {[{ k: 'poll', label: '📊 Poll' }, { k: 'question', label: '❓ Ask' }].map((o) => {
+                      const on = stickerType === o.k;
+                      return (
+                        <Pressable key={o.k} onPress={() => { tapLight(); setStickerType(on ? null : o.k); }} style={{ marginRight: 8 }}>
+                          <View style={{ backgroundColor: on ? C.purple : 'rgba(255,255,255,0.16)', borderWidth: 1, borderColor: on ? C.purple : 'rgba(255,255,255,0.4)', borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8 }}>
+                            <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '900' }}>{o.label}</Text>
+                          </View>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                  {stickerType === 'poll' ? (
+                    <View style={{ backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', padding: 12, marginTop: 10 }}>
+                      <TextInput placeholder="Ask a question…" placeholderTextColor="rgba(255,255,255,0.55)" value={pollQ} onChangeText={setPollQ}
+                        style={{ color: '#FFF', fontSize: 13.5, marginBottom: 8 }} />
+                      <View style={{ flexDirection: 'row' }}>
+                        <TextInput placeholder="Option A" placeholderTextColor="rgba(255,255,255,0.5)" value={pollA} onChangeText={setPollA}
+                          style={{ flex: 1, color: '#FFF', fontSize: 13, backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, marginRight: 8 }} />
+                        <TextInput placeholder="Option B" placeholderTextColor="rgba(255,255,255,0.5)" value={pollB} onChangeText={setPollB}
+                          style={{ flex: 1, color: '#FFF', fontSize: 13, backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8 }} />
+                      </View>
+                    </View>
+                  ) : stickerType === 'question' ? (
+                    <View style={{ backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', padding: 12, marginTop: 10 }}>
+                      <TextInput placeholder="Ask me anything…" placeholderTextColor="rgba(255,255,255,0.55)" value={askQ} onChangeText={setAskQ}
+                        style={{ color: '#FFF', fontSize: 13.5 }} />
+                    </View>
+                  ) : null}
+                </View>
+              ) : null}
               {sound ? (
                 <View style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7, marginBottom: 10 }}>
                   <Text style={{ fontSize: 13 }}>{sound.emoji}</Text>

@@ -41,6 +41,10 @@ function injectMapStyle() {
       box-shadow: 0 2px 6px rgba(0,0,0,0.22); font-family: -apple-system, system-ui, sans-serif;
       max-width: 110px; overflow: hidden; text-overflow: ellipsis;
     }
+    /* Cartoonish, colourful, easy-on-the-eyes: a gentle pop on the base
+       map tiles (more saturated greens/blues, a touch of contrast) —
+       playful without turning harsh or hard to read. */
+    .mm-tiles { filter: saturate(1.35) contrast(1.06) brightness(1.03); }
   `;
   document.head.appendChild(st);
 }
@@ -114,7 +118,7 @@ export const LeafletMap = ({ center, markers = [], onPress, locate = true }) => 
       }).setView([24, 14], 2.5); // Earth view — Egypt/Europe in frame
       // CARTO "Voyager" — clean, colourful, cartoonish-but-real (free, no key).
       L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-        maxZoom: 20, subdomains: 'abcd',
+        maxZoom: 20, subdomains: 'abcd', className: 'mm-tiles',
       }).addTo(map);
       mapRef.current = map;
       layerRef.current = L.layerGroup().addTo(map);

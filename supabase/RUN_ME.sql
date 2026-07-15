@@ -352,6 +352,24 @@ do $$ begin
   begin alter publication supabase_realtime add table public.campfires;      exception when duplicate_object then null; end;
 end $$;
 
+-- ═══════════ v16 · STORY STICKERS · poll + ask-a-question ═══════════
+alter table public.stories add column if not exists sticker_type text;
+alter table public.stories add column if not exists sticker_data text;
+create table if not exists public.story_poll_votes (
+  story_id uuid not null references public.stories(id) on delete cascade,
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  choice smallint not null check (choice in (0,1)),
+  created_at timestamptz default now(),
+  primary key (story_id, user_id)
+);
+alter table public.story_poll_votes enable row level security;
+drop policy if exists "spv_all" on public.story_poll_votes;
+create policy "spv_all" on public.story_poll_votes for select using (true);
+drop policy if exists "spv_ins" on public.story_poll_votes;
+create policy "spv_ins" on public.story_poll_votes for insert with check (auth.uid()=user_id);
+drop policy if exists "spv_upd" on public.story_poll_votes;
+create policy "spv_upd" on public.story_poll_votes for update using (auth.uid()=user_id);
+
 -- ═══════════ v7 · INDIE MUSIC HUB (real, playable tracks) ═══════════
 create table if not exists public.tracks (
   id           uuid primary key default gen_random_uuid(),
@@ -382,6 +400,13 @@ alter table public.stories add column if not exists sound_url text;
 alter table public.posts   add column if not exists sound_title  text;
 alter table public.posts   add column if not exists sound_artist text;
 alter table public.posts   add column if not exists sound_url    text;
+
+-- real play-count, so producers see genuine usage (not just uploads) —
+-- security definer since the LISTENER (not the uploader) triggers this
+create or replace function public.increment_track_use(p_track_id uuid)
+returns void language sql security definer set search_path = public as $$
+  update public.tracks set uses_count = uses_count + 1 where id = p_track_id;
+$$;
 
 -- ═══════════ v14 · VENUE BOOKINGS (real reservation requests) ═══════════
 create table if not exists public.venue_bookings (
@@ -495,6 +520,7 @@ alter table public.profiles add column if not exists learning_level    text;
 alter table public.profiles add column if not exists learning_visible  boolean default false;
 alter table public.profiles add column if not exists language          text;
 alter table public.profiles add column if not exists hobbies           text;
+alter table public.profiles add column if not exists avatar_dna       text;
 
 -- PostgREST caches the schema — reload it so the new columns are
 -- visible to the app immediately, no waiting.
@@ -515,6 +541,10 @@ select
   (to_regclass('public.tracks')               is not null) as real_songs_ready,
   (to_regclass('public.venue_bookings')       is not null) as venue_bookings_ready,
   (to_regclass('public.post_reposts')         is not null) as reposts_ready,
+  (to_regclass('public.story_poll_votes')     is not null) as story_polls_ready,
   exists (select 1 from information_schema.columns
           where table_schema = 'public' and table_name = 'profiles'
-            and column_name = 'country')                    as country_column_ready;
+            and column_name = 'country')                    as country_column_ready,
+  exists (select 1 from information_schema.columns
+          where table_schema = 'public' and table_name = 'profiles'
+            and column_name = 'avatar_dna')                  as avatar_builder_ready;

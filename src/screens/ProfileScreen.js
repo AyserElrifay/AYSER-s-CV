@@ -44,7 +44,7 @@ import { uploadCapture } from '../services/social';
 import { fetchMyMoments } from '../services/posts';
 import { countMyCampfires } from '../services/campfires';
 import { countMates } from '../services/mates';
-import { Tick, GhostButton, BoostSheet, MatesSheet } from '../components';
+import { Tick, GhostButton, BoostSheet, MatesSheet, AvatarBuilderSheet } from '../components';
 import { SettingsScreen } from './SettingsScreen';
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
 import { sfxSuccess } from '../utils/sfx';
@@ -121,6 +121,7 @@ export const ProfileScreen = () => {
   const [campfiresHosted, setCampfiresHosted] = useState(0);
   const [matesCount, setMatesCount] = useState(0);
   const [matesOpen, setMatesOpen] = useState(false);
+  const [avatarBuilderOpen, setAvatarBuilderOpen] = useState(false);
   const [editName, setEditName] = useState('');
   const [editBio, setEditBio] = useState('');
   const [editIntent, setEditIntent] = useState('');
@@ -598,6 +599,7 @@ export const ProfileScreen = () => {
             />
             <MenuRow icon="megaphone-outline" label="Ads Manager" sub="Boost moments · campaigns · media buying" onPress={() => { setMenu(false); setAdsOpen(true); }} />
             <MenuRow icon="star-outline" label="Close Friends" sub="Share some moments with your inner circle" />
+            <MenuRow icon="happy-outline" label="Your Moments Avatar" sub="The cartoon character shown on the live map" onPress={() => { setMenu(false); setAvatarBuilderOpen(true); }} />
             <MenuRow icon="create-outline" label="Edit your space" sub="Name, bio, vibe & links" onPress={() => setEditOpen(true)} />
           </Pressable>
         </Pressable>
@@ -655,6 +657,13 @@ export const ProfileScreen = () => {
 
       {boostOpen ? <BoostSheet onClose={() => setBoostOpen(false)} /> : null}
       {matesOpen ? <MatesSheet onClose={() => { setMatesOpen(false); reload(); }} /> : null}
+      {avatarBuilderOpen ? (
+        <AvatarBuilderSheet
+          initialDna={myProfile && myProfile.avatar_dna}
+          onClose={() => setAvatarBuilderOpen(false)}
+          onSaved={reload}
+        />
+      ) : null}
     </View>
   );
 };

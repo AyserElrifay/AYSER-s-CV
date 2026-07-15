@@ -8,6 +8,7 @@ import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { searchProfiles } from '../services/social';
 import { fetchGroups, createGroup, joinGroup, leaveGroup } from '../services/groups';
+import { fetchTrending } from '../services/trending';
 import { Chip } from './Chip';
 import { Tick } from './Tick';
 import { Micro } from './Micro';
@@ -42,6 +43,7 @@ export const SearchModal = ({ onClose, onOpenProfile }) => {
   const [remote, setRemote] = useState(null);
   const [game, setGame] = useState(null);
   const [realGroups, setRealGroups] = useState(null);
+  const [realTrends, setRealTrends] = useState(null);
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState('');
   const [newEmoji, setNewEmoji] = useState('🌐');
@@ -52,6 +54,12 @@ export const SearchModal = ({ onClose, onOpenProfile }) => {
     fetchGroups(user && user.id).then(setRealGroups).catch(() => setRealGroups([]));
   };
   useEffect(loadGroups, [user]);
+
+  // Real trending — computed from actual recent posts, never fabricated.
+  useEffect(() => {
+    if (!SUPABASE_READY) return;
+    fetchTrending().then(setRealTrends).catch(() => setRealTrends([]));
+  }, []);
 
   const toggleGroup = async (g) => {
     if (!SUPABASE_READY || !user) return;
@@ -89,7 +97,8 @@ export const SearchModal = ({ onClose, onOpenProfile }) => {
   const groupsSource = SUPABASE_READY ? (realGroups || []) : GROUPS;
   const groups = groupsSource.filter((g) => !q || g.name.toLowerCase().includes(q) || (g.about || '').toLowerCase().includes(q));
   const posts = FEED.filter((p) => !q || (p.caption || '').toLowerCase().includes(q) || (p.place || '').toLowerCase().includes(q));
-  const trends = TRENDING.filter((t) => !q || t.tag.toLowerCase().includes(q));
+  const trendsSource = SUPABASE_READY ? (realTrends || []) : TRENDING;
+  const trends = trendsSource.filter((t) => !q || t.tag.toLowerCase().includes(q));
   const games = PLAY_GAMES.filter((g) => !q || g.name.toLowerCase().includes(q) || g.tag.toLowerCase().includes(q));
 
   const launchGame = (g) => {
@@ -265,7 +274,13 @@ export const SearchModal = ({ onClose, onOpenProfile }) => {
               {!q ? (
                 <>
                   <Section title="Trending now 🔥" />
-                  {trends.map((t, i) => <TrendRow key={t.id} item={t} rank={i + 1} />)}
+                  {trends.length ? trends.map((t, i) => <TrendRow key={t.id} item={t} rank={i + 1} />) : (
+                    SUPABASE_READY && realTrends !== null ? (
+                      <Text style={{ color: C.faint, fontSize: 12.5, paddingVertical: 10 }}>
+                        Nothing trending yet — tag a #hashtag or a place in your next moment ✨
+                      </Text>
+                    ) : null
+                  )}
                 </>
               ) : trends.length ? (
                 <>

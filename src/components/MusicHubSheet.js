@@ -7,8 +7,14 @@ import { HUB_TRACKS, TRACK_MOODS } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { fetchTracks, uploadTrack } from '../services/music';
+import { startCheckout } from '../services/payments';
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
 import { sfxPop, sfxSuccess } from '../utils/sfx';
+
+/* Flat licensing fee for using an indie track commercially (ads, brand
+   content, etc.) — Moments takes its usual platform cut, the producer
+   gets the rest. Real payment row via the existing checkout layer. */
+const LICENSE_PRICE_EGP = 150;
 
 /* Indie Music Hub — discover original tracks by how they SOUND
    (mood / BPM / instruments), not by artist. Pick one for your reel
@@ -87,6 +93,24 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
     onClose();
   };
 
+  const [licensing, setLicensing] = useState(null); // track id in flight
+  const [licenseNote, setLicenseNote] = useState(null);
+
+  const license = async (t) => {
+    if (!SUPABASE_READY || !user) { setLicenseNote('Sign in to license a track.'); return; }
+    setLicensing(t.id); setLicenseNote(null);
+    try {
+      const res = await startCheckout('paymob', {
+        amount: LICENSE_PRICE_EGP, currency: 'EGP', kind: 'music_license',
+        refId: t.id, description: 'License · ' + t.title,
+      });
+      if (res.configured) { tapSuccess(); sfxSuccess(); }
+      else setLicenseNote('Recorded — payment gateway connects soon; ' + t.title + '’s producer will be notified.');
+    } catch (e) {
+      setLicenseNote(e.message || 'Could not start licensing — try again.');
+    } finally { setLicensing(null); }
+  };
+
   return (
     <Pressable onPress={onClose} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
       <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, paddingBottom: insets.bottom + 20, paddingHorizontal: 16, maxHeight: '82%' }}>
@@ -138,6 +162,8 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
           ))}
         </ScrollView>
 
+        {licenseNote ? <Text style={{ color: C.dim, fontSize: 11.5, marginBottom: 8, textAlign: 'center' }}>{licenseNote}</Text> : null}
+
         <ScrollView showsVerticalScrollIndicator={false}>
           {source.length ? source.map((t) => (
             <Pressable key={t.id} onPress={() => use(t)}>
@@ -150,9 +176,23 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
                   <Text style={{ color: C.faint, fontSize: 11, marginTop: 2 }} numberOfLines={1}>
                     {t.bpm ? t.bpm + ' BPM · ' : ''}{t.genre_shape || ''}{t.instruments && t.instruments.length ? ' · ' + t.instruments.slice(0, 2).join(', ') : ''}
                   </Text>
+                  {SUPABASE_READY ? (
+                    <Text style={{ color: C.faint, fontSize: 10, marginTop: 2 }}>▶ {t.uses_count || 0} uses</Text>
+                  ) : null}
                 </View>
-                <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 7 }}>
-                  <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '900' }}>Use</Text>
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Pressable onPress={() => use(t)}>
+                    <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 7, marginBottom: 6 }}>
+                      <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '900' }}>Use</Text>
+                    </View>
+                  </Pressable>
+                  {SUPABASE_READY ? (
+                    <Pressable onPress={() => license(t)} disabled={licensing === t.id}>
+                      <Text style={{ color: C.green, fontSize: 10.5, fontWeight: '800' }}>
+                        {licensing === t.id ? 'Processing…' : '💸 License · E£' + LICENSE_PRICE_EGP}
+                      </Text>
+                    </Pressable>
+                  ) : null}
                 </View>
               </View>
             </Pressable>
