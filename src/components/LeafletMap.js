@@ -181,12 +181,15 @@ function injectMapStyle() {
     }
     .mm-hide-regions .mm-region { display: none; }
     /* Destination pins are STATIC (no per-pin animations — with ~60 of
-       them, infinite glows were what made the map feel heavy) and they
-       shrink to tidy dots when you're zoomed out, so the world view
-       stays organized instead of a wall of overlapping cards. */
-    .mm-dest { transform-origin: center bottom; transition: transform 0.25s ease; }
-    .mm-z-far .mm-dest { transform: scale(0.5); }
-    .mm-z-far .mm-dest .mm-pill { display: none; }
+       them, infinite glows were what made the map feel heavy). To keep
+       the world view calm and Snap-clean, the cards are HIDDEN when
+       you're zoomed far out and appear as you zoom into a region; at
+       the mid zoom they drop their name pill and shrink a touch so a
+       busy area never becomes a wall of overlapping cards. */
+    .mm-dest { transform-origin: center bottom; transition: transform 0.2s ease, opacity 0.2s ease; }
+    .mm-z-far .mm-dest { display: none; }
+    .mm-z-mid .mm-dest { transform: scale(0.62); }
+    .mm-z-mid .mm-dest .mm-pill { display: none; }
   `;
   document.head.appendChild(st);
 }
@@ -285,12 +288,16 @@ export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus
       }).addTo(map);
       mapRef.current = map;
       layerRef.current = L.layerGroup().addTo(map);
-      // zoom-aware tidiness: the region label fades out at street zoom,
-      // and destination pins collapse to dots when zoomed far out
+      // zoom-aware tidiness: region labels fade out at street zoom;
+      // destination cards are hidden at the far world view (z<5),
+      // shrink to pill-less minis in the mid range (5–7), and show in
+      // full only once you're zoomed into a region (z>=8-ish → 7+).
       const applyZoomClasses = () => {
         const el = map.getContainer();
-        el.classList.toggle('mm-hide-regions', map.getZoom() >= 8);
-        el.classList.toggle('mm-z-far', map.getZoom() < 5);
+        const z = map.getZoom();
+        el.classList.toggle('mm-hide-regions', z >= 8);
+        el.classList.toggle('mm-z-far', z < 5);
+        el.classList.toggle('mm-z-mid', z >= 5 && z < 8);
       };
       map.on('zoomend', applyZoomClasses);
       applyZoomClasses();

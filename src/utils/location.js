@@ -26,10 +26,19 @@ export function getCurrentCoords() {
   return new Promise((resolve) => {
     if (Platform.OS === 'web') {
       if (typeof navigator === 'undefined' || !navigator.geolocation) return resolve(null);
+      const ok = (pos) => resolve({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
+      // Two-stage fix: try a precise GPS lock first; if that times out or
+      // fails (common indoors / on desktop Wi-Fi), fall back to a faster,
+      // lower-accuracy network fix with a longer window and accept a
+      // recently-cached position. Only give up if BOTH fail.
       navigator.geolocation.getCurrentPosition(
-        (pos) => resolve({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
-        () => resolve(null),
-        { enableHighAccuracy: true, timeout: 12000, maximumAge: 15000 }
+        ok,
+        () => navigator.geolocation.getCurrentPosition(
+          ok,
+          () => resolve(null),
+          { enableHighAccuracy: false, timeout: 25000, maximumAge: 600000 }
+        ),
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
       );
       return;
     }
