@@ -3,7 +3,7 @@ import { View, Text, Pressable, Image, Modal, ScrollView, TextInput, KeyboardAvo
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { C } from '../constants/theme';
-import { USERS, AV_NEUTRAL } from '../constants/mockData';
+import { AV_NEUTRAL } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { getOrCreateDmThread, fetchMessages, sendMessage, subscribeMessages } from '../services/messages';
@@ -26,8 +26,9 @@ export const ChatThread = ({ chat, group, onClose }) => {
   const peer = group ? null : chat.user;
   const title = group ? chat.name : peer.name;
   const avatarUri = group ? null : peer.avatar;
+  // real participants only — no fabricated names padding a group
   const players = group
-    ? [USERS.nour, USERS.omar, USERS.zeyad, { id: 'me', name: 'You', avatar: AV_NEUTRAL }]
+    ? [{ id: 'me', name: 'You', avatar: AV_NEUTRAL }]
     : [peer, { id: 'me', name: 'You', avatar: AV_NEUTRAL }];
 
   // Real only when the peer/squad is backed by a real uuid — a mock

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, Pressable, Image, ScrollView } from 'react-native';
+import { View, Text, Pressable, Image, ScrollView, Modal, TextInput } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C } from '../constants/theme';
 import { SQUADS, DMS, LANG_PARTNERS } from '../constants/mockData'; // demo-mode fallback only
 import { SUPABASE_READY } from '../lib/supabase';
@@ -8,7 +9,7 @@ import { useAuth } from '../context/AuthContext';
 import { fetchMyDmThreads, fetchMySquads } from '../services/messages';
 import { fetchIncomingRequests, acceptRequest, fetchMyMates } from '../services/mates';
 import { AV_NEUTRAL } from '../constants/mockData';
-import { fetchLanguagePartners } from '../services/social';
+import { fetchLanguagePartners, searchProfiles } from '../services/social';
 import { Page, ScreenHeader, SectionHeader, Glass, Chip, Tick, AvatarStack } from '../components';
 import { ChatThread } from './ChatThread';
 import { tapLight } from '../utils/feedback';
@@ -28,8 +29,13 @@ const timeAgo = (iso) => {
 };
 
 export const ChatsScreen = () => {
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [thread, setThread] = useState(null); // { chat, group }
+  const [composing, setComposing] = useState(false); // new-message search sheet
+  const [composeQ, setComposeQ] = useState('');
+  const [composeResults, setComposeResults] = useState([]);
+  const [composeBusy, setComposeBusy] = useState(false);
   const [realDms, setRealDms] = useState([]);
   const [realSquads, setRealSquads] = useState([]);
   const [realPartners, setRealPartners] = useState([]);
@@ -57,6 +63,29 @@ export const ChatsScreen = () => {
   // refresh the DM previews when you come back from a conversation
   useEffect(() => { if (!thread) reload(); }, [thread, reload]);
 
+  // ── new message: search real people, tap to start a real chat ──
+  useEffect(() => {
+    if (!composing || !SUPABASE_READY) return;
+    const q = composeQ.trim();
+    if (!q) { setComposeResults([]); return; }
+    let cancelled = false;
+    setComposeBusy(true);
+    const t = setTimeout(async () => {
+      try {
+        const rows = await searchProfiles(q);
+        if (!cancelled) setComposeResults((rows || []).filter((p) => p.id !== (user && user.id)));
+      } catch (e) { if (!cancelled) setComposeResults([]); }
+      finally { if (!cancelled) setComposeBusy(false); }
+    }, 260);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [composeQ, composing, user]);
+
+  const openChatWith = (p) => {
+    tapLight();
+    setComposing(false); setComposeQ(''); setComposeResults([]);
+    setThread({ chat: { user: { id: p.id, name: p.name || 'Explorer', avatar: p.avatar_url || AV_NEUTRAL, verified: !!p.verified } }, group: false });
+  };
+
   const squads = SUPABASE_READY ? realSquads : SQUADS;
   const dms = SUPABASE_READY
     ? realDms.map((d) => ({ id: d.threadId, threadId: d.threadId, user: { name: d.user.name, avatar: d.user.avatar_url, verified: d.user.verified }, last: d.last, time: timeAgo(d.time), unread: 0, translated: false }))
@@ -75,9 +104,11 @@ export const ChatsScreen = () => {
       kicker="Connections"
       title="Chats 💬"
       right={
-        <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center' }}>
-          <Ionicons name="create-outline" size={17} color={C.text} />
-        </View>
+        <Pressable onPress={() => { tapLight(); setComposing(true); setComposeQ(''); setComposeResults([]); }} hitSlop={8}>
+          <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: C.purpleSoft, borderWidth: 1, borderColor: 'rgba(124,58,237,0.35)', alignItems: 'center', justifyContent: 'center' }}>
+            <Ionicons name="create-outline" size={17} color={C.purple} />
+          </View>
+        </Pressable>
       }
     />
 
@@ -260,6 +291,54 @@ export const ChatsScreen = () => {
     )}
 
     {thread ? <ChatThread chat={thread.chat} group={thread.group} onClose={() => setThread(null)} /> : null}
+
+    {/* ── NEW MESSAGE — search real people and start a real chat ── */}
+    {composing ? (
+      <Modal visible transparent animationType="slide" onRequestClose={() => setComposing(false)}>
+        <View style={{ flex: 1, backgroundColor: C.bg, paddingTop: insets.top + 10 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, marginBottom: 12 }}>
+            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 4 }}>
+              <Ionicons name="search" size={16} color={C.dim} />
+              <TextInput
+                placeholder="Search people to message…"
+                placeholderTextColor={C.faint}
+                value={composeQ}
+                onChangeText={setComposeQ}
+                autoFocus autoCapitalize="none"
+                style={{ color: C.text, marginLeft: 10, flex: 1, fontSize: 14.5 }}
+              />
+            </View>
+            <Pressable onPress={() => setComposing(false)} style={{ marginLeft: 12 }} hitSlop={8}>
+              <Text style={{ color: C.dim, fontSize: 14, fontWeight: '700' }}>Cancel</Text>
+            </Pressable>
+          </View>
+
+          <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '800', letterSpacing: 1, paddingHorizontal: 18, marginBottom: 4 }}>
+            {composeQ.trim() ? 'PEOPLE' : 'YOUR MATES'}
+          </Text>
+          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: insets.bottom + 20 }}>
+            {(composeQ.trim() ? composeResults : myMates.map((m) => ({ id: m.id, name: m.name, avatar_url: m.avatar_url, verified: false }))).map((p) => (
+              <Pressable key={p.id} onPress={() => openChatWith(p)}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 6 }}>
+                  <Image source={{ uri: p.avatar_url || AV_NEUTRAL }} style={{ width: 46, height: 46, borderRadius: 23 }} />
+                  <View style={{ flex: 1, marginLeft: 12 }}>
+                    <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '800' }}>{p.name || 'Explorer'}</Text>
+                    {p.handle ? <Text style={{ color: C.faint, fontSize: 12, marginTop: 2 }}>{p.handle}</Text> : null}
+                  </View>
+                  <Ionicons name="chatbubble-ellipses-outline" size={20} color={C.purple} />
+                </View>
+              </Pressable>
+            ))}
+            {composeQ.trim() && !composeBusy && !composeResults.length ? (
+              <Text style={{ color: C.faint, fontSize: 13, textAlign: 'center', paddingVertical: 30 }}>No one found for “{composeQ.trim()}” — yet 🌱</Text>
+            ) : null}
+            {!composeQ.trim() && !myMates.length ? (
+              <Text style={{ color: C.faint, fontSize: 13, textAlign: 'center', paddingVertical: 30 }}>Search anyone by name to start a chat ✨</Text>
+            ) : null}
+          </ScrollView>
+        </View>
+      </Modal>
+    ) : null}
   </Page>
   );
 };
