@@ -151,17 +151,23 @@ function injectMapStyle() {
        with lively blues & greens — playful and easy on the eyes, never
        heavy or harsh. */
     .mm-tiles { filter: saturate(1.5) contrast(0.98) brightness(1.12); }
-    /* soft, light ancient-atlas names — small and airy so the map never
-       feels crowded; a small civilization symbol floats above each */
+    /* clean, chic ancient-atlas names — small editorial caps, widely
+       tracked and softly muted, so the map reads calm and elegant, not
+       crowded; a tiny civilization symbol sits delicately above each */
     .mm-region {
-      font: italic 600 11.5px Georgia, 'Times New Roman', serif;
-      color: rgba(96, 86, 140, 0.62); letter-spacing: 1.6px;
-      text-shadow: 0 1px 3px rgba(255,255,255,0.98), 0 0 8px rgba(255,255,255,0.85);
+      font: 600 9.5px -apple-system, system-ui, 'Segoe UI', 'Helvetica Neue', sans-serif;
+      color: rgba(72, 64, 104, 0.55); letter-spacing: 2.6px; text-transform: uppercase;
+      text-shadow: 0 1px 2px rgba(255,255,255,0.95);
       white-space: nowrap; text-align: center; pointer-events: none;
     }
+    /* Arabic isn't a caps script — keep it natural, just small & soft */
+    .mm-region.mm-ar {
+      font-family: -apple-system, system-ui, 'Segoe UI', 'Tahoma', sans-serif;
+      text-transform: none; letter-spacing: 0; font-size: 11px;
+    }
     .mm-region-sym {
-      font-size: 13px; line-height: 13px; margin-bottom: 1px; opacity: 0.9;
-      filter: drop-shadow(0 1px 2px rgba(255,255,255,0.9));
+      font-size: 10.5px; line-height: 11px; margin-bottom: 2px; opacity: 0.7;
+      filter: saturate(0.9) drop-shadow(0 1px 1px rgba(255,255,255,0.9));
     }
     /* declutter: at the far world view only the major regions show */
     .mm-z-far .mm-region-minor { display: none; }
@@ -311,8 +317,9 @@ export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus
       const label = (useAr && r.ar) ? r.ar : r.en;
       const sym = r.emoji ? '<div class="mm-region-sym">' + r.emoji + '</div>' : '';
       const minor = REGION_MAJOR.has(r.en) ? '' : ' mm-region-minor';
+      const arCls = useAr ? ' mm-ar' : '';
       const icon = L.divIcon({
-        html: '<div class="mm-region' + minor + '">' + sym + '<div>' + label + '</div></div>',
+        html: '<div class="mm-region' + minor + arCls + '">' + sym + '<div>' + label + '</div></div>',
         className: '', iconSize: [240, 34], iconAnchor: [120, 17],
       });
       L.marker([r.lat, r.lng], { icon, interactive: false, zIndexOffset: -100 }).addTo(layerRef.current);
