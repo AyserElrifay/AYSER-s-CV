@@ -14,7 +14,30 @@ const BASE = 'https://ayserelrifay.github.io/AYSER-s-CV/';
 const TITLE = "Moments — Don't scroll it. Live it.";
 const DESC = 'The social super-app: live world map, real mates, moments & reels, deals, and curated adventures.';
 
+// Responsive framing so ONE build fits both screens:
+//  • Phone  → the app fills the whole screen (dynamic viewport height so
+//    the browser chrome never crops it → fixes the mobile aspect ratio).
+//  • Laptop/desktop → the app is centred in a phone-shaped frame on a
+//    soft backdrop instead of being stretched across a wide window.
+const responsiveCss = `
+  <style>
+    html, body { margin: 0; height: 100%; background: #0b1020; }
+    /* dynamic viewport height fixes the mobile URL-bar aspect crop */
+    #root { width: 100%; height: 100vh; height: 100dvh; overflow: hidden; }
+    @media (min-width: 820px) {
+      body { background: radial-gradient(1200px 800px at 50% -10%, #241b46 0%, #0b1020 60%); }
+      #root {
+        width: 440px; max-width: 100vw; height: 92vh; max-height: 940px;
+        margin: max(0px, calc((100vh - 940px) / 2)) auto 0;
+        border-radius: 30px; overflow: hidden;
+        box-shadow: 0 30px 80px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.06);
+      }
+    }
+  </style>
+`;
+
 const tags = `
+  ${responsiveCss}
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#7C3AED" />
   <link rel="apple-touch-icon" href="apple-touch-icon.png" />
@@ -36,6 +59,13 @@ const tags = `
   <meta name="twitter:description" content="${DESC}" />
   <meta name="twitter:image" content="${BASE}og-image.png" />
 `;
+
+// Make the viewport cover the notch/safe-areas so the app fills the
+// phone edge-to-edge (part of fixing the mobile aspect ratio).
+html = html.replace(
+  /<meta name="viewport"[^>]*>/,
+  '<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, shrink-to-fit=no" />'
+);
 
 if (!html.includes('og:title')) {
   html = html.replace('</head>', tags + '</head>');

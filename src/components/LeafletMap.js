@@ -41,6 +41,15 @@ function injectMapStyle() {
     /* cartoon pop on the real street tiles — juicy but easy on the eyes */
     .mm-tiles { filter: saturate(1.35) contrast(1.0) brightness(1.06); }
     .mm-dark .mm-tiles { filter: saturate(1.1) contrast(1.02) brightness(1.0); }
+    /* our own shared-name label for the Holy Land region */
+    .mm-canaan {
+      font: 800 12px -apple-system, system-ui, 'Segoe UI', 'Tahoma', sans-serif;
+      color: #6b4d1f; letter-spacing: 0.3px; white-space: nowrap; text-align: center;
+      text-shadow: 0 1px 2px rgba(255,255,255,0.95), 0 0 6px rgba(255,255,255,0.85);
+      pointer-events: none;
+    }
+    .mm-dark .mm-canaan { color: #e7c98a; text-shadow: 0 1px 3px rgba(0,0,0,0.95); }
+    .mm-z-globe .mm-canaan { display: none; }
     .mm-pill {
       background: rgba(255,255,255,0.97); border-radius: 8px; padding: 1.5px 6.5px; font-size: 9.5px;
       font-weight: 700; color: #1f2937; white-space: nowrap; text-align: center;
@@ -261,7 +270,16 @@ export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus
     if (!L || !layerRef.current) return;
     layerRef.current.clearLayers();
 
-    // (Country/city/street names now come from the map tiles themselves.)
+    // (Country/city/street names come from the map tiles themselves.)
+    // One decorative label we add ourselves: the land between the river
+    // and the sea by its shared ancient name, كنعان · Canaan.
+    {
+      const icon = L.divIcon({
+        html: '<div class="mm-canaan">كنعان · Canaan</div>',
+        className: '', iconSize: [160, 20], iconAnchor: [80, 10],
+      });
+      L.marker([31.7, 35.1], { icon, interactive: false, zIndexOffset: 200 }).addTo(layerRef.current);
+    }
 
     // your own live pin — only once your REAL location is known.
     // Purple dot + gold ring + a "You" pill, so there is never any
