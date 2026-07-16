@@ -1,6 +1,5 @@
 import React, { useRef, useEffect } from 'react';
 import { Platform } from 'react-native';
-import { WORLD } from '../constants/worldGeo';
 
 /* A REAL interactive map on web — Leaflet + OpenStreetMap data with
    CARTO's playful "Voyager" tiles. Pannable, zoomable, opens on the
@@ -27,20 +26,6 @@ function loadLeaflet() {
   return leafletPromise;
 }
 
-/* The big, well-known countries whose names show even when zoomed
-   out; every smaller country's name appears only as you zoom in, so
-   the world view stays clean (Snapchat behaviour). */
-const COUNTRY_MAJOR = new Set([
-  'Russia','China','United States','Canada','Brazil','Australia','India',
-  'Argentina','Kazakhstan','Algeria','Saudi Arabia','Egypt','Mexico','Indonesia',
-  'Iran','Turkey','Sudan','Libya','Chad','Niger','Angola','Mali','Ethiopia',
-  'Nigeria','South Africa','Democratic Republic of the Congo','DR Congo',
-  'Greenland','Mongolia','Peru','Colombia','Bolivia','Pakistan','France','Spain',
-  'Germany','Ukraine','Sweden','Norway','Finland','Japan','Thailand','Myanmar',
-  'Afghanistan','Iraq','Morocco','Italy','United Kingdom','Poland','Romania','Chile',
-  'Venezuela','Namibia','Botswana','Zambia','Tanzania','Kenya','Somalia','Yemen',
-]);
-
 /* The Moments map identity — gentle float, purple glow, white pills. */
 function injectMapStyle() {
   if (typeof document === 'undefined' || document.getElementById('mm-map-style')) return;
@@ -50,27 +35,12 @@ function injectMapStyle() {
     @keyframes mmFloat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
     @keyframes mmPulse { 0% { transform: scale(0.9); opacity: 0.55; } 70% { transform: scale(1.7); opacity: 0; } 100% { opacity: 0; } }
     .mm-float { animation: mmFloat 3.2s ease-in-out infinite; }
-    /* ── the cartoon OCEAN — our hand-drawn map's backdrop. Soft Snap
-       blue with a faint wavy texture; goes deep navy in dark mode. ── */
-    .leaflet-container {
-      background:
-        repeating-linear-gradient(0deg, rgba(255,255,255,0.05) 0 2px, rgba(255,255,255,0) 2px 26px),
-        #bfe4f5 !important;
-    }
-    .mm-dark .leaflet-container,
-    .leaflet-container.mm-dark {
-      background:
-        repeating-linear-gradient(0deg, rgba(120,150,205,0.05) 0 2px, rgba(120,150,205,0) 2px 26px),
-        #0c1626 !important;
-    }
-    /* Snapchat-style country names — clear enough to read from far out */
-    .mm-country {
-      font: 700 11.5px -apple-system, system-ui, 'Segoe UI', 'Helvetica Neue', sans-serif;
-      color: rgba(34, 52, 48, 0.82); letter-spacing: 0.3px;
-      text-shadow: 0 1px 2px rgba(255,255,255,0.95), 0 0 6px rgba(255,255,255,0.7);
-      white-space: nowrap; text-align: center; pointer-events: none;
-    }
-    .mm-dark .mm-country { color: rgba(228,236,242,0.85); text-shadow: 0 1px 3px rgba(0,0,0,0.95), 0 0 6px rgba(0,0,0,0.6); }
+    /* soft loading backdrop before the street tiles paint */
+    .leaflet-container { background: #dfeaf2; }
+    .mm-dark .leaflet-container, .leaflet-container.mm-dark { background: #0c1626; }
+    /* cartoon pop on the real street tiles — juicy but easy on the eyes */
+    .mm-tiles { filter: saturate(1.35) contrast(1.0) brightness(1.06); }
+    .mm-dark .mm-tiles { filter: saturate(1.1) contrast(1.02) brightness(1.0); }
     .mm-pill {
       background: rgba(255,255,255,0.97); border-radius: 8px; padding: 1.5px 6.5px; font-size: 9.5px;
       font-weight: 700; color: #1f2937; white-space: nowrap; text-align: center;
@@ -231,44 +201,29 @@ export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus
         preferCanvas: true, // fast rendering for the hand-drawn land
       }).setView([24, 14], 2.5); // Earth view — Egypt/Europe in frame
 
-      // ── OUR OWN HAND-DRAWN CARTOON MAP (no photo tiles) ──
-      // Snap-style flat world: soft blue wavy ocean as the backdrop,
-      // rounded green landmasses drawn from simplified country shapes.
-      // Fully self-contained — no external tiles, works offline, and
-      // looks the same at every zoom. Theme-aware for dark mode.
+      // ── REAL, COMPLETE MAP WITH STREETS & STREET NAMES ──
+      // CARTO "Voyager" (light) / "Dark Matter" (dark) — colourful,
+      // cartoonish OpenStreetMap tiles that carry the full label layer:
+      // country, city AND street names, plus every street/road drawn in,
+      // so zooming in gives a true street map. Theme-aware for dark mode.
+      const LIGHT_TILES = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+      const DARK_TILES = 'https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png';
       const mq = (typeof window !== 'undefined' && window.matchMedia) ? window.matchMedia('(prefers-color-scheme: dark)') : null;
       const isDark = () => !!(mq && mq.matches);
-
-      const landRenderer = L.canvas({ padding: 0.5 });
-      const landStyle = (dark) => ({
-        stroke: true,
-        color: dark ? '#0c1f18' : '#7fbf6a',
-        weight: 1,
-        fill: true,
-        fillColor: dark ? '#20463a' : '#bfe6a0',
-        fillOpacity: 1,
-        lineJoin: 'round',
-      });
-      // build a FeatureCollection from the compact land data
-      const landFC = {
-        type: 'FeatureCollection',
-        features: WORLD.map((c) => ({
-          type: 'Feature', properties: {},
-          geometry: { type: 'MultiPolygon', coordinates: c.c },
-        })),
-      };
-      const landLayer = L.geoJSON(landFC, { renderer: landRenderer, style: () => landStyle(isDark()), interactive: false }).addTo(map);
+      const tiles = L.tileLayer(isDark() ? DARK_TILES : LIGHT_TILES, {
+        maxZoom: 20, subdomains: 'abcd', className: 'mm-tiles',
+        updateWhenIdle: true, keepBuffer: 4,
+      }).addTo(map);
 
       mapRef.current = map;
       layerRef.current = L.layerGroup().addTo(map);
 
-      // follow the OS light/dark switch live: recolour the land + water
-      // and flag the container so names/globe frame restyle for the theme
+      // follow the OS light/dark switch live: swap tiles + flag container
       const applyTheme = () => {
         if (cancelled || !mapRef.current) return;
         const dark = isDark();
         map.getContainer().classList.toggle('mm-dark', dark);
-        landLayer.setStyle(landStyle(dark));
+        tiles.setUrl(dark ? DARK_TILES : LIGHT_TILES);
       };
       applyTheme();
       if (mq) { try { mq.addEventListener('change', applyTheme); } catch (e) { mq.addListener && mq.addListener(applyTheme); } }
@@ -306,18 +261,7 @@ export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus
     if (!L || !layerRef.current) return;
     layerRef.current.clearLayers();
 
-    // Snapchat-style COUNTRY NAMES — clean labels over the cartoon land.
-    // Big countries (major) show even when zoomed out; smaller ones
-    // appear only as you zoom in, so the world view never crowds.
-    WORLD.forEach((c) => {
-      if (!c.p || !c.n) return;
-      const minor = COUNTRY_MAJOR.has(c.n) ? '' : ' mm-region-minor';
-      const icon = L.divIcon({
-        html: '<div class="mm-country' + minor + '">' + c.n + '</div>',
-        className: '', iconSize: [200, 18], iconAnchor: [100, 9],
-      });
-      L.marker([c.p[1], c.p[0]], { icon, interactive: false, zIndexOffset: -100 }).addTo(layerRef.current);
-    });
+    // (Country/city/street names now come from the map tiles themselves.)
 
     // your own live pin — only once your REAL location is known.
     // Purple dot + gold ring + a "You" pill, so there is never any
