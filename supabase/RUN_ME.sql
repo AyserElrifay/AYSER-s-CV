@@ -534,6 +534,8 @@ alter table public.profiles add column if not exists learning_visible  boolean d
 alter table public.profiles add column if not exists language          text;
 alter table public.profiles add column if not exists hobbies           text;
 alter table public.profiles add column if not exists avatar_dna       text;
+alter table public.profiles add column if not exists last_active_at   timestamptz;
+alter table public.profiles add column if not exists cover_url        text;
 
 -- PostgREST caches the schema — reload it so the new columns are
 -- visible to the app immediately, no waiting.

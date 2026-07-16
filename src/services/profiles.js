@@ -25,6 +25,16 @@ export async function getProfile(userId) {
   return data;
 }
 
+/* Presence heartbeat — stamp when you were last active, so chats can
+   show a REAL "Active now / Active 12m ago" instead of a fake status.
+   Fails soft (missing column before the SQL runs → just no-ops). */
+export async function touchLastActive(userId) {
+  if (!userId) return;
+  try {
+    await supabase.from('profiles').update({ last_active_at: new Date().toISOString() }).eq('id', userId);
+  } catch (e) { /* column not there yet — ignore */ }
+}
+
 /* Self-healing update: if the database is missing a column (a schema
    file not run yet), drop just that field and retry — so changing your
    name/username NEVER fails because an optional column is absent. */

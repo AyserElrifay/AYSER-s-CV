@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { SUPABASE_READY } from '../lib/supabase';
 import * as auth from '../services/auth';
-import { ensureMyProfile } from '../services/profiles';
+import { ensureMyProfile, touchLastActive } from '../services/profiles';
 
 /* Session state for the whole app.
    Real mode  — session comes from Supabase and survives restarts.
@@ -35,6 +35,23 @@ export const AuthProvider = ({ children }) => {
     if (SUPABASE_READY && session && session.user) {
       ensureMyProfile(session.user).catch(() => {});
     }
+  }, [session]);
+
+  // Presence heartbeat — stamp "last active" now, every 2 min while the
+  // app is open, and whenever it comes back to the foreground, so other
+  // people see a REAL active status for you in chat.
+  useEffect(() => {
+    if (!SUPABASE_READY || !session || !session.user) return;
+    const uid = session.user.id;
+    const beat = () => touchLastActive(uid);
+    beat();
+    const id = setInterval(beat, 2 * 60 * 1000);
+    const onVis = () => { if (typeof document !== 'undefined' && !document.hidden) beat(); };
+    if (typeof document !== 'undefined') document.addEventListener('visibilitychange', onVis);
+    return () => {
+      clearInterval(id);
+      if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onVis);
+    };
   }, [session]);
 
   const value = {
