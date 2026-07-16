@@ -84,22 +84,33 @@ function injectMapStyle() {
        shading inside for the 3-D bulge, a chunky cartoon outline and a
        drop shadow so it hovers. Pointer-events off → the map underneath
        stays fully pannable/zoomable. */
-    /* Zoom-out = a real planet in space. No "ring around a map": just
-       deep black space filling everything outside the sphere, a soft
-       blue atmosphere glow, a lit limb and a dark terminator for real
-       spherical depth (Google-Earth feel). */
+    /* Zoom-out = a real CURVED planet, not a map with a ring. Deep space
+       fills everything outside; NO hard border/ring. The sphere illusion
+       comes from a radial shade layer (mm-globe-shade): a bright highlight
+       top-left and heavy limb-darkening toward the rim, exactly how 2-D
+       art turns a flat disc into a 3-D ball. */
     .mm-globe-frame {
       display: none; position: absolute; left: 50%; top: 47%;
       width: min(96vw, 86vh); height: min(96vw, 86vh);
       transform: translate(-50%, -50%); border-radius: 50%;
-      pointer-events: none; z-index: 450;
+      pointer-events: none; z-index: 450; overflow: hidden;
       box-shadow:
-        0 0 50px 14px rgba(120,180,255,0.6),         /* atmosphere glow */
-        0 0 100px 40px rgba(90,150,240,0.28),        /* outer haze */
-        0 0 0 9999px #04060d,                         /* deep space */
-        inset -26px -30px 80px rgba(0,0,0,0.72),      /* dark terminator */
-        inset 28px 24px 60px rgba(150,195,255,0.2);   /* lit limb */
-      border: 1px solid rgba(150,195,255,0.4);
+        0 0 60px 22px rgba(110,175,255,0.35),        /* diffuse atmosphere (glow, not a ring) */
+        0 0 130px 60px rgba(80,140,235,0.16),        /* faint outer haze */
+        0 0 0 9999px #04060d;                         /* deep space */
+    }
+    /* the sphere shading — this is what makes the world look CURVED */
+    .mm-globe-shade {
+      position: absolute; inset: 0; border-radius: 50%; pointer-events: none;
+      background:
+        radial-gradient(circle at 37% 30%,
+          rgba(255,255,255,0.30) 0%,
+          rgba(255,255,255,0.08) 16%,
+          rgba(255,255,255,0) 34%,
+          rgba(0,8,26,0) 52%,
+          rgba(0,10,30,0.45) 78%,
+          rgba(0,4,16,0.82) 93%,
+          rgba(0,2,10,0.95) 100%);
     }
     .mm-z-globe .mm-globe-frame { display: block; }
     /* on the globe the satellite imagery shows true colour */
@@ -271,6 +282,9 @@ export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus
       // far zoom; masks the flat map into a floating round planet
       const globe = document.createElement('div');
       globe.className = 'mm-globe-frame';
+      const shade = document.createElement('div'); // the 3-D sphere shading
+      shade.className = 'mm-globe-shade';
+      globe.appendChild(shade);
       map.getContainer().appendChild(globe);
       // zoom-aware tidiness (Snap-clean): at the world/continent view
       // NO destination cards show at all — just the calm map, region
