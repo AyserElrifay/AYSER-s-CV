@@ -41,14 +41,15 @@ function injectMapStyle() {
     /* cartoon pop on the real street tiles — juicy but easy on the eyes */
     .mm-tiles { filter: saturate(1.35) contrast(1.0) brightness(1.06); }
     .mm-dark .mm-tiles { filter: saturate(1.1) contrast(1.02) brightness(1.0); }
-    /* our own shared-name label for the Holy Land region */
+    /* Palestine — matched to the tiles' own country labels (same size,
+       weight and dark ink) so it reads with equal clarity to Israel. */
     .mm-canaan {
-      font: 800 12px -apple-system, system-ui, 'Segoe UI', 'Tahoma', sans-serif;
-      color: #6b4d1f; letter-spacing: 0.3px; white-space: nowrap; text-align: center;
-      text-shadow: 0 1px 2px rgba(255,255,255,0.95), 0 0 6px rgba(255,255,255,0.85);
+      font: 700 12px 'Helvetica Neue', -apple-system, system-ui, 'Segoe UI', 'Tahoma', sans-serif;
+      color: #2b2b2b; letter-spacing: 0.2px; white-space: nowrap; text-align: center;
+      text-shadow: 0 1px 2px rgba(255,255,255,0.95), 0 0 5px rgba(255,255,255,0.9);
       pointer-events: none;
     }
-    .mm-dark .mm-canaan { color: #e7c98a; text-shadow: 0 1px 3px rgba(0,0,0,0.95); }
+    .mm-dark .mm-canaan { color: #eaeaea; text-shadow: 0 1px 3px rgba(0,0,0,0.95); }
     .mm-z-globe .mm-canaan { display: none; }
     .mm-pill {
       background: rgba(255,255,255,0.97); border-radius: 8px; padding: 1.5px 6.5px; font-size: 9.5px;
@@ -69,31 +70,25 @@ function injectMapStyle() {
        shading inside for the 3-D bulge, a chunky cartoon outline and a
        drop shadow so it hovers. Pointer-events off → the map underneath
        stays fully pannable/zoomable. */
+    /* Google-Earth style: a real planet floating in black space, wrapped
+       in a soft blue atmosphere glow, with a lit limb and a dark
+       terminator for true spherical depth. */
     .mm-globe-frame {
       display: none; position: absolute; left: 50%; top: 48%;
       width: min(92vw, 74vh); height: min(92vw, 74vh);
       transform: translate(-50%, -50%); border-radius: 50%;
       pointer-events: none; z-index: 450;
       box-shadow:
-        0 0 0 9999px #e9f4ff,
-        inset -16px -20px 44px rgba(6,30,66,0.42),
-        inset 20px 16px 40px rgba(255,255,255,0.38),
-        0 16px 44px rgba(6,30,66,0.30);
-      border: 3px solid #16233d;
+        0 0 46px 12px rgba(120,180,255,0.6),        /* atmosphere glow */
+        0 0 90px 34px rgba(90,150,240,0.28),        /* outer haze */
+        0 0 0 9999px #04060d,                        /* black space */
+        inset -24px -28px 74px rgba(0,0,0,0.72),     /* dark terminator */
+        inset 26px 22px 56px rgba(150,195,255,0.22); /* lit limb */
+      border: 1px solid rgba(150,195,255,0.4);
     }
     .mm-z-globe .mm-globe-frame { display: block; }
-    /* extra cartoon pop on the tiles while in globe mode */
-    .mm-z-globe .mm-tiles { filter: saturate(1.72) contrast(1.03) brightness(1.14); }
-    .mm-dark.mm-z-globe .mm-tiles { filter: saturate(1.2) contrast(1.04) brightness(0.98); }
-    /* dark-mode globe: a planet floating in deep space, not on white */
-    .mm-dark .mm-globe-frame {
-      box-shadow:
-        0 0 0 9999px #080c17,
-        inset -16px -20px 50px rgba(0,0,0,0.62),
-        inset 20px 16px 42px rgba(120,150,205,0.16),
-        0 16px 46px rgba(0,0,0,0.6);
-      border-color: #2a3550;
-    }
+    /* on the globe the satellite imagery shows true colour — no filter */
+    .mm-z-globe .mm-sat { filter: saturate(1.05) brightness(1.02); }
     /* region names flip to light ink on the dark planet */
     .mm-dark .mm-region { color: rgba(226,232,240,0.74); text-shadow: 0 1px 3px rgba(0,0,0,0.9); }
     /* the Snap "activity heatmap" glow that blooms under a live person */
@@ -224,8 +219,25 @@ export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus
         updateWhenIdle: true, keepBuffer: 4,
       }).addTo(map);
 
+      // Google-Earth layer: real satellite imagery (Esri World Imagery,
+      // free, no key) shown ONLY when zoomed right out — so the planet
+      // looks like the real Earth from space. It fades away as you zoom
+      // in and the street map takes over.
+      const sat = L.tileLayer(
+        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+        { maxZoom: 19, className: 'mm-sat', updateWhenIdle: true, keepBuffer: 3 }
+      ).addTo(map);
+      const applySat = () => {
+        if (!mapRef.current) return;
+        const z = map.getZoom();
+        // full satellite on the globe view, gone by street zoom
+        sat.setOpacity(z < 4 ? 1 : z < 5.5 ? (5.5 - z) / 1.5 : 0);
+      };
+
       mapRef.current = map;
       layerRef.current = L.layerGroup().addTo(map);
+      map.on('zoomend', applySat);
+      applySat();
 
       // follow the OS light/dark switch live: swap tiles + flag container
       const applyTheme = () => {
@@ -270,15 +282,17 @@ export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus
     if (!L || !layerRef.current) return;
     layerRef.current.clearLayers();
 
-    // (Country/city/street names come from the map tiles themselves.)
-    // One decorative label we add ourselves: the land between the river
-    // and the sea by its shared ancient name, كنعان · Canaan.
+    // (Country/city/street names come from the map tiles themselves —
+    // which carry "Israel".) We add PALESTINE right beside it at the
+    // same size & weight, in the app's selected language, so both
+    // peoples are named equally on the map.
     {
+      const pal = langRef.current === 'ar' ? 'فلسطين' : 'Palestine';
       const icon = L.divIcon({
-        html: '<div class="mm-canaan">كنعان · Canaan</div>',
+        html: '<div class="mm-canaan">' + pal + '</div>',
         className: '', iconSize: [160, 20], iconAnchor: [80, 10],
       });
-      L.marker([31.7, 35.1], { icon, interactive: false, zIndexOffset: 200 }).addTo(layerRef.current);
+      L.marker([31.95, 35.25], { icon, interactive: false, zIndexOffset: 260 }).addTo(layerRef.current);
     }
 
     // your own live pin — only once your REAL location is known.
