@@ -447,7 +447,13 @@ export const ProfileScreen = () => {
       {/* edit your space — real fields, saved to your real profile */}
       {editOpen ? (
         <Pressable onPress={() => setEditOpen(false)} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end' }}>
-          <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, paddingBottom: insets.bottom + 22, paddingHorizontal: 16 }}>
+          <ScrollView
+            onStartShouldSetResponder={() => true}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '90%' }}
+            contentContainerStyle={{ paddingTop: 10, paddingBottom: insets.bottom + 22, paddingHorizontal: 16 }}
+          >
             <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 12 }} />
             <Text style={{ color: C.text, fontSize: 18, fontWeight: '900', marginBottom: 12 }}>Edit your space</Text>
 
@@ -545,7 +551,7 @@ export const ProfileScreen = () => {
                 <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '900' }}>{savedEdit ? 'Saved ✓' : 'Save'}</Text>
               </View>
             </Pressable>
-          </Pressable>
+          </ScrollView>
         </Pressable>
       ) : null}
 
