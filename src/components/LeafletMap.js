@@ -1,5 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { Platform } from 'react-native';
+import { WORLD } from '../constants/worldGeo';
 
 /* A REAL interactive map on web — Leaflet + OpenStreetMap data with
    CARTO's playful "Voyager" tiles. Pannable, zoomable, opens on the
@@ -26,6 +27,19 @@ function loadLeaflet() {
   return leafletPromise;
 }
 
+/* Big, well-known countries whose names show even zoomed out; smaller
+   ones appear as you zoom in, so the world view never crowds. */
+const COUNTRY_MAJOR = new Set([
+  'Russia','China','United States','Canada','Brazil','Australia','India',
+  'Argentina','Kazakhstan','Algeria','Saudi Arabia','Egypt','Mexico','Indonesia',
+  'Iran','Turkey','Sudan','Libya','Chad','Niger','Angola','Mali','Ethiopia',
+  'Nigeria','South Africa','DR Congo','Greenland','Mongolia','Peru','Colombia',
+  'Bolivia','Pakistan','France','Spain','Germany','Ukraine','Sweden','Norway',
+  'Finland','Japan','Thailand','Myanmar','Afghanistan','Iraq','Morocco','Italy',
+  'United Kingdom','Poland','Romania','Chile','Venezuela','Namibia','Botswana',
+  'Zambia','Tanzania','Kenya','Somalia','Yemen',
+]);
+
 /* The Moments map identity — gentle float, purple glow, white pills. */
 function injectMapStyle() {
   if (typeof document === 'undefined' || document.getElementById('mm-map-style')) return;
@@ -41,16 +55,16 @@ function injectMapStyle() {
     /* cartoon pop on the real street tiles — juicy but easy on the eyes */
     .mm-tiles { filter: saturate(1.35) contrast(1.0) brightness(1.06); }
     .mm-dark .mm-tiles { filter: saturate(1.1) contrast(1.02) brightness(1.0); }
-    /* Palestine — matched to the tiles' own country labels (same size,
-       weight and dark ink) so it reads with equal clarity to Israel. */
-    .mm-canaan {
-      font: 700 12px 'Helvetica Neue', -apple-system, system-ui, 'Segoe UI', 'Tahoma', sans-serif;
-      color: #2b2b2b; letter-spacing: 0.2px; white-space: nowrap; text-align: center;
-      text-shadow: 0 1px 2px rgba(255,255,255,0.95), 0 0 5px rgba(255,255,255,0.9);
+    /* our own country names — every country identical styling, so no
+       country (incl. Israel & Palestine) is visually favoured. */
+    .mm-country {
+      font: 700 11.5px 'Helvetica Neue', -apple-system, system-ui, 'Segoe UI', 'Tahoma', sans-serif;
+      color: rgba(34, 52, 48, 0.82); letter-spacing: 0.3px; white-space: nowrap; text-align: center;
+      text-shadow: 0 1px 2px rgba(255,255,255,0.95), 0 0 6px rgba(255,255,255,0.7);
       pointer-events: none;
     }
-    .mm-dark .mm-canaan { color: #eaeaea; text-shadow: 0 1px 3px rgba(0,0,0,0.95); }
-    .mm-z-globe .mm-canaan { display: none; }
+    .mm-dark .mm-country { color: rgba(228,236,242,0.85); text-shadow: 0 1px 3px rgba(0,0,0,0.95), 0 0 6px rgba(0,0,0,0.6); }
+    .mm-z-globe .mm-country { display: none; }
     .mm-pill {
       background: rgba(255,255,255,0.97); border-radius: 8px; padding: 1.5px 6.5px; font-size: 9.5px;
       font-weight: 700; color: #1f2937; white-space: nowrap; text-align: center;
@@ -74,8 +88,8 @@ function injectMapStyle() {
        globe with soft spherical shading and a light-sky surround, so a
        full zoom-out reads as a friendly floating planet. */
     .mm-globe-frame {
-      display: none; position: absolute; left: 50%; top: 48%;
-      width: min(92vw, 74vh); height: min(92vw, 74vh);
+      display: none; position: absolute; left: 50%; top: 47%;
+      width: min(98vw, 88vh); height: min(98vw, 88vh);
       transform: translate(-50%, -50%); border-radius: 50%;
       pointer-events: none; z-index: 450;
       box-shadow:
@@ -214,13 +228,14 @@ export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus
         preferCanvas: true, // fast rendering for the hand-drawn land
       }).setView([24, 14], 2.5); // Earth view — Egypt/Europe in frame
 
-      // ── REAL, COMPLETE MAP WITH STREETS & STREET NAMES ──
-      // CARTO "Voyager" (light) / "Dark Matter" (dark) — colourful,
-      // cartoonish OpenStreetMap tiles that carry the full label layer:
-      // country, city AND street names, plus every street/road drawn in,
-      // so zooming in gives a true street map. Theme-aware for dark mode.
-      const LIGHT_TILES = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
-      const DARK_TILES = 'https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png';
+      // ── COLOURFUL CARTOON MAP, NAME-FREE (neutral) ──
+      // CARTO "Voyager · no labels" (light) / "Dark Matter · no labels"
+      // (dark): the same colourful, cartoonish landcover and roads, but
+      // with NO baked country/place names — so the basemap favours no
+      // country. Every name comes from OUR own layer instead, where
+      // Israel and Palestine are two equal entries.
+      const LIGHT_TILES = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png';
+      const DARK_TILES = 'https://{s}.basemaps.cartocdn.com/rastertiles/dark_nolabels/{z}/{x}/{y}{r}.png';
       const mq = (typeof window !== 'undefined' && window.matchMedia) ? window.matchMedia('(prefers-color-scheme: dark)') : null;
       const isDark = () => !!(mq && mq.matches);
       const tiles = L.tileLayer(isDark() ? DARK_TILES : LIGHT_TILES, {
@@ -274,18 +289,20 @@ export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus
     if (!L || !layerRef.current) return;
     layerRef.current.clearLayers();
 
-    // (Country/city/street names come from the map tiles themselves —
-    // which carry "Israel".) We add PALESTINE right beside it at the
-    // same size & weight, in the app's selected language, so both
-    // peoples are named equally on the map.
-    {
-      const pal = langRef.current === 'ar' ? 'فلسطين' : 'Palestine';
+    // OUR OWN country names — every country the same way, in the app's
+    // selected language (Arabic where we have it, else the Latin name).
+    // Israel and Palestine are two ordinary, equal labels here.
+    const useAr = langRef.current === 'ar';
+    WORLD.forEach((c) => {
+      if (!c.p || !c.n) return;
+      const label = (useAr && c.ar) ? c.ar : c.n;
+      const minor = COUNTRY_MAJOR.has(c.n) ? '' : ' mm-region-minor';
       const icon = L.divIcon({
-        html: '<div class="mm-canaan">' + pal + '</div>',
-        className: '', iconSize: [160, 20], iconAnchor: [80, 10],
+        html: '<div class="mm-country' + minor + '">' + label + '</div>',
+        className: '', iconSize: [200, 18], iconAnchor: [100, 9],
       });
-      L.marker([31.95, 35.25], { icon, interactive: false, zIndexOffset: 260 }).addTo(layerRef.current);
-    }
+      L.marker([c.p[1], c.p[0]], { icon, interactive: false, zIndexOffset: -100 }).addTo(layerRef.current);
+    });
 
     // your own live pin — only once your REAL location is known. Snap
     // style: YOUR own cartoon character stands on your real spot, with
