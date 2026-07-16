@@ -17,29 +17,34 @@ export const SKIN_TONES = ['#f2d3b1', '#e8b48c', '#d8a877', '#c68863', '#a56f4a'
 export const HAIR_COLORS = ['#2c1b18', '#4a3324', '#71491e', '#a56b2b', '#d4a017', '#e8c368', '#8b8b8b', '#e0e0e0', '#7c3aed', '#f43f5e'];
 export const CLOTHING_COLORS = ['#7C3AED', '#3B82F6', '#10B981', '#F5B301', '#F43F5E', '#111827', '#FFFFFF', '#EC4899'];
 
+/* IMPORTANT: these ids must be EXACT DiceBear "personas" enum values —
+   an invalid value makes the API return 400 and the avatar image
+   breaks for everyone (that was the broken-📷 bug on the map). */
 export const HAIR_STYLES = [
   { id: 'bald', label: 'Bald', emoji: '👤' },
-  { id: 'bun', label: 'Bun', emoji: '💇' },
   { id: 'buzzcut', label: 'Buzzcut', emoji: '💇‍♂️' },
+  { id: 'cap', label: 'Cap', emoji: '🧢' },
+  { id: 'beanie', label: 'Beanie', emoji: '🎿' },
   { id: 'curly', label: 'Curly', emoji: '🦱' },
-  { id: 'curlyHigh', label: 'Curly High', emoji: '🦱' },
-  { id: 'fro', label: 'Afro', emoji: '🦱' },
-  { id: 'longAfro', label: 'Long Afro', emoji: '🦱' },
-  { id: 'longCurly', label: 'Long Curly', emoji: '👩‍🦱' },
-  { id: 'mediumStraight', label: 'Medium Straight', emoji: '💁' },
-  { id: 'shaggy', label: 'Shaggy', emoji: '🧑' },
-  { id: 'shortCurly', label: 'Short Curly', emoji: '🧑‍🦱' },
-  { id: 'sidePart', label: 'Side Part', emoji: '💇‍♂️' },
-  { id: 'wavy', label: 'Wavy', emoji: '🌊' },
-  { id: 'mohawk', label: 'Mohawk', emoji: '🎸' },
+  { id: 'curlyBun', label: 'Curly Bun', emoji: '💇' },
+  { id: 'curlyHighTop', label: 'High Top', emoji: '🦱' },
+  { id: 'bobCut', label: 'Bob Cut', emoji: '💁' },
+  { id: 'bobBangs', label: 'Bob + Bangs', emoji: '👧' },
+  { id: 'long', label: 'Long', emoji: '👩‍🦱' },
+  { id: 'straightBun', label: 'Bun', emoji: '🎀' },
+  { id: 'pigtails', label: 'Pigtails', emoji: '👧' },
+  { id: 'fade', label: 'Fade', emoji: '💈' },
+  { id: 'shortCombover', label: 'Combover', emoji: '💇‍♂️' },
+  { id: 'sideShave', label: 'Side Shave', emoji: '🎸' },
+  { id: 'mohawk', label: 'Mohawk', emoji: '🤘' },
 ];
 
+/* personas dresses the body — these are its real outfit shapes. */
 export const CLOTHING_STYLES = [
-  { id: 'buttonShirt', label: 'Button Shirt', emoji: '👔' },
-  { id: 'collared', label: 'Collared', emoji: '🥼' },
-  { id: 'hoodie', label: 'Hoodie', emoji: '🧥' },
-  { id: 'shirt', label: 'Shirt', emoji: '👕' },
-  { id: 'vNeck', label: 'V-Neck', emoji: '👚' },
+  { id: 'rounded', label: 'Tee', emoji: '👕' },
+  { id: 'squared', label: 'Shirt', emoji: '👔' },
+  { id: 'small', label: 'Fitted', emoji: '🎽' },
+  { id: 'checkered', label: 'Checkered', emoji: '🏁' },
 ];
 
 export const EYES = [
@@ -61,13 +66,20 @@ export const MOUTHS = [
 
 export const DEFAULT_DNA = {
   skinColor: SKIN_TONES[0],
-  hair: 'shortCurly',
+  hair: 'curly',
   hairColor: HAIR_COLORS[0],
-  clothing: 'shirt',
+  clothing: 'rounded',
   clothingColor: CLOTHING_COLORS[0],
   eyes: 'happy',
   mouth: 'smile',
 };
+
+/* Profiles saved BEFORE the enum fix may hold invalid values — snap
+   anything unknown back to a safe default so no avatar ever 400s. */
+const VALID_HAIR = new Set(HAIR_STYLES.map((h) => h.id));
+const VALID_BODY = new Set(CLOTHING_STYLES.map((c) => c.id));
+const VALID_EYES = new Set(['glasses', 'happy', 'open', 'sleep', 'sunglasses', 'wink']);
+const VALID_MOUTH = new Set(['bigSmile', 'frown', 'lips', 'smile', 'smirk', 'surprise']);
 
 /* Serialize/parse to a compact string so it fits in one text column
    (profiles.avatar_dna): "skinColor=..,hair=..,hairColor=.." */
@@ -96,12 +108,12 @@ export function buildAvatarUrl(seed, dnaOrString) {
     backgroundType: 'gradientLinear',
     backgroundColor: '7C3AED,F5B301',
     skinColor: dna.skinColor.replace('#', ''),
-    hair: dna.hair,
+    hair: VALID_HAIR.has(dna.hair) ? dna.hair : 'curly',
     hairColor: dna.hairColor.replace('#', ''),
-    clothing: dna.clothing,
+    body: VALID_BODY.has(dna.clothing) ? dna.clothing : 'rounded',
     clothingColor: dna.clothingColor.replace('#', ''),
-    eyes: dna.eyes,
-    mouth: dna.mouth,
+    eyes: VALID_EYES.has(dna.eyes) ? dna.eyes : 'happy',
+    mouth: VALID_MOUTH.has(dna.mouth) ? dna.mouth : 'smile',
   });
   return API + '?' + params.toString();
 }

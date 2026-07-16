@@ -453,6 +453,29 @@ export const MapScreen = () => {
       : (m || 'Something went wrong — try again.');
   };
 
+  /* ── Meet up 🤝 — sends a REAL invite (DM) and draws a route line on
+     the map from you to them, with an honest distance + time estimate
+     (walking ≤3km, otherwise driving pace). ── */
+  const [routeTo, setRouteTo] = useState(null);
+  const meetUp = async (p) => {
+    tapLight();
+    if (!p.coords) return;
+    const km = kmBetween(myCoords, p.coords);
+    const mins = Math.max(1, Math.round(km <= 3 ? km * 13.3 : km * 2 + 8));
+    const distTxt = km < 1 ? Math.round(km * 1000) + ' m' : km.toFixed(1) + ' km';
+    setRouteTo({ lat: p.coords.latitude, lng: p.coords.longitude, ts: Date.now() });
+    closeSheet();
+    if (!SUPABASE_READY || !user) { note('🤝 ' + distTxt + ' · ~' + mins + ' min'); return; }
+    try {
+      const threadId = await getOrCreateDmThread(p.id);
+      await sendMessage({ dmThreadId: threadId, userId: user.id, body: '🤝 Meet up? I’m ' + distTxt + ' away (~' + mins + ' min) — heading your way!' });
+      sfxPop();
+      note('🤝 Invite sent to ' + (p.name || '').split(' ')[0] + ' · ' + distTxt + ' · ~' + mins + ' min');
+    } catch (e) {
+      note('🤝 ' + explainMap(e));
+    }
+  };
+
   /* ── Wave → a real DM. "Waved ✓" appears ONLY when it truly sent. ── */
   const wave = async (person) => {
     tapLight();
@@ -479,12 +502,17 @@ export const MapScreen = () => {
     const title = dropTitle.trim();
     if (!title) return;
     if (!SUPABASE_READY || !user) { note('Sign in to drop a note.'); return; }
+    // ── anti-crowding rule: ONE live note per person. Want a new one?
+    // Your old one is replaced — the map never piles up. ──
+    const mine = realNotes.find((n) => n.user_id === user.id);
     tapSuccess(); sfxSuccess();
     closeSheet();
     setDropTitle('');
     try {
+      if (mine) { try { await deleteNote(mine.id, user.id); } catch (e) {} }
       const row = await dropNote(user.id, { body: title, lat: myCoords.latitude, lng: myCoords.longitude, hours: noteHours });
-      setRealNotes((n) => [row, ...n]);
+      setRealNotes((n) => [row, ...n.filter((x) => x.user_id !== user.id)]);
+      if (mine) note('💬 Your old note was replaced — one live note per person keeps the map clean.');
     } catch (e) {
       note('💬 ' + explainMap(e));
     }
@@ -830,7 +858,7 @@ export const MapScreen = () => {
           )) : null}
         </MapView>
       ) : Platform.OS === 'web' ? (
-        <LeafletMap center={myCoords} markers={mapMarkers} onPress={onMarkerPress} locate={located} focus={mapFocus} lang={lang} meAvatar={user ? buildAvatarUrl(user.id) : null} meDoing={myDoing} />
+        <LeafletMap center={myCoords} markers={mapMarkers} onPress={onMarkerPress} locate={located} focus={mapFocus} lang={lang} meAvatar={user ? buildAvatarUrl(user.id) : null} meDoing={myDoing} route={routeTo} />
       ) : (
         <FauxMap center={myCoords}>
           <View style={{ position: 'absolute', left: '38%', top: '50%' }}>
@@ -915,6 +943,22 @@ export const MapScreen = () => {
             <Text style={{ color: C.faint, fontSize: 12, marginTop: 2, marginBottom: 10 }}>
               {SUPABASE_READY ? 'People sharing their activity right now' : 'Mates & explorers around you right now'}
             </Text>
+
+            {/* YOU — see and control whether you appear for others */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.purpleSoft, borderRadius: 14, padding: 10, marginBottom: 10 }}>
+              <Image source={{ uri: user ? buildAvatarUrl(user.id) : AV_NEUTRAL }} style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: '#EDE9FE' }} />
+              <View style={{ flex: 1, marginLeft: 11 }}>
+                <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800' }}>You {myDoing || ''}</Text>
+                <Text style={{ color: myDoing ? C.green : C.faint, fontSize: 11, marginTop: 1 }}>
+                  {myDoing ? 'Visible in nearby ✓' : 'Hidden — turn on to appear here for others'}
+                </Text>
+              </View>
+              <Pressable onPress={() => { closeSheet(); openSheet('doing'); }}>
+                <View style={{ backgroundColor: myDoing ? C.glass : C.purple, borderWidth: myDoing ? 1 : 0, borderColor: C.line, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8 }}>
+                  <Text style={{ color: myDoing ? C.dim : '#FFF', fontSize: 12, fontWeight: '900' }}>{myDoing ? 'Change' : 'Turn on 🟢'}</Text>
+                </View>
+              </Pressable>
+            </View>
             {nearbyPeople.length ? (
               <ScrollView showsVerticalScrollIndicator={false}>
                 {nearbyPeople.map((p) => (
@@ -933,9 +977,14 @@ export const MapScreen = () => {
                         <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 2 }}>{p.intent} · {p.km.toFixed(1)} km away</Text>
                       </View>
                     </Pressable>
+                    <Pressable onPress={() => meetUp(p)} style={{ marginRight: 7 }}>
+                      <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8 }}>
+                        <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '900' }}>🤝 Meet</Text>
+                      </View>
+                    </Pressable>
                     <Pressable onPress={() => wave(p)}>
-                      <View style={{ backgroundColor: waved[p.id] ? C.greenSoft : C.purpleSoft, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8 }}>
-                        <Text style={{ color: waved[p.id] ? C.green : C.purple, fontSize: 12, fontWeight: '900' }}>{waved[p.id] ? 'Waved ✓' : 'Wave 👋'}</Text>
+                      <View style={{ backgroundColor: waved[p.id] ? C.greenSoft : C.purpleSoft, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8 }}>
+                        <Text style={{ color: waved[p.id] ? C.green : C.purple, fontSize: 12, fontWeight: '900' }}>{waved[p.id] ? '✓' : '👋'}</Text>
                       </View>
                     </Pressable>
                   </View>

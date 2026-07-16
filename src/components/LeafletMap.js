@@ -52,6 +52,9 @@ function injectMapStyle() {
     .mm-float { animation: mmFloat 3.2s ease-in-out infinite; }
     /* soft loading backdrop before the street tiles paint */
     .leaflet-container { background: #dfeaf2; }
+    /* GPU-hint the moving layers so pans/zooms stay 60fps-smooth */
+    .leaflet-marker-icon, .leaflet-tile, .leaflet-map-pane { will-change: transform; }
+    .leaflet-zoom-anim .leaflet-zoom-animated { transition-timing-function: cubic-bezier(0.22, 0.8, 0.32, 1); }
     .mm-dark .leaflet-container, .leaflet-container.mm-dark { background: #0c1626; }
     /* cartoon pop on the real street tiles — juicy but easy on the eyes */
     .mm-tiles { filter: saturate(1.35) contrast(1.0) brightness(1.06); }
@@ -78,6 +81,9 @@ function injectMapStyle() {
        • from the globe/world view → the big countries are already named
        • closer in                 → every country name appears */
     .mm-z-far .mm-region-minor { display: none; }
+    /* notes & campfires are street-level things — hidden when zoomed
+       out so a popular area never turns into a wall of bubbles */
+    .mm-z-far .mm-note { display: none; }
 
     /* ── CARTOON GLOBE (zoomed all the way out) ──
        The flat world is masked into a floating round planet: a circular
@@ -166,8 +172,8 @@ const pinHtml = (m) => {
   // bubble with the emoji, floats gently.
   if (m.kind === 'note') {
     return (
-      '<div class="mm-float" style="position:relative;width:40px;height:44px;display:flex;flex-direction:column;align-items:center">' +
-      '<div style="width:34px;height:34px;border-radius:14px 14px 14px 3px;background:#7C3AED;display:flex;align-items:center;justify-content:center;font-size:17px;box-shadow:0 3px 8px rgba(124,58,237,0.4)">💬</div>' +
+      '<div class="mm-float mm-note" style="position:relative;width:40px;height:44px;display:flex;flex-direction:column;align-items:center">' +
+      '<div style="width:30px;height:30px;border-radius:13px 13px 13px 3px;background:#7C3AED;display:flex;align-items:center;justify-content:center;font-size:15px;box-shadow:0 3px 8px rgba(124,58,237,0.4)">💬</div>' +
       '</div>'
     );
   }
@@ -200,7 +206,7 @@ const pinHtml = (m) => {
   );
 };
 
-export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus = null, lang = 'en', meAvatar = null, meDoing = null }) => {
+export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus = null, lang = 'en', meAvatar = null, meDoing = null, route = null }) => {
   const elRef = useRef(null);
   const mapRef = useRef(null);
   const layerRef = useRef(null);
@@ -227,8 +233,13 @@ export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus
       if (cancelled || !L || !elRef.current || mapRef.current) return;
       const map = L.map(elRef.current, {
         zoomControl: false, attributionControl: false,
-        minZoom: 2, maxZoom: 18, worldCopyJump: true, zoomSnap: 0.25,
-        preferCanvas: true, // fast rendering for the hand-drawn land
+        minZoom: 2, maxZoom: 18, worldCopyJump: true,
+        // buttery motion: fine zoom steps, animated zoom/fade, gentle
+        // inertia so pans glide to a stop instead of snapping
+        zoomSnap: 0.25, zoomDelta: 0.5, wheelPxPerZoomLevel: 120,
+        zoomAnimation: true, fadeAnimation: true, markerZoomAnimation: true,
+        inertia: true, inertiaDeceleration: 2400, easeLinearity: 0.15,
+        preferCanvas: true,
       }).setView([24, 14], 2.5); // Earth view — Egypt/Europe in frame
 
       // ── COLOURFUL CARTOON MAP, NAME-FREE (neutral) ──
@@ -405,6 +416,23 @@ export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus
     mapRef.current.flyTo([focus.lat, focus.lng], focus.zoom || 14, { duration: 1.6 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focus && focus.ts]);
+
+  // meet-up route — a dashed purple line from you to the person you're
+  // meeting, camera framed to show you both (get-directions feel)
+  const routeLineRef = useRef(null);
+  useEffect(() => {
+    const L = typeof window !== 'undefined' ? window.L : null;
+    if (!L || !mapRef.current) return;
+    if (routeLineRef.current) { routeLineRef.current.remove(); routeLineRef.current = null; }
+    if (!route || route.lat == null) return;
+    const from = [center.latitude, center.longitude];
+    const to = [route.lat, route.lng];
+    routeLineRef.current = L.polyline([from, to], {
+      color: '#7C3AED', weight: 4, opacity: 0.85, dashArray: '10 12', lineCap: 'round',
+    }).addTo(mapRef.current);
+    mapRef.current.fitBounds(L.latLngBounds([from, to]), { padding: [70, 70], maxZoom: 16 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [route && route.ts]);
 
   if (Platform.OS !== 'web') return null;
   // react-dom renders lowercase host tags on web (same as the <video>/<iframe> used elsewhere).

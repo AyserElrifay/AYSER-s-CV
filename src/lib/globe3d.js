@@ -22,6 +22,22 @@ function loadThree() {
 const EARTH_TEX = 'https://unpkg.com/three-globe@2.31.0/example/img/earth-blue-marble.jpg';
 const BUMP_TEX = 'https://unpkg.com/three-globe@2.31.0/example/img/earth-topology.png';
 
+/* Cartoonify the satellite texture in-memory: boost saturation and
+   lightness toward Snap's candy palette (mint land, playful blue sea)
+   so the planet matches the app's cartoon map instead of NASA colours. */
+function cartoonify(img) {
+  const c = document.createElement('canvas');
+  c.width = img.width; c.height = img.height;
+  const x = c.getContext('2d');
+  x.drawImage(img, 0, 0);
+  // saturate + brighten via filter re-draw when supported
+  if ('filter' in x) {
+    x.filter = 'saturate(1.9) brightness(1.25) contrast(1.05) hue-rotate(-8deg)';
+    x.drawImage(c, 0, 0);
+  }
+  return c;
+}
+
 /* mountGlobe3D(container, { onDive }) → { setVisible, resize, destroy }.
    onDive() is called when the user taps the globe (to dive into the flat
    map). The globe auto-rotates and can be dragged to spin. */
@@ -56,10 +72,17 @@ export function mountGlobe3D(container, { onDive } = {}) {
     const loader = new THREE.TextureLoader();
     loader.setCrossOrigin('anonymous');
 
-    // the planet
+    // the planet — Snap-candy colours: the satellite texture is
+    // re-painted through cartoonify() so land pops mint-green and the
+    // sea goes playful blue, matching the app's cartoon map.
     const geo = new THREE.SphereGeometry(1, 64, 64);
     const mat = new THREE.MeshPhongMaterial({
-      map: loader.load(EARTH_TEX),
+      map: loader.load(EARTH_TEX, (tex) => {
+        try {
+          tex.image = cartoonify(tex.image);
+          tex.needsUpdate = true;
+        } catch (e) { /* CORS-blocked canvas → keep natural colours */ }
+      }),
       bumpMap: loader.load(BUMP_TEX),
       bumpScale: 0.012,
       specular: new THREE.Color(0x224466),
@@ -76,8 +99,8 @@ export function mountGlobe3D(container, { onDive } = {}) {
       vertexShader:
         'varying vec3 vN; void main(){ vN = normalize(normalMatrix * normal); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0);} ',
       fragmentShader:
-        // very soft rim — a whisper of atmosphere, NOT a ring around the planet
-        'varying vec3 vN; void main(){ float i = pow(0.66 - dot(vN, vec3(0.0,0.0,1.0)), 4.0); gl_FragColor = vec4(0.34,0.58,1.0,1.0) * i * 0.5; }',
+        // soft halo in the PLANET'S own candy colours (aqua-mint), not a ring
+        'varying vec3 vN; void main(){ float i = pow(0.66 - dot(vN, vec3(0.0,0.0,1.0)), 4.0); gl_FragColor = vec4(0.36,0.78,0.72,1.0) * i * 0.55; }',
     });
     atmosphere = new THREE.Mesh(new THREE.SphereGeometry(1.09, 64, 64), atmMat);
     scene.add(atmosphere);
