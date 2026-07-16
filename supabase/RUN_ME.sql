@@ -521,6 +521,25 @@ create policy "like comments as yourself" on public.comment_likes for insert wit
 drop policy if exists "unlike comments yourself" on public.comment_likes;
 create policy "unlike comments yourself" on public.comment_likes for delete using (auth.uid() = user_id);
 
+-- ═══════════ MAP NOTES · a comment pinned at a spot for a while ═══════════
+create table if not exists public.map_notes (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid not null references public.profiles(id) on delete cascade,
+  body       text not null,
+  lat        double precision not null,
+  lng        double precision not null,
+  expires_at timestamptz not null,
+  created_at timestamptz not null default now()
+);
+alter table public.map_notes enable row level security;
+drop policy if exists "map notes readable by everyone" on public.map_notes;
+create policy "map notes readable by everyone" on public.map_notes for select using (true);
+drop policy if exists "drop your own note" on public.map_notes;
+create policy "drop your own note" on public.map_notes for insert with check (auth.uid() = user_id);
+drop policy if exists "remove your own note" on public.map_notes;
+create policy "remove your own note" on public.map_notes for delete using (auth.uid() = user_id);
+create index if not exists map_notes_expiry_idx on public.map_notes (expires_at);
+
 -- ═══════════════ PROFILE COLUMNS SELF-HEAL ═══════════════
 -- Columns added by earlier schema files (v2 languages, v7 country)
 -- that may be missing — safe to re-add, they no-op if present.

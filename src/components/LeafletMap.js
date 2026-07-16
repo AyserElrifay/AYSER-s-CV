@@ -1,6 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import { Platform } from 'react-native';
 import { WORLD } from '../constants/worldGeo';
+import { mountGlobe3D } from '../lib/globe3d';
 
 /* A REAL interactive map on web — Leaflet + OpenStreetMap data with
    CARTO's playful "Voyager" tiles. Pannable, zoomable, opens on the
@@ -84,37 +85,14 @@ function injectMapStyle() {
        shading inside for the 3-D bulge, a chunky cartoon outline and a
        drop shadow so it hovers. Pointer-events off → the map underneath
        stays fully pannable/zoomable. */
-    /* Zoom-out = a real CURVED planet, not a map with a ring. Deep space
-       fills everything outside; NO hard border/ring. The sphere illusion
-       comes from a radial shade layer (mm-globe-shade): a bright highlight
-       top-left and heavy limb-darkening toward the rim, exactly how 2-D
-       art turns a flat disc into a 3-D ball. */
-    .mm-globe-frame {
-      display: none; position: absolute; left: 50%; top: 47%;
-      width: min(96vw, 86vh); height: min(96vw, 86vh);
-      transform: translate(-50%, -50%); border-radius: 50%;
-      pointer-events: none; z-index: 450; overflow: hidden;
-      box-shadow:
-        0 0 60px 22px rgba(110,175,255,0.35),        /* diffuse atmosphere (glow, not a ring) */
-        0 0 130px 60px rgba(80,140,235,0.16),        /* faint outer haze */
-        0 0 0 9999px #04060d;                         /* deep space */
+    /* the REAL 3-D Earth canvas — fills the view on full zoom-out, deep
+       space behind it. It's a true sphere (three.js), so the world is
+       genuinely curved, not a flat map in a ring. */
+    .mm-globe3d {
+      position: absolute; inset: 0; z-index: 460;
+      background: radial-gradient(120% 120% at 50% 40%, #0a1226 0%, #04060d 70%);
+      opacity: 0; transition: opacity 0.5s ease; pointer-events: none;
     }
-    /* the sphere shading — this is what makes the world look CURVED */
-    .mm-globe-shade {
-      position: absolute; inset: 0; border-radius: 50%; pointer-events: none;
-      background:
-        radial-gradient(circle at 37% 30%,
-          rgba(255,255,255,0.30) 0%,
-          rgba(255,255,255,0.08) 16%,
-          rgba(255,255,255,0) 34%,
-          rgba(0,8,26,0) 52%,
-          rgba(0,10,30,0.45) 78%,
-          rgba(0,4,16,0.82) 93%,
-          rgba(0,2,10,0.95) 100%);
-    }
-    .mm-z-globe .mm-globe-frame { display: block; }
-    /* on the globe the satellite imagery shows true colour */
-    .mm-z-globe .mm-sat { filter: saturate(1.06) brightness(1.02); }
     /* region names flip to light ink on the dark planet */
     .mm-dark .mm-region { color: rgba(226,232,240,0.74); text-shadow: 0 1px 3px rgba(0,0,0,0.9); }
     /* the Snap "activity heatmap" glow that blooms under a live person */
@@ -188,6 +166,16 @@ const pinHtml = (m) => {
     );
   }
 
+  // A dropped NOTE — a comment pinned at a spot for a while. Speech
+  // bubble with the emoji, floats gently.
+  if (m.kind === 'note') {
+    return (
+      '<div class="mm-float" style="position:relative;width:40px;height:44px;display:flex;flex-direction:column;align-items:center">' +
+      '<div style="width:34px;height:34px;border-radius:14px 14px 14px 3px;background:#7C3AED;display:flex;align-items:center;justify-content:center;font-size:17px;box-shadow:0 3px 8px rgba(124,58,237,0.4)">💬</div>' +
+      '</div>'
+    );
+  }
+
   // Real going-out places (cafés, restaurants, bars…): a tiny, clean
   // round dot with a whisper-thin amber ring — small enough that a busy
   // street stays tidy, with the place's own emoji still readable.
@@ -222,6 +210,10 @@ export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus
   meAvatarRef.current = meAvatar;
   const meDoingRef = useRef(meDoing);
   meDoingRef.current = meDoing;
+  const globe3dRef = useRef(null);
+  const resizeCleanupRef = useRef(null);
+  const centerRef = useRef(center);
+  centerRef.current = center;
 
   // init once — open on the whole planet
   useEffect(() => {
@@ -280,12 +272,24 @@ export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus
       if (mq) { try { mq.addEventListener('change', applyTheme); } catch (e) { mq.addListener && mq.addListener(applyTheme); } }
       // the cartoon-globe frame — a pure-CSS overlay shown only at the
       // far zoom; masks the flat map into a floating round planet
-      const globe = document.createElement('div');
-      globe.className = 'mm-globe-frame';
-      const shade = document.createElement('div'); // the 3-D sphere shading
-      shade.className = 'mm-globe-shade';
-      globe.appendChild(shade);
-      map.getContainer().appendChild(globe);
+      // A REAL 3-D Earth for the zoom-out view — an actual spinning
+      // sphere in starry space (not a flat map in a circle). Tapping it
+      // dives into the flat map; dragging spins the planet.
+      const globeEl = document.createElement('div');
+      globeEl.className = 'mm-globe3d';
+      map.getContainer().appendChild(globeEl);
+      const globe3d = mountGlobe3D(globeEl, {
+        onDive: () => {
+          const c = centerRef.current || {};
+          const lat = c.latitude != null ? c.latitude : 26;
+          const lng = c.longitude != null ? c.longitude : 30;
+          map.flyTo([lat, lng], 6, { duration: 1.8 });
+        },
+      });
+      globe3dRef.current = globe3d;
+      const onResize = () => globe3d.resize();
+      window.addEventListener('resize', onResize);
+      resizeCleanupRef.current = () => window.removeEventListener('resize', onResize);
       // zoom-aware tidiness (Snap-clean): at the world/continent view
       // NO destination cards show at all — just the calm map, region
       // names and live people. Zoom into a country (z 6–7) and they
@@ -298,6 +302,8 @@ export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus
         el.classList.toggle('mm-hide-regions', z >= 9);  // street level → region names off
         el.classList.toggle('mm-z-far', z < 6);          // world → only major region names
         el.classList.toggle('mm-z-city', z >= 8);        // zoomed hard → every place, in full
+        // the real 3-D planet takes over the whole zoom-out view
+        if (globe3dRef.current) globe3dRef.current.setVisible(z < 4);
       };
       map.on('zoomend', applyZoomClasses);
       applyZoomClasses();
@@ -306,6 +312,8 @@ export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus
     });
     return () => {
       cancelled = true;
+      if (globe3dRef.current) { globe3dRef.current.destroy(); globe3dRef.current = null; }
+      if (resizeCleanupRef.current) { resizeCleanupRef.current(); resizeCleanupRef.current = null; }
       if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -367,10 +375,11 @@ export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus
       const isPerson = m.kind === 'person' && m.avatar;
       const isDest = m.kind === 'dest';
       const isPlace = m.kind === 'place';
+      const isNote = m.kind === 'note';
       const icon = L.divIcon({
         html: pinHtml(m), className: '',
-        iconSize: isPerson ? [52, 66] : isDest ? [88, 54] : isPlace ? [20, 20] : [34, 34],
-        iconAnchor: isPerson ? [26, 33] : isDest ? [44, 27] : isPlace ? [10, 10] : [17, 34],
+        iconSize: isPerson ? [52, 66] : isDest ? [88, 54] : isPlace ? [20, 20] : isNote ? [40, 44] : [34, 34],
+        iconAnchor: isPerson ? [26, 33] : isDest ? [44, 27] : isPlace ? [10, 10] : isNote ? [20, 40] : [17, 34],
       });
       const mk = L.marker([m.lat, m.lng], { icon, zIndexOffset: isPerson ? 500 : isDest ? 300 : 0 }).addTo(layerRef.current);
       if (m.label && !isPerson && !isDest) mk.bindTooltip(m.label, { direction: 'top', offset: [0, -34] });

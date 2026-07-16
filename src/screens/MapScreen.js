@@ -21,6 +21,7 @@ import { fetchDestReviews, addDestReview } from '../services/destinations';
 import { fetchPostsNearby } from '../services/posts';
 import { requestTrip } from '../services/trips';
 import { getOrCreateDmThread, sendMessage } from '../services/messages';
+import { dropNote, fetchActiveNotes, deleteNote } from '../services/mapNotes';
 import { openPartner } from '../services/broker';
 import {
   Glass, Micro, Chip, NeonButton, GhostButton, FauxMap,
@@ -81,6 +82,9 @@ export const MapScreen = () => {
   const [partnerSent, setPartnerSent] = useState(false);
   const [dealFilter, setDealFilter] = useState('All');
   const [dropTitle, setDropTitle] = useState('');
+  const [noteHours, setNoteHours] = useState(24);       // chosen duration
+  const [realNotes, setRealNotes] = useState([]);       // pinned comments
+  const [noteOpen, setNoteOpen] = useState(null);       // a tapped note
   const [joinedFires, setJoinedFires] = useState({});
   const [vName, setVName] = useState('');
   const [vKind, setVKind] = useState('Sport');
@@ -214,8 +218,10 @@ export const MapScreen = () => {
     realPlaces.forEach((pl) => out.push({ id: pl.id, srcId: pl.id, kind: 'place', lat: pl.lat, lng: pl.lng, emoji: pl.emoji, label: pl.name }));
     // curated adventure destinations — real spots across the planet
     DESTINATIONS.forEach((d) => out.push({ id: 'dest_' + d.id, srcId: d.id, kind: 'dest', lat: d.lat, lng: d.lng, emoji: d.emoji, flag: d.flag, label: d.name, hero: !!d.hero }));
+    // pinned notes/comments people dropped at a spot
+    realNotes.forEach((n) => out.push({ id: 'note_' + n.id, srcId: n.id, kind: 'note', lat: n.lat, lng: n.lng, label: n.body }));
     return out;
-  }, [people, campfires, realVenues, realPlaces]);
+  }, [people, campfires, realVenues, realPlaces, realNotes]);
 
   const onMarkerPress = (m) => {
     setSheet(null); // whatever's open, a map tap replaces it — never stacks
@@ -224,6 +230,7 @@ export const MapScreen = () => {
     else if (m.kind === 'fire') { const c = campfires.find((x) => x.id === m.srcId); if (c) joinFire(c); }
     else if (m.kind === 'place') { const pl = realPlaces.find((x) => x.id === m.srcId); if (pl) setPlaceOpen(pl); }
     else if (m.kind === 'dest') { const d = DESTINATIONS.find((x) => x.id === m.srcId); if (d) openDest(d); }
+    else if (m.kind === 'note') { const n = realNotes.find((x) => x.id === m.srcId); if (n) setNoteOpen(n); }
   };
 
   /* ── curated destination sheet: guide + reviews + Uber ── */
@@ -460,22 +467,38 @@ export const MapScreen = () => {
     setBookingVenue(venue);
   };
 
-  /* ── Drop a Moment: put YOURSELF on the map & let people join ── */
+  /* ── Drop a note: a comment pinned at your exact spot for a chosen
+     duration. Real row in map_notes; you can remove it any time. ── */
   const dropMoment = async () => {
     const title = dropTitle.trim();
     if (!title) return;
+    if (!SUPABASE_READY || !user) { note('Sign in to drop a note.'); return; }
     tapSuccess(); sfxSuccess();
     closeSheet();
     setDropTitle('');
-    if (SUPABASE_READY && user) {
-      try {
-        const row = await hostCampfire(user.id, { title, topic: null, lat: myCoords.latitude, lng: myCoords.longitude });
-        setRealCampfires((c) => [normalizeCampfire(row), ...c]);
-      } catch (e) {}
-    } else {
-      setRealCampfires((c) => [{ id: 'local-' + Date.now(), title, topic: null, host: { name: 'You' }, coords: myCoords }, ...c]);
+    try {
+      const row = await dropNote(user.id, { body: title, lat: myCoords.latitude, lng: myCoords.longitude, hours: noteHours });
+      setRealNotes((n) => [row, ...n]);
+    } catch (e) {
+      note('💬 ' + explainMap(e));
     }
   };
+
+  /* load everyone's still-alive pinned notes */
+  useEffect(() => {
+    if (!SUPABASE_READY) return;
+    let cancelled = false;
+    fetchActiveNotes().then((rows) => { if (!cancelled) setRealNotes(rows); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
+  const removeNote = async (n) => {
+    setNoteOpen(null);
+    setRealNotes((list) => list.filter((x) => x.id !== n.id));
+    if (SUPABASE_READY && user) { try { await deleteNote(n.id, user.id); } catch (e) {} }
+  };
+
+  const DURATIONS = [{ h: 1, label: '1 hour' }, { h: 24, label: '1 day' }, { h: 168, label: '1 week' }, { h: 720, label: '1 month' }];
 
   /* ── Join the Moment — "You're in!" ONLY after the real join lands ── */
   const joinFire = async (c) => {
@@ -607,7 +630,7 @@ export const MapScreen = () => {
           ))}
           <Pressable onPress={() => openSheet('drop')}>
             <View style={{ backgroundColor: C.gold, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 7 }}>
-              <Text style={{ color: '#4A3200', fontSize: 12, fontWeight: '900' }}>＋ Drop a Moment</Text>
+              <Text style={{ color: '#4A3200', fontSize: 12, fontWeight: '900' }}>＋ Drop a note</Text>
             </View>
           </Pressable>
         </View>
@@ -923,22 +946,60 @@ export const MapScreen = () => {
         <Pressable onPress={closeSheet} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end', zIndex: 30 }}>
           <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, paddingBottom: insets.bottom + 22, paddingHorizontal: 16 }}>
             <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 12 }} />
-            <Text style={{ color: C.text, fontSize: 18, fontWeight: '900' }}>Drop a Moment 📍</Text>
+            <Text style={{ color: C.text, fontSize: 18, fontWeight: '900' }}>Drop a note 💬</Text>
             <Text style={{ color: C.faint, fontSize: 12, marginTop: 2, marginBottom: 12 }}>
-              A pin lands on your exact spot — people around you can see it and join
+              A comment lands on your exact spot — pick how long it stays, and remove it any time
             </Text>
             <TextInput
-              placeholder="What's happening? (e.g. Football at the club, 6PM ⚽)"
+              placeholder="Say something to whoever's here… (e.g. Best koshari in town 🍲)"
               placeholderTextColor={C.faint}
               value={dropTitle}
               onChangeText={setDropTitle}
-              style={{ color: C.text, fontSize: 14, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 12, marginBottom: 12 }}
+              multiline
+              style={{ color: C.text, fontSize: 14, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 12, marginBottom: 12, minHeight: 60, textAlignVertical: 'top' }}
             />
+            <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', letterSpacing: 1, marginBottom: 8 }}>STAYS FOR</Text>
+            <View style={{ flexDirection: 'row', marginBottom: 14 }}>
+              {DURATIONS.map((d) => {
+                const on = noteHours === d.h;
+                return (
+                  <Pressable key={d.h} onPress={() => { tapSelection(); setNoteHours(d.h); }} style={{ marginRight: 8 }}>
+                    <View style={{ backgroundColor: on ? C.purple : C.glass, borderWidth: 1, borderColor: on ? C.purple : C.line, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8 }}>
+                      <Text style={{ color: on ? '#FFF' : C.dim, fontSize: 12, fontWeight: '800' }}>{d.label}</Text>
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </View>
             <Pressable onPress={dropMoment}>
               <View style={{ backgroundColor: dropTitle.trim() ? C.purple : C.glassHi, borderRadius: 14, paddingVertical: 14, alignItems: 'center' }}>
-                <Text style={{ color: dropTitle.trim() ? '#FFF' : C.faint, fontSize: 14, fontWeight: '900' }}>Put it on the map 🔥</Text>
+                <Text style={{ color: dropTitle.trim() ? '#FFF' : C.faint, fontSize: 14, fontWeight: '900' }}>Pin it here 💬</Text>
               </View>
             </Pressable>
+          </Pressable>
+        </Pressable>
+      ) : null}
+
+      {/* a tapped note — read it, and remove it if it's yours */}
+      {noteOpen ? (
+        <Pressable onPress={() => setNoteOpen(null)} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end', zIndex: 31 }}>
+          <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, paddingBottom: insets.bottom + 22, paddingHorizontal: 16 }}>
+            <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 14 }} />
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+              <Image source={{ uri: (noteOpen.user && noteOpen.user.avatar_url) || AV_NEUTRAL }} style={{ width: 40, height: 40, borderRadius: 20 }} />
+              <View style={{ marginLeft: 11 }}>
+                <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>{(noteOpen.user && noteOpen.user.name) || 'Explorer'} 💬</Text>
+                <Text style={{ color: C.faint, fontSize: 11, marginTop: 1 }}>dropped here · until {new Date(noteOpen.expires_at).toLocaleDateString()}</Text>
+              </View>
+            </View>
+            <Text style={{ color: C.text, fontSize: 15, lineHeight: 22 }}>{noteOpen.body}</Text>
+            {user && noteOpen.user_id === user.id ? (
+              <Pressable onPress={() => removeNote(noteOpen)} style={{ marginTop: 16 }}>
+                <View style={{ backgroundColor: C.coralSoft, borderWidth: 1, borderColor: 'rgba(244,63,94,0.4)', borderRadius: 12, paddingVertical: 12, alignItems: 'center' }}>
+                  <Text style={{ color: C.coral, fontSize: 13.5, fontWeight: '900' }}>Remove my note 🗑️</Text>
+                </View>
+              </Pressable>
+            ) : null}
           </Pressable>
         </Pressable>
       ) : null}
