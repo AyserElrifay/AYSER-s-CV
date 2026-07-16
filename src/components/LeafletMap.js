@@ -1,5 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { Platform } from 'react-native';
+import { WORLD } from '../constants/worldGeo';
 
 /* A REAL interactive map on web — Leaflet + OpenStreetMap data with
    CARTO's playful "Voyager" tiles. Pannable, zoomable, opens on the
@@ -26,108 +27,18 @@ function loadLeaflet() {
   return leafletPromise;
 }
 
-/* THE ANCIENT ATLAS — every land on the planet carries its very
-   ancient name for this era, applied to EVERYONE equally and with NO
-   exceptions: Kemet, Gaul, Hispania, Persia, Cathay, Tawantinsuyu…
-   and the land between the river and the sea by its own ancient-era
-   name, Canaan — treated exactly like every other region, no special
-   label. Each has a small symbol for its civilization. Names render
-   in ONE language: whichever the app is set to (Arabic → the Arabic
-   name, everything else → the ancient Latin-script name, which reads
-   the same across English/French/Spanish/…). Decorative,
-   non-interactive, hidden once you zoom into street level. */
-const REGIONS = [
-  // ── MENA — the ancient heart ──
-  { emoji: '🍇', en: 'Canaan', ar: 'كنعان', lat: 31.55, lng: 35.05 },
-  { emoji: '🌞', en: 'Kemet', ar: 'كيمِت', lat: 27.8, lng: 28.8 },
-  { emoji: '🏹', en: 'Nubia', ar: 'النوبة', lat: 21.0, lng: 31.0 },
-  { emoji: '👑', en: 'Kush', ar: 'كوش', lat: 14.5, lng: 32.5 },
-  { emoji: '⛰️', en: 'Sinai', ar: 'سيناء', lat: 29.3, lng: 33.9 },
-  { emoji: '🏜️', en: 'Sahara', ar: 'الصحراء الكبرى', lat: 24.5, lng: 8.0 },
-  { emoji: '🛶', en: 'The Nile', ar: 'النيل', lat: 26.4, lng: 32.2 },
-  { emoji: '🐠', en: 'Red Sea', ar: 'البحر الأحمر', lat: 20.5, lng: 38.3 },
-  { emoji: '⛵', en: 'Mediterranean', ar: 'البحر المتوسط', lat: 35.2, lng: 17.5 },
-  { emoji: '🫒', en: 'The Levant', ar: 'بلاد الشام', lat: 34.8, lng: 38.2 },
-  { emoji: '🐚', en: 'Phoenicia', ar: 'فينيقيا', lat: 34.1, lng: 35.7 },
-  { emoji: '📜', en: 'Mesopotamia', ar: 'بلاد الرافدين', lat: 33.2, lng: 43.5 },
-  { emoji: '🦁', en: 'Persia', ar: 'بلاد فارس', lat: 32.5, lng: 54.0 },
-  { emoji: '🕋', en: 'Hejaz', ar: 'الحجاز', lat: 24.0, lng: 39.5 },
-  { emoji: '🐎', en: 'Najd', ar: 'نجد', lat: 25.2, lng: 44.5 },
-  { emoji: '🌿', en: 'Sheba', ar: 'سبأ', lat: 15.5, lng: 47.5 },
-  { emoji: '⛏️', en: 'Magan', ar: 'مجان', lat: 21.0, lng: 57.0 },
-  { emoji: '🌴', en: 'Dilmun', ar: 'دلمون', lat: 25.9, lng: 50.2 },
-  { emoji: '🦪', en: 'The Gulf', ar: 'الخليج', lat: 26.6, lng: 51.9 },
-  { emoji: '🐫', en: 'The Empty Quarter', ar: 'الربع الخالي', lat: 20.0, lng: 51.0 },
-  { emoji: '🐆', en: 'Libu', ar: 'ليبو', lat: 27.0, lng: 17.5 },
-  { emoji: '⚓', en: 'Carthage', ar: 'قرطاج', lat: 34.4, lng: 9.5 },
-  { emoji: '🐎', en: 'Numidia', ar: 'نوميديا', lat: 34.6, lng: 4.5 },
-  { emoji: '🌅', en: 'Mauretania', ar: 'موريطنية', lat: 32.6, lng: -7.5 },
-  { emoji: '🏔️', en: 'Atlas Mountains', ar: 'جبال الأطلس', lat: 30.6, lng: -5.5 },
-  // ── ancient Europe ──
-  { emoji: '🏛️', en: 'Hellas', ar: 'هيلاس', lat: 39.2, lng: 22.0 },
-  { emoji: '🐺', en: 'Italia', ar: 'إيطاليا', lat: 42.8, lng: 12.5 },
-  { emoji: '🐓', en: 'Gaul', ar: 'بلاد الغال', lat: 47.0, lng: 2.5 },
-  { emoji: '🐂', en: 'Hispania', ar: 'هسبانيا', lat: 40.0, lng: -4.0 },
-  { emoji: '🧭', en: 'Lusitania', ar: 'لوسيتانيا', lat: 39.5, lng: -8.1 },
-  { emoji: '🛡️', en: 'Britannia', ar: 'بريتانيا', lat: 52.8, lng: -1.8 },
-  { emoji: '🦌', en: 'Caledonia', ar: 'كاليدونيا', lat: 56.8, lng: -4.2 },
-  { emoji: '☘️', en: 'Hibernia', ar: 'هيبرنيا', lat: 53.2, lng: -8.2 },
-  { emoji: '🌲', en: 'Germania', ar: 'جرمانيا', lat: 51.0, lng: 10.0 },
-  { emoji: '🏰', en: 'Bohemia', ar: 'بوهيميا', lat: 49.8, lng: 15.0 },
-  { emoji: '🌾', en: 'Pannonia', ar: 'بانونيا', lat: 47.2, lng: 19.2 },
-  { emoji: '🐍', en: 'Dacia', ar: 'داسيا', lat: 45.2, lng: 24.8 },
-  { emoji: '🐻', en: 'Carpathians', ar: 'جبال الكاربات', lat: 47.6, lng: 24.6 },
-  { emoji: '⚔️', en: 'Thrace', ar: 'تراقيا', lat: 42.2, lng: 25.3 },
-  { emoji: '⛰️', en: 'The Balkans', ar: 'البلقان', lat: 43.5, lng: 20.6 },
-  { emoji: '🏹', en: 'Sarmatia', ar: 'سارماتيا', lat: 51.5, lng: 23.0 },
-  { emoji: '❄️', en: 'Rus', ar: 'روس', lat: 56.0, lng: 38.0 },
-  { emoji: '🪓', en: 'Scandinavia', ar: 'إسكندنافيا', lat: 63.0, lng: 15.0 },
-  { emoji: '🏔️', en: 'The Alps', ar: 'جبال الألب', lat: 46.4, lng: 9.8 },
-  // ── ancient Asia ──
-  { emoji: '🐎', en: 'Anatolia', ar: 'الأناضول', lat: 39.0, lng: 33.5 },
-  { emoji: '🦅', en: 'The Caucasus', ar: 'القوقاز', lat: 42.5, lng: 44.0 },
-  { emoji: '🧵', en: 'Sogdiana', ar: 'صغد', lat: 40.5, lng: 65.5 },
-  { emoji: '🐫', en: 'Bactria', ar: 'باختر', lat: 34.8, lng: 66.5 },
-  { emoji: '🏇', en: 'The Steppe · Scythia', ar: 'السهوب · سكيثيا', lat: 48.5, lng: 66.0 },
-  { emoji: '❄️', en: 'Siberia', ar: 'سيبيريا', lat: 62.0, lng: 95.0 },
-  { emoji: '🐘', en: 'Bharat', ar: 'بهارات', lat: 22.5, lng: 79.0 },
-  { emoji: '🗻', en: 'The Himalayas', ar: 'الهيمالايا', lat: 28.5, lng: 84.0 },
-  { emoji: '🐉', en: 'Cathay', ar: 'كاثاي', lat: 34.5, lng: 105.0 },
-  { emoji: '🌸', en: 'Nippon', ar: 'نيبون', lat: 36.8, lng: 138.5 },
-  { emoji: '🌄', en: 'Joseon', ar: 'جوسون', lat: 36.5, lng: 127.8 },
-  { emoji: '🛕', en: 'Siam', ar: 'سيام', lat: 15.5, lng: 101.0 },
-  { emoji: '🌋', en: 'Nusantara', ar: 'نوسانتارا', lat: -1.5, lng: 113.0 },
-  // ── ancient Africa ──
-  { emoji: '🌺', en: 'Punt', ar: 'بونت', lat: 8.5, lng: 47.5 },
-  { emoji: '☕', en: 'Abyssinia', ar: 'الحبشة', lat: 9.0, lng: 39.5 },
-  { emoji: '🐬', en: 'Azania', ar: 'أزانيا', lat: -6.5, lng: 38.5 },
-  { emoji: '🦓', en: 'The Serengeti', ar: 'سيرينجيتي', lat: -2.5, lng: 34.8 },
-  { emoji: '🪙', en: 'Mali Empire', ar: 'إمبراطورية مالي', lat: 14.8, lng: -5.0 },
-  { emoji: '📚', en: 'Songhai', ar: 'سونغهاي', lat: 16.5, lng: 1.5 },
-  { emoji: '🥁', en: 'Kongo', ar: 'كونغو', lat: -5.5, lng: 16.5 },
-  { emoji: '🦍', en: 'Congo Basin', ar: 'حوض الكونغو', lat: -0.8, lng: 23.0 },
-  { emoji: '🪨', en: 'Great Zimbabwe', ar: 'زيمبابوي العظمى', lat: -19.5, lng: 30.0 },
-  // ── the Americas & Oceania, by their oldest names ──
-  { emoji: '🐢', en: 'Turtle Island', ar: 'جزيرة السلحفاة', lat: 42.0, lng: -98.0 },
-  { emoji: '⛰️', en: 'The Rockies', ar: 'جبال الروكي', lat: 46.5, lng: -113.0 },
-  { emoji: '🦅', en: 'Anáhuac', ar: 'أناواك', lat: 22.5, lng: -101.5 },
-  { emoji: '🏝️', en: 'The Caribbean', ar: 'الكاريبي', lat: 15.5, lng: -72.0 },
-  { emoji: '🦙', en: 'Tawantinsuyu', ar: 'تاوانتينسويو', lat: -12.5, lng: -74.0 },
-  { emoji: '🦜', en: 'The Amazon', ar: 'الأمازون', lat: -4.0, lng: -62.0 },
-  { emoji: '🗻', en: 'The Andes', ar: 'الأنديز', lat: -22.0, lng: -67.5 },
-  { emoji: '🐧', en: 'Patagonia', ar: 'باتاغونيا', lat: -44.0, lng: -70.0 },
-  { emoji: '🦘', en: 'The Outback', ar: 'المناطق النائية', lat: -24.0, lng: 134.0 },
-  { emoji: '🥝', en: 'Aotearoa', ar: 'آوتياروا', lat: -43.2, lng: 171.5 },
-];
-
-/* The best-known lands, spread across the globe — these stay visible
-   even at the far world view; every other name appears as you zoom in,
-   keeping the planet light and uncrowded at a glance. */
-const REGION_MAJOR = new Set([
-  'Canaan', 'Kemet', 'Sahara', 'Mesopotamia', 'Persia', 'Hellas', 'Italia',
-  'Hispania', 'Britannia', 'Germania', 'Anatolia', 'The Himalayas', 'Cathay',
-  'Nippon', 'Bharat', 'Turtle Island', 'The Amazon', 'Tawantinsuyu',
-  'The Outback', 'Abyssinia',
+/* The big, well-known countries whose names show even when zoomed
+   out; every smaller country's name appears only as you zoom in, so
+   the world view stays clean (Snapchat behaviour). */
+const COUNTRY_MAJOR = new Set([
+  'Russia','China','United States','Canada','Brazil','Australia','India',
+  'Argentina','Kazakhstan','Algeria','Saudi Arabia','Egypt','Mexico','Indonesia',
+  'Iran','Turkey','Sudan','Libya','Chad','Niger','Angola','Mali','Ethiopia',
+  'Nigeria','South Africa','Democratic Republic of the Congo','DR Congo',
+  'Greenland','Mongolia','Peru','Colombia','Bolivia','Pakistan','France','Spain',
+  'Germany','Ukraine','Sweden','Norway','Finland','Japan','Thailand','Myanmar',
+  'Afghanistan','Iraq','Morocco','Italy','United Kingdom','Poland','Romania','Chile',
+  'Venezuela','Namibia','Botswana','Zambia','Tanzania','Kenya','Somalia','Yemen',
 ]);
 
 /* The Moments map identity — gentle float, purple glow, white pills. */
@@ -139,6 +50,27 @@ function injectMapStyle() {
     @keyframes mmFloat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
     @keyframes mmPulse { 0% { transform: scale(0.9); opacity: 0.55; } 70% { transform: scale(1.7); opacity: 0; } 100% { opacity: 0; } }
     .mm-float { animation: mmFloat 3.2s ease-in-out infinite; }
+    /* ── the cartoon OCEAN — our hand-drawn map's backdrop. Soft Snap
+       blue with a faint wavy texture; goes deep navy in dark mode. ── */
+    .leaflet-container {
+      background:
+        repeating-linear-gradient(0deg, rgba(255,255,255,0.05) 0 2px, rgba(255,255,255,0) 2px 26px),
+        #bfe4f5 !important;
+    }
+    .mm-dark .leaflet-container,
+    .leaflet-container.mm-dark {
+      background:
+        repeating-linear-gradient(0deg, rgba(120,150,205,0.05) 0 2px, rgba(120,150,205,0) 2px 26px),
+        #0c1626 !important;
+    }
+    /* Snapchat-style country names */
+    .mm-country {
+      font: 700 11px -apple-system, system-ui, 'Segoe UI', 'Helvetica Neue', sans-serif;
+      color: rgba(40, 60, 55, 0.66); letter-spacing: 0.3px;
+      text-shadow: 0 1px 2px rgba(255,255,255,0.85);
+      white-space: nowrap; text-align: center; pointer-events: none;
+    }
+    .mm-dark .mm-country { color: rgba(220,230,238,0.7); text-shadow: 0 1px 3px rgba(0,0,0,0.9); }
     .mm-pill {
       background: rgba(255,255,255,0.97); border-radius: 8px; padding: 1.5px 6.5px; font-size: 9.5px;
       font-weight: 700; color: #1f2937; white-space: nowrap; text-align: center;
@@ -146,36 +78,11 @@ function injectMapStyle() {
       font-family: -apple-system, system-ui, sans-serif;
       max-width: 108px; overflow: hidden; text-overflow: ellipsis;
     }
-    /* Snap-Map energy: light, summery, colourful. Bright airy landcover
-       with lively blues & greens — playful and easy on the eyes. A
-       touch lighter than before in the default (light) theme. */
-    .mm-tiles { filter: saturate(1.46) contrast(0.96) brightness(1.17); }
-    /* DARK MODE — a Snap-style dark planet; the dark tiles need almost
-       no filtering, just a hair of life. */
-    .mm-dark .mm-tiles { filter: saturate(1.15) contrast(1.02) brightness(0.95); }
-    /* clean, chic ancient-atlas names — small editorial caps, widely
-       tracked and softly muted, so the map reads calm and elegant, not
-       crowded; a tiny civilization symbol sits delicately above each */
-    .mm-region {
-      font: 600 9.5px -apple-system, system-ui, 'Segoe UI', 'Helvetica Neue', sans-serif;
-      color: rgba(72, 64, 104, 0.55); letter-spacing: 2.6px; text-transform: uppercase;
-      text-shadow: 0 1px 2px rgba(255,255,255,0.95);
-      white-space: nowrap; text-align: center; pointer-events: none;
-    }
-    /* Arabic isn't a caps script — keep it natural, just small & soft */
-    .mm-region.mm-ar {
-      font-family: -apple-system, system-ui, 'Segoe UI', 'Tahoma', sans-serif;
-      text-transform: none; letter-spacing: 0; font-size: 11px;
-    }
-    .mm-region-sym {
-      font-size: 9.5px; line-height: 10px; margin-bottom: 2px; opacity: 0.6;
-      filter: saturate(0.85) drop-shadow(0 1px 1px rgba(255,255,255,0.9));
-    }
-    /* declutter, tiered for a clean minimal feel:
-       • whole-globe view → NO names at all, just people & the map
-       • far world view   → only the major regions, no clutter
-       • closer in        → every region name appears */
-    .mm-z-globe .mm-region { display: none; }
+    /* declutter, tiered so the map never crowds:
+       • whole-globe view → no country names, just the planet & people
+       • far world view   → only the big countries
+       • closer in        → every country name appears */
+    .mm-z-globe .mm-country { display: none; }
     .mm-z-far .mm-region-minor { display: none; }
 
     /* ── CARTOON GLOBE (zoomed all the way out) ──
@@ -321,29 +228,48 @@ export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus
       if (cancelled || !L || !elRef.current || mapRef.current) return;
       const map = L.map(elRef.current, {
         zoomControl: false, attributionControl: false,
-        minZoom: 2, worldCopyJump: true, zoomSnap: 0.25,
+        minZoom: 2, maxZoom: 18, worldCopyJump: true, zoomSnap: 0.25,
+        preferCanvas: true, // fast rendering for the hand-drawn land
       }).setView([24, 14], 2.5); // Earth view — Egypt/Europe in frame
-      // CARTO no-labels basemap — colourful cartoonish landcover with
-      // modern country names stripped (lands are named by OUR Ancient
-      // Atlas layer instead). Theme-aware: the light "Voyager" tiles in
-      // normal mode, and the dark tiles when the device is in dark mode,
-      // so the planet goes Snap-dark to match the rest of the phone.
-      const LIGHT_TILES = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png';
-      const DARK_TILES = 'https://{s}.basemaps.cartocdn.com/rastertiles/dark_nolabels/{z}/{x}/{y}{r}.png';
+
+      // ── OUR OWN HAND-DRAWN CARTOON MAP (no photo tiles) ──
+      // Snap-style flat world: soft blue wavy ocean as the backdrop,
+      // rounded green landmasses drawn from simplified country shapes.
+      // Fully self-contained — no external tiles, works offline, and
+      // looks the same at every zoom. Theme-aware for dark mode.
       const mq = (typeof window !== 'undefined' && window.matchMedia) ? window.matchMedia('(prefers-color-scheme: dark)') : null;
       const isDark = () => !!(mq && mq.matches);
-      const tiles = L.tileLayer(isDark() ? DARK_TILES : LIGHT_TILES, {
-        maxZoom: 20, subdomains: 'abcd', className: 'mm-tiles',
-        updateWhenIdle: true, keepBuffer: 4, // smoother panning, less churn
-      }).addTo(map);
+
+      const landRenderer = L.canvas({ padding: 0.5 });
+      const landStyle = (dark) => ({
+        stroke: true,
+        color: dark ? '#0c1f18' : '#7fbf6a',
+        weight: 1,
+        fill: true,
+        fillColor: dark ? '#20463a' : '#bfe6a0',
+        fillOpacity: 1,
+        lineJoin: 'round',
+      });
+      // build a FeatureCollection from the compact land data
+      const landFC = {
+        type: 'FeatureCollection',
+        features: WORLD.map((c) => ({
+          type: 'Feature', properties: {},
+          geometry: { type: 'MultiPolygon', coordinates: c.c },
+        })),
+      };
+      const landLayer = L.geoJSON(landFC, { renderer: landRenderer, style: () => landStyle(isDark()), interactive: false }).addTo(map);
+
       mapRef.current = map;
       layerRef.current = L.layerGroup().addTo(map);
-      // follow the OS light/dark switch live: swap tiles + flag the
-      // container so the globe frame and names restyle for the theme
+
+      // follow the OS light/dark switch live: recolour the land + water
+      // and flag the container so names/globe frame restyle for the theme
       const applyTheme = () => {
         if (cancelled || !mapRef.current) return;
-        map.getContainer().classList.toggle('mm-dark', isDark());
-        tiles.setUrl(isDark() ? DARK_TILES : LIGHT_TILES);
+        const dark = isDark();
+        map.getContainer().classList.toggle('mm-dark', dark);
+        landLayer.setStyle(landStyle(dark));
       };
       applyTheme();
       if (mq) { try { mq.addEventListener('change', applyTheme); } catch (e) { mq.addListener && mq.addListener(applyTheme); } }
@@ -381,21 +307,17 @@ export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus
     if (!L || !layerRef.current) return;
     layerRef.current.clearLayers();
 
-    // the Ancient Atlas — our own text layer: every land by its very
-    // ancient name in the app's ONE selected language, each with a
-    // small civilization symbol above it. Minor regions hide at the
-    // far world view so the map stays light & uncrowded.
-    const useAr = langRef.current === 'ar';
-    REGIONS.forEach((r) => {
-      const label = (useAr && r.ar) ? r.ar : r.en;
-      const sym = r.emoji ? '<div class="mm-region-sym">' + r.emoji + '</div>' : '';
-      const minor = REGION_MAJOR.has(r.en) ? '' : ' mm-region-minor';
-      const arCls = useAr ? ' mm-ar' : '';
+    // Snapchat-style COUNTRY NAMES — clean labels over the cartoon land.
+    // Big countries (major) show even when zoomed out; smaller ones
+    // appear only as you zoom in, so the world view never crowds.
+    WORLD.forEach((c) => {
+      if (!c.p || !c.n) return;
+      const minor = COUNTRY_MAJOR.has(c.n) ? '' : ' mm-region-minor';
       const icon = L.divIcon({
-        html: '<div class="mm-region' + minor + arCls + '">' + sym + '<div>' + label + '</div></div>',
-        className: '', iconSize: [240, 34], iconAnchor: [120, 17],
+        html: '<div class="mm-country' + minor + '">' + c.n + '</div>',
+        className: '', iconSize: [200, 18], iconAnchor: [100, 9],
       });
-      L.marker([r.lat, r.lng], { icon, interactive: false, zIndexOffset: -100 }).addTo(layerRef.current);
+      L.marker([c.p[1], c.p[0]], { icon, interactive: false, zIndexOffset: -100 }).addTo(layerRef.current);
     });
 
     // your own live pin — only once your REAL location is known.

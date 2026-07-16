@@ -96,7 +96,7 @@ export async function fetchEngagement(userId) {
 export async function fetchVibers(postId) {
   const { data, error } = await supabase
     .from('post_vibes')
-    .select('created_at, user:profiles(*)')
+    .select('created_at, user:profiles!post_vibes_user_id_fkey(*)')
     .eq('post_id', postId)
     .order('created_at', { ascending: false })
     .limit(100);
@@ -107,7 +107,9 @@ export async function fetchVibers(postId) {
 export async function fetchComments(postId) {
   const { data, error } = await supabase
     .from('comments')
-    .select('*, user:profiles(*)')
+    // name the exact FK (comments.user_id → profiles) so PostgREST never
+    // has to guess — fixes "more than one relationship was found"
+    .select('*, user:profiles!comments_user_id_fkey(*)')
     .eq('post_id', postId)
     .order('created_at', { ascending: true })
     .limit(100);
@@ -121,7 +123,7 @@ export async function addComment(postId, userId, body, parentId) {
     const { data, error } = await supabase
       .from('comments')
       .insert(payload)
-      .select('*, user:profiles(*)')
+      .select('*, user:profiles!comments_user_id_fkey(*)')
       .single();
     if (!error) return data;
     // DB without the replies column yet → post it as a normal comment
