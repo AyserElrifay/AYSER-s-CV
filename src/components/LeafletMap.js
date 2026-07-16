@@ -63,14 +63,14 @@ function injectMapStyle() {
         repeating-linear-gradient(0deg, rgba(120,150,205,0.05) 0 2px, rgba(120,150,205,0) 2px 26px),
         #0c1626 !important;
     }
-    /* Snapchat-style country names */
+    /* Snapchat-style country names — clear enough to read from far out */
     .mm-country {
-      font: 700 11px -apple-system, system-ui, 'Segoe UI', 'Helvetica Neue', sans-serif;
-      color: rgba(40, 60, 55, 0.66); letter-spacing: 0.3px;
-      text-shadow: 0 1px 2px rgba(255,255,255,0.85);
+      font: 700 11.5px -apple-system, system-ui, 'Segoe UI', 'Helvetica Neue', sans-serif;
+      color: rgba(34, 52, 48, 0.82); letter-spacing: 0.3px;
+      text-shadow: 0 1px 2px rgba(255,255,255,0.95), 0 0 6px rgba(255,255,255,0.7);
       white-space: nowrap; text-align: center; pointer-events: none;
     }
-    .mm-dark .mm-country { color: rgba(220,230,238,0.7); text-shadow: 0 1px 3px rgba(0,0,0,0.9); }
+    .mm-dark .mm-country { color: rgba(228,236,242,0.85); text-shadow: 0 1px 3px rgba(0,0,0,0.95), 0 0 6px rgba(0,0,0,0.6); }
     .mm-pill {
       background: rgba(255,255,255,0.97); border-radius: 8px; padding: 1.5px 6.5px; font-size: 9.5px;
       font-weight: 700; color: #1f2937; white-space: nowrap; text-align: center;
@@ -78,11 +78,10 @@ function injectMapStyle() {
       font-family: -apple-system, system-ui, sans-serif;
       max-width: 108px; overflow: hidden; text-overflow: ellipsis;
     }
-    /* declutter, tiered so the map never crowds:
-       • whole-globe view → no country names, just the planet & people
-       • far world view   → only the big countries
-       • closer in        → every country name appears */
-    .mm-z-globe .mm-country { display: none; }
+    /* declutter, tiered so the map never crowds — but country names show
+       from far away, Snapchat-style:
+       • from the globe/world view → the big countries are already named
+       • closer in                 → every country name appears */
     .mm-z-far .mm-region-minor { display: none; }
 
     /* ── CARTOON GLOBE (zoomed all the way out) ──
