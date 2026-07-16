@@ -70,25 +70,30 @@ function injectMapStyle() {
        shading inside for the 3-D bulge, a chunky cartoon outline and a
        drop shadow so it hovers. Pointer-events off → the map underneath
        stays fully pannable/zoomable. */
-    /* Google-Earth style: a real planet floating in black space, wrapped
-       in a soft blue atmosphere glow, with a lit limb and a dark
-       terminator for true spherical depth. */
+    /* Cartoon planet (Snap style): the colourful map masked into a round
+       globe with soft spherical shading and a light-sky surround, so a
+       full zoom-out reads as a friendly floating planet. */
     .mm-globe-frame {
       display: none; position: absolute; left: 50%; top: 48%;
       width: min(92vw, 74vh); height: min(92vw, 74vh);
       transform: translate(-50%, -50%); border-radius: 50%;
       pointer-events: none; z-index: 450;
       box-shadow:
-        0 0 46px 12px rgba(120,180,255,0.6),        /* atmosphere glow */
-        0 0 90px 34px rgba(90,150,240,0.28),        /* outer haze */
-        0 0 0 9999px #04060d,                        /* black space */
-        inset -24px -28px 74px rgba(0,0,0,0.72),     /* dark terminator */
-        inset 26px 22px 56px rgba(150,195,255,0.22); /* lit limb */
-      border: 1px solid rgba(150,195,255,0.4);
+        0 0 0 9999px #dcefff,                        /* soft sky surround */
+        inset -18px -22px 50px rgba(6,30,66,0.34),   /* shaded edge */
+        inset 22px 18px 44px rgba(255,255,255,0.4),  /* highlight */
+        0 18px 46px rgba(6,30,66,0.26);              /* floating shadow */
+      border: 2.5px solid #cfe0f0;
+    }
+    .mm-dark .mm-globe-frame {
+      box-shadow:
+        0 0 0 9999px #0a1120,
+        inset -18px -22px 52px rgba(0,0,0,0.6),
+        inset 22px 18px 44px rgba(120,150,205,0.16),
+        0 18px 46px rgba(0,0,0,0.55);
+      border-color: #223049;
     }
     .mm-z-globe .mm-globe-frame { display: block; }
-    /* on the globe the satellite imagery shows true colour — no filter */
-    .mm-z-globe .mm-sat { filter: saturate(1.05) brightness(1.02); }
     /* region names flip to light ink on the dark planet */
     .mm-dark .mm-region { color: rgba(226,232,240,0.74); text-shadow: 0 1px 3px rgba(0,0,0,0.9); }
     /* the Snap "activity heatmap" glow that blooms under a live person */
@@ -182,7 +187,7 @@ const pinHtml = (m) => {
   );
 };
 
-export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus = null, lang = 'en' }) => {
+export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus = null, lang = 'en', meAvatar = null, meDoing = null }) => {
   const elRef = useRef(null);
   const mapRef = useRef(null);
   const layerRef = useRef(null);
@@ -192,6 +197,10 @@ export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus
   locateRef.current = locate;
   const langRef = useRef(lang);
   langRef.current = lang;
+  const meAvatarRef = useRef(meAvatar);
+  meAvatarRef.current = meAvatar;
+  const meDoingRef = useRef(meDoing);
+  meDoingRef.current = meDoing;
 
   // init once — open on the whole planet
   useEffect(() => {
@@ -219,25 +228,8 @@ export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus
         updateWhenIdle: true, keepBuffer: 4,
       }).addTo(map);
 
-      // Google-Earth layer: real satellite imagery (Esri World Imagery,
-      // free, no key) shown ONLY when zoomed right out — so the planet
-      // looks like the real Earth from space. It fades away as you zoom
-      // in and the street map takes over.
-      const sat = L.tileLayer(
-        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-        { maxZoom: 19, className: 'mm-sat', updateWhenIdle: true, keepBuffer: 3 }
-      ).addTo(map);
-      const applySat = () => {
-        if (!mapRef.current) return;
-        const z = map.getZoom();
-        // full satellite on the globe view, gone by street zoom
-        sat.setOpacity(z < 4 ? 1 : z < 5.5 ? (5.5 - z) / 1.5 : 0);
-      };
-
       mapRef.current = map;
       layerRef.current = L.layerGroup().addTo(map);
-      map.on('zoomend', applySat);
-      applySat();
 
       // follow the OS light/dark switch live: swap tiles + flag container
       const applyTheme = () => {
@@ -295,18 +287,29 @@ export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus
       L.marker([31.95, 35.25], { icon, interactive: false, zIndexOffset: 260 }).addTo(layerRef.current);
     }
 
-    // your own live pin — only once your REAL location is known.
-    // Purple dot + gold ring + a "You" pill, so there is never any
-    // doubt the map found your true spot.
+    // your own live pin — only once your REAL location is known. Snap
+    // style: YOUR own cartoon character stands on your real spot, with
+    // a gold ring, an optional activity badge and a "You" pill.
     if (locateRef.current) {
+      const av = meAvatarRef.current;
+      const doing = meDoingRef.current;
+      const doingBadge = doing
+        ? '<div style="position:absolute;top:-6px;left:-6px;background:#fff;border-radius:9px;font-size:12px;line-height:17px;padding:0 2px;box-shadow:0 1px 3px rgba(0,0,0,0.3)">' + doing + '</div>' : '';
+      const meHtml = av
+        ? '<div class="mm-float" style="position:relative;width:56px;height:66px;display:flex;flex-direction:column;align-items:center">' +
+            '<div class="mm-heat"></div>' + glowRing('rgba(245,179,1,0.5)') +
+            '<img src="' + av + '" style="position:relative;width:50px;height:50px;border-radius:50%;object-fit:cover;border:3px solid #fff;box-shadow:0 0 0 3px #F5B301, 0 4px 10px rgba(0,0,0,0.3)"/>' +
+            doingBadge +
+            '<div class="mm-pill" style="margin-top:3px">You ✦</div>' +
+          '</div>'
+        : '<div style="position:relative;width:56px;height:48px;display:flex;flex-direction:column;align-items:center">' +
+            glowRing('rgba(124,58,237,0.5)') +
+            '<div style="position:relative;width:22px;height:22px;border-radius:50%;background:#7C3AED;border:3px solid #fff;box-shadow:0 0 0 3px #F5B301, 0 0 0 7px rgba(124,58,237,0.22)"></div>' +
+            '<div class="mm-pill" style="margin-top:5px">You ✦</div>' +
+          '</div>';
       const meIcon = L.divIcon({
-        html:
-          '<div style="position:relative;width:56px;height:48px;display:flex;flex-direction:column;align-items:center">' +
-          glowRing('rgba(124,58,237,0.5)') +
-          '<div style="position:relative;width:22px;height:22px;border-radius:50%;background:#7C3AED;border:3px solid #fff;box-shadow:0 0 0 3px #F5B301, 0 0 0 7px rgba(124,58,237,0.22)"></div>' +
-          '<div class="mm-pill" style="margin-top:5px">You ✦</div>' +
-          '</div>',
-        className: '', iconSize: [56, 48], iconAnchor: [28, 11],
+        html: meHtml, className: '',
+        iconSize: av ? [56, 66] : [56, 48], iconAnchor: av ? [28, 33] : [28, 11],
       });
       meRef.current = L.marker([center.latitude, center.longitude], { icon: meIcon, zIndexOffset: 1000 }).addTo(layerRef.current);
     }
@@ -327,11 +330,11 @@ export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus
     });
   };
 
-  // re-draw when data or language changes; keep the current pan/zoom
+  // re-draw when data, language, or your own avatar/activity changes
   useEffect(() => {
     if (typeof window !== 'undefined' && window.L && mapRef.current) draw(window.L);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [markers, lang]);
+  }, [markers, lang, meAvatar, meDoing]);
 
   // glide down from the globe the moment the user's REAL location is
   // known (never to a placeholder). Later GPS moves just slide the
