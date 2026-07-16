@@ -1,5 +1,5 @@
 import React from 'react';
-import { Platform } from 'react-native';
+import { Platform, useWindowDimensions } from 'react-native';
 import { DefaultTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -59,20 +59,42 @@ const TAB_LABEL_KEY = {
 
 export const TabNavigator = () => {
   const { t } = useLang();
+  const { width } = useWindowDimensions();
+  // On a wide screen (laptop/desktop) the bottom tab bar becomes a real
+  // left sidebar — the VK / Facebook desktop shell — with icon + label
+  // rows; on phones it stays the familiar bottom bar.
+  const sidebar = Platform.OS === 'web' && width >= 820;
   return (
   <Tab.Navigator
     screenOptions={({ route }) => ({
       headerShown: false,
+      tabBarPosition: sidebar ? 'left' : 'bottom',
       tabBarActiveTintColor: C.purple,
       tabBarInactiveTintColor: C.faint,
-      tabBarStyle: {
-        backgroundColor: '#FFFFFF',
-        borderTopColor: C.line,
-        borderTopWidth: 1,
-        height: Platform.OS === 'ios' ? 84 : 66,
-        paddingTop: 6,
-      },
-      tabBarLabelStyle: { fontSize: 9.5, fontWeight: '800', letterSpacing: 1.4 },
+      tabBarLabelPosition: sidebar ? 'beside-icon' : 'below-icon',
+      tabBarStyle: sidebar
+        ? {
+            width: 224,
+            backgroundColor: '#FFFFFF',
+            borderRightColor: C.line,
+            borderRightWidth: 1,
+            borderTopWidth: 0,
+            paddingTop: 22,
+            paddingHorizontal: 10,
+          }
+        : {
+            backgroundColor: '#FFFFFF',
+            borderTopColor: C.line,
+            borderTopWidth: 1,
+            height: Platform.OS === 'ios' ? 84 : 66,
+            paddingTop: 6,
+          },
+      tabBarItemStyle: sidebar
+        ? { height: 50, borderRadius: 12, marginBottom: 4, justifyContent: 'flex-start', paddingLeft: 6 }
+        : undefined,
+      tabBarLabelStyle: sidebar
+        ? { fontSize: 14, fontWeight: '800', letterSpacing: 0.4, marginLeft: 10, textAlign: 'left' }
+        : { fontSize: 9.5, fontWeight: '800', letterSpacing: 1.4 },
       tabBarLabel: t(TAB_LABEL_KEY[route.name]),
       tabBarIcon: ({ focused, color }) => renderTabIcon(route.name, focused, color),
     })}
