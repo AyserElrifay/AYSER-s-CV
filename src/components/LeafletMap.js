@@ -84,30 +84,26 @@ function injectMapStyle() {
        shading inside for the 3-D bulge, a chunky cartoon outline and a
        drop shadow so it hovers. Pointer-events off → the map underneath
        stays fully pannable/zoomable. */
-    /* Cartoon planet (Snap style): the colourful map masked into a round
-       globe with soft spherical shading and a light-sky surround, so a
-       full zoom-out reads as a friendly floating planet. */
+    /* Zoom-out = a real planet in space. No "ring around a map": just
+       deep black space filling everything outside the sphere, a soft
+       blue atmosphere glow, a lit limb and a dark terminator for real
+       spherical depth (Google-Earth feel). */
     .mm-globe-frame {
       display: none; position: absolute; left: 50%; top: 47%;
-      width: min(98vw, 88vh); height: min(98vw, 88vh);
+      width: min(96vw, 86vh); height: min(96vw, 86vh);
       transform: translate(-50%, -50%); border-radius: 50%;
       pointer-events: none; z-index: 450;
       box-shadow:
-        0 0 0 9999px #dcefff,                        /* soft sky surround */
-        inset -18px -22px 50px rgba(6,30,66,0.34),   /* shaded edge */
-        inset 22px 18px 44px rgba(255,255,255,0.4),  /* highlight */
-        0 18px 46px rgba(6,30,66,0.26);              /* floating shadow */
-      border: 2.5px solid #cfe0f0;
-    }
-    .mm-dark .mm-globe-frame {
-      box-shadow:
-        0 0 0 9999px #0a1120,
-        inset -18px -22px 52px rgba(0,0,0,0.6),
-        inset 22px 18px 44px rgba(120,150,205,0.16),
-        0 18px 46px rgba(0,0,0,0.55);
-      border-color: #223049;
+        0 0 50px 14px rgba(120,180,255,0.6),         /* atmosphere glow */
+        0 0 100px 40px rgba(90,150,240,0.28),        /* outer haze */
+        0 0 0 9999px #04060d,                         /* deep space */
+        inset -26px -30px 80px rgba(0,0,0,0.72),      /* dark terminator */
+        inset 28px 24px 60px rgba(150,195,255,0.2);   /* lit limb */
+      border: 1px solid rgba(150,195,255,0.4);
     }
     .mm-z-globe .mm-globe-frame { display: block; }
+    /* on the globe the satellite imagery shows true colour */
+    .mm-z-globe .mm-sat { filter: saturate(1.06) brightness(1.02); }
     /* region names flip to light ink on the dark planet */
     .mm-dark .mm-region { color: rgba(226,232,240,0.74); text-shadow: 0 1px 3px rgba(0,0,0,0.9); }
     /* the Snap "activity heatmap" glow that blooms under a live person */
@@ -243,8 +239,24 @@ export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus
         updateWhenIdle: true, keepBuffer: 4,
       }).addTo(map);
 
+      // Zoom-OUT = the real Earth floating in space. Satellite imagery
+      // (Esri World Imagery) shows only at the far globe view and fades
+      // to the cartoon map as you zoom in — so far out it's a real
+      // planet in space, close in it's the friendly colourful map.
+      const sat = L.tileLayer(
+        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+        { maxZoom: 19, className: 'mm-sat', updateWhenIdle: true, keepBuffer: 2 }
+      ).addTo(map);
+      const applySat = () => {
+        if (!mapRef.current) return;
+        const z = map.getZoom();
+        sat.setOpacity(z < 4 ? 1 : z < 5.5 ? (5.5 - z) / 1.5 : 0);
+      };
+
       mapRef.current = map;
       layerRef.current = L.layerGroup().addTo(map);
+      map.on('zoomend', applySat);
+      applySat();
 
       // follow the OS light/dark switch live: swap tiles + flag container
       const applyTheme = () => {
@@ -293,15 +305,20 @@ export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus
     // selected language (Arabic where we have it, else the Latin name).
     // Israel and Palestine are two ordinary, equal labels here.
     const useAr = langRef.current === 'ar';
+    // place Israel & Palestine SIDE BY SIDE (not stacked): Israel by the
+    // coast, Palestine over the West Bank — so both read clearly.
+    const FIXED = { Israel: [34.85, 31.35], Palestine: [35.28, 31.95] };
     WORLD.forEach((c) => {
-      if (!c.p || !c.n) return;
+      if (!c.n) return;
+      const pt = FIXED[c.n] || c.p;
+      if (!pt) return;
       const label = (useAr && c.ar) ? c.ar : c.n;
       const minor = COUNTRY_MAJOR.has(c.n) ? '' : ' mm-region-minor';
       const icon = L.divIcon({
         html: '<div class="mm-country' + minor + '">' + label + '</div>',
         className: '', iconSize: [200, 18], iconAnchor: [100, 9],
       });
-      L.marker([c.p[1], c.p[0]], { icon, interactive: false, zIndexOffset: -100 }).addTo(layerRef.current);
+      L.marker([pt[1], pt[0]], { icon, interactive: false, zIndexOffset: -100 }).addTo(layerRef.current);
     });
 
     // your own live pin — only once your REAL location is known. Snap

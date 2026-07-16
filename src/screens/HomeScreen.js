@@ -7,7 +7,7 @@ import { av, AV_NEUTRAL } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
 import { toggleVibe, toggleLaugh, toggleRepost, joinPost, fetchEngagement } from '../services/social';
 import { getProfile } from '../services/profiles';
-import { fetchMyPosts, deletePost } from '../services/posts';
+import { fetchMyPosts, deletePost, updatePost } from '../services/posts';
 import { fetchActiveStories, fetchStoryById } from '../services/stories';
 import { recordSignal } from '../services/algorithm';
 import { tapLight, tapSuccess } from '../utils/feedback';
@@ -55,7 +55,7 @@ const headerBtn = {
 export const HomeScreen = () => {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { posts, refreshing, refresh, prependPost, removePost, loadError } = useFeed();
+  const { posts, refreshing, refresh, prependPost, removePost, patchPost, loadError } = useFeed();
   const [joined, setJoined] = useState({});
   const [vibes, setVibes] = useState({});
   const [laughs, setLaughs] = useState({});
@@ -232,6 +232,13 @@ export const HomeScreen = () => {
     if (SUPABASE_READY && user) deletePost(post.id, user.id).catch(() => {});
   };
 
+  /* Edit one of YOUR moments' caption — saved to the DB, reflected live. */
+  const onEditPost = async (post, caption) => {
+    tapLight();
+    patchPost(post.id, { caption });
+    if (SUPABASE_READY && user) await updatePost(post.id, user.id, { caption });
+  };
+
   /* You, shaped like a profile card — tap your avatar to see it.
      Real mode reads your actual profiles row; nothing here is fabricated. */
   const me = {
@@ -334,6 +341,7 @@ export const HomeScreen = () => {
               onLaugh={() => onLaugh(item)}
               isMine={(user && item.userId === user.id) || item.user.name === 'You'}
               onDelete={onDelete}
+              onEdit={onEditPost}
               onShare={onShare}
               onJoin={setMagicPost}
               onVibe={() => onVibe(item)}

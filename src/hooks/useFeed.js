@@ -101,5 +101,10 @@ export function useFeed() {
     setPosts((p) => p.filter((x) => x.id !== id));
   }, []);
 
-  return { posts, refreshing, refresh, isLive, prependPost, removePost, loadError };
+  /* Optimistic edit — patch fields on a card instantly (e.g. caption). */
+  const patchPost = useCallback((id, fields) => {
+    setPosts((p) => p.map((x) => (x.id === id ? { ...x, ...fields } : x)));
+  }, []);
+
+  return { posts, refreshing, refresh, isLive, prependPost, removePost, patchPost, loadError };
 }

@@ -128,6 +128,20 @@ export async function deletePost(postId, userId) {
   if (error) throw error;
 }
 
+/* Edit your own moment — currently the caption (RLS lets you update
+   only your own rows). Returns the updated row. */
+export async function updatePost(postId, userId, fields) {
+  const { data, error } = await supabase
+    .from('posts')
+    .update(fields)
+    .eq('id', postId)
+    .eq('user_id', userId)
+    .select('*, user:profiles!posts_user_id_fkey(*)')
+    .single();
+  if (error) throw error;
+  return data;
+}
+
 export async function createPost({ userId, type = 'post', caption, place, mediaUrl, textBg, lat, lng, squadName, sound }) {
   let payload = {
     user_id: userId,

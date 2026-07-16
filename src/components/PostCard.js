@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { View, Text, Pressable, Image, ImageBackground, Animated, Easing } from 'react-native';
+import { View, Text, Pressable, Image, ImageBackground, Animated, Easing, TextInput } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { C, R, TEXT_BGS } from '../constants/theme';
@@ -18,13 +18,22 @@ const typeChip = (post) => {
   return { label: 'MOMENT', tint: 'rgba(17,24,39,0.65)', color: 'rgba(255,255,255,0.85)' };
 };
 
-export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onLaugh: onLaughProp, isMine, onDelete, onShare, onJoin, onVibe, onComment, onOpenProfile, onOpenReel, onOpenLikers }) => {
+export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onLaugh: onLaughProp, isMine, onDelete, onEdit, onShare, onJoin, onVibe, onComment, onOpenProfile, onOpenReel, onOpenLikers }) => {
   const mediaH = post.type === 'reel' ? 470 : post.type === 'vod' ? 208 : 250;
   const tc = typeChip(post);
   const textBg = TEXT_BGS[post.textBg] || TEXT_BGS.plain;
   const [menuOpen, setMenuOpen] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
   const [reported, setReported] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editCaption, setEditCaption] = useState(post.caption || '');
+  const [editBusy, setEditBusy] = useState(false);
+  const saveEdit = async () => {
+    if (editBusy) return;
+    setEditBusy(true);
+    try { onEdit && (await onEdit(post, editCaption.trim())); setEditing(false); }
+    catch (e) {} finally { setEditBusy(false); }
+  };
 
   /* Instagram-style double-tap to vibe (⚡ burst); a single tap on a
      reel opens the full-screen TikTok-style viewer instead. */
@@ -117,12 +126,20 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
                 </Pressable>
               </View>
             ) : (
-              <Pressable onPress={() => setConfirmDel(true)}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', padding: 12 }}>
-                  <Ionicons name="trash-outline" size={17} color={C.coral} />
-                  <Text style={{ color: C.coral, fontSize: 13.5, fontWeight: '800', marginLeft: 9 }}>Delete moment</Text>
-                </View>
-              </Pressable>
+              <>
+                <Pressable onPress={() => { setEditCaption(post.caption || ''); setEditing(true); setMenuOpen(false); }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', padding: 12, borderBottomWidth: 1, borderBottomColor: C.line }}>
+                    <Ionicons name="create-outline" size={17} color={C.purple} />
+                    <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800', marginLeft: 9 }}>Edit caption</Text>
+                  </View>
+                </Pressable>
+                <Pressable onPress={() => setConfirmDel(true)}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', padding: 12 }}>
+                    <Ionicons name="trash-outline" size={17} color={C.coral} />
+                    <Text style={{ color: C.coral, fontSize: 13.5, fontWeight: '800', marginLeft: 9 }}>Delete moment</Text>
+                  </View>
+                </Pressable>
+              </>
             )
           ) : (
             <Pressable onPress={() => { setReported(true); setTimeout(() => setMenuOpen(false), 900); }}>
@@ -134,6 +151,30 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
               </View>
             </Pressable>
           )}
+        </View>
+      ) : null}
+
+      {/* inline caption editor — edit your own moment's words */}
+      {editing ? (
+        <View style={{ marginHorizontal: 15, marginBottom: 10, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 14, padding: 12 }}>
+          <TextInput
+            value={editCaption}
+            onChangeText={setEditCaption}
+            placeholder="Say something…"
+            placeholderTextColor={C.faint}
+            multiline
+            style={{ color: C.text, fontSize: 14, minHeight: 44, textAlignVertical: 'top' }}
+          />
+          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 8 }}>
+            <Pressable onPress={() => setEditing(false)} style={{ marginRight: 10 }}>
+              <Text style={{ color: C.dim, fontSize: 13, fontWeight: '700', paddingVertical: 6 }}>Cancel</Text>
+            </Pressable>
+            <Pressable onPress={saveEdit}>
+              <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 7 }}>
+                <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '900' }}>{editBusy ? 'Saving…' : 'Save'}</Text>
+              </View>
+            </Pressable>
+          </View>
         </View>
       ) : null}
 

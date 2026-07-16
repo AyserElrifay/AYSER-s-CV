@@ -83,16 +83,16 @@ export const MePin = ({ doing }) => {
 export const SOSButton = ({ onPress }) => {
   const pulse = usePulse(1100);
   return (
-    <Pressable onPress={onPress} style={{ alignItems: 'center', justifyContent: 'center', width: 72, height: 72 }}>
+    <Pressable onPress={onPress} style={{ alignItems: 'center', justifyContent: 'center', width: 48, height: 48 }}>
       <Animated.View
         style={{
-          position: 'absolute', width: 72, height: 72, borderRadius: 36, backgroundColor: C.coral,
+          position: 'absolute', width: 48, height: 48, borderRadius: 24, backgroundColor: C.coral,
           opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.12, 0.4] }),
           transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.85, 1.18] }) }],
         }}
       />
-      <View style={{ width: 54, height: 54, borderRadius: 27, backgroundColor: C.coral, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)' }}>
-        <Text style={{ color: '#fff', fontSize: 13, fontWeight: '900', letterSpacing: 1 }}>SOS</Text>
+      <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: C.coral, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)' }}>
+        <Text style={{ color: '#fff', fontSize: 10, fontWeight: '900', letterSpacing: 0.5 }}>SOS</Text>
       </View>
     </Pressable>
   );
