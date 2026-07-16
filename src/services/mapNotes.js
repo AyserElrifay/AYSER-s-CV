@@ -27,6 +27,23 @@ export async function fetchActiveNotes() {
   return data || [];
 }
 
+/* Edit your own note — its text and/or how long it stays. Pass `hours`
+   to reset the countdown from now. */
+export async function updateNote(id, userId, { body, hours }) {
+  const fields = {};
+  if (body != null) fields.body = body;
+  if (hours != null) fields.expires_at = new Date(Date.now() + hours * 3600 * 1000).toISOString();
+  const { data, error } = await supabase
+    .from('map_notes')
+    .update(fields)
+    .eq('id', id)
+    .eq('user_id', userId)
+    .select('*, user:profiles!map_notes_user_id_fkey(name, avatar_url)')
+    .single();
+  if (error) throw error;
+  return data;
+}
+
 /* Remove your own note (RLS lets you delete only your rows). */
 export async function deleteNote(id, userId) {
   const { error } = await supabase.from('map_notes').delete().eq('id', id).eq('user_id', userId);

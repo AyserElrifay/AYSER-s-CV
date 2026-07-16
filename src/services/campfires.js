@@ -9,17 +9,47 @@ export async function fetchLiveCampfires() {
     .is('ended_at', null)
     .order('created_at', { ascending: false });
   if (error) throw error;
-  return data;
+  // drop any whose chosen duration has passed (ends_at in the past)
+  const now = Date.now();
+  return (data || []).filter((c) => !c.ends_at || new Date(c.ends_at).getTime() > now);
 }
 
-export async function hostCampfire(hostId, { title, topic, lat, lng }) {
-  const { data, error } = await supabase
-    .from('campfires')
-    .insert({ host_id: hostId, title, topic, lat, lng })
-    .select('*, host:profiles!campfires_host_id_fkey(name, handle, avatar_url, emoji)')
-    .single();
-  if (error) throw error;
-  return data;
+/* Edit your own campfire — title and/or its duration (ends_at). */
+export async function updateCampfire(id, hostId, fields) {
+  let attempt = { ...fields };
+  for (let i = 0; i < 4; i++) {
+    const { data, error } = await supabase
+      .from('campfires')
+      .update(attempt)
+      .eq('id', id)
+      .eq('host_id', hostId)
+      .select('*, host:profiles!campfires_host_id_fkey(name, handle, avatar_url, emoji)')
+      .single();
+    if (!error) return data;
+    // DB without the ends_at column yet → save without it
+    const missing = /find the '([^']+)' column/i.exec(error.message || '');
+    if (missing && Object.prototype.hasOwnProperty.call(attempt, missing[1])) { delete attempt[missing[1]]; continue; }
+    throw error;
+  }
+  throw new Error('Could not update the campfire.');
+}
+
+export async function hostCampfire(hostId, { title, topic, lat, lng, hours }) {
+  const row = { host_id: hostId, title, topic, lat, lng };
+  if (hours) row.ends_at = new Date(Date.now() + hours * 3600 * 1000).toISOString();
+  let attempt = { ...row };
+  for (let i = 0; i < 3; i++) {
+    const { data, error } = await supabase
+      .from('campfires')
+      .insert(attempt)
+      .select('*, host:profiles!campfires_host_id_fkey(name, handle, avatar_url, emoji)')
+      .single();
+    if (!error) return data;
+    const missing = /find the '([^']+)' column/i.exec(error.message || '');
+    if (missing && Object.prototype.hasOwnProperty.call(attempt, missing[1])) { delete attempt[missing[1]]; continue; }
+    throw error;
+  }
+  throw new Error('Could not host the campfire.');
 }
 
 /* Join a gathering for real (campfire_members, schema v4). */

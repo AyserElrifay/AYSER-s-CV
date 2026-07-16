@@ -21,7 +21,9 @@ import { fetchDestReviews, addDestReview } from '../services/destinations';
 import { fetchPostsNearby } from '../services/posts';
 import { requestTrip } from '../services/trips';
 import { getOrCreateDmThread, sendMessage } from '../services/messages';
-import { dropNote, fetchActiveNotes, deleteNote } from '../services/mapNotes';
+import { dropNote, fetchActiveNotes, deleteNote, updateNote } from '../services/mapNotes';
+import { WORLD_EVENTS } from '../constants/events';
+import { updateCampfire, endCampfire } from '../services/campfires';
 import { openPartner } from '../services/broker';
 import {
   Glass, Micro, Chip, NeonButton, GhostButton, FauxMap,
@@ -220,6 +222,8 @@ export const MapScreen = () => {
     DESTINATIONS.forEach((d) => out.push({ id: 'dest_' + d.id, srcId: d.id, kind: 'dest', lat: d.lat, lng: d.lng, emoji: d.emoji, flag: d.flag, label: d.name, hero: !!d.hero }));
     // pinned notes/comments people dropped at a spot
     realNotes.forEach((n) => out.push({ id: 'note_' + n.id, srcId: n.id, kind: 'note', lat: n.lat, lng: n.lng, label: n.body }));
+    // real major world events (World Cup, Olympics…)
+    WORLD_EVENTS.forEach((e) => out.push({ id: 'ev_' + e.id, srcId: e.id, kind: 'event', lat: e.lat, lng: e.lng, label: e.name }));
     return out;
   }, [people, campfires, realVenues, realPlaces, realNotes]);
 
@@ -231,7 +235,9 @@ export const MapScreen = () => {
     else if (m.kind === 'place') { const pl = realPlaces.find((x) => x.id === m.srcId); if (pl) setPlaceOpen(pl); }
     else if (m.kind === 'dest') { const d = DESTINATIONS.find((x) => x.id === m.srcId); if (d) openDest(d); }
     else if (m.kind === 'note') { const n = realNotes.find((x) => x.id === m.srcId); if (n) setNoteOpen(n); }
+    else if (m.kind === 'event') { const e = WORLD_EVENTS.find((x) => x.id === m.srcId); if (e) setEventOpen(e); }
   };
+  const [eventOpen, setEventOpen] = useState(null);
 
   /* ── curated destination sheet: guide + reviews + Uber ── */
   const [destOpen, setDestOpen] = useState(null);
@@ -498,7 +504,40 @@ export const MapScreen = () => {
     if (SUPABASE_READY && user) { try { await deleteNote(n.id, user.id); } catch (e) {} }
   };
 
-  const DURATIONS = [{ h: 1, label: '1 hour' }, { h: 24, label: '1 day' }, { h: 168, label: '1 week' }, { h: 720, label: '1 month' }];
+  // ── manage YOUR campfire: edit title, set a duration, or end it ──
+  const [fireManage, setFireManage] = useState(null);
+  const [fireTitle, setFireTitle] = useState('');
+  const [fireHours, setFireHours] = useState(6);
+  const openCampfireManage = (c) => { tapLight(); setFireManage(c); setFireTitle(c.title || ''); setFireHours(6); };
+  const saveCampfire = async () => {
+    if (!fireTitle.trim() || !user) return;
+    try {
+      const row = await updateCampfire(fireManage.id, user.id, { title: fireTitle.trim(), ends_at: new Date(Date.now() + fireHours * 3600 * 1000).toISOString() });
+      setRealCampfires((list) => list.map((x) => (x.id === row.id ? normalizeCampfire(row) : x)));
+      setFireManage(null);
+    } catch (e) { note('🔥 ' + explainMap(e)); }
+  };
+  const endCampfireNow = async () => {
+    const c = fireManage; setFireManage(null);
+    setRealCampfires((list) => list.filter((x) => x.id !== c.id));
+    if (SUPABASE_READY && user) { try { await endCampfire(c.id); } catch (e) {} }
+  };
+
+  const DURATIONS = [{ h: 0.5, label: '30 min' }, { h: 1, label: '1 hour' }, { h: 6, label: '6 hours' }, { h: 24, label: '1 day' }, { h: 168, label: '1 week' }, { h: 720, label: '1 month' }];
+
+  // editing a note you own
+  const [noteEdit, setNoteEdit] = useState(null); // the note being edited
+  const [noteEditBody, setNoteEditBody] = useState('');
+  const [noteEditHours, setNoteEditHours] = useState(24);
+  const openNoteEdit = (n) => { setNoteOpen(null); setNoteEdit(n); setNoteEditBody(n.body); setNoteEditHours(24); };
+  const saveNoteEdit = async () => {
+    if (!noteEditBody.trim() || !user) return;
+    try {
+      const row = await updateNote(noteEdit.id, user.id, { body: noteEditBody.trim(), hours: noteEditHours });
+      setRealNotes((list) => list.map((x) => (x.id === row.id ? row : x)));
+      setNoteEdit(null);
+    } catch (e) { note('💬 ' + explainMap(e)); }
+  };
 
   /* ── Join the Moment — "You're in!" ONLY after the real join lands ── */
   const joinFire = async (c) => {
@@ -687,7 +726,13 @@ export const MapScreen = () => {
                     "{c.topic}"
                   </Text>
                 ) : null}
-                {joinedFires[c.id] ? (
+                {user && c.hostId === user.id ? (
+                  <Pressable onPress={() => openCampfireManage(c)} style={{ marginTop: 10 }}>
+                    <View style={{ borderRadius: 14, backgroundColor: C.purpleSoft, borderWidth: 1, borderColor: 'rgba(124,58,237,0.4)', paddingVertical: 10, alignItems: 'center' }}>
+                      <Text style={{ color: C.purple, fontSize: 12, fontWeight: '900' }}>⚙️ Manage · edit · end</Text>
+                    </View>
+                  </Pressable>
+                ) : joinedFires[c.id] ? (
                   <View style={{ marginTop: 10, borderRadius: 14, backgroundColor: C.greenSoft, borderWidth: 1, borderColor: 'rgba(16,185,129,0.5)', paddingVertical: 10, alignItems: 'center' }}>
                     <Text style={{ color: C.green, fontSize: 12, fontWeight: '900' }}>You're in! 🙌 Host got your message</Text>
                   </View>
@@ -994,12 +1039,109 @@ export const MapScreen = () => {
             </View>
             <Text style={{ color: C.text, fontSize: 15, lineHeight: 22 }}>{noteOpen.body}</Text>
             {user && noteOpen.user_id === user.id ? (
-              <Pressable onPress={() => removeNote(noteOpen)} style={{ marginTop: 16 }}>
-                <View style={{ backgroundColor: C.coralSoft, borderWidth: 1, borderColor: 'rgba(244,63,94,0.4)', borderRadius: 12, paddingVertical: 12, alignItems: 'center' }}>
-                  <Text style={{ color: C.coral, fontSize: 13.5, fontWeight: '900' }}>Remove my note 🗑️</Text>
-                </View>
-              </Pressable>
+              <View style={{ flexDirection: 'row', marginTop: 16 }}>
+                <Pressable onPress={() => openNoteEdit(noteOpen)} style={{ flex: 1, marginRight: 8 }}>
+                  <View style={{ backgroundColor: C.purpleSoft, borderWidth: 1, borderColor: 'rgba(124,58,237,0.4)', borderRadius: 12, paddingVertical: 12, alignItems: 'center' }}>
+                    <Text style={{ color: C.purple, fontSize: 13.5, fontWeight: '900' }}>Edit ✏️</Text>
+                  </View>
+                </Pressable>
+                <Pressable onPress={() => removeNote(noteOpen)} style={{ flex: 1 }}>
+                  <View style={{ backgroundColor: C.coralSoft, borderWidth: 1, borderColor: 'rgba(244,63,94,0.4)', borderRadius: 12, paddingVertical: 12, alignItems: 'center' }}>
+                    <Text style={{ color: C.coral, fontSize: 13.5, fontWeight: '900' }}>Remove 🗑️</Text>
+                  </View>
+                </Pressable>
+              </View>
             ) : null}
+          </Pressable>
+        </Pressable>
+      ) : null}
+
+      {/* edit one of your notes — text + new duration */}
+      {noteEdit ? (
+        <Pressable onPress={() => setNoteEdit(null)} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end', zIndex: 32 }}>
+          <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, paddingBottom: insets.bottom + 22, paddingHorizontal: 16 }}>
+            <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 12 }} />
+            <Text style={{ color: C.text, fontSize: 18, fontWeight: '900', marginBottom: 10 }}>Edit note ✏️</Text>
+            <TextInput value={noteEditBody} onChangeText={setNoteEditBody} multiline
+              style={{ color: C.text, fontSize: 14, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 12, marginBottom: 12, minHeight: 60, textAlignVertical: 'top' }} />
+            <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', letterSpacing: 1, marginBottom: 8 }}>RESET DURATION TO</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 14 }}>
+              {DURATIONS.map((d) => {
+                const on = noteEditHours === d.h;
+                return (
+                  <Pressable key={d.h} onPress={() => { tapSelection(); setNoteEditHours(d.h); }} style={{ marginRight: 8, marginBottom: 8 }}>
+                    <View style={{ backgroundColor: on ? C.purple : C.glass, borderWidth: 1, borderColor: on ? C.purple : C.line, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 }}>
+                      <Text style={{ color: on ? '#FFF' : C.dim, fontSize: 12, fontWeight: '800' }}>{d.label}</Text>
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <Pressable onPress={saveNoteEdit}>
+              <View style={{ backgroundColor: noteEditBody.trim() ? C.purple : C.glassHi, borderRadius: 14, paddingVertical: 14, alignItems: 'center' }}>
+                <Text style={{ color: noteEditBody.trim() ? '#FFF' : C.faint, fontSize: 14, fontWeight: '900' }}>Save changes</Text>
+              </View>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      ) : null}
+
+      {/* a real world EVENT — what, where, when + learn-more */}
+      {eventOpen ? (
+        <Pressable onPress={() => setEventOpen(null)} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end', zIndex: 31 }}>
+          <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, paddingBottom: insets.bottom + 22, paddingHorizontal: 16 }}>
+            <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 14 }} />
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <View style={{ width: 52, height: 52, borderRadius: 16, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                <Text style={{ fontSize: 26 }}>{eventOpen.emoji}</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: C.text, fontSize: 17, fontWeight: '900' }}>{eventOpen.name}</Text>
+                <Text style={{ color: C.purple, fontSize: 12.5, fontWeight: '800', marginTop: 2 }}>📅 {eventOpen.date}</Text>
+              </View>
+            </View>
+            <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 10 }}>📍 {eventOpen.where}</Text>
+            <Text style={{ color: C.text, fontSize: 13.5, lineHeight: 21, marginTop: 10 }}>{eventOpen.desc}</Text>
+            <Pressable onPress={() => { tapLight(); Linking.openURL(eventOpen.link).catch(() => {}); }} style={{ marginTop: 16 }}>
+              <View style={{ backgroundColor: C.purple, borderRadius: 14, paddingVertical: 13, alignItems: 'center' }}>
+                <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '900' }}>Learn more ↗</Text>
+              </View>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      ) : null}
+
+      {/* manage your campfire — edit title, set duration, or end it */}
+      {fireManage ? (
+        <Pressable onPress={() => setFireManage(null)} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end', zIndex: 32 }}>
+          <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, paddingBottom: insets.bottom + 22, paddingHorizontal: 16 }}>
+            <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 12 }} />
+            <Text style={{ color: C.text, fontSize: 18, fontWeight: '900', marginBottom: 10 }}>Manage campfire 🔥</Text>
+            <TextInput value={fireTitle} onChangeText={setFireTitle} placeholder="Title" placeholderTextColor={C.faint}
+              style={{ color: C.text, fontSize: 14, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 12, marginBottom: 12 }} />
+            <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', letterSpacing: 1, marginBottom: 8 }}>STAYS LIVE FOR</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 14 }}>
+              {DURATIONS.map((d) => {
+                const on = fireHours === d.h;
+                return (
+                  <Pressable key={d.h} onPress={() => { tapSelection(); setFireHours(d.h); }} style={{ marginRight: 8, marginBottom: 8 }}>
+                    <View style={{ backgroundColor: on ? C.purple : C.glass, borderWidth: 1, borderColor: on ? C.purple : C.line, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 }}>
+                      <Text style={{ color: on ? '#FFF' : C.dim, fontSize: 12, fontWeight: '800' }}>{d.label}</Text>
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <Pressable onPress={saveCampfire}>
+              <View style={{ backgroundColor: fireTitle.trim() ? C.purple : C.glassHi, borderRadius: 14, paddingVertical: 14, alignItems: 'center' }}>
+                <Text style={{ color: fireTitle.trim() ? '#FFF' : C.faint, fontSize: 14, fontWeight: '900' }}>Save changes</Text>
+              </View>
+            </Pressable>
+            <Pressable onPress={endCampfireNow} style={{ marginTop: 10 }}>
+              <View style={{ backgroundColor: C.coralSoft, borderWidth: 1, borderColor: 'rgba(244,63,94,0.4)', borderRadius: 14, paddingVertical: 13, alignItems: 'center' }}>
+                <Text style={{ color: C.coral, fontSize: 13.5, fontWeight: '900' }}>End this campfire 🗑️</Text>
+              </View>
+            </Pressable>
           </Pressable>
         </Pressable>
       ) : null}

@@ -264,6 +264,7 @@ create table if not exists public.campfires (
   title text not null, topic text, lat double precision, lng double precision,
   created_at timestamptz default now(), ended_at timestamptz
 );
+alter table public.campfires add column if not exists ends_at timestamptz;
 alter table public.campfires enable row level security;
 drop policy if exists "live campfires are viewable by everyone" on public.campfires;
 create policy "live campfires are viewable by everyone" on public.campfires for select using (ended_at is null or host_id = auth.uid());

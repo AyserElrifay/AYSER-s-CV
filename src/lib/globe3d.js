@@ -76,9 +76,10 @@ export function mountGlobe3D(container, { onDive } = {}) {
       vertexShader:
         'varying vec3 vN; void main(){ vN = normalize(normalMatrix * normal); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0);} ',
       fragmentShader:
-        'varying vec3 vN; void main(){ float i = pow(0.72 - dot(vN, vec3(0.0,0.0,1.0)), 2.6); gl_FragColor = vec4(0.36,0.60,1.0,1.0) * i; }',
+        // very soft rim — a whisper of atmosphere, NOT a ring around the planet
+        'varying vec3 vN; void main(){ float i = pow(0.66 - dot(vN, vec3(0.0,0.0,1.0)), 4.0); gl_FragColor = vec4(0.34,0.58,1.0,1.0) * i * 0.5; }',
     });
-    atmosphere = new THREE.Mesh(new THREE.SphereGeometry(1.14, 64, 64), atmMat);
+    atmosphere = new THREE.Mesh(new THREE.SphereGeometry(1.09, 64, 64), atmMat);
     scene.add(atmosphere);
 
     // starfield

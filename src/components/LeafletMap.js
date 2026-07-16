@@ -151,17 +151,13 @@ const pinHtml = (m) => {
     );
   }
 
-  // Curated destinations: a compact static gold-rim card + name pill.
-  // No float/glow animations here — sixty of those at once is exactly
-  // what made the map slow. Motion is saved for people, who are few.
+  // Curated destinations: a clean little GOLD teardrop dot (no emoji)
+  // + name pill. Emoji-free keeps the map calm and uncluttered.
   if (m.kind === 'dest') {
     return (
-      '<div class="mm-dest' + (m.hero ? ' mm-dest-hero' : '') + '" style="position:relative;width:88px;height:54px;display:flex;flex-direction:column;align-items:center">' +
-      '<div style="position:relative;width:30px;height:30px;border-radius:50%;background:#fff;box-shadow:0 0 0 1.5px rgba(245,179,1,0.9),0 2px 5px rgba(0,0,0,0.15);display:flex;align-items:center;justify-content:center;font-size:15px">' +
-      (m.emoji || '📍') +
-      (flag ? '<div style="position:absolute;bottom:-3px;right:-4px;font-size:11px;line-height:11px;filter:drop-shadow(0 1px 1px rgba(0,0,0,0.3))">' + flag + '</div>' : '') +
-      '</div>' +
-      '<div class="mm-pill" style="margin-top:4px">' + (m.label || '') + '</div>' +
+      '<div class="mm-dest' + (m.hero ? ' mm-dest-hero' : '') + '" style="position:relative;width:88px;height:44px;display:flex;flex-direction:column;align-items:center">' +
+      '<div style="width:16px;height:16px;border-radius:50% 50% 50% 2px;transform:rotate(45deg);background:#F5B301;border:2px solid #fff;box-shadow:0 2px 5px rgba(0,0,0,0.25)"></div>' +
+      '<div class="mm-pill" style="margin-top:5px">' + (m.label || '') + '</div>' +
       '</div>'
     );
   }
@@ -176,23 +172,31 @@ const pinHtml = (m) => {
     );
   }
 
-  // Real going-out places (cafés, restaurants, bars…): a tiny, clean
-  // round dot with a whisper-thin amber ring — small enough that a busy
-  // street stays tidy, with the place's own emoji still readable.
-  if (m.kind === 'place') {
+  // A major real-world EVENT (World Cup, Olympics…): a clean purple
+  // marker with a single trophy — few of these exist, so it stays tidy.
+  if (m.kind === 'event') {
     return (
-      '<div style="width:20px;height:20px;border-radius:50%;background:#fff;' +
-      'box-shadow:0 0 0 1.3px rgba(245,158,11,0.85),0 1px 3px rgba(0,0,0,0.18);' +
-      'display:flex;align-items:center;justify-content:center;font-size:11px">' +
-      (m.emoji || '📍') + '</div>'
+      '<div class="mm-float" style="position:relative;width:60px;height:48px;display:flex;flex-direction:column;align-items:center">' +
+      '<div style="width:30px;height:30px;border-radius:50%;background:#7C3AED;border:2px solid #fff;display:flex;align-items:center;justify-content:center;font-size:15px;box-shadow:0 3px 8px rgba(124,58,237,0.45)">🏆</div>' +
+      '<div class="mm-pill" style="margin-top:4px">' + (m.label || '') + '</div>' +
+      '</div>'
     );
   }
 
+  // Real going-out places (cafés, restaurants…): a plain, tiny amber
+  // dot — NO emoji, so a busy street stays clean and uncluttered.
+  if (m.kind === 'place') {
+    return (
+      '<div style="width:13px;height:13px;border-radius:50%;background:#F59E0B;' +
+      'box-shadow:0 0 0 2px #fff,0 1px 3px rgba(0,0,0,0.25)"></div>'
+    );
+  }
+
+  // Campfires / other: a small clean coloured dot, no emoji.
   const border = m.kind === 'fire' ? '#F43F5E' : m.kind === 'deal' ? '#10B981' : '#7C3AED';
   return (
-    '<div style="position:relative;width:34px;height:34px;border-radius:12px;background:#fff;border:2px solid ' + border +
-    ';display:flex;align-items:center;justify-content:center;font-size:17px;box-shadow:0 2px 6px rgba(0,0,0,0.25)">' +
-    (m.emoji || '📍') + flagBadge + '</div>'
+    '<div style="width:16px;height:16px;border-radius:50%;background:' + border +
+    ';border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,0.25)"></div>'
   );
 };
 
@@ -242,24 +246,10 @@ export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus
         updateWhenIdle: true, keepBuffer: 4,
       }).addTo(map);
 
-      // Zoom-OUT = the real Earth floating in space. Satellite imagery
-      // (Esri World Imagery) shows only at the far globe view and fades
-      // to the cartoon map as you zoom in — so far out it's a real
-      // planet in space, close in it's the friendly colourful map.
-      const sat = L.tileLayer(
-        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-        { maxZoom: 19, className: 'mm-sat', updateWhenIdle: true, keepBuffer: 2 }
-      ).addTo(map);
-      const applySat = () => {
-        if (!mapRef.current) return;
-        const z = map.getZoom();
-        sat.setOpacity(z < 4 ? 1 : z < 5.5 ? (5.5 - z) / 1.5 : 0);
-      };
-
+      // (Zoom-out is handled by the real 3-D globe overlay below, so no
+      // satellite tile layer is needed on the flat map any more.)
       mapRef.current = map;
       layerRef.current = L.layerGroup().addTo(map);
-      map.on('zoomend', applySat);
-      applySat();
 
       // follow the OS light/dark switch live: swap tiles + flag container
       const applyTheme = () => {
@@ -376,10 +366,11 @@ export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus
       const isDest = m.kind === 'dest';
       const isPlace = m.kind === 'place';
       const isNote = m.kind === 'note';
+      const isEvent = m.kind === 'event';
       const icon = L.divIcon({
         html: pinHtml(m), className: '',
-        iconSize: isPerson ? [52, 66] : isDest ? [88, 54] : isPlace ? [20, 20] : isNote ? [40, 44] : [34, 34],
-        iconAnchor: isPerson ? [26, 33] : isDest ? [44, 27] : isPlace ? [10, 10] : isNote ? [20, 40] : [17, 34],
+        iconSize: isPerson ? [52, 66] : isDest ? [88, 44] : isPlace ? [13, 13] : isNote ? [40, 44] : isEvent ? [60, 48] : [16, 16],
+        iconAnchor: isPerson ? [26, 33] : isDest ? [44, 22] : isPlace ? [7, 7] : isNote ? [20, 40] : isEvent ? [30, 40] : [8, 8],
       });
       const mk = L.marker([m.lat, m.lng], { icon, zIndexOffset: isPerson ? 500 : isDest ? 300 : 0 }).addTo(layerRef.current);
       if (m.label && !isPerson && !isDest) mk.bindTooltip(m.label, { direction: 'top', offset: [0, -34] });
