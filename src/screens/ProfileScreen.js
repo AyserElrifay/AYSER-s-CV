@@ -171,6 +171,32 @@ export const ProfileScreen = () => {
     } finally { setAvatarBusy(false); }
   };
 
+  /* ── COVER PHOTO — add / change / remove, saved on profiles.cover_url.
+     Same honest pipeline as the avatar: instant preview, real upload,
+     inline-data fallback so it always saves. ── */
+  const [coverBusy, setCoverBusy] = useState(false);
+  const changeCover = async () => {
+    if (coverBusy) return;
+    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [3, 1], quality: 0.75 });
+    if (res.canceled || !res.assets || !res.assets[0]) return;
+    if (!SUPABASE_READY || !user) return;
+    setCoverBusy(true);
+    try {
+      const small = Platform.OS === 'web' ? await resizeSquare(res.assets[0].uri, 900) : null;
+      const src = small || res.assets[0].uri;
+      let finalUrl = small;
+      try { finalUrl = await uploadCapture(user.id, src, 'jpg', 'image/jpeg'); } catch (e) { if (!small) throw e; }
+      await updateProfile(user.id, { cover_url: finalUrl });
+      setMyProfile((p) => ({ ...(p || {}), cover_url: finalUrl }));
+      tapSuccess(); sfxSuccess();
+    } catch (e) {} finally { setCoverBusy(false); }
+  };
+  const removeCover = async () => {
+    tapLight();
+    setMyProfile((p) => ({ ...(p || {}), cover_url: null }));
+    if (SUPABASE_READY && user) { try { await updateProfile(user.id, { cover_url: null }); } catch (e) {} }
+  };
+
   const reload = () => {
     if (!SUPABASE_READY || !user) return;
     getProfile(user.id).then((p) => {
@@ -280,6 +306,28 @@ export const ProfileScreen = () => {
             </Pressable>
           </View>
         </View>
+
+        {/* ── COVER PHOTO — tap to add/change, ✕ to remove ── */}
+        <Pressable onPress={changeCover} style={{ marginTop: 12, marginHorizontal: 16 }}>
+          {myProfile && myProfile.cover_url ? (
+            <View>
+              <Image source={{ uri: myProfile.cover_url }} style={{ width: '100%', height: 130, borderRadius: 18 }} />
+              <Pressable onPress={removeCover} hitSlop={8} style={{ position: 'absolute', top: 8, right: 8 }}>
+                <View style={{ backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 999, width: 26, height: 26, alignItems: 'center', justifyContent: 'center' }}>
+                  <Ionicons name="close" size={15} color="#FFF" />
+                </View>
+              </Pressable>
+              <View style={{ position: 'absolute', bottom: 8, right: 8, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 }}>
+                <Text style={{ color: '#FFF', fontSize: 10.5, fontWeight: '800' }}>{coverBusy ? 'Uploading…' : '📷 Change cover'}</Text>
+              </View>
+            </View>
+          ) : (
+            <LinearGradient colors={['rgba(124,58,237,0.18)', 'rgba(245,179,1,0.14)']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+              style={{ height: 86, borderRadius: 18, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: C.line, borderStyle: 'dashed' }}>
+              <Text style={{ color: C.dim, fontSize: 12.5, fontWeight: '800' }}>{coverBusy ? 'Uploading…' : '🖼️ Add a cover photo'}</Text>
+            </LinearGradient>
+          )}
+        </Pressable>
 
         {/* identity */}
         <View style={{ paddingHorizontal: 16, marginTop: 18 }}>

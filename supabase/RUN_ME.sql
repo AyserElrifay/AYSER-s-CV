@@ -541,6 +541,24 @@ drop policy if exists "remove your own note" on public.map_notes;
 create policy "remove your own note" on public.map_notes for delete using (auth.uid() = user_id);
 create index if not exists map_notes_expiry_idx on public.map_notes (expires_at);
 
+-- ═══════════ DISAPPEARING MESSAGES + SQUAD CREATE/LEAVE ═══════════
+alter table public.dm_threads add column if not exists ttl_hours int;
+drop policy if exists "participants can update their dm threads" on public.dm_threads;
+create policy "participants can update their dm threads" on public.dm_threads
+  for update using (public.is_dm_participant(id, auth.uid()));
+drop policy if exists "participants can sweep expired messages" on public.messages;
+create policy "participants can sweep expired messages" on public.messages
+  for delete using (
+    (dm_thread_id is not null and public.is_dm_participant(dm_thread_id, auth.uid()))
+    or auth.uid() = user_id
+  );
+drop policy if exists "signed-in users can create squads" on public.squads;
+create policy "signed-in users can create squads" on public.squads
+  for insert with check (auth.uid() is not null);
+drop policy if exists "members can leave squads" on public.squad_members;
+create policy "members can leave squads" on public.squad_members
+  for delete using (auth.uid() = user_id);
+
 -- ═══════════════ PROFILE COLUMNS SELF-HEAL ═══════════════
 -- Columns added by earlier schema files (v2 languages, v7 country)
 -- that may be missing — safe to re-add, they no-op if present.

@@ -40,6 +40,32 @@ export function subscribeMessages({ squadId, dmThreadId }, onInsert) {
   return () => supabase.removeChannel(channel);
 }
 
+/* ── Disappearing messages ──────────────────────────────────────────
+   Each DM thread can have a TTL (hours). Messages older than the TTL
+   are filtered out of every fetch and swept from the DB — so the
+   choice (24h / week / month / 3 months / keep forever) is REAL, not
+   cosmetic. null = keep forever. */
+
+export async function getThreadTtl(threadId) {
+  const { data, error } = await supabase.from('dm_threads').select('ttl_hours').eq('id', threadId).maybeSingle();
+  if (error) throw error;
+  return data ? data.ttl_hours : null;
+}
+
+export async function setThreadTtl(threadId, hours) {
+  const { error } = await supabase.from('dm_threads').update({ ttl_hours: hours }).eq('id', threadId);
+  if (error) throw error;
+}
+
+/* Hard-delete the thread's expired messages (best-effort — RLS lets a
+   participant do this; failures are silent, the client filter still
+   hides them). */
+export async function sweepExpired(threadId, ttlHours) {
+  if (!ttlHours) return;
+  const cutoff = new Date(Date.now() - ttlHours * 3600 * 1000).toISOString();
+  try { await supabase.from('messages').delete().eq('dm_thread_id', threadId).lt('created_at', cutoff); } catch (e) {}
+}
+
 /* Your real DM inbox — every thread you're actually a participant in,
    with the other person's real profile and the real last message. */
 export async function fetchMyDmThreads(userId) {
@@ -76,8 +102,7 @@ export async function fetchMyDmThreads(userId) {
     .sort((a, b) => new Date(b.time || 0) - new Date(a.time || 0));
 }
 
-/* Real squads you're actually a member of (empty until someone builds
-   the "create a squad" flow — an honest empty state, not fake rows). */
+/* Real squads you're actually a member of. */
 export async function fetchMySquads(userId) {
   const { data, error } = await supabase
     .from('squad_members')
@@ -85,4 +110,36 @@ export async function fetchMySquads(userId) {
     .eq('user_id', userId);
   if (error) throw error;
   return (data || []).map((r) => r.squad).filter(Boolean);
+}
+
+/* Create a real squad (group chat) and join it as the first member. */
+export async function createSquad(userId, { name, emoji }) {
+  const { data, error } = await supabase
+    .from('squads')
+    .insert({ name, emoji: emoji || '🏕️' })
+    .select()
+    .single();
+  if (error) throw error;
+  const { error: memErr } = await supabase.from('squad_members').insert({ squad_id: data.id, user_id: userId });
+  if (memErr) throw memErr;
+  return data;
+}
+
+/* Add a mate to your squad (they appear in the group instantly). */
+export async function addSquadMember(squadId, userId) {
+  const { error } = await supabase
+    .from('squad_members')
+    .upsert({ squad_id: squadId, user_id: userId }, { onConflict: 'squad_id,user_id', ignoreDuplicates: true });
+  if (error) throw error;
+}
+
+/* Leave (close) a squad — your membership row is deleted; the squad
+   vanishes from your list. Last one out leaves an empty room. */
+export async function leaveSquad(squadId, userId) {
+  const { error } = await supabase
+    .from('squad_members')
+    .delete()
+    .eq('squad_id', squadId)
+    .eq('user_id', userId);
+  if (error) throw error;
 }

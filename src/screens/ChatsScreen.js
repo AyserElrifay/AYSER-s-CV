@@ -6,7 +6,7 @@ import { C } from '../constants/theme';
 import { SQUADS, DMS, LANG_PARTNERS } from '../constants/mockData'; // demo-mode fallback only
 import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-import { fetchMyDmThreads, fetchMySquads } from '../services/messages';
+import { fetchMyDmThreads, fetchMySquads, createSquad, leaveSquad } from '../services/messages';
 import { fetchIncomingRequests, acceptRequest, fetchMyMates } from '../services/mates';
 import { AV_NEUTRAL } from '../constants/mockData';
 import { fetchLanguagePartners, searchProfiles } from '../services/social';
@@ -84,6 +84,31 @@ export const ChatsScreen = () => {
     tapLight();
     setComposing(false); setComposeQ(''); setComposeResults([]);
     setThread({ chat: { user: { id: p.id, name: p.name || 'Explorer', avatar: p.avatar_url || AV_NEUTRAL, verified: !!p.verified } }, group: false });
+  };
+
+  // ── squads: create one, leave (close) one — all real rows ──
+  const [squadCreating, setSquadCreating] = useState(false);
+  const [squadName, setSquadName] = useState('');
+  const [squadEmoji, setSquadEmoji] = useState('🏕️');
+  const [squadErr, setSquadErr] = useState(null);
+  const submitSquad = async () => {
+    if (!squadName.trim() || !SUPABASE_READY || !user) return;
+    setSquadErr(null);
+    try {
+      await createSquad(user.id, { name: squadName.trim(), emoji: squadEmoji.trim() || '🏕️' });
+      tapLight();
+      setSquadCreating(false); setSquadName(''); setSquadEmoji('🏕️');
+      reload();
+    } catch (e) {
+      setSquadErr(/does not exist|policy|security/i.test(e.message || '')
+        ? 'One step left: run the latest supabase/RUN_ME.sql to turn on squads.'
+        : (e.message || 'Could not create the squad.'));
+    }
+  };
+  const closeSquad = async (s) => {
+    tapLight();
+    setRealSquads((list) => list.filter((x) => x.id !== s.id));
+    try { await leaveSquad(s.id, user.id); } catch (e) { reload(); }
   };
 
   const squads = SUPABASE_READY ? realSquads : SQUADS;
@@ -212,7 +237,32 @@ export const ChatsScreen = () => {
       </Glass>
     )}
 
-    <SectionHeader title="Squads" />
+    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+      <SectionHeader title="Squads" />
+      {SUPABASE_READY ? (
+        <Pressable onPress={() => { tapLight(); setSquadCreating((v) => !v); setSquadErr(null); }} hitSlop={8}>
+          <View style={{ backgroundColor: C.purpleSoft, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 }}>
+            <Text style={{ color: C.purple, fontSize: 12, fontWeight: '900' }}>{squadCreating ? '✕ Close' : '＋ New squad'}</Text>
+          </View>
+        </Pressable>
+      ) : null}
+    </View>
+    {squadCreating ? (
+      <Glass style={{ padding: 12, marginBottom: 12 }}>
+        <View style={{ flexDirection: 'row' }}>
+          <TextInput value={squadEmoji} onChangeText={setSquadEmoji} maxLength={4}
+            style={{ width: 48, textAlign: 'center', fontSize: 20, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 12, marginRight: 8 }} />
+          <TextInput placeholder="Squad name (e.g. Sunrise Hikers)" placeholderTextColor={C.faint} value={squadName} onChangeText={setSquadName}
+            style={{ flex: 1, color: C.text, fontSize: 14, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12 }} />
+        </View>
+        {squadErr ? <Text style={{ color: C.coral, fontSize: 11.5, marginTop: 8 }}>{squadErr}</Text> : null}
+        <Pressable onPress={submitSquad} style={{ marginTop: 10 }}>
+          <View style={{ backgroundColor: squadName.trim() ? C.purple : C.glassHi, borderRadius: 12, paddingVertical: 11, alignItems: 'center' }}>
+            <Text style={{ color: squadName.trim() ? '#FFF' : C.faint, fontSize: 13, fontWeight: '900' }}>Create squad 🏕️</Text>
+          </View>
+        </Pressable>
+      </Glass>
+    ) : null}
     {squads.length ? squads.map((s) => (
       <Pressable key={s.id} onPress={() => { tapLight(); setThread({ chat: s, group: true }); }}>
         <Glass tint={C.blueSoft} border="rgba(59,130,246,0.35)" style={{ padding: 14, marginBottom: 12 }}>
@@ -233,6 +283,11 @@ export const ChatsScreen = () => {
                 <View style={{ marginTop: 6, minWidth: 20, height: 20, borderRadius: 10, backgroundColor: C.blue, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 }}>
                   <Text style={{ color: '#fff', fontSize: 11, fontWeight: '900' }}>{s.unread}</Text>
                 </View>
+              ) : null}
+              {SUPABASE_READY ? (
+                <Pressable onPress={() => closeSquad(s)} hitSlop={8} style={{ marginTop: 6 }}>
+                  <Text style={{ color: C.coral, fontSize: 10.5, fontWeight: '800' }}>Leave ✕</Text>
+                </Pressable>
               ) : null}
             </View>
           </View>

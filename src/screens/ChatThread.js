@@ -6,7 +6,7 @@ import { C } from '../constants/theme';
 import { AV_NEUTRAL } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-import { getOrCreateDmThread, fetchMessages, sendMessage, subscribeMessages } from '../services/messages';
+import { getOrCreateDmThread, fetchMessages, sendMessage, subscribeMessages, getThreadTtl, setThreadTtl, sweepExpired } from '../services/messages';
 import { getProfile } from '../services/profiles';
 import { TruthOrDare } from '../components/TruthOrDare';
 import { WouldYouRather } from '../components/WouldYouRather';
@@ -69,6 +69,50 @@ export const ChatThread = ({ chat, group, onClose }) => {
     return 'Active ' + Math.round(min / (60 * 24)) + 'd ago';
   })();
 
+  /* ── Disappearing messages — a real per-chat timer. Messages older
+     than the chosen window are hidden AND swept from the database. ── */
+  const [ttl, setTtl] = useState(null);          // hours | null = keep forever
+  const [ttlOpen, setTtlOpen] = useState(false);
+  const TTL_OPTIONS = [
+    { h: null, label: 'Keep forever' },
+    { h: 24, label: '24 hours' },
+    { h: 168, label: '1 week' },
+    { h: 720, label: '1 month' },
+    { h: 2160, label: '3 months' },
+  ];
+  useEffect(() => {
+    if (!isReal || group || !dmThreadId) return;
+    let cancelled = false;
+    getThreadTtl(dmThreadId).then((h) => {
+      if (cancelled) return;
+      setTtl(h);
+      if (h) sweepExpired(dmThreadId, h);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dmThreadId, isReal]);
+
+  const pickTtl = async (h) => {
+    tapLight();
+    setTtlOpen(false);
+    if (!dmThreadId) return;
+    try {
+      await setThreadTtl(dmThreadId, h);
+      setTtl(h);
+      if (h) sweepExpired(dmThreadId, h);
+    } catch (e) {
+      setChatErr(/ttl_hours|column/i.test(e.message || '')
+        ? 'One step left: run the latest supabase/RUN_ME.sql to turn on disappearing messages.'
+        : (e.message || 'Could not change the timer.'));
+    }
+  };
+
+  // hide anything past the window (the DB sweep also removes it for real)
+  const ttlCutoff = ttl ? Date.now() - ttl * 3600 * 1000 : null;
+  const visibleMsgs = ttlCutoff
+    ? msgs.filter((m) => !m.createdAt || new Date(m.createdAt).getTime() >= ttlCutoff)
+    : msgs;
+
   const [todOn, setTodOn] = useState(false);
   const [wyrOn, setWyrOn] = useState(false);
   const [splitOn, setSplitOn] = useState(false);
@@ -98,6 +142,7 @@ export const ChatThread = ({ chat, group, onClose }) => {
 
   const toLocal = (row) => ({
     id: row.id,
+    createdAt: row.created_at,
     from: row.user_id === user.id
       ? 'me'
       : { name: (row.user && row.user.name) || (peer && peer.name) || 'Someone', avatar: (row.user && row.user.avatar_url) || (peer && peer.avatar) || AV_NEUTRAL },
@@ -181,8 +226,15 @@ export const ChatThread = ({ chat, group, onClose }) => {
           )}
           <View style={{ flex: 1, marginLeft: 10 }}>
             <Text style={{ color: C.text, fontSize: 15.5, fontWeight: '800' }} numberOfLines={1}>{title}</Text>
-            {activeLabel ? <Text style={{ color: /now/.test(activeLabel) ? C.green : C.faint, fontSize: 11.5, marginTop: 1 }}>{activeLabel}</Text> : null}
+            <Text style={{ color: ttl ? C.purple : (/now/.test(activeLabel) ? C.green : C.faint), fontSize: 11.5, marginTop: 1 }} numberOfLines={1}>
+              {ttl ? '⏳ Disappear after ' + (TTL_OPTIONS.find((o) => o.h === ttl) || {}).label : activeLabel}
+            </Text>
           </View>
+          {!group && isReal ? (
+            <Pressable onPress={() => { tapLight(); setTtlOpen((v) => !v); }} hitSlop={8} style={{ marginRight: 10 }}>
+              <Ionicons name="timer-outline" size={22} color={ttl ? C.purple : C.dim} />
+            </Pressable>
+          ) : null}
           <Pressable onPress={() => { tapMedium(); setCall({ video: false }); }} hitSlop={8} style={{ marginHorizontal: 10 }}>
             <Ionicons name="call-outline" size={23} color={C.purple} />
           </Pressable>
@@ -193,7 +245,7 @@ export const ChatThread = ({ chat, group, onClose }) => {
 
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <ScrollView ref={scroller} contentContainerStyle={{ padding: 14, paddingBottom: 20 }} showsVerticalScrollIndicator={false}>
-            {msgs.map((m) => {
+            {visibleMsgs.map((m) => {
               const mine = m.from === 'me';
               return (
                 <View key={m.id} style={{ flexDirection: 'row', justifyContent: mine ? 'flex-end' : 'flex-start', marginBottom: 10, alignItems: 'flex-end' }}>
@@ -211,6 +263,24 @@ export const ChatThread = ({ chat, group, onClose }) => {
             {todOn ? <TruthOrDare players={players} onRemove={() => setTodOn(false)} /> : null}
             {wyrOn ? <WouldYouRather onRemove={() => setWyrOn(false)} /> : null}
           </ScrollView>
+
+          {/* disappearing-messages picker */}
+          {ttlOpen ? (
+            <View style={{ position: 'absolute', top: 4, right: 12, backgroundColor: '#FFF', borderRadius: 16, borderWidth: 1, borderColor: C.line, padding: 6, zIndex: 20, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 14, shadowOffset: { width: 0, height: 6 } }}>
+              <Text style={{ color: C.faint, fontSize: 10.5, fontWeight: '800', letterSpacing: 1, paddingHorizontal: 12, paddingTop: 8, paddingBottom: 4 }}>DISAPPEARING MESSAGES ⏳</Text>
+              {TTL_OPTIONS.map((o) => (
+                <Pressable key={String(o.h)} onPress={() => pickTtl(o.h)}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10 }}>
+                    <Ionicons name={ttl === o.h ? 'radio-button-on' : 'radio-button-off'} size={16} color={ttl === o.h ? C.purple : C.faint} />
+                    <Text style={{ color: C.text, fontSize: 13.5, fontWeight: ttl === o.h ? '900' : '600', marginLeft: 9 }}>{o.label}</Text>
+                  </View>
+                </Pressable>
+              ))}
+              <Text style={{ color: C.faint, fontSize: 10, paddingHorizontal: 12, paddingBottom: 8, maxWidth: 200 }}>
+                Older messages are really deleted for both of you — not just hidden.
+              </Text>
+            </View>
+          ) : null}
 
           {/* games menu */}
           {menu ? (
