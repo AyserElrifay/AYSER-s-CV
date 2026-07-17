@@ -104,6 +104,18 @@ export async function fetchVibers(postId) {
   return (data || []).map((r) => r.user).filter(Boolean);
 }
 
+/* Who laughed at a post — same idea, from the laughs table. */
+export async function fetchLaughers(postId) {
+  const { data, error } = await supabase
+    .from('post_laughs')
+    .select('created_at, user:profiles!post_laughs_user_id_fkey(*)')
+    .eq('post_id', postId)
+    .order('created_at', { ascending: false })
+    .limit(100);
+  if (error) throw error;
+  return (data || []).map((r) => r.user).filter(Boolean);
+}
+
 export async function fetchComments(postId) {
   const { data, error } = await supabase
     .from('comments')

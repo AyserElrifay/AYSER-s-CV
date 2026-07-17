@@ -5,7 +5,7 @@ import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { C, R } from '../constants/theme';
 import { AV_NEUTRAL } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
-import { fetchVibers } from '../services/social';
+import { fetchVibers, fetchLaughers } from '../services/social';
 import { tapLight } from '../utils/feedback';
 import { Micro } from './Micro';
 import { ProfileModal } from './ProfileModal';
@@ -24,15 +24,17 @@ const toProfileUser = (p) => ({
   countryFlag: p.country_flag || null,
 });
 
-export const LikersSheet = ({ post, onClose }) => {
+export const LikersSheet = ({ post, kind = 'star', onClose }) => {
   const insets = useSafeAreaInsets();
   const [people, setPeople] = useState(null);
   const [openProfile, setOpenProfile] = useState(null);
+  const isLaugh = kind === 'laugh';
 
   useEffect(() => {
     if (!SUPABASE_READY || !post) { setPeople([]); return; }
-    fetchVibers(post.id).then(setPeople).catch(() => setPeople([]));
-  }, [post]);
+    const fetcher = isLaugh ? fetchLaughers : fetchVibers;
+    fetcher(post.id).then(setPeople).catch(() => setPeople([]));
+  }, [post, kind]);
 
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
@@ -46,8 +48,12 @@ export const LikersSheet = ({ post, onClose }) => {
         </View>
         <View style={{ paddingHorizontal: 18, paddingBottom: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <MaterialCommunityIcons name="star-four-points" size={16} color={C.gold} />
-            <Micro>{'  Stars' + (people && people.length ? ' · ' + people.length : '')}</Micro>
+            {isLaugh ? (
+              <Text style={{ fontSize: 15 }}>😂</Text>
+            ) : (
+              <MaterialCommunityIcons name="star-four-points" size={16} color={C.gold} />
+            )}
+            <Micro>{'  ' + (isLaugh ? 'Laughs' : 'Stars') + (people && people.length ? ' · ' + people.length : '')}</Micro>
           </View>
           <Pressable onPress={onClose} hitSlop={8}><Ionicons name="close" size={18} color={C.dim} /></Pressable>
         </View>
@@ -56,9 +62,9 @@ export const LikersSheet = ({ post, onClose }) => {
           <Text style={{ color: C.faint, fontSize: 13, textAlign: 'center', paddingVertical: 30 }}>Loading…</Text>
         ) : people.length === 0 ? (
           <View style={{ alignItems: 'center', paddingVertical: 34, paddingHorizontal: 30 }}>
-            <Text style={{ fontSize: 30 }}>✦</Text>
-            <Text style={{ color: C.text, fontSize: 14, fontWeight: '800', marginTop: 8 }}>No stars yet</Text>
-            <Text style={{ color: C.faint, fontSize: 12.5, marginTop: 4, textAlign: 'center' }}>Be the first to star this moment.</Text>
+            <Text style={{ fontSize: 30 }}>{isLaugh ? '😄' : '✦'}</Text>
+            <Text style={{ color: C.text, fontSize: 14, fontWeight: '800', marginTop: 8 }}>{isLaugh ? 'No laughs yet' : 'No stars yet'}</Text>
+            <Text style={{ color: C.faint, fontSize: 12.5, marginTop: 4, textAlign: 'center' }}>{isLaugh ? 'Be the first to laugh at this moment.' : 'Be the first to star this moment.'}</Text>
           </View>
         ) : (
           <FlatList

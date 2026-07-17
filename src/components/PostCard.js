@@ -18,7 +18,7 @@ const typeChip = (post) => {
   return { label: 'MOMENT', tint: 'rgba(17,24,39,0.65)', color: 'rgba(255,255,255,0.85)' };
 };
 
-export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onLaugh: onLaughProp, isMine, onDelete, onEdit, onShare, onJoin, onVibe, onComment, onOpenProfile, onOpenReel, onOpenLikers }) => {
+export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onLaugh: onLaughProp, onRemoveLaugh, isMine, onDelete, onEdit, onShare, onJoin, onVibe, onComment, onOpenProfile, onOpenReel, onOpenLikers, onOpenLaughers }) => {
   const mediaH = post.type === 'reel' ? 470 : post.type === 'vod' ? 208 : 250;
   const tc = typeChip(post);
   const textBg = TEXT_BGS[post.textBg] || TEXT_BGS.plain;
@@ -52,6 +52,10 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
     if (s.n >= 3) sfxLaughBig(); else sfxLaugh();
     onLaughProp && onLaughProp(); // persisted upstream — survives refresh
   };
+  // long-press your own laugh to take it back — Snapchat-style un-react
+  const removeLaugh = () => { tapLight(); onRemoveLaugh && onRemoveLaugh(); };
+
+  const totalLaughs = (post.laughs || 0) + (laughed ? 1 : 0);
   const handleMediaTap = () => {
     const now = Date.now();
     if (now - lastTap.current < 300) {
@@ -228,13 +232,25 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
               {totalVibes}
             </Text>
           </Pressable>
-          {/* Laugh — tap for a giggle, three quick taps for the belly laugh */}
-          <Pressable onPress={onLaugh} onLongPress={() => { tapLight(); sfxLaughBig(); onLaughProp && onLaughProp(); }} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', marginRight: 16 }}>
-            <Text style={{ fontSize: 17, opacity: laughed ? 1 : 0.55 }}>😂</Text>
-            <Text style={{ color: laughed ? C.text : C.dim, fontSize: 13, fontWeight: '700', marginLeft: 3 }}>
-              {(post.laughs || 0) + (laughed ? 1 : 0)}
-            </Text>
-          </Pressable>
+          {/* Laugh — tap for a giggle, three quick taps for the belly laugh.
+              Long-press YOUR laugh to take it back. Tap the count to see who. */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 16 }}>
+            <Pressable
+              onPress={laughed ? removeLaugh : onLaugh}
+              onLongPress={laughed ? removeLaugh : () => { tapLight(); sfxLaughBig(); onLaughProp && onLaughProp(); }}
+              hitSlop={8}
+            >
+              <Text style={{ fontSize: 17, opacity: laughed ? 1 : 0.55 }}>😂</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => { if (totalLaughs > 0) { tapLight(); onOpenLaughers && onOpenLaughers(post); } }}
+              hitSlop={8}
+            >
+              <Text style={{ color: laughed ? C.text : C.dim, fontSize: 13, fontWeight: '700', marginLeft: 3 }}>
+                {totalLaughs}
+              </Text>
+            </Pressable>
+          </View>
           {/* Comment scroll */}
           <Pressable onPress={onComment} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', marginRight: 16 }}>
             <MaterialCommunityIcons name="script-text-outline" size={20} color={C.dim} />

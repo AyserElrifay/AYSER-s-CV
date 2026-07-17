@@ -6,7 +6,7 @@ import { C } from '../constants/theme';
 import { SQUADS, DMS, LANG_PARTNERS } from '../constants/mockData'; // demo-mode fallback only
 import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-import { fetchMyDmThreads, fetchMySquads, createSquad, leaveSquad } from '../services/messages';
+import { fetchMyDmThreads, fetchMySquads, createSquad, leaveSquad, addSquadMember } from '../services/messages';
 import { fetchIncomingRequests, acceptRequest, fetchMyMates } from '../services/mates';
 import { AV_NEUTRAL } from '../constants/mockData';
 import { fetchLanguagePartners, searchProfiles } from '../services/social';
@@ -109,6 +109,24 @@ export const ChatsScreen = () => {
     tapLight();
     setRealSquads((list) => list.filter((x) => x.id !== s.id));
     try { await leaveSquad(s.id, user.id); } catch (e) { reload(); }
+  };
+
+  // ── invite mates into a squad — a real membership row per person ──
+  const [inviteSquad, setInviteSquad] = useState(null); // the squad you're adding people to
+  const [invited, setInvited] = useState({});           // { mateId: true } — just-added feedback
+  const [inviteErr, setInviteErr] = useState(null);
+  const openInvite = (s) => { tapLight(); setInviteErr(null); setInvited({}); setInviteSquad(s); };
+  const inviteMate = async (mate) => {
+    if (!inviteSquad || !user) return;
+    tapLight();
+    setInvited((v) => ({ ...v, [mate.id]: true }));
+    try { await addSquadMember(inviteSquad.id, mate.id); }
+    catch (e) {
+      setInvited((v) => { const n = { ...v }; delete n[mate.id]; return n; });
+      setInviteErr(/does not exist|policy|security/i.test(e.message || '')
+        ? 'One step left: run the latest supabase/RUN_ME.sql to turn on squad invites.'
+        : (e.message || 'Could not add them.'));
+    }
   };
 
   const squads = SUPABASE_READY ? realSquads : SQUADS;
@@ -285,9 +303,14 @@ export const ChatsScreen = () => {
                 </View>
               ) : null}
               {SUPABASE_READY ? (
-                <Pressable onPress={() => closeSquad(s)} hitSlop={8} style={{ marginTop: 6 }}>
-                  <Text style={{ color: C.coral, fontSize: 10.5, fontWeight: '800' }}>Leave ✕</Text>
-                </Pressable>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
+                  <Pressable onPress={() => openInvite(s)} hitSlop={8} style={{ marginRight: 12 }}>
+                    <Text style={{ color: C.purple, fontSize: 10.5, fontWeight: '900' }}>＋ Invite</Text>
+                  </Pressable>
+                  <Pressable onPress={() => closeSquad(s)} hitSlop={8}>
+                    <Text style={{ color: C.coral, fontSize: 10.5, fontWeight: '800' }}>Leave ✕</Text>
+                  </Pressable>
+                </View>
               ) : null}
             </View>
           </View>
@@ -346,6 +369,55 @@ export const ChatsScreen = () => {
     )}
 
     {thread ? <ChatThread chat={thread.chat} group={thread.group} onClose={() => setThread(null)} /> : null}
+
+    {/* ── INVITE TO SQUAD — pick real mates, add them to the group ── */}
+    {inviteSquad ? (
+      <Modal visible transparent animationType="slide" onRequestClose={() => setInviteSquad(null)}>
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }} onPress={() => setInviteSquad(null)} />
+        <View style={{ backgroundColor: C.bg2, borderTopLeftRadius: 22, borderTopRightRadius: 22, borderWidth: 1, borderColor: C.line, maxHeight: '76%', paddingBottom: insets.bottom + 12 }}>
+          <View style={{ alignItems: 'center', paddingTop: 10, paddingBottom: 4 }}>
+            <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: C.glassHi }} />
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, paddingBottom: 8 }}>
+            <Text style={{ color: C.text, fontSize: 15, fontWeight: '900' }}>
+              {inviteSquad.emoji} Invite to {inviteSquad.name}
+            </Text>
+            <Pressable onPress={() => setInviteSquad(null)} hitSlop={8}><Ionicons name="close" size={18} color={C.dim} /></Pressable>
+          </View>
+          {inviteErr ? <Text style={{ color: C.coral, fontSize: 11.5, paddingHorizontal: 18, marginBottom: 6 }}>{inviteErr}</Text> : null}
+          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 14, paddingBottom: 12 }}>
+            {myMates.length ? myMates.map((m) => {
+              const done = !!invited[m.id];
+              return (
+                <View key={m.id} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 4 }}>
+                  <Image source={{ uri: m.avatar_url || AV_NEUTRAL }} style={{ width: 44, height: 44, borderRadius: 22 }} />
+                  <View style={{ flex: 1, marginLeft: 12 }}>
+                    <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>{m.name || 'Explorer'} {m.country_flag || ''}</Text>
+                  </View>
+                  {done ? (
+                    <View style={{ backgroundColor: C.greenSoft, borderWidth: 1, borderColor: 'rgba(16,185,129,0.45)', borderRadius: 999, paddingHorizontal: 13, paddingVertical: 7 }}>
+                      <Text style={{ color: C.green, fontSize: 12, fontWeight: '900' }}>Added ✓</Text>
+                    </View>
+                  ) : (
+                    <Pressable onPress={() => inviteMate(m)}>
+                      <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 15, paddingVertical: 7 }}>
+                        <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '900' }}>Add ＋</Text>
+                      </View>
+                    </Pressable>
+                  )}
+                </View>
+              );
+            }) : (
+              <View style={{ alignItems: 'center', paddingVertical: 34, paddingHorizontal: 30 }}>
+                <Text style={{ fontSize: 26 }}>🤝</Text>
+                <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800', marginTop: 8 }}>No mates yet</Text>
+                <Text style={{ color: C.faint, fontSize: 12, marginTop: 4, textAlign: 'center' }}>Add mates first — then invite them into your squad.</Text>
+              </View>
+            )}
+          </ScrollView>
+        </View>
+      </Modal>
+    ) : null}
 
     {/* ── NEW MESSAGE — search real people and start a real chat ── */}
     {composing ? (

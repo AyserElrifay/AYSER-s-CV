@@ -85,6 +85,11 @@ export const HomeScreen = () => {
     setLaughs((l) => ({ ...l, [post.id]: true }));
     if (SUPABASE_READY && user) toggleLaugh(post.id, user.id, true).catch(() => {});
   };
+  // long-press to take your laugh back — the reaction actually disappears
+  const onRemoveLaugh = (post) => {
+    setLaughs((l) => { const n = { ...l }; delete n[post.id]; return n; });
+    if (SUPABASE_READY && user) toggleLaugh(post.id, user.id, false).catch(() => {});
+  };
 
   const onRepost = (post) => {
     const next = !reposts[post.id];
@@ -106,7 +111,9 @@ export const HomeScreen = () => {
   const [unread, setUnread] = useState(0);
   const [sharedPost, setSharedPost] = useState(null); // opened from a ?post= link
   const [sharedStory, setSharedStory] = useState(null); // opened from a ?story= link
-  const [likersPost, setLikersPost] = useState(null); // "who starred this"
+  const [likersPost, setLikersPost] = useState(null); // "who reacted to this"
+  const [likersKind, setLikersKind] = useState('star'); // 'star' | 'laugh'
+  const openLikers = (post, kind) => { setLikersKind(kind); setLikersPost(post); };
   const [toast, setToast] = useState(null);
 
   const showToast = (msg) => {
@@ -339,6 +346,7 @@ export const HomeScreen = () => {
               reposted={!!reposts[item.id]}
               onRepost={() => onRepost(item)}
               onLaugh={() => onLaugh(item)}
+              onRemoveLaugh={() => onRemoveLaugh(item)}
               isMine={(user && item.userId === user.id) || item.user.name === 'You'}
               onDelete={onDelete}
               onEdit={onEditPost}
@@ -348,7 +356,8 @@ export const HomeScreen = () => {
               onComment={() => openComments(item)}
               onOpenProfile={setProfileUser}
               onOpenReel={openReel}
-              onOpenLikers={setLikersPost}
+              onOpenLikers={(p) => openLikers(p, 'star')}
+              onOpenLaughers={(p) => openLikers(p, 'laugh')}
             />
           );
         }}
@@ -394,7 +403,7 @@ export const HomeScreen = () => {
       </Modal>
       {commentsPost ? <CommentsSheet post={commentsPost} onClose={() => setCommentsPost(null)} /> : null}
       {notifOpen ? <NotificationsSheet onClose={() => setNotifOpen(false)} /> : null}
-      {likersPost ? <LikersSheet post={likersPost} onClose={() => setLikersPost(null)} /> : null}
+      {likersPost ? <LikersSheet post={likersPost} kind={likersKind} onClose={() => setLikersPost(null)} /> : null}
 
       {/* a moment opened from a shared link — the full card, ready to vibe */}
       {sharedPost ? (
@@ -409,6 +418,7 @@ export const HomeScreen = () => {
                 reposted={!!reposts[sharedPost.id]}
                 onRepost={() => onRepost(sharedPost)}
                 onLaugh={() => onLaugh(sharedPost)}
+                onRemoveLaugh={() => onRemoveLaugh(sharedPost)}
                 isMine={!!(user && sharedPost.userId === user.id)}
                 onDelete={(p) => { onDelete(p); setSharedPost(null); }}
                 onShare={onShare}
@@ -417,7 +427,8 @@ export const HomeScreen = () => {
                 onComment={() => openComments(sharedPost)}
                 onOpenProfile={(u) => { setSharedPost(null); setProfileUser(u); }}
                 onOpenReel={() => {}}
-                onOpenLikers={setLikersPost}
+                onOpenLikers={(p) => openLikers(p, 'star')}
+                onOpenLaughers={(p) => openLikers(p, 'laugh')}
               />
             </Pressable>
             <Pressable onPress={() => setSharedPost(null)} style={{ alignSelf: 'center', marginTop: 6 }}>
