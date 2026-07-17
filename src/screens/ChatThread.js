@@ -6,11 +6,12 @@ import { C } from '../constants/theme';
 import { AV_NEUTRAL } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-import { getOrCreateDmThread, fetchMessages, sendMessage, subscribeMessages, getThreadTtl, setThreadTtl, sweepExpired } from '../services/messages';
+import { getOrCreateDmThread, fetchMessages, sendMessage, sendMoment, subscribeMessages, getThreadTtl, setThreadTtl, sweepExpired, computeStreak } from '../services/messages';
 import { getProfile } from '../services/profiles';
 import { TruthOrDare } from '../components/TruthOrDare';
 import { WouldYouRather } from '../components/WouldYouRather';
 import { CallScreen } from '../components/CallScreen';
+import { CaptureModal } from '../components/CaptureModal';
 import { tapLight, tapMedium } from '../utils/feedback';
 import { sfxPop } from '../utils/sfx';
 
@@ -143,11 +144,42 @@ export const ChatThread = ({ chat, group, onClose }) => {
   const toLocal = (row) => ({
     id: row.id,
     createdAt: row.created_at,
+    userId: row.user_id,
+    kind: row.kind || 'text',
+    mediaUrl: row.media_url || null,
+    mediaKind: row.media_kind || null,
     from: row.user_id === user.id
       ? 'me'
       : { name: (row.user && row.user.name) || (peer && peer.name) || 'Someone', avatar: (row.user && row.user.avatar_url) || (peer && peer.avatar) || AV_NEUTRAL },
     text: row.body,
   });
+
+  // Snapchat-style streak with this person — real, from the moments you
+  // and they have actually exchanged.
+  const streak = (!group && peer && peer.id) ? computeStreak(msgs, user && user.id, peer.id) : 0;
+
+  // ── Moments in chat: shoot a snap and send it right here ──
+  const [momentOpen, setMomentOpen] = useState(false);
+  const [viewMoment, setViewMoment] = useState(null); // { mediaUrl, mediaKind } — full-screen viewer
+  const handleSendMoment = async ({ mediaUrl, mediaKind, caption }) => {
+    if (isReal) {
+      const squadId = group ? chat.id : null;
+      if (!squadId && !dmThreadId) {
+        setChatErr('Messages need one more step: run supabase/RUN_ME.sql in the Supabase SQL Editor.');
+        return;
+      }
+      try {
+        const row = await sendMoment({ squadId, dmThreadId, userId: user.id, mediaUrl, mediaKind, caption });
+        setChatErr(null);
+        setMsgs((m) => (m.some((x) => x.id === row.id) ? m : [...m, toLocal(row)]));
+      } catch (e) {
+        setChatErr(explainChat(e));
+      }
+    } else {
+      setMsgs((m) => [...m, { id: 'x' + Date.now(), from: 'me', userId: user && user.id, kind: 'moment', mediaUrl, mediaKind, createdAt: new Date().toISOString(), text: caption || '🔥 Moment' }]);
+    }
+    setTimeout(() => scroller.current && scroller.current.scrollToEnd({ animated: true }), 80);
+  };
 
   useEffect(() => {
     if (!isReal) return;
@@ -225,7 +257,15 @@ export const ChatThread = ({ chat, group, onClose }) => {
             <Image source={{ uri: avatarUri }} style={{ width: 40, height: 40, borderRadius: 20 }} />
           )}
           <View style={{ flex: 1, marginLeft: 10 }}>
-            <Text style={{ color: C.text, fontSize: 15.5, fontWeight: '800' }} numberOfLines={1}>{title}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={{ color: C.text, fontSize: 15.5, fontWeight: '800', flexShrink: 1 }} numberOfLines={1}>{title}</Text>
+              {streak > 0 ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 7, backgroundColor: C.coralSoft, borderRadius: 999, paddingHorizontal: 7, paddingVertical: 2 }}>
+                  <Text style={{ fontSize: 12 }}>🔥</Text>
+                  <Text style={{ color: C.coral, fontSize: 11.5, fontWeight: '900', marginLeft: 2 }}>{streak}</Text>
+                </View>
+              ) : null}
+            </View>
             <Text style={{ color: ttl ? C.purple : (/now/.test(activeLabel) ? C.green : C.faint), fontSize: 11.5, marginTop: 1 }} numberOfLines={1}>
               {ttl ? '⏳ Disappear after ' + (TTL_OPTIONS.find((o) => o.h === ttl) || {}).label : activeLabel}
             </Text>
@@ -252,9 +292,31 @@ export const ChatThread = ({ chat, group, onClose }) => {
                   {!mine && group ? <Image source={{ uri: m.from.avatar }} style={{ width: 26, height: 26, borderRadius: 13, marginRight: 7 }} /> : null}
                   <View style={{ maxWidth: '76%' }}>
                     {!mine && group ? <Text style={{ color: C.faint, fontSize: 10.5, marginBottom: 3, marginLeft: 4 }}>{m.from.name}</Text> : null}
+                    {(m.kind === 'moment' || m.mediaUrl) ? (
+                      /* a Moment — a real snap, tap to view full-screen */
+                      <Pressable onPress={() => { tapLight(); setViewMoment({ mediaUrl: m.mediaUrl, mediaKind: m.mediaKind }); }}>
+                        <View style={{ borderRadius: 18, overflow: 'hidden', borderWidth: 2, borderColor: C.coral, width: 200, backgroundColor: '#000' }}>
+                          {m.mediaKind === 'video' && Platform.OS === 'web' ? (
+                            <video src={m.mediaUrl} muted loop playsInline autoPlay style={{ width: 200, height: 266, objectFit: 'cover' }} />
+                          ) : (
+                            <Image source={{ uri: m.mediaUrl }} style={{ width: 200, height: 266 }} resizeMode="cover" />
+                          )}
+                          <View style={{ position: 'absolute', top: 8, left: 8, flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 }}>
+                            <Text style={{ fontSize: 11 }}>🔥</Text>
+                            <Text style={{ color: '#FFF', fontSize: 10.5, fontWeight: '900', marginLeft: 3 }}>Moment</Text>
+                          </View>
+                          {m.text && m.text !== '🔥 Moment' ? (
+                            <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.55)', paddingHorizontal: 10, paddingVertical: 7 }}>
+                              <Text style={{ color: '#FFF', fontSize: 12.5 }} numberOfLines={2}>{m.text}</Text>
+                            </View>
+                          ) : null}
+                        </View>
+                      </Pressable>
+                    ) : (
                     <View style={{ backgroundColor: mine ? C.purple : '#FFF', borderWidth: mine ? 0 : 1, borderColor: C.line, borderRadius: 18, borderBottomRightRadius: mine ? 5 : 18, borderBottomLeftRadius: mine ? 18 : 5, paddingHorizontal: 14, paddingVertical: 9 }}>
                       <Text style={{ color: mine ? '#FFF' : C.text, fontSize: 14.5, lineHeight: 20 }}>{m.text}</Text>
                     </View>
+                    )}
                   </View>
                 </View>
               );
@@ -331,6 +393,12 @@ export const ChatThread = ({ chat, group, onClose }) => {
                 <Ionicons name={menu ? 'close' : 'game-controller'} size={19} color={menu ? '#FFF' : C.purple} />
               </View>
             </Pressable>
+            {/* shoot a Moment — a Snapchat-style snap, straight into the chat */}
+            <Pressable onPress={() => { tapMedium(); setMomentOpen(true); }} hitSlop={8} style={{ marginRight: 8 }}>
+              <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: C.coralSoft, alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="camera" size={19} color={C.coral} />
+              </View>
+            </Pressable>
             <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: C.bg, borderRadius: 22, borderWidth: 1, borderColor: C.line, paddingHorizontal: 14, paddingVertical: Platform.OS === 'ios' ? 10 : 3 }}>
               <TextInput
                 placeholder="Message…"
@@ -352,6 +420,32 @@ export const ChatThread = ({ chat, group, onClose }) => {
       </View>
 
       {call ? <CallScreen peer={callPeer} video={call.video} onClose={() => setCall(null)} /> : null}
+
+      {/* ── shoot a Moment — full camera (filters · effects · songs) ── */}
+      {momentOpen ? (
+        <CaptureModal
+          sendMode
+          sendToName={group ? chat.name : (peer && (peer.name || '').split(' ')[0])}
+          onMoment={handleSendMoment}
+          onClose={() => setMomentOpen(false)}
+        />
+      ) : null}
+
+      {/* ── full-screen Moment viewer ── */}
+      {viewMoment ? (
+        <Modal visible transparent animationType="fade" onRequestClose={() => setViewMoment(null)}>
+          <Pressable onPress={() => setViewMoment(null)} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.94)', alignItems: 'center', justifyContent: 'center' }}>
+            {viewMoment.mediaKind === 'video' && Platform.OS === 'web' ? (
+              <video src={viewMoment.mediaUrl} controls autoPlay loop playsInline style={{ width: '100%', height: '80%', objectFit: 'contain' }} />
+            ) : (
+              <Image source={{ uri: viewMoment.mediaUrl }} style={{ width: '100%', height: '80%' }} resizeMode="contain" />
+            )}
+            <Pressable onPress={() => setViewMoment(null)} style={{ position: 'absolute', top: insets.top + 14, right: 18 }} hitSlop={12}>
+              <Ionicons name="close" size={30} color="#FFF" />
+            </Pressable>
+          </Pressable>
+        </Modal>
+      ) : null}
 
       {/* ── SPLIT A BILL — real calculator, sends the result to the chat ── */}
       {splitOn ? (

@@ -31,6 +31,61 @@ export async function sendMessage({ squadId, dmThreadId, userId, body }) {
   return data;
 }
 
+/* Send a Moment — a photo/video shot in the camera, dropped straight
+   into the chat like a Snapchat snap. It's a real message row with
+   media attached; body carries the caption (or a 🔥 fallback so the
+   NOT NULL constraint holds). Falls back to a plain text message if the
+   moment columns aren't in the DB yet (SQL not run), so it never fails
+   silently. */
+export async function sendMoment({ squadId, dmThreadId, userId, mediaUrl, mediaKind, caption }) {
+  const body = (caption && caption.trim()) || '🔥 Moment';
+  const full = {
+    squad_id: squadId || null, dm_thread_id: dmThreadId || null, user_id: userId,
+    body, media_url: mediaUrl, media_kind: mediaKind || 'photo', kind: 'moment',
+  };
+  let res = await supabase.from('messages').insert(full)
+    .select('*, user:profiles(name, handle, avatar_url)').single();
+  // DB without the moment columns yet → send the caption as a normal message
+  if (res.error && /media_url|media_kind|'kind'|column/i.test(res.error.message || '')) {
+    res = await supabase.from('messages')
+      .insert({ squad_id: squadId || null, dm_thread_id: dmThreadId || null, user_id: userId, body })
+      .select('*, user:profiles(name, handle, avatar_url)').single();
+  }
+  if (res.error) throw res.error;
+  return res.data;
+}
+
+/* Snapchat-style streak: consecutive days on which BOTH people sent at
+   least one Moment. Computed purely from the loaded chat messages (local
+   shape: { userId, createdAt, kind, mediaUrl }) — real, no separate
+   counter to drift out of sync. The streak stays "alive" through today
+   even before today's moment lands; it breaks once a full day is missed. */
+export function computeStreak(messages, myId, peerId) {
+  if (!myId || !peerId) return 0;
+  const key = (t) => { const x = new Date(t); return x.getFullYear() + '-' + x.getMonth() + '-' + x.getDate(); };
+  const byDay = {}; // dayKey → { me:bool, peer:bool }
+  (messages || []).forEach((m) => {
+    const isMoment = m.kind === 'moment' || !!m.mediaUrl;
+    const when = m.createdAt || m.created_at;
+    if (!isMoment || !when) return;
+    const k = key(when);
+    if (!byDay[k]) byDay[k] = { me: false, peer: false };
+    if (m.userId === myId) byDay[k].me = true;
+    else if (m.userId === peerId) byDay[k].peer = true;
+  });
+  const MS = 86400000;
+  const now = Date.now();
+  const bothToday = byDay[key(now)] && byDay[key(now)].me && byDay[key(now)].peer;
+  const start = bothToday ? now : now - MS; // yesterday still counts as alive
+  let streak = 0;
+  for (let i = 0; i < 3650; i++) {
+    const d = byDay[key(start - i * MS)];
+    if (d && d.me && d.peer) streak++;
+    else break;
+  }
+  return streak;
+}
+
 export function subscribeMessages({ squadId, dmThreadId }, onInsert) {
   const filter = squadId ? 'squad_id=eq.' + squadId : 'dm_thread_id=eq.' + dmThreadId;
   const channel = supabase

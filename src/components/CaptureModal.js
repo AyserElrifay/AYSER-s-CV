@@ -28,7 +28,21 @@ import { sfxPop, sfxSuccess } from '../utils/sfx';
 
 const MAX_VIDEO_MS = 30000;
 
-export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPostedStory }) => {
+/* Real filters — each is a CSS filter string applied LIVE in the
+   viewfinder/preview and, for photos, actually BAKED into the pixels of
+   the file we upload (not just a cosmetic overlay). */
+const FILTERS = [
+  { id: 'none',  label: 'Original', emoji: '🎞️', css: '' },
+  { id: 'vivid', label: 'Vivid',    emoji: '🌈', css: 'saturate(1.55) contrast(1.08)' },
+  { id: 'warm',  label: 'Warm',     emoji: '🌅', css: 'saturate(1.3) sepia(0.18) brightness(1.05)' },
+  { id: 'cool',  label: 'Cool',     emoji: '❄️', css: 'saturate(1.2) hue-rotate(-14deg) brightness(1.03)' },
+  { id: 'retro', label: 'Retro',    emoji: '📻', css: 'sepia(0.5) contrast(1.1) saturate(1.25)' },
+  { id: 'bw',    label: 'B&W',      emoji: '🖤', css: 'grayscale(1) contrast(1.12)' },
+  { id: 'dream', label: 'Dream',    emoji: '💭', css: 'saturate(1.3) brightness(1.12) blur(0.5px)' },
+  { id: 'noir',  label: 'Noir',     emoji: '🎥', css: 'grayscale(1) brightness(0.9) contrast(1.4)' },
+];
+
+export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPostedStory, sendMode = false, sendToName, onMoment }) => {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [mode, setMode] = useState(initialMode); // 'story' | 'reel'
@@ -41,6 +55,21 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
   const [caption, setCaption] = useState('');
   const [busy, setBusy] = useState(false);
   const [hubOpen, setHubOpen] = useState(false);
+
+  // ── real filters + light edit (brightness / contrast / warmth) ──
+  const [filterId, setFilterId] = useState('none');
+  const [bright, setBright] = useState(1);    // 0.7 … 1.3
+  const [contrast, setContrast] = useState(1); // 0.7 … 1.3
+  const [warmth, setWarmth] = useState(0);     // -20 … 20 (deg hue toward warm)
+  const [editOpen, setEditOpen] = useState(false);
+  const cssFilter = (() => {
+    const base = (FILTERS.find((f) => f.id === filterId) || {}).css || '';
+    const edits = [];
+    if (bright !== 1) edits.push('brightness(' + bright.toFixed(2) + ')');
+    if (contrast !== 1) edits.push('contrast(' + contrast.toFixed(2) + ')');
+    if (warmth !== 0) edits.push('sepia(' + Math.min(0.6, Math.abs(warmth) / 40).toFixed(2) + ')' + (warmth < 0 ? ' hue-rotate(180deg)' : ''));
+    return [base, ...edits].filter(Boolean).join(' ') || 'none';
+  })();
   const [realTracks, setRealTracks] = useState([]); // real playable Hub tracks
 
   // story-only interactive stickers — poll or ask-a-question
@@ -224,15 +253,63 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
     }
   };
 
+  /* Bake the chosen filter into a photo's actual pixels (web) so the
+     uploaded file really carries the look — honest, not a preview trick.
+     Videos can't be re-encoded here, so their filter stays live-preview
+     only and we upload the original. */
+  const bakeFilter = (uri, filter) => new Promise((resolve) => {
+    try {
+      const img = new window.Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.naturalWidth || img.width;
+          canvas.height = img.naturalHeight || img.height;
+          const ctx = canvas.getContext('2d');
+          ctx.filter = filter;
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL('image/jpeg', 0.95));
+        } catch (e) { resolve(uri); }
+      };
+      img.onerror = () => resolve(uri);
+      img.src = uri;
+    } catch (e) { resolve(uri); }
+  });
+
   /* ── share ── */
   const share = async () => {
     if (!shot || busy) return;
     setBusy(true);
+    // bake the filter into the photo's real pixels before uploading
+    let workingShot = shot;
+    if (isWeb && shot.kind === 'photo' && cssFilter && cssFilter !== 'none') {
+      const baked = await bakeFilter(shot.uri, cssFilter);
+      workingShot = { ...shot, uri: baked };
+    }
     try {
+      // ── Moment mode: send the snap straight into a chat ──
+      if (sendMode) {
+        let mediaUrl = workingShot.uri;
+        if (SUPABASE_READY && user) {
+          mediaUrl = isWeb
+            ? await uploadCapture(user.id, workingShot.uri, workingShot.ext, workingShot.contentType)
+            : await uploadMedia(user.id, workingShot.uri);
+        }
+        onMoment && (await onMoment({
+          mediaUrl,
+          mediaKind: workingShot.kind === 'video' ? 'video' : 'photo',
+          caption: caption.trim(),
+          sound,
+        }));
+        tapSuccess(); sfxSuccess();
+        onClose();
+        return;
+      }
       if (SUPABASE_READY && user) {
         const mediaUrl = isWeb
-          ? await uploadCapture(user.id, shot.uri, shot.ext, shot.contentType)
-          : await uploadMedia(user.id, shot.uri);
+          ? await uploadCapture(user.id, workingShot.uri, workingShot.ext, workingShot.contentType)
+          : await uploadMedia(user.id, workingShot.uri);
         if (mode === 'story') {
           const sticker = stickerType === 'poll' && pollQ.trim() && pollA.trim() && pollB.trim()
             ? { type: 'poll', data: { question: pollQ.trim(), options: [pollA.trim(), pollB.trim()] } }
@@ -262,9 +339,9 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
         }
       } else {
         // demo mode — local only
-        if (mode === 'story') onPostedStory && onPostedStory({ user: { id: 'me', name: 'You', avatar: AV_NEUTRAL }, media: shot.uri, sound, caption: caption.trim() || null });
-        else if (mode === 'video') onPosted && onPosted({ id: 'local-' + Date.now(), type: 'vod', media_url: shot.uri, caption: caption.trim() || '🎬 Video', user: { name: 'You', avatar_url: AV_NEUTRAL } });
-        else onPosted && onPosted({ id: 'local-' + Date.now(), user: { name: 'You', avatar: AV_NEUTRAL, verified: false }, type: 'reel', media: shot.uri, caption: caption.trim() || '🎬', place: 'Right here', startsIn: 'Live now', coords: ME.coords, sound, vibes: 0, comments: 0, squad: 'New Vibe Squad' });
+        if (mode === 'story') onPostedStory && onPostedStory({ user: { id: 'me', name: 'You', avatar: AV_NEUTRAL }, media: workingShot.uri, sound, caption: caption.trim() || null });
+        else if (mode === 'video') onPosted && onPosted({ id: 'local-' + Date.now(), type: 'vod', media_url: workingShot.uri, caption: caption.trim() || '🎬 Video', user: { name: 'You', avatar_url: AV_NEUTRAL } });
+        else onPosted && onPosted({ id: 'local-' + Date.now(), user: { name: 'You', avatar: AV_NEUTRAL, verified: false }, type: 'reel', media: workingShot.uri, caption: caption.trim() || '🎬', place: 'Right here', startsIn: 'Live now', coords: ME.coords, sound, vibes: 0, comments: 0, squad: 'New Vibe Squad' });
       }
       tapSuccess(); sfxSuccess();
       onClose();
@@ -310,7 +387,10 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
         {/* ── viewfinder / preview ── */}
         {shot ? (
           shot.kind === 'video' && isWeb ? (
-            <video src={shot.uri} autoPlay loop playsInline style={{ position: 'absolute', width: '100%', height: '100%', objectFit: 'cover' }} />
+            <video src={shot.uri} autoPlay loop playsInline style={{ position: 'absolute', width: '100%', height: '100%', objectFit: 'cover', filter: cssFilter }} />
+          ) : isWeb ? (
+            // raw <img> so the chosen filter shows LIVE in the preview
+            <img src={shot.uri} style={{ position: 'absolute', width: '100%', height: '100%', objectFit: 'cover', filter: cssFilter }} alt="" />
           ) : (
             <Image source={{ uri: shot.uri }} style={{ position: 'absolute', width: '100%', height: '100%' }} resizeMode="cover" />
           )
@@ -320,7 +400,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
             autoPlay
             muted
             playsInline
-            style={{ position: 'absolute', width: '100%', height: '100%', objectFit: 'cover', transform: facing === 'user' ? 'scaleX(-1)' : 'none' }}
+            style={{ position: 'absolute', width: '100%', height: '100%', objectFit: 'cover', filter: cssFilter, transform: facing === 'user' ? 'scaleX(-1)' : 'none' }}
           />
         ) : (
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
@@ -419,7 +499,17 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
                 </View>
               ) : null}
 
-              {/* mode switch */}
+              {/* mode switch — hidden when sending a Moment into a chat */}
+              {sendMode ? (
+                <View style={{ alignItems: 'center' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(244,63,94,0.9)', borderRadius: 999, paddingHorizontal: 16, paddingVertical: 8 }}>
+                    <Text style={{ fontSize: 14 }}>🔥</Text>
+                    <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '900', marginLeft: 6 }}>
+                      Moment{sendToName ? ' → ' + sendToName : ''}
+                    </Text>
+                  </View>
+                </View>
+              ) : (
               <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
                 {['story', 'reel', 'video'].map((m) => (
                   <Pressable key={m} onPress={() => { tapLight(); setMode(m); }} style={{ marginHorizontal: 12 }}>
@@ -430,15 +520,67 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
                   </Pressable>
                 ))}
               </View>
+              )}
             </>
           ) : (
-            /* ── preview: song rail + caption + share — an uploaded
-               photo gets its music right here ── */
+            /* ── preview: filters · light edit · song rail · caption ── */
             <View>
+              {/* real filters — tap to try, baked into the photo on send */}
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 14, marginBottom: 10 }}>
+                <Pressable onPress={() => { tapLight(); setEditOpen((v) => !v); }}>
+                  <View style={{ alignItems: 'center', justifyContent: 'center', marginRight: 10, width: 58 }}>
+                    <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: editOpen ? '#FFF' : 'rgba(255,255,255,0.16)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.4)', alignItems: 'center', justifyContent: 'center' }}>
+                      <Ionicons name="options-outline" size={20} color={editOpen ? C.purple : '#FFF'} />
+                    </View>
+                    <Text style={{ color: '#FFF', fontSize: 10, fontWeight: '800', marginTop: 4 }}>Edit</Text>
+                  </View>
+                </Pressable>
+                {FILTERS.map((f) => {
+                  const on = filterId === f.id;
+                  return (
+                    <Pressable key={f.id} onPress={() => { tapLight(); sfxPop(); setFilterId(f.id); }}>
+                      <View style={{ alignItems: 'center', marginRight: 10, width: 58 }}>
+                        <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: on ? '#FFF' : 'rgba(255,255,255,0.16)', borderWidth: on ? 2 : 1, borderColor: on ? C.gold : 'rgba(255,255,255,0.4)', alignItems: 'center', justifyContent: 'center' }}>
+                          <Text style={{ fontSize: 20 }}>{f.emoji}</Text>
+                        </View>
+                        <Text style={{ color: on ? C.gold : '#FFF', fontSize: 10, fontWeight: on ? '900' : '800', marginTop: 4 }} numberOfLines={1}>{f.label}</Text>
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+
+              {/* light edit — brightness · contrast · warmth (real, baked) */}
+              {editOpen ? (
+                <View style={{ marginHorizontal: 14, marginBottom: 10, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)', padding: 12 }}>
+                  {[
+                    { label: '☀️ Brightness', val: bright, set: setBright, min: 0.7, max: 1.3, step: 0.05 },
+                    { label: '◐ Contrast', val: contrast, set: setContrast, min: 0.7, max: 1.3, step: 0.05 },
+                    { label: '🔥 Warmth', val: warmth, set: setWarmth, min: -20, max: 20, step: 4 },
+                  ].map((row) => (
+                    <View key={row.label} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                      <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '700', width: 110 }}>{row.label}</Text>
+                      <Pressable onPress={() => { tapLight(); row.set(Math.max(row.min, Math.round((row.val - row.step) * 100) / 100)); }} hitSlop={8} style={{ width: 34, height: 30, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.16)', alignItems: 'center', justifyContent: 'center' }}>
+                        <Ionicons name="remove" size={16} color="#FFF" />
+                      </Pressable>
+                      <View style={{ flex: 1, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.2)', marginHorizontal: 8, overflow: 'hidden' }}>
+                        <View style={{ height: 4, backgroundColor: C.gold, width: (((row.val - row.min) / (row.max - row.min)) * 100) + '%' }} />
+                      </View>
+                      <Pressable onPress={() => { tapLight(); row.set(Math.min(row.max, Math.round((row.val + row.step) * 100) / 100)); }} hitSlop={8} style={{ width: 34, height: 30, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.16)', alignItems: 'center', justifyContent: 'center' }}>
+                        <Ionicons name="add" size={16} color="#FFF" />
+                      </Pressable>
+                    </View>
+                  ))}
+                  <Pressable onPress={() => { tapLight(); setBright(1); setContrast(1); setWarmth(0); setFilterId('none'); }} style={{ alignSelf: 'flex-end', marginTop: 2 }}>
+                    <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 11, fontWeight: '800' }}>Reset ↺</Text>
+                  </Pressable>
+                </View>
+              ) : null}
+
               {mode !== 'video' ? soundRail : null}
               <View style={{ paddingHorizontal: 16 }}>
               {/* story-only: add a Poll or an Ask-me-anything sticker */}
-              {mode === 'story' ? (
+              {mode === 'story' && !sendMode ? (
                 <View style={{ marginBottom: 12 }}>
                   <View style={{ flexDirection: 'row' }}>
                     {[{ k: 'poll', label: '📊 Poll' }, { k: 'question', label: '❓ Ask' }].map((o) => {
@@ -480,7 +622,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 22, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', paddingHorizontal: 14, paddingVertical: Platform.OS === 'ios' ? 12 : 4, marginRight: 10 }}>
                   <TextInput
-                    placeholder={mode === 'story' ? 'Say something… (optional)' : mode === 'video' ? 'Title your video…' : 'Caption your reel…'}
+                    placeholder={sendMode ? 'Add a caption… (optional)' : mode === 'story' ? 'Say something… (optional)' : mode === 'video' ? 'Title your video…' : 'Caption your reel…'}
                     placeholderTextColor="rgba(255,255,255,0.55)"
                     value={caption}
                     onChangeText={setCaption}
@@ -489,8 +631,8 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
                 </View>
                 <Pressable onPress={share} disabled={busy}>
                   <LinearGradient colors={[C.purple, '#5B21B6']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, paddingHorizontal: 20, paddingVertical: 13, opacity: busy ? 0.6 : 1 }}>
-                    <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '900' }}>{busy ? 'Sharing…' : mode === 'story' ? 'Add to Story' : mode === 'video' ? 'Post Video' : 'Post Reel'}</Text>
-                    <MaterialCommunityIcons name="star-four-points" size={15} color={C.gold} style={{ marginLeft: 6 }} />
+                    <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '900' }}>{busy ? 'Sending…' : sendMode ? 'Send Moment 🔥' : mode === 'story' ? 'Add to Story' : mode === 'video' ? 'Post Video' : 'Post Reel'}</Text>
+                    {sendMode ? null : <MaterialCommunityIcons name="star-four-points" size={15} color={C.gold} style={{ marginLeft: 6 }} />}
                   </LinearGradient>
                 </Pressable>
               </View>

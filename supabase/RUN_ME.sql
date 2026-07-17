@@ -575,6 +575,15 @@ alter table public.profiles add column if not exists avatar_dna       text;
 alter table public.profiles add column if not exists last_active_at   timestamptz;
 alter table public.profiles add column if not exists cover_url        text;
 
+-- ═══════════════ MOMENTS IN CHAT (streaks) ═══════════════
+-- Send each other photo/video "Moments" right inside a chat, like
+-- Snapchat streaks. A moment is a normal message row with media
+-- attached and kind='moment'. body stays NOT NULL (holds the caption
+-- or a 🔥 fallback), so nothing about existing chat breaks.
+alter table public.messages add column if not exists media_url  text;
+alter table public.messages add column if not exists media_kind text;   -- 'photo' | 'video'
+alter table public.messages add column if not exists kind       text default 'text'; -- 'text' | 'moment'
+
 -- PostgREST caches the schema — reload it so the new columns are
 -- visible to the app immediately, no waiting.
 notify pgrst, 'reload schema';
