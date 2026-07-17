@@ -45,7 +45,8 @@ export function mountGlobe3D(container, { onDive } = {}) {
   let THREE, renderer, scene, camera, earth, clouds, atmosphere, raf, stars;
   let visible = false, disposed = false;
   let dragging = false, lastX = 0, lastY = 0, velX = 0.0015, velY = 0;
-  let moved = 0;
+  let moved = 0, diving = false;
+  const REST_Z = 3.05; // camera distance at rest
 
   loadThree().then((T) => {
     if (!T || disposed) return;
@@ -159,8 +160,33 @@ export function mountGlobe3D(container, { onDive } = {}) {
     container.style.opacity = visible ? '1' : '0';
   }
 
+  /* Zoom THROUGH the planet: dolly the camera in toward the surface with
+     an ease-out, then hand off to the flat map (cb). The overlay is left
+     zoomed-in and fades away, so it reads as diving into the world —
+     matching the globe→map transition the design asks for. */
+  function diveIn(cb) {
+    if (!camera || diving || disposed) { cb && cb(); return; }
+    diving = true;
+    const startZ = camera.position.z;
+    const endZ = 1.04;
+    const t0 = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+    const dur = 820;
+    const ease = (t) => 1 - Math.pow(1 - t, 3); // easeOutCubic
+    const step = () => {
+      if (disposed) { diving = false; cb && cb(); return; }
+      const now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+      const t = Math.min(1, (now - t0) / dur);
+      camera.position.z = startZ + (endZ - startZ) * ease(t);
+      if (earth) earth.rotation.y += 0.003;
+      if (t < 1) requestAnimationFrame(step);
+      else { diving = false; cb && cb(); } // camera stays zoomed; overlay fades
+    };
+    requestAnimationFrame(step);
+  }
+
   return {
-    setVisible(v) { visible = v; applyVisible(); },
+    setVisible(v) { visible = v; if (v && camera) camera.position.z = REST_Z; applyVisible(); },
+    diveIn,
     resize() {
       if (!renderer || !camera) return;
       const w = container.clientWidth || window.innerWidth;

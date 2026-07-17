@@ -56,9 +56,16 @@ function injectMapStyle() {
     .leaflet-marker-icon, .leaflet-tile, .leaflet-map-pane { will-change: transform; }
     .leaflet-zoom-anim .leaflet-zoom-animated { transition-timing-function: cubic-bezier(0.22, 0.8, 0.32, 1); }
     .mm-dark .leaflet-container, .leaflet-container.mm-dark { background: #0c1626; }
-    /* cartoon pop on the real street tiles — juicy but easy on the eyes */
-    .mm-tiles { filter: saturate(1.35) contrast(1.0) brightness(1.06); }
-    .mm-dark .mm-tiles { filter: saturate(1.1) contrast(1.02) brightness(1.0); }
+    /* Snapchat-cartoon pop on the real street tiles — vivid, joyful and
+       smooth: candy saturation, a touch of warmth, gently softened so
+       roads/land read like a drawn map rather than a photo. */
+    .mm-tiles {
+      filter: saturate(1.62) contrast(1.03) brightness(1.09) hue-rotate(-4deg);
+      image-rendering: auto;
+    }
+    .mm-dark .mm-tiles { filter: saturate(1.28) contrast(1.05) brightness(1.02); }
+    /* fade tiles in as they load so the map assembles smoothly, not in a snap */
+    .mm-tiles.leaflet-tile { transition: opacity 0.45s ease; }
     /* our own country names — every country identical styling, so no
        country (incl. Israel & Palestine) is visually favoured. */
     .mm-country {
@@ -97,7 +104,7 @@ function injectMapStyle() {
     .mm-globe3d {
       position: absolute; inset: 0; z-index: 460;
       background: radial-gradient(120% 120% at 50% 40%, #0a1226 0%, #04060d 70%);
-      opacity: 0; transition: opacity 0.5s ease; pointer-events: none;
+      opacity: 0; transition: opacity 0.65s ease; pointer-events: none;
     }
     /* region names flip to light ink on the dark planet */
     .mm-dark .mm-region { color: rgba(226,232,240,0.74); text-shadow: 0 1px 3px rgba(0,0,0,0.9); }
@@ -284,7 +291,17 @@ export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus
           const c = centerRef.current || {};
           const lat = c.latitude != null ? c.latitude : 26;
           const lng = c.longitude != null ? c.longitude : 30;
-          map.flyTo([lat, lng], 6, { duration: 1.8 });
+          const g = globe3dRef.current;
+          // zoom THROUGH the planet, then let the flat map fly the rest of
+          // the way in — one continuous zoom from space to the street
+          if (g && g.diveIn) {
+            g.diveIn(() => {
+              g.setVisible(false);
+              map.flyTo([lat, lng], 7, { duration: 1.5, easeLinearity: 0.12 });
+            });
+          } else {
+            map.flyTo([lat, lng], 6, { duration: 1.8 });
+          }
         },
       });
       globe3dRef.current = globe3d;
