@@ -6,12 +6,13 @@ import { C } from '../constants/theme';
 import { SQUADS, DMS, LANG_PARTNERS } from '../constants/mockData'; // demo-mode fallback only
 import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
+import { usePresence } from '../context/PresenceContext';
 import { fetchMyDmThreads, fetchMySquads, createSquad, leaveSquad, addSquadMember, fetchDmStreaks } from '../services/messages';
 import { fetchIncomingRequests, acceptRequest, fetchMyMates } from '../services/mates';
 import { getProfile, updateProfile } from '../services/profiles';
 import { AV_NEUTRAL } from '../constants/mockData';
 import { fetchLanguagePartners, searchProfiles } from '../services/social';
-import { Page, ScreenHeader, SectionHeader, Glass, Chip, Tick, AvatarStack, StreakBadge } from '../components';
+import { Page, ScreenHeader, SectionHeader, Glass, Chip, Tick, AvatarStack, StreakBadge, OnlineDot } from '../components';
 import { ChatThread } from './ChatThread';
 import { tapLight } from '../utils/feedback';
 
@@ -32,6 +33,7 @@ const timeAgo = (iso) => {
 export const ChatsScreen = () => {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { isOnline } = usePresence(); // real-time — a live Supabase Presence connection
   const [thread, setThread] = useState(null); // { chat, group }
   const [composing, setComposing] = useState(false); // new-message search sheet
   const [composeQ, setComposeQ] = useState('');
@@ -166,7 +168,7 @@ export const ChatsScreen = () => {
 
   const squads = SUPABASE_READY ? realSquads : SQUADS;
   const dms = SUPABASE_READY
-    ? realDms.map((d) => ({ id: d.threadId, threadId: d.threadId, user: { name: d.user.name, avatar: d.user.avatar_url, verified: d.user.verified }, last: d.last, time: timeAgo(d.time), unread: 0, translated: false }))
+    ? realDms.map((d) => ({ id: d.threadId, threadId: d.threadId, user: { id: d.user.id, name: d.user.name, avatar: d.user.avatar_url, verified: d.user.verified }, last: d.last, time: timeAgo(d.time), unread: 0, translated: false }))
     : DMS;
   const myFlag = user && user.country_flag;
   const partners = SUPABASE_READY
@@ -235,7 +237,7 @@ export const ChatsScreen = () => {
             >
               <View>
                 <Image source={{ uri: m.avatar_url || AV_NEUTRAL }} style={{ width: 56, height: 56, borderRadius: 28, borderWidth: 2, borderColor: C.purple }} />
-                {m.country_flag ? (
+                {isOnline(m.id) ? <OnlineDot size={15} /> : m.country_flag ? (
                   <View style={{ position: 'absolute', bottom: -2, right: -3, backgroundColor: '#FFF', borderRadius: 8, paddingHorizontal: 2 }}>
                     <Text style={{ fontSize: 11 }}>{m.country_flag}</Text>
                   </View>
@@ -417,7 +419,10 @@ export const ChatsScreen = () => {
     {dms.length ? dms.map((d) => (
       <Pressable key={d.id} onPress={() => { tapLight(); setThread({ chat: d, group: false }); }}>
         <Glass style={{ padding: 12, marginBottom: 10, flexDirection: 'row', alignItems: 'center' }}>
-          <Image source={{ uri: d.user.avatar }} style={{ width: 46, height: 46, borderRadius: 23 }} />
+          <View>
+            <Image source={{ uri: d.user.avatar }} style={{ width: 46, height: 46, borderRadius: 23 }} />
+            {d.user.id && isOnline(d.user.id) ? <OnlineDot /> : null}
+          </View>
           <View style={{ flex: 1, marginLeft: 12 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }} numberOfLines={1}>{d.user.name}</Text>

@@ -25,6 +25,7 @@ import { C } from './src/constants/theme';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { LanguageProvider } from './src/context/LanguageContext';
 import { PlayerProvider } from './src/context/PlayerContext';
+import { PresenceProvider } from './src/context/PresenceContext';
 import { AuthScreen } from './src/screens/AuthScreen';
 import { TabNavigator, NavTheme } from './src/navigation/TabNavigator';
 import { MiniPlayer } from './src/components/MiniPlayer';
@@ -55,10 +56,12 @@ export default function App() {
     <SafeAreaProvider>
       <LanguageProvider>
         <AuthProvider>
-          <PlayerProvider>
-            <StatusBar style="dark" />
-            <Root />
-          </PlayerProvider>
+          <PresenceProvider>
+            <PlayerProvider>
+              <StatusBar style="dark" />
+              <Root />
+            </PlayerProvider>
+          </PresenceProvider>
         </AuthProvider>
       </LanguageProvider>
     </SafeAreaProvider>

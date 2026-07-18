@@ -6,6 +6,7 @@ import { C } from '../constants/theme';
 import { AV_NEUTRAL } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
+import { usePresence } from '../context/PresenceContext';
 import { getOrCreateDmThread, fetchMessages, sendMessage, sendMoment, subscribeMessages, getThreadTtl, setThreadTtl, sweepExpired, streakInfo } from '../services/messages';
 import { StreakBadge } from '../components/StreakBadge';
 import { getProfile } from '../services/profiles';
@@ -13,6 +14,7 @@ import { TruthOrDare } from '../components/TruthOrDare';
 import { WouldYouRather } from '../components/WouldYouRather';
 import { CallScreen } from '../components/CallScreen';
 import { CaptureModal } from '../components/CaptureModal';
+import { OnlineDot } from '../components/OnlineDot';
 import { tapLight, tapMedium } from '../utils/feedback';
 import { sfxPop } from '../utils/sfx';
 
@@ -61,8 +63,12 @@ export const ChatThread = ({ chat, group, onClose }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [peer && peer.id, isReal]);
 
+  // real-time presence beats the stale last_active_at poll whenever it's live
+  const { isOnline } = usePresence();
+  const peerOnlineNow = !group && peer && peer.id && isOnline(peer.id);
   const activeLabel = (() => {
     if (group) return chat.members ? chat.members.length + ' mates' : 'Group chat';
+    if (peerOnlineNow) return '🟢 Online now';
     if (!peerActive) return '';
     const min = Math.floor((Date.now() - new Date(peerActive)) / 60000);
     if (min < 3) return '🟢 Active now';
@@ -256,7 +262,10 @@ export const ChatThread = ({ chat, group, onClose }) => {
               <Text style={{ fontSize: 20 }}>{chat.emoji}</Text>
             </View>
           ) : (
-            <Image source={{ uri: avatarUri }} style={{ width: 40, height: 40, borderRadius: 20 }} />
+            <View>
+              <Image source={{ uri: avatarUri }} style={{ width: 40, height: 40, borderRadius: 20 }} />
+              {peerOnlineNow ? <OnlineDot size={11} ring={1.5} /> : null}
+            </View>
           )}
           <View style={{ flex: 1, marginLeft: 10 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>

@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { C } from '../constants/theme';
 import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
+import { usePresence } from '../context/PresenceContext';
 import { fetchMyPosts } from '../services/posts';
 import { getProfile } from '../services/profiles';
 import { getMateStatus, mateUp, countMates } from '../services/mates';
@@ -52,6 +53,8 @@ export const ProfileModal = ({ user, onClose }) => {
 
   const real = SUPABASE_READY && me && user && user.id && String(user.id).length > 20; // uuid = real account
   const isMe = me && user && user.id === me.id;
+  const { isOnline } = usePresence();
+  const onlineNow = real && !isMe && isOnline(user.id);
 
   const [fullProfile, setFullProfile] = useState(null); // hydrated row (hobbies, bio…)
 
@@ -142,6 +145,12 @@ export const ProfileModal = ({ user, onClose }) => {
               {user.verified ? <Tick size={17} /> : null}
               {user.countryFlag ? <Text style={{ fontSize: 18, marginLeft: 7 }}>{user.countryFlag}</Text> : null}
             </View>
+            {onlineNow ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: C.green, marginRight: 6 }} />
+                <Text style={{ color: C.green, fontSize: 12, fontWeight: '800' }}>Online now</Text>
+              </View>
+            ) : null}
             {user.handle ? <Text style={{ color: C.dim, fontSize: 13, marginTop: 2 }}>{user.handle}</Text> : null}
             {(user.bio || (fullProfile && fullProfile.bio)) ? (
               <Text style={{ color: C.text, fontSize: 14, lineHeight: 21, marginTop: 12 }}>{user.bio || fullProfile.bio}</Text>

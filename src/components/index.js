@@ -42,3 +42,4 @@ export { BoostSheet } from './BoostSheet';
 export { BookingSheet } from './BookingSheet';
 export { LeafletMap } from './LeafletMap';
 export { MusicHubSheet } from './MusicHubSheet';
+export { OnlineDot } from './OnlineDot';
