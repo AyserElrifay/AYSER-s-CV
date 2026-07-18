@@ -1,0 +1,912 @@
+<style>
+  :root {
+    --bg: #fbfbfa;
+    --surface: #ffffff;
+    --surface-2: #f6f5f3;
+    --text: #37352f;
+    --muted: #8a877f;
+    --border: #eceae6;
+    --border-strong: #e0ddd7;
+    --accent: #2e7cf6;
+    --accent-soft: #eaf1fe;
+    --ok: #12a150;
+    --ok-soft: #e7f6ee;
+    --warn: #d98a0b;
+    --warn-soft: #fbf1dc;
+    --sold: #9b9992;
+    --sold-soft: #efedea;
+    --danger: #e5484d;
+    --shadow: 0 1px 2px rgba(15,15,15,.04), 0 2px 6px rgba(15,15,15,.04);
+    --shadow-pop: 0 8px 30px rgba(15,15,15,.10);
+    --radius: 12px;
+    --sans: "Segoe UI", system-ui, -apple-system, "Noto Sans Arabic", "Noto Kufi Arabic", "Tahoma", sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1a1a19; --surface: #232322; --surface-2: #2a2a28;
+      --text: #ececea; --muted: #9a978f; --border: #333230; --border-strong: #3d3c39;
+      --accent: #5b9bff; --accent-soft: #1e2a3d;
+      --ok: #35c07a; --ok-soft: #16281f; --warn: #e0a13a; --warn-soft: #2c2313;
+      --sold: #77756e; --sold-soft: #2a2a28; --danger: #f06a6f;
+      --shadow: 0 1px 2px rgba(0,0,0,.3); --shadow-pop: 0 8px 30px rgba(0,0,0,.5);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #1a1a19; --surface: #232322; --surface-2: #2a2a28;
+    --text: #ececea; --muted: #9a978f; --border: #333230; --border-strong: #3d3c39;
+    --accent: #5b9bff; --accent-soft: #1e2a3d;
+    --ok: #35c07a; --ok-soft: #16281f; --warn: #e0a13a; --warn-soft: #2c2313;
+    --sold: #77756e; --sold-soft: #2a2a28; --danger: #f06a6f;
+    --shadow: 0 1px 2px rgba(0,0,0,.3); --shadow-pop: 0 8px 30px rgba(0,0,0,.5);
+  }
+  :root[data-theme="light"] {
+    --bg: #fbfbfa; --surface: #ffffff; --surface-2: #f6f5f3;
+    --text: #37352f; --muted: #8a877f; --border: #eceae6; --border-strong: #e0ddd7;
+    --accent: #2e7cf6; --accent-soft: #eaf1fe;
+    --ok: #12a150; --ok-soft: #e7f6ee; --warn: #d98a0b; --warn-soft: #fbf1dc;
+    --sold: #9b9992; --sold-soft: #efedea; --danger: #e5484d;
+    --shadow: 0 1px 2px rgba(15,15,15,.04), 0 2px 6px rgba(15,15,15,.04); --shadow-pop: 0 8px 30px rgba(15,15,15,.10);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: var(--sans); direction: rtl;
+    -webkit-font-smoothing: antialiased; line-height: 1.5;
+    font-size: 14px;
+  }
+  button { font-family: inherit; cursor: pointer; }
+  input, select, textarea { font-family: inherit; font-size: 14px; }
+  a { color: inherit; }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 10px; border: 3px solid transparent; background-clip: content-box; }
+  .tnum { font-variant-numeric: tabular-nums; }
+
+  /* Layout */
+  .app { display: flex; min-height: 100vh; }
+  .sidebar {
+    width: 258px; flex-shrink: 0; background: var(--surface-2);
+    border-inline-start: 1px solid var(--border); position: sticky; top: 0; height: 100vh;
+    display: flex; flex-direction: column; padding: 14px 12px;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; padding: 6px 8px 14px; }
+  .brand-mark { width: 34px; height: 34px; border-radius: 9px; background: var(--accent); color: #fff; display: grid; place-items: center; font-weight: 800; font-size: 17px; }
+  .brand-name { font-weight: 700; font-size: 15px; }
+  .brand-sub { font-size: 11px; color: var(--muted); }
+  .nav { display: flex; flex-direction: column; gap: 2px; margin-top: 4px; }
+  .nav-label { font-size: 11px; color: var(--muted); padding: 8px 8px 4px; font-weight: 600; letter-spacing: .02em; }
+  .nav-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; color: var(--muted); text-decoration: none; font-size: 13.5px; border: none; background: none; width: 100%; text-align: start; transition: background .12s, color .12s; }
+  .nav-item:hover { background: var(--surface); color: var(--text); }
+  .nav-item.active { background: var(--surface); color: var(--text); font-weight: 600; box-shadow: var(--shadow); }
+  .nav-item.active svg { color: var(--accent); }
+  .nav-item svg { width: 18px; height: 18px; flex-shrink: 0; }
+  [data-icon] { display: inline-flex; }
+  .sidebar-foot { margin-top: auto; display: flex; flex-direction: column; gap: 6px; }
+  .sb-user { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+  .avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--surface-2); display: grid; place-items: center; font-size: 12px; font-weight: 600; flex-shrink: 0; }
+
+  .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .topbar { position: sticky; top: 0; z-index: 20; background: color-mix(in srgb, var(--bg) 85%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--border); padding: 12px 24px; display: flex; align-items: center; gap: 14px; }
+  .topbar h1 { font-size: 17px; margin: 0; font-weight: 650; }
+  .topbar .sub { font-size: 12.5px; color: var(--muted); }
+  .top-actions { margin-inline-start: auto; display: flex; align-items: center; gap: 8px; }
+  .content { padding: 22px 24px 60px; }
+
+  /* Buttons */
+  .btn { display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 14px; border-radius: 9px; border: 1px solid transparent; font-size: 13.5px; font-weight: 550; background: var(--accent); color: #fff; transition: opacity .12s, background .12s; }
+  .btn:hover { opacity: .92; }
+  .btn svg { width: 16px; height: 16px; }
+  .btn.sm { height: 32px; padding: 0 11px; font-size: 12.5px; }
+  .btn.outline { background: var(--surface); color: var(--text); border-color: var(--border-strong); }
+  .btn.outline:hover { background: var(--surface-2); opacity: 1; }
+  .btn.ghost { background: none; color: var(--muted); }
+  .btn.ghost:hover { background: var(--surface-2); color: var(--text); }
+  .btn.danger { background: none; color: var(--danger); border-color: transparent; }
+  .btn.danger:hover { background: var(--danger); color: #fff; }
+  .icon-btn { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 9px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--muted); }
+  .icon-btn:hover { color: var(--text); background: var(--surface-2); }
+  .icon-btn svg { width: 18px; height: 18px; }
+
+  /* Cards & grids */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
+  .grid { display: grid; gap: 12px; }
+  .kpis { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+  .kpi { padding: 15px 16px; }
+  .kpi .lbl { font-size: 12.5px; color: var(--muted); display: flex; justify-content: space-between; align-items: center; }
+  .kpi .lbl svg { width: 17px; height: 17px; color: var(--muted); }
+  .kpi .val { font-size: 25px; font-weight: 700; margin-top: 7px; }
+  .kpi .hint { font-size: 11.5px; color: var(--muted); margin-top: 3px; }
+  .kpi .hint.up { color: var(--ok); }
+
+  .section-title { font-size: 15px; font-weight: 650; margin: 26px 0 12px; }
+
+  /* Badges / chips */
+  .badge { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 550; }
+  .badge.ok { background: var(--ok-soft); color: var(--ok); }
+  .badge.warn { background: var(--warn-soft); color: var(--warn); }
+  .badge.sold { background: var(--sold-soft); color: var(--sold); }
+  .badge.outline { border: 1px solid var(--border-strong); color: var(--muted); }
+  .chip { border: 1px solid var(--border-strong); background: var(--surface); color: var(--muted); padding: 6px 12px; border-radius: 999px; font-size: 12.5px; transition: .12s; }
+  .chip:hover { color: var(--text); background: var(--surface-2); }
+  .chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  /* Empty state */
+  .empty { text-align: center; padding: 54px 20px; border: 1px dashed var(--border-strong); border-radius: var(--radius); background: var(--surface); }
+  .empty .em-ic { width: 52px; height: 52px; border-radius: 14px; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; margin: 0 auto 14px; }
+  .empty .em-ic svg { width: 26px; height: 26px; }
+  .empty h3 { margin: 0 0 6px; font-size: 16px; }
+  .empty p { margin: 0 auto 16px; color: var(--muted); max-width: 380px; font-size: 13px; }
+
+  /* Table */
+  .tbl-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  thead { background: var(--surface-2); }
+  th { text-align: start; font-weight: 600; font-size: 12px; color: var(--muted); padding: 11px 14px; white-space: nowrap; }
+  td { padding: 12px 14px; border-top: 1px solid var(--border); }
+  tbody tr:hover { background: var(--surface-2); }
+
+  /* Company cards */
+  .co-card { padding: 18px; border-radius: var(--radius); background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow); position: relative; overflow: hidden; }
+  .co-top { display: flex; align-items: flex-start; justify-content: space-between; }
+  .co-logo { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 17px; }
+  .co-stats { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-top: 16px; text-align: center; }
+  .co-stat { background: var(--surface-2); border-radius: 9px; padding: 9px 4px; }
+  .co-stat .n { font-size: 16px; font-weight: 700; }
+  .co-stat .l { font-size: 11px; color: var(--muted); }
+
+  /* Unit cards */
+  .units-grid { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); }
+  .unit { border-radius: var(--radius); border: 1px solid var(--border); background: var(--surface); box-shadow: var(--shadow); overflow: hidden; transition: box-shadow .15s; }
+  .unit:hover { box-shadow: var(--shadow-pop); }
+  .unit.sold { opacity: .62; }
+  .unit-media { height: 96px; display: flex; align-items: flex-end; justify-content: space-between; padding: 10px 12px; position: relative; }
+  .unit-body { padding: 13px 14px; }
+  .unit-title { font-weight: 650; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .unit-meta { font-size: 11.5px; color: var(--muted); margin-top: 3px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .unit-price { font-size: 15.5px; font-weight: 700; }
+
+  /* Kanban */
+  .board { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 8px; }
+  .col { width: 264px; flex-shrink: 0; display: flex; flex-direction: column; }
+  .col-head { display: flex; align-items: center; gap: 8px; padding: 2px 4px 8px; }
+  .col-dot { width: 9px; height: 9px; border-radius: 50%; }
+  .col-name { font-size: 13px; font-weight: 650; }
+  .col-count { background: var(--surface-2); color: var(--muted); border-radius: 999px; padding: 0 7px; font-size: 11px; font-weight: 600; }
+  .col-body { flex: 1; min-height: 120px; background: var(--surface-2); border: 1px solid transparent; border-radius: 12px; padding: 8px; display: flex; flex-direction: column; gap: 8px; transition: .12s; }
+  .col-body.drag-over { border-color: var(--accent); background: var(--accent-soft); }
+  .lead { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 11px 12px; box-shadow: var(--shadow); cursor: grab; }
+  .lead:active { cursor: grabbing; }
+  .lead.dragging { opacity: .4; }
+  .lead-name { font-weight: 600; font-size: 13.5px; }
+  .lead-sub { font-size: 11.5px; color: var(--muted); margin-top: 2px; display: flex; align-items: center; gap: 5px; }
+  .lead-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 9px; }
+  .q { padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+  .col-add { border: none; background: none; color: var(--muted); font-size: 12px; padding: 7px; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 4px; }
+  .col-add:hover { background: var(--surface); color: var(--text); }
+
+  /* Filters bar */
+  .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 16px 22px; padding: 12px 14px; }
+  .fgroup { display: flex; align-items: center; gap: 8px; }
+  .fgroup > span { font-size: 12px; font-weight: 600; color: var(--muted); }
+  .fchips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .divider-v { width: 1px; height: 22px; background: var(--border); }
+
+  /* Modal */
+  .overlay { position: fixed; inset: 0; background: rgba(20,20,19,.42); backdrop-filter: blur(2px); display: grid; place-items: center; z-index: 100; padding: 20px; opacity: 0; pointer-events: none; transition: opacity .15s; }
+  .overlay.open { opacity: 1; pointer-events: auto; }
+  .modal { width: 100%; max-width: 480px; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow-pop); max-height: 90vh; overflow-y: auto; transform: translateY(6px); transition: transform .15s; }
+  .overlay.open .modal { transform: none; }
+  .modal-head { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px; border-bottom: 1px solid var(--border); }
+  .modal-head h2 { margin: 0; font-size: 16px; }
+  .modal-body { padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; }
+  .modal-foot { padding: 14px 20px; border-top: 1px solid var(--border); display: flex; gap: 8px; justify-content: flex-start; }
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field label { font-size: 12.5px; font-weight: 600; color: var(--text); }
+  .field .req { color: var(--danger); }
+  .control { height: 38px; border: 1px solid var(--border-strong); background: var(--surface); border-radius: 9px; padding: 0 11px; color: var(--text); width: 100%; }
+  textarea.control { height: auto; padding: 9px 11px; resize: vertical; min-height: 64px; }
+  .control:focus, .chip:focus-visible, .btn:focus-visible, .nav-item:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .seg { display: flex; gap: 6px; flex-wrap: wrap; }
+  .seg-opt { flex: 1; min-width: 90px; border: 1px solid var(--border-strong); background: var(--surface); border-radius: 9px; padding: 8px; font-size: 12.5px; text-align: center; color: var(--muted); }
+  .seg-opt.on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+
+  .toast { position: fixed; inset-block-end: 22px; inset-inline-start: 50%; transform: translateX(50%) translateY(20px); background: var(--text); color: var(--bg); padding: 10px 18px; border-radius: 10px; font-size: 13px; box-shadow: var(--shadow-pop); opacity: 0; pointer-events: none; transition: .2s; z-index: 200; }
+  .toast.show { opacity: 1; transform: translateX(50%) translateY(0); }
+
+  .meter { display: flex; height: 8px; border-radius: 999px; overflow: hidden; background: var(--surface-2); }
+  .save-note { font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 5px; }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  @media (max-width: 720px) {
+    .sidebar { display: none; }
+    .content { padding: 16px; }
+    .topbar { padding: 12px 16px; }
+  }
+</style>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">ع</div>
+      <div>
+        <div class="brand-name">عقّار</div>
+        <div class="brand-sub">إدارة عملاء عقارية</div>
+      </div>
+    </div>
+    <nav class="nav" id="nav">
+      <div class="nav-label">الإدارة</div>
+      <button class="nav-item" data-view="dashboard"><span data-icon="grid"></span><span>لوحة التحكم</span></button>
+      <button class="nav-item" data-view="companies"><span data-icon="building"></span><span>الشركات</span></button>
+      <div class="nav-label">التنفيذ</div>
+      <button class="nav-item" data-view="inventory"><span data-icon="store"></span><span>سوق العقارات</span></button>
+      <button class="nav-item" data-view="leads"><span data-icon="kanban"></span><span>خط الأنابيب</span></button>
+    </nav>
+    <div class="sidebar-foot">
+      <button class="nav-item" id="themeBtn"><span data-icon="moon"></span><span>الوضع الليلي</span></button>
+      <button class="nav-item" id="dataBtn"><span data-icon="database"></span><span>بياناتي (تصدير/استيراد)</span></button>
+      <div class="sb-user">
+        <div class="avatar">أنا</div>
+        <div style="min-width:0;flex:1">
+          <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">حسابي</div>
+          <div style="font-size:11px;color:var(--muted)">مدير المنصة</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div>
+        <h1 id="viewTitle">لوحة التحكم</h1>
+        <div class="sub" id="viewSub">نظرة عامة على بياناتك</div>
+      </div>
+      <div class="top-actions" id="topActions"></div>
+    </header>
+    <main class="content" id="content"></main>
+  </div>
+</div>
+
+<div class="overlay" id="overlay"><div class="modal" id="modal"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ---------------------------------------------------------------
+   عقّار — تطبيق CRM عقاري قائم بذاته.
+   بياناتك حقيقية 100% وتُحفظ محلياً في متصفحك (localStorage).
+   يبدأ فارغاً — لا توجد أي بيانات وهمية.
+----------------------------------------------------------------*/
+
+/* ---- icon set: inline SVGs, no external requests ---- */
+function svg(inner){ return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${inner}</svg>`; }
+const I = {
+  grid: svg('<rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/>'),
+  building: svg('<rect x="4" y="3" width="16" height="18" rx="1"/><path d="M9 21v-4h6v4"/><path d="M8 7h1M12 7h1M16 7h1M8 11h1M12 11h1M16 11h1M8 15h1M16 15h1"/>'),
+  store: svg('<path d="M3 9l1.5-5h15L21 9"/><path d="M3 9a2 2 0 004 0 2 2 0 004 0 2 2 0 004 0 2 2 0 004 0"/><path d="M5 9v10h14V9"/><path d="M9 19v-6h6v6"/>'),
+  kanban: svg('<rect x="3" y="4" width="6" height="16" rx="1"/><rect x="9" y="4" width="6" height="10" rx="1"/><rect x="15" y="4" width="6" height="13" rx="1"/>'),
+  moon: svg('<path d="M20 14.5A8.5 8.5 0 1110 3.2 7 7 0 0020 14.5z"/>'),
+  sun: svg('<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4 12H2M22 12h-2M5 5l1.4 1.4M17.6 17.6L19 19M5 19l1.4-1.4M17.6 6.4L19 5"/>'),
+  database: svg('<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>'),
+  plus: svg('<path d="M12 5v14M5 12h14"/>'),
+  x: svg('<path d="M18 6L6 18M6 6l12 12"/>'),
+  trash: svg('<path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13h10l1-13"/><path d="M10 11v6M14 11v6"/>'),
+  edit: svg('<path d="M4 20h4l10.5-10.5a2.1 2.1 0 00-3-3L5 17v3z"/><path d="M13.5 6.5l3 3"/>'),
+  filter: svg('<path d="M4 5h16l-6.5 7.5V19l-3 1.5v-8z"/>'),
+  pin: svg('<path d="M12 21s7-6.6 7-11.5A7 7 0 105 9.5C5 14.4 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.3"/>'),
+  rocket: svg('<path d="M13.5 4c3 0 5.5 3 5.5 6.5S16 17 16 17l-4-1-1-4s3-8 2.5-8z"/><path d="M11 13l-4 1 1-4"/><path d="M8 16l-3 3M6.5 14.5S5 15 4.5 17 3 21 3 21s2.3-.6 3.5-1.5 2-3 2-3"/><circle cx="14" cy="9" r="1.3"/>'),
+  shield: svg('<path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z"/>'),
+  download: svg('<path d="M12 4v11"/><path d="M7 11l5 5 5-5"/><path d="M5 20h14"/>'),
+  upload: svg('<path d="M12 20V9"/><path d="M7 13l5-5 5 5"/><path d="M5 20h14"/>'),
+  users: svg('<circle cx="9" cy="8" r="3.2"/><path d="M2.5 20c0-3.5 3-6 6.5-6s6.5 2.5 6.5 6"/><circle cx="17" cy="8.5" r="2.6"/><path d="M16 14.3c2.7.6 4.5 2.7 4.5 5.7"/>'),
+  wallet: svg('<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/><circle cx="16.5" cy="14" r="1.2"/>'),
+  trend: svg('<path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/>'),
+  trophy: svg('<path d="M8 4h8v5a4 4 0 01-8 0V4z"/><path d="M8 5H5a3 3 0 003 3M16 5h3a3 3 0 01-3 3"/><path d="M10 15v2h4v-2"/><path d="M8 21h8"/><path d="M12 17v4"/>'),
+};
+function hydrateIcons(root=document){ root.querySelectorAll("[data-icon]").forEach(el=>{ const name=el.getAttribute("data-icon"); if(I[name]) el.innerHTML=I[name]; }); }
+
+const STORE_KEY = "aqar_crm_v1";
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+
+let state = load();
+function load() {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch (e) {}
+  return { companies: [], units: [], leads: [] };
+}
+function save() { localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
+
+/* ---- reference values (choices, not data) ---- */
+const CO_COLORS = ["#2e7cf6","#7c3aed","#0ea5a4","#f59e0b","#e5484d","#0f9d58","#db2777","#0891b2"];
+const UNIT_TYPES = ["شقة","تاون هاوس","توين هاوس","دوبلكس","فيلا","شاليه","تجاري","إداري"];
+const GRADS = ["linear-gradient(135deg,#dbeafe,#e0e7ff)","linear-gradient(135deg,#d1fae5,#ccfbf1)","linear-gradient(135deg,#fef3c7,#fed7aa)","linear-gradient(135deg,#fce7f3,#fbcfe8)","linear-gradient(135deg,#e0f2fe,#dbeafe)","linear-gradient(135deg,#ede9fe,#f3e8ff)"];
+const STAGES = [
+  { id:"new", name:"جديد", color:"#2e7cf6" },
+  { id:"contacted", name:"تم التواصل", color:"#7c3aed" },
+  { id:"qualified", name:"مؤهّل", color:"#0ea5a4" },
+  { id:"negotiation", name:"تفاوض", color:"#f59e0b" },
+  { id:"won", name:"تم البيع", color:"#0f9d58" },
+];
+const SOURCES = ["Facebook","Instagram","Google","واتساب","إحالة","معرض","اتصال مباشر","أخرى"];
+
+/* ---- format helpers ---- */
+const nf = new Intl.NumberFormat("en-US");
+function fmtNum(n){ return nf.format(Math.round(n||0)); }
+function fmtEGP(n){
+  n = Number(n)||0;
+  if (n >= 1e6) { const m = n/1e6; return (m%1===0?m:m.toFixed(1))+" مليون ج.م"; }
+  if (n >= 1000) return fmtNum(Math.round(n/1000))+" ألف ج.م";
+  return n ? fmtNum(n)+" ج.م" : "—";
+}
+function initials(s){ const p=(s||"").trim().split(/\s+/); return (p[0]?.[0]||"")+(p[1]?.[0]||""); }
+function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function coById(id){ return state.companies.find(c=>c.id===id); }
+function coColor(id){ const c=coById(id); return c?c.color:"#8a877f"; }
+function coName(id){ const c=coById(id); return c?c.name:"—"; }
+
+/* =====================================================================
+   ROUTER
+===================================================================== */
+const VIEWS = {
+  dashboard: { title:"لوحة التحكم", sub:"نظرة عامة على بياناتك", render: renderDashboard },
+  companies: { title:"الشركات", sub:"كل شركة تُدار بشكل منفصل", render: renderCompanies },
+  inventory: { title:"سوق العقارات", sub:"مخزونك العقاري وإتاحته", render: renderInventory },
+  leads: { title:"خط الأنابيب", sub:"عملاؤك — اسحب البطاقة بين المراحل", render: renderLeads },
+};
+let current = location.hash.replace("#/","") || "dashboard";
+if (!VIEWS[current]) current = "dashboard";
+
+function go(view){ current = view; location.hash = "#/"+view; paint(); }
+window.addEventListener("hashchange", () => {
+  const v = location.hash.replace("#/","") || "dashboard";
+  if (VIEWS[v] && v!==current){ current=v; paint(); }
+});
+
+function paint(){
+  const v = VIEWS[current];
+  document.getElementById("viewTitle").textContent = v.title;
+  document.getElementById("viewSub").textContent = v.sub;
+  document.querySelectorAll(".nav-item[data-view]").forEach(b => b.classList.toggle("active", b.dataset.view===current));
+  document.getElementById("content").innerHTML = v.render();
+  wireView();
+}
+
+/* =====================================================================
+   DASHBOARD
+===================================================================== */
+function renderDashboard(){
+  const { companies, units, leads } = state;
+  if (!companies.length && !units.length && !leads.length){
+    return emptyState(I.rocket, "ابدأ بإضافة بياناتك الحقيقية",
+      "التطبيق فارغ تماماً — لا توجد أي بيانات وهمية. أضف أول شركة لديك ثم مخزونها وعملاءها، وكل شيء يُحفظ في متصفحك.",
+      `<button class="btn" data-act="add-company">${I.plus} إضافة شركة</button>
+       <button class="btn outline" data-act="load-sample">تحميل بيانات مثال (اختياري)</button>`);
+  }
+  const avail = units.filter(u=>u.status==="available");
+  const reserved = units.filter(u=>u.status==="reserved");
+  const sold = units.filter(u=>u.status==="sold");
+  const invValue = avail.reduce((s,u)=>s+(Number(u.price)||0),0);
+  const pipeline = leads.filter(l=>l.stage!=="won").reduce((s,l)=>s+((Number(l.budgetMin)||0)+(Number(l.budgetMax)||0))/2,0);
+  const wonValue = leads.filter(l=>l.stage==="won").reduce((s,l)=>s+((Number(l.budgetMin)||0)+(Number(l.budgetMax)||0))/2,0);
+
+  const kpis = [
+    { ic:I.building, lbl:"الشركات", val:fmtNum(companies.length), hint:"مسجّلة لديك" },
+    { ic:I.store, lbl:"وحدات متاحة", val:fmtNum(avail.length), hint:`${fmtNum(reserved.length)} محجوزة · ${fmtNum(sold.length)} مباعة` },
+    { ic:I.wallet, lbl:"قيمة المخزون المتاح", val:fmtEGP(invValue), hint:"مجموع أسعار المتاح" },
+    { ic:I.users, lbl:"إجمالي العملاء", val:fmtNum(leads.length), hint:`${fmtNum(leads.filter(l=>l.stage==="won").length)} صفقة مغلقة` },
+    { ic:I.trend, lbl:"قيمة خط الأنابيب", val:fmtEGP(pipeline), hint:"عملاء قيد التفاوض", up:true },
+    { ic:I.trophy, lbl:"قيمة الصفقات المغلقة", val:fmtEGP(wonValue), hint:"تم البيع", up:true },
+  ];
+  let html = `<div class="grid kpis">${kpis.map(k=>`
+    <div class="card kpi">
+      <div class="lbl">${esc(k.lbl)} ${k.ic}</div>
+      <div class="val tnum">${k.val}</div>
+      <div class="hint ${k.up?"up":""}">${esc(k.hint)}</div>
+    </div>`).join("")}</div>`;
+
+  // Availability by area (real, from user's units)
+  if (units.length){
+    const byArea = {};
+    units.forEach(u=>{ const a=u.area||"غير محدّد"; (byArea[a]=byArea[a]||{a,total:0,available:0,reserved:0,sold:0}); byArea[a].total++; byArea[a][u.status]++; });
+    const areas = Object.values(byArea).sort((x,y)=>y.total-x.total);
+    html += `<div class="section-title">الإتاحة حسب المنطقة</div><div class="card" style="padding:16px 18px;display:flex;flex-direction:column;gap:13px">`;
+    areas.forEach(a=>{
+      const pct = n => (a.total? (n/a.total*100):0)+"%";
+      html += `<div>
+        <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:5px">
+          <span style="font-weight:600">${esc(a.a)}</span>
+          <span class="tnum" style="color:var(--muted)"><span style="color:var(--ok)">${a.available}</span> متاح · <span style="color:var(--warn)">${a.reserved}</span> محجوز · ${a.sold} مباع</span>
+        </div>
+        <div class="meter">
+          <div style="width:${pct(a.available)};background:var(--ok)"></div>
+          <div style="width:${pct(a.reserved)};background:var(--warn)"></div>
+          <div style="width:${pct(a.sold)};background:var(--sold)"></div>
+        </div>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  // Best sellers by type (from user's inventory)
+  if (units.length){
+    const byType = {};
+    units.forEach(u=>{ byType[u.type]=(byType[u.type]||0)+1; });
+    const total = units.length;
+    const rows = Object.entries(byType).sort((a,b)=>b[1]-a[1]);
+    const max = rows[0][1];
+    html += `<div class="section-title">توزيع المخزون حسب النوع</div><div class="card" style="padding:16px 18px;display:flex;flex-direction:column;gap:11px">`;
+    rows.forEach(([t,n])=>{
+      html += `<div style="display:flex;align-items:center;gap:12px">
+        <span style="width:88px;font-size:13px;font-weight:550">${esc(t)}</span>
+        <div class="meter" style="flex:1"><div style="width:${n/max*100}%;background:var(--accent)"></div></div>
+        <span class="tnum" style="width:70px;text-align:end;font-size:12.5px;color:var(--muted)">${n} (${Math.round(n/total*100)}%)</span>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+  return html;
+}
+
+/* =====================================================================
+   COMPANIES
+===================================================================== */
+function renderCompanies(){
+  if (!state.companies.length){
+    return emptyState(I.building, "لا توجد شركات بعد",
+      "أضف الشركات أو المطوّرين اللي بتديرهم. كل شركة بياناتها منفصلة.",
+      `<button class="btn" data-act="add-company">${I.plus} إضافة شركة</button>`);
+  }
+  const cards = state.companies.map(c=>{
+    const units = state.units.filter(u=>u.companyId===c.id);
+    const avail = units.filter(u=>u.status==="available").length;
+    const leads = state.leads.filter(l=>l.companyId===c.id).length;
+    return `<div class="co-card">
+      <div class="co-top">
+        <div style="display:flex;gap:12px;align-items:center">
+          <div class="co-logo" style="background:${c.color}">${esc(initials(c.name)||c.name[0])}</div>
+          <div>
+            <div style="font-weight:650">${esc(c.name)}</div>
+            <div style="font-size:12px;color:var(--muted)">${c.type==="developer"?"مطوّر عقاري":"وسيط/تسويق"}${c.area?" · "+esc(c.area):""}</div>
+          </div>
+        </div>
+        <button class="icon-btn" data-act="del-company" data-id="${c.id}" title="حذف">${I.trash}</button>
+      </div>
+      <div class="co-stats">
+        <div class="co-stat"><div class="n tnum">${units.length}</div><div class="l">وحدة</div></div>
+        <div class="co-stat"><div class="n tnum" style="color:var(--ok)">${avail}</div><div class="l">متاح</div></div>
+        <div class="co-stat"><div class="n tnum">${leads}</div><div class="l">عميل</div></div>
+      </div>
+    </div>`;
+  }).join("");
+  return `<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(280px,1fr))">${cards}
+    <button class="empty" data-act="add-company" style="cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:180px">
+      <div class="em-ic">${I.plus}</div>
+      <div style="font-weight:600">إضافة شركة</div>
+    </button></div>`;
+}
+
+/* =====================================================================
+   INVENTORY (Supermarket)
+===================================================================== */
+let invFilter = { type:"الكل", company:"الكل", status:"available" };
+function renderInventory(){
+  if (!state.companies.length){
+    return emptyState(I.store, "أضف شركة أولاً",
+      "المخزون العقاري لازم يكون تابع لشركة. أضف شركة ثم ابدأ بإضافة الوحدات.",
+      `<button class="btn" data-act="add-company">${I.plus} إضافة شركة</button>`);
+  }
+  if (!state.units.length){
+    return emptyState(I.store, "لا يوجد مخزون بعد",
+      "أضف الوحدات الحقيقية: المشروع، الكود، النوع، المساحة، السعر، والحالة (متاح/محجوز/مباع).",
+      `<button class="btn" data-act="add-unit">${I.plus} إضافة وحدة</button>`);
+  }
+  const types = ["الكل", ...UNIT_TYPES.filter(t=>state.units.some(u=>u.type===t))];
+  const companies = ["الكل", ...state.companies.map(c=>c.name)];
+  const statuses = [["available","المتاح"],["all","الكل"],["reserved","المحجوز"],["sold","المباع"]];
+
+  let list = state.units.filter(u=>
+    (invFilter.type==="الكل"||u.type===invFilter.type) &&
+    (invFilter.company==="الكل"||coName(u.companyId)===invFilter.company) &&
+    (invFilter.status==="all"||u.status===invFilter.status)
+  );
+  const av = state.units.filter(u=>u.status==="available").length;
+  const rv = state.units.filter(u=>u.status==="reserved").length;
+  const sl = state.units.filter(u=>u.status==="sold").length;
+
+  let html = `<div class="card bar" style="margin-bottom:14px">
+    <div style="display:flex;gap:18px;font-size:12.5px;align-items:center">
+      <span style="color:var(--muted)">متاح <b class="tnum" style="color:var(--ok)">${av}</b></span>
+      <span style="color:var(--muted)">محجوز <b class="tnum" style="color:var(--warn)">${rv}</b></span>
+      <span style="color:var(--muted)">مباع <b class="tnum">${sl}</b></span>
+    </div>
+  </div>`;
+
+  html += `<div class="card bar" style="margin-bottom:14px">
+    <div class="fgroup"><span>النوع</span><div class="fchips">${types.map(t=>`<button class="chip ${invFilter.type===t?"on":""}" data-f="type" data-v="${esc(t)}">${esc(t)}</button>`).join("")}</div></div>
+    <div class="divider-v"></div>
+    <div class="fgroup"><span>الحالة</span><div class="fchips">${statuses.map(([v,l])=>`<button class="chip ${invFilter.status===v?"on":""}" data-f="status" data-v="${v}">${esc(l)}</button>`).join("")}</div></div>
+    ${state.companies.length>1?`<div class="divider-v"></div><div class="fgroup"><span>الشركة</span><div class="fchips">${companies.map(c=>`<button class="chip ${invFilter.company===c?"on":""}" data-f="company" data-v="${esc(c)}">${esc(c)}</button>`).join("")}</div></div>`:""}
+    <span style="margin-inline-start:auto;font-size:12px;color:var(--muted)" class="tnum">${list.length} وحدة</span>
+  </div>`;
+
+  if (!list.length){
+    html += `<div class="empty"><div class="em-ic">${I.filter}</div><h3>لا نتائج</h3><p>لا توجد وحدات مطابقة للفلترة الحالية.</p></div>`;
+    return html;
+  }
+
+  html += `<div class="grid units-grid">${list.map((u,i)=>{
+    const badge = u.status==="sold"?`<span class="badge sold" style="position:absolute;inset-inline-start:10px;top:10px">مباعة</span>`
+      : u.status==="reserved"?`<span class="badge warn" style="position:absolute;inset-inline-start:10px;top:10px">محجوزة</span>`:"";
+    return `<div class="unit ${u.status==="sold"?"sold":""}">
+      <div class="unit-media" style="background:${GRADS[i%GRADS.length]}">
+        <span class="badge" style="position:absolute;inset-inline-end:10px;top:10px;background:rgba(255,255,255,.85);color:#37352f">${esc(u.type)}</span>
+        ${badge}
+        <span style="font-size:12px;font-weight:600;color:#37352f;opacity:.75">${esc(u.code||"")}</span>
+      </div>
+      <div class="unit-body">
+        <div class="unit-title">${esc(u.project||"—")}</div>
+        <div class="unit-meta">
+          <span>${I.pin} ${esc(u.area||"—")}</span>
+          <span style="width:9px;height:9px;border-radius:2px;background:${coColor(u.companyId)};align-self:center"></span>${esc(coName(u.companyId))}
+        </div>
+        <div class="unit-meta">
+          ${u.sqm?`<span>${esc(u.sqm)} م²</span>`:""}
+          ${u.bedrooms?`<span>${esc(u.bedrooms)} غرف</span>`:""}
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:11px">
+          <div class="unit-price tnum">${fmtEGP(u.price)}</div>
+          <div style="display:flex;gap:4px">
+            <button class="icon-btn" style="width:30px;height:30px" data-act="edit-unit" data-id="${u.id}" title="تعديل">${I.edit}</button>
+            <button class="icon-btn" style="width:30px;height:30px" data-act="del-unit" data-id="${u.id}" title="حذف">${I.trash}</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }).join("")}</div>`;
+  return html;
+}
+
+/* =====================================================================
+   LEADS (Kanban)
+===================================================================== */
+function renderLeads(){
+  if (!state.companies.length){
+    return emptyState(I.kanban, "أضف شركة أولاً",
+      "العملاء لازم يكونوا تابعين لشركة. أضف شركة ثم ابدأ بإضافة العملاء.",
+      `<button class="btn" data-act="add-company">${I.plus} إضافة شركة</button>`);
+  }
+  const board = STAGES.map(st=>{
+    const items = state.leads.filter(l=>l.stage===st.id);
+    const val = items.reduce((s,l)=>s+((Number(l.budgetMin)||0)+(Number(l.budgetMax)||0))/2,0);
+    return `<div class="col">
+      <div class="col-head">
+        <span class="col-dot" style="background:${st.color}"></span>
+        <span class="col-name">${st.name}</span>
+        <span class="col-count tnum">${items.length}</span>
+        <span style="margin-inline-start:auto;font-size:11px;color:var(--muted)" class="tnum">${val?fmtEGP(val):""}</span>
+      </div>
+      <div class="col-body" data-stage="${st.id}">
+        ${items.map(l=>leadCard(l)).join("")}
+        <button class="col-add" data-act="add-lead" data-stage="${st.id}">${I.plus} إضافة</button>
+      </div>
+    </div>`;
+  }).join("");
+  return `<div class="board">${board}</div>`;
+}
+function leadCard(l){
+  const q = Number(l.quality)||0;
+  const qStyle = q>=80?"background:var(--ok-soft);color:var(--ok)":q>=60?"background:var(--warn-soft);color:var(--warn)":"background:var(--surface-2);color:var(--muted)";
+  const budget = (l.budgetMin||l.budgetMax)?`${fmtEGP(l.budgetMin)} – ${fmtEGP(l.budgetMax)}`:"";
+  return `<div class="lead" draggable="true" data-id="${l.id}">
+    <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start">
+      <div style="min-width:0">
+        <div class="lead-name">${esc(l.name)}</div>
+        <div class="lead-sub">${I.pin} ${esc(l.area||"—")}</div>
+      </div>
+      ${q?`<span class="q tnum" style="${qStyle}">${q}</span>`:""}
+    </div>
+    ${budget?`<div style="font-size:12px;font-weight:600;margin-top:7px" class="tnum">${budget}</div>`:""}
+    <div class="lead-foot">
+      <span class="badge outline">${esc(l.source||"—")}</span>
+      <div style="display:flex;gap:3px">
+        <button class="icon-btn" style="width:28px;height:28px;border:none;background:none" data-act="edit-lead" data-id="${l.id}" title="تعديل">${I.edit}</button>
+        <button class="icon-btn" style="width:28px;height:28px;border:none;background:none" data-act="del-lead" data-id="${l.id}" title="حذف">${I.trash}</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* =====================================================================
+   SHARED UI
+===================================================================== */
+function emptyState(icon, title, body, actions){
+  return `<div class="empty"><div class="em-ic">${icon}</div><h3>${esc(title)}</h3><p>${esc(body)}</p>
+    <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">${actions||""}</div></div>`;
+}
+
+function topActionsFor(view){
+  const a = {
+    dashboard: `<button class="btn outline sm" data-act="add-company">${I.plus} شركة</button><button class="btn sm" data-act="add-lead">${I.plus} عميل</button>`,
+    companies: `<button class="btn sm" data-act="add-company">${I.plus} إضافة شركة</button>`,
+    inventory: `<button class="btn sm" data-act="add-unit">${I.plus} إضافة وحدة</button>`,
+    leads: `<button class="btn sm" data-act="add-lead">${I.plus} إضافة عميل</button>`,
+  };
+  return a[view]||"";
+}
+
+/* =====================================================================
+   EVENT WIRING
+===================================================================== */
+function wireView(){
+  document.getElementById("topActions").innerHTML = topActionsFor(current);
+
+  // filters
+  document.querySelectorAll("[data-f]").forEach(b=>b.onclick=()=>{
+    invFilter[b.dataset.f]=b.dataset.v; paint();
+  });
+
+  // Kanban drag & drop
+  document.querySelectorAll(".lead[draggable]").forEach(card=>{
+    card.addEventListener("dragstart", e=>{ e.dataTransfer.setData("id", card.dataset.id); card.classList.add("dragging"); });
+    card.addEventListener("dragend", ()=> card.classList.remove("dragging"));
+  });
+  document.querySelectorAll(".col-body").forEach(col=>{
+    col.addEventListener("dragover", e=>{ e.preventDefault(); col.classList.add("drag-over"); });
+    col.addEventListener("dragleave", ()=> col.classList.remove("drag-over"));
+    col.addEventListener("drop", e=>{
+      e.preventDefault(); col.classList.remove("drag-over");
+      const id=e.dataTransfer.getData("id"); const lead=state.leads.find(l=>l.id===id);
+      if (lead && lead.stage!==col.dataset.stage){ lead.stage=col.dataset.stage; save(); paint(); }
+    });
+  });
+}
+
+// Global click delegation for all [data-act]
+document.addEventListener("click", e=>{
+  const el = e.target.closest("[data-act]");
+  if (!el) return;
+  const act = el.dataset.act, id = el.dataset.id, stage = el.dataset.stage;
+  if (act==="add-company") return openCompanyForm();
+  if (act==="del-company") return delCompany(id);
+  if (act==="add-unit") return openUnitForm();
+  if (act==="edit-unit") return openUnitForm(id);
+  if (act==="del-unit") return confirmDel("unit", id, "حذف هذه الوحدة؟");
+  if (act==="add-lead") return openLeadForm(null, stage);
+  if (act==="edit-lead") return openLeadForm(id);
+  if (act==="del-lead") return confirmDel("lead", id, "حذف هذا العميل؟");
+  if (act==="load-sample") return loadSample();
+  if (act==="close-modal") return closeModal();
+});
+
+// nav
+document.querySelectorAll(".nav-item[data-view]").forEach(b=> b.onclick=()=>go(b.dataset.view));
+
+/* =====================================================================
+   FORMS (Modals)
+===================================================================== */
+const overlay = document.getElementById("overlay");
+const modal = document.getElementById("modal");
+overlay.addEventListener("click", e=>{ if(e.target===overlay) closeModal(); });
+document.addEventListener("keydown", e=>{ if(e.key==="Escape") closeModal(); });
+function openModal(html){ modal.innerHTML=html; overlay.classList.add("open"); const f=modal.querySelector("input,select,textarea"); if(f) setTimeout(()=>f.focus(),50); }
+function closeModal(){ overlay.classList.remove("open"); }
+
+function areaDatalist(){
+  const areas = [...new Set(state.units.map(u=>u.area).concat(state.leads.map(l=>l.area)).filter(Boolean))];
+  return `<datalist id="areasDL">${areas.map(a=>`<option value="${esc(a)}">`).join("")}</datalist>`;
+}
+function companyOptions(sel){
+  return state.companies.map(c=>`<option value="${c.id}" ${c.id===sel?"selected":""}>${esc(c.name)}</option>`).join("");
+}
+
+/* ---- Company ---- */
+function openCompanyForm(){
+  openModal(`
+    <div class="modal-head"><h2>إضافة شركة</h2><button class="icon-btn" data-act="close-modal">${I.x}</button></div>
+    <form id="frm" class="modal-body">
+      <div class="field"><label>اسم الشركة <span class="req">*</span></label><input class="control" name="name" required placeholder="مثال: النور للتطوير العقاري"></div>
+      <div class="field"><label>النوع</label>
+        <div class="seg" id="coType">
+          <div class="seg-opt on" data-v="developer">مطوّر عقاري</div>
+          <div class="seg-opt" data-v="brokerage">وسيط / تسويق</div>
+        </div>
+      </div>
+      <div class="field"><label>المنطقة / النشاط</label><input class="control" name="area" placeholder="اختياري — مثال: التجمع الخامس"></div>
+    </form>
+    <div class="modal-foot">
+      <button class="btn" id="saveBtn">حفظ الشركة</button>
+      <button class="btn ghost" data-act="close-modal">إلغاء</button>
+    </div>`);
+  let type="developer";
+  modal.querySelectorAll("#coType .seg-opt").forEach(o=>o.onclick=()=>{ type=o.dataset.v; modal.querySelectorAll("#coType .seg-opt").forEach(x=>x.classList.toggle("on",x===o)); });
+  modal.querySelector("#saveBtn").onclick=()=>{
+    const f=modal.querySelector("#frm"); if(!f.name.value.trim()) return f.name.focus();
+    state.companies.push({ id:uid(), name:f.name.value.trim(), type, area:f.area.value.trim(), color:CO_COLORS[state.companies.length%CO_COLORS.length], createdAt:Date.now() });
+    save(); closeModal(); paint(); toast("تم حفظ الشركة");
+  };
+}
+function delCompany(id){
+  const c=coById(id); const nU=state.units.filter(u=>u.companyId===id).length, nL=state.leads.filter(l=>l.companyId===id).length;
+  confirmAction(`حذف «${c.name}»؟`, nU||nL?`سيُحذف أيضاً ${nU} وحدة و${nL} عميل تابعين لها.`:"لا توجد بيانات تابعة لها.", ()=>{
+    state.companies=state.companies.filter(c=>c.id!==id);
+    state.units=state.units.filter(u=>u.companyId!==id);
+    state.leads=state.leads.filter(l=>l.companyId!==id);
+    save(); paint(); toast("تم الحذف");
+  });
+}
+
+/* ---- Unit ---- */
+function openUnitForm(id){
+  const u = id? state.units.find(x=>x.id===id) : null;
+  if (!state.companies.length) return toast("أضف شركة أولاً");
+  openModal(`
+    <div class="modal-head"><h2>${u?"تعديل وحدة":"إضافة وحدة"}</h2><button class="icon-btn" data-act="close-modal">${I.x}</button></div>
+    ${areaDatalist()}
+    <form id="frm" class="modal-body">
+      <div class="field"><label>الشركة / المطوّر <span class="req">*</span></label><select class="control" name="companyId">${companyOptions(u?u.companyId:"")}</select></div>
+      <div class="row2">
+        <div class="field"><label>المشروع</label><input class="control" name="project" value="${u?esc(u.project):""}" placeholder="اسم الكمبوند"></div>
+        <div class="field"><label>كود الوحدة</label><input class="control" name="code" value="${u?esc(u.code):""}" placeholder="A-101"></div>
+      </div>
+      <div class="field"><label>النوع</label><select class="control" name="type">${UNIT_TYPES.map(t=>`<option ${u&&u.type===t?"selected":""}>${t}</option>`).join("")}</select></div>
+      <div class="row2">
+        <div class="field"><label>المساحة (م²)</label><input class="control" name="sqm" type="number" min="0" value="${u?esc(u.sqm):""}"></div>
+        <div class="field"><label>عدد الغرف</label><input class="control" name="bedrooms" type="number" min="0" value="${u?esc(u.bedrooms):""}"></div>
+      </div>
+      <div class="field"><label>المنطقة</label><input class="control" name="area" list="areasDL" value="${u?esc(u.area):""}" placeholder="مثال: الشيخ زايد"></div>
+      <div class="field"><label>السعر (ج.م) <span class="req">*</span></label><input class="control" name="price" type="number" min="0" required value="${u?esc(u.price):""}" placeholder="3500000"></div>
+      <div class="field"><label>الحالة</label>
+        <div class="seg" id="uStatus">
+          <div class="seg-opt ${!u||u.status==="available"?"on":""}" data-v="available">متاحة</div>
+          <div class="seg-opt ${u&&u.status==="reserved"?"on":""}" data-v="reserved">محجوزة</div>
+          <div class="seg-opt ${u&&u.status==="sold"?"on":""}" data-v="sold">مباعة</div>
+        </div>
+      </div>
+    </form>
+    <div class="modal-foot"><button class="btn" id="saveBtn">${u?"حفظ التعديل":"حفظ الوحدة"}</button><button class="btn ghost" data-act="close-modal">إلغاء</button></div>`);
+  let status = u?u.status:"available";
+  modal.querySelectorAll("#uStatus .seg-opt").forEach(o=>o.onclick=()=>{ status=o.dataset.v; modal.querySelectorAll("#uStatus .seg-opt").forEach(x=>x.classList.toggle("on",x===o)); });
+  modal.querySelector("#saveBtn").onclick=()=>{
+    const f=modal.querySelector("#frm");
+    if(!f.price.value) return f.price.focus();
+    const data={ companyId:f.companyId.value, project:f.project.value.trim(), code:f.code.value.trim(), type:f.type.value,
+      sqm:+f.sqm.value||0, bedrooms:+f.bedrooms.value||0, area:f.area.value.trim(), price:+f.price.value||0, status };
+    if (u){ Object.assign(u,data); } else { state.units.push({ id:uid(), ...data, createdAt:Date.now() }); }
+    save(); closeModal(); paint(); toast(u?"تم حفظ التعديل":"تمت إضافة الوحدة");
+  };
+}
+
+/* ---- Lead ---- */
+function openLeadForm(id, presetStage){
+  const l = id? state.leads.find(x=>x.id===id) : null;
+  if (!state.companies.length) return toast("أضف شركة أولاً");
+  openModal(`
+    <div class="modal-head"><h2>${l?"تعديل عميل":"إضافة عميل"}</h2><button class="icon-btn" data-act="close-modal">${I.x}</button></div>
+    ${areaDatalist()}
+    <form id="frm" class="modal-body">
+      <div class="row2">
+        <div class="field"><label>الاسم <span class="req">*</span></label><input class="control" name="name" required value="${l?esc(l.name):""}" placeholder="اسم العميل"></div>
+        <div class="field"><label>الهاتف</label><input class="control" name="phone" dir="ltr" value="${l?esc(l.phone):""}" placeholder="+2010..."></div>
+      </div>
+      <div class="field"><label>الشركة <span class="req">*</span></label><select class="control" name="companyId">${companyOptions(l?l.companyId:"")}</select></div>
+      <div class="row2">
+        <div class="field"><label>الميزانية من</label><input class="control" name="budgetMin" type="number" min="0" value="${l?esc(l.budgetMin):""}" placeholder="2000000"></div>
+        <div class="field"><label>الميزانية إلى</label><input class="control" name="budgetMax" type="number" min="0" value="${l?esc(l.budgetMax):""}" placeholder="3000000"></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>المنطقة</label><input class="control" name="area" list="areasDL" value="${l?esc(l.area):""}" placeholder="المنطقة المهتم بها"></div>
+        <div class="field"><label>المصدر</label><select class="control" name="source">${SOURCES.map(s=>`<option ${l&&l.source===s?"selected":""}>${s}</option>`).join("")}</select></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>المرحلة</label><select class="control" name="stage">${STAGES.map(s=>`<option value="${s.id}" ${(l?l.stage:presetStage||"new")===s.id?"selected":""}>${s.name}</option>`).join("")}</select></div>
+        <div class="field"><label>الجودة (0-100)</label><input class="control" name="quality" type="number" min="0" max="100" value="${l?esc(l.quality):""}" placeholder="اختياري"></div>
+      </div>
+      <div class="field"><label>ملاحظة</label><textarea class="control" name="note" placeholder="ملاحظات المكالمة...">${l?esc(l.note):""}</textarea></div>
+    </form>
+    <div class="modal-foot"><button class="btn" id="saveBtn">${l?"حفظ التعديل":"حفظ العميل"}</button><button class="btn ghost" data-act="close-modal">إلغاء</button></div>`);
+  modal.querySelector("#saveBtn").onclick=()=>{
+    const f=modal.querySelector("#frm");
+    if(!f.name.value.trim()) return f.name.focus();
+    const data={ name:f.name.value.trim(), phone:f.phone.value.trim(), companyId:f.companyId.value,
+      budgetMin:+f.budgetMin.value||0, budgetMax:+f.budgetMax.value||0, area:f.area.value.trim(),
+      source:f.source.value, stage:f.stage.value, quality:+f.quality.value||0, note:f.note.value.trim() };
+    if (l){ Object.assign(l,data); } else { state.leads.push({ id:uid(), ...data, createdAt:Date.now() }); }
+    save(); closeModal(); paint(); toast(l?"تم حفظ التعديل":"تمت إضافة العميل");
+  };
+}
+
+/* ---- delete / confirm ---- */
+function confirmDel(kind, id, msg){
+  confirmAction(msg, "لا يمكن التراجع.", ()=>{
+    if(kind==="unit") state.units=state.units.filter(x=>x.id!==id);
+    if(kind==="lead") state.leads=state.leads.filter(x=>x.id!==id);
+    save(); paint(); toast("تم الحذف");
+  });
+}
+function confirmAction(title, body, onYes){
+  openModal(`<div class="modal-head"><h2>${esc(title)}</h2></div>
+    <div class="modal-body"><p style="margin:0;color:var(--muted)">${esc(body)}</p></div>
+    <div class="modal-foot"><button class="btn danger" id="yes" style="border-color:var(--danger)">نعم، احذف</button><button class="btn ghost" data-act="close-modal">إلغاء</button></div>`);
+  modal.querySelector("#yes").onclick=()=>{ onYes(); closeModal(); };
+}
+
+/* =====================================================================
+   DATA MENU (export / import / clear) + THEME
+===================================================================== */
+document.getElementById("themeBtn").onclick = toggleTheme;
+function toggleTheme(){
+  const root=document.documentElement;
+  const isDark = (root.getAttribute("data-theme")||"") === "dark" || (!root.getAttribute("data-theme") && matchMedia("(prefers-color-scheme: dark)").matches);
+  root.setAttribute("data-theme", isDark?"light":"dark");
+  localStorage.setItem("aqar_theme", isDark?"light":"dark");
+  updateThemeLabel();
+}
+function updateThemeLabel(){
+  const root=document.documentElement;
+  const isDark = (root.getAttribute("data-theme")||"") === "dark" || (!root.getAttribute("data-theme") && matchMedia("(prefers-color-scheme: dark)").matches);
+  const btn=document.getElementById("themeBtn");
+  btn.innerHTML = (isDark?I.sun:I.moon)+`<span>${isDark?"الوضع النهاري":"الوضع الليلي"}</span>`;
+}
+(function initTheme(){ const t=localStorage.getItem("aqar_theme"); if(t) document.documentElement.setAttribute("data-theme",t); })();
+
+document.getElementById("dataBtn").onclick = ()=>{
+  const count = state.companies.length+state.units.length+state.leads.length;
+  openModal(`<div class="modal-head"><h2>بياناتي</h2><button class="icon-btn" data-act="close-modal">${I.x}</button></div>
+    <div class="modal-body">
+      <div class="save-note">${I.shield} بياناتك محفوظة في هذا المتصفح فقط. صدّرها لعمل نسخة احتياطية أو نقلها لجهاز آخر.</div>
+      <div style="background:var(--surface-2);border-radius:10px;padding:12px 14px;font-size:13px" class="tnum">
+        ${state.companies.length} شركة · ${state.units.length} وحدة · ${state.leads.length} عميل
+      </div>
+      <button class="btn outline" id="exportBtn">${I.download} تصدير نسخة (JSON)</button>
+      <label class="btn outline" style="cursor:pointer">${I.upload} استيراد نسخة<input type="file" id="importFile" accept="application/json" hidden></label>
+      <button class="btn danger" id="clearBtn" style="border-color:var(--danger)">${I.trash} مسح كل البيانات</button>
+    </div>`);
+  modal.querySelector("#exportBtn").onclick=exportData;
+  modal.querySelector("#importFile").onchange=importData;
+  modal.querySelector("#clearBtn").onclick=()=>confirmAction("مسح كل البيانات؟","سيُحذف كل ما أدخلته نهائياً من هذا المتصفح.",()=>{ state={companies:[],units:[],leads:[]}; save(); paint(); toast("تم مسح البيانات"); });
+};
+function exportData(){
+  const blob=new Blob([JSON.stringify(state,null,2)],{type:"application/json"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
+  a.download=`aqar-crm-${new Date().toISOString().slice(0,10)}.json`; a.click();
+  toast("تم تصدير نسختك");
+}
+function importData(e){
+  const file=e.target.files[0]; if(!file) return;
+  const r=new FileReader();
+  r.onload=()=>{ try{ const d=JSON.parse(r.result);
+    if(d && Array.isArray(d.companies)){ state={companies:d.companies||[],units:d.units||[],leads:d.leads||[]}; save(); closeModal(); paint(); toast("تم استيراد بياناتك"); }
+    else toast("ملف غير صالح");
+  }catch(err){ toast("تعذّر قراءة الملف"); } };
+  r.readAsText(file);
+}
+
+/* ---- optional sample (clearly labeled, one-click clear) ---- */
+function loadSample(){
+  const c1={id:uid(),name:"النور للتطوير العقاري",type:"developer",area:"التجمع الخامس",color:CO_COLORS[0],createdAt:Date.now()};
+  const c2={id:uid(),name:"أفق للتسويق",type:"brokerage",area:"الشيخ زايد",color:CO_COLORS[1],createdAt:Date.now()};
+  state.companies.push(c1,c2);
+  state.units.push(
+    {id:uid(),companyId:c1.id,project:"النور بارك",code:"A-101",type:"شقة",sqm:140,bedrooms:3,area:"التجمع الخامس",price:3500000,status:"available",createdAt:Date.now()},
+    {id:uid(),companyId:c1.id,project:"النور بارك",code:"V-01",type:"فيلا",sqm:320,bedrooms:5,area:"التجمع الخامس",price:6800000,status:"reserved",createdAt:Date.now()},
+    {id:uid(),companyId:c2.id,project:"زايد بلازا",code:"Z-14",type:"تجاري",sqm:85,bedrooms:0,area:"الشيخ زايد",price:4400000,status:"available",createdAt:Date.now()}
+  );
+  state.leads.push(
+    {id:uid(),name:"محمد عبد الله",phone:"+201000000001",companyId:c1.id,budgetMin:3000000,budgetMax:4000000,area:"التجمع الخامس",source:"Facebook",stage:"new",quality:78,note:"",createdAt:Date.now()},
+    {id:uid(),name:"سارة أحمد",companyId:c1.id,budgetMin:2000000,budgetMax:2500000,area:"التجمع الخامس",source:"Google",stage:"qualified",quality:64,note:"",createdAt:Date.now()}
+  );
+  save(); paint(); toast("تم تحميل بيانات المثال — امسحها متى شئت من «بياناتي»");
+}
+
+/* =====================================================================
+   TOAST + BOOT
+===================================================================== */
+let toastT;
+function toast(msg){ const t=document.getElementById("toast"); t.textContent=msg; t.classList.add("show"); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove("show"),2200); }
+
+hydrateIcons();
+updateThemeLabel();
+paint();
+</script>
