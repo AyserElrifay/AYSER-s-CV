@@ -8,6 +8,7 @@ import { Chip } from './Chip';
 import { Tick } from './Tick';
 import { StarButton } from './StarButton';
 import { usePlayer } from '../context/PlayerContext';
+import { useLang } from '../context/LanguageContext';
 import { sfxLaugh, sfxLaughBig } from '../utils/sfx';
 import { tapLight } from '../utils/feedback';
 
@@ -97,6 +98,7 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
 
   /* ── the post's sound — really playable, right from the card ── */
   const { playTrack, toggle: togglePlay, current, playing } = usePlayer();
+  const { t } = useLang();
   const soundId = 'post-' + post.id;
   const soundOn = current && current.id === soundId;
   const playSound = () => {
@@ -324,11 +326,11 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
         {totalVibes > 0 ? (
           <Pressable onPress={() => { tapLight(); onOpenLikers && onOpenLikers(post); }} hitSlop={6}>
             <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 10 }}>
-              <MaterialCommunityIcons name="star-four-points" size={12} color={C.gold} /> Starred by{' '}
+              <MaterialCommunityIcons name="star-four-points" size={12} color={C.gold} /> {t('starred_by_label')}{' '}
               <Text style={{ fontWeight: '800', color: C.text }}>
                 {vibed ? 'you' : post.topFan || 'the crew'}
               </Text>
-              {totalVibes > 1 ? ' and ' + (totalVibes - 1) + ' others' : ''}
+              {totalVibes > 1 ? t('and_others_suffix').replace('{n}', totalVibes - 1) : ''}
             </Text>
           </Pressable>
         ) : null}

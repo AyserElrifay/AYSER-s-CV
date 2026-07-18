@@ -13,6 +13,7 @@ import { recordSignal } from '../services/algorithm';
 import { tapLight, tapSuccess } from '../utils/feedback';
 import { sfxStar, sfxSuccess } from '../utils/sfx';
 import { useAuth } from '../context/AuthContext';
+import { useLang } from '../context/LanguageContext';
 import { useFeed, toCard } from '../hooks/useFeed';
 import { fetchPost } from '../services/posts';
 import { Platform } from 'react-native';
@@ -55,6 +56,7 @@ const headerBtn = {
 export const HomeScreen = () => {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { t } = useLang();
   const { posts, refreshing, refresh, prependPost, removePost, patchPost, loadError } = useFeed();
   const [joined, setJoined] = useState({});
   const [vibes, setVibes] = useState({});
@@ -132,7 +134,7 @@ export const HomeScreen = () => {
     } catch (e) { if (e && e.name === 'AbortError') return; }
     try {
       await navigator.clipboard.writeText(url);
-      showToast('Link copied — send it anywhere 🔗');
+      showToast(t('link_copied'));
     } catch (e) {
       showToast(url); // last resort: show it so it can be copied manually
     }
@@ -147,12 +149,12 @@ export const HomeScreen = () => {
     if (postId) {
       fetchPost(postId)
         .then((row) => setSharedPost(toCard(row)))
-        .catch(() => showToast('That moment is gone or private'));
+        .catch(() => showToast(t('moment_gone')));
     }
     if (storyId) {
       fetchStoryById(storyId)
         .then((row) => setSharedStory(toStoryCard(row)))
-        .catch(() => showToast('That story has expired or is gone'));
+        .catch(() => showToast(t('story_gone')));
     }
     if (postId || storyId) window.history.replaceState({}, '', window.location.pathname);
   }, []);
@@ -167,7 +169,7 @@ export const HomeScreen = () => {
     } catch (e) { if (e && e.name === 'AbortError') return; }
     try {
       await navigator.clipboard.writeText(url);
-      showToast('Link copied — send it anywhere 🔗');
+      showToast(t('link_copied'));
     } catch (e) {
       showToast(url);
     }
@@ -280,7 +282,7 @@ export const HomeScreen = () => {
               <View>
                 <Text style={{ color: C.text, fontSize: 21, fontWeight: '900', letterSpacing: 5 }}>MOMENTS</Text>
                 <Text style={{ color: C.faint, fontSize: 11, marginTop: 2, letterSpacing: 0.4 }}>
-                  Don&apos;t scroll it. Live it.
+                  {t('brand_tagline')}
                 </Text>
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -322,7 +324,7 @@ export const HomeScreen = () => {
                   borderRadius: 999, paddingVertical: 11, paddingHorizontal: 16,
                 }}
               >
-                <Text style={{ color: C.faint, fontSize: 13.5 }}>What&apos;s your moment? ✨</Text>
+                <Text style={{ color: C.faint, fontSize: 13.5 }}>{t('whats_your_moment')}</Text>
               </Pressable>
               <Pressable testID="btn-new-reel" onPress={() => setComposing('reel')} hitSlop={8} style={{ marginLeft: 12 }}>
                 <Ionicons name="videocam" size={22} color={C.coral} />
@@ -368,10 +370,10 @@ export const HomeScreen = () => {
             <View style={{ alignItems: 'center', paddingVertical: 60, paddingHorizontal: 30 }}>
               <Text style={{ fontSize: 34 }}>{loadError ? '📡' : '✨'}</Text>
               <Text style={{ color: C.text, fontSize: 15.5, fontWeight: '800', marginTop: 10, textAlign: 'center' }}>
-                {loadError ? "Couldn't load moments" : 'No moments yet — be the first 👋'}
+                {loadError ? t('couldnt_load_moments') : t('no_moments_yet')}
               </Text>
               <Text style={{ color: C.faint, fontSize: 12.5, marginTop: 6, textAlign: 'center', lineHeight: 18 }}>
-                {loadError || 'Share a photo, a thought, or an invitation — real people will see it here.'}
+                {loadError || t('share_first_moment_hint')}
               </Text>
             </View>
           ) : null
@@ -437,7 +439,7 @@ export const HomeScreen = () => {
             </Pressable>
             <Pressable onPress={() => setSharedPost(null)} style={{ alignSelf: 'center', marginTop: 6 }}>
               <View style={{ backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 999, paddingHorizontal: 18, paddingVertical: 9 }}>
-                <Text style={{ color: C.text, fontSize: 13, fontWeight: '800' }}>Back to your feed ↓</Text>
+                <Text style={{ color: C.text, fontSize: 13, fontWeight: '800' }}>{t('back')} ↓</Text>
               </View>
             </Pressable>
           </Pressable>

@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { STRINGS, LANGS } from '../constants/i18n';
 
@@ -33,6 +34,20 @@ export const LanguageProvider = ({ children }) => {
 
   const t = (key) => (STRINGS[lang] && STRINGS[lang][key]) || STRINGS.en[key] || key;
   const meta = LANGS.find((l) => l.code === lang) || LANGS[0];
+
+  // ── REAL RTL, not just swapped words ──
+  // Setting the document's writing direction hands the mirroring to the
+  // browser's own bidi engine: flex rows reverse, the tab bar flips
+  // sides, message bubbles swap alignment — the whole layout, not just
+  // the text — because `direction: rtl` genuinely changes which edge is
+  // the flex "start" for every `flexDirection: 'row'` in the app.
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+    const dir = meta.rtl ? 'rtl' : 'ltr';
+    document.documentElement.dir = dir;
+    document.documentElement.lang = lang;
+    if (document.body) document.body.dir = dir;
+  }, [lang, meta.rtl]);
 
   return (
     <Ctx.Provider value={{ lang, setLang, t, rtl: !!meta.rtl, meta, langs: LANGS }}>

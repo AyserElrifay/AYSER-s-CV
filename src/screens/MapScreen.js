@@ -68,7 +68,7 @@ const VENUE_KINDS = ['Sport', 'Stay', 'Food', 'Experience'];
 export const MapScreen = () => {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { lang } = useLang();
+  const { lang, t } = useLang();
   const [profileUser, setProfileUser] = useState(null);
   const [sos, setSos] = useState(null); // null | 'ask' | 'sent'
   /* ONE sheet at a time — 'nearby' | 'doing' | 'drop' | 'partner' | null.
@@ -636,7 +636,7 @@ export const MapScreen = () => {
         >
           <Ionicons name="search" size={16} color={C.dim} />
           <TextInput
-            placeholder="Search places to go, people, anywhere on Earth…"
+            placeholder={t('search_places_placeholder')}
             placeholderTextColor={C.faint}
             value={mapQ}
             onChangeText={setMapQ}
@@ -668,7 +668,7 @@ export const MapScreen = () => {
               ))}
               {!searchResults.length && !geoResults.length ? (
                 <Text style={{ color: C.faint, fontSize: 12, textAlign: 'center', paddingVertical: 16 }}>
-                  {mapQ.trim().length < 3 ? 'Keep typing…' : 'Searching the real world… nothing yet 🌍'}
+                  {mapQ.trim().length < 3 ? t('keep_typing') : t('searching_world')}
                 </Text>
               ) : null}
             </ScrollView>
@@ -803,8 +803,8 @@ export const MapScreen = () => {
             )) : (
               <Glass tint="rgba(255,255,255,0.96)" style={{ width: 252, padding: 16, marginRight: 12, alignItems: 'center' }}>
                 <Text style={{ fontSize: 22 }}>🔥</Text>
-                <Text style={{ color: C.text, fontSize: 13, fontWeight: '800', marginTop: 6, textAlign: 'center' }}>No live campfires yet</Text>
-                <Text style={{ color: C.faint, fontSize: 11, marginTop: 3, textAlign: 'center' }}>Be the first to host one</Text>
+                <Text style={{ color: C.text, fontSize: 13, fontWeight: '800', marginTop: 6, textAlign: 'center' }}>{t('no_campfires_yet')}</Text>
+                <Text style={{ color: C.faint, fontSize: 11, marginTop: 3, textAlign: 'center' }}>{t('be_first_host')}</Text>
               </Glass>
             )
           ) : (
@@ -836,8 +836,8 @@ export const MapScreen = () => {
               )) : (
                 <Glass tint="rgba(255,255,255,0.96)" style={{ width: 232, padding: 16, marginRight: 12, alignItems: 'center' }}>
                   <Text style={{ fontSize: 22 }}>📅</Text>
-                  <Text style={{ color: C.text, fontSize: 13, fontWeight: '800', marginTop: 6, textAlign: 'center' }}>No venues yet</Text>
-                  <Text style={{ color: C.faint, fontSize: 11, marginTop: 3, textAlign: 'center' }}>Own a place? Get listed →</Text>
+                  <Text style={{ color: C.text, fontSize: 13, fontWeight: '800', marginTop: 6, textAlign: 'center' }}>{t('no_venues_yet')}</Text>
+                  <Text style={{ color: C.faint, fontSize: 11, marginTop: 3, textAlign: 'center' }}>{t('own_place_cta')}</Text>
                 </Glass>
               )}
               <Pressable onPress={() => openSheet('partner')}>
@@ -936,17 +936,17 @@ export const MapScreen = () => {
             <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
               <Text style={{ fontSize: 30 }}>📍</Text>
             </View>
-            <Text style={{ color: C.text, fontSize: 17, fontWeight: '900', textAlign: 'center' }}>Moments wants to know your location</Text>
+            <Text style={{ color: C.text, fontSize: 17, fontWeight: '900', textAlign: 'center' }}>{t('location_gate_title')}</Text>
             <Text style={{ color: C.dim, fontSize: 13, lineHeight: 19, textAlign: 'center', marginTop: 8 }}>
-              To show you nearby mates, campfires and places on the map. Your browser will double-check right after — that popup names the website itself, which we can't relabel, but the ask really is coming from Moments.
+              {t('location_gate_body')}
             </Text>
             <Pressable onPress={acceptLocationGate} style={{ width: '100%', marginTop: 18 }}>
               <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingVertical: 14, alignItems: 'center' }}>
-                <Text style={{ color: '#FFF', fontSize: 14.5, fontWeight: '900' }}>Turn on location</Text>
+                <Text style={{ color: '#FFF', fontSize: 14.5, fontWeight: '900' }}>{t('turn_on_location')}</Text>
               </View>
             </Pressable>
             <Pressable onPress={skipLocationGate} style={{ marginTop: 12 }}>
-              <Text style={{ color: C.faint, fontSize: 12.5, fontWeight: '700' }}>Maybe later</Text>
+              <Text style={{ color: C.faint, fontSize: 12.5, fontWeight: '700' }}>{t('maybe_later')}</Text>
             </Pressable>
           </View>
         </View>
@@ -969,17 +969,17 @@ export const MapScreen = () => {
               {sos === 'ask' ? (
                 <View>
                   <Text style={{ fontSize: 34, textAlign: 'center' }}>🚨</Text>
-                  <Text style={{ color: C.text, fontSize: 19, fontWeight: '900', textAlign: 'center', marginTop: 8 }}>Send SOS?</Text>
+                  <Text style={{ color: C.text, fontSize: 19, fontWeight: '900', textAlign: 'center', marginTop: 8 }}>{t('send_sos_q')}</Text>
                   <Text style={{ color: C.dim, fontSize: 13, textAlign: 'center', marginTop: 8, lineHeight: 19 }}>
                     Your live pin turns into an SOS marker so people around you on the map can see you need help.
                   </Text>
-                  <NeonButton color={C.coral} label="SEND SOS NOW" style={{ marginTop: 18 }} onPress={sendSos} />
+                  <NeonButton color={C.coral} label={t('send_sos_now')} style={{ marginTop: 18 }} onPress={sendSos} />
                   <GhostButton small label="Cancel" style={{ marginTop: 10 }} onPress={() => setSos(null)} />
                 </View>
               ) : (
                 <View>
                   <Text style={{ fontSize: 34, textAlign: 'center' }}>📍</Text>
-                  <Text style={{ color: C.text, fontSize: 19, fontWeight: '900', textAlign: 'center', marginTop: 8 }}>Your SOS pin is live</Text>
+                  <Text style={{ color: C.text, fontSize: 19, fontWeight: '900', textAlign: 'center', marginTop: 8 }}>{t('sos_live')}</Text>
                   <Text style={{ color: C.dim, fontSize: 13, textAlign: 'center', marginTop: 8, lineHeight: 19 }}>
                     Anyone nearby on the Moments map can see it right now. Stay where you are.
                   </Text>
@@ -996,7 +996,7 @@ export const MapScreen = () => {
         <Pressable onPress={closeSheet} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end', zIndex: 30 }}>
           <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, paddingBottom: insets.bottom + 20, paddingHorizontal: 16, maxHeight: '70%' }}>
             <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 12 }} />
-            <Text style={{ color: C.text, fontSize: 18, fontWeight: '900' }}>Nearby people 📍</Text>
+            <Text style={{ color: C.text, fontSize: 18, fontWeight: '900' }}>{t('nearby_people')}</Text>
             <Text style={{ color: C.faint, fontSize: 12, marginTop: 2, marginBottom: 10 }}>
               {SUPABASE_READY ? 'People sharing their activity right now' : 'Mates & explorers around you right now'}
             </Text>
@@ -1050,7 +1050,7 @@ export const MapScreen = () => {
             ) : (
               <View style={{ alignItems: 'center', paddingVertical: 30 }}>
                 <Text style={{ fontSize: 28 }}>🧭</Text>
-                <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '700', marginTop: 8 }}>No one nearby yet</Text>
+                <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '700', marginTop: 8 }}>{t('no_one_nearby')}</Text>
                 <Text style={{ color: C.faint, fontSize: 12, marginTop: 4, textAlign: 'center' }}>
                   Set your activity below — you'll be the first pin on the map.
                 </Text>
@@ -1065,7 +1065,7 @@ export const MapScreen = () => {
         <Pressable onPress={closeSheet} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end', zIndex: 30 }}>
           <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, paddingBottom: insets.bottom + 22, paddingHorizontal: 16 }}>
             <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 12 }} />
-            <Text style={{ color: C.text, fontSize: 18, fontWeight: '900' }}>What are you up to? </Text>
+            <Text style={{ color: C.text, fontSize: 18, fontWeight: '900' }}>{t('whats_up_q')} </Text>
             <Text style={{ color: C.faint, fontSize: 12, marginTop: 2, marginBottom: 14 }}>
               {SUPABASE_READY && !hasLocationPerm
                 ? 'Turn on location access to share your real pin with nearby people'
@@ -1085,7 +1085,7 @@ export const MapScreen = () => {
             </View>
             {myDoing ? (
               <Pressable onPress={goInvisibleNow}>
-                <Text style={{ color: C.coral, fontSize: 13, fontWeight: '800', marginTop: 6 }}>Go invisible (hide my activity)</Text>
+                <Text style={{ color: C.coral, fontSize: 13, fontWeight: '800', marginTop: 6 }}>{t('go_invisible')}</Text>
               </Pressable>
             ) : null}
           </Pressable>
@@ -1097,7 +1097,7 @@ export const MapScreen = () => {
         <Pressable onPress={closeSheet} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end', zIndex: 30 }}>
           <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, paddingBottom: insets.bottom + 22, paddingHorizontal: 16 }}>
             <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 12 }} />
-            <Text style={{ color: C.text, fontSize: 18, fontWeight: '900' }}>Drop a note 💬</Text>
+            <Text style={{ color: C.text, fontSize: 18, fontWeight: '900' }}>{t('drop_note')}</Text>
             <Text style={{ color: C.faint, fontSize: 12, marginTop: 2, marginBottom: 12 }}>
               A comment lands on your exact spot — pick how long it stays, and remove it any time
             </Text>
@@ -1124,7 +1124,7 @@ export const MapScreen = () => {
             </View>
             <Pressable onPress={dropMoment}>
               <View style={{ backgroundColor: dropTitle.trim() ? C.purple : C.glassHi, borderRadius: 14, paddingVertical: 14, alignItems: 'center' }}>
-                <Text style={{ color: dropTitle.trim() ? '#FFF' : C.faint, fontSize: 14, fontWeight: '900' }}>Pin it here 💬</Text>
+                <Text style={{ color: dropTitle.trim() ? '#FFF' : C.faint, fontSize: 14, fontWeight: '900' }}>{t('pin_it_here')}</Text>
               </View>
             </Pressable>
           </Pressable>
@@ -1222,7 +1222,7 @@ export const MapScreen = () => {
         <Pressable onPress={() => setFireManage(null)} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end', zIndex: 32 }}>
           <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, paddingBottom: insets.bottom + 22, paddingHorizontal: 16 }}>
             <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 12 }} />
-            <Text style={{ color: C.text, fontSize: 18, fontWeight: '900', marginBottom: 10 }}>Manage campfire 🔥</Text>
+            <Text style={{ color: C.text, fontSize: 18, fontWeight: '900', marginBottom: 10 }}>{t('manage_campfire')}</Text>
             <TextInput value={fireTitle} onChangeText={setFireTitle} placeholder="Title" placeholderTextColor={C.faint}
               style={{ color: C.text, fontSize: 14, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 12, marginBottom: 12 }} />
             <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', letterSpacing: 1, marginBottom: 8 }}>STAYS LIVE FOR</Text>
@@ -1267,7 +1267,7 @@ export const MapScreen = () => {
               </View>
             ) : (
               <View>
-                <Text style={{ color: C.text, fontSize: 18, fontWeight: '900' }}>Put your place on Moments 🤝</Text>
+                <Text style={{ color: C.text, fontSize: 18, fontWeight: '900' }}>{t('put_place_on_moments')}</Text>
                 <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 6, lineHeight: 19 }}>
                   Restaurants, cafés, courts & venues — get a pin on the map and take bookings straight from the people around you.
                 </Text>
@@ -1318,7 +1318,7 @@ export const MapScreen = () => {
 
                 <Pressable onPress={submitVenue} style={{ marginTop: 14 }}>
                   <View style={{ backgroundColor: vName.trim() ? C.purple : C.glassHi, borderRadius: 14, paddingVertical: 14, alignItems: 'center' }}>
-                    <Text style={{ color: vName.trim() ? '#FFF' : C.faint, fontSize: 14, fontWeight: '900' }}>Apply — takes 2 minutes</Text>
+                    <Text style={{ color: vName.trim() ? '#FFF' : C.faint, fontSize: 14, fontWeight: '900' }}>{t('apply_2min')}</Text>
                   </View>
                 </Pressable>
               </View>
@@ -1347,12 +1347,12 @@ export const MapScreen = () => {
             <View style={{ flexDirection: 'row', marginTop: 16 }}>
               <Pressable onPress={() => dealsFor(placeOpen)} style={{ flex: 1, marginRight: 10 }}>
                 <View style={{ backgroundColor: C.green, borderRadius: 14, paddingVertical: 13, alignItems: 'center' }}>
-                  <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '900' }}>🎟️ Deals on Waffarha</Text>
+                  <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '900' }}>{t('deals_label')}</Text>
                 </View>
               </Pressable>
               <Pressable onPress={() => directionsTo(placeOpen)} style={{ width: 132 }}>
                 <View style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 14, paddingVertical: 13, alignItems: 'center' }}>
-                  <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800' }}>🧭 Directions</Text>
+                  <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800' }}>{t('directions_label')}</Text>
                 </View>
               </Pressable>
             </View>
@@ -1462,7 +1462,7 @@ export const MapScreen = () => {
                       )}
                       <Pressable onPress={() => directionsTo(destOpen)} style={{ width: 132 }}>
                         <View style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 14, paddingVertical: 13, alignItems: 'center' }}>
-                          <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800' }}>🧭 Directions</Text>
+                          <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800' }}>{t('directions_label')}</Text>
                         </View>
                       </Pressable>
                     </View>
@@ -1537,7 +1537,7 @@ export const MapScreen = () => {
                 {revSaved ? <Text style={{ color: C.green, fontSize: 11.5, fontWeight: '800', textAlign: 'center', marginTop: 8 }}>Feedback saved — thank you! 🙌</Text> : null}
                 <Pressable onPress={submitReview} style={{ marginTop: 10 }}>
                   <View style={{ backgroundColor: revStars ? C.purple : C.glassHi, borderRadius: 12, paddingVertical: 11, alignItems: 'center' }}>
-                    <Text style={{ color: revStars ? '#FFF' : C.faint, fontSize: 13, fontWeight: '900' }}>Leave feedback ⭐</Text>
+                    <Text style={{ color: revStars ? '#FFF' : C.faint, fontSize: 13, fontWeight: '900' }}>{t('leave_feedback')}</Text>
                   </View>
                 </Pressable>
               </Glass>

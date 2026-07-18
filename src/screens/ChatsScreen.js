@@ -6,6 +6,7 @@ import { C } from '../constants/theme';
 import { SQUADS, DMS, LANG_PARTNERS } from '../constants/mockData'; // demo-mode fallback only
 import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
+import { useLang } from '../context/LanguageContext';
 import { usePresence } from '../context/PresenceContext';
 import { fetchMyDmThreads, fetchMySquads, createSquad, leaveSquad, addSquadMember, fetchDmStreaks } from '../services/messages';
 import { fetchIncomingRequests, acceptRequest, fetchMyMates } from '../services/mates';
@@ -34,6 +35,7 @@ export const ChatsScreen = () => {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { isOnline } = usePresence(); // real-time — a live Supabase Presence connection
+  const { t } = useLang();
   const [thread, setThread] = useState(null); // { chat, group }
   const [composing, setComposing] = useState(false); // new-message search sheet
   const [composeQ, setComposeQ] = useState('');
@@ -181,8 +183,8 @@ export const ChatsScreen = () => {
   return (
   <Page>
     <ScreenHeader
-      kicker="Connections"
-      title="Chats 💬"
+      kicker={t('connections_kicker')}
+      title={t('chats_title')}
       right={
         <Pressable onPress={() => { tapLight(); setComposing(true); setComposeQ(''); setComposeResults([]); }} hitSlop={8}>
           <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: C.purpleSoft, borderWidth: 1, borderColor: 'rgba(124,58,237,0.35)', alignItems: 'center', justifyContent: 'center' }}>
@@ -204,16 +206,16 @@ export const ChatsScreen = () => {
               <Image source={{ uri: p.avatar_url || AV_NEUTRAL }} style={{ width: 46, height: 46, borderRadius: 23 }} />
               <View style={{ flex: 1, marginLeft: 11 }}>
                 <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>{p.name || 'Explorer'} {p.country_flag || ''}</Text>
-                <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 2 }}>wants to be your mate</Text>
+                <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 2 }}>{t('wants_to_be_mate')}</Text>
               </View>
               {done ? (
                 <View style={{ backgroundColor: C.greenSoft, borderWidth: 1, borderColor: 'rgba(16,185,129,0.45)', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8 }}>
-                  <Text style={{ color: C.green, fontSize: 12, fontWeight: '900' }}>Mates ✓</Text>
+                  <Text style={{ color: C.green, fontSize: 12, fontWeight: '900' }}>{t('mates_check')}</Text>
                 </View>
               ) : (
                 <Pressable onPress={() => accept(req)}>
                   <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 8 }}>
-                    <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '900' }}>Accept 🤝</Text>
+                    <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '900' }}>{t('accept_mate')}</Text>
                   </View>
                 </Pressable>
               )}
@@ -227,7 +229,7 @@ export const ChatsScreen = () => {
     {/* ── YOUR MATES — one tap opens the chat ── */}
     {myMates.length ? (
       <>
-        <SectionHeader title="Your mates 🤝" />
+        <SectionHeader title={t('your_mates')} />
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 20 }}>
           {myMates.map((m) => (
             <Pressable
@@ -254,7 +256,7 @@ export const ChatsScreen = () => {
 
     {/* ── EXCHANGE PARTNERS — meet people in other countries, HelloTalk
         style: open it in Settings and you appear here for them too ── */}
-    <SectionHeader title="Exchange partners 🌍" />
+    <SectionHeader title={t('exchange_partners')} />
     <Text style={{ color: C.faint, fontSize: 11.5, marginTop: -6, marginBottom: 10, paddingHorizontal: 2 }}>
       People abroad who opened language exchange — swap languages & cultures, chat and call across the world.
     </Text>
@@ -266,7 +268,7 @@ export const ChatsScreen = () => {
           <Text style={{ fontSize: 20 }}>🌍</Text>
           <View style={{ flex: 1, marginLeft: 10 }}>
             <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800' }}>
-              {exOn ? 'You\'re open for exchange ✓' : 'Join the exchange'}
+              {exOn ? t('youre_open_exchange') : t('join_exchange')}
             </Text>
             <Text style={{ color: C.faint, fontSize: 11, marginTop: 1 }}>
               {exOn ? 'People abroad can see you and say hi' : 'Flip it on — you\'ll appear here for people abroad'}
@@ -282,7 +284,7 @@ export const ChatsScreen = () => {
           <View style={{ marginTop: 10 }}>
             <View style={{ flexDirection: 'row' }}>
               <TextInput
-                placeholder="I speak… (e.g. Arabic)" placeholderTextColor={C.faint}
+                placeholder={t('i_speak_placeholder')} placeholderTextColor={C.faint}
                 value={exSpeaks} onChangeText={setExSpeaks}
                 style={{ flex: 1, color: C.text, fontSize: 12.5, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 11, paddingHorizontal: 11, paddingVertical: 9, marginRight: 8 }}
               />
@@ -295,7 +297,7 @@ export const ChatsScreen = () => {
             <Pressable onPress={() => saveExchange(true)} style={{ marginTop: 8 }}>
               <View style={{ backgroundColor: exSaved ? C.greenSoft : C.purpleSoft, borderRadius: 11, paddingVertical: 9, alignItems: 'center' }}>
                 <Text style={{ color: exSaved ? C.green : C.purple, fontSize: 12, fontWeight: '900' }}>
-                  {exSaved ? 'Saved ✓ — you\'re live on the exchange' : exBusy ? 'Saving…' : 'Save my languages'}
+                  {exSaved ? t('saved_live_exchange') : exBusy ? t('saving_dots') : t('save_my_languages')}
                 </Text>
               </View>
             </Pressable>
@@ -333,17 +335,17 @@ export const ChatsScreen = () => {
     ) : (
       <Glass style={{ padding: 16, marginBottom: 20, alignItems: 'center' }}>
         <Text style={{ fontSize: 22 }}>🌍</Text>
-        <Text style={{ color: C.text, fontSize: 13, fontWeight: '800', marginTop: 6 }}>No exchange partners yet</Text>
+        <Text style={{ color: C.text, fontSize: 13, fontWeight: '800', marginTop: 6 }}>{t('no_partners_yet')}</Text>
         <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 3, textAlign: 'center' }}>Open language exchange in Settings → you'll appear here for people in other countries, and they'll appear for you</Text>
       </Glass>
     )}
 
     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-      <SectionHeader title="Squads" />
+      <SectionHeader title={t('squads_label')} />
       {SUPABASE_READY ? (
         <Pressable onPress={() => { tapLight(); setSquadCreating((v) => !v); setSquadErr(null); }} hitSlop={8}>
           <View style={{ backgroundColor: C.purpleSoft, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 }}>
-            <Text style={{ color: C.purple, fontSize: 12, fontWeight: '900' }}>{squadCreating ? '✕ Close' : '＋ New squad'}</Text>
+            <Text style={{ color: C.purple, fontSize: 12, fontWeight: '900' }}>{squadCreating ? t('close_x') : t('new_squad')}</Text>
           </View>
         </Pressable>
       ) : null}
@@ -359,7 +361,7 @@ export const ChatsScreen = () => {
         {squadErr ? <Text style={{ color: C.coral, fontSize: 11.5, marginTop: 8 }}>{squadErr}</Text> : null}
         <Pressable onPress={submitSquad} style={{ marginTop: 10 }}>
           <View style={{ backgroundColor: squadName.trim() ? C.purple : C.glassHi, borderRadius: 12, paddingVertical: 11, alignItems: 'center' }}>
-            <Text style={{ color: squadName.trim() ? '#FFF' : C.faint, fontSize: 13, fontWeight: '900' }}>Create squad 🏕️</Text>
+            <Text style={{ color: squadName.trim() ? '#FFF' : C.faint, fontSize: 13, fontWeight: '900' }}>{t('create_squad')}</Text>
           </View>
         </Pressable>
       </Glass>
@@ -410,12 +412,12 @@ export const ChatsScreen = () => {
     )) : (
       <Glass style={{ padding: 16, marginBottom: 12, alignItems: 'center' }}>
         <Text style={{ fontSize: 22 }}>🏕️</Text>
-        <Text style={{ color: C.text, fontSize: 13, fontWeight: '800', marginTop: 6 }}>No squads yet</Text>
-        <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 3, textAlign: 'center' }}>Join the Vibe on a moment to start one</Text>
+        <Text style={{ color: C.text, fontSize: 13, fontWeight: '800', marginTop: 6 }}>{t('no_squads_yet')}</Text>
+        <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 3, textAlign: 'center' }}>{t('join_vibe_hint')}</Text>
       </Glass>
     )}
 
-    <SectionHeader title="Direct" style={{ marginTop: 14 }} />
+    <SectionHeader title={t('direct_label')} style={{ marginTop: 14 }} />
     {dms.length ? dms.map((d) => (
       <Pressable key={d.id} onPress={() => { tapLight(); setThread({ chat: d, group: false }); }}>
         <Glass style={{ padding: 12, marginBottom: 10, flexDirection: 'row', alignItems: 'center' }}>
@@ -450,8 +452,8 @@ export const ChatsScreen = () => {
     )) : (
       <Glass style={{ padding: 16, alignItems: 'center' }}>
         <Text style={{ fontSize: 22 }}>💬</Text>
-        <Text style={{ color: C.text, fontSize: 13, fontWeight: '800', marginTop: 6 }}>No conversations yet</Text>
-        <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 3, textAlign: 'center' }}>Wave at someone nearby or message a search result to start one</Text>
+        <Text style={{ color: C.text, fontSize: 13, fontWeight: '800', marginTop: 6 }}>{t('no_conversations')}</Text>
+        <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 3, textAlign: 'center' }}>{t('wave_hint')}</Text>
       </Glass>
     )}
 
@@ -483,12 +485,12 @@ export const ChatsScreen = () => {
                   </View>
                   {done ? (
                     <View style={{ backgroundColor: C.greenSoft, borderWidth: 1, borderColor: 'rgba(16,185,129,0.45)', borderRadius: 999, paddingHorizontal: 13, paddingVertical: 7 }}>
-                      <Text style={{ color: C.green, fontSize: 12, fontWeight: '900' }}>Added ✓</Text>
+                      <Text style={{ color: C.green, fontSize: 12, fontWeight: '900' }}>{t('added_check')}</Text>
                     </View>
                   ) : (
                     <Pressable onPress={() => inviteMate(m)}>
                       <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 15, paddingVertical: 7 }}>
-                        <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '900' }}>Add ＋</Text>
+                        <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '900' }}>{t('add_plus')}</Text>
                       </View>
                     </Pressable>
                   )}
@@ -497,8 +499,8 @@ export const ChatsScreen = () => {
             }) : (
               <View style={{ alignItems: 'center', paddingVertical: 34, paddingHorizontal: 30 }}>
                 <Text style={{ fontSize: 26 }}>🤝</Text>
-                <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800', marginTop: 8 }}>No mates yet</Text>
-                <Text style={{ color: C.faint, fontSize: 12, marginTop: 4, textAlign: 'center' }}>Add mates first — then invite them into your squad.</Text>
+                <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800', marginTop: 8 }}>{t('no_mates_yet')}</Text>
+                <Text style={{ color: C.faint, fontSize: 12, marginTop: 4, textAlign: 'center' }}>{t('invite_mates_hint')}</Text>
               </View>
             )}
           </ScrollView>
@@ -514,7 +516,7 @@ export const ChatsScreen = () => {
             <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 4 }}>
               <Ionicons name="search" size={16} color={C.dim} />
               <TextInput
-                placeholder="Search people to message…"
+                placeholder={t('search_people_placeholder')}
                 placeholderTextColor={C.faint}
                 value={composeQ}
                 onChangeText={setComposeQ}
@@ -523,7 +525,7 @@ export const ChatsScreen = () => {
               />
             </View>
             <Pressable onPress={() => setComposing(false)} style={{ marginLeft: 12 }} hitSlop={8}>
-              <Text style={{ color: C.dim, fontSize: 14, fontWeight: '700' }}>Cancel</Text>
+              <Text style={{ color: C.dim, fontSize: 14, fontWeight: '700' }}>{t('cancel')}</Text>
             </Pressable>
           </View>
 

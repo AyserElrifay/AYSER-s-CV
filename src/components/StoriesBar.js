@@ -3,9 +3,12 @@ import { View, Text, ScrollView, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { C } from '../constants/theme';
 import { AvatarRing } from './AvatarRing';
+import { useLang } from '../context/LanguageContext';
 
 /* Moments rail — stories with sounds. Tap to watch, + to add yours. */
-export const StoriesBar = ({ stories, onOpenStory, onAddStory }) => (
+export const StoriesBar = ({ stories, onOpenStory, onAddStory }) => {
+  const { t } = useLang();
+  return (
   <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 14 }} contentContainerStyle={{ paddingRight: 8 }}>
     <Pressable testID="add-story" onPress={onAddStory} style={{ alignItems: 'center', marginRight: 14 }}>
       <View
@@ -16,7 +19,7 @@ export const StoriesBar = ({ stories, onOpenStory, onAddStory }) => (
       >
         <Ionicons name="add" size={26} color={C.purple} />
       </View>
-      <Text style={{ color: C.dim, fontSize: 11, marginTop: 6 }}>Your vibe</Text>
+      <Text style={{ color: C.dim, fontSize: 11, marginTop: 6 }}>{t('your_vibe_label')}</Text>
     </Pressable>
     {stories.map((s, i) => (
       <Pressable key={s.user.id + i} onPress={() => onOpenStory(i)} style={{ alignItems: 'center', marginRight: 14 }}>
@@ -25,4 +28,5 @@ export const StoriesBar = ({ stories, onOpenStory, onAddStory }) => (
       </Pressable>
     ))}
   </ScrollView>
-);
+  );
+};
