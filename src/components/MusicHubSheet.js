@@ -16,6 +16,7 @@ import { sfxPop, sfxSuccess } from '../utils/sfx';
    content, etc.) — Moments takes its usual platform cut, the producer
    gets the rest. Real payment row via the existing checkout layer. */
 const LICENSE_PRICE_EGP = 150;
+const PROMO_PRICE_EGP = 75; // artist ad boost — Moments keeps 1/3, reach goes to the artist
 
 /* Indie Music Hub — discover original tracks by how they SOUND
    (mood / BPM / instruments), not by artist. Pick one for your reel
@@ -83,6 +84,7 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
         uses_count: r.uses_count,
         by: r.artist || (r.uploader && r.uploader.name) || 'indie producer',
         official: !!r.is_official, license: r.license || null, attribution: r.attribution || null,
+        mine: !!(user && r.uploader_id === user.id),
         audio_url: r.audio_url,
       }))))
       .catch(() => setRemote([]));
@@ -104,6 +106,23 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
   const [licensing, setLicensing] = useState(null); // track id in flight
   const [licenseNote, setLicenseNote] = useState(null);
   const [reportTrack, setReportTrack] = useState(null); // track being reported
+
+  /* artist ad boost — a real payment row (kind 'track_promo'); the split
+     is the platform's 1/3 cut, the rest funds the track's promotion */
+  const promote = async (t) => {
+    if (!SUPABASE_READY || !user) { setLicenseNote('Sign in to promote your track.'); return; }
+    setLicensing(t.id); setLicenseNote(null);
+    try {
+      const res = await startCheckout('paymob', {
+        amount: PROMO_PRICE_EGP, currency: 'EGP', kind: 'track_promo',
+        refId: t.id, description: 'Promote · ' + t.title,
+      });
+      if (res.configured) { tapSuccess(); sfxSuccess(); }
+      else setLicenseNote('Promo recorded — your track gets boosted reach once the payment gateway connects.');
+    } catch (e) {
+      setLicenseNote(e.message || 'Could not start the promo — try again.');
+    } finally { setLicensing(null); }
+  };
 
   const license = async (t) => {
     if (!SUPABASE_READY || !user) { setLicenseNote('Sign in to license a track.'); return; }
@@ -159,6 +178,16 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
           </View>
         ) : null}
         {upErr ? <Text style={{ color: C.coral, fontSize: 11.5, marginTop: 8 }}>⚠️ {upErr}</Text> : null}
+
+        {/* ── FOR ARTISTS — real distribution terms, no fine print ──
+            Upload originals here = distribution on Moments. Every licence
+            or promo purchase splits 2/3 to the artist, 1/3 to Moments. */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.purpleSoft, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 9, marginTop: 10 }}>
+          <Text style={{ fontSize: 16 }}>🎤</Text>
+          <Text style={{ color: C.purple, fontSize: 11, fontWeight: '700', marginLeft: 8, flex: 1, lineHeight: 15 }}>
+            Artists: distribute here & keep 2/3 of every licence and promo — Moments takes 1/3. Upload your originals ↑
+          </Text>
+        </View>
         <View style={{ height: 12 }} />
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }}>
@@ -205,7 +234,14 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
                       <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '900' }}>Use</Text>
                     </View>
                   </Pressable>
-                  {SUPABASE_READY ? (
+                  {SUPABASE_READY && t.mine ? (
+                    /* your own track: buy a promo boost — 2/3 comes back to you as reach, Moments keeps 1/3 */
+                    <Pressable onPress={() => promote(t)} disabled={licensing === t.id}>
+                      <Text style={{ color: C.blue, fontSize: 10.5, fontWeight: '800' }}>
+                        {licensing === t.id ? 'Processing…' : '📣 Promote · E£' + PROMO_PRICE_EGP}
+                      </Text>
+                    </Pressable>
+                  ) : SUPABASE_READY ? (
                     <Pressable onPress={() => license(t)} disabled={licensing === t.id}>
                       <Text style={{ color: C.green, fontSize: 10.5, fontWeight: '800' }}>
                         {licensing === t.id ? 'Processing…' : '💸 License · E£' + LICENSE_PRICE_EGP}

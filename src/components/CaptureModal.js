@@ -95,6 +95,25 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
     ? [...realTracks, { id: 'orig', title: 'Original sound', artist: 'Your recording', emoji: '🎤' }]
     : SOUNDS;
 
+  /* ── hear a sound BEFORE you post it: picking a track with a real
+     audio file starts a live preview; unpicking (or leaving) stops it ── */
+  const previewRef = useRef(null);
+  const chooseSound = (s, wasOn) => {
+    tapLight(); sfxPop();
+    if (previewRef.current) { previewRef.current.pause(); previewRef.current = null; }
+    if (wasOn) { setSound(null); return; }
+    setSound(s);
+    if (isWeb && s && s.audio_url) {
+      try {
+        const a = new window.Audio(s.audio_url);
+        a.loop = true; a.volume = 0.85;
+        a.play().catch(() => {});
+        previewRef.current = a;
+      } catch (e) {}
+    }
+  };
+  useEffect(() => () => { if (previewRef.current) previewRef.current.pause(); }, []);
+
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const recorderRef = useRef(null);
@@ -368,7 +387,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
       {railSounds.map((s) => {
         const on = sound && sound.id === s.id;
         return (
-          <Pressable key={s.id} onPress={() => { tapLight(); sfxPop(); setSound(on ? null : s); }}>
+          <Pressable key={s.id} onPress={() => chooseSound(s, on)}>
             <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: on ? '#FFF' : 'rgba(255,255,255,0.16)', borderWidth: 1, borderColor: on ? '#FFF' : 'rgba(255,255,255,0.35)', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7, marginRight: 8 }}>
               <Text style={{ fontSize: 13 }}>{s.emoji}</Text>
               <Text style={{ color: on ? C.text : '#FFF', fontSize: 11.5, fontWeight: '800', marginLeft: 5 }} numberOfLines={1}>
@@ -647,7 +666,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
           )}
         </View>
 
-        {hubOpen ? <MusicHubSheet onPick={(t) => setSound(t)} onClose={() => setHubOpen(false)} /> : null}
+        {hubOpen ? <MusicHubSheet onPick={(t) => chooseSound(t, false)} onClose={() => setHubOpen(false)} /> : null}
       </View>
     </Modal>
   );

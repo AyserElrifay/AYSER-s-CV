@@ -64,6 +64,46 @@ export const MOUTHS = [
   { id: 'frown', label: 'Frown', emoji: '🙁' },
 ];
 
+export const NOSES = [
+  { id: 'mediumRound', label: 'Round', emoji: '👃' },
+  { id: 'smallRound', label: 'Small', emoji: '🙂' },
+  { id: 'wrinkles', label: 'Wrinkled', emoji: '😤' },
+];
+
+export const FACIAL_HAIR = [
+  { id: '', label: 'None', emoji: '🚫' },
+  { id: 'shadow', label: 'Shadow', emoji: '🕶️' },
+  { id: 'soulPatch', label: 'Soul Patch', emoji: '🎷' },
+  { id: 'goatee', label: 'Goatee', emoji: '🐐' },
+  { id: 'pyramid', label: 'Pyramid', emoji: '🔺' },
+  { id: 'walrus', label: 'Moustache', emoji: '🥸' },
+  { id: 'beardMustache', label: 'Full Beard', emoji: '🧔' },
+];
+
+/* ── HERITAGE OUTFITS — our own identity layer ─────────────────────
+   Each heritage wraps the character in a themed frame: a background
+   gradient in that civilization's colours + an emblem badge drawn by
+   the app next to the avatar (profile ring, map pin, game). All
+   original — colours + Unicode emblems, no copied artwork. */
+export const HERITAGES = [
+  { id: '', label: 'Classic', emblem: '✦', bg: '7C3AED,F5B301' },
+  { id: 'pharaonic', label: 'Pharaonic', emblem: '𓂀', bg: 'F5B301,1D4ED8' },
+  { id: 'greek', label: 'Greek', emblem: '🏛️', bg: 'E8ECF4,2563EB' },
+  { id: 'japanese', label: 'Japanese', emblem: '🏯', bg: 'E11D48,FDF2F2' },
+  { id: 'andalusi', label: 'Andalusi', emblem: '🕌', bg: '0F766E,F5B301' },
+  { id: 'nubian', label: 'Nubian', emblem: '🪘', bg: 'D97706,7C2D12' },
+  { id: 'bedouin', label: 'Bedouin', emblem: '🏜️', bg: 'E7C67A,3F2A14' },
+  { id: 'viking', label: 'Viking', emblem: '⚔️', bg: '64748B,0B1B33' },
+  { id: 'maya', label: 'Maya', emblem: '🗿', bg: '16A34A,854D0E' },
+];
+export const heritageOf = (id) => HERITAGES.find((h) => h.id === (id || '')) || HERITAGES[0];
+
+/* Quick start presets — pick who you are, then fine-tune everything. */
+export const GENDER_PRESETS = [
+  { id: 'boy', label: 'Boy', emoji: '👦', dna: { hair: 'buzzcut', mouth: 'smile', facialHair: '' } },
+  { id: 'girl', label: 'Girl', emoji: '👧', dna: { hair: 'long', mouth: 'bigSmile', facialHair: '' } },
+];
+
 export const DEFAULT_DNA = {
   skinColor: SKIN_TONES[0],
   hair: 'curly',
@@ -72,6 +112,9 @@ export const DEFAULT_DNA = {
   clothingColor: CLOTHING_COLORS[0],
   eyes: 'happy',
   mouth: 'smile',
+  nose: 'mediumRound',
+  facialHair: '',
+  heritage: '',
 };
 
 /* Profiles saved BEFORE the enum fix may hold invalid values — snap
@@ -80,6 +123,8 @@ const VALID_HAIR = new Set(HAIR_STYLES.map((h) => h.id));
 const VALID_BODY = new Set(CLOTHING_STYLES.map((c) => c.id));
 const VALID_EYES = new Set(['glasses', 'happy', 'open', 'sleep', 'sunglasses', 'wink']);
 const VALID_MOUTH = new Set(['bigSmile', 'frown', 'lips', 'smile', 'smirk', 'surprise']);
+const VALID_NOSE = new Set(NOSES.map((n) => n.id));
+const VALID_FHAIR = new Set(FACIAL_HAIR.map((f) => f.id).filter(Boolean));
 
 /* Serialize/parse to a compact string so it fits in one text column
    (profiles.avatar_dna): "skinColor=..,hair=..,hairColor=.." */
@@ -103,10 +148,11 @@ export function parseDna(str) {
    every time for the same person, only changing when they edit it. */
 export function buildAvatarUrl(seed, dnaOrString) {
   const dna = typeof dnaOrString === 'string' ? parseDna(dnaOrString) : { ...DEFAULT_DNA, ...dnaOrString };
+  const heritage = heritageOf(dna.heritage);
   const params = new URLSearchParams({
     seed: seed || 'moments',
     backgroundType: 'gradientLinear',
-    backgroundColor: '7C3AED,F5B301',
+    backgroundColor: heritage.bg, // the heritage wraps you in its colours
     skinColor: dna.skinColor.replace('#', ''),
     hair: VALID_HAIR.has(dna.hair) ? dna.hair : 'curly',
     hairColor: dna.hairColor.replace('#', ''),
@@ -114,6 +160,13 @@ export function buildAvatarUrl(seed, dnaOrString) {
     clothingColor: dna.clothingColor.replace('#', ''),
     eyes: VALID_EYES.has(dna.eyes) ? dna.eyes : 'happy',
     mouth: VALID_MOUTH.has(dna.mouth) ? dna.mouth : 'smile',
+    nose: VALID_NOSE.has(dna.nose) ? dna.nose : 'mediumRound',
   });
+  if (VALID_FHAIR.has(dna.facialHair)) {
+    params.set('facialHair', dna.facialHair);
+    params.set('facialHairProbability', '100');
+  } else {
+    params.set('facialHairProbability', '0');
+  }
   return API + '?' + params.toString();
 }

@@ -7,6 +7,7 @@ import { Glass } from './Glass';
 import { Chip } from './Chip';
 import { Tick } from './Tick';
 import { StarButton } from './StarButton';
+import { usePlayer } from '../context/PlayerContext';
 import { sfxLaugh, sfxLaughBig } from '../utils/sfx';
 import { tapLight } from '../utils/feedback';
 
@@ -89,6 +90,17 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
   ) : null;
 
   const totalVibes = post.vibes + (joined ? 1 : 0) + (vibed ? 1 : 0);
+
+  /* ── the post's sound — really playable, right from the card ── */
+  const { playTrack, toggle: togglePlay, current, playing } = usePlayer();
+  const soundId = 'post-' + post.id;
+  const soundOn = current && current.id === soundId;
+  const playSound = () => {
+    if (!post.sound || !post.sound.audio_url) return;
+    tapLight();
+    if (soundOn) { togglePlay && togglePlay(); return; }
+    playTrack && playTrack({ id: soundId, title: post.sound.title, artist: post.sound.artist || 'indie', emoji: post.sound.emoji || '🎵', audio_url: post.sound.audio_url }, null, 0, { quiet: true });
+  };
 
   return (
     <Glass style={{ marginBottom: 24, overflow: 'hidden' }}>
@@ -224,6 +236,17 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
 
       {/* footer — compact action row; JOIN is a small pill on the right */}
       <View style={{ padding: 15, paddingTop: 13 }}>
+        {/* the sound on this moment — tap to actually hear it */}
+        {post.sound && post.sound.audio_url ? (
+          <Pressable onPress={playSound} style={{ alignSelf: 'flex-start', marginBottom: 10 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: soundOn && playing ? C.purple : C.bg, borderWidth: 1, borderColor: soundOn && playing ? C.purple : C.line, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 6 }}>
+              <Ionicons name={soundOn && playing ? 'pause' : 'play'} size={12} color={soundOn && playing ? '#FFF' : C.purple} />
+              <Text style={{ color: soundOn && playing ? '#FFF' : C.text, fontSize: 11.5, fontWeight: '800', marginLeft: 6 }} numberOfLines={1}>
+                ♫ {post.sound.title}{post.sound.artist ? ' · ' + post.sound.artist : ''}
+              </Text>
+            </View>
+          </Pressable>
+        ) : null}
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           {/* Star */}
           <StarButton starred={vibed} onPress={onVibe} size={21} />

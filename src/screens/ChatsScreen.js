@@ -8,6 +8,7 @@ import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { fetchMyDmThreads, fetchMySquads, createSquad, leaveSquad, addSquadMember, fetchDmStreaks } from '../services/messages';
 import { fetchIncomingRequests, acceptRequest, fetchMyMates } from '../services/mates';
+import { getProfile, updateProfile } from '../services/profiles';
 import { AV_NEUTRAL } from '../constants/mockData';
 import { fetchLanguagePartners, searchProfiles } from '../services/social';
 import { Page, ScreenHeader, SectionHeader, Glass, Chip, Tick, AvatarStack, StreakBadge } from '../components';
@@ -43,6 +44,38 @@ export const ChatsScreen = () => {
   const [justAccepted, setJustAccepted] = useState({});
   const [myMates, setMyMates] = useState([]);           // your friends — one tap to chat
   const [streaks, setStreaks] = useState({});           // { threadId: streakInfo } — 🔥 per chat
+
+  // ── language exchange, HelloTalk-style: switch it on RIGHT HERE ──
+  const [exOn, setExOn] = useState(false);
+  const [exSpeaks, setExSpeaks] = useState('');
+  const [exLearning, setExLearning] = useState('');
+  const [exBusy, setExBusy] = useState(false);
+  const [exSaved, setExSaved] = useState(false);
+  useEffect(() => {
+    if (!SUPABASE_READY || !user) return;
+    getProfile(user.id).then((p) => {
+      if (!p) return;
+      setExOn(!!p.learning_visible);
+      setExSpeaks(p.speaks_language || '');
+      setExLearning(p.learning_language || '');
+    }).catch(() => {});
+  }, [user]);
+  const saveExchange = async (nextOn) => {
+    if (!SUPABASE_READY || !user || exBusy) return;
+    setExBusy(true);
+    try {
+      await updateProfile(user.id, {
+        learning_visible: nextOn,
+        speaks_language: exSpeaks.trim() || null,
+        learning_language: exLearning.trim() || null,
+      });
+      setExOn(nextOn);
+      setExSaved(true); setTimeout(() => setExSaved(false), 1600);
+      tapLight();
+      reload(); // you appear for others the moment it's on
+    } catch (e) {}
+    finally { setExBusy(false); }
+  };
 
   const reload = useCallback(() => {
     if (!SUPABASE_READY || !user) return;
@@ -223,6 +256,52 @@ export const ChatsScreen = () => {
     <Text style={{ color: C.faint, fontSize: 11.5, marginTop: -6, marginBottom: 10, paddingHorizontal: 2 }}>
       People abroad who opened language exchange — swap languages & cultures, chat and call across the world.
     </Text>
+
+    {/* ── your exchange switch — HelloTalk-style, right here ── */}
+    {SUPABASE_READY ? (
+      <Glass style={{ padding: 13, marginBottom: 12 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Text style={{ fontSize: 20 }}>🌍</Text>
+          <View style={{ flex: 1, marginLeft: 10 }}>
+            <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800' }}>
+              {exOn ? 'You\'re open for exchange ✓' : 'Join the exchange'}
+            </Text>
+            <Text style={{ color: C.faint, fontSize: 11, marginTop: 1 }}>
+              {exOn ? 'People abroad can see you and say hi' : 'Flip it on — you\'ll appear here for people abroad'}
+            </Text>
+          </View>
+          <Pressable onPress={() => saveExchange(!exOn)} hitSlop={6}>
+            <View style={{ width: 46, height: 27, borderRadius: 14, backgroundColor: exOn ? C.green : C.glassHi, padding: 3, justifyContent: 'center' }}>
+              <View style={{ width: 21, height: 21, borderRadius: 11, backgroundColor: '#FFF', marginLeft: exOn ? 19 : 0 }} />
+            </View>
+          </Pressable>
+        </View>
+        {exOn ? (
+          <View style={{ marginTop: 10 }}>
+            <View style={{ flexDirection: 'row' }}>
+              <TextInput
+                placeholder="I speak… (e.g. Arabic)" placeholderTextColor={C.faint}
+                value={exSpeaks} onChangeText={setExSpeaks}
+                style={{ flex: 1, color: C.text, fontSize: 12.5, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 11, paddingHorizontal: 11, paddingVertical: 9, marginRight: 8 }}
+              />
+              <TextInput
+                placeholder="Learning… (e.g. English)" placeholderTextColor={C.faint}
+                value={exLearning} onChangeText={setExLearning}
+                style={{ flex: 1, color: C.text, fontSize: 12.5, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 11, paddingHorizontal: 11, paddingVertical: 9 }}
+              />
+            </View>
+            <Pressable onPress={() => saveExchange(true)} style={{ marginTop: 8 }}>
+              <View style={{ backgroundColor: exSaved ? C.greenSoft : C.purpleSoft, borderRadius: 11, paddingVertical: 9, alignItems: 'center' }}>
+                <Text style={{ color: exSaved ? C.green : C.purple, fontSize: 12, fontWeight: '900' }}>
+                  {exSaved ? 'Saved ✓ — you\'re live on the exchange' : exBusy ? 'Saving…' : 'Save my languages'}
+                </Text>
+              </View>
+            </Pressable>
+          </View>
+        ) : null}
+      </Glass>
+    ) : null}
+
     {partners.length ? (
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 20 }}>
         {partners.map((lp) => (

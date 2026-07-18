@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { C, R } from '../constants/theme';
 import {
   SKIN_TONES, HAIR_COLORS, CLOTHING_COLORS, HAIR_STYLES, CLOTHING_STYLES, EYES, MOUTHS,
+  NOSES, FACIAL_HAIR, HERITAGES, GENDER_PRESETS, heritageOf,
   DEFAULT_DNA, serializeDna, parseDna, buildAvatarUrl,
 } from '../services/avatarBuilder';
 import { useAuth } from '../context/AuthContext';
@@ -105,20 +106,40 @@ export const AvatarBuilderSheet = ({ initialDna, onClose, onSaved }) => {
         <View style={{ alignItems: 'center', paddingVertical: 14 }}>
           <View style={{ width: 116, height: 116, borderRadius: 58, padding: 4, backgroundColor: 'rgba(124,58,237,0.12)', borderWidth: 2, borderColor: C.purple }}>
             <Image source={{ uri: previewUrl }} style={{ width: '100%', height: '100%', borderRadius: 54 }} />
+            {dna.heritage ? (
+              <View style={{ position: 'absolute', bottom: -4, right: -4, width: 34, height: 34, borderRadius: 17, backgroundColor: '#FFF', borderWidth: 2, borderColor: C.gold, alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ fontSize: 16 }}>{heritageOf(dna.heritage).emblem}</Text>
+              </View>
+            ) : null}
           </View>
           <Text style={{ color: C.faint, fontSize: 11, marginTop: 8, textAlign: 'center' }}>
-            This is what shows on the live map instead of your photo
+            Your character on the map, in games & chats — never a photo
           </Text>
         </View>
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 18 }}>
+          {/* start with who you are — then fine-tune everything below */}
+          <View style={{ flexDirection: 'row', marginBottom: 14 }}>
+            {GENDER_PRESETS.map((g) => (
+              <Pressable key={g.id} onPress={() => { tapSelection(); setDna((d) => ({ ...d, ...g.dna })); }} style={{ flex: 1, marginHorizontal: 4 }}>
+                <View style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 14, paddingVertical: 12, alignItems: 'center' }}>
+                  <Text style={{ fontSize: 22 }}>{g.emoji}</Text>
+                  <Text style={{ color: C.text, fontSize: 12, fontWeight: '800', marginTop: 3 }}>{g.label}</Text>
+                </View>
+              </Pressable>
+            ))}
+          </View>
+
+          <ChipRow label="HERITAGE OUTFIT 🏺 — wear a civilization" options={HERITAGES.map((h) => ({ id: h.id, label: h.label, emoji: h.emblem }))} value={dna.heritage} onPick={set('heritage')} />
           <ColorRow label="SKIN TONE" colors={SKIN_TONES} value={dna.skinColor} onPick={set('skinColor')} />
           <ChipRow label="HAIR STYLE" options={HAIR_STYLES} value={dna.hair} onPick={set('hair')} />
           <ColorRow label="HAIR COLOR" colors={HAIR_COLORS} value={dna.hairColor} onPick={set('hairColor')} />
           <ChipRow label="OUTFIT" options={CLOTHING_STYLES} value={dna.clothing} onPick={set('clothing')} />
           <ColorRow label="OUTFIT COLOR" colors={CLOTHING_COLORS} value={dna.clothingColor} onPick={set('clothingColor')} />
           <ChipRow label="EYES" options={EYES} value={dna.eyes} onPick={set('eyes')} />
+          <ChipRow label="NOSE" options={NOSES} value={dna.nose} onPick={set('nose')} />
           <ChipRow label="MOUTH" options={MOUTHS} value={dna.mouth} onPick={set('mouth')} />
+          <ChipRow label="FACIAL HAIR" options={FACIAL_HAIR} value={dna.facialHair} onPick={set('facialHair')} />
 
           {err ? <Text style={{ color: C.coral, fontSize: 12, textAlign: 'center', marginBottom: 8 }}>{err}</Text> : null}
           <Pressable onPress={save} disabled={busy} style={{ marginTop: 4 }}>

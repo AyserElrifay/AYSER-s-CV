@@ -177,7 +177,8 @@ export const ProfileScreen = () => {
   const [coverBusy, setCoverBusy] = useState(false);
   const changeCover = async () => {
     if (coverBusy) return;
-    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [3, 1], quality: 0.75 });
+    // Facebook cover ratio (851×315 ≈ 2.7:1) with built-in cropping
+    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [27, 10], quality: 0.75 });
     if (res.canceled || !res.assets || !res.assets[0]) return;
     if (!SUPABASE_READY || !user) return;
     setCoverBusy(true);

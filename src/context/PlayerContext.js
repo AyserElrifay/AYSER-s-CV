@@ -73,14 +73,14 @@ export const PlayerProvider = ({ children }) => {
     if (track.id) incrementTrackUse(track.id); // real play-count
   }, []);
 
-  const playTrack = useCallback((track, list, startIndex) => {
+  const playTrack = useCallback((track, list, startIndex, opts) => {
     const q = Array.isArray(list) && list.length ? list : [track];
     const i = typeof startIndex === 'number' ? startIndex : Math.max(0, q.findIndex((t) => t.id === track.id));
     queueRef.current = q;
     setQueue(q);
     setIndex(i);
     loadAndPlay(q[i] || track);
-    setShowFull(true);
+    if (!(opts && opts.quiet)) setShowFull(true); // quiet: mini-player only (e.g. a post's sound)
   }, [loadAndPlay]);
 
   const toggle = useCallback(() => {
