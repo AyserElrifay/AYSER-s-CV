@@ -564,6 +564,33 @@ ${esc(t("free_offer_note"))}</div></div>
       }
       Store.save();
 
+      // 👍/👎 — local style-learning: counts + dislike reasons feed the
+      // next system prompt so Bardi adapts to this user. Never leaves device.
+      if (msgRow) {
+        const fbId = "fb_" + Store.uid();
+        msgRow.insertAdjacentHTML("afterend", `
+          <div class="tag-chips fb-chips" id="${fbId}">
+            <button class="chip tiny" data-fbup>👍</button>
+            <button class="chip tiny" data-fbdown>👎</button>
+          </div>`);
+        if (!S.feedback) S.feedback = { up: 0, down: 0, reasons: [] };
+        $(`#${fbId} [data-fbup]`).addEventListener("click", () => {
+          S.feedback.up++; Store.save();
+          $(`#${fbId}`).remove(); toast(t("fb_thanks"));
+        });
+        $(`#${fbId} [data-fbdown]`).addEventListener("click", () => {
+          S.feedback.down++; Store.save();
+          $(`#${fbId}`).innerHTML = ["fb_reason_long", "fb_reason_generic", "fb_reason_notme"].map(k =>
+            `<button class="chip tiny" data-fbreason="${k}">${esc(t(k))}</button>`).join("");
+          $$(`#${fbId} [data-fbreason]`).forEach(rb => rb.addEventListener("click", () => {
+            S.feedback.reasons.push(t(rb.dataset.fbreason));
+            S.feedback.reasons = S.feedback.reasons.slice(-10);
+            Store.save();
+            $(`#${fbId}`).remove(); toast(t("fb_thanks"));
+          }));
+        });
+      }
+
       if (event && msgRow) {
         const chipId = "evchip_" + Store.uid();
         msgRow.insertAdjacentHTML("afterend", `

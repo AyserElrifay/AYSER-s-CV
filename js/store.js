@@ -47,6 +47,7 @@ const Store = (() => {
     chats: [],          // [{id, title, messages:[{role,content}], updatedAt}]
     activeChatId: null,
     memory: [],         // strings the coach learned about the user
+    feedback: { up: 0, down: 0, reasons: [] }, // 👍/👎 on replies + last dislike reasons — local style-learning signal
     plans: [],          // {id, goal, deck:{title,subtitle,slides:[]}, createdAt}
     journal: [],         // {id, text, mood, createdAt}
     events: [],          // {id, title, date:"YYYY-MM-DD", time:"HH:MM"|"", note, remindMin, reminded, createdAt}

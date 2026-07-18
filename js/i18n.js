@@ -303,6 +303,12 @@ const I18N = {
     book_status_done: "خلصته",
 
     // Coach persona bits
+        // Reply feedback (local learning)
+    fb_thanks: "شكرًا — بردي بيتعلم منك 🌱",
+    fb_reason_long: "الرد طويل",
+    fb_reason_generic: "كلام عام",
+    fb_reason_notme: "مش حاسس إنه فاهمني",
+
     lang_name: "العربية",
   },
 
@@ -590,6 +596,12 @@ const I18N = {
     book_status_toread: "To read",
     book_status_reading: "Reading",
     book_status_done: "Finished",
+
+        // Reply feedback (local learning)
+    fb_thanks: "Thanks — Bardi is learning from you 🌱",
+    fb_reason_long: "Too long",
+    fb_reason_generic: "Too generic",
+    fb_reason_notme: "Doesn't get me",
 
     lang_name: "English",
   },
@@ -879,6 +891,12 @@ const I18N = {
     book_status_reading: "En cours",
     book_status_done: "Terminé",
 
+        // Reply feedback (local learning)
+    fb_thanks: "Merci — Bardi apprend de toi 🌱",
+    fb_reason_long: "Trop long",
+    fb_reason_generic: "Trop générique",
+    fb_reason_notme: "Ne me comprend pas",
+
     lang_name: "Français",
   },
 
@@ -1167,6 +1185,12 @@ const I18N = {
     book_status_reading: "Lese ich",
     book_status_done: "Fertig",
 
+        // Reply feedback (local learning)
+    fb_thanks: "Danke — Bardi lernt von dir 🌱",
+    fb_reason_long: "Zu lang",
+    fb_reason_generic: "Zu allgemein",
+    fb_reason_notme: "Versteht mich nicht",
+
     lang_name: "Deutsch",
   },
 
@@ -1454,6 +1478,12 @@ const I18N = {
     book_status_toread: "Por leer",
     book_status_reading: "Leyendo",
     book_status_done: "Terminado",
+
+        // Reply feedback (local learning)
+    fb_thanks: "Gracias — Bardi está aprendiendo de ti 🌱",
+    fb_reason_long: "Demasiado largo",
+    fb_reason_generic: "Demasiado genérico",
+    fb_reason_notme: "No me entiende",
 
     lang_name: "Español",
   },
