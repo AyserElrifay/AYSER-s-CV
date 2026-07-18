@@ -582,6 +582,30 @@ drop policy if exists "members can leave squads" on public.squad_members;
 create policy "members can leave squads" on public.squad_members
   for delete using (auth.uid() = user_id);
 
+-- ═══════════ LEGAL SHIELD · reports & takedowns (DMCA) ═══════════
+-- Every report a user files is a real row. This is what makes DMCA
+-- "safe harbour" work: users flag infringing/abusive content, you get a
+-- queue to act on, and you can remove it — so as the app owner you're
+-- protected as long as you respond to reports.
+create table if not exists public.content_reports (
+  id           uuid primary key default gen_random_uuid(),
+  reporter_id  uuid references public.profiles(id) on delete set null,
+  content_type text not null,                 -- 'track' | 'post' | 'comment' | 'story' | 'user'
+  content_id   text not null,                 -- id of the reported thing
+  reason       text not null,                 -- short code (copyright, abuse, …)
+  detail       text,                          -- optional free text / rights-holder claim
+  status       text not null default 'open',  -- 'open' | 'reviewed' | 'removed'
+  created_at   timestamptz not null default now()
+);
+alter table public.content_reports enable row level security;
+drop policy if exists "anyone signed-in can report" on public.content_reports;
+create policy "anyone signed-in can report" on public.content_reports
+  for insert with check (auth.uid() = reporter_id);
+drop policy if exists "see your own reports" on public.content_reports;
+create policy "see your own reports" on public.content_reports
+  for select using (auth.uid() = reporter_id);
+create index if not exists content_reports_status_idx on public.content_reports (status, created_at desc);
+
 -- ═══════════════ PROFILE COLUMNS SELF-HEAL ═══════════════
 -- Columns added by earlier schema files (v2 languages, v7 country)
 -- that may be missing — safe to re-add, they no-op if present.
@@ -597,6 +621,7 @@ alter table public.profiles add column if not exists hobbies           text;
 alter table public.profiles add column if not exists avatar_dna       text;
 alter table public.profiles add column if not exists last_active_at   timestamptz;
 alter table public.profiles add column if not exists cover_url        text;
+alter table public.profiles add column if not exists tos_accepted_at  timestamptz; -- accepted the Terms + rights policy
 
 -- ═══════════════ MOMENTS IN CHAT (streaks) ═══════════════
 -- Send each other photo/video "Moments" right inside a chat, like

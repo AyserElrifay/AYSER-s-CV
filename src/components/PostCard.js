@@ -18,7 +18,7 @@ const typeChip = (post) => {
   return { label: 'MOMENT', tint: 'rgba(17,24,39,0.65)', color: 'rgba(255,255,255,0.85)' };
 };
 
-export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onLaugh: onLaughProp, onRemoveLaugh, isMine, onDelete, onEdit, onShare, onJoin, onVibe, onComment, onOpenProfile, onOpenReel, onOpenLikers, onOpenLaughers }) => {
+export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onLaugh: onLaughProp, onRemoveLaugh, isMine, onDelete, onEdit, onShare, onJoin, onVibe, onComment, onOpenProfile, onOpenReel, onOpenLikers, onOpenLaughers, onReport }) => {
   const mediaH = post.type === 'reel' ? 470 : post.type === 'vod' ? 208 : 250;
   const tc = typeChip(post);
   const textBg = TEXT_BGS[post.textBg] || TEXT_BGS.plain;
@@ -146,7 +146,7 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
               </>
             )
           ) : (
-            <Pressable onPress={() => { setReported(true); setTimeout(() => setMenuOpen(false), 900); }}>
+            <Pressable onPress={() => { setMenuOpen(false); onReport ? onReport(post) : setReported(true); }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', padding: 12 }}>
                 <Ionicons name={reported ? 'checkmark-circle' : 'flag-outline'} size={17} color={reported ? C.green : C.dim} />
                 <Text style={{ color: reported ? C.green : C.text, fontSize: 13.5, fontWeight: '700', marginLeft: 9 }}>

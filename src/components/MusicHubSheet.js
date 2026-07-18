@@ -8,6 +8,7 @@ import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { fetchTracks, uploadTrack } from '../services/music';
 import { startCheckout } from '../services/payments';
+import { ReportSheet } from './ReportSheet';
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
 import { sfxPop, sfxSuccess } from '../utils/sfx';
 
@@ -102,6 +103,7 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
 
   const [licensing, setLicensing] = useState(null); // track id in flight
   const [licenseNote, setLicenseNote] = useState(null);
+  const [reportTrack, setReportTrack] = useState(null); // track being reported
 
   const license = async (t) => {
     if (!SUPABASE_READY || !user) { setLicenseNote('Sign in to license a track.'); return; }
@@ -210,6 +212,9 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
                       </Text>
                     </Pressable>
                   ) : null}
+                  <Pressable onPress={() => { tapLight(); setReportTrack(t); }} hitSlop={6} style={{ marginTop: 5 }}>
+                    <Text style={{ color: C.faint, fontSize: 10, fontWeight: '700' }}>⚑ Report</Text>
+                  </Pressable>
                 </View>
               </View>
             </Pressable>
@@ -221,6 +226,9 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
           )}
         </ScrollView>
       </Pressable>
+      {reportTrack ? (
+        <ReportSheet contentType="track" contentId={reportTrack.id} contentLabel={reportTrack.title} onClose={() => setReportTrack(null)} />
+      ) : null}
     </Pressable>
   );
 };

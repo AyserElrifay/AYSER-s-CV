@@ -21,7 +21,7 @@ import { sfxNotify } from '../utils/sfx';
 import {
   Glass, StoriesBar, PostCard, MagicFlowModal, ProfileModal,
   CommentsSheet, ComposeModal, SearchModal, StoryViewer, ReelsViewer,
-  CaptureModal, NotificationsSheet, LikersSheet,
+  CaptureModal, NotificationsSheet, LikersSheet, ReportSheet,
 } from '../components';
 import { Modal } from 'react-native';
 import { ProfileScreen } from './ProfileScreen';
@@ -114,6 +114,7 @@ export const HomeScreen = () => {
   const [likersPost, setLikersPost] = useState(null); // "who reacted to this"
   const [likersKind, setLikersKind] = useState('star'); // 'star' | 'laugh'
   const openLikers = (post, kind) => { setLikersKind(kind); setLikersPost(post); };
+  const [reportPost, setReportPost] = useState(null); // a moment being reported
   const [toast, setToast] = useState(null);
 
   const showToast = (msg) => {
@@ -358,6 +359,7 @@ export const HomeScreen = () => {
               onOpenReel={openReel}
               onOpenLikers={(p) => openLikers(p, 'star')}
               onOpenLaughers={(p) => openLikers(p, 'laugh')}
+              onReport={setReportPost}
             />
           );
         }}
@@ -404,6 +406,7 @@ export const HomeScreen = () => {
       {commentsPost ? <CommentsSheet post={commentsPost} onClose={() => setCommentsPost(null)} /> : null}
       {notifOpen ? <NotificationsSheet onClose={() => setNotifOpen(false)} /> : null}
       {likersPost ? <LikersSheet post={likersPost} kind={likersKind} onClose={() => setLikersPost(null)} /> : null}
+      {reportPost ? <ReportSheet contentType="post" contentId={reportPost.id} contentLabel="moment" onClose={() => setReportPost(null)} /> : null}
 
       {/* a moment opened from a shared link — the full card, ready to vibe */}
       {sharedPost ? (
@@ -429,6 +432,7 @@ export const HomeScreen = () => {
                 onOpenReel={() => {}}
                 onOpenLikers={(p) => openLikers(p, 'star')}
                 onOpenLaughers={(p) => openLikers(p, 'laugh')}
+                onReport={setReportPost}
               />
             </Pressable>
             <Pressable onPress={() => setSharedPost(null)} style={{ alignSelf: 'center', marginTop: 6 }}>

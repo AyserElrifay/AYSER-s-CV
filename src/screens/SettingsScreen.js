@@ -16,7 +16,7 @@ import { AV_NEUTRAL } from '../constants/mockData';
 import { getPrefs, setPref, subscribePrefs } from '../services/prefs';
 import {
   Glass, Micro, Chip, SectionHeader,
-  NeonButton,
+  NeonButton, TermsSheet,
 } from '../components';
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
 import { sfxSuccess } from '../utils/sfx';
@@ -43,6 +43,7 @@ export const SettingsScreen = ({ onClose }) => {
   // Real mode starts with NO activity — only things that truly happened
   // (real splits you shared) get added. The sample rows are demo-only.
   const [tx, setTx] = useState(SUPABASE_READY ? [] : INITIAL_TX);
+  const [termsOpen, setTermsOpen] = useState(false);
   const [split, setSplit] = useState(false);
   const [splitTotal, setSplitTotal] = useState('');
   const [splitPeople, setSplitPeople] = useState('2');
@@ -352,6 +353,18 @@ export const SettingsScreen = ({ onClose }) => {
               <Ionicons name="chevron-forward" size={16} color={C.faint} />
             </View>
           </Pressable>
+          <Pressable onPress={() => { tapLight(); setTermsOpen(true); }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.line }}>
+              <View style={{ width: 30, height: 30, borderRadius: 9, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                <Ionicons name="shield-checkmark-outline" size={16} color={C.purple} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: C.text, fontSize: 14, fontWeight: '700' }}>Terms & content policy</Text>
+                <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 1 }}>Your rights, our rules & how to report</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color={C.faint} />
+            </View>
+          </Pressable>
           <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.line }}>
             <View style={{ width: 30, height: 30, borderRadius: 9, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
               <Ionicons name="information-circle-outline" size={16} color={C.purple} />
@@ -457,6 +470,8 @@ export const SettingsScreen = ({ onClose }) => {
           </Pressable>
         </Glass>
       </ScrollView>
+
+      {termsOpen ? <TermsSheet onClose={() => setTermsOpen(false)} /> : null}
 
       {/* language picker */}
       {langOpen ? (

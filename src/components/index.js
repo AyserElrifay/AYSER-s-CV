@@ -32,6 +32,8 @@ export { StoryViewer } from './StoryViewer';
 export { ReelsViewer } from './ReelsViewer';
 export { StarButton } from './StarButton';
 export { StreakBadge } from './StreakBadge';
+export { ReportSheet } from './ReportSheet';
+export { TermsSheet } from './TermsSheet';
 export { GameRunner } from './GameRunner';
 export { CaptureModal } from './CaptureModal';
 export { BoostSheet } from './BoostSheet';
