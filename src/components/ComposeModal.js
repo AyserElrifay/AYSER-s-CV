@@ -43,8 +43,13 @@ export const ComposeModal = ({ initialMode = 'post', onClose, onPosted, onPosted
   const isReel = mode === 'reel';
   const isStory = mode === 'story';
 
+  // Real, enforced sizes (not just a suggestion): Moment 4:5, Reel/Story
+  // 9:16 — the crop UI forces it, so every upload actually matches the
+  // shape the feed/reel/story viewer is built for.
+  const aspectFor = (m) => (m === 'post' ? [4, 5] : [9, 16]);
+
   const pick = async (fromCamera) => {
-    const opts = { mediaTypes: ['images'], quality: 0.8, allowsEditing: true };
+    const opts = { mediaTypes: ['images'], quality: 0.8, allowsEditing: true, aspect: aspectFor(mode) };
     let result;
     if (fromCamera) {
       const perm = await ImagePicker.requestCameraPermissionsAsync();

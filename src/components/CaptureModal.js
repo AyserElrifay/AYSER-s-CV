@@ -289,7 +289,9 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
      story/reel — with the full sound rail available in preview ── */
   const pickFromLibrary = async () => {
     try {
-      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images', 'videos'], quality: 1 });
+      // 9:16 crop for photos (native only — ignored for video and on web,
+      // where no crop UI exists) so a gallery upload matches the story/reel shape
+      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images', 'videos'], quality: 1, allowsEditing: true, aspect: [9, 16] });
       if (!result.canceled && result.assets && result.assets[0]) {
         const a = result.assets[0];
         const isVid = (a.type || '').startsWith('video') || /^video\//.test(a.mimeType || '');

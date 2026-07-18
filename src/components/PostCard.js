@@ -20,6 +20,10 @@ const typeChip = (post) => {
 };
 
 export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onLaugh: onLaughProp, onRemoveLaugh, isMine, onDelete, onEdit, onShare, onJoin, onVibe, onComment, onOpenProfile, onOpenReel, onOpenLikers, onOpenLaughers, onReport }) => {
+  // Moments are captured at an enforced 4:5 crop (ComposeModal) — sizing
+  // the card by aspect ratio, not a fixed height, means the feed shows
+  // exactly what was cropped, no extra cover-crop surprise.
+  const mediaAspect = post.type === 'post' ? 4 / 5 : null;
   const mediaH = post.type === 'reel' ? 470 : post.type === 'vod' ? 208 : 250;
   const tc = typeChip(post);
   const textBg = TEXT_BGS[post.textBg] || TEXT_BGS.plain;
@@ -198,7 +202,7 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
           Double-tap either one to vibe, Instagram style. */}
       {post.media ? (
         <Pressable onPress={handleMediaTap}>
-          <ImageBackground source={{ uri: post.media }} style={{ height: mediaH, justifyContent: 'space-between' }}>
+          <ImageBackground source={{ uri: post.media }} style={mediaAspect ? { aspectRatio: mediaAspect, justifyContent: 'space-between' } : { height: mediaH, justifyContent: 'space-between' }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', padding: 12 }}>
               <Chip label={tc.label} tint={tc.tint} color={tc.color} />
               {post.startsIn === 'Live now' ? <Chip label="● LIVE" tint="rgba(244,63,94,0.9)" color="#fff" style={{ borderColor: 'transparent' }} /> : null}
