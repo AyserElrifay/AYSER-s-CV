@@ -6,11 +6,11 @@ import { C } from '../constants/theme';
 import { SQUADS, DMS, LANG_PARTNERS } from '../constants/mockData'; // demo-mode fallback only
 import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-import { fetchMyDmThreads, fetchMySquads, createSquad, leaveSquad, addSquadMember } from '../services/messages';
+import { fetchMyDmThreads, fetchMySquads, createSquad, leaveSquad, addSquadMember, fetchDmStreaks } from '../services/messages';
 import { fetchIncomingRequests, acceptRequest, fetchMyMates } from '../services/mates';
 import { AV_NEUTRAL } from '../constants/mockData';
 import { fetchLanguagePartners, searchProfiles } from '../services/social';
-import { Page, ScreenHeader, SectionHeader, Glass, Chip, Tick, AvatarStack } from '../components';
+import { Page, ScreenHeader, SectionHeader, Glass, Chip, Tick, AvatarStack, StreakBadge } from '../components';
 import { ChatThread } from './ChatThread';
 import { tapLight } from '../utils/feedback';
 
@@ -42,6 +42,7 @@ export const ChatsScreen = () => {
   const [mateRequests, setMateRequests] = useState([]); // real pending friend requests
   const [justAccepted, setJustAccepted] = useState({});
   const [myMates, setMyMates] = useState([]);           // your friends — one tap to chat
+  const [streaks, setStreaks] = useState({});           // { threadId: streakInfo } — 🔥 per chat
 
   const reload = useCallback(() => {
     if (!SUPABASE_READY || !user) return;
@@ -50,6 +51,7 @@ export const ChatsScreen = () => {
     fetchLanguagePartners(user.id).then(setRealPartners).catch(() => {});
     fetchIncomingRequests(user.id).then(setMateRequests).catch(() => {});
     fetchMyMates(user.id).then(setMyMates).catch(() => {});
+    fetchDmStreaks(user.id).then(setStreaks).catch(() => {});
   }, [user]);
 
   const accept = async (req) => {
@@ -339,11 +341,12 @@ export const ChatsScreen = () => {
           <Image source={{ uri: d.user.avatar }} style={{ width: 46, height: 46, borderRadius: 23 }} />
           <View style={{ flex: 1, marginLeft: 12 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>{d.user.name}</Text>
+              <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }} numberOfLines={1}>{d.user.name}</Text>
               {d.user.verified ? <Tick /> : null}
               {d.translated ? (
                 <MaterialCommunityIcons name="translate" size={14} color={C.blue} style={{ marginLeft: 7 }} />
               ) : null}
+              {streaks[d.threadId] ? <View style={{ marginLeft: 7 }}><StreakBadge info={streaks[d.threadId]} /></View> : null}
             </View>
             <Text style={{ color: d.unread ? C.text : C.dim, fontSize: 12.5, marginTop: 3, fontWeight: d.unread ? '600' : '400' }} numberOfLines={1}>
               {d.last}

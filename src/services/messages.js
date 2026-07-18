@@ -86,6 +86,77 @@ export function computeStreak(messages, myId, peerId) {
   return streak;
 }
 
+/* A milestone flair for a streak number — the little badge that rides
+   next to the 🔥, Snapchat-style. */
+export function streakBadge(n) {
+  if (n >= 1000) return '🌟';
+  if (n >= 365) return '👑';
+  if (n >= 100) return '💯';
+  if (n >= 30) return '✨';
+  return '';
+}
+
+/* The full streak picture for a chat: the number, whether it's about to
+   break (both people need to send a Moment today or lose it), how many
+   hours are left today, and a milestone badge. Real — all derived from
+   the moments actually exchanged. */
+export function streakInfo(messages, myId, peerId) {
+  const n = computeStreak(messages, myId, peerId);
+  if (!n) return { n: 0, expiring: false, hoursLeft: 0, badge: '' };
+  const key = (t) => { const x = new Date(t); return x.getFullYear() + '-' + x.getMonth() + '-' + x.getDate(); };
+  const today = key(Date.now());
+  let meToday = false, peerToday = false;
+  (messages || []).forEach((m) => {
+    const isMoment = m.kind === 'moment' || !!m.mediaUrl;
+    const when = m.createdAt || m.created_at;
+    if (!isMoment || !when || key(when) !== today) return;
+    if (m.userId === myId) meToday = true;
+    else if (m.userId === peerId) peerToday = true;
+  });
+  const bothToday = meToday && peerToday;
+  const now = new Date();
+  const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 0, 0);
+  const hoursLeft = Math.max(0, Math.round((endOfDay - now) / 3600000));
+  return { n, expiring: !bothToday, meToday, peerToday, hoursLeft, badge: streakBadge(n) };
+}
+
+/* Streaks across ALL your DM threads at once — so the chats list can show
+   a 🔥 next to each conversation. Fail-soft: returns {} if the moment
+   columns aren't in the DB yet. Shape: { [threadId]: streakInfo }. */
+export async function fetchDmStreaks(userId) {
+  try {
+    const { data: mine } = await supabase.from('dm_participants').select('thread_id').eq('user_id', userId);
+    const threadIds = (mine || []).map((r) => r.thread_id);
+    if (!threadIds.length) return {};
+    const { data: others } = await supabase
+      .from('dm_participants').select('thread_id, user_id').in('thread_id', threadIds).neq('user_id', userId);
+    const peerByThread = {};
+    (others || []).forEach((o) => { peerByThread[o.thread_id] = o.user_id; });
+    const { data: moments, error } = await supabase
+      .from('messages')
+      .select('dm_thread_id, user_id, created_at, kind, media_url')
+      .in('dm_thread_id', threadIds)
+      .order('created_at', { ascending: false })
+      .limit(4000);
+    if (error) return {};
+    const byThread = {};
+    (moments || []).forEach((m) => {
+      if (m.kind !== 'moment' && !m.media_url) return;
+      (byThread[m.dm_thread_id] = byThread[m.dm_thread_id] || []).push({
+        userId: m.user_id, createdAt: m.created_at, kind: m.kind, mediaUrl: m.media_url,
+      });
+    });
+    const out = {};
+    threadIds.forEach((tid) => {
+      const info = streakInfo(byThread[tid] || [], userId, peerByThread[tid]);
+      if (info.n > 0) out[tid] = info;
+    });
+    return out;
+  } catch (e) {
+    return {};
+  }
+}
+
 export function subscribeMessages({ squadId, dmThreadId }, onInsert) {
   const filter = squadId ? 'squad_id=eq.' + squadId : 'dm_thread_id=eq.' + dmThreadId;
   const channel = supabase

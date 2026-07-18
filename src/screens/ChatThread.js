@@ -6,7 +6,8 @@ import { C } from '../constants/theme';
 import { AV_NEUTRAL } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-import { getOrCreateDmThread, fetchMessages, sendMessage, sendMoment, subscribeMessages, getThreadTtl, setThreadTtl, sweepExpired, computeStreak } from '../services/messages';
+import { getOrCreateDmThread, fetchMessages, sendMessage, sendMoment, subscribeMessages, getThreadTtl, setThreadTtl, sweepExpired, streakInfo } from '../services/messages';
+import { StreakBadge } from '../components/StreakBadge';
 import { getProfile } from '../services/profiles';
 import { TruthOrDare } from '../components/TruthOrDare';
 import { WouldYouRather } from '../components/WouldYouRather';
@@ -155,8 +156,9 @@ export const ChatThread = ({ chat, group, onClose }) => {
   });
 
   // Snapchat-style streak with this person — real, from the moments you
-  // and they have actually exchanged.
-  const streak = (!group && peer && peer.id) ? computeStreak(msgs, user && user.id, peer.id) : 0;
+  // and they have actually exchanged (number, milestone badge, and an
+  // ⏳ warning when you both still need to send today or lose it).
+  const streak = (!group && peer && peer.id) ? streakInfo(msgs, user && user.id, peer.id) : { n: 0 };
 
   // ── Moments in chat: shoot a snap and send it right here ──
   const [momentOpen, setMomentOpen] = useState(false);
@@ -259,12 +261,7 @@ export const ChatThread = ({ chat, group, onClose }) => {
           <View style={{ flex: 1, marginLeft: 10 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Text style={{ color: C.text, fontSize: 15.5, fontWeight: '800', flexShrink: 1 }} numberOfLines={1}>{title}</Text>
-              {streak > 0 ? (
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 7, backgroundColor: C.coralSoft, borderRadius: 999, paddingHorizontal: 7, paddingVertical: 2 }}>
-                  <Text style={{ fontSize: 12 }}>🔥</Text>
-                  <Text style={{ color: C.coral, fontSize: 11.5, fontWeight: '900', marginLeft: 2 }}>{streak}</Text>
-                </View>
-              ) : null}
+              {streak.n > 0 ? <View style={{ marginLeft: 7 }}><StreakBadge info={streak} /></View> : null}
             </View>
             <Text style={{ color: ttl ? C.purple : (/now/.test(activeLabel) ? C.green : C.faint), fontSize: 11.5, marginTop: 1 }} numberOfLines={1}>
               {ttl ? '⏳ Disappear after ' + (TTL_OPTIONS.find((o) => o.h === ttl) || {}).label : activeLabel}
@@ -377,6 +374,19 @@ export const ChatThread = ({ chat, group, onClose }) => {
                 </View>
               </Pressable>
             </View>
+          ) : null}
+
+          {/* streak-about-to-break nudge — send a Moment today to keep it */}
+          {!group && streak.n > 0 && streak.expiring ? (
+            <Pressable onPress={() => { tapMedium(); setMomentOpen(true); }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(245,158,11,0.14)', borderTopWidth: 1, borderTopColor: 'rgba(245,158,11,0.35)', paddingHorizontal: 14, paddingVertical: 9 }}>
+                <Text style={{ fontSize: 15 }}>⏳</Text>
+                <Text style={{ color: '#B45309', fontSize: 12.5, fontWeight: '800', marginLeft: 8, flex: 1 }}>
+                  Keep your {streak.n}-day streak 🔥 — send a Moment today{streak.hoursLeft > 0 ? ' · ' + streak.hoursLeft + 'h left' : ''}
+                </Text>
+                <Text style={{ color: '#B45309', fontSize: 12, fontWeight: '900' }}>Send →</Text>
+              </View>
+            </Pressable>
           ) : null}
 
           {/* honest failure banner — the message is still in the box */}

@@ -31,6 +31,7 @@ export { SoundPicker } from './SoundPicker';
 export { StoryViewer } from './StoryViewer';
 export { ReelsViewer } from './ReelsViewer';
 export { StarButton } from './StarButton';
+export { StreakBadge } from './StreakBadge';
 export { GameRunner } from './GameRunner';
 export { CaptureModal } from './CaptureModal';
 export { BoostSheet } from './BoostSheet';
