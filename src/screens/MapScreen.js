@@ -29,7 +29,7 @@ import {
   Glass, Micro, Chip, NeonButton, GhostButton, FauxMap,
   PersonPin, CampfirePin, MePin, SOSButton, ProfileModal, BookingSheet, LeafletMap,
 } from '../components';
-import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
+import { tapLight, tapMedium, tapSelection, tapSuccess } from '../utils/feedback';
 import { sfxPop, sfxSuccess } from '../utils/sfx';
 
 /* ─────────────────── TAB 2 · MAP — THE LIVING WORLD ────────────────── */
@@ -99,6 +99,21 @@ export const MapScreen = () => {
   const [located, setLocated] = useState(false);       // true ONLY when real GPS resolved
   const [locating, setLocating] = useState(true);
   const [hasLocationPerm, setHasLocationPerm] = useState(false);
+  /* On web, the raw browser permission popup ("yourdomain wants your
+     location") is jarring as the very first thing a new user sees, and
+     it always shows the site's actual domain — no app can change that,
+     it's a browser security guarantee. So we ask with our OWN branded
+     card first; only a real tap on "Turn on location" triggers the
+     native prompt. Once someone has been through this once, we
+     remember it (localStorage) and never show the card again. Native
+     apps already show the app's own name in the OS dialog, so no gate
+     is needed there. */
+  const LOCATION_GATE_KEY = 'mm_location_gate_seen';
+  const [showLocationGate, setShowLocationGate] = useState(() => {
+    if (Platform.OS !== 'web') return false;
+    try { return typeof localStorage !== 'undefined' && localStorage.getItem(LOCATION_GATE_KEY) !== '1'; }
+    catch (e) { return false; }
+  });
   const [realPeople, setRealPeople] = useState([]);
   const [realCampfires, setRealCampfires] = useState([]);
   const [realVenues, setRealVenues] = useState([]);
@@ -135,7 +150,14 @@ export const MapScreen = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => { locateMe(); }, [locateMe]);
+  useEffect(() => { if (!showLocationGate) locateMe(); }, [locateMe, showLocationGate]);
+
+  const acceptLocationGate = () => {
+    tapMedium();
+    try { if (typeof localStorage !== 'undefined') localStorage.setItem(LOCATION_GATE_KEY, '1'); } catch (e) {}
+    setShowLocationGate(false); // effect above now calls locateMe()
+  };
+  const skipLocationGate = () => { tapLight(); setShowLocationGate(false); };
 
   /* Keep following the real GPS after the first fix — your pin moves
      when you move, so the map truly knows where you are, live. GPS
@@ -904,6 +926,31 @@ export const MapScreen = () => {
       )}
 
       {overlays}
+
+      {/* ── location priming — our own branded ask BEFORE the raw
+          browser popup, so a stranger's domain is never the first
+          thing a new user sees ── */}
+      {showLocationGate ? (
+        <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(8,10,20,0.72)', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 26 }}>
+          <View style={{ backgroundColor: '#FFF', borderRadius: 26, padding: 24, width: '100%', maxWidth: 340, alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 24, shadowOffset: { width: 0, height: 12 } }}>
+            <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
+              <Text style={{ fontSize: 30 }}>📍</Text>
+            </View>
+            <Text style={{ color: C.text, fontSize: 17, fontWeight: '900', textAlign: 'center' }}>See what's happening near you</Text>
+            <Text style={{ color: C.dim, fontSize: 13, lineHeight: 19, textAlign: 'center', marginTop: 8 }}>
+              Moments uses your live location to show nearby mates, campfires and places on the map. Your browser will ask you to confirm next.
+            </Text>
+            <Pressable onPress={acceptLocationGate} style={{ width: '100%', marginTop: 18 }}>
+              <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingVertical: 14, alignItems: 'center' }}>
+                <Text style={{ color: '#FFF', fontSize: 14.5, fontWeight: '900' }}>Turn on location</Text>
+              </View>
+            </Pressable>
+            <Pressable onPress={skipLocationGate} style={{ marginTop: 12 }}>
+              <Text style={{ color: C.faint, fontSize: 12.5, fontWeight: '700' }}>Maybe later</Text>
+            </Pressable>
+          </View>
+        </View>
+      ) : null}
 
       {/* honest toast — errors & confirmations for map actions */}
       {mapNote ? (
