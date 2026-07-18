@@ -9,8 +9,11 @@ import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { openPartner } from '../services/broker';
 import { fetchVideos, deletePost } from '../services/posts';
+import { fetchTracks } from '../services/music';
+import { usePlayer } from '../context/PlayerContext';
 import { Page, ScreenHeader, SectionHeader, Glass } from '../components';
 import { CaptureModal } from '../components/CaptureModal';
+import { MusicHubSheet } from '../components/MusicHubSheet';
 import { CommentsSheet } from '../components/CommentsSheet';
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
 import { sfxSuccess, sfxPop } from '../utils/sfx';
@@ -45,6 +48,21 @@ export const ChillScreen = () => {
   const [commentsPost, setCommentsPost] = useState(null);
   const [shooting, setShooting] = useState(false);
 
+  // ── music: a real listening library on your legal catalog ──
+  const { playTrack, current } = usePlayer();
+  const [tracks, setTracks] = useState(null);
+  const [hubOpen, setHubOpen] = useState(false);
+  const toTrack = (t) => ({
+    id: t.id, title: t.title, artist: t.artist || t.genre_shape || 'indie',
+    emoji: t.cover_emoji || '🎵', audio_url: t.audio_url,
+    attribution: t.attribution || null, license: t.license || null,
+  });
+  useEffect(() => {
+    if (!SUPABASE_READY) { setTracks([]); return; }
+    fetchTracks().then((rows) => setTracks((rows || []).map(toTrack))).catch(() => setTracks([]));
+  }, []);
+  const playFrom = (i) => { if (tracks && tracks[i]) playTrack(tracks[i], tracks, i); };
+
   const movies = MOVIES.filter((m) => genre === 'All' || genre === '🍿 Trending' || m.genre === genre);
 
   const loadVideos = useCallback(async () => {
@@ -75,6 +93,65 @@ export const ChillScreen = () => {
     <>
     <Page>
       <ScreenHeader kicker="Watch & unwind" title="Chill Zone 🍿" />
+
+      {/* ── LISTEN — a real music library on your legal catalog ── */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <SectionHeader title="Listen 🎧" />
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          {tracks && tracks.length ? (
+            <Pressable onPress={() => { tapLight(); sfxPop(); playFrom(0); }} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', marginRight: 14 }}>
+              <Ionicons name="play-circle" size={18} color={C.purple} />
+              <Text style={{ color: C.purple, fontSize: 12.5, fontWeight: '900', marginLeft: 4 }}>Play all</Text>
+            </Pressable>
+          ) : null}
+          <Pressable onPress={() => { tapLight(); setHubOpen(true); }} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Ionicons name="add-circle" size={18} color={C.purple} />
+            <Text style={{ color: C.purple, fontSize: 12.5, fontWeight: '900', marginLeft: 4 }}>Hub</Text>
+          </Pressable>
+        </View>
+      </View>
+      <Text style={{ color: C.dim, fontSize: 12.5, marginTop: -6, marginBottom: 12, lineHeight: 18 }}>
+        Play music while you browse — it keeps going across the app. Every track is licensed or creator-owned.
+      </Text>
+
+      {tracks === null ? (
+        <Glass style={{ padding: 18, alignItems: 'center', marginBottom: 24 }}>
+          <Text style={{ color: C.faint, fontSize: 12.5 }}>Loading music…</Text>
+        </Glass>
+      ) : tracks.length === 0 ? (
+        <Glass style={{ padding: 22, alignItems: 'center', marginBottom: 24 }}>
+          <Text style={{ fontSize: 34 }}>🎼</Text>
+          <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '900', marginTop: 8 }}>No tracks yet</Text>
+          <Text style={{ color: C.dim, fontSize: 12, marginTop: 4, textAlign: 'center', lineHeight: 17 }}>
+            Add royalty-free songs from the Hub, or let creators upload — then press play here.
+          </Text>
+          <Pressable onPress={() => { tapLight(); setHubOpen(true); }} style={{ marginTop: 12 }}>
+            <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 20, paddingVertical: 10 }}>
+              <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '900' }}>Open Music Hub 🎧</Text>
+            </View>
+          </Pressable>
+        </Glass>
+      ) : (
+        <Glass style={{ padding: 6, marginBottom: 24 }}>
+          {tracks.slice(0, 12).map((t, i) => {
+            const on = current && current.id === t.id;
+            return (
+              <Pressable key={t.id} onPress={() => { tapLight(); sfxPop(); playFrom(i); }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 8, borderRadius: 12, backgroundColor: on ? C.purpleSoft : 'transparent' }}>
+                  <View style={{ width: 44, height: 44, borderRadius: 11, backgroundColor: on ? C.purple : C.glass, borderWidth: on ? 0 : 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                    <Text style={{ fontSize: 20 }}>{t.emoji}</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: on ? C.purple : C.text, fontSize: 14, fontWeight: '800' }} numberOfLines={1}>{t.title}</Text>
+                    <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 1 }} numberOfLines={1}>{t.artist}{t.license ? ' · © ' + t.license : ''}</Text>
+                  </View>
+                  <Ionicons name={on ? 'musical-notes' : 'play'} size={on ? 18 : 20} color={on ? C.purple : C.dim} />
+                </View>
+              </Pressable>
+            );
+          })}
+        </Glass>
+      )}
 
       {/* ── LONG-FORM VIDEOS (real uploads) ── */}
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -174,6 +251,14 @@ export const ChillScreen = () => {
         ))}
       </ScrollView>
     </Page>
+
+    {/* Music Hub — browse / upload / license; picking a track plays it here */}
+    {hubOpen ? (
+      <MusicHubSheet
+        onPick={(s) => playTrack({ id: s.id, title: s.title, artist: s.artist, emoji: s.emoji, audio_url: s.audio_url, attribution: s.attribution, license: s.license }, [{ id: s.id, title: s.title, artist: s.artist, emoji: s.emoji, audio_url: s.audio_url, attribution: s.attribution, license: s.license }], 0)}
+        onClose={() => { setHubOpen(false); if (SUPABASE_READY) fetchTracks().then((rows) => setTracks((rows || []).map(toTrack))).catch(() => {}); }}
+      />
+    ) : null}
 
     {/* video player — real playback, with a comments button */}
     {player ? (

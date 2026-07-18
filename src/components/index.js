@@ -34,6 +34,8 @@ export { StarButton } from './StarButton';
 export { StreakBadge } from './StreakBadge';
 export { ReportSheet } from './ReportSheet';
 export { TermsSheet } from './TermsSheet';
+export { MiniPlayer } from './MiniPlayer';
+export { NowPlayingSheet } from './NowPlayingSheet';
 export { GameRunner } from './GameRunner';
 export { CaptureModal } from './CaptureModal';
 export { BoostSheet } from './BoostSheet';

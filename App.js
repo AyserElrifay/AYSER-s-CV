@@ -24,8 +24,10 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { C } from './src/constants/theme';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { LanguageProvider } from './src/context/LanguageContext';
+import { PlayerProvider } from './src/context/PlayerContext';
 import { AuthScreen } from './src/screens/AuthScreen';
 import { TabNavigator, NavTheme } from './src/navigation/TabNavigator';
+import { MiniPlayer } from './src/components/MiniPlayer';
 import { initPwa } from './src/lib/pwa';
 
 initPwa(); // installable app + offline shell (no-op on native)
@@ -34,10 +36,15 @@ const Root = () => {
   const { loading, isAuthenticated } = useAuth();
   if (loading) return <View style={{ flex: 1, backgroundColor: C.bg }} />;
   if (!isAuthenticated) return <AuthScreen />;
+  // the mini-player floats above the navigator, so music keeps playing as
+  // you move between tabs
   return (
-    <NavigationContainer theme={NavTheme}>
-      <TabNavigator />
-    </NavigationContainer>
+    <View style={{ flex: 1 }}>
+      <NavigationContainer theme={NavTheme}>
+        <TabNavigator />
+      </NavigationContainer>
+      <MiniPlayer />
+    </View>
   );
 };
 
@@ -46,8 +53,10 @@ export default function App() {
     <SafeAreaProvider>
       <LanguageProvider>
         <AuthProvider>
-          <StatusBar style="dark" />
-          <Root />
+          <PlayerProvider>
+            <StatusBar style="dark" />
+            <Root />
+          </PlayerProvider>
         </AuthProvider>
       </LanguageProvider>
     </SafeAreaProvider>
