@@ -85,7 +85,8 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
     if (!SUPABASE_READY) return;
     fetchTracks()
       .then((rows) => setRealTracks((rows || []).slice(0, 10).map((t) => ({
-        id: t.id, title: t.title, artist: t.genre_shape || 'indie', emoji: t.cover_emoji || '🎵', audio_url: t.audio_url,
+        id: t.id, title: t.title, artist: t.artist || t.genre_shape || 'indie', emoji: t.cover_emoji || '🎵',
+        audio_url: t.audio_url, attribution: t.attribution || null, license: t.license || null,
       }))))
       .catch(() => {});
   }, []);
@@ -614,9 +615,14 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
                 </View>
               ) : null}
               {sound ? (
-                <View style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7, marginBottom: 10 }}>
-                  <Text style={{ fontSize: 13 }}>{sound.emoji}</Text>
-                  <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '700', marginLeft: 6 }}>♫ {sound.title} · {sound.artist}</Text>
+                <View style={{ alignSelf: 'flex-start', marginBottom: 10 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 }}>
+                    <Text style={{ fontSize: 13 }}>{sound.emoji}</Text>
+                    <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '700', marginLeft: 6 }}>♫ {sound.title} · {sound.artist}</Text>
+                  </View>
+                  {sound.attribution ? (
+                    <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 9.5, marginTop: 3, marginLeft: 4 }} numberOfLines={1}>{sound.attribution}</Text>
+                  ) : null}
                 </View>
               ) : null}
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>

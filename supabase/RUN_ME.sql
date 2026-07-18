@@ -415,6 +415,29 @@ alter table public.posts   add column if not exists sound_title  text;
 alter table public.posts   add column if not exists sound_artist text;
 alter table public.posts   add column if not exists sound_url    text;
 
+-- ── Curated / official music library (LICENSE-SAFE) ──
+-- Official tracks have NO user uploader; they carry the license + the
+-- required credit line so the app can attribute the artist in-app.
+-- ONLY royalty-free / Creative-Commons / properly-licensed audio you
+-- host yourself belongs here — never Spotify/Apple/commercial clips
+-- baked into a video. That's the whole copyright-safety rule.
+alter table public.tracks alter column uploader_id drop not null;
+alter table public.tracks add column if not exists artist       text;   -- artist / producer name
+alter table public.tracks add column if not exists is_official  boolean default false; -- curated by Moments
+alter table public.tracks add column if not exists license      text;   -- 'CC-BY 4.0' | 'Pixabay' | 'Public Domain' | 'Licensed'
+alter table public.tracks add column if not exists attribution  text;   -- credit line shown in-app (CC-BY needs this)
+alter table public.tracks add column if not exists source_url   text;   -- where the file came from (proof of license)
+create index if not exists tracks_official_idx on public.tracks (is_official);
+
+-- Seed a curated track (run from the SQL editor / dashboard, which uses
+-- the service role so uploader_id may stay null). Fill in a REAL audio
+-- URL you host — e.g. a Pixabay Music / FMA / your-own file in R2/Storage.
+-- Example (uncomment + edit):
+-- insert into public.tracks (title, artist, audio_url, cover_emoji, mood, bpm, genre_shape, license, attribution, source_url, is_official)
+-- values ('Sunrise Drive', 'Alex Productions',
+--         'https://YOUR-STORAGE/tracks/sunrise-drive.mp3', '🌅', 'Happy', 120, 'lofi chill',
+--         'Pixabay', 'Music by Alex Productions from Pixabay', 'https://pixabay.com/music/…', true);
+
 -- real play-count, so producers see genuine usage (not just uploads) —
 -- security definer since the LISTENER (not the uploader) triggers this
 create or replace function public.increment_track_use(p_track_id uuid)

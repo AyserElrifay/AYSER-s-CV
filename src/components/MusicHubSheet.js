@@ -79,7 +79,9 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
       .then((rows) => setRemote(rows.map((r) => ({
         id: r.id, title: r.title, cover_emoji: r.cover_emoji, mood: r.mood, bpm: r.bpm,
         music_key: r.music_key, instruments: r.instruments || [], genre_shape: r.genre_shape,
-        uses_count: r.uses_count, by: (r.uploader && r.uploader.name) || 'indie producer',
+        uses_count: r.uses_count,
+        by: r.artist || (r.uploader && r.uploader.name) || 'indie producer',
+        official: !!r.is_official, license: r.license || null, attribution: r.attribution || null,
         audio_url: r.audio_url,
       }))))
       .catch(() => setRemote([]));
@@ -89,7 +91,12 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
 
   const use = (t) => {
     tapSelection(); sfxPop();
-    onPick && onPick({ id: t.id, title: t.title, artist: t.genre_shape || 'indie', emoji: t.cover_emoji || '🎵', audio_url: t.audio_url });
+    onPick && onPick({
+      id: t.id, title: t.title,
+      artist: t.by || t.genre_shape || 'indie',
+      emoji: t.cover_emoji || '🎵', audio_url: t.audio_url,
+      attribution: t.attribution || null, license: t.license || null,
+    });
     onClose();
   };
 
@@ -172,11 +179,21 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
                   <Text style={{ fontSize: 22 }}>{t.cover_emoji || '🎵'}</Text>
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>{t.title}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }} numberOfLines={1}>{t.title}</Text>
+                    {t.official ? (
+                      <View style={{ backgroundColor: C.purpleSoft, borderRadius: 999, paddingHorizontal: 6, paddingVertical: 1, marginLeft: 6 }}>
+                        <Text style={{ color: C.purple, fontSize: 9, fontWeight: '900' }}>OFFICIAL</Text>
+                      </View>
+                    ) : null}
+                  </View>
+                  {t.by ? <Text style={{ color: C.dim, fontSize: 11, marginTop: 1 }} numberOfLines={1}>{t.by}</Text> : null}
                   <Text style={{ color: C.faint, fontSize: 11, marginTop: 2 }} numberOfLines={1}>
                     {t.bpm ? t.bpm + ' BPM · ' : ''}{t.genre_shape || ''}{t.instruments && t.instruments.length ? ' · ' + t.instruments.slice(0, 2).join(', ') : ''}
                   </Text>
-                  {SUPABASE_READY ? (
+                  {t.license ? (
+                    <Text style={{ color: C.faint, fontSize: 9.5, marginTop: 2 }} numberOfLines={1}>© {t.license}{t.attribution ? ' · ' + t.attribution : ''}</Text>
+                  ) : SUPABASE_READY ? (
                     <Text style={{ color: C.faint, fontSize: 10, marginTop: 2 }}>▶ {t.uses_count || 0} uses</Text>
                   ) : null}
                 </View>
