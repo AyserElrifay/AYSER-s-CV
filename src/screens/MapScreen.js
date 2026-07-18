@@ -936,9 +936,9 @@ export const MapScreen = () => {
             <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
               <Text style={{ fontSize: 30 }}>📍</Text>
             </View>
-            <Text style={{ color: C.text, fontSize: 17, fontWeight: '900', textAlign: 'center' }}>See what's happening near you</Text>
+            <Text style={{ color: C.text, fontSize: 17, fontWeight: '900', textAlign: 'center' }}>Moments wants to know your location</Text>
             <Text style={{ color: C.dim, fontSize: 13, lineHeight: 19, textAlign: 'center', marginTop: 8 }}>
-              Moments uses your live location to show nearby mates, campfires and places on the map. Your browser will ask you to confirm next.
+              To show you nearby mates, campfires and places on the map. Your browser will double-check right after — that popup names the website itself, which we can't relabel, but the ask really is coming from Moments.
             </Text>
             <Pressable onPress={acceptLocationGate} style={{ width: '100%', marginTop: 18 }}>
               <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingVertical: 14, alignItems: 'center' }}>
