@@ -638,3 +638,12 @@ details.help-details a { color: var(--accent); }
   background: var(--surface-2); border-radius: 999px;
   padding: 6px 14px; width: fit-content;
 }
+
+/* ═══════════ Plan card offered inside the chat ═══════════ */
+
+.plan-chat-card {
+  margin: 4px 0 10px calc(30px + 12px);
+  max-width: 460px;
+  border-inline-start: 3px solid var(--accent);
+}
+[dir="rtl"] .plan-chat-card { margin: 4px calc(30px + 12px) 10px 0; }

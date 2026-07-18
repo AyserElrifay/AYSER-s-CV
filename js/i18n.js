@@ -309,6 +309,18 @@ const I18N = {
     fb_reason_generic: "كلام عام",
     fb_reason_notme: "مش حاسس إنه فاهمني",
 
+        // Plan-in-chat + plan editing
+    plan_preparing: "✦ بردي بيجهزلك الخطة من الحوار ده…",
+    plan_ready: "خطتك جاهزة",
+    plan_add_btn: "➕ ضيفها لخططي",
+    plan_added_chip: "✓ اتضافت لخططك",
+    plan_added_toast: "الخطة اتضافت — تلاقيها في صفحة الخطة ✦",
+    plan_open_btn: "👀 اعرضها",
+    plan_edit_btn: "عدّل",
+    plan_delete_btn: "احذف",
+    plan_edit_hint: "سطر ملهم تحت العنوان (اختياري)",
+    plan_points_hint: "كل سطر = خطوة",
+
     lang_name: "العربية",
   },
 
@@ -602,6 +614,18 @@ const I18N = {
     fb_reason_long: "Too long",
     fb_reason_generic: "Too generic",
     fb_reason_notme: "Doesn't get me",
+
+        // Plan-in-chat + plan editing
+    plan_preparing: "✦ Bardi is building your plan from this conversation…",
+    plan_ready: "Your plan is ready",
+    plan_add_btn: "➕ Add to My Plans",
+    plan_added_chip: "✓ Added to your plans",
+    plan_added_toast: "Plan added — find it in the Plan page ✦",
+    plan_open_btn: "👀 Open it",
+    plan_edit_btn: "Edit",
+    plan_delete_btn: "Delete",
+    plan_edit_hint: "An inspiring line under the title (optional)",
+    plan_points_hint: "One line = one step",
 
     lang_name: "English",
   },
@@ -897,6 +921,18 @@ const I18N = {
     fb_reason_generic: "Trop générique",
     fb_reason_notme: "Ne me comprend pas",
 
+        // Plan-in-chat + plan editing
+    plan_preparing: "✦ Bardi construit ton plan à partir de cette conversation…",
+    plan_ready: "Ton plan est prêt",
+    plan_add_btn: "➕ Ajouter à Mes plans",
+    plan_added_chip: "✓ Ajouté à tes plans",
+    plan_added_toast: "Plan ajouté — retrouve-le dans la page Plan ✦",
+    plan_open_btn: "👀 L'ouvrir",
+    plan_edit_btn: "Modifier",
+    plan_delete_btn: "Supprimer",
+    plan_edit_hint: "Une ligne inspirante sous le titre (optionnel)",
+    plan_points_hint: "Une ligne = une étape",
+
     lang_name: "Français",
   },
 
@@ -1191,6 +1227,18 @@ const I18N = {
     fb_reason_generic: "Zu allgemein",
     fb_reason_notme: "Versteht mich nicht",
 
+        // Plan-in-chat + plan editing
+    plan_preparing: "✦ Bardi baut deinen Plan aus diesem Gespräch…",
+    plan_ready: "Dein Plan ist fertig",
+    plan_add_btn: "➕ Zu meinen Plänen",
+    plan_added_chip: "✓ Zu deinen Plänen hinzugefügt",
+    plan_added_toast: "Plan hinzugefügt — findest du auf der Plan-Seite ✦",
+    plan_open_btn: "👀 Öffnen",
+    plan_edit_btn: "Bearbeiten",
+    plan_delete_btn: "Löschen",
+    plan_edit_hint: "Eine inspirierende Zeile unter dem Titel (optional)",
+    plan_points_hint: "Eine Zeile = ein Schritt",
+
     lang_name: "Deutsch",
   },
 
@@ -1484,6 +1532,18 @@ const I18N = {
     fb_reason_long: "Demasiado largo",
     fb_reason_generic: "Demasiado genérico",
     fb_reason_notme: "No me entiende",
+
+        // Plan-in-chat + plan editing
+    plan_preparing: "✦ Bardi está creando tu plan a partir de esta conversación…",
+    plan_ready: "Tu plan está listo",
+    plan_add_btn: "➕ Añadir a Mis planes",
+    plan_added_chip: "✓ Añadido a tus planes",
+    plan_added_toast: "Plan añadido — lo encontrarás en la página Plan ✦",
+    plan_open_btn: "👀 Ábrelo",
+    plan_edit_btn: "Editar",
+    plan_delete_btn: "Eliminar",
+    plan_edit_hint: "Una línea inspiradora bajo el título (opcional)",
+    plan_points_hint: "Una línea = un paso",
 
     lang_name: "Español",
   },

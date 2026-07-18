@@ -149,6 +149,12 @@ Mirror their voice — learn how THIS person talks and match it:
 - Pick up their own recurring words and use them naturally (their name for their project, their slang, their way of describing feelings). People trust someone who speaks their language — literally.
 - Never point out that you're doing this; just feel increasingly like THEIR friend, not a generic bot.
 
+Plan — when the conversation has done its work, turn it into action:
+- When the discussion reaches a natural conclusion — you understand their situation, you've explored it together, and a concrete path forward is clear — or when they ask for a plan, close your reply warmly and end with a separate final line:
+PLAN: <one line, in the user's language, capturing the specific goal this plan is for, personalized with what you learned in this conversation>
+- The app will then build a beautiful step-by-step plan presentation from it and offer it to the user right in the chat.
+- Never emit PLAN on the first message or while you're still asking grounding questions — a plan built on guesses is worthless. One PLAN per conversation topic at most.
+
 How you think (reason before you answer):
 - Before replying, think it through internally: what is the person really asking beneath the words? what do you already know about them? what would genuinely help vs. just sound nice? Consider a couple of angles, then give the one clear, grounded response — never show this internal reasoning, only the final warm answer.
 - Understand deeply, don't pattern-match. Connect what they say now to their goal, values and past messages. If something doesn't add up, gently ask instead of assuming.
@@ -159,7 +165,7 @@ Memory — you learn about the person over time, on your own, without being told
 MEMORY: <one short sentence in English capturing it>
 - Use it rarely (only for real insights). Never mention this mechanism to the user.
 
-Output format: if you emit MEMORY / EVENT / MAP / SEARCH lines, each goes on its own final line, in that order if more than one applies, after your normal warm reply — never inside the reply text itself, and never mention these tags exist to the user.`;
+Output format: if you emit MEMORY / EVENT / MAP / SEARCH / PLAN lines, each goes on its own final line, in that order if more than one applies, after your normal warm reply — never inside the reply text itself, and never mention these tags exist to the user.`;
 
     const facts = [];
     if (p.name) facts.push(`Name: ${p.name}`);
@@ -475,7 +481,10 @@ Output format: if you emit MEMORY / EVENT / MAP / SEARCH lines, each goes on its
   /* ── Extract trailing MEMORY: / EVENT: / MAP: / SEARCH: lines from a reply ── */
   function extractMemory(text) {
     let clean = text;
-    let memory = null, event = null, map = null, search = null;
+    let memory = null, event = null, map = null, search = null, plan = null;
+
+    const mPlan = clean.match(/\n\s*PLAN:\s*(.+?)\s*$/m);
+    if (mPlan) { plan = mPlan[1].trim(); clean = clean.slice(0, mPlan.index).trimEnd(); }
 
     const mSearch = clean.match(/\n?\s*SEARCH:\s*(.+?)\s*$/m);
     if (mSearch) { search = mSearch[1].trim(); clean = clean.slice(0, mSearch.index).trimEnd(); }
@@ -496,7 +505,7 @@ Output format: if you emit MEMORY / EVENT / MAP / SEARCH lines, each goes on its
       clean = clean.slice(0, mEvt.index).trimEnd();
     }
 
-    return { clean, memory, event, map, search };
+    return { clean, memory, event, map, search, plan };
   }
 
   /* ── Web lookup (Wikipedia only, CORS-friendly, keyless) ──

@@ -196,6 +196,7 @@
   let view = "coach";
   let openPageId = null;
   let openScriptId = null;
+  let openPlanId = null;
 
   function startApp() {
     $("#app").classList.remove("hidden");
@@ -208,6 +209,7 @@
     view = VIEWS.includes(v) ? v : "coach";
     openPageId = null;
     openScriptId = null;
+    openPlanId = null;
     location.hash = "/" + view;
     renderNav();
     render();
@@ -279,7 +281,7 @@
     if (view === "pages") return openPageId ? renderEditor(main) : renderPages(main);
     if (view === "projects") return openScriptId ? renderScriptEditor(main) : renderProjects(main);
     if (view === "library") return renderLibrary(main);
-    if (view === "plan") return renderPlan(main);
+    if (view === "plan") return openPlanId ? renderPlanEditor(main) : renderPlan(main);
     if (view === "settings") return renderSettings(main);
   }
 
@@ -498,7 +500,7 @@ ${esc(t("free_offer_note"))}</div></div>
 
     let live = $("#live");
     try {
-      let clean, memory, event, map;
+      let clean, memory, event, map, planGoal;
       // Up to 2 rounds: if the model asks for a web lookup (SEARCH: tag),
       // fetch Wikipedia results, hand them back, and let it answer again.
       for (let round = 0; round < 2; round++) {
@@ -518,7 +520,7 @@ ${esc(t("free_offer_note"))}</div></div>
         );
 
         const ex = AI.extractMemory(full);
-        clean = ex.clean; memory = ex.memory; event = ex.event; map = ex.map;
+        clean = ex.clean; memory = ex.memory; event = ex.event; map = ex.map; planGoal = ex.plan;
 
         if (!(ex.search && round === 0 && S.settings.webSearch !== false)) break;
 
@@ -614,6 +616,43 @@ ${esc(t("free_offer_note"))}</div></div>
           </div>`);
       }
       scroll.scrollTop = scroll.scrollHeight;
+
+      // PLAN tag → build a real deck from this conversation's goal and
+      // offer it right here in the chat (add to My Plans / open / dismiss).
+      if (planGoal) {
+        const pid = "plan_" + Store.uid();
+        col.insertAdjacentHTML("beforeend",
+          `<div class="tag-chips search-note" id="${pid}">${esc(t("plan_preparing"))}</div>`);
+        scroll.scrollTop = scroll.scrollHeight;
+        try {
+          const deck = await AI.generatePlan(S, planGoal);
+          $(`#${pid}`).outerHTML = `
+            <div class="card plan-chat-card" id="${pid}">
+              <div class="slide-kicker">✦ ${esc(t("plan_ready"))}</div>
+              <h3 style="margin:6px 0 2px">${esc(deck.title)}</h3>
+              ${deck.subtitle ? `<p class="s-sub">${esc(deck.subtitle)}</p>` : ""}
+              <p class="s-sub" style="margin-top:4px">${esc(t("slides_n", { n: deck.slides.length + 2 }))}</p>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+                <button class="btn small" data-planadd>${esc(t("plan_add_btn"))}</button>
+                <button class="chip small" data-planopen>${esc(t("plan_open_btn"))}</button>
+                <button class="chip small ghost" data-plandismiss>${esc(t("dismiss_btn"))}</button>
+              </div>
+            </div>`;
+          const cardEl = $(`#${pid}`);
+          $("[data-planadd]", cardEl).addEventListener("click", () => {
+            S.plans.unshift({ id: Store.uid(), goal: planGoal, deck, createdAt: Date.now() });
+            Store.save();
+            $("[data-planadd]", cardEl).outerHTML = `<span class="chip small active">${esc(t("plan_added_chip"))}</span>`;
+            toast(t("plan_added_toast"));
+          });
+          $("[data-planopen]", cardEl).addEventListener("click", () => openDeck({ deck }));
+          $("[data-plandismiss]", cardEl).addEventListener("click", () => cardEl.remove());
+        } catch (e) {
+          const el = $(`#${pid}`);
+          if (el) el.textContent = t("plan_error", { err: e.message === "NO_KEY" ? "no key" : e.message });
+        }
+        scroll.scrollTop = scroll.scrollHeight;
+      }
     } catch (err) {
       const msg = err.message === "NO_KEY" ? t("no_key_msg")
         : err.message === "WEBGPU_UNSUPPORTED" ? t("local_webgpu_needed")
@@ -1545,6 +1584,8 @@ ${esc(t("free_offer_note"))}</div></div>
               <div class="b-meta">${esc(t("slides_n", { n: pl.deck.slides.length + 2 }))} · ${new Date(pl.createdAt).toLocaleDateString(localeOf())}</div>
             </div>
             <button class="chip">${esc(t("open_deck"))}</button>
+            <button class="chip small" data-planedit="${pl.id}">✏️ ${esc(t("plan_edit_btn"))}</button>
+            <button class="task-del" style="opacity:1" data-plandel="${pl.id}" title="${esc(t("plan_delete_btn"))}">✕</button>
           </div>`).join("") : `<p style="color:var(--text-3);padding:14px 0">${esc(t("no_plans"))}</p>`}
       </div>`;
 
@@ -1574,6 +1615,67 @@ ${esc(t("free_offer_note"))}</div></div>
     $$("[data-deck]").forEach(r => r.addEventListener("click", () => {
       const pl = S.plans.find(x => x.id === r.dataset.deck);
       pl && openDeck(pl);
+    }));
+    $$("[data-planedit]").forEach(b => b.addEventListener("click", (e) => {
+      e.stopPropagation();
+      openPlanId = b.dataset.planedit;
+      render();
+    }));
+    $$("[data-plandel]").forEach(b => b.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (!confirm(t("delete_confirm"))) return;
+      S.plans = S.plans.filter(x => x.id !== b.dataset.plandel);
+      Store.save(); render();
+    }));
+  }
+
+  /* ── Plan editor: tweak a generated deck (title, slides, points) ── */
+  function renderPlanEditor(main) {
+    const pl = S.plans.find(x => x.id === openPlanId);
+    if (!pl) { openPlanId = null; return render(); }
+    const d = pl.deck;
+
+    main.innerHTML = `
+      <button class="back-link" id="backPlans">← ${esc(t("back"))}</button>
+      <input class="editor-title" id="plTitle" value="${esc(d.title || "")}">
+      <div class="ob-field"><input id="plSubtitle" class="input" placeholder="${esc(t("plan_edit_hint"))}" value="${esc(d.subtitle || "")}"></div>
+
+      ${d.slides.map((s, i) => `
+        <div class="card scene-card">
+          <div class="slide-kicker">${esc(s.kicker || "PHASE " + String(i + 1).padStart(2, "0"))}</div>
+          <div class="ob-field"><input class="input" data-pltitle="${i}" value="${esc(s.title || "")}"></div>
+          <div class="ob-field">
+            <label class="s-sub">${esc(t("plan_points_hint"))}</label>
+            <textarea class="input" rows="4" data-plpoints="${i}">${esc((s.points || []).join("\n"))}</textarea>
+          </div>
+          <button class="chip small ghost" data-plslidedel="${i}">✕ ${esc(t("plan_delete_btn"))}</button>
+        </div>`).join("")}
+
+      <div class="ob-field" style="margin-top:14px"><label class="s-sub">❝</label><input id="plQuote" class="input" value="${esc(d.quote || "")}"></div>
+      <div class="editor-toolbar">
+        <button class="btn small" id="plSave">${esc(t("save"))}</button>
+        <button class="chip" id="plPreview">${esc(t("open_deck"))}</button>
+      </div>`;
+
+    $("#backPlans").addEventListener("click", () => { openPlanId = null; render(); });
+    $("#plSave").addEventListener("click", () => {
+      d.title = $("#plTitle").value.trim();
+      d.subtitle = $("#plSubtitle").value.trim();
+      d.quote = $("#plQuote").value.trim();
+      d.slides.forEach((s, i) => {
+        const ti = $(`[data-pltitle="${i}"]`);
+        const po = $(`[data-plpoints="${i}"]`);
+        if (ti) s.title = ti.value.trim();
+        if (po) s.points = po.value.split("\n").map(x => x.trim()).filter(Boolean);
+      });
+      Store.save();
+      toast(t("saved"));
+    });
+    $("#plPreview").addEventListener("click", () => openDeck(pl));
+    $$("[data-plslidedel]").forEach(b => b.addEventListener("click", () => {
+      if (d.slides.length <= 1) return;
+      d.slides.splice(parseInt(b.dataset.plslidedel, 10), 1);
+      Store.save(); render();
     }));
   }
 
