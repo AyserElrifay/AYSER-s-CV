@@ -1,25 +1,32 @@
 import { supabase } from '../lib/supabase';
 
+/* The platform's cut on every booking — Moments' reservation revenue. */
+export const BOOKING_FEE_EGP = 15;
+
 /* A REAL reservation row (schema v14 in RUN_ME.sql). The venue owner
    sees it (RLS lets them) and you see your own — plus it lands in the
-   owner's DMs so nothing gets missed. */
+   owner's DMs so nothing gets missed. Each booking carries the Moments
+   service fee, so reservation revenue is real data, not a hope. */
 export async function createVenueBooking({ venueId, venueName, userId, fullName, phone, bookingDate, people, notes }) {
-  const { data, error } = await supabase
-    .from('venue_bookings')
-    .insert({
-      venue_id: venueId || null,
-      venue_name: venueName || null,
-      user_id: userId,
-      full_name: fullName,
-      phone,
-      booking_date: bookingDate || null,
-      people: Math.max(1, parseInt(people, 10) || 1),
-      notes: notes || null,
-    })
-    .select()
-    .single();
-  if (error) throw error;
-  return data;
+  let payload = {
+    venue_id: venueId || null,
+    venue_name: venueName || null,
+    user_id: userId,
+    full_name: fullName,
+    phone,
+    booking_date: bookingDate || null,
+    people: Math.max(1, parseInt(people, 10) || 1),
+    notes: notes || null,
+    service_fee_egp: BOOKING_FEE_EGP,
+  };
+  let res = await supabase.from('venue_bookings').insert(payload).select().single();
+  // DB without the fee column yet → book anyway, never lose a reservation
+  if (res.error && /service_fee_egp|column/i.test(res.error.message || '')) {
+    delete payload.service_fee_egp;
+    res = await supabase.from('venue_bookings').insert(payload).select().single();
+  }
+  if (res.error) throw res.error;
+  return res.data;
 }
 
 /* Real bookable places on the map. A venue only shows to everyone once

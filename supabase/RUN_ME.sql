@@ -582,6 +582,12 @@ drop policy if exists "members can leave squads" on public.squad_members;
 create policy "members can leave squads" on public.squad_members
   for delete using (auth.uid() = user_id);
 
+-- ═══════════ BOOKING REVENUE · the platform's cut ═══════════
+-- Every confirmed venue booking carries a real Moments service fee —
+-- this is how the app earns from reservations (the venue pays it from
+-- the booking value; you can revisit the amount any time).
+alter table public.venue_bookings add column if not exists service_fee_egp int default 15;
+
 -- ═══════════ REAL CALLS · missed-call notifications ═══════════
 -- Ringing itself travels over Supabase Realtime broadcast (no rows
 -- needed), but a missed call must leave a REAL notification. Widen the

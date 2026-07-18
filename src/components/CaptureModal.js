@@ -42,6 +42,37 @@ const FILTERS = [
   { id: 'noir',  label: 'Noir',     emoji: '🎥', css: 'grayscale(1) brightness(0.9) contrast(1.4)' },
 ];
 
+/* EFFECTS — original overlays we draw ourselves (previewed live and
+   really BAKED into the photo's pixels on share). */
+const EFFECTS = [
+  { id: 'none',     label: 'Clean',    emoji: '⬜' },
+  { id: 'leak',     label: 'Light leak', emoji: '🌞' },
+  { id: 'vignette', label: 'Vignette', emoji: '🕳️' },
+  { id: 'grain',    label: 'Grain',    emoji: '🎞️' },
+  { id: 'hearts',   label: 'Hearts',   emoji: '💕' },
+  { id: 'confetti', label: 'Confetti', emoji: '🎉' },
+  { id: 'snow',     label: 'Snow',     emoji: '❄️' },
+  { id: 'stars',    label: 'Stars',    emoji: '✨' },
+];
+const EFFECT_PARTICLES = { hearts: ['💖', '💕', '💗'], confetti: ['🎉', '🎊', '🟣', '🟡'], snow: ['❄️', '✻', '•'], stars: ['✨', '⭐', '✦'] };
+
+/* GAME FILTERS — our own take on Snapchat's filter games: a roulette
+   that lands on a random answer, and a question card that dares you to
+   answer. All original questions; the result is baked onto the photo. */
+const ROULETTE = ['😎 Legend', '🐢 Slow but sure', '🔥 On fire', '🧠 Big brain', '😴 Sleepy king', '🦁 Fearless', '🤡 Class clown', '🌟 Main character', '🍀 Lucky one', '🌪️ Chaos engine'];
+const QUESTIONS = [
+  'Describe today in one word 👇',
+  'Who should text you first? 👀',
+  'Your 3am snack of choice?',
+  'One place you\'d teleport to right now 🌍',
+  'The song stuck in your head 🎵',
+  'Truth: last thing that made you laugh?',
+  'Your superpower for 24 hours?',
+  'Rate your day /10 — be honest',
+  'Who do you miss right now? ❤️',
+  'Your dream road-trip partner?',
+];
+
 export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPostedStory, sendMode = false, sendToName, onMoment }) => {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
@@ -55,6 +86,27 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
   const [caption, setCaption] = useState('');
   const [busy, setBusy] = useState(false);
   const [hubOpen, setHubOpen] = useState(false);
+
+  // ── effects + game filters (previewed live, baked on share) ──
+  const [effectId, setEffectId] = useState('none');
+  const [gameCard, setGameCard] = useState(null); // { kind:'roulette'|'question', text }
+  const particlesRef = useRef(null); // stable random layout per effect pick
+  const rollGame = (kind) => {
+    tapLight(); sfxPop();
+    if (gameCard && gameCard.kind === kind) { setGameCard(null); return; }
+    const text = kind === 'roulette'
+      ? ROULETTE[Math.floor(Math.random() * ROULETTE.length)]
+      : QUESTIONS[Math.floor(Math.random() * QUESTIONS.length)];
+    setGameCard({ kind, text });
+  };
+  const pickEffect = (id) => {
+    tapLight(); sfxPop();
+    setEffectId(id);
+    const chars = EFFECT_PARTICLES[id];
+    particlesRef.current = chars
+      ? Array.from({ length: 26 }, () => ({ x: Math.random(), y: Math.random(), s: 0.6 + Math.random() * 0.9, c: chars[Math.floor(Math.random() * chars.length)] }))
+      : null;
+  };
 
   // ── real filters + light edit (brightness / contrast / warmth) ──
   const [filterId, setFilterId] = useState('none');
@@ -297,14 +349,78 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
     } catch (e) { resolve(uri); }
   });
 
+  /* Bake filter + effects + game card into the photo in one pass —
+     what you see in the preview is literally what gets uploaded. */
+  const bakeAll = (uri) => new Promise((resolve) => {
+    try {
+      const img = new window.Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          const w = (canvas.width = img.naturalWidth || img.width);
+          const h = (canvas.height = img.naturalHeight || img.height);
+          const ctx = canvas.getContext('2d');
+          ctx.filter = cssFilter && cssFilter !== 'none' ? cssFilter : 'none';
+          ctx.drawImage(img, 0, 0, w, h);
+          ctx.filter = 'none';
+          // effects
+          if (effectId === 'vignette') {
+            const g = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.42, w / 2, h / 2, Math.max(w, h) * 0.72);
+            g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.55)');
+            ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+          } else if (effectId === 'leak') {
+            let g = ctx.createLinearGradient(0, 0, w * 0.7, h * 0.5);
+            g.addColorStop(0, 'rgba(255,150,50,0.38)'); g.addColorStop(1, 'rgba(255,150,50,0)');
+            ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+            g = ctx.createLinearGradient(w, h * 0.2, w * 0.4, h);
+            g.addColorStop(0, 'rgba(255,80,120,0.28)'); g.addColorStop(1, 'rgba(255,80,120,0)');
+            ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+          } else if (effectId === 'grain') {
+            for (let i = 0; i < 9000; i++) {
+              ctx.fillStyle = 'rgba(' + (Math.random() > 0.5 ? '255,255,255' : '0,0,0') + ',' + (Math.random() * 0.09).toFixed(3) + ')';
+              ctx.fillRect(Math.random() * w, Math.random() * h, 2, 2);
+            }
+          } else if (particlesRef.current) {
+            particlesRef.current.forEach((p) => {
+              ctx.font = Math.round(p.s * w * 0.055) + 'px sans-serif';
+              ctx.fillText(p.c, p.x * w * 0.94, p.y * h * 0.94 + 20);
+            });
+          }
+          // game card
+          if (gameCard) {
+            const fs = Math.round(w * 0.045);
+            ctx.font = '700 ' + fs + 'px sans-serif';
+            const label = (gameCard.kind === 'roulette' ? '🎲 ' : '❓ ') + gameCard.text;
+            const tw = ctx.measureText(label).width;
+            const pad = fs * 0.8;
+            const bw = Math.min(w * 0.92, tw + pad * 2);
+            const bx = (w - bw) / 2, by = h * 0.07, bh = fs * 2.1;
+            ctx.fillStyle = 'rgba(10,6,25,0.72)';
+            if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(bx, by, bw, bh, fs); ctx.fill(); }
+            else ctx.fillRect(bx, by, bw, bh);
+            ctx.fillStyle = '#FFFFFF';
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText(label, w / 2, by + bh / 2, bw - pad);
+            ctx.textAlign = 'start'; ctx.textBaseline = 'alphabetic';
+          }
+          resolve(canvas.toDataURL('image/jpeg', 0.95));
+        } catch (e) { resolve(uri); }
+      };
+      img.onerror = () => resolve(uri);
+      img.src = uri;
+    } catch (e) { resolve(uri); }
+  });
+
   /* ── share ── */
   const share = async () => {
     if (!shot || busy) return;
     setBusy(true);
-    // bake the filter into the photo's real pixels before uploading
+    // bake the look into the photo's real pixels before uploading
     let workingShot = shot;
-    if (isWeb && shot.kind === 'photo' && cssFilter && cssFilter !== 'none') {
-      const baked = await bakeFilter(shot.uri, cssFilter);
+    const needsBake = (cssFilter && cssFilter !== 'none') || effectId !== 'none' || !!gameCard;
+    if (isWeb && shot.kind === 'photo' && needsBake) {
+      const baked = await bakeAll(shot.uri);
       workingShot = { ...shot, uri: baked };
     }
     try {
@@ -441,6 +557,33 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
           </View>
         )}
 
+        {/* ── live preview of effects + game card (baked on share) ── */}
+        {shot ? (
+          <View pointerEvents="none" style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }}>
+            {effectId === 'vignette' && isWeb ? (
+              <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at center, transparent 46%, rgba(0,0,0,0.55) 100%)' }} />
+            ) : null}
+            {effectId === 'leak' && isWeb ? (
+              <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(115deg, rgba(255,150,50,0.38) 0%, transparent 45%), linear-gradient(295deg, rgba(255,80,120,0.28) 0%, transparent 40%)' }} />
+            ) : null}
+            {effectId === 'grain' && isWeb ? (
+              <div style={{ position: 'absolute', inset: 0, opacity: 0.5, backgroundImage: 'repeating-radial-gradient(circle at 17% 32%, rgba(255,255,255,0.06) 0 1px, transparent 1px 3px)' }} />
+            ) : null}
+            {particlesRef.current ? particlesRef.current.map((p, i) => (
+              <Text key={i} style={{ position: 'absolute', left: (p.x * 94) + '%', top: (p.y * 94) + '%', fontSize: 14 + p.s * 14 }}>{p.c}</Text>
+            )) : null}
+            {gameCard ? (
+              <View style={{ position: 'absolute', top: '7%', left: 0, right: 0, alignItems: 'center' }}>
+                <View style={{ backgroundColor: 'rgba(10,6,25,0.72)', borderRadius: 18, paddingHorizontal: 18, paddingVertical: 11, maxWidth: '92%' }}>
+                  <Text style={{ color: '#FFF', fontSize: 15.5, fontWeight: '800', textAlign: 'center' }}>
+                    {(gameCard.kind === 'roulette' ? '🎲 ' : '❓ ') + gameCard.text}
+                  </Text>
+                </View>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
+
         {/* recording border */}
         {recording ? (
           <View pointerEvents="none" style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, borderWidth: 4, borderColor: C.coral }} />
@@ -564,6 +707,32 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
                           <Text style={{ fontSize: 20 }}>{f.emoji}</Text>
                         </View>
                         <Text style={{ color: on ? C.gold : '#FFF', fontSize: 10, fontWeight: on ? '900' : '800', marginTop: 4 }} numberOfLines={1}>{f.label}</Text>
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+
+              {/* effects + game filters — spin the roulette, dare a question */}
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 14, marginBottom: 10 }}>
+                {[{ k: 'roulette', label: 'Roulette', emoji: '🎲' }, { k: 'question', label: 'Dare Q', emoji: '❓' }].map((g) => {
+                  const on = gameCard && gameCard.kind === g.k;
+                  return (
+                    <Pressable key={g.k} onPress={() => rollGame(g.k)}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: on ? C.gold : 'rgba(255,255,255,0.16)', borderWidth: 1, borderColor: on ? C.gold : 'rgba(255,255,255,0.4)', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8, marginRight: 8 }}>
+                        <Text style={{ fontSize: 14 }}>{g.emoji}</Text>
+                        <Text style={{ color: on ? '#241146' : '#FFF', fontSize: 11.5, fontWeight: '900', marginLeft: 5 }}>{on ? 'Re-spin' : g.label}</Text>
+                      </View>
+                    </Pressable>
+                  );
+                })}
+                {EFFECTS.map((e) => {
+                  const on = effectId === e.id;
+                  return (
+                    <Pressable key={e.id} onPress={() => pickEffect(e.id)}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: on ? '#FFF' : 'rgba(255,255,255,0.16)', borderWidth: 1, borderColor: on ? '#FFF' : 'rgba(255,255,255,0.4)', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8, marginRight: 8 }}>
+                        <Text style={{ fontSize: 14 }}>{e.emoji}</Text>
+                        <Text style={{ color: on ? C.text : '#FFF', fontSize: 11.5, fontWeight: '800', marginLeft: 5 }}>{e.label}</Text>
                       </View>
                     </Pressable>
                   );

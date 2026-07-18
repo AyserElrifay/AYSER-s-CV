@@ -678,6 +678,16 @@ export const MapScreen = () => {
             <Ionicons name="people" size={21} color="#FFF" />
           </View>
         </Pressable>
+        {/* 👻 Ghost mode — one tap hides your character from the map for
+            real (the DB row is cleared); tap again to reappear. */}
+        <Pressable
+          onPress={() => { tapLight(); if (myDoing) goInvisibleNow(); else openSheet('doing'); }}
+          style={{ marginBottom: 12 }}
+        >
+          <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: myDoing ? '#FFF' : '#1F2937', borderWidth: 1, borderColor: myDoing ? C.line : '#1F2937', alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ fontSize: 20 }}>{myDoing ? '🟢' : '👻'}</Text>
+          </View>
+        </Pressable>
         <SOSButton onPress={() => setSos('ask')} />
       </View>
 
