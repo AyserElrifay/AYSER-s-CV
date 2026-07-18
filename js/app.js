@@ -456,10 +456,25 @@
     const demo = typeof window !== "undefined" && window.BARDI_DEMO;
     const needsNoKey = S.settings.provider === "free" || S.settings.provider === "local";
     if (!needsNoKey && !key && !demo) {
-      col.insertAdjacentHTML("beforeend",
-        `<div class="msg-row"><div class="avatar">ب</div><div class="msg assistant">${esc(t("no_key_msg"))}</div></div>
-         <div style="margin-top:8px"><button class="btn small" data-go="settings">${esc(t("go_settings"))}</button></div>`);
-      $$("[data-go]", col).forEach(b => b.addEventListener("click", () => go("settings")));
+      // No key yet — offer the keyless option right here, with the
+      // disclosure inline, so a first visit still gets a working coach.
+      // Explicit one-tap opt-in, never a silent default.
+      const offerId = "freeoffer_" + Store.uid();
+      col.insertAdjacentHTML("beforeend", `
+        <div class="msg-row"><div class="avatar">ب</div><div class="msg assistant">${esc(t("free_offer_title"))}
+
+${esc(t("free_offer_note"))}</div></div>
+        <div class="tag-chips" id="${offerId}">
+          <button class="chip small" data-freeon>${esc(t("free_enable_btn"))}</button>
+          <button class="chip small ghost" data-gokey>${esc(t("enter_key_btn"))}</button>
+        </div>`);
+      $(`#${offerId} [data-freeon]`).addEventListener("click", () => {
+        S.settings.provider = "free";
+        Store.save();
+        render();          // refresh the provider row + clear the offer
+        sendMsg(text);     // resend the pending message with Bardi Free
+      });
+      $(`#${offerId} [data-gokey]`).addEventListener("click", () => go("settings"));
       scroll.scrollTop = scroll.scrollHeight;
       return;
     }

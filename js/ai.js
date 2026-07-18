@@ -303,6 +303,23 @@ Output format: if you emit MEMORY / EVENT / MAP / SEARCH lines, each goes on its
         if (d && d.content) { full += d.content; onDelta(full); }
       } catch (_) {}
     });
+
+    // Some gateway responses come back non-streamed or with an empty
+    // stream — retry once without streaming so the user still gets a reply.
+    if (!full.trim()) {
+      const res2 = await fetch(FREE_ENDPOINT, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          model: MODELS.free,
+          messages: [{ role: "system", content: system }, ...messages.map(m => ({ role: m.role, content: m.content }))],
+        }),
+      });
+      if (!res2.ok) throw new Error(await apiErr(res2));
+      const j = await res2.json().catch(() => null);
+      full = (j && j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content) || "";
+      if (full) onDelta(full);
+    }
     return full;
   }
 

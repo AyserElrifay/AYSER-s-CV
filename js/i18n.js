@@ -268,6 +268,12 @@ const I18N = {
     reset_confirm: "متأكد؟ كل بياناتك هتتمسح من الجهاز ده.",
     delete_confirm: "متأكد من الحذف؟",
 
+    // Free-provider one-tap offer
+    free_offer_title: "أهلًا! 🌿 عايزني أرد عليك على طول؟",
+    free_offer_note: "بردي المجاني بيشتغل فورًا من غير أي مفتاح — بس اعرف إن رسايلك بتتبعت لخدمة AI مفتوحة اسمها Pollinations (مش لسيرفرنا — إحنا أصلًا معندناش سيرفر). لو عايز خصوصية أعلى، استخدم مفتاحك الخاص أو Bardi Local من الإعدادات.",
+    free_enable_btn: "🌐 شغّل بردي المجاني",
+    enter_key_btn: "🔑 هدخل مفتاحي",
+
     // Web search
     searching_web: "🔎 بردي بيدور على النت عن: «{q}»…",
     s_websearch: "البحث على الإنترنت",
@@ -551,6 +557,12 @@ const I18N = {
     reset_confirm: "Are you sure? All your data on this device will be erased.",
     delete_confirm: "Delete — are you sure?",
 
+    // Free-provider one-tap offer
+    free_offer_title: "Hey! 🌿 Want me to answer you right away?",
+    free_offer_note: "Bardi Free works instantly with no key — just know your messages go to an open AI service called Pollinations (not to our servers — we don't have any). For more privacy, use your own API key or Bardi Local from Settings.",
+    free_enable_btn: "🌐 Turn on Bardi Free",
+    enter_key_btn: "🔑 I'll add my key",
+
     // Web search
     searching_web: "🔎 Bardi is looking up: “{q}”…",
     s_websearch: "Web lookup",
@@ -832,6 +844,12 @@ const I18N = {
     reset_btn: "Tout effacer",
     reset_confirm: "Sûr(e) ? Toutes vos données sur cet appareil seront effacées.",
     delete_confirm: "Supprimer — êtes-vous sûr(e) ?",
+
+    // Free-provider one-tap offer
+    free_offer_title: "Salut ! 🌿 Tu veux que je te réponde tout de suite ?",
+    free_offer_note: "Bardi Gratuit fonctionne instantanément sans clé — sache simplement que tes messages passent par un service d'IA ouvert appelé Pollinations (pas par nos serveurs — nous n'en avons pas). Pour plus de confidentialité, utilise ta propre clé API ou Bardi Local dans les Réglages.",
+    free_enable_btn: "🌐 Activer Bardi Gratuit",
+    enter_key_btn: "🔑 J'ajoute ma clé",
 
     // Web search
     searching_web: "🔎 Bardi cherche : « {q} »…",
@@ -1115,6 +1133,12 @@ const I18N = {
     reset_confirm: "Bist du sicher? Alle Daten auf diesem Gerät werden gelöscht.",
     delete_confirm: "Löschen — bist du sicher?",
 
+    // Free-provider one-tap offer
+    free_offer_title: "Hey! 🌿 Soll ich dir sofort antworten?",
+    free_offer_note: "Bardi Free funktioniert sofort ohne Schlüssel — aber wisse: deine Nachrichten gehen an einen offenen KI-Dienst namens Pollinations (nicht an unsere Server — wir haben keine). Für mehr Privatsphäre nutze deinen eigenen API-Schlüssel oder Bardi Local in den Einstellungen.",
+    free_enable_btn: "🌐 Bardi Free aktivieren",
+    enter_key_btn: "🔑 Ich trage meinen Schlüssel ein",
+
     // Web search
     searching_web: "🔎 Bardi sucht nach: „{q}“…",
     s_websearch: "Websuche",
@@ -1396,6 +1420,12 @@ const I18N = {
     reset_btn: "Borrar todo",
     reset_confirm: "¿Seguro? Todos tus datos en este dispositivo se borrarán.",
     delete_confirm: "Eliminar — ¿estás seguro?",
+
+    // Free-provider one-tap offer
+    free_offer_title: "¡Hola! 🌿 ¿Quieres que te responda ahora mismo?",
+    free_offer_note: "Bardi Gratis funciona al instante sin clave — solo debes saber que tus mensajes van a un servicio de IA abierto llamado Pollinations (no a nuestros servidores — no tenemos ninguno). Para más privacidad, usa tu propia clave API o Bardi Local en Ajustes.",
+    free_enable_btn: "🌐 Activar Bardi Gratis",
+    enter_key_btn: "🔑 Añadiré mi clave",
 
     // Web search
     searching_web: "🔎 Bardi está buscando: «{q}»…",
