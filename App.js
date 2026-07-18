@@ -28,6 +28,7 @@ import { PlayerProvider } from './src/context/PlayerContext';
 import { AuthScreen } from './src/screens/AuthScreen';
 import { TabNavigator, NavTheme } from './src/navigation/TabNavigator';
 import { MiniPlayer } from './src/components/MiniPlayer';
+import { IncomingCallGate } from './src/components/IncomingCallGate';
 import { initPwa } from './src/lib/pwa';
 
 initPwa(); // installable app + offline shell (no-op on native)
@@ -44,6 +45,7 @@ const Root = () => {
         <TabNavigator />
       </NavigationContainer>
       <MiniPlayer />
+      <IncomingCallGate />
     </View>
   );
 };

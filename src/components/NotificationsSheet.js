@@ -28,6 +28,7 @@ const LINE = {
   comment: '💬 commented',
   mate_request: '🤝 wants to be your mate',
   mate_accept: '🎉 accepted — you\'re mates now!',
+  call: '📞 called you — call them back',
 };
 
 export const NotificationsSheet = ({ onClose }) => {

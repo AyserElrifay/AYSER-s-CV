@@ -582,6 +582,18 @@ drop policy if exists "members can leave squads" on public.squad_members;
 create policy "members can leave squads" on public.squad_members
   for delete using (auth.uid() = user_id);
 
+-- ═══════════ REAL CALLS · missed-call notifications ═══════════
+-- Ringing itself travels over Supabase Realtime broadcast (no rows
+-- needed), but a missed call must leave a REAL notification. Widen the
+-- kind check and add a security-definer writer the caller can invoke.
+alter table public.notifications drop constraint if exists notifications_kind_check;
+alter table public.notifications add constraint notifications_kind_check
+  check (kind in ('vibe','laugh','comment','mate_request','mate_accept','call'));
+create or replace function public.notify_call(recipient uuid, actor uuid)
+returns void language sql security definer set search_path = public as $$
+  select public.notify(recipient, actor, 'call', null, 'Missed call');
+$$;
+
 -- ═══════════ LEGAL SHIELD · reports & takedowns (DMCA) ═══════════
 -- Every report a user files is a real row. This is what makes DMCA
 -- "safe harbour" work: users flag infringing/abusive content, you get a

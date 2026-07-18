@@ -1,94 +1,263 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, Pressable, Image, Modal, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { C } from '../constants/theme';
-import { tapMedium, tapLight } from '../utils/feedback';
+import { SUPABASE_READY } from '../lib/supabase';
+import { useAuth } from '../context/AuthContext';
+import { RTC_CONFIG, ringUser, joinCall, logMissedCall } from '../services/calls';
+import { CallGames } from './CallGames';
+import { tapMedium, tapLight, tapSuccess } from '../utils/feedback';
 
-/* Voice / video call UI — HONEST edition. Your own camera preview is
-   REAL (getUserMedia on web). But peer-to-peer media (WebRTC signaling)
-   isn't wired to the backend yet, so the call never pretends to
-   connect: it rings, and if nobody can pick up it says so and points
-   you back to messages. No fake timers, no fake "live". */
+/* ─── REAL calls ───
+   The other person's device actually RINGS (Supabase Realtime broadcast
+   to their ring channel), and on answer a genuine WebRTC connection
+   carries mic + camera between the two browsers. A missed call writes a
+   real notification. Games (XO · Tap Race · Air Hockey) ride the same
+   call channel — really played against the other person.
 
-export const CallScreen = ({ peer, video, onClose }) => {
-  const [state, setState] = useState('ringing'); // ringing | noanswer
+   Caller:   <CallScreen peer video onClose />
+   Callee:   <CallScreen peer video incoming callId onClose />        */
+
+const RING_MS = 30000;
+const isWeb = Platform.OS === 'web';
+const REAL_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export const CallScreen = ({ peer, video, incoming = false, callId: incomingCallId, onClose }) => {
+  const { user } = useAuth();
+  const canReallyCall = SUPABASE_READY && isWeb && !!user && !!(peer && REAL_ID.test(peer.id || ''));
+  const [state, setState] = useState(incoming ? 'connecting' : 'ringing'); // ringing | connecting | live | noanswer | failed | ended
   const [muted, setMuted] = useState(false);
   const [cam, setCam] = useState(video);
-  const videoRef = useRef(null);
-  const streamRef = useRef(null);
+  const [speaker, setSpeaker] = useState(true); // loud (1.0) vs quiet (0.35)
+  const [gamesOpen, setGamesOpen] = useState(false);
+  const [secs, setSecs] = useState(0);
 
-  // ring honestly, then admit nobody answered (live calls come later)
-  useEffect(() => {
-    const t = setTimeout(() => setState('noanswer'), 14000);
-    return () => clearTimeout(t);
+  const callIdRef = useRef(incomingCallId || ('c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7)));
+  const pcRef = useRef(null);
+  const chRef = useRef(null);
+  const ringRef = useRef(null);
+  const localRef = useRef(null);     // <video> self preview
+  const remoteVidRef = useRef(null); // <video> remote
+  const remoteAudRef = useRef(null); // <audio> remote
+  const localStreamRef = useRef(null);
+  const timerRef = useRef(null);
+  const gameEventRef = useRef(null);
+  const endedRef = useRef(false);
+  const speakerRef = useRef(true);
+
+  const attachRemote = (stream) => {
+    if (remoteVidRef.current) { remoteVidRef.current.srcObject = stream; remoteVidRef.current.play().catch(() => {}); }
+    if (remoteAudRef.current) { remoteAudRef.current.srcObject = stream; remoteAudRef.current.volume = speakerRef.current ? 1 : 0.35; remoteAudRef.current.play().catch(() => {}); }
+  };
+
+  const cleanup = useCallback(() => {
+    clearInterval(timerRef.current);
+    if (localStreamRef.current) { localStreamRef.current.getTracks().forEach((t) => t.stop()); localStreamRef.current = null; }
+    if (pcRef.current) { try { pcRef.current.close(); } catch (e) {} pcRef.current = null; }
+    if (ringRef.current) { ringRef.current.dispose(); ringRef.current = null; }
+    if (chRef.current) { chRef.current.leave(); chRef.current = null; }
   }, []);
 
-  // REAL self-preview on web — your actual camera, not a stock photo
+  const goLive = useCallback(() => {
+    setState('live');
+    tapSuccess();
+    clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => setSecs((s) => s + 1), 1000);
+  }, []);
+
+  /* ── the whole real-call lifecycle ── */
   useEffect(() => {
-    if (Platform.OS !== 'web' || !cam) return;
-    let cancelled = false;
-    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-      navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false })
-        .then((stream) => {
-          if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return; }
-          streamRef.current = stream;
-          if (videoRef.current) {
-            videoRef.current.srcObject = stream;
-            videoRef.current.play().catch(() => {});
-          }
-        })
-        .catch(() => {});
+    if (!canReallyCall) {
+      // honest fallback (demo peer / native build): ring, then admit it
+      const t = setTimeout(() => setState('noanswer'), 14000);
+      return () => clearTimeout(t);
     }
-    return () => {
-      cancelled = true;
-      if (streamRef.current) { streamRef.current.getTracks().forEach((t) => t.stop()); streamRef.current = null; }
-    };
+    let cancelled = false;
+    const callId = callIdRef.current;
+
+    (async () => {
+      // 1 — mic (+camera) for real
+      let stream = null;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: cam ? { facingMode: 'user' } : false });
+      } catch (e) { if (!cancelled) setState('failed'); return; }
+      if (cancelled) { stream.getTracks().forEach((t) => t.stop()); return; }
+      localStreamRef.current = stream;
+      if (localRef.current && cam) { localRef.current.srcObject = stream; localRef.current.play().catch(() => {}); }
+
+      // 2 — peer connection
+      const pc = new RTCPeerConnection(RTC_CONFIG);
+      pcRef.current = pc;
+      stream.getTracks().forEach((t) => pc.addTrack(t, stream));
+      const remote = new MediaStream();
+      pc.ontrack = (e) => {
+        if (e.streams && e.streams[0]) attachRemote(e.streams[0]);
+        else { remote.addTrack(e.track); attachRemote(remote); }
+      };
+      pc.onconnectionstatechange = () => {
+        if (pc.connectionState === 'connected') goLive();
+        if (['failed', 'disconnected', 'closed'].includes(pc.connectionState) && !endedRef.current) {
+          setState((s) => (s === 'live' ? 'ended' : s));
+        }
+      };
+
+      // 3 — signaling channel for this call
+      const ch = joinCall(callId, {
+        accept: async () => {
+          // callee picked up → caller makes the offer
+          if (incoming) return;
+          setState('connecting');
+          try {
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            ch.send('signal', { sdp: pc.localDescription });
+          } catch (e) {}
+        },
+        decline: () => { endedRef.current = true; setState('noanswer'); cleanup(); },
+        signal: async (p) => {
+          try {
+            if (p.sdp) {
+              await pc.setRemoteDescription(p.sdp);
+              if (p.sdp.type === 'offer') {
+                const answer = await pc.createAnswer();
+                await pc.setLocalDescription(answer);
+                ch.send('signal', { sdp: pc.localDescription });
+              }
+            } else if (p.ice) {
+              await pc.addIceCandidate(p.ice).catch(() => {});
+            }
+          } catch (e) {}
+        },
+        bye: () => { endedRef.current = true; setState('ended'); cleanup(); },
+        game: (p) => { gameEventRef.current && gameEventRef.current(p); },
+      });
+      chRef.current = ch;
+      pc.onicecandidate = (e) => { if (e.candidate) ch.send('signal', { ice: e.candidate }); };
+
+      if (incoming) {
+        // we were rung — tell the caller we picked up
+        setTimeout(() => ch.send('accept', { by: user.id }), 600);
+      } else {
+        // 4 — actually ring their device
+        ringRef.current = await ringUser(peer.id, {
+          callId,
+          video: !!cam,
+          from: { id: user.id, name: user.name || 'Someone', avatar: user.avatar_url || null },
+        });
+        // no answer → cancel the ring + leave a REAL missed-call notification
+        setTimeout(() => {
+          if (!cancelled && !endedRef.current && pcRef.current && pcRef.current.connectionState !== 'connected') {
+            setState('noanswer');
+            if (ringRef.current) ringRef.current.cancel();
+            logMissedCall(peer.id, user.id);
+          }
+        }, RING_MS);
+      }
+    })();
+
+    return () => { cancelled = true; cleanup(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /* speaker: real volume on the remote audio element */
+  useEffect(() => {
+    speakerRef.current = speaker;
+    if (remoteAudRef.current) remoteAudRef.current.volume = speaker ? 1 : 0.35;
+  }, [speaker]);
+
+  /* mic mute: really disables the outgoing audio track */
+  useEffect(() => {
+    if (localStreamRef.current) localStreamRef.current.getAudioTracks().forEach((t) => { t.enabled = !muted; });
+  }, [muted]);
+
+  /* camera toggle: really disables the outgoing video track */
+  useEffect(() => {
+    if (localStreamRef.current) localStreamRef.current.getVideoTracks().forEach((t) => { t.enabled = !!cam; });
   }, [cam]);
 
   const hangUp = () => {
     tapMedium();
-    if (streamRef.current) { streamRef.current.getTracks().forEach((t) => t.stop()); streamRef.current = null; }
+    endedRef.current = true;
+    if (chRef.current) chRef.current.send('bye', {});
+    if (ringRef.current && state === 'ringing') { ringRef.current.cancel(); logMissedCall(peer.id, user && user.id); }
+    cleanup();
     onClose();
   };
 
+  const fmt = (s) => Math.floor(s / 60) + ':' + ('0' + (s % 60)).slice(-2);
+  const statusLine =
+    state === 'ringing' ? 'Ringing…'
+    : state === 'connecting' ? 'Connecting…'
+    : state === 'live' ? fmt(secs)
+    : state === 'noanswer' ? (canReallyCall ? 'No answer — they got a missed-call ping 💬' : 'No answer — send them a message 💬')
+    : state === 'failed' ? 'Could not connect — check mic permission & network'
+    : 'Call ended';
+
   const Ctrl = ({ icon, label, on, danger, onPress }) => (
-    <Pressable onPress={() => { tapLight(); onPress && onPress(); }} style={{ alignItems: 'center', marginHorizontal: 12 }}>
-      <View style={{ width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center', backgroundColor: danger ? C.coral : on ? '#FFF' : 'rgba(255,255,255,0.18)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' }}>
-        <Ionicons name={icon} size={24} color={danger ? '#FFF' : on ? C.text : '#FFF'} />
+    <Pressable onPress={() => { tapLight(); onPress && onPress(); }} style={{ alignItems: 'center', marginHorizontal: 10 }}>
+      <View style={{ width: 58, height: 58, borderRadius: 29, alignItems: 'center', justifyContent: 'center', backgroundColor: danger ? C.coral : on ? '#FFF' : 'rgba(255,255,255,0.18)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' }}>
+        <Ionicons name={icon} size={23} color={danger ? '#FFF' : on ? C.text : '#FFF'} />
       </View>
-      <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 11, marginTop: 6 }}>{label}</Text>
+      <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 10.5, marginTop: 6 }}>{label}</Text>
     </Pressable>
   );
 
   return (
-    <Modal visible transparent={false} animationType="slide" onRequestClose={hangUp}>
-      <LinearGradient colors={video ? ['#1E1B4B', '#0B1020'] : ['#4C1D95', '#1E1B4B', '#0B1020']} style={{ flex: 1, alignItems: 'center', justifyContent: 'space-between', paddingVertical: 80 }}>
-        {/* your REAL camera, picture-in-picture (web) */}
-        {cam && Platform.OS === 'web' ? (
-          <View style={{ position: 'absolute', top: 60, right: 18, width: 96, height: 132, borderRadius: 16, overflow: 'hidden', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.5)', backgroundColor: '#000' }}>
-            <video ref={videoRef} muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }} />
-          </View>
+    <Modal visible transparent={false} animationType="fade" onRequestClose={hangUp}>
+      <LinearGradient colors={['#241146', '#12071f', '#08040f']} style={{ flex: 1, alignItems: 'center', justifyContent: 'space-between', paddingVertical: 70 }}>
+        {/* remote media — fills the screen on a live video call */}
+        {isWeb ? (
+          <>
+            <video ref={remoteVidRef} autoPlay playsInline style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: state === 'live' && video ? 1 : 0 }} />
+            <audio ref={remoteAudRef} autoPlay />
+          </>
         ) : null}
 
-        <View style={{ alignItems: 'center', paddingHorizontal: 30 }}>
-          <Image source={{ uri: peer.avatar }} style={{ width: 116, height: 116, borderRadius: 58, borderWidth: 3, borderColor: 'rgba(255,255,255,0.4)' }} />
-          <Text style={{ color: '#FFF', fontSize: 24, fontWeight: '900', marginTop: 18 }}>{peer.name}</Text>
-          <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 14, marginTop: 6, textAlign: 'center' }}>
-            {state === 'ringing' ? (video ? 'Video calling…' : 'Calling…') : 'No answer'}
-          </Text>
-          {state === 'noanswer' ? (
-            <Text style={{ color: 'rgba(255,255,255,0.65)', fontSize: 12.5, marginTop: 10, textAlign: 'center', lineHeight: 18 }}>
-              Live voice & video are still being wired up — for now, drop them a message instead 💬
-            </Text>
-          ) : null}
-          {video && state === 'ringing' ? <Text style={{ color: C.gold, fontSize: 12, fontWeight: '700', marginTop: 8 }}>✦ Face Moment</Text> : null}
+        {/* self preview (small, top-right) */}
+        {isWeb && cam ? (
+          <video ref={localRef} autoPlay muted playsInline style={{ position: 'absolute', top: 60, right: 16, width: 96, height: 128, objectFit: 'cover', borderRadius: 14, border: '2px solid rgba(255,255,255,0.5)', transform: 'scaleX(-1)', zIndex: 5 }} />
+        ) : null}
+
+        <View style={{ alignItems: 'center', zIndex: 2 }}>
+          <View>
+            <Image source={{ uri: peer.avatar }} style={{ width: 118, height: 118, borderRadius: 59, borderWidth: 3, borderColor: 'rgba(255,255,255,0.4)', opacity: state === 'live' && video ? 0 : 1 }} />
+            {state === 'ringing' ? (
+              <View style={{ position: 'absolute', top: -12, left: -12, right: -12, bottom: -12, borderRadius: 999, borderWidth: 2, borderColor: 'rgba(255,255,255,0.25)' }} />
+            ) : null}
+          </View>
+          <Text style={{ color: '#FFF', fontSize: 24, fontWeight: '900', marginTop: 16 }}>{peer.name}</Text>
+          <Text style={{ color: state === 'live' ? '#7EE0D2' : 'rgba(255,255,255,0.65)', fontSize: 14, marginTop: 6, textAlign: 'center', paddingHorizontal: 30 }}>{statusLine}</Text>
         </View>
 
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <Ctrl icon={muted ? 'mic-off' : 'mic'} label="Mute" on={muted} onPress={() => setMuted((m) => !m)} />
-          <Ctrl icon={cam ? 'videocam' : 'videocam-off'} label="Camera" on={cam} onPress={() => setCam((c) => !c)} />
-          <Ctrl icon="call" label="End" danger onPress={hangUp} />
+        {/* in-call games — really played over the call channel */}
+        {gamesOpen && chRef.current ? (
+          <CallGames
+            role={incoming ? 'guest' : 'host'}
+            send={(payload) => chRef.current && chRef.current.send('game', payload)}
+            eventRef={gameEventRef}
+            onClose={() => setGamesOpen(false)}
+          />
+        ) : null}
+
+        <View style={{ zIndex: 2, alignItems: 'center' }}>
+          {(state === 'noanswer' || state === 'failed' || state === 'ended') ? (
+            <Pressable onPress={hangUp}>
+              <View style={{ backgroundColor: '#FFF', borderRadius: 999, paddingHorizontal: 26, paddingVertical: 13 }}>
+                <Text style={{ color: C.text, fontSize: 14, fontWeight: '900' }}>Back to chat 💬</Text>
+              </View>
+            </Pressable>
+          ) : (
+            <>
+              <View style={{ flexDirection: 'row', marginBottom: 16 }}>
+                <Ctrl icon={muted ? 'mic-off' : 'mic'} label={muted ? 'Unmute' : 'Mute'} on={muted} onPress={() => setMuted((m) => !m)} />
+                <Ctrl icon={speaker ? 'volume-high' : 'volume-low'} label="Speaker" on={!speaker} onPress={() => setSpeaker((s) => !s)} />
+                {video ? <Ctrl icon={cam ? 'videocam' : 'videocam-off'} label="Camera" on={!cam} onPress={() => setCam((c) => !c)} /> : null}
+                {state === 'live' ? <Ctrl icon="game-controller" label="Games" on={gamesOpen} onPress={() => setGamesOpen((g) => !g)} /> : null}
+              </View>
+              <Ctrl icon="call" label="End" danger onPress={hangUp} />
+            </>
+          )}
         </View>
       </LinearGradient>
     </Modal>
