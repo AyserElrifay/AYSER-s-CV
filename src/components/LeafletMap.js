@@ -141,6 +141,12 @@ function injectMapStyle() {
 const glowRing = (color) =>
   '<div style="position:absolute;left:50%;top:50%;width:56px;height:56px;margin:-28px 0 0 -28px;border-radius:50%;background:radial-gradient(circle,' + color + ' 0%,transparent 70%);animation:mmPulse 2.6s ease-out infinite"></div>';
 
+/* Names/labels come from real user data (profile names, notes…) and get
+   dropped straight into innerHTML via Leaflet's divIcon — escape them so
+   a stray `<` or `&` in someone's name can never break the marker markup. */
+const esc = (s) => String(s == null ? '' : s)
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
 const pinHtml = (m) => {
   const flag = m.flag;
   const flagBadge = flag
@@ -159,7 +165,7 @@ const pinHtml = (m) => {
       glowRing('rgba(124,58,237,0.45)') +
       '<img src="' + m.avatar + '" style="position:relative;width:48px;height:48px;margin-left:2px;border-radius:50%;object-fit:cover;border:3px solid #fff;box-shadow:0 0 0 3px #7C3AED, 0 4px 10px rgba(0,0,0,0.3)"/>' +
       doing + flagBadge +
-      '<div class="mm-pill" style="margin-top:3px">' + name + '</div>' +
+      '<div class="mm-pill" style="margin-top:3px">' + esc(name) + '</div>' +
       '</div>'
     );
   }
@@ -170,7 +176,7 @@ const pinHtml = (m) => {
     return (
       '<div class="mm-dest' + (m.hero ? ' mm-dest-hero' : '') + '" style="position:relative;width:88px;height:44px;display:flex;flex-direction:column;align-items:center">' +
       '<div style="width:16px;height:16px;border-radius:50% 50% 50% 2px;transform:rotate(45deg);background:#F5B301;border:2px solid #fff;box-shadow:0 2px 5px rgba(0,0,0,0.25)"></div>' +
-      '<div class="mm-pill" style="margin-top:5px">' + (m.label || '') + '</div>' +
+      '<div class="mm-pill" style="margin-top:5px">' + esc(m.label) + '</div>' +
       '</div>'
     );
   }
@@ -191,7 +197,7 @@ const pinHtml = (m) => {
     return (
       '<div class="mm-float" style="position:relative;width:60px;height:48px;display:flex;flex-direction:column;align-items:center">' +
       '<div style="width:30px;height:30px;border-radius:50%;background:#7C3AED;border:2px solid #fff;display:flex;align-items:center;justify-content:center;font-size:15px;box-shadow:0 3px 8px rgba(124,58,237,0.45)">🏆</div>' +
-      '<div class="mm-pill" style="margin-top:4px">' + (m.label || '') + '</div>' +
+      '<div class="mm-pill" style="margin-top:4px">' + esc(m.label) + '</div>' +
       '</div>'
     );
   }
@@ -213,7 +219,7 @@ const pinHtml = (m) => {
   );
 };
 
-export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus = null, lang = 'en', meAvatar = null, meDoing = null, route = null }) => {
+export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus = null, lang = 'en', meAvatar = null, meDoing = null, meName = null, route = null }) => {
   const elRef = useRef(null);
   const mapRef = useRef(null);
   const layerRef = useRef(null);
@@ -227,6 +233,8 @@ export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus
   meAvatarRef.current = meAvatar;
   const meDoingRef = useRef(meDoing);
   meDoingRef.current = meDoing;
+  const meNameRef = useRef(meName);
+  meNameRef.current = meName;
   const globe3dRef = useRef(null);
   const resizeCleanupRef = useRef(null);
   const centerRef = useRef(center);
@@ -367,23 +375,27 @@ export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus
     if (locateRef.current) {
       const av = meAvatarRef.current;
       const doing = meDoingRef.current;
+      const myLabel = esc((meNameRef.current || 'You') + ' ✦');
       const doingBadge = doing
         ? '<div style="position:absolute;top:-6px;left:-6px;background:#fff;border-radius:9px;font-size:12px;line-height:17px;padding:0 2px;box-shadow:0 1px 3px rgba(0,0,0,0.3)">' + doing + '</div>' : '';
       const meHtml = av
-        ? '<div class="mm-float" style="position:relative;width:56px;height:66px;display:flex;flex-direction:column;align-items:center">' +
+        ? '<div class="mm-float" style="position:relative;width:56px;height:86px;display:flex;flex-direction:column;align-items:center">' +
             '<div class="mm-heat"></div>' + glowRing('rgba(245,179,1,0.5)') +
             '<img src="' + av + '" style="position:relative;width:50px;height:50px;border-radius:50%;object-fit:cover;border:3px solid #fff;box-shadow:0 0 0 3px #F5B301, 0 4px 10px rgba(0,0,0,0.3)"/>' +
             doingBadge +
-            '<div class="mm-pill" style="margin-top:3px">You ✦</div>' +
+            '<div class="mm-pill" style="margin-top:3px">' + myLabel + '</div>' +
           '</div>'
-        : '<div style="position:relative;width:56px;height:48px;display:flex;flex-direction:column;align-items:center">' +
+        : '<div style="position:relative;width:56px;height:68px;display:flex;flex-direction:column;align-items:center">' +
             glowRing('rgba(124,58,237,0.5)') +
             '<div style="position:relative;width:22px;height:22px;border-radius:50%;background:#7C3AED;border:3px solid #fff;box-shadow:0 0 0 3px #F5B301, 0 0 0 7px rgba(124,58,237,0.22)"></div>' +
-            '<div class="mm-pill" style="margin-top:5px">You ✦</div>' +
+            '<div class="mm-pill" style="margin-top:5px">' + myLabel + '</div>' +
           '</div>';
+      // Extra room now lives BELOW the anchor point, so the avatar/dot
+      // still sits exactly on your real coordinate — only the name pill
+      // (which was being clipped) gets the space it needs.
       const meIcon = L.divIcon({
         html: meHtml, className: '',
-        iconSize: av ? [56, 66] : [56, 48], iconAnchor: av ? [28, 33] : [28, 11],
+        iconSize: av ? [56, 86] : [56, 68], iconAnchor: av ? [28, 33] : [28, 11],
       });
       meRef.current = L.marker([center.latitude, center.longitude], { icon: meIcon, zIndexOffset: 1000 }).addTo(layerRef.current);
     }
@@ -401,7 +413,7 @@ export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus
         iconAnchor: isPerson ? [26, 33] : isDest ? [44, 22] : isPlace ? [7, 7] : isNote ? [20, 40] : isEvent ? [30, 40] : [8, 8],
       });
       const mk = L.marker([m.lat, m.lng], { icon, zIndexOffset: isPerson ? 500 : isDest ? 300 : 0 }).addTo(layerRef.current);
-      if (m.label && !isPerson && !isDest) mk.bindTooltip(m.label, { direction: 'top', offset: [0, -34] });
+      if (m.label && !isPerson && !isDest) mk.bindTooltip(esc(m.label), { direction: 'top', offset: [0, -34] });
       mk.on('click', () => onPress && onPress(m));
     });
   };
@@ -410,7 +422,7 @@ export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus
   useEffect(() => {
     if (typeof window !== 'undefined' && window.L && mapRef.current) draw(window.L);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [markers, lang, meAvatar, meDoing]);
+  }, [markers, lang, meAvatar, meDoing, meName]);
 
   // glide down from the globe the moment the user's REAL location is
   // known (never to a placeholder). Later GPS moves just slide the

@@ -890,7 +890,7 @@ export const MapScreen = () => {
           )) : null}
         </MapView>
       ) : Platform.OS === 'web' ? (
-        <LeafletMap center={myCoords} markers={mapMarkers} onPress={onMarkerPress} locate={located} focus={mapFocus} lang={lang} meAvatar={user ? buildAvatarUrl(user.id) : null} meDoing={myDoing} route={routeTo} />
+        <LeafletMap center={myCoords} markers={mapMarkers} onPress={onMarkerPress} locate={located} focus={mapFocus} lang={lang} meAvatar={user ? buildAvatarUrl(user.id) : null} meDoing={myDoing} meName={user && user.user_metadata && user.user_metadata.name} route={routeTo} />
       ) : (
         <FauxMap center={myCoords}>
           <View style={{ position: 'absolute', left: '38%', top: '50%' }}>
