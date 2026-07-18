@@ -49,6 +49,7 @@
   }
 
   * { box-sizing: border-box; }
+  svg { width: 14px; height: 14px; flex-shrink: 0; }
   html, body { margin: 0; padding: 0; }
   body {
     background: var(--bg); color: var(--text);
@@ -126,6 +127,7 @@
   .badge.ok { background: var(--ok-soft); color: var(--ok); }
   .badge.warn { background: var(--warn-soft); color: var(--warn); }
   .badge.sold { background: var(--sold-soft); color: var(--sold); }
+  .badge.danger { background: color-mix(in srgb, var(--danger) 14%, transparent); color: var(--danger); }
   .badge.outline { border: 1px solid var(--border-strong); color: var(--muted); }
   .chip { border: 1px solid var(--border-strong); background: var(--surface); color: var(--muted); padding: 6px 12px; border-radius: 999px; font-size: 12.5px; transition: .12s; }
   .chip:hover { color: var(--text); background: var(--surface-2); }
@@ -162,9 +164,33 @@
   .unit.sold { opacity: .62; }
   .unit-media { height: 96px; display: flex; align-items: flex-end; justify-content: space-between; padding: 10px 12px; position: relative; }
   .unit-body { padding: 13px 14px; }
-  .unit-title { font-weight: 650; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .unit-title { font-weight: 650; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+  .unit-title:hover { color: var(--accent); }
   .unit-meta { font-size: 11.5px; color: var(--muted); margin-top: 3px; display: flex; gap: 8px; flex-wrap: wrap; }
   .unit-price { font-size: 15.5px; font-weight: 700; }
+  .unit-plan { font-size: 11px; color: var(--accent); margin-top: 2px; }
+  .unit-verify { font-size: 10.5px; margin-top: 8px; display: flex; align-items: center; gap: 4px; }
+  .unit-verify .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .unit-verify svg { width: 14px; height: 14px; flex-shrink: 0; }
+  .media-btn { position: absolute; width: 26px; height: 26px; border-radius: 50%; border: none; display: grid; place-items: center; background: rgba(255,255,255,.9); color: #37352f; box-shadow: var(--shadow); }
+  .media-btn.fav-on { color: #e5484d; }
+  .media-btn svg { width: 14px; height: 14px; }
+  .media-btn.compare-on { background: var(--accent); color: #fff; }
+
+  /* Compare tray */
+  .compare-tray { position: fixed; inset-inline: 0; bottom: 18px; display: flex; justify-content: center; z-index: 60; pointer-events: none; }
+  .compare-tray-inner { pointer-events: auto; display: flex; align-items: center; gap: 12px; background: var(--text); color: var(--bg); padding: 10px 12px 10px 18px; border-radius: 12px; box-shadow: var(--shadow-pop); }
+  .compare-tray-inner .btn { height: 32px; }
+
+  /* Drawer */
+  .modal.drawer { justify-self: end; align-self: stretch; height: 100vh; max-height: 100vh; border-radius: 0; display: flex; flex-direction: column; border-inline-start: 1px solid var(--border); }
+  .modal.drawer .modal-body { flex: 1; overflow-y: auto; }
+  .modal.wide { max-width: 760px; }
+  .plan-box { background: var(--surface-2); border-radius: 10px; padding: 14px; }
+  .plan-row { display: flex; justify-content: space-between; font-size: 13px; padding: 5px 0; }
+  .plan-row.total { border-top: 1px solid var(--border-strong); margin-top: 4px; padding-top: 9px; font-weight: 700; font-size: 14px; }
+  .hint-note { font-size: 11.5px; color: var(--muted); background: var(--accent-soft); color: var(--accent); border-radius: 8px; padding: 8px 10px; display: flex; align-items: flex-start; gap: 6px; }
+  .hint-note svg { width: 14px; height: 14px; flex-shrink: 0; margin-top: 1px; }
 
   /* Kanban */
   .board { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 8px; }
@@ -302,6 +328,13 @@ const I = {
   wallet: svg('<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/><circle cx="16.5" cy="14" r="1.2"/>'),
   trend: svg('<path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/>'),
   trophy: svg('<path d="M8 4h8v5a4 4 0 01-8 0V4z"/><path d="M8 5H5a3 3 0 003 3M16 5h3a3 3 0 01-3 3"/><path d="M10 15v2h4v-2"/><path d="M8 21h8"/><path d="M12 17v4"/>'),
+  heart: svg('<path d="M12 21s-7.5-4.9-10-9.6C.4 8 2 4.5 5.5 4c2-.3 3.7.6 4.9 2.3L12 8l1.6-1.7C14.8 4.6 16.5 3.7 18.5 4 22 4.5 23.6 8 22 11.4 19.5 16.1 12 21 12 21z"/>'),
+  scale: svg('<path d="M12 3v18M7 7l-4 8a4 4 0 008 0zM21 7l-4 8a4 4 0 008 0zM5.5 7h13"/>'),
+  check: svg('<path d="M5 13l4 4L19 7"/>'),
+  clock: svg('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/>'),
+  copy: svg('<rect x="9" y="9" width="12" height="12" rx="1.5"/><path d="M5 15V5a2 2 0 012-2h10"/>'),
+  calendar: svg('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/>'),
+  sparkle: svg('<path d="M12 3l1.6 4.6L18 9l-4.4 1.4L12 15l-1.6-4.6L6 9l4.4-1.4z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/>'),
 };
 function hydrateIcons(root=document){ root.querySelectorAll("[data-icon]").forEach(el=>{ const name=el.getAttribute("data-icon"); if(I[name]) el.innerHTML=I[name]; }); }
 
@@ -321,6 +354,7 @@ function save() { localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
 /* ---- reference values (choices, not data) ---- */
 const CO_COLORS = ["#2e7cf6","#7c3aed","#0ea5a4","#f59e0b","#e5484d","#0f9d58","#db2777","#0891b2"];
 const UNIT_TYPES = ["شقة","تاون هاوس","توين هاوس","دوبلكس","فيلا","شاليه","تجاري","إداري"];
+const FINISHING_OPTIONS = ["تشطيب كامل","نصف تشطيب","على الطوب"];
 const GRADS = ["linear-gradient(135deg,#dbeafe,#e0e7ff)","linear-gradient(135deg,#d1fae5,#ccfbf1)","linear-gradient(135deg,#fef3c7,#fed7aa)","linear-gradient(135deg,#fce7f3,#fbcfe8)","linear-gradient(135deg,#e0f2fe,#dbeafe)","linear-gradient(135deg,#ede9fe,#f3e8ff)"];
 const STAGES = [
   { id:"new", name:"جديد", color:"#2e7cf6" },
@@ -345,6 +379,45 @@ function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;"
 function coById(id){ return state.companies.find(c=>c.id===id); }
 function coColor(id){ const c=coById(id); return c?c.color:"#8a877f"; }
 function coName(id){ const c=coById(id); return c?c.name:"—"; }
+
+/* ---- payment plan calculator (Nawy-style: down payment % + years) ---- */
+function paymentPlan(u){
+  const price = Number(u.price)||0;
+  const dpPct = Number(u.downPaymentPct)||0;
+  const years = Number(u.installmentYears)||0;
+  const downPayment = Math.round(price * dpPct/100);
+  const remaining = price - downPayment;
+  const months = years*12;
+  const monthly = months>0 ? Math.round(remaining/months) : 0;
+  return { price, dpPct, downPayment, remaining, years, months, monthly, isCash: years<=0 };
+}
+
+/* ---- freshness / verification badge (Bayut TruCheck-style, computed from a REAL timestamp) ---- */
+function verificationInfo(u){
+  const ts = u.lastVerifiedAt || u.createdAt || Date.now();
+  const days = Math.max(0, Math.floor((Date.now()-ts)/86400000));
+  const when = days<1 ? "اليوم" : days===1 ? "منذ يوم" : `منذ ${days} يوم`;
+  if (days>30) return { tone:"danger", label:`غير مؤكدة — ${when}`, days };
+  if (days>7)  return { tone:"warn",   label:`يُنصح بالمراجعة — ${when}`, days };
+  return { tone:"ok", label:`تم تأكيد التوفر ${when}`, days };
+}
+
+/* ---- AI price hint: derived ONLY from the user's own real entered units, never fabricated ---- */
+function areaTypeBenchmark(area, type, excludeId){
+  const matches = state.units.filter(u=>u.id!==excludeId && u.area===area && u.type===type && Number(u.sqm)>0 && Number(u.price)>0);
+  if (matches.length<2) return null;
+  const avg = matches.reduce((s,u)=>s+Number(u.price)/Number(u.sqm),0)/matches.length;
+  return { avgPricePerM: Math.round(avg), count: matches.length };
+}
+
+let compareIds = [];
+const SORTERS = {
+  newest:     (a,b)=> (b.createdAt||0)-(a.createdAt||0),
+  price_asc:  (a,b)=> (Number(a.price)||0)-(Number(b.price)||0),
+  price_desc: (a,b)=> (Number(b.price)||0)-(Number(a.price)||0),
+  delivery:   (a,b)=> deliveryRank(a)-deliveryRank(b),
+};
+function deliveryRank(u){ return u.readyToMove!==false ? 0 : (Number(u.deliveryYear)||9999); }
 
 /* =====================================================================
    ROUTER
@@ -490,7 +563,8 @@ function renderCompanies(){
 /* =====================================================================
    INVENTORY (Supermarket)
 ===================================================================== */
-let invFilter = { type:"الكل", company:"الكل", status:"available" };
+let invFilter = { type:"الكل", company:"الكل", status:"available", favOnly:false, sort:"newest" };
+const SORT_LABELS = { newest:"الأحدث", price_asc:"الأقل سعراً", price_desc:"الأعلى سعراً", delivery:"الأقرب تسليماً" };
 function renderInventory(){
   if (!state.companies.length){
     return emptyState(I.store, "أضف شركة أولاً",
@@ -509,11 +583,15 @@ function renderInventory(){
   let list = state.units.filter(u=>
     (invFilter.type==="الكل"||u.type===invFilter.type) &&
     (invFilter.company==="الكل"||coName(u.companyId)===invFilter.company) &&
-    (invFilter.status==="all"||u.status===invFilter.status)
+    (invFilter.status==="all"||u.status===invFilter.status) &&
+    (!invFilter.favOnly || u.isFavorite)
   );
+  list = list.slice().sort(SORTERS[invFilter.sort]||SORTERS.newest);
+
   const av = state.units.filter(u=>u.status==="available").length;
   const rv = state.units.filter(u=>u.status==="reserved").length;
   const sl = state.units.filter(u=>u.status==="sold").length;
+  const favCount = state.units.filter(u=>u.isFavorite).length;
 
   let html = `<div class="card bar" style="margin-bottom:14px">
     <div style="display:flex;gap:18px;font-size:12.5px;align-items:center">
@@ -528,7 +606,11 @@ function renderInventory(){
     <div class="divider-v"></div>
     <div class="fgroup"><span>الحالة</span><div class="fchips">${statuses.map(([v,l])=>`<button class="chip ${invFilter.status===v?"on":""}" data-f="status" data-v="${v}">${esc(l)}</button>`).join("")}</div></div>
     ${state.companies.length>1?`<div class="divider-v"></div><div class="fgroup"><span>الشركة</span><div class="fchips">${companies.map(c=>`<button class="chip ${invFilter.company===c?"on":""}" data-f="company" data-v="${esc(c)}">${esc(c)}</button>`).join("")}</div></div>`:""}
-    <span style="margin-inline-start:auto;font-size:12px;color:var(--muted)" class="tnum">${list.length} وحدة</span>
+    ${favCount?`<div class="divider-v"></div><button class="chip ${invFilter.favOnly?"on":""}" data-f="favOnly" data-v="${!invFilter.favOnly}">${I.heart} المفضلة (${favCount})</button>`:""}
+    <span style="margin-inline-start:auto;display:flex;align-items:center;gap:8px">
+      <span class="tnum" style="font-size:12px;color:var(--muted)">${list.length} وحدة</span>
+      <select class="control" id="sortSel" style="height:32px;width:auto;font-size:12.5px">${Object.entries(SORT_LABELS).map(([v,l])=>`<option value="${v}" ${invFilter.sort===v?"selected":""}>ترتيب: ${l}</option>`).join("")}</select>
+    </span>
   </div>`;
 
   if (!list.length){
@@ -536,36 +618,58 @@ function renderInventory(){
     return html;
   }
 
-  html += `<div class="grid units-grid">${list.map((u,i)=>{
-    const badge = u.status==="sold"?`<span class="badge sold" style="position:absolute;inset-inline-start:10px;top:10px">مباعة</span>`
-      : u.status==="reserved"?`<span class="badge warn" style="position:absolute;inset-inline-start:10px;top:10px">محجوزة</span>`:"";
-    return `<div class="unit ${u.status==="sold"?"sold":""}">
-      <div class="unit-media" style="background:${GRADS[i%GRADS.length]}">
-        <span class="badge" style="position:absolute;inset-inline-end:10px;top:10px;background:rgba(255,255,255,.85);color:#37352f">${esc(u.type)}</span>
-        ${badge}
-        <span style="font-size:12px;font-weight:600;color:#37352f;opacity:.75">${esc(u.code||"")}</span>
-      </div>
-      <div class="unit-body">
-        <div class="unit-title">${esc(u.project||"—")}</div>
-        <div class="unit-meta">
-          <span>${I.pin} ${esc(u.area||"—")}</span>
-          <span style="width:9px;height:9px;border-radius:2px;background:${coColor(u.companyId)};align-self:center"></span>${esc(coName(u.companyId))}
-        </div>
-        <div class="unit-meta">
-          ${u.sqm?`<span>${esc(u.sqm)} م²</span>`:""}
-          ${u.bedrooms?`<span>${esc(u.bedrooms)} غرف</span>`:""}
-        </div>
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:11px">
-          <div class="unit-price tnum">${fmtEGP(u.price)}</div>
-          <div style="display:flex;gap:4px">
-            <button class="icon-btn" style="width:30px;height:30px" data-act="edit-unit" data-id="${u.id}" title="تعديل">${I.edit}</button>
-            <button class="icon-btn" style="width:30px;height:30px" data-act="del-unit" data-id="${u.id}" title="حذف">${I.trash}</button>
-          </div>
-        </div>
-      </div>
-    </div>`;
-  }).join("")}</div>`;
+  html += `<div class="grid units-grid">${list.map((u,i)=>unitCard(u,i)).join("")}</div>`;
+
+  if (compareIds.length){
+    html += `<div class="compare-tray"><div class="compare-tray-inner">
+      <span class="tnum" style="font-size:13px">${compareIds.length} وحدة للمقارنة</span>
+      <button class="btn sm" data-act="open-compare" ${compareIds.length<2?"disabled":""}>${I.scale} قارن الآن</button>
+      <button class="btn sm ghost" style="color:inherit" data-act="clear-compare">مسح</button>
+    </div></div>`;
+  }
   return html;
+}
+
+function unitCard(u, i){
+  const v = verificationInfo(u);
+  const plan = paymentPlan(u);
+  const statusBadge = u.status==="sold"?`<span class="badge sold" style="position:absolute;inset-inline-start:10px;top:10px">مباعة</span>`
+    : u.status==="reserved"?`<span class="badge warn" style="position:absolute;inset-inline-start:10px;top:10px">محجوزة</span>`:"";
+  const inCompare = compareIds.includes(u.id);
+  return `<div class="unit ${u.status==="sold"?"sold":""}">
+    <div class="unit-media" style="background:${GRADS[i%GRADS.length]}">
+      <span class="badge" style="position:absolute;inset-inline-end:10px;top:10px;background:rgba(255,255,255,.85);color:#37352f">${esc(u.type)}</span>
+      ${statusBadge}
+      <button class="media-btn ${u.isFavorite?"fav-on":""}" style="inset-inline-end:10px;top:46px" data-act="toggle-fav" data-id="${u.id}" title="مفضلة">${I.heart}</button>
+      <button class="media-btn ${inCompare?"compare-on":""}" style="inset-inline-start:10px;top:46px" data-act="toggle-compare" data-id="${u.id}" title="أضف للمقارنة">${I.scale}</button>
+      <span style="font-size:12px;font-weight:600;color:#37352f;opacity:.75">${esc(u.code||"")}</span>
+    </div>
+    <div class="unit-body">
+      <div class="unit-title" data-act="view-unit" data-id="${u.id}">${esc(u.project||"—")}</div>
+      <div class="unit-meta">
+        <span>${I.pin} ${esc(u.area||"—")}</span>
+        <span style="width:9px;height:9px;border-radius:2px;background:${coColor(u.companyId)};align-self:center"></span>${esc(coName(u.companyId))}
+      </div>
+      <div class="unit-meta">
+        ${u.sqm?`<span>${esc(u.sqm)} م²</span>`:""}
+        ${u.bedrooms?`<span>${esc(u.bedrooms)} غرف</span>`:""}
+        ${u.readyToMove===false?`<span>${I.calendar} ${u.deliveryYear?esc(u.deliveryYear):"تحت الإنشاء"}</span>`:`<span style="color:var(--ok)">جاهز للاستلام</span>`}
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:11px">
+        <div>
+          <div class="unit-price tnum">${fmtEGP(u.price)}</div>
+          ${!plan.isCash ? `<div class="unit-plan tnum">قسط من ${fmtEGP(plan.monthly)}/شهرياً</div>` : `<div class="unit-plan" style="color:var(--muted)">كاش بالكامل</div>`}
+        </div>
+        <div style="display:flex;gap:4px">
+          <button class="icon-btn" style="width:30px;height:30px" data-act="edit-unit" data-id="${u.id}" title="تعديل">${I.edit}</button>
+          <button class="icon-btn" style="width:30px;height:30px" data-act="del-unit" data-id="${u.id}" title="حذف">${I.trash}</button>
+        </div>
+      </div>
+      <div class="unit-verify" style="color:var(--${v.tone})">
+        <span class="dot" style="background:currentColor"></span>${esc(v.label)}
+      </div>
+    </div>
+  </div>`;
 }
 
 /* =====================================================================
@@ -644,8 +748,12 @@ function wireView(){
 
   // filters
   document.querySelectorAll("[data-f]").forEach(b=>b.onclick=()=>{
-    invFilter[b.dataset.f]=b.dataset.v; paint();
+    let v = b.dataset.v;
+    if (v==="true") v=true; else if (v==="false") v=false;
+    invFilter[b.dataset.f]=v; paint();
   });
+  const sortSel = document.getElementById("sortSel");
+  if (sortSel) sortSel.onchange = ()=>{ invFilter.sort=sortSel.value; paint(); };
 
   // Kanban drag & drop
   document.querySelectorAll(".lead[draggable]").forEach(card=>{
@@ -673,12 +781,54 @@ document.addEventListener("click", e=>{
   if (act==="add-unit") return openUnitForm();
   if (act==="edit-unit") return openUnitForm(id);
   if (act==="del-unit") return confirmDel("unit", id, "حذف هذه الوحدة؟");
+  if (act==="view-unit") return openUnitDetail(id);
+  if (act==="toggle-fav") return toggleFav(id);
+  if (act==="toggle-compare") return toggleCompare(id);
+  if (act==="open-compare") return openCompareModal();
+  if (act==="clear-compare") { compareIds=[]; paint(); return; }
+  if (act==="confirm-availability") return confirmAvailability(id);
+  if (act==="copy-unit") return copyUnitSummary(id);
   if (act==="add-lead") return openLeadForm(null, stage);
   if (act==="edit-lead") return openLeadForm(id);
   if (act==="del-lead") return confirmDel("lead", id, "حذف هذا العميل؟");
   if (act==="load-sample") return loadSample();
   if (act==="close-modal") return closeModal();
 });
+
+function toggleFav(id){
+  const u = state.units.find(x=>x.id===id); if(!u) return;
+  u.isFavorite = !u.isFavorite; save(); paint();
+  refreshUnitDetail(id);
+}
+function toggleCompare(id){
+  if (compareIds.includes(id)) compareIds = compareIds.filter(x=>x!==id);
+  else if (compareIds.length>=3) return toast("أقصى 3 وحدات في المقارنة");
+  else compareIds = [...compareIds, id];
+  paint();
+}
+function confirmAvailability(id){
+  const u = state.units.find(x=>x.id===id); if(!u) return;
+  u.lastVerifiedAt = Date.now(); save(); paint(); toast("تم تأكيد التوفر الآن");
+  refreshUnitDetail(id);
+}
+function refreshUnitDetail(id){
+  if (openUnitDetailId===id) openUnitDetail(id);
+}
+function copyUnitSummary(id){
+  const u = state.units.find(x=>x.id===id); if(!u) return;
+  const plan = paymentPlan(u);
+  const lines = [
+    `${u.project||""} — ${u.code||""}`,
+    `${coName(u.companyId)} · ${u.area||""}`,
+    `${u.type} · ${u.sqm||"—"} م² ${u.bedrooms?"· "+u.bedrooms+" غرف":""}`,
+    `السعر: ${fmtEGP(u.price)}`,
+    plan.isCash ? "كاش بالكامل" : `مقدم ${plan.dpPct}% (${fmtEGP(plan.downPayment)}) + قسط شهري ${fmtEGP(plan.monthly)} لمدة ${plan.years} سنة`,
+    u.readyToMove===false ? `التسليم: ${u.deliveryYear||"تحت الإنشاء"}` : "جاهزة للاستلام فوراً",
+  ];
+  const text = lines.join("\n");
+  if (navigator.clipboard?.writeText) navigator.clipboard.writeText(text).then(()=>toast("تم نسخ تفاصيل الوحدة")).catch(()=>toast("تعذّر النسخ"));
+  else toast("النسخ غير مدعوم في هذا المتصفح");
+}
 
 // nav
 document.querySelectorAll(".nav-item[data-view]").forEach(b=> b.onclick=()=>go(b.dataset.view));
@@ -690,8 +840,13 @@ const overlay = document.getElementById("overlay");
 const modal = document.getElementById("modal");
 overlay.addEventListener("click", e=>{ if(e.target===overlay) closeModal(); });
 document.addEventListener("keydown", e=>{ if(e.key==="Escape") closeModal(); });
-function openModal(html){ modal.innerHTML=html; overlay.classList.add("open"); const f=modal.querySelector("input,select,textarea"); if(f) setTimeout(()=>f.focus(),50); }
-function closeModal(){ overlay.classList.remove("open"); }
+function openModal(html, variant){
+  modal.className = "modal" + (variant?" "+variant:"");
+  modal.innerHTML=html; overlay.classList.add("open");
+  const f=modal.querySelector("input,select,textarea"); if(f && !variant) setTimeout(()=>f.focus(),50);
+}
+function closeModal(){ overlay.classList.remove("open"); openUnitDetailId=null; }
+let openUnitDetailId = null;
 
 function areaDatalist(){
   const areas = [...new Set(state.units.map(u=>u.area).concat(state.leads.map(l=>l.area)).filter(Boolean))];
@@ -756,7 +911,26 @@ function openUnitForm(id){
         <div class="field"><label>عدد الغرف</label><input class="control" name="bedrooms" type="number" min="0" value="${u?esc(u.bedrooms):""}"></div>
       </div>
       <div class="field"><label>المنطقة</label><input class="control" name="area" list="areasDL" value="${u?esc(u.area):""}" placeholder="مثال: الشيخ زايد"></div>
-      <div class="field"><label>السعر (ج.م) <span class="req">*</span></label><input class="control" name="price" type="number" min="0" required value="${u?esc(u.price):""}" placeholder="3500000"></div>
+      <div class="field">
+        <label>السعر (ج.م) <span class="req">*</span></label>
+        <input class="control" name="price" type="number" min="0" required value="${u?esc(u.price):""}" placeholder="3500000">
+        <div id="priceHint"></div>
+      </div>
+      <div class="field"><label>التشطيب</label><select class="control" name="finishing"><option value="">— غير محدد —</option>${FINISHING_OPTIONS.map(f=>`<option ${u&&u.finishing===f?"selected":""}>${f}</option>`).join("")}</select></div>
+      <div class="field"><label>التسليم</label>
+        <div class="seg" id="uReady">
+          <div class="seg-opt ${!u||u.readyToMove!==false?"on":""}" data-v="true">جاهزة للاستلام</div>
+          <div class="seg-opt ${u&&u.readyToMove===false?"on":""}" data-v="false">تحت الإنشاء</div>
+        </div>
+      </div>
+      <div class="field" id="deliveryYearField" style="display:${u&&u.readyToMove===false?"flex":"none"}">
+        <label>سنة التسليم المتوقعة</label><input class="control" name="deliveryYear" type="number" min="2024" max="2040" value="${u?esc(u.deliveryYear):""}" placeholder="2028">
+      </div>
+      <div class="row2">
+        <div class="field"><label>المقدم %</label><input class="control" name="downPaymentPct" type="number" min="0" max="100" value="${u?esc(u.downPaymentPct??10):10}"></div>
+        <div class="field"><label>سنوات التقسيط (0 = كاش)</label><input class="control" name="installmentYears" type="number" min="0" max="15" value="${u?esc(u.installmentYears??0):0}"></div>
+      </div>
+      <div id="planPreview" class="plan-box" style="font-size:12.5px"></div>
       <div class="field"><label>الحالة</label>
         <div class="seg" id="uStatus">
           <div class="seg-opt ${!u||u.status==="available"?"on":""}" data-v="available">متاحة</div>
@@ -767,15 +941,142 @@ function openUnitForm(id){
     </form>
     <div class="modal-foot"><button class="btn" id="saveBtn">${u?"حفظ التعديل":"حفظ الوحدة"}</button><button class="btn ghost" data-act="close-modal">إلغاء</button></div>`);
   let status = u?u.status:"available";
+  let ready = !(u&&u.readyToMove===false);
   modal.querySelectorAll("#uStatus .seg-opt").forEach(o=>o.onclick=()=>{ status=o.dataset.v; modal.querySelectorAll("#uStatus .seg-opt").forEach(x=>x.classList.toggle("on",x===o)); });
+  modal.querySelectorAll("#uReady .seg-opt").forEach(o=>o.onclick=()=>{
+    ready = o.dataset.v==="true";
+    modal.querySelectorAll("#uReady .seg-opt").forEach(x=>x.classList.toggle("on",x===o));
+    modal.querySelector("#deliveryYearField").style.display = ready?"none":"flex";
+  });
+
+  const f = modal.querySelector("#frm");
+  function refreshPlanPreview(){
+    const price=+f.price.value||0, dp=+f.downPaymentPct.value||0, years=+f.installmentYears.value||0;
+    const plan = paymentPlan({price, downPaymentPct:dp, installmentYears:years});
+    modal.querySelector("#planPreview").innerHTML = plan.isCash
+      ? `<div class="plan-row" style="color:var(--muted)">سيُعرض كدفعة كاش بالكامل</div>`
+      : `<div class="plan-row"><span>المقدم</span><span class="tnum">${fmtEGP(plan.downPayment)}</span></div>
+         <div class="plan-row total"><span>القسط الشهري التقديري</span><span class="tnum">${fmtEGP(plan.monthly)}</span></div>`;
+  }
+  function refreshPriceHint(){
+    const area=f.area.value.trim(), type=f.type.value, sqm=+f.sqm.value||0;
+    const bench = area && sqm>0 ? areaTypeBenchmark(area, type, u?u.id:null) : null;
+    const hintEl = modal.querySelector("#priceHint");
+    if (!bench){ hintEl.innerHTML=""; return; }
+    hintEl.innerHTML = `<div class="hint-note" style="margin-top:6px">${I.sparkle}<span>متوسط سعر المتر لنفس النوع في «${esc(area)}» من بياناتك: <b>${fmtNum(bench.avgPricePerM)} ج.م/م²</b> (${bench.count} وحدة)</span></div>`;
+  }
+  ["price","downPaymentPct","installmentYears"].forEach(n=>f[n].addEventListener("input", refreshPlanPreview));
+  ["area","sqm","price"].forEach(n=>f[n].addEventListener("input", refreshPriceHint));
+  f.type.addEventListener("change", refreshPriceHint);
+  refreshPlanPreview(); refreshPriceHint();
+
   modal.querySelector("#saveBtn").onclick=()=>{
     const f=modal.querySelector("#frm");
     if(!f.price.value) return f.price.focus();
     const data={ companyId:f.companyId.value, project:f.project.value.trim(), code:f.code.value.trim(), type:f.type.value,
-      sqm:+f.sqm.value||0, bedrooms:+f.bedrooms.value||0, area:f.area.value.trim(), price:+f.price.value||0, status };
-    if (u){ Object.assign(u,data); } else { state.units.push({ id:uid(), ...data, createdAt:Date.now() }); }
+      sqm:+f.sqm.value||0, bedrooms:+f.bedrooms.value||0, area:f.area.value.trim(), price:+f.price.value||0, status,
+      finishing:f.finishing.value, readyToMove:ready, deliveryYear:ready?null:(+f.deliveryYear.value||null),
+      downPaymentPct:+f.downPaymentPct.value||0, installmentYears:+f.installmentYears.value||0 };
+    if (u){ Object.assign(u,data); } else { state.units.push({ id:uid(), ...data, isFavorite:false, lastVerifiedAt:Date.now(), createdAt:Date.now() }); }
     save(); closeModal(); paint(); toast(u?"تم حفظ التعديل":"تمت إضافة الوحدة");
   };
+}
+
+/* ---- Unit detail drawer ---- */
+function openUnitDetail(id){
+  const u = state.units.find(x=>x.id===id); if(!u) return;
+  openUnitDetailId = id;
+  const v = verificationInfo(u);
+  const plan = paymentPlan(u);
+  const bench = areaTypeBenchmark(u.area, u.type, u.id);
+  const statusLabel = u.status==="available"?"متاحة":u.status==="reserved"?"محجوزة":"مباعة";
+  const statusVariant = u.status==="available"?"ok":u.status==="reserved"?"warn":"sold";
+
+  let benchHtml = "";
+  if (bench && Number(u.sqm)>0){
+    const myPricePerM = Math.round(Number(u.price)/Number(u.sqm));
+    const diffPct = Math.round(((myPricePerM - bench.avgPricePerM)/bench.avgPricePerM)*100);
+    const cmp = diffPct===0 ? "مطابق لمتوسط بياناتك" : diffPct>0 ? `أعلى بـ ${diffPct}% من متوسط بياناتك` : `أقل بـ ${Math.abs(diffPct)}% من متوسط بياناتك`;
+    benchHtml = `<div class="hint-note">${I.sparkle}<div>سعر المتر هنا ${fmtNum(myPricePerM)} ج.م — <b>${cmp}</b> لنفس النوع في «${esc(u.area)}» (من ${bench.count} وحدة أدخلتها بنفسك).</div></div>`;
+  }
+
+  openModal(`
+    <div class="modal-head">
+      <h2>${esc(u.project||"وحدة")} <span style="color:var(--muted);font-weight:400">· ${esc(u.code||"")}</span></h2>
+      <button class="icon-btn" data-act="close-modal">${I.x}</button>
+    </div>
+    <div class="modal-body" id="unitDetailBody">
+      <div class="unit-media" style="background:${GRADS[0]};border-radius:10px;height:120px">
+        <span class="badge" style="position:absolute;inset-inline-end:10px;top:10px;background:rgba(255,255,255,.85);color:#37352f">${esc(u.type)}</span>
+        <span class="badge ${statusVariant}" style="position:absolute;inset-inline-start:10px;top:10px">${statusLabel}</span>
+      </div>
+
+      <div class="plan-box">
+        <div class="plan-row"><span>السعر الإجمالي</span><b class="tnum">${fmtEGP(u.price)}</b></div>
+        ${plan.isCash ? `<div class="plan-row" style="color:var(--muted)">دفع كاش بالكامل</div>` : `
+          <div class="plan-row"><span>المقدم (${plan.dpPct}%)</span><span class="tnum">${fmtEGP(plan.downPayment)}</span></div>
+          <div class="plan-row"><span>باقي الأقساط (${plan.years} سنة)</span><span class="tnum">${fmtEGP(plan.remaining)}</span></div>
+          <div class="plan-row total"><span>القسط الشهري</span><span class="tnum">${fmtEGP(plan.monthly)}</span></div>
+        `}
+      </div>
+
+      ${benchHtml}
+
+      <div class="unit-verify" style="color:var(--${v.tone});font-size:12px">
+        ${I.clock}<span>${esc(v.label)}</span>
+      </div>
+      <button class="btn outline sm" data-act="confirm-availability" data-id="${u.id}">${I.check} تأكيد التوفر الآن</button>
+
+      <div style="display:flex;flex-direction:column;gap:9px;font-size:13px">
+        <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">الشركة</span><span>${esc(coName(u.companyId))}</span></div>
+        <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">المنطقة</span><span>${esc(u.area||"—")}</span></div>
+        <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">المساحة</span><span class="tnum">${u.sqm?u.sqm+" م²":"—"}</span></div>
+        <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">الغرف</span><span class="tnum">${u.bedrooms||"—"}</span></div>
+        <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">التشطيب</span><span>${esc(u.finishing||"—")}</span></div>
+        <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">التسليم</span><span>${u.readyToMove===false?(u.deliveryYear?esc(u.deliveryYear):"تحت الإنشاء"):"جاهزة للاستلام"}</span></div>
+      </div>
+
+      <div class="row2">
+        <button class="btn ${u.isFavorite?"":"outline"} sm" data-act="toggle-fav" data-id="${u.id}">${I.heart} ${u.isFavorite?"في المفضلة":"أضف للمفضلة"}</button>
+        <button class="btn ${compareIds.includes(u.id)?"":"outline"} sm" data-act="toggle-compare" data-id="${u.id}">${I.scale} ${compareIds.includes(u.id)?"في المقارنة":"أضف للمقارنة"}</button>
+      </div>
+      <button class="btn outline sm" data-act="copy-unit" data-id="${u.id}">${I.copy} نسخ تفاصيل الوحدة</button>
+    </div>
+    <div class="modal-foot">
+      <button class="btn sm" data-act="edit-unit" data-id="${u.id}">${I.edit} تعديل</button>
+      <button class="btn danger sm" data-act="del-unit" data-id="${u.id}">${I.trash} حذف</button>
+    </div>`, "drawer");
+}
+
+/* ---- Compare modal ---- */
+function openCompareModal(){
+  const units = compareIds.map(id=>state.units.find(u=>u.id===id)).filter(Boolean);
+  if (units.length<2) return;
+  const rows = [
+    ["المشروع", u=>u.project||"—"],
+    ["الشركة", u=>coName(u.companyId)],
+    ["النوع", u=>u.type],
+    ["المنطقة", u=>u.area||"—"],
+    ["المساحة", u=>u.sqm?u.sqm+" م²":"—"],
+    ["الغرف", u=>u.bedrooms||"—"],
+    ["التشطيب", u=>u.finishing||"—"],
+    ["التسليم", u=>u.readyToMove===false?(u.deliveryYear||"تحت الإنشاء"):"جاهزة"],
+    ["السعر", u=>fmtEGP(u.price)],
+    ["سعر المتر", u=>u.sqm?fmtNum(Math.round(u.price/u.sqm))+" ج.م":"—"],
+    ["المقدم", u=>{ const p=paymentPlan(u); return p.isCash?"كاش":`${p.dpPct}% (${fmtEGP(p.downPayment)})`; }],
+    ["القسط الشهري", u=>{ const p=paymentPlan(u); return p.isCash?"—":fmtEGP(p.monthly); }],
+  ];
+  openModal(`
+    <div class="modal-head"><h2>مقارنة الوحدات</h2><button class="icon-btn" data-act="close-modal">${I.x}</button></div>
+    <div class="modal-body">
+      <div class="tbl-wrap"><table>
+        <thead><tr><th></th>${units.map(u=>`<th>${esc(u.code||u.project||"—")}</th>`).join("")}</tr></thead>
+        <tbody>
+          ${rows.map(([label,fn])=>`<tr><td style="color:var(--muted);font-weight:600">${label}</td>${units.map(u=>`<td class="tnum">${esc(fn(u))}</td>`).join("")}</tr>`).join("")}
+        </tbody>
+      </table></div>
+    </div>
+    <div class="modal-foot"><button class="btn ghost" data-act="close-modal">إغلاق</button></div>`, "wide");
 }
 
 /* ---- Lead ---- */
@@ -888,10 +1189,12 @@ function loadSample(){
   const c1={id:uid(),name:"النور للتطوير العقاري",type:"developer",area:"التجمع الخامس",color:CO_COLORS[0],createdAt:Date.now()};
   const c2={id:uid(),name:"أفق للتسويق",type:"brokerage",area:"الشيخ زايد",color:CO_COLORS[1],createdAt:Date.now()};
   state.companies.push(c1,c2);
+  const DAY = 86400000;
   state.units.push(
-    {id:uid(),companyId:c1.id,project:"النور بارك",code:"A-101",type:"شقة",sqm:140,bedrooms:3,area:"التجمع الخامس",price:3500000,status:"available",createdAt:Date.now()},
-    {id:uid(),companyId:c1.id,project:"النور بارك",code:"V-01",type:"فيلا",sqm:320,bedrooms:5,area:"التجمع الخامس",price:6800000,status:"reserved",createdAt:Date.now()},
-    {id:uid(),companyId:c2.id,project:"زايد بلازا",code:"Z-14",type:"تجاري",sqm:85,bedrooms:0,area:"الشيخ زايد",price:4400000,status:"available",createdAt:Date.now()}
+    {id:uid(),companyId:c1.id,project:"النور بارك",code:"A-101",type:"شقة",sqm:140,bedrooms:3,area:"التجمع الخامس",price:3500000,status:"available",finishing:"تشطيب كامل",readyToMove:true,downPaymentPct:10,installmentYears:6,isFavorite:true,lastVerifiedAt:Date.now(),createdAt:Date.now()},
+    {id:uid(),companyId:c1.id,project:"النور بارك",code:"A-102",type:"شقة",sqm:150,bedrooms:3,area:"التجمع الخامس",price:3750000,status:"available",finishing:"نصف تشطيب",readyToMove:false,deliveryYear:2028,downPaymentPct:5,installmentYears:8,isFavorite:false,lastVerifiedAt:Date.now()-20*DAY,createdAt:Date.now()-20*DAY},
+    {id:uid(),companyId:c1.id,project:"النور بارك",code:"V-01",type:"فيلا",sqm:320,bedrooms:5,area:"التجمع الخامس",price:6800000,status:"reserved",finishing:"تشطيب كامل",readyToMove:true,downPaymentPct:15,installmentYears:4,isFavorite:false,lastVerifiedAt:Date.now()-2*DAY,createdAt:Date.now()},
+    {id:uid(),companyId:c2.id,project:"زايد بلازا",code:"Z-14",type:"تجاري",sqm:85,bedrooms:0,area:"الشيخ زايد",price:4400000,status:"available",finishing:"على الطوب",readyToMove:false,deliveryYear:2027,downPaymentPct:20,installmentYears:5,isFavorite:false,lastVerifiedAt:Date.now()-40*DAY,createdAt:Date.now()-40*DAY}
   );
   state.leads.push(
     {id:uid(),name:"محمد عبد الله",phone:"+201000000001",companyId:c1.id,budgetMin:3000000,budgetMax:4000000,area:"التجمع الخامس",source:"Facebook",stage:"new",quality:78,note:"",createdAt:Date.now()},
