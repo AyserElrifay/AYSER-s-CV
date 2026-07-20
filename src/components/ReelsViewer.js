@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Modal, Pressable, ImageBackground, FlatList, Dimensions, Image } from 'react-native';
+import { View, Text, Modal, Pressable, ImageBackground, FlatList, Dimensions, Image, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -16,10 +16,25 @@ export const ReelsViewer = ({ reels, startIndex = 0, vibes, onVibe, onComment, o
   const renderReel = ({ item }) => {
     const vibed = !!vibes[item.id];
     const bg = TEXT_BGS[item.textBg] || null;
+    // an uploaded reel VIDEO must actually play — it was being drawn as a
+    // still ImageBackground before, which is why reels "wouldn't load"
+    const isVideo = typeof item.media === 'string' && /\.(mp4|webm|mov)(\?|#|$)/i.test(item.media);
     const content = item.media ? (
+      isVideo && Platform.OS === 'web' ? (
+        <View style={{ height: H, justifyContent: 'flex-end' }}>
+          {/* muted+playsInline = iOS actually autoplays it */}
+          <video
+            src={item.media}
+            autoPlay muted loop playsInline
+            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+          />
+          {inner(item, vibed)}
+        </View>
+      ) : (
       <ImageBackground source={{ uri: item.media }} style={{ height: H, justifyContent: 'flex-end' }} resizeMode="cover">
         {inner(item, vibed)}
       </ImageBackground>
+      )
     ) : (
       <LinearGradient colors={bg ? bg.colors : ['#4C1D95', '#7C3AED']} style={{ height: H, justifyContent: 'flex-end' }}>
         <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, alignItems: 'center', justifyContent: 'center', padding: 30 }}>

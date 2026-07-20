@@ -113,7 +113,21 @@ export const StoryViewer = ({ stories, startIndex = 0, onClose, onShare, onDelet
         {Platform.OS === 'web' && story.sound && story.sound.audio_url ? (
           <audio key={story.sound.audio_url + index} src={story.sound.audio_url} autoPlay loop style={{ display: 'none' }} />
         ) : null}
-        <ImageBackground source={{ uri: story.media }} style={{ flex: 1 }} resizeMode="cover">
+        {/* a VIDEO story must actually play — it rendered as a frozen
+            ImageBackground before (why video stories "didn't work") */}
+        {Platform.OS === 'web' && typeof story.media === 'string' && /\.(mp4|webm|mov)(\?|#|$)/i.test(story.media) ? (
+          <video
+            key={story.media}
+            src={story.media}
+            autoPlay muted loop playsInline
+            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+          />
+        ) : null}
+        <ImageBackground
+          source={{ uri: /\.(mp4|webm|mov)(\?|#|$)/i.test(String(story.media || '')) ? undefined : story.media }}
+          style={{ flex: 1 }}
+          resizeMode="cover"
+        >
           <LinearGradient colors={['rgba(0,0,0,0.55)', 'transparent']} style={{ paddingTop: insets.top + 8, paddingHorizontal: 12, paddingBottom: 30 }}>
             {/* progress bars */}
             <View style={{ flexDirection: 'row', marginBottom: 12 }}>

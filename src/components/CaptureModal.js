@@ -252,8 +252,13 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
       recorderRef.current = rec;
       rec.ondataavailable = (e) => { if (e.data && e.data.size) chunksRef.current.push(e.data); };
       rec.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: 'video/webm' });
-        setShot({ uri: URL.createObjectURL(blob), kind: 'video', ext: 'webm', contentType: 'video/webm' });
+        // iPhone fix: Safari records video/mp4, NOT webm. Labelling the
+        // blob with the recorder's REAL type (instead of hardcoding webm)
+        // is what makes the preview play and the upload succeed on iOS.
+        const actual = ((rec.mimeType || mime || 'video/mp4').split(';')[0]) || 'video/mp4';
+        const ext = /mp4/.test(actual) ? 'mp4' : /quicktime/.test(actual) ? 'mov' : 'webm';
+        const blob = new Blob(chunksRef.current, { type: actual });
+        setShot({ uri: URL.createObjectURL(blob), kind: 'video', ext, contentType: actual });
       };
       rec.start();
       setRecording(true);
@@ -494,6 +499,8 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
           ? 'That video is too big — try a shorter clip (under ~45MB).'
           : /row-level security|policy|permission/i.test(m)
           ? 'Upload blocked by storage permissions — run the latest supabase/RUN_ME.sql to fix the media policies.'
+          : /load failed|failed to fetch|network/i.test(m)
+          ? 'The upload didn\'t reach the server — check your connection and tap share again (large videos need a steady signal).'
           : (m || 'Could not share — check your connection and try again')
       );
     } finally {
@@ -536,7 +543,9 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
         {/* ── viewfinder / preview ── */}
         {shot ? (
           shot.kind === 'video' && isWeb ? (
-            <video src={shot.uri} autoPlay loop playsInline style={{ position: 'absolute', width: '100%', height: '100%', objectFit: 'cover', filter: cssFilter }} />
+            /* muted is required for iOS to autoplay the preview at all —
+               without it Safari shows a black frame */
+            <video src={shot.uri} autoPlay muted loop playsInline style={{ position: 'absolute', width: '100%', height: '100%', objectFit: 'cover', filter: cssFilter }} />
           ) : isWeb ? (
             // raw <img> so the chosen filter shows LIVE in the preview
             <img src={shot.uri} style={{ position: 'absolute', width: '100%', height: '100%', objectFit: 'cover', filter: cssFilter }} alt="" />
