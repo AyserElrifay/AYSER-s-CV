@@ -45,6 +45,35 @@ async function uploadToSupabase(userId, uri, ext, contentType) {
   return data.publicUrl;
 }
 
+/* ── Client-side image compression (web) ──────────────────────────
+   Feed images never need more than ~1600px on the long side — beyond
+   that is invisible on a phone but 5-10x the bytes. Re-encoding at
+   JPEG q0.85 keeps the picture visually identical while slashing
+   storage + bandwidth. Returns the original uri on any failure or on
+   native (no canvas). */
+export function compressImage(uri, maxSide = 1600, quality = 0.85) {
+  return new Promise((resolve) => {
+    if (typeof window === 'undefined' || !window.document) return resolve(uri);
+    try {
+      const img = new window.Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        try {
+          const w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+          const scale = Math.min(1, maxSide / Math.max(w, h));
+          const canvas = window.document.createElement('canvas');
+          canvas.width = Math.round(w * scale);
+          canvas.height = Math.round(h * scale);
+          canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        } catch (e) { resolve(uri); }
+      };
+      img.onerror = () => resolve(uri);
+      img.src = uri;
+    } catch (e) { resolve(uri); }
+  });
+}
+
 /* One entry point for every upload. Tries R2, falls back to Supabase. */
 export async function uploadMediaSmart(userId, uri, ext, contentType) {
   if (!SUPABASE_READY) return uri; // demo mode keeps the local blob url

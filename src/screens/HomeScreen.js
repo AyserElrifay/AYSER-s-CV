@@ -8,7 +8,7 @@ import { SUPABASE_READY } from '../lib/supabase';
 import { toggleVibe, toggleLaugh, toggleRepost, joinPost, fetchEngagement } from '../services/social';
 import { getProfile } from '../services/profiles';
 import { fetchMyPosts, deletePost, updatePost } from '../services/posts';
-import { fetchActiveStories, fetchStoryById } from '../services/stories';
+import { fetchActiveStories, fetchStoryById, sweepMyExpiredStories } from '../services/stories';
 import { recordSignal } from '../services/algorithm';
 import { tapLight, tapSuccess } from '../utils/feedback';
 import { sfxStar, sfxSuccess } from '../utils/sfx';
@@ -213,6 +213,7 @@ export const HomeScreen = () => {
     getProfile(user.id).then(setMyProfile).catch(() => {});
     fetchMyPosts(user.id).then((rows) => setMyMomentsCount((rows || []).length)).catch(() => {});
     fetchActiveStories().then((rows) => setRealStories((rows || []).map(toStoryCard))).catch(() => {});
+    sweepMyExpiredStories(); // storage hygiene: your expired stories get truly deleted
   }, [user, posts.length, myStories.length]);
 
   const onVibe = (post) => {

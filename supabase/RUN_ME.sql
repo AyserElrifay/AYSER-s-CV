@@ -582,6 +582,20 @@ drop policy if exists "members can leave squads" on public.squad_members;
 create policy "members can leave squads" on public.squad_members
   for delete using (auth.uid() = user_id);
 
+-- ═══════════ STORY CLEANUP · expired stories are really deleted ═══════════
+-- The RLS policy already HIDES stories after 24h, but the rows + media
+-- files stayed forever, silently eating storage. This security-definer
+-- sweep lets each user delete their own expired story rows (the app
+-- then removes the storage files too) — called automatically on open.
+create or replace function public.sweep_my_expired_stories()
+returns setof text language plpgsql security definer set search_path = public as $$
+begin
+  return query
+  delete from public.stories
+   where user_id = auth.uid() and expires_at <= now()
+  returning media_url;
+end $$;
+
 -- ═══════════ MEDIA STORAGE · the bucket uploads live in ═══════════
 -- THE reason stories/reels said "failed": every photo/video upload goes
 -- to a Storage bucket named `media`, and that bucket was only created by

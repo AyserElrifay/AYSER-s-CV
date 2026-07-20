@@ -38,10 +38,28 @@ export async function fetchActiveStories() {
   const { data, error } = await supabase
     .from('stories')
     .select('*, user:profiles(id, name, avatar_url, country_flag)')
+    .gt('expires_at', new Date().toISOString()) // 24h stories, really
     .order('created_at', { ascending: false })
     .limit(50);
   if (error) throw error;
   return data;
+}
+
+/* Storage hygiene — expired stories don't just hide, they're GONE:
+   a security-definer RPC deletes your expired rows and returns their
+   media URLs, then we remove the actual files from storage so they stop
+   costing space. Every user cleans up after themselves on app open. */
+export async function sweepMyExpiredStories() {
+  try {
+    const { data } = await supabase.rpc('sweep_my_expired_stories');
+    const paths = (data || [])
+      .map((u) => {
+        const m = /object\/public\/media\/(.+?)(\?|$)/.exec(String(u || ''));
+        return m ? decodeURIComponent(m[1]) : null;
+      })
+      .filter(Boolean);
+    if (paths.length) await supabase.storage.from('media').remove(paths);
+  } catch (e) { /* table/function not there yet — never block the feed */ }
 }
 
 /* A single story by id — powers ?story=<id> shared links. */

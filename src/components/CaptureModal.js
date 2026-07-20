@@ -11,6 +11,7 @@ import { useAuth } from '../context/AuthContext';
 import { createPost } from '../services/posts';
 import { createStory } from '../services/stories';
 import { uploadCapture, uploadMedia } from '../services/social';
+import { compressImage } from '../lib/storage';
 import { fetchTracks, incrementTrackUse } from '../services/music';
 import { MusicHubSheet } from './MusicHubSheet';
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
@@ -186,8 +187,10 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
         // and let the browser give us the best it can.
         video: {
           facingMode: face || facing,
-          width: { ideal: 2160, max: 3840 },
-          height: { ideal: 3840, max: 3840 },
+          // 1080×1920 — Instagram-grade. 4K frames looked identical on a
+          // phone but cost 4-8x the storage and upload time.
+          width: { ideal: 1080, max: 1920 },
+          height: { ideal: 1920, max: 1920 },
         },
         audio: true,
       });
@@ -224,8 +227,8 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
     if (!videoRef.current) return;
     tapMedium(); sfxPop();
     const v = videoRef.current;
-    // Very high quality: keep the full sensor frame (cap at 4K longest side).
-    const MAXL = 3840;
+    // 1600px longest side — indistinguishable on a phone, ~6x smaller files.
+    const MAXL = 1600;
     let w = v.videoWidth || 1080;
     let h = v.videoHeight || 1920;
     const scale = Math.min(1, MAXL / Math.max(w, h));
@@ -234,7 +237,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
     canvas.width = w;
     canvas.height = h;
     canvas.getContext('2d').drawImage(v, 0, 0, w, h);
-    setShot({ uri: canvas.toDataURL('image/jpeg', 0.95), kind: 'photo', ext: 'jpg', contentType: 'image/jpeg' });
+    setShot({ uri: canvas.toDataURL('image/jpeg', 0.85), kind: 'photo', ext: 'jpg', contentType: 'image/jpeg' });
   };
 
   /* ── video: hold to record, release to stop ── */
@@ -244,9 +247,9 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
     chunksRef.current = [];
     try {
       const mime = window.MediaRecorder && MediaRecorder.isTypeSupported('video/webm') ? 'video/webm' : '';
-      // ~8 Mbps — still crisp, and a full 30s clip (~30MB) stays inside
-      // Supabase's free-tier 50MB per-file limit so uploads never bounce.
-      const opts = { videoBitsPerSecond: 8000000 };
+      // ~4.5 Mbps at 1080p — Instagram-grade quality; a full 30s clip is
+      // ~17MB, so uploads fly even on mobile data and storage lasts 3x.
+      const opts = { videoBitsPerSecond: 4500000 };
       if (mime) opts.mimeType = mime;
       const rec = new MediaRecorder(streamRef.current, opts);
       recorderRef.current = rec;
@@ -349,7 +352,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
           const ctx = canvas.getContext('2d');
           ctx.filter = filter;
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          resolve(canvas.toDataURL('image/jpeg', 0.95));
+          resolve(canvas.toDataURL('image/jpeg', 0.85));
         } catch (e) { resolve(uri); }
       };
       img.onerror = () => resolve(uri);
@@ -412,7 +415,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
             ctx.fillText(label, w / 2, by + bh / 2, bw - pad);
             ctx.textAlign = 'start'; ctx.textBaseline = 'alphabetic';
           }
-          resolve(canvas.toDataURL('image/jpeg', 0.95));
+          resolve(canvas.toDataURL('image/jpeg', 0.85));
         } catch (e) { resolve(uri); }
       };
       img.onerror = () => resolve(uri);
@@ -429,7 +432,12 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
     const needsBake = (cssFilter && cssFilter !== 'none') || effectId !== 'none' || !!gameCard;
     if (isWeb && shot.kind === 'photo' && needsBake) {
       const baked = await bakeAll(shot.uri);
-      workingShot = { ...shot, uri: baked };
+      workingShot = { ...shot, uri: baked, ext: 'jpg', contentType: 'image/jpeg' };
+    } else if (isWeb && shot.kind === 'photo') {
+      // gallery pictures arrive full-resolution — shrink to feed size
+      // (invisible on a phone, ~6x fewer bytes stored & downloaded)
+      const small = await compressImage(shot.uri, 1600, 0.85);
+      workingShot = { ...shot, uri: small, ext: 'jpg', contentType: 'image/jpeg' };
     }
     try {
       // ── Moment mode: send the snap straight into a chat ──

@@ -183,13 +183,19 @@ export async function setThreadTtl(threadId, hours) {
   if (error) throw error;
 }
 
-/* Hard-delete the thread's expired messages (best-effort — RLS lets a
-   participant do this; failures are silent, the client filter still
-   hides them). */
+/* Hard-delete the thread's expired TEXT messages (best-effort — RLS
+   lets a participant do this; failures are silent, the client filter
+   still hides them). Media Moments are deliberately spared: deleting
+   them would break streaks longer than the timer window. */
 export async function sweepExpired(threadId, ttlHours) {
-  if (!ttlHours) return;
+  if (!ttlHours || ttlHours <= 0) return;
   const cutoff = new Date(Date.now() - ttlHours * 3600 * 1000).toISOString();
-  try { await supabase.from('messages').delete().eq('dm_thread_id', threadId).lt('created_at', cutoff); } catch (e) {}
+  try {
+    await supabase.from('messages').delete()
+      .eq('dm_thread_id', threadId)
+      .is('media_url', null) // text only — snaps/moments survive for streaks
+      .lt('created_at', cutoff);
+  } catch (e) {}
 }
 
 /* Your real DM inbox — every thread you're actually a participant in,

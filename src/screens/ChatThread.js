@@ -78,23 +78,29 @@ export const ChatThread = ({ chat, group, onClose }) => {
   })();
 
   /* ── Disappearing messages — a real per-chat timer. Messages older
-     than the chosen window are hidden AND swept from the database. ── */
-  const [ttl, setTtl] = useState(null);          // hours | null = keep forever
+     than the chosen window are hidden AND swept from the database.
+     DEFAULT: 1 week (the natural thing — chats shouldn't pile up
+     forever). "Keep forever" is an explicit choice, stored as 0. ── */
+  const DEFAULT_TTL = 168; // hours — 1 week
+  const [ttl, setTtl] = useState(undefined);     // undefined = not loaded; null = unset (→ default); 0 = forever
   const [ttlOpen, setTtlOpen] = useState(false);
   const TTL_OPTIONS = [
-    { h: null, label: 'Keep forever' },
     { h: 24, label: '24 hours' },
-    { h: 168, label: '1 week' },
+    { h: 168, label: '1 week · default' },
     { h: 720, label: '1 month' },
     { h: 2160, label: '3 months' },
+    { h: 0, label: 'Keep forever' },
   ];
+  // the timer actually in force: explicit choice wins, otherwise 1 week
+  const effTtl = ttl === null || ttl === undefined ? DEFAULT_TTL : ttl;
   useEffect(() => {
     if (!isReal || group || !dmThreadId) return;
     let cancelled = false;
     getThreadTtl(dmThreadId).then((h) => {
       if (cancelled) return;
       setTtl(h);
-      if (h) sweepExpired(dmThreadId, h);
+      const eff = h === null || h === undefined ? DEFAULT_TTL : h;
+      if (eff > 0) sweepExpired(dmThreadId, eff);
     }).catch(() => {});
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -107,7 +113,7 @@ export const ChatThread = ({ chat, group, onClose }) => {
     try {
       await setThreadTtl(dmThreadId, h);
       setTtl(h);
-      if (h) sweepExpired(dmThreadId, h);
+      if (h > 0) sweepExpired(dmThreadId, h);
     } catch (e) {
       setChatErr(/ttl_hours|column/i.test(e.message || '')
         ? 'One step left: run the latest supabase/RUN_ME.sql to turn on disappearing messages.'
@@ -115,10 +121,11 @@ export const ChatThread = ({ chat, group, onClose }) => {
     }
   };
 
-  // hide anything past the window (the DB sweep also removes it for real)
-  const ttlCutoff = ttl ? Date.now() - ttl * 3600 * 1000 : null;
+  // hide anything past the window (the DB sweep also removes it for
+  // real). Moments/snaps are exempt — they carry the streak history.
+  const ttlCutoff = effTtl > 0 ? Date.now() - effTtl * 3600 * 1000 : null;
   const visibleMsgs = ttlCutoff
-    ? msgs.filter((m) => !m.createdAt || new Date(m.createdAt).getTime() >= ttlCutoff)
+    ? msgs.filter((m) => m.kind === 'moment' || m.mediaUrl || !m.createdAt || new Date(m.createdAt).getTime() >= ttlCutoff)
     : msgs;
 
   const [todOn, setTodOn] = useState(false);
@@ -272,8 +279,8 @@ export const ChatThread = ({ chat, group, onClose }) => {
               <Text style={{ color: C.text, fontSize: 15.5, fontWeight: '800', flexShrink: 1 }} numberOfLines={1}>{title}</Text>
               {streak.n > 0 ? <View style={{ marginLeft: 7 }}><StreakBadge info={streak} /></View> : null}
             </View>
-            <Text style={{ color: ttl ? C.purple : (/now/.test(activeLabel) ? C.green : C.faint), fontSize: 11.5, marginTop: 1 }} numberOfLines={1}>
-              {ttl ? '⏳ Disappear after ' + (TTL_OPTIONS.find((o) => o.h === ttl) || {}).label : activeLabel}
+            <Text style={{ color: ttl > 0 ? C.purple : (/now/.test(activeLabel) ? C.green : C.faint), fontSize: 11.5, marginTop: 1 }} numberOfLines={1}>
+              {ttl > 0 ? '⏳ Disappear after ' + ((TTL_OPTIONS.find((o) => o.h === ttl) || {}).label || '').replace(' · default', '') : activeLabel}
             </Text>
           </View>
           {!group && isReal ? (
@@ -339,8 +346,8 @@ export const ChatThread = ({ chat, group, onClose }) => {
               {TTL_OPTIONS.map((o) => (
                 <Pressable key={String(o.h)} onPress={() => pickTtl(o.h)}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10 }}>
-                    <Ionicons name={ttl === o.h ? 'radio-button-on' : 'radio-button-off'} size={16} color={ttl === o.h ? C.purple : C.faint} />
-                    <Text style={{ color: C.text, fontSize: 13.5, fontWeight: ttl === o.h ? '900' : '600', marginLeft: 9 }}>{o.label}</Text>
+                    <Ionicons name={effTtl === o.h ? 'radio-button-on' : 'radio-button-off'} size={16} color={effTtl === o.h ? C.purple : C.faint} />
+                    <Text style={{ color: C.text, fontSize: 13.5, fontWeight: effTtl === o.h ? '900' : '600', marginLeft: 9 }}>{o.label}</Text>
                   </View>
                 </Pressable>
               ))}
