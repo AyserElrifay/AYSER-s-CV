@@ -37,8 +37,10 @@ async function uploadToR2(userId, uri, ext, contentType) {
 async function uploadToSupabase(userId, uri, ext, contentType) {
   const path = userId + '/' + Date.now() + '.' + ext;
   const res = await fetch(uri);
-  const body = await res.arrayBuffer();
-  if (body.byteLength > MAX_UPLOAD_BYTES) throw new Error('File too large (max 60MB)');
+  // Blob, not ArrayBuffer — half the memory footprint, which is what
+  // made Safari throw 'Load failed' on big videos.
+  const body = await res.blob();
+  if (body.size > MAX_UPLOAD_BYTES) throw new Error('File too large (max 60MB)');
   const { error } = await supabase.storage.from('media').upload(path, body, { contentType });
   if (error) throw error;
   const { data } = supabase.storage.from('media').getPublicUrl(path);

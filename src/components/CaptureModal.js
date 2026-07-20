@@ -304,11 +304,28 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
       if (!result.canceled && result.assets && result.assets[0]) {
         const a = result.assets[0];
         const isVid = (a.type || '').startsWith('video') || /^video\//.test(a.mimeType || '');
+        if (isVid && !(await videoFits(a.uri))) return; // too big → clear message, not 'Load failed'
         const mime = a.mimeType || (isVid ? 'video/mp4' : 'image/jpeg');
         const ext = (mime.split('/')[1] || (isVid ? 'mp4' : 'jpg')).replace('jpeg', 'jpg');
         setShot({ uri: a.uri, kind: isVid ? 'video' : 'photo', ext, contentType: mime });
       }
     } catch (e) { setCamError('Could not open your gallery'); }
+  };
+
+  /* A phone-gallery video can easily be 100-300MB (a 90s iPhone clip is) —
+     way past the 50MB upload cap. Check the size the moment it's picked
+     and say so plainly, instead of letting the upload die with Safari's
+     cryptic 'Load failed'. */
+  const videoFits = async (uri) => {
+    if (!isWeb) return true;
+    try {
+      const blob = await (await fetch(uri)).blob();
+      if (blob.size > 48 * 1024 * 1024) {
+        setCamError('That video is ' + Math.round(blob.size / 1024 / 1024) + 'MB — the limit is ~45MB (about 30–40s of phone video). Trim it shorter and try again ✂️');
+        return false;
+      }
+      return true;
+    } catch (e) { return true; } // can't measure → let the upload try
   };
 
   /* ── long-form video: pick an existing file (works on web + native) ── */
@@ -317,6 +334,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
       const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['videos'], quality: 1, videoMaxDuration: 900 });
       if (!result.canceled && result.assets && result.assets[0]) {
         const a = result.assets[0];
+        if (!(await videoFits(a.uri))) return;
         const raw = (a.fileName || a.uri || 'video.mp4').split('?')[0];
         const ext = (raw.split('.').pop() || 'mp4').toLowerCase();
         setShot({ uri: a.uri, kind: 'video', ext: ext || 'mp4', contentType: a.mimeType || ('video/' + (ext || 'mp4')) });
