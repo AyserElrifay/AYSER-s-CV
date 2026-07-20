@@ -244,8 +244,9 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
     chunksRef.current = [];
     try {
       const mime = window.MediaRecorder && MediaRecorder.isTypeSupported('video/webm') ? 'video/webm' : '';
-      // ~12 Mbps — phone-camera-grade video, crisp on any screen.
-      const opts = { videoBitsPerSecond: 12000000 };
+      // ~8 Mbps — still crisp, and a full 30s clip (~30MB) stays inside
+      // Supabase's free-tier 50MB per-file limit so uploads never bounce.
+      const opts = { videoBitsPerSecond: 8000000 };
       if (mime) opts.mimeType = mime;
       const rec = new MediaRecorder(streamRef.current, opts);
       recorderRef.current = rec;
@@ -484,7 +485,17 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
       tapSuccess(); sfxSuccess();
       onClose();
     } catch (e) {
-      setCamError(e.message || 'Could not share — try again');
+      // say WHY it failed — "failed" alone helps nobody
+      const m = (e && e.message) || '';
+      setCamError(
+        /bucket/i.test(m)
+          ? 'One step left: run the latest supabase/RUN_ME.sql — it creates the media storage bucket uploads need.'
+          : /too large|exceed|maximum size|413/i.test(m)
+          ? 'That video is too big — try a shorter clip (under ~45MB).'
+          : /row-level security|policy|permission/i.test(m)
+          ? 'Upload blocked by storage permissions — run the latest supabase/RUN_ME.sql to fix the media policies.'
+          : (m || 'Could not share — check your connection and try again')
+      );
     } finally {
       setBusy(false);
     }

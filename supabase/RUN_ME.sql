@@ -582,6 +582,29 @@ drop policy if exists "members can leave squads" on public.squad_members;
 create policy "members can leave squads" on public.squad_members
   for delete using (auth.uid() = user_id);
 
+-- ═══════════ MEDIA STORAGE · the bucket uploads live in ═══════════
+-- THE reason stories/reels said "failed": every photo/video upload goes
+-- to a Storage bucket named `media`, and that bucket was only created by
+-- the old schema.sql — never by this file. One paste fixes it. Public
+-- bucket (posts are public), uploads land in the uploader's own folder.
+insert into storage.buckets (id, name, public)
+values ('media', 'media', true)
+on conflict (id) do update set public = true;
+
+drop policy if exists "media is publicly readable" on storage.objects;
+create policy "media is publicly readable"
+  on storage.objects for select using (bucket_id = 'media');
+
+drop policy if exists "users upload media to own folder" on storage.objects;
+create policy "users upload media to own folder"
+  on storage.objects for insert
+  with check (bucket_id = 'media' and auth.uid()::text = (storage.foldername(name))[1]);
+
+drop policy if exists "users manage own media" on storage.objects;
+create policy "users manage own media"
+  on storage.objects for delete
+  using (bucket_id = 'media' and auth.uid()::text = (storage.foldername(name))[1]);
+
 -- ═══════════ BOOKING REVENUE · the platform's cut ═══════════
 -- Every confirmed venue booking carries a real Moments service fee —
 -- this is how the app earns from reservations (the venue pays it from
