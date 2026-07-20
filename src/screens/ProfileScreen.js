@@ -41,10 +41,10 @@ import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { getProfile, updateProfile } from '../services/profiles';
 import { uploadCapture } from '../services/social';
-import { fetchMyMoments } from '../services/posts';
+import { fetchMyMoments, deletePost, updatePost } from '../services/posts';
 import { countMyCampfires } from '../services/campfires';
 import { countMates } from '../services/mates';
-import { Tick, GhostButton, BoostSheet, MatesSheet, AvatarBuilderSheet } from '../components';
+import { Tick, GhostButton, BoostSheet, MatesSheet, AvatarBuilderSheet, PostCard, ReelsViewer, CommentsSheet } from '../components';
 import { SettingsScreen } from './SettingsScreen';
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
 import { sfxSuccess } from '../utils/sfx';
@@ -272,6 +272,59 @@ export const ProfileScreen = () => {
         : { id: row.id, text: row.caption, textBg: row.text_bg || 'plain', vibes: row.vibesCount })
     : MY_MOMENTS;
 
+  /* ── open / delete / edit YOUR own moments right from the grid ── */
+  const [viewMoment, setViewMoment] = useState(null); // a tapped image/text moment → full PostCard
+  const [reelView, setReelView] = useState(null);     // { reels, index } → full-screen reels
+  const [commentsPost, setCommentsPost] = useState(null);
+
+  // a real posts row → the card shape PostCard consumes (uses your own profile)
+  const momentToCard = (row) => ({
+    id: row.id,
+    userId: row.user_id,
+    user: { id: user && user.id, name: me.name, avatar: me.avatar, verified: me.verified, flag: (myProfile && myProfile.country_flag) || null },
+    type: row.type || 'post',
+    media: row.media_url || null,
+    textBg: row.text_bg || null,
+    caption: row.caption || '',
+    place: row.place || 'Somewhere out there',
+    startsIn: '',
+    coords: ME.coords,
+    vibes: row.vibesCount || 0,
+    comments: 0,
+    laughs: 0,
+    reposts: 0,
+    sound: row.sound_title ? { title: row.sound_title, artist: row.sound_artist || '', emoji: '🎵', audio_url: row.sound_url || null } : null,
+  });
+
+  const openMoment = (item) => {
+    tapSelection();
+    const row = myMoments.find((r) => r.id === item.id);
+    if (!row) return;
+    if (row.type === 'reel') {
+      // gather all your reels and start at the tapped one
+      const reels = myMoments.filter((r) => r.type === 'reel' && r.media_url).map(momentToCard);
+      const idx = Math.max(0, reels.findIndex((r) => r.id === row.id));
+      setReelView({ reels, index: idx });
+    } else {
+      setViewMoment(momentToCard(row));
+    }
+  };
+
+  // deletes for real AND drops it from the grid instantly (fixes the
+  // "I deleted it but it's still here" bug — the local list is the source
+  // of truth the grid renders from, so it must update, not just the DB)
+  const deleteMoment = async (post) => {
+    setMyMoments((list) => list.filter((r) => r.id !== post.id));
+    setViewMoment(null);
+    if (SUPABASE_READY && user) { try { await deletePost(post.id, user.id); } catch (e) { reload(); } }
+  };
+
+  const editMoment = async (post, newCaption) => {
+    setMyMoments((list) => list.map((r) => (r.id === post.id ? { ...r, caption: newCaption } : r)));
+    setViewMoment((v) => (v && v.id === post.id ? { ...v, caption: newCaption } : v));
+    if (SUPABASE_READY && user) { try { await updatePost(post.id, user.id, { caption: newCaption }); } catch (e) {} }
+  };
+
   const moments = SUPABASE_READY ? myMoments.length : ME.moments;
   const mates = SUPABASE_READY ? matesCount : ME.mates; // real accepted mates (schema_v8)
   const campfires = SUPABASE_READY ? campfiresHosted : ME.campfires;
@@ -446,20 +499,22 @@ export const ProfileScreen = () => {
           /* written posts, X-style — your words front and centre */
           <View style={{ paddingHorizontal: 16, paddingTop: 6 }}>
             {gridItems.filter((m) => m.text).length ? gridItems.filter((m) => m.text).map((item) => (
-              <View key={item.id} style={{ flexDirection: 'row', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: C.line }}>
-                <Image source={{ uri: me.avatar }} style={{ width: 40, height: 40, borderRadius: 20 }} />
-                <View style={{ flex: 1, marginLeft: 11 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>{me.name}</Text>
-                    <Text style={{ color: C.faint, fontSize: 12.5, marginLeft: 6 }}>{me.handle}</Text>
-                  </View>
-                  <Text style={{ color: C.text, fontSize: 15, lineHeight: 22, marginTop: 4 }}>{item.text}</Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 9 }}>
-                    <MaterialCommunityIcons name="star-four-points" size={14} color={C.gold} />
-                    <Text style={{ color: C.dim, fontSize: 12, fontWeight: '700', marginLeft: 4 }}>{item.vibes}</Text>
+              <Pressable key={item.id} onPress={() => openMoment(item)}>
+                <View style={{ flexDirection: 'row', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: C.line }}>
+                  <Image source={{ uri: me.avatar }} style={{ width: 40, height: 40, borderRadius: 20 }} />
+                  <View style={{ flex: 1, marginLeft: 11 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>{me.name}</Text>
+                      <Text style={{ color: C.faint, fontSize: 12.5, marginLeft: 6 }}>{me.handle}</Text>
+                    </View>
+                    <Text style={{ color: C.text, fontSize: 15, lineHeight: 22, marginTop: 4 }}>{item.text}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 9 }}>
+                      <MaterialCommunityIcons name="star-four-points" size={14} color={C.gold} />
+                      <Text style={{ color: C.dim, fontSize: 12, fontWeight: '700', marginLeft: 4 }}>{item.vibes}</Text>
+                    </View>
                   </View>
                 </View>
-              </View>
+              </Pressable>
             )) : (
               <View style={{ alignItems: 'center', paddingVertical: 40 }}>
                 <Text style={{ fontSize: 26 }}>✍️</Text>
@@ -473,7 +528,7 @@ export const ProfileScreen = () => {
               (tab === 'reels' ? gridItems.filter((m) => m.kind === 'reel') : gridItems).map((item, i) => (
                 <Pressable
                   key={item.id}
-                  onPress={tapSelection}
+                  onPress={() => openMoment(item)}
                   style={{ marginRight: (i % COL === COL - 1) ? 0 : GAP, marginBottom: GAP, borderRadius: 4, overflow: 'hidden' }}
                 >
                   <GridCell item={item} />
@@ -709,6 +764,49 @@ export const ProfileScreen = () => {
           </Pressable>
         </Pressable>
       ) : null}
+
+      {/* open one of your moments full-screen — with real delete & edit */}
+      {viewMoment ? (
+        <Modal visible transparent animationType="slide" onRequestClose={() => setViewMoment(null)}>
+          <View style={{ flex: 1, backgroundColor: C.bg }}>
+            <Pressable onPress={() => setViewMoment(null)} hitSlop={10} style={{ position: 'absolute', top: insets.top + 12, left: 14, zIndex: 20, width: 38, height: 38, borderRadius: 19, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="chevron-back" size={22} color={C.text} />
+            </Pressable>
+            <ScrollView contentContainerStyle={{ paddingTop: insets.top + 60, paddingHorizontal: 14, paddingBottom: 40 }}>
+              <PostCard
+                post={viewMoment}
+                isMine
+                onDelete={deleteMoment}
+                onEdit={editMoment}
+                onComment={() => setCommentsPost(viewMoment)}
+                onOpenProfile={() => {}}
+                onOpenReel={() => {}}
+                onVibe={() => {}}
+                onLaugh={() => {}}
+                onRemoveLaugh={() => {}}
+                onRepost={() => {}}
+                onShare={() => {}}
+                onJoin={() => {}}
+                onOpenLikers={() => {}}
+                onOpenLaughers={() => {}}
+              />
+            </ScrollView>
+          </View>
+        </Modal>
+      ) : null}
+
+      {reelView ? (
+        <ReelsViewer
+          reels={reelView.reels}
+          startIndex={reelView.index}
+          vibes={{}}
+          onVibe={() => {}}
+          onComment={(item) => setCommentsPost(item)}
+          onClose={() => setReelView(null)}
+        />
+      ) : null}
+
+      {commentsPost ? <CommentsSheet post={commentsPost} onClose={() => setCommentsPost(null)} /> : null}
 
       {boostOpen ? <BoostSheet onClose={() => setBoostOpen(false)} /> : null}
       {matesOpen ? <MatesSheet onClose={() => { setMatesOpen(false); reload(); }} /> : null}
