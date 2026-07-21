@@ -6,8 +6,18 @@ import { C } from '../constants/theme';
 import { GAME_LOCATIONS, USERS } from '../constants/mockData';
 import { useAuth } from '../context/AuthContext';
 import { buildAvatarUrl } from '../services/avatarBuilder';
+import { submitScore, fetchLeaderboard } from '../services/games';
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
 import { sfxPop, sfxStar, sfxSuccess } from '../utils/sfx';
+
+// Games in Egyptian Arabic when the user turns it on (Settings).
+const gamesAr = () => { try { return typeof localStorage !== 'undefined' && localStorage.getItem('mm_games_ar') === '1'; } catch (e) { return false; } };
+const GT = {
+  score: ['SCORE', 'النتيجة'], start: ['START RUN ▶', 'يلا نجري ▶'], best: ['Best', 'أعلى'],
+  over: ['Tough luck!', 'حظ أوحش!'], again: ['Run again ↻', 'تاني ↻'], board: ['🏆 Global leaderboard', '🏆 الترتيب العالمي'],
+  hazards: ['Dodge the hazards, grab the loot:', 'فوت الموانع واجمع الكنوز:'], pick: ['PICK YOUR CITY', 'اختار مدينتك'],
+};
+const gt = (k) => GT[k][gamesAr() ? 1 : 0];
 
 /* ─── CATCH YOUR MATE v2 — navy nights, levels & loot ───
    · Deep-navy track, 4 lanes, your own cartoon character as the runner
@@ -55,6 +65,7 @@ export const GameRunner = ({ opponent = USERS.nour, onClose }) => {
     }
     return 0;
   });
+  const [board, setBoard] = useState(null); // null | 'loading' | [rows] — global leaderboard
   const [track, setTrack] = useState({ w: 0, h: 0 });
   const [pops, setPops] = useState([]); // collect animations
 
@@ -187,6 +198,7 @@ export const GameRunner = ({ opponent = USERS.nour, onClose }) => {
         if (Platform.OS === 'web' && typeof localStorage !== 'undefined') localStorage.setItem(BEST_KEY, String(nb));
         return nb;
       });
+      if (user && s > 0) submitScore(user.id, 'runner', s); // real global leaderboard
       return s;
     });
   };
@@ -226,7 +238,7 @@ export const GameRunner = ({ opponent = USERS.nour, onClose }) => {
             <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 12, marginTop: 2 }}>{loc.flag} {loc.city} · Level {level}</Text>
           </View>
           <View style={{ alignItems: 'flex-end' }}>
-            <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 10, fontWeight: '800' }}>SCORE</Text>
+            <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 10, fontWeight: '800' }}>{gt('score')}</Text>
             <Text style={{ color: C.gold, fontSize: 18, fontWeight: '900' }}>{score}</Text>
           </View>
         </View>
@@ -315,11 +327,17 @@ export const GameRunner = ({ opponent = USERS.nour, onClose }) => {
                 <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '800', marginLeft: 10 }}>Racing {opponent.name.split(' ')[0]}</Text>
               </View>
               <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: 13, textAlign: 'center', marginBottom: 6, lineHeight: 19 }}>
-                Dodge the hazards, grab the loot:{'\n'}🪙 +10 · ⭐ +25 · 💎 +50 — every 250 pts levels you up.
+                {gt('hazards')}{'\n'}🪙 +10 · ⭐ +25 · 💎 +50 — every 250 pts levels you up.
               </Text>
-              <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11.5, marginBottom: 16 }}>Best {best}</Text>
+              <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11.5, marginBottom: 12 }}>{gt('best')} {best}</Text>
 
-              <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, fontWeight: '800', letterSpacing: 1, marginBottom: 8 }}>PICK YOUR CITY</Text>
+              <Pressable onPress={() => { tapLight(); setBoard('loading'); fetchLeaderboard('runner').then(setBoard).catch(() => setBoard([])); }} style={{ marginBottom: 14 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.12)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', borderRadius: 999, paddingHorizontal: 16, paddingVertical: 9 }}>
+                  <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '900' }}>{gt('board')}</Text>
+                </View>
+              </Pressable>
+
+              <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, fontWeight: '800', letterSpacing: 1, marginBottom: 8 }}>{gt('pick')}</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ maxHeight: 74, flexGrow: 0 }}>
                 {GAME_LOCATIONS.map((g) => {
                   const on = g.id === loc.id;
@@ -337,8 +355,7 @@ export const GameRunner = ({ opponent = USERS.nour, onClose }) => {
 
               <Pressable onPress={start} style={{ marginTop: 20 }}>
                 <View style={{ backgroundColor: C.gold, borderRadius: 999, paddingHorizontal: 40, paddingVertical: 15, flexDirection: 'row', alignItems: 'center' }}>
-                  <Text style={{ color: '#081226', fontSize: 15, fontWeight: '900', letterSpacing: 1 }}>START RUN</Text>
-                  <Ionicons name="play" size={16} color="#081226" style={{ marginLeft: 6 }} />
+                  <Text style={{ color: '#081226', fontSize: 15, fontWeight: '900', letterSpacing: 1 }}>{gt('start')}</Text>
                 </View>
               </Pressable>
             </View>
@@ -364,6 +381,34 @@ export const GameRunner = ({ opponent = USERS.nour, onClose }) => {
                 <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: 13, fontWeight: '700' }}>Change city / mate</Text>
               </Pressable>
             </View>
+          ) : null}
+
+          {/* GLOBAL LEADERBOARD — real accounts, real scores, ranked worldwide */}
+          {board != null ? (
+            <Pressable onPress={() => setBoard(null)} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(4,10,26,0.9)', alignItems: 'center', justifyContent: 'center', padding: 22 }}>
+              <Pressable onPress={() => {}} style={{ width: '100%', maxWidth: 380, backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', borderRadius: 20, padding: 16, maxHeight: '80%' }}>
+                <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '900', textAlign: 'center', marginBottom: 12 }}>{gt('board')}</Text>
+                {board === 'loading' ? (
+                  <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, textAlign: 'center', paddingVertical: 24 }}>…</Text>
+                ) : board.length === 0 ? (
+                  <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, textAlign: 'center', paddingVertical: 24 }}>{gamesAr() ? 'مفيش نتايج لسه — كن أول واحد!' : 'No scores yet — be the first!'}</Text>
+                ) : (
+                  <ScrollView>
+                    {board.map((r, i) => (
+                      <View key={r.id} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: i < board.length - 1 ? 1 : 0, borderBottomColor: 'rgba(255,255,255,0.08)' }}>
+                        <Text style={{ color: i === 0 ? C.gold : i < 3 ? '#FFF' : 'rgba(255,255,255,0.6)', fontSize: 15, fontWeight: '900', width: 34 }}>{i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '#' + (i + 1)}</Text>
+                        {r.avatar ? <Image source={{ uri: r.avatar }} style={{ width: 30, height: 30, borderRadius: 15, marginRight: 9 }} /> : <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: 'rgba(255,255,255,0.12)', marginRight: 9 }} />}
+                        <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '700', flex: 1 }} numberOfLines={1}>{r.flag ? r.flag + ' ' : ''}{r.name}</Text>
+                        <Text style={{ color: C.gold, fontSize: 14, fontWeight: '900' }}>{r.score}</Text>
+                      </View>
+                    ))}
+                  </ScrollView>
+                )}
+                <Pressable onPress={() => setBoard(null)} style={{ marginTop: 12, alignSelf: 'center' }}>
+                  <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: '800' }}>{gamesAr() ? 'إغلاق' : 'Close'}</Text>
+                </Pressable>
+              </Pressable>
+            </Pressable>
           ) : null}
         </View>
 

@@ -684,6 +684,21 @@ create policy "owner updates reports" on public.content_reports for update using
   (auth.jwt() ->> 'email') = 'ayseryourlifecoach@gmail.com'
 );
 
+-- ═══════════ GAME SCORES · real global leaderboard ═══════════
+create table if not exists public.game_scores (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid not null references public.profiles(id) on delete cascade,
+  game       text not null,               -- 'runner' | 'stack'
+  score      int  not null,
+  created_at timestamptz not null default now()
+);
+alter table public.game_scores enable row level security;
+drop policy if exists "scores readable by everyone" on public.game_scores;
+create policy "scores readable by everyone" on public.game_scores for select using (true);
+drop policy if exists "insert your own score" on public.game_scores;
+create policy "insert your own score" on public.game_scores for insert with check (auth.uid() = user_id);
+create index if not exists game_scores_board_idx on public.game_scores (game, score desc);
+
 -- ═══════════ FEEDBACK · users → the owner's Studio inbox ═══════════
 create table if not exists public.feedback (
   id         uuid primary key default gen_random_uuid(),

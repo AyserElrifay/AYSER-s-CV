@@ -5,6 +5,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { C } from '../constants/theme';
 import { tapLight, tapMedium } from '../utils/feedback';
 import { sfxPop, sfxSuccess } from '../utils/sfx';
+import { useAuth } from '../context/AuthContext';
+import { submitScore } from '../services/games';
 
 /* ─── STACK — our own take on the timing-stacker ──────────────────────
    A block slides back and forth; tap to drop it on the tower. Only the
@@ -24,6 +26,7 @@ const hueFor = (n) => 'hsl(' + ((262 + n * 24) % 360) + ', 62%, 60%)';
 
 export const StackGame = ({ onClose }) => {
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
   const [phase, setPhase] = useState('ready'); // ready | playing | over
   const [area, setArea] = useState({ w: 0, h: 0 });
   const [blocks, setBlocks] = useState([]); // placed, index 0 = bottom
@@ -71,6 +74,7 @@ export const StackGame = ({ onClose }) => {
   const endGame = () => {
     clearInterval(loop.current);
     setPhase('over');
+    if (user && score > 0) submitScore(user.id, 'stack', score); // real global leaderboard
     setBest((b) => {
       const nb = Math.max(b, score);
       try { if (Platform.OS === 'web') window.localStorage.setItem(BEST_KEY, String(nb)); } catch (e) {}
