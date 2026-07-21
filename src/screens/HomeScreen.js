@@ -22,7 +22,7 @@ import { sfxNotify } from '../utils/sfx';
 import {
   Glass, StoriesBar, PostCard, MagicFlowModal, ProfileModal,
   CommentsSheet, ComposeModal, SearchModal, StoryViewer, ReelsViewer,
-  CaptureModal, NotificationsSheet, LikersSheet, ReportSheet,
+  CaptureModal, NotificationsSheet, LikersSheet, ReportSheet, Wordmark,
 } from '../components';
 import { Modal } from 'react-native';
 import { ProfileScreen } from './ProfileScreen';
@@ -281,7 +281,7 @@ export const HomeScreen = () => {
           <View style={{ marginBottom: 20 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
               <View>
-                <Text style={{ color: C.text, fontSize: 21, fontWeight: '900', letterSpacing: 5 }}>MOMENTS</Text>
+                <Wordmark height={46} style={{ marginLeft: -4, marginBottom: -2 }} />
                 <Text style={{ color: C.faint, fontSize: 11, marginTop: 2, letterSpacing: 0.4 }}>
                   {t('brand_tagline')}
                 </Text>

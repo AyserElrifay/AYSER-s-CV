@@ -6,7 +6,7 @@ import { updateProfile } from '../services/profiles';
 import { setIntent } from '../services/algorithm';
 import { resetPasswordByEmail, sendPhoneOtp, verifyPhoneOtp, updatePassword } from '../services/auth';
 import { COUNTRY_LIST } from '../constants/countries';
-import { Glass, Micro, NeonButton, GhostButton } from '../components';
+import { Glass, Micro, NeonButton, GhostButton, Wordmark } from '../components';
 
 /* ─────────────── PASSWORDLESS-STYLE ONBOARDING · AUTH GATE ───────────
    Step 0 — sign in / create account (email+password via Supabase).
@@ -184,7 +184,7 @@ export const AuthScreen = () => {
       <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 20 }} keyboardShouldPersistTaps="handled">
         {step === 0 && mode === 'reset' ? (
           <View style={{ alignItems: 'center' }}>
-            <Text style={{ color: C.text, fontSize: 36, fontWeight: '900', letterSpacing: 6, marginBottom: 10 }}>MOMENTS</Text>
+            <Wordmark height={92} style={{ marginBottom: 4 }} />
             <Text style={{ color: C.dim, fontSize: 14, marginBottom: 30 }}>Reset your password</Text>
             <Glass style={{ padding: 20, alignSelf: 'stretch', marginBottom: 30 }}>
               <View style={{ flexDirection: 'row', gap: 8, marginBottom: 18 }}>
@@ -250,7 +250,7 @@ export const AuthScreen = () => {
           </View>
         ) : step === 0 ? (
           <View style={{ alignItems: 'center' }}>
-            <Text style={{ color: C.text, fontSize: 36, fontWeight: '900', letterSpacing: 6, marginBottom: 10 }}>MOMENTS</Text>
+            <Wordmark height={100} style={{ marginBottom: 2 }} />
             <Text style={{ color: C.dim, fontSize: 14, marginBottom: 40 }}>Don&apos;t scroll it. Live it.</Text>
             <Glass style={{ padding: 20, alignSelf: 'stretch', marginBottom: 30 }}>
               <Text style={{ color: C.text, fontSize: 18, fontWeight: '800', textAlign: 'center', marginBottom: 18 }}>

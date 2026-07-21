@@ -74,6 +74,164 @@ const QUESTIONS = [
   'Your dream road-trip partner?',
 ];
 
+/* ── REEL GAMES — TikTok-style randomiser filters, all original ──────
+   Pick a game in the viewfinder; each row spins like a slot machine and
+   locks on a random result. Because we composite the camera + overlay
+   onto a canvas and record THAT, the reveal is really baked into the
+   reel's pixels — not a fake preview. */
+const REEL_GAMES = [
+  { id: 'love', title: 'Your Next Relationship', emoji: '💘', rows: [
+    { label: 'Type', pool: ['Soulmate', 'Slow burn', 'Situationship', 'Whirlwind', 'Friends-first', 'Long distance', 'Second chance'] },
+    { label: 'Their vibe', pool: ['Chaotic good', 'Golden retriever', 'Mysterious', 'Power couple', 'Comfort person', 'All jokes', 'Soft & shy'] },
+    { label: 'You meet', pool: ['At a café', 'At the gym', 'At a wedding', 'Online', 'Through friends', 'Abroad', 'In a coffee line'] },
+    { label: 'When', pool: ['in 3 weeks', 'this summer', 'in 2 months', 'next year', 'when you stop looking'] },
+  ] },
+  { id: 'era', title: 'Your 2026 Era', emoji: '✨', rows: [
+    { label: 'Era', pool: ['Main character', 'Soft life', 'Villain', 'Glow-up', 'Healing', 'Hustle', 'Rockstar'] },
+    { label: 'Energy', pool: ['Unbothered', 'Magnetic', 'Feral', 'Zen', 'Bold', 'Golden'] },
+    { label: 'Anthem', pool: ['a summer banger', 'a slow ballad', 'pure hype', 'lo-fi calm', 'an underdog track'] },
+    { label: 'Lucky month', pool: ['March', 'June', 'September', 'December', 'February', 'August'] },
+  ] },
+  { id: 'villain', title: 'Your Villain Origin', emoji: '😈', rows: [
+    { label: 'They said', pool: ['"You changed"', '"Calm down"', '"It\'s not deep"', '"You\'re too much"', '"Be realistic"', '"Maybe later"'] },
+    { label: 'Your power', pool: ['Cold silence', 'The read of the year', 'Zero replies', 'Petty genius', 'Unbothered aura'] },
+    { label: 'Signature move', pool: ['Leaving on read', 'The slow blink', 'Screenshot & save', 'Ghost & glow', 'The receipts'] },
+  ] },
+  { id: 'famous', title: 'If You Were Famous', emoji: '🎬', rows: [
+    { label: 'Famous for', pool: ['A viral dance', 'Saving the day', 'A hit song', 'A wild interview', 'Being iconic', 'One legendary post'] },
+    { label: 'Fanbase', pool: ['10M', '40M', 'a cult classic', 'the whole internet', '3 loyal legends'] },
+    { label: 'Scandal', pool: ['None, you\'re perfect', 'A pizza topping take', 'Napping on set', 'Being too nice', 'Secret talent leaked'] },
+    { label: 'Net worth', pool: ['$2M', '$50M', '$900', 'a yacht', 'emotional damage'] },
+  ] },
+  { id: 'stats', title: 'Main Character Stats', emoji: '🌟', rows: [
+    { label: 'Charisma', pool: ['62', '78', '88', '94', '99', '100', '47'] },
+    { label: 'Chaos', pool: ['12', '44', '67', '83', '95', '100'] },
+    { label: 'Luck', pool: ['30', '55', '70', '85', '99'] },
+    { label: 'Rizz', pool: ['low-key', 'mid', 'elite', 'godtier', 'unmatched', 'still loading'] },
+  ] },
+  { id: 'truth', title: 'Truth Bomb', emoji: '💣', rows: [
+    { label: '', pool: [
+      'You act tough but you\'re the softest 🧸',
+      'Your comeback era is loading ⏳',
+      'You\'re someone\'s favourite person 💛',
+      'You overthink texts for 20 mins 📱',
+      'You\'d survive a horror movie tbh 🔪',
+      'You give great advice — take some 🫶',
+      'A big yes is coming your way 🍀',
+    ] },
+  ] },
+];
+
+// slot-machine timing (ms): each row locks in sequence
+const REEL_LOCK_MS = 520, REEL_STEP_MS = 430, REEL_TAIL_MS = 340;
+const reelTotal = (n) => REEL_LOCK_MS + n * REEL_STEP_MS + REEL_TAIL_MS;
+const reelLockAt = (i) => REEL_LOCK_MS + i * REEL_STEP_MS;
+/* One cell's current display: the final result once locked, else a fast
+   cycle through the pool (elapsed=null ⇒ final/static). */
+function reelCell(row, i, elapsed) {
+  if (elapsed == null || elapsed >= reelLockAt(i)) return { text: row.result, locked: true };
+  const pool = row.pool && row.pool.length ? row.pool : [row.result];
+  return { text: pool[(Math.floor(elapsed / 60) + i * 3) % pool.length], locked: false };
+}
+const reelIsSingle = (g) => g && g.rows.length === 1 && !g.rows[0].label;
+
+/* ── Canvas drawers (shared by photo-bake AND the video compositor) ── */
+function roundRectPath(ctx, x, y, w, h, r) {
+  if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); return; }
+  ctx.beginPath();
+  ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+}
+function drawEffectsCanvas(ctx, w, h, effectId, particles) {
+  if (effectId === 'vignette') {
+    const g = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.42, w / 2, h / 2, Math.max(w, h) * 0.72);
+    g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.55)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+  } else if (effectId === 'leak') {
+    let g = ctx.createLinearGradient(0, 0, w * 0.7, h * 0.5);
+    g.addColorStop(0, 'rgba(255,150,50,0.38)'); g.addColorStop(1, 'rgba(255,150,50,0)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+    g = ctx.createLinearGradient(w, h * 0.2, w * 0.4, h);
+    g.addColorStop(0, 'rgba(255,80,120,0.28)'); g.addColorStop(1, 'rgba(255,80,120,0)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+  } else if (effectId === 'grain') {
+    for (let i = 0; i < 9000; i++) {
+      ctx.fillStyle = 'rgba(' + (Math.random() > 0.5 ? '255,255,255' : '0,0,0') + ',' + (Math.random() * 0.09).toFixed(3) + ')';
+      ctx.fillRect(Math.random() * w, Math.random() * h, 2, 2);
+    }
+  } else if (particles) {
+    particles.forEach((p) => {
+      ctx.font = Math.round(p.s * w * 0.055) + 'px sans-serif';
+      ctx.fillText(p.c, p.x * w * 0.94, p.y * h * 0.94 + 20);
+    });
+  }
+}
+function drawSimpleCardCanvas(ctx, w, h, gameCard) {
+  const fs = Math.round(w * 0.045);
+  ctx.font = '700 ' + fs + 'px sans-serif';
+  const label = (gameCard.kind === 'roulette' ? '🎲 ' : '❓ ') + gameCard.text;
+  const tw = ctx.measureText(label).width;
+  const pad = fs * 0.8;
+  const bw = Math.min(w * 0.92, tw + pad * 2);
+  const bx = (w - bw) / 2, by = h * 0.07, bh = fs * 2.1;
+  ctx.fillStyle = 'rgba(10,6,25,0.72)';
+  roundRectPath(ctx, bx, by, bw, bh, fs); ctx.fill();
+  ctx.fillStyle = '#FFFFFF';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(label, w / 2, by + bh / 2, bw - pad);
+  ctx.textAlign = 'start'; ctx.textBaseline = 'alphabetic';
+}
+function wrapLines(ctx, text, maxW) {
+  const words = String(text).split(' '); const lines = []; let line = '';
+  words.forEach((word) => {
+    const test = line ? line + ' ' + word : word;
+    if (ctx.measureText(test).width > maxW && line) { lines.push(line); line = word; }
+    else line = test;
+  });
+  if (line) lines.push(line);
+  return lines;
+}
+function drawReelCardCanvas(ctx, w, h, game, elapsed) {
+  const s = w / 1080;
+  const single = reelIsSingle(game);
+  const titleFs = Math.round(46 * s), rowFs = Math.round(40 * s), labelFs = Math.round(31 * s);
+  const pad = Math.round(34 * s), rowH = Math.round(62 * s), gap = Math.round(20 * s);
+  const panelW = Math.min(w * 0.9, Math.round(780 * s));
+  const innerW = panelW - pad * 2;
+  ctx.textBaseline = 'alphabetic';
+  let bodyLines = [];
+  if (single) { ctx.font = '800 ' + rowFs + 'px sans-serif'; bodyLines = wrapLines(ctx, game.rows[0].result, innerW); }
+  const bodyH = single ? bodyLines.length * Math.round(rowFs * 1.28) : game.rows.length * rowH;
+  const headerH = titleFs + gap;
+  const panelH = pad * 2 + headerH + bodyH;
+  const bx = (w - panelW) / 2, by = Math.round(h * 0.075);
+  // panel
+  ctx.fillStyle = 'rgba(12,8,28,0.82)';
+  roundRectPath(ctx, bx, by, panelW, panelH, Math.round(30 * s)); ctx.fill();
+  ctx.strokeStyle = 'rgba(245,179,1,0.55)'; ctx.lineWidth = Math.max(1, 2 * s); ctx.stroke();
+  // title
+  ctx.fillStyle = '#FFD75E'; ctx.textAlign = 'center'; ctx.font = '900 ' + titleFs + 'px sans-serif';
+  ctx.fillText(game.emoji + '  ' + game.title, w / 2, by + pad + titleFs * 0.82, innerW);
+  // body
+  if (single) {
+    ctx.fillStyle = '#FFFFFF'; ctx.textAlign = 'center'; ctx.font = '800 ' + rowFs + 'px sans-serif';
+    const lh = Math.round(rowFs * 1.28);
+    bodyLines.forEach((ln, i) => ctx.fillText(ln, w / 2, by + pad + headerH + i * lh + rowFs * 0.85, innerW));
+  } else {
+    game.rows.forEach((row, i) => {
+      const cell = reelCell(row, i, elapsed);
+      const ry = by + pad + headerH + i * rowH + rowFs * 0.85;
+      ctx.textAlign = 'left'; ctx.fillStyle = 'rgba(255,255,255,0.60)'; ctx.font = '700 ' + labelFs + 'px sans-serif';
+      ctx.fillText(row.label, bx + pad, ry);
+      const lw = ctx.measureText(row.label).width;
+      ctx.textAlign = 'right'; ctx.fillStyle = cell.locked ? '#FFFFFF' : 'rgba(255,255,255,0.62)';
+      ctx.font = '900 ' + rowFs + 'px sans-serif';
+      ctx.fillText(cell.text, bx + panelW - pad, ry, innerW - lw - Math.round(16 * s));
+    });
+  }
+  ctx.textAlign = 'start';
+}
+
 export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPostedStory, sendMode = false, sendToName, onMoment }) => {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
@@ -108,6 +266,29 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
       ? Array.from({ length: 26 }, () => ({ x: Math.random(), y: Math.random(), s: 0.6 + Math.random() * 0.9, c: chars[Math.floor(Math.random() * chars.length)] }))
       : null;
   };
+
+  // ── reel games (randomiser filters, baked into the reel) ──
+  const [reelGame, setReelGame] = useState(null); // { id, title, emoji, rows:[{label,pool,result}] }
+  const [reelSpin, setReelSpin] = useState(null);  // on-screen spin clock (ms) · null = final
+  const reelTimer = useRef(null);
+  const animateReelSpin = (n) => {
+    clearInterval(reelTimer.current);
+    const total = reelTotal(n), t0 = Date.now();
+    setReelSpin(0);
+    reelTimer.current = setInterval(() => {
+      const e = Date.now() - t0;
+      if (e >= total) { clearInterval(reelTimer.current); setReelSpin(null); }
+      else setReelSpin(e);
+    }, 50);
+  };
+  const pickReelGame = (g) => {
+    tapMedium(); sfxPop();
+    const rows = g.rows.map((r) => ({ label: r.label, pool: r.pool, result: r.pool[Math.floor(Math.random() * r.pool.length)] }));
+    setReelGame({ id: g.id, title: g.title, emoji: g.emoji, rows });
+    setGameCard(null); // one game overlay at a time
+    animateReelSpin(rows.length);
+  };
+  const clearReelGame = () => { tapLight(); clearInterval(reelTimer.current); setReelSpin(null); setReelGame(null); };
 
   // ── real filters + light edit (brightness / contrast / warmth) ──
   const [filterId, setFilterId] = useState('none');
@@ -174,6 +355,8 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
   const holdTimer = useRef(null);
   const recTimer = useRef(null);
   const heldRef = useRef(false);
+  const compCanvasRef = useRef(null); // offscreen canvas for game/effect video compositing
+  const rafRef = useRef(null);        // compositor animation frame
 
   const isWeb = Platform.OS === 'web';
 
@@ -211,6 +394,8 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
       if (streamRef.current) streamRef.current.getTracks().forEach((t) => t.stop());
       clearInterval(recTimer.current);
       clearTimeout(holdTimer.current);
+      clearInterval(reelTimer.current);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shot]);
@@ -246,22 +431,60 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
     tapMedium(); sfxPop();
     chunksRef.current = [];
     try {
+      // With a game/effect on, record a COMPOSITE canvas (camera + overlay
+      // drawn every frame) so the game — and its slot-machine reveal — is
+      // baked into the reel's real pixels. Falls back to the raw stream if
+      // the browser can't capture a canvas stream.
+      let recStream = streamRef.current;
+      let composite = false;
+      const overlayActive = isWeb && (!!reelGame || !!gameCard || effectId !== 'none');
+      const v = videoRef.current;
+      if (overlayActive && v && (v.videoWidth || 0) > 0) {
+        const canvas = compCanvasRef.current || document.createElement('canvas');
+        compCanvasRef.current = canvas;
+        if (canvas.captureStream) {
+          const w = (canvas.width = v.videoWidth), h = (canvas.height = v.videoHeight);
+          const ctx = canvas.getContext('2d');
+          const filter = cssFilter && cssFilter !== 'none' ? cssFilter : 'none';
+          const eff = effectId, parts = particlesRef.current, gc = gameCard, rg = reelGame;
+          const t0 = performance.now();
+          const draw = () => {
+            try {
+              if ('filter' in ctx) ctx.filter = filter;
+              ctx.drawImage(v, 0, 0, w, h);
+              if ('filter' in ctx) ctx.filter = 'none';
+              drawEffectsCanvas(ctx, w, h, eff, parts);
+              if (rg) drawReelCardCanvas(ctx, w, h, rg, performance.now() - t0);
+              else if (gc) drawSimpleCardCanvas(ctx, w, h, gc);
+            } catch (e) {}
+            rafRef.current = requestAnimationFrame(draw);
+          };
+          draw();
+          const cstream = canvas.captureStream(30);
+          streamRef.current.getAudioTracks().forEach((t) => { try { cstream.addTrack(t); } catch (e) {} });
+          recStream = cstream;
+          composite = true;
+          if (rg) animateReelSpin(rg.rows.length); // re-run on-screen reveal to match
+        }
+      }
       const mime = window.MediaRecorder && MediaRecorder.isTypeSupported('video/webm') ? 'video/webm' : '';
       // ~4.5 Mbps at 1080p — Instagram-grade quality; a full 30s clip is
       // ~17MB, so uploads fly even on mobile data and storage lasts 3x.
       const opts = { videoBitsPerSecond: 4500000 };
       if (mime) opts.mimeType = mime;
-      const rec = new MediaRecorder(streamRef.current, opts);
+      const rec = new MediaRecorder(recStream, opts);
       recorderRef.current = rec;
       rec.ondataavailable = (e) => { if (e.data && e.data.size) chunksRef.current.push(e.data); };
       rec.onstop = () => {
+        if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
         // iPhone fix: Safari records video/mp4, NOT webm. Labelling the
         // blob with the recorder's REAL type (instead of hardcoding webm)
         // is what makes the preview play and the upload succeed on iOS.
         const actual = ((rec.mimeType || mime || 'video/mp4').split(';')[0]) || 'video/mp4';
         const ext = /mp4/.test(actual) ? 'mp4' : /quicktime/.test(actual) ? 'mov' : 'webm';
         const blob = new Blob(chunksRef.current, { type: actual });
-        setShot({ uri: URL.createObjectURL(blob), kind: 'video', ext, contentType: actual });
+        // the reel already carries the game in its pixels — don't re-bake
+        setShot({ uri: URL.createObjectURL(blob), kind: 'video', ext, contentType: actual, baked: composite });
       };
       rec.start();
       setRecording(true);
@@ -393,46 +616,9 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
           ctx.filter = cssFilter && cssFilter !== 'none' ? cssFilter : 'none';
           ctx.drawImage(img, 0, 0, w, h);
           ctx.filter = 'none';
-          // effects
-          if (effectId === 'vignette') {
-            const g = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.42, w / 2, h / 2, Math.max(w, h) * 0.72);
-            g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.55)');
-            ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
-          } else if (effectId === 'leak') {
-            let g = ctx.createLinearGradient(0, 0, w * 0.7, h * 0.5);
-            g.addColorStop(0, 'rgba(255,150,50,0.38)'); g.addColorStop(1, 'rgba(255,150,50,0)');
-            ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
-            g = ctx.createLinearGradient(w, h * 0.2, w * 0.4, h);
-            g.addColorStop(0, 'rgba(255,80,120,0.28)'); g.addColorStop(1, 'rgba(255,80,120,0)');
-            ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
-          } else if (effectId === 'grain') {
-            for (let i = 0; i < 9000; i++) {
-              ctx.fillStyle = 'rgba(' + (Math.random() > 0.5 ? '255,255,255' : '0,0,0') + ',' + (Math.random() * 0.09).toFixed(3) + ')';
-              ctx.fillRect(Math.random() * w, Math.random() * h, 2, 2);
-            }
-          } else if (particlesRef.current) {
-            particlesRef.current.forEach((p) => {
-              ctx.font = Math.round(p.s * w * 0.055) + 'px sans-serif';
-              ctx.fillText(p.c, p.x * w * 0.94, p.y * h * 0.94 + 20);
-            });
-          }
-          // game card
-          if (gameCard) {
-            const fs = Math.round(w * 0.045);
-            ctx.font = '700 ' + fs + 'px sans-serif';
-            const label = (gameCard.kind === 'roulette' ? '🎲 ' : '❓ ') + gameCard.text;
-            const tw = ctx.measureText(label).width;
-            const pad = fs * 0.8;
-            const bw = Math.min(w * 0.92, tw + pad * 2);
-            const bx = (w - bw) / 2, by = h * 0.07, bh = fs * 2.1;
-            ctx.fillStyle = 'rgba(10,6,25,0.72)';
-            if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(bx, by, bw, bh, fs); ctx.fill(); }
-            else ctx.fillRect(bx, by, bw, bh);
-            ctx.fillStyle = '#FFFFFF';
-            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-            ctx.fillText(label, w / 2, by + bh / 2, bw - pad);
-            ctx.textAlign = 'start'; ctx.textBaseline = 'alphabetic';
-          }
+          drawEffectsCanvas(ctx, w, h, effectId, particlesRef.current);
+          if (reelGame) drawReelCardCanvas(ctx, w, h, reelGame, null); // final result
+          else if (gameCard) drawSimpleCardCanvas(ctx, w, h, gameCard);
           resolve(canvas.toDataURL('image/jpeg', 0.85));
         } catch (e) { resolve(uri); }
       };
@@ -447,7 +633,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
     setBusy(true);
     // bake the look into the photo's real pixels before uploading
     let workingShot = shot;
-    const needsBake = (cssFilter && cssFilter !== 'none') || effectId !== 'none' || !!gameCard;
+    const needsBake = (cssFilter && cssFilter !== 'none') || effectId !== 'none' || !!gameCard || !!reelGame;
     if (isWeb && shot.kind === 'photo' && needsBake) {
       const baked = await bakeAll(shot.uri);
       workingShot = { ...shot, uri: baked, ext: 'jpg', contentType: 'image/jpeg' };
@@ -632,6 +818,29 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
           </View>
         ) : null}
 
+        {/* reel-game card — live in the viewfinder & photo preview; a
+            recorded reel already carries it in its pixels, so don't double it */}
+        {reelGame && !(shot && shot.kind === 'video') ? (
+          <View pointerEvents="none" style={{ position: 'absolute', top: '8%', left: 0, right: 0, alignItems: 'center' }}>
+            <View style={{ backgroundColor: 'rgba(12,8,28,0.82)', borderColor: 'rgba(245,179,1,0.55)', borderWidth: 1, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 12, maxWidth: '88%', minWidth: '60%' }}>
+              <Text style={{ color: '#FFD75E', fontSize: 15.5, fontWeight: '900', textAlign: 'center', marginBottom: reelIsSingle(reelGame) ? 2 : 8 }}>
+                {reelGame.emoji + '  ' + reelGame.title}
+              </Text>
+              {reelGame.rows.map((row, i) => {
+                const cell = reelCell(row, i, reelSpin);
+                return reelIsSingle(reelGame) ? (
+                  <Text key={i} style={{ color: '#FFF', fontSize: 15, fontWeight: '800', textAlign: 'center' }}>{cell.text}</Text>
+                ) : (
+                  <View key={i} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 3 }}>
+                    <Text style={{ color: 'rgba(255,255,255,0.62)', fontSize: 12.5, fontWeight: '700', marginRight: 16 }}>{row.label}</Text>
+                    <Text style={{ color: cell.locked ? '#FFF' : 'rgba(255,255,255,0.62)', fontSize: 14, fontWeight: '900', flexShrink: 1, textAlign: 'right' }}>{cell.text}</Text>
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+        ) : null}
+
         {/* recording border */}
         {recording ? (
           <View pointerEvents="none" style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, borderWidth: 4, borderColor: C.coral }} />
@@ -667,6 +876,36 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
         <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, paddingBottom: insets.bottom + 16 }}>
           {!shot ? (
             <>
+              {/* reel games — pick one, it plays live on your face, and the
+                  slot-machine reveal bakes right into the reel you record */}
+              {isWeb ? (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 14, alignItems: 'center', marginBottom: 10 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 8 }}>
+                    <MaterialCommunityIcons name="gamepad-variant" size={15} color="#FFF" />
+                    <Text style={{ color: '#FFF', fontSize: 11.5, fontWeight: '900', marginLeft: 4 }}>Games</Text>
+                  </View>
+                  {reelGame ? (
+                    <Pressable onPress={clearReelGame}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.16)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.4)', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8, marginRight: 8 }}>
+                        <Ionicons name="close" size={13} color="#FFF" />
+                        <Text style={{ color: '#FFF', fontSize: 11.5, fontWeight: '900', marginLeft: 4 }}>None</Text>
+                      </View>
+                    </Pressable>
+                  ) : null}
+                  {REEL_GAMES.map((g) => {
+                    const on = reelGame && reelGame.id === g.id;
+                    return (
+                      <Pressable key={g.id} onPress={() => pickReelGame(g)}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: on ? C.gold : 'rgba(255,255,255,0.16)', borderWidth: 1, borderColor: on ? C.gold : 'rgba(255,255,255,0.4)', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8, marginRight: 8 }}>
+                          <Text style={{ fontSize: 14 }}>{g.emoji}</Text>
+                          <Text style={{ color: on ? '#241146' : '#FFF', fontSize: 11.5, fontWeight: '900', marginLeft: 5 }}>{on ? 'Re-spin' : g.title}</Text>
+                        </View>
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
+              ) : null}
+
               {/* pick a sound while you shoot */}
               {soundRail}
 
