@@ -315,6 +315,7 @@ export const GAME_LOCATIONS = [
 export const PLAY_GAMES = [
   { id: 'run1', name: 'Catch Your Mate', emoji: '🏃', tag: 'Run together', players: '2–4 mates', plays: '48K', desc: 'Chase your friend through the streets and dodge everything in your path. Crash and you’re out — last one running wins the round.', kind: 'runner' },
   { id: 'run2', name: 'Rooftop Rush', emoji: '🏙️', tag: 'Race', players: '2 mates', plays: '31K', desc: 'Sprint across the skyline neck-and-neck. First to trip loses. Best of three.', kind: 'runner' },
+  { id: 'stack', name: 'Stack', emoji: '🧱', tag: 'Solo · beat your best', players: '1 player', plays: '12K', desc: 'Tap to drop each block dead-centre and build the tallest tower you can. One sloppy drop and it all comes down. Chase the perfect streak.', kind: 'stack' },
   { id: 'tod', name: 'Truth or Dare', emoji: '🎲', tag: 'In chat', players: '2+ mates', plays: '92K', desc: 'Drop it into any chat — a mate one-on-one or the whole gang. Spin, dare, laugh, remove it anytime.', kind: 'chat' },
 ];
 

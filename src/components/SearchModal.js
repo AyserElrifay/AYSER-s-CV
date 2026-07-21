@@ -14,6 +14,7 @@ import { Chip } from './Chip';
 import { Tick } from './Tick';
 import { Micro } from './Micro';
 import { GameRunner } from './GameRunner';
+import { StackGame } from './StackGame';
 import { tapLight, tapSuccess } from '../utils/feedback';
 import { sfxSuccess } from '../utils/sfx';
 
@@ -117,7 +118,7 @@ export const SearchModal = ({ onClose, onOpenProfile }) => {
 
   const launchGame = (g) => {
     tapLight();
-    if (g.kind === 'runner') setGame(g);
+    if (g.kind === 'runner' || g.kind === 'stack') setGame(g);
     // 'chat' games (Truth or Dare) are added from inside a conversation
   };
 
@@ -315,7 +316,7 @@ export const SearchModal = ({ onClose, onOpenProfile }) => {
           {tab === 'Play' ? (games.length ? games.map((g) => <GameRow key={g.id} item={g} />) : <Empty q={q} />) : null}
         </ScrollView>
       </View>
-      {game ? <GameRunner onClose={() => setGame(null)} /> : null}
+      {game && game.kind === 'stack' ? <StackGame onClose={() => setGame(null)} /> : game ? <GameRunner onClose={() => setGame(null)} /> : null}
     </Modal>
   );
 };

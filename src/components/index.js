@@ -37,6 +37,7 @@ export { TermsSheet } from './TermsSheet';
 export { MiniPlayer } from './MiniPlayer';
 export { NowPlayingSheet } from './NowPlayingSheet';
 export { GameRunner } from './GameRunner';
+export { StackGame } from './StackGame';
 export { CaptureModal } from './CaptureModal';
 export { BoostSheet } from './BoostSheet';
 export { BookingSheet } from './BookingSheet';
