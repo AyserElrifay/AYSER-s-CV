@@ -11,27 +11,67 @@ import { supabase, SUPABASE_READY } from '../lib/supabase';
 
 export const BARDI_READY = SUPABASE_READY;
 
+const LANG_NAME = {
+  ar: 'Arabic', en: 'English', fr: 'French', es: 'Spanish', tr: 'Turkish',
+  pt: 'Portuguese', ro: 'Romanian', it: 'Italian', nl: 'Dutch', ru: 'Russian',
+  zh: 'Chinese', ko: 'Korean', ja: 'Japanese',
+};
+
+function bardiSystem(language, profile) {
+  const lang = LANG_NAME[language] || "the user's language";
+  let p = `You are Bardi, a warm, sharp personal assistant living inside Moments — a social app by Ayser.
+You help people understand themselves, grow, plan trips and start projects.
+Be concise, kind and practical. Ask one question at a time when you need more. Always reply in ${lang}.`;
+  if (profile && (profile.name || profile.bio)) {
+    p += `\nYou're talking to ${profile.name || 'someone'}${profile.bio ? ` (bio: ${profile.bio})` : ''}.`;
+  }
+  return p;
+}
+
+/* Fallback that talks to Bardi straight from the browser — free, needs no
+   Edge Function deploy. Uses Pollinations (CORS-open) so Bardi is alive the
+   moment the app loads. Real AI, not a canned reply. */
+async function askBardiDirect(messages, opts) {
+  const sys = bardiSystem(opts.language || 'en', opts.profile);
+  const res = await fetch('https://text.pollinations.ai/openai', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      model: 'openai',
+      messages: [{ role: 'system', content: sys }, ...(messages || []).map((m) => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: String(m.content || '') }))],
+    }),
+  });
+  if (!res.ok) throw new Error('bardi-unavailable');
+  const data = await res.json();
+  const reply = (data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content || '').trim();
+  if (!reply) throw new Error('bardi-empty');
+  return reply;
+}
+
 /* Send the conversation to Bardi and get its reply.
    messages: [{ role:'user'|'assistant', content:string }]
-   opts: { language?: 'ar'|'en'|…, profile?: { name, bio } } */
+   opts: { language?: 'ar'|'en'|…, profile?: { name, bio } }
+
+   Prefers Ayser's deployed bardi-chat Edge Function (his real Bardi); if
+   it isn't deployed yet, falls back to talking to Bardi directly from the
+   browser so it always works. */
 export async function askBardi(messages, opts = {}) {
-  if (!SUPABASE_READY) {
-    throw new Error('Bardi needs the app connected to Supabase first.');
-  }
   const body = {
     messages: (messages || []).map((m) => ({ role: m.role, content: m.content })),
     language: opts.language || 'en',
   };
   if (opts.profile) body.profile = opts.profile;
 
-  const { data, error } = await supabase.functions.invoke('bardi-chat', { body });
-  if (error) {
-    // The Edge Function isn't deployed / reachable yet — be honest.
-    throw new Error('bardi-unavailable');
+  // 1) the deployed Edge Function, when available
+  if (SUPABASE_READY) {
+    try {
+      const { data, error } = await supabase.functions.invoke('bardi-chat', { body });
+      const reply = !error && data && (data.reply || data.message || data.content);
+      if (reply) return reply;
+    } catch (e) { /* not deployed yet → fall through */ }
   }
-  const reply = (data && (data.reply || data.message || data.content)) || '';
-  if (!reply) throw new Error('bardi-empty');
-  return reply;
+  // 2) live fallback, straight from the browser
+  return askBardiDirect(messages, opts);
 }
 
 /* Quick-start intents that give Bardi a helpful, concrete first prompt —

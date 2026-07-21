@@ -198,10 +198,25 @@ export const HomeScreen = () => {
   // Stories are REAL only — yours + live 24h stories from the database.
   // The rail stays empty (just the + button) until someone actually posts.
   const [realStories, setRealStories] = useState([]);
-  const stories = useMemo(
-    () => [...myStories, ...realStories],
-    [myStories, realStories]
-  );
+  // Your own story must show as ONE "You" ring — never twice. The DB
+  // (realStories) already includes your story, so the optimistic copy in
+  // myStories would double it up. Dedupe by id, collapse all of your own
+  // stories into a single "You" entry (DB version preferred for the real
+  // avatar), and put it first — everyone else keeps their own ring.
+  const stories = useMemo(() => {
+    const meId = user && user.id;
+    const seen = new Set();
+    let mine = null;
+    const others = [];
+    for (const s of [...realStories, ...myStories]) {
+      if (!s || !s.user || seen.has(s.id)) continue;
+      seen.add(s.id);
+      const isMine = meId ? s.user.id === meId : s.user.name === 'You';
+      if (isMine) { if (!mine) mine = { ...s, user: { ...s.user, name: 'You' } }; }
+      else others.push(s);
+    }
+    return mine ? [mine, ...others] : others;
+  }, [realStories, myStories, user]);
   const reels = useMemo(() => posts.filter((p) => p.type === 'reel'), [posts]);
 
   // refresh your header avatar when you come back from the profile

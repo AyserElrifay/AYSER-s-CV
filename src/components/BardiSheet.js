@@ -47,10 +47,7 @@ export const BardiSheet = ({ onClose }) => {
       const reply = await askBardi(next, { language: lang || 'en', profile });
       setMessages((m) => [...m, { role: 'assistant', content: reply }]);
     } catch (e) {
-      const msg = /unavailable|empty/.test(e.message || '')
-        ? 'Bardi isn\'t switched on yet. Deploy it once with:\n\nsupabase functions deploy bardi-chat --no-verify-jwt\n\nthen I\'ll come alive here. 🌱'
-        : (e.message || 'Something went wrong — try again.');
-      setError(msg);
+      setError('Couldn\'t reach Bardi just now — check your connection and try again. 🌱');
     } finally {
       setBusy(false);
     }
