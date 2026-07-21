@@ -15,7 +15,8 @@ import { WouldYouRather } from '../components/WouldYouRather';
 import { CallScreen } from '../components/CallScreen';
 import { CaptureModal } from '../components/CaptureModal';
 import { OnlineDot } from '../components/OnlineDot';
-import { tapLight, tapMedium } from '../utils/feedback';
+import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
+import { LinearGradient } from 'expo-linear-gradient';
 import { sfxPop } from '../utils/sfx';
 
 /* ─── A conversation — kept deliberately simple and warm, the kind of
@@ -176,6 +177,23 @@ export const ChatThread = ({ chat, group, onClose }) => {
   // ── Moments in chat: shoot a snap and send it right here ──
   const [momentOpen, setMomentOpen] = useState(false);
   const [viewMoment, setViewMoment] = useState(null); // { mediaUrl, mediaKind } — full-screen viewer
+  // ── Snaps: a Moment is a circular mystery snap. The receiver can open it
+  //    twice, then it's gone. Long-press to save it before it disappears. ──
+  const [snapTick, setSnapTick] = useState(0); // force re-render after a view
+  const snapViews = (id) => { try { return +((typeof localStorage !== 'undefined' && localStorage.getItem('mm_snap_v_' + id)) || 0); } catch (e) { return 0; } };
+  const openSnap = (m, mine) => {
+    tapLight();
+    if (!mine) { try { if (typeof localStorage !== 'undefined') localStorage.setItem('mm_snap_v_' + m.id, String(snapViews(m.id) + 1)); } catch (e) {} setSnapTick((t) => t + 1); }
+    setViewMoment({ mediaUrl: m.mediaUrl, mediaKind: m.mediaKind });
+  };
+  const saveSnap = (url, kind) => {
+    tapSuccess();
+    try {
+      const a = document.createElement('a');
+      a.href = url; a.download = kind === 'video' ? 'moment.mp4' : 'moment.jpg'; a.target = '_blank';
+      document.body.appendChild(a); a.click(); a.remove();
+    } catch (e) {}
+  };
   const handleSendMoment = async ({ mediaUrl, mediaKind, caption }) => {
     if (isReal) {
       const squadId = group ? chat.id : null;
@@ -306,25 +324,38 @@ export const ChatThread = ({ chat, group, onClose }) => {
                   <View style={{ maxWidth: '76%' }}>
                     {!mine && group ? <Text style={{ color: C.faint, fontSize: 10.5, marginBottom: 3, marginLeft: 4 }}>{m.from.name}</Text> : null}
                     {(m.kind === 'moment' || m.mediaUrl) ? (
-                      /* a Moment — a real snap, tap to view full-screen */
-                      <Pressable onPress={() => { tapLight(); setViewMoment({ mediaUrl: m.mediaUrl, mediaKind: m.mediaKind }); }}>
-                        <View style={{ borderRadius: 18, overflow: 'hidden', borderWidth: 2, borderColor: C.coral, width: 200, backgroundColor: '#000' }}>
-                          {m.mediaKind === 'video' && Platform.OS === 'web' ? (
-                            <video src={m.mediaUrl} muted loop playsInline autoPlay style={{ width: 200, height: 266, objectFit: 'cover' }} />
-                          ) : (
-                            <Image source={{ uri: m.mediaUrl }} style={{ width: 200, height: 266 }} resizeMode="cover" />
-                          )}
-                          <View style={{ position: 'absolute', top: 8, left: 8, flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 }}>
-                            <Text style={{ fontSize: 11 }}>🔥</Text>
-                            <Text style={{ color: '#FFF', fontSize: 10.5, fontWeight: '900', marginLeft: 3 }}>Moment</Text>
-                          </View>
-                          {m.text && m.text !== '🔥 Moment' ? (
-                            <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.55)', paddingHorizontal: 10, paddingVertical: 7 }}>
-                              <Text style={{ color: '#FFF', fontSize: 12.5 }} numberOfLines={2}>{m.text}</Text>
+                      /* a Moment — a circular snap. Received: mystery circle you
+                         can open twice, then it's gone. Long-press to save it. */
+                      (() => {
+                        const vc = snapViews(m.id);
+                        const expired = !mine && vc >= 2;
+                        return (
+                          <Pressable
+                            onPress={() => { if (!expired) openSnap(m, mine); }}
+                            onLongPress={() => saveSnap(m.mediaUrl, m.mediaKind)}
+                            delayLongPress={450}
+                          >
+                            <View style={{ alignItems: mine ? 'flex-end' : 'flex-start' }}>
+                              <LinearGradient
+                                colors={expired ? ['#B9B9C2', '#B9B9C2'] : [C.coral, C.gold, C.purple]}
+                                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                                style={{ width: 96, height: 96, borderRadius: 48, alignItems: 'center', justifyContent: 'center', opacity: expired ? 0.55 : 1 }}
+                              >
+                                <View style={{ width: 88, height: 88, borderRadius: 44, backgroundColor: mine ? '#000' : C.bg2, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                                  {mine ? (
+                                    m.mediaKind === 'video' ? <Text style={{ fontSize: 28 }}>🎬</Text> : <Image source={{ uri: m.mediaUrl }} style={{ width: 88, height: 88 }} resizeMode="cover" />
+                                  ) : (
+                                    <Text style={{ fontSize: 30 }}>{expired ? '👀' : '🔥'}</Text>
+                                  )}
+                                </View>
+                              </LinearGradient>
+                              <Text style={{ color: expired ? C.faint : C.dim, fontSize: 10.5, fontWeight: '800', marginTop: 4, marginHorizontal: 4 }}>
+                                {mine ? 'Sent 🔥' : expired ? 'Opened' : (vc === 1 ? 'Tap once more 🔥' : 'Tap to view 🔥')}
+                              </Text>
                             </View>
-                          ) : null}
-                        </View>
-                      </Pressable>
+                          </Pressable>
+                        );
+                      })()
                     ) : (
                     <View style={{ backgroundColor: mine ? C.purple : '#FFF', borderWidth: mine ? 0 : 1, borderColor: C.line, borderRadius: 18, borderBottomRightRadius: mine ? 5 : 18, borderBottomLeftRadius: mine ? 18 : 5, paddingHorizontal: 14, paddingVertical: 9 }}>
                       <Text style={{ color: mine ? '#FFF' : C.text, fontSize: 14.5, lineHeight: 20 }}>{m.text}</Text>
@@ -468,6 +499,10 @@ export const ChatThread = ({ chat, group, onClose }) => {
             )}
             <Pressable onPress={() => setViewMoment(null)} style={{ position: 'absolute', top: insets.top + 14, right: 18 }} hitSlop={12}>
               <Ionicons name="close" size={30} color="#FFF" />
+            </Pressable>
+            <Pressable onPress={() => saveSnap(viewMoment.mediaUrl, viewMoment.mediaKind)} style={{ position: 'absolute', bottom: insets.bottom + 26, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 999, paddingHorizontal: 20, paddingVertical: 11 }} hitSlop={8}>
+              <Ionicons name="download-outline" size={18} color="#FFF" />
+              <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '900', marginLeft: 7 }}>Save</Text>
             </Pressable>
           </Pressable>
         </Modal>
