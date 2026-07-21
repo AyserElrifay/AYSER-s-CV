@@ -42,37 +42,92 @@ const HARVEST_QUERIES = [
   { q: 'electronic dance', mood: 'Hype' }, { q: 'ambient', mood: 'Calm' },
   { q: 'hip hop beat', mood: 'Hype' }, { q: 'piano', mood: 'Chill' },
 ];
-export async function harvestFreeMusic(userId, onProgress) {
+async function insertBatch(rows, onAdded) {
+  if (!rows.length) return 0;
+  const { error } = await supabase.from('tracks').insert(rows);
+  if (error) return 0;
+  onAdded && onAdded(rows.length);
+  return rows.length;
+}
+
+/* Source 1 — Openverse: Creative-Commons (CC0 + CC-BY), credit stored. */
+async function harvestOpenverse(userId, have, onAdded) {
   let added = 0;
-  const { data: existing } = await supabase.from('tracks').select('audio_url').not('audio_url', 'is', null).limit(2000);
-  const have = new Set((existing || []).map((r) => r.audio_url));
   for (const { q, mood } of HARVEST_QUERIES) {
     let results = [];
     try {
       const r = await fetch('https://api.openverse.org/v1/audio/?q=' + encodeURIComponent(q) + '&page_size=20&license=cc0,by&mature=false');
       if (r.ok) { const j = await r.json(); results = (j && j.results) || []; }
-    } catch (e) { /* skip this query */ }
+    } catch (e) {}
     const rows = [];
     for (const t of results) {
       const url = t.url || (t.alt_files && t.alt_files[0] && t.alt_files[0].url) || null;
       if (!url || have.has(url)) continue;
       have.add(url);
+      const lic = String(t.license || '').toUpperCase();
       rows.push({
         uploader_id: userId, is_official: true, is_approved: true,
         title: (t.title || 'Untitled').toString().slice(0, 80),
         artist: (t.creator || 'CC artist').toString().slice(0, 60),
         audio_url: url, cover_emoji: '🎵', mood,
-        license: 'CC ' + String(t.license || '').toUpperCase(),
-        attribution: (t.title || 'Track') + ' · ' + (t.creator || 'unknown') + ' (CC)',
+        license: lic === 'CC0' ? 'CC0 (Public Domain)' : 'CC ' + lic,
+        // CC-BY REQUIRES credit; we store & show it. CC0 needs none but we keep the source.
+        attribution: (t.title || 'Track') + ' · ' + (t.creator || 'unknown') + (lic === 'CC0' ? ' (CC0)' : ' — CC BY, via Openverse'),
         source_url: t.foreign_landing_url || null,
         duration_sec: t.duration ? Math.round(t.duration / 1000) : null,
       });
     }
-    if (rows.length) {
-      const { error } = await supabase.from('tracks').insert(rows);
-      if (!error) { added += rows.length; onProgress && onProgress(added); }
-    }
+    added += await insertBatch(rows, onAdded);
   }
+  return added;
+}
+
+/* Source 2 — Internet Archive: Public Domain audio (no credit required). */
+async function harvestArchive(userId, have, onAdded) {
+  let results = [];
+  try {
+    const q = 'mediatype:audio AND (licenseurl:(*publicdomain*) OR licenseurl:(*creativecommons*))';
+    const r = await fetch('https://archive.org/advancedsearch.php?q=' + encodeURIComponent(q) + '&fl[]=identifier&fl[]=title&fl[]=creator&rows=30&sort[]=downloads+desc&output=json');
+    if (r.ok) { const j = await r.json(); results = (j.response && j.response.docs) || []; }
+  } catch (e) { return 0; }
+  const rows = [];
+  for (const d of results) {
+    try {
+      const m = await fetch('https://archive.org/metadata/' + encodeURIComponent(d.identifier));
+      if (!m.ok) continue;
+      const meta = await m.json();
+      const file = (meta.files || []).find((f) => /\.mp3$/i.test(f.name || ''));
+      if (!file) continue;
+      const url = 'https://archive.org/download/' + d.identifier + '/' + encodeURIComponent(file.name);
+      if (have.has(url)) continue;
+      have.add(url);
+      const isPD = /publicdomain/i.test(meta.metadata && meta.metadata.licenseurl || '');
+      rows.push({
+        uploader_id: userId, is_official: true, is_approved: true,
+        title: String(d.title || file.title || 'Archive track').slice(0, 80),
+        artist: String((Array.isArray(d.creator) ? d.creator[0] : d.creator) || 'Public Domain').slice(0, 60),
+        audio_url: url, cover_emoji: '🎶', mood: 'Chill',
+        license: isPD ? 'Public Domain' : 'Creative Commons',
+        attribution: String(d.title || 'Track') + ' · Internet Archive' + (isPD ? ' (Public Domain)' : ' (CC)'),
+        source_url: 'https://archive.org/details/' + d.identifier,
+        duration_sec: file.length ? Math.round(parseFloat(file.length)) : null,
+      });
+      if (rows.length >= 20) break;
+    } catch (e) {}
+  }
+  return insertBatch(rows, onAdded);
+}
+
+/* Harvest from every source with a real API. Pixabay/FMA/Incompetech have
+   no music API, so those are added manually via the URL button. */
+export async function harvestFreeMusic(userId, onProgress) {
+  const { data: existing } = await supabase.from('tracks').select('audio_url').not('audio_url', 'is', null).limit(4000);
+  const have = new Set((existing || []).map((r) => r.audio_url));
+  let added = 0;
+  const bump = (n) => { added += n; onProgress && onProgress(added); };
+  added = 0;
+  await harvestOpenverse(userId, have, (n) => bump(n));
+  await harvestArchive(userId, have, (n) => bump(n));
   return added;
 }
 
