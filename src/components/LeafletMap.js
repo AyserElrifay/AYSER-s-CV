@@ -219,7 +219,13 @@ const pinHtml = (m) => {
   );
 };
 
-export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus = null, lang = 'en', meAvatar = null, meDoing = null, meName = null, route = null }) => {
+// CARTO "Voyager · no labels" (light) / "Dark Matter · no labels" (dark) —
+// same colourful, cartoonish landcover and roads either way, no baked
+// country/place names (every name comes from our own layer, name-neutral).
+const LIGHT_TILES = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png';
+const DARK_TILES = 'https://{s}.basemaps.cartocdn.com/rastertiles/dark_nolabels/{z}/{x}/{y}{r}.png';
+
+export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus = null, lang = 'en', meAvatar = null, meDoing = null, meName = null, route = null, appDark = null }) => {
   const elRef = useRef(null);
   const mapRef = useRef(null);
   const layerRef = useRef(null);
@@ -239,6 +245,9 @@ export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus
   const resizeCleanupRef = useRef(null);
   const centerRef = useRef(center);
   centerRef.current = center;
+  const tilesRef = useRef(null);
+  const appDarkRef = useRef(appDark);
+  appDarkRef.current = appDark;
 
   // init once — open on the whole planet
   useEffect(() => {
@@ -258,26 +267,25 @@ export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus
       }).setView([24, 14], 2.5); // Earth view — Egypt/Europe in frame
 
       // ── COLOURFUL CARTOON MAP, NAME-FREE (neutral) ──
-      // CARTO "Voyager · no labels" (light) / "Dark Matter · no labels"
-      // (dark): the same colourful, cartoonish landcover and roads, but
-      // with NO baked country/place names — so the basemap favours no
-      // country. Every name comes from OUR own layer instead, where
-      // Israel and Palestine are two equal entries.
-      const LIGHT_TILES = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png';
-      const DARK_TILES = 'https://{s}.basemaps.cartocdn.com/rastertiles/dark_nolabels/{z}/{x}/{y}{r}.png';
+      // Same colourful, cartoonish landcover and roads in both light and
+      // dark, with NO baked country/place names — so the basemap favours
+      // no country. Every name comes from OUR own layer instead, where
+      // Israel and Palestine are two equal entries. Dark/light follows
+      // the app's own theme toggle (appDark) when set, else the OS.
       const mq = (typeof window !== 'undefined' && window.matchMedia) ? window.matchMedia('(prefers-color-scheme: dark)') : null;
-      const isDark = () => !!(mq && mq.matches);
+      const isDark = () => (appDarkRef.current != null ? !!appDarkRef.current : !!(mq && mq.matches));
       const tiles = L.tileLayer(isDark() ? DARK_TILES : LIGHT_TILES, {
         maxZoom: 20, subdomains: 'abcd', className: 'mm-tiles',
         updateWhenIdle: true, keepBuffer: 4,
       }).addTo(map);
+      tilesRef.current = tiles;
 
       // (Zoom-out is handled by the real 3-D globe overlay below, so no
       // satellite tile layer is needed on the flat map any more.)
       mapRef.current = map;
       layerRef.current = L.layerGroup().addTo(map);
 
-      // follow the OS light/dark switch live: swap tiles + flag container
+      // follow the OS (or in-app) light/dark switch live: swap tiles + flag container
       const applyTheme = () => {
         if (cancelled || !mapRef.current) return;
         const dark = isDark();
@@ -344,6 +352,14 @@ export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Live-follow the app's own dark-mode toggle (Settings → Dark mode),
+  // independent of the OS preference the init effect defaults to.
+  useEffect(() => {
+    if (appDark == null || !mapRef.current || !tilesRef.current) return;
+    mapRef.current.getContainer().classList.toggle('mm-dark', !!appDark);
+    tilesRef.current.setUrl(appDark ? DARK_TILES : LIGHT_TILES);
+  }, [appDark]);
 
   const draw = (L) => {
     if (!L || !layerRef.current) return;

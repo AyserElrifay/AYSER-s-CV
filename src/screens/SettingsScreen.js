@@ -8,6 +8,7 @@ import { INITIAL_TX, PLANNER_INIT } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LanguageContext';
+import { useTheme } from '../context/ThemeContext';
 import { getProfile, updateProfile } from '../services/profiles';
 import { countMyReferrals, fetchMyReferralBreakdown } from '../services/broker';
 import { fetchMyMates } from '../services/mates';
@@ -51,6 +52,7 @@ export const SettingsScreen = ({ onClose }) => {
   const insets = useSafeAreaInsets();
   const { signOut, isDemo, user } = useAuth();
   const { t, lang, setLang, langs, meta } = useLang();
+  const { isDark, toggleTheme } = useTheme();
   // Real mode starts with NO activity — only things that truly happened
   // (real splits you shared) get added. The sample rows are demo-only.
   const [tx, setTx] = useState(SUPABASE_READY ? [] : INITIAL_TX);
@@ -332,6 +334,18 @@ export const SettingsScreen = ({ onClose }) => {
               <Ionicons name="chevron-forward" size={16} color={C.faint} />
             </View>
           </Pressable>
+
+          {/* Dark mode — real theme, not a preview */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.line }}>
+            <View style={{ width: 30, height: 30, borderRadius: 9, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+              <Ionicons name={isDark ? 'moon' : 'moon-outline'} size={16} color={C.purple} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: C.text, fontSize: 14, fontWeight: '700' }}>Dark mode</Text>
+              <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 1 }}>Easier on the eyes at night</Text>
+            </View>
+            <Toggle on={isDark} onToggle={() => { tapSelection(); toggleTheme(); }} />
+          </View>
 
           {[
             { key: 'notifications', icon: 'notifications-outline', label: 'Notifications', hint: 'Vibes, comments & squad activity' },

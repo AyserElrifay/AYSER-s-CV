@@ -24,10 +24,11 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { C } from './src/constants/theme';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { LanguageProvider } from './src/context/LanguageContext';
+import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { PlayerProvider } from './src/context/PlayerContext';
 import { PresenceProvider } from './src/context/PresenceContext';
 import { AuthScreen } from './src/screens/AuthScreen';
-import { TabNavigator, NavTheme } from './src/navigation/TabNavigator';
+import { TabNavigator, buildNavTheme } from './src/navigation/TabNavigator';
 import { MiniPlayer } from './src/components/MiniPlayer';
 import { IncomingCallGate } from './src/components/IncomingCallGate';
 import { initPwa } from './src/lib/pwa';
@@ -36,13 +37,16 @@ initPwa(); // installable app + offline shell (no-op on native)
 
 const Root = () => {
   const { loading, isAuthenticated } = useAuth();
+  const { gen, isDark } = useTheme();
   if (loading) return <View style={{ flex: 1, backgroundColor: C.bg }} />;
   if (!isAuthenticated) return <AuthScreen />;
   // the mini-player floats above the navigator, so music keeps playing as
-  // you move between tabs
+  // you move between tabs. `key={gen}` forces a full remount when dark
+  // mode toggles, so every already-mounted screen re-reads the new colors.
   return (
-    <View style={{ flex: 1 }}>
-      <NavigationContainer theme={NavTheme}>
+    <View key={gen} style={{ flex: 1 }}>
+      <StatusBar style={isDark ? 'light' : 'dark'} />
+      <NavigationContainer theme={buildNavTheme()}>
         <TabNavigator />
       </NavigationContainer>
       <MiniPlayer />
@@ -55,14 +59,15 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <LanguageProvider>
-        <AuthProvider>
-          <PresenceProvider>
-            <PlayerProvider>
-              <StatusBar style="dark" />
-              <Root />
-            </PlayerProvider>
-          </PresenceProvider>
-        </AuthProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <PresenceProvider>
+              <PlayerProvider>
+                <Root />
+              </PlayerProvider>
+            </PresenceProvider>
+          </AuthProvider>
+        </ThemeProvider>
       </LanguageProvider>
     </SafeAreaProvider>
   );

@@ -41,17 +41,20 @@ const UNREAD_TOTAL = SUPABASE_READY
   ? undefined
   : SQUADS.reduce((n, s) => n + s.unread, 0) + DMS.reduce((n, d) => n + d.unread, 0);
 
-export const NavTheme = {
+// A function, not a frozen object — `C`'s values get mutated in place
+// when dark mode toggles, so this must be re-read at render time, not
+// baked once at module import.
+export const buildNavTheme = () => ({
   ...DefaultTheme,
   colors: {
     ...DefaultTheme.colors,
     background: C.bg,
-    card: '#FFFFFF',
+    card: C.bg2,
     border: C.line,
     primary: C.purple,
     text: C.text,
   },
-};
+});
 
 const TAB_LABEL_KEY = {
   HOME: 'tab_home', MAP: 'tab_map', REELS: 'tab_reels', CHILL: 'tab_chill', CHATS: 'tab_chats', SPACE: 'tab_space',
@@ -75,7 +78,7 @@ export const TabNavigator = () => {
       tabBarStyle: sidebar
         ? {
             width: 224,
-            backgroundColor: '#FFFFFF',
+            backgroundColor: C.bg2,
             borderRightColor: C.line,
             borderRightWidth: 1,
             borderTopWidth: 0,
@@ -83,7 +86,7 @@ export const TabNavigator = () => {
             paddingHorizontal: 10,
           }
         : {
-            backgroundColor: '#FFFFFF',
+            backgroundColor: C.bg2,
             borderTopColor: C.line,
             borderTopWidth: 1,
             height: Platform.OS === 'ios' ? 84 : 66,

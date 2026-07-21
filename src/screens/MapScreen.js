@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, ScrollView, Pressable, Modal, TextInput, Platform, Image, Linking } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { C } from '../constants/theme';
+import { C, DARK_MAP } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
 import { ME, DOING_OPTIONS, DEALS, DEAL_FILTERS, av, AV_NEUTRAL } from '../constants/mockData';
 import { MAP_PEOPLE, CAMPFIRES, BOOKINGS } from '../constants/mockData'; // demo-mode fallback only
 import { MapView, Marker, MAPS_READY } from '../utils/maps';
@@ -69,6 +70,7 @@ export const MapScreen = () => {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { lang, t } = useLang();
+  const { isDark } = useTheme();
   const [profileUser, setProfileUser] = useState(null);
   const [sos, setSos] = useState(null); // null | 'ask' | 'sent'
   /* ONE sheet at a time — 'nearby' | 'doing' | 'drop' | 'partner' | null.
@@ -863,7 +865,8 @@ export const MapScreen = () => {
         <MapView
           style={{ flex: 1 }}
           initialRegion={{ latitude: myCoords.latitude, longitude: myCoords.longitude, latitudeDelta: 0.042, longitudeDelta: 0.03 }}
-          userInterfaceStyle="light"
+          userInterfaceStyle={isDark ? 'dark' : 'light'}
+          customMapStyle={isDark ? DARK_MAP : []}
           showsUserLocation={hasLocationPerm}
         >
           <Marker coordinate={myCoords}>
@@ -890,7 +893,7 @@ export const MapScreen = () => {
           )) : null}
         </MapView>
       ) : Platform.OS === 'web' ? (
-        <LeafletMap center={myCoords} markers={mapMarkers} onPress={onMarkerPress} locate={located} focus={mapFocus} lang={lang} meAvatar={user ? buildAvatarUrl(user.id) : null} meDoing={myDoing} meName={user && user.user_metadata && user.user_metadata.name} route={routeTo} />
+        <LeafletMap center={myCoords} markers={mapMarkers} onPress={onMarkerPress} locate={located} focus={mapFocus} lang={lang} meAvatar={user ? buildAvatarUrl(user.id) : null} meDoing={myDoing} meName={user && user.user_metadata && user.user_metadata.name} route={routeTo} appDark={isDark} />
       ) : (
         <FauxMap center={myCoords}>
           <View style={{ position: 'absolute', left: '38%', top: '50%' }}>
