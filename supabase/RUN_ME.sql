@@ -674,6 +674,36 @@ drop policy if exists "see your own reports" on public.content_reports;
 create policy "see your own reports" on public.content_reports
   for select using (auth.uid() = reporter_id);
 create index if not exists content_reports_status_idx on public.content_reports (status, created_at desc);
+-- Owner (Moments Studio) can read every report and update its status.
+drop policy if exists "owner reads all reports" on public.content_reports;
+create policy "owner reads all reports" on public.content_reports for select using (
+  (auth.jwt() ->> 'email') = 'ayseryourlifecoach@gmail.com'
+);
+drop policy if exists "owner updates reports" on public.content_reports;
+create policy "owner updates reports" on public.content_reports for update using (
+  (auth.jwt() ->> 'email') = 'ayseryourlifecoach@gmail.com'
+);
+
+-- ═══════════ FEEDBACK · users → the owner's Studio inbox ═══════════
+create table if not exists public.feedback (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid references public.profiles(id) on delete set null,
+  kind       text not null default 'idea',   -- idea | bug | love | other
+  body       text not null,
+  status     text not null default 'new',    -- new | seen
+  created_at timestamptz not null default now()
+);
+alter table public.feedback enable row level security;
+drop policy if exists "anyone can send feedback" on public.feedback;
+create policy "anyone can send feedback" on public.feedback for insert with check (auth.uid() is not null);
+drop policy if exists "owner reads feedback" on public.feedback;
+create policy "owner reads feedback" on public.feedback for select using (
+  (auth.jwt() ->> 'email') = 'ayseryourlifecoach@gmail.com'
+);
+drop policy if exists "owner updates feedback" on public.feedback;
+create policy "owner updates feedback" on public.feedback for update using (
+  (auth.jwt() ->> 'email') = 'ayseryourlifecoach@gmail.com'
+);
 
 -- ═══════════════ PROFILE COLUMNS SELF-HEAL ═══════════════
 -- Columns added by earlier schema files (v2 languages, v7 country)

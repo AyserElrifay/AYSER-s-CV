@@ -45,7 +45,8 @@ import { uploadCapture } from '../services/social';
 import { fetchMyMoments, deletePost, updatePost } from '../services/posts';
 import { countMyCampfires } from '../services/campfires';
 import { countMates } from '../services/mates';
-import { Tick, GhostButton, BoostSheet, MatesSheet, AvatarBuilderSheet, PostCard, ReelsViewer, CommentsSheet } from '../components';
+import { Tick, GhostButton, BoostSheet, MatesSheet, AvatarBuilderSheet, PostCard, ReelsViewer, CommentsSheet, AdminPanel } from '../components';
+import { sendFeedback, FEEDBACK_KINDS } from '../services/feedback';
 import { SettingsScreen } from './SettingsScreen';
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
 import { sfxSuccess } from '../utils/sfx';
@@ -113,6 +114,11 @@ export const ProfileScreen = () => {
   const [verifStatus, setVerifStatus] = useState(null); // null|pending|approved|rejected
   const [verifBusy, setVerifBusy] = useState(false);
   const [verifQueue, setVerifQueue] = useState(null); // owner: pending list
+  const [studioOpen, setStudioOpen] = useState(false);
+  const [fbOpen, setFbOpen] = useState(false);
+  const [fbKind, setFbKind] = useState('idea');
+  const [fbBody, setFbBody] = useState('');
+  const [fbDone, setFbDone] = useState(false);
   const [category, setCategory] = useState('Creator');
   const [dash, setDash] = useState(false);            // professional dashboard
   const [pageMade, setPageMade] = useState(false);
@@ -794,12 +800,12 @@ export const ProfileScreen = () => {
               </View>
             ) : null}
 
-            {/* owner only: review the verification queue */}
+            {/* owner only: the full Studio control panel */}
             {isOwner(user) ? (
-              <MenuRow icon="shield-checkmark-outline" label="Verification requests" sub="Approve artists & musicians" onPress={async () => {
-                try { setVerifQueue(await fetchPendingVerifications()); } catch (e) { setVerifQueue([]); }
-              }} />
+              <MenuRow icon="git-network-outline" label="Moments Studio" sub="Reports · verify · music · feedback · Bardi" onPress={() => { setMenu(false); setStudioOpen(true); }} right={<Ionicons name="sparkles" size={16} color={C.purple} />} />
             ) : null}
+            {/* everyone: send feedback into the owner's Studio */}
+            <MenuRow icon="chatbubble-ellipses-outline" label="Send feedback" sub="Ideas, bugs or love — it reaches Ayser" onPress={() => { setMenu(false); setFbOpen(true); }} />
 
             {/* category — shows next to your name on professional accounts */}
             {accountType === 'professional' ? (
@@ -831,6 +837,52 @@ export const ProfileScreen = () => {
             <MenuRow icon="star-outline" label="Close Friends" sub="Share some moments with your inner circle" />
             <MenuRow icon="happy-outline" label="Your Moments Avatar" sub="The cartoon character shown on the live map" onPress={() => { setMenu(false); setAvatarBuilderOpen(true); }} />
             <MenuRow icon="create-outline" label="Edit your space" sub="Name, bio, vibe & links" onPress={() => setEditOpen(true)} />
+          </Pressable>
+        </Pressable>
+      ) : null}
+
+      {studioOpen ? <AdminPanel onClose={() => setStudioOpen(false)} /> : null}
+
+      {/* send feedback — reaches the owner's Studio inbox */}
+      {fbOpen ? (
+        <Pressable onPress={() => setFbOpen(false)} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }}>
+          <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 12, paddingBottom: insets.bottom + 20, paddingHorizontal: 16 }}>
+            <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 12 }} />
+            {fbDone ? (
+              <View style={{ alignItems: 'center', paddingVertical: 30 }}>
+                <Text style={{ fontSize: 34 }}>💛</Text>
+                <Text style={{ color: C.text, fontSize: 15, fontWeight: '900', marginTop: 8 }}>Thank you — Ayser got it</Text>
+              </View>
+            ) : (
+              <>
+                <Text style={{ color: C.text, fontSize: 16, fontWeight: '900', marginBottom: 10 }}>Send feedback</Text>
+                <View style={{ flexDirection: 'row', marginBottom: 10 }}>
+                  {FEEDBACK_KINDS.map((k) => {
+                    const on = fbKind === k.code;
+                    return (
+                      <Pressable key={k.code} onPress={() => { tapLight(); setFbKind(k.code); }} style={{ marginRight: 8 }}>
+                        <View style={{ backgroundColor: on ? C.purple : C.glass, borderWidth: 1, borderColor: on ? C.purple : C.line, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8 }}>
+                          <Text style={{ color: on ? '#FFF' : C.dim, fontSize: 12, fontWeight: '800' }}>{k.label}</Text>
+                        </View>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+                <TextInput
+                  placeholder="Tell us what's on your mind…" placeholderTextColor={C.faint} value={fbBody} onChangeText={setFbBody} multiline
+                  style={{ color: C.text, fontSize: 14, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 14, paddingHorizontal: 13, paddingVertical: 11, minHeight: 90, textAlignVertical: 'top' }}
+                />
+                <Pressable onPress={async () => {
+                  if (!fbBody.trim()) return;
+                  try { await sendFeedback(user && user.id, fbKind, fbBody); tapSuccess(); sfxSuccess(); setFbDone(true); setFbBody(''); setTimeout(() => { setFbDone(false); setFbOpen(false); }, 1500); }
+                  catch (e) {}
+                }} style={{ marginTop: 12 }}>
+                  <View style={{ backgroundColor: fbBody.trim() ? C.purple : C.glassHi, borderRadius: 14, paddingVertical: 14, alignItems: 'center' }}>
+                    <Text style={{ color: fbBody.trim() ? '#FFF' : C.faint, fontSize: 14, fontWeight: '900' }}>Send</Text>
+                  </View>
+                </Pressable>
+              </>
+            )}
           </Pressable>
         </Pressable>
       ) : null}

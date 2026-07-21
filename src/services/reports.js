@@ -37,3 +37,17 @@ export async function reportContent({ reporterId, contentType, contentId, reason
   }
   return data;
 }
+
+/* ── Owner Studio: read & action the report queue ─────────────────── */
+export async function fetchReports(status) {
+  let q = supabase.from('content_reports').select('*, reporter:profiles!content_reports_reporter_id_fkey(name, handle)').order('created_at', { ascending: false }).limit(100);
+  if (status) q = q.eq('status', status);
+  const { data, error } = await q;
+  if (error) throw error;
+  return data || [];
+}
+export async function setReportStatus(id, status) {
+  const { error } = await supabase.from('content_reports').update({ status }).eq('id', id);
+  if (error) throw error;
+  return true;
+}
