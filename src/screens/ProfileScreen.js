@@ -420,6 +420,11 @@ export const ProfileScreen = () => {
         {/* identity */}
         <View style={{ paddingHorizontal: 16, marginTop: 18 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <View style={{ flex: 1, flexDirection: 'row', marginRight: 6 }}>
+              <Stat n={moments} label="Moments" />
+              <Stat n={mates} label="Followers" onPress={() => setMatesOpen(true)} />
+              <Stat n={likes} label="Likes" />
+            </View>
             <Pressable onPress={() => { tapLight(); setEditOpen(true); }}>
               <LinearGradient
                 colors={[C.gold, C.purple, C.green]}
@@ -435,11 +440,6 @@ export const ProfileScreen = () => {
                 <Ionicons name="camera" size={13} color="#FFF" />
               </View>
             </Pressable>
-            <View style={{ flex: 1, flexDirection: 'row', marginLeft: 6 }}>
-              <Stat n={moments} label="Moments" />
-              <Stat n={mates} label="Followers" onPress={() => setMatesOpen(true)} />
-              <Stat n={likes} label="Likes" />
-            </View>
           </View>
 
           <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 14, flexWrap: 'wrap' }}>
