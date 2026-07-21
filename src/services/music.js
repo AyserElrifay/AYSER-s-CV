@@ -42,12 +42,24 @@ const HARVEST_QUERIES = [
   { q: 'electronic dance', mood: 'Hype' }, { q: 'ambient', mood: 'Calm' },
   { q: 'hip hop beat', mood: 'Hype' }, { q: 'piano', mood: 'Chill' },
 ];
+/* Insert, but if the DB is missing a column (is_approved / is_official etc.
+   before the latest SQL is run), strip just that column and retry — so
+   Auto-fill actually saves tracks even on a not-yet-migrated database. */
 async function insertBatch(rows, onAdded) {
   if (!rows.length) return 0;
-  const { error } = await supabase.from('tracks').insert(rows);
-  if (error) return 0;
-  onAdded && onAdded(rows.length);
-  return rows.length;
+  let attempt = rows;
+  for (let i = 0; i < 6; i++) {
+    const { error } = await supabase.from('tracks').insert(attempt);
+    if (!error) { onAdded && onAdded(attempt.length); return attempt.length; }
+    const m = /Could not find the '([^']+)' column|column "?([a-zA-Z_]+)"? does not exist/i.exec(error.message || '');
+    const col = m && (m[1] || m[2]);
+    if (col && attempt[0] && Object.prototype.hasOwnProperty.call(attempt[0], col)) {
+      attempt = attempt.map((r) => { const n = { ...r }; delete n[col]; return n; });
+      continue; // retry without the column this DB doesn't have yet
+    }
+    return 0; // a different error — give up on this batch
+  }
+  return 0;
 }
 
 /* Source 1 — Openverse: Creative-Commons (CC0 + CC-BY), credit stored. */

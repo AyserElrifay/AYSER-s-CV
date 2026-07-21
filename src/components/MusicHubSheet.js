@@ -68,7 +68,9 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
     setHarvestBusy(true); setHarvestMsg('Fetching free tracks…');
     try {
       const n = await harvestFreeMusic(user.id, (c) => setHarvestMsg('Added ' + c + ' tracks…'));
-      setHarvestMsg(n > 0 ? '✅ Added ' + n + ' Creative-Commons tracks' : 'No new tracks fetched — try again in a bit.');
+      setHarvestMsg(n > 0
+        ? '✅ Added ' + n + ' Creative-Commons tracks'
+        : 'The free libraries returned nothing just now (busy or rate-limited). Try again in a minute, or use URL / Add track.');
       if (n > 0) setReloadKey((k) => k + 1);
     } catch (e) {
       setHarvestMsg('Could not reach the free library right now — try again.');
