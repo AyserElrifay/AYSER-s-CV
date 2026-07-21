@@ -120,6 +120,27 @@ const REEL_GAMES = [
       'A big yes is coming your way 🍀',
     ] },
   ] },
+  { id: 'trip', title: 'Your Next Trip', emoji: '✈️', rows: [
+    { label: 'Destination', pool: ['Tokyo', 'The Maldives', 'a road trip', 'Cairo nights', 'the Alps', 'a beach town', 'somewhere new'] },
+    { label: 'With', pool: ['your best friend', 'solo & free', 'the whole crew', 'a surprise +1', 'family'] },
+    { label: 'Vibe', pool: ['pure chaos', 'soft & slow', 'adventure', 'luxury', 'budget legends'] },
+    { label: 'When', pool: ['this summer', 'next month', 'in the winter', 'sooner than you think'] },
+  ] },
+  { id: 'aura', title: 'Read My Aura', emoji: '🔮', rows: [
+    { label: 'Colour', pool: ['Electric violet', 'Warm gold', 'Ocean blue', 'Rose pink', 'Deep green', 'Silver'] },
+    { label: 'Energy', pool: ['Calm storm', 'Bright fire', 'Quiet strength', 'Wild spark', 'Gentle wave'] },
+    { label: 'Spirit animal', pool: ['a wolf', 'a cat', 'an owl', 'a dolphin', 'a lion', 'a fox'] },
+  ] },
+  { id: 'compliment', title: 'Compliment Generator', emoji: '🌈', rows: [
+    { label: '', pool: [
+      'Your smile fixes bad days ☀️',
+      'You\'re effortlessly cool 😎',
+      'People feel safe around you 🫶',
+      'You\'re smarter than you admit 🧠',
+      'Your energy is contagious ⚡',
+      'You make ordinary days fun 🎈',
+    ] },
+  ] },
 ];
 
 // slot-machine timing (ms): each row locks in sequence

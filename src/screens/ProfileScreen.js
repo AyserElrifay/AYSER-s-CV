@@ -328,6 +328,11 @@ export const ProfileScreen = () => {
   const moments = SUPABASE_READY ? myMoments.length : ME.moments;
   const mates = SUPABASE_READY ? matesCount : ME.mates; // real accepted mates (schema_v8)
   const campfires = SUPABASE_READY ? campfiresHosted : ME.campfires;
+  // real total likes (⭐ stars) across everything you've posted — summed
+  // from the vibe counts already loaded, never invented.
+  const likes = SUPABASE_READY
+    ? myMoments.reduce((s, r) => s + (r.vibesCount || 0), 0)
+    : (ME.likes != null ? ME.likes : (ME.stars || 0));
 
   /* Real badges are derived, never invented: verified + how long you've been here. */
   const realBadges = [
@@ -403,8 +408,8 @@ export const ProfileScreen = () => {
             </Pressable>
             <View style={{ flex: 1, flexDirection: 'row', marginLeft: 6 }}>
               <Stat n={moments} label="Moments" />
-              <Stat n={mates} label="Mates" onPress={() => setMatesOpen(true)} />
-              <Stat n={campfires} label="Campfires" />
+              <Stat n={mates} label="Followers" onPress={() => setMatesOpen(true)} />
+              <Stat n={likes} label="Likes" />
             </View>
           </View>
 

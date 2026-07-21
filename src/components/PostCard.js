@@ -34,6 +34,12 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
   const [editing, setEditing] = useState(false);
   const [editCaption, setEditCaption] = useState(post.caption || '');
   const [editBusy, setEditBusy] = useState(false);
+  // Long posts show a teaser; the rest opens on "See more" (Facebook-style).
+  const [capExpanded, setCapExpanded] = useState(false);
+  const CAP_LIMIT = 180;
+  const fullCap = post.caption || '';
+  const capLong = fullCap.length > CAP_LIMIT;
+  const teaserCap = capExpanded || !capLong ? fullCap : fullCap.slice(0, CAP_LIMIT).replace(/\s+\S*$/, '') + '… ';
   const saveEdit = async () => {
     if (editBusy) return;
     setEditBusy(true);
@@ -217,9 +223,14 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
               </View>
             ) : null}
             <LinearGradient colors={['transparent', 'rgba(0,0,0,0.82)']} style={{ padding: 14, paddingTop: 44 }}>
-              <Text style={{ color: '#FFF', fontSize: 14.5, lineHeight: 21, fontWeight: '500' }} numberOfLines={3}>
+              <Text style={{ color: '#FFF', fontSize: 14.5, lineHeight: 21, fontWeight: '500' }} numberOfLines={capExpanded ? undefined : 3}>
                 {post.caption}
               </Text>
+              {capLong ? (
+                <Pressable onPress={(e) => { e.stopPropagation && e.stopPropagation(); tapLight(); setCapExpanded((v) => !v); }} hitSlop={6} style={{ marginTop: 4 }}>
+                  <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13, fontWeight: '800' }}>{capExpanded ? t('see_less') : t('see_more')}</Text>
+                </Pressable>
+              ) : null}
             </LinearGradient>
             {burstOverlay}
           </ImageBackground>
@@ -233,7 +244,12 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
             style={{ paddingHorizontal: 22, paddingVertical: 34, minHeight: 150, justifyContent: 'center' }}
           >
             <Text style={{ color: textBg.text, fontSize: 22, lineHeight: 32, fontWeight: '700', textAlign: 'center' }}>
-              {post.caption}
+              {teaserCap}
+              {capLong ? (
+                <Text onPress={() => { tapLight(); setCapExpanded((v) => !v); }} style={{ fontSize: 15, fontWeight: '900', opacity: 0.72 }}>
+                  {capExpanded ? '  ' + t('see_less') : t('see_more')}
+                </Text>
+              ) : null}
             </Text>
             {burstOverlay}
           </LinearGradient>

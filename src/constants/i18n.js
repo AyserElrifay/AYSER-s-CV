@@ -44,7 +44,7 @@ export const STRINGS = {
     brand_tagline: "Don't scroll it. Live it.", whats_your_moment: "What's your moment? ✨",
     no_moments_yet: 'No moments yet — be the first 👋', share_first_moment_hint: 'Share a photo, a thought, or an invitation — real people will see it here.',
     couldnt_load_moments: "Couldn't load moments",
-    your_vibe_label: 'Your vibe', starred_by_label: 'Starred by', and_others_suffix: ' and {n} others',
+    your_vibe_label: 'Your vibe', starred_by_label: 'Starred by', and_others_suffix: ' and {n} others', see_more: 'See more', see_less: 'See less',
     link_copied: 'Link copied — send it anywhere 🔗', moment_gone: 'That moment is gone or private', story_gone: 'That story has expired or is gone',
     // Map
     search_places_placeholder: 'Search places to go, people, anywhere on Earth…', no_campfires_yet: 'No live campfires yet',
@@ -86,7 +86,7 @@ export const STRINGS = {
     active_now: 'متصل الآن', tagline: 'سيب لحظة أو عيش ذكرى.',
     moments: 'لحظات', mates: 'أصحاب', campfires: 'لمّات',
     save: 'حفظ', done: 'تم', close: 'إغلاق', back: 'رجوع', share_action: 'مشاركة', invite_action: 'دعوة',
-    brand_tagline: 'ما تسكرلش… عيشها.', whats_your_moment: 'إيه لحظتك؟ ✨', your_vibe_label: 'الـVibe بتاعك', starred_by_label: 'قيّمها', and_others_suffix: ' و{n} تانيين',
+    brand_tagline: 'ما تسكرلش… عيشها.', whats_your_moment: 'إيه لحظتك؟ ✨', your_vibe_label: 'الـVibe بتاعك', starred_by_label: 'قيّمها', and_others_suffix: ' و{n} تانيين', see_more: 'شوف أكتر', see_less: 'أقل',
     no_moments_yet: 'مفيش لحظات لسه — كن أول واحد 👋', share_first_moment_hint: 'شارك صورة أو فكرة أو دعوة — ناس حقيقيين هيشوفوها هنا.',
     couldnt_load_moments: 'معرفناش نحمّل اللحظات',
     link_copied: 'اتنسخ اللينك — ابعته لأي حد 🔗', moment_gone: 'اللحظة دي مش موجودة أو خاصة', story_gone: 'الستوري ده انتهى أو مش موجود',
