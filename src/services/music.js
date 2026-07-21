@@ -46,3 +46,25 @@ export async function uploadTrack(userId, fileUri, ext, contentType, meta) {
   if (error) throw error;
   return data;
 }
+
+/* Delete a sound YOU uploaded. RLS restricts this to the uploader, but we
+   also scope by uploader_id so a stray call can never touch someone else's
+   track. Best-effort removes the audio file from storage too. */
+export async function deleteTrack(trackId, userId) {
+  const { data: row } = await supabase.from('tracks').select('audio_url').eq('id', trackId).eq('uploader_id', userId).maybeSingle();
+  const { error } = await supabase.from('tracks').delete().eq('id', trackId).eq('uploader_id', userId);
+  if (error) throw error;
+  // free the file (parse the storage key out of the public URL)
+  try {
+    const m = row && row.audio_url && row.audio_url.match(/\/object\/public\/media\/(.+?)(\?|$)/);
+    if (m) await supabase.storage.from('media').remove([decodeURIComponent(m[1])]);
+  } catch (e) {}
+  return true;
+}
+
+/* Just the sounds you uploaded — for a "my sounds" list you can manage. */
+export async function fetchMyTracks(userId) {
+  const { data, error } = await supabase.from('tracks').select('*').eq('uploader_id', userId).order('created_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}

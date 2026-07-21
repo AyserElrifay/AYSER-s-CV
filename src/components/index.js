@@ -45,3 +45,4 @@ export { LeafletMap } from './LeafletMap';
 export { MusicHubSheet } from './MusicHubSheet';
 export { OnlineDot } from './OnlineDot';
 export { Wordmark, LogoMark } from './Wordmark';
+export { BardiSheet } from './BardiSheet';

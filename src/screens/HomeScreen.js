@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { View, Text, FlatList, Pressable, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { C } from '../constants/theme';
 import { av, AV_NEUTRAL } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
@@ -22,7 +22,7 @@ import { sfxNotify } from '../utils/sfx';
 import {
   Glass, StoriesBar, PostCard, MagicFlowModal, ProfileModal,
   CommentsSheet, ComposeModal, SearchModal, StoryViewer, ReelsViewer,
-  CaptureModal, NotificationsSheet, LikersSheet, ReportSheet, Wordmark,
+  CaptureModal, NotificationsSheet, LikersSheet, ReportSheet, Wordmark, BardiSheet,
 } from '../components';
 import { Modal } from 'react-native';
 import { ProfileScreen } from './ProfileScreen';
@@ -110,6 +110,7 @@ export const HomeScreen = () => {
   const [reelStart, setReelStart] = useState(null);
   const [myProfileOpen, setMyProfileOpen] = useState(false); // one profile everywhere
   const [notifOpen, setNotifOpen] = useState(false);
+  const [bardiOpen, setBardiOpen] = useState(false);
   const [unread, setUnread] = useState(0);
   const [sharedPost, setSharedPost] = useState(null); // opened from a ?post= link
   const [sharedStory, setSharedStory] = useState(null); // opened from a ?story= link
@@ -287,6 +288,9 @@ export const HomeScreen = () => {
                 </Text>
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Pressable testID="btn-bardi" onPress={() => { tapLight(); setBardiOpen(true); }} style={[headerBtn, { marginRight: 10, backgroundColor: C.purpleSoft, borderColor: 'rgba(124,58,237,0.4)' }]}>
+                  <MaterialCommunityIcons name="star-four-points" size={17} color={C.purple} />
+                </Pressable>
                 <Pressable testID="btn-notifs" onPress={() => { tapLight(); setNotifOpen(true); setUnread(0); }} style={[headerBtn, { marginRight: 10 }]}>
                   <Ionicons name={unread ? 'notifications' : 'notifications-outline'} size={17} color={unread ? C.purple : C.text} />
                   {unread ? (
@@ -408,6 +412,7 @@ export const HomeScreen = () => {
       </Modal>
       {commentsPost ? <CommentsSheet post={commentsPost} onClose={() => setCommentsPost(null)} /> : null}
       {notifOpen ? <NotificationsSheet onClose={() => setNotifOpen(false)} /> : null}
+      {bardiOpen ? <BardiSheet onClose={() => setBardiOpen(false)} /> : null}
       {likersPost ? <LikersSheet post={likersPost} kind={likersKind} onClose={() => setLikersPost(null)} /> : null}
       {reportPost ? <ReportSheet contentType="post" contentId={reportPost.id} contentLabel="moment" onClose={() => setReportPost(null)} /> : null}
 

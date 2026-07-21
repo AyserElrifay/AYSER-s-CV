@@ -387,14 +387,17 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
     try {
       if (streamRef.current) streamRef.current.getTracks().forEach((t) => t.stop());
       const stream = await navigator.mediaDevices.getUserMedia({
-        // Phone-camera quality: ask for full sensor resolution (up to 4K)
-        // and let the browser give us the best it can.
+        // Use the phone's REAL camera at full quality, and ask for a tall
+        // 9:16 frame so the viewfinder isn't cropped to a wide sliver.
+        // Requesting the aspect lets the browser pick the sensor's portrait
+        // mode when it has one (phones), so we fill the screen without the
+        // heavy crop a landscape webcam frame forced.
         video: {
           facingMode: face || facing,
-          // 1080×1920 — Instagram-grade. 4K frames looked identical on a
-          // phone but cost 4-8x the storage and upload time.
-          width: { ideal: 1080, max: 1920 },
-          height: { ideal: 1920, max: 1920 },
+          width: { ideal: 1440 },
+          height: { ideal: 2560 },
+          aspectRatio: { ideal: 9 / 16 },
+          frameRate: { ideal: 30 },
         },
         audio: true,
       });
@@ -433,8 +436,9 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
     if (!videoRef.current) return;
     tapMedium(); sfxPop();
     const v = videoRef.current;
-    // 1600px longest side — indistinguishable on a phone, ~6x smaller files.
-    const MAXL = 1600;
+    // Keep the phone camera's real resolution (up to a 2160px long side) so
+    // photos look native-sharp; q0.92 keeps them crisp at a sane file size.
+    const MAXL = 2160;
     let w = v.videoWidth || 1080;
     let h = v.videoHeight || 1920;
     const scale = Math.min(1, MAXL / Math.max(w, h));
@@ -443,7 +447,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
     canvas.width = w;
     canvas.height = h;
     canvas.getContext('2d').drawImage(v, 0, 0, w, h);
-    setShot({ uri: canvas.toDataURL('image/jpeg', 0.85), kind: 'photo', ext: 'jpg', contentType: 'image/jpeg' });
+    setShot({ uri: canvas.toDataURL('image/jpeg', 0.92), kind: 'photo', ext: 'jpg', contentType: 'image/jpeg' });
   };
 
   /* ── video: hold to record, release to stop ── */

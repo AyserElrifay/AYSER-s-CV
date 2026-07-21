@@ -6,7 +6,7 @@ import { C } from '../constants/theme';
 import { HUB_TRACKS, TRACK_MOODS } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-import { fetchTracks, uploadTrack } from '../services/music';
+import { fetchTracks, uploadTrack, deleteTrack } from '../services/music';
 import { startCheckout } from '../services/payments';
 import { ReportSheet } from './ReportSheet';
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
@@ -124,6 +124,17 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
     } finally { setLicensing(null); }
   };
 
+  const [confirmDel, setConfirmDel] = useState(null); // track id awaiting confirm
+  const removeMine = async (t) => {
+    if (confirmDel !== t.id) { tapLight(); setConfirmDel(t.id); return; } // tap once to arm, again to delete
+    setConfirmDel(null);
+    try {
+      await deleteTrack(t.id, user.id);
+      setRemote((list) => (list || []).filter((x) => x.id !== t.id));
+      tapSuccess();
+    } catch (e) { setLicenseNote('Could not delete that sound — try again.'); }
+  };
+
   const license = async (t) => {
     if (!SUPABASE_READY || !user) { setLicenseNote('Sign in to license a track.'); return; }
     setLicensing(t.id); setLicenseNote(null);
@@ -236,11 +247,16 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
                   </Pressable>
                   {SUPABASE_READY && t.mine ? (
                     /* your own track: buy a promo boost — 2/3 comes back to you as reach, Moments keeps 1/3 */
+                    <>
                     <Pressable onPress={() => promote(t)} disabled={licensing === t.id}>
                       <Text style={{ color: C.blue, fontSize: 10.5, fontWeight: '800' }}>
                         {licensing === t.id ? 'Processing…' : '📣 Promote · E£' + PROMO_PRICE_EGP}
                       </Text>
                     </Pressable>
+                    <Pressable onPress={() => removeMine(t)} hitSlop={6} style={{ marginTop: 5 }}>
+                      <Text style={{ color: C.coral, fontSize: 10.5, fontWeight: '800' }}>{confirmDel === t.id ? 'Tap again to delete' : '🗑 Delete'}</Text>
+                    </Pressable>
+                    </>
                   ) : SUPABASE_READY ? (
                     <Pressable onPress={() => license(t)} disabled={licensing === t.id}>
                       <Text style={{ color: C.green, fontSize: 10.5, fontWeight: '800' }}>
