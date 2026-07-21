@@ -48,6 +48,8 @@ const FILTERS = [
    really BAKED into the photo's pixels on share). */
 const EFFECTS = [
   { id: 'none',     label: 'Clean',    emoji: '⬜' },
+  { id: 'pixel',    label: 'Pixel',    emoji: '👾' },
+  { id: 'cartoon',  label: 'Cartoon',  emoji: '🎨' },
   { id: 'leak',     label: 'Light leak', emoji: '🌞' },
   { id: 'vignette', label: 'Vignette', emoji: '🕳️' },
   { id: 'grain',    label: 'Grain',    emoji: '🎞️' },
@@ -56,6 +58,9 @@ const EFFECTS = [
   { id: 'snow',     label: 'Snow',     emoji: '❄️' },
   { id: 'stars',    label: 'Stars',    emoji: '✨' },
 ];
+/* Effects that transform the WHOLE frame (not an overlay) — applied to the
+   base pixels in bake + the video compositor. */
+const FRAME_FX = { pixel: 1, cartoon: 1 };
 const EFFECT_PARTICLES = { hearts: ['💖', '💕', '💗'], confetti: ['🎉', '🎊', '🟣', '🟡'], snow: ['❄️', '✻', '•'], stars: ['✨', '⭐', '✦'] };
 
 /* GAME FILTERS — our own take on Snapchat's filter games: a roulette
@@ -315,6 +320,39 @@ function roundRectPath(ctx, x, y, w, h, r) {
   ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
   ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
 }
+/* Turn the whole frame into pixel-art: downsample hard, then upscale with
+   smoothing off so you get crisp blocky pixels (like the reference). */
+function applyPixelate(ctx, w, h) {
+  try {
+    const blocks = 150; // pixels across — clean retro look
+    const sw = blocks, sh = Math.max(1, Math.round(h * blocks / w));
+    const tmp = document.createElement('canvas'); tmp.width = sw; tmp.height = sh;
+    tmp.getContext('2d').drawImage(ctx.canvas, 0, 0, sw, sh);
+    ctx.imageSmoothingEnabled = false;
+    ctx.clearRect(0, 0, w, h);
+    ctx.drawImage(tmp, 0, 0, sw, sh, 0, 0, w, h);
+    ctx.imageSmoothingEnabled = true;
+  } catch (e) {}
+}
+/* A quick "cartoon" look with no AI: posterize the colours into flat bands
+   and boost saturation, for a bold illustrated feel. */
+function applyCartoon(ctx, w, h) {
+  try {
+    const img = ctx.getImageData(0, 0, w, h);
+    const d = img.data, levels = 5, step = 255 / (levels - 1);
+    for (let i = 0; i < d.length; i += 4) {
+      d[i] = Math.round(Math.round(d[i] / step) * step);
+      d[i + 1] = Math.round(Math.round(d[i + 1] / step) * step);
+      d[i + 2] = Math.round(Math.round(d[i + 2] / step) * step);
+    }
+    ctx.putImageData(img, 0, 0);
+  } catch (e) {}
+}
+function applyFrameFx(ctx, w, h, effectId) {
+  if (effectId === 'pixel') applyPixelate(ctx, w, h);
+  else if (effectId === 'cartoon') applyCartoon(ctx, w, h);
+}
+
 function drawEffectsCanvas(ctx, w, h, effectId, particles) {
   if (effectId === 'vignette') {
     const g = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.42, w / 2, h / 2, Math.max(w, h) * 0.72);
@@ -588,16 +626,16 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
     try {
       if (streamRef.current) streamRef.current.getTracks().forEach((t) => t.stop());
       const stream = await navigator.mediaDevices.getUserMedia({
-        // Use the phone's REAL camera at full quality, and ask for a tall
-        // 9:16 frame so the viewfinder isn't cropped to a wide sliver.
-        // Requesting the aspect lets the browser pick the sensor's portrait
-        // mode when it has one (phones), so we fill the screen without the
-        // heavy crop a landscape webcam frame forced.
+        // Match the phone's NATIVE camera field-of-view, like Instagram.
+        // Asking for an unusually tall frame (e.g. 1440×2560) made the
+        // browser crop the sensor → the zoomed-in look. Requesting the
+        // standard 1080×1920 the camera actually supports natively gives
+        // the full FOV; object-fit: cover then frames it as 9:16 with no
+        // extra zoom.
         video: {
           facingMode: face || facing,
-          width: { ideal: 1440 },
-          height: { ideal: 2560 },
-          aspectRatio: { ideal: 9 / 16 },
+          width: { ideal: 1080 },
+          height: { ideal: 1920 },
           frameRate: { ideal: 30 },
         },
         audio: true,
@@ -683,6 +721,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
               if ('filter' in ctx) ctx.filter = filter;
               ctx.drawImage(v, 0, 0, w, h);
               if ('filter' in ctx) ctx.filter = 'none';
+              if (eff === 'pixel') applyPixelate(ctx, w, h); // cheap per-frame; cartoon is photo-only (per-frame read is too heavy)
               drawEffectsCanvas(ctx, w, h, eff, parts);
               if (rg) drawReelCardCanvas(ctx, w, h, rg, performance.now() - t0);
               else if (gc) drawSimpleCardCanvas(ctx, w, h, gc);
@@ -847,6 +886,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
           ctx.filter = cssFilter && cssFilter !== 'none' ? cssFilter : 'none';
           ctx.drawImage(img, 0, 0, w, h);
           ctx.filter = 'none';
+          applyFrameFx(ctx, w, h, effectId); // pixel / cartoon transform the whole photo
           drawEffectsCanvas(ctx, w, h, effectId, particlesRef.current);
           if (reelGame) drawReelCardCanvas(ctx, w, h, reelGame, null); // final result
           else if (gameCard) drawSimpleCardCanvas(ctx, w, h, gameCard);
