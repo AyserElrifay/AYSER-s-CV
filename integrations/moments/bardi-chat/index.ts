@@ -1,5 +1,7 @@
 // ═══════════════════════════════════════════════════════════════════
 //  Bardi · بردي — chat endpoint for Moments (Supabase Edge Function)
+//  MAX-PRIVACY BUILD — no silent third-party fallback, locked-down CORS,
+//  zero logging of conversation content.
 //
 //  This is the REAL Bardi brain exposed as an HTTP endpoint so the
 //  Moments app can chat with Bardi from inside its own UI.
@@ -8,17 +10,24 @@
 //  *Bardi* is the persona below plus an AI provider. This function pairs
 //  that persona with a provider so Moments gets a callable endpoint.
 //
-//  Provider selection (automatic, no code change needed):
-//    • If the Supabase secret ANTHROPIC_API_KEY is set → uses Claude
-//      (best quality, and the request goes only to Anthropic).
-//    • Otherwise → falls back to Pollinations, a free keyless open-model
-//      gateway. NOTE: in fallback mode, user messages are sent to that
-//      third-party service. Fine for a free tier; set the Claude key for
-//      a private, higher-quality path.
+//  Provider — Claude ONLY, on purpose:
+//    Requires the Supabase secret ANTHROPIC_API_KEY. If it's missing,
+//    the function refuses the request with a clear 503 instead of
+//    silently routing user messages to a third-party free gateway.
+//    Privacy over convenience: nobody's conversation leaves Anthropic
+//    unless someone deliberately opts back into a fallback (see
+//    ALLOW_FREE_FALLBACK below, off by default).
+//
+//  Zero retention here: this function does not log, store, or persist
+//  any message content anywhere — not to Supabase logs, not to a table.
+//  It is a pure pass-through: request in, Claude reply out.
 //
 //  Deploy:
 //    supabase functions deploy bardi-chat --no-verify-jwt
-//    (optional) supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
+//    supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
+//    supabase secrets set ALLOWED_ORIGIN=https://ayserelrifay.github.io
+//    (optional, explicit opt-in, NOT recommended for real users:)
+//    supabase secrets set ALLOW_FREE_FALLBACK=true
 //
 //  Call from the Moments app:
 //    POST  https://<project-ref>.functions.supabase.co/bardi-chat
@@ -29,11 +38,24 @@
 //    resp  { "reply": "…Bardi's answer…" }
 // ═══════════════════════════════════════════════════════════════════
 
-const CORS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+// CORS is locked to one origin via the ALLOWED_ORIGIN secret — the
+// Moments web app's own domain. Without it set, only same-origin /
+// server-to-server calls (no browser Origin header) are allowed; a
+// wildcard "*" is deliberately NOT used, since this endpoint can carry
+// private conversation content and should not be callable from any
+// random website that embeds it.
+const ALLOWED_ORIGIN = Deno.env.get("ALLOWED_ORIGIN") || "";
+
+function corsHeaders(req: Request): Record<string, string> {
+  const origin = req.headers.get("origin") || "";
+  const allow = ALLOWED_ORIGIN && origin === ALLOWED_ORIGIN ? origin : (ALLOWED_ORIGIN || "null");
+  return {
+    "Access-Control-Allow-Origin": allow,
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Vary": "Origin",
+  };
+}
 
 const LANG_NAMES: Record<string, string> = {
   ar: "Egyptian Arabic (العامية المصرية) — warm, simple, everyday masri like a close Egyptian friend; use فصحى only for Quran/quotes",
@@ -132,10 +154,30 @@ async function askPollinations(system: string, messages: any[]): Promise<string>
   return (j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content) || "";
 }
 
+// Basic per-instance rate limiting — caps how many requests this warm
+// function instance handles per minute. Not a substitute for Supabase's
+// own project-level rate limits, but blunts abuse of an unauthenticated
+// endpoint cheaply. Resets when the instance cold-starts.
+const RATE_LIMIT_PER_MIN = 30;
+let windowStart = Date.now();
+let windowCount = 0;
+function rateLimited(): boolean {
+  const now = Date.now();
+  if (now - windowStart > 60_000) { windowStart = now; windowCount = 0; }
+  windowCount++;
+  return windowCount > RATE_LIMIT_PER_MIN;
+}
+
 Deno.serve(async (req: Request) => {
+  const CORS = corsHeaders(req);
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ error: "POST only" }), { status: 405, headers: { ...CORS, "content-type": "application/json" } });
+  }
+  if (rateLimited()) {
+    return new Response(JSON.stringify({ error: "Too many requests — slow down and try again in a moment." }), {
+      status: 429, headers: { ...CORS, "content-type": "application/json" },
+    });
   }
 
   try {
@@ -151,18 +193,31 @@ Deno.serve(async (req: Request) => {
       content: String(m.content || "").slice(0, 4000),
     }));
 
+    // Privacy-first provider choice: Claude only, unless someone has
+    // deliberately opted into the free fallback via a secret. No
+    // conversation content is ever logged by this function either way.
     const claudeKey = Deno.env.get("ANTHROPIC_API_KEY");
+    const allowFallback = Deno.env.get("ALLOW_FREE_FALLBACK") === "true";
     let reply = "";
     if (claudeKey) {
       reply = await askClaude(claudeKey, system, trimmed);
-    } else {
+    } else if (allowFallback) {
       reply = await askPollinations(system, trimmed);
+    } else {
+      return new Response(JSON.stringify({
+        error: "Bardi isn't configured yet: set the ANTHROPIC_API_KEY secret " +
+          "(supabase secrets set ANTHROPIC_API_KEY=sk-ant-...) so conversations " +
+          "stay private. This endpoint will not silently fall back to a " +
+          "third-party AI service unless ALLOW_FREE_FALLBACK=true is set explicitly.",
+      }), { status: 503, headers: { ...CORS, "content-type": "application/json" } });
     }
 
     return new Response(JSON.stringify({ reply: reply.trim() }), {
       headers: { ...CORS, "content-type": "application/json" },
     });
   } catch (e) {
+    // Error messages only ever describe what failed (a status code, a
+    // network error) — never the conversation content itself.
     return new Response(JSON.stringify({ error: String(e && (e as Error).message || e) }), {
       status: 500,
       headers: { ...CORS, "content-type": "application/json" },
