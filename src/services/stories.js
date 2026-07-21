@@ -19,7 +19,7 @@ export async function createStory(userId, { mediaUrl, caption, sound, sticker })
     const { data, error } = await supabase
       .from('stories')
       .insert(payload)
-      .select('*, user:profiles(name, avatar_url)')
+      .select('*, user:profiles!stories_user_id_fkey(name, avatar_url)')
       .single();
     if (!error) return data;
     const missing = /find the '([^']+)' column/i.exec(error.message || '');
@@ -37,7 +37,7 @@ export async function createStory(userId, { mediaUrl, caption, sound, sticker })
 export async function fetchActiveStories() {
   const { data, error } = await supabase
     .from('stories')
-    .select('*, user:profiles(id, name, avatar_url, country_flag)')
+    .select('*, user:profiles!stories_user_id_fkey(id, name, avatar_url, country_flag)')
     .gt('expires_at', new Date().toISOString()) // 24h stories, really
     .order('created_at', { ascending: false })
     .limit(50);
@@ -66,7 +66,7 @@ export async function sweepMyExpiredStories() {
 export async function fetchStoryById(storyId) {
   const { data, error } = await supabase
     .from('stories')
-    .select('*, user:profiles(id, name, avatar_url, country_flag)')
+    .select('*, user:profiles!stories_user_id_fkey(id, name, avatar_url, country_flag)')
     .eq('id', storyId)
     .gt('expires_at', new Date().toISOString())
     .single();
