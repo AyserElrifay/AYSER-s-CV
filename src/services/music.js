@@ -30,6 +30,52 @@ export async function fetchTracks({ mood, bpmMin, bpmMax, instrument, meId, all 
   return rows.filter((t) => t.is_approved || t.is_official || (meId && t.uploader_id === meId));
 }
 
+/* ── Auto-fill the library from legal, free Creative-Commons music ───
+   Runs in the OWNER's browser (the sandbox can't reach these APIs) and
+   pulls from Openverse — an open API of CC-licensed audio (no key, CORS-
+   friendly). We store the track's direct URL + attribution; playback is a
+   plain <audio src> so cross-origin streaming just works. Everything is
+   CC-licensed with credit shown, so it's safe to use commercially. */
+const HARVEST_QUERIES = [
+  { q: 'lofi', mood: 'Chill' }, { q: 'happy upbeat', mood: 'Happy' },
+  { q: 'cinematic epic', mood: 'Epic' }, { q: 'acoustic guitar', mood: 'Calm' },
+  { q: 'electronic dance', mood: 'Hype' }, { q: 'ambient', mood: 'Calm' },
+  { q: 'hip hop beat', mood: 'Hype' }, { q: 'piano', mood: 'Chill' },
+];
+export async function harvestFreeMusic(userId, onProgress) {
+  let added = 0;
+  const { data: existing } = await supabase.from('tracks').select('audio_url').not('audio_url', 'is', null).limit(2000);
+  const have = new Set((existing || []).map((r) => r.audio_url));
+  for (const { q, mood } of HARVEST_QUERIES) {
+    let results = [];
+    try {
+      const r = await fetch('https://api.openverse.org/v1/audio/?q=' + encodeURIComponent(q) + '&page_size=20&license=cc0,by&mature=false');
+      if (r.ok) { const j = await r.json(); results = (j && j.results) || []; }
+    } catch (e) { /* skip this query */ }
+    const rows = [];
+    for (const t of results) {
+      const url = t.url || (t.alt_files && t.alt_files[0] && t.alt_files[0].url) || null;
+      if (!url || have.has(url)) continue;
+      have.add(url);
+      rows.push({
+        uploader_id: userId, is_official: true, is_approved: true,
+        title: (t.title || 'Untitled').toString().slice(0, 80),
+        artist: (t.creator || 'CC artist').toString().slice(0, 60),
+        audio_url: url, cover_emoji: '🎵', mood,
+        license: 'CC ' + String(t.license || '').toUpperCase(),
+        attribution: (t.title || 'Track') + ' · ' + (t.creator || 'unknown') + ' (CC)',
+        source_url: t.foreign_landing_url || null,
+        duration_sec: t.duration ? Math.round(t.duration / 1000) : null,
+      });
+    }
+    if (rows.length) {
+      const { error } = await supabase.from('tracks').insert(rows);
+      if (!error) { added += rows.length; onProgress && onProgress(added); }
+    }
+  }
+  return added;
+}
+
 /* Owner moderation — approve or reject a pending track. */
 export async function setTrackApproval(trackId, approved) {
   const { error } = await supabase.from('tracks').update({ is_approved: !!approved }).eq('id', trackId);

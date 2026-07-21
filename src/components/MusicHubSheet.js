@@ -6,7 +6,7 @@ import { C } from '../constants/theme';
 import { HUB_TRACKS, TRACK_MOODS } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-import { fetchTracks, uploadTrack, deleteTrack, isOwner } from '../services/music';
+import { fetchTracks, uploadTrack, deleteTrack, isOwner, harvestFreeMusic } from '../services/music';
 import { startCheckout } from '../services/payments';
 import { ReportSheet } from './ReportSheet';
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
@@ -60,6 +60,21 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
   // source blocks cross-origin fetch, we say so and you use the file picker.
   const [urlOpen, setUrlOpen] = useState(false);
   const [urlVal, setUrlVal] = useState('');
+  // Owner: auto-fill the library from free CC libraries (runs in-browser).
+  const [harvestBusy, setHarvestBusy] = useState(false);
+  const [harvestMsg, setHarvestMsg] = useState(null);
+  const autoFill = async () => {
+    if (harvestBusy || !user) return;
+    setHarvestBusy(true); setHarvestMsg('Fetching free tracks…');
+    try {
+      const n = await harvestFreeMusic(user.id, (c) => setHarvestMsg('Added ' + c + ' tracks…'));
+      setHarvestMsg(n > 0 ? '✅ Added ' + n + ' Creative-Commons tracks' : 'No new tracks fetched — try again in a bit.');
+      if (n > 0) setReloadKey((k) => k + 1);
+    } catch (e) {
+      setHarvestMsg('Could not reach the free library right now — try again.');
+    } finally { setHarvestBusy(false); setTimeout(() => setHarvestMsg(null), 4000); }
+  };
+
   const addByUrl = async () => {
     const u = urlVal.trim();
     if (!u || upBusy) return;
@@ -192,6 +207,12 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
           </View>
           {isOwner(user) ? (
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Pressable onPress={autoFill} disabled={harvestBusy} style={{ marginRight: 8 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.greenSoft, borderWidth: 1, borderColor: 'rgba(16,185,129,0.4)', borderRadius: 999, paddingHorizontal: 11, paddingVertical: 8 }}>
+                  <Ionicons name={harvestBusy ? 'sync' : 'sparkles-outline'} size={15} color={C.green} />
+                  <Text style={{ color: C.green, fontSize: 12, fontWeight: '900', marginLeft: 4 }}>{harvestBusy ? '…' : 'Auto-fill'}</Text>
+                </View>
+              </Pressable>
               <Pressable onPress={() => { tapLight(); setUrlOpen((o) => !o); }} style={{ marginRight: 8 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 8 }}>
                   <Ionicons name="link-outline" size={15} color={C.purple} />
@@ -246,6 +267,7 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
           </View>
         ) : null}
         {upErr ? <Text style={{ color: C.coral, fontSize: 11.5, marginTop: 8 }}>⚠️ {upErr}</Text> : null}
+        {harvestMsg ? <Text style={{ color: C.green, fontSize: 11.5, fontWeight: '700', marginTop: 8 }}>{harvestMsg}</Text> : null}
 
         {/* ── FOR ARTISTS — real distribution terms, no fine print ──
             Upload originals here = distribution on Moments. Every licence
