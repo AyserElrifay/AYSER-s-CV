@@ -39,7 +39,8 @@ const HOBBY_OPTIONS = [
 ];
 import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-import { getProfile, updateProfile } from '../services/profiles';
+import { getProfile, updateProfile, requestVerification, myVerificationStatus, fetchPendingVerifications, decideVerification } from '../services/profiles';
+import { isOwner } from '../services/music';
 import { uploadCapture } from '../services/social';
 import { fetchMyMoments, deletePost, updatePost } from '../services/posts';
 import { countMyCampfires } from '../services/campfires';
@@ -107,7 +108,11 @@ export const ProfileScreen = () => {
   const [settings, setSettings] = useState(false);
   const [tab, setTab] = useState('grid');
   const [menu, setMenu] = useState(false);            // the ☰ sheet
-  const [accountType, setAccountType] = useState('public'); // public | private | professional
+  const [accountType, setAccountType] = useState('public'); // public|private|professional|artist|musician
+  const [artistGenre, setArtistGenre] = useState('');
+  const [verifStatus, setVerifStatus] = useState(null); // null|pending|approved|rejected
+  const [verifBusy, setVerifBusy] = useState(false);
+  const [verifQueue, setVerifQueue] = useState(null); // owner: pending list
   const [category, setCategory] = useState('Creator');
   const [dash, setDash] = useState(false);            // professional dashboard
   const [pageMade, setPageMade] = useState(false);
@@ -216,7 +221,10 @@ export const ProfileScreen = () => {
       setEditWork(p.occupation || '');
       setEditStudy(p.education || '');
       setEditLangs(p.speaks_language || '');
+      if (p.account_type) setAccountType(p.account_type);
+      setArtistGenre(p.artist_genre || '');
     }).catch(() => {});
+    if (user) myVerificationStatus(user.id).then(setVerifStatus).catch(() => {});
     fetchMyMoments(user.id).then(setMyMoments).catch(() => {});
     countMyCampfires(user.id).then(setCampfiresHosted).catch(() => {});
     countMates(user.id).then(setMatesCount).catch(() => {});
@@ -256,6 +264,8 @@ export const ProfileScreen = () => {
         occupation: editWork.trim() || null,
         education: editStudy.trim() || null,
         speaks_language: editLangs.trim() || null,
+        account_type: accountType,
+        artist_genre: (accountType === 'artist' || accountType === 'musician') ? (artistGenre.trim() || null) : null,
       });
       tapSuccess(); sfxSuccess();
       setSavedEdit(true);
@@ -433,6 +443,11 @@ export const ProfileScreen = () => {
             ) : null}
             {accountType === 'professional' ? (
               <Text style={{ color: C.faint, fontSize: 12.5, marginLeft: 8 }}>· {category}</Text>
+            ) : null}
+            {accountType === 'artist' || accountType === 'musician' ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.purpleSoft, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3, marginLeft: 8 }}>
+                <Text style={{ color: C.purple, fontSize: 11, fontWeight: '900' }}>{accountType === 'musician' ? '🎵' : '🎨'} {artistGenre || (accountType === 'musician' ? 'Musician' : 'Artist')}</Text>
+              </View>
             ) : null}
             {me.intent ? (
               <View style={{ backgroundColor: C.purpleSoft, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3, marginLeft: 8 }}>
@@ -721,21 +736,70 @@ export const ProfileScreen = () => {
           <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, paddingBottom: insets.bottom + 18, paddingHorizontal: 16 }}>
             <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 10 }} />
 
-            {/* account type switch */}
+            {/* account type switch — includes Artist & Musician creator types */}
             <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', letterSpacing: 1, marginBottom: 8, marginTop: 4 }}>ACCOUNT TYPE</Text>
-            <View style={{ flexDirection: 'row', marginBottom: 8 }}>
-              {['public', 'private', 'professional'].map((k) => {
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}>
+              {[
+                { k: 'public', e: '🌍' }, { k: 'private', e: '🔒' }, { k: 'professional', e: '💼' },
+                { k: 'artist', e: '🎨' }, { k: 'musician', e: '🎵' },
+              ].map(({ k, e }) => {
                 const on = accountType === k;
                 return (
-                  <Pressable key={k} onPress={() => { tapSelection(); setAccountType(k); }} style={{ flex: 1, marginRight: k !== 'professional' ? 8 : 0 }}>
+                  <Pressable key={k} onPress={() => {
+                    tapSelection(); setAccountType(k);
+                    if (SUPABASE_READY && user) updateProfile(user.id, { account_type: k }).catch(() => {});
+                  }} style={{ width: '31.5%', marginRight: '2.75%', marginBottom: 8 }}>
                     <View style={{ backgroundColor: on ? C.purple : C.glass, borderWidth: 1, borderColor: on ? C.purple : C.line, borderRadius: 12, paddingVertical: 10, alignItems: 'center' }}>
-                      <Text style={{ fontSize: 15 }}>{k === 'public' ? '🌍' : k === 'private' ? '🔒' : '💼'}</Text>
+                      <Text style={{ fontSize: 15 }}>{e}</Text>
                       <Text style={{ color: on ? '#FFF' : C.dim, fontSize: 11, fontWeight: '800', marginTop: 3, textTransform: 'capitalize' }}>{k}</Text>
                     </View>
                   </Pressable>
                 );
               })}
             </View>
+
+            {/* artist/musician: genre + real, owner-reviewed verification */}
+            {accountType === 'artist' || accountType === 'musician' ? (
+              <View style={{ marginBottom: 8 }}>
+                <TextInput
+                  placeholder={accountType === 'musician' ? 'Your genre (e.g. Rap, Pop, Oud)' : 'Your craft (e.g. Painter, Photographer)'}
+                  placeholderTextColor={C.faint} value={artistGenre}
+                  onChangeText={setArtistGenre}
+                  onBlur={() => { if (SUPABASE_READY && user) updateProfile(user.id, { artist_genre: artistGenre.trim() || null }).catch(() => {}); }}
+                  style={{ color: C.text, fontSize: 13.5, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 10, marginBottom: 8 }}
+                />
+                {me.verified ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.greenSoft, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10 }}>
+                    <Ionicons name="checkmark-circle" size={18} color={C.green} />
+                    <Text style={{ color: C.green, fontSize: 12.5, fontWeight: '900', marginLeft: 7 }}>Verified {accountType} ✓</Text>
+                  </View>
+                ) : verifStatus === 'pending' ? (
+                  <View style={{ backgroundColor: C.purpleSoft, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10 }}>
+                    <Text style={{ color: C.purple, fontSize: 12, fontWeight: '800' }}>⏳ Verification under review — you'll get the tick once approved.</Text>
+                  </View>
+                ) : (
+                  <Pressable disabled={verifBusy} onPress={async () => {
+                    if (!SUPABASE_READY || !user) { setEditErr('Sign in to request verification.'); return; }
+                    setVerifBusy(true);
+                    try { await requestVerification(user.id, accountType, artistGenre.trim() || null); setVerifStatus('pending'); tapSuccess(); sfxSuccess(); }
+                    catch (e) { setEditErr(/does not exist|schema/i.test(e.message || '') ? 'Run RUN_ME.sql once to turn on verification.' : (e.message || 'Could not send request.')); }
+                    finally { setVerifBusy(false); }
+                  }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: C.blue, borderRadius: 12, paddingVertical: 11 }}>
+                      <Ionicons name="shield-checkmark-outline" size={16} color="#FFF" />
+                      <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '900', marginLeft: 6 }}>{verifBusy ? 'Sending…' : 'Request verification ✓'}</Text>
+                    </View>
+                  </Pressable>
+                )}
+              </View>
+            ) : null}
+
+            {/* owner only: review the verification queue */}
+            {isOwner(user) ? (
+              <MenuRow icon="shield-checkmark-outline" label="Verification requests" sub="Approve artists & musicians" onPress={async () => {
+                try { setVerifQueue(await fetchPendingVerifications()); } catch (e) { setVerifQueue([]); }
+              }} />
+            ) : null}
 
             {/* category — shows next to your name on professional accounts */}
             {accountType === 'professional' ? (
@@ -767,6 +831,35 @@ export const ProfileScreen = () => {
             <MenuRow icon="star-outline" label="Close Friends" sub="Share some moments with your inner circle" />
             <MenuRow icon="happy-outline" label="Your Moments Avatar" sub="The cartoon character shown on the live map" onPress={() => { setMenu(false); setAvatarBuilderOpen(true); }} />
             <MenuRow icon="create-outline" label="Edit your space" sub="Name, bio, vibe & links" onPress={() => setEditOpen(true)} />
+          </Pressable>
+        </Pressable>
+      ) : null}
+
+      {/* owner: verification review queue */}
+      {verifQueue != null ? (
+        <Pressable onPress={() => setVerifQueue(null)} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end' }}>
+          <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 12, paddingBottom: insets.bottom + 20, paddingHorizontal: 16, maxHeight: '70%' }}>
+            <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 12 }} />
+            <Text style={{ color: C.text, fontSize: 16, fontWeight: '900', marginBottom: 10 }}>Verification requests</Text>
+            <ScrollView>
+              {verifQueue.length === 0 ? (
+                <Text style={{ color: C.faint, fontSize: 13, textAlign: 'center', paddingVertical: 26 }}>No pending requests 🎉</Text>
+              ) : verifQueue.map((r) => (
+                <View key={r.id} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.line }}>
+                  <Image source={{ uri: (r.user && r.user.avatar_url) || AV_NEUTRAL }} style={{ width: 40, height: 40, borderRadius: 20, marginRight: 10 }} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>{(r.user && r.user.name) || 'Someone'}</Text>
+                    <Text style={{ color: C.faint, fontSize: 11.5 }}>{r.kind}{r.user && r.user.artist_genre ? ' · ' + r.user.artist_genre : ''}</Text>
+                  </View>
+                  <Pressable onPress={async () => { try { await decideVerification(r.user_id, false); setVerifQueue((q) => q.filter((x) => x.id !== r.id)); } catch (e) {} }} style={{ marginRight: 8 }}>
+                    <View style={{ borderRadius: 999, borderWidth: 1, borderColor: C.line, paddingHorizontal: 12, paddingVertical: 8 }}><Text style={{ color: C.dim, fontSize: 12, fontWeight: '800' }}>Reject</Text></View>
+                  </Pressable>
+                  <Pressable onPress={async () => { try { await decideVerification(r.user_id, true); tapSuccess(); sfxSuccess(); setVerifQueue((q) => q.filter((x) => x.id !== r.id)); } catch (e) {} }}>
+                    <View style={{ borderRadius: 999, backgroundColor: C.green, paddingHorizontal: 14, paddingVertical: 8 }}><Text style={{ color: '#FFF', fontSize: 12, fontWeight: '900' }}>Approve ✓</Text></View>
+                  </Pressable>
+                </View>
+              ))}
+            </ScrollView>
           </Pressable>
         </Pressable>
       ) : null}

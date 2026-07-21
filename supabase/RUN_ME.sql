@@ -694,6 +694,42 @@ alter table public.profiles add column if not exists tos_accepted_at  timestampt
 alter table public.profiles add column if not exists age         int;   -- optional, shown on profile
 alter table public.profiles add column if not exists occupation  text;  -- "what you do"
 alter table public.profiles add column if not exists education   text;  -- "what you studied"
+alter table public.profiles add column if not exists account_type text default 'public'; -- public|private|professional|artist|musician
+alter table public.profiles add column if not exists artist_genre text; -- for artist/musician profiles
+
+-- ═══════════ VERIFICATION · artists & musicians get the tick ═══════════
+-- Real, owner-reviewed: a creator requests, the app owner approves, and a
+-- security-definer function flips profiles.verified. No self-verification.
+create table if not exists public.verification_requests (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid not null references public.profiles(id) on delete cascade,
+  kind       text not null default 'artist',   -- artist | musician | professional
+  note       text,
+  status     text not null default 'pending',  -- pending | approved | rejected
+  created_at timestamptz not null default now(),
+  unique (user_id)
+);
+alter table public.verification_requests enable row level security;
+drop policy if exists "vr insert own" on public.verification_requests;
+create policy "vr insert own" on public.verification_requests for insert with check (auth.uid() = user_id);
+drop policy if exists "vr select own or owner" on public.verification_requests;
+create policy "vr select own or owner" on public.verification_requests for select using (
+  auth.uid() = user_id or (auth.jwt() ->> 'email') = 'ayseryourlifecoach@gmail.com'
+);
+drop policy if exists "vr update owner" on public.verification_requests;
+create policy "vr update owner" on public.verification_requests for update using (
+  (auth.jwt() ->> 'email') = 'ayseryourlifecoach@gmail.com'
+);
+-- owner-only approval: flips the profile's verified flag + marks the request
+create or replace function public.approve_verification(target uuid, approve boolean)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  if (auth.jwt() ->> 'email') <> 'ayseryourlifecoach@gmail.com' then
+    raise exception 'not authorized';
+  end if;
+  update public.profiles set verified = approve where id = target;
+  update public.verification_requests set status = case when approve then 'approved' else 'rejected' end where user_id = target;
+end; $$;
 
 -- ═══════════════ MOMENTS IN CHAT (streaks) ═══════════════
 -- Send each other photo/video "Moments" right inside a chat, like
