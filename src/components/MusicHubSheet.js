@@ -271,9 +271,15 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
               </View>
             </Pressable>
           )) : (
-            <View style={{ alignItems: 'center', paddingVertical: 40 }}>
-              <Text style={{ fontSize: 26 }}>🎼</Text>
-              <Text style={{ color: C.faint, fontSize: 13, marginTop: 8, textAlign: 'center' }}>No tracks in this mood yet.{'\n'}Producers can upload originals to the Hub.</Text>
+            <View style={{ paddingVertical: 22, paddingHorizontal: 6 }}>
+              <Text style={{ fontSize: 26, textAlign: 'center' }}>🎼</Text>
+              <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '900', marginTop: 8, textAlign: 'center' }}>The Hub is waiting for its first track</Text>
+              <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 10, lineHeight: 19 }}>
+                Moments never ships copyrighted songs — the library grows from real uploads. Fill it in 3 steps:{'\n\n'}
+                1️⃣  Grab free music you're allowed to use — pixabay.com/music has thousands of tracks, free even commercially.{'\n'}
+                2️⃣  On iPhone: save the file to the Files app (Apple Music songs are DRM-locked and can't be uploaded — that's an Apple rule, not ours).{'\n'}
+                3️⃣  Tap <Text style={{ fontWeight: '900', color: C.purple }}>Upload ↑</Text>, pick the file, title it, publish. It's instantly usable on stories & reels.
+              </Text>
             </View>
           )}
         </ScrollView>
