@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, Modal, Pressable, TextInput, ScrollView, Platform, ActivityIndicator, KeyboardAvoidingView } from 'react-native';
+import { View, Text, Modal, Pressable, TextInput, ScrollView, Platform, ActivityIndicator, KeyboardAvoidingView, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { C } from '../constants/theme';
@@ -7,6 +7,8 @@ import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LanguageContext';
 import { askBardi, BARDI_STARTERS } from '../services/bardi';
 import { tapLight, tapMedium } from '../utils/feedback';
+
+const BARDI_ICON = require('../assets/brand/bardi.png');
 
 /* ─── Bardi in the app — a real assistant, not a toy ──────────────────
    A clean chat sheet that talks to the 'bardi-chat' Edge Function. It
@@ -63,9 +65,8 @@ export const BardiSheet = ({ onClose }) => {
           <View style={{ backgroundColor: C.bg2, borderTopLeftRadius: 26, borderTopRightRadius: 26, maxHeight: '88%', paddingBottom: insets.bottom + 8 }}>
             {/* header */}
             <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingTop: 16, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: C.line }}>
-              <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center', marginRight: 10 }}>
-                <MaterialCommunityIcons name="star-four-points" size={18} color={C.purple} />
-              </View>
+              <Image source={BARDI_ICON} style={{ width: 36, height: 36, borderRadius: 11, marginRight: 10 }} />
+
               <View style={{ flex: 1 }}>
                 <Text style={{ color: C.text, fontSize: 16, fontWeight: '900' }}>Bardi</Text>
                 <Text style={{ color: C.dim, fontSize: 11.5 }}>Your AI — here to help you grow</Text>

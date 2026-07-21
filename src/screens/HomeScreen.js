@@ -303,8 +303,8 @@ export const HomeScreen = () => {
                 </Text>
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Pressable testID="btn-bardi" onPress={() => { tapLight(); setBardiOpen(true); }} style={[headerBtn, { marginRight: 10, backgroundColor: C.purpleSoft, borderColor: 'rgba(124,58,237,0.4)' }]}>
-                  <MaterialCommunityIcons name="star-four-points" size={17} color={C.purple} />
+                <Pressable testID="btn-bardi" onPress={() => { tapLight(); setBardiOpen(true); }} style={{ marginRight: 10 }}>
+                  <Image source={require('../assets/brand/bardi.png')} style={{ width: 38, height: 38, borderRadius: 12 }} />
                 </Pressable>
                 <Pressable testID="btn-notifs" onPress={() => { tapLight(); setNotifOpen(true); setUnread(0); }} style={[headerBtn, { marginRight: 10 }]}>
                   <Ionicons name={unread ? 'notifications' : 'notifications-outline'} size={17} color={unread ? C.purple : C.text} />
