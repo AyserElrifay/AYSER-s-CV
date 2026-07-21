@@ -8,6 +8,7 @@ import { C } from '../constants/theme';
 import { SOUNDS, ME, AV_NEUTRAL } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
+import { useLang } from '../context/LanguageContext';
 import { createPost } from '../services/posts';
 import { createStory } from '../services/stories';
 import { uploadCapture, uploadMedia } from '../services/social';
@@ -143,6 +144,133 @@ const REEL_GAMES = [
   ] },
 ];
 
+/* Same games, spoken in the player's language — Arabic, French, Spanish.
+   The card art and spin are identical; only the words change. */
+const REEL_GAMES_AR = [
+  { id: 'love', title: 'علاقتك الجاية', emoji: '💘', rows: [
+    { label: 'النوع', pool: ['توأم روح', 'حب هادي', 'علاقة مش واضحة', 'إعصار', 'صحاب الأول', 'عن بُعد', 'فرصة تانية'] },
+    { label: 'طاقتهم', pool: ['فوضى حلوة', 'لطيف جداً', 'غامض', 'ثنائي قوي', 'مصدر أمان', 'كله ضحك', 'خجول وحنون'] },
+    { label: 'هتتقابلوا', pool: ['في كافيه', 'في الجيم', 'في فرح', 'أونلاين', 'عن طريق صحاب', 'في السفر', 'في طابور قهوة'] },
+    { label: 'إمتى', pool: ['بعد ٣ أسابيع', 'الصيف ده', 'بعد شهرين', 'السنة الجاية', 'لما تبطّل تدوّر'] },
+  ] },
+  { id: 'era', title: 'سنة ٢٠٢٦ بتاعتك', emoji: '✨', rows: [
+    { label: 'عصرك', pool: ['البطل', 'حياة هادية', 'الشرير', 'تطوّر ولمعان', 'شفاء', 'شغل وطموح', 'نجم روك'] },
+    { label: 'طاقتك', pool: ['مش مهتم', 'جذّاب', 'متوحش', 'زِن وهدوء', 'جريء', 'ذهبي'] },
+    { label: 'أغنيتك', pool: ['هيت صيفي', 'أغنية حزينة', 'حماس', 'هدوء لو-فاي', 'أغنية أندردوج'] },
+    { label: 'شهر الحظ', pool: ['مارس', 'يونيو', 'سبتمبر', 'ديسمبر', 'فبراير', 'أغسطس'] },
+  ] },
+  { id: 'villain', title: 'قصة تحوّلك للشر', emoji: '😈', rows: [
+    { label: 'قالولك', pool: ['«اتغيّرت»', '«اهدا»', '«مش لدرجة كده»', '«انت زيادة»', '«كن واقعي»', '«يمكن بعدين»'] },
+    { label: 'قوتك', pool: ['صمت بارد', 'ردّ العام', 'صفر ردود', 'عبقري نكاية', 'هالة لامبالاة'] },
+    { label: 'حركتك', pool: ['سيبها متقرية', 'رمشة بطيئة', 'سكرين شوت واحتفظ', 'اختفي والمع', 'الإثباتات'] },
+  ] },
+  { id: 'trip', title: 'رحلتك الجاية', emoji: '✈️', rows: [
+    { label: 'الوجهة', pool: ['طوكيو', 'المالديف', 'رحلة بالعربية', 'ليالي القاهرة', 'جبال الألب', 'بلد ساحلية', 'مكان جديد'] },
+    { label: 'مع مين', pool: ['أعز صاحب', 'لوحدك وحر', 'الشلة كلها', '+١ مفاجأة', 'العيلة'] },
+    { label: 'الجو', pool: ['فوضى', 'هادي وبطيء', 'مغامرة', 'فخامة', 'أساطير الميزانية'] },
+    { label: 'إمتى', pool: ['الصيف ده', 'الشهر الجاي', 'الشتا', 'أقرب مما تتخيّل'] },
+  ] },
+  { id: 'aura', title: 'اقرا الأورا بتاعتك', emoji: '🔮', rows: [
+    { label: 'اللون', pool: ['بنفسجي كهربي', 'دهبي دافي', 'أزرق بحري', 'وردي', 'أخضر غامق', 'فضي'] },
+    { label: 'الطاقة', pool: ['عاصفة هادية', 'نار مضيّة', 'قوة صامتة', 'شرارة متوحشة', 'موجة لطيفة'] },
+    { label: 'حيوانك', pool: ['ديب', 'قطة', 'بومة', 'دولفين', 'أسد', 'تعلب'] },
+  ] },
+  { id: 'compliment', title: 'مولّد المجاملات', emoji: '🌈', rows: [
+    { label: '', pool: [
+      'ابتسامتك بتصلّح أوحش يوم ☀️',
+      'انت كوول من غير ما تحاول 😎',
+      'الناس بتحس بأمان جمبك 🫶',
+      'انت أذكى مما تعترف 🧠',
+      'طاقتك بتعدّي للكل ⚡',
+      'بتخلّي اليوم العادي حلو 🎈',
+    ] },
+  ] },
+];
+
+const REEL_GAMES_FR = [
+  { id: 'love', title: 'Ta prochaine relation', emoji: '💘', rows: [
+    { label: 'Type', pool: ['Âme sœur', 'Feu doux', 'Situationship', 'Coup de foudre', 'Amis d\'abord', 'À distance', 'Seconde chance'] },
+    { label: 'Son vibe', pool: ['Chaos adorable', 'Golden retriever', 'Mystérieux', 'Power couple', 'Réconfort', 'Que des blagues', 'Doux et timide'] },
+    { label: 'Rencontre', pool: ['Dans un café', 'À la salle', 'À un mariage', 'En ligne', 'Via des amis', 'À l\'étranger', 'Dans la file'] },
+    { label: 'Quand', pool: ['dans 3 semaines', 'cet été', 'dans 2 mois', 'l\'an prochain', 'quand tu arrêtes de chercher'] },
+  ] },
+  { id: 'era', title: 'Ton ère 2026', emoji: '✨', rows: [
+    { label: 'Ère', pool: ['Personnage principal', 'Soft life', 'Vilain', 'Glow-up', 'Guérison', 'Ambition', 'Rockstar'] },
+    { label: 'Énergie', pool: ['Imperturbable', 'Magnétique', 'Sauvage', 'Zen', 'Audacieux', 'Doré'] },
+    { label: 'Hymne', pool: ['un tube d\'été', 'une ballade', 'du pur hype', 'lo-fi calme', 'un air d\'outsider'] },
+    { label: 'Mois chance', pool: ['Mars', 'Juin', 'Septembre', 'Décembre', 'Février', 'Août'] },
+  ] },
+  { id: 'villain', title: 'Ton origine de méchant', emoji: '😈', rows: [
+    { label: 'On t\'a dit', pool: ['« T\'as changé »', '« Calme-toi »', '« C\'est pas grave »', '« T\'en fais trop »', '« Sois réaliste »', '« Plus tard »'] },
+    { label: 'Ton pouvoir', pool: ['Silence glacial', 'La réplique du siècle', 'Zéro réponse', 'Génie rancunier', 'Aura imperturbable'] },
+    { label: 'Ton geste', pool: ['Laisser en vu', 'Le clignement lent', 'Screenshot & garde', 'Ghost & glow', 'Les preuves'] },
+  ] },
+  { id: 'trip', title: 'Ton prochain voyage', emoji: '✈️', rows: [
+    { label: 'Destination', pool: ['Tokyo', 'Les Maldives', 'un road trip', 'Le Caire la nuit', 'les Alpes', 'un village côtier', 'l\'inconnu'] },
+    { label: 'Avec', pool: ['ton meilleur ami', 'solo et libre', 'toute la bande', 'un +1 surprise', 'la famille'] },
+    { label: 'Ambiance', pool: ['pur chaos', 'douce et lente', 'aventure', 'luxe', 'légendes du budget'] },
+    { label: 'Quand', pool: ['cet été', 'le mois prochain', 'en hiver', 'plus tôt que tu crois'] },
+  ] },
+  { id: 'aura', title: 'Lis mon aura', emoji: '🔮', rows: [
+    { label: 'Couleur', pool: ['Violet électrique', 'Or chaud', 'Bleu océan', 'Rose', 'Vert profond', 'Argent'] },
+    { label: 'Énergie', pool: ['Tempête calme', 'Feu brillant', 'Force tranquille', 'Étincelle sauvage', 'Vague douce'] },
+    { label: 'Animal', pool: ['un loup', 'un chat', 'un hibou', 'un dauphin', 'un lion', 'un renard'] },
+  ] },
+  { id: 'compliment', title: 'Générateur de compliments', emoji: '🌈', rows: [
+    { label: '', pool: [
+      'Ton sourire répare les mauvais jours ☀️',
+      'Tu es cool sans effort 😎',
+      'On se sent en sécurité avec toi 🫶',
+      'Tu es plus malin que tu l\'admets 🧠',
+      'Ton énergie est contagieuse ⚡',
+      'Tu rends les jours ordinaires fun 🎈',
+    ] },
+  ] },
+];
+
+const REEL_GAMES_ES = [
+  { id: 'love', title: 'Tu próxima relación', emoji: '💘', rows: [
+    { label: 'Tipo', pool: ['Alma gemela', 'Fuego lento', 'Situationship', 'Torbellino', 'Amigos primero', 'A distancia', 'Segunda oportunidad'] },
+    { label: 'Su vibra', pool: ['Caos adorable', 'Golden retriever', 'Misterioso', 'Power couple', 'Refugio', 'Puro chiste', 'Dulce y tímido'] },
+    { label: 'Se conocen', pool: ['En un café', 'En el gym', 'En una boda', 'En línea', 'Por amigos', 'En el extranjero', 'En la fila'] },
+    { label: 'Cuándo', pool: ['en 3 semanas', 'este verano', 'en 2 meses', 'el próximo año', 'cuando dejes de buscar'] },
+  ] },
+  { id: 'era', title: 'Tu era 2026', emoji: '✨', rows: [
+    { label: 'Era', pool: ['Protagonista', 'Soft life', 'Villano', 'Glow-up', 'Sanación', 'Ambición', 'Estrella de rock'] },
+    { label: 'Energía', pool: ['Imperturbable', 'Magnética', 'Salvaje', 'Zen', 'Audaz', 'Dorada'] },
+    { label: 'Himno', pool: ['un hit de verano', 'una balada', 'puro hype', 'lo-fi tranquilo', 'un tema de underdog'] },
+    { label: 'Mes de suerte', pool: ['Marzo', 'Junio', 'Septiembre', 'Diciembre', 'Febrero', 'Agosto'] },
+  ] },
+  { id: 'villain', title: 'Tu origen de villano', emoji: '😈', rows: [
+    { label: 'Te dijeron', pool: ['«Cambiaste»', '«Cálmate»', '«No es para tanto»', '«Eres demasiado»', '«Sé realista»', '«Quizá luego»'] },
+    { label: 'Tu poder', pool: ['Silencio frío', 'La respuesta del año', 'Cero respuestas', 'Genio rencoroso', 'Aura imperturbable'] },
+    { label: 'Tu jugada', pool: ['Dejar en visto', 'El parpadeo lento', 'Captura y guarda', 'Ghost & glow', 'Las pruebas'] },
+  ] },
+  { id: 'trip', title: 'Tu próximo viaje', emoji: '✈️', rows: [
+    { label: 'Destino', pool: ['Tokio', 'Las Maldivas', 'un road trip', 'El Cairo de noche', 'los Alpes', 'un pueblo costero', 'lo desconocido'] },
+    { label: 'Con', pool: ['tu mejor amigo', 'solo y libre', 'toda la banda', 'un +1 sorpresa', 'la familia'] },
+    { label: 'Ambiente', pool: ['puro caos', 'suave y lento', 'aventura', 'lujo', 'leyendas del presupuesto'] },
+    { label: 'Cuándo', pool: ['este verano', 'el próximo mes', 'en invierno', 'antes de lo que crees'] },
+  ] },
+  { id: 'aura', title: 'Lee mi aura', emoji: '🔮', rows: [
+    { label: 'Color', pool: ['Violeta eléctrico', 'Oro cálido', 'Azul océano', 'Rosa', 'Verde profundo', 'Plata'] },
+    { label: 'Energía', pool: ['Tormenta calma', 'Fuego brillante', 'Fuerza tranquila', 'Chispa salvaje', 'Ola suave'] },
+    { label: 'Animal', pool: ['un lobo', 'un gato', 'un búho', 'un delfín', 'un león', 'un zorro'] },
+  ] },
+  { id: 'compliment', title: 'Generador de cumplidos', emoji: '🌈', rows: [
+    { label: '', pool: [
+      'Tu sonrisa arregla los días malos ☀️',
+      'Eres cool sin esfuerzo 😎',
+      'La gente se siente segura contigo 🫶',
+      'Eres más listo de lo que admites 🧠',
+      'Tu energía es contagiosa ⚡',
+      'Haces divertidos los días normales 🎈',
+    ] },
+  ] },
+];
+
+const REEL_GAMES_BY_LANG = { en: REEL_GAMES, ar: REEL_GAMES_AR, fr: REEL_GAMES_FR, es: REEL_GAMES_ES };
+
 // slot-machine timing (ms): each row locks in sequence
 const REEL_LOCK_MS = 520, REEL_STEP_MS = 430, REEL_TAIL_MS = 340;
 const reelTotal = (n) => REEL_LOCK_MS + n * REEL_STEP_MS + REEL_TAIL_MS;
@@ -215,47 +343,51 @@ function wrapLines(ctx, text, maxW) {
 function drawReelCardCanvas(ctx, w, h, game, elapsed) {
   const s = w / 1080;
   const single = reelIsSingle(game);
-  const titleFs = Math.round(46 * s), rowFs = Math.round(40 * s), labelFs = Math.round(31 * s);
-  const pad = Math.round(34 * s), rowH = Math.round(62 * s), gap = Math.round(20 * s);
-  const panelW = Math.min(w * 0.9, Math.round(780 * s));
+  // Bigger, cleaner, centred — easy to read at a glance (TikTok-style).
+  const titleFs = Math.round(50 * s), valueFs = Math.round(46 * s), labelFs = Math.round(28 * s);
+  const pad = Math.round(38 * s), rowH = Math.round(96 * s), gapTitle = Math.round(30 * s);
+  const panelW = Math.min(w * 0.92, Math.round(820 * s));
   const innerW = panelW - pad * 2;
   ctx.textBaseline = 'alphabetic';
+  ctx.textAlign = 'center';
   let bodyLines = [];
-  if (single) { ctx.font = '800 ' + rowFs + 'px sans-serif'; bodyLines = wrapLines(ctx, game.rows[0].result, innerW); }
-  const bodyH = single ? bodyLines.length * Math.round(rowFs * 1.28) : game.rows.length * rowH;
-  const headerH = titleFs + gap;
+  if (single) { ctx.font = '800 ' + valueFs + 'px sans-serif'; bodyLines = wrapLines(ctx, game.rows[0].result, innerW); }
+  const bodyH = single ? bodyLines.length * Math.round(valueFs * 1.3) : game.rows.length * rowH;
+  const headerH = titleFs + gapTitle;
   const panelH = pad * 2 + headerH + bodyH;
-  const bx = (w - panelW) / 2, by = Math.round(h * 0.075);
-  // panel
-  ctx.fillStyle = 'rgba(12,8,28,0.82)';
-  roundRectPath(ctx, bx, by, panelW, panelH, Math.round(30 * s)); ctx.fill();
-  ctx.strokeStyle = 'rgba(245,179,1,0.55)'; ctx.lineWidth = Math.max(1, 2 * s); ctx.stroke();
+  const bx = (w - panelW) / 2, by = Math.round(h * 0.07);
+  // clean soft card — no busy border
+  ctx.fillStyle = 'rgba(8,6,20,0.55)';
+  roundRectPath(ctx, bx, by, panelW, panelH, Math.round(40 * s)); ctx.fill();
+  // shadow keeps text legible on any footage
+  ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = Math.round(9 * s); ctx.shadowOffsetY = Math.round(1 * s);
   // title
-  ctx.fillStyle = '#FFD75E'; ctx.textAlign = 'center'; ctx.font = '900 ' + titleFs + 'px sans-serif';
+  ctx.fillStyle = '#FFFFFF'; ctx.font = '900 ' + titleFs + 'px sans-serif';
   ctx.fillText(game.emoji + '  ' + game.title, w / 2, by + pad + titleFs * 0.82, innerW);
-  // body
   if (single) {
-    ctx.fillStyle = '#FFFFFF'; ctx.textAlign = 'center'; ctx.font = '800 ' + rowFs + 'px sans-serif';
-    const lh = Math.round(rowFs * 1.28);
-    bodyLines.forEach((ln, i) => ctx.fillText(ln, w / 2, by + pad + headerH + i * lh + rowFs * 0.85, innerW));
+    ctx.fillStyle = '#FFFFFF'; ctx.font = '800 ' + valueFs + 'px sans-serif';
+    const lh = Math.round(valueFs * 1.3);
+    bodyLines.forEach((ln, i) => ctx.fillText(ln, w / 2, by + pad + headerH + i * lh + valueFs * 0.85, innerW));
   } else {
     game.rows.forEach((row, i) => {
       const cell = reelCell(row, i, elapsed);
-      const ry = by + pad + headerH + i * rowH + rowFs * 0.85;
-      ctx.textAlign = 'left'; ctx.fillStyle = 'rgba(255,255,255,0.60)'; ctx.font = '700 ' + labelFs + 'px sans-serif';
-      ctx.fillText(row.label, bx + pad, ry);
-      const lw = ctx.measureText(row.label).width;
-      ctx.textAlign = 'right'; ctx.fillStyle = cell.locked ? '#FFFFFF' : 'rgba(255,255,255,0.62)';
-      ctx.font = '900 ' + rowFs + 'px sans-serif';
-      ctx.fillText(cell.text, bx + panelW - pad, ry, innerW - lw - Math.round(16 * s));
+      const top = by + pad + headerH + i * rowH;
+      ctx.fillStyle = 'rgba(255,255,255,0.62)'; ctx.font = '700 ' + labelFs + 'px sans-serif';
+      ctx.fillText(row.label, w / 2, top + labelFs, innerW);
+      ctx.fillStyle = cell.locked ? '#FFFFFF' : 'rgba(255,255,255,0.75)';
+      ctx.font = '900 ' + valueFs + 'px sans-serif';
+      ctx.fillText(cell.text, w / 2, top + labelFs + Math.round(valueFs * 1.05), innerW);
     });
   }
+  ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
   ctx.textAlign = 'start';
 }
 
 export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPostedStory, sendMode = false, sendToName, onMoment }) => {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { lang } = useLang();
+  const reelGames = REEL_GAMES_BY_LANG[lang] || REEL_GAMES; // games in the app's language
   const [mode, setMode] = useState(initialMode); // 'story' | 'reel'
   const [sound, setSound] = useState(null);
   const [facing, setFacing] = useState('user');
@@ -846,19 +978,19 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
         {/* reel-game card — live in the viewfinder & photo preview; a
             recorded reel already carries it in its pixels, so don't double it */}
         {reelGame && !(shot && shot.kind === 'video') ? (
-          <View pointerEvents="none" style={{ position: 'absolute', top: '8%', left: 0, right: 0, alignItems: 'center' }}>
-            <View style={{ backgroundColor: 'rgba(12,8,28,0.82)', borderColor: 'rgba(245,179,1,0.55)', borderWidth: 1, borderRadius: 20, paddingHorizontal: 16, paddingVertical: 12, maxWidth: '88%', minWidth: '60%' }}>
-              <Text style={{ color: '#FFD75E', fontSize: 15.5, fontWeight: '900', textAlign: 'center', marginBottom: reelIsSingle(reelGame) ? 2 : 8 }}>
+          <View pointerEvents="none" style={{ position: 'absolute', top: '7%', left: 0, right: 0, alignItems: 'center' }}>
+            <View style={{ backgroundColor: 'rgba(8,6,20,0.55)', borderRadius: 26, paddingHorizontal: 22, paddingVertical: 18, maxWidth: '90%', minWidth: '62%' }}>
+              <Text style={{ color: '#FFF', fontSize: 19, fontWeight: '900', textAlign: 'center', marginBottom: reelIsSingle(reelGame) ? 6 : 14, textShadowColor: 'rgba(0,0,0,0.5)', textShadowRadius: 6 }}>
                 {reelGame.emoji + '  ' + reelGame.title}
               </Text>
               {reelGame.rows.map((row, i) => {
                 const cell = reelCell(row, i, reelSpin);
                 return reelIsSingle(reelGame) ? (
-                  <Text key={i} style={{ color: '#FFF', fontSize: 15, fontWeight: '800', textAlign: 'center' }}>{cell.text}</Text>
+                  <Text key={i} style={{ color: '#FFF', fontSize: 19, fontWeight: '800', textAlign: 'center', lineHeight: 26, textShadowColor: 'rgba(0,0,0,0.5)', textShadowRadius: 6 }}>{cell.text}</Text>
                 ) : (
-                  <View key={i} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 3 }}>
-                    <Text style={{ color: 'rgba(255,255,255,0.62)', fontSize: 12.5, fontWeight: '700', marginRight: 16 }}>{row.label}</Text>
-                    <Text style={{ color: cell.locked ? '#FFF' : 'rgba(255,255,255,0.62)', fontSize: 14, fontWeight: '900', flexShrink: 1, textAlign: 'right' }}>{cell.text}</Text>
+                  <View key={i} style={{ alignItems: 'center', marginBottom: 12 }}>
+                    <Text style={{ color: 'rgba(255,255,255,0.62)', fontSize: 12.5, fontWeight: '700', marginBottom: 1 }}>{row.label}</Text>
+                    <Text style={{ color: cell.locked ? '#FFF' : 'rgba(255,255,255,0.75)', fontSize: 20, fontWeight: '900', textAlign: 'center', textShadowColor: 'rgba(0,0,0,0.5)', textShadowRadius: 6 }}>{cell.text}</Text>
                   </View>
                 );
               })}
@@ -917,7 +1049,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
                       </View>
                     </Pressable>
                   ) : null}
-                  {REEL_GAMES.map((g) => {
+                  {reelGames.map((g) => {
                     const on = reelGame && reelGame.id === g.id;
                     return (
                       <Pressable key={g.id} onPress={() => pickReelGame(g)}>
