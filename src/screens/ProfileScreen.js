@@ -131,6 +131,10 @@ export const ProfileScreen = () => {
   const [avatarErr, setAvatarErr] = useState(null);
   const [editFlag, setEditFlag] = useState('');
   const [editHobbies, setEditHobbies] = useState([]); // array of hobby labels
+  const [editAge, setEditAge] = useState('');
+  const [editWork, setEditWork] = useState('');
+  const [editStudy, setEditStudy] = useState('');
+  const [editLangs, setEditLangs] = useState('');
   const [countryQ, setCountryQ] = useState('');       // country search in edit
   const [editErr, setEditErr] = useState(null);
   const [savedEdit, setSavedEdit] = useState(false);
@@ -208,6 +212,10 @@ export const ProfileScreen = () => {
       setEditHandle(p.handle || '');
       setEditFlag(p.country_flag || '');
       setEditHobbies(p.hobbies ? String(p.hobbies).split(',').map((h) => h.trim()).filter(Boolean) : []);
+      setEditAge(p.age ? String(p.age) : '');
+      setEditWork(p.occupation || '');
+      setEditStudy(p.education || '');
+      setEditLangs(p.speaks_language || '');
     }).catch(() => {});
     fetchMyMoments(user.id).then(setMyMoments).catch(() => {});
     countMyCampfires(user.id).then(setCampfiresHosted).catch(() => {});
@@ -238,11 +246,16 @@ export const ProfileScreen = () => {
     try {
       const c = COUNTRY_LIST.find((x) => x.flag === editFlag);
       const cleanHandle = editHandle.trim().replace(/^@+/, '').replace(/[^a-zA-Z0-9._]/g, '').toLowerCase();
+      const ageNum = parseInt(editAge, 10);
       await updateProfile(user.id, {
         name: editName.trim() || 'Explorer', handle: cleanHandle || null,
         bio: editBio.trim() || null, intent: editIntent.trim() || null,
         country: c ? c.name : null, country_flag: editFlag || null,
         hobbies: editHobbies.length ? editHobbies.join(', ') : null,
+        age: Number.isFinite(ageNum) && ageNum > 0 && ageNum < 120 ? ageNum : null,
+        occupation: editWork.trim() || null,
+        education: editStudy.trim() || null,
+        speaks_language: editLangs.trim() || null,
       });
       tapSuccess(); sfxSuccess();
       setSavedEdit(true);
@@ -429,6 +442,23 @@ export const ProfileScreen = () => {
           </View>
           <Text style={{ color: C.dim, fontSize: 13.5, lineHeight: 20, marginTop: 6 }}>{me.bio}</Text>
 
+          {/* about you — only the fields you filled show, comma-clean */}
+          {myProfile && (myProfile.age || myProfile.occupation || myProfile.education || myProfile.speaks_language) ? (
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 10 }}>
+              {[
+                myProfile.age ? { i: 'gift-outline', t: myProfile.age + ' yrs' } : null,
+                myProfile.occupation ? { i: 'briefcase-outline', t: myProfile.occupation } : null,
+                myProfile.education ? { i: 'school-outline', t: myProfile.education } : null,
+                myProfile.speaks_language ? { i: 'chatbubbles-outline', t: myProfile.speaks_language } : null,
+              ].filter(Boolean).map((x, idx) => (
+                <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5, marginRight: 6, marginBottom: 6 }}>
+                  <Ionicons name={x.i} size={12} color={C.dim} />
+                  <Text style={{ color: C.text, fontSize: 11.5, fontWeight: '700', marginLeft: 5 }}>{x.t}</Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
+
           {/* your hobbies — straight from the profile row */}
           {myProfile && myProfile.hobbies ? (
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 10 }}>
@@ -609,6 +639,27 @@ export const ProfileScreen = () => {
               placeholderTextColor={C.faint}
               value={editIntent}
               onChangeText={setEditIntent}
+              style={{ color: C.text, fontSize: 14, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 11, marginBottom: 12 }}
+            />
+
+            {/* a few simple, optional "about you" fields — all can stay blank */}
+            <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', letterSpacing: 1, marginBottom: 8 }}>ABOUT YOU · all optional</Text>
+            <View style={{ flexDirection: 'row', marginBottom: 9 }}>
+              <TextInput
+                placeholder="Age" placeholderTextColor={C.faint} value={editAge} onChangeText={(t) => setEditAge(t.replace(/[^0-9]/g, '').slice(0, 3))} keyboardType="number-pad"
+                style={{ width: 88, color: C.text, fontSize: 14, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 11, marginRight: 9 }}
+              />
+              <TextInput
+                placeholder="What you do 💼" placeholderTextColor={C.faint} value={editWork} onChangeText={setEditWork}
+                style={{ flex: 1, color: C.text, fontSize: 14, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 11 }}
+              />
+            </View>
+            <TextInput
+              placeholder="What you studied 🎓" placeholderTextColor={C.faint} value={editStudy} onChangeText={setEditStudy}
+              style={{ color: C.text, fontSize: 14, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 11, marginBottom: 9 }}
+            />
+            <TextInput
+              placeholder="Languages you speak 🗣️ (e.g. Arabic, English)" placeholderTextColor={C.faint} value={editLangs} onChangeText={setEditLangs}
               style={{ color: C.text, fontSize: 14, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 11, marginBottom: 12 }}
             />
 

@@ -428,6 +428,10 @@ alter table public.tracks add column if not exists license      text;   -- 'CC-B
 alter table public.tracks add column if not exists attribution  text;   -- credit line shown in-app (CC-BY needs this)
 alter table public.tracks add column if not exists source_url   text;   -- where the file came from (proof of license)
 create index if not exists tracks_official_idx on public.tracks (is_official);
+-- Owner-approved distribution: a track is only public once approved (or
+-- official). Uploads land as pending; the app owner approves or rejects.
+alter table public.tracks add column if not exists is_approved boolean default false;
+update public.tracks set is_approved = true where is_official = true and is_approved is distinct from true;
 
 -- Seed a curated track (run from the SQL editor / dashboard, which uses
 -- the service role so uploader_id may stay null). Fill in a REAL audio
@@ -581,6 +585,16 @@ create policy "signed-in users can create squads" on public.squads
 drop policy if exists "members can leave squads" on public.squad_members;
 create policy "members can leave squads" on public.squad_members
   for delete using (auth.uid() = user_id);
+-- invite mates: a current member of a squad may add other people to it
+-- (the old policy only let you add YOURSELF, so invites failed).
+drop policy if exists "users join squads as themselves" on public.squad_members;
+drop policy if exists "members can invite to their squads" on public.squad_members;
+create policy "members can invite to their squads" on public.squad_members
+  for insert with check (
+    auth.uid() = user_id
+    or exists (select 1 from public.squad_members m
+               where m.squad_id = squad_members.squad_id and m.user_id = auth.uid())
+  );
 
 -- ═══════════ STORY CLEANUP · expired stories are really deleted ═══════════
 -- The RLS policy already HIDES stories after 24h, but the rows + media
@@ -677,6 +691,9 @@ alter table public.profiles add column if not exists avatar_dna       text;
 alter table public.profiles add column if not exists last_active_at   timestamptz;
 alter table public.profiles add column if not exists cover_url        text;
 alter table public.profiles add column if not exists tos_accepted_at  timestamptz; -- accepted the Terms + rights policy
+alter table public.profiles add column if not exists age         int;   -- optional, shown on profile
+alter table public.profiles add column if not exists occupation  text;  -- "what you do"
+alter table public.profiles add column if not exists education   text;  -- "what you studied"
 
 -- ═══════════════ MOMENTS IN CHAT (streaks) ═══════════════
 -- Send each other photo/video "Moments" right inside a chat, like

@@ -6,7 +6,7 @@ import { C } from '../constants/theme';
 import { HUB_TRACKS, TRACK_MOODS } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-import { fetchTracks, uploadTrack, deleteTrack } from '../services/music';
+import { fetchTracks, uploadTrack, deleteTrack, isOwner } from '../services/music';
 import { startCheckout } from '../services/payments';
 import { ReportSheet } from './ReportSheet';
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
@@ -64,6 +64,7 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
         title: upTitle.trim(),
         mood: mood === 'All' ? null : mood,
         cover_emoji: '🎵',
+        approved: isOwner(user), // owner uploads go live; anyone else stays pending
       });
       tapSuccess(); sfxSuccess();
       setUpFile(null); setUpTitle('');
@@ -77,7 +78,7 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
 
   useEffect(() => {
     if (!SUPABASE_READY) return;
-    fetchTracks(mood === 'All' ? {} : { mood })
+    fetchTracks({ ...(mood === 'All' ? {} : { mood }), meId: user && user.id })
       .then((rows) => setRemote(rows.map((r) => ({
         id: r.id, title: r.title, cover_emoji: r.cover_emoji, mood: r.mood, bpm: r.bpm,
         music_key: r.music_key, instruments: r.instruments || [], genre_shape: r.genre_shape,
@@ -159,12 +160,14 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
             <Text style={{ color: C.text, fontSize: 18, fontWeight: '900' }}>Music Hub 🎧</Text>
             <Text style={{ color: C.faint, fontSize: 12, marginTop: 2 }}>Original indie tracks — find them by feel, not by name</Text>
           </View>
-          <Pressable onPress={pickAudio}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8 }}>
-              <Ionicons name="cloud-upload-outline" size={15} color="#FFF" />
-              <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '900', marginLeft: 5 }}>Upload</Text>
-            </View>
-          </Pressable>
+          {isOwner(user) ? (
+            <Pressable onPress={pickAudio}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8 }}>
+                <Ionicons name="cloud-upload-outline" size={15} color="#FFF" />
+                <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '900', marginLeft: 5 }}>Add track</Text>
+              </View>
+            </Pressable>
+          ) : null}
         </View>
 
         {/* upload form — appears once a file is chosen */}
@@ -193,12 +196,14 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
         {/* ── FOR ARTISTS — real distribution terms, no fine print ──
             Upload originals here = distribution on Moments. Every licence
             or promo purchase splits 2/3 to the artist, 1/3 to Moments. */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.purpleSoft, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 9, marginTop: 10 }}>
-          <Text style={{ fontSize: 16 }}>🎤</Text>
-          <Text style={{ color: C.purple, fontSize: 11, fontWeight: '700', marginLeft: 8, flex: 1, lineHeight: 15 }}>
-            Artists: distribute here & keep 2/3 of every licence and promo — Moments takes 1/3. Upload your originals ↑
-          </Text>
-        </View>
+        {isOwner(user) ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.purpleSoft, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 9, marginTop: 10 }}>
+            <Text style={{ fontSize: 16 }}>🎛️</Text>
+            <Text style={{ color: C.purple, fontSize: 11, fontWeight: '700', marginLeft: 8, flex: 1, lineHeight: 15 }}>
+              Owner tools: tracks you add go live instantly. Artist distribution (2/3 revenue share) opens with owner approval.
+            </Text>
+          </View>
+        ) : null}
         <View style={{ height: 12 }} />
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }}>
@@ -271,14 +276,13 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
               </View>
             </Pressable>
           )) : (
-            <View style={{ paddingVertical: 22, paddingHorizontal: 6 }}>
-              <Text style={{ fontSize: 26, textAlign: 'center' }}>🎼</Text>
-              <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '900', marginTop: 8, textAlign: 'center' }}>The Hub is waiting for its first track</Text>
-              <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 10, lineHeight: 19 }}>
-                Moments never ships copyrighted songs — the library grows from real uploads. Fill it in 3 steps:{'\n\n'}
-                1️⃣  Grab free music you're allowed to use — pixabay.com/music has thousands of tracks, free even commercially.{'\n'}
-                2️⃣  On iPhone: save the file to the Files app (Apple Music songs are DRM-locked and can't be uploaded — that's an Apple rule, not ours).{'\n'}
-                3️⃣  Tap <Text style={{ fontWeight: '900', color: C.purple }}>Upload ↑</Text>, pick the file, title it, publish. It's instantly usable on stories & reels.
+            <View style={{ alignItems: 'center', paddingVertical: 36, paddingHorizontal: 12 }}>
+              <Text style={{ fontSize: 28 }}>🎧</Text>
+              <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '900', marginTop: 8, textAlign: 'center' }}>The music library is on its way</Text>
+              <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 8, textAlign: 'center', lineHeight: 19 }}>
+                {isOwner(user)
+                  ? 'Add curated, cleared tracks with “Add track” above — they go live for everyone instantly.'
+                  : 'We\'re curating a licensed, safe sound library — real tracks you can use on stories & reels, right here in the app. Check back soon 🎵'}
               </Text>
             </View>
           )}

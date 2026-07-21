@@ -140,7 +140,7 @@ export const ChatsScreen = () => {
       reload();
     } catch (e) {
       setSquadErr(/does not exist|policy|security/i.test(e.message || '')
-        ? 'One step left: run the latest supabase/RUN_ME.sql to turn on squads.'
+        ? 'Squads need one setup step in Supabase (run RUN_ME.sql) — ping Ayser to switch it on.'
         : (e.message || 'Could not create the squad.'));
     }
   };
@@ -163,7 +163,7 @@ export const ChatsScreen = () => {
     catch (e) {
       setInvited((v) => { const n = { ...v }; delete n[mate.id]; return n; });
       setInviteErr(/does not exist|policy|security/i.test(e.message || '')
-        ? 'One step left: run the latest supabase/RUN_ME.sql to turn on squad invites.'
+        ? 'Inviting mates needs the latest setup step (run RUN_ME.sql once) — then invites work instantly.'
         : (e.message || 'Could not add them.'));
     }
   };

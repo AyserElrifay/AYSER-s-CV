@@ -2,17 +2,39 @@ import { supabase } from '../lib/supabase';
 import { uploadMediaSmart } from '../lib/storage';
 
 /* Indie Music Hub — original tracks discovered by how they SOUND
-   (mood, BPM, instruments), never by artist name. */
+   (mood, BPM, instruments), never by artist name.
 
-export async function fetchTracks({ mood, bpmMin, bpmMax, instrument } = {}) {
-  let q = supabase.from('tracks').select('*, uploader:profiles!tracks_uploader_id_fkey(name, handle)').order('uses_count', { ascending: false }).limit(60);
+   Distribution is owner-approved: a track is only public once the app
+   owner approves it (or it's an official/curated track). This is the
+   safe library — no copyrighted uploads reach users unvetted. */
+
+// The app owner(s) — the only accounts that can upload & approve music.
+export const OWNER_EMAILS = ['ayseryourlifecoach@gmail.com'];
+export const isOwner = (user) => !!(user && user.email && OWNER_EMAILS.includes(String(user.email).toLowerCase()));
+
+export async function fetchTracks({ mood, bpmMin, bpmMax, instrument, meId, all } = {}) {
+  let q = supabase.from('tracks').select('*, uploader:profiles!tracks_uploader_id_fkey(name, handle)').order('uses_count', { ascending: false }).limit(80);
   if (mood) q = q.eq('mood', mood);
   if (bpmMin != null) q = q.gte('bpm', bpmMin);
   if (bpmMax != null) q = q.lte('bpm', bpmMax);
   if (instrument) q = q.contains('instruments', [instrument]);
   const { data, error } = await q;
+  if (error) {
+    // is_approved column not added yet → show everything (pre-migration)
+    if (/is_approved|column/i.test(error.message || '')) { const r = await q; return r.data || []; }
+    throw error;
+  }
+  const rows = data || [];
+  if (all) return rows; // owner moderation view: pending + approved
+  // Public view: approved or official only (plus your own, so you see it while pending)
+  return rows.filter((t) => t.is_approved || t.is_official || (meId && t.uploader_id === meId));
+}
+
+/* Owner moderation — approve or reject a pending track. */
+export async function setTrackApproval(trackId, approved) {
+  const { error } = await supabase.from('tracks').update({ is_approved: !!approved }).eq('id', trackId);
   if (error) throw error;
-  return data || [];
+  return true;
 }
 
 /* Real play/use count — called whenever someone actually attaches this
@@ -30,6 +52,7 @@ export async function uploadTrack(userId, fileUri, ext, contentType, meta) {
     .from('tracks')
     .insert({
       uploader_id: userId,
+      is_approved: !!meta.approved, // owner uploads are auto-approved (safe library)
       title: meta.title,
       audio_url: audioUrl,
       cover_emoji: meta.cover_emoji || '🎵',

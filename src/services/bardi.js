@@ -33,19 +33,39 @@ Be concise, kind and practical. Ask one question at a time when you need more. A
    moment the app loads. Real AI, not a canned reply. */
 async function askBardiDirect(messages, opts) {
   const sys = bardiSystem(opts.language || 'en', opts.profile);
-  const res = await fetch('https://text.pollinations.ai/openai', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({
-      model: 'openai',
-      messages: [{ role: 'system', content: sys }, ...(messages || []).map((m) => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: String(m.content || '') }))],
-    }),
-  });
-  if (!res.ok) throw new Error('bardi-unavailable');
-  const data = await res.json();
-  const reply = (data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content || '').trim();
-  if (!reply) throw new Error('bardi-empty');
-  return reply;
+  const hist = (messages || []).slice(-8);
+
+  // 1) GET endpoint — simplest, no CORS preflight, most reliable in a browser.
+  try {
+    const convo = hist.map((m) => (m.role === 'assistant' ? 'Bardi' : 'User') + ': ' + String(m.content || '')).join('\n');
+    const prompt = convo + '\nBardi:';
+    const url = 'https://text.pollinations.ai/' + encodeURIComponent(prompt)
+      + '?model=openai&referrer=moments&system=' + encodeURIComponent(sys);
+    const r = await fetch(url);
+    if (r.ok) {
+      const text = (await r.text()).trim();
+      if (text && !/^\s*(error|not found|<)/i.test(text)) return text;
+    }
+  } catch (e) { /* try POST */ }
+
+  // 2) POST OpenAI-style endpoint as a backup.
+  try {
+    const res = await fetch('https://text.pollinations.ai/openai', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        model: 'openai', referrer: 'moments',
+        messages: [{ role: 'system', content: sys }, ...hist.map((m) => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: String(m.content || '') }))],
+      }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      const reply = (data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content || '').trim();
+      if (reply) return reply;
+    }
+  } catch (e) { /* fall through */ }
+
+  throw new Error('bardi-unavailable');
 }
 
 /* Send the conversation to Bardi and get its reply.
