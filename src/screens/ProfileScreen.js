@@ -463,21 +463,16 @@ export const ProfileScreen = () => {
           </View>
           <Text style={{ color: C.dim, fontSize: 13.5, lineHeight: 20, marginTop: 6 }}>{me.bio}</Text>
 
-          {/* about you — only the fields you filled show, comma-clean */}
+          {/* about you — one clean, light line (TikTok-simple, not crowded) */}
           {myProfile && (myProfile.age || myProfile.occupation || myProfile.education || myProfile.speaks_language) ? (
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 10 }}>
+            <Text style={{ color: C.faint, fontSize: 12.5, marginTop: 8, lineHeight: 18 }}>
               {[
-                myProfile.age ? { i: 'gift-outline', t: myProfile.age + ' yrs' } : null,
-                myProfile.occupation ? { i: 'briefcase-outline', t: myProfile.occupation } : null,
-                myProfile.education ? { i: 'school-outline', t: myProfile.education } : null,
-                myProfile.speaks_language ? { i: 'chatbubbles-outline', t: myProfile.speaks_language } : null,
-              ].filter(Boolean).map((x, idx) => (
-                <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5, marginRight: 6, marginBottom: 6 }}>
-                  <Ionicons name={x.i} size={12} color={C.dim} />
-                  <Text style={{ color: C.text, fontSize: 11.5, fontWeight: '700', marginLeft: 5 }}>{x.t}</Text>
-                </View>
-              ))}
-            </View>
+                myProfile.age ? '🎂 ' + myProfile.age : null,
+                myProfile.occupation ? '💼 ' + myProfile.occupation : null,
+                myProfile.education ? '🎓 ' + myProfile.education : null,
+                myProfile.speaks_language ? '🗣️ ' + myProfile.speaks_language : null,
+              ].filter(Boolean).join('   ·   ')}
+            </Text>
           ) : null}
 
           {/* your hobbies — straight from the profile row */}

@@ -207,19 +207,14 @@ export const ProfileModal = ({ user, onClose }) => {
               <Text style={{ color: C.text, fontSize: 14, lineHeight: 21, marginTop: 12 }}>{user.bio || fullProfile.bio}</Text>
             ) : null}
             {fullProfile && (fullProfile.age || fullProfile.occupation || fullProfile.education || fullProfile.speaks_language) ? (
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 10 }}>
+              <Text style={{ color: C.faint, fontSize: 12.5, marginTop: 8, lineHeight: 18 }}>
                 {[
-                  fullProfile.age ? { i: 'gift-outline', t: fullProfile.age + ' yrs' } : null,
-                  fullProfile.occupation ? { i: 'briefcase-outline', t: fullProfile.occupation } : null,
-                  fullProfile.education ? { i: 'school-outline', t: fullProfile.education } : null,
-                  fullProfile.speaks_language ? { i: 'chatbubbles-outline', t: fullProfile.speaks_language } : null,
-                ].filter(Boolean).map((x, idx) => (
-                  <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5, marginRight: 6, marginBottom: 6 }}>
-                    <Ionicons name={x.i} size={12} color={C.dim} />
-                    <Text style={{ color: C.text, fontSize: 11.5, fontWeight: '700', marginLeft: 5 }}>{x.t}</Text>
-                  </View>
-                ))}
-              </View>
+                  fullProfile.age ? '🎂 ' + fullProfile.age : null,
+                  fullProfile.occupation ? '💼 ' + fullProfile.occupation : null,
+                  fullProfile.education ? '🎓 ' + fullProfile.education : null,
+                  fullProfile.speaks_language ? '🗣️ ' + fullProfile.speaks_language : null,
+                ].filter(Boolean).join('   ·   ')}
+              </Text>
             ) : null}
             {fullProfile && fullProfile.hobbies ? (
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 10 }}>
