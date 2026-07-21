@@ -587,13 +587,18 @@ create policy "members can leave squads" on public.squad_members
   for delete using (auth.uid() = user_id);
 -- invite mates: a current member of a squad may add other people to it
 -- (the old policy only let you add YOURSELF, so invites failed).
+-- NOTE: the membership check MUST go through a security-definer function —
+-- a plain subquery on squad_members inside its own policy triggers Postgres
+-- "infinite recursion detected in policy" and breaks every insert.
+create or replace function public.is_squad_member(sid uuid, uid uuid)
+returns boolean language sql security definer stable set search_path = public as $$
+  select exists (select 1 from public.squad_members where squad_id = sid and user_id = uid);
+$$;
 drop policy if exists "users join squads as themselves" on public.squad_members;
 drop policy if exists "members can invite to their squads" on public.squad_members;
 create policy "members can invite to their squads" on public.squad_members
   for insert with check (
-    auth.uid() = user_id
-    or exists (select 1 from public.squad_members m
-               where m.squad_id = squad_members.squad_id and m.user_id = auth.uid())
+    auth.uid() = user_id or public.is_squad_member(squad_members.squad_id, auth.uid())
   );
 
 -- ═══════════ STORY CLEANUP · expired stories are really deleted ═══════════
