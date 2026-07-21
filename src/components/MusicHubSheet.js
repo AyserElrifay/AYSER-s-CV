@@ -55,6 +55,36 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
     input.click();
   };
 
+  // Owner quick-seed: paste a direct link to a royalty-free track (Pixabay,
+  // Uppbeat, Incompetech…) and it's fetched in your browser + stored. If the
+  // source blocks cross-origin fetch, we say so and you use the file picker.
+  const [urlOpen, setUrlOpen] = useState(false);
+  const [urlVal, setUrlVal] = useState('');
+  const addByUrl = async () => {
+    const u = urlVal.trim();
+    if (!u || upBusy) return;
+    if (!SUPABASE_READY || !user) { setUpErr('Sign in first.'); return; }
+    setUpBusy(true); setUpErr(null);
+    try {
+      const clean = u.split('?')[0];
+      const ext = (clean.split('.').pop() || 'mp3').toLowerCase().slice(0, 4);
+      const name = decodeURIComponent(clean.split('/').pop() || 'track').replace(/\.[^.]+$/, '');
+      // fetch in the browser to confirm it's reachable + a real audio file
+      const res = await fetch(u);
+      if (!res.ok) throw new Error('fetch-failed');
+      const blob = await res.blob();
+      const objUrl = URL.createObjectURL(blob);
+      await uploadTrack(user.id, objUrl, ext || 'mp3', blob.type || 'audio/mpeg', {
+        title: (upTitle.trim() || name).slice(0, 60), mood: mood === 'All' ? null : mood, cover_emoji: '🎵', approved: isOwner(user),
+      });
+      tapSuccess(); sfxSuccess();
+      setUrlVal(''); setUrlOpen(false); setUpTitle('');
+      setReloadKey((k) => k + 1);
+    } catch (e) {
+      setUpErr('That link couldn\'t be fetched here (the site may block it). Download the file, then use “Add track”. 🎵');
+    } finally { setUpBusy(false); }
+  };
+
   const doUpload = async () => {
     if (!upFile || !upTitle.trim() || upBusy) return;
     if (!SUPABASE_READY || !user) { setUpErr('Sign in to upload tracks.'); return; }
@@ -161,14 +191,38 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
             <Text style={{ color: C.faint, fontSize: 12, marginTop: 2 }}>Original indie tracks — find them by feel, not by name</Text>
           </View>
           {isOwner(user) ? (
-            <Pressable onPress={pickAudio}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8 }}>
-                <Ionicons name="cloud-upload-outline" size={15} color="#FFF" />
-                <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '900', marginLeft: 5 }}>Add track</Text>
-              </View>
-            </Pressable>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Pressable onPress={() => { tapLight(); setUrlOpen((o) => !o); }} style={{ marginRight: 8 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 8 }}>
+                  <Ionicons name="link-outline" size={15} color={C.purple} />
+                  <Text style={{ color: C.purple, fontSize: 12, fontWeight: '900', marginLeft: 4 }}>URL</Text>
+                </View>
+              </Pressable>
+              <Pressable onPress={pickAudio}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8 }}>
+                  <Ionicons name="cloud-upload-outline" size={15} color="#FFF" />
+                  <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '900', marginLeft: 5 }}>Add track</Text>
+                </View>
+              </Pressable>
+            </View>
           ) : null}
         </View>
+
+        {/* owner: quick-seed from a royalty-free direct link */}
+        {urlOpen && isOwner(user) ? (
+          <View style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 14, padding: 12, marginTop: 10 }}>
+            <Text style={{ color: C.dim, fontSize: 11, marginBottom: 7 }}>Paste a direct link to a royalty-free track (Pixabay, Uppbeat, Incompetech…)</Text>
+            <TextInput placeholder="https://…/track.mp3" placeholderTextColor={C.faint} value={urlVal} onChangeText={setUrlVal} autoCapitalize="none"
+              style={{ color: C.text, fontSize: 13, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 10, paddingHorizontal: 11, paddingVertical: 9 }} />
+            <TextInput placeholder="Title (optional)" placeholderTextColor={C.faint} value={upTitle} onChangeText={setUpTitle}
+              style={{ color: C.text, fontSize: 13, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 10, paddingHorizontal: 11, paddingVertical: 9, marginTop: 8 }} />
+            <Pressable onPress={addByUrl} style={{ marginTop: 9 }}>
+              <View style={{ backgroundColor: urlVal.trim() && !upBusy ? C.purple : C.glassHi, borderRadius: 11, paddingVertical: 11, alignItems: 'center' }}>
+                <Text style={{ color: urlVal.trim() && !upBusy ? '#FFF' : C.faint, fontSize: 12.5, fontWeight: '900' }}>{upBusy ? 'Fetching…' : 'Fetch & publish 🎧'}</Text>
+              </View>
+            </Pressable>
+          </View>
+        ) : null}
 
         {/* upload form — appears once a file is chosen */}
         {upFile ? (
