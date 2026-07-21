@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, Modal, Pressable, Image, TextInput, ScrollView, Platform } from 'react-native';
+import { View, Text, Modal, Pressable, Image, TextInput, ScrollView, Platform, PanResponder } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -142,6 +142,12 @@ const REEL_GAMES = [
       'You make ordinary days fun 🎈',
     ] },
   ] },
+  { id: 'cursed', title: 'Your Cursed Future', emoji: '😂', rows: [
+    { label: 'You\'ll marry', pool: ['a 70-year-old named Osama', 'your neighbour\'s goat', 'a guy who claps at landings', 'someone named after a vegetable', 'a haunted GPS', 'your 3rd-grade rival'] },
+    { label: 'Your job', pool: ['professional napper', 'chicken life-coach', 'wedding hype-man', 'pigeon translator', 'full-time victim', 'sock inspector'] },
+    { label: 'Your money', pool: ['5 EGP forever', 'rich in Monopoly cash', 'in debt to a camel', 'paid in vibes', 'owes the falafel guy'] },
+    { label: 'Your fate', pool: ['famous for tripping', 'king of the memes', 'lives with 7 cats', 'trends for the wrong reason', 'becomes a cautionary tale'] },
+  ] },
 ];
 
 /* Same games, spoken in the player's language — Arabic, French, Spanish.
@@ -185,6 +191,12 @@ const REEL_GAMES_AR = [
       'بتخلّي اليوم العادي حلو 🎈',
     ] },
   ] },
+  { id: 'cursed', title: 'مستقبلك المقلوب', emoji: '😂', rows: [
+    { label: 'هتتجوز', pool: ['راجل عنده ٧٠ سنة اسمه أسامة', 'معزة الجيران', 'واحد بيصفّق لما الطيارة تنزل', 'حد متسمّي على خضار', 'GPS مسكون', 'غريمك من ابتدائي'] },
+    { label: 'شغلك', pool: ['نايم محترف', 'مدرّب حياة للفراخ', 'مشجّع أفراح', 'مترجم حمام', 'ضحية بدوام كامل', 'مفتّش شرابات'] },
+    { label: 'فلوسك', pool: ['٥ جنيه للأبد', 'غني بفلوس المونوبولي', 'مديون لجمل', 'بيتدفعلك vibes', 'مديون لبتاع الفلافل'] },
+    { label: 'مصيرك', pool: ['مشهور إنك بتقع', 'ملك الميمز', 'عايش مع ٧ قطط', 'بتتريند بالغلط', 'بقيت عبرة'] },
+  ] },
 ];
 
 const REEL_GAMES_FR = [
@@ -226,6 +238,12 @@ const REEL_GAMES_FR = [
       'Tu rends les jours ordinaires fun 🎈',
     ] },
   ] },
+  { id: 'cursed', title: 'Ton futur maudit', emoji: '😂', rows: [
+    { label: 'Tu épouseras', pool: ['un monsieur de 70 ans nommé Osama', 'la chèvre du voisin', 'un gars qui applaudit à l\'atterrissage', 'quelqu\'un nommé comme un légume', 'un GPS hanté', 'ton rival de CE2'] },
+    { label: 'Ton métier', pool: ['sieste professionnelle', 'coach de vie pour poulets', 'ambianceur de mariages', 'traducteur de pigeons', 'victime à plein temps', 'inspecteur de chaussettes'] },
+    { label: 'Ton argent', pool: ['5 EGP à vie', 'riche en Monopoly', 'endetté à un chameau', 'payé en vibes', 'doit au vendeur de falafel'] },
+    { label: 'Ton destin', pool: ['célèbre pour tes chutes', 'roi des memes', 'vit avec 7 chats', 'buzz pour de mauvaises raisons', 'devient une légende ratée'] },
+  ] },
 ];
 
 const REEL_GAMES_ES = [
@@ -266,6 +284,12 @@ const REEL_GAMES_ES = [
       'Tu energía es contagiosa ⚡',
       'Haces divertidos los días normales 🎈',
     ] },
+  ] },
+  { id: 'cursed', title: 'Tu futuro maldito', emoji: '😂', rows: [
+    { label: 'Te casarás con', pool: ['un señor de 70 años llamado Osama', 'la cabra del vecino', 'alguien que aplaude al aterrizar', 'alguien con nombre de verdura', 'un GPS embrujado', 'tu rival de primaria'] },
+    { label: 'Tu trabajo', pool: ['dormir profesional', 'coach de pollos', 'animador de bodas', 'traductor de palomas', 'víctima a tiempo completo', 'inspector de calcetines'] },
+    { label: 'Tu dinero', pool: ['5 EGP para siempre', 'rico en Monopoly', 'en deuda con un camello', 'pagado en vibes', 'le debes al de los falafel'] },
+    { label: 'Tu destino', pool: ['famoso por tropezar', 'rey de los memes', 'vives con 7 gatos', 'viral por lo equivocado', 'te vuelves una advertencia'] },
   ] },
 ];
 
@@ -449,6 +473,30 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
   const [contrast, setContrast] = useState(1); // 0.7 … 1.3
   const [warmth, setWarmth] = useState(0);     // -20 … 20 (deg hue toward warm)
   const [editOpen, setEditOpen] = useState(false);
+
+  // ── swipe the viewfinder to flip through filters, live (Snap-style) ──
+  const [filterFlash, setFilterFlash] = useState(null);
+  const filterIdRef = useRef('none');
+  const flashTimer = useRef(null);
+  useEffect(() => { filterIdRef.current = filterId; }, [filterId]);
+  const cycleFilter = (dir) => {
+    const idx = FILTERS.findIndex((f) => f.id === filterIdRef.current);
+    const nf = FILTERS[(idx + dir + FILTERS.length) % FILTERS.length];
+    tapLight(); sfxPop();
+    setFilterId(nf.id);
+    setFilterFlash(nf.emoji + '  ' + nf.label);
+    clearTimeout(flashTimer.current);
+    flashTimer.current = setTimeout(() => setFilterFlash(null), 900);
+  };
+  const cycleFilterRef = useRef(cycleFilter);
+  cycleFilterRef.current = cycleFilter;
+  const swipe = useRef(PanResponder.create({
+    // only claim clear horizontal drags, so taps & vertical scrolls pass through
+    onMoveShouldSetPanResponder: (e, g) => Math.abs(g.dx) > 22 && Math.abs(g.dx) > Math.abs(g.dy) * 1.4,
+    onPanResponderRelease: (e, g) => { if (Math.abs(g.dx) >= 45) cycleFilterRef.current(g.dx < 0 ? 1 : -1); },
+  })).current;
+  useEffect(() => () => clearTimeout(flashTimer.current), []);
+
   const cssFilter = (() => {
     const base = (FILTERS.find((f) => f.id === filterId) || {}).css || '';
     const edits = [];
@@ -994,6 +1042,20 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
                   </View>
                 );
               })}
+            </View>
+          </View>
+        ) : null}
+
+        {/* swipe layer — drag left/right across the viewfinder to change the
+            filter live. Sits under the controls (they're rendered after), and
+            only claims horizontal drags so taps & the shutter still work. */}
+        {!shot && isWeb ? (
+          <View {...swipe.panHandlers} style={{ position: 'absolute', top: 90, bottom: 200, left: 0, right: 0 }} />
+        ) : null}
+        {filterFlash && !shot ? (
+          <View pointerEvents="none" style={{ position: 'absolute', top: '44%', left: 0, right: 0, alignItems: 'center' }}>
+            <View style={{ backgroundColor: 'rgba(8,6,20,0.6)', borderRadius: 999, paddingHorizontal: 20, paddingVertical: 10 }}>
+              <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '900' }}>{filterFlash}</Text>
             </View>
           </View>
         ) : null}
