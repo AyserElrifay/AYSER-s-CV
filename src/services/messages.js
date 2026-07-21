@@ -236,25 +236,34 @@ export async function fetchMyDmThreads(userId) {
 
 /* Real squads you're actually a member of. */
 export async function fetchMySquads(userId) {
-  const { data, error } = await supabase
-    .from('squad_members')
-    .select('squad:squads(id, name, emoji, created_at)')
-    .eq('user_id', userId);
+  // avatar_url may not exist pre-migration → fall back to name/emoji only
+  const sel = 'squad:squads(id, name, emoji, avatar_url, created_at)';
+  let { data, error } = await supabase.from('squad_members').select(sel).eq('user_id', userId);
+  if (error && /avatar_url|column/i.test(error.message || '')) {
+    ({ data, error } = await supabase.from('squad_members').select('squad:squads(id, name, emoji, created_at)').eq('user_id', userId));
+  }
   if (error) throw error;
   return (data || []).map((r) => r.squad).filter(Boolean);
 }
 
 /* Create a real squad (group chat) and join it as the first member. */
-export async function createSquad(userId, { name, emoji }) {
-  const { data, error } = await supabase
-    .from('squads')
-    .insert({ name, emoji: emoji || '🏕️' })
-    .select()
-    .single();
-  if (error) throw error;
-  const { error: memErr } = await supabase.from('squad_members').insert({ squad_id: data.id, user_id: userId });
+export async function createSquad(userId, { name, emoji, avatarUrl }) {
+  const full = { name, emoji: emoji || '🏕️', avatar_url: avatarUrl || null };
+  let res = await supabase.from('squads').insert(full).select().single();
+  if (res.error && /avatar_url|column/i.test(res.error.message || '')) {
+    res = await supabase.from('squads').insert({ name, emoji: emoji || '🏕️' }).select().single();
+  }
+  if (res.error) throw res.error;
+  const { error: memErr } = await supabase.from('squad_members').insert({ squad_id: res.data.id, user_id: userId });
   if (memErr) throw memErr;
-  return data;
+  return res.data;
+}
+
+/* Set (or change) a squad's photo. */
+export async function setSquadImage(squadId, avatarUrl) {
+  const { error } = await supabase.from('squads').update({ avatar_url: avatarUrl }).eq('id', squadId);
+  if (error) throw error;
+  return true;
 }
 
 /* Add a mate to your squad (they appear in the group instantly). */

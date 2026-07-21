@@ -582,6 +582,11 @@ create policy "participants can sweep expired messages" on public.messages
 drop policy if exists "signed-in users can create squads" on public.squads;
 create policy "signed-in users can create squads" on public.squads
   for insert with check (auth.uid() is not null);
+-- squads can carry a real photo (not just an emoji)
+alter table public.squads add column if not exists avatar_url text;
+drop policy if exists "members can update their squad" on public.squads;
+create policy "members can update their squad" on public.squads
+  for update using (public.is_squad_member(id, auth.uid()));
 drop policy if exists "members can leave squads" on public.squad_members;
 create policy "members can leave squads" on public.squad_members
   for delete using (auth.uid() = user_id);

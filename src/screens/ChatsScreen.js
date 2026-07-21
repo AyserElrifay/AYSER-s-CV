@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C } from '../constants/theme';
 import { SQUADS, DMS, LANG_PARTNERS } from '../constants/mockData'; // demo-mode fallback only
 import { SUPABASE_READY } from '../lib/supabase';
+import { compressImage, uploadMediaSmart } from '../lib/storage';
 import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LanguageContext';
 import { usePresence } from '../context/PresenceContext';
@@ -130,13 +131,33 @@ export const ChatsScreen = () => {
   const [squadName, setSquadName] = useState('');
   const [squadEmoji, setSquadEmoji] = useState('🏕️');
   const [squadErr, setSquadErr] = useState(null);
+  const [squadPhoto, setSquadPhoto] = useState(null); // { preview, url } once uploaded
+  const [squadPhotoBusy, setSquadPhotoBusy] = useState(false);
+  const pickSquadPhoto = () => {
+    if (typeof document === 'undefined') return;
+    tapLight();
+    const input = document.createElement('input');
+    input.type = 'file'; input.accept = 'image/*';
+    input.onchange = async () => {
+      const f = input.files && input.files[0];
+      if (!f) return;
+      setSquadPhotoBusy(true);
+      try {
+        const small = await compressImage(URL.createObjectURL(f), 600, 0.85);
+        const url = await uploadMediaSmart(user.id, small, 'jpg', 'image/jpeg');
+        setSquadPhoto({ preview: url, url });
+      } catch (e) { setSquadErr('Could not upload that photo.'); }
+      finally { setSquadPhotoBusy(false); }
+    };
+    input.click();
+  };
   const submitSquad = async () => {
     if (!squadName.trim() || !SUPABASE_READY || !user) return;
     setSquadErr(null);
     try {
-      await createSquad(user.id, { name: squadName.trim(), emoji: squadEmoji.trim() || '🏕️' });
+      await createSquad(user.id, { name: squadName.trim(), emoji: squadEmoji.trim() || '🏕️', avatarUrl: squadPhoto && squadPhoto.url });
       tapLight();
-      setSquadCreating(false); setSquadName(''); setSquadEmoji('🏕️');
+      setSquadCreating(false); setSquadName(''); setSquadEmoji('🏕️'); setSquadPhoto(null);
       reload();
     } catch (e) {
       setSquadErr(/does not exist|policy|security/i.test(e.message || '')
@@ -352,7 +373,16 @@ export const ChatsScreen = () => {
     </View>
     {squadCreating ? (
       <Glass style={{ padding: 12, marginBottom: 12 }}>
-        <View style={{ flexDirection: 'row' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Pressable onPress={pickSquadPhoto} style={{ marginRight: 8 }}>
+            {squadPhoto ? (
+              <Image source={{ uri: squadPhoto.preview }} style={{ width: 48, height: 48, borderRadius: 14 }} />
+            ) : (
+              <View style={{ width: 48, height: 48, borderRadius: 14, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name={squadPhotoBusy ? 'hourglass-outline' : 'camera-outline'} size={20} color={C.purple} />
+              </View>
+            )}
+          </Pressable>
           <TextInput value={squadEmoji} onChangeText={setSquadEmoji} maxLength={4}
             style={{ width: 48, textAlign: 'center', fontSize: 20, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 12, marginRight: 8 }} />
           <TextInput placeholder="Squad name (e.g. Sunrise Hikers)" placeholderTextColor={C.faint} value={squadName} onChangeText={setSquadName}
@@ -370,9 +400,13 @@ export const ChatsScreen = () => {
       <Pressable key={s.id} onPress={() => { tapLight(); setThread({ chat: s, group: true }); }}>
         <Glass tint={C.blueSoft} border="rgba(59,130,246,0.35)" style={{ padding: 14, marginBottom: 12 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <View style={{ width: 46, height: 46, borderRadius: 15, backgroundColor: 'rgba(59,130,246,0.18)', borderWidth: 1, borderColor: 'rgba(59,130,246,0.4)', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
-              <Text style={{ fontSize: 22 }}>{s.emoji}</Text>
-            </View>
+            {s.avatar_url ? (
+              <Image source={{ uri: s.avatar_url }} style={{ width: 46, height: 46, borderRadius: 15, marginRight: 12 }} />
+            ) : (
+              <View style={{ width: 46, height: 46, borderRadius: 15, backgroundColor: 'rgba(59,130,246,0.18)', borderWidth: 1, borderColor: 'rgba(59,130,246,0.4)', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                <Text style={{ fontSize: 22 }}>{s.emoji}</Text>
+              </View>
+            )}
             <View style={{ flex: 1 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '800', flexShrink: 1 }} numberOfLines={1}>{s.name}</Text>
