@@ -16,8 +16,19 @@ import { AV_NEUTRAL } from '../constants/mockData';
 import { getPrefs, setPref, subscribePrefs } from '../services/prefs';
 import {
   Glass, Micro, Chip, SectionHeader,
-  NeonButton, TermsSheet,
+  NeonButton, TermsSheet, BardiSheet,
 } from '../components';
+
+/* Common languages for the exchange pickers — flag + name, tap to choose. */
+const LANGUAGES = [
+  { c: 'Arabic', f: '🇪🇬' }, { c: 'English', f: '🇬🇧' }, { c: 'French', f: '🇫🇷' },
+  { c: 'Spanish', f: '🇪🇸' }, { c: 'German', f: '🇩🇪' }, { c: 'Italian', f: '🇮🇹' },
+  { c: 'Portuguese', f: '🇵🇹' }, { c: 'Turkish', f: '🇹🇷' }, { c: 'Russian', f: '🇷🇺' },
+  { c: 'Chinese', f: '🇨🇳' }, { c: 'Japanese', f: '🇯🇵' }, { c: 'Korean', f: '🇰🇷' },
+  { c: 'Hindi', f: '🇮🇳' }, { c: 'Dutch', f: '🇳🇱' }, { c: 'Greek', f: '🇬🇷' },
+  { c: 'Romanian', f: '🇷🇴' }, { c: 'Persian', f: '🇮🇷' }, { c: 'Urdu', f: '🇵🇰' },
+];
+const LEVELS = ['Beginner', 'A2', 'B1', 'B2', 'Fluent'];
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
 import { sfxSuccess } from '../utils/sfx';
 
@@ -56,6 +67,7 @@ export const SettingsScreen = ({ onClose }) => {
     return { total, ppl, per: total / ppl };
   })();
   const [planner, setPlanner] = useState(PLANNER_INIT);
+  const [bardiOpen, setBardiOpen] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
   const [prefs, setPrefs] = useState(getPrefs());
   const [referrals, setReferrals] = useState(null);
@@ -389,27 +401,47 @@ export const SettingsScreen = ({ onClose }) => {
                 </View>
               </Pressable>
             </View>
-            <TextInput
-              placeholder="Language you speak (e.g. Arabic)"
-              placeholderTextColor={C.faint}
-              value={speaks}
-              onChangeText={setSpeaks}
-              style={{ color: C.text, fontSize: 13, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 8 }}
-            />
-            <TextInput
-              placeholder="Language you're learning (e.g. Korean)"
-              placeholderTextColor={C.faint}
-              value={learning}
-              onChangeText={setLearning}
-              style={{ color: C.text, fontSize: 13, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 8 }}
-            />
-            <TextInput
-              placeholder="Level (e.g. A2, B1…)"
-              placeholderTextColor={C.faint}
-              value={level}
-              onChangeText={setLevel}
-              style={{ color: C.text, fontSize: 13, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 10 }}
-            />
+            <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', marginBottom: 7 }}>I speak 🗣️</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+              {LANGUAGES.map((l) => {
+                const on = speaks === l.c;
+                return (
+                  <Pressable key={l.c} onPress={() => setSpeaks(on ? '' : l.c)}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: on ? C.purple : C.bg, borderWidth: 1, borderColor: on ? C.purple : C.line, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8, marginRight: 8 }}>
+                      <Text style={{ fontSize: 14 }}>{l.f}</Text>
+                      <Text style={{ color: on ? '#FFF' : C.text, fontSize: 12.5, fontWeight: '800', marginLeft: 5 }}>{l.c}</Text>
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+            <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', marginBottom: 7 }}>I want to practise 🎯</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+              {LANGUAGES.map((l) => {
+                const on = learning === l.c;
+                return (
+                  <Pressable key={l.c} onPress={() => setLearning(on ? '' : l.c)}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: on ? C.green : C.bg, borderWidth: 1, borderColor: on ? C.green : C.line, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8, marginRight: 8 }}>
+                      <Text style={{ fontSize: 14 }}>{l.f}</Text>
+                      <Text style={{ color: on ? '#FFF' : C.text, fontSize: 12.5, fontWeight: '800', marginLeft: 5 }}>{l.c}</Text>
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+            <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', marginBottom: 7 }}>My level 📈</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 10 }}>
+              {LEVELS.map((lv) => {
+                const on = level === lv;
+                return (
+                  <Pressable key={lv} onPress={() => setLevel(on ? '' : lv)} style={{ marginRight: 8, marginBottom: 8 }}>
+                    <View style={{ backgroundColor: on ? C.blue : C.bg, borderWidth: 1, borderColor: on ? C.blue : C.line, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 7 }}>
+                      <Text style={{ color: on ? '#FFF' : C.dim, fontSize: 12, fontWeight: '800' }}>{lv}</Text>
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </View>
             <Pressable onPress={() => saveExchange(visible)}>
               <View style={{ backgroundColor: C.purple, borderRadius: 12, paddingVertical: 11, alignItems: 'center' }}>
                 <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900' }}>{savedExchange ? 'Saved ✓' : 'Save'}</Text>
@@ -423,36 +455,18 @@ export const SettingsScreen = ({ onClose }) => {
           </Glass>
         )}
 
-        {/* ── MINI BARDI — one small planner, nothing more ── */}
-        <SectionHeader title="Mini Bardi 📓" style={{ marginTop: 26 }} />
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {planner.map((card) => {
-            const doneCount = card.items.filter((i) => i.done).length;
-            return (
-              <Glass key={card.id} style={{ width: 232, padding: 14, marginRight: 12 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>
-                    {card.emoji}  {card.title}
-                  </Text>
-                  <Chip label={doneCount + '/' + card.items.length} color={doneCount === card.items.length ? C.green : C.dim} />
-                </View>
-                {card.items.map((it, idx) => (
-                  <Pressable key={idx} onPress={() => togglePlan(card.id, idx)} style={{ flexDirection: 'row', alignItems: 'center', marginTop: 11 }}>
-                    <Ionicons name={it.done ? 'checkbox' : 'square-outline'} size={18} color={it.done ? C.green : C.faint} />
-                    <Text
-                      style={{
-                        color: it.done ? C.faint : C.text, fontSize: 12.5, marginLeft: 9, flex: 1,
-                        textDecorationLine: it.done ? 'line-through' : 'none',
-                      }}
-                    >
-                      {it.t}
-                    </Text>
-                  </Pressable>
-                ))}
-              </Glass>
-            );
-          })}
-        </ScrollView>
+        {/* ── BARDI — the real assistant (self-understanding, plans, ideas) ── */}
+        <SectionHeader title="Bardi 🌾" style={{ marginTop: 26 }} />
+        <Pressable onPress={() => setBardiOpen(true)}>
+          <Glass style={{ padding: 15, flexDirection: 'row', alignItems: 'center' }}>
+            <Image source={require('../assets/brand/bardi.png')} style={{ width: 44, height: 44, borderRadius: 13, marginRight: 12 }} />
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '900' }}>Talk to Bardi</Text>
+              <Text style={{ color: C.faint, fontSize: 12, marginTop: 2 }}>Understand yourself, plan a trip, start a project</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={C.faint} />
+          </Glass>
+        </Pressable>
 
         {/* ── ACCOUNT ── */}
         <SectionHeader title="Account" style={{ marginTop: 26 }} />
@@ -472,6 +486,7 @@ export const SettingsScreen = ({ onClose }) => {
       </ScrollView>
 
       {termsOpen ? <TermsSheet onClose={() => setTermsOpen(false)} /> : null}
+      {bardiOpen ? <BardiSheet onClose={() => setBardiOpen(false)} /> : null}
 
       {/* language picker */}
       {langOpen ? (
