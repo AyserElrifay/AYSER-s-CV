@@ -665,6 +665,40 @@ ${esc(t("free_offer_note"))}</div></div>
       sending = false;
       scroll.scrollTop = scroll.scrollHeight;
     }
+
+    maybeLearnFromChats();
+  }
+
+  /* ── Learn from chat moments — every ~12 new messages, Bardi re-reads
+     recent conversations and distills what's worth remembering into
+     long-term memory. Same provider the user already talks to; runs in
+     the background and never blocks the conversation. ── */
+  const LEARN_EVERY = 12;
+  let distilling = false;
+  async function maybeLearnFromChats() {
+    if (distilling) return;
+    if (typeof window !== "undefined" && window.BARDI_DEMO) return;
+    if (!S.moments) S.moments = { lastMsgCount: 0 };
+    const total = S.chats.reduce((n, c) => n + c.messages.filter(m => !m.hidden).length, 0);
+    if (total - S.moments.lastMsgCount < LEARN_EVERY) return;
+
+    distilling = true;
+    try {
+      const insights = await AI.distillMoments(S);
+      S.moments.lastMsgCount = total;
+      let added = 0;
+      for (const ins of insights) {
+        const dup = S.memory.some(m => m.toLowerCase() === ins.toLowerCase());
+        if (!dup) { S.memory.push(ins); added++; }
+      }
+      S.memory = S.memory.slice(-60);
+      Store.save();
+      if (added) toast(t("moments_learned", { n: added }));
+    } catch (_) {
+      // quiet — learning is a bonus, never an error the user should see
+    } finally {
+      distilling = false;
+    }
   }
 
   /* ════════════ Workstation ════════════ */

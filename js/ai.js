@@ -144,6 +144,12 @@ SEARCH: <a short, focused search query in the best language for the topic>
 - The app will fetch encyclopedia results and hand them back to you; then answer warmly and naturally from them, weaving the facts in like a knowledgeable friend — mention "بصيت في ويكيبيديا" casually only if it fits. If the results don't actually answer it, say honestly that you couldn't confirm.
 - Use SEARCH only for real factual gaps (people, places, events, dates, definitions, how-things-work) — never for feelings, personal advice, or things you already know well. At most one SEARCH per question.` : ""}
 
+Light humor — دمك خفيف، بس بذوق:
+- You have gentle Egyptian charm: a warm quip, a playful observation, a light "يا معلم" energy when the moment invites it. One small touch per reply at most — a pinch of salt, never the whole shaker. Humor that serves the conversation, never performs.
+- Read the room first: if they're hurting, anxious, or serious — zero jokes, pure presence. Humor only when their own energy is light or when a gentle smile would genuinely lift them.
+- Never joke ABOUT the person or their problem — joke WITH them about life. Self-deprecating and situational humor only; sarcasm at their expense is forbidden.
+- You know the vibe of young Egyptian social media (the Moments generation): "الجولدن أور بيضرب مختلف من فوق السطوح 🌇"، "بادل ٦ الصبح أحسن من أي سهرة". Speak that language naturally with people who speak it — without forcing it on those who don't.
+
 Mirror their voice — learn how THIS person talks and match it:
 - Notice how the user actually writes: their dialect and word choices, whether they use emojis, short bursts or long paragraphs, playful or serious energy — and quietly tune yourself to it. Someone who writes two dry words gets a tight, calm reply; someone expressive and warm gets warmth back.
 - Pick up their own recurring words and use them naturally (their name for their project, their slang, their way of describing feelings). People trust someone who speaks their language — literally.
@@ -508,6 +514,45 @@ Output format: if you emit MEMORY / EVENT / MAP / SEARCH / PLAN lines, each goes
     return { clean, memory, event, map, search, plan };
   }
 
+  /* ── Learn from chat moments ──
+     Periodically re-reads the user's recent conversations and distills
+     the moments worth remembering (recurring themes, breakthroughs,
+     emotional patterns, how they like to be spoken to) into long-term
+     memory. Uses the same provider the user already chats with — no new
+     party ever sees anything. */
+  async function distillMoments(state) {
+    const msgs = [];
+    for (const c of state.chats.slice(0, 5)) {
+      for (const m of c.messages) {
+        if (m.hidden) continue;
+        msgs.push(`${m.role === "user" ? "USER" : "BARDI"}: ${String(m.content).slice(0, 220)}`);
+      }
+    }
+    const transcript = msgs.slice(-48).join("\n");
+    if (!transcript) return [];
+
+    const known = (state.memory || []).slice(-30).join("; ");
+    const prompt =
+`You are the memory of a life coach reviewing recent conversations with one person, to remember what matters.
+
+TRANSCRIPT (most recent conversations):
+${transcript}
+
+ALREADY KNOWN (do not repeat): ${known || "(nothing yet)"}
+
+Extract up to 5 NEW short insights about this person worth remembering long-term: recurring themes, emotional patterns, important life facts, goals and wins, and how they like to be spoken to (tone, length, dialect). Each insight = one short sentence in English.
+
+Reply with ONLY a JSON array of strings, e.g. ["...", "..."]. If nothing new, reply [].`;
+
+    const text = await completeText(state, prompt);
+    const cleaned = text.trim().replace(/^```(json)?/i, "").replace(/```$/, "").trim();
+    const start = cleaned.indexOf("[");
+    const end = cleaned.lastIndexOf("]");
+    if (start < 0 || end <= start) return [];
+    const arr = JSON.parse(cleaned.slice(start, end + 1));
+    return Array.isArray(arr) ? arr.filter(x => typeof x === "string" && x.trim()).map(x => x.trim()).slice(0, 5) : [];
+  }
+
   /* ── Web lookup (Wikipedia only, CORS-friendly, keyless) ──
      Privacy: only the short search query is sent to Wikipedia — never the
      conversation, profile, or anything else. The app shows a visible
@@ -704,5 +749,5 @@ Rules: 4 to 6 slides. Each slide = one phase or theme (mindset, weekly routine, 
     });
   }
 
-  return { chat, generatePlan, completeText, extractMemory, webSearch, MODELS, PROVIDER_NAMES, LOCAL_MODELS, localSupported, localStatus, loadLocalModel, recommendedLocalModel };
+  return { chat, generatePlan, completeText, extractMemory, webSearch, distillMoments, MODELS, PROVIDER_NAMES, LOCAL_MODELS, localSupported, localStatus, loadLocalModel, recommendedLocalModel };
 })();

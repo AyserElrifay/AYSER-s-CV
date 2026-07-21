@@ -321,6 +321,8 @@ const I18N = {
     plan_edit_hint: "سطر ملهم تحت العنوان (اختياري)",
     plan_points_hint: "كل سطر = خطوة",
 
+        moments_learned: "🌱 بردي اتعلم {n} حاجة جديدة عنك من كلامكم",
+
     lang_name: "العربية",
   },
 
@@ -626,6 +628,8 @@ const I18N = {
     plan_delete_btn: "Delete",
     plan_edit_hint: "An inspiring line under the title (optional)",
     plan_points_hint: "One line = one step",
+
+        moments_learned: "🌱 Bardi just learned {n} new things about you from your chats",
 
     lang_name: "English",
   },
@@ -933,6 +937,8 @@ const I18N = {
     plan_edit_hint: "Une ligne inspirante sous le titre (optionnel)",
     plan_points_hint: "Une ligne = une étape",
 
+        moments_learned: "🌱 Bardi vient d'apprendre {n} nouvelles choses sur toi grâce à vos échanges",
+
     lang_name: "Français",
   },
 
@@ -1239,6 +1245,8 @@ const I18N = {
     plan_edit_hint: "Eine inspirierende Zeile unter dem Titel (optional)",
     plan_points_hint: "Eine Zeile = ein Schritt",
 
+        moments_learned: "🌱 Bardi hat gerade {n} neue Dinge über dich aus euren Gesprächen gelernt",
+
     lang_name: "Deutsch",
   },
 
@@ -1544,6 +1552,8 @@ const I18N = {
     plan_delete_btn: "Eliminar",
     plan_edit_hint: "Una línea inspiradora bajo el título (opcional)",
     plan_points_hint: "Una línea = un paso",
+
+        moments_learned: "🌱 Bardi acaba de aprender {n} cosas nuevas sobre ti de vuestras conversaciones",
 
     lang_name: "Español",
   },

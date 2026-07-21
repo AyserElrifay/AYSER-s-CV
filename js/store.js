@@ -48,6 +48,7 @@ const Store = (() => {
     activeChatId: null,
     memory: [],         // strings the coach learned about the user
     feedback: { up: 0, down: 0, reasons: [] }, // 👍/👎 on replies + last dislike reasons — local style-learning signal
+    moments: { lastMsgCount: 0 }, // marker for the periodic learn-from-chats distillation
     plans: [],          // {id, goal, deck:{title,subtitle,slides:[]}, createdAt}
     journal: [],         // {id, text, mood, createdAt}
     events: [],          // {id, title, date:"YYYY-MM-DD", time:"HH:MM"|"", note, remindMin, reminded, createdAt}
