@@ -7,7 +7,7 @@ import { C } from '../constants/theme';
 import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { usePresence } from '../context/PresenceContext';
-import { fetchMyPosts } from '../services/posts';
+import { fetchMyMoments } from '../services/posts';
 import { getProfile } from '../services/profiles';
 import { getMateStatus, mateUp, countMates } from '../services/mates';
 import { getOrCreateDmThread, sendMessage } from '../services/messages';
@@ -16,7 +16,14 @@ import { Chip } from './Chip';
 import { Tick } from './Tick';
 import { AvatarRing } from './AvatarRing';
 import { SectionHeader } from './SectionHeader';
-import { tapLight, tapSuccess } from '../utils/feedback';
+import { PostCard } from './PostCard';
+import { ReelsViewer } from './ReelsViewer';
+import { tapLight, tapSuccess, tapSelection } from '../utils/feedback';
+
+/* CommentsSheet imports ProfileModal (tapping a commenter opens their
+   profile), so importing it statically here would be a require cycle —
+   resolve it lazily at render time instead. */
+const getCommentsSheet = () => require('./CommentsSheet').CommentsSheet;
 import { sfxPop, sfxSuccess } from '../utils/sfx';
 
 const { width: W } = Dimensions.get('window');
@@ -60,11 +67,41 @@ export const ProfileModal = ({ user, onClose }) => {
 
   const load = useCallback(async () => {
     if (!real) { setPosts([]); setMates(0); return; }
-    fetchMyPosts(user.id).then((rows) => setPosts(rows || [])).catch(() => setPosts([]));
+    // fetchMyMoments carries real star counts too → powers the Likes stat
+    fetchMyMoments(user.id).then((rows) => setPosts(rows || [])).catch(() => setPosts([]));
     countMates(user.id).then(setMates).catch(() => setMates(0));
     getProfile(user.id).then(setFullProfile).catch(() => {});
     if (!isMe) getMateStatus(me.id, user.id).then(setMateState).catch(() => {});
   }, [user, real, isMe]);
+
+  // ── open their posts for real: text/photo → full PostCard, reel → viewer ──
+  const [viewMoment, setViewMoment] = useState(null);
+  const [reelView, setReelView] = useState(null);
+  const [commentsPost, setCommentsPost] = useState(null);
+  const rowToCard = (row) => ({
+    id: row.id,
+    userId: row.user_id,
+    user: { id: user.id, name: user.name, avatar: user.avatar, verified: !!user.verified, flag: user.countryFlag || (fullProfile && fullProfile.country_flag) || null },
+    type: row.type || 'post',
+    media: row.media_url || null,
+    textBg: row.text_bg || null,
+    caption: row.caption || '',
+    place: row.place || 'Somewhere out there',
+    startsIn: '',
+    vibes: row.vibesCount || 0,
+    comments: 0, laughs: 0, reposts: 0,
+    sound: row.sound_title ? { title: row.sound_title, artist: row.sound_artist || '', emoji: '🎵', audio_url: row.sound_url || null } : null,
+  });
+  const openPost = (row) => {
+    tapSelection();
+    if (row.type === 'reel' && row.media_url) {
+      const reels = (posts || []).filter((r) => r.type === 'reel' && r.media_url).map(rowToCard);
+      const idx = Math.max(0, reels.findIndex((r) => r.id === row.id));
+      setReelView({ reels, index: idx });
+    } else {
+      setViewMoment(rowToCard(row));
+    }
+  };
 
   useEffect(() => { load(); }, [load]);
 
@@ -107,10 +144,12 @@ export const ProfileModal = ({ user, onClose }) => {
     : mateState === 'incoming' ? 'Accept request 🤝'
     : '＋ Mate up';
 
+  // Same three stats as your own space — one unified profile look.
+  const likes = posts == null ? null : posts.reduce((s, r) => s + (r.vibesCount || 0), 0);
   const stats = [
     { n: posts == null ? '—' : posts.length, l: 'Moments' },
-    { n: mates == null ? '—' : mates, l: 'Mates' },
-    { n: user.campfires || 0, l: 'Campfires' },
+    { n: mates == null ? '—' : mates, l: 'Followers' },
+    { n: likes == null ? '—' : likes, l: 'Likes' },
   ];
 
   return (
@@ -244,22 +283,67 @@ export const ProfileModal = ({ user, onClose }) => {
             ) : (
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -4 }}>
                 {posts.slice(0, 12).map((p) => (
-                  <View key={p.id} style={{ width: CELL, height: CELL, borderRadius: 14, margin: 4, overflow: 'hidden', backgroundColor: C.glassHi }}>
+                  <Pressable key={p.id} onPress={() => openPost(p)} style={{ width: CELL, height: CELL, borderRadius: 14, margin: 4, overflow: 'hidden', backgroundColor: C.glassHi }}>
                     {p.media_url && !isVideoUri(p.media_url) ? (
                       <Image source={{ uri: p.media_url }} style={{ width: '100%', height: '100%' }} />
                     ) : (
                       <LinearGradient colors={['#EDE9FE', '#FCE7F3']} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 8 }}>
                         <Text style={{ color: '#4C1D95', fontSize: 11, fontWeight: '700', textAlign: 'center' }} numberOfLines={4}>
-                          {isVideoUri(p.media_url) ? '🎬' : ''}{p.caption || '✨'}
+                          {p.caption || '✨'}
                         </Text>
                       </LinearGradient>
                     )}
-                  </View>
+                    {isVideoUri(p.media_url) ? (
+                      <View style={{ position: 'absolute', top: 6, right: 6, backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 999, padding: 4 }}>
+                        <Ionicons name="play" size={11} color="#FFF" />
+                      </View>
+                    ) : null}
+                  </Pressable>
                 ))}
               </View>
             )}
           </View>
         </ScrollView>
+
+        {/* tapped moment → the full card, read-only (it's their post) */}
+        {viewMoment ? (
+          <Modal visible transparent animationType="slide" onRequestClose={() => setViewMoment(null)}>
+            <View style={{ flex: 1, backgroundColor: C.bg }}>
+              <Pressable onPress={() => setViewMoment(null)} hitSlop={10} style={{ position: 'absolute', top: insets.top + 12, left: 14, zIndex: 20, width: 38, height: 38, borderRadius: 19, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="chevron-back" size={22} color={C.text} />
+              </Pressable>
+              <ScrollView contentContainerStyle={{ paddingTop: insets.top + 60, paddingHorizontal: 14, paddingBottom: 40 }}>
+                <PostCard
+                  post={viewMoment}
+                  onComment={() => setCommentsPost(viewMoment)}
+                  onOpenProfile={() => {}}
+                  onOpenReel={() => {}}
+                  onVibe={() => {}}
+                  onLaugh={() => {}}
+                  onRemoveLaugh={() => {}}
+                  onRepost={() => {}}
+                  onShare={() => {}}
+                  onJoin={() => {}}
+                  onOpenLikers={() => {}}
+                  onOpenLaughers={() => {}}
+                />
+              </ScrollView>
+            </View>
+          </Modal>
+        ) : null}
+
+        {reelView ? (
+          <ReelsViewer
+            reels={reelView.reels}
+            startIndex={reelView.index}
+            vibes={{}}
+            onVibe={() => {}}
+            onComment={(item) => setCommentsPost(item)}
+            onClose={() => setReelView(null)}
+          />
+        ) : null}
+
+        {commentsPost ? (() => { const CS = getCommentsSheet(); return <CS post={commentsPost} onClose={() => setCommentsPost(null)} />; })() : null}
       </View>
     </Modal>
   );
