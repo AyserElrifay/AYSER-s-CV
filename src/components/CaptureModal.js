@@ -364,6 +364,27 @@ function wrapLines(ctx, text, maxW) {
   if (line) lines.push(line);
   return lines;
 }
+/* A subtle, TikTok-style watermark baked into the reel's pixels. It's
+   small and low-contrast so it never bothers the viewer, but it alternates
+   between the bottom corners every few seconds so a crop can't remove it —
+   and because it's in the pixels, it survives download & re-share. */
+function drawWatermark(ctx, w, h, handle, elapsed) {
+  const s = w / 1080;
+  const fs = Math.round(30 * s), margin = Math.round(40 * s);
+  ctx.save();
+  ctx.globalAlpha = 0.68;
+  ctx.font = '800 ' + fs + 'px sans-serif';
+  ctx.textBaseline = 'alphabetic';
+  ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = Math.round(6 * s);
+  const label = '✦ moments' + (handle ? '   ' + handle : '');
+  const tw = ctx.measureText(label).width;
+  const phase = Math.floor((elapsed || 0) / 4000) % 2; // swap corners every 4s
+  const x = phase === 0 ? margin : Math.max(margin, w - tw - margin);
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillText(label, x, h - margin, w - margin * 2);
+  ctx.restore();
+}
+
 function drawReelCardCanvas(ctx, w, h, game, elapsed) {
   const s = w / 1080;
   const single = reelIsSingle(game);
@@ -642,9 +663,11 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
       // the browser can't capture a canvas stream.
       let recStream = streamRef.current;
       let composite = false;
-      const overlayActive = isWeb && (!!reelGame || !!gameCard || effectId !== 'none');
+      // Always composite on web so EVERY in-app reel carries our baked
+      // watermark (plus any game/effect). Falls back to the raw stream only
+      // if the browser can't capture a canvas stream.
       const v = videoRef.current;
-      if (overlayActive && v && (v.videoWidth || 0) > 0) {
+      if (isWeb && v && (v.videoWidth || 0) > 0) {
         const canvas = compCanvasRef.current || document.createElement('canvas');
         compCanvasRef.current = canvas;
         if (canvas.captureStream) {
@@ -652,6 +675,8 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
           const ctx = canvas.getContext('2d');
           const filter = cssFilter && cssFilter !== 'none' ? cssFilter : 'none';
           const eff = effectId, parts = particlesRef.current, gc = gameCard, rg = reelGame;
+          const mark = (user && user.user_metadata && user.user_metadata.name)
+            ? '@' + String(user.user_metadata.name).replace(/\s+/g, '').toLowerCase().slice(0, 18) : '';
           const t0 = performance.now();
           const draw = () => {
             try {
@@ -661,6 +686,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
               drawEffectsCanvas(ctx, w, h, eff, parts);
               if (rg) drawReelCardCanvas(ctx, w, h, rg, performance.now() - t0);
               else if (gc) drawSimpleCardCanvas(ctx, w, h, gc);
+              drawWatermark(ctx, w, h, mark, performance.now() - t0);
             } catch (e) {}
             rafRef.current = requestAnimationFrame(draw);
           };

@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, Modal, Pressable, ImageBackground, FlatList, Dimensions, Image, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { C, TEXT_BGS } from '../constants/theme';
 import { SoundChip } from './SoundChip';
+import { ReportSheet } from './ReportSheet';
 
 const { height: H } = Dimensions.get('window');
 
@@ -12,6 +13,7 @@ const { height: H } = Dimensions.get('window');
    rail on the right, sound tag at the bottom. */
 export const ReelsViewer = ({ reels, startIndex = 0, vibes, onVibe, onComment, onClose }) => {
   const insets = useSafeAreaInsets();
+  const [report, setReport] = useState(null);
 
   const renderReel = ({ item }) => {
     const vibed = !!vibes[item.id];
@@ -77,9 +79,13 @@ export const ReelsViewer = ({ reels, startIndex = 0, vibes, onVibe, onComment, o
             <MaterialCommunityIcons name="script-text-outline" size={30} color="#FFF" />
             <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '800', marginTop: 3 }}>{item.comments || 0}</Text>
           </Pressable>
-          <Pressable hitSlop={8} style={{ alignItems: 'center' }}>
+          <Pressable hitSlop={8} style={{ alignItems: 'center', marginBottom: 18 }}>
             <Ionicons name="paper-plane-outline" size={26} color="#FFF" />
             <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '800', marginTop: 3 }}>Share</Text>
+          </Pressable>
+          <Pressable onPress={() => setReport(item)} hitSlop={8} style={{ alignItems: 'center' }}>
+            <Ionicons name="flag-outline" size={24} color="#FFF" />
+            <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '800', marginTop: 3 }}>Report</Text>
           </Pressable>
         </View>
       </View>
@@ -107,6 +113,9 @@ export const ReelsViewer = ({ reels, startIndex = 0, vibes, onVibe, onComment, o
             <Ionicons name="close" size={28} color="#FFF" />
           </Pressable>
         </View>
+        {report ? (
+          <ReportSheet contentType="reel" contentId={report.id} contentLabel={(report.user && report.user.name) || 'this reel'} onClose={() => setReport(null)} />
+        ) : null}
       </View>
     </Modal>
   );
