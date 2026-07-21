@@ -156,33 +156,45 @@ export const ProfileModal = ({ user, onClose }) => {
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: C.bg }}>
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 60 }}>
-          {/* cover — a clean brand gradient, no fake photos */}
-          <LinearGradient colors={['#7C3AED', '#5B21B6', '#2A0F63']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ height: 150 }}>
-            <Pressable
-              onPress={onClose}
-              style={{
-                position: 'absolute', top: insets.top + 10, left: 16,
-                width: 38, height: 38, borderRadius: 19,
-                backgroundColor: 'rgba(0,0,0,0.35)',
-                alignItems: 'center', justifyContent: 'center',
-              }}
-            >
-              <Ionicons name="chevron-down" size={20} color="#FFF" />
+          {/* cover — rounded, same as your own profile (their photo, else brand gradient) */}
+          <View style={{ marginTop: insets.top + 8, marginHorizontal: 16 }}>
+            {fullProfile && fullProfile.cover_url ? (
+              <Image source={{ uri: fullProfile.cover_url }} style={{ width: '100%', height: 130, borderRadius: 18 }} />
+            ) : (
+              <LinearGradient colors={['#7C3AED', '#5B21B6', '#2A0F63']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ height: 130, borderRadius: 18 }} />
+            )}
+            <Pressable onPress={onClose} style={{ position: 'absolute', top: 10, left: 10, width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="chevron-down" size={19} color="#FFF" />
             </Pressable>
-          </LinearGradient>
+          </View>
 
-          <View style={{ paddingHorizontal: 20, marginTop: -44 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' }}>
-              <AvatarRing uri={user.avatar} size={88} live={user.live} />
-              {user.intent ? (
-                <Chip label={user.intent} tint={C.purpleSoft} color={C.purple} style={{ marginBottom: 8, borderColor: 'rgba(124,58,237,0.45)' }} />
-              ) : null}
+          <View style={{ paddingHorizontal: 16, marginTop: 14 }}>
+            {/* identity — avatar + stats side by side (Instagram-style, matches your own space) */}
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <LinearGradient colors={[C.gold, C.purple, C.green]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ width: 88, height: 88, borderRadius: 44, alignItems: 'center', justifyContent: 'center' }}>
+                <View style={{ backgroundColor: C.bg, borderRadius: 44, padding: 3 }}>
+                  <Image source={{ uri: user.avatar }} style={{ width: 76, height: 76, borderRadius: 38 }} />
+                </View>
+              </LinearGradient>
+              <View style={{ flex: 1, flexDirection: 'row', marginLeft: 6 }}>
+                {stats.map((s) => (
+                  <View key={s.l} style={{ flex: 1, alignItems: 'center' }}>
+                    <Text style={{ color: C.text, fontSize: 18, fontWeight: '900' }}>{s.n}</Text>
+                    <Text style={{ color: C.faint, fontSize: 10, fontWeight: '700', letterSpacing: 1, marginTop: 2 }}>{s.l.toUpperCase()}</Text>
+                  </View>
+                ))}
+              </View>
             </View>
 
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
-              <Text style={{ color: C.text, fontSize: 22, fontWeight: '900' }}>{user.name}</Text>
-              {user.verified ? <Tick size={17} /> : null}
-              {user.countryFlag ? <Text style={{ fontSize: 18, marginLeft: 7 }}>{user.countryFlag}</Text> : null}
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12, flexWrap: 'wrap' }}>
+              <Text style={{ color: C.text, fontSize: 18, fontWeight: '900' }}>{user.name}</Text>
+              {user.verified ? <Tick size={16} /> : null}
+              {user.countryFlag ? <Text style={{ fontSize: 16, marginLeft: 6 }}>{user.countryFlag}</Text> : null}
+              {user.intent ? (
+                <View style={{ backgroundColor: C.purpleSoft, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3, marginLeft: 8 }}>
+                  <Text style={{ color: C.purple, fontSize: 11, fontWeight: '800' }}>{user.intent}</Text>
+                </View>
+              ) : null}
             </View>
             {onlineNow ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
@@ -218,15 +230,6 @@ export const ProfileModal = ({ user, onClose }) => {
                 ))}
               </View>
             ) : null}
-
-            <Glass style={{ flexDirection: 'row', marginTop: 16, paddingVertical: 14 }}>
-              {stats.map((s, i) => (
-                <View key={s.l} style={{ flex: 1, alignItems: 'center', borderLeftWidth: i === 0 ? 0 : 1, borderLeftColor: C.line }}>
-                  <Text style={{ color: C.text, fontSize: 18, fontWeight: '900' }}>{s.n}</Text>
-                  <Text style={{ color: C.faint, fontSize: 10, fontWeight: '700', letterSpacing: 1, marginTop: 2 }}>{s.l.toUpperCase()}</Text>
-                </View>
-              ))}
-            </Glass>
 
             {/* actions — real friend request + real DM */}
             {!isMe ? (
