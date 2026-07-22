@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet, TextInput, Linking, Image } from 'react-native';
+import { View, Text, ScrollView, Pressable, StyleSheet, TextInput, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,7 +17,7 @@ import { AV_NEUTRAL } from '../constants/mockData';
 import { getPrefs, setPref, subscribePrefs } from '../services/prefs';
 import {
   Glass, Micro, Chip, SectionHeader,
-  NeonButton, TermsSheet, BardiSheet,
+  NeonButton, TermsSheet, BardiSheet, HelpSheet,
 } from '../components';
 
 /* Common languages for the exchange pickers — flag + name, tap to choose. */
@@ -32,8 +32,6 @@ const LANGUAGES = [
 const LEVELS = ['Beginner', 'A2', 'B1', 'B2', 'Fluent'];
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
 import { sfxSuccess } from '../utils/sfx';
-
-const SUPPORT_EMAIL = 'ayseryourlifecoach@gmail.com';
 
 /* A real, persisted on/off switch. */
 const Toggle = ({ on, onToggle }) => (
@@ -87,10 +85,7 @@ export const SettingsScreen = ({ onClose }) => {
     fetchMyReferralBreakdown(user.id).then(setBreakdown).catch(() => {});
   }, [user]);
 
-  const openHelp = () => {
-    tapLight();
-    Linking.openURL('mailto:' + SUPPORT_EMAIL + '?subject=Moments%20support').catch(() => {});
-  };
+  const [helpOpen, setHelpOpen] = useState(false);
 
   // ── Real language-exchange opt-in (HelloTalk-style) ──
   const [speaks, setSpeaks] = useState('');
@@ -368,14 +363,14 @@ export const SettingsScreen = ({ onClose }) => {
         {/* ── SUPPORT ── */}
         <SectionHeader title="Support" style={{ marginTop: 26 }} />
         <Glass style={{ paddingHorizontal: 12, paddingVertical: 2 }}>
-          <Pressable onPress={openHelp}>
+          <Pressable onPress={() => { tapLight(); setHelpOpen(true); }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 14 }}>
               <View style={{ width: 30, height: 30, borderRadius: 9, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
                 <Ionicons name="help-circle-outline" size={16} color={C.purple} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={{ color: C.text, fontSize: 14, fontWeight: '700' }}>Help & support</Text>
-                <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 1 }}>Email us — we actually reply</Text>
+                <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 1 }}>Real answers, or email us</Text>
               </View>
               <Ionicons name="chevron-forward" size={16} color={C.faint} />
             </View>
@@ -519,6 +514,7 @@ export const SettingsScreen = ({ onClose }) => {
 
       {termsOpen ? <TermsSheet onClose={() => setTermsOpen(false)} /> : null}
       {bardiOpen ? <BardiSheet onClose={() => setBardiOpen(false)} /> : null}
+      {helpOpen ? <HelpSheet onClose={() => setHelpOpen(false)} /> : null}
 
       {/* language picker */}
       {langOpen ? (

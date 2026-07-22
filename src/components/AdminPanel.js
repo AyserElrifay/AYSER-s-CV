@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Modal, Pressable, ScrollView, Image, ActivityIndicator } from 'react-native';
+import { View, Text, Modal, Pressable, ScrollView, Image, ActivityIndicator, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { C } from '../constants/theme';
@@ -9,6 +9,7 @@ import { fetchFeedback, markFeedbackSeen } from '../services/feedback';
 import { fetchStudioStats } from '../services/feedback';
 import { fetchPendingVerifications, decideVerification } from '../services/profiles';
 import { fetchTracks, setTrackApproval } from '../services/music';
+import { fetchHelpArticles, createHelpArticle, updateHelpArticle, deleteHelpArticle } from '../services/help';
 import { askBardi } from '../services/bardi';
 import { AV_NEUTRAL } from '../constants/mockData';
 import { tapLight, tapSuccess } from '../utils/feedback';
@@ -23,6 +24,7 @@ const TABS = [
   { k: 'verify', label: 'Verify', icon: 'shield-checkmark-outline' },
   { k: 'music', label: 'Music', icon: 'musical-notes-outline' },
   { k: 'feedback', label: 'Feedback', icon: 'chatbubbles-outline' },
+  { k: 'help', label: 'Help', icon: 'help-circle-outline' },
 ];
 
 export const AdminPanel = ({ onClose }) => {
@@ -34,6 +36,10 @@ export const AdminPanel = ({ onClose }) => {
   const [verifs, setVerifs] = useState(null);
   const [music, setMusic] = useState(null);
   const [feedback, setFeedback] = useState(null);
+  const [help, setHelp] = useState(null);
+  const [helpEdit, setHelpEdit] = useState(null); // 'new' | article row | null
+  const [helpForm, setHelpForm] = useState({ category: '', title: '', body: '' });
+  const [helpErr, setHelpErr] = useState(null);
   const [bardiMsg, setBardiMsg] = useState(null);
   const [bardiBusy, setBardiBusy] = useState(false);
 
@@ -43,7 +49,34 @@ export const AdminPanel = ({ onClose }) => {
     if (tab === 'verify' && verifs == null) fetchPendingVerifications().then(setVerifs).catch(() => setVerifs([]));
     if (tab === 'music' && music == null) fetchTracks({ all: true, meId: user && user.id }).then((rows) => setMusic((rows || []).filter((t) => !t.is_approved && !t.is_official))).catch(() => setMusic([]));
     if (tab === 'feedback' && feedback == null) fetchFeedback().then(setFeedback).catch(() => setFeedback([]));
+    if (tab === 'help' && help == null) fetchHelpArticles().then(setHelp).catch(() => setHelp([]));
   }, [tab]);
+
+  const openHelpEditor = (row) => {
+    tapLight();
+    setHelpErr(null);
+    setHelpEdit(row || 'new');
+    setHelpForm(row ? { category: row.category, title: row.title, body: row.body } : { category: 'General', title: '', body: '' });
+  };
+  const saveHelpArticle = async () => {
+    if (!helpForm.title.trim() || !helpForm.body.trim()) { setHelpErr('Title and body are both required.'); return; }
+    try {
+      if (helpEdit === 'new') {
+        const row = await createHelpArticle({ category: helpForm.category.trim() || 'General', title: helpForm.title.trim(), body: helpForm.body.trim() });
+        setHelp((l) => [...(l || []), row]);
+      } else {
+        await updateHelpArticle(helpEdit.id, { category: helpForm.category.trim() || 'General', title: helpForm.title.trim(), body: helpForm.body.trim() });
+        setHelp((l) => l.map((a) => (a.id === helpEdit.id ? { ...a, category: helpForm.category.trim() || 'General', title: helpForm.title.trim(), body: helpForm.body.trim() } : a)));
+      }
+      tapSuccess();
+      setHelpEdit(null);
+    } catch (e) {
+      setHelpErr(/does not exist|schema/i.test(e.message || '') ? 'Run RUN_ME.sql once to turn on Help & Support.' : (e.message || 'Could not save.'));
+    }
+  };
+  const removeHelpArticle = async (id) => {
+    try { await deleteHelpArticle(id); setHelp((l) => l.filter((a) => a.id !== id)); tapSuccess(); } catch (e) {}
+  };
 
   const askBardiSummary = async () => {
     if (bardiBusy) return;
@@ -192,7 +225,66 @@ export const AdminPanel = ({ onClose }) => {
               </View>
             ))
           ) : null}
+
+          {tab === 'help' ? (
+            help == null ? <ActivityIndicator color={C.purple} style={{ marginTop: 30 }} /> : (
+              <>
+                <Pressable onPress={() => openHelpEditor(null)} style={{ marginBottom: 12 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: C.purpleSoft, borderRadius: 12, paddingVertical: 12 }}>
+                    <Ionicons name="add-circle-outline" size={17} color={C.purple} />
+                    <Text style={{ color: C.purple, fontSize: 12.5, fontWeight: '900', marginLeft: 6 }}>Add article</Text>
+                  </View>
+                </Pressable>
+                {help.length === 0 ? <Empty t="No help articles yet — add the first one" /> : help.map((a) => (
+                  <View key={a.id} style={{ backgroundColor: C.bg2, borderWidth: 1, borderColor: C.line, borderRadius: 14, padding: 12, marginBottom: 10 }}>
+                    <Text style={{ color: C.faint, fontSize: 10, fontWeight: '800', letterSpacing: 0.5 }}>{a.category.toUpperCase()}</Text>
+                    <Text style={{ color: C.text, fontSize: 14, fontWeight: '800', marginTop: 3 }}>{a.title}</Text>
+                    <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 4, lineHeight: 18 }} numberOfLines={3}>{a.body}</Text>
+                    <View style={{ flexDirection: 'row', marginTop: 9 }}>
+                      <Pressable onPress={() => openHelpEditor(a)} style={{ marginRight: 8 }}>
+                        <View style={{ borderRadius: 999, borderWidth: 1, borderColor: C.line, paddingHorizontal: 12, paddingVertical: 7 }}><Text style={{ color: C.dim, fontSize: 12, fontWeight: '800' }}>Edit</Text></View>
+                      </Pressable>
+                      <Pressable onPress={() => removeHelpArticle(a.id)}>
+                        <View style={{ borderRadius: 999, backgroundColor: C.coralSoft, paddingHorizontal: 12, paddingVertical: 7 }}><Text style={{ color: C.coral, fontSize: 12, fontWeight: '800' }}>Delete</Text></View>
+                      </Pressable>
+                    </View>
+                  </View>
+                ))}
+              </>
+            )
+          ) : null}
         </ScrollView>
+
+        {/* inline help-article editor */}
+        {helpEdit ? (
+          <Pressable onPress={() => setHelpEdit(null)} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }}>
+            <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 16, paddingBottom: insets.bottom + 20 }}>
+              <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 12 }} />
+              <Text style={{ color: C.text, fontSize: 16, fontWeight: '900', marginBottom: 10 }}>{helpEdit === 'new' ? 'Add article' : 'Edit article'}</Text>
+              <TextInput
+                placeholder="Category (e.g. Account, Privacy & safety)" placeholderTextColor={C.faint}
+                value={helpForm.category} onChangeText={(t) => setHelpForm((f) => ({ ...f, category: t }))}
+                style={{ color: C.text, fontSize: 13.5, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 10, marginBottom: 9 }}
+              />
+              <TextInput
+                placeholder="Title" placeholderTextColor={C.faint}
+                value={helpForm.title} onChangeText={(t) => setHelpForm((f) => ({ ...f, title: t }))}
+                style={{ color: C.text, fontSize: 13.5, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 10, marginBottom: 9 }}
+              />
+              <TextInput
+                placeholder="Answer" placeholderTextColor={C.faint} multiline
+                value={helpForm.body} onChangeText={(t) => setHelpForm((f) => ({ ...f, body: t }))}
+                style={{ color: C.text, fontSize: 13.5, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 10, minHeight: 110, textAlignVertical: 'top', marginBottom: 9 }}
+              />
+              {helpErr ? <Text style={{ color: C.coral, fontSize: 11.5, marginBottom: 9 }}>{helpErr}</Text> : null}
+              <Pressable onPress={saveHelpArticle}>
+                <View style={{ backgroundColor: C.purple, borderRadius: 14, paddingVertical: 13, alignItems: 'center' }}>
+                  <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '900' }}>Save</Text>
+                </View>
+              </Pressable>
+            </Pressable>
+          </Pressable>
+        ) : null}
       </View>
     </Modal>
   );

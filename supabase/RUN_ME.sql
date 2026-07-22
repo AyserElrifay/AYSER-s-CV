@@ -730,6 +730,47 @@ create policy "owner updates feedback" on public.feedback for update using (
   (auth.jwt() ->> 'email') = 'ayseryourlifecoach@gmail.com'
 );
 
+-- ═══════════ HELP & SUPPORT · real, owner-editable articles ═══════════
+-- Everyone can read; only the owner can write — edited straight from
+-- Moments Studio, no code changes needed to update an answer.
+create table if not exists public.help_articles (
+  id         uuid primary key default gen_random_uuid(),
+  category   text not null default 'General',
+  title      text not null,
+  body       text not null,
+  icon       text default 'help-circle-outline',
+  position   int not null default 0,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+alter table public.help_articles enable row level security;
+drop policy if exists "help_read_all" on public.help_articles;
+create policy "help_read_all" on public.help_articles for select using (true);
+drop policy if exists "help_owner_write" on public.help_articles;
+create policy "help_owner_write" on public.help_articles for all using (
+  (auth.jwt() ->> 'email') = 'ayseryourlifecoach@gmail.com'
+) with check (
+  (auth.jwt() ->> 'email') = 'ayseryourlifecoach@gmail.com'
+);
+
+-- seed a real starter set so Help & Support isn't empty on day one —
+-- only runs once (guarded on an empty table), the owner can edit or
+-- delete every word of it afterward from Moments Studio.
+insert into public.help_articles (category, title, body, icon, position)
+select * from (values
+  ('Getting started', 'What is Moments?', 'Moments is a real, daily social app — post, chat, meet up, and play with people you actually know. Nothing on it is scripted or fake: your feed, your friends, your scores are all real.', 'sparkles-outline', 0),
+  ('Getting started', 'How do I add friends (mates)?', 'Search for someone by name or @handle, open their profile, and tap Mate up. Once they accept, you''ll see each other''s Moments and can chat and call for real.', 'people-outline', 1),
+  ('Privacy & safety', 'Who can see my posts?', 'Public accounts are visible to everyone on Moments. Switch to a Private account in Settings → your name → Account type to only share with your mates.', 'lock-closed-outline', 0),
+  ('Privacy & safety', 'How do I report something?', 'Every post, reel and story has a Report option — pick the reason (copyright, abuse, spam, etc.) and it goes straight to the owner''s review queue. We really do review every report.', 'flag-outline', 1),
+  ('Privacy & safety', 'Can I delete my content?', 'Yes — open anything you posted and you''ll find a real Delete option. It''s removed from the database, not just hidden.', 'trash-outline', 2),
+  ('Music & copyright', 'Can I use any song on my Moments?', 'Only tracks from the in-app Music Hub — every one is Creative Commons, Public Domain, or properly licensed, with credit shown. This keeps your posts copyright-safe.', 'musical-notes-outline', 0),
+  ('Account', 'How do I get verified?', 'Verification is for real artists and musicians right now — switch your account type to Artist or Musician in your profile menu, then tap Request verification. A real person reviews every request.', 'shield-checkmark-outline', 0),
+  ('Account', 'How do I delete my account?', 'Email us (below) and we''ll delete your account and everything tied to it — for real, not just deactivate it.', 'person-remove-outline', 1)
+) as v(category, title, body, icon, position)
+where not exists (select 1 from public.help_articles limit 1);
+
+notify pgrst, 'reload schema';
+
 -- ═══════════════ PROFILE COLUMNS SELF-HEAL ═══════════════
 -- Columns added by earlier schema files (v2 languages, v7 country)
 -- that may be missing — safe to re-add, they no-op if present.
@@ -895,6 +936,7 @@ select
   (to_regclass('public.story_views')          is not null) as story_views_ready,
   (to_regclass('public.story_reactions')      is not null) as story_reactions_ready,
   (to_regclass('public.game_matches')         is not null) as multiplayer_ready,
+  (to_regclass('public.help_articles')        is not null) as help_articles_ready,
   exists (select 1 from information_schema.columns
           where table_schema = 'public' and table_name = 'profiles'
             and column_name = 'country')                    as country_column_ready,
