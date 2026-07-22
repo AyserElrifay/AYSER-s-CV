@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, Modal, Pressable, ImageBackground, Animated, Image, Dimensions, Platform, TextInput } from 'react-native';
+import { View, Text, Modal, Pressable, ImageBackground, Animated, Image, Dimensions, Platform, TextInput, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,10 +7,24 @@ import { SoundChip } from './SoundChip';
 import { C } from '../constants/theme';
 import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-import { deleteStory, castPollVote, fetchPollResults } from '../services/stories';
+import {
+  deleteStory, castPollVote, fetchPollResults,
+  recordStoryView, fetchStoryViewers, reactToStory, fetchMyStoryReaction,
+} from '../services/stories';
 import { getOrCreateDmThread, sendMessage } from '../services/messages';
 import { tapLight, tapSuccess } from '../utils/feedback';
 import { sfxPop, sfxSuccess } from '../utils/sfx';
+
+const REACT_EMOJIS = ['❤️', '🔥', '😂', '😮', '😢', '👏'];
+
+/* Time-ago for the viewers list ("3m", "2h") — short, no library. */
+const timeAgo = (iso) => {
+  const s = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
+  if (s < 60) return 'now';
+  if (s < 3600) return Math.floor(s / 60) + 'm';
+  if (s < 86400) return Math.floor(s / 3600) + 'h';
+  return Math.floor(s / 86400) + 'd';
+};
 
 const { width: W } = Dimensions.get('window');
 const STORY_MS = 5000;
@@ -35,6 +49,10 @@ export const StoryViewer = ({ stories, startIndex = 0, onClose, onShare, onDelet
   const [sent, setSent] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
   const [poll, setPoll] = useState(null); // { counts:[a,b], mine, total }
+  const [myReaction, setMyReaction] = useState(null);
+  const [reactSent, setReactSent] = useState(false);
+  const [viewers, setViewers] = useState(null); // null = not loaded, [] = loaded empty
+  const [viewersOpen, setViewersOpen] = useState(false);
   const progress = useRef(new Animated.Value(0)).current;
   const anim = useRef(null);
   const story = stories[index];
@@ -42,8 +60,17 @@ export const StoryViewer = ({ stories, startIndex = 0, onClose, onShare, onDelet
 
   useEffect(() => {
     setConfirmDel(false); setReply(''); setSent(false); setPoll(null);
-    if (story && story.stickerType === 'poll' && SUPABASE_READY) {
-      fetchPollResults(story.id, user && user.id).then(setPoll).catch(() => {});
+    setMyReaction(null); setReactSent(false); setViewers(null); setViewersOpen(false);
+    if (!story || !SUPABASE_READY || !user) return;
+    if (story.stickerType === 'poll') {
+      fetchPollResults(story.id, user.id).then(setPoll).catch(() => {});
+    }
+    if (isMine) {
+      // real "who watched" — owner sees the count + list
+      fetchStoryViewers(story.id).then(setViewers).catch(() => setViewers([]));
+    } else {
+      recordStoryView(story.id, user.id);
+      fetchMyStoryReaction(story.id, user.id).then(setMyReaction).catch(() => {});
     }
   }, [index]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -92,6 +119,21 @@ export const StoryViewer = ({ stories, startIndex = 0, onClose, onShare, onDelet
       setReply('');
       setSent(true);
       setTimeout(() => setSent(false), 1600);
+    } catch (e) {}
+  };
+
+  const sendReaction = async (emoji) => {
+    if (!SUPABASE_READY || !user || isMine) return;
+    tapSuccess(); sfxSuccess();
+    setMyReaction(emoji);
+    setReactSent(true);
+    setTimeout(() => setReactSent(false), 1400);
+    try {
+      await reactToStory(story.id, user.id, emoji);
+      // reactions land in the owner's DMs too — same as the reply flow,
+      // so it's a real notification they see, not just a silent count
+      const threadId = await getOrCreateDmThread(story.user.id);
+      await sendMessage({ dmThreadId: threadId, userId: user.id, body: 'Reacted to your story: ' + emoji });
     } catch (e) {}
   };
 
@@ -237,6 +279,25 @@ export const StoryViewer = ({ stories, startIndex = 0, onClose, onShare, onDelet
               </View>
             ) : null}
 
+            {/* quick-react "sticker" — one tap, lands in the owner's DMs
+                as a real notification, same as a reply */}
+            {!isMine && SUPABASE_READY ? (
+              <View style={{ flexDirection: 'row', marginTop: 4, marginBottom: 4 }}>
+                {REACT_EMOJIS.map((e) => (
+                  <Pressable key={e} onPress={() => sendReaction(e)} hitSlop={6} style={{ marginRight: 10 }}>
+                    <View style={{
+                      width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center',
+                      backgroundColor: myReaction === e ? 'rgba(245,179,1,0.35)' : 'rgba(255,255,255,0.14)',
+                      borderWidth: myReaction === e ? 1.5 : 0, borderColor: C.gold,
+                    }}>
+                      <Text style={{ fontSize: 18 }}>{e}</Text>
+                    </View>
+                  </Pressable>
+                ))}
+                {reactSent ? <Ionicons name="checkmark-circle" size={22} color="#10B981" style={{ alignSelf: 'center' }} /> : null}
+              </View>
+            ) : null}
+
             {/* reply — always available, unless it's your own story or
                 the question sticker's answer box already covers it */}
             {!isMine && story.stickerType !== 'question' ? (
@@ -252,8 +313,50 @@ export const StoryViewer = ({ stories, startIndex = 0, onClose, onShare, onDelet
                 </Pressable>
               </View>
             ) : null}
+
+            {/* owner: real "who watched" — count pill opens the list */}
+            {isMine && SUPABASE_READY && viewers ? (
+              <Pressable onPress={() => setViewersOpen(true)} hitSlop={8}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12, alignSelf: 'flex-start', backgroundColor: 'rgba(255,255,255,0.14)', borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8 }}>
+                  <Ionicons name="eye-outline" size={16} color="#FFF" />
+                  <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '800', marginLeft: 6 }}>
+                    {viewers.length} viewer{viewers.length === 1 ? '' : 's'}
+                  </Text>
+                  {viewers.length ? <Ionicons name="chevron-up" size={14} color="rgba(255,255,255,0.7)" style={{ marginLeft: 6 }} /> : null}
+                </View>
+              </Pressable>
+            ) : null}
           </LinearGradient>
         </ImageBackground>
+
+        {/* viewers list — who watched + what they reacted with */}
+        {viewersOpen ? (
+          <Pressable style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.55)' }} onPress={() => setViewersOpen(false)}>
+            <Pressable
+              onPress={() => {}}
+              style={{ position: 'absolute', left: 0, right: 0, bottom: 0, maxHeight: '62%', backgroundColor: '#161619', borderTopLeftRadius: 22, borderTopRightRadius: 22, paddingTop: 12, paddingBottom: insets.bottom + 16 }}
+            >
+              <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.25)', alignSelf: 'center', marginBottom: 12 }} />
+              <Text style={{ color: '#FFF', fontSize: 14.5, fontWeight: '900', textAlign: 'center', marginBottom: 10 }}>
+                👁 {viewers ? viewers.length : 0} viewer{viewers && viewers.length === 1 ? '' : 's'}
+              </Text>
+              <ScrollView style={{ paddingHorizontal: 16 }}>
+                {(viewers || []).length === 0 ? (
+                  <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12.5, textAlign: 'center', paddingVertical: 20 }}>No one yet — check back soon</Text>
+                ) : (viewers || []).map((v) => (
+                  <View key={v.viewer_id} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 9 }}>
+                    <Image source={{ uri: v.viewer && v.viewer.avatar_url }} style={{ width: 34, height: 34, borderRadius: 17, marginRight: 10, backgroundColor: '#333' }} />
+                    <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '700', flex: 1 }} numberOfLines={1}>
+                      {(v.viewer && v.viewer.name) || 'Someone'}{v.viewer && v.viewer.country_flag ? ' ' + v.viewer.country_flag : ''}
+                    </Text>
+                    {v.emoji ? <Text style={{ fontSize: 16, marginRight: 8 }}>{v.emoji}</Text> : null}
+                    <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 11 }}>{timeAgo(v.viewed_at)}</Text>
+                  </View>
+                ))}
+              </ScrollView>
+            </Pressable>
+          </Pressable>
+        ) : null}
       </View>
     </Modal>
   );

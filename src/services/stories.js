@@ -92,6 +92,51 @@ export async function castPollVote(storyId, userId, choice) {
   if (error) throw error;
 }
 
+/* ── Real "who watched" — recorded once per viewer, never for your own
+   story. Fail-soft: on a not-yet-migrated DB this just quietly no-ops,
+   it must never block watching a story. ── */
+export async function recordStoryView(storyId, viewerId) {
+  if (!storyId || !viewerId) return;
+  try {
+    await supabase.from('story_views').upsert(
+      { story_id: storyId, viewer_id: viewerId, viewed_at: new Date().toISOString() },
+      { onConflict: 'story_id,viewer_id' }
+    );
+  } catch (e) { /* pre-migration or offline — never block playback */ }
+}
+
+/* Owner-only: everyone who watched, newest first, with their reaction
+   (if any) attached — RLS only lets the story's own owner see this. */
+export async function fetchStoryViewers(storyId) {
+  const [{ data: views, error: e1 }, { data: reactions }] = await Promise.all([
+    supabase
+      .from('story_views')
+      .select('viewer_id, viewed_at, viewer:profiles!story_views_viewer_id_fkey(id, name, avatar_url, country_flag)')
+      .eq('story_id', storyId)
+      .order('viewed_at', { ascending: false }),
+    supabase.from('story_reactions').select('user_id, emoji').eq('story_id', storyId),
+  ]);
+  if (e1) throw e1;
+  const byUser = new Map((reactions || []).map((r) => [r.user_id, r.emoji]));
+  return (views || []).map((v) => ({ ...v, emoji: byUser.get(v.viewer_id) || null }));
+}
+
+/* Tap-emoji reaction ("sticker") — one per viewer per story; tapping a
+   different emoji just replaces your last one. */
+export async function reactToStory(storyId, userId, emoji) {
+  const { error } = await supabase
+    .from('story_reactions')
+    .upsert({ story_id: storyId, user_id: userId, emoji, created_at: new Date().toISOString() }, { onConflict: 'story_id,user_id' });
+  if (error) throw error;
+}
+
+export async function fetchMyStoryReaction(storyId, userId) {
+  try {
+    const { data } = await supabase.from('story_reactions').select('emoji').eq('story_id', storyId).eq('user_id', userId).maybeSingle();
+    return data ? data.emoji : null;
+  } catch (e) { return null; }
+}
+
 export async function fetchPollResults(storyId, myUserId) {
   const { data, error } = await supabase
     .from('story_poll_votes')

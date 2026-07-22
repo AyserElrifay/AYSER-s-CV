@@ -799,6 +799,52 @@ alter table public.messages add column if not exists kind       text default 'te
 -- visible to the app immediately, no waiting.
 notify pgrst, 'reload schema';
 
+-- ═══════════ STORY VIEWS + REACTIONS · real "who watched" ═══════════
+-- A view is recorded once per viewer per story (upsert keeps re-opens
+-- from double-counting). Owners can see the full viewer list on their
+-- own story; everyone else only ever sees their own view row — never
+-- someone else's, so watching a story stays private the way it should.
+create table if not exists public.story_views (
+  story_id   uuid not null references public.stories(id) on delete cascade,
+  viewer_id  uuid not null references public.profiles(id) on delete cascade,
+  viewed_at  timestamptz not null default now(),
+  primary key (story_id, viewer_id)
+);
+alter table public.story_views enable row level security;
+drop policy if exists "sv_ins" on public.story_views;
+create policy "sv_ins" on public.story_views for insert with check (auth.uid() = viewer_id);
+drop policy if exists "sv_upd" on public.story_views;
+create policy "sv_upd" on public.story_views for update using (auth.uid() = viewer_id);
+drop policy if exists "sv_sel" on public.story_views;
+create policy "sv_sel" on public.story_views for select using (
+  auth.uid() = viewer_id
+  or auth.uid() = (select user_id from public.stories where id = story_id)
+);
+
+-- A tap-emoji reaction ("sticker"), one per viewer per story — tapping
+-- a different emoji just replaces your last one (upsert). Same privacy
+-- shape as views: the story's owner sees every reaction on their
+-- story, everyone else only sees their own.
+create table if not exists public.story_reactions (
+  story_id    uuid not null references public.stories(id) on delete cascade,
+  user_id     uuid not null references public.profiles(id) on delete cascade,
+  emoji       text not null default '❤️',
+  created_at  timestamptz not null default now(),
+  primary key (story_id, user_id)
+);
+alter table public.story_reactions enable row level security;
+drop policy if exists "sr_ins" on public.story_reactions;
+create policy "sr_ins" on public.story_reactions for insert with check (auth.uid() = user_id);
+drop policy if exists "sr_upd" on public.story_reactions;
+create policy "sr_upd" on public.story_reactions for update using (auth.uid() = user_id);
+drop policy if exists "sr_sel" on public.story_reactions;
+create policy "sr_sel" on public.story_reactions for select using (
+  auth.uid() = user_id
+  or auth.uid() = (select user_id from public.stories where id = story_id)
+);
+
+notify pgrst, 'reload schema';
+
 -- ═══════════════════ READINESS CHECKLIST ═══════════════════
 -- Every column below should say TRUE. If chat_ready is FALSE,
 -- also run supabase/schema_v2_live.sql (messages & live map).
@@ -815,6 +861,8 @@ select
   (to_regclass('public.venue_bookings')       is not null) as venue_bookings_ready,
   (to_regclass('public.post_reposts')         is not null) as reposts_ready,
   (to_regclass('public.story_poll_votes')     is not null) as story_polls_ready,
+  (to_regclass('public.story_views')          is not null) as story_views_ready,
+  (to_regclass('public.story_reactions')      is not null) as story_reactions_ready,
   exists (select 1 from information_schema.columns
           where table_schema = 'public' and table_name = 'profiles'
             and column_name = 'country')                    as country_column_ready,
