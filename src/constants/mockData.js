@@ -312,11 +312,19 @@ export const GAME_LOCATIONS = [
   { id: 'ba', city: 'Sarajevo', country: 'Bosnia', flag: '🇧🇦', landmark: '⛰️', colors: ['#10B981', '#064E3B'] },
 ];
 
+/* Rooftop Rush — jump between rooftops, each country a different
+   skyline AND a different themed chaser closing in behind you. */
+export const ROOFTOP_LOCATIONS = [
+  { id: 'eg', city: 'Cairo', country: 'Egypt', flag: '🇪🇬', landmark: '🔺', sky: ['#F59E0B', '#7C2D12'], chaser: '🧟', chaserName: 'The Mummy', caughtLine: 'The mummy got you! 🧟‍♂️💥', home: true },
+  { id: 'fr', city: 'Paris', country: 'France', flag: '🇫🇷', landmark: '🗼', sky: ['#6366F1', '#1E1B4B'], chaser: '👻', chaserName: 'The Phantom', caughtLine: 'The Phantom of Paris caught you! 👻💥' },
+  { id: 'ro', city: 'Bucharest', country: 'Romania', flag: '🇷🇴', landmark: '🏰', sky: ['#312E81', '#0B0B1A'], chaser: '🧛', chaserName: 'Dracula', caughtLine: 'Dracula got you! 🧛💥' },
+];
+
 export const PLAY_GAMES = [
-  { id: 'run1', name: 'Catch Your Mate', emoji: '🏃', tag: 'Run together', players: '2–4 mates', plays: '48K', desc: 'Chase your friend through the streets and dodge everything in your path. Crash and you’re out — last one running wins the round.', kind: 'runner' },
-  { id: 'run2', name: 'Rooftop Rush', emoji: '🏙️', tag: 'Race', players: '2 mates', plays: '31K', desc: 'Sprint across the skyline neck-and-neck. First to trip loses. Best of three.', kind: 'runner' },
-  { id: 'stack', name: 'Stack', emoji: '🧱', tag: 'Solo · beat your best', players: '1 player', plays: '12K', desc: 'Tap to drop each block dead-centre and build the tallest tower you can. One sloppy drop and it all comes down. Chase the perfect streak.', kind: 'stack' },
-  { id: 'tod', name: 'Truth or Dare', emoji: '🎲', tag: 'In chat', players: '2+ mates', plays: '92K', desc: 'Drop it into any chat — a mate one-on-one or the whole gang. Spin, dare, laugh, remove it anytime.', kind: 'chat' },
+  { id: 'run1', name: 'Catch Your Mate', emoji: '🏃', tag: 'Run together', players: '2–4 mates', desc: 'Chase your friend through the streets and dodge everything in your path. Crash and you’re out — last one running wins the round.', kind: 'runner' },
+  { id: 'run2', name: 'Rooftop Rush', emoji: '🏙️', tag: 'Jump the skyline', players: '1 player', desc: 'Sprint across the rooftops and jump every gap — a different skyline and a different chaser on your tail in every country. Miss a jump and they catch you.', kind: 'rooftop' },
+  { id: 'stack', name: 'Stack', emoji: '🧱', tag: 'Solo · beat your best', players: '1 player', desc: 'Tap to drop each block dead-centre and build the tallest tower you can. One sloppy drop and it all comes down. Chase the perfect streak.', kind: 'stack' },
+  { id: 'tod', name: 'Truth or Dare', emoji: '🎲', tag: 'In chat', players: '2+ mates', desc: 'Drop it into any chat — a mate one-on-one or the whole gang. Spin, dare, laugh, remove it anytime.', kind: 'chat' },
 ];
 
 /* Truth or Dare — the chat game. Light, playful, safe-for-friends. */

@@ -14,6 +14,7 @@ import { Chip } from './Chip';
 import { Tick } from './Tick';
 import { Micro } from './Micro';
 import { GameRunner } from './GameRunner';
+import { RooftopRush } from './RooftopRush';
 import { StackGame } from './StackGame';
 import { tapLight, tapSuccess } from '../utils/feedback';
 import { sfxSuccess } from '../utils/sfx';
@@ -316,7 +317,9 @@ export const SearchModal = ({ onClose, onOpenProfile }) => {
           {tab === 'Play' ? (games.length ? games.map((g) => <GameRow key={g.id} item={g} />) : <Empty q={q} />) : null}
         </ScrollView>
       </View>
-      {game && game.kind === 'stack' ? <StackGame onClose={() => setGame(null)} /> : game ? <GameRunner onClose={() => setGame(null)} /> : null}
+      {game && game.kind === 'stack' ? <StackGame onClose={() => setGame(null)} />
+        : game && game.kind === 'rooftop' ? <RooftopRush onClose={() => setGame(null)} />
+        : game ? <GameRunner onClose={() => setGame(null)} /> : null}
     </Modal>
   );
 };
