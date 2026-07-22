@@ -39,6 +39,7 @@ export { NowPlayingSheet } from './NowPlayingSheet';
 export { GameRunner } from './GameRunner';
 export { HelpSheet } from './HelpSheet';
 export { RooftopRush } from './RooftopRush';
+export { SekoSeko } from './SekoSeko';
 export { StackGame } from './StackGame';
 export { CaptureModal } from './CaptureModal';
 export { BoostSheet } from './BoostSheet';
