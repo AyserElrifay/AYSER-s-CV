@@ -45,14 +45,37 @@ export const BardiSheet = ({ onClose }) => {
     const next = [...messages, { role: 'user', content }];
     setMessages(next);
     setBusy(true);
-    try {
-      const reply = await askBardi(next, { language: lang || 'en', profile });
-      setMessages((m) => [...m, { role: 'assistant', content: reply }]);
-    } catch (e) {
-      setError('Couldn\'t reach Bardi just now — check your connection and try again. 🌱');
-    } finally {
-      setBusy(false);
+    // one automatic retry — the free AI tier often succeeds on the 2nd try
+    let reply = null;
+    for (let attempt = 0; attempt < 2 && !reply; attempt++) {
+      try {
+        reply = await askBardi(next, { language: lang || 'en', profile });
+      } catch (e) {
+        if (attempt === 0) await new Promise((r) => setTimeout(r, 900));
+      }
     }
+    if (reply) {
+      setMessages((m) => [...m, { role: 'assistant', content: reply }]);
+    } else {
+      setError(lang === 'ar'
+        ? 'باردي مزحوم دلوقتي 🌱 — استنى ثانية ودوس "حاول تاني".'
+        : 'Bardi is busy right now 🌱 — wait a second and tap "Try again".');
+    }
+    setBusy(false);
+  };
+
+  // resend the last user message (the error banner's "Try again")
+  const retryLast = () => {
+    const lastUser = [...messages].reverse().find((m) => m.role === 'user');
+    if (!lastUser || busy) return;
+    setError(null);
+    // strip the failed turn's trailing user msg so send() re-appends it once
+    setMessages((m) => {
+      const copy = [...m];
+      if (copy.length && copy[copy.length - 1].role === 'user') copy.pop();
+      return copy;
+    });
+    setTimeout(() => send(lastUser.content), 30);
   };
 
   const empty = messages.length === 0;
@@ -107,8 +130,13 @@ export const BardiSheet = ({ onClose }) => {
               ) : null}
 
               {error ? (
-                <View style={{ backgroundColor: C.coralSoft, borderRadius: 14, padding: 12, marginBottom: 10 }}>
-                  <Text style={{ color: C.text, fontSize: 12.5, lineHeight: 19 }}>{error}</Text>
+                <View style={{ backgroundColor: C.coralSoft, borderRadius: 14, padding: 12, marginBottom: 10, flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={{ color: C.text, fontSize: 12.5, lineHeight: 19, flex: 1 }}>{error}</Text>
+                  <Pressable onPress={retryLast} disabled={busy} hitSlop={8} style={{ marginLeft: 10 }}>
+                    <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8 }}>
+                      <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '900' }}>{lang === 'ar' ? 'حاول تاني' : 'Try again'}</Text>
+                    </View>
+                  </Pressable>
                 </View>
               ) : null}
             </ScrollView>

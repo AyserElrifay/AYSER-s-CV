@@ -28,44 +28,70 @@ Be concise, kind and practical. Ask one question at a time when you need more. A
   return p;
 }
 
+/* fetch with a hard timeout — a hung request must never leave Bardi
+   "thinking" forever; it should fail fast so the next provider is tried. */
+async function fetchT(url, options, ms) {
+  const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  const timer = setTimeout(() => { try { ctrl && ctrl.abort(); } catch (e) {} }, ms || 16000);
+  try {
+    return await fetch(url, { ...(options || {}), signal: ctrl ? ctrl.signal : undefined });
+  } finally { clearTimeout(timer); }
+}
+
+// A reply is "real" only if it isn't an error page / rate-limit blurb.
+function cleanReply(text) {
+  const t = String(text || '').trim();
+  if (!t || t.length < 2) return null;
+  if (/^\s*(\{?\s*"?error|error:|not\s*found|rate.?limit|too many|unauthor|<!doctype|<html|payment required)/i.test(t)) return null;
+  return t;
+}
+
+async function pollinationsGET(prompt, sys, model) {
+  const url = 'https://text.pollinations.ai/' + encodeURIComponent(prompt)
+    + '?model=' + encodeURIComponent(model) + '&referrer=moments.app&system=' + encodeURIComponent(sys);
+  const r = await fetchT(url, {}, 16000);
+  if (!r.ok) return null;
+  return cleanReply(await r.text());
+}
+
+async function pollinationsPOST(hist, sys, model) {
+  const r = await fetchT('https://text.pollinations.ai/openai', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      model, referrer: 'moments.app',
+      messages: [{ role: 'system', content: sys }, ...hist.map((m) => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: String(m.content || '') }))],
+    }),
+  }, 18000);
+  if (!r.ok) return null;
+  const data = await r.json().catch(() => null);
+  return cleanReply(data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content);
+}
+
 /* Fallback that talks to Bardi straight from the browser — free, needs no
    Edge Function deploy. Uses Pollinations (CORS-open) so Bardi is alive the
-   moment the app loads. Real AI, not a canned reply. */
+   moment the app loads. Real AI, not a canned reply.
+
+   Pollinations' free tier is flaky and rate-limits hard, so we're resilient:
+   try several models, GET first (short prompts, no preflight) then POST,
+   each with a timeout — so one throttled model never sinks the whole thing. */
 async function askBardiDirect(messages, opts) {
   const sys = bardiSystem(opts.language || 'en', opts.profile);
   const hist = (messages || []).slice(-8);
+  const convo = hist.map((m) => (m.role === 'assistant' ? 'Bardi' : 'User') + ': ' + String(m.content || '')).join('\n') + '\nBardi:';
+  // keep GET only when the URL stays sane; long chats go POST-only (a huge
+  // URL trips 414 "URI too long" — a real cause of silent failures).
+  const getOk = convo.length < 1200;
+  const MODELS = ['openai', 'mistral', 'openai-fast', 'llama'];
 
-  // 1) GET endpoint — simplest, no CORS preflight, most reliable in a browser.
-  try {
-    const convo = hist.map((m) => (m.role === 'assistant' ? 'Bardi' : 'User') + ': ' + String(m.content || '')).join('\n');
-    const prompt = convo + '\nBardi:';
-    const url = 'https://text.pollinations.ai/' + encodeURIComponent(prompt)
-      + '?model=openai&referrer=moments&system=' + encodeURIComponent(sys);
-    const r = await fetch(url);
-    if (r.ok) {
-      const text = (await r.text()).trim();
-      if (text && !/^\s*(error|not found|<)/i.test(text)) return text;
+  let lastErr = null;
+  for (const model of MODELS) {
+    if (getOk) {
+      try { const g = await pollinationsGET(convo, sys, model); if (g) return g; } catch (e) { lastErr = e; }
     }
-  } catch (e) { /* try POST */ }
-
-  // 2) POST OpenAI-style endpoint as a backup.
-  try {
-    const res = await fetch('https://text.pollinations.ai/openai', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        model: 'openai', referrer: 'moments',
-        messages: [{ role: 'system', content: sys }, ...hist.map((m) => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: String(m.content || '') }))],
-      }),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      const reply = (data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content || '').trim();
-      if (reply) return reply;
-    }
-  } catch (e) { /* fall through */ }
-
-  throw new Error('bardi-unavailable');
+    try { const p = await pollinationsPOST(hist, sys, model); if (p) return p; } catch (e) { lastErr = e; }
+  }
+  throw (lastErr || new Error('bardi-unavailable'));
 }
 
 /* Send the conversation to Bardi and get its reply.
@@ -82,13 +108,20 @@ export async function askBardi(messages, opts = {}) {
   };
   if (opts.profile) body.profile = opts.profile;
 
-  // 1) the deployed Edge Function, when available
+  // 1) the deployed Edge Function, when available. Race it against a
+  //    timeout so a cold/hung function never freezes Bardi — we just
+  //    fall through to the live browser fallback instead.
   if (SUPABASE_READY) {
     try {
-      const { data, error } = await supabase.functions.invoke('bardi-chat', { body });
-      const reply = !error && data && (data.reply || data.message || data.content);
-      if (reply) return reply;
-    } catch (e) { /* not deployed yet → fall through */ }
+      const invoke = supabase.functions.invoke('bardi-chat', { body });
+      const timeout = new Promise((resolve) => setTimeout(() => resolve({ __timeout: true }), 12000));
+      const res = await Promise.race([invoke, timeout]);
+      if (res && !res.__timeout) {
+        const { data, error } = res;
+        const reply = !error && data && (data.reply || data.message || data.content);
+        if (reply) return reply;
+      }
+    } catch (e) { /* not deployed / errored → fall through */ }
   }
   // 2) live fallback, straight from the browser
   return askBardiDirect(messages, opts);

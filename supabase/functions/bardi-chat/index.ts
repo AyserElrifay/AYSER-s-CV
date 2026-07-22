@@ -52,18 +52,28 @@ async function viaAnthropic(key: string, sys: string, messages: any[]): Promise<
   return (data?.content?.[0]?.text || "").trim();
 }
 
+// Pollinations' free tier is flaky and rate-limits hard, so try a few
+// models in turn — one throttled model never sinks the whole reply.
 async function viaPollinations(sys: string, messages: any[]): Promise<string> {
-  const res = await fetch("https://text.pollinations.ai/openai", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      model: "openai",
-      messages: [{ role: "system", content: sys }, ...messages.map((m: any) => ({ role: m.role === "assistant" ? "assistant" : "user", content: String(m.content || "") }))],
-    }),
-  });
-  if (!res.ok) throw new Error("pollinations " + res.status);
-  const data = await res.json();
-  return (data?.choices?.[0]?.message?.content || "").trim();
+  const models = ["openai", "mistral", "openai-fast", "llama"];
+  let lastStatus = 0;
+  for (const model of models) {
+    try {
+      const res = await fetch("https://text.pollinations.ai/openai", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          model, referrer: "moments.app",
+          messages: [{ role: "system", content: sys }, ...messages.map((m: any) => ({ role: m.role === "assistant" ? "assistant" : "user", content: String(m.content || "") }))],
+        }),
+      });
+      if (!res.ok) { lastStatus = res.status; continue; }
+      const data = await res.json();
+      const reply = (data?.choices?.[0]?.message?.content || "").trim();
+      if (reply) return reply;
+    } catch (_e) { /* try next model */ }
+  }
+  throw new Error("pollinations " + (lastStatus || "unreachable"));
 }
 
 Deno.serve(async (req) => {
