@@ -171,15 +171,22 @@ export const ProfileModal = ({ user, onClose }) => {
           </View>
 
           <View style={{ paddingHorizontal: 16, marginTop: 14 }}>
-            {/* identity — stats on the LEFT, avatar on the RIGHT, always,
-                in both languages. A plain flexDirection:'row' flips under
-                Arabic (document dir="rtl" reverses which edge "row" starts
-                from), which silently pushed the avatar to the LEFT in
-                Arabic mode — swapping child order when rtl is on keeps it
-                pinned right regardless. */}
+            {/* identity — avatar on the LEFT, stats to its right (clean,
+                balanced Instagram-style header). A plain flexDirection:'row'
+                flips under Arabic (document dir="rtl" reverses which edge
+                "row" starts from), so we swap child order when rtl is on and
+                use a fixed-width spacer for the gap — keeps the avatar
+                pinned LEFT in both languages. */}
             {(() => {
+              const avatarBlock = (
+                <LinearGradient colors={[C.gold, C.purple, C.green]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ width: 88, height: 88, borderRadius: 44, alignItems: 'center', justifyContent: 'center' }}>
+                  <View style={{ backgroundColor: C.bg, borderRadius: 44, padding: 3 }}>
+                    <Image source={{ uri: user.avatar }} style={{ width: 76, height: 76, borderRadius: 38 }} />
+                  </View>
+                </LinearGradient>
+              );
               const statsBlock = (
-                <View style={{ flex: 1, flexDirection: 'row', marginRight: rtl ? 0 : 8, marginLeft: rtl ? 8 : 0 }}>
+                <View style={{ flex: 1, flexDirection: 'row' }}>
                   {stats.map((s) => (
                     <View key={s.l} style={{ flex: 1, alignItems: 'center' }}>
                       <Text style={{ color: C.text, fontSize: 18, fontWeight: '900' }}>{s.n}</Text>
@@ -188,17 +195,12 @@ export const ProfileModal = ({ user, onClose }) => {
                   ))}
                 </View>
               );
-              const avatarBlock = (
-                <LinearGradient colors={[C.gold, C.purple, C.green]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ width: 88, height: 88, borderRadius: 44, alignItems: 'center', justifyContent: 'center' }}>
-                  <View style={{ backgroundColor: C.bg, borderRadius: 44, padding: 3 }}>
-                    <Image source={{ uri: user.avatar }} style={{ width: 76, height: 76, borderRadius: 38 }} />
-                  </View>
-                </LinearGradient>
-              );
+              const spacer = <View style={{ width: 16 }} />;
               return (
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  {rtl ? avatarBlock : statsBlock}
                   {rtl ? statsBlock : avatarBlock}
+                  {spacer}
+                  {rtl ? avatarBlock : statsBlock}
                 </View>
               );
             })()}

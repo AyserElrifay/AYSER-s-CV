@@ -422,20 +422,12 @@ export const ProfileScreen = () => {
         {/* identity */}
         <View style={{ paddingHorizontal: 16, marginTop: 18 }}>
           {(() => {
-            // Stats-left, avatar-right is a deliberate choice (not tied to
-            // language direction) — but a plain flexDirection:'row' flips
-            // under Arabic (document dir="rtl" reverses which edge "row"
-            // starts from, same mechanism the tab bar/message bubbles use),
-            // which silently pushed the avatar to the LEFT in Arabic mode.
-            // Swapping the child order when rtl is on keeps it pinned right
-            // in both languages.
-            const statsBlock = (
-              <View style={{ flex: 1, flexDirection: 'row', marginRight: rtl ? 0 : 6, marginLeft: rtl ? 6 : 0 }}>
-                <Stat n={moments} label="Moments" />
-                <Stat n={mates} label="Followers" onPress={() => setMatesOpen(true)} />
-                <Stat n={likes} label="Likes" />
-              </View>
-            );
+            // Avatar on the LEFT, stats spread to its right — the clean,
+            // balanced Instagram-style header. A plain flexDirection:'row'
+            // flips under Arabic (document dir="rtl" reverses which edge
+            // "row" starts from), so we swap child order when rtl is on and
+            // use a fixed-width spacer (direction-agnostic) for the gap —
+            // that keeps the avatar pinned LEFT in both languages.
             const avatarBlock = (
               <Pressable onPress={() => { tapLight(); setEditOpen(true); }}>
                 <LinearGradient
@@ -453,10 +445,19 @@ export const ProfileScreen = () => {
                 </View>
               </Pressable>
             );
+            const statsBlock = (
+              <View style={{ flex: 1, flexDirection: 'row' }}>
+                <Stat n={moments} label="Moments" />
+                <Stat n={mates} label="Followers" onPress={() => setMatesOpen(true)} />
+                <Stat n={likes} label="Likes" />
+              </View>
+            );
+            const spacer = <View style={{ width: 16 }} />;
             return (
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                {rtl ? avatarBlock : statsBlock}
                 {rtl ? statsBlock : avatarBlock}
+                {spacer}
+                {rtl ? avatarBlock : statsBlock}
               </View>
             );
           })()}
