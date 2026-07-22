@@ -55,6 +55,19 @@ export async function sendMoment({ squadId, dmThreadId, userId, mediaUrl, mediaK
   return res.data;
 }
 
+/* Send a real "Catch Your Mate" duel invite into the chat — a normal
+   message row, just carrying a game_match_id so it renders as an
+   invite card instead of text (see ChatThread). */
+export async function sendGameInvite({ dmThreadId, userId, matchId }) {
+  const { data, error } = await supabase
+    .from('messages')
+    .insert({ dm_thread_id: dmThreadId, user_id: userId, body: '🏃 Catch Your Mate — invite sent', kind: 'game_invite', game_match_id: matchId })
+    .select('*, user:profiles(name, handle, avatar_url)')
+    .single();
+  if (error) throw error;
+  return data;
+}
+
 /* Snapchat-style streak: consecutive days on which BOTH people sent at
    least one Moment. Computed purely from the loaded chat messages (local
    shape: { userId, createdAt, kind, mediaUrl }) — real, no separate

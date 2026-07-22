@@ -799,6 +799,37 @@ alter table public.messages add column if not exists kind       text default 'te
 -- visible to the app immediately, no waiting.
 notify pgrst, 'reload schema';
 
+-- ═══════════ REAL MULTIPLAYER · Catch Your Mate live duels ═══════════
+-- A match is a real row two real accounts share (RLS: only the two of
+-- them can ever see or touch it). The actual race is never stored tick
+-- by tick — that rides a Supabase Realtime broadcast channel between
+-- the two browsers, live — only the final result lands here.
+create table if not exists public.game_matches (
+  id          uuid primary key default gen_random_uuid(),
+  kind        text not null default 'catch',
+  host_id     uuid not null references public.profiles(id) on delete cascade,
+  guest_id    uuid not null references public.profiles(id) on delete cascade,
+  status      text not null default 'pending', -- pending | active | done | declined
+  host_score  int,
+  guest_score int,
+  winner_id   uuid references public.profiles(id),
+  created_at  timestamptz not null default now(),
+  started_at  timestamptz,
+  ended_at    timestamptz
+);
+alter table public.game_matches enable row level security;
+drop policy if exists "gm_sel" on public.game_matches;
+create policy "gm_sel" on public.game_matches for select using (auth.uid() in (host_id, guest_id));
+drop policy if exists "gm_ins" on public.game_matches;
+create policy "gm_ins" on public.game_matches for insert with check (auth.uid() = host_id);
+drop policy if exists "gm_upd" on public.game_matches;
+create policy "gm_upd" on public.game_matches for update using (auth.uid() in (host_id, guest_id));
+
+-- a match invite is a real message that lives in the chat history
+alter table public.messages add column if not exists game_match_id uuid references public.game_matches(id);
+
+notify pgrst, 'reload schema';
+
 -- ═══════════ STORY VIEWS + REACTIONS · real "who watched" ═══════════
 -- A view is recorded once per viewer per story (upsert keeps re-opens
 -- from double-counting). Owners can see the full viewer list on their
@@ -863,6 +894,7 @@ select
   (to_regclass('public.story_poll_votes')     is not null) as story_polls_ready,
   (to_regclass('public.story_views')          is not null) as story_views_ready,
   (to_regclass('public.story_reactions')      is not null) as story_reactions_ready,
+  (to_regclass('public.game_matches')         is not null) as multiplayer_ready,
   exists (select 1 from information_schema.columns
           where table_schema = 'public' and table_name = 'profiles'
             and column_name = 'country')                    as country_column_ready,

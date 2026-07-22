@@ -6,7 +6,7 @@ import { C } from '../constants/theme';
 import { GAME_LOCATIONS, USERS } from '../constants/mockData';
 import { useAuth } from '../context/AuthContext';
 import { buildAvatarUrl } from '../services/avatarBuilder';
-import { submitScore, fetchLeaderboard } from '../services/games';
+import { submitScore, fetchLeaderboard, finishMatch, subscribeMatchLive } from '../services/games';
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
 import { sfxPop, sfxStar, sfxSuccess } from '../utils/sfx';
 
@@ -19,7 +19,7 @@ const GT = {
 };
 const gt = (k) => GT[k][gamesAr() ? 1 : 0];
 
-/* ─── CATCH YOUR MATE v2 — navy nights, levels & loot ───
+/* ─── CATCH YOUR MATE — navy nights, levels & loot ───
    · Deep-navy track, 4 lanes, your own cartoon character as the runner
    · LEVELS: every 250 pts the game speeds up + spawns faster, with a
      level-up banner animation
@@ -29,7 +29,14 @@ const gt = (k) => GT[k][gamesAr() ? 1 : 0];
      gets a short grace window (this was the "I switch and instantly
      lose" bug)
    · Animated lane changes (spring), collect pops, player bob
-   · Best score really persists (localStorage on web)                 */
+   · Best score really persists (localStorage on web)
+
+   REAL multiplayer — when `matchId` is passed, this is a genuine live
+   duel against a real friend: same game, same track mechanics, but now
+   both of you run it at once. A 45-second sprint over a Supabase
+   Realtime broadcast channel (never simulated, same wire real calls
+   use) — live scores, a synced countdown, and whoever's still standing
+   (or scored higher) at the buzzer really did catch their mate.       */
 
 const LANES = 4;
 const HAZARDS = ['🚧', '🛵', '🪨', '🛑', '🚗', '🧺'];
@@ -42,6 +49,7 @@ const LOOT = [
 const PLAYER_Y_FROM_BOTTOM = 96;
 const LEVEL_EVERY = 250;
 const BEST_KEY = 'mm_runner_best';
+const DUEL_MS = 45000; // 45-second real-time head-to-head sprint
 
 const pickLoot = () => {
   const total = LOOT.reduce((n, l) => n + l.w, 0);
@@ -50,9 +58,10 @@ const pickLoot = () => {
   return LOOT[0];
 };
 
-export const GameRunner = ({ opponent = USERS.nour, onClose }) => {
+export const GameRunner = ({ opponent = USERS.nour, onClose, matchId = null, isHost = false, onRematch = null }) => {
   const { user } = useAuth();
   const meAvatar = user ? buildAvatarUrl(user.id, user.avatar_dna) : null;
+  const isMultiplayer = !!matchId;
   const [loc, setLoc] = useState(GAME_LOCATIONS[0]);
   const [phase, setPhase] = useState('ready'); // ready | playing | over
   const [lane, setLane] = useState(1);
@@ -68,6 +77,27 @@ export const GameRunner = ({ opponent = USERS.nour, onClose }) => {
   const [board, setBoard] = useState(null); // null | 'loading' | [rows] — global leaderboard
   const [track, setTrack] = useState({ w: 0, h: 0 });
   const [pops, setPops] = useState([]); // collect animations
+
+  // ── multiplayer state ──
+  const [mpPhase, setMpPhase] = useState('waiting'); // waiting | countdown | racing | waitingResult | result
+  const [meReady, setMeReady] = useState(false);
+  const [peerReady, setPeerReady] = useState(false);
+  const [countdown, setCountdown] = useState(null);
+  const [peerScore, setPeerScore] = useState(0);
+  const [myFinal, setMyFinal] = useState(null);
+  const [peerFinal, setPeerFinal] = useState(null);
+  const [duelLeft, setDuelLeft] = useState(DUEL_MS / 1000);
+  const liveRef = useRef(null);
+  const meReadyRef = useRef(false);
+  const peerReadyRef = useRef(false);
+  const startedRef = useRef(false);
+  const myFinalRef = useRef(null);
+  const peerFinalRef = useRef(null);
+  const resolvedRef = useRef(false);
+  const scoreRef = useRef(0);
+  const countdownTimerRef = useRef(null);
+  const durTimerRef = useRef(null);
+  const duelTickRef = useRef(null);
 
   const laneRef = useRef(1);
   const levelRef = useRef(1);
@@ -89,6 +119,7 @@ export const GameRunner = ({ opponent = USERS.nour, onClose }) => {
   }, [bob]);
 
   useEffect(() => () => { clearInterval(loop.current); clearInterval(spawn.current); }, []);
+  useEffect(() => { scoreRef.current = score; }, [score]);
 
   const laneX = (l) => {
     const pad = 20;
@@ -191,14 +222,15 @@ export const GameRunner = ({ opponent = USERS.nour, onClose }) => {
   const endRun = () => {
     clearInterval(loop.current); clearInterval(spawn.current);
     tapSuccess(); sfxStar();
-    setPhase('over');
+    if (!isMultiplayer) setPhase('over');
     setScore((s) => {
       setBest((b) => {
         const nb = Math.max(b, s);
         if (Platform.OS === 'web' && typeof localStorage !== 'undefined') localStorage.setItem(BEST_KEY, String(nb));
         return nb;
       });
-      if (user && s > 0) submitScore(user.id, 'runner', s); // real global leaderboard
+      if (isMultiplayer) finishMyDuelRun(s);
+      else if (user && s > 0) submitScore(user.id, 'runner', s); // real global leaderboard
       return s;
     });
   };
@@ -217,12 +249,102 @@ export const GameRunner = ({ opponent = USERS.nour, onClose }) => {
     });
   };
 
-  const caughtMate = score >= 600; // catch them at the end of level 3
+  // ── REAL multiplayer — live duel over Supabase Realtime broadcast ──
+  const tryResolveDuel = (mine, peer) => {
+    if (mine == null || peer == null || resolvedRef.current) return;
+    resolvedRef.current = true;
+    const hostScore = isHost ? mine : peer;
+    const guestScore = isHost ? peer : mine;
+    const hostId = isHost ? (user && user.id) : (opponent && opponent.id);
+    const guestId = isHost ? (opponent && opponent.id) : (user && user.id);
+    const winnerId = hostScore === guestScore ? null : (hostScore > guestScore ? hostId : guestId);
+    finishMatch(matchId, { hostScore, guestScore, winnerId }).catch(() => {});
+    setMpPhase('result');
+  };
+
+  const finishMyDuelRun = (finalScore) => {
+    if (myFinalRef.current != null) return;
+    myFinalRef.current = finalScore;
+    setMyFinal(finalScore);
+    setMpPhase((p) => (p === 'result' ? p : 'waitingResult'));
+    if (user) submitScore(user.id, 'catch_duel', finalScore);
+    liveRef.current && liveRef.current.send('finished', { who: user && user.id, score: finalScore });
+    tryResolveDuel(finalScore, peerFinalRef.current);
+  };
+
+  const beginCountdown = (startAt) => {
+    clearTimeout(countdownTimerRef.current);
+    setMpPhase('countdown');
+    const tick = () => {
+      const left = Math.ceil((startAt - Date.now()) / 1000);
+      if (left <= 0) {
+        setCountdown(null);
+        setMpPhase('racing');
+        start();
+        setDuelLeft(DUEL_MS / 1000);
+        clearInterval(duelTickRef.current);
+        duelTickRef.current = setInterval(() => setDuelLeft((s) => Math.max(0, s - 1)), 1000);
+        durTimerRef.current = setTimeout(() => {
+          clearInterval(loop.current); clearInterval(spawn.current);
+          clearInterval(duelTickRef.current);
+          finishMyDuelRun(scoreRef.current);
+        }, DUEL_MS);
+        return;
+      }
+      setCountdown(left);
+      countdownTimerRef.current = setTimeout(tick, 150);
+    };
+    tick();
+  };
+
+  const maybeStart = () => {
+    if (!isHost || startedRef.current || !meReadyRef.current || !peerReadyRef.current) return;
+    startedRef.current = true;
+    const startAt = Date.now() + 3000;
+    liveRef.current && liveRef.current.send('start', { startAt });
+    beginCountdown(startAt);
+  };
+
+  useEffect(() => {
+    if (!isMultiplayer) return undefined;
+    const live = subscribeMatchLive(matchId, {
+      ready: ({ who }) => { if (who !== (user && user.id)) { peerReadyRef.current = true; setPeerReady(true); maybeStart(); } },
+      start: ({ startAt }) => { if (!isHost) beginCountdown(startAt); },
+      score: ({ who, score: s }) => { if (who !== (user && user.id)) setPeerScore(s); },
+      finished: ({ who, score: s }) => {
+        if (who === (user && user.id)) return;
+        peerFinalRef.current = s;
+        setPeerFinal(s);
+        tryResolveDuel(myFinalRef.current, s);
+      },
+    });
+    liveRef.current = live;
+    return () => {
+      live.leave();
+      clearTimeout(countdownTimerRef.current);
+      clearTimeout(durTimerRef.current);
+      clearInterval(duelTickRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [matchId]);
+
+  const tapReady = () => {
+    if (meReadyRef.current) return;
+    tapMedium(); sfxPop();
+    meReadyRef.current = true;
+    setMeReady(true);
+    liveRef.current && liveRef.current.send('ready', { who: user && user.id });
+    maybeStart();
+  };
+
+  const caughtMate = score >= 600; // solo/practice only — catch them at the end of level 3
 
   const playerLeft = laneAnim.interpolate({
     inputRange: [0, LANES - 1],
     outputRange: [laneX(0) - 24, laneX(LANES - 1) - 24],
   });
+
+  const oppFirst = ((opponent && opponent.name) || 'Mate').split(' ')[0];
 
   return (
     <Modal visible transparent={false} animationType="slide" onRequestClose={onClose}>
@@ -235,7 +357,9 @@ export const GameRunner = ({ opponent = USERS.nour, onClose }) => {
           </Pressable>
           <View style={{ flex: 1, alignItems: 'center' }}>
             <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '900', letterSpacing: 1 }}>CATCH YOUR MATE 🏃</Text>
-            <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 12, marginTop: 2 }}>{loc.flag} {loc.city} · Level {level}</Text>
+            <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 12, marginTop: 2 }}>
+              {isMultiplayer ? 'Live duel vs ' + oppFirst : loc.flag + ' ' + loc.city + ' · Level ' + level}
+            </Text>
           </View>
           <View style={{ alignItems: 'flex-end' }}>
             <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 10, fontWeight: '800' }}>{gt('score')}</Text>
@@ -256,11 +380,23 @@ export const GameRunner = ({ opponent = USERS.nour, onClose }) => {
           <View style={{ position: 'absolute', top: 0, bottom: 0, left: 6, width: 3, borderRadius: 2, backgroundColor: 'rgba(96,165,250,0.3)' }} />
           <View style={{ position: 'absolute', top: 0, bottom: 0, right: 6, width: 3, borderRadius: 2, backgroundColor: 'rgba(96,165,250,0.3)' }} />
 
-          {/* the mate you're chasing */}
-          {track.h > 0 ? (
+          {/* the mate you're chasing — practice/solo mode only (a real
+              duel shows their LIVE score in the corner instead) */}
+          {!isMultiplayer && track.h > 0 ? (
             <View style={{ position: 'absolute', top: 38, left: laneX(1) - 18, alignItems: 'center' }}>
               <Image source={{ uri: opponent.avatar }} style={{ width: 34, height: 34, borderRadius: 17, borderWidth: 2, borderColor: '#FFF', opacity: 0.92 }} />
               <Text style={{ fontSize: 18, marginTop: -4 }}>💨</Text>
+            </View>
+          ) : null}
+
+          {/* real duel — opponent's live score + time left */}
+          {isMultiplayer && mpPhase === 'racing' ? (
+            <View style={{ position: 'absolute', top: 10, right: 10, alignItems: 'flex-end', zIndex: 5 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6 }}>
+                <Image source={{ uri: opponent.avatar }} style={{ width: 22, height: 22, borderRadius: 11, marginRight: 6 }} />
+                <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '900' }}>{peerScore}</Text>
+              </View>
+              <Text style={{ color: 'rgba(255,255,255,0.65)', fontSize: 10, fontWeight: '800', marginTop: 4 }}>{duelLeft}s left</Text>
             </View>
           ) : null}
 
@@ -319,12 +455,12 @@ export const GameRunner = ({ opponent = USERS.nour, onClose }) => {
             </View>
           ) : null}
 
-          {/* READY overlay */}
-          {phase === 'ready' ? (
+          {/* READY overlay — solo/practice only */}
+          {!isMultiplayer && phase === 'ready' ? (
             <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, alignItems: 'center', justifyContent: 'center', padding: 22 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
                 <Image source={{ uri: opponent.avatar }} style={{ width: 44, height: 44, borderRadius: 22, borderWidth: 2, borderColor: '#FFF' }} />
-                <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '800', marginLeft: 10 }}>Racing {opponent.name.split(' ')[0]}</Text>
+                <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '800', marginLeft: 10 }}>Racing {oppFirst}</Text>
               </View>
               <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: 13, textAlign: 'center', marginBottom: 6, lineHeight: 19 }}>
                 {gt('hazards')}{'\n'}🪙 +10 · ⭐ +25 · 💎 +50 — every 250 pts levels you up.
@@ -361,12 +497,12 @@ export const GameRunner = ({ opponent = USERS.nour, onClose }) => {
             </View>
           ) : null}
 
-          {/* GAME OVER overlay */}
-          {phase === 'over' ? (
+          {/* GAME OVER overlay — solo/practice only */}
+          {!isMultiplayer && phase === 'over' ? (
             <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(4,10,26,0.68)', padding: 26 }}>
               <Text style={{ fontSize: 48 }}>{caughtMate ? '🏆' : '💥'}</Text>
               <Text style={{ color: '#FFF', fontSize: 22, fontWeight: '900', marginTop: 6 }}>
-                {caughtMate ? 'You caught ' + opponent.name.split(' ')[0] + '!' : 'Wiped out!'}
+                {caughtMate ? 'You caught ' + oppFirst + '!' : 'Wiped out!'}
               </Text>
               <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 14, marginTop: 8 }}>
                 Score {score} · Level {level} · Best {Math.max(best, score)}
@@ -424,6 +560,75 @@ export const GameRunner = ({ opponent = USERS.nour, onClose }) => {
               <View style={{ backgroundColor: 'rgba(96,165,250,0.18)', borderWidth: 1, borderColor: 'rgba(96,165,250,0.4)', borderRadius: 18, paddingVertical: 16, alignItems: 'center' }}>
                 <Ionicons name="arrow-forward" size={24} color="#FFF" />
               </View>
+            </Pressable>
+          </View>
+        ) : null}
+
+        {/* ══════════ REAL multiplayer overlays — cover the whole
+            screen (track + footer), painted last so they're on top ══════════ */}
+        {isMultiplayer && mpPhase === 'waiting' ? (
+          <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+            <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', fontWeight: '900', letterSpacing: 1.5, marginBottom: 18 }}>REAL-TIME DUEL</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 22 }}>
+              <View style={{ alignItems: 'center', marginHorizontal: 18 }}>
+                <Image source={{ uri: meAvatar }} style={{ width: 64, height: 64, borderRadius: 32, borderWidth: 3, borderColor: meReady ? C.green : 'rgba(255,255,255,0.3)' }} />
+                <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '800', marginTop: 8 }}>You</Text>
+                <Text style={{ color: meReady ? C.green : 'rgba(255,255,255,0.5)', fontSize: 11, fontWeight: '800', marginTop: 2 }}>{meReady ? 'Ready ✓' : 'Not ready'}</Text>
+              </View>
+              <Text style={{ fontSize: 20, color: 'rgba(255,255,255,0.4)', fontWeight: '800' }}>VS</Text>
+              <View style={{ alignItems: 'center', marginHorizontal: 18 }}>
+                <Image source={{ uri: opponent.avatar }} style={{ width: 64, height: 64, borderRadius: 32, borderWidth: 3, borderColor: peerReady ? C.green : 'rgba(255,255,255,0.3)' }} />
+                <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '800', marginTop: 8 }} numberOfLines={1}>{oppFirst}</Text>
+                <Text style={{ color: peerReady ? C.green : 'rgba(255,255,255,0.5)', fontSize: 11, fontWeight: '800', marginTop: 2 }}>{peerReady ? 'Ready ✓' : 'Waiting…'}</Text>
+              </View>
+            </View>
+            <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 12.5, textAlign: 'center', marginBottom: 20, lineHeight: 18, maxWidth: 280 }}>
+              45 seconds, real time. Dodge hazards, grab loot — whoever scores higher (or survives longer) really catches the other. 🏆
+            </Text>
+            <Pressable onPress={tapReady} disabled={meReady}>
+              <View style={{ backgroundColor: meReady ? 'rgba(16,185,129,0.2)' : C.gold, borderRadius: 999, paddingHorizontal: 34, paddingVertical: 15 }}>
+                <Text style={{ color: meReady ? C.green : '#081226', fontSize: 13.5, fontWeight: '900', letterSpacing: 0.5 }}>
+                  {meReady ? 'WAITING FOR ' + oppFirst.toUpperCase() + '…' : "I'M READY 🏁"}
+                </Text>
+              </View>
+            </Pressable>
+            <Pressable onPress={() => { tapLight(); setBoard('loading'); fetchLeaderboard('catch_duel').then(setBoard).catch(() => setBoard([])); }} style={{ marginTop: 16 }}>
+              <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12, fontWeight: '800' }}>🏆 Duel leaderboard</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
+        {isMultiplayer && mpPhase === 'countdown' ? (
+          <View pointerEvents="none" style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ fontSize: 96, fontWeight: '900', color: C.gold }}>{countdown > 0 ? countdown : 'GO!'}</Text>
+          </View>
+        ) : null}
+
+        {isMultiplayer && mpPhase === 'waitingResult' ? (
+          <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(4,10,26,0.9)', padding: 24 }}>
+            <Text style={{ fontSize: 40 }}>⏳</Text>
+            <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '900', marginTop: 10 }}>You scored {myFinal}</Text>
+            <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12.5, marginTop: 6 }}>Waiting for {oppFirst} to finish…</Text>
+          </View>
+        ) : null}
+
+        {isMultiplayer && mpPhase === 'result' ? (
+          <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(4,10,26,0.92)', padding: 26 }}>
+            <Text style={{ fontSize: 48 }}>{myFinal > peerFinal ? '🏆' : myFinal < peerFinal ? '😅' : '🤝'}</Text>
+            <Text style={{ color: '#FFF', fontSize: 20, fontWeight: '900', marginTop: 8, textAlign: 'center' }}>
+              {myFinal > peerFinal ? 'You caught ' + oppFirst + '!' : myFinal < peerFinal ? oppFirst + ' caught you!' : 'Dead heat!'}
+            </Text>
+            <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 14, marginTop: 10 }}>You {myFinal} · {oppFirst} {peerFinal}</Text>
+            {onRematch ? (
+              <Pressable onPress={() => { tapMedium(); onRematch(); }} style={{ marginTop: 22 }}>
+                <View style={{ backgroundColor: C.gold, borderRadius: 999, paddingHorizontal: 36, paddingVertical: 14, flexDirection: 'row', alignItems: 'center' }}>
+                  <Ionicons name="refresh" size={16} color="#081226" style={{ marginRight: 6 }} />
+                  <Text style={{ color: '#081226', fontSize: 14, fontWeight: '900', letterSpacing: 0.5 }}>REMATCH</Text>
+                </View>
+              </Pressable>
+            ) : null}
+            <Pressable onPress={onClose} style={{ marginTop: 14 }}>
+              <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: 13, fontWeight: '700' }}>Exit</Text>
             </Pressable>
           </View>
         ) : null}

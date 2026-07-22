@@ -7,13 +7,15 @@ import { AV_NEUTRAL } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { usePresence } from '../context/PresenceContext';
-import { getOrCreateDmThread, fetchMessages, sendMessage, sendMoment, subscribeMessages, getThreadTtl, setThreadTtl, sweepExpired, streakInfo } from '../services/messages';
+import { getOrCreateDmThread, fetchMessages, sendMessage, sendMoment, sendGameInvite, subscribeMessages, getThreadTtl, setThreadTtl, sweepExpired, streakInfo } from '../services/messages';
+import { createMatch, fetchMatch, respondMatch } from '../services/games';
 import { StreakBadge } from '../components/StreakBadge';
 import { getProfile } from '../services/profiles';
 import { TruthOrDare } from '../components/TruthOrDare';
 import { WouldYouRather } from '../components/WouldYouRather';
 import { CallScreen } from '../components/CallScreen';
 import { CaptureModal } from '../components/CaptureModal';
+import { GameRunner } from '../components/GameRunner';
 import { OnlineDot } from '../components/OnlineDot';
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -156,6 +158,52 @@ export const ChatThread = ({ chat, group, onClose }) => {
   const [call, setCall] = useState(null); // {video:bool}
   const scroller = useRef(null);
 
+  // ── Catch Your Mate — real multiplayer duel invites ──
+  const [matches, setMatches] = useState({}); // { [matchId]: game_matches row }
+  const [activeMatch, setActiveMatch] = useState(null); // { matchId, isHost, opponent }
+  const loadMatch = async (matchId) => {
+    try { const m = await fetchMatch(matchId); setMatches((s) => ({ ...s, [matchId]: m })); } catch (e) {}
+  };
+  const inviteToMatch = async () => {
+    if (!isReal || group || !dmThreadId || !user || !peer) return;
+    tapMedium();
+    try {
+      const m = await createMatch(user.id, peer.id, 'catch');
+      setMatches((s) => ({ ...s, [m.id]: m }));
+      const row = await sendGameInvite({ dmThreadId, userId: user.id, matchId: m.id });
+      setMsgs((ms) => (ms.some((x) => x.id === row.id) ? ms : [...ms, toLocal(row)]));
+      setActiveMatch({ matchId: m.id, isHost: true, opponent: { id: peer.id, name: peer.name, avatar: peer.avatar } });
+    } catch (e) {
+      setChatErr(explainChat(e));
+    }
+    setTimeout(() => scroller.current && scroller.current.scrollToEnd({ animated: true }), 80);
+  };
+  const joinMatch = async (matchId) => {
+    tapMedium();
+    try {
+      await respondMatch(matchId, true);
+      setMatches((s) => ({ ...s, [matchId]: { ...(s[matchId] || {}), status: 'active' } }));
+      setActiveMatch({ matchId, isHost: false, opponent: { id: peer.id, name: peer.name, avatar: peer.avatar } });
+    } catch (e) {}
+  };
+  const declineMatch = async (matchId) => {
+    tapLight();
+    try {
+      await respondMatch(matchId, false);
+      setMatches((s) => ({ ...s, [matchId]: { ...(s[matchId] || {}), status: 'declined' } }));
+    } catch (e) {}
+  };
+  const rematch = async () => {
+    if (!activeMatch || !dmThreadId || !user || !peer) return;
+    try {
+      const m = await createMatch(user.id, peer.id, 'catch');
+      setMatches((s) => ({ ...s, [m.id]: m }));
+      const row = await sendGameInvite({ dmThreadId, userId: user.id, matchId: m.id });
+      setMsgs((ms) => (ms.some((x) => x.id === row.id) ? ms : [...ms, toLocal(row)]));
+      setActiveMatch({ matchId: m.id, isHost: true, opponent: activeMatch.opponent });
+    } catch (e) {}
+  };
+
   const toLocal = (row) => ({
     id: row.id,
     createdAt: row.created_at,
@@ -163,6 +211,7 @@ export const ChatThread = ({ chat, group, onClose }) => {
     kind: row.kind || 'text',
     mediaUrl: row.media_url || null,
     mediaKind: row.media_kind || null,
+    gameMatchId: row.game_match_id || null,
     from: row.user_id === user.id
       ? 'me'
       : { name: (row.user && row.user.name) || (peer && peer.name) || 'Someone', avatar: (row.user && row.user.avatar_url) || (peer && peer.avatar) || AV_NEUTRAL },
@@ -234,11 +283,14 @@ export const ChatThread = ({ chat, group, onClose }) => {
       if (!squadId && !threadId) return;
       const rows = await fetchMessages({ squadId, dmThreadId: threadId }).catch(() => []);
       if (cancelled) return;
-      setMsgs((rows || []).map(toLocal));
+      const local = (rows || []).map(toLocal);
+      setMsgs(local);
+      local.filter((r) => r.gameMatchId).forEach((r) => loadMatch(r.gameMatchId));
       setTimeout(() => scroller.current && scroller.current.scrollToEnd({ animated: false }), 60);
       unsub = subscribeMessages({ squadId, dmThreadId: threadId }, (payload) => {
         const row = payload.new;
         setMsgs((m) => (m.some((x) => x.id === row.id) ? m : [...m, toLocal(row)]));
+        if (row.game_match_id) loadMatch(row.game_match_id);
         setTimeout(() => scroller.current && scroller.current.scrollToEnd({ animated: true }), 60);
       });
     })();
@@ -323,7 +375,51 @@ export const ChatThread = ({ chat, group, onClose }) => {
                   {!mine && group ? <Image source={{ uri: m.from.avatar }} style={{ width: 26, height: 26, borderRadius: 13, marginRight: 7 }} /> : null}
                   <View style={{ maxWidth: '76%' }}>
                     {!mine && group ? <Text style={{ color: C.faint, fontSize: 10.5, marginBottom: 3, marginLeft: 4 }}>{m.from.name}</Text> : null}
-                    {(m.kind === 'moment' || m.mediaUrl) ? (
+                    {m.kind === 'game_invite' ? (
+                      /* a real Catch Your Mate invite — state-driven off
+                         the actual game_matches row, not a static card */
+                      (() => {
+                        const match = matches[m.gameMatchId];
+                        const status = match ? match.status : 'pending';
+                        const myResult = match && match.status === 'done'
+                          ? (match.winner_id == null ? 'tie' : match.winner_id === user.id ? 'won' : 'lost')
+                          : null;
+                        return (
+                          <View style={{ backgroundColor: '#0D2B5E', borderRadius: 18, padding: 14, minWidth: 210 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                              <Text style={{ fontSize: 20, marginRight: 8 }}>🏃</Text>
+                              <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '900', flex: 1 }}>Catch Your Mate</Text>
+                            </View>
+                            {status === 'declined' ? (
+                              <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12, fontWeight: '700' }}>Declined</Text>
+                            ) : status === 'done' ? (
+                              <Text style={{ color: myResult === 'won' ? C.gold : '#FFF', fontSize: 12.5, fontWeight: '800' }}>
+                                {myResult === 'won' ? '🏆 You won this duel' : myResult === 'lost' ? '😅 You lost this one' : '🤝 It was a tie'}
+                              </Text>
+                            ) : mine ? (
+                              <Pressable onPress={() => setActiveMatch({ matchId: m.gameMatchId, isHost: true, opponent: { id: peer.id, name: peer.name, avatar: peer.avatar } })}>
+                                <View style={{ backgroundColor: C.gold, borderRadius: 999, paddingVertical: 8, alignItems: 'center' }}>
+                                  <Text style={{ color: '#081226', fontSize: 12.5, fontWeight: '900' }}>{status === 'active' ? 'Open' : 'Waiting…'}</Text>
+                                </View>
+                              </Pressable>
+                            ) : (
+                              <View style={{ flexDirection: 'row' }}>
+                                <Pressable onPress={() => joinMatch(m.gameMatchId)} style={{ flex: 1, marginRight: 8 }}>
+                                  <View style={{ backgroundColor: C.gold, borderRadius: 999, paddingVertical: 8, alignItems: 'center' }}>
+                                    <Text style={{ color: '#081226', fontSize: 12.5, fontWeight: '900' }}>Join</Text>
+                                  </View>
+                                </Pressable>
+                                <Pressable onPress={() => declineMatch(m.gameMatchId)} style={{ flex: 1 }}>
+                                  <View style={{ backgroundColor: 'rgba(255,255,255,0.14)', borderRadius: 999, paddingVertical: 8, alignItems: 'center' }}>
+                                    <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '900' }}>Decline</Text>
+                                  </View>
+                                </Pressable>
+                              </View>
+                            )}
+                          </View>
+                        );
+                      })()
+                    ) : (m.kind === 'moment' || m.mediaUrl) ? (
                       /* a Moment — a circular snap. Received: mystery circle you
                          can open twice, then it's gone. Long-press to save it. */
                       (() => {
@@ -420,6 +516,20 @@ export const ChatThread = ({ chat, group, onClose }) => {
                   </View>
                 </View>
               </Pressable>
+              {!group && isReal ? (
+                <>
+                  <View style={{ height: 1, backgroundColor: C.line, marginHorizontal: 10 }} />
+                  <Pressable onPress={() => { setMenu(false); inviteToMatch(); }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 11 }}>
+                      <Text style={{ fontSize: 20 }}>🏃</Text>
+                      <View style={{ marginLeft: 10 }}>
+                        <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>Catch Your Mate</Text>
+                        <Text style={{ color: C.faint, fontSize: 11 }}>Real-time duel — 45 seconds, live</Text>
+                      </View>
+                    </View>
+                  </Pressable>
+                </>
+              ) : null}
             </View>
           ) : null}
 
@@ -477,6 +587,18 @@ export const ChatThread = ({ chat, group, onClose }) => {
       </View>
 
       {call ? <CallScreen peer={callPeer} video={call.video} onClose={() => setCall(null)} /> : null}
+
+      {/* ── Catch Your Mate — real live duel ── */}
+      {activeMatch ? (
+        <GameRunner
+          key={activeMatch.matchId}
+          matchId={activeMatch.matchId}
+          isHost={activeMatch.isHost}
+          opponent={activeMatch.opponent}
+          onRematch={rematch}
+          onClose={() => setActiveMatch(null)}
+        />
+      ) : null}
 
       {/* ── shoot a Moment — full camera (filters · effects · songs) ── */}
       {momentOpen ? (
