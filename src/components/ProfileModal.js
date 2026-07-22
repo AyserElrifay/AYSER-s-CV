@@ -7,6 +7,7 @@ import { C } from '../constants/theme';
 import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { usePresence } from '../context/PresenceContext';
+import { useLang } from '../context/LanguageContext';
 import { fetchMyMoments } from '../services/posts';
 import { getProfile } from '../services/profiles';
 import { getMateStatus, mateUp, countMates } from '../services/mates';
@@ -40,6 +41,7 @@ const isVideoUri = (u) => typeof u === 'string' && /\.(webm|mp4|mov|m4v)(\?|$)/i
 export const ProfileModal = ({ user, onClose }) => {
   const insets = useSafeAreaInsets();
   const { user: me } = useAuth();
+  const { rtl } = useLang();
   const [posts, setPosts] = useState(null);         // their real moments
   const [mates, setMates] = useState(null);         // real mate count
   const [mateState, setMateState] = useState('none'); // none|requested|incoming|mates
@@ -169,23 +171,37 @@ export const ProfileModal = ({ user, onClose }) => {
           </View>
 
           <View style={{ paddingHorizontal: 16, marginTop: 14 }}>
-            {/* identity — stats on the LEFT, avatar on the RIGHT (our own look,
-                not an Instagram copy, and natural for Arabic/RTL) */}
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <View style={{ flex: 1, flexDirection: 'row', marginRight: 8 }}>
-                {stats.map((s) => (
-                  <View key={s.l} style={{ flex: 1, alignItems: 'center' }}>
-                    <Text style={{ color: C.text, fontSize: 18, fontWeight: '900' }}>{s.n}</Text>
-                    <Text style={{ color: C.faint, fontSize: 10, fontWeight: '700', letterSpacing: 1, marginTop: 2 }}>{s.l.toUpperCase()}</Text>
-                  </View>
-                ))}
-              </View>
-              <LinearGradient colors={[C.gold, C.purple, C.green]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ width: 88, height: 88, borderRadius: 44, alignItems: 'center', justifyContent: 'center' }}>
-                <View style={{ backgroundColor: C.bg, borderRadius: 44, padding: 3 }}>
-                  <Image source={{ uri: user.avatar }} style={{ width: 76, height: 76, borderRadius: 38 }} />
+            {/* identity — stats on the LEFT, avatar on the RIGHT, always,
+                in both languages. A plain flexDirection:'row' flips under
+                Arabic (document dir="rtl" reverses which edge "row" starts
+                from), which silently pushed the avatar to the LEFT in
+                Arabic mode — swapping child order when rtl is on keeps it
+                pinned right regardless. */}
+            {(() => {
+              const statsBlock = (
+                <View style={{ flex: 1, flexDirection: 'row', marginRight: rtl ? 0 : 8, marginLeft: rtl ? 8 : 0 }}>
+                  {stats.map((s) => (
+                    <View key={s.l} style={{ flex: 1, alignItems: 'center' }}>
+                      <Text style={{ color: C.text, fontSize: 18, fontWeight: '900' }}>{s.n}</Text>
+                      <Text style={{ color: C.faint, fontSize: 10, fontWeight: '700', letterSpacing: 1, marginTop: 2 }}>{s.l.toUpperCase()}</Text>
+                    </View>
+                  ))}
                 </View>
-              </LinearGradient>
-            </View>
+              );
+              const avatarBlock = (
+                <LinearGradient colors={[C.gold, C.purple, C.green]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ width: 88, height: 88, borderRadius: 44, alignItems: 'center', justifyContent: 'center' }}>
+                  <View style={{ backgroundColor: C.bg, borderRadius: 44, padding: 3 }}>
+                    <Image source={{ uri: user.avatar }} style={{ width: 76, height: 76, borderRadius: 38 }} />
+                  </View>
+                </LinearGradient>
+              );
+              return (
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  {rtl ? avatarBlock : statsBlock}
+                  {rtl ? statsBlock : avatarBlock}
+                </View>
+              );
+            })()}
 
             <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12, flexWrap: 'wrap' }}>
               <Text style={{ color: C.text, fontSize: 18, fontWeight: '900' }}>{user.name}</Text>

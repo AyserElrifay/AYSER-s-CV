@@ -39,6 +39,7 @@ const HOBBY_OPTIONS = [
 ];
 import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
+import { useLang } from '../context/LanguageContext';
 import { getProfile, updateProfile, requestVerification, myVerificationStatus, fetchPendingVerifications, decideVerification } from '../services/profiles';
 import { isOwner } from '../services/music';
 import { uploadCapture } from '../services/social';
@@ -106,6 +107,7 @@ const GridCell = ({ item }) => {
 export const ProfileScreen = () => {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { rtl } = useLang();
   const [settings, setSettings] = useState(false);
   const [tab, setTab] = useState('grid');
   const [menu, setMenu] = useState(false);            // the ☰ sheet
@@ -419,28 +421,45 @@ export const ProfileScreen = () => {
 
         {/* identity */}
         <View style={{ paddingHorizontal: 16, marginTop: 18 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <View style={{ flex: 1, flexDirection: 'row', marginRight: 6 }}>
-              <Stat n={moments} label="Moments" />
-              <Stat n={mates} label="Followers" onPress={() => setMatesOpen(true)} />
-              <Stat n={likes} label="Likes" />
-            </View>
-            <Pressable onPress={() => { tapLight(); setEditOpen(true); }}>
-              <LinearGradient
-                colors={[C.gold, C.purple, C.green]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={{ width: 92, height: 92, borderRadius: 46, alignItems: 'center', justifyContent: 'center' }}
-              >
-                <View style={{ backgroundColor: C.bg, borderRadius: 46, padding: 3 }}>
-                  <Image source={{ uri: me.avatar }} style={{ width: 80, height: 80, borderRadius: 40 }} />
-                </View>
-              </LinearGradient>
-              <View style={{ position: 'absolute', bottom: 0, right: 0, width: 26, height: 26, borderRadius: 13, backgroundColor: C.purple, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: C.bg }}>
-                <Ionicons name="camera" size={13} color="#FFF" />
+          {(() => {
+            // Stats-left, avatar-right is a deliberate choice (not tied to
+            // language direction) — but a plain flexDirection:'row' flips
+            // under Arabic (document dir="rtl" reverses which edge "row"
+            // starts from, same mechanism the tab bar/message bubbles use),
+            // which silently pushed the avatar to the LEFT in Arabic mode.
+            // Swapping the child order when rtl is on keeps it pinned right
+            // in both languages.
+            const statsBlock = (
+              <View style={{ flex: 1, flexDirection: 'row', marginRight: rtl ? 0 : 6, marginLeft: rtl ? 6 : 0 }}>
+                <Stat n={moments} label="Moments" />
+                <Stat n={mates} label="Followers" onPress={() => setMatesOpen(true)} />
+                <Stat n={likes} label="Likes" />
               </View>
-            </Pressable>
-          </View>
+            );
+            const avatarBlock = (
+              <Pressable onPress={() => { tapLight(); setEditOpen(true); }}>
+                <LinearGradient
+                  colors={[C.gold, C.purple, C.green]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={{ width: 92, height: 92, borderRadius: 46, alignItems: 'center', justifyContent: 'center' }}
+                >
+                  <View style={{ backgroundColor: C.bg, borderRadius: 46, padding: 3 }}>
+                    <Image source={{ uri: me.avatar }} style={{ width: 80, height: 80, borderRadius: 40 }} />
+                  </View>
+                </LinearGradient>
+                <View style={{ position: 'absolute', bottom: 0, right: 0, width: 26, height: 26, borderRadius: 13, backgroundColor: C.purple, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: C.bg }}>
+                  <Ionicons name="camera" size={13} color="#FFF" />
+                </View>
+              </Pressable>
+            );
+            return (
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                {rtl ? avatarBlock : statsBlock}
+                {rtl ? statsBlock : avatarBlock}
+              </View>
+            );
+          })()}
 
           <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 14, flexWrap: 'wrap' }}>
             <Text style={{ color: C.text, fontSize: 16, fontWeight: '900' }}>{me.name}</Text>
