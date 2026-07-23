@@ -118,7 +118,7 @@ export const BardiSheet = ({ onClose }) => {
     let reply = null;
     for (let attempt = 0; attempt < 2 && !reply; attempt++) {
       try {
-        reply = await askBardi(next, { language: lang || 'en', profile });
+        reply = await askBardi(next, { language: lang || 'en', profile, userId: user && user.id });
       } catch (e) {
         if (attempt === 0) await new Promise((r) => setTimeout(r, 900));
       }

@@ -1,4 +1,5 @@
 import { supabase, SUPABASE_READY } from '../lib/supabase';
+import { loadBardiBrain, addBardiMemory } from './bardiOwner';
 
 /* ─── Bardi — Ayser's AI, living inside Moments ───────────────────────
    Bardi has no separate server: it runs as a Supabase Edge Function
@@ -17,13 +18,24 @@ const LANG_NAME = {
   zh: 'Chinese', ko: 'Korean', ja: 'Japanese',
 };
 
-function bardiSystem(language, profile) {
+function bardiSystem(language, profile, brain) {
   const lang = LANG_NAME[language] || "the user's language";
   let p = `You are Bardi, a warm, sharp personal assistant living inside Moments — a social app by Ayser.
 You help people understand themselves, grow, plan trips and start projects.
 Be concise, kind and practical. Ask one question at a time when you need more. Always reply in ${lang}.`;
   if (profile && (profile.name || profile.bio)) {
     p += `\nYou're talking to ${profile.name || 'someone'}${profile.bio ? ` (bio: ${profile.bio})` : ''}.`;
+  }
+  // owner-authored steering + knowledge ("books"), and this user's memory
+  if (brain && brain.instructions) {
+    p += `\n\nOwner guidance (follow this):\n${String(brain.instructions).slice(0, 4000)}`;
+  }
+  if (brain && brain.knowledge && brain.knowledge.length) {
+    const kb = brain.knowledge.slice(0, 8).map((k) => `• ${k.title}: ${String(k.content || '').slice(0, 1200)}`).join('\n');
+    p += `\n\nKnowledge you can draw on:\n${kb}`;
+  }
+  if (brain && brain.memory && brain.memory.length) {
+    p += `\n\nWhat you remember about this person (from your past chats with them):\n- ` + brain.memory.slice(0, 20).join('\n- ');
   }
   return p;
 }
@@ -76,7 +88,7 @@ async function pollinationsPOST(hist, sys, model) {
    try several models, GET first (short prompts, no preflight) then POST,
    each with a timeout — so one throttled model never sinks the whole thing. */
 async function askBardiDirect(messages, opts) {
-  const sys = bardiSystem(opts.language || 'en', opts.profile);
+  const sys = bardiSystem(opts.language || 'en', opts.profile, opts.brain);
   const hist = (messages || []).slice(-8);
   const convo = hist.map((m) => (m.role === 'assistant' ? 'Bardi' : 'User') + ': ' + String(m.content || '')).join('\n') + '\nBardi:';
   // keep GET only when the URL stays sane; long chats go POST-only (a huge
@@ -102,12 +114,26 @@ async function askBardiDirect(messages, opts) {
    it isn't deployed yet, falls back to talking to Bardi directly from the
    browser so it always works. */
 export async function askBardi(messages, opts = {}) {
+  // Pull the owner's steering + knowledge ("books") and this user's
+  // memory, so Bardi is shaped by the owner portal and remembers the
+  // person — passed to the model so the endpoint stays a pure
+  // pass-through (no server-side reads of anyone's data).
+  let brain = opts.brain;
+  if (!brain && SUPABASE_READY) {
+    try { brain = await loadBardiBrain(opts.userId); } catch (e) { brain = null; }
+  }
+  const optsB = { ...opts, brain };
+
   const body = {
     messages: (messages || []).map((m) => ({ role: m.role, content: m.content })),
     language: opts.language || 'en',
   };
   if (opts.profile) body.profile = opts.profile;
+  if (brain && brain.instructions) body.instructions = brain.instructions;
+  if (brain && brain.knowledge && brain.knowledge.length) body.knowledge = brain.knowledge;
+  if (brain && brain.memory && brain.memory.length) body.memory = brain.memory;
 
+  let reply = null;
   // 1) the deployed Edge Function, when available. Race it against a
   //    timeout so a cold/hung function never freezes Bardi — we just
   //    fall through to the live browser fallback instead.
@@ -118,13 +144,33 @@ export async function askBardi(messages, opts = {}) {
       const res = await Promise.race([invoke, timeout]);
       if (res && !res.__timeout) {
         const { data, error } = res;
-        const reply = !error && data && (data.reply || data.message || data.content);
-        if (reply) return reply;
+        const r = !error && data && (data.reply || data.message || data.content);
+        if (r) reply = r;
       }
     } catch (e) { /* not deployed / errored → fall through */ }
   }
   // 2) live fallback, straight from the browser
-  return askBardiDirect(messages, opts);
+  if (!reply) reply = await askBardiDirect(messages, optsB);
+
+  // learn from this chat (the user's OWN conversation with Bardi, consented):
+  // remember durable first-person facts the user just shared.
+  if (reply && opts.userId) rememberFromChat(opts.userId, messages);
+  return reply;
+}
+
+/* Lightweight, no-extra-AI memory: when the user states a durable fact
+   about themselves ("I'm a…", "my goal is…", "أنا…", "هدفي…"), keep it so
+   Bardi recalls it next time. Only the user's own words, only obvious
+   self-facts — never stored silently from anyone else's chats. */
+const MEMORY_CUES = /\b(i am|i'm|my name is|my goal|i want to|i work|i study|i love|i hate|i feel)\b|أنا |اسمي |هدفي |بحب |بكره |بشتغل |بدرس |نفسي /i;
+function rememberFromChat(userId, messages) {
+  try {
+    const lastUser = [...(messages || [])].reverse().find((m) => m.role === 'user');
+    const text = lastUser && String(lastUser.content || '').trim();
+    if (text && text.length >= 8 && text.length <= 300 && MEMORY_CUES.test(text)) {
+      addBardiMemory(userId, text);
+    }
+  } catch (e) { /* non-blocking */ }
 }
 
 /* Quick-start intents that give Bardi a helpful, concrete first prompt —

@@ -771,6 +771,63 @@ where not exists (select 1 from public.help_articles limit 1);
 
 notify pgrst, 'reload schema';
 
+-- ═══════════ BARDI BRAIN · owner-controlled persona + knowledge ═══════════
+-- The owner's Bardi portal (in Moments Studio) writes here; every user's
+-- Bardi reads it and feeds it into the model, so the owner can steer
+-- Bardi and teach it from books/content WITHOUT any code change.
+
+-- one editable instruction block that tunes Bardi's persona/knowledge
+create table if not exists public.bardi_config (
+  id           int primary key default 1,
+  instructions text not null default '',
+  updated_at   timestamptz not null default now(),
+  constraint bardi_config_singleton check (id = 1)
+);
+alter table public.bardi_config enable row level security;
+drop policy if exists "bardi_config_read" on public.bardi_config;
+create policy "bardi_config_read" on public.bardi_config for select using (true);
+drop policy if exists "bardi_config_owner" on public.bardi_config;
+create policy "bardi_config_owner" on public.bardi_config for all using (
+  (auth.jwt() ->> 'email') = 'ayseryourlifecoach@gmail.com'
+) with check (
+  (auth.jwt() ->> 'email') = 'ayseryourlifecoach@gmail.com'
+);
+insert into public.bardi_config (id, instructions) values (1, '')
+  on conflict (id) do nothing;
+
+-- the "books" / knowledge the owner feeds Bardi to learn from
+create table if not exists public.bardi_knowledge (
+  id         uuid primary key default gen_random_uuid(),
+  title      text not null,
+  content    text not null,
+  source_url text,
+  created_at timestamptz not null default now()
+);
+alter table public.bardi_knowledge enable row level security;
+drop policy if exists "bardi_knowledge_read" on public.bardi_knowledge;
+create policy "bardi_knowledge_read" on public.bardi_knowledge for select using (true);
+drop policy if exists "bardi_knowledge_owner" on public.bardi_knowledge;
+create policy "bardi_knowledge_owner" on public.bardi_knowledge for all using (
+  (auth.jwt() ->> 'email') = 'ayseryourlifecoach@gmail.com'
+) with check (
+  (auth.jwt() ->> 'email') = 'ayseryourlifecoach@gmail.com'
+);
+
+-- per-user memory — Bardi remembers each user from THEIR OWN chats with
+-- Bardi (consented). Strictly private: a user only ever sees/writes their
+-- own rows. Other people's private chats are never fed to Bardi.
+create table if not exists public.bardi_memory (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid not null references public.profiles(id) on delete cascade,
+  note       text not null,
+  created_at timestamptz not null default now()
+);
+alter table public.bardi_memory enable row level security;
+drop policy if exists "bardi_memory_own" on public.bardi_memory;
+create policy "bardi_memory_own" on public.bardi_memory for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+notify pgrst, 'reload schema';
+
 -- ═══════════════ PROFILE COLUMNS SELF-HEAL ═══════════════
 -- Columns added by earlier schema files (v2 languages, v7 country)
 -- that may be missing — safe to re-add, they no-op if present.
@@ -937,6 +994,8 @@ select
   (to_regclass('public.story_reactions')      is not null) as story_reactions_ready,
   (to_regclass('public.game_matches')         is not null) as multiplayer_ready,
   (to_regclass('public.help_articles')        is not null) as help_articles_ready,
+  (to_regclass('public.bardi_config')         is not null) as bardi_portal_ready,
+  (to_regclass('public.bardi_knowledge')      is not null) as bardi_knowledge_ready,
   exists (select 1 from information_schema.columns
           where table_schema = 'public' and table_name = 'profiles'
             and column_name = 'country')                    as country_column_ready,

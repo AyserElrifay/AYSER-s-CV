@@ -10,6 +10,7 @@ import { fetchStudioStats } from '../services/feedback';
 import { fetchPendingVerifications, decideVerification } from '../services/profiles';
 import { fetchTracks, setTrackApproval } from '../services/music';
 import { fetchHelpArticles, createHelpArticle, updateHelpArticle, deleteHelpArticle } from '../services/help';
+import { fetchBardiConfig, saveBardiConfig, fetchBardiKnowledge, addBardiKnowledge, deleteBardiKnowledge, invalidateBardiBrain } from '../services/bardiOwner';
 import { askBardi } from '../services/bardi';
 import { AV_NEUTRAL } from '../constants/mockData';
 import { tapLight, tapSuccess } from '../utils/feedback';
@@ -25,6 +26,7 @@ const TABS = [
   { k: 'music', label: 'Music', icon: 'musical-notes-outline' },
   { k: 'feedback', label: 'Feedback', icon: 'chatbubbles-outline' },
   { k: 'help', label: 'Help', icon: 'help-circle-outline' },
+  { k: 'bardi', label: 'Bardi', icon: 'sparkles-outline' },
 ];
 
 export const AdminPanel = ({ onClose }) => {
@@ -43,6 +45,16 @@ export const AdminPanel = ({ onClose }) => {
   const [bardiMsg, setBardiMsg] = useState(null);
   const [bardiBusy, setBardiBusy] = useState(false);
 
+  // Bardi Brain portal
+  const [bInstr, setBInstr] = useState(null); // owner instructions (null = loading)
+  const [bSaved, setBSaved] = useState(false);
+  const [bKnow, setBKnow] = useState(null);   // knowledge entries
+  const [bTitle, setBTitle] = useState('');
+  const [bContent, setBContent] = useState('');
+  const [bUrl, setBUrl] = useState('');
+  const [bBusy, setBBusy] = useState(false);
+  const [bErr, setBErr] = useState(null);
+
   useEffect(() => { fetchStudioStats().then(setStats).catch(() => setStats(null)); }, []);
   useEffect(() => {
     if (tab === 'reports' && reports == null) fetchReports().then(setReports).catch(() => setReports([]));
@@ -50,7 +62,55 @@ export const AdminPanel = ({ onClose }) => {
     if (tab === 'music' && music == null) fetchTracks({ all: true, meId: user && user.id }).then((rows) => setMusic((rows || []).filter((t) => !t.is_approved && !t.is_official))).catch(() => setMusic([]));
     if (tab === 'feedback' && feedback == null) fetchFeedback().then(setFeedback).catch(() => setFeedback([]));
     if (tab === 'help' && help == null) fetchHelpArticles().then(setHelp).catch(() => setHelp([]));
+    if (tab === 'bardi') {
+      if (bInstr == null) fetchBardiConfig().then(setBInstr).catch(() => setBInstr(''));
+      if (bKnow == null) fetchBardiKnowledge().then(setBKnow).catch(() => setBKnow([]));
+    }
   }, [tab]);
+
+  const saveInstr = async () => {
+    setBErr(null);
+    try { await saveBardiConfig(bInstr || ''); invalidateBardiBrain(); tapSuccess(); setBSaved(true); setTimeout(() => setBSaved(false), 1400); }
+    catch (e) { setBErr(/does not exist|schema/i.test(e.message || '') ? 'Run RUN_ME.sql once to turn on the Bardi portal.' : (e.message || 'Could not save.')); }
+  };
+  // fetch a web page's readable text in the owner's own browser (the
+  // sandbox can't, but the owner's browser can) so Bardi can learn from it.
+  const fetchUrlText = async () => {
+    const url = bUrl.trim();
+    if (!url) return;
+    setBBusy(true); setBErr(null);
+    try {
+      const r = await fetch(url);
+      const html = await r.text();
+      const text = html
+        .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+        .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/&[a-z]+;/gi, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 8000);
+      if (text) { setBContent(text); if (!bTitle.trim()) setBTitle(url.replace(/^https?:\/\//, '').slice(0, 60)); }
+      else setBErr('Could not read text from that link — paste the content instead.');
+    } catch (e) {
+      setBErr('Could not fetch that link from your browser (CORS) — open it, copy the text, and paste it here.');
+    } finally { setBBusy(false); }
+  };
+  const addKnowledge = async () => {
+    if (!bContent.trim()) { setBErr('Add some content (or fetch a link).'); return; }
+    setBBusy(true); setBErr(null);
+    try {
+      const row = await addBardiKnowledge({ title: bTitle.trim() || 'Untitled', content: bContent.trim(), sourceUrl: bUrl.trim() || null });
+      setBKnow((l) => [row, ...(l || [])]);
+      invalidateBardiBrain();
+      setBTitle(''); setBContent(''); setBUrl(''); tapSuccess();
+    } catch (e) {
+      setBErr(/does not exist|schema/i.test(e.message || '') ? 'Run RUN_ME.sql once to turn on the Bardi portal.' : (e.message || 'Could not add.'));
+    } finally { setBBusy(false); }
+  };
+  const removeKnowledge = async (id) => {
+    try { await deleteBardiKnowledge(id); setBKnow((l) => l.filter((k) => k.id !== id)); invalidateBardiBrain(); tapSuccess(); } catch (e) {}
+  };
 
   const openHelpEditor = (row) => {
     tapLight();
@@ -252,6 +312,78 @@ export const AdminPanel = ({ onClose }) => {
                 ))}
               </>
             )
+          ) : null}
+
+          {tab === 'bardi' ? (
+            <>
+              <Text style={{ color: C.dim, fontSize: 12, lineHeight: 18, marginBottom: 12 }}>
+                This is your Bardi control room. Steer Bardi's persona and teach it from books/content — it applies to every user's Bardi instantly, no code changes.
+              </Text>
+
+              {/* Bardi's steering instructions */}
+              <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', letterSpacing: 1, marginBottom: 6 }}>BARDI'S INSTRUCTIONS</Text>
+              {bInstr == null ? <ActivityIndicator color={C.purple} style={{ marginVertical: 20 }} /> : (
+                <>
+                  <TextInput
+                    placeholder="How Bardi should behave, extra rules, tone, things it should always know…"
+                    placeholderTextColor={C.faint} multiline value={bInstr} onChangeText={setBInstr}
+                    style={{ color: C.text, fontSize: 13.5, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 11, minHeight: 100, textAlignVertical: 'top', marginBottom: 8 }}
+                  />
+                  <Pressable onPress={saveInstr}>
+                    <View style={{ backgroundColor: C.purple, borderRadius: 12, paddingVertical: 12, alignItems: 'center', marginBottom: 18 }}>
+                      <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '900' }}>{bSaved ? 'Saved ✓' : 'Save instructions'}</Text>
+                    </View>
+                  </Pressable>
+                </>
+              )}
+
+              {/* Knowledge / books */}
+              <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', letterSpacing: 1, marginBottom: 6 }}>📚 BOOKS & KNOWLEDGE BARDI LEARNS FROM</Text>
+              <View style={{ backgroundColor: C.bg2, borderWidth: 1, borderColor: C.line, borderRadius: 14, padding: 12, marginBottom: 14 }}>
+                <TextInput
+                  placeholder="Title (e.g. My coaching method, Chapter 1…)" placeholderTextColor={C.faint}
+                  value={bTitle} onChangeText={setBTitle}
+                  style={{ color: C.text, fontSize: 13.5, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 8 }}
+                />
+                <View style={{ flexDirection: 'row', marginBottom: 8 }}>
+                  <TextInput
+                    placeholder="Paste a link to import its text…" placeholderTextColor={C.faint}
+                    value={bUrl} onChangeText={setBUrl} autoCapitalize="none"
+                    style={{ flex: 1, color: C.text, fontSize: 12.5, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, marginRight: 8 }}
+                  />
+                  <Pressable onPress={fetchUrlText} disabled={bBusy || !bUrl.trim()}>
+                    <View style={{ backgroundColor: bUrl.trim() ? C.blue : C.glassHi, borderRadius: 10, paddingHorizontal: 14, justifyContent: 'center', height: '100%' }}>
+                      <Text style={{ color: bUrl.trim() ? '#FFF' : C.faint, fontSize: 12, fontWeight: '900' }}>{bBusy ? '…' : 'Fetch'}</Text>
+                    </View>
+                  </Pressable>
+                </View>
+                <TextInput
+                  placeholder="…or paste the content (a chapter, notes, an article) Bardi should learn from"
+                  placeholderTextColor={C.faint} multiline value={bContent} onChangeText={setBContent}
+                  style={{ color: C.text, fontSize: 13, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, minHeight: 90, textAlignVertical: 'top', marginBottom: 8 }}
+                />
+                {bErr ? <Text style={{ color: C.coral, fontSize: 11.5, marginBottom: 8 }}>{bErr}</Text> : null}
+                <Pressable onPress={addKnowledge} disabled={bBusy}>
+                  <View style={{ backgroundColor: C.green, borderRadius: 10, paddingVertical: 11, alignItems: 'center' }}>
+                    <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900' }}>{bBusy ? 'Adding…' : '+ Teach Bardi this'}</Text>
+                  </View>
+                </Pressable>
+              </View>
+
+              {bKnow == null ? <ActivityIndicator color={C.purple} /> :
+                bKnow.length === 0 ? <Empty t="No knowledge added yet — teach Bardi something above" /> :
+                bKnow.map((k) => (
+                  <View key={k.id} style={{ backgroundColor: C.bg2, borderWidth: 1, borderColor: C.line, borderRadius: 12, padding: 12, marginBottom: 10 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '900', flex: 1 }} numberOfLines={1}>📖 {k.title}</Text>
+                      <Pressable onPress={() => removeKnowledge(k.id)} hitSlop={8}>
+                        <Ionicons name="trash-outline" size={17} color={C.coral} />
+                      </Pressable>
+                    </View>
+                    <Text style={{ color: C.dim, fontSize: 12, marginTop: 4, lineHeight: 17 }} numberOfLines={3}>{k.content}</Text>
+                  </View>
+                ))}
+            </>
           ) : null}
         </ScrollView>
 
