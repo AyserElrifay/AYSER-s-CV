@@ -61,7 +61,7 @@ function cleanReply(text) {
 async function pollinationsGET(prompt, sys, model) {
   const url = 'https://text.pollinations.ai/' + encodeURIComponent(prompt)
     + '?model=' + encodeURIComponent(model) + '&referrer=moments.app&system=' + encodeURIComponent(sys);
-  const r = await fetchT(url, {}, 16000);
+  const r = await fetchT(url, {}, 8000);
   if (!r.ok) return null;
   return cleanReply(await r.text());
 }
@@ -74,7 +74,7 @@ async function pollinationsPOST(hist, sys, model) {
       model, referrer: 'moments.app',
       messages: [{ role: 'system', content: sys }, ...hist.map((m) => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: String(m.content || '') }))],
     }),
-  }, 18000);
+  }, 9000);
   if (!r.ok) return null;
   const data = await r.json().catch(() => null);
   return cleanReply(data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content);
@@ -94,16 +94,19 @@ async function askBardiDirect(messages, opts) {
   // keep GET only when the URL stays sane; long chats go POST-only (a huge
   // URL trips 414 "URI too long" — a real cause of silent failures).
   const getOk = convo.length < 1200;
-  const MODELS = ['openai', 'mistral', 'openai-fast', 'llama'];
-
-  let lastErr = null;
+  // Fail FAST: only 2 models, and fire GET + POST in PARALLEL per model so
+  // a whole reply never takes more than ~9s per model (≈18s worst case),
+  // instead of spinning for minutes trying many models one after another.
+  const MODELS = ['openai', 'mistral'];
   for (const model of MODELS) {
-    if (getOk) {
-      try { const g = await pollinationsGET(convo, sys, model); if (g) return g; } catch (e) { lastErr = e; }
-    }
-    try { const p = await pollinationsPOST(hist, sys, model); if (p) return p; } catch (e) { lastErr = e; }
+    const tries = [];
+    if (getOk) tries.push(pollinationsGET(convo, sys, model).catch(() => null));
+    tries.push(pollinationsPOST(hist, sys, model).catch(() => null));
+    const results = await Promise.all(tries);
+    const hit = results.find(Boolean);
+    if (hit) return hit;
   }
-  throw (lastErr || new Error('bardi-unavailable'));
+  throw new Error('bardi-unavailable');
 }
 
 /* Send the conversation to Bardi and get its reply.
@@ -141,7 +144,7 @@ export async function askBardi(messages, opts = {}) {
   if (SUPABASE_READY) {
     try {
       const invoke = supabase.functions.invoke('bardi-chat', { body });
-      const timeout = new Promise((resolve) => setTimeout(() => resolve({ __timeout: true }), 12000));
+      const timeout = new Promise((resolve) => setTimeout(() => resolve({ __timeout: true }), 10000));
       const res = await Promise.race([invoke, timeout]);
       if (res && !res.__timeout) {
         const { data, error } = res;

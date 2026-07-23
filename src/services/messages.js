@@ -279,6 +279,16 @@ export async function setSquadImage(squadId, avatarUrl) {
   return true;
 }
 
+/* Who's already in a squad — so the invite sheet can mark existing
+   members instead of forgetting them every time it opens (which made a
+   saved invite look like it never happened). */
+export async function fetchSquadMemberIds(squadId) {
+  try {
+    const { data } = await supabase.from('squad_members').select('user_id').eq('squad_id', squadId);
+    return (data || []).map((r) => r.user_id);
+  } catch (e) { return []; }
+}
+
 /* Add a mate to your squad (they appear in the group instantly). */
 export async function addSquadMember(squadId, userId) {
   const { error } = await supabase

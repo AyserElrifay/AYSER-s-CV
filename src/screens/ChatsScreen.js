@@ -9,7 +9,7 @@ import { compressImage, uploadMediaSmart } from '../lib/storage';
 import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LanguageContext';
 import { usePresence } from '../context/PresenceContext';
-import { fetchMyDmThreads, fetchMySquads, createSquad, leaveSquad, addSquadMember, fetchDmStreaks } from '../services/messages';
+import { fetchMyDmThreads, fetchMySquads, createSquad, leaveSquad, addSquadMember, fetchSquadMemberIds, fetchDmStreaks } from '../services/messages';
 import { fetchIncomingRequests, acceptRequest, fetchMyMates } from '../services/mates';
 import { getProfile, updateProfile } from '../services/profiles';
 import { AV_NEUTRAL } from '../constants/mockData';
@@ -173,17 +173,27 @@ export const ChatsScreen = () => {
 
   // ── invite mates into a squad — a real membership row per person ──
   const [inviteSquad, setInviteSquad] = useState(null); // the squad you're adding people to
-  const [invited, setInvited] = useState({});           // { mateId: true } — just-added feedback
+  const [invited, setInvited] = useState({});           // { mateId: true } — just-added this session
+  const [members, setMembers] = useState({});           // { mateId: true } — already in the squad (persisted)
   const [inviteErr, setInviteErr] = useState(null);
-  const openInvite = (s) => { tapLight(); setInviteErr(null); setInvited({}); setInviteSquad(s); };
+  const openInvite = (s) => {
+    tapLight(); setInviteErr(null); setInvited({}); setMembers({}); setInviteSquad(s);
+    // load who's already a member so saved invites clearly show as "Member"
+    fetchSquadMemberIds(s.id).then((ids) => {
+      const map = {}; ids.forEach((id) => { map[id] = true; });
+      setMembers(map);
+    }).catch(() => {});
+  };
   const inviteMate = async (mate) => {
     if (!inviteSquad || !user) return;
     tapLight();
     setInvited((v) => ({ ...v, [mate.id]: true }));
-    try { await addSquadMember(inviteSquad.id, mate.id); }
-    catch (e) {
+    try {
+      await addSquadMember(inviteSquad.id, mate.id);
+      setMembers((v) => ({ ...v, [mate.id]: true })); // it's saved — mark as a real member
+    } catch (e) {
       setInvited((v) => { const n = { ...v }; delete n[mate.id]; return n; });
-      setInviteErr(/does not exist|policy|security/i.test(e.message || '')
+      setInviteErr(/does not exist|policy|security|row-level/i.test(e.message || '')
         ? 'Inviting mates needs the latest setup step (run RUN_ME.sql once) — then invites work instantly.'
         : (e.message || 'Could not add them.'));
     }
@@ -510,16 +520,21 @@ export const ChatsScreen = () => {
           {inviteErr ? <Text style={{ color: C.coral, fontSize: 11.5, paddingHorizontal: 18, marginBottom: 6 }}>{inviteErr}</Text> : null}
           <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 14, paddingBottom: 12 }}>
             {myMates.length ? myMates.map((m) => {
-              const done = !!invited[m.id];
+              const isMember = !!members[m.id];
+              const justAdded = !!invited[m.id];
               return (
                 <View key={m.id} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 4 }}>
                   <Image source={{ uri: m.avatar_url || AV_NEUTRAL }} style={{ width: 44, height: 44, borderRadius: 22 }} />
                   <View style={{ flex: 1, marginLeft: 12 }}>
                     <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>{m.name || 'Explorer'} {m.country_flag || ''}</Text>
                   </View>
-                  {done ? (
+                  {isMember ? (
                     <View style={{ backgroundColor: C.greenSoft, borderWidth: 1, borderColor: 'rgba(16,185,129,0.45)', borderRadius: 999, paddingHorizontal: 13, paddingVertical: 7 }}>
-                      <Text style={{ color: C.green, fontSize: 12, fontWeight: '900' }}>{t('added_check')}</Text>
+                      <Text style={{ color: C.green, fontSize: 12, fontWeight: '900' }}>{justAdded ? t('added_check') : 'In squad ✓'}</Text>
+                    </View>
+                  ) : justAdded ? (
+                    <View style={{ backgroundColor: C.glassHi, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 7 }}>
+                      <Text style={{ color: C.dim, fontSize: 12, fontWeight: '900' }}>Adding…</Text>
                     </View>
                   ) : (
                     <Pressable onPress={() => inviteMate(m)}>

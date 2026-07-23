@@ -135,21 +135,19 @@ export const BardiSheet = ({ onClose }) => {
       return;
     }
 
-    // 2) Cloud Bardi — hosted endpoint → free fallback, with one auto-retry.
+    // 2) Cloud Bardi — hosted endpoint → free fallback. One attempt, kept
+    //    fast inside askBardi; the "Try again" button handles manual retries
+    //    so it can never sit spinning for minutes.
     let reply = null;
-    for (let attempt = 0; attempt < 2 && !reply; attempt++) {
-      try {
-        reply = await askBardi(next, { language: lang || 'en', profile, userId: user && user.id, remember });
-      } catch (e) {
-        if (attempt === 0) await new Promise((r) => setTimeout(r, 900));
-      }
-    }
+    try {
+      reply = await askBardi(next, { language: lang || 'en', profile, userId: user && user.id, remember });
+    } catch (e) { reply = null; }
     if (reply) {
       setMessages((m) => [...m, { role: 'assistant', content: reply }]);
     } else {
       setError(lang === 'ar'
-        ? 'باردي مزحوم دلوقتي 🌱 — استنى ثانية ودوس "حاول تاني".'
-        : 'Bardi is busy right now 🌱 — wait a second and tap "Try again".');
+        ? 'باردي مش قادر يوصل دلوقتي 🌱 — دوس "حاول تاني". (لأفضل تجربة: انشر باردي بمفتاح Groq المجاني)'
+        : 'Bardi couldn\'t connect 🌱 — tap "Try again". (For rock-solid Bardi, deploy it with a free Groq key)');
     }
     setBusy(false);
   };
