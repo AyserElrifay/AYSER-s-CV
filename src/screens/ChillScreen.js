@@ -4,14 +4,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { C, R } from '../constants/theme';
-import { MOVIES, WATCH_PROVIDERS, WATCH_GENRES, AV_NEUTRAL } from '../constants/mockData';
+import { MOVIES, WATCH_PROVIDERS, WATCH_GENRES, AV_NEUTRAL, PLAY_GAMES } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { openPartner } from '../services/broker';
 import { fetchVideos, deletePost } from '../services/posts';
 import { fetchTracks } from '../services/music';
 import { usePlayer } from '../context/PlayerContext';
-import { Page, ScreenHeader, SectionHeader, Glass } from '../components';
+import { Page, ScreenHeader, SectionHeader, Glass, GameRunner, RooftopRush, SekoSeko, BoxingGame, StackGame } from '../components';
 import { CaptureModal } from '../components/CaptureModal';
 import { MusicHubSheet } from '../components/MusicHubSheet';
 import { CommentsSheet } from '../components/CommentsSheet';
@@ -47,6 +47,12 @@ export const ChillScreen = () => {
   const [player, setPlayer] = useState(null);     // the video now playing
   const [commentsPost, setCommentsPost] = useState(null);
   const [shooting, setShooting] = useState(false);
+  const [game, setGame] = useState(null); // a launched game
+
+  // Every real, playable game — surfaced here so they're actually findable
+  // (they used to be buried in Search → Play).
+  const PLAYABLE = ['runner', 'stack', 'rooftop', 'sekoseko', 'boxing'];
+  const games = PLAY_GAMES.filter((g) => PLAYABLE.includes(g.kind));
 
   // ── music: a real listening library on your legal catalog ──
   const { playTrack, current } = usePlayer();
@@ -93,6 +99,26 @@ export const ChillScreen = () => {
     <>
     <Page>
       <ScreenHeader kicker="Watch & unwind" title="Chill Zone 🍿" />
+
+      {/* ── PLAY — every real game, finally easy to find ── */}
+      <SectionHeader title="Play 🎮" />
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 4, paddingRight: 8 }} style={{ marginTop: -4, marginBottom: 22 }}>
+        {games.map((g) => (
+          <Pressable key={g.id} onPress={() => { tapLight(); sfxPop(); setGame(g); }} style={{ width: 132, marginRight: 12 }}>
+            <LinearGradient
+              colors={g.kind === 'boxing' ? ['#2B1055', '#7C3AED'] : g.kind === 'sekoseko' ? ['#241844', '#FF2E88'] : g.kind === 'rooftop' ? ['#0D2B5E', '#F59E0B'] : g.kind === 'stack' ? ['#0B7285', '#22D3EE'] : ['#0A1D3F', '#0D2B5E']}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+              style={{ height: 128, borderRadius: 18, padding: 12, justifyContent: 'space-between' }}
+            >
+              <Text style={{ fontSize: 34 }}>{g.emoji}</Text>
+              <View>
+                <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '900' }} numberOfLines={1}>{g.name}</Text>
+                <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 10, fontWeight: '700', marginTop: 2 }} numberOfLines={1}>{g.players}</Text>
+              </View>
+            </LinearGradient>
+          </Pressable>
+        ))}
+      </ScrollView>
 
       {/* ── LISTEN — a real music library on your legal catalog ── */}
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -340,6 +366,13 @@ export const ChillScreen = () => {
 
     {shooting ? <CaptureModal initialMode="video" onClose={() => setShooting(false)} onPosted={onUploaded} /> : null}
     {commentsPost ? <CommentsSheet post={commentsPost} onClose={() => setCommentsPost(null)} /> : null}
+
+    {/* launched game */}
+    {game && game.kind === 'stack' ? <StackGame onClose={() => setGame(null)} />
+      : game && game.kind === 'rooftop' ? <RooftopRush onClose={() => setGame(null)} />
+      : game && game.kind === 'sekoseko' ? <SekoSeko onClose={() => setGame(null)} />
+      : game && game.kind === 'boxing' ? <BoxingGame onClose={() => setGame(null)} />
+      : game ? <GameRunner onClose={() => setGame(null)} /> : null}
     </>
   );
 };
