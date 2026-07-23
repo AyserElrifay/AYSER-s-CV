@@ -118,9 +118,10 @@ export const SearchModal = ({ onClose, onOpenProfile }) => {
   const trends = trendsSource.filter((t) => !q || t.tag.toLowerCase().includes(q));
   const games = PLAY_GAMES.filter((g) => !q || g.name.toLowerCase().includes(q) || g.tag.toLowerCase().includes(q));
 
+  const PLAYABLE = ['runner', 'stack', 'rooftop', 'sekoseko'];
   const launchGame = (g) => {
     tapLight();
-    if (g.kind === 'runner' || g.kind === 'stack') setGame(g);
+    if (PLAYABLE.includes(g.kind)) setGame(g);
     // 'chat' games (Truth or Dare) are added from inside a conversation
   };
 
@@ -139,8 +140,8 @@ export const SearchModal = ({ onClose, onOpenProfile }) => {
           </View>
           <Text style={{ color: C.faint, fontSize: 12, marginTop: 3 }} numberOfLines={2}>{item.players}</Text>
         </View>
-        <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 15, paddingVertical: 8 }}>
-          <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '900' }}>{item.kind === 'runner' ? 'Play' : 'In chat'}</Text>
+        <View style={{ backgroundColor: PLAYABLE.includes(item.kind) ? C.purple : C.glassHi, borderRadius: 999, paddingHorizontal: 15, paddingVertical: 8 }}>
+          <Text style={{ color: PLAYABLE.includes(item.kind) ? '#FFF' : C.dim, fontSize: 12, fontWeight: '900' }}>{PLAYABLE.includes(item.kind) ? 'Play' : 'In chat'}</Text>
         </View>
       </View>
     </Pressable>
