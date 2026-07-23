@@ -88,16 +88,18 @@ async function pollinationsPOST(hist, sys, model) {
    try several models, GET first (short prompts, no preflight) then POST,
    each with a timeout — so one throttled model never sinks the whole thing. */
 async function askBardiDirect(messages, opts) {
-  const sys = bardiSystem(opts.language || 'en', opts.profile, opts.brain);
+  let sys = bardiSystem(opts.language || 'en', opts.profile, opts.brain);
+  // The free fallback is flaky and hates big payloads/URLs, so keep it lean:
+  // the persona is at the START, so trimming drops only trailing extras.
+  if (sys.length > 1500) sys = sys.slice(0, 1500);
   const hist = (messages || []).slice(-8);
   const convo = hist.map((m) => (m.role === 'assistant' ? 'Bardi' : 'User') + ': ' + String(m.content || '')).join('\n') + '\nBardi:';
-  // keep GET only when the URL stays sane; long chats go POST-only (a huge
-  // URL trips 414 "URI too long" — a real cause of silent failures).
-  const getOk = convo.length < 1200;
-  // Fail FAST: only 2 models, and fire GET + POST in PARALLEL per model so
-  // a whole reply never takes more than ~9s per model (≈18s worst case),
-  // instead of spinning for minutes trying many models one after another.
-  const MODELS = ['openai', 'mistral'];
+  // GET only while the whole URL (prompt + system) stays under the limit,
+  // else a huge URL trips 414 "URI too long" — a real cause of silent fails.
+  const getOk = convo.length + sys.length < 1400;
+  // Try a few models, GET + POST in PARALLEL per model (≈9s/round). Ordered
+  // lightest-first for the best odds on Pollinations' throttled free tier.
+  const MODELS = ['openai-fast', 'openai', 'mistral'];
   for (const model of MODELS) {
     const tries = [];
     if (getOk) tries.push(pollinationsGET(convo, sys, model).catch(() => null));
