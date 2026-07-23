@@ -16,6 +16,7 @@ import { Micro } from './Micro';
 import { GameRunner } from './GameRunner';
 import { RooftopRush } from './RooftopRush';
 import { SekoSeko } from './SekoSeko';
+import { BoxingGame } from './BoxingGame';
 import { StackGame } from './StackGame';
 import { tapLight, tapSuccess } from '../utils/feedback';
 import { sfxSuccess } from '../utils/sfx';
@@ -118,7 +119,7 @@ export const SearchModal = ({ onClose, onOpenProfile }) => {
   const trends = trendsSource.filter((t) => !q || t.tag.toLowerCase().includes(q));
   const games = PLAY_GAMES.filter((g) => !q || g.name.toLowerCase().includes(q) || g.tag.toLowerCase().includes(q));
 
-  const PLAYABLE = ['runner', 'stack', 'rooftop', 'sekoseko'];
+  const PLAYABLE = ['runner', 'stack', 'rooftop', 'sekoseko', 'boxing'];
   const launchGame = (g) => {
     tapLight();
     if (PLAYABLE.includes(g.kind)) setGame(g);
@@ -322,6 +323,7 @@ export const SearchModal = ({ onClose, onOpenProfile }) => {
       {game && game.kind === 'stack' ? <StackGame onClose={() => setGame(null)} />
         : game && game.kind === 'rooftop' ? <RooftopRush onClose={() => setGame(null)} />
         : game && game.kind === 'sekoseko' ? <SekoSeko onClose={() => setGame(null)} />
+        : game && game.kind === 'boxing' ? <BoxingGame onClose={() => setGame(null)} />
         : game ? <GameRunner onClose={() => setGame(null)} /> : null}
     </Modal>
   );

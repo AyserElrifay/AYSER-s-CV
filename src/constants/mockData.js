@@ -324,6 +324,7 @@ export const PLAY_GAMES = [
   { id: 'seko', name: 'سيكو سيكو', emoji: '🫣', tag: 'ألعاب الشارع · Vice City look', players: '1 player', desc: 'حارة مصرية بستايل GTA Vice City تلفّ فيها بشخصيتك. أول لعبة: استغماية — لاقي عيال الحتة المتخبّيين قبل ما الوقت يخلص.', kind: 'sekoseko' },
   { id: 'run1', name: 'Catch Your Mate', emoji: '🏃', tag: 'Run together', players: '2–4 mates', desc: 'Chase your friend through the streets and dodge everything in your path. Crash and you’re out — last one running wins the round.', kind: 'runner' },
   { id: 'run2', name: 'Rooftop Rush', emoji: '🏙️', tag: 'Jump the skyline', players: '1 player', desc: 'Sprint across the rooftops and jump every gap — a different skyline and a different chaser on your tail in every country. Miss a jump and they catch you.', kind: 'rooftop' },
+  { id: 'box', name: 'Boxing', emoji: '🥊', tag: 'Timing · KO', players: '1 player', desc: 'Block the telegraphed hits, jab fast and hook hard to knock your rival out — each round a tougher opponent. Real global leaderboard.', kind: 'boxing' },
   { id: 'stack', name: 'Stack', emoji: '🧱', tag: 'Solo · beat your best', players: '1 player', desc: 'Tap to drop each block dead-centre and build the tallest tower you can. One sloppy drop and it all comes down. Chase the perfect streak.', kind: 'stack' },
   { id: 'tod', name: 'Truth or Dare', emoji: '🎲', tag: 'In chat', players: '2+ mates', desc: 'Drop it into any chat — a mate one-on-one or the whole gang. Spin, dare, laugh, remove it anytime.', kind: 'chat' },
 ];
