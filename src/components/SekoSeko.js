@@ -1,83 +1,93 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, Pressable, Image, Modal, ScrollView, Animated, Platform } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { View, Text, Pressable, Image, Modal, ScrollView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { C } from '../constants/theme';
 import { useAuth } from '../context/AuthContext';
 import { buildAvatarUrl } from '../services/avatarBuilder';
 import { submitScore, fetchLeaderboard } from '../services/games';
+import { buildCity, drawWorld, drawPerson, HIDE_SPOTS, WORLD_W, WORLD_H } from './sekoArt';
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
 import { sfxPop, sfxStar, sfxSuccess } from '../utils/sfx';
 
-/* ─── سيكو سيكو · SEKO SEKO — Egyptian street games, GTA-Vice-City look ───
-   A real walkable top-down 2D neighbourhood in the Vice City sunset
-   palette (hot pink · teal · purple · warm dusk) that you roam with your
-   own character. Level 1 is a Cairo hara (حارة). The first street game is
-   الاستغماية (hide & seek): the neighbourhood kids have hidden around the
-   block — walk up and find them all before the timer runs out.
+/* ─── سيكو سيكو · SEKO SEKO — Egyptian street games, real GTA-Vice-City look ───
+   A walkable top-down neighbourhood drawn on a canvas (Vice City sunset:
+   neon buildings, lit windows, palms, cars, street-lamp glow). Level 1 is
+   a Cairo hara; the first street game is الاستغماية (hide & seek) — roam
+   and find every hidden kid before the timer. The world/engine is reusable
+   for more games and countries. Real global leaderboard. Web-first (the
+   canvas runs in every browser, incl. mobile Safari). */
 
-   This is the WORLD/engine — future levels drop into other countries with
-   new street games. Real global leaderboard (game key 'sekoseko'), your
-   real avatar as the character. Nothing scripted or fake.               */
-
-const WORLD_W = 1500;
-const WORLD_H = 1050;
-const PLAYER_SPEED = 4.4;
-const FIND_RADIUS = 52;
+const PLAYER_SPEED = 4.6;
+const FIND_RADIUS = 54;
 const ROUND_SEC = 60;
-
-// Vice-City-tinted Cairo blocks — warm dusk buildings with neon edges.
-const BUILDINGS = [
-  { x: 120, y: 120, w: 240, h: 150, c: '#3A2A5E', edge: '#FF2E88', emoji: '🏬' },
-  { x: 520, y: 90, w: 200, h: 180, c: '#4A2A55', edge: '#20E3D2', emoji: '🕌' },
-  { x: 900, y: 130, w: 260, h: 150, c: '#5A2E4E', edge: '#FF9E2C', emoji: '🏢' },
-  { x: 180, y: 430, w: 200, h: 200, c: '#432A5C', edge: '#20E3D2', emoji: '🏠' },
-  { x: 560, y: 470, w: 220, h: 150, c: '#5A2E4E', edge: '#FF2E88', emoji: '🏪' },
-  { x: 980, y: 440, w: 220, h: 210, c: '#3A2A5E', edge: '#FFD23F', emoji: '🏨' },
-  { x: 140, y: 780, w: 260, h: 150, c: '#4A2A55', edge: '#FF9E2C', emoji: '🏬' },
-  { x: 560, y: 800, w: 220, h: 150, c: '#432A5C', edge: '#20E3D2', emoji: '🏠' },
-  { x: 980, y: 790, w: 250, h: 160, c: '#5A2E4E', edge: '#FF2E88', emoji: '🏢' },
-];
-const PALMS = [
-  { x: 440, y: 330 }, { x: 840, y: 340 }, { x: 1230, y: 320 },
-  { x: 430, y: 700 }, { x: 860, y: 700 }, { x: 1250, y: 690 },
-  { x: 70, y: 520 }, { x: 1330, y: 520 },
-];
-// the hidden kids of the hara — tucked against building corners
-const KID_EMOJIS = ['🧒', '👦', '👧', '🧕', '👳'];
-const HIDE_SPOTS = [
-  { x: 360, y: 250 }, { x: 720, y: 250 }, { x: 380, y: 610 },
-  { x: 1200, y: 620 }, { x: 780, y: 940 },
-];
+const KID_SHIRTS = ['#ff5e8a', '#3bd1c0', '#f2b134', '#7c5cff', '#ff9e2c'];
 
 export const SekoSeko = ({ onClose }) => {
   const { user } = useAuth();
   const meAvatar = user ? buildAvatarUrl(user.id, user.avatar_dna) : null;
   const [phase, setPhase] = useState('ready'); // ready | playing | won | lost
-  const [pos, setPos] = useState({ x: WORLD_W / 2, y: WORLD_H - 120 });
-  const [kids, setKids] = useState([]); // {id, x, y, emoji, found}
   const [foundCount, setFoundCount] = useState(0);
   const [left, setLeft] = useState(ROUND_SEC);
-  const [track, setTrack] = useState({ w: 0, h: 0 });
   const [board, setBoard] = useState(null);
-  const [hint, setHint] = useState(null); // nearest-kid distance hint
+  const [hint, setHint] = useState('');
 
-  const posRef = useRef(pos);
+  const cityRef = useRef(null);
+  if (!cityRef.current) cityRef.current = buildCity();
+  const posRef = useRef({ x: 750, y: WORLD_H - 120 });
   const dirRef = useRef({ dx: 0, dy: 0 });
   const kidsRef = useRef([]);
   const loop = useRef(null);
   const timer = useRef(null);
   const startedAt = useRef(0);
-  const pop = useRef(new Animated.Value(0)).current;
+  const phaseRef = useRef('ready');
+  const hostRef = useRef(null);
 
   useEffect(() => () => { clearInterval(loop.current); clearInterval(timer.current); }, []);
+
+  // ── the canvas: draws the Vice-City world every frame (web) ──
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') return undefined;
+    // hostRef.current is the underlying <div> on react-native-web
+    const host = hostRef.current;
+    if (!host || !host.appendChild) return undefined;
+    const canvas = document.createElement('canvas');
+    canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;display:block';
+    host.appendChild(canvas);
+    const ctx = canvas.getContext('2d');
+    let raf, alive = true;
+    const render = () => {
+      if (!alive) return;
+      const rect = host.getBoundingClientRect();
+      const VW = Math.max(1, rect.width), VH = Math.max(1, rect.height);
+      const dpr = Math.min(2, (typeof window !== 'undefined' && window.devicePixelRatio) || 1);
+      if (canvas.width !== Math.round(VW * dpr)) { canvas.width = Math.round(VW * dpr); canvas.height = Math.round(VH * dpr); }
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const p = posRef.current;
+      const cam = {
+        x: Math.max(0, Math.min(Math.max(0, WORLD_W - VW), p.x - VW / 2)),
+        y: Math.max(0, Math.min(Math.max(0, WORLD_H - VH), p.y - VH / 2)),
+      };
+      drawWorld(ctx, VW, VH, cam, cityRef.current);
+      const kids = kidsRef.current;
+      for (let i = 0; i < kids.length; i++) {
+        const k = kids[i];
+        drawPerson(ctx, k.x - cam.x, k.y - cam.y, KID_SHIRTS[i % KID_SHIRTS.length], '#e8b98a', !k.found);
+      }
+      // the player, centred (gold ring)
+      const sx = p.x - cam.x, sy = p.y - cam.y;
+      ctx.strokeStyle = '#f5b301'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(sx, sy, 17, 0, 7); ctx.stroke();
+      drawPerson(ctx, sx, sy, '#ffffff');
+      raf = requestAnimationFrame(render);
+    };
+    raf = requestAnimationFrame(render);
+    return () => { alive = false; if (raf) cancelAnimationFrame(raf); try { host.removeChild(canvas); } catch (e) {} };
+  }, []);
 
   // web keyboard controls (arrows / WASD)
   useEffect(() => {
     if (Platform.OS !== 'web' || typeof window === 'undefined') return undefined;
     const set = (e, on) => {
-      const k = e.key.toLowerCase();
-      const d = dirRef.current;
+      const k = e.key.toLowerCase(); const d = dirRef.current;
       if (k === 'arrowleft' || k === 'a') d.dx = on ? -1 : (d.dx < 0 ? 0 : d.dx);
       else if (k === 'arrowright' || k === 'd') d.dx = on ? 1 : (d.dx > 0 ? 0 : d.dx);
       else if (k === 'arrowup' || k === 'w') d.dy = on ? -1 : (d.dy < 0 ? 0 : d.dy);
@@ -85,100 +95,69 @@ export const SekoSeko = ({ onClose }) => {
       else return;
       e.preventDefault();
     };
-    const kd = (e) => set(e, true);
-    const ku = (e) => set(e, false);
-    window.addEventListener('keydown', kd);
-    window.addEventListener('keyup', ku);
+    const kd = (e) => set(e, true); const ku = (e) => set(e, false);
+    window.addEventListener('keydown', kd); window.addEventListener('keyup', ku);
     return () => { window.removeEventListener('keydown', kd); window.removeEventListener('keyup', ku); };
   }, []);
 
+  const setP = (ph) => { phaseRef.current = ph; setPhase(ph); };
+
   const start = () => {
     tapMedium(); sfxPop();
-    const placed = HIDE_SPOTS.map((s, i) => ({ id: 'k' + i, x: s.x, y: s.y, emoji: KID_EMOJIS[i % KID_EMOJIS.length], found: false }));
-    kidsRef.current = placed;
-    setKids(placed);
+    kidsRef.current = HIDE_SPOTS.map((s, i) => ({ id: 'k' + i, x: s.x, y: s.y, found: false }));
     setFoundCount(0);
-    const startPos = { x: WORLD_W / 2, y: WORLD_H - 120 };
-    posRef.current = startPos; setPos(startPos);
+    posRef.current = { x: 750, y: WORLD_H - 120 };
     dirRef.current = { dx: 0, dy: 0 };
-    setLeft(ROUND_SEC);
+    setLeft(ROUND_SEC); setHint('');
     startedAt.current = Date.now();
-    setPhase('playing');
+    setP('playing');
 
+    let lastHint = '';
     loop.current = setInterval(() => {
       const d = dirRef.current;
       if (d.dx || d.dy) {
         const p = posRef.current;
-        let nx = p.x + d.dx * PLAYER_SPEED;
-        let ny = p.y + d.dy * PLAYER_SPEED;
-        nx = Math.max(30, Math.min(WORLD_W - 30, nx));
-        ny = Math.max(30, Math.min(WORLD_H - 30, ny));
-        const np = { x: nx, y: ny };
-        posRef.current = np;
-        setPos(np);
-        // find nearby hidden kids
-        let nearest = Infinity;
-        let foundNow = 0;
-        const next = kidsRef.current.map((k) => {
-          if (k.found) return k;
+        const nx = Math.max(30, Math.min(WORLD_W - 30, p.x + d.dx * PLAYER_SPEED));
+        const ny = Math.max(30, Math.min(WORLD_H - 30, p.y + d.dy * PLAYER_SPEED));
+        posRef.current = { x: nx, y: ny };
+        let nearest = Infinity, foundNow = 0;
+        for (const k of kidsRef.current) {
+          if (k.found) continue;
           const dist = Math.hypot(k.x - nx, k.y - ny);
           if (dist < nearest) nearest = dist;
-          if (dist < FIND_RADIUS) { foundNow++; return { ...k, found: true }; }
-          return k;
-        });
-        if (foundNow) {
-          kidsRef.current = next;
-          setKids(next);
-          const total = next.filter((k) => k.found).length;
-          setFoundCount(total);
-          tapSuccess(); sfxStar();
-          pop.setValue(0);
-          Animated.timing(pop, { toValue: 1, duration: 500, useNativeDriver: true }).start();
-          if (total >= HIDE_SPOTS.length) win();
+          if (dist < FIND_RADIUS) { k.found = true; foundNow++; }
         }
-        setHint(nearest === Infinity ? null : nearest);
+        if (foundNow) {
+          const total = kidsRef.current.filter((k) => k.found).length;
+          setFoundCount(total); tapSuccess(); sfxStar();
+          if (total >= HIDE_SPOTS.length) return win();
+        }
+        const lbl = nearest === Infinity ? '' : nearest < 150 ? 'سخن جدًا 🔥' : nearest < 320 ? 'سخن 🌡️' : nearest < 520 ? 'دافي' : 'بارد ❄️';
+        if (lbl !== lastHint) { lastHint = lbl; setHint(lbl); }
       }
     }, 30);
 
     timer.current = setInterval(() => {
-      setLeft((s) => {
-        if (s <= 1) { lose(); return 0; }
-        return s - 1;
-      });
+      setLeft((s) => { if (s <= 1) { lose(); return 0; } return s - 1; });
     }, 1000);
   };
 
   const stopLoops = () => { clearInterval(loop.current); clearInterval(timer.current); };
-
   const win = () => {
-    stopLoops();
-    tapSuccess(); sfxSuccess();
-    const secsUsed = Math.round((Date.now() - startedAt.current) / 1000);
-    const timeLeft = Math.max(0, ROUND_SEC - secsUsed);
-    const score = 500 + timeLeft * 10; // finishing fast scores higher
-    setPhase('won');
-    if (user) submitScore(user.id, 'sekoseko', score);
+    stopLoops(); tapSuccess(); sfxSuccess();
+    const timeLeft = Math.max(0, ROUND_SEC - Math.round((Date.now() - startedAt.current) / 1000));
+    if (user) submitScore(user.id, 'sekoseko', 500 + timeLeft * 10);
+    setP('won');
   };
-
   const lose = () => {
-    stopLoops();
-    tapLight(); sfxPop();
+    stopLoops(); tapLight(); sfxPop();
     const score = kidsRef.current.filter((k) => k.found).length * 50;
-    setPhase('lost');
     if (user && score > 0) submitScore(user.id, 'sekoseko', score);
+    setP('lost');
   };
-
-  // camera — the world scrolls so the player stays centred
-  const camX = track.w ? track.w / 2 - pos.x : 0;
-  const camY = track.h ? track.h / 2 - pos.y : 0;
 
   const setDir = (dx, dy) => { dirRef.current = { dx, dy }; };
-  const dpad = (dx, dy) => ({
-    onPressIn: () => { tapLight(); setDir(dx, dy); },
-    onPressOut: () => setDir(0, 0),
-  });
-
-  const hintLabel = hint == null ? '' : hint < 130 ? 'سخن جدًا 🔥' : hint < 260 ? 'سخن 🌡️' : hint < 420 ? 'دافي' : 'بارد ❄️';
+  const dpad = (dx, dy) => ({ onPressIn: () => { tapLight(); setDir(dx, dy); }, onPressOut: () => setDir(0, 0) });
 
   return (
     <Modal visible transparent={false} animationType="slide" onRequestClose={onClose}>
@@ -198,67 +177,22 @@ export const SekoSeko = ({ onClose }) => {
           </View>
         </View>
 
-        {/* the world viewport */}
-        <View
-          style={{ flex: 1, marginTop: 12, marginHorizontal: 10, borderRadius: 22, overflow: 'hidden', backgroundColor: '#1E1436', borderWidth: 1, borderColor: 'rgba(255,46,136,0.35)' }}
-          onLayout={(e) => setTrack({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
-        >
-          {/* the scrolling neighbourhood */}
-          <View style={{ position: 'absolute', width: WORLD_W, height: WORLD_H, transform: [{ translateX: camX }, { translateY: camY }] }}>
-            {/* warm dusk ground */}
-            <LinearGradient colors={['#241844', '#2E1A3E', '#3A1E36']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ position: 'absolute', width: WORLD_W, height: WORLD_H }} />
+        {/* the world viewport — canvas fills this, overlays sit on top */}
+        <View style={{ flex: 1, marginTop: 12, marginHorizontal: 10, borderRadius: 22, overflow: 'hidden', backgroundColor: '#1E1436', borderWidth: 1, borderColor: 'rgba(255,46,136,0.35)' }}>
+          <View ref={hostRef} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
 
-            {/* roads — teal-lined asphalt corridors */}
-            <View style={{ position: 'absolute', left: 0, top: WORLD_H / 2 - 46, width: WORLD_W, height: 92, backgroundColor: '#191026' }} />
-            <View style={{ position: 'absolute', left: WORLD_W / 2 - 46, top: 0, width: 92, height: WORLD_H, backgroundColor: '#191026' }} />
-            <View style={{ position: 'absolute', left: 0, top: WORLD_H / 2 - 2, width: WORLD_W, height: 4, backgroundColor: 'rgba(32,227,210,0.4)' }} />
-            <View style={{ position: 'absolute', left: WORLD_W / 2 - 2, top: 0, width: 4, height: WORLD_H, backgroundColor: 'rgba(32,227,210,0.4)' }} />
-
-            {/* buildings */}
-            {BUILDINGS.map((b, i) => (
-              <View key={i} style={{ position: 'absolute', left: b.x, top: b.y, width: b.w, height: b.h, backgroundColor: b.c, borderRadius: 10, borderWidth: 2, borderColor: b.edge, alignItems: 'center', justifyContent: 'center', shadowColor: b.edge, shadowOpacity: 0.5, shadowRadius: 12 }}>
-                <Text style={{ fontSize: 40, opacity: 0.85 }}>{b.emoji}</Text>
-              </View>
-            ))}
-
-            {/* palms */}
-            {PALMS.map((p, i) => (
-              <Text key={i} style={{ position: 'absolute', left: p.x, top: p.y, fontSize: 34 }}>🌴</Text>
-            ))}
-
-            {/* the hidden kids — greyed until found */}
-            {kids.map((k) => (
-              <Animated.Text
-                key={k.id}
-                style={{
-                  position: 'absolute', left: k.x - 15, top: k.y - 18, fontSize: 30,
-                  opacity: k.found ? 1 : 0.14,
-                  transform: k.found ? [{ scale: pop.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 1.5, 1] }) }] : [],
-                }}
-              >
-                {k.emoji}
-              </Animated.Text>
-            ))}
-
-            {/* the player — your avatar, centred by the camera */}
-            {phase !== 'ready' ? (
-              <View style={{ position: 'absolute', left: pos.x - 22, top: pos.y - 22, alignItems: 'center' }}>
-                {meAvatar ? (
-                  <Image source={{ uri: meAvatar }} style={{ width: 44, height: 44, borderRadius: 22, borderWidth: 3, borderColor: '#FF2E88' }} />
-                ) : (
-                  <Text style={{ fontSize: 38 }}>🧍</Text>
-                )}
-              </View>
-            ) : null}
-          </View>
-
-          {/* hot/cold hint while playing */}
-          {phase === 'playing' && hintLabel ? (
-            <View style={{ position: 'absolute', top: 12, alignSelf: 'center', backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 6 }}>
-              <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '900' }}>{hintLabel}</Text>
+          {Platform.OS !== 'web' ? (
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+              <Text style={{ color: '#FFF', fontSize: 13, textAlign: 'center' }}>سيكو سيكو بيشتغل في المتصفح 🌆</Text>
             </View>
           ) : null}
 
+          {/* hot/cold hint */}
+          {phase === 'playing' && hint ? (
+            <View style={{ position: 'absolute', top: 12, alignSelf: 'center', backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 6 }}>
+              <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '900' }}>{hint}</Text>
+            </View>
+          ) : null}
           {/* timer */}
           {phase === 'playing' ? (
             <View style={{ position: 'absolute', top: 12, right: 12, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 }}>
@@ -268,22 +202,20 @@ export const SekoSeko = ({ onClose }) => {
 
           {/* READY */}
           {phase === 'ready' ? (
-            <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(22,14,46,0.82)', padding: 24 }}>
+            <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(22,14,46,0.72)', padding: 24 }}>
               <Text style={{ fontSize: 44 }}>🫣</Text>
               <Text style={{ color: '#FF2E88', fontSize: 20, fontWeight: '900', marginTop: 6, letterSpacing: 1 }}>استغماية في الحارة</Text>
-              <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: 13.5, textAlign: 'center', marginTop: 10, lineHeight: 21, maxWidth: 300 }}>
-                عيال الحتة اتخبّوا في الحارة كلها 🏘️{'\n'}لُفّ بشخصيتك ولاقيهم كلهم قبل ما الوقت يخلص.{'\n'}كل ما تقرّب من حد، الشاشة هتقولك «سخن» ولا «بارد».
+              <Text style={{ color: 'rgba(255,255,255,0.92)', fontSize: 13.5, textAlign: 'center', marginTop: 10, lineHeight: 21, maxWidth: 300 }}>
+                عيال الحتة اتخبّوا في الحارة كلها 🌆{'\n'}لُفّ بشخصيتك ولاقيهم كلهم قبل ما الوقت يخلص.{'\n'}كل ما تقرّب من حد، الشاشة تقولك «سخن» ولا «بارد».
               </Text>
               <Text style={{ color: '#20E3D2', fontSize: 11.5, marginTop: 10, fontWeight: '800' }}>
-                {Platform.OS === 'web' ? 'حرّك بالأسهم أو WASD · أو دوس الأزرار تحت' : 'استخدم الأزرار تحت للحركة'}
+                {Platform.OS === 'web' ? 'حرّك بالأسهم أو WASD · أو دوس الأزرار تحت' : 'استخدم الأزرار تحت'}
               </Text>
-
               <Pressable onPress={() => { tapLight(); setBoard('loading'); fetchLeaderboard('sekoseko').then(setBoard).catch(() => setBoard([])); }} style={{ marginTop: 16 }}>
-                <View style={{ backgroundColor: 'rgba(255,255,255,0.12)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', borderRadius: 999, paddingHorizontal: 16, paddingVertical: 9 }}>
+                <View style={{ backgroundColor: 'rgba(255,255,255,0.14)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', borderRadius: 999, paddingHorizontal: 16, paddingVertical: 9 }}>
                   <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '900' }}>🏆 الترتيب العالمي</Text>
                 </View>
               </Pressable>
-
               <Pressable onPress={start} style={{ marginTop: 18 }}>
                 <View style={{ backgroundColor: '#FF2E88', borderRadius: 999, paddingHorizontal: 44, paddingVertical: 15 }}>
                   <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '900', letterSpacing: 1 }}>يلا نلعب ▶</Text>
@@ -294,14 +226,12 @@ export const SekoSeko = ({ onClose }) => {
 
           {/* WON / LOST */}
           {phase === 'won' || phase === 'lost' ? (
-            <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(22,14,46,0.9)', padding: 26 }}>
+            <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(22,14,46,0.86)', padding: 26 }}>
               <Text style={{ fontSize: 50 }}>{phase === 'won' ? '🏆' : '⏱️'}</Text>
               <Text style={{ color: '#FFF', fontSize: 22, fontWeight: '900', marginTop: 6, textAlign: 'center' }}>
                 {phase === 'won' ? 'لقيتهم كلهم! 🎉' : 'الوقت خلص!'}
               </Text>
-              <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 14, marginTop: 8 }}>
-                لقيت {foundCount} من {HIDE_SPOTS.length}
-              </Text>
+              <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 14, marginTop: 8 }}>لقيت {foundCount} من {HIDE_SPOTS.length}</Text>
               <Pressable onPress={start} style={{ marginTop: 22 }}>
                 <View style={{ backgroundColor: '#FF2E88', borderRadius: 999, paddingHorizontal: 38, paddingVertical: 14, flexDirection: 'row', alignItems: 'center' }}>
                   <Ionicons name="refresh" size={16} color="#FFF" style={{ marginRight: 6 }} />
@@ -314,7 +244,7 @@ export const SekoSeko = ({ onClose }) => {
             </View>
           ) : null}
 
-          {/* GLOBAL LEADERBOARD */}
+          {/* LEADERBOARD */}
           {board != null ? (
             <Pressable onPress={() => setBoard(null)} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(22,14,46,0.94)', alignItems: 'center', justifyContent: 'center', padding: 22 }}>
               <Pressable onPress={() => {}} style={{ width: '100%', maxWidth: 380, backgroundColor: 'rgba(255,255,255,0.06)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', borderRadius: 20, padding: 16, maxHeight: '80%' }}>
@@ -343,24 +273,16 @@ export const SekoSeko = ({ onClose }) => {
           ) : null}
         </View>
 
-        {/* on-screen D-pad */}
+        {/* D-pad */}
         {phase === 'playing' ? (
           <View style={{ paddingVertical: 14, paddingBottom: 26, alignItems: 'center' }}>
-            <Pressable {...dpad(0, -1)}>
-              <View style={dpadBtn}><Ionicons name="chevron-up" size={26} color="#FFF" /></View>
-            </Pressable>
+            <Pressable {...dpad(0, -1)}><View style={dpadBtn}><Ionicons name="chevron-up" size={26} color="#FFF" /></View></Pressable>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Pressable {...dpad(-1, 0)}>
-                <View style={dpadBtn}><Ionicons name="chevron-back" size={26} color="#FFF" /></View>
-              </Pressable>
+              <Pressable {...dpad(-1, 0)}><View style={dpadBtn}><Ionicons name="chevron-back" size={26} color="#FFF" /></View></Pressable>
               <View style={{ width: 58 }} />
-              <Pressable {...dpad(1, 0)}>
-                <View style={dpadBtn}><Ionicons name="chevron-forward" size={26} color="#FFF" /></View>
-              </Pressable>
+              <Pressable {...dpad(1, 0)}><View style={dpadBtn}><Ionicons name="chevron-forward" size={26} color="#FFF" /></View></Pressable>
             </View>
-            <Pressable {...dpad(0, 1)}>
-              <View style={dpadBtn}><Ionicons name="chevron-down" size={26} color="#FFF" /></View>
-            </Pressable>
+            <Pressable {...dpad(0, 1)}><View style={dpadBtn}><Ionicons name="chevron-down" size={26} color="#FFF" /></View></Pressable>
           </View>
         ) : null}
       </View>
