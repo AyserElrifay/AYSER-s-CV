@@ -146,8 +146,8 @@ export const BardiSheet = ({ onClose }) => {
       setMessages((m) => [...m, { role: 'assistant', content: reply }]);
     } else {
       setError(lang === 'ar'
-        ? 'باردي مش قادر يوصل دلوقتي 🌱 — دوس "حاول تاني". (لأفضل تجربة: انشر باردي بمفتاح Groq المجاني)'
-        : 'Bardi couldn\'t connect 🌱 — tap "Try again". (For rock-solid Bardi, deploy it with a free Groq key)');
+        ? 'باردي مش قادر يوصل دلوقتي 🌱 — دوس "حاول تاني".'
+        : 'Bardi couldn\'t connect right now 🌱 — tap "Try again".');
     }
     setBusy(false);
   };

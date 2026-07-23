@@ -1,0 +1,12 @@
+# Bardi-3B training deps — install on a GPU box (Colab / RunPod / your own).
+# CPU-only machines can run prepare_data.py and expand_distill.py, but the
+# actual training (train_qlora.py) needs an NVIDIA GPU.
+
+unsloth
+trl>=0.9.6
+transformers>=4.44
+datasets>=2.20
+accelerate>=0.33
+peft>=0.12
+bitsandbytes>=0.43
+# mlc-llm is installed by export_mlc.sh (it pulls the nightly wheels).
