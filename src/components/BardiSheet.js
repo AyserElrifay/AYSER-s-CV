@@ -7,9 +7,11 @@ import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LanguageContext';
 import { askBardi, BARDI_STARTERS } from '../services/bardi';
 import { bardiLocalSupported, bardiEngineReady, ensureBardiEngine, askBardiLocal, pickBardiModel } from '../services/bardiLocal';
-import { tapLight, tapMedium } from '../utils/feedback';
+import { clearMyBardiMemory } from '../services/bardiOwner';
+import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
 
 const BARDI_ICON = require('../assets/brand/bardi.png');
+const MEMORY_PREF_KEY = 'mm_bardi_remember';
 
 /* ─── Bardi in the app — a real assistant, not a toy ──────────────────
    Two brains, the user's choice:
@@ -40,6 +42,25 @@ export const BardiSheet = ({ onClose }) => {
   const [dl, setDl] = useState(null);           // { pct, text } while the model downloads/compiles
   const [streaming, setStreaming] = useState(null); // partial on-device reply, streamed live
   const modelName = (pickBardiModel() || {}).name || 'on-device';
+
+  // ── memory: Bardi remembering this user (their own chats). Opt-out. ──
+  const [remember, setRemember] = useState(() => {
+    try { return !(typeof localStorage !== 'undefined' && localStorage.getItem(MEMORY_PREF_KEY) === '0'); }
+    catch (e) { return true; }
+  });
+  const [forgot, setForgot] = useState(false);
+  const toggleRemember = () => {
+    tapLight();
+    const next = !remember;
+    setRemember(next);
+    try { localStorage.setItem(MEMORY_PREF_KEY, next ? '1' : '0'); } catch (e) {}
+  };
+  const forgetMe = async () => {
+    tapSuccess();
+    setForgot(true);
+    setTimeout(() => setForgot(false), 1600);
+    if (user) { try { await clearMyBardiMemory(user.id); } catch (e) {} }
+  };
 
   const profile = user ? {
     name: (user.user_metadata && user.user_metadata.name) || 'friend',
@@ -118,7 +139,7 @@ export const BardiSheet = ({ onClose }) => {
     let reply = null;
     for (let attempt = 0; attempt < 2 && !reply; attempt++) {
       try {
-        reply = await askBardi(next, { language: lang || 'en', profile, userId: user && user.id });
+        reply = await askBardi(next, { language: lang || 'en', profile, userId: user && user.id, remember });
       } catch (e) {
         if (attempt === 0) await new Promise((r) => setTimeout(r, 900));
       }
@@ -186,6 +207,28 @@ export const BardiSheet = ({ onClose }) => {
                 </View>
               </View>
             </Pressable>
+
+            {/* memory control — Bardi remembering you (your own chats). Off any time. */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginTop: 8, paddingHorizontal: 3 }}>
+              <Ionicons name={remember ? 'bookmark' : 'bookmark-outline'} size={15} color={remember ? C.purple : C.faint} />
+              <Text style={{ color: C.dim, fontSize: 11.5, marginLeft: 7, flex: 1 }}>
+                {forgot
+                  ? (lang === 'ar' ? 'اتنسى كل حاجة ✓' : 'Forgotten everything ✓')
+                  : remember
+                    ? (lang === 'ar' ? 'باردي بيفتكرك من كلامك معاه (خاص ليك)' : 'Bardi remembers you from your own chats (private)')
+                    : (lang === 'ar' ? 'باردي مش بيفتكر حاجة' : 'Bardi remembers nothing')}
+              </Text>
+              {remember && user ? (
+                <Pressable onPress={forgetMe} hitSlop={6} style={{ marginRight: 12 }}>
+                  <Text style={{ color: C.coral, fontSize: 11.5, fontWeight: '800' }}>{lang === 'ar' ? 'نسّيه' : 'Forget me'}</Text>
+                </Pressable>
+              ) : null}
+              <Pressable onPress={toggleRemember} hitSlop={6}>
+                <View style={{ width: 40, height: 23, borderRadius: 12, backgroundColor: remember ? C.purple : C.glassHi, padding: 3, justifyContent: 'center' }}>
+                  <View style={{ width: 17, height: 17, borderRadius: 9, backgroundColor: '#FFF', marginLeft: remember ? 17 : 0 }} />
+                </View>
+              </Pressable>
+            </View>
 
             {/* download / compile progress */}
             {dl ? (

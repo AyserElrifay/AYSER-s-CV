@@ -50,6 +50,13 @@ export async function addBardiMemory(userId, note) {
   if (!userId || !note) return;
   try { await supabase.from('bardi_memory').insert({ user_id: userId, note: String(note).slice(0, 400) }); } catch (e) { /* non-blocking */ }
 }
+/* Forget me — wipe everything Bardi has remembered about this user. */
+export async function clearMyBardiMemory(userId) {
+  if (!userId) return;
+  const { error } = await supabase.from('bardi_memory').delete().eq('user_id', userId);
+  if (error) throw error;
+  invalidateBardiBrain();
+}
 
 /* Everything Bardi needs from the owner + this user, in one call — the
    client passes these to the model so the endpoint stays a pure
@@ -57,16 +64,17 @@ export async function addBardiMemory(userId, note) {
    so a chat doesn't refetch on every message. */
 let _cache = null;
 let _cacheAt = 0;
-export async function loadBardiBrain(userId) {
+export async function loadBardiBrain(userId, includeMemory = true) {
   const now = Date.now();
-  if (_cache && now - _cacheAt < 60000 && _cache._uid === userId) return _cache;
+  if (_cache && now - _cacheAt < 60000 && _cache._uid === userId && _cache._mem === includeMemory) return _cache;
   const [instructions, knowledge, memory] = await Promise.all([
     fetchBardiConfig(),
     fetchBardiKnowledge(),
-    fetchMyBardiMemory(userId),
+    includeMemory ? fetchMyBardiMemory(userId) : Promise.resolve([]),
   ]);
   _cache = {
     _uid: userId,
+    _mem: includeMemory,
     instructions,
     knowledge: (knowledge || []).map((k) => ({ title: k.title, content: k.content })),
     memory,

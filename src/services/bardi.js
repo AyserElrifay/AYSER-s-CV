@@ -118,9 +118,10 @@ export async function askBardi(messages, opts = {}) {
   // memory, so Bardi is shaped by the owner portal and remembers the
   // person — passed to the model so the endpoint stays a pure
   // pass-through (no server-side reads of anyone's data).
+  const remember = opts.remember !== false; // user can turn Bardi's memory off
   let brain = opts.brain;
   if (!brain && SUPABASE_READY) {
-    try { brain = await loadBardiBrain(opts.userId); } catch (e) { brain = null; }
+    try { brain = await loadBardiBrain(opts.userId, remember); } catch (e) { brain = null; }
   }
   const optsB = { ...opts, brain };
 
@@ -153,8 +154,8 @@ export async function askBardi(messages, opts = {}) {
   if (!reply) reply = await askBardiDirect(messages, optsB);
 
   // learn from this chat (the user's OWN conversation with Bardi, consented):
-  // remember durable first-person facts the user just shared.
-  if (reply && opts.userId) rememberFromChat(opts.userId, messages);
+  // remember durable first-person facts — only when memory is left on.
+  if (reply && opts.userId && remember) rememberFromChat(opts.userId, messages);
   return reply;
 }
 
