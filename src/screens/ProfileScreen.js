@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, ScrollView, Pressable, Image, Modal, Dimensions, TextInput, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -51,6 +51,7 @@ import { sendFeedback, FEEDBACK_KINDS } from '../services/feedback';
 import { SettingsScreen } from './SettingsScreen';
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
 import { sfxSuccess } from '../utils/sfx';
+import { shareProfile } from '../utils/share';
 
 /* ─── YOUR SPACE — the profile, Facebook / Instagram / X style ───
    Real mode shows your actual profile, your actual posts (with real
@@ -151,6 +152,30 @@ export const ProfileScreen = () => {
   const [countryQ, setCountryQ] = useState('');       // country search in edit
   const [editErr, setEditErr] = useState(null);
   const [savedEdit, setSavedEdit] = useState(false);
+  const [shareToast, setShareToast] = useState(null);  // "link copied" confirmation
+  const bioInputRef = useRef(null);
+
+  /* Open the editor already on the thing you tapped — tap your bio and
+     the cursor is in the bio, no hunting through the sheet. */
+  const openEditor = (focus) => {
+    tapLight();
+    setEditOpen(true);
+    if (focus === 'bio') setTimeout(() => { try { bioInputRef.current && bioInputRef.current.focus(); } catch (e) {} }, 380);
+  };
+
+  /* Share your space — a real link that opens straight on your profile. */
+  const doShareProfile = async () => {
+    tapLight();
+    const res = await shareProfile({
+      id: (user && user.id) || (myProfile && myProfile.id),
+      name: me.name,
+      handle: (myProfile && myProfile.handle) || null,
+    });
+    if (res === 'copied') setShareToast(t('link_copied'));
+    else if (res && res.url) setShareToast(res.url);
+    else if (res === 'unsupported') setShareToast(t('link_copied'));
+    if (res !== 'shared') setTimeout(() => setShareToast(null), 2400);
+  };
 
   /* Pick a new profile photo → upload → save avatar_url on your profile.
      Derive the extension + content-type from the asset's real mime type
@@ -481,18 +506,30 @@ export const ProfileScreen = () => {
               </View>
             ) : null}
           </View>
-          <Text style={{ color: C.dim, fontSize: 13.5, lineHeight: 20, marginTop: 6 }}>{me.bio}</Text>
+          {/* Your bio — just tap it to edit. No hidden long-press: the
+              little pencil says "this is editable" at a glance. */}
+          <Pressable onPress={() => openEditor('bio')} hitSlop={6} style={{ marginTop: 6, alignSelf: 'flex-start' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+              <Text style={{ color: me.bio ? C.dim : C.faint, fontSize: 13.5, lineHeight: 20, flexShrink: 1 }}>
+                {me.bio || 'Add a bio — tell people what you\'re about ✨'}
+              </Text>
+              <Ionicons name="pencil" size={12} color={C.faint} style={{ marginLeft: 6, marginTop: 4 }} />
+            </View>
+          </Pressable>
 
-          {/* about you — one clean, light line (TikTok-simple, not crowded) */}
+          {/* about you — one clean, light line (TikTok-simple, not crowded).
+              Tap it to edit those same fields. */}
           {myProfile && (myProfile.age || myProfile.occupation || myProfile.education || myProfile.speaks_language) ? (
-            <Text style={{ color: C.faint, fontSize: 12.5, marginTop: 8, lineHeight: 18 }}>
-              {[
-                myProfile.age ? '🎂 ' + myProfile.age : null,
-                myProfile.occupation ? '💼 ' + myProfile.occupation : null,
-                myProfile.education ? '🎓 ' + myProfile.education : null,
-                myProfile.speaks_language ? '🗣️ ' + myProfile.speaks_language : null,
-              ].filter(Boolean).join('   ·   ')}
-            </Text>
+            <Pressable onPress={() => openEditor()} hitSlop={6} style={{ alignSelf: 'flex-start' }}>
+              <Text style={{ color: C.faint, fontSize: 12.5, marginTop: 8, lineHeight: 18 }}>
+                {[
+                  myProfile.age ? '🎂 ' + myProfile.age : null,
+                  myProfile.occupation ? '💼 ' + myProfile.occupation : null,
+                  myProfile.education ? '🎓 ' + myProfile.education : null,
+                  myProfile.speaks_language ? '🗣️ ' + myProfile.speaks_language : null,
+                ].filter(Boolean).join('   ·   ')}
+              </Text>
+            </Pressable>
           ) : null}
 
           {/* your hobbies — straight from the profile row */}
@@ -520,8 +557,8 @@ export const ProfileScreen = () => {
 
           {/* actions */}
           <View style={{ flexDirection: 'row', marginTop: 6 }}>
-            <GhostButton small label="Edit your space" onPress={() => { tapLight(); setEditOpen(true); }} style={{ flex: 1, marginRight: 8 }} />
-            <GhostButton small label="Share profile" onPress={tapLight} style={{ flex: 1, marginRight: 8 }} />
+            <GhostButton small label="Edit your space" onPress={() => openEditor()} style={{ flex: 1, marginRight: 8 }} />
+            <GhostButton small label="Share profile" onPress={doShareProfile} style={{ flex: 1, marginRight: 8 }} />
             <Pressable onPress={tapLight} style={{ width: 44 }}>
               <View style={{ borderRadius: R - 4, borderWidth: 1, borderColor: C.line, backgroundColor: C.glass, paddingVertical: 10, alignItems: 'center' }}>
                 <Ionicons name="person-add-outline" size={16} color={C.text} />
@@ -663,6 +700,7 @@ export const ProfileScreen = () => {
             </View>
             {editErr ? <Text style={{ color: C.coral, fontSize: 11.5, marginBottom: 9 }}>{editErr}</Text> : null}
             <TextInput
+              ref={bioInputRef}
               placeholder="Bio"
               placeholderTextColor={C.faint}
               value={editBio}
@@ -1023,6 +1061,14 @@ export const ProfileScreen = () => {
       ) : null}
 
       {commentsPost ? <CommentsSheet post={commentsPost} onClose={() => setCommentsPost(null)} /> : null}
+
+      {shareToast ? (
+        <View pointerEvents="none" style={{ position: 'absolute', bottom: insets.bottom + 84, left: 20, right: 20, alignItems: 'center' }}>
+          <View style={{ backgroundColor: C.text, borderRadius: 999, paddingHorizontal: 18, paddingVertical: 11 }}>
+            <Text style={{ color: C.bg, fontSize: 12.5, fontWeight: '800' }} numberOfLines={2}>{shareToast}</Text>
+          </View>
+        </View>
+      ) : null}
 
       {boostOpen ? <BoostSheet onClose={() => setBoostOpen(false)} /> : null}
       {matesOpen ? <MatesSheet onClose={() => { setMatesOpen(false); reload(); }} /> : null}

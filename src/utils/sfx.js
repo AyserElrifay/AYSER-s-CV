@@ -95,3 +95,72 @@ export function sfxSuccess() {
 export function sfxPop() {
   tone(440, 0, 0.09, 'square', 0.06);
 }
+
+/* ── The ring ──────────────────────────────────────────────────────
+   A call has to be HEARD, not just seen. These keep playing until the
+   call is answered, declined or gives up.
+
+   · startRingtone()  — the incoming ring: a warm two-note chime that
+     repeats every 2.4s, loud enough to notice across the room.
+   · startRingback()  — what the CALLER hears: the quieter "it's ringing
+     on their side" purr, so you know the call really went out.
+
+   Both return a stop() function. Both survive the Settings sound
+   toggle being off for the *incoming* ring on purpose — a call you
+   can't hear is a call you miss — while the ringback respects it. */
+
+function ringCtx() {
+  if (Platform.OS !== 'web') return null;
+  try {
+    if (!ctx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return null;
+      ctx = new AC();
+    }
+    if (ctx.state === 'suspended') ctx.resume();
+    return ctx;
+  } catch (e) { return null; }
+}
+
+/* One shaped tone that ignores the mute flag (used by the ring only). */
+function ringTone(freq, start, dur, type, peak) {
+  const ac = ringCtx();
+  if (!ac) return;
+  const t0 = ac.currentTime + start;
+  const osc = ac.createOscillator();
+  const gain = ac.createGain();
+  osc.type = type || 'sine';
+  osc.frequency.setValueAtTime(freq, t0);
+  gain.gain.setValueAtTime(0, t0);
+  gain.gain.linearRampToValueAtTime(peak || 0.2, t0 + 0.02);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  osc.connect(gain).connect(ac.destination);
+  osc.start(t0);
+  osc.stop(t0 + dur + 0.02);
+}
+
+export function startRingtone() {
+  if (Platform.OS !== 'web') return () => {};
+  const burst = () => {
+    // two rising chimes, twice — the classic "someone's calling" shape
+    [0, 0.42].forEach((o) => {
+      ringTone(784.0, o, 0.34, 'sine', 0.22);      // G
+      ringTone(1046.5, o + 0.16, 0.34, 'sine', 0.2); // C — the lift
+      ringTone(392.0, o, 0.4, 'triangle', 0.09);   // low body so it carries
+    });
+  };
+  burst();
+  const iv = setInterval(burst, 2400);
+  return () => clearInterval(iv);
+}
+
+export function startRingback() {
+  if (Platform.OS !== 'web' || !flags.sound) return () => {};
+  const purr = () => {
+    ringTone(440, 0, 0.9, 'sine', 0.05);
+    ringTone(480, 0, 0.9, 'sine', 0.045);
+  };
+  purr();
+  const iv = setInterval(purr, 3000);
+  return () => clearInterval(iv);
+}

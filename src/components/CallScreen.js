@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { RTC_CONFIG, ringUser, joinCall, logMissedCall } from '../services/calls';
 import { CallGames } from './CallGames';
 import { tapMedium, tapLight, tapSuccess } from '../utils/feedback';
+import { startRingback } from '../utils/sfx';
 
 /* ─── REAL calls ───
    The other person's device actually RINGS (Supabase Realtime broadcast
@@ -20,6 +21,9 @@ import { tapMedium, tapLight, tapSuccess } from '../utils/feedback';
    Callee:   <CallScreen peer video incoming callId onClose />        */
 
 const RING_MS = 30000;
+// once they've picked up, a connection that hasn't come together in this
+// long is never going to — say so instead of spinning on "Connecting…"
+const CONNECT_MS = 20000;
 const isWeb = Platform.OS === 'web';
 const REAL_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -45,6 +49,8 @@ export const CallScreen = ({ peer, video, incoming = false, callId: incomingCall
   const gameEventRef = useRef(null);
   const endedRef = useRef(false);
   const speakerRef = useRef(true);
+  const offeredRef = useRef(false);   // caller: the offer has gone out
+  const acceptIvRef = useRef(null);   // callee: the "I picked up" retries
 
   const attachRemote = (stream) => {
     if (remoteVidRef.current) { remoteVidRef.current.srcObject = stream; remoteVidRef.current.play().catch(() => {}); }
@@ -53,17 +59,33 @@ export const CallScreen = ({ peer, video, incoming = false, callId: incomingCall
 
   const cleanup = useCallback(() => {
     clearInterval(timerRef.current);
+    clearTimeout(connectTimer.current);
+    clearInterval(acceptIvRef.current);
     if (localStreamRef.current) { localStreamRef.current.getTracks().forEach((t) => t.stop()); localStreamRef.current = null; }
     if (pcRef.current) { try { pcRef.current.close(); } catch (e) {} pcRef.current = null; }
     if (ringRef.current) { ringRef.current.dispose(); ringRef.current = null; }
     if (chRef.current) { chRef.current.leave(); chRef.current = null; }
   }, []);
 
+  const connectTimer = useRef(null);
+
   const goLive = useCallback(() => {
     setState('live');
     tapSuccess();
+    clearTimeout(connectTimer.current);
     clearInterval(timerRef.current);
     timerRef.current = setInterval(() => setSecs((s) => s + 1), 1000);
+  }, []);
+
+  /* They answered — from here the media has a deadline. */
+  const beginConnecting = useCallback(() => {
+    setState('connecting');
+    clearTimeout(connectTimer.current);
+    connectTimer.current = setTimeout(() => {
+      if (endedRef.current) return;
+      const pc = pcRef.current;
+      if (!pc || pc.connectionState !== 'connected') setState('failed');
+    }, CONNECT_MS);
   }, []);
 
   /* ── the whole real-call lifecycle ── */
@@ -105,14 +127,17 @@ export const CallScreen = ({ peer, video, incoming = false, callId: incomingCall
       // 3 — signaling channel for this call
       const ch = joinCall(callId, {
         accept: async () => {
-          // callee picked up → caller makes the offer
-          if (incoming) return;
-          setState('connecting');
+          // callee picked up → caller makes the offer (guard against the
+          // repeated accepts the callee sends until we answer)
+          if (incoming || offeredRef.current) return;
+          offeredRef.current = true;
+          if (ringRef.current) { ringRef.current.dispose(); ringRef.current = null; }
+          beginConnecting();
           try {
             const offer = await pc.createOffer();
             await pc.setLocalDescription(offer);
             ch.send('signal', { sdp: pc.localDescription });
-          } catch (e) {}
+          } catch (e) { setState('failed'); }
         },
         decline: () => { endedRef.current = true; setState('noanswer'); cleanup(); },
         signal: async (p) => {
@@ -136,8 +161,19 @@ export const CallScreen = ({ peer, video, incoming = false, callId: incomingCall
       pc.onicecandidate = (e) => { if (e.candidate) ch.send('signal', { ice: e.candidate }); };
 
       if (incoming) {
-        // we were rung — tell the caller we picked up
-        setTimeout(() => ch.send('accept', { by: user.id }), 600);
+        /* We were rung — tell the caller we picked up. The channel may
+           not be subscribed yet, and a single lost 'accept' used to
+           strand the caller on "Ringing…" forever, so keep saying it
+           until their offer actually arrives. */
+        const sayAccept = () => ch.send('accept', { by: user.id });
+        sayAccept();
+        const acceptIv = setInterval(() => {
+          if (cancelled || endedRef.current || pc.remoteDescription) { clearInterval(acceptIv); return; }
+          sayAccept();
+        }, 1200);
+        acceptIvRef.current = acceptIv;
+        setTimeout(() => clearInterval(acceptIv), 12000);
+        beginConnecting();
       } else {
         // 4 — actually ring their device
         ringRef.current = await ringUser(peer.id, {
@@ -145,13 +181,15 @@ export const CallScreen = ({ peer, video, incoming = false, callId: incomingCall
           video: !!cam,
           from: { id: user.id, name: user.name || 'Someone', avatar: user.avatar_url || null },
         });
-        // no answer → cancel the ring + leave a REAL missed-call notification
+        /* Nobody picked up in 30s → stop ringing them and leave a REAL
+           missed-call notification. If they DID pick up (offer sent),
+           this is not a missed call — connecting has its own deadline. */
         setTimeout(() => {
-          if (!cancelled && !endedRef.current && pcRef.current && pcRef.current.connectionState !== 'connected') {
-            setState('noanswer');
-            if (ringRef.current) ringRef.current.cancel();
-            logMissedCall(peer.id, user.id);
-          }
+          if (cancelled || endedRef.current || offeredRef.current) return;
+          if (pcRef.current && pcRef.current.connectionState === 'connected') return;
+          setState('noanswer');
+          if (ringRef.current) ringRef.current.cancel();
+          logMissedCall(peer.id, user.id);
         }, RING_MS);
       }
     })();
@@ -159,6 +197,14 @@ export const CallScreen = ({ peer, video, incoming = false, callId: incomingCall
     return () => { cancelled = true; cleanup(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /* You should HEAR that it's ringing on their side, the way a phone
+     does — the purr stops the second they pick up (or don't). */
+  useEffect(() => {
+    if (incoming || state !== 'ringing') return undefined;
+    const stop = startRingback();
+    return stop;
+  }, [incoming, state]);
 
   /* speaker: real volume on the remote audio element */
   useEffect(() => {

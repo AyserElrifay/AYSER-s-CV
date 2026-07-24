@@ -141,12 +141,14 @@ export const HomeScreen = () => {
     }
   };
 
-  /* Open a moment or a story shared IN — ?post=<id> / ?story=<id>. */
+  /* Open a moment, a story or a profile shared IN —
+     ?post=<id> / ?story=<id> / ?u=<user id>. */
   useEffect(() => {
     if (Platform.OS !== 'web' || typeof window === 'undefined' || !SUPABASE_READY) return;
     const params = new URLSearchParams(window.location.search);
     const postId = params.get('post');
     const storyId = params.get('story');
+    const userId = params.get('u');
     if (postId) {
       fetchPost(postId)
         .then((row) => setSharedPost(toCard(row)))
@@ -157,7 +159,19 @@ export const HomeScreen = () => {
         .then((row) => setSharedStory(toStoryCard(row)))
         .catch(() => showToast(t('story_gone')));
     }
-    if (postId || storyId) window.history.replaceState({}, '', window.location.pathname);
+    if (userId) {
+      getProfile(userId)
+        .then((p) => p && setProfileUser({
+          id: p.id,
+          name: p.name || 'Someone',
+          avatar: p.avatar_url || AV_NEUTRAL,
+          countryFlag: p.country_flag || null,
+          intent: p.intent || null,
+          bio: p.bio || '',
+        }))
+        .catch(() => showToast(t('profile_gone')));
+    }
+    if (postId || storyId || userId) window.history.replaceState({}, '', window.location.pathname);
   }, []);
 
   /* Share a story OUT — same link pattern as posts. */

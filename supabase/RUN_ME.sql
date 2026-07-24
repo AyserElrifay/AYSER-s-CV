@@ -972,6 +972,58 @@ create policy "sr_sel" on public.story_reactions for select using (
   or auth.uid() = (select user_id from public.stories where id = story_id)
 );
 
+-- ═══════════ ONE NOTIFICATION PER PERSON, PER THING ═══════════
+-- Instagram behaviour: if the same person stars the same moment again
+-- (un-star, re-star, un-star…) you get ONE notification that moves back
+-- to the top — not a wall of identical rows. Comments stay separate,
+-- because every comment really is its own event.
+-- 1) collapse the duplicates already sitting in the inbox, keeping the
+--    newest row of each (recipient, actor, kind, post) group
+delete from public.notifications n
+ using public.notifications keep
+ where n.kind <> 'comment'
+   and n.user_id  = keep.user_id
+   and n.actor_id = keep.actor_id
+   and n.kind     = keep.kind
+   and n.post_id is not distinct from keep.post_id
+   and (n.created_at < keep.created_at
+        or (n.created_at = keep.created_at and n.id < keep.id));
+
+-- 2) make the collapse a rule the database enforces
+create unique index if not exists notifications_one_per_thing_idx
+  on public.notifications (user_id, actor_id, kind, post_id)
+  where kind <> 'comment' and post_id is not null;
+
+-- 3) the writer: bump the existing row instead of piling up new ones
+create or replace function public.notify(recipient uuid, actor uuid, k text, p uuid, b text)
+returns void language plpgsql security definer set search_path = public as $$
+declare hit uuid;
+begin
+  if recipient is null or actor is null or recipient = actor then return; end if;
+
+  -- events with no post (mate request/accept, missed call) aren't covered
+  -- by the index, so collapse those by hand
+  if k <> 'comment' and p is null then
+    select id into hit
+      from public.notifications
+     where user_id = recipient and actor_id = actor and kind = k and post_id is null
+     order by created_at desc limit 1;
+    if hit is not null then
+      update public.notifications
+         set created_at = now(), read = false, body = coalesce(b, body)
+       where id = hit;
+      return;
+    end if;
+  end if;
+
+  insert into public.notifications (user_id, actor_id, kind, post_id, body)
+  values (recipient, actor, k, p, b)
+  on conflict (user_id, actor_id, kind, post_id)
+    where kind <> 'comment' and post_id is not null
+  do update set created_at = now(), read = false,
+                body = coalesce(excluded.body, public.notifications.body);
+end $$;
+
 notify pgrst, 'reload schema';
 
 -- ═══════════════════ READINESS CHECKLIST ═══════════════════

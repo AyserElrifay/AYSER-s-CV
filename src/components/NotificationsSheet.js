@@ -9,13 +9,16 @@ import { useAuth } from '../context/AuthContext';
 import { fetchMyNotifications, markAllRead } from '../services/notifications';
 import { fetchPost } from '../services/posts';
 import { acceptFromActor } from '../services/mates';
+import { toggleVibe, toggleLaugh, toggleRepost, fetchEngagement } from '../services/social';
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
-import { sfxSuccess } from '../utils/sfx';
+import { sfxSuccess, sfxStar, sfxLaugh } from '../utils/sfx';
+import { sharePost } from '../utils/share';
 import { Micro } from './Micro';
 import { PostCard } from './PostCard';
 import { ReelsViewer } from './ReelsViewer';
 import { ProfileModal } from './ProfileModal';
 import { CommentsSheet } from './CommentsSheet';
+import { LikersSheet } from './LikersSheet';
 
 /* The activity inbox — every star, laugh, comment and mate event on YOUR
    stuff, written by DB triggers so nothing is ever fabricated. Laid out
@@ -75,6 +78,17 @@ export const NotificationsSheet = ({ onClose }) => {
   const [reelView, setReelView] = useState(null);
   const [commentsPost, setCommentsPost] = useState(null);
   const [opening, setOpening] = useState(null);
+  const [likersPost, setLikersPost] = useState(null);
+  const [likersKind, setLikersKind] = useState('star');
+  const [toast, setToast] = useState(null);
+
+  /* Reactions on the opened moment are REAL — the same writes the feed
+     makes, so a star here shows up everywhere and survives a refresh. */
+  const [vibed, setVibed] = useState(false);
+  const [laughed, setLaughed] = useState(false);
+  const [reposted, setReposted] = useState(false);
+
+  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 2200); };
 
   const load = useCallback(async () => {
     if (!SUPABASE_READY || !user) { setItems([]); return; }
@@ -137,6 +151,16 @@ export const NotificationsSheet = ({ onClose }) => {
       try {
         const p = await fetchPost(n.post_id);
         const card = postToCard(p);
+        // carry YOUR existing reactions in, so the moment opens showing
+        // the truth (already starred stays starred) instead of a blank slate
+        if (SUPABASE_READY && user) {
+          try {
+            const e = await fetchEngagement(user.id);
+            setVibed(!!e.myVibes[card.id]);
+            setLaughed(!!e.myLaughs[card.id]);
+            setReposted(!!e.myReposts[card.id]);
+          } catch (err) { setVibed(false); setLaughed(false); setReposted(false); }
+        }
         if (p.type === 'reel' && p.media_url) setReelView({ reels: [card], index: 0 });
         else { setViewPost(card); if (n.kind === 'comment') setTimeout(() => setCommentsPost(card), 350); }
       } catch (e) {
@@ -145,6 +169,32 @@ export const NotificationsSheet = ({ onClose }) => {
       return;
     }
     setProfileUser(actorProfile(n));
+  };
+
+  /* ── real reactions on the opened moment ── */
+  const doVibe = () => {
+    const next = !vibed;
+    setVibed(next);
+    if (next) sfxStar();
+    if (SUPABASE_READY && user && viewPost) toggleVibe(viewPost.id, user.id, next).catch(() => {});
+  };
+  const doLaugh = () => {
+    setLaughed(true); sfxLaugh();
+    if (SUPABASE_READY && user && viewPost) toggleLaugh(viewPost.id, user.id, true).catch(() => {});
+  };
+  const doRemoveLaugh = () => {
+    setLaughed(false);
+    if (SUPABASE_READY && user && viewPost) toggleLaugh(viewPost.id, user.id, false).catch(() => {});
+  };
+  const doRepost = () => {
+    const next = !reposted;
+    setReposted(next); tapLight();
+    if (SUPABASE_READY && user && viewPost) toggleRepost(viewPost.id, user.id, next).catch(() => {});
+  };
+  const doShare = async (p) => {
+    const res = await sharePost(p || viewPost);
+    if (res === 'copied') showToast('Link copied — send it anywhere 🔗');
+    else if (res && res.url) showToast(res.url);
   };
 
   // filter → group into time sections (Instagram layout)
@@ -281,29 +331,56 @@ export const NotificationsSheet = ({ onClose }) => {
             <ScrollView contentContainerStyle={{ paddingTop: insets.top + 60, paddingHorizontal: 14, paddingBottom: 40 }}>
               <PostCard
                 post={viewPost}
+                vibed={vibed}
+                laughed={laughed}
+                reposted={reposted}
                 onComment={() => setCommentsPost(viewPost)}
-                onOpenProfile={() => {}}
-                onOpenReel={() => {}}
-                onVibe={() => {}}
-                onLaugh={() => {}}
-                onRemoveLaugh={() => {}}
-                onRepost={() => {}}
-                onShare={() => {}}
+                onOpenProfile={() => setProfileUser({
+                  id: viewPost.userId,
+                  name: viewPost.user.name,
+                  avatar: viewPost.user.avatar,
+                  countryFlag: viewPost.user.flag,
+                })}
+                onOpenReel={() => setReelView({ reels: [viewPost], index: 0 })}
+                onVibe={doVibe}
+                onLaugh={doLaugh}
+                onRemoveLaugh={doRemoveLaugh}
+                onRepost={doRepost}
+                onShare={doShare}
                 onJoin={() => {}}
-                onOpenLikers={() => {}}
-                onOpenLaughers={() => {}}
+                onOpenLikers={(p) => { setLikersKind('star'); setLikersPost(p || viewPost); }}
+                onOpenLaughers={(p) => { setLikersKind('laugh'); setLikersPost(p || viewPost); }}
               />
             </ScrollView>
+
+            {toast ? (
+              <View pointerEvents="none" style={{ position: 'absolute', bottom: 40, left: 20, right: 20, alignItems: 'center' }}>
+                <View style={{ backgroundColor: C.text, borderRadius: 999, paddingHorizontal: 18, paddingVertical: 11 }}>
+                  <Text style={{ color: C.bg, fontSize: 12.5, fontWeight: '800' }} numberOfLines={2}>{toast}</Text>
+                </View>
+              </View>
+            ) : null}
           </View>
         </Modal>
+      ) : null}
+
+      {likersPost ? (
+        <LikersSheet post={likersPost} kind={likersKind} onClose={() => setLikersPost(null)} />
       ) : null}
 
       {reelView ? (
         <ReelsViewer
           reels={reelView.reels}
           startIndex={reelView.index}
-          vibes={{}}
-          onVibe={() => {}}
+          vibes={reelView.reels[0] ? { [reelView.reels[0].id]: vibed } : {}}
+          onVibe={(item) => {
+            const id = (item && item.id) || (reelView.reels[0] && reelView.reels[0].id);
+            if (!id) return;
+            const next = !vibed;
+            setVibed(next);
+            if (next) sfxStar();
+            if (SUPABASE_READY && user) toggleVibe(id, user.id, next).catch(() => {});
+          }}
           onComment={(item) => setCommentsPost(item)}
           onClose={() => setReelView(null)}
         />

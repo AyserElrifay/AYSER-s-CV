@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { subscribeIncomingCalls, joinCall } from '../services/calls';
 import { CallScreen } from './CallScreen';
 import { tapMedium, tapSuccess } from '../utils/feedback';
+import { startRingtone } from '../utils/sfx';
 
 /* Mounted once at the app root: listens on YOUR ring channel, so a call
    from anyone actually rings on your screen wherever you are in the app.
@@ -24,13 +25,45 @@ export const IncomingCallGate = () => {
       if (ev.type === 'ring') {
         ringingRef.current = ev.callId;
         setRing({ callId: ev.callId, from: ev.from || {}, video: !!ev.video });
-        tapMedium();
       } else if (ev.type === 'cancel') {
         if (ringingRef.current === ev.callId) { ringingRef.current = null; setRing(null); }
       }
     });
     return unsub;
   }, [user]);
+
+  /* It has to actually RING: sound + a repeating buzz for as long as
+     the call is up, and the tab title flashes so a backgrounded phone
+     still shows something is happening. All of it stops the moment the
+     call is answered, declined or cancelled. */
+  useEffect(() => {
+    if (!ring) return undefined;
+    const stopTone = startRingtone();
+    const buzz = () => {
+      try { if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate([420, 260, 420]); } catch (e) {}
+      tapMedium();
+    };
+    buzz();
+    const buzzIv = setInterval(buzz, 2400);
+
+    let titleIv = null, prevTitle = null;
+    try {
+      if (typeof document !== 'undefined') {
+        prevTitle = document.title;
+        const who = (ring.from && ring.from.name) || 'Someone';
+        let on = false;
+        titleIv = setInterval(() => { on = !on; document.title = on ? '📞 ' + who + ' is calling…' : 'Moments'; }, 900);
+      }
+    } catch (e) {}
+
+    return () => {
+      stopTone();
+      clearInterval(buzzIv);
+      if (titleIv) clearInterval(titleIv);
+      try { if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(0); } catch (e) {}
+      try { if (prevTitle != null && typeof document !== 'undefined') document.title = prevTitle; } catch (e) {}
+    };
+  }, [ring]);
 
   if (!ring && !active) return null;
 
