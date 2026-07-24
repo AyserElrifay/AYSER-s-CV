@@ -15,7 +15,7 @@ import { Tick } from './Tick';
 import { Micro } from './Micro';
 import { GameRunner } from './GameRunner';
 import { RooftopRush } from './RooftopRush';
-import { SekoSeko } from './SekoSeko';
+import { SekoSeko3D } from './SekoSeko3D';
 import { BoxingGame } from './BoxingGame';
 import { StackGame } from './StackGame';
 import { tapLight, tapSuccess } from '../utils/feedback';
@@ -322,7 +322,7 @@ export const SearchModal = ({ onClose, onOpenProfile }) => {
       </View>
       {game && game.kind === 'stack' ? <StackGame onClose={() => setGame(null)} />
         : game && game.kind === 'rooftop' ? <RooftopRush onClose={() => setGame(null)} />
-        : game && game.kind === 'sekoseko' ? <SekoSeko onClose={() => setGame(null)} />
+        : game && game.kind === 'sekoseko' ? <SekoSeko3D onClose={() => setGame(null)} />
         : game && game.kind === 'boxing' ? <BoxingGame onClose={() => setGame(null)} />
         : game ? <GameRunner onClose={() => setGame(null)} /> : null}
     </Modal>

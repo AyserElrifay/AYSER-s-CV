@@ -11,7 +11,7 @@ import { openPartner } from '../services/broker';
 import { fetchVideos, deletePost } from '../services/posts';
 import { fetchTracks } from '../services/music';
 import { usePlayer } from '../context/PlayerContext';
-import { Page, ScreenHeader, SectionHeader, Glass, GameRunner, RooftopRush, SekoSeko, BoxingGame, StackGame } from '../components';
+import { Page, ScreenHeader, SectionHeader, Glass, GameRunner, RooftopRush, SekoSeko3D, BoxingGame, StackGame } from '../components';
 import { CaptureModal } from '../components/CaptureModal';
 import { MusicHubSheet } from '../components/MusicHubSheet';
 import { CommentsSheet } from '../components/CommentsSheet';
@@ -370,7 +370,7 @@ export const ChillScreen = () => {
     {/* launched game */}
     {game && game.kind === 'stack' ? <StackGame onClose={() => setGame(null)} />
       : game && game.kind === 'rooftop' ? <RooftopRush onClose={() => setGame(null)} />
-      : game && game.kind === 'sekoseko' ? <SekoSeko onClose={() => setGame(null)} />
+      : game && game.kind === 'sekoseko' ? <SekoSeko3D onClose={() => setGame(null)} />
       : game && game.kind === 'boxing' ? <BoxingGame onClose={() => setGame(null)} />
       : game ? <GameRunner onClose={() => setGame(null)} /> : null}
     </>

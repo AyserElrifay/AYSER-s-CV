@@ -40,6 +40,7 @@ export { GameRunner } from './GameRunner';
 export { HelpSheet } from './HelpSheet';
 export { RooftopRush } from './RooftopRush';
 export { SekoSeko } from './SekoSeko';
+export { SekoSeko3D } from './SekoSeko3D';
 export { BoxingGame } from './BoxingGame';
 export { StackGame } from './StackGame';
 export { CaptureModal } from './CaptureModal';
