@@ -1,15 +1,16 @@
-/* ── MOMENTS AVATAR · your cartoon persona on the live map ──────────
-   Not a photo — a fully customizable cartoon character (skin tone,
-   hair, hair color, outfit, outfit color, eyes, mood) that represents
-   you on the map the way a real photo can't (privacy, and it's fun).
-   Built on DiceBear's free, keyless "personas" style — we bring our
-   own trait presets, our own purple/gold framing, and our own name
-   for it ("Moments Avatar"), so this is our identity, not a clone of
-   any other app's mascot system.
+/* ── MOMENTS AVATAR · your cartoon persona ──────────────────────────
+   Not a photo — a customizable character (skin, hair, eyes, outfit,
+   mood) that represents you on the map, in chat and in the games.
 
-   The URL is generated client-side from stored trait choices; nothing
-   is stored as a picture, just a small options string, so it's cheap
-   to keep in the profiles table and instant to change. */
+   The art itself is OURS: services/avatarArt.js paints it on a canvas,
+   so it needs no network, can't fail, stays crisp at any size, and the
+   same code can draw you into a game or a sticker. The hosted image
+   service below stays only as a fallback for builds with no canvas.
+
+   Nothing is stored as a picture — just a small traits string in
+   profiles.avatar_dna — so it's cheap to keep and instant to change. */
+
+import { avatarToRoundDataUrl } from './avatarArt';
 
 const API = 'https://api.dicebear.com/9.x/personas/svg';
 
@@ -146,7 +147,36 @@ export function parseDna(str) {
 
 /* seed = a stable id (the user's uuid) so the avatar looks the same
    every time for the same person, only changing when they edit it. */
+/* ── Our own avatar, drawn by us ──────────────────────────────────
+   Every avatar in the app comes through here, so this one switch
+   means the whole app uses the character WE paint (services/
+   avatarArt.js) instead of a third-party image service: no network
+   round-trip, nothing to 400, crisp at any size, and the exact same
+   art can be drawn into a game or a sticker.
+
+   Results are cached per (seed + traits) because this runs inside
+   render paths — drawing the same face twice would be waste. Native
+   builds (no canvas) still fall back to the hosted image below. */
+const drawnCache = new Map();
+
 export function buildAvatarUrl(seed, dnaOrString) {
+  try {
+    if (typeof document !== 'undefined') {
+      const key = String(seed || 'moments') + '|' + (typeof dnaOrString === 'string' ? dnaOrString : JSON.stringify(dnaOrString || ''));
+      const hit = drawnCache.get(key);
+      if (hit) return hit;
+      const url = avatarToRoundDataUrl(dnaOrString, 256);
+      if (url) {
+        if (drawnCache.size > 300) drawnCache.clear(); // keep it bounded
+        drawnCache.set(key, url);
+        return url;
+      }
+    }
+  } catch (e) { /* fall through to the hosted version */ }
+  return hostedAvatarUrl(seed, dnaOrString);
+}
+
+function hostedAvatarUrl(seed, dnaOrString) {
   const dna = typeof dnaOrString === 'string' ? parseDna(dnaOrString) : { ...DEFAULT_DNA, ...dnaOrString };
   const heritage = heritageOf(dna.heritage);
   const params = new URLSearchParams({

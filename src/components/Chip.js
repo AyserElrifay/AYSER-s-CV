@@ -6,7 +6,7 @@ export const Chip = ({ label, color, tint, style }) => (
   <View
     style={[
       {
-        backgroundColor: tint || 'rgba(255,255,255,0.92)',
+        backgroundColor: tint || C.float,
         borderColor: C.line,
         borderWidth: 1,
         borderRadius: 999,

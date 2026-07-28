@@ -63,7 +63,7 @@ export const MagicFlowModal = ({ post, onClose, onComplete }) => {
           <RouteMap post={post} />
           <Chip
             label={roadTrip ? '🛰 3D ROUTE · ROAD-TRIP MODE' : '🛰 3D ROUTE LOCKED'}
-            tint="rgba(255,255,255,0.94)"
+            tint={C.float}
             color={C.green}
             style={{ position: 'absolute', top: 12, left: 12 }}
           />

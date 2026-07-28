@@ -65,6 +65,25 @@ export async function fetchPostsNearby({ lat, lng, name }, radiusKm = 0.4) {
   }));
 }
 
+/* ── Everything happening ON the map right now ────────────────────
+   Every recent moment that was shared WITH a location becomes a pin
+   you can see and open — so the map shows where life is actually
+   happening, not just who's standing where. Only the last few days,
+   so the map stays current instead of turning into an archive. */
+export async function fetchMomentPins(days = 3, limit = 120) {
+  const since = new Date(Date.now() - days * 86400000).toISOString();
+  const { data, error } = await supabase
+    .from('posts')
+    .select('id, user_id, type, media_url, caption, place, lat, lng, created_at, user:profiles!posts_user_id_fkey(name, avatar_url, country_flag)')
+    .not('lat', 'is', null)
+    .not('lng', 'is', null)
+    .gte('created_at', since)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return data || [];
+}
+
 /* One post by id — powers shared links (?post=…). */
 export async function fetchPost(postId) {
   const { data, error } = await supabase

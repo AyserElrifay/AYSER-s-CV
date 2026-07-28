@@ -473,7 +473,7 @@ export const HomeScreen = () => {
               />
             </Pressable>
             <Pressable onPress={() => setSharedPost(null)} style={{ alignSelf: 'center', marginTop: 6 }}>
-              <View style={{ backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 999, paddingHorizontal: 18, paddingVertical: 9 }}>
+              <View style={{ backgroundColor: C.float, borderRadius: 999, paddingHorizontal: 18, paddingVertical: 9 }}>
                 <Text style={{ color: C.text, fontSize: 13, fontWeight: '800' }}>{t('back')} ↓</Text>
               </View>
             </Pressable>

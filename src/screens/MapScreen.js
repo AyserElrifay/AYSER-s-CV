@@ -19,10 +19,11 @@ import { buildAvatarUrl } from '../services/avatarBuilder';
 import { fetchNearbyPlaces } from '../services/places';
 import { DESTINATIONS } from '../constants/destinations';
 import { fetchDestReviews, addDestReview } from '../services/destinations';
-import { fetchPostsNearby } from '../services/posts';
+import { fetchPostsNearby, fetchMomentPins } from '../services/posts';
 import { requestTrip } from '../services/trips';
 import { getOrCreateDmThread, sendMessage } from '../services/messages';
 import { dropNote, fetchActiveNotes, deleteNote, updateNote } from '../services/mapNotes';
+import { fetchStoryPins } from '../services/stories';
 import { WORLD_EVENTS } from '../constants/events';
 import { updateCampfire, endCampfire } from '../services/campfires';
 import { openPartner } from '../services/broker';
@@ -88,6 +89,9 @@ export const MapScreen = () => {
   const [dropTitle, setDropTitle] = useState('');
   const [noteHours, setNoteHours] = useState(24);       // chosen duration
   const [realNotes, setRealNotes] = useState([]);       // pinned comments
+  const [shotOpen, setShotOpen] = useState(null);       // a moment/story opened from the map
+  const [momentPins, setMomentPins] = useState([]);     // moments shared AT a spot
+  const [storyPins, setStoryPins] = useState([]);       // live stories on the map
   const [noteOpen, setNoteOpen] = useState(null);       // a tapped note
   const [joinedFires, setJoinedFires] = useState({});
   const [vName, setVName] = useState('');
@@ -246,10 +250,19 @@ export const MapScreen = () => {
     DESTINATIONS.forEach((d) => out.push({ id: 'dest_' + d.id, srcId: d.id, kind: 'dest', lat: d.lat, lng: d.lng, emoji: d.emoji, flag: d.flag, label: d.name, hero: !!d.hero }));
     // pinned notes/comments people dropped at a spot
     realNotes.forEach((n) => out.push({ id: 'note_' + n.id, srcId: n.id, kind: 'note', lat: n.lat, lng: n.lng, label: n.body }));
+    // what people actually SHARED here — the picture sits on the map
+    momentPins.forEach((p) => out.push({
+      id: 'mo_' + p.id, srcId: p.id, kind: 'moment', lat: p.lat, lng: p.lng,
+      media: p.media_url, label: (p.user && p.user.name) || p.place || '',
+    }));
+    storyPins.forEach((st) => out.push({
+      id: 'st_' + st.id, srcId: st.id, kind: 'story', lat: st.lat, lng: st.lng,
+      media: st.media_url, label: (st.user && st.user.name) || st.place || '',
+    }));
     // real major world events (World Cup, Olympics…)
     WORLD_EVENTS.forEach((e) => out.push({ id: 'ev_' + e.id, srcId: e.id, kind: 'event', lat: e.lat, lng: e.lng, label: e.name }));
     return out;
-  }, [people, campfires, realVenues, realPlaces, realNotes]);
+  }, [people, campfires, realVenues, realPlaces, realNotes, momentPins, storyPins]);
 
   const onMarkerPress = (m) => {
     setSheet(null); // whatever's open, a map tap replaces it — never stacks
@@ -259,6 +272,8 @@ export const MapScreen = () => {
     else if (m.kind === 'place') { const pl = realPlaces.find((x) => x.id === m.srcId); if (pl) setPlaceOpen(pl); }
     else if (m.kind === 'dest') { const d = DESTINATIONS.find((x) => x.id === m.srcId); if (d) openDest(d); }
     else if (m.kind === 'note') { const n = realNotes.find((x) => x.id === m.srcId); if (n) setNoteOpen(n); }
+    else if (m.kind === 'moment') { const p = momentPins.find((x) => x.id === m.srcId); if (p) openMomentPin(p); }
+    else if (m.kind === 'story') { const st = storyPins.find((x) => x.id === m.srcId); if (st) openStoryPin(st); }
     else if (m.kind === 'event') { const e = WORLD_EVENTS.find((x) => x.id === m.srcId); if (e) setEventOpen(e); }
   };
   const [eventOpen, setEventOpen] = useState(null);
@@ -542,13 +557,22 @@ export const MapScreen = () => {
     }
   };
 
-  /* load everyone's still-alive pinned notes */
+  /* load everyone's still-alive pinned notes, plus everything shared
+     AT a place: recent moments and live stories become map pins. */
   useEffect(() => {
     if (!SUPABASE_READY) return;
     let cancelled = false;
     fetchActiveNotes().then((rows) => { if (!cancelled) setRealNotes(rows); }).catch(() => {});
+    // these fail soft: the columns may not exist until RUN_ME.sql is re-run
+    fetchMomentPins().then((rows) => { if (!cancelled) setMomentPins(rows); }).catch(() => {});
+    fetchStoryPins().then((rows) => { if (!cancelled) setStoryPins(rows); }).catch(() => {});
     return () => { cancelled = true; };
   }, []);
+
+  /* Tap a picture on the map → see the moment (or the live story)
+     full-screen, with a way straight through to whoever shared it. */
+  const openMomentPin = (p) => { setSheet(null); setShotOpen({ ...p, kind: 'moment' }); };
+  const openStoryPin = (st) => { setSheet(null); setShotOpen({ ...st, kind: 'story' }); };
 
   const removeNote = async (n) => {
     setNoteOpen(null);
@@ -632,7 +656,7 @@ export const MapScreen = () => {
         <View
           style={{
             flexDirection: 'row', alignItems: 'center',
-            backgroundColor: 'rgba(255,255,255,0.94)', borderWidth: 1, borderColor: C.line,
+            backgroundColor: C.float, borderWidth: 1, borderColor: C.line,
             borderRadius: 999, paddingHorizontal: 16, paddingVertical: Platform.OS === 'ios' ? 12 : 4,
           }}
         >
@@ -654,7 +678,7 @@ export const MapScreen = () => {
           )}
         </View>
         {mapQ.trim() ? (
-          <View style={{ backgroundColor: 'rgba(255,255,255,0.97)', borderWidth: 1, borderColor: C.line, borderRadius: 18, marginTop: 8, maxHeight: 340, overflow: 'hidden' }}>
+          <View style={{ backgroundColor: C.float, borderWidth: 1, borderColor: C.line, borderRadius: 18, marginTop: 8, maxHeight: 340, overflow: 'hidden' }}>
             <ScrollView keyboardShouldPersistTaps="handled">
               {[...searchResults, ...geoResults].map((r) => (
                 <Pressable key={r.id} onPress={() => pickSearchResult(r)}>
@@ -678,7 +702,7 @@ export const MapScreen = () => {
         ) : (
           <Chip
             label={'🟢 ' + nearbyPeople.length + ' nearby · ' + campfires.length + ' campfires' + (realPlaces.length ? ' · ' + realPlaces.length + ' real places' : '')}
-            tint="rgba(255,255,255,0.94)"
+            tint={C.float}
             color={C.dim}
             style={{ alignSelf: 'flex-start', marginTop: 10 }}
           />
@@ -688,12 +712,12 @@ export const MapScreen = () => {
       {/* right-side actions: locate me · your activity · nearby people · SOS */}
       <View style={{ position: 'absolute', right: 14, bottom: 168, alignItems: 'center' }}>
         <Pressable onPress={() => { tapLight(); locateMe(); }} style={{ marginBottom: 12 }}>
-          <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#FFF', borderWidth: 1, borderColor: located ? 'rgba(16,185,129,0.5)' : C.line, alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: C.floatSolid, borderWidth: 1, borderColor: located ? 'rgba(16,185,129,0.5)' : C.line, alignItems: 'center', justifyContent: 'center' }}>
             <Ionicons name={locating ? 'ellipsis-horizontal' : 'locate'} size={21} color={located ? C.green : C.purple} />
           </View>
         </Pressable>
         <Pressable onPress={() => openSheet('doing')} style={{ marginBottom: 12 }}>
-          <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#FFF', borderWidth: 1, borderColor: myDoing ? C.purple : C.line, alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: C.floatSolid, borderWidth: 1, borderColor: myDoing ? C.purple : C.line, alignItems: 'center', justifyContent: 'center' }}>
             {myDoing ? <Text style={{ fontSize: 21 }}>{myDoing}</Text> : <Ionicons name="happy-outline" size={21} color={C.purple} />}
           </View>
         </Pressable>
@@ -708,7 +732,7 @@ export const MapScreen = () => {
           onPress={() => { tapLight(); if (myDoing) goInvisibleNow(); else openSheet('doing'); }}
           style={{ marginBottom: 12 }}
         >
-          <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: myDoing ? '#FFF' : '#1F2937', borderWidth: 1, borderColor: myDoing ? C.line : '#1F2937', alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: myDoing ? C.floatSolid : '#1F2937', borderWidth: 1, borderColor: myDoing ? C.line : '#1F2937', alignItems: 'center', justifyContent: 'center' }}>
             <Text style={{ fontSize: 20 }}>{myDoing ? '🟢' : '👻'}</Text>
           </View>
         </Pressable>
@@ -724,7 +748,7 @@ export const MapScreen = () => {
             { k: 'deals', label: '🎟️ Deals' },
           ].map((o) => (
             <Pressable key={o.k} onPress={() => { tapSelection(); setRail(o.k); }}>
-              <View style={{ backgroundColor: rail === o.k ? C.purple : 'rgba(255,255,255,0.94)', borderWidth: 1, borderColor: rail === o.k ? C.purple : C.line, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 7, marginRight: 8 }}>
+              <View style={{ backgroundColor: rail === o.k ? C.purple : C.float, borderWidth: 1, borderColor: rail === o.k ? C.purple : C.line, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 7, marginRight: 8 }}>
                 <Text style={{ color: rail === o.k ? '#FFF' : C.dim, fontSize: 12, fontWeight: '800' }}>{o.label}</Text>
               </View>
             </Pressable>
@@ -739,7 +763,7 @@ export const MapScreen = () => {
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, marginBottom: 8 }}>
             {DEAL_FILTERS.map((f) => (
               <Pressable key={f} onPress={() => { tapSelection(); setDealFilter(f); }}>
-                <View style={{ backgroundColor: dealFilter === f ? C.text : 'rgba(255,255,255,0.94)', borderWidth: 1, borderColor: dealFilter === f ? C.text : C.line, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5, marginRight: 7 }}>
+                <View style={{ backgroundColor: dealFilter === f ? C.text : C.float, borderWidth: 1, borderColor: dealFilter === f ? C.text : C.line, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5, marginRight: 7 }}>
                   <Text style={{ color: dealFilter === f ? '#FFF' : C.dim, fontSize: 11, fontWeight: '800' }}>{f}</Text>
                 </View>
               </Pressable>
@@ -750,7 +774,7 @@ export const MapScreen = () => {
           {rail === 'deals' ? (
             filteredDeals.map((d) => (
               <Pressable key={d.id} onPress={() => { tapLight(); sfxPop(); openPartner(user, d); }}>
-                <Glass tint="rgba(255,255,255,0.96)" style={{ width: 236, padding: 13, marginRight: 12 }}>
+                <Glass tint={C.float} style={{ width: 236, padding: 13, marginRight: 12 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <Text style={{ fontSize: 22, marginRight: 9 }}>{d.emoji}</Text>
                     <View style={{ flex: 1 }}>
@@ -773,7 +797,7 @@ export const MapScreen = () => {
             ))
           ) : rail === 'fires' ? (
             campfires.length ? campfires.map((c) => (
-              <Glass key={c.id} tint="rgba(255,255,255,0.96)" style={{ width: 252, padding: 13, marginRight: 12 }}>
+              <Glass key={c.id} tint={C.float} style={{ width: 252, padding: 13, marginRight: 12 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                   <Text style={{ fontSize: 20, marginRight: 8 }}>🔥</Text>
                   <View style={{ flex: 1 }}>
@@ -803,7 +827,7 @@ export const MapScreen = () => {
                 )}
               </Glass>
             )) : (
-              <Glass tint="rgba(255,255,255,0.96)" style={{ width: 252, padding: 16, marginRight: 12, alignItems: 'center' }}>
+              <Glass tint={C.float} style={{ width: 252, padding: 16, marginRight: 12, alignItems: 'center' }}>
                 <Text style={{ fontSize: 22 }}>🔥</Text>
                 <Text style={{ color: C.text, fontSize: 13, fontWeight: '800', marginTop: 6, textAlign: 'center' }}>{t('no_campfires_yet')}</Text>
                 <Text style={{ color: C.faint, fontSize: 11, marginTop: 3, textAlign: 'center' }}>{t('be_first_host')}</Text>
@@ -812,7 +836,7 @@ export const MapScreen = () => {
           ) : (
             <>
               {venues.length ? venues.map((b) => (
-                <Glass key={b.id} tint="rgba(255,255,255,0.96)" style={{ width: 232, padding: 13, marginRight: 12 }}>
+                <Glass key={b.id} tint={C.float} style={{ width: 232, padding: 13, marginRight: 12 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <Text style={{ fontSize: 22, marginRight: 9 }}>{b.emoji}</Text>
                     <View style={{ flex: 1 }}>
@@ -836,7 +860,7 @@ export const MapScreen = () => {
                   </View>
                 </Glass>
               )) : (
-                <Glass tint="rgba(255,255,255,0.96)" style={{ width: 232, padding: 16, marginRight: 12, alignItems: 'center' }}>
+                <Glass tint={C.float} style={{ width: 232, padding: 16, marginRight: 12, alignItems: 'center' }}>
                   <Text style={{ fontSize: 22 }}>📅</Text>
                   <Text style={{ color: C.text, fontSize: 13, fontWeight: '800', marginTop: 6, textAlign: 'center' }}>{t('no_venues_yet')}</Text>
                   <Text style={{ color: C.faint, fontSize: 11, marginTop: 3, textAlign: 'center' }}>{t('own_place_cta')}</Text>
@@ -885,7 +909,7 @@ export const MapScreen = () => {
           {SUPABASE_READY ? realVenues.filter((v) => v.lat != null).map((v) => (
             <Marker key={v.id} coordinate={{ latitude: v.lat, longitude: v.lng }} onPress={() => setRail('book')}>
               <View style={{ alignItems: 'center' }}>
-                <View style={{ backgroundColor: '#FFF', borderWidth: 1.5, borderColor: C.purple, borderRadius: 12, paddingHorizontal: 8, paddingVertical: 5 }}>
+                <View style={{ backgroundColor: C.floatSolid, borderWidth: 1.5, borderColor: C.purple, borderRadius: 12, paddingHorizontal: 8, paddingVertical: 5 }}>
                   <Text style={{ fontSize: 14 }}>{v.emoji || '📍'}</Text>
                 </View>
               </View>
@@ -919,7 +943,7 @@ export const MapScreen = () => {
             const pos = projectToMap(myCoords, { latitude: v.lat, longitude: v.lng });
             return (
               <Pressable key={v.id} onPress={() => setRail('book')} style={{ position: 'absolute', left: pos.left, top: pos.top }}>
-                <View style={{ backgroundColor: '#FFF', borderWidth: 1.5, borderColor: C.purple, borderRadius: 12, paddingHorizontal: 8, paddingVertical: 5 }}>
+                <View style={{ backgroundColor: C.floatSolid, borderWidth: 1.5, borderColor: C.purple, borderRadius: 12, paddingHorizontal: 8, paddingVertical: 5 }}>
                   <Text style={{ fontSize: 14 }}>{v.emoji || '📍'}</Text>
                 </View>
               </Pressable>
@@ -935,7 +959,7 @@ export const MapScreen = () => {
           thing a new user sees ── */}
       {showLocationGate ? (
         <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(8,10,20,0.72)', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 26 }}>
-          <View style={{ backgroundColor: '#FFF', borderRadius: 26, padding: 24, width: '100%', maxWidth: 340, alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 24, shadowOffset: { width: 0, height: 12 } }}>
+          <View style={{ backgroundColor: C.floatSolid, borderRadius: 26, padding: 24, width: '100%', maxWidth: 340, alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 24, shadowOffset: { width: 0, height: 12 } }}>
             <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
               <Text style={{ fontSize: 30 }}>📍</Text>
             </View>
@@ -1027,7 +1051,7 @@ export const MapScreen = () => {
                       <View>
                         <Image source={{ uri: p.cartoonAvatar || p.avatar }} style={{ width: 46, height: 46, borderRadius: 23 }} />
                         {p.doing ? (
-                          <View style={{ position: 'absolute', bottom: -2, right: -4, width: 20, height: 20, borderRadius: 10, backgroundColor: '#FFF', borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center' }}>
+                          <View style={{ position: 'absolute', bottom: -2, right: -4, width: 20, height: 20, borderRadius: 10, backgroundColor: C.floatSolid, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center' }}>
                             <Text style={{ fontSize: 10 }}>{p.doing}</Text>
                           </View>
                         ) : null}
@@ -1565,6 +1589,60 @@ export const MapScreen = () => {
             </ScrollView>
           </Pressable>
         </Pressable>
+      ) : null}
+
+      {/* a moment / live story opened straight off the map */}
+      {shotOpen ? (
+        <Modal visible transparent={false} animationType="fade" onRequestClose={() => setShotOpen(null)}>
+          <View style={{ flex: 1, backgroundColor: '#000' }}>
+            {shotOpen.media_url ? (
+              /\.(mp4|mov|webm|m4v)(\?|#|$)/i.test(shotOpen.media_url) && Platform.OS === 'web' ? (
+                <video src={shotOpen.media_url} autoPlay loop controls playsInline
+                  style={{ position: 'absolute', width: '100%', height: '100%', objectFit: 'contain', background: '#000' }} />
+              ) : (
+                <Image source={{ uri: shotOpen.media_url }} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }} resizeMode="contain" />
+              )
+            ) : (
+              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 30 }}>
+                <Text style={{ color: '#FFF', fontSize: 18, fontWeight: '800', textAlign: 'center' }}>{shotOpen.caption || '✨'}</Text>
+              </View>
+            )}
+
+            <Pressable onPress={() => setShotOpen(null)} hitSlop={10}
+              style={{ position: 'absolute', top: insets.top + 12, left: 14, width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="close" size={22} color="#FFF" />
+            </Pressable>
+
+            {shotOpen.kind === 'story' ? (
+              <View style={{ position: 'absolute', top: insets.top + 18, alignSelf: 'center', backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 4 }}>
+                <Text style={{ color: '#FFF', fontSize: 10.5, fontWeight: '900', letterSpacing: 1 }}>LIVE STORY</Text>
+              </View>
+            ) : null}
+
+            <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.55)', paddingBottom: insets.bottom + 18, paddingTop: 16, paddingHorizontal: 18 }}>
+              <Pressable
+                onPress={() => {
+                  const a = shotOpen.user;
+                  setShotOpen(null);
+                  if (a) setProfileUser({ id: shotOpen.user_id, name: a.name || 'Explorer', avatar: a.avatar_url || AV_NEUTRAL, countryFlag: a.country_flag });
+                }}
+                style={{ flexDirection: 'row', alignItems: 'center' }}
+              >
+                <Image source={{ uri: (shotOpen.user && shotOpen.user.avatar_url) || AV_NEUTRAL }} style={{ width: 38, height: 38, borderRadius: 19, borderWidth: 2, borderColor: '#FFF' }} />
+                <View style={{ flex: 1, marginLeft: 10 }}>
+                  <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '900' }}>
+                    {(shotOpen.user && shotOpen.user.country_flag) ? shotOpen.user.country_flag + ' ' : ''}{(shotOpen.user && shotOpen.user.name) || 'Explorer'}
+                  </Text>
+                  {shotOpen.place ? <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 11.5, marginTop: 1 }}>📍 {shotOpen.place}</Text> : null}
+                </View>
+                <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.8)" />
+              </Pressable>
+              {shotOpen.caption && shotOpen.media_url ? (
+                <Text style={{ color: '#FFF', fontSize: 13.5, marginTop: 10, lineHeight: 20 }}>{shotOpen.caption}</Text>
+              ) : null}
+            </View>
+          </View>
+        </Modal>
       ) : null}
 
       {profileUser ? <ProfileModal user={profileUser} onClose={() => setProfileUser(null)} /> : null}

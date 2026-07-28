@@ -16,6 +16,7 @@ import { compressImage } from '../lib/storage';
 import { fetchTracks, incrementTrackUse } from '../services/music';
 import { MusicHubSheet } from './MusicHubSheet';
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
+import { getCurrentCoords } from '../utils/location';
 import { sfxPop, sfxSuccess } from '../utils/sfx';
 
 /* ─── THE CAPTURE SCREEN — easier than IG, TikTok and Snap combined ───
@@ -474,6 +475,26 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
   const [mode, setMode] = useState(initialMode); // 'story' | 'reel'
   const [sound, setSound] = useState(null);
   const [facing, setFacing] = useState('user');
+  // 'fill' frames it edge-to-edge (some of the sides get cropped);
+  // 'wide' shows the WHOLE camera view with nothing cut off.
+  const [fit, setFit] = useState('fill');
+  // Share it ON THE MAP: when this is on, the story/moment is pinned
+  // where you actually are, so friends see it happening there.
+  const [onMap, setOnMap] = useState(false);
+  const [mapCoords, setMapCoords] = useState(null);
+  const [placeName, setPlaceName] = useState('');
+  const [gpsBusy, setGpsBusy] = useState(false);
+
+  const toggleOnMap = async () => {
+    tapLight();
+    if (onMap) { setOnMap(false); setMapCoords(null); return; }
+    setGpsBusy(true);
+    const c = await getCurrentCoords();
+    setGpsBusy(false);
+    if (!c) { setCamError('Turn on location to put this on the map 📍'); return; }
+    setMapCoords(c);
+    setOnMap(true);
+  };
   const [camError, setCamError] = useState(null);
   const [shot, setShot] = useState(null); // { uri, kind: 'photo'|'video', ext, contentType }
   const [recording, setRecording] = useState(false);
@@ -625,22 +646,32 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
     if (!isWeb) return;
     try {
       if (streamRef.current) streamRef.current.getTracks().forEach((t) => t.stop());
+      /* THE ZOOM: phone sensors are landscape. Asking for a PORTRAIT
+         frame (1080×1920) makes the browser crop the sensor down to
+         that shape, which is exactly the "everything is zoomed in"
+         look. Asking for the sensor's own landscape shape gives the
+         full field of view, and we frame it ourselves after. */
       const stream = await navigator.mediaDevices.getUserMedia({
-        // Match the phone's NATIVE camera field-of-view, like Instagram.
-        // Asking for an unusually tall frame (e.g. 1440×2560) made the
-        // browser crop the sensor → the zoomed-in look. Requesting the
-        // standard 1080×1920 the camera actually supports natively gives
-        // the full FOV; object-fit: cover then frames it as 9:16 with no
-        // extra zoom.
         video: {
           facingMode: face || facing,
-          width: { ideal: 1080 },
-          height: { ideal: 1920 },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
           frameRate: { ideal: 30 },
         },
         audio: true,
       });
       streamRef.current = stream;
+
+      /* Some browsers keep a digital zoom from the last app that used
+         the camera — put it back to 1× (widest) when it's adjustable. */
+      try {
+        const track = stream.getVideoTracks()[0];
+        const caps = track && track.getCapabilities ? track.getCapabilities() : null;
+        if (caps && caps.zoom && caps.zoom.min != null) {
+          await track.applyConstraints({ advanced: [{ zoom: caps.zoom.min }] });
+        }
+      } catch (e) { /* not adjustable on this device — the wide request already helps */ }
+
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         videoRef.current.play().catch(() => {});
@@ -943,7 +974,12 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
             : stickerType === 'question' && askQ.trim()
             ? { type: 'question', data: { question: askQ.trim() } }
             : null;
-          const row = await createStory(user.id, { mediaUrl, caption: caption.trim(), sound, sticker });
+          const row = await createStory(user.id, {
+            mediaUrl, caption: caption.trim(), sound, sticker,
+            place: onMap ? (placeName.trim() || 'Right here') : null,
+            lat: onMap && mapCoords ? mapCoords.latitude : null,
+            lng: onMap && mapCoords ? mapCoords.longitude : null,
+          });
           if (sound && sound.audio_url) incrementTrackUse(sound.id);
           onPostedStory && onPostedStory({
             id: row.id, createdAt: row.created_at,
@@ -1041,7 +1077,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
             autoPlay
             muted
             playsInline
-            style={{ position: 'absolute', width: '100%', height: '100%', objectFit: 'cover', filter: cssFilter, transform: facing === 'user' ? 'scaleX(-1)' : 'none' }}
+            style={{ position: 'absolute', width: '100%', height: '100%', objectFit: fit === 'wide' ? 'contain' : 'cover', filter: cssFilter, transform: facing === 'user' ? 'scaleX(-1)' : 'none' }}
           />
         ) : (
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
@@ -1145,9 +1181,18 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
           ) : null}
           <View style={{ flex: 1 }} />
           {!shot && isWeb ? (
-            <Pressable onPress={flip} hitSlop={10}>
-              <Ionicons name="camera-reverse-outline" size={28} color="#FFF" />
-            </Pressable>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              {/* see the WHOLE camera view when the frame feels too close in */}
+              <Pressable onPress={() => { tapLight(); setFit((f) => (f === 'wide' ? 'fill' : 'wide')); }} hitSlop={10} style={{ marginRight: 16 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: fit === 'wide' ? 'rgba(255,255,255,0.22)' : 'transparent', borderWidth: 1, borderColor: 'rgba(255,255,255,0.45)', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 }}>
+                  <Ionicons name="scan-outline" size={15} color="#FFF" />
+                  <Text style={{ color: '#FFF', fontSize: 11, fontWeight: '900', marginLeft: 5 }}>{fit === 'wide' ? 'Wide' : 'Fill'}</Text>
+                </View>
+              </Pressable>
+              <Pressable onPress={flip} hitSlop={10}>
+                <Ionicons name="camera-reverse-outline" size={28} color="#FFF" />
+              </Pressable>
+            </View>
           ) : <View style={{ width: 28 }} />}
         </View>
 
@@ -1385,6 +1430,33 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
                   ) : null}
                 </View>
               ) : null}
+              {/* Put it on the map — where it happened, like a pin you
+                  drop. Off by default: your location is never shared
+                  unless you switch this on for that post. */}
+              {!sendMode && mode === 'story' ? (
+                <View style={{ marginBottom: 10 }}>
+                  <Pressable onPress={toggleOnMap} style={{ alignSelf: 'flex-start' }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: onMap ? C.purple : 'rgba(0,0,0,0.55)', borderWidth: 1, borderColor: onMap ? C.purple : 'rgba(255,255,255,0.35)', borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8 }}>
+                      <Ionicons name={gpsBusy ? 'hourglass-outline' : onMap ? 'location' : 'location-outline'} size={14} color="#FFF" />
+                      <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '900', marginLeft: 6 }}>
+                        {gpsBusy ? 'Finding you…' : onMap ? 'On the map ✓' : 'Add to the map'}
+                      </Text>
+                    </View>
+                  </Pressable>
+                  {onMap ? (
+                    <View style={{ marginTop: 8, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)', paddingHorizontal: 12, paddingVertical: Platform.OS === 'ios' ? 10 : 2 }}>
+                      <TextInput
+                        placeholder="Name this spot (optional)"
+                        placeholderTextColor="rgba(255,255,255,0.5)"
+                        value={placeName}
+                        onChangeText={setPlaceName}
+                        style={{ color: '#FFF', fontSize: 13 }}
+                      />
+                    </View>
+                  ) : null}
+                </View>
+              ) : null}
+
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 22, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', paddingHorizontal: 14, paddingVertical: Platform.OS === 'ios' ? 12 : 4, marginRight: 10 }}>
                   <TextInput

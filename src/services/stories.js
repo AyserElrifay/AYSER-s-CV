@@ -2,11 +2,15 @@ import { supabase } from '../lib/supabase';
 
 /* Real 24h stories — rows expire via the RLS policy (expires_at). */
 
-export async function createStory(userId, { mediaUrl, caption, sound, sticker }) {
+export async function createStory(userId, { mediaUrl, caption, sound, sticker, place, lat, lng }) {
   let payload = {
     user_id: userId,
     media_url: mediaUrl,
     caption: caption || null,
+    // where it happened — this is what puts the story on the map
+    place: place || null,
+    lat: lat != null ? lat : null,
+    lng: lng != null ? lng : null,
     sound_title: sound ? sound.title : null,
     sound_artist: sound ? sound.artist : null,
     sound_url: sound ? sound.audio_url || null : null, // actually playable
@@ -43,6 +47,21 @@ export async function fetchActiveStories() {
     .limit(50);
   if (error) throw error;
   return data;
+}
+
+/* Live stories that were shared WITH a location — the map layer.
+   A story only lasts 24h, so these pins come and go on their own. */
+export async function fetchStoryPins(limit = 80) {
+  const { data, error } = await supabase
+    .from('stories')
+    .select('id, user_id, media_url, caption, place, lat, lng, created_at, user:profiles!stories_user_id_fkey(name, avatar_url, country_flag)')
+    .not('lat', 'is', null)
+    .not('lng', 'is', null)
+    .gt('expires_at', new Date().toISOString())
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return data || [];
 }
 
 /* Storage hygiene — expired stories don't just hide, they're GONE:

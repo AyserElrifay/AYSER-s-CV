@@ -25,6 +25,11 @@ const LIGHT = {
   dim: 'rgba(17,24,39,0.60)',
   faint: 'rgba(17,24,39,0.38)',
   ink: '#FFFFFF',                      // label color on neon buttons
+  /* Panels that float ON TOP of the map/photos. These used to be
+     hardcoded white, which meant white text on white in dark mode —
+     nothing on the map was readable. They follow the theme now. */
+  float: 'rgba(255,255,255,0.94)',
+  floatSolid: '#FFFFFF',
 };
 
 const DARK = {
@@ -47,6 +52,8 @@ const DARK = {
   dim: 'rgba(243,244,246,0.64)',
   faint: 'rgba(243,244,246,0.40)',
   ink: '#FFFFFF',
+  float: 'rgba(28,28,34,0.94)',
+  floatSolid: '#1B1B21',
 };
 
 /* `C` is a SINGLE shared object — every screen imports this same

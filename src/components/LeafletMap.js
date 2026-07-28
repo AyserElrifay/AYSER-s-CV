@@ -170,6 +170,26 @@ const pinHtml = (m) => {
     );
   }
 
+  /* A MOMENT or a STORY shared at this spot — the picture itself sits
+     on the map, so you can see what's actually happening somewhere
+     instead of only who is standing there. A live story gets the
+     purple ring; a moment gets a soft white frame. */
+  if (m.kind === 'moment' || m.kind === 'story') {
+    const live = m.kind === 'story';
+    const ring = live ? '#7C3AED' : '#FFFFFF';
+    const inner = m.media
+      ? '<img src="' + m.media + '" style="width:100%;height:100%;object-fit:cover;display:block"/>'
+      : '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:19px;background:#7C3AED">💬</div>';
+    return (
+      '<div class="mm-float mm-note" style="position:relative;width:62px;height:74px;display:flex;flex-direction:column;align-items:center">' +
+      '<div style="width:52px;height:52px;border-radius:16px;overflow:hidden;border:3px solid ' + ring +
+      ';box-shadow:0 4px 12px rgba(0,0,0,0.35)' + (live ? ',0 0 0 2px rgba(124,58,237,0.35)' : '') + '">' + inner + '</div>' +
+      (live ? '<div style="position:absolute;top:-6px;right:2px;background:#7C3AED;color:#fff;font:800 8px system-ui;padding:2px 5px;border-radius:999px;border:1.5px solid #fff">LIVE</div>' : '') +
+      (m.label ? '<div class="mm-pill" style="margin-top:4px">' + esc(m.label) + '</div>' : '') +
+      '</div>'
+    );
+  }
+
   // Curated destinations: a clean little GOLD teardrop dot (no emoji)
   // + name pill. Emoji-free keeps the map calm and uncluttered.
   if (m.kind === 'dest') {
@@ -423,13 +443,16 @@ export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus
       const isPlace = m.kind === 'place';
       const isNote = m.kind === 'note';
       const isEvent = m.kind === 'event';
+      const isShot = m.kind === 'moment' || m.kind === 'story';
       const icon = L.divIcon({
         html: pinHtml(m), className: '',
-        iconSize: isPerson ? [52, 66] : isDest ? [88, 44] : isPlace ? [13, 13] : isNote ? [40, 44] : isEvent ? [60, 48] : [16, 16],
-        iconAnchor: isPerson ? [26, 33] : isDest ? [44, 22] : isPlace ? [7, 7] : isNote ? [20, 40] : isEvent ? [30, 40] : [8, 8],
+        iconSize: isShot ? [62, 74] : isPerson ? [52, 66] : isDest ? [88, 44] : isPlace ? [13, 13] : isNote ? [40, 44] : isEvent ? [60, 48] : [16, 16],
+        iconAnchor: isShot ? [31, 70] : isPerson ? [26, 33] : isDest ? [44, 22] : isPlace ? [7, 7] : isNote ? [20, 40] : isEvent ? [30, 40] : [8, 8],
       });
-      const mk = L.marker([m.lat, m.lng], { icon, zIndexOffset: isPerson ? 500 : isDest ? 300 : 0 }).addTo(layerRef.current);
-      if (m.label && !isPerson && !isDest) mk.bindTooltip(esc(m.label), { direction: 'top', offset: [0, -34] });
+      // a live story sits above everything else — it's the freshest thing there
+      const z = m.kind === 'story' ? 700 : m.kind === 'moment' ? 600 : isPerson ? 500 : isDest ? 300 : 0;
+      const mk = L.marker([m.lat, m.lng], { icon, zIndexOffset: z }).addTo(layerRef.current);
+      if (m.label && !isPerson && !isDest && !isShot) mk.bindTooltip(esc(m.label), { direction: 'top', offset: [0, -34] });
       mk.on('click', () => onPress && onPress(m));
     });
   };

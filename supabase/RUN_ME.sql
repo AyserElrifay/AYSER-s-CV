@@ -977,6 +977,18 @@ create policy "sr_sel" on public.story_reactions for select using (
 -- (un-star, re-star, un-star…) you get ONE notification that moves back
 -- to the top — not a wall of identical rows. Comments stay separate,
 -- because every comment really is its own event.
+-- ═══════════ STORIES ON THE MAP ═══════════
+-- A story shared with a location shows up where it happened, the way
+-- a moment already does — and disappears with the story after 24h.
+alter table public.stories add column if not exists place text;
+alter table public.stories add column if not exists lat double precision;
+alter table public.stories add column if not exists lng double precision;
+create index if not exists stories_geo_idx on public.stories (lat, lng)
+  where lat is not null and lng is not null;
+-- moments are already geotagged; this just makes the map layer fast
+create index if not exists posts_geo_idx on public.posts (created_at desc)
+  where lat is not null and lng is not null;
+
 -- 1) collapse the duplicates already sitting in the inbox, keeping the
 --    newest row of each (recipient, actor, kind, post) group
 delete from public.notifications n
