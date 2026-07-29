@@ -8,6 +8,8 @@ import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { usePresence } from '../context/PresenceContext';
 import { getOrCreateDmThread, fetchMessages, sendMessage, sendMoment, sendGameInvite, subscribeMessages, getThreadTtl, setThreadTtl, sweepExpired, streakInfo } from '../services/messages';
+import { uploadCapture } from '../services/social';
+import { StickerPicker } from '../components/StickerPicker';
 import { createMatch, fetchMatch, respondMatch } from '../services/games';
 import { StreakBadge } from '../components/StreakBadge';
 import { getProfile } from '../services/profiles';
@@ -243,6 +245,18 @@ export const ChatThread = ({ chat, group, onClose }) => {
       document.body.appendChild(a); a.click(); a.remove();
     } catch (e) {}
   };
+  /* Send one of YOUR avatar stickers — it goes as a real picture
+     message, so it shows up in the thread like any other snap. */
+  const [stickersOpen, setStickersOpen] = useState(false);
+  const sendSticker = async (dataUrl, st) => {
+    setStickersOpen(false);
+    let mediaUrl = dataUrl;
+    if (isReal && user) {
+      try { mediaUrl = await uploadCapture(user.id, dataUrl, 'png', 'image/png'); } catch (e) { /* keep the inline copy */ }
+    }
+    await handleSendMoment({ mediaUrl, mediaKind: 'photo', caption: st.label });
+  };
+
   const handleSendMoment = async ({ mediaUrl, mediaKind, caption }) => {
     if (isReal) {
       const squadId = group ? chat.id : null;
@@ -554,7 +568,7 @@ export const ChatThread = ({ chat, group, onClose }) => {
           ) : null}
 
           {/* input bar */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingTop: 8, paddingBottom: insets.bottom + 8, borderTopWidth: 1, borderTopColor: C.line, backgroundColor: '#FFF' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingTop: 8, paddingBottom: insets.bottom + 8, borderTopWidth: 1, borderTopColor: C.line, backgroundColor: C.bg2 }}>
             <Pressable onPress={() => { tapLight(); setMenu((v) => !v); }} hitSlop={8} style={{ marginRight: 8 }}>
               <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: menu ? C.purple : C.purpleSoft, alignItems: 'center', justifyContent: 'center' }}>
                 <Ionicons name={menu ? 'close' : 'game-controller'} size={19} color={menu ? '#FFF' : C.purple} />
@@ -575,7 +589,9 @@ export const ChatThread = ({ chat, group, onClose }) => {
                 onSubmitEditing={send}
                 style={{ flex: 1, color: C.text, fontSize: 14.5 }}
               />
-              <Ionicons name="happy-outline" size={20} color={C.faint} />
+              <Pressable onPress={() => { tapLight(); setStickersOpen(true); }} hitSlop={8}>
+                <Ionicons name="happy-outline" size={20} color={C.purple} />
+              </Pressable>
             </View>
             <Pressable onPress={send} hitSlop={8} style={{ marginLeft: 8 }}>
               <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: C.purple, alignItems: 'center', justifyContent: 'center' }}>
@@ -597,6 +613,14 @@ export const ChatThread = ({ chat, group, onClose }) => {
           opponent={activeMatch.opponent}
           onRematch={rematch}
           onClose={() => setActiveMatch(null)}
+        />
+      ) : null}
+
+      {stickersOpen ? (
+        <StickerPicker
+          dna={(user && user.avatar_dna) || null}
+          onPick={sendSticker}
+          onClose={() => setStickersOpen(false)}
         />
       ) : null}
 

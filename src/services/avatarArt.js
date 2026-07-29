@@ -705,3 +705,64 @@ export function avatarToRoundDataUrl(dna, size, opts) {
   c.restore();
   try { return cv.toDataURL('image/png'); } catch (e) { return null; }
 }
+
+/* ── AVATAR STICKERS · your face as an emoji ──────────────────────
+   The same character, pulling a different face and holding a caption.
+   Because the avatar is drawn by us, a sticker is just the same code
+   with a different expression — nothing to download, and it's yours,
+   not a pack borrowed from someone else. */
+export const STICKERS = [
+  { id: 'hi', label: 'Hi!', text: 'HI!', eyes: 'happy', mouth: 'grin', bg: '#7C3AED' },
+  { id: 'lol', label: 'LOL', text: 'LOL', eyes: 'happy', mouth: 'tongue', bg: '#F5B301' },
+  { id: 'love', label: 'Love it', text: '♥', eyes: 'stars', mouth: 'smile', bg: '#E11D48' },
+  { id: 'wow', label: 'Wow', text: 'WOW', eyes: 'wide', mouth: 'ohh', bg: '#0EA5E9' },
+  { id: 'sad', label: 'Aww', text: 'AWW', eyes: 'sleepy', mouth: 'sad', bg: '#64748B' },
+  { id: 'wink', label: 'Wink', text: ';)', eyes: 'wink', mouth: 'smirk', bg: '#EC4899' },
+  { id: 'ok', label: 'OK', text: 'OK!', eyes: 'happy', mouth: 'smile', bg: '#10B981' },
+  { id: 'sleep', label: 'Sleepy', text: 'ZzZ', eyes: 'sleepy', mouth: 'neutral', bg: '#334155' },
+  { id: 'think', label: 'Hmm', text: 'HMM', eyes: 'side', mouth: 'smirk', bg: '#F97316' },
+  { id: 'yes', label: 'Yes!', text: 'YES', eyes: 'happy', mouth: 'grin', bg: '#22C55E' },
+];
+
+/* Render one sticker to a PNG data URL — what gets sent in a chat. */
+export function stickerToDataUrl(dna, sticker, size) {
+  if (typeof document === 'undefined') return null;
+  const px = size || 320;
+  const cv = document.createElement('canvas');
+  cv.width = px; cv.height = px;
+  const c = cv.getContext('2d');
+
+  // a soft round badge behind the character
+  const g = c.createLinearGradient(0, 0, px, px);
+  g.addColorStop(0, sticker.bg);
+  g.addColorStop(1, shade(sticker.bg, -0.4));
+  c.fillStyle = g;
+  c.beginPath(); c.arc(px / 2, px / 2, px / 2 - px * 0.02, 0, Math.PI * 2); c.fill();
+  c.lineWidth = px * 0.035;
+  c.strokeStyle = '#FFFFFF';
+  c.stroke();
+
+  // the character, wearing the sticker's expression
+  c.save();
+  c.beginPath(); c.arc(px / 2, px / 2, px / 2 - px * 0.05, 0, Math.PI * 2); c.clip();
+  // framed close, so the expression is the thing you actually read
+  drawAvatar(c, -px * 0.02, -px * 0.06, px * 1.04, dna, {
+    bg: false, eyes: sticker.eyes, mouth: sticker.mouth,
+  });
+  c.restore();
+
+  // the caption
+  if (sticker.text) {
+    const fs = Math.round(px * 0.15);
+    c.font = '900 ' + fs + 'px system-ui, -apple-system, sans-serif';
+    c.textAlign = 'center';
+    c.textBaseline = 'middle';
+    c.lineWidth = Math.max(3, px * 0.018);
+    c.strokeStyle = 'rgba(0,0,0,0.55)';
+    c.strokeText(sticker.text, px / 2, px * 0.88);
+    c.fillStyle = '#FFFFFF';
+    c.fillText(sticker.text, px / 2, px * 0.88);
+  }
+
+  try { return cv.toDataURL('image/png'); } catch (e) { return null; }
+}

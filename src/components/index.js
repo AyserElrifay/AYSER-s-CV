@@ -53,3 +53,5 @@ export { Wordmark, LogoMark } from './Wordmark';
 export { BardiSheet } from './BardiSheet';
 export { AdminPanel } from './AdminPanel';
 export { MapCover } from './MapCover';
+export { AvatarCanvas } from './AvatarCanvas';
+export { StickerPicker } from './StickerPicker';
