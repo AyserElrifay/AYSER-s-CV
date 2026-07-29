@@ -49,6 +49,21 @@ export async function fetchActiveStories() {
   return data;
 }
 
+/* One person's live stories — powers tapping someone's photo to watch
+   what they've posted, and the ring that tells you there's something
+   there. Empty when they have nothing live, so no ring is shown. */
+export async function fetchUserStories(userId) {
+  const { data, error } = await supabase
+    .from('stories')
+    .select('*, user:profiles!stories_user_id_fkey(id, name, avatar_url, country_flag)')
+    .eq('user_id', userId)
+    .gt('expires_at', new Date().toISOString())
+    .order('created_at', { ascending: true })
+    .limit(40);
+  if (error) throw error;
+  return data || [];
+}
+
 /* ── Story comments ──────────────────────────────────────────────
    Saved, so they're still there next time the story is opened, and
    visible to everyone watching. The owner can switch them off, and

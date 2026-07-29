@@ -18,6 +18,18 @@ import { sfxPop, sfxSuccess } from '../utils/sfx';
 
 const REACT_EMOJIS = ['❤️', '🔥', '😂', '😮', '😢', '👏'];
 
+/* Say what actually went wrong instead of failing in silence. The
+   commonest cause by far is the tables not existing yet. */
+const explainStory = (e) => {
+  const m = (e && e.message) || '';
+  if (/does not exist|schema cache|relation .* does not exist/i.test(m)) {
+    return 'One step left — run supabase/RUN_ME.sql in Supabase to turn this on.';
+  }
+  if (/row-level security|violates row-level/i.test(m)) return 'Comments are off for this story.';
+  if (/JWT|auth/i.test(m)) return 'Sign in again and try that once more.';
+  return m || 'That did not go through — try again.';
+};
+
 /* Time-ago for the viewers list ("3m", "2h") — short, no library. */
 const timeAgo = (iso) => {
   const s = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
@@ -71,6 +83,7 @@ export const StoryViewer = ({ stories, groups, startGroup = 0, startIndex = 0, o
   const [commentText, setCommentText] = useState('');
   const [commentsOff, setCommentsOff] = useState(false);
   const [commentBusy, setCommentBusy] = useState(false);
+  const [storyErr, setStoryErr] = useState(null);
   const progress = useRef(new Animated.Value(0)).current;
   const anim = useRef(null);
   const story = items[index];
@@ -83,7 +96,7 @@ export const StoryViewer = ({ stories, groups, startGroup = 0, startIndex = 0, o
     if (story.stickerType === 'poll') {
       fetchPollResults(story.id, user.id).then(setPoll).catch(() => {});
     }
-    setComments([]); setCommentText(''); setCommentsOpen(false);
+    setComments([]); setCommentText(''); setCommentsOpen(false); setStoryErr(null);
     setCommentsOff(!!story.commentsOff);
     // saved comments come back every time the story is opened
     fetchStoryComments(story.id).then(setComments).catch(() => setComments([]));
@@ -156,17 +169,26 @@ export const StoryViewer = ({ stories, groups, startGroup = 0, startIndex = 0, o
 
   const sendReaction = async (emoji) => {
     if (!SUPABASE_READY || !user || isMine) return;
+    const previous = myReaction;
     tapSuccess(); sfxSuccess();
     setMyReaction(emoji);
-    setReactSent(true);
-    setTimeout(() => setReactSent(false), 1400);
+    setStoryErr(null);
     try {
+      // this is the part that has to stick — if it fails, the reaction
+      // goes back to what it was rather than pretending it saved
       await reactToStory(story.id, user.id, emoji);
-      // reactions land in the owner's DMs too — same as the reply flow,
-      // so it's a real notification they see, not just a silent count
+      setReactSent(true);
+      setTimeout(() => setReactSent(false), 1400);
+    } catch (e) {
+      setMyReaction(previous);
+      setStoryErr(explainStory(e));
+      return;
+    }
+    try {
+      // and it lands in the owner's DMs too, so it's a real notification
       const threadId = await getOrCreateDmThread(story.user.id);
       await sendMessage({ dmThreadId: threadId, userId: user.id, body: 'Reacted to your story: ' + emoji });
-    } catch (e) {}
+    } catch (e) { /* the reaction itself is saved; the DM ping is a bonus */ }
   };
 
   /* Post a comment — it's saved, and everyone watching sees it. */
@@ -174,13 +196,15 @@ export const StoryViewer = ({ stories, groups, startGroup = 0, startIndex = 0, o
     const body = commentText.trim();
     if (!body || !SUPABASE_READY || !user || commentBusy || commentsOff) return;
     setCommentBusy(true);
+    setStoryErr(null);
     try {
       const row = await addStoryComment(story.id, user.id, body);
       setComments((list) => [...list, row]);
       setCommentText('');
       tapLight(); sfxPop();
-    } catch (e) { /* the owner may have just closed comments */ }
-    finally { setCommentBusy(false); }
+    } catch (e) {
+      setStoryErr(explainStory(e));   // never swallow it — say why
+    } finally { setCommentBusy(false); }
   };
 
   const removeComment = async (c) => {
@@ -386,6 +410,12 @@ export const StoryViewer = ({ stories, groups, startGroup = 0, startIndex = 0, o
                     </Pressable>
                   ) : null}
                 </View>
+
+                {storyErr ? (
+                  <View style={{ marginTop: 8, backgroundColor: 'rgba(244,63,94,0.25)', borderWidth: 1, borderColor: 'rgba(244,63,94,0.5)', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 9 }}>
+                    <Text style={{ color: '#FFD9DF', fontSize: 12, fontWeight: '700', lineHeight: 17 }}>{storyErr}</Text>
+                  </View>
+                ) : null}
 
                 {commentsOpen ? (
                   <View style={{ marginTop: 10, backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 16, padding: 12 }}>

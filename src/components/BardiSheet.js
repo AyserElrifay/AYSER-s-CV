@@ -8,6 +8,7 @@ import { useLang } from '../context/LanguageContext';
 import { askBardi, BARDI_STARTERS } from '../services/bardi';
 import { bardiLocalSupported, bardiEngineReady, ensureBardiEngine, askBardiLocal, pickBardiModel } from '../services/bardiLocal';
 import { clearMyBardiMemory } from '../services/bardiOwner';
+import { isOwner } from '../services/music';
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
 
 const BARDI_ICON = require('../assets/brand/bardi.png');
@@ -139,15 +140,28 @@ export const BardiSheet = ({ onClose }) => {
     //    fast inside askBardi; the "Try again" button handles manual retries
     //    so it can never sit spinning for minutes.
     let reply = null;
+    let why = null;
     try {
       reply = await askBardi(next, { language: lang || 'en', profile, userId: user && user.id, remember });
-    } catch (e) { reply = null; }
+    } catch (e) { reply = null; why = (e && e.code) || null; }
     if (reply) {
       setMessages((m) => [...m, { role: 'assistant', content: reply }]);
     } else {
-      setError(lang === 'ar'
-        ? 'باردي مش قادر يوصل دلوقتي 🌱 — دوس "حاول تاني".'
-        : 'Bardi couldn\'t connect right now 🌱 — tap "Try again".');
+      /* Say something TRUE about what happened rather than a shrug.
+         The owner also gets the one line that actually fixes it —
+         regular users never see anything about deploys. */
+      const ar = lang === 'ar';
+      let msg = why === 'offline'
+        ? (ar ? 'مفيش نت دلوقتي — راجع الاتصال وجرّب تاني.' : 'You\'re offline — check your connection and try again.')
+        : why === 'busy'
+        ? (ar ? 'باردي مزحوم دلوقتي 🌱 — دوس "حاول تاني" بعد ثانية.' : 'Bardi is overloaded right now 🌱 — tap "Try again" in a second.')
+        : (ar ? 'باردي مش قادر يوصل دلوقتي 🌱 — دوس "حاول تاني".' : 'Bardi couldn\'t connect right now 🌱 — tap "Try again".');
+      if (isOwner(user)) {
+        msg += ar
+          ? ' (لو عايزه يشتغل من غير انقطاع: انشر bardi-chat على Supabase.)'
+          : ' (To make this never happen: deploy bardi-chat on Supabase.)';
+      }
+      setError(msg);
     }
     setBusy(false);
   };

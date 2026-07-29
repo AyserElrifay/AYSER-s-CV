@@ -58,15 +58,15 @@ function cleanReply(text) {
   return t;
 }
 
-async function pollinationsGET(prompt, sys, model) {
+async function pollinationsGET(prompt, sys, model, ms) {
   const url = 'https://text.pollinations.ai/' + encodeURIComponent(prompt)
     + '?model=' + encodeURIComponent(model) + '&referrer=moments.app&system=' + encodeURIComponent(sys);
-  const r = await fetchT(url, {}, 8000);
+  const r = await fetchT(url, {}, ms || 8000);
   if (!r.ok) return null;
   return cleanReply(await r.text());
 }
 
-async function pollinationsPOST(hist, sys, model) {
+async function pollinationsPOST(hist, sys, model, ms) {
   const r = await fetchT('https://text.pollinations.ai/openai', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -74,7 +74,7 @@ async function pollinationsPOST(hist, sys, model) {
       model, referrer: 'moments.app',
       messages: [{ role: 'system', content: sys }, ...hist.map((m) => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: String(m.content || '') }))],
     }),
-  }, 9000);
+  }, ms || 9000);
   if (!r.ok) return null;
   const data = await r.json().catch(() => null);
   return cleanReply(data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content);
@@ -97,18 +97,34 @@ async function askBardiDirect(messages, opts) {
   // GET only while the whole URL (prompt + system) stays under the limit,
   // else a huge URL trips 414 "URI too long" — a real cause of silent fails.
   const getOk = convo.length + sys.length < 1400;
-  // Try a few models, GET + POST in PARALLEL per model (≈9s/round). Ordered
-  // lightest-first for the best odds on Pollinations' throttled free tier.
-  const MODELS = ['openai-fast', 'openai', 'mistral'];
-  for (const model of MODELS) {
-    const tries = [];
-    if (getOk) tries.push(pollinationsGET(convo, sys, model).catch(() => null));
-    tries.push(pollinationsPOST(hist, sys, model).catch(() => null));
-    const results = await Promise.all(tries);
-    const hit = results.find(Boolean);
-    if (hit) return hit;
+
+  /* The free tier throttles hard, so one quick round is not enough to
+     call it dead. We do a fast pass across several models, then a
+     second, patient pass with longer timeouts — that second pass is
+     what rescues most "Bardi isn't working" moments. */
+  const MODELS = ['openai-fast', 'openai', 'mistral', 'llama', 'openai-large'];
+  const ROUNDS = [
+    { models: MODELS.slice(0, 3), ms: 9000 },
+    { models: MODELS, ms: 20000 },
+  ];
+
+  let sawResponse = false;
+  for (const round of ROUNDS) {
+    for (const model of round.models) {
+      const tries = [];
+      if (getOk) tries.push(pollinationsGET(convo, sys, model, round.ms).then((r) => { sawResponse = true; return r; }).catch(() => null));
+      tries.push(pollinationsPOST(hist, sys, model, round.ms).then((r) => { sawResponse = true; return r; }).catch(() => null));
+      const results = await Promise.all(tries);
+      const hit = results.find(Boolean);
+      if (hit) return hit;
+    }
   }
-  throw new Error('bardi-unavailable');
+  // Tell the caller WHICH kind of failure this was, so the UI can say
+  // something true instead of a shrug.
+  const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
+  const err = new Error(offline ? 'bardi-offline' : sawResponse ? 'bardi-busy' : 'bardi-unreachable');
+  err.code = offline ? 'offline' : sawResponse ? 'busy' : 'unreachable';
+  throw err;
 }
 
 /* Send the conversation to Bardi and get its reply.

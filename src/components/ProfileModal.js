@@ -10,6 +10,7 @@ import { usePresence } from '../context/PresenceContext';
 import { useLang } from '../context/LanguageContext';
 import { fetchMyMoments } from '../services/posts';
 import { getProfile } from '../services/profiles';
+import { fetchUserStories } from '../services/stories';
 import { getMateStatus, mateUp, countMates } from '../services/mates';
 import { getOrCreateDmThread, sendMessage } from '../services/messages';
 import { Glass } from './Glass';
@@ -19,6 +20,7 @@ import { AvatarRing } from './AvatarRing';
 import { SectionHeader } from './SectionHeader';
 import { PostCard } from './PostCard';
 import { ReelsViewer } from './ReelsViewer';
+import { StoryViewer } from './StoryViewer';
 import { tapLight, tapSuccess, tapSelection } from '../utils/feedback';
 
 /* CommentsSheet imports ProfileModal (tapping a commenter opens their
@@ -40,6 +42,9 @@ const isVideoUri = (u) => typeof u === 'string' && /\.(webm|mp4|mov|m4v)(\?|$)/i
 
 export const ProfileModal = ({ user, onClose }) => {
   const insets = useSafeAreaInsets();
+  // their live stories — tap the photo to watch them
+  const [theirStories, setTheirStories] = useState([]);
+  const [storyOpen, setStoryOpen] = useState(false);
   const { user: me } = useAuth();
   const { rtl } = useLang();
   const [posts, setPosts] = useState(null);         // their real moments
@@ -106,6 +111,17 @@ export const ProfileModal = ({ user, onClose }) => {
   };
 
   useEffect(() => { load(); }, [load]);
+
+  /* Their live stories, so the ring is honest: it only glows when they
+     actually have something up right now. */
+  useEffect(() => {
+    if (!SUPABASE_READY || !user || !user.id) { setTheirStories([]); return undefined; }
+    let cancelled = false;
+    fetchUserStories(user.id)
+      .then((rows) => { if (!cancelled) setTheirStories(rows || []); })
+      .catch(() => { if (!cancelled) setTheirStories([]); });
+    return () => { cancelled = true; };
+  }, [user && user.id]);
 
   if (!user) return null;
 
@@ -178,12 +194,29 @@ export const ProfileModal = ({ user, onClose }) => {
                 use a fixed-width spacer for the gap — keeps the avatar
                 pinned LEFT in both languages. */}
             {(() => {
+              const hasStory = theirStories.length > 0;
               const avatarBlock = (
-                <LinearGradient colors={[C.gold, C.purple, C.green]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ width: 88, height: 88, borderRadius: 44, alignItems: 'center', justifyContent: 'center' }}>
-                  <View style={{ backgroundColor: C.bg, borderRadius: 44, padding: 3 }}>
-                    <Image source={{ uri: user.avatar }} style={{ width: 76, height: 76, borderRadius: 38 }} />
-                  </View>
-                </LinearGradient>
+                <Pressable
+                  onPress={() => { if (hasStory) { tapLight(); setStoryOpen(true); } }}
+                  disabled={!hasStory}
+                >
+                  <LinearGradient
+                    colors={hasStory ? [C.gold, C.purple, C.green] : [C.line, C.line, C.line]}
+                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                    style={{ width: 88, height: 88, borderRadius: 44, alignItems: 'center', justifyContent: 'center' }}
+                  >
+                    <View style={{ backgroundColor: C.bg, borderRadius: 44, padding: 3 }}>
+                      <Image source={{ uri: user.avatar }} style={{ width: 76, height: 76, borderRadius: 38 }} />
+                    </View>
+                  </LinearGradient>
+                  {hasStory ? (
+                    <View style={{ position: 'absolute', bottom: -2, alignSelf: 'center', backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2, borderWidth: 2, borderColor: C.bg }}>
+                      <Text style={{ color: '#FFF', fontSize: 9, fontWeight: '900' }}>
+                        {theirStories.length > 1 ? theirStories.length + ' STORIES' : 'STORY'}
+                      </Text>
+                    </View>
+                  ) : null}
+                </Pressable>
               );
               const statsBlock = (
                 <View style={{ flex: 1, flexDirection: 'row' }}>
@@ -372,6 +405,40 @@ export const ProfileModal = ({ user, onClose }) => {
             onVibe={() => {}}
             onComment={(item) => setCommentsPost(item)}
             onClose={() => setReelView(null)}
+          />
+        ) : null}
+
+        {/* tapped their photo — watch their story */}
+        {storyOpen && theirStories.length ? (
+          <StoryViewer
+            groups={[{
+              user: {
+                id: user.id,
+                name: user.name,
+                avatar: user.avatar,
+                flag: user.countryFlag || (fullProfile && fullProfile.country_flag) || null,
+              },
+              items: theirStories.map((r) => ({
+                id: r.id,
+                createdAt: r.created_at,
+                user: {
+                  id: r.user_id,
+                  name: (r.user && r.user.name) || user.name,
+                  avatar: (r.user && r.user.avatar_url) || user.avatar,
+                  flag: (r.user && r.user.country_flag) || null,
+                },
+                media: r.media_url,
+                caption: r.caption,
+                commentsOff: !!r.comments_off,
+                sound: r.sound_title ? { title: r.sound_title, artist: r.sound_artist || '', emoji: '🎵', audio_url: r.sound_url || null } : null,
+                stickerType: r.sticker_type || null,
+                stickerData: r.sticker_data ? (() => { try { return JSON.parse(r.sticker_data); } catch (e) { return null; } })() : null,
+              })),
+            }]}
+            startGroup={0}
+            startIndex={0}
+            onClose={() => setStoryOpen(false)}
+            onDeleted={(id) => setTheirStories((list) => list.filter((x) => x.id !== id))}
           />
         ) : null}
 
