@@ -977,6 +977,55 @@ create policy "sr_sel" on public.story_reactions for select using (
 -- (un-star, re-star, un-star…) you get ONE notification that moves back
 -- to the top — not a wall of identical rows. Comments stay separate,
 -- because every comment really is its own event.
+-- ═══════════ MAP COVER · your place instead of a photo ═══════════
+-- Rather than a cover photo you can show WHERE you are as your header,
+-- with a pin on a real map. It's a choice, and it's yours to undo:
+-- these are only ever written when you pick it.
+alter table public.profiles add column if not exists cover_kind  text;   -- null | 'photo' | 'map'
+alter table public.profiles add column if not exists cover_lat   double precision;
+alter table public.profiles add column if not exists cover_lng   double precision;
+alter table public.profiles add column if not exists cover_place text;
+
+-- ═══════════ STORY COMMENTS (and the owner's off switch) ═══════════
+-- Comments sit under the story for everyone watching it, and they're
+-- saved — reopen the story and they're still there. Whoever posted the
+-- story can switch comments off for it, and then nobody can add one:
+-- that rule lives in the database, not just in the UI.
+alter table public.stories add column if not exists comments_off boolean not null default false;
+
+create table if not exists public.story_comments (
+  id         uuid primary key default gen_random_uuid(),
+  story_id   uuid not null references public.stories(id) on delete cascade,
+  user_id    uuid not null references public.profiles(id) on delete cascade,
+  body       text not null check (length(btrim(body)) between 1 and 300),
+  created_at timestamptz not null default now()
+);
+create index if not exists story_comments_idx on public.story_comments (story_id, created_at);
+alter table public.story_comments enable row level security;
+
+drop policy if exists "sc_sel" on public.story_comments;
+create policy "sc_sel" on public.story_comments for select
+  using (auth.uid() is not null);
+
+-- you can only comment as yourself, and only while the owner allows it
+drop policy if exists "sc_ins" on public.story_comments;
+create policy "sc_ins" on public.story_comments for insert with check (
+  auth.uid() = user_id
+  and exists (
+    select 1 from public.stories s
+     where s.id = story_id
+       and coalesce(s.comments_off, false) = false
+       and s.expires_at > now()
+  )
+);
+
+-- remove your own comment; the story's owner can remove any on theirs
+drop policy if exists "sc_del" on public.story_comments;
+create policy "sc_del" on public.story_comments for delete using (
+  auth.uid() = user_id
+  or auth.uid() = (select user_id from public.stories where id = story_id)
+);
+
 -- ═══════════ STORIES ON THE MAP ═══════════
 -- A story shared with a location shows up where it happened, the way
 -- a moment already does — and disappears with the story after 24h.
@@ -1056,6 +1105,7 @@ select
   (to_regclass('public.story_poll_votes')     is not null) as story_polls_ready,
   (to_regclass('public.story_views')          is not null) as story_views_ready,
   (to_regclass('public.story_reactions')      is not null) as story_reactions_ready,
+  (to_regclass('public.story_comments')       is not null) as story_comments_ready,
   (to_regclass('public.game_matches')         is not null) as multiplayer_ready,
   (to_regclass('public.help_articles')        is not null) as help_articles_ready,
   (to_regclass('public.bardi_config')         is not null) as bardi_portal_ready,

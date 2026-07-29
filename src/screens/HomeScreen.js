@@ -43,6 +43,7 @@ export const toStoryCard = (r) => ({
   media: r.media_url,
   caption: r.caption,
   sound: r.sound_title ? { title: r.sound_title, artist: r.sound_artist || '', emoji: '🎵', audio_url: r.sound_url || null } : null,
+  commentsOff: !!r.comments_off,
   stickerType: r.sticker_type || null,
   stickerData: r.sticker_data ? (() => { try { return JSON.parse(r.sticker_data); } catch (e) { return null; } })() : null,
 });

@@ -40,6 +40,7 @@ const HOBBY_OPTIONS = [
 import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LanguageContext';
+import { useTheme } from '../context/ThemeContext';
 import { getProfile, updateProfile, requestVerification, myVerificationStatus, fetchPendingVerifications, decideVerification } from '../services/profiles';
 import { isOwner } from '../services/music';
 import { uploadCapture } from '../services/social';
@@ -52,6 +53,8 @@ import { SettingsScreen } from './SettingsScreen';
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
 import { sfxSuccess } from '../utils/sfx';
 import { shareProfile } from '../utils/share';
+import { getCurrentCoords } from '../utils/location';
+import { MapCover } from '../components/MapCover';
 
 /* ─── YOUR SPACE — the profile, Facebook / Instagram / X style ───
    Real mode shows your actual profile, your actual posts (with real
@@ -109,6 +112,7 @@ export const ProfileScreen = () => {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { rtl } = useLang();
+  const { isDark } = useTheme();
   const [settings, setSettings] = useState(false);
   const [tab, setTab] = useState('grid');
   const [menu, setMenu] = useState(false);            // the ☰ sheet
@@ -236,8 +240,29 @@ export const ProfileScreen = () => {
   };
   const removeCover = async () => {
     tapLight();
-    setMyProfile((p) => ({ ...(p || {}), cover_url: null }));
-    if (SUPABASE_READY && user) { try { await updateProfile(user.id, { cover_url: null }); } catch (e) {} }
+    setMyProfile((p) => ({ ...(p || {}), cover_url: null, cover_kind: null }));
+    if (SUPABASE_READY && user) { try { await updateProfile(user.id, { cover_url: null, cover_kind: null }); } catch (e) {} }
+  };
+
+  /* ── MAP COVER — show WHERE you are instead of a picture ──────────
+     Uses your real location once, saves the point, and draws the actual
+     map there. Off unless you choose it, and one tap removes it. */
+  const [coverPickerOpen, setCoverPickerOpen] = useState(false);
+  const [mapCoverBusy, setMapCoverBusy] = useState(false);
+  const useMapCover = async () => {
+    if (mapCoverBusy || !SUPABASE_READY || !user) return;
+    setMapCoverBusy(true);
+    try {
+      const c = await getCurrentCoords();
+      if (!c) { setCoverPickerOpen(false); return; }
+      const place = (myProfile && myProfile.country) || '';
+      await updateProfile(user.id, {
+        cover_kind: 'map', cover_lat: c.latitude, cover_lng: c.longitude, cover_place: place || null,
+      });
+      setMyProfile((p) => ({ ...(p || {}), cover_kind: 'map', cover_lat: c.latitude, cover_lng: c.longitude, cover_place: place || null }));
+      tapSuccess(); sfxSuccess();
+      setCoverPickerOpen(false);
+    } catch (e) {} finally { setMapCoverBusy(false); }
   };
 
   const reload = () => {
@@ -422,10 +447,24 @@ export const ProfileScreen = () => {
           </View>
         </View>
 
-        {/* ── COVER PHOTO — tap to add/change, ✕ to remove ── */}
-        <Pressable onPress={changeCover} style={{ marginTop: 12, marginHorizontal: 16 }}>
-          {myProfile && myProfile.cover_url ? (
-            <View>
+        {/* ── COVER — a photo, or the map of where you are ── */}
+        <View style={{ marginTop: 12, marginHorizontal: 16 }}>
+          {myProfile && myProfile.cover_kind === 'map' && myProfile.cover_lat != null ? (
+            <Pressable onPress={() => { tapLight(); setCoverPickerOpen(true); }}>
+              <MapCover
+                lat={myProfile.cover_lat}
+                lng={myProfile.cover_lng}
+                place={myProfile.cover_place || myProfile.country || ''}
+                dark={isDark}
+              />
+              <Pressable onPress={removeCover} hitSlop={8} style={{ position: 'absolute', top: 8, right: 8 }}>
+                <View style={{ backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 999, width: 26, height: 26, alignItems: 'center', justifyContent: 'center' }}>
+                  <Ionicons name="close" size={15} color="#FFF" />
+                </View>
+              </Pressable>
+            </Pressable>
+          ) : myProfile && myProfile.cover_url ? (
+            <Pressable onPress={() => { tapLight(); setCoverPickerOpen(true); }}>
               <Image source={{ uri: myProfile.cover_url }} style={{ width: '100%', height: 130, borderRadius: 18 }} />
               <Pressable onPress={removeCover} hitSlop={8} style={{ position: 'absolute', top: 8, right: 8 }}>
                 <View style={{ backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 999, width: 26, height: 26, alignItems: 'center', justifyContent: 'center' }}>
@@ -435,14 +474,57 @@ export const ProfileScreen = () => {
               <View style={{ position: 'absolute', bottom: 8, right: 8, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 }}>
                 <Text style={{ color: '#FFF', fontSize: 10.5, fontWeight: '800' }}>{coverBusy ? 'Uploading…' : '📷 Change cover'}</Text>
               </View>
-            </View>
+            </Pressable>
           ) : (
-            <LinearGradient colors={['rgba(124,58,237,0.18)', 'rgba(245,179,1,0.14)']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-              style={{ height: 86, borderRadius: 18, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: C.line, borderStyle: 'dashed' }}>
-              <Text style={{ color: C.dim, fontSize: 12.5, fontWeight: '800' }}>{coverBusy ? 'Uploading…' : '🖼️ Add a cover photo'}</Text>
-            </LinearGradient>
+            <Pressable onPress={() => { tapLight(); setCoverPickerOpen(true); }}>
+              <LinearGradient colors={['rgba(124,58,237,0.18)', 'rgba(245,179,1,0.14)']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                style={{ height: 86, borderRadius: 18, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: C.line, borderStyle: 'dashed' }}>
+                <Text style={{ color: C.dim, fontSize: 12.5, fontWeight: '800' }}>{coverBusy ? 'Uploading…' : '🖼️ Add a cover'}</Text>
+                <Text style={{ color: C.faint, fontSize: 11, marginTop: 3 }}>a photo, or the map of where you are</Text>
+              </LinearGradient>
+            </Pressable>
           )}
-        </Pressable>
+        </View>
+
+        {/* pick which kind of cover you want */}
+        {coverPickerOpen ? (
+          <Pressable onPress={() => setCoverPickerOpen(false)} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end', zIndex: 40 }}>
+            <Pressable onPress={() => {}} style={{ backgroundColor: C.bg2, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 18, paddingBottom: insets.bottom + 22 }}>
+              <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 14 }} />
+              <Text style={{ color: C.text, fontSize: 16, fontWeight: '900', marginBottom: 12 }}>Your cover</Text>
+
+              <Pressable onPress={() => { setCoverPickerOpen(false); changeCover(); }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 16, padding: 14, marginBottom: 10 }}>
+                  <Text style={{ fontSize: 20, marginRight: 12 }}>🖼️</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>A photo</Text>
+                    <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 2 }}>Pick one from your gallery</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color={C.faint} />
+                </View>
+              </Pressable>
+
+              <Pressable onPress={useMapCover}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 16, padding: 14 }}>
+                  <Text style={{ fontSize: 20, marginRight: 12 }}>🗺️</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>
+                      {mapCoverBusy ? 'Finding you…' : 'Where you are'}
+                    </Text>
+                    <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 2 }}>
+                      The real map of your spot, with a pin — shown to anyone who opens your space
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color={C.faint} />
+                </View>
+              </Pressable>
+
+              <Text style={{ color: C.faint, fontSize: 11, marginTop: 12, lineHeight: 16 }}>
+                The map cover saves the spot once, so it doesn't follow you around. Remove it any time with the ✕.
+              </Text>
+            </Pressable>
+          </Pressable>
+        ) : null}
 
         {/* identity */}
         <View style={{ paddingHorizontal: 16, marginTop: 18 }}>

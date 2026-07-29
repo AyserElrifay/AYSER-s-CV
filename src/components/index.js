@@ -52,3 +52,4 @@ export { OnlineDot } from './OnlineDot';
 export { Wordmark, LogoMark } from './Wordmark';
 export { BardiSheet } from './BardiSheet';
 export { AdminPanel } from './AdminPanel';
+export { MapCover } from './MapCover';

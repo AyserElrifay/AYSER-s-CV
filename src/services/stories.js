@@ -49,6 +49,47 @@ export async function fetchActiveStories() {
   return data;
 }
 
+/* ── Story comments ──────────────────────────────────────────────
+   Saved, so they're still there next time the story is opened, and
+   visible to everyone watching. The owner can switch them off, and
+   the database enforces that — not just the button. */
+export async function fetchStoryComments(storyId) {
+  const { data, error } = await supabase
+    .from('story_comments')
+    .select('id, user_id, body, created_at, user:profiles!story_comments_user_id_fkey(name, avatar_url, country_flag)')
+    .eq('story_id', storyId)
+    .order('created_at', { ascending: true })
+    .limit(200);
+  if (error) throw error;
+  return data || [];
+}
+
+export async function addStoryComment(storyId, userId, body) {
+  const { data, error } = await supabase
+    .from('story_comments')
+    .insert({ story_id: storyId, user_id: userId, body: String(body).trim().slice(0, 300) })
+    .select('id, user_id, body, created_at, user:profiles!story_comments_user_id_fkey(name, avatar_url, country_flag)')
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+/* Your own comment — or, if it's your story, anyone's on it. */
+export async function deleteStoryComment(commentId) {
+  const { error } = await supabase.from('story_comments').delete().eq('id', commentId);
+  if (error) throw error;
+}
+
+/* The owner turning comments on/off for one of their stories. */
+export async function setStoryComments(storyId, userId, off) {
+  const { error } = await supabase
+    .from('stories')
+    .update({ comments_off: !!off })
+    .eq('id', storyId)
+    .eq('user_id', userId);
+  if (error) throw error;
+}
+
 /* Live stories that were shared WITH a location — the map layer.
    A story only lasts 24h, so these pins come and go on their own. */
 export async function fetchStoryPins(limit = 80) {

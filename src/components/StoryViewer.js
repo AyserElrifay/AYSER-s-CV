@@ -10,6 +10,7 @@ import { useAuth } from '../context/AuthContext';
 import {
   deleteStory, castPollVote, fetchPollResults,
   recordStoryView, fetchStoryViewers, reactToStory, fetchMyStoryReaction,
+  fetchStoryComments, addStoryComment, deleteStoryComment, setStoryComments,
 } from '../services/stories';
 import { getOrCreateDmThread, sendMessage } from '../services/messages';
 import { tapLight, tapSuccess } from '../utils/feedback';
@@ -64,6 +65,12 @@ export const StoryViewer = ({ stories, groups, startGroup = 0, startIndex = 0, o
   const [reactSent, setReactSent] = useState(false);
   const [viewers, setViewers] = useState(null); // null = not loaded, [] = loaded empty
   const [viewersOpen, setViewersOpen] = useState(false);
+  // comments live UNDER the story and are saved — reopen it, they're there
+  const [comments, setComments] = useState([]);
+  const [commentsOpen, setCommentsOpen] = useState(false);
+  const [commentText, setCommentText] = useState('');
+  const [commentsOff, setCommentsOff] = useState(false);
+  const [commentBusy, setCommentBusy] = useState(false);
   const progress = useRef(new Animated.Value(0)).current;
   const anim = useRef(null);
   const story = items[index];
@@ -76,6 +83,10 @@ export const StoryViewer = ({ stories, groups, startGroup = 0, startIndex = 0, o
     if (story.stickerType === 'poll') {
       fetchPollResults(story.id, user.id).then(setPoll).catch(() => {});
     }
+    setComments([]); setCommentText(''); setCommentsOpen(false);
+    setCommentsOff(!!story.commentsOff);
+    // saved comments come back every time the story is opened
+    fetchStoryComments(story.id).then(setComments).catch(() => setComments([]));
     if (isMine) {
       // real "who watched" — owner sees the count + list
       fetchStoryViewers(story.id).then(setViewers).catch(() => setViewers([]));
@@ -156,6 +167,34 @@ export const StoryViewer = ({ stories, groups, startGroup = 0, startIndex = 0, o
       const threadId = await getOrCreateDmThread(story.user.id);
       await sendMessage({ dmThreadId: threadId, userId: user.id, body: 'Reacted to your story: ' + emoji });
     } catch (e) {}
+  };
+
+  /* Post a comment — it's saved, and everyone watching sees it. */
+  const postComment = async () => {
+    const body = commentText.trim();
+    if (!body || !SUPABASE_READY || !user || commentBusy || commentsOff) return;
+    setCommentBusy(true);
+    try {
+      const row = await addStoryComment(story.id, user.id, body);
+      setComments((list) => [...list, row]);
+      setCommentText('');
+      tapLight(); sfxPop();
+    } catch (e) { /* the owner may have just closed comments */ }
+    finally { setCommentBusy(false); }
+  };
+
+  const removeComment = async (c) => {
+    setComments((list) => list.filter((x) => x.id !== c.id));
+    try { await deleteStoryComment(c.id); } catch (e) {}
+  };
+
+  /* The owner switching comments off (or back on) for THIS story. */
+  const toggleComments = async () => {
+    if (!isMine || !SUPABASE_READY || !user) return;
+    const next = !commentsOff;
+    setCommentsOff(next);
+    tapLight();
+    try { await setStoryComments(story.id, user.id, next); } catch (e) { setCommentsOff(!next); }
   };
 
   const doDelete = async () => {
@@ -316,6 +355,85 @@ export const StoryViewer = ({ stories, groups, startGroup = 0, startIndex = 0, o
                   </Pressable>
                 ))}
                 {reactSent ? <Ionicons name="checkmark-circle" size={22} color="#10B981" style={{ alignSelf: 'center' }} /> : null}
+              </View>
+            ) : null}
+
+            {/* ── comments, right here on the story ──────────────────
+                Saved, so they're still here next time it's opened. The
+                owner can switch them off and nobody can add one. */}
+            {SUPABASE_READY ? (
+              <View style={{ marginTop: 12 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Pressable onPress={() => { tapLight(); setCommentsOpen((o) => !o); setPaused(!commentsOpen); }} hitSlop={8}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.14)', borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8 }}>
+                      <Ionicons name="chatbubble-outline" size={15} color="#FFF" />
+                      <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '800', marginLeft: 6 }}>
+                        {comments.length ? comments.length + (comments.length === 1 ? ' comment' : ' comments') : 'Comments'}
+                      </Text>
+                      <Ionicons name={commentsOpen ? 'chevron-down' : 'chevron-up'} size={14} color="rgba(255,255,255,0.7)" style={{ marginLeft: 5 }} />
+                    </View>
+                  </Pressable>
+
+                  {/* the owner's switch for this story */}
+                  {isMine ? (
+                    <Pressable onPress={toggleComments} hitSlop={8} style={{ marginLeft: 8 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: commentsOff ? 'rgba(244,63,94,0.28)' : 'rgba(255,255,255,0.14)', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8 }}>
+                        <Ionicons name={commentsOff ? 'lock-closed' : 'lock-open-outline'} size={14} color="#FFF" />
+                        <Text style={{ color: '#FFF', fontSize: 11.5, fontWeight: '800', marginLeft: 5 }}>
+                          {commentsOff ? 'Comments off' : 'Turn off'}
+                        </Text>
+                      </View>
+                    </Pressable>
+                  ) : null}
+                </View>
+
+                {commentsOpen ? (
+                  <View style={{ marginTop: 10, backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 16, padding: 12 }}>
+                    {comments.length ? (
+                      <ScrollView style={{ maxHeight: 168 }} showsVerticalScrollIndicator={false}>
+                        {comments.map((c) => {
+                          const canRemove = !!(user && (c.user_id === user.id || isMine));
+                          return (
+                            <View key={c.id} style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 10 }}>
+                              <Image source={{ uri: (c.user && c.user.avatar_url) || undefined }} style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: 'rgba(255,255,255,0.2)' }} />
+                              <View style={{ flex: 1, marginLeft: 8 }}>
+                                <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '900' }}>
+                                  {(c.user && c.user.name) || 'Someone'}{c.user && c.user.country_flag ? ' ' + c.user.country_flag : ''}
+                                  <Text style={{ color: 'rgba(255,255,255,0.5)', fontWeight: '500' }}>{'  ' + timeAgo(c.created_at)}</Text>
+                                </Text>
+                                <Text style={{ color: 'rgba(255,255,255,0.92)', fontSize: 13, lineHeight: 18, marginTop: 2 }}>{c.body}</Text>
+                              </View>
+                              {canRemove ? (
+                                <Pressable onPress={() => removeComment(c)} hitSlop={8}>
+                                  <Ionicons name="close" size={14} color="rgba(255,255,255,0.5)" />
+                                </Pressable>
+                              ) : null}
+                            </View>
+                          );
+                        })}
+                      </ScrollView>
+                    ) : (
+                      <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12.5, paddingVertical: 6 }}>
+                        {commentsOff ? 'Comments are off for this story.' : 'No comments yet — say something.'}
+                      </Text>
+                    )}
+
+                    {!commentsOff ? (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
+                        <TextInput
+                          placeholder="Add a comment…" placeholderTextColor="rgba(255,255,255,0.5)"
+                          value={commentText} onChangeText={setCommentText}
+                          onFocus={() => setPaused(true)} onBlur={() => setPaused(false)}
+                          onSubmitEditing={postComment}
+                          style={{ flex: 1, color: '#FFF', fontSize: 13, backgroundColor: 'rgba(255,255,255,0.14)', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9, marginRight: 8 }}
+                        />
+                        <Pressable onPress={postComment} hitSlop={8} disabled={commentBusy}>
+                          <Ionicons name="arrow-up-circle" size={28} color={commentText.trim() ? '#FFF' : 'rgba(255,255,255,0.4)'} />
+                        </Pressable>
+                      </View>
+                    ) : null}
+                  </View>
+                ) : null}
               </View>
             ) : null}
 
