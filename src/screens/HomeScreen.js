@@ -217,20 +217,35 @@ export const HomeScreen = () => {
   // myStories would double it up. Dedupe by id, collapse all of your own
   // stories into a single "You" entry (DB version preferred for the real
   // avatar), and put it first — everyone else keeps their own ring.
-  const stories = useMemo(() => {
+  /* One ring per PERSON, not per story. Everyone's stories are gathered
+     under them — post three and friends still see a single ring that
+     plays all three — and yours comes first as "You". Newest last inside
+     each person, so their reel plays oldest → newest like everywhere. */
+  const storyGroups = useMemo(() => {
     const meId = user && user.id;
     const seen = new Set();
-    let mine = null;
-    const others = [];
+    const byUser = new Map();
     for (const s of [...realStories, ...myStories]) {
       if (!s || !s.user || seen.has(s.id)) continue;
       seen.add(s.id);
       const isMine = meId ? s.user.id === meId : s.user.name === 'You';
-      if (isMine) { if (!mine) mine = { ...s, user: { ...s.user, name: 'You' } }; }
-      else others.push(s);
+      const key = isMine ? 'me' : (s.user.id || s.user.name);
+      const entry = byUser.get(key);
+      const person = isMine ? { ...s.user, name: 'You' } : s.user;
+      if (entry) entry.items.push(s);
+      else byUser.set(key, { key, mine: isMine, user: person, items: [s] });
     }
-    return mine ? [mine, ...others] : others;
+    const groups = [...byUser.values()];
+    groups.forEach((g) => g.items.sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0)));
+    groups.sort((a, b) => (a.mine === b.mine ? 0 : a.mine ? -1 : 1));
+    return groups;
   }, [realStories, myStories, user]);
+
+  // the rail shows the newest frame of each person as their ring
+  const stories = useMemo(
+    () => storyGroups.map((g) => ({ ...g.items[g.items.length - 1], user: g.user, count: g.items.length })),
+    [storyGroups]
+  );
   const reels = useMemo(() => posts.filter((p) => p.type === 'reel'), [posts]);
 
   // refresh your header avatar when you come back from the profile
@@ -515,8 +530,9 @@ export const HomeScreen = () => {
       ) : null}
       {storyIndex !== null ? (
         <StoryViewer
-          stories={stories}
-          startIndex={storyIndex}
+          groups={storyGroups}
+          startGroup={storyIndex}
+          startIndex={0}
           onClose={() => setStoryIndex(null)}
           onShare={onShareStory}
           onDeleted={onStoryDeleted}

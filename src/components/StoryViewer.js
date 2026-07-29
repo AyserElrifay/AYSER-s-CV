@@ -40,9 +40,20 @@ const hoursLeft = (createdAt) => {
    auto-advances with the familiar progress bars up top. Real reply
    (DMs the poster), real share (a ?story= link), real delete of your
    own story, and real poll / question stickers. */
-export const StoryViewer = ({ stories, startIndex = 0, onClose, onShare, onDeleted }) => {
+export const StoryViewer = ({ stories, groups, startGroup = 0, startIndex = 0, onClose, onShare, onDeleted }) => {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+
+  /* Stories belong to PEOPLE. One person's stories play as their own
+     reel with their own progress bars; when they run out, the next
+     person starts — you never find yourself halfway through a stranger's
+     story inside someone else's. A flat `stories` list still works
+     (a shared ?story= link) — it's just treated as one person's reel. */
+  const groupList = (groups && groups.length)
+    ? groups
+    : [{ user: (stories && stories[0] && stories[0].user) || null, items: stories || [] }];
+  const [groupIndex, setGroupIndex] = useState(Math.min(startGroup, Math.max(0, groupList.length - 1)));
+  const items = (groupList[groupIndex] && groupList[groupIndex].items) || [];
   const [index, setIndex] = useState(startIndex);
   const [paused, setPaused] = useState(false);
   const [reply, setReply] = useState('');
@@ -55,7 +66,7 @@ export const StoryViewer = ({ stories, startIndex = 0, onClose, onShare, onDelet
   const [viewersOpen, setViewersOpen] = useState(false);
   const progress = useRef(new Animated.Value(0)).current;
   const anim = useRef(null);
-  const story = stories[index];
+  const story = items[index];
   const isMine = !!(user && story && story.user && story.user.id === user.id);
 
   useEffect(() => {
@@ -72,27 +83,37 @@ export const StoryViewer = ({ stories, startIndex = 0, onClose, onShare, onDelet
       recordStoryView(story.id, user.id);
       fetchMyStoryReaction(story.id, user.id).then(setMyReaction).catch(() => {});
     }
-  }, [index]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [index, groupIndex]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     progress.setValue(0);
     if (paused) return undefined;
     anim.current = Animated.timing(progress, { toValue: 1, duration: STORY_MS, useNativeDriver: false });
     anim.current.start(({ finished }) => {
-      if (finished) {
-        if (index < stories.length - 1) setIndex(index + 1);
-        else onClose();
-      }
+      if (!finished) return;
+      if (index < items.length - 1) setIndex(index + 1);
+      else if (groupIndex < groupList.length - 1) { setGroupIndex(groupIndex + 1); setIndex(0); }
+      else onClose();
     });
     return () => anim.current && anim.current.stop();
-  }, [index, paused, progress, stories.length, onClose]);
+  }, [index, groupIndex, paused, progress, items.length, groupList.length, onClose]);
 
   if (!story) return null;
 
   const go = (dir) => {
     const next = index + dir;
-    if (next < 0 || next >= stories.length) { onClose(); return; }
-    setIndex(next);
+    if (next >= 0 && next < items.length) { setIndex(next); return; }
+    // ran off the end of this person — step to the next/previous person
+    if (dir > 0) {
+      if (groupIndex < groupList.length - 1) { setGroupIndex(groupIndex + 1); setIndex(0); }
+      else onClose();
+    } else {
+      if (groupIndex > 0) {
+        const prev = groupIndex - 1;
+        setGroupIndex(prev);
+        setIndex(Math.max(0, ((groupList[prev] && groupList[prev].items) || []).length - 1));
+      } else onClose();
+    }
   };
 
   const vote = async (choice) => {
@@ -142,8 +163,8 @@ export const StoryViewer = ({ stories, startIndex = 0, onClose, onShare, onDelet
     tapLight();
     if (SUPABASE_READY && user) { try { await deleteStory(story.id, user.id); } catch (e) {} }
     onDeleted && onDeleted(story.id);
-    if (stories.length <= 1) onClose();
-    else go(index < stories.length - 1 ? 1 : -1);
+    if (items.length <= 1) onClose();
+    else go(index < items.length - 1 ? 1 : -1);
   };
 
   const left = hoursLeft(story.createdAt);
@@ -173,7 +194,7 @@ export const StoryViewer = ({ stories, startIndex = 0, onClose, onShare, onDelet
           <LinearGradient colors={['rgba(0,0,0,0.55)', 'transparent']} style={{ paddingTop: insets.top + 8, paddingHorizontal: 12, paddingBottom: 30 }}>
             {/* progress bars */}
             <View style={{ flexDirection: 'row', marginBottom: 12 }}>
-              {stories.map((_, i) => (
+              {items.map((_, i) => (
                 <View key={i} style={{ flex: 1, height: 3, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.3)', marginHorizontal: 2, overflow: 'hidden' }}>
                   <Animated.View
                     style={{
