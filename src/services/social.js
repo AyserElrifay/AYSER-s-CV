@@ -197,15 +197,21 @@ export async function searchProfiles(query) {
 
 /* Real language-exchange partners — people who opted in on their own
    profile (Settings → Learn languages), never a fabricated roster. */
+/* Real language partners: ONLY people who actually switched exchange on
+   themselves. Nobody is listed who didn't opt in, and nothing about
+   them is invented — the languages, the flag, the bio and when they
+   were last active all come straight off their own profile. Whoever
+   was active most recently comes first, so the list is alive. */
 export async function fetchLanguagePartners(myUserId) {
   const { data, error } = await supabase
     .from('profiles')
-    .select('*')
+    .select('id, name, avatar_url, avatar_dna, country, country_flag, bio, hobbies, speaks_language, learning_language, learning_level, last_active_at')
     .eq('learning_visible', true)
     .neq('id', myUserId)
-    .limit(30);
+    .order('last_active_at', { ascending: false, nullsFirst: false })
+    .limit(60);
   if (error) throw error;
-  return data;
+  return data || [];
 }
 
 /* Uploads captured media (a blob/data URL from the in-app camera).

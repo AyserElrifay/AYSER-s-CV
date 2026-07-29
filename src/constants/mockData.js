@@ -353,16 +353,12 @@ export const TOD = {
   ],
 };
 
-/* ── LEARN LANGUAGES · exchange partners (HelloTalk/Lingbe style).
-   Chat with a native speaker who's learning YOUR language; hop on a
-   call right from the thread. ── */
-export const LANG_PARTNERS = [
-  { id: 'lp1', name: 'Yuna', avatar: av(44), speaks: '한국어 Korean', learning: 'Arabic', flag: '🇰🇷', level: 'B1', online: true },
-  { id: 'lp2', name: 'Mateo', avatar: av(53), speaks: 'Español Spanish', learning: 'English', flag: '🇪🇸', level: 'A2', online: true },
-  { id: 'lp3', name: 'Chloé', avatar: av(38), speaks: 'Français French', learning: 'Arabic', flag: '🇫🇷', level: 'B2', online: false },
-  { id: 'lp4', name: 'Haruto', avatar: av(59), speaks: '日本語 Japanese', learning: 'English', flag: '🇯🇵', level: 'A1', online: true },
-  { id: 'lp5', name: 'Lena', avatar: av(41), speaks: 'Русский Russian', learning: 'Arabic', flag: '🇷🇺', level: 'B1', online: false },
-];
+/* ── LEARN LANGUAGES · exchange partners ──────────────────────────
+   There is deliberately NO sample list here. Every partner shown in
+   the app is a real person who switched language exchange on for
+   themselves — an invented one would be someone you could tap, try to
+   talk to, and never get an answer from. An empty list is the honest
+   answer until real people opt in. */
 
 /* ── WATCH · "where to stream" discovery + affiliate (JustWatch-style).
    We don't host films — we send people to the real platform and earn

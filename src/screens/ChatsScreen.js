@@ -3,7 +3,7 @@ import { View, Text, Pressable, Image, ScrollView, Modal, TextInput } from 'reac
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C } from '../constants/theme';
-import { SQUADS, DMS, LANG_PARTNERS } from '../constants/mockData'; // demo-mode fallback only
+import { SQUADS, DMS } from '../constants/mockData'; // demo-mode fallback only
 import { SUPABASE_READY } from '../lib/supabase';
 import { compressImage, uploadMediaSmart } from '../lib/storage';
 import { useAuth } from '../context/AuthContext';
@@ -14,6 +14,7 @@ import { fetchIncomingRequests, acceptRequest, fetchMyMates } from '../services/
 import { getProfile, updateProfile } from '../services/profiles';
 import { AV_NEUTRAL } from '../constants/mockData';
 import { fetchLanguagePartners, searchProfiles } from '../services/social';
+import { buildAvatarUrl } from '../services/avatarBuilder';
 import { Page, ScreenHeader, SectionHeader, Glass, Chip, Tick, AvatarStack, StreakBadge, OnlineDot } from '../components';
 import { ChatThread } from './ChatThread';
 import { tapLight } from '../utils/feedback';
@@ -31,6 +32,53 @@ const timeAgo = (iso) => {
   if (min < 24 * 60) return Math.round(min / 60) + 'h';
   return Math.round(min / (60 * 24)) + 'd';
 };
+
+/* ── language-exchange row helpers ────────────────────────────────
+   All of these read what the person actually put on their profile —
+   none of them invent a status, a level or a time. */
+
+// "Español Spanish" / "English" → the short badge (ES, EN, RO…)
+const LANG_CODES = {
+  english: 'EN', arabic: 'AR', french: 'FR', spanish: 'ES', german: 'DE',
+  italian: 'IT', portuguese: 'PT', russian: 'RU', turkish: 'TR', dutch: 'NL',
+  romanian: 'RO', japanese: 'JA', korean: 'KO', chinese: 'ZH', mandarin: 'ZH',
+  hindi: 'HI', urdu: 'UR', persian: 'FA', farsi: 'FA', greek: 'EL',
+  polish: 'PL', swedish: 'SV', hebrew: 'HE', indonesian: 'ID', thai: 'TH',
+};
+function shortLang(v) {
+  const raw = String(v || '').trim();
+  if (!raw) return '';
+  for (const word of raw.toLowerCase().split(/[^a-z]+/)) {
+    if (LANG_CODES[word]) return LANG_CODES[word];
+  }
+  const letters = raw.replace(/[^A-Za-z]/g, '');
+  return (letters ? letters.slice(0, 2) : raw.slice(0, 2)).toUpperCase();
+}
+
+// their OWN stated level (A1…C2) → how many of the five dots are filled
+function levelDots(level) {
+  const l = String(level || '').trim().toUpperCase();
+  const map = { A1: 1, A2: 2, B1: 3, B2: 4, C1: 5, C2: 5 };
+  return map[l] || 0;
+}
+
+const ONLINE_MS = 5 * 60 * 1000;
+const isOnline = (iso) => !!iso && Date.now() - new Date(iso).getTime() < ONLINE_MS;
+
+/* Only ever says something when we genuinely know when they were last
+   here — no "Active now" for someone we've never seen. */
+function activeLabel(iso) {
+  if (!iso) return null;
+  const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+  if (mins < 0) return null;
+  if (mins < 5) return 'Active now';
+  if (mins < 60) return 'Active ' + mins + ' minutes ago';
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return 'Active ' + hrs + 'h ago';
+  const days = Math.floor(hrs / 24);
+  if (days <= 7) return 'Active ' + days + 'd ago';
+  return 'Recently active';
+}
 
 export const ChatsScreen = () => {
   const insets = useSafeAreaInsets();
@@ -204,12 +252,30 @@ export const ChatsScreen = () => {
     ? realDms.map((d) => ({ id: d.threadId, threadId: d.threadId, user: { id: d.user.id, name: d.user.name, avatar: d.user.avatar_url, verified: d.user.verified }, last: d.last, time: timeAgo(d.time), unread: 0, translated: false }))
     : DMS;
   const myFlag = user && user.country_flag;
+  /* ONLY people who really switched exchange on. Nothing here is
+     invented: every language, flag, bio and "active" time is that
+     person's own data. Without a backend there are no partners to
+     show, so the list is honestly empty rather than filled with
+     made-up people. */
   const partners = SUPABASE_READY
     ? realPartners
-        .map((p) => ({ id: p.id, name: p.name, avatar: p.avatar_url || AV_NEUTRAL, flag: p.country_flag || '🌍', country: p.country, speaks: p.speaks_language || 'Not set', learning: p.learning_language || '—', level: p.learning_level || '', online: false, abroad: !!(p.country_flag && myFlag && p.country_flag !== myFlag) }))
+        .map((p) => ({
+          id: p.id,
+          name: p.name || 'Explorer',
+          avatar: p.avatar_url || buildAvatarUrl(p.id, p.avatar_dna),
+          flag: p.country_flag || '',
+          country: p.country,
+          speaks: p.speaks_language || '',
+          learning: p.learning_language || '',
+          level: p.learning_level || '',
+          bio: p.bio || '',
+          hobbies: String(p.hobbies || '').split(',').map((h) => h.trim()).filter(Boolean).slice(0, 4),
+          lastActive: p.last_active_at || null,
+          abroad: !!(p.country_flag && myFlag && p.country_flag !== myFlag),
+        }))
         // people from ANOTHER country first — the whole point of exchange
         .sort((a, b) => (b.abroad ? 1 : 0) - (a.abroad ? 1 : 0))
-    : LANG_PARTNERS;
+    : [];
 
   return (
   <Page>
@@ -338,36 +404,101 @@ export const ChatsScreen = () => {
     ) : null}
 
     {partners.length ? (
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 20 }}>
-        {partners.map((lp) => (
-          <Pressable key={lp.id} onPress={() => { tapLight(); setThread({ chat: { user: lp }, group: false }); }}>
-            <Glass style={{ width: 152, padding: 12, marginRight: 10, alignItems: 'center' }}>
-              <View>
-                <Image source={{ uri: lp.avatar }} style={{ width: 52, height: 52, borderRadius: 26 }} />
-                {lp.online ? <View style={{ position: 'absolute', bottom: 0, right: 0, width: 13, height: 13, borderRadius: 7, backgroundColor: C.green, borderWidth: 2, borderColor: '#FFF' }} /> : null}
+      <View style={{ marginBottom: 20 }}>
+        {partners.map((lp, i) => (
+          <Pressable
+            key={lp.id}
+            onPress={() => { tapLight(); setThread({ chat: { user: lp }, group: false }); }}
+            style={{ paddingVertical: 14, borderBottomWidth: i < partners.length - 1 ? 1 : 0, borderBottomColor: C.line }}
+          >
+            <View style={{ flexDirection: 'row' }}>
+              {/* photo + their flag, the way a passport reads */}
+              <View style={{ width: 58 }}>
+                <Image source={{ uri: lp.avatar }} style={{ width: 54, height: 54, borderRadius: 27, backgroundColor: C.glassHi }} />
+                {lp.flag ? (
+                  <View style={{ position: 'absolute', bottom: -2, left: -2, width: 22, height: 22, borderRadius: 11, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' }}>
+                    <Text style={{ fontSize: 13 }}>{lp.flag}</Text>
+                  </View>
+                ) : null}
               </View>
-              <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800', marginTop: 7 }} numberOfLines={1}>{lp.name} {lp.flag}</Text>
-              {lp.country ? (
-                <View style={{ backgroundColor: lp.abroad ? 'rgba(59,130,246,0.14)' : C.glass, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2, marginTop: 4 }}>
-                  <Text style={{ color: lp.abroad ? C.blue : C.faint, fontSize: 9.5, fontWeight: '800' }} numberOfLines={1}>{lp.abroad ? '🌍 ' : ''}{lp.country}</Text>
-                </View>
-              ) : null}
-              <Text style={{ color: C.dim, fontSize: 10.5, marginTop: 5, textAlign: 'center' }} numberOfLines={1}>Speaks {(lp.speaks || '').split(' ')[0]}</Text>
-              <Text style={{ color: C.faint, fontSize: 10.5, marginTop: 1 }} numberOfLines={1}>Learning {lp.learning} {lp.level ? '· ' + lp.level : ''}</Text>
-              <View style={{ flexDirection: 'row', marginTop: 8 }}>
-                <View style={{ backgroundColor: C.purpleSoft, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5 }}>
-                  <Text style={{ color: C.purple, fontSize: 10.5, fontWeight: '900' }}>💬 Chat</Text>
-                </View>
+
+              <View style={{ flex: 1, marginLeft: 10 }}>
+                <Text style={{ color: C.text, fontSize: 15.5, fontWeight: '900' }} numberOfLines={1}>{lp.name}</Text>
+
+                {/* the actual exchange: what they speak ⇌ what they're learning */}
+                {lp.speaks || lp.learning ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+                    {lp.speaks ? (
+                      <View style={{ alignItems: 'center' }}>
+                        <Text style={{ color: C.text, fontSize: 11.5, fontWeight: '900' }}>{shortLang(lp.speaks)}</Text>
+                        <View style={{ height: 2.5, width: 22, borderRadius: 2, backgroundColor: C.green, marginTop: 2 }} />
+                      </View>
+                    ) : null}
+                    {lp.speaks && lp.learning ? (
+                      <Ionicons name="swap-horizontal" size={13} color={C.faint} style={{ marginHorizontal: 7 }} />
+                    ) : null}
+                    {lp.learning ? (
+                      <View style={{ alignItems: 'center' }}>
+                        <Text style={{ color: C.text, fontSize: 11.5, fontWeight: '900' }}>{shortLang(lp.learning)}</Text>
+                        {/* their own stated level — five dots, filled to it */}
+                        <View style={{ flexDirection: 'row', marginTop: 3 }}>
+                          {[0, 1, 2, 3, 4].map((d) => (
+                            <View key={d} style={{ width: 4, height: 4, borderRadius: 2, marginRight: 2, backgroundColor: d < levelDots(lp.level) ? C.purple : C.glassHi }} />
+                          ))}
+                        </View>
+                      </View>
+                    ) : null}
+                  </View>
+                ) : null}
+
+                {/* only shown when their profile actually says it */}
+                {activeLabel(lp.lastActive) ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 5 }}>
+                    <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: isOnline(lp.lastActive) ? C.green : C.faint, marginRight: 5 }} />
+                    <Text style={{ color: C.faint, fontSize: 11 }}>{activeLabel(lp.lastActive)}</Text>
+                  </View>
+                ) : null}
+
+                {lp.bio ? (
+                  <Text style={{ color: C.dim, fontSize: 13, lineHeight: 19, marginTop: 6 }} numberOfLines={2}>{lp.bio}</Text>
+                ) : null}
+
+                {lp.abroad || lp.hobbies.length ? (
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 8 }}>
+                    {lp.abroad && lp.country ? (
+                      <View style={{ backgroundColor: C.blueSoft, borderRadius: 8, paddingHorizontal: 9, paddingVertical: 5, marginRight: 6, marginBottom: 6 }}>
+                        <Text style={{ color: C.blue, fontSize: 11.5, fontWeight: '700' }}>🌍 {lp.country}</Text>
+                      </View>
+                    ) : null}
+                    {lp.hobbies.map((h) => (
+                      <View key={h} style={{ backgroundColor: C.glassHi, borderRadius: 8, paddingHorizontal: 9, paddingVertical: 5, marginRight: 6, marginBottom: 6 }}>
+                        <Text style={{ color: C.dim, fontSize: 11.5, fontWeight: '700' }}>{h}</Text>
+                      </View>
+                    ))}
+                  </View>
+                ) : null}
               </View>
-            </Glass>
+
+              {/* say hi — opens the real chat with them */}
+              <Pressable
+                onPress={() => { tapLight(); setThread({ chat: { user: lp }, group: false }); }}
+                style={{ marginLeft: 8, alignSelf: 'flex-start' }}
+              >
+                <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 18, paddingVertical: 10 }}>
+                  <Text style={{ fontSize: 15 }}>👋</Text>
+                </View>
+              </Pressable>
+            </View>
           </Pressable>
         ))}
-      </ScrollView>
+      </View>
     ) : (
       <Glass style={{ padding: 16, marginBottom: 20, alignItems: 'center' }}>
         <Text style={{ fontSize: 22 }}>🌍</Text>
         <Text style={{ color: C.text, fontSize: 13, fontWeight: '800', marginTop: 6 }}>{t('no_partners_yet')}</Text>
-        <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 3, textAlign: 'center' }}>Open language exchange in Settings → you'll appear here for people in other countries, and they'll appear for you</Text>
+        <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 3, textAlign: 'center' }}>
+          Nobody has opened language exchange yet. Flip your own switch on above — you'll appear here for people abroad, and they'll appear for you.
+        </Text>
       </Glass>
     )}
 

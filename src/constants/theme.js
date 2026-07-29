@@ -33,13 +33,16 @@ const LIGHT = {
 };
 
 const DARK = {
-  bg: '#0A0A0D',                       // deep charcoal canvas
-  bg2: '#151519',                      // sheets & bars
-  glass: '#1B1B21',                    // elevated cards
-  glassHi: 'rgba(255,255,255,0.07)',   // subtle pressed / track fill
-  line: 'rgba(255,255,255,0.10)',      // hairline borders
-  purple: '#9370F7',                   // brightened for contrast on dark
-  purpleSoft: 'rgba(147,112,247,0.18)',
+  /* A true night palette: near-black canvas, rows that sit ON it rather
+     than in bright boxes, hairline dividers instead of outlines, and one
+     confident violet doing the accent work. */
+  bg: '#0B0B0E',                       // near-black canvas
+  bg2: '#141417',                      // sheets & bars
+  glass: '#18181C',                    // cards, barely lifted off the canvas
+  glassHi: 'rgba(255,255,255,0.06)',   // subtle pressed / track fill
+  line: 'rgba(255,255,255,0.07)',      // hairline borders
+  purple: '#7C5CFF',                   // the accent — buttons, active chips
+  purpleSoft: 'rgba(124,92,255,0.18)',
   green: '#34D399',
   greenSoft: 'rgba(52,211,153,0.16)',
   blue: '#60A5FA',
