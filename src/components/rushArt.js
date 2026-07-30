@@ -390,7 +390,17 @@ function drawItem(c, it, camX, camY, t) {
 
 /* ── the runner: an actual little person, animated ─────────────────── */
 export function drawRunner(c, sx, sy, opts) {
-  const { phase = 0, airborne = false, sliding = false, shirt = '#FF2E88', ghost = false, flip = false } = opts || {};
+  const o = opts || {};
+  const { phase = 0, airborne = false, sliding = false, ghost = false, flip = false } = o;
+  /* It's YOU running. When the player's avatar traits are passed in, the
+     runner wears them — their skin, their hair and colour, their outfit
+     colour — so the character on the roof is the character on their
+     profile, not a stand-in. Falls back to the house colours. */
+  const dna = o.dna || null;
+  const shirt = (dna && dna.outfitColor) || o.shirt || '#FF2E88';
+  const skinCol = (dna && dna.skin) || '#E8B98A';
+  const hairCol = (dna && dna.hairColor) || '#2A1A10';
+  const hairStyle = (dna && dna.hair) || 'short';
   c.save();
   c.translate(sx, sy);
   if (flip) c.scale(-1, 1);
@@ -408,9 +418,9 @@ export function drawRunner(c, sx, sy, opts) {
     rr(c, -16, -14, 30, 10, 5); c.fill();                 // legs out front
     c.fillStyle = shirt;
     rr(c, -6, -26, 20, 16, 7); c.fill();                  // torso leaning back
-    c.fillStyle = '#E8B98A';
+    c.fillStyle = skinCol;
     c.beginPath(); c.arc(10, -32, 8, 0, 7); c.fill();     // head
-    c.fillStyle = '#2A1A10';
+    c.fillStyle = hairCol;
     c.beginPath(); c.arc(10, -34, 8, Math.PI, 0); c.fill();
     c.restore();
     return;
@@ -449,12 +459,36 @@ export function drawRunner(c, sx, sy, opts) {
     c.beginPath(); c.moveTo(0, -33 - bob); c.lineTo(swing * 13, -23 - bob); c.stroke();
   }
 
-  // head + hair
-  c.fillStyle = '#E8B98A';
+  // head + hair, wearing the player's own colours and hairstyle
+  c.fillStyle = skinCol;
   c.beginPath(); c.arc(1, -47 - bob, 8.5, 0, 7); c.fill();
-  c.fillStyle = '#2A1A10';
-  c.beginPath(); c.arc(1, -49 - bob, 8.5, Math.PI, 0); c.fill();
-  c.fillRect(-7.5, -50 - bob, 4, 5);
+  c.fillStyle = hairCol;
+  if (hairStyle === 'bald') {
+    // nothing on top
+  } else if (hairStyle === 'afro' || hairStyle === 'curly') {
+    c.beginPath(); c.arc(1, -50 - bob, 10.5, 0, 7); c.fill();
+    c.fillStyle = skinCol;
+    c.beginPath(); c.arc(1, -45 - bob, 7.5, 0, Math.PI); c.fill();
+  } else if (hairStyle === 'hijab') {
+    // the wrap needs real thickness or it vanishes at running size
+    c.beginPath(); c.arc(1, -47 - bob, 11.5, 0, 7); c.fill();
+    c.fillRect(-10.5, -47 - bob, 21, 15);
+    c.fillStyle = skinCol;
+    c.beginPath(); c.arc(1, -47.5 - bob, 5.6, 0, 7); c.fill();
+  } else if (hairStyle === 'long' || hairStyle === 'wavyLong' || hairStyle === 'braids' || hairStyle === 'bob') {
+    c.beginPath(); c.arc(1, -49 - bob, 8.5, Math.PI, 0); c.fill();
+    c.fillRect(-9, -49 - bob, 4.5, 16);
+    c.fillRect(5.5, -49 - bob, 4.5, 16);
+  } else if (hairStyle === 'ponytail' || hairStyle === 'bun' || hairStyle === 'pigtails') {
+    c.beginPath(); c.arc(1, -49 - bob, 8.5, Math.PI, 0); c.fill();
+    c.beginPath(); c.arc(-8, -48 - bob, 4, 0, 7); c.fill();
+  } else if (hairStyle === 'mohawk') {
+    c.fillRect(-1.5, -60 - bob, 5, 13);
+    c.beginPath(); c.arc(1, -49 - bob, 8.5, Math.PI, 0); c.fill();
+  } else {
+    c.beginPath(); c.arc(1, -49 - bob, 8.5, Math.PI, 0); c.fill();
+    c.fillRect(-7.5, -50 - bob, 4, 5);
+  }
 
   c.restore();
 }

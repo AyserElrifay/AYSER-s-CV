@@ -5,6 +5,7 @@ import { C } from '../constants/theme';
 import { useAuth } from '../context/AuthContext';
 import { submitScore, fetchLeaderboard, finishMatch, subscribeMatchLive } from '../services/games';
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
+import { parseDna } from '../services/avatarArt';
 import { sfxPop, sfxStar, sfxSuccess } from '../utils/sfx';
 import {
   CHAPTERS, makeLevel, drawScene, drawRunner, drawChaser, GROUND,
@@ -64,6 +65,8 @@ export const RooftopRush = ({ onClose, matchId = null, isHost = false, opponent 
   const { user } = useAuth();
   const ar = gamesAr();
   const isRace = !!matchId;
+  // the runner IS you — the avatar you built is who's on the roof
+  const myDna = React.useMemo(() => parseDna(user && user.avatar_dna), [user && user.avatar_dna]);
 
   const [chapterIdx, setChapterIdx] = useState(() => (isRace ? 0 : loadProgress()));
   const [unlocked, setUnlocked] = useState(() => loadProgress());
@@ -102,6 +105,7 @@ export const RooftopRush = ({ onClose, matchId = null, isHost = false, opponent 
      down mid-run and the loop never calls yesterday's logic. */
   const stepRef = useRef(null);
   const peerXRef = useRef(0);
+  const dnaRef = useRef(null);
 
   const chapter = CHAPTERS[chapterIdx];
 
@@ -240,7 +244,7 @@ export const RooftopRush = ({ onClose, matchId = null, isHost = false, opponent 
         phase: w.phase,
         airborne: !w.onGround,
         sliding: w.sliding,
-        shirt: '#FF2E88',
+        dna: dnaRef.current,
       });
     };
 
@@ -388,8 +392,9 @@ export const RooftopRush = ({ onClose, matchId = null, isHost = false, opponent 
   const scoreRef = useRef(0);
   const secsRef = useRef(0);
 
-  // hand the loop the freshest physics every render
+  // hand the loop the freshest physics (and your look) every render
   stepRef.current = step;
+  dnaRef.current = myDna;
 
   const die = (w, now, line) => {
     if (phaseRef.current !== 'playing') return;
