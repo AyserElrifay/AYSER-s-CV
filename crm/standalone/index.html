@@ -1,51 +1,55 @@
 <style>
   :root {
-    --bg: #fbfbfa;
+    /* Twelve brand system — ink teal, sage, warm cream */
+    --bg: #f4f0e4;
     --surface: #ffffff;
-    --surface-2: #f6f5f3;
-    --text: #37352f;
-    --muted: #8a877f;
-    --border: #eceae6;
-    --border-strong: #e0ddd7;
-    --accent: #2e7cf6;
-    --accent-soft: #eaf1fe;
-    --ok: #12a150;
-    --ok-soft: #e7f6ee;
-    --warn: #d98a0b;
-    --warn-soft: #fbf1dc;
-    --sold: #9b9992;
-    --sold-soft: #efedea;
-    --danger: #e5484d;
-    --shadow: 0 1px 2px rgba(15,15,15,.04), 0 2px 6px rgba(15,15,15,.04);
-    --shadow-pop: 0 8px 30px rgba(15,15,15,.10);
-    --radius: 12px;
+    --surface-2: #eae3d0;
+    --text: #17302a;
+    --muted: #74796d;
+    --border: #e3dcc7;
+    --border-strong: #d3c8ab;
+    --accent: #17302a;
+    --accent-contrast: #f4f0e4;
+    --accent-soft: #e3e6da;
+    --ok: #3f6b4a;
+    --ok-soft: #e4ebe0;
+    --warn: #8c6a2e;
+    --warn-soft: #f0e6d0;
+    --sold: #8b9188;
+    --sold-soft: #e9e7dd;
+    --danger: #6b2e22;
+    --danger-soft: #f0dfd8;
+    --shadow: 0 1px 2px rgba(23,48,42,.05), 0 2px 6px rgba(23,48,42,.05);
+    --shadow-pop: 0 10px 32px rgba(23,48,42,.14);
+    --radius: 10px;
     --sans: "Segoe UI", system-ui, -apple-system, "Noto Sans Arabic", "Noto Kufi Arabic", "Tahoma", sans-serif;
+    --serif: Georgia, "Times New Roman", "Noto Serif", serif;
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #1a1a19; --surface: #232322; --surface-2: #2a2a28;
-      --text: #ececea; --muted: #9a978f; --border: #333230; --border-strong: #3d3c39;
-      --accent: #5b9bff; --accent-soft: #1e2a3d;
-      --ok: #35c07a; --ok-soft: #16281f; --warn: #e0a13a; --warn-soft: #2c2313;
-      --sold: #77756e; --sold-soft: #2a2a28; --danger: #f06a6f;
-      --shadow: 0 1px 2px rgba(0,0,0,.3); --shadow-pop: 0 8px 30px rgba(0,0,0,.5);
+      --bg: #10231f; --surface: #17322c; --surface-2: #1e3e36;
+      --text: #efeadd; --muted: #93a395; --border: #2a463e; --border-strong: #375b50;
+      --accent: #efeadd; --accent-contrast: #17302a; --accent-soft: #23433a;
+      --ok: #6fa57d; --ok-soft: #1e3a29; --warn: #c7a35c; --warn-soft: #3a2f19;
+      --sold: #93a395; --sold-soft: #22322c; --danger: #c97a64; --danger-soft: #3d211a;
+      --shadow: 0 1px 2px rgba(0,0,0,.3); --shadow-pop: 0 10px 32px rgba(0,0,0,.45);
     }
   }
   :root[data-theme="dark"] {
-    --bg: #1a1a19; --surface: #232322; --surface-2: #2a2a28;
-    --text: #ececea; --muted: #9a978f; --border: #333230; --border-strong: #3d3c39;
-    --accent: #5b9bff; --accent-soft: #1e2a3d;
-    --ok: #35c07a; --ok-soft: #16281f; --warn: #e0a13a; --warn-soft: #2c2313;
-    --sold: #77756e; --sold-soft: #2a2a28; --danger: #f06a6f;
-    --shadow: 0 1px 2px rgba(0,0,0,.3); --shadow-pop: 0 8px 30px rgba(0,0,0,.5);
+    --bg: #10231f; --surface: #17322c; --surface-2: #1e3e36;
+    --text: #efeadd; --muted: #93a395; --border: #2a463e; --border-strong: #375b50;
+    --accent: #efeadd; --accent-contrast: #17302a; --accent-soft: #23433a;
+    --ok: #6fa57d; --ok-soft: #1e3a29; --warn: #c7a35c; --warn-soft: #3a2f19;
+    --sold: #93a395; --sold-soft: #22322c; --danger: #c97a64; --danger-soft: #3d211a;
+    --shadow: 0 1px 2px rgba(0,0,0,.3); --shadow-pop: 0 10px 32px rgba(0,0,0,.45);
   }
   :root[data-theme="light"] {
-    --bg: #fbfbfa; --surface: #ffffff; --surface-2: #f6f5f3;
-    --text: #37352f; --muted: #8a877f; --border: #eceae6; --border-strong: #e0ddd7;
-    --accent: #2e7cf6; --accent-soft: #eaf1fe;
-    --ok: #12a150; --ok-soft: #e7f6ee; --warn: #d98a0b; --warn-soft: #fbf1dc;
-    --sold: #9b9992; --sold-soft: #efedea; --danger: #e5484d;
-    --shadow: 0 1px 2px rgba(15,15,15,.04), 0 2px 6px rgba(15,15,15,.04); --shadow-pop: 0 8px 30px rgba(15,15,15,.10);
+    --bg: #f4f0e4; --surface: #ffffff; --surface-2: #eae3d0;
+    --text: #17302a; --muted: #74796d; --border: #e3dcc7; --border-strong: #d3c8ab;
+    --accent: #17302a; --accent-contrast: #f4f0e4; --accent-soft: #e3e6da;
+    --ok: #3f6b4a; --ok-soft: #e4ebe0; --warn: #8c6a2e; --warn-soft: #f0e6d0;
+    --sold: #8b9188; --sold-soft: #e9e7dd; --danger: #6b2e22; --danger-soft: #f0dfd8;
+    --shadow: 0 1px 2px rgba(23,48,42,.05), 0 2px 6px rgba(23,48,42,.05); --shadow-pop: 0 10px 32px rgba(23,48,42,.14);
   }
 
   * { box-sizing: border-box; }
@@ -71,10 +75,12 @@
     border-inline-start: 1px solid var(--border); position: sticky; top: 0; height: 100vh;
     display: flex; flex-direction: column; padding: 14px 12px;
   }
-  .brand { display: flex; align-items: center; gap: 10px; padding: 6px 8px 14px; }
-  .brand-mark { width: 34px; height: 34px; border-radius: 9px; background: var(--accent); color: #fff; display: grid; place-items: center; font-weight: 800; font-size: 17px; }
-  .brand-name { font-weight: 700; font-size: 15px; }
+  .brand { display: flex; align-items: center; gap: 11px; padding: 6px 8px 16px; }
+  .brand-mark { width: 34px; height: 34px; flex-shrink: 0; color: var(--text); display: grid; place-items: center; }
+  .brand-mark svg { width: 100%; height: 100%; overflow: visible; }
+  .brand-name { font-family: var(--serif); font-weight: 700; font-size: 17px; letter-spacing: .06em; direction: ltr; text-align: start; }
   .brand-sub { font-size: 11px; color: var(--muted); }
+  .num-display { font-family: var(--serif); font-variant-numeric: tabular-nums; }
   .nav { display: flex; flex-direction: column; gap: 2px; margin-top: 4px; }
   .nav-label { font-size: 11px; color: var(--muted); padding: 8px 8px 4px; font-weight: 600; letter-spacing: .02em; }
   .nav-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; color: var(--muted); text-decoration: none; font-size: 13.5px; border: none; background: none; width: 100%; text-align: start; transition: background .12s, color .12s; }
@@ -95,17 +101,17 @@
   .content { padding: 22px 24px 60px; }
 
   /* Buttons */
-  .btn { display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 14px; border-radius: 9px; border: 1px solid transparent; font-size: 13.5px; font-weight: 550; background: var(--accent); color: #fff; transition: opacity .12s, background .12s; }
-  .btn:hover { opacity: .92; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 40px; padding: 0 14px; border-radius: 8px; border: 1px solid transparent; font-size: 13.5px; font-weight: 550; background: var(--accent); color: var(--accent-contrast); transition: opacity .12s, background .12s; }
+  .btn:hover { opacity: .88; }
   .btn svg { width: 16px; height: 16px; }
-  .btn.sm { height: 32px; padding: 0 11px; font-size: 12.5px; }
+  .btn.sm { height: 34px; padding: 0 11px; font-size: 12.5px; }
   .btn.outline { background: var(--surface); color: var(--text); border-color: var(--border-strong); }
   .btn.outline:hover { background: var(--surface-2); opacity: 1; }
   .btn.ghost { background: none; color: var(--muted); }
   .btn.ghost:hover { background: var(--surface-2); color: var(--text); }
   .btn.danger { background: none; color: var(--danger); border-color: transparent; }
-  .btn.danger:hover { background: var(--danger); color: #fff; }
-  .icon-btn { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 9px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--muted); }
+  .btn.danger:hover { background: var(--danger); color: var(--bg); }
+  .icon-btn { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 8px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--muted); }
   .icon-btn:hover { color: var(--text); background: var(--surface-2); }
   .icon-btn svg { width: 18px; height: 18px; }
 
@@ -127,16 +133,18 @@
   .badge.ok { background: var(--ok-soft); color: var(--ok); }
   .badge.warn { background: var(--warn-soft); color: var(--warn); }
   .badge.sold { background: var(--sold-soft); color: var(--sold); }
-  .badge.danger { background: color-mix(in srgb, var(--danger) 14%, transparent); color: var(--danger); }
+  .badge.danger { background: var(--danger-soft); color: var(--danger); }
   .badge.outline { border: 1px solid var(--border-strong); color: var(--muted); }
   .chip { border: 1px solid var(--border-strong); background: var(--surface); color: var(--muted); padding: 6px 12px; border-radius: 999px; font-size: 12.5px; transition: .12s; }
   .chip:hover { color: var(--text); background: var(--surface-2); }
-  .chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .chip.on { background: var(--accent); border-color: var(--accent); color: var(--accent-contrast); }
 
   /* Empty state */
   .empty { text-align: center; padding: 54px 20px; border: 1px dashed var(--border-strong); border-radius: var(--radius); background: var(--surface); }
   .empty .em-ic { width: 52px; height: 52px; border-radius: 14px; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; margin: 0 auto 14px; }
   .empty .em-ic svg { width: 26px; height: 26px; }
+  .empty .em-ic.mark { width: 60px; height: 60px; background: none; color: var(--text); }
+  .empty .em-ic.mark svg { width: 100%; height: 100%; }
   .empty h3 { margin: 0 0 6px; font-size: 16px; }
   .empty p { margin: 0 auto 16px; color: var(--muted); max-width: 380px; font-size: 13px; }
 
@@ -172,15 +180,9 @@
   .unit-verify { font-size: 10.5px; margin-top: 8px; display: flex; align-items: center; gap: 4px; }
   .unit-verify .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
   .unit-verify svg { width: 14px; height: 14px; flex-shrink: 0; }
-  .media-btn { position: absolute; width: 26px; height: 26px; border-radius: 50%; border: none; display: grid; place-items: center; background: rgba(255,255,255,.9); color: #37352f; box-shadow: var(--shadow); }
-  .media-btn.fav-on { color: #e5484d; }
-  .media-btn svg { width: 14px; height: 14px; }
-  .media-btn.compare-on { background: var(--accent); color: #fff; }
-
-  /* Compare tray */
-  .compare-tray { position: fixed; inset-inline: 0; bottom: 18px; display: flex; justify-content: center; z-index: 60; pointer-events: none; }
-  .compare-tray-inner { pointer-events: auto; display: flex; align-items: center; gap: 12px; background: var(--text); color: var(--bg); padding: 10px 12px 10px 18px; border-radius: 12px; box-shadow: var(--shadow-pop); }
-  .compare-tray-inner .btn { height: 32px; }
+  .media-btn { position: absolute; width: 30px; height: 30px; border-radius: 50%; border: none; display: grid; place-items: center; background: rgba(255,255,255,.92); color: var(--text); box-shadow: var(--shadow); }
+  .media-btn.fav-on { color: var(--danger); }
+  .media-btn svg { width: 15px; height: 15px; }
 
   /* Drawer */
   .modal.drawer { justify-self: end; align-self: stretch; height: 100vh; max-height: 100vh; border-radius: 0; display: flex; flex-direction: column; border-inline-start: 1px solid var(--border); }
@@ -244,21 +246,46 @@
   .meter { display: flex; height: 8px; border-radius: 999px; overflow: hidden; background: var(--surface-2); }
   .save-note { font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 5px; }
 
+  /* Mobile bottom navigation — replaces the sidebar on narrow screens */
+  .mnav { display: none; }
+
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
-  @media (max-width: 720px) {
+  @media (max-width: 860px) {
     .sidebar { display: none; }
-    .content { padding: 16px; }
-    .topbar { padding: 12px 16px; }
+    .content { padding: 14px 14px 84px; }
+    .topbar { padding: 12px 14px; gap: 10px; }
+    .topbar h1 { font-size: 15.5px; }
+    .topbar .sub { display: none; }
+    .row2 { grid-template-columns: 1fr; }
+    .kpis { grid-template-columns: repeat(2, 1fr); }
+    .units-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+    .modal:not(.drawer) { max-width: 100%; }
+    .bar { gap: 10px 14px; padding: 10px 12px; }
+    .fgroup > span { display: none; }
+
+    .mnav {
+      display: flex; position: fixed; inset-inline: 0; bottom: 0; z-index: 50;
+      background: var(--surface); border-top: 1px solid var(--border);
+      padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+      box-shadow: 0 -4px 16px rgba(23,48,42,.08);
+    }
+    .mnav-item {
+      flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px;
+      border: none; background: none; color: var(--muted); font-size: 10.5px; padding: 6px 2px;
+      border-radius: 8px;
+    }
+    .mnav-item svg { width: 20px; height: 20px; }
+    .mnav-item.active { color: var(--accent); font-weight: 600; }
   }
 </style>
 
 <div class="app">
   <aside class="sidebar">
     <div class="brand">
-      <div class="brand-mark">ع</div>
+      <div class="brand-mark" id="brandMark"></div>
       <div>
-        <div class="brand-name">عقّار</div>
-        <div class="brand-sub">إدارة عملاء عقارية</div>
+        <div class="brand-name">TWELVE</div>
+        <div class="brand-sub">استشارات عقارية</div>
       </div>
     </div>
     <nav class="nav" id="nav">
@@ -294,12 +321,19 @@
   </div>
 </div>
 
+<nav class="mnav" id="mnav">
+  <button class="mnav-item" data-view="dashboard"><span data-icon="grid"></span><span>الرئيسية</span></button>
+  <button class="mnav-item" data-view="companies"><span data-icon="building"></span><span>الشركات</span></button>
+  <button class="mnav-item" data-view="inventory"><span data-icon="store"></span><span>العقارات</span></button>
+  <button class="mnav-item" data-view="leads"><span data-icon="kanban"></span><span>العملاء</span></button>
+</nav>
+
 <div class="overlay" id="overlay"><div class="modal" id="modal"></div></div>
 <div class="toast" id="toast"></div>
 
 <script>
 /* ---------------------------------------------------------------
-   عقّار — تطبيق CRM عقاري قائم بذاته.
+   TWELVE — تطبيق CRM عقاري قائم بذاته.
    بياناتك حقيقية 100% وتُحفظ محلياً في متصفحك (localStorage).
    يبدأ فارغاً — لا توجد أي بيانات وهمية.
 ----------------------------------------------------------------*/
@@ -338,6 +372,25 @@ const I = {
 };
 function hydrateIcons(root=document){ root.querySelectorAll("[data-icon]").forEach(el=>{ const name=el.getAttribute("data-icon"); if(I[name]) el.innerHTML=I[name]; }); }
 
+/* ---- Twelve compass mark: disc + 4-point star + bezel ticks ----
+   Two-tone by design: the disc is drawn in currentColor, the star is
+   "cut out" in the surrounding surface color, so it inverts correctly
+   between light and dark theme automatically. */
+function compassMark(cutoutVar){
+  cutoutVar = cutoutVar || "--surface-2";
+  const ticks = Array.from({ length: 12 }, (_, i) => {
+    const a = (i * 30 - 90) * Math.PI / 180;
+    const x1 = (50 + 41 * Math.cos(a)).toFixed(1), y1 = (54 + 41 * Math.sin(a)).toFixed(1);
+    const x2 = (50 + 46 * Math.cos(a)).toFixed(1), y2 = (54 + 46 * Math.sin(a)).toFixed(1);
+    return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`;
+  }).join("");
+  return `<svg viewBox="0 0 100 100" style="overflow:visible">
+    <g stroke="currentColor" stroke-width="2.5" stroke-linecap="round">${ticks}</g>
+    <circle cx="50" cy="54" r="40" fill="currentColor"/>
+    <path d="M50,15 L59,45 L89,54 L59,63 L50,93 L41,63 L11,54 L41,45 Z" style="fill:var(${cutoutVar})"/>
+  </svg>`;
+}
+
 const STORE_KEY = "aqar_crm_v1";
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
@@ -352,10 +405,10 @@ function load() {
 function save() { localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
 
 /* ---- reference values (choices, not data) ---- */
-const CO_COLORS = ["#2e7cf6","#7c3aed","#0ea5a4","#f59e0b","#e5484d","#0f9d58","#db2777","#0891b2"];
+const CO_COLORS = ["#17302a","#6b2e22","#8c6a2e","#3f5a52","#4a3a5c","#5c4a2e","#2e4a4a","#6b4a3a"];
 const UNIT_TYPES = ["شقة","تاون هاوس","توين هاوس","دوبلكس","فيلا","شاليه","تجاري","إداري"];
 const FINISHING_OPTIONS = ["تشطيب كامل","نصف تشطيب","على الطوب"];
-const GRADS = ["linear-gradient(135deg,#dbeafe,#e0e7ff)","linear-gradient(135deg,#d1fae5,#ccfbf1)","linear-gradient(135deg,#fef3c7,#fed7aa)","linear-gradient(135deg,#fce7f3,#fbcfe8)","linear-gradient(135deg,#e0f2fe,#dbeafe)","linear-gradient(135deg,#ede9fe,#f3e8ff)"];
+const GRADS = ["linear-gradient(135deg,#e3e6da,#d3c8ab)","linear-gradient(135deg,#dde3d6,#c3d0c4)","linear-gradient(135deg,#e6ddc9,#d3c2a0)","linear-gradient(135deg,#e0e2d9,#c9c2ad)","linear-gradient(135deg,#dfe4da,#bfcabb)","linear-gradient(135deg,#e5ded0,#cdbfa3)"];
 const STAGES = [
   { id:"new", name:"جديد", color:"#2e7cf6" },
   { id:"contacted", name:"تم التواصل", color:"#7c3aed" },
@@ -410,7 +463,6 @@ function areaTypeBenchmark(area, type, excludeId){
   return { avgPricePerM: Math.round(avg), count: matches.length };
 }
 
-let compareIds = [];
 const SORTERS = {
   newest:     (a,b)=> (b.createdAt||0)-(a.createdAt||0),
   price_asc:  (a,b)=> (Number(a.price)||0)-(Number(b.price)||0),
@@ -441,9 +493,10 @@ function paint(){
   const v = VIEWS[current];
   document.getElementById("viewTitle").textContent = v.title;
   document.getElementById("viewSub").textContent = v.sub;
-  document.querySelectorAll(".nav-item[data-view]").forEach(b => b.classList.toggle("active", b.dataset.view===current));
+  document.querySelectorAll(".nav-item[data-view], .mnav-item[data-view]").forEach(b => b.classList.toggle("active", b.dataset.view===current));
   document.getElementById("content").innerHTML = v.render();
   wireView();
+  window.scrollTo(0, 0);
 }
 
 /* =====================================================================
@@ -452,10 +505,11 @@ function paint(){
 function renderDashboard(){
   const { companies, units, leads } = state;
   if (!companies.length && !units.length && !leads.length){
-    return emptyState(I.rocket, "ابدأ بإضافة بياناتك الحقيقية",
-      "التطبيق فارغ تماماً — لا توجد أي بيانات وهمية. أضف أول شركة لديك ثم مخزونها وعملاءها، وكل شيء يُحفظ في متصفحك.",
+    return emptyState(compassMark("--surface"), "ابدأ بإضافة بياناتك",
+      "لا توجد بيانات وهمية هنا. أضف شركتك الأولى، ثم مخزونها وعملاءها — كل شيء يُحفظ في متصفحك.",
       `<button class="btn" data-act="add-company">${I.plus} إضافة شركة</button>
-       <button class="btn outline" data-act="load-sample">تحميل بيانات مثال (اختياري)</button>`);
+       <button class="btn outline" data-act="load-sample">تحميل بيانات مثال (اختياري)</button>`,
+      "mark");
   }
   const avail = units.filter(u=>u.status==="available");
   const reserved = units.filter(u=>u.status==="reserved");
@@ -475,7 +529,7 @@ function renderDashboard(){
   let html = `<div class="grid kpis">${kpis.map(k=>`
     <div class="card kpi">
       <div class="lbl">${esc(k.lbl)} ${k.ic}</div>
-      <div class="val tnum">${k.val}</div>
+      <div class="val tnum num-display">${k.val}</div>
       <div class="hint ${k.up?"up":""}">${esc(k.hint)}</div>
     </div>`).join("")}</div>`;
 
@@ -619,14 +673,6 @@ function renderInventory(){
   }
 
   html += `<div class="grid units-grid">${list.map((u,i)=>unitCard(u,i)).join("")}</div>`;
-
-  if (compareIds.length){
-    html += `<div class="compare-tray"><div class="compare-tray-inner">
-      <span class="tnum" style="font-size:13px">${compareIds.length} وحدة للمقارنة</span>
-      <button class="btn sm" data-act="open-compare" ${compareIds.length<2?"disabled":""}>${I.scale} قارن الآن</button>
-      <button class="btn sm ghost" style="color:inherit" data-act="clear-compare">مسح</button>
-    </div></div>`;
-  }
   return html;
 }
 
@@ -635,14 +681,12 @@ function unitCard(u, i){
   const plan = paymentPlan(u);
   const statusBadge = u.status==="sold"?`<span class="badge sold" style="position:absolute;inset-inline-start:10px;top:10px">مباعة</span>`
     : u.status==="reserved"?`<span class="badge warn" style="position:absolute;inset-inline-start:10px;top:10px">محجوزة</span>`:"";
-  const inCompare = compareIds.includes(u.id);
   return `<div class="unit ${u.status==="sold"?"sold":""}">
     <div class="unit-media" style="background:${GRADS[i%GRADS.length]}">
-      <span class="badge" style="position:absolute;inset-inline-end:10px;top:10px;background:rgba(255,255,255,.85);color:#37352f">${esc(u.type)}</span>
+      <span class="badge" style="position:absolute;inset-inline-end:10px;top:10px;background:rgba(255,255,255,.85);color:#17302a">${esc(u.type)}</span>
       ${statusBadge}
-      <button class="media-btn ${u.isFavorite?"fav-on":""}" style="inset-inline-end:10px;top:46px" data-act="toggle-fav" data-id="${u.id}" title="مفضلة">${I.heart}</button>
-      <button class="media-btn ${inCompare?"compare-on":""}" style="inset-inline-start:10px;top:46px" data-act="toggle-compare" data-id="${u.id}" title="أضف للمقارنة">${I.scale}</button>
-      <span style="font-size:12px;font-weight:600;color:#37352f;opacity:.75">${esc(u.code||"")}</span>
+      <button class="media-btn ${u.isFavorite?"fav-on":""}" style="inset-inline-start:10px;top:46px" data-act="toggle-fav" data-id="${u.id}" title="مفضلة">${I.heart}</button>
+      <span style="font-size:12px;font-weight:600;color:#17302a;opacity:.75">${esc(u.code||"")}</span>
     </div>
     <div class="unit-body">
       <div class="unit-title" data-act="view-unit" data-id="${u.id}">${esc(u.project||"—")}</div>
@@ -657,7 +701,7 @@ function unitCard(u, i){
       </div>
       <div style="display:flex;align-items:center;justify-content:space-between;margin-top:11px">
         <div>
-          <div class="unit-price tnum">${fmtEGP(u.price)}</div>
+          <div class="unit-price tnum num-display">${fmtEGP(u.price)}</div>
           ${!plan.isCash ? `<div class="unit-plan tnum">قسط من ${fmtEGP(plan.monthly)}/شهرياً</div>` : `<div class="unit-plan" style="color:var(--muted)">كاش بالكامل</div>`}
         </div>
         <div style="display:flex;gap:4px">
@@ -725,8 +769,8 @@ function leadCard(l){
 /* =====================================================================
    SHARED UI
 ===================================================================== */
-function emptyState(icon, title, body, actions){
-  return `<div class="empty"><div class="em-ic">${icon}</div><h3>${esc(title)}</h3><p>${esc(body)}</p>
+function emptyState(icon, title, body, actions, iconClass){
+  return `<div class="empty"><div class="em-ic ${iconClass||""}">${icon}</div><h3>${esc(title)}</h3><p>${esc(body)}</p>
     <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">${actions||""}</div></div>`;
 }
 
@@ -783,9 +827,8 @@ document.addEventListener("click", e=>{
   if (act==="del-unit") return confirmDel("unit", id, "حذف هذه الوحدة؟");
   if (act==="view-unit") return openUnitDetail(id);
   if (act==="toggle-fav") return toggleFav(id);
-  if (act==="toggle-compare") return toggleCompare(id);
-  if (act==="open-compare") return openCompareModal();
-  if (act==="clear-compare") { compareIds=[]; paint(); return; }
+  if (act==="pick-compare") return openComparePicker(id);
+  if (act==="do-compare") return openCompareModal(id, el.dataset.other);
   if (act==="confirm-availability") return confirmAvailability(id);
   if (act==="copy-unit") return copyUnitSummary(id);
   if (act==="add-lead") return openLeadForm(null, stage);
@@ -799,12 +842,6 @@ function toggleFav(id){
   const u = state.units.find(x=>x.id===id); if(!u) return;
   u.isFavorite = !u.isFavorite; save(); paint();
   refreshUnitDetail(id);
-}
-function toggleCompare(id){
-  if (compareIds.includes(id)) compareIds = compareIds.filter(x=>x!==id);
-  else if (compareIds.length>=3) return toast("أقصى 3 وحدات في المقارنة");
-  else compareIds = [...compareIds, id];
-  paint();
 }
 function confirmAvailability(id){
   const u = state.units.find(x=>x.id===id); if(!u) return;
@@ -831,7 +868,7 @@ function copyUnitSummary(id){
 }
 
 // nav
-document.querySelectorAll(".nav-item[data-view]").forEach(b=> b.onclick=()=>go(b.dataset.view));
+document.querySelectorAll(".nav-item[data-view], .mnav-item[data-view]").forEach(b=> b.onclick=()=>go(b.dataset.view));
 
 /* =====================================================================
    FORMS (Modals)
@@ -1007,7 +1044,7 @@ function openUnitDetail(id){
     </div>
     <div class="modal-body" id="unitDetailBody">
       <div class="unit-media" style="background:${GRADS[0]};border-radius:10px;height:120px">
-        <span class="badge" style="position:absolute;inset-inline-end:10px;top:10px;background:rgba(255,255,255,.85);color:#37352f">${esc(u.type)}</span>
+        <span class="badge" style="position:absolute;inset-inline-end:10px;top:10px;background:rgba(255,255,255,.85);color:#17302a">${esc(u.type)}</span>
         <span class="badge ${statusVariant}" style="position:absolute;inset-inline-start:10px;top:10px">${statusLabel}</span>
       </div>
 
@@ -1038,9 +1075,9 @@ function openUnitDetail(id){
 
       <div class="row2">
         <button class="btn ${u.isFavorite?"":"outline"} sm" data-act="toggle-fav" data-id="${u.id}">${I.heart} ${u.isFavorite?"في المفضلة":"أضف للمفضلة"}</button>
-        <button class="btn ${compareIds.includes(u.id)?"":"outline"} sm" data-act="toggle-compare" data-id="${u.id}">${I.scale} ${compareIds.includes(u.id)?"في المقارنة":"أضف للمقارنة"}</button>
+        <button class="btn outline sm" data-act="copy-unit" data-id="${u.id}">${I.copy} نسخ التفاصيل</button>
       </div>
-      <button class="btn outline sm" data-act="copy-unit" data-id="${u.id}">${I.copy} نسخ تفاصيل الوحدة</button>
+      ${state.units.length>1?`<button class="btn outline sm" data-act="pick-compare" data-id="${u.id}">${I.scale} قارن بوحدة أخرى</button>`:""}
     </div>
     <div class="modal-foot">
       <button class="btn sm" data-act="edit-unit" data-id="${u.id}">${I.edit} تعديل</button>
@@ -1048,9 +1085,24 @@ function openUnitDetail(id){
     </div>`, "drawer");
 }
 
-/* ---- Compare modal ---- */
-function openCompareModal(){
-  const units = compareIds.map(id=>state.units.find(u=>u.id===id)).filter(Boolean);
+/* ---- Compare: pick a second unit, then show a 2-up table ---- */
+function openComparePicker(id){
+  const base = state.units.find(u=>u.id===id); if (!base) return;
+  const others = state.units.filter(u=>u.id!==id);
+  openModal(`
+    <div class="modal-head"><h2>قارن «${esc(base.project||base.code||"الوحدة")}» بـ...</h2><button class="icon-btn" data-act="close-modal">${I.x}</button></div>
+    <div class="modal-body" style="gap:8px">
+      ${others.map(u=>`
+        <button class="btn outline sm" style="justify-content:space-between;width:100%" data-act="do-compare" data-id="${id}" data-other="${u.id}">
+          <span>${esc(u.project||u.code||"—")} · ${esc(u.code||"")}</span>
+          <span class="tnum" style="color:var(--muted)">${fmtEGP(u.price)}</span>
+        </button>`).join("")}
+    </div>
+    <div class="modal-foot"><button class="btn ghost" data-act="close-modal">إلغاء</button></div>`);
+}
+
+function openCompareModal(idA, idB){
+  const units = [idA, idB].map(id=>state.units.find(u=>u.id===id)).filter(Boolean);
   if (units.length<2) return;
   const rows = [
     ["المشروع", u=>u.project||"—"],
@@ -1171,7 +1223,7 @@ document.getElementById("dataBtn").onclick = ()=>{
 function exportData(){
   const blob=new Blob([JSON.stringify(state,null,2)],{type:"application/json"});
   const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
-  a.download=`aqar-crm-${new Date().toISOString().slice(0,10)}.json`; a.click();
+  a.download=`twelve-crm-${new Date().toISOString().slice(0,10)}.json`; a.click();
   toast("تم تصدير نسختك");
 }
 function importData(e){
@@ -1210,6 +1262,7 @@ let toastT;
 function toast(msg){ const t=document.getElementById("toast"); t.textContent=msg; t.classList.add("show"); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove("show"),2200); }
 
 hydrateIcons();
+document.getElementById("brandMark").innerHTML = compassMark("--surface-2");
 updateThemeLabel();
 paint();
 </script>
