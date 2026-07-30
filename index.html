@@ -542,13 +542,7 @@ body.menu-locked{overflow:hidden}
 .feat .tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:auto;padding-top:18px;border-top:1px solid var(--mist)}
 .feat .tags span{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--stone);font-weight:500}
 .feat .tags span:not(:last-child)::after{content:"·";margin-left:8px}
-.clients-head{display:flex;justify-content:space-between;align-items:baseline;gap:16px;margin-bottom:18px;flex-wrap:wrap}
-.clients-head .label{color:var(--stone)}
-.clients{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:1px;background:var(--mist);border:1px solid var(--mist);border-radius:var(--r);overflow:hidden}
-.client{background:var(--paper);padding:20px 22px;transition:background .4s var(--ease)}
-.client:hover{background:var(--fog)}
-.client .cn{font-weight:500;font-size:17px;letter-spacing:-.01em}
-.client .ck{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--stone);margin-top:6px;font-weight:500}
+.feat.span2{grid-column:1/-1}
 
 /* home index (quiet table of contents) */
 .home-index{margin-top:clamp(44px,7vh,80px);width:100%;max-width:520px;border-top:1px solid var(--mist);text-align:left}
@@ -681,6 +675,11 @@ body.menu-locked{overflow:hidden}
         <p>When the global courier <b>J&amp;T Express</b> entered Egypt, we shaped the arrival — a creative rebranding campaign, an online communication campaign, and a full design system, headlined by <b>Lionel Messi</b> as brand ambassador under one line: <b>دقة، سرعة</b> — Accuracy. Speed.</p>
         <div class="tags"><span>Rebranding</span><span>Campaign</span><span>Social</span><span>Design</span></div>
       </article>
+      <article class="feat span2 rv">
+        <div class="fc"><h4>Twelve Real Estate</h4><span class="ft">Real Estate · Maghraby</span></div>
+        <p>Marketing and content for <b>Twelve</b> — the real-estate venture by <b>Maghraby</b>. Brand-led campaigns that sell a lifestyle, not just an address.</p>
+        <div class="tags"><span>Content</span><span>Campaign</span><span>Social</span></div>
+      </article>
       <article class="feat rv">
         <div class="fc"><h4>Market Standard</h4><span class="ft">Brand · Events</span></div>
         <p>A full-house brand build with lead generation and <b>4 successful events</b> — including the <b>first and largest Red Sea expo in Egypt</b>, a major real-estate show, and a family fun day.</p>
@@ -701,32 +700,6 @@ body.menu-locked{overflow:hidden}
         <p>Billboards, social-media branding, and outdoor campaigns for the launch.</p>
         <div class="tags"><span>Billboards</span><span>Social</span><span>Design</span></div>
       </article>
-    </div>
-
-    <div class="clients-head rv">
-      <span class="label">Selected clients</span>
-      <span class="label">Content · Video · Design · Copy · Events</span>
-    </div>
-    <div class="clients rv">
-        <div class="client"><div class="cn">Arafa Roby</div><div class="ck">Content · Design</div></div>
-        <div class="client"><div class="cn">Set El Habayeb</div><div class="ck">Campaign · Morocco</div></div>
-        <div class="client"><div class="cn">Zeitoun</div><div class="ck">Content · Design</div></div>
-        <div class="client"><div class="cn">Margins</div><div class="ck">Content · Design</div></div>
-        <div class="client"><div class="cn">Capital Hills</div><div class="ck">Real Estate</div></div>
-        <div class="client"><div class="cn">Sheraton</div><div class="ck">Hospitality</div></div>
-        <div class="client"><div class="cn">Cashcow</div><div class="ck">Content · Video</div></div>
-        <div class="client"><div class="cn">Grow</div><div class="ck">Video</div></div>
-        <div class="client"><div class="cn">Magna</div><div class="ck">Content · Design</div></div>
-        <div class="client"><div class="cn">Qurtoba</div><div class="ck">Content · Design</div></div>
-        <div class="client"><div class="cn">Raq</div><div class="ck">Video</div></div>
-        <div class="client"><div class="cn">Naval Academy</div><div class="ck">Institutional</div></div>
-        <div class="client"><div class="cn">Ripple Summit</div><div class="ck">Event</div></div>
-        <div class="client"><div class="cn">Shima</div><div class="ck">Direction · Video</div></div>
-        <div class="client"><div class="cn">Astella</div><div class="ck">Brand · France</div></div>
-        <div class="client"><div class="cn">Majestic</div><div class="ck">Brand · USA</div></div>
-        <div class="client"><div class="cn">Pharmacon</div><div class="ck">Pharma</div></div>
-        <div class="client"><div class="cn">Xeedia Pharma</div><div class="ck">Pharma</div></div>
-        <div class="client"><div class="cn">Zeta Pharma</div><div class="ck">Pharma</div></div>
     </div>
   </div>
 </section>
