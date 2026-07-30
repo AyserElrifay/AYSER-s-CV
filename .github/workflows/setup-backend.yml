@@ -1,0 +1,154 @@
+name: Set up Moments backend
+
+# One button that finishes the backend, so nobody has to click through
+# the Supabase dashboard by hand:
+#
+#   1. runs supabase/RUN_ME.sql against the database (story comments,
+#      map covers, notification de-duping — all idempotent, safe twice)
+#   2. deploys the bardi-chat Edge Function
+#   3. sets its secrets (ALLOWED_ORIGIN, and GROQ_API_KEY if provided)
+#   4. calls the function once for real and checks Bardi answers
+#
+# Manual only — this never fires on a push.
+#
+# Required repository secret:
+#   SUPABASE_ACCESS_TOKEN  — Supabase → Account → Access Tokens →
+#                            "Generate new token" (starts with sbp_)
+# Optional repository secret:
+#   GROQ_API_KEY           — free key from console.groq.com (gsk_...).
+#                            Without it Bardi has no provider and the
+#                            smoke test will say so plainly.
+#
+# Nothing here ever prints a secret: GitHub masks registered secrets in
+# logs, and no step echoes a token or a key.
+
+on:
+  workflow_dispatch:
+    inputs:
+      project_ref:
+        description: 'Supabase project ref'
+        required: true
+        default: 'dvddiyztpyyuultndzso'
+      site_origin:
+        description: 'Origin allowed to call bardi-chat (CORS)'
+        required: true
+        default: 'https://ayserelrifay.github.io'
+      run_sql:
+        description: 'Run supabase/RUN_ME.sql'
+        type: boolean
+        default: true
+      deploy_function:
+        description: 'Deploy the bardi-chat Edge Function'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-setup
+  cancel-in-progress: false
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      REF: ${{ inputs.project_ref }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the access token is present
+        run: |
+          if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then
+            echo "::error::Repository secret SUPABASE_ACCESS_TOKEN is missing."
+            echo "Add it at Settings → Secrets and variables → Actions → New repository secret."
+            echo "Get the value from https://supabase.com/dashboard/account/tokens"
+            exit 1
+          fi
+          echo "Access token found."
+
+      # The Management API runs SQL with the account token, so the
+      # database password is never needed here.
+      - name: Run RUN_ME.sql on the database
+        if: ${{ inputs.run_sql }}
+        run: |
+          set -euo pipefail
+          jq -Rs '{query: .}' supabase/RUN_ME.sql > /tmp/q.json
+          code=$(curl -sS -o /tmp/sql.out -w '%{http_code}' \
+            -X POST "https://api.supabase.com/v1/projects/$REF/database/query" \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+            -H 'Content-Type: application/json' \
+            --data-binary @/tmp/q.json)
+          echo "HTTP $code"
+          # The response body is query output or a SQL error — never a secret.
+          head -c 2000 /tmp/sql.out; echo
+          if [ "$code" != "200" ] && [ "$code" != "201" ]; then
+            echo "::error::The SQL did not apply. The message above says why."
+            exit 1
+          fi
+          echo "Schema applied."
+
+      - name: Install the Supabase CLI
+        if: ${{ inputs.deploy_function }}
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Deploy bardi-chat
+        if: ${{ inputs.deploy_function }}
+        run: |
+          set -euo pipefail
+          supabase functions deploy bardi-chat --project-ref "$REF" --no-verify-jwt
+          echo "Function deployed."
+
+      # Set after deploy so the very first invocation already has them.
+      - name: Set the function's secrets
+        if: ${{ inputs.deploy_function }}
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          SITE_ORIGIN: ${{ inputs.site_origin }}
+        run: |
+          set -euo pipefail
+          supabase secrets set --project-ref "$REF" "ALLOWED_ORIGIN=$SITE_ORIGIN" > /dev/null
+          echo "ALLOWED_ORIGIN set to $SITE_ORIGIN"
+          if [ -n "${GROQ_API_KEY:-}" ]; then
+            supabase secrets set --project-ref "$REF" "GROQ_API_KEY=$GROQ_API_KEY" > /dev/null
+            echo "GROQ_API_KEY set."
+          else
+            echo "::warning::No GROQ_API_KEY secret — Bardi will have no provider until one is added."
+          fi
+
+      # Prove it actually works rather than assuming a green deploy means
+      # a working Bardi. Secrets can take a few seconds to propagate, so
+      # this retries before giving up.
+      - name: Ask Bardi a real question
+        if: ${{ inputs.deploy_function }}
+        run: |
+          set -uo pipefail
+          url="https://$REF.supabase.co/functions/v1/bardi-chat"
+          body='{"messages":[{"role":"user","content":"Say hi in one short sentence."}],"language":"en"}'
+          for i in 1 2 3 4 5; do
+            code=$(curl -sS -o /tmp/bardi.out -w '%{http_code}' -m 45 \
+              -X POST "$url" -H 'Content-Type: application/json' --data "$body" || echo 000)
+            if [ "$code" = "200" ]; then
+              echo "Bardi replied:"
+              jq -r '.reply' /tmp/bardi.out
+              exit 0
+            fi
+            echo "attempt $i → HTTP $code"
+            head -c 600 /tmp/bardi.out; echo
+            sleep 10
+          done
+          echo "::error::bardi-chat is deployed but did not answer. The status and message above say why (503 = no provider key set)."
+          exit 1
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### Moments backend"
+            echo ""
+            echo "- Database schema: ${{ inputs.run_sql && 'applied' || 'skipped' }}"
+            echo "- bardi-chat: ${{ inputs.deploy_function && 'deployed' || 'skipped' }}"
+          } >> "$GITHUB_STEP_SUMMARY"
