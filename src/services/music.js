@@ -13,7 +13,16 @@ export const OWNER_EMAILS = ['ayseryourlifecoach@gmail.com'];
 export const isOwner = (user) => !!(user && user.email && OWNER_EMAILS.includes(String(user.email).toLowerCase()));
 
 export async function fetchTracks({ mood, bpmMin, bpmMax, instrument, meId, all } = {}) {
-  let q = supabase.from('tracks').select('*, uploader:profiles!tracks_uploader_id_fkey(name, handle)').order('uses_count', { ascending: false }).limit(80);
+  /* The limit used to be 80 with the most-played first, which meant a
+     catalogue of 300 showed the same 80 lofi loops and everything
+     imported since - every classic, every Arabic record - was cut off
+     before it was ever fetched. Newest first, and a limit that covers
+     the whole library, so what was just added is what you see. */
+  let q = supabase
+    .from('tracks')
+    .select('*, uploader:profiles!tracks_uploader_id_fkey(name, handle)')
+    .order('created_at', { ascending: false })
+    .limit(500);
   if (mood) q = q.eq('mood', mood);
   if (bpmMin != null) q = q.gte('bpm', bpmMin);
   if (bpmMax != null) q = q.lte('bpm', bpmMax);

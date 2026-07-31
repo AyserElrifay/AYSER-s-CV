@@ -58,6 +58,25 @@ export const ChillScreen = () => {
   const { playTrack, current } = usePlayer();
   const [tracks, setTracks] = useState(null);
   const [hubOpen, setHubOpen] = useState(false);
+  /* A taste of the whole library rather than the top of one pile:
+     take a couple from each mood so classics, chill and hype are all
+     represented in the twelve rows this strip has room for. */
+  const listenSample = React.useMemo(() => {
+    const byMood = new Map();
+    (tracks || []).forEach((t) => {
+      const k = String(t.mood || 'Other');
+      const arr = byMood.get(k) || [];
+      if (arr.length < 3) { arr.push(t); byMood.set(k, arr); }
+    });
+    const out = [];
+    let round = 0;
+    while (out.length < 12 && round < 3) {
+      byMood.forEach((arr) => { if (arr[round] && out.length < 12) out.push(arr[round]); });
+      round++;
+    }
+    return out.length ? out : (tracks || []).slice(0, 12);
+  }, [tracks]);
+
   const toTrack = (t) => ({
     id: t.id, title: t.title, artist: t.artist || t.genre_shape || 'indie',
     emoji: t.cover_emoji || '🎵', audio_url: t.audio_url,
@@ -159,7 +178,7 @@ export const ChillScreen = () => {
         </Glass>
       ) : (
         <Glass style={{ padding: 6, marginBottom: 24 }}>
-          {tracks.slice(0, 12).map((t, i) => {
+          {listenSample.map((t, i) => {
             const on = current && current.id === t.id;
             return (
               <Pressable key={t.id} onPress={() => { tapLight(); sfxPop(); playFrom(i); }}>
