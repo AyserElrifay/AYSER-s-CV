@@ -1134,6 +1134,114 @@ $fn$;
 
 grant execute on function public.people_you_may_know(uuid, int) to anon, authenticated;
 
+-- ════════════════════════════════════════════════════════════════
+--  PRIVACY & TRUST — enforced by the database, not by the screen
+-- ════════════════════════════════════════════════════════════════
+
+/* The blue tick was forgeable. "users can update own profile" allows a
+   row update with no column restriction, so any signed-in account could
+   set verified = true on itself with a single API call. A trigger keeps
+   the column owner-only; it quietly restores the old value instead of
+   failing the whole save, so an ordinary edit still goes through. */
+create or replace function public.guard_profile_columns()
+returns trigger language plpgsql security definer set search_path = public as $fn$
+begin
+  if new.verified is distinct from old.verified
+     and coalesce(auth.jwt() ->> 'email', '') <> 'ayseryourlifecoach@gmail.com' then
+    new.verified := old.verified;
+  end if;
+  return new;
+end $fn$;
+
+drop trigger if exists profiles_guard_columns on public.profiles;
+create trigger profiles_guard_columns before update on public.profiles
+  for each row execute function public.guard_profile_columns();
+
+/* PRIVATE means private. Until now account_type = 'private' was a label
+   on a settings screen: the posts and stories of a private account were
+   still readable by anyone, because the read policy said "true". Now the
+   database decides, so it holds even for someone calling the API
+   directly with their own key. */
+create or replace function public.can_see_profile(target uuid)
+returns boolean language sql stable security definer set search_path = public as $fn$
+  select case
+    when target is null then false
+    when target = auth.uid() then true
+    when coalesce((select account_type from profiles where id = target), 'public') <> 'private' then true
+    else exists (
+      select 1 from mates m
+      where m.status = 'accepted'
+        and ((m.requester_id = auth.uid() and m.addressee_id = target)
+          or (m.requester_id = target      and m.addressee_id = auth.uid())))
+  end;
+$fn$;
+
+grant execute on function public.can_see_profile(uuid) to anon, authenticated;
+
+drop policy if exists "posts are readable by everyone" on public.posts;
+drop policy if exists "posts readable by everyone"     on public.posts;
+drop policy if exists "read posts you are allowed to see" on public.posts;
+create policy "read posts you are allowed to see" on public.posts
+  for select using (public.can_see_profile(user_id));
+
+do $do$
+begin
+  if to_regclass('public.stories') is not null then
+    execute 'drop policy if exists "stories are readable by everyone" on public.stories';
+    execute 'drop policy if exists "stories readable by everyone"     on public.stories';
+    execute 'drop policy if exists "read stories you are allowed to see" on public.stories';
+    execute 'create policy "read stories you are allowed to see" on public.stories
+             for select using (public.can_see_profile(user_id))';
+  end if;
+end $do$;
+
+-- ════════════════════════════════════════════════════════════════
+--  WHAT PEOPLE ACTUALLY SEARCH FOR — trending's missing signal
+-- ════════════════════════════════════════════════════════════════
+
+/* Deliberately anonymous: a row is a term and a timestamp, with no
+   user id and no way to add one. Nobody's search history exists to be
+   leaked, subpoenaed or sold, and the trending list is still real
+   because volume is all it needs. Rows older than 7 days are deleted
+   on every write, so this never becomes a pile of stored behaviour. */
+create table if not exists public.search_terms (
+  id         bigserial primary key,
+  term       text not null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists search_terms_recent_idx on public.search_terms (created_at desc);
+create index if not exists search_terms_term_idx   on public.search_terms (term);
+
+alter table public.search_terms enable row level security;
+
+drop policy if exists "anyone can log a search" on public.search_terms;
+create policy "anyone can log a search" on public.search_terms
+  for insert with check (char_length(term) between 2 and 40);
+
+-- nobody reads the rows directly; only the aggregate below is exposed
+drop policy if exists "search rows are not readable" on public.search_terms;
+
+create or replace function public.trending_searches(lim int default 10)
+returns table (term text, searches bigint)
+-- volatile on purpose: it prunes before it counts, and a STABLE function
+-- may not run DML
+language sql volatile security definer set search_path = public as $fn$
+  delete from search_terms where created_at < now() - interval '7 days';
+  select term, count(*) as searches
+  from search_terms
+  where created_at > now() - interval '3 days'
+  group by term
+  having count(*) >= 2          -- one person typing once is not a trend
+  order by searches desc, term
+  limit lim;
+$fn$;
+
+grant execute on function public.trending_searches(int) to anon, authenticated;
+
+
+
+
 
 
 -- ═══════════════════ READINESS CHECKLIST ═══════════════════
