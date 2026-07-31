@@ -8,7 +8,7 @@ import { fetchReports, setReportStatus } from '../services/reports';
 import { fetchFeedback, markFeedbackSeen } from '../services/feedback';
 import { fetchStudioStats } from '../services/feedback';
 import { fetchPendingVerifications, decideVerification } from '../services/profiles';
-import { fetchTracks, setTrackApproval } from '../services/music';
+import { fetchTracks, setTrackApproval, harvestFreeMusic, harvestPublicDomainClassics } from '../services/music';
 import { fetchHelpArticles, createHelpArticle, updateHelpArticle, deleteHelpArticle } from '../services/help';
 import { fetchBardiConfig, saveBardiConfig, fetchBardiKnowledge, addBardiKnowledge, deleteBardiKnowledge, invalidateBardiBrain } from '../services/bardiOwner';
 import { askBardi } from '../services/bardi';
@@ -37,6 +37,9 @@ export const AdminPanel = ({ onClose }) => {
   const [reports, setReports] = useState(null);
   const [verifs, setVerifs] = useState(null);
   const [music, setMusic] = useState(null);
+  const [importing, setImporting] = useState(null);
+  const [imported, setImported] = useState(0);
+  const [importErr, setImportErr] = useState(null);
   const [feedback, setFeedback] = useState(null);
   const [help, setHelp] = useState(null);
   const [helpEdit, setHelpEdit] = useState(null); // 'new' | article row | null
@@ -253,7 +256,55 @@ export const AdminPanel = ({ onClose }) => {
           ) : null}
 
           {tab === 'music' ? (
-            music == null ? <ActivityIndicator color={C.purple} style={{ marginTop: 30 }} /> :
+            <>
+              {/* The catalogue tools live here, not in the listener's
+                  Music screen. Importing pulls only CC0, Creative
+                  Commons, or recordings old enough to be out of
+                  copyright — the year filter on the classics import is
+                  what keeps that promise honest. */}
+              <View style={{ backgroundColor: C.bg2, borderWidth: 1, borderColor: C.line, borderRadius: 14, padding: 12, marginBottom: 14 }}>
+                <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '900' }}>Grow the library</Text>
+                <Text style={{ color: C.faint, fontSize: 11.5, lineHeight: 17, marginTop: 3 }}>
+                  Everything imported is free to use. Credit is stored either way.
+                </Text>
+                <View style={{ flexDirection: 'row', marginTop: 10 }}>
+                  <Pressable
+                    disabled={!!importing}
+                    onPress={async () => {
+                      setImporting('cc'); setImported(0);
+                      try { const n = await harvestFreeMusic(user && user.id, setImported); setImported(n); }
+                      catch (e) { setImportErr(e && e.message); }
+                      finally { setImporting(null); }
+                    }}
+                    style={{ flex: 1, marginRight: 8, backgroundColor: C.purple, borderRadius: 999, paddingVertical: 10, alignItems: 'center', opacity: importing ? 0.5 : 1 }}
+                  >
+                    <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '900' }}>
+                      {importing === 'cc' ? 'Importing…' : 'Creative Commons'}
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    disabled={!!importing}
+                    onPress={async () => {
+                      setImporting('pd'); setImported(0);
+                      try { const n = await harvestPublicDomainClassics(user && user.id, setImported); setImported(n); }
+                      catch (e) { setImportErr(e && e.message); }
+                      finally { setImporting(null); }
+                    }}
+                    style={{ flex: 1, backgroundColor: C.glassHi, borderRadius: 999, paddingVertical: 10, alignItems: 'center', opacity: importing ? 0.5 : 1 }}
+                  >
+                    <Text style={{ color: C.text, fontSize: 12.5, fontWeight: '900' }}>
+                      {importing === 'pd' ? 'Importing…' : '📻 Pre-1929 classics'}
+                    </Text>
+                  </Pressable>
+                </View>
+                {importing || imported ? (
+                  <Text style={{ color: C.dim, fontSize: 11.5, marginTop: 8 }}>{imported} added so far</Text>
+                ) : null}
+                {importErr ? (
+                  <Text style={{ color: C.coral, fontSize: 11.5, marginTop: 6 }}>{importErr}</Text>
+                ) : null}
+              </View>
+            {music == null ? <ActivityIndicator color={C.purple} style={{ marginTop: 30 }} /> :
             music.length === 0 ? <Empty t="No tracks waiting for approval" /> :
             music.map((t) => (
               <View key={t.id} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.line }}>
@@ -269,7 +320,8 @@ export const AdminPanel = ({ onClose }) => {
                   <View style={{ borderRadius: 999, backgroundColor: C.green, paddingHorizontal: 13, paddingVertical: 7 }}><Text style={{ color: '#FFF', fontSize: 12, fontWeight: '900' }}>Approve</Text></View>
                 </Pressable>
               </View>
-            ))
+            ))}
+            </>
           ) : null}
 
           {tab === 'feedback' ? (

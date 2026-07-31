@@ -130,6 +130,65 @@ async function harvestArchive(userId, have, onAdded) {
   return insertBatch(rows, onAdded);
 }
 
+/* Source 3 — the old records. Recordings published before 1929 are out
+   of copyright in the US, and the Internet Archive's Great 78 Project
+   has digitised tens of thousands of them: jazz, tango, oud, tarab,
+   swing. These are the "old songs nobody owns any more" — free to
+   stream and free to use, with the original label and year kept as
+   attribution because it is the honest thing to show even when no
+   licence demands it.
+
+   The year filter is the whole safety argument: nothing later than
+   1928 is imported, so a still-copyrighted recording can't slip in on
+   a mislabelled licence field. */
+const PD_COLLECTIONS = ['georgeblood', '78rpm'];
+const PD_QUERIES = ['jazz', 'tango', 'oud', 'arabic', 'waltz', 'swing', 'blues', 'classical'];
+
+export async function harvestPublicDomainClassics(userId, onProgress) {
+  const { data: existing } = await supabase.from('tracks').select('audio_url').not('audio_url', 'is', null).limit(4000);
+  const have = new Set((existing || []).map((r) => r.audio_url));
+  let added = 0;
+
+  for (const genre of PD_QUERIES) {
+    const q = `collection:(${PD_COLLECTIONS.join(' OR ')}) AND mediatype:audio AND year:[1900 TO 1928] AND ${genre}`;
+    let docs = [];
+    try {
+      const r = await fetch('https://archive.org/advancedsearch.php?q=' + encodeURIComponent(q) +
+        '&fl[]=identifier&fl[]=title&fl[]=creator&fl[]=year&rows=12&sort[]=downloads+desc&output=json');
+      if (r.ok) { const j = await r.json(); docs = (j.response && j.response.docs) || []; }
+    } catch (e) { continue; }
+
+    const rows = [];
+    for (const d of docs) {
+      try {
+        const m = await fetch('https://archive.org/metadata/' + encodeURIComponent(d.identifier));
+        if (!m.ok) continue;
+        const meta = await m.json();
+        const year = parseInt((meta.metadata && meta.metadata.year) || d.year || '0', 10);
+        if (!year || year > 1928) continue;   // the line we do not cross
+        const file = (meta.files || []).find((f) => /\.mp3$/i.test(f.name || ''));
+        if (!file) continue;
+        const url = 'https://archive.org/download/' + d.identifier + '/' + encodeURIComponent(file.name);
+        if (have.has(url)) continue;
+        have.add(url);
+        rows.push({
+          uploader_id: userId, is_official: true, is_approved: true,
+          title: String(d.title || file.title || 'Untitled').slice(0, 80),
+          artist: String((Array.isArray(d.creator) ? d.creator[0] : d.creator) || 'Unknown').slice(0, 60),
+          audio_url: url, cover_emoji: '📻', mood: 'Classics',
+          license: 'Public Domain (pre-1929)',
+          attribution: String(d.title || 'Recording') + ' · ' + year + ' · Internet Archive (Public Domain)',
+          source_url: 'https://archive.org/details/' + d.identifier,
+          duration_sec: file.length ? Math.round(parseFloat(file.length)) : null,
+        });
+      } catch (e) {}
+    }
+    added += await insertBatch(rows, () => {});
+    onProgress && onProgress(added);
+  }
+  return added;
+}
+
 /* Harvest from every source with a real API. Pixabay/FMA/Incompetech have
    no music API, so those are added manually via the URL button. */
 export async function harvestFreeMusic(userId, onProgress) {

@@ -280,8 +280,10 @@ export const ChillScreen = () => {
 
     {/* Music Hub — browse / upload / license; picking a track plays it here */}
     {hubOpen ? (
+      /* No onPick here: tapping a track in the sheet already plays it.
+         A "Use" button only belongs where a track is being chosen FOR
+         something — the reel composer. */
       <MusicHubSheet
-        onPick={(s) => playTrack({ id: s.id, title: s.title, artist: s.artist, emoji: s.emoji, audio_url: s.audio_url, attribution: s.attribution, license: s.license }, [{ id: s.id, title: s.title, artist: s.artist, emoji: s.emoji, audio_url: s.audio_url, attribution: s.attribution, license: s.license }], 0)}
         onClose={() => { setHubOpen(false); if (SUPABASE_READY) fetchTracks().then((rows) => setTracks((rows || []).map(toTrack))).catch(() => {}); }}
       />
     ) : null}
