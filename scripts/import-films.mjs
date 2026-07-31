@@ -92,6 +92,40 @@ const APPLE_TERMS = [
 ];
 const APPLE_STORES = ['eg', 'us', 'gb', 'ae'];
 
+/* Apple's genre names aren't the app's. "Action & Adventure" would
+   never match the Action chip, so a shelf tap would come back empty
+   from a catalogue that was actually full. Each Apple name carries its
+   own label plus whatever the app calls the same thing. */
+const APPLE_GENRE = {
+  'Action & Adventure': ['Action', 'Adventure'],
+  'Sci-Fi & Fantasy': ['Science Fiction', 'Fantasy'],
+  'Kids & Family': ['Family', 'Animation'],
+  'Comedy': ['Comedy'],
+  'Drama': ['Drama'],
+  'Romance': ['Romance'],
+  'Horror': ['Horror'],
+  'Thriller': ['Thriller'],
+  'Documentary': ['Documentary'],
+  'Animation': ['Animation'],
+  'Classics': ['Classics'],
+  'Independent': ['Independent'],
+  'Foreign': ['Foreign'],
+  'Music Documentaries': ['Music', 'Documentary'],
+  'Music Videos': ['Music'],
+  'Sports': ['Sport'],
+  'Western': ['Western'],
+  'Holiday': ['Family'],
+  'Special Interest': [],
+  'Made for TV': [],
+};
+const appleGenres = (name) => {
+  if (!name) return [];
+  const mapped = APPLE_GENRE[name];
+  const out = mapped ? mapped.slice() : [name];
+  if (mapped && !out.includes(name) && name !== 'Special Interest' && name !== 'Made for TV') out.push(name);
+  return out;
+};
+
 async function fromApple() {
   for (const country of APPLE_STORES) {
     for (const term of APPLE_TERMS) {
@@ -115,7 +149,7 @@ async function fromApple() {
           // Apple serves any size from the same path — ask for one worth looking at
           poster_url: art ? art.replace(/\/\d+x\d+bb\.(jpg|png)$/, '/600x600bb.jpg') : null,
           backdrop_url: art ? art.replace(/\/\d+x\d+bb\.(jpg|png)$/, '/1200x1200bb.jpg') : null,
-          genres: m.primaryGenreName ? [m.primaryGenreName] : [],
+          genres: appleGenres(m.primaryGenreName),
           rating: null,                       // Apple publishes no score — we invent none
           language: hasArabic(m.trackName) || country === 'eg' ? 'ar' : 'en',
           popularity: Math.round((rank / Math.max(1, list.length)) * 100) / 10,
@@ -123,7 +157,7 @@ async function fromApple() {
         rank -= 1;
       }
       console.log(`apple ${country} "${term}" → ${rows.length} collected`);
-      await sleep(220);                        // be a polite guest
+      await sleep(1200);                       // Apple throttles hard — go at its pace
     }
   }
 }
