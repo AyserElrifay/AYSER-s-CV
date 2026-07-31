@@ -826,8 +826,10 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
      way to know. This warns, it never blocks — a genuinely dark night
      clip is still the user's to post. */
   const [clipWarn, setClipWarn] = useState(null);
+  const [firstFrame, setFirstFrame] = useState(null);   // a real frame from the clip
+  const [playErr, setPlayErr] = useState(null);         // why the preview won't play
   const probeClip = (uri) => {
-    setClipWarn(null);
+    setClipWarn(null); setFirstFrame(null); setPlayErr(null);
     if (!isWeb || !uri) return;
     let done = false;
     const el = document.createElement('video');
@@ -848,13 +850,27 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
           if (d[i + 1] > peak) peak = d[i + 1];
           if (d[i + 2] > peak) peak = d[i + 2];
         }
+        /* Keep the frame. If the browser then refuses to play the clip
+           back — which is a different failure from a bad recording —
+           this still shows the person their own shot instead of a
+           black rectangle, and it tells the two failures apart:
+           a picture here with a black preview means playback, a black
+           picture means the recording. */
+        if (peak >= 10) {
+          const big = document.createElement('canvas');
+          big.width = Math.min(720, w); big.height = Math.round(big.width * (h / w));
+          big.getContext('2d').drawImage(el, 0, 0, big.width, big.height);
+          try { setFirstFrame(big.toDataURL('image/jpeg', 0.82)); } catch (e) {}
+        }
         finish(peak < 10 ? 'This clip came out completely black. Record it again — and check the camera isn\'t covered 🎥' : null);
       } catch (e) { finish(null); } // cross-origin frame we can't read: say nothing
     };
     el.onloadeddata = () => { try { el.currentTime = Math.min(0.25, (el.duration || 1) / 4); } catch (e) { grab(); } };
     el.onseeked = grab;
     el.onerror = () => finish('This video won\'t play here — try a different clip or record a new one.');
-    setTimeout(() => finish(null), 6000); // never leave a spinner-ish state behind
+    /* If six seconds pass and we learned nothing, say that — a silent
+       give-up is what left a black rectangle with no explanation. */
+    setTimeout(() => finish(done ? null : 'This clip didn’t open in the browser. It may still post fine — or record a new one to be sure.'), 6000);
   };
 
   const stopRecording = () => {
@@ -1122,7 +1138,24 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
           shot.kind === 'video' && isWeb ? (
             /* muted is required for iOS to autoplay the preview at all —
                without it Safari shows a black frame */
-            <video src={shot.uri} autoPlay muted loop playsInline controls={false} style={{ position: 'absolute', width: '100%', height: '100%', objectFit: 'cover', filter: cssFilter }} />
+            <video
+              src={shot.uri}
+              poster={firstFrame || undefined}
+              autoPlay muted loop playsInline controls={false}
+              ref={(el) => {
+                if (!el || el.__wired) return;
+                el.__wired = true;
+                // iOS wants muted set as a property, and a nudge, before
+                // it will start a blob on its own
+                el.muted = true;
+                el.play().catch((e) => setPlayErr((e && e.name) || 'blocked'));
+                el.onerror = () => {
+                  const c = el.error && el.error.code;
+                  setPlayErr(c === 4 ? 'format' : c === 3 ? 'decode' : c === 2 ? 'network' : 'unknown');
+                };
+              }}
+              style={{ position: 'absolute', width: '100%', height: '100%', objectFit: 'cover', filter: cssFilter }}
+            />
           ) : isWeb ? (
             // raw <img> so the chosen filter shows LIVE in the preview
             <img src={shot.uri} style={{ position: 'absolute', width: '100%', height: '100%', objectFit: 'cover', filter: cssFilter }} alt="" />
@@ -1257,6 +1290,19 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
         {camError ? (
           <View style={{ position: 'absolute', top: insets.top + 60, left: 24, right: 24, backgroundColor: 'rgba(0,0,0,0.75)', borderRadius: 14, padding: 14 }}>
             <Text style={{ color: '#FFF', fontSize: 13, textAlign: 'center' }}>{camError}</Text>
+          </View>
+        ) : null}
+
+        {/* The browser has the clip but won't play it. The frame above is
+            real, so the recording is fine and posting it is safe — this
+            just explains why it isn't moving. */}
+        {playErr && !clipWarn && shot && shot.kind === 'video' ? (
+          <View style={{ position: 'absolute', top: insets.top + 60, left: 24, right: 24, backgroundColor: 'rgba(0,0,0,0.8)', borderRadius: 14, padding: 13 }}>
+            <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '700', textAlign: 'center', lineHeight: 18 }}>
+              {firstFrame
+                ? 'Safari won\u2019t play this clip back here (' + playErr + '), but your shot is fine — the frame above is really it. Posting works.'
+                : 'This clip won\u2019t play in the browser (' + playErr + '). Try recording a new one.'}
+            </Text>
           </View>
         ) : null}
 

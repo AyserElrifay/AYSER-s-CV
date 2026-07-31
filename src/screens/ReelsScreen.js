@@ -144,7 +144,15 @@ export const ReelsScreen = () => {
         <ImageBackground source={{ uri: isVideo(item.media) ? undefined : item.media }} style={{ height: pageH, justifyContent: 'flex-end' }} resizeMode="cover">
           {/* real reels can be video — play it fullscreen behind the UI (web) */}
           {isVideo(item.media) && Platform.OS === 'web' ? (
-            <video src={item.media} autoPlay loop muted playsInline style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+            <video
+              src={item.media}
+              autoPlay loop muted playsInline preload="metadata"
+              /* iOS starts a video on its own only when muted is a real
+                 property and something asks it to play; without this a
+                 posted reel shows as a black rectangle that never moves */
+              ref={(el) => { if (el && !el.__wired) { el.__wired = true; el.muted = true; el.play().catch(() => {}); } }}
+              style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+            />
           ) : null}
           {/* gold star burst on double-tap */}
           {burstId === item.id ? (

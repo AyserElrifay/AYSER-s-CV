@@ -45,7 +45,8 @@ export const ReelsViewer = ({ reels, startIndex = 0, vibes, onVibe, onComment, o
           {/* muted+playsInline = iOS actually autoplays it */}
           <video
             src={item.media}
-            autoPlay muted loop playsInline
+            autoPlay muted loop playsInline preload="metadata"
+            ref={(el) => { if (el && !el.__wired) { el.__wired = true; el.muted = true; el.play().catch(() => {}); } }}
             style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
           />
           {inner(item, vibed)}
