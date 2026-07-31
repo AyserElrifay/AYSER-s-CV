@@ -6,7 +6,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { C } from '../constants/theme';
 import { SOUNDS, ME, AV_NEUTRAL } from '../constants/mockData';
-import { SUPABASE_READY } from '../lib/supabase';
+import { SUPABASE_READY, supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LanguageContext';
 import { createPost } from '../services/posts';
@@ -1441,6 +1441,14 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
             ? await uploadCapture(user.id, workingShot.blob || workingShot.uri, workingShot.ext, workingShot.contentType)
             : await uploadMedia(user.id, workingShot.uri);
         if (alreadyUp && shot.libraryId) markUsed(shot.libraryId);
+        /* Everything you shoot lands in your library too, so the clip
+           you just posted can be posted again somewhere else without
+           uploading it a second time. */
+        else if (mediaUrl) {
+          supabase.from('media_library')
+            .insert({ user_id: user.id, url: mediaUrl, kind: workingShot.kind === 'video' ? 'video' : 'photo', bytes: workingShot.bytes || null })
+            .then(() => {}, () => {});
+        }
         if (mode === 'story') {
           const sticker = stickerType === 'poll' && pollQ.trim() && pollA.trim() && pollB.trim()
             ? { type: 'poll', data: { question: pollQ.trim(), options: [pollA.trim(), pollB.trim()] } }

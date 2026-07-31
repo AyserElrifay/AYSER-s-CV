@@ -18,6 +18,8 @@ export const PlayerProvider = ({ children }) => {
   const audioRef = useRef(null);
   const queueRef = useRef([]);
   const [current, setCurrent] = useState(null); // the playing track
+  const currentRef = useRef(null);
+  const [failed, setFailed] = useState({});    // ids whose file would not load
   const [index, setIndex] = useState(-1);
   const [queue, setQueue] = useState([]);
   const [playing, setPlaying] = useState(false);
@@ -35,12 +37,22 @@ export const PlayerProvider = ({ children }) => {
     const onTime = () => setPosition(a.currentTime || 0);
     const onMeta = () => setDuration(a.duration || 0);
     const onEnd = () => nextRef.current && nextRef.current();
+    const onFail = () => {
+      setPlaying(false);
+      setFailed((f) => (currentRef.current ? { ...f, [currentRef.current.id]: true } : f));
+      // one dead file shouldn't end the listening
+      if (queueRef.current.length > 1 && nextRef.current) nextRef.current();
+    };
     const onPlay = () => setPlaying(true);
     const onPause = () => setPlaying(false);
     a.addEventListener('timeupdate', onTime);
     a.addEventListener('loadedmetadata', onMeta);
     a.addEventListener('durationchange', onMeta);
     a.addEventListener('ended', onEnd);
+    /* A file that won't load is not a reason to sit in silence: skip to
+       the next one and say what happened, instead of leaving a play
+       button that does nothing. */
+    a.addEventListener('error', onFail);
     a.addEventListener('play', onPlay);
     a.addEventListener('pause', onPause);
     return () => {
@@ -49,6 +61,7 @@ export const PlayerProvider = ({ children }) => {
       a.removeEventListener('loadedmetadata', onMeta);
       a.removeEventListener('durationchange', onMeta);
       a.removeEventListener('ended', onEnd);
+      a.removeEventListener('error', onFail);
       a.removeEventListener('play', onPlay);
       a.removeEventListener('pause', onPause);
     };
@@ -56,6 +69,7 @@ export const PlayerProvider = ({ children }) => {
 
   const loadAndPlay = useCallback((track) => {
     if (!track) return;
+    currentRef.current = track;
     setCurrent(track);
     setPosition(0);
     setDuration(0);
@@ -127,7 +141,7 @@ export const PlayerProvider = ({ children }) => {
 
   const value = {
     current, queue, index, playing, position, duration, shuffle, showFull,
-    playTrack, toggle, next, prev, seek, close,
+    playTrack, toggle, next, prev, seek, close, failed,
     setShuffle: () => setShuffle((s) => !s),
     openFull: () => setShowFull(true),
     closeFull: () => setShowFull(false),

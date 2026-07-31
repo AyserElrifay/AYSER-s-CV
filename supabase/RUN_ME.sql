@@ -1806,6 +1806,53 @@ create policy "the owner can take a post down" on public.posts for delete
 notify pgrst, 'reload schema';
 
 
+
+-- ═══════════ STORIES · owned by this file, not by luck ═══════════
+-- The stories table was only ever created by schema.sql, which this
+-- file does not run. If a project had never had that file pasted into
+-- it, every story anybody posted went nowhere — the insert failed and
+-- the rail forgot it on the next refresh. It lives here now, with the
+-- columns the app actually sends, so a story cannot half-exist.
+
+create table if not exists public.stories (
+  id           uuid primary key default gen_random_uuid(),
+  user_id      uuid not null references public.profiles(id) on delete cascade,
+  media_url    text not null,
+  caption      text,
+  sound_title  text,
+  sound_artist text,
+  created_at   timestamptz not null default now(),
+  expires_at   timestamptz not null default (now() + interval '24 hours')
+);
+
+alter table public.stories add column if not exists sound_url    text;
+alter table public.stories add column if not exists place        text;
+alter table public.stories add column if not exists lat          double precision;
+alter table public.stories add column if not exists lng          double precision;
+alter table public.stories add column if not exists sticker_type text;
+alter table public.stories add column if not exists sticker_data text;
+alter table public.stories add column if not exists comments_off boolean not null default false;
+
+create index if not exists stories_live_idx on public.stories (expires_at desc);
+create index if not exists stories_user_idx on public.stories (user_id, created_at desc);
+
+alter table public.stories enable row level security;
+
+drop policy if exists "users create own stories" on public.stories;
+create policy "users create own stories" on public.stories
+  for insert with check (auth.uid() = user_id);
+
+drop policy if exists "users delete own stories" on public.stories;
+create policy "users delete own stories" on public.stories
+  for delete using (auth.uid() = user_id);
+
+drop policy if exists "change your own story" on public.stories;
+create policy "change your own story" on public.stories
+  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+notify pgrst, 'reload schema';
+
+
 -- ═══════════════════ READINESS CHECKLIST ═══════════════════
 -- Every column below should say TRUE. If chat_ready is FALSE,
 -- also run supabase/schema_v2_live.sql (messages & live map).
@@ -1846,4 +1893,8 @@ select
   (to_regclass('public.highlights')           is not null) as highlights_ready,
   (to_regclass('public.topics')               is not null) as topics_ready,
   (to_regclass('public.media_library')        is not null) as library_ready,
+  (to_regclass('public.stories')              is not null) as stories_ready,
+  exists (select 1 from information_schema.columns
+          where table_schema = 'public' and table_name = 'stories'
+            and column_name = 'sticker_type')                as story_stickers_ready,
   (to_regclass('public.films')                is not null) as films_ready;

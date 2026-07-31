@@ -1,0 +1,43 @@
+name: Check every song still plays
+
+# Archives move things. A URL that worked the day it was imported can
+# be a 404 a month later, and then the app looks broken: you press play
+# on a real song and nothing happens. This asks each one, and anything
+# that is genuinely gone stops being offered.
+#
+# Needs one repository secret: SUPABASE_ACCESS_TOKEN.
+
+on:
+  schedule:
+    - cron: '0 5 * * *'      # 05:00 UTC, after the music top-up
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: 'How many tracks to check this run'
+        required: true
+        default: '4000'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-tracks
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      PROJECT_REF: dvddiyztpyyuultndzso
+      LIMIT: ${{ inputs.limit || '4000' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the secret is there
+        run: |
+          if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then
+            echo "::error::SUPABASE_ACCESS_TOKEN is missing."
+            exit 1
+          fi
+      - name: Ask every track whether it is still there
+        run: node scripts/verify-tracks.mjs

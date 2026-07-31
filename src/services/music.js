@@ -33,8 +33,11 @@ export async function fetchTracks({ mood, bpmMin, bpmMax, instrument, meId, all 
     if (/is_approved|column/i.test(error.message || '')) { const r = await q; return r.data || []; }
     throw error;
   }
-  const rows = data || [];
-  if (all) return rows; // owner moderation view: pending + approved
+  /* A song whose file is genuinely gone is worse than one that isn't
+     there: you press play on a real title and nothing happens. The
+     nightly check marks those, and they stop being offered. */
+  const rows = (data || []).filter((t) => !t.dead);
+  if (all) return data || []; // owner moderation view: pending, approved and dead
   /* The shelves are Moments' own catalogue and nothing else: out of
      copyright, CC0, or licensed. Somebody's personal recording is not
      part of that and never gets browsed alongside it — it reaches
