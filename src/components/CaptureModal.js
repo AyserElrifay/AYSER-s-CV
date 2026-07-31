@@ -1112,6 +1112,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
   /* ── the shutter: tap = photo, hold = video ── */
   const onShutterDown = () => {
     heldRef.current = false;
+    if (isWebKit) return;                 // iPhone: video goes through the camera app
     holdTimer.current = setTimeout(() => { heldRef.current = true; startRecording(); }, 260);
   };
   const onShutterUp = () => {
@@ -1124,14 +1125,42 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
      the picker's blob: URL. Safari cannot reliably fetch its own blob
      URLs back — that is what made a large reel refuse to upload at all
      — and a real File measures and uploads without any of that. */
-  const pickFromDisk = (accept) => new Promise((resolve) => {
+  const pickFromDisk = (accept, capture) => new Promise((resolve) => {
     if (!isWeb || typeof document === 'undefined') return resolve(null);
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = accept;
+    // `capture` opens the phone's own camera instead of its library
+    if (capture) input.setAttribute('capture', capture === true ? 'user' : capture);
     input.onchange = () => resolve((input.files && input.files[0]) || null);
     input.click();
   });
+
+  /* ── VIDEO ON IPHONE ────────────────────────────────────────────────
+     Safari's own recorder hands back a file Safari itself cannot play:
+     4.8 MB on disk, 0×0 on screen, readyState 0 — which is exactly why
+     reels came out black and would not post. That is a browser defect
+     we cannot patch from here, so on WebKit we stop asking it to
+     record and hand the job to the camera app, which produces an
+     ordinary video that plays and uploads everywhere.
+
+     The cost is honest: a lens or a filter can't be burned into a clip
+     the phone records for us. A working reel beats a filtered black
+     rectangle, and photos keep every effect. */
+  const recordWithPhone = async () => {
+    try {
+      const file = await pickFromDisk('video/*', 'environment');
+      if (!file) return;
+      if (!(await videoFits(file))) return;
+      const mime = file.type || 'video/mp4';
+      const ext = (String(file.name || '').split('.').pop() || 'mp4').toLowerCase();
+      const uri = URL.createObjectURL(file);
+      setShot({ uri, blob: file, bytes: file.size, kind: 'video', ext, contentType: mime });
+      probeClip(uri);
+    } catch (e) {
+      setCamError('Could not open the camera — try the gallery button.');
+    }
+  };
 
   /* ── gallery: upload a photo or video from your library into a
      story/reel — with the full sound rail available in preview ── */
@@ -1809,11 +1838,26 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
                         <View style={{ width: recording ? 34 : 62, height: recording ? 34 : 62, borderRadius: recording ? 9 : 31, backgroundColor: recording ? C.coral : '#FFF' }} />
                       </View>
                     </Pressable>
-                    <View style={{ width: 46, marginLeft: 34 }} />
+                    {isWebKit ? (
+                      <Pressable onPress={() => { tapLight(); recordWithPhone(); }} hitSlop={8} style={{ marginLeft: 34 }}>
+                        <View style={{ width: 46, height: 46, borderRadius: 14, backgroundColor: C.coral, alignItems: 'center', justifyContent: 'center' }}>
+                          <Ionicons name="videocam" size={22} color="#FFF" />
+                        </View>
+                      </Pressable>
+                    ) : (
+                      <View style={{ width: 46, marginLeft: 34 }} />
+                    )}
                   </View>
                   <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 11.5, fontWeight: '700', marginTop: 10 }}>
-                    Tap for photo · hold for video · 🖼️ upload
+                    {isWebKit
+                      ? 'Tap for photo · 🎥 for video · 🖼️ upload'
+                      : 'Tap for photo · hold for video · 🖼️ upload'}
                   </Text>
+                  {isWebKit ? (
+                    <Text style={{ color: 'rgba(255,255,255,0.55)', fontSize: 10.5, marginTop: 5, textAlign: 'center', paddingHorizontal: 24, lineHeight: 15 }}>
+                      Video records in your camera app — Safari's own recorder makes a file it can't play back.
+                    </Text>
+                  ) : null}
                   {recording ? (
                     <View style={{ height: 4, width: 160, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.25)', marginTop: 8, overflow: 'hidden' }}>
                       <View style={{ height: 4, width: 160 * recPct, backgroundColor: C.coral }} />

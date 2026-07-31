@@ -59,11 +59,15 @@ function injectMapStyle() {
     /* Snapchat-cartoon pop on the real street tiles — vivid, joyful and
        smooth: candy saturation, a touch of warmth, gently softened so
        roads/land read like a drawn map rather than a photo. */
+    /* A map should look like a map: green land, blue water, the names of
+       the places on it. The old cartoon filter cranked saturation so far
+       that the land went acid and the labels underneath it were gone —
+       this leaves the cartography alone and only warms it slightly. */
     .mm-tiles {
-      filter: saturate(1.62) contrast(1.03) brightness(1.09) hue-rotate(-4deg);
+      filter: saturate(1.12) brightness(1.02);
       image-rendering: auto;
     }
-    .mm-dark .mm-tiles { filter: saturate(1.28) contrast(1.05) brightness(1.02); }
+    .mm-dark .mm-tiles { filter: saturate(1.05) brightness(0.98); }
     /* fade tiles in as they load so the map assembles smoothly, not in a snap */
     .mm-tiles.leaflet-tile { transition: opacity 0.45s ease; }
     /* our own country names — every country identical styling, so no
@@ -75,7 +79,25 @@ function injectMapStyle() {
       pointer-events: none;
     }
     .mm-dark .mm-country { color: rgba(228,236,242,0.85); text-shadow: 0 1px 3px rgba(0,0,0,0.95), 0 0 6px rgba(0,0,0,0.6); }
+    /* the tiles carry their own names from country zoom inwards, so ours
+       only appear on the far view where theirs are too small to read */
+    .mm-country { display: none; }
+    .mm-z-far .mm-country { display: block; }
     .mm-z-globe .mm-country { display: none; }
+    /* the teardrop itself — a circle with a point, drawn in CSS */
+    .mm-pin {
+      position: relative; width: 56px; height: 56px; margin: 0 auto;
+      background: #7C3AED; border-radius: 50% 50% 50% 6px;
+      transform: rotate(-45deg);
+      box-shadow: 0 5px 14px rgba(76,29,149,0.45);
+      display: flex; align-items: center; justify-content: center;
+      border: 2px solid #FFFFFF;
+    }
+    .mm-pin-face {
+      width: 46px; height: 46px; border-radius: 50%;
+      object-fit: cover; transform: rotate(45deg);
+      background: #EDE9FE;
+    }
     .mm-pill {
       background: rgba(255,255,255,0.97); border-radius: 8px; padding: 1.5px 6.5px; font-size: 9.5px;
       font-weight: 700; color: #1f2937; white-space: nowrap; text-align: center;
@@ -193,13 +215,17 @@ const pinHtml = (m) => {
     const doing = m.emoji && m.emoji.length <= 3
       ? '<div style="position:absolute;top:-7px;left:-7px;background:#fff;border-radius:9px;font-size:12px;line-height:17px;padding:0 2px;box-shadow:0 1px 3px rgba(0,0,0,0.3)">' + m.emoji + '</div>' : '';
     const name = (m.label || '').replace(/^[^ ]+ /, '').split(' ')[0] || m.label;
+    /* A proper map pin: the face inside a purple teardrop whose point
+       lands on the spot, rather than a floating circle hovering near
+       it. You can tell at a glance who is where. */
     return (
-      '<div class="mm-float" style="position:relative;width:52px;height:66px">' +
+      '<div class="mm-float" style="position:relative;width:60px;height:78px">' +
       '<div class="mm-heat"></div>' +
-      glowRing('rgba(124,58,237,0.45)') +
-      '<img src="' + m.avatar + '" style="position:relative;width:48px;height:48px;margin-left:2px;border-radius:50%;object-fit:cover;border:3px solid #fff;box-shadow:0 0 0 3px #7C3AED, 0 4px 10px rgba(0,0,0,0.3)"/>' +
+      '<div class="mm-pin">' +
+      '<img src="' + m.avatar + '" class="mm-pin-face"/>' +
+      '</div>' +
       doing + flagBadge +
-      '<div class="mm-pill" style="margin-top:3px">' + esc(name) + '</div>' +
+      '<div class="mm-pill" style="margin-top:2px">' + esc(name) + '</div>' +
       '</div>'
     );
   }
@@ -276,8 +302,8 @@ const pinHtml = (m) => {
 // CARTO "Voyager · no labels" (light) / "Dark Matter · no labels" (dark) —
 // same colourful, cartoonish landcover and roads either way, no baked
 // country/place names (every name comes from our own layer, name-neutral).
-const LIGHT_TILES = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png';
-const DARK_TILES = 'https://{s}.basemaps.cartocdn.com/rastertiles/dark_nolabels/{z}/{x}/{y}{r}.png';
+const LIGHT_TILES = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+const DARK_TILES = 'https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png';
 
 export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus = null, lang = 'en', meAvatar = null, meDoing = null, meName = null, route = null, appDark = null }) => {
   const elRef = useRef(null);

@@ -41,14 +41,31 @@ export const ReelsViewer = ({ reels, startIndex = 0, vibes, onVibe, onComment, o
     const isVideo = typeof item.media === 'string' && /\.(mp4|webm|mov)(\?|#|$)/i.test(item.media);
     const content = item.media ? (
       isVideo && Platform.OS === 'web' ? (
-        <View style={{ height: H, justifyContent: 'flex-end' }}>
-          {/* muted+playsInline = iOS actually autoplays it */}
+        <View style={{ height: H, justifyContent: 'flex-end', backgroundColor: '#0B0715' }}>
+          {/* muted+playsInline = iOS actually autoplays it.
+              Some older clips were recorded by a browser that produced a
+              file it cannot play back — those used to sit here as a
+              black rectangle with no explanation. If the clip refuses to
+              load we say so instead of showing nothing. */}
           <video
             src={item.media}
             autoPlay muted loop playsInline preload="metadata"
             ref={(el) => { if (el && !el.__wired) { el.__wired = true; el.muted = true; el.play().catch(() => {}); } }}
+            onError={(e) => { const n = e && e.currentTarget && e.currentTarget.parentNode; if (n) { const w = n.querySelector('.mm-clip-dead'); if (w) w.style.display = 'flex'; } }}
             style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
           />
+          <div className="mm-clip-dead" style={{
+            display: 'none', position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+            alignItems: 'center', justifyContent: 'center', flexDirection: 'column',
+            background: 'linear-gradient(160deg,#2B1055,#160B2B)', color: '#FFF',
+            fontFamily: '-apple-system, system-ui, sans-serif', textAlign: 'center', padding: '0 40px',
+          }}>
+            <div style={{ fontSize: 34 }}>🎞️</div>
+            <div style={{ fontSize: 15, fontWeight: 800, marginTop: 10 }}>This clip didn't record properly</div>
+            <div style={{ fontSize: 12.5, opacity: 0.75, marginTop: 6, lineHeight: 1.5 }}>
+              The browser that made it wrote a file it can't play back. Record a new one from the camera and it will work.
+            </div>
+          </div>
           {inner(item, vibed)}
         </View>
       ) : (
