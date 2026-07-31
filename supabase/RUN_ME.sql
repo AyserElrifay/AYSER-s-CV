@@ -1087,33 +1087,6 @@ end $$;
 
 notify pgrst, 'reload schema';
 
--- ═══════════════════ READINESS CHECKLIST ═══════════════════
--- Every column below should say TRUE. If chat_ready is FALSE,
--- also run supabase/schema_v2_live.sql (messages & live map).
-select
-  (to_regclass('public.mates')                is not null) as friends_ready,
-  (to_regclass('public.post_laughs')          is not null) as laughs_ready,
-  (to_regclass('public.destination_reviews')  is not null) as destination_reviews_ready,
-  (to_regclass('public.notifications')        is not null) as notifications_ready,
-  (to_regclass('public.dm_threads')           is not null) as chat_ready,
-  (to_regclass('public.profiles')             is not null) as profiles_ready,
-  (to_regclass('public.posts')                is not null) as posts_ready,
-  (to_regclass('public.trip_requests')        is not null) as book_trip_ready,
-  (to_regclass('public.tracks')               is not null) as real_songs_ready,
-  (to_regclass('public.venue_bookings')       is not null) as venue_bookings_ready,
-  (to_regclass('public.post_reposts')         is not null) as reposts_ready,
-  (to_regclass('public.story_poll_votes')     is not null) as story_polls_ready,
-  (to_regclass('public.story_views')          is not null) as story_views_ready,
-  (to_regclass('public.story_reactions')      is not null) as story_reactions_ready,
-  (to_regclass('public.story_comments')       is not null) as story_comments_ready,
-  (to_regclass('public.game_matches')         is not null) as multiplayer_ready,
-  (to_regclass('public.help_articles')        is not null) as help_articles_ready,
-  (to_regclass('public.bardi_config')         is not null) as bardi_portal_ready,
-  (to_regclass('public.bardi_knowledge')      is not null) as bardi_knowledge_ready,
-  exists (select 1 from information_schema.columns
-          where table_schema = 'public' and table_name = 'profiles'
-            and column_name = 'country')                    as country_column_ready,
-
 -- ════════════════════════════════════════════════════════════════
 --  DISCOVER PEOPLE — browsing real accounts instead of a search box
 --  City, plus a friends-of-friends function. Idempotent.
@@ -1161,6 +1134,34 @@ $fn$;
 
 grant execute on function public.people_you_may_know(uuid, int) to anon, authenticated;
 
+
+
+-- ═══════════════════ READINESS CHECKLIST ═══════════════════
+-- Every column below should say TRUE. If chat_ready is FALSE,
+-- also run supabase/schema_v2_live.sql (messages & live map).
+select
+  (to_regclass('public.mates')                is not null) as friends_ready,
+  (to_regclass('public.post_laughs')          is not null) as laughs_ready,
+  (to_regclass('public.destination_reviews')  is not null) as destination_reviews_ready,
+  (to_regclass('public.notifications')        is not null) as notifications_ready,
+  (to_regclass('public.dm_threads')           is not null) as chat_ready,
+  (to_regclass('public.profiles')             is not null) as profiles_ready,
+  (to_regclass('public.posts')                is not null) as posts_ready,
+  (to_regclass('public.trip_requests')        is not null) as book_trip_ready,
+  (to_regclass('public.tracks')               is not null) as real_songs_ready,
+  (to_regclass('public.venue_bookings')       is not null) as venue_bookings_ready,
+  (to_regclass('public.post_reposts')         is not null) as reposts_ready,
+  (to_regclass('public.story_poll_votes')     is not null) as story_polls_ready,
+  (to_regclass('public.story_views')          is not null) as story_views_ready,
+  (to_regclass('public.story_reactions')      is not null) as story_reactions_ready,
+  (to_regclass('public.story_comments')       is not null) as story_comments_ready,
+  (to_regclass('public.game_matches')         is not null) as multiplayer_ready,
+  (to_regclass('public.help_articles')        is not null) as help_articles_ready,
+  (to_regclass('public.bardi_config')         is not null) as bardi_portal_ready,
+  (to_regclass('public.bardi_knowledge')      is not null) as bardi_knowledge_ready,
+  exists (select 1 from information_schema.columns
+          where table_schema = 'public' and table_name = 'profiles'
+            and column_name = 'country')                    as country_column_ready,
   exists (select 1 from information_schema.columns
           where table_schema = 'public' and table_name = 'profiles'
             and column_name = 'avatar_dna')                  as avatar_builder_ready,
