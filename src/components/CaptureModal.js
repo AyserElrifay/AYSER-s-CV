@@ -704,6 +704,10 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
   // ── effects + game filters (previewed live, baked on share) ──
   const [effectId, setEffectId] = useState('none');
   const arcadeStartRef = React.useRef(0);   // when this round started, so the bake matches the preview
+  /* The viewfinder was three rails deep before you could see your own
+     face. One tray at a time now: nothing is open until you ask for it,
+     and what you're looking through stays a camera. */
+  const [tray, setTray] = useState(null);   // null | 'games' | 'lens' | 'sound'
   const [gameCard, setGameCard] = useState(null); // { kind:'roulette'|'question', text }
   const particlesRef = useRef(null); // stable random layout per effect pick
   const rollGame = (kind) => {
@@ -1684,7 +1688,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
             <>
               {/* reel games — pick one, it plays live on your face, and the
                   slot-machine reveal bakes right into the reel you record */}
-              {isWeb ? (
+              {isWeb && tray === 'games' ? (
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 14, alignItems: 'center', marginBottom: 10 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 8 }}>
                     <MaterialCommunityIcons name="gamepad-variant" size={15} color="#FFF" />
@@ -1712,9 +1716,9 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
                 </ScrollView>
               ) : null}
 
-              {/* pick a sound while you shoot */}
               {/* LENSES — every one of them drawn by us in code, so there
                   is nothing licensed here to go wrong. */}
+              {tray === 'lens' ? (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 14, marginBottom: 10 }}>
                 <Pressable onPress={() => { tapLight(); setLens(null); }}>
                   <View style={{ alignItems: 'center', marginRight: 12, opacity: lens ? 0.55 : 1 }}>
@@ -1744,9 +1748,10 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
                   );
                 })}
               </ScrollView>
+              ) : null}
 
               {/* size, once something is on */}
-              {lens ? (
+              {lens && tray === 'lens' ? (
                 <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, marginBottom: 10 }}>
                   <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 11, fontWeight: '800', marginRight: 10 }}>Size</Text>
                   <Pressable onPress={() => setLens((l) => ({ ...l, s: Math.max(0.15, l.s - 0.06) }))} hitSlop={8} style={{ paddingHorizontal: 10 }}>
@@ -1761,7 +1766,34 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
                 </View>
               ) : null}
 
-              {soundRail}
+              {tray === 'sound' ? soundRail : null}
+
+              {/* one row of doors instead of three open rooms */}
+              <View style={{ flexDirection: 'row', justifyContent: 'center', marginBottom: 12 }}>
+                {[
+                  { k: 'lens', icon: 'happy-outline', label: 'Lenses', on: !!lens },
+                  { k: 'games', icon: 'game-controller-outline', label: 'Games', on: !!reelGame },
+                  { k: 'sound', icon: 'musical-notes-outline', label: sound ? (sound.title || 'Sound') : 'Sound', on: !!sound },
+                ].map((b) => {
+                  const open = tray === b.k;
+                  if (b.k === 'games' && !isWeb) return null;
+                  return (
+                    <Pressable key={b.k} onPress={() => { tapLight(); setTray(open ? null : b.k); }}>
+                      <View style={{
+                        flexDirection: 'row', alignItems: 'center', marginHorizontal: 5,
+                        backgroundColor: open ? '#FFF' : b.on ? 'rgba(124,58,237,0.85)' : 'rgba(0,0,0,0.42)',
+                        borderWidth: 1, borderColor: open ? '#FFF' : 'rgba(255,255,255,0.45)',
+                        borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8,
+                      }}>
+                        <Ionicons name={b.icon} size={15} color={open ? '#241146' : '#FFF'} />
+                        <Text numberOfLines={1} style={{ color: open ? '#241146' : '#FFF', fontSize: 11.5, fontWeight: '900', marginLeft: 5, maxWidth: 92 }}>
+                          {b.label}
+                        </Text>
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </View>
 
               {/* shutter row — gallery upload on the left, shutter center */}
               {isWeb ? (
