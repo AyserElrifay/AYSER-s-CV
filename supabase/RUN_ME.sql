@@ -1239,6 +1239,67 @@ $fn$;
 
 grant execute on function public.trending_searches(int) to anon, authenticated;
 
+-- ════════════════════════════════════════════════════════════════
+--  PLAYLISTS — save what you like, the way every music app works
+-- ════════════════════════════════════════════════════════════════
+
+create table if not exists public.playlists (
+  id         uuid primary key default gen_random_uuid(),
+  owner_id   uuid not null references public.profiles(id) on delete cascade,
+  name       text not null,
+  emoji      text default '🎧',
+  is_public  boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.playlist_tracks (
+  playlist_id uuid not null references public.playlists(id) on delete cascade,
+  track_id    uuid not null references public.tracks(id)    on delete cascade,
+  added_at    timestamptz not null default now(),
+  primary key (playlist_id, track_id)
+);
+
+create index if not exists playlists_owner_idx        on public.playlists (owner_id);
+create index if not exists playlist_tracks_pl_idx     on public.playlist_tracks (playlist_id);
+
+alter table public.playlists       enable row level security;
+alter table public.playlist_tracks enable row level security;
+
+drop policy if exists "read own or public playlists" on public.playlists;
+create policy "read own or public playlists" on public.playlists
+  for select using (owner_id = auth.uid() or is_public);
+
+drop policy if exists "create own playlists" on public.playlists;
+create policy "create own playlists" on public.playlists
+  for insert with check (owner_id = auth.uid());
+
+drop policy if exists "change own playlists" on public.playlists;
+create policy "change own playlists" on public.playlists
+  for update using (owner_id = auth.uid());
+
+drop policy if exists "delete own playlists" on public.playlists;
+create policy "delete own playlists" on public.playlists
+  for delete using (owner_id = auth.uid());
+
+drop policy if exists "read tracks of playlists you can see" on public.playlist_tracks;
+create policy "read tracks of playlists you can see" on public.playlist_tracks
+  for select using (exists (
+    select 1 from playlists p where p.id = playlist_id
+      and (p.owner_id = auth.uid() or p.is_public)));
+
+drop policy if exists "add to your own playlists" on public.playlist_tracks;
+create policy "add to your own playlists" on public.playlist_tracks
+  for insert with check (exists (
+    select 1 from playlists p where p.id = playlist_id and p.owner_id = auth.uid()));
+
+drop policy if exists "remove from your own playlists" on public.playlist_tracks;
+create policy "remove from your own playlists" on public.playlist_tracks
+  for delete using (exists (
+    select 1 from playlists p where p.id = playlist_id and p.owner_id = auth.uid()));
+
+
+
+
 
 
 
@@ -1275,4 +1336,5 @@ select
             and column_name = 'avatar_dna')                  as avatar_builder_ready,
   exists (select 1 from information_schema.columns
           where table_schema = 'public' and table_name = 'profiles'
-            and column_name = 'city')                        as discover_ready;
+            and column_name = 'city')                        as discover_ready,
+  (to_regclass('public.playlists')            is not null) as playlists_ready;
