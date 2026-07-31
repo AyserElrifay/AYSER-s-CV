@@ -108,6 +108,11 @@ export const ProfileModal = ({ user, onClose }) => {
   const onlineNow = real && !isMe && isOnline(user.id);
 
   const [fullProfile, setFullProfile] = useState(null); // hydrated row (hobbies, bio…)
+  /* Private is a real state, not a label: the read policy on posts and
+     stories already refuses these rows to anyone who isn't an accepted
+     mate, so the screen only has to say so. */
+  const isPrivate = !!(fullProfile && fullProfile.account_type === 'private');
+  const locked = isPrivate && !isMe && mateState !== 'mates';
 
   const load = useCallback(async () => {
     if (!real) { setPosts([]); setMates(0); return; }
@@ -374,6 +379,20 @@ export const ProfileModal = ({ user, onClose }) => {
             <SectionHeader title="Recent Moments" style={{ marginTop: 26 }} />
             {posts == null ? (
               <Text style={{ color: C.faint, fontSize: 12.5, textAlign: 'center', paddingVertical: 20 }}>Loading…</Text>
+            ) : locked ? (
+              /* A private account with nothing shared is not the same as
+                 an empty one, and pretending otherwise is a small lie.
+                 The database already refuses to hand these rows over —
+                 this just explains the silence. */
+              <Glass style={{ padding: 22, alignItems: 'center' }}>
+                <Text style={{ fontSize: 30 }}>🔒</Text>
+                <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800', marginTop: 8 }}>This account is private</Text>
+                <Text style={{ color: C.faint, fontSize: 12, marginTop: 3, textAlign: 'center', lineHeight: 18 }}>
+                  {mateState === 'requested'
+                    ? 'Your request is waiting — you\u2019ll see their moments once they accept.'
+                    : 'Mate up with ' + String(user.name || 'them').split(' ')[0] + ' to see their moments and stories.'}
+                </Text>
+              </Glass>
             ) : posts.length === 0 ? (
               <Glass style={{ padding: 22, alignItems: 'center' }}>
                 <Text style={{ fontSize: 30 }}>🌱</Text>

@@ -9,7 +9,7 @@ import { useAuth } from '../context/AuthContext';
 import { searchProfiles } from '../services/social';
 import { searchPosts } from '../services/posts';
 import { fetchGroups, createGroup, joinGroup, leaveGroup } from '../services/groups';
-import { fetchTrending } from '../services/trending';
+import { fetchTrending, logSearch } from '../services/trending';
 import { Chip } from './Chip';
 import { Tick } from './Tick';
 import { Micro } from './Micro';
@@ -266,6 +266,8 @@ export const SearchModal = ({ onClose, onOpenProfile }) => {
               placeholderTextColor={C.faint}
               value={query}
               onChangeText={setQuery}
+              onSubmitEditing={() => logSearch(query)}
+              returnKeyType="search"
               autoFocus autoCapitalize="none"
               style={{ color: C.text, marginLeft: 10, flex: 1, fontSize: 14.5 }}
             />

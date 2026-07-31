@@ -6,7 +6,7 @@ import { C, R } from '../constants/theme';
 import { AV_NEUTRAL } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-import { fetchMyNotifications, markAllRead } from '../services/notifications';
+import { fetchMyNotifications, markAllRead, clearMyNotifications, pruneOldNotifications } from '../services/notifications';
 import { fetchPost } from '../services/posts';
 import { acceptFromActor } from '../services/mates';
 import { toggleVibe, toggleLaugh, toggleRepost, fetchEngagement } from '../services/social';
@@ -84,6 +84,7 @@ export const NotificationsSheet = ({ onClose }) => {
 
   /* Reactions on the opened moment are REAL — the same writes the feed
      makes, so a star here shows up everywhere and survives a refresh. */
+  const [clearing, setClearing] = useState(false);
   const [vibed, setVibed] = useState(false);
   const [laughed, setLaughed] = useState(false);
   const [reposted, setReposted] = useState(false);
@@ -96,6 +97,9 @@ export const NotificationsSheet = ({ onClose }) => {
       const rows = await fetchMyNotifications(user.id);
       setItems(rows);
       markAllRead(user.id).catch(() => {});
+      // housekeeping, once per open: a week-old notification is storage,
+      // not news
+      pruneOldNotifications(user.id);
     } catch (e) {
       setItems([]);
       setLoadErr(/does not exist|schema cache/i.test(e.message || '')
@@ -274,7 +278,27 @@ export const NotificationsSheet = ({ onClose }) => {
         </View>
         <View style={{ paddingHorizontal: 18, paddingBottom: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <Micro>Activity 🔔</Micro>
-          <Pressable onPress={onClose} hitSlop={8}><Ionicons name="close" size={18} color={C.dim} /></Pressable>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            {items && items.length ? (
+              <Pressable
+                onPress={async () => {
+                  if (clearing) return;
+                  tapLight();
+                  setClearing(true);
+                  const had = items.length;
+                  setItems([]);                       // gone from the screen at once
+                  try { await clearMyNotifications(user.id); showToast('Cleared ' + had); }
+                  catch (e) { load(); showToast('Could not clear — try again'); }
+                  finally { setClearing(false); }
+                }}
+                hitSlop={8}
+                style={{ marginRight: 14 }}
+              >
+                <Text style={{ color: C.dim, fontSize: 12.5, fontWeight: '800' }}>{clearing ? 'Clearing…' : 'Clear all'}</Text>
+              </Pressable>
+            ) : null}
+            <Pressable onPress={onClose} hitSlop={8}><Ionicons name="close" size={18} color={C.dim} /></Pressable>
+          </View>
         </View>
 
         {/* filter chips — Instagram style */}

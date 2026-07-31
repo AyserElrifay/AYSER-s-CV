@@ -66,3 +66,39 @@ export function subscribeNotifications(userId, onNew) {
     .subscribe();
   return () => { try { supabase.removeChannel(channel); } catch (e) {} };
 }
+
+/* ── KEEPING IT SMALL ───────────────────────────────────────────────
+   A notification is useful for a few days and then it is just storage
+   — yours and ours. Nothing here is worth keeping forever, so there
+   are two ways for it to go: you clear it, or it ages out.
+
+   clearMyNotifications deletes YOURS. The row is gone, not flagged
+   hidden — a "cleared" list that still exists is not cleared. */
+export async function clearMyNotifications(userId) {
+  if (!userId) return 0;
+  const { error, count } = await supabase
+    .from('notifications')
+    .delete({ count: 'exact' })
+    .eq('user_id', userId);
+  if (error) throw error;
+  return count || 0;
+}
+
+/* Drop a single one — the swipe-away, for the one you don't care about. */
+export async function dismissNotification(id, userId) {
+  if (!id || !userId) return;
+  const { error } = await supabase.from('notifications').delete().eq('id', id).eq('user_id', userId);
+  if (error) throw error;
+}
+
+/* Anything older than a week goes on its own. Runs once per session,
+   quietly, on rows that are already yours — no schedule to maintain
+   and no server job to pay for. */
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+export async function pruneOldNotifications(userId) {
+  if (!userId) return;
+  const cutoff = new Date(Date.now() - WEEK_MS).toISOString();
+  try {
+    await supabase.from('notifications').delete().eq('user_id', userId).lt('created_at', cutoff);
+  } catch (e) { /* never block the list over housekeeping */ }
+}

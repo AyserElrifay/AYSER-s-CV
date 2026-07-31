@@ -44,14 +44,49 @@ export async function fetchTrending(limit = 8) {
     if (place && !GENERIC_PLACES.has(place.toLowerCase())) bump('📍 ' + place, engagement);
   });
 
+  /* What people SEARCH for is the other half of a trend, and often the
+     earlier half: a thing gets looked for before anyone posts about it.
+     Search volume is folded into the same score, so a term climbing in
+     the search box can trend before it has a single post. */
+  let searches = [];
+  try { searches = await fetchSearchTrends(); } catch (e) { searches = []; }
+  searches.forEach((s) => {
+    const key = s.term.toLowerCase();
+    const b = buckets.get(key) || { tag: s.term, count: 0, engagement: 0 };
+    b.searches = (b.searches || 0) + s.searches;
+    buckets.set(key, b);
+  });
+
   return Array.from(buckets.values())
     .map((b) => ({
       id: 'trend-' + b.tag,
       tag: b.tag,
       moments: b.count,
-      category: b.count >= 5 ? 'Trending now' : 'Rising',
-      score: b.count + b.engagement * 0.3,
+      searches: b.searches || 0,
+      category: (b.searches || 0) >= 5 && b.count === 0 ? 'People are looking'
+        : b.count >= 5 ? 'Trending now' : 'Rising',
+      // a search is a weaker signal than a post but a much stronger one
+      // than nothing, so it sits between a mention and an engagement
+      score: b.count + b.engagement * 0.3 + (b.searches || 0) * 0.6,
     }))
     .sort((a, b) => b.score - a.score)
     .slice(0, limit);
+}
+
+/* The aggregate only — the individual rows are unreadable by anyone,
+   including us, and carry no user id in the first place. */
+export async function fetchSearchTrends(limit = 10) {
+  const { data, error } = await supabase.rpc('trending_searches', { lim: limit });
+  if (error) throw error;
+  return (data || []).map((r) => ({ term: r.term, searches: Number(r.searches) || 0 }));
+}
+
+/* Record that something was looked for. Anonymous by construction: the
+   table has a term and a timestamp and nowhere to put a person. Called
+   only when someone actually commits to a search, not on every
+   keystroke, so it measures intent rather than typing. */
+export async function logSearch(term) {
+  const t = String(term || '').trim().toLowerCase();
+  if (t.length < 2 || t.length > 40) return;
+  try { await supabase.from('search_terms').insert({ term: t }); } catch (e) { /* never block a search */ }
 }
