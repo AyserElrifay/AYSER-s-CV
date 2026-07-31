@@ -15,6 +15,7 @@ import { uploadCapture, uploadMedia } from '../services/social';
 import { compressImage } from '../lib/storage';
 import { fetchTracks, incrementTrackUse } from '../services/music';
 import { MusicHubSheet } from './MusicHubSheet';
+import { isOwner } from '../services/music';
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
 import { getCurrentCoords } from '../utils/location';
 import { sfxPop, sfxSuccess } from '../utils/sfx';
@@ -828,16 +829,20 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
   const [clipWarn, setClipWarn] = useState(null);
   const [firstFrame, setFirstFrame] = useState(null);   // a real frame from the clip
   const [playErr, setPlayErr] = useState(null);         // why the preview won't play
+  const [videoOk, setVideoOk] = useState(false);        // it really decoded a frame
+  const [diag, setDiag] = useState(null);               // owner-only facts
+  const [probeDone, setProbeDone] = useState(false);    // the frame check has finished
   const probeClip = (uri) => {
-    setClipWarn(null); setFirstFrame(null); setPlayErr(null);
+    setClipWarn(null); setFirstFrame(null); setPlayErr(null); setVideoOk(false); setDiag(null); setProbeDone(false);
     if (!isWeb || !uri) return;
     let done = false;
     const el = document.createElement('video');
     el.muted = true; el.playsInline = true; el.preload = 'auto'; el.src = uri;
-    const finish = (msg) => { if (!done) { done = true; setClipWarn(msg); try { el.src = ''; } catch (e) {} } };
+    const finish = (msg) => { if (!done) { done = true; setProbeDone(true); setClipWarn(msg); try { el.src = ''; } catch (e) {} } };
     const grab = () => {
       try {
         const w = el.videoWidth, h = el.videoHeight;
+        setDiag((d) => ({ ...(d || {}), pw: w, ph: h }));
         if (!w || !h) return finish('This clip has no picture — try recording it again.');
         const c = document.createElement('canvas');
         c.width = 64; c.height = Math.max(1, Math.round((h / w) * 64));
@@ -862,6 +867,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
           big.getContext('2d').drawImage(el, 0, 0, big.width, big.height);
           try { setFirstFrame(big.toDataURL('image/jpeg', 0.82)); } catch (e) {}
         }
+        setDiag((d) => ({ ...(d || {}), peak }));
         finish(peak < 10 ? 'This clip came out completely black. Record it again — and check the camera isn\'t covered 🎥' : null);
       } catch (e) { finish(null); } // cross-origin frame we can't read: say nothing
     };
@@ -1138,6 +1144,15 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
           shot.kind === 'video' && isWeb ? (
             /* muted is required for iOS to autoplay the preview at all —
                without it Safari shows a black frame */
+            /* If the browser won't paint the clip, stop asking it to and
+               show the frame we pulled out of the file instead. A still
+               of your own shot beats a black rectangle, and the clip
+               still uploads and plays for everyone else — Safari's
+               refusal to preview a freshly recorded MP4 is a preview
+               problem, not a file problem. */
+            !videoOk && firstFrame && (playErr || probeDone) ? (
+              <img src={firstFrame} alt="" style={{ position: 'absolute', width: '100%', height: '100%', objectFit: 'cover', filter: cssFilter }} />
+            ) : (
             <video
               src={shot.uri}
               poster={firstFrame || undefined}
@@ -1149,13 +1164,24 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
                 // it will start a blob on its own
                 el.muted = true;
                 el.play().catch((e) => setPlayErr((e && e.name) || 'blocked'));
+                el.onloadeddata = () => {
+                  if (el.videoWidth > 0) setVideoOk(true);
+                  setDiag((d) => ({ ...(d || {}), vw: el.videoWidth, vh: el.videoHeight, ready: el.readyState }));
+                };
                 el.onerror = () => {
                   const c = el.error && el.error.code;
                   setPlayErr(c === 4 ? 'format' : c === 3 ? 'decode' : c === 2 ? 'network' : 'unknown');
                 };
+                // it can be "playing" and still never paint; check for real
+                setTimeout(() => {
+                  setDiag((d) => ({ ...(d || {}), vw: el.videoWidth, vh: el.videoHeight, ready: el.readyState, paused: el.paused }));
+                  if (el.videoWidth > 0 && el.readyState >= 2) setVideoOk(true);
+                  else setPlayErr((e) => e || 'no-paint');
+                }, 1800);
               }}
               style={{ position: 'absolute', width: '100%', height: '100%', objectFit: 'cover', filter: cssFilter }}
             />
+            )
           ) : isWeb ? (
             // raw <img> so the chosen filter shows LIVE in the preview
             <img src={shot.uri} style={{ position: 'absolute', width: '100%', height: '100%', objectFit: 'cover', filter: cssFilter }} alt="" />
@@ -1302,6 +1328,26 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
               {firstFrame
                 ? 'Safari won\u2019t play this clip back here (' + playErr + '), but your shot is fine — the frame above is really it. Posting works.'
                 : 'This clip won\u2019t play in the browser (' + playErr + '). Try recording a new one.'}
+            </Text>
+          </View>
+        ) : null}
+
+        {/* Owner only — the facts, so a black preview can be diagnosed
+            from one screenshot instead of another round of guessing.
+            No normal user ever sees this. */}
+        {isOwner(user) && shot && shot.kind === 'video' ? (
+          <View style={{ position: 'absolute', bottom: 210, left: 12, right: 12, backgroundColor: 'rgba(0,0,0,0.82)', borderRadius: 10, padding: 9 }}>
+            <Text style={{ color: '#7CF', fontSize: 10.5, fontWeight: '700', lineHeight: 15 }}>
+              {'webkit=' + (isWebKit ? 'Y' : 'N') +
+               '  baked=' + (shot.baked ? 'Y' : 'N') +
+               '  ' + (shot.contentType || '?') + '.' + (shot.ext || '?') + '\n' +
+               'probe: ' + (diag && diag.pw ? diag.pw + 'x' + diag.ph : '—') +
+               '  peak=' + (diag && diag.peak != null ? diag.peak : '—') +
+               '  frame=' + (firstFrame ? 'Y' : 'N') + '\n' +
+               'video: ' + (diag && diag.vw != null ? diag.vw + 'x' + diag.vh : '—') +
+               '  ready=' + (diag && diag.ready != null ? diag.ready : '—') +
+               '  paused=' + (diag && diag.paused != null ? String(diag.paused) : '—') + '\n' +
+               'ok=' + (videoOk ? 'Y' : 'N') + '  err=' + (playErr || 'none') + '  done=' + (probeDone ? 'Y' : 'N')}
             </Text>
           </View>
         ) : null}
