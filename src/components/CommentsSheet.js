@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { C, R } from '../constants/theme';
 import { AV_NEUTRAL } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
-import { fetchComments, addComment, fetchCommentLikes, toggleCommentLike } from '../services/social';
+import { fetchComments, addComment, fetchCommentLikes, toggleCommentLike, editComment, deleteComment } from '../services/social';
 import { useAuth } from '../context/AuthContext';
 import { sfxPop, sfxStar } from '../utils/sfx';
 import { tapSelection, tapLight } from '../utils/feedback';
@@ -35,7 +35,24 @@ const toRow = (row) => ({
     countryFlag: row.user.country_flag || null,
   } : null,
   body: row.body,
+  userId: row.user_id,
+  createdAt: row.created_at,
+  editedAt: row.edited_at || null,
 });
+
+/* "3m", "5h", "2d" — the shorthand every feed uses, because a full
+   timestamp on a comment is noise until it is old. */
+export const shortWhen = (iso) => {
+  if (!iso) return '';
+  const secs = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  if (!isFinite(secs) || secs < 0) return '';
+  if (secs < 60) return 'now';
+  const m = Math.floor(secs / 60);   if (m < 60) return m + 'm';
+  const h = Math.floor(m / 60);      if (h < 24) return h + 'h';
+  const d = Math.floor(h / 24);      if (d < 7)  return d + 'd';
+  const w = Math.floor(d / 7);       if (w < 5)  return w + 'w';
+  return new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+};
 
 /* parents first, each followed by its replies (one level, IG-style) */
 const toThread = (rows) => {
@@ -62,6 +79,42 @@ export const CommentsSheet = ({ post, onClose }) => {
   const [likeCounts, setLikeCounts] = useState({}); // crowd totals (incl. me at load)
   const [myInitialLikes, setMyInitialLikes] = useState({});
   const [replyTo, setReplyTo] = useState(null);     // { id, name }
+  const [editingId, setEditingId] = useState(null); // the comment being reworded
+  const [editText, setEditText] = useState('');
+  const [confirmId, setConfirmId] = useState(null); // delete asks once
+
+  const mine = (c) => !!(user && (c.userId === user.id || c.user?.name === 'You'));
+
+  const saveEdit = async (c) => {
+    const text = editText.trim();
+    if (!text) return;
+    const before = c.body;
+    setComments((list) => list.map((x) => x.id === c.id ? { ...x, body: text, editedAt: new Date().toISOString() } : x));
+    setEditingId(null); setEditText('');
+    if (!SUPABASE_READY || !user) return;
+    try { await editComment(c.id, user.id, text); }
+    catch (e) {
+      // put the old words back rather than show an edit that never saved
+      setComments((list) => list.map((x) => x.id === c.id ? { ...x, body: before, editedAt: c.editedAt } : x));
+    }
+  };
+
+  /* Two taps: the first turns the word red and asks, the second does
+     it. A comment with replies under it is worth one moment's pause. */
+  const removeComment = async (c) => {
+    if (confirmId !== c.id) {
+      tapLight();
+      setConfirmId(c.id);
+      setTimeout(() => setConfirmId((id) => (id === c.id ? null : id)), 4000);
+      return;
+    }
+    setConfirmId(null);
+    const snapshot = comments;
+    setComments((list) => list.filter((x) => x.id !== c.id && x.parentId !== c.id));
+    if (!SUPABASE_READY || !user) return;
+    try { await deleteComment(c.id, user.id); }
+    catch (e) { setComments(snapshot); }
+  };
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const [sendErr, setSendErr] = useState(null);
@@ -161,12 +214,37 @@ export const CommentsSheet = ({ post, onClose }) => {
                   </Pressable>
                   <View style={{ flex: 1, marginLeft: 10 }}>
                     <View style={{ backgroundColor: C.glass, borderRadius: 14, borderWidth: 1, borderColor: C.line, padding: 10 }}>
-                      <Pressable onPress={() => item.profile && setOpenProfile(item.profile)} hitSlop={4}>
-                        <Text style={{ color: C.text, fontSize: 12.5, fontWeight: '800' }}>
-                          {item.user.name}{item.user.flag ? ' ' + item.user.flag : ''}
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <Pressable onPress={() => item.profile && setOpenProfile(item.profile)} hitSlop={4} style={{ flexShrink: 1 }}>
+                          <Text style={{ color: C.text, fontSize: 12.5, fontWeight: '800' }}>
+                            {item.user.name}{item.user.flag ? ' ' + item.user.flag : ''}
+                          </Text>
+                        </Pressable>
+                        <Text style={{ color: C.faint, fontSize: 11, fontWeight: '700', marginLeft: 7 }}>
+                          {shortWhen(item.createdAt)}{item.editedAt ? ' · edited' : ''}
                         </Text>
-                      </Pressable>
-                      <Text style={{ color: C.dim, fontSize: 13, marginTop: 3, lineHeight: 18 }}>{item.body}</Text>
+                      </View>
+                      {editingId === item.id ? (
+                        <View>
+                          <TextInput
+                            value={editText}
+                            onChangeText={setEditText}
+                            multiline
+                            autoFocus
+                            style={{ color: C.text, fontSize: 13, marginTop: 5, lineHeight: 18, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 10, paddingHorizontal: 9, paddingVertical: 7 }}
+                          />
+                          <View style={{ flexDirection: 'row', marginTop: 7 }}>
+                            <Pressable onPress={() => saveEdit(item)} style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 6, marginRight: 8 }}>
+                              <Text style={{ color: '#FFF', fontSize: 11.5, fontWeight: '900' }}>Save</Text>
+                            </Pressable>
+                            <Pressable onPress={() => { setEditingId(null); setEditText(''); }} style={{ paddingHorizontal: 6, paddingVertical: 6 }}>
+                              <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '800' }}>Cancel</Text>
+                            </Pressable>
+                          </View>
+                        </View>
+                      ) : (
+                        <Text style={{ color: C.dim, fontSize: 13, marginTop: 3, lineHeight: 18 }}>{item.body}</Text>
+                      )}
                     </View>
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4, marginLeft: 6 }}>
                       <Pressable onPress={() => heart(item)} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', marginRight: 16 }}>
@@ -181,6 +259,18 @@ export const CommentsSheet = ({ post, onClose }) => {
                         <Pressable onPress={() => { tapLight(); setReplyTo({ id: item.id, name: item.user.name }); }} hitSlop={8}>
                           <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '800' }}>Reply</Text>
                         </Pressable>
+                      ) : null}
+                      {mine(item) && editingId !== item.id ? (
+                        <>
+                          <Pressable onPress={() => { tapLight(); setEditingId(item.id); setEditText(item.body); }} hitSlop={8} style={{ marginLeft: 16 }}>
+                            <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '800' }}>Edit</Text>
+                          </Pressable>
+                          <Pressable onPress={() => removeComment(item)} hitSlop={8} style={{ marginLeft: 16 }}>
+                            <Text style={{ color: confirmId === item.id ? C.coral : C.faint, fontSize: 11.5, fontWeight: '800' }}>
+                              {confirmId === item.id ? 'Sure?' : 'Delete'}
+                            </Text>
+                          </Pressable>
+                        </>
                       ) : null}
                     </View>
                   </View>

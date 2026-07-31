@@ -1297,6 +1297,39 @@ create policy "remove from your own playlists" on public.playlist_tracks
   for delete using (exists (
     select 1 from playlists p where p.id = playlist_id and p.owner_id = auth.uid()));
 
+-- ════════════════════════════════════════════════════════════════
+--  EDITING YOUR OWN COMMENT
+--  Deleting one was already allowed; changing one was not, so a typo
+--  meant delete and repost, which loses the replies underneath it.
+-- ════════════════════════════════════════════════════════════════
+
+alter table public.comments add column if not exists edited_at timestamptz;
+
+drop policy if exists "users can edit own comments" on public.comments;
+create policy "users can edit own comments" on public.comments
+  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+/* An edit must not be able to rewrite history: only the text and the
+   edited stamp may move. Without this you could re-point a comment at
+   another post or another author after the fact. */
+create or replace function public.guard_comment_edit()
+returns trigger language plpgsql security definer set search_path = public as $fn$
+begin
+  new.post_id    := old.post_id;
+  new.user_id    := old.user_id;
+  new.parent_id  := old.parent_id;
+  new.created_at := old.created_at;
+  if new.body is distinct from old.body then new.edited_at := now(); end if;
+  return new;
+end $fn$;
+
+drop trigger if exists comments_guard_edit on public.comments;
+create trigger comments_guard_edit before update on public.comments
+  for each row execute function public.guard_comment_edit();
+
+
+
+
 
 
 

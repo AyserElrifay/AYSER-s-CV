@@ -150,6 +150,29 @@ export async function addComment(postId, userId, body, parentId) {
 }
 
 /* Likes on comments — restore + counts, fail-soft before the SQL runs. */
+/* Fix a typo without losing the thread underneath it. The database
+   pins post_id, user_id, parent_id and created_at on every update, so
+   an edit can only ever change the words. */
+export async function editComment(commentId, userId, body) {
+  const text = String(body || '').trim();
+  if (!text) throw new Error('A comment cannot be empty.');
+  const { data, error } = await supabase
+    .from('comments')
+    .update({ body: text.slice(0, 2000) })
+    .eq('id', commentId)
+    .eq('user_id', userId)
+    .select('*, user:profiles!comments_user_id_fkey(*)')
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteComment(commentId, userId) {
+  const { error } = await supabase
+    .from('comments').delete().eq('id', commentId).eq('user_id', userId);
+  if (error) throw error;
+}
+
 export async function fetchCommentLikes(commentIds, myId) {
   const out = { counts: {}, mine: {} };
   if (!commentIds.length) return out;
