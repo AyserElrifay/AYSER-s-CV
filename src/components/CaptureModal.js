@@ -1166,6 +1166,26 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
 
   /* TikTok-style sound rail — shown while shooting AND on the preview,
      so an uploaded gallery photo can get a song too. */
+  /* Listen before you commit. Choosing a sound for a reel used to be a
+     guess from a title — now each chip has its own play button and the
+     track previews right there, without being attached to anything. */
+  const soundPreviewRef = React.useRef(null);
+  const [previewId, setPreviewId] = useState(null);
+
+  const togglePreview = (s) => {
+    if (!isWeb || !s || !s.audio_url) return;
+    tapLight();
+    let a = soundPreviewRef.current;
+    if (!a) { a = soundPreviewRef.current = new Audio(); a.onended = () => setPreviewId(null); }
+    if (previewId === s.id) { a.pause(); setPreviewId(null); return; }
+    a.src = s.audio_url;
+    a.currentTime = 0;
+    a.play().then(() => setPreviewId(s.id)).catch(() => setPreviewId(null));
+  };
+
+  // never leave a preview singing after the sheet closes
+  useEffect(() => () => { if (soundPreviewRef.current) { try { soundPreviewRef.current.pause(); } catch (e) {} } }, []);
+
   const soundRail = (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 14, marginBottom: 16 }}>
       <Pressable onPress={() => { tapLight(); setHubOpen(true); }}>
@@ -1177,15 +1197,26 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
       {railSounds.map((s) => {
         const on = sound && sound.id === s.id;
         return (
-          <Pressable key={s.id} onPress={() => chooseSound(s, on)}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: on ? '#FFF' : 'rgba(255,255,255,0.16)', borderWidth: 1, borderColor: on ? '#FFF' : 'rgba(255,255,255,0.35)', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7, marginRight: 8 }}>
+          <View key={s.id} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: on ? '#FFF' : 'rgba(255,255,255,0.16)', borderWidth: 1, borderColor: on ? '#FFF' : 'rgba(255,255,255,0.35)', borderRadius: 999, paddingLeft: 6, paddingRight: 12, paddingVertical: 6, marginRight: 8 }}>
+            {/* hear it first */}
+            <Pressable onPress={() => togglePreview(s)} hitSlop={8} style={{ marginRight: 6 }}>
+              <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: on ? 'rgba(124,58,237,0.16)' : 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons
+                  name={previewId === s.id ? 'pause' : 'play'}
+                  size={12}
+                  color={on ? C.purple : '#FFF'}
+                  style={{ marginLeft: previewId === s.id ? 0 : 1 }}
+                />
+              </View>
+            </Pressable>
+            <Pressable onPress={() => chooseSound(s, on)} style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Text style={{ fontSize: 13 }}>{s.emoji}</Text>
               <Text style={{ color: on ? C.text : '#FFF', fontSize: 11.5, fontWeight: '800', marginLeft: 5 }} numberOfLines={1}>
                 {s.title}
               </Text>
               {on ? <Ionicons name="checkmark" size={13} color={C.purple} style={{ marginLeft: 4 }} /> : null}
-            </View>
-          </Pressable>
+            </Pressable>
+          </View>
         );
       })}
     </ScrollView>

@@ -168,7 +168,19 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
     return (
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8 }}>
         <Pressable onPress={() => play(t, list)} style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-          <Cover track={t} />
+          <View>
+            <Cover track={t} />
+            {/* a play/pause you can see, not a row you have to guess is
+                tappable — and it doubles as "which one is playing" */}
+            <View style={{ position: 'absolute', right: -4, bottom: -4, width: 22, height: 22, borderRadius: 11, backgroundColor: C.bg2, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons
+                name={isNow && playing ? 'pause' : 'play'}
+                size={11}
+                color={isNow ? C.purple : C.dim}
+                style={{ marginLeft: isNow && playing ? 0 : 1 }}
+              />
+            </View>
+          </View>
           <View style={{ flex: 1, marginLeft: 12, marginRight: 8 }}>
             <Text numberOfLines={1} style={{ color: isNow ? C.purple : C.text, fontSize: 14.5, fontWeight: '800' }}>
               {t.title || 'Untitled'}
@@ -177,7 +189,6 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
               {(t.artist || 'Unknown') + (t.license ? ' · ' + t.license : '')}
             </Text>
           </View>
-          {isNow && playing ? <Ionicons name="volume-medium" size={16} color={C.purple} style={{ marginRight: 8 }} /> : null}
         </Pressable>
 
         <Pressable onPress={() => toggleLike(t)} hitSlop={8} style={{ paddingHorizontal: 6 }}>
