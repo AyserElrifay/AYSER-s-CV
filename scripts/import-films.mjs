@@ -56,14 +56,26 @@ async function sql(query) {
   try { return JSON.parse(t); } catch (e) { return []; }
 }
 
-async function getJSON(url, tries = 3) {
+/* Every call gets a hard deadline. A request that is never answered —
+   and a public API being quietly unfriendly to a CI address looks
+   exactly like that — otherwise hangs the whole import forever, which
+   is how a ten-second job became a twenty-minute one. */
+async function getJSON(url, tries = 2, ms = 12000) {
   for (let i = 0; i < tries; i++) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => { try { ctrl.abort(); } catch (e) {} }, ms);
     try {
-      const r = await fetch(url, { headers: { 'User-Agent': 'Moments/1.0 (film catalogue)' } });
+      const r = await fetch(url, {
+        headers: { 'User-Agent': 'Moments/1.0 (film catalogue)' },
+        signal: ctrl.signal,
+      });
       if (r.ok) return await r.json();
-      if (r.status === 429 || r.status >= 500) await sleep(2500);
-    } catch (e) { /* retry */ }
-    await sleep(700 * (i + 1));
+      if (r.status === 403) { console.log('  (blocked ' + r.status + ')'); return null; }
+      if (r.status === 429 || r.status >= 500) await sleep(2000);
+    } catch (e) {
+      console.log('  (' + ((e && e.name) || 'failed') + ')');
+    } finally { clearTimeout(timer); }
+    await sleep(600 * (i + 1));
   }
   return null;
 }
@@ -127,8 +139,11 @@ const appleGenres = (name) => {
 };
 
 async function fromApple() {
+  let empties = 0;
   for (const country of APPLE_STORES) {
     for (const term of APPLE_TERMS) {
+      // eight refusals in a row means this address isn't welcome today
+      if (empties >= 8) { console.log('Apple is not answering — stopping there.'); return; }
       const url = 'https://itunes.apple.com/search?media=movie&entity=movie'
         + '&country=' + country
         + '&limit=' + Math.min(200, PAGES * 25)
@@ -156,8 +171,9 @@ async function fromApple() {
         });
         rank -= 1;
       }
-      console.log(`apple ${country} "${term}" → ${rows.length} collected`);
-      await sleep(1200);                       // Apple throttles hard — go at its pace
+      empties = list.length ? 0 : empties + 1;
+      console.log(`apple ${country} "${term}" → ${list.length} back, ${rows.length} collected`);
+      await sleep(900);                        // Apple throttles hard — go at its pace
     }
   }
 }
