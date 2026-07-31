@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { C } from '../constants/theme';
+import { looksPlayable, watchForBlankVideo } from '../lib/videoCheck';
 import { REELS, AV_NEUTRAL } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
@@ -85,7 +86,13 @@ export const ReelsScreen = () => {
 
   // Real mode shows only real reels (with an honest empty state); demo uses the mock set.
   const data = SUPABASE_READY ? (realReels || []) : REELS;
-  const isVideo = (uri) => typeof uri === 'string' && /\.(webm|mp4|mov|m4v)(\?|$)/i.test(uri);
+  /* Every row here came out of the feed with type === 'reel'. A reel
+     is a video — so don't make that conditional on the filename. The
+     old test wanted the URL to end in .mp4, and anything stored without
+     an extension fell through to no video element at all: a black
+     screen with nothing to explain it, which is exactly what people
+     were seeing. */
+  const isVideo = (uri) => looksPlayable(uri, true);
 
   const toggleVibe = (item) => {
     const next = !vibes[item.id];
@@ -147,7 +154,7 @@ export const ReelsScreen = () => {
           {isVideo(item.media) && Platform.OS === 'web' ? (
             <video
               src={item.media}
-              autoPlay loop muted playsInline preload="metadata"
+              autoPlay loop muted playsInline preload="auto" crossOrigin="anonymous"
               /* iOS starts a video on its own only when muted is a real
                  property and something asks it to play; without this a
                  posted reel shows as a black rectangle that never moves */
@@ -158,12 +165,14 @@ export const ReelsScreen = () => {
                 el.play().catch(() => {});
                 el.onerror = () => setDead((d) => ({ ...d, [item.id]: 'broken' }));
                 /* Reels recorded before the WebKit fix are black in the
-                   file itself — nothing can play them. A black rectangle
-                   with a like button on it reads as the app being
-                   broken, so after a moment we say what happened. */
+                   file itself. They load fine and report a width and a
+                   readyState, which is why asking about those told us
+                   nothing — so look at the actual pixels instead. */
+                watchForBlankVideo(el, () => setDead((d) => ({ ...d, [item.id]: 'broken' })));
+                // a file that won't load at all is a different failure
                 setTimeout(() => {
-                  if (!el.videoWidth || el.readyState < 2) setDead((d) => ({ ...d, [item.id]: 'broken' }));
-                }, 2600);
+                  if (!el.videoWidth && el.readyState < 2) setDead((d) => ({ ...d, [item.id]: 'broken' }));
+                }, 4000);
               }}
               style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
             />

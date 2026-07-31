@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { looksPlayable, watchForBlankVideo } from '../lib/videoCheck';
 import { View, Text, Modal, Pressable, ImageBackground, FlatList, Dimensions, Image, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -38,7 +39,10 @@ export const ReelsViewer = ({ reels, startIndex = 0, vibes, onVibe, onComment, o
     const bg = TEXT_BGS[item.textBg] || null;
     // an uploaded reel VIDEO must actually play — it was being drawn as a
     // still ImageBackground before, which is why reels "wouldn't load"
-    const isVideo = typeof item.media === 'string' && /\.(mp4|webm|mov)(\?|#|$)/i.test(item.media);
+    /* These are reels, so they're video. Gating on the filename meant
+       anything stored without an extension rendered as a still image of
+       a video file — i.e. nothing. */
+    const isVideo = looksPlayable(item.media, item.type === 'reel' || item.kind === 'video');
     const content = item.media ? (
       isVideo && Platform.OS === 'web' ? (
         <View style={{ height: H, justifyContent: 'flex-end', backgroundColor: '#0B0715' }}>
@@ -49,8 +53,21 @@ export const ReelsViewer = ({ reels, startIndex = 0, vibes, onVibe, onComment, o
               load we say so instead of showing nothing. */}
           <video
             src={item.media}
-            autoPlay muted loop playsInline preload="metadata"
-            ref={(el) => { if (el && !el.__wired) { el.__wired = true; el.muted = true; el.play().catch(() => {}); } }}
+            autoPlay muted loop playsInline preload="auto" crossOrigin="anonymous"
+            ref={(el) => {
+              if (!el || el.__wired) return;
+              el.__wired = true;
+              el.muted = true;
+              el.play().catch(() => {});
+              /* A clip that plays but shows nothing is the common
+                 failure here, and it passes every "did it load" test.
+                 Look at the pixels. */
+              watchForBlankVideo(el, () => {
+                const n = el.parentNode;
+                const w = n && n.querySelector('.mm-clip-dead');
+                if (w) w.style.display = 'flex';
+              });
+            }}
             onError={(e) => { const n = e && e.currentTarget && e.currentTarget.parentNode; if (n) { const w = n.querySelector('.mm-clip-dead'); if (w) w.style.display = 'flex'; } }}
             style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
           />
