@@ -12,7 +12,7 @@ import { fetchVideos, deletePost } from '../services/posts';
 import { fetchTracks } from '../services/music';
 import { FILM_GENRES, fetchFilms, fetchOurScores } from '../services/films';
 import { usePlayer } from '../context/PlayerContext';
-import { Page, ScreenHeader, SectionHeader, Glass, GameRunner, RooftopRush, SekoSeko3D, BoxingGame, StackGame } from '../components';
+import { Page, ScreenHeader, SectionHeader, Glass, GameRunner, RooftopRush, RockPaperScissors, StackGame } from '../components';
 import { CaptureModal } from '../components/CaptureModal';
 import { MusicHubSheet } from '../components/MusicHubSheet';
 import { FilmSheet } from '../components/FilmSheet';
@@ -75,7 +75,9 @@ export const ChillScreen = () => {
 
   // Every real, playable game — surfaced here so they're actually findable
   // (they used to be buried in Search → Play).
-  const PLAYABLE = ['runner', 'stack', 'rooftop', 'sekoseko', 'boxing'];
+  /* Seko Seko is out of the list until it looks the way it should —
+     the code stays, it just isn't offered while it's rough. */
+  const PLAYABLE = ['runner', 'stack', 'rooftop', 'rps'];
   const games = PLAY_GAMES.filter((g) => PLAYABLE.includes(g.kind));
 
   // ── music: a real listening library on your legal catalog ──
@@ -148,7 +150,7 @@ export const ChillScreen = () => {
         {games.map((g) => (
           <Pressable key={g.id} onPress={() => { tapLight(); sfxPop(); setGame(g); }} style={{ width: 132, marginRight: 12 }}>
             <LinearGradient
-              colors={g.kind === 'boxing' ? ['#2B1055', '#7C3AED'] : g.kind === 'sekoseko' ? ['#241844', '#FF2E88'] : g.kind === 'rooftop' ? ['#0D2B5E', '#F59E0B'] : g.kind === 'stack' ? ['#0B7285', '#22D3EE'] : ['#0A1D3F', '#0D2B5E']}
+              colors={g.kind === 'rps' ? ['#2B1055', '#7C3AED'] : g.kind === 'rooftop' ? ['#0D2B5E', '#F59E0B'] : g.kind === 'stack' ? ['#0B7285', '#22D3EE'] : ['#0A1D3F', '#0D2B5E']}
               start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
               style={{ height: 128, borderRadius: 18, padding: 12, justifyContent: 'space-between' }}
             >
@@ -418,8 +420,7 @@ export const ChillScreen = () => {
     {/* launched game */}
     {game && game.kind === 'stack' ? <StackGame onClose={() => setGame(null)} />
       : game && game.kind === 'rooftop' ? <RooftopRush onClose={() => setGame(null)} />
-      : game && game.kind === 'sekoseko' ? <SekoSeko3D onClose={() => setGame(null)} />
-      : game && game.kind === 'boxing' ? <BoxingGame onClose={() => setGame(null)} />
+      : game && game.kind === 'rps' ? <RockPaperScissors onClose={() => setGame(null)} />
       : game ? <GameRunner onClose={() => setGame(null)} /> : null}
     </>
   );

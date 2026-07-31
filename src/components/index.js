@@ -42,6 +42,7 @@ export { RooftopRush } from './RooftopRush';
 export { SekoSeko } from './SekoSeko';
 export { SekoSeko3D } from './SekoSeko3D';
 export { BoxingGame } from './BoxingGame';
+export { RockPaperScissors } from './RockPaperScissors';
 export { StackGame } from './StackGame';
 export { CaptureModal } from './CaptureModal';
 export { BoostSheet } from './BoostSheet';

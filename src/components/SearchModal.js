@@ -15,8 +15,7 @@ import { Tick } from './Tick';
 import { Micro } from './Micro';
 import { GameRunner } from './GameRunner';
 import { RooftopRush } from './RooftopRush';
-import { SekoSeko3D } from './SekoSeko3D';
-import { BoxingGame } from './BoxingGame';
+import { RockPaperScissors } from './RockPaperScissors';
 import { StackGame } from './StackGame';
 import { PeopleDiscover } from './PeopleDiscover';
 import { tapLight, tapSuccess } from '../utils/feedback';
@@ -120,7 +119,7 @@ export const SearchModal = ({ onClose, onOpenProfile, onOpenTopics }) => {
   const trends = trendsSource.filter((t) => !q || t.tag.toLowerCase().includes(q));
   const games = PLAY_GAMES.filter((g) => !q || g.name.toLowerCase().includes(q) || g.tag.toLowerCase().includes(q));
 
-  const PLAYABLE = ['runner', 'stack', 'rooftop', 'sekoseko', 'boxing'];
+  const PLAYABLE = ['runner', 'stack', 'rooftop', 'rps'];
   const launchGame = (g) => {
     tapLight();
     if (PLAYABLE.includes(g.kind)) setGame(g);
@@ -347,8 +346,7 @@ export const SearchModal = ({ onClose, onOpenProfile, onOpenTopics }) => {
       </View>
       {game && game.kind === 'stack' ? <StackGame onClose={() => setGame(null)} />
         : game && game.kind === 'rooftop' ? <RooftopRush onClose={() => setGame(null)} />
-        : game && game.kind === 'sekoseko' ? <SekoSeko3D onClose={() => setGame(null)} />
-        : game && game.kind === 'boxing' ? <BoxingGame onClose={() => setGame(null)} />
+        : game && game.kind === 'rps' ? <RockPaperScissors onClose={() => setGame(null)} />
         : game ? <GameRunner onClose={() => setGame(null)} /> : null}
     </Modal>
   );

@@ -106,6 +106,19 @@ function injectMapStyle() {
       background: radial-gradient(120% 120% at 50% 40%, #0a1226 0%, #04060d 70%);
       opacity: 0; transition: opacity 0.65s ease; pointer-events: none;
     }
+    /* The way down, said out loud. A planet with no instructions looks
+       like a picture; one line fixes that. Only visible on the globe. */
+    .mm-globe-hint {
+      position: absolute; left: 50%; transform: translateX(-50%);
+      bottom: 168px; z-index: 470; pointer-events: none;
+      background: rgba(10,14,26,0.62); color: #FFF;
+      font: 700 12px/1 -apple-system, system-ui, sans-serif;
+      padding: 9px 14px; border-radius: 999px;
+      opacity: 0; transition: opacity 0.4s ease;
+      border: 1px solid rgba(255,255,255,0.22);
+    }
+    .mm-z-globe .mm-globe-hint { opacity: 1; }
+
     /* ── ZOOM ── ours, not Leaflet's grey box. Bottom-right, thumb
        height, and above the tiles but below the sheets. */
     .mm-zoom {
@@ -407,6 +420,10 @@ export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus
       const globeEl = document.createElement('div');
       globeEl.className = 'mm-globe3d';
       map.getContainer().appendChild(globeEl);
+      const hintEl = document.createElement('div');
+      hintEl.className = 'mm-globe-hint';
+      hintEl.textContent = 'Pinch or tap the planet to come down';
+      map.getContainer().appendChild(hintEl);
       const globe3d = mountGlobe3D(globeEl, {
         onDive: () => {
           const c = centerRef.current || {};

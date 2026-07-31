@@ -138,9 +138,46 @@ export function mountGlobe3D(container, { onDive } = {}) {
     el.addEventListener('mousedown', (e) => down(e.clientX, e.clientY));
     window.addEventListener('mousemove', (e) => move(e.clientX, e.clientY));
     window.addEventListener('mouseup', up);
-    el.addEventListener('touchstart', (e) => down(e.touches[0].clientX, e.touches[0].clientY), { passive: true });
-    el.addEventListener('touchmove', (e) => move(e.touches[0].clientX, e.touches[0].clientY), { passive: true });
-    el.addEventListener('touchend', up);
+
+    /* PINCH ON THE PLANET.
+       The globe sits on top of the map and takes every touch, so
+       pinching it did nothing at all: the map underneath never saw the
+       fingers, and the only way down was a tap nobody knew about.
+       Spreading two fingers here now dives into the map — the same
+       thing the tap does, on the gesture people actually try first. */
+    let pinchFrom = 0;
+    const spanOf = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+
+    el.addEventListener('touchstart', (e) => {
+      if (e.touches.length >= 2) { dragging = false; pinchFrom = spanOf(e.touches); return; }
+      down(e.touches[0].clientX, e.touches[0].clientY);
+    }, { passive: true });
+
+    el.addEventListener('touchmove', (e) => {
+      if (e.touches.length >= 2) {
+        if (!pinchFrom) { pinchFrom = spanOf(e.touches); return; }
+        const ratio = spanOf(e.touches) / pinchFrom;
+        // a clear spread — not a wobble — means "take me down there"
+        if (ratio > 1.2 && onDive) { pinchFrom = 0; onDive(); }
+        return;
+      }
+      move(e.touches[0].clientX, e.touches[0].clientY);
+    }, { passive: true });
+
+    el.addEventListener('touchend', (e) => {
+      if (e.touches && e.touches.length) return;   // still pinching with one finger down
+      if (pinchFrom) { pinchFrom = 0; dragging = false; return; }
+      up();
+    });
+
+    // Safari zooms the whole page on two fingers unless we refuse it
+    ['gesturestart', 'gesturechange', 'gestureend'].forEach((n) =>
+      el.addEventListener(n, (e) => e.preventDefault(), { passive: false }));
+
+    // and on a trackpad or a mouse, scrolling up means the same thing
+    el.addEventListener('wheel', (e) => {
+      if (e.deltaY < -18 && onDive) onDive();
+    }, { passive: true });
 
     const tick = () => {
       if (disposed) return;
