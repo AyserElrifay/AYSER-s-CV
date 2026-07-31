@@ -12,11 +12,27 @@ import { supabase } from '../lib/supabase';
    STUN only (Google's public server) — most networks connect fine; when
    a strict NAT blocks it, the call honestly fails instead of faking. */
 
+/* STUN tells each side what its public address is. That is enough on
+   most home networks and on nothing else: behind a strict NAT — mobile
+   data, a company wifi, most of Egypt's carriers — the two browsers
+   never find a route and the call sits "connecting" with no audio.
+
+   A TURN relay is what fixes that, and it is the difference between a
+   call that works for some people and one that works. openrelay is a
+   free public TURN service; set EXPO_PUBLIC_TURN_URL/USER/PASS to
+   point at your own when the traffic justifies paying for one. */
+const TURN_URL = process.env.EXPO_PUBLIC_TURN_URL || 'turn:openrelay.metered.ca:80';
+const TURN_USER = process.env.EXPO_PUBLIC_TURN_USER || 'openrelayproject';
+const TURN_PASS = process.env.EXPO_PUBLIC_TURN_PASS || 'openrelayproject';
+
 export const RTC_CONFIG = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: TURN_URL, username: TURN_USER, credential: TURN_PASS },
+    { urls: TURN_URL.replace(':80', ':443'), username: TURN_USER, credential: TURN_PASS },
   ],
+  iceCandidatePoolSize: 4,
 };
 
 /* ── incoming-ring listener (mounted once, app-wide) ── */
@@ -55,9 +71,32 @@ export function joinCall(callId, handlers) {
       if (h) h(payload || {});
     });
   });
-  ch.subscribe();
+
+  /* Anything sent before the channel finishes subscribing is dropped
+     on the floor, silently. Subscribing takes a moment, and the very
+     first things a call sends are ICE candidates — the network routes
+     the two browsers need to find each other. Lose those and the call
+     shows "connecting" forever with no sound, which is exactly what
+     was happening.
+
+     So: queue until we're really connected, then flush in order. */
+  let ready = false;
+  const queue = [];
+  const push = (event, payload) =>
+    ch.send({ type: 'broadcast', event, payload: payload || {} }).catch(() => {});
+
+  ch.subscribe((status) => {
+    if (status !== 'SUBSCRIBED' || ready) return;
+    ready = true;
+    while (queue.length) { const m = queue.shift(); push(m.event, m.payload); }
+  });
+
   return {
-    send: (event, payload) => ch.send({ type: 'broadcast', event, payload: payload || {} }).catch(() => {}),
+    send: (event, payload) => {
+      if (ready) return push(event, payload);
+      queue.push({ event, payload });
+      return Promise.resolve();
+    },
     leave: () => { try { supabase.removeChannel(ch); } catch (e) {} },
   };
 }
