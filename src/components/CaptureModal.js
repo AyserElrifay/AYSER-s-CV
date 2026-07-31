@@ -69,6 +69,7 @@ const FILTERS = [
 const EFFECTS = [
   { id: 'none',     label: 'Clean',    emoji: '⬜' },
   { id: 'pixel',    label: 'Pixel',    emoji: '👾' },
+  { id: 'arcade',   label: 'Arcade',   emoji: '🕹️' },
   { id: 'cartoon',  label: 'Cartoon',  emoji: '🎨' },
   { id: 'leak',     label: 'Light leak', emoji: '🌞' },
   { id: 'vignette', label: 'Vignette', emoji: '🕳️' },
@@ -80,7 +81,7 @@ const EFFECTS = [
 ];
 /* Effects that transform the WHOLE frame (not an overlay) — applied to the
    base pixels in bake + the video compositor. */
-const FRAME_FX = { pixel: 1, cartoon: 1 };
+const FRAME_FX = { pixel: 1, cartoon: 1, arcade: 1 };
 const EFFECT_PARTICLES = { hearts: ['💖', '💕', '💗'], confetti: ['🎉', '🎊', '🟣', '🟡'], snow: ['❄️', '✻', '•'], stars: ['✨', '⭐', '✦'] };
 
 /* GAME FILTERS — our own take on Snapchat's filter games: a roulette
@@ -369,11 +370,103 @@ function applyCartoon(ctx, w, h) {
   } catch (e) {}
 }
 function applyFrameFx(ctx, w, h, effectId) {
-  if (effectId === 'pixel') applyPixelate(ctx, w, h);
+  if (effectId === 'pixel' || effectId === 'arcade') applyPixelate(ctx, w, h);
   else if (effectId === 'cartoon') applyCartoon(ctx, w, h);
 }
 
-function drawEffectsCanvas(ctx, w, h, effectId, particles) {
+/* ── ARCADE ─────────────────────────────────────────────────────────
+   The frame becomes a fighting game: two health bars, a round timer, a
+   combo counter and a super meter that fills as the clip runs. Every
+   line of it is drawn here in code — no sprite sheet, no borrowed
+   game's art, nothing anybody can send us a letter about. */
+function drawArcadeHud(ctx, w, h, t) {
+  const el = (t || 0) / 1000;
+  const s = w / 1080;                       // one scale for the whole HUD
+  const px = (n) => n * s;
+  const pixelFont = '900 ' + Math.round(px(38)) + 'px "Courier New", monospace';
+
+  const bar = (x, y, bw, bh, frac, colA, colB, flip) => {
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.fillRect(x - px(3), y - px(3), bw + px(6), bh + px(6));
+    ctx.fillStyle = '#2A2A3A';
+    ctx.fillRect(x, y, bw, bh);
+    const fw = Math.max(0, Math.min(1, frac)) * bw;
+    const g = ctx.createLinearGradient(x, y, x, y + bh);
+    g.addColorStop(0, colA); g.addColorStop(1, colB);
+    ctx.fillStyle = g;
+    ctx.fillRect(flip ? x + bw - fw : x, y, fw, bh);
+    // the blocky segment lines that make it read as 16-bit
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    for (let i = 1; i < 10; i++) ctx.fillRect(x + (bw / 10) * i - px(1), y, px(2), bh);
+    ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = px(3);
+    ctx.strokeRect(x, y, bw, bh);
+  };
+
+  // health: yours drains slowly, theirs faster — a fight you're winning
+  const mine = Math.max(0.12, 1 - el * 0.035);
+  const theirs = Math.max(0.05, 1 - el * 0.06);
+  const bw = w * 0.36, bh = px(30), top = h * 0.055;
+  bar(w * 0.05, top, bw, bh, mine, '#7CF35B', '#2F9E2A', false);
+  bar(w - w * 0.05 - bw, top, bw, bh, theirs, '#FF7A5B', '#C4331A', true);
+
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.font = pixelFont;
+  // VS, in the middle, with the round timer under it
+  ctx.lineWidth = px(8); ctx.lineJoin = 'round';
+  ctx.strokeStyle = '#101024'; ctx.fillStyle = '#FFD23F';
+  ctx.strokeText('VS', w / 2, top + bh / 2);
+  ctx.fillText('VS', w / 2, top + bh / 2);
+
+  const left = Math.max(0, 60 - Math.floor(el));
+  ctx.font = '900 ' + Math.round(px(52)) + 'px "Courier New", monospace';
+  ctx.strokeText(String(left).padStart(2, '0'), w / 2, top + bh + px(46));
+  ctx.fillStyle = left <= 10 ? '#FF4D4D' : '#FFFFFF';
+  ctx.fillText(String(left).padStart(2, '0'), w / 2, top + bh + px(46));
+
+  // player names, small, under their own bars
+  ctx.font = '900 ' + Math.round(px(24)) + 'px "Courier New", monospace';
+  ctx.fillStyle = '#FFFFFF';
+  ctx.textAlign = 'left';
+  ctx.fillText('YOU', w * 0.05, top + bh + px(26));
+  ctx.textAlign = 'right';
+  ctx.fillText('RIVAL', w - w * 0.05, top + bh + px(26));
+
+  // combo counter, bottom left, ticking up while the clip runs
+  const combo = 1 + Math.floor(el * 1.6);
+  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  ctx.font = '900 ' + Math.round(px(44)) + 'px "Courier New", monospace';
+  const pulse = 1 + 0.06 * Math.sin(el * 9);
+  ctx.save();
+  ctx.translate(w * 0.06, h * 0.88);
+  ctx.scale(pulse, pulse);
+  ctx.lineWidth = px(7); ctx.strokeStyle = '#101024';
+  ctx.strokeText('COMBO x' + combo, 0, 0);
+  ctx.fillStyle = '#FFD23F';
+  ctx.fillText('COMBO x' + combo, 0, 0);
+  ctx.restore();
+
+  // super meter, bottom, filling up
+  const sw = w * 0.62, sx = (w - sw) / 2, sy = h * 0.93, sh = px(22);
+  const fill = Math.min(1, (el % 8) / 8);
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  ctx.fillRect(sx - px(3), sy - px(3), sw + px(6), sh + px(6));
+  ctx.fillStyle = '#241A3A';
+  ctx.fillRect(sx, sy, sw, sh);
+  const sg = ctx.createLinearGradient(sx, sy, sx + sw, sy);
+  sg.addColorStop(0, '#7C3AED'); sg.addColorStop(0.5, '#38BDF8'); sg.addColorStop(1, '#FFD23F');
+  ctx.fillStyle = sg;
+  ctx.fillRect(sx, sy, sw * fill, sh);
+  ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = px(3);
+  ctx.strokeRect(sx, sy, sw, sh);
+  ctx.textAlign = 'center';
+  ctx.font = '900 ' + Math.round(px(20)) + 'px "Courier New", monospace';
+  ctx.fillStyle = fill > 0.98 ? '#FFD23F' : '#FFFFFF';
+  ctx.fillText(fill > 0.98 ? 'SUPER READY!' : 'SUPER', w / 2, sy - px(10));
+
+  ctx.textAlign = 'start'; ctx.textBaseline = 'alphabetic';
+}
+
+function drawEffectsCanvas(ctx, w, h, effectId, particles, t) {
   if (effectId === 'vignette') {
     const g = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.42, w / 2, h / 2, Math.max(w, h) * 0.72);
     g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.55)');
@@ -390,6 +483,8 @@ function drawEffectsCanvas(ctx, w, h, effectId, particles) {
       ctx.fillStyle = 'rgba(' + (Math.random() > 0.5 ? '255,255,255' : '0,0,0') + ',' + (Math.random() * 0.09).toFixed(3) + ')';
       ctx.fillRect(Math.random() * w, Math.random() * h, 2, 2);
     }
+  } else if (effectId === 'arcade') {
+    drawArcadeHud(ctx, w, h, t);
   } else if (particles) {
     particles.forEach((p) => {
       ctx.font = Math.round(p.s * w * 0.055) + 'px sans-serif';
@@ -540,6 +635,36 @@ const LensLayer = ({ lens, onMove }) => {
   );
 };
 
+/* The arcade HUD, live over the viewfinder. Same painter as the bake,
+   so the fight you see is the fight that ends up in the file. */
+const ArcadeLayer = ({ startRef }) => {
+  const ref = React.useRef(null);
+  React.useEffect(() => {
+    if (Platform.OS !== 'web') return undefined;
+    startRef.current = performance.now();
+    let raf = null;
+    const loop = () => {
+      const cv = ref.current;
+      if (cv) {
+        const w = cv.clientWidth, h = cv.clientHeight;
+        if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+        const ctx = cv.getContext('2d');
+        ctx.clearRect(0, 0, w, h);
+        drawArcadeHud(ctx, w, h, performance.now() - startRef.current);
+      }
+      raf = requestAnimationFrame(loop);
+    };
+    loop();
+    return () => { if (raf) cancelAnimationFrame(raf); };
+  }, [startRef]);
+  if (Platform.OS !== 'web') return null;
+  return (
+    <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
+      <canvas ref={ref} style={{ width: '100%', height: '100%', display: 'block' }} />
+    </View>
+  );
+};
+
 export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPostedStory, sendMode = false, sendToName, onMoment }) => {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
@@ -578,6 +703,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
 
   // ── effects + game filters (previewed live, baked on share) ──
   const [effectId, setEffectId] = useState('none');
+  const arcadeStartRef = React.useRef(0);   // when this round started, so the bake matches the preview
   const [gameCard, setGameCard] = useState(null); // { kind:'roulette'|'question', text }
   const particlesRef = useRef(null); // stable random layout per effect pick
   const rollGame = (kind) => {
@@ -841,8 +967,8 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
               if ('filter' in ctx) ctx.filter = filter;
               ctx.drawImage(v, 0, 0, w, h);
               if ('filter' in ctx) ctx.filter = 'none';
-              if (eff === 'pixel') applyPixelate(ctx, w, h); // cheap per-frame; cartoon is photo-only (per-frame read is too heavy)
-              drawEffectsCanvas(ctx, w, h, eff, parts);
+              if (eff === 'pixel' || eff === 'arcade') applyPixelate(ctx, w, h); // cheap per-frame; cartoon is photo-only (per-frame read is too heavy)
+              drawEffectsCanvas(ctx, w, h, eff, parts, performance.now() - t0);
               drawLens(ctx, w, h, lensRef.current, performance.now() - t0);
               if (rg) drawReelCardCanvas(ctx, w, h, rg, performance.now() - t0);
               else if (gc) drawSimpleCardCanvas(ctx, w, h, gc);
@@ -1134,7 +1260,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
           ctx.drawImage(img, 0, 0, w, h);
           ctx.filter = 'none';
           applyFrameFx(ctx, w, h, effectId); // pixel / cartoon transform the whole photo
-          drawEffectsCanvas(ctx, w, h, effectId, particlesRef.current);
+          drawEffectsCanvas(ctx, w, h, effectId, particlesRef.current, arcadeStartRef.current ? performance.now() - arcadeStartRef.current : 0);
           drawLens(ctx, w, h, lensRef.current, performance.now());
           if (reelGame) drawReelCardCanvas(ctx, w, h, reelGame, null); // final result
           else if (gameCard) drawSimpleCardCanvas(ctx, w, h, gameCard);
@@ -1512,6 +1638,10 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
             onMove={(x, y) => setLens((l) => (l ? { ...l, x, y } : l))}
           />
         ) : null}
+
+        {/* the arcade round, live. The blocky pixels are added when the
+            frame is baked; the HUD is live so you can pose to it. */}
+        {effectId === 'arcade' && isWeb ? <ArcadeLayer startRef={arcadeStartRef} /> : null}
 
         {/* Owner only — the facts, so a black preview can be diagnosed
             from one screenshot instead of another round of guessing.
