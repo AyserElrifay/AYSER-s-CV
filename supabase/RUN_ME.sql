@@ -625,9 +625,16 @@ end $$;
 -- to a Storage bucket named `media`, and that bucket was only created by
 -- the old schema.sql — never by this file. One paste fixes it. Public
 -- bucket (posts are public), uploads land in the uploader's own folder.
-insert into storage.buckets (id, name, public)
-values ('media', 'media', true)
-on conflict (id) do update set public = true;
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('media', 'media', true, 52428800, null)
+on conflict (id) do update set
+  public = true,
+  -- 50 MB, stated on the bucket itself rather than left to whatever the
+  -- project default happens to be, and no mime allow-list: a list that
+  -- silently omits video/mp4 rejects every reel with a bare "Load
+  -- failed", which is indistinguishable from a bad connection.
+  file_size_limit = 52428800,
+  allowed_mime_types = null;
 
 drop policy if exists "media is publicly readable" on storage.objects;
 create policy "media is publicly readable"
@@ -1406,4 +1413,7 @@ select
   exists (select 1 from information_schema.columns
           where table_schema = 'public' and table_name = 'profiles'
             and column_name = 'city')                        as discover_ready,
+  (select file_size_limit from storage.buckets where id = 'media') as media_size_limit,
+  (select coalesce(array_to_string(allowed_mime_types, ','), 'any')
+     from storage.buckets where id = 'media')                      as media_mime_types,
   (to_regclass('public.playlists')            is not null) as playlists_ready;

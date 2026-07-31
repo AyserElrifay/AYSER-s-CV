@@ -839,6 +839,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
      already on someone's profile. Sampling one real frame is the only
      way to know. This warns, it never blocks — a genuinely dark night
      clip is still the user's to post. */
+  const [uploadRaw, setUploadRaw] = useState(null);   // owner-only: the real error
   const [clipWarn, setClipWarn] = useState(null);
   const [firstFrame, setFirstFrame] = useState(null);   // a real frame from the clip
   const [playErr, setPlayErr] = useState(null);         // why the preview won't play
@@ -1157,6 +1158,9 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
           ? 'The upload didn\'t reach the server — check your connection and tap share again (large videos need a steady signal).'
           : (m || 'Could not share — check your connection and try again')
       );
+      /* The friendly sentence above hides the only thing that can
+         actually diagnose this. The owner gets the real words. */
+      if (isOwner(user)) setUploadRaw(m || String(e));
     } finally {
       setBusy(false);
     }
@@ -1437,6 +1441,12 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
                '  paused=' + (diag && diag.paused != null ? String(diag.paused) : '—') + '\n' +
                'ok=' + (videoOk ? 'Y' : 'N') + '  err=' + (playErr || 'none') + '  done=' + (probeDone ? 'Y' : 'N')}
             </Text>
+          </View>
+        ) : null}
+
+        {uploadRaw && isOwner(user) ? (
+          <View style={{ position: 'absolute', top: insets.top + 150, left: 16, right: 16, backgroundColor: 'rgba(0,0,0,0.9)', borderRadius: 10, padding: 10, zIndex: 45 }}>
+            <Text style={{ color: '#FCA5A5', fontSize: 10.5, fontWeight: '700', lineHeight: 15 }}>{uploadRaw}</Text>
           </View>
         ) : null}
 

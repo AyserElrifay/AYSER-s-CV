@@ -50,16 +50,39 @@ async function uploadToR2(userId, uri, ext, contentType) {
 }
 
 async function uploadToSupabase(userId, uri, ext, contentType) {
-  const path = userId + '/' + Date.now() + '.' + ext;
   // Blob, not ArrayBuffer — half the memory footprint, which is what
   // made Safari throw 'Load failed' on big videos.
   const body = await asBlob(uri);
-  if (body.size > MAX_UPLOAD_BYTES) throw new Error('File too large (max 60MB)');
+  if (body.size > MAX_UPLOAD_BYTES) {
+    throw new Error('That file is ' + Math.round(body.size / 1048576) + 'MB — the server accepts up to 48MB in one file.');
+  }
   if (!body.size) throw new Error('The recording came out empty (0 bytes)');
-  const { error } = await supabase.storage.from('media').upload(path, body, { contentType });
-  if (error) throw error;
-  const { data } = supabase.storage.from('media').getPublicUrl(path);
-  return data.publicUrl;
+
+  /* Safari drops a long upload with a bare "Load failed" often enough
+     that one attempt is not a fair test — a dropped connection mid-way
+     looks identical to a rejected file. Three tries, a fresh path each
+     time so a half-written object never collides, and the real reason
+     kept if they all fail. */
+  let last = null;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const path = userId + '/' + Date.now() + '-' + attempt + '.' + ext;
+    const { error } = await supabase.storage.from('media')
+      .upload(path, body, { contentType, upsert: false });
+    if (!error) {
+      const { data } = supabase.storage.from('media').getPublicUrl(path);
+      return data.publicUrl;
+    }
+    last = error;
+    const msg = String((error && error.message) || '');
+    // a rejection is final; only a dropped connection is worth retrying
+    if (!/load failed|failed to fetch|network|timeout|aborted/i.test(msg)) break;
+    await new Promise((r) => setTimeout(r, 1200 * attempt));
+  }
+  const detail = (last && (last.message || last.error)) || 'unknown';
+  const e = new Error('Upload failed after 3 tries — ' + detail +
+    ' (' + Math.round(body.size / 1048576 * 10) / 10 + 'MB)');
+  e.raw = last;
+  throw e;
 }
 
 /* ── Client-side image compression (web) ──────────────────────────
