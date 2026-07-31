@@ -2026,6 +2026,90 @@ create policy "posts_close_sel" on public.posts for select using (
 notify pgrst, 'reload schema';
 
 
+-- ═══════════ FOLLOWS · who you follow, who follows you ═══════════
+-- Mates are mutual and always were. Following is the other thing: one
+-- direction, no permission needed, and the two counts on a profile can
+-- differ — which is the only reason showing both is worth anything.
+create table if not exists public.follows (
+  follower_id uuid not null references public.profiles(id) on delete cascade,
+  followee_id uuid not null references public.profiles(id) on delete cascade,
+  created_at  timestamptz not null default now(),
+  primary key (follower_id, followee_id),
+  constraint follows_not_self check (follower_id <> followee_id)
+);
+create index if not exists follows_followee_idx on public.follows (followee_id);
+alter table public.follows enable row level security;
+drop policy if exists "fl_sel" on public.follows;
+create policy "fl_sel" on public.follows for select using (true);
+drop policy if exists "fl_ins" on public.follows;
+create policy "fl_ins" on public.follows for insert with check (auth.uid() = follower_id);
+drop policy if exists "fl_del" on public.follows;
+create policy "fl_del" on public.follows for delete using (auth.uid() = follower_id);
+
+
+-- ═══════════ MESSAGE REQUESTS · a stranger has to be let in ═══════════
+-- Anyone can write to you. What they cannot do is land in your inbox
+-- uninvited, keep going when you haven't answered, or send you a
+-- picture before you've agreed to hear from them.
+--
+-- That last rule is the one that matters. Almost every unwanted image
+-- somebody receives comes from an account they have never spoken to,
+-- and no filter catches those reliably. Not accepting media from
+-- strangers does — completely, and without having to inspect anybody's
+-- photos.
+alter table public.dm_participants add column if not exists accepted boolean;
+alter table public.dm_participants add column if not exists invited_by uuid references public.profiles(id);
+
+/* Have these two agreed to talk? True when both sides have either
+   accepted or started the thread. Security definer so it can read the
+   whole thread without handing the caller everyone's rows. */
+create or replace function public.dm_is_open(thread uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select coalesce(bool_and(coalesce(accepted, true)), true)
+  from public.dm_participants where thread_id = thread;
+$$;
+
+/* An unanswered request gets a few lines to say who you are — not an
+   open channel. Media is refused outright until it's accepted. */
+create or replace function public.dm_guard() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare
+  open_thread boolean;
+  sent_count  int;
+begin
+  if new.dm_thread_id is null then return new; end if;
+  select public.dm_is_open(new.dm_thread_id) into open_thread;
+  if open_thread then return new; end if;
+
+  if new.media_url is not null or new.kind in ('moment', 'game_invite') then
+    raise exception 'Photos and games only after they accept your request.'
+      using errcode = 'check_violation';
+  end if;
+
+  select count(*) into sent_count
+  from public.messages
+  where dm_thread_id = new.dm_thread_id and user_id = new.user_id;
+  if sent_count >= 3 then
+    raise exception 'Wait until they accept before sending more.'
+      using errcode = 'check_violation';
+  end if;
+  return new;
+end $$;
+drop trigger if exists messages_dm_guard on public.messages;
+create trigger messages_dm_guard before insert on public.messages
+  for each row execute function public.dm_guard();
+
+
+-- ═══════════ SQUAD INVITES · nobody gets dropped into a room ═══════════
+-- Being added to a group without a say is exactly the thing people
+-- hate. An invite now sits pending until the person accepts it, and
+-- until then the squad does not appear in their list.
+alter table public.squad_members add column if not exists accepted boolean not null default true;
+alter table public.squad_members add column if not exists invited_by uuid references public.profiles(id);
+
+notify pgrst, 'reload schema';
+
+
 -- ═══════════════════ READINESS CHECKLIST ═══════════════════
 -- Every column below should say TRUE. If chat_ready is FALSE,
 -- also run supabase/schema_v2_live.sql (messages & live map).
@@ -2071,6 +2155,10 @@ select
           where table_schema = 'public' and table_name = 'stories'
             and column_name = 'sticker_type')                as story_stickers_ready,
   (to_regclass('public.films')                is not null) as films_ready,
+  (to_regclass('public.follows')              is not null) as follows_ready,
+  exists (select 1 from information_schema.columns
+          where table_schema = 'public' and table_name = 'dm_participants'
+            and column_name = 'accepted')                    as message_requests_ready,
   (to_regclass('public.close_friends')        is not null) as close_friends_ready,
   exists (select 1 from information_schema.columns
           where table_schema = 'public' and table_name = 'stories'

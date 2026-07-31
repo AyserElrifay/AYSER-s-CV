@@ -163,7 +163,7 @@ export const StoryViewer = ({ stories, groups, startGroup = 0, startIndex = 0, o
     if (!body || !SUPABASE_READY || !user || isMine) return;
     tapLight(); sfxPop();
     try {
-      const threadId = await getOrCreateDmThread(story.user.id);
+      const threadId = await getOrCreateDmThread(story.user.id, user && user.id);
       const prefix = asAnswer && story.stickerData && story.stickerData.question
         ? 'Answered "' + story.stickerData.question + '": '
         : 'Replied to your story: ';
@@ -193,7 +193,7 @@ export const StoryViewer = ({ stories, groups, startGroup = 0, startIndex = 0, o
     }
     try {
       // and it lands in the owner's DMs too, so it's a real notification
-      const threadId = await getOrCreateDmThread(story.user.id);
+      const threadId = await getOrCreateDmThread(story.user.id, user && user.id);
       await sendMessage({ dmThreadId: threadId, userId: user.id, body: 'Reacted to your story: ' + emoji });
     } catch (e) { /* the reaction itself is saved; the DM ping is a bonus */ }
   };

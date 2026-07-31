@@ -11,7 +11,10 @@ import { getOrCreateDmThread, fetchMessages, sendMessage, sendMoment, sendGameIn
 import { uploadCapture } from '../services/social';
 import { StickerPicker } from '../components/StickerPicker';
 import { createMatch, fetchMatch, respondMatch } from '../services/games';
-import { noteScreenshot } from '../services/messages';
+import { noteScreenshot, isThreadOpen, acceptMessageRequest, declineMessageRequest } from '../services/messages';
+import { looksExplicit, EXPLICIT_BLOCKED } from '../services/safety';
+import { amFollowing, follow } from '../services/follows';
+import { getMateStatus } from '../services/mates';
 import { useScreenshotWatch } from '../hooks/useScreenshotWatch';
 import { StreakBadge } from '../components/StreakBadge';
 import { getProfile } from '../services/profiles';
@@ -172,6 +175,18 @@ export const ChatThread = ({ chat, group, onClose }) => {
   const scroller = useRef(null);
 
   // ── Catch Your Mate — real multiplayer duel invites ──
+  /* Is this an open conversation, or somebody's unanswered request?
+     A request gets three lines of text and nothing else — no camera, no
+     games, no photos. That rule lives in a database trigger; this is
+     only what the screen shows. */
+  const [threadOpen, setThreadOpen] = useState(true);
+  const [areMates, setAreMates] = useState(true);
+  /* Once two people who didn't know each other have actually had a
+     conversation — three messages each way — offer the follow once. It
+     appears in the thread where the conversation is, not as a popup
+     over it, and it never comes back after you've answered it. */
+  const [iFollow, setIFollow] = useState(true);
+  const [followAsked, setFollowAsked] = useState(false);
   const [matches, setMatches] = useState({}); // { [matchId]: game_matches row }
   const [activeMatch, setActiveMatch] = useState(null); // { matchId, isHost, opponent }
   const loadMatch = async (matchId) => {
@@ -313,7 +328,7 @@ export const ChatThread = ({ chat, group, onClose }) => {
       let threadId = dmThreadId;
       if (!group && !threadId) {
         try {
-          threadId = await getOrCreateDmThread(peer.id);
+          threadId = await getOrCreateDmThread(peer.id, user && user.id);
         } catch (e) {
           if (!cancelled) setChatErr(explainChat(e));
           threadId = null;
@@ -322,6 +337,19 @@ export const ChatThread = ({ chat, group, onClose }) => {
         setDmThreadId(threadId);
       }
       if (!squadId && !threadId) return;
+      if (threadId && !group && peer && peer.id && user) {
+        Promise.all([
+          isThreadOpen(threadId).catch(() => true),
+          getMateStatus(user.id, peer.id).catch(() => null),
+          amFollowing(user.id, peer.id).catch(() => true),
+        ]).then(([open, mate, follows]) => {
+          if (cancelled) return;
+          const accepted = mate && (mate.status === 'accepted' || mate === 'accepted');
+          setAreMates(!!accepted);
+          setThreadOpen(!!accepted || open !== false);
+          setIFollow(!!follows);
+        });
+      }
       const rows = await fetchMessages({ squadId, dmThreadId: threadId }).catch(() => []);
       if (cancelled) return;
       const local = (rows || []).map(toLocal);
@@ -342,6 +370,12 @@ export const ChatThread = ({ chat, group, onClose }) => {
   const send = async (explicit) => {
     const t = (typeof explicit === 'string' ? explicit : draft).trim();
     if (!t) return;
+    /* Between people who haven't accepted each other, an unmistakable
+       sexual advance doesn't send. Never applied once you're mates —
+       two people who chose to talk to each other are not our business.
+       See services/safety.js for exactly what this does and doesn't
+       catch; it is a speed bump, not a guarantee. */
+    if (!areMates && !group && looksExplicit(t)) { setChatErr(EXPLICIT_BLOCKED); return; }
     tapLight(); sfxPop();
     if (typeof explicit !== 'string') setDraft('');
     if (isReal) {
@@ -559,6 +593,40 @@ export const ChatThread = ({ chat, group, onClose }) => {
                 </View>
               );
             })}
+            {/* ── you two have actually talked now ──────────────────
+                Three messages each way, you don't already follow them,
+                and you haven't been asked before. Sits in the thread at
+                the point the conversation earned it, and disappears for
+                good once you've answered either way. */}
+            {(() => {
+              if (group || iFollow || followAsked || !peer || !user) return null;
+              const mine = visibleMsgs.filter((m) => m.from === 'me').length;
+              const theirs = visibleMsgs.length - mine;
+              if (mine < 3 || theirs < 3) return null;
+              const name = (peer.name || 'them').split(' ')[0];
+              return (
+                <View style={{ alignItems: 'center', paddingVertical: 22, paddingHorizontal: 24 }}>
+                  <Text style={{ color: C.text, fontSize: 15, fontWeight: '900', textAlign: 'center', lineHeight: 22 }}>
+                    Follow {name} and you'll find them straight away in the "Following" list on your profile.
+                  </Text>
+                  <Pressable
+                    onPress={async () => {
+                      tapMedium();
+                      setIFollow(true);
+                      try { await follow(user.id, peer.id); } catch (e) { setIFollow(false); }
+                    }}
+                    style={{ marginTop: 14 }}
+                  >
+                    <View style={{ backgroundColor: C.purple, borderRadius: 16, paddingHorizontal: 40, paddingVertical: 13 }}>
+                      <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '900' }}>Follow</Text>
+                    </View>
+                  </Pressable>
+                  <Pressable onPress={() => { tapLight(); setFollowAsked(true); }} style={{ marginTop: 10 }}>
+                    <Text style={{ color: C.faint, fontSize: 12.5, fontWeight: '700' }}>Not now</Text>
+                  </Pressable>
+                </View>
+              );
+            })()}
 
             {todOn ? <TruthOrDare players={players} onRemove={() => setTodOn(false)} /> : null}
             {wyrOn ? <WouldYouRather onRemove={() => setWyrOn(false)} /> : null}
@@ -677,19 +745,62 @@ export const ChatThread = ({ chat, group, onClose }) => {
             </View>
           ) : null}
 
+          {/* Somebody you haven't met is asking to talk. Decide before
+              anything else opens up — no camera, no games, no photos
+              until you do. */}
+          {!threadOpen && !group ? (
+            <View style={{ backgroundColor: C.purpleSoft, borderTopWidth: 1, borderTopColor: 'rgba(124,58,237,0.3)', paddingHorizontal: 14, paddingVertical: 12 }}>
+              <Text style={{ color: C.text, fontSize: 13, fontWeight: '800' }}>
+                {(peer && peer.name ? peer.name.split(' ')[0] : 'They')} want{peer && peer.name ? 's' : ''} to talk to you
+              </Text>
+              <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 3, lineHeight: 17 }}>
+                You've not spoken before. They can't send photos or start a game until you accept.
+              </Text>
+              <View style={{ flexDirection: 'row', marginTop: 10 }}>
+                <Pressable
+                  onPress={async () => {
+                    if (!dmThreadId || !user) return;
+                    try { await acceptMessageRequest(dmThreadId, user.id); setThreadOpen(true); tapSuccess(); } catch (e) {}
+                  }}
+                  style={{ flex: 1, marginRight: 8 }}
+                >
+                  <View style={{ backgroundColor: C.purple, borderRadius: 12, paddingVertical: 10, alignItems: 'center' }}>
+                    <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900' }}>Accept</Text>
+                  </View>
+                </Pressable>
+                <Pressable
+                  onPress={async () => {
+                    if (!dmThreadId || !user) return;
+                    try { await declineMessageRequest(dmThreadId, user.id); } catch (e) {}
+                    onClose();
+                  }}
+                  style={{ flex: 1 }}
+                >
+                  <View style={{ backgroundColor: C.glassHi, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingVertical: 10, alignItems: 'center' }}>
+                    <Text style={{ color: C.dim, fontSize: 13, fontWeight: '900' }}>Not now</Text>
+                  </View>
+                </Pressable>
+              </View>
+            </View>
+          ) : null}
+
           {/* input bar */}
           <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingTop: 8, paddingBottom: insets.bottom + 8, borderTopWidth: 1, borderTopColor: C.line, backgroundColor: C.bg2 }}>
-            <Pressable onPress={() => { tapLight(); setMenu((v) => !v); }} hitSlop={8} style={{ marginRight: 8 }}>
-              <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: menu ? C.purple : C.purpleSoft, alignItems: 'center', justifyContent: 'center' }}>
-                <Ionicons name={menu ? 'close' : 'game-controller'} size={19} color={menu ? '#FFF' : C.purple} />
-              </View>
-            </Pressable>
+            {threadOpen ? (
+              <Pressable onPress={() => { tapLight(); setMenu((v) => !v); }} hitSlop={8} style={{ marginRight: 8 }}>
+                <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: menu ? C.purple : C.purpleSoft, alignItems: 'center', justifyContent: 'center' }}>
+                  <Ionicons name={menu ? 'close' : 'game-controller'} size={19} color={menu ? '#FFF' : C.purple} />
+                </View>
+              </Pressable>
+            ) : null}
             {/* shoot a Moment — a Snapchat-style snap, straight into the chat */}
-            <Pressable onPress={() => { tapMedium(); setMomentOpen(true); }} hitSlop={8} style={{ marginRight: 8 }}>
-              <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: C.coralSoft, alignItems: 'center', justifyContent: 'center' }}>
-                <Ionicons name="camera" size={19} color={C.coral} />
-              </View>
-            </Pressable>
+            {threadOpen ? (
+              <Pressable onPress={() => { tapMedium(); setMomentOpen(true); }} hitSlop={8} style={{ marginRight: 8 }}>
+                <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: C.coralSoft, alignItems: 'center', justifyContent: 'center' }}>
+                  <Ionicons name="camera" size={19} color={C.coral} />
+                </View>
+              </Pressable>
+            ) : null}
             <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: C.bg, borderRadius: 22, borderWidth: 1, borderColor: C.line, paddingHorizontal: 14, paddingVertical: Platform.OS === 'ios' ? 10 : 3 }}>
               <TextInput
                 placeholder="Message…"

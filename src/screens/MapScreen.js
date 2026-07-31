@@ -551,7 +551,7 @@ export const MapScreen = () => {
     closeSheet();
     if (!SUPABASE_READY || !user) { note('🤝 ' + distTxt + ' · ~' + mins + ' min'); return; }
     try {
-      const threadId = await getOrCreateDmThread(p.id);
+      const threadId = await getOrCreateDmThread(p.id, user && user.id);
       await sendMessage({ dmThreadId: threadId, userId: user.id, body: '🤝 Meet up? I’m ' + distTxt + ' away (~' + mins + ' min) — heading your way!' });
       sfxPop();
       note('🤝 Invite sent to ' + (p.name || '').split(' ')[0] + ' · ' + distTxt + ' · ~' + mins + ' min');
@@ -565,7 +565,7 @@ export const MapScreen = () => {
     tapLight();
     if (!SUPABASE_READY || !user) { setWaved((w) => ({ ...w, [person.id]: true })); return; }
     try {
-      const threadId = await getOrCreateDmThread(person.id);
+      const threadId = await getOrCreateDmThread(person.id, user && user.id);
       await sendMessage({ dmThreadId: threadId, userId: user.id, body: '👋' });
       sfxPop();
       setWaved((w) => ({ ...w, [person.id]: true }));
@@ -673,7 +673,7 @@ export const MapScreen = () => {
       setJoinedFires((j) => ({ ...j, [c.id]: true }));
       // the hello to the host is best-effort — the join itself is done
       try {
-        const threadId = await getOrCreateDmThread(c.hostId);
+        const threadId = await getOrCreateDmThread(c.hostId, user && user.id);
         await sendMessage({ dmThreadId: threadId, userId: user.id, body: 'I’m in for “' + c.title + '”! 🙌' });
       } catch (e2) {}
     } catch (e) {

@@ -155,7 +155,7 @@ export const SettingsScreen = ({ onClose }) => {
     setSplitNote(null);
     const money = (n) => (Math.round(n * 100) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     try {
-      const threadId = await getOrCreateDmThread(mate.id);
+      const threadId = await getOrCreateDmThread(mate.id, user && user.id);
       await sendMessage({
         dmThreadId: threadId, userId: user.id,
         body: '🧾 Bill split — total ' + money(splitPer.total) + ' ÷ ' + splitPer.ppl + ' = ' + money(splitPer.per) + ' each. Your share: ' + money(splitPer.per),

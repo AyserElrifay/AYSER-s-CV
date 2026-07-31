@@ -50,6 +50,8 @@ import { countMyCampfires } from '../services/campfires';
 import { countMates } from '../services/mates';
 import { Tick, GhostButton, BoostSheet, MatesSheet, AvatarBuilderSheet, PostCard, ReelsViewer, CommentsSheet, LikersSheet, HighlightsRail } from '../components';
 import { CloseFriendsSheet } from '../components/CloseFriendsSheet';
+import { countFollowers, countFollowing } from '../services/follows';
+import { PHOTO_RULE } from '../services/safety';
 import { sendFeedback, FEEDBACK_KINDS } from '../services/feedback';
 import { SettingsScreen } from './SettingsScreen';
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
@@ -144,6 +146,13 @@ export const ProfileScreen = () => {
   const [matesOpen, setMatesOpen] = useState(false);
   const [avatarBuilderOpen, setAvatarBuilderOpen] = useState(false);
   const [closeOpen, setCloseOpen] = useState(false);
+  const [followers, setFollowers] = useState(0);
+  const [following, setFollowing] = useState(0);
+  useEffect(() => {
+    if (!SUPABASE_READY || !user) return;
+    countFollowers(user.id).then(setFollowers).catch(() => {});
+    countFollowing(user.id).then(setFollowing).catch(() => {});
+  }, [user]);
   const [editName, setEditName] = useState('');
   const [editBio, setEditBio] = useState('');
   const [editIntent, setEditIntent] = useState('');
@@ -642,8 +651,11 @@ export const ProfileScreen = () => {
             const statsBlock = (
               <View style={{ flex: 1, flexDirection: 'row' }}>
                 <Stat n={moments} label="Moments" />
-                <Stat n={mates} label="Followers" onPress={() => setMatesOpen(true)} />
-                <Stat n={likes} label="Likes" />
+                {/* Followers and Following are two different numbers now —
+                    one direction each. Mates stay the mutual thing they
+                    always were, which is what chat and Close Friends use. */}
+                <Stat n={SUPABASE_READY ? followers : mates} label="Followers" onPress={() => setMatesOpen(true)} />
+                <Stat n={SUPABASE_READY ? following : mates} label="Following" onPress={() => setMatesOpen(true)} />
               </View>
             );
             const spacer = <View style={{ width: 16 }} />;
@@ -878,6 +890,12 @@ export const ProfileScreen = () => {
             <Text style={{ color: C.text, fontSize: 18, fontWeight: '900', marginBottom: 12 }}>Edit your space</Text>
 
             {/* tap to change your profile photo */}
+            {/* The rule people should see before they break it, not
+                after. We don't scan photographs — see services/safety.js
+                for why, and for what actually stops unwanted images. */}
+            <Text style={{ color: C.faint, fontSize: 11.5, textAlign: 'center', marginBottom: 10, paddingHorizontal: 20, lineHeight: 17 }}>
+              {PHOTO_RULE}
+            </Text>
             <Pressable onPress={changeAvatar} style={{ alignSelf: 'center', marginBottom: 16 }}>
               <Image source={{ uri: editAvatar || me.avatar }} style={{ width: 88, height: 88, borderRadius: 44, borderWidth: 2, borderColor: C.line }} />
               <View style={{ position: 'absolute', bottom: 0, right: 0, width: 30, height: 30, borderRadius: 15, backgroundColor: C.purple, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: C.bg }}>

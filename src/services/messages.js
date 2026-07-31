@@ -3,10 +3,33 @@ import { supabase } from '../lib/supabase';
 /* Real chat — squad group threads and 1:1 DMs share one table,
    distinguished by which foreign key is set. */
 
-export async function getOrCreateDmThread(otherUserId) {
+export async function getOrCreateDmThread(otherUserId, myId) {
   const { data, error } = await supabase.rpc('get_or_create_dm_thread', { other_user: otherUserId });
   if (error) throw error;
-  return data; // thread id (uuid)
+  const threadId = data; // uuid
+
+  /* Mark the two sides: whoever opened it has obviously accepted, the
+     other person hasn't been asked yet. Mates skip all of this — they
+     already agreed to each other. Any failure here is left alone rather
+     than blocking the conversation. */
+  if (threadId && myId) {
+    try {
+      const { data: mate } = await supabase
+        .from('mates')
+        .select('id')
+        .eq('status', 'accepted')
+        .or('and(requester_id.eq.' + myId + ',addressee_id.eq.' + otherUserId + '),and(requester_id.eq.' + otherUserId + ',addressee_id.eq.' + myId + ')')
+        .maybeSingle();
+      if (!mate) {
+        await supabase.from('dm_participants')
+          .update({ accepted: true }).eq('thread_id', threadId).eq('user_id', myId);
+        await supabase.from('dm_participants')
+          .update({ accepted: false, invited_by: myId })
+          .eq('thread_id', threadId).eq('user_id', otherUserId).is('accepted', null);
+      }
+    } catch (e) { /* never block a conversation over this */ }
+  }
+  return threadId;
 }
 
 export async function fetchMessages({ squadId, dmThreadId }) {
@@ -290,10 +313,21 @@ export async function fetchSquadMemberIds(squadId) {
 }
 
 /* Add a mate to your squad (they appear in the group instantly). */
-export async function addSquadMember(squadId, userId) {
-  const { error } = await supabase
+/* An invite, not a membership. It sits pending until they accept, and
+   the squad doesn't show up in their list before that — being dropped
+   into a group without a say is exactly the thing people hate. */
+export async function addSquadMember(squadId, userId, invitedBy) {
+  const row = { squad_id: squadId, user_id: userId, accepted: false, invited_by: invitedBy || null };
+  let { error } = await supabase
     .from('squad_members')
-    .upsert({ squad_id: squadId, user_id: userId }, { onConflict: 'squad_id,user_id', ignoreDuplicates: true });
+    .upsert(row, { onConflict: 'squad_id,user_id', ignoreDuplicates: true });
+  if (error && /accepted|invited_by|column/i.test(error.message || '')) {
+    // older database without the invite columns — fall back rather than fail
+    const res = await supabase
+      .from('squad_members')
+      .upsert({ squad_id: squadId, user_id: userId }, { onConflict: 'squad_id,user_id', ignoreDuplicates: true });
+    error = res.error;
+  }
   if (error) throw error;
 }
 
@@ -334,4 +368,125 @@ export async function noteScreenshot({ dmThreadId, squadId, userId }) {
   }
   if (res.error) return null;
   return res.data;
+}
+
+/* ── MESSAGE REQUESTS · a stranger has to be let in ──────────────────
+   Anyone may write to you. What they may not do is land in your inbox
+   uninvited, keep talking when you haven't answered, or send you a
+   picture before you've agreed to hear from them. The last of those is
+   enforced by a trigger on the messages table, so it holds against the
+   API and not merely against our screens.
+
+   Somebody you have already accepted, or already messaged, is not a
+   request — the thread is open in both directions from then on. */
+
+/* Threads waiting on your answer, newest first, with a preview so you
+   can decide without opening anything. */
+export async function fetchMessageRequests(userId) {
+  if (!userId) return [];
+  const { data, error } = await supabase
+    .from('dm_participants')
+    .select('thread_id, invited_by, inviter:profiles!dm_participants_invited_by_fkey(id,name,handle,avatar_url,avatar_dna,country_flag)')
+    .eq('user_id', userId)
+    .eq('accepted', false);
+  if (error) return [];
+  const rows = data || [];
+  if (!rows.length) return [];
+
+  // the few lines they were allowed to send, so you can judge
+  const ids = rows.map((r) => r.thread_id);
+  const { data: msgs } = await supabase
+    .from('messages')
+    .select('dm_thread_id, body, created_at')
+    .in('dm_thread_id', ids)
+    .order('created_at', { ascending: false });
+  const firstOf = {};
+  (msgs || []).forEach((m) => { if (!firstOf[m.dm_thread_id]) firstOf[m.dm_thread_id] = m; });
+
+  return rows.map((r) => ({
+    threadId: r.thread_id,
+    from: r.inviter || null,
+    preview: (firstOf[r.thread_id] && firstOf[r.thread_id].body) || '',
+    at: firstOf[r.thread_id] && firstOf[r.thread_id].created_at,
+  }));
+}
+
+export async function countMessageRequests(userId) {
+  if (!userId) return 0;
+  const { count, error } = await supabase
+    .from('dm_participants')
+    .select('thread_id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('accepted', false);
+  if (error) return 0;
+  return count || 0;
+}
+
+export async function acceptMessageRequest(threadId, userId) {
+  const { error } = await supabase
+    .from('dm_participants')
+    .update({ accepted: true })
+    .eq('thread_id', threadId)
+    .eq('user_id', userId);
+  if (error) throw error;
+  return true;
+}
+
+/* Declining removes you from the thread. They aren't told — being told
+   you were turned down is its own small unpleasantness, and it invites
+   a second attempt from another account. */
+export async function declineMessageRequest(threadId, userId) {
+  const { error } = await supabase
+    .from('dm_participants')
+    .delete()
+    .eq('thread_id', threadId)
+    .eq('user_id', userId);
+  if (error) throw error;
+  return true;
+}
+
+/* Is this thread open, or still a request? Drives whether the camera
+   and the games appear at all. */
+export async function isThreadOpen(threadId) {
+  if (!threadId) return true;
+  const { data, error } = await supabase.rpc('dm_is_open', { thread: threadId });
+  if (error) return true;          // never lock someone out on a lookup failure
+  return data !== false;
+}
+
+/* ── SQUAD INVITES · nobody gets dropped into a room ─────────────── */
+
+export async function fetchSquadInvites(userId) {
+  if (!userId) return [];
+  const { data, error } = await supabase
+    .from('squad_members')
+    .select('squad_id, invited_by, squad:squads(id,name,emoji), inviter:profiles!squad_members_invited_by_fkey(id,name,avatar_url)')
+    .eq('user_id', userId)
+    .eq('accepted', false);
+  if (error) return [];
+  return (data || []).map((r) => ({
+    squadId: r.squad_id,
+    squad: r.squad || null,
+    from: r.inviter || null,
+  }));
+}
+
+export async function acceptSquadInvite(squadId, userId) {
+  const { error } = await supabase
+    .from('squad_members')
+    .update({ accepted: true })
+    .eq('squad_id', squadId)
+    .eq('user_id', userId);
+  if (error) throw error;
+  return true;
+}
+
+export async function declineSquadInvite(squadId, userId) {
+  const { error } = await supabase
+    .from('squad_members')
+    .delete()
+    .eq('squad_id', squadId)
+    .eq('user_id', userId);
+  if (error) throw error;
+  return true;
 }

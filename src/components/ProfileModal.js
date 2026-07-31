@@ -208,7 +208,7 @@ export const ProfileModal = ({ user, onClose }) => {
     setActionErr(null);
     setBusy(true);
     try {
-      const threadId = await getOrCreateDmThread(user.id);
+      const threadId = await getOrCreateDmThread(user.id, me && me.id);
       await sendMessage({ dmThreadId: threadId, userId: me.id, body });
       tapLight(); sfxPop();
       setMsgText('');

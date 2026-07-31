@@ -41,7 +41,7 @@ export const BookingSheet = ({ venue, onClose }) => {
   const requestToOwner = async () => {
     if (!SUPABASE_READY || !user || !venue.owner_id) return;
     try {
-      const threadId = await getOrCreateDmThread(venue.owner_id);
+      const threadId = await getOrCreateDmThread(venue.owner_id, user && user.id);
       await sendMessage({ dmThreadId: threadId, userId: user.id, body: 'Booking request: ' + venue.name + (venue.sub ? ' — ' + venue.sub : '') + (venue.price ? ' (' + venue.price + ')' : '') });
     } catch (e) {}
   };

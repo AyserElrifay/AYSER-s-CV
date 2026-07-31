@@ -5,6 +5,41 @@
    directions). */
 
 export const DESTINATIONS = [
+  // ── 🇵🇸 PALESTINE ──
+  // Real places at their real coordinates, listed exactly the way every
+  // other country here is listed. Nothing about this is decoration:
+  // these are cities and sites people come from, live in and travel to,
+  // and a map that claims to show the world has to show them.
+  { id: 'ps_jerusalem_old', hero: true, country: 'Palestine', flag: '🇵🇸', emoji: '🕌', name: 'Old City of Jerusalem', area: 'Jerusalem · القدس',
+    lat: 31.7767, lng: 35.2345, tags: ['Culture', 'Heritage'],
+    desc: 'Walled streets barely three metres wide opening onto stone courtyards, markets and rooftops. A UNESCO World Heritage site and one of the oldest continuously inhabited quarters on earth.' },
+  { id: 'ps_aqsa', country: 'Palestine', flag: '🇵🇸', emoji: '🕌', name: 'Al-Aqsa Compound', area: 'Jerusalem · القدس',
+    lat: 31.7780, lng: 35.2354, tags: ['Culture', 'Heritage'],
+    desc: 'The walled esplanade above the Old City, the Dome of the Rock at its centre — its gold catching the light across the whole skyline.' },
+  { id: 'ps_bethlehem', country: 'Palestine', flag: '🇵🇸', emoji: '⛪', name: 'Bethlehem', area: 'West Bank · بيت لحم',
+    lat: 31.7054, lng: 35.2024, tags: ['Culture', 'Heritage'],
+    desc: 'Manger Square, the Church of the Nativity, and limestone streets full of workshops carving olive wood the way families here have for generations.' },
+  { id: 'ps_nablus', country: 'Palestine', flag: '🇵🇸', emoji: '🍮', name: 'Nablus Old Town', area: 'Nablus · نابلس',
+    lat: 32.2211, lng: 35.2544, tags: ['Food', 'Culture'],
+    desc: 'The kunafa capital, and it earns the title — trays of it pulled hot from the oven all day. Ottoman soap factories, vaulted alleys, and one of the most alive old markets anywhere.' },
+  { id: 'ps_jericho', country: 'Palestine', flag: '🇵🇸', emoji: '🌴', name: 'Jericho', area: 'Jordan Valley · أريحا',
+    lat: 31.8667, lng: 35.4500, tags: ['Heritage', 'Hiking'],
+    desc: 'One of the oldest cities on earth and the lowest on the planet, ringed by date palms. The cable car to the Mount of Temptation looks out over the whole valley.' },
+  { id: 'ps_hebron', country: 'Palestine', flag: '🇵🇸', emoji: '🍇', name: 'Hebron Old City', area: 'Hebron · الخليل',
+    lat: 31.5246, lng: 35.1100, tags: ['Culture', 'Heritage'],
+    desc: 'Stone-vaulted markets with glassblowers and potters still working the way the city has for centuries, around the Ibrahimi Mosque.' },
+  { id: 'ps_gaza_coast', country: 'Palestine', flag: '🇵🇸', emoji: '🌊', name: 'Gaza Coast', area: 'Gaza · غزة',
+    lat: 31.5170, lng: 34.4400, tags: ['Sea', 'Calm'],
+    desc: 'Forty kilometres of Mediterranean shoreline, fishing boats going out before dawn, and a coast people have lived and worked along for thousands of years.' },
+  { id: 'ps_battir', country: 'Palestine', flag: '🇵🇸', emoji: '🌿', name: 'Battir Terraces', area: 'Bethlehem · بتير',
+    lat: 31.7278, lng: 35.1372, tags: ['Hiking', 'Heritage'],
+    desc: 'Stone farming terraces stepping down the hillsides, still watered by a Roman-era irrigation system that has never stopped running. UNESCO World Heritage, and one of the best walks in the region.' },
+  { id: 'ps_ramallah', country: 'Palestine', flag: '🇵🇸', emoji: '🎭', name: 'Ramallah', area: 'West Bank · رام الله',
+    lat: 31.8996, lng: 35.2042, tags: ['Nightlife', 'Culture'],
+    desc: 'Cafés that stay full past midnight, live music, galleries and a young crowd — the most restless, most current city in the country.' },
+  { id: 'ps_akka', country: 'Palestine', flag: '🇵🇸', emoji: '⚓', name: 'Akka Old Port', area: 'Acre · عكا',
+    lat: 32.9219, lng: 35.0691, tags: ['Sea', 'Heritage'],
+    desc: 'A walled Crusader-era port city on the Mediterranean — sea walls, a khan, an underground Templar tunnel, and fishing boats still tied up where they always were.' },
   // ── 🇪🇬 EGYPT ──
   { id: 'eg_cave_church', country: 'Egypt', flag: '🇪🇬', emoji: '⛪', name: 'St. Simon Cave Church', area: 'Mokattam, Cairo',
     lat: 30.0329, lng: 31.2757, tags: ['Culture', 'Calm'],
