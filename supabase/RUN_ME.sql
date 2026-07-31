@@ -1437,6 +1437,80 @@ end $fn$;
 
 grant execute on function public.publish_sound(uuid) to authenticated;
 
+-- ════════════════════════════════════════════════════════════════
+--  FILMS — real titles, real posters, and what people here think
+--  We host nothing and stream nothing. A film row is a catalogue
+--  entry that points at the services that legally carry it, and the
+--  opinions underneath it belong to the people who wrote them.
+-- ════════════════════════════════════════════════════════════════
+
+create table if not exists public.films (
+  id           bigint primary key,          -- the catalogue's own id
+  title        text not null,
+  year         int,
+  overview     text,
+  poster_url   text,
+  backdrop_url text,
+  genres       text[],
+  rating       numeric(3,1),                -- the catalogue's score, not ours
+  language     text,
+  popularity   numeric,
+  updated_at   timestamptz not null default now()
+);
+
+create index if not exists films_pop_idx  on public.films (popularity desc);
+create index if not exists films_year_idx on public.films (year desc);
+
+alter table public.films enable row level security;
+drop policy if exists "films readable by everyone" on public.films;
+create policy "films readable by everyone" on public.films for select using (true);
+
+/* One opinion per person per film — you can change your mind, you
+   cannot stack five ratings on the same title. */
+create table if not exists public.film_reviews (
+  film_id    bigint not null references public.films(id) on delete cascade,
+  user_id    uuid   not null references public.profiles(id) on delete cascade,
+  stars      int    not null check (stars between 1 and 5),
+  body       text,
+  created_at timestamptz not null default now(),
+  edited_at  timestamptz,
+  primary key (film_id, user_id)
+);
+
+create index if not exists film_reviews_film_idx on public.film_reviews (film_id, created_at desc);
+
+alter table public.film_reviews enable row level security;
+
+drop policy if exists "reviews readable by everyone" on public.film_reviews;
+create policy "reviews readable by everyone" on public.film_reviews for select using (true);
+
+drop policy if exists "write your own review" on public.film_reviews;
+create policy "write your own review" on public.film_reviews
+  for insert with check (auth.uid() = user_id);
+
+drop policy if exists "change your own review" on public.film_reviews;
+create policy "change your own review" on public.film_reviews
+  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+drop policy if exists "delete your own review" on public.film_reviews;
+create policy "delete your own review" on public.film_reviews
+  for delete using (auth.uid() = user_id);
+
+/* What THIS crowd thinks, separate from the catalogue's global score —
+   the two are different things and should never be shown as one. */
+create or replace function public.film_scores(ids bigint[])
+returns table (film_id bigint, avg_stars numeric, votes bigint)
+language sql stable security definer set search_path = public as $fn$
+  select film_id, round(avg(stars)::numeric, 1), count(*)
+  from film_reviews where film_id = any(ids)
+  group by film_id;
+$fn$;
+
+grant execute on function public.film_scores(bigint[]) to anon, authenticated;
+
+
+
+
 
 
 
@@ -1489,4 +1563,5 @@ select
   (select file_size_limit from storage.buckets where id = 'media') as media_size_limit,
   (select coalesce(array_to_string(allowed_mime_types, ','), 'any')
      from storage.buckets where id = 'media')                      as media_mime_types,
-  (to_regclass('public.playlists')            is not null) as playlists_ready;
+  (to_regclass('public.playlists')            is not null) as playlists_ready,
+  (to_regclass('public.films')                is not null) as films_ready;

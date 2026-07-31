@@ -1,19 +1,21 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, ScrollView, Pressable, Image, Modal, Platform } from 'react-native';
+import { View, Text, ScrollView, Pressable, Image, Modal, Platform, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { C, R } from '../constants/theme';
-import { MOVIES, WATCH_PROVIDERS, WATCH_GENRES, AV_NEUTRAL, PLAY_GAMES } from '../constants/mockData';
+import { AV_NEUTRAL, PLAY_GAMES } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { openPartner } from '../services/broker';
 import { fetchVideos, deletePost } from '../services/posts';
 import { fetchTracks } from '../services/music';
+import { FILM_GENRES, fetchFilms, fetchOurScores } from '../services/films';
 import { usePlayer } from '../context/PlayerContext';
 import { Page, ScreenHeader, SectionHeader, Glass, GameRunner, RooftopRush, SekoSeko3D, BoxingGame, StackGame } from '../components';
 import { CaptureModal } from '../components/CaptureModal';
 import { MusicHubSheet } from '../components/MusicHubSheet';
+import { FilmSheet } from '../components/FilmSheet';
 import { BooksShelf } from '../components/BooksShelf';
 import { CommentsSheet } from '../components/CommentsSheet';
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
@@ -43,7 +45,28 @@ export const ChillScreen = () => {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [genre, setGenre] = useState('All');
-  const [movie, setMovie] = useState(null);       // the "watch on" sheet
+  const [films, setFilms] = useState(null);        // real rows from our catalogue
+  const [filmScores, setFilmScores] = useState({}); // what people HERE gave them
+  const [film, setFilm] = useState(null);
+
+  /* The catalogue lives in our own table, refreshed nightly, so the
+     app never carries an API key and still works if the upstream
+     service is down. */
+  useEffect(() => {
+    if (!SUPABASE_READY) { setFilms([]); return; }
+    let alive = true;
+    setFilms(null);
+    fetchFilms({ genre, arabic: false })
+      .then(async (rows) => {
+        if (!alive) return;
+        setFilms(rows);
+        if (rows.length) {
+          try { setFilmScores(await fetchOurScores(rows.map((r) => r.id))); } catch (e) {}
+        }
+      })
+      .catch(() => alive && setFilms([]));
+    return () => { alive = false; };
+  }, [genre]);
   const [videos, setVideos] = useState(null);     // null until first load
   const [player, setPlayer] = useState(null);     // the video now playing
   const [commentsPost, setCommentsPost] = useState(null);
@@ -89,7 +112,6 @@ export const ChillScreen = () => {
   }, []);
   const playFrom = (i) => { if (tracks && tracks[i]) playTrack(tracks[i], tracks, i); };
 
-  const movies = MOVIES.filter((m) => genre === 'All' || genre === '🍿 Trending' || m.genre === genre);
 
   const loadVideos = useCallback(async () => {
     if (!SUPABASE_READY) { setVideos([]); return; }
@@ -263,13 +285,15 @@ export const ChillScreen = () => {
         <BooksShelf />
       </View>
 
-      {/* ── WATCH — where to stream, anywhere in the world (affiliate) ── */}
+      {/* ── WATCH — real films from our own catalogue, with real posters,
+             a synopsis, and what the people here made of them ── */}
       <SectionHeader title="Watch 🍿" style={{ marginTop: 8 }} />
       <Text style={{ color: C.dim, fontSize: 12.5, marginTop: -6, marginBottom: 12, lineHeight: 18 }}>
-        Find where to stream any film — we take you straight to Prime Video, Apple TV, Netflix, Shahid & more.
+        Real films, refreshed daily. Tap one to read what it is, see where it's streaming, and say
+        what you thought.
       </Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
-        {WATCH_GENRES.map((g) => (
+        {FILM_GENRES.map((g) => (
           <Pressable key={g} onPress={() => { tapSelection(); setGenre(g); }}>
             <View style={{ backgroundColor: genre === g ? C.text : C.glass, borderWidth: 1, borderColor: genre === g ? C.text : C.line, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 7, marginRight: 8 }}>
               <Text style={{ color: genre === g ? '#FFF' : C.dim, fontSize: 12, fontWeight: '800' }}>{g}</Text>
@@ -277,31 +301,63 @@ export const ChillScreen = () => {
           </Pressable>
         ))}
       </ScrollView>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 24 }}>
-        {movies.map((m) => (
-          <Pressable key={m.id} onPress={() => { tapLight(); sfxPop(); setMovie(m); }}>
-            <View style={{ width: 138, marginRight: 12 }}>
-              <LinearGradient colors={m.colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ height: 196, borderRadius: 16, padding: 12, justifyContent: 'space-between' }}>
-                <View style={{ alignSelf: 'flex-start', backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 }}>
-                  <Text style={{ color: '#FFF', fontSize: 10.5, fontWeight: '900' }}>⭐ {m.rating}</Text>
-                </View>
-                <View>
-                  <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '900', lineHeight: 19 }} numberOfLines={2}>{m.title}</Text>
-                  <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 11, marginTop: 3 }}>{m.genre} · {m.year}</Text>
-                </View>
-              </LinearGradient>
-              <View style={{ flexDirection: 'row', marginTop: 7 }}>
-                {m.on.slice(0, 3).map((o) => (
-                  <View key={o.p} style={{ width: 24, height: 24, borderRadius: 7, backgroundColor: WATCH_PROVIDERS[o.p].color, alignItems: 'center', justifyContent: 'center', marginRight: 5 }}>
-                    <Text style={{ fontSize: 12 }}>{WATCH_PROVIDERS[o.p].emoji || '▷'}</Text>
+      {films === null ? (
+        <View style={{ height: 200, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator color={C.purple} />
+        </View>
+      ) : films.length ? (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 24 }}>
+          {films.map((m) => {
+            const ours = filmScores[m.id];
+            return (
+              <Pressable key={m.id} onPress={() => { tapLight(); sfxPop(); setFilm(m); }}>
+                <View style={{ width: 138, marginRight: 12 }}>
+                  <View style={{ height: 196, borderRadius: 16, overflow: 'hidden', backgroundColor: C.glassHi }}>
+                    {m.poster_url ? (
+                      <Image source={{ uri: m.poster_url }} style={{ width: '100%', height: '100%' }} />
+                    ) : (
+                      <LinearGradient colors={['#4C1D95', '#7C3AED']} style={{ flex: 1, padding: 12, justifyContent: 'flex-end' }}>
+                        <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '900' }} numberOfLines={3}>{m.title}</Text>
+                      </LinearGradient>
+                    )}
+                    {m.rating ? (
+                      <View style={{ position: 'absolute', top: 8, left: 8, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 }}>
+                        <Text style={{ color: '#FFF', fontSize: 10.5, fontWeight: '900' }}>⭐ {m.rating}</Text>
+                      </View>
+                    ) : null}
+                    {ours && ours.votes ? (
+                      <View style={{ position: 'absolute', top: 8, right: 8, backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 }}>
+                        <Text style={{ color: '#FFF', fontSize: 10.5, fontWeight: '900' }}>★ {ours.stars}</Text>
+                      </View>
+                    ) : null}
                   </View>
-                ))}
-              </View>
-            </View>
-          </Pressable>
-        ))}
-      </ScrollView>
+                  <Text style={{ color: C.text, fontSize: 12.5, fontWeight: '800', marginTop: 7 }} numberOfLines={1}>{m.title}</Text>
+                  <Text style={{ color: C.faint, fontSize: 11, marginTop: 1 }} numberOfLines={1}>
+                    {[m.year, (m.genres || [])[0]].filter(Boolean).join(' · ')}
+                  </Text>
+                </View>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      ) : (
+        <View style={{ paddingVertical: 30, alignItems: 'center', marginBottom: 20 }}>
+          <Text style={{ fontSize: 28 }}>🎬</Text>
+          <Text style={{ color: C.faint, fontSize: 12.5, marginTop: 8, textAlign: 'center', lineHeight: 18 }}>
+            The film catalogue hasn't been filled yet — nothing invented to stand in for it.
+          </Text>
+        </View>
+      )}
     </Page>
+
+    {film ? (
+      <FilmSheet
+        film={film}
+        ourScore={filmScores[film.id]}
+        onClose={() => setFilm(null)}
+        onSaved={() => { if (films && films.length) fetchOurScores(films.map((r) => r.id)).then(setFilmScores).catch(() => {}); }}
+      />
+    ) : null}
 
     {/* Music Hub — browse / upload / license; picking a track plays it here */}
     {hubOpen ? (
@@ -355,41 +411,6 @@ export const ChillScreen = () => {
     ) : null}
 
     {/* "where to watch" sheet — deep-links to the real platform (affiliate) */}
-    {movie ? (
-      <Modal visible transparent animationType="slide" onRequestClose={() => setMovie(null)}>
-        <Pressable onPress={() => setMovie(null)} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' }}>
-          <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, paddingBottom: insets.bottom + 22, paddingHorizontal: 16 }}>
-            <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 14 }} />
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
-              <LinearGradient colors={movie.colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ width: 60, height: 84, borderRadius: 12, marginRight: 14 }} />
-              <View style={{ flex: 1 }}>
-                <Text style={{ color: C.text, fontSize: 18, fontWeight: '900' }}>{movie.title}</Text>
-                <Text style={{ color: C.faint, fontSize: 12.5, marginTop: 3 }}>{movie.genre} · {movie.year} · ⭐ {movie.rating}</Text>
-              </View>
-            </View>
-            <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '800', letterSpacing: 1, marginBottom: 8 }}>WATCH ON</Text>
-            {movie.on.map((o) => {
-              const prov = WATCH_PROVIDERS[o.p];
-              return (
-                <Pressable key={o.p} onPress={() => { tapSuccess(); sfxSuccess(); openPartner(user, { id: movie.id, partner: prov.partner, url: o.url }); setMovie(null); }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 14, padding: 13, marginBottom: 9 }}>
-                    <View style={{ width: 40, height: 40, borderRadius: 11, backgroundColor: prov.color, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
-                      <Text style={{ fontSize: 19 }}>{prov.emoji || '▷'}</Text>
-                    </View>
-                    <Text style={{ color: C.text, fontSize: 15, fontWeight: '800', flex: 1 }}>{prov.name}</Text>
-                    <Text style={{ color: C.faint, fontSize: 11.5, marginRight: 6 }}>Watch ↗</Text>
-                    <Ionicons name="chevron-forward" size={16} color={C.faint} />
-                  </View>
-                </Pressable>
-              );
-            })}
-            <Text style={{ color: C.faint, fontSize: 11, textAlign: 'center', marginTop: 6 }}>
-              Opens the platform directly · Moments earns a small affiliate commission
-            </Text>
-          </Pressable>
-        </Pressable>
-      </Modal>
-    ) : null}
 
     {shooting ? <CaptureModal initialMode="video" onClose={() => setShooting(false)} onPosted={onUploaded} /> : null}
     {commentsPost ? <CommentsSheet post={commentsPost} onClose={() => setCommentsPost(null)} /> : null}

@@ -58,3 +58,4 @@ export { StickerPicker } from './StickerPicker';
 export { PeopleDiscover } from './PeopleDiscover';
 export { WhatsNew } from './WhatsNew';
 export { BooksShelf } from './BooksShelf';
+export { FilmSheet } from './FilmSheet';
