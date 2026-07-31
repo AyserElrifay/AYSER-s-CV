@@ -47,7 +47,7 @@ import { uploadCapture } from '../services/social';
 import { fetchMyMoments, deletePost, updatePost } from '../services/posts';
 import { countMyCampfires } from '../services/campfires';
 import { countMates } from '../services/mates';
-import { Tick, GhostButton, BoostSheet, MatesSheet, AvatarBuilderSheet, PostCard, ReelsViewer, CommentsSheet, AdminPanel } from '../components';
+import { Tick, GhostButton, BoostSheet, MatesSheet, AvatarBuilderSheet, PostCard, ReelsViewer, CommentsSheet } from '../components';
 import { sendFeedback, FEEDBACK_KINDS } from '../services/feedback';
 import { SettingsScreen } from './SettingsScreen';
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
@@ -121,7 +121,6 @@ export const ProfileScreen = () => {
   const [verifStatus, setVerifStatus] = useState(null); // null|pending|approved|rejected
   const [verifBusy, setVerifBusy] = useState(false);
   const [verifQueue, setVerifQueue] = useState(null); // owner: pending list
-  const [studioOpen, setStudioOpen] = useState(false);
   const [fbOpen, setFbOpen] = useState(false);
   const [fbKind, setFbKind] = useState('idea');
   const [fbBody, setFbBody] = useState('');
@@ -935,10 +934,9 @@ export const ProfileScreen = () => {
               </View>
             ) : null}
 
-            {/* owner only: the full Studio control panel */}
-            {isOwner(user) ? (
-              <MenuRow icon="git-network-outline" label="Moments Studio" sub="Reports · verify · music · feedback · Bardi" onPress={() => { setMenu(false); setStudioOpen(true); }} right={<Ionicons name="sparkles" size={16} color={C.purple} />} />
-            ) : null}
+            {/* The Studio is deliberately NOT here any more — it opens
+                only from a private ?studio=1 link (src/utils/studioLink.js),
+                so an admin console never sits in anyone's settings menu. */}
             {/* everyone: send feedback into the owner's Studio */}
             <MenuRow icon="chatbubble-ellipses-outline" label="Send feedback" sub="Ideas, bugs or love — it reaches Ayser" onPress={() => { setMenu(false); setFbOpen(true); }} />
 
@@ -976,7 +974,6 @@ export const ProfileScreen = () => {
         </Pressable>
       ) : null}
 
-      {studioOpen ? <AdminPanel onClose={() => setStudioOpen(false)} /> : null}
 
       {/* send feedback — reaches the owner's Studio inbox */}
       {fbOpen ? (

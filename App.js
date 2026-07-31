@@ -31,9 +31,25 @@ import { AuthScreen } from './src/screens/AuthScreen';
 import { TabNavigator, buildNavTheme } from './src/navigation/TabNavigator';
 import { MiniPlayer } from './src/components/MiniPlayer';
 import { IncomingCallGate } from './src/components/IncomingCallGate';
+import { WhatsNew } from './src/components/WhatsNew';
+import { AdminPanel } from './src/components/AdminPanel';
+import { isOwner } from './src/services/music';
+import { studioRequested, stripStudioParam } from './src/utils/studioLink';
 import { initPwa } from './src/lib/pwa';
 
 initPwa(); // installable app + offline shell (no-op on native)
+
+/* The Studio opens from a private link and nowhere else — see
+   src/utils/studioLink.js. The owner check runs on top of the link, so
+   the link alone opens nothing for anyone but Ayser. */
+const StudioGate = () => {
+  const { user } = useAuth();
+  const [open, setOpen] = React.useState(false);
+  React.useEffect(() => {
+    if (studioRequested() && isOwner(user)) { setOpen(true); stripStudioParam(); }
+  }, [user]);
+  return open ? <AdminPanel onClose={() => setOpen(false)} /> : null;
+};
 
 const Root = () => {
   const { loading, isAuthenticated } = useAuth();
@@ -51,6 +67,8 @@ const Root = () => {
       </NavigationContainer>
       <MiniPlayer />
       <IncomingCallGate />
+      <WhatsNew />
+      <StudioGate />
     </View>
   );
 };

@@ -18,6 +18,7 @@ import { RooftopRush } from './RooftopRush';
 import { SekoSeko3D } from './SekoSeko3D';
 import { BoxingGame } from './BoxingGame';
 import { StackGame } from './StackGame';
+import { PeopleDiscover } from './PeopleDiscover';
 import { tapLight, tapSuccess } from '../utils/feedback';
 import { sfxSuccess } from '../utils/sfx';
 
@@ -314,7 +315,13 @@ export const SearchModal = ({ onClose, onOpenProfile }) => {
             </View>
           ) : null}
 
-          {tab === 'People' ? (people.length ? people.map((u) => <PersonRow key={u.id} item={u} />) : <Empty q={q} />) : null}
+          {/* With nothing typed, People is a place to browse rather than a
+              blank "start typing" — real accounts, in lanes, filterable
+              by country and city. Typing goes back to searching. */}
+          {tab === 'People' ? (
+            q ? (people.length ? people.map((u) => <PersonRow key={u.id} item={u} />) : <Empty q={q} />)
+              : <PeopleDiscover />
+          ) : null}
           {tab === 'Groups' ? (<>{groups.length ? groups.map((g) => <GroupRow key={g.id} item={g} />) : <Empty q={q} />}<CreateGroupCard /></>) : null}
           {tab === 'Posts' ? (posts.length ? posts.map((p) => <PostRow key={p.id} item={p} />) : <Empty q={q} />) : null}
           {tab === 'Play' ? (games.length ? games.map((g) => <GameRow key={g.id} item={g} />) : <Empty q={q} />) : null}

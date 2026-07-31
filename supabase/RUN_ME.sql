@@ -1113,6 +1113,57 @@ select
   exists (select 1 from information_schema.columns
           where table_schema = 'public' and table_name = 'profiles'
             and column_name = 'country')                    as country_column_ready,
+
+-- ════════════════════════════════════════════════════════════════
+--  DISCOVER PEOPLE — browsing real accounts instead of a search box
+--  City, plus a friends-of-friends function. Idempotent.
+-- ════════════════════════════════════════════════════════════════
+
+alter table public.profiles add column if not exists city text;
+
+create index if not exists profiles_country_idx on public.profiles (country);
+create index if not exists profiles_city_idx    on public.profiles (city);
+
+/* People you may know = mates of your mates, minus you, minus anyone
+   you already have any relationship with, ranked by how many mutual
+   friends you share. Security definer so the count is honest even
+   though row-level security hides other people's friend rows from
+   you — the function returns the tally, never the rows themselves. */
+create or replace function public.people_you_may_know(uid uuid, lim int default 30)
+returns table (id uuid, name text, avatar_url text, country_flag text, country text, city text, mutuals bigint)
+language sql stable security definer set search_path = public as $fn$
+  with my_mates as (
+    select case when requester_id = uid then addressee_id else requester_id end as mate_id
+    from mates
+    where status = 'accepted' and (requester_id = uid or addressee_id = uid)
+  ),
+  candidates as (
+    select case when m.requester_id = mm.mate_id then m.addressee_id else m.requester_id end as cand,
+           mm.mate_id as via
+    from mates m
+    join my_mates mm on (m.requester_id = mm.mate_id or m.addressee_id = mm.mate_id)
+    where m.status = 'accepted'
+  )
+  select p.id, p.name, p.avatar_url, p.country_flag, p.country, p.city,
+         count(distinct c.via) as mutuals
+  from candidates c
+  join profiles p on p.id = c.cand
+  where c.cand <> uid
+    and c.cand not in (select mate_id from my_mates)
+    and not exists (
+      select 1 from mates x
+      where (x.requester_id = uid and x.addressee_id = c.cand)
+         or (x.requester_id = c.cand and x.addressee_id = uid))
+  group by p.id, p.name, p.avatar_url, p.country_flag, p.country, p.city
+  order by mutuals desc, p.name
+  limit lim;
+$fn$;
+
+grant execute on function public.people_you_may_know(uuid, int) to anon, authenticated;
+
   exists (select 1 from information_schema.columns
           where table_schema = 'public' and table_name = 'profiles'
-            and column_name = 'avatar_dna')                  as avatar_builder_ready;
+            and column_name = 'avatar_dna')                  as avatar_builder_ready,
+  exists (select 1 from information_schema.columns
+          where table_schema = 'public' and table_name = 'profiles'
+            and column_name = 'city')                        as discover_ready;
