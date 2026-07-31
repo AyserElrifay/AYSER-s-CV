@@ -102,7 +102,11 @@ const APPLE_TERMS = [
   'romance', 'horror', 'science fiction', 'family', 'crime', 'fantasy',
   'documentary', 'war', 'mystery', 'sport', 'music', 'history',
 ];
-const APPLE_STORES = ['eg', 'us', 'gb', 'ae'];
+/* Not every Apple store sells films — Egypt's, for one, answers every
+   film search with nothing at all. So the stores that do come first,
+   and a store that keeps coming back empty is dropped rather than
+   taken as proof that Apple is down. */
+const APPLE_STORES = ['us', 'gb', 'ae', 'eg'];
 
 /* Apple's genre names aren't the app's. "Action & Adventure" would
    never match the Action chip, so a shelf tap would come back empty
@@ -139,11 +143,11 @@ const appleGenres = (name) => {
 };
 
 async function fromApple() {
-  let empties = 0;
   for (const country of APPLE_STORES) {
+    let empties = 0;
     for (const term of APPLE_TERMS) {
-      // eight refusals in a row means this address isn't welcome today
-      if (empties >= 8) { console.log('Apple is not answering — stopping there.'); return; }
+      // six nothings in a row from one store: that store has no films
+      if (empties >= 6) { console.log(`apple ${country}: nothing there — moving on.`); break; }
       const url = 'https://itunes.apple.com/search?media=movie&entity=movie'
         + '&country=' + country
         + '&limit=' + Math.min(200, PAGES * 25)
@@ -175,6 +179,38 @@ async function fromApple() {
       console.log(`apple ${country} "${term}" → ${list.length} back, ${rows.length} collected`);
       await sleep(900);                        // Apple throttles hard — go at its pace
     }
+  }
+}
+
+/* Apple also publishes its own weekly charts as plain JSON. It is the
+   closest thing to "what people are actually watching" that needs no
+   key, so it goes in as well. */
+async function fromAppleCharts() {
+  for (const country of ['us', 'gb', 'ae']) {
+    const j = await getJSON(`https://itunes.apple.com/${country}/rss/topmovies/limit=100/json`);
+    const list = (j && j.feed && j.feed.entry) || [];
+    for (const e of list) {
+      const id = e.id && e.id.attributes && e.id.attributes['im:id'];
+      const title = e['im:name'] && e['im:name'].label;
+      if (!id || !title) continue;
+      const images = e['im:image'] || [];
+      const art = images.length ? images[images.length - 1].label : null;
+      push({
+        id: APPLE_BASE + Number(id),
+        title,
+        year: e['im:releaseDate'] && e['im:releaseDate'].label
+          ? parseInt(String(e['im:releaseDate'].label).slice(0, 4), 10) : null,
+        overview: (e.summary && e.summary.label) || null,
+        poster_url: art ? art.replace(/\/\d+x\d+bb\.(jpg|png)$/, '/600x600bb.jpg') : null,
+        backdrop_url: art ? art.replace(/\/\d+x\d+bb\.(jpg|png)$/, '/1200x1200bb.jpg') : null,
+        genres: appleGenres(e.category && e.category.attributes && e.category.attributes.label),
+        rating: null,
+        language: 'en',
+        popularity: 100,                       // it's a chart — these are the popular ones
+      });
+    }
+    console.log(`apple charts ${country} → ${list.length} back, ${rows.length} collected`);
+    await sleep(600);
   }
 }
 
@@ -237,6 +273,7 @@ async function fromTmdb() {
    cover; Apple then fills everything TMDB didn't. */
 if (TMDB) await fromTmdb();
 else console.log('No TMDB_KEY — filling the catalogue from Apple alone (this works fine).');
+await fromAppleCharts();
 await fromApple();
 
 if (!rows.length) { console.log('nothing to write'); process.exit(0); }
