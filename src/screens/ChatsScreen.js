@@ -16,8 +16,10 @@ import { AV_NEUTRAL } from '../constants/mockData';
 import { fetchLanguagePartners, searchProfiles } from '../services/social';
 import { buildAvatarUrl } from '../services/avatarBuilder';
 import { Page, ScreenHeader, SectionHeader, Glass, Chip, Tick, AvatarStack, StreakBadge, OnlineDot } from '../components';
+import { CaptureModal } from '../components/CaptureModal';
+import { sendMoment } from '../services/messages';
 import { ChatThread } from './ChatThread';
-import { tapLight } from '../utils/feedback';
+import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
 
 /* ─────────────────── TAB 5 · CHATS — CONNECTIONS ─────────────────────
    Real mode: your actual DM threads, actual squads you've joined, and
@@ -168,6 +170,16 @@ export const ChatsScreen = () => {
     return () => { cancelled = true; clearTimeout(t); };
   }, [composeQ, composing, user]);
 
+  /* ── PULL DOWN, SHOOT, SEND ──────────────────────────────────────
+     A streak is only worth having if keeping it is easy. Pull the list
+     down, the camera opens; take the shot, tick whoever it's going to,
+     send. No hunting for a button, no opening a conversation first. */
+  const [shooting, setShooting] = useState(false);
+  const [pendingShot, setPendingShot] = useState(null);   // { mediaUrl, mediaKind, caption }
+  const [sendTo, setSendTo] = useState({});               // { [threadId]: true }
+  const [sendBusy, setSendBusy] = useState(false);
+  const [sendDone, setSendDone] = useState(0);
+
   const openChatWith = (p) => {
     tapLight();
     setComposing(false); setComposeQ(''); setComposeResults([]);
@@ -278,7 +290,7 @@ export const ChatsScreen = () => {
     : [];
 
   return (
-  <Page>
+  <Page onSwipeCamera={() => { setShooting(true); }}>
     <ScreenHeader
       kicker={t('connections_kicker')}
       title={t('chats_title')}
@@ -633,6 +645,78 @@ export const ChatsScreen = () => {
     )}
 
     {thread ? <ChatThread chat={thread.chat} group={thread.group} onClose={() => setThread(null)} /> : null}
+
+    {/* pull-down camera → shoot → pick who gets it */}
+    {shooting ? (
+      <CaptureModal
+        sendMode
+        sendToName="your mates"
+        onMoment={async (shot) => { setPendingShot(shot); setSendTo({}); setSendDone(0); setShooting(false); }}
+        onClose={() => setShooting(false)}
+      />
+    ) : null}
+
+    {pendingShot ? (
+      <Modal visible transparent animationType="slide" onRequestClose={() => setPendingShot(null)}>
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }} onPress={() => setPendingShot(null)} />
+        <View style={{ backgroundColor: C.bg2, borderTopLeftRadius: 22, borderTopRightRadius: 22, borderWidth: 1, borderColor: C.line, maxHeight: '76%', paddingBottom: insets.bottom + 12 }}>
+          <View style={{ alignItems: 'center', paddingTop: 10 }}>
+            <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: C.glassHi }} />
+          </View>
+          <Text style={{ color: C.text, fontSize: 16, fontWeight: '900', textAlign: 'center', marginTop: 10 }}>Send to</Text>
+          <Text style={{ color: C.faint, fontSize: 11.5, textAlign: 'center', marginTop: 3 }}>
+            {sendDone ? 'Sent to ' + sendDone + (sendDone === 1 ? ' person 🔥' : ' people 🔥') : 'Pick anyone — it keeps your streak with each of them'}
+          </Text>
+          <ScrollView contentContainerStyle={{ paddingHorizontal: 14, paddingTop: 12 }}>
+            {dms.filter((d) => d.threadId).map((d) => {
+              const on = !!sendTo[d.threadId];
+              return (
+                <Pressable key={d.id} onPress={() => { tapSelection(); setSendTo((m) => ({ ...m, [d.threadId]: !m[d.threadId] })); }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 9 }}>
+                    <Image source={{ uri: d.user.avatar }} style={{ width: 40, height: 40, borderRadius: 20 }} />
+                    <Text style={{ color: C.text, fontSize: 14, fontWeight: '800', flex: 1, marginLeft: 12 }} numberOfLines={1}>{d.user.name}</Text>
+                    {streaks[d.threadId] ? <View style={{ marginRight: 10 }}><StreakBadge info={streaks[d.threadId]} /></View> : null}
+                    <Ionicons name={on ? 'checkmark-circle' : 'ellipse-outline'} size={22} color={on ? C.purple : C.faint} />
+                  </View>
+                </Pressable>
+              );
+            })}
+            {!dms.filter((d) => d.threadId).length ? (
+              <Text style={{ color: C.faint, fontSize: 12.5, textAlign: 'center', paddingVertical: 30, lineHeight: 19 }}>
+                No conversations yet — say hello to someone first and the streak starts from there.
+              </Text>
+            ) : null}
+          </ScrollView>
+          <View style={{ paddingHorizontal: 16, paddingTop: 8 }}>
+            <Pressable
+              disabled={sendBusy || !Object.values(sendTo).some(Boolean)}
+              onPress={async () => {
+                const ids = Object.keys(sendTo).filter((k) => sendTo[k]);
+                if (!ids.length || !user) return;
+                setSendBusy(true);
+                let ok = 0;
+                for (const threadId of ids) {
+                  try {
+                    await sendMoment({ dmThreadId: threadId, userId: user.id, mediaUrl: pendingShot.mediaUrl, mediaKind: pendingShot.mediaKind, caption: pendingShot.caption });
+                    ok++;
+                  } catch (e) { /* one failing doesn't stop the rest */ }
+                }
+                setSendBusy(false);
+                setSendDone(ok);
+                tapSuccess();
+                setTimeout(() => { setPendingShot(null); setSendDone(0); }, 900);
+              }}
+            >
+              <View style={{ backgroundColor: C.purple, borderRadius: 16, paddingVertical: 14, alignItems: 'center', opacity: sendBusy || !Object.values(sendTo).some(Boolean) ? 0.5 : 1 }}>
+                <Text style={{ color: '#FFF', fontSize: 14.5, fontWeight: '900' }}>
+                  {sendBusy ? 'Sending…' : 'Send'}
+                </Text>
+              </View>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+    ) : null}
 
     {/* ── INVITE TO SQUAD — pick real mates, add them to the group ── */}
     {inviteSquad ? (

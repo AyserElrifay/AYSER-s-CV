@@ -10,6 +10,7 @@ import { getProfile } from '../services/profiles';
 import { fetchMyPosts, deletePost, updatePost } from '../services/posts';
 import { fetchActiveStories, fetchStoryById, sweepMyExpiredStories } from '../services/stories';
 import { recordSignal } from '../services/algorithm';
+import { useSwipeToCamera } from '../hooks/useSwipeToCamera';
 import { tapLight, tapSuccess } from '../utils/feedback';
 import { sfxStar, sfxSuccess } from '../utils/sfx';
 import { useAuth } from '../context/AuthContext';
@@ -340,8 +341,17 @@ export const HomeScreen = () => {
     bio: (myProfile && myProfile.bio) || 'This is you. Share a moment, join a vibe, meet your people. ✨',
   };
 
+  /* Instagram's gesture: drag in from the left edge of the feed and the
+     camera is already open. It only fires from the first 60px and only
+     when the movement is clearly sideways, so it never fights a scroll
+     or a swipe on a card. */
+  const edgeSwipe = useSwipeToCamera({
+    direction: 'right',
+    onTrigger: () => setComposing('story'),
+  });
+
   return (
-    <View style={{ flex: 1, backgroundColor: C.bg }}>
+    <View style={{ flex: 1, backgroundColor: C.bg }} {...edgeSwipe}>
       <FlatList
         data={posts}
         keyExtractor={(p) => p.id}

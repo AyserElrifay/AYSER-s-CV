@@ -50,6 +50,17 @@ export const TOPS = [
   { id: 'blouse', label: 'Blouse' },
   { id: 'dress', label: 'Dress' },
   { id: 'abaya', label: 'Abaya' },
+  // traditional pieces — see CULTURES
+  { id: 'galabeya', label: 'Galabeya' },
+  { id: 'kalasiris', label: 'Kalasiris' },
+  { id: 'thobe', label: 'Thobe' },
+  { id: 'caftan', label: 'Caftan' },
+  { id: 'flamenco', label: 'Flamenco' },
+  { id: 'embroidered', label: 'Embroidered' },
+  { id: 'sari', label: 'Sari' },
+  { id: 'kimono', label: 'Kimono' },
+  { id: 'boubou', label: 'Boubou' },
+  { id: 'poncho', label: 'Poncho' },
 ];
 
 export const BOTTOMS = [
@@ -86,6 +97,65 @@ export const OUTERS = [
   { id: 'coat', label: 'Long coat' },
 ];
 
+/* ── DRESS FROM WHERE YOU'RE FROM ───────────────────────────────────
+   Traditional clothing, one look per culture, drawn the same way
+   everything else here is drawn: our own shapes and our own colours,
+   built out of the same garment pieces the rest of the wardrobe uses.
+
+   Two rules held throughout. Nothing is traced, photographed or lifted
+   from a costume shop, a game or anybody's avatar system — Ayser was
+   right to warn about that, and a borrowed outfit is exactly the kind
+   of thing that turns into a legal problem later. And each one is the
+   everyday festive dress of a place, not a religious vestment and not a
+   caricature: the silhouette and the colours people would recognise,
+   nothing that mocks.
+
+   Picking one sets the whole outfit at once. You can change any piece
+   of it afterwards — it's a starting point, not a costume you're stuck
+   in. */
+export const CULTURES = [
+  {
+    id: 'egypt', label: 'Egypt', emoji: '🇪🇬',
+    look: { top: 'galabeya', topColor: '#F5E9D8', bottom: '', shoes: 'sandals', shoeColor: '#7C5E3C', outer: '', hat: '' },
+  },
+  {
+    id: 'pharaonic', label: 'Pharaonic', emoji: '𓂀',
+    look: { top: 'kalasiris', topColor: '#FFFFFF', bottom: '', shoes: 'sandals', shoeColor: '#D6C0A0', outer: '', hat: 'nemes', hatColor: '#F5B301' },
+  },
+  {
+    id: 'khaleeji', label: 'Gulf', emoji: '🇸🇦',
+    look: { top: 'thobe', topColor: '#FFFFFF', bottom: '', shoes: 'sandals', shoeColor: '#7C5E3C', outer: '', hat: 'ghutra', hatColor: '#FFFFFF' },
+  },
+  {
+    id: 'maghreb', label: 'Maghreb', emoji: '🇲🇦',
+    look: { top: 'caftan', topColor: '#B91C1C', bottom: '', shoes: 'loafers', shoeColor: '#F5B301', outer: '', hat: '' },
+  },
+  {
+    id: 'flamenco', label: 'Andalusia', emoji: '🇪🇸',
+    look: { top: 'flamenco', topColor: '#E11D48', bottom: '', shoes: 'heels', shoeColor: '#111827', outer: '', hat: '' },
+  },
+  {
+    id: 'balkan', label: 'Balkans', emoji: '🇷🇴',
+    look: { top: 'embroidered', topColor: '#FFFFFF', bottom: 'skirt', bottomColor: '#111827', shoes: 'boots', shoeColor: '#7C5E3C', outer: '', hat: '' },
+  },
+  {
+    id: 'india', label: 'South Asia', emoji: '🇮🇳',
+    look: { top: 'sari', topColor: '#F5B301', bottom: '', shoes: 'sandals', shoeColor: '#B91C1C', outer: '', hat: '' },
+  },
+  {
+    id: 'japan', label: 'Japan', emoji: '🇯🇵',
+    look: { top: 'kimono', topColor: '#1E3A5F', bottom: '', shoes: 'sandals', shoeColor: '#F5E9D8', outer: '', hat: '' },
+  },
+  {
+    id: 'westafrica', label: 'West Africa', emoji: '🌍',
+    look: { top: 'boubou', topColor: '#065F46', bottom: '', shoes: 'sandals', shoeColor: '#7C5E3C', outer: '', hat: 'kufi', hatColor: '#F5B301' },
+  },
+  {
+    id: 'andes', label: 'Andes', emoji: '🇵🇪',
+    look: { top: 'poncho', topColor: '#B91C1C', bottom: 'skirt', bottomColor: '#1F2937', shoes: 'loafers', shoeColor: '#7C5E3C', outer: '', hat: 'bowler', hatColor: '#111827' },
+  },
+];
+
 export const HATS = [
   { id: '', label: 'None' },
   { id: 'cap', label: 'Cap' },
@@ -95,6 +165,10 @@ export const HATS = [
   { id: 'cowboy', label: 'Cowboy hat' },
   { id: 'crown', label: 'Crown' },
   { id: 'headphones', label: 'Headphones' },
+  { id: 'nemes', label: 'Nemes' },
+  { id: 'ghutra', label: 'Ghutra' },
+  { id: 'kufi', label: 'Kufi' },
+  { id: 'bowler', label: 'Bowler' },
 ];
 
 /* A clothing palette that actually looks like clothes — muted denims,
@@ -322,8 +396,8 @@ export function drawCharacter(c, ox, oy, w, h, dnaIn, opts) {
   const nearSide = T.st >= 0 ? 1 : -1;
   const farSide = -nearSide;
 
-  const wearsTrousers = !!d.bottom && d.top !== 'dress' && d.top !== 'abaya';
-  const longGarment = d.top === 'dress' || d.top === 'abaya' || d.outer === 'coat';
+  const ONE_PIECE = /^(dress|abaya|galabeya|kalasiris|thobe|caftan|kimono|boubou|sari|flamenco)$/;
+  const wearsTrousers = !!d.bottom && !ONE_PIECE.test(d.top);
 
   /* ── legs ──────────────────────────────────────────────────────── */
   const drawLeg = (side, near) => {
@@ -463,8 +537,8 @@ export function drawCharacter(c, ox, oy, w, h, dnaIn, opts) {
   }
 
   /* ── the far arm, behind the body ──────────────────────────────── */
-  const sleeveLen = /^(tank|crop)$/.test(d.top) ? 0
-    : /^(tee|polo|jersey|blouse)$/.test(d.top) ? 0.34 : 1;
+  const sleeveLen = /^(tank|crop|sari)$/.test(d.top) ? 0
+    : /^(tee|polo|jersey|blouse|kalasiris|poncho)$/.test(d.top) ? 0.34 : 1;
   const outerSleeve = d.outer ? 1 : 0;
 
   const drawArm = (side, near) => {
@@ -566,8 +640,12 @@ export function drawCharacter(c, ox, oy, w, h, dnaIn, opts) {
     c.closePath();
   };
 
-  const bodyBottom = d.top === 'abaya' ? 146 : d.top === 'dress' ? 106 : d.top === 'crop' ? 74 : hipY + 3;
-  const bodyFlare = d.top === 'abaya' ? 1.5 : d.top === 'dress' ? 1.35 : 1;
+  /* How far down the body a top reaches, and how much it flares. The
+     traditional pieces are mostly long — which is the point of them. */
+  const FLOOR_LENGTH = { abaya: 146, galabeya: 146, kalasiris: 140, thobe: 144, caftan: 146, kimono: 142, boubou: 138, sari: 144, flamenco: 148 };
+  const bodyBottom = FLOOR_LENGTH[d.top] || (d.top === 'dress' ? 106 : d.top === 'crop' ? 74 : hipY + 3);
+  const FLARE = { abaya: 1.5, galabeya: 1.55, kalasiris: 1.15, thobe: 1.5, caftan: 1.6, kimono: 1.35, boubou: 2.1, sari: 1.5, flamenco: 2.3 };
+  const bodyFlare = FLARE[d.top] || (d.top === 'dress' ? 1.35 : 1);
 
   // bare chest first, so a tank or crop top shows real skin
   c.fillStyle = volume(c, CX + lean - chestHalf * 1.2, CX + lean + chestHalf * 1.2, skin);
@@ -630,7 +708,7 @@ export function drawCharacter(c, ox, oy, w, h, dnaIn, opts) {
 /* ── what makes one top different from another ────────────────────── */
 function drawTopDetail(c, d, T, g) {
   const f = facing(T);
-  const { CX, shoulderY, chestY, waistY, shoulderHalf, chestHalf, topCol, skin } = g;
+  const { CX, shoulderY, chestY, waistY, waistHalf, shoulderHalf, chestHalf, topCol, skin } = g;
   c.save();
 
   const neckline = (depth, wide) => {
@@ -718,6 +796,152 @@ function drawTopDetail(c, d, T, g) {
       c.quadraticCurveTo(CX, waistY + 1, CX + g.waistHalf, waistY - 2);
       c.stroke();
     }
+  }
+
+  /* ── the traditional pieces ────────────────────────────────────
+     Each is the silhouette and the trim you'd recognise, built from
+     the same curves as everything else. Ours, drawn here, not traced
+     from anywhere. */
+  if (d.top === 'galabeya') {
+    neckline(3.0, chestHalf * 0.22);
+    if (f > 0.2) {                                  // the embroidered placket
+      c.fillStyle = shade(topCol, -0.28);
+      c.fillRect(CX - 1.6 * f, shoulderY + 3, 3.2 * f, 26);
+      c.strokeStyle = shade(topCol, -0.42); c.lineWidth = 0.7;
+      for (let y = shoulderY + 6; y < shoulderY + 28; y += 5) {
+        c.beginPath(); c.moveTo(CX - 3.4 * f, y); c.lineTo(CX + 3.4 * f, y); c.stroke();
+      }
+    }
+  } else if (d.top === 'kalasiris') {
+    neckline(3.4, chestHalf * 0.30);
+    if (f > 0.2) {                                  // the broad collar
+      const cg = c.createLinearGradient(CX - chestHalf, shoulderY, CX + chestHalf, chestY + 8);
+      cg.addColorStop(0, '#F5B301'); cg.addColorStop(0.5, '#0EA5E9'); cg.addColorStop(1, '#B91C1C');
+      c.fillStyle = cg;
+      c.beginPath();
+      c.ellipse(CX, shoulderY + 1, chestHalf * 0.86 * f + 1, 9, 0, 0, Math.PI);
+      c.fill();
+      c.fillStyle = shade(skin, -0.06);
+      c.beginPath();
+      c.ellipse(CX, shoulderY + 1, chestHalf * 0.30 * f + 0.6, 4.2, 0, 0, Math.PI);
+      c.fill();
+    }
+  } else if (d.top === 'thobe') {
+    neckline(2.4, chestHalf * 0.20);
+    if (f > 0.2) {
+      c.fillStyle = shade(topCol, -0.16);
+      c.fillRect(CX - 1.2 * f, shoulderY + 2, 2.4 * f, 22);
+      c.fillStyle = shade(topCol, 0.2);              // the standing collar
+      rr(c, CX - chestHalf * 0.26 * f, shoulderY - 3.5, chestHalf * 0.52 * f, 5, 1.6); c.fill();
+    }
+  } else if (d.top === 'caftan') {
+    neckline(3.2, chestHalf * 0.24);
+    if (f > 0.2) {                                   // gold braid down the front and at the waist
+      c.strokeStyle = '#F5B301'; c.lineWidth = 1.6;
+      c.beginPath(); c.moveTo(CX, shoulderY + 4); c.lineTo(CX, g.bodyBottom - 10); c.stroke();
+      c.lineWidth = 1.1;
+      for (let y = chestY; y < g.bodyBottom - 12; y += 11) {
+        c.beginPath();
+        c.moveTo(CX - 4.5 * f, y); c.quadraticCurveTo(CX, y + 3, CX + 4.5 * f, y);
+        c.stroke();
+      }
+      c.strokeStyle = '#F5B301'; c.lineWidth = 2.4;
+      c.beginPath();
+      c.moveTo(CX - waistHalf, waistY); c.quadraticCurveTo(CX, waistY + 3, CX + waistHalf, waistY);
+      c.stroke();
+    }
+  } else if (d.top === 'flamenco') {
+    neckline(4.6, chestHalf * 0.34);
+    // the tiers of frills — the whole character of the dress
+    const tiers = [112, 126, 138, 148];
+    tiers.forEach((y, i) => {
+      const wide = (chestHalf * (1.5 + i * 0.42));
+      c.fillStyle = volume(c, CX - wide, CX + wide, i % 2 ? shade(topCol, -0.62) : topCol);
+      c.beginPath();
+      c.moveTo(CX - wide * 0.82, y - 12);
+      c.quadraticCurveTo(CX - wide, y + 3, CX - wide * 0.94, y + 4);
+      c.quadraticCurveTo(CX, y + 9, CX + wide * 0.94, y + 4);
+      c.quadraticCurveTo(CX + wide, y + 3, CX + wide * 0.82, y - 12);
+      c.closePath();
+      c.fill();
+    });
+    if (f > 0.3) {                                   // polka dots
+      c.fillStyle = 'rgba(0,0,0,0.45)';
+      for (let i = -2; i <= 2; i++) for (let j = 0; j < 3; j++) {
+        ell(c, CX + i * chestHalf * 0.36 * f, chestY + j * 9, 1.1 * f, 1.1); c.fill();
+      }
+    }
+  } else if (d.top === 'embroidered') {
+    neckline(3.0, chestHalf * 0.24);
+    if (f > 0.2) {                                   // cross-stitch bands
+      c.fillStyle = '#B91C1C';
+      for (let i = -1; i <= 1; i += 2) {
+        rr(c, CX + i * chestHalf * 0.42 * f - 2, shoulderY + 5, 4, 22, 1); c.fill();
+      }
+      c.fillStyle = '#111827';
+      for (let y = shoulderY + 7; y < shoulderY + 26; y += 6) {
+        for (let i = -1; i <= 1; i += 2) { ell(c, CX + i * chestHalf * 0.42 * f, y, 1.2, 1.2); c.fill(); }
+      }
+    }
+  } else if (d.top === 'sari') {
+    // the drape over one shoulder, which is the whole silhouette
+    const side = T.st >= 0 ? 1 : -1;
+    c.fillStyle = volume(c, CX - chestHalf * 1.3, CX + chestHalf * 1.3, shade(topCol, 0.12));
+    c.beginPath();
+    c.moveTo(CX + side * chestHalf * 0.72 * f, shoulderY - 2);
+    c.quadraticCurveTo(CX - side * chestHalf * 0.5, chestY + 8, CX - side * chestHalf * 0.86, waistY + 16);
+    c.lineTo(CX - side * chestHalf * 0.40, waistY + 18);
+    c.quadraticCurveTo(CX - side * chestHalf * 0.1, chestY + 12, CX + side * chestHalf * 0.30 * f, shoulderY - 1);
+    c.closePath();
+    c.fill();
+    if (f > 0.25) {
+      c.strokeStyle = '#B91C1C'; c.lineWidth = 1.4;
+      c.beginPath();
+      c.moveTo(CX + side * chestHalf * 0.70 * f, shoulderY);
+      c.quadraticCurveTo(CX - side * chestHalf * 0.48, chestY + 9, CX - side * chestHalf * 0.84, waistY + 15);
+      c.stroke();
+    }
+  } else if (d.top === 'kimono') {
+    neckline(2.4, chestHalf * 0.18);
+    // the crossed front, left over right
+    c.fillStyle = volume(c, CX - chestHalf, CX + chestHalf, shade(topCol, 0.16));
+    [-1, 1].forEach((side) => {
+      c.beginPath();
+      c.moveTo(CX + side * chestHalf * 0.56 * f, shoulderY - 2);
+      c.lineTo(CX, waistY - 6);
+      c.lineTo(CX + side * chestHalf * 0.14 * f, shoulderY + 2);
+      c.closePath();
+      c.fill();
+    });
+    c.fillStyle = shade(topCol, -0.45);              // the obi
+    rr(c, CX - waistHalf * 1.02, waistY - 5, waistHalf * 2.04, 12, 2); c.fill();
+    c.fillStyle = '#F5B301';
+    rr(c, CX - waistHalf * 1.02, waistY + 4, waistHalf * 2.04, 2.4, 1); c.fill();
+  } else if (d.top === 'boubou') {
+    neckline(3.6, chestHalf * 0.26);
+    if (f > 0.2) {                                   // the embroidered chest panel
+      c.strokeStyle = '#F5B301'; c.lineWidth = 1.1;
+      for (let i = 0; i < 4; i++) {
+        c.beginPath();
+        c.arc(CX, shoulderY + 6, 5 + i * 3.2, Math.PI * 0.15, Math.PI * 0.85);
+        c.stroke();
+      }
+    }
+  } else if (d.top === 'poncho') {
+    // a rectangle over the shoulders with banded weave
+    c.fillStyle = volume(c, CX - chestHalf * 1.5, CX + chestHalf * 1.5, topCol);
+    c.beginPath();
+    c.moveTo(CX - chestHalf * 1.34, shoulderY);
+    c.lineTo(CX + chestHalf * 1.34, shoulderY);
+    c.lineTo(CX + chestHalf * 1.16, waistY + 14);
+    c.lineTo(CX - chestHalf * 1.16, waistY + 14);
+    c.closePath();
+    c.fill();
+    c.strokeStyle = shade(topCol, -0.5); c.lineWidth = 1.0;
+    for (let y = chestY; y < waistY + 12; y += 6) {
+      c.beginPath(); c.moveTo(CX - chestHalf * 1.28, y); c.lineTo(CX + chestHalf * 1.28, y); c.stroke();
+    }
+    neckline(2.6, chestHalf * 0.20);
   }
 
   if (d.top === 'jersey' && f > 0.3) {       // a number, ours, meaning nothing
@@ -1338,6 +1562,65 @@ function drawHat(c, d, T, g) {
     c.lineTo(skullX + rx * 0.92, cy - ry * 0.46);
     c.closePath();
     c.fill();
+  } else if (d.hat === 'nemes') {
+    // the striped headcloth: a cap that widens into two panels at the jaw
+    c.fillStyle = volume(c, skullX - rx * 1.4, skullX + rx * 1.4, col);
+    c.beginPath();
+    c.moveTo(skullX - rx * 1.14, cy + ry * 0.70);
+    c.lineTo(skullX - rx * 1.02, cy - ry * 0.30);
+    c.bezierCurveTo(skullX - rx * 1.1, cy - ry * 1.35, skullX + rx * 1.1, cy - ry * 1.35, skullX + rx * 1.02, cy - ry * 0.30);
+    c.lineTo(skullX + rx * 1.14, cy + ry * 0.70);
+    c.lineTo(skullX + rx * 0.80, cy + ry * 0.72);
+    c.lineTo(skullX + rx * 0.72, cy - ry * 0.10);
+    c.bezierCurveTo(skullX + rx * 0.7, cy - ry * 0.9, skullX - rx * 0.7, cy - ry * 0.9, skullX - rx * 0.72, cy - ry * 0.10);
+    c.lineTo(skullX - rx * 0.80, cy + ry * 0.72);
+    c.closePath();
+    c.fill();
+    c.strokeStyle = '#1E3A5F'; c.lineWidth = 1.4;
+    for (let i = -3; i <= 3; i++) {
+      c.beginPath();
+      c.moveTo(skullX + i * rx * 0.26, cy - ry * 0.92);
+      c.lineTo(skullX + i * rx * 0.30, cy - ry * 0.30);
+      c.stroke();
+    }
+  } else if (d.hat === 'ghutra') {
+    /* The cloth goes over the head and down each side — it does NOT go
+       over the face. Drawn as a crown plus two side panels so the face
+       stays open, rather than one sheet that buries it. */
+    c.fillStyle = volume(c, skullX - rx * 1.3, skullX + rx * 1.3, col);
+    c.beginPath();
+    c.moveTo(skullX - rx * 1.04, cy - ry * 0.22);
+    c.bezierCurveTo(skullX - rx * 1.12, cy - ry * 1.32, skullX + rx * 1.12, cy - ry * 1.32, skullX + rx * 1.04, cy - ry * 0.22);
+    c.bezierCurveTo(skullX + rx * 0.86, cy - ry * 0.52, skullX - rx * 0.86, cy - ry * 0.52, skullX - rx * 1.04, cy - ry * 0.22);
+    c.closePath();
+    c.fill();
+    // the two panels down past the jaw
+    [-1, 1].forEach((side) => {
+      const near = side * Math.sign(st || 1) >= 0 ? 1 : 0.72;   // the far one narrows
+      c.fillStyle = volume(c, skullX - rx * 1.3, skullX + rx * 1.3, shade(col, side < 0 ? 0.04 : -0.10));
+      c.beginPath();
+      c.moveTo(skullX + side * rx * 1.02, cy - ry * 0.42);
+      c.quadraticCurveTo(skullX + side * rx * 1.18 * near, cy + ry * 0.45, skullX + side * rx * 1.02 * near, cy + ry * 1.05);
+      c.lineTo(skullX + side * rx * 0.66 * near, cy + ry * 1.02);
+      c.quadraticCurveTo(skullX + side * rx * 0.80, cy + ry * 0.35, skullX + side * rx * 0.76, cy - ry * 0.40);
+      c.closePath();
+      c.fill();
+    });
+    c.strokeStyle = '#1B1512'; c.lineWidth = 2.6;      // the igal cord
+    c.beginPath();
+    c.ellipse(skullX, cy - ry * 0.80, rx * 1.00, ry * 0.22, 0, 0, Math.PI * 2);
+    c.stroke();
+  } else if (d.hat === 'kufi') {
+    c.fillStyle = volume(c, skullX - rx, skullX + rx, col);
+    c.beginPath();
+    c.ellipse(skullX, cy - ry * 0.56, rx * 0.94, ry * 0.50, 0, Math.PI, 0);
+    c.fill();
+    c.fillStyle = shade(col, -0.3);
+    rr(c, skullX - rx * 0.94, cy - ry * 0.62, rx * 1.88, ry * 0.26, 2); c.fill();
+  } else if (d.hat === 'bowler') {
+    crown(0.62, 0.82);
+    c.fillStyle = volume(c, skullX - rx * 1.4, skullX + rx * 1.4, shade(col, -0.14));
+    ell(c, skullX, cy - ry * 0.34, rx * 1.24, ry * 0.20); c.fill();
   } else {                                          // cap, either way round
     crown(0.80, 1.02);
     /* The peak points forward. Face-on you're looking down its length,

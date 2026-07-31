@@ -9,7 +9,7 @@ import {
   HERITAGES, DEFAULT_DNA,
 } from '../services/avatarArt';
 import {
-  BUILDS, TOPS, BOTTOMS, SHOES, OUTERS, HATS, WEAR_COLORS,
+  BUILDS, TOPS, BOTTOMS, SHOES, OUTERS, HATS, WEAR_COLORS, CULTURES,
   DEFAULT_LOOK, parseLook, serializeLook,
 } from '../services/characterArt';
 import { useAuth } from '../context/AuthContext';
@@ -38,6 +38,7 @@ const TABS = [
   { id: 'shoes', label: 'Shoes', icon: 'footsteps-outline' },
   { id: 'outer', label: 'Jackets', icon: 'snow-outline' },
   { id: 'hat', label: 'Hats', icon: 'glasses-outline' },
+  { id: 'culture', label: 'Culture', icon: 'earth-outline' },
   { id: 'style', label: 'Style', icon: 'sparkles-outline' },
 ];
 
@@ -329,6 +330,36 @@ export const AvatarBuilderSheet = ({ initialDna, onClose, onSaved }) => {
                 <ColorRow label="COLOUR" colors={WEAR_COLORS} value={dna.hatColor} onPick={set('hatColor')} />
               </>
             )
+          ) : null}
+
+          {tab === 'culture' ? (
+            <>
+              <Text style={{ color: C.faint, fontSize: 11, fontWeight: '900', letterSpacing: 0.8, marginBottom: 10 }}>DRESS FROM WHERE YOU'RE FROM</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
+                {CULTURES.map((cu) => {
+                  const on = dna.top === cu.look.top;
+                  return (
+                    <Pressable key={cu.id} onPress={() => { tapSelection(); setDna((d) => ({ ...d, ...cu.look })); }} style={{ marginRight: 10, alignItems: 'center' }}>
+                      <View style={{
+                        borderRadius: 14, borderWidth: on ? 2.5 : 1, borderColor: on ? C.purple : C.line,
+                        backgroundColor: C.glass, width: 82, height: 128, overflow: 'hidden', alignItems: 'center',
+                      }}>
+                        <CharacterCanvas dna={{ ...dna, ...cu.look }} width={80} shadow={false} />
+                      </View>
+                      <Text style={{ color: on ? C.purple : C.faint, fontSize: 10.5, fontWeight: '800', marginTop: 5, maxWidth: 84 }} numberOfLines={1}>
+                        {cu.emoji} {cu.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+              <ColorRow label="COLOUR" colors={WEAR_COLORS} value={dna.topColor} onPick={set('topColor')} />
+              <Text style={{ color: C.faint, fontSize: 11.5, lineHeight: 17 }}>
+                Picking one sets the whole outfit — you can change any piece of it afterwards.
+                Every one of these is drawn by us from the same shapes as the rest of the
+                wardrobe: nothing traced, nothing borrowed, nothing anybody owns.
+              </Text>
+            </>
           ) : null}
 
           {tab === 'style' ? (

@@ -38,6 +38,7 @@ import { studioRequested, stripStudioParam } from './src/utils/studioLink';
 import { initPwa } from './src/lib/pwa';
 import { Boundary } from './src/components/Boundary';
 import { InstallPrompt } from './src/components/InstallPrompt';
+import { Splash } from './src/components/Splash';
 
 initPwa(); // installable app + offline shell (no-op on native)
 
@@ -56,7 +57,8 @@ const StudioGate = () => {
 const Root = () => {
   const { loading, isAuthenticated } = useAuth();
   const { gen, isDark } = useTheme();
-  if (loading) return <View style={{ flex: 1, backgroundColor: C.bg }} />;
+  // never a bare rectangle — see src/components/Splash.js
+  if (loading) return <Splash />;
   if (!isAuthenticated) return <AuthScreen />;
   // the mini-player floats above the navigator, so music keeps playing as
   // you move between tabs. `key={gen}` forces a full remount when dark

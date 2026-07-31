@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { View, Text, Pressable, Image, Modal, ScrollView, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -11,6 +11,8 @@ import { getOrCreateDmThread, fetchMessages, sendMessage, sendMoment, sendGameIn
 import { uploadCapture } from '../services/social';
 import { StickerPicker } from '../components/StickerPicker';
 import { createMatch, fetchMatch, respondMatch } from '../services/games';
+import { noteScreenshot } from '../services/messages';
+import { useScreenshotWatch } from '../hooks/useScreenshotWatch';
 import { StreakBadge } from '../components/StreakBadge';
 import { getProfile } from '../services/profiles';
 import { TruthOrDare } from '../components/TruthOrDare';
@@ -175,6 +177,18 @@ export const ChatThread = ({ chat, group, onClose }) => {
   const loadMatch = async (matchId) => {
     try { const m = await fetchMatch(matchId); setMatches((s) => ({ ...s, [matchId]: m })); } catch (e) {}
   };
+
+  /* If you keep a copy of what someone sent you, they get told — the
+     same courtesy Snapchat has. A browser can't be certain a screenshot
+     happened (see the hook), so we only post when the signal is a
+     strong one, and never guess out loud. */
+  const onScreenshot = useCallback(() => {
+    if (!isReal || !user) return;
+    noteScreenshot({ dmThreadId, squadId: group ? chat.id : null, userId: user.id })
+      .then((row) => { if (row) setMsgs((ms) => (ms.some((x) => x.id === row.id) ? ms : [...ms, toLocal(row)])); })
+      .catch(() => {});
+  }, [isReal, user, dmThreadId, group, chat]);
+  useScreenshotWatch(onScreenshot, isReal && !!user);
   /* Any of the games can be the invite — the arcade duel, or one of the
      four board games. The kind rides on the match row, so the person
      accepting opens the same game you started. */
@@ -420,6 +434,20 @@ export const ChatThread = ({ chat, group, onClose }) => {
             ) : null}
             {visibleMsgs.map((m) => {
               const mine = m.from === 'me';
+
+              /* A screenshot notice belongs to the thread, not to
+                 either person — so it reads as a line across the middle
+                 rather than a bubble somebody "said". */
+              if (m.kind === 'screenshot') {
+                return (
+                  <View key={m.id} style={{ alignItems: 'center', marginVertical: 8 }}>
+                    <Text style={{ color: C.faint, fontSize: 10.5, fontWeight: '900', letterSpacing: 0.6 }}>
+                      {(mine ? 'YOU' : (m.from && m.from.name ? m.from.name.split(' ')[0].toUpperCase() : 'THEY')) + ' TOOK A SCREENSHOT 📸'}
+                    </Text>
+                  </View>
+                );
+              }
+
               return (
                 <View key={m.id} style={{ flexDirection: 'row', justifyContent: mine ? 'flex-end' : 'flex-start', marginBottom: 10, alignItems: 'flex-end' }}>
                   {!mine && group ? <Image source={{ uri: m.from.avatar }} style={{ width: 26, height: 26, borderRadius: 13, marginRight: 7 }} /> : null}

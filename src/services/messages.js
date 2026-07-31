@@ -307,3 +307,31 @@ export async function leaveSquad(squadId, userId) {
     .eq('user_id', userId);
   if (error) throw error;
 }
+
+/* ── SOMEBODY SCREENSHOTTED THIS ────────────────────────────────────
+   A note in the thread, visible to both of you, saying a screenshot was
+   taken. It isn't surveillance and it isn't presented as a catch: it's
+   the same courtesy Snapchat has — if you keep a copy of what somebody
+   sent you, they get told.
+
+   Be honest about the limit, because it matters here: a browser cannot
+   detect a screenshot. iOS and Android give web pages no such event,
+   and they never will. What we CAN see is the moment the phone hands
+   the screen to the system UI to take one, which shows up as the page
+   losing focus while staying visible — plus the desktop PrintScreen
+   key. So this catches most screenshots and will miss some, and we
+   never claim otherwise anywhere in the app. */
+export async function noteScreenshot({ dmThreadId, squadId, userId }) {
+  if (!userId || (!dmThreadId && !squadId)) return null;
+  const row = { user_id: userId, body: '📸 took a screenshot', kind: 'screenshot' };
+  if (dmThreadId) row.dm_thread_id = dmThreadId; else row.squad_id = squadId;
+  let res = await supabase.from('messages').insert(row).select('*, user:profiles(name, handle, avatar_url)').single();
+  if (res.error && /'kind'|column/i.test(res.error.message || '')) {
+    // older database without the kind column — send it as plain text so
+    // the other person still finds out
+    delete row.kind;
+    res = await supabase.from('messages').insert(row).select('*, user:profiles(name, handle, avatar_url)').single();
+  }
+  if (res.error) return null;
+  return res.data;
+}

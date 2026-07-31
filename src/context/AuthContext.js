@@ -16,16 +16,67 @@ export const AuthProvider = ({ children }) => {
   const [onboarding, setOnboarding] = useState(false); // keeps AuthScreen mounted through the vibe picker
   const [loading, setLoading] = useState(SUPABASE_READY);
 
+  /* ── WHY THIS HAS A TIMER ────────────────────────────────────────
+     Looking up the stored session is the first thing the app does, and
+     until it answers we show a plain canvas. That is fine when it takes
+     200ms. It is a disaster when it never answers — and it doesn't
+     always answer: an iPhone that suspended the tab, a token refresh
+     against a stalled connection, a network that goes away mid-flight.
+     There is no timeout inside the client, so the promise just hangs,
+     `loading` stays true, and the app sits on a blank page for ever.
+
+     That blank page is what people were seeing when a chat or the
+     camera "opened white": not a crash — Safari had thrown the tab
+     away, the app started again, and the session lookup never came
+     back.
+
+     So: give it six seconds. If it hasn't answered by then, carry on as
+     signed-out. Nothing is lost if a session does turn up afterwards —
+     `onAuthStateChange` fires and the app signs itself in. And when the
+     tab comes back to the foreground still waiting, ask again. */
   useEffect(() => {
-    if (!SUPABASE_READY) return;
+    if (!SUPABASE_READY) return undefined;
+    let alive = true;
+    let settled = false;
     let subscription;
-    auth
-      .getSession()
-      .then((s) => setSession(s))
-      .catch(() => setSession(null))
-      .finally(() => setLoading(false));
-    subscription = auth.onAuthStateChange(setSession);
-    return () => subscription && subscription.unsubscribe();
+
+    const done = (s) => {
+      if (!alive || settled) return;
+      settled = true;
+      if (s !== undefined) setSession(s);
+      setLoading(false);
+    };
+
+    const ask = () => {
+      auth.getSession().then((s) => done(s)).catch(() => done(null));
+    };
+
+    ask();
+    const bail = setTimeout(() => done(undefined), 6000);
+
+    // the listener is also an answer — if it fires first, stop waiting
+    subscription = auth.onAuthStateChange((s) => {
+      if (!alive) return;
+      setSession(s);
+      done(undefined);
+    });
+
+    /* Back in the foreground and still stuck on the splash? The lookup
+       we started before the phone went to sleep is never coming back;
+       start a fresh one. */
+    const onVisible = () => {
+      if (typeof document === 'undefined' || document.hidden) return;
+      if (settled) return;
+      ask();
+    };
+    if (typeof document !== 'undefined') document.addEventListener('visibilitychange', onVisible);
+
+    return () => {
+      alive = false;
+      clearTimeout(bail);
+      if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onVisible);
+      if (subscription) subscription.unsubscribe();
+    };
   }, []);
 
   // Self-heal: make sure the signed-in user has a profiles row —
