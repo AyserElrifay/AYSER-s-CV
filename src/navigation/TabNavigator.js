@@ -13,6 +13,28 @@ import { ReelsScreen } from '../screens/ReelsScreen';
 import { ChillScreen } from '../screens/ChillScreen';
 import { ChatsScreen } from '../screens/ChatsScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
+import { Boundary } from '../components/Boundary';
+
+/* Each tab renders inside its own boundary. If one screen throws, that
+   tab shows a "try again" instead of the whole app going down with it —
+   a broken Chats shouldn't cost you the map, the camera and your feed.
+   The root boundary in App.js is the backstop; this is the fuse. */
+const guarded = (Screen) => {
+  const Guarded = (props) => (
+    <Boundary soft>
+      <Screen {...props} />
+    </Boundary>
+  );
+  Guarded.displayName = 'Guarded(' + (Screen.displayName || Screen.name || 'Screen') + ')';
+  return Guarded;
+};
+
+const HomeTab = guarded(HomeScreen);
+const MapTab = guarded(MapScreen);
+const ReelsTab = guarded(ReelsScreen);
+const ChillTab = guarded(ChillScreen);
+const ChatsTab = guarded(ChatsScreen);
+const ProfileTab = guarded(ProfileScreen);
 
 /* ─────────────────────── NAVIGATION SHELL ─────────────────────── */
 
@@ -102,19 +124,19 @@ export const TabNavigator = () => {
       tabBarIcon: ({ focused, color }) => renderTabIcon(route.name, focused, color),
     })}
   >
-    <Tab.Screen name="HOME" component={HomeScreen} />
-    <Tab.Screen name="MAP" component={MapScreen} />
-    <Tab.Screen name="REELS" component={ReelsScreen} />
-    <Tab.Screen name="CHILL" component={ChillScreen} />
+    <Tab.Screen name="HOME" component={HomeTab} />
+    <Tab.Screen name="MAP" component={MapTab} />
+    <Tab.Screen name="REELS" component={ReelsTab} />
+    <Tab.Screen name="CHILL" component={ChillTab} />
     <Tab.Screen
       name="CHATS"
-      component={ChatsScreen}
+      component={ChatsTab}
       options={{
         tabBarBadge: UNREAD_TOTAL,
         tabBarBadgeStyle: { backgroundColor: C.coral, color: '#fff', fontSize: 10, fontWeight: '900' },
       }}
     />
-    <Tab.Screen name="SPACE" component={ProfileScreen} />
+    <Tab.Screen name="SPACE" component={ProfileTab} />
   </Tab.Navigator>
   );
 };

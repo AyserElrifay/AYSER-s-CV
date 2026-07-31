@@ -49,6 +49,7 @@ import { fetchTaggedPosts, removeTag } from '../services/tags';
 import { countMyCampfires } from '../services/campfires';
 import { countMates } from '../services/mates';
 import { Tick, GhostButton, BoostSheet, MatesSheet, AvatarBuilderSheet, PostCard, ReelsViewer, CommentsSheet, LikersSheet, HighlightsRail } from '../components';
+import { CloseFriendsSheet } from '../components/CloseFriendsSheet';
 import { sendFeedback, FEEDBACK_KINDS } from '../services/feedback';
 import { SettingsScreen } from './SettingsScreen';
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
@@ -142,6 +143,7 @@ export const ProfileScreen = () => {
   const [matesCount, setMatesCount] = useState(0);
   const [matesOpen, setMatesOpen] = useState(false);
   const [avatarBuilderOpen, setAvatarBuilderOpen] = useState(false);
+  const [closeOpen, setCloseOpen] = useState(false);
   const [editName, setEditName] = useState('');
   const [editBio, setEditBio] = useState('');
   const [editIntent, setEditIntent] = useState('');
@@ -1092,7 +1094,7 @@ export const ProfileScreen = () => {
               right={pageMade ? <Ionicons name="checkmark-circle" size={20} color={C.green} /> : null}
             />
             <MenuRow icon="megaphone-outline" label="Ads Manager" sub="Boost moments · campaigns · media buying" onPress={() => { setMenu(false); setAdsOpen(true); }} />
-            <MenuRow icon="star-outline" label="Close Friends" sub="Share some moments with your inner circle" />
+            <MenuRow icon="star-outline" label="Close Friends" sub="Share some moments with your inner circle" onPress={() => { setMenu(false); setCloseOpen(true); }} />
             <MenuRow icon="happy-outline" label="Your Moments Avatar" sub="The cartoon character shown on the live map" onPress={() => { setMenu(false); setAvatarBuilderOpen(true); }} />
             <MenuRow icon="create-outline" label="Edit your space" sub="Name, bio, vibe & links" onPress={() => setEditOpen(true)} />
           </Pressable>
@@ -1292,6 +1294,8 @@ export const ProfileScreen = () => {
           onSaved={reload}
         />
       ) : null}
+
+      {closeOpen ? <CloseFriendsSheet onClose={() => setCloseOpen(false)} /> : null}
     </View>
   );
 };

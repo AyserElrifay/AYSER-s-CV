@@ -17,7 +17,7 @@ import { fetchTracks, incrementTrackUse, publishSound } from '../services/music'
 import { MusicHubSheet } from './MusicHubSheet';
 import { isOwner } from '../services/music';
 import { LENSES, drawLens } from './lensArt';
-import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
+import { tapLight, tapMedium, tapSuccess, tapSelection } from '../utils/feedback';
 import { getCurrentCoords } from '../utils/location';
 import { sfxPop, sfxSuccess } from '../utils/sfx';
 
@@ -709,6 +709,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
      drawer you pull up. Nothing stacks over your own face. */
 
   const [libraryOpen, setLibraryOpen] = useState(false);   // pick something already uploaded
+  const [closeOnly, setCloseOnly] = useState(false);        // just the smaller circle
   const [effectsOpen, setEffectsOpen] = useState(false);   // the whole drawer, pulled up
   /* Where it happened and what it's about — asked once, after the shot,
      which is the only moment you actually know both. Five tags is the
@@ -1457,7 +1458,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
             ? { type: 'question', data: { question: askQ.trim() } }
             : null;
           const row = await createStory(user.id, {
-            mediaUrl, caption: finalCaption(), sound, sticker,
+            mediaUrl, caption: finalCaption(), sound, sticker, closeOnly,
             place: onMap ? (placeName.trim() || 'Right here') : null,
             lat: onMap && mapCoords ? mapCoords.latitude : null,
             lng: onMap && mapCoords ? mapCoords.longitude : null,
@@ -2223,6 +2224,21 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
                         style={{ color: '#FFF', fontSize: 13 }}
                       />
                     </View>
+                  ) : null}
+
+                  {/* Just the smaller circle. The green ring is the
+                      signal everyone already reads as "not everyone",
+                      and the restriction is enforced by the read policy
+                      on the table — not by us hiding the story. */}
+                  {mode === 'story' ? (
+                    <Pressable onPress={() => { tapSelection(); setCloseOnly((v) => !v); }} style={{ alignSelf: 'flex-start', marginTop: 8 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: closeOnly ? C.green : 'rgba(0,0,0,0.55)', borderWidth: 1, borderColor: closeOnly ? C.green : 'rgba(255,255,255,0.35)', borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8 }}>
+                        <Ionicons name={closeOnly ? 'star' : 'star-outline'} size={14} color="#FFF" />
+                        <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '900', marginLeft: 6 }}>
+                          {closeOnly ? 'Close Friends only ✓' : 'Close Friends only'}
+                        </Text>
+                      </View>
+                    </Pressable>
                   ) : null}
                 </View>
               ) : null}

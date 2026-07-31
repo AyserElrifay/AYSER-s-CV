@@ -788,7 +788,7 @@ export const MapScreen = () => {
           Five circles stacked down the side of the map hid a third of
           Egypt. Only the two you reach for constantly stay out; the
           rest live behind one button and come out when you ask. */}
-      <View style={{ position: 'absolute', right: 14, bottom: 168, alignItems: 'center' }}>
+      <View style={{ position: 'absolute', right: 14, bottom: 196, alignItems: 'center' }}>
         {tools ? (
           <>
             <Pressable onPress={() => { setTools(false); openSheet('doing'); }} style={{ marginBottom: 10 }}>

@@ -1969,6 +1969,63 @@ create trigger trips_host_joins after insert on public.trips
 notify pgrst, 'reload schema';
 
 
+-- ═══════════ CLOSE FRIENDS · the smaller circle ═══════════
+-- One list, yours, private. Nobody is told they're on it and nobody is
+-- told they're not — that discretion is the entire point, and it is
+-- enforced here rather than by leaving a button out of the UI.
+create table if not exists public.close_friends (
+  owner_id  uuid not null references public.profiles(id) on delete cascade,
+  friend_id uuid not null references public.profiles(id) on delete cascade,
+  added_at  timestamptz not null default now(),
+  primary key (owner_id, friend_id)
+);
+alter table public.close_friends enable row level security;
+
+-- You can read YOUR list. You cannot read anyone else's, and you cannot
+-- find out whose list you are on — that would defeat the whole idea.
+drop policy if exists "cf_sel" on public.close_friends;
+create policy "cf_sel" on public.close_friends for select using (auth.uid() = owner_id);
+drop policy if exists "cf_ins" on public.close_friends;
+create policy "cf_ins" on public.close_friends for insert with check (auth.uid() = owner_id);
+drop policy if exists "cf_del" on public.close_friends;
+create policy "cf_del" on public.close_friends for delete using (auth.uid() = owner_id);
+
+-- A story or a moment can be for the smaller circle only.
+alter table public.stories add column if not exists close_only boolean not null default false;
+alter table public.posts   add column if not exists close_only boolean not null default false;
+
+/* Is `viewer` on `owner`'s list? Security definer so the check can see
+   a list the viewer isn't allowed to read — which is what lets us
+   filter without ever handing anyone the list itself. */
+create or replace function public.is_close_friend(owner uuid, viewer uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (
+    select 1 from public.close_friends
+    where owner_id = owner and friend_id = viewer
+  );
+$$;
+
+-- Close-only stories are visible to the author and to the circle. This
+-- replaces the open read policy, so the restriction is real: it holds
+-- against the API, not just against our own screens.
+drop policy if exists "stories_sel" on public.stories;
+drop policy if exists "stories_select" on public.stories;
+create policy "stories_sel" on public.stories for select using (
+  not close_only
+  or auth.uid() = user_id
+  or public.is_close_friend(user_id, auth.uid())
+);
+
+drop policy if exists "posts_close_sel" on public.posts;
+create policy "posts_close_sel" on public.posts for select using (
+  not close_only
+  or auth.uid() = user_id
+  or public.is_close_friend(user_id, auth.uid())
+);
+
+notify pgrst, 'reload schema';
+
+
 -- ═══════════════════ READINESS CHECKLIST ═══════════════════
 -- Every column below should say TRUE. If chat_ready is FALSE,
 -- also run supabase/schema_v2_live.sql (messages & live map).
@@ -2014,6 +2071,10 @@ select
           where table_schema = 'public' and table_name = 'stories'
             and column_name = 'sticker_type')                as story_stickers_ready,
   (to_regclass('public.films')                is not null) as films_ready,
+  (to_regclass('public.close_friends')        is not null) as close_friends_ready,
+  exists (select 1 from information_schema.columns
+          where table_schema = 'public' and table_name = 'stories'
+            and column_name = 'close_only')                  as close_stories_ready,
   (to_regclass('public.trips')                is not null) as trips_ready,
   (to_regclass('public.trip_members')         is not null) as trip_members_ready,
   exists (select 1 from information_schema.columns

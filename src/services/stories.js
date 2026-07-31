@@ -2,7 +2,7 @@ import { supabase } from '../lib/supabase';
 
 /* Real 24h stories — rows expire via the RLS policy (expires_at). */
 
-export async function createStory(userId, { mediaUrl, caption, sound, sticker, place, lat, lng }) {
+export async function createStory(userId, { mediaUrl, caption, sound, sticker, place, lat, lng, closeOnly }) {
   let payload = {
     user_id: userId,
     media_url: mediaUrl,
@@ -16,6 +16,8 @@ export async function createStory(userId, { mediaUrl, caption, sound, sticker, p
     sound_url: sound ? sound.audio_url || null : null, // actually playable
     sticker_type: sticker ? sticker.type : null,        // 'poll' | 'question'
     sticker_data: sticker ? JSON.stringify(sticker.data) : null,
+    // for the smaller circle only — enforced by the read policy, not here
+    close_only: !!closeOnly,
   };
   // strip any column this DB doesn't have yet and retry — a missing
   // optional column must never block posting a story

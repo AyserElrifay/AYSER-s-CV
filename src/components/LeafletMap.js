@@ -144,7 +144,7 @@ function injectMapStyle() {
     /* ── ZOOM ── ours, not Leaflet's grey box. Bottom-right, thumb
        height, and above the tiles but below the sheets. */
     .mm-zoom {
-      position: absolute; right: 12px; bottom: 108px; z-index: 700;
+      position: absolute; right: 12px; bottom: 88px; z-index: 700;
       display: flex; flex-direction: column; border-radius: 14px; overflow: hidden;
       box-shadow: 0 6px 20px rgba(0,0,0,0.28);
       background: rgba(255,255,255,0.96);

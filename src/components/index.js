@@ -55,6 +55,7 @@ export { BardiSheet } from './BardiSheet';
 export { AdminPanel } from './AdminPanel';
 export { MapCover } from './MapCover';
 export { Boundary } from './Boundary';
+export { CloseFriendsSheet } from './CloseFriendsSheet';
 export { Splash } from './Splash';
 export { InstallPrompt } from './InstallPrompt';
 export { AvatarCanvas } from './AvatarCanvas';

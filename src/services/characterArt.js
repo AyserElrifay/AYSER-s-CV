@@ -31,9 +31,8 @@ import { parseDna, DEFAULT_DNA, SKIN_TONES, HAIR_COLORS } from './avatarArt';
    handful of curves below — that is the whole point. */
 
 export const BUILDS = [
-  { id: 'm', label: 'Guy', emoji: '👨' },
-  { id: 'f', label: 'Girl', emoji: '👩' },
-  { id: 'n', label: 'Neither', emoji: '🧑' },
+  { id: 'm', label: 'Male', emoji: '👨' },
+  { id: 'f', label: 'Female', emoji: '👩' },
 ];
 
 export const TOPS = [
@@ -549,6 +548,15 @@ export function drawCharacter(c, ox, oy, w, h, dnaIn, opts) {
     const dim = near ? 0 : -0.18;
     const armW = F.arm * (T.ct * 0.5 + 0.5);
 
+    /* The shoulder itself, drawn under everything else. Sitting it on
+       top — which is what the first pass did — turned every t-shirt
+       into a puff sleeve bolted to the side of the body. Underneath and
+       slightly inboard, it reads as the arm growing out of the torso. */
+    const capCol = (outerSleeve || sleeveLen > 0) ? (outerSleeve ? outerCol : topCol) : skin;
+    c.fillStyle = domeShade(c, shoulderY - 6, shoulderY + 12, shade(capCol, dim));
+    ell(c, topX - side * armW * 0.28, shoulderY + 4, armW * 1.30, 8.5);
+    c.fill();
+
     const path = () => {
       c.beginPath();
       c.moveTo(topX - armW, shoulderY + 2);
@@ -587,18 +595,8 @@ export function drawCharacter(c, ox, oy, w, h, dnaIn, opts) {
       c.closePath();
       c.fill();
       c.restore();
-      // the deltoid: a sleeve cut off square at the top reads as a tab
-      // stuck on the side, so round it over the shoulder joint
-      c.fillStyle = domeShade(c, shoulderY - 7, shoulderY + 9, shade(sleeveCol, dim));
-      ell(c, topX, shoulderY + 2.5, wide * 1.04, 7);
-      c.fill();
       // cuff shadow where the sleeve ends on skin
       if (sl < 1) contact(c, topX + (handX - topX) * sl, endY, wide * 1.1, 1.6, 0.55);
-    } else {
-      // bare shoulder still needs the round of the deltoid
-      c.fillStyle = domeShade(c, shoulderY - 6, shoulderY + 10, shade(skin, dim));
-      ell(c, topX, shoulderY + 3, armW * 1.15, 6.5);
-      c.fill();
     }
 
     /* The seam where the arm meets the body. Without it an arm in the
@@ -1378,13 +1376,37 @@ function drawHairFront(c, d, T, g) {
 
   /* The cap of hair on top of the skull. Every style is this shape
      plus an edge — which is what real haircuts are. */
+  /* Hair has thickness. The cap sits a little OUTSIDE the skull rather
+     than painted flat onto it, and the crown rises above it — without
+     that it reads as a swimming cap, which is exactly how it looked
+     before. `lift` is how tall the style stands, `hang` how far down
+     the sides it comes. */
   const cap = (lift, hang) => {
+    const out = 1.09;                      // the hair's own thickness
     c.beginPath();
-    c.moveTo(skullX - rx * 1.02, cy + ry * 0.10 + hang);
-    c.bezierCurveTo(skullX - rx * 1.10, cy - ry * (1.0 + lift), skullX + rx * 1.10, cy - ry * (1.0 + lift), skullX + rx * 1.02, cy + ry * 0.10 + hang);
-    c.bezierCurveTo(skullX + rx * 0.9, cy - ry * 0.34, skullX - rx * 0.9, cy - ry * 0.34, skullX - rx * 1.02, cy + ry * 0.10 + hang);
+    c.moveTo(skullX - rx * out, cy + ry * 0.10 + hang);
+    c.bezierCurveTo(
+      skullX - rx * (out + 0.06), cy - ry * (1.10 + lift),
+      skullX + rx * (out + 0.06), cy - ry * (1.10 + lift),
+      skullX + rx * out, cy + ry * 0.10 + hang
+    );
+    c.bezierCurveTo(skullX + rx * 0.88, cy - ry * 0.36, skullX - rx * 0.88, cy - ry * 0.36, skullX - rx * out, cy + ry * 0.10 + hang);
     c.closePath();
     c.fill();
+    // a darker underside where the hair meets the forehead gives it depth
+    c.save();
+    c.beginPath();
+    c.moveTo(skullX - rx * out, cy + ry * 0.10 + hang);
+    c.bezierCurveTo(skullX - rx * (out + 0.06), cy - ry * (1.10 + lift), skullX + rx * (out + 0.06), cy - ry * (1.10 + lift), skullX + rx * out, cy + ry * 0.10 + hang);
+    c.bezierCurveTo(skullX + rx * 0.88, cy - ry * 0.36, skullX - rx * 0.88, cy - ry * 0.36, skullX - rx * out, cy + ry * 0.10 + hang);
+    c.closePath();
+    c.clip();
+    c.fillStyle = rgba('#000000', 0.18);
+    c.beginPath();
+    c.ellipse(skullX, cy - ry * 0.30, rx * 0.94, ry * 0.22, 0, 0, Math.PI);
+    c.fill();
+    c.restore();
+    c.fillStyle = volume(c, skullX - rx * 1.3, skullX + rx * 1.3, col);
   };
 
   if (d.hair === 'buzz') { cap(0.02, -ry * 0.14); }
