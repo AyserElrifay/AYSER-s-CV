@@ -56,6 +56,17 @@ export const ProfileModal = ({ user, onClose }) => {
   const [msgOpen, setMsgOpen] = useState(false);
   const [msgText, setMsgText] = useState('');
   const [msgSent, setMsgSent] = useState(false);
+  const [tab, setTab] = useState('grid');   // grid | reel | tag
+
+  /* The tab decides what the grid shows — the same three the owner's
+     own space offers, so switching between two profiles doesn't
+     switch how the app works. */
+  const shownPosts = React.useMemo(() => {
+    const all = posts || [];
+    if (tab === 'reel') return all.filter((p) => p.type === 'reel');
+    if (tab === 'tag') return [];          // tagging isn't built yet — say so, don't fake it
+    return all.filter((p) => p.type !== 'reel');
+  }, [posts, tab]);
 
   /* Opening someone's moment from their profile used to be a dead end:
      star, laugh, repost and share were all empty functions. They run
@@ -264,8 +275,11 @@ export const ProfileModal = ({ user, onClose }) => {
                 <View style={{ flex: 1, flexDirection: 'row' }}>
                   {stats.map((s) => (
                     <View key={s.l} style={{ flex: 1, alignItems: 'center' }}>
-                      <Text style={{ color: C.text, fontSize: 18, fontWeight: '900' }}>{s.n}</Text>
-                      <Text style={{ color: C.faint, fontSize: 10, fontWeight: '700', letterSpacing: 1, marginTop: 2 }}>{s.l.toUpperCase()}</Text>
+                      {/* same weight and casing as your own space —
+                          two profiles that show the same three numbers
+                          should not shout one of them */}
+                      <Text style={{ color: C.text, fontSize: 21, fontWeight: '900' }}>{s.n}</Text>
+                      <Text style={{ color: C.faint, fontSize: 12, fontWeight: '600', marginTop: 2 }}>{s.l}</Text>
                     </View>
                   ))}
                 </View>
@@ -317,6 +331,18 @@ export const ProfileModal = ({ user, onClose }) => {
                     <Text style={{ color: C.purple, fontSize: 11.5, fontWeight: '800' }}>{h}</Text>
                   </View>
                 ))}
+              </View>
+            ) : null}
+
+            {/* Joined — the same chip your own space carries. Two profiles
+                in one app should not be describing a person differently. */}
+            {fullProfile && fullProfile.created_at ? (
+              <View style={{ flexDirection: 'row', marginTop: 10 }}>
+                <View style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 }}>
+                  <Text style={{ color: C.dim, fontSize: 12, fontWeight: '700' }}>
+                    📅 Joined {new Date(fullProfile.created_at).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}
+                  </Text>
+                </View>
               </View>
             ) : null}
 
@@ -376,7 +402,19 @@ export const ProfileModal = ({ user, onClose }) => {
             ) : null}
 
             {/* their REAL moments — same grid as your own profile */}
-            <SectionHeader title="Recent Moments" style={{ marginTop: 26 }} />
+            {/* the same tab row your own space has, so a profile looks
+                like a profile whoever it belongs to */}
+            <View style={{ flexDirection: 'row', borderTopWidth: 1, borderTopColor: C.line, marginTop: 22 }}>
+              {[
+                { k: 'grid', icon: 'grid-outline' },
+                { k: 'reel', icon: 'play-outline' },
+                { k: 'tag', icon: 'pricetag-outline' },
+              ].map((t) => (
+                <Pressable key={t.k} onPress={() => { tapLight(); setTab(t.k); }} style={{ flex: 1, alignItems: 'center', paddingVertical: 12, borderBottomWidth: 2, borderBottomColor: tab === t.k ? C.text : 'transparent' }}>
+                  <Ionicons name={t.icon} size={20} color={tab === t.k ? C.text : C.faint} />
+                </Pressable>
+              ))}
+            </View>
             {posts == null ? (
               <Text style={{ color: C.faint, fontSize: 12.5, textAlign: 'center', paddingVertical: 20 }}>Loading…</Text>
             ) : locked ? (
@@ -393,17 +431,19 @@ export const ProfileModal = ({ user, onClose }) => {
                     : 'Mate up with ' + String(user.name || 'them').split(' ')[0] + ' to see their moments and stories.'}
                 </Text>
               </Glass>
-            ) : posts.length === 0 ? (
+            ) : shownPosts.length === 0 ? (
               <Glass style={{ padding: 22, alignItems: 'center' }}>
                 <Text style={{ fontSize: 30 }}>🌱</Text>
                 <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800', marginTop: 8 }}>No moments yet</Text>
                 <Text style={{ color: C.faint, fontSize: 12, marginTop: 3, textAlign: 'center' }}>
-                  {isMe ? 'Share your first moment from Home ✨' : 'Their story starts soon — wave to say hi 👋'}
+                  {tab === 'tag' ? 'Tagging isn\u2019t built yet — nothing to show here rather than something invented.'
+                    : tab === 'reel' ? 'No reels yet.'
+                    : isMe ? 'Share your first moment from Home ✨' : 'Their story starts soon — wave to say hi 👋'}
                 </Text>
               </Glass>
             ) : (
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -4 }}>
-                {posts.slice(0, 12).map((p) => (
+                {shownPosts.slice(0, 12).map((p) => (
                   <Pressable key={p.id} onPress={() => openPost(p)} style={{ width: CELL, height: CELL, borderRadius: 14, margin: 4, overflow: 'hidden', backgroundColor: C.glassHi }}>
                     {p.media_url && !isVideoUri(p.media_url) ? (
                       <Image source={{ uri: p.media_url }} style={{ width: '100%', height: '100%' }} />

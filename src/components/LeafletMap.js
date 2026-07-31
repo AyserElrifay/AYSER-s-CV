@@ -301,9 +301,18 @@ export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus
         minZoom: 2, maxZoom: 18, worldCopyJump: true,
         // buttery motion: fine zoom steps, animated zoom/fade, gentle
         // inertia so pans glide to a stop instead of snapping
-        zoomSnap: 0.25, zoomDelta: 0.5, wheelPxPerZoomLevel: 120,
+        /* Continuous zoom rather than steps: with zoomSnap at 0 a pinch
+           lands exactly where your fingers left it instead of snapping
+           to the nearest quarter level, which is what made the map feel
+           like it was arguing with you. Longer inertia and a gentler
+           deceleration let a flick glide to a stop the way a map should. */
+        zoomSnap: 0, zoomDelta: 0.4, wheelPxPerZoomLevel: 140,
         zoomAnimation: true, fadeAnimation: true, markerZoomAnimation: true,
-        inertia: true, inertiaDeceleration: 2400, easeLinearity: 0.15,
+        zoomAnimationThreshold: 6,
+        inertia: true, inertiaDeceleration: 1800, inertiaMaxSpeed: 2600,
+        easeLinearity: 0.12,
+        bounceAtZoomLimits: false,   // no rubber-band fight at the ends
+        touchZoom: true, doubleClickZoom: true, dragging: true,
         preferCanvas: true,
       }).setView([24, 14], 2.5); // Earth view — Egypt/Europe in frame
 
