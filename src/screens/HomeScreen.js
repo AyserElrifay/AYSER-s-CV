@@ -150,6 +150,24 @@ export const HomeScreen = () => {
     }
   };
 
+  /* If iOS threw the tab away while the photo picker was open, the
+     camera was mid-thought when it went. What you'd written is still in
+     the session, so put the screen back rather than making you start
+     again. */
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+    try {
+      const raw = window.sessionStorage.getItem('mm_capture_draft');
+      if (!raw) return;
+      const d = JSON.parse(raw);
+      if (!d || !d.mode || Date.now() - (d.at || 0) > 30 * 60 * 1000) {
+        window.sessionStorage.removeItem('mm_capture_draft');
+        return;
+      }
+      if (d.mode === 'story' || d.mode === 'reel') setComposing(d.mode);
+    } catch (e) {}
+  }, []);
+
   /* Open a moment, a story or a profile shared IN —
      ?post=<id> / ?story=<id> / ?u=<user id>. */
   useEffect(() => {

@@ -709,6 +709,46 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
      and what you're looking through stays a camera. */
   const [tray, setTray] = useState(null);   // null | 'games' | 'lens' | 'sound'
   const [libraryOpen, setLibraryOpen] = useState(false);   // pick something already uploaded
+  /* Where it happened and what it's about — asked once, after the shot,
+     which is the only moment you actually know both. Five tags is the
+     ceiling: past that it stops being a subject and starts being spam. */
+  const [tags, setTags] = useState([]);
+  const [tagText, setTagText] = useState('');
+  const [tagIdeas, setTagIdeas] = useState([]);
+
+  /* iOS SOMETIMES THROWS THE PAGE AWAY.
+     Opening the photo picker hands the phone to another app, and Safari
+     is free to drop this tab while it's gone — you come back and the
+     camera, the caption and the tags you'd chosen are simply not there
+     any more. We can't stop that, so we survive it: what you'd written
+     is kept for the length of the session and put back when the screen
+     reopens. */
+  const DRAFT_KEY = 'mm_capture_draft';
+  const draftLoaded = useRef(false);
+  useEffect(() => {
+    if (!isWeb || draftLoaded.current || sendMode) return;
+    draftLoaded.current = true;
+    try {
+      const raw = window.sessionStorage.getItem(DRAFT_KEY);
+      if (!raw) return;
+      const d = JSON.parse(raw);
+      if (!d || d.mode !== initialMode) return;
+      if (d.caption) setCaption(d.caption);
+      if (Array.isArray(d.tags)) setTags(d.tags.slice(0, 5));
+      if (d.placeName) setPlaceName(d.placeName);
+    } catch (e) {}
+  }, [sendMode, initialMode]);
+
+  useEffect(() => {
+    if (!isWeb || sendMode) return;
+    try {
+      window.sessionStorage.setItem(DRAFT_KEY, JSON.stringify({
+        mode: initialMode, caption, tags, placeName, at: Date.now(),
+      }));
+    } catch (e) {}
+  }, [caption, tags, placeName, initialMode, sendMode]);
+
+  const clearDraft = () => { try { if (isWeb) window.sessionStorage.removeItem(DRAFT_KEY); } catch (e) {} };
   const [gameCard, setGameCard] = useState(null); // { kind:'roulette'|'question', text }
   const particlesRef = useRef(null); // stable random layout per effect pick
   const rollGame = (kind) => {
@@ -1163,6 +1203,36 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
     }
   };
 
+  /* The rooms that already exist, offered as chips — a tag somebody can
+     tap is a tag that leads somewhere, instead of a guess at spelling. */
+  useEffect(() => {
+    if (!shot || tagIdeas.length || !SUPABASE_READY) return;
+    fetchTopics().then((rows) => {
+      setTagIdeas((rows || []).slice()
+        .sort((a, b) => (b.moments || 0) - (a.moments || 0))
+        .slice(0, 14)
+        .map((t) => t.tag));
+    }).catch(() => {});
+  }, [shot, tagIdeas.length]);
+
+  const addTag = (raw) => {
+    const clean = String(raw || '').trim().replace(/^#+/, '').replace(/[^\p{L}\p{N}_]/gu, '');
+    if (!clean) return;
+    const tag = '#' + clean;
+    setTags((list) => (list.length >= 5 || list.some((t) => t.toLowerCase() === tag.toLowerCase()) ? list : list.concat(tag)));
+    setTagText('');
+    tapLight();
+  };
+  const dropTag = (tag) => { tapLight(); setTags((list) => list.filter((t) => t !== tag)); };
+
+  /* The caption that actually gets posted: what you wrote, plus any tag
+     you picked that isn't already in it. */
+  const finalCaption = () => {
+    const base = caption.trim();
+    const extra = tags.filter((t) => !new RegExp('(^|\\s)' + t + '(\\s|$)', 'i').test(base));
+    return (base + (extra.length ? (base ? ' ' : '') + extra.join(' ') : '')).trim();
+  };
+
   /* Something already in your library: it is on the server already, so
      there is nothing left to upload when you post. `remote` tells the
      share step to use the URL as it stands instead of sending the same
@@ -1378,7 +1448,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
             ? { type: 'question', data: { question: askQ.trim() } }
             : null;
           const row = await createStory(user.id, {
-            mediaUrl, caption: caption.trim(), sound, sticker,
+            mediaUrl, caption: finalCaption(), sound, sticker,
             place: onMap ? (placeName.trim() || 'Right here') : null,
             lat: onMap && mapCoords ? mapCoords.latitude : null,
             lng: onMap && mapCoords ? mapCoords.longitude : null,
@@ -1390,10 +1460,20 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
             stickerType: sticker && sticker.type, stickerData: sticker && sticker.data,
           });
         } else if (mode === 'video') {
-          const row = await createPost({ userId: user.id, type: 'vod', caption: caption.trim() || '🎬 Video', mediaUrl });
+          const row = await createPost({
+            userId: user.id, type: 'vod', caption: finalCaption() || '🎬 Video', mediaUrl,
+            place: onMap ? (placeName.trim() || 'Right here') : null,
+            lat: onMap && mapCoords ? mapCoords.latitude : null,
+            lng: onMap && mapCoords ? mapCoords.longitude : null,
+          });
           onPosted && onPosted(row);
         } else {
-          const row = await createPost({ userId: user.id, type: 'reel', caption: caption.trim() || '🎬', mediaUrl, sound });
+          const row = await createPost({
+            userId: user.id, type: 'reel', caption: finalCaption() || '🎬', mediaUrl, sound,
+            place: onMap ? (placeName.trim() || 'Right here') : null,
+            lat: onMap && mapCoords ? mapCoords.latitude : null,
+            lng: onMap && mapCoords ? mapCoords.longitude : null,
+          });
           if (sound && sound.audio_url) { incrementTrackUse(sound.id); publishSound(sound.id); }
           onPosted && onPosted({
             id: row.id,
@@ -1410,6 +1490,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
         else onPosted && onPosted({ id: 'local-' + Date.now(), user: { name: 'You', avatar: AV_NEUTRAL, verified: false }, type: 'reel', media: workingShot.uri, caption: caption.trim() || '🎬', place: 'Right here', startsIn: 'Live now', coords: ME.coords, sound, vibes: 0, comments: 0, squad: 'New Vibe Squad' });
       }
       tapSuccess(); sfxSuccess();
+      clearDraft();
       onClose();
     } catch (e) {
       // say WHY it failed — "failed" alone helps nobody
@@ -2057,10 +2138,69 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
                   ) : null}
                 </View>
               ) : null}
+              {/* WHAT IT'S ABOUT — up to five tags. The chips are rooms
+                  that already exist, so a tapped tag lands somewhere
+                  instead of being a guess at spelling. */}
+              {!sendMode ? (
+                <View style={{ marginBottom: 10 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                    <Ionicons name="pricetag-outline" size={13} color="rgba(255,255,255,0.75)" />
+                    <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 11.5, fontWeight: '800', marginLeft: 6 }}>
+                      Hashtags · {tags.length}/5
+                    </Text>
+                  </View>
+
+                  {tags.length ? (
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 6 }}>
+                      {tags.map((t) => (
+                        <Pressable key={t} onPress={() => dropTag(t)}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 6, marginRight: 6, marginBottom: 6 }}>
+                            <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '900' }}>{t}</Text>
+                            <Ionicons name="close" size={12} color="#FFF" style={{ marginLeft: 5 }} />
+                          </View>
+                        </Pressable>
+                      ))}
+                    </View>
+                  ) : null}
+
+                  {tags.length < 5 ? (
+                    <>
+                      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: 10 }}>
+                        {tagIdeas.filter((t) => !tags.some((x) => x.toLowerCase() === t.toLowerCase())).map((t) => (
+                          <Pressable key={t} onPress={() => addTag(t)}>
+                            <View style={{ backgroundColor: 'rgba(0,0,0,0.55)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', borderRadius: 999, paddingHorizontal: 11, paddingVertical: 6, marginRight: 6 }}>
+                              <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '700' }}>{t}</Text>
+                            </View>
+                          </Pressable>
+                        ))}
+                      </ScrollView>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)', paddingHorizontal: 12, marginTop: 7 }}>
+                        <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, fontWeight: '900' }}>#</Text>
+                        <TextInput
+                          placeholder="your own tag"
+                          placeholderTextColor="rgba(255,255,255,0.45)"
+                          value={tagText}
+                          onChangeText={setTagText}
+                          onSubmitEditing={() => addTag(tagText)}
+                          returnKeyType="done"
+                          autoCapitalize="none"
+                          style={{ flex: 1, color: '#FFF', fontSize: 13, paddingVertical: Platform.OS === 'ios' ? 9 : 4, marginLeft: 4 }}
+                        />
+                        {tagText.trim() ? (
+                          <Pressable onPress={() => addTag(tagText)} hitSlop={8}>
+                            <Text style={{ color: C.gold, fontSize: 12.5, fontWeight: '900' }}>Add</Text>
+                          </Pressable>
+                        ) : null}
+                      </View>
+                    </>
+                  ) : null}
+                </View>
+              ) : null}
+
               {/* Put it on the map — where it happened, like a pin you
                   drop. Off by default: your location is never shared
                   unless you switch this on for that post. */}
-              {!sendMode && mode === 'story' ? (
+              {!sendMode ? (
                 <View style={{ marginBottom: 10 }}>
                   <Pressable onPress={toggleOnMap} style={{ alignSelf: 'flex-start' }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: onMap ? C.purple : 'rgba(0,0,0,0.55)', borderWidth: 1, borderColor: onMap ? C.purple : 'rgba(255,255,255,0.35)', borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8 }}>
