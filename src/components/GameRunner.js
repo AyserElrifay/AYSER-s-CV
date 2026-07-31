@@ -3,7 +3,7 @@ import { View, Text, Pressable, Image, Modal, ScrollView, Animated, Easing, Plat
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { C } from '../constants/theme';
-import { GAME_LOCATIONS, USERS } from '../constants/mockData';
+import { GAME_LOCATIONS } from '../constants/mockData';
 import { useAuth } from '../context/AuthContext';
 import { buildAvatarUrl } from '../services/avatarBuilder';
 import { submitScore, fetchLeaderboard, finishMatch, subscribeMatchLive } from '../services/games';
@@ -58,7 +58,7 @@ const pickLoot = () => {
   return LOOT[0];
 };
 
-export const GameRunner = ({ opponent = USERS.nour, onClose, matchId = null, isHost = false, onRematch = null }) => {
+export const GameRunner = ({ opponent = null, onClose, matchId = null, isHost = false, onRematch = null }) => {
   const { user } = useAuth();
   const meAvatar = user ? buildAvatarUrl(user.id, user.avatar_dna) : null;
   const isMultiplayer = !!matchId;
@@ -344,7 +344,18 @@ export const GameRunner = ({ opponent = USERS.nour, onClose, matchId = null, isH
     outputRange: [laneX(0) - 24, laneX(LANES - 1) - 24],
   });
 
-  const oppFirst = ((opponent && opponent.name) || 'Mate').split(' ')[0];
+  /* Solo runs used to put an invented person on the track — a stock
+     name and a stock face, sprinting ahead of you forever. Chasing a
+     stranger who doesn't exist is worse than chasing nothing, so solo
+     now chases YOUR OWN ghost: your avatar, your record. A real
+     opponent is only ever a real account, passed in from a real duel. */
+  const foe = opponent || {
+    id: null,
+    name: 'Your record',
+    avatar: buildAvatarUrl((user && user.id) || 'me'),
+    ghost: true,
+  };
+  const oppFirst = foe.ghost ? 'your record' : String(foe.name || 'Mate').split(' ')[0];
 
   return (
     <Modal visible transparent={false} animationType="slide" onRequestClose={onClose}>
@@ -384,7 +395,7 @@ export const GameRunner = ({ opponent = USERS.nour, onClose, matchId = null, isH
               duel shows their LIVE score in the corner instead) */}
           {!isMultiplayer && track.h > 0 ? (
             <View style={{ position: 'absolute', top: 38, left: laneX(1) - 18, alignItems: 'center' }}>
-              <Image source={{ uri: opponent.avatar }} style={{ width: 34, height: 34, borderRadius: 17, borderWidth: 2, borderColor: '#FFF', opacity: 0.92 }} />
+              <Image source={{ uri: foe.avatar }} style={{ width: 34, height: 34, borderRadius: 17, borderWidth: 2, borderColor: '#FFF', opacity: 0.92 }} />
               <Text style={{ fontSize: 18, marginTop: -4 }}>💨</Text>
             </View>
           ) : null}
@@ -393,7 +404,7 @@ export const GameRunner = ({ opponent = USERS.nour, onClose, matchId = null, isH
           {isMultiplayer && mpPhase === 'racing' ? (
             <View style={{ position: 'absolute', top: 10, right: 10, alignItems: 'flex-end', zIndex: 5 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6 }}>
-                <Image source={{ uri: opponent.avatar }} style={{ width: 22, height: 22, borderRadius: 11, marginRight: 6 }} />
+                <Image source={{ uri: foe.avatar }} style={{ width: 22, height: 22, borderRadius: 11, marginRight: 6 }} />
                 <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '900' }}>{peerScore}</Text>
               </View>
               <Text style={{ color: 'rgba(255,255,255,0.65)', fontSize: 10, fontWeight: '800', marginTop: 4 }}>{duelLeft}s left</Text>
@@ -459,8 +470,8 @@ export const GameRunner = ({ opponent = USERS.nour, onClose, matchId = null, isH
           {!isMultiplayer && phase === 'ready' ? (
             <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, alignItems: 'center', justifyContent: 'center', padding: 22 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                <Image source={{ uri: opponent.avatar }} style={{ width: 44, height: 44, borderRadius: 22, borderWidth: 2, borderColor: '#FFF' }} />
-                <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '800', marginLeft: 10 }}>Racing {oppFirst}</Text>
+                <Image source={{ uri: foe.avatar }} style={{ width: 44, height: 44, borderRadius: 22, borderWidth: 2, borderColor: '#FFF' }} />
+                <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '800', marginLeft: 10 }}>{foe.ghost ? 'Chasing your best' : 'Racing ' + oppFirst}</Text>
               </View>
               <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: 13, textAlign: 'center', marginBottom: 6, lineHeight: 19 }}>
                 {gt('hazards')}{'\n'}🪙 +10 · ⭐ +25 · 💎 +50 — every 250 pts levels you up.
@@ -502,7 +513,7 @@ export const GameRunner = ({ opponent = USERS.nour, onClose, matchId = null, isH
             <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(4,10,26,0.68)', padding: 26 }}>
               <Text style={{ fontSize: 48 }}>{caughtMate ? '🏆' : '💥'}</Text>
               <Text style={{ color: '#FFF', fontSize: 22, fontWeight: '900', marginTop: 6 }}>
-                {caughtMate ? 'You caught ' + oppFirst + '!' : 'Wiped out!'}
+                {caughtMate ? (foe.ghost ? 'You beat your record!' : 'You caught ' + oppFirst + '!') : 'Wiped out!'}
               </Text>
               <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 14, marginTop: 8 }}>
                 Score {score} · Level {level} · Best {Math.max(best, score)}
@@ -577,7 +588,7 @@ export const GameRunner = ({ opponent = USERS.nour, onClose, matchId = null, isH
               </View>
               <Text style={{ fontSize: 20, color: 'rgba(255,255,255,0.4)', fontWeight: '800' }}>VS</Text>
               <View style={{ alignItems: 'center', marginHorizontal: 18 }}>
-                <Image source={{ uri: opponent.avatar }} style={{ width: 64, height: 64, borderRadius: 32, borderWidth: 3, borderColor: peerReady ? C.green : 'rgba(255,255,255,0.3)' }} />
+                <Image source={{ uri: foe.avatar }} style={{ width: 64, height: 64, borderRadius: 32, borderWidth: 3, borderColor: peerReady ? C.green : 'rgba(255,255,255,0.3)' }} />
                 <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '800', marginTop: 8 }} numberOfLines={1}>{oppFirst}</Text>
                 <Text style={{ color: peerReady ? C.green : 'rgba(255,255,255,0.5)', fontSize: 11, fontWeight: '800', marginTop: 2 }}>{peerReady ? 'Ready ✓' : 'Waiting…'}</Text>
               </View>
