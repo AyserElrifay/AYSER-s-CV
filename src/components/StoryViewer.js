@@ -7,6 +7,7 @@ import { SoundChip } from './SoundChip';
 import { C } from '../constants/theme';
 import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
+import { isOwner } from '../services/music';
 import {
   deleteStory, castPollVote, fetchPollResults,
   recordStoryView, fetchStoryViewers, reactToStory, fetchMyStoryReaction,
@@ -87,7 +88,13 @@ export const StoryViewer = ({ stories, groups, startGroup = 0, startIndex = 0, o
   const progress = useRef(new Animated.Value(0)).current;
   const anim = useRef(null);
   const story = items[index];
-  const isMine = !!(user && story && story.user && story.user.id === user.id);
+  /* Yours if it is yours — and a leftover local one (id 'me', from
+     before stories were saved properly) counts too, so it can be
+     cleared off your own rail instead of sitting there forever. */
+  const isMine = !!(user && story && story.user && (story.user.id === user.id || story.user.id === 'me'));
+  /* And the person who runs Moments can take anything down: reports
+     and takedowns are worth nothing if nobody can act on them. */
+  const canRemoveAny = isOwner(user);
 
   useEffect(() => {
     setConfirmDel(false); setReply(''); setSent(false); setPoll(null);
@@ -222,9 +229,9 @@ export const StoryViewer = ({ stories, groups, startGroup = 0, startIndex = 0, o
   };
 
   const doDelete = async () => {
-    if (!isMine) return;
+    if (!isMine && !canRemoveAny) return;
     tapLight();
-    if (SUPABASE_READY && user) { try { await deleteStory(story.id, user.id); } catch (e) {} }
+    if (SUPABASE_READY && user) { try { await deleteStory(story.id, canRemoveAny && !isMine ? null : user.id); } catch (e) {} }
     onDeleted && onDeleted(story.id);
     if (items.length <= 1) onClose();
     else go(index < items.length - 1 ? 1 : -1);
@@ -279,7 +286,7 @@ export const StoryViewer = ({ stories, groups, startGroup = 0, startIndex = 0, o
                   {left != null ? '· ' + left + 'h left' : '· now'}
                 </Text>
               </Text>
-              {isMine ? (
+              {isMine || canRemoveAny ? (
                 confirmDel ? (
                   <Pressable onPress={doDelete} hitSlop={8} style={{ marginRight: 10 }}>
                     <View style={{ backgroundColor: 'rgba(244,63,94,0.9)', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 }}>

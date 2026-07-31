@@ -29,7 +29,7 @@ const MODES = [
   { id: 'story', label: 'Story', emoji: '⭕' },
 ];
 
-export const ComposeModal = ({ initialMode = 'post', initialCaption = '', onClose, onPosted, onPostedStory }) => {
+export const ComposeModal = ({ initialMode = 'post', initialCaption = '', onClose, onPosted, onPostedStory, onOpenStudio }) => {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [mode, setMode] = useState(initialMode);
@@ -187,7 +187,14 @@ export const ComposeModal = ({ initialMode = 'post', initialCaption = '', onClos
             <Pressable
               key={m.id}
               testID={'mode-' + m.id}
-              onPress={() => setMode(m.id)}
+              onPress={() => {
+                /* A reel or a story needs the camera: video, filters,
+                   lenses, sounds and your library all live there. This
+                   sheet only ever did photos, which is why posting a
+                   reel from here had no video option and no edits. */
+                if ((m.id === 'reel' || m.id === 'story') && onOpenStudio) { onOpenStudio(m.id); return; }
+                setMode(m.id);
+              }}
               style={{
                 flex: 1, alignItems: 'center', paddingVertical: 9, borderRadius: 999,
                 backgroundColor: mode === m.id ? '#FFFFFF' : 'transparent',

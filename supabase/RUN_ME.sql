@@ -1789,6 +1789,23 @@ create policy "count your own uses" on public.media_library
 notify pgrst, 'reload schema';
 
 
+
+-- ═══════════ TAKEDOWNS · somebody has to be able to act ═══════════
+-- People can report a story or a moment, and that only means something
+-- if one account can actually remove it. That account is the one that
+-- runs Moments — nobody else gains anything here.
+
+drop policy if exists "the owner can take a story down" on public.stories;
+create policy "the owner can take a story down" on public.stories for delete
+  using ((auth.jwt() ->> 'email') = 'ayseryourlifecoach@gmail.com');
+
+drop policy if exists "the owner can take a post down" on public.posts;
+create policy "the owner can take a post down" on public.posts for delete
+  using ((auth.jwt() ->> 'email') = 'ayseryourlifecoach@gmail.com');
+
+notify pgrst, 'reload schema';
+
+
 -- ═══════════════════ READINESS CHECKLIST ═══════════════════
 -- Every column below should say TRUE. If chat_ready is FALSE,
 -- also run supabase/schema_v2_live.sql (messages & live map).

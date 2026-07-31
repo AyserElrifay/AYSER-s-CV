@@ -550,6 +550,7 @@ export const HomeScreen = () => {
         <ComposeModal
           initialMode="post"
           initialCaption={composeTag}
+          onOpenStudio={(m) => setComposing(m)}
           onClose={() => { setComposing(null); setComposeTag(''); }}
           onPosted={prependPost}
           onPostedStory={(s) => setMyStories((prev) => [s, ...prev])}

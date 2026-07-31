@@ -150,12 +150,13 @@ export async function fetchStoryById(storyId) {
 }
 
 /* Delete YOUR OWN story (RLS blocks anyone else's). */
+/* Pass a userId to delete your own; pass null and the database
+   decides — which it will only allow for the account that runs
+   Moments, because a report system nobody can act on is decoration. */
 export async function deleteStory(storyId, userId) {
-  const { error } = await supabase
-    .from('stories')
-    .delete()
-    .eq('id', storyId)
-    .eq('user_id', userId);
+  let q = supabase.from('stories').delete().eq('id', storyId);
+  if (userId) q = q.eq('user_id', userId);
+  const { error } = await q;
   if (error) throw error;
 }
 
