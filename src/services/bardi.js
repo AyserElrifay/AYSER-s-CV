@@ -18,6 +18,18 @@ const LANG_NAME = {
   zh: 'Chinese', ko: 'Korean', ja: 'Japanese',
 };
 
+/* Translation is not a conversation. Bardi's own prompt tells it to be
+   a coach who asks questions before it advises — so asked to translate
+   "17??" it did exactly that, and answered the post instead of
+   translating it. A translation runs on its own prompt with none of the
+   persona in it. */
+function translatorSystem(target) {
+  return 'You are a translation engine, not an assistant. Translate the user message into ' + target + '.\n'
+    + 'Output ONLY the translation. Never answer the message, never ask a question, never add notes, quotes or explanation.\n'
+    + 'Keep emoji, numbers, names and @handles exactly as they are.\n'
+    + 'If the message is already in ' + target + ', or is only numbers, symbols or emoji, output it back unchanged.';
+}
+
 function bardiSystem(language, profile, brain) {
   const lang = LANG_NAME[language] || "the user's language";
   let p = `You are Bardi, a warm, sharp personal assistant living inside Moments — a social app by Ayser.
@@ -88,7 +100,9 @@ async function pollinationsPOST(hist, sys, model, ms) {
    try several models, GET first (short prompts, no preflight) then POST,
    each with a timeout — so one throttled model never sinks the whole thing. */
 async function askBardiDirect(messages, opts) {
-  let sys = bardiSystem(opts.language || 'en', opts.profile, opts.brain);
+  let sys = opts.task === 'translate'
+    ? translatorSystem(opts.target || (LANG_NAME[opts.language] || 'English'))
+    : bardiSystem(opts.language || 'en', opts.profile, opts.brain);
   // The free fallback is flaky and hates big payloads/URLs, so keep it lean:
   // the persona is at the START, so trimming drops only trailing extras.
   if (sys.length > 1500) sys = sys.slice(0, 1500);
@@ -141,7 +155,9 @@ export async function askBardi(messages, opts = {}) {
   // pass-through (no server-side reads of anyone's data).
   const remember = opts.remember !== false; // user can turn Bardi's memory off
   let brain = opts.brain;
-  if (!brain && SUPABASE_READY) {
+  // a translation carries no persona, no memory and no owner steering
+  if (opts.task === 'translate') brain = null;
+  else if (!brain && SUPABASE_READY) {
     try { brain = await loadBardiBrain(opts.userId, remember); } catch (e) { brain = null; }
   }
   const optsB = { ...opts, brain };
@@ -150,7 +166,9 @@ export async function askBardi(messages, opts = {}) {
     messages: (messages || []).map((m) => ({ role: m.role, content: m.content })),
     language: opts.language || 'en',
   };
-  if (opts.profile) body.profile = opts.profile;
+  if (opts.task) body.task = opts.task;          // 'translate' → the endpoint drops the persona
+  if (opts.target) body.target = opts.target;
+  if (opts.profile && opts.task !== 'translate') body.profile = opts.profile;
   if (brain && brain.instructions) body.instructions = brain.instructions;
   if (brain && brain.knowledge && brain.knowledge.length) body.knowledge = brain.knowledge;
   if (brain && brain.memory && brain.memory.length) body.memory = brain.memory;
@@ -235,6 +253,9 @@ const transCache = new Map();
 export async function translateText(text, lang = 'en') {
   const body = String(text || '').trim();
   if (!body) return '';
+  /* Nothing to translate: "17??", "😂😂", "!!!" — there are no words in
+     it. Sending that to a model only invites it to make conversation. */
+  if (!/\p{Letter}/u.test(body)) return body;
   const key = lang + '|' + body;
   const hit = transCache.get(key);
   if (hit) return hit;
@@ -244,14 +265,9 @@ export async function translateText(text, lang = 'en') {
     [{ role: 'user', content: body }],
     {
       language: lang,
+      target,
+      task: 'translate',        // no coach, no memory, no owner steering
       remember: false,          // a translation is not something to remember about someone
-      brain: {
-        instructions:
-          'You are a translator and nothing else. Translate the user\u2019s message into ' + target +
-          '. Reply with the translation ONLY — no quotes, no notes, no preamble, no explanation. ' +
-          'Keep emoji, names and @handles exactly as they are. If it is already in ' + target +
-          ', reply with it unchanged.',
-      },
     }
   );
   const clean = String(out || '').trim().replace(/^["\u201c]|["\u201d]$/g, '');

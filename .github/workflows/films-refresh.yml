@@ -4,9 +4,11 @@ name: Refresh the film catalogue
 # people are actually watching in Egypt. This keeps the catalogue
 # current on its own rather than freezing on the day it was built.
 #
-# Needs two repository secrets:
+# Needs one repository secret:
 #   SUPABASE_ACCESS_TOKEN — same one the setup workflow uses
-#   TMDB_KEY              — free from themoviedb.org/settings/api
+# TMDB_KEY is optional: with it the catalogue gains backdrops, real
+# audience scores and proper genres. Without it the shelf still fills,
+# from Apple's open film catalogue, which needs no key at all.
 #
 # The key lives here and never ships in the app: the browser reads
 # films from our own table, so the catalogue works even when the
@@ -40,12 +42,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Check the secrets are there
+      - name: Check the secret is there
         run: |
-          missing=0
-          [ -z "$SUPABASE_ACCESS_TOKEN" ] && { echo "::error::SUPABASE_ACCESS_TOKEN is missing."; missing=1; }
-          [ -z "$TMDB_KEY" ] && { echo "::error::TMDB_KEY is missing — get a free key at https://www.themoviedb.org/settings/api and add it as a repository secret."; missing=1; }
-          exit $missing
+          if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then
+            echo "::error::SUPABASE_ACCESS_TOKEN is missing."
+            exit 1
+          fi
+          if [ -z "$TMDB_KEY" ]; then
+            echo "No TMDB_KEY — filling from Apple's open catalogue instead. Add TMDB_KEY later for backdrops and audience scores."
+          fi
 
       - name: Import films
         run: node scripts/import-films.mjs

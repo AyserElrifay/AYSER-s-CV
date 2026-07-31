@@ -462,7 +462,21 @@ export const HomeScreen = () => {
       {commentsPost ? <CommentsSheet post={commentsPost} onClose={() => setCommentsPost(null)} /> : null}
       {notifOpen ? <NotificationsSheet onClose={() => setNotifOpen(false)} /> : null}
       {bardiOpen ? <BardiSheet onClose={() => setBardiOpen(false)} /> : null}
-      {likersPost ? <LikersSheet post={likersPost} kind={likersKind} onClose={() => setLikersPost(null)} /> : null}
+      {likersPost ? (
+        <LikersSheet
+          post={likersPost} kind={likersKind}
+          onClose={() => setLikersPost(null)}
+          /* taking a reaction back from the list must un-light the card too */
+          onChanged={(k) => {
+            if (k === 'laugh') {
+              setLaughs((l) => { const n = { ...l }; delete n[likersPost.id]; return n; });
+              setLaughCounts((c) => ({ ...c, [likersPost.id]: Math.max(0, (c[likersPost.id] || 1) - 1) }));
+            } else {
+              setVibes((v) => { const n = { ...v }; delete n[likersPost.id]; return n; });
+            }
+          }}
+        />
+      ) : null}
       {reportPost ? <ReportSheet contentType="post" contentId={reportPost.id} contentLabel="moment" onClose={() => setReportPost(null)} /> : null}
 
       {/* a moment opened from a shared link — the full card, ready to vibe */}

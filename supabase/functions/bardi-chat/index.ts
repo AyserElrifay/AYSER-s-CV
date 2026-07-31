@@ -72,6 +72,15 @@ const LANG_NAMES: Record<string, string> = {
 // The Bardi persona — the same brain the Bardi web app uses. Kept as
 // plain replies here (no trailing MEMORY/EVENT/MAP/PLAN tags) so the
 // Moments chat renders clean answers with no stray machine lines.
+function translatorSystem(target: string): string {
+  return [
+    `You are a translation engine, not an assistant. Translate the user message into ${target}.`,
+    "Output ONLY the translation. Never answer the message, never ask a question, never add notes, quotes or explanation.",
+    "Keep emoji, numbers, names and @handles exactly as they are.",
+    `If the message is already in ${target}, or is only numbers, symbols or emoji, output it back unchanged.`,
+  ].join("\n");
+}
+
 function bardiSystem(opts: { language?: string; profile?: any; memory?: string[]; instructions?: string; knowledge?: any[] }): string {
   const lang = LANG_NAMES[opts.language || "ar"] || LANG_NAMES.ar;
 
@@ -220,10 +229,18 @@ Deno.serve(async (req: Request) => {
       return new Response(JSON.stringify({ error: "messages[] required" }), { status: 400, headers: { ...CORS, "content-type": "application/json" } });
     }
 
-    const system = bardiSystem({
-      language: body.language, profile: body.profile, memory: body.memory,
-      instructions: body.instructions, knowledge: body.knowledge,
-    });
+    /* Some requests are a job, not a conversation. Translation asked
+       through the coach persona came back as coaching — the model
+       answered the sentence instead of translating it — so a task
+       request gets its own narrow prompt and none of the persona,
+       memory or owner steering. */
+    const task = String(body.task || "");
+    const system = task === "translate"
+      ? translatorSystem(String(body.target || LANG_NAMES[body.language || "en"] || "English"))
+      : bardiSystem({
+          language: body.language, profile: body.profile, memory: body.memory,
+          instructions: body.instructions, knowledge: body.knowledge,
+        });
     const trimmed = messages.slice(-24).map((m: any) => ({
       role: m.role === "assistant" ? "assistant" : "user",
       content: String(m.content || "").slice(0, 4000),

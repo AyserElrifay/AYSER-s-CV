@@ -320,45 +320,10 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
                   body={err || 'Tracks appear here as they are added. Nothing is invented to fill the space.'}
                 />
               ) : (<>
-                {/* on your phone */}
-                <View style={{ marginTop: 16 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ color: C.text, fontSize: 16.5, fontWeight: '900' }}>📱 On your phone</Text>
-                      <Text style={{ color: C.faint, fontSize: 12, marginTop: 2 }}>
-                        Record your own — yours alone until you post with it
-                      </Text>
-                    </View>
-                    <Pressable onPress={addSound} disabled={upBusy}
-                      style={{ backgroundColor: recording ? C.coral : C.purple, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8, opacity: upBusy ? 0.5 : 1 }}>
-                      <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '900' }}>
-                        {upBusy ? 'Saving…' : recording ? 'Stop · ' + recSecs + 's' : '🎙️ Record'}
-                      </Text>
-                    </Pressable>
-                  </View>
-                  {mine.length ? mine.map((t) => (
-                    <View key={t.id}>
-                      <Row t={t} list={mine} />
-                      {t.visibility === 'private' ? (
-                        <Text style={{ color: C.faint, fontSize: 10.5, marginTop: -4, marginBottom: 6, marginLeft: 64 }}>
-                          Private — post a reel with it to share it
-                        </Text>
-                      ) : null}
-                    </View>
-                  )) : (
-                    <Text style={{ color: C.faint, fontSize: 12, marginTop: 10, lineHeight: 18 }}>
-                      Nothing yet. Record something — your voice, a street, a room. It has to be
-                      yours: only the microphone, never a file, so nobody's music ends up here by accident.
-                    </Text>
-                  )}
-                  <Text style={{ color: C.faint, fontSize: 10.5, marginTop: 8, lineHeight: 15 }}>
-                    {SOUND_TERMS}
-                  </Text>
-                  <Text style={{ color: C.faint, fontSize: 10.5, marginTop: 6, lineHeight: 15 }}>
-                    The shelves below are Moments' own catalogue — out of copyright, CC0 or licensed.
-                    Your recordings are never mixed into them.
-                  </Text>
-                </View>
+                <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 12, lineHeight: 16 }}>
+                  Moments' own catalogue — out of copyright, CC0 or licensed. Anything you record
+                  yourself lives in Your library, never mixed in here.
+                </Text>
 
                 {SHELVES.map((sh) => {
                 const list = shelfTracks(sh.id);
@@ -405,7 +370,48 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
                 <Empty title="Sign in to keep music" body="Your playlists live with your account, not on this device." />
               ) : (
                 <>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12, marginBottom: 6 }}>
+                {/* on your phone */}
+                <View style={{ marginTop: 16 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: C.text, fontSize: 16.5, fontWeight: '900' }}>📱 On your phone</Text>
+                      <Text style={{ color: C.faint, fontSize: 12, marginTop: 2 }}>
+                        Record your own — yours alone until you post with it
+                      </Text>
+                    </View>
+                    <Pressable onPress={addSound} disabled={upBusy}
+                      style={{ backgroundColor: recording ? C.coral : C.purple, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8, opacity: upBusy ? 0.5 : 1 }}>
+                      <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '900' }}>
+                        {upBusy ? 'Saving…' : recording ? 'Stop · ' + recSecs + 's' : '🎙️ Record'}
+                      </Text>
+                    </Pressable>
+                  </View>
+                  {mine.length ? mine.map((t) => (
+                    <View key={t.id}>
+                      <Row t={t} list={mine} />
+                      {t.visibility === 'private' ? (
+                        <Text style={{ color: C.faint, fontSize: 10.5, marginTop: -4, marginBottom: 6, marginLeft: 64 }}>
+                          Private — post a reel with it to share it
+                        </Text>
+                      ) : null}
+                    </View>
+                  )) : (
+                    <Text style={{ color: C.faint, fontSize: 12, marginTop: 10, lineHeight: 18 }}>
+                      Nothing yet. Record something — your voice, a street, a room. It has to be
+                      yours: only the microphone, never a file, so nobody's music ends up here by accident.
+                    </Text>
+                  )}
+                  <Text style={{ color: C.faint, fontSize: 10.5, marginTop: 8, lineHeight: 15 }}>
+                    {SOUND_TERMS}
+                  </Text>
+                  <Text style={{ color: C.faint, fontSize: 10.5, marginTop: 6, lineHeight: 15 }}>
+                    The shelves in Browse are Moments' own catalogue — out of copyright, CC0 or
+                    licensed. Your recordings are never mixed into them.
+                  </Text>
+                </View>
+
+
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 18, marginBottom: 6 }}>
                     <TextInput
                       placeholder="New playlist…"
                       placeholderTextColor={C.faint}

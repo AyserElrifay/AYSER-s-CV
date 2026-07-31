@@ -51,7 +51,7 @@ function injectMapStyle() {
     @keyframes mmPulse { 0% { transform: scale(0.9); opacity: 0.55; } 70% { transform: scale(1.7); opacity: 0; } 100% { opacity: 0; } }
     .mm-float { animation: mmFloat 3.2s ease-in-out infinite; }
     /* soft loading backdrop before the street tiles paint */
-    .leaflet-container { background: #dfeaf2; }
+    .leaflet-container { background: #dfeaf2; touch-action: none; -ms-touch-action: none; }
     /* GPU-hint the moving layers so pans/zooms stay 60fps-smooth */
     .leaflet-marker-icon, .leaflet-tile, .leaflet-map-pane { will-change: transform; }
     .leaflet-zoom-anim .leaflet-zoom-animated { transition-timing-function: cubic-bezier(0.22, 0.8, 0.32, 1); }
@@ -293,6 +293,7 @@ export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus
   // init once — open on the whole planet
   useEffect(() => {
     let cancelled = false;
+    let cleanupGestures = null;
     injectMapStyle();
     loadLeaflet().then((L) => {
       if (cancelled || !L || !elRef.current || mapRef.current) return;
@@ -340,6 +341,35 @@ export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus
       };
       map.on('zoomend', syncZoom);
       syncZoom();
+
+      /* PINCH, on a phone. Safari treats two fingers as "zoom the whole
+         page" and swallows the gesture before Leaflet ever sees it —
+         which is why pinching the map did nothing but make the app
+         bigger. These are Safari's own gesture events: refusing them
+         over the map hands the pinch back to the map. Everywhere else on
+         the page keeps working exactly as before. */
+      const el = map.getContainer();
+      const eatGesture = (e) => { e.preventDefault(); };
+      ['gesturestart', 'gesturechange', 'gestureend'].forEach((n) =>
+        el.addEventListener(n, eatGesture, { passive: false }));
+
+      /* And the one-handed shortcuts a map is expected to have:
+         double-tap zooms in (Leaflet does this), two fingers tapped
+         together zoom out — the same pair every map app uses. */
+      let twoDown = 0;
+      el.addEventListener('touchstart', (e) => {
+        if (e.touches && e.touches.length === 2) twoDown = Date.now();
+      }, { passive: true });
+      el.addEventListener('touchend', (e) => {
+        if (twoDown && Date.now() - twoDown < 280 && (!e.touches || e.touches.length === 0)) {
+          map.zoomOut(1);
+        }
+        if (!e.touches || e.touches.length === 0) twoDown = 0;
+      }, { passive: true });
+      cleanupGestures = () => {
+        ['gesturestart', 'gesturechange', 'gestureend'].forEach((n) =>
+          el.removeEventListener(n, eatGesture));
+      };
 
       // ── COLOURFUL CARTOON MAP, NAME-FREE (neutral) ──
       // Same colourful, cartoonish landcover and roads in both light and
@@ -421,6 +451,7 @@ export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus
     });
     return () => {
       cancelled = true;
+      if (cleanupGestures) { cleanupGestures(); cleanupGestures = null; }
       if (globe3dRef.current) { globe3dRef.current.destroy(); globe3dRef.current = null; }
       if (resizeCleanupRef.current) { resizeCleanupRef.current(); resizeCleanupRef.current = null; }
       if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; }

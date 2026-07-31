@@ -393,9 +393,15 @@ export const RooftopRush = ({ onClose, matchId = null, isHost = false, opponent 
       }
     }
 
-    /* The chaser: run clean and you slowly earn breathing room back;
-       clip things and it closes for real. Reaching you ends the run. */
-    w.chaseGap = Math.min(CHASER_BASE, w.chaseGap + 26 * dt);
+    /* The chaser: run clean and you earn breathing room back — but not
+       forever. It was possible to simply never die: on the wide ice a
+       clean runner regained more ground than anything could take, so
+       the chase stopped being a chase. It gets hungrier the longer the
+       run goes, so a chapter always ends in a decision instead of a
+       stroll. The first stretch is untouched — this only bites after
+       the opening half-minute. */
+    const heat = Math.min(1, Math.max(0, (now - w.startedAt) / 1000 - 20) / 40);
+    w.chaseGap = Math.min(CHASER_BASE, w.chaseGap + (26 - 20 * heat) * dt - 16 * heat * dt);
     w.chaserX = w.x - w.chaseGap;
     w.chaserY += (w.y - w.chaserY) * Math.min(1, dt * 4);
     if (w.chaseGap <= 24) return die(w, now, ar ? 'مسكوك! 😱' : 'Caught!');
@@ -412,8 +418,10 @@ export const RooftopRush = ({ onClose, matchId = null, isHost = false, opponent 
     const fallLine = lv.ski ? (w.floorY != null ? w.floorY : GROUND) + 320 : FALL_LIMIT;
     if (w.y > fallLine && !w.downUntil) {
       w.downUntil = now + 850;
+      const soonAfter = now - (w.lastFallAt || 0) < 6000;
+      w.lastFallAt = now;
       w.falls = (w.falls || 0) + 1;
-      w.chaseGap -= 46;
+      w.chaseGap -= soonAfter ? 92 : 62;   // two misses together nearly hand them to you
       w.shakeUntil = now + 300;
       tapLight();
       /* Find a roof that is still there. The one you last stood on may

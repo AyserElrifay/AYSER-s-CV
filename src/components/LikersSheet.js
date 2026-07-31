@@ -5,7 +5,8 @@ import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { C, R } from '../constants/theme';
 import { AV_NEUTRAL } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
-import { fetchVibers, fetchLaughers } from '../services/social';
+import { fetchVibers, fetchLaughers, toggleVibe, toggleLaugh } from '../services/social';
+import { useAuth } from '../context/AuthContext';
 import { tapLight } from '../utils/feedback';
 import { Micro } from './Micro';
 import { ProfileModal } from './ProfileModal';
@@ -24,11 +25,30 @@ const toProfileUser = (p) => ({
   countryFlag: p.country_flag || null,
 });
 
-export const LikersSheet = ({ post, kind = 'star', onClose }) => {
+export const LikersSheet = ({ post, kind = 'star', onClose, onChanged }) => {
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
   const [people, setPeople] = useState(null);
   const [openProfile, setOpenProfile] = useState(null);
+  const [pulling, setPulling] = useState(false);
   const isLaugh = kind === 'laugh';
+
+  /* You can see yourself in this list, so you should be able to leave
+     it. Taking your laugh back from here removes the row for real —
+     the same call the button on the card makes. */
+  const takeMineBack = async () => {
+    if (!user || !post || pulling) return;
+    tapLight();
+    setPulling(true);
+    setPeople((list) => (list || []).filter((p) => p.id !== user.id));
+    try {
+      if (SUPABASE_READY) await (isLaugh ? toggleLaugh : toggleVibe)(post.id, user.id, false);
+      onChanged && onChanged(kind, false);
+    } catch (e) {
+      const fetcher = isLaugh ? fetchLaughers : fetchVibers;
+      fetcher(post.id).then(setPeople).catch(() => {});
+    } finally { setPulling(false); }
+  };
 
   useEffect(() => {
     if (!SUPABASE_READY || !post) { setPeople([]); return; }
@@ -83,7 +103,16 @@ export const LikersSheet = ({ post, kind = 'star', onClose }) => {
                       {p.handle ? '@' + p.handle : (p.intent || 'Explorer')}
                     </Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={16} color={C.faint} />
+                  {user && p.id === user.id ? (
+                    <Pressable onPress={takeMineBack} hitSlop={8}
+                      style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 }}>
+                      <Text style={{ color: C.coral, fontSize: 12, fontWeight: '900' }}>
+                        {isLaugh ? 'Remove my laugh' : 'Remove my star'}
+                      </Text>
+                    </Pressable>
+                  ) : (
+                    <Ionicons name="chevron-forward" size={16} color={C.faint} />
+                  )}
                 </View>
               </Pressable>
             )}

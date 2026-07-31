@@ -148,7 +148,7 @@ export function makeLevel(seed, chapterIndex) {
     // Platforms are never narrower than a full jump carries you, so a
     // committed jump always lands ON the next roof instead of sailing
     // clean over it into the gap beyond — that death felt like a cheat.
-    const w = (ice ? 300 : 250) + r() * (ice ? 260 : 200);
+    const w = (ice ? 250 : 250) + r() * (ice ? 210 : 200);
     const rise = (r() - 0.45) * (54 + t * 48);
     y = Math.max(GROUND - 130, Math.min(GROUND + 74, y + rise));
 
@@ -173,7 +173,7 @@ export function makeLevel(seed, chapterIndex) {
          drone  — moves, so timing matters rather than reflex
          gust   — no collision at all; it pushes, and you lean into it
        Later platforms get the harder ones; the first stretch does not. */
-    if (w > 210 && r() < (ice ? 0.34 : 0.58)) {
+    if (w > 210 && r() < (ice ? 0.52 : 0.58)) {
       const hx = x + w * (0.4 + r() * 0.3);
       const roll = r();
       if (t > 0.18 && roll < 0.18) {
