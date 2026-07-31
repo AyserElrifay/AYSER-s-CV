@@ -33,7 +33,6 @@ import { sfxPop } from '../utils/sfx';
    ask for it. */
 
 const SHELVES = [
-  { id: 'Sounds',   label: 'Sounds', emoji: '🎙️', blurb: 'Recorded by people here — free for reels and stories' },
   { id: 'Classics', label: 'Out of copyright', emoji: '📻', blurb: 'Recordings from before 1929 — nobody owns these any more' },
   { id: 'Chill', label: 'Chill', emoji: '🌊', blurb: 'Slow, wide and unbothered' },
   { id: 'Hype', label: 'Hype', emoji: '🔥', blurb: 'For the part where you run' },
@@ -106,33 +105,65 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
 
   const play = (t, list) => { tapLight(); sfxPop(); playTrack(t, list || [t], 0); };
 
-  /* Pick an audio file off the phone. It stays yours — nobody browses
-     a stranger's voice memos — until you post a reel or a story with
-     it, and posting is what makes it usable by everyone else. */
-  const addSound = () => {
-    if (!SUPABASE_READY || !user) { say('Sign in to add a sound'); return; }
-    if (typeof document === 'undefined') return;
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'audio/*';
-    input.onchange = async () => {
-      const file = input.files && input.files[0];
-      if (!file) return;
-      if (file.size > 20 * 1024 * 1024) { say('That file is over 20MB — trim it shorter'); return; }
-      setUpBusy(true);
-      try {
-        const ext = (file.name.split('.').pop() || 'mp3').toLowerCase();
-        const row = await uploadSound(user.id, file, {
-          title: file.name.replace(/\.[^.]+$/, '').slice(0, 60),
-          ext, contentType: file.type || 'audio/mpeg',
-        });
-        setMine((m) => [row, ...m]);
-        say('Added — only you can see it until you post with it');
-      } catch (e) { say((e && e.message) || 'Could not add that sound'); }
-      finally { setUpBusy(false); }
-    };
-    input.click();
+  /* RECORD it — never pick a file.
+
+     A file picker is an invitation to upload someone else's song, and
+     one copyrighted track in a shared library is a real problem for
+     everyone using it. The microphone can only capture what is
+     actually in front of you, so an "original sound" here genuinely is
+     one. Everything browsable in this screen stays Moments' own vetted
+     catalogue: out of copyright, CC0, or licensed. */
+  const recRef = React.useRef(null);
+  const chunksRef = React.useRef([]);
+  const [recording, setRecording] = useState(false);
+  const [recSecs, setRecSecs] = useState(0);
+  const tickRef = React.useRef(null);
+  const MAX_SECS = 60;
+
+  const stopSoundRec = () => {
+    clearInterval(tickRef.current);
+    setRecording(false);
+    const r = recRef.current;
+    if (r && r.state !== 'inactive') r.stop();
   };
+
+  const addSound = async () => {
+    if (!SUPABASE_READY || !user) { say('Sign in to record a sound'); return; }
+    if (recording) { stopSoundRec(); return; }
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices) { say('Recording needs a browser with a microphone'); return; }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      chunksRef.current = [];
+      const rec = new MediaRecorder(stream);
+      recRef.current = rec;
+      rec.ondataavailable = (e) => { if (e.data && e.data.size) chunksRef.current.push(e.data); };
+      rec.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop());
+        const type = (rec.mimeType || 'audio/mp4').split(';')[0];
+        const blob = new Blob(chunksRef.current, { type });
+        if (!blob.size) { say('Nothing was recorded — try again'); return; }
+        setUpBusy(true);
+        try {
+          const ext = /mp4|m4a|aac/.test(type) ? 'm4a' : /webm/.test(type) ? 'webm' : 'mp3';
+          const row = await uploadSound(user.id, blob, {
+            title: 'My sound ' + new Date().toLocaleDateString(undefined, { day: 'numeric', month: 'short' }),
+            ext, contentType: type,
+          });
+          setMine((m) => [row, ...m]);
+          say('Recorded — only you can see it until you post with it');
+        } catch (e) { say((e && e.message) || 'Could not save that sound'); }
+        finally { setUpBusy(false); }
+      };
+      rec.start();
+      setRecording(true);
+      setRecSecs(0);
+      tickRef.current = setInterval(() => {
+        setRecSecs((n) => { if (n + 1 >= MAX_SECS) stopSoundRec(); return n + 1; });
+      }, 1000);
+    } catch (e) { say('Allow the microphone to record a sound 🎙️'); }
+  };
+
+  useEffect(() => () => { clearInterval(tickRef.current); }, []);
 
   /* The heart goes straight to Liked Songs — one tap, no dialogue.
      The + button is the one that asks which playlist. */
@@ -295,12 +326,14 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
                     <View style={{ flex: 1 }}>
                       <Text style={{ color: C.text, fontSize: 16.5, fontWeight: '900' }}>📱 On your phone</Text>
                       <Text style={{ color: C.faint, fontSize: 12, marginTop: 2 }}>
-                        Yours alone until you post with it
+                        Record your own — yours alone until you post with it
                       </Text>
                     </View>
                     <Pressable onPress={addSound} disabled={upBusy}
-                      style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8, opacity: upBusy ? 0.5 : 1 }}>
-                      <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '900' }}>{upBusy ? 'Adding…' : '+ Add a sound'}</Text>
+                      style={{ backgroundColor: recording ? C.coral : C.purple, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8, opacity: upBusy ? 0.5 : 1 }}>
+                      <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '900' }}>
+                        {upBusy ? 'Saving…' : recording ? 'Stop · ' + recSecs + 's' : '🎙️ Record'}
+                      </Text>
                     </Pressable>
                   </View>
                   {mine.length ? mine.map((t) => (
@@ -314,10 +347,17 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
                     </View>
                   )) : (
                     <Text style={{ color: C.faint, fontSize: 12, marginTop: 10, lineHeight: 18 }}>
-                      Nothing yet. Add a recording from your phone — a voice, a street, a song you made.
+                      Nothing yet. Record something — your voice, a street, a room. It has to be
+                      yours: only the microphone, never a file, so nobody's music ends up here by accident.
                     </Text>
                   )}
-                  <Text style={{ color: C.faint, fontSize: 10.5, marginTop: 8, lineHeight: 15 }}>{SOUND_TERMS}</Text>
+                  <Text style={{ color: C.faint, fontSize: 10.5, marginTop: 8, lineHeight: 15 }}>
+                    {SOUND_TERMS}
+                  </Text>
+                  <Text style={{ color: C.faint, fontSize: 10.5, marginTop: 6, lineHeight: 15 }}>
+                    The shelves below are Moments' own catalogue — out of copyright, CC0 or licensed.
+                    Your recordings are never mixed into them.
+                  </Text>
                 </View>
 
                 {SHELVES.map((sh) => {

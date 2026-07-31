@@ -35,8 +35,15 @@ export async function fetchTracks({ mood, bpmMin, bpmMax, instrument, meId, all 
   }
   const rows = data || [];
   if (all) return rows; // owner moderation view: pending + approved
+  /* The shelves are Moments' own catalogue and nothing else: out of
+     copyright, CC0, or licensed. Somebody's personal recording is not
+     part of that and never gets browsed alongside it — it reaches
+     people through the reel that used it, credited, or not at all. */
+  const vetted = rows.filter((t) => t.kind !== 'sound');
+  const mySounds = meId ? rows.filter((t) => t.kind === 'sound' && t.uploader_id === meId) : [];
+  const out = vetted.concat(mySounds);
   // Public view: approved or official only (plus your own, so you see it while pending)
-  return rows.filter((t) => t.is_approved || t.is_official || (meId && t.uploader_id === meId));
+  return out.filter((t) => t.is_approved || t.is_official || (meId && t.uploader_id === meId));
 }
 
 /* ── Auto-fill the library from legal, free Creative-Commons music ───
@@ -306,10 +313,17 @@ export async function countImportedTracks(ownerId, { mood } = {}) {
    advert without asking the person who made it. */
 
 export const SOUND_TERMS =
-  'Free to use in reels and stories. Commercial use — ads, brand or paid content — ' +
-  'needs the owner\u2019s permission first.';
+  'Only what your microphone hears — never a file, so nobody else\u2019s music can end up here. ' +
+  'Free in reels and stories once you post with it. Commercial use — ads, brand or paid ' +
+  'content — needs the owner\u2019s permission first.';
 
 export async function uploadSound(userId, fileOrUri, { title, ext, contentType, durationSec } = {}) {
+  /* Recorded, not chosen. The caller hands us a Blob straight from the
+     microphone; a File picked off the disk is refused here as well as
+     in the UI, so the rule survives someone wiring up a new screen. */
+  if (fileOrUri && typeof fileOrUri !== 'string' && typeof File !== 'undefined' && fileOrUri instanceof File) {
+    throw new Error('Sounds have to be recorded here, not uploaded — that keeps other people\u2019s music out.');
+  }
   const audioUrl = await uploadMediaSmart(userId, fileOrUri, ext || 'mp3', contentType || 'audio/mpeg');
   const { data, error } = await supabase.from('tracks').insert({
     uploader_id: userId,
