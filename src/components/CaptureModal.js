@@ -16,6 +16,7 @@ import { compressImage } from '../lib/storage';
 import { fetchTracks, incrementTrackUse, publishSound } from '../services/music';
 import { MusicHubSheet } from './MusicHubSheet';
 import { isOwner } from '../services/music';
+import { LENSES, drawLens } from './lensArt';
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
 import { getCurrentCoords } from '../utils/location';
 import { sfxPop, sfxSuccess } from '../utils/sfx';
@@ -44,6 +45,23 @@ const FILTERS = [
   { id: 'bw',    label: 'B&W',      emoji: '🖤', css: 'grayscale(1) contrast(1.12)' },
   { id: 'dream', label: 'Dream',    emoji: '💭', css: 'saturate(1.3) brightness(1.12) blur(0.5px)' },
   { id: 'noir',  label: 'Noir',     emoji: '🎥', css: 'grayscale(1) brightness(0.9) contrast(1.4)' },
+  /* The rest of a real filter tray. All of this is colour maths — no
+     assets, nothing licensed, nothing to go wrong legally. */
+  { id: 'sun',    label: 'Sun-kissed', emoji: '🌞', css: 'saturate(1.35) sepia(0.22) brightness(1.10) contrast(1.04)' },
+  { id: 'golden', label: 'Golden hour', emoji: '🌇', css: 'sepia(0.34) saturate(1.45) brightness(1.06) hue-rotate(-8deg)' },
+  { id: 'tan',    label: 'Bronze',    emoji: '🏝️', css: 'sepia(0.30) saturate(1.5) contrast(1.06) brightness(1.02)' },
+  { id: 'film',   label: 'Film',      emoji: '📷', css: 'contrast(1.14) saturate(0.92) sepia(0.12) brightness(1.02)' },
+  { id: 'vhs',    label: 'VHS',       emoji: '📼', css: 'saturate(1.6) contrast(0.92) hue-rotate(6deg) brightness(1.05)' },
+  { id: 'mint',   label: 'Mint',      emoji: '🌿', css: 'hue-rotate(-24deg) saturate(1.25) brightness(1.05)' },
+  { id: 'rose',   label: 'Rose',      emoji: '🌹', css: 'hue-rotate(12deg) saturate(1.35) brightness(1.06)' },
+  { id: 'candy',  label: 'Candy',     emoji: '🍬', css: 'saturate(1.8) contrast(0.96) brightness(1.08)' },
+  { id: 'moody',  label: 'Moody',     emoji: '🌫️', css: 'contrast(1.22) saturate(0.78) brightness(0.94)' },
+  { id: 'night',  label: 'Night',     emoji: '🌙', css: 'brightness(0.86) contrast(1.18) saturate(1.1) hue-rotate(-14deg)' },
+  { id: 'ice',    label: 'Ice',       emoji: '🧊', css: 'hue-rotate(-30deg) saturate(1.15) brightness(1.12) contrast(1.05)' },
+  { id: 'faded',  label: 'Faded',     emoji: '🫧', css: 'saturate(0.7) brightness(1.12) contrast(0.9)' },
+  { id: 'punch',  label: 'Punch',     emoji: '💥', css: 'saturate(1.9) contrast(1.24)' },
+  { id: 'sepia',  label: 'Old photo', emoji: '🖼️', css: 'sepia(0.85) contrast(1.08) brightness(1.04)' },
+  { id: 'invert', label: 'Flip',      emoji: '🔮', css: 'invert(1) hue-rotate(180deg)' },
 ];
 
 /* EFFECTS — original overlays we draw ourselves (previewed live and
@@ -468,6 +486,60 @@ function drawReelCardCanvas(ctx, w, h, game, elapsed) {
   ctx.textAlign = 'start';
 }
 
+/* The lens you can see and move. It is its own canvas over the
+   viewfinder, redrawn each frame, so what is on screen is produced by
+   exactly the same code that bakes it into the file — there is no
+   "preview version" that can drift from the real one. */
+const LensLayer = ({ lens, onMove }) => {
+  const ref = React.useRef(null);
+  const boxRef = React.useRef({ w: 1, h: 1 });
+  const lensRef = React.useRef(lens);
+  lensRef.current = lens;
+
+  React.useEffect(() => {
+    if (Platform.OS !== 'web') return undefined;
+    let raf = null;
+    const loop = () => {
+      const cv = ref.current;
+      if (cv) {
+        const w = cv.clientWidth, h = cv.clientHeight;
+        if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+        boxRef.current = { w, h };
+        const ctx = cv.getContext('2d');
+        ctx.clearRect(0, 0, w, h);
+        drawLens(ctx, w, h, lensRef.current, performance.now());
+      }
+      raf = requestAnimationFrame(loop);
+    };
+    loop();
+    return () => { if (raf) cancelAnimationFrame(raf); };
+  }, []);
+
+  const pan = React.useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderMove: (e) => {
+        const cv = ref.current;
+        if (!cv) return;
+        const r = cv.getBoundingClientRect ? cv.getBoundingClientRect() : { left: 0, top: 0 };
+        const { w, h } = boxRef.current;
+        onMove(
+          Math.max(0.05, Math.min(0.95, (e.nativeEvent.pageX - r.left) / w)),
+          Math.max(0.05, Math.min(0.95, (e.nativeEvent.pageY - r.top) / h))
+        );
+      },
+    })
+  ).current;
+
+  if (Platform.OS !== 'web') return null;
+  return (
+    <View {...pan.panHandlers} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
+      <canvas ref={ref} style={{ width: '100%', height: '100%', display: 'block' }} />
+    </View>
+  );
+};
+
 export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPostedStory, sendMode = false, sendToName, onMoment }) => {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
@@ -771,6 +843,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
               if ('filter' in ctx) ctx.filter = 'none';
               if (eff === 'pixel') applyPixelate(ctx, w, h); // cheap per-frame; cartoon is photo-only (per-frame read is too heavy)
               drawEffectsCanvas(ctx, w, h, eff, parts);
+              drawLens(ctx, w, h, lensRef.current, performance.now() - t0);
               if (rg) drawReelCardCanvas(ctx, w, h, rg, performance.now() - t0);
               else if (gc) drawSimpleCardCanvas(ctx, w, h, gc);
               drawWatermark(ctx, w, h, mark, performance.now() - t0);
@@ -840,6 +913,13 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
      way to know. This warns, it never blocks — a genuinely dark night
      clip is still the user's to post. */
   const [uploadRaw, setUploadRaw] = useState(null);   // owner-only: the real error
+  /* A lens is placed, not tracked. Browsers cannot follow a face on a
+     phone without shipping a model, so you drag it where you want it
+     and it stays — which also means it never slides off your chin
+     halfway through a recording. */
+  const [lens, setLens] = useState(null);   // { id, x, y, s } in 0..1 of the frame
+  const lensRef = React.useRef(null);
+  lensRef.current = lens;
   const [clipWarn, setClipWarn] = useState(null);
   const [firstFrame, setFirstFrame] = useState(null);   // a real frame from the clip
   const [playErr, setPlayErr] = useState(null);         // why the preview won't play
@@ -1055,6 +1135,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
           ctx.filter = 'none';
           applyFrameFx(ctx, w, h, effectId); // pixel / cartoon transform the whole photo
           drawEffectsCanvas(ctx, w, h, effectId, particlesRef.current);
+          drawLens(ctx, w, h, lensRef.current, performance.now());
           if (reelGame) drawReelCardCanvas(ctx, w, h, reelGame, null); // final result
           else if (gameCard) drawSimpleCardCanvas(ctx, w, h, gameCard);
           resolve(canvas.toDataURL('image/jpeg', 0.85));
@@ -1071,7 +1152,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
     setBusy(true);
     // bake the look into the photo's real pixels before uploading
     let workingShot = shot;
-    const needsBake = (cssFilter && cssFilter !== 'none') || effectId !== 'none' || !!gameCard || !!reelGame;
+    const needsBake = (cssFilter && cssFilter !== 'none') || effectId !== 'none' || !!gameCard || !!reelGame || !!lens;
     if (isWeb && shot.kind === 'photo' && needsBake) {
       const baked = await bakeAll(shot.uri);
       workingShot = { ...shot, uri: baked, blob: null, ext: 'jpg', contentType: 'image/jpeg' };
@@ -1422,6 +1503,16 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
           </View>
         ) : null}
 
+        {/* the lens, live over the viewfinder — drag it, pinch the
+            slider to size it. What you see here is exactly what gets
+            baked, because both call the same draw function. */}
+        {lens ? (
+          <LensLayer
+            lens={lens}
+            onMove={(x, y) => setLens((l) => (l ? { ...l, x, y } : l))}
+          />
+        ) : null}
+
         {/* Owner only — the facts, so a black preview can be diagnosed
             from one screenshot instead of another round of guessing.
             No normal user ever sees this. */}
@@ -1492,6 +1583,54 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
               ) : null}
 
               {/* pick a sound while you shoot */}
+              {/* LENSES — every one of them drawn by us in code, so there
+                  is nothing licensed here to go wrong. */}
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 14, marginBottom: 10 }}>
+                <Pressable onPress={() => { tapLight(); setLens(null); }}>
+                  <View style={{ alignItems: 'center', marginRight: 12, opacity: lens ? 0.55 : 1 }}>
+                    <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: 'rgba(255,255,255,0.16)', borderWidth: 2, borderColor: lens ? 'transparent' : '#FFF', alignItems: 'center', justifyContent: 'center' }}>
+                      <Ionicons name="close" size={18} color="#FFF" />
+                    </View>
+                    <Text style={{ color: '#FFF', fontSize: 10, fontWeight: '800', marginTop: 4 }}>None</Text>
+                  </View>
+                </Pressable>
+                {LENSES.map((l) => {
+                  const on = lens && lens.id === l.id;
+                  return (
+                    <Pressable
+                      key={l.id}
+                      onPress={() => {
+                        tapMedium(); sfxPop();
+                        setLens(on ? null : { id: l.id, x: 0.5, y: l.kind === 'wear' ? 0.42 : 0.5, s: 0.42 });
+                      }}
+                    >
+                      <View style={{ alignItems: 'center', marginRight: 12 }}>
+                        <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: on ? '#FFF' : 'rgba(255,255,255,0.16)', borderWidth: 2, borderColor: on ? C.gold : 'rgba(255,255,255,0.35)', alignItems: 'center', justifyContent: 'center' }}>
+                          <Text style={{ fontSize: 20 }}>{l.emoji}</Text>
+                        </View>
+                        <Text style={{ color: '#FFF', fontSize: 10, fontWeight: '800', marginTop: 4 }} numberOfLines={1}>{l.label}</Text>
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+
+              {/* size, once something is on */}
+              {lens ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, marginBottom: 10 }}>
+                  <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 11, fontWeight: '800', marginRight: 10 }}>Size</Text>
+                  <Pressable onPress={() => setLens((l) => ({ ...l, s: Math.max(0.15, l.s - 0.06) }))} hitSlop={8} style={{ paddingHorizontal: 10 }}>
+                    <Ionicons name="remove-circle-outline" size={24} color="#FFF" />
+                  </Pressable>
+                  <View style={{ flex: 1, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.25)', marginHorizontal: 6 }}>
+                    <View style={{ height: 4, borderRadius: 2, backgroundColor: C.gold, width: Math.round(((lens.s - 0.15) / 0.65) * 100) + '%' }} />
+                  </View>
+                  <Pressable onPress={() => setLens((l) => ({ ...l, s: Math.min(0.8, l.s + 0.06) }))} hitSlop={8} style={{ paddingHorizontal: 10 }}>
+                    <Ionicons name="add-circle-outline" size={24} color="#FFF" />
+                  </Pressable>
+                </View>
+              ) : null}
+
               {soundRail}
 
               {/* shutter row — gallery upload on the left, shutter center */}
