@@ -10,6 +10,7 @@ import { StarButton } from './StarButton';
 import { usePlayer } from '../context/PlayerContext';
 import { useLang } from '../context/LanguageContext';
 import { sfxLaugh, sfxLaughBig } from '../utils/sfx';
+import { translateText } from '../services/bardi';
 import { tapLight } from '../utils/feedback';
 
 /* Chips sit on photos, so they stay dark with light text for contrast. */
@@ -36,6 +37,20 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
   const [editBusy, setEditBusy] = useState(false);
   // Long posts show a teaser; the rest opens on "See more" (Facebook-style).
   const [capExpanded, setCapExpanded] = useState(false);
+  /* Translation, on request only. Nothing is sent anywhere until
+     somebody asks for it — a caption isn't shipped off to be read by a
+     model just because it scrolled past. */
+  const [translated, setTranslated] = useState(null);
+  const [translating, setTranslating] = useState(false);
+  const doTranslate = async () => {
+    if (translating) return;
+    if (translated) { setTranslated(null); return; }   // tap again to see the original
+    tapLight();
+    setTranslating(true);
+    try { setTranslated(await translateText(post.caption || '', lang || 'en')); }
+    catch (e) { setTranslated('__failed__'); }
+    finally { setTranslating(false); }
+  };
   const CAP_LIMIT = 180;
   const fullCap = post.caption || '';
   const capLong = fullCap.length > CAP_LIMIT;
@@ -104,7 +119,7 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
 
   /* ── the post's sound — really playable, right from the card ── */
   const { playTrack, toggle: togglePlay, current, playing } = usePlayer();
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const soundId = 'post-' + post.id;
   const soundOn = current && current.id === soundId;
   const playSound = () => {
@@ -226,6 +241,11 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
               <Text style={{ color: '#FFF', fontSize: 14.5, lineHeight: 21, fontWeight: '500' }} numberOfLines={capExpanded ? undefined : 3}>
                 {post.caption}
               </Text>
+              {translating || translated ? (
+                <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13.5, lineHeight: 20, marginTop: 6, fontStyle: 'italic' }}>
+                  {translating ? '…' : translated === '__failed__' ? 'Could not translate right now.' : translated}
+                </Text>
+              ) : null}
               {capLong ? (
                 <Pressable onPress={(e) => { e.stopPropagation && e.stopPropagation(); tapLight(); setCapExpanded((v) => !v); }} hitSlop={6} style={{ marginTop: 4 }}>
                   <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13, fontWeight: '800' }}>{capExpanded ? t('see_less') : t('see_more')}</Text>
@@ -243,6 +263,11 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
             end={{ x: 1, y: 1 }}
             style={{ paddingHorizontal: 22, paddingVertical: 34, minHeight: 150, justifyContent: 'center' }}
           >
+            {translating || translated ? (
+              <Text style={{ color: textBg.text, fontSize: 15, lineHeight: 23, fontWeight: '600', textAlign: 'center', opacity: 0.85, marginBottom: 10, fontStyle: 'italic' }}>
+                {translating ? '…' : translated === '__failed__' ? 'Could not translate right now.' : translated}
+              </Text>
+            ) : null}
             <Text style={{ color: textBg.text, fontSize: 22, lineHeight: 32, fontWeight: '700', textAlign: 'center' }}>
               {teaserCap}
               {capLong ? (
@@ -308,6 +333,12 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
               {(post.reposts || 0) + (reposted ? 1 : 0)}
             </Text>
           </Pressable>
+          {/* Translate — Bardi already speaks every language the app does */}
+          {(post.caption || '').trim().length > 3 ? (
+            <Pressable onPress={doTranslate} hitSlop={8} style={{ marginRight: 16 }}>
+              <Ionicons name="language-outline" size={20} color={translated ? C.purple : C.dim} />
+            </Pressable>
+          ) : null}
           {/* Share — a real link your friends can open */}
           <Pressable onPress={() => { tapLight(); onShare && onShare(post); }} hitSlop={8}>
             <Ionicons name="paper-plane-outline" size={19} color={C.dim} />

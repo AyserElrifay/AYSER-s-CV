@@ -19,6 +19,8 @@ import { CallScreen } from '../components/CallScreen';
 import { CaptureModal } from '../components/CaptureModal';
 import { GameRunner } from '../components/GameRunner';
 import { OnlineDot } from '../components/OnlineDot';
+import { translateText } from '../services/bardi';
+import { useLang } from '../context/LanguageContext';
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
 import { LinearGradient } from 'expo-linear-gradient';
 import { sfxPop } from '../utils/sfx';
@@ -33,6 +35,7 @@ import { sfxPop } from '../utils/sfx';
 export const ChatThread = ({ chat, group, onClose }) => {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { lang } = useLang();   // translate into whatever the app is set to
   const peer = group ? null : chat.user;
   const title = group ? chat.name : peer.name;
   const avatarUri = group ? null : peer.avatar;
@@ -494,9 +497,21 @@ export const ChatThread = ({ chat, group, onClose }) => {
                         );
                       })()
                     ) : (
-                    <View style={{ backgroundColor: mine ? C.purple : '#FFF', borderWidth: mine ? 0 : 1, borderColor: C.line, borderRadius: 18, borderBottomRightRadius: mine ? 5 : 18, borderBottomLeftRadius: mine ? 18 : 5, paddingHorizontal: 14, paddingVertical: 9 }}>
+                    <Pressable
+                      onLongPress={() => translateMsg({ id: m.id, body: m.text })}
+                      delayLongPress={320}
+                      style={{ backgroundColor: mine ? C.purple : '#FFF', borderWidth: mine ? 0 : 1, borderColor: C.line, borderRadius: 18, borderBottomRightRadius: mine ? 5 : 18, borderBottomLeftRadius: mine ? 18 : 5, paddingHorizontal: 14, paddingVertical: 9 }}
+                    >
                       <Text style={{ color: mine ? '#FFF' : C.text, fontSize: 14.5, lineHeight: 20 }}>{m.text}</Text>
-                    </View>
+                      {tr[m.id] ? (
+                        <>
+                          <View style={{ height: 1, backgroundColor: mine ? 'rgba(255,255,255,0.25)' : C.line, marginVertical: 7 }} />
+                          <Text style={{ color: mine ? 'rgba(255,255,255,0.9)' : C.dim, fontSize: 13.5, lineHeight: 19, fontStyle: 'italic' }}>
+                            {tr[m.id] === '…' ? '…' : tr[m.id] === '__failed__' ? 'Could not translate right now.' : tr[m.id]}
+                          </Text>
+                        </>
+                      ) : null}
+                    </Pressable>
                     )}
                   </View>
                 </View>

@@ -221,3 +221,40 @@ export const BARDI_STARTERS = [
   { id: 'project', emoji: '🚀', title: 'Start a project', prompt: 'I want to start a project. Help me turn my idea into a clear first-week plan with concrete steps.' },
   { id: 'grow', emoji: '🌱', title: 'Grow a habit', prompt: 'Help me build one small daily habit that improves my life. Keep it realistic and specific.' },
 ];
+
+/* ── TRANSLATION ────────────────────────────────────────────────────
+   Bardi already speaks every language the app does, so translation is
+   the same endpoint with a much narrower brief: return the sentence in
+   the other language and nothing else — no preamble, no "here is the
+   translation", no explanation nobody asked for.
+
+   Results are cached per text+language for the session: the same
+   caption scrolling past three times should cost one call. */
+const transCache = new Map();
+
+export async function translateText(text, lang = 'en') {
+  const body = String(text || '').trim();
+  if (!body) return '';
+  const key = lang + '|' + body;
+  const hit = transCache.get(key);
+  if (hit) return hit;
+
+  const target = lang === 'ar' ? 'Egyptian Arabic' : (LANG_NAME[lang] || 'English');
+  const out = await askBardi(
+    [{ role: 'user', content: body }],
+    {
+      language: lang,
+      remember: false,          // a translation is not something to remember about someone
+      brain: {
+        instructions:
+          'You are a translator and nothing else. Translate the user\u2019s message into ' + target +
+          '. Reply with the translation ONLY — no quotes, no notes, no preamble, no explanation. ' +
+          'Keep emoji, names and @handles exactly as they are. If it is already in ' + target +
+          ', reply with it unchanged.',
+      },
+    }
+  );
+  const clean = String(out || '').trim().replace(/^["\u201c]|["\u201d]$/g, '');
+  if (clean) { if (transCache.size > 200) transCache.clear(); transCache.set(key, clean); }
+  return clean;
+}
