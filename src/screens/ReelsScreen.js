@@ -8,11 +8,12 @@ import { REELS, AV_NEUTRAL } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { fetchFeed } from '../services/posts';
-import { mateUp } from '../services/mates';
+import { mateUp, fetchMateStates } from '../services/mates';
 import { toggleVibe as persistVibe, toggleRepost as persistRepost, fetchEngagement } from '../services/social';
 import { SoundChip } from '../components/SoundChip';
 import { CommentsSheet } from '../components/CommentsSheet';
 import { CaptureModal } from '../components/CaptureModal';
+import { ProfileModal } from '../components/ProfileModal';
 import { tapLight, tapMedium } from '../utils/feedback';
 import { sfxStar, sfxPop } from '../utils/sfx';
 
@@ -36,8 +37,10 @@ export const ReelsScreen = () => {
   const [pageH, setPageH] = useState(0);
   const [vibes, setVibes] = useState({});
   const [reposts, setReposts] = useState({});
-  const [following, setFollowing] = useState({});
+  // real relationship per user id: 'mates' | 'requested' | 'incoming'
+  const [mateState, setMateState] = useState({});
   const [commentsPost, setCommentsPost] = useState(null);
+  const [profileUser, setProfileUser] = useState(null);
   const [shooting, setShooting] = useState(false);
   const burst = useRef(new Animated.Value(0)).current;
   const [burstId, setBurstId] = useState(null);
@@ -71,6 +74,14 @@ export const ReelsScreen = () => {
     }).catch(() => {});
   }, [user]);
 
+  /* Who you are already mates with. Without this the button says
+     "+ Mate up" to people who have been your mates for weeks — the
+     screen was only remembering taps from this session. */
+  useEffect(() => {
+    if (!SUPABASE_READY || !user) return;
+    fetchMateStates(user.id).then(setMateState).catch(() => {});
+  }, [user]);
+
   // Real mode shows only real reels (with an honest empty state); demo uses the mock set.
   const data = SUPABASE_READY ? (realReels || []) : REELS;
   const isVideo = (uri) => typeof uri === 'string' && /\.(webm|mp4|mov|m4v)(\?|$)/i.test(uri);
@@ -86,6 +97,35 @@ export const ReelsScreen = () => {
       burst.setValue(0);
       Animated.timing(burst, { toValue: 1, duration: 650, easing: Easing.out(Easing.cubic), useNativeDriver: true })
         .start(() => setBurstId(null));
+    }
+  };
+
+  /* One person, one truth: the same object shape the rest of the app
+     opens a profile with, so a reel author behaves exactly like the
+     same person tapped in the feed, the map or a comment thread. */
+  const openProfile = (u) => {
+    if (!u || !u.id) return;
+    setProfileUser({ id: u.id, name: u.name, avatar: u.avatar, verified: !!u.verified, countryFlag: u.flag || null });
+  };
+
+  const mateLabel = (id) => {
+    const s = mateState[id];
+    return s === 'mates' ? 'Mates ✓' : s === 'requested' ? 'Requested' : s === 'incoming' ? 'Accept' : '+ Mate up';
+  };
+
+  /* Already mates or already asked? Tapping opens them instead of
+     sending a request that would just be ignored. */
+  const mateAction = (u) => {
+    const s = mateState[u.id];
+    if (s === 'mates' || s === 'requested') { tapLight(); openProfile(u); return; }
+    tapMedium(); sfxPop();
+    const optimistic = s === 'incoming' ? 'mates' : 'requested';
+    setMateState((m) => ({ ...m, [u.id]: optimistic }));
+    if (SUPABASE_READY && user && u.id && u.id !== user.id) {
+      mateUp(user.id, u.id)
+        .then((real) => setMateState((m) => ({ ...m, [u.id]: real })))
+        // the request didn't land — put the button back rather than lie
+        .catch(() => setMateState((m) => { const n = { ...m }; delete n[u.id]; return n; }));
     }
   };
 
@@ -131,23 +171,21 @@ export const ReelsScreen = () => {
                   </View>
                 ) : null}
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 9 }}>
-                  <Image source={{ uri: item.user.avatar }} style={{ width: 38, height: 38, borderRadius: 19, borderWidth: 1.5, borderColor: '#FFF' }} />
-                  <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '800', marginLeft: 9 }}>{item.user.name}{item.user.flag ? ' ' + item.user.flag : ''}</Text>
-                  {!item.sponsored ? (
+                  {/* the person — tap the face or the name to open them */}
+                  <Pressable
+                    onPress={() => { if (!item.sponsored) { tapLight(); openProfile(item.user); } }}
+                    style={{ flexDirection: 'row', alignItems: 'center' }}
+                    hitSlop={6}
+                  >
+                    <Image source={{ uri: item.user.avatar }} style={{ width: 38, height: 38, borderRadius: 19, borderWidth: 1.5, borderColor: '#FFF' }} />
+                    <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '800', marginLeft: 9 }}>{item.user.name}{item.user.flag ? ' ' + item.user.flag : ''}</Text>
+                  </Pressable>
+                  {!item.sponsored && !(user && item.user.id === user.id) ? (
                     <Pressable
-                      onPress={() => {
-                        tapMedium(); sfxPop();
-                        setFollowing((f) => ({ ...f, [item.user.id]: !f[item.user.id] }));
-                        // real friend request — needs RUN_ME.sql
-                        if (SUPABASE_READY && user && item.user.id && item.user.id !== user.id) {
-                          mateUp(user.id, item.user.id).catch(() => {});
-                        }
-                      }}
-                      style={{ marginLeft: 10, borderWidth: 1, borderColor: following[item.user.id] ? 'rgba(255,255,255,0.45)' : '#FFF', borderRadius: 7, paddingHorizontal: 9, paddingVertical: 3 }}
+                      onPress={() => mateAction(item.user)}
+                      style={{ marginLeft: 10, borderWidth: 1, borderColor: mateState[item.user.id] ? 'rgba(255,255,255,0.45)' : '#FFF', borderRadius: 7, paddingHorizontal: 9, paddingVertical: 3 }}
                     >
-                      <Text style={{ color: '#FFF', fontSize: 11.5, fontWeight: '800' }}>
-                        {following[item.user.id] ? 'Mates ✓' : '+ Mate up'}
-                      </Text>
+                      <Text style={{ color: '#FFF', fontSize: 11.5, fontWeight: '800' }}>{mateLabel(item.user.id)}</Text>
                     </Pressable>
                   ) : null}
                 </View>
@@ -245,6 +283,16 @@ export const ReelsScreen = () => {
       </View>
 
       {commentsPost ? <CommentsSheet post={commentsPost} onClose={() => setCommentsPost(null)} /> : null}
+      {profileUser ? (
+        <ProfileModal
+          user={profileUser}
+          onClose={() => {
+            setProfileUser(null);
+            // they may have mated up from inside the profile — re-read it
+            if (SUPABASE_READY && user) fetchMateStates(user.id).then(setMateState).catch(() => {});
+          }}
+        />
+      ) : null}
       {shooting ? <CaptureModal initialMode="reel" onClose={() => setShooting(false)} /> : null}
     </View>
   );

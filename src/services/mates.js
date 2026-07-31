@@ -39,6 +39,26 @@ export async function mateUp(myId, otherId) {
   return 'requested';
 }
 
+/* Every relationship you have, in one round trip:
+   { [otherUserId]: 'mates' | 'requested' | 'incoming' }.
+   One source of truth so a screen never shows "+ Mate up" for someone
+   who is already your mate — the label is read from the graph instead
+   of from whatever that screen happens to remember. */
+export async function fetchMateStates(myId) {
+  const { data, error } = await supabase
+    .from('mates')
+    .select('requester_id, addressee_id, status')
+    .or(`requester_id.eq.${myId},addressee_id.eq.${myId}`);
+  if (error) throw error;
+  const map = {};
+  (data || []).forEach((r) => {
+    const mine = r.requester_id === myId;
+    const other = mine ? r.addressee_id : r.requester_id;
+    map[other] = r.status === 'accepted' ? 'mates' : mine ? 'requested' : 'incoming';
+  });
+  return map;
+}
+
 export async function unmate(myId, otherId) {
   const { error } = await supabase
     .from('mates')

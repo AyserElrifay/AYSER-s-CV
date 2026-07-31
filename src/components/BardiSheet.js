@@ -141,9 +141,10 @@ export const BardiSheet = ({ onClose }) => {
     //    so it can never sit spinning for minutes.
     let reply = null;
     let why = null;
+    let edgeWhy = null;
     try {
       reply = await askBardi(next, { language: lang || 'en', profile, userId: user && user.id, remember });
-    } catch (e) { reply = null; why = (e && e.code) || null; }
+    } catch (e) { reply = null; why = (e && e.code) || null; edgeWhy = (e && e.edgeWhy) || null; }
     if (reply) {
       setMessages((m) => [...m, { role: 'assistant', content: reply }]);
     } else {
@@ -156,10 +157,15 @@ export const BardiSheet = ({ onClose }) => {
         : why === 'busy'
         ? (ar ? 'باردي مزحوم دلوقتي 🌱 — دوس "حاول تاني" بعد ثانية.' : 'Bardi is overloaded right now 🌱 — tap "Try again" in a second.')
         : (ar ? 'باردي مش قادر يوصل دلوقتي 🌱 — دوس "حاول تاني".' : 'Bardi couldn\'t connect right now 🌱 — tap "Try again".');
+      /* The owner gets the endpoint's own words — the exact reason the
+         hosted Bardi didn't answer — instead of a generic nudge that
+         says "deploy it" when it is already deployed. Regular users
+         still see nothing technical. */
       if (isOwner(user)) {
-        msg += ar
-          ? ' (لو عايزه يشتغل من غير انقطاع: انشر bardi-chat على Supabase.)'
-          : ' (To make this never happen: deploy bardi-chat on Supabase.)';
+        msg += edgeWhy
+          ? (ar ? ` — (باردي السحابي: ${edgeWhy})` : ` — (cloud Bardi: ${edgeWhy})`)
+          : (ar ? ' (لو عايزه يشتغل من غير انقطاع: انشر bardi-chat على Supabase.)'
+                : ' (To make this never happen: deploy bardi-chat on Supabase.)');
       }
       setError(msg);
     }

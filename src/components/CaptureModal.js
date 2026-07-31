@@ -641,6 +641,22 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
 
   const isWeb = Platform.OS === 'web';
 
+  /* Safari/WebKit — including every browser on iPhone and iPad, since
+     they are all WebKit underneath — encodes a canvas.captureStream()
+     as an all-black video. The recording succeeds, the file is the
+     right size, and every single frame is black. Camera tracks record
+     fine, so on WebKit we record the camera directly and skip the
+     compositor: no baked watermark or game overlay there, but a reel
+     you can actually watch. */
+  const isWebKit = isWeb && typeof navigator !== 'undefined' && (() => {
+    const ua = navigator.userAgent || '';
+    if (/CriOS|FxiOS|EdgiOS/.test(ua)) return true;           // iOS Chrome/Firefox/Edge = WebKit too
+    if (/iPad|iPhone|iPod/.test(ua)) return true;
+    // iPadOS 13+ reports itself as a Mac; touch points give it away
+    if (/Macintosh/.test(ua) && (navigator.maxTouchPoints || 0) > 1) return true;
+    return /Safari/.test(ua) && !/Chrome|Chromium|Android/.test(ua);
+  })();
+
   /* ── live viewfinder (web) ── */
   const startStream = async (face) => {
     if (!isWeb) return;
@@ -736,7 +752,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
       // watermark (plus any game/effect). Falls back to the raw stream only
       // if the browser can't capture a canvas stream.
       const v = videoRef.current;
-      if (isWeb && v && (v.videoWidth || 0) > 0) {
+      if (isWeb && !isWebKit && v && (v.videoWidth || 0) > 0) {
         const canvas = compCanvasRef.current || document.createElement('canvas');
         compCanvasRef.current = canvas;
         if (canvas.captureStream) {
@@ -785,7 +801,9 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
         const ext = /mp4/.test(actual) ? 'mp4' : /quicktime/.test(actual) ? 'mov' : 'webm';
         const blob = new Blob(chunksRef.current, { type: actual });
         // the reel already carries the game in its pixels — don't re-bake
-        setShot({ uri: URL.createObjectURL(blob), kind: 'video', ext, contentType: actual, baked: composite });
+        const uri = URL.createObjectURL(blob);
+        setShot({ uri, kind: 'video', ext, contentType: actual, baked: composite });
+        probeClip(uri);
       };
       rec.start();
       setRecording(true);
@@ -799,6 +817,44 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
     } catch (e) {
       setCamError('Video recording is not supported in this browser');
     }
+  };
+
+  /* Look at the clip we just got before anyone posts it. A recording
+     that came out entirely black used to sail through: it had the right
+     size and the right duration, so nothing complained until it was
+     already on someone's profile. Sampling one real frame is the only
+     way to know. This warns, it never blocks — a genuinely dark night
+     clip is still the user's to post. */
+  const [clipWarn, setClipWarn] = useState(null);
+  const probeClip = (uri) => {
+    setClipWarn(null);
+    if (!isWeb || !uri) return;
+    let done = false;
+    const el = document.createElement('video');
+    el.muted = true; el.playsInline = true; el.preload = 'auto'; el.src = uri;
+    const finish = (msg) => { if (!done) { done = true; setClipWarn(msg); try { el.src = ''; } catch (e) {} } };
+    const grab = () => {
+      try {
+        const w = el.videoWidth, h = el.videoHeight;
+        if (!w || !h) return finish('This clip has no picture — try recording it again.');
+        const c = document.createElement('canvas');
+        c.width = 64; c.height = Math.max(1, Math.round((h / w) * 64));
+        const cx = c.getContext('2d');
+        cx.drawImage(el, 0, 0, c.width, c.height);
+        const d = cx.getImageData(0, 0, c.width, c.height).data;
+        let peak = 0;
+        for (let i = 0; i < d.length; i += 4) {
+          if (d[i] > peak) peak = d[i];
+          if (d[i + 1] > peak) peak = d[i + 1];
+          if (d[i + 2] > peak) peak = d[i + 2];
+        }
+        finish(peak < 10 ? 'This clip came out completely black. Record it again — and check the camera isn\'t covered 🎥' : null);
+      } catch (e) { finish(null); } // cross-origin frame we can't read: say nothing
+    };
+    el.onloadeddata = () => { try { el.currentTime = Math.min(0.25, (el.duration || 1) / 4); } catch (e) { grab(); } };
+    el.onseeked = grab;
+    el.onerror = () => finish('This video won\'t play here — try a different clip or record a new one.');
+    setTimeout(() => finish(null), 6000); // never leave a spinner-ish state behind
   };
 
   const stopRecording = () => {
@@ -832,6 +888,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
         const mime = a.mimeType || (isVid ? 'video/mp4' : 'image/jpeg');
         const ext = (mime.split('/')[1] || (isVid ? 'mp4' : 'jpg')).replace('jpeg', 'jpg');
         setShot({ uri: a.uri, kind: isVid ? 'video' : 'photo', ext, contentType: mime });
+        if (isVid) probeClip(a.uri);
       }
     } catch (e) { setCamError('Could not open your gallery'); }
   };
@@ -862,6 +919,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
         const raw = (a.fileName || a.uri || 'video.mp4').split('?')[0];
         const ext = (raw.split('.').pop() || 'mp4').toLowerCase();
         setShot({ uri: a.uri, kind: 'video', ext: ext || 'mp4', contentType: a.mimeType || ('video/' + (ext || 'mp4')) });
+        probeClip(a.uri);
       }
     } catch (e) { setCamError('Could not open your videos'); }
   };
@@ -1064,7 +1122,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
           shot.kind === 'video' && isWeb ? (
             /* muted is required for iOS to autoplay the preview at all —
                without it Safari shows a black frame */
-            <video src={shot.uri} autoPlay muted loop playsInline style={{ position: 'absolute', width: '100%', height: '100%', objectFit: 'cover', filter: cssFilter }} />
+            <video src={shot.uri} autoPlay muted loop playsInline controls={false} style={{ position: 'absolute', width: '100%', height: '100%', objectFit: 'cover', filter: cssFilter }} />
           ) : isWeb ? (
             // raw <img> so the chosen filter shows LIVE in the preview
             <img src={shot.uri} style={{ position: 'absolute', width: '100%', height: '100%', objectFit: 'cover', filter: cssFilter }} alt="" />
@@ -1199,6 +1257,13 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
         {camError ? (
           <View style={{ position: 'absolute', top: insets.top + 60, left: 24, right: 24, backgroundColor: 'rgba(0,0,0,0.75)', borderRadius: 14, padding: 14 }}>
             <Text style={{ color: '#FFF', fontSize: 13, textAlign: 'center' }}>{camError}</Text>
+          </View>
+        ) : null}
+
+        {/* the clip itself is wrong — say so here, before it's posted */}
+        {clipWarn && shot ? (
+          <View style={{ position: 'absolute', top: insets.top + 60, left: 24, right: 24, backgroundColor: 'rgba(220,38,38,0.92)', borderRadius: 14, padding: 14 }}>
+            <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '700', textAlign: 'center', lineHeight: 19 }}>{clipWarn}</Text>
           </View>
         ) : null}
 

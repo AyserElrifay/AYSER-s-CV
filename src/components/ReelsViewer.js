@@ -6,6 +6,9 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { C, TEXT_BGS } from '../constants/theme';
 import { SoundChip } from './SoundChip';
 import { ReportSheet } from './ReportSheet';
+import { ProfileModal } from './ProfileModal';
+import { sharePost } from '../utils/share';
+import { tapLight } from '../utils/feedback';
 
 const { height: H } = Dimensions.get('window');
 
@@ -14,6 +17,21 @@ const { height: H } = Dimensions.get('window');
 export const ReelsViewer = ({ reels, startIndex = 0, vibes, onVibe, onComment, onClose }) => {
   const insets = useSafeAreaInsets();
   const [report, setReport] = useState(null);
+  const [profileUser, setProfileUser] = useState(null);
+  const [shared, setShared] = useState(null); // the copied link, when there's no share sheet
+
+  const openProfile = (u) => {
+    if (!u || !u.id) return;
+    tapLight();
+    setProfileUser({ id: u.id, name: u.name, avatar: u.avatar, verified: !!u.verified, countryFlag: u.flag || null });
+  };
+
+  const share = async (item) => {
+    tapLight();
+    const url = await sharePost(item);
+    // navigator.share isn't there on desktop — say the link was copied
+    if (url) { setShared(url); setTimeout(() => setShared(null), 2200); }
+  };
 
   const renderReel = ({ item }) => {
     const vibed = !!vibes[item.id];
@@ -55,10 +73,14 @@ export const ReelsViewer = ({ reels, startIndex = 0, vibes, onVibe, onComment, o
       <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
         <View style={{ flex: 1, marginRight: 14 }}>
           {/* author */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+          <Pressable
+            onPress={() => openProfile(item.user)}
+            hitSlop={6}
+            style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10, alignSelf: 'flex-start' }}
+          >
             <Image source={{ uri: item.user.avatar }} style={{ width: 38, height: 38, borderRadius: 19, borderWidth: 1.5, borderColor: '#FFF' }} />
             <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '800', marginLeft: 9 }}>{item.user.name}</Text>
-          </View>
+          </Pressable>
           {!textMode ? (
             <Text style={{ color: 'rgba(255,255,255,0.95)', fontSize: 13.5, lineHeight: 19, marginBottom: 10 }} numberOfLines={3}>
               {item.caption}
@@ -79,7 +101,7 @@ export const ReelsViewer = ({ reels, startIndex = 0, vibes, onVibe, onComment, o
             <MaterialCommunityIcons name="script-text-outline" size={30} color="#FFF" />
             <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '800', marginTop: 3 }}>{item.comments || 0}</Text>
           </Pressable>
-          <Pressable hitSlop={8} style={{ alignItems: 'center', marginBottom: 18 }}>
+          <Pressable onPress={() => share(item)} hitSlop={8} style={{ alignItems: 'center', marginBottom: 18 }}>
             <Ionicons name="paper-plane-outline" size={26} color="#FFF" />
             <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '800', marginTop: 3 }}>Share</Text>
           </Pressable>
@@ -113,6 +135,12 @@ export const ReelsViewer = ({ reels, startIndex = 0, vibes, onVibe, onComment, o
             <Ionicons name="close" size={28} color="#FFF" />
           </Pressable>
         </View>
+        {shared ? (
+          <View style={{ position: 'absolute', bottom: insets.bottom + 110, left: 24, right: 24, backgroundColor: 'rgba(0,0,0,0.82)', borderRadius: 12, paddingVertical: 10, paddingHorizontal: 14 }}>
+            <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '700', textAlign: 'center' }}>Link copied ✓</Text>
+          </View>
+        ) : null}
+        {profileUser ? <ProfileModal user={profileUser} onClose={() => setProfileUser(null)} /> : null}
         {report ? (
           <ReportSheet contentType="reel" contentId={report.id} contentLabel={(report.user && report.user.name) || 'this reel'} onClose={() => setReport(null)} />
         ) : null}

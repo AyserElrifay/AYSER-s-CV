@@ -156,23 +156,40 @@ export async function askBardi(messages, opts = {}) {
   if (brain && brain.memory && brain.memory.length) body.memory = brain.memory;
 
   let reply = null;
+  /* Why the hosted endpoint didn't answer. The fallback's own error used
+     to be the only thing anyone saw, so a deployed-but-misconfigured
+     endpoint looked identical to a busy free gateway and we spent a
+     night guessing between them. Now the real reason travels with the
+     error. */
+  let edgeWhy = SUPABASE_READY ? null : 'no backend configured';
   // 1) the deployed Edge Function, when available. Race it against a
   //    timeout so a cold/hung function never freezes Bardi — we just
   //    fall through to the live browser fallback instead.
   if (SUPABASE_READY) {
     try {
       const invoke = supabase.functions.invoke('bardi-chat', { body });
-      const timeout = new Promise((resolve) => setTimeout(() => resolve({ __timeout: true }), 10000));
+      const timeout = new Promise((resolve) => setTimeout(() => resolve({ __timeout: true }), 15000));
       const res = await Promise.race([invoke, timeout]);
-      if (res && !res.__timeout) {
-        const { data, error } = res;
+      if (res && res.__timeout) edgeWhy = 'the endpoint took longer than 15s';
+      else {
+        const { data, error } = res || {};
         const r = !error && data && (data.reply || data.message || data.content);
         if (r) reply = r;
+        else edgeWhy = (error && (error.message || String(error)))
+          || (data && data.error)
+          || 'the endpoint answered with no reply';
       }
-    } catch (e) { /* not deployed / errored → fall through */ }
+    } catch (e) { edgeWhy = (e && e.message) || String(e); }
   }
   // 2) live fallback, straight from the browser
-  if (!reply) reply = await askBardiDirect(messages, optsB);
+  if (!reply) {
+    try {
+      reply = await askBardiDirect(messages, optsB);
+    } catch (e) {
+      if (edgeWhy) e.edgeWhy = edgeWhy;
+      throw e;
+    }
+  }
 
   // learn from this chat (the user's OWN conversation with Bardi, consented):
   // remember durable first-person facts — only when memory is left on.
