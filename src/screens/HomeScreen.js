@@ -94,9 +94,13 @@ export const HomeScreen = () => {
     if (SUPABASE_READY && user) toggleLaugh(post.id, user.id, false).catch(() => {});
   };
 
+  /* A repost now actually does something: the moment goes out again
+     under your name — into your mates' feeds and onto your profile —
+     and the person who made it hears about it. */
   const onRepost = (post) => {
     const next = !reposts[post.id];
     setReposts((r) => ({ ...r, [post.id]: next }));
+    showToast(next ? 'Reposted — it\'s out under your name now 🔁' : 'Repost taken back');
     if (SUPABASE_READY && user) toggleRepost(post.id, user.id, next).catch(() => {});
   };
   const [myStories, setMyStories] = useState([]);

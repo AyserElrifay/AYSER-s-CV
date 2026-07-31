@@ -1509,7 +1509,79 @@ $fn$;
 grant execute on function public.film_scores(bigint[]) to anon, authenticated;
 
 
+-- ═══════════ TAGGING PEOPLE · and reposts that mean something ═══════════
+-- Two small tables' worth of truth. A tag is a row that says "this
+-- person is in this moment", written by whoever shared the moment; the
+-- tagged person can always take themselves out of it. A repost already
+-- had a row — what it never had was an effect, so it gets a
+-- notification and a place in the feed like every other real action.
 
+create table if not exists public.post_tags (
+  post_id    uuid not null references public.posts(id) on delete cascade,
+  user_id    uuid not null references public.profiles(id) on delete cascade,
+  tagged_by  uuid references public.profiles(id) on delete set null,
+  created_at timestamptz not null default now(),
+  primary key (post_id, user_id)
+);
+create index if not exists post_tags_user_idx on public.post_tags(user_id, created_at desc);
+alter table public.post_tags enable row level security;
+
+drop policy if exists "tags readable by everyone" on public.post_tags;
+create policy "tags readable by everyone" on public.post_tags for select using (true);
+
+-- only the post's author can tag people in it
+drop policy if exists "the author tags" on public.post_tags;
+create policy "the author tags" on public.post_tags for insert
+  with check (
+    auth.uid() = tagged_by
+    and exists (select 1 from public.posts p where p.id = post_id and p.user_id = auth.uid())
+  );
+
+-- the author can untag; so can the person who was tagged (always)
+drop policy if exists "untag" on public.post_tags;
+create policy "untag" on public.post_tags for delete
+  using (
+    auth.uid() = user_id
+    or exists (select 1 from public.posts p where p.id = post_id and p.user_id = auth.uid())
+  );
+
+-- 'tag' and 'repost' become real notification kinds. NOT VALID so a
+-- legacy row can never abort the rest of this file again.
+do $do$
+begin
+  alter table public.notifications drop constraint if exists notifications_kind_check;
+  alter table public.notifications add constraint notifications_kind_check
+    check (kind in ('vibe','laugh','comment','mate_request','mate_accept','message','call','tag','repost'))
+    not valid;
+exception when others then
+  raise notice 'notifications kind constraint skipped: %', sqlerrm;
+end $do$;
+
+create or replace function public.notify_tag() returns trigger
+language plpgsql security definer set search_path = public as $fn$
+begin
+  perform public.notify(new.user_id, coalesce(new.tagged_by, new.user_id), 'tag', new.post_id, null);
+  return new;
+end $fn$;
+
+drop trigger if exists trg_notify_tag on public.post_tags;
+create trigger trg_notify_tag after insert on public.post_tags
+  for each row execute procedure public.notify_tag();
+
+create or replace function public.notify_repost() returns trigger
+language plpgsql security definer set search_path = public as $fn$
+begin
+  perform public.notify(
+    (select user_id from public.posts where id = new.post_id),
+    new.user_id, 'repost', new.post_id, null);
+  return new;
+end $fn$;
+
+drop trigger if exists trg_notify_repost on public.post_reposts;
+create trigger trg_notify_repost after insert on public.post_reposts
+  for each row execute procedure public.notify_repost();
+
+notify pgrst, 'reload schema';
 
 
 
@@ -1564,4 +1636,5 @@ select
   (select coalesce(array_to_string(allowed_mime_types, ','), 'any')
      from storage.buckets where id = 'media')                      as media_mime_types,
   (to_regclass('public.playlists')            is not null) as playlists_ready,
+  (to_regclass('public.post_tags')            is not null) as tagging_ready,
   (to_regclass('public.films')                is not null) as films_ready;

@@ -131,6 +131,20 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
 
   return (
     <Glass style={{ marginBottom: 24, overflow: 'hidden' }}>
+      {/* somebody passed this on — their name, above the moment, the
+          way a repost is supposed to work */}
+      {post.repostedBy ? (
+        <Pressable
+          onPress={() => { tapLight(); onOpenProfile && onOpenProfile({ id: post.repostedBy.id, name: post.repostedBy.name, avatar: post.repostedBy.avatar }); }}
+          style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 15, paddingTop: 12, marginBottom: -6 }}
+        >
+          <MaterialCommunityIcons name="repeat-variant" size={16} color={C.green} />
+          <Text style={{ color: C.faint, fontSize: 12, fontWeight: '700', marginLeft: 6 }}>
+            Reposted by {post.repostedBy.name}
+          </Text>
+        </Pressable>
+      ) : null}
+
       {/* header — a touch larger, with room to breathe */}
       <View style={{ flexDirection: 'row', alignItems: 'center', padding: 15 }}>
         <Pressable onPress={() => onOpenProfile(post.user)} style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
@@ -283,6 +297,24 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
 
       {/* footer — compact action row; JOIN is a small pill on the right */}
       <View style={{ padding: 15, paddingTop: 13 }}>
+        {/* who's in this moment — real people, tagged by whoever shared
+            it, each name opening their profile */}
+        {post.tagged && post.tagged.length ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', marginBottom: 9 }}>
+            <Ionicons name="pricetag" size={12} color={C.faint} />
+            <Text style={{ color: C.faint, fontSize: 12, marginLeft: 5 }}>with </Text>
+            {post.tagged.slice(0, 3).map((p, i) => (
+              <Pressable key={p.id} onPress={() => { tapLight(); onOpenProfile && onOpenProfile({ id: p.id, name: p.name, avatar: p.avatar_url }); }} hitSlop={4}>
+                <Text style={{ color: C.purple, fontSize: 12, fontWeight: '800' }}>
+                  {p.name}{i < Math.min(3, post.tagged.length) - 1 ? ', ' : ''}
+                </Text>
+              </Pressable>
+            ))}
+            {post.tagged.length > 3 ? (
+              <Text style={{ color: C.faint, fontSize: 12 }}> +{post.tagged.length - 3}</Text>
+            ) : null}
+          </View>
+        ) : null}
         {/* the sound on this moment — tap to actually hear it */}
         {post.sound && post.sound.audio_url ? (
           <Pressable onPress={playSound} style={{ alignSelf: 'flex-start', marginBottom: 10 }}>

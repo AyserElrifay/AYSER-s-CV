@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { SUPABASE_READY } from '../lib/supabase';
-import { fetchFeed } from '../services/posts';
+import { fetchFeed, fetchReposts } from '../services/posts';
+import { fetchTagsForPosts } from '../services/tags';
 import { rankFeed } from '../services/algorithm';
 import { fetchFeedAds, injectAds } from '../services/nativeAds';
 import { FEED, ME, AV_NEUTRAL } from '../constants/mockData';
@@ -59,6 +60,11 @@ export const toCard = (row) => ({
   comments: row.comments || 0,
   squad: row.squad_name || 'New Vibe Squad',
   joinable: row.starts_at != null, // scheduled moments are invitations; plain posts are not
+  // passed on by somebody — the card says so, in their name
+  repostedBy: row.reposted_by
+    ? { id: row.reposted_by.id, name: row.reposted_by.name, avatar: row.reposted_by.avatar_url || AV_NEUTRAL }
+    : null,
+  tagged: row.tagged || [],
 });
 
 export function useFeed() {
@@ -74,8 +80,24 @@ export function useFeed() {
       return;
     }
     try {
-      const [rows, ads] = await Promise.all([fetchFeed(), fetchFeedAds()]);
-      const ranked = await rankFeed((rows || []).map(toCard));
+      const [rows, ads, reposts] = await Promise.all([fetchFeed(), fetchFeedAds(), fetchReposts()]);
+      /* A repost brings the moment itself back, credited to whoever
+         passed it on. If the moment is already in the feed we don't
+         show it twice — we just put the credit on the card that's
+         already there. */
+      const cards = (rows || []).map(toCard);
+      const byId = new Map(cards.map((c) => [c.id, c]));
+      const revived = [];
+      (reposts || []).forEach((r) => {
+        const there = byId.get(r.id);
+        if (there) { if (!there.repostedBy && r.reposted_by) there.repostedBy = { id: r.reposted_by.id, name: r.reposted_by.name, avatar: r.reposted_by.avatar_url || AV_NEUTRAL }; return; }
+        const card = toCard(r);
+        byId.set(card.id, card);
+        revived.push(card);
+      });
+      const all = cards.concat(revived);
+      const tags = await fetchTagsForPosts(all.map((c) => c.id));
+      const ranked = await rankFeed(all.map((c) => (tags[c.id] ? { ...c, tagged: tags[c.id] } : c)));
       setPosts(injectAds(ranked, ads)); // native Sponsored cards, always labeled
       setLoadError(null);
     } catch (e) {

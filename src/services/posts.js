@@ -18,6 +18,48 @@ export async function fetchFeed() {
   }));
 }
 
+/* ── REPOSTS, with an actual effect ───────────────────────────────
+   Pressing repeat used to write a row nobody ever read: you reposted
+   something and not one person saw it. A repost now carries the moment
+   back into the feed under the name of whoever passed it on — the same
+   post, credited to the person who thought it was worth sharing. */
+export async function fetchReposts(limit = 24) {
+  const { data, error } = await supabase
+    .from('post_reposts')
+    .select('created_at, by:profiles!post_reposts_user_id_fkey(id, name, avatar_url, country_flag, verified), post:posts!post_reposts_post_id_fkey(*, user:profiles!posts_user_id_fkey(*), vibe_rows:post_vibes(count), comment_rows:comments(count))')
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error) return [];                       // table/FK not there yet → feed still loads
+  return (data || [])
+    .filter((r) => r.post && r.by)
+    .map((r) => ({
+      ...r.post,
+      vibes: (r.post.vibe_rows && r.post.vibe_rows[0] && r.post.vibe_rows[0].count) || 0,
+      comments: (r.post.comment_rows && r.post.comment_rows[0] && r.post.comment_rows[0].count) || 0,
+      reposted_by: r.by,
+      reposted_at: r.created_at,
+    }));
+}
+
+/* What someone passed on — shown on their own profile, because a
+   repost is part of what you put out into the world. */
+export async function fetchRepostsByUser(userId) {
+  const { data, error } = await supabase
+    .from('post_reposts')
+    .select('created_at, post:posts!post_reposts_post_id_fkey(*, user:profiles!posts_user_id_fkey(*), vibes:post_vibes(count))')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(60);
+  if (error) return [];
+  return (data || [])
+    .filter((r) => r.post)
+    .map((r) => ({
+      ...r.post,
+      vibesCount: (r.post.vibes && r.post.vibes[0] && r.post.vibes[0].count) || 0,
+      reposted_at: r.created_at,
+    }));
+}
+
 /* Real post search — matches captions and tagged places of ACTUAL
    posts in the database. Powers the Discover "Posts" results. */
 export async function searchPosts(q) {

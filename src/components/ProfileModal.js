@@ -8,7 +8,8 @@ import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { usePresence } from '../context/PresenceContext';
 import { useLang } from '../context/LanguageContext';
-import { fetchMyMoments } from '../services/posts';
+import { fetchMyMoments, fetchRepostsByUser } from '../services/posts';
+import { fetchTaggedPosts } from '../services/tags';
 import { getProfile } from '../services/profiles';
 import { fetchUserStories } from '../services/stories';
 import { getMateStatus, mateUp, countMates } from '../services/mates';
@@ -56,17 +57,20 @@ export const ProfileModal = ({ user, onClose }) => {
   const [msgOpen, setMsgOpen] = useState(false);
   const [msgText, setMsgText] = useState('');
   const [msgSent, setMsgSent] = useState(false);
-  const [tab, setTab] = useState('grid');   // grid | reel | tag
+  const [tab, setTab] = useState('grid');   // grid | reel | repost | tag
+  const [taggedPosts, setTaggedPosts] = useState([]);   // moments they're in
+  const [repostedPosts, setRepostedPosts] = useState([]); // moments they passed on
 
-  /* The tab decides what the grid shows — the same three the owner's
+  /* The tab decides what the grid shows — the same four the owner's
      own space offers, so switching between two profiles doesn't
      switch how the app works. */
   const shownPosts = React.useMemo(() => {
     const all = posts || [];
     if (tab === 'reel') return all.filter((p) => p.type === 'reel');
-    if (tab === 'tag') return [];          // tagging isn't built yet — say so, don't fake it
+    if (tab === 'tag') return taggedPosts;
+    if (tab === 'repost') return repostedPosts;
     return all.filter((p) => p.type !== 'reel');
-  }, [posts, tab]);
+  }, [posts, tab, taggedPosts, repostedPosts]);
 
   /* Opening someone's moment from their profile used to be a dead end:
      star, laugh, repost and share were all empty functions. They run
@@ -129,6 +133,8 @@ export const ProfileModal = ({ user, onClose }) => {
     if (!real) { setPosts([]); setMates(0); return; }
     // fetchMyMoments carries real star counts too → powers the Likes stat
     fetchMyMoments(user.id).then((rows) => setPosts(rows || [])).catch(() => setPosts([]));
+    fetchTaggedPosts(user.id).then(setTaggedPosts).catch(() => setTaggedPosts([]));
+    fetchRepostsByUser(user.id).then(setRepostedPosts).catch(() => setRepostedPosts([]));
     countMates(user.id).then(setMates).catch(() => setMates(0));
     getProfile(user.id).then(setFullProfile).catch(() => {});
     if (!isMe) getMateStatus(me.id, user.id).then(setMateState).catch(() => {});
@@ -141,7 +147,10 @@ export const ProfileModal = ({ user, onClose }) => {
   const rowToCard = (row) => ({
     id: row.id,
     userId: row.user_id,
-    user: { id: user.id, name: user.name, avatar: user.avatar, verified: !!user.verified, flag: user.countryFlag || (fullProfile && fullProfile.country_flag) || null },
+    // a tagged or reposted moment belongs to whoever made it, and says so
+    user: row.user
+      ? { id: row.user_id, name: row.user.name || 'Explorer', avatar: row.user.avatar_url, verified: !!row.user.verified, flag: row.user.country_flag || null }
+      : { id: user.id, name: user.name, avatar: user.avatar, verified: !!user.verified, flag: user.countryFlag || (fullProfile && fullProfile.country_flag) || null },
     type: row.type || 'post',
     media: row.media_url || null,
     textBg: row.text_bg || null,
@@ -408,6 +417,7 @@ export const ProfileModal = ({ user, onClose }) => {
               {[
                 { k: 'grid', icon: 'grid-outline' },
                 { k: 'reel', icon: 'play-outline' },
+                { k: 'repost', icon: 'repeat-outline' },
                 { k: 'tag', icon: 'pricetag-outline' },
               ].map((t) => (
                 <Pressable key={t.k} onPress={() => { tapLight(); setTab(t.k); }} style={{ flex: 1, alignItems: 'center', paddingVertical: 12, borderBottomWidth: 2, borderBottomColor: tab === t.k ? C.text : 'transparent' }}>
@@ -436,7 +446,8 @@ export const ProfileModal = ({ user, onClose }) => {
                 <Text style={{ fontSize: 30 }}>🌱</Text>
                 <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800', marginTop: 8 }}>No moments yet</Text>
                 <Text style={{ color: C.faint, fontSize: 12, marginTop: 3, textAlign: 'center' }}>
-                  {tab === 'tag' ? 'Tagging isn\u2019t built yet — nothing to show here rather than something invented.'
+                  {tab === 'tag' ? 'Nobody has tagged them in a moment yet.'
+                    : tab === 'repost' ? 'They haven\u2019t passed anything on yet.'
                     : tab === 'reel' ? 'No reels yet.'
                     : isMe ? 'Share your first moment from Home ✨' : 'Their story starts soon — wave to say hi 👋'}
                 </Text>

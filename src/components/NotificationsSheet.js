@@ -40,11 +40,14 @@ const LINE = {
   mate_request: '🤝 wants to be your mate',
   mate_accept: '🎉 accepted — you\'re mates now!',
   call: '📞 called you — call them back',
+  tag: '🏷️ tagged you in a moment',
+  repost: '🔁 reposted your moment',
 };
 
 const FILTERS = [
   { k: 'all', label: 'All', kinds: null },
-  { k: 'reactions', label: 'Reactions', kinds: ['vibe', 'laugh'] },
+  { k: 'reactions', label: 'Reactions', kinds: ['vibe', 'laugh', 'repost'] },
+  { k: 'tags', label: 'Tags', kinds: ['tag'] },
   { k: 'comments', label: 'Comments', kinds: ['comment'] },
   { k: 'mates', label: 'Mates', kinds: ['mate_request', 'mate_accept'] },
 ];

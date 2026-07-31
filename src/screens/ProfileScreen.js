@@ -44,7 +44,8 @@ import { useTheme } from '../context/ThemeContext';
 import { getProfile, updateProfile, requestVerification, myVerificationStatus, fetchPendingVerifications, decideVerification } from '../services/profiles';
 import { isOwner } from '../services/music';
 import { uploadCapture, toggleVibe as persistVibe, toggleLaugh as persistLaugh, toggleRepost as persistRepost, fetchEngagement } from '../services/social';
-import { fetchMyMoments, deletePost, updatePost } from '../services/posts';
+import { fetchMyMoments, deletePost, updatePost, fetchRepostsByUser } from '../services/posts';
+import { fetchTaggedPosts, removeTag } from '../services/tags';
 import { countMyCampfires } from '../services/campfires';
 import { countMates } from '../services/mates';
 import { Tick, GhostButton, BoostSheet, MatesSheet, AvatarBuilderSheet, PostCard, ReelsViewer, CommentsSheet, LikersSheet } from '../components';
@@ -135,6 +136,8 @@ export const ProfileScreen = () => {
   // ── real profile + real moments (empty/zero until data actually exists) ──
   const [myProfile, setMyProfile] = useState(null);
   const [myMoments, setMyMoments] = useState([]);
+  const [taggedMoments, setTaggedMoments] = useState([]);   // moments you're in
+  const [repostedMoments, setRepostedMoments] = useState([]); // what you passed on
   const [campfiresHosted, setCampfiresHosted] = useState(0);
   const [matesCount, setMatesCount] = useState(0);
   const [matesOpen, setMatesOpen] = useState(false);
@@ -283,6 +286,8 @@ export const ProfileScreen = () => {
     }).catch(() => {});
     if (user) myVerificationStatus(user.id).then(setVerifStatus).catch(() => {});
     fetchMyMoments(user.id).then(setMyMoments).catch(() => {});
+    fetchTaggedPosts(user.id).then(setTaggedMoments).catch(() => {});
+    fetchRepostsByUser(user.id).then(setRepostedMoments).catch(() => {});
     countMyCampfires(user.id).then(setCampfiresHosted).catch(() => {});
     countMates(user.id).then(setMatesCount).catch(() => {});
   };
@@ -409,12 +414,53 @@ export const ProfileScreen = () => {
     place: row.place || 'Somewhere out there',
     startsIn: '',
     coords: ME.coords,
+    mine: true,
     vibes: row.vibesCount || 0,
     comments: 0,
     laughs: 0,
     reposts: 0,
     sound: row.sound_title ? { title: row.sound_title, artist: row.sound_artist || '', emoji: '🎵', audio_url: row.sound_url || null } : null,
   });
+
+  /* Somebody else's moment — one you're tagged in, or one you passed
+     on. The same card with their name on it, and none of the tools that
+     belong to whoever actually made it. */
+  const otherToCard = (row) => ({
+    id: row.id,
+    userId: row.user_id,
+    mine: false,
+    user: {
+      id: row.user_id,
+      name: (row.user && row.user.name) || 'Explorer',
+      avatar: (row.user && row.user.avatar_url) || AV_NEUTRAL,
+      verified: !!(row.user && row.user.verified),
+      flag: (row.user && row.user.country_flag) || null,
+    },
+    type: row.type || 'post',
+    media: row.media_url || null,
+    textBg: row.text_bg || null,
+    caption: row.caption || '',
+    place: row.place || 'Somewhere out there',
+    startsIn: '',
+    coords: ME.coords,
+    vibes: row.vibesCount || 0,
+    comments: 0, laughs: 0, reposts: 0,
+    sound: row.sound_title ? { title: row.sound_title, artist: row.sound_artist || '', emoji: '🎵', audio_url: row.sound_url || null } : null,
+  });
+
+  /* Tagged / reposted cells open the real post, credited to its author. */
+  const openOther = (rows, item) => {
+    tapSelection();
+    const row = rows.find((r) => r.id === item.id);
+    if (row) setViewMoment(otherToCard(row));
+  };
+
+  /* Take yourself out of a moment you were tagged in — always yours to
+     do, and it really deletes the row. */
+  const untagMe = async (postId) => {
+    setTaggedMoments((list) => list.filter((r) => r.id !== postId));
+    if (SUPABASE_READY && user) { try { await removeTag(postId, user.id); } catch (e) { reload(); } }
+  };
 
   const openMoment = (item) => {
     tapSelection();
@@ -709,6 +755,7 @@ export const ProfileScreen = () => {
             { key: 'grid', icon: 'grid-outline' },
             { key: 'posts', icon: 'chatbox-ellipses-outline' },
             { key: 'reels', icon: 'play-outline' },
+            { key: 'reposts', icon: 'repeat-outline' },
             { key: 'tagged', icon: 'pricetag-outline' },
           ].map((t) => (
             <Pressable key={t.key} onPress={() => { tapSelection(); setTab(t.key); }} style={{ flex: 1, alignItems: 'center', paddingVertical: 12 }}>
@@ -719,11 +766,47 @@ export const ProfileScreen = () => {
         </View>
 
         {/* grid */}
-        {tab === 'tagged' ? (
-          <View style={{ alignItems: 'center', paddingVertical: 48, paddingHorizontal: 40 }}>
-            <Ionicons name="pricetag-outline" size={30} color={C.faint} />
-            <Text style={{ color: C.faint, fontSize: 13, marginTop: 10, textAlign: 'center' }}>Moments you're tagged in will show up here ✨</Text>
-          </View>
+        {tab === 'tagged' || tab === 'reposts' ? (
+          /* Moments you're IN, and moments you passed on. Both are other
+             people's posts, so each cell wears its author's name and
+             opens the real thing. Long-press a tagged one to take
+             yourself out of it — that's always your call. */
+          (() => {
+            const rows = tab === 'tagged' ? taggedMoments : repostedMoments;
+            if (!rows.length) {
+              return (
+                <View style={{ alignItems: 'center', paddingVertical: 48, paddingHorizontal: 40 }}>
+                  <Ionicons name={tab === 'tagged' ? 'pricetag-outline' : 'repeat-outline'} size={30} color={C.faint} />
+                  <Text style={{ color: C.faint, fontSize: 13, marginTop: 10, textAlign: 'center', lineHeight: 19 }}>
+                    {tab === 'tagged'
+                      ? 'Moments you\'re tagged in will show up here ✨'
+                      : 'Moments you repost land here — pass on something you loved 🔁'}
+                  </Text>
+                </View>
+              );
+            }
+            return (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 16, marginTop: GAP }}>
+                {rows.map((row, i) => (
+                  <Pressable
+                    key={row.id}
+                    onPress={() => openOther(rows, row)}
+                    onLongPress={tab === 'tagged' ? () => { tapLight(); untagMe(row.id); } : undefined}
+                    style={{ marginRight: (i % COL === COL - 1) ? 0 : GAP, marginBottom: GAP, borderRadius: 4, overflow: 'hidden' }}
+                  >
+                    <GridCell item={row.media_url
+                      ? { id: row.id, media: row.media_url, kind: row.type === 'reel' ? 'reel' : undefined, vibes: row.vibesCount }
+                      : { id: row.id, text: row.caption, textBg: row.text_bg || 'plain', vibes: row.vibesCount }} />
+                    <View style={{ position: 'absolute', top: 5, left: 6, backgroundColor: 'rgba(17,24,39,0.6)', borderRadius: 999, paddingHorizontal: 7, paddingVertical: 2 }}>
+                      <Text style={{ color: '#FFF', fontSize: 9.5, fontWeight: '800' }} numberOfLines={1}>
+                        {(row.user && row.user.name) || 'Explorer'}
+                      </Text>
+                    </View>
+                  </Pressable>
+                ))}
+              </View>
+            );
+          })()
         ) : tab === 'posts' ? (
           /* written posts, X-style — your words front and centre */
           <View style={{ paddingHorizontal: 16, paddingTop: 6 }}>
@@ -1148,7 +1231,7 @@ export const ProfileScreen = () => {
             <ScrollView contentContainerStyle={{ paddingTop: insets.top + 60, paddingHorizontal: 14, paddingBottom: 40 }}>
               <PostCard
                 post={viewMoment}
-                isMine
+                isMine={viewMoment.mine !== false}
                 vibed={!!myVibes[viewMoment.id]}
                 laughed={!!myLaughs[viewMoment.id]}
                 reposted={!!myReposts[viewMoment.id]}

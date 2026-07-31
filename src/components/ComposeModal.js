@@ -16,6 +16,8 @@ import { Micro } from './Micro';
 import { NeonButton } from './NeonButton';
 import { SoundPicker } from './SoundPicker';
 import { SoundChip } from './SoundChip';
+import { TagPeoplePicker } from './TagPeoplePicker';
+import { tagPeople } from '../services/tags';
 
 /* The creation studio — one place to share a Moment, a Reel, or a
    Story. Shoot from the camera or pick from the gallery, add a sound
@@ -38,6 +40,8 @@ export const ComposeModal = ({ initialMode = 'post', onClose, onPosted, onPosted
   const [textBg, setTextBg] = useState('plain');
   const [sound, setSound] = useState(null);
   const [pickingSound, setPickingSound] = useState(false);
+  const [tagged, setTagged] = useState([]);        // real people, in this moment
+  const [taggingOpen, setTaggingOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
 
@@ -104,8 +108,15 @@ export const ComposeModal = ({ initialMode = 'post', onClose, onPosted, onPosted
           mediaUrl,
           textBg: mediaUrl || textBg === 'plain' ? null : textBg,
         });
+        /* The tags go on the moment the instant it exists. Each one
+           writes a real row and sends that person a real notification —
+           a tag they can remove themselves whenever they want. */
+        if (tagged.length) {
+          try { await tagPeople(row.id, user.id, tagged.map((p) => p.id)); } catch (e) {}
+        }
         card = {
           id: row.id,
+          tagged,
           user: {
             name: (row.user && row.user.name) || 'You',
             avatar: (row.user && row.user.avatar_url) || av(60),
@@ -124,6 +135,7 @@ export const ComposeModal = ({ initialMode = 'post', onClose, onPosted, onPosted
       } else {
         card = {
           id: 'local-' + Date.now(),
+          tagged,
           user: { name: 'You', avatar: av(60), verified: false },
           type: isReel ? 'reel' : 'post',
           media: imageUri,
@@ -316,6 +328,31 @@ export const ComposeModal = ({ initialMode = 'post', onClose, onPosted, onPosted
             </View>
           ) : null}
 
+          {/* who's with you — real accounts, tagged for real */}
+          {!isStory ? (
+            <Pressable
+              onPress={() => setTaggingOpen(true)}
+              style={{
+                flexDirection: 'row', alignItems: 'center', marginTop: 10,
+                backgroundColor: tagged.length ? C.purpleSoft : C.glass,
+                borderWidth: 1, borderColor: tagged.length ? 'rgba(124,58,237,0.45)' : C.line,
+                borderRadius: 999, paddingHorizontal: 14, paddingVertical: 10,
+              }}
+            >
+              <Ionicons name="pricetag-outline" size={14} color={tagged.length ? C.purple : C.dim} />
+              <Text style={{ color: tagged.length ? C.purple : C.faint, fontSize: 12.5, fontWeight: '700', marginLeft: 7, flex: 1 }} numberOfLines={1}>
+                {tagged.length
+                  ? 'With ' + tagged.map((p) => p.name || 'Explorer').join(', ')
+                  : 'Tag people'}
+              </Text>
+              {tagged.length ? (
+                <Text style={{ color: C.purple, fontSize: 12, fontWeight: '900' }}>{tagged.length}</Text>
+              ) : (
+                <Ionicons name="chevron-forward" size={14} color={C.faint} />
+              )}
+            </Pressable>
+          ) : null}
+
           {error ? (
             <Text style={{ color: C.coral, fontSize: 12, textAlign: 'center', marginTop: 14 }}>{error}</Text>
           ) : null}
@@ -331,6 +368,14 @@ export const ComposeModal = ({ initialMode = 'post', onClose, onPosted, onPosted
 
         {pickingSound ? (
           <SoundPicker selected={sound} onSelect={setSound} onClose={() => setPickingSound(false)} />
+        ) : null}
+
+        {taggingOpen ? (
+          <TagPeoplePicker
+            selected={tagged}
+            onDone={(people) => { setTagged(people); setTaggingOpen(false); }}
+            onClose={() => setTaggingOpen(false)}
+          />
         ) : null}
       </View>
     </Modal>
