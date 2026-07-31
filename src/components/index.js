@@ -55,6 +55,8 @@ export { AdminPanel } from './AdminPanel';
 export { MapCover } from './MapCover';
 export { AvatarCanvas } from './AvatarCanvas';
 export { StickerPicker } from './StickerPicker';
+export { HighlightsRail } from './Highlights';
+export { TagPeoplePicker } from './TagPeoplePicker';
 export { PeopleDiscover } from './PeopleDiscover';
 export { WhatsNew } from './WhatsNew';
 export { BooksShelf } from './BooksShelf';

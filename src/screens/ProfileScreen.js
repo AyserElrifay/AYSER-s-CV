@@ -48,7 +48,7 @@ import { fetchMyMoments, deletePost, updatePost, fetchRepostsByUser } from '../s
 import { fetchTaggedPosts, removeTag } from '../services/tags';
 import { countMyCampfires } from '../services/campfires';
 import { countMates } from '../services/mates';
-import { Tick, GhostButton, BoostSheet, MatesSheet, AvatarBuilderSheet, PostCard, ReelsViewer, CommentsSheet, LikersSheet } from '../components';
+import { Tick, GhostButton, BoostSheet, MatesSheet, AvatarBuilderSheet, PostCard, ReelsViewer, CommentsSheet, LikersSheet, HighlightsRail } from '../components';
 import { sendFeedback, FEEDBACK_KINDS } from '../services/feedback';
 import { SettingsScreen } from './SettingsScreen';
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
@@ -734,8 +734,10 @@ export const ProfileScreen = () => {
           </View>
         </View>
 
-        {/* highlights — demo only; real story highlights need the stories
-            feature built first, so real mode simply doesn't show fake ones */}
+        {/* highlights — the stories you kept. Real ones now: your own
+            stories and moments, saved into circles that outlive the
+            24 hours a story gets. */}
+        {SUPABASE_READY && user ? <HighlightsRail userId={user.id} isMine /> : null}
         {!SUPABASE_READY ? (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, marginTop: 20 }}>
             {HIGHLIGHTS.map((h) => (

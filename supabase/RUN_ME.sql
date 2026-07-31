@@ -1600,6 +1600,57 @@ notify pgrst, 'reload schema';
 
 
 
+
+-- ═══════════ HIGHLIGHTS · the stories you refuse to lose ═══════════
+-- A story dies after 24 hours; a highlight is the copy you kept. The
+-- media URL is copied into the item rather than pointed at the story
+-- row, so tomorrow's sweep of expired stories can't quietly empty
+-- somebody's profile.
+
+create table if not exists public.highlights (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid not null references public.profiles(id) on delete cascade,
+  title      text not null default 'Highlight',
+  cover_url  text,
+  created_at timestamptz not null default now()
+);
+create index if not exists highlights_user_idx on public.highlights(user_id, created_at desc);
+alter table public.highlights enable row level security;
+
+drop policy if exists "highlights readable by everyone" on public.highlights;
+create policy "highlights readable by everyone" on public.highlights for select using (true);
+drop policy if exists "your own highlights" on public.highlights;
+create policy "your own highlights" on public.highlights for insert with check (auth.uid() = user_id);
+drop policy if exists "rename your highlight" on public.highlights;
+create policy "rename your highlight" on public.highlights for update
+  using (auth.uid() = user_id) with check (auth.uid() = user_id);
+drop policy if exists "delete your highlight" on public.highlights;
+create policy "delete your highlight" on public.highlights for delete using (auth.uid() = user_id);
+
+create table if not exists public.highlight_items (
+  id           uuid primary key default gen_random_uuid(),
+  highlight_id uuid not null references public.highlights(id) on delete cascade,
+  media_url    text not null,
+  caption      text,
+  created_at   timestamptz not null default now()
+);
+create index if not exists highlight_items_idx on public.highlight_items(highlight_id, created_at);
+alter table public.highlight_items enable row level security;
+
+drop policy if exists "highlight items readable by everyone" on public.highlight_items;
+create policy "highlight items readable by everyone" on public.highlight_items for select using (true);
+
+drop policy if exists "add to your own highlight" on public.highlight_items;
+create policy "add to your own highlight" on public.highlight_items for insert
+  with check (exists (select 1 from public.highlights h where h.id = highlight_id and h.user_id = auth.uid()));
+
+drop policy if exists "remove from your own highlight" on public.highlight_items;
+create policy "remove from your own highlight" on public.highlight_items for delete
+  using (exists (select 1 from public.highlights h where h.id = highlight_id and h.user_id = auth.uid()));
+
+notify pgrst, 'reload schema';
+
+
 -- ═══════════════════ READINESS CHECKLIST ═══════════════════
 -- Every column below should say TRUE. If chat_ready is FALSE,
 -- also run supabase/schema_v2_live.sql (messages & live map).
@@ -1637,4 +1688,5 @@ select
      from storage.buckets where id = 'media')                      as media_mime_types,
   (to_regclass('public.playlists')            is not null) as playlists_ready,
   (to_regclass('public.post_tags')            is not null) as tagging_ready,
+  (to_regclass('public.highlights')           is not null) as highlights_ready,
   (to_regclass('public.films')                is not null) as films_ready;
