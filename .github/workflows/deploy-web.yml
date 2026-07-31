@@ -18,7 +18,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
+  group: pages-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -46,8 +46,15 @@ jobs:
         with:
           path: dist
 
+  # Only main publishes. Pushing the feature branch and main within a
+  # second of each other had the two runs fighting over one Pages
+  # deployment: one cancelled the other, the survivor was refused, and
+  # the site quietly stayed on the previous build while both pushes
+  # looked fine. The branch still builds (that's the check that matters);
+  # main is what goes live.
   deploy:
     needs: build
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
