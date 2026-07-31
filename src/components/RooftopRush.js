@@ -16,10 +16,12 @@ import {
    ranges, rooftops and glossy ice, weather, and a runner with actual
    arms and legs — not an emoji on a coloured box.
 
-   THE STORY runs across four chapters, each with its own terrain, its
+   THE STORY runs across five chapters, each with its own terrain, its
    own chaser and its own challenge to clear before the next one opens.
    Rooftops are about timing your jumps; the ice chapters slide, so you
-   carry momentum and have to launch off the edges. Progress is saved,
+   carry momentum and have to launch off the edges; and the downhill is
+   skiing — one unbroken slope, trees and rock instead of gaps, and
+   slalom gates that pay you for taking the harder line. Progress is saved,
    so you pick up where you left off.
 
    RACE A MATE: pass a matchId and both of you run the SAME course
@@ -307,7 +309,7 @@ export const RooftopRush = ({ onClose, matchId = null, isHost = false, opponent 
     for (const p of lv.platforms) {
       if (w.x < p.x - 6 || w.x > p.x + p.w + 6) continue;
       if (w.vy >= 0 && w.prevY <= p.y + 2 && w.y >= p.y - 2) {
-        w.y = p.y; w.vy = 0; landed = true;
+        w.y = p.y; w.vy = 0; landed = true; w.floorY = p.y;
         if (!w.onGround) {
           // landing puff
           for (let i = 0; i < 7; i++) {
@@ -344,6 +346,8 @@ export const RooftopRush = ({ onClose, matchId = null, isHost = false, opponent 
         }
         continue;
       }
+      // a slalom flag is a gate, not an obstacle — it marks the line
+      if (h.kind === 'flag') continue;
       if (h.hit) continue;
       const hitTop = h.kind === 'drone' ? h.y - 54 - (h.bob || 30) - 14 : h.y - h.h - 8;
       const hitBot = h.kind === 'drone' ? h.y - 20 : h.y + 6;
@@ -401,7 +405,12 @@ export const RooftopRush = ({ onClose, matchId = null, isHost = false, opponent 
        you go down, you get up, and you run again — the cost is that
        the chaser gains a lot of ground while you're on the floor. Miss
        twice in a row and they have you, so it still means something. */
-    if (w.y > FALL_LIMIT && !w.downUntil) {
+    /* On the downhill the whole world keeps dropping, so a fixed
+       fall line would call the run a fall within seconds. What counts
+       as "gone off the mountain" there is measured from the last snow
+       you actually stood on. */
+    const fallLine = lv.ski ? (w.floorY != null ? w.floorY : GROUND) + 320 : FALL_LIMIT;
+    if (w.y > fallLine && !w.downUntil) {
       w.downUntil = now + 850;
       w.falls = (w.falls || 0) + 1;
       w.chaseGap -= 46;

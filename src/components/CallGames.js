@@ -112,6 +112,54 @@ export const CallGames = ({ role, send, eventRef, onClose }) => {
     }
   };
 
+  /* ─── ROCK · PAPER · SCISSORS — both hands at once ───
+     Each side broadcasts its pick and neither hand is shown until you
+     have made yours, so nobody can sit and wait to see the other's
+     first. Best of five, and the score belongs to the round, not to a
+     server: both clients compute the same winner from the same pair. */
+  const RPS = [
+    { k: 'rock', e: '✊', label: 'Rock' },
+    { k: 'paper', e: '✋', label: 'Paper' },
+    { k: 'scissors', e: '✌️', label: 'Scissors' },
+  ];
+  const BEATS = { rock: 'scissors', paper: 'rock', scissors: 'paper' };
+  const [myPick, setMyPick] = useState(null);
+  const [peerPick, setPeerPick] = useState(null);
+  const [rpsScore, setRpsScore] = useState([0, 0]);
+  const [rpsRound, setRpsRound] = useState(1);
+  const scored = useRef(false);
+
+  const rpsPlay = (k) => {
+    if (myPick) return;
+    tapMedium();
+    setMyPick(k);
+    send({ g: 'rps', pick: k });
+  };
+  const rpsReset = (broadcast) => {
+    setMyPick(null); setPeerPick(null); setRpsScore([0, 0]); setRpsRound(1);
+    scored.current = false;
+    if (broadcast !== false) send({ g: 'rps', reset: true });
+  };
+
+  const rpsOutcome = myPick && peerPick
+    ? (myPick === peerPick ? 'draw' : BEATS[myPick] === peerPick ? 'win' : 'lose')
+    : null;
+
+  /* Both hands are in: count the round once, then deal the next one. */
+  useEffect(() => {
+    if (!rpsOutcome || scored.current) return;
+    scored.current = true;
+    if (rpsOutcome === 'win') { tapSuccess(); setRpsScore(([a, b]) => [a + 1, b]); }
+    else if (rpsOutcome === 'lose') setRpsScore(([a, b]) => [a, b + 1]);
+    const t = setTimeout(() => {
+      setMyPick(null); setPeerPick(null); scored.current = false;
+      setRpsRound((r) => r + 1);
+    }, 1600);
+    return () => clearTimeout(t);
+  }, [rpsOutcome]);
+
+  const rpsDone = rpsScore[0] >= 3 || rpsScore[1] >= 3;
+
   /* ─── incoming events from the other side ─── */
   const handleEvent = useCallback((p) => {
     if (!p || !p.g) return;
@@ -127,6 +175,11 @@ export const CallGames = ({ role, send, eventRef, onClose }) => {
       if (typeof p.score === 'number') setPeerScore(p.score);
       return;
     }
+    if (p.g === 'rps') {
+      if (p.reset) { rpsReset(false); return; }
+      if (p.pick) setPeerPick(p.pick);
+      return;
+    }
     if (p.g === 'ah') {
       if (isHost) { if (typeof p.guestX === 'number') sim.current.guestX = p.guestX; }
       else if (p.puck) {
@@ -137,7 +190,7 @@ export const CallGames = ({ role, send, eventRef, onClose }) => {
   useEffect(() => { eventRef.current = handleEvent; return () => { eventRef.current = null; }; }, [handleEvent, eventRef]);
   useEffect(() => () => clearInterval(raceTimer.current), []);
 
-  const pick = (g) => { tapLight(); setGame(g); send({ g: 'open', game: g }); if (g === 'race') setRaceEnd(null); };
+  const pick = (g) => { tapLight(); setGame(g); send({ g: 'open', game: g }); if (g === 'race') setRaceEnd(null); if (g === 'rps') rpsReset(false); };
 
   /* guest sees the field flipped so their own goal is at the bottom */
   const flipY = (y) => (isHost ? y : FIELD_H - y);
@@ -151,7 +204,7 @@ export const CallGames = ({ role, send, eventRef, onClose }) => {
           <Pressable onPress={() => { tapLight(); setGame(null); }} hitSlop={8}><Ionicons name="chevron-back" size={22} color="#FFF" /></Pressable>
         ) : null}
         <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '900', flex: 1, marginLeft: game ? 6 : 2 }}>
-          {game === 'xo' ? 'XO ✖️⭕' : game === 'race' ? 'Tap Race 🏁' : game === 'hockey' ? 'Air Hockey 🏒' : 'Games 🎮'}
+          {game === 'xo' ? 'XO ✖️⭕' : game === 'race' ? 'Tap Race 🏁' : game === 'hockey' ? 'Air Hockey 🏒' : game === 'rps' ? 'Rock Paper Scissors ✊✋✌️' : 'Games 🎮'}
         </Text>
         <Pressable onPress={onClose} hitSlop={8}><Ionicons name="close" size={20} color="rgba(255,255,255,0.8)" /></Pressable>
       </View>
@@ -162,6 +215,7 @@ export const CallGames = ({ role, send, eventRef, onClose }) => {
             { k: 'xo', e: '✖️⭕', t: 'XO', s: 'Tic-tac-toe — you are ' + myMark },
             { k: 'race', e: '🏁', t: 'Tap Race', s: '8-second finger sprint, live vs them' },
             { k: 'hockey', e: '🏒', t: 'Air Hockey', s: 'Slide your paddle, defend your goal' },
+            { k: 'rps', e: '✊✋✌️', t: 'Rock Paper Scissors', s: 'Best of five — both hands at once' },
           ].map((g) => (
             <Pressable key={g.k} onPress={() => pick(g.k)}>
               <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.09)', borderRadius: 16, padding: 14, marginBottom: 10 }}>
@@ -233,6 +287,73 @@ export const CallGames = ({ role, send, eventRef, onClose }) => {
                 <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13, fontWeight: '800', marginTop: 2 }}>{(raceLeft / 1000).toFixed(1)}s</Text>
               </View>
             </Pressable>
+          )}
+        </View>
+      ) : game === 'rps' ? (
+        /* rock · paper · scissors */
+        <View style={{ alignItems: 'center', flex: 1, justifyContent: 'center' }}>
+          <View style={{ flexDirection: 'row', marginBottom: 6 }}>
+            <View style={{ alignItems: 'center', marginHorizontal: 20 }}>
+              <Text style={{ color: C.gold, fontSize: 32, fontWeight: '900' }}>{rpsScore[0]}</Text>
+              <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11 }}>You</Text>
+            </View>
+            <View style={{ alignItems: 'center', marginHorizontal: 20 }}>
+              <Text style={{ color: '#7EE0D2', fontSize: 32, fontWeight: '900' }}>{rpsScore[1]}</Text>
+              <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11 }}>Them</Text>
+            </View>
+          </View>
+          <Text style={{ color: 'rgba(255,255,255,0.55)', fontSize: 11.5, fontWeight: '800', marginBottom: 14 }}>
+            {rpsDone ? 'First to three' : 'Round ' + rpsRound + ' · first to three'}
+          </Text>
+
+          {/* the two hands. Theirs stays hidden until yours is down. */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+            <View style={{ width: 84, height: 84, borderRadius: 42, backgroundColor: 'rgba(255,255,255,0.10)', alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ fontSize: 36 }}>{myPick ? (RPS.find((r) => r.k === myPick) || {}).e : '❔'}</Text>
+            </View>
+            <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, fontWeight: '900', marginHorizontal: 14 }}>VS</Text>
+            <View style={{ width: 84, height: 84, borderRadius: 42, backgroundColor: 'rgba(255,255,255,0.10)', alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ fontSize: 36 }}>{myPick && peerPick ? (RPS.find((r) => r.k === peerPick) || {}).e : peerPick ? '🔒' : '❔'}</Text>
+            </View>
+          </View>
+
+          {rpsDone ? (
+            <View style={{ alignItems: 'center' }}>
+              <Text style={{ color: C.gold, fontSize: 17, fontWeight: '900' }}>
+                {rpsScore[0] > rpsScore[1] ? 'You win the match! 🏆' : 'They win the match 🏆'}
+              </Text>
+              <Pressable onPress={() => rpsReset(true)} style={{ marginTop: 12 }}>
+                <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 22, paddingVertical: 10 }}>
+                  <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900' }}>Play again 🔁</Text>
+                </View>
+              </Pressable>
+            </View>
+          ) : (
+            <>
+              <Text style={{ color: rpsOutcome ? C.gold : 'rgba(255,255,255,0.7)', fontSize: 13.5, fontWeight: '800', marginBottom: 12, height: 20 }}>
+                {rpsOutcome === 'win' ? 'You take the round 🎉'
+                  : rpsOutcome === 'lose' ? 'They take the round 😅'
+                  : rpsOutcome === 'draw' ? 'Same hand 🤝'
+                  : myPick ? 'Waiting for them…'
+                  : peerPick ? 'They\u2019re ready — your turn'
+                  : 'Pick your hand'}
+              </Text>
+              <View style={{ flexDirection: 'row' }}>
+                {RPS.map((r) => (
+                  <Pressable key={r.k} onPress={() => rpsPlay(r.k)} disabled={!!myPick}>
+                    <View style={{
+                      width: 74, height: 74, borderRadius: 20, marginHorizontal: 6,
+                      backgroundColor: myPick === r.k ? C.purple : 'rgba(255,255,255,0.10)',
+                      opacity: myPick && myPick !== r.k ? 0.4 : 1,
+                      alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      <Text style={{ fontSize: 30 }}>{r.e}</Text>
+                      <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 10, fontWeight: '800', marginTop: 2 }}>{r.label}</Text>
+                    </View>
+                  </Pressable>
+                ))}
+              </View>
+            </>
           )}
         </View>
       ) : (

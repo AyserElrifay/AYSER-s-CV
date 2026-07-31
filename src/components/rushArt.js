@@ -48,6 +48,17 @@ export const CHAPTERS = [
     ground: '#DCF0FF', edge: '#8FC4E8',
   },
   {
+    id: 'ski', city: 'The Downhill', flag: '⛷️', terrain: 'ski',
+    title: 'المنحدر · The Downhill',
+    story: 'الطريق الوحيد لتحت هو المزلقة. مفيش سطوح ولا فجوات هنا — منحدر واحد طويل، شجر وصخر، والسرعة بتزيد لوحدها. عدّي بين الأعلام واوصل تحت.',
+    storyEn: 'The only way down is on skis. No rooftops, no gaps — one long slope, trees and rock, and speed that builds itself. Thread the gates and reach the bottom.',
+    chaser: 'yeti', chaserName: 'الييتي', chaserNameEn: 'The Yeti',
+    goal: { kind: 'distance', value: 1600 },
+    sky: ['#123A63', '#3E86C0', '#A9D6F2', '#EAF6FF'],
+    far: '#1B4C79', mid: '#2E6EA0', near: '#E8F6FF', accent: '#7FD8FF',
+    ground: '#F2FAFF', edge: '#9EC9E4',
+  },
+  {
     id: 'paris', city: 'Paris', flag: '🇫🇷', terrain: 'roof',
     title: 'الأسطح الرمادية · Grey Roofs',
     story: 'باريس بالليل، والشبح لسه وراك. الأسطح هنا ضيقة والفجوات أوسع — التوقيت هو كل حاجة.',
@@ -77,7 +88,8 @@ export const CHAPTERS = [
 export function makeLevel(seed, chapterIndex) {
   const ch = CHAPTERS[chapterIndex % CHAPTERS.length];
   const r = rng(seed + chapterIndex * 7919);
-  const ice = ch.terrain === 'ice';
+  const ski = ch.terrain === 'ski';
+  const ice = ch.terrain === 'ice' || ski;
   const platforms = [];
   const items = [];
   const hazards = [];
@@ -87,6 +99,46 @@ export function makeLevel(seed, chapterIndex) {
   // a generous, flat opening so nobody dies before they've understood the game
   platforms.push({ x: -200, y, w: 620, kind: ice ? 'ice' : 'roof' });
   x = 420;
+
+  /* ── the downhill ──────────────────────────────────────────────
+     One unbroken slope instead of a chain of rooftops: the ground
+     never leaves you, the mountain just keeps falling away, and what
+     can end the run is what's standing on it. Slalom gates are worth
+     coins, so the fast line and the greedy line are not the same line. */
+  if (ski) {
+    for (let i = 0; i < 150; i++) {
+      const t = Math.min(1, i / 80);
+      const w = 260 + r() * 200;
+      // it drops the whole way down, with the odd shelf to breathe on
+      const drop = r() < 0.14 ? 0 : 20 + r() * (30 + t * 26);
+      y += drop;
+      platforms.push({ x, y, w, kind: 'ice', i });
+
+      // a jump off a shelf every so often — a real gap, clearly telegraphed
+      const gap = t > 0.2 && r() < 0.22 ? 70 + r() * 60 : 0;
+
+      // slalom gate: two flags with something worth having between them
+      if (r() < 0.5) {
+        hazards.push({ x: x + w * 0.32, y, kind: 'flag', h: 42, side: 'l' });
+        hazards.push({ x: x + w * 0.68, y, kind: 'flag', h: 42, side: 'r' });
+        items.push({ x: x + w * 0.5, y: y - 44, kind: r() < 0.12 ? 'gem' : 'star', got: false });
+      }
+      // what you have to go around
+      if (t > 0.1 && r() < 0.62) {
+        const hx = x + w * (0.3 + r() * 0.45);
+        hazards.push(r() < 0.55
+          ? { x: hx, y, kind: 'tree', h: 54 + r() * 22 }
+          : { x: hx, y, kind: 'rock', h: 28 + r() * 16 });
+      }
+      // loose coins down the fall line
+      if (r() < 0.6) {
+        const n = 2 + Math.floor(r() * 4);
+        for (let k = 0; k < n; k++) items.push({ x: x + 50 + k * 36, y: y - 38, kind: 'coin', got: false });
+      }
+      x += w + gap;
+    }
+    return { chapter: ch, chapterIndex, platforms, items, hazards, endX: x, ice: true, ski: true };
+  }
 
   const LEN = 200; // number of platforms — long enough for every goal
   for (let i = 0; i < LEN; i++) {
@@ -237,7 +289,7 @@ function drawMountains(c, W, H, camX, layer, speed, colour, baseY, seed) {
 
 /* far + mid skyline silhouettes, scrolling at their own speeds */
 function drawSkyline(c, W, H, camX, ch, layer, speed, colour, baseY, seed) {
-  if (ch.terrain === 'ice') { drawMountains(c, W, H, camX, layer, speed, colour, baseY, seed); return; }
+  if (ch.terrain === 'ice' || ch.terrain === 'ski') { drawMountains(c, W, H, camX, layer, speed, colour, baseY, seed); return; }
   const r = rng(seed);
   const step = layer === 'far' ? 78 : 104;
   const off = (camX * speed) % step;
@@ -357,6 +409,41 @@ function drawHazard(c, h, ch, camX, camY) {
     c.moveTo(x - 10, y - h.h * 0.86);
     c.lineTo(x - 9, y - h.h);
     c.lineTo(x + 4, y - h.h * 0.8);
+    c.closePath();
+    c.fill();
+    return;
+  }
+  if (h.kind === 'tree') {
+    c.fillStyle = '#6B4A2F';
+    c.fillRect(x - 3.5, y - h.h * 0.30, 7, h.h * 0.30);
+    for (let i = 0; i < 3; i++) {
+      const ty = y - h.h * (0.30 + i * 0.24);
+      const tw = 22 - i * 5;
+      c.fillStyle = i === 2 ? '#1F6B4A' : i === 1 ? '#1B5F42' : '#18543A';
+      c.beginPath();
+      c.moveTo(x, ty - h.h * 0.34);
+      c.lineTo(x - tw, ty);
+      c.lineTo(x + tw, ty);
+      c.closePath();
+      c.fill();
+      c.fillStyle = 'rgba(255,255,255,0.72)';    // the snow it's holding
+      c.beginPath();
+      c.moveTo(x, ty - h.h * 0.34);
+      c.lineTo(x - tw * 0.5, ty - h.h * 0.10);
+      c.lineTo(x + tw * 0.5, ty - h.h * 0.10);
+      c.closePath();
+      c.fill();
+    }
+    return;
+  }
+  if (h.kind === 'flag') {
+    c.strokeStyle = '#E2E8F0'; c.lineWidth = 3;
+    c.beginPath(); c.moveTo(x, y); c.lineTo(x, y - h.h); c.stroke();
+    c.fillStyle = h.side === 'l' ? '#EF4444' : '#3B82F6';
+    c.beginPath();
+    c.moveTo(x, y - h.h);
+    c.lineTo(x + (h.side === 'l' ? 22 : -22), y - h.h + 9);
+    c.lineTo(x, y - h.h + 18);
     c.closePath();
     c.fill();
     return;
@@ -660,7 +747,7 @@ export function drawScene(c, W, H, cam, level, t, extras) {
   // the ground haze that separates the playfield from the backdrop
   const haze = c.createLinearGradient(0, H * 0.55, 0, H);
   haze.addColorStop(0, 'rgba(0,0,0,0)');
-  haze.addColorStop(1, ch.terrain === 'ice' ? 'rgba(140,190,225,0.5)' : 'rgba(30,14,46,0.5)');
+  haze.addColorStop(1, ch.terrain === 'ice' || ch.terrain === 'ski' ? 'rgba(140,190,225,0.5)' : 'rgba(30,14,46,0.5)');
   c.fillStyle = haze;
   c.fillRect(0, H * 0.55, W, H * 0.45);
 
