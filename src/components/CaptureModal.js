@@ -788,7 +788,12 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
       const mime = window.MediaRecorder && MediaRecorder.isTypeSupported('video/webm') ? 'video/webm' : '';
       // ~4.5 Mbps at 1080p — Instagram-grade quality; a full 30s clip is
       // ~17MB, so uploads fly even on mobile data and storage lasts 3x.
-      const opts = { videoBitsPerSecond: 4500000 };
+      /* 4.5 Mbps at 1080p is broadcast quality and roughly 34 MB a
+         minute — past what the storage bucket accepts in one file, and
+         a long upload on mobile data for a difference nobody can see on
+         a phone screen. 2.5 Mbps is still sharp and about half the
+         size, so a full clip uploads instead of being refused. */
+      const opts = { videoBitsPerSecond: 2500000 };
       if (mime) opts.mimeType = mime;
       const rec = new MediaRecorder(recStream, opts);
       recorderRef.current = rec;
@@ -904,10 +909,36 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
     else takePhoto();
   };
 
+  /* On the web we ask for the file directly instead of going through
+     the picker's blob: URL. Safari cannot reliably fetch its own blob
+     URLs back — that is what made a large reel refuse to upload at all
+     — and a real File measures and uploads without any of that. */
+  const pickFromDisk = (accept) => new Promise((resolve) => {
+    if (!isWeb || typeof document === 'undefined') return resolve(null);
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = accept;
+    input.onchange = () => resolve((input.files && input.files[0]) || null);
+    input.click();
+  });
+
   /* ── gallery: upload a photo or video from your library into a
      story/reel — with the full sound rail available in preview ── */
   const pickFromLibrary = async () => {
     try {
+      if (isWeb) {
+        const file = await pickFromDisk('video/*,image/*');
+        if (!file) return;
+        const isVid = /^video\//.test(file.type || '');
+        if (isVid && !(await videoFits(file))) return;
+        const mime = file.type || (isVid ? 'video/mp4' : 'image/jpeg');
+        const ext = (file.name.split('.').pop() || (isVid ? 'mp4' : 'jpg')).toLowerCase();
+        const uri = URL.createObjectURL(file);
+        // keep the File: it uploads without Safari ever fetching a blob URL
+        setShot({ uri, blob: file, bytes: file.size, kind: isVid ? 'video' : 'photo', ext, contentType: mime });
+        if (isVid) probeClip(uri);
+        return;
+      }
       // 9:16 crop for photos (native only — ignored for video and on web,
       // where no crop UI exists) so a gallery upload matches the story/reel shape
       const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images', 'videos'], quality: 1, allowsEditing: true, aspect: [9, 16] });
@@ -927,12 +958,16 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
      way past the 50MB upload cap. Check the size the moment it's picked
      and say so plainly, instead of letting the upload die with Safari's
      cryptic 'Load failed'. */
-  const videoFits = async (uri) => {
+  const videoFits = async (uriOrBlob) => {
     if (!isWeb) return true;
     try {
-      const blob = await (await fetch(uri)).blob();
+      // a File/Blob measures itself; only a URL needs fetching, and
+      // Safari is unreliable at fetching its own blob: URLs
+      const blob = (uriOrBlob && typeof uriOrBlob !== 'string')
+        ? uriOrBlob
+        : await (await fetch(uriOrBlob)).blob();
       if (blob.size > 48 * 1024 * 1024) {
-        setCamError('That video is ' + Math.round(blob.size / 1024 / 1024) + 'MB — the limit is ~45MB (about 30–40s of phone video). Trim it shorter and try again ✂️');
+        setCamError('That video is ' + Math.round(blob.size / 1024 / 1024) + 'MB. The server takes up to 48MB in one file, so trim it shorter and try again ✂️');
         return false;
       }
       return true;
@@ -941,6 +976,18 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
 
   /* ── long-form video: pick an existing file (works on web + native) ── */
   const pickVideoFile = async () => {
+    if (isWeb) {
+      try {
+        const file = await pickFromDisk('video/*');
+        if (!file) return;
+        if (!(await videoFits(file))) return;
+        const ext = (file.name.split('.').pop() || 'mp4').toLowerCase();
+        const uri = URL.createObjectURL(file);
+        setShot({ uri, blob: file, bytes: file.size, kind: 'video', ext, contentType: file.type || 'video/mp4' });
+        probeClip(uri);
+      } catch (e) { setCamError('Could not open your videos'); }
+      return;
+    }
     try {
       const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['videos'], quality: 1, videoMaxDuration: 900 });
       if (!result.canceled && result.assets && result.assets[0]) {
@@ -1103,7 +1150,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
         /bucket/i.test(m)
           ? 'One step left: run the latest supabase/RUN_ME.sql — it creates the media storage bucket uploads need.'
           : /too large|exceed|maximum size|413/i.test(m)
-          ? 'That video is too big — try a shorter clip (under ~45MB).'
+          ? 'That video is over the 48MB the server accepts in one file — trim it shorter and try again.'
           : /row-level security|policy|permission/i.test(m)
           ? 'Upload blocked by storage permissions — run the latest supabase/RUN_ME.sql to fix the media policies.'
           : /load failed|failed to fetch|network/i.test(m)

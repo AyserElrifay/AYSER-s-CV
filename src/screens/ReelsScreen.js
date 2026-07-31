@@ -7,7 +7,7 @@ import { C } from '../constants/theme';
 import { REELS, AV_NEUTRAL } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-import { fetchFeed } from '../services/posts';
+import { fetchFeed, deletePost } from '../services/posts';
 import { mateUp, fetchMateStates } from '../services/mates';
 import { toggleVibe as persistVibe, toggleRepost as persistRepost, fetchEngagement } from '../services/social';
 import { SoundChip } from '../components/SoundChip';
@@ -45,6 +45,7 @@ export const ReelsScreen = () => {
   const burst = useRef(new Animated.Value(0)).current;
   const [burstId, setBurstId] = useState(null);
   const [realReels, setRealReels] = useState(null); // null until loaded
+  const [dead, setDead] = useState({});             // reels whose file has no picture
 
   useEffect(() => {
     if (!SUPABASE_READY) return;
@@ -150,10 +151,47 @@ export const ReelsScreen = () => {
               /* iOS starts a video on its own only when muted is a real
                  property and something asks it to play; without this a
                  posted reel shows as a black rectangle that never moves */
-              ref={(el) => { if (el && !el.__wired) { el.__wired = true; el.muted = true; el.play().catch(() => {}); } }}
+              ref={(el) => {
+                if (!el || el.__wired) return;
+                el.__wired = true;
+                el.muted = true;
+                el.play().catch(() => {});
+                el.onerror = () => setDead((d) => ({ ...d, [item.id]: 'broken' }));
+                /* Reels recorded before the WebKit fix are black in the
+                   file itself — nothing can play them. A black rectangle
+                   with a like button on it reads as the app being
+                   broken, so after a moment we say what happened. */
+                setTimeout(() => {
+                  if (!el.videoWidth || el.readyState < 2) setDead((d) => ({ ...d, [item.id]: 'broken' }));
+                }, 2600);
+              }}
               style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
             />
           ) : null}
+          {dead[item.id] ? (
+            <View style={{ position: 'absolute', top: '38%', left: 30, right: 30, alignItems: 'center' }}>
+              <Text style={{ fontSize: 32 }}>🎞️</Text>
+              <Text style={{ color: '#FFF', fontSize: 14.5, fontWeight: '900', marginTop: 10, textAlign: 'center' }}>
+                This reel didn't record properly
+              </Text>
+              <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12.5, marginTop: 5, textAlign: 'center', lineHeight: 18 }}>
+                It was shot before the camera bug was fixed, so the file itself has no picture.
+              </Text>
+              {user && item.user.id === user.id ? (
+                <Pressable
+                  onPress={() => {
+                    tapLight();
+                    deletePost(item.id, user.id).catch(() => {});
+                    setRealReels((r) => (r || []).filter((x) => x.id !== item.id));
+                  }}
+                  style={{ marginTop: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.5)', borderRadius: 999, paddingHorizontal: 18, paddingVertical: 9 }}
+                >
+                  <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900' }}>Delete it</Text>
+                </Pressable>
+              ) : null}
+            </View>
+          ) : null}
+
           {/* gold star burst on double-tap */}
           {burstId === item.id ? (
             <Animated.View

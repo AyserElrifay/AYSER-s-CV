@@ -14,7 +14,11 @@ export const R2_PUBLIC_URL = process.env.EXPO_PUBLIC_R2_PUBLIC_URL || '';
 export const R2_READY = !!R2_PUBLIC_URL;
 
 // Quality guardrails — keep storage + bandwidth costs sane.
-export const MAX_UPLOAD_BYTES = 60 * 1024 * 1024; // 60 MB hard cap
+/* 48 MB, not 60: Supabase Storage refuses anything over 50 MB in a
+   single file on the current plan, so a 60 MB "cap" only meant the
+   upload was rejected by the server after the whole thing had been
+   sent. Better to say no early, and say the real number. */
+export const MAX_UPLOAD_BYTES = 48 * 1024 * 1024;
 export const VIDEO_QUALITIES = { hd: 720, sd: 480 }; // we never store above 720p
 
 /* Safari cannot always fetch() its own blob: URL — it throws
