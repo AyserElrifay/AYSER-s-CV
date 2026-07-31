@@ -41,6 +41,10 @@ on:
         description: 'Deploy the bardi-chat Edge Function'
         type: boolean
         default: true
+      import_music:
+        description: 'Import pre-1929 public-domain recordings'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -88,6 +92,16 @@ jobs:
             exit 1
           fi
           echo "Schema applied."
+
+      # The runner has the open internet the app's own sandbox does not,
+      # so the catalogue is filled here rather than by someone sitting in
+      # the app pressing a button. The script refuses anything published
+      # after 1928.
+      - name: Import public-domain music
+        if: ${{ inputs.import_music }}
+        env:
+          PROJECT_REF: ${{ inputs.project_ref }}
+        run: node scripts/import-public-domain-music.mjs
 
       - name: Install the Supabase CLI
         if: ${{ inputs.deploy_function }}
@@ -180,4 +194,5 @@ jobs:
             echo ""
             echo "- Database schema: ${{ inputs.run_sql && 'applied' || 'skipped' }}"
             echo "- bardi-chat: ${{ inputs.deploy_function && 'deployed' || 'skipped' }}"
+            echo "- music import: ${{ inputs.import_music && 'ran' || 'skipped' }}"
           } >> "$GITHUB_STEP_SUMMARY"
