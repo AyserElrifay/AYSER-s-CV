@@ -54,3 +54,14 @@ export function shareProfile(profile) {
     text: (profile.name || 'Someone') + (handle ? ' (@' + handle + ')' : '') + ' on Moments ✨',
   });
 }
+
+/* Turn a shareLink result into the line to show — or null when the
+   phone's own share sheet already did the talking. Callers kept
+   treating the result as a URL, which lit a "link copied" toast after
+   a real share; one place to get it right is better than three. */
+export function shareNote(result) {
+  if (result === 'shared') return null;                       // the sheet handled it
+  if (result === 'copied') return 'Link copied \u2713';
+  if (result && result.url) return result.url;                // clipboard blocked: show it
+  return 'Sharing isn\u2019t available on this device';
+}

@@ -7,7 +7,7 @@ import { C, TEXT_BGS } from '../constants/theme';
 import { SoundChip } from './SoundChip';
 import { ReportSheet } from './ReportSheet';
 import { ProfileModal } from './ProfileModal';
-import { sharePost } from '../utils/share';
+import { sharePost, shareNote } from '../utils/share';
 import { tapLight } from '../utils/feedback';
 
 const { height: H } = Dimensions.get('window');
@@ -28,9 +28,9 @@ export const ReelsViewer = ({ reels, startIndex = 0, vibes, onVibe, onComment, o
 
   const share = async (item) => {
     tapLight();
-    const url = await sharePost(item);
-    // navigator.share isn't there on desktop — say the link was copied
-    if (url) { setShared(url); setTimeout(() => setShared(null), 2200); }
+    const note = shareNote(await sharePost(item));
+    // null = the phone's share sheet already did it, so say nothing
+    if (note) { setShared(note); setTimeout(() => setShared(null), 2400); }
   };
 
   const renderReel = ({ item }) => {
@@ -137,7 +137,7 @@ export const ReelsViewer = ({ reels, startIndex = 0, vibes, onVibe, onComment, o
         </View>
         {shared ? (
           <View style={{ position: 'absolute', bottom: insets.bottom + 110, left: 24, right: 24, backgroundColor: 'rgba(0,0,0,0.82)', borderRadius: 12, paddingVertical: 10, paddingHorizontal: 14 }}>
-            <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '700', textAlign: 'center' }}>Link copied ✓</Text>
+            <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '700', textAlign: 'center' }}>{shared}</Text>
           </View>
         ) : null}
         {profileUser ? <ProfileModal user={profileUser} onClose={() => setProfileUser(null)} /> : null}

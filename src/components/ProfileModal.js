@@ -22,6 +22,8 @@ import { PostCard } from './PostCard';
 import { ReelsViewer } from './ReelsViewer';
 import { StoryViewer } from './StoryViewer';
 import { tapLight, tapSuccess, tapSelection } from '../utils/feedback';
+import { toggleVibe as persistVibe, toggleLaugh as persistLaugh, toggleRepost as persistRepost, fetchEngagement } from '../services/social';
+import { sharePost, shareNote } from '../utils/share';
 
 /* CommentsSheet imports ProfileModal (tapping a commenter opens their
    profile), so importing it statically here would be a require cycle —
@@ -53,6 +55,38 @@ export const ProfileModal = ({ user, onClose }) => {
   const [msgOpen, setMsgOpen] = useState(false);
   const [msgText, setMsgText] = useState('');
   const [msgSent, setMsgSent] = useState(false);
+
+  /* Opening someone's moment from their profile used to be a dead end:
+     star, laugh, repost and share were all empty functions. They run
+     through the same services as the feed now, so a reaction here is
+     the same reaction everywhere. */
+  const [myVibes, setMyVibes] = useState({});
+  const [myLaughs, setMyLaughs] = useState({});
+  const [myReposts, setMyReposts] = useState({});
+  const [shareMsg, setShareMsg] = useState(null);
+
+  useEffect(() => {
+    if (!SUPABASE_READY || !me) return;
+    fetchEngagement(me.id)
+      .then((e) => { setMyVibes(e.myVibes || {}); setMyLaughs(e.myLaughs || {}); setMyReposts(e.myReposts || {}); })
+      .catch(() => {});
+  }, [me && me.id]);
+
+  const reactTo = (map, setMap, persist) => (post) => {
+    if (!post) return;
+    const id = post.id;
+    const next = !map[id];
+    setMap((m) => ({ ...m, [id]: next }));
+    tapLight();
+    if (SUPABASE_READY && me) persist(id, me.id, next).catch(() => setMap((m) => ({ ...m, [id]: !next })));
+  };
+  const vibeMoment = reactTo(myVibes, setMyVibes, persistVibe);
+  const laughMoment = reactTo(myLaughs, setMyLaughs, persistLaugh);
+  const repostMoment = reactTo(myReposts, setMyReposts, persistRepost);
+  const shareMoment = async (post) => {
+    const note = shareNote(await sharePost(post || {}));
+    if (note) { setShareMsg(note); setTimeout(() => setShareMsg(null), 2400); }
+  };
   const [busy, setBusy] = useState(false);
   const [actionErr, setActionErr] = useState(null); // never swallow failures silently
 
@@ -380,19 +414,27 @@ export const ProfileModal = ({ user, onClose }) => {
               <ScrollView contentContainerStyle={{ paddingTop: insets.top + 60, paddingHorizontal: 14, paddingBottom: 40 }}>
                 <PostCard
                   post={viewMoment}
+                  vibed={!!myVibes[viewMoment.id]}
+                  laughed={!!myLaughs[viewMoment.id]}
+                  reposted={!!myReposts[viewMoment.id]}
                   onComment={() => setCommentsPost(viewMoment)}
                   onOpenProfile={() => {}}
                   onOpenReel={() => {}}
-                  onVibe={() => {}}
-                  onLaugh={() => {}}
-                  onRemoveLaugh={() => {}}
-                  onRepost={() => {}}
-                  onShare={() => {}}
+                  onVibe={() => vibeMoment(viewMoment)}
+                  onLaugh={() => laughMoment(viewMoment)}
+                  onRemoveLaugh={() => laughMoment(viewMoment)}
+                  onRepost={() => repostMoment(viewMoment)}
+                  onShare={shareMoment}
                   onJoin={() => {}}
                   onOpenLikers={() => {}}
                   onOpenLaughers={() => {}}
                 />
               </ScrollView>
+              {shareMsg ? (
+                <View style={{ position: 'absolute', bottom: 40, left: 30, right: 30, backgroundColor: C.float, borderRadius: 12, borderWidth: 1, borderColor: C.line, paddingVertical: 11 }}>
+                  <Text style={{ color: C.text, fontSize: 13, fontWeight: '800', textAlign: 'center' }}>{shareMsg}</Text>
+                </View>
+              ) : null}
             </View>
           </Modal>
         ) : null}

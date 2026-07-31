@@ -43,16 +43,16 @@ import { useLang } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
 import { getProfile, updateProfile, requestVerification, myVerificationStatus, fetchPendingVerifications, decideVerification } from '../services/profiles';
 import { isOwner } from '../services/music';
-import { uploadCapture } from '../services/social';
+import { uploadCapture, toggleVibe as persistVibe, toggleLaugh as persistLaugh, toggleRepost as persistRepost, fetchEngagement } from '../services/social';
 import { fetchMyMoments, deletePost, updatePost } from '../services/posts';
 import { countMyCampfires } from '../services/campfires';
 import { countMates } from '../services/mates';
-import { Tick, GhostButton, BoostSheet, MatesSheet, AvatarBuilderSheet, PostCard, ReelsViewer, CommentsSheet } from '../components';
+import { Tick, GhostButton, BoostSheet, MatesSheet, AvatarBuilderSheet, PostCard, ReelsViewer, CommentsSheet, LikersSheet } from '../components';
 import { sendFeedback, FEEDBACK_KINDS } from '../services/feedback';
 import { SettingsScreen } from './SettingsScreen';
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
 import { sfxSuccess } from '../utils/sfx';
-import { shareProfile } from '../utils/share';
+import { shareProfile, sharePost, shareNote } from '../utils/share';
 import { getCurrentCoords } from '../utils/location';
 import { MapCover } from '../components/MapCover';
 
@@ -356,6 +356,46 @@ export const ProfileScreen = () => {
   const [viewMoment, setViewMoment] = useState(null); // a tapped image/text moment → full PostCard
   const [reelView, setReelView] = useState(null);     // { reels, index } → full-screen reels
   const [commentsPost, setCommentsPost] = useState(null);
+  /* Your own moment, opened from your grid, had every button wired to an
+     empty function — the star, the laugh, repost and share all looked
+     alive and did nothing. They are real here now, and they persist
+     through the same services the feed uses, so a star pressed on your
+     profile is the same star the feed shows. */
+  const [myVibes, setMyVibes] = useState({});
+  const [myLaughs, setMyLaughs] = useState({});
+  const [myReposts, setMyReposts] = useState({});
+  const [likersPost, setLikersPost] = useState(null);
+  const [likersKind, setLikersKind] = useState('star');
+
+  // what YOU already reacted to, so the icons are lit when the card opens
+  useEffect(() => {
+    if (!SUPABASE_READY || !user) return;
+    fetchEngagement(user.id)
+      .then((e) => { setMyVibes(e.myVibes || {}); setMyLaughs(e.myLaughs || {}); setMyReposts(e.myReposts || {}); })
+      .catch(() => {});
+  }, [user]);
+
+  /* One toggle shape for all three: flip it on screen at once, persist,
+     and put it back if the write fails rather than leaving a lie lit. */
+  const reactTo = (map, setMap, persist) => (post) => {
+    if (!post) return;
+    const id = post.id;
+    const next = !map[id];
+    setMap((m) => ({ ...m, [id]: next }));
+    tapLight();
+    if (SUPABASE_READY && user) {
+      persist(id, user.id, next).catch(() => setMap((m) => ({ ...m, [id]: !next })));
+    }
+  };
+  const vibeMoment = reactTo(myVibes, setMyVibes, persistVibe);
+  const laughMoment = reactTo(myLaughs, setMyLaughs, persistLaugh);
+  const repostMoment = reactTo(myReposts, setMyReposts, persistRepost);
+
+  const shareMoment = async (post) => {
+    const note = shareNote(await sharePost(post || viewMoment || {}));
+    if (note) { setShareToast(note); setTimeout(() => setShareToast(null), 2400); }
+  };
+  const openLikers = (post, kind) => { setLikersKind(kind); setLikersPost(post); };
 
   // a real posts row → the card shape PostCard consumes (uses your own profile)
   const momentToCard = (row) => ({
@@ -1109,21 +1149,30 @@ export const ProfileScreen = () => {
               <PostCard
                 post={viewMoment}
                 isMine
+                vibed={!!myVibes[viewMoment.id]}
+                laughed={!!myLaughs[viewMoment.id]}
+                reposted={!!myReposts[viewMoment.id]}
                 onDelete={deleteMoment}
                 onEdit={editMoment}
                 onComment={() => setCommentsPost(viewMoment)}
                 onOpenProfile={() => {}}
                 onOpenReel={() => {}}
-                onVibe={() => {}}
-                onLaugh={() => {}}
-                onRemoveLaugh={() => {}}
-                onRepost={() => {}}
-                onShare={() => {}}
+                onVibe={() => vibeMoment(viewMoment)}
+                onLaugh={() => laughMoment(viewMoment)}
+                onRemoveLaugh={() => laughMoment(viewMoment)}
+                onRepost={() => repostMoment(viewMoment)}
+                onShare={shareMoment}
                 onJoin={() => {}}
-                onOpenLikers={() => {}}
-                onOpenLaughers={() => {}}
+                onOpenLikers={(p) => openLikers(p || viewMoment, 'star')}
+                onOpenLaughers={(p) => openLikers(p || viewMoment, 'laugh')}
               />
             </ScrollView>
+            {shareToast ? (
+              <View style={{ position: 'absolute', bottom: 40, left: 30, right: 30, backgroundColor: C.float, borderRadius: 12, borderWidth: 1, borderColor: C.line, paddingVertical: 11 }}>
+                <Text style={{ color: C.text, fontSize: 13, fontWeight: '800', textAlign: 'center' }}>{shareToast}</Text>
+              </View>
+            ) : null}
+            {likersPost ? <LikersSheet post={likersPost} kind={likersKind} onClose={() => setLikersPost(null)} /> : null}
           </View>
         </Modal>
       ) : null}
