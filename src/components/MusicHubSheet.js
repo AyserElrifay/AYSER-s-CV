@@ -80,6 +80,7 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
   const [listTracks, setListTracks] = useState(null);
   const [picker, setPicker] = useState(null);     // the track waiting for a playlist
   const [newName, setNewName] = useState('');
+  const [sheetFor, setSheetFor] = useState(null);  // playlist held down
   const [toast, setToast] = useState(null);
   const [err, setErr] = useState(null);
 
@@ -303,18 +304,33 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
 
                   {!playlists.length ? (
                     <Empty title="No playlists yet" body="Press the heart on a track and Liked Songs makes itself." />
-                  ) : playlists.map((pl) => (
-                    <Pressable key={pl.id} onPress={() => openPlaylist(pl)} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10 }}>
-                      <View style={{ width: 48, height: 48, borderRadius: 10, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center' }}>
-                        <Text style={{ fontSize: 22 }}>{pl.emoji || '🎧'}</Text>
-                      </View>
-                      <View style={{ flex: 1, marginLeft: 12 }}>
-                        <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '800' }}>{pl.name}</Text>
-                        <Text style={{ color: C.faint, fontSize: 12, marginTop: 2 }}>{pl.count} {pl.count === 1 ? 'track' : 'tracks'}</Text>
-                      </View>
-                      <Ionicons name="chevron-forward" size={16} color={C.faint} />
-                    </Pressable>
-                  ))}
+                  ) : (
+                    /* Two across, cover on the left, name on the right —
+                       the shape every music app settled on because it
+                       fits twice as many shortcuts in a thumb's reach. */
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -4, marginTop: 6 }}>
+                      {playlists.map((pl) => (
+                        <View key={pl.id} style={{ width: '50%', paddingHorizontal: 4, paddingBottom: 8 }}>
+                          <Pressable
+                            onPress={() => openPlaylist(pl)}
+                            onLongPress={() => { tapLight(); setSheetFor(pl); }}
+                            style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 8, overflow: 'hidden' }}
+                          >
+                            <View style={{ width: 52, height: 52, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center' }}>
+                              <Text style={{ fontSize: 23 }}>{pl.emoji || '🎧'}</Text>
+                            </View>
+                            <View style={{ flex: 1, paddingHorizontal: 9 }}>
+                              <Text numberOfLines={2} style={{ color: C.text, fontSize: 13, fontWeight: '800' }}>{pl.name}</Text>
+                              <Text style={{ color: C.faint, fontSize: 11, marginTop: 1 }}>{pl.count}</Text>
+                            </View>
+                          </Pressable>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                  <Text style={{ color: C.faint, fontSize: 11.5, textAlign: 'center', marginTop: 6 }}>
+                    Hold a playlist to empty or delete it
+                  </Text>
                 </>
               )
             ) : null}
@@ -357,6 +373,49 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
         </Modal>
       ) : null}
 
+      {/* hold a playlist: empty it, or remove it entirely */}
+      {sheetFor ? (
+        <Modal visible transparent animationType="fade" onRequestClose={() => setSheetFor(null)}>
+          <Pressable style={{ flex: 1, backgroundColor: 'rgba(6,4,18,0.6)', justifyContent: 'flex-end' }} onPress={() => setSheetFor(null)}>
+            <Pressable onPress={() => {}} style={{ backgroundColor: C.bg2, borderTopLeftRadius: R, borderTopRightRadius: R, padding: 18, paddingBottom: insets.bottom + 20 }}>
+              <Text style={{ color: C.text, fontSize: 15.5, fontWeight: '900' }}>{sheetFor.emoji} {sheetFor.name}</Text>
+              <Text style={{ color: C.faint, fontSize: 12, marginTop: 3, marginBottom: 12 }}>{sheetFor.count} saved</Text>
+
+              <Pressable
+                onPress={async () => {
+                  const pl = sheetFor; setSheetFor(null);
+                  try {
+                    const list = await fetchPlaylistTracks(pl.id);
+                    await Promise.all(list.map((t) => removeFromPlaylist(pl.id, t.id).catch(() => {})));
+                    say('Emptied ' + pl.name); reloadLibrary();
+                  } catch (e) { say('Could not empty it'); }
+                }}
+                style={{ paddingVertical: 13 }}
+              >
+                <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>🧹  Empty it — keep the playlist</Text>
+              </Pressable>
+
+              {sheetFor.name !== 'Liked Songs' ? (
+                <Pressable
+                  onPress={async () => {
+                    const pl = sheetFor; setSheetFor(null);
+                    try { await deletePlaylist(pl.id); say('Deleted ' + pl.name); reloadLibrary(); }
+                    catch (e) { say('Could not delete'); }
+                  }}
+                  style={{ paddingVertical: 13 }}
+                >
+                  <Text style={{ color: C.coral, fontSize: 14, fontWeight: '800' }}>🗑  Delete the playlist</Text>
+                </Pressable>
+              ) : (
+                <Text style={{ color: C.faint, fontSize: 12, paddingVertical: 8 }}>
+                  Liked Songs stays — emptying it is the same thing.
+                </Text>
+              )}
+            </Pressable>
+          </Pressable>
+        </Modal>
+      ) : null}
+
       {/* inside a playlist */}
       {openList ? (
         <Modal visible transparent animationType="slide" onRequestClose={() => setOpenList(null)}>
@@ -364,14 +423,9 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
             <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingBottom: 10 }}>
               <Pressable onPress={() => setOpenList(null)} hitSlop={10}><Ionicons name="chevron-back" size={22} color={C.text} /></Pressable>
               <Text style={{ color: C.text, fontSize: 17, fontWeight: '900', marginLeft: 10, flex: 1 }}>{openList.emoji} {openList.name}</Text>
-              {openList.name !== 'Liked Songs' ? (
-                <Pressable
-                  onPress={async () => { await deletePlaylist(openList.id).catch(() => {}); setOpenList(null); reloadLibrary(); }}
-                  hitSlop={8}
-                >
-                  <Ionicons name="trash-outline" size={18} color={C.dim} />
-                </Pressable>
-              ) : null}
+              <Pressable onPress={() => { setSheetFor(openList); }} hitSlop={8}>
+                <Ionicons name="ellipsis-horizontal" size={20} color={C.dim} />
+              </Pressable>
             </View>
             <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: 40 }}>
               {listTracks === null ? (

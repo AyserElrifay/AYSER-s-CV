@@ -8,7 +8,7 @@ import { fetchReports, setReportStatus } from '../services/reports';
 import { fetchFeedback, markFeedbackSeen } from '../services/feedback';
 import { fetchStudioStats } from '../services/feedback';
 import { fetchPendingVerifications, decideVerification } from '../services/profiles';
-import { fetchTracks, setTrackApproval, harvestFreeMusic, harvestPublicDomainClassics } from '../services/music';
+import { fetchTracks, setTrackApproval, harvestFreeMusic, harvestPublicDomainClassics, clearImportedTracks, countImportedTracks } from '../services/music';
 import { fetchHelpArticles, createHelpArticle, updateHelpArticle, deleteHelpArticle } from '../services/help';
 import { fetchBardiConfig, saveBardiConfig, fetchBardiKnowledge, addBardiKnowledge, deleteBardiKnowledge, invalidateBardiBrain } from '../services/bardiOwner';
 import { askBardi } from '../services/bardi';
@@ -40,6 +40,8 @@ export const AdminPanel = ({ onClose }) => {
   const [importing, setImporting] = useState(null);
   const [imported, setImported] = useState(0);
   const [importErr, setImportErr] = useState(null);
+  const [wipeArmed, setWipeArmed] = useState(false);
+  const [wipeCount, setWipeCount] = useState(0);
   const [feedback, setFeedback] = useState(null);
   const [help, setHelp] = useState(null);
   const [helpEdit, setHelpEdit] = useState(null); // 'new' | article row | null
@@ -303,6 +305,34 @@ export const AdminPanel = ({ onClose }) => {
                 {importErr ? (
                   <Text style={{ color: C.coral, fontSize: 11.5, marginTop: 6 }}>{importErr}</Text>
                 ) : null}
+
+                {/* Undoing an import has to be as easy as making one.
+                    Two taps, and the first one says the number out loud
+                    so nothing large happens by accident. */}
+                <Pressable
+                  onPress={async () => {
+                    if (!wipeArmed) {
+                      const n = await countImportedTracks(user && user.id).catch(() => 0);
+                      setWipeCount(n); setWipeArmed(true);
+                      setTimeout(() => setWipeArmed(false), 6000);
+                      return;
+                    }
+                    setWipeArmed(false);
+                    try {
+                      const n = await clearImportedTracks(user && user.id);
+                      setImported(0); setImportErr(null);
+                      setMusic(null);
+                      setWipeCount(-n);
+                    } catch (e) { setImportErr(e && e.message); }
+                  }}
+                  style={{ marginTop: 10, borderWidth: 1, borderColor: wipeArmed ? C.coral : C.line, borderRadius: 999, paddingVertical: 9, alignItems: 'center' }}
+                >
+                  <Text style={{ color: wipeArmed ? C.coral : C.dim, fontSize: 12, fontWeight: '900' }}>
+                    {wipeArmed
+                      ? 'Tap again to remove ' + wipeCount + ' imported tracks'
+                      : wipeCount < 0 ? 'Removed ' + (-wipeCount) : 'Remove everything I imported'}
+                  </Text>
+                </Pressable>
               </View>
             {music == null ? <ActivityIndicator color={C.purple} style={{ marginTop: 30 }} /> :
             music.length === 0 ? <Empty t="No tracks waiting for approval" /> :

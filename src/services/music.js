@@ -263,3 +263,30 @@ export async function fetchMyTracks(userId) {
   if (error) throw error;
   return data || [];
 }
+
+/* Undo a whole import in one go. Auto-fill can pull in a hundred lofi
+   loops in a minute, and deleting a hundred rows one at a time is not
+   a fix — it's a punishment. Scoped to tracks YOU imported, so a
+   producer's own upload is never swept away with them. */
+export async function clearImportedTracks(ownerId, { mood } = {}) {
+  if (!ownerId) return 0;
+  let q = supabase.from('tracks').delete({ count: 'exact' })
+    .eq('uploader_id', ownerId)
+    .eq('is_official', true);
+  if (mood) q = q.eq('mood', mood);
+  const { error, count } = await q;
+  if (error) throw error;
+  return count || 0;
+}
+
+/* How many are sitting there, so a destructive button can say what it
+   is about to destroy instead of asking for blind faith. */
+export async function countImportedTracks(ownerId, { mood } = {}) {
+  if (!ownerId) return 0;
+  let q = supabase.from('tracks').select('id', { count: 'exact', head: true })
+    .eq('uploader_id', ownerId).eq('is_official', true);
+  if (mood) q = q.eq('mood', mood);
+  const { count, error } = await q;
+  if (error) return 0;
+  return count || 0;
+}
