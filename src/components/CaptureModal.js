@@ -13,7 +13,7 @@ import { createPost } from '../services/posts';
 import { createStory } from '../services/stories';
 import { uploadCapture, uploadMedia } from '../services/social';
 import { compressImage } from '../lib/storage';
-import { fetchTracks, incrementTrackUse } from '../services/music';
+import { fetchTracks, incrementTrackUse, publishSound } from '../services/music';
 import { MusicHubSheet } from './MusicHubSheet';
 import { isOwner } from '../services/music';
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
@@ -1116,7 +1116,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
             lat: onMap && mapCoords ? mapCoords.latitude : null,
             lng: onMap && mapCoords ? mapCoords.longitude : null,
           });
-          if (sound && sound.audio_url) incrementTrackUse(sound.id);
+          if (sound && sound.audio_url) { incrementTrackUse(sound.id); publishSound(sound.id); }
           onPostedStory && onPostedStory({
             id: row.id, createdAt: row.created_at,
             user: { id: user.id, name: 'You', avatar: AV_NEUTRAL }, media: mediaUrl, sound, caption: caption.trim() || null,
@@ -1127,7 +1127,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
           onPosted && onPosted(row);
         } else {
           const row = await createPost({ userId: user.id, type: 'reel', caption: caption.trim() || '🎬', mediaUrl, sound });
-          if (sound && sound.audio_url) incrementTrackUse(sound.id);
+          if (sound && sound.audio_url) { incrementTrackUse(sound.id); publishSound(sound.id); }
           onPosted && onPosted({
             id: row.id,
             user: { name: (row.user && row.user.name) || 'You', avatar: (row.user && row.user.avatar_url) || AV_NEUTRAL, verified: !!(row.user && row.user.verified) },

@@ -12,7 +12,9 @@ export const SoundChip = ({ sound, light }) => {
         borderRadius: 999, paddingHorizontal: 11, paddingVertical: 6,
       }}
     >
-      <Text style={{ fontSize: 12 }}>🎵</Text>
+      {/* a person's own recording is a different thing from a song,
+          and the credit should say which */}
+      <Text style={{ fontSize: 12 }}>{sound.kind === 'sound' ? '🎙️' : '🎵'}</Text>
       <Text
         numberOfLines={1}
         style={{

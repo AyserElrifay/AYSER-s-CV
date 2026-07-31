@@ -299,3 +299,53 @@ export async function countImportedTracks(ownerId, { mood } = {}) {
   if (error) return 0;
   return count || 0;
 }
+
+/* ── YOUR OWN SOUNDS ────────────────────────────────────────────────
+   Recorded by a person, not licensed by us. Private until they post
+   with it; free for reels and stories after that; never free for an
+   advert without asking the person who made it. */
+
+export const SOUND_TERMS =
+  'Free to use in reels and stories. Commercial use — ads, brand or paid content — ' +
+  'needs the owner\u2019s permission first.';
+
+export async function uploadSound(userId, fileOrUri, { title, ext, contentType, durationSec } = {}) {
+  const audioUrl = await uploadMediaSmart(userId, fileOrUri, ext || 'mp3', contentType || 'audio/mpeg');
+  const { data, error } = await supabase.from('tracks').insert({
+    uploader_id: userId,
+    title: String(title || 'My sound').slice(0, 80),
+    artist: 'You',
+    audio_url: audioUrl,
+    cover_emoji: '🎙️',
+    mood: 'Sounds',
+    kind: 'sound',
+    visibility: 'private',      // yours alone until you post with it
+    commercial_ok: false,
+    is_official: false,
+    is_approved: true,          // your own sound needs nobody's approval
+    license: 'Original sound',
+    attribution: 'Original sound',
+    duration_sec: durationSec || null,
+  }).select('*').single();
+  if (error) throw error;
+  return data;
+}
+
+/* Only yours — the "on your phone" shelf. */
+export async function fetchMySounds(userId) {
+  if (!userId) return [];
+  const { data, error } = await supabase
+    .from('tracks').select('*')
+    .eq('uploader_id', userId).eq('kind', 'sound')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+/* Posting with a sound is what makes it public. Called after a reel or
+   story actually lands, never before — an upload that was never shared
+   stays private. */
+export async function publishSound(trackId) {
+  if (!trackId) return;
+  try { await supabase.rpc('publish_sound', { track: trackId }); } catch (e) { /* non-blocking */ }
+}

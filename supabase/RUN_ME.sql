@@ -1367,6 +1367,61 @@ drop trigger if exists trg_notify_dm on public.messages;
 create trigger trg_notify_dm after insert on public.messages
   for each row execute function public.notify_dm();
 
+-- ════════════════════════════════════════════════════════════════
+--  YOUR OWN SOUNDS — the TikTok half of a music library
+--
+--  A song is something we licensed or that is out of copyright.
+--  A SOUND is something a person recorded themselves. They are not
+--  the same thing and should not pretend to be, so they get their own
+--  kind, their own shelf, and their own rules:
+--
+--    • a sound you upload is yours alone until you post with it —
+--      nobody browses a stranger's voice memos
+--    • the moment it carries a reel or a story it becomes usable by
+--      anyone, because that is what putting it out in public means
+--    • and it is free for reels and stories only. Using someone's
+--      voice or recording in an advert is a different act entirely,
+--      and it needs their say-so first.
+-- ════════════════════════════════════════════════════════════════
+
+alter table public.tracks add column if not exists kind          text    not null default 'song';
+alter table public.tracks add column if not exists visibility    text    not null default 'public';
+alter table public.tracks add column if not exists commercial_ok boolean not null default false;
+
+alter table public.tracks drop constraint if exists tracks_kind_check;
+alter table public.tracks add constraint tracks_kind_check check (kind in ('song','sound'));
+alter table public.tracks drop constraint if exists tracks_visibility_check;
+alter table public.tracks add constraint tracks_visibility_check check (visibility in ('private','public'));
+
+create index if not exists tracks_kind_idx on public.tracks (kind, visibility);
+
+/* A private sound is visible to the person who recorded it and nobody
+   else — enforced here, not by the screen that lists them. */
+drop policy if exists "tracks are listenable by everyone" on public.tracks;
+create policy "tracks are listenable by everyone" on public.tracks
+  for select using (visibility = 'public' or uploader_id = auth.uid());
+
+drop policy if exists "producers update own tracks" on public.tracks;
+create policy "producers update own tracks" on public.tracks
+  for update using (auth.uid() = uploader_id) with check (auth.uid() = uploader_id);
+
+/* Posting with a sound is what publishes it. Security definer so the
+   flip happens even though the poster does not own the sound row —
+   and it only ever moves private → public for a sound, never touches
+   a song and never takes anything back down. */
+create or replace function public.publish_sound(track uuid)
+returns void language plpgsql security definer set search_path = public as $fn$
+begin
+  update public.tracks
+     set visibility = 'public'
+   where id = track and kind = 'sound' and visibility = 'private';
+end $fn$;
+
+grant execute on function public.publish_sound(uuid) to authenticated;
+
+
+
+
 
 
 

@@ -8,7 +8,7 @@ import { HUB_TRACKS } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { usePlayer } from '../context/PlayerContext';
-import { fetchTracks, incrementTrackUse } from '../services/music';
+import { fetchTracks, incrementTrackUse, uploadSound, fetchMySounds, SOUND_TERMS } from '../services/music';
 import {
   fetchMyPlaylists, createPlaylist, ensureLiked, fetchPlaylistTracks,
   addToPlaylist, removeFromPlaylist, deletePlaylist, fetchSavedTrackIds,
@@ -33,6 +33,7 @@ import { sfxPop } from '../utils/sfx';
    ask for it. */
 
 const SHELVES = [
+  { id: 'Sounds',   label: 'Sounds', emoji: '🎙️', blurb: 'Recorded by people here — free for reels and stories' },
   { id: 'Classics', label: 'Out of copyright', emoji: '📻', blurb: 'Recordings from before 1929 — nobody owns these any more' },
   { id: 'Chill', label: 'Chill', emoji: '🌊', blurb: 'Slow, wide and unbothered' },
   { id: 'Hype', label: 'Hype', emoji: '🔥', blurb: 'For the part where you run' },
@@ -81,6 +82,8 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
   const [picker, setPicker] = useState(null);     // the track waiting for a playlist
   const [newName, setNewName] = useState('');
   const [sheetFor, setSheetFor] = useState(null);  // playlist held down
+  const [mine, setMine] = useState([]);           // sounds you recorded
+  const [upBusy, setUpBusy] = useState(false);
   const [toast, setToast] = useState(null);
   const [err, setErr] = useState(null);
 
@@ -97,10 +100,39 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
     if (!SUPABASE_READY || !user) return;
     fetchMyPlaylists(user.id).then(setPlaylists).catch(() => {});
     fetchSavedTrackIds(user.id).then(setSaved).catch(() => {});
+    fetchMySounds(user.id).then(setMine).catch(() => {});
   }, [user]);
   useEffect(reloadLibrary, [reloadLibrary]);
 
   const play = (t, list) => { tapLight(); sfxPop(); playTrack(t, list || [t], 0); };
+
+  /* Pick an audio file off the phone. It stays yours — nobody browses
+     a stranger's voice memos — until you post a reel or a story with
+     it, and posting is what makes it usable by everyone else. */
+  const addSound = () => {
+    if (!SUPABASE_READY || !user) { say('Sign in to add a sound'); return; }
+    if (typeof document === 'undefined') return;
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'audio/*';
+    input.onchange = async () => {
+      const file = input.files && input.files[0];
+      if (!file) return;
+      if (file.size > 20 * 1024 * 1024) { say('That file is over 20MB — trim it shorter'); return; }
+      setUpBusy(true);
+      try {
+        const ext = (file.name.split('.').pop() || 'mp3').toLowerCase();
+        const row = await uploadSound(user.id, file, {
+          title: file.name.replace(/\.[^.]+$/, '').slice(0, 60),
+          ext, contentType: file.type || 'audio/mpeg',
+        });
+        setMine((m) => [row, ...m]);
+        say('Added — only you can see it until you post with it');
+      } catch (e) { say((e && e.message) || 'Could not add that sound'); }
+      finally { setUpBusy(false); }
+    };
+    input.click();
+  };
 
   /* The heart goes straight to Liked Songs — one tap, no dialogue.
      The + button is the one that asks which playlist. */
@@ -256,7 +288,39 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
                   title="The library is still empty"
                   body={err || 'Tracks appear here as they are added. Nothing is invented to fill the space.'}
                 />
-              ) : SHELVES.map((sh) => {
+              ) : (<>
+                {/* on your phone */}
+                <View style={{ marginTop: 16 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: C.text, fontSize: 16.5, fontWeight: '900' }}>📱 On your phone</Text>
+                      <Text style={{ color: C.faint, fontSize: 12, marginTop: 2 }}>
+                        Yours alone until you post with it
+                      </Text>
+                    </View>
+                    <Pressable onPress={addSound} disabled={upBusy}
+                      style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8, opacity: upBusy ? 0.5 : 1 }}>
+                      <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '900' }}>{upBusy ? 'Adding…' : '+ Add a sound'}</Text>
+                    </Pressable>
+                  </View>
+                  {mine.length ? mine.map((t) => (
+                    <View key={t.id}>
+                      <Row t={t} list={mine} />
+                      {t.visibility === 'private' ? (
+                        <Text style={{ color: C.faint, fontSize: 10.5, marginTop: -4, marginBottom: 6, marginLeft: 64 }}>
+                          Private — post a reel with it to share it
+                        </Text>
+                      ) : null}
+                    </View>
+                  )) : (
+                    <Text style={{ color: C.faint, fontSize: 12, marginTop: 10, lineHeight: 18 }}>
+                      Nothing yet. Add a recording from your phone — a voice, a street, a song you made.
+                    </Text>
+                  )}
+                  <Text style={{ color: C.faint, fontSize: 10.5, marginTop: 8, lineHeight: 15 }}>{SOUND_TERMS}</Text>
+                </View>
+
+                {SHELVES.map((sh) => {
                 const list = shelfTracks(sh.id);
                 if (!list.length) return null;
                 return (
@@ -266,7 +330,8 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
                     {list.slice(0, 8).map((t) => <Row key={t.id} t={t} list={list} />)}
                   </View>
                 );
-              })
+              })}
+              </>)
             ) : null}
 
             {/* ── SEARCH ── */}
