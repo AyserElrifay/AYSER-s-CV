@@ -23,6 +23,7 @@ import {
   Glass, StoriesBar, PostCard, MagicFlowModal, ProfileModal,
   CommentsSheet, ComposeModal, SearchModal, StoryViewer, ReelsViewer,
   CaptureModal, NotificationsSheet, LikersSheet, ReportSheet, Wordmark, BardiSheet,
+  TopicsSheet,
 } from '../components';
 import { Modal } from 'react-native';
 import { ProfileScreen } from './ProfileScreen';
@@ -122,6 +123,8 @@ export const HomeScreen = () => {
   const [likersPost, setLikersPost] = useState(null); // "who reacted to this"
   const [likersKind, setLikersKind] = useState('star'); // 'star' | 'laugh'
   const openLikers = (post, kind) => { setLikersKind(kind); setLikersPost(post); };
+  const [topicsOpen, setTopicsOpen] = useState(false);   // the rooms a moment can belong to
+  const [composeTag, setComposeTag] = useState('');      // opened from a topic → tag is prefilled
   const [reportPost, setReportPost] = useState(null); // a moment being reported
   const [toast, setToast] = useState(null);
 
@@ -526,7 +529,8 @@ export const HomeScreen = () => {
       {composing === 'post' ? (
         <ComposeModal
           initialMode="post"
-          onClose={() => setComposing(null)}
+          initialCaption={composeTag}
+          onClose={() => { setComposing(null); setComposeTag(''); }}
           onPosted={prependPost}
           onPostedStory={(s) => setMyStories((prev) => [s, ...prev])}
         />
@@ -545,6 +549,18 @@ export const HomeScreen = () => {
         <SearchModal
           onClose={() => setSearching(false)}
           onOpenProfile={(u) => { setSearching(false); setProfileUser(u); }}
+          onOpenTopics={() => { setSearching(false); setTopicsOpen(true); }}
+        />
+      ) : null}
+
+      {/* Topics — real hashtags with a name and a home. Posting from a
+          topic drops you into the composer with the tag already in it,
+          so the moment really lands in that room. */}
+      {topicsOpen ? (
+        <TopicsSheet
+          onClose={() => setTopicsOpen(false)}
+          onOpenPost={(row) => { setTopicsOpen(false); setSharedPost(toCard(row)); }}
+          onCompose={(tag) => { setTopicsOpen(false); setComposeTag(tag); setComposing('post'); }}
         />
       ) : null}
       {storyIndex !== null ? (

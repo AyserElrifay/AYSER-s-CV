@@ -41,7 +41,7 @@ const fromProfileRow = (row) => ({
   bio: row.bio || 'New to Moments — say hi! 👋',
 });
 
-export const SearchModal = ({ onClose, onOpenProfile }) => {
+export const SearchModal = ({ onClose, onOpenProfile, onOpenTopics }) => {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [query, setQuery] = useState('');
@@ -293,6 +293,22 @@ export const SearchModal = ({ onClose, onOpenProfile }) => {
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 24 }}>
           {tab === 'Top' ? (
             <View>
+              {!q && onOpenTopics ? (
+                /* Rooms to post into, rather than a search box and hope.
+                   Every count in there is counted off real moments. */
+                <Pressable onPress={() => { tapLight(); onOpenTopics(); }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.purpleSoft, borderRadius: 16, padding: 14, marginTop: 16 }}>
+                    <Text style={{ fontSize: 22 }}>#</Text>
+                    <View style={{ flex: 1, marginLeft: 12 }}>
+                      <Text style={{ color: C.text, fontSize: 15, fontWeight: '900' }}>Topics</Text>
+                      <Text style={{ color: C.faint, fontSize: 12, marginTop: 2 }}>
+                        Travel, food, learning, help me — find a room and post in it
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={16} color={C.purple} />
+                  </View>
+                </Pressable>
+              ) : null}
               {!q ? (
                 <>
                   <Section title="Trending now 🔥" />

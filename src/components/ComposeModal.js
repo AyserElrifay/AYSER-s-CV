@@ -29,11 +29,12 @@ const MODES = [
   { id: 'story', label: 'Story', emoji: '⭕' },
 ];
 
-export const ComposeModal = ({ initialMode = 'post', onClose, onPosted, onPostedStory }) => {
+export const ComposeModal = ({ initialMode = 'post', initialCaption = '', onClose, onPosted, onPostedStory }) => {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [mode, setMode] = useState(initialMode);
-  const [caption, setCaption] = useState('');
+  // opened from a topic → the tag is already in the box, cursor after it
+  const [caption, setCaption] = useState(initialCaption ? initialCaption + ' ' : '');
   const [place, setPlace] = useState('');
   const [imageUri, setImageUri] = useState(null);
   const [imageMime, setImageMime] = useState('image/jpeg');

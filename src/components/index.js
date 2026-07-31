@@ -56,6 +56,7 @@ export { MapCover } from './MapCover';
 export { AvatarCanvas } from './AvatarCanvas';
 export { StickerPicker } from './StickerPicker';
 export { HighlightsRail } from './Highlights';
+export { TopicsSheet } from './TopicsSheet';
 export { TagPeoplePicker } from './TagPeoplePicker';
 export { PeopleDiscover } from './PeopleDiscover';
 export { WhatsNew } from './WhatsNew';

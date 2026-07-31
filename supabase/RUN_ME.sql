@@ -1651,6 +1651,101 @@ create policy "remove from your own highlight" on public.highlight_items for del
 notify pgrst, 'reload schema';
 
 
+
+-- ═══════════ TOPICS · somewhere for a moment to belong ═══════════
+-- A topic is a real hashtag with a name, a category and a cover we
+-- drew ourselves (an emoji on a gradient — nothing licensed). What it
+-- is NOT is a number we made up: every count below is a live count of
+-- posts that actually carry the tag, so a quiet topic reads as quiet.
+
+create table if not exists public.topics (
+  slug       text primary key,
+  tag        text not null,                  -- what goes in the caption
+  title      text not null,
+  category   text not null,
+  blurb      text,
+  emoji      text,
+  tint       text,                           -- the gradient we paint behind it
+  featured   boolean not null default false,
+  sort       int not null default 0,
+  created_at timestamptz not null default now()
+);
+alter table public.topics enable row level security;
+
+drop policy if exists "topics readable by everyone" on public.topics;
+create policy "topics readable by everyone" on public.topics for select using (true);
+
+drop policy if exists "only the owner curates topics" on public.topics;
+create policy "only the owner curates topics" on public.topics for all
+  using ((auth.jwt() ->> 'email') = 'ayseryourlifecoach@gmail.com')
+  with check ((auth.jwt() ->> 'email') = 'ayseryourlifecoach@gmail.com');
+
+/* The real numbers: how many moments carry the tag, and how many
+   different people wrote them. Nothing here is stored — it is counted
+   at the moment you ask, off the posts table itself. */
+create or replace function public.topic_counts()
+returns table (slug text, moments bigint, people bigint)
+language sql stable security definer set search_path = public as $fn$
+  select t.slug,
+         count(p.id),
+         count(distinct p.user_id)
+    from public.topics t
+    left join public.posts p
+      on p.caption ilike '%' || t.tag || '%'
+   group by t.slug;
+$fn$;
+
+grant execute on function public.topic_counts() to anon, authenticated;
+
+/* The starting set. Half of them are the things this crowd actually
+   does — Egypt, food, the ahwa, the gym — and the rest are the ones
+   every app this size needs. They are invitations, not decoration:
+   each one opens on real posts or an honest empty page. */
+insert into public.topics (slug, tag, title, category, blurb, emoji, tint, featured, sort) values
+  ('travel-with-friends', '#TravelWithFriends', 'Travel with friends', 'Travel',
+   'Hit the road with people you like and turn an ordinary week into a story.', '🧳', 'violet', true, 1),
+  ('egypt-now', '#EgyptNow', 'Egypt right now', 'Travel',
+   'Where you are, today — the street, the sea, the desert, the traffic.', '🇪🇬', 'amber', true, 2),
+  ('cairo-nights', '#CairoNights', 'Cairo nights', 'Lifestyle',
+   'The city after dark, from a balcony or a bridge.', '🌃', 'indigo', false, 3),
+  ('ahwa', '#Ahwa', 'On the ahwa', 'Foodie',
+   'Tea, shisha, backgammon and the argument that comes with them.', '☕', 'brown', true, 4),
+  ('my-cooking', '#MyCooking', 'My cooking', 'Foodie',
+   'What came out of your kitchen — good or catastrophic.', '🍳', 'orange', false, 5),
+  ('food-here', '#FoodHere', 'Food worth the trip', 'Foodie',
+   'The place you would send a friend to, with directions.', '🍽️', 'rose', false, 6),
+  ('gym-day', '#GymDay', 'Gym day', 'Lifestyle',
+   'Showing up, on the days you did not feel like it.', '🏋️', 'green', false, 7),
+  ('sunset', '#Sunset', 'Sunset', 'Lifestyle',
+   'One photo, no filter needed. The sky does the work.', '🌇', 'coral', false, 8),
+  ('learning-english', '#LearningEnglish', 'Learning English', 'Learning',
+   'A sentence a day, and people to correct it.', '📚', 'sky', true, 9),
+  ('please-correct-me', '#PleaseCorrectMe', 'Please correct me', 'Learning',
+   'Write it wrong on purpose. Somebody here will fix it kindly.', '✍️', 'sky', false, 10),
+  ('daily-sentence', '#DailySentence', 'Daily sentence', 'Learning',
+   'One line in the language you are learning, every day.', '🗒️', 'teal', false, 11),
+  ('help-me', '#HelpMe', 'Help me', 'Help Me',
+   'Ask the room. Somebody has done this before.', '🆘', 'red', false, 12),
+  ('recommend-me', '#RecommendMe', 'Recommend me', 'Help Me',
+   'A film, a book, a barber, a place to sit for three hours.', '💡', 'amber', false, 13),
+  ('football', '#Football', 'Football', 'Events',
+   'The match, the argument about the match, the aftermath.', '⚽', 'green', false, 14),
+  ('first-moment', '#FirstMoment', 'My first moment', 'Events',
+   'New here? Post one thing. Somebody will say hello.', '👋', 'violet', true, 15),
+  ('meet-up', '#MeetUp', 'Meet up', 'Events',
+   'A real plan with a real time and a real place.', '📍', 'indigo', false, 16),
+  ('my-street', '#MyStreet', 'My street', 'Lifestyle',
+   'The five minutes around your door, wherever that is on Earth.', '🏘️', 'teal', false, 17),
+  ('pets', '#Pets', 'The animal in my house', 'Lifestyle',
+   'It runs the place and you know it.', '🐈', 'rose', false, 18)
+on conflict (slug) do update set
+  tag = excluded.tag, title = excluded.title, category = excluded.category,
+  blurb = excluded.blurb, emoji = excluded.emoji, tint = excluded.tint,
+  featured = excluded.featured, sort = excluded.sort;
+
+notify pgrst, 'reload schema';
+
+
 -- ═══════════════════ READINESS CHECKLIST ═══════════════════
 -- Every column below should say TRUE. If chat_ready is FALSE,
 -- also run supabase/schema_v2_live.sql (messages & live map).
@@ -1689,4 +1784,5 @@ select
   (to_regclass('public.playlists')            is not null) as playlists_ready,
   (to_regclass('public.post_tags')            is not null) as tagging_ready,
   (to_regclass('public.highlights')           is not null) as highlights_ready,
+  (to_regclass('public.topics')               is not null) as topics_ready,
   (to_regclass('public.films')                is not null) as films_ready;
