@@ -113,9 +113,34 @@ export function makeLevel(seed, chapterIndex) {
       const n = 2 + Math.floor(r() * 3);
       for (let k = 0; k < n; k++) items.push({ x: x + 40 + k * 34, y: y - 40, kind: 'coin', got: false });
     }
-    // an obstacle to jump on the wider platforms
-    if (w > 210 && r() < (ice ? 0.3 : 0.55)) {
-      hazards.push({ x: x + w * (0.4 + r() * 0.35), y, kind: ice ? 'rock' : (r() < 0.5 ? 'chimney' : 'ac'), h: 30 + r() * 16 });
+    /* Obstacles. Four kinds now instead of one shape in three skins,
+       because "jump over the thing" stops being a decision by the
+       twentieth roof:
+         chimney / ac / rock — hop it
+         crate  — too tall for one jump, the double jump exists for this
+         drone  — moves, so timing matters rather than reflex
+         gust   — no collision at all; it pushes, and you lean into it
+       Later platforms get the harder ones; the first stretch does not. */
+    if (w > 210 && r() < (ice ? 0.34 : 0.58)) {
+      const hx = x + w * (0.4 + r() * 0.3);
+      const roll = r();
+      if (t > 0.18 && roll < 0.18) {
+        hazards.push({ x: hx, y, kind: 'crate', h: 58 + r() * 14 });
+      } else if (t > 0.3 && roll < 0.32) {
+        hazards.push({ x: hx, y, kind: 'drone', h: 26, bob: 34 + r() * 26, phase: r() * 6.28 });
+      } else if (ice && t > 0.25 && roll < 0.46) {
+        hazards.push({ x: hx, y, kind: 'gust', h: 90, w: 90 + r() * 70 });
+      } else {
+        hazards.push({ x: hx, y, kind: ice ? 'rock' : (r() < 0.5 ? 'chimney' : 'ac'), h: 30 + r() * 16 });
+      }
+    }
+
+    /* A roof that gives way a moment after you land on it. It turns a
+       safe pause into a decision, and it is the only obstacle that
+       punishes standing still. Never on the first stretch. */
+    if (t > 0.35 && r() < 0.14) {
+      platforms[platforms.length - 1].crumble = true;
+      platforms[platforms.length - 1].crumbleAt = 0;
     }
     x += w;
   }
@@ -343,6 +368,47 @@ function drawHazard(c, h, ch, camX, camY) {
     c.fillRect(x - 13, y - h.h - 6, 26, 7);
     c.fillStyle = 'rgba(255,255,255,0.14)';
     c.fillRect(x - 11, y - h.h, 6, h.h);
+    return;
+  }
+  if (h.kind === 'crate') {
+    c.fillStyle = '#8B5E34';
+    rr(c, x - 17, y - h.h, 34, h.h, 3); c.fill();
+    c.strokeStyle = 'rgba(0,0,0,0.35)'; c.lineWidth = 2;
+    c.beginPath();
+    c.moveTo(x - 17, y - h.h); c.lineTo(x + 17, y);
+    c.moveTo(x + 17, y - h.h); c.lineTo(x - 17, y);
+    c.stroke();
+    c.fillStyle = 'rgba(255,255,255,0.16)';
+    c.fillRect(x - 17, y - h.h, 34, 4);
+    return;
+  }
+  if (h.kind === 'drone') {
+    const dy = y - 54 - Math.sin((h.phase || 0) + (h.t || 0) * 0.004) * (h.bob || 30);
+    c.fillStyle = '#2E3440';
+    rr(c, x - 13, dy - 8, 26, 15, 5); c.fill();
+    c.fillStyle = '#FF3B5C';                       // the eye you learn to fear
+    c.beginPath(); c.arc(x, dy, 3.4, 0, 6.283); c.fill();
+    c.strokeStyle = 'rgba(200,220,255,0.55)'; c.lineWidth = 2;
+    for (const sx of [-15, 15]) {
+      c.beginPath(); c.moveTo(x + sx * 0.6, dy - 6); c.lineTo(x + sx, dy - 12); c.stroke();
+      c.beginPath(); c.ellipse(x + sx, dy - 13, 9, 2.2, 0, 0, 6.283); c.stroke();
+    }
+    return;
+  }
+  if (h.kind === 'gust') {
+    const wgt = h.w || 110;
+    c.save();
+    c.globalAlpha = 0.5;
+    c.strokeStyle = 'rgba(210,240,255,0.75)'; c.lineWidth = 2;
+    for (let i = 0; i < 5; i++) {
+      const gy = y - 16 - i * 17;
+      const off = ((h.t || 0) * 0.16 + i * 40) % (wgt + 60) - 30;
+      c.beginPath();
+      c.moveTo(x - wgt / 2 + off, gy);
+      c.lineTo(x - wgt / 2 + off + 26, gy);
+      c.stroke();
+    }
+    c.restore();
     return;
   }
   // AC / satellite box
@@ -605,6 +671,7 @@ export function drawScene(c, W, H, cam, level, t, extras) {
   }
   for (const h of level.hazards) {
     if (h.x < left || h.x > right) continue;
+    h.t = t;                       // drones bob and gusts drift with the clock
     drawHazard(c, h, ch, cam.x, cam.y);
   }
   for (const it of level.items) {

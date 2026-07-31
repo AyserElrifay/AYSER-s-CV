@@ -243,9 +243,22 @@ export const RooftopRush = ({ onClose, matchId = null, isHost = false, opponent 
       drawRunner(ctx, w.x - cam.x, w.y - cam.y, {
         phase: w.phase,
         airborne: !w.onGround,
-        sliding: w.sliding,
+        sliding: w.sliding || !!w.downUntil,   // flat on the roof while you're down
         dna: dnaRef.current,
       });
+
+      /* Say it out loud rather than leaving a second of nothing — a
+         player who can't tell why they stopped assumes it froze. */
+      if (w.downUntil) {
+        const left = Math.max(0, w.downUntil - now);
+        ctx.save();
+        ctx.globalAlpha = 0.55 + 0.45 * Math.abs(Math.sin(now * 0.012));
+        ctx.fillStyle = '#FFD23F';
+        ctx.font = '900 20px system-ui, -apple-system, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(left > 400 ? 'UP!' : 'GO!', w.x - cam.x, w.y - cam.y - 62);
+        ctx.restore();
+      }
     };
 
     rafRef.current = requestAnimationFrame(frame);
@@ -260,6 +273,22 @@ export const RooftopRush = ({ onClose, matchId = null, isHost = false, opponent 
   /* ── one physics step ── */
   const step = (w, dt, now, VW) => {
     const lv = w.level;
+
+    /* On the floor after a fall: the world keeps moving — the chaser
+       keeps coming, particles keep settling — but you don't, and that
+       is the whole cost of missing a jump. */
+    if (w.downUntil) {
+      if (now < w.downUntil) {
+        w.vx = 0;
+        w.chaseGap = Math.max(0, w.chaseGap - 14 * dt);
+        w.chaserX = w.x - w.chaseGap;
+        if (w.chaseGap <= 24) return die(w, now, ar ? 'مسكوك وإنت على الأرض! 😱' : 'Caught while you were down!');
+        return;
+      }
+      w.downUntil = 0;
+      w.vx = w.ice ? 200 : RUN_SPEED * 0.8;   // back on your feet, not at full pace
+      sfxPop();
+    }
 
     // forward motion — ice builds momentum, roofs cruise
     if (w.ice) w.vx = Math.min(ICE_MAX + chapterIdx * SPEED_PER_CHAPTER, w.vx + ICE_ACCEL * dt);
@@ -290,6 +319,8 @@ export const RooftopRush = ({ onClose, matchId = null, isHost = false, opponent 
           }
         }
         w.onGround = true; w.jumps = 0; w.leftGroundAt = 0;
+        // a crumbling roof starts counting the moment you touch it
+        if (p.crumble && !p.crumbleAt) p.crumbleAt = now;
         if (now - (w.bufferedJumpAt || 0) < BUFFER_MS) {
           w.bufferedJumpAt = 0; w.vy = JUMP_V; w.onGround = false; w.jumps = 1;
         }
@@ -303,12 +334,24 @@ export const RooftopRush = ({ onClose, matchId = null, isHost = false, opponent 
 
     // hazards — clipping one costs you speed and lets the chaser close in
     for (const h of lv.hazards) {
+      /* Wind is not a thing you hit, it is a thing you are inside of.
+         It pushes the whole time you're in it and never "connects", so
+         it can't be cheesed by jumping at the right frame. */
+      if (h.kind === 'gust') {
+        if (Math.abs(h.x - w.x) < (h.w || 110) / 2 && w.y > h.y - 120) {
+          w.vx = Math.max(120, w.vx - 260 * dt);
+          w.x -= 70 * dt;
+        }
+        continue;
+      }
       if (h.hit) continue;
-      if (Math.abs(h.x - w.x) < 20 && w.y > h.y - h.h - 8 && w.y <= h.y + 6) {
+      const hitTop = h.kind === 'drone' ? h.y - 54 - (h.bob || 30) - 14 : h.y - h.h - 8;
+      const hitBot = h.kind === 'drone' ? h.y - 20 : h.y + 6;
+      if (Math.abs(h.x - w.x) < 20 && w.y > hitTop && w.y <= hitBot) {
         h.hit = true;
-        w.vx = Math.max(150, w.vx * 0.55);
-        w.chaseGap -= 38;              // they gain on you — clip enough and you're had
-        w.shakeUntil = now + 220;
+        w.vx = Math.max(150, w.vx * (h.kind === 'drone' ? 0.42 : h.kind === 'crate' ? 0.5 : 0.55));
+        w.chaseGap -= h.kind === 'drone' ? 52 : h.kind === 'crate' ? 44 : 38;
+        w.shakeUntil = now + (h.kind === 'drone' ? 320 : 220);
         tapLight();
         for (let i = 0; i < 10; i++) {
           w.particles.push({
@@ -338,6 +381,14 @@ export const RooftopRush = ({ onClose, matchId = null, isHost = false, opponent 
       }
     }
 
+    /* A roof that has been stood on long enough stops being a roof. */
+    for (const p of lv.platforms) {
+      if (p.crumble && p.crumbleAt && !p.gone && now - p.crumbleAt > 520) {
+        p.gone = true;
+        p.y += 4000;                  // out of the world, and out of the ground check
+      }
+    }
+
     /* The chaser: run clean and you slowly earn breathing room back;
        clip things and it closes for real. Reaching you ends the run. */
     w.chaseGap = Math.min(CHASER_BASE, w.chaseGap + 26 * dt);
@@ -345,8 +396,40 @@ export const RooftopRush = ({ onClose, matchId = null, isHost = false, opponent 
     w.chaserY += (w.y - w.chaserY) * Math.min(1, dt * 4);
     if (w.chaseGap <= 24) return die(w, now, ar ? 'مسكوك! 😱' : 'Caught!');
 
-    // fell off the world
-    if (w.y > FALL_LIMIT) return die(w, now, ar ? 'وقعت من على السطح! 💥' : 'You missed the jump! 💥');
+    /* Missing a jump used to end the run on the spot, which is a harsh
+       way to treat the exact moment someone was trying something. Now
+       you go down, you get up, and you run again — the cost is that
+       the chaser gains a lot of ground while you're on the floor. Miss
+       twice in a row and they have you, so it still means something. */
+    if (w.y > FALL_LIMIT && !w.downUntil) {
+      w.downUntil = now + 850;
+      w.falls = (w.falls || 0) + 1;
+      w.chaseGap -= 46;
+      w.shakeUntil = now + 300;
+      tapLight();
+      /* Find a roof that is still there. The one you last stood on may
+         be the very one that crumbled out from under you, and putting
+         you back on a platform that no longer exists would drop you
+         again immediately — a fall loop that ends only when the chaser
+         arrives, which reads as the game being broken. */
+      let safe = null;
+      for (const p of lv.platforms) {
+        if (p.gone) continue;
+        if (p.x <= w.x + 40) safe = { x: Math.max(p.x + 40, Math.min(w.x, p.x + p.w - 40)), y: p.y };
+        else break;                      // platforms are generated left to right
+      }
+      if (!safe) safe = { x: Math.max(60, w.x - 120), y: GROUND };
+      w.x = safe.x; w.y = safe.y; w.vy = 0; w.vx = 0;
+      w.onGround = true; w.jumps = 0;
+      for (let i = 0; i < 14; i++) {
+        w.particles.push({
+          x: w.x + (Math.random() - 0.5) * 24, y: w.y, r: 2 + Math.random() * 3,
+          vx: (Math.random() - 0.5) * 200, vy: -Math.random() * 160,
+          life: 1, col: 'rgba(255,255,255,0.75)',
+        });
+      }
+      if (w.chaseGap <= 24) return die(w, now, ar ? 'مسكوك وإنت على الأرض! 😱' : 'Caught while you were down!');
+    }
 
     // particles
     for (let i = w.particles.length - 1; i >= 0; i--) {
@@ -474,6 +557,7 @@ export const RooftopRush = ({ onClose, matchId = null, isHost = false, opponent 
   const jump = useCallback(() => {
     const w = world.current;
     if (!w || phaseRef.current !== 'playing') return;
+    if (w.downUntil) return;      // you're on the floor; get up first
     const now = performance.now();
     const coyote = w.onGround || (now - (w.leftGroundAt || 0) < COYOTE_MS && w.jumps === 0);
     if (coyote) { w.vy = JUMP_V; w.onGround = false; w.jumps = 1; w.leftGroundAt = 0; tapLight(); sfxPop(); }
