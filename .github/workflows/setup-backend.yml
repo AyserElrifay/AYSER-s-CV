@@ -45,6 +45,10 @@ on:
         description: 'Import pre-1929 public-domain recordings'
         type: boolean
         default: false
+      music_target:
+        description: 'How many new tracks to import'
+        required: false
+        default: '1000'
 
 permissions:
   contents: read
@@ -101,6 +105,7 @@ jobs:
         if: ${{ inputs.import_music }}
         env:
           PROJECT_REF: ${{ inputs.project_ref }}
+          TARGET: ${{ inputs.music_target }}
         run: node scripts/import-public-domain-music.mjs
 
       - name: Install the Supabase CLI
