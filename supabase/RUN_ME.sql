@@ -1327,6 +1327,42 @@ drop trigger if exists comments_guard_edit on public.comments;
 create trigger comments_guard_edit before update on public.comments
   for each row execute function public.guard_comment_edit();
 
+-- ════════════════════════════════════════════════════════════════
+--  A MESSAGE SHOULD REACH YOU
+--  Realtime already carried a DM to a screen that was open and
+--  looking at that thread. Anywhere else — another tab, the app
+--  closed, the phone in a pocket — nothing happened at all, so
+--  "someone messaged me and it never arrived" was exactly right.
+-- ════════════════════════════════════════════════════════════════
+
+alter table public.notifications drop constraint if exists notifications_kind_check;
+alter table public.notifications add constraint notifications_kind_check
+  check (kind in ('vibe','laugh','comment','mate_request','mate_accept','message'));
+
+create or replace function public.notify_dm() returns trigger
+language plpgsql security definer set search_path = public as $fn$
+declare r record;
+begin
+  if new.dm_thread_id is null then return new; end if;   -- squad chats are noisy enough
+  -- every participant except the sender; notify() already ignores self
+  for r in
+    select user_id from public.dm_participants
+    where thread_id = new.dm_thread_id and user_id <> new.user_id
+  loop
+    perform public.notify(r.user_id, new.user_id, 'message', null,
+      case when new.media_url is not null then '📷 sent you a moment'
+           else left(coalesce(new.body, ''), 90) end);
+  end loop;
+  return new;
+end $fn$;
+
+drop trigger if exists trg_notify_dm on public.messages;
+create trigger trg_notify_dm after insert on public.messages
+  for each row execute function public.notify_dm();
+
+
+
+
 
 
 

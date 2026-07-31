@@ -86,15 +86,19 @@ export const ChatThread = ({ chat, group, onClose }) => {
      than the chosen window are hidden AND swept from the database.
      DEFAULT: 1 week (the natural thing — chats shouldn't pile up
      forever). "Keep forever" is an explicit choice, stored as 0. ── */
-  const DEFAULT_TTL = 168; // hours — 1 week
+  /* Messages used to delete themselves after a week by default. Nobody
+     chose that, and a conversation quietly disappearing is the kind of
+     thing you only notice once it has already gone. Kept forever
+     unless this thread is explicitly set to expire. */
+  const DEFAULT_TTL = 0; // 0 = keep them
   const [ttl, setTtl] = useState(undefined);     // undefined = not loaded; null = unset (→ default); 0 = forever
   const [ttlOpen, setTtlOpen] = useState(false);
   const TTL_OPTIONS = [
     { h: 24, label: '24 hours' },
-    { h: 168, label: '1 week · default' },
+    { h: 168, label: '1 week' },
     { h: 720, label: '1 month' },
     { h: 2160, label: '3 months' },
-    { h: 0, label: 'Keep forever' },
+    { h: 0, label: 'Keep forever · default' },
   ];
   // the timer actually in force: explicit choice wins, otherwise 1 week
   const effTtl = ttl === null || ttl === undefined ? DEFAULT_TTL : ttl;
@@ -382,6 +386,29 @@ export const ChatThread = ({ chat, group, onClose }) => {
 
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <ScrollView ref={scroller} contentContainerStyle={{ padding: 14, paddingBottom: 20 }} showsVerticalScrollIndicator={false}>
+            {/* An empty thread is the hardest message to write. One tap
+                sends the easy one, so nobody sits staring at a blank box
+                deciding how to start. */}
+            {!visibleMsgs.length ? (
+              <View style={{ alignItems: 'center', paddingTop: 40 }}>
+                <Text style={{ fontSize: 34 }}>👋</Text>
+                <Text style={{ color: C.text, fontSize: 15, fontWeight: '900', marginTop: 10 }}>Say hello</Text>
+                <Text style={{ color: C.faint, fontSize: 12.5, marginTop: 4, textAlign: 'center', lineHeight: 18 }}>
+                  Nothing here yet — break the ice.
+                </Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', marginTop: 14 }}>
+                  {['👋 Hey!', 'أهلاً 👋', '✨ Hi — nice to meet you', '🌱 What are you up to?'].map((t) => (
+                    <Pressable
+                      key={t}
+                      onPress={() => { tapLight(); send(t); }}
+                      style={{ backgroundColor: C.purpleSoft, borderWidth: 1, borderColor: 'rgba(124,58,237,0.28)', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9, margin: 4 }}
+                    >
+                      <Text style={{ color: C.purple, fontSize: 13, fontWeight: '800' }}>{t}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+            ) : null}
             {visibleMsgs.map((m) => {
               const mine = m.from === 'me';
               return (

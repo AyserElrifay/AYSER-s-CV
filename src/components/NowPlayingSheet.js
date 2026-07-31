@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Modal, Pressable, ScrollView, Platform } from 'react-native';
+import { View, Text, Modal, Pressable, ScrollView, Platform, PanResponder } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -25,15 +25,45 @@ export const NowPlayingSheet = () => {
   if (!current) return null;
   const pct = duration > 0 ? Math.min(1, position / duration) : 0;
 
-  // tap anywhere on the bar to seek there
-  const onBar = (e) => {
-    if (!duration) return;
-    const { locationX, target } = e.nativeEvent;
-    // width is measured via onLayout below
-    const w = barWidth.current || 1;
-    seek(Math.max(0, Math.min(1, locationX / w)) * duration);
-  };
+  /* The bar was six pixels tall and tap-only, which is not a control —
+     it is a target you miss. It drags now, inside a tap area tall
+     enough for a thumb, and while you are dragging the time readout
+     follows your finger instead of the audio. */
   const barWidth = React.useRef(0);
+  const barX = React.useRef(0);
+  const [scrub, setScrub] = React.useState(null);   // 0..1 while dragging
+
+  const posFrom = (pageX) => {
+    const w = barWidth.current || 1;
+    return Math.max(0, Math.min(1, (pageX - barX.current) / w));
+  };
+
+  const pan = React.useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: (e) => setScrub(posFrom(e.nativeEvent.pageX)),
+      onPanResponderMove: (e) => setScrub(posFrom(e.nativeEvent.pageX)),
+      onPanResponderRelease: (e) => {
+        const p = posFrom(e.nativeEvent.pageX);
+        setScrub(null);
+        if (durationRef.current) seekRef.current(p * durationRef.current);
+      },
+      onPanResponderTerminate: () => setScrub(null),
+    })
+  ).current;
+
+  /* The responder is created once, so it must read the live duration
+     and seek through refs rather than the values captured at birth. */
+  const durationRef = React.useRef(duration);
+  const seekRef = React.useRef(seek);
+  durationRef.current = duration;
+  seekRef.current = seek;
+
+  const nudge = (secs) => {
+    if (!duration) return;
+    seek(Math.max(0, Math.min(duration, position + secs)));
+  };
 
   return (
     <Modal visible transparent={false} animationType="slide" onRequestClose={closeFull}>
@@ -68,15 +98,32 @@ export const NowPlayingSheet = () => {
             ) : null}
           </View>
 
-          {/* seek bar */}
+          {/* seek bar — draggable, with a thumb-sized hit area */}
           <View style={{ paddingHorizontal: 26, marginTop: 26 }}>
-            <Pressable onPress={onBar} onLayout={(e) => { barWidth.current = e.nativeEvent.layout.width; }}>
+            <View
+              {...pan.panHandlers}
+              onLayout={(e) => { barWidth.current = e.nativeEvent.layout.width; }}
+              ref={(r) => { if (r && r.measureInWindow) r.measureInWindow((x) => { barX.current = x; }); }}
+              style={{ height: 34, justifyContent: 'center' }}
+            >
               <View style={{ height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.18)', overflow: 'hidden' }}>
-                <View style={{ height: 6, borderRadius: 3, backgroundColor: C.gold, width: (pct * 100) + '%' }} />
+                <View style={{ height: 6, borderRadius: 3, backgroundColor: C.gold, width: ((scrub != null ? scrub : pct) * 100) + '%' }} />
               </View>
-            </Pressable>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }}>
-              <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11 }}>{fmt(position)}</Text>
+              <View
+                pointerEvents="none"
+                style={{
+                  position: 'absolute',
+                  left: (scrub != null ? scrub : pct) * (barWidth.current || 0) - 8,
+                  width: 16, height: 16, borderRadius: 8, backgroundColor: C.gold,
+                  shadowColor: '#000', shadowOpacity: 0.4, shadowRadius: 6,
+                  transform: [{ scale: scrub != null ? 1.25 : 1 }],
+                }}
+              />
+            </View>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 2 }}>
+              <Text style={{ color: scrub != null ? C.gold : 'rgba(255,255,255,0.5)', fontSize: 11, fontWeight: scrub != null ? '900' : '400' }}>
+                {fmt(scrub != null ? scrub * duration : position)}
+              </Text>
               <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11 }}>{fmt(duration)}</Text>
             </View>
           </View>
@@ -86,6 +133,10 @@ export const NowPlayingSheet = () => {
             <Pressable onPress={() => { tapLight(); setShuffle(); }} hitSlop={10} style={{ marginHorizontal: 18 }}>
               <Ionicons name="shuffle" size={22} color={shuffle ? C.gold : 'rgba(255,255,255,0.55)'} />
             </Pressable>
+            {/* the control a four-minute record actually needs */}
+            <Pressable onPress={() => { tapLight(); nudge(-15); }} hitSlop={10} style={{ marginHorizontal: 10 }}>
+              <Ionicons name="play-back" size={20} color="rgba(255,255,255,0.75)" />
+            </Pressable>
             <Pressable onPress={() => { tapLight(); prev(); }} hitSlop={10} style={{ marginHorizontal: 14 }}>
               <Ionicons name="play-skip-back" size={30} color="#FFF" />
             </Pressable>
@@ -94,10 +145,12 @@ export const NowPlayingSheet = () => {
                 <Ionicons name={playing ? 'pause' : 'play'} size={34} color="#12071f" style={{ marginLeft: playing ? 0 : 3 }} />
               </View>
             </Pressable>
-            <Pressable onPress={() => { tapLight(); next(); }} hitSlop={10} style={{ marginHorizontal: 14 }}>
+            <Pressable onPress={() => { tapLight(); next(); }} hitSlop={14} style={{ marginHorizontal: 14 }}>
               <Ionicons name="play-skip-forward" size={30} color="#FFF" />
             </Pressable>
-            <View style={{ width: 22, marginHorizontal: 18 }} />
+            <Pressable onPress={() => { tapLight(); nudge(15); }} hitSlop={10} style={{ marginHorizontal: 10 }}>
+              <Ionicons name="play-forward" size={20} color="rgba(255,255,255,0.75)" />
+            </Pressable>
           </View>
 
           {/* up next */}
