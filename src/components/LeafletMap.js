@@ -106,6 +106,27 @@ function injectMapStyle() {
       background: radial-gradient(120% 120% at 50% 40%, #0a1226 0%, #04060d 70%);
       opacity: 0; transition: opacity 0.65s ease; pointer-events: none;
     }
+    /* ── ZOOM ── ours, not Leaflet's grey box. Bottom-right, thumb
+       height, and above the tiles but below the sheets. */
+    .mm-zoom {
+      position: absolute; right: 12px; bottom: 108px; z-index: 700;
+      display: flex; flex-direction: column; border-radius: 14px; overflow: hidden;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.28);
+      background: rgba(255,255,255,0.96);
+    }
+    .mm-dark .mm-zoom { background: rgba(24,24,32,0.94); }
+    .mm-zoom-btn {
+      width: 42px; height: 42px; border: 0; background: transparent; cursor: pointer;
+      font-size: 22px; font-weight: 700; line-height: 1; color: #1F2937;
+      display: flex; align-items: center; justify-content: center;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .mm-dark .mm-zoom-btn { color: #E5E7EB; }
+    .mm-zoom-btn:first-child { border-bottom: 1px solid rgba(0,0,0,0.10); }
+    .mm-dark .mm-zoom-btn:first-child { border-bottom-color: rgba(255,255,255,0.12); }
+    .mm-zoom-btn:active { background: rgba(124,58,237,0.16); }
+    .mm-zoom-btn:disabled { opacity: 0.32; cursor: default; }
+
     /* region names flip to light ink on the dark planet */
     .mm-dark .mm-region { color: rgba(226,232,240,0.74); text-shadow: 0 1px 3px rgba(0,0,0,0.9); }
     /* the Snap "activity heatmap" glow that blooms under a live person */
@@ -285,6 +306,31 @@ export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus
         inertia: true, inertiaDeceleration: 2400, easeLinearity: 0.15,
         preferCanvas: true,
       }).setView([24, 14], 2.5); // Earth view — Egypt/Europe in frame
+
+      /* Pinch has always worked, but a map with no visible + and − reads
+         as a picture rather than something you can move around in — and
+         one-handed, on a phone, pinching is the awkward gesture. These
+         are ours rather than Leaflet's grey default box, and they dim
+         at the ends so you can tell when there is no further to go. */
+      const zoomBox = L.DomUtil.create('div', 'mm-zoom');
+      zoomBox.innerHTML =
+        '<button class="mm-zoom-btn" data-z="in"  aria-label="Zoom in">+</button>' +
+        '<button class="mm-zoom-btn" data-z="out" aria-label="Zoom out">\u2212</button>';
+      L.DomEvent.disableClickPropagation(zoomBox);
+      L.DomEvent.disableScrollPropagation(zoomBox);
+      zoomBox.addEventListener('click', (e) => {
+        const b = e.target && e.target.closest && e.target.closest('.mm-zoom-btn');
+        if (!b) return;
+        if (b.dataset.z === 'in') map.zoomIn(1); else map.zoomOut(1);
+      });
+      elRef.current.appendChild(zoomBox);
+      const syncZoom = () => {
+        const z = map.getZoom();
+        zoomBox.querySelector('[data-z="in"]').disabled = z >= map.getMaxZoom() - 0.01;
+        zoomBox.querySelector('[data-z="out"]').disabled = z <= map.getMinZoom() + 0.01;
+      };
+      map.on('zoomend', syncZoom);
+      syncZoom();
 
       // ── COLOURFUL CARTOON MAP, NAME-FREE (neutral) ──
       // Same colourful, cartoonish landcover and roads in both light and

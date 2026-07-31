@@ -57,6 +57,8 @@ export const AFFILIATE_TAGS = {
   netflix: '',       // Netflix has no open program — tracked click only
   disney: '',        // Disney+ via Impact.com — tracking id
   epidemicsound: '', // Epidemic Sound partner id (music licensing)
+  jarir: '',         // Jarir Bookstore affiliate id (via Arabclicks)   → &ref=…
+  neelwafurat: '',   // النيل والفرات — ask for a partner code          → &ref=…
 };
 
 /* How each partner's tag is appended to the URL. Anything not listed

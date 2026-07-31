@@ -14,6 +14,7 @@ import { usePlayer } from '../context/PlayerContext';
 import { Page, ScreenHeader, SectionHeader, Glass, GameRunner, RooftopRush, SekoSeko3D, BoxingGame, StackGame } from '../components';
 import { CaptureModal } from '../components/CaptureModal';
 import { MusicHubSheet } from '../components/MusicHubSheet';
+import { BooksShelf } from '../components/BooksShelf';
 import { CommentsSheet } from '../components/CommentsSheet';
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
 import { sfxSuccess, sfxPop } from '../utils/sfx';
@@ -256,6 +257,11 @@ export const ChillScreen = () => {
           </Pressable>
         ))
       )}
+
+      {/* ── READ — free out-of-copyright books, and a real shop for the rest ── */}
+      <View style={{ marginTop: 26 }}>
+        <BooksShelf />
+      </View>
 
       {/* ── WATCH — where to stream, anywhere in the world (affiliate) ── */}
       <SectionHeader title="Watch 🍿" style={{ marginTop: 8 }} />
