@@ -17,6 +17,18 @@ export const R2_READY = !!R2_PUBLIC_URL;
 export const MAX_UPLOAD_BYTES = 60 * 1024 * 1024; // 60 MB hard cap
 export const VIDEO_QUALITIES = { hd: 720, sd: 480 }; // we never store above 720p
 
+/* Safari cannot always fetch() its own blob: URL — it throws
+   "Load failed", which is why recording a reel on an iPhone ended with
+   "the upload didn't reach the server" even on a perfect connection.
+   So whenever we still hold the actual Blob, we use it directly and
+   never ask the browser to go and fetch it back. */
+async function asBlob(uriOrBlob) {
+  if (uriOrBlob && typeof uriOrBlob !== 'string') return uriOrBlob;  // already a Blob/File
+  const res = await fetch(uriOrBlob);
+  if (!res.ok) throw new Error('Could not read the file (' + res.status + ')');
+  return res.blob();
+}
+
 async function uploadToR2(userId, uri, ext, contentType) {
   const key = userId + '/' + Date.now() + '.' + ext;
   // Ask the server for a presigned PUT url (secret keys stay server-side).
@@ -25,9 +37,8 @@ async function uploadToR2(userId, uri, ext, contentType) {
   });
   if (error || !data || !data.uploadUrl) throw new Error('r2-presign unavailable');
 
-  const res = await fetch(uri);
-  const body = await res.arrayBuffer();
-  if (body.byteLength > MAX_UPLOAD_BYTES) throw new Error('File too large (max 60MB)');
+  const body = await asBlob(uri);
+  if (body.size > MAX_UPLOAD_BYTES) throw new Error('File too large (max 60MB)');
 
   const put = await fetch(data.uploadUrl, { method: 'PUT', headers: { 'Content-Type': contentType }, body });
   if (!put.ok) throw new Error('R2 upload failed');
@@ -36,11 +47,11 @@ async function uploadToR2(userId, uri, ext, contentType) {
 
 async function uploadToSupabase(userId, uri, ext, contentType) {
   const path = userId + '/' + Date.now() + '.' + ext;
-  const res = await fetch(uri);
   // Blob, not ArrayBuffer — half the memory footprint, which is what
   // made Safari throw 'Load failed' on big videos.
-  const body = await res.blob();
+  const body = await asBlob(uri);
   if (body.size > MAX_UPLOAD_BYTES) throw new Error('File too large (max 60MB)');
+  if (!body.size) throw new Error('The recording came out empty (0 bytes)');
   const { error } = await supabase.storage.from('media').upload(path, body, { contentType });
   if (error) throw error;
   const { data } = supabase.storage.from('media').getPublicUrl(path);
@@ -76,7 +87,9 @@ export function compressImage(uri, maxSide = 1600, quality = 0.85) {
   });
 }
 
-/* One entry point for every upload. Tries R2, falls back to Supabase. */
+/* One entry point for every upload. Tries R2, falls back to Supabase.
+   `uri` may be a string OR the Blob itself — pass the Blob when you
+   have it and Safari's blob-fetch bug never comes up. */
 export async function uploadMediaSmart(userId, uri, ext, contentType) {
   if (!SUPABASE_READY) return uri; // demo mode keeps the local blob url
   if (R2_READY) {

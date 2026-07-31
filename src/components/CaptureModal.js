@@ -803,7 +803,15 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
         const blob = new Blob(chunksRef.current, { type: actual });
         // the reel already carries the game in its pixels — don't re-bake
         const uri = URL.createObjectURL(blob);
-        setShot({ uri, kind: 'video', ext, contentType: actual, baked: composite });
+        /* Hold on to the Blob. Safari cannot reliably fetch() its own
+           blob: URL back — that is what produced "the upload didn't
+           reach the server" on a perfectly good connection — so the
+           uploader gets the file itself rather than a link to it. */
+        setShot({ uri, blob, bytes: blob.size, kind: 'video', ext, contentType: actual, baked: composite });
+        if (!blob.size) {
+          setClipWarn('The recording came out empty — nothing was captured. Try again, and hold the button a little longer 🎥');
+          return;
+        }
         probeClip(uri);
       };
       rec.start();
@@ -1018,12 +1026,12 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
     const needsBake = (cssFilter && cssFilter !== 'none') || effectId !== 'none' || !!gameCard || !!reelGame;
     if (isWeb && shot.kind === 'photo' && needsBake) {
       const baked = await bakeAll(shot.uri);
-      workingShot = { ...shot, uri: baked, ext: 'jpg', contentType: 'image/jpeg' };
+      workingShot = { ...shot, uri: baked, blob: null, ext: 'jpg', contentType: 'image/jpeg' };
     } else if (isWeb && shot.kind === 'photo') {
       // gallery pictures arrive full-resolution — shrink to feed size
       // (invisible on a phone, ~6x fewer bytes stored & downloaded)
       const small = await compressImage(shot.uri, 1600, 0.85);
-      workingShot = { ...shot, uri: small, ext: 'jpg', contentType: 'image/jpeg' };
+      workingShot = { ...shot, uri: small, blob: null, ext: 'jpg', contentType: 'image/jpeg' };
     }
     try {
       // ── Moment mode: send the snap straight into a chat ──
@@ -1031,7 +1039,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
         let mediaUrl = workingShot.uri;
         if (SUPABASE_READY && user) {
           mediaUrl = isWeb
-            ? await uploadCapture(user.id, workingShot.uri, workingShot.ext, workingShot.contentType)
+            ? await uploadCapture(user.id, workingShot.blob || workingShot.uri, workingShot.ext, workingShot.contentType)
             : await uploadMedia(user.id, workingShot.uri);
         }
         onMoment && (await onMoment({
@@ -1046,7 +1054,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
       }
       if (SUPABASE_READY && user) {
         const mediaUrl = isWeb
-          ? await uploadCapture(user.id, workingShot.uri, workingShot.ext, workingShot.contentType)
+          ? await uploadCapture(user.id, workingShot.blob || workingShot.uri, workingShot.ext, workingShot.contentType)
           : await uploadMedia(user.id, workingShot.uri);
         if (mode === 'story') {
           const sticker = stickerType === 'poll' && pollQ.trim() && pollA.trim() && pollB.trim()
@@ -1336,11 +1344,13 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
             from one screenshot instead of another round of guessing.
             No normal user ever sees this. */}
         {isOwner(user) && shot && shot.kind === 'video' ? (
-          <View style={{ position: 'absolute', bottom: 210, left: 12, right: 12, backgroundColor: 'rgba(0,0,0,0.82)', borderRadius: 10, padding: 9 }}>
+          <View style={{ position: 'absolute', top: insets.top + 56, left: 12, right: 12, backgroundColor: 'rgba(0,0,0,0.88)', borderRadius: 10, padding: 9, zIndex: 40 }}>
             <Text style={{ color: '#7CF', fontSize: 10.5, fontWeight: '700', lineHeight: 15 }}>
               {'webkit=' + (isWebKit ? 'Y' : 'N') +
                '  baked=' + (shot.baked ? 'Y' : 'N') +
                '  ' + (shot.contentType || '?') + '.' + (shot.ext || '?') + '\n' +
+               'bytes=' + (shot.bytes != null ? shot.bytes : '—') +
+               '  blobHeld=' + (shot.blob ? 'Y' : 'N') + '\n' +
                'probe: ' + (diag && diag.pw ? diag.pw + 'x' + diag.ph : '—') +
                '  peak=' + (diag && diag.peak != null ? diag.peak : '—') +
                '  frame=' + (firstFrame ? 'Y' : 'N') + '\n' +
