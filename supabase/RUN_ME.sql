@@ -1342,9 +1342,27 @@ create trigger comments_guard_edit before update on public.comments
 --  "someone messaged me and it never arrived" was exactly right.
 -- ════════════════════════════════════════════════════════════════
 
-alter table public.notifications drop constraint if exists notifications_kind_check;
-alter table public.notifications add constraint notifications_kind_check
-  check (kind in ('vibe','laugh','comment','mate_request','mate_accept','message'));
+/* NOT VALID, and wrapped.
+
+   Adding this constraint the ordinary way asks Postgres to re-check
+   every notification ever written, and one legacy row with a kind
+   nobody uses any more aborted the entire file — every statement
+   after it, including the sounds columns and the storage bucket,
+   never ran. A schema change should not be able to take the rest of
+   the schema down with it.
+
+   NOT VALID applies the rule to new rows only, which is the whole
+   point: it is here to stop bad data arriving, not to litigate old
+   data. The DO block means even that cannot break anything else. */
+do $do$
+begin
+  alter table public.notifications drop constraint if exists notifications_kind_check;
+  alter table public.notifications add constraint notifications_kind_check
+    check (kind in ('vibe','laugh','comment','mate_request','mate_accept','message'))
+    not valid;
+exception when others then
+  raise notice 'notifications kind constraint skipped: %', sqlerrm;
+end $do$;
 
 create or replace function public.notify_dm() returns trigger
 language plpgsql security definer set search_path = public as $fn$
