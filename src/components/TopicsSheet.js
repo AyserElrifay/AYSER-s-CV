@@ -78,8 +78,10 @@ const TopicPage = ({ topic, onBack, onOpenPost, onCompose }) => {
           <Text style={{ color: 'rgba(255,255,255,0.86)', fontSize: 13.5, lineHeight: 20, marginTop: 6 }}>{topic.blurb}</Text>
         ) : null}
         <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 12, fontWeight: '800', marginTop: 10 }}>
-          {topic.moments} {topic.moments === 1 ? 'moment' : 'moments'}
-          {topic.people ? ' · ' + topic.people + (topic.people === 1 ? ' person' : ' people') : ''}
+          {rows === null
+            ? 'Counting…'
+            : (rows.length || topic.moments) + ' ' + ((rows.length || topic.moments) === 1 ? 'moment' : 'moments')
+              + (topic.people ? ' · ' + topic.people + (topic.people === 1 ? ' person' : ' people') : '')}
         </Text>
       </LinearGradient>
 
@@ -152,7 +154,7 @@ const TopicPage = ({ topic, onBack, onOpenPost, onCompose }) => {
   );
 };
 
-export const TopicsSheet = ({ onClose, onOpenPost, onCompose, initialSlug = null }) => {
+export const TopicsSheet = ({ onClose, onOpenPost, onCompose, initialSlug = null, initialTag = null }) => {
   const insets = useSafeAreaInsets();
   const [topics, setTopics] = useState(null);
   const [open, setOpen] = useState(null);
@@ -164,9 +166,26 @@ export const TopicsSheet = ({ onClose, onOpenPost, onCompose, initialSlug = null
       if (initialSlug) {
         const hit = rows.find((t) => t.slug === initialSlug);
         if (hit) setOpen(hit);
+      } else if (initialTag) {
+        /* Opened from a hashtag somebody typed. If we curate that tag it
+           opens the real topic; if we don't, it still gets a page —
+           every hashtag in the app is a room, not just ours. */
+        const tag = initialTag.startsWith('#') ? initialTag : '#' + initialTag;
+        const hit = rows.find((t) => t.tag.toLowerCase() === tag.toLowerCase());
+        setOpen(hit || {
+          slug: 'tag:' + tag.slice(1).toLowerCase(),
+          tag,
+          title: tag.slice(1),
+          category: null,
+          blurb: 'Everything posted with this tag.',
+          emoji: '#',
+          tint: 'violet',
+          moments: 0,
+          people: 0,
+        });
       }
     }).catch(() => setTopics([]));
-  }, [initialSlug]);
+  }, [initialSlug, initialTag]);
 
   useEffect(load, [load]);
 

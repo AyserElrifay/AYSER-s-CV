@@ -125,6 +125,7 @@ export const HomeScreen = () => {
   const openLikers = (post, kind) => { setLikersKind(kind); setLikersPost(post); };
   const [topicsOpen, setTopicsOpen] = useState(false);   // the rooms a moment can belong to
   const [composeTag, setComposeTag] = useState('');      // opened from a topic → tag is prefilled
+  const [openTag, setOpenTag] = useState(null);          // a hashtag somebody tapped in a caption
   const [reportPost, setReportPost] = useState(null); // a moment being reported
   const [toast, setToast] = useState(null);
 
@@ -416,6 +417,7 @@ export const HomeScreen = () => {
               onComment={() => openComments(item)}
               onOpenProfile={setProfileUser}
               onOpenReel={openReel}
+              onOpenTag={(tag) => setOpenTag(tag)}
               onOpenLikers={(p) => openLikers(p, 'star')}
               onOpenLaughers={(p) => openLikers(p, 'laugh')}
               onReport={setReportPost}
@@ -550,17 +552,19 @@ export const HomeScreen = () => {
           onClose={() => setSearching(false)}
           onOpenProfile={(u) => { setSearching(false); setProfileUser(u); }}
           onOpenTopics={() => { setSearching(false); setTopicsOpen(true); }}
+          onOpenTag={(tag) => { setSearching(false); setOpenTag(tag); }}
         />
       ) : null}
 
       {/* Topics — real hashtags with a name and a home. Posting from a
           topic drops you into the composer with the tag already in it,
           so the moment really lands in that room. */}
-      {topicsOpen ? (
+      {topicsOpen || openTag ? (
         <TopicsSheet
-          onClose={() => setTopicsOpen(false)}
-          onOpenPost={(row) => { setTopicsOpen(false); setSharedPost(toCard(row)); }}
-          onCompose={(tag) => { setTopicsOpen(false); setComposeTag(tag); setComposing('post'); }}
+          initialTag={openTag}
+          onClose={() => { setTopicsOpen(false); setOpenTag(null); }}
+          onOpenPost={(row) => { setTopicsOpen(false); setOpenTag(null); setSharedPost(toCard(row)); }}
+          onCompose={(tag) => { setTopicsOpen(false); setOpenTag(null); setComposeTag(tag); setComposing('post'); }}
         />
       ) : null}
       {storyIndex !== null ? (

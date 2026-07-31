@@ -21,7 +21,7 @@ const typeChip = (post) => {
   return { label: 'MOMENT', tint: 'rgba(17,24,39,0.65)', color: 'rgba(255,255,255,0.85)' };
 };
 
-export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onLaugh: onLaughProp, onRemoveLaugh, isMine, onDelete, onEdit, onShare, onJoin, onVibe, onComment, onOpenProfile, onOpenReel, onOpenLikers, onOpenLaughers, onReport }) => {
+export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onLaugh: onLaughProp, onRemoveLaugh, isMine, onDelete, onEdit, onShare, onJoin, onVibe, onComment, onOpenProfile, onOpenReel, onOpenLikers, onOpenLaughers, onReport, onOpenTag }) => {
   // Moments are captured at an enforced 4:5 crop (ComposeModal) — sizing
   // the card by aspect ratio, not a fixed height, means the feed shows
   // exactly what was cropped, no extra cover-crop surprise.
@@ -51,6 +51,27 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
     catch (e) { setTranslated('__failed__'); }
     finally { setTranslating(false); }
   };
+  /* A hashtag somebody typed is a room in the app, so it should behave
+     like one. The caption is split on tags and each one is handed back
+     as its own pressable word — the text still wraps and truncates
+     exactly as before, it just stopped being inert. */
+  const TAG_SPLIT = /(#[\p{L}\p{N}_]{2,30})/gu;
+  const withTags = (text, tagColor) => {
+    const str = String(text || '');
+    if (!onOpenTag || !/#/.test(str)) return str;
+    return str.split(TAG_SPLIT).map((part, i) => (
+      /^#[\p{L}\p{N}_]{2,30}$/u.test(part) ? (
+        <Text
+          key={i}
+          onPress={() => { tapLight(); onOpenTag(part); }}
+          style={{ color: tagColor, fontWeight: '800' }}
+        >
+          {part}
+        </Text>
+      ) : part
+    ));
+  };
+
   const CAP_LIMIT = 180;
   const fullCap = post.caption || '';
   const capLong = fullCap.length > CAP_LIMIT;
@@ -253,7 +274,7 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
             ) : null}
             <LinearGradient colors={['transparent', 'rgba(0,0,0,0.82)']} style={{ padding: 14, paddingTop: 44 }}>
               <Text style={{ color: '#FFF', fontSize: 14.5, lineHeight: 21, fontWeight: '500' }} numberOfLines={capExpanded ? undefined : 3}>
-                {post.caption}
+                {withTags(post.caption, '#C4B5FD')}
               </Text>
               {translating || translated ? (
                 <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13.5, lineHeight: 20, marginTop: 6, fontStyle: 'italic' }}>
@@ -283,7 +304,7 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
               </Text>
             ) : null}
             <Text style={{ color: textBg.text, fontSize: 22, lineHeight: 32, fontWeight: '700', textAlign: 'center' }}>
-              {teaserCap}
+              {withTags(teaserCap, textBg.text)}
               {capLong ? (
                 <Text onPress={() => { tapLight(); setCapExpanded((v) => !v); }} style={{ fontSize: 15, fontWeight: '900', opacity: 0.72 }}>
                   {capExpanded ? '  ' + t('see_less') : t('see_more')}

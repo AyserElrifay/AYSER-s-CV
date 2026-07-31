@@ -40,7 +40,7 @@ const fromProfileRow = (row) => ({
   bio: row.bio || 'New to Moments — say hi! 👋',
 });
 
-export const SearchModal = ({ onClose, onOpenProfile, onOpenTopics }) => {
+export const SearchModal = ({ onClose, onOpenProfile, onOpenTopics, onOpenTag }) => {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [query, setQuery] = useState('');
@@ -236,7 +236,12 @@ export const SearchModal = ({ onClose, onOpenProfile, onOpenTopics }) => {
   );
 
   const TrendRow = ({ item, rank }) => (
-    <Pressable onPress={() => setQuery(item.tag)}>
+    /* A trending hashtag is a room — tapping it should walk you into it,
+       not type it into a box and leave you to press search. */
+    <Pressable onPress={() => {
+      if (onOpenTag && /^#/.test(item.tag)) { tapLight(); onOpenTag(item.tag); return; }
+      setQuery(item.tag);
+    }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 11 }}>
         <Text style={{ color: C.faint, fontSize: 15, fontWeight: '900', width: 26 }}>{rank}</Text>
         <View style={{ flex: 1 }}>
