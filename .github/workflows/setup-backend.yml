@@ -119,24 +119,53 @@ jobs:
             echo "::warning::No GROQ_API_KEY secret — Bardi will have no provider until one is added."
           fi
 
-      # Prove it actually works rather than assuming a green deploy means
-      # a working Bardi. Secrets can take a few seconds to propagate, so
-      # this retries before giving up.
-      - name: Ask Bardi a real question
+      # Prove it works the way the APP calls it, not just the way curl
+      # does. The browser sends an Origin header and a preflight first,
+      # so a plain curl can pass while every real user still fails on
+      # CORS. Both are checked here.
+      - name: Ask Bardi the way the app does
         if: ${{ inputs.deploy_function }}
+        env:
+          SITE_ORIGIN: ${{ inputs.site_origin }}
+          # The anon key is public by design — it is already in the shipped
+          # web bundle. It is sent here only to mimic the browser exactly.
+          ANON: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR2ZGRpeXp0cHl5dXVsdG5kenNvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM3ODUzOTYsImV4cCI6MjA5OTM2MTM5Nn0.Q4I0ZTuXl_nx9INUV3Knod8Rq5gWQOms0jpDATcX15c'
         run: |
           set -uo pipefail
           url="https://$REF.supabase.co/functions/v1/bardi-chat"
+
+          echo "── 1. preflight (what the browser sends first) ──"
+          curl -sS -o /dev/null -D /tmp/pre.h -m 30 -X OPTIONS "$url" \
+            -H "Origin: $SITE_ORIGIN" \
+            -H 'Access-Control-Request-Method: POST' \
+            -H 'Access-Control-Request-Headers: authorization, content-type, apikey, x-client-info' || true
+          cat /tmp/pre.h
+          allow=$(grep -i '^access-control-allow-origin:' /tmp/pre.h | tr -d '\r' | cut -d' ' -f2-)
+          echo "allow-origin = '${allow:-<none>}' (need '$SITE_ORIGIN')"
+
+          echo "── 2. the real call, with Origin + the anon key ──"
           body='{"messages":[{"role":"user","content":"Say hi in one short sentence."}],"language":"en"}'
           for i in 1 2 3 4 5; do
-            code=$(curl -sS -o /tmp/bardi.out -w '%{http_code}' -m 45 \
-              -X POST "$url" -H 'Content-Type: application/json' --data "$body" || echo 000)
+            code=$(curl -sS -o /tmp/bardi.out -D /tmp/bardi.h -w '%{http_code}' -m 45 \
+              -X POST "$url" \
+              -H 'Content-Type: application/json' \
+              -H "Origin: $SITE_ORIGIN" \
+              -H "apikey: $ANON" \
+              -H "Authorization: Bearer $ANON" \
+              -H 'x-client-info: supabase-js-web/2.0.0' \
+              --data "$body" || echo 000)
             if [ "$code" = "200" ]; then
               echo "Bardi replied:"
               jq -r '.reply' /tmp/bardi.out
+              if [ "$allow" != "$SITE_ORIGIN" ]; then
+                echo "::error::Bardi answers, but the preflight does not allow $SITE_ORIGIN — every browser call will be blocked."
+                exit 1
+              fi
+              echo "CORS is correct too."
               exit 0
             fi
             echo "attempt $i → HTTP $code"
+            grep -i '^access-control-allow-origin:' /tmp/bardi.h || echo "(no allow-origin header)"
             head -c 600 /tmp/bardi.out; echo
             sleep 10
           done
