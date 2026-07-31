@@ -19,6 +19,7 @@ import { Tick } from './Tick';
 import { AvatarRing } from './AvatarRing';
 import { SectionHeader } from './SectionHeader';
 import { PostCard } from './PostCard';
+import { LikersSheet } from './LikersSheet';
 import { ReelsViewer } from './ReelsViewer';
 import { StoryViewer } from './StoryViewer';
 import { tapLight, tapSuccess, tapSelection } from '../utils/feedback';
@@ -64,6 +65,8 @@ export const ProfileModal = ({ user, onClose }) => {
   const [myLaughs, setMyLaughs] = useState({});
   const [myReposts, setMyReposts] = useState({});
   const [shareMsg, setShareMsg] = useState(null);
+  const [likersPost, setLikersPost] = useState(null);
+  const [likersKind, setLikersKind] = useState('star');
 
   useEffect(() => {
     if (!SUPABASE_READY || !me) return;
@@ -426,10 +429,11 @@ export const ProfileModal = ({ user, onClose }) => {
                   onRepost={() => repostMoment(viewMoment)}
                   onShare={shareMoment}
                   onJoin={() => {}}
-                  onOpenLikers={() => {}}
-                  onOpenLaughers={() => {}}
+                  onOpenLikers={(x) => { setLikersKind('star'); setLikersPost(x || viewMoment); }}
+                  onOpenLaughers={(x) => { setLikersKind('laugh'); setLikersPost(x || viewMoment); }}
                 />
               </ScrollView>
+              {likersPost ? <LikersSheet post={likersPost} kind={likersKind} onClose={() => setLikersPost(null)} /> : null}
               {shareMsg ? (
                 <View style={{ position: 'absolute', bottom: 40, left: 30, right: 30, backgroundColor: C.float, borderRadius: 12, borderWidth: 1, borderColor: C.line, paddingVertical: 11 }}>
                   <Text style={{ color: C.text, fontSize: 13, fontWeight: '800', textAlign: 'center' }}>{shareMsg}</Text>
@@ -443,8 +447,8 @@ export const ProfileModal = ({ user, onClose }) => {
           <ReelsViewer
             reels={reelView.reels}
             startIndex={reelView.index}
-            vibes={{}}
-            onVibe={() => {}}
+            vibes={myVibes}
+            onVibe={vibeMoment}
             onComment={(item) => setCommentsPost(item)}
             onClose={() => setReelView(null)}
           />

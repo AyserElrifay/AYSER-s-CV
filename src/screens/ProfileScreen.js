@@ -1181,8 +1181,8 @@ export const ProfileScreen = () => {
         <ReelsViewer
           reels={reelView.reels}
           startIndex={reelView.index}
-          vibes={{}}
-          onVibe={() => {}}
+          vibes={myVibes}
+          onVibe={vibeMoment}
           onComment={(item) => setCommentsPost(item)}
           onClose={() => setReelView(null)}
         />
