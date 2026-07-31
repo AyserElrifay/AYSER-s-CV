@@ -1746,6 +1746,49 @@ on conflict (slug) do update set
 notify pgrst, 'reload schema';
 
 
+
+-- ═══════════ YOUR LIBRARY · upload once, post whenever ═══════════
+-- Uploading at the moment you post is the worst possible time to do
+-- it: you are standing there watching a bar, and on a bad connection
+-- the whole thing fails and takes the caption with it. A library moves
+-- the wait to a moment nobody is waiting — you add clips and photos
+-- when you have signal, and posting later is instant because the file
+-- is already up there.
+--
+-- It is YOURS: the read policy is your own rows only. Nobody browses
+-- anybody else's library, ever.
+
+create table if not exists public.media_library (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid not null references public.profiles(id) on delete cascade,
+  url        text not null,
+  kind       text not null default 'photo' check (kind in ('photo','video')),
+  bytes      bigint,
+  used_count int not null default 0,
+  created_at timestamptz not null default now()
+);
+create index if not exists media_library_user_idx on public.media_library(user_id, created_at desc);
+alter table public.media_library enable row level security;
+
+drop policy if exists "your library is yours" on public.media_library;
+create policy "your library is yours" on public.media_library
+  for select using (auth.uid() = user_id);
+
+drop policy if exists "add to your library" on public.media_library;
+create policy "add to your library" on public.media_library
+  for insert with check (auth.uid() = user_id);
+
+drop policy if exists "tidy your library" on public.media_library;
+create policy "tidy your library" on public.media_library
+  for delete using (auth.uid() = user_id);
+
+drop policy if exists "count your own uses" on public.media_library;
+create policy "count your own uses" on public.media_library
+  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+notify pgrst, 'reload schema';
+
+
 -- ═══════════════════ READINESS CHECKLIST ═══════════════════
 -- Every column below should say TRUE. If chat_ready is FALSE,
 -- also run supabase/schema_v2_live.sql (messages & live map).
@@ -1785,4 +1828,5 @@ select
   (to_regclass('public.post_tags')            is not null) as tagging_ready,
   (to_regclass('public.highlights')           is not null) as highlights_ready,
   (to_regclass('public.topics')               is not null) as topics_ready,
+  (to_regclass('public.media_library')        is not null) as library_ready,
   (to_regclass('public.films')                is not null) as films_ready;

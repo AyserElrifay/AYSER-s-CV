@@ -708,6 +708,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
      face. One tray at a time now: nothing is open until you ask for it,
      and what you're looking through stays a camera. */
   const [tray, setTray] = useState(null);   // null | 'games' | 'lens' | 'sound'
+  const [libraryOpen, setLibraryOpen] = useState(false);   // pick something already uploaded
   const [gameCard, setGameCard] = useState(null); // { kind:'roulette'|'question', text }
   const particlesRef = useRef(null); // stable random layout per effect pick
   const rollGame = (kind) => {
@@ -1162,6 +1163,27 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
     }
   };
 
+  /* Something already in your library: it is on the server already, so
+     there is nothing left to upload when you post. `remote` tells the
+     share step to use the URL as it stands instead of sending the same
+     bytes up a second time. */
+  const useFromLibrary = (row) => {
+    setLibraryOpen(false);
+    if (!row || !row.url) return;
+    const isVid = row.kind === 'video';
+    setShot({
+      uri: row.url,
+      blob: null,
+      remote: true,
+      libraryId: row.id,
+      bytes: row.bytes || null,
+      kind: isVid ? 'video' : 'photo',
+      ext: isVid ? 'mp4' : 'jpg',
+      contentType: isVid ? 'video/mp4' : 'image/jpeg',
+    });
+    if (isVid) probeClip(row.url);
+  };
+
   /* ── gallery: upload a photo or video from your library into a
      story/reel — with the full sound rail available in preview ── */
   const pickFromLibrary = async () => {
@@ -1312,6 +1334,8 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
     // bake the look into the photo's real pixels before uploading
     let workingShot = shot;
     const needsBake = (cssFilter && cssFilter !== 'none') || effectId !== 'none' || !!gameCard || !!reelGame || !!lens;
+    // already in your library → already uploaded; posting is instant
+    const alreadyUp = !!shot.remote && !(shot.kind === 'photo' && needsBake);
     if (isWeb && shot.kind === 'photo' && needsBake) {
       const baked = await bakeAll(shot.uri);
       workingShot = { ...shot, uri: baked, blob: null, ext: 'jpg', contentType: 'image/jpeg' };
@@ -1325,7 +1349,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
       // ── Moment mode: send the snap straight into a chat ──
       if (sendMode) {
         let mediaUrl = workingShot.uri;
-        if (SUPABASE_READY && user) {
+        if (SUPABASE_READY && user && !alreadyUp) {
           mediaUrl = isWeb
             ? await uploadCapture(user.id, workingShot.blob || workingShot.uri, workingShot.ext, workingShot.contentType)
             : await uploadMedia(user.id, workingShot.uri);
@@ -1341,9 +1365,12 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
         return;
       }
       if (SUPABASE_READY && user) {
-        const mediaUrl = isWeb
-          ? await uploadCapture(user.id, workingShot.blob || workingShot.uri, workingShot.ext, workingShot.contentType)
-          : await uploadMedia(user.id, workingShot.uri);
+        const mediaUrl = alreadyUp
+          ? workingShot.uri
+          : isWeb
+            ? await uploadCapture(user.id, workingShot.blob || workingShot.uri, workingShot.ext, workingShot.contentType)
+            : await uploadMedia(user.id, workingShot.uri);
+        if (alreadyUp && shot.libraryId) markUsed(shot.libraryId);
         if (mode === 'story') {
           const sticker = stickerType === 'poll' && pollQ.trim() && pollA.trim() && pollB.trim()
             ? { type: 'poll', data: { question: pollQ.trim(), options: [pollA.trim(), pollB.trim()] } }
@@ -1828,9 +1855,9 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
               {isWeb ? (
                 <View style={{ alignItems: 'center', marginBottom: 14 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <Pressable onPress={() => { tapLight(); pickFromLibrary(); }} hitSlop={8} style={{ marginRight: 34 }}>
+                    <Pressable onPress={() => { tapLight(); setLibraryOpen(true); }} hitSlop={8} style={{ marginRight: 34 }}>
                       <View style={{ width: 46, height: 46, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.16)', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.5)', alignItems: 'center', justifyContent: 'center' }}>
-                        <Ionicons name="images-outline" size={22} color="#FFF" />
+                        <Ionicons name="albums-outline" size={22} color="#FFF" />
                       </View>
                     </Pressable>
                     <Pressable onPressIn={onShutterDown} onPressOut={onShutterUp} disabled={!!camError}>
@@ -1850,8 +1877,8 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
                   </View>
                   <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 11.5, fontWeight: '700', marginTop: 10 }}>
                     {isWebKit
-                      ? 'Tap for photo · 🎥 for video · 🖼️ upload'
-                      : 'Tap for photo · hold for video · 🖼️ upload'}
+                      ? 'Tap for photo · 🎥 for video · 📚 your library'
+                      : 'Tap for photo · hold for video · 📚 your library'}
                   </Text>
                   {isWebKit ? (
                     <Text style={{ color: 'rgba(255,255,255,0.55)', fontSize: 10.5, marginTop: 5, textAlign: 'center', paddingHorizontal: 24, lineHeight: 15 }}>
@@ -2080,6 +2107,12 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
         </View>
 
         {hubOpen ? <MusicHubSheet onPick={(t) => chooseSound(t, false)} onClose={() => setHubOpen(false)} /> : null}
+
+        {/* everything you've already uploaded — pick one and posting is
+            instant, because the file is already up there */}
+        {libraryOpen ? (
+          <MediaLibrarySheet onPick={useFromLibrary} onClose={() => setLibraryOpen(false)} />
+        ) : null}
       </View>
     </Modal>
   );
