@@ -704,11 +704,12 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
   // ── effects + game filters (previewed live, baked on share) ──
   const [effectId, setEffectId] = useState('none');
   const arcadeStartRef = React.useRef(0);   // when this round started, so the bake matches the preview
-  /* The viewfinder was three rails deep before you could see your own
-     face. One tray at a time now: nothing is open until you ask for it,
-     and what you're looking through stays a camera. */
-  const [tray, setTray] = useState(null);   // null | 'games' | 'lens' | 'sound'
+  /* The viewfinder is a camera again: the lens carousel sits by the
+     shutter, everything else lives on the right-hand rail or in the
+     drawer you pull up. Nothing stacks over your own face. */
+
   const [libraryOpen, setLibraryOpen] = useState(false);   // pick something already uploaded
+  const [effectsOpen, setEffectsOpen] = useState(false);   // the whole drawer, pulled up
   /* Where it happened and what it's about — asked once, after the shot,
      which is the only moment you actually know both. Five tags is the
      ceiling: past that it stops being a subject and starts being spam. */
@@ -1743,21 +1744,33 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
             </View>
           ) : null}
           <View style={{ flex: 1 }} />
-          {!shot && isWeb ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              {/* see the WHOLE camera view when the frame feels too close in */}
-              <Pressable onPress={() => { tapLight(); setFit((f) => (f === 'wide' ? 'fill' : 'wide')); }} hitSlop={10} style={{ marginRight: 16 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: fit === 'wide' ? 'rgba(255,255,255,0.22)' : 'transparent', borderWidth: 1, borderColor: 'rgba(255,255,255,0.45)', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 }}>
-                  <Ionicons name="scan-outline" size={15} color="#FFF" />
-                  <Text style={{ color: '#FFF', fontSize: 11, fontWeight: '900', marginLeft: 5 }}>{fit === 'wide' ? 'Wide' : 'Fill'}</Text>
+          <View style={{ width: 28 }} />
+        </View>
+
+        {/* THE RIGHT-HAND RAIL — flip, frame, music, effects, games.
+            One column of round buttons down the edge, out of the way of
+            your own face, the way a camera app does it. */}
+        {!shot && isWeb ? (
+          <View style={{ position: 'absolute', right: 12, top: insets.top + 64, alignItems: 'center' }}>
+            {[
+              { k: 'flip', icon: 'camera-reverse-outline', on: false, press: flip },
+              { k: 'fit', icon: 'scan-outline', on: fit === 'wide', press: () => { tapLight(); setFit((f) => (f === 'wide' ? 'fill' : 'wide')); } },
+              { k: 'sound', icon: 'musical-notes-outline', on: !!sound, press: () => { tapLight(); setHubOpen(true); } },
+              { k: 'fx', icon: 'sparkles-outline', on: !!lens || (filterId && filterId !== 'none') || effectId !== 'none', press: () => { tapLight(); setEffectsOpen(true); } },
+              { k: 'games', icon: 'game-controller-outline', on: !!reelGame, press: () => { tapLight(); setEffectsOpen(true); } },
+            ].map((b) => (
+              <Pressable key={b.k} onPress={b.press} hitSlop={8} style={{ marginBottom: 12 }}>
+                <View style={{
+                  width: 42, height: 42, borderRadius: 21,
+                  backgroundColor: b.on ? C.purple : 'rgba(0,0,0,0.42)',
+                  alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <Ionicons name={b.icon} size={19} color="#FFF" />
                 </View>
               </Pressable>
-              <Pressable onPress={flip} hitSlop={10}>
-                <Ionicons name="camera-reverse-outline" size={28} color="#FFF" />
-              </Pressable>
-            </View>
-          ) : <View style={{ width: 28 }} />}
-        </View>
+            ))}
+          </View>
+        ) : null}
 
         {camError ? (
           <View style={{ position: 'absolute', top: insets.top + 60, left: 24, right: 24, backgroundColor: 'rgba(0,0,0,0.75)', borderRadius: 14, padding: 14 }}>
@@ -1831,46 +1844,18 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
         <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, paddingBottom: insets.bottom + 16 }}>
           {!shot ? (
             <>
-              {/* reel games — pick one, it plays live on your face, and the
-                  slot-machine reveal bakes right into the reel you record */}
-              {isWeb && tray === 'games' ? (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 14, alignItems: 'center', marginBottom: 10 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 8 }}>
-                    <MaterialCommunityIcons name="gamepad-variant" size={15} color="#FFF" />
-                    <Text style={{ color: '#FFF', fontSize: 11.5, fontWeight: '900', marginLeft: 4 }}>Games</Text>
-                  </View>
-                  {reelGame ? (
-                    <Pressable onPress={clearReelGame}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.16)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.4)', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8, marginRight: 8 }}>
-                        <Ionicons name="close" size={13} color="#FFF" />
-                        <Text style={{ color: '#FFF', fontSize: 11.5, fontWeight: '900', marginLeft: 4 }}>None</Text>
-                      </View>
-                    </Pressable>
-                  ) : null}
-                  {reelGames.map((g) => {
-                    const on = reelGame && reelGame.id === g.id;
-                    return (
-                      <Pressable key={g.id} onPress={() => pickReelGame(g)}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: on ? C.gold : 'rgba(255,255,255,0.16)', borderWidth: 1, borderColor: on ? C.gold : 'rgba(255,255,255,0.4)', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8, marginRight: 8 }}>
-                          <Text style={{ fontSize: 14 }}>{g.emoji}</Text>
-                          <Text style={{ color: on ? '#241146' : '#FFF', fontSize: 11.5, fontWeight: '900', marginLeft: 5 }}>{on ? 'Re-spin' : g.title}</Text>
-                        </View>
-                      </Pressable>
-                    );
-                  })}
-                </ScrollView>
-              ) : null}
-
-              {/* LENSES — every one of them drawn by us in code, so there
-                  is nothing licensed here to go wrong. */}
-              {tray === 'lens' ? (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 14, marginBottom: 10 }}>
+              {/* THE LENS CAROUSEL — always there, right of the shutter,
+                  the way a camera does it. Swipe it, tap one, wear it.
+                  The ✨ at the end opens the whole drawer. */}
+              <ScrollView
+                horizontal showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ paddingHorizontal: 14, alignItems: 'center', marginBottom: 8 }}
+              >
                 <Pressable onPress={() => { tapLight(); setLens(null); }}>
-                  <View style={{ alignItems: 'center', marginRight: 12, opacity: lens ? 0.55 : 1 }}>
-                    <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: 'rgba(255,255,255,0.16)', borderWidth: 2, borderColor: lens ? 'transparent' : '#FFF', alignItems: 'center', justifyContent: 'center' }}>
+                  <View style={{ alignItems: 'center', marginRight: 10, opacity: lens ? 0.5 : 1 }}>
+                    <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: 'rgba(255,255,255,0.14)', borderWidth: 2, borderColor: lens ? 'transparent' : '#FFF', alignItems: 'center', justifyContent: 'center' }}>
                       <Ionicons name="close" size={18} color="#FFF" />
                     </View>
-                    <Text style={{ color: '#FFF', fontSize: 10, fontWeight: '800', marginTop: 4 }}>None</Text>
                   </View>
                 </Pressable>
                 {LENSES.map((l) => {
@@ -1883,62 +1868,72 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
                         setLens(on ? null : { id: l.id, x: 0.5, y: l.kind === 'wear' ? 0.42 : 0.5, s: 0.42 });
                       }}
                     >
-                      <View style={{ alignItems: 'center', marginRight: 12 }}>
-                        <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: on ? '#FFF' : 'rgba(255,255,255,0.16)', borderWidth: 2, borderColor: on ? C.gold : 'rgba(255,255,255,0.35)', alignItems: 'center', justifyContent: 'center' }}>
-                          <Text style={{ fontSize: 20 }}>{l.emoji}</Text>
+                      <View style={{ alignItems: 'center', marginRight: 10 }}>
+                        <View style={{
+                          width: on ? 62 : 52, height: on ? 62 : 52, borderRadius: 31,
+                          backgroundColor: on ? '#FFF' : 'rgba(255,255,255,0.14)',
+                          borderWidth: 2, borderColor: on ? C.gold : 'rgba(255,255,255,0.3)',
+                          alignItems: 'center', justifyContent: 'center',
+                        }}>
+                          <Text style={{ fontSize: on ? 26 : 22 }}>{l.emoji}</Text>
                         </View>
-                        <Text style={{ color: '#FFF', fontSize: 10, fontWeight: '800', marginTop: 4 }} numberOfLines={1}>{l.label}</Text>
                       </View>
                     </Pressable>
                   );
                 })}
-              </ScrollView>
-              ) : null}
-
-              {/* size, once something is on */}
-              {lens && tray === 'lens' ? (
-                <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, marginBottom: 10 }}>
-                  <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 11, fontWeight: '800', marginRight: 10 }}>Size</Text>
-                  <Pressable onPress={() => setLens((l) => ({ ...l, s: Math.max(0.15, l.s - 0.06) }))} hitSlop={8} style={{ paddingHorizontal: 10 }}>
-                    <Ionicons name="remove-circle-outline" size={24} color="#FFF" />
-                  </Pressable>
-                  <View style={{ flex: 1, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.25)', marginHorizontal: 6 }}>
-                    <View style={{ height: 4, borderRadius: 2, backgroundColor: C.gold, width: Math.round(((lens.s - 0.15) / 0.65) * 100) + '%' }} />
+                <Pressable onPress={() => { tapLight(); setEffectsOpen(true); }}>
+                  <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: 'rgba(255,255,255,0.14)', borderWidth: 2, borderColor: 'rgba(255,255,255,0.3)', alignItems: 'center', justifyContent: 'center' }}>
+                    <Ionicons name="sparkles" size={20} color="#FFF" />
                   </View>
-                  <Pressable onPress={() => setLens((l) => ({ ...l, s: Math.min(0.8, l.s + 0.06) }))} hitSlop={8} style={{ paddingHorizontal: 10 }}>
-                    <Ionicons name="add-circle-outline" size={24} color="#FFF" />
+                </Pressable>
+              </ScrollView>
+
+              {/* the size stepper, only while you're wearing something */}
+              {lens ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, marginBottom: 8 }}>
+                  <Pressable onPress={() => setLens((l) => ({ ...l, s: Math.max(0.15, l.s - 0.06) }))} hitSlop={8} style={{ paddingHorizontal: 8 }}>
+                    <Ionicons name="remove-circle-outline" size={22} color="#FFF" />
+                  </Pressable>
+                  <View style={{ flex: 1, height: 3, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.25)', marginHorizontal: 6 }}>
+                    <View style={{ height: 3, borderRadius: 2, backgroundColor: C.gold, width: Math.round(((lens.s - 0.15) / 0.65) * 100) + '%' }} />
+                  </View>
+                  <Pressable onPress={() => setLens((l) => ({ ...l, s: Math.min(0.8, l.s + 0.06) }))} hitSlop={8} style={{ paddingHorizontal: 8 }}>
+                    <Ionicons name="add-circle-outline" size={22} color="#FFF" />
                   </Pressable>
                 </View>
               ) : null}
 
-              {tray === 'sound' ? soundRail : null}
-
-              {/* one row of doors instead of three open rooms */}
-              <View style={{ flexDirection: 'row', justifyContent: 'center', marginBottom: 12 }}>
+              {/* the strip under it, like a camera's category row */}
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, alignItems: 'center', marginBottom: 10 }}>
+                <Pressable onPress={() => { tapLight(); setEffectsOpen(true); }} style={{ marginRight: 14 }}>
+                  <Ionicons name="game-controller-outline" size={20} color="#FFF" />
+                </Pressable>
                 {[
-                  { k: 'lens', icon: 'happy-outline', label: 'Lenses', on: !!lens },
-                  { k: 'games', icon: 'game-controller-outline', label: 'Games', on: !!reelGame },
-                  { k: 'sound', icon: 'musical-notes-outline', label: sound ? (sound.title || 'Sound') : 'Sound', on: !!sound },
-                ].map((b) => {
-                  const open = tray === b.k;
-                  if (b.k === 'games' && !isWeb) return null;
-                  return (
-                    <Pressable key={b.k} onPress={() => { tapLight(); setTray(open ? null : b.k); }}>
-                      <View style={{
-                        flexDirection: 'row', alignItems: 'center', marginHorizontal: 5,
-                        backgroundColor: open ? '#FFF' : b.on ? 'rgba(124,58,237,0.85)' : 'rgba(0,0,0,0.42)',
-                        borderWidth: 1, borderColor: open ? '#FFF' : 'rgba(255,255,255,0.45)',
-                        borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8,
-                      }}>
-                        <Ionicons name={b.icon} size={15} color={open ? '#241146' : '#FFF'} />
-                        <Text numberOfLines={1} style={{ color: open ? '#241146' : '#FFF', fontSize: 11.5, fontWeight: '900', marginLeft: 5, maxWidth: 92 }}>
-                          {b.label}
-                        </Text>
-                      </View>
-                    </Pressable>
-                  );
-                })}
-              </View>
+                  { k: 'you', label: 'For You' },
+                  { k: 'faces', label: 'Faces' },
+                  { k: 'colour', label: 'Colour' },
+                  { k: 'fun', label: 'Fun' },
+                  { k: 'games', label: 'Games' },
+                ].map((t) => (
+                  <Pressable key={t.k} onPress={() => { tapLight(); setEffectsOpen(true); }}>
+                    <View style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, backgroundColor: t.k === 'you' ? 'rgba(0,0,0,0.5)' : 'transparent' }}>
+                      <Text style={{ color: t.k === 'you' ? '#FFF' : 'rgba(255,255,255,0.6)', fontSize: 13, fontWeight: t.k === 'you' ? '900' : '700' }}>{t.label}</Text>
+                    </View>
+                  </Pressable>
+                ))}
+              </ScrollView>
+
+              {/* what you're wearing right now, in one line */}
+              {sound ? (
+                <Pressable onPress={() => { tapLight(); setHubOpen(true); }} style={{ alignSelf: 'center', marginBottom: 10 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 }}>
+                    <Ionicons name="musical-notes" size={13} color="#FFF" />
+                    <Text style={{ color: '#FFF', fontSize: 11.5, fontWeight: '800', marginLeft: 6 }} numberOfLines={1}>
+                      {sound.title}
+                    </Text>
+                  </View>
+                </Pressable>
+              ) : null}
 
               {/* shutter row — gallery upload on the left, shutter center */}
               {isWeb ? (
@@ -2260,6 +2255,26 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
             instant, because the file is already up there */}
         {libraryOpen ? (
           <MediaLibrarySheet onPick={useFromLibrary} onClose={() => setLibraryOpen(false)} />
+        ) : null}
+
+        {/* the whole drawer: lenses, looks, overlays and games */}
+        {effectsOpen ? (
+          <EffectsSheet
+            lenses={LENSES}
+            filters={FILTERS}
+            effects={EFFECTS}
+            games={reelGames}
+            lensId={lens && lens.id}
+            filterId={filterId}
+            effectId={effectId}
+            gameId={reelGame && reelGame.id}
+            onPickLens={(l) => { sfxPop(); setLens({ id: l.id, x: 0.5, y: l.kind === 'wear' ? 0.42 : 0.5, s: 0.42 }); setEffectsOpen(false); }}
+            onPickFilter={(f) => { setFilterId(f.id); setEffectsOpen(false); }}
+            onPickEffect={(e) => { pickEffect(e.id); setEffectsOpen(false); }}
+            onPickGame={(g) => { pickReelGame(g); setEffectsOpen(false); }}
+            onClear={() => { setLens(null); setFilterId('none'); pickEffect('none'); clearReelGame(); }}
+            onClose={() => setEffectsOpen(false)}
+          />
         ) : null}
       </View>
     </Modal>

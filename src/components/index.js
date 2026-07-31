@@ -59,6 +59,7 @@ export { StickerPicker } from './StickerPicker';
 export { HighlightsRail } from './Highlights';
 export { TopicsSheet } from './TopicsSheet';
 export { MediaLibrarySheet } from './MediaLibrarySheet';
+export { EffectsSheet } from './EffectsSheet';
 export { TagPeoplePicker } from './TagPeoplePicker';
 export { PeopleDiscover } from './PeopleDiscover';
 export { WhatsNew } from './WhatsNew';
