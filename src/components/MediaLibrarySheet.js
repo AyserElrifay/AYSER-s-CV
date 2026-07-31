@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, Modal, Pressable, ScrollView, Image, ActivityIndicator, Platform } from 'react-native';
+import { View, Text, Modal, Pressable, ScrollView, Image, ActivityIndicator, Platform, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { C, R } from '../constants/theme';
@@ -15,11 +15,24 @@ import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
    because the file is already up there.
 
    Nobody else can see this. The database hands out your own rows and
-   nobody else's — that isn't a setting, it's the read policy. */
+   nobody else's — that isn't a setting, it's the read policy.
+
+   ── why `inline` exists ──────────────────────────────────────────
+   Opened from the camera, this used to be a Modal inside a Modal, and
+   on iPhone that produced a blank grey page: a sliding Modal carries a
+   CSS transform, a transform makes a new containing block, and a
+   `position: fixed` child then measures itself against that box
+   instead of the screen. The sheet painted its background across the
+   whole display and laid its contents out somewhere off it — a page
+   the exact colour of our canvas, with nothing on it.
+
+   So when something is already inside a modal, it says `inline` and we
+   render an ordinary absolutely-positioned overlay instead. No second
+   portal, no transform to fight, nothing to go wrong. */
 
 const mb = (n) => (n ? (n / (1024 * 1024)).toFixed(1) + ' MB' : '');
 
-export const MediaLibrarySheet = ({ onPick, onClose, only = null }) => {
+export const MediaLibrarySheet = ({ onPick, onClose, only = null, inline = false }) => {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [rows, setRows] = useState(null);
@@ -72,9 +85,8 @@ export const MediaLibrarySheet = ({ onPick, onClose, only = null }) => {
 
   const shown = (rows || []).filter((r) => !only || r.kind === only);
 
-  return (
-    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
-      <View style={{ flex: 1, backgroundColor: C.bg }}>
+  const body = (
+      <View style={inline ? [StyleSheet.absoluteFill, { backgroundColor: C.bg, zIndex: 60 }] : { flex: 1, backgroundColor: C.bg }}>
         <View style={{ paddingTop: insets.top + 10, paddingHorizontal: 16, paddingBottom: 8, flexDirection: 'row', alignItems: 'center' }}>
           <Pressable onPress={onClose} hitSlop={10} style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center' }}>
             <Ionicons name="close" size={19} color={C.text} />
@@ -180,6 +192,12 @@ export const MediaLibrarySheet = ({ onPick, onClose, only = null }) => {
           </View>
         ) : null}
       </View>
+  );
+
+  if (inline) return body;
+  return (
+    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
+      {body}
     </Modal>
   );
 };

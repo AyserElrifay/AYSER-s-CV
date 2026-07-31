@@ -94,3 +94,51 @@ export async function fetchLeaderboard(game, limit = 25) {
     return out;
   } catch (e) { return []; }
 }
+
+/* ── TURN-BASED BOARD GAMES · the board lives in the row ─────────────
+   The arcade duels above keep nothing: they're a 30-second race and a
+   reload ends it. A board game is the other thing entirely — you take a
+   turn, put the phone down, and come back later. So the board itself is
+   written to `game_matches.state` on every move.
+
+   Both channels run: the broadcast makes the other side's move land
+   instantly, and the row change is the one that's actually reliable.
+   Whichever arrives first wins, and because a move carries its move
+   number an old message can never overwrite a newer board. */
+
+export async function openBoard(matchId, state, turnId) {
+  const { data, error } = await supabase
+    .from('game_matches')
+    .update({ status: 'active', state, turn: turnId, move_no: 0, started_at: new Date().toISOString() })
+    .eq('id', matchId)
+    .select('*')
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function pushMove(matchId, { state, turnId, moveNo, over, winnerId }) {
+  const patch = { state, turn: turnId, move_no: moveNo };
+  if (over) {
+    patch.status = 'done';
+    patch.winner_id = winnerId || null;
+    patch.ended_at = new Date().toISOString();
+  }
+  const { error } = await supabase.from('game_matches').update(patch).eq('id', matchId);
+  if (error) throw error;
+}
+
+/* The reliable half of the wire: every write to this match's row comes
+   back here, so a player who reloads or was offline picks the game up
+   exactly where it stands. */
+export function subscribeBoard(matchId, onRow) {
+  const ch = supabase
+    .channel('board_' + matchId)
+    .on(
+      'postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: 'game_matches', filter: 'id=eq.' + matchId },
+      (payload) => { if (payload && payload.new) onRow(payload.new); }
+    );
+  ch.subscribe();
+  return { leave: () => { try { supabase.removeChannel(ch); } catch (e) {} } };
+}

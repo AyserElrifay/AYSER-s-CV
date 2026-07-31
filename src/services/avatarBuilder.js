@@ -11,6 +11,7 @@
    profiles.avatar_dna — so it's cheap to keep and instant to change. */
 
 import { avatarToRoundDataUrl } from './avatarArt';
+import { characterToDataUrl } from './characterArt';
 
 const API = 'https://api.dicebear.com/9.x/personas/svg';
 
@@ -158,6 +159,28 @@ export function parseDna(str) {
    render paths — drawing the same face twice would be waste. Native
    builds (no canvas) still fall back to the hosted image below. */
 const drawnCache = new Map();
+
+/* The same person, standing — what the map shows. Cached like the
+   round one, because a map redraw shouldn't repaint every character.
+   `turn` is part of the key so a character facing left and the same
+   character facing right are two different pictures, not one. */
+const standingCache = new Map();
+export function buildStandingUrl(seed, dnaOrString, turn) {
+  try {
+    if (typeof document === 'undefined') return null;
+    if (!dnaOrString) return null;                 // no character built yet
+    const key = String(seed || 'moments') + '|' + (turn || 0) + '|' + (typeof dnaOrString === 'string' ? dnaOrString : JSON.stringify(dnaOrString));
+    const hit = standingCache.get(key);
+    if (hit) return hit;
+    const url = characterToDataUrl(dnaOrString, 140, { turn: turn || 0 });
+    if (url) {
+      if (standingCache.size > 200) standingCache.clear();
+      standingCache.set(key, url);
+      return url;
+    }
+  } catch (e) {}
+  return null;
+}
 
 export function buildAvatarUrl(seed, dnaOrString) {
   try {

@@ -1853,6 +1853,122 @@ create policy "change your own story" on public.stories
 notify pgrst, 'reload schema';
 
 
+-- ═══════════ TURN-BASED BOARD GAMES · two people, one board ═══════════
+-- The live arcade duels ride a broadcast channel and keep no state, which
+-- is right for a 30-second race: if you reload mid-race, the race is over.
+-- A board game is the opposite — you might take a turn, put the phone
+-- down, and come back an hour later. So the board itself lives in the row.
+-- Broadcast still fires on every move for the instant feel; the row is
+-- what makes it survive a reload, a dead battery, or a flight.
+alter table public.game_matches add column if not exists state   jsonb;
+alter table public.game_matches add column if not exists turn    uuid references public.profiles(id);
+alter table public.game_matches add column if not exists move_no int not null default 0;
+
+-- Realtime needs the whole row on update so a client can tell what moved.
+alter table public.game_matches replica identity full;
+do $$
+begin
+  alter publication supabase_realtime add table public.game_matches;
+exception when duplicate_object then null;
+     when undefined_object then null;
+end $$;
+
+notify pgrst, 'reload schema';
+
+
+-- ═══════════ WHO YOU ARE · one self-declared field ═══════════
+-- Set in the character studio ("Body → who are you?"). It exists for one
+-- reason: girls-only trips. It is the person's own answer about
+-- themselves, nobody else can write it, and nothing else in the app
+-- reads it.
+alter table public.profiles add column if not exists gender text
+  check (gender is null or gender in ('m', 'f', 'n'));
+
+
+-- ═══════════ TRIPS · plans other people can actually join ═══════════
+-- A campfire is "I am here now". A trip is "I am going there, come with
+-- me" — a date, a destination, a number of seats. It shows on the map as
+-- a plan you can join, and it disappears on its own once it's over.
+--
+-- `girls_only` is enforced in the policy, not in the UI: the database
+-- refuses the join, so it holds even if someone talks to the API
+-- directly. That is the difference between a promise and a rule.
+create table if not exists public.trips (
+  id          uuid primary key default gen_random_uuid(),
+  host_id     uuid not null references public.profiles(id) on delete cascade,
+  title       text not null,
+  destination text,
+  lat         double precision,
+  lng         double precision,
+  starts_at   timestamptz not null,
+  ends_at     timestamptz,
+  seats       int not null default 6,
+  girls_only  boolean not null default false,
+  note        text,
+  created_at  timestamptz not null default now()
+);
+create index if not exists trips_starts_idx on public.trips (starts_at desc);
+alter table public.trips enable row level security;
+
+drop policy if exists "trips_sel" on public.trips;
+create policy "trips_sel" on public.trips for select using (true);
+drop policy if exists "trips_ins" on public.trips;
+create policy "trips_ins" on public.trips for insert with check (auth.uid() = host_id);
+drop policy if exists "trips_upd" on public.trips;
+create policy "trips_upd" on public.trips for update using (auth.uid() = host_id);
+drop policy if exists "trips_del" on public.trips;
+create policy "trips_del" on public.trips for delete using (
+  auth.uid() = host_id
+  or auth.jwt() ->> 'email' = 'ayseryourlifecoach@gmail.com'
+);
+
+create table if not exists public.trip_members (
+  trip_id   uuid not null references public.trips(id) on delete cascade,
+  user_id   uuid not null references public.profiles(id) on delete cascade,
+  joined_at timestamptz not null default now(),
+  primary key (trip_id, user_id)
+);
+alter table public.trip_members enable row level security;
+
+drop policy if exists "tm_sel" on public.trip_members;
+create policy "tm_sel" on public.trip_members for select using (true);
+
+-- You may join a trip if it isn't full, and — when it is girls-only —
+-- only if your own profile says so. Both halves are checked here, in the
+-- database, where they cannot be skipped.
+drop policy if exists "tm_ins" on public.trip_members;
+create policy "tm_ins" on public.trip_members for insert with check (
+  auth.uid() = user_id
+  and (
+    select count(*) from public.trip_members m where m.trip_id = trip_members.trip_id
+  ) < (select seats from public.trips t where t.id = trip_members.trip_id)
+  and (
+    not (select girls_only from public.trips t where t.id = trip_members.trip_id)
+    or (select gender from public.profiles p where p.id = auth.uid()) = 'f'
+  )
+);
+
+drop policy if exists "tm_del" on public.trip_members;
+create policy "tm_del" on public.trip_members for delete using (
+  auth.uid() = user_id
+  or auth.uid() = (select host_id from public.trips t where t.id = trip_members.trip_id)
+);
+
+-- A host is on their own trip from the moment it exists.
+create or replace function public.trip_host_joins() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  insert into public.trip_members (trip_id, user_id) values (new.id, new.host_id)
+  on conflict do nothing;
+  return new;
+end $$;
+drop trigger if exists trips_host_joins on public.trips;
+create trigger trips_host_joins after insert on public.trips
+  for each row execute function public.trip_host_joins();
+
+notify pgrst, 'reload schema';
+
+
 -- ═══════════════════ READINESS CHECKLIST ═══════════════════
 -- Every column below should say TRUE. If chat_ready is FALSE,
 -- also run supabase/schema_v2_live.sql (messages & live map).
@@ -1897,4 +2013,12 @@ select
   exists (select 1 from information_schema.columns
           where table_schema = 'public' and table_name = 'stories'
             and column_name = 'sticker_type')                as story_stickers_ready,
-  (to_regclass('public.films')                is not null) as films_ready;
+  (to_regclass('public.films')                is not null) as films_ready,
+  (to_regclass('public.trips')                is not null) as trips_ready,
+  (to_regclass('public.trip_members')         is not null) as trip_members_ready,
+  exists (select 1 from information_schema.columns
+          where table_schema = 'public' and table_name = 'profiles'
+            and column_name = 'gender')                      as gender_ready,
+  exists (select 1 from information_schema.columns
+          where table_schema = 'public' and table_name = 'game_matches'
+            and column_name = 'state')                       as board_games_ready;

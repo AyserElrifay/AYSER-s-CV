@@ -7,7 +7,11 @@ import { Platform } from 'react-native';
 export function initPwa() {
   if (Platform.OS !== 'web' || typeof window === 'undefined') return;
   try {
-    const base = window.location.pathname.replace(/[^/]*$/, ''); // e.g. /AYSER-s-CV/
+    /* The app's own folder, taken from where this page actually is —
+       and never an empty string, or every link below would resolve
+       against the site root and quietly 404. */
+    let base = window.location.pathname.replace(/[^/]*$/, '');
+    if (!base) base = '/';
 
     if (!document.querySelector('link[rel="manifest"]')) {
       const link = document.createElement('link');

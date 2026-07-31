@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, Modal, Pressable, ScrollView, TextInput } from 'react-native';
+import { View, Text, Modal, Pressable, ScrollView, TextInput, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -50,6 +50,7 @@ export const EffectsSheet = ({
   lenses = [], filters = [], effects = [], games = [],
   lensId, filterId, effectId, gameId,
   onPickLens, onPickFilter, onPickEffect, onPickGame, onClear, onClose,
+  inline = false,
 }) => {
   const insets = useSafeAreaInsets();
   const [tab, setTab] = useState('you');
@@ -88,8 +89,12 @@ export const EffectsSheet = ({
     : row.kind === 'effect' ? effectId === row.item.id
     : gameId === row.item.id;
 
-  return (
-    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
+  /* `inline` renders this as an overlay in place rather than a second
+     Modal — a modal inside a modal lays out against the parent's
+     transform instead of the screen, which is how a drawer ends up
+     painting a blank page over the whole app. */
+  const body = (
+    <View style={inline ? [StyleSheet.absoluteFill, { justifyContent: 'flex-end', zIndex: 60 }] : { flex: 1, justifyContent: 'flex-end' }}>
       <Pressable style={{ flex: 1 }} onPress={onClose} />
       <View style={{
         height: '74%', backgroundColor: 'rgba(12,10,22,0.98)',
@@ -154,6 +159,13 @@ export const EffectsSheet = ({
           Every lens and look here is drawn or computed by us — nothing downloaded, nothing licensed.
         </Text>
       </View>
+    </View>
+  );
+
+  if (inline) return body;
+  return (
+    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
+      {body}
     </Modal>
   );
 };

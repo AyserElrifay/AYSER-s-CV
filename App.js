@@ -36,6 +36,8 @@ import { AdminPanel } from './src/components/AdminPanel';
 import { isOwner } from './src/services/music';
 import { studioRequested, stripStudioParam } from './src/utils/studioLink';
 import { initPwa } from './src/lib/pwa';
+import { Boundary } from './src/components/Boundary';
+import { InstallPrompt } from './src/components/InstallPrompt';
 
 initPwa(); // installable app + offline shell (no-op on native)
 
@@ -69,24 +71,27 @@ const Root = () => {
       <IncomingCallGate />
       <WhatsNew />
       <StudioGate />
+      <InstallPrompt />
     </View>
   );
 };
 
 export default function App() {
   return (
-    <SafeAreaProvider>
-      <LanguageProvider>
-        <ThemeProvider>
-          <AuthProvider>
-            <PresenceProvider>
-              <PlayerProvider>
-                <Root />
-              </PlayerProvider>
-            </PresenceProvider>
-          </AuthProvider>
-        </ThemeProvider>
-      </LanguageProvider>
-    </SafeAreaProvider>
+    <Boundary>
+      <SafeAreaProvider>
+        <LanguageProvider>
+          <ThemeProvider>
+            <AuthProvider>
+              <PresenceProvider>
+                <PlayerProvider>
+                  <Root />
+                </PlayerProvider>
+              </PresenceProvider>
+            </AuthProvider>
+          </ThemeProvider>
+        </LanguageProvider>
+      </SafeAreaProvider>
+    </Boundary>
   );
 }

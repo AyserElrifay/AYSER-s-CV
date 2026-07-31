@@ -215,6 +215,21 @@ const pinHtml = (m) => {
     const doing = m.emoji && m.emoji.length <= 3
       ? '<div style="position:absolute;top:-7px;left:-7px;background:#fff;border-radius:9px;font-size:12px;line-height:17px;padding:0 2px;box-shadow:0 1px 3px rgba(0,0,0,0.3)">' + m.emoji + '</div>' : '';
     const name = (m.label || '').replace(/^[^ ]+ /, '').split(' ')[0] || m.label;
+    /* If they've built a character, they stand on the map as
+       themselves — the whole person, planted on the spot, the way a
+       map full of people should look. It is our own art (avatarArt.js
+       draws it from their own settings), not anybody else's avatars. */
+    if (m.standing) {
+      return (
+        '<div class="mm-float" style="position:relative;width:74px;height:104px;display:flex;flex-direction:column;align-items:center">' +
+        '<div class="mm-heat"></div>' +
+        '<img src="' + m.standing + '" style="width:66px;height:auto;display:block;filter:drop-shadow(0 6px 10px rgba(0,0,0,0.30))"/>' +
+        doing + flagBadge +
+        '<div class="mm-pill" style="margin-top:-2px">' + esc(name) + '</div>' +
+        '</div>'
+      );
+    }
+
     /* A proper map pin: the face inside a purple teardrop whose point
        lands on the spot, rather than a floating circle hovering near
        it. You can tell at a glance who is where. */
@@ -277,6 +292,19 @@ const pinHtml = (m) => {
     return (
       '<div class="mm-float" style="position:relative;width:60px;height:48px;display:flex;flex-direction:column;align-items:center">' +
       '<div style="width:30px;height:30px;border-radius:50%;background:#7C3AED;border:2px solid #fff;display:flex;align-items:center;justify-content:center;font-size:15px;box-shadow:0 3px 8px rgba(124,58,237,0.45)">🏆</div>' +
+      '<div class="mm-pill" style="margin-top:4px">' + esc(m.label) + '</div>' +
+      '</div>'
+    );
+  }
+
+  /* A trip somebody is running — a plan with a date and seats, so it
+     gets a proper marker with its name rather than a dot you'd never
+     notice. Pink when it's a girls-only trip. */
+  if (m.kind === 'trip') {
+    const tone = m.emoji === '👩' ? '#EC4899' : '#0EA5E9';
+    return (
+      '<div class="mm-float" style="position:relative;width:66px;height:50px;display:flex;flex-direction:column;align-items:center">' +
+      '<div style="width:30px;height:30px;border-radius:50%;background:' + tone + ';border:2px solid #fff;display:flex;align-items:center;justify-content:center;font-size:15px;box-shadow:0 3px 8px rgba(0,0,0,0.3)">' + (m.emoji || '🧳') + '</div>' +
       '<div class="mm-pill" style="margin-top:4px">' + esc(m.label) + '</div>' +
       '</div>'
     );
@@ -572,16 +600,17 @@ export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus
       const isPlace = m.kind === 'place';
       const isNote = m.kind === 'note';
       const isEvent = m.kind === 'event';
+      const isTrip = m.kind === 'trip';
       const isShot = m.kind === 'moment' || m.kind === 'story';
       const icon = L.divIcon({
         html: pinHtml(m), className: '',
-        iconSize: isShot ? [62, 74] : isPerson ? [52, 66] : isDest ? [88, 44] : isPlace ? [13, 13] : isNote ? [40, 44] : isEvent ? [60, 48] : [16, 16],
-        iconAnchor: isShot ? [31, 70] : isPerson ? [26, 33] : isDest ? [44, 22] : isPlace ? [7, 7] : isNote ? [20, 40] : isEvent ? [30, 40] : [8, 8],
+        iconSize: isShot ? [62, 74] : isPerson ? [52, 66] : isDest ? [88, 44] : isPlace ? [13, 13] : isNote ? [40, 44] : isEvent || isTrip ? [66, 50] : [16, 16],
+        iconAnchor: isShot ? [31, 70] : isPerson ? [26, 33] : isDest ? [44, 22] : isPlace ? [7, 7] : isNote ? [20, 40] : isEvent || isTrip ? [33, 40] : [8, 8],
       });
       // a live story sits above everything else — it's the freshest thing there
       const z = m.kind === 'story' ? 700 : m.kind === 'moment' ? 600 : isPerson ? 500 : isDest ? 300 : 0;
       const mk = L.marker([m.lat, m.lng], { icon, zIndexOffset: z }).addTo(layerRef.current);
-      if (m.label && !isPerson && !isDest && !isShot) mk.bindTooltip(esc(m.label), { direction: 'top', offset: [0, -34] });
+      if (m.label && !isPerson && !isDest && !isShot && !isTrip) mk.bindTooltip(esc(m.label), { direction: 'top', offset: [0, -34] });
       mk.on('click', () => onPress && onPress(m));
     });
   };

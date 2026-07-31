@@ -18,6 +18,8 @@ import { WouldYouRather } from '../components/WouldYouRather';
 import { CallScreen } from '../components/CallScreen';
 import { CaptureModal } from '../components/CaptureModal';
 import { GameRunner } from '../components/GameRunner';
+import { BoardGame } from '../components/BoardGame';
+import { GAMES as BOARD_GAMES, gameById, isBoardGame } from '../services/boardGames';
 import { OnlineDot } from '../components/OnlineDot';
 import { translateText } from '../services/bardi';
 import { useLang } from '../context/LanguageContext';
@@ -173,26 +175,29 @@ export const ChatThread = ({ chat, group, onClose }) => {
   const loadMatch = async (matchId) => {
     try { const m = await fetchMatch(matchId); setMatches((s) => ({ ...s, [matchId]: m })); } catch (e) {}
   };
-  const inviteToMatch = async () => {
+  /* Any of the games can be the invite — the arcade duel, or one of the
+     four board games. The kind rides on the match row, so the person
+     accepting opens the same game you started. */
+  const inviteToMatch = async (kind = 'catch') => {
     if (!isReal || group || !dmThreadId || !user || !peer) return;
     tapMedium();
     try {
-      const m = await createMatch(user.id, peer.id, 'catch');
+      const m = await createMatch(user.id, peer.id, kind);
       setMatches((s) => ({ ...s, [m.id]: m }));
       const row = await sendGameInvite({ dmThreadId, userId: user.id, matchId: m.id });
       setMsgs((ms) => (ms.some((x) => x.id === row.id) ? ms : [...ms, toLocal(row)]));
-      setActiveMatch({ matchId: m.id, isHost: true, opponent: { id: peer.id, name: peer.name, avatar: peer.avatar } });
+      setActiveMatch({ matchId: m.id, kind, isHost: true, opponent: { id: peer.id, name: peer.name, avatar: peer.avatar } });
     } catch (e) {
       setChatErr(explainChat(e));
     }
     setTimeout(() => scroller.current && scroller.current.scrollToEnd({ animated: true }), 80);
   };
-  const joinMatch = async (matchId) => {
+  const joinMatch = async (matchId, kind) => {
     tapMedium();
     try {
       await respondMatch(matchId, true);
       setMatches((s) => ({ ...s, [matchId]: { ...(s[matchId] || {}), status: 'active' } }));
-      setActiveMatch({ matchId, isHost: false, opponent: { id: peer.id, name: peer.name, avatar: peer.avatar } });
+      setActiveMatch({ matchId, kind: kind || 'catch', isHost: false, opponent: { id: peer.id, name: peer.name, avatar: peer.avatar } });
     } catch (e) {}
   };
   const declineMatch = async (matchId) => {
@@ -202,14 +207,15 @@ export const ChatThread = ({ chat, group, onClose }) => {
       setMatches((s) => ({ ...s, [matchId]: { ...(s[matchId] || {}), status: 'declined' } }));
     } catch (e) {}
   };
-  const rematch = async () => {
+  const rematch = async (kind) => {
     if (!activeMatch || !dmThreadId || !user || !peer) return;
+    const k = kind || activeMatch.kind || 'catch';
     try {
-      const m = await createMatch(user.id, peer.id, 'catch');
+      const m = await createMatch(user.id, peer.id, k);
       setMatches((s) => ({ ...s, [m.id]: m }));
       const row = await sendGameInvite({ dmThreadId, userId: user.id, matchId: m.id });
       setMsgs((ms) => (ms.some((x) => x.id === row.id) ? ms : [...ms, toLocal(row)]));
-      setActiveMatch({ matchId: m.id, isHost: true, opponent: activeMatch.opponent });
+      setActiveMatch({ matchId: m.id, kind: k, isHost: true, opponent: activeMatch.opponent });
     } catch (e) {}
   };
 
@@ -425,30 +431,38 @@ export const ChatThread = ({ chat, group, onClose }) => {
                       (() => {
                         const match = matches[m.gameMatchId];
                         const status = match ? match.status : 'pending';
+                        const gkind = (match && match.kind) || 'catch';
+                        const gmeta = gameById(gkind);
                         const myResult = match && match.status === 'done'
                           ? (match.winner_id == null ? 'tie' : match.winner_id === user.id ? 'won' : 'lost')
                           : null;
                         return (
                           <View style={{ backgroundColor: '#0D2B5E', borderRadius: 18, padding: 14, minWidth: 210 }}>
                             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                              <Text style={{ fontSize: 20, marginRight: 8 }}>🏃</Text>
-                              <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '900', flex: 1 }}>Catch Your Mate</Text>
+                              <Text style={{ fontSize: 20, marginRight: 8 }}>{gmeta ? gmeta.emoji : '🏃'}</Text>
+                              <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '900', flex: 1 }}>{gmeta ? gmeta.title : 'Catch Your Mate'}</Text>
                             </View>
-                            {status === 'declined' ? (
+                            {status === 'active' && isBoardGame(gkind) && !mine ? (
+                              <Pressable onPress={() => setActiveMatch({ matchId: m.gameMatchId, kind: gkind, isHost: false, opponent: { id: peer.id, name: peer.name, avatar: peer.avatar } })}>
+                                <View style={{ backgroundColor: C.gold, borderRadius: 999, paddingVertical: 8, alignItems: 'center' }}>
+                                  <Text style={{ color: '#081226', fontSize: 12.5, fontWeight: '900' }}>Open the board</Text>
+                                </View>
+                              </Pressable>
+                            ) : status === 'declined' ? (
                               <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12, fontWeight: '700' }}>Declined</Text>
                             ) : status === 'done' ? (
                               <Text style={{ color: myResult === 'won' ? C.gold : '#FFF', fontSize: 12.5, fontWeight: '800' }}>
                                 {myResult === 'won' ? '🏆 You won this duel' : myResult === 'lost' ? '😅 You lost this one' : '🤝 It was a tie'}
                               </Text>
                             ) : mine ? (
-                              <Pressable onPress={() => setActiveMatch({ matchId: m.gameMatchId, isHost: true, opponent: { id: peer.id, name: peer.name, avatar: peer.avatar } })}>
+                              <Pressable onPress={() => setActiveMatch({ matchId: m.gameMatchId, kind: gkind, isHost: true, opponent: { id: peer.id, name: peer.name, avatar: peer.avatar } })}>
                                 <View style={{ backgroundColor: C.gold, borderRadius: 999, paddingVertical: 8, alignItems: 'center' }}>
                                   <Text style={{ color: '#081226', fontSize: 12.5, fontWeight: '900' }}>{status === 'active' ? 'Open' : 'Waiting…'}</Text>
                                 </View>
                               </Pressable>
                             ) : (
                               <View style={{ flexDirection: 'row' }}>
-                                <Pressable onPress={() => joinMatch(m.gameMatchId)} style={{ flex: 1, marginRight: 8 }}>
+                                <Pressable onPress={() => joinMatch(m.gameMatchId, gkind)} style={{ flex: 1, marginRight: 8 }}>
                                   <View style={{ backgroundColor: C.gold, borderRadius: 999, paddingVertical: 8, alignItems: 'center' }}>
                                     <Text style={{ color: '#081226', fontSize: 12.5, fontWeight: '900' }}>Join</Text>
                                   </View>
@@ -542,7 +556,32 @@ export const ChatThread = ({ chat, group, onClose }) => {
 
           {/* games menu */}
           {menu ? (
-            <View style={{ position: 'absolute', bottom: 70, left: 12, backgroundColor: '#FFF', borderRadius: 16, borderWidth: 1, borderColor: C.line, padding: 6, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 14, shadowOffset: { width: 0, height: 6 } }}>
+            <View style={{ position: 'absolute', bottom: 70, left: 12, right: 12, maxHeight: 400, backgroundColor: '#FFF', borderRadius: 16, borderWidth: 1, borderColor: C.line, padding: 6, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 14, shadowOffset: { width: 0, height: 6 } }}>
+              <ScrollView>
+              {/* Two people, one board — a real invite the other side
+                  accepts, and a game that survives closing the app. */}
+              {isReal && !group ? (
+                <>
+                  <Text style={{ color: C.faint, fontSize: 10, fontWeight: '900', letterSpacing: 0.8, paddingHorizontal: 12, paddingTop: 6, paddingBottom: 4 }}>
+                    PLAY TOGETHER
+                  </Text>
+                  {BOARD_GAMES.map((g) => (
+                    <Pressable key={g.id} onPress={() => { tapLight(); setMenu(false); inviteToMatch(g.id); }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 11 }}>
+                        <Text style={{ fontSize: 20 }}>{g.emoji}</Text>
+                        <View style={{ marginLeft: 10, flex: 1 }}>
+                          <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>{g.title}</Text>
+                          <Text style={{ color: C.faint, fontSize: 11 }} numberOfLines={1}>{g.blurb}</Text>
+                        </View>
+                      </View>
+                    </Pressable>
+                  ))}
+                  <View style={{ height: 1, backgroundColor: C.line, marginHorizontal: 10, marginVertical: 4 }} />
+                  <Text style={{ color: C.faint, fontSize: 10, fontWeight: '900', letterSpacing: 0.8, paddingHorizontal: 12, paddingBottom: 4 }}>
+                    ON YOUR OWN TURN
+                  </Text>
+                </>
+              ) : null}
               <Pressable onPress={() => { tapLight(); setMenu(false); setTodOn(true); setTimeout(() => scroller.current && scroller.current.scrollToEnd({ animated: true }), 80); }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 11 }}>
                   <Text style={{ fontSize: 20 }}>🎲</Text>
@@ -575,7 +614,7 @@ export const ChatThread = ({ chat, group, onClose }) => {
               {!group && isReal ? (
                 <>
                   <View style={{ height: 1, backgroundColor: C.line, marginHorizontal: 10 }} />
-                  <Pressable onPress={() => { setMenu(false); inviteToMatch(); }}>
+                  <Pressable onPress={() => { setMenu(false); inviteToMatch('catch'); }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 11 }}>
                       <Text style={{ fontSize: 20 }}>🏃</Text>
                       <View style={{ marginLeft: 10 }}>
@@ -586,6 +625,7 @@ export const ChatThread = ({ chat, group, onClose }) => {
                   </Pressable>
                 </>
               ) : null}
+              </ScrollView>
             </View>
           ) : null}
 
@@ -648,14 +688,26 @@ export const ChatThread = ({ chat, group, onClose }) => {
 
       {/* ── Catch Your Mate — real live duel ── */}
       {activeMatch ? (
-        <GameRunner
-          key={activeMatch.matchId}
-          matchId={activeMatch.matchId}
-          isHost={activeMatch.isHost}
-          opponent={activeMatch.opponent}
-          onRematch={rematch}
-          onClose={() => setActiveMatch(null)}
-        />
+        isBoardGame(activeMatch.kind) ? (
+          <BoardGame
+            key={activeMatch.matchId}
+            matchId={activeMatch.matchId}
+            kind={activeMatch.kind}
+            isHost={activeMatch.isHost}
+            opponent={activeMatch.opponent}
+            onRematch={rematch}
+            onClose={() => setActiveMatch(null)}
+          />
+        ) : (
+          <GameRunner
+            key={activeMatch.matchId}
+            matchId={activeMatch.matchId}
+            isHost={activeMatch.isHost}
+            opponent={activeMatch.opponent}
+            onRematch={rematch}
+            onClose={() => setActiveMatch(null)}
+          />
+        )
       ) : null}
 
       {stickersOpen ? (

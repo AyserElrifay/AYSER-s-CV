@@ -644,7 +644,10 @@ export function drawAvatar(c, ox, oy, size, dnaIn, opts) {
   c.beginPath(); c.rect(0, 0, size, size); c.clip();
 
   drawHairBack(c, d, s);
-  drawBody(c, d, s);
+  /* The standing figure brings its own neck, torso and arms, so it asks
+     for the head alone — otherwise the round avatar's shoulders land
+     under the chin and read as a collar. */
+  if (o.body !== false) drawBody(c, d, s);
 
   // ears
   c.fillStyle = shade(d.skin, -0.08);

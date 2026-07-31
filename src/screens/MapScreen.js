@@ -15,12 +15,13 @@ import { useLang } from '../context/LanguageContext';
 import { shareMyLocation, goInvisible, fetchNearbyPeople, subscribeNearby, fetchMyLiveLocation } from '../services/locations';
 import { fetchLiveCampfires, hostCampfire, joinCampfire } from '../services/campfires';
 import { fetchLiveVenues, applyAsVenue } from '../services/venues';
-import { buildAvatarUrl } from '../services/avatarBuilder';
+import { buildAvatarUrl, buildStandingUrl } from '../services/avatarBuilder';
 import { fetchNearbyPlaces } from '../services/places';
 import { DESTINATIONS } from '../constants/destinations';
 import { fetchDestReviews, addDestReview } from '../services/destinations';
 import { fetchPostsNearby, fetchMomentPins } from '../services/posts';
 import { requestTrip } from '../services/trips';
+import { fetchTrips, hostTrip, joinTrip, leaveTrip, cancelTrip } from '../services/tripPlans';
 import { getOrCreateDmThread, sendMessage } from '../services/messages';
 import { dropNote, fetchActiveNotes, deleteNote, updateNote } from '../services/mapNotes';
 import { fetchStoryPins } from '../services/stories';
@@ -33,6 +34,17 @@ import {
 } from '../components';
 import { tapLight, tapMedium, tapSelection, tapSuccess } from '../utils/feedback';
 import { sfxPop, sfxSuccess } from '../utils/sfx';
+
+/* Which pins belong to each lens. `all` keeps everything; the rest are
+   deliberately narrow, because the point of a lens is that the map goes
+   quiet apart from the thing you came for. */
+const LENS_KINDS = {
+  all: null,
+  places: ['place', 'venue', 'dest', 'event'],
+  people: ['person', 'fire'],
+  stories: ['story', 'moment', 'note'],
+  trips: ['trip', 'dest'],
+};
 
 /* ─────────────────── TAB 2 · MAP — THE LIVING WORLD ────────────────── */
 /* In real mode (SUPABASE_READY), every pin is a real signed-in person's
@@ -48,6 +60,8 @@ const normalizePerson = (row) => ({
   handle: row.profile && row.profile.handle,
   avatar: (row.profile && row.profile.avatar_url) || AV_NEUTRAL, // real photo — used in their full profile
   cartoonAvatar: buildAvatarUrl(row.user_id, row.profile && row.profile.avatar_dna), // shown on the live map instead
+  // the whole character, standing — what the map marker uses
+  standing: buildStandingUrl(row.user_id, row.profile && row.profile.avatar_dna),
   emoji: (row.profile && row.profile.emoji) || '🧿',
   verified: !!(row.profile && row.profile.verified),
   intent: (row.profile && row.profile.intent) || 'Exploring 🧭',
@@ -82,6 +96,23 @@ export const MapScreen = () => {
   const [placeOpen, setPlaceOpen] = useState(null); // a tapped real-world place
   const [placePosts, setPlacePosts] = useState(null); // real moments shared there
   const [rail, setRail] = useState('fires');     // 'fires' | 'book'
+
+  /* ── ONE MAP, A FEW LENSES ────────────────────────────────────────
+     The map had a button for everything and, between the four floating
+     circles, the SOS, the three rail chips and the note button, you
+     could barely see Egypt. So the buttons became lenses: pick what you
+     came here for and the map shows that and nothing else. `all` is
+     still there for when you want the lot.
+
+     This is a filter over the same real pins — nothing new is invented
+     for a lens, and an empty lens says it's empty rather than filling
+     itself with something plausible. */
+  const [lens, setLens] = useState('all');
+  const [tools, setTools] = useState(false);     // the extra actions, folded away
+  const [trips, setTrips] = useState([]);
+  const [girlsOnly, setGirlsOnly] = useState(false);
+  const [planErr, setPlanErr] = useState(null);
+  const [newTrip, setNewTrip] = useState(null);  // the "start a trip" form
   const [myDoing, setMyDoing] = useState(null);  // your activity badge
   const [waved, setWaved] = useState({});
   const [partnerSent, setPartnerSent] = useState(false);
@@ -223,6 +254,7 @@ export const MapScreen = () => {
     if (!SUPABASE_READY) return;
     loadNearby();
     fetchLiveCampfires().then((rows) => setRealCampfires((rows || []).map(normalizeCampfire))).catch(() => {});
+    fetchTrips({ girlsOnly: false }).then(setTrips).catch(() => {});
     fetchLiveVenues().then(setRealVenues).catch(() => {});
     const unsub = subscribeNearby(loadNearby);
     return unsub;
@@ -241,7 +273,7 @@ export const MapScreen = () => {
   /* Markers for the real (web) Leaflet map, on true coordinates. */
   const mapMarkers = useMemo(() => {
     const out = [];
-    people.forEach((p) => p.coords && out.push({ id: 'p_' + p.id, srcId: p.id, kind: 'person', lat: p.coords.latitude, lng: p.coords.longitude, emoji: p.doing || p.emoji || '🧿', avatar: p.cartoonAvatar || p.avatar, flag: p.countryFlag, label: (p.countryFlag ? p.countryFlag + ' ' : '') + p.name }));
+    people.forEach((p) => p.coords && out.push({ id: 'p_' + p.id, srcId: p.id, kind: 'person', lat: p.coords.latitude, lng: p.coords.longitude, emoji: p.doing || p.emoji || '🧿', avatar: p.cartoonAvatar || p.avatar, standing: p.standing, flag: p.countryFlag, label: (p.countryFlag ? p.countryFlag + ' ' : '') + p.name }));
     campfires.forEach((c) => c.coords && out.push({ id: 'c_' + c.id, srcId: c.id, kind: 'fire', lat: c.coords.latitude, lng: c.coords.longitude, emoji: '🔥', label: c.title }));
     (SUPABASE_READY ? realVenues : []).forEach((v) => v.lat != null && out.push({ id: 'v_' + v.id, srcId: v.id, kind: 'venue', lat: v.lat, lng: v.lng, emoji: v.emoji || '📍', label: v.name }));
     // REAL places from OpenStreetMap, pinned at their true coordinates
@@ -261,8 +293,19 @@ export const MapScreen = () => {
     }));
     // real major world events (World Cup, Olympics…)
     WORLD_EVENTS.forEach((e) => out.push({ id: 'ev_' + e.id, srcId: e.id, kind: 'event', lat: e.lat, lng: e.lng, label: e.name }));
+    // trips somebody is actually running, pinned where they're going
+    trips.forEach((tp) => tp.lat != null && out.push({
+      id: 'tp_' + tp.id, srcId: tp.id, kind: 'trip', lat: tp.lat, lng: tp.lng,
+      emoji: tp.girls_only ? '👩' : '🧳', label: tp.title,
+    }));
     return out;
-  }, [people, campfires, realVenues, realPlaces, realNotes, momentPins, storyPins]);
+  }, [people, campfires, realVenues, realPlaces, realNotes, momentPins, storyPins, trips]);
+
+  /* Which pins belong to the lens you're looking through. */
+  const shownMarkers = useMemo(() => {
+    const keep = LENS_KINDS[lens];
+    return keep ? mapMarkers.filter((m) => keep.indexOf(m.kind) >= 0) : mapMarkers;
+  }, [mapMarkers, lens]);
 
   const onMarkerPress = (m) => {
     setSheet(null); // whatever's open, a map tap replaces it — never stacks
@@ -275,6 +318,8 @@ export const MapScreen = () => {
     else if (m.kind === 'moment') { const p = momentPins.find((x) => x.id === m.srcId); if (p) openMomentPin(p); }
     else if (m.kind === 'story') { const st = storyPins.find((x) => x.id === m.srcId); if (st) openStoryPin(st); }
     else if (m.kind === 'event') { const e = WORLD_EVENTS.find((x) => x.id === m.srcId); if (e) setEventOpen(e); }
+    // a trip pin sends you to the trips lens, where you can actually join it
+    else if (m.kind === 'trip') { setLens('trips'); setNewTrip(null); }
   };
   const [eventOpen, setEventOpen] = useState(null);
 
@@ -700,64 +745,106 @@ export const MapScreen = () => {
             </ScrollView>
           </View>
         ) : (
-          <Chip
-            label={'🟢 ' + nearbyPeople.length + ' nearby · ' + campfires.length + ' campfires' + (realPlaces.length ? ' · ' + realPlaces.length + ' real places' : '')}
-            tint={C.float}
-            color={C.dim}
-            style={{ alignSelf: 'flex-start', marginTop: 10 }}
-          />
+          /* ── the lenses ──────────────────────────────────────────
+             One row instead of a screen full of buttons. Each one is a
+             way of looking at the same map, and each says what's
+             actually on it right now rather than a number we made up. */
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={{ marginTop: 10, flexGrow: 0 }}
+            contentContainerStyle={{ paddingRight: 12 }}
+          >
+            {[
+              { k: 'all', label: 'Everything', emoji: '🌍', n: mapMarkers.length },
+              { k: 'places', label: 'Places to go', emoji: '📍', n: realPlaces.length + realVenues.length + DESTINATIONS.length },
+              { k: 'people', label: 'People', emoji: '🟢', n: nearbyPeople.length + campfires.length },
+              { k: 'stories', label: 'Stories', emoji: '📸', n: storyPins.length + momentPins.length },
+              { k: 'trips', label: 'Trips', emoji: '🧳', n: trips.length },
+            ].map((o) => {
+              const on = lens === o.k;
+              return (
+                <Pressable key={o.k} onPress={() => { tapSelection(); setLens(o.k); if (o.k !== 'trips') setNewTrip(null); }}>
+                  <View style={{
+                    flexDirection: 'row', alignItems: 'center',
+                    backgroundColor: on ? C.purple : C.float,
+                    borderWidth: 1, borderColor: on ? C.purple : C.line,
+                    borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7, marginRight: 7,
+                  }}>
+                    <Text style={{ fontSize: 12.5, marginRight: 5 }}>{o.emoji}</Text>
+                    <Text style={{ color: on ? '#FFF' : C.dim, fontSize: 12, fontWeight: on ? '900' : '800' }}>{o.label}</Text>
+                    {o.n ? (
+                      <Text style={{ color: on ? 'rgba(255,255,255,0.75)' : C.faint, fontSize: 11, fontWeight: '800', marginLeft: 5 }}>{o.n}</Text>
+                    ) : null}
+                  </View>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
         )}
       </View>
 
-      {/* right-side actions: locate me · your activity · nearby people · SOS */}
+      {/* ── the tools, folded away ──────────────────────────────────
+          Five circles stacked down the side of the map hid a third of
+          Egypt. Only the two you reach for constantly stay out; the
+          rest live behind one button and come out when you ask. */}
       <View style={{ position: 'absolute', right: 14, bottom: 168, alignItems: 'center' }}>
-        <Pressable onPress={() => { tapLight(); locateMe(); }} style={{ marginBottom: 12 }}>
+        {tools ? (
+          <>
+            <Pressable onPress={() => { setTools(false); openSheet('doing'); }} style={{ marginBottom: 10 }}>
+              <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: C.floatSolid, borderWidth: 1, borderColor: myDoing ? C.purple : C.line, alignItems: 'center', justifyContent: 'center' }}>
+                {myDoing ? <Text style={{ fontSize: 19 }}>{myDoing}</Text> : <Ionicons name="happy-outline" size={19} color={C.purple} />}
+              </View>
+            </Pressable>
+            {/* 👻 Ghost mode — one tap really clears your row from the
+                map; tap again to come back. */}
+            <Pressable
+              onPress={() => { tapLight(); setTools(false); if (myDoing) goInvisibleNow(); else openSheet('doing'); }}
+              style={{ marginBottom: 10 }}
+            >
+              <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: myDoing ? C.floatSolid : '#1F2937', borderWidth: 1, borderColor: myDoing ? C.line : '#1F2937', alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ fontSize: 18 }}>{myDoing ? '🟢' : '👻'}</Text>
+              </View>
+            </Pressable>
+            <Pressable onPress={() => { setTools(false); openSheet('drop'); }} style={{ marginBottom: 10 }}>
+              <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: C.gold, alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="pricetag" size={18} color="#4A3200" />
+              </View>
+            </Pressable>
+            <View style={{ marginBottom: 10 }}>
+              <SOSButton onPress={() => { setTools(false); setSos('ask'); }} />
+            </View>
+          </>
+        ) : null}
+
+        <Pressable onPress={() => { tapLight(); locateMe(); }} style={{ marginBottom: 10 }}>
           <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: C.floatSolid, borderWidth: 1, borderColor: located ? 'rgba(16,185,129,0.5)' : C.line, alignItems: 'center', justifyContent: 'center' }}>
             <Ionicons name={locating ? 'ellipsis-horizontal' : 'locate'} size={21} color={located ? C.green : C.purple} />
           </View>
         </Pressable>
-        <Pressable onPress={() => openSheet('doing')} style={{ marginBottom: 12 }}>
-          <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: C.floatSolid, borderWidth: 1, borderColor: myDoing ? C.purple : C.line, alignItems: 'center', justifyContent: 'center' }}>
-            {myDoing ? <Text style={{ fontSize: 21 }}>{myDoing}</Text> : <Ionicons name="happy-outline" size={21} color={C.purple} />}
+        <Pressable onPress={() => { tapLight(); setTools((v) => !v); }}>
+          <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: tools ? C.text : C.purple, alignItems: 'center', justifyContent: 'center', shadowColor: C.purple, shadowOpacity: 0.3, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } }}>
+            <Ionicons name={tools ? 'close' : 'ellipsis-horizontal'} size={21} color="#FFF" />
           </View>
         </Pressable>
-        <Pressable onPress={() => openSheet('nearby')} style={{ marginBottom: 12 }}>
-          <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: C.purple, alignItems: 'center', justifyContent: 'center', shadowColor: C.purple, shadowOpacity: 0.35, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } }}>
-            <Ionicons name="people" size={21} color="#FFF" />
-          </View>
-        </Pressable>
-        {/* 👻 Ghost mode — one tap hides your character from the map for
-            real (the DB row is cleared); tap again to reappear. */}
-        <Pressable
-          onPress={() => { tapLight(); if (myDoing) goInvisibleNow(); else openSheet('doing'); }}
-          style={{ marginBottom: 12 }}
-        >
-          <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: myDoing ? C.floatSolid : '#1F2937', borderWidth: 1, borderColor: myDoing ? C.line : '#1F2937', alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ fontSize: 20 }}>{myDoing ? '🟢' : '👻'}</Text>
-          </View>
-        </Pressable>
-        <SOSButton onPress={() => setSos('ask')} />
       </View>
 
-      {/* bottom rail — campfires or bookings */}
+      {/* ── the bottom rail ─────────────────────────────────────────
+          Only shows up when the lens you're on has something to put
+          there. On Everything and on Stories the map is just the map. */}
+      {lens === 'people' || lens === 'places' ? (
       <View style={{ position: 'absolute', bottom: 14, left: 0, right: 0 }}>
         <View style={{ flexDirection: 'row', marginLeft: 16, marginBottom: 8 }}>
-          {[
-            { k: 'fires', label: '🔥 Campfires' },
-            { k: 'book', label: '📅 Book' },
-            { k: 'deals', label: '🎟️ Deals' },
-          ].map((o) => (
+          {(lens === 'people'
+            ? [{ k: 'fires', label: '🔥 Campfires' }]
+            : [{ k: 'book', label: '📅 Book' }, { k: 'deals', label: '🎟️ Deals' }]
+          ).map((o) => (
             <Pressable key={o.k} onPress={() => { tapSelection(); setRail(o.k); }}>
               <View style={{ backgroundColor: rail === o.k ? C.purple : C.float, borderWidth: 1, borderColor: rail === o.k ? C.purple : C.line, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 7, marginRight: 8 }}>
                 <Text style={{ color: rail === o.k ? '#FFF' : C.dim, fontSize: 12, fontWeight: '800' }}>{o.label}</Text>
               </View>
             </Pressable>
           ))}
-          <Pressable onPress={() => openSheet('drop')}>
-            <View style={{ backgroundColor: C.gold, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 7 }}>
-              <Text style={{ color: '#4A3200', fontSize: 12, fontWeight: '900' }}>＋ Drop a note</Text>
-            </View>
-          </Pressable>
         </View>
         {rail === 'deals' ? (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, marginBottom: 8 }}>
@@ -880,6 +967,163 @@ export const MapScreen = () => {
           )}
         </ScrollView>
       </View>
+      ) : null}
+
+      {/* ── TRIPS ───────────────────────────────────────────────────
+          Plans with a date, a place and a number of seats. A trip
+          marked girls only is enforced by the database when someone
+          tries to join, not by hiding the button — so it means what it
+          says. */}
+      {lens === 'trips' ? (
+        <View style={{ position: 'absolute', bottom: 14, left: 0, right: 0 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 16, marginBottom: 8 }}>
+            <Pressable onPress={() => {
+              tapSelection();
+              const next = !girlsOnly;
+              setGirlsOnly(next);
+              fetchTrips({ girlsOnly: next }).then(setTrips).catch(() => {});
+            }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: girlsOnly ? '#EC4899' : C.float, borderWidth: 1, borderColor: girlsOnly ? '#EC4899' : C.line, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 7, marginRight: 8 }}>
+                <Text style={{ fontSize: 12.5, marginRight: 5 }}>👩</Text>
+                <Text style={{ color: girlsOnly ? '#FFF' : C.dim, fontSize: 12, fontWeight: '800' }}>Girls only</Text>
+              </View>
+            </Pressable>
+            <Pressable onPress={() => { tapLight(); setNewTrip(newTrip ? null : { title: '', dest: '', when: '', seats: '6', girls: false }); }}>
+              <View style={{ backgroundColor: C.gold, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 7 }}>
+                <Text style={{ color: '#4A3200', fontSize: 12, fontWeight: '900' }}>{newTrip ? 'Cancel' : '＋ Start a trip'}</Text>
+              </View>
+            </Pressable>
+          </View>
+
+          {newTrip ? (
+            <Glass tint={C.float} style={{ marginHorizontal: 16, padding: 14 }}>
+              <TextInput
+                value={newTrip.title}
+                onChangeText={(v) => setNewTrip((f) => ({ ...f, title: v }))}
+                placeholder="What's the trip? e.g. Fayoum sandboarding"
+                placeholderTextColor={C.faint}
+                style={{ color: C.text, fontSize: 13.5, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10 }}
+              />
+              <View style={{ flexDirection: 'row', marginTop: 8 }}>
+                <TextInput
+                  value={newTrip.when}
+                  onChangeText={(v) => setNewTrip((f) => ({ ...f, when: v }))}
+                  placeholder="When (YYYY-MM-DD)"
+                  placeholderTextColor={C.faint}
+                  style={{ flex: 1, color: C.text, fontSize: 13, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginRight: 8 }}
+                />
+                <TextInput
+                  value={newTrip.seats}
+                  onChangeText={(v) => setNewTrip((f) => ({ ...f, seats: v.replace(/[^0-9]/g, '') }))}
+                  placeholder="Seats"
+                  keyboardType="number-pad"
+                  placeholderTextColor={C.faint}
+                  style={{ width: 78, color: C.text, fontSize: 13, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10 }}
+                />
+              </View>
+              <Pressable onPress={() => { tapSelection(); setNewTrip((f) => ({ ...f, girls: !f.girls })); }} style={{ marginTop: 10 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Ionicons name={newTrip.girls ? 'checkbox' : 'square-outline'} size={19} color={newTrip.girls ? '#EC4899' : C.faint} />
+                  <Text style={{ color: C.text, fontSize: 12.5, fontWeight: '800', marginLeft: 8 }}>Girls only</Text>
+                </View>
+              </Pressable>
+              {newTrip.girls ? (
+                <Text style={{ color: C.faint, fontSize: 11, marginTop: 4, lineHeight: 16 }}>
+                  Only people whose own profile says girl can join. That's checked by the
+                  database, so it holds no matter how someone gets here.
+                </Text>
+              ) : null}
+              {planErr ? <Text style={{ color: C.coral, fontSize: 12, marginTop: 8 }}>{planErr}</Text> : null}
+              <Pressable
+                onPress={async () => {
+                  setPlanErr(null);
+                  if (!newTrip.title.trim()) { setPlanErr('Give it a name so people know what they\'re joining.'); return; }
+                  const when = newTrip.when.trim() ? new Date(newTrip.when.trim() + 'T09:00:00') : new Date(Date.now() + 3 * 86400000);
+                  if (isNaN(when.getTime())) { setPlanErr('That date didn\'t make sense — try 2026-08-14.'); return; }
+                  if (!SUPABASE_READY || !user) { setPlanErr('Sign in to start a trip.'); return; }
+                  try {
+                    await hostTrip(user.id, {
+                      title: newTrip.title.trim(),
+                      destination: newTrip.dest || null,
+                      lat: myCoords.latitude, lng: myCoords.longitude,
+                      startsAt: when.toISOString(),
+                      seats: newTrip.seats, girlsOnly: newTrip.girls,
+                    });
+                    tapSuccess(); sfxSuccess();
+                    setNewTrip(null);
+                    fetchTrips({ girlsOnly }).then(setTrips).catch(() => {});
+                  } catch (e) { setPlanErr((e && e.message) || 'That didn\'t save — try again.'); }
+                }}
+                style={{ marginTop: 12 }}
+              >
+                <View style={{ backgroundColor: C.purple, borderRadius: 14, paddingVertical: 12, alignItems: 'center' }}>
+                  <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '900' }}>Put it on the map</Text>
+                </View>
+              </Pressable>
+            </Glass>
+          ) : (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
+              {trips.length ? trips.map((tp) => {
+                const mine = user && tp.host_id === user.id;
+                const joined = user && (tp.members || []).some((m) => m.user_id === user.id);
+                return (
+                  <Glass key={tp.id} tint={C.float} style={{ width: 250, padding: 13, marginRight: 12 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <Text style={{ fontSize: 20, marginRight: 8 }}>{tp.girls_only ? '👩' : '🧳'}</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800' }} numberOfLines={1}>{tp.title}</Text>
+                        <Text style={{ color: C.dim, fontSize: 11, marginTop: 1 }} numberOfLines={1}>
+                          {new Date(tp.starts_at).toLocaleDateString()} · {(tp.host && tp.host.name ? tp.host.name.split(' ')[0] : 'Someone')} hosting
+                        </Text>
+                      </View>
+                    </View>
+                    <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 8 }}>
+                      {tp.free > 0 ? tp.free + ' of ' + tp.seats + ' seats left' : 'Full'}
+                      {tp.girls_only ? ' · girls only' : ''}
+                    </Text>
+                    {mine ? (
+                      <Pressable onPress={async () => { try { await cancelTrip(tp.id, user.id); setTrips((l) => l.filter((x) => x.id !== tp.id)); } catch (e) {} }} style={{ marginTop: 10 }}>
+                        <View style={{ borderRadius: 14, backgroundColor: C.glassHi, borderWidth: 1, borderColor: C.line, paddingVertical: 10, alignItems: 'center' }}>
+                          <Text style={{ color: C.coral, fontSize: 12, fontWeight: '900' }}>Cancel this trip</Text>
+                        </View>
+                      </Pressable>
+                    ) : joined ? (
+                      <Pressable onPress={async () => { try { await leaveTrip(tp.id, user.id); fetchTrips({ girlsOnly }).then(setTrips).catch(() => {}); } catch (e) {} }} style={{ marginTop: 10 }}>
+                        <View style={{ borderRadius: 14, backgroundColor: C.greenSoft, borderWidth: 1, borderColor: 'rgba(16,185,129,0.5)', paddingVertical: 10, alignItems: 'center' }}>
+                          <Text style={{ color: C.green, fontSize: 12, fontWeight: '900' }}>You're going ✓ · tap to drop out</Text>
+                        </View>
+                      </Pressable>
+                    ) : (
+                      <NeonButton
+                        small
+                        label={tp.free > 0 ? 'JOIN THIS TRIP 🧳' : 'FULL'}
+                        style={{ marginTop: 10, opacity: tp.free > 0 ? 1 : 0.5 }}
+                        onPress={async () => {
+                          if (!user || tp.free <= 0) return;
+                          setPlanErr(null);
+                          try { await joinTrip(tp.id, user.id); tapSuccess(); fetchTrips({ girlsOnly }).then(setTrips).catch(() => {}); }
+                          catch (e) { setPlanErr((e && e.message) || 'Could not join that one.'); }
+                        }}
+                      />
+                    )}
+                  </Glass>
+                );
+              }) : (
+                <Glass tint={C.float} style={{ width: 262, padding: 16, alignItems: 'center' }}>
+                  <Text style={{ fontSize: 22 }}>🧳</Text>
+                  <Text style={{ color: C.text, fontSize: 13, fontWeight: '800', marginTop: 6, textAlign: 'center' }}>
+                    {girlsOnly ? 'No girls-only trips running yet' : 'No trips running yet'}
+                  </Text>
+                  <Text style={{ color: C.faint, fontSize: 11, marginTop: 3, textAlign: 'center' }}>Start one and it lands on the map.</Text>
+                </Glass>
+              )}
+            </ScrollView>
+          )}
+          {planErr && !newTrip ? (
+            <Text style={{ color: C.coral, fontSize: 12, marginHorizontal: 16, marginTop: 8 }}>{planErr}</Text>
+          ) : null}
+        </View>
+      ) : null}
     </View>
   );
 
@@ -917,7 +1161,7 @@ export const MapScreen = () => {
           )) : null}
         </MapView>
       ) : Platform.OS === 'web' ? (
-        <LeafletMap center={myCoords} markers={mapMarkers} onPress={onMarkerPress} locate={located} focus={mapFocus} lang={lang} meAvatar={user ? buildAvatarUrl(user.id) : null} meDoing={myDoing} meName={user && user.user_metadata && user.user_metadata.name} route={routeTo} appDark={isDark} />
+        <LeafletMap center={myCoords} markers={shownMarkers} onPress={onMarkerPress} locate={located} focus={mapFocus} lang={lang} meAvatar={user ? buildAvatarUrl(user.id) : null} meDoing={myDoing} meName={user && user.user_metadata && user.user_metadata.name} route={routeTo} appDark={isDark} />
       ) : (
         <FauxMap center={myCoords}>
           <View style={{ position: 'absolute', left: '38%', top: '50%' }}>

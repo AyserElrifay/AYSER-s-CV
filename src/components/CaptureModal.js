@@ -2254,12 +2254,13 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
         {/* everything you've already uploaded — pick one and posting is
             instant, because the file is already up there */}
         {libraryOpen ? (
-          <MediaLibrarySheet onPick={useFromLibrary} onClose={() => setLibraryOpen(false)} />
+          <MediaLibrarySheet inline onPick={useFromLibrary} onClose={() => setLibraryOpen(false)} />
         ) : null}
 
         {/* the whole drawer: lenses, looks, overlays and games */}
         {effectsOpen ? (
           <EffectsSheet
+            inline
             lenses={LENSES}
             filters={FILTERS}
             effects={EFFECTS}
