@@ -75,8 +75,13 @@ const Root = () => {
     const t = setTimeout(() => setTour(true), 1400);
     return () => clearTimeout(t);
   }, [isAuthenticated]);
-  // never a bare rectangle — see src/components/Splash.js
-  if (loading) return <Splash />;
+  /* Never a bare rectangle, and never a launch animation cut in half —
+     the splash owns its own exit and tells us when it's actually done.
+     See src/components/Splash.js. */
+  const [splashDone, setSplashDone] = React.useState(false);
+  if (loading || !splashDone) {
+    return <Splash ready={!loading} onDone={() => setSplashDone(true)} />;
+  }
   if (!isAuthenticated) return <AuthScreen />;
   // the mini-player floats above the navigator, so music keeps playing as
   // you move between tabs. `key={gen}` forces a full remount when dark
