@@ -39,6 +39,7 @@ import { initPwa } from './src/lib/pwa';
 import { Boundary } from './src/components/Boundary';
 import { InstallPrompt } from './src/components/InstallPrompt';
 import { Splash } from './src/components/Splash';
+import { GestureTour, tourSeen } from './src/components/GestureTour';
 
 initPwa(); // installable app + offline shell (no-op on native)
 
@@ -57,6 +58,17 @@ const StudioGate = () => {
 const Root = () => {
   const { loading, isAuthenticated } = useAuth();
   const { gen, isDark } = useTheme();
+
+  /* The gestures worth teaching, once, the first time somebody is
+     actually inside the app. A short delay so it lands after the first
+     screen has drawn — arriving on top of a half-painted feed makes it
+     feel like an ad rather than a hand. */
+  const [tour, setTour] = React.useState(false);
+  React.useEffect(() => {
+    if (!isAuthenticated || tourSeen()) return undefined;
+    const t = setTimeout(() => setTour(true), 1400);
+    return () => clearTimeout(t);
+  }, [isAuthenticated]);
   // never a bare rectangle — see src/components/Splash.js
   if (loading) return <Splash />;
   if (!isAuthenticated) return <AuthScreen />;
@@ -74,6 +86,7 @@ const Root = () => {
       <WhatsNew />
       <StudioGate />
       <InstallPrompt />
+      {tour ? <GestureTour onClose={() => setTour(false)} /> : null}
     </View>
   );
 };

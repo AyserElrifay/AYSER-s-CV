@@ -17,7 +17,7 @@ import { AV_NEUTRAL } from '../constants/mockData';
 import { getPrefs, setPref, subscribePrefs } from '../services/prefs';
 import {
   Glass, Micro, Chip, SectionHeader,
-  NeonButton, TermsSheet, BardiSheet, HelpSheet,
+  NeonButton, TermsSheet, BardiSheet, HelpSheet, GestureTour,
 } from '../components';
 
 /* Common languages for the exchange pickers — flag + name, tap to choose. */
@@ -86,6 +86,7 @@ export const SettingsScreen = ({ onClose }) => {
   }, [user]);
 
   const [helpOpen, setHelpOpen] = useState(false);
+  const [tourOpen, setTourOpen] = useState(false);
 
   // ── Real language-exchange opt-in (HelloTalk-style) ──
   const [speaks, setSpeaks] = useState('');
@@ -363,6 +364,20 @@ export const SettingsScreen = ({ onClose }) => {
         {/* ── SUPPORT ── */}
         <SectionHeader title="Support" style={{ marginTop: 26 }} />
         <Glass style={{ paddingHorizontal: 12, paddingVertical: 2 }}>
+          {/* A lesson you only get once is no use if you were half
+              awake the first time. */}
+          <Pressable onPress={() => { tapLight(); setTourOpen(true); }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 14 }}>
+              <View style={{ width: 30, height: 30, borderRadius: 9, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                <Ionicons name="hand-left-outline" size={16} color={C.purple} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: C.text, fontSize: 14, fontWeight: '700' }}>Show me the gestures</Text>
+                <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 1 }}>The four shortcuts worth knowing</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color={C.faint} />
+            </View>
+          </Pressable>
           <Pressable onPress={() => { tapLight(); setHelpOpen(true); }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 14 }}>
               <View style={{ width: 30, height: 30, borderRadius: 9, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
@@ -515,6 +530,7 @@ export const SettingsScreen = ({ onClose }) => {
       {termsOpen ? <TermsSheet onClose={() => setTermsOpen(false)} /> : null}
       {bardiOpen ? <BardiSheet onClose={() => setBardiOpen(false)} /> : null}
       {helpOpen ? <HelpSheet onClose={() => setHelpOpen(false)} /> : null}
+      {tourOpen ? <GestureTour onClose={() => setTourOpen(false)} /> : null}
 
       {/* language picker */}
       {langOpen ? (
