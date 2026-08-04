@@ -28,6 +28,7 @@ export { ComposeModal } from './ComposeModal';
 export { SearchModal } from './SearchModal';
 export { SoundChip } from './SoundChip';
 export { SoundPicker } from './SoundPicker';
+export { SoundTrimmer } from './SoundTrimmer';
 export { StoryViewer } from './StoryViewer';
 export { ReelsViewer } from './ReelsViewer';
 export { StarButton } from './StarButton';

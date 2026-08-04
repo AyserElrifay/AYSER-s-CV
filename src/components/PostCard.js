@@ -147,7 +147,9 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
     if (!post.sound || !post.sound.audio_url) return;
     tapLight();
     if (soundOn) { togglePlay && togglePlay(); return; }
-    playTrack && playTrack({ id: soundId, title: post.sound.title, artist: post.sound.artist || 'indie', emoji: post.sound.emoji || '🎵', audio_url: post.sound.audio_url }, null, 0, { quiet: true });
+    /* The moment used fifteen seconds of it; tapping the chip is
+       asking for the song, so the window comes off here. */
+    playTrack && playTrack({ id: soundId, title: post.sound.title, artist: post.sound.artist || 'indie', emoji: post.sound.emoji || '🎵', audio_url: String(post.sound.audio_url).split('#')[0] }, null, 0, { quiet: true });
   };
 
   return (

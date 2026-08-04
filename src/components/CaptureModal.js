@@ -15,6 +15,8 @@ import { uploadCapture, uploadMedia } from '../services/social';
 import { compressImage } from '../lib/storage';
 import { fetchTracks, incrementTrackUse, publishSound } from '../services/music';
 import { MusicHubSheet } from './MusicHubSheet';
+import { SoundTrimmer } from './SoundTrimmer';
+import { clipUrl, parseClip, holdToClip, DEFAULT_LEN } from '../lib/soundClip';
 import { isOwner } from '../services/music';
 import { LENSES, drawLens } from './lensArt';
 import { tapLight, tapMedium, tapSuccess, tapSelection } from '../utils/feedback';
@@ -863,15 +865,30 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
     tapLight(); sfxPop();
     if (previewRef.current) { previewRef.current.pause(); previewRef.current = null; }
     if (wasOn) { setSound(null); return; }
-    setSound(s);
-    if (isWeb && s && s.audio_url) {
+    /* A story is about fifteen seconds long, so fifteen seconds of the
+       song is what it gets — from the top until you say otherwise. The
+       scissors on the chip moves that window anywhere in the track. */
+    const picked = s && s.audio_url && !parseClip(s.audio_url)
+      ? { ...s, audio_url: clipUrl(s.audio_url, 0, DEFAULT_LEN) }
+      : s;
+    setSound(picked);
+    if (isWeb && picked && picked.audio_url) {
       try {
-        const a = new window.Audio(s.audio_url);
+        const a = new window.Audio(picked.audio_url);
         a.loop = true; a.volume = 0.85;
         a.play().catch(() => {});
+        holdToClip(a);
         previewRef.current = a;
       } catch (e) {}
     }
+  };
+
+  /* Which part of it. Opened from the chosen chip. */
+  const [trimming, setTrimming] = useState(null);
+  const openTrim = (s) => {
+    tapLight();
+    if (previewRef.current) { try { previewRef.current.pause(); } catch (e) {} previewRef.current = null; }
+    setTrimming(s);
   };
   useEffect(() => () => { if (previewRef.current) previewRef.current.pause(); }, []);
 
@@ -1578,6 +1595,18 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
               </Text>
               {on ? <Ionicons name="checkmark" size={13} color={C.purple} style={{ marginLeft: 4 }} /> : null}
             </Pressable>
+            {/* which fifteen seconds — only worth offering on a track
+                with a real file behind it */}
+            {on && s.audio_url ? (
+              <Pressable onPress={() => openTrim(sound || s)} hitSlop={8} style={{ marginLeft: 7 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Ionicons name="cut-outline" size={13} color={C.purple} />
+                  <Text style={{ color: C.purple, fontSize: 11, fontWeight: '900', marginLeft: 3 }}>
+                    {(() => { const cl = parseClip(sound && sound.audio_url); return (cl && cl.len ? Math.round(cl.len) : DEFAULT_LEN) + 's'; })()}
+                  </Text>
+                </View>
+              </Pressable>
+            ) : null}
           </View>
         );
       })}
@@ -2266,6 +2295,13 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
         </View>
 
         {hubOpen ? <MusicHubSheet onPick={(t) => chooseSound(t, false)} onClose={() => setHubOpen(false)} /> : null}
+        {trimming ? (
+          <SoundTrimmer
+            sound={trimming}
+            onDone={(s) => { setSound(s); setTrimming(null); }}
+            onClose={() => setTrimming(null)}
+          />
+        ) : null}
 
         {/* everything you've already uploaded — pick one and posting is
             instant, because the file is already up there */}

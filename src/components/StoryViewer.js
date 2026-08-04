@@ -16,6 +16,7 @@ import {
 import { getOrCreateDmThread, sendMessage } from '../services/messages';
 import { tapLight, tapSuccess } from '../utils/feedback';
 import { sfxPop, sfxSuccess } from '../utils/sfx';
+import { holdToClip } from '../lib/soundClip';
 
 const REACT_EMOJIS = ['❤️', '🔥', '😂', '😮', '😢', '👏'];
 
@@ -244,7 +245,18 @@ export const StoryViewer = ({ stories, groups, startGroup = 0, startIndex = 0, o
       <View style={{ flex: 1, backgroundColor: '#000' }}>
         {/* the story's REAL song — plays while you watch (web) */}
         {Platform.OS === 'web' && story.sound && story.sound.audio_url ? (
-          <audio key={story.sound.audio_url + index} src={story.sound.audio_url} autoPlay loop style={{ display: 'none' }} />
+          <audio
+            key={story.sound.audio_url + index}
+            src={story.sound.audio_url}
+            autoPlay
+            loop
+            /* the URL may carry the fifteen seconds they picked — see
+               src/lib/soundClip.js. Browsers seek to a media fragment
+               but won't hold the end of it, and looping sends the clip
+               back to zero, so the window is kept here. */
+            ref={(el) => { if (el && !el.__clipHeld) { el.__clipHeld = true; holdToClip(el); } }}
+            style={{ display: 'none' }}
+          />
         ) : null}
         {/* a VIDEO story must actually play — it rendered as a frozen
             ImageBackground before (why video stories "didn't work") */}
