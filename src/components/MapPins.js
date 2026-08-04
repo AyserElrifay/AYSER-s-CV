@@ -80,19 +80,28 @@ export const MePin = ({ doing }) => {
   );
 };
 
-export const SOSButton = ({ onPress }) => {
-  const pulse = usePulse(1100);
+/* `live` means one is already running. It has to look different, and
+   tapping it has to lead back to the way out — an alarm you can raise
+   but not lower is not a safety feature. */
+export const SOSButton = ({ onPress, live }) => {
+  const pulse = usePulse(live ? 700 : 1100);
   return (
-    <Pressable onPress={onPress} style={{ alignItems: 'center', justifyContent: 'center', width: 48, height: 48 }}>
+    <Pressable testID="sos-button" onPress={onPress} style={{ alignItems: 'center', justifyContent: 'center', width: 48, height: 48 }}>
       <Animated.View
         style={{
           position: 'absolute', width: 48, height: 48, borderRadius: 24, backgroundColor: C.coral,
-          opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.12, 0.4] }),
-          transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.85, 1.18] }) }],
+          opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: live ? [0.35, 0.85] : [0.12, 0.4] }),
+          transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: live ? [0.9, 1.35] : [0.85, 1.18] }) }],
         }}
       />
-      <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: C.coral, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)' }}>
-        <Text style={{ color: '#fff', fontSize: 10, fontWeight: '900', letterSpacing: 0.5 }}>SOS</Text>
+      <View style={{
+        width: 38, height: 38, borderRadius: 19, backgroundColor: C.coral,
+        alignItems: 'center', justifyContent: 'center',
+        borderWidth: live ? 2 : 1, borderColor: live ? '#FFF' : 'rgba(255,255,255,0.35)',
+      }}>
+        <Text style={{ color: '#fff', fontSize: live ? 15 : 10, fontWeight: '900', letterSpacing: 0.5 }}>
+          {live ? '🚨' : 'SOS'}
+        </Text>
       </View>
     </Pressable>
   );

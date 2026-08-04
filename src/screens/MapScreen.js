@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { View, Text, ScrollView, Pressable, Modal, TextInput, Platform, Image, Linking } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -33,6 +33,8 @@ import {
   PersonPin, CampfirePin, MePin, SOSButton, ProfileModal, BookingSheet, LeafletMap,
 } from '../components';
 import { tapLight, tapMedium, tapSelection, tapSuccess } from '../utils/feedback';
+// aliased: this screen already has its own `note`, which is a toast
+import { note as logFailure } from '../lib/crashLog';
 import { sfxPop, sfxSuccess } from '../utils/sfx';
 
 /* Which pins belong to each lens. `all` keeps everything; the rest are
@@ -472,11 +474,67 @@ export const MapScreen = () => {
     }
   };
 
-  /* ── SOS: real mode marks your real pin with 🚨 so it's visible ── */
+  /* ── SOS ─────────────────────────────────────────────────────────────
+     Your real pin turns into 🚨 so people around you can see it.
+
+     Two things this has to get right, and neither was true before.
+
+     One: an alarm that quietly fails to send is worse than no alarm at
+     all, because you stand there believing help is coming. The error
+     was being swallowed. Now the sheet stays on the question, says it
+     didn't go out, and lets you try again.
+
+     Two: you have to be able to turn it off. There was no way — the
+     "Close" button closed the dialog and left your pin flashing, and
+     the badge is restored from the server every time the app opens, so
+     it stayed on for good. */
+  const [sosErr, setSosErr] = useState(null);
+  const [sosBusy, setSosBusy] = useState(false);
+  const preSosDoing = useRef(null);
+  const sosLive = myDoing === '🚨';
+
   const sendSos = async () => {
-    setSos('sent');
-    if (SUPABASE_READY && user) {
-      try { await shareMyLocation(user.id, myCoords, '🚨'); setMyDoing('🚨'); loadNearby(); } catch (e) {}
+    if (sosBusy) return;
+    setSosErr(null);
+    if (!SUPABASE_READY || !user) { setSos('sent'); setMyDoing('🚨'); return; }
+    setSosBusy(true);
+    try {
+      preSosDoing.current = myDoing === '🚨' ? preSosDoing.current : myDoing;
+      await shareMyLocation(user.id, myCoords, '🚨');
+      setMyDoing('🚨');
+      loadNearby();
+      setSos('sent');
+      tapSuccess();
+    } catch (e) {
+      logFailure('sos', e);
+      // stay on the question — they must know it did not go out
+      setSosErr('That did not send — you are NOT showing as needing help. Check your signal and try again.');
+    } finally {
+      setSosBusy(false);
+    }
+  };
+
+  /* Stand it down. Puts back whatever you were doing before, so an SOS
+     doesn't cost you your place on the map. */
+  const clearSos = async () => {
+    if (sosBusy) return;
+    setSosErr(null);
+    const back = preSosDoing.current || null;
+    if (!SUPABASE_READY || !user) { setMyDoing(back); setSos(null); return; }
+    setSosBusy(true);
+    try {
+      if (back) await shareMyLocation(user.id, myCoords, back);
+      else await goInvisible(user.id);
+      preSosDoing.current = null;
+      setMyDoing(back);
+      loadNearby();
+      setSos(null);
+      tapSuccess();
+    } catch (e) {
+      logFailure('sos', e);
+      setSosErr('Could not turn it off — your pin is still showing 🚨. Try again.');
+    } finally {
+      setSosBusy(false);
     }
   };
 
@@ -843,7 +901,10 @@ export const MapScreen = () => {
               </View>
             </Pressable>
             <View style={{ marginBottom: 10 }}>
-              <SOSButton onPress={() => { setTools(false); setSos('ask'); }} />
+              {/* while one is running this reopens the live sheet rather
+                  than asking again — closing that sheet must never be a
+                  one-way door out of turning the alarm off */}
+              <SOSButton live={sosLive} onPress={() => { setTools(false); setSos(sosLive ? 'sent' : 'ask'); }} />
             </View>
           </>
         ) : null}
@@ -853,7 +914,7 @@ export const MapScreen = () => {
             <Ionicons name={locating ? 'ellipsis-horizontal' : 'locate'} size={21} color={located ? C.green : C.purple} />
           </View>
         </Pressable>
-        <Pressable onPress={() => { tapLight(); setTools((v) => !v); }}>
+        <Pressable testID="map-tools" onPress={() => { tapLight(); setTools((v) => !v); }}>
           <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: tools ? C.text : C.purple, alignItems: 'center', justifyContent: 'center', shadowColor: C.purple, shadowOpacity: 0.3, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } }}>
             <Ionicons name={tools ? 'close' : 'ellipsis-horizontal'} size={21} color="#FFF" />
           </View>
@@ -1273,10 +1334,15 @@ export const MapScreen = () => {
                   <Text style={{ fontSize: 34, textAlign: 'center' }}>🚨</Text>
                   <Text style={{ color: C.text, fontSize: 19, fontWeight: '900', textAlign: 'center', marginTop: 8 }}>{t('send_sos_q')}</Text>
                   <Text style={{ color: C.dim, fontSize: 13, textAlign: 'center', marginTop: 8, lineHeight: 19 }}>
-                    Your live pin turns into an SOS marker so people around you on the map can see you need help.
+                    Your live pin turns into an SOS marker so people around you on the map can see you need help. You can turn it off whenever you want.
                   </Text>
-                  <NeonButton color={C.coral} label={t('send_sos_now')} style={{ marginTop: 18 }} onPress={sendSos} />
-                  <GhostButton small label="Cancel" style={{ marginTop: 10 }} onPress={() => setSos(null)} />
+                  {sosErr ? (
+                    <Text style={{ color: C.coral, fontSize: 12.5, textAlign: 'center', marginTop: 12, lineHeight: 18, fontWeight: '800' }}>
+                      {sosErr}
+                    </Text>
+                  ) : null}
+                  <NeonButton color={C.coral} label={sosBusy ? 'Sending…' : (sosErr ? 'Try again' : t('send_sos_now'))} style={{ marginTop: 18 }} onPress={sendSos} />
+                  <GhostButton small label="Cancel" style={{ marginTop: 10 }} onPress={() => { setSos(null); setSosErr(null); }} />
                 </View>
               ) : (
                 <View>
@@ -1285,7 +1351,26 @@ export const MapScreen = () => {
                   <Text style={{ color: C.dim, fontSize: 13, textAlign: 'center', marginTop: 8, lineHeight: 19 }}>
                     Anyone nearby on the Moments map can see it right now. Stay where you are.
                   </Text>
-                  <GhostButton small label="Close" style={{ marginTop: 18 }} onPress={() => setSos(null)} />
+                  {sosErr ? (
+                    <Text style={{ color: C.coral, fontSize: 12.5, textAlign: 'center', marginTop: 12, lineHeight: 18, fontWeight: '800' }}>
+                      {sosErr}
+                    </Text>
+                  ) : null}
+                  {/* The off switch. There wasn't one — "Close" shut the
+                      dialog and left the pin flashing for good. */}
+                  <Pressable onPress={clearSos} disabled={sosBusy} style={{ marginTop: 18 }}>
+                    <View style={{
+                      backgroundColor: C.greenSoft, borderWidth: 1, borderColor: 'rgba(16,185,129,0.5)',
+                      borderRadius: 16, paddingVertical: 14, alignItems: 'center', opacity: sosBusy ? 0.6 : 1,
+                    }}>
+                      <Text style={{ color: C.green, fontSize: 14.5, fontWeight: '900' }}>
+                        {sosBusy ? 'Turning it off…' : "I'm safe now — turn it off"}
+                      </Text>
+                    </View>
+                  </Pressable>
+                  {/* leaving the sheet is not the same as standing down:
+                      you may want the phone in your pocket while it runs */}
+                  <GhostButton small label="Keep it on, close this" style={{ marginTop: 10 }} onPress={() => { setSos(null); setSosErr(null); }} />
                 </View>
               )}
             </Glass>
