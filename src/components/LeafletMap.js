@@ -333,12 +333,21 @@ const pinHtml = (m) => {
 const LIGHT_TILES = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
 const DARK_TILES = 'https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png';
 
-export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus = null, lang = 'en', meAvatar = null, meDoing = null, meName = null, route = null, appDark = null }) => {
+export const LeafletMap = ({ center, markers = [], onPress, onMe, locate = true, focus = null, lang = 'en', meAvatar = null, meDoing = null, meName = null, route = null, appDark = null }) => {
   const elRef = useRef(null);
   const mapRef = useRef(null);
   const layerRef = useRef(null);
   const meRef = useRef(null);
   const flownRef = useRef(false);
+  /* Both tap handlers live in refs. Markers are only redrawn when the
+     data changes, so a handler bound to a pin outlives the render that
+     created it — and the handler it captured closes over the people
+     list as it was at that moment. Reading through a ref means a tap
+     always runs today's handler against today's data. */
+  const onPressRef = useRef(onPress);
+  onPressRef.current = onPress;
+  const onMeRef = useRef(onMe);
+  onMeRef.current = onMe;
   const locateRef = useRef(locate);
   locateRef.current = locate;
   const langRef = useRef(lang);
@@ -591,6 +600,10 @@ export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus
         iconSize: av ? [56, 86] : [56, 68], iconAnchor: av ? [28, 33] : [28, 11],
       });
       meRef.current = L.marker([center.latitude, center.longitude], { icon: meIcon, zIndexOffset: 1000 }).addTo(layerRef.current);
+      /* Your own pin had no handler on it at all — the one character on
+         the map guaranteed to be tapped first, and tapping it did
+         nothing. It opens you now. */
+      meRef.current.on('click', () => onMeRef.current && onMeRef.current());
     }
 
     markers.forEach((m) => {
@@ -602,16 +615,24 @@ export const LeafletMap = ({ center, markers = [], onPress, locate = true, focus
       const isEvent = m.kind === 'event';
       const isTrip = m.kind === 'trip';
       const isShot = m.kind === 'moment' || m.kind === 'story';
+      /* A person standing on the map is a taller thing than a person in
+         a teardrop, and it was being declared as the same size — 52×66
+         for content that measures 74×120, anchored at [26,33]. The
+         result: the figure's feet landed 67px BELOW the spot they're
+         actually standing on, and 11px to the right of it. Measured, not
+         guessed. The figure is 1:1.6 and its floor line sits at 152 of
+         the 160-tall grid it's drawn on, so at 66px wide the feet are
+         100px down — anchor there and they stand where they are. */
       const icon = L.divIcon({
         html: pinHtml(m), className: '',
-        iconSize: isShot ? [62, 74] : isPerson ? [52, 66] : isDest ? [88, 44] : isPlace ? [13, 13] : isNote ? [40, 44] : isEvent || isTrip ? [66, 50] : [16, 16],
-        iconAnchor: isShot ? [31, 70] : isPerson ? [26, 33] : isDest ? [44, 22] : isPlace ? [7, 7] : isNote ? [20, 40] : isEvent || isTrip ? [33, 40] : [8, 8],
+        iconSize: isShot ? [62, 74] : isPerson ? (m.standing ? [74, 120] : [52, 66]) : isDest ? [88, 44] : isPlace ? [13, 13] : isNote ? [40, 44] : isEvent || isTrip ? [66, 50] : [16, 16],
+        iconAnchor: isShot ? [31, 70] : isPerson ? (m.standing ? [37, 100] : [26, 33]) : isDest ? [44, 22] : isPlace ? [7, 7] : isNote ? [20, 40] : isEvent || isTrip ? [33, 40] : [8, 8],
       });
       // a live story sits above everything else — it's the freshest thing there
       const z = m.kind === 'story' ? 700 : m.kind === 'moment' ? 600 : isPerson ? 500 : isDest ? 300 : 0;
       const mk = L.marker([m.lat, m.lng], { icon, zIndexOffset: z }).addTo(layerRef.current);
       if (m.label && !isPerson && !isDest && !isShot && !isTrip) mk.bindTooltip(esc(m.label), { direction: 'top', offset: [0, -34] });
-      mk.on('click', () => onPress && onPress(m));
+      mk.on('click', () => onPressRef.current && onPressRef.current(m));
     });
   };
 

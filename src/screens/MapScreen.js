@@ -309,7 +309,22 @@ export const MapScreen = () => {
 
   const onMarkerPress = (m) => {
     setSheet(null); // whatever's open, a map tap replaces it — never stacks
-    if (m.kind === 'person') { const p = people.find((x) => x.id === m.srcId); if (p) setProfileUser(p); }
+    /* Every branch below used to end in `if (found) open(...)` — so a
+       lookup that missed did nothing whatsoever, and a tap that does
+       nothing reads as a broken app rather than as a miss. A person pin
+       already carries everything a profile card needs, so when the list
+       lookup comes up empty we open them from the marker itself. The tap
+       always opens somebody. */
+    if (m.kind === 'person') {
+      const p = people.find((x) => x.id === m.srcId);
+      setProfileUser(p || {
+        id: m.srcId,
+        name: (m.label || 'Explorer').replace(/^[^ ]+ /, ''),
+        avatar: m.avatar || AV_NEUTRAL,
+        countryFlag: m.flag,
+        intent: 'On the map now',
+      });
+    }
     else if (m.kind === 'venue') { const v = realVenues.find((x) => x.id === m.srcId); setRail('book'); if (v) setBookingVenue(v); }
     else if (m.kind === 'fire') { const c = campfires.find((x) => x.id === m.srcId); if (c) joinFire(c); }
     else if (m.kind === 'place') { const pl = realPlaces.find((x) => x.id === m.srcId); if (pl) setPlaceOpen(pl); }
@@ -321,6 +336,22 @@ export const MapScreen = () => {
     // a trip pin sends you to the trips lens, where you can actually join it
     else if (m.kind === 'trip') { setLens('trips'); setNewTrip(null); }
   };
+
+  /* Tapping yourself opens you — your own profile, the same card
+     everybody else sees when they tap you, so you can check what you
+     look like from the outside. */
+  const onMePress = () => {
+    if (!user) return;
+    tapLight();
+    setSheet(null);
+    setProfileUser({
+      id: user.id,
+      name: (user.user_metadata && user.user_metadata.name) || 'You',
+      avatar: buildAvatarUrl(user.id),
+      intent: myDoing ? 'Right now: ' + myDoing : 'On the map now',
+    });
+  };
+
   const [eventOpen, setEventOpen] = useState(null);
 
   /* ── curated destination sheet: guide + reviews + Uber ── */
@@ -1161,7 +1192,7 @@ export const MapScreen = () => {
           )) : null}
         </MapView>
       ) : Platform.OS === 'web' ? (
-        <LeafletMap center={myCoords} markers={shownMarkers} onPress={onMarkerPress} locate={located} focus={mapFocus} lang={lang} meAvatar={user ? buildAvatarUrl(user.id) : null} meDoing={myDoing} meName={user && user.user_metadata && user.user_metadata.name} route={routeTo} appDark={isDark} />
+        <LeafletMap center={myCoords} markers={shownMarkers} onPress={onMarkerPress} onMe={onMePress} locate={located} focus={mapFocus} lang={lang} meAvatar={user ? buildAvatarUrl(user.id) : null} meDoing={myDoing} meName={user && user.user_metadata && user.user_metadata.name} route={routeTo} appDark={isDark} />
       ) : (
         <FauxMap center={myCoords}>
           <View style={{ position: 'absolute', left: '38%', top: '50%' }}>
