@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, Modal, Pressable, ScrollView, Image, ActivityIndicator, Platform, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -37,6 +37,8 @@ export const MediaLibrarySheet = ({ onPick, onClose, only = null, inline = false
   const { user } = useAuth();
   const [rows, setRows] = useState(null);
   const [busy, setBusy] = useState(null);      // 'photo' | 'video' while uploading
+  const [pct, setPct] = useState(0);           // 0–1, real bytes sent
+  const abortRef = useRef(null);
   const [err, setErr] = useState(null);
   const [confirmDel, setConfirmDel] = useState(null);
 
@@ -67,14 +69,26 @@ export const MediaLibrarySheet = ({ onPick, onClose, only = null, inline = false
       return;
     }
     setBusy(label);
+    setPct(0);
+    const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    abortRef.current = ctrl;
     try {
       const ext = (String(file.name || '').split('.').pop() || '').toLowerCase() || (/^video\//.test(file.type) ? 'mp4' : 'jpg');
-      const row = await addToLibrary(user.id, file, { ext, contentType: file.type, bytes: file.size });
+      const row = await addToLibrary(user.id, file, {
+        ext, contentType: file.type, bytes: file.size,
+        onProgress: (loaded, total) => setPct(total ? loaded / total : 0),
+        signal: ctrl && ctrl.signal,
+      });
       tapSuccess();
       setRows((list) => [row].concat(list || []));
     } catch (e) {
-      setErr((e && e.message) || 'That upload did not go through — try again.');
-    } finally { setBusy(null); }
+      const m = (e && e.message) || '';
+      setErr(/cancelled/i.test(m) ? null : (m || 'That upload did not go through — try again.'));
+    } finally { setBusy(null); setPct(0); abortRef.current = null; }
+  };
+
+  const cancelUpload = () => {
+    if (abortRef.current) { try { abortRef.current.abort(); } catch (e) {} }
   };
 
   const drop = async (row) => {
@@ -118,10 +132,24 @@ export const MediaLibrarySheet = ({ onPick, onClose, only = null, inline = false
           </Pressable>
         </View>
 
+        {/* A bar that moves, because a spinner cannot tell you the
+            difference between slow and stuck — and that is exactly what
+            a stalled upload looked like. */}
         {busy ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 12 }}>
-            <ActivityIndicator color={C.purple} />
-            <Text style={{ color: C.faint, fontSize: 12, marginLeft: 8 }}>Sending it up — you can leave this open</Text>
+          <View style={{ marginTop: 14, paddingHorizontal: 4 }}>
+            <View style={{ height: 6, borderRadius: 3, backgroundColor: C.glassHi, overflow: 'hidden' }}>
+              <View style={{ width: Math.max(4, Math.round(pct * 100)) + '%', height: '100%', borderRadius: 3, backgroundColor: C.purple }} />
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
+              <Text style={{ color: C.faint, fontSize: 12, flex: 1 }}>
+                {pct > 0
+                  ? Math.round(pct * 100) + '% sent — you can leave this open'
+                  : 'Starting the upload…'}
+              </Text>
+              <Pressable onPress={cancelUpload} hitSlop={8}>
+                <Text style={{ color: C.coral, fontSize: 12, fontWeight: '900' }}>Cancel</Text>
+              </Pressable>
+            </View>
           </View>
         ) : null}
 

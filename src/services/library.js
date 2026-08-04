@@ -26,10 +26,19 @@ export async function fetchLibrary(userId, limit = 60) {
 
 /* Push a file up and remember it. Returns the row, so the picker can
    show it immediately without a round trip. */
-export async function addToLibrary(userId, fileOrUri, { ext, contentType, bytes } = {}) {
+export async function addToLibrary(userId, fileOrUri, { ext, contentType, bytes, onProgress, signal } = {}) {
   if (!userId || !fileOrUri) throw new Error('Nothing to add.');
   const kind = /^video\//.test(contentType || '') ? 'video' : 'photo';
-  const url = await uploadMediaSmart(userId, fileOrUri, ext || (kind === 'video' ? 'mp4' : 'jpg'), contentType || (kind === 'video' ? 'video/mp4' : 'image/jpeg'));
+  // onProgress/signal let the picker show real movement and back out —
+  // a spinner with nothing behind it is what made a stalled upload look
+  // identical to a working one
+  const url = await uploadMediaSmart(
+    userId,
+    fileOrUri,
+    ext || (kind === 'video' ? 'mp4' : 'jpg'),
+    contentType || (kind === 'video' ? 'video/mp4' : 'image/jpeg'),
+    { onProgress, signal }
+  );
   const { data, error } = await supabase
     .from('media_library')
     .insert({ user_id: userId, url, kind, bytes: bytes || null })

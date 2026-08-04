@@ -1,4 +1,5 @@
 import { supabase, SUPABASE_READY } from './supabase';
+import { SUPABASE_URL } from './supabaseConfig';
 
 /* ── MEDIA STORAGE · Cloudflare R2 first, Supabase Storage fallback ──
    R2 has ZERO egress fees, so it's the right home for video at scale.
@@ -49,7 +50,77 @@ async function uploadToR2(userId, uri, ext, contentType) {
   return (data.publicUrl || (R2_PUBLIC_URL.replace(/\/$/, '') + '/' + key));
 }
 
-async function uploadToSupabase(userId, uri, ext, contentType) {
+/* ─── ONE PUT, WATCHED ────────────────────────────────────────────────
+   `supabase.storage.upload()` is a fetch, and a fetch has no progress
+   and no timeout. On a phone, on 4G, a 16MB video takes a while — and
+   if the connection stalls halfway the promise simply never settles.
+   No error, no rejection, nothing for the `finally` to run: the button
+   says "Uploading…" and keeps saying it forever. That is what Ayser was
+   looking at, and it is worse than an error, because an error at least
+   tells you to try again.
+
+   XMLHttpRequest is the older API and the only one in a browser that
+   reports upload progress. So: the same PUT, done by hand, with three
+   things fetch cannot give us —
+
+     • how far it has actually got, in bytes
+     • a stall timer, which fires only when nothing has moved for a
+       while (never a fixed deadline: a big file on a slow line is
+       slow, not broken, and killing it at 60s would punish exactly
+       the people this is meant to help)
+     • a way to abort
+
+   Everything else — retries, the size guard, the public URL — is as it
+   was. */
+const STALL_MS = 25000;   // nothing moved for this long → it's stuck, not slow
+
+function putWithProgress({ url, token, body, contentType, onProgress, signal }) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    let lastMoved = Date.now();
+    let sent = 0;
+
+    const stall = setInterval(() => {
+      if (Date.now() - lastMoved > STALL_MS) {
+        clearInterval(stall);
+        try { xhr.abort(); } catch (e) {}
+        const pct = body.size ? Math.round((sent / body.size) * 100) : 0;
+        reject(new Error('The upload stopped moving at ' + pct + '% — your connection dropped out. Try again when you have a steadier signal.'));
+      }
+    }, 2000);
+
+    const done = () => clearInterval(stall);
+
+    if (signal) {
+      signal.addEventListener('abort', () => { done(); try { xhr.abort(); } catch (e) {} reject(new Error('Upload cancelled')); });
+    }
+
+    xhr.upload.onprogress = (e) => {
+      if (!e.lengthComputable) return;
+      lastMoved = Date.now();
+      sent = e.loaded;
+      if (onProgress) onProgress(e.loaded, e.total);
+    };
+    xhr.onload = () => {
+      done();
+      if (xhr.status >= 200 && xhr.status < 300) { resolve(); return; }
+      let msg = 'HTTP ' + xhr.status;
+      try { const j = JSON.parse(xhr.responseText); msg = j.message || j.error || msg; } catch (e) {}
+      reject(new Error(msg));
+    };
+    xhr.onerror = () => { done(); reject(new Error('The upload didn\'t reach the server')); };
+    xhr.onabort = () => { done(); };
+
+    xhr.open('POST', url, true);
+    xhr.setRequestHeader('Authorization', 'Bearer ' + token);
+    xhr.setRequestHeader('x-upsert', 'false');
+    if (contentType) xhr.setRequestHeader('Content-Type', contentType);
+    xhr.send(body);
+  });
+}
+
+async function uploadToSupabase(userId, uri, ext, contentType, opts) {
+  const { onProgress, signal } = opts || {};
   // Blob, not ArrayBuffer — half the memory footprint, which is what
   // made Safari throw 'Load failed' on big videos.
   const body = await asBlob(uri);
@@ -63,24 +134,42 @@ async function uploadToSupabase(userId, uri, ext, contentType) {
      looks identical to a rejected file. Three tries, a fresh path each
      time so a half-written object never collides, and the real reason
      kept if they all fail. */
+  const canWatch = typeof XMLHttpRequest !== 'undefined';
+  let token = null;
+  if (canWatch) {
+    try {
+      const { data } = await supabase.auth.getSession();
+      token = data && data.session && data.session.access_token;
+    } catch (e) { token = null; }
+  }
+
   let last = null;
   for (let attempt = 1; attempt <= 3; attempt++) {
     const path = userId + '/' + Date.now() + '-' + attempt + '.' + ext;
-    const { error } = await supabase.storage.from('media')
-      .upload(path, body, { contentType, upsert: false });
-    if (!error) {
+    try {
+      if (canWatch && token) {
+        await putWithProgress({
+          url: SUPABASE_URL.replace(/\/$/, '') + '/storage/v1/object/media/' + path,
+          token, body, contentType, onProgress, signal,
+        });
+      } else {
+        // no XHR (native) or no session — the plain path, as before
+        const { error } = await supabase.storage.from('media').upload(path, body, { contentType, upsert: false });
+        if (error) throw error;
+      }
       const { data } = supabase.storage.from('media').getPublicUrl(path);
       return data.publicUrl;
+    } catch (e) {
+      last = e;
+      const msg = String((e && e.message) || '');
+      if (/cancelled/i.test(msg)) throw e;                  // they meant it
+      // a rejection is final; only a dropped connection is worth retrying
+      if (!/load failed|failed to fetch|network|timeout|aborted|stopped moving|didn't reach/i.test(msg)) break;
+      await new Promise((r) => setTimeout(r, 1200 * attempt));
     }
-    last = error;
-    const msg = String((error && error.message) || '');
-    // a rejection is final; only a dropped connection is worth retrying
-    if (!/load failed|failed to fetch|network|timeout|aborted/i.test(msg)) break;
-    await new Promise((r) => setTimeout(r, 1200 * attempt));
   }
   const detail = (last && (last.message || last.error)) || 'unknown';
-  const e = new Error('Upload failed after 3 tries — ' + detail +
-    ' (' + Math.round(body.size / 1048576 * 10) / 10 + 'MB)');
+  const e = new Error(detail + ' (' + Math.round(body.size / 1048576 * 10) / 10 + 'MB)');
   e.raw = last;
   throw e;
 }
@@ -117,11 +206,12 @@ export function compressImage(uri, maxSide = 1600, quality = 0.85) {
 /* One entry point for every upload. Tries R2, falls back to Supabase.
    `uri` may be a string OR the Blob itself — pass the Blob when you
    have it and Safari's blob-fetch bug never comes up. */
-export async function uploadMediaSmart(userId, uri, ext, contentType) {
+export async function uploadMediaSmart(userId, uri, ext, contentType, opts) {
   if (!SUPABASE_READY) return uri; // demo mode keeps the local blob url
   if (R2_READY) {
     try { return await uploadToR2(userId, uri, ext, contentType); }
     catch (e) { /* fall through to Supabase */ }
   }
-  return uploadToSupabase(userId, uri, ext, contentType);
+  // `opts` carries onProgress and an abort signal — see uploadToSupabase
+  return uploadToSupabase(userId, uri, ext, contentType, opts);
 }

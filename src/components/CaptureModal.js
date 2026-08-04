@@ -714,6 +714,9 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
   const [recMs, setRecMs] = useState(0);
   const [caption, setCaption] = useState('');
   const [busy, setBusy] = useState(false);
+  // real bytes-sent, so "Sending…" can say how far it has got instead
+  // of sitting there looking identical to a stalled upload
+  const [upPct, setUpPct] = useState(0);
   const [hubOpen, setHubOpen] = useState(false);
 
   // ── effects + game filters (previewed live, baked on share) ──
@@ -1433,6 +1436,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
   const share = async () => {
     if (!shot || busy) return;
     setBusy(true);
+    setUpPct(0);
     // bake the look into the photo's real pixels before uploading
     let workingShot = shot;
     const needsBake = (cssFilter && cssFilter !== 'none') || effectId !== 'none' || !!gameCard || !!reelGame || !!lens;
@@ -1453,7 +1457,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
         let mediaUrl = workingShot.uri;
         if (SUPABASE_READY && user && !alreadyUp) {
           mediaUrl = isWeb
-            ? await uploadCapture(user.id, workingShot.blob || workingShot.uri, workingShot.ext, workingShot.contentType)
+            ? await uploadCapture(user.id, workingShot.blob || workingShot.uri, workingShot.ext, workingShot.contentType, { onProgress: (l, t) => setUpPct(t ? l / t : 0) })
             : await uploadMedia(user.id, workingShot.uri);
         }
         onMoment && (await onMoment({
@@ -1470,7 +1474,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
         const mediaUrl = alreadyUp
           ? workingShot.uri
           : isWeb
-            ? await uploadCapture(user.id, workingShot.blob || workingShot.uri, workingShot.ext, workingShot.contentType)
+            ? await uploadCapture(user.id, workingShot.blob || workingShot.uri, workingShot.ext, workingShot.contentType, { onProgress: (l, t) => setUpPct(t ? l / t : 0) })
             : await uploadMedia(user.id, workingShot.uri);
         if (alreadyUp && shot.libraryId) markUsed(shot.libraryId);
         /* Everything you shoot lands in your library too, so the clip
@@ -2299,7 +2303,11 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
                 </View>
                 <Pressable onPress={share} disabled={busy}>
                   <LinearGradient colors={[C.purple, '#5B21B6']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, paddingHorizontal: 20, paddingVertical: 13, opacity: busy ? 0.6 : 1 }}>
-                    <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '900' }}>{busy ? 'Sending…' : sendMode ? 'Send Moment 🔥' : mode === 'story' ? 'Add to Story' : mode === 'video' ? 'Post Video' : 'Post Reel'}</Text>
+                    <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '900' }}>
+                      {busy
+                        ? (upPct > 0 ? 'Sending… ' + Math.round(upPct * 100) + '%' : 'Sending…')
+                        : sendMode ? 'Send Moment 🔥' : mode === 'story' ? 'Add to Story' : mode === 'video' ? 'Post Video' : 'Post Reel'}
+                    </Text>
                     {sendMode ? null : <MaterialCommunityIcons name="star-four-points" size={15} color={C.gold} style={{ marginLeft: 6 }} />}
                   </LinearGradient>
                 </Pressable>

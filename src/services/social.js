@@ -239,8 +239,9 @@ export async function fetchLanguagePartners(myUserId) {
 
 /* Uploads captured media (a blob/data URL from the in-app camera).
    Routes through R2 (zero egress) with a Supabase Storage fallback. */
-export async function uploadCapture(userId, uri, ext, contentType) {
-  return uploadMediaSmart(userId, uri, ext, contentType);
+export async function uploadCapture(userId, uri, ext, contentType, opts) {
+  // opts carries onProgress / an abort signal — see src/lib/storage.js
+  return uploadMediaSmart(userId, uri, ext, contentType, opts);
 }
 
 /* Uploads a local image uri; returns the public URL to store on the post.
