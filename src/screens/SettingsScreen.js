@@ -50,7 +50,7 @@ export const SettingsScreen = ({ onClose }) => {
   const insets = useSafeAreaInsets();
   const { signOut, isDemo, user } = useAuth();
   const { t, lang, setLang, langs, meta } = useLang();
-  const { isDark, toggleTheme } = useTheme();
+  const { isDark, pref, setThemePref } = useTheme();
   // Real mode starts with NO activity — only things that truly happened
   // (real splits you shared) get added. The sample rows are demo-only.
   const [tx, setTx] = useState(SUPABASE_READY ? [] : INITIAL_TX);
@@ -331,16 +331,45 @@ export const SettingsScreen = ({ onClose }) => {
             </View>
           </Pressable>
 
-          {/* Dark mode — real theme, not a preview */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.line }}>
-            <View style={{ width: 30, height: 30, borderRadius: 9, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
-              <Ionicons name={isDark ? 'moon' : 'moon-outline'} size={16} color={C.purple} />
+          {/* Appearance — real theme, not a preview. Three choices,
+              because "follow my phone" is a different thing from "dark":
+              set it once at sunset system-wide and every app should
+              already know. */}
+          <View style={{ paddingVertical: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.line }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <View style={{ width: 30, height: 30, borderRadius: 9, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                <Ionicons name={isDark ? 'moon' : 'moon-outline'} size={16} color={C.purple} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: C.text, fontSize: 14, fontWeight: '700' }}>Appearance</Text>
+                <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 1 }}>
+                  {pref === 'auto'
+                    ? 'Following your phone — ' + (isDark ? 'dark right now' : 'light right now')
+                    : 'Easier on the eyes at night'}
+                </Text>
+              </View>
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: C.text, fontSize: 14, fontWeight: '700' }}>Dark mode</Text>
-              <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 1 }}>Easier on the eyes at night</Text>
+            <View style={{ flexDirection: 'row', marginTop: 11, backgroundColor: C.glass, borderRadius: 12, padding: 3, borderWidth: 1, borderColor: C.line }}>
+              {[
+                { k: 'auto', label: 'Auto', icon: 'phone-portrait-outline' },
+                { k: 'light', label: 'Light', icon: 'sunny-outline' },
+                { k: 'dark', label: 'Dark', icon: 'moon-outline' },
+              ].map((o) => {
+                const on = pref === o.k;
+                return (
+                  <Pressable key={o.k} onPress={() => { tapSelection(); setThemePref(o.k); }} style={{ flex: 1 }}>
+                    <View style={{
+                      flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+                      paddingVertical: 9, borderRadius: 10,
+                      backgroundColor: on ? C.purple : 'transparent',
+                    }}>
+                      <Ionicons name={o.icon} size={14} color={on ? '#FFF' : C.faint} />
+                      <Text style={{ color: on ? '#FFF' : C.dim, fontSize: 12.5, fontWeight: '800', marginLeft: 6 }}>{o.label}</Text>
+                    </View>
+                  </Pressable>
+                );
+              })}
             </View>
-            <Toggle on={isDark} onToggle={() => { tapSelection(); toggleTheme(); }} />
           </View>
 
           {[
