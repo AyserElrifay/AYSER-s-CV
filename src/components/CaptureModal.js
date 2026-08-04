@@ -17,6 +17,7 @@ import { fetchTracks, incrementTrackUse, publishSound } from '../services/music'
 import { MusicHubSheet } from './MusicHubSheet';
 import { SoundTrimmer } from './SoundTrimmer';
 import { clipUrl, parseClip, holdToClip, DEFAULT_LEN } from '../lib/soundClip';
+import { note } from '../lib/crashLog';
 import { isOwner } from '../services/music';
 import { LENSES, drawLens } from './lensArt';
 import { tapLight, tapMedium, tapSuccess, tapSelection } from '../utils/feedback';
@@ -1520,7 +1521,9 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
       clearDraft();
       onClose();
     } catch (e) {
-      // say WHY it failed — "failed" alone helps nobody
+      // say WHY it failed — "failed" alone helps nobody. Kept too, so
+      // the reason survives being dismissed (src/lib/crashLog.js).
+      note('upload', e, mode + ' · ' + (workingShot && workingShot.kind));
       const m = (e && e.message) || '';
       setCamError(
         /bucket/i.test(m)

@@ -245,9 +245,17 @@ export async function fetchMyDmThreads(userId) {
   const threadIds = (mine || []).map((r) => r.thread_id);
   if (!threadIds.length) return [];
 
+  /* `user_id` is selected alongside the joined profile on purpose. The
+     join comes back null whenever the other person's profile row can't
+     be read — a deleted account, or a row the read policy hides — and
+     the screen used to take that null straight into `d.user.id`, which
+     threw and took the whole Chats tab down with it. One unreadable
+     profile should cost you that one name, not every conversation you
+     have. With the id in hand the thread still opens and its history is
+     still there. */
   const { data: others, error: err2 } = await supabase
     .from('dm_participants')
-    .select('thread_id, user:profiles(id, name, handle, avatar_url, verified)')
+    .select('thread_id, user_id, user:profiles(id, name, handle, avatar_url, verified)')
     .in('thread_id', threadIds)
     .neq('user_id', userId);
   if (err2) throw err2;
@@ -260,13 +268,15 @@ export async function fetchMyDmThreads(userId) {
   const lastByThread = {};
   (lastMsgs || []).forEach((m) => { if (!lastByThread[m.dm_thread_id]) lastByThread[m.dm_thread_id] = m; });
 
-  return others
+  return (others || [])
     .map((o) => ({
       threadId: o.thread_id,
-      user: o.user,
+      // never null — the caller renders this without asking
+      user: o.user || { id: o.user_id, name: 'Someone', handle: null, avatar_url: null, verified: false },
       last: (lastByThread[o.thread_id] && lastByThread[o.thread_id].body) || 'Say hi 👋',
       time: (lastByThread[o.thread_id] && lastByThread[o.thread_id].created_at) || null,
     }))
+    .filter((d) => d.threadId && d.user.id)
     .sort((a, b) => new Date(b.time || 0) - new Date(a.time || 0));
 }
 

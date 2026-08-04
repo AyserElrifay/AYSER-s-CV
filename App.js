@@ -40,8 +40,10 @@ import { Boundary } from './src/components/Boundary';
 import { InstallPrompt } from './src/components/InstallPrompt';
 import { Splash } from './src/components/Splash';
 import { GestureTour, tourSeen } from './src/components/GestureTour';
+import { installCrashLog, setDiagnostics } from './src/lib/crashLog';
 
 initPwa(); // installable app + offline shell (no-op on native)
+installCrashLog(); // keep what went wrong — see src/lib/crashLog.js
 
 /* The Studio opens from a private link and nowhere else — see
    src/utils/studioLink.js. The owner check runs on top of the link, so
@@ -56,8 +58,12 @@ const StudioGate = () => {
 };
 
 const Root = () => {
-  const { loading, isAuthenticated } = useAuth();
+  const { loading, isAuthenticated, user } = useAuth();
   const { gen, isDark } = useTheme();
+
+  /* The detail behind a failure is for the person who can fix it, and
+     nobody else. Everyone still sees the same plain message. */
+  React.useEffect(() => { setDiagnostics(isOwner(user)); }, [user]);
 
   /* The gestures worth teaching, once, the first time somebody is
      actually inside the app. A short delay so it lands after the first

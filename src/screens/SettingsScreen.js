@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet, TextInput, Image } from 'react-native';
+import { View, Text, ScrollView, Pressable, StyleSheet, TextInput, Image, Modal } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { C, R } from '../constants/theme';
+import { isOwner } from '../services/music';
+import { recent, clearCrashes, asText } from '../lib/crashLog';
 import { INITIAL_TX, PLANNER_INIT } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
@@ -87,6 +89,9 @@ export const SettingsScreen = ({ onClose }) => {
 
   const [helpOpen, setHelpOpen] = useState(false);
   const [tourOpen, setTourOpen] = useState(false);
+  const [logOpen, setLogOpen] = useState(false);
+  const [crashCount, setCrashCount] = useState(0);
+  useEffect(() => { try { setCrashCount(recent().length); } catch (e) {} }, [logOpen]);
 
   // ── Real language-exchange opt-in (HelloTalk-style) ──
   const [speaks, setSpeaks] = useState('');
@@ -393,6 +398,26 @@ export const SettingsScreen = ({ onClose }) => {
         {/* ── SUPPORT ── */}
         <SectionHeader title="Support" style={{ marginTop: 26 }} />
         <Glass style={{ paddingHorizontal: 12, paddingVertical: 2 }}>
+          {/* Owner only. A crash on a real phone has to leave something
+              behind or the only way to fix it is guessing — this is
+              where what it left gets read back. Nobody else sees it. */}
+          {isOwner(user) ? (
+            <Pressable onPress={() => { tapLight(); setLogOpen(true); }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 14 }}>
+                <View style={{ width: 30, height: 30, borderRadius: 9, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                  <Ionicons name="bug-outline" size={16} color={C.purple} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: C.text, fontSize: 14, fontWeight: '700' }}>What went wrong</Text>
+                  <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 1 }}>
+                    {crashCount ? crashCount + (crashCount === 1 ? ' failure kept' : ' failures kept') : 'Nothing has failed'}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={C.faint} />
+              </View>
+            </Pressable>
+          ) : null}
+
           {/* A lesson you only get once is no use if you were half
               awake the first time. */}
           <Pressable onPress={() => { tapLight(); setTourOpen(true); }}>
@@ -560,6 +585,51 @@ export const SettingsScreen = ({ onClose }) => {
       {bardiOpen ? <BardiSheet onClose={() => setBardiOpen(false)} /> : null}
       {helpOpen ? <HelpSheet onClose={() => setHelpOpen(false)} /> : null}
       {tourOpen ? <GestureTour onClose={() => setTourOpen(false)} /> : null}
+
+      {/* the kept failures, in full, for the one account that can act
+          on them */}
+      {logOpen && isOwner(user) ? (
+        <Modal visible transparent animationType="slide" onRequestClose={() => setLogOpen(false)}>
+          <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' }} onPress={() => setLogOpen(false)} />
+          <View style={{ backgroundColor: C.bg2, borderTopLeftRadius: R + 6, borderTopRightRadius: R + 6, borderWidth: 1, borderColor: C.line, maxHeight: '78%', paddingBottom: insets.bottom + 12 }}>
+            <View style={{ alignItems: 'center', paddingTop: 10, paddingBottom: 8 }}>
+              <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: C.glassHi }} />
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingBottom: 10 }}>
+              <Text style={{ color: C.text, fontSize: 16, fontWeight: '900', flex: 1 }}>What went wrong</Text>
+              <Pressable
+                onPress={() => {
+                  try { if (typeof navigator !== 'undefined' && navigator.clipboard) navigator.clipboard.writeText(asText()); } catch (e) {}
+                  tapSuccess();
+                }}
+                hitSlop={8}
+                style={{ marginRight: 14 }}
+              >
+                <Text style={{ color: C.purple, fontSize: 12.5, fontWeight: '900' }}>Copy all</Text>
+              </Pressable>
+              <Pressable onPress={() => { clearCrashes(); setCrashCount(0); tapLight(); }} hitSlop={8}>
+                <Text style={{ color: C.dim, fontSize: 12.5, fontWeight: '800' }}>Clear</Text>
+              </Pressable>
+            </View>
+            <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 16 }}>
+              {recent().length ? recent().map((c, n) => (
+                <View key={n} style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 14, padding: 12, marginBottom: 9 }}>
+                  <Text style={{ color: C.faint, fontSize: 10, fontWeight: '900', letterSpacing: 0.8 }}>
+                    {String(c.where).toUpperCase()} · {c.at.replace('T', ' ').slice(5, 16)}
+                  </Text>
+                  <Text selectable style={{ color: C.text, fontSize: 12, fontWeight: '700', marginTop: 5 }}>{c.msg}</Text>
+                  {c.stack ? <Text selectable style={{ color: C.faint, fontSize: 9.5, marginTop: 5, lineHeight: 13 }}>{c.stack}</Text> : null}
+                  {c.extra ? <Text selectable style={{ color: C.dim, fontSize: 9.5, marginTop: 5, lineHeight: 13 }}>{c.extra}</Text> : null}
+                </View>
+              )) : (
+                <Text style={{ color: C.faint, fontSize: 13, textAlign: 'center', paddingVertical: 26 }}>
+                  Nothing has failed since this was last cleared.
+                </Text>
+              )}
+            </ScrollView>
+          </View>
+        </Modal>
+      ) : null}
 
       {/* language picker */}
       {langOpen ? (

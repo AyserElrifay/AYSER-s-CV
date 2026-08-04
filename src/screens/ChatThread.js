@@ -31,6 +31,7 @@ import { useLang } from '../context/LanguageContext';
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
 import { LinearGradient } from 'expo-linear-gradient';
 import { sfxPop } from '../utils/sfx';
+import { note } from '../lib/crashLog';
 
 /* ─── A conversation — kept deliberately simple and warm, the kind of
    place you want to hang out in. Call & video in the header, and games
@@ -62,6 +63,9 @@ export const ChatThread = ({ chat, group, onClose }) => {
   const [chatErr, setChatErr] = useState(null); // never pretend a send worked
 
   const explainChat = (e) => {
+    // kept whether or not it's read — a failure that leaves no trace
+    // can only be diagnosed by guessing
+    note('chat', e);
     const m = (e && e.message) || '';
     if (/does not exist|schema cache|get_or_create_dm_thread/i.test(m)) {
       return 'Messages need one more step: run supabase/RUN_ME.sql in the Supabase SQL Editor.';

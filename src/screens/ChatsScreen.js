@@ -260,8 +260,27 @@ export const ChatsScreen = () => {
   };
 
   const squads = SUPABASE_READY ? realSquads : SQUADS;
+  /* `d.user` is somebody else's profile row, and a row that can't be
+     read comes back empty. Reaching into it without asking is what
+     turned one unreadable profile into a crash that took the whole tab
+     with it — the service hands back a stand-in now, and this reads
+     defensively on top of that, because the cost of being wrong here is
+     every conversation you have. */
   const dms = SUPABASE_READY
-    ? realDms.map((d) => ({ id: d.threadId, threadId: d.threadId, user: { id: d.user.id, name: d.user.name, avatar: d.user.avatar_url, verified: d.user.verified }, last: d.last, time: timeAgo(d.time), unread: 0, translated: false }))
+    ? (realDms || [])
+        .filter((d) => d && d.threadId)
+        .map((d) => {
+          const u = d.user || {};
+          return {
+            id: d.threadId,
+            threadId: d.threadId,
+            user: { id: u.id, name: u.name || 'Someone', avatar: u.avatar_url || AV_NEUTRAL, verified: !!u.verified },
+            last: d.last,
+            time: timeAgo(d.time),
+            unread: 0,
+            translated: false,
+          };
+        })
     : DMS;
   const myFlag = user && user.country_flag;
   /* ONLY people who really switched exchange on. Nothing here is

@@ -19,22 +19,24 @@ import { Boundary } from '../components/Boundary';
    tab shows a "try again" instead of the whole app going down with it —
    a broken Chats shouldn't cost you the map, the camera and your feed.
    The root boundary in App.js is the backstop; this is the fuse. */
-const guarded = (Screen) => {
+const guarded = (Screen, name) => {
   const Guarded = (props) => (
-    <Boundary soft>
+    // the name is what the crash log records — "Chats" is worth far
+    // more than "screen" when you're reading it back later
+    <Boundary soft name={name}>
       <Screen {...props} />
     </Boundary>
   );
-  Guarded.displayName = 'Guarded(' + (Screen.displayName || Screen.name || 'Screen') + ')';
+  Guarded.displayName = 'Guarded(' + (name || Screen.displayName || Screen.name || 'Screen') + ')';
   return Guarded;
 };
 
-const HomeTab = guarded(HomeScreen);
-const MapTab = guarded(MapScreen);
-const ReelsTab = guarded(ReelsScreen);
-const ChillTab = guarded(ChillScreen);
-const ChatsTab = guarded(ChatsScreen);
-const ProfileTab = guarded(ProfileScreen);
+const HomeTab = guarded(HomeScreen, 'Home');
+const MapTab = guarded(MapScreen, 'Map');
+const ReelsTab = guarded(ReelsScreen, 'Reels');
+const ChillTab = guarded(ChillScreen, 'Chill');
+const ChatsTab = guarded(ChatsScreen, 'Chats');
+const ProfileTab = guarded(ProfileScreen, 'Profile');
 
 /* ─────────────────────── NAVIGATION SHELL ─────────────────────── */
 
