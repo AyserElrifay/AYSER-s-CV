@@ -31,6 +31,10 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
+      # A component rendered without being imported bundles fine and
+      # only throws when that branch runs — so it ships. Not any more.
+      - name: Check every rendered component exists
+        run: node scripts/check-undefined.mjs
       - name: Export web bundle
         run: npx expo export --platform web --output-dir dist
       - name: Inject PWA manifest + Open Graph tags

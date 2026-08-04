@@ -15,6 +15,12 @@ import { uploadCapture, uploadMedia } from '../services/social';
 import { compressImage } from '../lib/storage';
 import { fetchTracks, incrementTrackUse, publishSound } from '../services/music';
 import { MusicHubSheet } from './MusicHubSheet';
+/* Both of these were rendered without ever being imported. Nothing
+   catches that until the branch runs, so the app built clean, booted
+   clean, and blew up the moment you opened the library or the effects
+   drawer — "Can't find variable: MediaLibrarySheet". */
+import { MediaLibrarySheet } from './MediaLibrarySheet';
+import { EffectsSheet } from './EffectsSheet';
 import { SoundTrimmer } from './SoundTrimmer';
 import { clipUrl, parseClip, holdToClip, DEFAULT_LEN } from '../lib/soundClip';
 import { note } from '../lib/crashLog';
