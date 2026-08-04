@@ -274,6 +274,34 @@ export const ChatThread = ({ chat, group, onClose }) => {
   // ── Moments in chat: shoot a snap and send it right here ──
   const [momentOpen, setMomentOpen] = useState(false);
   const [viewMoment, setViewMoment] = useState(null); // { mediaUrl, mediaKind } — full-screen viewer
+
+  /* ── LONG-PRESS TO TRANSLATE ──────────────────────────────────────
+     The bubble has always called `translateMsg` on a long press and
+     read the result out of `tr` — and neither existed. `tr[m.id]` is
+     read while every ordinary text message renders, so a thread with a
+     single line of text in it threw on sight. That is the other half of
+     "if I send a message I get this page".
+
+     The translation itself was already there (translateText in
+     services/bardi.js, cached per phrase); only the wiring in here was
+     missing. `…` while it's working and a plain line if it can't. */
+  const [tr, setTr] = useState({});   // { [messageId]: text | '…' | '__failed__' }
+  const translateMsg = async ({ id, body }) => {
+    if (!id || !String(body || '').trim()) return;
+    if (tr[id] && tr[id] !== '__failed__') { // second long-press puts it away
+      setTr((s) => { const n = { ...s }; delete n[id]; return n; });
+      return;
+    }
+    tapLight();
+    setTr((s) => ({ ...s, [id]: '…' }));
+    try {
+      const out = await translateText(body, lang);
+      setTr((s) => ({ ...s, [id]: out || '__failed__' }));
+    } catch (e) {
+      note('translate', e);
+      setTr((s) => ({ ...s, [id]: '__failed__' }));
+    }
+  };
   // ── Snaps: a Moment is a circular mystery snap. The receiver can open it
   //    twice, then it's gone. Long-press to save it before it disappears. ──
   const [snapTick, setSnapTick] = useState(0); // force re-render after a view

@@ -115,7 +115,8 @@ const GridCell = ({ item }) => {
 export const ProfileScreen = () => {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { rtl } = useLang();
+  // `t` was used by the share toast without ever being taken out of here
+  const { rtl, t } = useLang();
   const { isDark } = useTheme();
   const [settings, setSettings] = useState(false);
   const [tab, setTab] = useState('grid');

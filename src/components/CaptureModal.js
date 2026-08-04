@@ -14,6 +14,12 @@ import { createStory } from '../services/stories';
 import { uploadCapture, uploadMedia } from '../services/social';
 import { compressImage } from '../lib/storage';
 import { fetchTracks, incrementTrackUse, publishSound } from '../services/music';
+/* Both called, neither imported — the same bug as the two sheets below,
+   and on the same journey: markUsed runs when you post something you
+   picked from your library, fetchTopics whenever a shot needs tag
+   ideas. */
+import { markUsed } from '../services/library';
+import { fetchTopics } from '../services/topics';
 import { MusicHubSheet } from './MusicHubSheet';
 /* Both of these were rendered without ever being imported. Nothing
    catches that until the branch runs, so the app built clean, booted
