@@ -20,6 +20,7 @@ import { CaptureModal } from '../components/CaptureModal';
 import { sendMoment } from '../services/messages';
 import { ChatThread } from './ChatThread';
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
+import { isUnread, markThreadSeen } from '../lib/seen';
 
 /* ─────────────────── TAB 5 · CHATS — CONNECTIONS ─────────────────────
    Real mode: your actual DM threads, actual squads you've joined, and
@@ -63,6 +64,20 @@ function levelDots(level) {
   const map = { A1: 1, A2: 2, B1: 3, B2: 4, C1: 5, C2: 5 };
   return map[l] || 0;
 }
+
+/* Somebody with no character built and no photo used to get the neutral
+   grey figure, which on a dark card is a hole where a face should be.
+   A letter on a colour is better in every way: it always renders, it
+   needs no network, and the colour is stable per person so you start to
+   recognise them by it. */
+const INITIAL_COLORS = ['#7C5CFF', '#FB7185', '#F5B301', '#38BDF8', '#34D399', '#F472B6'];
+function colorFor(id) {
+  const s = String(id || '');
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return INITIAL_COLORS[h % INITIAL_COLORS.length];
+}
+const initialOf = (name) => (String(name || '?').trim()[0] || '?').toUpperCase();
 
 const ONLINE_MS = 5 * 60 * 1000;
 const isOnline = (iso) => !!iso && Date.now() - new Date(iso).getTime() < ONLINE_MS;
@@ -274,10 +289,22 @@ export const ChatsScreen = () => {
           return {
             id: d.threadId,
             threadId: d.threadId,
-            user: { id: u.id, name: u.name || 'Someone', avatar: u.avatar_url || AV_NEUTRAL, verified: !!u.verified },
+            user: {
+              id: u.id,
+              name: u.name || 'Someone',
+              /* The character they built, when they built one — it's
+                 their face in this app, and a list of drawn people
+                 reads as a place rather than a contacts book. Their
+                 photo, then a neutral, when they haven't. */
+              avatar: (u.id && u.avatar_dna ? buildAvatarUrl(u.id, u.avatar_dna) : null) || u.avatar_url || null,
+              verified: !!u.verified,
+            },
             last: d.last,
             time: timeAgo(d.time),
-            unread: 0,
+            // nothing has been said in here yet
+            fresh: !d.time,
+            // real now — see src/lib/seen.js
+            unread: isUnread(d.threadId, d.time, d.lastFrom, user && user.id),
             translated: false,
           };
         })
@@ -382,11 +409,221 @@ export const ChatsScreen = () => {
       </>
     ) : null}
 
+    {/* A heading over nothing is worse than no heading. When there are
+        no squads yet the label and its button disappear — the empty
+        card below carries the way to make one. */}
+    {squads.length || squadCreating ? (
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <SectionHeader title={t('squads_label')} />
+        {SUPABASE_READY ? (
+          <Pressable onPress={() => { tapLight(); setSquadCreating((v) => !v); setSquadErr(null); }} hitSlop={8}>
+            <View style={{ backgroundColor: C.purpleSoft, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 }}>
+              <Text style={{ color: C.purple, fontSize: 12, fontWeight: '900' }}>{squadCreating ? t('close_x') : t('new_squad')}</Text>
+            </View>
+          </Pressable>
+        ) : null}
+      </View>
+    ) : null}
+    {squadCreating ? (
+      <Glass style={{ padding: 12, marginBottom: 12 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Pressable onPress={pickSquadPhoto} style={{ marginRight: 8 }}>
+            {squadPhoto ? (
+              <Image source={{ uri: squadPhoto.preview }} style={{ width: 48, height: 48, borderRadius: 14 }} />
+            ) : (
+              <View style={{ width: 48, height: 48, borderRadius: 14, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name={squadPhotoBusy ? 'hourglass-outline' : 'camera-outline'} size={20} color={C.purple} />
+              </View>
+            )}
+          </Pressable>
+          <TextInput value={squadEmoji} onChangeText={setSquadEmoji} maxLength={4}
+            style={{ width: 48, textAlign: 'center', fontSize: 20, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 12, marginRight: 8 }} />
+          <TextInput placeholder="Squad name (e.g. Sunrise Hikers)" placeholderTextColor={C.faint} value={squadName} onChangeText={setSquadName}
+            style={{ flex: 1, color: C.text, fontSize: 14, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12 }} />
+        </View>
+        {squadErr ? <Text style={{ color: C.coral, fontSize: 11.5, marginTop: 8 }}>{squadErr}</Text> : null}
+        <Pressable onPress={submitSquad} style={{ marginTop: 10 }}>
+          <View style={{ backgroundColor: squadName.trim() ? C.purple : C.glassHi, borderRadius: 12, paddingVertical: 11, alignItems: 'center' }}>
+            <Text style={{ color: squadName.trim() ? '#FFF' : C.faint, fontSize: 13, fontWeight: '900' }}>{t('create_squad')}</Text>
+          </View>
+        </Pressable>
+      </Glass>
+    ) : null}
+    {squads.length ? squads.map((s) => (
+      <Pressable key={s.id} onPress={() => { tapLight(); setThread({ chat: s, group: true }); }}>
+        <Glass tint={C.blueSoft} border="rgba(59,130,246,0.35)" style={{ padding: 14, marginBottom: 12 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            {s.avatar_url ? (
+              <Image source={{ uri: s.avatar_url }} style={{ width: 46, height: 46, borderRadius: 15, marginRight: 12 }} />
+            ) : (
+              <View style={{ width: 46, height: 46, borderRadius: 15, backgroundColor: 'rgba(59,130,246,0.18)', borderWidth: 1, borderColor: 'rgba(59,130,246,0.4)', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                <Text style={{ fontSize: 22 }}>{s.emoji}</Text>
+              </View>
+            )}
+            <View style={{ flex: 1 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '800', flexShrink: 1 }} numberOfLines={1}>{s.name}</Text>
+                {s.activity ? <Chip label={s.activity} color={C.blue} tint="rgba(59,130,246,0.16)" style={{ marginLeft: 8, borderColor: 'rgba(59,130,246,0.35)' }} /> : null}
+              </View>
+              {s.last ? <Text style={{ color: C.dim, fontSize: 12, marginTop: 4 }} numberOfLines={1}>{s.last}</Text> : null}
+            </View>
+            <View style={{ alignItems: 'flex-end', marginLeft: 10 }}>
+              {s.time ? <Text style={{ color: C.faint, fontSize: 11 }}>{s.time}</Text> : null}
+              {s.unread > 0 ? (
+                <View style={{ marginTop: 6, minWidth: 20, height: 20, borderRadius: 10, backgroundColor: C.blue, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 }}>
+                  <Text style={{ color: '#fff', fontSize: 11, fontWeight: '900' }}>{s.unread}</Text>
+                </View>
+              ) : null}
+              {SUPABASE_READY ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
+                  <Pressable onPress={() => openInvite(s)} hitSlop={8} style={{ marginRight: 12 }}>
+                    <Text style={{ color: C.purple, fontSize: 10.5, fontWeight: '900' }}>＋ Invite</Text>
+                  </Pressable>
+                  <Pressable onPress={() => closeSquad(s)} hitSlop={8}>
+                    <Text style={{ color: C.coral, fontSize: 10.5, fontWeight: '800' }}>Leave ✕</Text>
+                  </Pressable>
+                </View>
+              ) : null}
+            </View>
+          </View>
+          {s.members ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
+              <AvatarStack uris={s.members} />
+              <Text style={{ color: C.faint, fontSize: 11.5, marginLeft: 10 }}>
+                {s.members.length} Roam Mates · squad expires after the vibe
+              </Text>
+            </View>
+          ) : null}
+        </Glass>
+      </Pressable>
+    )) : (
+      /* No squads and no chats is one situation, not two. It used to be
+         told twice, in two grey boxes, one under the other — see the
+         single invitation below. */
+      null
+    )}
+
+    {dms.length ? <SectionHeader title={t('direct_label')} style={{ marginTop: squads.length ? 14 : 0 }} /> : null}
+    {dms.length ? dms.map((d) => (
+      <Pressable key={d.id} onPress={() => { tapLight(); markThreadSeen(d.threadId); setThread({ chat: d, group: false }); }}>
+        <Glass style={{ padding: 12, marginBottom: 10, flexDirection: 'row', alignItems: 'center' }}>
+          <View>
+            {d.user.avatar ? (
+              <Image source={{ uri: d.user.avatar }} style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: C.glassHi }} />
+            ) : (
+              <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: colorFor(d.user.id), alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ color: '#FFF', fontSize: 18, fontWeight: '900' }}>{initialOf(d.user.name)}</Text>
+              </View>
+            )}
+            {d.user.id && isOnline(d.user.id) ? <OnlineDot /> : null}
+          </View>
+          <View style={{ flex: 1, marginLeft: 12 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }} numberOfLines={1}>{d.user.name}</Text>
+              {d.user.verified ? <Tick /> : null}
+              {d.translated ? (
+                <MaterialCommunityIcons name="translate" size={14} color={C.blue} style={{ marginLeft: 7 }} />
+              ) : null}
+              {streaks[d.threadId] ? <View style={{ marginLeft: 7 }}><StreakBadge info={streaks[d.threadId]} /></View> : null}
+            </View>
+            {/* ── THE STATUS LINE ──────────────────────────────────────
+                The thing that makes a chat list readable without
+                reading it: a colour and a shape that say what is
+                waiting for you. A filled square means something new,
+                a hollow one means you've seen it, and the word next
+                to it names it. You can run your eye down the column
+                and know where to go. */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+              <View
+                style={{
+                  width: 9, height: 9, borderRadius: 2.5, marginRight: 6,
+                  backgroundColor: d.unread ? C.purple : 'transparent',
+                  borderWidth: d.unread ? 0 : 1.5, borderColor: C.faint,
+                }}
+              />
+              <Text
+                style={{ color: d.unread ? C.purple : C.dim, fontSize: 11.5, fontWeight: d.unread ? '900' : '700' }}
+                numberOfLines={1}
+              >
+                {d.unread ? 'New message' : d.fresh ? 'Say hi' : 'Opened'}
+              </Text>
+              {/* a brand-new thread has no last message — the status
+                  already says everything, so don't echo it back */}
+              {d.fresh ? null : (
+                <Text style={{ color: C.faint, fontSize: 11.5, marginLeft: 6, flex: 1 }} numberOfLines={1}>
+                  · {d.last}
+                </Text>
+              )}
+            </View>
+            {d.translated ? (
+              <Text style={{ color: C.faint, fontSize: 10.5, marginTop: 2 }}>Tap to translate · Arabic detected</Text>
+            ) : null}
+          </View>
+          <View style={{ alignItems: 'flex-end', marginLeft: 10 }}>
+            <Text style={{ color: C.faint, fontSize: 11 }}>{d.time}</Text>
+            {d.unread > 0 ? (
+              <View style={{ marginTop: 8, width: 9, height: 9, borderRadius: 5, backgroundColor: C.purple }} />
+            ) : null}
+          </View>
+        </Glass>
+      </Pressable>
+    )) : null}
+
+    {/* ── NOTHING HERE YET ─────────────────────────────────────────────
+        One invitation, not three apologies. An empty inbox used to be
+        announced by a stack of identical grey boxes — no squads, no
+        chats, no partners — which is a wall of nothing where the first
+        thing you see should be a way in. This is one card with the two
+        things that actually start a conversation. */}
+    {!dms.length && !squads.length ? (
+      <Glass style={{ padding: 22, alignItems: 'center', overflow: 'hidden' }}>
+        <View style={{ flexDirection: 'row', marginBottom: 14 }}>
+          {['#7C5CFF', '#FB7185', '#F5B301'].map((c, i) => (
+            <View
+              key={c}
+              style={{
+                width: 40, height: 40, borderRadius: 20, backgroundColor: c,
+                marginLeft: i ? -12 : 0, borderWidth: 2.5, borderColor: C.bg2,
+                alignItems: 'center', justifyContent: 'center',
+              }}
+            >
+              <Text style={{ fontSize: 17 }}>{['👋', '🔥', '💬'][i]}</Text>
+            </View>
+          ))}
+        </View>
+        <Text style={{ color: C.text, fontSize: 16, fontWeight: '900' }}>Nobody in here yet</Text>
+        <Text style={{ color: C.faint, fontSize: 12.5, marginTop: 6, textAlign: 'center', lineHeight: 18 }}>
+          Find someone on the map, or start one from here. Two messages in and it stops feeling empty.
+        </Text>
+        <View style={{ flexDirection: 'row', marginTop: 16, alignSelf: 'stretch' }}>
+          <Pressable onPress={() => { tapLight(); setComposing(true); setComposeQ(''); setComposeResults([]); }} style={{ flex: 1, marginRight: 9 }}>
+            <View style={{ backgroundColor: C.purple, borderRadius: 14, paddingVertical: 12, alignItems: 'center' }}>
+              <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900' }}>Start a chat</Text>
+            </View>
+          </Pressable>
+          <Pressable onPress={() => { tapLight(); setShooting(true); }} style={{ flex: 1 }}>
+            <View style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 14, paddingVertical: 12, alignItems: 'center' }}>
+              <Text style={{ color: C.text, fontSize: 13, fontWeight: '900' }}>📸 Send a snap</Text>
+            </View>
+          </Pressable>
+        </View>
+        {SUPABASE_READY ? (
+          <Pressable onPress={() => { tapLight(); setSquadCreating(true); setSquadErr(null); }} style={{ marginTop: 13 }}>
+            <Text style={{ color: C.purple, fontSize: 12.5, fontWeight: '800' }}>or start a squad 🏕️</Text>
+          </Pressable>
+        ) : null}
+      </Glass>
+    ) : null}
+
+
     {/* ── EXCHANGE PARTNERS — meet people in other countries, HelloTalk
         style: open it in Settings and you appear here for them too ── */}
-    <SectionHeader title={t('exchange_partners')} />
+    <SectionHeader title={t('exchange_partners')} style={{ marginTop: 22 }} />
+    {/* One line, not three. This sits below your own conversations now —
+        it's a place to meet people, not your inbox, and it was taking
+        the whole first screen with a paragraph nobody asked for. */}
     <Text style={{ color: C.faint, fontSize: 11.5, marginTop: -6, marginBottom: 10, paddingHorizontal: 2 }}>
-      People abroad who opened language exchange — swap languages & cultures, chat and call across the world.
+      People abroad swapping languages. Switch yours on and you appear for them too.
     </Text>
 
     {/* ── your exchange switch — HelloTalk-style, right here ── */}
@@ -524,146 +761,22 @@ export const ChatsScreen = () => {
         ))}
       </View>
     ) : (
-      <Glass style={{ padding: 16, marginBottom: 20, alignItems: 'center' }}>
-        <Text style={{ fontSize: 22 }}>🌍</Text>
-        <Text style={{ color: C.text, fontSize: 13, fontWeight: '800', marginTop: 6 }}>{t('no_partners_yet')}</Text>
-        <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 3, textAlign: 'center' }}>
-          Nobody has opened language exchange yet. Flip your own switch on above — you'll appear here for people abroad, and they'll appear for you.
-        </Text>
-      </Glass>
+      // a quiet line, not another grey box — the switch above already
+      // says everything this needs to
+      <Text style={{ color: C.faint, fontSize: 11.5, textAlign: 'center', paddingVertical: 14, marginBottom: 20 }}>
+        🌍 Nobody has switched theirs on yet. Be the first.
+      </Text>
     )}
 
-    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-      <SectionHeader title={t('squads_label')} />
-      {SUPABASE_READY ? (
-        <Pressable onPress={() => { tapLight(); setSquadCreating((v) => !v); setSquadErr(null); }} hitSlop={8}>
-          <View style={{ backgroundColor: C.purpleSoft, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 }}>
-            <Text style={{ color: C.purple, fontSize: 12, fontWeight: '900' }}>{squadCreating ? t('close_x') : t('new_squad')}</Text>
-          </View>
-        </Pressable>
-      ) : null}
-    </View>
-    {squadCreating ? (
-      <Glass style={{ padding: 12, marginBottom: 12 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <Pressable onPress={pickSquadPhoto} style={{ marginRight: 8 }}>
-            {squadPhoto ? (
-              <Image source={{ uri: squadPhoto.preview }} style={{ width: 48, height: 48, borderRadius: 14 }} />
-            ) : (
-              <View style={{ width: 48, height: 48, borderRadius: 14, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center' }}>
-                <Ionicons name={squadPhotoBusy ? 'hourglass-outline' : 'camera-outline'} size={20} color={C.purple} />
-              </View>
-            )}
-          </Pressable>
-          <TextInput value={squadEmoji} onChangeText={setSquadEmoji} maxLength={4}
-            style={{ width: 48, textAlign: 'center', fontSize: 20, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 12, marginRight: 8 }} />
-          <TextInput placeholder="Squad name (e.g. Sunrise Hikers)" placeholderTextColor={C.faint} value={squadName} onChangeText={setSquadName}
-            style={{ flex: 1, color: C.text, fontSize: 14, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12 }} />
-        </View>
-        {squadErr ? <Text style={{ color: C.coral, fontSize: 11.5, marginTop: 8 }}>{squadErr}</Text> : null}
-        <Pressable onPress={submitSquad} style={{ marginTop: 10 }}>
-          <View style={{ backgroundColor: squadName.trim() ? C.purple : C.glassHi, borderRadius: 12, paddingVertical: 11, alignItems: 'center' }}>
-            <Text style={{ color: squadName.trim() ? '#FFF' : C.faint, fontSize: 13, fontWeight: '900' }}>{t('create_squad')}</Text>
-          </View>
-        </Pressable>
-      </Glass>
+    {/* stamped again on the way out, so anything that arrived while you
+        were reading doesn't come back marked new */}
+    {thread ? (
+      <ChatThread
+        chat={thread.chat}
+        group={thread.group}
+        onClose={() => { if (!thread.group && thread.chat) markThreadSeen(thread.chat.threadId); setThread(null); }}
+      />
     ) : null}
-    {squads.length ? squads.map((s) => (
-      <Pressable key={s.id} onPress={() => { tapLight(); setThread({ chat: s, group: true }); }}>
-        <Glass tint={C.blueSoft} border="rgba(59,130,246,0.35)" style={{ padding: 14, marginBottom: 12 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            {s.avatar_url ? (
-              <Image source={{ uri: s.avatar_url }} style={{ width: 46, height: 46, borderRadius: 15, marginRight: 12 }} />
-            ) : (
-              <View style={{ width: 46, height: 46, borderRadius: 15, backgroundColor: 'rgba(59,130,246,0.18)', borderWidth: 1, borderColor: 'rgba(59,130,246,0.4)', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
-                <Text style={{ fontSize: 22 }}>{s.emoji}</Text>
-              </View>
-            )}
-            <View style={{ flex: 1 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '800', flexShrink: 1 }} numberOfLines={1}>{s.name}</Text>
-                {s.activity ? <Chip label={s.activity} color={C.blue} tint="rgba(59,130,246,0.16)" style={{ marginLeft: 8, borderColor: 'rgba(59,130,246,0.35)' }} /> : null}
-              </View>
-              {s.last ? <Text style={{ color: C.dim, fontSize: 12, marginTop: 4 }} numberOfLines={1}>{s.last}</Text> : null}
-            </View>
-            <View style={{ alignItems: 'flex-end', marginLeft: 10 }}>
-              {s.time ? <Text style={{ color: C.faint, fontSize: 11 }}>{s.time}</Text> : null}
-              {s.unread > 0 ? (
-                <View style={{ marginTop: 6, minWidth: 20, height: 20, borderRadius: 10, backgroundColor: C.blue, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 }}>
-                  <Text style={{ color: '#fff', fontSize: 11, fontWeight: '900' }}>{s.unread}</Text>
-                </View>
-              ) : null}
-              {SUPABASE_READY ? (
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
-                  <Pressable onPress={() => openInvite(s)} hitSlop={8} style={{ marginRight: 12 }}>
-                    <Text style={{ color: C.purple, fontSize: 10.5, fontWeight: '900' }}>＋ Invite</Text>
-                  </Pressable>
-                  <Pressable onPress={() => closeSquad(s)} hitSlop={8}>
-                    <Text style={{ color: C.coral, fontSize: 10.5, fontWeight: '800' }}>Leave ✕</Text>
-                  </Pressable>
-                </View>
-              ) : null}
-            </View>
-          </View>
-          {s.members ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
-              <AvatarStack uris={s.members} />
-              <Text style={{ color: C.faint, fontSize: 11.5, marginLeft: 10 }}>
-                {s.members.length} Roam Mates · squad expires after the vibe
-              </Text>
-            </View>
-          ) : null}
-        </Glass>
-      </Pressable>
-    )) : (
-      <Glass style={{ padding: 16, marginBottom: 12, alignItems: 'center' }}>
-        <Text style={{ fontSize: 22 }}>🏕️</Text>
-        <Text style={{ color: C.text, fontSize: 13, fontWeight: '800', marginTop: 6 }}>{t('no_squads_yet')}</Text>
-        <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 3, textAlign: 'center' }}>{t('join_vibe_hint')}</Text>
-      </Glass>
-    )}
-
-    <SectionHeader title={t('direct_label')} style={{ marginTop: 14 }} />
-    {dms.length ? dms.map((d) => (
-      <Pressable key={d.id} onPress={() => { tapLight(); setThread({ chat: d, group: false }); }}>
-        <Glass style={{ padding: 12, marginBottom: 10, flexDirection: 'row', alignItems: 'center' }}>
-          <View>
-            <Image source={{ uri: d.user.avatar }} style={{ width: 46, height: 46, borderRadius: 23 }} />
-            {d.user.id && isOnline(d.user.id) ? <OnlineDot /> : null}
-          </View>
-          <View style={{ flex: 1, marginLeft: 12 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }} numberOfLines={1}>{d.user.name}</Text>
-              {d.user.verified ? <Tick /> : null}
-              {d.translated ? (
-                <MaterialCommunityIcons name="translate" size={14} color={C.blue} style={{ marginLeft: 7 }} />
-              ) : null}
-              {streaks[d.threadId] ? <View style={{ marginLeft: 7 }}><StreakBadge info={streaks[d.threadId]} /></View> : null}
-            </View>
-            <Text style={{ color: d.unread ? C.text : C.dim, fontSize: 12.5, marginTop: 3, fontWeight: d.unread ? '600' : '400' }} numberOfLines={1}>
-              {d.last}
-            </Text>
-            {d.translated ? (
-              <Text style={{ color: C.faint, fontSize: 10.5, marginTop: 2 }}>Tap to translate · Arabic detected</Text>
-            ) : null}
-          </View>
-          <View style={{ alignItems: 'flex-end', marginLeft: 10 }}>
-            <Text style={{ color: C.faint, fontSize: 11 }}>{d.time}</Text>
-            {d.unread > 0 ? (
-              <View style={{ marginTop: 8, width: 9, height: 9, borderRadius: 5, backgroundColor: C.purple }} />
-            ) : null}
-          </View>
-        </Glass>
-      </Pressable>
-    )) : (
-      <Glass style={{ padding: 16, alignItems: 'center' }}>
-        <Text style={{ fontSize: 22 }}>💬</Text>
-        <Text style={{ color: C.text, fontSize: 13, fontWeight: '800', marginTop: 6 }}>{t('no_conversations')}</Text>
-        <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 3, textAlign: 'center' }}>{t('wave_hint')}</Text>
-      </Glass>
-    )}
-
-    {thread ? <ChatThread chat={thread.chat} group={thread.group} onClose={() => setThread(null)} /> : null}
 
     {/* pull-down camera → shoot → pick who gets it */}
     {shooting ? (

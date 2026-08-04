@@ -255,14 +255,17 @@ export async function fetchMyDmThreads(userId) {
      still there. */
   const { data: others, error: err2 } = await supabase
     .from('dm_participants')
-    .select('thread_id, user_id, user:profiles(id, name, handle, avatar_url, verified)')
+    // avatar_dna so the list can show the character they actually built
+    .select('thread_id, user_id, user:profiles(id, name, handle, avatar_url, avatar_dna, verified)')
     .in('thread_id', threadIds)
     .neq('user_id', userId);
   if (err2) throw err2;
 
+  /* `user_id` too: the list needs to know whether the last word was
+     theirs or yours, because your own message is never news to you. */
   const { data: lastMsgs } = await supabase
     .from('messages')
-    .select('dm_thread_id, body, created_at')
+    .select('dm_thread_id, body, created_at, user_id')
     .in('dm_thread_id', threadIds)
     .order('created_at', { ascending: false });
   const lastByThread = {};
@@ -275,6 +278,7 @@ export async function fetchMyDmThreads(userId) {
       user: o.user || { id: o.user_id, name: 'Someone', handle: null, avatar_url: null, verified: false },
       last: (lastByThread[o.thread_id] && lastByThread[o.thread_id].body) || 'Say hi 👋',
       time: (lastByThread[o.thread_id] && lastByThread[o.thread_id].created_at) || null,
+      lastFrom: (lastByThread[o.thread_id] && lastByThread[o.thread_id].user_id) || null,
     }))
     .filter((d) => d.threadId && d.user.id)
     .sort((a, b) => new Date(b.time || 0) - new Date(a.time || 0));
