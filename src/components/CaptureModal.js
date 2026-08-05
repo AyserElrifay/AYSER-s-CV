@@ -29,6 +29,7 @@ import { MediaLibrarySheet } from './MediaLibrarySheet';
 import { EffectsSheet } from './EffectsSheet';
 import { SoundTrimmer } from './SoundTrimmer';
 import { clipUrl, parseClip, holdToClip, DEFAULT_LEN } from '../lib/soundClip';
+import { loadFaceDetector, findFace, makeFaceTracker } from '../lib/faceDetect';
 import { note } from '../lib/crashLog';
 import { isOwner } from '../services/music';
 import { LENSES, drawLens } from './lensArt';
@@ -1124,6 +1125,63 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
      and it stays — which also means it never slides off your chin
      halfway through a recording. */
   const [lens, setLens] = useState(null);   // { id, x, y, s } in 0..1 of the frame
+
+  /* ── THE LENS FINDS YOUR FACE ──────────────────────────────────────
+     A lens you have to drag onto your own head is a sticker. This
+     watches the viewfinder and puts it where your face actually is,
+     following you as you move — see src/lib/faceDetect.js for why it's
+     a 234KB cascade and not a 6MB model.
+
+     Two rules it follows:
+
+     Detection is not free (about 40–80ms a pass), so it runs a few
+     times a second rather than every frame, and the tracker eases
+     between readings. Easing is also what stops a hat shivering on
+     your head — raw readings jitter by a pixel or two every time.
+
+     And the moment you drag it yourself, tracking stops. You have said
+     where you want it, and an app that argues with your thumb is worse
+     than one that never helped. Picking a lens again starts it over. */
+  const [faceTracking, setFaceTracking] = useState(true);
+  const trackerRef = useRef(null);
+  const lensKindRef = useRef(null);
+
+  useEffect(() => {
+    if (!isWeb || !lens || !faceTracking) return undefined;
+    let stopped = false;
+    let timer = null;
+    if (!trackerRef.current) trackerRef.current = makeFaceTracker({ ease: 0.35, holdMs: 800 });
+
+    (async () => {
+      const ok = await loadFaceDetector();
+      if (!ok || stopped) return;          // no cascade → the drag still works
+      const tick = () => {
+        if (stopped) return;
+        const el = videoRef.current;
+        if (el && el.videoWidth) {
+          const raw = findFace(el);
+          const f = trackerRef.current.push(raw);
+          if (f) {
+            /* The frame is mirrored for the front camera, so what the
+               detector calls left is the person's right — the lens has
+               to be flipped with it or it lands on the wrong side. */
+            const x = facing === 'user' ? 1 - f.x : f.x;
+            /* Something worn sits on the top of the head; everything
+               else sits on the face. */
+            const wear = lensKindRef.current === 'wear';
+            const y = wear ? Math.max(0.05, f.y - f.size * 0.55) : f.y;
+            const s = Math.max(0.15, Math.min(0.8, f.size * 1.25));
+            setLens((cur) => (cur ? { ...cur, x, y, s } : cur));
+          }
+        }
+        timer = setTimeout(tick, 140);
+      };
+      tick();
+    })();
+
+    return () => { stopped = true; if (timer) clearTimeout(timer); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lens && lens.id, faceTracking, facing, isWeb]);
   const lensRef = React.useRef(null);
   lensRef.current = lens;
   const [clipWarn, setClipWarn] = useState(null);
@@ -1846,7 +1904,11 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
         {lens ? (
           <LensLayer
             lens={lens}
-            onMove={(x, y) => setLens((l) => (l ? { ...l, x, y } : l))}
+            onMove={(x, y) => {
+              // your thumb wins — the app stops moving it from here
+              if (faceTracking) setFaceTracking(false);
+              setLens((l) => (l ? { ...l, x, y } : l));
+            }}
           />
         ) : null}
 
@@ -1914,7 +1976,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
                       key={l.id}
                       onPress={() => {
                         tapMedium(); sfxPop();
-                        setLens(on ? null : { id: l.id, x: 0.5, y: l.kind === 'wear' ? 0.42 : 0.5, s: 0.42 });
+                        lensKindRef.current = l.kind; if (trackerRef.current) trackerRef.current.reset(); setFaceTracking(true); setLens(on ? null : { id: l.id, x: 0.5, y: l.kind === 'wear' ? 0.42 : 0.5, s: 0.42 });
                       }}
                     >
                       <View style={{ alignItems: 'center', marginRight: 10 }}>
@@ -2344,7 +2406,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
             filterId={filterId}
             effectId={effectId}
             gameId={reelGame && reelGame.id}
-            onPickLens={(l) => { sfxPop(); setLens({ id: l.id, x: 0.5, y: l.kind === 'wear' ? 0.42 : 0.5, s: 0.42 }); setEffectsOpen(false); }}
+            onPickLens={(l) => { sfxPop(); lensKindRef.current = l.kind; if (trackerRef.current) trackerRef.current.reset(); setFaceTracking(true); setLens({ id: l.id, x: 0.5, y: l.kind === 'wear' ? 0.42 : 0.5, s: 0.42 }); setEffectsOpen(false); }}
             onPickFilter={(f) => { setFilterId(f.id); setEffectsOpen(false); }}
             onPickEffect={(e) => { pickEffect(e.id); setEffectsOpen(false); }}
             onPickGame={(g) => { pickReelGame(g); setEffectsOpen(false); }}
