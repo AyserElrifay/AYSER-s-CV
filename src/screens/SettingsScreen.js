@@ -6,6 +6,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { C, R } from '../constants/theme';
 import { isOwner } from '../services/music';
 import { recent, clearCrashes, asText } from '../lib/crashLog';
+import {
+  cachedAccountSettings, subscribeAccountSettings, saveMessageTtl, DEFAULT_MESSAGE_TTL_HOURS,
+} from '../services/accountSettings';
 import { INITIAL_TX, PLANNER_INIT } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
@@ -90,6 +93,14 @@ export const SettingsScreen = ({ onClose }) => {
   const [helpOpen, setHelpOpen] = useState(false);
   const [tourOpen, setTourOpen] = useState(false);
   const [logOpen, setLogOpen] = useState(false);
+  // the account's message timer — 48h until they say otherwise
+  const [msgTtl, setMsgTtl] = useState(() => {
+    const s = cachedAccountSettings();
+    return s.messageTtlHours == null ? DEFAULT_MESSAGE_TTL_HOURS : s.messageTtlHours;
+  });
+  useEffect(() => subscribeAccountSettings((s) => {
+    setMsgTtl(s.messageTtlHours == null ? DEFAULT_MESSAGE_TTL_HOURS : s.messageTtlHours);
+  }), []);
   const [crashCount, setCrashCount] = useState(0);
   useEffect(() => { try { setCrashCount(recent().length); } catch (e) {} }, [logOpen]);
 
@@ -398,6 +409,50 @@ export const SettingsScreen = ({ onClose }) => {
         {/* ── SUPPORT ── */}
         <SectionHeader title="Support" style={{ marginTop: 26 }} />
         <Glass style={{ paddingHorizontal: 12, paddingVertical: 2 }}>
+          {/* How long messages live. This one deletes things, so it says
+              so plainly and shows what is actually in force — a timer
+              you can't see is a timer you'll be surprised by. It follows
+              your account, not this phone. */}
+          <View style={{ paddingVertical: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.line }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <View style={{ width: 30, height: 30, borderRadius: 9, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                <Ionicons name="timer-outline" size={16} color={C.purple} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: C.text, fontSize: 14, fontWeight: '700' }}>Messages disappear after</Text>
+                <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 1 }}>
+                  {msgTtl === 0
+                    ? 'Kept until you delete them'
+                    : 'Older messages are deleted for both of you'}
+                </Text>
+              </View>
+            </View>
+            <View style={{ flexDirection: 'row', marginTop: 11, backgroundColor: C.glass, borderRadius: 12, padding: 3, borderWidth: 1, borderColor: C.line }}>
+              {[
+                { h: 24, label: '24h' },
+                { h: 48, label: '48h' },
+                { h: 168, label: '1 week' },
+                { h: 0, label: 'Keep' },
+              ].map((o) => {
+                const on = msgTtl === o.h;
+                return (
+                  <Pressable
+                    key={o.h}
+                    onPress={() => { tapSelection(); setMsgTtl(o.h); saveMessageTtl(o.h); }}
+                    style={{ flex: 1 }}
+                  >
+                    <View style={{ paddingVertical: 9, borderRadius: 10, alignItems: 'center', backgroundColor: on ? C.purple : 'transparent' }}>
+                      <Text style={{ color: on ? '#FFF' : C.dim, fontSize: 12.5, fontWeight: '800' }}>{o.label}</Text>
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <Text style={{ color: C.faint, fontSize: 11, marginTop: 8, lineHeight: 16 }}>
+              This is the default for new chats. Any single chat can be set differently from inside it.
+            </Text>
+          </View>
+
           {/* Owner only. A crash on a real phone has to leave something
               behind or the only way to fix it is guessing — this is
               where what it left gets read back. Nobody else sees it. */}

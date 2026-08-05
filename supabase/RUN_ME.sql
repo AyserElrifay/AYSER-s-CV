@@ -2171,3 +2171,20 @@ select
   exists (select 1 from information_schema.columns
           where table_schema = 'public' and table_name = 'game_matches'
             and column_name = 'state')                       as board_games_ready;
+
+
+-- ═══════════ SETTINGS THAT FOLLOW YOU, NOT THE PHONE ═══════════
+-- Preferences lived in one phone's local storage, so signing in
+-- somewhere else handed you a stranger's version of your own app:
+-- light mode again, message timer back to the default. These two
+-- belong to the person, not the device.
+--
+-- message_ttl_hours: how long your messages live, in hours.
+--   NULL = never chosen, so the app's default (48) applies.
+--   0    = keep them until you delete them.
+alter table public.profiles add column if not exists theme_pref        text
+  check (theme_pref in ('auto', 'light', 'dark'));
+alter table public.profiles add column if not exists message_ttl_hours int
+  check (message_ttl_hours is null or message_ttl_hours >= 0);
+
+notify pgrst, 'reload schema';

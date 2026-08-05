@@ -32,6 +32,7 @@ import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
 import { LinearGradient } from 'expo-linear-gradient';
 import { sfxPop } from '../utils/sfx';
 import { note } from '../lib/crashLog';
+import { effectiveTtl } from '../services/accountSettings';
 
 /* ─── A conversation — kept deliberately simple and warm, the kind of
    place you want to hang out in. Call & video in the header, and games
@@ -96,33 +97,36 @@ export const ChatThread = ({ chat, group, onClose }) => {
     return 'Active ' + Math.round(min / (60 * 24)) + 'd ago';
   })();
 
-  /* ── Disappearing messages — a real per-chat timer. Messages older
-     than the chosen window are hidden AND swept from the database.
-     DEFAULT: 1 week (the natural thing — chats shouldn't pile up
-     forever). "Keep forever" is an explicit choice, stored as 0. ── */
-  /* Messages used to delete themselves after a week by default. Nobody
-     chose that, and a conversation quietly disappearing is the kind of
-     thing you only notice once it has already gone. Kept forever
-     unless this thread is explicitly set to expire. */
-  const DEFAULT_TTL = 0; // 0 = keep them
+  /* ── Disappearing messages — a real timer. Messages older than the
+     window are hidden AND swept from the database.
+
+     Messages clear themselves after 48 hours now, by Ayser's call. It
+     is worth being plain about what that means, because it is the one
+     setting in here that destroys things: a conversation older than two
+     days is gone, from both sides, and nothing brings it back. Anyone
+     who wants to keep one can — every chat has its own timer and "Keep
+     forever" is one tap — but the default is that they go.
+
+     Three levels, most specific first: what this chat was set to, then
+     your account default (which follows you to another phone), then 48
+     hours. ── */
   const [ttl, setTtl] = useState(undefined);     // undefined = not loaded; null = unset (→ default); 0 = forever
   const [ttlOpen, setTtlOpen] = useState(false);
   const TTL_OPTIONS = [
     { h: 24, label: '24 hours' },
+    { h: 48, label: '48 hours · default' },
     { h: 168, label: '1 week' },
     { h: 720, label: '1 month' },
-    { h: 2160, label: '3 months' },
-    { h: 0, label: 'Keep forever · default' },
+    { h: 0, label: 'Keep forever' },
   ];
-  // the timer actually in force: explicit choice wins, otherwise 1 week
-  const effTtl = ttl === null || ttl === undefined ? DEFAULT_TTL : ttl;
+  const effTtl = effectiveTtl(ttl === undefined ? null : ttl);
   useEffect(() => {
     if (!isReal || group || !dmThreadId) return;
     let cancelled = false;
     getThreadTtl(dmThreadId).then((h) => {
       if (cancelled) return;
       setTtl(h);
-      const eff = h === null || h === undefined ? DEFAULT_TTL : h;
+      const eff = effectiveTtl(h);
       if (eff > 0) sweepExpired(dmThreadId, eff);
     }).catch(() => {});
     return () => { cancelled = true; };

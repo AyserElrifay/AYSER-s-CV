@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Platform, Appearance } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { C, applyThemeMode } from '../constants/theme';
+import { subscribeAccountSettings, cachedAccountSettings, saveThemePref } from '../services/accountSettings';
 
 /* Real dark mode. `C` is one shared, mutable object every screen reads
    straight from at render time (see theme.js) — so switching here just
@@ -64,14 +65,31 @@ export const ThemeProvider = ({ children }) => {
       setMode(next);
       setGen((g) => g + 1);
     }
-    if (persist) AsyncStorage.setItem(KEY, nextPref).catch(() => {});
+    if (persist) {
+      AsyncStorage.setItem(KEY, nextPref).catch(() => {});
+      // and onto the account, so it comes with you to another phone
+      saveThemePref(nextPref);
+    }
   };
 
-  // the stored choice, if they ever made one
+  /* The stored choice, if they ever made one. This phone's copy first,
+     because it answers immediately and a theme that arrives late is a
+     flash of the wrong colour; then the account's, which wins, because
+     that is the one that followed you here from another phone. */
   useEffect(() => {
     AsyncStorage.getItem(KEY).then((v) => {
       if (v === 'dark' || v === 'light' || v === 'auto') applyPref(v, false);
     }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const onAccount = (s) => {
+      if (s && (s.theme === 'dark' || s.theme === 'light' || s.theme === 'auto')) applyPref(s.theme, false);
+    };
+    const stop = subscribeAccountSettings(onAccount);
+    onAccount(cachedAccountSettings());
+    return stop;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

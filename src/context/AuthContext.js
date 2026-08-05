@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { SUPABASE_READY } from '../lib/supabase';
 import * as auth from '../services/auth';
 import { ensureMyProfile, touchLastActive } from '../services/profiles';
+import { loadAccountSettings, forgetAccountSettings } from '../services/accountSettings';
 
 /* Session state for the whole app.
    Real mode  — session comes from Supabase and survives restarts.
@@ -105,6 +106,13 @@ export const AuthProvider = ({ children }) => {
     };
   }, [session]);
 
+  /* Your own settings, from your account rather than from whichever
+     phone you happen to be holding — see services/accountSettings.js. */
+  useEffect(() => {
+    const id = session && session.user && session.user.id;
+    if (id) loadAccountSettings(id);
+  }, [session]);
+
   const value = {
     session,
     loading,
@@ -115,6 +123,8 @@ export const AuthProvider = ({ children }) => {
     signUp: auth.signUp,
     signOut: async () => {
       if (SUPABASE_READY) await auth.signOut();
+      // the next person on this phone must not inherit these
+      forgetAccountSettings();
       setDemoAuthed(false);
     },
     enterDemo: () => setDemoAuthed(true),
