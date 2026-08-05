@@ -203,13 +203,16 @@ export async function updatePost(postId, userId, fields) {
   return data;
 }
 
-export async function createPost({ userId, type = 'post', caption, place, mediaUrl, textBg, lat, lng, squadName, sound }) {
+export async function createPost({ userId, type = 'post', caption, place, mediaUrl, thumbUrl, textBg, lat, lng, squadName, sound }) {
   let payload = {
     user_id: userId,
     type,
     caption,
     place,
     media_url: mediaUrl,
+    // the still shown wherever a video can't play yet — a grid tile,
+    // a chat card. Without it a posted reel was a blank white square.
+    thumb_url: thumbUrl || null,
     text_bg: textBg,
     lat,
     lng,

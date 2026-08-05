@@ -98,9 +98,22 @@ const GridCell = ({ item }) => {
       </LinearGradient>
     );
   }
+  /* An <Image> handed a video URL draws nothing, which is exactly what
+     a posted reel looked like here: a blank white square. Videos carry
+     their own still now; one that predates that gets a dark tile with a
+     play mark on it, which at least reads as a video rather than as a
+     hole in the grid. */
+  const still = item.thumb || (item.kind === 'reel' ? null : item.media);
+  if (!still) {
+    return (
+      <View style={{ width: SIZE, height: SIZE, backgroundColor: '#1B1B21', alignItems: 'center', justifyContent: 'center' }}>
+        <MaterialCommunityIcons name="play-circle-outline" size={26} color="rgba(255,255,255,0.55)" />
+      </View>
+    );
+  }
   return (
     <View style={{ width: SIZE, height: SIZE }}>
-      <Image source={{ uri: item.media }} style={{ width: SIZE, height: SIZE }} />
+      <Image source={{ uri: still }} style={{ width: SIZE, height: SIZE, backgroundColor: '#1B1B21' }} />
       {item.kind === 'reel' ? (
         <MaterialCommunityIcons name="play-box-outline" size={16} color="#fff" style={{ position: 'absolute', top: 6, right: 6, textShadowColor: 'rgba(0,0,0,0.4)', textShadowRadius: 3 }} />
       ) : null}
@@ -365,7 +378,7 @@ export const ProfileScreen = () => {
 
   const gridItems = SUPABASE_READY
     ? myMoments.map((row) => row.media_url
-        ? { id: row.id, media: row.media_url, kind: row.type === 'reel' ? 'reel' : undefined, vibes: row.vibesCount }
+        ? { id: row.id, media: row.media_url, thumb: row.thumb_url || null, kind: row.type === 'reel' ? 'reel' : undefined, vibes: row.vibesCount }
         : { id: row.id, text: row.caption, textBg: row.text_bg || 'plain', vibes: row.vibesCount })
     : MY_MOMENTS;
 
@@ -812,7 +825,7 @@ export const ProfileScreen = () => {
                     style={{ marginRight: (i % COL === COL - 1) ? 0 : GAP, marginBottom: GAP, borderRadius: 4, overflow: 'hidden' }}
                   >
                     <GridCell item={row.media_url
-                      ? { id: row.id, media: row.media_url, kind: row.type === 'reel' ? 'reel' : undefined, vibes: row.vibesCount }
+                      ? { id: row.id, media: row.media_url, thumb: row.thumb_url || null, kind: row.type === 'reel' ? 'reel' : undefined, vibes: row.vibesCount }
                       : { id: row.id, text: row.caption, textBg: row.text_bg || 'plain', vibes: row.vibesCount }} />
                     <View style={{ position: 'absolute', top: 5, left: 6, backgroundColor: 'rgba(17,24,39,0.6)', borderRadius: 999, paddingHorizontal: 7, paddingVertical: 2 }}>
                       <Text style={{ color: '#FFF', fontSize: 9.5, fontWeight: '800' }} numberOfLines={1}>

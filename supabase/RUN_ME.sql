@@ -2188,3 +2188,13 @@ alter table public.profiles add column if not exists message_ttl_hours int
   check (message_ttl_hours is null or message_ttl_hours >= 0);
 
 notify pgrst, 'reload schema';
+
+
+-- ═══════════ A STILL FOR EVERY VIDEO ═══════════
+-- A posted reel was a blank white tile in the profile grid: there was
+-- nowhere to keep the frame, so nothing could be drawn. The capture
+-- screen already pulls a frame out for its own preview; this is where
+-- it lives.
+alter table public.posts add column if not exists thumb_url text;
+
+notify pgrst, 'reload schema';

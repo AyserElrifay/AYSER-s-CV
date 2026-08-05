@@ -1190,12 +1190,61 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
   const [videoOk, setVideoOk] = useState(false);        // it really decoded a frame
   const [diag, setDiag] = useState(null);               // owner-only facts
   const [probeDone, setProbeDone] = useState(false);    // the frame check has finished
+  const previewOkRef = useRef(false);   // the preview got the clip open — no second element needed
+  /* ── ONE VIDEO ELEMENT AT A TIME ──────────────────────────────────
+     This used to build its own <video> and load the clip into it while
+     the preview was loading the very same blob. On iOS that is a fight
+     only one of them can win, and the probe won: Ayser's diagnostics
+     read `probe: 480x854` — the file decoded perfectly — next to
+     `video: 0x0 ready=0` for the preview beside it. A black screen
+     caused entirely by us asking twice.
+
+     So the probe waits. The preview is already mounted, already has the
+     clip, and already tells us when it has loaded — so it does the
+     measuring, and this only builds an element of its own if the
+     preview never manages it, by which time nothing is competing. */
+  const probeFromElement = (el) => {
+    if (!el || !el.videoWidth) return;
+    try {
+      const w = el.videoWidth, h = el.videoHeight;
+      setDiag((d) => ({ ...(d || {}), pw: w, ph: h }));
+      const c = document.createElement('canvas');
+      c.width = 64; c.height = Math.max(1, Math.round((h / w) * 64));
+      const cx = c.getContext('2d', { willReadFrequently: true });
+      cx.drawImage(el, 0, 0, c.width, c.height);
+      const d = cx.getImageData(0, 0, c.width, c.height).data;
+      let peak = 0;
+      for (let i = 0; i < d.length; i += 4) {
+        if (d[i] > peak) peak = d[i];
+        if (d[i + 1] > peak) peak = d[i + 1];
+        if (d[i + 2] > peak) peak = d[i + 2];
+      }
+      if (peak >= 10) {
+        const big = document.createElement('canvas');
+        big.width = Math.min(720, w); big.height = Math.round(big.width * (h / w));
+        big.getContext('2d').drawImage(el, 0, 0, big.width, big.height);
+        try { setFirstFrame(big.toDataURL('image/jpeg', 0.82)); } catch (e) {}
+      }
+      setDiag((d2) => ({ ...(d2 || {}), peak }));
+      setProbeDone(true);
+      setClipWarn(peak < 10 ? 'This clip came out completely black. Record it again — and check the camera isn\'t covered 🎥' : null);
+    } catch (e) { setProbeDone(true); }
+  };
+
   const probeClip = (uri) => {
     setClipWarn(null); setFirstFrame(null); setPlayErr(null); setVideoOk(false); setDiag(null); setProbeDone(false);
+    previewOkRef.current = false;
     if (!isWeb || !uri) return;
     let done = false;
+    /* Give the preview a clear run at it first. Only if it hasn't
+       managed after four seconds do we load a second copy ourselves. */
+    setTimeout(() => {
+      if (done || previewOkRef.current) return;
+      startFallbackProbe(uri);
+    }, 4000);
+    const startFallbackProbe = (u) => {
     const el = document.createElement('video');
-    el.muted = true; el.playsInline = true; el.preload = 'auto'; el.src = uri;
+    el.muted = true; el.playsInline = true; el.preload = 'auto'; el.src = u;
     const finish = (msg) => { if (!done) { done = true; setProbeDone(true); setClipWarn(msg); try { el.src = ''; } catch (e) {} } };
     const grab = () => {
       try {
@@ -1235,6 +1284,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
     /* If six seconds pass and we learned nothing, say that — a silent
        give-up is what left a black rectangle with no explanation. */
     setTimeout(() => finish(done ? null : 'This clip didn’t open in the browser. It may still post fine — or record a new one to be sure.'), 6000);
+    };
   };
 
   const stopRecording = () => {
@@ -1529,11 +1579,22 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
         return;
       }
       if (SUPABASE_READY && user) {
+        /* A posted video with no still is a blank tile in the grid —
+           which is what a reel looked like on the profile. The frame we
+           already pulled out for the preview is exactly the right
+           picture, so it goes up with the clip. Best effort: no still
+           is a worse grid, not a failed post. */
+        let thumbUrl = null;
         const mediaUrl = alreadyUp
           ? workingShot.uri
           : isWeb
             ? await uploadCapture(user.id, workingShot.blob || workingShot.uri, workingShot.ext, workingShot.contentType, { onProgress: (l, t) => setUpPct(t ? l / t : 0) })
             : await uploadMedia(user.id, workingShot.uri);
+        if (isWeb && workingShot.kind === 'video' && firstFrame) {
+          try {
+            thumbUrl = await uploadCapture(user.id, firstFrame, 'jpg', 'image/jpeg');
+          } catch (e) { thumbUrl = null; }   // a missing still is not a failed post
+        }
         if (alreadyUp && shot.libraryId) markUsed(shot.libraryId);
         /* Everything you shoot lands in your library too, so the clip
            you just posted can be posted again somewhere else without
@@ -1563,7 +1624,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
           });
         } else if (mode === 'video') {
           const row = await createPost({
-            userId: user.id, type: 'vod', caption: finalCaption() || '🎬 Video', mediaUrl,
+            userId: user.id, type: 'vod', caption: finalCaption() || '🎬 Video', mediaUrl, thumbUrl,
             place: onMap ? (placeName.trim() || 'Right here') : null,
             lat: onMap && mapCoords ? mapCoords.latitude : null,
             lng: onMap && mapCoords ? mapCoords.longitude : null,
@@ -1571,7 +1632,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
           onPosted && onPosted(row);
         } else {
           const row = await createPost({
-            userId: user.id, type: 'reel', caption: finalCaption() || '🎬', mediaUrl, sound,
+            userId: user.id, type: 'reel', caption: finalCaption() || '🎬', mediaUrl, sound, thumbUrl,
             place: onMap ? (placeName.trim() || 'Right here') : null,
             lat: onMap && mapCoords ? mapCoords.latitude : null,
             lng: onMap && mapCoords ? mapCoords.longitude : null,
@@ -1719,9 +1780,14 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
                 el.muted = true;
                 el.play().catch((e) => setPlayErr((e && e.name) || 'blocked'));
                 el.onloadeddata = () => {
-                  if (el.videoWidth > 0) setVideoOk(true);
+                  if (el.videoWidth > 0) { setVideoOk(true); previewOkRef.current = true; }
                   setDiag((d) => ({ ...(d || {}), vw: el.videoWidth, vh: el.videoHeight, ready: el.readyState }));
+                  /* The preview has the clip open, so it does the
+                     measuring — nothing else needs to load a second
+                     copy and fight it for the decoder. */
+                  try { el.currentTime = Math.min(0.25, (el.duration || 1) / 4); } catch (e) { probeFromElement(el); }
                 };
+                el.onseeked = () => probeFromElement(el);
                 el.onerror = () => {
                   const c = el.error && el.error.code;
                   setPlayErr(c === 4 ? 'format' : c === 3 ? 'decode' : c === 2 ? 'network' : 'unknown');
