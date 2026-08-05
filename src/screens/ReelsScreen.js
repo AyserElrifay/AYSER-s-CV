@@ -154,7 +154,9 @@ export const ReelsScreen = () => {
           {isVideo(item.media) && Platform.OS === 'web' ? (
             <video
               src={item.media}
-              autoPlay loop muted playsInline preload="auto" crossOrigin="anonymous"
+              // no crossOrigin — see the note in ReelsViewer.js: it can
+              // only forbid playback, never enable it
+              autoPlay loop muted playsInline preload="auto"
               /* iOS starts a video on its own only when muted is a real
                  property and something asks it to play; without this a
                  posted reel shows as a black rectangle that never moves */

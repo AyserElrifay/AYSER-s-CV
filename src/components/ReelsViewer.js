@@ -51,9 +51,20 @@ export const ReelsViewer = ({ reels, startIndex = 0, vibes, onVibe, onComment, o
               file it cannot play back — those used to sit here as a
               black rectangle with no explanation. If the clip refuses to
               load we say so instead of showing nothing. */}
+          {/* No crossOrigin. It was here so the blank-frame check could
+              read pixels off a canvas, and it cost far more than it
+              bought: a host that doesn't return an
+              Access-Control-Allow-Origin header makes the browser
+              refuse the video outright — 0x0, readyState 0, nothing on
+              screen. Measured all four combinations: with the header it
+              loads either way, without it, only the plain one loads. The
+              attribute can never help playback, only forbid it. The
+              blank-frame check already goes quiet when it can't read a
+              canvas, which is the right way round: playing the clip
+              matters more than being able to inspect it. */}
           <video
             src={item.media}
-            autoPlay muted loop playsInline preload="auto" crossOrigin="anonymous"
+            autoPlay muted loop playsInline preload="auto"
             ref={(el) => {
               if (!el || el.__wired) return;
               el.__wired = true;
