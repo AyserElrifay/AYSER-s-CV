@@ -626,14 +626,14 @@ end $$;
 -- the old schema.sql — never by this file. One paste fixes it. Public
 -- bucket (posts are public), uploads land in the uploader's own folder.
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-values ('media', 'media', true, 52428800, null)
+values ('media', 'media', true, 209715200, null)
 on conflict (id) do update set
   public = true,
   -- 50 MB, stated on the bucket itself rather than left to whatever the
   -- project default happens to be, and no mime allow-list: a list that
   -- silently omits video/mp4 rejects every reel with a bare "Load
   -- failed", which is indistinguishable from a bad connection.
-  file_size_limit = 52428800,
+  file_size_limit = 209715200,
   allowed_mime_types = null;
 
 drop policy if exists "media is publicly readable" on storage.objects;
