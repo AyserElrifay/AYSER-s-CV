@@ -818,6 +818,11 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
   const [contrast, setContrast] = useState(1); // 0.7 … 1.3
   const [warmth, setWarmth] = useState(0);     // -20 … 20 (deg hue toward warm)
   const [editOpen, setEditOpen] = useState(false);
+  /* Which single panel is open under the picture, if any. Null is the
+     normal state and the whole point — see the preview block below. */
+  const [panel, setPanel] = useState(null);
+  // the lens circles over the viewfinder — closed until you ask
+  const [lensRailOpen, setLensRailOpen] = useState(false);
 
   // ── swipe the viewfinder to flip through filters, live (Snap-style) ──
   const [filterFlash, setFilterFlash] = useState(null);
@@ -2024,6 +2029,15 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
               {/* THE LENS CAROUSEL — always there, right of the shutter,
                   the way a camera does it. Swipe it, tap one, wear it.
                   The ✨ at the end opens the whole drawer. */}
+              {/* ── LENSES, WHEN YOU WANT THEM ────────────────────
+                  Fourteen lens circles and five category tabs used to
+                  sit permanently over the viewfinder, which is most of
+                  what made this screen feel like a control panel rather
+                  than a camera. They live behind the smiley now: the
+                  default screen is the picture and the shutter, and the
+                  lenses are one tap away when you actually want one. */}
+              {lensRailOpen ? (
+              <>
               <ScrollView
                 horizontal showsHorizontalScrollIndicator={false}
                 contentContainerStyle={{ paddingHorizontal: 14, alignItems: 'center', marginBottom: 8 }}
@@ -2080,7 +2094,11 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
                 </View>
               ) : null}
 
+              </>
+              ) : null}
+
               {/* the strip under it, like a camera's category row */}
+              {lensRailOpen ? (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, alignItems: 'center', marginBottom: 10 }}>
                 <Pressable onPress={() => { tapLight(); setEffectsOpen(true); }} style={{ marginRight: 14 }}>
                   <Ionicons name="game-controller-outline" size={20} color="#FFF" />
@@ -2099,6 +2117,24 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
                   </Pressable>
                 ))}
               </ScrollView>
+              ) : null}
+
+              {/* One tap to the lenses, and one tap back. This is the
+                  only thing standing between the viewfinder and the
+                  whole effects drawer. */}
+              <Pressable onPress={() => { tapLight(); setLensRailOpen((v) => !v); }} style={{ alignSelf: 'center', marginBottom: 10 }}>
+                <View style={{
+                  width: 46, height: 46, borderRadius: 23,
+                  backgroundColor: lensRailOpen ? '#FFF' : 'rgba(0,0,0,0.45)',
+                  borderWidth: 1, borderColor: lensRailOpen ? '#FFF' : 'rgba(255,255,255,0.45)',
+                  alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <Ionicons name={lensRailOpen ? 'chevron-down' : 'happy-outline'} size={22} color={lensRailOpen ? '#111' : '#FFF'} />
+                  {lens && !lensRailOpen ? (
+                    <View style={{ position: 'absolute', top: 4, right: 4, width: 9, height: 9, borderRadius: 5, backgroundColor: C.gold, borderWidth: 1.5, borderColor: 'rgba(0,0,0,0.5)' }} />
+                  ) : null}
+                </View>
+              </Pressable>
 
               {/* what you're wearing right now, in one line */}
               {sound ? (
@@ -2191,9 +2227,21 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
               )}
             </>
           ) : (
-            /* ── preview: filters · light edit · song rail · caption ── */
+            /* ── preview ──────────────────────────────────────────────
+               Everything used to be open at once: a strip of filters, a
+               strip of songs, stickers, five hashtag chips, a map
+               toggle, a caption and a button — a wall you had to read
+               before you could post a photo of your coffee.
+
+               Now the picture is the screen. Four small round buttons
+               say what else is possible, one panel opens at a time, and
+               nothing is open to begin with. A button carries a dot
+               when there is something in it, so nothing you set is
+               hidden from you. ── */
             <View>
               {/* real filters — tap to try, baked into the photo on send */}
+              {panel === 'looks' ? (
+              <>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 14, marginBottom: 10 }}>
                 <Pressable onPress={() => { tapLight(); setEditOpen((v) => !v); }}>
                   <View style={{ alignItems: 'center', justifyContent: 'center', marginRight: 10, width: 58 }}>
@@ -2245,7 +2293,10 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
               </ScrollView>
 
               {/* light edit — brightness · contrast · warmth (real, baked) */}
-              {editOpen ? (
+              </>
+              ) : null}
+
+              {panel === 'looks' && editOpen ? (
                 <View style={{ marginHorizontal: 14, marginBottom: 10, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)', padding: 12 }}>
                   {[
                     { label: '☀️ Brightness', val: bright, set: setBright, min: 0.7, max: 1.3, step: 0.05 },
@@ -2271,10 +2322,47 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
                 </View>
               ) : null}
 
-              {mode !== 'video' ? soundRail : null}
+              {mode !== 'video' && panel === 'sound' ? soundRail : null}
+              {/* ── the tool rail ─────────────────────────────────
+                  Four buttons instead of four open drawers. The dot
+                  means there is something in there already, so a
+                  closed panel never hides a choice you made. */}
+              {!sendMode ? (
+                <View style={{ flexDirection: 'row', justifyContent: 'center', paddingHorizontal: 16, marginBottom: 12 }}>
+                  {[
+                    { k: 'looks', icon: 'color-wand-outline', label: 'Looks', set: filterId !== 'none' || effectId !== 'none' || !!lens },
+                    { k: 'sound', icon: 'musical-notes-outline', label: 'Sound', set: !!sound },
+                    { k: 'tags', icon: 'pricetag-outline', label: 'Tags', set: tags.length > 0 },
+                    { k: 'place', icon: 'location-outline', label: 'Place', set: !!onMap },
+                  ].map((b) => {
+                    const open = panel === b.k;
+                    return (
+                      <Pressable
+                        key={b.k}
+                        onPress={() => { tapLight(); setPanel(open ? null : b.k); }}
+                        style={{ alignItems: 'center', marginHorizontal: 12 }}
+                      >
+                        <View style={{
+                          width: 48, height: 48, borderRadius: 24,
+                          backgroundColor: open ? '#FFF' : 'rgba(255,255,255,0.16)',
+                          borderWidth: 1, borderColor: open ? '#FFF' : 'rgba(255,255,255,0.35)',
+                          alignItems: 'center', justifyContent: 'center',
+                        }}>
+                          <Ionicons name={b.icon} size={21} color={open ? '#111' : '#FFF'} />
+                          {b.set && !open ? (
+                            <View style={{ position: 'absolute', top: 5, right: 5, width: 9, height: 9, borderRadius: 5, backgroundColor: C.gold, borderWidth: 1.5, borderColor: 'rgba(0,0,0,0.5)' }} />
+                          ) : null}
+                        </View>
+                        <Text style={{ color: open ? '#FFF' : 'rgba(255,255,255,0.7)', fontSize: 10.5, fontWeight: '800', marginTop: 5 }}>{b.label}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              ) : null}
+
               <View style={{ paddingHorizontal: 16 }}>
               {/* story-only: add a Poll or an Ask-me-anything sticker */}
-              {mode === 'story' && !sendMode ? (
+              {mode === 'story' && !sendMode && panel === 'tags' ? (
                 <View style={{ marginBottom: 12 }}>
                   <View style={{ flexDirection: 'row' }}>
                     {[{ k: 'poll', label: '📊 Poll' }, { k: 'question', label: '❓ Ask' }].map((o) => {
@@ -2321,7 +2409,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
               {/* WHAT IT'S ABOUT — up to five tags. The chips are rooms
                   that already exist, so a tapped tag lands somewhere
                   instead of being a guess at spelling. */}
-              {!sendMode ? (
+              {!sendMode && panel === 'tags' ? (
                 <View style={{ marginBottom: 10 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
                     <Ionicons name="pricetag-outline" size={13} color="rgba(255,255,255,0.75)" />
@@ -2380,7 +2468,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
               {/* Put it on the map — where it happened, like a pin you
                   drop. Off by default: your location is never shared
                   unless you switch this on for that post. */}
-              {!sendMode ? (
+              {!sendMode && panel === 'place' ? (
                 <View style={{ marginBottom: 10 }}>
                   <Pressable onPress={toggleOnMap} style={{ alignSelf: 'flex-start' }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: onMap ? C.purple : 'rgba(0,0,0,0.55)', borderWidth: 1, borderColor: onMap ? C.purple : 'rgba(255,255,255,0.35)', borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8 }}>
