@@ -631,6 +631,8 @@ export const HomeScreen = () => {
           onVibe={onVibe}
           onComment={(p) => { setReelStart(null); openComments(p); }}
           onClose={() => setReelStart(null)}
+          onDeleted={(id) => removePost(id)}
+          onEdited={(id, fields) => patchPost(id, fields)}
         />
       ) : null}
     </View>

@@ -50,6 +50,8 @@ export const toCard = (row) => ({
   media: row.media_url || null, // no photo → renders as a text moment
   textBg: row.text_bg || null,
   caption: row.caption || '',
+  // who it went out to — so Manage opens showing the truth, not a guess
+  closeOnly: !!row.close_only,
   place: row.place || 'Somewhere out there',
   // scheduled moments count down; plain posts show WHEN they were posted
   startsIn: row.starts_at ? relTime(row.starts_at) : agoTime(row.created_at),

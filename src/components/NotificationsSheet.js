@@ -410,6 +410,7 @@ export const NotificationsSheet = ({ onClose }) => {
           }}
           onComment={(item) => setCommentsPost(item)}
           onClose={() => setReelView(null)}
+          onDeleted={() => setReelView(null)}
         />
       ) : null}
 

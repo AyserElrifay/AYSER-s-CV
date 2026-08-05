@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
+import { TextInput } from 'react-native';
 import { looksPlayable, watchForBlankVideo } from '../lib/videoCheck';
 import { View, Text, Modal, Pressable, ImageBackground, FlatList, Dimensions, Image, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,15 +10,86 @@ import { SoundChip } from './SoundChip';
 import { ReportSheet } from './ReportSheet';
 import { ProfileModal } from './ProfileModal';
 import { sharePost, shareNote } from '../utils/share';
-import { tapLight } from '../utils/feedback';
+import { tapLight, tapSuccess } from '../utils/feedback';
+import { useAuth } from '../context/AuthContext';
+import { deletePost, updatePost } from '../services/posts';
+import { note } from '../lib/crashLog';
 
 const { height: H } = Dimensions.get('window');
 
 /* TikTok-style full-screen reels: swipe up for the next one, action
    rail on the right, sound tag at the bottom. */
-export const ReelsViewer = ({ reels, startIndex = 0, vibes, onVibe, onComment, onClose }) => {
+export const ReelsViewer = ({ reels, startIndex = 0, vibes, onVibe, onComment, onClose, onDeleted, onEdited }) => {
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
   const [report, setReport] = useState(null);
+  /* ── YOUR OWN REEL ────────────────────────────────────────────────
+     Somebody else's reel can be reported. Your own could only be
+     reported too, which is absurd — the one thing you certainly have
+     the right to do with your own video is take it down, and there was
+     no way to.
+
+     So on your own it's Manage instead: change the caption, change who
+     it's for, or delete it. Deleting asks once, because it doesn't come
+     back. */
+  const [manage, setManage] = useState(null);
+  const [draftCaption, setDraftCaption] = useState('');
+  const [closeOnly, setCloseOnly] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [gone, setGone] = useState({});
+  const [confirmDel, setConfirmDel] = useState(false);
+  const [manageErr, setManageErr] = useState(null);
+  const [patched, setPatched] = useState({}); // edits, shown before the feed reloads
+
+  const openManage = (item) => {
+    tapLight();
+    setDraftCaption(item.caption || '');
+    setCloseOnly(!!item.closeOnly);
+    setConfirmDel(false);
+    setManageErr(null);
+    setManage(item);
+  };
+
+  const saveManage = async () => {
+    if (!manage || !user || busy) return;
+    setBusy(true); setManageErr(null);
+    try {
+      const caption = draftCaption.trim();
+      await updatePost(manage.id, user.id, { caption, close_only: closeOnly });
+      tapSuccess();
+      setPatched((p) => ({ ...p, [manage.id]: { caption, closeOnly } }));
+      setManage(null);
+      onEdited && onEdited(manage.id, { caption, closeOnly });
+    } catch (e) {
+      note('reel-edit', e);
+      setManageErr((e && e.message) || 'That did not save — try again.');
+    } finally { setBusy(false); }
+  };
+
+  const doDelete = async () => {
+    if (!manage || !user || busy) return;
+    setBusy(true); setManageErr(null);
+    try {
+      await deletePost(manage.id, user.id);
+      setGone((g) => ({ ...g, [manage.id]: true }));
+      const id = manage.id;
+      setManage(null);
+      onDeleted && onDeleted(id);
+      // it was the only one left — there's nothing behind it to go back to
+      if ((reels || []).filter((r) => r.id !== id && !gone[r.id]).length === 0) onClose && onClose();
+    } catch (e) {
+      note('reel-delete', e);
+      setManageErr((e && e.message) || 'Could not delete it — try again.');
+    } finally { setBusy(false); }
+  };
+
+  /* A deleted reel leaves the stack the moment it's gone and an edited
+     caption shows the new words straight away — neither waits for the
+     screen behind us to reload. */
+  const visible = useMemo(
+    () => (reels || []).filter((r) => !gone[r.id]).map((r) => (patched[r.id] ? { ...r, ...patched[r.id] } : r)),
+    [reels, gone, patched],
+  );
   const [profileUser, setProfileUser] = useState(null);
   const [shared, setShared] = useState(null); // the copied link, when there's no share sheet
 
@@ -151,10 +223,17 @@ export const ReelsViewer = ({ reels, startIndex = 0, vibes, onVibe, onComment, o
             <Ionicons name="paper-plane-outline" size={26} color="#FFF" />
             <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '800', marginTop: 3 }}>Share</Text>
           </Pressable>
+          {user && item.user && item.user.id === user.id ? (
+            <Pressable onPress={() => openManage(item)} hitSlop={8} style={{ alignItems: 'center' }}>
+              <Ionicons name="ellipsis-horizontal-circle-outline" size={30} color="#FFF" />
+              <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '800', marginTop: 3 }}>Manage</Text>
+            </Pressable>
+          ) : (
           <Pressable onPress={() => setReport(item)} hitSlop={8} style={{ alignItems: 'center' }}>
             <Ionicons name="flag-outline" size={24} color="#FFF" />
             <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '800', marginTop: 3 }}>Report</Text>
           </Pressable>
+          )}
         </View>
       </View>
     </LinearGradient>
@@ -164,7 +243,7 @@ export const ReelsViewer = ({ reels, startIndex = 0, vibes, onVibe, onComment, o
     <Modal visible transparent={false} animationType="slide" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: '#000' }}>
         <FlatList
-          data={reels}
+          data={visible}
           keyExtractor={(r) => r.id}
           renderItem={renderReel}
           pagingEnabled
@@ -189,6 +268,111 @@ export const ReelsViewer = ({ reels, startIndex = 0, vibes, onVibe, onComment, o
         {profileUser ? <ProfileModal user={profileUser} onClose={() => setProfileUser(null)} /> : null}
         {report ? (
           <ReportSheet contentType="reel" contentId={report.id} contentLabel={(report.user && report.user.name) || 'this reel'} onClose={() => setReport(null)} />
+        ) : null}
+        {manage ? (
+          <Modal visible transparent animationType="fade" onRequestClose={() => setManage(null)}>
+            <Pressable onPress={() => !busy && setManage(null)} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }}>
+              <Pressable onPress={() => {}} style={{ backgroundColor: '#150C2B', borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 20, paddingTop: 10, paddingBottom: insets.bottom + 20 }}>
+                <View style={{ alignSelf: 'center', width: 44, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.28)', marginBottom: 16 }} />
+                <Text style={{ color: '#FFF', fontSize: 18, fontWeight: '900', marginBottom: 4 }}>Your reel</Text>
+                <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12.5, marginBottom: 16 }}>
+                  Change what it says, change who sees it, or take it down.
+                </Text>
+
+                {/* caption */}
+                <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 12, fontWeight: '800', marginBottom: 7 }}>CAPTION</Text>
+                <TextInput
+                  value={draftCaption}
+                  onChangeText={setDraftCaption}
+                  multiline
+                  placeholder="Say something about it…"
+                  placeholderTextColor="rgba(255,255,255,0.35)"
+                  editable={!busy}
+                  style={{
+                    color: '#FFF', fontSize: 15, lineHeight: 21, minHeight: 78, maxHeight: 150,
+                    backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 14, padding: 13,
+                    borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', textAlignVertical: 'top',
+                  }}
+                />
+
+                {/* who it's for */}
+                <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 12, fontWeight: '800', marginTop: 18, marginBottom: 7 }}>WHO CAN SEE IT</Text>
+                <View style={{ flexDirection: 'row' }}>
+                  {[
+                    { on: false, icon: 'earth', label: 'Everyone', sub: 'Anyone on Moments' },
+                    { on: true, icon: 'star', label: 'Close Friends', sub: 'Only your circle' },
+                  ].map((opt) => {
+                    const picked = closeOnly === opt.on;
+                    return (
+                      <Pressable
+                        key={opt.label}
+                        onPress={() => { if (busy) return; tapLight(); setCloseOnly(opt.on); }}
+                        style={{
+                          flex: 1, marginRight: opt.on ? 0 : 10, borderRadius: 14, padding: 12,
+                          backgroundColor: picked ? (opt.on ? 'rgba(52,199,89,0.18)' : 'rgba(124,58,237,0.22)') : 'rgba(255,255,255,0.06)',
+                          borderWidth: 1.5, borderColor: picked ? (opt.on ? C.green : C.purple) : 'rgba(255,255,255,0.12)',
+                        }}
+                      >
+                        <Ionicons name={picked ? opt.icon : opt.icon + '-outline'} size={18} color={picked ? (opt.on ? C.green : '#FFF') : 'rgba(255,255,255,0.6)'} />
+                        <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '800', marginTop: 6 }}>{opt.label}</Text>
+                        <Text style={{ color: 'rgba(255,255,255,0.55)', fontSize: 11, marginTop: 2 }}>{opt.sub}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+
+                {manageErr ? (
+                  <Text style={{ color: '#FF7A7A', fontSize: 12.5, marginTop: 14 }}>{manageErr}</Text>
+                ) : null}
+
+                {/* save */}
+                <Pressable
+                  onPress={saveManage}
+                  disabled={busy}
+                  style={{ marginTop: 18, borderRadius: 999, overflow: 'hidden', opacity: busy ? 0.6 : 1 }}
+                >
+                  <LinearGradient colors={[C.purple, C.coral]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ paddingVertical: 14, alignItems: 'center' }}>
+                    <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '900' }}>{busy ? 'Saving…' : 'Save changes'}</Text>
+                  </LinearGradient>
+                </Pressable>
+
+                {/* delete — asks once, because it doesn't come back */}
+                {!confirmDel ? (
+                  <Pressable
+                    onPress={() => { tapLight(); setConfirmDel(true); }}
+                    disabled={busy}
+                    style={{ marginTop: 12, paddingVertical: 13, borderRadius: 999, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,122,122,0.5)' }}
+                  >
+                    <Ionicons name="trash-outline" size={16} color="#FF7A7A" />
+                    <Text style={{ color: '#FF7A7A', fontSize: 14, fontWeight: '800', marginLeft: 7 }}>Delete this reel</Text>
+                  </Pressable>
+                ) : (
+                  <View style={{ marginTop: 12, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,122,122,0.4)', backgroundColor: 'rgba(255,122,122,0.08)', padding: 13 }}>
+                    <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '800' }}>Delete it for good?</Text>
+                    <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12, marginTop: 4 }}>
+                      The video, its stars and its comments all go. This can't be undone.
+                    </Text>
+                    <View style={{ flexDirection: 'row', marginTop: 12 }}>
+                      <Pressable
+                        onPress={() => setConfirmDel(false)}
+                        disabled={busy}
+                        style={{ flex: 1, marginRight: 10, paddingVertical: 11, borderRadius: 999, alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.1)' }}
+                      >
+                        <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '800' }}>Keep it</Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={doDelete}
+                        disabled={busy}
+                        style={{ flex: 1, paddingVertical: 11, borderRadius: 999, alignItems: 'center', backgroundColor: '#E5484D', opacity: busy ? 0.6 : 1 }}
+                      >
+                        <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '900' }}>{busy ? 'Deleting…' : 'Delete'}</Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                )}
+              </Pressable>
+            </Pressable>
+          </Modal>
         ) : null}
       </View>
     </Modal>

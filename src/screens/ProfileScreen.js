@@ -436,6 +436,7 @@ export const ProfileScreen = () => {
     media: row.media_url || null,
     textBg: row.text_bg || null,
     caption: row.caption || '',
+    closeOnly: !!row.close_only,   // so Manage opens on the real setting
     place: row.place || 'Somewhere out there',
     startsIn: '',
     coords: ME.coords,
@@ -1304,6 +1305,8 @@ export const ProfileScreen = () => {
           onVibe={vibeMoment}
           onComment={(item) => setCommentsPost(item)}
           onClose={() => setReelView(null)}
+          onDeleted={(id) => setMyMoments((list) => list.filter((r) => r.id !== id))}
+          onEdited={(id, fields) => setMyMoments((list) => list.map((r) => (r.id === id ? { ...r, caption: fields.caption, close_only: !!fields.closeOnly } : r)))}
         />
       ) : null}
 

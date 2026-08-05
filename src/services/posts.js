@@ -189,18 +189,32 @@ export async function deletePost(postId, userId) {
   if (error) throw error;
 }
 
-/* Edit your own moment — currently the caption (RLS lets you update
-   only your own rows). Returns the updated row. */
+/* Edit your own moment — the caption, who it's for (RLS lets you update
+   only your own rows). Returns the updated row.
+
+   Same strip-and-retry as createPost: a database that hasn't had the
+   newest column added yet shouldn't make editing a caption fail. We
+   drop the column it doesn't know about and save the rest. */
 export async function updatePost(postId, userId, fields) {
-  const { data, error } = await supabase
-    .from('posts')
-    .update(fields)
-    .eq('id', postId)
-    .eq('user_id', userId)
-    .select('*, user:profiles!posts_user_id_fkey(*)')
-    .single();
-  if (error) throw error;
-  return data;
+  let payload = { ...fields };
+  for (let i = 0; i < 4; i++) {
+    const { data, error } = await supabase
+      .from('posts')
+      .update(payload)
+      .eq('id', postId)
+      .eq('user_id', userId)
+      .select('*, user:profiles!posts_user_id_fkey(*)')
+      .single();
+    if (!error) return data;
+    const missing = /find the '([^']+)' column/i.exec(error.message || '');
+    if (missing && Object.prototype.hasOwnProperty.call(payload, missing[1])) {
+      payload = { ...payload };
+      delete payload[missing[1]];
+      if (Object.keys(payload).length) continue;
+    }
+    throw error;
+  }
+  throw new Error('Could not save that — try again.');
 }
 
 export async function createPost({ userId, type = 'post', caption, place, mediaUrl, thumbUrl, textBg, lat, lng, squadName, sound }) {

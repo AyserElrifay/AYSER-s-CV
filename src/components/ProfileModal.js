@@ -525,6 +525,7 @@ export const ProfileModal = ({ user, onClose }) => {
             onVibe={vibeMoment}
             onComment={(item) => setCommentsPost(item)}
             onClose={() => setReelView(null)}
+            onDeleted={(id) => setReelView((v) => (v ? { ...v, reels: v.reels.filter((r) => r.id !== id) } : v))}
           />
         ) : null}
 
