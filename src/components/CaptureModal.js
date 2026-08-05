@@ -32,7 +32,7 @@ import { clipUrl, parseClip, holdToClip, DEFAULT_LEN } from '../lib/soundClip';
 import { loadFaceDetector, findFace, makeFaceTracker } from '../lib/faceDetect';
 import { note } from '../lib/crashLog';
 import { isOwner } from '../services/music';
-import { LENSES, drawLens } from './lensArt';
+import { LENSES, drawLens, placeOnFace } from './lensArt';
 import { tapLight, tapMedium, tapSuccess, tapSelection } from '../utils/feedback';
 import { getCurrentCoords } from '../utils/location';
 import { sfxPop, sfxSuccess } from '../utils/sfx';
@@ -1168,15 +1168,19 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
           const f = trackerRef.current.push(raw);
           if (f) {
             /* The frame is mirrored for the front camera, so what the
-               detector calls left is the person's right — the lens has
-               to be flipped with it or it lands on the wrong side. */
-            const x = facing === 'user' ? 1 - f.x : f.x;
-            /* Something worn sits on the top of the head; everything
-               else sits on the face. */
-            const wear = lensKindRef.current === 'wear';
-            const y = wear ? Math.max(0.05, f.y - f.size * 0.55) : f.y;
-            const s = Math.max(0.15, Math.min(0.8, f.size * 1.25));
-            setLens((cur) => (cur ? { ...cur, x, y, s } : cur));
+               detector calls left is the person's right — flip it or
+               the lens lands on the wrong side of the face. */
+            const seen = { ...f, x: facing === 'user' ? 1 - f.x : f.x };
+            /* Where it goes and how big it is are properties of the
+               artwork, so they live with it — see placeOnFace in
+               lensArt.js. Treating every wearable the same is what hung
+               a beard above somebody's head. */
+            const box = { w: el.clientWidth || el.videoWidth, h: el.clientHeight || el.videoHeight };
+            setLens((cur) => {
+              if (!cur) return cur;
+              const placed = placeOnFace(cur.id, seen, box);
+              return placed ? { ...cur, ...placed } : cur;
+            });
           }
         }
         timer = setTimeout(tick, 140);
@@ -2079,20 +2083,10 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
                 </Pressable>
               </ScrollView>
 
-              {/* the size stepper, only while you're wearing something */}
-              {lens ? (
-                <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, marginBottom: 8 }}>
-                  <Pressable onPress={() => setLens((l) => ({ ...l, s: Math.max(0.15, l.s - 0.06) }))} hitSlop={8} style={{ paddingHorizontal: 8 }}>
-                    <Ionicons name="remove-circle-outline" size={22} color="#FFF" />
-                  </Pressable>
-                  <View style={{ flex: 1, height: 3, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.25)', marginHorizontal: 6 }}>
-                    <View style={{ height: 3, borderRadius: 2, backgroundColor: C.gold, width: Math.round(((lens.s - 0.15) / 0.65) * 100) + '%' }} />
-                  </View>
-                  <Pressable onPress={() => setLens((l) => ({ ...l, s: Math.min(0.8, l.s + 0.06) }))} hitSlop={8} style={{ paddingHorizontal: 8 }}>
-                    <Ionicons name="add-circle-outline" size={22} color="#FFF" />
-                  </Pressable>
-                </View>
-              ) : null}
+              {/* No size stepper. There is exactly one right size for a
+                  lens on a given face and the app knows it now — a
+                  minus and a plus were only ever there because it
+                  didn't. */}
 
               </>
               ) : null}

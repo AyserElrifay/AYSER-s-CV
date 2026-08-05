@@ -262,17 +262,34 @@ function bubbles(c, x, y, s, t) {
 
 /* The catalogue. `wear` lenses sit on a face; `scene` lenses sit
    anywhere and animate on their own. */
+/* ── WHERE EACH ONE SITS ON A FACE ────────────────────────────────────
+   Every wearable used to share one `kind`, so the code that places them
+   from a detected face treated a beard exactly like a crown and hung it
+   above the head. They are not the same thing.
+
+   `on` says which part of the face the art is drawn around — it is a
+   property of the drawing, so it belongs here beside it:
+
+     head   the art is built around the top of the skull (crown, halo)
+     brow   around the hairline (dog ears, hijab)
+     eyes   around the eye line (shades, whiskers)
+     mouth  around the upper lip (beards)
+
+   `fit` is how wide the art is compared with the face itself: a hijab
+   frames the whole head, a pair of glasses is a little wider than the
+   eyes. Between them there is exactly one right size and one right
+   place for any face, which is the point — nothing left to nudge. */
 export const LENSES = [
-  { id: 'beard',    label: 'Beard',        emoji: '🧔', kind: 'wear',  draw: (c, x, y, s) => beard(c, x, y, s) },
-  { id: 'beard_gr', label: 'Grey beard',   emoji: '🎅', kind: 'wear',  draw: (c, x, y, s) => beard(c, x, y, s, '#D8D8D8') },
-  { id: 'hijab',    label: 'Hijab',        emoji: '🧕', kind: 'wear',  draw: (c, x, y, s) => hijab(c, x, y, s) },
-  { id: 'hijab_bk', label: 'Black hijab',  emoji: '🖤', kind: 'wear',  draw: (c, x, y, s) => hijab(c, x, y, s, '#22202A') },
-  { id: 'dog',      label: 'Dog',          emoji: '🐶', kind: 'wear',  draw: (c, x, y, s) => dogEars(c, x, y, s) },
-  { id: 'cat',      label: 'Cat',          emoji: '🐱', kind: 'wear',  draw: (c, x, y, s) => catWhiskers(c, x, y, s) },
-  { id: 'shades',   label: 'Shades',       emoji: '🕶️', kind: 'wear',  draw: (c, x, y, s) => sunglasses(c, x, y, s) },
-  { id: 'crown',    label: 'Crown',        emoji: '👑', kind: 'wear',  draw: (c, x, y, s) => crown(c, x, y, s) },
-  { id: 'flowers',  label: 'Flower crown', emoji: '🌸', kind: 'wear',  draw: (c, x, y, s, t) => flowerCrown(c, x, y, s, t) },
-  { id: 'halo',     label: 'Halo',         emoji: '😇', kind: 'wear',  draw: (c, x, y, s, t) => halo(c, x, y, s, t) },
+  { id: 'beard',    label: 'Beard',        emoji: '🧔', kind: 'wear', on: 'mouth', fit: 1.05, draw: (c, x, y, s) => beard(c, x, y, s) },
+  { id: 'beard_gr', label: 'Grey beard',   emoji: '🎅', kind: 'wear', on: 'mouth', fit: 1.05, draw: (c, x, y, s) => beard(c, x, y, s, '#D8D8D8') },
+  { id: 'hijab',    label: 'Hijab',        emoji: '🧕', kind: 'wear', on: 'brow',  fit: 1.45, draw: (c, x, y, s) => hijab(c, x, y, s) },
+  { id: 'hijab_bk', label: 'Black hijab',  emoji: '🖤', kind: 'wear', on: 'brow',  fit: 1.45, draw: (c, x, y, s) => hijab(c, x, y, s, '#22202A') },
+  { id: 'dog',      label: 'Dog',          emoji: '🐶', kind: 'wear', on: 'brow',  fit: 1.20, draw: (c, x, y, s) => dogEars(c, x, y, s) },
+  { id: 'cat',      label: 'Cat',          emoji: '🐱', kind: 'wear', on: 'eyes',  fit: 1.10, draw: (c, x, y, s) => catWhiskers(c, x, y, s) },
+  { id: 'shades',   label: 'Shades',       emoji: '🕶️', kind: 'wear', on: 'eyes',  fit: 1.15, draw: (c, x, y, s) => sunglasses(c, x, y, s) },
+  { id: 'crown',    label: 'Crown',        emoji: '👑', kind: 'wear', on: 'head',  fit: 1.05, draw: (c, x, y, s) => crown(c, x, y, s) },
+  { id: 'flowers',  label: 'Flower crown', emoji: '🌸', kind: 'wear', on: 'head',  fit: 1.10, draw: (c, x, y, s, t) => flowerCrown(c, x, y, s, t) },
+  { id: 'halo',     label: 'Halo',         emoji: '😇', kind: 'wear', on: 'above', fit: 1.00, draw: (c, x, y, s, t) => halo(c, x, y, s, t) },
   { id: 'kiss',     label: 'Kisses',       emoji: '💋', kind: 'scene', draw: (c, x, y, s, t) => kiss(c, x, y, s, t) },
   { id: 'tears',    label: 'Tears',        emoji: '😢', kind: 'scene', draw: (c, x, y, s, t) => tears(c, x, y, s, t) },
   { id: 'fire',     label: 'On fire',      emoji: '🔥', kind: 'scene', draw: (c, x, y, s, t) => fire(c, x, y, s, t) },
@@ -280,6 +297,35 @@ export const LENSES = [
 ];
 
 export const LENS_BY_ID = LENSES.reduce((m, l) => { m[l.id] = l; return m; }, {});
+
+/* How far above or below the middle of a face each anchor sits,
+   measured in face-diameters. A face is roughly as tall as it is wide,
+   so these are the same numbers you would pace off on your own head. */
+const ANCHOR_Y = { above: -0.78, head: -0.50, brow: -0.34, eyes: -0.08, mouth: 0.20, face: 0 };
+
+/* Put a lens on a detected face. `face` is { x, y, size } in fractions
+   of the frame, exactly as src/lib/faceDetect.js reports it; `box` is
+   the width and height the preview is actually drawn at, because the
+   art scales off the smaller side and the face is measured against the
+   height.
+
+   Returns the same { x, y, s } shape a dragged lens has, so nothing
+   downstream can tell the difference between placed-by-us and
+   placed-by-thumb. */
+export function placeOnFace(lensId, face, box) {
+  const lens = LENS_BY_ID[lensId];
+  if (!lens || !face || !box || !box.w || !box.h) return null;
+  const anchor = ANCHOR_Y[lens.on || 'face'] || 0;
+  const faceH = face.size;                       // fraction of frame height
+  const shortSide = Math.min(box.w, box.h);
+  return {
+    x: face.x,
+    y: Math.max(0.02, Math.min(0.98, face.y + anchor * faceH)),
+    // the art's unit is a fraction of the SHORT side; the face is
+    // measured against the height, so convert before scaling
+    s: Math.max(0.10, Math.min(1.2, (faceH * box.h / shortSide) * (lens.fit || 1))),
+  };
+}
 
 /* Draw a placed lens. `place` is { id, x, y, s } in 0..1 of the frame,
    so the same placement survives any resolution — preview, baked photo
