@@ -32,7 +32,7 @@ import {
   Glass, Micro, Chip, NeonButton, GhostButton, FauxMap,
   PersonPin, CampfirePin, MePin, SOSButton, ProfileModal, BookingSheet, LeafletMap,
 } from '../components';
-import { tapLight, tapMedium, tapSelection, tapSuccess } from '../utils/feedback';
+import { tapLight, tapMedium, tapSelection, tapSuccess, tapCelebrate } from '../utils/feedback';
 // aliased: this screen already has its own `note`, which is a toast
 import { note as logFailure } from '../lib/crashLog';
 import { sfxPop, sfxSuccess } from '../utils/sfx';
@@ -1193,7 +1193,7 @@ export const MapScreen = () => {
                         onPress={async () => {
                           if (!user || tp.free <= 0) return;
                           setPlanErr(null);
-                          try { await joinTrip(tp.id, user.id); tapSuccess(); fetchTrips({ girlsOnly }).then(setTrips).catch(() => {}); }
+                          try { await joinTrip(tp.id, user.id); tapCelebrate(); fetchTrips({ girlsOnly }).then(setTrips).catch(() => {}); }
                           catch (e) { setPlanErr((e && e.message) || 'Could not join that one.'); }
                         }}
                       />

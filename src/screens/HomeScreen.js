@@ -11,7 +11,7 @@ import { fetchMyPosts, deletePost, updatePost } from '../services/posts';
 import { fetchActiveStories, fetchStoryById, sweepMyExpiredStories } from '../services/stories';
 import { recordSignal } from '../services/algorithm';
 import { useSwipeToCamera } from '../hooks/useSwipeToCamera';
-import { tapLight, tapSuccess } from '../utils/feedback';
+import { tapLight, tapSuccess, tapMedium, tapCelebrate } from '../utils/feedback';
 import { sfxStar, sfxSuccess } from '../utils/sfx';
 import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LanguageContext';
@@ -230,9 +230,17 @@ export const HomeScreen = () => {
   useEffect(() => {
     if (!SUPABASE_READY || !user) return;
     countUnread(user.id).then(setUnread).catch(() => {});
-    const unsub = subscribeNotifications(user.id, () => {
-      setUnread((n) => n + 1);
+    /* Not every notification is the same size. Somebody accepting you
+       is the moment the app exists for, and it was landing with the
+       identical flat chime as a like — so it now arrives in the hand,
+       with the one haptic that rises. A star still just ticks. */
+    const unsub = subscribeNotifications(user.id, (n) => {
+      setUnread((c) => c + 1);
       sfxNotify();
+      const kind = n && n.kind;
+      if (kind === 'mate_accept') tapCelebrate();
+      else if (kind === 'mate_request') tapMedium();
+      else tapLight();
     });
     return unsub;
   }, [user]);

@@ -19,7 +19,7 @@ import { Page, ScreenHeader, SectionHeader, Glass, Chip, Tick, AvatarStack, Stre
 import { CaptureModal } from '../components/CaptureModal';
 import { sendMoment } from '../services/messages';
 import { ChatThread } from './ChatThread';
-import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
+import { tapLight, tapSelection, tapSuccess, tapCelebrate } from '../utils/feedback';
 import { isUnread, markThreadSeen } from '../lib/seen';
 
 /* ─────────────────── TAB 5 · CHATS — CONNECTIONS ─────────────────────
@@ -158,7 +158,8 @@ export const ChatsScreen = () => {
   }, [user]);
 
   const accept = async (req) => {
-    tapLight();
+    // letting someone in is not a button press, and shouldn't feel like one
+    tapCelebrate();
     setJustAccepted((a) => ({ ...a, [req.id]: true }));
     try { await acceptRequest(req.id); } catch (e) {}
     setTimeout(() => setMateRequests((r) => r.filter((x) => x.id !== req.id)), 1200);

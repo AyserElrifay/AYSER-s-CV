@@ -106,6 +106,25 @@ export const tapSuccess = () => {
   try { Haptics && Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); } catch (e) {}
 };
 
+/* ── The one that isn't about you ──────────────────────────────────
+   Everything above answers something you just did. This one answers
+   something that happened TO you: somebody accepted you, somebody said
+   yes to meeting.
+
+   Those moments were landing with the same flat chime as a like, which
+   is the difference between an app that notices and one that logs. So
+   they get a rising three-beat — short, short, longer — which reads as
+   arrival rather than acknowledgement. It is the only pattern in here
+   that goes up. */
+export const tapCelebrate = () => {
+  if (!on()) return;
+  if (isWeb) return webFeedback([14, 70, 14, 70, 34]);
+  try {
+    Haptics && Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setTimeout(() => { try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); } catch (e) {} }, 130);
+  } catch (e) {}
+};
+
 export const tapWarning = () => {
   if (!on()) return;
   if (isWeb) return webFeedback([20, 80, 20]);
