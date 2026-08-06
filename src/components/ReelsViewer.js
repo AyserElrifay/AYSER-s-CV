@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { TextInput } from 'react-native';
 import { looksPlayable, watchForBlankVideo } from '../lib/videoCheck';
 import { View, Text, Modal, Pressable, ImageBackground, FlatList, Dimensions, Image, Platform } from 'react-native';
@@ -14,6 +14,7 @@ import { tapLight, tapSuccess } from '../utils/feedback';
 import { useAuth } from '../context/AuthContext';
 import { deletePost, updatePost } from '../services/posts';
 import { note } from '../lib/crashLog';
+import { soundOn, setSoundOn, applySound } from '../lib/videoSound';
 
 const { height: H } = Dimensions.get('window');
 
@@ -40,6 +41,22 @@ export const ReelsViewer = ({ reels, startIndex = 0, vibes, onVibe, onComment, o
   const [confirmDel, setConfirmDel] = useState(false);
   const [manageErr, setManageErr] = useState(null);
   const [patched, setPatched] = useState({}); // edits, shown before the feed reloads
+  /* ── SOUND ────────────────────────────────────────────────────────
+     Reels played silently and there was no way to change that, which
+     read as "my video uploaded without sound". The file has the sound;
+     the player was throwing it away. A browser still needs the first
+     play to be muted, so it starts that way and one tap turns it on —
+     for this reel and every one after it. */
+  const [sound, setSound] = useState(soundOn);
+  const videosRef = useRef([]);
+
+  const toggleSound = () => {
+    const next = !sound;
+    tapLight();
+    setSound(next);
+    setSoundOn(next);
+    videosRef.current.forEach((el) => { if (el && el.isConnected) applySound(el); });
+  };
 
   const openManage = (item) => {
     tapLight();
@@ -117,7 +134,7 @@ export const ReelsViewer = ({ reels, startIndex = 0, vibes, onVibe, onComment, o
     const isVideo = looksPlayable(item.media, item.type === 'reel' || item.kind === 'video');
     const content = item.media ? (
       isVideo && Platform.OS === 'web' ? (
-        <View style={{ height: H, justifyContent: 'flex-end', backgroundColor: '#0B0715' }}>
+        <Pressable onPress={toggleSound} style={{ height: H, justifyContent: 'flex-end', backgroundColor: '#0B0715' }}>
           {/* muted+playsInline = iOS actually autoplays it.
               Some older clips were recorded by a browser that produced a
               file it cannot play back — those used to sit here as a
@@ -140,8 +157,8 @@ export const ReelsViewer = ({ reels, startIndex = 0, vibes, onVibe, onComment, o
             ref={(el) => {
               if (!el || el.__wired) return;
               el.__wired = true;
-              el.muted = true;
-              el.play().catch(() => {});
+              videosRef.current.push(el);
+              applySound(el);
               /* A clip that plays but shows nothing is the common
                  failure here, and it passes every "did it load" test.
                  Look at the pixels. */
@@ -167,7 +184,7 @@ export const ReelsViewer = ({ reels, startIndex = 0, vibes, onVibe, onComment, o
             </div>
           </div>
           {inner(item, vibed)}
-        </View>
+        </Pressable>
       ) : (
       <ImageBackground source={{ uri: item.media }} style={{ height: H, justifyContent: 'flex-end' }} resizeMode="cover">
         {inner(item, vibed)}
@@ -209,6 +226,14 @@ export const ReelsViewer = ({ reels, startIndex = 0, vibes, onVibe, onComment, o
 
         {/* action rail */}
         <View style={{ alignItems: 'center' }}>
+          {item.media ? (
+            <Pressable onPress={toggleSound} hitSlop={8} style={{ alignItems: 'center', marginBottom: 18 }}>
+              <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: sound ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.42)', alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name={sound ? 'volume-high' : 'volume-mute'} size={19} color="#FFF" />
+              </View>
+              <Text style={{ color: '#FFF', fontSize: 11, fontWeight: '800', marginTop: 3 }}>{sound ? 'Sound' : 'Muted'}</Text>
+            </Pressable>
+          ) : null}
           <Pressable onPress={() => onVibe(item)} hitSlop={8} style={{ alignItems: 'center', marginBottom: 18 }}>
             <MaterialCommunityIcons name={vibed ? 'star-four-points' : 'star-four-points-outline'} size={32} color={vibed ? C.gold : '#FFF'} />
             <Text style={{ color: vibed ? C.gold : '#FFF', fontSize: 12, fontWeight: '800', marginTop: 3 }}>

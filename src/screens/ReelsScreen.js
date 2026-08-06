@@ -17,6 +17,7 @@ import { CaptureModal } from '../components/CaptureModal';
 import { ProfileModal } from '../components/ProfileModal';
 import { tapLight, tapMedium } from '../utils/feedback';
 import { sfxStar, sfxPop } from '../utils/sfx';
+import { soundOn, setSoundOn, applySound } from '../lib/videoSound';
 
 /* ─── TAB 3 · REELS — the standalone vertical feed ───
    TikTok-style full-screen pager with the Moments identity: the gold
@@ -47,6 +48,17 @@ export const ReelsScreen = () => {
   const [burstId, setBurstId] = useState(null);
   const [realReels, setRealReels] = useState(null); // null until loaded
   const [dead, setDead] = useState({});             // reels whose file has no picture
+  /* Reels played silently with no way to change it — see
+     src/lib/videoSound.js. One tap, and every reel after it too. */
+  const [sound, setSound] = useState(soundOn);
+  const reelVideos = useRef([]);
+  const toggleSound = () => {
+    const next = !sound;
+    tapLight();
+    setSound(next);
+    setSoundOn(next);
+    reelVideos.current.forEach((el) => { if (el && el.isConnected) applySound(el); });
+  };
 
   useEffect(() => {
     if (!SUPABASE_READY) return;
@@ -163,8 +175,8 @@ export const ReelsScreen = () => {
               ref={(el) => {
                 if (!el || el.__wired) return;
                 el.__wired = true;
-                el.muted = true;
-                el.play().catch(() => {});
+                reelVideos.current.push(el);
+                applySound(el);
                 el.onerror = () => setDead((d) => ({ ...d, [item.id]: 'broken' }));
                 /* Reels recorded before the WebKit fix are black in the
                    file itself. They load fine and report a width and a
@@ -267,6 +279,11 @@ export const ReelsScreen = () => {
 
               {/* action rail — the Moments identity column */}
               <View style={{ alignItems: 'center' }}>
+                {isVideo(item.media) ? (
+                  <RailButton label={sound ? 'Sound' : 'Muted'} onPress={toggleSound}>
+                    <Ionicons name={sound ? 'volume-high' : 'volume-mute'} size={27} color="#FFF" />
+                  </RailButton>
+                ) : null}
                 <RailButton label={Math.max(0, (item.vibes || 0) - (myInitialVibes[item.id] ? 1 : 0)) + (vibed ? 1 : 0)} color={vibed ? C.gold : '#FFF'} onPress={() => toggleVibe(item)}>
                   <MaterialCommunityIcons name={vibed ? 'star-four-points' : 'star-four-points-outline'} size={33} color={vibed ? C.gold : '#FFF'} />
                 </RailButton>

@@ -17,6 +17,7 @@ import { getOrCreateDmThread, sendMessage } from '../services/messages';
 import { tapLight, tapSuccess } from '../utils/feedback';
 import { sfxPop, sfxSuccess } from '../utils/sfx';
 import { holdToClip } from '../lib/soundClip';
+import { soundOn, setSoundOn, applySound } from '../lib/videoSound';
 
 const REACT_EMOJIS = ['❤️', '🔥', '😂', '😮', '😢', '👏'];
 
@@ -74,6 +75,8 @@ export const StoryViewer = ({ stories, groups, startGroup = 0, startIndex = 0, o
   const [reply, setReply] = useState('');
   const [sent, setSent] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
+  const [storySound, setStorySound] = useState(soundOn);
+  const storyVideos = useRef([]);
   const [poll, setPoll] = useState(null); // { counts:[a,b], mine, total }
   const [myReaction, setMyReaction] = useState(null);
   const [reactSent, setReactSent] = useState(false);
@@ -265,6 +268,7 @@ export const StoryViewer = ({ stories, groups, startGroup = 0, startIndex = 0, o
             key={story.media}
             src={story.media}
             autoPlay muted loop playsInline
+            ref={(el) => { if (el && !el.__wired) { el.__wired = true; storyVideos.current.push(el); applySound(el); } }}
             style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
           />
         ) : null}
@@ -311,6 +315,20 @@ export const StoryViewer = ({ stories, groups, startGroup = 0, startIndex = 0, o
                   </Pressable>
                 )
               ) : null}
+              {/* a video story kept its sound to itself too */}
+              <Pressable
+                onPress={() => {
+                  const next = !storySound;
+                  tapLight();
+                  setStorySound(next);
+                  setSoundOn(next);
+                  storyVideos.current.forEach((el) => { if (el && el.isConnected) applySound(el); });
+                }}
+                hitSlop={10}
+                style={{ marginRight: 14 }}
+              >
+                <Ionicons name={storySound ? 'volume-high' : 'volume-mute'} size={21} color="#FFF" />
+              </Pressable>
               <Pressable onPress={() => onShare && onShare(story)} hitSlop={10} style={{ marginRight: 14 }}>
                 <Ionicons name="paper-plane-outline" size={22} color="#FFF" />
               </Pressable>
