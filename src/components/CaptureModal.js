@@ -719,6 +719,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
   const [shrink, setShrink] = useState(null);
   const [shot, setShot] = useState(null); // { uri, kind: 'photo'|'video', ext, contentType }
   const [recording, setRecording] = useState(false);
+  const [locked, setLocked] = useState(false);   // hands-free, tap to stop
   const [recMs, setRecMs] = useState(0);
   const [caption, setCaption] = useState('');
   const [busy, setBusy] = useState(false);
@@ -928,6 +929,10 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
   const holdTimer = useRef(null);
   const recTimer = useRef(null);
   const heldRef = useRef(false);
+  const lockRef = useRef(false);          // recording hands-free
+  const lockCleanup = useRef(null);
+  const pendingStopRef = useRef(false);
+  const startYRef = useRef(0);
   const compCanvasRef = useRef(null); // offscreen canvas for game/effect video compositing
   const rafRef = useRef(null);        // compositor animation frame
 
@@ -998,6 +1003,8 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
       clearTimeout(holdTimer.current);
       clearInterval(reelTimer.current);
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      // a lock listener must never outlive the screen that armed it
+      if (lockCleanup.current) { lockCleanup.current(); lockCleanup.current = null; }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shot]);
@@ -1311,17 +1318,61 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
   const stopRecording = () => {
     clearInterval(recTimer.current);
     setRecording(false);
+    lockRef.current = false;
+    setLocked(false);
+    detachLock();
     if (recorderRef.current && recorderRef.current.state !== 'inactive') recorderRef.current.stop();
   };
 
-  /* ── the shutter: tap = photo, hold = video ── */
-  const onShutterDown = () => {
+  /* ── SLIDE UP TO LOCK ──────────────────────────────────────────────
+     A reel can run three minutes now, and holding a finger on the glass
+     for three minutes is not something anybody would do. So the shutter
+     works the way every voice note does: hold to start, slide your
+     thumb up to lock it hands-free, then tap once to stop. Holding it
+     the whole way still works exactly as before, for a short clip. */
+  const detachLock = () => {
+    if (lockCleanup.current) { lockCleanup.current(); lockCleanup.current = null; }
+  };
+
+  const armLock = () => {
+    if (typeof window === 'undefined') return;
+    const move = (ev) => {
+      const y = ev.touches && ev.touches.length ? ev.touches[0].clientY : ev.clientY;
+      if (typeof y !== 'number') return;
+      if (startYRef.current - y > 60) {
+        lockRef.current = true;
+        setLocked(true);
+        tapMedium();
+        detachLock();
+      }
+    };
+    const off = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('touchmove', move);
+    };
+    window.addEventListener('pointermove', move, { passive: true });
+    window.addEventListener('touchmove', move, { passive: true });
+    lockCleanup.current = off;
+  };
+
+  /* ── the shutter: tap = photo, hold = video, slide up = hands-free ── */
+  const onShutterDown = (e) => {
     heldRef.current = false;
     if (isWebKit) return;                 // iPhone: video goes through the camera app
-    holdTimer.current = setTimeout(() => { heldRef.current = true; startRecording(); }, 260);
+    if (lockRef.current) { pendingStopRef.current = true; return; }   // locked: this tap ends it
+    const ne = e && e.nativeEvent;
+    startYRef.current = (ne && (ne.pageY != null ? ne.pageY : ne.locationY)) || 0;
+    holdTimer.current = setTimeout(() => {
+      heldRef.current = true;
+      startRecording();
+      armLock();
+    }, 260);
   };
   const onShutterUp = () => {
     clearTimeout(holdTimer.current);
+    if (pendingStopRef.current) { pendingStopRef.current = false; stopRecording(); return; }
+    detachLock();
+    if (lockRef.current) return;          // recording hands-free — nothing to do
     if (heldRef.current) stopRecording();
     else takePhoto();
   };
@@ -2220,6 +2271,11 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
                     <Pressable onPressIn={onShutterDown} onPressOut={onShutterUp} disabled={!!camError}>
                       <View style={{ width: 82, height: 82, borderRadius: 41, borderWidth: 5, borderColor: recording ? C.coral : '#FFF', alignItems: 'center', justifyContent: 'center' }}>
                         <View style={{ width: recording ? 34 : 62, height: recording ? 34 : 62, borderRadius: recording ? 9 : 31, backgroundColor: recording ? C.coral : '#FFF' }} />
+                        {locked ? (
+                          <View style={{ position: 'absolute', top: -12, alignSelf: 'center', backgroundColor: C.coral, borderRadius: 999, paddingHorizontal: 7, paddingVertical: 2 }}>
+                            <Text style={{ color: '#FFF', fontSize: 9, fontWeight: '900' }}>🔒</Text>
+                          </View>
+                        ) : null}
                       </View>
                     </Pressable>
                     {isWebKit ? (
@@ -2235,7 +2291,9 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
                   <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 11.5, fontWeight: '700', marginTop: 10 }}>
                     {isWebKit
                       ? 'Tap for photo · 🎥 for video · 📚 your library'
-                      : 'Tap for photo · hold for video · 📚 your library'}
+                      : recording
+                        ? (locked ? '🔒 Hands-free — tap to stop' : 'Slide up to lock 🔒 · up to 3 minutes')
+                        : 'Tap for photo · hold for video · 📚 your library'}
                   </Text>
                   {isWebKit ? (
                     <Text style={{ color: 'rgba(255,255,255,0.55)', fontSize: 10.5, marginTop: 5, textAlign: 'center', paddingHorizontal: 24, lineHeight: 15 }}>
