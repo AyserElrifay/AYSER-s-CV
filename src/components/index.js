@@ -38,6 +38,8 @@ export { TermsSheet } from './TermsSheet';
 export { MiniPlayer } from './MiniPlayer';
 export { NowPlayingSheet } from './NowPlayingSheet';
 export { GameRunner } from './GameRunner';
+export { TowerClimb } from './TowerClimb';
+export { StreetHop } from './StreetHop';
 export { HelpSheet } from './HelpSheet';
 export { RooftopRush } from './RooftopRush';
 export { SekoSeko } from './SekoSeko';

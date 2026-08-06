@@ -17,6 +17,8 @@ import { GameRunner } from './GameRunner';
 import { RooftopRush } from './RooftopRush';
 import { RockPaperScissors } from './RockPaperScissors';
 import { StackGame } from './StackGame';
+import { TowerClimb } from './TowerClimb';
+import { StreetHop } from './StreetHop';
 import { PeopleDiscover } from './PeopleDiscover';
 import { tapLight, tapSuccess } from '../utils/feedback';
 import { sfxSuccess } from '../utils/sfx';
@@ -119,7 +121,7 @@ export const SearchModal = ({ onClose, onOpenProfile, onOpenTopics, onOpenTag })
   const trends = trendsSource.filter((t) => !q || t.tag.toLowerCase().includes(q));
   const games = PLAY_GAMES.filter((g) => !q || g.name.toLowerCase().includes(q) || g.tag.toLowerCase().includes(q));
 
-  const PLAYABLE = ['runner', 'stack', 'rooftop', 'rps'];
+  const PLAYABLE = ['runner', 'stack', 'rooftop', 'rps', 'tower', 'hop'];
   const launchGame = (g) => {
     tapLight();
     if (PLAYABLE.includes(g.kind)) setGame(g);
@@ -350,6 +352,8 @@ export const SearchModal = ({ onClose, onOpenProfile, onOpenTopics, onOpenTag })
         </ScrollView>
       </View>
       {game && game.kind === 'stack' ? <StackGame onClose={() => setGame(null)} />
+        : game && game.kind === 'tower' ? <TowerClimb onClose={() => setGame(null)} />
+        : game && game.kind === 'hop' ? <StreetHop onClose={() => setGame(null)} />
         : game && game.kind === 'rooftop' ? <RooftopRush onClose={() => setGame(null)} />
         : game && game.kind === 'rps' ? <RockPaperScissors onClose={() => setGame(null)} />
         : game ? <GameRunner onClose={() => setGame(null)} /> : null}
