@@ -137,6 +137,10 @@ export const ComposeModal = ({ initialMode = 'post', initialCaption = '', onClos
         if (tagged.length) {
           try { await tagPeople(row.id, user.id, tagged.map((p) => p.id)); } catch (e) {}
         }
+        /* If the database had nowhere to keep the plan, the card must
+           not pretend otherwise — showing a travel card that vanishes on
+           the next reload is a worse lie than the missing column. */
+        const planLost = !!(plan && !row.plan);
         card = {
           id: row.id,
           tagged,
@@ -151,7 +155,8 @@ export const ComposeModal = ({ initialMode = 'post', initialCaption = '', onClos
           media: row.media_url,
           textBg: row.text_bg,
           caption: row.caption,
-          plan: row.plan || plan,
+          plan: planLost ? null : (row.plan || plan),
+          __planLost: planLost,
           place: row.place || 'Somewhere out there',
           startsIn: 'Live now',
           coords: ME.coords,
@@ -174,6 +179,17 @@ export const ComposeModal = ({ initialMode = 'post', initialCaption = '', onClos
           sound,
           vibes: 0, comments: 0, squad: 'New Vibe Squad',
         };
+      }
+      /* A plan posted into a database that has not been given somewhere
+         to keep it goes up as an ordinary moment — which is fine, except
+         that saying nothing means somebody writes out their whole trip
+         and quietly gets a normal post. Say it, in words that mean
+         something to the person reading them. */
+      if (isTravel && card && card.__planLost) {
+        setBusy(false);
+        setError('Posted — but travel plans are not switched on yet, so this went up as an ordinary moment 🧳');
+        setTimeout(() => { onPosted(card); onClose(); }, 2600);
+        return;
       }
       tapSuccess();
       onPosted(card);

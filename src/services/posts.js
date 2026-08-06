@@ -197,6 +197,7 @@ export async function deletePost(postId, userId) {
    drop the column it doesn't know about and save the rest. */
 export async function updatePost(postId, userId, fields) {
   let payload = { ...fields };
+  const dropped = [];
   for (let i = 0; i < 4; i++) {
     const { data, error } = await supabase
       .from('posts')
@@ -205,9 +206,13 @@ export async function updatePost(postId, userId, fields) {
       .eq('user_id', userId)
       .select('*, user:profiles!posts_user_id_fkey(*)')
       .single();
-    if (!error) return data;
+    if (!error) {
+      if (dropped.length && data) data.__dropped = dropped;
+      return data;
+    }
     const missing = /find the '([^']+)' column/i.exec(error.message || '');
     if (missing && Object.prototype.hasOwnProperty.call(payload, missing[1])) {
+      dropped.push(missing[1]);
       payload = { ...payload };
       delete payload[missing[1]];
       if (Object.keys(payload).length) continue;
@@ -284,9 +289,19 @@ export async function createPost({ userId, type = 'post', caption, place, mediaU
     .select('*, user:profiles!posts_user_id_fkey(*)')
     .single();
 
+  /* Dropping a column the database does not have yet is what keeps
+     posting working while the schema catches up — but doing it in
+     silence is how somebody posts a travel plan and gets an ordinary
+     moment with no idea why. What we had to leave out comes back with
+     the row, so whoever asked can say so in plain words. */
+  const dropped = [];
+
   for (let i = 0; i < 6; i++) {
     const { data, error } = await insert();
-    if (!error) return data;
+    if (!error) {
+      if (dropped.length && data) data.__dropped = dropped;
+      return data;
+    }
     if (error.code === '23503') {
       // Missing profiles row (account pre-dates the signup trigger):
       // create it, then retry. Needs the schema_v3 insert policy.
@@ -296,6 +311,8 @@ export async function createPost({ userId, type = 'post', caption, place, mediaU
     // strip columns this DB doesn't have yet (sound_url etc.) and retry
     const missing = /find the '([^']+)' column/i.exec(error.message || '');
     if (missing && Object.prototype.hasOwnProperty.call(payload, missing[1])) {
+      // only worth mentioning when it was actually carrying something
+      if (payload[missing[1]] != null) dropped.push(missing[1]);
       payload = { ...payload };
       delete payload[missing[1]];
       continue;

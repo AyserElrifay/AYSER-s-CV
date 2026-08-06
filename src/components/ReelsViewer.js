@@ -72,7 +72,18 @@ export const ReelsViewer = ({ reels, startIndex = 0, vibes, onVibe, onComment, o
     setBusy(true); setManageErr(null);
     try {
       const caption = draftCaption.trim();
-      await updatePost(manage.id, user.id, { caption, close_only: closeOnly });
+      const saved = await updatePost(manage.id, user.id, { caption, close_only: closeOnly });
+      /* The caption saved and the audience quietly did not, because this
+         database has nowhere to keep it yet. Telling somebody their
+         change went through when half of it did not is worse than the
+         limitation itself. */
+      if (saved && saved.__dropped && saved.__dropped.indexOf('close_only') >= 0) {
+        setPatched((p) => ({ ...p, [manage.id]: { caption } }));
+        setManageErr('Caption saved. Choosing who can see it is not switched on yet.');
+        onEdited && onEdited(manage.id, { caption });
+        setBusy(false);
+        return;
+      }
       tapSuccess();
       setPatched((p) => ({ ...p, [manage.id]: { caption, closeOnly } }));
       setManage(null);
