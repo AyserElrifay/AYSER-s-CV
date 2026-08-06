@@ -106,6 +106,17 @@ export function makeTower(seed, chapterIdx) {
       tokens.push({ x: mid, y: -f * FLOOR_H - 34, got: false });
     }
   }
+
+  /* The tower is 220 floors tall and no goal asks for more tokens than
+     it scatters, but the check belongs here rather than in a comment:
+     a challenge that cannot be met is a broken level, not a hard one. */
+  const need = ch.goal.kind === 'tokens' ? ch.goal.value + 3 : 0;
+  for (let f = 5; tokens.length < need && f <= FLOORS; f += 3) {
+    const led = ledges[f];
+    if (!led || tokens.some((t) => Math.abs(t.y + f * FLOOR_H + 34) < 1)) continue;
+    tokens.push({ x: led.x + led.w / 2, y: -f * FLOOR_H - 34, got: false });
+  }
+
   return { chapter: ch, ledges, tokens, top: -FLOORS * FLOOR_H };
 }
 

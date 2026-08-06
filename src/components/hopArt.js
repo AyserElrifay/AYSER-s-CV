@@ -35,19 +35,24 @@ const TRAFFIC = {
 };
 
 export const STAGES = PLACES.map((place, i) => {
+  const rows = 30 + i * 5;
+  /* The clock is worked out from the length of the street rather than
+     typed in, so a longer city never quietly becomes an impossible one.
+     Just under two seconds a row: enough to hop it and wait out one
+     lane, not enough to stroll. */
   const goals = [
     { kind: 'cross' },
     { kind: 'tokens', value: 6 },
     { kind: 'cross' },
-    { kind: 'time', value: 65 },
+    { kind: 'time', value: Math.round(rows * 1.9) },
     { kind: 'tokens', value: 10 },
-    { kind: 'time', value: 75 },
+    { kind: 'time', value: Math.round(rows * 1.9) },
   ];
   return {
     id: place.id,
     place,
     idx: i,
-    rows: 30 + i * 5,
+    rows,
     goal: goals[i],
     traffic: TRAFFIC[place.id],
     // everything moves a little quicker the further you travel
@@ -178,6 +183,24 @@ export function makeStage(seed, stageIdx) {
       tokens.push({ col: Math.floor(r() * COLS), row: i, got: false });
     }
   }
+
+  /* ── A GOAL CAN NEVER OUTRUN ITS LEVEL ──────────────────────────
+     Petra asked for six carved urns and the dice had only put five on
+     the street: the stage could be crossed perfectly and still refuse
+     to end. A challenge you cannot meet is not a hard level, it is a
+     broken one. So when the scatter comes up short we place the rest
+     ourselves, on rows you can stand on, with room to spare. */
+  const need = st.goal.kind === 'tokens' ? st.goal.value + 3 : 0;
+  if (tokens.length < need) {
+    const standable = rows.filter((row) => (row.kind === 'safe' || row.kind === 'road') && row.i > 2 && row.i < st.rows);
+    for (let k = 0; tokens.length < need && k < standable.length * 2; k++) {
+      const row = standable[Math.floor(r() * standable.length)];
+      const col = Math.floor(r() * COLS);
+      if (tokens.some((t) => t.row === row.i && t.col === col)) continue;
+      tokens.push({ col, row: row.i, got: false });
+    }
+  }
+
   return { stage: st, rows, tokens, top: st.rows };
 }
 
