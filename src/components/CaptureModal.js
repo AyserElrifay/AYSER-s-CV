@@ -12,7 +12,8 @@ import { useLang } from '../context/LanguageContext';
 import { createPost } from '../services/posts';
 import { createStory } from '../services/stories';
 import { uploadCapture, uploadMedia } from '../services/social';
-import { compressImage } from '../lib/storage';
+import { compressImage, MAX_UPLOAD_BYTES } from '../lib/storage';
+import { compressVideo, probeVideo, needsCompressing, REEL_MAX_SECONDS } from '../lib/videoCompress';
 import { fetchTracks, incrementTrackUse, publishSound } from '../services/music';
 /* Both called, neither imported — the same bug as the two sheets below,
    and on the same journey: markUsed runs when you post something you
@@ -47,7 +48,11 @@ import { sfxPop, sfxSuccess } from '../utils/sfx';
    Native: one tap into the system camera (expo-image-picker); the
    in-app viewfinder arrives with the expo-camera build. */
 
-const MAX_VIDEO_MS = 30000;
+/* A reel runs up to three minutes. It used to stop at thirty seconds,
+   which is not long enough to be a reel of anything. What keeps the
+   file postable at that length is the re-encode in
+   src/lib/videoCompress.js, not a short timer. */
+const MAX_VIDEO_MS = 180000;
 
 /* Real filters — each is a CSS filter string applied LIVE in the
    viewfinder/preview and, for photos, actually BAKED into the pixels of
@@ -710,6 +715,8 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
     setOnMap(true);
   };
   const [camError, setCamError] = useState(null);
+  // 0–1 while a big clip is being re-encoded, null when it isn't
+  const [shrink, setShrink] = useState(null);
   const [shot, setShot] = useState(null); // { uri, kind: 'photo'|'video', ext, contentType }
   const [recording, setRecording] = useState(false);
   const [recMs, setRecMs] = useState(0);
@@ -1076,9 +1083,14 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
       /* 4.5 Mbps at 1080p is broadcast quality and roughly 34 MB a
          minute — past what the storage bucket accepts in one file, and
          a long upload on mobile data for a difference nobody can see on
-         a phone screen. 2.5 Mbps is still sharp and about half the
-         size, so a full clip uploads instead of being refused. */
-      const opts = { videoBitsPerSecond: 2500000 };
+         a phone screen.
+
+         Now that a reel can run the full three minutes, the bitrate has
+         to be chosen so that the longest possible recording still fits
+         without needing a second pass: 1.8 Mbps is about 40MB for three
+         minutes, and still sharp on a phone. A shorter clip is simply a
+         smaller file. */
+      const opts = { videoBitsPerSecond: 1800000 };
       if (mime) opts.mimeType = mime;
       const rec = new MediaRecorder(recStream, opts);
       recorderRef.current = rec;
@@ -1344,11 +1356,12 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
     try {
       const file = await pickFromDisk('video/*', 'environment');
       if (!file) return;
-      if (!(await videoFits(file))) return;
-      const mime = file.type || 'video/mp4';
-      const ext = (String(file.name || '').split('.').pop() || 'mp4').toLowerCase();
-      const uri = URL.createObjectURL(file);
-      setShot({ uri, blob: file, bytes: file.size, kind: 'video', ext, contentType: mime });
+      const fit = await fitVideo(file);
+      if (!fit) return;
+      const mime = fit.contentType || file.type || 'video/mp4';
+      const ext = fit.ext || (String(file.name || '').split('.').pop() || 'mp4').toLowerCase();
+      const uri = fit.uri === file ? URL.createObjectURL(file) : (typeof fit.uri === 'string' ? fit.uri : URL.createObjectURL(fit.blob || file));
+      setShot({ uri, blob: fit.blob || file, bytes: (fit.blob || file).size, kind: 'video', ext, contentType: mime });
       probeClip(uri);
     } catch (e) {
       setCamError('Could not open the camera — try the gallery button.');
@@ -1414,12 +1427,14 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
         const file = await pickFromDisk('video/*,image/*');
         if (!file) return;
         const isVid = /^video\//.test(file.type || '');
-        if (isVid && !(await videoFits(file))) return;
-        const mime = file.type || (isVid ? 'video/mp4' : 'image/jpeg');
-        const ext = (file.name.split('.').pop() || (isVid ? 'mp4' : 'jpg')).toLowerCase();
-        const uri = URL.createObjectURL(file);
+        let fit = { blob: file };
+        if (isVid) { fit = await fitVideo(file); if (!fit) return; }
+        const body = fit.blob || file;
+        const mime = fit.contentType || file.type || (isVid ? 'video/mp4' : 'image/jpeg');
+        const ext = fit.ext || (file.name.split('.').pop() || (isVid ? 'mp4' : 'jpg')).toLowerCase();
+        const uri = URL.createObjectURL(body);
         // keep the File: it uploads without Safari ever fetching a blob URL
-        setShot({ uri, blob: file, bytes: file.size, kind: isVid ? 'video' : 'photo', ext, contentType: mime });
+        setShot({ uri, blob: body, bytes: body.size, kind: isVid ? 'video' : 'photo', ext, contentType: mime });
         if (isVid) probeClip(uri);
         return;
       }
@@ -1429,7 +1444,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
       if (!result.canceled && result.assets && result.assets[0]) {
         const a = result.assets[0];
         const isVid = (a.type || '').startsWith('video') || /^video\//.test(a.mimeType || '');
-        if (isVid && !(await videoFits(a.uri))) return; // too big → clear message, not 'Load failed'
+        if (isVid && !(await fitVideo(a.uri))) return; // too big → clear message, not 'Load failed'
         const mime = a.mimeType || (isVid ? 'video/mp4' : 'image/jpeg');
         const ext = (mime.split('/')[1] || (isVid ? 'mp4' : 'jpg')).replace('jpeg', 'jpg');
         setShot({ uri: a.uri, kind: isVid ? 'video' : 'photo', ext, contentType: mime });
@@ -1442,20 +1457,45 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
      way past the 50MB upload cap. Check the size the moment it's picked
      and say so plainly, instead of letting the upload die with Safari's
      cryptic 'Load failed'. */
-  const videoFits = async (uriOrBlob) => {
-    if (!isWeb) return true;
+  /* ── A CLIP THAT IS TOO BIG GETS SHRUNK, NOT REFUSED ─────────────
+     This used to measure the file and send you away to trim it
+     yourself. Now it re-encodes: same picture at a sane size, sound
+     carried over, cut to the three minutes a reel is allowed. Returns
+     what should actually be posted — the smaller file when we managed
+     it, the original when we could not, and null when it genuinely
+     cannot go (in which case the reason is already on screen).
+     See src/lib/videoCompress.js. */
+  const fitVideo = async (fileOrUri, meta) => {
+    if (!isWeb) return { uri: fileOrUri };
+    let blob = null;
     try {
-      // a File/Blob measures itself; only a URL needs fetching, and
-      // Safari is unreliable at fetching its own blob: URLs
-      const blob = (uriOrBlob && typeof uriOrBlob !== 'string')
-        ? uriOrBlob
-        : await (await fetch(uriOrBlob)).blob();
-      if (blob.size > 48 * 1024 * 1024) {
-        setCamError('That video is ' + Math.round(blob.size / 1024 / 1024) + 'MB. The server takes up to 48MB in one file, so trim it shorter and try again ✂️');
-        return false;
-      }
-      return true;
-    } catch (e) { return true; } // can't measure → let the upload try
+      blob = (fileOrUri && typeof fileOrUri !== 'string') ? fileOrUri : await (await fetch(fileOrUri)).blob();
+    } catch (e) { return { uri: fileOrUri }; }   // can't measure → let the upload try
+
+    const info = await probeVideo(blob);
+    const seconds = info && info.seconds;
+    if (!needsCompressing(blob.size, seconds)) return { uri: fileOrUri, blob, seconds };
+
+    setShrink(0);
+    setCamError(null);
+    const small = await compressVideo(blob, { onProgress: setShrink });
+    setShrink(null);
+    if (small) {
+      note('video-compressed', { from: small.from, to: small.to, seconds: Math.round(small.seconds) });
+      return {
+        uri: URL.createObjectURL(small.blob), blob: small.blob, bytes: small.blob.size,
+        ext: small.ext, contentType: small.contentType, seconds: small.seconds,
+      };
+    }
+    if (seconds && seconds > REEL_MAX_SECONDS + 0.5) {
+      setCamError('That clip is ' + Math.round(seconds / 60) + ' minutes and this browser cannot cut it. A reel goes up to 3 — trim it in Photos and try again ✂️');
+      return null;
+    }
+    if (blob.size > MAX_UPLOAD_BYTES) {
+      setCamError('That clip is ' + Math.round(blob.size / 1048576) + 'MB and this browser cannot shrink it. Trim it in Photos and try again ✂️');
+      return null;
+    }
+    return { uri: fileOrUri, blob, seconds };
   };
 
   /* ── long-form video: pick an existing file (works on web + native) ── */
@@ -1464,10 +1504,12 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
       try {
         const file = await pickFromDisk('video/*');
         if (!file) return;
-        if (!(await videoFits(file))) return;
-        const ext = (file.name.split('.').pop() || 'mp4').toLowerCase();
-        const uri = URL.createObjectURL(file);
-        setShot({ uri, blob: file, bytes: file.size, kind: 'video', ext, contentType: file.type || 'video/mp4' });
+        const fit = await fitVideo(file);
+        if (!fit) return;
+        const body = fit.blob || file;
+        const ext = fit.ext || (file.name.split('.').pop() || 'mp4').toLowerCase();
+        const uri = URL.createObjectURL(body);
+        setShot({ uri, blob: body, bytes: body.size, kind: 'video', ext, contentType: fit.contentType || file.type || 'video/mp4' });
         probeClip(uri);
       } catch (e) { setCamError('Could not open your videos'); }
       return;
@@ -1476,7 +1518,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
       const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['videos'], quality: 1, videoMaxDuration: 900 });
       if (!result.canceled && result.assets && result.assets[0]) {
         const a = result.assets[0];
-        if (!(await videoFits(a.uri))) return;
+        if (!(await fitVideo(a.uri))) return;
         const raw = (a.fileName || a.uri || 'video.mp4').split('?')[0];
         const ext = (raw.split('.').pop() || 'mp4').toLowerCase();
         setShot({ uri: a.uri, kind: 'video', ext: ext || 'mp4', contentType: a.mimeType || ('video/' + (ext || 'mp4')) });
@@ -1922,7 +1964,11 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
           {recording ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(244,63,94,0.9)', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 5 }}>
               <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#FFF', marginRight: 6 }} />
-              <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '900' }}>{(recMs / 1000).toFixed(1)}s</Text>
+              <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '900' }}>
+                {recMs < 60000
+                  ? (recMs / 1000).toFixed(1) + 's'
+                  : Math.floor(recMs / 60000) + ':' + String(Math.floor((recMs % 60000) / 1000)).padStart(2, '0')}
+              </Text>
             </View>
           ) : null}
           <View style={{ flex: 1 }} />
@@ -1957,6 +2003,26 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
         {camError ? (
           <View style={{ position: 'absolute', top: insets.top + 60, left: 24, right: 24, backgroundColor: 'rgba(0,0,0,0.75)', borderRadius: 14, padding: 14 }}>
             <Text style={{ color: '#FFF', fontSize: 13, textAlign: 'center' }}>{camError}</Text>
+          </View>
+        ) : null}
+
+        {/* Re-encoding a long clip runs at real speed, so silence here
+            would read as a freeze. Say what is happening and how far in
+            it is. */}
+        {shrink != null ? (
+          <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(8,4,18,0.88)', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 34 }}>
+            <Text style={{ fontSize: 40 }}>🗜️</Text>
+            <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '900', marginTop: 10, textAlign: 'center' }}>
+              Making it smaller so it fits
+            </Text>
+            <Text style={{ color: 'rgba(255,255,255,0.65)', fontSize: 12.5, marginTop: 6, textAlign: 'center', lineHeight: 19 }}>
+              Same clip, same sound — a fraction of the size. This runs at
+              real speed, so a long video takes about as long as it is.
+            </Text>
+            <View style={{ marginTop: 18, width: '100%', maxWidth: 280, height: 7, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.16)', overflow: 'hidden' }}>
+              <View style={{ width: Math.max(3, Math.round(shrink * 100)) + '%', height: '100%', backgroundColor: '#20E3D2' }} />
+            </View>
+            <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13, fontWeight: '900', marginTop: 9 }}>{Math.round(shrink * 100)}%</Text>
           </View>
         ) : null}
 

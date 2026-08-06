@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { SUPABASE_READY } from '../lib/supabase';
 import { fetchLibrary, addToLibrary, removeFromLibrary } from '../services/library';
 import { MAX_UPLOAD_BYTES } from '../lib/storage';
+import { compressVideo, probeVideo, needsCompressing, REEL_MAX_SECONDS } from '../lib/videoCompress';
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
 
 /* ── YOUR LIBRARY ───────────────────────────────────────────────────
@@ -38,6 +39,7 @@ export const MediaLibrarySheet = ({ onPick, onClose, only = null, inline = false
   const [rows, setRows] = useState(null);
   const [busy, setBusy] = useState(null);      // 'photo' | 'video' while uploading
   const [pct, setPct] = useState(0);           // 0–1, real bytes sent
+  const [squeeze, setSqueeze] = useState(null); // 0–1 while a big clip is re-encoded
   const abortRef = useRef(null);
   const [err, setErr] = useState(null);
   const [confirmDel, setConfirmDel] = useState(null);
@@ -64,18 +66,49 @@ export const MediaLibrarySheet = ({ onPick, onClose, only = null, inline = false
     setErr(null);
     const file = await pickFile(accept, capture);
     if (!file) return;
-    if (file.size > MAX_UPLOAD_BYTES) {
-      setErr('That one is ' + mb(file.size) + ' — the limit is ' + mb(MAX_UPLOAD_BYTES) + '. Trim it and try again.');
-      return;
-    }
     setBusy(label);
     setPct(0);
     const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
     abortRef.current = ctrl;
     try {
-      const ext = (String(file.name || '').split('.').pop() || '').toLowerCase() || (/^video\//.test(file.type) ? 'mp4' : 'jpg');
-      const row = await addToLibrary(user.id, file, {
-        ext, contentType: file.type, bytes: file.size,
+      /* ── BIG CLIPS GET MADE SMALLER, NOT REFUSED ────────────────
+         A 120MB video from the camera roll used to come straight back
+         as "the limit is …, trim it and try again", which is the app
+         handing its own job to the person using it. If it is too big,
+         or longer than a reel is allowed to be, we re-encode it here
+         first — same picture, a fraction of the bytes, sound kept.
+         See src/lib/videoCompress.js; if that cannot do it honestly it
+         hands back the original and we carry on as before. */
+      let body = file;
+      let ext = (String(file.name || '').split('.').pop() || '').toLowerCase() || (/^video\//.test(file.type) ? 'mp4' : 'jpg');
+      let type = file.type;
+
+      if (/^video\//.test(file.type || '') || label === 'video') {
+        const meta = await probeVideo(file);
+        const seconds = meta && meta.seconds;
+        if (needsCompressing(file.size, seconds)) {
+          setSqueeze(0);
+          const small = await compressVideo(file, {
+            onProgress: setSqueeze,
+            signal: ctrl && ctrl.signal,
+          });
+          setSqueeze(null);
+          if (small) {
+            body = small.blob; ext = small.ext; type = small.contentType;
+          } else if (file.size > MAX_UPLOAD_BYTES) {
+            throw new Error('That clip is ' + mb(file.size) + ' and this browser cannot shrink it. '
+              + 'Trim it in your Photos app and try again ✂️');
+          } else if (seconds && seconds > REEL_MAX_SECONDS + 0.5) {
+            throw new Error('That clip is ' + Math.round(seconds / 60) + ' minutes. A reel goes up to '
+              + (REEL_MAX_SECONDS / 60) + ', and this browser cannot cut it — trim it in Photos ✂️');
+          }
+        }
+      } else if (file.size > MAX_UPLOAD_BYTES) {
+        throw new Error('That one is ' + mb(file.size) + ' — the limit is ' + mb(MAX_UPLOAD_BYTES) + '.');
+      }
+
+      const row = await addToLibrary(user.id, body, {
+        ext, contentType: type, bytes: body.size,
         onProgress: (loaded, total) => setPct(total ? loaded / total : 0),
         signal: ctrl && ctrl.signal,
       });
@@ -84,7 +117,7 @@ export const MediaLibrarySheet = ({ onPick, onClose, only = null, inline = false
     } catch (e) {
       const m = (e && e.message) || '';
       setErr(/cancelled/i.test(m) ? null : (m || 'That upload did not go through — try again.'));
-    } finally { setBusy(null); setPct(0); abortRef.current = null; }
+    } finally { setBusy(null); setPct(0); setSqueeze(null); abortRef.current = null; }
   };
 
   const cancelUpload = () => {
@@ -138,13 +171,19 @@ export const MediaLibrarySheet = ({ onPick, onClose, only = null, inline = false
         {busy ? (
           <View style={{ marginTop: 14, paddingHorizontal: 4 }}>
             <View style={{ height: 6, borderRadius: 3, backgroundColor: C.glassHi, overflow: 'hidden' }}>
-              <View style={{ width: Math.max(4, Math.round(pct * 100)) + '%', height: '100%', borderRadius: 3, backgroundColor: C.purple }} />
+              <View style={{
+                width: Math.max(4, Math.round((squeeze != null ? squeeze : pct) * 100)) + '%',
+                height: '100%', borderRadius: 3,
+                backgroundColor: squeeze != null ? C.green : C.purple,
+              }} />
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
               <Text style={{ color: C.faint, fontSize: 12, flex: 1 }}>
-                {pct > 0
-                  ? Math.round(pct * 100) + '% sent — you can leave this open'
-                  : 'Starting the upload…'}
+                {squeeze != null
+                  ? 'Shrinking it so it fits — ' + Math.round(squeeze * 100) + '%. This runs at real speed, so a long clip takes about as long as it is.'
+                  : pct > 0
+                    ? Math.round(pct * 100) + '% sent — you can leave this open'
+                    : 'Starting the upload…'}
               </Text>
               <Pressable onPress={cancelUpload} hitSlop={8}>
                 <Text style={{ color: C.coral, fontSize: 12, fontWeight: '900' }}>Cancel</Text>
