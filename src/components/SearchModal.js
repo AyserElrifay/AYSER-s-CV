@@ -7,7 +7,8 @@ import { USERS, FEED, TRENDING, GROUPS, PLAY_GAMES, AV_NEUTRAL } from '../consta
 import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { searchProfiles } from '../services/social';
-import { searchPosts } from '../services/posts';
+import { searchPosts, fetchTravelPlans } from '../services/posts';
+import { planWhen, upForLabel } from '../constants/travel';
 import { fetchGroups, createGroup, joinGroup, leaveGroup } from '../services/groups';
 import { fetchTrending, logSearch } from '../services/trending';
 import { Chip } from './Chip';
@@ -26,7 +27,7 @@ import { sfxSuccess } from '../utils/sfx';
 /* Discover — people, groups, posts and what's trending (X / Facebook style).
    One search box, a tab row, and results that filter as you type. */
 
-const TABS = ['Top', 'People', 'Groups', 'Posts', 'Play'];
+const TABS = ['Top', 'People', 'Travel', 'Groups', 'Posts', 'Play'];
 
 const fromProfileRow = (row) => ({
   id: row.id,
@@ -85,6 +86,33 @@ export const SearchModal = ({ onClose, onOpenProfile, onOpenTopics, onOpenTag })
       loadGroups();
     } catch (e) {}
   };
+
+  /* ── TRAVEL PLANS ─────────────────────────────────────────────────
+     A plan posted into a chronological feed is a message in a bottle:
+     whoever would have answered it is somewhere else, on another day.
+     Here they are asked for by destination instead, soonest first,
+     which is the entire reason somebody writes one. */
+  const [plans, setPlans] = useState(null);
+  const [plansErr, setPlansErr] = useState(false);
+  const [planTry, setPlanTry] = useState(0);
+  useEffect(() => {
+    if (tab !== 'Travel') return undefined;
+    if (!SUPABASE_READY) { setPlans([]); return undefined; }
+    let alive = true;
+    setPlans(null);
+    setPlansErr(false);
+    /* A request that never comes back leaves "Looking…" on the screen
+       for ever, which on a weak connection is most of the time. Give it
+       ten seconds and then say so, with a way to try again — waiting
+       silently is the one thing that tells nobody anything. */
+    const bell = setTimeout(() => { if (alive) { setPlansErr(true); setPlans([]); } }, 10000);
+    const t = setTimeout(() => {
+      fetchTravelPlans({ q: query })
+        .then((rows) => { if (alive) { clearTimeout(bell); setPlans(rows); } })
+        .catch(() => { if (alive) { clearTimeout(bell); setPlansErr(true); setPlans([]); } });
+    }, query ? 280 : 0);
+    return () => { alive = false; clearTimeout(t); clearTimeout(bell); };
+  }, [tab, query, planTry]);
 
   const q = query.trim().toLowerCase();
   const mockPeople = useMemo(() => Object.values(USERS), []);
@@ -237,6 +265,46 @@ export const SearchModal = ({ onClose, onOpenProfile, onOpenTopics, onOpenTag })
     </Pressable>
   );
 
+  const PlanRow = ({ item }) => {
+    const plan = item.plan || {};
+    const when = planWhen(plan);
+    return (
+      <Pressable onPress={() => { tapLight(); onOpenProfile && onOpenProfile({ id: item.user_id, name: (item.user && item.user.name) || 'Explorer', avatar: (item.user && item.user.avatar_url) || AV_NEUTRAL }); }}>
+        <View style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 18, padding: 14, marginTop: 12 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Image source={{ uri: (item.user && item.user.avatar_url) || AV_NEUTRAL }} style={{ width: 34, height: 34, borderRadius: 17 }} />
+            <Text style={{ color: C.text, fontSize: 13, fontWeight: '800', marginLeft: 9, flex: 1 }} numberOfLines={1}>
+              {(item.user && item.user.name) || 'Explorer'}{item.user && item.user.country_flag ? ' ' + item.user.country_flag : ''}
+            </Text>
+            <Ionicons name="chevron-forward" size={15} color={C.faint} />
+          </View>
+          <Text style={{ color: C.text, fontSize: 15.5, fontWeight: '900', marginTop: 9, lineHeight: 21 }} numberOfLines={2}>
+            {plan.title || item.caption}
+          </Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 8 }}>
+            {when ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.glassHi, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6, marginRight: 7, marginBottom: 6 }}>
+                <Ionicons name="calendar-outline" size={12} color={C.dim} />
+                <Text style={{ color: C.text, fontSize: 11.5, fontWeight: '800', marginLeft: 5 }}>{when}</Text>
+              </View>
+            ) : null}
+            {item.place ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.glassHi, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6, marginBottom: 6 }}>
+                <Ionicons name="location-outline" size={12} color={C.dim} />
+                <Text style={{ color: C.text, fontSize: 11.5, fontWeight: '800', marginLeft: 5 }}>{item.place}</Text>
+              </View>
+            ) : null}
+          </View>
+          {plan.upFor && plan.upFor.length ? (
+            <Text style={{ color: C.green, fontSize: 11.5, fontWeight: '800', marginTop: 2 }} numberOfLines={1}>
+              {plan.upFor.slice(0, 3).map(upForLabel).join('  ')}
+            </Text>
+          ) : null}
+        </View>
+      </Pressable>
+    );
+  };
+
   const TrendRow = ({ item, rank }) => (
     /* A trending hashtag is a room — tapping it should walk you into it,
        not type it into a box and leave you to press search. */
@@ -268,7 +336,7 @@ export const SearchModal = ({ onClose, onOpenProfile, onOpenTopics, onOpenTag })
           <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 999, paddingHorizontal: 16, paddingVertical: Platform.OS === 'ios' ? 12 : 4 }}>
             <Ionicons name="search" size={16} color={C.dim} />
             <TextInput
-              placeholder="Search Moments…"
+              placeholder={tab === 'Travel' ? 'Where are you going?' : 'Search Moments…'}
               placeholderTextColor={C.faint}
               value={query}
               onChangeText={setQuery}
@@ -345,6 +413,40 @@ export const SearchModal = ({ onClose, onOpenProfile, onOpenTopics, onOpenTag })
           {tab === 'People' ? (
             q ? (people.length ? people.map((u) => <PersonRow key={u.id} item={u} />) : <Empty q={q} />)
               : <PeopleDiscover />
+          ) : null}
+          {tab === 'Travel' ? (
+            plans === null ? (
+              <Text style={{ color: C.faint, fontSize: 12.5, textAlign: 'center', paddingVertical: 28 }}>Looking…</Text>
+            ) : plans.length ? (
+              <>
+                <Text style={{ color: C.faint, fontSize: 12, marginTop: 14, lineHeight: 18 }}>
+                  {q ? 'Plans matching “' + query.trim() + '” — soonest first.'
+                     : 'Who is going where, soonest first. Type a country or a city to narrow it down.'}
+                </Text>
+                {plans.map((pl) => <PlanRow key={pl.id} item={pl} />)}
+              </>
+            ) : (
+              <View style={{ alignItems: 'center', paddingVertical: 40, paddingHorizontal: 20 }}>
+                <Text style={{ fontSize: 34 }}>{plansErr ? '📡' : '🧳'}</Text>
+                <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '900', marginTop: 10, textAlign: 'center' }}>
+                  {plansErr
+                    ? "Couldn't reach the server"
+                    : q ? 'Nobody has posted a plan for that yet' : 'No travel plans yet'}
+                </Text>
+                <Text style={{ color: C.faint, fontSize: 12.5, marginTop: 6, textAlign: 'center', lineHeight: 19 }}>
+                  {plansErr
+                    ? 'Check your connection and try again.'
+                    : "Post one from Create → Travel: where you're going, when, and what you're up for. People there can find you and say hello."}
+                </Text>
+                {plansErr ? (
+                  <Pressable onPress={() => { tapLight(); setPlanTry((n) => n + 1); }} style={{ marginTop: 14 }}>
+                    <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 22, paddingVertical: 10 }}>
+                      <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900' }}>Try again</Text>
+                    </View>
+                  </Pressable>
+                ) : null}
+              </View>
+            )
           ) : null}
           {tab === 'Groups' ? (<>{groups.length ? groups.map((g) => <GroupRow key={g.id} item={g} />) : <Empty q={q} />}<CreateGroupCard /></>) : null}
           {tab === 'Posts' ? (posts.length ? posts.map((p) => <PostRow key={p.id} item={p} />) : <Empty q={q} />) : null}

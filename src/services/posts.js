@@ -217,6 +217,46 @@ export async function updatePost(postId, userId, fields) {
   throw new Error('Could not save that — try again.');
 }
 
+/* ── TRAVEL PLANS, THE WAY THEY ARE MEANT TO BE FOUND ─────────────
+   A plan posted into a chronological feed is a message in a bottle:
+   the person who would answer it is somewhere else, on another day.
+   Discover asks for them by destination instead, which is the whole
+   point of writing one.
+
+   Ordered by when the trip starts rather than when it was posted, so
+   the person arriving next week is above the person arriving in a
+   year, and plans whose dates have already passed drop off. */
+export async function fetchTravelPlans({ q = '', limit = 40 } = {}) {
+  let sel = supabase
+    .from('posts')
+    .select('*, user:profiles!posts_user_id_fkey(*)')
+    .not('plan', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(120);
+  if (q && q.trim()) {
+    const like = '%' + q.replace(/[%_(),]/g, ' ').trim() + '%';
+    sel = sel.or('place.ilike.' + like + ',caption.ilike.' + like);
+  }
+  const { data, error } = await sel;
+  if (error) {
+    /* A database that has not had the plan column added yet genuinely
+       has no plans, so that is an empty list. Anything else — no
+       connection, a refused request — is not "nobody is travelling",
+       and saying so would be a lie the screen tells on our behalf. */
+    const msg = String((error && error.message) || '');
+    if (/plan|column|schema cache/i.test(msg)) return [];
+    throw error;
+  }
+  const thisMonth = new Date().toISOString().slice(0, 7);
+  const rows = (data || []).filter((r) => {
+    const p = r.plan || {};
+    const end = p.to || p.from;
+    return !end || String(end) >= thisMonth;   // still ahead of us
+  });
+  rows.sort((a, b) => String((a.plan && a.plan.from) || '9999').localeCompare(String((b.plan && b.plan.from) || '9999')));
+  return rows.slice(0, limit);
+}
+
 export async function createPost({ userId, type = 'post', caption, place, mediaUrl, thumbUrl, textBg, lat, lng, squadName, sound, plan }) {
   let payload = {
     user_id: userId,
