@@ -50,6 +50,8 @@ export const toCard = (row) => ({
   media: row.media_url || null, // no photo → renders as a text moment
   textBg: row.text_bg || null,
   caption: row.caption || '',
+  // a travel plan rides along with the post it belongs to
+  plan: row.plan || null,
   // who it went out to — so Manage opens showing the truth, not a guess
   closeOnly: !!row.close_only,
   place: row.place || 'Somewhere out there',

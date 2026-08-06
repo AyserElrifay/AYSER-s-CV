@@ -18,6 +18,7 @@ import { SoundPicker } from './SoundPicker';
 import { SoundChip } from './SoundChip';
 import { TagPeoplePicker } from './TagPeoplePicker';
 import { tagPeople } from '../services/tags';
+import { UP_FOR, monthOptions } from '../constants/travel';
 
 /* The creation studio — one place to share a Moment, a Reel, or a
    Story. Shoot from the camera or pick from the gallery, add a sound
@@ -27,6 +28,7 @@ const MODES = [
   { id: 'post', label: 'Moment', emoji: '✨' },
   { id: 'reel', label: 'Reel', emoji: '🎬' },
   { id: 'story', label: 'Story', emoji: '⭕' },
+  { id: 'travel', label: 'Travel', emoji: '🧳' },
 ];
 
 export const ComposeModal = ({ initialMode = 'post', initialCaption = '', onClose, onPosted, onPostedStory, onOpenStudio }) => {
@@ -43,16 +45,23 @@ export const ComposeModal = ({ initialMode = 'post', initialCaption = '', onClos
   const [pickingSound, setPickingSound] = useState(false);
   const [tagged, setTagged] = useState([]);        // real people, in this moment
   const [taggingOpen, setTaggingOpen] = useState(false);
+  // travel plan
+  const [planTitle, setPlanTitle] = useState('');
+  const [planFrom, setPlanFrom] = useState(null);
+  const [planTo, setPlanTo] = useState(null);
+  const [upFor, setUpFor] = useState([]);
+  const MONTHS = React.useMemo(monthOptions, []);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
 
   const isReel = mode === 'reel';
   const isStory = mode === 'story';
+  const isTravel = mode === 'travel';
 
   // Real, enforced sizes (not just a suggestion): Moment 4:5, Reel/Story
   // 9:16 — the crop UI forces it, so every upload actually matches the
   // shape the feed/reel/story viewer is built for.
-  const aspectFor = (m) => (m === 'post' ? [4, 5] : [9, 16]);
+  const aspectFor = (m) => (m === 'post' || m === 'travel' ? [4, 5] : [9, 16]);
 
   const pick = async (fromCamera) => {
     const opts = { mediaTypes: ['images'], quality: 0.8, allowsEditing: true, aspect: aspectFor(mode) };
@@ -71,9 +80,21 @@ export const ComposeModal = ({ initialMode = 'post', initialCaption = '', onClos
     }
   };
 
+  /* A plan with no headline and no destination is just a status update,
+     and it would show up in the feed as an empty card — so the two
+     things the card is built around are the two things we insist on. */
+  const planReady = !!planTitle.trim() && !!place.trim();
+  const plan = isTravel ? {
+    title: planTitle.trim(),
+    from: planFrom || null,
+    to: planTo || null,
+    upFor: upFor.slice(),
+  } : null;
+
   const share = async () => {
     if (busy) return;
     if (isStory && !imageUri) { setError('A story needs a photo — shoot one! 📸'); return; }
+    if (isTravel && !planReady) { setError('A plan needs a headline and where you\'re going 🧳'); return; }
     if (!isStory && !caption.trim()) return;
     setError(null);
     setBusy(true);
@@ -103,11 +124,12 @@ export const ComposeModal = ({ initialMode = 'post', initialCaption = '', onClos
         }
         const row = await createPost({
           userId: user.id,
-          type: isReel ? 'reel' : 'post',
+          type: isReel ? 'reel' : isTravel ? 'travel' : 'post',
           caption: caption.trim(),
           place: place.trim() || null,
           mediaUrl,
           textBg: mediaUrl || textBg === 'plain' ? null : textBg,
+          plan,
         });
         /* The tags go on the moment the instant it exists. Each one
            writes a real row and sends that person a real notification —
@@ -118,7 +140,9 @@ export const ComposeModal = ({ initialMode = 'post', initialCaption = '', onClos
         card = {
           id: row.id,
           tagged,
+          userId: user.id,
           user: {
+            id: user.id,
             name: (row.user && row.user.name) || 'You',
             avatar: (row.user && row.user.avatar_url) || av(60),
             verified: !!(row.user && row.user.verified),
@@ -127,6 +151,7 @@ export const ComposeModal = ({ initialMode = 'post', initialCaption = '', onClos
           media: row.media_url,
           textBg: row.text_bg,
           caption: row.caption,
+          plan: row.plan || plan,
           place: row.place || 'Somewhere out there',
           startsIn: 'Live now',
           coords: ME.coords,
@@ -138,10 +163,11 @@ export const ComposeModal = ({ initialMode = 'post', initialCaption = '', onClos
           id: 'local-' + Date.now(),
           tagged,
           user: { name: 'You', avatar: av(60), verified: false },
-          type: isReel ? 'reel' : 'post',
+          type: isReel ? 'reel' : isTravel ? 'travel' : 'post',
           media: imageUri,
           textBg: imageUri ? null : textBg,
           caption: caption.trim(),
+          plan,
           place: place.trim() || 'Right here',
           startsIn: 'Live now',
           coords: ME.coords,
@@ -159,8 +185,12 @@ export const ComposeModal = ({ initialMode = 'post', initialCaption = '', onClos
     }
   };
 
-  const shareLabel = busy ? 'SHARING…' : isStory ? 'ADD TO YOUR STORY' : isReel ? 'POST REEL 🎬' : 'SHARE THE MOMENT';
-  const canShare = isStory ? !!imageUri : !!caption.trim();
+  const shareLabel = busy ? 'SHARING…'
+    : isStory ? 'ADD TO YOUR STORY'
+    : isReel ? 'POST REEL 🎬'
+    : isTravel ? 'POST YOUR PLAN 🧳'
+    : 'SHARE THE MOMENT';
+  const canShare = isStory ? !!imageUri : isTravel ? planReady : !!caption.trim();
 
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
@@ -208,6 +238,76 @@ export const ComposeModal = ({ initialMode = 'post', initialCaption = '', onClos
         </View>
 
         <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 24 }} keyboardShouldPersistTaps="handled">
+          {/* ── the plan itself: the headline and the dates ──
+              These sit above everything else because they are what the
+              card leads with, and seeing them first while you write is
+              the difference between filling in a form and writing a
+              post. */}
+          {isTravel ? (
+            <View style={{ marginBottom: 16 }}>
+              <TextInput
+                placeholder="Solo traveler exploring…"
+                placeholderTextColor={C.faint}
+                value={planTitle}
+                onChangeText={setPlanTitle}
+                style={{
+                  color: C.text, fontSize: 19, fontWeight: '800',
+                  backgroundColor: C.glass, borderWidth: 1, borderColor: C.line,
+                  borderRadius: R - 4, paddingHorizontal: 14, paddingVertical: 13,
+                }}
+              />
+              <Text style={{ color: C.faint, fontSize: 11, marginTop: 7, marginLeft: 4 }}>
+                The one line people will see first
+              </Text>
+
+              <Text style={{ color: C.dim, fontSize: 11.5, fontWeight: '900', letterSpacing: 0.6, marginTop: 16, marginLeft: 2 }}>WHEN</Text>
+              {[{ k: 'from', label: 'Arriving', val: planFrom, set: setPlanFrom },
+                { k: 'to', label: 'Leaving', val: planTo, set: setPlanTo }].map((rowDef) => (
+                <View key={rowDef.k} style={{ marginTop: 8 }}>
+                  <Text style={{ color: C.faint, fontSize: 11.5, marginLeft: 3, marginBottom: 5 }}>{rowDef.label}</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                    {MONTHS.map((m) => {
+                      const on = rowDef.val === m.key;
+                      return (
+                        <Pressable key={m.key} onPress={() => rowDef.set(on ? null : m.key)} style={{ marginRight: 8 }}>
+                          <View style={{
+                            backgroundColor: on ? C.purple : C.glass,
+                            borderWidth: 1, borderColor: on ? C.purple : C.line,
+                            borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9,
+                          }}>
+                            <Text style={{ color: on ? '#FFF' : C.text, fontSize: 12.5, fontWeight: '800' }}>{m.label}</Text>
+                          </View>
+                        </Pressable>
+                      );
+                    })}
+                  </ScrollView>
+                </View>
+              ))}
+
+              <Text style={{ color: C.dim, fontSize: 11.5, fontWeight: '900', letterSpacing: 0.6, marginTop: 18, marginLeft: 2 }}>I'M UP FOR</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 8 }}>
+                {UP_FOR.map((u) => {
+                  const on = upFor.indexOf(u.id) >= 0;
+                  return (
+                    <Pressable
+                      key={u.id}
+                      onPress={() => setUpFor((list) => (on ? list.filter((x) => x !== u.id) : list.concat([u.id])))}
+                      style={{ marginRight: 8, marginBottom: 8 }}
+                    >
+                      <View style={{
+                        backgroundColor: on ? C.greenSoft : C.glass,
+                        borderWidth: 1, borderColor: on ? C.green : C.line,
+                        borderRadius: 999, paddingHorizontal: 13, paddingVertical: 9,
+                      }}>
+                        <Text style={{ color: on ? C.green : C.text, fontSize: 12.5, fontWeight: '800' }}>{u.emoji} {u.label}</Text>
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          ) : null}
+
           {/* caption canvas */}
           <LinearGradient
             colors={imageUri || isStory ? ['transparent', 'transparent'] : TEXT_BGS[textBg].colors}
@@ -216,7 +316,10 @@ export const ComposeModal = ({ initialMode = 'post', initialCaption = '', onClos
             style={{ borderRadius: R - 4, paddingHorizontal: textBg === 'plain' || imageUri || isStory ? 4 : 16, paddingVertical: textBg === 'plain' || imageUri || isStory ? 0 : 20 }}
           >
             <TextInput
-              placeholder={isStory ? 'Say something (optional)…' : isReel ? 'Describe your reel…' : "What's your moment?"}
+              placeholder={isStory ? 'Say something (optional)…'
+                : isReel ? 'Describe your reel…'
+                : isTravel ? 'Who you are, what you\u2019re into, and what you\u2019d love to do there…'
+                : "What's your moment?"}
               placeholderTextColor={imageUri || isStory || textBg === 'plain' ? C.faint : TEXT_BGS[textBg].text + '99'}
               value={caption}
               onChangeText={setCaption}
@@ -232,7 +335,7 @@ export const ComposeModal = ({ initialMode = 'post', initialCaption = '', onClos
           </LinearGradient>
 
           {/* text backgrounds — only for photo-less Moments */}
-          {!imageUri && mode === 'post' ? (
+          {!imageUri && (mode === 'post' || isTravel) ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 14 }}>
               {Object.keys(TEXT_BGS).map((key) => (
                 <Pressable key={key} onPress={() => setTextBg(key)} hitSlop={4}>
@@ -325,9 +428,9 @@ export const ComposeModal = ({ initialMode = 'post', initialCaption = '', onClos
                 borderRadius: 999, paddingHorizontal: 14,
               }}
             >
-              <Ionicons name="location-outline" size={14} color={C.dim} />
+              <Ionicons name="location-outline" size={14} color={isTravel && !place.trim() ? C.coral : C.dim} />
               <TextInput
-                placeholder="Add a place"
+                placeholder={isTravel ? 'Where are you going?' : 'Add a place'}
                 placeholderTextColor={C.faint}
                 value={place}
                 onChangeText={setPlace}

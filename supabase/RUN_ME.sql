@@ -2198,3 +2198,24 @@ notify pgrst, 'reload schema';
 alter table public.posts add column if not exists thumb_url text;
 
 notify pgrst, 'reload schema';
+
+
+-- ═══════════ TRAVEL PLANS ═══════════
+-- "I'm in Romania this August, who's around?" — a post whose point is
+-- the trip behind it. Everything a plan needs beyond a normal moment
+-- rides in one JSON column: the headline, when it starts and ends, and
+-- what the person is up for while they're there. One column instead of
+-- five keeps the posts table honest and lets the plan grow later
+-- without another migration.
+--
+-- Shape:
+--   { "title": "Solo traveler exploring Romania",
+--     "from": "2026-08", "to": "2026-09",
+--     "upFor": ["coffee","hiking","live music"] }
+alter table public.posts add column if not exists plan jsonb;
+
+-- Anyone can read a travel plan, the same as any other post; only its
+-- owner can write it. That is already the posts policy, so there is no
+-- new policy here — the column simply inherits it.
+
+notify pgrst, 'reload schema';

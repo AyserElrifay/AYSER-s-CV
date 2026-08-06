@@ -11,13 +11,17 @@ import { usePlayer } from '../context/PlayerContext';
 import { useLang } from '../context/LanguageContext';
 import { sfxLaugh, sfxLaughBig } from '../utils/sfx';
 import { translateText } from '../services/bardi';
-import { tapLight } from '../utils/feedback';
+import { tapLight, tapSuccess } from '../utils/feedback';
+import { planWhen, upForLabel } from '../constants/travel';
+import { getOrCreateDmThread, sendMessage } from '../services/messages';
+import { useAuth } from '../context/AuthContext';
 
 /* Chips sit on photos, so they stay dark with light text for contrast. */
 const typeChip = (post) => {
   if (post.sponsored) return { label: 'SPONSORED', tint: 'rgba(17,24,39,0.65)', color: 'rgba(255,255,255,0.9)' };
   if (post.type === 'reel') return { label: 'REEL ✦', tint: 'rgba(124,58,237,0.9)', color: '#FFF' };
   if (post.type === 'vod') return { label: '▶ WATCH · ' + post.duration, tint: 'rgba(17,24,39,0.65)', color: '#FFF' };
+  if (post.plan) return { label: 'TRAVEL PLAN 🧳', tint: 'rgba(16,185,129,0.9)', color: '#FFF' };
   return { label: 'MOMENT', tint: 'rgba(17,24,39,0.65)', color: 'rgba(255,255,255,0.85)' };
 };
 
@@ -25,12 +29,41 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
   // Moments are captured at an enforced 4:5 crop (ComposeModal) — sizing
   // the card by aspect ratio, not a fixed height, means the feed shows
   // exactly what was cropped, no extra cover-crop surprise.
-  const mediaAspect = post.type === 'post' ? 4 / 5 : null;
+  const mediaAspect = post.type === 'post' || post.type === 'travel' ? 4 / 5 : null;
   const mediaH = post.type === 'reel' ? 470 : post.type === 'vod' ? 208 : 250;
   const tc = typeChip(post);
   const textBg = TEXT_BGS[post.textBg] || TEXT_BGS.plain;
   const [menuOpen, setMenuOpen] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
+  /* ── A TRAVEL PLAN ────────────────────────────────────────────────
+     Someone saying "I'll be in Romania in August, who's around?" needs
+     a card that leads with the plan and ends with a way to reach them.
+     It is the same post underneath — same stars, same comments, same
+     Edit and Delete in the ⋯ menu — with the plan on top and a real
+     message box at the bottom. */
+  const plan = post.plan && typeof post.plan === 'object' ? post.plan : null;
+  const { user: me } = useAuth();
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatText, setChatText] = useState('');
+  const [chatBusy, setChatBusy] = useState(false);
+  const [chatSent, setChatSent] = useState(false);
+  const [chatErr, setChatErr] = useState(null);
+
+  const sendToTraveller = async () => {
+    const body = chatText.trim();
+    const to = post.user && post.user.id;
+    if (!body || !to || !me || chatBusy) return;
+    setChatBusy(true); setChatErr(null);
+    try {
+      const threadId = await getOrCreateDmThread(to, me.id);
+      await sendMessage({ dmThreadId: threadId, userId: me.id, body });
+      tapSuccess();
+      setChatText(''); setChatSent(true);
+      setTimeout(() => { setChatSent(false); setChatOpen(false); }, 1500);
+    } catch (e) {
+      setChatErr((e && e.message) || 'Could not send that — try again.');
+    } finally { setChatBusy(false); }
+  };
   const [reported, setReported] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editCaption, setEditCaption] = useState(post.caption || '');
@@ -258,6 +291,27 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
         </View>
       ) : null}
 
+      {/* ── the plan, above everything it is about ── */}
+      {plan ? (
+        <View style={{ paddingHorizontal: 15, paddingBottom: 12 }}>
+          <Text style={{ color: C.text, fontSize: 19, lineHeight: 26, fontWeight: '900' }}>{plan.title}</Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 9 }}>
+            {planWhen(plan) ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.glassHi, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7, marginRight: 8, marginBottom: 6 }}>
+                <Ionicons name="calendar-outline" size={13} color={C.dim} />
+                <Text style={{ color: C.text, fontSize: 12.5, fontWeight: '800', marginLeft: 6 }}>{planWhen(plan)}</Text>
+              </View>
+            ) : null}
+            {post.place ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.glassHi, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7, marginBottom: 6 }}>
+                <Ionicons name="location-outline" size={13} color={C.dim} />
+                <Text style={{ color: C.text, fontSize: 12.5, fontWeight: '800', marginLeft: 6 }}>{post.place}</Text>
+              </View>
+            ) : null}
+          </View>
+        </View>
+      ) : null}
+
       {/* media — or a colored text card when the moment is just words.
           Double-tap either one to vibe, Instagram style. */}
       {post.media ? (
@@ -274,6 +328,7 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
                 </View>
               </View>
             ) : null}
+            {plan ? <View /> : (
             <LinearGradient colors={['transparent', 'rgba(0,0,0,0.82)']} style={{ padding: 14, paddingTop: 44 }}>
               <Text style={{ color: '#FFF', fontSize: 14.5, lineHeight: 21, fontWeight: '500' }} numberOfLines={capExpanded ? undefined : 3}>
                 {withTags(post.caption, '#C4B5FD')}
@@ -289,10 +344,11 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
                 </Pressable>
               ) : null}
             </LinearGradient>
+            )}
             {burstOverlay}
           </ImageBackground>
         </Pressable>
-      ) : (
+      ) : plan ? null : (
         <Pressable onPress={handleMediaTap}>
           <LinearGradient
             colors={textBg.colors}
@@ -317,6 +373,79 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
           </LinearGradient>
         </Pressable>
       )}
+
+      {/* ── the plan's own body: the words at full length, what they're
+             up for, and a way to actually reach them ── */}
+      {plan ? (
+        <View style={{ paddingHorizontal: 15, paddingTop: 13 }}>
+          {post.caption ? (
+            <>
+              <Text style={{ color: C.text, fontSize: 14.5, lineHeight: 22 }} numberOfLines={capExpanded ? undefined : 6}>
+                {withTags(post.caption, C.purple)}
+              </Text>
+              {capLong ? (
+                <Pressable onPress={() => { tapLight(); setCapExpanded((v) => !v); }} hitSlop={6} style={{ marginTop: 5 }}>
+                  <Text style={{ color: C.purple, fontSize: 13, fontWeight: '800' }}>{capExpanded ? t('see_less') : t('see_more')}</Text>
+                </Pressable>
+              ) : null}
+            </>
+          ) : null}
+
+          {plan.upFor && plan.upFor.length ? (
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 12 }}>
+              {plan.upFor.map((id) => (
+                <View key={id} style={{ backgroundColor: C.greenSoft, borderWidth: 1, borderColor: 'rgba(16,185,129,0.35)', borderRadius: 999, paddingHorizontal: 11, paddingVertical: 7, marginRight: 7, marginBottom: 7 }}>
+                  <Text style={{ color: C.green, fontSize: 12, fontWeight: '800' }}>{upForLabel(id)}</Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
+
+          {/* Your own plan doesn't need a button to message yourself. */}
+          {!isMine && me && post.user && post.user.id ? (
+            chatOpen ? (
+              <View style={{ marginTop: 14, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 16, padding: 12 }}>
+                <Text style={{ color: C.dim, fontSize: 11.5, fontWeight: '800' }}>
+                  {'Message ' + ((post.user && post.user.name) || 'them')}
+                </Text>
+                <TextInput
+                  value={chatText}
+                  onChangeText={setChatText}
+                  placeholder="Say hello and what you're up for…"
+                  placeholderTextColor={C.faint}
+                  multiline
+                  editable={!chatBusy}
+                  style={{ color: C.text, fontSize: 14, minHeight: 54, marginTop: 8, textAlignVertical: 'top' }}
+                />
+                {chatErr ? <Text style={{ color: C.coral, fontSize: 12, marginTop: 4 }}>{chatErr}</Text> : null}
+                <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginTop: 8 }}>
+                  {chatSent ? (
+                    <Text style={{ color: C.green, fontSize: 12.5, fontWeight: '800' }}>Sent — it's in your chats 💬</Text>
+                  ) : (
+                    <>
+                      <Pressable onPress={() => { tapLight(); setChatOpen(false); }} style={{ marginRight: 12 }}>
+                        <Text style={{ color: C.dim, fontSize: 13, fontWeight: '700', paddingVertical: 6 }}>Cancel</Text>
+                      </Pressable>
+                      <Pressable onPress={sendToTraveller} disabled={chatBusy || !chatText.trim()}>
+                        <View style={{ backgroundColor: C.green, borderRadius: 999, paddingHorizontal: 18, paddingVertical: 9, opacity: chatBusy || !chatText.trim() ? 0.5 : 1 }}>
+                          <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '900' }}>{chatBusy ? 'Sending…' : 'Send'}</Text>
+                        </View>
+                      </Pressable>
+                    </>
+                  )}
+                </View>
+              </View>
+            ) : (
+              <Pressable onPress={() => { tapLight(); setChatOpen(true); }} style={{ marginTop: 14 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: C.green, borderRadius: 999, paddingVertical: 14 }}>
+                  <Ionicons name="chatbubbles-outline" size={17} color="#FFF" />
+                  <Text style={{ color: '#FFF', fontSize: 14.5, fontWeight: '900', marginLeft: 8 }}>Open chat</Text>
+                </View>
+              </Pressable>
+            )
+          ) : null}
+        </View>
+      ) : null}
 
       {/* footer — compact action row; JOIN is a small pill on the right */}
       <View style={{ padding: 15, paddingTop: 13 }}>

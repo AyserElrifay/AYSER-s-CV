@@ -217,12 +217,15 @@ export async function updatePost(postId, userId, fields) {
   throw new Error('Could not save that — try again.');
 }
 
-export async function createPost({ userId, type = 'post', caption, place, mediaUrl, thumbUrl, textBg, lat, lng, squadName, sound }) {
+export async function createPost({ userId, type = 'post', caption, place, mediaUrl, thumbUrl, textBg, lat, lng, squadName, sound, plan }) {
   let payload = {
     user_id: userId,
     type,
     caption,
     place,
+    // a travel plan: the headline, the dates and what they're up for.
+    // See supabase/RUN_ME.sql for the shape.
+    plan: plan || null,
     media_url: mediaUrl,
     // the still shown wherever a video can't play yet — a grid tile,
     // a chat card. Without it a posted reel was a blank white square.

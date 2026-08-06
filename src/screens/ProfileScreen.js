@@ -436,6 +436,7 @@ export const ProfileScreen = () => {
     media: row.media_url || null,
     textBg: row.text_bg || null,
     caption: row.caption || '',
+    plan: row.plan || null,        // a travel plan keeps its card on your profile
     closeOnly: !!row.close_only,   // so Manage opens on the real setting
     place: row.place || 'Somewhere out there',
     startsIn: '',
