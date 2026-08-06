@@ -606,11 +606,20 @@ function drawReelCardCanvas(ctx, w, h, game, elapsed) {
    viewfinder, redrawn each frame, so what is on screen is produced by
    exactly the same code that bakes it into the file — there is no
    "preview version" that can drift from the real one. */
-const LensLayer = ({ lens, onMove }) => {
+const LensLayer = ({ lens, onMove, frame, fit }) => {
   const ref = React.useRef(null);
-  const boxRef = React.useRef({ w: 1, h: 1 });
   const lensRef = React.useRef(lens);
   lensRef.current = lens;
+  /* THE OVERLAY IS THE FRAME. Its canvas is the camera frame's own size
+     and it is fitted over the video with the very same object-fit, so a
+     position in frame coordinates lands in the same place on screen as
+     it will in the file. Sizing the canvas to its CSS box instead — as
+     this did — meant the preview and the posted picture were two
+     different pictures. */
+  const fw = (frame && frame.w) || 1280;
+  const fh = (frame && frame.h) || 720;
+  const frameRef = React.useRef({ w: fw, h: fh });
+  frameRef.current = { w: fw, h: fh };
 
   React.useEffect(() => {
     if (Platform.OS !== 'web') return undefined;
@@ -618,9 +627,8 @@ const LensLayer = ({ lens, onMove }) => {
     const loop = () => {
       const cv = ref.current;
       if (cv) {
-        const w = cv.clientWidth, h = cv.clientHeight;
+        const { w, h } = frameRef.current;
         if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
-        boxRef.current = { w, h };
         const ctx = cv.getContext('2d');
         ctx.clearRect(0, 0, w, h);
         drawLens(ctx, w, h, lensRef.current, performance.now());
@@ -631,27 +639,43 @@ const LensLayer = ({ lens, onMove }) => {
     return () => { if (raf) cancelAnimationFrame(raf); };
   }, []);
 
+  /* Dragging happens in screen pixels and has to come back as frame
+     coordinates. This is the same fit the browser is applying to the
+     video, run backwards. */
   const pan = React.useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
       onPanResponderMove: (e) => {
         const cv = ref.current;
-        if (!cv) return;
-        const r = cv.getBoundingClientRect ? cv.getBoundingClientRect() : { left: 0, top: 0 };
-        const { w, h } = boxRef.current;
+        if (!cv || !cv.getBoundingClientRect) return;
+        const r = cv.getBoundingClientRect();
+        const { w: fW, h: fH } = frameRef.current;
+        if (!r.width || !r.height || !fW || !fH) return;
+        const k = fit === 'contain'
+          ? Math.min(r.width / fW, r.height / fH)
+          : Math.max(r.width / fW, r.height / fH);
+        const drawnW = fW * k, drawnH = fH * k;
+        const left = r.left + (r.width - drawnW) / 2;
+        const top = r.top + (r.height - drawnH) / 2;
         onMove(
-          Math.max(0.05, Math.min(0.95, (e.nativeEvent.pageX - r.left) / w)),
-          Math.max(0.05, Math.min(0.95, (e.nativeEvent.pageY - r.top) / h))
+          Math.max(0.02, Math.min(0.98, (e.nativeEvent.pageX - left) / drawnW)),
+          Math.max(0.02, Math.min(0.98, (e.nativeEvent.pageY - top) / drawnH))
         );
       },
     })
   ).current;
 
   if (Platform.OS !== 'web') return null;
+  /* objectFit matching the video is what makes the overlay and the
+     picture the same geometry. Without it the canvas would stretch to
+     the box and every horizontal position would drift by the crop. */
   return (
     <View {...pan.panHandlers} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
-      <canvas ref={ref} style={{ width: '100%', height: '100%', display: 'block' }} />
+      <canvas
+        ref={ref}
+        style={{ width: '100%', height: '100%', display: 'block', objectFit: fit === 'contain' ? 'contain' : 'cover' }}
+      />
     </View>
   );
 };
@@ -715,6 +739,9 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
     setOnMap(true);
   };
   const [camError, setCamError] = useState(null);
+  /* The camera frame's own size. Everything about a lens is measured in
+     it, so the preview and the posted file are the same picture. */
+  const [frameSize, setFrameSize] = useState({ w: 1280, h: 720 });
   // 0–1 while a big clip is being re-encoded, null when it isn't
   const [shrink, setShrink] = useState(null);
   const [shot, setShot] = useState(null); // { uri, kind: 'photo'|'video', ext, contentType }
@@ -1031,7 +1058,15 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
     const canvas = document.createElement('canvas');
     canvas.width = w;
     canvas.height = h;
-    canvas.getContext('2d').drawImage(v, 0, 0, w, h);
+    const pctx = canvas.getContext('2d');
+    /* THE MIRROR. A selfie preview is flipped, so the person frames the
+       shot against a mirrored picture — and the file was being written
+       un-mirrored, which is a different photo from the one they took.
+       Anything drawn on top is positioned against what they saw, so the
+       flip belongs to the video and stops there. */
+    if (facing === 'user') { pctx.save(); pctx.translate(w, 0); pctx.scale(-1, 1); }
+    pctx.drawImage(v, 0, 0, w, h);
+    if (facing === 'user') pctx.restore();
     setShot({ uri: canvas.toDataURL('image/jpeg', 0.92), kind: 'photo', ext: 'jpg', contentType: 'image/jpeg' });
   };
 
@@ -1062,10 +1097,14 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
           const mark = (user && user.user_metadata && user.user_metadata.name)
             ? '@' + String(user.user_metadata.name).replace(/\s+/g, '').toLowerCase().slice(0, 18) : '';
           const t0 = performance.now();
+          const mirror = facing === 'user';
           const draw = () => {
             try {
               if ('filter' in ctx) ctx.filter = filter;
+              // the flip belongs to the picture, not to what sits on it
+              if (mirror) { ctx.save(); ctx.translate(w, 0); ctx.scale(-1, 1); }
               ctx.drawImage(v, 0, 0, w, h);
+              if (mirror) ctx.restore();
               if ('filter' in ctx) ctx.filter = 'none';
               if (eff === 'pixel' || eff === 'arcade') applyPixelate(ctx, w, h); // cheap per-frame; cartoon is photo-only (per-frame read is too heavy)
               drawEffectsCanvas(ctx, w, h, eff, parts, performance.now() - t0);
@@ -1194,10 +1233,12 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
                artwork, so they live with it — see placeOnFace in
                lensArt.js. Treating every wearable the same is what hung
                a beard above somebody's head. */
-            const box = { w: el.clientWidth || el.videoWidth, h: el.clientHeight || el.videoHeight };
+            if (el.videoWidth && el.videoHeight) {
+              setFrameSize((f) => (f.w === el.videoWidth && f.h === el.videoHeight ? f : { w: el.videoWidth, h: el.videoHeight }));
+            }
             setLens((cur) => {
               if (!cur) return cur;
-              const placed = placeOnFace(cur.id, seen, box);
+              const placed = placeOnFace(cur.id, seen);
               return placed ? { ...cur, ...placed } : cur;
             });
           }
@@ -1916,6 +1957,15 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
             autoPlay
             muted
             playsInline
+            /* The frame's real shape, the moment the camera reports it.
+               Everything a lens knows is measured in this, so it must
+               not wait for anything else to notice. */
+            onLoadedMetadata={(e) => {
+              const el = e && e.currentTarget;
+              if (el && el.videoWidth && el.videoHeight) {
+                setFrameSize((f) => (f.w === el.videoWidth && f.h === el.videoHeight ? f : { w: el.videoWidth, h: el.videoHeight }));
+              }
+            }}
             style={{ position: 'absolute', width: '100%', height: '100%', objectFit: fit === 'wide' ? 'contain' : 'cover', filter: cssFilter, transform: facing === 'user' ? 'scaleX(-1)' : 'none' }}
           />
         ) : (
@@ -2096,6 +2146,8 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
         {lens ? (
           <LensLayer
             lens={lens}
+            frame={frameSize}
+            fit={fit === 'wide' ? 'contain' : 'cover'}
             onMove={(x, y) => {
               // your thumb wins — the app stops moving it from here
               if (faceTracking) setFaceTracking(false);
@@ -2177,7 +2229,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
                       key={l.id}
                       onPress={() => {
                         tapMedium(); sfxPop();
-                        lensKindRef.current = l.kind; if (trackerRef.current) trackerRef.current.reset(); setFaceTracking(true); setLens(on ? null : { id: l.id, x: 0.5, y: l.kind === 'wear' ? 0.42 : 0.5, s: 0.42 });
+                        lensKindRef.current = l.kind; if (trackerRef.current) trackerRef.current.reset(); setFaceTracking(true); setLens(on ? null : { id: l.id, x: 0.5, y: l.kind === 'wear' ? 0.45 : 0.5, s: 0.30 });
                       }}
                     >
                       <View style={{ alignItems: 'center', marginRight: 10 }}>
@@ -2678,7 +2730,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
             filterId={filterId}
             effectId={effectId}
             gameId={reelGame && reelGame.id}
-            onPickLens={(l) => { sfxPop(); lensKindRef.current = l.kind; if (trackerRef.current) trackerRef.current.reset(); setFaceTracking(true); setLens({ id: l.id, x: 0.5, y: l.kind === 'wear' ? 0.42 : 0.5, s: 0.42 }); setEffectsOpen(false); }}
+            onPickLens={(l) => { sfxPop(); lensKindRef.current = l.kind; if (trackerRef.current) trackerRef.current.reset(); setFaceTracking(true); setLens({ id: l.id, x: 0.5, y: l.kind === 'wear' ? 0.45 : 0.5, s: 0.30 }); setEffectsOpen(false); }}
             onPickFilter={(f) => { setFilterId(f.id); setEffectsOpen(false); }}
             onPickEffect={(e) => { pickEffect(e.id); setEffectsOpen(false); }}
             onPickGame={(g) => { pickReelGame(g); setEffectsOpen(false); }}

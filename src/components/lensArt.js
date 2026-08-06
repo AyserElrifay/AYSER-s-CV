@@ -23,80 +23,112 @@ const path = (c, pts, close) => {
 
 /* ── faces & hair ────────────────────────────────────────────────── */
 
+/* ─── WHERE A FACE IS ─────────────────────────────────────────────────
+   Every wearable used to carry its own idea of where to sit — an anchor
+   in the lens table, a fit multiplier, and offsets inside its own
+   drawing — and the three of them had to agree or a beard ended up on
+   somebody's forehead. They did not agree.
+
+   So there is one model of a face now, and everything is drawn against
+   it. `s` is the face's WIDTH in pixels, (x, y) is the CENTRE of the
+   face, and every landmark below is in units of s from that centre.
+   A lens's drawing says where it goes; nothing outside it does.
+
+   The numbers are an ordinary adult face: about a quarter taller than
+   it is wide, eyes a little above the middle, mouth a little below. */
+const F = {
+  halfW: 0.50,     // temple to temple is s
+  top: -0.66,      // the top of the head, hair included
+  hair: -0.50,
+  brow: -0.28,
+  eyes: -0.14,
+  nose: 0.10,
+  mouth: 0.30,
+  chin: 0.62,
+};
+
 function beard(c, x, y, s, tone = '#2A1A10') {
-  // a full beard hanging from the jaw, with a moustache above it
+  // hangs off the jaw from ear to ear and finishes below the chin
   c.fillStyle = tone;
   c.beginPath();
-  c.moveTo(x - s * 0.42, y - s * 0.16);
-  c.quadraticCurveTo(x - s * 0.40, y + s * 0.34, x, y + s * 0.50);
-  c.quadraticCurveTo(x + s * 0.40, y + s * 0.34, x + s * 0.42, y - s * 0.16);
-  c.quadraticCurveTo(x + s * 0.22, y + s * 0.06, x, y + s * 0.04);
-  c.quadraticCurveTo(x - s * 0.22, y + s * 0.06, x - s * 0.42, y - s * 0.16);
+  c.moveTo(x - s * 0.46, y + s * F.eyes);
+  c.quadraticCurveTo(x - s * 0.44, y + s * (F.chin + 0.10), x, y + s * (F.chin + 0.22));
+  c.quadraticCurveTo(x + s * 0.44, y + s * (F.chin + 0.10), x + s * 0.46, y + s * F.eyes);
+  c.quadraticCurveTo(x + s * 0.24, y + s * (F.mouth + 0.06), x, y + s * (F.mouth + 0.04));
+  c.quadraticCurveTo(x - s * 0.24, y + s * (F.mouth + 0.06), x - s * 0.46, y + s * F.eyes);
   c.fill();
-  // moustache
+  // the moustache, sitting under the nose
   c.beginPath();
-  c.moveTo(x - s * 0.24, y - s * 0.22);
-  c.quadraticCurveTo(x, y - s * 0.10, x + s * 0.24, y - s * 0.22);
-  c.quadraticCurveTo(x, y - s * 0.02, x - s * 0.24, y - s * 0.22);
+  c.moveTo(x - s * 0.26, y + s * (F.nose + 0.04));
+  c.quadraticCurveTo(x, y + s * (F.nose + 0.16), x + s * 0.26, y + s * (F.nose + 0.04));
+  c.quadraticCurveTo(x, y + s * (F.nose + 0.24), x - s * 0.26, y + s * (F.nose + 0.04));
   c.fill();
   // a little sheen so it reads as hair and not a shape
   c.strokeStyle = 'rgba(255,255,255,0.10)';
   c.lineWidth = Math.max(1, s * 0.012);
   for (let i = -3; i <= 3; i++) {
     c.beginPath();
-    c.moveTo(x + i * s * 0.09, y - s * 0.06);
-    c.quadraticCurveTo(x + i * s * 0.10, y + s * 0.20, x + i * s * 0.06, y + s * 0.36);
+    c.moveTo(x + i * s * 0.09, y + s * (F.mouth + 0.06));
+    c.quadraticCurveTo(x + i * s * 0.10, y + s * (F.chin - 0.04), x + i * s * 0.06, y + s * (F.chin + 0.12));
     c.stroke();
   }
 }
 
 function hijab(c, x, y, s, cloth = '#6D4AA8') {
-  // a wrap that frames the face and falls over the shoulders
+  /* Cloth over the head and down onto the shoulders, with an opening
+     the size of a face.
+
+     The opening is a HOLE IN THE PATH, not an erased area. It used to
+     be punched out with destination-out, which works over a transparent
+     overlay and is a disaster on the baked photo: there the lens is
+     drawn onto the picture itself, so the "opening" erased the face and
+     left a black hole in the file. A hole in the path takes nothing
+     away from what is underneath. */
   c.fillStyle = cloth;
   c.beginPath();
-  c.moveTo(x - s * 0.52, y + s * 0.62);
-  c.quadraticCurveTo(x - s * 0.60, y - s * 0.34, x, y - s * 0.56);
-  c.quadraticCurveTo(x + s * 0.60, y - s * 0.34, x + s * 0.52, y + s * 0.62);
-  c.quadraticCurveTo(x, y + s * 0.42, x - s * 0.52, y + s * 0.62);
-  c.fill();
-  // the face opening
-  c.globalCompositeOperation = 'destination-out';
-  c.beginPath();
-  c.ellipse(x, y + s * 0.02, s * 0.30, s * 0.38, 0, 0, T);
-  c.fill();
-  c.globalCompositeOperation = 'source-over';
-  // fold shadow
+  c.moveTo(x - s * 0.66, y + s * 0.95);
+  c.quadraticCurveTo(x - s * 0.74, y + s * (F.top - 0.10), x, y + s * (F.top - 0.20));
+  c.quadraticCurveTo(x + s * 0.74, y + s * (F.top - 0.10), x + s * 0.66, y + s * 0.95);
+  c.quadraticCurveTo(x, y + s * 0.72, x - s * 0.66, y + s * 0.95);
+  c.closePath();
+  c.moveTo(x + s * 0.45, y + s * 0.04);            // the face opening
+  c.ellipse(x, y + s * 0.04, s * 0.45, s * 0.60, 0, 0, T, true);
+  c.closePath();
+  c.fill('evenodd');
+  // a fold, so it reads as cloth
   c.fillStyle = 'rgba(0,0,0,0.16)';
   c.beginPath();
-  c.moveTo(x - s * 0.52, y + s * 0.62);
-  c.quadraticCurveTo(x - s * 0.30, y + s * 0.30, x - s * 0.34, y - s * 0.10);
-  c.quadraticCurveTo(x - s * 0.48, y + s * 0.20, x - s * 0.52, y + s * 0.62);
+  c.moveTo(x - s * 0.66, y + s * 0.95);
+  c.quadraticCurveTo(x - s * 0.44, y + s * 0.50, x - s * 0.50, y + s * F.brow);
+  c.quadraticCurveTo(x - s * 0.62, y + s * 0.40, x - s * 0.66, y + s * 0.95);
   c.fill();
 }
 
 function dogEars(c, x, y, s) {
+  /* Ears on the sides of the head, nose on the nose. These were one
+     shape pinned to one point, which is how the ears ended up out past
+     the edges of the picture and the nose landed on a forehead. */
   const ear = (sx) => {
     c.fillStyle = '#6B4A32';
     c.beginPath();
-    c.moveTo(x + sx * s * 0.34, y - s * 0.30);
-    c.quadraticCurveTo(x + sx * s * 0.62, y - s * 0.04, x + sx * s * 0.40, y + s * 0.30);
-    c.quadraticCurveTo(x + sx * s * 0.22, y + s * 0.02, x + sx * s * 0.34, y - s * 0.30);
+    c.moveTo(x + sx * s * 0.34, y + s * (F.top + 0.04));
+    c.quadraticCurveTo(x + sx * s * 0.62, y + s * (F.brow), x + sx * s * 0.44, y + s * (F.eyes + 0.22));
+    c.quadraticCurveTo(x + sx * s * 0.26, y + s * (F.brow - 0.10), x + sx * s * 0.34, y + s * (F.top + 0.04));
     c.fill();
     c.fillStyle = '#C89B79';
     c.beginPath();
-    c.moveTo(x + sx * s * 0.36, y - s * 0.20);
-    c.quadraticCurveTo(x + sx * s * 0.50, y - s * 0.02, x + sx * s * 0.38, y + s * 0.18);
-    c.quadraticCurveTo(x + sx * s * 0.28, y + s * 0.02, x + sx * s * 0.36, y - s * 0.20);
+    c.moveTo(x + sx * s * 0.36, y + s * (F.top + 0.12));
+    c.quadraticCurveTo(x + sx * s * 0.52, y + s * (F.brow - 0.02), x + sx * s * 0.41, y + s * (F.eyes + 0.10));
+    c.quadraticCurveTo(x + sx * s * 0.31, y + s * (F.brow - 0.06), x + sx * s * 0.36, y + s * (F.top + 0.12));
     c.fill();
   };
   ear(-1); ear(1);
-  // nose + tongue, the bit that makes it read as a dog
   c.fillStyle = '#2A2A2A';
-  c.beginPath(); c.ellipse(x, y + s * 0.12, s * 0.11, s * 0.085, 0, 0, T); c.fill();
+  c.beginPath(); c.ellipse(x, y + s * F.nose, s * 0.12, s * 0.09, 0, 0, T); c.fill();
   c.fillStyle = '#FF7C9B';
   c.beginPath();
-  c.moveTo(x - s * 0.07, y + s * 0.20);
-  c.quadraticCurveTo(x, y + s * 0.46, x + s * 0.07, y + s * 0.20);
+  c.moveTo(x - s * 0.08, y + s * (F.mouth - 0.02));
+  c.quadraticCurveTo(x, y + s * (F.chin - 0.02), x + s * 0.08, y + s * (F.mouth - 0.02));
   c.fill();
 }
 
@@ -104,37 +136,39 @@ function catWhiskers(c, x, y, s) {
   c.fillStyle = '#3A3A3A';
   [-1, 1].forEach((sx) => {
     c.beginPath();
-    c.moveTo(x + sx * s * 0.20, y - s * 0.34);
-    c.lineTo(x + sx * s * 0.40, y - s * 0.56);
-    c.lineTo(x + sx * s * 0.46, y - s * 0.26);
+    c.moveTo(x + sx * s * 0.18, y + s * (F.top + 0.06));
+    c.lineTo(x + sx * s * 0.36, y + s * (F.top - 0.26));
+    c.lineTo(x + sx * s * 0.46, y + s * (F.top + 0.10));
     c.closePath(); c.fill();
   });
   c.fillStyle = '#FF9BB3';
-  c.beginPath(); c.ellipse(x, y + s * 0.06, s * 0.07, s * 0.055, 0, 0, T); c.fill();
+  c.beginPath(); c.ellipse(x, y + s * F.nose, s * 0.075, s * 0.06, 0, 0, T); c.fill();
   c.strokeStyle = 'rgba(255,255,255,0.9)';
   c.lineWidth = Math.max(1.4, s * 0.014);
   [-1, 1].forEach((sx) => {
     for (let i = 0; i < 3; i++) {
       c.beginPath();
-      c.moveTo(x + sx * s * 0.09, y + s * 0.10 + i * s * 0.05);
-      c.lineTo(x + sx * s * 0.44, y + s * 0.02 + i * s * 0.10);
+      c.moveTo(x + sx * s * 0.10, y + s * (F.nose + 0.04 + i * 0.05));
+      c.lineTo(x + sx * s * 0.48, y + s * (F.nose - 0.06 + i * 0.10));
       c.stroke();
     }
   });
 }
 
 function crown(c, x, y, s) {
-  const g = c.createLinearGradient(x - s * 0.4, y, x + s * 0.4, y);
+  // the band rests on the top of the head; the points go up from there
+  const base = y + s * (F.top + 0.06);
+  const g = c.createLinearGradient(x - s * 0.4, base, x + s * 0.4, base);
   g.addColorStop(0, '#F6C851'); g.addColorStop(0.5, '#FFF0A8'); g.addColorStop(1, '#E0A32B');
   c.fillStyle = g;
   path(c, [
-    [x - s * 0.40, y + s * 0.20], [x - s * 0.40, y - s * 0.14], [x - s * 0.20, y + s * 0.02],
-    [x, y - s * 0.30], [x + s * 0.20, y + s * 0.02], [x + s * 0.40, y - s * 0.14],
-    [x + s * 0.40, y + s * 0.20],
+    [x - s * 0.40, base], [x - s * 0.40, base - s * 0.34], [x - s * 0.20, base - s * 0.18],
+    [x, base - s * 0.50], [x + s * 0.20, base - s * 0.18], [x + s * 0.40, base - s * 0.34],
+    [x + s * 0.40, base],
   ], true);
   c.fill();
   c.fillStyle = '#C0392B';
-  [-0.22, 0, 0.22].forEach((o) => { c.beginPath(); c.arc(x + o * s, y + s * 0.10, s * 0.045, 0, T); c.fill(); });
+  [-0.22, 0, 0.22].forEach((o) => { c.beginPath(); c.arc(x + o * s, base - s * 0.10, s * 0.045, 0, T); c.fill(); });
 }
 
 function halo(c, x, y, s, t) {
@@ -144,28 +178,29 @@ function halo(c, x, y, s, t) {
   c.shadowColor = 'rgba(255,225,120,0.9)';
   c.shadowBlur = s * 0.2;
   c.beginPath();
-  c.ellipse(x, y + wob, s * 0.38, s * 0.13, 0, 0, T);
+  c.ellipse(x, y + s * (F.top - 0.26) + wob, s * 0.38, s * 0.13, 0, 0, T);
   c.stroke();
   c.shadowBlur = 0;
 }
 
 function sunglasses(c, x, y, s) {
+  const e = y + s * F.eyes;
   c.fillStyle = 'rgba(18,18,22,0.92)';
   [-1, 1].forEach((sx) => {
     c.beginPath();
-    c.ellipse(x + sx * s * 0.22, y, s * 0.19, s * 0.14, 0, 0, T);
+    c.ellipse(x + sx * s * 0.22, e, s * 0.19, s * 0.14, 0, 0, T);
     c.fill();
   });
   c.strokeStyle = 'rgba(18,18,22,0.92)';
   c.lineWidth = Math.max(2, s * 0.03);
-  c.beginPath(); c.moveTo(x - s * 0.04, y - s * 0.02); c.lineTo(x + s * 0.04, y - s * 0.02); c.stroke();
-  c.beginPath(); c.moveTo(x - s * 0.41, y - s * 0.04); c.lineTo(x - s * 0.52, y - s * 0.10); c.stroke();
-  c.beginPath(); c.moveTo(x + s * 0.41, y - s * 0.04); c.lineTo(x + s * 0.52, y - s * 0.10); c.stroke();
+  c.beginPath(); c.moveTo(x - s * 0.04, e - s * 0.02); c.lineTo(x + s * 0.04, e - s * 0.02); c.stroke();
+  c.beginPath(); c.moveTo(x - s * 0.41, e - s * 0.04); c.lineTo(x - s * 0.50, e - s * 0.10); c.stroke();
+  c.beginPath(); c.moveTo(x + s * 0.41, e - s * 0.04); c.lineTo(x + s * 0.50, e - s * 0.10); c.stroke();
   // a highlight so the lenses look like glass
   c.fillStyle = 'rgba(255,255,255,0.22)';
   [-1, 1].forEach((sx) => {
     c.beginPath();
-    c.ellipse(x + sx * s * 0.27, y - s * 0.05, s * 0.06, s * 0.03, -0.5, 0, T);
+    c.ellipse(x + sx * s * 0.27, e - s * 0.05, s * 0.06, s * 0.03, -0.5, 0, T);
     c.fill();
   });
 }
@@ -200,8 +235,8 @@ function flowerCrown(c, x, y, s, t) {
   const petals = ['#F9A8D4', '#FDE68A', '#A7F3D0', '#BFDBFE', '#DDD6FE'];
   for (let i = 0; i < 9; i++) {
     const a = -Math.PI + (i / 8) * Math.PI;
-    const px = x + Math.cos(a) * s * 0.42;
-    const py = y + Math.sin(a) * s * 0.30;
+    const px = x + Math.cos(a) * s * 0.46;
+    const py = y + s * (F.top + 0.02) + Math.sin(a) * s * 0.16;
     const r = s * (0.055 + 0.02 * Math.sin(i * 2.1 + t * 0.002));
     c.fillStyle = petals[i % petals.length];
     for (let p = 0; p < 5; p++) {
@@ -280,16 +315,16 @@ function bubbles(c, x, y, s, t) {
    eyes. Between them there is exactly one right size and one right
    place for any face, which is the point — nothing left to nudge. */
 export const LENSES = [
-  { id: 'beard',    label: 'Beard',        emoji: '🧔', kind: 'wear', on: 'mouth', fit: 1.05, draw: (c, x, y, s) => beard(c, x, y, s) },
-  { id: 'beard_gr', label: 'Grey beard',   emoji: '🎅', kind: 'wear', on: 'mouth', fit: 1.05, draw: (c, x, y, s) => beard(c, x, y, s, '#D8D8D8') },
-  { id: 'hijab',    label: 'Hijab',        emoji: '🧕', kind: 'wear', on: 'brow',  fit: 1.45, draw: (c, x, y, s) => hijab(c, x, y, s) },
-  { id: 'hijab_bk', label: 'Black hijab',  emoji: '🖤', kind: 'wear', on: 'brow',  fit: 1.45, draw: (c, x, y, s) => hijab(c, x, y, s, '#22202A') },
-  { id: 'dog',      label: 'Dog',          emoji: '🐶', kind: 'wear', on: 'brow',  fit: 1.20, draw: (c, x, y, s) => dogEars(c, x, y, s) },
-  { id: 'cat',      label: 'Cat',          emoji: '🐱', kind: 'wear', on: 'eyes',  fit: 1.10, draw: (c, x, y, s) => catWhiskers(c, x, y, s) },
-  { id: 'shades',   label: 'Shades',       emoji: '🕶️', kind: 'wear', on: 'eyes',  fit: 1.15, draw: (c, x, y, s) => sunglasses(c, x, y, s) },
-  { id: 'crown',    label: 'Crown',        emoji: '👑', kind: 'wear', on: 'head',  fit: 1.05, draw: (c, x, y, s) => crown(c, x, y, s) },
-  { id: 'flowers',  label: 'Flower crown', emoji: '🌸', kind: 'wear', on: 'head',  fit: 1.10, draw: (c, x, y, s, t) => flowerCrown(c, x, y, s, t) },
-  { id: 'halo',     label: 'Halo',         emoji: '😇', kind: 'wear', on: 'above', fit: 1.00, draw: (c, x, y, s, t) => halo(c, x, y, s, t) },
+  { id: 'beard',    label: 'Beard',        emoji: '🧔', kind: 'wear',  draw: (c, x, y, s) => beard(c, x, y, s) },
+  { id: 'beard_gr', label: 'Grey beard',   emoji: '🎅', kind: 'wear',  draw: (c, x, y, s) => beard(c, x, y, s, '#D8D8D8') },
+  { id: 'hijab',    label: 'Hijab',        emoji: '🧕', kind: 'wear',  draw: (c, x, y, s) => hijab(c, x, y, s) },
+  { id: 'hijab_bk', label: 'Black hijab',  emoji: '🖤', kind: 'wear',  draw: (c, x, y, s) => hijab(c, x, y, s, '#22202A') },
+  { id: 'dog',      label: 'Dog',          emoji: '🐶', kind: 'wear',  draw: (c, x, y, s) => dogEars(c, x, y, s) },
+  { id: 'cat',      label: 'Cat',          emoji: '🐱', kind: 'wear',  draw: (c, x, y, s) => catWhiskers(c, x, y, s) },
+  { id: 'shades',   label: 'Shades',       emoji: '🕶️', kind: 'wear',  draw: (c, x, y, s) => sunglasses(c, x, y, s) },
+  { id: 'crown',    label: 'Crown',        emoji: '👑', kind: 'wear',  draw: (c, x, y, s) => crown(c, x, y, s) },
+  { id: 'flowers',  label: 'Flower crown', emoji: '🌸', kind: 'wear',  draw: (c, x, y, s, t) => flowerCrown(c, x, y, s, t) },
+  { id: 'halo',     label: 'Halo',         emoji: '😇', kind: 'wear',  draw: (c, x, y, s, t) => halo(c, x, y, s, t) },
   { id: 'kiss',     label: 'Kisses',       emoji: '💋', kind: 'scene', draw: (c, x, y, s, t) => kiss(c, x, y, s, t) },
   { id: 'tears',    label: 'Tears',        emoji: '😢', kind: 'scene', draw: (c, x, y, s, t) => tears(c, x, y, s, t) },
   { id: 'fire',     label: 'On fire',      emoji: '🔥', kind: 'scene', draw: (c, x, y, s, t) => fire(c, x, y, s, t) },
@@ -301,29 +336,35 @@ export const LENS_BY_ID = LENSES.reduce((m, l) => { m[l.id] = l; return m; }, {}
 /* How far above or below the middle of a face each anchor sits,
    measured in face-diameters. A face is roughly as tall as it is wide,
    so these are the same numbers you would pace off on your own head. */
-const ANCHOR_Y = { above: -0.78, head: -0.50, brow: -0.34, eyes: -0.08, mouth: 0.20, face: 0 };
+/* ── FROM A DETECTION TO A PLACEMENT ──────────────────────────────
+   Everything here is in ONE coordinate system: the camera frame. The
+   detector reports in it, the lens is stored in it, and the file that
+   gets posted is drawn in it. The preview lines up because the overlay
+   canvas is the same shape as the frame and is fitted over the video
+   exactly the way the video itself is fitted — not because a second set
+   of numbers happens to agree.
 
-/* Put a lens on a detected face. `face` is { x, y, size } in fractions
-   of the frame, exactly as src/lib/faceDetect.js reports it; `box` is
-   the width and height the preview is actually drawn at, because the
-   art scales off the smaller side and the face is measured against the
-   height.
+   That was the real fault behind lenses landing off a face. The video
+   is shown with object-fit: cover, so a landscape camera frame in a
+   portrait box has most of its width cropped away; the preview was
+   drawing frame fractions as if they were box fractions, which squeezed
+   every horizontal position toward the middle by the crop factor. The
+   baked photo, drawn at the frame's own size, then put the lens
+   somewhere else again — so what you saw was never what you posted.
 
-   Returns the same { x, y, s } shape a dragged lens has, so nothing
-   downstream can tell the difference between placed-by-us and
-   placed-by-thumb. */
-export function placeOnFace(lensId, face, box) {
-  const lens = LENS_BY_ID[lensId];
-  if (!lens || !face || !box || !box.w || !box.h) return null;
-  const anchor = ANCHOR_Y[lens.on || 'face'] || 0;
-  const faceH = face.size;                       // fraction of frame height
-  const shortSide = Math.min(box.w, box.h);
+   The detector's window is not the face either: it is a box around one,
+   and it is wider than the face inside it. FACE_OF_BOX converts, and it
+   is the only calibration left in the system. */
+const FACE_OF_BOX = 1.20;
+
+export function placeOnFace(lensId, face) {
+  if (!LENS_BY_ID[lensId] || !face) return null;
   return {
-    x: face.x,
-    y: Math.max(0.02, Math.min(0.98, face.y + anchor * faceH)),
-    // the art's unit is a fraction of the SHORT side; the face is
-    // measured against the height, so convert before scaling
-    s: Math.max(0.10, Math.min(1.2, (faceH * box.h / shortSide) * (lens.fit || 1))),
+    x: Math.max(0.02, Math.min(0.98, face.x)),
+    y: Math.max(0.02, Math.min(0.98, face.y)),
+    // face.size is the window's side as a fraction of the frame HEIGHT,
+    // and s is the face's width in the same unit
+    s: Math.max(0.06, Math.min(1.4, face.size * FACE_OF_BOX)),
   };
 }
 
@@ -334,7 +375,10 @@ export function drawLens(c, w, h, place, t) {
   if (!place || !place.id) return;
   const lens = LENS_BY_ID[place.id];
   if (!lens) return;
-  const s = Math.max(24, place.s * Math.min(w, h));
+  /* Off the HEIGHT, not the short side. The detector measures a face
+     against the frame's height, so measuring the art the same way keeps
+     one unit from end to end whatever shape the frame is. */
+  const s = Math.max(24, place.s * h);
   c.save();
   try { lens.draw(c, place.x * w, place.y * h, s, t || 0); } catch (e) {}
   c.restore();
