@@ -1,0 +1,68 @@
+/* Twelve brand tokens — ink teal / sage / warm cream, with a livelier
+   action accent so the product feels current without leaving the brand. */
+:root {
+  --bg: #f4f0e4;
+  --surface: #ffffff;
+  --surface-2: #ece6d6;
+  --text: #17302a;
+  --muted: #6f766c;
+  --border: #e4ddc9;
+  --border-2: #d2c7aa;
+
+  --ink: #17302a;
+  --on-ink: #f4f0e4;
+  --accent: #1f7a52;          /* action / progress — energetic, brand-adjacent */
+  --accent-soft: #e2efe6;
+  --warn: #9a6f21;
+  --warn-soft: #f4e9d2;
+  --danger: #8c3b2a;
+  --danger-soft: #f5e0d9;
+  --cool: #3f6b7d;
+  --cool-soft: #e3edf1;
+
+  --r-sm: 10px;
+  --r: 16px;
+  --r-lg: 22px;
+  --shadow: 0 1px 2px rgba(23,48,42,.05), 0 4px 14px rgba(23,48,42,.05);
+  --shadow-pop: 0 12px 40px rgba(23,48,42,.16);
+
+  --sans: "Segoe UI", system-ui, -apple-system, "Noto Sans Arabic", "Noto Kufi Arabic", Tahoma, sans-serif;
+  --serif: Georgia, "Times New Roman", "Noto Serif", serif;
+  --ease: cubic-bezier(.22,.9,.3,1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f201c; --surface: #16302a; --surface-2: #1d3d35;
+    --text: #eee9dc; --muted: #93a496; --border: #294540; --border-2: #375b50;
+    --ink: #eee9dc; --on-ink: #16302a;
+    --accent: #4fbf87; --accent-soft: #1b3a2c;
+    --warn: #d7ab5c; --warn-soft: #33290f;
+    --danger: #d98a72; --danger-soft: #3a2019;
+    --cool: #8fb8c8; --cool-soft: #1c3038;
+    --shadow: 0 1px 2px rgba(0,0,0,.35), 0 4px 14px rgba(0,0,0,.28);
+    --shadow-pop: 0 12px 40px rgba(0,0,0,.5);
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f201c; --surface: #16302a; --surface-2: #1d3d35;
+  --text: #eee9dc; --muted: #93a496; --border: #294540; --border-2: #375b50;
+  --ink: #eee9dc; --on-ink: #16302a;
+  --accent: #4fbf87; --accent-soft: #1b3a2c;
+  --warn: #d7ab5c; --warn-soft: #33290f;
+  --danger: #d98a72; --danger-soft: #3a2019;
+  --cool: #8fb8c8; --cool-soft: #1c3038;
+  --shadow: 0 1px 2px rgba(0,0,0,.35), 0 4px 14px rgba(0,0,0,.28);
+  --shadow-pop: 0 12px 40px rgba(0,0,0,.5);
+}
+:root[data-theme="light"] {
+  --bg: #f4f0e4; --surface: #ffffff; --surface-2: #ece6d6;
+  --text: #17302a; --muted: #6f766c; --border: #e4ddc9; --border-2: #d2c7aa;
+  --ink: #17302a; --on-ink: #f4f0e4;
+  --accent: #1f7a52; --accent-soft: #e2efe6;
+  --warn: #9a6f21; --warn-soft: #f4e9d2;
+  --danger: #8c3b2a; --danger-soft: #f5e0d9;
+  --cool: #3f6b7d; --cool-soft: #e3edf1;
+  --shadow: 0 1px 2px rgba(23,48,42,.05), 0 4px 14px rgba(23,48,42,.05);
+  --shadow-pop: 0 12px 40px rgba(23,48,42,.16);
+}

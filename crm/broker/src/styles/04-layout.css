@@ -1,0 +1,40 @@
+/* ---- app shell: a single column, mobile-first, no persistent chrome ---- */
+.app { min-height: 100dvh; display: flex; flex-direction: column; }
+
+.topbar {
+  position: sticky; top: 0; z-index: 60;
+  display: flex; align-items: center; gap: 10px;
+  padding: calc(10px + env(safe-area-inset-top)) 16px 10px;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(12px); border-bottom: 1px solid var(--border);
+}
+.topbar .who { flex: 1; min-width: 0; }
+.topbar h1, .topbar .sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.topbar h1 { margin: 0; font-size: 18px; font-weight: 700; letter-spacing: -.01em; }
+.topbar .sub { font-size: 12.5px; color: var(--muted); }
+
+.screen { flex: 1; padding: 16px 16px 96px; max-width: 780px; width: 100%; margin: 0 auto; }
+.screen > * + * { margin-top: 14px; }
+
+/* bottom action bar — one primary verb per screen */
+.actionbar {
+  position: fixed; inset-inline: 0; bottom: 0; z-index: 55;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  background: linear-gradient(to top, var(--bg) 62%, transparent);
+  display: flex; gap: 10px; pointer-events: none;
+}
+.actionbar > * { pointer-events: auto; }
+.actionbar .btn { flex: 1; box-shadow: var(--shadow-pop); }
+
+/* ---- login ---- */
+.auth {
+  min-height: 100dvh; display: flex; flex-direction: column; justify-content: center;
+  padding: 32px 22px calc(32px + env(safe-area-inset-bottom)); max-width: 460px; margin: 0 auto; gap: 22px;
+}
+.auth-mark { width: 76px; height: 76px; color: var(--ink); }
+.auth-mark svg { width: 100%; height: 100%; }
+.auth h1 { margin: 0; font-size: 30px; line-height: 1.25; letter-spacing: -.02em; }
+.auth .lede { margin: 0; color: var(--muted); font-size: 15px; }
+.auth .word { font-family: var(--serif); letter-spacing: .16em; font-size: 15px; direction: ltr; }
+.auth form { display: flex; flex-direction: column; gap: 14px; }
+.auth .legal { font-size: 12px; color: var(--muted); text-align: center; }

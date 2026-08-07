@@ -1,0 +1,966 @@
+<!--
+  Shell. The build step inlines every file from src/styles and src/js
+  into this skeleton to produce dist/index.html.
+-->
+<style>/* styles/01-tokens.css */
+/* Twelve brand tokens — ink teal / sage / warm cream, with a livelier
+   action accent so the product feels current without leaving the brand. */
+:root {
+  --bg: #f4f0e4;
+  --surface: #ffffff;
+  --surface-2: #ece6d6;
+  --text: #17302a;
+  --muted: #6f766c;
+  --border: #e4ddc9;
+  --border-2: #d2c7aa;
+
+  --ink: #17302a;
+  --on-ink: #f4f0e4;
+  --accent: #1f7a52;          /* action / progress — energetic, brand-adjacent */
+  --accent-soft: #e2efe6;
+  --warn: #9a6f21;
+  --warn-soft: #f4e9d2;
+  --danger: #8c3b2a;
+  --danger-soft: #f5e0d9;
+  --cool: #3f6b7d;
+  --cool-soft: #e3edf1;
+
+  --r-sm: 10px;
+  --r: 16px;
+  --r-lg: 22px;
+  --shadow: 0 1px 2px rgba(23,48,42,.05), 0 4px 14px rgba(23,48,42,.05);
+  --shadow-pop: 0 12px 40px rgba(23,48,42,.16);
+
+  --sans: "Segoe UI", system-ui, -apple-system, "Noto Sans Arabic", "Noto Kufi Arabic", Tahoma, sans-serif;
+  --serif: Georgia, "Times New Roman", "Noto Serif", serif;
+  --ease: cubic-bezier(.22,.9,.3,1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f201c; --surface: #16302a; --surface-2: #1d3d35;
+    --text: #eee9dc; --muted: #93a496; --border: #294540; --border-2: #375b50;
+    --ink: #eee9dc; --on-ink: #16302a;
+    --accent: #4fbf87; --accent-soft: #1b3a2c;
+    --warn: #d7ab5c; --warn-soft: #33290f;
+    --danger: #d98a72; --danger-soft: #3a2019;
+    --cool: #8fb8c8; --cool-soft: #1c3038;
+    --shadow: 0 1px 2px rgba(0,0,0,.35), 0 4px 14px rgba(0,0,0,.28);
+    --shadow-pop: 0 12px 40px rgba(0,0,0,.5);
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f201c; --surface: #16302a; --surface-2: #1d3d35;
+  --text: #eee9dc; --muted: #93a496; --border: #294540; --border-2: #375b50;
+  --ink: #eee9dc; --on-ink: #16302a;
+  --accent: #4fbf87; --accent-soft: #1b3a2c;
+  --warn: #d7ab5c; --warn-soft: #33290f;
+  --danger: #d98a72; --danger-soft: #3a2019;
+  --cool: #8fb8c8; --cool-soft: #1c3038;
+  --shadow: 0 1px 2px rgba(0,0,0,.35), 0 4px 14px rgba(0,0,0,.28);
+  --shadow-pop: 0 12px 40px rgba(0,0,0,.5);
+}
+:root[data-theme="light"] {
+  --bg: #f4f0e4; --surface: #ffffff; --surface-2: #ece6d6;
+  --text: #17302a; --muted: #6f766c; --border: #e4ddc9; --border-2: #d2c7aa;
+  --ink: #17302a; --on-ink: #f4f0e4;
+  --accent: #1f7a52; --accent-soft: #e2efe6;
+  --warn: #9a6f21; --warn-soft: #f4e9d2;
+  --danger: #8c3b2a; --danger-soft: #f5e0d9;
+  --cool: #3f6b7d; --cool-soft: #e3edf1;
+  --shadow: 0 1px 2px rgba(23,48,42,.05), 0 4px 14px rgba(23,48,42,.05);
+  --shadow-pop: 0 12px 40px rgba(23,48,42,.16);
+}
+
+/* styles/02-base.css */
+* { box-sizing: border-box; }
+svg { width: 15px; height: 15px; flex-shrink: 0; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: var(--sans); direction: rtl;
+  -webkit-font-smoothing: antialiased; line-height: 1.55; font-size: 15px;
+  overscroll-behavior-y: none;
+}
+button, input, select, textarea { font-family: inherit; font-size: 15px; color: inherit; }
+button { cursor: pointer; }
+a { color: inherit; text-decoration: none; }
+.tnum { font-variant-numeric: tabular-nums; }
+.serif { font-family: var(--serif); }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 9px; border: 3px solid transparent; background-clip: content-box; }
+
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+@keyframes rise { from { opacity: 0; transform: translateY(10px) } to { opacity: 1; transform: none } }
+@keyframes pop { from { transform: scale(.96); opacity: 0 } to { transform: none; opacity: 1 } }
+.rise { animation: rise .28s var(--ease) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+
+/* styles/03-components.css */
+/* ---- buttons ---- */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  height: 48px; padding: 0 18px; border: 1px solid transparent; border-radius: var(--r-sm);
+  background: var(--ink); color: var(--on-ink); font-size: 15px; font-weight: 600;
+  transition: transform .12s var(--ease), opacity .12s, background .12s;
+}
+.btn:hover { opacity: .9; }
+.btn:active { transform: scale(.975); }
+.btn svg { width: 17px; height: 17px; }
+.btn.full { width: 100%; }
+.btn.sm { height: 38px; padding: 0 13px; font-size: 13.5px; border-radius: 9px; }
+.btn.accent { background: var(--accent); color: #fff; }
+.btn.outline { background: var(--surface); color: var(--text); border-color: var(--border-2); }
+.btn.outline:hover { background: var(--surface-2); opacity: 1; }
+.btn.ghost { background: none; color: var(--muted); }
+.btn.ghost:hover { background: var(--surface-2); color: var(--text); }
+.btn.danger { background: none; color: var(--danger); }
+.btn.danger:hover { background: var(--danger); color: var(--bg); }
+.btn[disabled] { opacity: .45; pointer-events: none; }
+
+.iconbtn {
+  width: 42px; height: 42px; display: grid; place-items: center; border-radius: 12px;
+  border: 1px solid var(--border-2); background: var(--surface); color: var(--muted);
+  transition: transform .12s var(--ease), color .12s, background .12s;
+}
+.iconbtn:hover { color: var(--text); background: var(--surface-2); }
+.iconbtn:active { transform: scale(.94); }
+.iconbtn svg { width: 18px; height: 18px; }
+.iconbtn.call { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 35%, transparent); }
+.iconbtn.wa { color: var(--cool); border-color: color-mix(in srgb, var(--cool) 35%, transparent); }
+.iconbtn.plain { border: none; background: none; }
+
+/* ---- surfaces ---- */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); box-shadow: var(--shadow); }
+.stack { display: flex; flex-direction: column; gap: 12px; }
+
+/* ---- pills / chips ---- */
+.pill { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+.pill.new { background: var(--surface-2); color: var(--muted); }
+.pill.called { background: var(--cool-soft); color: var(--cool); }
+.pill.hot { background: var(--accent-soft); color: var(--accent); }
+.pill.later { background: var(--warn-soft); color: var(--warn); }
+.pill.done { background: var(--accent); color: #fff; }
+.pill.no { background: var(--danger-soft); color: var(--danger); }
+
+.chip {
+  border: 1px solid var(--border-2); background: var(--surface); color: var(--muted);
+  padding: 8px 14px; border-radius: 999px; font-size: 13.5px; font-weight: 550; white-space: nowrap;
+  transition: transform .12s var(--ease), background .12s, color .12s;
+}
+.chip:active { transform: scale(.95); }
+.chip.on { background: var(--ink); border-color: var(--ink); color: var(--on-ink); }
+.chiprow { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+.chiprow::-webkit-scrollbar { display: none; }
+
+/* ---- form ---- */
+.field { display: flex; flex-direction: column; gap: 7px; }
+.field label { font-size: 13px; font-weight: 600; }
+.input {
+  height: 50px; width: 100%; padding: 0 14px; border-radius: 12px;
+  border: 1px solid var(--border-2); background: var(--surface); transition: border-color .12s, box-shadow .12s;
+}
+.input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+textarea.input { height: auto; min-height: 120px; padding: 12px 14px; resize: vertical; line-height: 1.6; }
+.hint { font-size: 12.5px; color: var(--muted); }
+
+/* ---- progress ---- */
+.bar { height: 8px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+.bar > i { display: block; height: 100%; background: var(--accent); border-radius: 999px; transition: width .5s var(--ease); }
+
+/* ---- empty ---- */
+.empty { text-align: center; padding: 46px 22px; }
+.empty .mark { width: 62px; height: 62px; margin: 0 auto 16px; color: var(--ink); }
+.empty .mark svg { width: 100%; height: 100%; }
+.empty h3 { margin: 0 0 6px; font-size: 18px; }
+.empty p { margin: 0 auto 18px; max-width: 330px; color: var(--muted); font-size: 14px; }
+
+/* ---- toast ---- */
+.toast {
+  position: fixed; inset-inline: 0; bottom: calc(20px + env(safe-area-inset-bottom)); margin: auto; width: max-content; max-width: 90vw;
+  background: var(--ink); color: var(--on-ink); padding: 12px 20px; border-radius: 999px;
+  font-size: 14px; font-weight: 550; box-shadow: var(--shadow-pop); z-index: 300;
+  opacity: 0; transform: translateY(14px); pointer-events: none; transition: .24s var(--ease);
+}
+.toast.show { opacity: 1; transform: none; }
+
+/* ---- sheet / dialog ---- */
+.scrim {
+  position: fixed; inset: 0; background: rgba(12,26,22,.5); backdrop-filter: blur(3px);
+  z-index: 200; opacity: 0; pointer-events: none; transition: opacity .22s var(--ease);
+}
+.scrim.open { opacity: 1; pointer-events: auto; }
+.dlg {
+  position: fixed; z-index: 210; background: var(--surface); box-shadow: var(--shadow-pop);
+  inset-inline: 0; bottom: 0; border-radius: var(--r-lg) var(--r-lg) 0 0;
+  max-height: 88dvh; display: flex; flex-direction: column;
+  transform: translateY(102%); transition: transform .28s var(--ease);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.dlg.open { transform: none; }
+.dlg .grab { width: 42px; height: 4px; border-radius: 999px; background: var(--border-2); margin: 10px auto 2px; flex-shrink: 0; }
+.dlg header { display: flex; align-items: center; gap: 10px; padding: 10px 18px 12px; }
+.dlg header h2 { margin: 0; font-size: 17px; flex: 1; }
+.dlg .body { padding: 4px 18px 18px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+.dlg .foot { padding: 12px 18px 18px; display: flex; gap: 10px; border-top: 1px solid var(--border); }
+
+@media (min-width: 720px) {
+  .dlg {
+    inset: auto; inset-block-start: 50%; inset-inline-start: 50%;
+    width: min(520px, 92vw); border-radius: var(--r-lg); max-height: 86vh;
+    transform: translate(50%, -46%) scale(.98); opacity: 0;
+  }
+  .dlg.open { transform: translate(50%, -50%); opacity: 1; }
+  .dlg .grab { display: none; }
+}
+
+/* styles/04-layout.css */
+/* ---- app shell: a single column, mobile-first, no persistent chrome ---- */
+.app { min-height: 100dvh; display: flex; flex-direction: column; }
+
+.topbar {
+  position: sticky; top: 0; z-index: 60;
+  display: flex; align-items: center; gap: 10px;
+  padding: calc(10px + env(safe-area-inset-top)) 16px 10px;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(12px); border-bottom: 1px solid var(--border);
+}
+.topbar .who { flex: 1; min-width: 0; }
+.topbar h1, .topbar .sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.topbar h1 { margin: 0; font-size: 18px; font-weight: 700; letter-spacing: -.01em; }
+.topbar .sub { font-size: 12.5px; color: var(--muted); }
+
+.screen { flex: 1; padding: 16px 16px 96px; max-width: 780px; width: 100%; margin: 0 auto; }
+.screen > * + * { margin-top: 14px; }
+
+/* bottom action bar — one primary verb per screen */
+.actionbar {
+  position: fixed; inset-inline: 0; bottom: 0; z-index: 55;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  background: linear-gradient(to top, var(--bg) 62%, transparent);
+  display: flex; gap: 10px; pointer-events: none;
+}
+.actionbar > * { pointer-events: auto; }
+.actionbar .btn { flex: 1; box-shadow: var(--shadow-pop); }
+
+/* ---- login ---- */
+.auth {
+  min-height: 100dvh; display: flex; flex-direction: column; justify-content: center;
+  padding: 32px 22px calc(32px + env(safe-area-inset-bottom)); max-width: 460px; margin: 0 auto; gap: 22px;
+}
+.auth-mark { width: 76px; height: 76px; color: var(--ink); }
+.auth-mark svg { width: 100%; height: 100%; }
+.auth h1 { margin: 0; font-size: 30px; line-height: 1.25; letter-spacing: -.02em; }
+.auth .lede { margin: 0; color: var(--muted); font-size: 15px; }
+.auth .word { font-family: var(--serif); letter-spacing: .16em; font-size: 15px; direction: ltr; }
+.auth form { display: flex; flex-direction: column; gap: 14px; }
+.auth .legal { font-size: 12px; color: var(--muted); text-align: center; }
+
+/* styles/05-screens.css */
+/* ---- packages ---- */
+.pk { padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; }
+.pk-top { display: flex; align-items: flex-start; gap: 12px; }
+.pk-name { font-size: 16.5px; font-weight: 700; }
+.pk-meta { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+.pk-nums { display: flex; align-items: baseline; gap: 6px; margin-inline-start: auto; }
+.pk-nums b { font-size: 22px; font-family: var(--serif); }
+.pk-nums span { font-size: 12px; color: var(--muted); }
+.pk-progress { display: flex; flex-direction: column; gap: 6px; }
+.pk-progress .lbl { display: flex; justify-content: space-between; font-size: 12.5px; color: var(--muted); }
+
+/* ---- sheet ---- */
+.sheet-head { display: flex; flex-direction: column; gap: 12px; }
+.sheet-stats { display: flex; gap: 10px; }
+.stat { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 11px 13px; }
+.stat b { display: block; font-size: 21px; font-family: var(--serif); line-height: 1.2; }
+.stat span { font-size: 11.5px; color: var(--muted); }
+
+.rows { border-radius: var(--r); overflow: hidden; border: 1px solid var(--border); background: var(--surface); }
+.row { display: flex; align-items: center; gap: 11px; padding: 12px 14px; border-top: 1px solid var(--border); }
+.row:first-child { border-top: none; }
+.row.done { opacity: .55; }
+.row-main { flex: 1; min-width: 0; border: none; background: none; padding: 0; text-align: start; display: flex; flex-direction: column; gap: 3px; }
+.row-name { font-size: 15px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row-meta { font-size: 12.5px; color: var(--muted); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.row-acts { display: flex; gap: 7px; flex-shrink: 0; }
+
+/* status buttons inside the lead sheet */
+.statusgrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 9px; }
+.statusgrid button {
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  padding: 13px 10px; border-radius: 12px; border: 1px solid var(--border-2);
+  background: var(--surface); font-size: 14px; font-weight: 600; color: var(--muted);
+  transition: transform .12s var(--ease), background .12s, color .12s, border-color .12s;
+}
+.statusgrid button:active { transform: scale(.96); }
+.statusgrid button.on { background: var(--ink); border-color: var(--ink); color: var(--on-ink); }
+
+/* import preview */
+.preview { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.preview table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.preview th { background: var(--surface-2); text-align: start; padding: 9px 11px; font-size: 11.5px; color: var(--muted); font-weight: 600; }
+.preview td { padding: 9px 11px; border-top: 1px solid var(--border); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px; }
+.preview-wrap { overflow-x: auto; }
+.note { background: var(--accent-soft); color: var(--accent); border-radius: 12px; padding: 11px 13px; font-size: 13px; display: flex; gap: 8px; align-items: flex-start; }
+.note svg { margin-top: 2px; }
+</style>
+
+<div class="app">
+  <header class="topbar" id="bar"></header>
+  <div id="root"></div>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<div class="dlg" id="dlg" role="dialog" aria-modal="true"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>/* ---- js/01-icons.js ---- */
+/* Inline SVG icon set — no network requests, so nothing can fail to load. */
+function svg(inner, w) {
+  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="' +
+    (w || 1.8) + '" stroke-linecap="round" stroke-linejoin="round">' + inner + "</svg>";
+}
+
+const I = {
+  phone: svg('<path d="M6.5 3h3l1.5 4-2 1.5a12 12 0 005.5 5.5l1.5-2 4 1.5v3a2 2 0 01-2.2 2A17 17 0 014.5 5.2 2 2 0 016.5 3z"/>'),
+  chat: svg('<path d="M21 11.5a8 8 0 01-11.7 7.1L4 20l1.4-4.6A8 8 0 1121 11.5z"/>'),
+  plus: svg('<path d="M12 5v14M5 12h14"/>'),
+  x: svg('<path d="M18 6L6 18M6 6l12 12"/>'),
+  check: svg('<path d="M5 13l4 4L19 7"/>'),
+  back: svg('<path d="M15 5l-7 7 7 7"/>'),
+  layers: svg('<path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/>'),
+  upload: svg('<path d="M12 19V8"/><path d="M7 12l5-5 5 5"/><path d="M4 20h16"/>'),
+  trash: svg('<path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13h10l1-13"/>'),
+  moon: svg('<path d="M20 14.5A8.5 8.5 0 1110 3.2 7 7 0 0020 14.5z"/>'),
+  sun: svg('<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4 12H2M22 12h-2M5 5l1.4 1.4M17.6 17.6L19 19M5 19l1.4-1.4M17.6 6.4L19 5"/>'),
+  out: svg('<path d="M15 12H4"/><path d="M8 8l-4 4 4 4"/><path d="M11 4h6a2 2 0 012 2v12a2 2 0 01-2 2h-6"/>'),
+  info: svg('<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>'),
+  search: svg('<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>'),
+};
+
+/* The Twelve mark: disc + 4-point star cut out of it + 12 bezel ticks.
+   The star is filled with the surrounding surface colour so the mark
+   inverts correctly between light and dark themes on its own. */
+function compassMark(cutoutVar) {
+  const cut = cutoutVar || "--bg";
+  let ticks = "";
+  for (let i = 0; i < 12; i++) {
+    const a = ((i * 30 - 90) * Math.PI) / 180;
+    ticks += '<line x1="' + (50 + 41 * Math.cos(a)).toFixed(1) + '" y1="' + (54 + 41 * Math.sin(a)).toFixed(1) +
+      '" x2="' + (50 + 46 * Math.cos(a)).toFixed(1) + '" y2="' + (54 + 46 * Math.sin(a)).toFixed(1) + '"/>';
+  }
+  return '<svg viewBox="0 0 100 100" style="overflow:visible">' +
+    '<g stroke="currentColor" stroke-width="2.5" stroke-linecap="round">' + ticks + "</g>" +
+    '<circle cx="50" cy="54" r="40" fill="currentColor"/>' +
+    '<path d="M50,15 L59,45 L89,54 L59,63 L50,93 L41,63 L11,54 L41,45 Z" style="fill:var(' + cut + ')"/></svg>';
+}
+
+function hydrateIcons(root) {
+  (root || document).querySelectorAll("[data-i]").forEach(function (el) {
+    const n = el.getAttribute("data-i");
+    if (I[n]) el.innerHTML = I[n];
+  });
+}
+
+/* ---- js/02-utils.js ---- */
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const nf = new Intl.NumberFormat("en-US");
+const fmtNum = (n) => nf.format(Math.round(Number(n) || 0));
+
+function esc(s) {
+  return String(s == null ? "" : s).replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+function fmtEGP(n) {
+  n = Number(n) || 0;
+  if (n >= 1e6) { const m = n / 1e6; return (m % 1 === 0 ? m : m.toFixed(1)) + " مليون"; }
+  if (n >= 1000) return fmtNum(n / 1000) + " ألف";
+  return n ? fmtNum(n) : "";
+}
+
+/* Contact links. Egyptian local numbers (010…) are given the country code;
+   numbers that already carry one are left as they are. */
+function telHref(p) {
+  const v = String(p || "").replace(/[^\d+]/g, "");
+  return v ? "tel:" + v : null;
+}
+function waHref(p) {
+  let v = String(p || "").replace(/\D/g, "");
+  if (!v) return null;
+  if (v.startsWith("00")) v = v.slice(2);
+  else if (v.startsWith("0")) v = "20" + v.slice(1);
+  return "https://wa.me/" + v;
+}
+
+const DAY = 86400000;
+const daysSince = (ts) => Math.max(0, Math.floor((Date.now() - ts) / DAY));
+function agoLabel(ts) {
+  if (!ts) return "";
+  const d = daysSince(ts);
+  if (d === 0) return "اليوم";
+  if (d === 1) return "أمس";
+  return "منذ " + d + " يوم";
+}
+
+/* Paste-parser for a subscription sheet copied out of Excel/Google Sheets.
+   Splits on tabs or commas, drops a header row if present, then works out
+   which column holds the phone and which holds the name by looking at the
+   values themselves rather than trusting column order. */
+function parseSheet(text) {
+  const lines = String(text || "").split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  if (!lines.length) return { rows: [], skipped: 0 };
+
+  const split = (l) => (l.indexOf("\t") > -1 ? l.split("\t") : l.split(",")).map((c) => c.trim());
+  let cells = lines.map(split);
+
+  const looksLikePhone = (v) => (String(v).replace(/\D/g, "").length >= 8);
+  const headerish = cells[0].some((c) => /اسم|هاتف|موبايل|تليفون|رقم|name|phone|mobile/i.test(c));
+  if (headerish && cells.length > 1 && !cells[0].some(looksLikePhone)) cells = cells.slice(1);
+
+  const width = Math.max.apply(null, cells.map((r) => r.length));
+  const score = [];
+  for (let c = 0; c < width; c++) {
+    let phone = 0, words = 0;
+    cells.forEach((r) => {
+      const v = r[c] || "";
+      if (looksLikePhone(v)) phone++;
+      else if (/[A-Za-z؀-ۿ]{2,}/.test(v)) words++;
+    });
+    score.push({ c, phone, words });
+  }
+  const phoneCol = score.slice().sort((a, b) => b.phone - a.phone)[0];
+  const nameCol = score.filter((s) => s.c !== (phoneCol && phoneCol.c))
+    .sort((a, b) => b.words - a.words)[0];
+
+  const rows = [];
+  let skipped = 0;
+  cells.forEach((r) => {
+    const phone = phoneCol ? (r[phoneCol.c] || "").trim() : "";
+    const name = nameCol ? (r[nameCol.c] || "").trim() : "";
+    if (!phone && !name) { skipped++; return; }
+    const rest = r.filter((_, i) => i !== (phoneCol && phoneCol.c) && i !== (nameCol && nameCol.c))
+      .filter(Boolean).join(" · ");
+    rows.push({ name: name || "بدون اسم", phone: phone, extra: rest });
+  });
+  return { rows: rows, skipped: skipped };
+}
+
+/* ---- js/03-store.js ---- */
+/* Everything the broker enters lives in their own browser. Nothing is
+   seeded, nothing is invented — an empty account starts genuinely empty. */
+const KEY = "twelve_broker_v1";
+
+let db = load();
+function load() {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (raw) {
+      const d = JSON.parse(raw);
+      return { broker: d.broker || null, packages: d.packages || [], leads: d.leads || [] };
+    }
+  } catch (e) { /* corrupt or unavailable storage: fall through to a fresh account */ }
+  return { broker: null, packages: [], leads: [] };
+}
+function save() {
+  try { localStorage.setItem(KEY, JSON.stringify(db)); }
+  catch (e) { toast("تعذّر الحفظ — مساحة التخزين ممتلئة"); }
+}
+
+/* The only statuses a broker working a call sheet actually needs. */
+const STATUS = [
+  { id: "new",       label: "جديد",       pill: "new"    },
+  { id: "called",    label: "تم الاتصال", pill: "called" },
+  { id: "interested",label: "مهتم",       pill: "hot"    },
+  { id: "later",     label: "أعاود لاحقاً", pill: "later"  },
+  { id: "closed",    label: "تم البيع",   pill: "done"   },
+  { id: "no",        label: "غير مهتم",   pill: "no"     },
+];
+const statusOf = (id) => STATUS.find((s) => s.id === id) || STATUS[0];
+const DONE = ["closed", "no"];           // finished either way
+const WORKED = ["called", "interested", "later", "closed", "no"]; // touched at all
+
+const pkgLeads = (pid) => db.leads.filter((l) => l.packageId === pid);
+const pkgById = (pid) => db.packages.find((p) => p.id === pid);
+
+function pkgStats(pid) {
+  const rows = pkgLeads(pid);
+  const worked = rows.filter((l) => WORKED.indexOf(l.status) > -1).length;
+  return {
+    total: rows.length,
+    worked: worked,
+    left: rows.length - worked,
+    interested: rows.filter((l) => l.status === "interested").length,
+    closed: rows.filter((l) => l.status === "closed").length,
+    pct: rows.length ? Math.round((worked / rows.length) * 100) : 0,
+  };
+}
+
+/* ---- js/screens/10-auth.js ---- */
+/* Sign-in. This app has exactly one kind of user: the broker.
+   No roles, no admin console, no company portals. */
+function renderAuth() {
+  return '' +
+  '<div class="auth rise">' +
+    '<div class="auth-mark">' + compassMark("--bg") + '</div>' +
+    '<div>' +
+      '<div class="word">T W E L V E</div>' +
+      '<h1>شيت الاتصال بتاعك،<br>في مكان واحد.</h1>' +
+      '<p class="lede">سجّل دخولك، اشترك في داتا، وابدأ اتصل. من غير تعقيد.</p>' +
+    '</div>' +
+    '<form id="authForm">' +
+      '<div class="field">' +
+        '<label for="bn">اسمك</label>' +
+        '<input class="input" id="bn" name="bn" autocomplete="name" placeholder="مثال: أحمد سمير" required>' +
+      '</div>' +
+      '<div class="field">' +
+        '<label for="bp">رقم موبايلك</label>' +
+        '<input class="input" id="bp" name="bp" type="tel" inputmode="tel" dir="ltr" autocomplete="tel" placeholder="01xxxxxxxxx" required>' +
+      '</div>' +
+      '<button class="btn accent full" type="submit">دخول</button>' +
+    '</form>' +
+    '<p class="legal">بياناتك تُحفظ على جهازك وحده. لا تُرسل لأي خادم.</p>' +
+  '</div>';
+}
+
+function wireAuth() {
+  const f = document.getElementById("authForm");
+  if (!f) return;
+  f.addEventListener("submit", function (e) {
+    e.preventDefault();
+    const name = f.bn.value.trim();
+    const phone = f.bp.value.trim();
+    if (!name) return f.bn.focus();
+    if (!phone) return f.bp.focus();
+    db.broker = { name: name, phone: phone, since: Date.now() };
+    save();
+    go("packages");
+    toast("أهلاً " + name.split(/\s+/)[0]);
+  });
+}
+
+/* ---- js/screens/20-packages.js ---- */
+/* The broker's data subscriptions. Each one is a sheet they bought /
+   were given; opening it is what starts the calling work. */
+function renderPackages() {
+  if (!db.packages.length) {
+    return '<div class="screen"><div class="empty rise">' +
+      '<div class="mark">' + compassMark("--bg") + "</div>" +
+      "<h3>ابدأ باشتراك داتا</h3>" +
+      "<p>اشترك في داتا، الصق الشيت اللي وصلك، وهيفتحلك جاهز تتصل منه.</p>" +
+      '<button class="btn accent" data-act="new-pkg">' + I.plus + " اشتراك جديد</button>" +
+      "</div></div>";
+  }
+
+  const cards = db.packages
+    .slice()
+    .sort((a, b) => b.createdAt - a.createdAt)
+    .map(function (p) {
+      const s = pkgStats(p.id);
+      return '<div class="card pk rise">' +
+        '<div class="pk-top">' +
+          "<div>" +
+            '<div class="pk-name">' + esc(p.name) + "</div>" +
+            '<div class="pk-meta">' + esc([p.area, p.source].filter(Boolean).join(" · ") || "بدون تفاصيل") +
+              " · " + agoLabel(p.createdAt) + "</div>" +
+          "</div>" +
+          '<div class="pk-nums"><b class="tnum">' + fmtNum(s.total) + "</b><span>رقم</span></div>" +
+        "</div>" +
+        (s.total
+          ? '<div class="pk-progress">' +
+              '<div class="lbl"><span>تم التواصل ' + fmtNum(s.worked) + " من " + fmtNum(s.total) + "</span>" +
+              '<span class="tnum">' + s.pct + "%</span></div>" +
+              '<div class="bar"><i style="width:' + s.pct + '%"></i></div>' +
+            "</div>"
+          : '<div class="hint">لسه فاضي — الصق الشيت عشان تبدأ.</div>') +
+        '<div style="display:flex;gap:9px">' +
+          '<button class="btn sm accent" style="flex:1" data-act="open-pkg" data-id="' + p.id + '">' +
+            (s.total ? "افتح الشيت" : "الصق الشيت") + "</button>" +
+          '<button class="iconbtn" data-act="del-pkg" data-id="' + p.id + '" aria-label="حذف">' + I.trash + "</button>" +
+        "</div>" +
+      "</div>";
+    })
+    .join("");
+
+  return '<div class="screen"><div class="stack">' + cards + "</div></div>" +
+    '<div class="actionbar"><button class="btn accent" data-act="new-pkg">' + I.plus + " اشتراك جديد</button></div>";
+}
+
+function openNewPackage() {
+  openDialog({
+    title: "اشتراك داتا جديد",
+    body:
+      '<div class="field"><label for="pn">اسم الاشتراك</label>' +
+      '<input class="input" id="pn" placeholder="مثال: التجمع الخامس — يناير" required></div>' +
+      '<div class="field"><label for="pa">المنطقة</label>' +
+      '<input class="input" id="pa" placeholder="اختياري — مثال: التجمع الخامس"></div>' +
+      '<div class="field"><label for="ps">المصدر</label>' +
+      '<input class="input" id="ps" placeholder="اختياري — مثال: حملة فيسبوك"></div>',
+    confirm: "إنشاء",
+    onConfirm: function (d) {
+      const name = d.querySelector("#pn").value.trim();
+      if (!name) { d.querySelector("#pn").focus(); return false; }
+      const p = {
+        id: uid(), name: name,
+        area: d.querySelector("#pa").value.trim(),
+        source: d.querySelector("#ps").value.trim(),
+        createdAt: Date.now(),
+      };
+      db.packages.push(p);
+      save();
+      go("sheet", p.id);
+      toast("تم إنشاء الاشتراك — الصق الشيت");
+      return true;
+    },
+  });
+}
+
+function deletePackage(id) {
+  const p = pkgById(id);
+  if (!p) return;
+  const n = pkgLeads(id).length;
+  confirmDialog(
+    "حذف «" + p.name + "»؟",
+    n ? "هيتشال معاه " + fmtNum(n) + " رقم." : "مفيش أرقام فيه.",
+    function () {
+      db.packages = db.packages.filter((x) => x.id !== id);
+      db.leads = db.leads.filter((l) => l.packageId !== id);
+      save(); paint(); toast("تم الحذف");
+    }
+  );
+}
+
+/* ---- js/screens/30-sheet.js ---- */
+/* The call sheet: the screen the broker actually lives in.
+   One row per number, one tap to call or WhatsApp, one tap to set status. */
+let sheetFilter = "all";
+let sheetQuery = "";
+
+function renderSheet(pid) {
+  const p = pkgById(pid);
+  if (!p) return '<div class="screen"><div class="empty"><h3>الاشتراك مش موجود</h3>' +
+    '<button class="btn outline" data-act="go-packages">رجوع</button></div></div>';
+
+  const all = pkgLeads(pid);
+  if (!all.length) {
+    return '<div class="screen"><div class="empty rise">' +
+      '<div class="mark">' + compassMark("--bg") + "</div>" +
+      "<h3>الصق الشيت</h3>" +
+      "<p>انسخ الأعمدة من Excel أو Google Sheets والصقها هنا — هنقرأ الاسم والرقم تلقائياً.</p>" +
+      '<button class="btn accent" data-act="import" data-id="' + pid + '">' + I.upload + " لصق البيانات</button>" +
+      "</div></div>";
+  }
+
+  const s = pkgStats(pid);
+  const q = sheetQuery.trim();
+  let rows = all;
+  if (sheetFilter === "todo") rows = rows.filter((l) => WORKED.indexOf(l.status) === -1);
+  else if (sheetFilter !== "all") rows = rows.filter((l) => l.status === sheetFilter);
+  if (q) rows = rows.filter((l) => (l.name + " " + l.phone + " " + (l.extra || "")).indexOf(q) > -1);
+
+  const chips = [["all", "الكل"], ["todo", "لسه"]]
+    .concat(STATUS.filter((st) => st.id !== "new").map((st) => [st.id, st.label]))
+    .map(([v, l]) => '<button class="chip' + (sheetFilter === v ? " on" : "") +
+      '" data-f="' + v + '">' + l + "</button>").join("");
+
+  const list = rows.length
+    ? rows.map(function (l) {
+        const st = statusOf(l.status);
+        const tel = telHref(l.phone), wa = waHref(l.phone);
+        return '<div class="row' + (DONE.indexOf(l.status) > -1 ? " done" : "") + '">' +
+          '<button class="row-main" data-act="open-lead" data-id="' + l.id + '">' +
+            '<span class="row-name">' + esc(l.name) + "</span>" +
+            '<span class="row-meta"><span class="pill ' + st.pill + '">' + st.label + "</span>" +
+              (l.phone ? '<span dir="ltr" class="tnum">' + esc(l.phone) + "</span>" : "") +
+            "</span>" +
+          "</button>" +
+          '<div class="row-acts">' +
+            (tel ? '<a class="iconbtn call" href="' + tel + '" aria-label="اتصال">' + I.phone + "</a>" : "") +
+            (wa ? '<a class="iconbtn wa" href="' + wa + '" target="_blank" rel="noopener" aria-label="واتساب">' + I.chat + "</a>" : "") +
+          "</div>" +
+        "</div>";
+      }).join("")
+    : '<div class="empty" style="padding:34px 18px"><p style="margin:0">مفيش نتائج للفلتر ده.</p></div>';
+
+  return '<div class="screen">' +
+    '<div class="sheet-head">' +
+      '<div class="sheet-stats">' +
+        '<div class="stat"><b class="tnum">' + fmtNum(s.left) + "</b><span>باقي</span></div>" +
+        '<div class="stat"><b class="tnum">' + fmtNum(s.interested) + "</b><span>مهتم</span></div>" +
+        '<div class="stat"><b class="tnum">' + fmtNum(s.closed) + "</b><span>بيع</span></div>" +
+      "</div>" +
+      '<div class="bar"><i style="width:' + s.pct + '%"></i></div>' +
+      '<input class="input" id="q" placeholder="بحث بالاسم أو الرقم…" value="' + esc(sheetQuery) + '">' +
+      '<div class="chiprow">' + chips + "</div>" +
+    "</div>" +
+    '<div class="rows">' + list + "</div>" +
+  "</div>" +
+  '<div class="actionbar">' +
+    '<button class="btn outline" data-act="import" data-id="' + pid + '">' + I.upload + " لصق</button>" +
+    '<button class="btn accent" data-act="next-call" data-id="' + pid + '">' + I.phone + " التالي</button>" +
+  "</div>";
+}
+
+/* Open one lead: set status, keep a note, call or message. */
+function openLead(id) {
+  const l = db.leads.find((x) => x.id === id);
+  if (!l) return;
+  const tel = telHref(l.phone), wa = waHref(l.phone);
+
+  openDialog({
+    title: l.name,
+    body:
+      (l.phone ? '<div dir="ltr" class="tnum" style="font-size:19px;font-weight:650">' + esc(l.phone) + "</div>" : "") +
+      (l.extra ? '<div class="hint">' + esc(l.extra) + "</div>" : "") +
+      '<div style="display:flex;gap:10px">' +
+        (tel ? '<a class="btn accent" style="flex:1" href="' + tel + '">' + I.phone + " اتصال</a>" : "") +
+        (wa ? '<a class="btn outline" style="flex:1" href="' + wa + '" target="_blank" rel="noopener">' + I.chat + " واتساب</a>" : "") +
+      "</div>" +
+      '<div class="field"><label>الحالة</label><div class="statusgrid" id="sg">' +
+        STATUS.map((st) => '<button type="button" data-s="' + st.id + '"' +
+          (l.status === st.id ? ' class="on"' : "") + ">" + st.label + "</button>").join("") +
+      "</div></div>" +
+      '<div class="field"><label for="nt">ملاحظة</label>' +
+        '<textarea class="input" id="nt" style="min-height:88px" placeholder="نتيجة المكالمة…">' + esc(l.note || "") + "</textarea></div>",
+    confirm: "حفظ",
+    onMount: function (d) {
+      d.querySelectorAll("#sg button").forEach(function (b) {
+        b.onclick = function () {
+          d.querySelectorAll("#sg button").forEach((x) => x.classList.remove("on"));
+          b.classList.add("on");
+        };
+      });
+    },
+    onConfirm: function (d) {
+      const on = d.querySelector("#sg button.on");
+      l.status = on ? on.dataset.s : l.status;
+      l.note = d.querySelector("#nt").value.trim();
+      l.updatedAt = Date.now();
+      save(); paint(); toast("اتحفظ");
+      return true;
+    },
+  });
+}
+
+/* Jump straight to the next untouched number — the whole point of a call sheet. */
+function nextCall(pid) {
+  const next = pkgLeads(pid).find((l) => WORKED.indexOf(l.status) === -1);
+  if (!next) return toast("خلصت الشيت كله 🎉");
+  openLead(next.id);
+}
+
+/* Work out exactly what an import would do, so the preview can promise the
+   same number the confirm actually writes (duplicates included). */
+function planImport(pid, text) {
+  const r = parseSheet(text);
+  const seen = {};
+  pkgLeads(pid).forEach((l) => { if (l.phone) seen[l.phone.replace(/\D/g, "")] = 1; });
+  const add = [];
+  let dupes = 0;
+  r.rows.forEach(function (x) {
+    const key = (x.phone || "").replace(/\D/g, "");
+    if (key && seen[key]) { dupes++; return; }
+    if (key) seen[key] = 1;
+    add.push(x);
+  });
+  return { add: add, dupes: dupes, skipped: r.skipped };
+}
+
+/* Paste-import. Shows what was understood before writing anything. */
+function openImport(pid) {
+  openDialog({
+    title: "لصق الشيت",
+    body:
+      '<div class="note">' + I.info + "<span>انسخ الأعمدة من Excel والصقها هنا. هنحدد الاسم والرقم تلقائياً، وتقدر تراجع قبل الحفظ.</span></div>" +
+      '<textarea class="input" id="paste" placeholder="أحمد سمير&#9;01012345678&#10;منى خالد&#9;01198765432"></textarea>' +
+      '<div id="pv"></div>',
+    confirm: "استيراد",
+    onMount: function (d) {
+      const ta = d.querySelector("#paste"), pv = d.querySelector("#pv");
+      const refresh = function () {
+        const plan = planImport(pid, ta.value);
+        if (!plan.add.length && !plan.dupes) { pv.innerHTML = ""; return; }
+        const sample = plan.add.slice(0, 4).map((x) =>
+          "<tr><td>" + esc(x.name) + '</td><td dir="ltr">' + esc(x.phone) + "</td></tr>").join("");
+        const notes = [];
+        if (plan.dupes) notes.push(fmtNum(plan.dupes) + " مكرر");
+        if (plan.skipped) notes.push(fmtNum(plan.skipped) + " سطر فاضي");
+        pv.innerHTML = '<div class="hint" style="margin-bottom:7px">هيتسجّل <b>' + fmtNum(plan.add.length) +
+          "</b> رقم" + (notes.length ? " · هيتشال " + notes.join(" و") : "") + "</div>" +
+          (sample
+            ? '<div class="preview"><div class="preview-wrap"><table><thead><tr><th>الاسم</th><th>الرقم</th></tr></thead>' +
+              "<tbody>" + sample + "</tbody></table></div></div>"
+            : "");
+      };
+      ta.addEventListener("input", refresh);
+      setTimeout(() => ta.focus(), 60);
+    },
+    onConfirm: function (d) {
+      const plan = planImport(pid, d.querySelector("#paste").value);
+      if (!plan.add.length) {
+        toast(plan.dupes ? "كل الأرقام دي موجودة بالفعل" : "مفيش بيانات صالحة");
+        return false;
+      }
+      plan.add.forEach(function (x) {
+        db.leads.push({
+          id: uid(), packageId: pid, name: x.name, phone: x.phone,
+          extra: x.extra, status: "new", note: "", createdAt: Date.now(),
+        });
+      });
+      save(); paint();
+      toast("اتضاف " + fmtNum(plan.add.length) + " رقم" +
+        (plan.dupes ? " · " + fmtNum(plan.dupes) + " مكرر اتشال" : ""));
+      return true;
+    },
+  });
+}
+
+/* ---- js/90-app.js ---- */
+/* ---------- dialog (bottom sheet on phones, centred on desktop) ---------- */
+const scrim = document.getElementById("scrim");
+const dlg = document.getElementById("dlg");
+let onConfirmFn = null;
+
+function openDialog(cfg) {
+  onConfirmFn = cfg.onConfirm || null;
+  dlg.innerHTML =
+    '<div class="grab"></div>' +
+    '<header><h2>' + esc(cfg.title || "") + "</h2>" +
+    '<button class="iconbtn plain" data-act="close" aria-label="إغلاق">' + I.x + "</button></header>" +
+    '<div class="body">' + (cfg.body || "") + "</div>" +
+    (cfg.confirm
+      ? '<div class="foot"><button class="btn accent" style="flex:1" id="dlgOk">' + esc(cfg.confirm) + "</button></div>"
+      : "");
+  scrim.classList.add("open");
+  dlg.classList.add("open");
+  document.body.style.overflow = "hidden";
+  if (cfg.onMount) cfg.onMount(dlg);
+  const ok = dlg.querySelector("#dlgOk");
+  if (ok) ok.onclick = function () { if (!onConfirmFn || onConfirmFn(dlg) !== false) closeDialog(); };
+}
+function closeDialog() {
+  scrim.classList.remove("open");
+  dlg.classList.remove("open");
+  document.body.style.overflow = "";
+  onConfirmFn = null;
+}
+function confirmDialog(title, body, yes) {
+  openDialog({
+    title: title,
+    body: '<p style="margin:0;color:var(--muted)">' + esc(body) + "</p>",
+    confirm: "نعم، احذف",
+    onConfirm: function () { yes(); return true; },
+  });
+}
+scrim.addEventListener("click", closeDialog);
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeDialog(); });
+
+/* ---------- toast ---------- */
+let toastT;
+function toast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toastT);
+  toastT = setTimeout(() => t.classList.remove("show"), 2400);
+}
+
+/* ---------- theme ---------- */
+function isDark() {
+  const a = document.documentElement.getAttribute("data-theme");
+  return a ? a === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+}
+function toggleTheme() {
+  const next = isDark() ? "light" : "dark";
+  document.documentElement.setAttribute("data-theme", next);
+  try { localStorage.setItem("twelve_theme", next); } catch (e) {}
+  paint();
+}
+(function () {
+  try {
+    const t = localStorage.getItem("twelve_theme");
+    if (t) document.documentElement.setAttribute("data-theme", t);
+  } catch (e) {}
+})();
+
+/* ---------- router ---------- */
+let view = "packages";
+let viewArg = null;
+
+function go(v, arg) {
+  view = v; viewArg = arg || null;
+  closeDialog();
+  paint();
+  window.scrollTo(0, 0);
+}
+
+function paint() {
+  const root = document.getElementById("root");
+
+  if (!db.broker) {                    // one gate: no broker, no app
+    document.getElementById("bar").innerHTML = "";
+    root.innerHTML = renderAuth();
+    hydrateIcons(root);
+    wireAuth();
+    return;
+  }
+
+  const onSheet = view === "sheet";
+  const p = onSheet ? pkgById(viewArg) : null;
+
+  document.getElementById("bar").innerHTML =
+    (onSheet ? '<button class="iconbtn plain" data-act="go-packages" aria-label="رجوع">' + I.back + "</button>" : "") +
+    '<div class="who"><h1>' + esc(onSheet && p ? p.name : "اشتراكاتي") + "</h1>" +
+    '<div class="sub">' + esc(onSheet && p
+      ? [p.area, p.source].filter(Boolean).join(" · ") || "شيت اتصال"
+      : db.broker.name) + "</div></div>" +
+    '<button class="iconbtn plain" data-act="theme" aria-label="المظهر">' + (isDark() ? I.sun : I.moon) + "</button>" +
+    '<button class="iconbtn plain" data-act="signout" aria-label="خروج">' + I.out + "</button>";
+
+  root.innerHTML = onSheet ? renderSheet(viewArg) : renderPackages();
+  hydrateIcons(document);
+
+  const q = document.getElementById("q");
+  if (q) {
+    q.addEventListener("input", function () {
+      sheetQuery = q.value;
+      const rows = document.querySelector(".rows");
+      if (!rows) return;
+      const tmp = document.createElement("div");
+      tmp.innerHTML = renderSheet(viewArg);
+      rows.replaceWith(tmp.querySelector(".rows"));   // keep focus in the box
+      hydrateIcons(document);
+    });
+  }
+  document.querySelectorAll("[data-f]").forEach(function (b) {
+    b.onclick = function () { sheetFilter = b.dataset.f; paint(); };
+  });
+}
+
+/* ---------- one delegated click handler for the whole app ---------- */
+document.addEventListener("click", function (e) {
+  const el = e.target.closest("[data-act]");
+  if (!el) return;
+  const a = el.dataset.act, id = el.dataset.id;
+  if (a === "close") return closeDialog();
+  if (a === "theme") return toggleTheme();
+  if (a === "signout") return confirmDialog("تسجيل الخروج؟", "بياناتك هتفضل محفوظة على الجهاز.", function () {
+    db.broker = null; save(); go("packages");
+  });
+  if (a === "new-pkg") return openNewPackage();
+  if (a === "del-pkg") return deletePackage(id);
+  if (a === "open-pkg") { sheetFilter = "all"; sheetQuery = ""; return go("sheet", id); }
+  if (a === "go-packages") return go("packages");
+  if (a === "import") return openImport(id);
+  if (a === "open-lead") return openLead(id);
+  if (a === "next-call") return nextCall(id);
+});
+
+paint();
+</script>
