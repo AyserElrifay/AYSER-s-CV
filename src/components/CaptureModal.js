@@ -1924,6 +1924,10 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
                 el.play().catch((e) => setPlayErr((e && e.name) || 'blocked'));
                 el.onloadeddata = () => {
                   if (el.videoWidth > 0) { setVideoOk(true); previewOkRef.current = true; }
+                  // the clip's own shape, for the lens overlay
+                  if (el.videoWidth && el.videoHeight) {
+                    setFrameSize((f) => (f.w === el.videoWidth && f.h === el.videoHeight ? f : { w: el.videoWidth, h: el.videoHeight }));
+                  }
                   setDiag((d) => ({ ...(d || {}), vw: el.videoWidth, vh: el.videoHeight, ready: el.readyState }));
                   /* The preview has the clip open, so it does the
                      measuring — nothing else needs to load a second
@@ -1946,8 +1950,23 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
             />
             )
           ) : isWeb ? (
-            // raw <img> so the chosen filter shows LIVE in the preview
-            <img src={shot.uri} style={{ position: 'absolute', width: '100%', height: '100%', objectFit: 'cover', filter: cssFilter }} alt="" />
+            /* raw <img> so the chosen filter shows LIVE in the preview.
+               A picture off the camera roll can be any shape at all, and
+               the lens overlay is fitted to whatever it is told the
+               frame is — so the picture says so itself. Left to the
+               camera's shape, a 4:3 photo would wear its lens in the
+               wrong place and the file would disagree again. */
+            <img
+              src={shot.uri}
+              onLoad={(e) => {
+                const el = e && e.currentTarget;
+                const w = el && (el.naturalWidth || el.width);
+                const h = el && (el.naturalHeight || el.height);
+                if (w && h) setFrameSize((f) => (f.w === w && f.h === h ? f : { w, h }));
+              }}
+              style={{ position: 'absolute', width: '100%', height: '100%', objectFit: 'cover', filter: cssFilter }}
+              alt=""
+            />
           ) : (
             <Image source={{ uri: shot.uri }} style={{ position: 'absolute', width: '100%', height: '100%' }} resizeMode="cover" />
           )
