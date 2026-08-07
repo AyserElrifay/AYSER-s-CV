@@ -53,6 +53,9 @@ export const ComposeModal = ({ initialMode = 'post', initialCaption = '', onClos
   const MONTHS = React.useMemo(monthOptions, []);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+  // a pending hand-off must not fire after this screen has gone
+  const doneTimer = React.useRef(null);
+  React.useEffect(() => () => { if (doneTimer.current) clearTimeout(doneTimer.current); }, []);
 
   const isReel = mode === 'reel';
   const isStory = mode === 'story';
@@ -95,7 +98,11 @@ export const ComposeModal = ({ initialMode = 'post', initialCaption = '', onClos
     if (busy) return;
     if (isStory && !imageUri) { setError('A story needs a photo — shoot one! 📸'); return; }
     if (isTravel && !planReady) { setError('A plan needs a headline and where you\'re going 🧳'); return; }
-    if (!isStory && !caption.trim()) return;
+    /* A plan's headline is its content, so it does not also need a
+       caption. It used to: the button went bright the moment the
+       headline and the destination were in, and then this line returned
+       without a word, so the button looked broken and nothing posted. */
+    if (!isStory && !isTravel && !caption.trim()) return;
     setError(null);
     setBusy(true);
     try {
@@ -186,9 +193,11 @@ export const ComposeModal = ({ initialMode = 'post', initialCaption = '', onClos
          and quietly gets a normal post. Say it, in words that mean
          something to the person reading them. */
       if (isTravel && card && card.__planLost) {
-        setBusy(false);
+        /* Stay busy while the message is up. Clearing it here let a
+           second tap in those two and a half seconds post the whole
+           thing twice. */
         setError('Posted — but travel plans are not switched on yet, so this went up as an ordinary moment 🧳');
-        setTimeout(() => { onPosted(card); onClose(); }, 2600);
+        doneTimer.current = setTimeout(() => { onPosted(card); onClose(); }, 2600);
         return;
       }
       tapSuccess();
@@ -277,8 +286,17 @@ export const ComposeModal = ({ initialMode = 'post', initialCaption = '', onClos
               </Text>
 
               <Text style={{ color: C.dim, fontSize: 11.5, fontWeight: '900', letterSpacing: 0.6, marginTop: 16, marginLeft: 2 }}>WHEN</Text>
-              {[{ k: 'from', label: 'Arriving', val: planFrom, set: setPlanFrom },
-                { k: 'to', label: 'Leaving', val: planTo, set: setPlanTo }].map((rowDef) => (
+              {/* Leaving before you arrive is not a trip. Picking one end
+                  past the other carries the other along rather than
+                  refusing the tap or quietly posting "Dec → Aug". */}
+              {[{ k: 'from',
+                  label: 'Arriving',
+                  val: planFrom,
+                  set: (v) => { setPlanFrom(v); if (v && planTo && planTo < v) setPlanTo(v); } },
+                { k: 'to',
+                  label: 'Leaving',
+                  val: planTo,
+                  set: (v) => { setPlanTo(v); if (v && planFrom && v < planFrom) setPlanFrom(v); } }].map((rowDef) => (
                 <View key={rowDef.k} style={{ marginTop: 8 }}>
                   <Text style={{ color: C.faint, fontSize: 11.5, marginLeft: 3, marginBottom: 5 }}>{rowDef.label}</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled">

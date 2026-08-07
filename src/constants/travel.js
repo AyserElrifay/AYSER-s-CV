@@ -49,7 +49,11 @@ export const monthLabel = (key) => {
 /* "Aug 2026", or "Aug — Sep 2026" when there are two ends to it. */
 export const planWhen = (plan) => {
   if (!plan) return '';
-  const a = monthLabel(plan.from), b = monthLabel(plan.to);
+  // read whichever way round they were stored — an older plan may carry
+  // the two ends the wrong way about, and a card should still read right
+  let f = plan.from, t = plan.to;
+  if (f && t && t < f) { const swap = f; f = t; t = swap; }
+  const a = monthLabel(f), b = monthLabel(t);
   if (a && b && a !== b) return a + ' → ' + b;
   return a || b || '';
 };

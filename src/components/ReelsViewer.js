@@ -48,14 +48,36 @@ export const ReelsViewer = ({ reels, startIndex = 0, vibes, onVibe, onComment, o
      play to be muted, so it starts that way and one tap turns it on —
      for this reel and every one after it. */
   const [sound, setSound] = useState(soundOn);
-  const videosRef = useRef([]);
+  /* ── ONE REEL AT A TIME ───────────────────────────────────────────
+     Every clip in the list autoplays, which is fine while they are all
+     silent and a mess the moment they are not: turning the sound on set
+     three or four of them talking over each other, including ones that
+     were nowhere near the screen. The one you are looking at plays; the
+     rest are paused until they are the one you are looking at. */
+  const videosRef = useRef(new Map());
+  const activeRef = useRef(null);
+
+  const syncPlayback = React.useCallback(() => {
+    videosRef.current.forEach((el, id) => {
+      if (!el || !el.isConnected) { videosRef.current.delete(id); return; }
+      if (activeRef.current == null || id === activeRef.current) applySound(el);
+      else { el.muted = true; try { el.pause(); } catch (e) {} }
+    });
+  }, []);
+
+  const viewCfg = useRef({ itemVisiblePercentThreshold: 60 });
+  const onViewable = useRef(({ viewableItems }) => {
+    const first = viewableItems && viewableItems[0];
+    activeRef.current = first && first.item ? first.item.id : null;
+    syncPlayback();
+  });
 
   const toggleSound = () => {
     const next = !sound;
     tapLight();
     setSound(next);
     setSoundOn(next);
-    videosRef.current.forEach((el) => { if (el && el.isConnected) applySound(el); });
+    syncPlayback();
   };
 
   const openManage = (item) => {
@@ -168,8 +190,11 @@ export const ReelsViewer = ({ reels, startIndex = 0, vibes, onVibe, onComment, o
             ref={(el) => {
               if (!el || el.__wired) return;
               el.__wired = true;
-              videosRef.current.push(el);
-              applySound(el);
+              videosRef.current.set(item.id, el);
+              // the first one on screen is the one that plays
+              if (activeRef.current == null) activeRef.current = item.id;
+              if (activeRef.current === item.id) applySound(el);
+              else { el.muted = true; try { el.pause(); } catch (e) {} }
               /* A clip that plays but shows nothing is the common
                  failure here, and it passes every "did it load" test.
                  Look at the pixels. */
@@ -288,6 +313,8 @@ export const ReelsViewer = ({ reels, startIndex = 0, vibes, onVibe, onComment, o
           showsVerticalScrollIndicator={false}
           snapToInterval={H}
           decelerationRate="fast"
+          onViewableItemsChanged={onViewable.current}
+          viewabilityConfig={viewCfg.current}
         />
         {/* header */}
         <View style={{ position: 'absolute', top: insets.top + 10, left: 16, right: 16, flexDirection: 'row', alignItems: 'center' }}>

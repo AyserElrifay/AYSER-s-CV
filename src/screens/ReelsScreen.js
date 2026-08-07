@@ -51,13 +51,30 @@ export const ReelsScreen = () => {
   /* Reels played silently with no way to change it — see
      src/lib/videoSound.js. One tap, and every reel after it too. */
   const [sound, setSound] = useState(soundOn);
-  const reelVideos = useRef([]);
+  /* Only the reel you are actually looking at plays. Every clip in the
+     list autoplays, which was harmless while they were all silent and a
+     mess the moment they were not. */
+  const reelVideos = useRef(new Map());
+  const activeReel = useRef(null);
+  const syncReels = React.useCallback(() => {
+    reelVideos.current.forEach((el, id) => {
+      if (!el || !el.isConnected) { reelVideos.current.delete(id); return; }
+      if (activeReel.current == null || id === activeReel.current) applySound(el);
+      else { el.muted = true; try { el.pause(); } catch (e) {} }
+    });
+  }, []);
+  const reelViewCfg = useRef({ itemVisiblePercentThreshold: 60 });
+  const onReelViewable = useRef(({ viewableItems }) => {
+    const first = viewableItems && viewableItems[0];
+    activeReel.current = first && first.item ? first.item.id : null;
+    syncReels();
+  });
   const toggleSound = () => {
     const next = !sound;
     tapLight();
     setSound(next);
     setSoundOn(next);
-    reelVideos.current.forEach((el) => { if (el && el.isConnected) applySound(el); });
+    syncReels();
   };
 
   useEffect(() => {
@@ -175,8 +192,10 @@ export const ReelsScreen = () => {
               ref={(el) => {
                 if (!el || el.__wired) return;
                 el.__wired = true;
-                reelVideos.current.push(el);
-                applySound(el);
+                reelVideos.current.set(item.id, el);
+                if (activeReel.current == null) activeReel.current = item.id;
+                if (activeReel.current === item.id) applySound(el);
+                else { el.muted = true; try { el.pause(); } catch (e) {} }
                 el.onerror = () => setDead((d) => ({ ...d, [item.id]: 'broken' }));
                 /* Reels recorded before the WebKit fix are black in the
                    file itself. They load fine and report a width and a
@@ -330,6 +349,8 @@ export const ReelsScreen = () => {
           showsVerticalScrollIndicator={false}
           snapToInterval={pageH}
           decelerationRate="fast"
+          onViewableItemsChanged={onReelViewable.current}
+          viewabilityConfig={reelViewCfg.current}
         />
       ) : pageH > 0 ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 }}>

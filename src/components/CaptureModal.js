@@ -744,6 +744,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
   const [frameSize, setFrameSize] = useState({ w: 1280, h: 720 });
   // 0–1 while a big clip is being re-encoded, null when it isn't
   const [shrink, setShrink] = useState(null);
+  const shrinkAbort = React.useRef(null);
   const [shot, setShot] = useState(null); // { uri, kind: 'photo'|'video', ext, contentType }
   const [recording, setRecording] = useState(false);
   const [locked, setLocked] = useState(false);   // hands-free, tap to stop
@@ -1570,8 +1571,17 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
 
     setShrink(0);
     setCamError(null);
-    const small = await compressVideo(blob, { onProgress: setShrink });
-    setShrink(null);
+    const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    shrinkAbort.current = ctrl;
+    let small = null;
+    try {
+      small = await compressVideo(blob, { onProgress: setShrink, signal: ctrl && ctrl.signal });
+    } finally {
+      // the overlay covers the whole screen — it must never be left up
+      setShrink(null);
+      shrinkAbort.current = null;
+    }
+    if (ctrl && ctrl.signal.aborted) return null;
     if (small) {
       note('video-compressed', { from: small.from, to: small.to, seconds: Math.round(small.seconds) });
       return {
@@ -2143,6 +2153,14 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
               <View style={{ width: Math.max(3, Math.round(shrink * 100)) + '%', height: '100%', backgroundColor: '#20E3D2' }} />
             </View>
             <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13, fontWeight: '900', marginTop: 9 }}>{Math.round(shrink * 100)}%</Text>
+            <Pressable
+              onPress={() => { tapLight(); if (shrinkAbort.current) { try { shrinkAbort.current.abort(); } catch (e) {} } }}
+              style={{ marginTop: 20 }}
+            >
+              <View style={{ borderWidth: 1, borderColor: 'rgba(255,255,255,0.4)', borderRadius: 999, paddingHorizontal: 24, paddingVertical: 10 }}>
+                <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '800' }}>Cancel</Text>
+              </View>
+            </Pressable>
           </View>
         ) : null}
 
@@ -2166,7 +2184,10 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
           <LensLayer
             lens={lens}
             frame={frameSize}
-            fit={fit === 'wide' ? 'contain' : 'cover'}
+            /* the shot previews are always cover; only the live
+               viewfinder honours wide mode, and the overlay has to be
+               fitted the same way as whatever is underneath it */
+            fit={shot ? 'cover' : (fit === 'wide' ? 'contain' : 'cover')}
             onMove={(x, y) => {
               // your thumb wins — the app stops moving it from here
               if (faceTracking) setFaceTracking(false);

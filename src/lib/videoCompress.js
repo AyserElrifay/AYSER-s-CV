@@ -152,13 +152,23 @@ export async function compressVideo(src, opts) {
   const url = typeof src === 'string' ? src : URL.createObjectURL(src);
   const el = document.createElement('video');
   el.src = url;
-  el.muted = true;              // we take the audio off the track, not the speakers
+  /* NOT muted. A muted element hands out a silent audio track — the
+     capture is of the element's OUTPUT, and a muted element outputs
+     silence — so muting it here would have produced exactly the
+     soundless re-encode this module promises to refuse, while passing
+     its own "is there an audio track" check. Nobody hears it because
+     the sound is routed into the recorder and never to the speakers,
+     which is what the audio graph below is for. */
+  el.muted = false;
+  el.volume = 1;
   el.playsInline = true;
   el.preload = 'auto';
 
+  let audioCtx = null;
   const cleanup = () => {
     try { el.pause(); } catch (e) {}
     el.src = '';
+    if (audioCtx) { try { audioCtx.close(); } catch (e) {} audioCtx = null; }
     if (typeof src !== 'string') { try { URL.revokeObjectURL(url); } catch (e) {} }
   };
 
@@ -175,16 +185,31 @@ export async function compressVideo(src, opts) {
     const seconds = Math.min(full, maxSeconds);
     if (!(seconds > 0.3)) { cleanup(); return null; }
 
-    /* THE AUDIO. captureStream on the element is the only way to get the
-       decoded soundtrack out, and not every browser has it. If the file
-       has sound and we cannot carry it, we do not compress — losing the
-       sound to save bytes is not a trade anybody asked for. */
-    let elStream = null;
+    /* THE AUDIO. The soundtrack is pulled through an audio graph rather
+       than off the element's own captured stream: the graph gives a
+       real track whatever the element's volume is doing, and because it
+       is never connected to the speakers, re-encoding stays silent to
+       whoever is sitting there. If the file has sound and we cannot
+       carry it, we do not compress at all — losing the sound to save
+       bytes is not a trade anybody asked for. */
+    let audioTracks = [];
     try {
-      const grab = el.captureStream || el.mozCaptureStream;
-      if (grab) elStream = grab.call(el);
-    } catch (e) { elStream = null; }
-    const audioTracks = elStream ? elStream.getAudioTracks() : [];
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (AC) {
+        audioCtx = new AC();
+        const source = audioCtx.createMediaElementSource(el);
+        const sink = audioCtx.createMediaStreamDestination();
+        source.connect(sink);                 // to the recorder, and nowhere else
+        audioTracks = sink.stream.getAudioTracks();
+      }
+    } catch (e) { audioTracks = []; }
+    if (!audioTracks.length) {
+      // fall back to the element's own capture, where the browser has it
+      try {
+        const grab = el.captureStream || el.mozCaptureStream;
+        if (grab) audioTracks = grab.call(el).getAudioTracks();
+      } catch (e) { audioTracks = []; }
+    }
     if (!audioTracks.length) {
       // does it have sound at all? if we can't tell, assume it does
       const probablySilent = el.mozHasAudio === false
@@ -232,6 +257,7 @@ export async function compressVideo(src, opts) {
     if (signal) signal.addEventListener('abort', onAbort);
 
     el.currentTime = 0;
+    if (audioCtx && audioCtx.state === 'suspended') { try { await audioCtx.resume(); } catch (e) {} }
     await el.play();
     draw();
     rec.start(1000);

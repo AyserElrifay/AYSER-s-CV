@@ -93,6 +93,11 @@ export const MediaLibrarySheet = ({ onPick, onClose, only = null, inline = false
             signal: ctrl && ctrl.signal,
           });
           setSqueeze(null);
+          /* Cancel means cancel. Aborting the re-encode used to fall
+             straight through to uploading the untouched original — and
+             the abort signal was already spent, so nothing stopped that
+             either. */
+          if (ctrl && ctrl.signal && ctrl.signal.aborted) throw new Error('cancelled');
           if (small) {
             body = small.blob; ext = small.ext; type = small.contentType;
           } else if (file.size > MAX_UPLOAD_BYTES) {

@@ -110,6 +110,10 @@ function putWithProgress({ url, token, body, contentType, onProgress, signal }) 
 
     const done = () => clearInterval(stall);
 
+    /* A signal that was already aborted will never fire again, so
+       listening for it is not enough — an upload started after a cancel
+       would run to completion with nothing to stop it. */
+    if (signal && signal.aborted) { done(); return reject(new Error('Upload cancelled')); }
     if (signal) {
       signal.addEventListener('abort', () => { done(); try { xhr.abort(); } catch (e) {} reject(new Error('Upload cancelled')); });
     }
@@ -164,6 +168,7 @@ function tusChunk({ url, token, blob, offset, contentType, onBytes, signal }) {
     }, 2000);
     const done = () => clearInterval(stall);
 
+    if (signal && signal.aborted) { done(); return reject(new Error('Upload cancelled')); }
     if (signal) signal.addEventListener('abort', () => { done(); try { xhr.abort(); } catch (e) {} reject(new Error('Upload cancelled')); });
 
     xhr.upload.onprogress = (e) => { moved = Date.now(); if (onBytes && e.lengthComputable) onBytes(e.loaded); };
@@ -223,6 +228,7 @@ async function uploadResumable({ base, token, bucket, path, body, contentType, o
 
 async function uploadToSupabase(userId, uri, ext, contentType, opts) {
   const { onProgress, signal } = opts || {};
+  if (signal && signal.aborted) throw new Error('Upload cancelled');
   // Blob, not ArrayBuffer — half the memory footprint, which is what
   // made Safari throw 'Load failed' on big videos.
   const body = await asBlob(uri);

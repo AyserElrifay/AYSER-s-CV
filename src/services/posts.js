@@ -258,7 +258,11 @@ export async function fetchTravelPlans({ q = '', limit = 40 } = {}) {
     const end = p.to || p.from;
     return !end || String(end) >= thisMonth;   // still ahead of us
   });
-  rows.sort((a, b) => String((a.plan && a.plan.from) || '9999').localeCompare(String((b.plan && b.plan.from) || '9999')));
+  // "soonest first" has to work off whichever end of the trip is dated;
+  // sorting on `from` alone dropped a plan that only said when it ends
+  // below every dated one.
+  const when = (r) => String((r.plan && (r.plan.from || r.plan.to)) || '9999');
+  rows.sort((a, b) => when(a).localeCompare(when(b)));
   return rows.slice(0, limit);
 }
 
