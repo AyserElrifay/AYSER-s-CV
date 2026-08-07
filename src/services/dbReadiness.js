@@ -54,6 +54,36 @@ const CHECKS = [
   },
 ];
 
+/* ── THE ONE THAT IS NOT A COLUMN ─────────────────────────────────
+   The storage bucket has a size limit of its own, and it is what turned
+   a 120MB clip into "Could not start the upload (HTTP 413)" — the very
+   thing that started all of this. It belongs on this list more than
+   anything else on it. It is not a table, so it is asked a different
+   way: the bucket itself is asked how big a file it takes. */
+const MIN_BUCKET = 200 * 1024 * 1024;
+
+async function probeBucket() {
+  const base = {
+    id: 'bucket',
+    label: 'Big video uploads',
+    what: 'A long clip is refused before it is sent, however small the app makes it.',
+  };
+  try {
+    const { data, error } = await supabase.storage.getBucket('media');
+    if (error || !data) return { ...base, state: 'unknown', detail: (error && error.message) || 'the bucket did not answer' };
+    const limit = data.file_size_limit;
+    if (limit == null) return { ...base, state: 'ready' };     // no limit set at all
+    if (limit >= MIN_BUCKET) return { ...base, state: 'ready' };
+    return {
+      ...base,
+      state: 'missing',
+      what: 'The bucket takes ' + Math.round(limit / 1048576) + 'MB at most, so anything larger is refused before it is sent.',
+    };
+  } catch (e) {
+    return { ...base, state: 'unknown', detail: (e && e.message) || 'no answer' };
+  }
+}
+
 /* One probe. A missing table and a missing column both come back as an
    error we can read; anything else — no connection, a refused request —
    is not an answer, and saying "not switched on" would be a guess. */
@@ -73,5 +103,5 @@ async function probe(check) {
 
 export async function checkDatabase() {
   if (!SUPABASE_READY) return [];
-  return Promise.all(CHECKS.map(probe));
+  return Promise.all(CHECKS.map(probe).concat([probeBucket()]));
 }
