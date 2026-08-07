@@ -10,6 +10,7 @@ import { fetchStudioStats } from '../services/feedback';
 import { fetchPendingVerifications, decideVerification } from '../services/profiles';
 import { fetchTracks, setTrackApproval, harvestFreeMusic, harvestPublicDomainClassics, clearImportedTracks, countImportedTracks } from '../services/music';
 import { fetchHelpArticles, createHelpArticle, updateHelpArticle, deleteHelpArticle } from '../services/help';
+import { checkDatabase } from '../services/dbReadiness';
 import { fetchBardiConfig, saveBardiConfig, fetchBardiKnowledge, addBardiKnowledge, deleteBardiKnowledge, invalidateBardiBrain } from '../services/bardiOwner';
 import { askBardi } from '../services/bardi';
 import { AV_NEUTRAL } from '../constants/mockData';
@@ -27,6 +28,7 @@ const TABS = [
   { k: 'feedback', label: 'Feedback', icon: 'chatbubbles-outline' },
   { k: 'help', label: 'Help', icon: 'help-circle-outline' },
   { k: 'bardi', label: 'Bardi', icon: 'sparkles-outline' },
+  { k: 'db', label: 'Setup', icon: 'server-outline' },
 ];
 
 export const AdminPanel = ({ onClose }) => {
@@ -59,6 +61,7 @@ export const AdminPanel = ({ onClose }) => {
   const [bUrl, setBUrl] = useState('');
   const [bBusy, setBBusy] = useState(false);
   const [bErr, setBErr] = useState(null);
+  const [dbRows, setDbRows] = useState(null);
 
   useEffect(() => { fetchStudioStats().then(setStats).catch(() => setStats(null)); }, []);
   useEffect(() => {
@@ -67,6 +70,7 @@ export const AdminPanel = ({ onClose }) => {
     if (tab === 'music' && music == null) fetchTracks({ all: true, meId: user && user.id }).then((rows) => setMusic((rows || []).filter((t) => !t.is_approved && !t.is_official))).catch(() => setMusic([]));
     if (tab === 'feedback' && feedback == null) fetchFeedback().then(setFeedback).catch(() => setFeedback([]));
     if (tab === 'help' && help == null) fetchHelpArticles().then(setHelp).catch(() => setHelp([]));
+    if (tab === 'db' && dbRows == null) checkDatabase().then(setDbRows).catch(() => setDbRows([]));
     if (tab === 'bardi') {
       if (bInstr == null) fetchBardiConfig().then(setBInstr).catch(() => setBInstr(''));
       if (bKnow == null) fetchBardiKnowledge().then(setBKnow).catch(() => setBKnow([]));
@@ -235,6 +239,68 @@ export const AdminPanel = ({ onClose }) => {
                 </View>
               </View>
             ))
+          ) : null}
+
+          {/* ── WHAT THE DATABASE STILL NEEDS ──────────────────────
+              Every one of these degrades honestly on its own, but read
+              weeks apart there is no way to see that they share one
+              cause and one fix. Owner's panel only — what a database is
+              missing is nobody else's reading. */}
+          {tab === 'db' ? (
+            dbRows == null ? <ActivityIndicator color={C.purple} style={{ marginTop: 30 }} /> : (
+              <View>
+                {(() => {
+                  /* "Could not tell" is not "all fine". Counting only the
+                     missing ones made a screen where nothing answered
+                     announce that everything was switched on — the exact
+                     false reassurance this tab exists to stop. */
+                  const asleep = dbRows.filter((r) => r.state === 'missing').length;
+                  const unsure = dbRows.filter((r) => r.state === 'unknown').length;
+                  const tone = asleep ? 'warn' : unsure ? 'unsure' : 'good';
+                  const bg = tone === 'good' ? C.greenSoft : tone === 'warn' ? 'rgba(245,179,1,0.12)' : C.glassHi;
+                  const line = tone === 'good' ? 'rgba(16,185,129,0.35)' : tone === 'warn' ? 'rgba(245,179,1,0.4)' : C.line;
+                  return (
+                    <View style={{ backgroundColor: bg, borderWidth: 1, borderColor: line, borderRadius: 14, padding: 13, marginBottom: 14 }}>
+                      <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '900' }}>
+                        {tone === 'warn'
+                          ? asleep + (asleep === 1 ? ' feature is asleep' : ' features are asleep')
+                          : tone === 'unsure'
+                            ? "Couldn't reach the database"
+                            : 'Everything is switched on ✅'}
+                      </Text>
+                      <Text style={{ color: C.dim, fontSize: 12, marginTop: 5, lineHeight: 18 }}>
+                        {tone === 'warn'
+                          ? 'Open the Supabase SQL editor and run supabase/RUN_ME.sql. It is safe to run again — every statement checks before it changes anything.'
+                          : tone === 'unsure'
+                            ? 'Nothing here is a verdict until it answers. Check the connection and try again.'
+                            : 'Every table and column the app expects is there.'}
+                      </Text>
+                    </View>
+                  );
+                })()}
+                {dbRows.map((r) => (
+                  <View key={r.id} style={{ flexDirection: 'row', alignItems: 'flex-start', backgroundColor: C.bg2, borderWidth: 1, borderColor: C.line, borderRadius: 14, padding: 12, marginBottom: 8 }}>
+                    <Ionicons
+                      name={r.state === 'ready' ? 'checkmark-circle' : r.state === 'missing' ? 'alert-circle' : 'help-circle'}
+                      size={18}
+                      color={r.state === 'ready' ? C.green : r.state === 'missing' ? C.gold : C.faint}
+                      style={{ marginTop: 1 }}
+                    />
+                    <View style={{ flex: 1, marginLeft: 10 }}>
+                      <Text style={{ color: C.text, fontSize: 13, fontWeight: '800' }}>{r.label}</Text>
+                      <Text style={{ color: C.dim, fontSize: 11.5, marginTop: 3, lineHeight: 17 }}>
+                        {r.state === 'ready' ? 'Working.'
+                          : r.state === 'missing' ? r.what
+                          : 'Could not tell — ' + (r.detail || 'no answer from the server') + '.'}
+                      </Text>
+                    </View>
+                  </View>
+                ))}
+                <Pressable onPress={() => { tapLight(); setDbRows(null); checkDatabase().then(setDbRows).catch(() => setDbRows([])); }} style={{ alignSelf: 'center', marginTop: 6 }}>
+                  <Text style={{ color: C.purple, fontSize: 13, fontWeight: '900' }}>Check again</Text>
+                </Pressable>
+              </View>
+            )
           ) : null}
 
           {tab === 'verify' ? (
