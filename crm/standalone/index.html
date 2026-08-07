@@ -265,14 +265,39 @@
   .meter { display: flex; height: 8px; border-radius: 999px; overflow: hidden; background: var(--surface-2); }
   .save-note { font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 5px; }
 
-  /* Mobile bottom navigation — replaces the sidebar on narrow screens */
-  .mnav { display: none; }
+  /* Hamburger + scrim: only ever used by the mobile drawer layout */
+  .menu-btn { display: none; }
+  .scrim { display: none; }
 
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
   @media (max-width: 860px) {
-    .sidebar { display: none; }
-    .content { padding: 14px 14px 84px; }
-    .topbar { padding: 12px 14px; gap: 10px; }
+    /* ChatGPT-style: no persistent nav. The sidebar becomes a slide-in
+       drawer, and the content owns the whole screen. */
+    .sidebar {
+      position: fixed; inset-block: 0; inset-inline-start: 0;
+      width: 82vw; max-width: 300px; height: 100dvh; z-index: 80;
+      background: var(--surface); border-inline-start: none;
+      border-inline-end: 1px solid var(--border);
+      padding-bottom: calc(14px + env(safe-area-inset-bottom));
+      /* body is dir=rtl, so inline-start is the right edge: hide to the right */
+      transform: translateX(100%);
+      transition: transform .22s ease;
+      box-shadow: var(--shadow-pop);
+    }
+    body.nav-open .sidebar { transform: none; }
+    body.nav-open { overflow: hidden; }
+
+    .scrim {
+      display: block; position: fixed; inset: 0; z-index: 75;
+      background: rgba(20,30,27,.45); opacity: 0; pointer-events: none;
+      transition: opacity .22s ease;
+    }
+    body.nav-open .scrim { opacity: 1; pointer-events: auto; }
+
+    .menu-btn { display: grid; }
+
+    .content { padding: 14px 14px 40px; }
+    .topbar { padding: 10px 12px; gap: 8px; }
     .topbar h1 { font-size: 15.5px; }
     .topbar .sub { display: none; }
     .row2 { grid-template-columns: 1fr; }
@@ -283,20 +308,6 @@
     .modal:not(.drawer) { max-width: 100%; }
     .bar { gap: 10px 14px; padding: 10px 12px; }
     .fgroup > span { display: none; }
-
-    .mnav {
-      display: flex; position: fixed; inset-inline: 0; bottom: 0; z-index: 50;
-      background: var(--surface); border-top: 1px solid var(--border);
-      padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
-      box-shadow: 0 -4px 16px rgba(23,48,42,.08);
-    }
-    .mnav-item {
-      flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px;
-      border: none; background: none; color: var(--muted); font-size: 10.5px; padding: 6px 2px;
-      border-radius: 8px;
-    }
-    .mnav-item svg { width: 20px; height: 20px; }
-    .mnav-item.active { color: var(--accent); font-weight: 600; }
   }
 </style>
 
@@ -332,6 +343,7 @@
 
   <div class="main">
     <header class="topbar">
+      <button class="icon-btn menu-btn" id="menuBtn" aria-label="القائمة" aria-expanded="false"><span data-icon="menu"></span></button>
       <div>
         <h1 id="viewTitle">اليوم</h1>
         <div class="sub" id="viewSub">نظرة عامة على بياناتك</div>
@@ -342,12 +354,7 @@
   </div>
 </div>
 
-<nav class="mnav" id="mnav">
-  <button class="mnav-item" data-view="dashboard"><span data-icon="grid"></span><span>اليوم</span></button>
-  <button class="mnav-item" data-view="companies"><span data-icon="building"></span><span>الشركات</span></button>
-  <button class="mnav-item" data-view="inventory"><span data-icon="store"></span><span>العقارات</span></button>
-  <button class="mnav-item" data-view="leads"><span data-icon="kanban"></span><span>العملاء</span></button>
-</nav>
+<div class="scrim" id="scrim"></div>
 
 <div class="overlay" id="overlay"><div class="modal" id="modal"></div></div>
 <div class="toast" id="toast"></div>
@@ -387,6 +394,7 @@ const I = {
   sparkle: svg('<path d="M12 3l1.6 4.6L18 9l-4.4 1.4L12 15l-1.6-4.6L6 9l4.4-1.4z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/>'),
   phone: svg('<path d="M6.5 3h3l1.5 4-2 1.5a12 12 0 005.5 5.5l1.5-2 4 1.5v3a2 2 0 01-2.2 2A17 17 0 014.5 5.2 2 2 0 016.5 3z"/>'),
   chat: svg('<path d="M21 11.5a8 8 0 01-11.7 7.1L4 20l1.4-4.6A8 8 0 1121 11.5z"/>'),
+  menu: svg('<path d="M4 7h16M4 12h16M4 17h16"/>'),
 };
 function hydrateIcons(root=document){ root.querySelectorAll("[data-icon]").forEach(el=>{ const name=el.getAttribute("data-icon"); if(I[name]) el.innerHTML=I[name]; }); }
 
@@ -546,7 +554,14 @@ const VIEWS = {
 let current = location.hash.replace("#/","") || "dashboard";
 if (!VIEWS[current]) current = "dashboard";
 
-function go(view){ current = view; location.hash = "#/"+view; paint(); }
+function go(view){ current = view; location.hash = "#/"+view; closeNav(); paint(); }
+
+/* ---- mobile drawer (the sidebar slides in; no persistent nav bar) ---- */
+function setNav(open){
+  document.body.classList.toggle("nav-open", open);
+  document.getElementById("menuBtn").setAttribute("aria-expanded", String(open));
+}
+function closeNav(){ setNav(false); }
 window.addEventListener("hashchange", () => {
   const v = location.hash.replace("#/","") || "dashboard";
   if (VIEWS[v] && v!==current){ current=v; paint(); }
@@ -556,7 +571,7 @@ function paint(){
   const v = VIEWS[current];
   document.getElementById("viewTitle").textContent = v.title;
   document.getElementById("viewSub").textContent = v.sub;
-  document.querySelectorAll(".nav-item[data-view], .mnav-item[data-view]").forEach(b => b.classList.toggle("active", b.dataset.view===current));
+  document.querySelectorAll(".nav-item[data-view]").forEach(b => b.classList.toggle("active", b.dataset.view===current));
   document.getElementById("content").innerHTML = v.render();
   wireView();
   window.scrollTo(0, 0);
@@ -913,7 +928,7 @@ function copyUnitSummary(id){
 }
 
 // nav
-document.querySelectorAll(".nav-item[data-view], .mnav-item[data-view]").forEach(b=> b.onclick=()=>go(b.dataset.view));
+document.querySelectorAll(".nav-item[data-view]").forEach(b=> b.onclick=()=>go(b.dataset.view));
 
 /* =====================================================================
    FORMS (Modals)
@@ -921,8 +936,11 @@ document.querySelectorAll(".nav-item[data-view], .mnav-item[data-view]").forEach
 const overlay = document.getElementById("overlay");
 const modal = document.getElementById("modal");
 overlay.addEventListener("click", e=>{ if(e.target===overlay) closeModal(); });
-document.addEventListener("keydown", e=>{ if(e.key==="Escape") closeModal(); });
+document.addEventListener("keydown", e=>{ if(e.key==="Escape"){ closeModal(); closeNav(); } });
+document.getElementById("menuBtn").onclick = ()=> setNav(!document.body.classList.contains("nav-open"));
+document.getElementById("scrim").onclick = closeNav;
 function openModal(html, variant){
+  closeNav(); // a dialog opened from the drawer must not sit behind it
   modal.className = "modal" + (variant?" "+variant:"");
   modal.innerHTML=html; overlay.classList.add("open");
   // Focus synchronously: a deferred focus can steal the caret from someone
