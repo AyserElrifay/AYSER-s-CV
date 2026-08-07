@@ -17,7 +17,7 @@ import { getOrCreateDmThread, sendMessage } from '../services/messages';
 import { tapLight, tapSuccess } from '../utils/feedback';
 import { sfxPop, sfxSuccess } from '../utils/sfx';
 import { holdToClip } from '../lib/soundClip';
-import { soundOn, setSoundOn, applySound } from '../lib/videoSound';
+import { soundOn, setSoundOn, applySound, trackPlayer, untrackPlayer, stopVideos } from '../lib/videoSound';
 
 const REACT_EMOJIS = ['❤️', '🔥', '😂', '😮', '😢', '👏'];
 
@@ -77,6 +77,11 @@ export const StoryViewer = ({ stories, groups, startGroup = 0, startIndex = 0, o
   const [confirmDel, setConfirmDel] = useState(false);
   const [storySound, setStorySound] = useState(soundOn);
   const storyVideos = useRef([]);
+  // closing a story stops its sound with it
+  useEffect(() => () => {
+    storyVideos.current.forEach((el) => untrackPlayer(el));
+    stopVideos(new Set(storyVideos.current));
+  }, []);
   const [poll, setPoll] = useState(null); // { counts:[a,b], mine, total }
   const [myReaction, setMyReaction] = useState(null);
   const [reactSent, setReactSent] = useState(false);
@@ -268,7 +273,7 @@ export const StoryViewer = ({ stories, groups, startGroup = 0, startIndex = 0, o
             key={story.media}
             src={story.media}
             autoPlay muted loop playsInline
-            ref={(el) => { if (el && !el.__wired) { el.__wired = true; storyVideos.current.push(el); applySound(el); } }}
+            ref={(el) => { if (el && !el.__wired) { el.__wired = true; storyVideos.current.push(el); trackPlayer(el); applySound(el); } }}
             style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
           />
         ) : null}

@@ -14,7 +14,7 @@ import { tapLight, tapSuccess } from '../utils/feedback';
 import { useAuth } from '../context/AuthContext';
 import { deletePost, updatePost } from '../services/posts';
 import { note } from '../lib/crashLog';
-import { soundOn, setSoundOn, applySound } from '../lib/videoSound';
+import { soundOn, setSoundOn, applySound, trackPlayer, untrackPlayer, stopVideos } from '../lib/videoSound';
 
 const { height: H } = Dimensions.get('window');
 
@@ -63,6 +63,13 @@ export const ReelsViewer = ({ reels, startIndex = 0, vibes, onVibe, onComment, o
       if (activeRef.current == null || id === activeRef.current) applySound(el);
       else { el.muted = true; try { el.pause(); } catch (e) {} }
     });
+  }, []);
+
+  /* Closing the viewer stops the sound with it — a modal that leaves a
+     video talking behind it is the same fault as a tab that does. */
+  React.useEffect(() => () => {
+    videosRef.current.forEach((el) => untrackPlayer(el));
+    stopVideos(new Set(videosRef.current.values()));
   }, []);
 
   const viewCfg = useRef({ itemVisiblePercentThreshold: 60 });
@@ -191,6 +198,7 @@ export const ReelsViewer = ({ reels, startIndex = 0, vibes, onVibe, onComment, o
               if (!el || el.__wired) return;
               el.__wired = true;
               videosRef.current.set(item.id, el);
+              trackPlayer(el);
               // the first one on screen is the one that plays
               if (activeRef.current == null) activeRef.current = item.id;
               if (activeRef.current === item.id) applySound(el);

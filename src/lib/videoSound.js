@@ -52,6 +52,36 @@ export function applySound(el) {
   }
 }
 
+/* ─── NOTHING PLAYS WHERE YOU CANNOT SEE IT ───────────────────────
+   Turning the sound on and then walking away left a reel talking to an
+   empty room: leaving the tab, locking the phone or switching apps did
+   not stop it, because nothing in the app had ever needed to know that
+   a video was playing. Every player registers here, and there is one
+   way to silence all of them.
+
+   The page-level cases are handled here, once, for everybody: hidden
+   tab, locked phone, backgrounded app. Leaving a screen is the screen's
+   own business and it does that itself. */
+const players = new Set();
+
+export function trackPlayer(el) { if (el) players.add(el); }
+export function untrackPlayer(el) { players.delete(el); }
+
+export function stopVideos(list) {
+  const it = list || players;
+  it.forEach((el) => {
+    if (!el || !el.isConnected) { players.delete(el); return; }
+    el.muted = true;
+    try { el.pause(); } catch (e) {}
+  });
+}
+
+if (typeof document !== 'undefined' && !document.__mmVideoWired) {
+  document.__mmVideoWired = true;
+  document.addEventListener('visibilitychange', () => { if (document.hidden) stopVideos(); });
+  if (typeof window !== 'undefined') window.addEventListener('pagehide', () => stopVideos());
+}
+
 /* Does this file actually carry a soundtrack? Browsers only tell us
    once enough has been decoded, and Safari does not tell us at all, so
    this is "yes / don't know" rather than a promise — used only to keep

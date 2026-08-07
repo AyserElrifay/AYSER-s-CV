@@ -19,6 +19,7 @@ import { FilmSheet } from '../components/FilmSheet';
 import { BooksShelf } from '../components/BooksShelf';
 import { CommentsSheet } from '../components/CommentsSheet';
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
+import { trackPlayer } from '../lib/videoSound';
 import { sfxSuccess, sfxPop } from '../utils/sfx';
 
 /* ────────────── TAB 4 · CHILL — WATCH & UNWIND ──────────────
@@ -376,8 +377,15 @@ export const ChillScreen = () => {
       <Modal visible transparent animationType="fade" onRequestClose={() => setPlayer(null)}>
         <View style={{ flex: 1, backgroundColor: '#000' }}>
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            {/* the player is registered so locking the phone stops it
+                too — see src/lib/videoSound.js */}
             {isWeb && player.media ? (
-              <video src={player.media} controls autoPlay playsInline style={{ width: '100%', maxHeight: '80%' }} />
+              <video
+                src={player.media}
+                controls autoPlay playsInline
+                ref={(el) => { if (el) trackPlayer(el); }}
+                style={{ width: '100%', maxHeight: '80%' }}
+              />
             ) : player.media ? (
               <Image source={{ uri: player.media }} style={{ width: '100%', height: '60%' }} resizeMode="contain" />
             ) : null}

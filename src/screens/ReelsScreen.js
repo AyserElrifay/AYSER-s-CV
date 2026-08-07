@@ -17,7 +17,8 @@ import { CaptureModal } from '../components/CaptureModal';
 import { ProfileModal } from '../components/ProfileModal';
 import { tapLight, tapMedium } from '../utils/feedback';
 import { sfxStar, sfxPop } from '../utils/sfx';
-import { soundOn, setSoundOn, applySound } from '../lib/videoSound';
+import { soundOn, setSoundOn, applySound, trackPlayer, untrackPlayer, stopVideos } from '../lib/videoSound';
+import { useIsFocused } from '@react-navigation/native';
 
 /* ─── TAB 3 · REELS — the standalone vertical feed ───
    TikTok-style full-screen pager with the Moments identity: the gold
@@ -76,6 +77,21 @@ export const ReelsScreen = () => {
     setSoundOn(next);
     syncReels();
   };
+
+  /* LEAVING THE TAB STOPS IT. A tab is not unmounted when you swipe off
+     it, so the reel carried on talking from behind whatever you opened
+     next — the phone even showed the app still playing. Nothing plays
+     where you cannot see it. */
+  const focused = useIsFocused();
+  useEffect(() => {
+    if (focused) syncReels();
+    else stopVideos(new Set(reelVideos.current.values()));
+  }, [focused, syncReels]);
+
+  useEffect(() => () => {
+    reelVideos.current.forEach((el) => untrackPlayer(el));
+    stopVideos(new Set(reelVideos.current.values()));
+  }, []);
 
   useEffect(() => {
     if (!SUPABASE_READY) return;
@@ -193,6 +209,7 @@ export const ReelsScreen = () => {
                 if (!el || el.__wired) return;
                 el.__wired = true;
                 reelVideos.current.set(item.id, el);
+                trackPlayer(el);
                 if (activeReel.current == null) activeReel.current = item.id;
                 if (activeReel.current === item.id) applySound(el);
                 else { el.muted = true; try { el.pause(); } catch (e) {} }
