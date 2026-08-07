@@ -111,32 +111,49 @@ async function askBardiDirect(messages, opts) {
      longer than a short back-and-forth, which reads as the chat being
      wiped. A budget in characters instead of a count keeps as much as
      the request can actually carry: long answers take fewer turns,
-     short ones take many more. */
-  const hist = [];
-  let budget = 6000;
-  for (let i = (messages || []).length - 1; i >= 0 && hist.length < 40; i--) {
-    const text = String((messages[i] && messages[i].content) || '');
-    if (hist.length && budget - text.length < 0) break;
-    budget -= text.length;
-    hist.unshift(messages[i]);
-  }
-  const convo = hist.map((m) => (m.role === 'assistant' ? 'Bardi' : 'User') + ': ' + String(m.content || '')).join('\n') + '\nBardi:';
-  // GET only while the whole URL (prompt + system) stays under the limit,
-  // else a huge URL trips 414 "URI too long" — a real cause of silent fails.
-  const getOk = convo.length + sys.length < 1400;
+     short ones take many more.
+
+     The free tier does dislike big payloads, though, and forgetting is
+     better than not answering at all — so if the whole window gets
+     nowhere, there is one last attempt with just the tail. Bardi
+     remembers when he can and always replies. */
+  const window = (limitChars, limitCount) => {
+    const out = [];
+    let budget = limitChars;
+    for (let i = (messages || []).length - 1; i >= 0 && out.length < limitCount; i--) {
+      const text = String((messages[i] && messages[i].content) || '');
+      if (out.length && budget - text.length < 0) break;
+      budget -= text.length;
+      out.unshift(messages[i]);
+    }
+    return out;
+  };
+  const asText = (h) => h.map((m) => (m.role === 'assistant' ? 'Bardi' : 'User') + ': ' + String(m.content || '')).join('\n') + '\nBardi:';
+
+  const full = window(6000, 40);
+  const tail = window(1200, 8);
 
   /* The free tier throttles hard, so one quick round is not enough to
      call it dead. We do a fast pass across several models, then a
      second, patient pass with longer timeouts — that second pass is
-     what rescues most "Bardi isn't working" moments. */
+     what rescues most "Bardi isn't working" moments. The last pass
+     trades the older half of the conversation for an answer. */
   const MODELS = ['openai-fast', 'openai', 'mistral', 'llama', 'openai-large'];
   const ROUNDS = [
-    { models: MODELS.slice(0, 3), ms: 9000 },
-    { models: MODELS, ms: 20000 },
+    { models: MODELS.slice(0, 3), ms: 9000, hist: full },
+    { models: MODELS, ms: 20000, hist: full },
+    { models: MODELS.slice(0, 3), ms: 12000, hist: tail },
   ];
 
   let sawResponse = false;
   for (const round of ROUNDS) {
+    const hist = round.hist;
+    if (!hist.length) continue;
+    const convo = asText(hist);
+    // GET only while the whole URL (prompt + system) stays under the
+    // limit, else a huge URL trips 414 "URI too long" — a real cause of
+    // silent fails.
+    const getOk = convo.length + sys.length < 1400;
     for (const model of round.models) {
       const tries = [];
       if (getOk) tries.push(pollinationsGET(convo, sys, model, round.ms).then((r) => { sawResponse = true; return r; }).catch(() => null));
@@ -145,6 +162,8 @@ async function askBardiDirect(messages, opts) {
       const hit = results.find(Boolean);
       if (hit) return hit;
     }
+    // no point repeating the same window with the same payload
+    if (round.hist === tail && full.length === tail.length) break;
   }
   // Tell the caller WHICH kind of failure this was, so the UI can say
   // something true instead of a shrug.
