@@ -2219,3 +2219,38 @@ alter table public.posts add column if not exists plan jsonb;
 -- new policy here — the column simply inherits it.
 
 notify pgrst, 'reload schema';
+
+
+-- ═══════════ BARDI REMEMBERS THE CONVERSATION ═══════════
+-- The chat with Bardi lived in the screen and nowhere else, so closing
+-- the sheet threw the whole conversation away — you came back to an
+-- empty screen every time. It is kept on the device regardless; this
+-- table is what makes the same conversation appear on a laptop as on a
+-- phone.
+--
+-- One row per person. Nobody can read or write anybody else's.
+create table if not exists public.bardi_chats (
+  user_id    uuid primary key references auth.users(id) on delete cascade,
+  messages   jsonb not null default '[]'::jsonb,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.bardi_chats enable row level security;
+
+drop policy if exists "bardi_chat_own_select" on public.bardi_chats;
+create policy "bardi_chat_own_select" on public.bardi_chats
+  for select using (auth.uid() = user_id);
+
+drop policy if exists "bardi_chat_own_insert" on public.bardi_chats;
+create policy "bardi_chat_own_insert" on public.bardi_chats
+  for insert with check (auth.uid() = user_id);
+
+drop policy if exists "bardi_chat_own_update" on public.bardi_chats;
+create policy "bardi_chat_own_update" on public.bardi_chats
+  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+drop policy if exists "bardi_chat_own_delete" on public.bardi_chats;
+create policy "bardi_chat_own_delete" on public.bardi_chats
+  for delete using (auth.uid() = user_id);
+
+notify pgrst, 'reload schema';

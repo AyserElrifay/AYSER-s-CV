@@ -106,7 +106,20 @@ async function askBardiDirect(messages, opts) {
   // The free fallback is flaky and hates big payloads/URLs, so keep it lean:
   // the persona is at the START, so trimming drops only trailing extras.
   if (sys.length > 1500) sys = sys.slice(0, 1500);
-  const hist = (messages || []).slice(-8);
+  /* HOW MUCH OF THE CONVERSATION IT REMEMBERS. This was the last eight
+     messages — four exchanges — so Bardi lost the thread of anything
+     longer than a short back-and-forth, which reads as the chat being
+     wiped. A budget in characters instead of a count keeps as much as
+     the request can actually carry: long answers take fewer turns,
+     short ones take many more. */
+  const hist = [];
+  let budget = 6000;
+  for (let i = (messages || []).length - 1; i >= 0 && hist.length < 40; i--) {
+    const text = String((messages[i] && messages[i].content) || '');
+    if (hist.length && budget - text.length < 0) break;
+    budget -= text.length;
+    hist.unshift(messages[i]);
+  }
   const convo = hist.map((m) => (m.role === 'assistant' ? 'Bardi' : 'User') + ': ' + String(m.content || '')).join('\n') + '\nBardi:';
   // GET only while the whole URL (prompt + system) stays under the limit,
   // else a huge URL trips 414 "URI too long" — a real cause of silent fails.

@@ -8,6 +8,7 @@ import { useLang } from '../context/LanguageContext';
 import { askBardi, BARDI_STARTERS } from '../services/bardi';
 import { bardiLocalSupported, bardiEngineReady, ensureBardiEngine, askBardiLocal, pickBardiModel } from '../services/bardiLocal';
 import { clearMyBardiMemory } from '../services/bardiOwner';
+import { loadChat, saveChat, clearChat } from '../services/bardiChat';
 import { isOwner } from '../services/music';
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
 
@@ -28,11 +29,38 @@ export const BardiSheet = ({ onClose }) => {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { lang } = useLang();
+  /* ── THE CONVERSATION SURVIVES THE SHEET ──────────────────────────
+     This used to be state and nothing else, so closing Bardi threw away
+     everything you had said to him — you came back to a blank screen
+     every time. It is loaded on the way in and kept on the way out.
+     See src/services/bardiChat.js. */
   const [messages, setMessages] = useState([]); // { role, content }
+  const [loaded, setLoaded] = useState(false);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const scroller = useRef(null);
+
+  useEffect(() => {
+    let alive = true;
+    loadChat(user && user.id)
+      .then((rows) => { if (alive) { setMessages(rows || []); setLoaded(true); } })
+      .catch(() => { if (alive) setLoaded(true); });
+    return () => { alive = false; };
+  }, [user && user.id]);
+
+  // never save over a real thread with the empty one we start out holding
+  useEffect(() => {
+    if (!loaded) return;
+    saveChat(user && user.id, messages);
+  }, [messages, loaded, user && user.id]);
+
+  const startNewChat = () => {
+    tapLight();
+    setMessages([]);
+    setError(null);
+    clearChat(user && user.id);
+  };
 
   // ── Bardi Local (Ayser's own on-device model) ──
   const canLocal = bardiLocalSupported();
@@ -203,6 +231,16 @@ export const BardiSheet = ({ onClose }) => {
                 <Text style={{ color: C.text, fontSize: 16, fontWeight: '900' }}>Bardi</Text>
                 <Text style={{ color: localOn ? C.green : C.dim, fontSize: 11.5, fontWeight: localOn ? '800' : '400' }}>{brainLabel}</Text>
               </View>
+              {messages.length ? (
+                <Pressable onPress={startNewChat} hitSlop={10} style={{ marginRight: 16 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Ionicons name="create-outline" size={17} color={C.dim} />
+                    <Text style={{ color: C.dim, fontSize: 11.5, fontWeight: '800', marginLeft: 5 }}>
+                      {lang === 'ar' ? 'محادثة جديدة' : 'New chat'}
+                    </Text>
+                  </View>
+                </Pressable>
+              ) : null}
               <Pressable onPress={() => { tapLight(); onClose(); }} hitSlop={10}><Ionicons name="close" size={24} color={C.dim} /></Pressable>
             </View>
 
