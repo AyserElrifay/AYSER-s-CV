@@ -243,7 +243,7 @@ export const GameRunner = ({ opponent = null, onClose, matchId = null, isHost = 
         tapLight();
         laneRef.current = n;
         switchAt.current = Date.now();
-        Animated.spring(laneAnim, { toValue: n, useNativeDriver: false, tension: 120, friction: 9 }).start();
+        Animated.spring(laneAnim, { toValue: n, useNativeDriver: true, tension: 120, friction: 9 }).start();
       }
       return n;
     });
@@ -339,9 +339,14 @@ export const GameRunner = ({ opponent = null, onClose, matchId = null, isHost = 
 
   const caughtMate = score >= 600; // solo/practice only — catch them at the end of level 3
 
-  const playerLeft = laneAnim.interpolate({
+  /* Changing lanes used to animate `left`, which is a layout — the
+     whole track is re-measured on every frame of every dodge, in the
+     middle of a game loop that is already busy. It is a slide across
+     the screen either way; a transform is the one that costs nothing.
+     The player sits at lane 0 and is moved from there. */
+  const playerShift = laneAnim.interpolate({
     inputRange: [0, LANES - 1],
-    outputRange: [laneX(0) - 24, laneX(LANES - 1) - 24],
+    outputRange: [0, laneX(LANES - 1) - laneX(0)],
   });
 
   /* Solo runs used to put an invented person on the track — a stock
@@ -434,8 +439,11 @@ export const GameRunner = ({ opponent = null, onClose, matchId = null, isHost = 
           {/* the player — your own cartoon character */}
           {track.h > 0 && phase !== 'ready' ? (
             <Animated.View style={{
-              position: 'absolute', left: playerLeft, top: playerY - 14, alignItems: 'center',
-              transform: [{ translateY: bob.interpolate({ inputRange: [0, 1], outputRange: [0, -5] }) }],
+              position: 'absolute', left: laneX(0) - 24, top: playerY - 14, alignItems: 'center',
+              transform: [
+                { translateX: playerShift },
+                { translateY: bob.interpolate({ inputRange: [0, 1], outputRange: [0, -5] }) },
+              ],
             }}>
               {meAvatar ? (
                 <>

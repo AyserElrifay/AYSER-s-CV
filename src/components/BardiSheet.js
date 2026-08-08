@@ -25,6 +25,27 @@ const MEMORY_PREF_KEY = 'mm_bardi_remember';
 
 const LOCAL_PREF_KEY = 'mm_bardi_local';
 
+/* ─── THE CONVERSATION ────────────────────────────────────────────────
+   Every bubble used to be rebuilt each time the sheet rendered — and
+   the sheet renders on every letter you type, because the composer's
+   text lives in it. So a long conversation was re-laid-out character by
+   character while you were still writing the next question, which is
+   the worst possible moment to be busy.
+
+   The list only depends on the messages, so it is memoised on them. Type
+   as long a question as you like; the thread above it does nothing. */
+const Bubbles = React.memo(({ messages }) => (
+  <>
+    {messages.map((m, i) => (
+      <View key={i} style={{ alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '86%', marginBottom: 10 }}>
+        <View style={{ backgroundColor: m.role === 'user' ? C.purple : C.bg, borderWidth: m.role === 'user' ? 0 : 1, borderColor: C.line, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 10 }}>
+          <Text selectable style={{ color: m.role === 'user' ? '#FFF' : C.text, fontSize: 14.5, lineHeight: 21 }}>{m.content}</Text>
+        </View>
+      </View>
+    ))}
+  </>
+));
+
 export const BardiSheet = ({ onClose }) => {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
@@ -180,6 +201,31 @@ export const BardiSheet = ({ onClose }) => {
     try { localStorage.setItem(LOCAL_PREF_KEY, '0'); } catch (e) {}
   };
 
+  /* ── A WAY OUT OF A LONG WAIT ─────────────────────────────────────
+     Asking something and then wanting to stop is completely ordinary —
+     you spot a typo, you change your mind, it is taking too long. There
+     was no way to do it: the sheet sat spinning until the answer came
+     or the whole thing was closed, and closing it was the only button
+     that worked.
+
+     Each ask carries a ticket. Stop tears up the current ticket, so
+     whatever comes back afterwards is quietly dropped instead of
+     landing in a conversation that has moved on. Anything the on-device
+     model had already written is kept rather than thrown away — it is
+     half an answer, and half an answer is not nothing. */
+  const runId = useRef(0);
+
+  const stop = () => {
+    tapLight();
+    runId.current += 1;
+    setBusy(false);
+    setDl(null);
+    setStreaming((partial) => {
+      if (partial) setMessages((m) => [...m, { role: 'assistant', content: partial }]);
+      return null;
+    });
+  };
+
   const send = async (text) => {
     const content = (text != null ? text : input).trim();
     if (!content || busy) return;
@@ -189,6 +235,8 @@ export const BardiSheet = ({ onClose }) => {
     const next = [...messages, { role: 'user', content }];
     setMessages(next);
     setBusy(true);
+    const ticket = ++runId.current;
+    const stale = () => runId.current !== ticket;
 
     // 1) Bardi Local — Ayser's own model, on-device. Privacy-first: when
     //    it's on, we use ONLY it and never silently route to the cloud.
@@ -196,9 +244,10 @@ export const BardiSheet = ({ onClose }) => {
       try {
         const final = await askBardiLocal(
           next,
-          { language: lang || 'ar', profile, onProgress: ({ text: t, progress }) => setDl({ pct: Math.round((progress || 0) * 100), text: t }) },
-          (full) => setStreaming(full),
+          { language: lang || 'ar', profile, onProgress: ({ text: t, progress }) => { if (!stale()) setDl({ pct: Math.round((progress || 0) * 100), text: t }); } },
+          (full) => { if (!stale()) setStreaming(full); },
         );
+        if (stale()) return;                    // you pressed Stop; this is no longer wanted
         setDl(null); setStreaming(null);
         if (final) {
           setMessages((m) => [...m, { role: 'assistant', content: final }]);
@@ -206,6 +255,7 @@ export const BardiSheet = ({ onClose }) => {
           setError(lang === 'ar' ? 'موديل باردي رجّع رد فاضي — دوس حاول تاني.' : 'Bardi returned an empty reply — tap Try again.');
         }
       } catch (e) {
+        if (stale()) return;
         setDl(null); setStreaming(null);
         setError(lang === 'ar' ? 'موديل باردي وقف لحظة على الجهاز — دوس حاول تاني.' : 'Bardi (on-device) hiccuped — tap Try again.');
       }
@@ -222,6 +272,7 @@ export const BardiSheet = ({ onClose }) => {
     try {
       reply = await askBardi(next, { language: lang || 'en', profile, userId: user && user.id, remember });
     } catch (e) { reply = null; why = (e && e.code) || null; edgeWhy = (e && e.edgeWhy) || null; }
+    if (stale()) return;                        // you pressed Stop while it was thinking
     if (reply) {
       setMessages((m) => [...m, { role: 'assistant', content: reply }]);
     } else {
@@ -433,13 +484,7 @@ export const BardiSheet = ({ onClose }) => {
                 </View>
               ) : null}
 
-              {messages.map((m, i) => (
-                <View key={i} style={{ alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '86%', marginBottom: 10 }}>
-                  <View style={{ backgroundColor: m.role === 'user' ? C.purple : C.bg, borderWidth: m.role === 'user' ? 0 : 1, borderColor: C.line, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 10 }}>
-                    <Text style={{ color: m.role === 'user' ? '#FFF' : C.text, fontSize: 14.5, lineHeight: 21 }}>{m.content}</Text>
-                  </View>
-                </View>
-              ))}
+              <Bubbles messages={messages} />
 
               {/* live on-device stream */}
               {streaming != null ? (
@@ -481,9 +526,10 @@ export const BardiSheet = ({ onClose }) => {
                   style={{ color: C.text, fontSize: 14.5 }}
                 />
               </View>
-              <Pressable onPress={() => send()} disabled={busy || !input.trim()}>
-                <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: input.trim() && !busy ? C.purple : C.glassHi, alignItems: 'center', justifyContent: 'center' }}>
-                  <Ionicons name="arrow-up" size={20} color={input.trim() && !busy ? '#FFF' : C.faint} />
+              {/* while it is thinking, the same button stops it */}
+              <Pressable onPress={busy ? stop : () => send()} disabled={!busy && !input.trim()}>
+                <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: busy ? C.coral : input.trim() ? C.purple : C.glassHi, alignItems: 'center', justifyContent: 'center' }}>
+                  <Ionicons name={busy ? 'stop' : 'arrow-up'} size={busy ? 17 : 20} color={busy || input.trim() ? '#FFF' : C.faint} />
                 </View>
               </Pressable>
             </View>

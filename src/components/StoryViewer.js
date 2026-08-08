@@ -95,6 +95,7 @@ export const StoryViewer = ({ stories, groups, startGroup = 0, startIndex = 0, o
   const [commentBusy, setCommentBusy] = useState(false);
   const [storyErr, setStoryErr] = useState(null);
   const progress = useRef(new Animated.Value(0)).current;
+  const [barW, setBarW] = useState(0);   // measured once; the bars are equal
   const anim = useRef(null);
   const story = items[index];
   /* Yours if it is yours — and a leftover local one (id 'me', from
@@ -128,7 +129,12 @@ export const StoryViewer = ({ stories, groups, startGroup = 0, startIndex = 0, o
   useEffect(() => {
     progress.setValue(0);
     if (paused) return undefined;
-    anim.current = Animated.timing(progress, { toValue: 1, duration: STORY_MS, useNativeDriver: false });
+    /* Driven natively now — see the bar itself further down. A story
+       lasts five seconds, so this is three hundred frames running
+       alongside a playing video; it is the one animation in the app
+       that absolutely cannot afford to be on the same thread as the
+       rest of the work. */
+    anim.current = Animated.timing(progress, { toValue: 1, duration: STORY_MS, useNativeDriver: true });
     anim.current.start(({ finished }) => {
       if (!finished) return;
       if (index < items.length - 1) setIndex(index + 1);
@@ -283,16 +289,35 @@ export const StoryViewer = ({ stories, groups, startGroup = 0, startIndex = 0, o
           resizeMode="cover"
         >
           <LinearGradient colors={['rgba(0,0,0,0.55)', 'transparent']} style={{ paddingTop: insets.top + 8, paddingHorizontal: 12, paddingBottom: 30 }}>
-            {/* progress bars */}
+            {/* ── PROGRESS BARS ─────────────────────────────────────
+                These used to grow by animating their width from 0% to
+                100%. A width is a layout: the browser re-measures and
+                repaints the bar sixty times a second, for five seconds,
+                on the same thread as everything else — while a video is
+                decoding beside it. That is where the stutter at the top
+                of a story came from.
+
+                Same picture, different mechanism. The bar is drawn at
+                full width and slid in from the left behind a clip, so
+                the only thing changing per frame is a transform — no
+                measuring, no repainting, and it can run natively off
+                the main thread. */}
             <View style={{ flexDirection: 'row', marginBottom: 12 }}>
               {items.map((_, i) => (
-                <View key={i} style={{ flex: 1, height: 3, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.3)', marginHorizontal: 2, overflow: 'hidden' }}>
+                <View
+                  key={i}
+                  onLayout={i === 0 ? (e) => setBarW(e.nativeEvent.layout.width) : undefined}
+                  style={{ flex: 1, height: 3, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.3)', marginHorizontal: 2, overflow: 'hidden' }}
+                >
                   <Animated.View
                     style={{
-                      height: 3, backgroundColor: '#FFF',
-                      width: i < index ? '100%' : i === index
-                        ? progress.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] })
-                        : '0%',
+                      height: 3, width: '100%', backgroundColor: '#FFF',
+                      transform: [{
+                        translateX: i < index ? 0
+                          : i === index && barW
+                            ? progress.interpolate({ inputRange: [0, 1], outputRange: [-barW, 0] })
+                            : -(barW || 9999),
+                      }],
                     }}
                   />
                 </View>
