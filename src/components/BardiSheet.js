@@ -8,7 +8,7 @@ import { useLang } from '../context/LanguageContext';
 import { askBardi, BARDI_STARTERS } from '../services/bardi';
 import { bardiLocalSupported, bardiEngineReady, ensureBardiEngine, askBardiLocal, pickBardiModel } from '../services/bardiLocal';
 import { clearMyBardiMemory } from '../services/bardiOwner';
-import { loadChat, saveChat, clearChat } from '../services/bardiChat';
+import { loadChats, saveChats, newChat, chatTitle, clearAllChats } from '../services/bardiChat';
 import { isOwner } from '../services/music';
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
 
@@ -36,6 +36,16 @@ export const BardiSheet = ({ onClose }) => {
      See src/services/bardiChat.js. */
   const [messages, setMessages] = useState([]); // { role, content }
   const [loaded, setLoaded] = useState(false);
+  /* ── ROOM TO THINK, AND SOMEWHERE THINGS GO ───────────────────────
+     A half-height sheet is fine for one question and cramped for a
+     conversation, so it opens out to the full screen. And starting a
+     new chat puts the old one away instead of destroying it — past
+     chats are a list you can open, and a bin you can empty. */
+  const [full, setFull] = useState(false);
+  const [chats, setChats] = useState([]);        // every past conversation
+  const [chatId, setChatId] = useState(null);    // the one on screen
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [confirmWipe, setConfirmWipe] = useState(false);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -43,8 +53,16 @@ export const BardiSheet = ({ onClose }) => {
 
   useEffect(() => {
     let alive = true;
-    loadChat(user && user.id)
-      .then((rows) => { if (alive) { setMessages(rows || []); setLoaded(true); } })
+    loadChats(user && user.id)
+      .then((rows) => {
+        if (!alive) return;
+        const list = rows || [];
+        setChats(list);
+        const open = list[0];
+        setChatId(open ? open.id : null);
+        setMessages(open ? open.messages : []);
+        setLoaded(true);
+      })
       .catch(() => { if (alive) setLoaded(true); });
     return () => { alive = false; };
   }, [user && user.id]);
@@ -52,14 +70,45 @@ export const BardiSheet = ({ onClose }) => {
   // never save over a real thread with the empty one we start out holding
   useEffect(() => {
     if (!loaded) return;
-    saveChat(user && user.id, messages);
+    const id = chatId || (messages.length ? newChat().id : null);
+    if (!id) { saveChats(user && user.id, chats); return; }
+    if (!chatId && messages.length) setChatId(id);
+    const rest = chats.filter((c) => c.id !== id);
+    const mine = { id, title: chatTitle(messages), messages, at: Date.now() };
+    const next = messages.length ? [mine].concat(rest) : rest;
+    setChats(next);
+    saveChats(user && user.id, next);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages, loaded, user && user.id]);
 
   const startNewChat = () => {
     tapLight();
     setMessages([]);
+    setChatId(null);
     setError(null);
-    clearChat(user && user.id);
+    setHistoryOpen(false);
+  };
+
+  const openChat = (c) => {
+    tapLight();
+    setChatId(c.id);
+    setMessages(c.messages || []);
+    setError(null);
+    setHistoryOpen(false);
+  };
+
+  const dropChat = (c) => {
+    tapLight();
+    const next = chats.filter((x) => x.id !== c.id);
+    setChats(next);
+    saveChats(user && user.id, next);
+    if (c.id === chatId) { setChatId(null); setMessages([]); }
+  };
+
+  const wipeEverything = async () => {
+    tapSuccess();
+    setChats([]); setChatId(null); setMessages([]); setConfirmWipe(false); setHistoryOpen(false);
+    await clearAllChats(user && user.id);
   };
 
   // ── Bardi Local (Ayser's own on-device model) ──
@@ -221,9 +270,22 @@ export const BardiSheet = ({ onClose }) => {
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: 'rgba(10,8,24,0.45)' }}>
-        <Pressable style={{ flex: 1 }} onPress={onClose} />
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <View style={{ backgroundColor: C.bg2, borderTopLeftRadius: 26, borderTopRightRadius: 26, maxHeight: '88%', paddingBottom: insets.bottom + 8 }}>
+        {/* the dim you can tap to leave — it gives up its space when the
+            sheet is opened out to the whole screen */}
+        <Pressable style={{ flex: full ? 0 : 1 }} onPress={full ? undefined : onClose} />
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={full ? { flex: 1 } : undefined}
+        >
+          <View style={{
+            backgroundColor: C.bg2,
+            borderTopLeftRadius: full ? 0 : 26,
+            borderTopRightRadius: full ? 0 : 26,
+            flex: full ? 1 : undefined,
+            maxHeight: full ? undefined : '88%',
+            paddingTop: full ? insets.top : 0,
+            paddingBottom: insets.bottom + 8,
+          }}>
             {/* header */}
             <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingTop: 16, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: C.line }}>
               <Image source={BARDI_ICON} style={{ width: 36, height: 36, borderRadius: 11, marginRight: 10 }} />
@@ -231,18 +293,73 @@ export const BardiSheet = ({ onClose }) => {
                 <Text style={{ color: C.text, fontSize: 16, fontWeight: '900' }}>Bardi</Text>
                 <Text style={{ color: localOn ? C.green : C.dim, fontSize: 11.5, fontWeight: localOn ? '800' : '400' }}>{brainLabel}</Text>
               </View>
-              {messages.length ? (
-                <Pressable onPress={startNewChat} hitSlop={10} style={{ marginRight: 16 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <Ionicons name="create-outline" size={17} color={C.dim} />
-                    <Text style={{ color: C.dim, fontSize: 11.5, fontWeight: '800', marginLeft: 5 }}>
-                      {lang === 'ar' ? 'محادثة جديدة' : 'New chat'}
-                    </Text>
-                  </View>
+              {chats.length ? (
+                <Pressable onPress={() => { tapLight(); setHistoryOpen((o) => !o); }} hitSlop={10} style={{ marginRight: 14 }}>
+                  <Ionicons name={historyOpen ? 'time' : 'time-outline'} size={21} color={historyOpen ? C.purple : C.dim} />
                 </Pressable>
               ) : null}
+              {messages.length ? (
+                <Pressable onPress={startNewChat} hitSlop={10} style={{ marginRight: 14 }}>
+                  <Ionicons name="create-outline" size={21} color={C.dim} />
+                </Pressable>
+              ) : null}
+              <Pressable onPress={() => { tapLight(); setFull((f) => !f); }} hitSlop={10} style={{ marginRight: 14 }}>
+                <Ionicons name={full ? 'contract-outline' : 'expand-outline'} size={20} color={C.dim} />
+              </Pressable>
               <Pressable onPress={() => { tapLight(); onClose(); }} hitSlop={10}><Ionicons name="close" size={24} color={C.dim} /></Pressable>
             </View>
+
+            {/* ── PAST CHATS ── a list you can open, and a bin you can
+                   empty. Starting a new chat puts the old one here
+                   rather than destroying it. */}
+            {historyOpen ? (
+              <View style={{ marginHorizontal: 16, marginTop: 12, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 16, overflow: 'hidden' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 13, paddingTop: 11, paddingBottom: 7 }}>
+                  <Text style={{ color: C.dim, fontSize: 11, fontWeight: '900', letterSpacing: 0.8, flex: 1 }}>
+                    {lang === 'ar' ? 'المحادثات السابقة' : 'PAST CHATS'}
+                  </Text>
+                  {chats.length ? (
+                    <Pressable onPress={() => { tapLight(); setConfirmWipe((v) => !v); }} hitSlop={8}>
+                      <Text style={{ color: C.coral, fontSize: 11.5, fontWeight: '900' }}>
+                        {lang === 'ar' ? 'امسح الكل' : 'Delete all'}
+                      </Text>
+                    </Pressable>
+                  ) : null}
+                </View>
+                {confirmWipe ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 13, paddingBottom: 10 }}>
+                    <Text style={{ color: C.text, fontSize: 12, flex: 1 }}>
+                      {lang === 'ar' ? 'تمسح كل المحادثات؟ مش هترجع.' : 'Delete every chat? They do not come back.'}
+                    </Text>
+                    <Pressable onPress={() => setConfirmWipe(false)} hitSlop={8} style={{ marginRight: 12 }}>
+                      <Text style={{ color: C.dim, fontSize: 12, fontWeight: '800' }}>{lang === 'ar' ? 'سيبها' : 'Keep'}</Text>
+                    </Pressable>
+                    <Pressable onPress={wipeEverything} hitSlop={8}>
+                      <View style={{ backgroundColor: C.coral, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 6 }}>
+                        <Text style={{ color: '#FFF', fontSize: 11.5, fontWeight: '900' }}>{lang === 'ar' ? 'امسح' : 'Delete'}</Text>
+                      </View>
+                    </Pressable>
+                  </View>
+                ) : null}
+                <ScrollView style={{ maxHeight: full ? 300 : 190 }}>
+                  {chats.map((c) => (
+                    <View key={c.id} style={{ flexDirection: 'row', alignItems: 'center', borderTopWidth: 1, borderTopColor: C.line }}>
+                      <Pressable onPress={() => openChat(c)} style={{ flex: 1, paddingHorizontal: 13, paddingVertical: 11 }}>
+                        <Text style={{ color: c.id === chatId ? C.purple : C.text, fontSize: 13, fontWeight: c.id === chatId ? '900' : '600' }} numberOfLines={1}>
+                          {c.title}
+                        </Text>
+                        <Text style={{ color: C.faint, fontSize: 10.5, marginTop: 2 }}>
+                          {c.messages.length} {lang === 'ar' ? 'رسالة' : c.messages.length === 1 ? 'message' : 'messages'}
+                        </Text>
+                      </Pressable>
+                      <Pressable onPress={() => dropChat(c)} hitSlop={8} style={{ paddingHorizontal: 13 }}>
+                        <Ionicons name="trash-outline" size={16} color={C.faint} />
+                      </Pressable>
+                    </View>
+                  ))}
+                </ScrollView>
+              </View>
+            ) : null}
 
             {/* Bardi Local switch — Ayser's own on-device model */}
             <Pressable onPress={localOn ? disableLocal : enableLocal} disabled={!!dl}>
