@@ -608,7 +608,30 @@ export const ChatsScreen = () => {
       ))
     ) : null}
 
-    {!loadingChats && !dms.length && !squads.length ? (
+    {/* ── ASKED, AND COULD NOT BE TOLD ─────────────────────────────────
+        An unreachable server and an empty inbox look identical on
+        screen, and they are not the same thing: one of them means every
+        conversation you have is still there and this is the connection.
+        Saying "Nobody in here yet" to somebody whose phone simply lost
+        signal is the same lie in a different hat. */}
+    {!loadingChats && chatsErr && !dms.length && !squads.length ? (
+      <Glass style={{ padding: 22, alignItems: 'center' }}>
+        <Text style={{ fontSize: 32 }}>📡</Text>
+        <Text style={{ color: C.text, fontSize: 15.5, fontWeight: '900', marginTop: 8 }}>Couldn't reach your chats</Text>
+        <Text style={{ color: C.faint, fontSize: 12.5, marginTop: 6, textAlign: 'center', lineHeight: 18 }}>
+          This is the connection, not you — everything you've said is still there.
+        </Text>
+        {/* back to "we don't know yet" first, so the placeholder rows
+            come back and the tap visibly does something */}
+        <Pressable onPress={() => { tapLight(); setRealDms(null); setRealSquads(null); reload(); }} style={{ marginTop: 14 }}>
+          <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 24, paddingVertical: 11 }}>
+            <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900' }}>Try again</Text>
+          </View>
+        </Pressable>
+      </Glass>
+    ) : null}
+
+    {!loadingChats && !chatsErr && !dms.length && !squads.length ? (
       <Glass style={{ padding: 22, alignItems: 'center', overflow: 'hidden' }}>
         <View style={{ flexDirection: 'row', marginBottom: 14 }}>
           {['#7C5CFF', '#FB7185', '#F5B301'].map((c, i) => (

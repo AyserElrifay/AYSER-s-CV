@@ -220,10 +220,16 @@ export const BardiSheet = ({ onClose }) => {
     runId.current += 1;
     setBusy(false);
     setDl(null);
-    setStreaming((partial) => {
-      if (partial) setMessages((m) => [...m, { role: 'assistant', content: partial }]);
-      return null;
-    });
+    /* Read what has been written so far from this render, rather than
+       from inside a setStreaming updater. An updater has to be a pure
+       function of the previous value — React is allowed to call it more
+       than once, and it does in development — so appending a message
+       from inside one can post the half-finished reply into the
+       conversation twice. `streaming` here is exactly what is on screen
+       at the moment the button is pressed, which is what we want to
+       keep. */
+    if (streaming) setMessages((m) => [...m, { role: 'assistant', content: streaming }]);
+    setStreaming(null);
   };
 
   const send = async (text) => {
