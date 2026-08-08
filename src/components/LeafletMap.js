@@ -591,9 +591,28 @@ export const LeafletMap = ({ center, markers = [], onPress, onMe, locate = true,
     // selected language (Arabic where we have it, else the Latin name).
     // Israel and Palestine are two ordinary, equal labels here.
     const useAr = langRef.current === 'ar';
-    // place Israel & Palestine SIDE BY SIDE (not stacked): Israel by the
-    // coast, Palestine over the West Bank — so both read clearly.
+    // Israel by the coast, Palestine over the West Bank.
     const FIXED = { Israel: [34.85, 31.35], Palestine: [35.28, 31.95] };
+
+    /* ─── WHY PALESTINE WAS NOT ON THE MAP ─────────────────────────────
+       Its name, its Arabic name and its position were all here, and it
+       still could not be seen. These two points are half a degree apart,
+       and half a degree is nothing when the whole world is on screen: at
+       world zoom they land 5px apart across and 8px apart down, while
+       every label is a box 18px tall. So the two names were drawn on top
+       of one another and whichever went down last covered the other.
+       Palestine lost, every time, at exactly the zoom where you look for
+       a country.
+
+       Nudging in pixels rather than in degrees is what fixes it, because
+       a pixel offset does not shrink when you zoom out — it holds the
+       two names apart by the same clear gap at every zoom, without
+       moving either country off where it actually is. Palestine sits
+       above, Israel below, which is the way round they really are.
+       Measured: 8px of separation at world zoom before, 28px after,
+       against an 18px label. */
+    const NUDGE = { Palestine: 10, Israel: -10 };   // + is up, in pixels
+
     WORLD.forEach((c) => {
       if (!c.n) return;
       const pt = FIXED[c.n] || c.p;
@@ -602,7 +621,7 @@ export const LeafletMap = ({ center, markers = [], onPress, onMe, locate = true,
       const minor = COUNTRY_MAJOR.has(c.n) ? '' : ' mm-region-minor';
       const icon = L.divIcon({
         html: '<div class="mm-country' + minor + '">' + label + '</div>',
-        className: '', iconSize: [200, 18], iconAnchor: [100, 9],
+        className: '', iconSize: [200, 18], iconAnchor: [100, 9 + (NUDGE[c.n] || 0)],
       });
       L.marker([pt[1], pt[0]], { icon, interactive: false, zIndexOffset: -100 }).addTo(layerRef.current);
     });
