@@ -38,9 +38,15 @@ export function onSoundChange(fn) {
    get wrong: a browser blocks an unmuted play() until the person has
    touched the page, so we ask, and if we are refused we go back to
    muted rather than leaving a video that has stopped playing. */
+/* Something else is about to make sound. Whoever is playing music says
+   how to stop it; nothing here knows or cares what that is. */
+let silencer = null;
+export function onNeedSilence(fn) { silencer = fn || null; }
+
 export function applySound(el) {
   if (!el) return;
   const want = soundOn();
+  if (want && silencer) { try { silencer(); } catch (e) {} }
   el.muted = !want;
   el.volume = 1;
   const p = el.play();

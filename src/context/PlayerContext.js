@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useRef, useState, useEffect, useCallback } from 'react';
+import { onNeedSilence } from '../lib/videoSound';
 import { Platform } from 'react-native';
 import { incrementTrackUse } from '../services/music';
 
@@ -97,6 +98,23 @@ export const PlayerProvider = ({ children }) => {
     if (!(opts && opts.quiet)) setShowFull(true); // quiet: mini-player only (e.g. a post's sound)
   }, [loadAndPlay]);
 
+  /* Stop, without the "or start" half. Something else needs the sound
+     and toggle would have started the music if it happened to be
+     paused. */
+  const pause = useCallback(() => {
+    if (!isWeb || !audioRef.current) return;
+    const a = audioRef.current;
+    if (!a.paused) { a.pause(); setPlaying(false); }
+  }, []);
+
+  /* ── ONE THING MAKES SOUND AT A TIME ──────────────────────────────
+     Reels can be unmuted now, and a reel talking over a song is two
+     things nobody asked to hear at once. Whenever a video takes the
+     sound, the music steps back. It does not come back on by itself —
+     starting somebody's music again without being asked is its own
+     kind of rude. */
+  useEffect(() => { onNeedSilence(pause); return () => onNeedSilence(null); }, [pause]);
+
   const toggle = useCallback(() => {
     if (!isWeb || !audioRef.current || !current) return;
     const a = audioRef.current;
@@ -141,7 +159,7 @@ export const PlayerProvider = ({ children }) => {
 
   const value = {
     current, queue, index, playing, position, duration, shuffle, showFull,
-    playTrack, toggle, next, prev, seek, close, failed,
+    playTrack, toggle, pause, next, prev, seek, close, failed,
     setShuffle: () => setShuffle((s) => !s),
     openFull: () => setShowFull(true),
     closeFull: () => setShowFull(false),
