@@ -15,6 +15,7 @@ import {
 } from '../services/playlists';
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
 import { sfxPop } from '../utils/sfx';
+import { useStable } from '../hooks/useStable';
 
 /* ── MUSIC ──────────────────────────────────────────────────────────
    A place to listen, not a place to manage a catalogue.
@@ -226,7 +227,7 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
   const shelfTracks = (id) => all.filter((t) => String(t.mood || '').toLowerCase().includes(id.toLowerCase()));
 
   /* ── one track row ── */
-  const Row = ({ t, list, onRemove }) => {
+  const Row = useStable(({ t, list, onRemove }) => {
     const isNow = current && current.id === t.id;
     return (
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8 }}>
@@ -276,14 +277,14 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
         ) : null}
       </View>
     );
-  };
+  });
 
-  const Tab = ({ id, icon, label }) => (
+  const Tab = useStable(({ id, icon, label }) => (
     <Pressable onPress={() => { tapLight(); setTab(id); }} style={{ flexDirection: 'row', alignItems: 'center', marginRight: 18, paddingVertical: 6 }}>
       <Ionicons name={icon} size={16} color={tab === id ? C.purple : C.dim} />
       <Text style={{ color: tab === id ? C.purple : C.dim, fontSize: 13.5, fontWeight: '900', marginLeft: 6 }}>{label}</Text>
     </Pressable>
-  );
+  ));
 
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>

@@ -15,6 +15,7 @@ import { fetchBardiConfig, saveBardiConfig, fetchBardiKnowledge, addBardiKnowled
 import { askBardi } from '../services/bardi';
 import { AV_NEUTRAL } from '../constants/mockData';
 import { tapLight, tapSuccess } from '../utils/feedback';
+import { useStable } from '../hooks/useStable';
 
 /* ─── MOMENTS STUDIO · the owner's control panel ──────────────────────
    One place to run everything: live stats, the report queue, verification
@@ -164,13 +165,13 @@ export const AdminPanel = ({ onClose }) => {
     finally { setBardiBusy(false); }
   };
 
-  const Stat = ({ n, l, tint }) => (
+  const Stat = useStable(({ n, l, tint }) => (
     <View style={{ flex: 1, alignItems: 'center' }}>
       <Text style={{ color: tint || C.text, fontSize: 19, fontWeight: '900' }}>{n == null ? '—' : n}</Text>
       <Text style={{ color: C.faint, fontSize: 9.5, fontWeight: '700', letterSpacing: 0.5, marginTop: 1 }}>{l}</Text>
     </View>
-  );
-  const Empty = ({ t }) => <Text style={{ color: C.faint, fontSize: 13, textAlign: 'center', paddingVertical: 40 }}>{t}</Text>;
+  ));
+  const Empty = useStable(({ t }) => <Text style={{ color: C.faint, fontSize: 13, textAlign: 'center', paddingVertical: 40 }}>{t}</Text>);
 
   return (
     <Modal visible transparent={false} animationType="slide" onRequestClose={onClose}>

@@ -59,6 +59,7 @@ import { sfxSuccess } from '../utils/sfx';
 import { shareProfile, sharePost, shareNote } from '../utils/share';
 import { getCurrentCoords } from '../utils/location';
 import { MapCover } from '../components/MapCover';
+import { useStable } from '../hooks/useStable';
 
 /* ─── YOUR SPACE — the profile, Facebook / Instagram / X style ───
    Real mode shows your actual profile, your actual posts (with real
@@ -321,7 +322,7 @@ export const ProfileScreen = () => {
 
   const CATEGORIES = ['Creator', 'Photographer', 'Coach', 'Musician', 'Local Business', 'Community'];
 
-  const MenuRow = ({ icon, label, sub, onPress, right }) => (
+  const MenuRow = useStable(({ icon, label, sub, onPress, right }) => (
     <Pressable onPress={() => { tapSelection(); onPress && onPress(); }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 13, paddingHorizontal: 4 }}>
         <View style={{ width: 34, height: 34, borderRadius: 11, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
@@ -334,7 +335,7 @@ export const ProfileScreen = () => {
         {right || <Ionicons name="chevron-forward" size={16} color={C.faint} />}
       </View>
     </Pressable>
-  );
+  ));
 
   const saveEdit = async () => {
     if (!SUPABASE_READY || !user) { setEditOpen(false); return; }

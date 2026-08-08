@@ -8,6 +8,7 @@ import { buildAvatarUrl } from '../services/avatarBuilder';
 import { submitScore, fetchLeaderboard } from '../services/games';
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
 import { sfxPop, sfxStar, sfxSuccess } from '../utils/sfx';
+import { useStable } from '../hooks/useStable';
 
 /* Games in Egyptian Arabic when the user turns it on (Settings). */
 const gamesAr = () => { try { return typeof localStorage !== 'undefined' && localStorage.getItem('mm_games_ar') === '1'; } catch (e) { return false; } };
@@ -153,7 +154,7 @@ export const BoxingGame = ({ onClose }) => {
   const setBlock = (on) => { blockingRef.current = on; };
   const shakeX = shake.interpolate({ inputRange: [-1, 1], outputRange: [-8, 8] });
 
-  const Boxer = ({ side, hp, avatar, emoji, name, color, flashing, guarding }) => (
+  const Boxer = useStable(({ side, hp, avatar, emoji, name, color, flashing, guarding }) => (
     <View style={{ alignItems: 'center', flex: 1 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
         <Text style={{ color: '#FFF', fontSize: 11, fontWeight: '900', marginRight: 6 }} numberOfLines={1}>{name}</Text>
@@ -173,7 +174,7 @@ export const BoxingGame = ({ onClose }) => {
         )}
       </View>
     </View>
-  );
+  ));
 
   return (
     <Modal visible transparent={false} animationType="slide" onRequestClose={onClose}>

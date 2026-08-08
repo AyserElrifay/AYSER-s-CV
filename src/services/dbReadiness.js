@@ -52,6 +52,20 @@ const CHECKS = [
     table: 'bardi_chats',
     column: 'user_id',
   },
+  {
+    id: 'groups',
+    label: 'Groups',
+    what: 'Create a group does nothing at all — there is no table to put one in.',
+    table: 'groups',
+    column: 'id',
+  },
+  {
+    id: 'groups_with_counts',
+    label: 'Group member counts',
+    what: 'Groups cannot be listed, so Discover → Groups comes back empty.',
+    table: 'groups_with_counts',
+    column: 'members_count',
+  },
 ];
 
 /* ── THE ONE THAT IS NOT A COLUMN ─────────────────────────────────

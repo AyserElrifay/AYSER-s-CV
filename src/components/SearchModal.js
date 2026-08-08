@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, Modal, TextInput, Pressable, Image, ScrollView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -10,7 +10,7 @@ import { searchProfiles } from '../services/social';
 import { searchPosts, fetchTravelPlans } from '../services/posts';
 import { planWhen, upForLabel } from '../constants/travel';
 import { fetchGroups, createGroup, joinGroup, leaveGroup } from '../services/groups';
-import { fetchTrending, logSearch } from '../services/trending';
+import { fetchTrending, trendWhy, logSearch } from '../services/trending';
 import { Chip } from './Chip';
 import { Tick } from './Tick';
 import { Micro } from './Micro';
@@ -43,6 +43,256 @@ const fromProfileRow = (row) => ({
   bio: row.bio || 'New to Moments — say hi! 👋',
 });
 
+/* ─── THE ROWS LIVE OUT HERE ON PURPOSE ───────────────────────────────
+   Every one of these used to be declared inside SearchModal, which
+   meant a brand-new component on every single render. React cannot
+   tell that this render's GroupRow is last render's GroupRow, so it
+   threw the whole list away and built it again — on every keystroke.
+
+   Two things came out of that, and both were reported. The list
+   flickered and stuttered as you typed, because it was being rebuilt
+   from nothing sixty times a minute. And the group name box lost its
+   cursor after every letter, because the box itself was destroyed and
+   replaced between one character and the next — which is exactly what
+   "it writes one letter and won't let me type a name" is.
+
+   Declared once, out here, they are the same components every time.
+   React updates them instead of rebuilding them, memo skips the ones
+   whose row did not change, and the text box keeps your cursor. */
+
+const PLAYABLE = ['runner', 'stack', 'rooftop', 'rps', 'tower', 'hop'];
+
+const Section = React.memo(({ title }) => (
+  <Text style={{ color: C.text, fontSize: 16, fontWeight: '900', marginTop: 18, marginBottom: 4 }}>{title}</Text>
+));
+
+const GameRow = React.memo(({ item, onPlay }) => (
+  <Pressable onPress={() => onPlay(item)}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 11 }}>
+      <View style={{ width: 52, height: 52, borderRadius: 15, backgroundColor: C.purpleSoft, borderWidth: 1, borderColor: 'rgba(124,58,237,0.3)', alignItems: 'center', justifyContent: 'center' }}>
+        <Text style={{ fontSize: 26 }}>{item.emoji}</Text>
+      </View>
+      <View style={{ flex: 1, marginLeft: 12, marginRight: 10 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '800' }}>{item.name}</Text>
+          <View style={{ backgroundColor: C.purpleSoft, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, marginLeft: 7 }}>
+            <Text style={{ color: C.purple, fontSize: 10, fontWeight: '800' }}>{item.tag}</Text>
+          </View>
+        </View>
+        <Text style={{ color: C.faint, fontSize: 12, marginTop: 3 }} numberOfLines={2}>{item.players}</Text>
+      </View>
+      <View style={{ backgroundColor: PLAYABLE.includes(item.kind) ? C.purple : C.glassHi, borderRadius: 999, paddingHorizontal: 15, paddingVertical: 8 }}>
+        <Text style={{ color: PLAYABLE.includes(item.kind) ? '#FFF' : C.dim, fontSize: 12, fontWeight: '900' }}>{PLAYABLE.includes(item.kind) ? 'Play' : 'In chat'}</Text>
+      </View>
+    </View>
+  </Pressable>
+));
+
+const PersonRow = React.memo(({ item, onOpen }) => (
+  <Pressable onPress={() => onOpen(item)}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10 }}>
+      <Image source={{ uri: item.avatar }} style={{ width: 46, height: 46, borderRadius: 23 }} />
+      <View style={{ flex: 1, marginLeft: 12 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '800' }}>{item.name}</Text>
+          {item.verified ? <Tick /> : null}
+        </View>
+        <Text style={{ color: C.faint, fontSize: 12, marginTop: 2 }}>{item.handle}</Text>
+      </View>
+      <Chip label={item.intent} tint={C.purpleSoft} color={C.purple} style={{ borderColor: 'rgba(124,58,237,0.35)' }} />
+    </View>
+  </Pressable>
+));
+
+const GroupRow = React.memo(({ item, onToggle }) => (
+  <Pressable>
+    <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10 }}>
+      <View style={{ width: 46, height: 46, borderRadius: 14, backgroundColor: C.purpleSoft, borderWidth: 1, borderColor: 'rgba(124,58,237,0.3)', alignItems: 'center', justifyContent: 'center' }}>
+        <Text style={{ fontSize: 22 }}>{item.emoji}</Text>
+      </View>
+      <View style={{ flex: 1, marginLeft: 12, marginRight: 10 }}>
+        <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '800' }}>{item.name}</Text>
+        <Text style={{ color: C.faint, fontSize: 12, marginTop: 2 }} numberOfLines={1}>{item.members} members{item.about ? ' · ' + item.about : ''}</Text>
+      </View>
+      {SUPABASE_READY ? (
+        <Pressable onPress={() => onToggle(item)}>
+          <View style={{ backgroundColor: item.joined ? C.greenSoft : C.purple, borderWidth: item.joined ? 1 : 0, borderColor: 'rgba(16,185,129,0.45)', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 7 }}>
+            <Text style={{ color: item.joined ? C.green : '#FFF', fontSize: 12, fontWeight: '900' }}>{item.joined ? 'Joined ✓' : 'Join'}</Text>
+          </View>
+        </Pressable>
+      ) : (
+        <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 7 }}>
+          <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '900' }}>Join</Text>
+        </View>
+      )}
+    </View>
+  </Pressable>
+));
+
+/* ─── MAKING A GROUP ──────────────────────────────────────────────────
+   What you type here stays here. It used to live in SearchModal's own
+   state, so every letter re-rendered the entire Discover screen —
+   tabs, results, trending, all of it — to show one more character in
+   one small box. That is the whole reason this felt heavy.
+
+   It also says what happened. Create either makes a group or explains
+   itself; it no longer swallows the reason and leaves you guessing. */
+const CreateGroupCard = ({ onCreate }) => {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState('');
+  const [emoji, setEmoji] = useState('🌐');
+  const [about, setAbout] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+
+  if (!SUPABASE_READY) return null;
+
+  const go = async () => {
+    if (!name.trim() || busy) return;
+    setBusy(true); setErr(null);
+    try {
+      await onCreate({ name: name.trim(), emoji: emoji.trim() || '🌐', about: about.trim() });
+      setOpen(false); setName(''); setAbout(''); setEmoji('🌐');
+    } catch (e) {
+      const msg = String((e && (e.message || e.hint)) || '');
+      const code = e && e.code;
+      /* Told plainly, and differently, because the fix is different:
+         a missing table is Ayser's to run, a refused row is a sign-in,
+         a dead connection is a retry. */
+      setErr(
+        msg === 'signin' ? 'Sign in first — a group needs an owner.'
+        : msg === 'offline' ? 'Not connected yet. Try again in a moment.'
+        : code === '42P01' || /does not exist|schema cache/i.test(msg) ? 'Groups are not switched on yet. Ayser has to run the setup once.'
+        : code === '42501' || /row-level security|policy/i.test(msg) ? "You don't have permission to create a group yet."
+        : /fetch|network|Failed to fetch/i.test(msg) ? 'No connection. Check your internet and try again.'
+        : (msg || 'That did not go through. Try again.')
+      );
+    }
+    setBusy(false);
+  };
+
+  if (!open) {
+    return (
+      <Pressable onPress={() => { tapLight(); setOpen(true); }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: C.purpleSoft, borderWidth: 1, borderColor: 'rgba(124,58,237,0.35)', borderRadius: 14, paddingVertical: 13, marginTop: 12 }}>
+          <Ionicons name="add" size={18} color={C.purple} />
+          <Text style={{ color: C.purple, fontSize: 13.5, fontWeight: '900', marginLeft: 6 }}>Create a group</Text>
+        </View>
+      </Pressable>
+    );
+  }
+
+  return (
+    <View style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 16, padding: 14, marginTop: 12 }}>
+      <View style={{ flexDirection: 'row', marginBottom: 9 }}>
+        <TextInput value={emoji} onChangeText={setEmoji} maxLength={4} style={{ width: 48, textAlign: 'center', fontSize: 20, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 12, marginRight: 8 }} />
+        <TextInput
+          placeholder="Group name"
+          placeholderTextColor={C.faint}
+          value={name}
+          onChangeText={setName}
+          autoFocus
+          returnKeyType="done"
+          onSubmitEditing={go}
+          style={{ flex: 1, color: C.text, fontSize: 14, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10 }}
+        />
+      </View>
+      <TextInput placeholder="What's it about?" placeholderTextColor={C.faint} value={about} onChangeText={setAbout} style={{ color: C.text, fontSize: 13, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 10 }} />
+      {err ? (
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', backgroundColor: 'rgba(244,63,94,0.10)', borderRadius: 12, paddingHorizontal: 11, paddingVertical: 9, marginBottom: 10 }}>
+          <Ionicons name="alert-circle-outline" size={14} color={C.coral} style={{ marginTop: 1 }} />
+          <Text style={{ color: C.coral, fontSize: 12, marginLeft: 7, flex: 1, lineHeight: 17 }}>{err}</Text>
+        </View>
+      ) : null}
+      <View style={{ flexDirection: 'row' }}>
+        <Pressable onPress={() => { setOpen(false); setErr(null); }} style={{ flex: 1, marginRight: 8 }}>
+          <View style={{ borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingVertical: 11, alignItems: 'center' }}><Text style={{ color: C.dim, fontSize: 13, fontWeight: '800' }}>Cancel</Text></View>
+        </Pressable>
+        <Pressable onPress={go} style={{ flex: 1 }} disabled={busy}>
+          <View style={{ backgroundColor: name.trim() && !busy ? C.purple : C.glassHi, borderRadius: 12, paddingVertical: 11, alignItems: 'center' }}>
+            <Text style={{ color: name.trim() && !busy ? '#FFF' : C.faint, fontSize: 13, fontWeight: '900' }}>{busy ? 'Creating…' : 'Create'}</Text>
+          </View>
+        </Pressable>
+      </View>
+    </View>
+  );
+};
+
+const PostRow = React.memo(({ item }) => (
+  <Pressable>
+    <View style={{ flexDirection: 'row', paddingVertical: 11 }}>
+      <Image source={{ uri: item.user.avatar }} style={{ width: 40, height: 40, borderRadius: 20 }} />
+      <View style={{ flex: 1, marginLeft: 11 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800' }}>{item.user.name}</Text>
+          {item.place ? <Text style={{ color: C.faint, fontSize: 12, marginLeft: 6 }}>· {item.place}</Text> : null}
+        </View>
+        <Text style={{ color: C.dim, fontSize: 13, marginTop: 3, lineHeight: 18 }} numberOfLines={2}>{item.caption}</Text>
+        <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 5 }}>
+          <MaterialCommunityIcons name="star-four-points" size={11} color={C.gold} /> {item.vibes} · 📜 {item.comments}
+        </Text>
+      </View>
+      {item.media ? <Image source={{ uri: item.media }} style={{ width: 54, height: 54, borderRadius: 12, marginLeft: 10 }} /> : null}
+    </View>
+  </Pressable>
+));
+
+const PlanRow = React.memo(({ item, onOpenProfile }) => {
+  const plan = item.plan || {};
+  const when = planWhen(plan);
+  return (
+    <Pressable onPress={() => { tapLight(); onOpenProfile && onOpenProfile({ id: item.user_id, name: (item.user && item.user.name) || 'Explorer', avatar: (item.user && item.user.avatar_url) || AV_NEUTRAL }); }}>
+      <View style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 18, padding: 14, marginTop: 12 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Image source={{ uri: (item.user && item.user.avatar_url) || AV_NEUTRAL }} style={{ width: 34, height: 34, borderRadius: 17 }} />
+          <Text style={{ color: C.text, fontSize: 13, fontWeight: '800', marginLeft: 9, flex: 1 }} numberOfLines={1}>
+            {(item.user && item.user.name) || 'Explorer'}{item.user && item.user.country_flag ? ' ' + item.user.country_flag : ''}
+          </Text>
+          <Ionicons name="chevron-forward" size={15} color={C.faint} />
+        </View>
+        <Text style={{ color: C.text, fontSize: 15.5, fontWeight: '900', marginTop: 9, lineHeight: 21 }} numberOfLines={2}>
+          {plan.title || item.caption}
+        </Text>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 8 }}>
+          {when ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.glassHi, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6, marginRight: 7, marginBottom: 6 }}>
+              <Ionicons name="calendar-outline" size={12} color={C.dim} />
+              <Text style={{ color: C.text, fontSize: 11.5, fontWeight: '800', marginLeft: 5 }}>{when}</Text>
+            </View>
+          ) : null}
+          {item.place ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.glassHi, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6, marginBottom: 6 }}>
+              <Ionicons name="location-outline" size={12} color={C.dim} />
+              <Text style={{ color: C.text, fontSize: 11.5, fontWeight: '800', marginLeft: 5 }}>{item.place}</Text>
+            </View>
+          ) : null}
+        </View>
+        {plan.upFor && plan.upFor.length ? (
+          <Text style={{ color: C.green, fontSize: 11.5, fontWeight: '800', marginTop: 2 }} numberOfLines={1}>
+            {plan.upFor.slice(0, 3).map(upForLabel).join('  ')}
+          </Text>
+        ) : null}
+      </View>
+    </Pressable>
+  );
+});
+
+/* A trending hashtag is a room — tapping it should walk you into it,
+   not type it into a box and leave you to press search. */
+const TrendRow = React.memo(({ item, rank, onPick }) => (
+  <Pressable onPress={() => onPick(item)}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 11 }}>
+      <Text style={{ color: C.faint, fontSize: 15, fontWeight: '900', width: 26 }}>{rank}</Text>
+      <View style={{ flex: 1 }}>
+        <Text style={{ color: C.faint, fontSize: 11.5 }}>{item.category}</Text>
+        <Text style={{ color: C.text, fontSize: 15, fontWeight: '800', marginTop: 1 }}>{item.tag}</Text>
+        <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 1 }}>{trendWhy(item)}</Text>
+      </View>
+      <MaterialCommunityIcons name="trending-up" size={20} color={C.green} />
+    </View>
+  </Pressable>
+));
+
 export const SearchModal = ({ onClose, onOpenProfile, onOpenTopics, onOpenTag }) => {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
@@ -52,14 +302,14 @@ export const SearchModal = ({ onClose, onOpenProfile, onOpenTopics, onOpenTag })
   const [game, setGame] = useState(null);
   const [realGroups, setRealGroups] = useState(null);
   const [realTrends, setRealTrends] = useState(null);
-  const [creating, setCreating] = useState(false);
-  const [newName, setNewName] = useState('');
-  const [newEmoji, setNewEmoji] = useState('🌐');
-  const [newAbout, setNewAbout] = useState('');
+  const [groupsErr, setGroupsErr] = useState(false);
 
   const loadGroups = () => {
     if (!SUPABASE_READY) return;
-    fetchGroups(user && user.id).then(setRealGroups).catch(() => setRealGroups([]));
+    setGroupsErr(false);
+    fetchGroups(user && user.id)
+      .then((rows) => { setRealGroups(rows); })
+      .catch(() => { setRealGroups([]); setGroupsErr(true); });
   };
   useEffect(loadGroups, [user]);
 
@@ -69,23 +319,45 @@ export const SearchModal = ({ onClose, onOpenProfile, onOpenTopics, onOpenTag })
     fetchTrending().then(setRealTrends).catch(() => setRealTrends([]));
   }, []);
 
-  const toggleGroup = async (g) => {
+  /* These are handed to memoised rows, so they have to keep the same
+     identity between renders — a callback rebuilt every keystroke would
+     defeat the memo and we would be back to re-rendering every row for
+     every letter. */
+  const toggleGroup = useCallback(async (g) => {
     if (!SUPABASE_READY || !user) return;
     tapLight();
-    setRealGroups((gs) => gs.map((x) => x.id === g.id ? { ...x, joined: !x.joined, members: x.members + (x.joined ? -1 : 1) } : x));
+    setRealGroups((gs) => (gs || []).map((x) => x.id === g.id ? { ...x, joined: !x.joined, members: x.members + (x.joined ? -1 : 1) } : x));
     try { g.joined ? await leaveGroup(g.id, user.id) : await joinGroup(g.id, user.id); }
     catch (e) { loadGroups(); }
-  };
+  }, [user]);
 
-  const submitGroup = async () => {
-    if (!newName.trim() || !SUPABASE_READY || !user) return;
+  /* A trend is a place, not a word — tapping one should walk you into
+     it. A hashtag opens its room, a group opens the Groups tab already
+     filtered to it, and a place goes into the box where it belongs. */
+  const pickTrend = useCallback((item) => {
+    tapLight();
+    if (item.isGroup) { setTab('Groups'); setQuery(item.tag.replace(/^👥\s*/, '')); return; }
+    if (onOpenTag && /^#/.test(item.tag)) { onOpenTag(item.tag); return; }
+    setQuery(item.tag.replace(/^📍\s*/, ''));
+  }, [onOpenTag]);
+
+  /* Making a group used to end in `catch (e) {}` — the button did its
+     happy little sound, the card closed, and if the server had refused
+     you were never told. You pressed Create, nothing existed, and
+     nothing explained why. A failure nobody is told about is worse than
+     a failure: it makes the app look broken AND makes you doubt what
+     you typed. This one throws its reason back to the card, which puts
+     it on screen. */
+  const submitGroup = useCallback(async ({ name, emoji, about }) => {
+    if (!SUPABASE_READY) throw new Error('offline');
+    if (!user) throw new Error('signin');
+    const row = await createGroup(user.id, { name, emoji: emoji || '🌐', about });
     tapSuccess(); sfxSuccess();
-    try {
-      await createGroup(user.id, { name: newName.trim(), emoji: newEmoji.trim() || '🌐', about: newAbout.trim() });
-      setCreating(false); setNewName(''); setNewAbout(''); setNewEmoji('🌐');
-      loadGroups();
-    } catch (e) {}
-  };
+    /* On screen the moment it exists, rather than after a round trip —
+       and then reconciled with what the server actually has. */
+    setRealGroups((gs) => [{ id: row.id, name: row.name, emoji: row.emoji || '🌐', about: row.about || '', members: 1, owner_id: row.owner_id, joined: true }].concat(gs || []));
+    loadGroups();
+  }, [user]);
 
   /* ── TRAVEL PLANS ─────────────────────────────────────────────────
      A plan posted into a chronological feed is a message in a bottle:
@@ -149,184 +421,11 @@ export const SearchModal = ({ onClose, onOpenProfile, onOpenTopics, onOpenTag })
   const trends = trendsSource.filter((t) => !q || t.tag.toLowerCase().includes(q));
   const games = PLAY_GAMES.filter((g) => !q || g.name.toLowerCase().includes(q) || g.tag.toLowerCase().includes(q));
 
-  const PLAYABLE = ['runner', 'stack', 'rooftop', 'rps', 'tower', 'hop'];
   const launchGame = (g) => {
     tapLight();
     if (PLAYABLE.includes(g.kind)) setGame(g);
     // 'chat' games (Truth or Dare) are added from inside a conversation
   };
-
-  const GameRow = ({ item }) => (
-    <Pressable onPress={() => launchGame(item)}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 11 }}>
-        <View style={{ width: 52, height: 52, borderRadius: 15, backgroundColor: C.purpleSoft, borderWidth: 1, borderColor: 'rgba(124,58,237,0.3)', alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ fontSize: 26 }}>{item.emoji}</Text>
-        </View>
-        <View style={{ flex: 1, marginLeft: 12, marginRight: 10 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '800' }}>{item.name}</Text>
-            <View style={{ backgroundColor: C.purpleSoft, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, marginLeft: 7 }}>
-              <Text style={{ color: C.purple, fontSize: 10, fontWeight: '800' }}>{item.tag}</Text>
-            </View>
-          </View>
-          <Text style={{ color: C.faint, fontSize: 12, marginTop: 3 }} numberOfLines={2}>{item.players}</Text>
-        </View>
-        <View style={{ backgroundColor: PLAYABLE.includes(item.kind) ? C.purple : C.glassHi, borderRadius: 999, paddingHorizontal: 15, paddingVertical: 8 }}>
-          <Text style={{ color: PLAYABLE.includes(item.kind) ? '#FFF' : C.dim, fontSize: 12, fontWeight: '900' }}>{PLAYABLE.includes(item.kind) ? 'Play' : 'In chat'}</Text>
-        </View>
-      </View>
-    </Pressable>
-  );
-
-  const PersonRow = ({ item }) => (
-    <Pressable onPress={() => onOpenProfile(item)}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10 }}>
-        <Image source={{ uri: item.avatar }} style={{ width: 46, height: 46, borderRadius: 23 }} />
-        <View style={{ flex: 1, marginLeft: 12 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '800' }}>{item.name}</Text>
-            {item.verified ? <Tick /> : null}
-          </View>
-          <Text style={{ color: C.faint, fontSize: 12, marginTop: 2 }}>{item.handle}</Text>
-        </View>
-        <Chip label={item.intent} tint={C.purpleSoft} color={C.purple} style={{ borderColor: 'rgba(124,58,237,0.35)' }} />
-      </View>
-    </Pressable>
-  );
-
-  const GroupRow = ({ item }) => (
-    <Pressable>
-      <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10 }}>
-        <View style={{ width: 46, height: 46, borderRadius: 14, backgroundColor: C.purpleSoft, borderWidth: 1, borderColor: 'rgba(124,58,237,0.3)', alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ fontSize: 22 }}>{item.emoji}</Text>
-        </View>
-        <View style={{ flex: 1, marginLeft: 12, marginRight: 10 }}>
-          <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '800' }}>{item.name}</Text>
-          <Text style={{ color: C.faint, fontSize: 12, marginTop: 2 }} numberOfLines={1}>{item.members} members{item.about ? ' · ' + item.about : ''}</Text>
-        </View>
-        {SUPABASE_READY ? (
-          <Pressable onPress={() => toggleGroup(item)}>
-            <View style={{ backgroundColor: item.joined ? C.greenSoft : C.purple, borderWidth: item.joined ? 1 : 0, borderColor: 'rgba(16,185,129,0.45)', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 7 }}>
-              <Text style={{ color: item.joined ? C.green : '#FFF', fontSize: 12, fontWeight: '900' }}>{item.joined ? 'Joined ✓' : 'Join'}</Text>
-            </View>
-          </Pressable>
-        ) : (
-          <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 7 }}>
-            <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '900' }}>Join</Text>
-          </View>
-        )}
-      </View>
-    </Pressable>
-  );
-
-  const CreateGroupCard = () => (
-    !SUPABASE_READY ? null : creating ? (
-      <View style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 16, padding: 14, marginTop: 12 }}>
-        <View style={{ flexDirection: 'row', marginBottom: 9 }}>
-          <TextInput value={newEmoji} onChangeText={setNewEmoji} style={{ width: 48, textAlign: 'center', fontSize: 20, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 12, marginRight: 8 }} />
-          <TextInput placeholder="Group name" placeholderTextColor={C.faint} value={newName} onChangeText={setNewName} style={{ flex: 1, color: C.text, fontSize: 14, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12 }} />
-        </View>
-        <TextInput placeholder="What's it about?" placeholderTextColor={C.faint} value={newAbout} onChangeText={setNewAbout} style={{ color: C.text, fontSize: 13, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 10 }} />
-        <View style={{ flexDirection: 'row' }}>
-          <Pressable onPress={() => setCreating(false)} style={{ flex: 1, marginRight: 8 }}>
-            <View style={{ borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingVertical: 11, alignItems: 'center' }}><Text style={{ color: C.dim, fontSize: 13, fontWeight: '800' }}>Cancel</Text></View>
-          </Pressable>
-          <Pressable onPress={submitGroup} style={{ flex: 1 }}>
-            <View style={{ backgroundColor: newName.trim() ? C.purple : C.glassHi, borderRadius: 12, paddingVertical: 11, alignItems: 'center' }}><Text style={{ color: newName.trim() ? '#FFF' : C.faint, fontSize: 13, fontWeight: '900' }}>Create</Text></View>
-          </Pressable>
-        </View>
-      </View>
-    ) : (
-      <Pressable onPress={() => { tapLight(); setCreating(true); }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: C.purpleSoft, borderWidth: 1, borderColor: 'rgba(124,58,237,0.35)', borderRadius: 14, paddingVertical: 13, marginTop: 12 }}>
-          <Ionicons name="add" size={18} color={C.purple} />
-          <Text style={{ color: C.purple, fontSize: 13.5, fontWeight: '900', marginLeft: 6 }}>Create a group</Text>
-        </View>
-      </Pressable>
-    )
-  );
-
-  const PostRow = ({ item }) => (
-    <Pressable>
-      <View style={{ flexDirection: 'row', paddingVertical: 11 }}>
-        <Image source={{ uri: item.user.avatar }} style={{ width: 40, height: 40, borderRadius: 20 }} />
-        <View style={{ flex: 1, marginLeft: 11 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800' }}>{item.user.name}</Text>
-            {item.place ? <Text style={{ color: C.faint, fontSize: 12, marginLeft: 6 }}>· {item.place}</Text> : null}
-          </View>
-          <Text style={{ color: C.dim, fontSize: 13, marginTop: 3, lineHeight: 18 }} numberOfLines={2}>{item.caption}</Text>
-          <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 5 }}>
-            <MaterialCommunityIcons name="star-four-points" size={11} color={C.gold} /> {item.vibes} · 📜 {item.comments}
-          </Text>
-        </View>
-        {item.media ? <Image source={{ uri: item.media }} style={{ width: 54, height: 54, borderRadius: 12, marginLeft: 10 }} /> : null}
-      </View>
-    </Pressable>
-  );
-
-  const PlanRow = ({ item }) => {
-    const plan = item.plan || {};
-    const when = planWhen(plan);
-    return (
-      <Pressable onPress={() => { tapLight(); onOpenProfile && onOpenProfile({ id: item.user_id, name: (item.user && item.user.name) || 'Explorer', avatar: (item.user && item.user.avatar_url) || AV_NEUTRAL }); }}>
-        <View style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 18, padding: 14, marginTop: 12 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Image source={{ uri: (item.user && item.user.avatar_url) || AV_NEUTRAL }} style={{ width: 34, height: 34, borderRadius: 17 }} />
-            <Text style={{ color: C.text, fontSize: 13, fontWeight: '800', marginLeft: 9, flex: 1 }} numberOfLines={1}>
-              {(item.user && item.user.name) || 'Explorer'}{item.user && item.user.country_flag ? ' ' + item.user.country_flag : ''}
-            </Text>
-            <Ionicons name="chevron-forward" size={15} color={C.faint} />
-          </View>
-          <Text style={{ color: C.text, fontSize: 15.5, fontWeight: '900', marginTop: 9, lineHeight: 21 }} numberOfLines={2}>
-            {plan.title || item.caption}
-          </Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 8 }}>
-            {when ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.glassHi, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6, marginRight: 7, marginBottom: 6 }}>
-                <Ionicons name="calendar-outline" size={12} color={C.dim} />
-                <Text style={{ color: C.text, fontSize: 11.5, fontWeight: '800', marginLeft: 5 }}>{when}</Text>
-              </View>
-            ) : null}
-            {item.place ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.glassHi, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6, marginBottom: 6 }}>
-                <Ionicons name="location-outline" size={12} color={C.dim} />
-                <Text style={{ color: C.text, fontSize: 11.5, fontWeight: '800', marginLeft: 5 }}>{item.place}</Text>
-              </View>
-            ) : null}
-          </View>
-          {plan.upFor && plan.upFor.length ? (
-            <Text style={{ color: C.green, fontSize: 11.5, fontWeight: '800', marginTop: 2 }} numberOfLines={1}>
-              {plan.upFor.slice(0, 3).map(upForLabel).join('  ')}
-            </Text>
-          ) : null}
-        </View>
-      </Pressable>
-    );
-  };
-
-  const TrendRow = ({ item, rank }) => (
-    /* A trending hashtag is a room — tapping it should walk you into it,
-       not type it into a box and leave you to press search. */
-    <Pressable onPress={() => {
-      if (onOpenTag && /^#/.test(item.tag)) { tapLight(); onOpenTag(item.tag); return; }
-      setQuery(item.tag);
-    }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 11 }}>
-        <Text style={{ color: C.faint, fontSize: 15, fontWeight: '900', width: 26 }}>{rank}</Text>
-        <View style={{ flex: 1 }}>
-          <Text style={{ color: C.faint, fontSize: 11.5 }}>{item.category}</Text>
-          <Text style={{ color: C.text, fontSize: 15, fontWeight: '800', marginTop: 1 }}>{item.tag}</Text>
-          <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 1 }}>{item.moments} moments</Text>
-        </View>
-        <MaterialCommunityIcons name="trending-up" size={20} color={C.green} />
-      </View>
-    </Pressable>
-  );
-
-  const Section = ({ title }) => (
-    <Text style={{ color: C.text, fontSize: 16, fontWeight: '900', marginTop: 18, marginBottom: 4 }}>{title}</Text>
-  );
 
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
@@ -386,23 +485,36 @@ export const SearchModal = ({ onClose, onOpenProfile, onOpenTopics, onOpenTag })
               {!q ? (
                 <>
                   <Section title="Trending now 🔥" />
-                  {trends.length ? trends.map((t, i) => <TrendRow key={t.id} item={t} rank={i + 1} />) : (
-                    SUPABASE_READY && realTrends !== null ? (
-                      <Text style={{ color: C.faint, fontSize: 12.5, paddingVertical: 10 }}>
-                        Nothing trending yet — tag a #hashtag or a place in your next moment ✨
-                      </Text>
-                    ) : null
-                  )}
+                  {trends.length ? trends.map((t, i) => <TrendRow key={t.id} item={t} rank={i + 1} onPick={pickTrend} />)
+                    : SUPABASE_READY && realTrends === null ? (
+                      /* Still counting. Saying nothing here reads as "there
+                         is nothing", which is a different statement. */
+                      <Text style={{ color: C.faint, fontSize: 12.5, paddingVertical: 10 }}>Counting…</Text>
+                    ) : SUPABASE_READY ? (
+                      <Pressable onPress={() => { tapLight(); onOpenTopics && onOpenTopics(); }}>
+                        <View style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 16, padding: 14, marginTop: 4 }}>
+                          <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800' }}>Quiet fortnight 🌱</Text>
+                          <Text style={{ color: C.faint, fontSize: 12.5, marginTop: 5, lineHeight: 19 }}>
+                            Trends are counted off real moments — hashtags, places, groups and what people
+                            search for. Nothing has been tagged in the last two weeks, so there is honestly
+                            nothing to show. Post one with a #hashtag or a place and it starts here.
+                          </Text>
+                          {onOpenTopics ? (
+                            <Text style={{ color: C.purple, fontSize: 12.5, fontWeight: '900', marginTop: 9 }}>Pick a topic to post in →</Text>
+                          ) : null}
+                        </View>
+                      </Pressable>
+                    ) : null}
                 </>
               ) : trends.length ? (
                 <>
                   <Section title="Trends" />
-                  {trends.map((t, i) => <TrendRow key={t.id} item={t} rank={i + 1} />)}
+                  {trends.map((t, i) => <TrendRow key={t.id} item={t} rank={i + 1} onPick={pickTrend} />)}
                 </>
               ) : null}
-              {people.length ? <><Section title="People" />{people.slice(0, 3).map((u) => <PersonRow key={u.id} item={u} />)}</> : null}
-              {groups.length ? <><Section title="Groups" />{groups.slice(0, 3).map((g) => <GroupRow key={g.id} item={g} />)}</> : null}
-              {!q && games.length ? <><Section title="Play together 🎮" />{games.slice(0, 3).map((g) => <GameRow key={g.id} item={g} />)}</> : null}
+              {people.length ? <><Section title="People" />{people.slice(0, 3).map((u) => <PersonRow key={u.id} item={u} onOpen={onOpenProfile} />)}</> : null}
+              {groups.length ? <><Section title="Groups" />{groups.slice(0, 3).map((g) => <GroupRow key={g.id} item={g} onToggle={toggleGroup} />)}</> : null}
+              {!q && games.length ? <><Section title="Play together 🎮" />{games.slice(0, 3).map((g) => <GameRow key={g.id} item={g} onPlay={launchGame} />)}</> : null}
               {q && posts.length ? <><Section title="Posts" />{posts.slice(0, 3).map((p) => <PostRow key={p.id} item={p} />)}</> : null}
             </View>
           ) : null}
@@ -411,7 +523,7 @@ export const SearchModal = ({ onClose, onOpenProfile, onOpenTopics, onOpenTag })
               blank "start typing" — real accounts, in lanes, filterable
               by country and city. Typing goes back to searching. */}
           {tab === 'People' ? (
-            q ? (people.length ? people.map((u) => <PersonRow key={u.id} item={u} />) : <Empty q={q} />)
+            q ? (people.length ? people.map((u) => <PersonRow key={u.id} item={u} onOpen={onOpenProfile} />) : <Empty q={q} />)
               : <PeopleDiscover />
           ) : null}
           {tab === 'Travel' ? (
@@ -423,7 +535,7 @@ export const SearchModal = ({ onClose, onOpenProfile, onOpenTopics, onOpenTag })
                   {q ? 'Plans matching “' + query.trim() + '” — soonest first.'
                      : 'Who is going where, soonest first. Type a country or a city to narrow it down.'}
                 </Text>
-                {plans.map((pl) => <PlanRow key={pl.id} item={pl} />)}
+                {plans.map((pl) => <PlanRow key={pl.id} item={pl} onOpenProfile={onOpenProfile} />)}
               </>
             ) : (
               <View style={{ alignItems: 'center', paddingVertical: 40, paddingHorizontal: 20 }}>
@@ -448,9 +560,31 @@ export const SearchModal = ({ onClose, onOpenProfile, onOpenTopics, onOpenTag })
               </View>
             )
           ) : null}
-          {tab === 'Groups' ? (<>{groups.length ? groups.map((g) => <GroupRow key={g.id} item={g} />) : <Empty q={q} />}<CreateGroupCard /></>) : null}
+          {tab === 'Groups' ? (
+            <>
+              {/* An empty list and an unreachable server look identical
+                  on screen, and they are not the same thing. */}
+              {groupsErr ? (
+                <View style={{ alignItems: 'center', paddingVertical: 26, paddingHorizontal: 20 }}>
+                  <Text style={{ fontSize: 30 }}>📡</Text>
+                  <Text style={{ color: C.text, fontSize: 14, fontWeight: '900', marginTop: 8, textAlign: 'center' }}>Couldn't load groups</Text>
+                  <Text style={{ color: C.faint, fontSize: 12.5, marginTop: 5, textAlign: 'center', lineHeight: 19 }}>
+                    This is the connection, not you — the ones that exist are still there.
+                  </Text>
+                  <Pressable onPress={() => { tapLight(); loadGroups(); }} style={{ marginTop: 12 }}>
+                    <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 22, paddingVertical: 9 }}>
+                      <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900' }}>Try again</Text>
+                    </View>
+                  </Pressable>
+                </View>
+              ) : realGroups === null && SUPABASE_READY ? (
+                <Text style={{ color: C.faint, fontSize: 12.5, textAlign: 'center', paddingVertical: 28 }}>Looking…</Text>
+              ) : groups.length ? groups.map((g) => <GroupRow key={g.id} item={g} onToggle={toggleGroup} />) : <Empty q={q} />}
+              <CreateGroupCard onCreate={submitGroup} />
+            </>
+          ) : null}
           {tab === 'Posts' ? (posts.length ? posts.map((p) => <PostRow key={p.id} item={p} />) : <Empty q={q} />) : null}
-          {tab === 'Play' ? (games.length ? games.map((g) => <GameRow key={g.id} item={g} />) : <Empty q={q} />) : null}
+          {tab === 'Play' ? (games.length ? games.map((g) => <GameRow key={g.id} item={g} onPlay={launchGame} />) : <Empty q={q} />) : null}
         </ScrollView>
       </View>
       {game && game.kind === 'stack' ? <StackGame onClose={() => setGame(null)} />

@@ -9,6 +9,7 @@ import { fetchMyMates } from '../services/mates';
 import { searchProfiles } from '../services/social';
 import { AV_NEUTRAL } from '../constants/mockData';
 import { tapLight, tapSelection } from '../utils/feedback';
+import { useStable } from '../hooks/useStable';
 
 /* Pick the people who are actually in the moment. Your mates come up
    first because that's who you're usually with; the search reaches
@@ -53,7 +54,7 @@ export const TagPeoplePicker = ({ selected = [], onDone, onClose }) => {
     ? found
     : (mates || []);
 
-  const Row = ({ p }) => {
+  const Row = useStable(({ p }) => {
     const on = picked.some((x) => x.id === p.id);
     return (
       <Pressable onPress={() => toggle(p)}>
@@ -73,7 +74,7 @@ export const TagPeoplePicker = ({ selected = [], onDone, onClose }) => {
         </View>
       </Pressable>
     );
-  };
+  });
 
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>

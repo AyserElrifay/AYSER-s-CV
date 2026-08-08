@@ -9,6 +9,7 @@ import { RTC_CONFIG, ringUser, joinCall, logMissedCall } from '../services/calls
 import { CallGames } from './CallGames';
 import { tapMedium, tapLight, tapSuccess } from '../utils/feedback';
 import { startRingback } from '../utils/sfx';
+import { useStable } from '../hooks/useStable';
 
 /* ─── REAL calls ───
    The other person's device actually RINGS (Supabase Realtime broadcast
@@ -240,14 +241,14 @@ export const CallScreen = ({ peer, video, incoming = false, callId: incomingCall
     : state === 'failed' ? 'Could not connect — check mic permission & network'
     : 'Call ended';
 
-  const Ctrl = ({ icon, label, on, danger, onPress }) => (
+  const Ctrl = useStable(({ icon, label, on, danger, onPress }) => (
     <Pressable onPress={() => { tapLight(); onPress && onPress(); }} style={{ alignItems: 'center', marginHorizontal: 10 }}>
       <View style={{ width: 58, height: 58, borderRadius: 29, alignItems: 'center', justifyContent: 'center', backgroundColor: danger ? C.coral : on ? '#FFF' : 'rgba(255,255,255,0.18)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' }}>
         <Ionicons name={icon} size={23} color={danger ? '#FFF' : on ? C.text : '#FFF'} />
       </View>
       <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 10.5, marginTop: 6 }}>{label}</Text>
     </Pressable>
-  );
+  ));
 
   return (
     <Modal visible transparent={false} animationType="fade" onRequestClose={hangUp}>

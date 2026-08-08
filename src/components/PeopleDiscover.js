@@ -13,6 +13,7 @@ import {
 import { buildAvatarUrl } from '../services/avatarBuilder';
 import { ProfileModal } from './ProfileModal';
 import { tapLight, tapMedium } from '../utils/feedback';
+import { useStable } from '../hooks/useStable';
 
 /* ── DISCOVER PEOPLE ────────────────────────────────────────────────
    Browsing instead of guessing a name into a search box. Five lanes,
@@ -108,7 +109,7 @@ export const PeopleDiscover = () => {
       .catch(() => setMates((m) => { const n = { ...m }; delete n[p.id]; return n; }));
   };
 
-  const Row = ({ p }) => {
+  const Row = useStable(({ p }) => {
     const s = mates[p.id];
     const speaks = short(p.speaks_language), learns = short(p.learning_language);
     const active = activeLabel(p.last_active_at);
@@ -173,7 +174,7 @@ export const PeopleDiscover = () => {
         </Pressable>
       </Pressable>
     );
-  };
+  });
 
   const placeList = placeOpen === 'country' ? places.countries : places.cities;
 

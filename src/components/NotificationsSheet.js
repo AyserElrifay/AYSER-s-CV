@@ -19,6 +19,7 @@ import { ReelsViewer } from './ReelsViewer';
 import { ProfileModal } from './ProfileModal';
 import { CommentsSheet } from './CommentsSheet';
 import { LikersSheet } from './LikersSheet';
+import { useStable } from '../hooks/useStable';
 
 /* The activity inbox — every star, laugh, comment and mate event on YOUR
    stuff, written by DB triggers so nothing is ever fabricated. Laid out
@@ -211,7 +212,7 @@ export const NotificationsSheet = ({ onClose }) => {
   filtered.forEach((n) => { const b = bucketOf(n.created_at); (byBucket[b] = byBucket[b] || []).push(n); });
   const sections = BUCKET_ORDER.filter((t) => byBucket[t]).map((t) => ({ title: t, data: byBucket[t] }));
 
-  const Thumb = ({ n }) => {
+  const Thumb = useStable(({ n }) => {
     const url = n.post && n.post.media_url;
     if (!url) return null;
     return (
@@ -225,9 +226,9 @@ export const NotificationsSheet = ({ onClose }) => {
         )}
       </Pressable>
     );
-  };
+  });
 
-  const Row = ({ n }) => (
+  const Row = useStable(({ n }) => (
     <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, opacity: n.read ? 0.78 : 1 }}>
       <Pressable onPress={() => openNotif(n)} style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>
         <View>
@@ -267,7 +268,7 @@ export const NotificationsSheet = ({ onClose }) => {
         <Thumb n={n} />
       )}
     </View>
-  );
+  ));
 
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
