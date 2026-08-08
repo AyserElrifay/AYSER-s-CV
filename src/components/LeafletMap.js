@@ -115,11 +115,25 @@ function injectMapStyle() {
       pointer-events: none;
     }
     .mm-dark .mm-country { color: rgba(228,236,242,0.85); text-shadow: 0 1px 3px rgba(0,0,0,0.95), 0 0 6px rgba(0,0,0,0.6); }
-    /* the tiles carry their own names from country zoom inwards, so ours
-       only appear on the far view where theirs are too small to read */
+    /* ── WHY PALESTINE STILL COULD NOT BE FOUND ────────────────────
+       Our own country names only ever showed on the far view: from
+       country zoom inwards they are hidden and the basemap's own
+       labels take over. That was written on the belief that the
+       basemap carries no country names — it does. Zoom into the
+       region and the tiles say ISRAEL, LEBANON, AMMAN, TEL AVIV, and
+       they do not say Palestine anywhere. So at every zoom a person
+       would actually use to look for a country, ours was switched off
+       and the tiles simply left Palestine off the map.
+
+       A country the basemap does not name keeps OUR label at every
+       zoom. That is what mm-country-keep is for. Israel is named by
+       the tiles at those zooms, so the two end up named together
+       exactly as they are at world zoom. */
     .mm-country { display: none; }
     .mm-z-far .mm-country { display: block; }
+    .mm-country-keep { display: block; }
     .mm-z-globe .mm-country { display: none; }
+    .mm-z-globe .mm-country-keep { display: none; }
     /* the teardrop itself — a circle with a point, drawn in CSS */
     .mm-pin {
       position: relative; width: 56px; height: 56px; margin: 0 auto;
@@ -483,12 +497,16 @@ export const LeafletMap = ({ center, markers = [], onPress, onMe, locate = true,
           el.removeEventListener(n, eatGesture));
       };
 
-      // ── COLOURFUL CARTOON MAP, NAME-FREE (neutral) ──
-      // Same colourful, cartoonish landcover and roads in both light and
-      // dark, with NO baked country/place names — so the basemap favours
-      // no country. Every name comes from OUR own layer instead, where
-      // Israel and Palestine are two equal entries. Dark/light follows
-      // the app's own theme toggle (appDark) when set, else the OS.
+      // ── COLOURFUL CARTOON MAP ──
+      // Same colourful, cartoonish landcover and roads in light and dark.
+      // NOTE: these tiles DO carry their own place and country names from
+      // country zoom inwards — an earlier version of this comment claimed
+      // they did not, and that mistake is why Palestine was missing from
+      // the map for anyone who zoomed in: our own labels were switched
+      // off in favour of tile labels that never name it. Any country the
+      // tiles leave out keeps our label at every zoom — see
+      // mm-country-keep in the stylesheet above. Dark/light follows the
+      // app's own theme toggle (appDark) when set, else the OS.
       const mq = (typeof window !== 'undefined' && window.matchMedia) ? window.matchMedia('(prefers-color-scheme: dark)') : null;
       const isDark = () => (appDarkRef.current != null ? !!appDarkRef.current : !!(mq && mq.matches));
       const tiles = L.tileLayer(isDark() ? DARK_TILES : LIGHT_TILES, {
@@ -612,6 +630,9 @@ export const LeafletMap = ({ center, markers = [], onPress, onMe, locate = true,
        Measured: 8px of separation at world zoom before, 28px after,
        against an 18px label. */
     const NUDGE = { Palestine: 10, Israel: -10 };   // + is up, in pixels
+    /* Names the basemap never prints, so ours has to stay on at every
+       zoom or the country is simply absent from the map. */
+    const KEEP = new Set(['Palestine']);
 
     WORLD.forEach((c) => {
       if (!c.n) return;
@@ -619,8 +640,9 @@ export const LeafletMap = ({ center, markers = [], onPress, onMe, locate = true,
       if (!pt) return;
       const label = (useAr && c.ar) ? c.ar : c.n;
       const minor = COUNTRY_MAJOR.has(c.n) ? '' : ' mm-region-minor';
+      const keep = KEEP.has(c.n) ? ' mm-country-keep' : '';
       const icon = L.divIcon({
-        html: '<div class="mm-country' + minor + '">' + label + '</div>',
+        html: '<div class="mm-country' + minor + keep + '">' + label + '</div>',
         className: '', iconSize: [200, 18], iconAnchor: [100, 9 + (NUDGE[c.n] || 0)],
       });
       L.marker([pt[1], pt[0]], { icon, interactive: false, zIndexOffset: -100 }).addTo(layerRef.current);

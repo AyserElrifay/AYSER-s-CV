@@ -9,7 +9,7 @@ import { useAuth } from '../context/AuthContext';
 import { searchProfiles } from '../services/social';
 import { searchPosts, fetchTravelPlans } from '../services/posts';
 import { planWhen, upForLabel } from '../constants/travel';
-import { fetchGroups, createGroup, joinGroup, leaveGroup } from '../services/groups';
+import { fetchGroups, createGroup, joinGroup, leaveGroup, explainGroups } from '../services/groups';
 import { fetchTrending, trendWhy, logSearch } from '../services/trending';
 import { Chip } from './Chip';
 import { Tick } from './Tick';
@@ -21,6 +21,7 @@ import { StackGame } from './StackGame';
 import { TowerClimb } from './TowerClimb';
 import { StreetHop } from './StreetHop';
 import { PeopleDiscover } from './PeopleDiscover';
+import { isOwner } from '../services/music';
 import { tapLight, tapSuccess } from '../utils/feedback';
 import { sfxSuccess } from '../utils/sfx';
 
@@ -137,7 +138,7 @@ const GroupRow = React.memo(({ item, onToggle }) => (
 
    It also says what happened. Create either makes a group or explains
    itself; it no longer swallows the reason and leaves you guessing. */
-const CreateGroupCard = ({ onCreate }) => {
+const CreateGroupCard = ({ onCreate, owner }) => {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
   const [emoji, setEmoji] = useState('🌐');
@@ -162,7 +163,13 @@ const CreateGroupCard = ({ onCreate }) => {
       setErr(
         msg === 'signin' ? 'Sign in first — a group needs an owner.'
         : msg === 'offline' ? 'Not connected yet. Try again in a moment.'
-        : code === '42P01' || /does not exist|schema cache/i.test(msg) ? 'Groups are not switched on yet. Ayser has to run the setup once.'
+        /* What to do about it is only useful to the one person who can
+           do it. Everybody else gets the plain fact and no back-office
+           instructions — a stranger reading "someone has to run the
+           setup" learns nothing except that the app is unfinished. */
+        : code === '42P01' || /does not exist|schema cache/i.test(msg)
+          ? (owner ? 'Groups are not switched on yet — run supabase/RUN_ME.sql once.'
+                   : 'Groups aren’t switched on yet. Nothing you did — check back soon.')
         : code === '42501' || /row-level security|policy/i.test(msg) ? "You don't have permission to create a group yet."
         : /fetch|network|Failed to fetch/i.test(msg) ? 'No connection. Check your internet and try again.'
         : (msg || 'That did not go through. Try again.')
@@ -302,14 +309,14 @@ export const SearchModal = ({ onClose, onOpenProfile, onOpenTopics, onOpenTag })
   const [game, setGame] = useState(null);
   const [realGroups, setRealGroups] = useState(null);
   const [realTrends, setRealTrends] = useState(null);
-  const [groupsErr, setGroupsErr] = useState(false);
+  const [groupsErr, setGroupsErr] = useState(null);   // null | 'setup' | 'permission' | 'offline'
 
   const loadGroups = () => {
     if (!SUPABASE_READY) return;
-    setGroupsErr(false);
+    setGroupsErr(null);
     fetchGroups(user && user.id)
       .then((rows) => { setRealGroups(rows); })
-      .catch(() => { setRealGroups([]); setGroupsErr(true); });
+      .catch((e) => { setRealGroups([]); setGroupsErr(explainGroups(e)); });
   };
   useEffect(loadGroups, [user]);
 
@@ -562,25 +569,40 @@ export const SearchModal = ({ onClose, onOpenProfile, onOpenTopics, onOpenTag })
           ) : null}
           {tab === 'Groups' ? (
             <>
-              {/* An empty list and an unreachable server look identical
-                  on screen, and they are not the same thing. */}
+              {/* An empty list, an unreachable server and a feature that
+                  was never switched on look identical on screen, and
+                  they are three different things with three different
+                  fixes. This banner used to insist "this is the
+                  connection, not you" while the card directly below it
+                  correctly said the tables were not there yet — two
+                  answers to the same question, one of them wrong. */}
               {groupsErr ? (
                 <View style={{ alignItems: 'center', paddingVertical: 26, paddingHorizontal: 20 }}>
-                  <Text style={{ fontSize: 30 }}>📡</Text>
-                  <Text style={{ color: C.text, fontSize: 14, fontWeight: '900', marginTop: 8, textAlign: 'center' }}>Couldn't load groups</Text>
-                  <Text style={{ color: C.faint, fontSize: 12.5, marginTop: 5, textAlign: 'center', lineHeight: 19 }}>
-                    This is the connection, not you — the ones that exist are still there.
+                  <Text style={{ fontSize: 30 }}>{groupsErr === 'setup' ? '🧩' : '📡'}</Text>
+                  <Text style={{ color: C.text, fontSize: 14, fontWeight: '900', marginTop: 8, textAlign: 'center' }}>
+                    {groupsErr === 'setup' ? 'Groups aren’t switched on yet'
+                      : groupsErr === 'permission' ? 'You can’t see groups yet'
+                      : "Couldn't load groups"}
                   </Text>
-                  <Pressable onPress={() => { tapLight(); loadGroups(); }} style={{ marginTop: 12 }}>
-                    <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 22, paddingVertical: 9 }}>
-                      <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900' }}>Try again</Text>
-                    </View>
-                  </Pressable>
+                  <Text style={{ color: C.faint, fontSize: 12.5, marginTop: 5, textAlign: 'center', lineHeight: 19 }}>
+                    {groupsErr === 'setup' ? 'This one needs a one-time setup before anybody can make or join a group. Nothing is missing — it just hasn’t been turned on.'
+                      : groupsErr === 'permission' ? 'Sign in and try again.'
+                      : 'This is the connection, not you — the ones that exist are still there.'}
+                  </Text>
+                  {/* Retrying a table that does not exist just fails
+                      again, so it is not offered. */}
+                  {groupsErr === 'setup' ? null : (
+                    <Pressable onPress={() => { tapLight(); loadGroups(); }} style={{ marginTop: 12 }}>
+                      <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 22, paddingVertical: 9 }}>
+                        <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900' }}>Try again</Text>
+                      </View>
+                    </Pressable>
+                  )}
                 </View>
               ) : realGroups === null && SUPABASE_READY ? (
                 <Text style={{ color: C.faint, fontSize: 12.5, textAlign: 'center', paddingVertical: 28 }}>Looking…</Text>
               ) : groups.length ? groups.map((g) => <GroupRow key={g.id} item={g} onToggle={toggleGroup} />) : <Empty q={q} />}
-              <CreateGroupCard onCreate={submitGroup} />
+              <CreateGroupCard onCreate={submitGroup} owner={isOwner(user)} />
             </>
           ) : null}
           {tab === 'Posts' ? (posts.length ? posts.map((p) => <PostRow key={p.id} item={p} />) : <Empty q={q} />) : null}
