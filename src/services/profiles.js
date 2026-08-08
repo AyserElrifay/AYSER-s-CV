@@ -6,9 +6,11 @@ import { supabase } from '../lib/supabase';
    Requires the "users can insert own profile" policy (schema_v3). */
 export async function ensureMyProfile(user) {
   if (!user) return;
-  const name =
-    (user.user_metadata && user.user_metadata.name) ||
-    (user.email ? user.email.split('@')[0] : 'Explorer');
+  /* Not from the email. Seeding a display name out of somebody's
+     address puts it on every post they ever make, and they never chose
+     it. Their own name if they gave one, a neutral placeholder if not
+     — which they can change in a second. */
+  const name = (user.user_metadata && user.user_metadata.name) || 'Explorer';
   const { error } = await supabase
     .from('profiles')
     .upsert({ id: user.id, name }, { onConflict: 'id', ignoreDuplicates: true });

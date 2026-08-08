@@ -365,12 +365,29 @@ export const ProfileScreen = () => {
   };
 
   /* Real mode: your actual profile row. Demo mode: the mock ME. */
+  /* ── WHO YOU ARE, WHILE WE ARE STILL FINDING OUT ─────────────────
+     Your profile row arrives a moment after the screen does, and the
+     screen used to fill that moment with made-up facts: your email
+     address standing in as your handle, and "Explorer" standing in as
+     your name. It reads as the app having opened somebody else's
+     account, or an old one — which is exactly what it was reported as.
+
+     Your email is never shown. It is not your handle, you did not
+     choose it as one, and it is the one piece of this that should not
+     be on a screen anybody can see over your shoulder. If there is no
+     handle yet there is no handle, and the line is simply not there.
+
+     Your name comes from the session, which is there from the first
+     frame, before it comes from the row. */
+  const loadingMe = SUPABASE_READY && myProfile == null;
   const me = SUPABASE_READY
     ? {
-        handle: (myProfile && myProfile.handle && '@' + myProfile.handle) || (user && user.email ? '@' + user.email.split('@')[0] : '@you'),
+        handle: (myProfile && myProfile.handle) ? '@' + myProfile.handle : null,
         verified: !!(myProfile && myProfile.verified),
         avatar: (myProfile && myProfile.avatar_url) || AV_NEUTRAL,
-        name: (myProfile && myProfile.name) || 'Explorer',
+        name: (myProfile && myProfile.name)
+          || (user && user.user_metadata && user.user_metadata.name)
+          || (loadingMe ? '' : 'You'),
         intent: (myProfile && myProfile.intent) || null,
         bio: (myProfile && myProfile.bio) || 'Add a bio — tell people what you\'re about ✨',
       }
@@ -543,7 +560,7 @@ export const ProfileScreen = () => {
         {/* top bar — handle + gear */}
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Text style={{ color: C.text, fontSize: 20, fontWeight: '900' }}>{me.handle}</Text>
+            <Text style={{ color: C.text, fontSize: 20, fontWeight: '900' }}>{me.handle || me.name || ''}</Text>
             {me.verified ? <Tick /> : null}
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -849,7 +866,7 @@ export const ProfileScreen = () => {
                   <View style={{ flex: 1, marginLeft: 11 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                       <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>{me.name}</Text>
-                      <Text style={{ color: C.faint, fontSize: 12.5, marginLeft: 6 }}>{me.handle}</Text>
+                      {me.handle ? <Text style={{ color: C.faint, fontSize: 12.5, marginLeft: 6 }}>{me.handle}</Text> : null}
                     </View>
                     <Text style={{ color: C.text, fontSize: 15, lineHeight: 22, marginTop: 4 }}>{item.text}</Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 9 }}>

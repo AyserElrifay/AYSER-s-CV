@@ -336,7 +336,8 @@ export const HomeScreen = () => {
   const me = {
     id: user ? user.id : 'me',
     name: (myProfile && myProfile.name) || (user && user.user_metadata && user.user_metadata.name) || 'You',
-    handle: (myProfile && myProfile.handle && '@' + myProfile.handle) || (user && user.email ? '@' + user.email.split('@')[0] : '@you'),
+    // never your email — see the note in ProfileScreen
+    handle: (myProfile && myProfile.handle) ? '@' + myProfile.handle : null,
     emoji: (myProfile && myProfile.emoji) || '🧿',
     avatar: (myProfile && myProfile.avatar_url) || AV_NEUTRAL,
     verified: !!(myProfile && myProfile.verified),
