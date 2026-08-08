@@ -107,9 +107,21 @@ export const ChatsScreen = () => {
   const [composeQ, setComposeQ] = useState('');
   const [composeResults, setComposeResults] = useState([]);
   const [composeBusy, setComposeBusy] = useState(false);
-  const [realDms, setRealDms] = useState([]);
-  const [realSquads, setRealSquads] = useState([]);
-  const [realPartners, setRealPartners] = useState([]);
+  /* ── null MEANS "WE DO NOT KNOW YET" ──────────────────────────────
+     These used to start as empty arrays, and an empty array is a
+     statement: it says there is nobody. So the very first frame of this
+     screen announced "Nobody in here yet" — with a card, an
+     illustration and two buttons — to somebody with a dozen
+     conversations, and then replaced it with the real list a moment
+     later. That flash of a confident, wrong screen is what reads as the
+     app hanging and then correcting itself.
+
+     null is the honest starting value: nothing has answered yet. The
+     empty card is only allowed to appear once something actually has. */
+  const [realDms, setRealDms] = useState(null);
+  const [realSquads, setRealSquads] = useState(null);
+  const [realPartners, setRealPartners] = useState(null);
+  const [chatsErr, setChatsErr] = useState(false);
   const [mateRequests, setMateRequests] = useState([]); // real pending friend requests
   const [justAccepted, setJustAccepted] = useState({});
   const [myMates, setMyMates] = useState([]);           // your friends — one tap to chat
@@ -149,9 +161,12 @@ export const ChatsScreen = () => {
 
   const reload = useCallback(() => {
     if (!SUPABASE_READY || !user) return;
-    fetchMyDmThreads(user.id).then(setRealDms).catch(() => {});
-    fetchMySquads(user.id).then(setRealSquads).catch(() => {});
-    fetchLanguagePartners(user.id).then(setRealPartners).catch(() => {});
+    /* A failure has to resolve too, or the screen waits for ever on a
+       request that is never coming back. */
+    setChatsErr(false);
+    fetchMyDmThreads(user.id).then(setRealDms).catch(() => { setRealDms([]); setChatsErr(true); });
+    fetchMySquads(user.id).then(setRealSquads).catch(() => setRealSquads([]));
+    fetchLanguagePartners(user.id).then(setRealPartners).catch(() => setRealPartners([]));
     fetchIncomingRequests(user.id).then(setMateRequests).catch(() => {});
     fetchMyMates(user.id).then(setMyMates).catch(() => {});
     fetchDmStreaks(user.id).then(setStreaks).catch(() => {});
@@ -275,7 +290,9 @@ export const ChatsScreen = () => {
     }
   };
 
-  const squads = SUPABASE_READY ? realSquads : SQUADS;
+  const squads = SUPABASE_READY ? (realSquads || []) : SQUADS;
+  // still waiting on the server — not "there is nobody"
+  const loadingChats = SUPABASE_READY && !!user && (realDms === null || realSquads === null);
   /* `d.user` is somebody else's profile row, and a row that can't be
      read comes back empty. Reaching into it without asking is what
      turned one unreadable profile into a crash that took the whole tab
@@ -317,7 +334,7 @@ export const ChatsScreen = () => {
      show, so the list is honestly empty rather than filled with
      made-up people. */
   const partners = SUPABASE_READY
-    ? realPartners
+    ? (realPartners || [])
         .map((p) => ({
           id: p.id,
           name: p.name || 'Explorer',
@@ -576,7 +593,22 @@ export const ChatsScreen = () => {
         chats, no partners — which is a wall of nothing where the first
         thing you see should be a way in. This is one card with the two
         things that actually start a conversation. */}
-    {!dms.length && !squads.length ? (
+    {loadingChats ? (
+      /* Quiet placeholder rows while the real ones are on their way.
+         They say "something is coming" without saying what, which is
+         all we honestly know at this point. */
+      [0, 1, 2].map((i) => (
+        <Glass key={i} style={{ padding: 14, marginBottom: 12, flexDirection: 'row', alignItems: 'center', opacity: 0.5 - i * 0.12 }}>
+          <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: C.glassHi }} />
+          <View style={{ flex: 1, marginLeft: 12 }}>
+            <View style={{ height: 11, width: '45%', borderRadius: 6, backgroundColor: C.glassHi }} />
+            <View style={{ height: 9, width: '65%', borderRadius: 5, backgroundColor: C.glassHi, marginTop: 8 }} />
+          </View>
+        </Glass>
+      ))
+    ) : null}
+
+    {!loadingChats && !dms.length && !squads.length ? (
       <Glass style={{ padding: 22, alignItems: 'center', overflow: 'hidden' }}>
         <View style={{ flexDirection: 'row', marginBottom: 14 }}>
           {['#7C5CFF', '#FB7185', '#F5B301'].map((c, i) => (

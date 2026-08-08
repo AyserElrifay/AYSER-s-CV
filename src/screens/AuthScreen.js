@@ -15,10 +15,13 @@ import { Glass, Micro, NeonButton, GhostButton, Wordmark } from '../components';
 
 const VIBES = ['🎒 Explorer', '☕ Coffee', '🧗‍♂️ Hiking', '🎬 Creator', '🎮 Gamer'];
 
-const inputStyle = {
+/* Read at draw time, not at import time — see the note on headerBtn in
+   HomeScreen. Built once, this froze the light theme's colours and gave
+   dark mode a white box with white text in it. */
+const inputStyle = () => ({
   backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: R - 6,
   color: C.text, paddingHorizontal: 16, paddingVertical: 13, fontSize: 14, marginBottom: 12,
-};
+});
 
 /* Auth errors, translated into clean, professional guidance for the
    person signing in. Deliberately says NOTHING about the backend,
@@ -209,7 +212,7 @@ export const AuthScreen = () => {
                 <>
                   <TextInput
                     placeholder="Account email" placeholderTextColor={C.faint} value={email} onChangeText={setEmail}
-                    autoCapitalize="none" keyboardType="email-address" autoComplete="email" style={inputStyle}
+                    autoCapitalize="none" keyboardType="email-address" autoComplete="email" style={inputStyle()}
                   />
                   {error ? <Text style={{ color: C.coral, fontSize: 12, textAlign: 'center', marginBottom: 10 }}>{error}</Text> : null}
                   {notice ? <Text style={{ color: C.green, fontSize: 12, textAlign: 'center', marginBottom: 10 }}>{notice}</Text> : null}
@@ -219,18 +222,18 @@ export const AuthScreen = () => {
                 <>
                   <TextInput
                     placeholder="Phone e.g. +201234567890" placeholderTextColor={C.faint} value={phone} onChangeText={setPhone}
-                    autoCapitalize="none" keyboardType="phone-pad" editable={!otpVerified} style={inputStyle}
+                    autoCapitalize="none" keyboardType="phone-pad" editable={!otpVerified} style={inputStyle()}
                   />
                   {otpSent && !otpVerified ? (
                     <TextInput
                       placeholder="6-digit code" placeholderTextColor={C.faint} value={otp} onChangeText={setOtp}
-                      keyboardType="number-pad" maxLength={6} style={inputStyle}
+                      keyboardType="number-pad" maxLength={6} style={inputStyle()}
                     />
                   ) : null}
                   {otpVerified ? (
                     <TextInput
                       placeholder="New password" placeholderTextColor={C.faint} value={newPass} onChangeText={setNewPass}
-                      secureTextEntry style={inputStyle}
+                      secureTextEntry style={inputStyle()}
                     />
                   ) : null}
                   {error ? <Text style={{ color: C.coral, fontSize: 12, textAlign: 'center', marginBottom: 10 }}>{error}</Text> : null}
@@ -260,16 +263,16 @@ export const AuthScreen = () => {
               {mode === 'signup' ? (
                 <TextInput
                   placeholder="Your name" placeholderTextColor={C.faint} value={name} onChangeText={setName}
-                  autoCapitalize="words" style={inputStyle}
+                  autoCapitalize="words" style={inputStyle()}
                 />
               ) : null}
               <TextInput
                 placeholder="Email" placeholderTextColor={C.faint} value={email} onChangeText={setEmail}
-                autoCapitalize="none" keyboardType="email-address" autoComplete="email" style={inputStyle}
+                autoCapitalize="none" keyboardType="email-address" autoComplete="email" style={inputStyle()}
               />
               <TextInput
                 placeholder="Password" placeholderTextColor={C.faint} value={password} onChangeText={setPassword}
-                secureTextEntry style={inputStyle}
+                secureTextEntry style={inputStyle()}
               />
 
               {error ? (
@@ -312,7 +315,7 @@ export const AuthScreen = () => {
               placeholderTextColor={C.faint}
               value={countrySearch}
               onChangeText={setCountrySearch}
-              style={[inputStyle, { alignSelf: 'stretch' }]}
+              style={[inputStyle(), { alignSelf: 'stretch' }]}
             />
             <View style={{ alignSelf: 'stretch', maxHeight: 340 }}>
               <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">

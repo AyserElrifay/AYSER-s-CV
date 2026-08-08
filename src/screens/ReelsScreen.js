@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, Pressable, ImageBackground, FlatList, Image, Animated, Easing, Platform } from 'react-native';
+import { View, Text, Pressable, ImageBackground, FlatList, Image, Animated, Easing, Platform, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -131,6 +131,8 @@ export const ReelsScreen = () => {
 
   // Real mode shows only real reels (with an honest empty state); demo uses the mock set.
   const data = SUPABASE_READY ? (realReels || []) : REELS;
+  // still asking — see the note by the empty state below
+  const loadingReels = SUPABASE_READY && realReels === null;
   /* Every row here came out of the feed with type === 'reel'. A reel
      is a video — so don't make that conditional on the filename. The
      old test wanted the URL to end in .mp4, and anything stored without
@@ -369,6 +371,15 @@ export const ReelsScreen = () => {
           onViewableItemsChanged={onReelViewable.current}
           viewabilityConfig={reelViewCfg.current}
         />
+      ) : loadingReels ? (
+        /* Nothing has answered yet. "No reels yet" is a statement about
+           the world, and we are not entitled to make it until the
+           server has actually said so — announcing it and then filling
+           the screen a second later is what reads as the app freezing
+           and jumping. */
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator size="small" color="rgba(255,255,255,0.65)" />
+        </View>
       ) : pageH > 0 ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 }}>
           <Text style={{ fontSize: 40 }}>🎬</Text>

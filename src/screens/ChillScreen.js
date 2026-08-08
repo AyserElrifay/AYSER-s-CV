@@ -186,8 +186,22 @@ export const ChillScreen = () => {
       </Text>
 
       {tracks === null ? (
-        <Glass style={{ padding: 18, alignItems: 'center', marginBottom: 24 }}>
-          <Text style={{ color: C.faint, fontSize: 12.5 }}>Loading music…</Text>
+        /* Shaped like the list that is coming, not like a sign saying
+           one is coming. A short "Loading…" slab turning into three tall
+           rows shoves everything below it down the screen the instant
+           the data lands — that lurch is what makes the app feel like it
+           froze and then jumped. Occupy the space now, fill it in later,
+           and nothing moves. */
+        <Glass style={{ padding: 6, marginBottom: 24 }}>
+          {[0, 1, 2].map((i) => (
+            <View key={i} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 8, opacity: 0.55 - i * 0.13 }}>
+              <View style={{ width: 44, height: 44, borderRadius: 11, backgroundColor: C.glassHi, marginRight: 12 }} />
+              <View style={{ flex: 1 }}>
+                <View style={{ height: 11, width: '70%', borderRadius: 6, backgroundColor: C.glassHi }} />
+                <View style={{ height: 9, width: '45%', borderRadius: 5, backgroundColor: C.glassHi, marginTop: 7 }} />
+              </View>
+            </View>
+          ))}
         </Glass>
       ) : tracks.length === 0 ? (
         <Glass style={{ padding: 22, alignItems: 'center', marginBottom: 24 }}>
@@ -237,9 +251,17 @@ export const ChillScreen = () => {
       </Text>
 
       {videos === null ? (
-        <Glass style={{ padding: 22, alignItems: 'center', marginBottom: 24 }}>
-          <Text style={{ color: C.faint, fontSize: 12.5 }}>Loading videos…</Text>
-        </Glass>
+        /* Same again, in the shape of a video card. */
+        <View style={{ marginBottom: 24, opacity: 0.5 }}>
+          <View style={{ width: '100%', aspectRatio: 16 / 9, borderRadius: 16, backgroundColor: C.glassHi }} />
+          <View style={{ flexDirection: 'row', marginTop: 10 }}>
+            <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: C.glassHi }} />
+            <View style={{ flex: 1, marginLeft: 10 }}>
+              <View style={{ height: 11, width: '80%', borderRadius: 6, backgroundColor: C.glassHi }} />
+              <View style={{ height: 9, width: '40%', borderRadius: 5, backgroundColor: C.glassHi, marginTop: 8 }} />
+            </View>
+          </View>
+        </View>
       ) : videos.length === 0 ? (
         <Glass style={{ padding: 24, alignItems: 'center', marginBottom: 24 }}>
           <Text style={{ fontSize: 40 }}>🎬</Text>

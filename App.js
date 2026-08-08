@@ -41,9 +41,21 @@ import { InstallPrompt } from './src/components/InstallPrompt';
 import { Splash } from './src/components/Splash';
 import { GestureTour, tourSeen } from './src/components/GestureTour';
 import { installCrashLog, setDiagnostics } from './src/lib/crashLog';
+import { warmMap } from './src/components/LeafletMap';
 
 initPwa(); // installable app + offline shell (no-op on native)
 installCrashLog(); // keep what went wrong — see src/lib/crashLog.js
+
+/* The map's library comes off a CDN and used to start downloading only
+   when the Map tab was tapped, which is why the tab opened onto an empty
+   rectangle. Fetched while the app is idle instead — see warmMap in
+   src/components/LeafletMap.js. Never during the first paint: the feed
+   in front of you comes first. */
+if (typeof window !== 'undefined') {
+  const warm = () => warmMap();
+  if (typeof window.requestIdleCallback === 'function') window.requestIdleCallback(warm, { timeout: 4000 });
+  else setTimeout(warm, 2500);
+}
 
 /* The Studio opens from a private link and nowhere else — see
    src/utils/studioLink.js. The owner check runs on top of the link, so

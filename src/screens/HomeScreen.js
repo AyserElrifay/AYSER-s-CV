@@ -50,11 +50,21 @@ export const toStoryCard = (r) => ({
   stickerData: r.sticker_data ? (() => { try { return JSON.parse(r.sticker_data); } catch (e) { return null; } })() : null,
 });
 
-const headerBtn = {
+/* ─── A STYLE THAT READS THE THEME IT IS DRAWN IN ─────────────────────
+   This was a plain object, built once when the file was first loaded —
+   which is before anybody has said whether they are in dark mode. It
+   captured the light theme's colours and kept them for the rest of the
+   session, so in dark mode the bell and the search button stayed white
+   circles, with white icons on top of them. Invisible, and blinding.
+
+   C is a live object the theme rewrites in place, so anything that
+   reads it has to read it at the moment of drawing, not at import. A
+   function does that; a constant cannot. */
+const headerBtn = () => ({
   width: 38, height: 38, borderRadius: 19,
   backgroundColor: C.glass, borderWidth: 1, borderColor: C.line,
   alignItems: 'center', justifyContent: 'center',
-};
+});
 
 export const HomeScreen = () => {
   const insets = useSafeAreaInsets();
@@ -381,7 +391,7 @@ export const HomeScreen = () => {
                 <Pressable testID="btn-bardi" onPress={() => { tapLight(); setBardiOpen(true); }} style={{ marginRight: 10 }}>
                   <Image source={require('../assets/brand/bardi.png')} style={{ width: 38, height: 38, borderRadius: 12 }} />
                 </Pressable>
-                <Pressable testID="btn-notifs" onPress={() => { tapLight(); setNotifOpen(true); setUnread(0); }} style={[headerBtn, { marginRight: 10 }]}>
+                <Pressable testID="btn-notifs" onPress={() => { tapLight(); setNotifOpen(true); setUnread(0); }} style={[headerBtn(), { marginRight: 10 }]}>
                   <Ionicons name={unread ? 'notifications' : 'notifications-outline'} size={17} color={unread ? C.purple : C.text} />
                   {unread ? (
                     <View style={{ position: 'absolute', top: -4, right: -4, minWidth: 17, height: 17, borderRadius: 9, backgroundColor: C.coral, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: 1.5, borderColor: C.bg }}>
@@ -389,10 +399,10 @@ export const HomeScreen = () => {
                     </View>
                   ) : null}
                 </Pressable>
-                <Pressable testID="btn-search" onPress={() => setSearching(true)} style={[headerBtn, { marginRight: 10 }]}>
+                <Pressable testID="btn-search" onPress={() => setSearching(true)} style={[headerBtn(), { marginRight: 10 }]}>
                   <Ionicons name="search" size={17} color={C.text} />
                 </Pressable>
-                <Pressable testID="btn-compose" onPress={() => setComposing('post')} style={[headerBtn, { marginRight: 10, backgroundColor: C.greenSoft, borderColor: 'rgba(16,185,129,0.4)' }]}>
+                <Pressable testID="btn-compose" onPress={() => setComposing('post')} style={[headerBtn(), { marginRight: 10, backgroundColor: C.greenSoft, borderColor: 'rgba(16,185,129,0.4)' }]}>
                   <Ionicons name="add" size={20} color={C.green} />
                 </Pressable>
                 <Pressable testID="btn-profile" onPress={() => { tapLight(); setMyProfileOpen(true); }}>

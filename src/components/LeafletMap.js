@@ -10,6 +10,33 @@ import { mountGlobe3D } from '../lib/globe3d';
    Native uses react-native-maps instead, so this renders web-only. */
 
 let leafletPromise = null;
+/* ─── FETCHED BEFORE IT IS ASKED FOR ──────────────────────────────────
+   The map library and its stylesheet live on a CDN, and nothing went
+   looking for them until the moment you tapped the Map tab. So the tab
+   opened onto an empty dark rectangle while a DNS lookup, a TLS
+   handshake and ~150KB of JavaScript happened, and only then did the
+   first tile request even start. That is the wait.
+
+   None of that work depends on you tapping anything. warmMap() starts
+   it while the app is idle, and opens the connection to the tile server
+   at the same time, so by the time the tab is tapped the library is
+   usually already in memory and the tiles have a warm socket waiting.
+   Exported so App can call it once at startup — calling it twice is
+   free, the promise is shared. */
+export function warmMap() {
+  if (typeof document === 'undefined') return;
+  ['https://unpkg.com', 'https://a.basemaps.cartocdn.com', 'https://b.basemaps.cartocdn.com']
+    .forEach((href) => {
+      if (document.querySelector('link[rel="preconnect"][href="' + href + '"]')) return;
+      const l = document.createElement('link');
+      l.rel = 'preconnect';
+      l.href = href;
+      l.crossOrigin = '';
+      document.head.appendChild(l);
+    });
+  loadLeaflet();
+}
+
 function loadLeaflet() {
   if (typeof window === 'undefined') return Promise.resolve(null);
   if (window.L) return Promise.resolve(window.L);
@@ -39,6 +66,15 @@ const COUNTRY_MAJOR = new Set([
   'Finland','Japan','Thailand','Myanmar','Afghanistan','Iraq','Morocco','Italy',
   'United Kingdom','Poland','Romania','Chile','Venezuela','Namibia','Botswana',
   'Zambia','Tanzania','Kenya','Somalia','Yemen',
+  /* Palestine is on this map with its own name, in Arabic and in
+     English, at the zoom where the world's countries are named — not
+     only once you have zoomed in far enough to look for it. Israel sits
+     on the same tier for the same reason: this file has always drawn
+     the two as two ordinary, equal labels placed side by side, and a
+     map that named one of them and not the other at the same distance
+     would be making a statement by omission. Neither is small enough to
+     hide behind a zoom level. */
+  'Palestine','Israel',
 ]);
 
 /* The Moments map identity — gentle float, purple glow, white pills. */
