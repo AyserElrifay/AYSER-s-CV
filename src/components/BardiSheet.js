@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, Modal, Pressable, TextInput, ScrollView, Platform, ActivityIndicator, KeyboardAvoidingView, Image } from 'react-native';
+import { View, Text, Modal, Pressable, TextInput, ScrollView, Platform, ActivityIndicator, KeyboardAvoidingView, Image, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { C } from '../constants/theme';
@@ -48,6 +48,7 @@ const Bubbles = React.memo(({ messages }) => (
 
 export const BardiSheet = ({ onClose }) => {
   const insets = useSafeAreaInsets();
+  const { height: winH } = useWindowDimensions();
   const { user } = useAuth();
   const { lang } = useLang();
   /* ── THE CONVERSATION SURVIVES THE SHEET ──────────────────────────
@@ -339,8 +340,30 @@ export const BardiSheet = ({ onClose }) => {
             borderTopLeftRadius: full ? 0 : 26,
             borderTopRightRadius: full ? 0 : 26,
             flex: full ? 1 : undefined,
-            maxHeight: full ? undefined : '88%',
-            paddingTop: full ? insets.top : 0,
+            /* A cap in per cent needs a parent with a real height to be a
+               per cent OF, and this one has none — so the cap never
+               applied and the half sheet grew as tall as the
+               conversation. Forty messages made it three and a half
+               thousand pixels tall, with the typing box somewhere far
+               below the bottom of the phone. In pixels it binds. */
+            maxHeight: full ? undefined : Math.round(winH * 0.88),
+            /* ── CLEARING THE CLOCK ────────────────────────────────────
+               Opened to the full page this covers the whole screen,
+               notch and status bar included, so the header has to be
+               pushed below them. It was using the inset the safe-area
+               library reports — and installed to the home screen that
+               came back as zero, which is why the word "Bardi" was
+               sitting on top of the time.
+
+               The browser knows the real number even when the library
+               does not, so on web ask both and take whichever is
+               bigger. Neither being available means a flat screen with
+               nothing to avoid, and zero is then the right answer. */
+            paddingTop: full
+              ? (Platform.OS === 'web'
+                ? 'max(' + (insets.top || 0) + 'px, env(safe-area-inset-top, 0px))'
+                : insets.top)
+              : 0,
             paddingBottom: insets.bottom + 8,
           }}>
             {/* header */}
@@ -472,7 +495,32 @@ export const BardiSheet = ({ onClose }) => {
               </View>
             ) : null}
 
-            <ScrollView ref={scroller} style={{ paddingHorizontal: 16 }} contentContainerStyle={{ paddingVertical: 14 }} keyboardShouldPersistTaps="handled">
+            {/* ── THE CONVERSATION HAS TO BE THE PART THAT SCROLLS ──────
+                On the half sheet the whole panel is capped at 88% of the
+                screen, so this list is squeezed and scrolls by itself.
+                Opened out to the full page that cap is gone — and with
+                nothing telling it otherwise, the list simply grew as
+                tall as the conversation. Past a certain number of
+                messages it ran off the bottom of the screen and took the
+                typing box with it, and because the list was taller than
+                its parent rather than bounded by it there was nothing
+                left to scroll either. That is exactly "I can't scroll
+                and I can't keep talking after a long chat".
+
+                flex: 1 makes it take the room that is left over instead
+                of the room it wants, so the composer stays put and the
+                overflow becomes scroll. */}
+            <ScrollView
+              ref={scroller}
+              /* flexShrink lets the list give up space so the composer
+                 always fits inside the capped sheet; flex takes the
+                 leftover room on the full page. Either way the list is
+                 bounded by the panel, which is what makes it scroll
+                 instead of overflow. */
+              style={[{ paddingHorizontal: 16, flexShrink: 1 }, full ? { flex: 1 } : null]}
+              contentContainerStyle={{ paddingVertical: 14 }}
+              keyboardShouldPersistTaps="handled"
+            >
               {empty ? (
                 <View style={{ paddingVertical: 8 }}>
                   <Text style={{ color: C.text, fontSize: 15, fontWeight: '800', marginBottom: 4 }}>Hey{profile ? ' ' + profile.name : ''} 👋</Text>
