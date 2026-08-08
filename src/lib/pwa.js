@@ -33,11 +33,22 @@ export function initPwa() {
     }
 
     if ('serviceWorker' in navigator) {
-      // When a new version is deployed, take it live automatically:
-      // once the updated worker takes control, reload once so the fresh
-      // code shows without the user having to clear anything.
+      /* When a new version is deployed, take it live automatically:
+         once the updated worker takes control, reload once so the fresh
+         code shows without anybody having to clear anything.
+
+         ONLY when it is replacing one, though. controllerchange also
+         fires the very first time a worker takes control of a page that
+         had none — an ordinary first visit — and reloading there made
+         the app open, blink and open again. From the outside that looks
+         exactly like "it loaded some other page and then came back",
+         and it is the sort of thing that shows a half-drawn screen with
+         placeholder text on the way past. A first claim is not an
+         update, and nothing needs to happen. */
+      let hadController = !!navigator.serviceWorker.controller;
       let reloaded = false;
       navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!hadController) { hadController = true; return; }
         if (reloaded) return;
         reloaded = true;
         window.location.reload();
