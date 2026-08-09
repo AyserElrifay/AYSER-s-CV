@@ -35,6 +35,13 @@ jobs:
       # only throws when that branch runs — so it ships. Not any more.
       - name: Check every rendered component exists
         run: node scripts/check-undefined.mjs
+      # Two faults that build cleanly and only show up on a real phone:
+      # a component declared inside another component (rebuilt from
+      # scratch on every render — this is what made the group name box
+      # take one letter), and a style object that captured the light
+      # theme at import (the white-on-white buttons in dark mode).
+      - name: Check for rebuilt components and frozen themes
+        run: node scripts/check-rerender.mjs
       - name: Export web bundle
         run: npx expo export --platform web --output-dir dist
       - name: Inject PWA manifest + Open Graph tags
