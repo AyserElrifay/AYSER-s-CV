@@ -73,6 +73,18 @@ export const STRINGS = {
     forgot_password: 'Forgot password?', whats_your_vibe: "What's your Vibe?",
     // ProfileModal
     online_now: 'Online now', mate_up: '＋ Mate up', recent_moments: 'Recent Moments',
+
+    // ── لمّة · Lamma ──
+    lamma_title: 'Lamma', lamma_tagline: 'Quiz your people',
+    lamma_start: "Let's go", lamma_join_code: 'Join with a code', lamma_code_label: 'Room code',
+    lamma_waiting: 'Waiting for everyone…', lamma_players_here: 'here',
+    lamma_you: 'You', lamma_host: 'Host', lamma_start_game: 'Start',
+    lamma_answer_sent: 'Sent ✓', lamma_correct: 'Right!', lamma_wrong: 'Not this time',
+    lamma_points: 'points', lamma_streak: 'in a row', lamma_next: 'Next',
+    lamma_final: 'Final', lamma_play_again: 'Play again', lamma_share: 'Share',
+    lamma_no_packs: 'No packs yet', lamma_time_up: "Time's up",
+    lamma_bad_code: "No room with that code", lamma_offline: 'No connection — try again',
+    lamma_not_switched_on: "Lamma isn't switched on yet",
   },
   ar: {
     tab_home: 'الرئيسية', tab_map: 'الخريطة', tab_reels: 'ريلز', tab_chill: 'تسلية', tab_chats: 'الشات', tab_space: 'مساحتك',
@@ -110,6 +122,19 @@ export const STRINGS = {
     create_your_account: 'اعمل حسابك', your_name: 'اسمك', email_label: 'الإيميل', password_label: 'كلمة السر',
     forgot_password: 'نسيت كلمة السر؟', whats_your_vibe: 'إيه الـVibe بتاعك؟',
     online_now: 'أونلاين دلوقتي', mate_up: '＋ اطلب صداقة', recent_moments: 'أحدث اللحظات',
+
+    // ── لمّة ──
+    lamma_title: 'لمّة', lamma_tagline: 'العب مع اللي تعرفهم',
+    lamma_start: 'يلا نبدأ', lamma_join_code: 'ادخل بكود', lamma_code_label: 'كود الأوضة',
+    lamma_waiting: 'مستنيين الباقي…', lamma_players_here: 'موجودين',
+    lamma_you: 'إنت', lamma_host: 'صاحب اللمّة', lamma_start_game: 'يلا',
+    lamma_answer_sent: 'وصلت ✓', lamma_correct: 'صح!', lamma_wrong: 'مش دي',
+    lamma_points: 'نقطة', lamma_streak: 'ورا بعض', lamma_next: 'اللي بعده',
+    lamma_final: 'النتيجة', lamma_play_again: 'تاني', lamma_share: 'ابعتها',
+    lamma_no_packs: 'لسه مفيش باقات', lamma_time_up: 'خلص الوقت',
+    lamma_bad_code: 'مفيش أوضة بالكود ده', lamma_offline: 'مفيش نت — جرّب تاني',
+    lamma_not_switched_on: 'لمّة لسه مش مفعلة',
+
   },
   fr: {
     tab_home: 'ACCUEIL', tab_map: 'CARTE', tab_reels: 'REELS', tab_chill: 'DÉTENTE', tab_chats: 'CHATS', tab_space: 'ESPACE',
