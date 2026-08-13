@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, Pressable, Image, ScrollView, Modal, TextInput } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -159,12 +159,37 @@ export const ChatsScreen = () => {
     finally { setExBusy(false); }
   };
 
+  /* ── A REQUEST THAT NEVER COMES BACK ──────────────────────────────
+     Catching a rejection is only half of it. A request can also simply
+     never answer — the connection dies mid-flight, the phone changes
+     network, the socket is left open — and then nothing rejects and
+     nothing resolves. The placeholder rows sit there for ever, and
+     "loading" that never ends is the most confusing state a screen can
+     be in, because it looks like your conversations might still be
+     coming.
+
+     Twelve seconds is long enough for a slow connection and short
+     enough to stop pretending. After that it says the connection
+     failed, which is what has actually happened, and offers to try
+     again. Same bell the travel plans use, for the same reason. */
+  const bellRef = useRef(null);
+  const dmsAnswered = useRef(false);
+  useEffect(() => () => clearTimeout(bellRef.current), []);
   const reload = useCallback(() => {
     if (!SUPABASE_READY || !user) return;
     /* A failure has to resolve too, or the screen waits for ever on a
        request that is never coming back. */
     setChatsErr(false);
-    fetchMyDmThreads(user.id).then(setRealDms).catch(() => { setRealDms([]); setChatsErr(true); });
+    dmsAnswered.current = false;
+    clearTimeout(bellRef.current);
+    bellRef.current = setTimeout(() => {
+      if (!dmsAnswered.current) { setRealDms([]); setChatsErr(true); }
+      // squads are secondary: stop waiting, don't call it an error
+      setRealSquads((v) => (v === null ? [] : v));
+    }, 12000);
+    fetchMyDmThreads(user.id)
+      .then((rows) => { dmsAnswered.current = true; setRealDms(rows); })
+      .catch(() => { dmsAnswered.current = true; setRealDms([]); setChatsErr(true); });
     fetchMySquads(user.id).then(setRealSquads).catch(() => setRealSquads([]));
     fetchLanguagePartners(user.id).then(setRealPartners).catch(() => setRealPartners([]));
     fetchIncomingRequests(user.id).then(setMateRequests).catch(() => {});
