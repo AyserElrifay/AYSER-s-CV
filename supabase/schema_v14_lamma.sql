@@ -170,6 +170,10 @@ begin
 
   mult := least(1 + 0.1 * (greatest(coalesce(p_streak, 1), 1) - 1), 1.5);
   if coalesce(p_is_last_two, false) then mult := mult * 1.5; end if;
+  /* Rounded to two places, exactly as src/lib/lammaScore.js does — a
+     streak of three on a last-two question is meant to read as 1.8,
+     not as 1.7999999999999998 paying out 1799. */
+  mult := round(mult::numeric, 2)::double precision;
 
   return floor(raw::double precision * mult)::int;
 end;

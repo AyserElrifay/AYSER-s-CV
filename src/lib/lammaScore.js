@@ -113,8 +113,20 @@ export function scoreAnswer({
   // being slow costs you half at most, never more
   raw = Math.max(raw, Math.floor(base * FLOOR_RATIO));
 
+  /* ── WHY THE MULTIPLIER IS ROUNDED ────────────────────────────
+     A streak of three on one of the last two questions is meant to be
+     1.2 × 1.5 = 1.8. In binary floating point it is
+     1.7999999999999998, so a thousand-point answer paid 1799 — and a
+     scoreboard that says 1799 where a person can see 1800 looks
+     broken, whatever the IEEE standard has to say about it.
+
+     Rounded to two places before it is applied. The server rounds in
+     exactly the same place and the same way, so the two still agree to
+     the point; this is about what the number looks like, not about who
+     decides it. */
   const mult = streakMultiplier(streak);
-  const finalMult = isLastTwo ? mult * COMEBACK_MULT : mult;
+  const rawMult = isLastTwo ? mult * COMEBACK_MULT : mult;
+  const finalMult = Math.round(rawMult * 100) / 100;
 
   return {
     points: Math.floor(raw * finalMult),

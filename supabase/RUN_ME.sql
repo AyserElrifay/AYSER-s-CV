@@ -2509,6 +2509,7 @@ begin
 
   mult := least(1 + 0.1 * (greatest(coalesce(p_streak, 1), 1) - 1), 1.5);
   if coalesce(p_is_last_two, false) then mult := mult * 1.5; end if;
+  mult := round(mult::numeric, 2)::double precision;
 
   return floor(raw::double precision * mult)::int;
 end;
@@ -2798,5 +2799,286 @@ grant execute on function public.lamma_award(boolean,int,int,text,int,boolean) t
 grant execute on function public.lamma_submit_answer(uuid,uuid,int,int) to authenticated;
 grant execute on function public.lamma_reveal(uuid,uuid) to authenticated;
 grant execute on function public.lamma_sync(uuid) to authenticated;
+
+notify pgrst, 'reload schema';
+
+-- ═══════════════════════════════════════════════════════════════════
+--  لمّة · LAMMA — running a room
+--  Phase 2, server half. Everything that changes a room's state lives
+--  here, so a phone can ask for a change but can never make one.
+--
+--  Realtime is used ONLY to tell phones what already happened. Nothing
+--  a client broadcasts is ever trusted, because nothing a client
+--  broadcasts is ever read.
+-- ═══════════════════════════════════════════════════════════════════
+
+/* ── THE JOIN CODE ────────────────────────────────────────────────
+   Six characters, read aloud across a room, usually badly. So: no O
+   against 0, no I or l against 1, no S against 5. What is left cannot
+   be misheard or mistyped into somebody else's game. */
+create or replace function public.lamma_new_code()
+returns text
+language plpgsql volatile as $$
+declare
+  alphabet text := 'ABCDEFGHJKMNPQRTUVWXYZ2346789';
+  code text;
+  tries int := 0;
+begin
+  loop
+    code := '';
+    for i in 1..6 loop
+      code := code || substr(alphabet, 1 + floor(random() * length(alphabet))::int, 1);
+    end loop;
+    exit when not exists (select 1 from public.game_rooms where join_code = code);
+    tries := tries + 1;
+    if tries > 50 then
+      -- 29^6 codes; if fifty draws all collide something is very wrong
+      raise exception 'could not find a free join code';
+    end if;
+  end loop;
+  return code;
+end;
+$$;
+
+/* ── OPENING A ROOM ──────────────────────────────────────────────── */
+create or replace function public.lamma_create_room(p_pack_id uuid, p_mode text default 'classic')
+returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare
+  me uuid := auth.uid();
+  r  public.game_rooms%rowtype;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  if not exists (select 1 from public.game_packs where id = p_pack_id) then
+    return jsonb_build_object('ok', false, 'reason', 'no_pack');
+  end if;
+
+  insert into public.game_rooms (pack_id, host_user_id, join_code, mode, status)
+  values (p_pack_id, me, public.lamma_new_code(), coalesce(p_mode, 'classic'), 'lobby')
+  returning * into r;
+
+  insert into public.room_players (room_id, user_id, nickname)
+  select r.id, me, coalesce(p.name, 'Explorer') from public.profiles p where p.id = me;
+
+  return jsonb_build_object('ok', true, 'room_id', r.id, 'join_code', r.join_code);
+end;
+$$;
+
+/* ── COMING IN ────────────────────────────────────────────────────
+   By code, because that is how somebody across a room joins without
+   being anybody's friend first. Joining a game already in progress is
+   allowed: you start on nothing and play the rest. Being told "too
+   late" by an app your friends are laughing at is a worse experience
+   than losing. */
+create or replace function public.lamma_join_room(p_code text)
+returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare
+  me uuid := auth.uid();
+  r  public.game_rooms%rowtype;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+
+  select * into r from public.game_rooms where join_code = upper(trim(p_code));
+  if not found then return jsonb_build_object('ok', false, 'reason', 'no_such_code'); end if;
+  if r.status = 'ended' then return jsonb_build_object('ok', false, 'reason', 'game_over'); end if;
+
+  insert into public.room_players (room_id, user_id, nickname)
+  select r.id, me, coalesce(p.name, 'Explorer') from public.profiles p where p.id = me
+  on conflict (room_id, user_id) do update set is_connected = true;
+
+  return jsonb_build_object('ok', true, 'room_id', r.id, 'status', r.status,
+                            'question_index', r.current_question_index);
+end;
+$$;
+
+/* ── MOVING THE GAME ON ───────────────────────────────────────────
+   Only the host, and the deadline is set here from the server's own
+   clock. A phone asking "start question 3" cannot decide when question
+   3 ends, which is the whole reason nobody can give themselves more
+   time by lying about theirs. */
+create or replace function public.lamma_advance(p_room_id uuid)
+returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare
+  me uuid := auth.uid();
+  r  public.game_rooms%rowtype;
+  nxt int;
+  q  public.questions%rowtype;
+  total int;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  select * into r from public.game_rooms where id = p_room_id;
+  if not found then return jsonb_build_object('ok', false, 'reason', 'no_room'); end if;
+  if r.host_user_id <> me then return jsonb_build_object('ok', false, 'reason', 'not_host'); end if;
+
+  select count(*) into total from public.questions where pack_id = r.pack_id;
+  nxt := r.current_question_index + 1;
+
+  if nxt >= total then
+    update public.game_rooms set status = 'ended', current_deadline_at = null where id = p_room_id;
+    return jsonb_build_object('ok', true, 'status', 'ended');
+  end if;
+
+  select * into q from public.questions where pack_id = r.pack_id and order_index = nxt;
+  if not found then return jsonb_build_object('ok', false, 'reason', 'no_question'); end if;
+
+  update public.game_rooms
+     set status = 'question',
+         current_question_index = nxt,
+         current_started_at = now(),
+         current_deadline_at = now() + make_interval(secs => q.timer_ms / 1000.0)
+   where id = p_room_id;
+
+  return jsonb_build_object('ok', true, 'status', 'question', 'question_index', nxt,
+                            'total', total, 'timer_ms', q.timer_ms,
+                            'deadline_at', now() + make_interval(secs => q.timer_ms / 1000.0));
+end;
+$$;
+
+/* ── A HOST WHO WALKED AWAY ───────────────────────────────────────
+   Someone's battery dies and four people are left staring at a
+   question that will never end. The room does not belong to the host;
+   the host is just whoever is driving. Any player may hand the wheel
+   to the longest-standing connected player once the host has been gone
+   long enough — and the host coming back does not take it away again,
+   because two hosts is worse than the wrong one. */
+create or replace function public.lamma_claim_host(p_room_id uuid)
+returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare
+  me uuid := auth.uid();
+  r  public.game_rooms%rowtype;
+  host_row public.room_players%rowtype;
+  heir uuid;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  select * into r from public.game_rooms where id = p_room_id;
+  if not found then return jsonb_build_object('ok', false, 'reason', 'no_room'); end if;
+  if not public.lamma_in_room(p_room_id) then return jsonb_build_object('ok', false, 'reason', 'not_in_room'); end if;
+
+  select * into host_row from public.room_players
+   where room_id = p_room_id and user_id = r.host_user_id;
+
+  -- still here? then there is nothing to claim
+  if host_row.user_id is not null and host_row.is_connected then
+    return jsonb_build_object('ok', false, 'reason', 'host_present');
+  end if;
+
+  select user_id into heir from public.room_players
+   where room_id = p_room_id and is_connected and user_id <> r.host_user_id
+   order by joined_at asc limit 1;
+
+  if heir is null then return jsonb_build_object('ok', false, 'reason', 'nobody_to_promote'); end if;
+
+  update public.game_rooms set host_user_id = heir where id = p_room_id;
+  return jsonb_build_object('ok', true, 'host_user_id', heir);
+end;
+$$;
+
+/* Leaving is a flag, not a delete: your score stays on the board and
+   you can walk back in on the same phone or another one. */
+create or replace function public.lamma_set_connected(p_room_id uuid, p_connected boolean)
+returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid();
+begin
+  if me is null then return jsonb_build_object('ok', false); end if;
+  update public.room_players set is_connected = coalesce(p_connected, true)
+   where room_id = p_room_id and user_id = me;
+  return jsonb_build_object('ok', found);
+end;
+$$;
+
+grant execute on function public.lamma_create_room(uuid,text)   to authenticated;
+grant execute on function public.lamma_join_room(text)          to authenticated;
+grant execute on function public.lamma_advance(uuid)            to authenticated;
+grant execute on function public.lamma_claim_host(uuid)         to authenticated;
+grant execute on function public.lamma_set_connected(uuid,boolean) to authenticated;
+
+notify pgrst, 'reload schema';
+
+-- ═══════════════════════════════════════════════════════════════════
+--  لمّة · THE THREE PACKS IT SHIPS WITH
+--  أفلام مصرية · أغاني تسعينات · كورة مصرية — fifteen questions each.
+--
+--  These are FACTS, written from scratch: who directed what, who
+--  scored when, which year an album came out. No lyrics, no cover art,
+--  no text lifted from a quiz that already exists. A fact is nobody's
+--  property; a paragraph about it is.
+--
+--  Every question is kept under 120 characters on purpose. It is a
+--  real constraint on a phone, and it forces the question to be sharp
+--  rather than a paragraph with a question mark at the end.
+--
+--  AYSER: read these before anybody plays them. I am confident in
+--  them, but a quiz that is confidently wrong is worse than no quiz,
+--  and you know this material better than I do.
+--  Safe to re-run — it replaces its own three packs and nothing else.
+-- ═══════════════════════════════════════════════════════════════════
+
+delete from public.game_packs where id in (
+  'aaaa1111-0000-4000-8000-000000000001',
+  'aaaa1111-0000-4000-8000-000000000002',
+  'aaaa1111-0000-4000-8000-000000000003');
+
+insert into public.game_packs (id, title_ar, title_en, description_ar, category, is_official, visibility) values
+ ('aaaa1111-0000-4000-8000-000000000001','أفلام مصرية','Egyptian Films','من الأبيض والأسود لحد النهاردة','film',true,'public'),
+ ('aaaa1111-0000-4000-8000-000000000002','أغاني تسعينات','90s Songs','الأغاني اللي كبرنا عليها','music',true,'public'),
+ ('aaaa1111-0000-4000-8000-000000000003','كورة مصرية','Egyptian Football','الأهلي والزمالك والمنتخب','sport',true,'public');
+
+-- ── أفلام مصرية ────────────────────────────────────────────────────
+insert into public.questions (pack_id, order_index, text_ar, timer_ms, options, correct_index, points_style) values
+('aaaa1111-0000-4000-8000-000000000001',0,'مين بطل فيلم «الكيت كات»؟',20000,'[{"index":0,"text_ar":"محمود عبد العزيز"},{"index":1,"text_ar":"عادل إمام"},{"index":2,"text_ar":"أحمد زكي"},{"index":3,"text_ar":"نور الشريف"}]',0,'standard'),
+('aaaa1111-0000-4000-8000-000000000001',1,'مين مخرج فيلم «الأرض»؟',20000,'[{"index":0,"text_ar":"يوسف شاهين"},{"index":1,"text_ar":"صلاح أبو سيف"},{"index":2,"text_ar":"كمال الشيخ"},{"index":3,"text_ar":"حسين كمال"}]',0,'standard'),
+('aaaa1111-0000-4000-8000-000000000001',2,'مين بطل «الإرهاب والكباب»؟',20000,'[{"index":0,"text_ar":"عادل إمام"},{"index":1,"text_ar":"أحمد زكي"},{"index":2,"text_ar":"محمود عبد العزيز"},{"index":3,"text_ar":"يحيى الفخراني"}]',0,'standard'),
+('aaaa1111-0000-4000-8000-000000000001',3,'مين مخرج «المومياء»؟',20000,'[{"index":0,"text_ar":"شادي عبد السلام"},{"index":1,"text_ar":"يوسف شاهين"},{"index":2,"text_ar":"توفيق صالح"},{"index":3,"text_ar":"صلاح أبو سيف"}]',0,'standard'),
+('aaaa1111-0000-4000-8000-000000000001',4,'مين بطلة «دعاء الكروان»؟',20000,'[{"index":0,"text_ar":"فاتن حمامة"},{"index":1,"text_ar":"سعاد حسني"},{"index":2,"text_ar":"شادية"},{"index":3,"text_ar":"ماجدة"}]',0,'standard'),
+('aaaa1111-0000-4000-8000-000000000001',5,'مين بطل «اللص والكلاب»؟',20000,'[{"index":0,"text_ar":"شكري سرحان"},{"index":1,"text_ar":"رشدي أباظة"},{"index":2,"text_ar":"أحمد مظهر"},{"index":3,"text_ar":"عماد حمدي"}]',0,'standard'),
+('aaaa1111-0000-4000-8000-000000000001',6,'مين مخرج «باب الحديد»؟',20000,'[{"index":0,"text_ar":"يوسف شاهين"},{"index":1,"text_ar":"صلاح أبو سيف"},{"index":2,"text_ar":"كمال الشيخ"},{"index":3,"text_ar":"عاطف الطيب"}]',0,'standard'),
+('aaaa1111-0000-4000-8000-000000000001',7,'مين بطل «زوجة رجل مهم»؟',20000,'[{"index":0,"text_ar":"أحمد زكي"},{"index":1,"text_ar":"نور الشريف"},{"index":2,"text_ar":"محمود عبد العزيز"},{"index":3,"text_ar":"محمود ياسين"}]',0,'standard'),
+('aaaa1111-0000-4000-8000-000000000001',8,'مين مخرج «الناصر صلاح الدين»؟',20000,'[{"index":0,"text_ar":"يوسف شاهين"},{"index":1,"text_ar":"شادي عبد السلام"},{"index":2,"text_ar":"حسام الدين مصطفى"},{"index":3,"text_ar":"عز الدين ذو الفقار"}]',0,'standard'),
+('aaaa1111-0000-4000-8000-000000000001',9,'مين بطل «عمارة يعقوبيان»؟',20000,'[{"index":0,"text_ar":"عادل إمام"},{"index":1,"text_ar":"خالد صالح"},{"index":2,"text_ar":"نور الشريف"},{"index":3,"text_ar":"يحيى الفخراني"}]',0,'standard'),
+('aaaa1111-0000-4000-8000-000000000001',10,'مين بطلة «أريد حلاً»؟',20000,'[{"index":0,"text_ar":"فاتن حمامة"},{"index":1,"text_ar":"سعاد حسني"},{"index":2,"text_ar":"نادية لطفي"},{"index":3,"text_ar":"ميرفت أمين"}]',0,'standard'),
+('aaaa1111-0000-4000-8000-000000000001',11,'مين مخرج «إسكندرية… ليه؟»',20000,'[{"index":0,"text_ar":"يوسف شاهين"},{"index":1,"text_ar":"داود عبد السيد"},{"index":2,"text_ar":"محمد خان"},{"index":3,"text_ar":"عاطف الطيب"}]',0,'standard'),
+('aaaa1111-0000-4000-8000-000000000001',12,'مين بطل «البريء»؟',20000,'[{"index":0,"text_ar":"أحمد زكي"},{"index":1,"text_ar":"محمود عبد العزيز"},{"index":2,"text_ar":"نور الشريف"},{"index":3,"text_ar":"عادل إمام"}]',0,'standard'),
+('aaaa1111-0000-4000-8000-000000000001',13,'مين بطل «الكرنك»؟',20000,'[{"index":0,"text_ar":"نور الشريف"},{"index":1,"text_ar":"أحمد زكي"},{"index":2,"text_ar":"محمود ياسين"},{"index":3,"text_ar":"حسين فهمي"}]',0,'standard'),
+('aaaa1111-0000-4000-8000-000000000001',14,'مين مخرج «الكيت كات»؟',20000,'[{"index":0,"text_ar":"داود عبد السيد"},{"index":1,"text_ar":"محمد خان"},{"index":2,"text_ar":"خيري بشارة"},{"index":3,"text_ar":"عاطف الطيب"}]',0,'double');
+
+-- ── أغاني تسعينات ──────────────────────────────────────────────────
+insert into public.questions (pack_id, order_index, text_ar, timer_ms, options, correct_index, points_style) values
+('aaaa1111-0000-4000-8000-000000000002',0,'مين غنى «نور العين»؟',20000,'[{"index":0,"text_ar":"عمرو دياب"},{"index":1,"text_ar":"محمد فؤاد"},{"index":2,"text_ar":"مصطفى قمر"},{"index":3,"text_ar":"إيهاب توفيق"}]',0,'standard'),
+('aaaa1111-0000-4000-8000-000000000002',1,'ألبوم «نور العين» نزل سنة كام؟',20000,'[{"index":0,"text_ar":"1996"},{"index":1,"text_ar":"1992"},{"index":2,"text_ar":"1999"},{"index":3,"text_ar":"2001"}]',0,'standard'),
+('aaaa1111-0000-4000-8000-000000000002',2,'مين الملقب بـ«الكينج» في الغنا المصري؟',20000,'[{"index":0,"text_ar":"محمد منير"},{"index":1,"text_ar":"عمرو دياب"},{"index":2,"text_ar":"على الحجار"},{"index":3,"text_ar":"مدحت صالح"}]',0,'standard'),
+('aaaa1111-0000-4000-8000-000000000002',3,'مين غنى «نارى نارى»؟',20000,'[{"index":0,"text_ar":"هشام عباس"},{"index":1,"text_ar":"مصطفى قمر"},{"index":2,"text_ar":"حميد الشاعري"},{"index":3,"text_ar":"إيهاب توفيق"}]',0,'standard'),
+('aaaa1111-0000-4000-8000-000000000002',4,'مين غنى «زيديني عشقاً»؟',20000,'[{"index":0,"text_ar":"كاظم الساهر"},{"index":1,"text_ar":"جورج وسوف"},{"index":2,"text_ar":"راغب علامة"},{"index":3,"text_ar":"وليد توفيق"}]',0,'standard'),
+('aaaa1111-0000-4000-8000-000000000002',5,'مين الملقب بـ«سلطان الطرب»؟',20000,'[{"index":0,"text_ar":"جورج وسوف"},{"index":1,"text_ar":"كاظم الساهر"},{"index":2,"text_ar":"عاصي الحلاني"},{"index":3,"text_ar":"ملحم بركات"}]',0,'standard'),
+('aaaa1111-0000-4000-8000-000000000002',6,'مين المعروف بأبو الموسيقى الشبابية في مصر؟',20000,'[{"index":0,"text_ar":"حميد الشاعري"},{"index":1,"text_ar":"هاني شنودة"},{"index":2,"text_ar":"عمار الشريعي"},{"index":3,"text_ar":"يحيى خليل"}]',0,'standard'),
+('aaaa1111-0000-4000-8000-000000000002',7,'«الحلم العربي» اتغنت بمشاركة كام فنان تقريباً؟',20000,'[{"index":0,"text_ar":"أكتر من 20"},{"index":1,"text_ar":"5"},{"index":2,"text_ar":"10"},{"index":3,"text_ar":"3"}]',0,'standard'),
+('aaaa1111-0000-4000-8000-000000000002',8,'مين غنى «قلبي دق»؟',20000,'[{"index":0,"text_ar":"محمد فؤاد"},{"index":1,"text_ar":"مصطفى قمر"},{"index":2,"text_ar":"هشام عباس"},{"index":3,"text_ar":"علاء عبد الخالق"}]',0,'standard'),
+('aaaa1111-0000-4000-8000-000000000002',9,'محمد منير أصله منين؟',20000,'[{"index":0,"text_ar":"أسوان"},{"index":1,"text_ar":"القاهرة"},{"index":2,"text_ar":"الإسكندرية"},{"index":3,"text_ar":"بورسعيد"}]',0,'standard'),
+('aaaa1111-0000-4000-8000-000000000002',10,'مين غنى «يا حبيبي يا عيني»؟',20000,'[{"index":0,"text_ar":"إيهاب توفيق"},{"index":1,"text_ar":"عمرو دياب"},{"index":2,"text_ar":"مصطفى قمر"},{"index":3,"text_ar":"هشام عباس"}]',0,'standard'),
+('aaaa1111-0000-4000-8000-000000000002',11,'كاظم الساهر من أي بلد؟',20000,'[{"index":0,"text_ar":"العراق"},{"index":1,"text_ar":"سوريا"},{"index":2,"text_ar":"لبنان"},{"index":3,"text_ar":"الأردن"}]',0,'standard'),
+('aaaa1111-0000-4000-8000-000000000002',12,'أغاني كاظم الساهر الشهيرة كلماتها لمين؟',20000,'[{"index":0,"text_ar":"نزار قباني"},{"index":1,"text_ar":"محمود درويش"},{"index":2,"text_ar":"أحمد شوقي"},{"index":3,"text_ar":"صلاح جاهين"}]',0,'standard'),
+('aaaa1111-0000-4000-8000-000000000002',13,'عمرو دياب اتولد فين؟',20000,'[{"index":0,"text_ar":"بورسعيد"},{"index":1,"text_ar":"القاهرة"},{"index":2,"text_ar":"الإسكندرية"},{"index":3,"text_ar":"المنصورة"}]',0,'standard'),
+('aaaa1111-0000-4000-8000-000000000002',14,'جورج وسوف من أي بلد؟',20000,'[{"index":0,"text_ar":"سوريا"},{"index":1,"text_ar":"لبنان"},{"index":2,"text_ar":"مصر"},{"index":3,"text_ar":"العراق"}]',0,'double');
+
+-- ── كورة مصرية ─────────────────────────────────────────────────────
+insert into public.questions (pack_id, order_index, text_ar, timer_ms, options, correct_index, points_style) values
+('aaaa1111-0000-4000-8000-000000000003',0,'مصر كسبت كأس أمم أفريقيا كام مرة؟',20000,'[{"index":0,"text_ar":"7"},{"index":1,"text_ar":"5"},{"index":2,"text_ar":"6"},{"index":3,"text_ar":"8"}]',0,'standard'),
+('aaaa1111-0000-4000-8000-000000000003',1,'نادي الأهلي اتأسس سنة كام؟',20000,'[{"index":0,"text_ar":"1907"},{"index":1,"text_ar":"1911"},{"index":2,"text_ar":"1920"},{"index":3,"text_ar":"1900"}]',0,'standard'),
+('aaaa1111-0000-4000-8000-000000000003',2,'نادي الزمالك اتأسس سنة كام؟',20000,'[{"index":0,"text_ar":"1911"},{"index":1,"text_ar":"1907"},{"index":2,"text_ar":"1925"},{"index":3,"text_ar":"1930"}]',0,'standard'),
+('aaaa1111-0000-4000-8000-000000000003',3,'أول مونديال لمصر كان سنة كام؟',20000,'[{"index":0,"text_ar":"1934"},{"index":1,"text_ar":"1950"},{"index":2,"text_ar":"1990"},{"index":3,"text_ar":"1930"}]',0,'standard'),
+('aaaa1111-0000-4000-8000-000000000003',4,'مصر لعبت كام كأس عالم لحد 2022؟',20000,'[{"index":0,"text_ar":"3"},{"index":1,"text_ar":"2"},{"index":2,"text_ar":"4"},{"index":3,"text_ar":"5"}]',0,'standard'),
+('aaaa1111-0000-4000-8000-000000000003',5,'محمد صلاح لعب لأي نادي إنجليزي قبل ليفربول؟',20000,'[{"index":0,"text_ar":"تشيلسي"},{"index":1,"text_ar":"أرسنال"},{"index":2,"text_ar":"مانشستر سيتي"},{"index":3,"text_ar":"توتنهام"}]',0,'standard'),
+('aaaa1111-0000-4000-8000-000000000003',6,'محمد صلاح لعب في إيطاليا لأي ناديين؟',20000,'[{"index":0,"text_ar":"فيورنتينا وروما"},{"index":1,"text_ar":"يوفنتوس وميلان"},{"index":2,"text_ar":"إنتر ونابولي"},{"index":3,"text_ar":"لاتسيو وروما"}]',0,'standard'),
+('aaaa1111-0000-4000-8000-000000000003',7,'مصر كسبت أمم أفريقيا 2006 و2008 و2010 — الميزة إيه؟',20000,'[{"index":0,"text_ar":"3 مرات ورا بعض"},{"index":1,"text_ar":"كلها برا مصر"},{"index":2,"text_ar":"من غير ما تستقبل هدف"},{"index":3,"text_ar":"بنفس المدرب دايماً"}]',0,'standard'),
+('aaaa1111-0000-4000-8000-000000000003',8,'مين مدرب مصر في مونديال 2018؟',20000,'[{"index":0,"text_ar":"هيكتور كوبر"},{"index":1,"text_ar":"حسن شحاتة"},{"index":2,"text_ar":"خافيير أغيري"},{"index":3,"text_ar":"كارلوس كيروش"}]',0,'standard'),
+('aaaa1111-0000-4000-8000-000000000003',9,'مين مدرب مصر في الثلاثية 2006-2010؟',20000,'[{"index":0,"text_ar":"حسن شحاتة"},{"index":1,"text_ar":"محمود الجوهري"},{"index":2,"text_ar":"هيكتور كوبر"},{"index":3,"text_ar":"شوقي غريب"}]',0,'standard'),
+('aaaa1111-0000-4000-8000-000000000003',10,'مصر أهلت لمونديال 2018 بهدف مين في الكونغو؟',20000,'[{"index":0,"text_ar":"محمد صلاح"},{"index":1,"text_ar":"محمود كهربا"},{"index":2,"text_ar":"مروان محسن"},{"index":3,"text_ar":"عبد الله السعيد"}]',0,'standard'),
+('aaaa1111-0000-4000-8000-000000000003',11,'أمم أفريقيا 2019 اتلعبت فين؟',20000,'[{"index":0,"text_ar":"مصر"},{"index":1,"text_ar":"الكاميرون"},{"index":2,"text_ar":"الجابون"},{"index":3,"text_ar":"جنوب أفريقيا"}]',0,'standard'),
+('aaaa1111-0000-4000-8000-000000000003',12,'الأهلي والزمالك ماتشهم اسمه إيه؟',20000,'[{"index":0,"text_ar":"القمة"},{"index":1,"text_ar":"الديربي الأحمر"},{"index":2,"text_ar":"الكلاسيكو"},{"index":3,"text_ar":"المواجهة"}]',0,'standard'),
+('aaaa1111-0000-4000-8000-000000000003',13,'محمد صلاح بيلعب في أي مركز أساساً؟',20000,'[{"index":0,"text_ar":"جناح"},{"index":1,"text_ar":"مدافع"},{"index":2,"text_ar":"حارس"},{"index":3,"text_ar":"ظهير"}]',0,'standard'),
+('aaaa1111-0000-4000-8000-000000000003',14,'أبو تريكة لعب لأي نادي مصري؟',20000,'[{"index":0,"text_ar":"الأهلي"},{"index":1,"text_ar":"الزمالك"},{"index":2,"text_ar":"الإسماعيلي"},{"index":3,"text_ar":"المصري"}]',0,'double');
 
 notify pgrst, 'reload schema';
