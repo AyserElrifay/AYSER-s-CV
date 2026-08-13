@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { View, Text, Pressable, ImageBackground, FlatList, Image, Animated, Easing, Platform, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -7,6 +7,7 @@ import { C } from '../constants/theme';
 import { looksPlayable, watchForBlankVideo } from '../lib/videoCheck';
 import { REELS, AV_NEUTRAL } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
+import { withDeadline } from '../lib/deadline';
 import { useAuth } from '../context/AuthContext';
 import { fetchFeed, deletePost } from '../services/posts';
 import { mateUp, fetchMateStates } from '../services/mates';
@@ -93,9 +94,13 @@ export const ReelsScreen = () => {
     stopVideos(new Set(reelVideos.current.values()));
   }, []);
 
-  useEffect(() => {
+  const [reelsErr, setReelsErr] = useState(false);
+  const loadReels = useCallback(() => {
     if (!SUPABASE_READY) return;
-    fetchFeed()
+    setReelsErr(false);
+    setRealReels(null);
+    /* A dead connection never rejects on its own — see src/lib/deadline.js */
+    withDeadline(fetchFeed())
       .then((rows) => setRealReels((rows || [])
         .filter((r) => r.type === 'reel')
         .map((r) => ({
@@ -106,8 +111,9 @@ export const ReelsScreen = () => {
           sound: r.sound_title ? { title: r.sound_title, artist: r.sound_artist || '', emoji: '🎵' } : null,
           vibes: r.vibes || 0, comments: r.comments || 0, reposts: 0,
         }))))
-      .catch(() => setRealReels([]));
+      .catch(() => { setRealReels([]); setReelsErr(true); });
   }, []);
+  useEffect(loadReels, [loadReels]);
 
   // restore YOUR stars after refresh (base counts already include you,
   // so seed the toggle without adding +1 twice)
@@ -371,6 +377,22 @@ export const ReelsScreen = () => {
           onViewableItemsChanged={onReelViewable.current}
           viewabilityConfig={reelViewCfg.current}
         />
+      ) : reelsErr ? (
+        /* An empty shelf and an unreachable server are not the same
+           thing, and "No reels yet — shoot the first one" is a lie when
+           the truth is that nothing answered. */
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 }}>
+          <Text style={{ fontSize: 38 }}>📡</Text>
+          <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '900', marginTop: 12, textAlign: 'center' }}>Couldn't load reels</Text>
+          <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, marginTop: 6, textAlign: 'center', lineHeight: 19 }}>
+            This is the connection, not you — everything posted is still there.
+          </Text>
+          <Pressable onPress={() => { tapMedium(); loadReels(); }} style={{ marginTop: 18 }}>
+            <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 26, paddingVertical: 13 }}>
+              <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '900' }}>Try again</Text>
+            </View>
+          </Pressable>
+        </View>
       ) : loadingReels ? (
         /* Nothing has answered yet. "No reels yet" is a statement about
            the world, and we are not entitled to make it until the

@@ -5,6 +5,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { C } from '../constants/theme';
 import { USERS, FEED, TRENDING, GROUPS, PLAY_GAMES, AV_NEUTRAL } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
+import { withDeadline } from '../lib/deadline';
 import { useAuth } from '../context/AuthContext';
 import { searchProfiles } from '../services/social';
 import { searchPosts, fetchTravelPlans } from '../services/posts';
@@ -314,7 +315,9 @@ export const SearchModal = ({ onClose, onOpenProfile, onOpenTopics, onOpenTag })
   const loadGroups = () => {
     if (!SUPABASE_READY) return;
     setGroupsErr(null);
-    fetchGroups(user && user.id)
+    /* A request that never answers leaves "Looking…" on screen for
+       ever — see src/lib/deadline.js */
+    withDeadline(fetchGroups(user && user.id))
       .then((rows) => { setRealGroups(rows); })
       .catch((e) => { setRealGroups([]); setGroupsErr(explainGroups(e)); });
   };

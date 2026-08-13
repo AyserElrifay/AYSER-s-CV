@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { C, R } from '../constants/theme';
 import { AV_NEUTRAL, PLAY_GAMES } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
+import { withDeadline } from '../lib/deadline';
 import { useAuth } from '../context/AuthContext';
 import { openPartner } from '../services/broker';
 import { fetchVideos, deletePost } from '../services/posts';
@@ -111,7 +112,12 @@ export const ChillScreen = () => {
   });
   useEffect(() => {
     if (!SUPABASE_READY) { setTracks([]); return; }
-    fetchTracks().then((rows) => setTracks((rows || []).map(toTrack))).catch(() => setTracks([]));
+    /* A dead connection never rejects on its own, and a placeholder
+       that never resolves is worse than an error — see
+       src/lib/deadline.js */
+    withDeadline(fetchTracks())
+      .then((rows) => setTracks((rows || []).map(toTrack)))
+      .catch(() => setTracks([]));
   }, []);
   const playFrom = (i) => { if (tracks && tracks[i]) playTrack(tracks[i], tracks, i); };
 
@@ -119,7 +125,7 @@ export const ChillScreen = () => {
   const loadVideos = useCallback(async () => {
     if (!SUPABASE_READY) { setVideos([]); return; }
     try {
-      const rows = await fetchVideos();
+      const rows = await withDeadline(fetchVideos());
       setVideos((rows || []).map(toVideo));
     } catch (e) { setVideos([]); }
   }, []);
