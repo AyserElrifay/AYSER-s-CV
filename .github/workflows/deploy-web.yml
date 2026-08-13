@@ -42,6 +42,11 @@ jobs:
       # theme at import (the white-on-white buttons in dark mode).
       - name: Check for rebuilt components and frozen themes
         run: node scripts/check-rerender.mjs
+      # The scoreboard is the product. If the rules drift, the game is
+      # over before anybody notices — so the rules are checked, not
+      # trusted.
+      - name: Check the Lamma scoring rules
+        run: node scripts/check-lamma.mjs
       - name: Export web bundle
         run: npx expo export --platform web --output-dir dist
       - name: Inject PWA manifest + Open Graph tags
