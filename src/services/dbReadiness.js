@@ -66,6 +66,13 @@ const CHECKS = [
     table: 'groups_with_counts',
     column: 'members_count',
   },
+  {
+    id: 'follows',
+    label: 'Followers and Following',
+    what: 'Nobody can follow anybody, and both counts on a profile show a dash.',
+    table: 'follows',
+    column: 'follower_id',
+  },
 ];
 
 /* ── THE ONE THAT IS NOT A COLUMN ─────────────────────────────────

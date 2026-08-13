@@ -7,23 +7,35 @@ import { supabase } from '../lib/supabase';
    reason showing both is worth anything; two identical counts would be
    decoration. */
 
+/* ── null IS NOT ZERO ──────────────────────────────────────────────
+   These both used to end `if (error) return 0`, which means a missing
+   table, a refused read or a dead connection all came back as the
+   number nought — and the profile printed a confident "0 Followers"
+   over the top of a question it had never actually got an answer to.
+
+   Nought is a fact about you. It says nobody follows you. Saying that
+   because a request failed is the same class of lie as a screen
+   announcing "nobody here yet" before anything has replied, and it is
+   a crueller one, because this number is about how many people care.
+
+   null means we do not know, and the profile shows a dash for it. */
 export async function countFollowers(userId) {
-  if (!userId) return 0;
+  if (!userId) return null;
   const { count, error } = await supabase
     .from('follows')
     .select('follower_id', { count: 'exact', head: true })
     .eq('followee_id', userId);
-  if (error) return 0;
+  if (error) return null;
   return count || 0;
 }
 
 export async function countFollowing(userId) {
-  if (!userId) return 0;
+  if (!userId) return null;
   const { count, error } = await supabase
     .from('follows')
     .select('followee_id', { count: 'exact', head: true })
     .eq('follower_id', userId);
-  if (error) return 0;
+  if (error) return null;
   return count || 0;
 }
 

@@ -76,9 +76,11 @@ const monthYear = (iso) => {
   return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
 };
 
+/* A dash, not a nought, when the number never arrived — see the note
+   in src/services/follows.js. */
 const Stat = ({ n, label, onPress }) => (
   <Pressable onPress={() => { tapSelection(); onPress && onPress(); }} style={{ alignItems: 'center', flex: 1 }}>
-    <Text style={{ color: C.text, fontSize: 19, fontWeight: '900' }}>{n}</Text>
+    <Text style={{ color: n == null ? C.faint : C.text, fontSize: 19, fontWeight: '900' }}>{n == null ? '—' : n}</Text>
     <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 2, letterSpacing: 0.3 }}>{label}</Text>
   </Pressable>
 );
@@ -161,12 +163,12 @@ export const ProfileScreen = () => {
   const [matesOpen, setMatesOpen] = useState(false);
   const [avatarBuilderOpen, setAvatarBuilderOpen] = useState(false);
   const [closeOpen, setCloseOpen] = useState(false);
-  const [followers, setFollowers] = useState(0);
-  const [following, setFollowing] = useState(0);
+  const [followers, setFollowers] = useState(null);   // null until it answers
+  const [following, setFollowing] = useState(null);
   useEffect(() => {
     if (!SUPABASE_READY || !user) return;
-    countFollowers(user.id).then(setFollowers).catch(() => {});
-    countFollowing(user.id).then(setFollowing).catch(() => {});
+    countFollowers(user.id).then(setFollowers).catch(() => setFollowers(null));
+    countFollowing(user.id).then(setFollowing).catch(() => setFollowing(null));
   }, [user]);
   const [editName, setEditName] = useState('');
   const [editBio, setEditBio] = useState('');
