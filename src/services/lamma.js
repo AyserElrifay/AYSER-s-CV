@@ -67,14 +67,41 @@ export async function fetchPackQuestions(packId) {
   return data || [];
 }
 
-export async function fetchPacks() {
+/* ── THE PACKS THIS PLAYER CAN ACTUALLY PLAY ───────────────────────
+   A pack belongs to a country, or to everybody. Somebody in Cairo gets
+   the Egyptian packs and the worldwide ones; somebody in Bucharest gets
+   the worldwide ones and, when they exist, theirs.
+
+   Their own country comes FIRST, because that is the pack they will
+   recognise and the one that makes them want to start a room. The
+   worldwide packs sit under it — they are the ones a mixed room can
+   play without anybody being locked out.
+
+   Pass no country and you get everything, which is what the search and
+   the pack builder want. */
+export async function fetchPacks(country) {
   if (!SUPABASE_READY) return [];
+  let q = supabase.from('game_packs').select('*');
+  if (country) q = q.or('country.eq.' + country + ',country.is.null');
   const { data, error } = await withDeadline(
-    supabase.from('game_packs').select('*').order('is_official', { ascending: false }).limit(50),
+    q.order('is_official', { ascending: false }).limit(60),
   );
   if (error) throw error;
-  return data || [];
+  const rows = data || [];
+  if (!country) return rows;
+  // yours first, then everybody's
+  return rows.sort((a, b) => {
+    const mine = (r) => (r.country === country ? 0 : 1);
+    return mine(a) - mine(b);
+  });
 }
+
+/* The title in the player's language, falling back rather than
+   blanking — same rule as the questions themselves. */
+export const packTitle = (pack, lang) => {
+  if (!pack) return '';
+  return (lang === 'ar' ? (pack.title_ar || pack.title_en) : (pack.title_en || pack.title_ar)) || '';
+};
 
 export async function fetchRoomPlayers(roomId) {
   if (!SUPABASE_READY) return [];
