@@ -24,14 +24,31 @@ import { tapMedium, tapSuccess, tapError } from '../../utils/feedback';
 
    POSITIONS DO NOT MIRROR. The tiles keep their places in Arabic and in
    English, because the colour and the shape are the muscle memory. Only
-   the text inside them follows the language.                          */
+   the text inside them follows the language.
+
+   IT SPEAKS BOTH. A question carries text_ar and text_en, and so does
+   every option. Whichever the player has chosen is shown, and the other
+   is the fallback — so a pack that has only been written in one
+   language still plays, rather than showing a blank question and a row
+   of blank tiles. Nothing is machine-translated: a translated quiz
+   answer is a wrong answer waiting to happen, so a missing translation
+   falls back to the language it was actually written in.             */
+
+/* The text in the player's language, or the one that exists. */
+const say = (row, lang) => {
+  if (!row) return '';
+  const en = row.text_en;
+  const ar = row.text_ar;
+  return (lang === 'ar' ? (ar || en) : (en || ar)) || '';
+};
 
 export const QuestionCard = ({
-  question,            // { id, text_ar, options, timer_ms, media_url }
+  question,            // { id, text_ar, text_en, options, timer_ms, media_url }
   index, total,
   onAnswer,            // (selectedIndex, elapsedMs) => void
   result,              // null until the reveal: { correct_index, distribution, your_result }
   t,
+  lang = 'en',
 }) => {
   const clock = useRef(createQuestionClock()).current;
   const [picked, setPicked] = useState(null);
@@ -85,7 +102,7 @@ export const QuestionCard = ({
       </Text>
 
       <Text style={{ color: C.text, fontSize: 22, fontWeight: '900', lineHeight: 31, marginBottom: 16 }}>
-        {question ? question.text_ar : ''}
+        {say(question, lang)}
       </Text>
 
       {question && question.media_url ? (
@@ -119,7 +136,7 @@ export const QuestionCard = ({
                   color: isRight ? '#FFF' : C.text, fontSize: 16, fontWeight: '800',
                   marginStart: 12, flex: 1,
                 }}>
-                  {o.text_ar}
+                  {say(o, lang)}
                 </Text>
                 {/* The count needs its own space. Without a margin it
                     sits flush against the answer and Arabic reads it as
