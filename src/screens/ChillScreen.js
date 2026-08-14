@@ -8,6 +8,7 @@ import { AV_NEUTRAL, PLAY_GAMES } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
 import { withDeadline } from '../lib/deadline';
 import { useAuth } from '../context/AuthContext';
+import { useLang } from '../context/LanguageContext';
 import { openPartner } from '../services/broker';
 import { fetchVideos, deletePost } from '../services/posts';
 import { fetchTracks } from '../services/music';
@@ -19,6 +20,7 @@ import { MusicHubSheet } from '../components/MusicHubSheet';
 import { FilmSheet } from '../components/FilmSheet';
 import { BooksShelf } from '../components/BooksShelf';
 import { CommentsSheet } from '../components/CommentsSheet';
+import { GameHub } from '../components/lamma/GameHub';
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
 import { trackPlayer } from '../lib/videoSound';
 import { sfxSuccess, sfxPop } from '../utils/sfx';
@@ -74,6 +76,8 @@ export const ChillScreen = () => {
   const [commentsPost, setCommentsPost] = useState(null);
   const [shooting, setShooting] = useState(false);
   const [game, setGame] = useState(null); // a launched game
+  const [lammaOpen, setLammaOpen] = useState(false);
+  const { t } = useLang();
 
   // Every real, playable game — surfaced here so they're actually findable
   // (they used to be buried in Search → Play).
@@ -153,6 +157,30 @@ export const ChillScreen = () => {
 
       {/* ── PLAY — every real game, finally easy to find ── */}
       <SectionHeader title="Play 🎮" />
+
+      {/* لمّة sits above the strip and not inside it. The others are
+          games you play alone on a bus; this is the one you open when
+          there are people in the room, and a 132px card in a sideways
+          list is not how you invite five friends to anything. */}
+      <Pressable onPress={() => { tapLight(); sfxPop(); setLammaOpen(true); }} style={{ marginTop: -4, marginBottom: 14 }}>
+        <LinearGradient
+          colors={['#2B1055', '#7C3AED']}
+          start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+          style={{ borderRadius: 20, padding: 16, flexDirection: 'row', alignItems: 'center' }}
+        >
+          <Text style={{ fontSize: 34 }}>🧠</Text>
+          <View style={{ flex: 1, marginStart: 14 }}>
+            <Text style={{ color: '#FFF', fontSize: 18, fontWeight: '900' }}>{t('lamma_title')}</Text>
+            <Text style={{ color: 'rgba(255,255,255,0.82)', fontSize: 12, fontWeight: '700', marginTop: 2 }}>
+              {t('lamma_tagline')}
+            </Text>
+          </View>
+          <View style={{ backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 999, paddingHorizontal: 16, paddingVertical: 9 }}>
+            <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900' }}>{t('lamma_start')}</Text>
+          </View>
+        </LinearGradient>
+      </Pressable>
+
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 4, paddingRight: 8 }} style={{ marginTop: -4, marginBottom: 22 }}>
         {games.map((g) => (
           <Pressable key={g.id} onPress={() => { tapLight(); sfxPop(); setGame(g); }} style={{ width: 132, marginRight: 12 }}>
@@ -460,6 +488,8 @@ export const ChillScreen = () => {
       : game && game.kind === 'rooftop' ? <RooftopRush onClose={() => setGame(null)} />
       : game && game.kind === 'rps' ? <RockPaperScissors onClose={() => setGame(null)} />
       : game ? <GameRunner onClose={() => setGame(null)} /> : null}
+
+    {lammaOpen ? <GameHub onClose={() => setLammaOpen(false)} /> : null}
     </>
   );
 };

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { SUPABASE_READY } from '../lib/supabase';
+import { explain } from '../lib/explain';
 import { fetchFeed, fetchReposts } from '../services/posts';
 import { fetchTagsForPosts } from '../services/tags';
 import { rankFeed } from '../services/algorithm';
@@ -105,7 +106,11 @@ export function useFeed() {
       setPosts(injectAds(ranked, ads)); // native Sponsored cards, always labeled
       setLoadError(null);
     } catch (e) {
-      setLoadError(e.message || 'Could not load moments');
+      /* WHAT went wrong, never the database's words for it — the raw
+         message was being printed on the feed and it named tables and
+         schema caches at people who were only looking for their friends.
+         See src/lib/explain.js. */
+      setLoadError(explain(e));
     }
   }, []);
 

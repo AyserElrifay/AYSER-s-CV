@@ -479,7 +479,11 @@ export const HomeScreen = () => {
                 {loadError ? t('couldnt_load_moments') : t('no_moments_yet')}
               </Text>
               <Text style={{ color: C.faint, fontSize: 12.5, marginTop: 6, textAlign: 'center', lineHeight: 18 }}>
-                {loadError || t('share_first_moment_hint')}
+                {loadError
+                  ? t(loadError === 'setup' ? 'load_err_setup'
+                    : loadError === 'permission' ? 'load_err_permission'
+                    : 'load_err_offline')
+                  : t('share_first_moment_hint')}
               </Text>
             </View>
           ) : null

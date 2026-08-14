@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { explain } from '../lib/explain';
 
 /* Real communities — create, discover, join, leave. */
 
@@ -8,14 +9,11 @@ import { supabase } from '../lib/supabase';
    Telling them apart matters because the screen used to say "this is
    the connection, not you" while the card underneath it correctly said
    the tables were not there — two answers to the same question, one of
-   them wrong. */
-export function explainGroups(e) {
-  const msg = String((e && (e.message || e.hint)) || '');
-  const code = e && e.code;
-  if (code === '42P01' || /does not exist|schema cache|could not find/i.test(msg)) return 'setup';
-  if (code === '42501' || /row-level security|policy/i.test(msg)) return 'permission';
-  return 'offline';
-}
+   them wrong.
+
+   The sorting itself now lives in src/lib/explain.js, because the home
+   feed needed exactly the same three answers. */
+export const explainGroups = explain;
 
 export async function fetchGroups(myUserId) {
   const { data, error } = await supabase
