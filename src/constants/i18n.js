@@ -28,6 +28,17 @@ export const LANGS = [
 
 export const STRINGS = {
   en: {
+    // لمّة — the language of the questions, and how Egyptian you turned out to be
+    lamma_question_lang: 'QUESTIONS IN',
+    lamma_egypt_meter: 'How Egyptian are you?',
+    lamma_egypt_how: 'Right answers, not speed',
+    lamma_right_of: '{n} of {total} right',
+    lamma_lvl_pharaoh: 'Pharaoh',
+    lamma_lvl_local: 'Local, born and raised',
+    lamma_lvl_cousin: 'The cousin who visits every summer',
+    lamma_lvl_tourist: 'Tourist with a very good guide',
+    lamma_lvl_doc: 'Watched the documentary',
+    lamma_lvl_lost: 'Lost in the desert',
     // Search
     tab_top: 'Top',
     tab_people: 'People',
@@ -448,6 +459,17 @@ export const STRINGS = {
     try_again: 'Try again',
   },
   ar: {
+    // لمّة — the language of the questions, and how Egyptian you turned out to be
+    lamma_question_lang: 'الأسئلة بلغة',
+    lamma_egypt_meter: 'إنت مصري قد إيه؟',
+    lamma_egypt_how: 'إجابات صح، مش سرعة',
+    lamma_right_of: '{n} من {total} صح',
+    lamma_lvl_pharaoh: 'فرعون',
+    lamma_lvl_local: 'ابن البلد',
+    lamma_lvl_cousin: 'ابن العم اللي بييجي كل صيف',
+    lamma_lvl_tourist: 'سايح ومعاه مرشد شاطر',
+    lamma_lvl_doc: 'شاف فيلم وثائقي',
+    lamma_lvl_lost: 'تايه في الصحرا',
     // Search
     tab_top: 'الأهم',
     tab_people: 'ناس',
@@ -859,6 +881,17 @@ export const STRINGS = {
 
   },
   fr: {
+    // لمّة — the language of the questions, and how Egyptian you turned out to be
+    lamma_question_lang: 'QUESTIONS EN',
+    lamma_egypt_meter: 'Vous êtes égyptien à quel point ?',
+    lamma_egypt_how: 'Les bonnes réponses, pas la vitesse',
+    lamma_right_of: '{n} bonnes sur {total}',
+    lamma_lvl_pharaoh: 'Pharaon',
+    lamma_lvl_local: 'Du pays, né et grandi ici',
+    lamma_lvl_cousin: 'Le cousin qui vient chaque été',
+    lamma_lvl_tourist: 'Touriste très bien guidé',
+    lamma_lvl_doc: 'A vu le documentaire',
+    lamma_lvl_lost: 'Perdu dans le désert',
     // Search
     tab_top: 'Top',
     tab_people: 'Personnes',
@@ -1284,6 +1317,17 @@ export const STRINGS = {
     online_now: 'En ligne', mate_up: '＋ Devenir ami', recent_moments: 'Moments récents',
   },
   es: {
+    // لمّة — the language of the questions, and how Egyptian you turned out to be
+    lamma_question_lang: 'PREGUNTAS EN',
+    lamma_egypt_meter: '¿Cuán egipcio eres?',
+    lamma_egypt_how: 'Aciertos, no rapidez',
+    lamma_right_of: '{n} de {total} acertadas',
+    lamma_lvl_pharaoh: 'Faraón',
+    lamma_lvl_local: 'De aquí de toda la vida',
+    lamma_lvl_cousin: 'El primo que viene cada verano',
+    lamma_lvl_tourist: 'Turista con muy buen guía',
+    lamma_lvl_doc: 'Vio el documental',
+    lamma_lvl_lost: 'Perdido en el desierto',
     // Search
     tab_top: 'Top',
     tab_people: 'Personas',
@@ -1709,6 +1753,17 @@ export const STRINGS = {
     online_now: 'En línea ahora', mate_up: '＋ Hacerse amigos', recent_moments: 'Momentos recientes',
   },
   tr: {
+    // لمّة — the language of the questions, and how Egyptian you turned out to be
+    lamma_question_lang: 'SORULARIN DİLİ',
+    lamma_egypt_meter: 'Ne kadar Mısırlısın?',
+    lamma_egypt_how: 'Doğru cevaplar, hız değil',
+    lamma_right_of: '{total} soruda {n} doğru',
+    lamma_lvl_pharaoh: 'Firavun',
+    lamma_lvl_local: 'Buralı, doğma büyüme',
+    lamma_lvl_cousin: 'Her yaz gelen kuzen',
+    lamma_lvl_tourist: 'Rehberi çok iyi olan turist',
+    lamma_lvl_doc: 'Belgeseli izlemiş',
+    lamma_lvl_lost: 'Çölde kaybolmuş',
     // Search
     tab_top: 'Öne çıkan',
     tab_people: 'Kişiler',
@@ -2133,6 +2188,17 @@ export const STRINGS = {
     online_now: 'Şu an çevrimiçi', mate_up: '＋ Arkadaş ol', recent_moments: 'Son anlar',
   },
   pt: {
+    // لمّة — the language of the questions, and how Egyptian you turned out to be
+    lamma_question_lang: 'PERGUNTAS EM',
+    lamma_egypt_meter: 'Quão egípcio és?',
+    lamma_egypt_how: 'Respostas certas, não rapidez',
+    lamma_right_of: '{n} de {total} certas',
+    lamma_lvl_pharaoh: 'Faraó',
+    lamma_lvl_local: 'Daqui, nascido e criado',
+    lamma_lvl_cousin: 'O primo que vem todos os verões',
+    lamma_lvl_tourist: 'Turista com um guia muito bom',
+    lamma_lvl_doc: 'Viu o documentário',
+    lamma_lvl_lost: 'Perdido no deserto',
     // Search
     tab_top: 'Destaques',
     tab_people: 'Pessoas',
@@ -2557,6 +2623,17 @@ export const STRINGS = {
     online_now: 'Online agora', mate_up: '＋ Tornar amigo', recent_moments: 'Momentos recentes',
   },
   ro: {
+    // لمّة — the language of the questions, and how Egyptian you turned out to be
+    lamma_question_lang: 'ÎNTREBĂRILE ÎN',
+    lamma_egypt_meter: 'Cât de egiptean ești?',
+    lamma_egypt_how: 'Răspunsuri corecte, nu viteză',
+    lamma_right_of: '{n} din {total} corecte',
+    lamma_lvl_pharaoh: 'Faraon',
+    lamma_lvl_local: 'De-aici, născut și crescut',
+    lamma_lvl_cousin: 'Vărul care vine în fiecare vară',
+    lamma_lvl_tourist: 'Turist cu un ghid foarte bun',
+    lamma_lvl_doc: 'A văzut documentarul',
+    lamma_lvl_lost: 'Rătăcit în deșert',
     // Search
     tab_top: 'Top',
     tab_people: 'Oameni',
@@ -2978,6 +3055,17 @@ export const STRINGS = {
     online_now: 'Online acum', mate_up: '＋ Adaugă prieten', recent_moments: 'Momente recente',
   },
   it: {
+    // لمّة — the language of the questions, and how Egyptian you turned out to be
+    lamma_question_lang: 'DOMANDE IN',
+    lamma_egypt_meter: 'Quanto sei egiziano?',
+    lamma_egypt_how: 'Risposte giuste, non velocità',
+    lamma_right_of: '{n} su {total} giuste',
+    lamma_lvl_pharaoh: 'Faraone',
+    lamma_lvl_local: 'Del posto, nato e cresciuto',
+    lamma_lvl_cousin: 'Il cugino che viene ogni estate',
+    lamma_lvl_tourist: 'Turista con una guida molto brava',
+    lamma_lvl_doc: 'Ha visto il documentario',
+    lamma_lvl_lost: 'Perso nel deserto',
     // Search
     tab_top: 'In evidenza',
     tab_people: 'Persone',
@@ -3399,6 +3487,17 @@ export const STRINGS = {
     online_now: 'Online ora', mate_up: '＋ Diventa amico', recent_moments: 'Momenti recenti',
   },
   nl: {
+    // لمّة — the language of the questions, and how Egyptian you turned out to be
+    lamma_question_lang: 'VRAGEN IN',
+    lamma_egypt_meter: 'Hoe Egyptisch ben jij?',
+    lamma_egypt_how: 'Goede antwoorden, geen snelheid',
+    lamma_right_of: '{n} van {total} goed',
+    lamma_lvl_pharaoh: 'Farao',
+    lamma_lvl_local: 'Hier geboren en getogen',
+    lamma_lvl_cousin: 'De neef die elke zomer komt',
+    lamma_lvl_tourist: 'Toerist met een heel goede gids',
+    lamma_lvl_doc: 'Heeft de documentaire gezien',
+    lamma_lvl_lost: 'Verdwaald in de woestijn',
     // Search
     tab_top: 'Top',
     tab_people: 'Mensen',
@@ -3820,6 +3919,17 @@ export const STRINGS = {
     online_now: 'Nu online', mate_up: '＋ Vrienden worden', recent_moments: 'Recente moments',
   },
   ru: {
+    // لمّة — the language of the questions, and how Egyptian you turned out to be
+    lamma_question_lang: 'ВОПРОСЫ НА ЯЗЫКЕ',
+    lamma_egypt_meter: 'Насколько ты египтянин?',
+    lamma_egypt_how: 'Правильные ответы, а не скорость',
+    lamma_right_of: '{n} из {total} верно',
+    lamma_lvl_pharaoh: 'Фараон',
+    lamma_lvl_local: 'Здесь родился и вырос',
+    lamma_lvl_cousin: 'Кузен, который приезжает каждое лето',
+    lamma_lvl_tourist: 'Турист с очень хорошим гидом',
+    lamma_lvl_doc: 'Смотрел документальный фильм',
+    lamma_lvl_lost: 'Заблудился в пустыне',
     // Search
     tab_top: 'Главное',
     tab_people: 'Люди',
@@ -4241,6 +4351,17 @@ export const STRINGS = {
     online_now: 'Сейчас в сети', mate_up: '＋ Добавить в друзья', recent_moments: 'Недавние моменты',
   },
   zh: {
+    // لمّة — the language of the questions, and how Egyptian you turned out to be
+    lamma_question_lang: '题目语言',
+    lamma_egypt_meter: '你有多埃及？',
+    lamma_egypt_how: '看答对多少，不看多快',
+    lamma_right_of: '{total} 题答对 {n} 题',
+    lamma_lvl_pharaoh: '法老',
+    lamma_lvl_local: '土生土长的本地人',
+    lamma_lvl_cousin: '每年夏天来的表亲',
+    lamma_lvl_tourist: '导游很棒的游客',
+    lamma_lvl_doc: '看过纪录片',
+    lamma_lvl_lost: '在沙漠里迷路了',
     // Search
     tab_top: '精选',
     tab_people: '人',
@@ -4662,6 +4783,17 @@ export const STRINGS = {
     online_now: '当前在线', mate_up: '＋ 添加好友', recent_moments: '最近的瞬间',
   },
   ko: {
+    // لمّة — the language of the questions, and how Egyptian you turned out to be
+    lamma_question_lang: '문제 언어',
+    lamma_egypt_meter: '당신은 얼마나 이집트인인가요?',
+    lamma_egypt_how: '속도가 아니라 정답 수',
+    lamma_right_of: '{total}문제 중 {n}문제 정답',
+    lamma_lvl_pharaoh: '파라오',
+    lamma_lvl_local: '나고 자란 현지인',
+    lamma_lvl_cousin: '여름마다 오는 사촌',
+    lamma_lvl_tourist: '아주 좋은 가이드를 만난 여행자',
+    lamma_lvl_doc: '다큐멘터리를 봤다',
+    lamma_lvl_lost: '사막에서 길을 잃음',
     // Search
     tab_top: '인기',
     tab_people: '사람',
@@ -5083,6 +5215,17 @@ export const STRINGS = {
     online_now: '현재 온라인', mate_up: '＋ 메이트 신청', recent_moments: '최근 순간들',
   },
   ja: {
+    // لمّة — the language of the questions, and how Egyptian you turned out to be
+    lamma_question_lang: '問題の言語',
+    lamma_egypt_meter: 'あなたはどれくらいエジプト人？',
+    lamma_egypt_how: '速さではなく正解の数',
+    lamma_right_of: '{total}問中{n}問正解',
+    lamma_lvl_pharaoh: 'ファラオ',
+    lamma_lvl_local: '生まれも育ちも地元',
+    lamma_lvl_cousin: '毎年夏に来るいとこ',
+    lamma_lvl_tourist: 'ガイドがとても良い観光客',
+    lamma_lvl_doc: 'ドキュメンタリーを見た',
+    lamma_lvl_lost: '砂漠で迷子',
     // Search
     tab_top: 'おすすめ',
     tab_people: 'ひと',

@@ -5,6 +5,7 @@ import { C } from '../../constants/theme';
 import { channelFor } from './channels';
 import { Strip, useCountdown, distributionSegments } from './Strip';
 import { createQuestionClock } from '../../lib/lammaClock';
+import { say } from './languages';
 import { tapMedium, tapSuccess, tapError } from '../../utils/feedback';
 
 /* ─── لمّة · A QUESTION ON A PHONE ───────────────────────────────────
@@ -26,21 +27,11 @@ import { tapMedium, tapSuccess, tapError } from '../../utils/feedback';
    English, because the colour and the shape are the muscle memory. Only
    the text inside them follows the language.
 
-   IT SPEAKS BOTH. A question carries text_ar and text_en, and so does
-   every option. Whichever the player has chosen is shown, and the other
-   is the fallback — so a pack that has only been written in one
-   language still plays, rather than showing a blank question and a row
-   of blank tiles. Nothing is machine-translated: a translated quiz
-   answer is a wrong answer waiting to happen, so a missing translation
-   falls back to the language it was actually written in.             */
-
-/* The text in the player's language, or the one that exists. */
-const say = (row, lang) => {
-  if (!row) return '';
-  const en = row.text_en;
-  const ar = row.text_ar;
-  return (lang === 'ar' ? (ar || en) : (en || ar)) || '';
-};
+   IT SPEAKS FIVE. A question and every one of its options carry
+   Arabic, English, French, Spanish and Romanian. The player picks one
+   in the room — see LangPicker — and the rest of the room may be
+   reading something else entirely. The resolver and the reasons behind
+   it live in ./languages.js.                                         */
 
 export const QuestionCard = ({
   question,            // { id, text_ar, text_en, options, timer_ms, media_url }

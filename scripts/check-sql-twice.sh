@@ -29,23 +29,35 @@ set -uo pipefail
 PGBIN=/usr/lib/postgresql/16/bin
 [ -x "$PGBIN/initdb" ] || { echo "No local PostgreSQL 16 — skipping."; exit 0; }
 
+# Postgres refuses to run as root, so everything below runs as the
+# postgres user. Which way that is reached depends on where this is: as
+# root, su; on a build machine where the account has passwordless sudo,
+# sudo. Neither available means no database, and no database means this
+# skips rather than pretending.
+if [ "$(id -u)" = "0" ]; then
+  as_postgres () { su postgres -c "$1"; }
+elif sudo -n true >/dev/null 2>&1; then
+  as_postgres () { sudo -n -u postgres bash -c "$1"; }
+else
+  echo "Cannot run as the postgres user here — skipping."; exit 0
+fi
+
 DATA=/var/tmp/lamma-sqlcheck
 SOCK=/var/tmp
 PORT=55433
 
-cleanup() { su postgres -c "$PGBIN/pg_ctl -D $DATA/data stop -m immediate" >/dev/null 2>&1 || true; }
+cleanup() { as_postgres "$PGBIN/pg_ctl -D $DATA/data stop -m immediate" >/dev/null 2>&1 || true; }
 trap cleanup EXIT
 
 rm -rf "$DATA"; mkdir -p "$DATA"; chmod 777 "$DATA"
-su postgres -c "$PGBIN/initdb -D $DATA/data -U postgres" >/dev/null 2>&1 || { echo "initdb failed — skipping."; exit 0; }
-su postgres -c "$PGBIN/pg_ctl -D $DATA/data -o '-k $SOCK -p $PORT -c listen_addresses=' -l $DATA/log start" >/dev/null 2>&1
+as_postgres "$PGBIN/initdb -D $DATA/data -U postgres" >/dev/null 2>&1 || { echo "initdb failed — skipping."; exit 0; }
+as_postgres "$PGBIN/pg_ctl -D $DATA/data -o '-k $SOCK -p $PORT -c listen_addresses=' -l $DATA/log start" >/dev/null 2>&1
 for _ in $(seq 1 20); do
-  su postgres -c "$PGBIN/psql -h $SOCK -p $PORT -U postgres -c 'select 1'" >/dev/null 2>&1 && break
+  as_postgres "$PGBIN/psql -h $SOCK -p $PORT -U postgres -c 'select 1'" >/dev/null 2>&1 && break
   sleep 1
 done
 
-PSQL="su postgres -c \"$PGBIN/psql -h $SOCK -p $PORT -U postgres -d moments -q\""
-su postgres -c "$PGBIN/psql -h $SOCK -p $PORT -U postgres -c 'create database moments'" >/dev/null 2>&1
+as_postgres "$PGBIN/psql -h $SOCK -p $PORT -U postgres -c 'create database moments'" >/dev/null 2>&1
 
 # Supabase gives every project an auth schema; the files assume it.
 cat > "$DATA/auth.sql" <<'SQL'
@@ -87,7 +99,7 @@ create or replace function storage.filename(name text) returns text
   language sql immutable as $$ select (string_to_array(name, '/'))[array_length(string_to_array(name,'/'),1)] $$;
 SQL
 chmod 644 "$DATA/auth.sql"
-su postgres -c "$PGBIN/psql -h $SOCK -p $PORT -U postgres -d moments -q -f $DATA/auth.sql" >/dev/null 2>&1
+as_postgres "$PGBIN/psql -h $SOCK -p $PORT -U postgres -d moments -q -f $DATA/auth.sql" >/dev/null 2>&1
 
 cp supabase/*.sql "$DATA/" && chmod 644 "$DATA"/*.sql
 
@@ -96,16 +108,16 @@ for f in schema.sql schema_v2_live.sql schema_v3_fix.sql schema_v4_broker.sql \
          schema_v5_groups.sql schema_v6_ads.sql schema_v7_music.sql schema_v8_mates.sql \
          schema_v9_engagement.sql schema_v10_destinations.sql schema_v11_notifications.sql \
          schema_v12_trips.sql schema_v13_engagement2.sql; do
-  [ -f "$DATA/$f" ] && su postgres -c "$PGBIN/psql -h $SOCK -p $PORT -U postgres -d moments -q -f $DATA/$f" >/dev/null 2>&1
+  [ -f "$DATA/$f" ] && as_postgres "$PGBIN/psql -h $SOCK -p $PORT -U postgres -d moments -q -f $DATA/$f" >/dev/null 2>&1
 done
 
 run_lenient () {   # keep going past errors, the way a database that has
                    # lived through several versions of this file got to
                    # where it is
-  su postgres -c "$PGBIN/psql -h $SOCK -p $PORT -U postgres -d moments -q -v ON_ERROR_STOP=0 -f $DATA/RUN_ME.sql" 2>&1
+  as_postgres "$PGBIN/psql -h $SOCK -p $PORT -U postgres -d moments -q -v ON_ERROR_STOP=0 -f $DATA/RUN_ME.sql" 2>&1
 }
 run_strict () {
-  su postgres -c "$PGBIN/psql -h $SOCK -p $PORT -U postgres -d moments -q -v ON_ERROR_STOP=1 -f $DATA/RUN_ME.sql" 2>&1
+  as_postgres "$PGBIN/psql -h $SOCK -p $PORT -U postgres -d moments -q -v ON_ERROR_STOP=1 -f $DATA/RUN_ME.sql" 2>&1
 }
 
 # Two lenient passes settle the database into the state a real one is in:

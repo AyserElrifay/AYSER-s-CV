@@ -8,9 +8,13 @@ import { useAuth } from '../../context/AuthContext';
 import { QuestionCard } from './QuestionCard';
 import { Strip, leaderboardSegments, StripLabel } from './Strip';
 import { Standings, RankChip } from './Standings';
+import { LangPicker } from './LangPicker';
+import { PLAY_LANGS, playLangFor } from './languages';
+import { EgyptMeter } from './EgyptMeter';
 import {
   advance, submitAnswer, reveal as revealRpc, sync as syncRpc,
   fetchPackQuestions, fetchRoomPlayers, subscribeRoom, nudge, claimHost, setConnected,
+  roomResults,
 } from '../../services/lamma';
 import { tapLight, tapSuccess } from '../../utils/feedback';
 
@@ -28,7 +32,13 @@ import { tapLight, tapSuccess } from '../../utils/feedback';
    tunnel rejoins at the right question with the right time left, and
    may still answer if the deadline has not passed. Missing a question
    costs that question and nothing else — the room is never held up and
-   never restarted.                                                    */
+   never restarted.
+
+   EVERYBODY READS IT IN THEIR OWN LANGUAGE. The language of the
+   questions is chosen per PHONE, not per room, and it can be changed
+   mid-game without leaving — a wrong choice at the lobby should cost
+   one tap, not the evening. Nothing about the game changes with it:
+   same question, same tiles in the same places, same clock.          */
 
 const HOST_GONE_MS = 10000;
 
@@ -43,6 +53,11 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
   const [result, setResult] = useState(null);        // the reveal, once it is allowed
   const [barW, setBarW] = useState(0);
   const [busy, setBusy] = useState(false);
+  /* The questions are written in five languages; the app speaks
+     thirteen. Start on theirs if the pack has it, English if not. */
+  const [playLang, setPlayLang] = useState(() => playLangFor(lang));
+  const [showLangs, setShowLangs] = useState(false);
+  const [results, setResults] = useState(null);      // right answers, at the end
   const hostGoneSince = useRef(null);
 
   const isHost = state ? state.is_host : initialHost;
@@ -111,6 +126,15 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
     return () => clearTimeout(timer);
   }, [state, players, isHost, roomId, refresh]);
 
+  /* When it is over, ask what everybody actually KNEW — right answers
+     out of the whole pack, which is not the same list as the scores. */
+  useEffect(() => {
+    if (!state || state.status !== 'ended') return undefined;
+    let alive = true;
+    roomResults(roomId).then((r) => { if (alive && r && r.ok) setResults(r); });
+    return () => { alive = false; };
+  }, [state && state.status, roomId]);
+
   const onAnswer = async (index, elapsedMs) => {
     if (!q) return;
     await submitAnswer(roomId, q.id, index, elapsedMs);
@@ -154,12 +178,36 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
             <RankChip players={players} meId={user && user.id} t={t} />
           </View>
         ) : null}
+        {/* Chose the wrong language at the lobby, or joined late and
+            never saw the choice? One tap, mid-question, no leaving. */}
+        {state.status !== 'lobby' ? (
+          <Pressable onPress={() => { tapLight(); setShowLangs((v) => !v); }} hitSlop={8} style={{ marginEnd: 8 }}>
+            <View style={{ backgroundColor: C.glassHi, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 }}>
+              <Text style={{ fontSize: 13 }}>
+                {(PLAY_LANGS.find((l) => l.code === playLang) || PLAY_LANGS[1]).flag}
+              </Text>
+            </View>
+          </Pressable>
+        ) : null}
         {joinCode ? (
           <View style={{ backgroundColor: C.purpleSoft, borderRadius: 10, paddingHorizontal: 11, paddingVertical: 6 }}>
             <Text style={{ color: C.purple, fontSize: 14, fontWeight: '900', letterSpacing: 2 }}>{joinCode}</Text>
           </View>
         ) : null}
       </View>
+
+      {/* Opened from the header pill, closes on choosing. Sits over
+          nothing — it pushes the game down for a second rather than
+          covering the question somebody is still reading. */}
+      {showLangs && state.status !== 'lobby' ? (
+        <View style={{ paddingHorizontal: 16, paddingBottom: 10 }}>
+          <LangPicker
+            value={playLang}
+            onChange={(code) => { setPlayLang(code); setShowLangs(false); }}
+            label={t('lamma_question_lang')}
+          />
+        </View>
+      ) : null}
 
       {/* ── LOBBY ── */}
       {state.status === 'lobby' ? (
@@ -168,6 +216,13 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
           <Text style={{ color: C.text, fontSize: 40, fontWeight: '900', letterSpacing: 8, marginBottom: 18 }}>
             {joinCode || '—'}
           </Text>
+          {/* Before anybody starts: what will you be reading? Everyone
+              in the room answers the same question at the same moment,
+              each in the language they think fastest in. */}
+          <View style={{ marginBottom: 20 }}>
+            <LangPicker value={playLang} onChange={setPlayLang} label={t('lamma_question_lang')} />
+          </View>
+
           <Text style={{ color: C.faint, fontSize: 13, marginBottom: 10 }}>
             {(players || []).length} {t('lamma_players_here')}
           </Text>
@@ -204,7 +259,7 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
             onAnswer={onAnswer}
             result={result}
             t={t}
-            lang={lang}
+            lang={playLang}
           />
           {/* The half second after the answer is why people play this in
               a room together. Show them who moved. */}
@@ -244,6 +299,13 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
               <Text style={{ color: C.faint, fontSize: 14, fontWeight: '800' }}>{p.score}</Text>
             </View>
           ))}
+          {/* Egypt's pack ends with a second table: not who was fastest,
+              but who actually knew. It only appears for the country the
+              questions are about. */}
+          {results && results.country === 'EG' ? (
+            <EgyptMeter results={results} meId={user && user.id} t={t} />
+          ) : null}
+
           <Pressable onPress={() => { tapSuccess(); onExit && onExit(); }} style={{ marginTop: 20 }}>
             <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingVertical: 14, alignItems: 'center' }}>
               <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '900' }}>{t('lamma_play_again')}</Text>

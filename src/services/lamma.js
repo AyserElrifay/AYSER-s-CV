@@ -57,6 +57,11 @@ export const reveal = (roomId, questionId) =>
    room is now — including whether it may still answer this question. */
 export const sync = (roomId) => rpc('lamma_sync', { p_room_id: roomId });
 
+/* How many everyone got RIGHT, out of how many the pack asked. The
+   score is about speed; this is about knowing. Counted by the server
+   from what it recorded at the time, so it cannot be argued with. */
+export const roomResults = (roomId) => rpc('lamma_room_results', { p_room_id: roomId });
+
 /* Questions WITHOUT their answers. This view is the only way the app
    can read a question at all; correct_index is not a column in it. */
 export async function fetchPackQuestions(packId) {

@@ -63,6 +63,16 @@ jobs:
       # is happy either way, which is exactly why this is checked.
       - name: Check t is always the translator
         run: node scripts/check-shadowed-t.mjs
+      # Lamma lets you pick the language you play in. A chip for a
+      # language the questions were never written in shows English and
+      # says nothing — so the picker is checked against the pack itself.
+      - name: Check the game is written in every language it offers
+        run: node scripts/check-lamma-languages.mjs
+      # The setup file says "safe to re-run" and twice it was not. One
+      # failed statement takes the rest of the file with it, which is
+      # how Lamma sat in the repository for days without being on.
+      - name: Check the setup file survives being run twice
+        run: bash scripts/check-sql-twice.sh
       - name: Export web bundle
         run: npx expo export --platform web --output-dir dist
       - name: Inject PWA manifest + Open Graph tags
