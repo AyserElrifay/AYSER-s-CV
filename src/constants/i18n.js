@@ -28,6 +28,7 @@ export const LANGS = [
 
 export const STRINGS = {
   en: {
+    lamma_or_start: 'OR START ONE',
     // Settings
     wallet: 'Wallet',
     referral_earnings: 'Referral earnings',
@@ -353,6 +354,7 @@ export const STRINGS = {
     try_again: 'Try again',
   },
   ar: {
+    lamma_or_start: 'أو ابدأ واحدة',
     // Settings
     wallet: 'المحفظة',
     referral_earnings: 'أرباح الإحالة',
@@ -669,6 +671,7 @@ export const STRINGS = {
 
   },
   fr: {
+    lamma_or_start: 'OU LANCEZ-EN UNE',
     // Settings
     wallet: 'Portefeuille',
     referral_earnings: 'Gains de parrainage',
@@ -999,6 +1002,7 @@ export const STRINGS = {
     online_now: 'En ligne', mate_up: '＋ Devenir ami', recent_moments: 'Moments récents',
   },
   es: {
+    lamma_or_start: 'O EMPIEZA UNA',
     // Settings
     wallet: 'Cartera',
     referral_earnings: 'Ganancias por referidos',
@@ -1329,6 +1333,7 @@ export const STRINGS = {
     online_now: 'En línea ahora', mate_up: '＋ Hacerse amigos', recent_moments: 'Momentos recientes',
   },
   tr: {
+    lamma_or_start: 'YA DA BİRİNİ BAŞLAT',
     // Settings
     wallet: 'Cüzdan',
     referral_earnings: 'Davet kazançları',
@@ -1658,6 +1663,7 @@ export const STRINGS = {
     online_now: 'Şu an çevrimiçi', mate_up: '＋ Arkadaş ol', recent_moments: 'Son anlar',
   },
   pt: {
+    lamma_or_start: 'OU COMECE UMA',
     // Settings
     wallet: 'Carteira',
     referral_earnings: 'Ganhos por indicação',
@@ -1987,6 +1993,7 @@ export const STRINGS = {
     online_now: 'Online agora', mate_up: '＋ Tornar amigo', recent_moments: 'Momentos recentes',
   },
   ro: {
+    lamma_or_start: 'SAU ÎNCEPE UNA',
     wallet: 'Portofel',
     referral_earnings: 'Câștiguri din recomandări',
     referral_hint: 'Primești un comision când prietenii tăi rezervă sau cumpără prin linkurile tale.',
@@ -2315,6 +2322,7 @@ export const STRINGS = {
     online_now: 'Online acum', mate_up: '＋ Adaugă prieten', recent_moments: 'Momente recente',
   },
   it: {
+    lamma_or_start: 'O INIZIANE UNA',
     wallet: 'Portafoglio',
     referral_earnings: 'Guadagni da invito',
     referral_hint: 'Prendi una commissione quando i tuoi amici prenotano o comprano dai tuoi link.',
@@ -2643,6 +2651,7 @@ export const STRINGS = {
     online_now: 'Online ora', mate_up: '＋ Diventa amico', recent_moments: 'Momenti recenti',
   },
   nl: {
+    lamma_or_start: 'OF START ER EEN',
     wallet: 'Portemonnee',
     referral_earnings: 'Verwijzingsinkomsten',
     referral_hint: 'Je krijgt commissie als je maten via jouw links boeken of kopen.',
@@ -2971,6 +2980,7 @@ export const STRINGS = {
     online_now: 'Nu online', mate_up: '＋ Vrienden worden', recent_moments: 'Recente moments',
   },
   ru: {
+    lamma_or_start: 'ИЛИ НАЧНИТЕ СВОЮ',
     wallet: 'Кошелёк',
     referral_earnings: 'Доход с приглашений',
     referral_hint: 'Вы получаете комиссию, когда друзья бронируют или покупают по вашим ссылкам.',
@@ -3299,6 +3309,7 @@ export const STRINGS = {
     online_now: 'Сейчас в сети', mate_up: '＋ Добавить в друзья', recent_moments: 'Недавние моменты',
   },
   zh: {
+    lamma_or_start: '或者发起一局',
     wallet: '钱包',
     referral_earnings: '推荐收益',
     referral_hint: '朋友通过你的链接预订或消费时，你会拿到佣金。',
@@ -3627,6 +3638,7 @@ export const STRINGS = {
     online_now: '当前在线', mate_up: '＋ 添加好友', recent_moments: '最近的瞬间',
   },
   ko: {
+    lamma_or_start: '또는 새로 시작하기',
     wallet: '지갑',
     referral_earnings: '추천 수익',
     referral_hint: '친구가 내 링크로 예약하거나 구매하면 수수료를 받아요.',
@@ -3955,6 +3967,7 @@ export const STRINGS = {
     online_now: '현재 온라인', mate_up: '＋ 메이트 신청', recent_moments: '최근 순간들',
   },
   ja: {
+    lamma_or_start: 'または新しく始める',
     wallet: 'ウォレット',
     referral_earnings: '紹介の収益',
     referral_hint: '友だちがあなたのリンクから予約や買い物をすると、手数料が入ります。',

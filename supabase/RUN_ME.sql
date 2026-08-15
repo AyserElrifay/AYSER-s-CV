@@ -660,9 +660,32 @@ alter table public.venue_bookings add column if not exists service_fee_egp int d
 -- Ringing itself travels over Supabase Realtime broadcast (no rows
 -- needed), but a missed call must leave a REAL notification. Widen the
 -- kind check and add a security-definer writer the caller can invoke.
-alter table public.notifications drop constraint if exists notifications_kind_check;
-alter table public.notifications add constraint notifications_kind_check
-  check (kind in ('vibe','laugh','comment','mate_request','mate_accept','call'));
+/* THIS LINE USED TO ABORT THE WHOLE FILE ON A SECOND RUN.
+   It re-added a NARROW list of notification kinds and validated it
+   against every row already in the table. Further down, the same
+   constraint is widened to include 'message', 'tag' and 'repost' — so
+   after one successful run, real rows of those kinds exist, and the
+   next run hit:
+
+     ERROR: check constraint "notifications_kind_check" of relation
+            "notifications" is violated by some row
+
+   One statement failing takes the entire file with it, so everything
+   below this point silently never applied — which is why لمّة kept
+   saying it was not switched on.
+
+   Now: the full list, NOT VALID (the rule is here to stop bad data
+   arriving, not to argue with old data), inside a DO block so it can
+   never abort anything again. */
+do $do$
+begin
+  alter table public.notifications drop constraint if exists notifications_kind_check;
+  alter table public.notifications add constraint notifications_kind_check
+    check (kind in ('vibe','laugh','comment','mate_request','mate_accept','call','message','tag','repost'))
+    not valid;
+exception when others then
+  raise notice 'notifications kind constraint skipped: %', sqlerrm;
+end $do$;
 create or replace function public.notify_call(recipient uuid, actor uuid)
 returns void language sql security definer set search_path = public as $$
   select public.notify(recipient, actor, 'call', null, 'Missed call');
@@ -1406,10 +1429,19 @@ alter table public.tracks add column if not exists kind          text    not nul
 alter table public.tracks add column if not exists visibility    text    not null default 'public';
 alter table public.tracks add column if not exists commercial_ok boolean not null default false;
 
-alter table public.tracks drop constraint if exists tracks_kind_check;
-alter table public.tracks add constraint tracks_kind_check check (kind in ('song','sound'));
-alter table public.tracks drop constraint if exists tracks_visibility_check;
-alter table public.tracks add constraint tracks_visibility_check check (visibility in ('private','public'));
+/* NOT VALID and wrapped, for the same reason as the notification kinds
+   above: one legacy row must never be able to abort this file. */
+do $do$
+begin
+  alter table public.tracks drop constraint if exists tracks_kind_check;
+  alter table public.tracks add constraint tracks_kind_check
+    check (kind in ('song','sound')) not valid;
+  alter table public.tracks drop constraint if exists tracks_visibility_check;
+  alter table public.tracks add constraint tracks_visibility_check
+    check (visibility in ('private','public')) not valid;
+exception when others then
+  raise notice 'tracks constraints skipped: %', sqlerrm;
+end $do$;
 
 create index if not exists tracks_kind_idx on public.tracks (kind, visibility);
 
@@ -3111,9 +3143,14 @@ alter table public.questions add column if not exists text_en text;
 alter table public.game_packs add column if not exists description_en text;
 
 -- the constraint has to cover the English side too, for the same reason
-alter table public.questions drop constraint if exists questions_text_en_len;
-alter table public.questions add constraint questions_text_en_len
-  check (text_en is null or char_length(text_en) <= 120);
+do $do$
+begin
+  alter table public.questions drop constraint if exists questions_text_en_len;
+  alter table public.questions add constraint questions_text_en_len
+    check (text_en is null or char_length(text_en) <= 120) not valid;
+exception when others then
+  raise notice 'questions text_en length constraint skipped: %', sqlerrm;
+end $do$;
 
 -- The answer-free view has to carry the English text as well, or an
 -- English player gets a blank question.
