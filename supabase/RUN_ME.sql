@@ -2552,7 +2552,17 @@ $$;
 --  correct_index is absent from this view. Not hidden by a policy that
 --  somebody might loosen later — absent.
 -- ═══════════════════════════════════════════════════════════════════
-create or replace view public.lamma_questions_public as
+/* DROP first, for the same reason the constraints above are NOT VALID:
+   this file has to survive being run twice. Further down, this view is
+   widened to carry text_en as well. CREATE OR REPLACE cannot remove a
+   column from an existing view, so on the second run this line hit the
+   already-widened view and failed with
+
+     ERROR: 42P16: cannot drop columns from view
+
+   which stopped the file — and everything below it — dead. */
+drop view if exists public.lamma_questions_public;
+create view public.lamma_questions_public as
   select id, pack_id, order_index, text_ar, media_url, media_type,
          timer_ms, options, points_style
     from public.questions;
