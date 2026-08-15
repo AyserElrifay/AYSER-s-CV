@@ -88,6 +88,22 @@ for (const l of PLAY_LANGS) {
   }
 }
 
+/* The pack card in the hub shows a flag per language the pack CLAIMS
+   to be written in. A claim is a promise, so it is checked against the
+   questions themselves rather than taken on trust. */
+const claim = sql.match(new RegExp(
+  "set languages = array\\[([^\\]]*)\\]\\s*where id = '" + PACK + "'"));
+if (!claim) {
+  problems.push('the pack never says which languages it is written in — the shelf will show no flags');
+} else {
+  const claimed = claim[1].split(',').map((s) => s.trim().replace(/'/g, '')).filter(Boolean).sort();
+  const real = [...new Set(PLAY_LANGS.map((l) => l.code))].sort();
+  if (claimed.join() !== real.join()) {
+    problems.push('the shelf claims [' + claimed.join(', ') + '] but the questions are written in ['
+      + real.join(', ') + ']');
+  }
+}
+
 if (problems.length) {
   console.log('The language picker offers ' + PLAY_LANGS.length
     + ' languages the pack does not fully have (' + problems.length + ' place(s)):\n');

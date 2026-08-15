@@ -31,6 +31,15 @@ const CODES = PLAY_LANGS.map((l) => l.code);
    Never a blank screen, never a language nobody asked for. */
 export const playLangFor = (appLang) => (CODES.indexOf(appLang) >= 0 ? appLang : 'en');
 
+/* The flags of the languages a pack says it is written in, in the
+   order they are offered. A pack that claims nothing gets nothing —
+   silence is honest, and a guessed flag is a promise the questions
+   cannot keep. */
+export const packFlags = (pack) => {
+  const claimed = pack && Array.isArray(pack.languages) ? pack.languages : [];
+  return PLAY_LANGS.filter((l) => claimed.indexOf(l.code) >= 0).map((l) => l.flag);
+};
+
 /* ─── THE TEXT, IN THE LANGUAGE THE PLAYER CHOSE ─────────────────────
    text_ar and text_en are columns because they came first. Everything
    since lives in text_i18n — on the question, and inside each option.

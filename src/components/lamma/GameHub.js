@@ -11,6 +11,7 @@ import { explain } from '../../lib/explain';
 import { fetchPacks, packTitle, createRoom, joinRoom } from '../../services/lamma';
 import { getProfile } from '../../services/profiles';
 import { CHANNELS } from './channels';
+import { packFlags } from './languages';
 import { LammaGame } from './LammaGame';
 import { tapLight, tapMedium } from '../../utils/feedback';
 
@@ -243,6 +244,16 @@ export const GameHub = ({ onClose }) => {
                           {(lang === 'ar' ? p.description_ar : p.description_en) ? (
                             <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 4, lineHeight: 16 }} numberOfLines={2}>
                               {lang === 'ar' ? p.description_ar : p.description_en}
+                            </Text>
+                          ) : null}
+                          {/* The languages this pack is really written in.
+                              A picker nobody knows about is a picker
+                              nobody uses, and a flag is read across a
+                              room faster than any sentence about it.
+                              Packs that make no claim show nothing. */}
+                          {packFlags(p).length > 1 ? (
+                            <Text style={{ fontSize: 12, marginTop: 7, letterSpacing: 1 }} numberOfLines={1}>
+                              {packFlags(p).join(' ')}
                             </Text>
                           ) : null}
                         </View>

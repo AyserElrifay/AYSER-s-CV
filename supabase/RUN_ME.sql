@@ -3871,4 +3871,19 @@ $$;
 
 grant execute on function public.lamma_room_results(uuid) to authenticated;
 
+-- ── AND THE SHELF SAYS SO ──────────────────────────────────────────
+-- A picker nobody knows about is a picker nobody uses. The pack card
+-- in the hub now carries the flags of the languages the pack is really
+-- written in, so the choice is visible before anybody starts a room.
+--
+-- Only packs that make the claim carry it. Everything else stays null
+-- and shows nothing, because "we have not said" is honest and "written
+-- in Arabic and English" would be a guess about sixty questions
+-- somebody else wrote.
+alter table public.game_packs add column if not exists languages text[];
+
+update public.game_packs
+   set languages = array['ar','en','fr','es','ro']
+ where id = 'eeee5555-0000-4000-8000-000000000001';
+
 notify pgrst, 'reload schema';
