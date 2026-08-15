@@ -167,7 +167,7 @@ export const CommentsSheet = ({ post, onClose }) => {
       } catch (e) {
         // honest failure — give the text back, say what went wrong
         setText(body);
-        setSendErr((e && e.message) || 'Could not post your comment — try again.');
+        setSendErr('Could not post your comment — try again.');
       } finally { setSending(false); }
     } else {
       setComments((c) => [...c, { id: 'x' + Date.now(), parentId, isReply: !!parentId, user: { name: 'You', avatar: AV_NEUTRAL, flag: '' }, body }]);

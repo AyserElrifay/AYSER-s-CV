@@ -25,6 +25,7 @@ import { PeopleDiscover } from './PeopleDiscover';
 import { isOwner } from '../services/music';
 import { tapLight, tapSuccess } from '../utils/feedback';
 import { sfxSuccess } from '../utils/sfx';
+import { setupNotice } from '../lib/plumbing';
 
 /* Discover — people, groups, posts and what's trending (X / Facebook style).
    One search box, a tab row, and results that filter as you type. */
@@ -169,11 +170,11 @@ const CreateGroupCard = ({ onCreate, owner }) => {
            instructions — a stranger reading "someone has to run the
            setup" learns nothing except that the app is unfinished. */
         : code === '42P01' || /does not exist|schema cache/i.test(msg)
-          ? (owner ? 'Groups are not switched on yet — run supabase/RUN_ME.sql once.'
-                   : 'Groups aren’t switched on yet. Nothing you did — check back soon.')
+          ? setupNotice('Groups are not switched on yet — run supabase/RUN_ME.sql once.',
+                        'Groups aren’t switched on yet. Nothing you did — check back soon.')
         : code === '42501' || /row-level security|policy/i.test(msg) ? "You don't have permission to create a group yet."
         : /fetch|network|Failed to fetch/i.test(msg) ? 'No connection. Check your internet and try again.'
-        : (msg || 'That did not go through. Try again.')
+        : 'That did not go through. Try again.'
       );
     }
     setBusy(false);

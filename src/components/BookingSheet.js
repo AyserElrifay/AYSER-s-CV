@@ -11,6 +11,7 @@ import { createVenueBooking } from '../services/venues';
 import { getOrCreateDmThread, sendMessage } from '../services/messages';
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
 import { sfxSuccess } from '../utils/sfx';
+import { setupNotice } from '../lib/plumbing';
 
 /* Book a place AND pay through Moments — that's how we earn: the app
    takes its commission (PLATFORM_FEE) on the payment, the rest goes to
@@ -61,7 +62,7 @@ export const BookingSheet = ({ venue, onClose }) => {
           });
         } catch (e) {
           if (/does not exist|schema cache/i.test(e.message || '')) {
-            setMsg('One step left: run supabase/RUN_ME.sql to turn on real bookings.');
+            setMsg(setupNotice('One step left: run supabase/RUN_ME.sql to turn on real bookings.'));
             setBusy(false);
             return;
           }
@@ -80,7 +81,7 @@ export const BookingSheet = ({ venue, onClose }) => {
       tapSuccess(); sfxSuccess();
       setDone(true);
     } catch (e) {
-      setMsg(e.message || 'Something went wrong.');
+      setMsg('Something went wrong.');
     } finally { setBusy(false); }
   };
 

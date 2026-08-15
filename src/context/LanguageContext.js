@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { STRINGS, LANGS } from '../constants/i18n';
+import { publishLang } from '../lib/plumbing';
 
 /* Language state for the whole app. t(key) resolves the current
    language and falls back to English, then to the raw key — never a
@@ -41,6 +42,10 @@ export const LanguageProvider = ({ children }) => {
   // sides, message bubbles swap alignment — the whole layout, not just
   // the text — because `direction: rtl` genuinely changes which edge is
   // the flex "start" for every `flexDirection: 'row'` in the app.
+  /* Sentences chosen outside React — in catch blocks and services —
+     need the language too. See src/lib/plumbing.js */
+  useEffect(() => { publishLang(lang); }, [lang]);
+
   useEffect(() => {
     if (Platform.OS !== 'web' || typeof document === 'undefined') return;
     const dir = meta.rtl ? 'rtl' : 'ltr';

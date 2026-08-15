@@ -3,6 +3,8 @@ import { SUPABASE_READY } from '../lib/supabase';
 import * as auth from '../services/auth';
 import { ensureMyProfile, touchLastActive } from '../services/profiles';
 import { loadAccountSettings, forgetAccountSettings } from '../services/accountSettings';
+import { isOwner } from '../services/music';
+import { publishViewerIsOwner } from '../lib/plumbing';
 
 /* Session state for the whole app.
    Real mode  — session comes from Supabase and survives restarts.
@@ -104,6 +106,13 @@ export const AuthProvider = ({ children }) => {
       clearInterval(id);
       if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onVis);
     };
+  }, [session]);
+
+  /* Whether the person holding the phone is Ayser. Screens that have to
+     choose between a developer's instruction and a human sentence ask
+     here — see src/lib/plumbing.js. */
+  useEffect(() => {
+    publishViewerIsOwner(isOwner(session && session.user));
   }, [session]);
 
   /* Your own settings, from your account rather than from whichever

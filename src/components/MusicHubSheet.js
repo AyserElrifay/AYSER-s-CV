@@ -93,7 +93,7 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
     if (!SUPABASE_READY) { setTracks(HUB_TRACKS); return; }
     fetchTracks({})
       .then((rows) => setTracks(rows || []))
-      .catch((e) => { setTracks([]); setErr(e && e.message); });
+      .catch(() => { setTracks([]); setErr('Could not load the music — try again.'); });
   }, []);
 
   const reloadLibrary = useCallback(() => {

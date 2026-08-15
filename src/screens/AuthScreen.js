@@ -7,6 +7,7 @@ import { setIntent } from '../services/algorithm';
 import { resetPasswordByEmail, sendPhoneOtp, verifyPhoneOtp, updatePassword } from '../services/auth';
 import { COUNTRY_LIST } from '../constants/countries';
 import { Glass, Micro, NeonButton, GhostButton, Wordmark } from '../components';
+import { setupNotice } from '../lib/plumbing';
 
 /* ─────────────── PASSWORDLESS-STYLE ONBOARDING · AUTH GATE ───────────
    Step 0 — sign in / create account (email+password via Supabase).
@@ -76,7 +77,7 @@ export const AuthScreen = () => {
       await resetPasswordByEmail(email.trim());
       setNotice('Reset link sent! Check your email, then open it to set a new password.');
     } catch (e) {
-      setError(e.message || 'Could not send the reset email.');
+      setError('Could not send the reset email.');
     } finally { setBusy(false); }
   };
 
@@ -89,7 +90,7 @@ export const AuthScreen = () => {
       setOtpSent(true);
       setNotice('Code sent by SMS. Enter the 6-digit code below.');
     } catch (e) {
-      setError(e.message || 'Could not send the SMS code. (SMS provider must be enabled in Supabase.)');
+      setError(setupNotice('Could not send the SMS code. (SMS provider must be enabled in Supabase.)'));
     } finally { setBusy(false); }
   };
 
@@ -102,7 +103,7 @@ export const AuthScreen = () => {
       setOtpVerified(true);
       setNotice('Verified! Now set your new password below.');
     } catch (e) {
-      setError(e.message || 'That code did not match. Try again.');
+      setError('That code did not match. Try again.');
     } finally { setBusy(false); }
   };
 
@@ -116,7 +117,7 @@ export const AuthScreen = () => {
       // Session is already live from the OTP verify — releasing the gate lands in the app.
       setTimeout(() => finishOnboarding(), 700);
     } catch (e) {
-      setError(e.message || 'Could not update the password.');
+      setError('Could not update the password.');
     } finally { setBusy(false); }
   };
 

@@ -60,6 +60,7 @@ import { shareProfile, sharePost, shareNote } from '../utils/share';
 import { getCurrentCoords } from '../utils/location';
 import { MapCover } from '../components/MapCover';
 import { useStable } from '../hooks/useStable';
+import { setupNotice } from '../lib/plumbing';
 
 /* ─── YOUR SPACE — the profile, Facebook / Instagram / X style ───
    Real mode shows your actual profile, your actual posts (with real
@@ -243,7 +244,7 @@ export const ProfileScreen = () => {
       tapSuccess(); sfxSuccess();
       reload();
     } catch (e) {
-      setAvatarErr(e.message || 'Could not save the photo — try again.');
+      setAvatarErr('Could not save the photo — try again.');
     } finally { setAvatarBusy(false); }
   };
 
@@ -363,7 +364,9 @@ export const ProfileScreen = () => {
       reload();
       setTimeout(() => { setSavedEdit(false); setEditOpen(false); }, 900);
     } catch (e) {
-      setEditErr(e.code === '23505' || /duplicate|unique/i.test(e.message || '') ? 'That username is taken — try another.' : (e.message || 'Could not save.'));
+      setEditErr(e.code === '23505' || /duplicate|unique/i.test(e.message || '')
+        ? 'That username is taken — try another.'
+        : 'Could not save.');
     }
   };
 
@@ -1103,7 +1106,9 @@ export const ProfileScreen = () => {
                     if (!SUPABASE_READY || !user) { setEditErr('Sign in to request verification.'); return; }
                     setVerifBusy(true);
                     try { await requestVerification(user.id, accountType, artistGenre.trim() || null); setVerifStatus('pending'); tapSuccess(); sfxSuccess(); }
-                    catch (e) { setEditErr(/does not exist|schema/i.test(e.message || '') ? 'Run RUN_ME.sql once to turn on verification.' : (e.message || 'Could not send request.')); }
+                    catch (e) { setEditErr(/does not exist|schema/i.test(e.message || '')
+                      ? setupNotice('Run RUN_ME.sql once to turn on verification.')
+                      : 'Could not send request.'); }
                     finally { setVerifBusy(false); }
                   }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: C.blue, borderRadius: 12, paddingVertical: 11 }}>

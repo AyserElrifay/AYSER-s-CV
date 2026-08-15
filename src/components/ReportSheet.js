@@ -31,7 +31,7 @@ export const ReportSheet = ({ contentType, contentId, contentLabel, onClose }) =
       setDone(true);
       setTimeout(() => onClose && onClose(), 1400);
     } catch (e) {
-      setErr(e.message || 'Could not send the report — try again.');
+      setErr('Could not send the report — try again.');
     } finally {
       setBusy(false);
     }

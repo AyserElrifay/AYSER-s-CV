@@ -149,7 +149,7 @@ const HighlightComposer = ({ userId, target, onClose, onSaved }) => {
       tapSuccess();
       onSaved();
     } catch (e) {
-      setErr((e && e.message) || 'Could not save that.');
+      setErr('Could not save that.');
     } finally { setBusy(false); }
   };
 

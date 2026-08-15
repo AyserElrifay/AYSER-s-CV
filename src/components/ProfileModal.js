@@ -33,6 +33,7 @@ import { sharePost, shareNote } from '../utils/share';
    resolve it lazily at render time instead. */
 const getCommentsSheet = () => require('./CommentsSheet').CommentsSheet;
 import { sfxPop, sfxSuccess } from '../utils/sfx';
+import { setupNotice } from '../lib/plumbing';
 
 const { width: W } = Dimensions.get('window');
 const CELL = (W - 48) / 3;
@@ -113,7 +114,7 @@ export const ProfileModal = ({ user, onClose }) => {
   const explain = (e) => {
     const m = (e && e.message) || '';
     if (/relation .*mates.* does not exist|schema cache/i.test(m)) {
-      return 'One step left: open Supabase → SQL Editor and run the file supabase/RUN_ME.sql (one paste turns on friends, chat & everything).';
+      return setupNotice('One step left: open Supabase → SQL Editor and run the file supabase/RUN_ME.sql (one paste turns on friends, chat & everything).');
     }
     return m || 'Something went wrong — try again.';
   };

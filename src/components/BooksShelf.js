@@ -48,7 +48,7 @@ export const BooksShelf = () => {
   const load = useCallback(async () => {
     setBooks(null); setErr(null);
     try { setBooks(await fetchShelf(shelf)); }
-    catch (e) { setBooks([]); setErr(e && e.message); }
+    catch (e) { setBooks([]); setErr('Could not open the shelf — try again.'); }
   }, [shelf]);
   useEffect(() => { load(); }, [load]);
 
@@ -57,7 +57,7 @@ export const BooksShelf = () => {
     if (!term) { load(); return; }
     setSearching(true); setBooks(null); setErr(null);
     try { setBooks(await searchBooks(term)); }
-    catch (e) { setBooks([]); setErr(e && e.message); }
+    catch (e) { setBooks([]); setErr('Could not search right now — try again.'); }
     finally { setSearching(false); }
   };
 

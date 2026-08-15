@@ -47,6 +47,11 @@ jobs:
       # trusted.
       - name: Check the Lamma scoring rules
         run: node scripts/check-lamma.mjs
+      # Nobody using this app should ever read the name of a table, or
+      # be told to run a SQL file. Both kept happening because the raw
+      # message was right there and easier to pass along than a sentence.
+      - name: Check the plumbing stays out of sight
+        run: node scripts/check-leaks.mjs
       - name: Export web bundle
         run: npx expo export --platform web --output-dir dist
       - name: Inject PWA manifest + Open Graph tags

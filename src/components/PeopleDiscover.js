@@ -93,7 +93,7 @@ export const PeopleDiscover = () => {
       setRows(out);
     } catch (e) {
       setRows([]);
-      setErr(e && e.message ? e.message : 'Could not load people');
+      setErr('Could not load people');
     }
   }, [lane, country, city, user, me]);
 

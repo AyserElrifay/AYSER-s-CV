@@ -204,7 +204,7 @@ export const ComposeModal = ({ initialMode = 'post', initialCaption = '', onClos
       onPosted(card);
       onClose();
     } catch (e) {
-      setError(e.message || 'Could not share. Try again.');
+      setError('Could not share. Try again.');
     } finally {
       setBusy(false);
     }

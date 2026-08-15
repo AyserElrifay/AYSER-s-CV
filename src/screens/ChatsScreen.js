@@ -21,6 +21,7 @@ import { sendMoment } from '../services/messages';
 import { ChatThread } from './ChatThread';
 import { tapLight, tapSelection, tapSuccess, tapCelebrate } from '../utils/feedback';
 import { isUnread, markThreadSeen } from '../lib/seen';
+import { setupNotice } from '../lib/plumbing';
 
 /* ─────────────────── TAB 5 · CHATS — CONNECTIONS ─────────────────────
    Real mode: your actual DM threads, actual squads you've joined, and
@@ -277,8 +278,8 @@ export const ChatsScreen = () => {
       reload();
     } catch (e) {
       setSquadErr(/does not exist|policy|security/i.test(e.message || '')
-        ? 'Squads need one setup step in Supabase (run RUN_ME.sql) — ping Ayser to switch it on.'
-        : (e.message || 'Could not create the squad.'));
+        ? setupNotice('Squads need one setup step in Supabase — run RUN_ME.sql.')
+        : 'Could not create the squad.');
     }
   };
   const closeSquad = async (s) => {
@@ -310,8 +311,8 @@ export const ChatsScreen = () => {
     } catch (e) {
       setInvited((v) => { const n = { ...v }; delete n[mate.id]; return n; });
       setInviteErr(/does not exist|policy|security|row-level/i.test(e.message || '')
-        ? 'Inviting mates needs the latest setup step (run RUN_ME.sql once) — then invites work instantly.'
-        : (e.message || 'Could not add them.'));
+        ? setupNotice('Inviting mates needs the latest setup step — run RUN_ME.sql once.')
+        : 'Could not add them.');
     }
   };
 

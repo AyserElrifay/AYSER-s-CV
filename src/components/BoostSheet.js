@@ -61,7 +61,7 @@ export const BoostSheet = ({ onClose }) => {
         setMsg('Payment recorded as pending. Connect your ' + (PAY_PROVIDERS.find((p) => p.id === provider) || {}).name + ' keys (server-side) to complete the charge.');
       }
     } catch (e) {
-      setMsg(e.message || 'Something went wrong.');
+      setMsg('Something went wrong.');
     } finally {
       setBusy(false);
     }

@@ -33,6 +33,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { sfxPop } from '../utils/sfx';
 import { note } from '../lib/crashLog';
 import { effectiveTtl } from '../services/accountSettings';
+import { setupNotice } from '../lib/plumbing';
 
 /* ─── A conversation — kept deliberately simple and warm, the kind of
    place you want to hang out in. Call & video in the header, and games
@@ -69,7 +70,7 @@ export const ChatThread = ({ chat, group, onClose }) => {
     note('chat', e);
     const m = (e && e.message) || '';
     if (/does not exist|schema cache|get_or_create_dm_thread/i.test(m)) {
-      return 'Messages need one more step: run supabase/RUN_ME.sql in the Supabase SQL Editor.';
+      return setupNotice('Messages need one more step: run supabase/RUN_ME.sql in the Supabase SQL Editor.');
     }
     return m || 'Could not send — try again.';
   };
@@ -143,8 +144,8 @@ export const ChatThread = ({ chat, group, onClose }) => {
       if (h > 0) sweepExpired(dmThreadId, h);
     } catch (e) {
       setChatErr(/ttl_hours|column/i.test(e.message || '')
-        ? 'One step left: run the latest supabase/RUN_ME.sql to turn on disappearing messages.'
-        : (e.message || 'Could not change the timer.'));
+        ? setupNotice('One step left: run the latest supabase/RUN_ME.sql to turn on disappearing messages.')
+        : 'Could not change the timer.');
     }
   };
 
@@ -339,7 +340,7 @@ export const ChatThread = ({ chat, group, onClose }) => {
     if (isReal) {
       const squadId = group ? chat.id : null;
       if (!squadId && !dmThreadId) {
-        setChatErr('Messages need one more step: run supabase/RUN_ME.sql in the Supabase SQL Editor.');
+        setChatErr(setupNotice('Messages need one more step: run supabase/RUN_ME.sql in the Supabase SQL Editor.'));
         return;
       }
       try {
@@ -417,7 +418,7 @@ export const ChatThread = ({ chat, group, onClose }) => {
     if (isReal) {
       const squadId = group ? chat.id : null;
       if (!squadId && !dmThreadId) {
-        setChatErr('Messages need one more step: run supabase/RUN_ME.sql in the Supabase SQL Editor.');
+        setChatErr(setupNotice('Messages need one more step: run supabase/RUN_ME.sql in the Supabase SQL Editor.'));
         setDraft(t); // give the text back — nothing was sent
         return;
       }

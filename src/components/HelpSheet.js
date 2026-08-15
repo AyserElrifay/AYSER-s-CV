@@ -6,6 +6,7 @@ import { C } from '../constants/theme';
 import { SUPABASE_READY } from '../lib/supabase';
 import { fetchHelpArticles } from '../services/help';
 import { tapLight, tapSelection } from '../utils/feedback';
+import { setupNotice } from '../lib/plumbing';
 
 const SUPPORT_EMAIL = 'ayseryourlifecoach@gmail.com';
 
@@ -25,7 +26,9 @@ export const HelpSheet = ({ onClose }) => {
       .then(setArticles)
       .catch((e) => {
         setArticles([]);
-        setErr(/does not exist|schema/i.test(e.message || '') ? 'One step left: run the latest supabase/RUN_ME.sql to turn on Help & Support.' : null);
+        setErr(/does not exist|schema/i.test(e.message || '')
+          ? setupNotice('One step left: run the latest supabase/RUN_ME.sql to turn on Help & Support.')
+          : null);
       });
   }, []);
 

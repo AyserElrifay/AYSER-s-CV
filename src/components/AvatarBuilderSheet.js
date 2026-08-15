@@ -169,7 +169,7 @@ export const AvatarBuilderSheet = ({ initialDna, onClose, onSaved }) => {
       onSaved && onSaved(dna);
       setTimeout(onClose, 550);
     } catch (e) {
-      setErr(e.message || 'Could not save your character');
+      setErr('Could not save your character');
     } finally { setBusy(false); }
   };
 

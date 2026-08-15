@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { setupNotice } from '../lib/plumbing';
 
 /* User feedback → the owner's Studio inbox. Real rows, owner-only reads. */
 
@@ -12,7 +13,7 @@ export const FEEDBACK_KINDS = [
 export async function sendFeedback(userId, kind, body) {
   const { error } = await supabase.from('feedback').insert({ user_id: userId || null, kind: kind || 'idea', body: (body || '').trim() });
   if (error) {
-    if (/does not exist|schema cache|feedback/i.test(error.message || '')) throw new Error('Run RUN_ME.sql once to turn on feedback.');
+    if (/does not exist|schema cache|feedback/i.test(error.message || '')) throw new Error(setupNotice('Run RUN_ME.sql once to turn on feedback.'));
     throw error;
   }
   return true;

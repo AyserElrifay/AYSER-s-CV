@@ -18,6 +18,7 @@ import { tapLight, tapSuccess } from '../utils/feedback';
 import { sfxPop, sfxSuccess } from '../utils/sfx';
 import { holdToClip } from '../lib/soundClip';
 import { soundOn, setSoundOn, applySound, trackPlayer, untrackPlayer, stopVideos } from '../lib/videoSound';
+import { setupNotice } from '../lib/plumbing';
 
 const REACT_EMOJIS = ['❤️', '🔥', '😂', '😮', '😢', '👏'];
 
@@ -26,7 +27,7 @@ const REACT_EMOJIS = ['❤️', '🔥', '😂', '😮', '😢', '👏'];
 const explainStory = (e) => {
   const m = (e && e.message) || '';
   if (/does not exist|schema cache|relation .* does not exist/i.test(m)) {
-    return 'One step left — run supabase/RUN_ME.sql in Supabase to turn this on.';
+    return setupNotice('One step left — run supabase/RUN_ME.sql in Supabase to turn this on.');
   }
   if (/row-level security|violates row-level/i.test(m)) return 'Comments are off for this story.';
   if (/JWT|auth/i.test(m)) return 'Sign in again and try that once more.';

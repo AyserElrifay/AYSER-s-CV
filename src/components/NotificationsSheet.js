@@ -20,6 +20,7 @@ import { ProfileModal } from './ProfileModal';
 import { CommentsSheet } from './CommentsSheet';
 import { LikersSheet } from './LikersSheet';
 import { useStable } from '../hooks/useStable';
+import { setupNotice } from '../lib/plumbing';
 
 /* The activity inbox — every star, laugh, comment and mate event on YOUR
    stuff, written by DB triggers so nothing is ever fabricated. Laid out
@@ -107,8 +108,8 @@ export const NotificationsSheet = ({ onClose }) => {
     } catch (e) {
       setItems([]);
       setLoadErr(/does not exist|schema cache/i.test(e.message || '')
-        ? 'One step left: run supabase/RUN_ME.sql to turn on notifications.'
-        : (e.message || 'Could not load activity'));
+        ? setupNotice('One step left: run supabase/RUN_ME.sql to turn on notifications.')
+        : 'Could not load activity');
     }
   }, [user]);
 

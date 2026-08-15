@@ -119,7 +119,7 @@ export const ReelsViewer = ({ reels, startIndex = 0, vibes, onVibe, onComment, o
       onEdited && onEdited(manage.id, { caption, closeOnly });
     } catch (e) {
       note('reel-edit', e);
-      setManageErr((e && e.message) || 'That did not save — try again.');
+      setManageErr('That did not save — try again.');
     } finally { setBusy(false); }
   };
 
@@ -136,7 +136,7 @@ export const ReelsViewer = ({ reels, startIndex = 0, vibes, onVibe, onComment, o
       if ((reels || []).filter((r) => r.id !== id && !gone[r.id]).length === 0) onClose && onClose();
     } catch (e) {
       note('reel-delete', e);
-      setManageErr((e && e.message) || 'Could not delete it — try again.');
+      setManageErr('Could not delete it — try again.');
     } finally { setBusy(false); }
   };
 

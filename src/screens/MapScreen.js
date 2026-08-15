@@ -36,6 +36,7 @@ import { tapLight, tapMedium, tapSelection, tapSuccess, tapCelebrate } from '../
 // aliased: this screen already has its own `note`, which is a toast
 import { note as logFailure } from '../lib/crashLog';
 import { sfxPop, sfxSuccess } from '../utils/sfx';
+import { setupNotice } from '../lib/plumbing';
 
 /* Which pins belong to each lens. `all` keeps everything; the rest are
    deliberately narrow, because the point of a lens is that the map goes
@@ -395,8 +396,8 @@ export const MapScreen = () => {
       setTripSent(true);
     } catch (e) {
       setTripErr(/does not exist|schema cache/i.test(e.message || '')
-        ? 'One step left: run the updated supabase/RUN_ME.sql to turn on trip booking.'
-        : (e.message || 'Could not send your request — try again.'));
+        ? setupNotice('One step left: run the updated supabase/RUN_ME.sql to turn on trip booking.')
+        : 'Could not send your request — try again.');
     }
   };
 
@@ -412,8 +413,8 @@ export const MapScreen = () => {
       setRevText('');
     } catch (e) {
       setRevErr(/does not exist|schema cache/i.test(e.message || '')
-        ? 'Run supabase/RUN_ME.sql to turn on reviews'
-        : (e.message || 'Could not save your feedback'));
+        ? setupNotice('Run supabase/RUN_ME.sql to turn on reviews')
+        : 'Could not save your feedback');
     }
   };
 
@@ -622,7 +623,7 @@ export const MapScreen = () => {
   const explainMap = (e) => {
     const m = (e && e.message) || '';
     return /does not exist|schema cache|get_or_create/i.test(m)
-      ? 'One step left: run supabase/RUN_ME.sql to turn this on.'
+      ? setupNotice('One step left: run supabase/RUN_ME.sql to turn this on.')
       : (m || 'Something went wrong — try again.');
   };
 
@@ -1144,7 +1145,7 @@ export const MapScreen = () => {
                     tapSuccess(); sfxSuccess();
                     setNewTrip(null);
                     fetchTrips({ girlsOnly }).then(setTrips).catch(() => {});
-                  } catch (e) { setPlanErr((e && e.message) || 'That didn\'t save — try again.'); }
+                  } catch (e) { setPlanErr('That didn\'t save — try again.'); }
                 }}
                 style={{ marginTop: 12 }}
               >
@@ -1194,7 +1195,7 @@ export const MapScreen = () => {
                           if (!user || tp.free <= 0) return;
                           setPlanErr(null);
                           try { await joinTrip(tp.id, user.id); tapCelebrate(); fetchTrips({ girlsOnly }).then(setTrips).catch(() => {}); }
-                          catch (e) { setPlanErr((e && e.message) || 'Could not join that one.'); }
+                          catch (e) { setPlanErr('Could not join that one.'); }
                         }}
                       />
                     )}

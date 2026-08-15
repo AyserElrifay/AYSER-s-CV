@@ -37,6 +37,7 @@ const LANGUAGES = [
 const LEVELS = ['Beginner', 'A2', 'B1', 'B2', 'Fluent'];
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
 import { sfxSuccess } from '../utils/sfx';
+import { setupNotice } from '../lib/plumbing';
 
 /* A real, persisted on/off switch. */
 const Toggle = ({ on, onToggle }) => (
@@ -138,8 +139,8 @@ export const SettingsScreen = ({ onClose }) => {
     } catch (e) {
       setVisible(!nextVisible); // revert the toggle — it did NOT save
       setExchangeErr(/does not exist|schema cache|column/i.test(e.message || '')
-        ? 'One step left: run supabase/RUN_ME.sql to turn on language exchange.'
-        : (e.message || 'Could not save — try again.'));
+        ? setupNotice('One step left: run supabase/RUN_ME.sql to turn on language exchange.')
+        : 'Could not save — try again.');
     }
   };
 
@@ -186,8 +187,8 @@ export const SettingsScreen = ({ onClose }) => {
       setSplitTotal('');
     } catch (e) {
       setSplitNote(/does not exist|schema cache|recursion/i.test(e.message || '')
-        ? 'Chat needs one more step: run supabase/RUN_ME.sql first.'
-        : (e.message || 'Could not send — try again.'));
+        ? setupNotice('Chat needs one more step: run supabase/RUN_ME.sql first.')
+        : 'Could not send — try again.');
     } finally {
       setSplitBusy(false);
     }

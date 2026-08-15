@@ -37,6 +37,7 @@ import { LENSES, drawLens, placeOnFace } from './lensArt';
 import { tapLight, tapMedium, tapSuccess, tapSelection } from '../utils/feedback';
 import { getCurrentCoords } from '../utils/location';
 import { sfxPop, sfxSuccess } from '../utils/sfx';
+import { setupNotice } from '../lib/plumbing';
 
 /* ─── THE CAPTURE SCREEN — easier than IG, TikTok and Snap combined ───
    One tap opens a LIVE viewfinder. Tap the shutter for a photo, hold it
@@ -1815,11 +1816,11 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
       const m = (e && e.message) || '';
       setCamError(
         /bucket/i.test(m)
-          ? 'One step left: run the latest supabase/RUN_ME.sql — it creates the media storage bucket uploads need.'
+          ? setupNotice('One step left: run the latest supabase/RUN_ME.sql — it creates the media storage bucket uploads need.')
           : /too large|exceed|maximum size|413/i.test(m)
           ? 'That video is over the 48MB the server accepts in one file — trim it shorter and try again.'
           : /row-level security|policy|permission/i.test(m)
-          ? 'Upload blocked by storage permissions — run the latest supabase/RUN_ME.sql to fix the media policies.'
+          ? setupNotice('Upload blocked by storage permissions — run the latest supabase/RUN_ME.sql to fix the media policies.')
           : /load failed|failed to fetch|network/i.test(m)
           ? 'The upload didn\'t reach the server — check your connection and tap share again (large videos need a steady signal).'
           : (m || 'Could not share — check your connection and try again')

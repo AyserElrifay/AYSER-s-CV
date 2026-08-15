@@ -55,7 +55,7 @@ export const FilmSheet = ({ film, ourScore, onClose, onSaved }) => {
       setReviews(await fetchReviews(film.id));
       setNote('Saved');
       onSaved && onSaved();
-    } catch (e) { setNote((e && e.message) || 'Could not save'); }
+    } catch (e) { setNote('Could not save'); }
     finally { setBusy(false); setTimeout(() => setNote(null), 2200); }
   };
 

@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { setupNotice } from '../lib/plumbing';
 
 /* Reports & takedowns — the legal shield. Every report is a real row in
    content_reports, so infringing or abusive content can be flagged and
@@ -31,7 +32,7 @@ export async function reportContent({ reporterId, contentType, contentId, reason
     .single();
   if (error) {
     if (/does not exist|schema cache|content_reports/i.test(error.message || '')) {
-      throw new Error('One step left: run supabase/RUN_ME.sql to turn on reporting.');
+      throw new Error(setupNotice('One step left: run supabase/RUN_ME.sql to turn on reporting.'));
     }
     throw error;
   }

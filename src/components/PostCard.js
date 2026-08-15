@@ -61,7 +61,7 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
       setChatText(''); setChatSent(true);
       setTimeout(() => { setChatSent(false); setChatOpen(false); }, 1500);
     } catch (e) {
-      setChatErr((e && e.message) || 'Could not send that — try again.');
+      setChatErr('Could not send that — try again.');
     } finally { setChatBusy(false); }
   };
   const [reported, setReported] = useState(false);
