@@ -626,14 +626,14 @@ export const ProfileScreen = () => {
           <Pressable onPress={() => setCoverPickerOpen(false)} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end', zIndex: 40 }}>
             <Pressable onPress={() => {}} style={{ backgroundColor: C.bg2, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 18, paddingBottom: insets.bottom + 22 }}>
               <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 14 }} />
-              <Text style={{ color: C.text, fontSize: 16, fontWeight: '900', marginBottom: 12 }}>Your cover</Text>
+              <Text style={{ color: C.text, fontSize: 16, fontWeight: '900', marginBottom: 12 }}>{t('your_cover')}</Text>
 
               <Pressable onPress={() => { setCoverPickerOpen(false); changeCover(); }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 16, padding: 14, marginBottom: 10 }}>
                   <Text style={{ fontSize: 20, marginRight: 12 }}>🖼️</Text>
                   <View style={{ flex: 1 }}>
-                    <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>A photo</Text>
-                    <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 2 }}>Pick one from your gallery</Text>
+                    <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>{t('cover_a_photo')}</Text>
+                    <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 2 }}>{t('cover_from_gallery')}</Text>
                   </View>
                   <Ionicons name="chevron-forward" size={16} color={C.faint} />
                 </View>
@@ -647,7 +647,7 @@ export const ProfileScreen = () => {
                       {mapCoverBusy ? 'Finding you…' : 'Where you are'}
                     </Text>
                     <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 2 }}>
-                      The real map of your spot, with a pin — shown to anyone who opens your space
+                      {t('cover_map_hint')}
                     </Text>
                   </View>
                   <Ionicons name="chevron-forward" size={16} color={C.faint} />
@@ -655,7 +655,7 @@ export const ProfileScreen = () => {
               </Pressable>
 
               <Text style={{ color: C.faint, fontSize: 11, marginTop: 12, lineHeight: 16 }}>
-                The map cover saves the spot once, so it doesn't follow you around. Remove it any time with the ✕.
+                {t('cover_map_note')}
               </Text>
             </Pressable>
           </Pressable>
@@ -885,7 +885,7 @@ export const ProfileScreen = () => {
             )) : (
               <View style={{ alignItems: 'center', paddingVertical: 40 }}>
                 <Text style={{ fontSize: 26 }}>✍️</Text>
-                <Text style={{ color: C.faint, fontSize: 13, marginTop: 8 }}>No written moments yet</Text>
+                <Text style={{ color: C.faint, fontSize: 13, marginTop: 8 }}>{t('no_written_moments')}</Text>
               </View>
             )}
           </View>
@@ -926,7 +926,7 @@ export const ProfileScreen = () => {
             contentContainerStyle={{ paddingTop: 10, paddingBottom: insets.bottom + 22, paddingHorizontal: 16 }}
           >
             <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 12 }} />
-            <Text style={{ color: C.text, fontSize: 18, fontWeight: '900', marginBottom: 12 }}>Edit your space</Text>
+            <Text style={{ color: C.text, fontSize: 18, fontWeight: '900', marginBottom: 12 }}>{t('edit_space')}</Text>
 
             {/* tap to change your profile photo */}
             {/* The rule people should see before they break it, not
@@ -946,7 +946,7 @@ export const ProfileScreen = () => {
             </Text>
 
             <TextInput
-              placeholder="Name"
+              placeholder={t('name_ph')}
               placeholderTextColor={C.faint}
               value={editName}
               onChangeText={setEditName}
@@ -966,7 +966,7 @@ export const ProfileScreen = () => {
             {editErr ? <Text style={{ color: C.coral, fontSize: 11.5, marginBottom: 9 }}>{editErr}</Text> : null}
             <TextInput
               ref={bioInputRef}
-              placeholder="Bio"
+              placeholder={t('bio_ph')}
               placeholderTextColor={C.faint}
               value={editBio}
               onChangeText={setEditBio}
@@ -974,7 +974,7 @@ export const ProfileScreen = () => {
               style={{ color: C.text, fontSize: 14, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 11, marginBottom: 9, minHeight: 70, textAlignVertical: 'top' }}
             />
             <TextInput
-              placeholder="Your vibe (e.g. Exploring 🧭)"
+              placeholder={t('vibe_ph')}
               placeholderTextColor={C.faint}
               value={editIntent}
               onChangeText={setEditIntent}
@@ -982,30 +982,30 @@ export const ProfileScreen = () => {
             />
 
             {/* a few simple, optional "about you" fields — all can stay blank */}
-            <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', letterSpacing: 1, marginBottom: 8 }}>ABOUT YOU · all optional</Text>
+            <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', letterSpacing: 1, marginBottom: 8 }}>{t('about_you')}</Text>
             <View style={{ flexDirection: 'row', marginBottom: 9 }}>
               <TextInput
-                placeholder="Age" placeholderTextColor={C.faint} value={editAge} onChangeText={(t) => setEditAge(t.replace(/[^0-9]/g, '').slice(0, 3))} keyboardType="number-pad"
+                placeholder={t('age_ph')} placeholderTextColor={C.faint} value={editAge} onChangeText={(t) => setEditAge(t.replace(/[^0-9]/g, '').slice(0, 3))} keyboardType="number-pad"
                 style={{ width: 88, color: C.text, fontSize: 14, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 11, marginRight: 9 }}
               />
               <TextInput
-                placeholder="What you do 💼" placeholderTextColor={C.faint} value={editWork} onChangeText={setEditWork}
+                placeholder={t('work_ph')} placeholderTextColor={C.faint} value={editWork} onChangeText={setEditWork}
                 style={{ flex: 1, color: C.text, fontSize: 14, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 11 }}
               />
             </View>
             <TextInput
-              placeholder="What you studied 🎓" placeholderTextColor={C.faint} value={editStudy} onChangeText={setEditStudy}
+              placeholder={t('studied_ph')} placeholderTextColor={C.faint} value={editStudy} onChangeText={setEditStudy}
               style={{ color: C.text, fontSize: 14, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 11, marginBottom: 9 }}
             />
             <TextInput
-              placeholder="Languages you speak 🗣️ (e.g. Arabic, English)" placeholderTextColor={C.faint} value={editLangs} onChangeText={setEditLangs}
+              placeholder={t('languages_ph')} placeholderTextColor={C.faint} value={editLangs} onChangeText={setEditLangs}
               style={{ color: C.text, fontSize: 14, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 11, marginBottom: 12 }}
             />
 
             {/* country — searchable, the whole planet; saves country + flag */}
-            <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', letterSpacing: 1, marginBottom: 8 }}>YOUR COUNTRY 🌍</Text>
+            <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', letterSpacing: 1, marginBottom: 8 }}>{t('your_country')}</Text>
             <TextInput
-              placeholder="Search country…"
+              placeholder={t('search_country_ph')}
               placeholderTextColor={C.faint}
               value={countryQ}
               onChangeText={setCountryQ}
@@ -1031,7 +1031,7 @@ export const ProfileScreen = () => {
             </ScrollView>
 
             {/* hobbies — pick everything you love, shows on your profile */}
-            <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', letterSpacing: 1, marginBottom: 8 }}>YOUR HOBBIES ✨ ({editHobbies.length})</Text>
+            <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', letterSpacing: 1, marginBottom: 8 }}>{t('your_hobbies').replace('{n}', editHobbies.length)}</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 12 }}>
               {HOBBY_OPTIONS.map((h) => {
                 const on = editHobbies.includes(h);
@@ -1061,7 +1061,7 @@ export const ProfileScreen = () => {
             <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 10 }} />
 
             {/* account type switch — includes Artist & Musician creator types */}
-            <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', letterSpacing: 1, marginBottom: 8, marginTop: 4 }}>ACCOUNT TYPE</Text>
+            <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', letterSpacing: 1, marginBottom: 8, marginTop: 4 }}>{t('account_type')}</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}>
               {[
                 { k: 'public', e: '🌍' }, { k: 'private', e: '🔒' }, { k: 'professional', e: '💼' },
@@ -1095,11 +1095,11 @@ export const ProfileScreen = () => {
                 {me.verified ? (
                   <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.greenSoft, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10 }}>
                     <Ionicons name="checkmark-circle" size={18} color={C.green} />
-                    <Text style={{ color: C.green, fontSize: 12.5, fontWeight: '900', marginLeft: 7 }}>Verified {accountType} ✓</Text>
+                    <Text style={{ color: C.green, fontSize: 12.5, fontWeight: '900', marginLeft: 7 }}>{t('verified')} {accountType} ✓</Text>
                   </View>
                 ) : verifStatus === 'pending' ? (
                   <View style={{ backgroundColor: C.purpleSoft, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10 }}>
-                    <Text style={{ color: C.purple, fontSize: 12, fontWeight: '800' }}>⏳ Verification under review — you'll get the tick once approved.</Text>
+                    <Text style={{ color: C.purple, fontSize: 12, fontWeight: '800' }}>{t('verification_pending')}</Text>
                   </View>
                 ) : (
                   <Pressable disabled={verifBusy} onPress={async () => {
@@ -1124,7 +1124,7 @@ export const ProfileScreen = () => {
                 only from a private ?studio=1 link (src/utils/studioLink.js),
                 so an admin console never sits in anyone's settings menu. */}
             {/* everyone: send feedback into the owner's Studio */}
-            <MenuRow icon="chatbubble-ellipses-outline" label="Send feedback" sub="Ideas, bugs or love — it reaches Ayser" onPress={() => { setMenu(false); setFbOpen(true); }} />
+            <MenuRow icon="chatbubble-ellipses-outline" label={t('send_feedback')} sub="Ideas, bugs or love — it reaches Ayser" onPress={() => { setMenu(false); setFbOpen(true); }} />
 
             {/* category — shows next to your name on professional accounts */}
             {accountType === 'professional' ? (
@@ -1143,7 +1143,7 @@ export const ProfileScreen = () => {
             ) : null}
 
             {accountType === 'professional' ? (
-              <MenuRow icon="stats-chart-outline" label="Professional dashboard" sub="Reach, stars & what's working" onPress={() => { setMenu(false); setDash(true); }} />
+              <MenuRow icon="stats-chart-outline" label={t('professional_dashboard')} sub="Reach, stars & what's working" onPress={() => { setMenu(false); setDash(true); }} />
             ) : null}
             <MenuRow
               icon="flag-outline"
@@ -1152,10 +1152,10 @@ export const ProfileScreen = () => {
               onPress={() => setPageMade(true)}
               right={pageMade ? <Ionicons name="checkmark-circle" size={20} color={C.green} /> : null}
             />
-            <MenuRow icon="megaphone-outline" label="Ads Manager" sub="Boost moments · campaigns · media buying" onPress={() => { setMenu(false); setAdsOpen(true); }} />
-            <MenuRow icon="star-outline" label="Close Friends" sub="Share some moments with your inner circle" onPress={() => { setMenu(false); setCloseOpen(true); }} />
-            <MenuRow icon="happy-outline" label="Your Moments Avatar" sub="The cartoon character shown on the live map" onPress={() => { setMenu(false); setAvatarBuilderOpen(true); }} />
-            <MenuRow icon="create-outline" label="Edit your space" sub="Name, bio, vibe & links" onPress={() => setEditOpen(true)} />
+            <MenuRow icon="megaphone-outline" label={t('ads_manager')} sub="Boost moments · campaigns · media buying" onPress={() => { setMenu(false); setAdsOpen(true); }} />
+            <MenuRow icon="star-outline" label={t('close_friends')} sub="Share some moments with your inner circle" onPress={() => { setMenu(false); setCloseOpen(true); }} />
+            <MenuRow icon="happy-outline" label={t('your_avatar')} sub="The cartoon character shown on the live map" onPress={() => { setMenu(false); setAvatarBuilderOpen(true); }} />
+            <MenuRow icon="create-outline" label={t('edit_space')} sub="Name, bio, vibe & links" onPress={() => setEditOpen(true)} />
           </Pressable>
         </Pressable>
       ) : null}
@@ -1169,11 +1169,11 @@ export const ProfileScreen = () => {
             {fbDone ? (
               <View style={{ alignItems: 'center', paddingVertical: 30 }}>
                 <Text style={{ fontSize: 34 }}>💛</Text>
-                <Text style={{ color: C.text, fontSize: 15, fontWeight: '900', marginTop: 8 }}>Thank you — Ayser got it</Text>
+                <Text style={{ color: C.text, fontSize: 15, fontWeight: '900', marginTop: 8 }}>{t('feedback_thanks')}</Text>
               </View>
             ) : (
               <>
-                <Text style={{ color: C.text, fontSize: 16, fontWeight: '900', marginBottom: 10 }}>Send feedback</Text>
+                <Text style={{ color: C.text, fontSize: 16, fontWeight: '900', marginBottom: 10 }}>{t('send_feedback')}</Text>
                 <View style={{ flexDirection: 'row', marginBottom: 10 }}>
                   {FEEDBACK_KINDS.map((k) => {
                     const on = fbKind === k.code;
@@ -1187,7 +1187,7 @@ export const ProfileScreen = () => {
                   })}
                 </View>
                 <TextInput
-                  placeholder="Tell us what's on your mind…" placeholderTextColor={C.faint} value={fbBody} onChangeText={setFbBody} multiline
+                  placeholder={t('feedback_ph')} placeholderTextColor={C.faint} value={fbBody} onChangeText={setFbBody} multiline
                   style={{ color: C.text, fontSize: 14, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 14, paddingHorizontal: 13, paddingVertical: 11, minHeight: 90, textAlignVertical: 'top' }}
                 />
                 <Pressable onPress={async () => {
@@ -1196,7 +1196,7 @@ export const ProfileScreen = () => {
                   catch (e) {}
                 }} style={{ marginTop: 12 }}>
                   <View style={{ backgroundColor: fbBody.trim() ? C.purple : C.glassHi, borderRadius: 14, paddingVertical: 14, alignItems: 'center' }}>
-                    <Text style={{ color: fbBody.trim() ? '#FFF' : C.faint, fontSize: 14, fontWeight: '900' }}>Send</Text>
+                    <Text style={{ color: fbBody.trim() ? '#FFF' : C.faint, fontSize: 14, fontWeight: '900' }}>{t('send')}</Text>
                   </View>
                 </Pressable>
               </>
@@ -1210,10 +1210,10 @@ export const ProfileScreen = () => {
         <Pressable onPress={() => setVerifQueue(null)} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end' }}>
           <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 12, paddingBottom: insets.bottom + 20, paddingHorizontal: 16, maxHeight: '70%' }}>
             <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 12 }} />
-            <Text style={{ color: C.text, fontSize: 16, fontWeight: '900', marginBottom: 10 }}>Verification requests</Text>
+            <Text style={{ color: C.text, fontSize: 16, fontWeight: '900', marginBottom: 10 }}>{t('verification_requests')}</Text>
             <ScrollView>
               {verifQueue.length === 0 ? (
-                <Text style={{ color: C.faint, fontSize: 13, textAlign: 'center', paddingVertical: 26 }}>No pending requests 🎉</Text>
+                <Text style={{ color: C.faint, fontSize: 13, textAlign: 'center', paddingVertical: 26 }}>{t('no_pending_requests')}</Text>
               ) : verifQueue.map((r) => (
                 <View key={r.id} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.line }}>
                   <Image source={{ uri: (r.user && r.user.avatar_url) || AV_NEUTRAL }} style={{ width: 40, height: 40, borderRadius: 20, marginRight: 10 }} />
@@ -1222,10 +1222,10 @@ export const ProfileScreen = () => {
                     <Text style={{ color: C.faint, fontSize: 11.5 }}>{r.kind}{r.user && r.user.artist_genre ? ' · ' + r.user.artist_genre : ''}</Text>
                   </View>
                   <Pressable onPress={async () => { try { await decideVerification(r.user_id, false); setVerifQueue((q) => q.filter((x) => x.id !== r.id)); } catch (e) {} }} style={{ marginRight: 8 }}>
-                    <View style={{ borderRadius: 999, borderWidth: 1, borderColor: C.line, paddingHorizontal: 12, paddingVertical: 8 }}><Text style={{ color: C.dim, fontSize: 12, fontWeight: '800' }}>Reject</Text></View>
+                    <View style={{ borderRadius: 999, borderWidth: 1, borderColor: C.line, paddingHorizontal: 12, paddingVertical: 8 }}><Text style={{ color: C.dim, fontSize: 12, fontWeight: '800' }}>{t('reject')}</Text></View>
                   </Pressable>
                   <Pressable onPress={async () => { try { await decideVerification(r.user_id, true); tapSuccess(); sfxSuccess(); setVerifQueue((q) => q.filter((x) => x.id !== r.id)); } catch (e) {} }}>
-                    <View style={{ borderRadius: 999, backgroundColor: C.green, paddingHorizontal: 14, paddingVertical: 8 }}><Text style={{ color: '#FFF', fontSize: 12, fontWeight: '900' }}>Approve ✓</Text></View>
+                    <View style={{ borderRadius: 999, backgroundColor: C.green, paddingHorizontal: 14, paddingVertical: 8 }}><Text style={{ color: '#FFF', fontSize: 12, fontWeight: '900' }}>{t('approve')}</Text></View>
                   </Pressable>
                 </View>
               ))}
@@ -1240,22 +1240,22 @@ export const ProfileScreen = () => {
         <Pressable onPress={() => setAdsOpen(false)} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end' }}>
           <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, paddingBottom: insets.bottom + 22, paddingHorizontal: 16 }}>
             <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 12 }} />
-            <Text style={{ color: C.text, fontSize: 18, fontWeight: '900' }}>Ads Manager 📣</Text>
-            <Text style={{ color: C.faint, fontSize: 12, marginTop: 2, marginBottom: 14 }}>Put your moments in front of the right crowd</Text>
+            <Text style={{ color: C.text, fontSize: 18, fontWeight: '900' }}>{t('ads_manager_title')}</Text>
+            <Text style={{ color: C.faint, fontSize: 12, marginTop: 2, marginBottom: 14 }}>{t('ads_manager_hint')}</Text>
 
             <View style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 16, padding: 16, alignItems: 'center', marginBottom: 12 }}>
               <Text style={{ fontSize: 22 }}>📊</Text>
-              <Text style={{ color: C.text, fontSize: 13, fontWeight: '800', marginTop: 6 }}>No campaigns yet</Text>
-              <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 3, textAlign: 'center' }}>Boost a moment to put it in front of more people</Text>
+              <Text style={{ color: C.text, fontSize: 13, fontWeight: '800', marginTop: 6 }}>{t('no_campaigns')}</Text>
+              <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 3, textAlign: 'center' }}>{t('boost_hint')}</Text>
             </View>
 
             <Pressable onPress={() => { tapSelection(); setAdsOpen(false); setBoostOpen(true); }}>
               <LinearGradient colors={[C.purple, '#5B21B6']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ borderRadius: 14, paddingVertical: 14, alignItems: 'center' }}>
-                <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '900', letterSpacing: 0.4 }}>✦ Boost — Top of Search · Promoted Pin</Text>
+                <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '900', letterSpacing: 0.4 }}>{t('boost_cta')}</Text>
               </LinearGradient>
             </Pressable>
             <Text style={{ color: C.faint, fontSize: 11, textAlign: 'center', marginTop: 10 }}>
-              Every ad is labeled "Sponsored" · great reviews = cheaper clicks (Feedback Factor).
+              {t('ads_labelled')}
             </Text>
           </Pressable>
         </Pressable>
@@ -1266,8 +1266,8 @@ export const ProfileScreen = () => {
         <Pressable onPress={() => setDash(false)} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end' }}>
           <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, paddingBottom: insets.bottom + 22, paddingHorizontal: 16 }}>
             <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 12 }} />
-            <Text style={{ color: C.text, fontSize: 18, fontWeight: '900' }}>Dashboard 💼</Text>
-            <Text style={{ color: C.faint, fontSize: 12, marginTop: 2, marginBottom: 14 }}>{category} · your real numbers</Text>
+            <Text style={{ color: C.text, fontSize: 18, fontWeight: '900' }}>{t('dashboard')}</Text>
+            <Text style={{ color: C.faint, fontSize: 12, marginTop: 2, marginBottom: 14 }}>{category} · {t('your_real_numbers')}</Text>
             <View style={{ flexDirection: 'row', marginBottom: 12 }}>
               {[
                 { n: String(moments), l: 'Moments' },
