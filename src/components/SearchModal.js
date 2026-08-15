@@ -86,7 +86,7 @@ const GameRow = React.memo(({ item, onPlay, t }) => (
         <Text style={{ color: C.faint, fontSize: 12, marginTop: 3 }} numberOfLines={2}>{t(item.playersKey)}</Text>
       </View>
       <View style={{ backgroundColor: PLAYABLE.includes(item.kind) ? C.purple : C.glassHi, borderRadius: 999, paddingHorizontal: 15, paddingVertical: 8 }}>
-        <Text style={{ color: PLAYABLE.includes(item.kind) ? '#FFF' : C.dim, fontSize: 12, fontWeight: '900' }}>{PLAYABLE.includes(item.kind) ? 'Play' : 'In chat'}</Text>
+        <Text style={{ color: PLAYABLE.includes(item.kind) ? '#FFF' : C.dim, fontSize: 12, fontWeight: '900' }}>{PLAYABLE.includes(item.kind) ? t('tab_play') : t('in_chat')}</Text>
       </View>
     </View>
   </Pressable>
@@ -108,7 +108,7 @@ const PersonRow = React.memo(({ item, onOpen }) => (
   </Pressable>
 ));
 
-const GroupRow = React.memo(({ item, onToggle }) => (
+const GroupRow = React.memo(({ item, onToggle, t }) => (
   <Pressable>
     <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10 }}>
       <View style={{ width: 46, height: 46, borderRadius: 14, backgroundColor: C.purpleSoft, borderWidth: 1, borderColor: 'rgba(124,58,237,0.3)', alignItems: 'center', justifyContent: 'center' }}>
@@ -126,7 +126,7 @@ const GroupRow = React.memo(({ item, onToggle }) => (
         </Pressable>
       ) : (
         <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 7 }}>
-          <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '900' }}>Join</Text>
+          <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '900' }}>{t('join')}</Text>
         </View>
       )}
     </View>
@@ -141,7 +141,7 @@ const GroupRow = React.memo(({ item, onToggle }) => (
 
    It also says what happened. Create either makes a group or explains
    itself; it no longer swallows the reason and leaves you guessing. */
-const CreateGroupCard = ({ onCreate, owner }) => {
+const CreateGroupCard = ({ onCreate, owner, t }) => {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
   const [emoji, setEmoji] = useState('🌐');
@@ -186,7 +186,7 @@ const CreateGroupCard = ({ onCreate, owner }) => {
       <Pressable onPress={() => { tapLight(); setOpen(true); }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: C.purpleSoft, borderWidth: 1, borderColor: 'rgba(124,58,237,0.35)', borderRadius: 14, paddingVertical: 13, marginTop: 12 }}>
           <Ionicons name="add" size={18} color={C.purple} />
-          <Text style={{ color: C.purple, fontSize: 13.5, fontWeight: '900', marginLeft: 6 }}>Create a group</Text>
+          <Text style={{ color: C.purple, fontSize: 13.5, fontWeight: '900', marginLeft: 6 }}>{t('create_a_group')}</Text>
         </View>
       </Pressable>
     );
@@ -197,7 +197,7 @@ const CreateGroupCard = ({ onCreate, owner }) => {
       <View style={{ flexDirection: 'row', marginBottom: 9 }}>
         <TextInput value={emoji} onChangeText={setEmoji} maxLength={4} style={{ width: 48, textAlign: 'center', fontSize: 20, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 12, marginRight: 8 }} />
         <TextInput
-          placeholder="Group name"
+          placeholder={t('group_name_ph')}
           placeholderTextColor={C.faint}
           value={name}
           onChangeText={setName}
@@ -207,7 +207,7 @@ const CreateGroupCard = ({ onCreate, owner }) => {
           style={{ flex: 1, color: C.text, fontSize: 14, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10 }}
         />
       </View>
-      <TextInput placeholder="What's it about?" placeholderTextColor={C.faint} value={about} onChangeText={setAbout} style={{ color: C.text, fontSize: 13, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 10 }} />
+      <TextInput placeholder={t('group_about_ph')} placeholderTextColor={C.faint} value={about} onChangeText={setAbout} style={{ color: C.text, fontSize: 13, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 10 }} />
       {err ? (
         <View style={{ flexDirection: 'row', alignItems: 'flex-start', backgroundColor: 'rgba(244,63,94,0.10)', borderRadius: 12, paddingHorizontal: 11, paddingVertical: 9, marginBottom: 10 }}>
           <Ionicons name="alert-circle-outline" size={14} color={C.coral} style={{ marginTop: 1 }} />
@@ -216,7 +216,7 @@ const CreateGroupCard = ({ onCreate, owner }) => {
       ) : null}
       <View style={{ flexDirection: 'row' }}>
         <Pressable onPress={() => { setOpen(false); setErr(null); }} style={{ flex: 1, marginRight: 8 }}>
-          <View style={{ borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingVertical: 11, alignItems: 'center' }}><Text style={{ color: C.dim, fontSize: 13, fontWeight: '800' }}>Cancel</Text></View>
+          <View style={{ borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingVertical: 11, alignItems: 'center' }}><Text style={{ color: C.dim, fontSize: 13, fontWeight: '800' }}>{t('cancel')}</Text></View>
         </Pressable>
         <Pressable onPress={go} style={{ flex: 1 }} disabled={busy}>
           <View style={{ backgroundColor: name.trim() && !busy ? C.purple : C.glassHi, borderRadius: 12, paddingVertical: 11, alignItems: 'center' }}>
@@ -448,7 +448,7 @@ export const SearchModal = ({ onClose, onOpenProfile, onOpenTopics, onOpenTag })
           <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 999, paddingHorizontal: 16, paddingVertical: Platform.OS === 'ios' ? 12 : 4 }}>
             <Ionicons name="search" size={16} color={C.dim} />
             <TextInput
-              placeholder={tab === 'Travel' ? 'Where are you going?' : 'Search Moments…'}
+              placeholder={tab === 'Travel' ? t('where_going_ph') : t('search_moments_ph')}
               placeholderTextColor={C.faint}
               value={query}
               onChangeText={setQuery}
@@ -462,16 +462,22 @@ export const SearchModal = ({ onClose, onOpenProfile, onOpenTopics, onOpenTag })
             ) : null}
           </View>
           <Pressable onPress={onClose} style={{ marginLeft: 12 }}>
-            <Text style={{ color: C.dim, fontSize: 14, fontWeight: '700' }}>Cancel</Text>
+            <Text style={{ color: C.dim, fontSize: 14, fontWeight: '700' }}>{t('cancel')}</Text>
           </Pressable>
         </View>
 
         {/* tabs */}
         <View style={{ flexDirection: 'row', paddingHorizontal: 12, marginTop: 12, borderBottomWidth: 1, borderBottomColor: C.line }}>
-          {TABS.map((t) => (
-            <Pressable key={t} onPress={() => setTab(t)} style={{ flex: 1, alignItems: 'center', paddingVertical: 11 }}>
-              <Text style={{ color: tab === t ? C.text : C.faint, fontSize: 13.5, fontWeight: tab === t ? '900' : '600' }}>{t}</Text>
-              {tab === t ? <View style={{ height: 3, width: 28, borderRadius: 2, backgroundColor: C.purple, marginTop: 7 }} /> : null}
+          {/* The tab's VALUE stays English — the rest of this file
+              compares against it — and only the label is translated.
+              And the loop is `name`, not `t`, because `t` is the
+              translator two lines down. */}
+          {TABS.map((name) => (
+            <Pressable key={name} onPress={() => setTab(name)} style={{ flex: 1, alignItems: 'center', paddingVertical: 11 }}>
+              <Text style={{ color: tab === name ? C.text : C.faint, fontSize: 13.5, fontWeight: tab === name ? '900' : '600' }}>
+                {t('tab_' + name.toLowerCase())}
+              </Text>
+              {tab === name ? <View style={{ height: 3, width: 28, borderRadius: 2, backgroundColor: C.purple, marginTop: 7 }} /> : null}
             </Pressable>
           ))}
         </View>
@@ -486,9 +492,9 @@ export const SearchModal = ({ onClose, onOpenProfile, onOpenTopics, onOpenTag })
                   <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.purpleSoft, borderRadius: 16, padding: 14, marginTop: 16 }}>
                     <Text style={{ fontSize: 22 }}>#</Text>
                     <View style={{ flex: 1, marginLeft: 12 }}>
-                      <Text style={{ color: C.text, fontSize: 15, fontWeight: '900' }}>Topics</Text>
+                      <Text style={{ color: C.text, fontSize: 15, fontWeight: '900' }}>{t('topics')}</Text>
                       <Text style={{ color: C.faint, fontSize: 12, marginTop: 2 }}>
-                        Travel, food, learning, help me — find a room and post in it
+                        {t('topics_hint')}
                       </Text>
                     </View>
                     <Ionicons name="chevron-forward" size={16} color={C.purple} />
@@ -497,23 +503,21 @@ export const SearchModal = ({ onClose, onOpenProfile, onOpenTopics, onOpenTag })
               ) : null}
               {!q ? (
                 <>
-                  <Section title="Trending now 🔥" />
+                  <Section title={t('trending_now')} />
                   {trends.length ? trends.map((t, i) => <TrendRow key={t.id} item={t} rank={i + 1} onPick={pickTrend} />)
                     : SUPABASE_READY && realTrends === null ? (
                       /* Still counting. Saying nothing here reads as "there
                          is nothing", which is a different statement. */
-                      <Text style={{ color: C.faint, fontSize: 12.5, paddingVertical: 10 }}>Counting…</Text>
+                      <Text style={{ color: C.faint, fontSize: 12.5, paddingVertical: 10 }}>{t('counting')}</Text>
                     ) : SUPABASE_READY ? (
                       <Pressable onPress={() => { tapLight(); onOpenTopics && onOpenTopics(); }}>
                         <View style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 16, padding: 14, marginTop: 4 }}>
-                          <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800' }}>Quiet fortnight 🌱</Text>
+                          <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800' }}>{t('quiet_fortnight')}</Text>
                           <Text style={{ color: C.faint, fontSize: 12.5, marginTop: 5, lineHeight: 19 }}>
-                            Trends are counted off real moments — hashtags, places, groups and what people
-                            search for. Nothing has been tagged in the last two weeks, so there is honestly
-                            nothing to show. Post one with a #hashtag or a place and it starts here.
+                            {t('quiet_fortnight_hint')}
                           </Text>
                           {onOpenTopics ? (
-                            <Text style={{ color: C.purple, fontSize: 12.5, fontWeight: '900', marginTop: 9 }}>Pick a topic to post in →</Text>
+                            <Text style={{ color: C.purple, fontSize: 12.5, fontWeight: '900', marginTop: 9 }}>{t('pick_a_topic')}</Text>
                           ) : null}
                         </View>
                       </Pressable>
@@ -521,14 +525,14 @@ export const SearchModal = ({ onClose, onOpenProfile, onOpenTopics, onOpenTag })
                 </>
               ) : trends.length ? (
                 <>
-                  <Section title="Trends" />
+                  <Section title={t('trends')} />
                   {trends.map((t, i) => <TrendRow key={t.id} item={t} rank={i + 1} onPick={pickTrend} />)}
                 </>
               ) : null}
-              {people.length ? <><Section title="People" />{people.slice(0, 3).map((u) => <PersonRow key={u.id} item={u} onOpen={onOpenProfile} />)}</> : null}
-              {groups.length ? <><Section title="Groups" />{groups.slice(0, 3).map((g) => <GroupRow key={g.id} item={g} onToggle={toggleGroup} />)}</> : null}
-              {!q && games.length ? <><Section title="Play together 🎮" />{games.slice(0, 3).map((g) => <GameRow key={g.id} item={g} onPlay={launchGame} t={t} />)}</> : null}
-              {q && posts.length ? <><Section title="Posts" />{posts.slice(0, 3).map((p) => <PostRow key={p.id} item={p} />)}</> : null}
+              {people.length ? <><Section title={t('tab_people')} />{people.slice(0, 3).map((u) => <PersonRow key={u.id} item={u} onOpen={onOpenProfile} />)}</> : null}
+              {groups.length ? <><Section title={t('tab_groups')} />{groups.slice(0, 3).map((g) => <GroupRow key={g.id} item={g} onToggle={toggleGroup} t={t} />)}</> : null}
+              {!q && games.length ? <><Section title={t('play_together')} />{games.slice(0, 3).map((g) => <GameRow key={g.id} item={g} onPlay={launchGame} t={t} />)}</> : null}
+              {q && posts.length ? <><Section title={t('tab_posts')} />{posts.slice(0, 3).map((p) => <PostRow key={p.id} item={p} />)}</> : null}
             </View>
           ) : null}
 
@@ -541,7 +545,7 @@ export const SearchModal = ({ onClose, onOpenProfile, onOpenTopics, onOpenTag })
           ) : null}
           {tab === 'Travel' ? (
             plans === null ? (
-              <Text style={{ color: C.faint, fontSize: 12.5, textAlign: 'center', paddingVertical: 28 }}>Looking…</Text>
+              <Text style={{ color: C.faint, fontSize: 12.5, textAlign: 'center', paddingVertical: 28 }}>{t('looking')}</Text>
             ) : plans.length ? (
               <>
                 <Text style={{ color: C.faint, fontSize: 12, marginTop: 14, lineHeight: 18 }}>
@@ -566,7 +570,7 @@ export const SearchModal = ({ onClose, onOpenProfile, onOpenTopics, onOpenTag })
                 {plansErr ? (
                   <Pressable onPress={() => { tapLight(); setPlanTry((n) => n + 1); }} style={{ marginTop: 14 }}>
                     <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 22, paddingVertical: 10 }}>
-                      <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900' }}>Try again</Text>
+                      <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900' }}>{t('try_again')}</Text>
                     </View>
                   </Pressable>
                 ) : null}
@@ -600,15 +604,15 @@ export const SearchModal = ({ onClose, onOpenProfile, onOpenTopics, onOpenTag })
                   {groupsErr === 'setup' ? null : (
                     <Pressable onPress={() => { tapLight(); loadGroups(); }} style={{ marginTop: 12 }}>
                       <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 22, paddingVertical: 9 }}>
-                        <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900' }}>Try again</Text>
+                        <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900' }}>{t('try_again')}</Text>
                       </View>
                     </Pressable>
                   )}
                 </View>
               ) : realGroups === null && SUPABASE_READY ? (
-                <Text style={{ color: C.faint, fontSize: 12.5, textAlign: 'center', paddingVertical: 28 }}>Looking…</Text>
-              ) : groups.length ? groups.map((g) => <GroupRow key={g.id} item={g} onToggle={toggleGroup} />) : <Empty q={q} />}
-              <CreateGroupCard onCreate={submitGroup} owner={isOwner(user)} />
+                <Text style={{ color: C.faint, fontSize: 12.5, textAlign: 'center', paddingVertical: 28 }}>{t('looking')}</Text>
+              ) : groups.length ? groups.map((g) => <GroupRow key={g.id} item={g} onToggle={toggleGroup} t={t} />) : <Empty q={q} />}
+              <CreateGroupCard onCreate={submitGroup} owner={isOwner(user)} t={t} />
             </>
           ) : null}
           {tab === 'Posts' ? (posts.length ? posts.map((p) => <PostRow key={p.id} item={p} />) : <Empty q={q} />) : null}
