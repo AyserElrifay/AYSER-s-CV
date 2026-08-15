@@ -967,7 +967,7 @@ export const MapScreen = () => {
                       <Text style={{ color: C.green, fontSize: 10.5, fontWeight: '900' }}>{d.badge}</Text>
                     </View>
                     <View style={{ backgroundColor: 'rgba(245,179,1,0.15)', borderWidth: 1, borderColor: 'rgba(245,179,1,0.45)', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 4 }}>
-                      <Text style={{ color: '#8A6400', fontSize: 10, fontWeight: '900' }}>✦ +{d.cashback} $M back</Text>
+                      <Text style={{ color: '#8A6400', fontSize: 10, fontWeight: '900' }}>✦ +{d.cashback} {t('cashback_back')}</Text>
                     </View>
                     <View style={{ flex: 1 }} />
                     <Text style={{ color: C.faint, fontSize: 10 }}>↗</Text>
@@ -983,7 +983,7 @@ export const MapScreen = () => {
                   <View style={{ flex: 1 }}>
                     <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800' }} numberOfLines={1}>{c.title}</Text>
                     <Text style={{ color: C.dim, fontSize: 11, marginTop: 1 }}>
-                      {c.host.name.split(' ')[0]} hosting now
+                      {t('hosting_now').replace('{name}', c.host.name.split(' ')[0])}
                     </Text>
                   </View>
                 </View>
@@ -995,15 +995,15 @@ export const MapScreen = () => {
                 {user && c.hostId === user.id ? (
                   <Pressable onPress={() => openCampfireManage(c)} style={{ marginTop: 10 }}>
                     <View style={{ borderRadius: 14, backgroundColor: C.purpleSoft, borderWidth: 1, borderColor: 'rgba(124,58,237,0.4)', paddingVertical: 10, alignItems: 'center' }}>
-                      <Text style={{ color: C.purple, fontSize: 12, fontWeight: '900' }}>⚙️ Manage · edit · end</Text>
+                      <Text style={{ color: C.purple, fontSize: 12, fontWeight: '900' }}>{t('manage_edit_end')}</Text>
                     </View>
                   </Pressable>
                 ) : joinedFires[c.id] ? (
                   <View style={{ marginTop: 10, borderRadius: 14, backgroundColor: C.greenSoft, borderWidth: 1, borderColor: 'rgba(16,185,129,0.5)', paddingVertical: 10, alignItems: 'center' }}>
-                    <Text style={{ color: C.green, fontSize: 12, fontWeight: '900' }}>You're in! 🙌 Host got your message</Text>
+                    <Text style={{ color: C.green, fontSize: 12, fontWeight: '900' }}>{t('host_got_message')}</Text>
                   </View>
                 ) : (
-                  <NeonButton small label="JOIN THE MOMENT 🙌" style={{ marginTop: 10 }} onPress={() => joinFire(c)} />
+                  <NeonButton small label={t('join_the_moment')} style={{ marginTop: 10 }} onPress={() => joinFire(c)} />
                 )}
               </Glass>
             )) : (
@@ -1028,12 +1028,12 @@ export const MapScreen = () => {
                     <Text style={{ color: C.text, fontSize: 13, fontWeight: '900', flex: 1 }}>{b.price || ''}</Text>
                     {booked[b.id] ? (
                       <View style={{ backgroundColor: C.greenSoft, borderWidth: 1, borderColor: 'rgba(16,185,129,0.45)', borderRadius: 999, paddingHorizontal: 13, paddingVertical: 6 }}>
-                        <Text style={{ color: C.green, fontSize: 11.5, fontWeight: '900' }}>Requested ✓</Text>
+                        <Text style={{ color: C.green, fontSize: 11.5, fontWeight: '900' }}>{t('requested_tick')}</Text>
                       </View>
                     ) : (
                       <Pressable onPress={() => bookVenue(b)}>
                         <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 15, paddingVertical: 6 }}>
-                          <Text style={{ color: '#FFF', fontSize: 11.5, fontWeight: '900' }}>Book</Text>
+                          <Text style={{ color: '#FFF', fontSize: 11.5, fontWeight: '900' }}>{t('book')}</Text>
                         </View>
                       </Pressable>
                     )}
@@ -1049,10 +1049,10 @@ export const MapScreen = () => {
               <Pressable onPress={() => openSheet('partner')}>
                 <Glass tint="rgba(124,58,237,0.08)" border="rgba(124,58,237,0.35)" style={{ width: 200, padding: 13, marginRight: 12, alignItems: 'center', justifyContent: 'center' }}>
                   <Text style={{ fontSize: 24 }}>🤝</Text>
-                  <Text style={{ color: C.text, fontSize: 13, fontWeight: '800', marginTop: 6, textAlign: 'center' }}>Own a place?</Text>
-                  <Text style={{ color: C.dim, fontSize: 10.5, marginTop: 3, textAlign: 'center' }}>Get on the Moments map — people book you from here</Text>
+                  <Text style={{ color: C.text, fontSize: 13, fontWeight: '800', marginTop: 6, textAlign: 'center' }}>{t('own_a_place')}</Text>
+                  <Text style={{ color: C.dim, fontSize: 10.5, marginTop: 3, textAlign: 'center' }}>{t('own_a_place_hint')}</Text>
                   <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 6, marginTop: 9 }}>
-                    <Text style={{ color: '#FFF', fontSize: 11, fontWeight: '900' }}>Partner with us</Text>
+                    <Text style={{ color: '#FFF', fontSize: 11, fontWeight: '900' }}>{t('partner_with_us')}</Text>
                   </View>
                 </Glass>
               </Pressable>
@@ -1078,7 +1078,7 @@ export const MapScreen = () => {
             }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: girlsOnly ? '#EC4899' : C.float, borderWidth: 1, borderColor: girlsOnly ? '#EC4899' : C.line, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 7, marginRight: 8 }}>
                 <Text style={{ fontSize: 12.5, marginRight: 5 }}>👩</Text>
-                <Text style={{ color: girlsOnly ? '#FFF' : C.dim, fontSize: 12, fontWeight: '800' }}>Girls only</Text>
+                <Text style={{ color: girlsOnly ? '#FFF' : C.dim, fontSize: 12, fontWeight: '800' }}>{t('girls_only')}</Text>
               </View>
             </Pressable>
             <Pressable onPress={() => { tapLight(); setNewTrip(newTrip ? null : { title: '', dest: '', when: '', seats: '6', girls: false }); }}>
@@ -1093,7 +1093,7 @@ export const MapScreen = () => {
               <TextInput
                 value={newTrip.title}
                 onChangeText={(v) => setNewTrip((f) => ({ ...f, title: v }))}
-                placeholder="What's the trip? e.g. Fayoum sandboarding"
+                placeholder={t('trip_what_placeholder')}
                 placeholderTextColor={C.faint}
                 style={{ color: C.text, fontSize: 13.5, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10 }}
               />
@@ -1101,14 +1101,14 @@ export const MapScreen = () => {
                 <TextInput
                   value={newTrip.when}
                   onChangeText={(v) => setNewTrip((f) => ({ ...f, when: v }))}
-                  placeholder="When (YYYY-MM-DD)"
+                  placeholder={t('trip_when_placeholder')}
                   placeholderTextColor={C.faint}
                   style={{ flex: 1, color: C.text, fontSize: 13, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginRight: 8 }}
                 />
                 <TextInput
                   value={newTrip.seats}
                   onChangeText={(v) => setNewTrip((f) => ({ ...f, seats: v.replace(/[^0-9]/g, '') }))}
-                  placeholder="Seats"
+                  placeholder={t('seats')}
                   keyboardType="number-pad"
                   placeholderTextColor={C.faint}
                   style={{ width: 78, color: C.text, fontSize: 13, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10 }}
@@ -1117,13 +1117,12 @@ export const MapScreen = () => {
               <Pressable onPress={() => { tapSelection(); setNewTrip((f) => ({ ...f, girls: !f.girls })); }} style={{ marginTop: 10 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                   <Ionicons name={newTrip.girls ? 'checkbox' : 'square-outline'} size={19} color={newTrip.girls ? '#EC4899' : C.faint} />
-                  <Text style={{ color: C.text, fontSize: 12.5, fontWeight: '800', marginLeft: 8 }}>Girls only</Text>
+                  <Text style={{ color: C.text, fontSize: 12.5, fontWeight: '800', marginLeft: 8 }}>{t('girls_only')}</Text>
                 </View>
               </Pressable>
               {newTrip.girls ? (
                 <Text style={{ color: C.faint, fontSize: 11, marginTop: 4, lineHeight: 16 }}>
-                  Only people whose own profile says girl can join. That's checked by the
-                  database, so it holds no matter how someone gets here.
+                  {t('girls_only_hint')}
                 </Text>
               ) : null}
               {planErr ? <Text style={{ color: C.coral, fontSize: 12, marginTop: 8 }}>{planErr}</Text> : null}
@@ -1150,7 +1149,7 @@ export const MapScreen = () => {
                 style={{ marginTop: 12 }}
               >
                 <View style={{ backgroundColor: C.purple, borderRadius: 14, paddingVertical: 12, alignItems: 'center' }}>
-                  <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '900' }}>Put it on the map</Text>
+                  <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '900' }}>{t('put_on_map')}</Text>
                 </View>
               </Pressable>
             </Glass>
@@ -1177,13 +1176,13 @@ export const MapScreen = () => {
                     {mine ? (
                       <Pressable onPress={async () => { try { await cancelTrip(tp.id, user.id); setTrips((l) => l.filter((x) => x.id !== tp.id)); } catch (e) {} }} style={{ marginTop: 10 }}>
                         <View style={{ borderRadius: 14, backgroundColor: C.glassHi, borderWidth: 1, borderColor: C.line, paddingVertical: 10, alignItems: 'center' }}>
-                          <Text style={{ color: C.coral, fontSize: 12, fontWeight: '900' }}>Cancel this trip</Text>
+                          <Text style={{ color: C.coral, fontSize: 12, fontWeight: '900' }}>{t('cancel_trip')}</Text>
                         </View>
                       </Pressable>
                     ) : joined ? (
                       <Pressable onPress={async () => { try { await leaveTrip(tp.id, user.id); fetchTrips({ girlsOnly }).then(setTrips).catch(() => {}); } catch (e) {} }} style={{ marginTop: 10 }}>
                         <View style={{ borderRadius: 14, backgroundColor: C.greenSoft, borderWidth: 1, borderColor: 'rgba(16,185,129,0.5)', paddingVertical: 10, alignItems: 'center' }}>
-                          <Text style={{ color: C.green, fontSize: 12, fontWeight: '900' }}>You're going ✓ · tap to drop out</Text>
+                          <Text style={{ color: C.green, fontSize: 12, fontWeight: '900' }}>{t('youre_going')}</Text>
                         </View>
                       </Pressable>
                     ) : (
@@ -1207,7 +1206,7 @@ export const MapScreen = () => {
                   <Text style={{ color: C.text, fontSize: 13, fontWeight: '800', marginTop: 6, textAlign: 'center' }}>
                     {girlsOnly ? 'No girls-only trips running yet' : 'No trips running yet'}
                   </Text>
-                  <Text style={{ color: C.faint, fontSize: 11, marginTop: 3, textAlign: 'center' }}>Start one and it lands on the map.</Text>
+                  <Text style={{ color: C.faint, fontSize: 11, marginTop: 3, textAlign: 'center' }}>{t('start_one_lands')}</Text>
                 </Glass>
               )}
             </ScrollView>
@@ -1335,7 +1334,7 @@ export const MapScreen = () => {
                   <Text style={{ fontSize: 34, textAlign: 'center' }}>🚨</Text>
                   <Text style={{ color: C.text, fontSize: 19, fontWeight: '900', textAlign: 'center', marginTop: 8 }}>{t('send_sos_q')}</Text>
                   <Text style={{ color: C.dim, fontSize: 13, textAlign: 'center', marginTop: 8, lineHeight: 19 }}>
-                    Your live pin turns into an SOS marker so people around you on the map can see you need help. You can turn it off whenever you want.
+                    {t('sos_explain')}
                   </Text>
                   {sosErr ? (
                     <Text style={{ color: C.coral, fontSize: 12.5, textAlign: 'center', marginTop: 12, lineHeight: 18, fontWeight: '800' }}>
@@ -1343,14 +1342,14 @@ export const MapScreen = () => {
                     </Text>
                   ) : null}
                   <NeonButton color={C.coral} label={sosBusy ? 'Sending…' : (sosErr ? 'Try again' : t('send_sos_now'))} style={{ marginTop: 18 }} onPress={sendSos} />
-                  <GhostButton small label="Cancel" style={{ marginTop: 10 }} onPress={() => { setSos(null); setSosErr(null); }} />
+                  <GhostButton small label={t('cancel')} style={{ marginTop: 10 }} onPress={() => { setSos(null); setSosErr(null); }} />
                 </View>
               ) : (
                 <View>
                   <Text style={{ fontSize: 34, textAlign: 'center' }}>📍</Text>
                   <Text style={{ color: C.text, fontSize: 19, fontWeight: '900', textAlign: 'center', marginTop: 8 }}>{t('sos_live')}</Text>
                   <Text style={{ color: C.dim, fontSize: 13, textAlign: 'center', marginTop: 8, lineHeight: 19 }}>
-                    Anyone nearby on the Moments map can see it right now. Stay where you are.
+                    {t('sos_live_now')}
                   </Text>
                   {sosErr ? (
                     <Text style={{ color: C.coral, fontSize: 12.5, textAlign: 'center', marginTop: 12, lineHeight: 18, fontWeight: '800' }}>
@@ -1371,7 +1370,7 @@ export const MapScreen = () => {
                   </Pressable>
                   {/* leaving the sheet is not the same as standing down:
                       you may want the phone in your pocket while it runs */}
-                  <GhostButton small label="Keep it on, close this" style={{ marginTop: 10 }} onPress={() => { setSos(null); setSosErr(null); }} />
+                  <GhostButton small label={t('keep_on_close')} style={{ marginTop: 10 }} onPress={() => { setSos(null); setSosErr(null); }} />
                 </View>
               )}
             </Glass>
@@ -1393,9 +1392,9 @@ export const MapScreen = () => {
             <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.purpleSoft, borderRadius: 14, padding: 10, marginBottom: 10 }}>
               <Image source={{ uri: user ? buildAvatarUrl(user.id) : AV_NEUTRAL }} style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: '#EDE9FE' }} />
               <View style={{ flex: 1, marginLeft: 11 }}>
-                <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800' }}>You {myDoing || ''}</Text>
+                <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800' }}>{t('you_word')} {myDoing || ''}</Text>
                 <Text style={{ color: myDoing ? C.green : C.faint, fontSize: 11, marginTop: 1 }}>
-                  {myDoing ? 'Visible in nearby ✓' : 'Hidden — turn on to appear here for others'}
+                  {myDoing ? t('visible_nearby') : t('hidden_turn_on')}
                 </Text>
               </View>
               <Pressable onPress={() => { closeSheet(); openSheet('doing'); }}>
@@ -1419,12 +1418,12 @@ export const MapScreen = () => {
                       </View>
                       <View style={{ flex: 1, marginLeft: 12 }}>
                         <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>{p.name}</Text>
-                        <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 2 }}>{p.intent} · {p.km.toFixed(1)} km away</Text>
+                        <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 2 }}>{p.intent} · {p.km.toFixed(1)} {t('km_away')}</Text>
                       </View>
                     </Pressable>
                     <Pressable onPress={() => meetUp(p)} style={{ marginRight: 7 }}>
                       <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8 }}>
-                        <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '900' }}>🤝 Meet</Text>
+                        <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '900' }}>{t('meet_up')}</Text>
                       </View>
                     </Pressable>
                     <Pressable onPress={() => wave(p)}>
@@ -1440,7 +1439,7 @@ export const MapScreen = () => {
                 <Text style={{ fontSize: 28 }}>🧭</Text>
                 <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '700', marginTop: 8 }}>{t('no_one_nearby')}</Text>
                 <Text style={{ color: C.faint, fontSize: 12, marginTop: 4, textAlign: 'center' }}>
-                  Set your activity below — you'll be the first pin on the map.
+                  {t('first_pin_hint')}
                 </Text>
               </View>
             )}
@@ -1487,17 +1486,17 @@ export const MapScreen = () => {
             <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 12 }} />
             <Text style={{ color: C.text, fontSize: 18, fontWeight: '900' }}>{t('drop_note')}</Text>
             <Text style={{ color: C.faint, fontSize: 12, marginTop: 2, marginBottom: 12 }}>
-              A comment lands on your exact spot — pick how long it stays, and remove it any time
+              {t('note_explain')}
             </Text>
             <TextInput
-              placeholder="Say something to whoever's here… (e.g. Best koshari in town 🍲)"
+              placeholder={t('note_placeholder')}
               placeholderTextColor={C.faint}
               value={dropTitle}
               onChangeText={setDropTitle}
               multiline
               style={{ color: C.text, fontSize: 14, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 12, marginBottom: 12, minHeight: 60, textAlignVertical: 'top' }}
             />
-            <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', letterSpacing: 1, marginBottom: 8 }}>STAYS FOR</Text>
+            <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', letterSpacing: 1, marginBottom: 8 }}>{t('stays_for')}</Text>
             <View style={{ flexDirection: 'row', marginBottom: 14 }}>
               {DURATIONS.map((d) => {
                 const on = noteHours === d.h;
@@ -1528,7 +1527,7 @@ export const MapScreen = () => {
               <Image source={{ uri: (noteOpen.user && noteOpen.user.avatar_url) || AV_NEUTRAL }} style={{ width: 40, height: 40, borderRadius: 20 }} />
               <View style={{ marginLeft: 11 }}>
                 <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>{(noteOpen.user && noteOpen.user.name) || 'Explorer'} 💬</Text>
-                <Text style={{ color: C.faint, fontSize: 11, marginTop: 1 }}>dropped here · until {new Date(noteOpen.expires_at).toLocaleDateString()}</Text>
+                <Text style={{ color: C.faint, fontSize: 11, marginTop: 1 }}>{t('dropped_until').replace('{date}', new Date(noteOpen.expires_at).toLocaleDateString())}</Text>
               </View>
             </View>
             <Text style={{ color: C.text, fontSize: 15, lineHeight: 22 }}>{noteOpen.body}</Text>
@@ -1536,12 +1535,12 @@ export const MapScreen = () => {
               <View style={{ flexDirection: 'row', marginTop: 16 }}>
                 <Pressable onPress={() => openNoteEdit(noteOpen)} style={{ flex: 1, marginRight: 8 }}>
                   <View style={{ backgroundColor: C.purpleSoft, borderWidth: 1, borderColor: 'rgba(124,58,237,0.4)', borderRadius: 12, paddingVertical: 12, alignItems: 'center' }}>
-                    <Text style={{ color: C.purple, fontSize: 13.5, fontWeight: '900' }}>Edit ✏️</Text>
+                    <Text style={{ color: C.purple, fontSize: 13.5, fontWeight: '900' }}>{t('edit_pencil')}</Text>
                   </View>
                 </Pressable>
                 <Pressable onPress={() => removeNote(noteOpen)} style={{ flex: 1 }}>
                   <View style={{ backgroundColor: C.coralSoft, borderWidth: 1, borderColor: 'rgba(244,63,94,0.4)', borderRadius: 12, paddingVertical: 12, alignItems: 'center' }}>
-                    <Text style={{ color: C.coral, fontSize: 13.5, fontWeight: '900' }}>Remove 🗑️</Text>
+                    <Text style={{ color: C.coral, fontSize: 13.5, fontWeight: '900' }}>{t('remove_bin')}</Text>
                   </View>
                 </Pressable>
               </View>
@@ -1555,10 +1554,10 @@ export const MapScreen = () => {
         <Pressable onPress={() => setNoteEdit(null)} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end', zIndex: 32 }}>
           <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, paddingBottom: insets.bottom + 22, paddingHorizontal: 16 }}>
             <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 12 }} />
-            <Text style={{ color: C.text, fontSize: 18, fontWeight: '900', marginBottom: 10 }}>Edit note ✏️</Text>
+            <Text style={{ color: C.text, fontSize: 18, fontWeight: '900', marginBottom: 10 }}>{t('edit_note')}</Text>
             <TextInput value={noteEditBody} onChangeText={setNoteEditBody} multiline
               style={{ color: C.text, fontSize: 14, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 12, marginBottom: 12, minHeight: 60, textAlignVertical: 'top' }} />
-            <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', letterSpacing: 1, marginBottom: 8 }}>RESET DURATION TO</Text>
+            <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', letterSpacing: 1, marginBottom: 8 }}>{t('reset_duration')}</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 14 }}>
               {DURATIONS.map((d) => {
                 const on = noteEditHours === d.h;
@@ -1573,7 +1572,7 @@ export const MapScreen = () => {
             </View>
             <Pressable onPress={saveNoteEdit}>
               <View style={{ backgroundColor: noteEditBody.trim() ? C.purple : C.glassHi, borderRadius: 14, paddingVertical: 14, alignItems: 'center' }}>
-                <Text style={{ color: noteEditBody.trim() ? '#FFF' : C.faint, fontSize: 14, fontWeight: '900' }}>Save changes</Text>
+                <Text style={{ color: noteEditBody.trim() ? '#FFF' : C.faint, fontSize: 14, fontWeight: '900' }}>{t('save_changes')}</Text>
               </View>
             </Pressable>
           </Pressable>
@@ -1598,7 +1597,7 @@ export const MapScreen = () => {
             <Text style={{ color: C.text, fontSize: 13.5, lineHeight: 21, marginTop: 10 }}>{eventOpen.desc}</Text>
             <Pressable onPress={() => { tapLight(); Linking.openURL(eventOpen.link).catch(() => {}); }} style={{ marginTop: 16 }}>
               <View style={{ backgroundColor: C.purple, borderRadius: 14, paddingVertical: 13, alignItems: 'center' }}>
-                <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '900' }}>Learn more ↗</Text>
+                <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '900' }}>{t('learn_more')}</Text>
               </View>
             </Pressable>
           </Pressable>
@@ -1611,9 +1610,9 @@ export const MapScreen = () => {
           <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, paddingBottom: insets.bottom + 22, paddingHorizontal: 16 }}>
             <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 12 }} />
             <Text style={{ color: C.text, fontSize: 18, fontWeight: '900', marginBottom: 10 }}>{t('manage_campfire')}</Text>
-            <TextInput value={fireTitle} onChangeText={setFireTitle} placeholder="Title" placeholderTextColor={C.faint}
+            <TextInput value={fireTitle} onChangeText={setFireTitle} placeholder={t('title_placeholder')} placeholderTextColor={C.faint}
               style={{ color: C.text, fontSize: 14, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 12, marginBottom: 12 }} />
-            <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', letterSpacing: 1, marginBottom: 8 }}>STAYS LIVE FOR</Text>
+            <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', letterSpacing: 1, marginBottom: 8 }}>{t('stays_live_for')}</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 14 }}>
               {DURATIONS.map((d) => {
                 const on = fireHours === d.h;
@@ -1628,12 +1627,12 @@ export const MapScreen = () => {
             </View>
             <Pressable onPress={saveCampfire}>
               <View style={{ backgroundColor: fireTitle.trim() ? C.purple : C.glassHi, borderRadius: 14, paddingVertical: 14, alignItems: 'center' }}>
-                <Text style={{ color: fireTitle.trim() ? '#FFF' : C.faint, fontSize: 14, fontWeight: '900' }}>Save changes</Text>
+                <Text style={{ color: fireTitle.trim() ? '#FFF' : C.faint, fontSize: 14, fontWeight: '900' }}>{t('save_changes')}</Text>
               </View>
             </Pressable>
             <Pressable onPress={endCampfireNow} style={{ marginTop: 10 }}>
               <View style={{ backgroundColor: C.coralSoft, borderWidth: 1, borderColor: 'rgba(244,63,94,0.4)', borderRadius: 14, paddingVertical: 13, alignItems: 'center' }}>
-                <Text style={{ color: C.coral, fontSize: 13.5, fontWeight: '900' }}>End this campfire 🗑️</Text>
+                <Text style={{ color: C.coral, fontSize: 13.5, fontWeight: '900' }}>{t('end_campfire')}</Text>
               </View>
             </Pressable>
           </Pressable>
@@ -1648,16 +1647,16 @@ export const MapScreen = () => {
             {partnerSent ? (
               <View style={{ alignItems: 'center', paddingVertical: 14 }}>
                 <Text style={{ fontSize: 34 }}>🎉</Text>
-                <Text style={{ color: C.text, fontSize: 17, fontWeight: '900', marginTop: 8 }}>Application in!</Text>
+                <Text style={{ color: C.text, fontSize: 17, fontWeight: '900', marginTop: 8 }}>{t('application_in')}</Text>
                 <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 6, textAlign: 'center', lineHeight: 18 }}>
-                  Our crew reviews every venue (quality over quantity). You'll hear back within 48h.
+                  {t('application_hint')}
                 </Text>
               </View>
             ) : (
               <View>
                 <Text style={{ color: C.text, fontSize: 18, fontWeight: '900' }}>{t('put_place_on_moments')}</Text>
                 <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 6, lineHeight: 19 }}>
-                  Restaurants, cafés, courts & venues — get a pin on the map and take bookings straight from the people around you.
+                  {t('venue_pitch')}
                 </Text>
                 <View style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 14, padding: 13, marginTop: 12 }}>
                   {[
@@ -1674,7 +1673,7 @@ export const MapScreen = () => {
                 </View>
 
                 <TextInput
-                  placeholder="Venue or business name"
+                  placeholder={t('venue_name_placeholder')}
                   placeholderTextColor={C.faint}
                   value={vName}
                   onChangeText={setVName}
@@ -1690,14 +1689,14 @@ export const MapScreen = () => {
                   ))}
                 </View>
                 <TextInput
-                  placeholder="What's the offer? (e.g. Padel court, 4 players)"
+                  placeholder={t('venue_offer_placeholder')}
                   placeholderTextColor={C.faint}
                   value={vSub}
                   onChangeText={setVSub}
                   style={{ color: C.text, fontSize: 13, backgroundColor: '#FFF', borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginTop: 9 }}
                 />
                 <TextInput
-                  placeholder="Price (e.g. E£220/hr)"
+                  placeholder={t('venue_price_placeholder')}
                   placeholderTextColor={C.faint}
                   value={vPrice}
                   onChangeText={setVPrice}
@@ -1747,11 +1746,11 @@ export const MapScreen = () => {
             {/* real moments shared here — photos & videos, straight from
                 the feed, whenever someone posted from this exact spot */}
             {placePosts === null ? (
-              <Text style={{ color: C.faint, fontSize: 11.5, textAlign: 'center', marginTop: 16 }}>Looking for moments here…</Text>
+              <Text style={{ color: C.faint, fontSize: 11.5, textAlign: 'center', marginTop: 16 }}>{t('looking_for_moments')}</Text>
             ) : placePosts.length ? (
               <>
                 <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '800', letterSpacing: 1, marginTop: 18, marginBottom: 10 }}>
-                  📸 MOMENTS HERE · {placePosts.length}
+                  {t('moments_here').replace('{n}', placePosts.length)}
                 </Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                   {placePosts.map((p) => {
@@ -1787,12 +1786,12 @@ export const MapScreen = () => {
               </>
             ) : SUPABASE_READY ? (
               <Text style={{ color: C.faint, fontSize: 11.5, textAlign: 'center', marginTop: 16 }}>
-                No moments here yet — post from this spot to be the first ✨
+                {t('no_moments_here')}
               </Text>
             ) : null}
 
             <Text style={{ color: C.faint, fontSize: 10.5, textAlign: 'center', marginTop: 14 }}>
-              Real place · OpenStreetMap — deals open Waffarha with your referral tracked
+              {t('place_attribution')}
             </Text>
           </Pressable>
         </Pressable>
@@ -1838,13 +1837,13 @@ export const MapScreen = () => {
                       {nearEnough ? (
                         <Pressable onPress={() => uberTo(destOpen)} style={{ flex: 1, marginRight: 10 }}>
                           <View style={{ backgroundColor: '#111827', borderRadius: 14, paddingVertical: 13, alignItems: 'center' }}>
-                            <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '900' }}>🚗 Uber there</Text>
+                            <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '900' }}>{t('uber_there')}</Text>
                           </View>
                         </Pressable>
                       ) : (
                         <Pressable onPress={() => { tapLight(); setTripOpen((o) => !o); }} style={{ flex: 1, marginRight: 10 }}>
                           <View style={{ backgroundColor: C.purple, borderRadius: 14, paddingVertical: 13, alignItems: 'center' }}>
-                            <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '900' }}>🧳 Book this trip</Text>
+                            <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '900' }}>{t('book_this_trip')}</Text>
                           </View>
                         </Pressable>
                       )}
@@ -1864,33 +1863,33 @@ export const MapScreen = () => {
                   {tripSent ? (
                     <View style={{ alignItems: 'center', paddingVertical: 10 }}>
                       <Text style={{ fontSize: 32 }}>🎉</Text>
-                      <Text style={{ color: C.text, fontSize: 15, fontWeight: '900', marginTop: 8 }}>Trip request received!</Text>
+                      <Text style={{ color: C.text, fontSize: 15, fontWeight: '900', marginTop: 8 }}>{t('trip_request_received')}</Text>
                       <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 5, textAlign: 'center', lineHeight: 18 }}>
-                        Our crew will call you within 24h to plan {destOpen.name} — dates, group, budget, everything.
+                        {t('trip_request_hint').replace('{place}', destOpen.name)}
                       </Text>
                     </View>
                   ) : (
                     <>
-                      <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '900' }}>Plan my trip to {destOpen.name} {destOpen.flag}</Text>
+                      <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '900' }}>{t('plan_my_trip').replace('{place}', destOpen.name)} {destOpen.flag}</Text>
                       <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 3, marginBottom: 10 }}>
-                        Fill this in — we arrange transport, stay & guides, then call you to confirm.
+                        {t('trip_form_hint')}
                       </Text>
-                      <TextInput placeholder="Your full name" placeholderTextColor={C.faint} value={tripName} onChangeText={setTripName}
+                      <TextInput placeholder={t('full_name_placeholder')} placeholderTextColor={C.faint} value={tripName} onChangeText={setTripName}
                         style={{ color: C.text, fontSize: 13, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 8 }} />
-                      <TextInput placeholder="Phone (WhatsApp) e.g. +20…" placeholderTextColor={C.faint} value={tripPhone} onChangeText={setTripPhone} keyboardType="phone-pad"
+                      <TextInput placeholder={t('phone_placeholder')} placeholderTextColor={C.faint} value={tripPhone} onChangeText={setTripPhone} keyboardType="phone-pad"
                         style={{ color: C.text, fontSize: 13, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 8 }} />
                       <View style={{ flexDirection: 'row', marginBottom: 8 }}>
-                        <TextInput placeholder="When? (e.g. 20 Aug)" placeholderTextColor={C.faint} value={tripDate} onChangeText={setTripDate}
+                        <TextInput placeholder={t('when_placeholder')} placeholderTextColor={C.faint} value={tripDate} onChangeText={setTripDate}
                           style={{ flex: 1, color: C.text, fontSize: 13, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginRight: 8 }} />
-                        <TextInput placeholder="People" placeholderTextColor={C.faint} value={tripPeople} onChangeText={setTripPeople} keyboardType="number-pad" maxLength={2}
+                        <TextInput placeholder={t('people_placeholder')} placeholderTextColor={C.faint} value={tripPeople} onChangeText={setTripPeople} keyboardType="number-pad" maxLength={2}
                           style={{ width: 86, color: C.text, fontSize: 13, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10 }} />
                       </View>
-                      <TextInput placeholder="Anything else? (budget, camping vs hotel…)" placeholderTextColor={C.faint} value={tripNotes} onChangeText={setTripNotes}
+                      <TextInput placeholder={t('anything_else_placeholder')} placeholderTextColor={C.faint} value={tripNotes} onChangeText={setTripNotes}
                         style={{ color: C.text, fontSize: 13, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 8 }} />
                       {tripErr ? <Text style={{ color: C.coral, fontSize: 11.5, textAlign: 'center', marginBottom: 8 }}>{tripErr}</Text> : null}
                       <Pressable onPress={submitTrip}>
                         <View style={{ backgroundColor: tripName.trim() && tripPhone.trim() ? C.purple : C.glassHi, borderRadius: 12, paddingVertical: 13, alignItems: 'center' }}>
-                          <Text style={{ color: tripName.trim() && tripPhone.trim() ? '#FFF' : C.faint, fontSize: 13.5, fontWeight: '900' }}>Send trip request 🧳</Text>
+                          <Text style={{ color: tripName.trim() && tripPhone.trim() ? '#FFF' : C.faint, fontSize: 13.5, fontWeight: '900' }}>{t('send_trip_request')}</Text>
                         </View>
                       </Pressable>
                     </>
@@ -1900,7 +1899,7 @@ export const MapScreen = () => {
 
               {/* community feedback — real reviews, written right here */}
               <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '800', letterSpacing: 1, marginTop: 20, marginBottom: 8 }}>
-                COMMUNITY FEEDBACK
+                {t('community_feedback')}
                 {destReviews && destReviews.length
                   ? ' · ⭐ ' + (destReviews.reduce((s, r) => s + r.stars, 0) / destReviews.length).toFixed(1) + ' (' + destReviews.length + ')'
                   : ''}
@@ -1915,14 +1914,14 @@ export const MapScreen = () => {
                   ))}
                 </View>
                 <TextInput
-                  placeholder="Been here? Tell the crew how it was…"
+                  placeholder={t('feedback_placeholder')}
                   placeholderTextColor={C.faint}
                   value={revText}
                   onChangeText={setRevText}
                   style={{ color: C.text, fontSize: 13, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10 }}
                 />
                 {revErr ? <Text style={{ color: C.coral, fontSize: 11.5, textAlign: 'center', marginTop: 8 }}>{revErr}</Text> : null}
-                {revSaved ? <Text style={{ color: C.green, fontSize: 11.5, fontWeight: '800', textAlign: 'center', marginTop: 8 }}>Feedback saved — thank you! 🙌</Text> : null}
+                {revSaved ? <Text style={{ color: C.green, fontSize: 11.5, fontWeight: '800', textAlign: 'center', marginTop: 8 }}>{t('feedback_saved')}</Text> : null}
                 <Pressable onPress={submitReview} style={{ marginTop: 10 }}>
                   <View style={{ backgroundColor: revStars ? C.purple : C.glassHi, borderRadius: 12, paddingVertical: 11, alignItems: 'center' }}>
                     <Text style={{ color: revStars ? '#FFF' : C.faint, fontSize: 13, fontWeight: '900' }}>{t('leave_feedback')}</Text>
@@ -1931,9 +1930,9 @@ export const MapScreen = () => {
               </Glass>
 
               {destReviews === null ? (
-                <Text style={{ color: C.faint, fontSize: 12, textAlign: 'center', paddingVertical: 14 }}>Loading reviews…</Text>
+                <Text style={{ color: C.faint, fontSize: 12, textAlign: 'center', paddingVertical: 14 }}>{t('loading_reviews')}</Text>
               ) : destReviews.length === 0 ? (
-                <Text style={{ color: C.faint, fontSize: 12, textAlign: 'center', paddingVertical: 14 }}>No feedback yet — be the first explorer to rate it ✨</Text>
+                <Text style={{ color: C.faint, fontSize: 12, textAlign: 'center', paddingVertical: 14 }}>{t('no_feedback')}</Text>
               ) : (
                 destReviews.slice(0, 8).map((r) => (
                   <View key={r.id} style={{ flexDirection: 'row', marginTop: 12 }}>
@@ -1976,7 +1975,7 @@ export const MapScreen = () => {
 
             {shotOpen.kind === 'story' ? (
               <View style={{ position: 'absolute', top: insets.top + 18, alignSelf: 'center', backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 4 }}>
-                <Text style={{ color: '#FFF', fontSize: 10.5, fontWeight: '900', letterSpacing: 1 }}>LIVE STORY</Text>
+                <Text style={{ color: '#FFF', fontSize: 10.5, fontWeight: '900', letterSpacing: 1 }}>{t('live_story')}</Text>
               </View>
             ) : null}
 
