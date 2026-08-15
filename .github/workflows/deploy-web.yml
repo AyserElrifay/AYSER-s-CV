@@ -57,6 +57,12 @@ jobs:
       # exist only in English and Arabic without anybody noticing.
       - name: Check every language says everything
         run: node scripts/check-i18n.mjs
+      # `t` is the translator. Where a component already had a prop
+      # called t — a track, a tag — calling t('key') binds to that
+      # instead and throws the first time that branch renders. The build
+      # is happy either way, which is exactly why this is checked.
+      - name: Check t is always the translator
+        run: node scripts/check-shadowed-t.mjs
       - name: Export web bundle
         run: npx expo export --platform web --output-dir dist
       - name: Inject PWA manifest + Open Graph tags

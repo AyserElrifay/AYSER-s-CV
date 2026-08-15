@@ -52,7 +52,34 @@ for (const code of codes) {
   }
 }
 
-if (problems.length || suspicious.length) {
+/* ─── A WORD FROM THE WRONG LANGUAGE ──────────────────────────────
+   Twice while filling these in I pasted one language's word into
+   another's sentence: Russian into the middle of a Japanese line, and
+   "música" into a different Japanese one. Both read as normal text to
+   anybody who does not speak the language, and both would have shipped.
+
+   Languages written in another script have no business containing Latin
+   words, apart from names the app uses everywhere. */
+const OTHER_SCRIPT = new Set(['ar', 'ru', 'zh', 'ko', 'ja']);
+/* Names the app uses everywhere, plus words that really are borrowed
+   into these languages as-is: Email in Russian, Vlog in Chinese, and
+   the YYYY-MM-DD of a date format. */
+const BRANDS = /^(Moments|Lamma|Bardi|Vibe|CC0|OK|SF|SOS|WhatsApp|Instagram|TikTok|Snapchat|YouTube|Uber|OpenStreetMap|Waffarha|Supabase|Ayser|reel|reels|Email|Vlog|YYYY|MM|DD)$/i;
+const strays = [];
+for (const code of codes) {
+  if (!OTHER_SCRIPT.has(code)) continue;
+  const dict = STRINGS[code] || {};
+  for (const [k, v] of Object.entries(dict)) {
+    if (typeof v !== 'string') continue;
+    // {name}, {total}, {date} are placeholders the code fills in — they
+    // are Latin on purpose and are not text anybody reads.
+    const words = v.replace(/\{[^}]*\}/g, ' ').match(/[A-Za-z\u00C0-\u024F]{3,}/g) || [];
+    const odd = words.filter((w) => !BRANDS.test(w));
+    if (odd.length) strays.push(code + '.' + k + '  → ' + odd.join(', ') + '   in "' + v.slice(0, 40) + '…"');
+  }
+}
+
+if (problems.length || suspicious.length || strays.length) {
   for (const p of problems) {
     if (p.missing.length) {
       console.log('\n' + p.code + ' is missing ' + p.missing.length + ' key(s):');
@@ -62,6 +89,10 @@ if (problems.length || suspicious.length) {
       console.log('\n' + p.code + ' has ' + p.extra.length + ' key(s) English does not:');
       console.log('  ' + p.extra.slice(0, 12).join(', ') + (p.extra.length > 12 ? ', …' : ''));
     }
+  }
+  if (strays.length) {
+    console.log('\nWords from another language, in ' + strays.length + ' place(s):');
+    strays.slice(0, 20).forEach((x) => console.log('  ' + x));
   }
   if (suspicious.length) {
     console.log('\nStill word-for-word English in ' + suspicious.length + ' place(s):');

@@ -16,6 +16,7 @@ import {
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
 import { sfxPop } from '../utils/sfx';
 import { useStable } from '../hooks/useStable';
+import { useLang } from '../context/LanguageContext';
 
 /* ── MUSIC ──────────────────────────────────────────────────────────
    A place to listen, not a place to manage a catalogue.
@@ -70,6 +71,7 @@ const Cover = ({ track, size = 52, radius = 8 }) => {
 export const MusicHubSheet = ({ onPick, onClose }) => {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { t } = useLang();
   const { playTrack, current, playing } = usePlayer();
 
   const [tab, setTab] = useState('browse');      // browse | search | library
@@ -227,11 +229,11 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
   const shelfTracks = (id) => all.filter((t) => String(t.mood || '').toLowerCase().includes(id.toLowerCase()));
 
   /* ── one track row ── */
-  const Row = useStable(({ t, list, onRemove }) => {
-    const isNow = current && current.id === t.id;
+  const Row = useStable(({ t: track, list, onRemove }) => {
+    const isNow = current && current.id === track.id;
     return (
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8 }}>
-        <Pressable onPress={() => play(t, list)} style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+        <Pressable onPress={() => play(track, list)} style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
           <View>
             <Cover track={t} />
             {/* a play/pause you can see, not a row you have to guess is
@@ -247,32 +249,32 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
           </View>
           <View style={{ flex: 1, marginLeft: 12, marginRight: 8 }}>
             <Text numberOfLines={1} style={{ color: isNow ? C.purple : C.text, fontSize: 14.5, fontWeight: '800' }}>
-              {t.title || 'Untitled'}
+              {track.title || 'Untitled'}
             </Text>
             <Text numberOfLines={1} style={{ color: C.faint, fontSize: 12, marginTop: 2 }}>
-              {(t.artist || 'Unknown') + (t.license ? ' · ' + t.license : '')}
+              {(track.artist || 'Unknown') + (track.license ? ' · ' + track.license : '')}
             </Text>
           </View>
         </Pressable>
 
-        <Pressable onPress={() => toggleLike(t)} hitSlop={8} style={{ paddingHorizontal: 6 }}>
-          <Ionicons name={saved.has(t.id) ? 'heart' : 'heart-outline'} size={19} color={saved.has(t.id) ? C.purple : C.dim} />
+        <Pressable onPress={() => toggleLike(track)} hitSlop={8} style={{ paddingHorizontal: 6 }}>
+          <Ionicons name={saved.has(track.id) ? 'heart' : 'heart-outline'} size={19} color={saved.has(track.id) ? C.purple : C.dim} />
         </Pressable>
         {onRemove ? (
           <Pressable onPress={onRemove} hitSlop={8} style={{ paddingHorizontal: 6 }}>
             <Ionicons name="remove-circle-outline" size={19} color={C.dim} />
           </Pressable>
         ) : (
-          <Pressable onPress={() => { tapLight(); setPicker(t); }} hitSlop={8} style={{ paddingHorizontal: 6 }}>
+          <Pressable onPress={() => { tapLight(); setPicker(track); }} hitSlop={8} style={{ paddingHorizontal: 6 }}>
             <Ionicons name="add" size={20} color={C.dim} />
           </Pressable>
         )}
         {onPick ? (
           <Pressable
-            onPress={() => { tapSuccess(); incrementTrackUse(t.id).catch(() => {}); onPick(t); }}
+            onPress={() => { tapSuccess(); incrementTrackUse(track.id).catch(() => {}); onPick(track); }}
             style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 7, marginLeft: 4 }}
           >
-            <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '900' }}>Use</Text>
+            <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '900' }}>{t('use_track')}</Text>
           </Pressable>
         ) : null}
       </View>
@@ -298,14 +300,14 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
         </View>
 
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingTop: 6 }}>
-          <Text style={{ color: C.text, fontSize: 21, fontWeight: '900', flex: 1 }}>Music</Text>
+          <Text style={{ color: C.text, fontSize: 21, fontWeight: '900', flex: 1 }}>{t('music')}</Text>
           <Pressable onPress={onClose} hitSlop={8}><Ionicons name="close" size={20} color={C.dim} /></Pressable>
         </View>
 
         <View style={{ flexDirection: 'row', paddingHorizontal: 18, paddingTop: 8, paddingBottom: 4 }}>
-          <Tab id="browse" icon="grid-outline" label="Browse" />
-          <Tab id="search" icon="search-outline" label="Search" />
-          <Tab id="library" icon="library-outline" label="Your library" />
+          <Tab id="browse" icon="grid-outline" label={t('browse')} />
+          <Tab id="search" icon="search-outline" label={t('search')} />
+          <Tab id="library" icon="library-outline" label={t('your_library')} />
         </View>
 
         {tracks === null ? (
@@ -317,13 +319,12 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
             {tab === 'browse' ? (
               !all.length ? (
                 <Empty
-                  title="The library is still empty"
+                  title={t('library_empty')}
                   body={err || 'Tracks appear here as they are added. Nothing is invented to fill the space.'}
                 />
               ) : (<>
                 <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 12, lineHeight: 16 }}>
-                  Moments' own catalogue — out of copyright, CC0 or licensed. Anything you record
-                  yourself lives in Your library, never mixed in here.
+                  {t('catalogue_note')}
                 </Text>
 
                 {SHELVES.map((sh) => {
@@ -346,7 +347,7 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
                 <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12, marginTop: 10, marginBottom: 6 }}>
                   <Ionicons name="search" size={16} color={C.dim} />
                   <TextInput
-                    placeholder="Songs, artists, a mood…"
+                    placeholder={t('music_search_ph')}
                     placeholderTextColor={C.faint}
                     value={q} onChangeText={setQ} autoCapitalize="none"
                     style={{ flex: 1, color: C.text, fontSize: 14.5, paddingVertical: 11, marginLeft: 9 }}
@@ -355,7 +356,7 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
                 </View>
                 {!q ? (
                   <Text style={{ color: C.faint, fontSize: 12.5, textAlign: 'center', paddingVertical: 26 }}>
-                    {all.length} tracks to look through
+                    {t('tracks_to_browse').replace('{n}', all.length)}
                   </Text>
                 ) : results.length ? (
                   results.map((t) => <Row key={t.id} t={t} list={results} />)
@@ -368,16 +369,16 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
             {/* ── LIBRARY ── */}
             {tab === 'library' ? (
               !SUPABASE_READY || !user ? (
-                <Empty title="Sign in to keep music" body="Your playlists live with your account, not on this device." />
+                <Empty title={t('sign_in_for_music')} body="Your playlists live with your account, not on this device." />
               ) : (
                 <>
                 {/* on your phone */}
                 <View style={{ marginTop: 16 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <View style={{ flex: 1 }}>
-                      <Text style={{ color: C.text, fontSize: 16.5, fontWeight: '900' }}>📱 On your phone</Text>
+                      <Text style={{ color: C.text, fontSize: 16.5, fontWeight: '900' }}>{t('on_your_phone')}</Text>
                       <Text style={{ color: C.faint, fontSize: 12, marginTop: 2 }}>
-                        Record your own — yours alone until you post with it
+                        {t('record_your_own')}
                       </Text>
                     </View>
                     <Pressable onPress={addSound} disabled={upBusy}
@@ -387,46 +388,46 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
                       </Text>
                     </Pressable>
                   </View>
-                  {mine.length ? mine.map((t) => (
-                    <View key={t.id}>
-                      <Row t={t} list={mine} />
-                      {t.visibility === 'private' ? (
+                  {/* `track`, not `t` — the loop used to be called t, which
+                      hid the translator inside this whole block. */}
+                  {mine.length ? mine.map((track) => (
+                    <View key={track.id}>
+                      <Row t={track} list={mine} />
+                      {track.visibility === 'private' ? (
                         <Text style={{ color: C.faint, fontSize: 10.5, marginTop: -4, marginBottom: 6, marginLeft: 64 }}>
-                          Private — post a reel with it to share it
+                          {t('private_until_posted')}
                         </Text>
                       ) : null}
                     </View>
                   )) : (
                     <Text style={{ color: C.faint, fontSize: 12, marginTop: 10, lineHeight: 18 }}>
-                      Nothing yet. Record something — your voice, a street, a room. It has to be
-                      yours: only the microphone, never a file, so nobody's music ends up here by accident.
+                      {t('nothing_recorded')}
                     </Text>
                   )}
                   <Text style={{ color: C.faint, fontSize: 10.5, marginTop: 8, lineHeight: 15 }}>
                     {SOUND_TERMS}
                   </Text>
                   <Text style={{ color: C.faint, fontSize: 10.5, marginTop: 6, lineHeight: 15 }}>
-                    The shelves in Browse are Moments' own catalogue — out of copyright, CC0 or
-                    licensed. Your recordings are never mixed into them.
+                    {t('shelves_note')}
                   </Text>
                 </View>
 
 
                   <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 18, marginBottom: 6 }}>
                     <TextInput
-                      placeholder="New playlist…"
+                      placeholder={t('new_playlist_ph')}
                       placeholderTextColor={C.faint}
                       value={newName} onChangeText={setNewName}
                       onSubmitEditing={makeList}
                       style={{ flex: 1, color: C.text, fontSize: 14, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10 }}
                     />
                     <Pressable onPress={makeList} style={{ marginLeft: 8, backgroundColor: newName.trim() ? C.purple : C.glassHi, borderRadius: 12, paddingHorizontal: 15, paddingVertical: 11 }}>
-                      <Text style={{ color: newName.trim() ? '#FFF' : C.faint, fontSize: 13, fontWeight: '900' }}>Create</Text>
+                      <Text style={{ color: newName.trim() ? '#FFF' : C.faint, fontSize: 13, fontWeight: '900' }}>{t('create')}</Text>
                     </Pressable>
                   </View>
 
                   {!playlists.length ? (
-                    <Empty title="No playlists yet" body="Press the heart on a track and Liked Songs makes itself." />
+                    <Empty title={t('no_playlists')} body="Press the heart on a track and Liked Songs makes itself." />
                   ) : (
                     /* Two across, cover on the left, name on the right —
                        the shape every music app settled on because it
@@ -452,7 +453,7 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
                     </View>
                   )}
                   <Text style={{ color: C.faint, fontSize: 11.5, textAlign: 'center', marginTop: 6 }}>
-                    Hold a playlist to empty or delete it
+                    {t('hold_playlist_hint')}
                   </Text>
                 </>
               )
@@ -472,8 +473,8 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
         <Modal visible transparent animationType="fade" onRequestClose={() => setPicker(null)}>
           <Pressable style={{ flex: 1, backgroundColor: 'rgba(6,4,18,0.6)', justifyContent: 'center', padding: 26 }} onPress={() => setPicker(null)}>
             <Pressable onPress={() => {}} style={{ backgroundColor: C.bg2, borderRadius: R, borderWidth: 1, borderColor: C.line, padding: 16 }}>
-              <Text style={{ color: C.text, fontSize: 15.5, fontWeight: '900' }}>Save “{picker.title}”</Text>
-              <Text style={{ color: C.faint, fontSize: 12, marginTop: 3, marginBottom: 10 }}>Pick a playlist, or make one.</Text>
+              <Text style={{ color: C.text, fontSize: 15.5, fontWeight: '900' }}>{t('save_track').replace('{title}', picker.title)}</Text>
+              <Text style={{ color: C.faint, fontSize: 12, marginTop: 3, marginBottom: 10 }}>{t('pick_a_playlist')}</Text>
               {playlists.map((pl) => (
                 <Pressable key={pl.id} onPress={() => saveInto(pl.id)} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 11 }}>
                   <Text style={{ fontSize: 18, marginRight: 10 }}>{pl.emoji || '🎧'}</Text>
@@ -483,12 +484,12 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
               ))}
               <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
                 <TextInput
-                  placeholder="New playlist…" placeholderTextColor={C.faint}
+                  placeholder={t('new_playlist_ph')} placeholderTextColor={C.faint}
                   value={newName} onChangeText={setNewName} onSubmitEditing={makeList}
                   style={{ flex: 1, color: C.text, fontSize: 14, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 10, paddingHorizontal: 11, paddingVertical: 9 }}
                 />
                 <Pressable onPress={makeList} style={{ marginLeft: 8, backgroundColor: C.purple, borderRadius: 10, paddingHorizontal: 13, paddingVertical: 10 }}>
-                  <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '900' }}>Add</Text>
+                  <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '900' }}>{t('add')}</Text>
                 </Pressable>
               </View>
             </Pressable>
@@ -515,7 +516,7 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
                 }}
                 style={{ paddingVertical: 13 }}
               >
-                <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>🧹  Empty it — keep the playlist</Text>
+                <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>{t('empty_playlist')}</Text>
               </Pressable>
 
               {sheetFor.name !== 'Liked Songs' ? (
@@ -527,11 +528,11 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
                   }}
                   style={{ paddingVertical: 13 }}
                 >
-                  <Text style={{ color: C.coral, fontSize: 14, fontWeight: '800' }}>🗑  Delete the playlist</Text>
+                  <Text style={{ color: C.coral, fontSize: 14, fontWeight: '800' }}>{t('delete_playlist')}</Text>
                 </Pressable>
               ) : (
                 <Text style={{ color: C.faint, fontSize: 12, paddingVertical: 8 }}>
-                  Liked Songs stays — emptying it is the same thing.
+                  {t('liked_stays')}
                 </Text>
               )}
             </Pressable>
@@ -565,7 +566,7 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
                   />
                 ))
               ) : (
-                <Empty title="Nothing saved here yet" body="Press the heart or the + on any track." />
+                <Empty title={t('nothing_saved')} body="Press the heart or the + on any track." />
               )}
             </ScrollView>
           </View>
