@@ -30,10 +30,11 @@ for (const code of codes) {
 }
 
 /* A translation that is character-for-character the English is almost
-   always a key somebody pasted and meant to come back to. Short labels
-   and brand names genuinely do match across languages, so only longer
-   text counts — a sentence identical to the English is not a
-   coincidence. */
+   always a key somebody pasted and meant to come back to. But short
+   labels, brand names and mostly-placeholder strings genuinely do match
+   across languages — "total {total} ÷ {n}" is the same in four of
+   them — so what counts is real WORDS, not characters. Four or more,
+   and an identical string is not a coincidence. */
 const SHARED_OK = /^(Moments|Lamma|Bardi|Vibe|OK|Reels|Stack|Horror|Drama|Animation|Romance|SF)$/;
 const suspicious = [];
 for (const code of codes) {
@@ -44,7 +45,9 @@ for (const code of codes) {
     const b = dict[k];
     if (typeof a !== 'string' || typeof b !== 'string') continue;
     if (a !== b) continue;
-    if (a.length < 18 || SHARED_OK.test(a)) continue;
+    if (SHARED_OK.test(a)) continue;
+    const words = a.replace(/\{[^}]*\}/g, ' ').match(/[A-Za-z][A-Za-z'’-]{1,}/g) || [];
+    if (words.length < 4) continue;
     suspicious.push(code + '.' + k + '  "' + a.slice(0, 46) + '…"');
   }
 }

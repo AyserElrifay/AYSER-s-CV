@@ -45,7 +45,7 @@ import { setupNotice } from '../lib/plumbing';
 export const ChatThread = ({ chat, group, onClose }) => {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { lang } = useLang();   // translate into whatever the app is set to
+  const { lang, t } = useLang();   // translate into whatever the app is set to
   const peer = group ? null : chat.user;
   const title = group ? chat.name : peer.name;
   const avatarUri = group ? null : peer.avatar;
@@ -486,9 +486,9 @@ export const ChatThread = ({ chat, group, onClose }) => {
             {!visibleMsgs.length ? (
               <View style={{ alignItems: 'center', paddingTop: 40 }}>
                 <Text style={{ fontSize: 34 }}>👋</Text>
-                <Text style={{ color: C.text, fontSize: 15, fontWeight: '900', marginTop: 10 }}>Say hello</Text>
+                <Text style={{ color: C.text, fontSize: 15, fontWeight: '900', marginTop: 10 }}>{t('say_hello')}</Text>
                 <Text style={{ color: C.faint, fontSize: 12.5, marginTop: 4, textAlign: 'center', lineHeight: 18 }}>
-                  Nothing here yet — break the ice.
+                  {t('break_the_ice')}
                 </Text>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', marginTop: 14 }}>
                   {['👋 Hey!', 'أهلاً 👋', '✨ Hi — nice to meet you', '🌱 What are you up to?'].map((t) => (
@@ -544,11 +544,11 @@ export const ChatThread = ({ chat, group, onClose }) => {
                             {status === 'active' && isBoardGame(gkind) && !mine ? (
                               <Pressable onPress={() => setActiveMatch({ matchId: m.gameMatchId, kind: gkind, isHost: false, opponent: { id: peer.id, name: peer.name, avatar: peer.avatar } })}>
                                 <View style={{ backgroundColor: C.gold, borderRadius: 999, paddingVertical: 8, alignItems: 'center' }}>
-                                  <Text style={{ color: '#081226', fontSize: 12.5, fontWeight: '900' }}>Open the board</Text>
+                                  <Text style={{ color: '#081226', fontSize: 12.5, fontWeight: '900' }}>{t('open_the_board')}</Text>
                                 </View>
                               </Pressable>
                             ) : status === 'declined' ? (
-                              <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12, fontWeight: '700' }}>Declined</Text>
+                              <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12, fontWeight: '700' }}>{t('declined')}</Text>
                             ) : status === 'done' ? (
                               <Text style={{ color: myResult === 'won' ? C.gold : '#FFF', fontSize: 12.5, fontWeight: '800' }}>
                                 {myResult === 'won' ? '🏆 You won this duel' : myResult === 'lost' ? '😅 You lost this one' : '🤝 It was a tie'}
@@ -563,12 +563,12 @@ export const ChatThread = ({ chat, group, onClose }) => {
                               <View style={{ flexDirection: 'row' }}>
                                 <Pressable onPress={() => joinMatch(m.gameMatchId, gkind)} style={{ flex: 1, marginRight: 8 }}>
                                   <View style={{ backgroundColor: C.gold, borderRadius: 999, paddingVertical: 8, alignItems: 'center' }}>
-                                    <Text style={{ color: '#081226', fontSize: 12.5, fontWeight: '900' }}>Join</Text>
+                                    <Text style={{ color: '#081226', fontSize: 12.5, fontWeight: '900' }}>{t('join')}</Text>
                                   </View>
                                 </Pressable>
                                 <Pressable onPress={() => declineMatch(m.gameMatchId)} style={{ flex: 1 }}>
                                   <View style={{ backgroundColor: 'rgba(255,255,255,0.14)', borderRadius: 999, paddingVertical: 8, alignItems: 'center' }}>
-                                    <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '900' }}>Decline</Text>
+                                    <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '900' }}>{t('decline')}</Text>
                                   </View>
                                 </Pressable>
                               </View>
@@ -644,7 +644,7 @@ export const ChatThread = ({ chat, group, onClose }) => {
               return (
                 <View style={{ alignItems: 'center', paddingVertical: 22, paddingHorizontal: 24 }}>
                   <Text style={{ color: C.text, fontSize: 15, fontWeight: '900', textAlign: 'center', lineHeight: 22 }}>
-                    Follow {name} and you'll find them straight away in the "Following" list on your profile.
+                    {t('follow_hint').replace('{name}', name)}
                   </Text>
                   <Pressable
                     onPress={async () => {
@@ -655,11 +655,11 @@ export const ChatThread = ({ chat, group, onClose }) => {
                     style={{ marginTop: 14 }}
                   >
                     <View style={{ backgroundColor: C.purple, borderRadius: 16, paddingHorizontal: 40, paddingVertical: 13 }}>
-                      <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '900' }}>Follow</Text>
+                      <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '900' }}>{t('follow')}</Text>
                     </View>
                   </Pressable>
                   <Pressable onPress={() => { tapLight(); setFollowAsked(true); }} style={{ marginTop: 10 }}>
-                    <Text style={{ color: C.faint, fontSize: 12.5, fontWeight: '700' }}>Not now</Text>
+                    <Text style={{ color: C.faint, fontSize: 12.5, fontWeight: '700' }}>{t('not_now')}</Text>
                   </Pressable>
                 </View>
               );
@@ -672,7 +672,7 @@ export const ChatThread = ({ chat, group, onClose }) => {
           {/* disappearing-messages picker */}
           {ttlOpen ? (
             <View style={{ position: 'absolute', top: 4, right: 12, backgroundColor: '#FFF', borderRadius: 16, borderWidth: 1, borderColor: C.line, padding: 6, zIndex: 20, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 14, shadowOffset: { width: 0, height: 6 } }}>
-              <Text style={{ color: C.faint, fontSize: 10.5, fontWeight: '800', letterSpacing: 1, paddingHorizontal: 12, paddingTop: 8, paddingBottom: 4 }}>DISAPPEARING MESSAGES ⏳</Text>
+              <Text style={{ color: C.faint, fontSize: 10.5, fontWeight: '800', letterSpacing: 1, paddingHorizontal: 12, paddingTop: 8, paddingBottom: 4 }}>{t('disappearing_messages')}</Text>
               {TTL_OPTIONS.map((o) => (
                 <Pressable key={String(o.h)} onPress={() => pickTtl(o.h)}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10 }}>
@@ -682,7 +682,7 @@ export const ChatThread = ({ chat, group, onClose }) => {
                 </Pressable>
               ))}
               <Text style={{ color: C.faint, fontSize: 10, paddingHorizontal: 12, paddingBottom: 8, maxWidth: 200 }}>
-                Older messages are really deleted for both of you — not just hidden.
+                {t('disappearing_hint')}
               </Text>
             </View>
           ) : null}
@@ -696,7 +696,7 @@ export const ChatThread = ({ chat, group, onClose }) => {
               {isReal && !group ? (
                 <>
                   <Text style={{ color: C.faint, fontSize: 10, fontWeight: '900', letterSpacing: 0.8, paddingHorizontal: 12, paddingTop: 6, paddingBottom: 4 }}>
-                    PLAY TOGETHER
+                    {t('play_together')}
                   </Text>
                   {BOARD_GAMES.map((g) => (
                     <Pressable key={g.id} onPress={() => { tapLight(); setMenu(false); inviteToMatch(g.id); }}>
@@ -711,7 +711,7 @@ export const ChatThread = ({ chat, group, onClose }) => {
                   ))}
                   <View style={{ height: 1, backgroundColor: C.line, marginHorizontal: 10, marginVertical: 4 }} />
                   <Text style={{ color: C.faint, fontSize: 10, fontWeight: '900', letterSpacing: 0.8, paddingHorizontal: 12, paddingBottom: 4 }}>
-                    ON YOUR OWN TURN
+                    {t('on_your_own_turn')}
                   </Text>
                 </>
               ) : null}
@@ -719,8 +719,8 @@ export const ChatThread = ({ chat, group, onClose }) => {
                 <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 11 }}>
                   <Text style={{ fontSize: 20 }}>🎲</Text>
                   <View style={{ marginLeft: 10 }}>
-                    <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>Truth or Dare</Text>
-                    <Text style={{ color: C.faint, fontSize: 11 }}>Play it right here</Text>
+                    <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>{t('tod_title')}</Text>
+                    <Text style={{ color: C.faint, fontSize: 11 }}>{t('tod_hint')}</Text>
                   </View>
                 </View>
               </Pressable>
@@ -729,8 +729,8 @@ export const ChatThread = ({ chat, group, onClose }) => {
                 <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 11 }}>
                   <Text style={{ fontSize: 20 }}>🤔</Text>
                   <View style={{ marginLeft: 10 }}>
-                    <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>Would You Rather</Text>
-                    <Text style={{ color: C.faint, fontSize: 11 }}>Pick a side, see the split</Text>
+                    <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>{t('wyr_title')}</Text>
+                    <Text style={{ color: C.faint, fontSize: 11 }}>{t('wyr_hint')}</Text>
                   </View>
                 </View>
               </Pressable>
@@ -739,8 +739,8 @@ export const ChatThread = ({ chat, group, onClose }) => {
                 <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 11 }}>
                   <Text style={{ fontSize: 20 }}>🧾</Text>
                   <View style={{ marginLeft: 10 }}>
-                    <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>Split a bill</Text>
-                    <Text style={{ color: C.faint, fontSize: 11 }}>Share the total fairly, send it here</Text>
+                    <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>{t('split_bill')}</Text>
+                    <Text style={{ color: C.faint, fontSize: 11 }}>{t('split_bill_hint')}</Text>
                   </View>
                 </View>
               </Pressable>
@@ -751,8 +751,8 @@ export const ChatThread = ({ chat, group, onClose }) => {
                     <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 11 }}>
                       <Text style={{ fontSize: 20 }}>🏃</Text>
                       <View style={{ marginLeft: 10 }}>
-                        <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>Catch Your Mate</Text>
-                        <Text style={{ color: C.faint, fontSize: 11 }}>Real-time duel — 45 seconds, live</Text>
+                        <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>{t('duel_title')}</Text>
+                        <Text style={{ color: C.faint, fontSize: 11 }}>{t('duel_hint')}</Text>
                       </View>
                     </View>
                   </Pressable>
@@ -768,9 +768,9 @@ export const ChatThread = ({ chat, group, onClose }) => {
               <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(245,158,11,0.14)', borderTopWidth: 1, borderTopColor: 'rgba(245,158,11,0.35)', paddingHorizontal: 14, paddingVertical: 9 }}>
                 <Text style={{ fontSize: 15 }}>⏳</Text>
                 <Text style={{ color: '#B45309', fontSize: 12.5, fontWeight: '800', marginLeft: 8, flex: 1 }}>
-                  Keep your {streak.n}-day streak 🔥 — send a Moment today{streak.hoursLeft > 0 ? ' · ' + streak.hoursLeft + 'h left' : ''}
+                  {t('keep_streak').replace('{n}', streak.n)}{streak.hoursLeft > 0 ? ' · ' + t('hours_left').replace('{n}', streak.hoursLeft) : ''}
                 </Text>
-                <Text style={{ color: '#B45309', fontSize: 12, fontWeight: '900' }}>Send →</Text>
+                <Text style={{ color: '#B45309', fontSize: 12, fontWeight: '900' }}>{t('send_arrow')}</Text>
               </View>
             </Pressable>
           ) : null}
@@ -788,10 +788,12 @@ export const ChatThread = ({ chat, group, onClose }) => {
           {!threadOpen && !group ? (
             <View style={{ backgroundColor: C.purpleSoft, borderTopWidth: 1, borderTopColor: 'rgba(124,58,237,0.3)', paddingHorizontal: 14, paddingVertical: 12 }}>
               <Text style={{ color: C.text, fontSize: 13, fontWeight: '800' }}>
-                {(peer && peer.name ? peer.name.split(' ')[0] : 'They')} want{peer && peer.name ? 's' : ''} to talk to you
+                {peer && peer.name
+                  ? t('wants_to_talk').replace('{name}', peer.name.split(' ')[0])
+                  : t('someone_wants_to_talk')}
               </Text>
               <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 3, lineHeight: 17 }}>
-                You've not spoken before. They can't send photos or start a game until you accept.
+                {t('not_spoken_hint')}
               </Text>
               <View style={{ flexDirection: 'row', marginTop: 10 }}>
                 <Pressable
@@ -802,7 +804,7 @@ export const ChatThread = ({ chat, group, onClose }) => {
                   style={{ flex: 1, marginRight: 8 }}
                 >
                   <View style={{ backgroundColor: C.purple, borderRadius: 12, paddingVertical: 10, alignItems: 'center' }}>
-                    <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900' }}>Accept</Text>
+                    <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900' }}>{t('accept')}</Text>
                   </View>
                 </Pressable>
                 <Pressable
@@ -814,7 +816,7 @@ export const ChatThread = ({ chat, group, onClose }) => {
                   style={{ flex: 1 }}
                 >
                   <View style={{ backgroundColor: C.glassHi, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingVertical: 10, alignItems: 'center' }}>
-                    <Text style={{ color: C.dim, fontSize: 13, fontWeight: '900' }}>Not now</Text>
+                    <Text style={{ color: C.dim, fontSize: 13, fontWeight: '900' }}>{t('not_now')}</Text>
                   </View>
                 </Pressable>
               </View>
@@ -840,7 +842,7 @@ export const ChatThread = ({ chat, group, onClose }) => {
             ) : null}
             <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: C.bg, borderRadius: 22, borderWidth: 1, borderColor: C.line, paddingHorizontal: 14, paddingVertical: Platform.OS === 'ios' ? 10 : 3 }}>
               <TextInput
-                placeholder="Message…"
+                placeholder={t('message_placeholder')}
                 placeholderTextColor={C.faint}
                 value={draft}
                 onChangeText={setDraft}
@@ -918,7 +920,7 @@ export const ChatThread = ({ chat, group, onClose }) => {
             </Pressable>
             <Pressable onPress={() => saveSnap(viewMoment.mediaUrl, viewMoment.mediaKind)} style={{ position: 'absolute', bottom: insets.bottom + 26, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 999, paddingHorizontal: 20, paddingVertical: 11 }} hitSlop={8}>
               <Ionicons name="download-outline" size={18} color="#FFF" />
-              <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '900', marginLeft: 7 }}>Save</Text>
+              <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '900', marginLeft: 7 }}>{t('save')}</Text>
             </Pressable>
           </Pressable>
         </Modal>
@@ -930,10 +932,10 @@ export const ChatThread = ({ chat, group, onClose }) => {
           <Pressable onPress={() => setSplitOn(false)} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
             <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: insets.bottom + 22 }}>
               <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 14 }} />
-              <Text style={{ color: C.text, fontSize: 18, fontWeight: '900' }}>Split a bill 🧾</Text>
-              <Text style={{ color: C.faint, fontSize: 12, marginTop: 3, marginBottom: 14 }}>Split the total fairly and drop it in the chat.</Text>
+              <Text style={{ color: C.text, fontSize: 18, fontWeight: '900' }}>{t('split_sheet_title')}</Text>
+              <Text style={{ color: C.faint, fontSize: 12, marginTop: 3, marginBottom: 14 }}>{t('split_sheet_hint')}</Text>
 
-              <Text style={{ color: C.dim, fontSize: 12, fontWeight: '700', marginBottom: 6 }}>Total amount</Text>
+              <Text style={{ color: C.dim, fontSize: 12, fontWeight: '700', marginBottom: 6 }}>{t('total_amount')}</Text>
               <TextInput
                 placeholder="e.g. 800" placeholderTextColor={C.faint} value={splitTotal} onChangeText={setSplitTotal}
                 keyboardType="decimal-pad"
@@ -941,7 +943,7 @@ export const ChatThread = ({ chat, group, onClose }) => {
               />
               <View style={{ flexDirection: 'row', marginBottom: 14 }}>
                 <View style={{ flex: 1, marginRight: 8 }}>
-                  <Text style={{ color: C.dim, fontSize: 12, fontWeight: '700', marginBottom: 6 }}>People</Text>
+                  <Text style={{ color: C.dim, fontSize: 12, fontWeight: '700', marginBottom: 6 }}>{t('people_count')}</Text>
                   <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', borderWidth: 1, borderColor: C.line, borderRadius: 14 }}>
                     <Pressable onPress={() => { tapLight(); setSplitPeople(String(Math.max(1, (parseInt(splitPeople, 10) || 1) - 1))); }} style={{ paddingHorizontal: 14, paddingVertical: 12 }}>
                       <Ionicons name="remove" size={18} color={C.purple} />
@@ -953,7 +955,7 @@ export const ChatThread = ({ chat, group, onClose }) => {
                   </View>
                 </View>
                 <View style={{ width: 110 }}>
-                  <Text style={{ color: C.dim, fontSize: 12, fontWeight: '700', marginBottom: 6 }}>Tip %</Text>
+                  <Text style={{ color: C.dim, fontSize: 12, fontWeight: '700', marginBottom: 6 }}>{t('tip_pct')}</Text>
                   <TextInput
                     placeholder="0" placeholderTextColor={C.faint} value={splitTip} onChangeText={setSplitTip}
                     keyboardType="number-pad"
@@ -963,18 +965,20 @@ export const ChatThread = ({ chat, group, onClose }) => {
               </View>
 
               <View style={{ backgroundColor: C.purpleSoft, borderRadius: 16, padding: 16, alignItems: 'center', marginBottom: 14 }}>
-                <Text style={{ color: C.purple, fontSize: 12, fontWeight: '800' }}>EACH PERSON PAYS</Text>
+                <Text style={{ color: C.purple, fontSize: 12, fontWeight: '800' }}>{t('each_person_pays')}</Text>
                 <Text style={{ color: C.text, fontSize: 30, fontWeight: '900', marginTop: 4 }}>
                   {(Math.round(splitShare.per * 100) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </Text>
                 <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 2 }}>
-                  total {(Math.round(splitShare.grand * 100) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ÷ {splitShare.ppl}
+                  {t('split_total_of')
+                    .replace('{total}', (Math.round(splitShare.grand * 100) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }))
+                    .replace('{n}', splitShare.ppl)}
                 </Text>
               </View>
 
               <Pressable onPress={sendSplit}>
                 <View style={{ backgroundColor: parseFloat(splitTotal) > 0 ? C.purple : C.glassHi, borderRadius: 14, paddingVertical: 14, alignItems: 'center' }}>
-                  <Text style={{ color: parseFloat(splitTotal) > 0 ? '#FFF' : C.faint, fontSize: 14.5, fontWeight: '900' }}>Send to chat 🧾</Text>
+                  <Text style={{ color: parseFloat(splitTotal) > 0 ? '#FFF' : C.faint, fontSize: 14.5, fontWeight: '900' }}>{t('send_to_chat')}</Text>
                 </View>
               </Pressable>
             </Pressable>

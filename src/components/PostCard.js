@@ -196,7 +196,7 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
         >
           <MaterialCommunityIcons name="repeat-variant" size={16} color={C.green} />
           <Text style={{ color: C.faint, fontSize: 12, fontWeight: '700', marginLeft: 6 }}>
-            Reposted by {post.repostedBy.name}
+            {t('reposted_by')} {post.repostedBy.name}
           </Text>
         </Pressable>
       ) : null}
@@ -228,14 +228,14 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
           {isMine && !post.sponsored ? (
             confirmDel ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', padding: 12 }}>
-                <Text style={{ color: C.text, fontSize: 13, fontWeight: '700', flex: 1 }}>Delete this moment forever?</Text>
+                <Text style={{ color: C.text, fontSize: 13, fontWeight: '700', flex: 1 }}>{t('delete_forever')}</Text>
                 <Pressable onPress={() => { setMenuOpen(false); onDelete && onDelete(post); }} style={{ marginRight: 8 }}>
                   <View style={{ backgroundColor: C.coral, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 7 }}>
-                    <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '900' }}>Delete</Text>
+                    <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '900' }}>{t('delete_word')}</Text>
                   </View>
                 </Pressable>
                 <Pressable onPress={() => setMenuOpen(false)}>
-                  <Text style={{ color: C.dim, fontSize: 12.5, fontWeight: '700' }}>Keep</Text>
+                  <Text style={{ color: C.dim, fontSize: 12.5, fontWeight: '700' }}>{t('keep_word')}</Text>
                 </Pressable>
               </View>
             ) : (
@@ -243,13 +243,13 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
                 <Pressable onPress={() => { setEditCaption(post.caption || ''); setEditing(true); setMenuOpen(false); }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', padding: 12, borderBottomWidth: 1, borderBottomColor: C.line }}>
                     <Ionicons name="create-outline" size={17} color={C.purple} />
-                    <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800', marginLeft: 9 }}>Edit caption</Text>
+                    <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800', marginLeft: 9 }}>{t('edit_caption')}</Text>
                   </View>
                 </Pressable>
                 <Pressable onPress={() => setConfirmDel(true)}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', padding: 12 }}>
                     <Ionicons name="trash-outline" size={17} color={C.coral} />
-                    <Text style={{ color: C.coral, fontSize: 13.5, fontWeight: '800', marginLeft: 9 }}>Delete moment</Text>
+                    <Text style={{ color: C.coral, fontSize: 13.5, fontWeight: '800', marginLeft: 9 }}>{t('delete_moment')}</Text>
                   </View>
                 </Pressable>
               </>
@@ -273,14 +273,14 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
           <TextInput
             value={editCaption}
             onChangeText={setEditCaption}
-            placeholder="Say something…"
+            placeholder={t('say_something')}
             placeholderTextColor={C.faint}
             multiline
             style={{ color: C.text, fontSize: 14, minHeight: 44, textAlignVertical: 'top' }}
           />
           <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 8 }}>
             <Pressable onPress={() => setEditing(false)} style={{ marginRight: 10 }}>
-              <Text style={{ color: C.dim, fontSize: 13, fontWeight: '700', paddingVertical: 6 }}>Cancel</Text>
+              <Text style={{ color: C.dim, fontSize: 13, fontWeight: '700', paddingVertical: 6 }}>{t('cancel')}</Text>
             </Pressable>
             <Pressable onPress={saveEdit}>
               <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 7 }}>
@@ -319,7 +319,7 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
           <ImageBackground source={{ uri: post.media }} style={mediaAspect ? { aspectRatio: mediaAspect, justifyContent: 'space-between' } : { height: mediaH, justifyContent: 'space-between' }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', padding: 12 }}>
               <Chip label={tc.label} tint={tc.tint} color={tc.color} />
-              {post.startsIn === 'Live now' ? <Chip label="● LIVE" tint="rgba(244,63,94,0.9)" color="#fff" style={{ borderColor: 'transparent' }} /> : null}
+              {post.startsIn === 'Live now' ? <Chip label={t('live_badge')} tint="rgba(244,63,94,0.9)" color="#fff" style={{ borderColor: 'transparent' }} /> : null}
             </View>
             {post.type === 'vod' ? (
               <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, alignItems: 'center', justifyContent: 'center' }}>
@@ -411,7 +411,7 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
                 <TextInput
                   value={chatText}
                   onChangeText={setChatText}
-                  placeholder="Say hello and what you're up for…"
+                  placeholder={t('say_hello_placeholder')}
                   placeholderTextColor={C.faint}
                   multiline
                   editable={!chatBusy}
@@ -420,11 +420,11 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
                 {chatErr ? <Text style={{ color: C.coral, fontSize: 12, marginTop: 4 }}>{chatErr}</Text> : null}
                 <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginTop: 8 }}>
                   {chatSent ? (
-                    <Text style={{ color: C.green, fontSize: 12.5, fontWeight: '800' }}>Sent — it's in your chats 💬</Text>
+                    <Text style={{ color: C.green, fontSize: 12.5, fontWeight: '800' }}>{t('sent_in_chats')}</Text>
                   ) : (
                     <>
                       <Pressable onPress={() => { tapLight(); setChatOpen(false); }} style={{ marginRight: 12 }}>
-                        <Text style={{ color: C.dim, fontSize: 13, fontWeight: '700', paddingVertical: 6 }}>Cancel</Text>
+                        <Text style={{ color: C.dim, fontSize: 13, fontWeight: '700', paddingVertical: 6 }}>{t('cancel')}</Text>
                       </Pressable>
                       <Pressable onPress={sendToTraveller} disabled={chatBusy || !chatText.trim()}>
                         <View style={{ backgroundColor: C.green, borderRadius: 999, paddingHorizontal: 18, paddingVertical: 9, opacity: chatBusy || !chatText.trim() ? 0.5 : 1 }}>
@@ -439,7 +439,7 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
               <Pressable onPress={() => { tapLight(); setChatOpen(true); }} style={{ marginTop: 14 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: C.green, borderRadius: 999, paddingVertical: 14 }}>
                   <Ionicons name="chatbubbles-outline" size={17} color="#FFF" />
-                  <Text style={{ color: '#FFF', fontSize: 14.5, fontWeight: '900', marginLeft: 8 }}>Open chat</Text>
+                  <Text style={{ color: '#FFF', fontSize: 14.5, fontWeight: '900', marginLeft: 8 }}>{t('open_chat')}</Text>
                 </View>
               </Pressable>
             )
@@ -538,14 +538,14 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
             joined ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.greenSoft, borderWidth: 1, borderColor: 'rgba(16,185,129,0.45)', borderRadius: 999, paddingHorizontal: 13, paddingVertical: 7 }}>
                 <Ionicons name="checkmark" size={14} color={C.green} />
-                <Text style={{ color: C.green, fontSize: 12, fontWeight: '900', marginLeft: 4 }}>Joined</Text>
+                <Text style={{ color: C.green, fontSize: 12, fontWeight: '900', marginLeft: 4 }}>{t('joined')}</Text>
               </View>
             ) : (
               <Pressable
                 onPress={() => onJoin(post)}
                 style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 8, shadowColor: C.purple, shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: { width: 0, height: 4 } }}
               >
-                <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '900', letterSpacing: 0.4 }}>Join the Vibe</Text>
+                <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '900', letterSpacing: 0.4 }}>{t('join_the_vibe')}</Text>
               </Pressable>
             )
           ) : (
