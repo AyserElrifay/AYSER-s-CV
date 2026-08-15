@@ -26,8 +26,26 @@
 
 set -uo pipefail
 
+# ─── A SKIP HAS TO BE LOUD ───────────────────────────────────────────
+# This check needs a database. On a laptop without one, skipping is
+# right. On the build machine it is not: the first time it ran in CI it
+# finished in three seconds, said nothing, and passed — a check that
+# cannot fail is not a check, and nobody would have noticed for weeks.
+#
+# So the build sets SQL_CHECK_REQUIRED=1, and there a skip is a
+# failure, with the reason printed.
+skip () {
+  echo "$1"
+  if [ "${SQL_CHECK_REQUIRED:-}" = "1" ]; then
+    echo
+    echo "This build requires the setup file to be really checked, and it was not."
+    exit 1
+  fi
+  exit 0
+}
+
 PGBIN=/usr/lib/postgresql/16/bin
-[ -x "$PGBIN/initdb" ] || { echo "No local PostgreSQL 16 — skipping."; exit 0; }
+[ -x "$PGBIN/initdb" ] || skip "No local PostgreSQL 16 at $PGBIN — skipping."
 
 # Postgres refuses to run as root, so everything below runs as the
 # postgres user. Which way that is reached depends on where this is: as
@@ -39,7 +57,7 @@ if [ "$(id -u)" = "0" ]; then
 elif sudo -n true >/dev/null 2>&1; then
   as_postgres () { sudo -n -u postgres bash -c "$1"; }
 else
-  echo "Cannot run as the postgres user here — skipping."; exit 0
+  skip "Cannot become the postgres user here (no root, no passwordless sudo) — skipping."
 fi
 
 DATA=/var/tmp/lamma-sqlcheck
@@ -50,7 +68,7 @@ cleanup() { as_postgres "$PGBIN/pg_ctl -D $DATA/data stop -m immediate" >/dev/nu
 trap cleanup EXIT
 
 rm -rf "$DATA"; mkdir -p "$DATA"; chmod 777 "$DATA"
-as_postgres "$PGBIN/initdb -D $DATA/data -U postgres" >/dev/null 2>&1 || { echo "initdb failed — skipping."; exit 0; }
+as_postgres "$PGBIN/initdb -D $DATA/data -U postgres" >/dev/null 2>&1 || { cat "$DATA/log" 2>/dev/null | tail -5; skip "initdb failed — skipping."; }
 as_postgres "$PGBIN/pg_ctl -D $DATA/data -o '-k $SOCK -p $PORT -c listen_addresses=' -l $DATA/log start" >/dev/null 2>&1
 for _ in $(seq 1 20); do
   as_postgres "$PGBIN/psql -h $SOCK -p $PORT -U postgres -c 'select 1'" >/dev/null 2>&1 && break

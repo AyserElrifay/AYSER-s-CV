@@ -72,7 +72,18 @@ jobs:
       # failed statement takes the rest of the file with it, which is
       # how Lamma sat in the repository for days without being on.
       - name: Check the setup file survives being run twice
-        run: bash scripts/check-sql-twice.sh
+        env:
+          # Here, a skip is a failure. The first time this ran it
+          # finished in three seconds without a database and passed.
+          SQL_CHECK_REQUIRED: '1'
+        run: |
+          # The runner image ships PostgreSQL; install it only if this
+          # one does not, so the usual build stays fast.
+          if [ ! -x /usr/lib/postgresql/16/bin/initdb ]; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq postgresql-16
+          fi
+          bash scripts/check-sql-twice.sh
       - name: Export web bundle
         run: npx expo export --platform web --output-dir dist
       - name: Inject PWA manifest + Open Graph tags
