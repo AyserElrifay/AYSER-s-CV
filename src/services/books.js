@@ -21,14 +21,14 @@ const OL = 'https://openlibrary.org';
 const COVER = 'https://covers.openlibrary.org/b/id/';
 
 export const BOOK_SHELVES = [
-  { id: 'free',      label: 'Free to read', emoji: '📖', q: 'subject:fiction', freeOnly: true },
+  { id: 'free',      labelKey: 'books_free',    label: 'Free to read', emoji: '📖', q: 'subject:fiction', freeOnly: true },
   { id: 'arabic',    label: 'عربي',         emoji: '🇪🇬', q: 'language:ara' },
-  { id: 'growth',    label: 'Grow',         emoji: '🌱', q: 'subject:self-help' },
-  { id: 'psych',     label: 'Minds',        emoji: '🧠', q: 'subject:psychology' },
-  { id: 'business',  label: 'Work',         emoji: '💼', q: 'subject:business' },
-  { id: 'stories',   label: 'Stories',      emoji: '📚', q: 'subject:fiction' },
-  { id: 'travel',    label: 'Travel',       emoji: '🧭', q: 'subject:travel' },
-  { id: 'history',   label: 'History',      emoji: '🏺', q: 'subject:history' },
+  { id: 'growth',    labelKey: 'books_grow',    label: 'Grow',         emoji: '🌱', q: 'subject:self-help' },
+  { id: 'psych',     labelKey: 'books_minds',   label: 'Minds',        emoji: '🧠', q: 'subject:psychology' },
+  { id: 'business',  labelKey: 'books_work',    label: 'Work',         emoji: '💼', q: 'subject:business' },
+  { id: 'stories',   labelKey: 'books_stories', label: 'Stories',      emoji: '📚', q: 'subject:fiction' },
+  { id: 'travel',    labelKey: 'books_travel',  label: 'Travel',       emoji: '🧭', q: 'subject:travel' },
+  { id: 'history',   labelKey: 'books_history', label: 'History',      emoji: '🏺', q: 'subject:history' },
 ];
 
 const shape = (d) => {

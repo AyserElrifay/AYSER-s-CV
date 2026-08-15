@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { C, R } from '../constants/theme';
 import { tapLight, tapSuccess } from '../utils/feedback';
+import { useLang } from '../context/LanguageContext';
 
 /* ── PUT IT ON YOUR HOME SCREEN ──────────────────────────────────────
    Installed, Moments opens like any other app: its own icon, full
@@ -59,6 +60,7 @@ if (Platform.OS === 'web' && typeof window !== 'undefined') {
 }
 
 export const InstallPrompt = ({ force = false, onClose }) => {
+  const { t } = useLang();
   const insets = useSafeAreaInsets();
   const [show, setShow] = useState(false);
   const [canPrompt, setCanPrompt] = useState(!!deferred);
@@ -100,8 +102,8 @@ export const InstallPrompt = ({ force = false, onClose }) => {
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
         <Image source={{ uri: 'icon-192.png' }} style={{ width: 40, height: 40, borderRadius: 10 }} />
         <View style={{ flex: 1, marginLeft: 11 }}>
-          <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '900' }}>Keep Moments on your home screen</Text>
-          <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 2 }}>Opens full screen, own icon, no address bar.</Text>
+          <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '900' }}>{t('install_title')}</Text>
+          <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 2 }}>{t('install_hint')}</Text>
         </View>
         <Pressable onPress={close} hitSlop={12}>
           <Ionicons name="close" size={19} color={C.faint} />
@@ -129,8 +131,8 @@ export const InstallPrompt = ({ force = false, onClose }) => {
         </Pressable>
       ) : (
         <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 10, lineHeight: 17 }}>
-          Open your browser's menu and choose <Text style={{ fontWeight: '900' }}>Install app</Text> (or
-          <Text style={{ fontWeight: '900' }}> Add to Home screen</Text>).
+          Open your browser's menu and choose <Text style={{ fontWeight: '900' }}>{t('install_app')}</Text> (or
+          <Text style={{ fontWeight: '900' }}> {t('add_to_home')}</Text>).
         </Text>
       )}
     </View>

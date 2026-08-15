@@ -846,11 +846,11 @@ export const MapScreen = () => {
             contentContainerStyle={{ paddingRight: 12 }}
           >
             {[
-              { k: 'all', label: 'Everything', emoji: '🌍', n: mapMarkers.length },
-              { k: 'places', label: 'Places to go', emoji: '📍', n: realPlaces.length + realVenues.length + DESTINATIONS.length },
-              { k: 'people', label: 'People', emoji: '🟢', n: nearbyPeople.length + campfires.length },
-              { k: 'stories', label: 'Stories', emoji: '📸', n: storyPins.length + momentPins.length },
-              { k: 'trips', label: 'Trips', emoji: '🧳', n: trips.length },
+              { k: 'all', label: t('lens_all'), emoji: '🌍', n: mapMarkers.length },
+              { k: 'places', label: t('lens_places'), emoji: '📍', n: realPlaces.length + realVenues.length + DESTINATIONS.length },
+              { k: 'people', label: t('lens_people'), emoji: '🟢', n: nearbyPeople.length + campfires.length },
+              { k: 'stories', label: t('lens_stories'), emoji: '📸', n: storyPins.length + momentPins.length },
+              { k: 'trips', label: t('lens_trips'), emoji: '🧳', n: trips.length },
             ].map((o) => {
               const on = lens === o.k;
               return (

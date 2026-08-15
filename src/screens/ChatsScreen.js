@@ -673,25 +673,25 @@ export const ChatsScreen = () => {
             </View>
           ))}
         </View>
-        <Text style={{ color: C.text, fontSize: 16, fontWeight: '900' }}>Nobody in here yet</Text>
+        <Text style={{ color: C.text, fontSize: 16, fontWeight: '900' }}>{t('nobody_here_yet')}</Text>
         <Text style={{ color: C.faint, fontSize: 12.5, marginTop: 6, textAlign: 'center', lineHeight: 18 }}>
-          Find someone on the map, or start one from here. Two messages in and it stops feeling empty.
+          {t('nobody_here_hint')}
         </Text>
         <View style={{ flexDirection: 'row', marginTop: 16, alignSelf: 'stretch' }}>
           <Pressable onPress={() => { tapLight(); setComposing(true); setComposeQ(''); setComposeResults([]); }} style={{ flex: 1, marginRight: 9 }}>
             <View style={{ backgroundColor: C.purple, borderRadius: 14, paddingVertical: 12, alignItems: 'center' }}>
-              <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900' }}>Start a chat</Text>
+              <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900' }}>{t('start_a_chat')}</Text>
             </View>
           </Pressable>
           <Pressable onPress={() => { tapLight(); setShooting(true); }} style={{ flex: 1 }}>
             <View style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 14, paddingVertical: 12, alignItems: 'center' }}>
-              <Text style={{ color: C.text, fontSize: 13, fontWeight: '900' }}>📸 Send a snap</Text>
+              <Text style={{ color: C.text, fontSize: 13, fontWeight: '900' }}>{t('send_a_snap')}</Text>
             </View>
           </Pressable>
         </View>
         {SUPABASE_READY ? (
           <Pressable onPress={() => { tapLight(); setSquadCreating(true); setSquadErr(null); }} style={{ marginTop: 13 }}>
-            <Text style={{ color: C.purple, fontSize: 12.5, fontWeight: '800' }}>or start a squad 🏕️</Text>
+            <Text style={{ color: C.purple, fontSize: 12.5, fontWeight: '800' }}>{t('or_start_squad')}</Text>
           </Pressable>
         ) : null}
       </Glass>
@@ -705,7 +705,7 @@ export const ChatsScreen = () => {
         it's a place to meet people, not your inbox, and it was taking
         the whole first screen with a paragraph nobody asked for. */}
     <Text style={{ color: C.faint, fontSize: 11.5, marginTop: -6, marginBottom: 10, paddingHorizontal: 2 }}>
-      People abroad swapping languages. Switch yours on and you appear for them too.
+      {t('exchange_blurb')}
     </Text>
 
     {/* ── your exchange switch — HelloTalk-style, right here ── */}
@@ -718,7 +718,7 @@ export const ChatsScreen = () => {
               {exOn ? t('youre_open_exchange') : t('join_exchange')}
             </Text>
             <Text style={{ color: C.faint, fontSize: 11, marginTop: 1 }}>
-              {exOn ? 'People abroad can see you and say hi' : 'Flip it on — you\'ll appear here for people abroad'}
+              {exOn ? t('exchange_on') : t('exchange_off')}
             </Text>
           </View>
           <Pressable onPress={() => saveExchange(!exOn)} hitSlop={6}>
@@ -846,7 +846,7 @@ export const ChatsScreen = () => {
       // a quiet line, not another grey box — the switch above already
       // says everything this needs to
       <Text style={{ color: C.faint, fontSize: 11.5, textAlign: 'center', paddingVertical: 14, marginBottom: 20 }}>
-        🌍 Nobody has switched theirs on yet. Be the first.
+        {t('exchange_empty')}
       </Text>
     )}
 

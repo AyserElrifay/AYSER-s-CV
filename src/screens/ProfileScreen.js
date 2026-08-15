@@ -395,7 +395,7 @@ export const ProfileScreen = () => {
           || (user && user.user_metadata && user.user_metadata.name)
           || (loadingMe ? '' : 'You'),
         intent: (myProfile && myProfile.intent) || null,
-        bio: (myProfile && myProfile.bio) || 'Add a bio — tell people what you\'re about ✨',
+        bio: (myProfile && myProfile.bio) || t('add_bio'),
       }
     : ME;
 
@@ -607,15 +607,15 @@ export const ProfileScreen = () => {
                 </View>
               </Pressable>
               <View style={{ position: 'absolute', bottom: 8, right: 8, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 }}>
-                <Text style={{ color: '#FFF', fontSize: 10.5, fontWeight: '800' }}>{coverBusy ? 'Uploading…' : '📷 Change cover'}</Text>
+                <Text style={{ color: '#FFF', fontSize: 10.5, fontWeight: '800' }}>{coverBusy ? t('uploading') : t('change_cover')}</Text>
               </View>
             </Pressable>
           ) : (
             <Pressable onPress={() => { tapLight(); setCoverPickerOpen(true); }}>
               <LinearGradient colors={['rgba(124,58,237,0.18)', 'rgba(245,179,1,0.14)']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
                 style={{ height: 86, borderRadius: 18, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: C.line, borderStyle: 'dashed' }}>
-                <Text style={{ color: C.dim, fontSize: 12.5, fontWeight: '800' }}>{coverBusy ? 'Uploading…' : '🖼️ Add a cover'}</Text>
-                <Text style={{ color: C.faint, fontSize: 11, marginTop: 3 }}>a photo, or the map of where you are</Text>
+                <Text style={{ color: C.dim, fontSize: 12.5, fontWeight: '800' }}>{coverBusy ? t('uploading') : t('add_cover')}</Text>
+                <Text style={{ color: C.faint, fontSize: 11, marginTop: 3 }}>{t('cover_hint')}</Text>
               </LinearGradient>
             </Pressable>
           )}
@@ -693,8 +693,8 @@ export const ProfileScreen = () => {
                 {/* Followers and Following are two different numbers now —
                     one direction each. Mates stay the mutual thing they
                     always were, which is what chat and Close Friends use. */}
-                <Stat n={SUPABASE_READY ? followers : mates} label="Followers" onPress={() => setMatesOpen(true)} />
-                <Stat n={SUPABASE_READY ? following : mates} label="Following" onPress={() => setMatesOpen(true)} />
+                <Stat n={SUPABASE_READY ? followers : mates} label={t('followers')} onPress={() => setMatesOpen(true)} />
+                <Stat n={SUPABASE_READY ? following : mates} label={t('following')} onPress={() => setMatesOpen(true)} />
               </View>
             );
             const spacer = <View style={{ width: 16 }} />;
@@ -731,7 +731,7 @@ export const ProfileScreen = () => {
           <Pressable onPress={() => openEditor('bio')} hitSlop={6} style={{ marginTop: 6, alignSelf: 'flex-start' }}>
             <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
               <Text style={{ color: me.bio ? C.dim : C.faint, fontSize: 13.5, lineHeight: 20, flexShrink: 1 }}>
-                {me.bio || 'Add a bio — tell people what you\'re about ✨'}
+                {me.bio || t('add_bio')}
               </Text>
               <Ionicons name="pencil" size={12} color={C.faint} style={{ marginLeft: 6, marginTop: 4 }} />
             </View>
@@ -777,8 +777,8 @@ export const ProfileScreen = () => {
 
           {/* actions */}
           <View style={{ flexDirection: 'row', marginTop: 6 }}>
-            <GhostButton small label="Edit your space" onPress={() => openEditor()} style={{ flex: 1, marginRight: 8 }} />
-            <GhostButton small label="Share profile" onPress={doShareProfile} style={{ flex: 1, marginRight: 8 }} />
+            <GhostButton small label={t('edit_space')} onPress={() => openEditor()} style={{ flex: 1, marginRight: 8 }} />
+            <GhostButton small label={t('share_profile')} onPress={doShareProfile} style={{ flex: 1, marginRight: 8 }} />
             <Pressable onPress={tapLight} style={{ width: 44 }}>
               <View style={{ borderRadius: R - 4, borderWidth: 1, borderColor: C.line, backgroundColor: C.glass, paddingVertical: 10, alignItems: 'center' }}>
                 <Ionicons name="person-add-outline" size={16} color={C.text} />
@@ -904,7 +904,7 @@ export const ProfileScreen = () => {
             ) : (
               <View style={{ width: '100%', alignItems: 'center', paddingVertical: 40 }}>
                 <Text style={{ fontSize: 26 }}>✨</Text>
-                <Text style={{ color: C.faint, fontSize: 13, marginTop: 8 }}>No moments yet — share your first one</Text>
+                <Text style={{ color: C.faint, fontSize: 13, marginTop: 8 }}>{t('no_moments_share_first')}</Text>
               </View>
             )}
           </View>
@@ -942,7 +942,7 @@ export const ProfileScreen = () => {
               </View>
             </Pressable>
             <Text style={{ color: avatarErr ? C.coral : C.faint, fontSize: 11.5, textAlign: 'center', marginTop: -8, marginBottom: 12 }}>
-              {avatarBusy ? 'Uploading…' : avatarErr ? avatarErr : 'Tap the photo to change it'}
+              {avatarBusy ? t('uploading') : avatarErr ? avatarErr : t('tap_photo_to_change')}
             </Text>
 
             <TextInput

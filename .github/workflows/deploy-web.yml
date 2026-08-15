@@ -52,6 +52,11 @@ jobs:
       # message was right there and easier to pass along than a sentence.
       - name: Check the plumbing stays out of sight
         run: node scripts/check-leaks.mjs
+      # A key added to English is a key owed to twelve other languages.
+      # The fallback hides the gap, which is how thirty-one keys came to
+      # exist only in English and Arabic without anybody noticing.
+      - name: Check every language says everything
+        run: node scripts/check-i18n.mjs
       - name: Export web bundle
         run: npx expo export --platform web --output-dir dist
       - name: Inject PWA manifest + Open Graph tags

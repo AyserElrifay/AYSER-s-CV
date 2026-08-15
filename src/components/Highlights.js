@@ -9,6 +9,7 @@ import {
   removeHighlightItem, fetchHighlightCandidates,
 } from '../services/highlights';
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
+import { useLang } from '../context/LanguageContext';
 
 /* ── HIGHLIGHTS ─────────────────────────────────────────────────────
    The row of circles under a profile. Everything in here is something
@@ -219,6 +220,7 @@ const HighlightComposer = ({ userId, target, onClose, onSaved }) => {
 };
 
 export const HighlightsRail = ({ userId, isMine }) => {
+  const { t } = useLang();
   const [rows, setRows] = useState([]);
   const [open, setOpen] = useState(null);      // highlight being watched
   const [composing, setComposing] = useState(null); // 'new' | highlight
@@ -242,7 +244,7 @@ export const HighlightsRail = ({ userId, isMine }) => {
     <>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, marginTop: 20, alignItems: 'flex-start' }}>
         {isMine ? (
-          <Circle plus label="New" onPress={() => { tapLight(); setComposing('new'); }} />
+          <Circle plus label={t('new_story')} onPress={() => { tapLight(); setComposing('new'); }} />
         ) : null}
         {rows.map((h) => (
           <Circle

@@ -34,6 +34,10 @@ import { sfxSuccess, sfxPop } from '../utils/sfx';
 
 const isWeb = Platform.OS === 'web';
 
+/* The genre is a value the catalogue is queried with, so it stays
+   English on the wire; only what people read changes. */
+const genreKey = (g) => 'genre_' + String(g).toLowerCase().replace('science fiction', 'scifi').replace(/[^a-z]/g, '');
+
 // Shape a DB 'vod' row (or a local optimistic one) into a video card.
 const toVideo = (r) => ({
   id: r.id,
@@ -153,10 +157,10 @@ export const ChillScreen = () => {
   return (
     <>
     <Page>
-      <ScreenHeader kicker="Watch & unwind" title="Chill Zone 🍿" />
+      <ScreenHeader kicker={t('chill_kicker')} title={t('chill_title')} />
 
       {/* ── PLAY — every real game, finally easy to find ── */}
-      <SectionHeader title="Play 🎮" />
+      <SectionHeader title={t('sec_play')} />
 
       {/* لمّة sits above the strip and not inside it. The others are
           games you play alone on a bus; this is the one you open when
@@ -191,8 +195,8 @@ export const ChillScreen = () => {
             >
               <Text style={{ fontSize: 34 }}>{g.emoji}</Text>
               <View>
-                <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '900' }} numberOfLines={1}>{g.name}</Text>
-                <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 10, fontWeight: '700', marginTop: 2 }} numberOfLines={1}>{g.players}</Text>
+                <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '900' }} numberOfLines={1}>{t(g.nameKey)}</Text>
+                <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 10, fontWeight: '700', marginTop: 2 }} numberOfLines={1}>{t(g.playersKey)}</Text>
               </View>
             </LinearGradient>
           </Pressable>
@@ -201,22 +205,22 @@ export const ChillScreen = () => {
 
       {/* ── LISTEN — a real music library on your legal catalog ── */}
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <SectionHeader title="Listen 🎧" />
+        <SectionHeader title={t('sec_listen')} />
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           {tracks && tracks.length ? (
             <Pressable onPress={() => { tapLight(); sfxPop(); playFrom(0); }} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', marginRight: 14 }}>
               <Ionicons name="play-circle" size={18} color={C.purple} />
-              <Text style={{ color: C.purple, fontSize: 12.5, fontWeight: '900', marginLeft: 4 }}>Play all</Text>
+              <Text style={{ color: C.purple, fontSize: 12.5, fontWeight: '900', marginLeft: 4 }}>{t('play_all')}</Text>
             </Pressable>
           ) : null}
           <Pressable onPress={() => { tapLight(); setHubOpen(true); }} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Ionicons name="add-circle" size={18} color={C.purple} />
-            <Text style={{ color: C.purple, fontSize: 12.5, fontWeight: '900', marginLeft: 4 }}>Hub</Text>
+            <Text style={{ color: C.purple, fontSize: 12.5, fontWeight: '900', marginLeft: 4 }}>{t('music_hub')}</Text>
           </Pressable>
         </View>
       </View>
       <Text style={{ color: C.dim, fontSize: 12.5, marginTop: -6, marginBottom: 12, lineHeight: 18 }}>
-        Play music while you browse — it keeps going across the app. Every track is licensed or creator-owned.
+        {t('music_blurb')}
       </Text>
 
       {tracks === null ? (
@@ -240,13 +244,13 @@ export const ChillScreen = () => {
       ) : tracks.length === 0 ? (
         <Glass style={{ padding: 22, alignItems: 'center', marginBottom: 24 }}>
           <Text style={{ fontSize: 34 }}>🎼</Text>
-          <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '900', marginTop: 8 }}>No tracks yet</Text>
+          <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '900', marginTop: 8 }}>{t('no_tracks')}</Text>
           <Text style={{ color: C.dim, fontSize: 12, marginTop: 4, textAlign: 'center', lineHeight: 17 }}>
-            Add royalty-free songs from the Hub, or let creators upload — then press play here.
+            {t('no_tracks_hint')}
           </Text>
           <Pressable onPress={() => { tapLight(); setHubOpen(true); }} style={{ marginTop: 12 }}>
             <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 20, paddingVertical: 10 }}>
-              <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '900' }}>Open Music Hub 🎧</Text>
+              <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '900' }}>{t('open_music_hub')}</Text>
             </View>
           </Pressable>
         </Glass>
@@ -274,14 +278,14 @@ export const ChillScreen = () => {
 
       {/* ── LONG-FORM VIDEOS (real uploads) ── */}
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <SectionHeader title="Videos 🎬" />
+        <SectionHeader title={t('sec_videos')} />
         <Pressable onPress={() => { tapLight(); sfxPop(); setShooting(true); }} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center' }}>
           <Ionicons name="add-circle" size={18} color={C.purple} />
-          <Text style={{ color: C.purple, fontSize: 12.5, fontWeight: '900', marginLeft: 4 }}>Upload</Text>
+          <Text style={{ color: C.purple, fontSize: 12.5, fontWeight: '900', marginLeft: 4 }}>{t('upload')}</Text>
         </Pressable>
       </View>
       <Text style={{ color: C.dim, fontSize: 12.5, marginTop: -6, marginBottom: 14, lineHeight: 18 }}>
-        Full-length videos from the community — the long-form home for tutorials, vlogs & docs.
+        {t('videos_hint')}
       </Text>
 
       {videos === null ? (
@@ -299,13 +303,13 @@ export const ChillScreen = () => {
       ) : videos.length === 0 ? (
         <Glass style={{ padding: 24, alignItems: 'center', marginBottom: 24 }}>
           <Text style={{ fontSize: 40 }}>🎬</Text>
-          <Text style={{ color: C.text, fontSize: 15, fontWeight: '900', marginTop: 10 }}>No videos yet</Text>
+          <Text style={{ color: C.text, fontSize: 15, fontWeight: '900', marginTop: 10 }}>{t('no_videos')}</Text>
           <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 5, textAlign: 'center', lineHeight: 18 }}>
-            Be the first to upload a long-form video — tutorials, vlogs, mini-docs.
+            {t('no_videos_hint')}
           </Text>
           <Pressable onPress={() => { tapSuccess(); sfxPop(); setShooting(true); }} style={{ marginTop: 14 }}>
             <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 22, paddingVertical: 11 }}>
-              <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900' }}>Upload a video</Text>
+              <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900' }}>{t('upload_video')}</Text>
             </View>
           </Pressable>
         </Glass>
@@ -346,16 +350,15 @@ export const ChillScreen = () => {
 
       {/* ── WATCH — real films from our own catalogue, with real posters,
              a synopsis, and what the people here made of them ── */}
-      <SectionHeader title="Watch 🍿" style={{ marginTop: 8 }} />
+      <SectionHeader title={t('sec_watch')} style={{ marginTop: 8 }} />
       <Text style={{ color: C.dim, fontSize: 12.5, marginTop: -6, marginBottom: 12, lineHeight: 18 }}>
-        Real films, refreshed daily. Tap one to read what it is, see where it's streaming, and say
-        what you thought.
+        {t('watch_hint')}
       </Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
         {FILM_GENRES.map((g) => (
           <Pressable key={g} onPress={() => { tapSelection(); setGenre(g); }}>
             <View style={{ backgroundColor: genre === g ? C.text : C.glass, borderWidth: 1, borderColor: genre === g ? C.text : C.line, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 7, marginRight: 8 }}>
-              <Text style={{ color: genre === g ? '#FFF' : C.dim, fontSize: 12, fontWeight: '800' }}>{g}</Text>
+              <Text style={{ color: genre === g ? '#FFF' : C.dim, fontSize: 12, fontWeight: '800' }}>{t(genreKey(g))}</Text>
             </View>
           </Pressable>
         ))}
@@ -403,7 +406,7 @@ export const ChillScreen = () => {
         <View style={{ paddingVertical: 30, alignItems: 'center', marginBottom: 20 }}>
           <Text style={{ fontSize: 28 }}>🎬</Text>
           <Text style={{ color: C.faint, fontSize: 12.5, marginTop: 8, textAlign: 'center', lineHeight: 18 }}>
-            The film catalogue hasn't been filled yet — nothing invented to stand in for it.
+            {t('films_empty')}
           </Text>
         </View>
       )}
@@ -460,14 +463,14 @@ export const ChillScreen = () => {
                 <Pressable onPress={() => onDeleteVideo(player)} style={{ marginRight: 10 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(244,63,94,0.85)', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8 }}>
                     <Ionicons name="trash-outline" size={15} color="#FFF" />
-                    <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '800', marginLeft: 5 }}>Delete</Text>
+                    <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '800', marginLeft: 5 }}>{t('delete')}</Text>
                   </View>
                 </Pressable>
               ) : null}
               <Pressable onPress={() => { tapLight(); setCommentsPost({ id: player.id, place: 'Video' }); }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.16)', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8 }}>
                   <Ionicons name="chatbubble-outline" size={16} color="#FFF" />
-                  <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '800', marginLeft: 6 }}>Comments</Text>
+                  <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '800', marginLeft: 6 }}>{t('comments')}</Text>
                 </View>
               </Pressable>
             </View>

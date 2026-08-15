@@ -20,6 +20,7 @@ import { tapLight, tapMedium } from '../utils/feedback';
 import { sfxStar, sfxPop } from '../utils/sfx';
 import { soundOn, setSoundOn, applySound, trackPlayer, untrackPlayer, stopVideos } from '../lib/videoSound';
 import { useIsFocused } from '@react-navigation/native';
+import { useLang } from '../context/LanguageContext';
 
 /* ─── TAB 3 · REELS — the standalone vertical feed ───
    TikTok-style full-screen pager with the Moments identity: the gold
@@ -38,6 +39,7 @@ const RailButton = ({ children, label, color = '#FFF', onPress }) => (
 export const ReelsScreen = () => {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { t } = useLang();
   const [pageH, setPageH] = useState(0);
   const [vibes, setVibes] = useState({});
   const [reposts, setReposts] = useState({});
@@ -405,13 +407,13 @@ export const ReelsScreen = () => {
       ) : pageH > 0 ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 }}>
           <Text style={{ fontSize: 40 }}>🎬</Text>
-          <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '900', marginTop: 12, textAlign: 'center' }}>No reels yet</Text>
+          <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '900', marginTop: 12, textAlign: 'center' }}>{t('no_reels')}</Text>
           <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, marginTop: 6, textAlign: 'center', lineHeight: 19 }}>
-            Tap the camera to shoot the first one — hold to record 🎥
+            {t('no_reels_hint')}
           </Text>
           <Pressable onPress={() => { tapMedium(); sfxPop(); setShooting(true); }} style={{ marginTop: 18 }}>
             <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 26, paddingVertical: 13 }}>
-              <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '900' }}>Shoot a reel</Text>
+              <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '900' }}>{t('shoot_a_reel')}</Text>
             </View>
           </Pressable>
         </View>

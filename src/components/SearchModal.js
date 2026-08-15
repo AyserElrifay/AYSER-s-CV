@@ -7,6 +7,7 @@ import { USERS, FEED, TRENDING, GROUPS, PLAY_GAMES, AV_NEUTRAL } from '../consta
 import { SUPABASE_READY } from '../lib/supabase';
 import { withDeadline } from '../lib/deadline';
 import { useAuth } from '../context/AuthContext';
+import { useLang } from '../context/LanguageContext';
 import { searchProfiles } from '../services/social';
 import { searchPosts, fetchTravelPlans } from '../services/posts';
 import { planWhen, upForLabel } from '../constants/travel';
@@ -69,7 +70,7 @@ const Section = React.memo(({ title }) => (
   <Text style={{ color: C.text, fontSize: 16, fontWeight: '900', marginTop: 18, marginBottom: 4 }}>{title}</Text>
 ));
 
-const GameRow = React.memo(({ item, onPlay }) => (
+const GameRow = React.memo(({ item, onPlay, t }) => (
   <Pressable onPress={() => onPlay(item)}>
     <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 11 }}>
       <View style={{ width: 52, height: 52, borderRadius: 15, backgroundColor: C.purpleSoft, borderWidth: 1, borderColor: 'rgba(124,58,237,0.3)', alignItems: 'center', justifyContent: 'center' }}>
@@ -77,12 +78,12 @@ const GameRow = React.memo(({ item, onPlay }) => (
       </View>
       <View style={{ flex: 1, marginLeft: 12, marginRight: 10 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '800' }}>{item.name}</Text>
+          <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '800' }}>{t(item.nameKey)}</Text>
           <View style={{ backgroundColor: C.purpleSoft, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, marginLeft: 7 }}>
             <Text style={{ color: C.purple, fontSize: 10, fontWeight: '800' }}>{item.tag}</Text>
           </View>
         </View>
-        <Text style={{ color: C.faint, fontSize: 12, marginTop: 3 }} numberOfLines={2}>{item.players}</Text>
+        <Text style={{ color: C.faint, fontSize: 12, marginTop: 3 }} numberOfLines={2}>{t(item.playersKey)}</Text>
       </View>
       <View style={{ backgroundColor: PLAYABLE.includes(item.kind) ? C.purple : C.glassHi, borderRadius: 999, paddingHorizontal: 15, paddingVertical: 8 }}>
         <Text style={{ color: PLAYABLE.includes(item.kind) ? '#FFF' : C.dim, fontSize: 12, fontWeight: '900' }}>{PLAYABLE.includes(item.kind) ? 'Play' : 'In chat'}</Text>
@@ -305,6 +306,7 @@ const TrendRow = React.memo(({ item, rank, onPick }) => (
 export const SearchModal = ({ onClose, onOpenProfile, onOpenTopics, onOpenTag }) => {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { t } = useLang();
   const [query, setQuery] = useState('');
   const [tab, setTab] = useState('Top');
   const [remote, setRemote] = useState(null);
@@ -525,7 +527,7 @@ export const SearchModal = ({ onClose, onOpenProfile, onOpenTopics, onOpenTag })
               ) : null}
               {people.length ? <><Section title="People" />{people.slice(0, 3).map((u) => <PersonRow key={u.id} item={u} onOpen={onOpenProfile} />)}</> : null}
               {groups.length ? <><Section title="Groups" />{groups.slice(0, 3).map((g) => <GroupRow key={g.id} item={g} onToggle={toggleGroup} />)}</> : null}
-              {!q && games.length ? <><Section title="Play together 🎮" />{games.slice(0, 3).map((g) => <GameRow key={g.id} item={g} onPlay={launchGame} />)}</> : null}
+              {!q && games.length ? <><Section title="Play together 🎮" />{games.slice(0, 3).map((g) => <GameRow key={g.id} item={g} onPlay={launchGame} t={t} />)}</> : null}
               {q && posts.length ? <><Section title="Posts" />{posts.slice(0, 3).map((p) => <PostRow key={p.id} item={p} />)}</> : null}
             </View>
           ) : null}
@@ -610,7 +612,7 @@ export const SearchModal = ({ onClose, onOpenProfile, onOpenTopics, onOpenTag })
             </>
           ) : null}
           {tab === 'Posts' ? (posts.length ? posts.map((p) => <PostRow key={p.id} item={p} />) : <Empty q={q} />) : null}
-          {tab === 'Play' ? (games.length ? games.map((g) => <GameRow key={g.id} item={g} onPlay={launchGame} />) : <Empty q={q} />) : null}
+          {tab === 'Play' ? (games.length ? games.map((g) => <GameRow key={g.id} item={g} onPlay={launchGame} t={t} />) : <Empty q={q} />) : null}
         </ScrollView>
       </View>
       {game && game.kind === 'stack' ? <StackGame onClose={() => setGame(null)} />

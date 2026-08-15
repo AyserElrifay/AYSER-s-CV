@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { BOOK_SHELVES, fetchShelf, searchBooks, readUrl, buyOptions } from '../services/books';
 import { openPartner } from '../services/broker';
 import { tapLight } from '../utils/feedback';
+import { useLang } from '../context/LanguageContext';
 
 /* ── READ ───────────────────────────────────────────────────────────
    A bookshelf, not a bookshop pretending to be one.
@@ -36,6 +37,7 @@ const Cover = ({ book, w = 104 }) => {
 };
 
 export const BooksShelf = () => {
+  const { t } = useLang();
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const [shelf, setShelf] = useState(BOOK_SHELVES[0]);
@@ -48,7 +50,7 @@ export const BooksShelf = () => {
   const load = useCallback(async () => {
     setBooks(null); setErr(null);
     try { setBooks(await fetchShelf(shelf)); }
-    catch (e) { setBooks([]); setErr('Could not open the shelf — try again.'); }
+    catch (e) { setBooks([]); setErr(t('books_shelf_err')); }
   }, [shelf]);
   useEffect(() => { load(); }, [load]);
 
@@ -57,7 +59,7 @@ export const BooksShelf = () => {
     if (!term) { load(); return; }
     setSearching(true); setBooks(null); setErr(null);
     try { setBooks(await searchBooks(term)); }
-    catch (e) { setBooks([]); setErr('Could not search right now — try again.'); }
+    catch (e) { setBooks([]); setErr(t('books_search_err')); }
     finally { setSearching(false); }
   };
 
@@ -74,11 +76,10 @@ export const BooksShelf = () => {
   return (
     <View>
       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-        <Text style={{ color: C.text, fontSize: 13, fontWeight: '900', letterSpacing: 2, flex: 1 }}>READ 📚</Text>
+        <Text style={{ color: C.text, fontSize: 13, fontWeight: '900', letterSpacing: 2, flex: 1 }}>{t('sec_read')}</Text>
       </View>
       <Text style={{ color: C.faint, fontSize: 12.5, lineHeight: 18, marginBottom: 10 }}>
-        Books out of copyright open free, whole. Everything else opens at a real shop —
-        we don't host or sell books.
+        {t('books_blurb')}
       </Text>
 
       <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12, marginBottom: 10 }}>
@@ -107,7 +108,7 @@ export const BooksShelf = () => {
               onPress={() => { tapLight(); setQ(''); setShelf(s); }}
               style={{ backgroundColor: on ? C.purple : C.glassHi, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8, marginRight: 8 }}
             >
-              <Text style={{ color: on ? '#FFF' : C.dim, fontSize: 12.5, fontWeight: '800' }}>{s.emoji} {s.label}</Text>
+              <Text style={{ color: on ? '#FFF' : C.dim, fontSize: 12.5, fontWeight: '800' }}>{s.emoji} {s.labelKey ? t(s.labelKey) : s.label}</Text>
             </Pressable>
           );
         })}
