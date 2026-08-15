@@ -49,8 +49,11 @@ const traverse = _traverse.default || _traverse;
 /* Owner-only surfaces. Real errors here are the point. */
 const EXEMPT = [/AdminPanel\.js$/, /lib\/plumbing\.js$/];
 
-/* Words that only mean something to whoever built this. */
-const PLUMBING = /RUN_ME|SQL Editor|schema cache|supabase\/RUN_ME|Supabase (SQL|\u2192)/i;
+/* Words that only mean something to whoever built this. The vendor's
+   name is on the list: "Connect Supabase to message for real" is a
+   sentence about our bill, printed where a person expected to be told
+   how to say hello. */
+const PLUMBING = /RUN_ME|SQL Editor|schema cache|supabase|bardi-chat|Edge Function|PostgREST|row-level security|\.md\b|\.sql\b|\.env\b/i;
 
 /* Point it at another tree to check one — used to prove this catches
    what it claims by running it over the code from before the fix. */
@@ -76,6 +79,14 @@ const isStateSetter = (callee) =>
    choose a branch, and never reaches a screen. */
 const INSPECTORS = new Set(['test', 'match', 'includes', 'search', 'exec']);
 
+/* A NAME IS NOT A SENTENCE. 'bardi-chat' is what a function is called
+   and https://….supabase.co is where the app connects; neither is
+   addressed to anybody. What matters is prose — plumbing words with
+   ordinary words around them, which is how they end up read. */
+const isProse = (v) => /\S\s+\S/.test(v.trim());
+
+let plumbingCheck = () => {};
+
 const insideAnInspector = (path) => {
   let p = path.parentPath;
   while (p) {
@@ -91,6 +102,33 @@ const insideAnInspector = (path) => {
 
 for (const file of files) {
   if (EXEMPT.some((r) => r.test(file))) continue;
+
+  plumbingCheck = (path, value) => {
+    if (!PLUMBING.test(value) || !isProse(value)) return;
+    if (path.parent.type === 'ImportDeclaration' || path.parent.type === 'ExportNamedDeclaration') return;
+    /* Two ways to be addressed to the right person: wrapped in
+       setupNotice(), or sitting inside `if (isOwner(user))`. Bardi's
+       cloud diagnostic uses the second, and it is not wrong for doing
+       so — a screen that already knows who is looking does not need to
+       ask again. */
+    let p = path.parentPath;
+    while (p) {
+      const n = p.node;
+      if (n.type === 'CallExpression' && n.callee.type === 'Identifier'
+          && n.callee.name === 'setupNotice') return;
+      if (n.type === 'IfStatement' && n.test.type === 'CallExpression'
+          && n.test.callee.type === 'Identifier' && n.test.callee.name === 'isOwner') return;
+      if (n.type === 'ConditionalExpression' && n.test.type === 'CallExpression'
+          && n.test.callee.type === 'Identifier' && n.test.callee.name === 'isOwner') return;
+      p = p.parentPath;
+    }
+    problems.push({
+      file,
+      line: path.node.loc ? path.node.loc.start.line : 0,
+      what: 'says the quiet part to whoever is reading it: "' + value.trim().slice(0, 60) + '…"',
+    });
+  };
+
   const src = readFileSync(file, 'utf8');
   let ast;
   try {
@@ -107,25 +145,13 @@ for (const file of files) {
        tool they do not have. It is only useful to Ayser, so it has to
        be inside setupNotice(), which hands it to him and gives
        everybody else a sentence about the app instead. */
-    StringLiteral(path) {
-      if (!PLUMBING.test(path.node.value)) return;
-      // an import path is not a sentence anybody reads
-      if (path.parent.type === 'ImportDeclaration' || path.parent.type === 'ExportNamedDeclaration') return;
-      let p = path.parentPath;
-      let wrapped = false;
-      while (p) {
-        if (p.node.type === 'CallExpression' && p.node.callee.type === 'Identifier'
-            && p.node.callee.name === 'setupNotice') { wrapped = true; break; }
-        p = p.parentPath;
-      }
-      if (wrapped) return;
-      problems.push({
-        file,
-        line: path.node.loc ? path.node.loc.start.line : 0,
-        what: 'tells whoever is reading it to run the project\'s own setup: "'
-              + path.node.value.slice(0, 60) + '…"',
-      });
-    },
+    StringLiteral(path) { plumbingCheck(path, path.node.value); },
+
+    /* Text written straight into the markup, which is where
+       "Connect Supabase to turn on language exchange" was hiding —
+       a JSX text node is not a string literal, so the rule above
+       never saw it. */
+    JSXText(path) { plumbingCheck(path, path.node.value); },
 
     CallExpression(path) {
       if (!isStateSetter(path.node.callee)) return;

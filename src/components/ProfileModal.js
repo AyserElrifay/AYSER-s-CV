@@ -52,7 +52,7 @@ export const ProfileModal = ({ user, onClose }) => {
   const [theirStories, setTheirStories] = useState([]);
   const [storyOpen, setStoryOpen] = useState(false);
   const { user: me } = useAuth();
-  const { rtl } = useLang();
+  const { rtl, t } = useLang();
   const [posts, setPosts] = useState(null);         // their real moments
   const [mates, setMates] = useState(null);         // real mate count
   const [mateState, setMateState] = useState('none'); // none|requested|incoming|mates
@@ -383,7 +383,7 @@ export const ProfileModal = ({ user, onClose }) => {
             {msgOpen && !isMe ? (
               <Glass style={{ padding: 10, marginTop: 10, flexDirection: 'row', alignItems: 'center' }}>
                 <TextInput
-                  placeholder={real ? 'Say something nice…' : 'Connect Supabase to message for real'}
+                  placeholder={real ? t('say_something_nice') : t('msg_offline_placeholder')}
                   placeholderTextColor={C.faint}
                   value={msgText}
                   onChangeText={setMsgText}

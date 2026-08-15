@@ -209,7 +209,7 @@ export const SettingsScreen = ({ onClose }) => {
         showsVerticalScrollIndicator={false}
       >
         {/* ── WALLET (Moment Bank) ── */}
-        <Micro color={C.faint}>Wallet</Micro>
+        <Micro color={C.faint}>{t('wallet')}</Micro>
         <LinearGradient
           colors={['#8B5CF6', '#5B21B6', '#2A0F63']}
           start={{ x: 0, y: 0 }}
@@ -217,7 +217,7 @@ export const SettingsScreen = ({ onClose }) => {
           style={{ borderRadius: R, padding: 18, marginTop: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)' }}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Micro color="rgba(255,255,255,0.75)">Referral earnings</Micro>
+            <Micro color="rgba(255,255,255,0.75)">{t('referral_earnings')}</Micro>
             <Ionicons name="trending-up-outline" size={16} color="rgba(255,255,255,0.75)" />
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginTop: 14 }}>
@@ -229,19 +229,19 @@ export const SettingsScreen = ({ onClose }) => {
             </Text>
           </View>
           <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12.5, marginTop: 4 }}>
-            You earn a commission when mates book or shop through your links.
+            {t('referral_hint')}
           </Text>
           <View style={{ flexDirection: 'row', marginTop: 18 }}>
-            <NeonButton small label="SPLIT A BILL" icon="➗" style={{ flex: 1 }} onPress={openSplit} />
+            <NeonButton small label={t('split_a_bill_caps')} icon="➗" style={{ flex: 1 }} onPress={openSplit} />
           </View>
         </LinearGradient>
 
         {split ? (
           <Glass tint={C.greenSoft} border="rgba(16,185,129,0.45)" style={{ padding: 14, marginTop: 12 }}>
-            <Micro color={C.green}>Split a bill — for real</Micro>
+            <Micro color={C.green}>{t('split_for_real')}</Micro>
             <View style={{ flexDirection: 'row', marginTop: 12 }}>
               <TextInput
-                placeholder="Total (e.g. 340)" placeholderTextColor={C.faint} value={splitTotal} onChangeText={setSplitTotal}
+                placeholder={t('total_placeholder')} placeholderTextColor={C.faint} value={splitTotal} onChangeText={setSplitTotal}
                 keyboardType="decimal-pad"
                 style={{ flex: 1, color: C.text, fontSize: 15, fontWeight: '800', backgroundColor: '#FFF', borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginRight: 8 }}
               />
@@ -261,9 +261,9 @@ export const SettingsScreen = ({ onClose }) => {
               </Text>
             ) : null}
 
-            <Micro color={C.dim} style={{ marginTop: 12 }}>Send the request to a mate 📤</Micro>
+            <Micro color={C.dim} style={{ marginTop: 12 }}>{t('send_to_a_mate')}</Micro>
             {splitMates === null ? (
-              <Text style={{ color: C.faint, fontSize: 12, paddingVertical: 10 }}>Loading your mates…</Text>
+              <Text style={{ color: C.faint, fontSize: 12, paddingVertical: 10 }}>{t('loading_mates')}</Text>
             ) : splitMates.length ? (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
                 {splitMates.map((m) => (
@@ -275,7 +275,7 @@ export const SettingsScreen = ({ onClose }) => {
               </ScrollView>
             ) : (
               <Text style={{ color: C.faint, fontSize: 12, paddingVertical: 10 }}>
-                No mates yet — mate up with someone first, then split bills with them here.
+                {t('no_mates_yet')}
               </Text>
             )}
             {splitNote ? (
@@ -287,13 +287,13 @@ export const SettingsScreen = ({ onClose }) => {
         {/* ── EARNINGS BY PARTNER — real clicks, real money trail ── */}
         {breakdown.length ? (
           <>
-            <SectionHeader title="Earnings by partner 💸" style={{ marginTop: 22 }} />
+            <SectionHeader title={t('earnings_by_partner')} style={{ marginTop: 22 }} />
             <Glass style={{ paddingHorizontal: 14, paddingVertical: 4 }}>
               {breakdown.map((b, i) => (
                 <View key={b.partner} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderTopWidth: i === 0 ? 0 : StyleSheet.hairlineWidth, borderTopColor: C.line }}>
                   <View style={{ flex: 1 }}>
                     <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800', textTransform: 'capitalize' }}>{b.partner}</Text>
-                    <Text style={{ color: C.faint, fontSize: 11, marginTop: 2 }}>Commission: {b.rate}</Text>
+                    <Text style={{ color: C.faint, fontSize: 11, marginTop: 2 }}>{t('commission_label')} {b.rate}</Text>
                   </View>
                   <Text style={{ color: C.text, fontSize: 14, fontWeight: '900', marginRight: 10 }}>{b.clicks} click{b.clicks === 1 ? '' : 's'}</Text>
                   <View style={{ backgroundColor: b.active ? C.greenSoft : 'rgba(245,179,1,0.12)', borderWidth: 1, borderColor: b.active ? 'rgba(16,185,129,0.4)' : 'rgba(245,179,1,0.45)', borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3 }}>
@@ -303,16 +303,16 @@ export const SettingsScreen = ({ onClose }) => {
               ))}
             </Glass>
             <Text style={{ color: C.faint, fontSize: 11, marginTop: 8, lineHeight: 16 }}>
-              "TAG PENDING" = clicks are tracked, but the affiliate account isn't connected yet — see MONETIZATION.md to activate each partner.
+              {t('tag_pending_hint')}
             </Text>
           </>
         ) : null}
 
-        <SectionHeader title="Recent Activity" style={{ marginTop: 22 }} />
+        <SectionHeader title={t('recent_activity')} style={{ marginTop: 22 }} />
         <Glass style={{ paddingHorizontal: 14, paddingVertical: 4 }}>
           {tx.length === 0 ? (
             <Text style={{ color: C.faint, fontSize: 12.5, textAlign: 'center', paddingVertical: 18, lineHeight: 18 }}>
-              No activity yet — real splits you send and real referral earnings will land here. Nothing here is ever made up.
+              {t('no_activity')}
             </Text>
           ) : null}
           {tx.map((t, i) => (
@@ -334,7 +334,7 @@ export const SettingsScreen = ({ onClose }) => {
         </Glass>
 
         {/* ── PREFERENCES — real, persisted toggles ── */}
-        <SectionHeader title="Preferences" style={{ marginTop: 26 }} />
+        <SectionHeader title={t('preferences')} style={{ marginTop: 26 }} />
         <Glass style={{ paddingHorizontal: 12, paddingVertical: 2 }}>
           {/* Language — opens the picker */}
           <Pressable onPress={() => { tapSelection(); setLangOpen(true); }}>
@@ -358,7 +358,7 @@ export const SettingsScreen = ({ onClose }) => {
                 <Ionicons name={isDark ? 'moon' : 'moon-outline'} size={16} color={C.purple} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ color: C.text, fontSize: 14, fontWeight: '700' }}>Appearance</Text>
+                <Text style={{ color: C.text, fontSize: 14, fontWeight: '700' }}>{t('appearance')}</Text>
                 <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 1 }}>
                   {pref === 'auto'
                     ? 'Following your phone — ' + (isDark ? 'dark right now' : 'light right now')
@@ -408,7 +408,7 @@ export const SettingsScreen = ({ onClose }) => {
         </Glass>
 
         {/* ── SUPPORT ── */}
-        <SectionHeader title="Support" style={{ marginTop: 26 }} />
+        <SectionHeader title={t('support')} style={{ marginTop: 26 }} />
         <Glass style={{ paddingHorizontal: 12, paddingVertical: 2 }}>
           {/* How long messages live. This one deletes things, so it says
               so plainly and shows what is actually in force — a timer
@@ -420,7 +420,7 @@ export const SettingsScreen = ({ onClose }) => {
                 <Ionicons name="timer-outline" size={16} color={C.purple} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ color: C.text, fontSize: 14, fontWeight: '700' }}>Messages disappear after</Text>
+                <Text style={{ color: C.text, fontSize: 14, fontWeight: '700' }}>{t('messages_disappear_after')}</Text>
                 <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 1 }}>
                   {msgTtl === 0
                     ? 'Kept until you delete them'
@@ -450,7 +450,7 @@ export const SettingsScreen = ({ onClose }) => {
               })}
             </View>
             <Text style={{ color: C.faint, fontSize: 11, marginTop: 8, lineHeight: 16 }}>
-              This is the default for new chats. Any single chat can be set differently from inside it.
+              {t('ttl_default_hint')}
             </Text>
           </View>
 
@@ -482,8 +482,8 @@ export const SettingsScreen = ({ onClose }) => {
                 <Ionicons name="hand-left-outline" size={16} color={C.purple} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ color: C.text, fontSize: 14, fontWeight: '700' }}>Show me the gestures</Text>
-                <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 1 }}>The four shortcuts worth knowing</Text>
+                <Text style={{ color: C.text, fontSize: 14, fontWeight: '700' }}>{t('show_gestures')}</Text>
+                <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 1 }}>{t('gestures_hint')}</Text>
               </View>
               <Ionicons name="chevron-forward" size={16} color={C.faint} />
             </View>
@@ -494,8 +494,8 @@ export const SettingsScreen = ({ onClose }) => {
                 <Ionicons name="help-circle-outline" size={16} color={C.purple} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ color: C.text, fontSize: 14, fontWeight: '700' }}>Help & support</Text>
-                <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 1 }}>Real answers, or email us</Text>
+                <Text style={{ color: C.text, fontSize: 14, fontWeight: '700' }}>{t('help_support')}</Text>
+                <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 1 }}>{t('help_hint')}</Text>
               </View>
               <Ionicons name="chevron-forward" size={16} color={C.faint} />
             </View>
@@ -506,8 +506,8 @@ export const SettingsScreen = ({ onClose }) => {
                 <Ionicons name="shield-checkmark-outline" size={16} color={C.purple} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ color: C.text, fontSize: 14, fontWeight: '700' }}>Terms & content policy</Text>
-                <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 1 }}>Your rights, our rules & how to report</Text>
+                <Text style={{ color: C.text, fontSize: 14, fontWeight: '700' }}>{t('terms_policy')}</Text>
+                <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 1 }}>{t('terms_hint')}</Text>
               </View>
               <Ionicons name="chevron-forward" size={16} color={C.faint} />
             </View>
@@ -516,19 +516,19 @@ export const SettingsScreen = ({ onClose }) => {
             <View style={{ width: 30, height: 30, borderRadius: 9, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
               <Ionicons name="information-circle-outline" size={16} color={C.purple} />
             </View>
-            <Text style={{ color: C.text, fontSize: 14, fontWeight: '700', flex: 1 }}>About Moments</Text>
+            <Text style={{ color: C.text, fontSize: 14, fontWeight: '700', flex: 1 }}>{t('about_moments')}</Text>
             <Text style={{ color: C.faint, fontSize: 13 }}>v1.0 · Live</Text>
           </View>
         </Glass>
 
         {/* ── LANGUAGE EXCHANGE — real opt-in, HelloTalk-style ── */}
-        <SectionHeader title="Learn languages 🌍" style={{ marginTop: 26 }} />
+        <SectionHeader title={t('learn_languages')} style={{ marginTop: 26 }} />
         {SUPABASE_READY ? (
           <Glass style={{ padding: 15 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
               <View style={{ flex: 1, marginRight: 12 }}>
-                <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>Show me for language exchange</Text>
-                <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 2 }}>Real people will see you in Chats → Learn languages</Text>
+                <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>{t('show_for_exchange')}</Text>
+                <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 2 }}>{t('exchange_where')}</Text>
               </View>
               <Pressable onPress={() => { const n = !visible; setVisible(n); saveExchange(n); }}>
                 <View style={{ width: 46, height: 27, borderRadius: 14, backgroundColor: visible ? C.purple : C.glassHi, padding: 3, justifyContent: 'center' }}>
@@ -536,7 +536,7 @@ export const SettingsScreen = ({ onClose }) => {
                 </View>
               </Pressable>
             </View>
-            <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', marginBottom: 7 }}>I speak 🗣️</Text>
+            <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', marginBottom: 7 }}>{t('i_speak')}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
               {LANGUAGES.map((l) => {
                 const on = speaks === l.c;
@@ -550,7 +550,7 @@ export const SettingsScreen = ({ onClose }) => {
                 );
               })}
             </ScrollView>
-            <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', marginBottom: 7 }}>I want to practise 🎯</Text>
+            <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', marginBottom: 7 }}>{t('i_practise')}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
               {LANGUAGES.map((l) => {
                 const on = learning === l.c;
@@ -564,7 +564,7 @@ export const SettingsScreen = ({ onClose }) => {
                 );
               })}
             </ScrollView>
-            <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', marginBottom: 7 }}>My level 📈</Text>
+            <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', marginBottom: 7 }}>{t('my_level')}</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 10 }}>
               {LEVELS.map((lv) => {
                 const on = level === lv;
@@ -586,16 +586,16 @@ export const SettingsScreen = ({ onClose }) => {
           </Glass>
         ) : (
           <Glass style={{ padding: 15, alignItems: 'center' }}>
-            <Text style={{ color: C.faint, fontSize: 12, textAlign: 'center' }}>Connect Supabase to turn on language exchange</Text>
+            <Text style={{ color: C.faint, fontSize: 12, textAlign: 'center' }}>{t('exchange_offline')}</Text>
           </Glass>
         )}
 
         {/* ── GAMES — Egyptian-Arabic option ── */}
-        <SectionHeader title="Games 🎮" style={{ marginTop: 26 }} />
+        <SectionHeader title={t('games_section')} style={{ marginTop: 26 }} />
         <Glass style={{ padding: 15, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <View style={{ flex: 1, marginRight: 12 }}>
             <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>ألعاب باللهجة المصرية 🇪🇬</Text>
-            <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 2 }}>Show games in Egyptian Arabic</Text>
+            <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 2 }}>{t('games_in_masri')}</Text>
           </View>
           <Pressable onPress={() => {
             const n = !gamesArOn; setGamesArOn(n);
@@ -608,20 +608,20 @@ export const SettingsScreen = ({ onClose }) => {
         </Glass>
 
         {/* ── BARDI — the real assistant (self-understanding, plans, ideas) ── */}
-        <SectionHeader title="Bardi 🌾" style={{ marginTop: 26 }} />
+        <SectionHeader title={t('bardi_section')} style={{ marginTop: 26 }} />
         <Pressable onPress={() => setBardiOpen(true)}>
           <Glass style={{ padding: 15, flexDirection: 'row', alignItems: 'center' }}>
             <Image source={require('../assets/brand/bardi.png')} style={{ width: 44, height: 44, borderRadius: 13, marginRight: 12 }} />
             <View style={{ flex: 1 }}>
-              <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '900' }}>Talk to Bardi</Text>
-              <Text style={{ color: C.faint, fontSize: 12, marginTop: 2 }}>Understand yourself, plan a trip, start a project</Text>
+              <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '900' }}>{t('talk_to_bardi')}</Text>
+              <Text style={{ color: C.faint, fontSize: 12, marginTop: 2 }}>{t('bardi_hint')}</Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={C.faint} />
           </Glass>
         </Pressable>
 
         {/* ── ACCOUNT ── */}
-        <SectionHeader title="Account" style={{ marginTop: 26 }} />
+        <SectionHeader title={t('account')} style={{ marginTop: 26 }} />
         <Glass style={{ padding: 15, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <View style={{ flex: 1, marginRight: 12 }}>
             <Text style={{ color: C.text, fontWeight: 'bold' }}>
