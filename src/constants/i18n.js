@@ -28,6 +28,9 @@ export const LANGS = [
 
 export const STRINGS = {
   en: {
+    lamma_standings: 'STANDINGS',
+    lamma_rank_of: '{n} of {total}',
+    lamma_in_the_room: 'in the room',
     lamma_or_start: 'OR START ONE',
     // Settings
     wallet: 'Wallet',
@@ -354,6 +357,9 @@ export const STRINGS = {
     try_again: 'Try again',
   },
   ar: {
+    lamma_standings: 'الترتيب',
+    lamma_rank_of: '{n} من {total}',
+    lamma_in_the_room: 'في الأوضة',
     lamma_or_start: 'أو ابدأ واحدة',
     // Settings
     wallet: 'المحفظة',
@@ -671,6 +677,9 @@ export const STRINGS = {
 
   },
   fr: {
+    lamma_standings: 'CLASSEMENT',
+    lamma_rank_of: '{n}ᵉ sur {total}',
+    lamma_in_the_room: 'dans le salon',
     lamma_or_start: 'OU LANCEZ-EN UNE',
     // Settings
     wallet: 'Portefeuille',
@@ -1002,6 +1011,9 @@ export const STRINGS = {
     online_now: 'En ligne', mate_up: '＋ Devenir ami', recent_moments: 'Moments récents',
   },
   es: {
+    lamma_standings: 'CLASIFICACIÓN',
+    lamma_rank_of: '{n} de {total}',
+    lamma_in_the_room: 'en la sala',
     lamma_or_start: 'O EMPIEZA UNA',
     // Settings
     wallet: 'Cartera',
@@ -1333,6 +1345,9 @@ export const STRINGS = {
     online_now: 'En línea ahora', mate_up: '＋ Hacerse amigos', recent_moments: 'Momentos recientes',
   },
   tr: {
+    lamma_standings: 'SIRALAMA',
+    lamma_rank_of: '{total} kişiden {n}.',
+    lamma_in_the_room: 'odada',
     lamma_or_start: 'YA DA BİRİNİ BAŞLAT',
     // Settings
     wallet: 'Cüzdan',
@@ -1663,6 +1678,9 @@ export const STRINGS = {
     online_now: 'Şu an çevrimiçi', mate_up: '＋ Arkadaş ol', recent_moments: 'Son anlar',
   },
   pt: {
+    lamma_standings: 'CLASSIFICAÇÃO',
+    lamma_rank_of: '{n} de {total}',
+    lamma_in_the_room: 'na sala',
     lamma_or_start: 'OU COMECE UMA',
     // Settings
     wallet: 'Carteira',
@@ -1993,6 +2011,9 @@ export const STRINGS = {
     online_now: 'Online agora', mate_up: '＋ Tornar amigo', recent_moments: 'Momentos recentes',
   },
   ro: {
+    lamma_standings: 'CLASAMENT',
+    lamma_rank_of: '{n} din {total}',
+    lamma_in_the_room: 'în cameră',
     lamma_or_start: 'SAU ÎNCEPE UNA',
     wallet: 'Portofel',
     referral_earnings: 'Câștiguri din recomandări',
@@ -2322,6 +2343,9 @@ export const STRINGS = {
     online_now: 'Online acum', mate_up: '＋ Adaugă prieten', recent_moments: 'Momente recente',
   },
   it: {
+    lamma_standings: 'CLASSIFICA',
+    lamma_rank_of: '{n} su {total}',
+    lamma_in_the_room: 'nella stanza',
     lamma_or_start: 'O INIZIANE UNA',
     wallet: 'Portafoglio',
     referral_earnings: 'Guadagni da invito',
@@ -2651,6 +2675,9 @@ export const STRINGS = {
     online_now: 'Online ora', mate_up: '＋ Diventa amico', recent_moments: 'Momenti recenti',
   },
   nl: {
+    lamma_standings: 'STAND',
+    lamma_rank_of: '{n} van {total}',
+    lamma_in_the_room: 'in de kamer',
     lamma_or_start: 'OF START ER EEN',
     wallet: 'Portemonnee',
     referral_earnings: 'Verwijzingsinkomsten',
@@ -2980,6 +3007,9 @@ export const STRINGS = {
     online_now: 'Nu online', mate_up: '＋ Vrienden worden', recent_moments: 'Recente moments',
   },
   ru: {
+    lamma_standings: 'ПОЛОЖЕНИЕ',
+    lamma_rank_of: '{n} из {total}',
+    lamma_in_the_room: 'в комнате',
     lamma_or_start: 'ИЛИ НАЧНИТЕ СВОЮ',
     wallet: 'Кошелёк',
     referral_earnings: 'Доход с приглашений',
@@ -3309,6 +3339,9 @@ export const STRINGS = {
     online_now: 'Сейчас в сети', mate_up: '＋ Добавить в друзья', recent_moments: 'Недавние моменты',
   },
   zh: {
+    lamma_standings: '排名',
+    lamma_rank_of: '第 {n} / {total}',
+    lamma_in_the_room: '在房间里',
     lamma_or_start: '或者发起一局',
     wallet: '钱包',
     referral_earnings: '推荐收益',
@@ -3638,6 +3671,9 @@ export const STRINGS = {
     online_now: '当前在线', mate_up: '＋ 添加好友', recent_moments: '最近的瞬间',
   },
   ko: {
+    lamma_standings: '순위',
+    lamma_rank_of: '{total}명 중 {n}위',
+    lamma_in_the_room: '방에 있음',
     lamma_or_start: '또는 새로 시작하기',
     wallet: '지갑',
     referral_earnings: '추천 수익',
@@ -3967,6 +4003,9 @@ export const STRINGS = {
     online_now: '현재 온라인', mate_up: '＋ 메이트 신청', recent_moments: '최근 순간들',
   },
   ja: {
+    lamma_standings: '順位',
+    lamma_rank_of: '{total}人中 {n}位',
+    lamma_in_the_room: 'ルームに',
     lamma_or_start: 'または新しく始める',
     wallet: 'ウォレット',
     referral_earnings: '紹介の収益',

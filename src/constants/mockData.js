@@ -140,12 +140,16 @@ export const HUB_TRACKS = [
 
 /* Countries — for the flag on your map avatar (the light version of the
    "national-outfit avatar" idea). */
+/* The CODE is what the rest of the app matches on. A quiz pack belongs
+   to 'EG', a profile said 'Egypt', and comparing those two directly is
+   why somebody in Cairo opened لمّة and saw only the worldwide packs.
+   The name is what a person picks; the code is what the data uses. */
 export const COUNTRIES = [
-  { name: 'Egypt', flag: '🇪🇬' }, { name: 'Saudi Arabia', flag: '🇸🇦' }, { name: 'UAE', flag: '🇦🇪' },
-  { name: 'Morocco', flag: '🇲🇦' }, { name: 'France', flag: '🇫🇷' }, { name: 'Spain', flag: '🇪🇸' },
-  { name: 'USA', flag: '🇺🇸' }, { name: 'UK', flag: '🇬🇧' }, { name: 'Germany', flag: '🇩🇪' },
-  { name: 'Korea', flag: '🇰🇷' }, { name: 'Japan', flag: '🇯🇵' }, { name: 'China', flag: '🇨🇳' },
-  { name: 'Russia', flag: '🇷🇺' }, { name: 'Bosnia', flag: '🇧🇦' }, { name: 'Romania', flag: '🇷🇴' },
+  { name: 'Egypt', code: 'EG', flag: '🇪🇬' }, { name: 'Saudi Arabia', code: 'SA', flag: '🇸🇦' }, { name: 'UAE', code: 'AE', flag: '🇦🇪' },
+  { name: 'Morocco', code: 'MA', flag: '🇲🇦' }, { name: 'France', code: 'FR', flag: '🇫🇷' }, { name: 'Spain', code: 'ES', flag: '🇪🇸' },
+  { name: 'USA', code: 'US', flag: '🇺🇸' }, { name: 'UK', code: 'GB', flag: '🇬🇧' }, { name: 'Germany', code: 'DE', flag: '🇩🇪' },
+  { name: 'Korea', code: 'KR', flag: '🇰🇷' }, { name: 'Japan', code: 'JP', flag: '🇯🇵' }, { name: 'China', code: 'CN', flag: '🇨🇳' },
+  { name: 'Russia', code: 'RU', flag: '🇷🇺' }, { name: 'Bosnia', code: 'BA', flag: '🇧🇦' }, { name: 'Romania', code: 'RO', flag: '🇷🇴' },
 ];
 
 /* Each story: a moment that disappears after the vibe. */

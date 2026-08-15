@@ -7,6 +7,7 @@ import { useLang } from '../../context/LanguageContext';
 import { useAuth } from '../../context/AuthContext';
 import { QuestionCard } from './QuestionCard';
 import { Strip, leaderboardSegments, StripLabel } from './Strip';
+import { Standings, RankChip } from './Standings';
 import {
   advance, submitAnswer, reveal as revealRpc, sync as syncRpc,
   fetchPackQuestions, fetchRoomPlayers, subscribeRoom, nudge, claimHost, setConnected,
@@ -148,6 +149,11 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
         <Text style={{ color: C.text, fontSize: 17, fontWeight: '900', marginStart: 10, flex: 1 }}>
           {t('lamma_title')}
         </Text>
+        {state.status !== 'lobby' && !ended ? (
+          <View style={{ marginEnd: 8 }}>
+            <RankChip players={players} meId={user && user.id} t={t} />
+          </View>
+        ) : null}
         {joinCode ? (
           <View style={{ backgroundColor: C.purpleSoft, borderRadius: 10, paddingHorizontal: 11, paddingVertical: 6 }}>
             <Text style={{ color: C.purple, fontSize: 14, fontWeight: '900', letterSpacing: 2 }}>{joinCode}</Text>
@@ -200,8 +206,15 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
             t={t}
             lang={lang}
           />
+          {/* The half second after the answer is why people play this in
+              a room together. Show them who moved. */}
+          {result && (players || []).length > 1 ? (
+            <View style={{ paddingHorizontal: 16, paddingTop: 4 }}>
+              <Standings players={players} meId={user && user.id} questionIndex={state.question_index} t={t} />
+            </View>
+          ) : null}
           {result && isHost ? (
-            <Pressable onPress={next} disabled={busy} style={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 14 }}>
+            <Pressable onPress={next} disabled={busy} style={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 14, paddingTop: 10 }}>
               <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingVertical: 14, alignItems: 'center' }}>
                 <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '900' }}>{t('lamma_next')}</Text>
               </View>

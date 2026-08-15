@@ -1,5 +1,6 @@
 import { supabase, SUPABASE_READY } from '../lib/supabase';
 import { withDeadline } from '../lib/deadline';
+import { COUNTRIES } from '../constants/mockData';
 
 /* ─── لمّة · TALKING TO THE ROOM ──────────────────────────────────────
    Every function here ASKS. None of them tell.
@@ -79,19 +80,39 @@ export async function fetchPackQuestions(packId) {
 
    Pass no country and you get everything, which is what the search and
    the pack builder want. */
-export async function fetchPacks(country) {
+/* A profile says where you live in WORDS — "Egypt" — and a pack is
+   tagged with a code — 'EG'. Comparing those two directly is why Ayser
+   opened لمّة in Cairo and saw three worldwide packs and not one
+   Egyptian one: the filter asked the database for country = 'Egypt',
+   which nothing is.
+
+   So the name is translated to a code first. And the packs are no
+   longer FILTERED by country at all — they are only SORTED by it.
+   Filtering means one wrong lookup hides most of the game; sorting
+   means the worst case is a shelf in a slightly odd order. Given a
+   choice between those two failures, take the second one. */
+const codeFor = (place) => {
+  if (!place) return null;
+  const s = String(place).trim();
+  if (/^[A-Za-z]{2}$/.test(s)) return s.toUpperCase();   // already a code
+  const hit = COUNTRIES.find((c) => c.name.toLowerCase() === s.toLowerCase());
+  return hit ? hit.code : null;
+};
+
+export async function fetchPacks(place) {
   if (!SUPABASE_READY) return [];
-  let q = supabase.from('game_packs').select('*');
-  if (country) q = q.or('country.eq.' + country + ',country.is.null');
   const { data, error } = await withDeadline(
-    q.order('is_official', { ascending: false }).limit(60),
+    supabase.from('game_packs').select('*')
+      .order('is_official', { ascending: false })
+      .limit(120),
   );
   if (error) throw error;
   const rows = data || [];
-  if (!country) return rows;
-  // yours first, then everybody's
-  return rows.sort((a, b) => {
-    const mine = (r) => (r.country === country ? 0 : 1);
+  const code = codeFor(place);
+  if (!code) return rows;
+  // yours first, then everybody else's
+  return rows.slice().sort((a, b) => {
+    const mine = (r) => (r.country === code ? 0 : 1);
     return mine(a) - mine(b);
   });
 }
