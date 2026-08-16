@@ -49,6 +49,14 @@ on:
         description: 'How many new tracks to import'
         required: false
         default: '1000'
+      import_photos:
+        description: 'Find public-domain photographs for the Egypt quiz'
+        type: boolean
+        default: false
+      photos_dry_run:
+        description: 'Photographs: look and report, write nothing'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -107,6 +115,15 @@ jobs:
           PROJECT_REF: ${{ inputs.project_ref }}
           TARGET: ${{ inputs.music_target }}
         run: node scripts/import-public-domain-music.mjs
+
+      # Only pictures Commons itself calls public domain or CC0 are
+      # copied in; everything else is named in the log and left alone.
+      - name: Find pictures for the Egypt quiz
+        if: ${{ inputs.import_photos }}
+        env:
+          PROJECT_REF: ${{ inputs.project_ref }}
+          DRY_RUN: ${{ inputs.photos_dry_run && '1' || '0' }}
+        run: node scripts/import-egypt-photos.mjs
 
       - name: Install the Supabase CLI
         if: ${{ inputs.deploy_function }}
@@ -200,4 +217,5 @@ jobs:
             echo "- Database schema: ${{ inputs.run_sql && 'applied' || 'skipped' }}"
             echo "- bardi-chat: ${{ inputs.deploy_function && 'deployed' || 'skipped' }}"
             echo "- music import: ${{ inputs.import_music && 'ran' || 'skipped' }}"
+            echo "- quiz pictures: ${{ inputs.import_photos && 'ran' || 'skipped' }}"
           } >> "$GITHUB_STEP_SUMMARY"
