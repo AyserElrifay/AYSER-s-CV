@@ -21,6 +21,7 @@ import { FilmSheet } from '../components/FilmSheet';
 import { BooksShelf } from '../components/BooksShelf';
 import { CommentsSheet } from '../components/CommentsSheet';
 import { GameHub } from '../components/lamma/GameHub';
+import { GreenSheet } from '../components/green/GreenSheet';
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
 import { trackPlayer } from '../lib/videoSound';
 import { sfxSuccess, sfxPop } from '../utils/sfx';
@@ -81,6 +82,7 @@ export const ChillScreen = () => {
   const [shooting, setShooting] = useState(false);
   const [game, setGame] = useState(null); // a launched game
   const [lammaOpen, setLammaOpen] = useState(false);
+  const [greenOpen, setGreenOpen] = useState(false);
   const { t } = useLang();
 
   // Every real, playable game — surfaced here so they're actually findable
@@ -181,6 +183,32 @@ export const ChillScreen = () => {
           </View>
           <View style={{ backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 999, paddingHorizontal: 16, paddingVertical: 9 }}>
             <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900' }}>{t('lamma_start')}</Text>
+          </View>
+        </LinearGradient>
+      </Pressable>
+
+      {/* ── THE GREEN CORNER ─────────────────────────────────────
+          Next to لمّة because it is the same idea from the other side:
+          لمّة is a room full of people laughing indoors, this is the
+          same people outside doing something small that lasts. */}
+      <Pressable onPress={() => { tapLight(); sfxPop(); setGreenOpen(true); }} style={{ marginBottom: 18 }}>
+        <LinearGradient
+          colors={['#0E3B2E', '#1F7A5A']}
+          start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+          style={{ borderRadius: 20, padding: 16, flexDirection: 'row', alignItems: 'center' }}
+        >
+          <Text style={{ fontSize: 34 }}>🌿</Text>
+          <View style={{ flex: 1, minWidth: 0, marginStart: 14 }}>
+            <Text style={{ color: '#FFF', fontSize: 18, fontWeight: '900' }}>{t('green_title')}</Text>
+            <Text numberOfLines={2} style={{ color: 'rgba(255,255,255,0.82)', fontSize: 12, fontWeight: '700', marginTop: 2 }}>
+              {t('green_tagline')}
+            </Text>
+          </View>
+          {/* an arrow rather than a word: this card already says what
+              it is twice, and a third label in thirteen languages is a
+              translation bill for nothing */}
+          <View style={{ backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 999, width: 38, height: 38, alignItems: 'center', justifyContent: 'center' }}>
+            <Ionicons name="arrow-forward" size={18} color="#FFF" />
           </View>
         </LinearGradient>
       </Pressable>
@@ -493,6 +521,7 @@ export const ChillScreen = () => {
       : game ? <GameRunner onClose={() => setGame(null)} /> : null}
 
     {lammaOpen ? <GameHub onClose={() => setLammaOpen(false)} /> : null}
+    {greenOpen ? <GreenSheet onClose={() => setGreenOpen(false)} /> : null}
     </>
   );
 };
