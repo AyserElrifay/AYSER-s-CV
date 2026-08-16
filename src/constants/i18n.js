@@ -28,6 +28,11 @@ export const LANGS = [
 
 export const STRINGS = {
   en: {
+    // لمّة — a room with a code, and one ranking at the end
+    lamma_create: 'Create a room',
+    lamma_code_hint: 'Send this to your people — they type it and you all play together',
+    lamma_share_text: 'Play Lamma with me — the room code is {code}',
+    lamma_final_rank: 'Final ranking',
     // لمّة — your own face, with the regalia on
     lamma_face_cta: 'Be a pharaoh for the game',
     lamma_face_title: 'Your face for this room',
@@ -545,6 +550,11 @@ export const STRINGS = {
     try_again: 'Try again',
   },
   ar: {
+    // لمّة — a room with a code, and one ranking at the end
+    lamma_create: 'اعمل أوضة',
+    lamma_code_hint: 'ابعت الكود ده لناسك — يكتبوه وتلعبوا كلكم مع بعض',
+    lamma_share_text: 'العب معايا لمّة — كود الأوضة {code}',
+    lamma_final_rank: 'الترتيب النهائي',
     // لمّة — your own face, with the regalia on
     lamma_face_cta: 'كون فرعون في اللعبة',
     lamma_face_title: 'صورتك في الأوضة دي',
@@ -1053,6 +1063,11 @@ export const STRINGS = {
 
   },
   fr: {
+    // لمّة — a room with a code, and one ranking at the end
+    lamma_create: 'Créer une partie',
+    lamma_code_hint: 'Envoyez ce code : ils le saisissent et vous jouez tous ensemble',
+    lamma_share_text: 'Joue à Lamma avec moi — le code de la partie est {code}',
+    lamma_final_rank: 'Classement final',
     // لمّة — your own face, with the regalia on
     lamma_face_cta: 'Devenez pharaon pour la partie',
     lamma_face_title: 'Votre visage pour cette partie',
@@ -1575,6 +1590,11 @@ export const STRINGS = {
     online_now: 'En ligne', mate_up: '＋ Devenir ami', recent_moments: 'Moments récents',
   },
   es: {
+    // لمّة — a room with a code, and one ranking at the end
+    lamma_create: 'Crear una sala',
+    lamma_code_hint: 'Envía este código: lo escriben y jugáis todos a la vez',
+    lamma_share_text: 'Juega a Lamma conmigo — el código de la sala es {code}',
+    lamma_final_rank: 'Clasificación final',
     // لمّة — your own face, with the regalia on
     lamma_face_cta: 'Sé un faraón para la partida',
     lamma_face_title: 'Tu cara para esta sala',
@@ -2097,6 +2117,11 @@ export const STRINGS = {
     online_now: 'En línea ahora', mate_up: '＋ Hacerse amigos', recent_moments: 'Momentos recientes',
   },
   tr: {
+    // لمّة — a room with a code, and one ranking at the end
+    lamma_create: 'Oda oluştur',
+    lamma_code_hint: 'Bu kodu gönder — yazsınlar, hep birlikte oynayın',
+    lamma_share_text: 'Benimle Lamma oyna — oda kodu {code}',
+    lamma_final_rank: 'Son sıralama',
     // لمّة — your own face, with the regalia on
     lamma_face_cta: 'Bu oyunda firavun ol',
     lamma_face_title: 'Bu odadaki yüzün',
@@ -2618,6 +2643,11 @@ export const STRINGS = {
     online_now: 'Şu an çevrimiçi', mate_up: '＋ Arkadaş ol', recent_moments: 'Son anlar',
   },
   pt: {
+    // لمّة — a room with a code, and one ranking at the end
+    lamma_create: 'Criar uma sala',
+    lamma_code_hint: 'Envia este código: eles escrevem-no e jogam todos juntos',
+    lamma_share_text: 'Joga Lamma comigo — o código da sala é {code}',
+    lamma_final_rank: 'Classificação final',
     // لمّة — your own face, with the regalia on
     lamma_face_cta: 'Sê um faraó nesta partida',
     lamma_face_title: 'A tua cara nesta sala',
@@ -3139,6 +3169,11 @@ export const STRINGS = {
     online_now: 'Online agora', mate_up: '＋ Tornar amigo', recent_moments: 'Momentos recentes',
   },
   ro: {
+    // لمّة — a room with a code, and one ranking at the end
+    lamma_create: 'Creează o cameră',
+    lamma_code_hint: 'Trimite codul ăsta — îl scriu și jucați toți odată',
+    lamma_share_text: 'Hai la Lamma cu mine — codul camerei e {code}',
+    lamma_final_rank: 'Clasamentul final',
     // لمّة — your own face, with the regalia on
     lamma_face_cta: 'Fii faraon în jocul ăsta',
     lamma_face_title: 'Chipul tău în camera asta',
@@ -3657,6 +3692,11 @@ export const STRINGS = {
     online_now: 'Online acum', mate_up: '＋ Adaugă prieten', recent_moments: 'Momente recente',
   },
   it: {
+    // لمّة — a room with a code, and one ranking at the end
+    lamma_create: 'Crea una stanza',
+    lamma_code_hint: 'Manda questo codice: lo scrivono e giocate tutti insieme',
+    lamma_share_text: 'Gioca a Lamma con me — il codice della stanza è {code}',
+    lamma_final_rank: 'Classifica finale',
     // لمّة — your own face, with the regalia on
     lamma_face_cta: 'Diventa faraone per la partita',
     lamma_face_title: 'La tua faccia in questa stanza',
@@ -4175,6 +4215,11 @@ export const STRINGS = {
     online_now: 'Online ora', mate_up: '＋ Diventa amico', recent_moments: 'Momenti recenti',
   },
   nl: {
+    // لمّة — a room with a code, and one ranking at the end
+    lamma_create: 'Maak een ruimte',
+    lamma_code_hint: 'Stuur deze code — zij typen hem en jullie spelen samen',
+    lamma_share_text: 'Speel Lamma met me — de code is {code}',
+    lamma_final_rank: 'Eindstand',
     // لمّة — your own face, with the regalia on
     lamma_face_cta: 'Wees farao in dit spel',
     lamma_face_title: 'Jouw gezicht in deze ruimte',
@@ -4693,6 +4738,11 @@ export const STRINGS = {
     online_now: 'Nu online', mate_up: '＋ Vrienden worden', recent_moments: 'Recente moments',
   },
   ru: {
+    // لمّة — a room with a code, and one ranking at the end
+    lamma_create: 'Создать комнату',
+    lamma_code_hint: 'Отправь этот код — они его вводят, и вы играете вместе',
+    lamma_share_text: 'Сыграй со мной в Lamma — код комнаты {code}',
+    lamma_final_rank: 'Итоговый рейтинг',
     // لمّة — your own face, with the regalia on
     lamma_face_cta: 'Стань фараоном на эту игру',
     lamma_face_title: 'Твоё лицо в этой комнате',
@@ -5211,6 +5261,11 @@ export const STRINGS = {
     online_now: 'Сейчас в сети', mate_up: '＋ Добавить в друзья', recent_moments: 'Недавние моменты',
   },
   zh: {
+    // لمّة — a room with a code, and one ranking at the end
+    lamma_create: '创建房间',
+    lamma_code_hint: '把这个码发出去 — 他们输入后，大家一起玩',
+    lamma_share_text: '来和我玩 Lamma — 房间码是 {code}',
+    lamma_final_rank: '最终排名',
     // لمّة — your own face, with the regalia on
     lamma_face_cta: '这局当个法老',
     lamma_face_title: '你在这个房间里的脸',
@@ -5729,6 +5784,11 @@ export const STRINGS = {
     online_now: '当前在线', mate_up: '＋ 添加好友', recent_moments: '最近的瞬间',
   },
   ko: {
+    // لمّة — a room with a code, and one ranking at the end
+    lamma_create: '방 만들기',
+    lamma_code_hint: '이 코드를 보내세요 — 입력하면 다 같이 함께 해요',
+    lamma_share_text: 'Lamma 같이 해요 — 방 코드는 {code}',
+    lamma_final_rank: '최종 순위',
     // لمّة — your own face, with the regalia on
     lamma_face_cta: '이번 판은 파라오로',
     lamma_face_title: '이 방에서의 내 얼굴',
@@ -6247,6 +6307,11 @@ export const STRINGS = {
     online_now: '현재 온라인', mate_up: '＋ 메이트 신청', recent_moments: '최근 순간들',
   },
   ja: {
+    // لمّة — a room with a code, and one ranking at the end
+    lamma_create: 'ルームを作る',
+    lamma_code_hint: 'このコードを送ってください — 入力すれば全員で一緒に遊べます',
+    lamma_share_text: '一緒に Lamma をどうぞ — ルームコードは {code}',
+    lamma_final_rank: '最終順位',
     // لمّة — your own face, with the regalia on
     lamma_face_cta: 'この試合はファラオで',
     lamma_face_title: 'この部屋でのあなたの顔',

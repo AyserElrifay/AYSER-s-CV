@@ -148,6 +148,28 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
     return () => { alive = false; };
   }, [state && state.status, roomId]);
 
+  /* Send the code the way the phone knows how — the share sheet if it
+     has one, the clipboard if it does not, and the code is on screen
+     anyway if neither works. Nothing here can leave somebody with no
+     way to pass it on. */
+  const [copied, setCopied] = useState(false);
+  const shareCode = async () => {
+    if (!joinCode) return;
+    tapLight();
+    const text = t('lamma_share_text').replace('{code}', joinCode);
+    try {
+      if (typeof navigator !== 'undefined' && navigator.share) {
+        await navigator.share({ text });
+        return;
+      }
+      if (typeof navigator !== 'undefined' && navigator.clipboard) {
+        await navigator.clipboard.writeText(joinCode);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1800);
+      }
+    } catch (e) { /* they can read it off the screen */ }
+  };
+
   const onAnswer = async (index, elapsedMs) => {
     if (!q) return;
     await submitAnswer(roomId, q.id, index, elapsedMs);
@@ -240,10 +262,31 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
       {/* ── LOBBY ── */}
       {state.status === 'lobby' ? (
         <ScrollView contentContainerStyle={{ padding: 16 }}>
+          {/* THE CODE IS THE INVITATION, so it is the biggest thing on
+              the screen and it can be sent in one tap. Everybody who
+              types it lands in this room, sees the same question at the
+              same second, and finishes on the same ranking. */}
           <Text style={{ color: C.faint, fontSize: 13, marginBottom: 4 }}>{t('lamma_code_label')}</Text>
-          <Text style={{ color: C.text, fontSize: 40, fontWeight: '900', letterSpacing: 8, marginBottom: 18 }}>
+          <Text style={{ color: C.text, fontSize: 40, fontWeight: '900', letterSpacing: 8 }}>
             {joinCode || '—'}
           </Text>
+          <Text style={{ color: C.faint, fontSize: 12.5, marginTop: 2, marginBottom: 12 }}>
+            {t('lamma_code_hint')}
+          </Text>
+          {joinCode ? (
+            <Pressable onPress={shareCode} style={{ alignSelf: 'flex-start', marginBottom: 18 }}>
+              <View style={{
+                flexDirection: 'row', alignItems: 'center',
+                backgroundColor: C.purpleSoft, borderRadius: 999,
+                paddingHorizontal: 16, paddingVertical: 9,
+              }}>
+                <Ionicons name={copied ? 'checkmark' : 'share-outline'} size={15} color={C.purple} />
+                <Text style={{ color: C.purple, fontSize: 13, fontWeight: '900', marginStart: 7 }}>
+                  {copied ? t('added_check') : t('lamma_share')}
+                </Text>
+              </View>
+            </Pressable>
+          ) : null}
           {/* Before anybody starts: what will you be reading? Everyone
               in the room answers the same question at the same moment,
               each in the language they think fastest in. */}
@@ -325,25 +368,42 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
       {/* ── THE PODIUM ── the same bar, one last job */}
       {ended ? (
         <ScrollView contentContainerStyle={{ padding: 16 }}>
-          <Text style={{ color: C.text, fontSize: 24, fontWeight: '900', marginBottom: 16 }}>{t('lamma_final')}</Text>
+          <Text style={{ color: C.text, fontSize: 24, fontWeight: '900', marginBottom: 16 }}>{t('lamma_final_rank')}</Text>
           <View onLayout={(e) => setBarW(e.nativeEvent.layout.width)} style={{ marginBottom: 18 }}>
             <StripLabel>{t('lamma_final')}</StripLabel>
             <Strip mode="leaderboard" width={barW} segments={leaderboardSegments(players)} />
           </View>
-          {podium.map((p, i) => (
-            <View key={p.user_id} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 16, padding: 14, marginBottom: 10 }}>
-              <Text style={{ fontSize: 22 }}>{['🥇', '🥈', '🥉'][i]}</Text>
-              <View style={{ marginStart: 10 }}><Face player={p} size={38} ring={C.gold} /></View>
-              <Text style={{ color: C.text, fontSize: 16, fontWeight: '900', marginStart: 10, flex: 1, minWidth: 0 }} numberOfLines={1}>{p.nickname}</Text>
-              <Text style={{ color: C.purple, fontSize: 16, fontWeight: '900' }}>{p.score}</Text>
-            </View>
-          ))}
-          {(players || []).slice(3).map((p) => (
-            <View key={p.user_id} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 9 }}>
-              <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '700', flex: 1 }}>{p.nickname}</Text>
-              <Text style={{ color: C.faint, fontSize: 14, fontWeight: '800' }}>{p.score}</Text>
-            </View>
-          ))}
+          {/* EVERY PLAYER IS ON IT, in order, with their number. Three
+              medals and then a thinner list underneath was two
+              different screens: the people below third came out looking
+              like a footnote to somebody else's win, when they had just
+              played the same twenty minutes. Same row, same face, same
+              size — the medal is the only difference. */}
+          {(players || []).map((p, i) => {
+            const top = i < 3;
+            const mine = user && p.user_id === user.id;
+            return (
+              <View key={p.user_id} style={{
+                flexDirection: 'row', alignItems: 'center',
+                backgroundColor: mine ? C.purpleSoft : C.glass,
+                borderWidth: 1, borderColor: mine ? C.purple : C.line,
+                borderRadius: 16, paddingHorizontal: 13, paddingVertical: 11, marginBottom: 9,
+              }}>
+                <Text style={{ fontSize: top ? 20 : 14, fontWeight: '900', color: C.faint, width: 26 }}>
+                  {top ? ['🥇', '🥈', '🥉'][i] : (i + 1)}
+                </Text>
+                <View style={{ marginStart: 6 }}>
+                  <Face player={p} size={36} ring={top ? C.gold : null} />
+                </View>
+                <Text numberOfLines={1} style={{ color: C.text, fontSize: 15.5, fontWeight: mine ? '900' : '800', marginStart: 10, flex: 1, minWidth: 0 }}>
+                  {p.nickname}
+                </Text>
+                <Text style={{ color: mine ? C.purple : C.text, fontSize: 15.5, fontWeight: '900', marginStart: 8 }}>
+                  {p.score}
+                </Text>
+              </View>
+            );
+          })}
           {/* Egypt's pack ends with a second table: not who was fastest,
               but who actually knew. It only appears for the country the
               questions are about. */}

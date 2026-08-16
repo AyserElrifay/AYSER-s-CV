@@ -8,7 +8,7 @@ import { useLang } from '../../context/LanguageContext';
 import { useAuth } from '../../context/AuthContext';
 import { SUPABASE_READY } from '../../lib/supabase';
 import { explain } from '../../lib/explain';
-import { fetchPacks, packTitle, createRoom, joinRoom } from '../../services/lamma';
+import { fetchPacks, packTitle, createRoom, joinRoom, advance } from '../../services/lamma';
 import { getProfile } from '../../services/profiles';
 import { CHANNELS } from './channels';
 import { packFlags } from './languages';
@@ -68,10 +68,26 @@ export const GameHub = ({ onClose }) => {
 
   useEffect(() => load(), [load]);
 
-  const start = async (pack) => {
+  /* ── TWO WAYS IN, AND THEY ARE NOT THE SAME EVENING ──────────────
+     "Let's go" is one tap to the first question: you, now, whoever is
+     already next to you.
+
+     "Create a room" makes a code and stops in the lobby, because the
+     whole point of that one is the ten minutes where people arrive.
+     Everybody who types the code sits in the same room, sees the same
+     question at the same second, and the night ends on one ranking
+     with all of them on it.
+
+     They used to be the same button, which meant the room was already
+     running before anybody had been sent the code. */
+  const start = async (pack, instant) => {
     if (busy) return;
     setBusy(true); setErr(null); tapMedium();
     const r = await createRoom(pack.id, 'classic');
+    if (r && r.ok && instant) {
+      // straight past the lobby: nobody is being waited for
+      try { await advance(r.room_id); } catch (e) { /* the lobby is a fine fallback */ }
+    }
     setBusy(false);
     if (r && r.ok) setGame({ roomId: r.room_id, joinCode: r.join_code, packId: pack.id, isHost: true });
     else setErr(t('lamma_offline'));
@@ -226,7 +242,7 @@ export const GameHub = ({ onClose }) => {
                 {packs.map((p, i) => {
                   const ch = packColour(i);
                   return (
-                    <Pressable key={p.id} onPress={() => start(p)} disabled={busy} style={{ width: '48.5%', marginBottom: 13 }}>
+                    <View key={p.id} style={{ width: '48.5%', marginBottom: 13 }}>
                       <View style={{
                         backgroundColor: ch.soft, borderWidth: 1.5, borderColor: ch.color,
                         borderRadius: 20, padding: 14, minHeight: 158, justifyContent: 'space-between',
@@ -257,14 +273,30 @@ export const GameHub = ({ onClose }) => {
                             </Text>
                           ) : null}
                         </View>
-                        <View style={{
-                          backgroundColor: ch.color, borderRadius: 999,
-                          paddingVertical: 9, alignItems: 'center', marginTop: 12,
-                        }}>
-                          <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900' }}>{t('lamma_start')}</Text>
+                        <View style={{ marginTop: 12 }}>
+                          <Pressable onPress={() => start(p, false)} disabled={busy}>
+                            <View style={{
+                              backgroundColor: ch.color, borderRadius: 999,
+                              paddingVertical: 9, paddingHorizontal: 6, alignItems: 'center',
+                            }}>
+                              <Text numberOfLines={1} style={{ color: '#FFF', fontSize: 12.5, fontWeight: '900' }}>
+                                {t('lamma_create')}
+                              </Text>
+                            </View>
+                          </Pressable>
+                          <Pressable onPress={() => start(p, true)} disabled={busy}>
+                            <View style={{
+                              borderWidth: 1.5, borderColor: ch.color, borderRadius: 999,
+                              paddingVertical: 8, paddingHorizontal: 6, alignItems: 'center', marginTop: 7,
+                            }}>
+                              <Text numberOfLines={1} style={{ color: ch.color, fontSize: 12.5, fontWeight: '900' }}>
+                                {t('lamma_start')}
+                              </Text>
+                            </View>
+                          </Pressable>
                         </View>
                       </View>
-                    </Pressable>
+                    </View>
                   );
                 })}
               </View>
