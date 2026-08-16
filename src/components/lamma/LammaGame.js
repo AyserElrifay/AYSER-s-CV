@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { View, Text, Pressable, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, Pressable, ScrollView, ActivityIndicator, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { C } from '../../constants/theme';
@@ -79,7 +79,17 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
     let alive = true;
     if (!packId) return undefined;
     fetchPackQuestions(packId)
-      .then((rows) => { if (alive) setQuestions(rows); })
+      .then((rows) => {
+        if (!alive) return;
+        setQuestions(rows);
+        /* Some questions are a picture. Fetch them all now, in the
+           lobby, while everybody is still arriving — a photograph that
+           starts downloading when the question appears is a photograph
+           somebody answers around, with the clock already running. */
+        (rows || []).forEach((row) => {
+          if (row && row.media_url) { try { Image.prefetch(row.media_url); } catch (e) {} }
+        });
+      })
       .catch(() => { if (alive) setQuestions([]); });
     return () => { alive = false; };
   }, [packId]);

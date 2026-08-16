@@ -69,9 +69,15 @@ const API = 'https://commons.wikimedia.org/w/api.php';
 const UA = 'MomentsQuiz/1.0 (https://github.com/AyserElrifay/AYSER-s-CV; public-domain images for a quiz)';
 const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
 
-const get = async (url, tries = 3) => {
+/* (url, options, tries). The options argument stays FIRST-CLASS on
+   purpose: when this took (url, tries) instead, the one caller that
+   passes an Authorization header — the key lookup — handed an object
+   where a count belonged, `0 < {}` was false, the loop never ran once
+   and the whole import died on its first line with "unreachable". */
+const get = async (url, opts = {}, tries = 3) => {
   for (let i = 0; i < tries; i++) {
-    const r = await fetch(url, { headers: { 'User-Agent': UA, Accept: '*/*' } });
+    const headers = Object.assign({ 'User-Agent': UA, Accept: '*/*' }, opts.headers || {});
+    const r = await fetch(url, Object.assign({}, opts, { headers }));
     if (r.ok) return r;
     // 429 too many, 503 busy — wait longer each time rather than give up
     if ((r.status === 429 || r.status === 503) && i < tries - 1) {
@@ -80,7 +86,7 @@ const get = async (url, tries = 3) => {
     }
     throw new Error(r.status + ' ' + url.slice(0, 90));
   }
-  throw new Error('unreachable');
+  throw new Error('gave up on ' + url.slice(0, 90));
 };
 
 /* Commons' own words about a file. Everything below is decided from
