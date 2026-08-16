@@ -41,9 +41,14 @@ while ((m = insert.exec(sql))) {
   });
 }
 
-/* …and then the languages that came later, in jsonb. */
+/* …and then the languages that came later, in jsonb. Anything may sit
+   between the options and the WHERE — the newer questions carry their
+   teaching note in the same statement — so the middle is skipped
+   lazily rather than assumed away. Insisting on the exact old shape is
+   how ten new questions came back as "never written in French" when
+   every one of them was. */
 const update = new RegExp(
-  "update public\\.questions set\\s+text_i18n = '((?:[^']|'')*)'::jsonb,\\s+options\\s*= '((?:[^']|'')*)'::jsonb\\s+where pack_id = '"
+  "update public\\.questions set\\s+text_i18n = '((?:[^']|'')*)'::jsonb,\\s+options\\s*= '((?:[^']|'')*)'::jsonb[\\s\\S]*?where pack_id = '"
   + PACK + "' and order_index = (\\d+);", 'g');
 while ((m = update.exec(sql))) {
   const row = rows.get(Number(m[3]));
