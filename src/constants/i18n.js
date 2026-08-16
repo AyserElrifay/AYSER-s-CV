@@ -28,6 +28,14 @@ export const LANGS = [
 
 export const STRINGS = {
   en: {
+    // لمّة — one host, holding the clock and the door
+    lamma_time_per_q: 'TIME PER QUESTION',
+    lamma_locked: 'Locked — nobody else can join',
+    lamma_open_room: 'Open — anyone with the code can join',
+    lamma_host_decides: 'The host chooses the time',
+    lamma_remove: 'Remove',
+    lamma_host_starts: 'The host starts the game',
+    lamma_room_closed: 'That room is closed',
     // لمّة — a room with a code, and one ranking at the end
     lamma_create: 'Create a room',
     lamma_code_hint: 'Send this to your people — they type it and you all play together',
@@ -550,6 +558,14 @@ export const STRINGS = {
     try_again: 'Try again',
   },
   ar: {
+    // لمّة — one host, holding the clock and the door
+    lamma_time_per_q: 'وقت كل سؤال',
+    lamma_locked: 'مقفولة — محدش تاني يقدر يدخل',
+    lamma_open_room: 'مفتوحة — أي حد معاه الكود يقدر يدخل',
+    lamma_host_decides: 'صاحب اللمّة هو اللي بيحدد الوقت',
+    lamma_remove: 'شيله',
+    lamma_host_starts: 'صاحب اللمّة هو اللي بيبدأ',
+    lamma_room_closed: 'الأوضة دي مقفولة',
     // لمّة — a room with a code, and one ranking at the end
     lamma_create: 'اعمل أوضة',
     lamma_code_hint: 'ابعت الكود ده لناسك — يكتبوه وتلعبوا كلكم مع بعض',
@@ -1063,6 +1079,14 @@ export const STRINGS = {
 
   },
   fr: {
+    // لمّة — one host, holding the clock and the door
+    lamma_time_per_q: 'TEMPS PAR QUESTION',
+    lamma_locked: 'Fermée — personne d’autre ne peut entrer',
+    lamma_open_room: 'Ouverte — quiconque a le code peut entrer',
+    lamma_host_decides: 'L’hôte choisit le temps',
+    lamma_remove: 'Retirer',
+    lamma_host_starts: 'L’hôte lance la partie',
+    lamma_room_closed: 'Cette partie est fermée',
     // لمّة — a room with a code, and one ranking at the end
     lamma_create: 'Créer une partie',
     lamma_code_hint: 'Envoyez ce code : ils le saisissent et vous jouez tous ensemble',
@@ -1590,6 +1614,14 @@ export const STRINGS = {
     online_now: 'En ligne', mate_up: '＋ Devenir ami', recent_moments: 'Moments récents',
   },
   es: {
+    // لمّة — one host, holding the clock and the door
+    lamma_time_per_q: 'TIEMPO POR PREGUNTA',
+    lamma_locked: 'Cerrada — no puede entrar nadie más',
+    lamma_open_room: 'Abierta — cualquiera con el código puede entrar',
+    lamma_host_decides: 'El anfitrión elige el tiempo',
+    lamma_remove: 'Quitar',
+    lamma_host_starts: 'El anfitrión empieza la partida',
+    lamma_room_closed: 'Esa sala está cerrada',
     // لمّة — a room with a code, and one ranking at the end
     lamma_create: 'Crear una sala',
     lamma_code_hint: 'Envía este código: lo escriben y jugáis todos a la vez',
@@ -2117,6 +2149,14 @@ export const STRINGS = {
     online_now: 'En línea ahora', mate_up: '＋ Hacerse amigos', recent_moments: 'Momentos recientes',
   },
   tr: {
+    // لمّة — one host, holding the clock and the door
+    lamma_time_per_q: 'SORU BAŞINA SÜRE',
+    lamma_locked: 'Kilitli — başka kimse giremez',
+    lamma_open_room: 'Açık — kodu olan herkes girebilir',
+    lamma_host_decides: 'Süreyi ev sahibi seçer',
+    lamma_remove: 'Çıkar',
+    lamma_host_starts: 'Oyunu ev sahibi başlatır',
+    lamma_room_closed: 'O oda kapalı',
     // لمّة — a room with a code, and one ranking at the end
     lamma_create: 'Oda oluştur',
     lamma_code_hint: 'Bu kodu gönder — yazsınlar, hep birlikte oynayın',
@@ -2643,6 +2683,14 @@ export const STRINGS = {
     online_now: 'Şu an çevrimiçi', mate_up: '＋ Arkadaş ol', recent_moments: 'Son anlar',
   },
   pt: {
+    // لمّة — one host, holding the clock and the door
+    lamma_time_per_q: 'TEMPO POR PERGUNTA',
+    lamma_locked: 'Fechada — mais ninguém pode entrar',
+    lamma_open_room: 'Aberta — quem tiver o código pode entrar',
+    lamma_host_decides: 'O anfitrião escolhe o tempo',
+    lamma_remove: 'Remover',
+    lamma_host_starts: 'O anfitrião começa o jogo',
+    lamma_room_closed: 'Essa sala está fechada',
     // لمّة — a room with a code, and one ranking at the end
     lamma_create: 'Criar uma sala',
     lamma_code_hint: 'Envia este código: eles escrevem-no e jogam todos juntos',
@@ -3169,6 +3217,14 @@ export const STRINGS = {
     online_now: 'Online agora', mate_up: '＋ Tornar amigo', recent_moments: 'Momentos recentes',
   },
   ro: {
+    // لمّة — one host, holding the clock and the door
+    lamma_time_per_q: 'TIMP PE ÎNTREBARE',
+    lamma_locked: 'Închisă — nu mai poate intra nimeni',
+    lamma_open_room: 'Deschisă — oricine are codul poate intra',
+    lamma_host_decides: 'Gazda alege timpul',
+    lamma_remove: 'Scoate',
+    lamma_host_starts: 'Gazda pornește jocul',
+    lamma_room_closed: 'Camera aceea e închisă',
     // لمّة — a room with a code, and one ranking at the end
     lamma_create: 'Creează o cameră',
     lamma_code_hint: 'Trimite codul ăsta — îl scriu și jucați toți odată',
@@ -3692,6 +3748,14 @@ export const STRINGS = {
     online_now: 'Online acum', mate_up: '＋ Adaugă prieten', recent_moments: 'Momente recente',
   },
   it: {
+    // لمّة — one host, holding the clock and the door
+    lamma_time_per_q: 'TEMPO PER DOMANDA',
+    lamma_locked: 'Chiusa — non può entrare nessun altro',
+    lamma_open_room: 'Aperta — chi ha il codice può entrare',
+    lamma_host_decides: 'Il padrone di casa sceglie il tempo',
+    lamma_remove: 'Togli',
+    lamma_host_starts: 'La partita la avvia il padrone di casa',
+    lamma_room_closed: 'Quella stanza è chiusa',
     // لمّة — a room with a code, and one ranking at the end
     lamma_create: 'Crea una stanza',
     lamma_code_hint: 'Manda questo codice: lo scrivono e giocate tutti insieme',
@@ -4215,6 +4279,14 @@ export const STRINGS = {
     online_now: 'Online ora', mate_up: '＋ Diventa amico', recent_moments: 'Momenti recenti',
   },
   nl: {
+    // لمّة — one host, holding the clock and the door
+    lamma_time_per_q: 'TIJD PER VRAAG',
+    lamma_locked: 'Gesloten — niemand kan er meer bij',
+    lamma_open_room: 'Open — iedereen met de code kan erbij',
+    lamma_host_decides: 'De gastheer kiest de tijd',
+    lamma_remove: 'Verwijderen',
+    lamma_host_starts: 'De gastheer start het spel',
+    lamma_room_closed: 'Die ruimte is gesloten',
     // لمّة — a room with a code, and one ranking at the end
     lamma_create: 'Maak een ruimte',
     lamma_code_hint: 'Stuur deze code — zij typen hem en jullie spelen samen',
@@ -4738,6 +4810,14 @@ export const STRINGS = {
     online_now: 'Nu online', mate_up: '＋ Vrienden worden', recent_moments: 'Recente moments',
   },
   ru: {
+    // لمّة — one host, holding the clock and the door
+    lamma_time_per_q: 'ВРЕМЯ НА ВОПРОС',
+    lamma_locked: 'Закрыта — больше никто не войдёт',
+    lamma_open_room: 'Открыта — войдёт любой, у кого есть код',
+    lamma_host_decides: 'Время выбирает ведущий',
+    lamma_remove: 'Убрать',
+    lamma_host_starts: 'Игру начинает ведущий',
+    lamma_room_closed: 'Эта комната закрыта',
     // لمّة — a room with a code, and one ranking at the end
     lamma_create: 'Создать комнату',
     lamma_code_hint: 'Отправь этот код — они его вводят, и вы играете вместе',
@@ -5261,6 +5341,14 @@ export const STRINGS = {
     online_now: 'Сейчас в сети', mate_up: '＋ Добавить в друзья', recent_moments: 'Недавние моменты',
   },
   zh: {
+    // لمّة — one host, holding the clock and the door
+    lamma_time_per_q: '每题时间',
+    lamma_locked: '已锁 — 其他人进不来',
+    lamma_open_room: '开放 — 有房间码的人都能进',
+    lamma_host_decides: '时间由房主决定',
+    lamma_remove: '移除',
+    lamma_host_starts: '由房主开始游戏',
+    lamma_room_closed: '这个房间已经关了',
     // لمّة — a room with a code, and one ranking at the end
     lamma_create: '创建房间',
     lamma_code_hint: '把这个码发出去 — 他们输入后，大家一起玩',
@@ -5784,6 +5872,14 @@ export const STRINGS = {
     online_now: '当前在线', mate_up: '＋ 添加好友', recent_moments: '最近的瞬间',
   },
   ko: {
+    // لمّة — one host, holding the clock and the door
+    lamma_time_per_q: '문제당 시간',
+    lamma_locked: '잠김 — 더 이상 들어올 수 없어요',
+    lamma_open_room: '열림 — 코드가 있으면 들어올 수 있어요',
+    lamma_host_decides: '시간은 방장이 정해요',
+    lamma_remove: '내보내기',
+    lamma_host_starts: '방장이 게임을 시작해요',
+    lamma_room_closed: '그 방은 닫혔어요',
     // لمّة — a room with a code, and one ranking at the end
     lamma_create: '방 만들기',
     lamma_code_hint: '이 코드를 보내세요 — 입력하면 다 같이 함께 해요',
@@ -6307,6 +6403,14 @@ export const STRINGS = {
     online_now: '현재 온라인', mate_up: '＋ 메이트 신청', recent_moments: '최근 순간들',
   },
   ja: {
+    // لمّة — one host, holding the clock and the door
+    lamma_time_per_q: '1問あたりの時間',
+    lamma_locked: '施錠中 — これ以上は入れません',
+    lamma_open_room: '公開中 — コードがあれば入れます',
+    lamma_host_decides: '時間はホストが決めます',
+    lamma_remove: '外す',
+    lamma_host_starts: 'ホストがゲームを始めます',
+    lamma_room_closed: 'そのルームは閉じています',
     // لمّة — a room with a code, and one ranking at the end
     lamma_create: 'ルームを作る',
     lamma_code_hint: 'このコードを送ってください — 入力すれば全員で一緒に遊べます',

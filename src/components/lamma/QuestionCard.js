@@ -35,6 +35,7 @@ import { tapMedium, tapSuccess, tapError } from '../../utils/feedback';
 
 export const QuestionCard = ({
   question,            // { id, text_ar, text_en, options, timer_ms, media_url }
+  timerMs,             // the room's own length, when the host has set one
   index, total,
   onAnswer,            // (selectedIndex, elapsedMs) => void
   result,              // null until the reveal: { correct_index, distribution, your_result }
@@ -44,7 +45,12 @@ export const QuestionCard = ({
   const clock = useRef(createQuestionClock()).current;
   const [picked, setPicked] = useState(null);
   const [barW, setBarW] = useState(0);
-  const progress = useCountdown(question && question.timer_ms, question && question.id);
+  /* The bar counts the ROOM's length when the host has chosen one.
+     Reading it off the question would draw a twenty-second bar over a
+     ten-second question — the tiles would still lock correctly, from
+     the server's deadline, but everybody would be watching a lie. */
+  const runFor = timerMs || (question && question.timer_ms);
+  const progress = useCountdown(runFor, question && question.id);
 
   // a new question is a new clock and a clean slate
   useEffect(() => {

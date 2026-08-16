@@ -16,7 +16,7 @@ import { Face } from './Face';
 import {
   advance, submitAnswer, reveal as revealRpc, sync as syncRpc,
   fetchPackQuestions, fetchRoomPlayers, subscribeRoom, nudge, claimHost, setConnected,
-  roomResults, setFace,
+  roomResults, setFace, setRoom, kick,
 } from '../../services/lamma';
 import { tapLight, tapSuccess } from '../../utils/feedback';
 
@@ -41,6 +41,11 @@ import { tapLight, tapSuccess } from '../../utils/feedback';
    mid-game without leaving — a wrong choice at the lobby should cost
    one tap, not the evening. Nothing about the game changes with it:
    same question, same tiles in the same places, same clock.          */
+
+/* The lengths a room may run at. The server accepts exactly these four
+   and refuses anything else, so this list and that list have to agree —
+   see supabase/schema_v24_lamma_host.sql. */
+const TIMERS = [10000, 20000, 30000, 45000];
 
 const HOST_GONE_MS = 10000;
 
@@ -168,6 +173,26 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
         setTimeout(() => setCopied(false), 1800);
       }
     } catch (e) { /* they can read it off the screen */ }
+  };
+
+  /* ── THE HOST'S LEVERS ────────────────────────────────────────────
+     Asked for, never assumed: each of these is refused by the server
+     unless the person tapping is the host, so the button being on
+     screen is a convenience and not the permission. */
+  const chooseTimer = async (ms) => {
+    tapLight();
+    const r = await setRoom(roomId, ms, null);
+    if (r && r.ok) refresh();
+  };
+  const toggleLock = async () => {
+    tapLight();
+    const r = await setRoom(roomId, null, !state.locked);
+    if (r && r.ok) refresh();
+  };
+  const removePlayer = async (id) => {
+    tapLight();
+    const r = await kick(roomId, id);
+    if (r && r.ok) refresh();          // sync carries the player list
   };
 
   const onAnswer = async (index, elapsedMs) => {
@@ -312,15 +337,71 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
             </Pressable>
           ) : null}
 
+          {/* ── ONE HOST, AND THESE ARE THEIRS ──────────────────────
+              How long a question lasts, and whether the door is still
+              open. Everybody else sees what was chosen, because a room
+              where only one person knows the rules is worse than one
+              where nobody does. */}
+          <View style={{ marginBottom: 20 }}>
+            <Text style={{ color: C.faint, fontSize: 11, fontWeight: '900', letterSpacing: 1, marginBottom: 8 }}>
+              {t('lamma_time_per_q')}
+            </Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+              {TIMERS.map((ms) => {
+                const on = (state.timer_ms || 20000) === ms;
+                return (
+                  <Pressable key={ms} onPress={() => chooseTimer(ms)} disabled={!isHost} style={{ marginEnd: 8, marginBottom: 8 }}>
+                    <View style={{
+                      backgroundColor: on ? C.purple : C.glass,
+                      borderWidth: 1, borderColor: on ? C.purple : C.line,
+                      borderRadius: 999, paddingHorizontal: 15, paddingVertical: 8,
+                      opacity: isHost || on ? 1 : 0.45,
+                    }}>
+                      <Text style={{ color: on ? '#FFF' : C.text, fontSize: 13, fontWeight: '900' }}>
+                        {Math.round(ms / 1000)}s
+                      </Text>
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            {isHost ? (
+              <Pressable onPress={toggleLock} style={{ marginTop: 4 }}>
+                <View style={{
+                  flexDirection: 'row', alignItems: 'center',
+                  backgroundColor: state.locked ? C.coralSoft : C.glass,
+                  borderWidth: 1, borderColor: state.locked ? C.coral : C.line,
+                  borderRadius: 14, paddingHorizontal: 13, paddingVertical: 11,
+                }}>
+                  <Ionicons name={state.locked ? 'lock-closed' : 'lock-open-outline'} size={16} color={state.locked ? C.coral : C.faint} />
+                  <Text style={{ color: state.locked ? C.coral : C.text, fontSize: 13, fontWeight: '800', marginStart: 9, flex: 1, minWidth: 0 }}>
+                    {state.locked ? t('lamma_locked') : t('lamma_open_room')}
+                  </Text>
+                </View>
+              </Pressable>
+            ) : (
+              <Text style={{ color: C.faint, fontSize: 12.5, fontWeight: '700', marginTop: 2 }}>
+                {state.locked ? t('lamma_locked') : t('lamma_host_decides')}
+              </Text>
+            )}
+          </View>
+
           <Text style={{ color: C.faint, fontSize: 13, marginBottom: 10 }}>
             {(players || []).length} {t('lamma_players_here')}
           </Text>
           {(players || []).map((p) => (
             <View key={p.user_id} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10 }}>
               <Face player={p} size={34} />
-              <Text style={{ color: C.text, fontSize: 15, fontWeight: '800', marginStart: 11, flex: 1 }}>{p.nickname}</Text>
+              <Text numberOfLines={1} style={{ color: C.text, fontSize: 15, fontWeight: '800', marginStart: 11, flex: 1, minWidth: 0 }}>
+                {p.nickname}
+              </Text>
               {p.user_id === state.host_user_id ? (
-                <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '800' }}>{t('lamma_host')}</Text>
+                <Text style={{ color: C.purple, fontSize: 11.5, fontWeight: '900' }}>{t('lamma_host')}</Text>
+              ) : isHost ? (
+                <Pressable onPress={() => removePlayer(p.user_id)} hitSlop={8}>
+                  <Text style={{ color: C.faint, fontSize: 12, fontWeight: '800' }}>{t('lamma_remove')}</Text>
+                </Pressable>
               ) : null}
             </View>
           ))}
@@ -331,7 +412,7 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
               </View>
             </Pressable>
           ) : (
-            <Text style={{ color: C.faint, fontSize: 13, textAlign: 'center', marginTop: 24 }}>{t('lamma_waiting')}</Text>
+            <Text style={{ color: C.faint, fontSize: 13, textAlign: 'center', marginTop: 24 }}>{t('lamma_host_starts')}</Text>
           )}
         </ScrollView>
       ) : null}
@@ -341,6 +422,7 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
         <View style={{ flex: 1 }}>
           <QuestionCard
             question={q}
+            timerMs={state.timer_ms}
             index={state.question_index}
             total={questions.length}
             onAnswer={onAnswer}

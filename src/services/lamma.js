@@ -32,6 +32,21 @@ export const joinRoom = (code) => rpc('lamma_join_room', { p_code: String(code |
 
 export const advance = (roomId) => rpc('lamma_advance', { p_room_id: roomId });
 
+/* The host's three levers, and nobody else's: how long a question
+   lasts, whether the door is open, and who is in the room. The server
+   refuses all three from anybody who is not hosting — see
+   supabase/schema_v24_lamma_host.sql. Pass null for a setting you are
+   not changing. */
+export const setRoom = (roomId, timerMs, locked) =>
+  rpc('lamma_set_room', {
+    p_room_id: roomId,
+    p_timer_ms: timerMs == null ? null : timerMs,
+    p_locked: locked == null ? null : !!locked,
+  });
+
+export const kick = (roomId, userId) =>
+  rpc('lamma_kick', { p_room_id: roomId, p_user_id: userId });
+
 export const claimHost = (roomId) => rpc('lamma_claim_host', { p_room_id: roomId });
 
 export const setConnected = (roomId, connected) =>

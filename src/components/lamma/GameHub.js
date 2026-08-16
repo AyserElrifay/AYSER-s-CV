@@ -99,6 +99,9 @@ export const GameHub = ({ onClose }) => {
     const r = await joinRoom(code);
     setBusy(false);
     if (r && r.ok) setGame({ roomId: r.room_id, joinCode: code.trim().toUpperCase(), packId: r.pack_id, isHost: false });
+    // a closed room is not a wrong code, and telling somebody it is
+    // sends them off to re-type six correct letters
+    else if (r && r.reason === 'room_locked') setErr(t('lamma_room_closed'));
     else setErr(t('lamma_bad_code'));
   };
 
