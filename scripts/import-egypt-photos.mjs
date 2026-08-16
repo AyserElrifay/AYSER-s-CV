@@ -21,6 +21,11 @@
    than by anybody's say-so — and because the Sphinx in 1900 looks
    wonderful.
 
+   640px wide, which is more than a phone shows in a 16:9 box and a
+   third of the weight of the 900px version the first run copied. Seven
+   pictures at 900px was 1.2 MB of somebody's mobile data before the
+   first question.
+
    ── WHY IT COPIES RATHER THAN LINKS ──────────────────────────────
    Hotlinking somebody else's servers for every question of every game
    is rude and slow. The bytes are copied once into the app's own
@@ -95,7 +100,7 @@ async function candidates(search) {
   const u = API + '?action=query&format=json&origin=*'
     + '&generator=search&gsrnamespace=6&gsrlimit=14'
     + '&gsrsearch=' + encodeURIComponent(search)
-    + '&prop=imageinfo&iiprop=url|mime|extmetadata&iiurlwidth=900';
+    + '&prop=imageinfo&iiprop=url|mime|extmetadata&iiurlwidth=640';
   const j = await (await get(u)).json();
   const pages = (j.query && j.query.pages) || {};
   return Object.values(pages).map((p) => {

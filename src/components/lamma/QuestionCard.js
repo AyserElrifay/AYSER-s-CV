@@ -96,8 +96,16 @@ export const QuestionCard = ({
         {say(question, lang)}
       </Text>
 
+      {/* A picture is part of the question, not a poster: it is capped
+          so that on a small phone the four answers are still on screen
+          without scrolling. Nobody should have to scroll during a
+          countdown. */}
       {question && question.media_url ? (
-        <Image source={{ uri: question.media_url }} style={{ width: '100%', aspectRatio: 16 / 9, borderRadius: 16, marginBottom: 16 }} />
+        <Image
+          source={{ uri: question.media_url }}
+          resizeMode="cover"
+          style={{ width: '100%', aspectRatio: 16 / 9, maxHeight: 172, borderRadius: 16, marginBottom: 14 }}
+        />
       ) : null}
 
       <View style={{ flex: 1 }}>
