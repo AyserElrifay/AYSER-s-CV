@@ -3,6 +3,7 @@ import { View, Text, ScrollView } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { C } from '../../constants/theme';
 import { channelFor } from './channels';
+import { Face } from './Face';
 
 /* ─── لمّة · WHERE EVERYONE STANDS, RIGHT NOW ────────────────────────
    The scoreboard between questions is the reason people play these
@@ -41,7 +42,8 @@ const Row = React.memo(({ p, meId }) => {
       borderRadius: 14, paddingHorizontal: mine ? 10 : 0, paddingVertical: 8, marginBottom: 4,
     }}>
       <Text style={{ color: C.faint, fontSize: 13, fontWeight: '900', width: 24 }}>{p.rank}</Text>
-      <Text numberOfLines={1} style={{ color: C.text, fontSize: 14.5, fontWeight: mine ? '900' : '700', flex: 1 }}>
+      <Face player={p} size={26} />
+      <Text numberOfLines={1} style={{ color: C.text, fontSize: 14.5, fontWeight: mine ? '900' : '700', flex: 1, minWidth: 0, marginStart: 8 }}>
         {p.nickname}
       </Text>
       {p.moved > 0 ? (

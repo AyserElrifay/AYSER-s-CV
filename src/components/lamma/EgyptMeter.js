@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text } from 'react-native';
 import { C } from '../../constants/theme';
 import { channelFor } from './channels';
+import { Face } from './Face';
 
 /* ─── لمّة · HOW EGYPTIAN ARE YOU ────────────────────────────────────
    The scoreboard says who was fastest. This says who actually KNEW,
@@ -44,7 +45,8 @@ const Row = React.memo(({ p, meId, total, t }) => {
       borderRadius: 16, padding: 13, marginBottom: 9,
     }}>
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-        <Text style={{ fontSize: 18 }}>{lvl.emoji}</Text>
+        <Face player={p} size={34} />
+        <Text style={{ fontSize: 18, marginStart: 8 }}>{lvl.emoji}</Text>
         <View style={{ flex: 1, minWidth: 0, marginStart: 10 }}>
           <Text numberOfLines={1} style={{ color: C.text, fontSize: 15, fontWeight: '900' }}>
             {p.nickname}

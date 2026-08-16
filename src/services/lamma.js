@@ -57,6 +57,12 @@ export const reveal = (roomId, questionId) =>
    room is now — including whether it may still answer this question. */
 export const sync = (roomId) => rpc('lamma_sync', { p_room_id: roomId });
 
+/* Your face on your seat in this room — a small JPEG data URL, or null
+   to take it off again. The server checks it is really a small JPEG and
+   really yours; see supabase/schema_v22_lamma_faces.sql. */
+export const setFace = (roomId, face) =>
+  rpc('lamma_set_face', { p_room_id: roomId, p_face: face || null });
+
 /* How many everyone got RIGHT, out of how many the pack asked. The
    score is about speed; this is about knowing. Counted by the server
    from what it recorded at the time, so it cannot be argued with. */

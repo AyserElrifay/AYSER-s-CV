@@ -171,6 +171,187 @@ function crown(c, x, y, s) {
   [-0.22, 0, 0.22].forEach((o) => { c.beginPath(); c.arc(x + o * s, base - s * 0.10, s * 0.045, 0, T); c.fill(); });
 }
 
+/* ── EGYPT, DRAWN THE SAME WAY AS EVERYTHING ELSE ──────────────────
+   A nemes headcloth, a false beard, Nefertiti's crown, the kohl line
+   and a broad collar. Every one of them is thousands of years old and
+   every one of them is drawn here in code — so there is no photograph
+   of a museum piece, no traced illustration and nobody's asset pack
+   anywhere in this. That is the only way this ships.
+
+   They are drawn as regalia, not as a costume of a people: gold, lapis
+   and carnelian, in the proportions the originals use, and nothing
+   that turns a face into a caricature of anybody alive. */
+
+const GOLD = '#E3B23C';
+const GOLD_HI = '#FFE9A8';
+const LAPIS = '#1B4F9C';
+const CARNELIAN = '#B7472A';
+
+function nemes(c, x, y, s) {
+  const top = y + s * (F.top - 0.26);
+  const brow = y + s * (F.brow - 0.20);
+  const halfW = s * 0.66;
+
+  /* One silhouette — the cap over the skull and the two lappets that
+     fall past the jaw — then the stripes are painted inside it. Drawing
+     the stripes first and the shape after is how you get a striped
+     rectangle with a head somewhere behind it. */
+  c.save();
+  c.beginPath();
+  c.moveTo(x - halfW, brow + s * 0.10);
+  c.quadraticCurveTo(x - halfW, top, x, top);                       // left of the cap
+  c.quadraticCurveTo(x + halfW, top, x + halfW, brow + s * 0.10);   // right of the cap
+  // right lappet, down beside the face and cut off square at the chest
+  c.lineTo(x + s * 0.72, y + s * (F.chin + 0.26));
+  c.lineTo(x + s * 0.46, y + s * (F.chin + 0.26));
+  c.lineTo(x + s * 0.44, brow + s * 0.16);
+  // across the brow band
+  c.lineTo(x - s * 0.44, brow + s * 0.16);
+  // left lappet
+  c.lineTo(x - s * 0.46, y + s * (F.chin + 0.26));
+  c.lineTo(x - s * 0.72, y + s * (F.chin + 0.26));
+  c.closePath();
+  c.clip();
+
+  const w = halfW * 2.4;
+  const step = s * 0.055;
+  for (let i = 0; i * step < w; i++) {
+    c.fillStyle = i % 2 ? LAPIS : GOLD;
+    c.fillRect(x - w / 2 + i * step, top - s * 0.1, step + 0.5, s * 2.2);
+  }
+  c.restore();
+
+  // the band across the brow, plain gold, the way the originals have it
+  c.fillStyle = GOLD;
+  c.fillRect(x - halfW * 0.98, brow - s * 0.02, halfW * 1.96, s * 0.14);
+  c.fillStyle = 'rgba(0,0,0,0.18)';
+  c.fillRect(x - halfW * 0.98, brow + s * 0.10, halfW * 1.96, s * 0.02);
+
+  // ── the uraeus: the cobra rearing at the middle of the brow ──
+  const ux = x;
+  const uy = brow + s * 0.02;
+  c.fillStyle = GOLD;
+  c.beginPath();                                   // the body, coiled up
+  c.moveTo(ux - s * 0.03, uy);
+  c.quadraticCurveTo(ux - s * 0.10, uy - s * 0.10, ux - s * 0.01, uy - s * 0.14);
+  c.quadraticCurveTo(ux + s * 0.07, uy - s * 0.17, ux + s * 0.05, uy - s * 0.09);
+  c.quadraticCurveTo(ux + s * 0.04, uy - s * 0.04, ux + s * 0.03, uy);
+  c.closePath();
+  c.fill();
+  c.fillStyle = CARNELIAN;                         // the hood
+  c.beginPath();
+  c.ellipse(ux + s * 0.005, uy - s * 0.135, s * 0.045, s * 0.035, 0, 0, T);
+  c.fill();
+  c.fillStyle = '#1A1A1A';
+  [-1, 1].forEach((sx) => {
+    c.beginPath();
+    c.arc(ux + sx * s * 0.018, uy - s * 0.142, s * 0.008, 0, T);
+    c.fill();
+  });
+}
+
+function pharaohBeard(c, x, y, s) {
+  // the false beard: narrow, straight, plaited, hooked slightly forward
+  const topY = y + s * (F.chin + 0.02);
+  const w = s * 0.135;
+  c.fillStyle = GOLD;
+  c.beginPath();
+  c.moveTo(x - w, topY);
+  c.lineTo(x - w * 1.18, topY + s * 0.30);
+  c.quadraticCurveTo(x, topY + s * 0.46, x + w * 1.18, topY + s * 0.30);
+  c.lineTo(x + w, topY);
+  c.closePath();
+  c.fill();
+  // the plait, banded across
+  c.strokeStyle = 'rgba(90,60,10,0.55)';
+  c.lineWidth = Math.max(1, s * 0.012);
+  for (let i = 1; i < 5; i++) {
+    const yy = topY + s * 0.072 * i;
+    c.beginPath();
+    c.moveTo(x - w * (1 + i * 0.03), yy);
+    c.lineTo(x + w * (1 + i * 0.03), yy);
+    c.stroke();
+  }
+  c.fillStyle = 'rgba(255,255,255,0.28)';          // one highlight down the left
+  c.fillRect(x - w * 0.75, topY + s * 0.02, w * 0.26, s * 0.28);
+}
+
+function nefertitiCrown(c, x, y, s) {
+  // the flat-topped crown, leaning back a little the way the bust does
+  const base = y + s * (F.top + 0.16);
+  const h = s * 0.54;
+  c.fillStyle = LAPIS;
+  c.beginPath();
+  c.moveTo(x - s * 0.40, base);
+  c.lineTo(x - s * 0.30, base - h);
+  c.lineTo(x + s * 0.36, base - h);
+  c.lineTo(x + s * 0.42, base);
+  c.closePath();
+  c.fill();
+  // the gold band around the bottom, and the ribbon across the middle
+  const g = c.createLinearGradient(x - s * 0.42, base, x + s * 0.42, base);
+  g.addColorStop(0, GOLD); g.addColorStop(0.5, GOLD_HI); g.addColorStop(1, GOLD);
+  c.fillStyle = g;
+  c.fillRect(x - s * 0.42, base - s * 0.10, s * 0.84, s * 0.10);
+  c.fillStyle = CARNELIAN;
+  c.fillRect(x - s * 0.36, base - h * 0.62, s * 0.74, s * 0.05);
+  c.fillStyle = GOLD;
+  c.fillRect(x - s * 0.36, base - h * 0.62 - s * 0.03, s * 0.74, s * 0.03);
+}
+
+function horusKohl(c, x, y, s) {
+  /* Kohl, not spectacles. The first version drew everything with the
+     pen — a line over the lid, a line out to the temple, a line under
+     the eye — and three thin lines around an eye is a pair of glasses,
+     which is exactly what it looked like.
+
+     So it is painted instead: a solid wedge along the lid that thickens
+     as it leaves the eye, and a separate mark below. Kohl is a block of
+     colour on a face, and it has to be drawn as one. */
+  const e = y + s * F.eyes;
+  c.fillStyle = '#141414';
+  [-1, 1].forEach((sx) => {
+    c.beginPath();                                   // lid line into the tail
+    c.moveTo(x + sx * s * 0.08, e + s * 0.012);
+    c.quadraticCurveTo(x + sx * s * 0.24, e - s * 0.075, x + sx * s * 0.52, e - s * 0.10);
+    c.quadraticCurveTo(x + sx * s * 0.34, e - s * 0.012, x + sx * s * 0.30, e + s * 0.035);
+    c.quadraticCurveTo(x + sx * s * 0.20, e + s * 0.055, x + sx * s * 0.08, e + s * 0.012);
+    c.closePath();
+    c.fill();
+
+    c.beginPath();                                   // the mark under the eye
+    c.moveTo(x + sx * s * 0.17, e + s * 0.075);
+    c.quadraticCurveTo(x + sx * s * 0.235, e + s * 0.14, x + sx * s * 0.13, e + s * 0.20);
+    c.quadraticCurveTo(x + sx * s * 0.20, e + s * 0.13, x + sx * s * 0.13, e + s * 0.085);
+    c.closePath();
+    c.fill();
+  });
+}
+
+function wesekh(c, x, y, s) {
+  // the broad collar, sitting on the chest under the chin
+  const cy = y + s * (F.chin - 0.16);
+  const rings = [
+    [0.94, GOLD], [0.85, '#1FA6A0'], [0.76, GOLD], [0.67, CARNELIAN], [0.58, GOLD],
+  ];
+  rings.forEach(([r, col]) => {
+    c.fillStyle = col;
+    c.beginPath();
+    c.arc(x, cy, s * r, 0.10 * Math.PI, 0.90 * Math.PI);
+    c.arc(x, cy, s * (r - 0.085), 0.90 * Math.PI, 0.10 * Math.PI, true);
+    c.closePath();
+    c.fill();
+  });
+  // the beads hanging off the bottom edge
+  c.fillStyle = GOLD;
+  for (let i = 0; i <= 14; i++) {
+    const a = 0.12 * Math.PI + (0.76 * Math.PI * i) / 14;
+    c.beginPath();
+    c.arc(x + Math.cos(a) * s * 0.985, cy + Math.sin(a) * s * 0.985, s * 0.026, 0, T);
+    c.fill();
+  }
+}
+
 function halo(c, x, y, s, t) {
   const wob = Math.sin(t * 0.003) * s * 0.02;
   c.strokeStyle = '#FFE47A';
@@ -325,6 +506,14 @@ export const LENSES = [
   { id: 'crown',    label: 'Crown',        emoji: '👑', kind: 'wear',  draw: (c, x, y, s) => crown(c, x, y, s) },
   { id: 'flowers',  label: 'Flower crown', emoji: '🌸', kind: 'wear',  draw: (c, x, y, s, t) => flowerCrown(c, x, y, s, t) },
   { id: 'halo',     label: 'Halo',         emoji: '😇', kind: 'wear',  draw: (c, x, y, s, t) => halo(c, x, y, s, t) },
+  /* ── Egypt ── the five below are also the ones لمّة offers when you
+     take your face for the Egyptian pack. Tagged, so that screen can
+     ask for them by name instead of knowing their ids. */
+  { id: 'nemes',    label: 'Nemes',        emoji: '🇪🇬', kind: 'wear',  tag: 'egypt', draw: (c, x, y, s) => nemes(c, x, y, s) },
+  { id: 'ph_beard', label: 'Royal beard',  emoji: '🪶', kind: 'wear',  tag: 'egypt', draw: (c, x, y, s) => pharaohBeard(c, x, y, s) },
+  { id: 'nefertiti', label: 'Nefertiti',   emoji: '👸', kind: 'wear',  tag: 'egypt', draw: (c, x, y, s) => nefertitiCrown(c, x, y, s) },
+  { id: 'kohl',     label: 'Kohl',         emoji: '👁️', kind: 'wear',  tag: 'egypt', draw: (c, x, y, s) => horusKohl(c, x, y, s) },
+  { id: 'wesekh',   label: 'Gold collar',  emoji: '📿', kind: 'wear',  tag: 'egypt', draw: (c, x, y, s) => wesekh(c, x, y, s) },
   { id: 'kiss',     label: 'Kisses',       emoji: '💋', kind: 'scene', draw: (c, x, y, s, t) => kiss(c, x, y, s, t) },
   { id: 'tears',    label: 'Tears',        emoji: '😢', kind: 'scene', draw: (c, x, y, s, t) => tears(c, x, y, s, t) },
   { id: 'fire',     label: 'On fire',      emoji: '🔥', kind: 'scene', draw: (c, x, y, s, t) => fire(c, x, y, s, t) },

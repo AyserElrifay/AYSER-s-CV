@@ -28,6 +28,13 @@ export const LANGS = [
 
 export const STRINGS = {
   en: {
+    // لمّة — your own face, with the regalia on
+    lamma_face_cta: 'Be a pharaoh for the game',
+    lamma_face_title: 'Your face for this room',
+    lamma_face_snap: 'Take it',
+    lamma_face_again: 'Again',
+    lamma_face_use: 'Use this photo',
+    lamma_face_no_cam: 'Allow the camera to take your photo — or play without one',
     // What the way in says back to you
     auth_err_email_first: 'Enter your account email first.',
     auth_ok_reset_sent: 'Reset link sent. Open your email, then set a new password.',
@@ -538,6 +545,13 @@ export const STRINGS = {
     try_again: 'Try again',
   },
   ar: {
+    // لمّة — your own face, with the regalia on
+    lamma_face_cta: 'كون فرعون في اللعبة',
+    lamma_face_title: 'صورتك في الأوضة دي',
+    lamma_face_snap: 'صوّر',
+    lamma_face_again: 'تاني',
+    lamma_face_use: 'خد الصورة دي',
+    lamma_face_no_cam: 'اسمح للكاميرا عشان تصوّر — أو العب من غير صورة',
     // What the way in says back to you
     auth_err_email_first: 'اكتب إيميل حسابك الأول.',
     auth_ok_reset_sent: 'بعتنا لينك التغيير. افتح إيميلك وحط كلمة سر جديدة.',
@@ -1039,6 +1053,13 @@ export const STRINGS = {
 
   },
   fr: {
+    // لمّة — your own face, with the regalia on
+    lamma_face_cta: 'Devenez pharaon pour la partie',
+    lamma_face_title: 'Votre visage pour cette partie',
+    lamma_face_snap: 'Prendre',
+    lamma_face_again: 'Recommencer',
+    lamma_face_use: 'Garder cette photo',
+    lamma_face_no_cam: 'Autorisez la caméra pour votre photo — ou jouez sans',
     // What the way in says back to you
     auth_err_email_first: 'Saisissez d’abord l’e-mail de votre compte.',
     auth_ok_reset_sent: 'Lien envoyé. Ouvrez votre e-mail, puis choisissez un nouveau mot de passe.',
@@ -1554,6 +1575,13 @@ export const STRINGS = {
     online_now: 'En ligne', mate_up: '＋ Devenir ami', recent_moments: 'Moments récents',
   },
   es: {
+    // لمّة — your own face, with the regalia on
+    lamma_face_cta: 'Sé un faraón para la partida',
+    lamma_face_title: 'Tu cara para esta sala',
+    lamma_face_snap: 'Hacer la foto',
+    lamma_face_again: 'Otra vez',
+    lamma_face_use: 'Usar esta foto',
+    lamma_face_no_cam: 'Permite la cámara para tu foto — o juega sin ella',
     // What the way in says back to you
     auth_err_email_first: 'Escribe primero el correo de tu cuenta.',
     auth_ok_reset_sent: 'Enlace enviado. Abre tu correo y elige una contraseña nueva.',
@@ -2069,6 +2097,13 @@ export const STRINGS = {
     online_now: 'En línea ahora', mate_up: '＋ Hacerse amigos', recent_moments: 'Momentos recientes',
   },
   tr: {
+    // لمّة — your own face, with the regalia on
+    lamma_face_cta: 'Bu oyunda firavun ol',
+    lamma_face_title: 'Bu odadaki yüzün',
+    lamma_face_snap: 'Çek',
+    lamma_face_again: 'Tekrar',
+    lamma_face_use: 'Bu fotoğrafı kullan',
+    lamma_face_no_cam: 'Fotoğraf için kameraya izin ver — ya da fotoğrafsız oyna',
     // What the way in says back to you
     auth_err_email_first: 'Önce hesabının e-postasını yaz.',
     auth_ok_reset_sent: 'Bağlantı gönderildi. E-postanı aç ve yeni bir şifre belirle.',
@@ -2583,6 +2618,13 @@ export const STRINGS = {
     online_now: 'Şu an çevrimiçi', mate_up: '＋ Arkadaş ol', recent_moments: 'Son anlar',
   },
   pt: {
+    // لمّة — your own face, with the regalia on
+    lamma_face_cta: 'Sê um faraó nesta partida',
+    lamma_face_title: 'A tua cara nesta sala',
+    lamma_face_snap: 'Tirar',
+    lamma_face_again: 'Outra vez',
+    lamma_face_use: 'Usar esta foto',
+    lamma_face_no_cam: 'Permite a câmara para a tua foto — ou joga sem ela',
     // What the way in says back to you
     auth_err_email_first: 'Escreve primeiro o e-mail da tua conta.',
     auth_ok_reset_sent: 'Ligação enviada. Abre o teu e-mail e define uma palavra-passe nova.',
@@ -3097,6 +3139,13 @@ export const STRINGS = {
     online_now: 'Online agora', mate_up: '＋ Tornar amigo', recent_moments: 'Momentos recentes',
   },
   ro: {
+    // لمّة — your own face, with the regalia on
+    lamma_face_cta: 'Fii faraon în jocul ăsta',
+    lamma_face_title: 'Chipul tău în camera asta',
+    lamma_face_snap: 'Fotografiază',
+    lamma_face_again: 'Din nou',
+    lamma_face_use: 'Folosește poza asta',
+    lamma_face_no_cam: 'Permite camera pentru poză — sau joacă fără',
     // What the way in says back to you
     auth_err_email_first: 'Scrie mai întâi e-mailul contului tău.',
     auth_ok_reset_sent: 'Am trimis linkul. Deschide-ți e-mailul și pune o parolă nouă.',
@@ -3608,6 +3657,13 @@ export const STRINGS = {
     online_now: 'Online acum', mate_up: '＋ Adaugă prieten', recent_moments: 'Momente recente',
   },
   it: {
+    // لمّة — your own face, with the regalia on
+    lamma_face_cta: 'Diventa faraone per la partita',
+    lamma_face_title: 'La tua faccia in questa stanza',
+    lamma_face_snap: 'Scatta',
+    lamma_face_again: 'Di nuovo',
+    lamma_face_use: 'Usa questa foto',
+    lamma_face_no_cam: 'Consenti la fotocamera per la foto — oppure gioca senza',
     // What the way in says back to you
     auth_err_email_first: 'Scrivi prima l’e-mail del tuo account.',
     auth_ok_reset_sent: 'Link inviato. Apri l’e-mail e imposta una nuova password.',
@@ -4119,6 +4175,13 @@ export const STRINGS = {
     online_now: 'Online ora', mate_up: '＋ Diventa amico', recent_moments: 'Momenti recenti',
   },
   nl: {
+    // لمّة — your own face, with the regalia on
+    lamma_face_cta: 'Wees farao in dit spel',
+    lamma_face_title: 'Jouw gezicht in deze ruimte',
+    lamma_face_snap: 'Maak de foto',
+    lamma_face_again: 'Opnieuw',
+    lamma_face_use: 'Deze foto gebruiken',
+    lamma_face_no_cam: 'Geef de camera toestemming voor je foto — of speel zonder',
     // What the way in says back to you
     auth_err_email_first: 'Vul eerst het e-mailadres van je account in.',
     auth_ok_reset_sent: 'Link verstuurd. Open je e-mail en kies een nieuw wachtwoord.',
@@ -4630,6 +4693,13 @@ export const STRINGS = {
     online_now: 'Nu online', mate_up: '＋ Vrienden worden', recent_moments: 'Recente moments',
   },
   ru: {
+    // لمّة — your own face, with the regalia on
+    lamma_face_cta: 'Стань фараоном на эту игру',
+    lamma_face_title: 'Твоё лицо в этой комнате',
+    lamma_face_snap: 'Снять',
+    lamma_face_again: 'Ещё раз',
+    lamma_face_use: 'Оставить это фото',
+    lamma_face_no_cam: 'Разреши камеру для фото — или играй без него',
     // What the way in says back to you
     auth_err_email_first: 'Сначала введи почту своего аккаунта.',
     auth_ok_reset_sent: 'Ссылка отправлена. Открой почту и задай новый пароль.',
@@ -5141,6 +5211,13 @@ export const STRINGS = {
     online_now: 'Сейчас в сети', mate_up: '＋ Добавить в друзья', recent_moments: 'Недавние моменты',
   },
   zh: {
+    // لمّة — your own face, with the regalia on
+    lamma_face_cta: '这局当个法老',
+    lamma_face_title: '你在这个房间里的脸',
+    lamma_face_snap: '拍照',
+    lamma_face_again: '重拍',
+    lamma_face_use: '就用这张',
+    lamma_face_no_cam: '允许使用相机来拍照 — 或者不用照片也能玩',
     // What the way in says back to you
     auth_err_email_first: '请先填写账户邮箱。',
     auth_ok_reset_sent: '链接已发送。打开邮箱，然后设置新密码。',
@@ -5652,6 +5729,13 @@ export const STRINGS = {
     online_now: '当前在线', mate_up: '＋ 添加好友', recent_moments: '最近的瞬间',
   },
   ko: {
+    // لمّة — your own face, with the regalia on
+    lamma_face_cta: '이번 판은 파라오로',
+    lamma_face_title: '이 방에서의 내 얼굴',
+    lamma_face_snap: '찍기',
+    lamma_face_again: '다시',
+    lamma_face_use: '이 사진 쓰기',
+    lamma_face_no_cam: '사진을 찍으려면 카메라를 허용해 주세요 — 없이 해도 괜찮아요',
     // What the way in says back to you
     auth_err_email_first: '먼저 계정 이메일을 입력해 주세요.',
     auth_ok_reset_sent: '링크를 보냈어요. 이메일을 열고 새 비밀번호를 정하세요.',
@@ -6163,6 +6247,13 @@ export const STRINGS = {
     online_now: '현재 온라인', mate_up: '＋ 메이트 신청', recent_moments: '최근 순간들',
   },
   ja: {
+    // لمّة — your own face, with the regalia on
+    lamma_face_cta: 'この試合はファラオで',
+    lamma_face_title: 'この部屋でのあなたの顔',
+    lamma_face_snap: '撮る',
+    lamma_face_again: '撮り直す',
+    lamma_face_use: 'この写真にする',
+    lamma_face_no_cam: '写真を撮るにはカメラを許可してください — なしでも遊べます',
     // What the way in says back to you
     auth_err_email_first: 'まずアカウントのメールアドレスを入力してください。',
     auth_ok_reset_sent: 'リンクを送りました。メールを開いて、新しいパスワードを設定してください。',

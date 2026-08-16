@@ -11,10 +11,12 @@ import { Standings, RankChip } from './Standings';
 import { LangPicker } from './LangPicker';
 import { PLAY_LANGS, playLangFor } from './languages';
 import { EgyptMeter } from './EgyptMeter';
+import { PharaohCam } from './PharaohCam';
+import { Face } from './Face';
 import {
   advance, submitAnswer, reveal as revealRpc, sync as syncRpc,
   fetchPackQuestions, fetchRoomPlayers, subscribeRoom, nudge, claimHost, setConnected,
-  roomResults,
+  roomResults, setFace,
 } from '../../services/lamma';
 import { tapLight, tapSuccess } from '../../utils/feedback';
 
@@ -58,6 +60,7 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
   const [playLang, setPlayLang] = useState(() => playLangFor(lang));
   const [showLangs, setShowLangs] = useState(false);
   const [results, setResults] = useState(null);      // right answers, at the end
+  const [camOpen, setCamOpen] = useState(false);     // the pharaoh camera
   const hostGoneSince = useRef(null);
 
   const isHost = state ? state.is_host : initialHost;
@@ -196,6 +199,21 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
         ) : null}
       </View>
 
+      {/* The camera. Mounted only while it is open, so nothing holds the
+          camera while a game is being played. */}
+      {camOpen ? (
+        <PharaohCam
+          visible={camOpen}
+          t={t}
+          onClose={() => setCamOpen(false)}
+          onDone={async (dataUrl) => {
+            if (!dataUrl) return;
+            const r = await setFace(roomId, dataUrl);
+            if (r && r.ok) refresh();
+          }}
+        />
+      ) : null}
+
       {/* Opened from the header pill, closes on choosing. Sits over
           nothing — it pushes the game down for a second rather than
           covering the question somebody is still reading. */}
@@ -219,18 +237,34 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
           {/* Before anybody starts: what will you be reading? Everyone
               in the room answers the same question at the same moment,
               each in the language they think fastest in. */}
-          <View style={{ marginBottom: 20 }}>
+          <View style={{ marginBottom: 18 }}>
             <LangPicker value={playLang} onChange={setPlayLang} label={t('lamma_question_lang')} />
           </View>
+
+          {/* And who will you be? Only where the regalia belongs — a
+              nemes headcloth on a European football night is fancy
+              dress, and this is not that. */}
+          {state.pack_country === 'EG' ? (
+            <Pressable onPress={() => { tapLight(); setCamOpen(true); }} style={{ marginBottom: 20 }}>
+              <View style={{
+                flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+                backgroundColor: C.glass, borderWidth: 1, borderColor: C.gold,
+                borderRadius: 999, paddingVertical: 12, paddingHorizontal: 16,
+              }}>
+                <Text style={{ fontSize: 16 }}>📸</Text>
+                <Text style={{ color: C.text, fontSize: 14, fontWeight: '900', marginStart: 8, flexShrink: 1 }} numberOfLines={1}>
+                  {t('lamma_face_cta')}
+                </Text>
+              </View>
+            </Pressable>
+          ) : null}
 
           <Text style={{ color: C.faint, fontSize: 13, marginBottom: 10 }}>
             {(players || []).length} {t('lamma_players_here')}
           </Text>
           {(players || []).map((p) => (
             <View key={p.user_id} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10 }}>
-              <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center' }}>
-                <Text style={{ color: C.purple, fontWeight: '900' }}>{(p.nickname || '؟')[0]}</Text>
-              </View>
+              <Face player={p} size={34} />
               <Text style={{ color: C.text, fontSize: 15, fontWeight: '800', marginStart: 11, flex: 1 }}>{p.nickname}</Text>
               {p.user_id === state.host_user_id ? (
                 <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '800' }}>{t('lamma_host')}</Text>
@@ -289,7 +323,8 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
           {podium.map((p, i) => (
             <View key={p.user_id} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 16, padding: 14, marginBottom: 10 }}>
               <Text style={{ fontSize: 22 }}>{['🥇', '🥈', '🥉'][i]}</Text>
-              <Text style={{ color: C.text, fontSize: 16, fontWeight: '900', marginStart: 12, flex: 1 }}>{p.nickname}</Text>
+              <View style={{ marginStart: 10 }}><Face player={p} size={38} ring={C.gold} /></View>
+              <Text style={{ color: C.text, fontSize: 16, fontWeight: '900', marginStart: 10, flex: 1, minWidth: 0 }} numberOfLines={1}>{p.nickname}</Text>
               <Text style={{ color: C.purple, fontSize: 16, fontWeight: '900' }}>{p.score}</Text>
             </View>
           ))}
