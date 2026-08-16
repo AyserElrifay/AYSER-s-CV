@@ -28,6 +28,10 @@ export const LANGS = [
 
 export const STRINGS = {
   en: {
+    // لمّة — a round is fifteen, and the right answer says so
+    lamma_round_len: 'QUESTIONS THIS ROUND',
+    lamma_round_all: 'All',
+    lamma_the_answer: 'the answer',
     // لمّة — one host, holding the clock and the door
     lamma_time_per_q: 'TIME PER QUESTION',
     lamma_locked: 'Locked — nobody else can join',
@@ -558,6 +562,10 @@ export const STRINGS = {
     try_again: 'Try again',
   },
   ar: {
+    // لمّة — a round is fifteen, and the right answer says so
+    lamma_round_len: 'عدد الأسئلة في الجولة',
+    lamma_round_all: 'كلهم',
+    lamma_the_answer: 'الإجابة الصح',
     // لمّة — one host, holding the clock and the door
     lamma_time_per_q: 'وقت كل سؤال',
     lamma_locked: 'مقفولة — محدش تاني يقدر يدخل',
@@ -1079,6 +1087,10 @@ export const STRINGS = {
 
   },
   fr: {
+    // لمّة — a round is fifteen, and the right answer says so
+    lamma_round_len: 'QUESTIONS PAR MANCHE',
+    lamma_round_all: 'Toutes',
+    lamma_the_answer: 'la réponse',
     // لمّة — one host, holding the clock and the door
     lamma_time_per_q: 'TEMPS PAR QUESTION',
     lamma_locked: 'Fermée — personne d’autre ne peut entrer',
@@ -1614,6 +1626,10 @@ export const STRINGS = {
     online_now: 'En ligne', mate_up: '＋ Devenir ami', recent_moments: 'Moments récents',
   },
   es: {
+    // لمّة — a round is fifteen, and the right answer says so
+    lamma_round_len: 'PREGUNTAS POR RONDA',
+    lamma_round_all: 'Todas',
+    lamma_the_answer: 'la respuesta',
     // لمّة — one host, holding the clock and the door
     lamma_time_per_q: 'TIEMPO POR PREGUNTA',
     lamma_locked: 'Cerrada — no puede entrar nadie más',
@@ -2149,6 +2165,10 @@ export const STRINGS = {
     online_now: 'En línea ahora', mate_up: '＋ Hacerse amigos', recent_moments: 'Momentos recientes',
   },
   tr: {
+    // لمّة — a round is fifteen, and the right answer says so
+    lamma_round_len: 'BU TURDAKİ SORULAR',
+    lamma_round_all: 'Hepsi',
+    lamma_the_answer: 'doğru cevap',
     // لمّة — one host, holding the clock and the door
     lamma_time_per_q: 'SORU BAŞINA SÜRE',
     lamma_locked: 'Kilitli — başka kimse giremez',
@@ -2683,6 +2703,10 @@ export const STRINGS = {
     online_now: 'Şu an çevrimiçi', mate_up: '＋ Arkadaş ol', recent_moments: 'Son anlar',
   },
   pt: {
+    // لمّة — a round is fifteen, and the right answer says so
+    lamma_round_len: 'PERGUNTAS POR RONDA',
+    lamma_round_all: 'Todas',
+    lamma_the_answer: 'a resposta',
     // لمّة — one host, holding the clock and the door
     lamma_time_per_q: 'TEMPO POR PERGUNTA',
     lamma_locked: 'Fechada — mais ninguém pode entrar',
@@ -3217,6 +3241,10 @@ export const STRINGS = {
     online_now: 'Online agora', mate_up: '＋ Tornar amigo', recent_moments: 'Momentos recentes',
   },
   ro: {
+    // لمّة — a round is fifteen, and the right answer says so
+    lamma_round_len: 'ÎNTREBĂRI PE RUNDĂ',
+    lamma_round_all: 'Toate',
+    lamma_the_answer: 'răspunsul',
     // لمّة — one host, holding the clock and the door
     lamma_time_per_q: 'TIMP PE ÎNTREBARE',
     lamma_locked: 'Închisă — nu mai poate intra nimeni',
@@ -3748,6 +3776,10 @@ export const STRINGS = {
     online_now: 'Online acum', mate_up: '＋ Adaugă prieten', recent_moments: 'Momente recente',
   },
   it: {
+    // لمّة — a round is fifteen, and the right answer says so
+    lamma_round_len: 'DOMANDE PER TURNO',
+    lamma_round_all: 'Tutte',
+    lamma_the_answer: 'la risposta',
     // لمّة — one host, holding the clock and the door
     lamma_time_per_q: 'TEMPO PER DOMANDA',
     lamma_locked: 'Chiusa — non può entrare nessun altro',
@@ -4279,6 +4311,10 @@ export const STRINGS = {
     online_now: 'Online ora', mate_up: '＋ Diventa amico', recent_moments: 'Momenti recenti',
   },
   nl: {
+    // لمّة — a round is fifteen, and the right answer says so
+    lamma_round_len: 'VRAGEN PER RONDE',
+    lamma_round_all: 'Alle',
+    lamma_the_answer: 'het antwoord',
     // لمّة — one host, holding the clock and the door
     lamma_time_per_q: 'TIJD PER VRAAG',
     lamma_locked: 'Gesloten — niemand kan er meer bij',
@@ -4810,6 +4846,10 @@ export const STRINGS = {
     online_now: 'Nu online', mate_up: '＋ Vrienden worden', recent_moments: 'Recente moments',
   },
   ru: {
+    // لمّة — a round is fifteen, and the right answer says so
+    lamma_round_len: 'ВОПРОСОВ В РАУНДЕ',
+    lamma_round_all: 'Все',
+    lamma_the_answer: 'верный ответ',
     // لمّة — one host, holding the clock and the door
     lamma_time_per_q: 'ВРЕМЯ НА ВОПРОС',
     lamma_locked: 'Закрыта — больше никто не войдёт',
@@ -5341,6 +5381,10 @@ export const STRINGS = {
     online_now: 'Сейчас в сети', mate_up: '＋ Добавить в друзья', recent_moments: 'Недавние моменты',
   },
   zh: {
+    // لمّة — a round is fifteen, and the right answer says so
+    lamma_round_len: '本轮题数',
+    lamma_round_all: '全部',
+    lamma_the_answer: '正确答案',
     // لمّة — one host, holding the clock and the door
     lamma_time_per_q: '每题时间',
     lamma_locked: '已锁 — 其他人进不来',
@@ -5872,6 +5916,10 @@ export const STRINGS = {
     online_now: '当前在线', mate_up: '＋ 添加好友', recent_moments: '最近的瞬间',
   },
   ko: {
+    // لمّة — a round is fifteen, and the right answer says so
+    lamma_round_len: '이번 라운드 문제 수',
+    lamma_round_all: '전체',
+    lamma_the_answer: '정답',
     // لمّة — one host, holding the clock and the door
     lamma_time_per_q: '문제당 시간',
     lamma_locked: '잠김 — 더 이상 들어올 수 없어요',
@@ -6403,6 +6451,10 @@ export const STRINGS = {
     online_now: '현재 온라인', mate_up: '＋ 메이트 신청', recent_moments: '최근 순간들',
   },
   ja: {
+    // لمّة — a round is fifteen, and the right answer says so
+    lamma_round_len: 'このラウンドの問題数',
+    lamma_round_all: 'すべて',
+    lamma_the_answer: '正解',
     // لمّة — one host, holding the clock and the door
     lamma_time_per_q: '1問あたりの時間',
     lamma_locked: '施錠中 — これ以上は入れません',

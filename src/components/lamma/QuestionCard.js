@@ -129,7 +129,7 @@ export const QuestionCard = ({
                 borderWidth: mine || isRight ? 2 : 1,
                 borderColor: isRight ? ch.color : mine ? ch.color : C.line,
                 borderRadius: 18, paddingHorizontal: 14, paddingVertical: 15, marginBottom: 10,
-                opacity: revealed && !isRight && !mine ? 0.5 : 1,
+                opacity: revealed && !isRight && !mine ? 0.45 : 1,
               }}>
                 <View style={{
                   width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center',
@@ -139,10 +139,30 @@ export const QuestionCard = ({
                 </View>
                 <Text style={{
                   color: isRight ? '#FFF' : C.text, fontSize: 16, fontWeight: '800',
-                  marginStart: 12, flex: 1,
+                  marginStart: 12, flex: 1, minWidth: 0,
                 }}>
                   {say(o, lang)}
                 </Text>
+                {/* ── SAY WHICH ONE WAS RIGHT, IN WORDS ──────────────
+                    Colour alone was doing this job and it was not
+                    enough: the right tile turned its own colour, which
+                    on a screen full of colours is not obviously "this
+                    is the answer". A tick and the word for it, and a
+                    cross on the one you actually picked, so somebody
+                    who got it wrong knows what the right answer WAS —
+                    which is the entire point of getting it wrong in a
+                    game you are playing to learn something. */}
+                {revealed && isRight ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginStart: 8 }}>
+                    <MaterialCommunityIcons name="check-circle" size={19} color="#FFF" />
+                    <Text style={{ color: '#FFF', fontSize: 11.5, fontWeight: '900', marginStart: 5 }}>
+                      {t('lamma_the_answer')}
+                    </Text>
+                  </View>
+                ) : null}
+                {isMineWrong ? (
+                  <MaterialCommunityIcons name="close-circle" size={19} color={C.coral} style={{ marginStart: 8 }} />
+                ) : null}
                 {/* The count needs its own space. Without a margin it
                     sits flush against the answer and Arabic reads it as
                     part of the name — "3محمود عبد العزيز" — because

@@ -47,6 +47,12 @@ import { tapLight, tapSuccess } from '../../utils/feedback';
    see supabase/schema_v24_lamma_host.sql. */
 const TIMERS = [10000, 20000, 30000, 45000];
 
+/* How many questions a round is. 0 means the whole pack — the server
+   accepts exactly these four, so this list and that one have to agree
+   (supabase/schema_v25_lamma_rounds.sql). Fifteen is the default
+   because forty-three was half an hour and people said so. */
+const ROUNDS = [10, 15, 25, 0];
+
 const HOST_GONE_MS = 10000;
 
 export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExit }) => {
@@ -69,7 +75,25 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
   const hostGoneSince = useRef(null);
 
   const isHost = state ? state.is_host : initialHost;
-  const q = state && state.question_index >= 0 ? questions[state.question_index] : null;
+
+  /* ── WHICH QUESTION IS "QUESTION FOUR" ────────────────────────────
+     The ROOM decides, not the pack. A room draws fifteen of the pack's
+     questions in its own random order when it is made, so the index
+     counts along that list — and every phone in the room reads the
+     same list, which is why they all see the same question.
+
+     A room made before rounds existed has no list, and falls back to
+     the pack in written order. */
+  const roundIds = Array.isArray(state && state.question_ids) ? state.question_ids : [];
+  const total = roundIds.length || questions.length;
+  const q = (() => {
+    if (!state || state.question_index < 0) return null;
+    if (roundIds.length) {
+      const id = roundIds[state.question_index];
+      return questions.find((row) => row && row.id === id) || null;
+    }
+    return questions[state.question_index] || null;
+  })();
 
   const refresh = useCallback(async () => {
     const s = await syncRpc(roomId);
@@ -181,12 +205,20 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
      screen is a convenience and not the permission. */
   const chooseTimer = async (ms) => {
     tapLight();
-    const r = await setRoom(roomId, ms, null);
+    const r = await setRoom(roomId, ms, null, null);
     if (r && r.ok) refresh();
   };
   const toggleLock = async () => {
     tapLight();
-    const r = await setRoom(roomId, null, !state.locked);
+    const r = await setRoom(roomId, null, !state.locked, null);
+    if (r && r.ok) refresh();
+  };
+  /* Re-draws the round, so it is a different fifteen as well as a
+     different length. Only in the lobby — the server refuses to change
+     the questions under a game that has started. */
+  const chooseRound = async (n) => {
+    tapLight();
+    const r = await setRoom(roomId, null, null, n);
     if (r && r.ok) refresh();
   };
   const removePlayer = async (id) => {
@@ -387,6 +419,34 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
             )}
           </View>
 
+          {/* ── HOW LONG IS THE ROUND ───────────────────────────────
+              A fresh draw each time it changes, so a shorter round is
+              also a different one. */}
+          <View style={{ marginBottom: 20 }}>
+            <Text style={{ color: C.faint, fontSize: 11, fontWeight: '900', letterSpacing: 1, marginBottom: 8 }}>
+              {t('lamma_round_len')}
+            </Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+              {ROUNDS.map((n) => {
+                const on = n === 0 ? roundIds.length > 25 : roundIds.length === n;
+                return (
+                  <Pressable key={n} onPress={() => chooseRound(n)} disabled={!isHost} style={{ marginEnd: 8, marginBottom: 8 }}>
+                    <View style={{
+                      backgroundColor: on ? C.purple : C.glass,
+                      borderWidth: 1, borderColor: on ? C.purple : C.line,
+                      borderRadius: 999, paddingHorizontal: 15, paddingVertical: 8,
+                      opacity: isHost || on ? 1 : 0.45,
+                    }}>
+                      <Text style={{ color: on ? '#FFF' : C.text, fontSize: 13, fontWeight: '900' }}>
+                        {n === 0 ? t('lamma_round_all') : n}
+                      </Text>
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+
           <Text style={{ color: C.faint, fontSize: 13, marginBottom: 10 }}>
             {(players || []).length} {t('lamma_players_here')}
           </Text>
@@ -424,7 +484,7 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
             question={q}
             timerMs={state.timer_ms}
             index={state.question_index}
-            total={questions.length}
+            total={total}
             onAnswer={onAnswer}
             result={result}
             t={t}
