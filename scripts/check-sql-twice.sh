@@ -163,5 +163,40 @@ if [ $RC -ne 0 ]; then
 fi
 
 echo "clean."
+
+# ─── AND THE RIGHT ANSWER MAY NOT ALWAYS BE THE TOP BUTTON ───────────
+# Every question in the game was written with its correct choice first
+# and stored that way — 206 out of 206. Nothing shuffled them, so the
+# top button was right every single time. No one question looks wrong;
+# you can only see it by counting all of them, which is why it lasted
+# thirty schema files.
+#
+# It is fixed in the file now, but a fix in data stays fixed only until
+# somebody appends a pack written the old way. So the database is asked
+# afterwards, on the real thing, rather than trusted.
+echo
+echo "── and the right answer must not always be the first button ──"
+COUNTS=$(as_postgres "$PGBIN/psql -h $SOCK -p $PORT -U postgres -d moments -At -F' ' -c \
+  \"select count(*), count(*) filter (where correct_index = 0), count(distinct correct_index) from public.questions\"" 2>/dev/null)
+set -- $COUNTS
+N_ALL=${1:-0}; N_FIRST=${2:-0}; N_KINDS=${3:-0}
+
+if [ "$N_ALL" = "0" ]; then
+  echo "No questions in the database — nothing to weigh."
+else
+  # 45% is loose on purpose: with four choices the honest share is
+  # about a quarter, and a pack or two landing heavy is chance, not a
+  # pattern. Anything past this is not chance.
+  OVER=$(awk -v f="$N_FIRST" -v a="$N_ALL" 'BEGIN { print (f / a > 0.45) ? 1 : 0 }')
+  if [ "$N_KINDS" -lt 3 ] || [ "$OVER" = "1" ]; then
+    echo "The right answer is the first button $N_FIRST of $N_ALL times, across $N_KINDS position(s)."
+    echo
+    echo "A player notices that in one round and taps the top button all night."
+    echo "Shuffle the choices where they are written, or check schema_v32_spread_answers.sql still runs last."
+    exit 1
+  fi
+  echo "first button: $N_FIRST of $N_ALL, spread across $N_KINDS positions."
+fi
+
 echo
 echo "RUN_ME.sql applies to an already-set-up database with no error."

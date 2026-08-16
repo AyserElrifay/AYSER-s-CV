@@ -12,6 +12,7 @@ import {
   listGatherings, listSparks, createGathering, joinGathering, cancelGathering, sparkText,
 } from '../../services/green';
 import { tapLight, tapMedium, tapSuccess } from '../../utils/feedback';
+import { PLAY_LANGS } from '../lamma/languages';
 
 /* ─── أخضر · GREEN MINDS ──────────────────────────────────────────────
    A corner of Moments for the things that are better done outside and
@@ -84,7 +85,12 @@ const Chip = ({ on, children, onPress }) => (
   </Pressable>
 );
 
-export const GreenSheet = ({ onClose }) => {
+/* The pack of questions that belongs to this corner. Named here rather
+   than looked up by title: a title is translated thirteen ways and
+   renamed on a whim, and an id is neither. */
+export const GREEN_PACK = 'ffff6666-0000-4000-8000-000000000001';
+
+export const GreenSheet = ({ onClose, onPlay }) => {
   const insets = useSafeAreaInsets();
   const { t, lang } = useLang();
   const { user } = useAuth();
@@ -198,6 +204,56 @@ export const GreenSheet = ({ onClose }) => {
                 </View>
               ))}
             </View>
+
+            {/* ── THE QUESTIONS THAT GO WITH IT ───────────────────────
+                Turning up to a clean-up and knowing why a cigarette end
+                matters are two different things, and this corner would
+                be half a corner with only one of them. Sixteen
+                questions, in the same five languages the rest of لمّة
+                is played in — plastic and pollinators, but also what
+                Erasmus is and what you do when somebody says something
+                you disagree with.
+
+                Offered, not insisted on. It sits above the listings
+                because it is the one thing here that always works: the
+                gatherings can be empty on a Tuesday, the quiz never
+                is. */}
+            {onPlay ? (
+              <Pressable onPress={() => { tapLight(); onPlay(GREEN_PACK); }} style={{ marginBottom: 20 }}>
+                <View style={{
+                  flexDirection: 'row', alignItems: 'center',
+                  backgroundColor: C.glass, borderWidth: 1, borderColor: C.line,
+                  borderRadius: 20, padding: 14,
+                }}>
+                  <View style={{
+                    width: 42, height: 42, borderRadius: 14, backgroundColor: GREEN,
+                    alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <MaterialCommunityIcons name="head-lightbulb-outline" size={22} color="#FFF" />
+                  </View>
+                  <View style={{ flex: 1, minWidth: 0, marginStart: 12 }}>
+                    <Text style={{ color: C.text, fontSize: 15.5, fontWeight: '900' }} numberOfLines={1}>
+                      {t('green_quiz')}
+                    </Text>
+                    <Text style={{ color: C.faint, fontSize: 12.5, marginTop: 3, lineHeight: 17 }} numberOfLines={2}>
+                      {t('green_quiz_sub')}
+                    </Text>
+                    {/* Spaced, not run together. Flag emoji are pairs of
+                        regional-indicator letters, and five pairs with
+                        nothing between them get re-paired by the font
+                        into flags of countries nobody named. The shelf
+                        in لمّة joins them the same way, from the same
+                        list. */}
+                    <Text style={{ fontSize: 13, letterSpacing: 1, marginTop: 7 }} numberOfLines={1}>
+                      {PLAY_LANGS.map((l) => l.flag).join(' ')}
+                    </Text>
+                  </View>
+                  <MaterialCommunityIcons
+                    name={lang === 'ar' ? 'chevron-left' : 'chevron-right'}
+                    size={22} color={C.faint} style={{ marginStart: 6 }} />
+                </View>
+              </Pressable>
+            ) : null}
 
             {/* where */}
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 14 }}>

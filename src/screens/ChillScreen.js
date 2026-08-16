@@ -83,6 +83,7 @@ export const ChillScreen = () => {
   const [game, setGame] = useState(null); // a launched game
   const [lammaOpen, setLammaOpen] = useState(false);
   const [greenOpen, setGreenOpen] = useState(false);
+  const [focusPack, setFocusPack] = useState(null);   // a pack to open the shelf on
   const { t } = useLang();
 
   // Every real, playable game — surfaced here so they're actually findable
@@ -520,8 +521,17 @@ export const ChillScreen = () => {
       : game && game.kind === 'rps' ? <RockPaperScissors onClose={() => setGame(null)} />
       : game ? <GameRunner onClose={() => setGame(null)} /> : null}
 
-    {lammaOpen ? <GameHub onClose={() => setLammaOpen(false)} /> : null}
-    {greenOpen ? <GreenSheet onClose={() => setGreenOpen(false)} /> : null}
+    {/* One sheet at a time. The green corner can hand somebody over to
+        لمّة with its own pack already at the front of the shelf, so it
+        closes itself on the way out rather than leaving two full-screen
+        sheets stacked with the back button between them. */}
+    {lammaOpen ? <GameHub onClose={() => { setLammaOpen(false); setFocusPack(null); }} focusPack={focusPack} /> : null}
+    {greenOpen ? (
+      <GreenSheet
+        onClose={() => setGreenOpen(false)}
+        onPlay={(packId) => { setGreenOpen(false); setFocusPack(packId); setLammaOpen(true); }}
+      />
+    ) : null}
     </>
   );
 };

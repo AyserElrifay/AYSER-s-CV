@@ -28,7 +28,12 @@ import { tapLight, tapMedium } from '../../utils/feedback';
    says so instead of showing an empty shelf that looks like a game
    nobody wants to play. */
 
-export const GameHub = ({ onClose }) => {
+/* focusPack: arriving here from somewhere that already knows which
+   pack it means — the green corner sends people to Green Minds — that
+   pack is moved to the front of the shelf. Moved, not filtered: the
+   rest of the game is still there, because somebody who came for one
+   pack and stayed for another is a good evening, not a bug. */
+export const GameHub = ({ onClose, focusPack = null }) => {
   const insets = useSafeAreaInsets();
   const { t, lang } = useLang();
   const { user } = useAuth();
@@ -61,10 +66,16 @@ export const GameHub = ({ onClose }) => {
     getProfile(user.id)
       .catch(() => null)
       .then((me) => fetchPacks(me && me.country))
-      .then((rows) => { if (alive) { setPacks(rows); setWhy(null); } })
+      .then((rows) => {
+        if (!alive) return;
+        const list = focusPack
+          ? rows.slice().sort((a, b) => (a.id === focusPack ? 0 : 1) - (b.id === focusPack ? 0 : 1))
+          : rows;
+        setPacks(list); setWhy(null);
+      })
       .catch((e) => { if (alive) { setPacks([]); setWhy(explain(e)); } });
     return () => { alive = false; };
-  }, [user]);
+  }, [user, focusPack]);
 
   useEffect(() => load(), [load]);
 
