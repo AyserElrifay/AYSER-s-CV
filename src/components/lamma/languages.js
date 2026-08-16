@@ -50,9 +50,16 @@ export const packFlags = (pack) => {
    machine-translated at runtime — a quiz answer that drifts a shade in
    meaning is a second right answer, so a missing translation shows the
    language it was really written in.                                 */
-export const say = (row, lang) => {
+const field = (row, lang, prefix) => {
   if (!row) return '';
-  const i18n = row.text_i18n;
-  const mine = (i18n && typeof i18n === 'object' ? i18n[lang] : null) || row['text_' + lang];
-  return mine || row.text_en || row.text_ar || '';
+  const i18n = row[prefix + '_i18n'];
+  const mine = (i18n && typeof i18n === 'object' ? i18n[lang] : null) || row[prefix + '_' + lang];
+  return mine || row[prefix + '_en'] || row[prefix + '_ar'] || '';
 };
+
+export const say = (row, lang) => field(row, lang, 'text');
+
+/* The line that appears after the reveal — the fact behind the answer.
+   Same resolver, different column, and empty when a question has not
+   been given one. A missing note shows nothing rather than a gap. */
+export const sayNote = (row, lang) => field(row, lang, 'note');

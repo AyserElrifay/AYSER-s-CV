@@ -5,7 +5,7 @@ import { C } from '../../constants/theme';
 import { channelFor } from './channels';
 import { Strip, useCountdown, distributionSegments } from './Strip';
 import { createQuestionClock } from '../../lib/lammaClock';
-import { say } from './languages';
+import { say, sayNote } from './languages';
 import { tapMedium, tapSuccess, tapError } from '../../utils/feedback';
 
 /* ─── لمّة · A QUESTION ON A PHONE ───────────────────────────────────
@@ -184,6 +184,23 @@ export const QuestionCard = ({
       {picked !== null && !revealed ? (
         <View style={{ alignItems: 'center', paddingVertical: 12 }}>
           <Text style={{ color: C.green, fontSize: 14, fontWeight: '900' }}>{t('lamma_answer_sent')}</Text>
+        </View>
+      ) : null}
+
+      {/* ── AND WHY ────────────────────────────────────────────────
+          Being told which tile was right teaches you one fact: which
+          tile was right. The line under it is the reason — and it is
+          shown to everybody, not only to the people who got it wrong,
+          because the person who guessed correctly did not learn
+          anything either. */}
+      {revealed && sayNote(question, lang) ? (
+        <View style={{
+          backgroundColor: C.glass, borderWidth: 1, borderColor: C.line,
+          borderRadius: 14, paddingHorizontal: 13, paddingVertical: 11, marginTop: 2,
+        }}>
+          <Text style={{ color: C.dim, fontSize: 13, fontWeight: '700', lineHeight: 19 }}>
+            {sayNote(question, lang)}
+          </Text>
         </View>
       ) : null}
 
