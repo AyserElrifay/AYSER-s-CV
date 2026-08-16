@@ -28,6 +28,9 @@ export const LANGS = [
 
 export const STRINGS = {
   en: {
+    // لمّة — read it out, then show the choices
+    lamma_reading_now: 'Listen to the question…',
+    lamma_show_choices: 'Show the choices',
     // لمّة — a round is fifteen, and the right answer says so
     lamma_round_len: 'QUESTIONS THIS ROUND',
     lamma_round_all: 'All',
@@ -562,6 +565,9 @@ export const STRINGS = {
     try_again: 'Try again',
   },
   ar: {
+    // لمّة — read it out, then show the choices
+    lamma_reading_now: 'اسمع السؤال…',
+    lamma_show_choices: 'ورّيهم الاختيارات',
     // لمّة — a round is fifteen, and the right answer says so
     lamma_round_len: 'عدد الأسئلة في الجولة',
     lamma_round_all: 'كلهم',
@@ -1087,6 +1093,9 @@ export const STRINGS = {
 
   },
   fr: {
+    // لمّة — read it out, then show the choices
+    lamma_reading_now: 'Écoutez la question…',
+    lamma_show_choices: 'Afficher les choix',
     // لمّة — a round is fifteen, and the right answer says so
     lamma_round_len: 'QUESTIONS PAR MANCHE',
     lamma_round_all: 'Toutes',
@@ -1626,6 +1635,9 @@ export const STRINGS = {
     online_now: 'En ligne', mate_up: '＋ Devenir ami', recent_moments: 'Moments récents',
   },
   es: {
+    // لمّة — read it out, then show the choices
+    lamma_reading_now: 'Escucha la pregunta…',
+    lamma_show_choices: 'Mostrar las opciones',
     // لمّة — a round is fifteen, and the right answer says so
     lamma_round_len: 'PREGUNTAS POR RONDA',
     lamma_round_all: 'Todas',
@@ -2165,6 +2177,9 @@ export const STRINGS = {
     online_now: 'En línea ahora', mate_up: '＋ Hacerse amigos', recent_moments: 'Momentos recientes',
   },
   tr: {
+    // لمّة — read it out, then show the choices
+    lamma_reading_now: 'Soruyu dinle…',
+    lamma_show_choices: 'Şıkları göster',
     // لمّة — a round is fifteen, and the right answer says so
     lamma_round_len: 'BU TURDAKİ SORULAR',
     lamma_round_all: 'Hepsi',
@@ -2703,6 +2718,9 @@ export const STRINGS = {
     online_now: 'Şu an çevrimiçi', mate_up: '＋ Arkadaş ol', recent_moments: 'Son anlar',
   },
   pt: {
+    // لمّة — read it out, then show the choices
+    lamma_reading_now: 'Ouve a pergunta…',
+    lamma_show_choices: 'Mostrar as opções',
     // لمّة — a round is fifteen, and the right answer says so
     lamma_round_len: 'PERGUNTAS POR RONDA',
     lamma_round_all: 'Todas',
@@ -3241,6 +3259,9 @@ export const STRINGS = {
     online_now: 'Online agora', mate_up: '＋ Tornar amigo', recent_moments: 'Momentos recentes',
   },
   ro: {
+    // لمّة — read it out, then show the choices
+    lamma_reading_now: 'Ascultă întrebarea…',
+    lamma_show_choices: 'Arată variantele',
     // لمّة — a round is fifteen, and the right answer says so
     lamma_round_len: 'ÎNTREBĂRI PE RUNDĂ',
     lamma_round_all: 'Toate',
@@ -3776,6 +3797,9 @@ export const STRINGS = {
     online_now: 'Online acum', mate_up: '＋ Adaugă prieten', recent_moments: 'Momente recente',
   },
   it: {
+    // لمّة — read it out, then show the choices
+    lamma_reading_now: 'Ascolta la domanda…',
+    lamma_show_choices: 'Mostra le opzioni',
     // لمّة — a round is fifteen, and the right answer says so
     lamma_round_len: 'DOMANDE PER TURNO',
     lamma_round_all: 'Tutte',
@@ -4311,6 +4335,9 @@ export const STRINGS = {
     online_now: 'Online ora', mate_up: '＋ Diventa amico', recent_moments: 'Momenti recenti',
   },
   nl: {
+    // لمّة — read it out, then show the choices
+    lamma_reading_now: 'Luister naar de vraag…',
+    lamma_show_choices: 'Toon de keuzes',
     // لمّة — a round is fifteen, and the right answer says so
     lamma_round_len: 'VRAGEN PER RONDE',
     lamma_round_all: 'Alle',
@@ -4846,6 +4873,9 @@ export const STRINGS = {
     online_now: 'Nu online', mate_up: '＋ Vrienden worden', recent_moments: 'Recente moments',
   },
   ru: {
+    // لمّة — read it out, then show the choices
+    lamma_reading_now: 'Слушай вопрос…',
+    lamma_show_choices: 'Показать варианты',
     // لمّة — a round is fifteen, and the right answer says so
     lamma_round_len: 'ВОПРОСОВ В РАУНДЕ',
     lamma_round_all: 'Все',
@@ -5381,6 +5411,9 @@ export const STRINGS = {
     online_now: 'Сейчас в сети', mate_up: '＋ Добавить в друзья', recent_moments: 'Недавние моменты',
   },
   zh: {
+    // لمّة — read it out, then show the choices
+    lamma_reading_now: '听题目…',
+    lamma_show_choices: '显示选项',
     // لمّة — a round is fifteen, and the right answer says so
     lamma_round_len: '本轮题数',
     lamma_round_all: '全部',
@@ -5916,6 +5949,9 @@ export const STRINGS = {
     online_now: '当前在线', mate_up: '＋ 添加好友', recent_moments: '最近的瞬间',
   },
   ko: {
+    // لمّة — read it out, then show the choices
+    lamma_reading_now: '문제를 들어 보세요…',
+    lamma_show_choices: '선택지 보여주기',
     // لمّة — a round is fifteen, and the right answer says so
     lamma_round_len: '이번 라운드 문제 수',
     lamma_round_all: '전체',
@@ -6451,6 +6487,9 @@ export const STRINGS = {
     online_now: '현재 온라인', mate_up: '＋ 메이트 신청', recent_moments: '최근 순간들',
   },
   ja: {
+    // لمّة — read it out, then show the choices
+    lamma_reading_now: '問題を聞いてください…',
+    lamma_show_choices: '選択肢を出す',
     // لمّة — a round is fifteen, and the right answer says so
     lamma_round_len: 'このラウンドの問題数',
     lamma_round_all: 'すべて',

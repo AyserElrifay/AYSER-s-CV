@@ -9,14 +9,15 @@ import { QuestionCard } from './QuestionCard';
 import { Strip, leaderboardSegments, StripLabel } from './Strip';
 import { Standings, RankChip } from './Standings';
 import { LangPicker } from './LangPicker';
-import { PLAY_LANGS, playLangFor } from './languages';
+import { PLAY_LANGS, playLangFor, say } from './languages';
 import { EgyptMeter } from './EgyptMeter';
 import { PharaohCam } from './PharaohCam';
+import { Stage } from './Stage';
 import { Face } from './Face';
 import {
   advance, submitAnswer, reveal as revealRpc, sync as syncRpc,
   fetchPackQuestions, fetchRoomPlayers, subscribeRoom, nudge, claimHost, setConnected,
-  roomResults, setFace, setRoom, kick,
+  roomResults, setFace, setRoom, kick, showOptions,
 } from '../../services/lamma';
 import { tapLight, tapSuccess } from '../../utils/feedback';
 
@@ -72,6 +73,7 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
   const [showLangs, setShowLangs] = useState(false);
   const [results, setResults] = useState(null);      // right answers, at the end
   const [camOpen, setCamOpen] = useState(false);     // the pharaoh camera
+  const [stageOpen, setStageOpen] = useState(false); // the shared screen
   const hostGoneSince = useRef(null);
 
   const isHost = state ? state.is_host : initialHost;
@@ -205,12 +207,12 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
      screen is a convenience and not the permission. */
   const chooseTimer = async (ms) => {
     tapLight();
-    const r = await setRoom(roomId, ms, null, null);
+    const r = await setRoom(roomId, ms, null, null, null);
     if (r && r.ok) refresh();
   };
   const toggleLock = async () => {
     tapLight();
-    const r = await setRoom(roomId, null, !state.locked, null);
+    const r = await setRoom(roomId, null, !state.locked, null, null);
     if (r && r.ok) refresh();
   };
   /* Re-draws the round, so it is a different fifteen as well as a
@@ -218,13 +220,35 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
      the questions under a game that has started. */
   const chooseRound = async (n) => {
     tapLight();
-    const r = await setRoom(roomId, null, null, n);
+    const r = await setRoom(roomId, null, null, n, null);
     if (r && r.ok) refresh();
   };
   const removePlayer = async (id) => {
     tapLight();
     const r = await kick(roomId, id);
     if (r && r.ok) refresh();          // sync carries the player list
+  };
+
+  /* Sharing the screen turns the reading step on for the room: the
+     question goes up alone, the host reads it out, and the choices —
+     and the clock — arrive on the second tap. Closing the stage leaves
+     it on, because a host who was presenting a moment ago is usually
+     still presenting. */
+  const openStage = async () => {
+    tapLight();
+    setStageOpen(true);
+    if (isHost && !state.read_first) {
+      const r = await setRoom(roomId, null, null, null, true);
+      if (r && r.ok) refresh();
+    }
+  };
+
+  const revealChoices = async () => {
+    setBusy(true);
+    const r = await showOptions(roomId);
+    if (r && r.ok) nudge(roomId, { phase: 'question' });
+    await refresh();
+    setBusy(false);
   };
 
   const onAnswer = async (index, elapsedMs) => {
@@ -270,6 +294,17 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
             <RankChip players={players} meId={user && user.id} t={t} />
           </View>
         ) : null}
+        {/* THE SHARED SCREEN. Only the host gets it: it is the view for
+            somebody reading the questions out to a call, and it turns
+            on the read-first step for the whole room. */}
+        {isHost ? (
+          <Pressable onPress={openStage} hitSlop={8} style={{ marginEnd: 8 }}>
+            <View style={{ backgroundColor: C.glassHi, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 }}>
+              <Ionicons name="tv-outline" size={15} color={C.text} />
+            </View>
+          </Pressable>
+        ) : null}
+
         {/* Chose the wrong language at the lobby, or joined late and
             never saw the choice? One tap, mid-question, no leaving. */}
         {state.status !== 'lobby' ? (
@@ -477,8 +512,55 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
         </ScrollView>
       ) : null}
 
+      {/* ── THE SHARED SCREEN ── */}
+      {stageOpen ? (
+        <Stage
+          visible={stageOpen}
+          onClose={() => setStageOpen(false)}
+          question={q}
+          lang={playLang}
+          status={state.status}
+          index={state.question_index}
+          total={total}
+          joinCode={joinCode}
+          playerCount={(players || []).length}
+          timerMs={state.timer_ms || (q && q.timer_ms)}
+          result={result}
+          isHost={isHost}
+          onShowOptions={revealChoices}
+          onNext={next}
+          t={t}
+        />
+      ) : null}
+
+      {/* ── THE QUESTION, BEING READ OUT ────────────────────────────
+          No options and no clock: the host is reading it aloud, and
+          the seconds that takes belong to nobody's timer. Everybody
+          sees the same words at the same moment; the choices, and the
+          clock, arrive together when the host says so. */}
+      {!ended && state.status === 'reading' && q ? (
+        <View style={{ flex: 1, paddingHorizontal: 16, justifyContent: 'center' }}>
+          <Text style={{ color: C.faint, fontSize: 12, fontWeight: '800', marginBottom: 10, textAlign: 'center' }}>
+            {(state.question_index + 1)} / {total}
+          </Text>
+          <Text style={{ color: C.text, fontSize: 24, fontWeight: '900', lineHeight: 34, textAlign: 'center' }}>
+            {say(q, playLang)}
+          </Text>
+          <Text style={{ color: C.faint, fontSize: 13.5, fontWeight: '700', textAlign: 'center', marginTop: 18 }}>
+            {t('lamma_reading_now')}
+          </Text>
+          {isHost ? (
+            <Pressable onPress={revealChoices} disabled={busy} style={{ marginTop: 26 }}>
+              <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingVertical: 14, alignItems: 'center' }}>
+                <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '900' }}>{t('lamma_show_choices')}</Text>
+              </View>
+            </Pressable>
+          ) : null}
+        </View>
+      ) : null}
+
       {/* ── A QUESTION, AND ITS REVEAL ── */}
-      {!ended && state.status !== 'lobby' && q ? (
+      {!ended && state.status !== 'lobby' && state.status !== 'reading' && q ? (
         <View style={{ flex: 1 }}>
           <QuestionCard
             question={q}

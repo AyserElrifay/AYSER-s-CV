@@ -37,13 +37,19 @@ export const advance = (roomId) => rpc('lamma_advance', { p_room_id: roomId });
    refuses all three from anybody who is not hosting — see
    supabase/schema_v24_lamma_host.sql. Pass null for a setting you are
    not changing. */
-export const setRoom = (roomId, timerMs, locked, round) =>
+export const setRoom = (roomId, timerMs, locked, round, readFirst) =>
   rpc('lamma_set_room', {
     p_room_id: roomId,
     p_timer_ms: timerMs == null ? null : timerMs,
     p_locked: locked == null ? null : !!locked,
     p_round: round == null ? null : round,     // 0 = the whole pack
+    p_read_first: readFirst == null ? null : !!readFirst,
   });
+
+/* The second half of a question when the room reads first: the choices
+   appear and the server stamps the deadline at that instant, so the
+   time the host spent reading it out belongs to nobody's clock. */
+export const showOptions = (roomId) => rpc('lamma_show_options', { p_room_id: roomId });
 
 export const kick = (roomId, userId) =>
   rpc('lamma_kick', { p_room_id: roomId, p_user_id: userId });
