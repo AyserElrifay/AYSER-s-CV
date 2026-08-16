@@ -64,7 +64,7 @@ const OTHER_SCRIPT = new Set(['ar', 'ru', 'zh', 'ko', 'ja']);
 /* Names the app uses everywhere, plus words that really are borrowed
    into these languages as-is: Email in Russian, Vlog in Chinese, and
    the YYYY-MM-DD of a date format. */
-const BRANDS = /^(Moments|Lamma|Bardi|Vibe|CC0|OK|SF|SOS|WhatsApp|Instagram|TikTok|Snapchat|YouTube|Uber|OpenStreetMap|Waffarha|Supabase|Ayser|reel|reels|Email|Vlog|YYYY|MM|DD)$/i;
+const BRANDS = /^(Moments|Lamma|Bardi|Vibe|CC0|OK|SF|SOS|WhatsApp|Instagram|TikTok|Snapchat|YouTube|Uber|OpenStreetMap|Waffarha|Supabase|Safari|Ayser|reel|reels|Email|Vlog|YYYY|MM|DD)$/i;
 const strays = [];
 for (const code of codes) {
   if (!OTHER_SCRIPT.has(code)) continue;

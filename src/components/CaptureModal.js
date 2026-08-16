@@ -714,7 +714,7 @@ const ArcadeLayer = ({ startRef }) => {
 export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPostedStory, sendMode = false, sendToName, onMoment }) => {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { lang } = useLang();
+  const { lang, t } = useLang();
   const reelGames = REEL_GAMES_BY_LANG[lang] || REEL_GAMES; // games in the app's language
   const [mode, setMode] = useState(initialMode); // 'story' | 'reel'
   const [sound, setSound] = useState(null);
@@ -1862,7 +1862,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
       <Pressable onPress={() => { tapLight(); setHubOpen(true); }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(124,58,237,0.9)', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7, marginRight: 8 }}>
           <Text style={{ fontSize: 13 }}>🎧</Text>
-          <Text style={{ color: '#FFF', fontSize: 11.5, fontWeight: '900', marginLeft: 5 }}>Music Hub</Text>
+          <Text style={{ color: '#FFF', fontSize: 11.5, fontWeight: '900', marginLeft: 5 }}>{t('music_hub_full')}</Text>
         </View>
       </Pressable>
       {railSounds.map((s) => {
@@ -2005,13 +2005,13 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
                 <View style={{ width: 92, height: 92, borderRadius: 46, backgroundColor: 'rgba(255,255,255,0.14)', borderWidth: 2, borderColor: '#FFF', alignItems: 'center', justifyContent: 'center' }}>
                   <Ionicons name="camera" size={38} color="#FFF" />
                 </View>
-                <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '800', marginTop: 12 }}>Tap to shoot</Text>
+                <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '800', marginTop: 12 }}>{t('cap_tap_shoot')}</Text>
               </View>
             </Pressable>
             <Pressable onPress={pickFromLibrary} style={{ marginTop: 22 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.14)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.4)', borderRadius: 999, paddingHorizontal: 16, paddingVertical: 10 }}>
                 <Ionicons name="images-outline" size={17} color="#FFF" />
-                <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '800', marginLeft: 7 }}>Upload from gallery</Text>
+                <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '800', marginLeft: 7 }}>{t('cap_from_gallery')}</Text>
               </View>
             </Pressable>
           </View>
@@ -2144,11 +2144,10 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
           <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(8,4,18,0.88)', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 34 }}>
             <Text style={{ fontSize: 40 }}>🗜️</Text>
             <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '900', marginTop: 10, textAlign: 'center' }}>
-              Making it smaller so it fits
+              {t('cap_shrinking')}
             </Text>
             <Text style={{ color: 'rgba(255,255,255,0.65)', fontSize: 12.5, marginTop: 6, textAlign: 'center', lineHeight: 19 }}>
-              Same clip, same sound — a fraction of the size. This runs at
-              real speed, so a long video takes about as long as it is.
+              {t('cap_shrinking_hint')}
             </Text>
             <View style={{ marginTop: 18, width: '100%', maxWidth: 280, height: 7, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.16)', overflow: 'hidden' }}>
               <View style={{ width: Math.max(3, Math.round(shrink * 100)) + '%', height: '100%', backgroundColor: '#20E3D2' }} />
@@ -2159,7 +2158,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
               style={{ marginTop: 20 }}
             >
               <View style={{ borderWidth: 1, borderColor: 'rgba(255,255,255,0.4)', borderRadius: 999, paddingHorizontal: 24, paddingVertical: 10 }}>
-                <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '800' }}>Cancel</Text>
+                <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '800' }}>{t('cancel')}</Text>
               </View>
             </Pressable>
           </View>
@@ -2390,7 +2389,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
                   </Text>
                   {isWebKit ? (
                     <Text style={{ color: 'rgba(255,255,255,0.55)', fontSize: 10.5, marginTop: 5, textAlign: 'center', paddingHorizontal: 24, lineHeight: 15 }}>
-                      Video records in your camera app — Safari's own recorder makes a file it can't play back.
+                      {t('cap_camera_app_hint')}
                     </Text>
                   ) : null}
                   {recording ? (
@@ -2407,10 +2406,10 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
                   <Pressable onPress={() => { tapLight(); pickVideoFile(); }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.16)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.4)', borderRadius: 999, paddingHorizontal: 18, paddingVertical: 11 }}>
                       <Ionicons name="cloud-upload-outline" size={18} color="#FFF" />
-                      <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900', marginLeft: 8 }}>Upload a video 📁</Text>
+                      <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900', marginLeft: 8 }}>{t('upload_video')} 📁</Text>
                     </View>
                   </Pressable>
-                  <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, marginTop: 8 }}>Long-form · or hold the shutter to record</Text>
+                  <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, marginTop: 8 }}>{t('cap_longform')}</Text>
                 </View>
               ) : null}
 
@@ -2420,7 +2419,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
                   <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(244,63,94,0.9)', borderRadius: 999, paddingHorizontal: 16, paddingVertical: 8 }}>
                     <Text style={{ fontSize: 14 }}>🔥</Text>
                     <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '900', marginLeft: 6 }}>
-                      Moment{sendToName ? ' → ' + sendToName : ''}
+                      {t('moment_one')}{sendToName ? ' → ' + sendToName : ''}
                     </Text>
                   </View>
                 </View>
@@ -2459,7 +2458,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
                     <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: editOpen ? '#FFF' : 'rgba(255,255,255,0.16)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.4)', alignItems: 'center', justifyContent: 'center' }}>
                       <Ionicons name="options-outline" size={20} color={editOpen ? C.purple : '#FFF'} />
                     </View>
-                    <Text style={{ color: '#FFF', fontSize: 10, fontWeight: '800', marginTop: 4 }}>Edit</Text>
+                    <Text style={{ color: '#FFF', fontSize: 10, fontWeight: '800', marginTop: 4 }}>{t('edit')}</Text>
                   </View>
                 </Pressable>
                 {FILTERS.map((f) => {
@@ -2528,7 +2527,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
                     </View>
                   ))}
                   <Pressable onPress={() => { tapLight(); setBright(1); setContrast(1); setWarmth(0); setFilterId('none'); }} style={{ alignSelf: 'flex-end', marginTop: 2 }}>
-                    <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 11, fontWeight: '800' }}>Reset ↺</Text>
+                    <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 11, fontWeight: '800' }}>{t('reset')} ↺</Text>
                   </Pressable>
                 </View>
               ) : null}
@@ -2589,18 +2588,18 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
                   </View>
                   {stickerType === 'poll' ? (
                     <View style={{ backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', padding: 12, marginTop: 10 }}>
-                      <TextInput placeholder="Ask a question…" placeholderTextColor="rgba(255,255,255,0.55)" value={pollQ} onChangeText={setPollQ}
+                      <TextInput placeholder={t('cap_poll_ask')} placeholderTextColor="rgba(255,255,255,0.55)" value={pollQ} onChangeText={setPollQ}
                         style={{ color: '#FFF', fontSize: 13.5, marginBottom: 8 }} />
                       <View style={{ flexDirection: 'row' }}>
-                        <TextInput placeholder="Option A" placeholderTextColor="rgba(255,255,255,0.5)" value={pollA} onChangeText={setPollA}
+                        <TextInput placeholder={t('cap_opt_a')} placeholderTextColor="rgba(255,255,255,0.5)" value={pollA} onChangeText={setPollA}
                           style={{ flex: 1, color: '#FFF', fontSize: 13, backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, marginRight: 8 }} />
-                        <TextInput placeholder="Option B" placeholderTextColor="rgba(255,255,255,0.5)" value={pollB} onChangeText={setPollB}
+                        <TextInput placeholder={t('cap_opt_b')} placeholderTextColor="rgba(255,255,255,0.5)" value={pollB} onChangeText={setPollB}
                           style={{ flex: 1, color: '#FFF', fontSize: 13, backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8 }} />
                       </View>
                     </View>
                   ) : stickerType === 'question' ? (
                     <View style={{ backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', padding: 12, marginTop: 10 }}>
-                      <TextInput placeholder="Ask me anything…" placeholderTextColor="rgba(255,255,255,0.55)" value={askQ} onChangeText={setAskQ}
+                      <TextInput placeholder={t('cap_ask_me')} placeholderTextColor="rgba(255,255,255,0.55)" value={askQ} onChangeText={setAskQ}
                         style={{ color: '#FFF', fontSize: 13.5 }} />
                     </View>
                   ) : null}
@@ -2625,7 +2624,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
                   <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
                     <Ionicons name="pricetag-outline" size={13} color="rgba(255,255,255,0.75)" />
                     <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 11.5, fontWeight: '800', marginLeft: 6 }}>
-                      Hashtags · {tags.length}/5
+                      {t('hashtags')} · {tags.length}/5
                     </Text>
                   </View>
 
@@ -2656,7 +2655,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
                       <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 999, borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)', paddingHorizontal: 12, marginTop: 7 }}>
                         <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, fontWeight: '900' }}>#</Text>
                         <TextInput
-                          placeholder="your own tag"
+                          placeholder={t('cap_own_tag')}
                           placeholderTextColor="rgba(255,255,255,0.45)"
                           value={tagText}
                           onChangeText={setTagText}
@@ -2667,7 +2666,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
                         />
                         {tagText.trim() ? (
                           <Pressable onPress={() => addTag(tagText)} hitSlop={8}>
-                            <Text style={{ color: C.gold, fontSize: 12.5, fontWeight: '900' }}>Add</Text>
+                            <Text style={{ color: C.gold, fontSize: 12.5, fontWeight: '900' }}>{t('add')}</Text>
                           </Pressable>
                         ) : null}
                       </View>
@@ -2692,7 +2691,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
                   {onMap ? (
                     <View style={{ marginTop: 8, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)', paddingHorizontal: 12, paddingVertical: Platform.OS === 'ios' ? 10 : 2 }}>
                       <TextInput
-                        placeholder="Name this spot (optional)"
+                        placeholder={t('cap_name_spot')}
                         placeholderTextColor="rgba(255,255,255,0.5)"
                         value={placeName}
                         onChangeText={setPlaceName}

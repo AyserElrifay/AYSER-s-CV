@@ -21,11 +21,43 @@ const fallback = {
 
 const KEY = 'moments.lang';
 
+/* ─── THE FIRST SCREEN SHOULD ALREADY BE IN YOUR LANGUAGE ────────────
+   Until now everybody's first visit was in English, whatever phone
+   they opened it on, because the app only ever restored a choice
+   somebody had already made — and the place to make it is inside, past
+   the sign-up nobody has read yet.
+
+   The phone already knows. It sends the languages its owner reads,
+   in the order they prefer them, and an Egyptian phone says Arabic
+   first. So the first run asks it.
+
+   IT IS A GUESS, AND IT IS NOT SAVED. Only tapping a language saves
+   anything. That keeps "I chose English on an Arabic phone" a real,
+   surviving choice instead of something the next launch overrules. */
+const deviceLang = () => {
+  if (typeof navigator === 'undefined') return null;
+  const list = (navigator.languages && navigator.languages.length)
+    ? navigator.languages : [navigator.language];
+  for (const tag of list) {
+    // 'ar-EG' and 'ar' are both Arabic; 'pt-BR' is Portuguese.
+    const code = String(tag || '').toLowerCase().split('-')[0];
+    if (STRINGS[code] && LANGS.some((l) => l.code === code)) return code;
+  }
+  return null;
+};
+
 export const LanguageProvider = ({ children }) => {
   const [lang, setLangState] = useState('en');
 
   useEffect(() => {
-    AsyncStorage.getItem(KEY).then((v) => { if (v && STRINGS[v]) setLangState(v); }).catch(() => {});
+    AsyncStorage.getItem(KEY).then((v) => {
+      if (v && STRINGS[v]) { setLangState(v); return; }   // a real choice wins
+      const guess = deviceLang();
+      if (guess) setLangState(guess);
+    }).catch(() => {
+      const guess = deviceLang();
+      if (guess) setLangState(guess);
+    });
   }, []);
 
   const setLang = (l) => {

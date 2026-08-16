@@ -8,13 +8,26 @@ import { resetPasswordByEmail, sendPhoneOtp, verifyPhoneOtp, updatePassword } fr
 import { COUNTRY_LIST } from '../constants/countries';
 import { Glass, Micro, NeonButton, GhostButton, Wordmark } from '../components';
 import { setupNotice } from '../lib/plumbing';
+import { useLang } from '../context/LanguageContext';
+import { LANGS } from '../constants/i18n';
 
 /* ─────────────── PASSWORDLESS-STYLE ONBOARDING · AUTH GATE ───────────
    Step 0 — sign in / create account (email+password via Supabase).
    Step 1 — pick your Vibe (writes profile intent, then enters the app).
    Demo mode (no .env): the button proceeds locally, nothing is saved.  */
 
-const VIBES = ['🎒 Explorer', '☕ Coffee', '🧗‍♂️ Hiking', '🎬 Creator', '🎮 Gamer'];
+/* The VALUE is English and never changes — it is written to the
+   profile, seeds the reach algorithm, and shows on the live map for
+   everybody in every language. Only the LABEL is translated. Getting
+   this the other way round would give every language its own set of
+   intents that nothing else in the app recognises. */
+const VIBES = [
+  { value: '🎒 Explorer', emoji: '🎒', key: 'vibe_explorer' },
+  { value: '☕ Coffee',   emoji: '☕', key: 'vibe_coffee' },
+  { value: '🧗‍♂️ Hiking',  emoji: '🧗‍♂️', key: 'vibe_hiking' },
+  { value: '🎬 Creator',  emoji: '🎬', key: 'vibe_creator' },
+  { value: '🎮 Gamer',    emoji: '🎮', key: 'vibe_gamer' },
+];
 
 /* Read at draw time, not at import time — see the note on headerBtn in
    HomeScreen. Built once, this froze the light theme's colours and gave
@@ -30,21 +43,22 @@ const inputStyle = () => ({
    never see our stack, both because it looks unprofessional and
    because leaking infrastructure details is free reconnaissance for
    an attacker. Owner-only fixes live in the docs, not on this screen. */
-const friendlyAuthError = (e) => {
+const authErrorKey = (e) => {
   const m = ((e && e.message) || '').toLowerCase();
-  if (m.includes('already registered')) return 'This email already has an account — tap "I already have an account" and sign in.';
-  if (m.includes('not confirmed')) return 'Just one more step — open the verification link we emailed you, then sign in.';
-  if (m.includes('invalid login credentials')) return 'Wrong email or password. Forgot it? Use "Forgot password?" below.';
-  if (m.includes('signups not allowed')) return 'New sign-ups are paused right now. Please try again a little later.';
-  if (m.includes('rate limit') || m.includes('too many')) return 'Too many attempts — please wait a couple of minutes and try again.';
-  if (m.includes('password should be')) return 'Password is too short — use at least 6 characters.';
-  if (m.includes('invalid email') || m.includes('validate email')) return 'That email doesn\'t look right — check for typos.';
-  if (m.includes('failed to fetch') || m.includes('network')) return 'Can\'t reach the server — check your connection and try again.';
-  return 'Something went wrong. Please try again.';
+  if (m.includes('already registered')) return 'auth_err_exists';
+  if (m.includes('not confirmed')) return 'auth_err_unconfirmed';
+  if (m.includes('invalid login credentials')) return 'auth_err_bad_login';
+  if (m.includes('signups not allowed')) return 'auth_err_signups_off';
+  if (m.includes('rate limit') || m.includes('too many')) return 'auth_err_rate';
+  if (m.includes('password should be')) return 'auth_err_short_pw';
+  if (m.includes('invalid email') || m.includes('validate email')) return 'auth_err_bad_email';
+  if (m.includes('failed to fetch') || m.includes('network')) return 'auth_err_offline';
+  return 'auth_err_generic';
 };
 
 export const AuthScreen = () => {
   const { isDemo, signIn, signUp, enterDemo, user, beginOnboarding, finishOnboarding } = useAuth();
+  const { t, lang, setLang } = useLang();
   const [step, setStep] = useState(0);
   const [mode, setMode] = useState('signin'); // 'signin' | 'signup'
   const [name, setName] = useState('');
@@ -71,60 +85,60 @@ export const AuthScreen = () => {
 
   const sendEmailReset = async () => {
     setError(null); setNotice(null);
-    if (!email.trim()) { setError('Enter your account email first.'); return; }
+    if (!email.trim()) { setError(t('auth_err_email_first')); return; }
     setBusy(true);
     try {
       await resetPasswordByEmail(email.trim());
-      setNotice('Reset link sent! Check your email, then open it to set a new password.');
+      setNotice(t('auth_ok_reset_sent'));
     } catch (e) {
-      setError('Could not send the reset email.');
+      setError(t('auth_err_reset_send'));
     } finally { setBusy(false); }
   };
 
   const sendOtp = async () => {
     setError(null); setNotice(null);
-    if (!phone.trim()) { setError('Enter your phone number (with country code).'); return; }
+    if (!phone.trim()) { setError(t('auth_err_phone_first')); return; }
     setBusy(true);
     try {
       await sendPhoneOtp(phone.trim());
       setOtpSent(true);
-      setNotice('Code sent by SMS. Enter the 6-digit code below.');
+      setNotice(t('auth_ok_sms_sent'));
     } catch (e) {
-      setError(setupNotice('Could not send the SMS code. (SMS provider must be enabled in Supabase.)'));
+      setError(setupNotice('Could not send the SMS code. (SMS provider must be enabled in Supabase.)', t('auth_err_sms')));
     } finally { setBusy(false); }
   };
 
   const verifyOtp = async () => {
     setError(null); setNotice(null);
-    if (!otp.trim()) { setError('Enter the code from the SMS.'); return; }
+    if (!otp.trim()) { setError(t('auth_err_code_first')); return; }
     setBusy(true);
     try {
       await verifyPhoneOtp(phone.trim(), otp.trim());
       setOtpVerified(true);
-      setNotice('Verified! Now set your new password below.');
+      setNotice(t('auth_ok_verified'));
     } catch (e) {
-      setError('That code did not match. Try again.');
+      setError(t('auth_err_code_wrong'));
     } finally { setBusy(false); }
   };
 
   const saveNewPassword = async () => {
     setError(null); setNotice(null);
-    if (newPass.length < 6) { setError('Password must be at least 6 characters.'); return; }
+    if (newPass.length < 6) { setError(t('auth_err_pass_short')); return; }
     setBusy(true);
     try {
       await updatePassword(newPass);
-      setNotice('Password updated! You are signed in.');
+      setNotice(t('auth_ok_pass_updated'));
       // Session is already live from the OTP verify — releasing the gate lands in the app.
       setTimeout(() => finishOnboarding(), 700);
     } catch (e) {
-      setError('Could not update the password.');
+      setError(t('auth_err_pass_update'));
     } finally { setBusy(false); }
   };
 
   const submit = async () => {
     setError(null); setNotice(null);
     if (isDemo) { setStep(1); return; }
-    if (!email.trim() || !password) { setError('Email and password are required.'); return; }
+    if (!email.trim() || !password) { setError(t('auth_err_need_both')); return; }
     setBusy(true);
     try {
       if (mode === 'signup') {
@@ -142,7 +156,7 @@ export const AuthScreen = () => {
           } catch (e2) {
             finishOnboarding();
             setMode('signin');
-            setNotice('Account created 🎉 We emailed you a quick verification link — open it, then sign in here.');
+            setNotice(t('auth_ok_created'));
             return;
           }
         }
@@ -153,7 +167,7 @@ export const AuthScreen = () => {
       }
     } catch (e) {
       finishOnboarding();
-      setError(friendlyAuthError(e));
+      setError(t(authErrorKey(e)));
     } finally {
       setBusy(false);
     }
@@ -186,10 +200,44 @@ export const AuthScreen = () => {
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: C.bg }}>
       <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 20 }} keyboardShouldPersistTaps="handled">
+        {/* ── THE LANGUAGE, BEFORE ANYTHING ELSE ──────────────────
+            The phone's own language is used on a first visit, so most
+            people never need this. But a guess is a guess: somebody on
+            a borrowed phone, or living in a country whose language
+            they do not read, should not have to sign up in a language
+            they are only half following to reach the setting that
+            fixes it. Six taps' worth of chips, at the top, always. */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          style={{ flexGrow: 0, marginBottom: 14 }}
+          contentContainerStyle={{ paddingHorizontal: 2 }}
+        >
+          {LANGS.map((l) => {
+            const on = l.code === lang;
+            return (
+              <Pressable key={l.code} onPress={() => setLang(l.code)} style={{ marginEnd: 7 }}>
+                <View style={{
+                  flexDirection: 'row', alignItems: 'center',
+                  backgroundColor: on ? C.purple : C.glass,
+                  borderWidth: 1, borderColor: on ? C.purple : C.line,
+                  borderRadius: 999, paddingHorizontal: 11, paddingVertical: 7,
+                }}>
+                  <Text style={{ fontSize: 13 }}>{l.flag}</Text>
+                  <Text style={{ color: on ? '#FFF' : C.dim, fontSize: 12.5, fontWeight: '800', marginStart: 6 }}>
+                    {l.native}
+                  </Text>
+                </View>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+
         {step === 0 && mode === 'reset' ? (
           <View style={{ alignItems: 'center' }}>
             <Wordmark height={92} style={{ marginBottom: 4 }} />
-            <Text style={{ color: C.dim, fontSize: 14, marginBottom: 30 }}>Reset your password</Text>
+            <Text style={{ color: C.dim, fontSize: 14, marginBottom: 30 }}>{t('auth_reset_title')}</Text>
             <Glass style={{ padding: 20, alignSelf: 'stretch', marginBottom: 30 }}>
               <View style={{ flexDirection: 'row', gap: 8, marginBottom: 18 }}>
                 {['email', 'phone'].map((v) => (
@@ -203,7 +251,7 @@ export const AuthScreen = () => {
                     }}
                   >
                     <Text style={{ color: resetVia === v ? '#fff' : C.dim, fontWeight: '800', fontSize: 13 }}>
-                      {v === 'email' ? '✉️  Email' : '📱  Phone'}
+                      {v === 'email' ? '✉️  ' + t('email_label') : '📱  ' + t('auth_via_phone')}
                     </Text>
                   </Pressable>
                 ))}
@@ -212,67 +260,67 @@ export const AuthScreen = () => {
               {resetVia === 'email' ? (
                 <>
                   <TextInput
-                    placeholder="Account email" placeholderTextColor={C.faint} value={email} onChangeText={setEmail}
+                    placeholder={t('auth_account_email')} placeholderTextColor={C.faint} value={email} onChangeText={setEmail}
                     autoCapitalize="none" keyboardType="email-address" autoComplete="email" style={inputStyle()}
                   />
                   {error ? <Text style={{ color: C.coral, fontSize: 12, textAlign: 'center', marginBottom: 10 }}>{error}</Text> : null}
                   {notice ? <Text style={{ color: C.green, fontSize: 12, textAlign: 'center', marginBottom: 10 }}>{notice}</Text> : null}
-                  <NeonButton label={busy ? 'SENDING…' : 'SEND RESET LINK ⚡'} onPress={busy ? undefined : sendEmailReset} style={{ marginBottom: 12 }} />
+                  <NeonButton label={busy ? t('auth_sending') : t('auth_send_reset') + ' ⚡'} onPress={busy ? undefined : sendEmailReset} style={{ marginBottom: 12 }} />
                 </>
               ) : (
                 <>
                   <TextInput
-                    placeholder="Phone e.g. +201234567890" placeholderTextColor={C.faint} value={phone} onChangeText={setPhone}
+                    placeholder={t('auth_phone_ph')} placeholderTextColor={C.faint} value={phone} onChangeText={setPhone}
                     autoCapitalize="none" keyboardType="phone-pad" editable={!otpVerified} style={inputStyle()}
                   />
                   {otpSent && !otpVerified ? (
                     <TextInput
-                      placeholder="6-digit code" placeholderTextColor={C.faint} value={otp} onChangeText={setOtp}
+                      placeholder={t('auth_code_ph')} placeholderTextColor={C.faint} value={otp} onChangeText={setOtp}
                       keyboardType="number-pad" maxLength={6} style={inputStyle()}
                     />
                   ) : null}
                   {otpVerified ? (
                     <TextInput
-                      placeholder="New password" placeholderTextColor={C.faint} value={newPass} onChangeText={setNewPass}
+                      placeholder={t('auth_new_password')} placeholderTextColor={C.faint} value={newPass} onChangeText={setNewPass}
                       secureTextEntry style={inputStyle()}
                     />
                   ) : null}
                   {error ? <Text style={{ color: C.coral, fontSize: 12, textAlign: 'center', marginBottom: 10 }}>{error}</Text> : null}
                   {notice ? <Text style={{ color: C.green, fontSize: 12, textAlign: 'center', marginBottom: 10 }}>{notice}</Text> : null}
                   {!otpSent ? (
-                    <NeonButton label={busy ? 'SENDING…' : 'SEND SMS CODE 📱'} onPress={busy ? undefined : sendOtp} style={{ marginBottom: 12 }} />
+                    <NeonButton label={busy ? t('auth_sending') : t('auth_send_sms') + ' 📱'} onPress={busy ? undefined : sendOtp} style={{ marginBottom: 12 }} />
                   ) : !otpVerified ? (
-                    <NeonButton label={busy ? 'CHECKING…' : 'VERIFY CODE ⚡'} onPress={busy ? undefined : verifyOtp} style={{ marginBottom: 12 }} />
+                    <NeonButton label={busy ? t('auth_checking') : t('auth_verify_code') + ' ⚡'} onPress={busy ? undefined : verifyOtp} style={{ marginBottom: 12 }} />
                   ) : (
-                    <NeonButton label={busy ? 'SAVING…' : 'SET NEW PASSWORD ⚡'} onPress={busy ? undefined : saveNewPassword} style={{ marginBottom: 12 }} />
+                    <NeonButton label={busy ? t('auth_saving') : t('auth_set_password') + ' ⚡'} onPress={busy ? undefined : saveNewPassword} style={{ marginBottom: 12 }} />
                   )}
                 </>
               )}
 
-              <GhostButton small label="← Back to sign in" onPress={() => { setMode('signin'); setError(null); setNotice(null); }} />
+              <GhostButton small label={t('auth_back_signin')} onPress={() => { setMode('signin'); setError(null); setNotice(null); }} />
             </Glass>
           </View>
         ) : step === 0 ? (
           <View style={{ alignItems: 'center' }}>
             <Wordmark height={100} style={{ marginBottom: 2 }} />
-            <Text style={{ color: C.dim, fontSize: 14, marginBottom: 40 }}>Don&apos;t scroll it. Live it.</Text>
+            <Text style={{ color: C.dim, fontSize: 14, marginBottom: 40 }}>{t('auth_tagline')}</Text>
             <Glass style={{ padding: 20, alignSelf: 'stretch', marginBottom: 30 }}>
               <Text style={{ color: C.text, fontSize: 18, fontWeight: '800', textAlign: 'center', marginBottom: 18 }}>
-                {mode === 'signup' ? 'Create your account' : 'Join the Vibe Tribe'}
+                {mode === 'signup' ? t('auth_create_title') : t('auth_signin_title')}
               </Text>
 
               {mode === 'signup' ? (
                 <TextInput
-                  placeholder="Your name" placeholderTextColor={C.faint} value={name} onChangeText={setName}
+                  placeholder={t('your_name')} placeholderTextColor={C.faint} value={name} onChangeText={setName}
                   autoCapitalize="words" style={inputStyle()}
                 />
               ) : null}
               <TextInput
-                placeholder="Email" placeholderTextColor={C.faint} value={email} onChangeText={setEmail}
+                placeholder={t('email_label')} placeholderTextColor={C.faint} value={email} onChangeText={setEmail}
                 autoCapitalize="none" keyboardType="email-address" autoComplete="email" style={inputStyle()}
               />
               <TextInput
-                placeholder="Password" placeholderTextColor={C.faint} value={password} onChangeText={setPassword}
+                placeholder={t('password_label')} placeholderTextColor={C.faint} value={password} onChangeText={setPassword}
                 secureTextEntry style={inputStyle()}
               />
 
@@ -284,35 +332,35 @@ export const AuthScreen = () => {
               ) : null}
 
               <NeonButton
-                label={busy ? 'ONE MOMENT…' : mode === 'signup' ? 'CREATE ACCOUNT ⚡' : 'SIGN IN ⚡'}
+                label={busy ? t('auth_one_moment') : (mode === 'signup' ? t('auth_create_btn') : t('auth_signin_btn')) + ' ⚡'}
                 onPress={busy ? undefined : submit}
                 style={{ marginBottom: 12 }}
               />
               <GhostButton
                 small
-                label={mode === 'signup' ? 'I already have an account' : 'Create account'}
+                label={mode === 'signup' ? t('auth_have_account') : t('auth_create_link')}
                 onPress={() => { setMode(mode === 'signup' ? 'signin' : 'signup'); setError(null); }}
               />
               {mode === 'signin' && !isDemo ? (
                 <Pressable onPress={openReset} style={{ marginTop: 10 }}>
-                  <Text style={{ color: C.purple, fontSize: 12, textAlign: 'center', fontWeight: '700' }}>Forgot password?</Text>
+                  <Text style={{ color: C.purple, fontSize: 12, textAlign: 'center', fontWeight: '700' }}>{t('auth_forgot')}</Text>
                 </Pressable>
               ) : null}
 
               <Text style={{ color: C.faint, textAlign: 'center', fontSize: 12, marginTop: 16 }}>
-                {isDemo ? '⚡ Demo mode — nothing is saved' : '🔒 Your account is encrypted & private'}
+                {isDemo ? '⚡ ' + t('auth_demo') : '🔒 ' + t('auth_private')}
               </Text>
             </Glass>
           </View>
         ) : step === 1 ? (
           <View style={{ alignItems: 'center' }}>
             <Text style={{ fontSize: 56, marginBottom: 14 }}>🌍</Text>
-            <Text style={{ color: C.text, fontSize: 24, fontWeight: '900', marginBottom: 8 }}>Where on the planet?</Text>
+            <Text style={{ color: C.text, fontSize: 24, fontWeight: '900', marginBottom: 8 }}>{t('auth_where')}</Text>
             <Text style={{ color: C.dim, fontSize: 13.5, textAlign: 'center', marginBottom: 20, lineHeight: 19 }}>
-              Your flag shows on your map pin — friends spot you from anywhere on Earth ✨
+              {t('auth_flag_hint')}
             </Text>
             <TextInput
-              placeholder="Search your country…"
+              placeholder={t('auth_search_country')}
               placeholderTextColor={C.faint}
               value={countrySearch}
               onChangeText={setCountrySearch}
@@ -339,28 +387,28 @@ export const AuthScreen = () => {
               </ScrollView>
             </View>
             <Pressable onPress={() => setStep(2)} style={{ marginTop: 18 }}>
-              <Text style={{ color: C.faint, fontSize: 12.5, fontWeight: '700' }}>Skip for now →</Text>
+              <Text style={{ color: C.faint, fontSize: 12.5, fontWeight: '700' }}>{t('auth_skip')}</Text>
             </Pressable>
           </View>
         ) : (
           <View style={{ alignItems: 'center' }}>
             <Text style={{ fontSize: 60, marginBottom: 20 }}>🏕️</Text>
-            <Text style={{ color: C.text, fontSize: 24, fontWeight: '900', marginBottom: 10 }}>What&apos;s your Vibe?</Text>
+            <Text style={{ color: C.text, fontSize: 24, fontWeight: '900', marginBottom: 10 }}>{t('auth_vibe_title')}</Text>
             <Text style={{ color: C.dim, fontSize: 14, textAlign: 'center', marginBottom: 30 }}>
-              Pick your Avatar intent for the Live Map.
+              {t('auth_vibe_sub')}
             </Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 10, marginBottom: 40 }}>
               {VIBES.map((v) => (
                 <Pressable
-                  key={v}
-                  onPress={() => pickVibe(v)}
+                  key={v.value}
+                  onPress={() => pickVibe(v.value)}
                   style={{ backgroundColor: C.glass, padding: 15, borderRadius: 20, borderWidth: 1, borderColor: C.line }}
                 >
-                  <Text style={{ color: C.text, fontWeight: 'bold' }}>{v}</Text>
+                  <Text style={{ color: C.text, fontWeight: 'bold' }}>{v.emoji} {t(v.key)}</Text>
                 </Pressable>
               ))}
             </View>
-            <Micro>Your intent shows on your map pin — change it anytime</Micro>
+            <Micro>{t('auth_vibe_hint')}</Micro>
           </View>
         )}
       </ScrollView>
