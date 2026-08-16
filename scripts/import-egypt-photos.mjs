@@ -60,10 +60,27 @@ const WANTED = [
 
 const API = 'https://commons.wikimedia.org/w/api.php';
 
-const get = async (url, opts) => {
-  const r = await fetch(url, opts);
-  if (!r.ok) throw new Error(r.status + ' ' + url.slice(0, 90));
-  return r;
+/* Commons asks every caller to say who it is, and answers 429 to
+   anything that does not — which is exactly what happened the first
+   time this ran: the search identified itself, the picture downloads
+   did not, and five of eight came back rate-limited. One header, used
+   everywhere, and a pause between files: they run this on donations
+   and there is no hurry here. */
+const UA = 'MomentsQuiz/1.0 (https://github.com/AyserElrifay/AYSER-s-CV; public-domain images for a quiz)';
+const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
+
+const get = async (url, tries = 3) => {
+  for (let i = 0; i < tries; i++) {
+    const r = await fetch(url, { headers: { 'User-Agent': UA, Accept: '*/*' } });
+    if (r.ok) return r;
+    // 429 too many, 503 busy — wait longer each time rather than give up
+    if ((r.status === 429 || r.status === 503) && i < tries - 1) {
+      await sleep(2500 * (i + 1));
+      continue;
+    }
+    throw new Error(r.status + ' ' + url.slice(0, 90));
+  }
+  throw new Error('unreachable');
 };
 
 /* Commons' own words about a file. Everything below is decided from
@@ -72,8 +89,8 @@ async function candidates(search) {
   const u = API + '?action=query&format=json&origin=*'
     + '&generator=search&gsrnamespace=6&gsrlimit=14'
     + '&gsrsearch=' + encodeURIComponent(search)
-    + '&prop=imageinfo&iiprop=url|mime|extmetadata&iiurlwidth=1000';
-  const j = await (await get(u, { headers: { 'User-Agent': 'Moments/1.0 (quiz images; contact via repository)' } })).json();
+    + '&prop=imageinfo&iiprop=url|mime|extmetadata&iiurlwidth=900';
+  const j = await (await get(u)).json();
   const pages = (j.query && j.query.pages) || {};
   return Object.values(pages).map((p) => {
     const ii = (p.imageinfo && p.imageinfo[0]) || {};
@@ -178,6 +195,7 @@ async function upload(key, path, bytes) {
     if (DRY) { took.push({ w, pick }); continue; }
 
     try {
+      await sleep(1200);                       // one file at a time, politely
       const bytes = Buffer.from(await (await get(pick.thumb)).arrayBuffer());
       const path = 'media/egypt/q' + w.index + '.jpg';
       await upload(key, path, bytes);
