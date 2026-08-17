@@ -6636,871 +6636,6 @@ notify pgrst, 'reload schema';
 
 
 -- ═══════════════════════════════════════════════════════════════════
---  عقول خضرا · GREEN MINDS — the questions
---
---  Ayser: "awesrness about pollution and respecting our differnses
---  and cultures thoughts beleives."
---
---  The green corner already lets somebody start a clean-up and put
---  their name to it. This is the other half he asked for: the part
---  that teaches, without a lecture and without frightening anybody.
---
---  ── HOW THESE ARE WRITTEN ────────────────────────────────────────
---  Every number here is one that is widely published and easy to
---  check — the cigarette end being the most collected item on a
---  beach, the twelve minutes a plastic bag is carried, the ~95% of
---  the energy saved by recycling a can, the third of crops that
---  depend on pollinators. Nothing is invented to sound worse than it
---  is, and no wrong answer is a joke at anybody's expense.
---
---  A third of them are not about rubbish at all. They are about
---  people: what Erasmus is, what the rule is in a reflection circle,
---  what you do when somebody says something you disagree with. Those
---  are the ones Ayser actually asked for, and they are the reason
---  this pack is not just a recycling quiz.
---
---  Sixteen are written; a room draws fifteen. The spare one is why
---  two rounds are not the same round.
---
---  ── AND WHAT IT REFUSES TO DO ────────────────────────────────────
---  It does not tell anybody their country is the problem. Six
---  countries are in the green corner and none of them is the villain
---  of a question here. Pollution is the subject; a nationality never
---  is.
---
---  Written in the five play languages, with the line that teaches
---  underneath each answer, so getting it wrong is still worth
---  something.
---
---  Safe to re-run.
--- ═══════════════════════════════════════════════════════════════════
-
-delete from public.questions where pack_id = 'ffff6666-0000-4000-8000-000000000001';
-delete from public.game_packs where id = 'ffff6666-0000-4000-8000-000000000001';
-
--- country is null on purpose: this one belongs to nobody's country.
--- The green corner spans six of them, and a pack tagged EG would sort
--- to the bottom of the shelf for everybody outside Egypt — which is
--- exactly the wrong half of the world for these questions.
-insert into public.game_packs (id, title_ar, title_en, description_ar, description_en,
-                               category, country, is_official, visibility) values
- ('ffff6666-0000-4000-8000-000000000001','عقول خضرا','Green Minds',
-  'التلوث والطبيعة واحترام اختلافنا — ١٥ سؤال كل جولة',
-  'Pollution, nature and respecting our differences — 15 a round.',
-  'fun', null, true, 'public');
-
--- The flags on the pack card. Said in its own statement, exactly the
--- way every other pack says it, because that is the one line the
--- build reads to check the claim is true.
-update public.game_packs
-   set languages = array['ar','en','fr','es','ro']
- where id = 'ffff6666-0000-4000-8000-000000000001';
-
-insert into public.questions (pack_id, order_index, text_ar, text_en, timer_ms, options, correct_index, points_style) values
-('ffff6666-0000-4000-8000-000000000001',0,'أكتر حاجة بتتجمع في تنضيف الشواطئ حول العالم إيه؟','What is the most collected item in beach clean-ups worldwide?',20000,
- '[{"index":0,"text_ar":"أعقاب السجاير","text_en":"Cigarette ends"},{"index":1,"text_ar":"إطارات عربيات","text_en":"Car tyres"},{"index":2,"text_ar":"موبايلات","text_en":"Mobile phones"},{"index":3,"text_ar":"شمسيات","text_en":"Umbrellas"}]',0,'standard'),
-('ffff6666-0000-4000-8000-000000000001',1,'كيس البلاستيك بيتستخدم في المتوسط قد إيه قبل ما يترمي؟','How long is a plastic bag used, on average, before it is thrown away?',20000,
- '[{"index":0,"text_ar":"حوالي ١٢ دقيقة","text_en":"About 12 minutes"},{"index":1,"text_ar":"حوالي أسبوع","text_en":"About a week"},{"index":2,"text_ar":"حوالي سنة","text_en":"About a year"},{"index":3,"text_ar":"حوالي عشر سنين","text_en":"About ten years"}]',0,'standard'),
-('ffff6666-0000-4000-8000-000000000001',2,'إعادة تدوير علبة ألومنيوم واحدة بتوفر قد إيه من الطاقة؟','Recycling one aluminium can saves roughly how much energy?',20000,
- '[{"index":0,"text_ar":"حوالي ٩٥٪","text_en":"About 95%"},{"index":1,"text_ar":"حوالي ١٠٪","text_en":"About 10%"},{"index":2,"text_ar":"مفيش فرق","text_en":"None at all"},{"index":3,"text_ar":"بتستهلك أكتر","text_en":"It uses more"}]',0,'standard'),
-('ffff6666-0000-4000-8000-000000000001',3,'أغلب البلاستيك اللي بيوصل البحر بيجي منين؟','Most of the plastic that reaches the sea arrives how?',20000,
- '[{"index":0,"text_ar":"من الأنهار","text_en":"Down rivers"},{"index":1,"text_ar":"من السفن","text_en":"From ships"},{"index":2,"text_ar":"من المطر","text_en":"With the rain"},{"index":3,"text_ar":"من الطيارات","text_en":"From aeroplanes"}]',0,'standard'),
-('ffff6666-0000-4000-8000-000000000001',4,'الأشجار في الشارع بتقلل حرارته بحوالي كام؟','Trees along a street cool it by roughly how much?',20000,
- '[{"index":0,"text_ar":"من ٢ لـ ٨ درجات","text_en":"Between 2 and 8 degrees"},{"index":1,"text_ar":"مفيش فرق","text_en":"Not at all"},{"index":2,"text_ar":"بيسخنوه","text_en":"They warm it up"},{"index":3,"text_ar":"نص درجة","text_en":"Half a degree"}]',0,'standard'),
-('ffff6666-0000-4000-8000-000000000001',5,'«إيراسموس» في أوروبا اسم لإيه؟','In Europe, what is “Erasmus”?',20000,
- '[{"index":0,"text_ar":"برنامج بيبعت طلاب وشباب يعيشوا ويتعلموا في بلد تانية","text_en":"A programme that sends students and young people to live and learn in another country"},{"index":1,"text_ar":"نوع من القطارات","text_en":"A kind of train"},{"index":2,"text_ar":"جايزة رياضية","text_en":"A sports prize"},{"index":3,"text_ar":"بنك","text_en":"A bank"}]',0,'standard'),
-('ffff6666-0000-4000-8000-000000000001',6,'في «دايرة الاختلاف»، القاعدة الأساسية إيه؟','In a differences circle, what is the basic rule?',20000,
- '[{"index":0,"text_ar":"واحد يتكلم والباقي يسمعوا، من غير جدال","text_en":"One person speaks, the rest listen, and nobody argues"},{"index":1,"text_ar":"اللي يقنع الباقيين يكسب","text_en":"Whoever convinces the others wins"},{"index":2,"text_ar":"ممنوع الكلام عن الثقافة","text_en":"Culture may not be mentioned"},{"index":3,"text_ar":"لازم توافق على كل حاجة","text_en":"You must agree on everything"}]',0,'standard'),
-('ffff6666-0000-4000-8000-000000000001',7,'الأكل اللي بيترمي في الزبالة بينتج غاز إيه؟','Food thrown into landfill produces which gas?',20000,
- '[{"index":0,"text_ar":"الميثان","text_en":"Methane"},{"index":1,"text_ar":"الأكسجين","text_en":"Oxygen"},{"index":2,"text_ar":"الهيليوم","text_en":"Helium"},{"index":3,"text_ar":"مفيش","text_en":"None"}]',0,'standard'),
-('ffff6666-0000-4000-8000-000000000001',8,'لبس «الموضة السريعة» بيتلبس في المتوسط كام مرة قبل ما يترمي؟','A fast-fashion garment is worn how many times, on average, before being discarded?',20000,
- '[{"index":0,"text_ar":"أقل من عشر مرات","text_en":"Fewer than ten times"},{"index":1,"text_ar":"أكتر من مية مرة","text_en":"More than a hundred times"},{"index":2,"text_ar":"مرة واحدة بالظبط","text_en":"Exactly once"},{"index":3,"text_ar":"كل يوم لمدة سنة","text_en":"Every day for a year"}]',0,'standard'),
-('ffff6666-0000-4000-8000-000000000001',9,'التلوث الضوئي بيأثر على مين بشكل مباشر؟','Light pollution most directly affects what?',20000,
- '[{"index":0,"text_ar":"الطيور المهاجرة وصغار السلاحف","text_en":"Migrating birds and baby turtles"},{"index":1,"text_ar":"الصخور","text_en":"Rocks"},{"index":2,"text_ar":"الرمل","text_en":"Sand"},{"index":3,"text_ar":"محدش","text_en":"Nothing at all"}]',0,'standard'),
-('ffff6666-0000-4000-8000-000000000001',10,'النحل والحشرات الملقّحة مسؤولين عن حوالي كام من محاصيل الأكل؟','Bees and other pollinators are behind roughly how much of our food crops?',20000,
- '[{"index":0,"text_ar":"حوالي التلت","text_en":"About a third"},{"index":1,"text_ar":"أقل من ١٪","text_en":"Less than 1%"},{"index":2,"text_ar":"كلها","text_en":"All of it"},{"index":3,"text_ar":"ولا حاجة","text_en":"None of it"}]',0,'standard'),
-('ffff6666-0000-4000-8000-000000000001',11,'أنهي واحدة فيهم بتتحلل أسرع؟','Which of these breaks down fastest?',20000,
- '[{"index":0,"text_ar":"قشرة موزة","text_en":"A banana skin"},{"index":1,"text_ar":"لبانة","text_en":"Chewing gum"},{"index":2,"text_ar":"كيس بلاستيك","text_en":"A plastic bag"},{"index":3,"text_ar":"علبة زجاج","text_en":"A glass bottle"}]',0,'standard'),
-('ffff6666-0000-4000-8000-000000000001',12,'«يوم تنضيف العالم» بيحصل إمتى؟','When does World Cleanup Day happen?',20000,
- '[{"index":0,"text_ar":"كل سنة في سبتمبر","text_en":"Every year, in September"},{"index":1,"text_ar":"مرة كل عشر سنين","text_en":"Once every ten years"},{"index":2,"text_ar":"في يناير","text_en":"In January"},{"index":3,"text_ar":"مش موجود","text_en":"It does not exist"}]',0,'standard'),
-('ffff6666-0000-4000-8000-000000000001',13,'لو محدش معاه جوانتيات في تنضيف، أحسن تصرف إيه؟','If nobody has gloves at a clean-up, what is the sensible thing to do?',20000,
- '[{"index":0,"text_ar":"اجمعوا اللي مش خطر بس، وسيبوا الزجاج والإبر للمختصين","text_en":"Pick up only what is safe and leave glass and needles to the professionals"},{"index":1,"text_ar":"اجمعوا كل حاجة بإيديكم","text_en":"Pick everything up bare-handed"},{"index":2,"text_ar":"الغوا اليوم كله","text_en":"Cancel the whole day"},{"index":3,"text_ar":"استنوا حد يجيب معدات","text_en":"Wait for somebody to bring equipment"}]',0,'standard'),
-('ffff6666-0000-4000-8000-000000000001',14,'أحسن حاجة تعملها بصور «قبل وبعد» التنضيف؟','What is the best thing to do with before-and-after photographs of a clean-up?',20000,
- '[{"index":0,"text_ar":"تعرضها عشان حد تاني يبدأ واحدة","text_en":"Show them, so somebody else starts one"},{"index":1,"text_ar":"تمسحها","text_en":"Delete them"},{"index":2,"text_ar":"تسيبها في التليفون","text_en":"Leave them on your phone"},{"index":3,"text_ar":"تطبعها بس","text_en":"Only print them"}]',0,'double'),
-('ffff6666-0000-4000-8000-000000000001',15,'لو حد في الدايرة قال حاجة إنت مش موافق عليها، إيه أول حاجة تعملها؟','Somebody in the circle says something you disagree with. What comes first?',20000,
- '[{"index":0,"text_ar":"تسمع لآخر الكلام قبل ما ترد","text_en":"Hear the whole thing before answering"},{"index":1,"text_ar":"تقاطعه","text_en":"Interrupt"},{"index":2,"text_ar":"تمشي","text_en":"Walk out"},{"index":3,"text_ar":"تصوّره","text_en":"Film them"}]',0,'standard');
-
-update public.questions set
-  text_i18n = '{"fr":"Quel est l’objet le plus ramassé lors des nettoyages de plages ?","es":"¿Cuál es el objeto más recogido en las limpiezas de playas?","ro":"Care e obiectul cel mai des adunat la curățeniile de pe plaje?"}'::jsonb,
-  options   = '[{"index":0,"text_ar":"أعقاب السجاير","text_en":"Cigarette ends","text_i18n":{"fr":"Les mégots","es":"Las colillas","ro":"Mucurile de țigară"}},{"index":1,"text_ar":"إطارات عربيات","text_en":"Car tyres","text_i18n":{"fr":"Des pneus","es":"Neumáticos","ro":"Anvelope"}},{"index":2,"text_ar":"موبايلات","text_en":"Mobile phones","text_i18n":{"fr":"Des téléphones","es":"Móviles","ro":"Telefoane"}},{"index":3,"text_ar":"شمسيات","text_en":"Umbrellas","text_i18n":{"fr":"Des parapluies","es":"Paraguas","ro":"Umbrele"}}]'::jsonb,
-  note_ar   = 'عقب السجارة فيه بلاستيك، وبيفضل في البيئة سنين — وده أكتر شيء بيتجمع في العالم.',
-  note_en   = 'A cigarette filter is plastic, and it is the single most collected item on earth.',
-  note_i18n = '{"fr":"Un filtre de cigarette est en plastique, et c’est l’objet le plus ramassé au monde.","es":"El filtro de un cigarrillo es plástico, y es el objeto más recogido del mundo.","ro":"Filtrul de țigară e din plastic și e cel mai adunat obiect din lume."}'::jsonb
- where pack_id = 'ffff6666-0000-4000-8000-000000000001' and order_index = 0;
-
-update public.questions set
-  text_i18n = '{"fr":"Combien de temps un sac plastique sert-il en moyenne avant d’être jeté ?","es":"¿Cuánto se usa una bolsa de plástico de media antes de tirarla?","ro":"Cât se folosește o pungă de plastic, în medie, până e aruncată?"}'::jsonb,
-  options   = '[{"index":0,"text_ar":"حوالي ١٢ دقيقة","text_en":"About 12 minutes","text_i18n":{"fr":"Environ 12 minutes","es":"Unos 12 minutos","ro":"Cam 12 minute"}},{"index":1,"text_ar":"حوالي أسبوع","text_en":"About a week","text_i18n":{"fr":"Environ une semaine","es":"Una semana","ro":"Cam o săptămână"}},{"index":2,"text_ar":"حوالي سنة","text_en":"About a year","text_i18n":{"fr":"Environ un an","es":"Un año","ro":"Cam un an"}},{"index":3,"text_ar":"حوالي عشر سنين","text_en":"About ten years","text_i18n":{"fr":"Environ dix ans","es":"Unos diez años","ro":"Cam zece ani"}}]'::jsonb,
-  note_ar   = 'دقايق استخدام، وقرون في الطبيعة — الفرق ده هو كل الحكاية.',
-  note_en   = 'Minutes of use, centuries in the environment — that gap is the whole story.',
-  note_i18n = '{"fr":"Quelques minutes d’usage, des siècles dans la nature : tout est là.","es":"Minutos de uso, siglos en la naturaleza: ahí está todo.","ro":"Minute de folosire, secole în natură — asta e toată povestea."}'::jsonb
- where pack_id = 'ffff6666-0000-4000-8000-000000000001' and order_index = 1;
-
-update public.questions set
-  text_i18n = '{"fr":"Recycler une canette en aluminium économise à peu près combien d’énergie ?","es":"Reciclar una lata de aluminio ahorra aproximadamente cuánta energía?","ro":"Reciclarea unei doze de aluminiu economisește cam câtă energie?"}'::jsonb,
-  options   = '[{"index":0,"text_ar":"حوالي ٩٥٪","text_en":"About 95%","text_i18n":{"fr":"Environ 95 %","es":"Cerca del 95%","ro":"Cam 95%"}},{"index":1,"text_ar":"حوالي ١٠٪","text_en":"About 10%","text_i18n":{"fr":"Environ 10 %","es":"Cerca del 10%","ro":"Cam 10%"}},{"index":2,"text_ar":"مفيش فرق","text_en":"None at all","text_i18n":{"fr":"Aucune","es":"Ninguna","ro":"Deloc"}},{"index":3,"text_ar":"بتستهلك أكتر","text_en":"It uses more","text_i18n":{"fr":"Elle en consomme plus","es":"Consume más","ro":"Consumă mai mult"}}]'::jsonb,
-  note_ar   = 'علبة واحدة بتوفر طاقة تشغّل تلفزيون ساعات — وده أسهل تدوير في الدنيا.',
-  note_en   = 'One can saves enough energy to run a television for hours — the easiest win there is.',
-  note_i18n = '{"fr":"Une canette économise de quoi faire tourner une télé des heures : le gain le plus facile qui soit.","es":"Una lata ahorra energía para tener la tele horas: la victoria más fácil que hay.","ro":"O doză economisește energie cât pentru ore de televizor — cel mai ușor câștig."}'::jsonb
- where pack_id = 'ffff6666-0000-4000-8000-000000000001' and order_index = 2;
-
-update public.questions set
-  text_i18n = '{"fr":"La plupart du plastique qui atteint la mer arrive comment ?","es":"¿Cómo llega al mar la mayoría del plástico?","ro":"Cum ajunge în mare cea mai mare parte a plasticului?"}'::jsonb,
-  options   = '[{"index":0,"text_ar":"من الأنهار","text_en":"Down rivers","text_i18n":{"fr":"Par les fleuves","es":"Por los ríos","ro":"Pe râuri"}},{"index":1,"text_ar":"من السفن","text_en":"From ships","text_i18n":{"fr":"Des navires","es":"De los barcos","ro":"De pe nave"}},{"index":2,"text_ar":"من المطر","text_en":"With the rain","text_i18n":{"fr":"Avec la pluie","es":"Con la lluvia","ro":"Cu ploaia"}},{"index":3,"text_ar":"من الطيارات","text_en":"From aeroplanes","text_i18n":{"fr":"Des avions","es":"De los aviones","ro":"Din avioane"}}]'::jsonb,
-  note_ar   = 'اللي بيترمي في الشارع بيروح للنهر، والنهر بيوديه البحر — والنيل والدانوب من ضمنهم.',
-  note_en   = 'What is dropped in a street reaches a river, and the river carries it to the sea.',
-  note_i18n = '{"fr":"Ce qui traîne dans une rue rejoint un fleuve, et le fleuve l’emmène à la mer.","es":"Lo que se tira en la calle llega a un río, y el río lo lleva al mar.","ro":"Ce se aruncă pe stradă ajunge într-un râu, iar râul îl duce în mare."}'::jsonb
- where pack_id = 'ffff6666-0000-4000-8000-000000000001' and order_index = 3;
-
-update public.questions set
-  text_i18n = '{"fr":"Les arbres d’une rue la rafraîchissent d’environ combien ?","es":"Los árboles de una calle la refrescan aproximadamente cuánto?","ro":"Copacii de pe o stradă o răcoresc cu aproximativ cât?"}'::jsonb,
-  options   = '[{"index":0,"text_ar":"من ٢ لـ ٨ درجات","text_en":"Between 2 and 8 degrees","text_i18n":{"fr":"De 2 à 8 degrés","es":"Entre 2 y 8 grados","ro":"Cu 2 până la 8 grade"}},{"index":1,"text_ar":"مفيش فرق","text_en":"Not at all","text_i18n":{"fr":"Pas du tout","es":"Nada","ro":"Deloc"}},{"index":2,"text_ar":"بيسخنوه","text_en":"They warm it up","text_i18n":{"fr":"Ils la réchauffent","es":"La calientan","ro":"O încălzesc"}},{"index":3,"text_ar":"نص درجة","text_en":"Half a degree","text_i18n":{"fr":"Un demi-degré","es":"Medio grado","ro":"O jumătate de grad"}}]'::jsonb,
-  note_ar   = 'الظل والتبخر بيعملوا الفرق — عشان كده الشارع المشجّر بيبان أبرد فعلاً.',
-  note_en   = 'Shade and evaporation do it — which is why a tree-lined street really is cooler.',
-  note_i18n = '{"fr":"L’ombre et l’évaporation font le travail : une rue plantée est vraiment plus fraîche.","es":"La sombra y la evaporación lo hacen: una calle con árboles es de verdad más fresca.","ro":"Umbra și evaporarea fac treaba — o stradă cu copaci chiar e mai răcoroasă."}'::jsonb
- where pack_id = 'ffff6666-0000-4000-8000-000000000001' and order_index = 4;
-
-update public.questions set
-  text_i18n = '{"fr":"En Europe, qu’est-ce qu’« Erasmus » ?","es":"En Europa, ¿qué es “Erasmus”?","ro":"În Europa, ce este „Erasmus”?"}'::jsonb,
-  options   = '[{"index":0,"text_ar":"برنامج بيبعت طلاب وشباب يعيشوا ويتعلموا في بلد تانية","text_en":"A programme that sends students and young people to live and learn in another country","text_i18n":{"fr":"Un programme qui envoie étudiants et jeunes vivre et apprendre dans un autre pays","es":"Un programa que envía a estudiantes y jóvenes a vivir y aprender en otro país","ro":"Un program care trimite studenți și tineri să trăiască și să învețe în altă țară"}},{"index":1,"text_ar":"نوع من القطارات","text_en":"A kind of train","text_i18n":{"fr":"Un type de train","es":"Un tipo de tren","ro":"Un fel de tren"}},{"index":2,"text_ar":"جايزة رياضية","text_en":"A sports prize","text_i18n":{"fr":"Un prix sportif","es":"Un premio deportivo","ro":"Un premiu sportiv"}},{"index":3,"text_ar":"بنك","text_en":"A bank","text_i18n":{"fr":"Une banque","es":"Un banco","ro":"O bancă"}}]'::jsonb,
-  note_ar   = 'اتسمى على مفكر هولندي عاش في كذا بلد — والفكرة نفسها إنك تتعلم بره بيتك.',
-  note_en   = 'Named after a Dutch thinker who lived in several countries — the point is learning away from home.',
-  note_i18n = '{"fr":"Nommé d’après un penseur néerlandais qui a vécu dans plusieurs pays : apprendre ailleurs, voilà l’idée.","es":"Lleva el nombre de un pensador neerlandés que vivió en varios países: aprender fuera de casa.","ro":"Poartă numele unui gânditor olandez care a trăit în mai multe țări: să înveți departe de casă."}'::jsonb
- where pack_id = 'ffff6666-0000-4000-8000-000000000001' and order_index = 5;
-
-update public.questions set
-  text_i18n = '{"fr":"Dans un cercle des différences, quelle est la règle de base ?","es":"En un círculo de diferencias, ¿cuál es la regla básica?","ro":"Într-un cerc al diferențelor, care e regula de bază?"}'::jsonb,
-  options   = '[{"index":0,"text_ar":"واحد يتكلم والباقي يسمعوا، من غير جدال","text_en":"One person speaks, the rest listen, and nobody argues","text_i18n":{"fr":"Une personne parle, les autres écoutent, personne ne débat","es":"Habla uno, los demás escuchan y nadie discute","ro":"Vorbește unul, ceilalți ascultă, nimeni nu contrazice"}},{"index":1,"text_ar":"اللي يقنع الباقيين يكسب","text_en":"Whoever convinces the others wins","text_i18n":{"fr":"Celui qui convainc les autres gagne","es":"Gana quien convence a los demás","ro":"Câștigă cine îi convinge pe ceilalți"}},{"index":2,"text_ar":"ممنوع الكلام عن الثقافة","text_en":"Culture may not be mentioned","text_i18n":{"fr":"On ne parle pas de culture","es":"No se habla de cultura","ro":"Nu se vorbește despre cultură"}},{"index":3,"text_ar":"لازم توافق على كل حاجة","text_en":"You must agree on everything","text_i18n":{"fr":"Il faut être d’accord sur tout","es":"Hay que estar de acuerdo en todo","ro":"Trebuie să fiți de acord în toate"}}]'::jsonb,
-  note_ar   = 'الاختلاف مش موضوع للجدال — الهدف تفهم مش تكسب.',
-  note_en   = 'A difference is not a debate: the point is to understand, not to win.',
-  note_i18n = '{"fr":"Une différence n’est pas un débat : il s’agit de comprendre, pas de gagner.","es":"Una diferencia no es un debate: se trata de entender, no de ganar.","ro":"O diferență nu e o dezbatere: scopul e să înțelegi, nu să câștigi."}'::jsonb
- where pack_id = 'ffff6666-0000-4000-8000-000000000001' and order_index = 6;
-
-update public.questions set
-  text_i18n = '{"fr":"Les déchets alimentaires enfouis produisent quel gaz ?","es":"La comida que va al vertedero produce qué gas?","ro":"Mâncarea aruncată la groapă produce ce gaz?"}'::jsonb,
-  options   = '[{"index":0,"text_ar":"الميثان","text_en":"Methane","text_i18n":{"fr":"Du méthane","es":"Metano","ro":"Metan"}},{"index":1,"text_ar":"الأكسجين","text_en":"Oxygen","text_i18n":{"fr":"De l’oxygène","es":"Oxígeno","ro":"Oxigen"}},{"index":2,"text_ar":"الهيليوم","text_en":"Helium","text_i18n":{"fr":"De l’hélium","es":"Helio","ro":"Heliu"}},{"index":3,"text_ar":"مفيش","text_en":"None","text_i18n":{"fr":"Aucun","es":"Ninguno","ro":"Niciunul"}}]'::jsonb,
-  note_ar   = 'نفس الأكل لو اتعمل كومبوست بيبقى تربة — نفس القشرة، نتيجتين مختلفين تمامًا.',
-  note_en   = 'The same peel composted becomes soil instead — same scrap, opposite outcome.',
-  note_i18n = '{"fr":"La même épluchure compostée devient de la terre : même déchet, résultat inverse.","es":"La misma cáscara compostada se hace tierra: mismo resto, resultado opuesto.","ro":"Aceeași coajă, compostată, devine pământ: același rest, rezultat opus."}'::jsonb
- where pack_id = 'ffff6666-0000-4000-8000-000000000001' and order_index = 7;
-
-update public.questions set
-  text_i18n = '{"fr":"Un vêtement de fast fashion est porté combien de fois en moyenne avant d’être jeté ?","es":"¿Cuántas veces se usa de media una prenda de moda rápida antes de tirarla?","ro":"De câte ori e purtată, în medie, o haină fast-fashion înainte să fie aruncată?"}'::jsonb,
-  options   = '[{"index":0,"text_ar":"أقل من عشر مرات","text_en":"Fewer than ten times","text_i18n":{"fr":"Moins de dix fois","es":"Menos de diez veces","ro":"De mai puțin de zece ori"}},{"index":1,"text_ar":"أكتر من مية مرة","text_en":"More than a hundred times","text_i18n":{"fr":"Plus de cent fois","es":"Más de cien veces","ro":"De peste o sută de ori"}},{"index":2,"text_ar":"مرة واحدة بالظبط","text_en":"Exactly once","text_i18n":{"fr":"Exactement une fois","es":"Exactamente una vez","ro":"Exact o dată"}},{"index":3,"text_ar":"كل يوم لمدة سنة","text_en":"Every day for a year","text_i18n":{"fr":"Tous les jours pendant un an","es":"A diario durante un año","ro":"Zilnic timp de un an"}}]'::jsonb,
-  note_ar   = 'عشان كده تبادل الهدوم فكرة كويسة: نفس القطعة بتعيش عمر تاني عند حد تاني.',
-  note_en   = 'Which is why a clothes swap works: the same piece gets a second life with somebody else.',
-  note_i18n = '{"fr":"D’où l’intérêt du troc de vêtements : la même pièce a une seconde vie ailleurs.","es":"Por eso funciona un intercambio de ropa: la misma prenda tiene otra vida con otra persona.","ro":"De asta merge un schimb de haine: aceeași piesă are o a doua viață la altcineva."}'::jsonb
- where pack_id = 'ffff6666-0000-4000-8000-000000000001' and order_index = 8;
-
-update public.questions set
-  text_i18n = '{"fr":"La pollution lumineuse touche surtout quoi ?","es":"¿A qué afecta más directamente la contaminación lumínica?","ro":"Poluarea luminoasă afectează cel mai direct ce?"}'::jsonb,
-  options   = '[{"index":0,"text_ar":"الطيور المهاجرة وصغار السلاحف","text_en":"Migrating birds and baby turtles","text_i18n":{"fr":"Les oiseaux migrateurs et les bébés tortues","es":"Las aves migratorias y las crías de tortuga","ro":"Păsările migratoare și puii de țestoasă"}},{"index":1,"text_ar":"الصخور","text_en":"Rocks","text_i18n":{"fr":"Les rochers","es":"Las rocas","ro":"Stâncile"}},{"index":2,"text_ar":"الرمل","text_en":"Sand","text_i18n":{"fr":"Le sable","es":"La arena","ro":"Nisipul"}},{"index":3,"text_ar":"محدش","text_en":"Nothing at all","text_i18n":{"fr":"Rien du tout","es":"Nada","ro":"Nimic"}}]'::jsonb,
-  note_ar   = 'صغار السلاحف بتتبع ضوء القمر على البحر — وأضواء الشوارع بتوديهم الناحية الغلط.',
-  note_en   = 'Baby turtles follow moonlight to the sea; street lights send them the wrong way.',
-  note_i18n = '{"fr":"Les bébés tortues suivent la lune vers la mer ; les lampadaires les envoient à l’opposé.","es":"Las crías de tortuga siguen la luna hacia el mar; las farolas las mandan al revés.","ro":"Puii de țestoasă urmează luna spre mare; felinarele îi trimit invers."}'::jsonb
- where pack_id = 'ffff6666-0000-4000-8000-000000000001' and order_index = 9;
-
-update public.questions set
-  text_i18n = '{"fr":"Les abeilles et autres pollinisateurs assurent environ quelle part de nos cultures ?","es":"¿De qué parte de los cultivos son responsables las abejas y otros polinizadores?","ro":"Albinele și ceilalți polenizatori stau în spatele cam cât din culturile noastre?"}'::jsonb,
-  options   = '[{"index":0,"text_ar":"حوالي التلت","text_en":"About a third","text_i18n":{"fr":"Environ un tiers","es":"Cerca de un tercio","ro":"Cam o treime"}},{"index":1,"text_ar":"أقل من ١٪","text_en":"Less than 1%","text_i18n":{"fr":"Moins de 1 %","es":"Menos del 1%","ro":"Sub 1%"}},{"index":2,"text_ar":"كلها","text_en":"All of it","text_i18n":{"fr":"La totalité","es":"Todos","ro":"Toate"}},{"index":3,"text_ar":"ولا حاجة","text_en":"None of it","text_i18n":{"fr":"Aucune","es":"Ninguno","ro":"Niciuna"}}]'::jsonb,
-  note_ar   = 'شوية زرع على بلكونة أو في حديقة بيفرق معاهم أكتر ما تتخيل.',
-  note_en   = 'A few flowering plants on a balcony matter to them more than you would think.',
-  note_i18n = '{"fr":"Quelques plantes à fleurs sur un balcon comptent plus qu’on ne croit.","es":"Unas cuantas plantas con flor en un balcón les importan más de lo que crees.","ro":"Câteva plante cu flori pe balcon contează mai mult decât ai crede."}'::jsonb
- where pack_id = 'ffff6666-0000-4000-8000-000000000001' and order_index = 10;
-
-update public.questions set
-  text_i18n = '{"fr":"Lequel se décompose le plus vite ?","es":"¿Cuál de estos se descompone más rápido?","ro":"Care dintre acestea se descompune cel mai repede?"}'::jsonb,
-  options   = '[{"index":0,"text_ar":"قشرة موزة","text_en":"A banana skin","text_i18n":{"fr":"Une peau de banane","es":"Una cáscara de plátano","ro":"O coajă de banană"}},{"index":1,"text_ar":"لبانة","text_en":"Chewing gum","text_i18n":{"fr":"Un chewing-gum","es":"Un chicle","ro":"O gumă de mestecat"}},{"index":2,"text_ar":"كيس بلاستيك","text_en":"A plastic bag","text_i18n":{"fr":"Un sac plastique","es":"Una bolsa de plástico","ro":"O pungă de plastic"}},{"index":3,"text_ar":"علبة زجاج","text_en":"A glass bottle","text_i18n":{"fr":"Une bouteille en verre","es":"Una botella de vidrio","ro":"O sticlă"}}]'::jsonb,
-  note_ar   = 'اللبانة مطاط صناعي، والزجاج ممكن يفضل آلاف السنين — والموزة أسابيع.',
-  note_en   = 'Gum is synthetic rubber and glass can last millennia; the banana skin takes weeks.',
-  note_i18n = '{"fr":"Le chewing-gum est du caoutchouc synthétique et le verre peut durer des millénaires ; la banane, des semaines.","es":"El chicle es caucho sintético y el vidrio puede durar milenios; el plátano, semanas.","ro":"Guma e cauciuc sintetic, iar sticla poate dura milenii; coaja de banană, săptămâni."}'::jsonb
- where pack_id = 'ffff6666-0000-4000-8000-000000000001' and order_index = 11;
-
-update public.questions set
-  text_i18n = '{"fr":"Quand a lieu le World Cleanup Day ?","es":"¿Cuándo es el Día Mundial de la Limpieza?","ro":"Când are loc Ziua Mondială a Curățeniei?"}'::jsonb,
-  options   = '[{"index":0,"text_ar":"كل سنة في سبتمبر","text_en":"Every year, in September","text_i18n":{"fr":"Chaque année, en septembre","es":"Cada año, en septiembre","ro":"În fiecare an, în septembrie"}},{"index":1,"text_ar":"مرة كل عشر سنين","text_en":"Once every ten years","text_i18n":{"fr":"Une fois tous les dix ans","es":"Una vez cada diez años","ro":"O dată la zece ani"}},{"index":2,"text_ar":"في يناير","text_en":"In January","text_i18n":{"fr":"En janvier","es":"En enero","ro":"În ianuarie"}},{"index":3,"text_ar":"مش موجود","text_en":"It does not exist","text_i18n":{"fr":"Il n’existe pas","es":"No existe","ro":"Nu există"}}]'::jsonb,
-  note_ar   = 'ملايين بيطلعوا في نفس اليوم في أكتر من ١٩٠ بلد — وممكن تبقى واحد منهم.',
-  note_en   = 'Millions turn out on the same day in more than 190 countries — you can be one of them.',
-  note_i18n = '{"fr":"Des millions de gens sortent le même jour dans plus de 190 pays. Vous pouvez en être.","es":"Millones salen el mismo día en más de 190 países. Puedes ser uno.","ro":"Milioane de oameni ies în aceeași zi în peste 190 de țări — poți fi unul dintre ei."}'::jsonb
- where pack_id = 'ffff6666-0000-4000-8000-000000000001' and order_index = 12;
-
-update public.questions set
-  text_i18n = '{"fr":"Si personne n’a de gants lors d’un nettoyage, que faire ?","es":"Si nadie tiene guantes en una limpieza, ¿qué es lo sensato?","ro":"Dacă nimeni nu are mănuși la o curățenie, ce e de făcut?"}'::jsonb,
-  options   = '[{"index":0,"text_ar":"اجمعوا اللي مش خطر بس، وسيبوا الزجاج والإبر للمختصين","text_en":"Pick up only what is safe and leave glass and needles to the professionals","text_i18n":{"fr":"Ramassez seulement ce qui est sûr et laissez le verre et les seringues aux professionnels","es":"Recoged solo lo seguro y dejad el vidrio y las agujas a los profesionales","ro":"Adunați doar ce e sigur și lăsați sticla și acele profesioniștilor"}},{"index":1,"text_ar":"اجمعوا كل حاجة بإيديكم","text_en":"Pick everything up bare-handed","text_i18n":{"fr":"Tout ramasser à mains nues","es":"Recogerlo todo con las manos","ro":"Adunați totul cu mâna goală"}},{"index":2,"text_ar":"الغوا اليوم كله","text_en":"Cancel the whole day","text_i18n":{"fr":"Tout annuler","es":"Cancelar el día","ro":"Anulați ziua"}},{"index":3,"text_ar":"استنوا حد يجيب معدات","text_en":"Wait for somebody to bring equipment","text_i18n":{"fr":"Attendre que quelqu’un apporte du matériel","es":"Esperar a que alguien traiga material","ro":"Așteptați să aducă cineva echipament"}}]'::jsonb,
-  note_ar   = 'التنضيف مش لازم يكون كامل عشان يفرق — والأمان أهم من الرقم.',
-  note_en   = 'A clean-up does not have to be complete to matter, and safety beats the total.',
-  note_i18n = '{"fr":"Un nettoyage n’a pas besoin d’être complet pour compter ; la sécurité passe avant le chiffre.","es":"Una limpieza no tiene que ser completa para valer; la seguridad va antes que la cifra.","ro":"O curățenie nu trebuie să fie completă ca să conteze; siguranța trece înaintea cifrei."}'::jsonb
- where pack_id = 'ffff6666-0000-4000-8000-000000000001' and order_index = 13;
-
-update public.questions set
-  text_i18n = '{"fr":"Que faire de mieux avec les photos avant/après d’un nettoyage ?","es":"¿Qué es lo mejor que puedes hacer con las fotos de antes y después?","ro":"Ce e cel mai bine să faci cu pozele dinainte și de după?"}'::jsonb,
-  options   = '[{"index":0,"text_ar":"تعرضها عشان حد تاني يبدأ واحدة","text_en":"Show them, so somebody else starts one","text_i18n":{"fr":"Les montrer, pour que quelqu’un d’autre se lance","es":"Enseñarlas, para que otro empiece una","ro":"Să le arăți, ca să înceapă și altcineva"}},{"index":1,"text_ar":"تمسحها","text_en":"Delete them","text_i18n":{"fr":"Les effacer","es":"Borrarlas","ro":"Să le ștergi"}},{"index":2,"text_ar":"تسيبها في التليفون","text_en":"Leave them on your phone","text_i18n":{"fr":"Les laisser sur le téléphone","es":"Dejarlas en el móvil","ro":"Să le lași în telefon"}},{"index":3,"text_ar":"تطبعها بس","text_en":"Only print them","text_i18n":{"fr":"Seulement les imprimer","es":"Solo imprimirlas","ro":"Doar să le printezi"}}]'::jsonb,
-  note_ar   = 'أغلب اللي بيشاركوا أول مرة بيجوا لأنهم شافوا حد يعرفوه عمل كده.',
-  note_en   = 'Most first-timers come because they saw somebody they know do it.',
-  note_i18n = '{"fr":"La plupart des débutants viennent parce qu’ils ont vu quelqu’un qu’ils connaissent le faire.","es":"La mayoría de los novatos vienen porque vieron a alguien conocido hacerlo.","ro":"Cei mai mulți vin prima dată pentru că au văzut pe cineva cunoscut făcând-o."}'::jsonb
- where pack_id = 'ffff6666-0000-4000-8000-000000000001' and order_index = 14;
-
-update public.questions set
-  text_i18n = '{"fr":"Quelqu’un dit dans le cercle une chose avec laquelle vous n’êtes pas d’accord. On fait quoi d’abord ?","es":"Alguien en el círculo dice algo con lo que no estás de acuerdo. ¿Qué va primero?","ro":"Cineva din cerc spune ceva cu care nu ești de acord. Ce faci întâi?"}'::jsonb,
-  options   = '[{"index":0,"text_ar":"تسمع لآخر الكلام قبل ما ترد","text_en":"Hear the whole thing before answering","text_i18n":{"fr":"Écouter jusqu’au bout avant de répondre","es":"Escuchar hasta el final antes de responder","ro":"Asculți până la capăt înainte să răspunzi"}},{"index":1,"text_ar":"تقاطعه","text_en":"Interrupt","text_i18n":{"fr":"L’interrompre","es":"Interrumpir","ro":"Îl întrerupi"}},{"index":2,"text_ar":"تمشي","text_en":"Walk out","text_i18n":{"fr":"Partir","es":"Irte","ro":"Pleci"}},{"index":3,"text_ar":"تصوّره","text_en":"Film them","text_i18n":{"fr":"Le filmer","es":"Grabarlo","ro":"Îl filmezi"}}]'::jsonb,
-  note_ar   = 'السماع لآخره مش موافقة — هو بس الفرق بين حوار وخناقة.',
-  note_en   = 'Hearing somebody out is not agreeing with them; it is the difference between a talk and a row.',
-  note_i18n = '{"fr":"Écouter jusqu’au bout n’est pas approuver : c’est la différence entre une conversation et une dispute.","es":"Escuchar hasta el final no es estar de acuerdo: es la diferencia entre una charla y una bronca.","ro":"Să asculți până la capăt nu înseamnă să fii de acord: e diferența dintre discuție și ceartă."}'::jsonb
- where pack_id = 'ffff6666-0000-4000-8000-000000000001' and order_index = 15;
-
-notify pgrst, 'reload schema';
-
-
--- ═══════════════════════════════════════════════════════════════════
---  لمّة · THE RIGHT ANSWER WAS ALWAYS THE FIRST BUTTON
---
---  Every question in the game — all of them, across every pack — was
---  written with the correct choice first and stored that way:
---
---      select correct_index, count(*) from questions group by 1;
---       0 | 206
---
---  Nothing in the app shuffles them. The view hands the four choices
---  to the phone in the order they are stored, and the phone draws them
---  in that order. So the top button was right two hundred and six
---  times out of two hundred and six.
---
---  That is not a small bug. A quiz whose answer is always in the same
---  place is not a quiz: one player notices in the first round, taps
---  the top button for the rest of the night, wins every game, and the
---  table stops playing. It cannot be seen by reading a single
---  question, only by counting them all, which is why it survived
---  thirty schema files.
---
---  ── HOW THIS FIXES IT ────────────────────────────────────────────
---  Each question's four choices are put in a new order, and its
---  correct_index moves with them. Nobody's answer changes meaning:
---  the phone sends the POSITION it was tapped, and the position it
---  was tapped is the position that is now stored.
---
---  ── WHY IT IS NOT ACTUALLY RANDOM ────────────────────────────────
---  The new order is a hash of the pack, the question's number in it,
---  and the choice's own authored number — so it is scrambled, but the
---  SAME scramble every time this file runs. Two reasons that matters:
---
---    · This file is applied on every deploy. A genuinely random
---      shuffle would deal the choices again under any room that
---      happened to be mid-question, and somebody's tap would land on
---      a different answer than the one they read.
---    · Running it twice must not undo it. The order is computed from
---      each choice's own "index" field — the number it was written
---      with, which this never rewrites — and not from where the
---      choice currently sits. So the second run computes the same
---      arrangement and changes nothing.
---
---  The app has never read that "index" field: QuestionCard and Stage
---  both use the position in the array. It survives here purely as the
---  choice's name, which is what makes re-running safe.
---
---  Anything oddly shaped — no choices, choices without their number,
---  two choices sharing one, a correct_index pointing past the end —
---  is left exactly as it is rather than guessed at.
---
---  Safe to re-run.
--- ═══════════════════════════════════════════════════════════════════
-
-/* A FUNCTION, not a bare block, so that a file added AFTER this one
-   can re-deal the questions it just wrote. The first version was an
-   anonymous DO block, which meant every later pack would have been
-   inserted with its answer first and never shuffled — and it would
-   have been invisible: a handful of unshuffled questions among a
-   hundred shuffled ones does not move the share enough to trip the
-   build's check. Adding four questions was about to do exactly that.
-
-   Not security definer, and execute is taken off PUBLIC below: this
-   rewrites rows, and nothing a signed-in player can call has any
-   business doing that. It is for the setup run, which is the owner. */
-create or replace function public.lamma_spread_answers()
-returns int
-language plpgsql as $$
-declare
-  r         record;
-  reordered jsonb;
-  seed      text;
-  named     int;   -- the correct choice's own number, before moving
-  landed    int;   -- where it sits once the four are re-dealt
-  moved     int := 0;
-  skipped   int := 0;
-begin
-  for r in select id, pack_id, order_index, options, correct_index
-             from public.questions loop
-
-    seed := r.pack_id::text || '/' || r.order_index::text || '/';
-
-    if jsonb_typeof(r.options) is distinct from 'array'
-       or jsonb_array_length(r.options) < 2
-       or r.correct_index is null
-       or r.correct_index < 0
-       or r.correct_index >= jsonb_array_length(r.options)
-       or exists (select 1 from jsonb_array_elements(r.options) as t(e)
-                   where t.e->>'index' is null)
-       or (select count(distinct t.e->>'index') from jsonb_array_elements(r.options) as t(e))
-          <> jsonb_array_length(r.options) then
-      skipped := skipped + 1;
-      continue;
-    end if;
-
-    named := (r.options -> r.correct_index ->> 'index')::int;
-
-    select jsonb_agg(t.e order by md5(seed || (t.e->>'index')))
-      into reordered
-      from jsonb_array_elements(r.options) as t(e);
-
-    select s.pos - 1 into landed from (
-      select row_number() over (order by md5(seed || (t.e->>'index'))) as pos, t.e
-        from jsonb_array_elements(r.options) as t(e)) s
-     where (s.e->>'index')::int = named;
-
-    if reordered is distinct from r.options or landed is distinct from r.correct_index then
-      update public.questions
-         set options = reordered, correct_index = landed
-       where id = r.id;
-      moved := moved + 1;
-    end if;
-  end loop;
-
-  /* This counts rows changed since the inserts higher up in this same
-     file put them back in authored order — not drift between runs.
-     Every run re-inserts, then re-deals to the same arrangement, so
-     this number stays roughly constant and the questions do not move.
-     Measured: three consecutive applications, identical every time. */
-  raise notice 'spread the answers: % question(s) moved off the authored order, % left alone', moved, skipped;
-  return moved;
-end $$;
-
-revoke all on function public.lamma_spread_answers() from public;
-
-select public.lamma_spread_answers();
-
--- ── AND IT MUST NOT COME BACK ──────────────────────────────────────
--- The fix above is data, not code, so the next pack somebody writes
--- with the answer first would be wrong again the moment it is added
--- after this line. Rather than trusting that nobody does that, the
--- file refuses to finish if the answers are bunched up. The build
--- checks the same thing against a real database (check-sql-twice.sh),
--- so it is caught before a deploy rather than after one.
-do $$
-declare
-  n_all   int;
-  n_first int;
-  n_kinds int;
-begin
-  select count(*), count(*) filter (where correct_index = 0), count(distinct correct_index)
-    into n_all, n_first, n_kinds
-    from public.questions;
-
-  if n_all = 0 then return; end if;   -- nothing loaded yet; nothing to say
-
-  if n_kinds < 3 or n_first::numeric / n_all > 0.45 then
-    raise exception 'The right answer sits in only % position(s), and is the first button % of % times. A quiz like that is solved by tapping the top button.',
-      n_kinds, n_first, n_all;
-  end if;
-end $$;
-
-notify pgrst, 'reload schema';
-
-
--- ═══════════════════════════════════════════════════════════════════
---  لمّة · A CLOSED ROOM, AND THE SEAT NOBODY CAN TAKE
---
---  Ayser: "Make it a close room for the Egyptian room and make my
---  account Ayser that only can control it we all enter the live
---  questions together in the same time then ranking."
---
---  Two different things were hiding in that sentence, and only one of
---  them existed.
---
---  ── THE DOOR ─────────────────────────────────────────────────────
---  Already there: a room has a code, and the host can lock it so no
---  new person walks in. That is the "closed" half, and it works.
---
---  ── THE SEAT ─────────────────────────────────────────────────────
---  This is the half that did not. lamma_claim_host exists so a room
---  survives its host's phone dying: if the host has been gone a while,
---  the longest-seated player is promoted and the night continues. That
---  is right for a game between friends and WRONG for the room Ayser is
---  describing, where he is running the evening on a shared screen. His
---  phone locking its screen for ninety seconds was enough for somebody
---  else to become host and start advancing his questions.
---
---  So a host may now BOLT THE SEAT. While it is bolted:
---    · claim_host refuses, with a reason that says why
---    · every other host power is unchanged — the host still controls
---      the clock, the door, the round and when the questions move
---
---  It is off by default. A room with the seat bolted and a host who
---  really has gone is a room nobody can advance, and that is a worse
---  evening than the one this prevents — so it is a choice made on
---  purpose by somebody sitting in front of the screen, never a default
---  somebody inherits.
---
---  ── WHY NOT "ONLY AYSER'S ACCOUNT" IN SO MANY WORDS ──────────────
---  Writing one email address into the database would give him this
---  room and nobody else a room of their own — and the moment he signed
---  in on another address, his own game would lock him out. Whoever
---  starts the room holds it; he starts the Egyptian room, so it is
---  his. Same outcome, and it cannot strand him.
---
---  Safe to re-run.
--- ═══════════════════════════════════════════════════════════════════
-
-alter table public.game_rooms add column if not exists host_locked boolean not null default false;
-
--- ── THE SEAT ───────────────────────────────────────────────────────
--- Same promotion rule as before, with one refusal in front of it.
-create or replace function public.lamma_claim_host(p_room_id uuid)
-returns jsonb
-language plpgsql security definer set search_path = public as $$
-declare
-  me uuid := auth.uid();
-  r  public.game_rooms%rowtype;
-  host_row public.room_players%rowtype;
-  heir uuid;
-begin
-  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
-  select * into r from public.game_rooms where id = p_room_id;
-  if not found then return jsonb_build_object('ok', false, 'reason', 'no_room'); end if;
-  if not public.lamma_in_room(p_room_id) then return jsonb_build_object('ok', false, 'reason', 'not_in_room'); end if;
-
-  -- the host said this room is theirs to run, and meant it
-  if r.host_locked then
-    return jsonb_build_object('ok', false, 'reason', 'host_locked');
-  end if;
-
-  select * into host_row from public.room_players
-   where room_id = p_room_id and user_id = r.host_user_id;
-
-  -- still here? then there is nothing to claim
-  if host_row.user_id is not null and host_row.is_connected then
-    return jsonb_build_object('ok', false, 'reason', 'host_present');
-  end if;
-
-  select user_id into heir from public.room_players
-   where room_id = p_room_id and is_connected and user_id <> r.host_user_id
-   order by joined_at asc limit 1;
-
-  if heir is null then return jsonb_build_object('ok', false, 'reason', 'nobody_to_promote'); end if;
-
-  update public.game_rooms set host_user_id = heir where id = p_room_id;
-  return jsonb_build_object('ok', true, 'host_user_id', heir);
-end;
-$$;
-
--- ── THE HOST'S SETTINGS, PLUS THE BOLT ─────────────────────────────
--- Dropped and recreated rather than overloaded: two functions with the
--- same name and a different number of arguments is "function is not
--- unique" at three in the morning. Same lesson as v25.
-drop function if exists public.lamma_set_room(uuid, int, boolean, int, boolean);
-
-create or replace function public.lamma_set_room(p_room_id uuid, p_timer_ms int, p_locked boolean,
-                                                 p_round int, p_read_first boolean,
-                                                 p_host_locked boolean)
-returns jsonb
-language plpgsql security definer set search_path = public as $$
-declare
-  me uuid := auth.uid();
-  r  public.game_rooms%rowtype;
-begin
-  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
-  select * into r from public.game_rooms where id = p_room_id;
-  if not found then return jsonb_build_object('ok', false, 'reason', 'no_room'); end if;
-  if r.host_user_id <> me then return jsonb_build_object('ok', false, 'reason', 'not_host'); end if;
-
-  if p_timer_ms is not null and p_timer_ms not in (10000, 20000, 30000, 45000) then
-    return jsonb_build_object('ok', false, 'reason', 'bad_timer');
-  end if;
-  if p_round is not null and p_round not in (0, 10, 15, 25) then
-    return jsonb_build_object('ok', false, 'reason', 'bad_round');
-  end if;
-  if p_round is not null and r.status <> 'lobby' then
-    return jsonb_build_object('ok', false, 'reason', 'already_started');
-  end if;
-
-  update public.game_rooms
-     set timer_ms    = coalesce(p_timer_ms, timer_ms),
-         locked      = coalesce(p_locked, locked),
-         read_first  = coalesce(p_read_first, read_first),
-         host_locked = coalesce(p_host_locked, host_locked),
-         question_ids = case when p_round is null then question_ids
-                             else public.lamma_draw_questions(r.pack_id, p_round) end
-   where id = p_room_id;
-
-  select * into r from public.game_rooms where id = p_room_id;
-  return jsonb_build_object('ok', true, 'timer_ms', r.timer_ms, 'locked', r.locked,
-                            'read_first', r.read_first, 'host_locked', r.host_locked,
-                            'round', coalesce(array_length(r.question_ids, 1), 0));
-end;
-$$;
-
-grant execute on function public.lamma_set_room(uuid, int, boolean, int, boolean, boolean) to authenticated;
-
--- ── AND EVERY PHONE IS TOLD ────────────────────────────────────────
--- A rule nobody can see is a rule that looks like a bug. The players
--- get host_locked in sync so the screen can say, in words, that this
--- room has one host and it is not up for grabs.
-create or replace function public.lamma_sync(p_room_id uuid)
-returns jsonb
-language plpgsql security definer set search_path = public as $$
-declare
-  me uuid := auth.uid();
-  r  public.game_rooms%rowtype;
-  pl public.room_players%rowtype;
-  qid uuid;
-  answered boolean := false;
-begin
-  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
-  select * into r from public.game_rooms where id = p_room_id;
-  if not found then return jsonb_build_object('ok', false, 'reason', 'no_room'); end if;
-  select * into pl from public.room_players where room_id = p_room_id and user_id = me;
-  if not found then return jsonb_build_object('ok', false, 'reason', 'not_in_room'); end if;
-
-  if r.question_ids is not null and r.current_question_index >= 0
-     and r.current_question_index < coalesce(array_length(r.question_ids, 1), 0) then
-    qid := r.question_ids[r.current_question_index + 1];
-  else
-    select id into qid from public.questions
-     where pack_id = r.pack_id and order_index = r.current_question_index;
-  end if;
-
-  if qid is not null then
-    select true into answered from public.answers
-     where room_id = p_room_id and question_id = qid and user_id = me;
-  end if;
-
-  return jsonb_build_object(
-    'ok', true,
-    'status', r.status,
-    'question_index', r.current_question_index,
-    'question_ids', coalesce(to_jsonb(r.question_ids), '[]'::jsonb),
-    'deadline_at', r.current_deadline_at,
-    'server_now', now(),
-    'host_user_id', r.host_user_id,
-    'pack_id', r.pack_id,
-    'pack_country', (select country from public.game_packs where id = r.pack_id),
-    'locked', r.locked,
-    'host_locked', r.host_locked,
-    'timer_ms', r.timer_ms,
-    'read_first', r.read_first,
-    'my_score', pl.score,
-    'my_streak', pl.streak,
-    'already_answered', coalesce(answered, false),
-    'leaderboard', coalesce((
-      select jsonb_agg(jsonb_build_object('user_id', user_id, 'nickname', nickname,
-                                          'score', score, 'best_streak', best_streak,
-                                          'is_connected', is_connected,
-                                          'avatar_key', avatar_key)
-                       order by score desc, best_streak desc, joined_at asc)
-        from public.room_players where room_id = p_room_id), '[]'::jsonb)
-  );
-end;
-$$;
-
-notify pgrst, 'reload schema';
-
-
--- ═══════════════════════════════════════════════════════════════════
---  تعرف مصر؟ · FOUR OF SARA'S, SWAPPED IN
---
---  Sara Zekralla sent ten questions and Ayser asked: if any are good,
---  trade them for ones already in the pack.
---
---  All ten are true — I checked each one. But SEVEN of them the pack
---  already asks, sometimes almost word for word: Carter and the tomb
---  (q4), the Sphinx's body (q6), the Rosetta Stone (q8), the library
---  at Alexandria (q27), Khufu and the Great Pyramid (q20), papyrus
---  (q15), and the Suez Canal (q9, q24). Adding those would mean a
---  fifteen-question round that asks about the Rosetta Stone twice.
---
---  Three are ground the pack has never covered at all:
---
---    · the FIRST CAPITAL — Narmer and Memphis. The pack starts at the
---      pyramids and had nothing before them.
---    · the GODS — Ra. Fifty-three questions about Egypt and not one
---      about what anybody believed.
---    · the SEASONS — Akhet, the flood. The pack mentions the Nile
---      constantly and never says what it did to the year.
---
---  And one of hers is simply sharper than ours: we asked which CENTURY
---  the Suez Canal opened in, which anybody can reason out. She asked
---  the year. Hers replaces ours.
---
---  ── WHAT GOES, AND WHY ───────────────────────────────────────────
---  Swapped, as asked, rather than piled on — the pack stays at 53.
---  The three that leave are the three that were free points:
---
---    q1  "Which river runs through Egypt?"       (the Nile)
---    q2  "What is the capital of Egypt?"         (Cairo)
---    q21 "What is the official language?"        (Arabic)
---
---  Nobody has ever got one of those wrong, and a question nobody gets
---  wrong teaches nothing and costs twenty seconds. Plenty of gentle
---  ones remain — the currency, the seas, the borders, koshari.
---
---  AYSER: if you want any of those three back, say so and they come
---  back. They are three lines.
---
---  Written in the five play languages, each with the line that teaches
---  underneath. Safe to re-run.
--- ═══════════════════════════════════════════════════════════════════
-
-delete from public.questions
- where pack_id = 'eeee5555-0000-4000-8000-000000000001' and order_index in (1, 2, 21, 24);
-
-insert into public.questions (pack_id, order_index, text_ar, text_en, timer_ms, options, correct_index, points_style) values
-('eeee5555-0000-4000-8000-000000000001',1,'الملك نارمر أسس أول عاصمة لمصر حوالي سنة ٣١٠٠ ق.م — اسمها كان إيه؟','King Narmer founded Egypt’s first capital around 3100 BCE. What was it called?',20000,
- '[{"index":0,"text_ar":"منف","text_en":"Memphis"},{"index":1,"text_ar":"طيبة","text_en":"Thebes"},{"index":2,"text_ar":"الإسكندرية","text_en":"Alexandria"},{"index":3,"text_ar":"الكرنك","text_en":"Karnak"}]',0,'standard'),
-('eeee5555-0000-4000-8000-000000000001',2,'مين إله الشمس عند المصريين القدماء، اللي بيترسم براس صقر وقرص شمس فوقه؟','Who was the sun god of ancient Egypt, drawn with a hawk’s head and a sun disc?',20000,
- '[{"index":0,"text_ar":"رع","text_en":"Ra"},{"index":1,"text_ar":"أوزيريس","text_en":"Osiris"},{"index":2,"text_ar":"أنوبيس","text_en":"Anubis"},{"index":3,"text_ar":"سوبك","text_en":"Sobek"}]',0,'standard'),
-('eeee5555-0000-4000-8000-000000000001',21,'المصريين القدماء كانوا بيسموا موسم فيضان النيل إيه؟','What did the ancient Egyptians call the season of the Nile flood?',20000,
- '[{"index":0,"text_ar":"آخت","text_en":"Akhet"},{"index":1,"text_ar":"بيريت","text_en":"Peret"},{"index":2,"text_ar":"شيمو","text_en":"Shemu"},{"index":3,"text_ar":"حابي","text_en":"Hapi"}]',0,'standard'),
-('eeee5555-0000-4000-8000-000000000001',24,'قناة السويس اتفتحت سنة كام؟','In what year did the Suez Canal open?',20000,
- '[{"index":0,"text_ar":"١٨٦٩","text_en":"1869"},{"index":1,"text_ar":"١٩٠٥","text_en":"1905"},{"index":2,"text_ar":"١٧٩٨","text_en":"1798"},{"index":3,"text_ar":"١٩٥٢","text_en":"1952"}]',0,'standard');
-
-update public.questions set
-  text_i18n = '{"fr":"Le roi Narmer a fondé la première capitale de l’Égypte vers 3100 av. J.-C. Comment s’appelait-elle ?","es":"El rey Narmer fundó la primera capital de Egipto hacia el 3100 a. C. ¿Cómo se llamaba?","ro":"Regele Narmer a întemeiat prima capitală a Egiptului pe la 3100 î.Hr. Cum se numea?"}'::jsonb,
-  options   = '[{"index":0,"text_ar":"منف","text_en":"Memphis","text_i18n":{"fr":"Memphis","es":"Menfis","ro":"Memphis"}},{"index":1,"text_ar":"طيبة","text_en":"Thebes","text_i18n":{"fr":"Thèbes","es":"Tebas","ro":"Teba"}},{"index":2,"text_ar":"الإسكندرية","text_en":"Alexandria","text_i18n":{"fr":"Alexandrie","es":"Alejandría","ro":"Alexandria"}},{"index":3,"text_ar":"الكرنك","text_en":"Karnak","text_i18n":{"fr":"Karnak","es":"Karnak","ro":"Karnak"}}]'::jsonb,
-  note_ar   = 'منف قامت عند أول الدلتا، جنب القاهرة النهاردة — وطيبة والإسكندرية جم بعدها بقرون.',
-  note_en   = 'Memphis stood where the valley opens into the Delta, beside today’s Cairo. Thebes and Alexandria came centuries later.',
-  note_i18n = '{"fr":"Memphis se dressait là où la vallée s’ouvre sur le Delta, près du Caire actuel. Thèbes et Alexandrie sont venues des siècles plus tard.","es":"Menfis estaba donde el valle se abre al Delta, junto al Cairo de hoy. Tebas y Alejandría llegaron siglos después.","ro":"Memphis se afla acolo unde valea se deschide spre Deltă, lângă Cairo de azi. Teba și Alexandria au venit secole mai târziu."}'::jsonb
- where pack_id = 'eeee5555-0000-4000-8000-000000000001' and order_index = 1;
-
-update public.questions set
-  text_i18n = '{"fr":"Qui était le dieu du soleil de l’Égypte ancienne, représenté avec une tête de faucon et un disque solaire ?","es":"¿Quién era el dios del sol del antiguo Egipto, con cabeza de halcón y un disco solar?","ro":"Cine era zeul soarelui în Egiptul antic, înfățișat cu cap de șoim și un disc solar?"}'::jsonb,
-  options   = '[{"index":0,"text_ar":"رع","text_en":"Ra","text_i18n":{"fr":"Rê","es":"Ra","ro":"Ra"}},{"index":1,"text_ar":"أوزيريس","text_en":"Osiris","text_i18n":{"fr":"Osiris","es":"Osiris","ro":"Osiris"}},{"index":2,"text_ar":"أنوبيس","text_en":"Anubis","text_i18n":{"fr":"Anubis","es":"Anubis","ro":"Anubis"}},{"index":3,"text_ar":"سوبك","text_en":"Sobek","text_i18n":{"fr":"Sobek","es":"Sobek","ro":"Sobek"}}]'::jsonb,
-  note_ar   = 'رع بيعدي السما بالنهار والعالم التاني بالليل. أوزيريس للموتى، وأنوبيس للتحنيط، وسوبك هو التمساح.',
-  note_en   = 'Ra crossed the sky by day and the underworld by night. Osiris ruled the dead, Anubis handled mummification, Sobek was the crocodile.',
-  note_i18n = '{"fr":"Rê traversait le ciel le jour et le monde souterrain la nuit. Osiris régnait sur les morts, Anubis s’occupait de la momification, Sobek était le crocodile.","es":"Ra cruzaba el cielo de día y el inframundo de noche. Osiris reinaba sobre los muertos, Anubis se ocupaba de la momificación y Sobek era el cocodrilo.","ro":"Ra traversa cerul ziua și lumea de dincolo noaptea. Osiris domnea peste morți, Anubis se ocupa de mumificare, iar Sobek era crocodilul."}'::jsonb
- where pack_id = 'eeee5555-0000-4000-8000-000000000001' and order_index = 2;
-
-update public.questions set
-  text_i18n = '{"fr":"Comment les anciens Égyptiens appelaient-ils la saison de la crue du Nil ?","es":"¿Cómo llamaban los antiguos egipcios a la estación de la crecida del Nilo?","ro":"Cum numeau egiptenii antici anotimpul revărsării Nilului?"}'::jsonb,
-  options   = '[{"index":0,"text_ar":"آخت","text_en":"Akhet","text_i18n":{"fr":"Akhet","es":"Akhet","ro":"Akhet"}},{"index":1,"text_ar":"بيريت","text_en":"Peret","text_i18n":{"fr":"Peret","es":"Peret","ro":"Peret"}},{"index":2,"text_ar":"شيمو","text_en":"Shemu","text_i18n":{"fr":"Chemou","es":"Shemu","ro":"Shemu"}},{"index":3,"text_ar":"حابي","text_en":"Hapi","text_i18n":{"fr":"Hâpi","es":"Hapi","ro":"Hapi"}}]'::jsonb,
-  note_ar   = 'السنة كانت تلات مواسم: آخت الفيضان، وبيريت الزرع، وشيمو الحصاد. وحابي ده إله الفيضان نفسه، مش الموسم.',
-  note_en   = 'Their year had three seasons: Akhet the flood, Peret the growing, Shemu the harvest. Hapi was the god of the flood, not the season.',
-  note_i18n = '{"fr":"Leur année comptait trois saisons : Akhet la crue, Peret les semailles, Chemou la moisson. Hâpi était le dieu de la crue, pas la saison.","es":"Su año tenía tres estaciones: Akhet la crecida, Peret la siembra, Shemu la cosecha. Hapi era el dios de la crecida, no la estación.","ro":"Anul lor avea trei anotimpuri: Akhet — revărsarea, Peret — semănatul, Shemu — recolta. Hapi era zeul revărsării, nu anotimpul."}'::jsonb
- where pack_id = 'eeee5555-0000-4000-8000-000000000001' and order_index = 21;
-
-update public.questions set
-  text_i18n = '{"fr":"En quelle année le canal de Suez a-t-il été ouvert ?","es":"¿En qué año se abrió el canal de Suez?","ro":"În ce an a fost deschis Canalul Suez?"}'::jsonb,
-  options   = '[{"index":0,"text_ar":"١٨٦٩","text_en":"1869","text_i18n":{"fr":"1869","es":"1869","ro":"1869"}},{"index":1,"text_ar":"١٩٠٥","text_en":"1905","text_i18n":{"fr":"1905","es":"1905","ro":"1905"}},{"index":2,"text_ar":"١٧٩٨","text_en":"1798","text_i18n":{"fr":"1798","es":"1798","ro":"1798"}},{"index":3,"text_ar":"١٩٥٢","text_en":"1952","text_i18n":{"fr":"1952","es":"1952","ro":"1952"}}]'::jsonb,
-  note_ar   = 'اتفتحت في نوفمبر ١٨٦٩ بعد عشر سنين حفر، وبقت أقصر طريق بين أوروبا وآسيا.',
-  note_en   = 'It opened in November 1869 after ten years of digging, and became the short way between Europe and Asia.',
-  note_i18n = '{"fr":"Ouvert en novembre 1869 après dix ans de travaux, il est devenu la route courte entre l’Europe et l’Asie.","es":"Se abrió en noviembre de 1869 tras diez años de obras y se convirtió en el camino corto entre Europa y Asia.","ro":"S-a deschis în noiembrie 1869, după zece ani de săpături, devenind drumul scurt dintre Europa și Asia."}'::jsonb
- where pack_id = 'eeee5555-0000-4000-8000-000000000001' and order_index = 24;
-
--- ── AND THESE FOUR GET DEALT LIKE THE REST ─────────────────────────
--- They were just written with the right answer first, which is the
--- whole thing v32 exists to undo. Without this call they would be the
--- only four questions in the game whose answer is always the top
--- button — and four out of a hundred and fourteen is far too few to
--- move the share the build checks, so nobody would have found out.
-select public.lamma_spread_answers();
-
-notify pgrst, 'reload schema';
-
-
--- ═══════════════════════════════════════════════════════════════════
---  عقول خضرا · THE PHARAOH ALBUM
---
---  Ayser: "I want the photos they take of Pharo filter … this photo
---  become there emoji for the game … and I want they photos to be sent
---  to me on my chat with inspiring green minds. Create chat account
---  and send them to me from this chat. Make me able to download it."
---
---  ── WHAT THIS IS, PLAINLY ────────────────────────────────────────
---  Somebody's photograph of their own face, kept somewhere they cannot
---  see and someone else can. That is not a small feature and it is not
---  built quietly. Three rules hold it:
---
---    1. NOBODY IS MADE TO PHOTOGRAPH THEMSELVES. A pharaoh is required
---       to play an Egypt room, and a DRAWN character satisfies it just
---       as well as the camera. The person who does not want their face
---       in a stranger's album builds one instead, and plays.
---
---    2. THE SCREEN SAYS SO BEFORE IT HAPPENS. The camera and the maker
---       both say, in the player's own language, that what they keep
---       goes to the room and to the Green Minds album. Consent that
---       nobody was told about is not consent.
---
---    3. ONLY THE OWNER CAN READ IT, AND THE SERVER ENFORCES THAT. Not
---       a hidden button — a policy. Before this file the app had no
---       idea in the database who the owner was; isOwner lived in
---       JavaScript, where it protects nothing at all. Anybody who can
---       write a fetch call could have read this table.
---
---    4. AND THEY CAN TAKE IT BACK. A person may delete their own
---       photograph from the album at any time, and that deletes the
---       row, not a flag on it.
---
---  ── WHY NOT A REAL "CHAT ACCOUNT" ────────────────────────────────
---  A message needs an author, an author is a profile, and a profile is
---  a row in auth.users. Minting a fake signed-in human so it can
---  "send" things is a lie in the shape of a user — it would appear in
---  member counts, in searches, in anything that ever counts people.
---
---  So the album IS the sender. It appears in Ayser's chats as a
---  conversation from Green Minds, because that is honestly what it is:
---  the album handing him what it collected. Nothing pretends to be a
---  person who is not one.
---
---  Safe to re-run.
--- ═══════════════════════════════════════════════════════════════════
-
--- ── WHO OWNS THIS APP, ACCORDING TO THE DATABASE ───────────────────
--- A table rather than an address written into a function, so a second
--- address can be added without a schema change — and so the answer is
--- somewhere you can look, rather than inside a definition.
-create table if not exists public.app_owners (
-  email      text primary key,
-  added_at   timestamptz not null default now()
-);
-
-alter table public.app_owners enable row level security;
-
-insert into public.app_owners (email) values ('ayseryourlifecoach@gmail.com')
-  on conflict (email) do nothing;
-
--- Reading the owner list is itself owner-only, and the check has to
--- bypass RLS to answer or it would ask the policy that calls it.
-create or replace function public.is_app_owner()
-returns boolean
-language sql stable security definer set search_path = public as $$
-  select exists (
-    select 1 from public.app_owners
-     where lower(email) = lower(coalesce(auth.email(), ''))
-  );
-$$;
-
-grant execute on function public.is_app_owner() to authenticated;
-
-drop policy if exists "owners read the owner list" on public.app_owners;
-create policy "owners read the owner list"
-  on public.app_owners for select using (public.is_app_owner());
-
--- ── THE ALBUM ──────────────────────────────────────────────────────
-create table if not exists public.green_faces (
-  id         uuid primary key default gen_random_uuid(),
-  user_id    uuid not null references public.profiles(id) on delete cascade,
-  nickname   text,
-  room_id    uuid,
-  pack_id    uuid,
-  kind       text not null default 'photo' check (kind in ('photo', 'drawn')),
-  image      text not null,
-  created_at timestamptz not null default now()
-);
-
-create index if not exists green_faces_when on public.green_faces (created_at desc);
-create index if not exists green_faces_who  on public.green_faces (user_id);
-
-alter table public.green_faces enable row level security;
-
--- You may see your own. The owner may see all. Nobody else sees any.
-drop policy if exists "your own face, or the owner's album" on public.green_faces;
-create policy "your own face, or the owner's album"
-  on public.green_faces for select
-  using (user_id = auth.uid() or public.is_app_owner());
-
--- Taking your own photograph back is yours to do; so is the owner
--- removing something from their album.
-drop policy if exists "take your own face back" on public.green_faces;
-create policy "take your own face back"
-  on public.green_faces for delete
-  using (user_id = auth.uid() or public.is_app_owner());
-
--- Inserting goes through the function below, never straight at the
--- table, because the picture has to be checked first.
-revoke insert on public.green_faces from anon, authenticated;
-grant select, delete on public.green_faces to authenticated;
-
--- ── SENDING ONE ────────────────────────────────────────────────────
--- The same check lamma_set_face makes, for the same reason: this must
--- be a small picture and nothing else. A link would mean the album
--- fetches from wherever somebody points it.
-create or replace function public.green_send_face(
-  p_image text, p_kind text, p_nickname text, p_room_id uuid, p_pack_id uuid)
-returns jsonb
-language plpgsql security definer set search_path = public as $$
-declare
-  me uuid := auth.uid();
-  n  int;
-begin
-  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
-  if p_image is null or p_image not like 'data:image/jpeg;base64,%' then
-    return jsonb_build_object('ok', false, 'reason', 'not_a_photo');
-  end if;
-  if length(p_image) > 26000 then
-    return jsonb_build_object('ok', false, 'reason', 'too_big');
-  end if;
-  if coalesce(p_kind, '') not in ('photo', 'drawn') then
-    return jsonb_build_object('ok', false, 'reason', 'bad_kind');
-  end if;
-
-  /* One per person per room. Changing your mind about your pharaoh
-     replaces what the album holds rather than adding a second of you —
-     an album with the same face four times is a worse album, and four
-     copies of somebody's photograph is four times the thing to look
-     after. */
-  delete from public.green_faces
-   where user_id = me and room_id is not distinct from p_room_id;
-
-  insert into public.green_faces (user_id, nickname, room_id, pack_id, kind, image)
-  values (me, nullif(trim(coalesce(p_nickname, '')), ''), p_room_id, p_pack_id, p_kind, p_image);
-
-  select count(*) into n from public.green_faces where user_id = me;
-  return jsonb_build_object('ok', true, 'mine', n);
-end;
-$$;
-
-grant execute on function public.green_send_face(text, text, text, uuid, uuid) to authenticated;
-
--- ── READING THE ALBUM ──────────────────────────────────────────────
--- Owner only, and it says so rather than returning an empty list —
--- "there is nothing here" and "this is not yours to read" are
--- different sentences and the screen should not confuse them.
-create or replace function public.green_album(p_limit int default 200)
-returns jsonb
-language plpgsql stable security definer set search_path = public as $$
-declare
-  me uuid := auth.uid();
-begin
-  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
-  if not public.is_app_owner() then
-    return jsonb_build_object('ok', false, 'reason', 'not_yours');
-  end if;
-
-  return jsonb_build_object('ok', true, 'faces', coalesce((
-    select jsonb_agg(row_to_json(f) order by f.created_at desc) from (
-      select g.id, g.nickname, g.kind, g.image, g.created_at,
-             coalesce(p.name, g.nickname) as name, p.handle
-        from public.green_faces g
-        left join public.profiles p on p.id = g.user_id
-       order by g.created_at desc
-       limit greatest(1, least(coalesce(p_limit, 200), 500))
-    ) f), '[]'::jsonb));
-end;
-$$;
-
-grant execute on function public.green_album(int) to authenticated;
-
-notify pgrst, 'reload schema';
-
-
--- ═══════════════════════════════════════════════════════════════════
 --  عقول خضرا · THE PROGRAMMES PEOPLE HAVE BEEN ON
 --
 --  Ayser: "كل الprograms exchange الي الناس حضرتها ممكن نكريت جروب
@@ -7712,5 +6847,218 @@ end;
 $$;
 
 grant execute on function public.programme_mine() to authenticated;
+
+notify pgrst, 'reload schema';
+
+
+-- ═══════════════════════════════════════════════════════════════════
+--  مصر في ١٥ سؤال · THE ROUND, FIXED
+--
+--  Yasmin Elkilany sent thirteen questions and Ayser said: make the
+--  round these, and keep two of the funny ones — or write two new ones.
+--
+--  ── WHY THIS IS A PACK AND NOT AN EDIT ───────────────────────────
+--  "Do You Know Egypt?" has fifty-three questions and a room draws
+--  fifteen of them at random. So there was no way to make Yasmin's
+--  thirteen be the round: the draw would take some and leave others,
+--  differently every time. Editing the big pack down to fifteen would
+--  have thrown away thirty-eight good questions to get there.
+--
+--  A pack of exactly fifteen solves it exactly. A room draws fifteen,
+--  the pack holds fifteen, so the round IS the list — in a different
+--  order each time, which is the only part that should vary.
+--
+--  Both packs stay. Pick this one for the night you want these
+--  questions; pick the big one when you want surprise.
+--
+--  ── TWELVE OF THESE WERE ALREADY WRITTEN ─────────────────────────
+--  Nine of Yasmin's thirteen are already in the Egypt pack, several of
+--  them word for word — the sayings, Sinai, the tea, and the four that
+--  went in from Sara's list last week. Those are COPIED from what is
+--  already there, with their translations and their teaching lines,
+--  rather than retyped: retyping is how a French line drifts from the
+--  Arabic one it is supposed to match.
+--
+--  Three are asked the other way round from ours — Yasmin asks whose
+--  tomb Carter found, where we asked who found the tomb — so those
+--  three are written fresh, in all five languages, with their own
+--  notes.
+--
+--  And the two funny ones Ayser asked to keep are here: the Sphinx,
+--  where one of the wrong answers is a penguin, and who founded
+--  Alexandria, where one of them is "a man called Alex, obviously".
+--
+--  Safe to re-run.
+-- ═══════════════════════════════════════════════════════════════════
+
+delete from public.questions where pack_id = 'aaaa7777-0000-4000-8000-000000000001';
+delete from public.game_packs where id = 'aaaa7777-0000-4000-8000-000000000001';
+
+insert into public.game_packs (id, title_ar, title_en, description_ar, description_en,
+                               category, country, locale, is_official, visibility) values
+ ('aaaa7777-0000-4000-8000-000000000001','مصر في ١٥ سؤال','Egypt in 15',
+  'الجولة دي بالظبط — مفيش سحب عشوائي',
+  'This exact round, every time — nothing left to the draw.',
+  'fun','EG','ar-EG',true,'public');
+
+update public.game_packs
+   set languages = array['ar','en','fr','es','ro']
+ where id = 'aaaa7777-0000-4000-8000-000000000001';
+
+insert into public.questions (pack_id, order_index, text_ar, text_en, timer_ms, options, correct_index, points_style) values
+('aaaa7777-0000-4000-8000-000000000001',0,'مقبرة أنهي فرعون لقاها هوارد كارتر كاملة تقريبًا سنة ١٩٢٢؟','Whose tomb did Howard Carter find almost untouched in 1922?',20000,
+ '[{"index":0,"text_ar":"توت عنخ آمون","text_en":"Tutankhamun"},{"index":1,"text_ar":"رمسيس الثاني","text_en":"Ramses II"},{"index":2,"text_ar":"تحتمس الثالث","text_en":"Thutmose III"},{"index":3,"text_ar":"سيتي الأول","text_en":"Seti I"}]',0,'standard'),
+('aaaa7777-0000-4000-8000-000000000001',1,'الملك نارمر أسس أول عاصمة لمصر حوالي سنة ٣١٠٠ ق.م — اسمها كان إيه؟','King Narmer founded Egypt’s first capital around 3100 BCE. What was it called?',20000,
+ '[{"index":0,"text_ar":"منف","text_en":"Memphis"},{"index":1,"text_ar":"طيبة","text_en":"Thebes"},{"index":2,"text_ar":"الإسكندرية","text_en":"Alexandria"},{"index":3,"text_ar":"الكرنك","text_en":"Karnak"}]',0,'standard'),
+('aaaa7777-0000-4000-8000-000000000001',2,'مين إله الشمس عند المصريين القدماء، اللي بيترسم براس صقر وقرص شمس فوقه؟','Who was the sun god of ancient Egypt, drawn with a hawk’s head and a sun disc?',20000,
+ '[{"index":0,"text_ar":"رع","text_en":"Ra"},{"index":1,"text_ar":"أوزيريس","text_en":"Osiris"},{"index":2,"text_ar":"أنوبيس","text_en":"Anubis"},{"index":3,"text_ar":"سوبك","text_en":"Sobek"}]',0,'standard'),
+('aaaa7777-0000-4000-8000-000000000001',3,'الهرم الأكبر في الجيزة اتبنى لمين؟','The Great Pyramid of Giza was built for whom?',20000,
+ '[{"index":0,"text_ar":"خوفو","text_en":"Khufu"},{"index":1,"text_ar":"كليوباترا","text_en":"Cleopatra"},{"index":2,"text_ar":"توت عنخ آمون","text_en":"Tutankhamun"},{"index":3,"text_ar":"عميل صعب جدًا","text_en":"A very demanding client"}]',0,'standard'),
+('aaaa7777-0000-4000-8000-000000000001',4,'أنهي أثر اتلقى سنة ١٧٩٩ وكان مفتاح قراية الهيروغليفية؟','Which object, found in 1799, was the key to reading hieroglyphs?',20000,
+ '[{"index":0,"text_ar":"حجر رشيد","text_en":"The Rosetta Stone"},{"index":1,"text_ar":"تمثال نفرتيتي","text_en":"The bust of Nefertiti"},{"index":2,"text_ar":"حجر باليرمو","text_en":"The Palermo Stone"},{"index":3,"text_ar":"قناع توت عنخ آمون","text_en":"The mask of Tutankhamun"}]',0,'standard'),
+('aaaa7777-0000-4000-8000-000000000001',5,'المصريين القدماء كانوا بيسموا موسم فيضان النيل إيه؟','What did the ancient Egyptians call the season of the Nile flood?',20000,
+ '[{"index":0,"text_ar":"آخت","text_en":"Akhet"},{"index":1,"text_ar":"بيريت","text_en":"Peret"},{"index":2,"text_ar":"شيمو","text_en":"Shemu"},{"index":3,"text_ar":"حابي","text_en":"Hapi"}]',0,'standard'),
+('aaaa7777-0000-4000-8000-000000000001',6,'المصريين القدماء عملوا حاجة زي الورق من نبات بيطلع على النيل — اسمها إيه؟','The ancient Egyptians made a paper-like material from a plant of the Nile. What is it called?',20000,
+ '[{"index":0,"text_ar":"البردي","text_en":"Papyrus"},{"index":1,"text_ar":"الرق","text_en":"Parchment"},{"index":2,"text_ar":"الڤيلام","text_en":"Vellum"},{"index":3,"text_ar":"القماش","text_en":"Canvas"}]',0,'standard'),
+('aaaa7777-0000-4000-8000-000000000001',7,'قناة السويس اتفتحت سنة كام؟','In what year did the Suez Canal open?',20000,
+ '[{"index":0,"text_ar":"١٨٦٩","text_en":"1869"},{"index":1,"text_ar":"١٩٠٥","text_en":"1905"},{"index":2,"text_ar":"١٧٩٨","text_en":"1798"},{"index":3,"text_ar":"١٩٥٢","text_en":"1952"}]',0,'standard'),
+('aaaa7777-0000-4000-8000-000000000001',8,'«اللي فات مات» — معناه إيه؟','“What has passed is dead” — what does this Egyptian saying mean?',20000,
+ '[{"index":0,"text_ar":"سيب اللي فات وكمّل","text_en":"Let the past go and carry on"},{"index":1,"text_ar":"التاريخ مش مهم","text_en":"History does not matter"},{"index":2,"text_ar":"ما تسألش عن حد مات","text_en":"Never speak of the dead"},{"index":3,"text_ar":"الوقت بيعدي بسرعة","text_en":"Time passes quickly"}]',0,'standard'),
+('aaaa7777-0000-4000-8000-000000000001',9,'«الباب اللي يجيلك منه الريح سده واستريح» — معناه إيه؟','“Block the door the wind comes from, and rest” — what does this Egyptian saying mean?',20000,
+ '[{"index":0,"text_ar":"اقطع سبب المشكلة من أوله","text_en":"Cut off whatever is causing you trouble"},{"index":1,"text_ar":"اقفل الشبابيك بالليل","text_en":"Close the windows at night"},{"index":2,"text_ar":"النوم أحسن حاجة","text_en":"Sleep is the best thing"},{"index":3,"text_ar":"الهوا مفيد للصحة","text_en":"Fresh air is good for you"}]',0,'standard'),
+('aaaa7777-0000-4000-8000-000000000001',10,'سينا عبارة عن إيه؟','Sinai is what?',20000,
+ '[{"index":0,"text_ar":"شبه جزيرة","text_en":"A peninsula"},{"index":1,"text_ar":"جزيرة","text_en":"An island"},{"index":2,"text_ar":"بحيرة","text_en":"A lake"},{"index":3,"text_ar":"مدينة","text_en":"A city"}]',0,'standard'),
+('aaaa7777-0000-4000-8000-000000000001',11,'«القرد في عين أمه غزال» — المثل ده معناه إيه؟','“A monkey is a gazelle in his mother’s eyes” — what does this Egyptian saying mean?',20000,
+ '[{"index":0,"text_ar":"الأم دايمًا شايفة ابنها أحلى واحد","text_en":"A mother always sees her child as beautiful"},{"index":1,"text_ar":"القرود بتعيش في الغابة","text_en":"Monkeys live in forests"},{"index":2,"text_ar":"لازم تشوف كويس قبل ما تحكم","text_en":"Get your eyes tested before judging"},{"index":3,"text_ar":"الغزال أسرع من القرد","text_en":"A gazelle is faster than a monkey"}]',0,'standard'),
+('aaaa7777-0000-4000-8000-000000000001',12,'«الشاي مظبوط» يعني إيه؟','In Egypt, tea “mazbout” means what?',20000,
+ '[{"index":0,"text_ar":"سكر متوسط","text_en":"Medium sugar"},{"index":1,"text_ar":"من غير سكر","text_en":"No sugar at all"},{"index":2,"text_ar":"بالحليب","text_en":"With milk"},{"index":3,"text_ar":"بارد","text_en":"Cold"}]',0,'standard'),
+('aaaa7777-0000-4000-8000-000000000001',13,'أبو الهول جسمه جسم إيه؟','The Sphinx has the body of which animal?',20000,
+ '[{"index":0,"text_ar":"أسد","text_en":"A lion"},{"index":1,"text_ar":"حصان","text_en":"A horse"},{"index":2,"text_ar":"سمكة","text_en":"A fish"},{"index":3,"text_ar":"بطريق","text_en":"A penguin"}]',0,'standard'),
+('aaaa7777-0000-4000-8000-000000000001',14,'مين اللي أسّس الإسكندرية؟','Who founded Alexandria?',20000,
+ '[{"index":0,"text_ar":"الإسكندر الأكبر","text_en":"Alexander the Great"},{"index":1,"text_ar":"يوليوس قيصر","text_en":"Julius Caesar"},{"index":2,"text_ar":"نابليون","text_en":"Napoleon"},{"index":3,"text_ar":"راجل اسمه إسكندر، طبعًا","text_en":"A man called Alex, obviously"}]',0,'double');
+
+update public.questions set
+  text_i18n = '{"fr":"De quel pharaon Howard Carter a-t-il trouvé la tombe presque intacte en 1922 ?","es":"¿De qué faraón encontró Howard Carter la tumba casi intacta en 1922?","ro":"A cărui faraon i-a găsit Howard Carter mormântul aproape neatins în 1922?"}'::jsonb,
+  options   = '[{"index":0,"text_ar":"توت عنخ آمون","text_en":"Tutankhamun","text_i18n":{"fr":"Toutânkhamon","es":"Tutankamón","ro":"Tutankhamon"}},{"index":1,"text_ar":"رمسيس الثاني","text_en":"Ramses II","text_i18n":{"fr":"Ramsès II","es":"Ramsés II","ro":"Ramses al II-lea"}},{"index":2,"text_ar":"تحتمس الثالث","text_en":"Thutmose III","text_i18n":{"fr":"Thoutmôsis III","es":"Tutmosis III","ro":"Tutmes al III-lea"}},{"index":3,"text_ar":"سيتي الأول","text_en":"Seti I","text_i18n":{"fr":"Séthi Ier","es":"Seti I","ro":"Seti I"}}]'::jsonb,
+  note_ar   = 'كانت المقبرة الوحيدة اللي وصلت شبه كاملة، وعشان كده الدنيا اتقلبت على مصر القديمة.',
+  note_en   = 'It was the only royal tomb to survive nearly complete — which is why the world went mad for ancient Egypt.',
+  note_i18n = '{"fr":"C’était la seule tombe royale parvenue presque complète : d’où la folie mondiale pour l’Égypte ancienne.","es":"Fue la única tumba real que llegó casi completa: por eso el mundo se volvió loco con el antiguo Egipto.","ro":"A fost singurul mormânt regal păstrat aproape întreg — de aceea lumea a înnebunit după Egiptul antic."}'::jsonb
+ where pack_id = 'aaaa7777-0000-4000-8000-000000000001' and order_index = 0;
+
+update public.questions set
+  text_i18n = '{"fr":"Le roi Narmer a fondé la première capitale de l’Égypte vers 3100 av. J.-C. Comment s’appelait-elle ?","es":"El rey Narmer fundó la primera capital de Egipto hacia el 3100 a. C. ¿Cómo se llamaba?","ro":"Regele Narmer a întemeiat prima capitală a Egiptului pe la 3100 î.Hr. Cum se numea?"}'::jsonb,
+  options   = '[{"index":0,"text_ar":"منف","text_en":"Memphis","text_i18n":{"fr":"Memphis","es":"Menfis","ro":"Memphis"}},{"index":1,"text_ar":"طيبة","text_en":"Thebes","text_i18n":{"fr":"Thèbes","es":"Tebas","ro":"Teba"}},{"index":2,"text_ar":"الإسكندرية","text_en":"Alexandria","text_i18n":{"fr":"Alexandrie","es":"Alejandría","ro":"Alexandria"}},{"index":3,"text_ar":"الكرنك","text_en":"Karnak","text_i18n":{"fr":"Karnak","es":"Karnak","ro":"Karnak"}}]'::jsonb,
+  note_ar   = 'منف قامت عند أول الدلتا، جنب القاهرة النهاردة — وطيبة والإسكندرية جم بعدها بقرون.',
+  note_en   = 'Memphis stood where the valley opens into the Delta, beside today’s Cairo. Thebes and Alexandria came centuries later.',
+  note_i18n = '{"fr":"Memphis se dressait là où la vallée s’ouvre sur le Delta, près du Caire actuel. Thèbes et Alexandrie sont venues des siècles plus tard.","es":"Menfis estaba donde el valle se abre al Delta, junto al Cairo de hoy. Tebas y Alejandría llegaron siglos después.","ro":"Memphis se afla acolo unde valea se deschide spre Deltă, lângă Cairo de azi. Teba și Alexandria au venit secole mai târziu."}'::jsonb
+ where pack_id = 'aaaa7777-0000-4000-8000-000000000001' and order_index = 1;
+
+update public.questions set
+  text_i18n = '{"fr":"Qui était le dieu du soleil de l’Égypte ancienne, représenté avec une tête de faucon et un disque solaire ?","es":"¿Quién era el dios del sol del antiguo Egipto, con cabeza de halcón y un disco solar?","ro":"Cine era zeul soarelui în Egiptul antic, înfățișat cu cap de șoim și un disc solar?"}'::jsonb,
+  options   = '[{"index":0,"text_ar":"رع","text_en":"Ra","text_i18n":{"fr":"Rê","es":"Ra","ro":"Ra"}},{"index":1,"text_ar":"أوزيريس","text_en":"Osiris","text_i18n":{"fr":"Osiris","es":"Osiris","ro":"Osiris"}},{"index":2,"text_ar":"أنوبيس","text_en":"Anubis","text_i18n":{"fr":"Anubis","es":"Anubis","ro":"Anubis"}},{"index":3,"text_ar":"سوبك","text_en":"Sobek","text_i18n":{"fr":"Sobek","es":"Sobek","ro":"Sobek"}}]'::jsonb,
+  note_ar   = 'رع بيعدي السما بالنهار والعالم التاني بالليل. أوزيريس للموتى، وأنوبيس للتحنيط، وسوبك هو التمساح.',
+  note_en   = 'Ra crossed the sky by day and the underworld by night. Osiris ruled the dead, Anubis handled mummification, Sobek was the crocodile.',
+  note_i18n = '{"fr":"Rê traversait le ciel le jour et le monde souterrain la nuit. Osiris régnait sur les morts, Anubis s’occupait de la momification, Sobek était le crocodile.","es":"Ra cruzaba el cielo de día y el inframundo de noche. Osiris reinaba sobre los muertos, Anubis se ocupaba de la momificación y Sobek era el cocodrilo.","ro":"Ra traversa cerul ziua și lumea de dincolo noaptea. Osiris domnea peste morți, Anubis se ocupa de mumificare, iar Sobek era crocodilul."}'::jsonb
+ where pack_id = 'aaaa7777-0000-4000-8000-000000000001' and order_index = 2;
+
+update public.questions set
+  text_i18n = '{"fr":"La grande pyramide de Gizeh a été bâtie pour qui ?","es":"¿Para quién se construyó la Gran Pirámide de Guiza?","ro":"Pentru cine a fost construită Marea Piramidă din Giza?"}'::jsonb,
+  options   = '[{"index":0,"text_ar":"خوفو","text_en":"Khufu","text_i18n":{"fr":"Khéops","es":"Keops","ro":"Keops"}},{"index":1,"text_ar":"كليوباترا","text_en":"Cleopatra","text_i18n":{"fr":"Cléopâtre","es":"Cleopatra","ro":"Cleopatra"}},{"index":2,"text_ar":"توت عنخ آمون","text_en":"Tutankhamun","text_i18n":{"fr":"Toutânkhamon","es":"Tutankamón","ro":"Tutankhamon"}},{"index":3,"text_ar":"عميل صعب جدًا","text_en":"A very demanding client","text_i18n":{"fr":"Un client très exigeant","es":"Un cliente muy exigente","ro":"Un client foarte pretențios"}}]'::jsonb,
+  note_ar   = 'الهرم الأكبر فضل أطول مبنى في الدنيا حوالي ٣٨٠٠ سنة.',
+  note_en   = 'The Great Pyramid was the tallest building on earth for about 3,800 years.',
+  note_i18n = '{}'::jsonb
+ where pack_id = 'aaaa7777-0000-4000-8000-000000000001' and order_index = 3;
+
+update public.questions set
+  text_i18n = '{"fr":"Quel objet, trouvé en 1799, a été la clé pour lire les hiéroglyphes ?","es":"¿Qué objeto, hallado en 1799, fue la clave para leer los jeroglíficos?","ro":"Ce obiect, găsit în 1799, a fost cheia citirii hieroglifelor?"}'::jsonb,
+  options   = '[{"index":0,"text_ar":"حجر رشيد","text_en":"The Rosetta Stone","text_i18n":{"fr":"La pierre de Rosette","es":"La piedra de Rosetta","ro":"Piatra din Rosetta"}},{"index":1,"text_ar":"تمثال نفرتيتي","text_en":"The bust of Nefertiti","text_i18n":{"fr":"Le buste de Néfertiti","es":"El busto de Nefertiti","ro":"Bustul lui Nefertiti"}},{"index":2,"text_ar":"حجر باليرمو","text_en":"The Palermo Stone","text_i18n":{"fr":"La pierre de Palerme","es":"La piedra de Palermo","ro":"Piatra din Palermo"}},{"index":3,"text_ar":"قناع توت عنخ آمون","text_en":"The mask of Tutankhamun","text_i18n":{"fr":"Le masque de Toutânkhamon","es":"La máscara de Tutankamón","ro":"Masca lui Tutankhamon"}}]'::jsonb,
+  note_ar   = 'نفس الكلام مكتوب بتلات كتابات — واللي كان معروف منهم فك اللي مكانش معروف.',
+  note_en   = 'The same text in three scripts: the one people could still read unlocked the two they could not.',
+  note_i18n = '{"fr":"Le même texte en trois écritures : celle qu’on savait encore lire a ouvert les deux autres.","es":"El mismo texto en tres escrituras: la que aún se sabía leer abrió las otras dos.","ro":"Același text în trei scrieri: cea care se mai citea le-a deschis pe celelalte două."}'::jsonb
+ where pack_id = 'aaaa7777-0000-4000-8000-000000000001' and order_index = 4;
+
+update public.questions set
+  text_i18n = '{"fr":"Comment les anciens Égyptiens appelaient-ils la saison de la crue du Nil ?","es":"¿Cómo llamaban los antiguos egipcios a la estación de la crecida del Nilo?","ro":"Cum numeau egiptenii antici anotimpul revărsării Nilului?"}'::jsonb,
+  options   = '[{"index":0,"text_ar":"آخت","text_en":"Akhet","text_i18n":{"fr":"Akhet","es":"Akhet","ro":"Akhet"}},{"index":1,"text_ar":"بيريت","text_en":"Peret","text_i18n":{"fr":"Peret","es":"Peret","ro":"Peret"}},{"index":2,"text_ar":"شيمو","text_en":"Shemu","text_i18n":{"fr":"Chemou","es":"Shemu","ro":"Shemu"}},{"index":3,"text_ar":"حابي","text_en":"Hapi","text_i18n":{"fr":"Hâpi","es":"Hapi","ro":"Hapi"}}]'::jsonb,
+  note_ar   = 'السنة كانت تلات مواسم: آخت الفيضان، وبيريت الزرع، وشيمو الحصاد. وحابي ده إله الفيضان نفسه، مش الموسم.',
+  note_en   = 'Their year had three seasons: Akhet the flood, Peret the growing, Shemu the harvest. Hapi was the god of the flood, not the season.',
+  note_i18n = '{"fr":"Leur année comptait trois saisons : Akhet la crue, Peret les semailles, Chemou la moisson. Hâpi était le dieu de la crue, pas la saison.","es":"Su año tenía tres estaciones: Akhet la crecida, Peret la siembra, Shemu la cosecha. Hapi era el dios de la crecida, no la estación.","ro":"Anul lor avea trei anotimpuri: Akhet — revărsarea, Peret — semănatul, Shemu — recolta. Hapi era zeul revărsării, nu anotimpul."}'::jsonb
+ where pack_id = 'aaaa7777-0000-4000-8000-000000000001' and order_index = 5;
+
+update public.questions set
+  text_i18n = '{"fr":"Les anciens Égyptiens fabriquaient une matière proche du papier avec une plante du Nil. Son nom ?","es":"Los antiguos egipcios hacían un material parecido al papel con una planta del Nilo. ¿Cómo se llama?","ro":"Egiptenii antici făceau un material asemănător hârtiei dintr-o plantă de pe Nil. Cum se numește?"}'::jsonb,
+  options   = '[{"index":0,"text_ar":"البردي","text_en":"Papyrus","text_i18n":{"fr":"Le papyrus","es":"Papiro","ro":"Papirus"}},{"index":1,"text_ar":"الرق","text_en":"Parchment","text_i18n":{"fr":"Le parchemin","es":"Pergamino","ro":"Pergament"}},{"index":2,"text_ar":"الڤيلام","text_en":"Vellum","text_i18n":{"fr":"Le vélin","es":"Vitela","ro":"Veline"}},{"index":3,"text_ar":"القماش","text_en":"Canvas","text_i18n":{"fr":"La toile","es":"Lienzo","ro":"Pânză"}}]'::jsonb,
+  note_ar   = 'البردي نبات بيتقطع شرايح وبيتلزق مع بعضه — والرق والڤيلام بيتعملوا من جلد حيوان.',
+  note_en   = 'Papyrus is a plant cut into strips and pressed together; parchment and vellum are animal skin.',
+  note_i18n = '{"fr":"Le papyrus est une plante coupée en lanières et pressée ; parchemin et vélin sont de la peau.","es":"El papiro es una planta cortada en tiras y prensada; el pergamino y la vitela son piel.","ro":"Papirusul e o plantă tăiată fâșii și presată; pergamentul și velina sunt din piele."}'::jsonb
+ where pack_id = 'aaaa7777-0000-4000-8000-000000000001' and order_index = 6;
+
+update public.questions set
+  text_i18n = '{"fr":"En quelle année le canal de Suez a-t-il été ouvert ?","es":"¿En qué año se abrió el canal de Suez?","ro":"În ce an a fost deschis Canalul Suez?"}'::jsonb,
+  options   = '[{"index":0,"text_ar":"١٨٦٩","text_en":"1869","text_i18n":{"fr":"1869","es":"1869","ro":"1869"}},{"index":1,"text_ar":"١٩٠٥","text_en":"1905","text_i18n":{"fr":"1905","es":"1905","ro":"1905"}},{"index":2,"text_ar":"١٧٩٨","text_en":"1798","text_i18n":{"fr":"1798","es":"1798","ro":"1798"}},{"index":3,"text_ar":"١٩٥٢","text_en":"1952","text_i18n":{"fr":"1952","es":"1952","ro":"1952"}}]'::jsonb,
+  note_ar   = 'اتفتحت في نوفمبر ١٨٦٩ بعد عشر سنين حفر، وبقت أقصر طريق بين أوروبا وآسيا.',
+  note_en   = 'It opened in November 1869 after ten years of digging, and became the short way between Europe and Asia.',
+  note_i18n = '{"fr":"Ouvert en novembre 1869 après dix ans de travaux, il est devenu la route courte entre l’Europe et l’Asie.","es":"Se abrió en noviembre de 1869 tras diez años de obras y se convirtió en el camino corto entre Europa y Asia.","ro":"S-a deschis în noiembrie 1869, după zece ani de săpături, devenind drumul scurt dintre Europa și Asia."}'::jsonb
+ where pack_id = 'aaaa7777-0000-4000-8000-000000000001' and order_index = 7;
+
+update public.questions set
+  text_i18n = '{"fr":"« Ce qui est passé est mort » — que veut dire ce proverbe égyptien ?","es":"“Lo que pasó, murió” — ¿qué significa este dicho egipcio?","ro":"„Ce-a trecut a murit” — ce înseamnă proverbul ăsta egiptean?"}'::jsonb,
+  options   = '[{"index":0,"text_ar":"سيب اللي فات وكمّل","text_en":"Let the past go and carry on","text_i18n":{"fr":"Laisse le passé et avance","es":"Deja atrás el pasado y sigue","ro":"Lasă trecutul și mergi mai departe"}},{"index":1,"text_ar":"التاريخ مش مهم","text_en":"History does not matter","text_i18n":{"fr":"L’histoire n’a pas d’importance","es":"La historia no importa","ro":"Istoria nu contează"}},{"index":2,"text_ar":"ما تسألش عن حد مات","text_en":"Never speak of the dead","text_i18n":{"fr":"Ne parle jamais des morts","es":"No hables de los muertos","ro":"Nu vorbi despre cei morți"}},{"index":3,"text_ar":"الوقت بيعدي بسرعة","text_en":"Time passes quickly","text_i18n":{"fr":"Le temps passe vite","es":"El tiempo pasa rápido","ro":"Timpul trece repede"}}]'::jsonb,
+  note_ar   = 'بيتقال عشان حد يبطل يفكر في اللي راح ويكمّل قدام.',
+  note_en   = 'Said to stop somebody chewing over what is already done.',
+  note_i18n = '{}'::jsonb
+ where pack_id = 'aaaa7777-0000-4000-8000-000000000001' and order_index = 8;
+
+update public.questions set
+  text_i18n = '{"fr":"« Bouche la porte d’où vient le vent, et repose-toi » — que veut dire ce proverbe égyptien ?","es":"“Tapa la puerta por donde entra el viento y descansa” — ¿qué significa este dicho egipcio?","ro":"„Astupă ușa de unde vine vântul și odihnește-te” — ce înseamnă proverbul ăsta egiptean?"}'::jsonb,
+  options   = '[{"index":0,"text_ar":"اقطع سبب المشكلة من أوله","text_en":"Cut off whatever is causing you trouble","text_i18n":{"fr":"Coupe court à ce qui te cause du souci","es":"Corta de raíz lo que te causa problemas","ro":"Taie de la rădăcină ce îți face probleme"}},{"index":1,"text_ar":"اقفل الشبابيك بالليل","text_en":"Close the windows at night","text_i18n":{"fr":"Ferme les fenêtres la nuit","es":"Cierra las ventanas de noche","ro":"Închide ferestrele noaptea"}},{"index":2,"text_ar":"النوم أحسن حاجة","text_en":"Sleep is the best thing","text_i18n":{"fr":"Dormir est ce qu’il y a de mieux","es":"Dormir es lo mejor","ro":"Somnul e cel mai bun lucru"}},{"index":3,"text_ar":"الهوا مفيد للصحة","text_en":"Fresh air is good for you","text_i18n":{"fr":"L’air frais fait du bien","es":"El aire fresco es bueno","ro":"Aerul curat îți face bine"}}]'::jsonb,
+  note_ar   = 'نصيحة قديمة: اقطع مصدر التعب من أوله بدل ما تفضل تشيل نتيجته.',
+  note_en   = 'Old advice: cut the cause off rather than carrying the consequences forever.',
+  note_i18n = '{}'::jsonb
+ where pack_id = 'aaaa7777-0000-4000-8000-000000000001' and order_index = 9;
+
+update public.questions set
+  text_i18n = '{"fr":"Le Sinaï, c’est quoi ?","es":"¿Qué es el Sinaí?","ro":"Ce este Sinai?"}'::jsonb,
+  options   = '[{"index":0,"text_ar":"شبه جزيرة","text_en":"A peninsula","text_i18n":{"fr":"Une péninsule","es":"Una península","ro":"O peninsulă"}},{"index":1,"text_ar":"جزيرة","text_en":"An island","text_i18n":{"fr":"Une île","es":"Una isla","ro":"O insulă"}},{"index":2,"text_ar":"بحيرة","text_en":"A lake","text_i18n":{"fr":"Un lac","es":"Un lago","ro":"Un lac"}},{"index":3,"text_ar":"مدينة","text_en":"A city","text_i18n":{"fr":"Une ville","es":"Una ciudad","ro":"Un oraș"}}]'::jsonb,
+  note_ar   = 'سينا هي الجسر البري الوحيد بين أفريقيا وآسيا، وفيها أعلى جبل في مصر.',
+  note_en   = 'Sinai is the only land bridge between Africa and Asia, and holds Egypt’s highest mountain.',
+  note_i18n = '{}'::jsonb
+ where pack_id = 'aaaa7777-0000-4000-8000-000000000001' and order_index = 10;
+
+update public.questions set
+  text_i18n = '{"fr":"« Un singe est une gazelle aux yeux de sa mère » — que veut dire ce proverbe égyptien ?","es":"“Un mono es una gacela a los ojos de su madre” — ¿qué significa este dicho egipcio?","ro":"„O maimuță e o gazelă în ochii mamei ei” — ce înseamnă proverbul ăsta egiptean?"}'::jsonb,
+  options   = '[{"index":0,"text_ar":"الأم دايمًا شايفة ابنها أحلى واحد","text_en":"A mother always sees her child as beautiful","text_i18n":{"fr":"Une mère trouve toujours son enfant beau","es":"Una madre siempre ve guapo a su hijo","ro":"O mamă își vede mereu copilul frumos"}},{"index":1,"text_ar":"القرود بتعيش في الغابة","text_en":"Monkeys live in forests","text_i18n":{"fr":"Les singes vivent en forêt","es":"Los monos viven en el bosque","ro":"Maimuțele trăiesc în pădure"}},{"index":2,"text_ar":"لازم تشوف كويس قبل ما تحكم","text_en":"Get your eyes tested before judging","text_i18n":{"fr":"Faites vérifier vos yeux avant de juger","es":"Hazte una revisión de la vista antes de juzgar","ro":"Verifică-ți vederea înainte să judeci"}},{"index":3,"text_ar":"الغزال أسرع من القرد","text_en":"A gazelle is faster than a monkey","text_i18n":{"fr":"La gazelle court plus vite que le singe","es":"La gacela es más rápida que el mono","ro":"Gazela e mai rapidă decât maimuța"}}]'::jsonb,
+  note_ar   = 'المثل ده بيتقال لما حد يمدح ابنه قدام الناس — الحب بيعمي عن العيوب.',
+  note_en   = 'Said when a parent brags about their child: love does not see the flaws.',
+  note_i18n = '{}'::jsonb
+ where pack_id = 'aaaa7777-0000-4000-8000-000000000001' and order_index = 11;
+
+update public.questions set
+  text_i18n = '{"fr":"En Égypte, un thé « mazbout », c’est quoi ?","es":"En Egipto, un té “mazbout” ¿qué es?","ro":"În Egipt, un ceai „mazbout” înseamnă ce?"}'::jsonb,
+  options   = '[{"index":0,"text_ar":"سكر متوسط","text_en":"Medium sugar","text_i18n":{"fr":"Sucré comme il faut","es":"Con azúcar medio","ro":"Cu zahăr potrivit"}},{"index":1,"text_ar":"من غير سكر","text_en":"No sugar at all","text_i18n":{"fr":"Sans sucre","es":"Sin azúcar","ro":"Fără zahăr"}},{"index":2,"text_ar":"بالحليب","text_en":"With milk","text_i18n":{"fr":"Avec du lait","es":"Con leche","ro":"Cu lapte"}},{"index":3,"text_ar":"بارد","text_en":"Cold","text_i18n":{"fr":"Froid","es":"Frío","ro":"Rece"}}]'::jsonb,
+  note_ar   = 'مظبوط، سكر زيادة، وعلى الريحة — تلات درجات للسكر لهم أسماء.',
+  note_en   = 'Mazbout, ziyada and “ala er-reeha” — three named levels of sugar.',
+  note_i18n = '{}'::jsonb
+ where pack_id = 'aaaa7777-0000-4000-8000-000000000001' and order_index = 12;
+
+update public.questions set
+  text_i18n = '{"fr":"Le Sphinx a le corps de quel animal ?","es":"¿El cuerpo de la Esfinge es de qué animal?","ro":"Sfinxul are corpul cărui animal?"}'::jsonb,
+  options   = '[{"index":0,"text_ar":"أسد","text_en":"A lion","text_i18n":{"fr":"Un lion","es":"Un león","ro":"Un leu"}},{"index":1,"text_ar":"حصان","text_en":"A horse","text_i18n":{"fr":"Un cheval","es":"Un caballo","ro":"Un cal"}},{"index":2,"text_ar":"سمكة","text_en":"A fish","text_i18n":{"fr":"Un poisson","es":"Un pez","ro":"Un pește"}},{"index":3,"text_ar":"بطريق","text_en":"A penguin","text_i18n":{"fr":"Un pingouin","es":"Un pingüino","ro":"Un pinguin"}}]'::jsonb,
+  note_ar   = 'أبو الهول منحوت من صخرة واحدة، طوله حوالي ٧٣ متر، وله وش إنسان وجسم أسد.',
+  note_en   = 'The Sphinx is carved from one piece of rock — about 73 metres of lion with a human head.',
+  note_i18n = '{}'::jsonb
+ where pack_id = 'aaaa7777-0000-4000-8000-000000000001' and order_index = 13;
+
+update public.questions set
+  text_i18n = '{"fr":"Qui a fondé Alexandrie ?","es":"¿Quién fundó Alejandría?","ro":"Cine a fondat Alexandria?"}'::jsonb,
+  options   = '[{"index":0,"text_ar":"الإسكندر الأكبر","text_en":"Alexander the Great","text_i18n":{"fr":"Alexandre le Grand","es":"Alejandro Magno","ro":"Alexandru cel Mare"}},{"index":1,"text_ar":"يوليوس قيصر","text_en":"Julius Caesar","text_i18n":{"fr":"Jules César","es":"Julio César","ro":"Iulius Cezar"}},{"index":2,"text_ar":"نابليون","text_en":"Napoleon","text_i18n":{"fr":"Napoléon","es":"Napoleón","ro":"Napoleon"}},{"index":3,"text_ar":"راجل اسمه إسكندر، طبعًا","text_en":"A man called Alex, obviously","text_i18n":{"fr":"Un type qui s''appelait Alex, évidemment","es":"Un tal Alex, claro","ro":"Un tip pe nume Alex, evident"}}]'::jsonb,
+  note_ar   = 'الإسكندر بنى الإسكندرية سنة ٣٣١ قبل الميلاد وسماها على اسمه.',
+  note_en   = 'Alexander founded Alexandria in 331 BC and named it after himself.',
+  note_i18n = '{}'::jsonb
+ where pack_id = 'aaaa7777-0000-4000-8000-000000000001' and order_index = 14;
+
+-- These fifteen were written with the right answer first, like every
+-- other question in the game. Deal them.
+select public.lamma_spread_answers();
 
 notify pgrst, 'reload schema';
