@@ -51,7 +51,20 @@
 --  Safe to re-run.
 -- ═══════════════════════════════════════════════════════════════════
 
-do $$
+/* A FUNCTION, not a bare block, so that a file added AFTER this one
+   can re-deal the questions it just wrote. The first version was an
+   anonymous DO block, which meant every later pack would have been
+   inserted with its answer first and never shuffled — and it would
+   have been invisible: a handful of unshuffled questions among a
+   hundred shuffled ones does not move the share enough to trip the
+   build's check. Adding four questions was about to do exactly that.
+
+   Not security definer, and execute is taken off PUBLIC below: this
+   rewrites rows, and nothing a signed-in player can call has any
+   business doing that. It is for the setup run, which is the owner. */
+create or replace function public.lamma_spread_answers()
+returns int
+language plpgsql as $$
 declare
   r         record;
   reordered jsonb;
@@ -104,7 +117,12 @@ begin
      this number stays roughly constant and the questions do not move.
      Measured: three consecutive applications, identical every time. */
   raise notice 'spread the answers: % question(s) moved off the authored order, % left alone', moved, skipped;
+  return moved;
 end $$;
+
+revoke all on function public.lamma_spread_answers() from public;
+
+select public.lamma_spread_answers();
 
 -- ── AND IT MUST NOT COME BACK ──────────────────────────────────────
 -- The fix above is data, not code, so the next pack somebody writes
