@@ -20,6 +20,7 @@ import { CaptureModal } from '../components/CaptureModal';
 import { sendMoment } from '../services/messages';
 import { ChatThread } from './ChatThread';
 import { AlbumSheet } from '../components/green/AlbumSheet';
+import { ProgrammesSheet } from '../components/green/ProgrammesSheet';
 import { isOwner } from '../services/music';
 import { tapLight, tapSelection, tapSuccess, tapCelebrate } from '../utils/feedback';
 import { isUnread, markThreadSeen } from '../lib/seen';
@@ -108,6 +109,7 @@ export const ChatsScreen = () => {
   const [thread, setThread] = useState(null); // { chat, group }
   const [composing, setComposing] = useState(false); // new-message search sheet
   const [albumOpen, setAlbumOpen] = useState(false);  // the Green Minds album
+  const [progOpen, setProgOpen] = useState(false);    // exchanges & programmes
   /* Whether this row is drawn at all. It is a convenience, never the
      protection: the server refuses green_album() to anybody who is not
      an owner regardless of what any screen chooses to show. */
@@ -433,6 +435,35 @@ export const ChatsScreen = () => {
         </Glass>
       </Pressable>
     ) : null}
+
+    {/* ── EXCHANGES ───────────────────────────────────────────────
+        A group per programme somebody has actually been on — Erasmus
+        and everything like it. Everyone sees this one: the whole point
+        is finding the people you were there with, and a directory only
+        the owner can read would find nobody anything.
+
+        It sits under Green Minds because that is where it belongs —
+        the same corner of the app, the same idea. */}
+    <Pressable onPress={() => { tapLight(); setProgOpen(true); }} style={{ marginBottom: 6 }}>
+      <Glass style={{ flexDirection: 'row', alignItems: 'center', padding: 13 }}>
+        <View style={{
+          width: 46, height: 46, borderRadius: 23, backgroundColor: 'rgba(31,122,90,0.14)',
+          borderWidth: 1, borderColor: 'rgba(31,122,90,0.4)',
+          alignItems: 'center', justifyContent: 'center',
+        }}>
+          <Text style={{ fontSize: 21 }}>🎒</Text>
+        </View>
+        <View style={{ flex: 1, minWidth: 0, marginStart: 12 }}>
+          <Text numberOfLines={1} style={{ color: C.text, fontSize: 15.5, fontWeight: '900' }}>
+            {t('prog_title')}
+          </Text>
+          <Text numberOfLines={1} style={{ color: C.faint, fontSize: 12.5, marginTop: 2 }}>
+            {t('prog_row_sub')}
+          </Text>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={C.faint} />
+      </Glass>
+    </Pressable>
 
     {/* ── MATE REQUESTS — real friend requests waiting on you ── */}
     {mateRequests.length ? (
@@ -903,6 +934,20 @@ export const ChatsScreen = () => {
 
     {/* the pharaohs people made, and the buttons that save them */}
     {albumOpen ? <AlbumSheet onClose={() => setAlbumOpen(false)} /> : null}
+
+    {/* the programmes, and the group chat behind each one */}
+    {progOpen ? (
+      <ProgrammesSheet
+        onClose={() => setProgOpen(false)}
+        onOpenGroup={(p) => {
+          /* Straight into the squad thread the app already has —
+             opening it here rather than inventing a second chat is the
+             entire reason a programme is a squad. */
+          setProgOpen(false);
+          setThread({ chat: { id: p.squad_id, name: p.title, emoji: p.emoji }, group: true });
+        }}
+      />
+    ) : null}
 
     {/* pull-down camera → shoot → pick who gets it */}
     {shooting ? (
