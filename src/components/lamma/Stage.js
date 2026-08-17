@@ -42,6 +42,11 @@ export const StageBody = ({
   question, lang, status, index, total,
   joinCode, playerCount, timerMs, result,
   isHost, onShowOptions, onNext,
+  /* inline: this is the presenter's own screen inside the game, not
+     the shared-screen modal. The app's header is already above it
+     carrying the room code and a way out, so drawing a second code
+     and a second close button is one room code too many. */
+  inline = false,
   t,
 }) => {
   const { width, height } = useWindowDimensions();
@@ -69,6 +74,13 @@ export const StageBody = ({
     <View style={{ flex: 1, backgroundColor: '#0B0620', padding: pad }}>
 
         {/* the room, along the top: who is in it and how they get in */}
+        {inline ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: wide ? 14 : 10 }}>
+            <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: wide ? 16 : 12.5, fontWeight: '900' }}>
+              {playerCount} · {(index + 1)}/{total}
+            </Text>
+          </View>
+        ) : (
         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: wide ? 18 : 12 }}>
           <Pressable onPress={onClose} hitSlop={12}>
             <Ionicons name="close" size={wide ? 30 : 24} color="rgba(255,255,255,0.55)" />
@@ -85,6 +97,7 @@ export const StageBody = ({
             {playerCount} · {(index + 1)}/{total}
           </Text>
         </View>
+        )}
 
         {/* the clock — only once there is one to run */}
         {showChoices && !revealed ? (
@@ -98,8 +111,18 @@ export const StageBody = ({
           </View>
         ) : null}
 
-        {/* the question, as big as it can honestly be */}
-        <View style={{ flex: showChoices ? 0 : 1, justifyContent: 'center' }}>
+        {/* the question, as big as it can honestly be. The top margin
+            is not decoration: without it the first line of a long
+            question rides up over the countdown bar. */}
+        {/* NOT flex: 0. React Native reads that as "size to your
+            content"; react-native-web compiles it to flex: 0 0 0%,
+            which sets the basis to zero and collapses this box to a
+            height of 0 — so the question painted straight over the
+            countdown bar above it. Measured: the container reported
+            h=0 while its text sat 30px higher than its own top edge.
+            Leaving flex undefined is how you say "size to content" in
+            both. This was wrong on the shared screen too, since v27. */}
+        <View style={{ flex: showChoices ? undefined : 1, justifyContent: 'center', marginTop: wide ? 10 : 8 }}>
           <View style={{ flexDirection: wide && question && question.media_url ? 'row' : 'column', alignItems: 'center' }}>
             {question && question.media_url ? (
               <Image

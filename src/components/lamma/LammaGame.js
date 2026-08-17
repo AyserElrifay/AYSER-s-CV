@@ -14,7 +14,7 @@ import { EgyptMeter } from './EgyptMeter';
 import { PharaohCam } from './PharaohCam';
 import { CharacterSheet } from './CharacterSheet';
 import { sendFaceToAlbum } from '../../services/green';
-import { Stage } from './Stage';
+import { Stage, StageBody } from './Stage';
 import { Face } from './Face';
 import { Podium } from './Podium';
 import {
@@ -96,6 +96,11 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
   const hasFace = !!(me && typeof me.avatar_key === 'string'
     && me.avatar_key.indexOf('data:image/jpeg;base64,') === 0);
   const needsFace = !!(state && state.pack_country === 'EG' && !hasFace);
+
+  /* Presenting rather than playing. Read off the server's answer, not
+     off a local flag, so a host who set it on one phone and opened the
+     room on another gets the same screen. */
+  const presenting = !!(state && state.im_playing === false);
 
   /* ── WHICH QUESTION IS "QUESTION FOUR" ────────────────────────────
      The ROOM decides, not the pack. A room draws fifteen of the pack's
@@ -234,12 +239,12 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
      screen is a convenience and not the permission. */
   const chooseTimer = async (ms) => {
     tapLight();
-    const r = await setRoom(roomId, ms, null, null, null, null);
+    const r = await setRoom(roomId, ms, null, null, null, null, null);
     if (r && r.ok) refresh();
   };
   const toggleLock = async () => {
     tapLight();
-    const r = await setRoom(roomId, null, !state.locked, null, null, null);
+    const r = await setRoom(roomId, null, !state.locked, null, null, null, null);
     if (r && r.ok) refresh();
   };
   /* Bolting the seat: this room has one host and it is not up for
@@ -249,7 +254,18 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
      somebody sitting in front of the screen. */
   const toggleHostLock = async () => {
     tapLight();
-    const r = await setRoom(roomId, null, null, null, null, !state.host_locked);
+    const r = await setRoom(roomId, null, null, null, null, !state.host_locked, null);
+    if (r && r.ok) refresh();
+  };
+  /* "I read them out, I don't answer." Takes the host off the board,
+     out of the final ranking, and makes the server refuse their
+     answers — see supabase/schema_v38_presenter.sql. Their score goes
+     with them: a presenter who played the first three questions must
+     not keep three questions' worth of points on a ranking they are
+     no longer on. */
+  const togglePresenting = async () => {
+    tapLight();
+    const r = await setRoom(roomId, null, null, null, null, null, presenting);
     if (r && r.ok) refresh();
   };
   /* Re-draws the round, so it is a different fifteen as well as a
@@ -257,7 +273,7 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
      the questions under a game that has started. */
   const chooseRound = async (n) => {
     tapLight();
-    const r = await setRoom(roomId, null, null, n, null, null);
+    const r = await setRoom(roomId, null, null, n, null, null, null);
     if (r && r.ok) refresh();
   };
   const removePlayer = async (id) => {
@@ -275,7 +291,7 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
     tapLight();
     setStageOpen(true);
     if (isHost && !state.read_first) {
-      const r = await setRoom(roomId, null, null, null, true, null);
+      const r = await setRoom(roomId, null, null, null, true, null, null);
       if (r && r.ok) refresh();
     }
   };
@@ -472,7 +488,7 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
               full of people — which is most people, some of the time.
               So the drawn one counts, and it is the button on the
               left. */}
-          {needsFace ? (
+          {needsFace && !presenting ? (
             <View style={{
               backgroundColor: C.goldSoft, borderWidth: 1.5, borderColor: C.gold,
               borderRadius: 18, padding: 14, marginBottom: 12,
@@ -489,7 +505,7 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
             </View>
           ) : null}
 
-          {state.pack_country === 'EG' ? (
+          {state.pack_country === 'EG' && !presenting ? (
             <View style={{ flexDirection: 'row', marginBottom: 20 }}>
               <Pressable onPress={() => { tapLight(); setCharOpen(true); }} style={{ flex: 1, marginEnd: 8 }}>
                 <View style={{
@@ -627,6 +643,36 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
                 {t('lamma_one_host')}
               </Text>
             ) : null}
+
+            {/* ── READING THEM OUT, OR ANSWERING THEM ──────────────
+                Holding the phone that shows the questions and being
+                on the leaderboard is not a competition. Off by
+                default: somebody playing at a table with four friends
+                is the host AND a player, and that is most rooms. */}
+            {isHost ? (
+              <Pressable onPress={togglePresenting} style={{ marginTop: 8 }}>
+                <View style={{
+                  flexDirection: 'row', alignItems: 'center',
+                  backgroundColor: presenting ? C.blueSoft : C.glass,
+                  borderWidth: 1, borderColor: presenting ? C.blue : C.line,
+                  borderRadius: 14, paddingHorizontal: 13, paddingVertical: 11,
+                }}>
+                  <MaterialCommunityIcons
+                    name={presenting ? 'presentation' : 'account-multiple-outline'}
+                    size={17} color={presenting ? C.blue : C.faint} />
+                  <View style={{ flex: 1, minWidth: 0, marginStart: 9 }}>
+                    <Text style={{ color: presenting ? C.blue : C.text, fontSize: 13, fontWeight: '800' }}>
+                      {presenting ? t('lamma_presenting_on') : t('lamma_presenting_off')}
+                    </Text>
+                    {presenting ? (
+                      <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '700', marginTop: 2 }}>
+                        {t('lamma_presenting_note')}
+                      </Text>
+                    ) : null}
+                  </View>
+                </View>
+              </Pressable>
+            ) : null}
           </View>
 
           {/* ── HOW LONG IS THE ROUND ───────────────────────────────
@@ -680,9 +726,13 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
           {/* ── THE HOST GOES LAST ──────────────────────────────────
               Nobody starts an Egypt room without a pharaoh, and the
               host is nobody's exception — the person running it is the
-              one everybody copies. The button says what is missing
-              rather than going grey and leaving them to guess, which
-              is the difference between a rule and a broken screen.
+              one everybody copies. Unless they are not playing: a
+              presenter has no seat on the board and no face to put on
+              it, so the rule does not apply to them.
+
+              The button says what is missing rather than going grey
+              and leaving them to guess, which is the difference
+              between a rule and a broken screen.
 
               It only holds the HOST back. Blocking the start until
               every last person in the room has one would hand any
@@ -692,16 +742,16 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
               refusing to begin. */}
           {isHost ? (
             <Pressable
-              onPress={() => (needsFace ? setCharOpen(true) : next())}
+              onPress={() => (needsFace && !presenting ? setCharOpen(true) : next())}
               disabled={busy}
               style={{ marginTop: 20 }}>
               <View style={{
-                backgroundColor: needsFace ? C.goldSoft : C.purple,
-                borderWidth: needsFace ? 1.5 : 0, borderColor: C.gold,
+                backgroundColor: needsFace && !presenting ? C.goldSoft : C.purple,
+                borderWidth: needsFace && !presenting ? 1.5 : 0, borderColor: C.gold,
                 borderRadius: 999, paddingVertical: 15, alignItems: 'center',
               }}>
-                <Text style={{ color: needsFace ? C.gold : '#FFF', fontSize: 16, fontWeight: '900' }}>
-                  {needsFace ? t('lamma_face_first') : t('lamma_start_game')}
+                <Text style={{ color: needsFace && !presenting ? C.gold : '#FFF', fontSize: 16, fontWeight: '900' }}>
+                  {needsFace && !presenting ? t('lamma_face_first') : t('lamma_start_game')}
                 </Text>
               </View>
             </Pressable>
@@ -737,7 +787,7 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
           the seconds that takes belong to nobody's timer. Everybody
           sees the same words at the same moment; the choices, and the
           clock, arrive together when the host says so. */}
-      {!ended && state.status === 'reading' && q ? (
+      {!ended && !presenting && state.status === 'reading' && q ? (
         <View style={{ flex: 1, paddingHorizontal: 16, justifyContent: 'center' }}>
           <Text style={{ color: C.faint, fontSize: 12, fontWeight: '800', marginBottom: 10, textAlign: 'center' }}>
             {(state.question_index + 1)} / {total}
@@ -758,8 +808,48 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
         </View>
       ) : null}
 
+      {/* ── THE PRESENTER'S OWN SCREEN ──────────────────────────────
+          Somebody reading the questions out needs the question big and
+          the four choices readable across a room — not four buttons to
+          tap, because they are not answering. That view already exists
+          for the shared screen, so it is the same component here,
+          inline rather than in a modal, and it sizes itself off the
+          window: portrait on a phone being held up, wide on a laptop
+          plugged into a television.
+
+          They still get the reveal and the standings underneath, which
+          is what makes them able to say "four of you got that" out
+          loud. */}
+      {!ended && presenting && state.status !== 'lobby' && q ? (
+        <View style={{ flex: 1 }}>
+          <View style={{ flex: 1 }}>
+            <StageBody
+              question={q}
+              lang={playLang}
+              status={state.status}
+              index={state.question_index}
+              total={total}
+              joinCode={joinCode}
+              playerCount={(players || []).length}
+              timerMs={state.timer_ms}
+              result={result}
+              isHost={isHost}
+              onShowOptions={revealChoices}
+              onNext={next}
+              inline
+              t={t}
+            />
+          </View>
+          {result && (players || []).length > 1 ? (
+            <View style={{ paddingHorizontal: 16, paddingTop: 4, paddingBottom: insets.bottom + 8 }}>
+              <Standings players={players} meId={null} questionIndex={state.question_index} t={t} />
+            </View>
+          ) : null}
+        </View>
+      ) : null}
+
       {/* ── A QUESTION, AND ITS REVEAL ── */}
-      {!ended && state.status !== 'lobby' && state.status !== 'reading' && q ? (
+      {!ended && !presenting && state.status !== 'lobby' && state.status !== 'reading' && q ? (
         <View style={{ flex: 1 }}>
           <QuestionCard
             question={q}

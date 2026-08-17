@@ -39,7 +39,7 @@ export const advance = (roomId) => rpc('lamma_advance', { p_room_id: roomId });
    anybody who is not hosting — see supabase/schema_v24_lamma_host.sql
    and supabase/schema_v33_lamma_closed_room.sql. Pass null for a
    setting you are not changing. */
-export const setRoom = (roomId, timerMs, locked, round, readFirst, hostLocked) =>
+export const setRoom = (roomId, timerMs, locked, round, readFirst, hostLocked, hostPlays) =>
   rpc('lamma_set_room', {
     p_room_id: roomId,
     p_timer_ms: timerMs == null ? null : timerMs,
@@ -47,6 +47,10 @@ export const setRoom = (roomId, timerMs, locked, round, readFirst, hostLocked) =
     p_round: round == null ? null : round,     // 0 = the whole pack
     p_read_first: readFirst == null ? null : !!readFirst,
     p_host_locked: hostLocked == null ? null : !!hostLocked,
+    /* false means the host is reading the questions out rather than
+       answering them: off the board, out of the ranking, and their
+       answers refused by the server. */
+    p_host_plays: hostPlays == null ? null : !!hostPlays,
   });
 
 /* The second half of a question when the room reads first: the choices
