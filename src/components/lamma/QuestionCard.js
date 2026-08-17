@@ -1,12 +1,71 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, Pressable, Image } from 'react-native';
+import { View, Text, Pressable, Image, Animated, Easing } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { C } from '../../constants/theme';
 import { channelFor } from './channels';
 import { Strip, useCountdown, distributionSegments } from './Strip';
 import { createQuestionClock } from '../../lib/lammaClock';
 import { say, sayNote } from './languages';
+import { wantsStill } from './Podium';
 import { tapMedium, tapSuccess, tapError } from '../../utils/feedback';
+
+/* ── THE FOUR ARRIVING, AND THE ONE THAT WAS RIGHT ─────────────────
+   Two small movements, both of them saying something the still screen
+   was already saying more quietly.
+
+   ARRIVING: the tiles come in one after another, 45ms apart. It reads
+   as the question being dealt out rather than the screen redrawing,
+   and it gives the eye a reason to start at the top.
+
+   LANDING: when the answer is revealed the correct tile takes one
+   beat bigger and settles. On a screen where four tiles are already
+   four colours, the one that MOVES is the one you look at.
+
+   At module scope on purpose. Declared inside QuestionCard it would be
+   a new component type on every render and React would throw every
+   tile away and rebuild it — which is the exact fault
+   scripts/check-rerender.mjs exists to catch, and it has caught it
+   here before. */
+const STAGGER_MS = 45;
+
+const Tile = React.memo(({ index, questionId, isRight, children }) => {
+  const still = wantsStill();
+  const arrive = useRef(new Animated.Value(still ? 1 : 0)).current;
+  const pop = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (still) { arrive.setValue(1); return undefined; }
+    arrive.setValue(0);
+    const a = Animated.timing(arrive, {
+      toValue: 1, duration: 260, delay: index * STAGGER_MS,
+      easing: Easing.out(Easing.cubic), useNativeDriver: true,
+    });
+    a.start();
+    return () => a.stop();
+  }, [questionId, index, still, arrive]);
+
+  useEffect(() => {
+    if (!isRight || still) return undefined;
+    const a = Animated.sequence([
+      Animated.timing(pop, { toValue: 1, duration: 160, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+      Animated.timing(pop, { toValue: 0, duration: 220, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+    ]);
+    a.start();
+    return () => a.stop();
+  }, [isRight, still, pop]);
+
+  return (
+    <Animated.View style={{
+      opacity: arrive,
+      transform: [
+        { translateY: arrive.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) },
+        { scale: pop.interpolate({ inputRange: [0, 1], outputRange: [1, 1.035] }) },
+      ],
+    }}>
+      {children}
+    </Animated.View>
+  );
+});
 
 /* ─── لمّة · A QUESTION ON A PHONE ───────────────────────────────────
    The whole game happens on this screen, so the rules it follows are
@@ -122,7 +181,8 @@ export const QuestionCard = ({
           const isMineWrong = revealed && mine && !isRight;
 
           return (
-            <Pressable key={i} onPress={() => choose(i)} disabled={picked !== null || revealed}>
+            <Tile key={i} index={i} questionId={question && question.id} isRight={isRight}>
+            <Pressable onPress={() => choose(i)} disabled={picked !== null || revealed}>
               <View style={{
                 flexDirection: 'row', alignItems: 'center',
                 backgroundColor: isRight ? ch.color : isMineWrong ? C.glassHi : mine ? ch.soft : C.glass,
@@ -176,6 +236,7 @@ export const QuestionCard = ({
                 ) : null}
               </View>
             </Pressable>
+            </Tile>
           );
         })}
       </View>

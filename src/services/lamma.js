@@ -32,18 +32,21 @@ export const joinRoom = (code) => rpc('lamma_join_room', { p_code: String(code |
 
 export const advance = (roomId) => rpc('lamma_advance', { p_room_id: roomId });
 
-/* The host's three levers, and nobody else's: how long a question
-   lasts, whether the door is open, and who is in the room. The server
-   refuses all three from anybody who is not hosting — see
-   supabase/schema_v24_lamma_host.sql. Pass null for a setting you are
-   not changing. */
-export const setRoom = (roomId, timerMs, locked, round, readFirst) =>
+/* The host's levers, and nobody else's: how long a question lasts,
+   whether the door is open, how long the round is, whether the question
+   is read out before the choices appear, and whether the host's own
+   seat can be taken over. The server refuses every one of them from
+   anybody who is not hosting — see supabase/schema_v24_lamma_host.sql
+   and supabase/schema_v33_lamma_closed_room.sql. Pass null for a
+   setting you are not changing. */
+export const setRoom = (roomId, timerMs, locked, round, readFirst, hostLocked) =>
   rpc('lamma_set_room', {
     p_room_id: roomId,
     p_timer_ms: timerMs == null ? null : timerMs,
     p_locked: locked == null ? null : !!locked,
     p_round: round == null ? null : round,     // 0 = the whole pack
     p_read_first: readFirst == null ? null : !!readFirst,
+    p_host_locked: hostLocked == null ? null : !!hostLocked,
   });
 
 /* The second half of a question when the room reads first: the choices

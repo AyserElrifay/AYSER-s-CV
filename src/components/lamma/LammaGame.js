@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { View, Text, Pressable, ScrollView, ActivityIndicator, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { C } from '../../constants/theme';
 import { useLang } from '../../context/LanguageContext';
 import { useAuth } from '../../context/AuthContext';
@@ -12,8 +12,10 @@ import { LangPicker } from './LangPicker';
 import { PLAY_LANGS, playLangFor, say } from './languages';
 import { EgyptMeter } from './EgyptMeter';
 import { PharaohCam } from './PharaohCam';
+import { CharacterSheet } from './CharacterSheet';
 import { Stage } from './Stage';
 import { Face } from './Face';
+import { Podium } from './Podium';
 import {
   advance, submitAnswer, reveal as revealRpc, sync as syncRpc,
   fetchPackQuestions, fetchRoomPlayers, subscribeRoom, nudge, claimHost, setConnected,
@@ -73,6 +75,12 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
   const [showLangs, setShowLangs] = useState(false);
   const [results, setResults] = useState(null);      // right answers, at the end
   const [camOpen, setCamOpen] = useState(false);     // the pharaoh camera
+  const [charOpen, setCharOpen] = useState(false);   // the character maker
+  /* The last look they built, kept for the length of this screen so
+     reopening the maker starts where they left off rather than back at
+     the default. It is not worth storing anywhere: the character on
+     the seat is the thing that matters, and the server has that. */
+  const [myLook, setMyLook] = useState(null);
   const [stageOpen, setStageOpen] = useState(false); // the shared screen
   const hostGoneSince = useRef(null);
 
@@ -155,9 +163,17 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
   }, [state && state.status, state && state.question_index, q && q.id, result, roomId, refresh]);
 
   /* Nobody driving? After ten seconds anybody may take the wheel. The
-     server decides who actually gets it. */
+     server decides who actually gets it.
+
+     Unless the host has bolted the seat. Running the evening on a
+     shared screen, a phone that locks itself for ninety seconds looked
+     exactly like a host who had left, and somebody else was promoted
+     mid-round. A bolted seat is refused by the server too — this is
+     only about not asking. */
   useEffect(() => {
-    if (!state || isHost || state.status === 'ended') { hostGoneSince.current = null; return undefined; }
+    if (!state || isHost || state.host_locked || state.status === 'ended') {
+      hostGoneSince.current = null; return undefined;
+    }
     const hostHere = (players || []).some((p) => p.user_id === state.host_user_id && p.is_connected !== false);
     if (hostHere) { hostGoneSince.current = null; return undefined; }
     if (!hostGoneSince.current) hostGoneSince.current = Date.now();
@@ -207,12 +223,22 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
      screen is a convenience and not the permission. */
   const chooseTimer = async (ms) => {
     tapLight();
-    const r = await setRoom(roomId, ms, null, null, null);
+    const r = await setRoom(roomId, ms, null, null, null, null);
     if (r && r.ok) refresh();
   };
   const toggleLock = async () => {
     tapLight();
-    const r = await setRoom(roomId, null, !state.locked, null, null);
+    const r = await setRoom(roomId, null, !state.locked, null, null, null);
+    if (r && r.ok) refresh();
+  };
+  /* Bolting the seat: this room has one host and it is not up for
+     grabs. Off by default and never inherited — a bolted seat and a
+     host who really has gone is a room nobody can advance, which is a
+     worse evening than the one it prevents. So it is a choice made by
+     somebody sitting in front of the screen. */
+  const toggleHostLock = async () => {
+    tapLight();
+    const r = await setRoom(roomId, null, null, null, null, !state.host_locked);
     if (r && r.ok) refresh();
   };
   /* Re-draws the round, so it is a different fifteen as well as a
@@ -220,7 +246,7 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
      the questions under a game that has started. */
   const chooseRound = async (n) => {
     tapLight();
-    const r = await setRoom(roomId, null, null, n, null);
+    const r = await setRoom(roomId, null, null, n, null, null);
     if (r && r.ok) refresh();
   };
   const removePlayer = async (id) => {
@@ -238,7 +264,7 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
     tapLight();
     setStageOpen(true);
     if (isHost && !state.read_first) {
-      const r = await setRoom(roomId, null, null, null, true);
+      const r = await setRoom(roomId, null, null, null, true, null);
       if (r && r.ok) refresh();
     }
   };
@@ -338,6 +364,18 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
         />
       ) : null}
 
+      {/* The character maker. Mounted only while open, same as the
+          camera — and it needs no permission from anybody, which is
+          the point of having both. */}
+      {charOpen ? (
+        <CharacterSheet
+          roomId={roomId}
+          initial={myLook}
+          onClose={() => setCharOpen(false)}
+          onSaved={(look) => { setMyLook(look); refresh(); }}
+        />
+      ) : null}
+
       {/* Opened from the header pill, closes on choosing. Sits over
           nothing — it pushes the game down for a second rather than
           covering the question somebody is still reading. */}
@@ -386,22 +424,43 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
             <LangPicker value={playLang} onChange={setPlayLang} label={t('lamma_question_lang')} />
           </View>
 
-          {/* And who will you be? Only where the regalia belongs — a
-              nemes headcloth on a European football night is fancy
-              dress, and this is not that. */}
+          {/* ── AND WHO WILL YOU BE ─────────────────────────────────
+              Two ways, and neither is the lesser one. BUILD is a
+              pharaoh drawn from parts — no camera, no photograph of
+              you in a room full of people, and it works on a phone
+              that has refused the camera permission. PHOTO is your own
+              face under the headdress.
+
+              Only where the regalia belongs. A nemes headcloth on a
+              European football night is fancy dress, and this is not
+              that. */}
           {state.pack_country === 'EG' ? (
-            <Pressable onPress={() => { tapLight(); setCamOpen(true); }} style={{ marginBottom: 20 }}>
-              <View style={{
-                flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-                backgroundColor: C.glass, borderWidth: 1, borderColor: C.gold,
-                borderRadius: 999, paddingVertical: 12, paddingHorizontal: 16,
-              }}>
-                <Text style={{ fontSize: 16 }}>📸</Text>
-                <Text style={{ color: C.text, fontSize: 14, fontWeight: '900', marginStart: 8, flexShrink: 1 }} numberOfLines={1}>
-                  {t('lamma_face_cta')}
-                </Text>
-              </View>
-            </Pressable>
+            <View style={{ flexDirection: 'row', marginBottom: 20 }}>
+              <Pressable onPress={() => { tapLight(); setCharOpen(true); }} style={{ flex: 1, marginEnd: 8 }}>
+                <View style={{
+                  flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+                  backgroundColor: C.goldSoft, borderWidth: 1.5, borderColor: C.gold,
+                  borderRadius: 999, paddingVertical: 12, paddingHorizontal: 12,
+                }}>
+                  <Text style={{ fontSize: 16 }}>👑</Text>
+                  <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '900', marginStart: 7, flexShrink: 1 }} numberOfLines={1}>
+                    {t('lamma_char_cta')}
+                  </Text>
+                </View>
+              </Pressable>
+              <Pressable onPress={() => { tapLight(); setCamOpen(true); }} style={{ flex: 1 }}>
+                <View style={{
+                  flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+                  backgroundColor: C.glass, borderWidth: 1, borderColor: C.line,
+                  borderRadius: 999, paddingVertical: 12, paddingHorizontal: 12,
+                }}>
+                  <Text style={{ fontSize: 16 }}>📸</Text>
+                  <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '900', marginStart: 7, flexShrink: 1 }} numberOfLines={1}>
+                    {t('lamma_face_cta')}
+                  </Text>
+                </View>
+              </Pressable>
+            </View>
           ) : null}
 
           {/* ── ONE HOST, AND THESE ARE THEIRS ──────────────────────
@@ -452,6 +511,34 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
                 {state.locked ? t('lamma_locked') : t('lamma_host_decides')}
               </Text>
             )}
+
+            {/* ── AND WHOSE ROOM IT IS ────────────────────────────
+                The door and the seat are two different things. The
+                lock above stops new people walking in. This stops the
+                room handing itself to somebody else when the host's
+                phone goes dark for a minute — which is what happened
+                on the shared screen, mid-round. */}
+            {isHost ? (
+              <Pressable onPress={toggleHostLock} style={{ marginTop: 8 }}>
+                <View style={{
+                  flexDirection: 'row', alignItems: 'center',
+                  backgroundColor: state.host_locked ? C.goldSoft : C.glass,
+                  borderWidth: 1, borderColor: state.host_locked ? C.gold : C.line,
+                  borderRadius: 14, paddingHorizontal: 13, paddingVertical: 11,
+                }}>
+                  <MaterialCommunityIcons
+                    name={state.host_locked ? 'crown' : 'crown-outline'}
+                    size={17} color={state.host_locked ? C.gold : C.faint} />
+                  <Text style={{ color: state.host_locked ? C.gold : C.text, fontSize: 13, fontWeight: '800', marginStart: 9, flex: 1, minWidth: 0 }}>
+                    {state.host_locked ? t('lamma_my_room_on') : t('lamma_my_room_off')}
+                  </Text>
+                </View>
+              </Pressable>
+            ) : state.host_locked ? (
+              <Text style={{ color: C.faint, fontSize: 12.5, fontWeight: '700', marginTop: 8 }}>
+                {t('lamma_one_host')}
+              </Text>
+            ) : null}
           </View>
 
           {/* ── HOW LONG IS THE ROUND ───────────────────────────────
@@ -593,10 +680,25 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
       {ended ? (
         <ScrollView contentContainerStyle={{ padding: 16 }}>
           <Text style={{ color: C.text, fontSize: 24, fontWeight: '900', marginBottom: 16 }}>{t('lamma_final_rank')}</Text>
-          <View onLayout={(e) => setBarW(e.nativeEvent.layout.width)} style={{ marginBottom: 18 }}>
+
+          {/* The three on blocks, rising, with the room watching. Only
+              when there IS a room: a podium with one person on it is a
+              sad picture, and playing alone is a perfectly good way to
+              play. */}
+          <View onLayout={(e) => setBarW(e.nativeEvent.layout.width)}>
+            {(players || []).length > 1 ? (
+              <Podium players={players} meId={user && user.id} width={barW} t={t} />
+            ) : null}
+          </View>
+          <View style={{ marginBottom: 18 }}>
             <StripLabel>{t('lamma_final')}</StripLabel>
             <Strip mode="leaderboard" width={barW} segments={leaderboardSegments(players)} />
           </View>
+          {(players || []).length > 1 ? (
+            <Text style={{ color: C.faint, fontSize: 11, fontWeight: '900', letterSpacing: 1, marginBottom: 10 }}>
+              {t('lamma_everyone')}
+            </Text>
+          ) : null}
           {/* EVERY PLAYER IS ON IT, in order, with their number. Three
               medals and then a thinner list underneath was two
               different screens: the people below third came out looking
