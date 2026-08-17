@@ -166,17 +166,81 @@ async function askClaude(key: string, system: string, messages: any[]): Promise<
 // no per-message credits). The owner sets GROQ_API_KEY once and Bardi
 // works online for everyone with no limits to speak of. Runs open models
 // (Llama), so it fits the "free forever" goal without a paid Claude key.
-async function askGroq(key: string, system: string, messages: any[]): Promise<string> {
-  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+//
+// ── THE MODEL IS ASKED FOR, NOT ASSUMED ───────────────────────────────
+// This said model: "llama-3.3-70b-versatile" for months and then Bardi
+// stopped answering anybody, with a 404 the app showed as a generic
+// failure: "The model does not exist or you do not have access to it."
+// Groq had retired it. Nothing in the app had changed.
+//
+// Writing a different name in its place would only restart the same
+// clock, so instead the function asks Groq what it is actually serving
+// and takes the first name off a preference list that is really there.
+// The next retirement moves Bardi down the list instead of taking it
+// off the air.
+//
+// The answer is cached for the life of a warm instance — one extra
+// request every few minutes at worst — and thrown away if a model
+// vanishes mid-conversation, so a retirement in the middle of an
+// evening costs one retry rather than the evening.
+const GROQ_PREFERRED = [
+  "openai/gpt-oss-120b",
+  "moonshotai/kimi-k2-instruct",
+  "llama-3.3-70b-versatile",
+  "qwen/qwen3-32b",
+  "openai/gpt-oss-20b",
+  "llama-3.1-8b-instant",
+  "llama3-70b-8192",
+  "gemma2-9b-it",
+];
+
+// Whisper transcribes, TTS speaks, guard classifies, embeddings embed.
+// None of them will hold a conversation, and one of them being first
+// alphabetically is not a reason to send Bardi's chat to it.
+const NOT_FOR_CHAT = /whisper|tts|embed|guard|transcri/i;
+
+let groqModel: string | null = null;
+
+async function pickGroqModel(key: string): Promise<string> {
+  if (groqModel) return groqModel;
+  const res = await fetch("https://api.groq.com/openai/v1/models", {
+    headers: { "authorization": "Bearer " + key },
+  });
+  if (!res.ok) throw new Error("groq models " + res.status + " " + (await res.text()).slice(0, 200));
+  const j = await res.json();
+  const have: string[] = (j.data || [])
+    .map((m: any) => String(m.id || ""))
+    .filter((id: string) => id && !NOT_FOR_CHAT.test(id));
+  if (!have.length) throw new Error("groq serves no chat model this key can use");
+  groqModel = GROQ_PREFERRED.find((m) => have.includes(m)) || have[0];
+  return groqModel;
+}
+
+async function askGroqOnce(key: string, model: string, system: string, messages: any[]) {
+  return await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
     headers: { "content-type": "application/json", "authorization": "Bearer " + key },
     body: JSON.stringify({
-      model: "llama-3.3-70b-versatile",
+      model,
       max_tokens: 1024,
       temperature: 0.7,
       messages: [{ role: "system", content: system }, ...messages.map((m) => ({ role: m.role, content: m.content }))],
     }),
   });
+}
+
+async function askGroq(key: string, system: string, messages: any[]): Promise<string> {
+  let model = await pickGroqModel(key);
+  let res = await askGroqOnce(key, model, system, messages);
+
+  // retired between the list and the question, or between one message
+  // and the next: forget what we chose and choose again, once
+  if (res.status === 404) {
+    groqModel = null;
+    model = await pickGroqModel(key);
+    res = await askGroqOnce(key, model, system, messages);
+  }
+
   if (!res.ok) throw new Error("groq " + res.status + " " + (await res.text()).slice(0, 200));
   const j = await res.json();
   return (j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content) || "";
