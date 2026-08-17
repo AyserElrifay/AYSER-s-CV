@@ -19,6 +19,8 @@ import { Page, ScreenHeader, SectionHeader, Glass, Chip, Tick, AvatarStack, Stre
 import { CaptureModal } from '../components/CaptureModal';
 import { sendMoment } from '../services/messages';
 import { ChatThread } from './ChatThread';
+import { AlbumSheet } from '../components/green/AlbumSheet';
+import { isOwner } from '../services/music';
 import { tapLight, tapSelection, tapSuccess, tapCelebrate } from '../utils/feedback';
 import { isUnread, markThreadSeen } from '../lib/seen';
 import { setupNotice } from '../lib/plumbing';
@@ -105,6 +107,11 @@ export const ChatsScreen = () => {
   const { t } = useLang();
   const [thread, setThread] = useState(null); // { chat, group }
   const [composing, setComposing] = useState(false); // new-message search sheet
+  const [albumOpen, setAlbumOpen] = useState(false);  // the Green Minds album
+  /* Whether this row is drawn at all. It is a convenience, never the
+     protection: the server refuses green_album() to anybody who is not
+     an owner regardless of what any screen chooses to show. */
+  const owner = isOwner(user);
   const [composeQ, setComposeQ] = useState('');
   const [composeResults, setComposeResults] = useState([]);
   const [composeBusy, setComposeBusy] = useState(false);
@@ -392,6 +399,40 @@ export const ChatsScreen = () => {
         </Pressable>
       }
     />
+
+    {/* ── GREEN MINDS ─────────────────────────────────────────────
+        The album, sitting in the chats where Ayser asked for it, as a
+        conversation from Green Minds. It is not a person and does not
+        pretend to be one: no profile was invented so that something
+        could appear to send these, because a fake human turns up in
+        member counts and searches forever afterwards. The sender is
+        the album, which is honestly what collected them.
+
+        Only the owner sees this row, and — far more importantly —
+        only the owner can read what is behind it. The server refuses
+        anybody else, by policy, whether or not this row is drawn. */}
+    {owner ? (
+      <Pressable onPress={() => { tapLight(); setAlbumOpen(true); }} style={{ marginBottom: 6 }}>
+        <Glass style={{ flexDirection: 'row', alignItems: 'center', padding: 13 }}>
+          <View style={{
+            width: 46, height: 46, borderRadius: 23, backgroundColor: 'rgba(31,122,90,0.14)',
+            borderWidth: 1, borderColor: 'rgba(31,122,90,0.4)',
+            alignItems: 'center', justifyContent: 'center',
+          }}>
+            <Text style={{ fontSize: 21 }}>🌿</Text>
+          </View>
+          <View style={{ flex: 1, minWidth: 0, marginStart: 12 }}>
+            <Text numberOfLines={1} style={{ color: C.text, fontSize: 15.5, fontWeight: '900' }}>
+              {t('green_album')}
+            </Text>
+            <Text numberOfLines={1} style={{ color: C.faint, fontSize: 12.5, marginTop: 2 }}>
+              {t('green_album_sub')}
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={C.faint} />
+        </Glass>
+      </Pressable>
+    ) : null}
 
     {/* ── MATE REQUESTS — real friend requests waiting on you ── */}
     {mateRequests.length ? (
@@ -859,6 +900,9 @@ export const ChatsScreen = () => {
         onClose={() => { if (!thread.group && thread.chat) markThreadSeen(thread.chat.threadId); setThread(null); }}
       />
     ) : null}
+
+    {/* the pharaohs people made, and the buttons that save them */}
+    {albumOpen ? <AlbumSheet onClose={() => setAlbumOpen(false)} /> : null}
 
     {/* pull-down camera → shoot → pick who gets it */}
     {shooting ? (

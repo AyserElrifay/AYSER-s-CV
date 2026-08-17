@@ -6,6 +6,7 @@ import { C } from '../../constants/theme';
 import { useLang } from '../../context/LanguageContext';
 import { tapLight, tapSuccess } from '../../utils/feedback';
 import { setFace } from '../../services/lamma';
+import { sendFaceToAlbum } from '../../services/green';
 import { SKINS, HEADS, COLLARS, EYES, BEARDS, DEFAULT_LOOK, bakePharaoh } from './pharaohArt';
 
 /* ─── لمّة · WHO ARE YOU TONIGHT ─────────────────────────────────────
@@ -24,11 +25,20 @@ import { SKINS, HEADS, COLLARS, EYES, BEARDS, DEFAULT_LOOK, bakePharaoh } from '
    Baking is a few milliseconds of arithmetic on a 224px square, which
    is cheaper than the re-render it happens inside.
 
-   ── AND IT IS OPTIONAL ────────────────────────────────────────────
-   A seat with no face shows the first letter of a name, which is not a
-   lesser option — it is what a name looks like. Nobody is made to
-   build a character before they can play, and there is a way out of
-   this screen that changes nothing.                                  */
+   ── REQUIRED IN AN EGYPT ROOM, AND THAT IS THE POINT OF IT ────────
+   Ayser asked that everybody arrive as a pharaoh, and a podium of six
+   pharaohs is worth looking at where six grey initials are not. So an
+   Egypt room asks for one before it starts.
+
+   Which is exactly why this screen has to exist. "You must be a
+   pharaoh" is a costume anybody can put on. "You must photograph your
+   face" is a different demand, and it would quietly shut out everyone
+   who does not want their picture taken in a room full of people —
+   most people, some of the time. Building one counts for the same
+   thing, needs no camera and no permission, and asks nobody for their
+   face.
+
+   There is still a way out of this screen that changes nothing.      */
 
 /* ── A CHOICE SHOWS ITSELF ─────────────────────────────────────────
    Each option is a small render of what tapping it would do — the
@@ -77,7 +87,7 @@ const Row = ({ label, children }) => (
   </View>
 );
 
-export const CharacterSheet = ({ roomId, initial, onClose, onSaved }) => {
+export const CharacterSheet = ({ roomId, packId, nickname, initial, onClose, onSaved }) => {
   const insets = useSafeAreaInsets();
   const { t } = useLang();
   const [look, setLook] = useState({ ...DEFAULT_LOOK, ...(initial || {}) });
@@ -102,6 +112,12 @@ export const CharacterSheet = ({ roomId, initial, onClose, onSaved }) => {
     if (busy || !uri) return;
     setBusy(true); setFailed(false);
     const r = await setFace(roomId, uri);
+    /* The album is a second, independent thing. It is sent AFTER the
+       seat and its failure is not this screen's failure: if the album
+       is unreachable the player still has their pharaoh and still
+       plays. The reverse — refusing to seat somebody because an album
+       did not answer — would be absurd. */
+    if (r && r.ok) { try { await sendFaceToAlbum(uri, 'drawn', nickname, roomId, packId); } catch (e) {} }
     setBusy(false);
     if (r && r.ok) {
       tapSuccess();
@@ -143,8 +159,16 @@ export const CharacterSheet = ({ roomId, initial, onClose, onSaved }) => {
               </View>
             )}
           </View>
-          <Text style={{ color: C.faint, fontSize: 12.5, textAlign: 'center', marginBottom: 18, lineHeight: 18 }}>
+          <Text style={{ color: C.faint, fontSize: 12.5, textAlign: 'center', marginBottom: 6, lineHeight: 18 }}>
             {t('lamma_char_sub')}
+          </Text>
+          {/* Said here too, for the same reason it is said on the
+              camera: what you keep goes to the room and to the Green
+              Minds album. A drawn one is not a photograph of anybody,
+              but it is still yours, and being told is not something
+              you should have to earn by choosing the camera. */}
+          <Text style={{ color: C.faint, fontSize: 11.5, textAlign: 'center', marginBottom: 18, lineHeight: 16 }}>
+            {t('lamma_face_shared')}
           </Text>
 
           <Row label={t('lamma_char_head')}>

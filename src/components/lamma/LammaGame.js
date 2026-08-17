@@ -13,6 +13,7 @@ import { PLAY_LANGS, playLangFor, say } from './languages';
 import { EgyptMeter } from './EgyptMeter';
 import { PharaohCam } from './PharaohCam';
 import { CharacterSheet } from './CharacterSheet';
+import { sendFaceToAlbum } from '../../services/green';
 import { Stage } from './Stage';
 import { Face } from './Face';
 import { Podium } from './Podium';
@@ -85,6 +86,16 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
   const hostGoneSince = useRef(null);
 
   const isHost = state ? state.is_host : initialHost;
+
+  /* ── HAVE YOU GOT A PHARAOH YET ───────────────────────────────────
+     Read off the seat the server knows about, not off a flag this
+     screen keeps: a player who built one on another phone, or before
+     a reload, already has it and must not be asked again. */
+  const me = (players || []).find((p) => p.user_id === (user && user.id)) || null;
+  const myName = (me && me.nickname) || (user && user.user_metadata && user.user_metadata.name) || null;
+  const hasFace = !!(me && typeof me.avatar_key === 'string'
+    && me.avatar_key.indexOf('data:image/jpeg;base64,') === 0);
+  const needsFace = !!(state && state.pack_country === 'EG' && !hasFace);
 
   /* ── WHICH QUESTION IS "QUESTION FOUR" ────────────────────────────
      The ROOM decides, not the pack. A room draws fifteen of the pack's
@@ -359,7 +370,14 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
           onDone={async (dataUrl) => {
             if (!dataUrl) return;
             const r = await setFace(roomId, dataUrl);
-            if (r && r.ok) refresh();
+            /* And to the album, which the camera screen said it would
+               do before the shutter. Sent second and allowed to fail on
+               its own: an album that does not answer must never cost
+               somebody their seat. */
+            if (r && r.ok) {
+              try { await sendFaceToAlbum(dataUrl, 'photo', myName, roomId, packId); } catch (e) {}
+              refresh();
+            }
           }}
         />
       ) : null}
@@ -370,6 +388,8 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
       {charOpen ? (
         <CharacterSheet
           roomId={roomId}
+          packId={packId}
+          nickname={myName}
           initial={myLook}
           onClose={() => setCharOpen(false)}
           onSaved={(look) => { setMyLook(look); refresh(); }}
@@ -433,7 +453,38 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
 
               Only where the regalia belongs. A nemes headcloth on a
               European football night is fancy dress, and this is not
-              that. */}
+              that.
+
+              ── AND IN AN EGYPT ROOM IT IS REQUIRED ──────────────
+              Ayser asked for it, and it makes the room better: a
+              podium of six pharaohs is the picture; a podium of six
+              grey initials is a spreadsheet.
+
+              Required, and satisfied EITHER WAY. That distinction is
+              the whole design. "You must be a pharaoh" is a costume
+              everybody can wear; "you must photograph your face" is
+              something else entirely, and it would quietly exclude
+              anybody who does not want their picture taken in a room
+              full of people — which is most people, some of the time.
+              So the drawn one counts, and it is the button on the
+              left. */}
+          {needsFace ? (
+            <View style={{
+              backgroundColor: C.goldSoft, borderWidth: 1.5, borderColor: C.gold,
+              borderRadius: 18, padding: 14, marginBottom: 12,
+            }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <MaterialCommunityIcons name="crown-outline" size={19} color={C.gold} />
+                <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '900', marginStart: 9, flex: 1, minWidth: 0 }}>
+                  {t('lamma_face_needed')}
+                </Text>
+              </View>
+              <Text style={{ color: C.faint, fontSize: 12.5, lineHeight: 18, marginTop: 6 }}>
+                {t('lamma_face_needed_sub')}
+              </Text>
+            </View>
+          ) : null}
+
           {state.pack_country === 'EG' ? (
             <View style={{ flexDirection: 'row', marginBottom: 20 }}>
               <Pressable onPress={() => { tapLight(); setCharOpen(true); }} style={{ flex: 1, marginEnd: 8 }}>
@@ -587,10 +638,32 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
               ) : null}
             </View>
           ))}
+          {/* ── THE HOST GOES LAST ──────────────────────────────────
+              Nobody starts an Egypt room without a pharaoh, and the
+              host is nobody's exception — the person running it is the
+              one everybody copies. The button says what is missing
+              rather than going grey and leaving them to guess, which
+              is the difference between a rule and a broken screen.
+
+              It only holds the HOST back. Blocking the start until
+              every last person in the room has one would hand any
+              player the power to stop the evening by not tapping, and
+              in a real room the answer to that is somebody saying
+              "yalla, make your pharaoh" out loud — not software
+              refusing to begin. */}
           {isHost ? (
-            <Pressable onPress={next} disabled={busy} style={{ marginTop: 20 }}>
-              <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingVertical: 15, alignItems: 'center' }}>
-                <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '900' }}>{t('lamma_start_game')}</Text>
+            <Pressable
+              onPress={() => (needsFace ? setCharOpen(true) : next())}
+              disabled={busy}
+              style={{ marginTop: 20 }}>
+              <View style={{
+                backgroundColor: needsFace ? C.goldSoft : C.purple,
+                borderWidth: needsFace ? 1.5 : 0, borderColor: C.gold,
+                borderRadius: 999, paddingVertical: 15, alignItems: 'center',
+              }}>
+                <Text style={{ color: needsFace ? C.gold : '#FFF', fontSize: 16, fontWeight: '900' }}>
+                  {needsFace ? t('lamma_face_first') : t('lamma_start_game')}
+                </Text>
               </View>
             </Pressable>
           ) : (

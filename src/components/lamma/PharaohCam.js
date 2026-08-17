@@ -259,6 +259,23 @@ export const PharaohCam = ({ visible, onClose, onDone, t }) => {
         ) : null}
 
         <View style={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: insets.bottom + 16 }}>
+          {/* ── SAID BEFORE IT HAPPENS, NOT AFTER ─────────────────
+              The pharaoh they keep goes to the room and to the Green
+              Minds album, where the person running the evening can
+              look through them. That is a photograph of somebody's
+              face going somewhere they cannot see, so they are told
+              in the same breath as being asked — on the screen where
+              the decision is made, not in a policy nobody opens.
+              Anyone who would rather not can close this and draw one
+              instead, and play exactly the same game. */}
+          {shot ? (
+            <Text style={{
+              color: 'rgba(255,255,255,0.62)', fontSize: 12, lineHeight: 17,
+              textAlign: 'center', marginBottom: 12,
+            }}>
+              {t('lamma_face_shared')}
+            </Text>
+          ) : null}
           {shot ? (
             <View style={{ flexDirection: 'row' }}>
               <Pressable onPress={() => { tapLight(); setShot(null); }} style={{ flex: 1, marginEnd: 10 }}>
