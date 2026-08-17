@@ -423,7 +423,11 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
           <Text style={{ color: C.faint, fontSize: 12.5, marginTop: 2, marginBottom: 12 }}>
             {t('lamma_code_hint')}
           </Text>
-          {joinCode ? (
+          {/* Sending the code is the door, so it belongs to the host
+              with every other lever. Everybody else can still SEE the
+              code — they are in the room, and a room whose own name is
+              hidden from the people in it is just confusing. */}
+          {joinCode && isHost ? (
             <Pressable onPress={shareCode} style={{ alignSelf: 'flex-start', marginBottom: 18 }}>
               <View style={{
                 flexDirection: 'row', alignItems: 'center',
@@ -515,10 +519,43 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
           ) : null}
 
           {/* ── ONE HOST, AND THESE ARE THEIRS ──────────────────────
-              How long a question lasts, and whether the door is still
-              open. Everybody else sees what was chosen, because a room
-              where only one person knows the rules is worse than one
-              where nobody does. */}
+              How long a question lasts, how long the round is, whether
+              the door is open, and whether the host's seat can be
+              taken. Every one of them is refused by the server from
+              anybody who is not hosting.
+
+              THEY ARE NOT DRAWN FOR ANYBODY ELSE. They used to be —
+              greyed out at 45% and dead to the touch — and Ayser sent
+              a photograph of what that looks like on somebody else's
+              phone: four time buttons and four round buttons that
+              simply do not work. A disabled control is still a control
+              on the screen; it says "you may do this" and then does
+              not. Better to not be there at all.
+
+              What replaces it is one line saying what the host chose,
+              because a room where only one person knows the rules is
+              worse than one where nobody does. */}
+          {!isHost ? (
+            <View style={{
+              backgroundColor: C.glass, borderWidth: 1, borderColor: C.line,
+              borderRadius: 16, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 20,
+            }}>
+              <Text style={{ color: C.faint, fontSize: 11, fontWeight: '900', letterSpacing: 1, marginBottom: 6 }}>
+                {t('lamma_the_rules')}
+              </Text>
+              <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800', lineHeight: 20 }}>
+                {t('lamma_rules_line')
+                  .replace('{secs}', Math.round((state.timer_ms || 20000) / 1000))
+                  .replace('{n}', roundIds.length || total || 15)}
+              </Text>
+              <Text style={{ color: C.faint, fontSize: 12.5, fontWeight: '700', marginTop: 5 }}>
+                {state.host_locked ? t('lamma_one_host') : t('lamma_host_decides')}
+              </Text>
+            </View>
+          ) : null}
+
+          {isHost ? (
+          <>
           <View style={{ marginBottom: 20 }}>
             <Text style={{ color: C.faint, fontSize: 11, fontWeight: '900', letterSpacing: 1, marginBottom: 8 }}>
               {t('lamma_time_per_q')}
@@ -619,6 +656,8 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
               })}
             </View>
           </View>
+          </>
+          ) : null}
 
           <Text style={{ color: C.faint, fontSize: 13, marginBottom: 10 }}>
             {(players || []).length} {t('lamma_players_here')}
