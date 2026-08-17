@@ -143,6 +143,7 @@ export async function fetchPacks(place) {
   if (!SUPABASE_READY) return [];
   const { data, error } = await withDeadline(
     supabase.from('game_packs').select('*')
+      .order('sort_order', { ascending: true })
       .order('is_official', { ascending: false })
       .limit(120),
   );
@@ -150,8 +151,16 @@ export async function fetchPacks(place) {
   const rows = data || [];
   const code = codeFor(place);
   if (!code) return rows;
-  // yours first, then everybody else's
+  /* Your country first — but only among packs the shelf ranks the
+     same. A pack deliberately put at the top belongs at the top for
+     everybody; letting where somebody lives override that would sink
+     the pinned pack for every player outside Egypt, which is most of
+     the people in the room. A pack with no rank of its own sits at
+     100 (see supabase/schema_v39_pack_order.sql), so this is still
+     what decides almost every pair. */
   return rows.slice().sort((a, b) => {
+    const rank = (r) => (r.sort_order == null ? 100 : r.sort_order);
+    if (rank(a) !== rank(b)) return rank(a) - rank(b);
     const mine = (r) => (r.country === code ? 0 : 1);
     return mine(a) - mine(b);
   });
