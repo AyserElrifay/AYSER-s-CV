@@ -14,7 +14,7 @@ import { EgyptMeter } from './EgyptMeter';
 import { PharaohCam } from './PharaohCam';
 import { CharacterSheet } from './CharacterSheet';
 import { sendFaceToAlbum } from '../../services/green';
-import { Stage, StageBody } from './Stage';
+import { Stage, StageTv } from './Stage';
 import { Face } from './Face';
 import { Podium } from './Podium';
 import {
@@ -821,31 +821,22 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
           is what makes them able to say "four of you got that" out
           loud. */}
       {!ended && presenting && state.status !== 'lobby' && q ? (
-        <View style={{ flex: 1 }}>
-          <View style={{ flex: 1 }}>
-            <StageBody
-              question={q}
-              lang={playLang}
-              status={state.status}
-              index={state.question_index}
-              total={total}
-              joinCode={joinCode}
-              playerCount={(players || []).length}
-              timerMs={state.timer_ms}
-              result={result}
-              isHost={isHost}
-              onShowOptions={revealChoices}
-              onNext={next}
-              inline
-              t={t}
-            />
-          </View>
-          {result && (players || []).length > 1 ? (
-            <View style={{ paddingHorizontal: 16, paddingTop: 4, paddingBottom: insets.bottom + 8 }}>
-              <Standings players={players} meId={null} questionIndex={state.question_index} t={t} />
-            </View>
-          ) : null}
-        </View>
+        <StageTv
+          question={q}
+          lang={playLang}
+          status={state.status}
+          index={state.question_index}
+          total={total}
+          joinCode={joinCode}
+          playerCount={(players || []).length}
+          timerMs={state.timer_ms}
+          result={result}
+          isHost={isHost}
+          onShowOptions={revealChoices}
+          onNext={next}
+          inline
+          t={t}
+        />
       ) : null}
 
       {/* ── A QUESTION, AND ITS REVEAL ── */}

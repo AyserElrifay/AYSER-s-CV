@@ -384,3 +384,153 @@ export function bakePharaoh(look, size = SIZE) {
   if (url.length > MAX_CHARS) return null;
   return url;
 }
+
+/* ── A PHARAOH FOR SOMEBODY WHO NEVER DREW ONE ──────────────────────
+   Ayser: "I want every one to appear with his pharaoh."
+
+   Before this, a player who had not taken a photo appeared as the
+   first letter of their name in a circle. That is the ordinary answer
+   and it is a bad one here, because the whole evening is pharaohs: a
+   board of eleven pharaohs and four letters does not read as a board
+   at all, it reads as four people who did something wrong.
+
+   So everybody gets one. Not a random one — a HASHED one, taken from
+   the user's own id, so the same person is the same pharaoh on every
+   phone in the room, in the lobby, in the standings and on the podium,
+   tonight and next month. Nothing is stored and nothing is asked for.
+
+   Somebody who builds their own face still overrides it. This is the
+   floor, not the ceiling. */
+
+/* FNV-1a. Small, stable, and identical in every browser — which is the
+   only property that matters, because two phones disagreeing about
+   somebody's face is the bug this is meant to avoid. */
+const hash32 = (s) => {
+  let h = 2166136261;
+  const str = String(s || '');
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = (h + ((h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24))) >>> 0;
+  }
+  return h >>> 0;
+};
+
+export function lookFor(seed) {
+  const h = hash32(seed);
+  const at = (list, shift) => list[(h >>> shift) % list.length].id;
+  return {
+    skin: at(SKINS, 0),
+    head: at(HEADS, 4),
+    collar: at(COLLARS, 9),
+    eyes: at(EYES, 13),
+    beard: at(BEARDS, 17),
+  };
+}
+
+/* Baked once per person, at one size, and scaled by whoever draws it.
+   Seventy seats on a screen is seventy canvases if this is not cached,
+   and a canvas per seat per render if it is cached carelessly. */
+const drawnFaces = new Map();
+const FACE_PX = 128;
+
+export function pharaohFor(seed) {
+  const key = String(seed || '');
+  if (!key) return null;
+  if (drawnFaces.has(key)) return drawnFaces.get(key);
+  let url = null;
+  try { url = bakePharaoh(lookFor(key), FACE_PX); } catch (e) { url = null; }
+  drawnFaces.set(key, url);
+  return url;
+}
+
+/* ── THE DOUBLE CROWN ───────────────────────────────────────────────
+   Ayser: "top ١ يبقي عليه تاج فرعوني."
+
+   The pschent: the white crown of Upper Egypt worn inside the red
+   crown of Lower Egypt, which is what a pharaoh who ruled both wore
+   and is the one crown a room recognises instantly. Drawn here in the
+   same way as everything else in this file — paths and fills, nothing
+   downloaded, nothing anybody owns. A shape from five thousand years
+   ago cannot be licensed to anyone.
+
+   PNG rather than JPEG, and this is the whole reason: a crown needs a
+   transparent background or it arrives as a white square sitting on
+   the winner's head. */
+export function drawCrown(c, S) {
+  c.clearRect(0, 0, S, S);
+  const u = (n) => n * S;
+  const thin = Math.max(1, u(0.014));
+
+  /* Order matters more than any single path here: the white crown is
+     drawn first and the red bowl over it, because that is the way the
+     two are actually worn — the white rising THROUGH the red. Drawn
+     the other way round it is a white hat with a red one beside it. */
+
+  // ── the white crown of Upper Egypt (hedjet), tall through the middle
+  c.fillStyle = '#F6F2E6';
+  c.strokeStyle = '#C7BCA0';
+  c.lineWidth = thin;
+  c.beginPath();
+  c.moveTo(u(0.36), u(0.88));
+  c.bezierCurveTo(u(0.31), u(0.60), u(0.34), u(0.22), u(0.47), u(0.12));
+  c.bezierCurveTo(u(0.60), u(0.22), u(0.63), u(0.60), u(0.58), u(0.88));
+  c.closePath();
+  c.fill();
+  c.stroke();
+  c.beginPath();
+  c.arc(u(0.47), u(0.105), u(0.050), 0, Math.PI * 2);
+  c.fill();
+  c.stroke();
+
+  // ── the spike of the red crown, rising behind everything
+  c.fillStyle = '#C0392B';
+  c.strokeStyle = '#8E241A';
+  c.beginPath();
+  c.moveTo(u(0.600), u(0.76));
+  c.lineTo(u(0.675), u(0.12));
+  c.lineTo(u(0.762), u(0.19));
+  c.lineTo(u(0.745), u(0.78));
+  c.closePath();
+  c.fill();
+  c.stroke();
+
+  // ── and its bowl, in front, holding the white crown inside it
+  c.beginPath();
+  c.moveTo(u(0.17), u(0.885));
+  c.lineTo(u(0.19), u(0.66));
+  c.bezierCurveTo(u(0.27), u(0.555), u(0.61), u(0.535), u(0.79), u(0.61));
+  c.lineTo(u(0.835), u(0.885));
+  c.closePath();
+  c.fill();
+  c.stroke();
+
+  // the coil at the front — the part that makes it a crown of Lower
+  // Egypt rather than a red hat
+  c.strokeStyle = '#F5C542';
+  c.lineWidth = Math.max(1.4, u(0.026));
+  c.lineCap = 'round';
+  c.beginPath();
+  c.moveTo(u(0.285), u(0.845));
+  c.bezierCurveTo(u(0.235), u(0.760), u(0.300), u(0.690), u(0.370), u(0.720));
+  c.bezierCurveTo(u(0.420), u(0.745), u(0.400), u(0.812), u(0.348), u(0.800));
+  c.stroke();
+
+  // the gold band along the rim
+  c.fillStyle = '#F5C542';
+  c.fillRect(u(0.16), u(0.868), u(0.685), u(0.046));
+}
+
+let crownUrlCache = null;
+export function crownUrl(size = 128) {
+  if (crownUrlCache) return crownUrlCache;
+  if (typeof document === 'undefined') return null;
+  try {
+    const cv = document.createElement('canvas');
+    cv.width = size; cv.height = size;
+    const c = cv.getContext('2d');
+    if (!c) return null;
+    drawCrown(c, size);
+    crownUrlCache = cv.toDataURL('image/png');
+    return crownUrlCache;
+  } catch (e) { return null; }
+}

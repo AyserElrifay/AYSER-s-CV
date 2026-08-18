@@ -1,7 +1,9 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, Animated, Easing, Platform } from 'react-native';
+import { View, Text, Image, Animated, Easing, Platform } from 'react-native';
 import { C } from '../../constants/theme';
 import { Face } from './Face';
+import { crownUrl } from './pharaohArt';
+import { sfxFanfare } from '../../utils/sfx';
 
 /* ─── لمّة · THE PODIUM ──────────────────────────────────────────────
    Ayser sent a photograph of a quiz night finishing on three people
@@ -36,6 +38,11 @@ const RISE_MS = 420;
 const BEAT_MS = 220;
 const HEIGHTS = { 0: 116, 1: 84, 2: 62 };      // 1st, 2nd, 3rd
 const MEDALS = ['🥇', '🥈', '🥉'];
+
+/* Drawn once, the first time a podium is built, and cached in
+   pharaohArt from then on. Null on a phone with no canvas, and the
+   winner simply goes uncrowned rather than the screen breaking. */
+const CROWN = crownUrl(128);
 
 /* One place to ask, because asking in three components is three
    different answers on a browser that has none. */
@@ -75,9 +82,22 @@ const Block = ({ place, player, meId, still, delay }) => {
   return (
     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'flex-end' }}>
       <Animated.View style={{ opacity: grow, transform: [{ scale: grow }], alignItems: 'center' }}>
-        <Text style={{ fontSize: place === 0 ? 30 : 24 }}>{MEDALS[place]}</Text>
+        {/* Second and third are marked; first is CROWNED. A medal above
+            the winner's head and a crown on it are the same statement
+            made twice, and the crown is the one Ayser asked for. */}
+        {place === 0
+          ? <View style={{ height: 30 }} />
+          : <Text style={{ fontSize: 24 }}>{MEDALS[place]}</Text>}
         <View style={{ marginTop: 2 }}>
           <Face player={player} size={place === 0 ? 54 : 44} ring={tint} />
+          {place === 0 && CROWN ? (
+            <Image
+              source={{ uri: CROWN }}
+              resizeMode="contain"
+              pointerEvents="none"
+              style={{ position: 'absolute', width: 46, height: 46, top: -32, left: 4 }}
+            />
+          ) : null}
         </View>
         <Text
           numberOfLines={1}
@@ -177,6 +197,20 @@ export const Podium = ({ players, meId, width, t }) => {
   const rows = Array.isArray(players) ? players : [];
   const still = wantsStill();
   const top = [rows[0] || null, rows[1] || null, rows[2] || null];
+
+  /* ── AND IT IS HEARD, ONCE ───────────────────────────────────────
+     A fanfare when the podium arrives — synthesized in sfx.js, so
+     there is no recording here belonging to anybody. Guarded by a ref
+     as well as an empty dependency list, because a re-render that
+     played it a second time would land halfway through the first and
+     sound like a mistake. Silent if Sounds are off in Settings. */
+  const sounded = useRef(false);
+  useEffect(() => {
+    if (sounded.current) return;
+    sounded.current = true;
+    const timer = setTimeout(() => { try { sfxFanfare(); } catch (e) {} }, BEAT_MS);
+    return () => clearTimeout(timer);
+  }, []);
 
   return (
     <View style={{ marginBottom: 22 }}>

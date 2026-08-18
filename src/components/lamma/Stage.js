@@ -47,9 +47,17 @@ export const StageBody = ({
      carrying the room code and a way out, so drawing a second code
      and a second close button is one room code too many. */
   inline = false,
+  /* When set, this is the box the stage has to live inside — the 16:9
+     letterbox below — and every size is worked out from it rather than
+     from the window. Without this the type would be sized for a tall
+     phone and then drawn into a short wide frame. */
+  frame = null,
+  footer = null,
   t,
 }) => {
-  const { width, height } = useWindowDimensions();
+  const win = useWindowDimensions();
+  const width = frame ? frame.w : win.width;
+  const height = frame ? frame.h : win.height;
   const wide = width >= height;               // a shared screen, usually
   const revealed = !!(result && result.ok);
   const progress = useCountdown(timerMs, question && question.id);
@@ -60,6 +68,20 @@ export const StageBody = ({
   const qSize = Math.max(22, Math.min(56, width / (wide ? 24 : 17)));
   const oSize = Math.max(15, Math.min(30, width / (wide ? 46 : 26)));
   const pad = wide ? 40 : 20;
+
+  /* ── IT HAS TO FIT ────────────────────────────────────────────────
+     The tiles used to ask for 44% of the container each. In a modal
+     that could grow, that was fine. In a 16:9 frame it is not: two
+     rows at 44%, plus the question, the teaching line and the button,
+     came to more than the box, and everything below the first row of
+     answers printed on top of everything else and ran off the bottom.
+
+     So a tile is a fraction of the FRAME's height, and the four of
+     them plus the question and the button are arithmetic that adds up
+     rather than a hope. */
+  const tileH = wide
+    ? Math.max(46, Math.min(132, Math.floor(height * 0.17)))
+    : 62;
 
   const options = Array.isArray(question && question.options) ? question.options : [];
   const counts = [0, 0, 0, 0];
@@ -122,7 +144,14 @@ export const StageBody = ({
             h=0 while its text sat 30px higher than its own top edge.
             Leaving flex undefined is how you say "size to content" in
             both. This was wrong on the shared screen too, since v27. */}
-        <View style={{ flex: showChoices ? undefined : 1, justifyContent: 'center', marginTop: wide ? 10 : 8 }}>
+        <View style={{
+          flex: showChoices ? undefined : 1, justifyContent: 'center',
+          marginTop: wide ? 10 : 8,
+          /* A long question must not push the answers off the bottom of
+             a frame that cannot grow. */
+          maxHeight: showChoices ? Math.round(height * 0.34) : undefined,
+          overflow: 'hidden',
+        }}>
           <View style={{ flexDirection: wide && question && question.media_url ? 'row' : 'column', alignItems: 'center' }}>
             {question && question.media_url ? (
               <Image
@@ -157,14 +186,17 @@ export const StageBody = ({
 
         {/* and the four, when they are due */}
         {showChoices ? (
-          <View style={{ flex: 1, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginTop: wide ? 20 : 14 }}>
+          <View style={{
+            flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between',
+            marginTop: wide ? 16 : 14,
+          }}>
             {options.map((o, i) => {
               const ch = channelFor(i);
               const isRight = revealed && result.correct_index === i;
               return (
                 <View key={i} style={{
                   width: wide ? '49%' : '100%',
-                  minHeight: wide ? '44%' : 62,
+                  height: tileH,
                   backgroundColor: isRight ? ch.color : 'rgba(255,255,255,0.07)',
                   borderWidth: 2, borderColor: isRight ? ch.color : 'rgba(255,255,255,0.16)',
                   borderRadius: 20, paddingHorizontal: wide ? 22 : 14, paddingVertical: wide ? 18 : 12,
@@ -219,6 +251,76 @@ export const StageBody = ({
             </View>
           </Pressable>
         ) : null}
+
+        {/* Anything the presenter wants inside the shared picture —
+            the standings, usually. It has to be IN the frame: whatever
+            sits outside the 16:9 box is not what the room is looking
+            at on the television. */}
+        {footer}
+    </View>
+  );
+};
+
+/* ── A TELEVISION-SHAPED FRAME ───────────────────────────────────────
+   Ayser shares this screen to a television and into calls, and a
+   television, a laptop, a YouTube player and every video call lay out
+   in 16:9. So the presenter's stage draws itself into the largest 16:9
+   box that fits, centred, with black either side. The picture is then
+   the same shape as the thing it is going onto.
+
+   ── EXCEPT ON A PHONE HELD UPRIGHT ────────────────────────────────
+   Which is the case that had to be MEASURED rather than reasoned
+   about. A 390-wide phone in portrait gives a 16:9 box 219 pixels
+   tall, and everything spilled out of the bottom of it by a hundred
+   pixels. The instinct is to shrink the type until it fits — but a
+   question in 11pt on a band the height of two keyboard rows is not a
+   television picture, it is just a small one, and Ayser presents this
+   to a room.
+
+   So upright, the stage takes the whole phone and says, quietly, what
+   to do about it: turn the phone sideways and it becomes a full 16:9
+   picture with almost no black at all. One sentence beats a screen
+   nobody at the back can read. */
+const TV = 16 / 9;
+
+export const StageTv = (props) => {
+  const [box, setBox] = React.useState({ w: 0, h: 0 });
+  const ready = box.w > 0 && box.h > 0;
+  /* Wide enough to be a picture: letterbox it. Taller than it is
+     wide — a phone in the hand — fill the screen instead. */
+  const wideEnough = ready && box.w >= box.h;
+  const w = wideEnough ? Math.floor(Math.min(box.w, box.h * TV)) : 0;
+  const h = Math.floor(w / TV);
+
+  return (
+    <View
+      onLayout={(e) => {
+        const { width, height } = e.nativeEvent.layout;
+        setBox((prev) => (Math.abs(prev.w - width) < 1 && Math.abs(prev.h - height) < 1
+          ? prev : { w: width, h: height }));
+      }}
+      style={{ flex: 1, backgroundColor: '#05030F', alignItems: 'center', justifyContent: 'center' }}>
+      {wideEnough ? (
+        <View style={{ width: w, height: h, overflow: 'hidden' }}>
+          <StageBody {...props} frame={{ w, h }} />
+        </View>
+      ) : ready ? (
+        <View style={{ flex: 1, alignSelf: 'stretch' }}>
+          <StageBody {...props} />
+          <View pointerEvents="none" style={{
+            position: 'absolute', left: 12, right: 12, bottom: 10,
+            alignItems: 'center',
+          }}>
+            <Text style={{
+              color: C.faint, fontSize: 11.5, fontWeight: '800', textAlign: 'center',
+              backgroundColor: 'rgba(5,3,15,0.72)', borderRadius: 999,
+              paddingHorizontal: 12, paddingVertical: 5, overflow: 'hidden',
+            }}>
+              {props.t ? props.t('lamma_turn_sideways') : ''}
+            </Text>
+          </View>
+        </View>
+      ) : null}
     </View>
   );
 };

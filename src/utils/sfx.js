@@ -164,3 +164,46 @@ export function startRingback() {
   const iv = setInterval(purr, 3000);
   return () => clearInterval(iv);
 }
+
+/* ── THE END OF THE GAME ────────────────────────────────────────────
+   Ayser: "وخلي في صوت في الاخر زي congratulations."
+
+   Synthesized, like everything else in this file, and for a reason
+   beyond the bundle size: a congratulations sound downloaded from
+   anywhere is a recording somebody owns, and this app plays in front
+   of rooms of people. A fanfare built out of oscillators belongs to
+   nobody — you cannot licence the major triad.
+
+   The shape is the one every fanfare has: the tonic three times,
+   quick, then the octave held. Do·Do·Do — Mi — Sol — Do', on a
+   bright saw softened by a sine an octave down so it has a body
+   rather than a buzz. Then a shimmer on top, which is what makes it
+   read as celebration rather than as an announcement.
+
+   About a second and a half in total, once, when the podium arrives.
+   Long enough for a room to look up; short enough that nobody is
+   waiting for it to finish before they start talking. */
+export function sfxFanfare() {
+  const ac = audio();
+  if (!ac) return;                 // muted in Settings, or no Web Audio
+
+  const C4 = 261.63, E4 = 329.63, G4 = 392.0, C5 = 523.25, E5 = 659.25, G5 = 783.99;
+
+  /* the call: three quick tonics, then up the triad */
+  const call = [
+    [G4, 0.00, 0.13], [G4, 0.15, 0.13], [G4, 0.30, 0.13],
+    [C5, 0.45, 0.30], [E5, 0.78, 0.26], [G5, 1.02, 0.62],
+  ];
+  call.forEach(([f, at, dur]) => {
+    tone(f, at, dur, 'sawtooth', 0.055);   // the brass edge
+    tone(f, at, dur, 'sine', 0.075);       // and the body under it
+    tone(f / 2, at, dur * 0.9, 'sine', 0.045);
+  });
+
+  /* the chord it lands on, held under the last note */
+  [C4, E4, G4, C5].forEach((f, i) => tone(f, 1.02 + i * 0.02, 0.9, 'sine', 0.05));
+
+  /* the shimmer — quiet, high, and the reason it sounds like
+     congratulations rather than like a doorbell */
+  [C5 * 2, E5 * 2, G5 * 2].forEach((f, i) => tone(f, 1.10 + i * 0.07, 0.5, 'triangle', 0.022));
+}
