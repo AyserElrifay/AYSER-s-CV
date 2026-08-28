@@ -45,6 +45,7 @@ const Circle = ({ uri, label, onPress, onLongPress, plus }) => (
 /* Full-screen viewer: tap the right half for the next picture, the
    left half to go back, and out at the end. */
 const HighlightViewer = ({ highlight, isMine, onClose, onDeleted }) => {
+  const { t } = useLang();
   const insets = useSafeAreaInsets();
   const [i, setI] = useState(0);
   const [confirm, setConfirm] = useState(false);
@@ -99,17 +100,17 @@ const HighlightViewer = ({ highlight, isMine, onClose, onDeleted }) => {
         {isMine ? (
           confirm ? (
             <View style={{ position: 'absolute', bottom: insets.bottom + 18, left: 18, right: 18, flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(17,24,39,0.92)', borderRadius: 14, padding: 12 }}>
-              <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '700', flex: 1 }}>Delete this whole highlight?</Text>
+              <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '700', flex: 1 }}>{t('hl_delete_q')}</Text>
               <Pressable onPress={async () => { try { await onDeleted(highlight.id); } catch (e) {} onClose(); }} style={{ marginRight: 12 }}>
-                <Text style={{ color: C.coral, fontSize: 13, fontWeight: '900' }}>Delete</Text>
+                <Text style={{ color: C.coral, fontSize: 13, fontWeight: '900' }}>{t('delete')}</Text>
               </Pressable>
               <Pressable onPress={() => setConfirm(false)}>
-                <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '800' }}>Keep</Text>
+                <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '800' }}>{t('keep_word')}</Text>
               </Pressable>
             </View>
           ) : (
             <Pressable onPress={() => setConfirm(true)} style={{ position: 'absolute', bottom: insets.bottom + 20, alignSelf: 'center' }} hitSlop={10}>
-              <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 12.5, fontWeight: '800' }}>Delete highlight</Text>
+              <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 12.5, fontWeight: '800' }}>{t('hl_delete')}</Text>
             </Pressable>
           )
         ) : null}
@@ -124,6 +125,7 @@ const HighlightViewer = ({ highlight, isMine, onClose, onDeleted }) => {
 
 /* Make one, or add to one: pick from your own stories and moments. */
 const HighlightComposer = ({ userId, target, onClose, onSaved }) => {
+  const { t } = useLang();
   const insets = useSafeAreaInsets();
   const [title, setTitle] = useState(target ? target.title : '');
   const [cands, setCands] = useState(null);
@@ -173,7 +175,7 @@ const HighlightComposer = ({ userId, target, onClose, onSaved }) => {
           <View style={{ marginHorizontal: 16, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 999, paddingHorizontal: 14 }}>
             <TextInput
               value={title} onChangeText={setTitle}
-              placeholder="Name it — Travel, Food, 2026…" placeholderTextColor={C.faint}
+              placeholder={t('hl_name_ph')} placeholderTextColor={C.faint}
               maxLength={40}
               style={{ color: C.text, fontSize: 14, paddingVertical: 11 }}
             />
@@ -183,7 +185,7 @@ const HighlightComposer = ({ userId, target, onClose, onSaved }) => {
         {err ? <Text style={{ color: C.coral, fontSize: 12.5, textAlign: 'center', marginTop: 10 }}>{err}</Text> : null}
 
         <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', letterSpacing: 1, paddingHorizontal: 16, marginTop: 16, marginBottom: 6 }}>
-          YOUR STORIES & MOMENTS
+          {t('hl_your_stories')}
         </Text>
 
         {cands === null ? (
@@ -211,7 +213,7 @@ const HighlightComposer = ({ userId, target, onClose, onSaved }) => {
           </ScrollView>
         ) : (
           <Text style={{ color: C.faint, fontSize: 13, textAlign: 'center', paddingHorizontal: 40, paddingVertical: 30, lineHeight: 20 }}>
-            Nothing to keep yet — post a story or a moment first, then it can live up here.
+            {t('hl_empty')}
           </Text>
         )}
       </View>

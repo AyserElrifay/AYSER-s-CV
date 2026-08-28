@@ -3,6 +3,7 @@ import { View, Text, Modal, FlatList, Pressable, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { C, R } from '../constants/theme';
+import { useLang } from '../context/LanguageContext';
 import { AV_NEUTRAL } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
@@ -15,6 +16,7 @@ import { ProfileModal } from './ProfileModal';
    (message them from there); long game: remove with Unmate. */
 
 export const MatesSheet = ({ onClose }) => {
+  const { t } = useLang();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [mates, setMates] = useState(null);
@@ -46,18 +48,18 @@ export const MatesSheet = ({ onClose }) => {
           <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: C.glassHi }} />
         </View>
         <View style={{ paddingHorizontal: 18, paddingBottom: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Micro>Your Mates 🤝{mates ? ' · ' + mates.length : ''}</Micro>
+          <Micro>{t('mt_title')}{mates ? ' · ' + mates.length : ''}</Micro>
           <Pressable onPress={onClose} hitSlop={8}><Ionicons name="close" size={18} color={C.dim} /></Pressable>
         </View>
 
         {mates === null ? (
-          <Text style={{ color: C.faint, fontSize: 13, textAlign: 'center', paddingVertical: 30 }}>Loading…</Text>
+          <Text style={{ color: C.faint, fontSize: 13, textAlign: 'center', paddingVertical: 30 }}>{t('loading')}</Text>
         ) : mates.length === 0 ? (
           <View style={{ alignItems: 'center', paddingVertical: 34, paddingHorizontal: 30 }}>
             <Text style={{ fontSize: 34 }}>🤝</Text>
-            <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '800', marginTop: 10 }}>No mates yet</Text>
+            <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '800', marginTop: 10 }}>{t('mt_none')}</Text>
             <Text style={{ color: C.faint, fontSize: 12.5, marginTop: 5, textAlign: 'center', lineHeight: 18 }}>
-              Find people on the Map or in Search and hit “Mate up” — accepted requests land here.
+              {t('mt_none_b')}
             </Text>
           </View>
         ) : (
@@ -81,11 +83,11 @@ export const MatesSheet = ({ onClose }) => {
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <Pressable onPress={() => doUnmate(m)} style={{ marginRight: 8 }}>
                       <View style={{ backgroundColor: C.coral, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 }}>
-                        <Text style={{ color: '#FFF', fontSize: 11, fontWeight: '900' }}>Remove</Text>
+                        <Text style={{ color: '#FFF', fontSize: 11, fontWeight: '900' }}>{t('remove')}</Text>
                       </View>
                     </Pressable>
                     <Pressable onPress={() => setConfirm(null)}>
-                      <Text style={{ color: C.dim, fontSize: 12, fontWeight: '700' }}>Keep</Text>
+                      <Text style={{ color: C.dim, fontSize: 12, fontWeight: '700' }}>{t('keep_word')}</Text>
                     </Pressable>
                   </View>
                 ) : (

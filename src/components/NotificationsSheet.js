@@ -3,6 +3,7 @@ import { View, Text, Modal, ScrollView, Pressable, Image, ActivityIndicator } fr
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { C, R } from '../constants/theme';
+import { useLang } from '../context/LanguageContext';
 import { AV_NEUTRAL } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
@@ -70,6 +71,7 @@ function bucketOf(ts) {
 const BUCKET_ORDER = ['Today', 'Yesterday', 'This week', 'This month', 'Earlier'];
 
 export const NotificationsSheet = ({ onClose }) => {
+  const { t } = useLang();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [items, setItems] = useState(null);
@@ -256,12 +258,12 @@ export const NotificationsSheet = ({ onClose }) => {
       {n.kind === 'mate_request' ? (
         accepted[n.id] ? (
           <View style={{ backgroundColor: C.greenSoft, borderWidth: 1, borderColor: 'rgba(16,185,129,0.45)', borderRadius: 999, paddingHorizontal: 11, paddingVertical: 7, marginLeft: 10 }}>
-            <Text style={{ color: C.green, fontSize: 11.5, fontWeight: '900' }}>Mates ✓</Text>
+            <Text style={{ color: C.green, fontSize: 11.5, fontWeight: '900' }}>{t('nt_mates')}</Text>
           </View>
         ) : (
           <Pressable onPress={(e) => { if (e && e.stopPropagation) e.stopPropagation(); accept(n); }} style={{ marginLeft: 10 }}>
             <View style={{ backgroundColor: C.purple, borderRadius: 10, paddingHorizontal: 15, paddingVertical: 8 }}>
-              <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '900' }}>Accept</Text>
+              <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '900' }}>{t('accept')}</Text>
             </View>
           </Pressable>
         )
@@ -282,7 +284,7 @@ export const NotificationsSheet = ({ onClose }) => {
           <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: C.glassHi }} />
         </View>
         <View style={{ paddingHorizontal: 18, paddingBottom: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Micro>Activity 🔔</Micro>
+          <Micro>{t('nt_title')}</Micro>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             {items && items.length ? (
               <Pressable
@@ -323,7 +325,7 @@ export const NotificationsSheet = ({ onClose }) => {
         ) : null}
 
         {items === null ? (
-          <Text style={{ color: C.faint, fontSize: 13, textAlign: 'center', paddingVertical: 30 }}>Loading…</Text>
+          <Text style={{ color: C.faint, fontSize: 13, textAlign: 'center', paddingVertical: 30 }}>{t('loading')}</Text>
         ) : items.length === 0 ? (
           <View style={{ alignItems: 'center', paddingVertical: 34, paddingHorizontal: 30 }}>
             <Text style={{ fontSize: 34 }}>🔔</Text>
@@ -335,7 +337,7 @@ export const NotificationsSheet = ({ onClose }) => {
             </Text>
           </View>
         ) : sections.length === 0 ? (
-          <Text style={{ color: C.faint, fontSize: 13, textAlign: 'center', paddingVertical: 30 }}>Nothing here in this filter</Text>
+          <Text style={{ color: C.faint, fontSize: 13, textAlign: 'center', paddingVertical: 30 }}>{t('nt_empty_filter')}</Text>
         ) : (
           <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 10 }} showsVerticalScrollIndicator={false}>
             {sections.map((s) => (

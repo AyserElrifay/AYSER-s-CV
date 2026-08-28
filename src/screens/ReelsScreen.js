@@ -256,7 +256,7 @@ export const ReelsScreen = () => {
                   }}
                   style={{ marginTop: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.5)', borderRadius: 999, paddingHorizontal: 18, paddingVertical: 9 }}
                 >
-                  <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900' }}>Delete it</Text>
+                  <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900' }}>{t('rs_delete_it')}</Text>
                 </Pressable>
               ) : null}
             </View>
@@ -349,7 +349,7 @@ export const ReelsScreen = () => {
                 >
                   <MaterialCommunityIcons name="repeat-variant" size={32} color={reposted ? C.green : '#FFF'} />
                 </RailButton>
-                <RailButton label="Send" onPress={tapLight}>
+                <RailButton label={t('send')} onPress={tapLight}>
                   <Ionicons name="paper-plane-outline" size={27} color="#FFF" />
                 </RailButton>
                 {item.sound ? (
@@ -386,13 +386,13 @@ export const ReelsScreen = () => {
            the truth is that nothing answered. */
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 }}>
           <Text style={{ fontSize: 38 }}>📡</Text>
-          <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '900', marginTop: 12, textAlign: 'center' }}>Couldn't load reels</Text>
+          <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '900', marginTop: 12, textAlign: 'center' }}>{t('rs_offline_t')}</Text>
           <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, marginTop: 6, textAlign: 'center', lineHeight: 19 }}>
-            This is the connection, not you — everything posted is still there.
+            {t('rs_offline_b')}
           </Text>
           <Pressable onPress={() => { tapMedium(); loadReels(); }} style={{ marginTop: 18 }}>
             <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 26, paddingVertical: 13 }}>
-              <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '900' }}>Try again</Text>
+              <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '900' }}>{t('try_again')}</Text>
             </View>
           </Pressable>
         </View>

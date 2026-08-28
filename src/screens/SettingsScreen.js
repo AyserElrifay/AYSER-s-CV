@@ -464,7 +464,7 @@ export const SettingsScreen = ({ onClose }) => {
                   <Ionicons name="bug-outline" size={16} color={C.purple} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: C.text, fontSize: 14, fontWeight: '700' }}>What went wrong</Text>
+                  <Text style={{ color: C.text, fontSize: 14, fontWeight: '700' }}>{t('st_what_went_wrong')}</Text>
                   <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 1 }}>
                     {crashCount ? crashCount + (crashCount === 1 ? ' failure kept' : ' failures kept') : 'Nothing has failed'}
                   </Text>
@@ -517,7 +517,7 @@ export const SettingsScreen = ({ onClose }) => {
               <Ionicons name="information-circle-outline" size={16} color={C.purple} />
             </View>
             <Text style={{ color: C.text, fontSize: 14, fontWeight: '700', flex: 1 }}>{t('about_moments')}</Text>
-            <Text style={{ color: C.faint, fontSize: 13 }}>v1.0 · Live</Text>
+            <Text style={{ color: C.faint, fontSize: 13 }}>v1.0 · {t('st_live')}</Text>
           </View>
         </Glass>
 
@@ -652,7 +652,7 @@ export const SettingsScreen = ({ onClose }) => {
               <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: C.glassHi }} />
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingBottom: 10 }}>
-              <Text style={{ color: C.text, fontSize: 16, fontWeight: '900', flex: 1 }}>What went wrong</Text>
+              <Text style={{ color: C.text, fontSize: 16, fontWeight: '900', flex: 1 }}>{t('st_what_went_wrong')}</Text>
               <Pressable
                 onPress={() => {
                   try { if (typeof navigator !== 'undefined' && navigator.clipboard) navigator.clipboard.writeText(asText()); } catch (e) {}
@@ -661,10 +661,10 @@ export const SettingsScreen = ({ onClose }) => {
                 hitSlop={8}
                 style={{ marginRight: 14 }}
               >
-                <Text style={{ color: C.purple, fontSize: 12.5, fontWeight: '900' }}>Copy all</Text>
+                <Text style={{ color: C.purple, fontSize: 12.5, fontWeight: '900' }}>{t('st_copy_all')}</Text>
               </Pressable>
               <Pressable onPress={() => { clearCrashes(); setCrashCount(0); tapLight(); }} hitSlop={8}>
-                <Text style={{ color: C.dim, fontSize: 12.5, fontWeight: '800' }}>Clear</Text>
+                <Text style={{ color: C.dim, fontSize: 12.5, fontWeight: '800' }}>{t('st_clear')}</Text>
               </Pressable>
             </View>
             <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 16 }}>
@@ -679,7 +679,7 @@ export const SettingsScreen = ({ onClose }) => {
                 </View>
               )) : (
                 <Text style={{ color: C.faint, fontSize: 13, textAlign: 'center', paddingVertical: 26 }}>
-                  Nothing has failed since this was last cleared.
+                  {t('st_nothing_failed')}
                 </Text>
               )}
             </ScrollView>

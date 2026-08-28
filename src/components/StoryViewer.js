@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { SoundChip } from './SoundChip';
 import { C } from '../constants/theme';
+import { useLang } from '../context/LanguageContext';
 import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { isOwner } from '../services/music';
@@ -58,6 +59,7 @@ const hoursLeft = (createdAt) => {
    (DMs the poster), real share (a ?story= link), real delete of your
    own story, and real poll / question stickers. */
 export const StoryViewer = ({ stories, groups, startGroup = 0, startIndex = 0, onClose, onShare, onDeleted }) => {
+  const { t } = useLang();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
 
@@ -337,7 +339,7 @@ export const StoryViewer = ({ stories, groups, startGroup = 0, startIndex = 0, o
                 confirmDel ? (
                   <Pressable onPress={doDelete} hitSlop={8} style={{ marginRight: 10 }}>
                     <View style={{ backgroundColor: 'rgba(244,63,94,0.9)', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 }}>
-                      <Text style={{ color: '#FFF', fontSize: 11, fontWeight: '900' }}>Delete?</Text>
+                      <Text style={{ color: '#FFF', fontSize: 11, fontWeight: '900' }}>{t('sv_delete_q')}</Text>
                     </View>
                   </Pressable>
                 ) : (
@@ -418,7 +420,7 @@ export const StoryViewer = ({ stories, groups, startGroup = 0, startIndex = 0, o
                 {!isMine ? (
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <TextInput
-                      placeholder="Type your answer…" placeholderTextColor="rgba(255,255,255,0.55)"
+                      placeholder={t('sv_answer_ph')} placeholderTextColor="rgba(255,255,255,0.55)"
                       value={reply} onChangeText={setReply}
                       onFocus={() => setPaused(true)} onBlur={() => setPaused(false)}
                       style={{ flex: 1, color: '#FFF', fontSize: 13.5, backgroundColor: 'rgba(0,0,0,0.35)', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9, marginRight: 8 }}
@@ -519,7 +521,7 @@ export const StoryViewer = ({ stories, groups, startGroup = 0, startIndex = 0, o
                     {!commentsOff ? (
                       <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
                         <TextInput
-                          placeholder="Add a comment…" placeholderTextColor="rgba(255,255,255,0.5)"
+                          placeholder={t('sv_comment_ph')} placeholderTextColor="rgba(255,255,255,0.5)"
                           value={commentText} onChangeText={setCommentText}
                           onFocus={() => setPaused(true)} onBlur={() => setPaused(false)}
                           onSubmitEditing={postComment}
@@ -540,7 +542,7 @@ export const StoryViewer = ({ stories, groups, startGroup = 0, startIndex = 0, o
             {!isMine && story.stickerType !== 'question' ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
                 <TextInput
-                  placeholder="Reply to this story…" placeholderTextColor="rgba(255,255,255,0.55)"
+                  placeholder={t('sv_reply_ph')} placeholderTextColor="rgba(255,255,255,0.55)"
                   value={reply} onChangeText={setReply}
                   onFocus={() => setPaused(true)} onBlur={() => setPaused(false)}
                   style={{ flex: 1, color: '#FFF', fontSize: 13.5, backgroundColor: 'rgba(255,255,255,0.16)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)', borderRadius: 999, paddingHorizontal: 15, paddingVertical: 10, marginRight: 8 }}
@@ -579,7 +581,7 @@ export const StoryViewer = ({ stories, groups, startGroup = 0, startIndex = 0, o
               </Text>
               <ScrollView style={{ paddingHorizontal: 16 }}>
                 {(viewers || []).length === 0 ? (
-                  <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12.5, textAlign: 'center', paddingVertical: 20 }}>No one yet — check back soon</Text>
+                  <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12.5, textAlign: 'center', paddingVertical: 20 }}>{t('sv_no_one')}</Text>
                 ) : (viewers || []).map((v) => (
                   <View key={v.viewer_id} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 9 }}>
                     <Image source={{ uri: v.viewer && v.viewer.avatar_url }} style={{ width: 34, height: 34, borderRadius: 17, marginRight: 10, backgroundColor: '#333' }} />

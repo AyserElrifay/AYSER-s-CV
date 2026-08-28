@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as ImagePicker from 'expo-image-picker';
 import { C, R, TEXT_BGS } from '../constants/theme';
+import { useLang } from '../context/LanguageContext';
 import { ME, av } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
 import { createPost } from '../services/posts';
@@ -32,6 +33,7 @@ const MODES = [
 ];
 
 export const ComposeModal = ({ initialMode = 'post', initialCaption = '', onClose, onPosted, onPostedStory, onOpenStudio }) => {
+  const { t } = useLang();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [mode, setMode] = useState(initialMode);
@@ -232,7 +234,7 @@ export const ComposeModal = ({ initialMode = 'post', initialCaption = '', onClos
           >
             <Ionicons name="close" size={19} color={C.text} />
           </Pressable>
-          <Micro color={C.purple}>Create ✨</Micro>
+          <Micro color={C.purple}>{t('cmp_create')}</Micro>
           <View style={{ width: 38 }} />
         </View>
 
@@ -271,7 +273,7 @@ export const ComposeModal = ({ initialMode = 'post', initialCaption = '', onClos
           {isTravel ? (
             <View style={{ marginBottom: 16 }}>
               <TextInput
-                placeholder="Solo traveler exploring…"
+                placeholder={t('cmp_bio_ph')}
                 placeholderTextColor={C.faint}
                 value={planTitle}
                 onChangeText={setPlanTitle}
@@ -282,7 +284,7 @@ export const ComposeModal = ({ initialMode = 'post', initialCaption = '', onClos
                 }}
               />
               <Text style={{ color: C.faint, fontSize: 11, marginTop: 7, marginLeft: 4 }}>
-                The one line people will see first
+                {t('cmp_bio_hint')}
               </Text>
 
               <Text style={{ color: C.dim, fontSize: 11.5, fontWeight: '900', letterSpacing: 0.6, marginTop: 16, marginLeft: 2 }}>WHEN</Text>
@@ -318,7 +320,7 @@ export const ComposeModal = ({ initialMode = 'post', initialCaption = '', onClos
                 </View>
               ))}
 
-              <Text style={{ color: C.dim, fontSize: 11.5, fontWeight: '900', letterSpacing: 0.6, marginTop: 18, marginLeft: 2 }}>I'M UP FOR</Text>
+              <Text style={{ color: C.dim, fontSize: 11.5, fontWeight: '900', letterSpacing: 0.6, marginTop: 18, marginLeft: 2 }}>{t('cmp_up_for')}</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 8 }}>
                 {UP_FOR.map((u) => {
                   const on = upFor.indexOf(u.id) >= 0;
@@ -385,7 +387,7 @@ export const ComposeModal = ({ initialMode = 'post', initialCaption = '', onClos
                   />
                 </Pressable>
               ))}
-              <Text style={{ color: C.faint, fontSize: 11.5, marginLeft: 2 }}>Text background</Text>
+              <Text style={{ color: C.faint, fontSize: 11.5, marginLeft: 2 }}>{t('cmp_text_bg')}</Text>
             </View>
           ) : null}
 
@@ -421,7 +423,7 @@ export const ComposeModal = ({ initialMode = 'post', initialCaption = '', onClos
               }}
             >
               <Ionicons name="camera" size={16} color={C.coral} />
-              <Text style={{ color: C.text, fontSize: 12.5, fontWeight: '700', marginLeft: 7 }}>Shoot</Text>
+              <Text style={{ color: C.text, fontSize: 12.5, fontWeight: '700', marginLeft: 7 }}>{t('cmp_shoot')}</Text>
             </Pressable>
             <Pressable
               onPress={() => pick(false)}
@@ -432,7 +434,7 @@ export const ComposeModal = ({ initialMode = 'post', initialCaption = '', onClos
               }}
             >
               <Ionicons name="image-outline" size={16} color={C.green} />
-              <Text style={{ color: C.text, fontSize: 12.5, fontWeight: '700', marginLeft: 7 }}>Gallery</Text>
+              <Text style={{ color: C.text, fontSize: 12.5, fontWeight: '700', marginLeft: 7 }}>{t('cmp_gallery')}</Text>
             </Pressable>
             {isReel || isStory ? (
               <Pressable

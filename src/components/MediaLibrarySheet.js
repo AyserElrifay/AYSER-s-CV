@@ -3,6 +3,7 @@ import { View, Text, Modal, Pressable, ScrollView, Image, ActivityIndicator, Pla
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { C, R } from '../constants/theme';
+import { useLang } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { SUPABASE_READY } from '../lib/supabase';
 import { fetchLibrary, addToLibrary, removeFromLibrary } from '../services/library';
@@ -34,6 +35,7 @@ import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
 const mb = (n) => (n ? (n / (1024 * 1024)).toFixed(1) + ' MB' : '');
 
 export const MediaLibrarySheet = ({ onPick, onClose, only = null, inline = false }) => {
+  const { t } = useLang();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [rows, setRows] = useState(null);
@@ -144,8 +146,8 @@ export const MediaLibrarySheet = ({ onPick, onClose, only = null, inline = false
             <Ionicons name="close" size={19} color={C.text} />
           </Pressable>
           <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text style={{ color: C.text, fontSize: 16.5, fontWeight: '900' }}>Your library</Text>
-            <Text style={{ color: C.faint, fontSize: 11, marginTop: 1 }}>Uploaded and ready — only you see this</Text>
+            <Text style={{ color: C.text, fontSize: 16.5, fontWeight: '900' }}>{t('ml_title')}</Text>
+            <Text style={{ color: C.faint, fontSize: 11, marginTop: 1 }}>{t('ml_sub')}</Text>
           </View>
           <View style={{ width: 38 }} />
         </View>
@@ -191,7 +193,7 @@ export const MediaLibrarySheet = ({ onPick, onClose, only = null, inline = false
                     : 'Starting the upload…'}
               </Text>
               <Pressable onPress={cancelUpload} hitSlop={8}>
-                <Text style={{ color: C.coral, fontSize: 12, fontWeight: '900' }}>Cancel</Text>
+                <Text style={{ color: C.coral, fontSize: 12, fontWeight: '900' }}>{t('cancel')}</Text>
               </Pressable>
             </View>
           </View>
@@ -203,7 +205,7 @@ export const MediaLibrarySheet = ({ onPick, onClose, only = null, inline = false
 
         {!SUPABASE_READY || !user ? (
           <Text style={{ color: C.faint, fontSize: 13, textAlign: 'center', paddingHorizontal: 40, paddingVertical: 40, lineHeight: 20 }}>
-            Sign in and your library lives with your account, not on this phone.
+            {t('ml_signin')}
           </Text>
         ) : rows === null ? (
           <ActivityIndicator color={C.purple} style={{ marginTop: 40 }} />
@@ -242,10 +244,9 @@ export const MediaLibrarySheet = ({ onPick, onClose, only = null, inline = false
         ) : (
           <View style={{ alignItems: 'center', paddingHorizontal: 44, paddingVertical: 46 }}>
             <Text style={{ fontSize: 34 }}>📂</Text>
-            <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '800', marginTop: 10, textAlign: 'center' }}>Nothing in here yet</Text>
+            <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '800', marginTop: 10, textAlign: 'center' }}>{t('ml_empty_t')}</Text>
             <Text style={{ color: C.faint, fontSize: 12.5, marginTop: 6, textAlign: 'center', lineHeight: 19 }}>
-              Add a clip now, while you have signal. Posting it later is instant, because the upload
-              already happened.
+              {t('ml_empty_b')}
             </Text>
           </View>
         )}
@@ -253,13 +254,13 @@ export const MediaLibrarySheet = ({ onPick, onClose, only = null, inline = false
         {confirmDel ? (
           <View style={{ position: 'absolute', left: 18, right: 18, bottom: insets.bottom + 18, backgroundColor: C.float, borderRadius: R, borderWidth: 1, borderColor: C.line, padding: 14, flexDirection: 'row', alignItems: 'center' }}>
             <Text style={{ color: C.text, fontSize: 13, fontWeight: '700', flex: 1 }}>
-              Take this out of your library?
+              {t('ml_remove_q')}
             </Text>
             <Pressable onPress={() => drop(confirmDel)} style={{ marginRight: 14 }}>
-              <Text style={{ color: C.coral, fontSize: 13, fontWeight: '900' }}>Remove</Text>
+              <Text style={{ color: C.coral, fontSize: 13, fontWeight: '900' }}>{t('remove')}</Text>
             </Pressable>
             <Pressable onPress={() => setConfirmDel(null)}>
-              <Text style={{ color: C.dim, fontSize: 13, fontWeight: '800' }}>Keep</Text>
+              <Text style={{ color: C.dim, fontSize: 13, fontWeight: '800' }}>{t('keep_word')}</Text>
             </Pressable>
           </View>
         ) : null}
