@@ -73,26 +73,64 @@ const i18nUrl = (code) => {
   return String(base).replace(/[^/]*$/, '') + 'i18n/' + code + '.json';
 };
 
-async function loadLanguage(code) {
-  if (loaded[code]) return loaded[code];
-  try {
-    const cached = await AsyncStorage.getItem(CACHE_PREFIX + code);
-    if (cached) {
-      const parsed = JSON.parse(cached);
-      if (parsed && typeof parsed === 'object') { loaded[code] = parsed; return parsed; }
-    }
-  } catch (e) { /* a bad cache entry is not worth failing over */ }
+/* Fetch, store, and say whether anything actually changed. */
+async function fetchLanguage(code) {
   try {
     const res = await fetch(i18nUrl(code));
     if (!res.ok) return null;
     const dict = await res.json();
     if (!dict || typeof dict !== 'object') return null;
-    loaded[code] = dict;
-    AsyncStorage.setItem(CACHE_PREFIX + code, JSON.stringify(dict)).catch(() => {});
     return dict;
   } catch (e) {
     return null;   // English is already on screen; nothing breaks
   }
+}
+
+/* ── THE CACHE HAS TO BE ALLOWED TO GO STALE ──────────────────────────
+   The first version of this returned the cached copy and stopped there.
+   That is fast, and it is also a trap: every sentence added to the app
+   after a person's first visit would have been invisible to them for
+   ever, in their own language, while English readers saw it the same
+   day. The cache would have been quietly freezing the translation at
+   whatever day they arrived.
+
+   So the cache is used AND checked. The stored copy answers instantly —
+   nobody waits on the network to read their own language — and a fetch
+   goes out behind it. If the file has changed, the new words are kept
+   and the caller is told, so the screen re-renders with them. If the
+   phone is offline the fetch simply fails and the cached copy stands,
+   which is the whole point of having it. */
+async function loadLanguage(code, onFresh) {
+  const revalidate = () => {
+    fetchLanguage(code).then((fresh) => {
+      if (!fresh) return;
+      const changed = JSON.stringify(fresh) !== JSON.stringify(loaded[code]);
+      if (!changed) return;
+      loaded[code] = fresh;
+      AsyncStorage.setItem(CACHE_PREFIX + code, JSON.stringify(fresh)).catch(() => {});
+      if (onFresh) onFresh();
+    });
+  };
+
+  if (loaded[code]) { revalidate(); return loaded[code]; }
+
+  try {
+    const cached = await AsyncStorage.getItem(CACHE_PREFIX + code);
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (parsed && typeof parsed === 'object') {
+        loaded[code] = parsed;
+        revalidate();
+        return parsed;
+      }
+    }
+  } catch (e) { /* a bad cache entry is not worth failing over */ }
+
+  const dict = await fetchLanguage(code);
+  if (!dict) return null;
+  loaded[code] = dict;
+  AsyncStorage.setItem(CACHE_PREFIX + code, JSON.stringify(dict)).catch(() => {});
+  return dict;
 }
 
 export const LanguageProvider = ({ children }) => {
@@ -102,9 +140,10 @@ export const LanguageProvider = ({ children }) => {
   const [, setReady] = useState(0);
 
   useEffect(() => {
-    if (lang === 'en' || loaded[lang]) return;
+    if (lang === 'en') return undefined;
     let alive = true;
-    loadLanguage(lang).then(() => { if (alive) setReady((n) => n + 1); });
+    const bump = () => { if (alive) setReady((n) => n + 1); };
+    loadLanguage(lang, bump).then(bump);
     return () => { alive = false; };
   }, [lang]);
 

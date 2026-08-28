@@ -1,5 +1,5 @@
-import { useRef } from 'react';
-import { PanResponder, Platform } from 'react-native';
+import { useMemo, useRef } from 'react';
+import { Dimensions, PanResponder, Platform } from 'react-native';
 import { tapMedium } from '../utils/feedback';
 
 /* ── A SWIPE THAT OPENS THE CAMERA ───────────────────────────────────
@@ -17,12 +17,22 @@ import { tapMedium } from '../utils/feedback';
        back up through a conversation never trips it.
 
    `atTop` is a function rather than a value because it's read at the
-   moment the gesture starts, not when the hook was created. */
-export function useSwipeToCamera({ direction = 'down', onTrigger, atTop, enabled = true }) {
+   moment the gesture starts, not when the hook was created.
+
+   `fromRight` mirrors the edge gesture for Arabic. The feed's near edge
+   is the one your reading starts from — the left in English, the right
+   in Arabic — and an Arabic reader pulling in from the right is making
+   the same movement an English reader makes pulling in from the left.
+   Wiring it to the physical left in both would have asked half the
+   app's readers to reach across the screen for their own camera. */
+export function useSwipeToCamera({ direction = 'down', onTrigger, atTop, enabled = true, fromRight = false }) {
   const fired = useRef(false);
 
-  const responder = useRef(
-    PanResponder.create({
+  /* Rebuilt when the side changes. `useRef` would have frozen the
+     English side at first render, so switching to Arabic mid-session
+     left the gesture on the wrong edge until the app was reopened. */
+  const responder = useMemo(
+    () => PanResponder.create({
       onStartShouldSetPanResponder: () => false,
       onMoveShouldSetPanResponder: (_e, g) => {
         if (!enabled || Platform.OS !== 'web') return false;
@@ -30,13 +40,17 @@ export function useSwipeToCamera({ direction = 'down', onTrigger, atTop, enabled
           if (atTop && !atTop()) return false;
           return g.dy > 26 && g.dy > Math.abs(g.dx) * 3;
         }
-        // from the left edge, rightwards
+        // inwards from the near edge
+        if (fromRight) {
+          const w = Dimensions.get('window').width;
+          return g.moveX > w - 60 && g.dx < -26 && -g.dx > Math.abs(g.dy) * 3;
+        }
         return g.moveX < 60 && g.dx > 26 && g.dx > Math.abs(g.dy) * 3;
       },
       onPanResponderGrant: () => { fired.current = false; },
       onPanResponderMove: (_e, g) => {
         if (fired.current) return;
-        const travelled = direction === 'down' ? g.dy : g.dx;
+        const travelled = direction === 'down' ? g.dy : (fromRight ? -g.dx : g.dx);
         // a nudge isn't an intent — 80px is a decision
         if (travelled > 80) {
           fired.current = true;
@@ -45,8 +59,9 @@ export function useSwipeToCamera({ direction = 'down', onTrigger, atTop, enabled
         }
       },
       onPanResponderTerminationRequest: () => true,
-    })
-  ).current;
+    }),
+    [direction, fromRight, enabled],
+  );
 
   if (!enabled || Platform.OS !== 'web') return {};
   return responder.panHandlers;

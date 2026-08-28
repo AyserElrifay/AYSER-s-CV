@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { C, R } from '../constants/theme';
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
+import { useLang } from '../context/LanguageContext';
 
 /* ── THE FOUR THINGS WORTH KNOWING ───────────────────────────────────
    Shown once, the first time somebody gets into the app, and never
@@ -19,35 +20,15 @@ import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
    thumb would take, looping quietly until you move on. Watching a
    gesture happen is worth more than a paragraph about it. */
 
+/* This is the very first thing anybody sees, so it is the last place
+   in the app that should be speaking English at someone who chose
+   another language. Each card names its two keys and the sentences
+   live where every other sentence lives. */
 const STEPS = [
-  {
-    key: 'map',
-    emoji: '🌍',
-    title: 'Pinch the globe to dive in',
-    body: 'Spread two fingers on the world and you drop into the map. Drag to move around, pinch again to get closer.',
-    motion: 'pinch',
-  },
-  {
-    key: 'feed',
-    emoji: '📸',
-    title: 'Swipe in from the left for the camera',
-    body: 'On your feed, pull from the left edge and the camera is already open. The shot is usually gone by the time you find a button.',
-    motion: 'edge',
-  },
-  {
-    key: 'chats',
-    emoji: '🔥',
-    title: 'Pull the chats down to send a streak',
-    body: 'Drag the list down, shoot, tick whoever it goes to. That is the whole thing.',
-    motion: 'pull',
-  },
-  {
-    key: 'character',
-    emoji: '🧍',
-    title: 'Drag your character to turn them',
-    body: 'In the studio, drag the figure left or right and you walk around them. Everything they wear is drawn by us.',
-    motion: 'turn',
-  },
+  { key: 'map', emoji: '🌍', t: 'tour_map_t', b: 'tour_map_b', motion: 'pinch' },
+  { key: 'feed', emoji: '📸', t: 'tour_cam_t', b: 'tour_cam_b', motion: 'edge' },
+  { key: 'chats', emoji: '🔥', t: 'tour_fire_t', b: 'tour_fire_b', motion: 'pull' },
+  { key: 'character', emoji: '🧍', t: 'tour_you_t', b: 'tour_you_b', motion: 'turn' },
 ];
 
 const KEY = 'mm_gesture_tour_v1';
@@ -137,6 +118,7 @@ const Motion = ({ kind }) => {
 };
 
 export const GestureTour = ({ onClose }) => {
+  const { t } = useLang();
   const insets = useSafeAreaInsets();
   const [i, setI] = useState(0);
   const step = STEPS[i];
@@ -164,10 +146,10 @@ export const GestureTour = ({ onClose }) => {
           </View>
 
           <Text style={{ color: C.text, fontSize: 19, fontWeight: '900', textAlign: 'center', lineHeight: 26 }}>
-            {step.title}
+            {t(step.t)}
           </Text>
           <Text style={{ color: C.faint, fontSize: 13.5, textAlign: 'center', marginTop: 10, lineHeight: 20 }}>
-            {step.body}
+            {t(step.b)}
           </Text>
 
           {/* where you are in the four */}
@@ -193,14 +175,14 @@ export const GestureTour = ({ onClose }) => {
           >
             <View style={{ backgroundColor: C.purple, borderRadius: 16, paddingVertical: 15, alignItems: 'center' }}>
               <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '900' }}>
-                {last ? 'Got it' : 'Next'}
+                {last ? t('tour_got_it') : t('tour_next')}
               </Text>
             </View>
           </Pressable>
 
           {!last ? (
             <Pressable onPress={finish} style={{ marginTop: 12, alignSelf: 'center' }}>
-              <Text style={{ color: C.dim, fontSize: 13, fontWeight: '800' }}>Skip</Text>
+              <Text style={{ color: C.dim, fontSize: 13, fontWeight: '800' }}>{t('tour_skip')}</Text>
             </Pressable>
           ) : null}
         </View>

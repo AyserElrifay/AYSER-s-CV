@@ -70,7 +70,7 @@ const headerBtn = () => ({
 export const HomeScreen = () => {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { t } = useLang();
+  const { t, rtl } = useLang();
   const { posts, refreshing, refresh, prependPost, removePost, patchPost, loadError } = useFeed();
   const [joined, setJoined] = useState({});
   const [vibes, setVibes] = useState({});
@@ -367,6 +367,7 @@ export const HomeScreen = () => {
      or a swipe on a card. */
   const edgeSwipe = useSwipeToCamera({
     direction: 'right',
+    fromRight: rtl,
     onTrigger: () => setComposing('story'),
   });
 

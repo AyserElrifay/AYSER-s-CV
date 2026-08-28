@@ -10,6 +10,7 @@ import { useLang } from '../context/LanguageContext';
 import { SQUADS, DMS } from '../constants/mockData';
 import { HomeScreen } from '../screens/HomeScreen';
 import { Boundary } from '../components/Boundary';
+import { SwipeTabs } from './SwipeTabs';
 
 import { MapScreen } from '../screens/MapScreen';
 import { ReelsScreen } from '../screens/ReelsScreen';
@@ -26,7 +27,12 @@ const guarded = (Screen, name) => {
     // the name is what the crash log records — "Chats" is worth far
     // more than "screen" when you're reading it back later
     <Boundary soft name={name}>
-      <Screen {...props} />
+      {/* The swipe lives inside the boundary on purpose: a screen that
+          throws still loses only itself, and you can still swipe off it
+          to somewhere that works instead of being stranded. */}
+      <SwipeTabs>
+        <Screen {...props} />
+      </SwipeTabs>
     </Boundary>
   );
   Guarded.displayName = 'Guarded(' + (name || Screen.displayName || Screen.name || 'Screen') + ')';
@@ -97,6 +103,9 @@ export const TabNavigator = () => {
   <Tab.Navigator
     screenOptions={({ route }) => ({
       headerShown: false,
+      // A cut between tabs reads as a glitch when a finger caused it;
+      // a shift reads as movement, which is what the finger did.
+      animation: 'shift',
       tabBarPosition: sidebar ? 'left' : 'bottom',
       tabBarActiveTintColor: C.purple,
       tabBarInactiveTintColor: C.faint,
