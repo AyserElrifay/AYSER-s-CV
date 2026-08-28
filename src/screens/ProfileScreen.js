@@ -97,7 +97,20 @@ const GridCell = ({ item }) => {
         end={{ x: 1, y: 1 }}
         style={{ width: SIZE, height: SIZE, alignItems: 'center', justifyContent: 'center', padding: 8 }}
       >
-        <Text style={{ color: bg.text, fontSize: 11.5, fontWeight: '700', textAlign: 'center', lineHeight: 15 }} numberOfLines={4}>
+        {/* Four lines of 15px is 60px of text in a tile that, after its
+            own padding, has room for about three. The fourth was being
+            sliced through the middle with no ellipsis, so a post ended
+            mid-word and looked broken rather than trimmed.
+
+            Three lines, a height that says so, and a tail ellipsis: the
+            reader can see the sentence was cut on purpose. */}
+        <Text
+          numberOfLines={3}
+          ellipsizeMode="tail"
+          style={{
+            color: bg.text, fontSize: 11.5, fontWeight: '700', textAlign: 'center',
+            lineHeight: 15, maxHeight: 45, width: '100%',
+          }}>
           {item.text}
         </Text>
       </LinearGradient>

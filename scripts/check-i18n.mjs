@@ -15,15 +15,38 @@
        node scripts/check-i18n.mjs
 */
 
+/* The twelve other languages left the bundle and became files in
+   public/i18n — 424 KB that no longer reaches a phone to be unread.
+   This check follows them there, because a safety net that stops
+   watching the moment the thing it guards moves is worse than none:
+   the whole reason the gap grew last time is that nothing was looking. */
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { STRINGS, LANGS } from '../src/constants/i18n.js';
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+const DIR = path.join(here, '..', 'public', 'i18n');
 
 const en = Object.keys(STRINGS.en);
 const codes = LANGS.map((l) => l.code);
 const problems = [];
 
 for (const code of codes) {
-  const dict = STRINGS[code];
-  if (!dict) { problems.push({ code, missing: en, extra: [] }); continue; }
+  let dict = STRINGS[code];
+  if (!dict) {
+    const file = path.join(DIR, code + '.json');
+    if (!fs.existsSync(file)) {
+      problems.push({ code, missing: en, extra: [], note: 'public/i18n/' + code + '.json is not there' });
+      continue;
+    }
+    try {
+      dict = JSON.parse(fs.readFileSync(file, 'utf8'));
+    } catch (e) {
+      problems.push({ code, missing: en, extra: [], note: 'public/i18n/' + code + '.json is not valid JSON' });
+      continue;
+    }
+  }
   const missing = en.filter((k) => !(k in dict));
   const extra = Object.keys(dict).filter((k) => !(k in STRINGS.en));
   if (missing.length || extra.length) problems.push({ code, missing, extra });
