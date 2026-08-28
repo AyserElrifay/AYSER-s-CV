@@ -318,7 +318,7 @@ export const ProfileModal = ({ user, onClose }) => {
             {onlineNow ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
                 <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: C.green, marginRight: 6 }} />
-                <Text style={{ color: C.green, fontSize: 12, fontWeight: '800' }}>Online now</Text>
+                <Text style={{ color: C.green, fontSize: 12, fontWeight: '800' }}>{t('pm_online')}</Text>
               </View>
             ) : null}
             {user.handle ? <Text style={{ color: C.dim, fontSize: 13, marginTop: 2 }}>{user.handle}</Text> : null}
@@ -351,7 +351,7 @@ export const ProfileModal = ({ user, onClose }) => {
               <View style={{ flexDirection: 'row', marginTop: 10 }}>
                 <View style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 }}>
                   <Text style={{ color: C.dim, fontSize: 12, fontWeight: '700' }}>
-                    📅 Joined {new Date(fullProfile.created_at).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}
+                    📅 {t('pm_joined')} {new Date(fullProfile.created_at).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}
                   </Text>
                 </View>
               </View>
@@ -373,7 +373,7 @@ export const ProfileModal = ({ user, onClose }) => {
                 </Pressable>
                 <Pressable onPress={() => { tapLight(); setMsgOpen((o) => !o); }} style={{ width: 118 }}>
                   <View style={{ borderRadius: 14, paddingVertical: 13, alignItems: 'center', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line }}>
-                    <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800' }}>Message 💬</Text>
+                    <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800' }}>{t('pm_message')}</Text>
                   </View>
                 </Pressable>
               </View>
@@ -400,11 +400,11 @@ export const ProfileModal = ({ user, onClose }) => {
             ) : null}
             {msgSent ? (
               <Text style={{ color: C.green, fontSize: 12, fontWeight: '800', textAlign: 'center', marginTop: 8 }}>
-                Sent! Continue in Chats 💬
+                {t('pm_sent')}
               </Text>
             ) : null}
             {busy ? (
-              <Text style={{ color: C.faint, fontSize: 12, textAlign: 'center', marginTop: 8 }}>Working…</Text>
+              <Text style={{ color: C.faint, fontSize: 12, textAlign: 'center', marginTop: 8 }}>{t('pm_working')}</Text>
             ) : null}
             {actionErr ? (
               <Text style={{ color: C.coral, fontSize: 12, fontWeight: '700', textAlign: 'center', marginTop: 8, lineHeight: 17 }}>
@@ -431,7 +431,7 @@ export const ProfileModal = ({ user, onClose }) => {
               ))}
             </View>
             {posts == null ? (
-              <Text style={{ color: C.faint, fontSize: 12.5, textAlign: 'center', paddingVertical: 20 }}>Loading…</Text>
+              <Text style={{ color: C.faint, fontSize: 12.5, textAlign: 'center', paddingVertical: 20 }}>{t('pm_loading')}</Text>
             ) : locked ? (
               /* A private account with nothing shared is not the same as
                  an empty one, and pretending otherwise is a small lie.
@@ -439,7 +439,7 @@ export const ProfileModal = ({ user, onClose }) => {
                  this just explains the silence. */
               <Glass style={{ padding: 22, alignItems: 'center' }}>
                 <Text style={{ fontSize: 30 }}>🔒</Text>
-                <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800', marginTop: 8 }}>This account is private</Text>
+                <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800', marginTop: 8 }}>{t('pm_private')}</Text>
                 <Text style={{ color: C.faint, fontSize: 12, marginTop: 3, textAlign: 'center', lineHeight: 18 }}>
                   {mateState === 'requested'
                     ? 'Your request is waiting — you\u2019ll see their moments once they accept.'
@@ -449,7 +449,7 @@ export const ProfileModal = ({ user, onClose }) => {
             ) : shownPosts.length === 0 ? (
               <Glass style={{ padding: 22, alignItems: 'center' }}>
                 <Text style={{ fontSize: 30 }}>🌱</Text>
-                <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800', marginTop: 8 }}>No moments yet</Text>
+                <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800', marginTop: 8 }}>{t('pm_no_moments')}</Text>
                 <Text style={{ color: C.faint, fontSize: 12, marginTop: 3, textAlign: 'center' }}>
                   {tab === 'tag' ? 'Nobody has tagged them in a moment yet.'
                     : tab === 'repost' ? 'They haven\u2019t passed anything on yet.'

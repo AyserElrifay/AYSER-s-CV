@@ -7,6 +7,7 @@ import { AV_NEUTRAL } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
 import { fetchComments, addComment, fetchCommentLikes, toggleCommentLike, editComment, deleteComment } from '../services/social';
 import { useAuth } from '../context/AuthContext';
+import { useLang } from '../context/LanguageContext';
 import { sfxPop, sfxStar } from '../utils/sfx';
 import { tapSelection, tapLight } from '../utils/feedback';
 import { Micro } from './Micro';
@@ -72,6 +73,7 @@ const toThread = (rows) => {
 };
 
 export const CommentsSheet = ({ post, onClose }) => {
+  const { t } = useLang();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [comments, setComments] = useState([]);
@@ -190,7 +192,7 @@ export const CommentsSheet = ({ post, onClose }) => {
             <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: C.glassHi }} />
           </View>
           <View style={{ paddingHorizontal: 18, paddingBottom: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Micro>Comments 💬</Micro>
+            <Micro>{t('cm_title')}</Micro>
             <Pressable testID="btn-close-comments" onPress={onClose}><Ionicons name="close" size={18} color={C.dim} /></Pressable>
           </View>
 
@@ -201,7 +203,7 @@ export const CommentsSheet = ({ post, onClose }) => {
             contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 8 }}
             ListEmptyComponent={
               <Text style={{ color: C.faint, fontSize: 13, textAlign: 'center', paddingVertical: 24 }}>
-                No comments yet — say something nice ✨
+                {t('cm_empty')}
               </Text>
             }
             renderItem={({ item }) => {
@@ -235,10 +237,10 @@ export const CommentsSheet = ({ post, onClose }) => {
                           />
                           <View style={{ flexDirection: 'row', marginTop: 7 }}>
                             <Pressable onPress={() => saveEdit(item)} style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 6, marginRight: 8 }}>
-                              <Text style={{ color: '#FFF', fontSize: 11.5, fontWeight: '900' }}>Save</Text>
+                              <Text style={{ color: '#FFF', fontSize: 11.5, fontWeight: '900' }}>{t('cm_save')}</Text>
                             </Pressable>
                             <Pressable onPress={() => { setEditingId(null); setEditText(''); }} style={{ paddingHorizontal: 6, paddingVertical: 6 }}>
-                              <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '800' }}>Cancel</Text>
+                              <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '800' }}>{t('cm_cancel')}</Text>
                             </Pressable>
                           </View>
                         </View>
@@ -257,13 +259,13 @@ export const CommentsSheet = ({ post, onClose }) => {
                       </Pressable>
                       {!item.isReply ? (
                         <Pressable onPress={() => { tapLight(); setReplyTo({ id: item.id, name: item.user.name }); }} hitSlop={8}>
-                          <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '800' }}>Reply</Text>
+                          <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '800' }}>{t('cm_reply')}</Text>
                         </Pressable>
                       ) : null}
                       {mine(item) && editingId !== item.id ? (
                         <>
                           <Pressable onPress={() => { tapLight(); setEditingId(item.id); setEditText(item.body); }} hitSlop={8} style={{ marginLeft: 16 }}>
-                            <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '800' }}>Edit</Text>
+                            <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '800' }}>{t('cm_edit')}</Text>
                           </Pressable>
                           <Pressable onPress={() => removeComment(item)} hitSlop={8} style={{ marginLeft: 16 }}>
                             <Text style={{ color: confirmId === item.id ? C.coral : C.faint, fontSize: 11.5, fontWeight: '800' }}>
@@ -281,7 +283,7 @@ export const CommentsSheet = ({ post, onClose }) => {
 
           {replyTo ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.purpleSoft, paddingHorizontal: 18, paddingVertical: 7 }}>
-              <Text style={{ color: C.purple, fontSize: 11.5, fontWeight: '800', flex: 1 }}>↩︎ Replying to {replyTo.name}</Text>
+              <Text style={{ color: C.purple, fontSize: 11.5, fontWeight: '800', flex: 1 }}>↩︎ {t('cm_replying_to')} {replyTo.name}</Text>
               <Pressable onPress={() => setReplyTo(null)} hitSlop={8}><Ionicons name="close" size={15} color={C.purple} /></Pressable>
             </View>
           ) : null}

@@ -736,7 +736,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
     setGpsBusy(true);
     const c = await getCurrentCoords();
     setGpsBusy(false);
-    if (!c) { setCamError('Turn on location to put this on the map 📍'); return; }
+    if (!c) { setCamError(t('cap_err_loc')); return; }
     setMapCoords(c);
     setOnMap(true);
   };
@@ -915,7 +915,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
   }, []);
 
   const railSounds = SUPABASE_READY
-    ? [...realTracks, { id: 'orig', title: 'Original sound', artist: 'Your recording', emoji: '🎤' }]
+    ? [...realTracks, { id: 'orig', title: t('cap_orig_sound'), artist: t('cap_your_rec'), emoji: '🎤' }]
     : SOUNDS;
 
   /* ── hear a sound BEFORE you post it: picking a track with a real
@@ -1021,7 +1021,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
       }
       setCamError(null);
     } catch (e) {
-      setCamError('Allow camera access to shoot 🎥');
+      setCamError(t('cap_err_cam'));
     }
   };
 
@@ -1175,7 +1175,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
         });
       }, 100);
     } catch (e) {
-      setCamError('Video recording is not supported in this browser');
+      setCamError(t('cap_err_novideo'));
     }
   };
 
@@ -1322,7 +1322,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
       try {
         const w = el.videoWidth, h = el.videoHeight;
         setDiag((d) => ({ ...(d || {}), pw: w, ph: h }));
-        if (!w || !h) return finish('This clip has no picture — try recording it again.');
+        if (!w || !h) return finish(t('cap_err_nopic'));
         const c = document.createElement('canvas');
         c.width = 64; c.height = Math.max(1, Math.round((h / w) * 64));
         const cx = c.getContext('2d');
@@ -1459,7 +1459,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
       setShot({ uri, blob: fit.blob || file, bytes: (fit.blob || file).size, kind: 'video', ext, contentType: mime });
       probeClip(uri);
     } catch (e) {
-      setCamError('Could not open the camera — try the gallery button.');
+      setCamError(t('cap_err_camopen'));
     }
   };
 
@@ -1545,7 +1545,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
         setShot({ uri: a.uri, kind: isVid ? 'video' : 'photo', ext, contentType: mime });
         if (isVid) probeClip(a.uri);
       }
-    } catch (e) { setCamError('Could not open your gallery'); }
+    } catch (e) { setCamError(t('cap_err_gallery')); }
   };
 
   /* A phone-gallery video can easily be 100-300MB (a 90s iPhone clip is) —
@@ -1615,7 +1615,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
         const uri = URL.createObjectURL(body);
         setShot({ uri, blob: body, bytes: body.size, kind: 'video', ext, contentType: fit.contentType || file.type || 'video/mp4' });
         probeClip(uri);
-      } catch (e) { setCamError('Could not open your videos'); }
+      } catch (e) { setCamError(t('cap_err_videos')); }
       return;
     }
     try {
@@ -1628,13 +1628,13 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
         setShot({ uri: a.uri, kind: 'video', ext: ext || 'mp4', contentType: a.mimeType || ('video/' + (ext || 'mp4')) });
         probeClip(a.uri);
       }
-    } catch (e) { setCamError('Could not open your videos'); }
+    } catch (e) { setCamError(t('cap_err_videos')); }
   };
 
   /* ── native: one tap into the system camera ── */
   const nativeShoot = async () => {
     const perm = await ImagePicker.requestCameraPermissionsAsync();
-    if (!perm.granted) { setCamError('Camera permission needed 🎥'); return; }
+    if (!perm.granted) { setCamError(t('cap_err_perm')); return; }
     const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images', 'videos'], quality: 1, videoMaxDuration: 30, videoQuality: ImagePicker.UIImagePickerControllerQualityType && ImagePicker.UIImagePickerControllerQualityType.High });
     if (!result.canceled && result.assets && result.assets[0]) {
       const a = result.assets[0];
@@ -1824,7 +1824,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
           ? setupNotice('Upload blocked by storage permissions — run the latest supabase/RUN_ME.sql to fix the media policies.')
           : /load failed|failed to fetch|network/i.test(m)
           ? 'The upload didn\'t reach the server — check your connection and tap share again (large videos need a steady signal).'
-          : (m || 'Could not share — check your connection and try again')
+          : (m || t('cap_err_share'))
       );
       /* The friendly sentence above hides the only thing that can
          actually diagnose this. The owner gets the real words. */
@@ -2383,10 +2383,10 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
                   </View>
                   <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 11.5, fontWeight: '700', marginTop: 10 }}>
                     {isWebKit
-                      ? 'Tap for photo · 🎥 for video · 📚 your library'
+                      ? t('cap_hint_webkit')
                       : recording
-                        ? (locked ? '🔒 Hands-free — tap to stop' : 'Slide up to lock 🔒 · up to 3 minutes')
-                        : 'Tap for photo · hold for video · 📚 your library'}
+                        ? (locked ? t('cap_locked') : t('cap_slide_lock'))
+                        : t('cap_hint_hold')}
                   </Text>
                   {isWebKit ? (
                     <Text style={{ color: 'rgba(255,255,255,0.55)', fontSize: 10.5, marginTop: 5, textAlign: 'center', paddingHorizontal: 24, lineHeight: 15 }}>
@@ -2429,7 +2429,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
                 {['story', 'reel', 'video'].map((m) => (
                   <Pressable key={m} onPress={() => { tapLight(); setMode(m); }} style={{ marginHorizontal: 12 }}>
                     <Text style={{ color: mode === m ? '#FFF' : 'rgba(255,255,255,0.5)', fontSize: 13.5, fontWeight: '900', letterSpacing: 1.2, textTransform: 'uppercase' }}>
-                      {m === 'story' ? '⭕ Story' : m === 'reel' ? '🎬 Reel' : '📺 Video'}
+                      {m === 'story' ? t('cap_m_story') : m === 'reel' ? t('cap_m_reel') : t('cap_m_video')}
                     </Text>
                     {mode === m ? <View style={{ height: 3, borderRadius: 2, backgroundColor: C.gold, marginTop: 5 }} /> : null}
                   </Pressable>
@@ -2510,9 +2510,9 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
               {panel === 'looks' && editOpen ? (
                 <View style={{ marginHorizontal: 14, marginBottom: 10, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)', padding: 12 }}>
                   {[
-                    { label: '☀️ Brightness', val: bright, set: setBright, min: 0.7, max: 1.3, step: 0.05 },
-                    { label: '◐ Contrast', val: contrast, set: setContrast, min: 0.7, max: 1.3, step: 0.05 },
-                    { label: '🔥 Warmth', val: warmth, set: setWarmth, min: -20, max: 20, step: 4 },
+                    { label: t('cap_bright'), val: bright, set: setBright, min: 0.7, max: 1.3, step: 0.05 },
+                    { label: t('cap_contrast'), val: contrast, set: setContrast, min: 0.7, max: 1.3, step: 0.05 },
+                    { label: t('cap_warmth'), val: warmth, set: setWarmth, min: -20, max: 20, step: 4 },
                   ].map((row) => (
                     <View key={row.label} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
                       <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '700', width: 110 }}>{row.label}</Text>
@@ -2576,7 +2576,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
               {mode === 'story' && !sendMode && panel === 'tags' ? (
                 <View style={{ marginBottom: 12 }}>
                   <View style={{ flexDirection: 'row' }}>
-                    {[{ k: 'poll', label: '📊 Poll' }, { k: 'question', label: '❓ Ask' }].map((o) => {
+                    {[{ k: 'poll', label: t('cap_poll') }, { k: 'question', label: t('cap_ask') }].map((o) => {
                       const on = stickerType === o.k;
                       return (
                         <Pressable key={o.k} onPress={() => { tapLight(); setStickerType(on ? null : o.k); }} style={{ marginRight: 8 }}>
@@ -2685,7 +2685,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
                     <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: onMap ? C.purple : 'rgba(0,0,0,0.55)', borderWidth: 1, borderColor: onMap ? C.purple : 'rgba(255,255,255,0.35)', borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8 }}>
                       <Ionicons name={gpsBusy ? 'hourglass-outline' : onMap ? 'location' : 'location-outline'} size={14} color="#FFF" />
                       <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '900', marginLeft: 6 }}>
-                        {gpsBusy ? 'Finding you…' : onMap ? 'On the map ✓' : 'Add to the map'}
+                        {gpsBusy ? t('cap_finding') : onMap ? t('cap_on_map') : t('cap_add_map')}
                       </Text>
                     </View>
                   </Pressable>
@@ -2710,7 +2710,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
                       <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: closeOnly ? C.green : 'rgba(0,0,0,0.55)', borderWidth: 1, borderColor: closeOnly ? C.green : 'rgba(255,255,255,0.35)', borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8 }}>
                         <Ionicons name={closeOnly ? 'star' : 'star-outline'} size={14} color="#FFF" />
                         <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '900', marginLeft: 6 }}>
-                          {closeOnly ? 'Close Friends only ✓' : 'Close Friends only'}
+                          {closeOnly ? t('cap_cf_on') : t('cap_cf')}
                         </Text>
                       </View>
                     </Pressable>
@@ -2721,7 +2721,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 22, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', paddingHorizontal: 14, paddingVertical: Platform.OS === 'ios' ? 12 : 4, marginRight: 10 }}>
                   <TextInput
-                    placeholder={sendMode ? 'Add a caption… (optional)' : mode === 'story' ? 'Say something… (optional)' : mode === 'video' ? 'Title your video…' : 'Caption your reel…'}
+                    placeholder={sendMode ? t('cap_ph_caption') : mode === 'story' ? t('cap_ph_say') : mode === 'video' ? t('cap_ph_title') : t('cap_ph_reel')}
                     placeholderTextColor="rgba(255,255,255,0.55)"
                     value={caption}
                     onChangeText={setCaption}
@@ -2732,8 +2732,8 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
                   <LinearGradient colors={[C.purple, '#5B21B6']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, paddingHorizontal: 20, paddingVertical: 13, opacity: busy ? 0.6 : 1 }}>
                     <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '900' }}>
                       {busy
-                        ? (upPct > 0 ? 'Sending… ' + Math.round(upPct * 100) + '%' : 'Sending…')
-                        : sendMode ? 'Send Moment 🔥' : mode === 'story' ? 'Add to Story' : mode === 'video' ? 'Post Video' : 'Post Reel'}
+                        ? (upPct > 0 ? t('cap_sending') + ' ' + Math.round(upPct * 100) + '%' : t('cap_sending'))
+                        : sendMode ? t('cap_send_moment') : mode === 'story' ? t('cap_add_story') : mode === 'video' ? t('cap_post_video') : t('cap_post_reel')}
                     </Text>
                     {sendMode ? null : <MaterialCommunityIcons name="star-four-points" size={15} color={C.gold} style={{ marginLeft: 6 }} />}
                   </LinearGradient>

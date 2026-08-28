@@ -555,7 +555,7 @@ export const ChatsScreen = () => {
           </Pressable>
           <TextInput value={squadEmoji} onChangeText={setSquadEmoji} maxLength={4}
             style={{ width: 48, textAlign: 'center', fontSize: 20, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 12, marginRight: 8 }} />
-          <TextInput placeholder="Squad name (e.g. Sunrise Hikers)" placeholderTextColor={C.faint} value={squadName} onChangeText={setSquadName}
+          <TextInput placeholder={t('ch_squad_name_ph')} placeholderTextColor={C.faint} value={squadName} onChangeText={setSquadName}
             style={{ flex: 1, color: C.text, fontSize: 14, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12 }} />
         </View>
         {squadErr ? <Text style={{ color: C.coral, fontSize: 11.5, marginTop: 8 }}>{squadErr}</Text> : null}
@@ -594,10 +594,10 @@ export const ChatsScreen = () => {
               {SUPABASE_READY ? (
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
                   <Pressable onPress={() => openInvite(s)} hitSlop={8} style={{ marginRight: 12 }}>
-                    <Text style={{ color: C.purple, fontSize: 10.5, fontWeight: '900' }}>＋ Invite</Text>
+                    <Text style={{ color: C.purple, fontSize: 10.5, fontWeight: '900' }}>＋ {t('ch_invite')}</Text>
                   </Pressable>
                   <Pressable onPress={() => closeSquad(s)} hitSlop={8}>
-                    <Text style={{ color: C.coral, fontSize: 10.5, fontWeight: '800' }}>Leave ✕</Text>
+                    <Text style={{ color: C.coral, fontSize: 10.5, fontWeight: '800' }}>{t('ch_leave')} ✕</Text>
                   </Pressable>
                 </View>
               ) : null}
@@ -607,7 +607,7 @@ export const ChatsScreen = () => {
             <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
               <AvatarStack uris={s.members} />
               <Text style={{ color: C.faint, fontSize: 11.5, marginLeft: 10 }}>
-                {s.members.length} Roam Mates · squad expires after the vibe
+                {s.members.length} {t('ch_mates_expire')}
               </Text>
             </View>
           ) : null}
@@ -673,7 +673,7 @@ export const ChatsScreen = () => {
               )}
             </View>
             {d.translated ? (
-              <Text style={{ color: C.faint, fontSize: 10.5, marginTop: 2 }}>Tap to translate · Arabic detected</Text>
+              <Text style={{ color: C.faint, fontSize: 10.5, marginTop: 2 }}>{t('ch_tap_translate')}</Text>
             ) : null}
           </View>
           <View style={{ alignItems: 'flex-end', marginLeft: 10 }}>
@@ -716,15 +716,15 @@ export const ChatsScreen = () => {
     {!loadingChats && chatsErr && !dms.length && !squads.length ? (
       <Glass style={{ padding: 22, alignItems: 'center' }}>
         <Text style={{ fontSize: 32 }}>📡</Text>
-        <Text style={{ color: C.text, fontSize: 15.5, fontWeight: '900', marginTop: 8 }}>Couldn't reach your chats</Text>
+        <Text style={{ color: C.text, fontSize: 15.5, fontWeight: '900', marginTop: 8 }}>{t('ch_offline_t')}</Text>
         <Text style={{ color: C.faint, fontSize: 12.5, marginTop: 6, textAlign: 'center', lineHeight: 18 }}>
-          This is the connection, not you — everything you've said is still there.
+          {t('ch_offline_b')}
         </Text>
         {/* back to "we don't know yet" first, so the placeholder rows
             come back and the tap visibly does something */}
         <Pressable onPress={() => { tapLight(); setRealDms(null); setRealSquads(null); reload(); }} style={{ marginTop: 14 }}>
           <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 24, paddingVertical: 11 }}>
-            <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900' }}>Try again</Text>
+            <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900' }}>{t('ch_try_again')}</Text>
           </View>
         </Pressable>
       </Glass>
@@ -809,7 +809,7 @@ export const ChatsScreen = () => {
                 style={{ flex: 1, color: C.text, fontSize: 12.5, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 11, paddingHorizontal: 11, paddingVertical: 9, marginRight: 8 }}
               />
               <TextInput
-                placeholder="Learning… (e.g. English)" placeholderTextColor={C.faint}
+                placeholder={t('ch_learning_ph')} placeholderTextColor={C.faint}
                 value={exLearning} onChangeText={setExLearning}
                 style={{ flex: 1, color: C.text, fontSize: 12.5, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 11, paddingHorizontal: 11, paddingVertical: 9 }}
               />
@@ -967,9 +967,9 @@ export const ChatsScreen = () => {
           <View style={{ alignItems: 'center', paddingTop: 10 }}>
             <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: C.glassHi }} />
           </View>
-          <Text style={{ color: C.text, fontSize: 16, fontWeight: '900', textAlign: 'center', marginTop: 10 }}>Send to</Text>
+          <Text style={{ color: C.text, fontSize: 16, fontWeight: '900', textAlign: 'center', marginTop: 10 }}>{t('ch_send_to')}</Text>
           <Text style={{ color: C.faint, fontSize: 11.5, textAlign: 'center', marginTop: 3 }}>
-            {sendDone ? 'Sent to ' + sendDone + (sendDone === 1 ? ' person 🔥' : ' people 🔥') : 'Pick anyone — it keeps your streak with each of them'}
+            {sendDone ? t('ch_sent_to') + ' ' + sendDone + ' ' + t(sendDone === 1 ? 'ch_person' : 'ch_people') : t('ch_pick_anyone')}
           </Text>
           <ScrollView contentContainerStyle={{ paddingHorizontal: 14, paddingTop: 12 }}>
             {dms.filter((d) => d.threadId).map((d) => {
@@ -987,7 +987,7 @@ export const ChatsScreen = () => {
             })}
             {!dms.filter((d) => d.threadId).length ? (
               <Text style={{ color: C.faint, fontSize: 12.5, textAlign: 'center', paddingVertical: 30, lineHeight: 19 }}>
-                No conversations yet — say hello to someone first and the streak starts from there.
+                {t('ch_no_convos')}
               </Text>
             ) : null}
           </ScrollView>
@@ -1032,7 +1032,7 @@ export const ChatsScreen = () => {
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, paddingBottom: 8 }}>
             <Text style={{ color: C.text, fontSize: 15, fontWeight: '900' }}>
-              {inviteSquad.emoji} Invite to {inviteSquad.name}
+              {inviteSquad.emoji} {t('ch_invite_to')} {inviteSquad.name}
             </Text>
             <Pressable onPress={() => setInviteSquad(null)} hitSlop={8}><Ionicons name="close" size={18} color={C.dim} /></Pressable>
           </View>
@@ -1053,7 +1053,7 @@ export const ChatsScreen = () => {
                     </View>
                   ) : justAdded ? (
                     <View style={{ backgroundColor: C.glassHi, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 7 }}>
-                      <Text style={{ color: C.dim, fontSize: 12, fontWeight: '900' }}>Adding…</Text>
+                      <Text style={{ color: C.dim, fontSize: 12, fontWeight: '900' }}>{t('ch_adding')}</Text>
                     </View>
                   ) : (
                     <Pressable onPress={() => inviteMate(m)}>
@@ -1114,10 +1114,10 @@ export const ChatsScreen = () => {
               </Pressable>
             ))}
             {composeQ.trim() && !composeBusy && !composeResults.length ? (
-              <Text style={{ color: C.faint, fontSize: 13, textAlign: 'center', paddingVertical: 30 }}>No one found for “{composeQ.trim()}” — yet 🌱</Text>
+              <Text style={{ color: C.faint, fontSize: 13, textAlign: 'center', paddingVertical: 30 }}>“{composeQ.trim()}” — {t('ch_none_found')}</Text>
             ) : null}
             {!composeQ.trim() && !myMates.length ? (
-              <Text style={{ color: C.faint, fontSize: 13, textAlign: 'center', paddingVertical: 30 }}>Search anyone by name to start a chat ✨</Text>
+              <Text style={{ color: C.faint, fontSize: 13, textAlign: 'center', paddingVertical: 30 }}>{t('ch_search_anyone')}</Text>
             ) : null}
           </ScrollView>
         </View>

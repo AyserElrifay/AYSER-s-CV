@@ -5,6 +5,7 @@ import { View, Text, Modal, Pressable, ImageBackground, FlatList, Dimensions, Im
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useLang } from '../context/LanguageContext';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { C, TEXT_BGS } from '../constants/theme';
 import { SoundChip } from './SoundChip';
@@ -22,6 +23,7 @@ const { height: H } = Dimensions.get('window');
 /* TikTok-style full-screen reels: swipe up for the next one, action
    rail on the right, sound tag at the bottom. */
 export const ReelsViewer = ({ reels, startIndex = 0, vibes, onVibe, onComment, onClose, onDeleted, onEdited }) => {
+  const { t } = useLang();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [report, setReport] = useState(null);
@@ -223,9 +225,9 @@ export const ReelsViewer = ({ reels, startIndex = 0, vibes, onVibe, onComment, o
             fontFamily: '-apple-system, system-ui, sans-serif', textAlign: 'center', padding: '0 40px',
           }}>
             <div style={{ fontSize: 34 }}>🎞️</div>
-            <div style={{ fontSize: 15, fontWeight: 800, marginTop: 10 }}>This clip didn't record properly</div>
+            <div style={{ fontSize: 15, fontWeight: 800, marginTop: 10 }}>{t('rv_bad_t')}</div>
             <div style={{ fontSize: 12.5, opacity: 0.75, marginTop: 6, lineHeight: 1.5 }}>
-              The browser that made it wrote a file it can't play back. Record a new one from the camera and it will work.
+              {t('rv_bad_b')}
             </div>
           </div>
           {inner(item, vibed)}
@@ -291,17 +293,17 @@ export const ReelsViewer = ({ reels, startIndex = 0, vibes, onVibe, onComment, o
           </Pressable>
           <Pressable onPress={() => share(item)} hitSlop={8} style={{ alignItems: 'center', marginBottom: 18 }}>
             <Ionicons name="paper-plane-outline" size={26} color="#FFF" />
-            <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '800', marginTop: 3 }}>Share</Text>
+            <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '800', marginTop: 3 }}>{t('rv_share')}</Text>
           </Pressable>
           {user && item.user && item.user.id === user.id ? (
             <Pressable onPress={() => openManage(item)} hitSlop={8} style={{ alignItems: 'center' }}>
               <Ionicons name="ellipsis-horizontal-circle-outline" size={30} color="#FFF" />
-              <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '800', marginTop: 3 }}>Manage</Text>
+              <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '800', marginTop: 3 }}>{t('rv_manage')}</Text>
             </Pressable>
           ) : (
           <Pressable onPress={() => setReport(item)} hitSlop={8} style={{ alignItems: 'center' }}>
             <Ionicons name="flag-outline" size={24} color="#FFF" />
-            <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '800', marginTop: 3 }}>Report</Text>
+            <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '800', marginTop: 3 }}>{t('rv_report')}</Text>
           </Pressable>
           )}
         </View>
@@ -346,9 +348,9 @@ export const ReelsViewer = ({ reels, startIndex = 0, vibes, onVibe, onComment, o
             <Pressable onPress={() => !busy && setManage(null)} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }}>
               <Pressable onPress={() => {}} style={{ backgroundColor: '#150C2B', borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 20, paddingTop: 10, paddingBottom: insets.bottom + 20 }}>
                 <View style={{ alignSelf: 'center', width: 44, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.28)', marginBottom: 16 }} />
-                <Text style={{ color: '#FFF', fontSize: 18, fontWeight: '900', marginBottom: 4 }}>Your reel</Text>
+                <Text style={{ color: '#FFF', fontSize: 18, fontWeight: '900', marginBottom: 4 }}>{t('rv_your_reel')}</Text>
                 <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12.5, marginBottom: 16 }}>
-                  Change what it says, change who sees it, or take it down.
+                  {t('rv_your_reel_b')}
                 </Text>
 
                 {/* caption */}
@@ -357,7 +359,7 @@ export const ReelsViewer = ({ reels, startIndex = 0, vibes, onVibe, onComment, o
                   value={draftCaption}
                   onChangeText={setDraftCaption}
                   multiline
-                  placeholder="Say something about it…"
+                  placeholder={t('rv_say_ph')}
                   placeholderTextColor="rgba(255,255,255,0.35)"
                   editable={!busy}
                   style={{
@@ -368,7 +370,7 @@ export const ReelsViewer = ({ reels, startIndex = 0, vibes, onVibe, onComment, o
                 />
 
                 {/* who it's for */}
-                <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 12, fontWeight: '800', marginTop: 18, marginBottom: 7 }}>WHO CAN SEE IT</Text>
+                <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 12, fontWeight: '800', marginTop: 18, marginBottom: 7 }}>{t('rv_who_sees')}</Text>
                 <View style={{ flexDirection: 'row' }}>
                   {[
                     { on: false, icon: 'earth', label: 'Everyone', sub: 'Anyone on Moments' },
@@ -416,13 +418,13 @@ export const ReelsViewer = ({ reels, startIndex = 0, vibes, onVibe, onComment, o
                     style={{ marginTop: 12, paddingVertical: 13, borderRadius: 999, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,122,122,0.5)' }}
                   >
                     <Ionicons name="trash-outline" size={16} color="#FF7A7A" />
-                    <Text style={{ color: '#FF7A7A', fontSize: 14, fontWeight: '800', marginLeft: 7 }}>Delete this reel</Text>
+                    <Text style={{ color: '#FF7A7A', fontSize: 14, fontWeight: '800', marginLeft: 7 }}>{t('rv_delete')}</Text>
                   </Pressable>
                 ) : (
                   <View style={{ marginTop: 12, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,122,122,0.4)', backgroundColor: 'rgba(255,122,122,0.08)', padding: 13 }}>
-                    <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '800' }}>Delete it for good?</Text>
+                    <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '800' }}>{t('rv_delete_q')}</Text>
                     <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12, marginTop: 4 }}>
-                      The video, its stars and its comments all go. This can't be undone.
+                      {t('rv_delete_b')}
                     </Text>
                     <View style={{ flexDirection: 'row', marginTop: 12 }}>
                       <Pressable
@@ -430,7 +432,7 @@ export const ReelsViewer = ({ reels, startIndex = 0, vibes, onVibe, onComment, o
                         disabled={busy}
                         style={{ flex: 1, marginRight: 10, paddingVertical: 11, borderRadius: 999, alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.1)' }}
                       >
-                        <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '800' }}>Keep it</Text>
+                        <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '800' }}>{t('rv_keep')}</Text>
                       </Pressable>
                       <Pressable
                         onPress={doDelete}
