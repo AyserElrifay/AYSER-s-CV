@@ -50,6 +50,24 @@ const toVideo = (r) => ({
   place: r.place || 'Video',
 });
 
+/* A drawn icon and one accent per game. Six competing gradients with
+   an emoji on each is the look Ayser recognised from a mile away — and
+   it is what a shelf looks like when nothing on it has been chosen
+   over anything else. Declared here, not inside the component, so they
+   are not rebuilt on every render. */
+const GAME_ICON = {
+  rps: 'hand-right', rooftop: 'business', stack: 'layers',
+  tower: 'trending-up', hop: 'walk', runner: 'people',
+};
+/* A FUNCTION, not an object. The palette is mutated in place when the
+   theme flips, so a map built at import time keeps whichever theme
+   happened to load first — for the whole session. Read it when it is
+   drawn. (Caught by check-rerender, which exists for exactly this.) */
+const gameTint = (kind) => ({
+  rps: C.purple, rooftop: C.gold, stack: C.blue,
+  tower: C.coral, hop: C.green, runner: C.blue,
+}[kind] || C.purple);
+
 export const ChillScreen = () => {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
@@ -167,89 +185,92 @@ export const ChillScreen = () => {
     <Page>
       <ScreenHeader kicker={t('chill_kicker')} title={t('chill_title')} />
 
-      {/* ── HERITAGE — out of the games, where it can be seen ── */}
-      <Pressable onPress={() => { tapLight(); sfxPop(); setCultureOpen(true); }} style={{ marginBottom: 16 }}>
-        <LinearGradient
-          colors={['#3B2410', '#8A5427']}
-          start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-          style={{ borderRadius: 20, padding: 16, flexDirection: 'row', alignItems: 'center' }}
-        >
-          <Text style={{ fontSize: 32 }}>🏛️</Text>
-          <View style={{ flex: 1, marginStart: 14 }}>
-            <Text style={{ color: '#FFF', fontSize: 17, fontWeight: '900' }}>{t('culture_title')}</Text>
-            <Text style={{ color: 'rgba(255,255,255,0.78)', fontSize: 12, marginTop: 3, lineHeight: 17 }}>
-              {t('culture_sub')}
-            </Text>
-          </View>
-        </LinearGradient>
-      </Pressable>
+      {/* ── ONE HERO, THEN QUIET ROWS ─────────────────────────────
+          Ayser sent a photograph of this screen and said it looked
+          like something a machine made. He was right, and the reasons
+          were specific rather than a matter of taste:
 
-      {/* ── PLAY — every real game, finally easy to find ── */}
-      <SectionHeader title={t('sec_play')} />
+          three gradient cards stacked in a row, each with an emoji on
+          the left, a bold title, a thin subtitle and a pill on the
+          right — the same shape three times in three colours. Emoji
+          standing in for icons. Emoji inside the headings. A paragraph
+          under a section header explaining what the section is for.
+          Five gradients competing, so nothing was more important than
+          anything else.
 
-      {/* لمّة sits above the strip and not inside it. The others are
-          games you play alone on a bus; this is the one you open when
-          there are people in the room, and a 132px card in a sideways
-          list is not how you invite five friends to anything. */}
-      <Pressable onPress={() => { tapLight(); sfxPop(); setLammaOpen(true); }} style={{ marginTop: -4, marginBottom: 14 }}>
+          Instagram and Tinder do the opposite: the content is the
+          interface, icons are one weight and one colour, nothing
+          explains itself, and the screen is DENSE. A menu of features
+          is what you build when you have not decided what matters.
+
+          So: لمّة keeps the gradient, because it is the one thing this
+          screen is for. Everything else steps down to a quiet row with
+          a real icon, and the emoji come out. */}
+      <Pressable onPress={() => { tapLight(); sfxPop(); setLammaOpen(true); }} style={{ marginTop: -2, marginBottom: 10 }}>
         <LinearGradient
           colors={['#2B1055', '#7C3AED']}
           start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-          style={{ borderRadius: 20, padding: 16, flexDirection: 'row', alignItems: 'center' }}
+          style={{ borderRadius: 16, paddingVertical: 15, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center' }}
         >
-          <Text style={{ fontSize: 34 }}>🧠</Text>
-          <View style={{ flex: 1, marginStart: 14 }}>
-            <Text style={{ color: '#FFF', fontSize: 18, fontWeight: '900' }}>{t('lamma_title')}</Text>
-            <Text style={{ color: 'rgba(255,255,255,0.82)', fontSize: 12, fontWeight: '700', marginTop: 2 }}>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={{ color: '#FFF', fontSize: 21, fontWeight: '900', letterSpacing: -0.3 }}>{t('lamma_title')}</Text>
+            <Text numberOfLines={1} style={{ color: 'rgba(255,255,255,0.78)', fontSize: 12.5, marginTop: 2 }}>
               {t('lamma_tagline')}
             </Text>
           </View>
-          <View style={{ backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 999, paddingHorizontal: 16, paddingVertical: 9 }}>
-            <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900' }}>{t('lamma_start')}</Text>
+          <View style={{ backgroundColor: '#FFF', borderRadius: 999, paddingHorizontal: 16, paddingVertical: 8 }}>
+            <Text style={{ color: '#5B21B6', fontSize: 13, fontWeight: '900' }}>{t('lamma_start')}</Text>
           </View>
         </LinearGradient>
       </Pressable>
 
-      {/* ── THE GREEN CORNER ─────────────────────────────────────
-          Next to لمّة because it is the same idea from the other side:
-          لمّة is a room full of people laughing indoors, this is the
-          same people outside doing something small that lasts. */}
-      <Pressable onPress={() => { tapLight(); sfxPop(); setGreenOpen(true); }} style={{ marginBottom: 18 }}>
-        <LinearGradient
-          colors={['#0E3B2E', '#1F7A5A']}
-          start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-          style={{ borderRadius: 20, padding: 16, flexDirection: 'row', alignItems: 'center' }}
-        >
-          <Text style={{ fontSize: 34 }}>🌿</Text>
-          <View style={{ flex: 1, minWidth: 0, marginStart: 14 }}>
-            <Text style={{ color: '#FFF', fontSize: 18, fontWeight: '900' }}>{t('green_title')}</Text>
-            <Text numberOfLines={2} style={{ color: 'rgba(255,255,255,0.82)', fontSize: 12, fontWeight: '700', marginTop: 2 }}>
-              {t('green_tagline')}
-            </Text>
+      {/* The two that used to be gradient blocks of their own. Same
+          reach, a third of the noise. */}
+      {[
+        { key: 'green', icon: 'leaf', tint: C.green, title: t('green_title'), sub: t('green_tagline'), go: () => setGreenOpen(true) },
+        { key: 'culture', icon: 'business', tint: C.gold, title: t('culture_title'), sub: t('culture_sub'), go: () => setCultureOpen(true) },
+      ].map((row) => (
+        <Pressable key={row.key} onPress={() => { tapLight(); sfxPop(); row.go(); }}>
+          <View style={{
+            flexDirection: 'row', alignItems: 'center', paddingVertical: 11,
+            borderBottomWidth: 1, borderBottomColor: C.line,
+          }}>
+            <View style={{
+              width: 36, height: 36, borderRadius: 11, alignItems: 'center', justifyContent: 'center',
+              backgroundColor: row.tint + '22',
+            }}>
+              <Ionicons name={row.icon} size={19} color={row.tint} />
+            </View>
+            <View style={{ flex: 1, minWidth: 0, marginStart: 12 }}>
+              <Text style={{ color: C.text, fontSize: 15, fontWeight: '800' }}>{row.title}</Text>
+              <Text numberOfLines={1} style={{ color: C.faint, fontSize: 12, marginTop: 1 }}>{row.sub}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={17} color={C.faint} />
           </View>
-          {/* an arrow rather than a word: this card already says what
-              it is twice, and a third label in thirteen languages is a
-              translation bill for nothing */}
-          <View style={{ backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 999, width: 38, height: 38, alignItems: 'center', justifyContent: 'center' }}>
-            <Ionicons name="arrow-forward" size={18} color="#FFF" />
-          </View>
-        </LinearGradient>
-      </Pressable>
+        </Pressable>
+      ))}
+
+      <View style={{ height: 18 }} />
+      <SectionHeader title={t('sec_play')} />
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 4, paddingRight: 8 }} style={{ marginTop: -4, marginBottom: 22 }}>
         {games.map((g) => (
-          <Pressable key={g.id} onPress={() => { tapLight(); sfxPop(); setGame(g); }} style={{ width: 132, marginRight: 12 }}>
-            <LinearGradient
-              colors={g.kind === 'rps' ? ['#2B1055', '#7C3AED'] : g.kind === 'rooftop' ? ['#0D2B5E', '#F59E0B'] : g.kind === 'stack' ? ['#0B7285', '#22D3EE'] : g.kind === 'tower' ? ['#2B1055', '#E5813F'] : g.kind === 'hop' ? ['#14204A', '#2FBFA0'] : ['#0A1D3F', '#0D2B5E']}
-              start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-              style={{ height: 128, borderRadius: 18, padding: 12, justifyContent: 'space-between' }}
-            >
-              <Text style={{ fontSize: 34 }}>{g.emoji}</Text>
-              <View>
-                <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '900' }} numberOfLines={1}>{t(g.nameKey)}</Text>
-                <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 10, fontWeight: '700', marginTop: 2 }} numberOfLines={1}>{t(g.playersKey)}</Text>
+          <Pressable key={g.id} onPress={() => { tapLight(); sfxPop(); setGame(g); }} style={{ width: 150, marginRight: 10 }}>
+            <View style={{
+              height: 112, borderRadius: 14, padding: 12, justifyContent: 'space-between',
+              backgroundColor: C.glass, borderWidth: 1, borderColor: C.line,
+            }}>
+              <View style={{
+                width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center',
+                backgroundColor: gameTint(g.kind) + '22',
+              }}>
+                <Ionicons name={GAME_ICON[g.kind] || 'game-controller'} size={17} color={gameTint(g.kind)} />
               </View>
-            </LinearGradient>
+              <View>
+                <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800' }} numberOfLines={1}>{t(g.nameKey)}</Text>
+                <Text style={{ color: C.faint, fontSize: 10.5, marginTop: 2 }} numberOfLines={1}>{t(g.playersKey)}</Text>
+              </View>
+            </View>
           </Pressable>
         ))}
       </ScrollView>
@@ -270,9 +291,7 @@ export const ChillScreen = () => {
           </Pressable>
         </View>
       </View>
-      <Text style={{ color: C.dim, fontSize: 12.5, marginTop: -6, marginBottom: 12, lineHeight: 18 }}>
-        {t('music_blurb')}
-      </Text>
+      <View style={{ height: 4 }} />
 
       {tracks === null ? (
         /* Shaped like the list that is coming, not like a sign saying
@@ -335,9 +354,7 @@ export const ChillScreen = () => {
           <Text style={{ color: C.purple, fontSize: 12.5, fontWeight: '900', marginLeft: 4 }}>{t('upload')}</Text>
         </Pressable>
       </View>
-      <Text style={{ color: C.dim, fontSize: 12.5, marginTop: -6, marginBottom: 14, lineHeight: 18 }}>
-        {t('videos_hint')}
-      </Text>
+      <View style={{ height: 4 }} />
 
       {videos === null ? (
         /* Same again, in the shape of a video card. */
