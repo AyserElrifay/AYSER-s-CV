@@ -13,6 +13,7 @@ import { searchProfiles } from '../services/social';
 import { searchPosts, fetchTravelPlans } from '../services/posts';
 import { planWhen, upForLabel } from '../constants/travel';
 import { fetchGroups, createGroup, joinGroup, leaveGroup, explainGroups } from '../services/groups';
+import { GroupPage } from './GroupPage';
 import { fetchTrending, trendWhy, logSearch } from '../services/trending';
 import { Chip } from './Chip';
 import { Tick } from './Tick';
@@ -109,20 +110,50 @@ const PersonRow = React.memo(({ item, onOpen }) => (
   </Pressable>
 ));
 
-const GroupRow = React.memo(({ item, onToggle, t }) => (
-  <Pressable>
+/* ─── A GROUP IN THE LIST ─────────────────────────────────────────────
+   The row is the door now: the whole thing opens the group, and the
+   button on the right only handles joining. Before this the row was a
+   Pressable with nothing behind it — you could join a group and there
+   was nowhere to go.
+
+   "4 new posts" is the only badge here, and it is the honest one: the
+   server counts posts made since you last looked, never counting your
+   own. It is the reason somebody opens a group again. */
+const GroupRow = React.memo(({ item, onToggle, onOpen, t }) => (
+  <Pressable onPress={() => onOpen(item)}>
     <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10 }}>
       <View style={{ width: 46, height: 46, borderRadius: 14, backgroundColor: C.purpleSoft, borderWidth: 1, borderColor: 'rgba(124,58,237,0.3)', alignItems: 'center', justifyContent: 'center' }}>
         <Text style={{ fontSize: 22 }}>{item.emoji}</Text>
       </View>
       <View style={{ flex: 1, marginLeft: 12, marginRight: 10 }}>
-        <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '800' }}>{item.name}</Text>
-        <Text style={{ color: C.faint, fontSize: 12, marginTop: 2 }} numberOfLines={1}>{item.members} members{item.about ? ' · ' + item.about : ''}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '800' }} numberOfLines={1}>{item.name}</Text>
+          {item.privacy === 'request' ? (
+            <Ionicons name="lock-closed" size={11} color={C.faint} style={{ marginLeft: 6 }} />
+          ) : null}
+          {item.unread ? (
+            <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 7, paddingVertical: 2, marginLeft: 8 }}>
+              <Text style={{ color: '#FFF', fontSize: 10, fontWeight: '900' }}>
+                {item.unread} {t(item.unread === 1 ? 'gp_new_post' : 'gp_new_posts')}
+              </Text>
+            </View>
+          ) : null}
+        </View>
+        <Text style={{ color: C.faint, fontSize: 12, marginTop: 2 }} numberOfLines={1}>
+          {item.members} {t('gp_members')}{item.about ? ' · ' + item.about : ''}
+        </Text>
       </View>
       {SUPABASE_READY ? (
         <Pressable onPress={() => onToggle(item)}>
-          <View style={{ backgroundColor: item.joined ? C.greenSoft : C.purple, borderWidth: item.joined ? 1 : 0, borderColor: 'rgba(16,185,129,0.45)', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 7 }}>
-            <Text style={{ color: item.joined ? C.green : '#FFF', fontSize: 12, fontWeight: '900' }}>{item.joined ? 'Joined ✓' : 'Join'}</Text>
+          <View style={{
+            backgroundColor: item.joined ? C.greenSoft : item.waiting ? C.glass : C.purple,
+            borderWidth: item.joined || item.waiting ? 1 : 0,
+            borderColor: item.joined ? 'rgba(16,185,129,0.45)' : C.line,
+            borderRadius: 999, paddingHorizontal: 14, paddingVertical: 7,
+          }}>
+            <Text style={{ color: item.joined ? C.green : item.waiting ? C.dim : '#FFF', fontSize: 12, fontWeight: '900' }}>
+              {item.joined ? t('gp_joined') : item.waiting ? t('gp_waiting') : item.privacy === 'request' ? t('gp_ask') : t('join')}
+            </Text>
           </View>
         </Pressable>
       ) : (
@@ -147,6 +178,7 @@ const CreateGroupCard = ({ onCreate, owner, t }) => {
   const [name, setName] = useState('');
   const [emoji, setEmoji] = useState('🌐');
   const [about, setAbout] = useState('');
+  const [privacy, setPrivacy] = useState('open');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
 
@@ -156,8 +188,8 @@ const CreateGroupCard = ({ onCreate, owner, t }) => {
     if (!name.trim() || busy) return;
     setBusy(true); setErr(null);
     try {
-      await onCreate({ name: name.trim(), emoji: emoji.trim() || '🌐', about: about.trim() });
-      setOpen(false); setName(''); setAbout(''); setEmoji('🌐');
+      await onCreate({ name: name.trim(), emoji: emoji.trim() || '🌐', about: about.trim(), privacy });
+      setOpen(false); setName(''); setAbout(''); setEmoji('🌐'); setPrivacy('open');
     } catch (e) {
       const msg = String((e && (e.message || e.hint)) || '');
       const code = e && e.code;
@@ -209,6 +241,31 @@ const CreateGroupCard = ({ onCreate, owner, t }) => {
         />
       </View>
       <TextInput placeholder={t('group_about_ph')} placeholderTextColor={C.faint} value={about} onChangeText={setAbout} style={{ color: C.text, fontSize: 13, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 10 }} />
+
+      {/* Who can read it is decided here, before anything is written in
+          it, and each choice says in one line exactly what it means.
+          Somebody who posts to a group has to already know who is going
+          to see it — that is the whole point of having two kinds. */}
+      <View style={{ marginBottom: 10 }}>
+        {[['open', 'gp_open', 'gp_open_means'], ['request', 'gp_private', 'gp_private_means']].map(([k, label, why]) => {
+          const on = privacy === k;
+          return (
+            <Pressable key={k} onPress={() => { tapLight(); setPrivacy(k); }}>
+              <View style={{
+                flexDirection: 'row', alignItems: 'flex-start', borderWidth: 1,
+                borderColor: on ? C.purple : C.line, backgroundColor: on ? C.purpleSoft : 'transparent',
+                borderRadius: 12, padding: 11, marginBottom: 7,
+              }}>
+                <Ionicons name={on ? 'radio-button-on' : 'radio-button-off'} size={16} color={on ? C.purple : C.faint} style={{ marginTop: 1 }} />
+                <View style={{ flex: 1, marginLeft: 9 }}>
+                  <Text style={{ color: C.text, fontSize: 13, fontWeight: '800' }}>{t(label)}</Text>
+                  <Text style={{ color: C.faint, fontSize: 11.5, lineHeight: 16, marginTop: 2 }}>{t(why)}</Text>
+                </View>
+              </View>
+            </Pressable>
+          );
+        })}
+      </View>
       {err ? (
         <View style={{ flexDirection: 'row', alignItems: 'flex-start', backgroundColor: 'rgba(244,63,94,0.10)', borderRadius: 12, paddingHorizontal: 11, paddingVertical: 9, marginBottom: 10 }}>
           <Ionicons name="alert-circle-outline" size={14} color={C.coral} style={{ marginTop: 1 }} />
@@ -337,11 +394,21 @@ export const SearchModal = ({ onClose, onOpenProfile, onOpenTopics, onOpenTag })
      identity between renders — a callback rebuilt every keystroke would
      defeat the memo and we would be back to re-rendering every row for
      every letter. */
+  const [openGroup, setOpenGroup] = useState(null);
+
   const toggleGroup = useCallback(async (g) => {
     if (!SUPABASE_READY || !user) return;
     tapLight();
-    setRealGroups((gs) => (gs || []).map((x) => x.id === g.id ? { ...x, joined: !x.joined, members: x.members + (x.joined ? -1 : 1) } : x));
-    try { g.joined ? await leaveGroup(g.id, user.id) : await joinGroup(g.id, user.id); }
+    /* Three states, not two: a private group answers a tap with a
+       request, and telling somebody they are in when they are waiting
+       would be a lie the wall then contradicts. */
+    const inIt = g.joined || g.waiting;
+    const willJoin = !inIt && g.privacy !== 'request';
+    setRealGroups((gs) => (gs || []).map((x) => x.id === g.id
+      ? { ...x, joined: willJoin, waiting: !inIt && g.privacy === 'request',
+          members: x.members + (g.joined ? -1 : willJoin ? 1 : 0) }
+      : x));
+    try { inIt ? await leaveGroup(g.id, user.id) : await joinGroup(g.id, user.id, g.privacy); }
     catch (e) { loadGroups(); }
   }, [user]);
 
@@ -362,14 +429,14 @@ export const SearchModal = ({ onClose, onOpenProfile, onOpenTopics, onOpenTag })
      a failure: it makes the app look broken AND makes you doubt what
      you typed. This one throws its reason back to the card, which puts
      it on screen. */
-  const submitGroup = useCallback(async ({ name, emoji, about }) => {
+  const submitGroup = useCallback(async ({ name, emoji, about, privacy }) => {
     if (!SUPABASE_READY) throw new Error('offline');
     if (!user) throw new Error('signin');
-    const row = await createGroup(user.id, { name, emoji: emoji || '🌐', about });
+    const row = await createGroup(user.id, { name, emoji: emoji || '🌐', about, privacy });
     tapSuccess(); sfxSuccess();
     /* On screen the moment it exists, rather than after a round trip —
        and then reconciled with what the server actually has. */
-    setRealGroups((gs) => [{ id: row.id, name: row.name, emoji: row.emoji || '🌐', about: row.about || '', members: 1, owner_id: row.owner_id, joined: true }].concat(gs || []));
+    setRealGroups((gs) => [{ id: row.id, name: row.name, emoji: row.emoji || '🌐', about: row.about || '', privacy: row.privacy || 'open', members: 1, owner_id: row.owner_id, joined: true, waiting: false, unread: 0 }].concat(gs || []));
     loadGroups();
   }, [user]);
 
@@ -531,7 +598,7 @@ export const SearchModal = ({ onClose, onOpenProfile, onOpenTopics, onOpenTag })
                 </>
               ) : null}
               {people.length ? <><Section title={t('tab_people')} />{people.slice(0, 3).map((u) => <PersonRow key={u.id} item={u} onOpen={onOpenProfile} />)}</> : null}
-              {groups.length ? <><Section title={t('tab_groups')} />{groups.slice(0, 3).map((g) => <GroupRow key={g.id} item={g} onToggle={toggleGroup} t={t} />)}</> : null}
+              {groups.length ? <><Section title={t('tab_groups')} />{groups.slice(0, 3).map((g) => <GroupRow key={g.id} item={g} onToggle={toggleGroup} onOpen={setOpenGroup} t={t} />)}</> : null}
               {!q && games.length ? <><Section title={t('play_together')} />{games.slice(0, 3).map((g) => <GameRow key={g.id} item={g} onPlay={launchGame} t={t} />)}</> : null}
               {q && posts.length ? <><Section title={t('tab_posts')} />{posts.slice(0, 3).map((p) => <PostRow key={p.id} item={p} />)}</> : null}
             </View>
@@ -612,7 +679,7 @@ export const SearchModal = ({ onClose, onOpenProfile, onOpenTopics, onOpenTag })
                 </View>
               ) : realGroups === null && SUPABASE_READY ? (
                 <Text style={{ color: C.faint, fontSize: 12.5, textAlign: 'center', paddingVertical: 28 }}>{t('looking')}</Text>
-              ) : groups.length ? groups.map((g) => <GroupRow key={g.id} item={g} onToggle={toggleGroup} t={t} />) : <Empty q={q} />}
+              ) : groups.length ? groups.map((g) => <GroupRow key={g.id} item={g} onToggle={toggleGroup} onOpen={setOpenGroup} t={t} />) : <Empty q={q} />}
               <CreateGroupCard onCreate={submitGroup} owner={isOwner(user)} t={t} />
             </>
           ) : null}
@@ -626,6 +693,16 @@ export const SearchModal = ({ onClose, onOpenProfile, onOpenTopics, onOpenTag })
         : game && game.kind === 'rooftop' ? <RooftopRush onClose={() => setGame(null)} />
         : game && game.kind === 'rps' ? <RockPaperScissors onClose={() => setGame(null)} />
         : game ? <GameRunner onClose={() => setGame(null)} /> : null}
+      {/* The group's own page, over the top of Discover. Closing it
+          reloads the list so a join, a leave or a post you have just
+          made is reflected in the row you came from. */}
+      {openGroup ? (
+        <GroupPage
+          groupId={openGroup.id}
+          onClose={() => { setOpenGroup(null); loadGroups(); }}
+          onChanged={loadGroups}
+        />
+      ) : null}
     </Modal>
   );
 };
