@@ -12,8 +12,12 @@ import { C } from '../constants/theme';
    at the actual coordinates. */
 
 const TILE = 256;
-const LIGHT = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png';
-const DARK = 'https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}.png';
+/* Keyless tiles — CARTO now stamps "API KEY REQUIRED" across anything
+   served without an account, and that was appearing on users' own
+   profiles. See components/LeafletMap.js for the whole story. */
+const OSM = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+const LIGHT = OSM;
+const DARK = OSM;
 
 const lngToX = (lng, z) => ((lng + 180) / 360) * Math.pow(2, z);
 const latToY = (lat, z) => {

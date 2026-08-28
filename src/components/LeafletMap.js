@@ -25,7 +25,7 @@ let leafletPromise = null;
    free, the promise is shared. */
 export function warmMap() {
   if (typeof document === 'undefined') return;
-  ['https://unpkg.com', 'https://a.basemaps.cartocdn.com', 'https://b.basemaps.cartocdn.com']
+  ['https://unpkg.com', 'https://tile.openstreetmap.org']
     .forEach((href) => {
       if (document.querySelector('link[rel="preconnect"][href="' + href + '"]')) return;
       const l = document.createElement('link');
@@ -103,7 +103,13 @@ function injectMapStyle() {
       filter: saturate(1.12) brightness(1.02);
       image-rendering: auto;
     }
-    .mm-dark .mm-tiles { filter: saturate(1.05) brightness(0.98); }
+    /* OpenStreetMap has no dark basemap, so the dark map is the light
+       one inverted and rotated back through the colour wheel: land goes
+       dark, water stays blue, and the labels stay readable. Cheaper than
+       a second provider in every sense. */
+    .mm-dark .mm-tiles {
+      filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.88) saturate(0.65);
+    }
     /* fade tiles in as they load so the map assembles smoothly, not in a snap */
     .mm-tiles.leaflet-tile { transition: opacity 0.45s ease; }
     /* our own country names — every country identical styling, so no
@@ -380,8 +386,27 @@ const pinHtml = (m) => {
 // CARTO "Voyager · no labels" (light) / "Dark Matter · no labels" (dark) —
 // same colourful, cartoonish landcover and roads either way, no baked
 // country/place names (every name comes from our own layer, name-neutral).
-const LIGHT_TILES = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
-const DARK_TILES = 'https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png';
+/* ── THE TILES, AND WHY THEY CHANGED ─────────────────────────────────
+   Ayser sent a photograph of his own profile with "API KEY REQUIRED ·
+   carto.com/basemaps/apikey" printed diagonally across the map, twice.
+
+   CARTO's basemaps used to be open and now want a key, so they stamp
+   that on every tile they serve without one. It is exactly the thing
+   this app is not allowed to do: a third party's billing problem,
+   printed over a user's own map, in a language that means nothing to
+   them.
+
+   OpenStreetMap serves the same world with no key and no account, and
+   asks for two things in return: attribution, and that we do not hammer
+   it. Both are given below — the credit is switched back on, which is a
+   requirement of the licence and also simply correct.
+
+   There is no dark variant, so the dark map is made from the light one
+   with a filter (see .mm-dark .mm-tiles in the stylesheet). That is one
+   line of CSS instead of a second tile provider and a second bill. */
+const OSM_TILES = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+const LIGHT_TILES = OSM_TILES;
+const DARK_TILES = OSM_TILES;
 
 export const LeafletMap = ({ center, markers = [], onPress, onMe, locate = true, focus = null, lang = 'en', meAvatar = null, meDoing = null, meName = null, route = null, appDark = null }) => {
   const elRef = useRef(null);
@@ -424,7 +449,7 @@ export const LeafletMap = ({ center, markers = [], onPress, onMe, locate = true,
     loadLeaflet().then((L) => {
       if (cancelled || !L || !elRef.current || mapRef.current) return;
       const map = L.map(elRef.current, {
-        zoomControl: false, attributionControl: false,
+        zoomControl: false, attributionControl: true,
         minZoom: 2, maxZoom: 18, worldCopyJump: true,
         // buttery motion: fine zoom steps, animated zoom/fade, gentle
         // inertia so pans glide to a stop instead of snapping
@@ -510,8 +535,11 @@ export const LeafletMap = ({ center, markers = [], onPress, onMe, locate = true,
       const mq = (typeof window !== 'undefined' && window.matchMedia) ? window.matchMedia('(prefers-color-scheme: dark)') : null;
       const isDark = () => (appDarkRef.current != null ? !!appDarkRef.current : !!(mq && mq.matches));
       const tiles = L.tileLayer(isDark() ? DARK_TILES : LIGHT_TILES, {
-        maxZoom: 20, subdomains: 'abcd', className: 'mm-tiles',
+        // OSM serves one host and tops out at 19; asking for 20 gets a
+        // grey square where a street should be.
+        maxZoom: 19, className: 'mm-tiles',
         updateWhenIdle: true, keepBuffer: 4,
+        attribution: '© OpenStreetMap',
       }).addTo(map);
       tilesRef.current = tiles;
 
