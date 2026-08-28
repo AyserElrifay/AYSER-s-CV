@@ -84,6 +84,14 @@ jobs:
             sudo apt-get install -y -qq postgresql-16
           fi
           bash scripts/check-sql-twice.sh
+      # A group's wall is where somebody says something to their people
+      # and not to everybody. A policy that reads correctly and behaves
+      # differently is the only kind of bug that matters there, because
+      # nobody would ever see it.
+      - name: Check a private group is really private
+        env:
+          SQL_CHECK_REQUIRED: '1'
+        run: bash scripts/check-group-rules.sh
       - name: Export web bundle
         run: npx expo export --platform web --output-dir dist
       - name: Inject PWA manifest + Open Graph tags
