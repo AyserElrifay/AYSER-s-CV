@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, Modal, Pressable, ScrollView, Linking } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { C } from '../constants/theme';
 
 /* The legal document — Terms of Use, the content-ownership rule that

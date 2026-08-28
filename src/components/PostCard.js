@@ -1,7 +1,8 @@
 import React, { useRef, useState } from 'react';
 import { View, Text, Pressable, Image, ImageBackground, Animated, Easing, TextInput } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { C, R, TEXT_BGS } from '../constants/theme';
 import { Glass } from './Glass';
 import { Chip } from './Chip';

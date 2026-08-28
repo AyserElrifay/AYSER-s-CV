@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, Pressable, ScrollView, Image, TextInput, ActivityIndicator, Modal, Linking } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { C, R } from '../constants/theme';
 import { useAuth } from '../context/AuthContext';
 import { BOOK_SHELVES, fetchShelf, searchBooks, readUrl, buyOptions } from '../services/books';

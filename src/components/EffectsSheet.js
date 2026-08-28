@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { View, Text, Modal, Pressable, ScrollView, TextInput, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { C, R } from '../constants/theme';
 import { tapLight, tapSelection } from '../utils/feedback';
 

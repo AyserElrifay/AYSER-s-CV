@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import { Pressable, Animated, Easing } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { C } from '../constants/theme';
 
 /* Moments' signature reaction: a gold four-pointed star.

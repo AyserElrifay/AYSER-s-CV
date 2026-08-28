@@ -2,18 +2,20 @@ import React from 'react';
 import { Platform, useWindowDimensions } from 'react-native';
 import { DefaultTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { C } from '../constants/theme';
 import { SUPABASE_READY } from '../lib/supabase';
 import { useLang } from '../context/LanguageContext';
 import { SQUADS, DMS } from '../constants/mockData';
 import { HomeScreen } from '../screens/HomeScreen';
+import { Boundary } from '../components/Boundary';
+
 import { MapScreen } from '../screens/MapScreen';
 import { ReelsScreen } from '../screens/ReelsScreen';
 import { ChillScreen } from '../screens/ChillScreen';
 import { ChatsScreen } from '../screens/ChatsScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
-import { Boundary } from '../components/Boundary';
 
 /* Each tab renders inside its own boundary. If one screen throws, that
    tab shows a "try again" instead of the whole app going down with it —

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { View, Text, Pressable, Image, Modal, ScrollView, Platform } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { C } from '../constants/theme';
 import { useAuth } from '../context/AuthContext';
 import { submitScore, fetchLeaderboard, finishMatch, subscribeMatchLive } from '../services/games';

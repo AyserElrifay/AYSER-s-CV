@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, Modal, Pressable, Image, useWindowDimensions } from 'react-native';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { C } from '../../constants/theme';
 import { channelFor } from './channels';
 import { say, sayNote } from './languages';

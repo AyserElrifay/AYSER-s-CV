@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, Pressable, Image, ScrollView, Modal, Platform, PanResponder } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { C } from '../constants/theme';
 import { useAuth } from '../context/AuthContext';
 import { submitScore, fetchLeaderboard } from '../services/games';
