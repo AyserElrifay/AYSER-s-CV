@@ -51,6 +51,7 @@ export { CaptureModal } from './CaptureModal';
 export { BoostSheet } from './BoostSheet';
 export { BookingSheet } from './BookingSheet';
 export { TravelSheet } from './TravelSheet';
+export { CultureSheet } from './CultureSheet';
 export { LeafletMap } from './LeafletMap';
 export { MusicHubSheet } from './MusicHubSheet';
 export { OnlineDot } from './OnlineDot';

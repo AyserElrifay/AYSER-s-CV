@@ -14,7 +14,7 @@ import { fetchVideos, deletePost } from '../services/posts';
 import { fetchTracks } from '../services/music';
 import { FILM_GENRES, fetchFilms, fetchOurScores } from '../services/films';
 import { usePlayer } from '../context/PlayerContext';
-import { Page, ScreenHeader, SectionHeader, Glass, GameRunner, RooftopRush, RockPaperScissors, StackGame, TowerClimb, StreetHop } from '../components';
+import { Page, ScreenHeader, SectionHeader, Glass, GameRunner, RooftopRush, RockPaperScissors, StackGame, TowerClimb, StreetHop, CultureSheet } from '../components';
 import { CaptureModal } from '../components/CaptureModal';
 import { MusicHubSheet } from '../components/MusicHubSheet';
 import { FilmSheet } from '../components/FilmSheet';
@@ -84,6 +84,11 @@ export const ChillScreen = () => {
   const [lammaOpen, setLammaOpen] = useState(false);
   const [greenOpen, setGreenOpen] = useState(false);
   const [focusPack, setFocusPack] = useState(null);   // a pack to open the shelf on
+  /* The heritage room. Six real places and their customs have been in
+     this app all along, locked inside two arcade games — which is why
+     nobody knew the app kept any heritage at all. See
+     components/CultureSheet.js. */
+  const [cultureOpen, setCultureOpen] = useState(false);
   const { t } = useLang();
 
   // Every real, playable game — surfaced here so they're actually findable
@@ -161,6 +166,23 @@ export const ChillScreen = () => {
     <>
     <Page>
       <ScreenHeader kicker={t('chill_kicker')} title={t('chill_title')} />
+
+      {/* ── HERITAGE — out of the games, where it can be seen ── */}
+      <Pressable onPress={() => { tapLight(); sfxPop(); setCultureOpen(true); }} style={{ marginBottom: 16 }}>
+        <LinearGradient
+          colors={['#3B2410', '#8A5427']}
+          start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+          style={{ borderRadius: 20, padding: 16, flexDirection: 'row', alignItems: 'center' }}
+        >
+          <Text style={{ fontSize: 32 }}>🏛️</Text>
+          <View style={{ flex: 1, marginStart: 14 }}>
+            <Text style={{ color: '#FFF', fontSize: 17, fontWeight: '900' }}>{t('culture_title')}</Text>
+            <Text style={{ color: 'rgba(255,255,255,0.78)', fontSize: 12, marginTop: 3, lineHeight: 17 }}>
+              {t('culture_sub')}
+            </Text>
+          </View>
+        </LinearGradient>
+      </Pressable>
 
       {/* ── PLAY — every real game, finally easy to find ── */}
       <SectionHeader title={t('sec_play')} />
@@ -526,6 +548,7 @@ export const ChillScreen = () => {
         closes itself on the way out rather than leaving two full-screen
         sheets stacked with the back button between them. */}
     {lammaOpen ? <GameHub onClose={() => { setLammaOpen(false); setFocusPack(null); }} focusPack={focusPack} /> : null}
+    {cultureOpen ? <CultureSheet onClose={() => setCultureOpen(false)} /> : null}
     {greenOpen ? (
       <GreenSheet
         onClose={() => setGreenOpen(false)}
