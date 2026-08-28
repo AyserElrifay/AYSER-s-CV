@@ -30,7 +30,7 @@ import { updateCampfire, endCampfire } from '../services/campfires';
 import { openPartner } from '../services/broker';
 import {
   Glass, Micro, Chip, NeonButton, GhostButton, FauxMap,
-  PersonPin, CampfirePin, MePin, SOSButton, ProfileModal, BookingSheet, LeafletMap,
+  PersonPin, CampfirePin, MePin, SOSButton, ProfileModal, BookingSheet, TravelSheet, LeafletMap,
 } from '../components';
 import { tapLight, tapMedium, tapSelection, tapSuccess, tapCelebrate } from '../utils/feedback';
 // aliased: this screen already has its own `note`, which is a toast
@@ -359,6 +359,10 @@ export const MapScreen = () => {
 
   /* ── curated destination sheet: guide + reviews + Uber ── */
   const [destOpen, setDestOpen] = useState(null);
+  /* Where a city turns into a journey: the real flight, stay and car
+     searches, already filled in. See components/TravelSheet.js for why
+     it deliberately shows no prices of its own. */
+  const [travelTo, setTravelTo] = useState(null);
   const [destReviews, setDestReviews] = useState(null);
   const [revStars, setRevStars] = useState(0);
   const [revText, setRevText] = useState('');
@@ -1822,6 +1826,24 @@ export const MapScreen = () => {
 
               <Text style={{ color: C.text, fontSize: 13.5, lineHeight: 21, marginTop: 14 }}>{destOpen.desc}</Text>
 
+              {/* Flights, a bed and a car — the real searches, one tap. */}
+              <Pressable onPress={() => { tapLight(); const to = destOpen.name; setDestOpen(null); setTravelTo(to); }}>
+                <View style={{
+                  flexDirection: 'row', alignItems: 'center', marginTop: 14,
+                  backgroundColor: C.purpleSoft, borderWidth: 1, borderColor: C.purple,
+                  borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14,
+                }}>
+                  <Text style={{ fontSize: 20, marginRight: 10 }}>✈️</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: C.purple, fontSize: 14, fontWeight: '900' }}>
+                      {t('travel_getting_there').replace('{place}', destOpen.name)}
+                    </Text>
+                    <Text style={{ color: C.faint, fontSize: 11, marginTop: 1 }}>{t('travel_getting_there_sub')}</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={C.purple} />
+                </View>
+              </Pressable>
+
               {/* get there — Uber for nearby spots, Book Trip when it's far */}
               {(() => {
                 const km = located ? kmBetween(myCoords, { latitude: destOpen.lat, longitude: destOpen.lng }) : null;
@@ -2007,6 +2029,7 @@ export const MapScreen = () => {
 
       {profileUser ? <ProfileModal user={profileUser} onClose={() => setProfileUser(null)} /> : null}
       {bookingVenue ? <BookingSheet venue={bookingVenue} onClose={() => { setBooked((x) => ({ ...x, [bookingVenue.id]: true })); setBookingVenue(null); }} /> : null}
+      {travelTo ? <TravelSheet city={travelTo} onClose={() => setTravelTo(null)} /> : null}
     </View>
   );
 };
