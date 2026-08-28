@@ -173,13 +173,33 @@ export const packTitle = (pack, lang) => {
   return (lang === 'ar' ? (pack.title_ar || pack.title_en) : (pack.title_en || pack.title_ar)) || '';
 };
 
+/* ── THE SEATS, WITHOUT THE PHOTOGRAPHS ────────────────────────────
+   This used to select('*'), which meant every row carried that
+   player's face: a base64 JPEG of up to 26,000 characters. Seventy
+   seats was nearly two megabytes, fetched again on every single
+   change to the table — and a table row changes every time anybody
+   answers anything.
+
+   The columns are named now. The faces come from fetchFaces below,
+   once, because a picture that changes once an evening should not
+   travel with every score update. */
 export async function fetchRoomPlayers(roomId) {
   if (!SUPABASE_READY) return [];
   const { data, error } = await withDeadline(
-    supabase.from('room_players').select('*').eq('room_id', roomId).order('score', { ascending: false }),
+    supabase.from('room_players')
+      .select('user_id,nickname,score,streak,best_streak,is_connected,playing,joined_at')
+      .eq('room_id', roomId).order('score', { ascending: false }),
   );
   if (error) throw error;
   return data || [];
+}
+
+/* Everybody's face in one room, asked for once and kept. Returns
+   [{user_id, avatar_key}] and only for somebody actually in the room —
+   see supabase/schema_v40_big_room.sql. */
+export async function fetchFaces(roomId) {
+  const rows = await rpc('lamma_faces', { p_room_id: roomId });
+  return Array.isArray(rows) ? rows : [];
 }
 
 /* ── LISTENING ─────────────────────────────────────────────────────

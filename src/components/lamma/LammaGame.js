@@ -19,7 +19,7 @@ import { Face } from './Face';
 import { Podium } from './Podium';
 import {
   advance, submitAnswer, reveal as revealRpc, sync as syncRpc,
-  fetchPackQuestions, fetchRoomPlayers, subscribeRoom, nudge, claimHost, setConnected,
+  fetchPackQuestions, fetchFaces, subscribeRoom, nudge, claimHost, setConnected,
   roomResults, setFace, setRoom, kick, showOptions,
 } from '../../services/lamma';
 import { tapLight, tapSuccess } from '../../utils/feedback';
@@ -67,6 +67,19 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
   const [state, setState] = useState(null);          // from sync()
   const [questions, setQuestions] = useState([]);
   const [players, setPlayers] = useState([]);
+
+  /* ── SEVENTY PEOPLE, AND THE PAYLOAD THAT USED TO STOP THEM ──────
+     The board arrives from the server without anybody's photograph on
+     it now. The photographs are fetched once, kept here, and painted
+     back on — because a face changes once an evening and the board
+     changes every time somebody answers.
+
+     rawPlayers holds what the server actually said; players holds the
+     same rows with the faces merged in, so every existing reader — the
+     lobby, the standings, the podium, `me` — keeps working unchanged. */
+  const rawPlayers = useRef([]);
+  const facesRef = useRef(new Map());
+  const askedRef = useRef(new Set());
   const [result, setResult] = useState(null);        // the reveal, once it is allowed
   const [barW, setBarW] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -121,13 +134,39 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
     return questions[state.question_index] || null;
   })();
 
+  const paint = useCallback(() => {
+    setPlayers(rawPlayers.current.map((p) => {
+      const face = facesRef.current.get(p.user_id);
+      return face ? { ...p, avatar_key: face } : p;
+    }));
+  }, []);
+
+  /* Asked for when somebody we have never seen appears, and once more
+     at the end for the podium — not on a timer, and never with the
+     scores. askedRef is what stops a player who simply has no photo
+     from provoking a fetch on every single sync. */
+  const loadFaces = useCallback(async () => {
+    const rows = await fetchFaces(roomId);
+    let changed = false;
+    rows.forEach((r) => {
+      if (r && r.user_id && facesRef.current.get(r.user_id) !== r.avatar_key) {
+        facesRef.current.set(r.user_id, r.avatar_key);
+        changed = true;
+      }
+    });
+    rawPlayers.current.forEach((p) => askedRef.current.add(p.user_id));
+    if (changed) paint();
+  }, [roomId, paint]);
+
   const refresh = useCallback(async () => {
     const s = await syncRpc(roomId);
     if (s && s.ok) {
       setState({ ...s, is_host: s.host_user_id ? s.host_user_id === (user && user.id) : initialHost });
-      setPlayers(s.leaderboard || []);
+      rawPlayers.current = s.leaderboard || [];
+      paint();
+      if (rawPlayers.current.some((p) => !askedRef.current.has(p.user_id))) loadFaces();
     }
-  }, [roomId, user, initialHost]);
+  }, [roomId, user, initialHost, paint, loadFaces]);
 
   // the questions, WITHOUT their answers — see services/lamma.js
   useEffect(() => {
@@ -152,16 +191,26 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
   useEffect(() => {
     refresh();
     setConnected(roomId, true);
+    /* Seventy people answering a question is seventy row changes, and
+       this used to be seventy full fetches on every phone in the room.
+       One refresh per burst instead: the first change schedules it, the
+       next sixty-nine ride along. Nobody can see 700ms, and the room
+       stops shouting at itself. */
+    let burst = null;
+    const soon = () => {
+      if (burst) return;
+      burst = setTimeout(() => { burst = null; refresh(); }, 700);
+    };
     const off = subscribeRoom(roomId, {
       onPhase: () => { setResult(null); refresh(); },
       onRoom: () => { setResult(null); refresh(); },
-      onPlayers: () => { fetchRoomPlayers(roomId).then(setPlayers).catch(() => {}); },
+      onPlayers: soon,
     });
     /* A poll as well as a subscription. A dropped socket is silent, and
        a room that has moved on without you is the one thing this screen
        must never do. Five seconds is cheap and invisible. */
     const tick = setInterval(refresh, 5000);
-    return () => { off(); clearInterval(tick); setConnected(roomId, false); };
+    return () => { off(); clearInterval(tick); if (burst) clearTimeout(burst); setConnected(roomId, false); };
   }, [roomId, refresh]);
 
   /* Once the deadline has passed, ask for the reveal. The server
@@ -207,9 +256,10 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
   useEffect(() => {
     if (!state || state.status !== 'ended') return undefined;
     let alive = true;
+    loadFaces();                       // the podium should show real faces
     roomResults(roomId).then((r) => { if (alive && r && r.ok) setResults(r); });
     return () => { alive = false; };
-  }, [state && state.status, roomId]);
+  }, [state && state.status, roomId, loadFaces]);
 
   /* Send the code the way the phone knows how — the share sheet if it
      has one, the clipboard if it does not, and the code is on screen

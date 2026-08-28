@@ -67,7 +67,18 @@ export const StageBody = ({
      losing the last line of a long one. */
   const qSize = Math.max(22, Math.min(56, width / (wide ? 24 : 17)));
   const oSize = Math.max(15, Math.min(30, width / (wide ? 46 : 26)));
-  const pad = wide ? 40 : 20;
+  /* ── AND A SIDEWAYS PHONE IS A SHORT FRAME ────────────────────────
+     Measured, after telling Ayser to turn the phone sideways for the
+     television picture: a 844×390 phone gives a 16:9 frame 343 pixels
+     tall — under half a laptop's — and the padding, the teaching line
+     and the Next button were all still sized for the laptop. The
+     teaching line ran 19px past the bottom and the button 92px.
+
+     So "wide" is not one thing. A short frame keeps every element,
+     and gives each of them less. Nothing is hidden — a presenter who
+     cannot see the Next button cannot run the round. */
+  const short = height < 460;
+  const pad = wide ? (short ? 16 : 40) : 20;
 
   /* ── IT HAS TO FIT ────────────────────────────────────────────────
      The tiles used to ask for 44% of the container each. In a modal
@@ -80,7 +91,7 @@ export const StageBody = ({
      them plus the question and the button are arithmetic that adds up
      rather than a hope. */
   const tileH = wide
-    ? Math.max(46, Math.min(132, Math.floor(height * 0.17)))
+    ? Math.max(38, Math.min(132, Math.floor(height * (short ? 0.14 : 0.17))))
     : 62;
 
   const options = Array.isArray(question && question.options) ? question.options : [];
@@ -149,7 +160,7 @@ export const StageBody = ({
           marginTop: wide ? 10 : 8,
           /* A long question must not push the answers off the bottom of
              a frame that cannot grow. */
-          maxHeight: showChoices ? Math.round(height * 0.34) : undefined,
+          maxHeight: showChoices ? Math.round(height * (short ? 0.26 : 0.34)) : undefined,
           overflow: 'hidden',
         }}>
           <View style={{ flexDirection: wide && question && question.media_url ? 'row' : 'column', alignItems: 'center' }}>
@@ -228,9 +239,12 @@ export const StageBody = ({
         {/* the line that teaches, once the answer is out */}
         {revealed && sayNote(question, lang) ? (
           <Text style={{
-            color: 'rgba(255,255,255,0.7)', fontSize: Math.max(13, oSize * 0.8), fontWeight: '700',
-            textAlign: 'center', marginTop: 6, marginBottom: 4,
-          }}>
+            color: 'rgba(255,255,255,0.7)',
+            fontSize: short ? Math.max(11, oSize * 0.62) : Math.max(13, oSize * 0.8),
+            fontWeight: '700', textAlign: 'center',
+            marginTop: short ? 4 : 6, marginBottom: short ? 2 : 4,
+          }}
+          numberOfLines={short ? 2 : undefined}>
             {sayNote(question, lang)}
           </Text>
         ) : null}
@@ -239,13 +253,13 @@ export const StageBody = ({
         {isHost ? (
           <Pressable
             onPress={() => { tapMedium(); (status === 'reading' ? onShowOptions : onNext)(); }}
-            style={{ marginTop: 10 }}
+            style={{ marginTop: short ? 5 : 10 }}
           >
             <View style={{
               backgroundColor: C.purple, borderRadius: 999,
-              paddingVertical: wide ? 18 : 14, alignItems: 'center',
+              paddingVertical: wide ? (short ? 8 : 18) : 14, alignItems: 'center',
             }}>
-              <Text style={{ color: '#FFF', fontSize: wide ? 20 : 15, fontWeight: '900' }}>
+              <Text style={{ color: '#FFF', fontSize: wide ? (short ? 14 : 20) : 15, fontWeight: '900' }}>
                 {status === 'reading' ? t('lamma_show_choices') : t('lamma_next')}
               </Text>
             </View>
