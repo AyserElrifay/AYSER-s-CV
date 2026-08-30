@@ -22,7 +22,6 @@ import { getProfile } from '../services/profiles';
 import { TruthOrDare } from '../components/TruthOrDare';
 import { WouldYouRather } from '../components/WouldYouRather';
 import { CallScreen } from '../components/CallScreen';
-import { GameRunner } from '../components/GameRunner';
 import { BoardGame } from '../components/BoardGame';
 import { GAMES as BOARD_GAMES, gameById, isBoardGame } from '../services/boardGames';
 import { OnlineDot } from '../components/OnlineDot';
@@ -37,6 +36,9 @@ import { setupNotice } from '../lib/plumbing';
 
 /* Fetched when it is opened, not when the app starts. */
 import { lazyOverlay } from '../lib/lazyScreen';
+
+/* Fetched when it is opened, not when the app starts. */
+const GameRunner = lazyOverlay(() => import('../components/GameRunner').then((m) => ({ default: m.GameRunner })));
 const CaptureModal = lazyOverlay(() => import('../components/CaptureModal').then((m) => ({ default: m.CaptureModal })));
 
 /* ─── A conversation — kept deliberately simple and warm, the kind of

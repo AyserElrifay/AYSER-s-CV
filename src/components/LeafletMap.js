@@ -2,6 +2,7 @@ import React, { useRef, useEffect } from 'react';
 import { Platform } from 'react-native';
 import { WORLD } from '../constants/worldGeo';
 import { mountGlobe3D } from '../lib/globe3d';
+import { loadLeaflet } from '../lib/leaflet';
 
 /* A REAL interactive map on web — Leaflet + OpenStreetMap data with
    CARTO's playful "Voyager" tiles. Pannable, zoomable, opens on the
@@ -9,51 +10,6 @@ import { mountGlobe3D } from '../lib/globe3d';
    energy, but in the Moments identity (purple + gold, name pills).
    Native uses react-native-maps instead, so this renders web-only. */
 
-let leafletPromise = null;
-/* ─── FETCHED BEFORE IT IS ASKED FOR ──────────────────────────────────
-   The map library and its stylesheet live on a CDN, and nothing went
-   looking for them until the moment you tapped the Map tab. So the tab
-   opened onto an empty dark rectangle while a DNS lookup, a TLS
-   handshake and ~150KB of JavaScript happened, and only then did the
-   first tile request even start. That is the wait.
-
-   None of that work depends on you tapping anything. warmMap() starts
-   it while the app is idle, and opens the connection to the tile server
-   at the same time, so by the time the tab is tapped the library is
-   usually already in memory and the tiles have a warm socket waiting.
-   Exported so App can call it once at startup — calling it twice is
-   free, the promise is shared. */
-export function warmMap() {
-  if (typeof document === 'undefined') return;
-  ['https://unpkg.com', 'https://tile.openstreetmap.org']
-    .forEach((href) => {
-      if (document.querySelector('link[rel="preconnect"][href="' + href + '"]')) return;
-      const l = document.createElement('link');
-      l.rel = 'preconnect';
-      l.href = href;
-      l.crossOrigin = '';
-      document.head.appendChild(l);
-    });
-  loadLeaflet();
-}
-
-function loadLeaflet() {
-  if (typeof window === 'undefined') return Promise.resolve(null);
-  if (window.L) return Promise.resolve(window.L);
-  if (leafletPromise) return leafletPromise;
-  leafletPromise = new Promise((resolve) => {
-    const css = document.createElement('link');
-    css.rel = 'stylesheet';
-    css.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-    document.head.appendChild(css);
-    const js = document.createElement('script');
-    js.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-    js.onload = () => resolve(window.L);
-    js.onerror = () => resolve(null);
-    document.head.appendChild(js);
-  });
-  return leafletPromise;
-}
 
 /* Big, well-known countries whose names show even zoomed out; smaller
    ones appear as you zoom in, so the world view never crowds. */

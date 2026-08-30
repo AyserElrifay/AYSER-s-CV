@@ -15,16 +15,10 @@ import { fetchTracks } from '../services/music';
 import { FILM_GENRES, fetchFilms, fetchOurScores } from '../services/films';
 import { usePlayer } from '../context/PlayerContext';
 import { CultureSheet } from '../components/CultureSheet';
-import { GameRunner } from '../components/GameRunner';
 import { Glass } from '../components/Glass';
 import { Page } from '../components/Page';
-import { RockPaperScissors } from '../components/RockPaperScissors';
-import { RooftopRush } from '../components/RooftopRush';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { SectionHeader } from '../components/SectionHeader';
-import { StackGame } from '../components/StackGame';
-import { StreetHop } from '../components/StreetHop';
-import { TowerClimb } from '../components/TowerClimb';
 import { MusicHubSheet } from '../components/MusicHubSheet';
 import { FilmSheet } from '../components/FilmSheet';
 import { BooksShelf } from '../components/BooksShelf';
@@ -36,6 +30,14 @@ import { sfxSuccess, sfxPop } from '../utils/sfx';
 
 /* Fetched when it is opened, not when the app starts. */
 import { lazyOverlay } from '../lib/lazyScreen';
+
+/* Fetched when it is opened, not when the app starts. */
+const GameRunner = lazyOverlay(() => import('../components/GameRunner').then((m) => ({ default: m.GameRunner })));
+const RooftopRush = lazyOverlay(() => import('../components/RooftopRush').then((m) => ({ default: m.RooftopRush })));
+const RockPaperScissors = lazyOverlay(() => import('../components/RockPaperScissors').then((m) => ({ default: m.RockPaperScissors })));
+const StackGame = lazyOverlay(() => import('../components/StackGame').then((m) => ({ default: m.StackGame })));
+const TowerClimb = lazyOverlay(() => import('../components/TowerClimb').then((m) => ({ default: m.TowerClimb })));
+const StreetHop = lazyOverlay(() => import('../components/StreetHop').then((m) => ({ default: m.StreetHop })));
 const CaptureModal = lazyOverlay(() => import('../components/CaptureModal').then((m) => ({ default: m.CaptureModal })));
 const CommentsSheet = lazyOverlay(() => import('../components/CommentsSheet').then((m) => ({ default: m.CommentsSheet })));
 

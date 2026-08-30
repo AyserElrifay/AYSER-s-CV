@@ -16,12 +16,15 @@ import { sfxSuccess, sfxStar, sfxLaugh } from '../utils/sfx';
 import { sharePost } from '../utils/share';
 import { Micro } from './Micro';
 import { PostCard } from './PostCard';
-import { ReelsViewer } from './ReelsViewer';
-import { ProfileModal } from './ProfileModal';
-import { CommentsSheet } from './CommentsSheet';
-import { LikersSheet } from './LikersSheet';
 import { useStable } from '../hooks/useStable';
 import { setupNotice } from '../lib/plumbing';
+
+/* Fetched when it is opened, not when the app starts. */
+import { lazyOverlay } from '../lib/lazyScreen';
+const CommentsSheet = lazyOverlay(() => import('./CommentsSheet').then((m) => ({ default: m.CommentsSheet })));
+const ReelsViewer = lazyOverlay(() => import('./ReelsViewer').then((m) => ({ default: m.ReelsViewer })));
+const LikersSheet = lazyOverlay(() => import('./LikersSheet').then((m) => ({ default: m.LikersSheet })));
+const ProfileModal = lazyOverlay(() => import('./ProfileModal').then((m) => ({ default: m.ProfileModal })));
 
 /* The activity inbox — every star, laugh, comment and mate event on YOUR
    stuff, written by DB triggers so nothing is ever fabricated. Laid out

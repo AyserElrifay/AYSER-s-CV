@@ -41,7 +41,7 @@ import { InstallPrompt } from './src/components/InstallPrompt';
 import { Splash } from './src/components/Splash';
 import { GestureTour, tourSeen } from './src/components/GestureTour';
 import { installCrashLog, setDiagnostics } from './src/lib/crashLog';
-import { warmMap } from './src/components/LeafletMap';
+import { warmMap } from './src/lib/leaflet';
 
 initPwa(); // installable app + offline shell (no-op on native)
 installCrashLog(); // keep what went wrong — see src/lib/crashLog.js

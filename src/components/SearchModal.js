@@ -18,17 +18,20 @@ import { fetchTrending, trendWhy, logSearch } from '../services/trending';
 import { Chip } from './Chip';
 import { Tick } from './Tick';
 import { Micro } from './Micro';
-import { GameRunner } from './GameRunner';
-import { RooftopRush } from './RooftopRush';
-import { RockPaperScissors } from './RockPaperScissors';
-import { StackGame } from './StackGame';
-import { TowerClimb } from './TowerClimb';
-import { StreetHop } from './StreetHop';
 import { PeopleDiscover } from './PeopleDiscover';
 import { isOwner } from '../services/music';
 import { tapLight, tapSuccess } from '../utils/feedback';
 import { sfxSuccess } from '../utils/sfx';
 import { setupNotice } from '../lib/plumbing';
+
+/* Fetched when it is opened, not when the app starts. */
+import { lazyOverlay } from '../lib/lazyScreen';
+const GameRunner = lazyOverlay(() => import('./GameRunner').then((m) => ({ default: m.GameRunner })));
+const RooftopRush = lazyOverlay(() => import('./RooftopRush').then((m) => ({ default: m.RooftopRush })));
+const RockPaperScissors = lazyOverlay(() => import('./RockPaperScissors').then((m) => ({ default: m.RockPaperScissors })));
+const StackGame = lazyOverlay(() => import('./StackGame').then((m) => ({ default: m.StackGame })));
+const TowerClimb = lazyOverlay(() => import('./TowerClimb').then((m) => ({ default: m.TowerClimb })));
+const StreetHop = lazyOverlay(() => import('./StreetHop').then((m) => ({ default: m.StreetHop })));
 
 /* Discover — people, groups, posts and what's trending (X / Facebook style).
    One search box, a tab row, and results that filter as you type. */
