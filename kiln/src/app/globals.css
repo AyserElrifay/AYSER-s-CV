@@ -1,0 +1,81 @@
+@import 'tailwindcss';
+
+/*
+ * Kiln's surface.
+ *
+ * Colour rule, and it is a rule: saturation belongs to margin state and nothing
+ * else. If green means "this deal is healthy", then nothing else on the screen
+ * may be green — not a success toast, not a link, not an avatar. Everything
+ * that is not margin is ink on a quiet ground.
+ *
+ * The ground is a cool greige, deliberately neither the cream-and-serif nor the
+ * near-black-and-acid that every generated interface currently arrives in.
+ */
+@theme {
+  --color-ground: #f1f2ef;
+  --color-surface: #fbfbfa;
+  --color-surface-sunk: #eceee9;
+  --color-ink: #16181a;
+  --color-ink-soft: #5c625e;
+  --color-ink-faint: #8a908b;
+  --color-line: #dcddd7;
+  --color-line-strong: #c4c6be;
+
+  /* The only saturated colours in the system. */
+  --color-healthy: #2f6f4f;
+  --color-healthy-soft: #dce9e0;
+  --color-warning: #a86a12;
+  --color-warning-soft: #f2e6cf;
+  --color-critical: #a63a2e;
+  --color-critical-soft: #f0dcd8;
+
+  --font-sans: 'IBM Plex Sans', 'IBM Plex Sans Arabic', ui-sans-serif, system-ui, sans-serif;
+  --font-arabic: 'IBM Plex Sans Arabic', 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+
+  --radius-card: 10px;
+}
+
+html {
+  background: var(--color-ground);
+  color: var(--color-ink);
+  /* One vertical rhythm for both scripts. Arabic sits lower and taller than
+     Latin, so a shared line-height is what keeps a bilingual table from
+     stepping up and down as the language changes. */
+  line-height: 1.55;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  font-family: var(--font-sans);
+}
+
+html[lang='ar'] body {
+  font-family: var(--font-arabic);
+}
+
+/* Arabic needs a touch more room between lines at the same optical size. */
+html[lang='ar'] {
+  line-height: 1.7;
+}
+
+/* Numerals in financial tables line up in columns or they are unreadable. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
