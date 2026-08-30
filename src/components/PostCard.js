@@ -33,7 +33,16 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
   const mediaAspect = post.type === 'post' || post.type === 'travel' ? 4 / 5 : null;
   const mediaH = post.type === 'reel' ? 470 : post.type === 'vod' ? 208 : 250;
   const tc = typeChip(post);
-  const textBg = TEXT_BGS[post.textBg] || TEXT_BGS.plain;
+  /* ── A PLAIN POST IS NOT A WHITE POST ─────────────────────────────
+     The coloured canvases are content — somebody chose lavender, so
+     lavender it stays in either theme. "Plain" is not a choice of
+     colour, it is the absence of one, and it was hardcoded to white:
+     at night a paragraph of text arrived as a slab of daylight in the
+     middle of a black feed. Plain now means the card's own surface,
+     read at the moment of drawing so it follows the theme. */
+  const textBg = TEXT_BGS[post.textBg] && post.textBg !== 'plain'
+    ? TEXT_BGS[post.textBg]
+    : { colors: [C.glass, C.glass], text: C.text };
   const [menuOpen, setMenuOpen] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
   /* ── A TRAVEL PLAN ────────────────────────────────────────────────

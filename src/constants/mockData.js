@@ -7,7 +7,7 @@ export const pic = (seed, w, h) => 'https://picsum.photos/seed/' + seed + '/' + 
    mode wherever a profile photo hasn't loaded/been set yet, so the app
    never flashes random stock faces at startup. */
 export const AV_NEUTRAL =
-  'data:image/svg+xml;utf8,' +
+  'data:image/svg+xml,' +
   encodeURIComponent(
     "<svg xmlns='http://www.w3.org/2000/svg' width='96' height='96'>" +
     "<rect width='96' height='96' rx='48' fill='#7C3AED'/>" +
