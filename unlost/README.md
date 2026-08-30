@@ -67,6 +67,13 @@ forced RLS, or without a policy.
 
 ---
 
+## Trying it without deploying
+
+`demo/deal-card.html` is the price instrument as one self-contained page — the
+same money arithmetic, no server. The signature moment of this product is a
+physical one, and a screenshot cannot carry it; open the page on a phone and
+drag the handle past the floor.
+
 ## Deploying
 
 Free, no card, about ten minutes. Nothing here needs a paid tier.
