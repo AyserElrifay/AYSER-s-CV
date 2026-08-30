@@ -22,6 +22,7 @@ import { useLang } from '../context/LanguageContext';
 
 /* Fetched when it is opened, not when the app starts. */
 import { lazyOverlay } from '../lib/lazyScreen';
+import { Tap, Rise, Breathe } from '../lib/motion';
 const CaptureModal = lazyOverlay(() => import('../components/CaptureModal').then((m) => ({ default: m.CaptureModal })));
 const CommentsSheet = lazyOverlay(() => import('../components/CommentsSheet').then((m) => ({ default: m.CommentsSheet })));
 const ProfileModal = lazyOverlay(() => import('../components/ProfileModal').then((m) => ({ default: m.ProfileModal })));
@@ -409,18 +410,36 @@ export const ReelsScreen = () => {
           <ActivityIndicator size="small" color="rgba(255,255,255,0.65)" />
         </View>
       ) : pageH > 0 ? (
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 }}>
-          <Text style={{ fontSize: 40 }}>🎬</Text>
-          <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '900', marginTop: 12, textAlign: 'center' }}>{t('no_reels')}</Text>
-          <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, marginTop: 6, textAlign: 'center', lineHeight: 19 }}>
-            {t('no_reels_hint')}
-          </Text>
-          <Pressable onPress={() => { tapMedium(); sfxPop(); setShooting(true); }} style={{ marginTop: 18 }}>
-            <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 26, paddingVertical: 13 }}>
-              <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '900' }}>{t('shoot_a_reel')}</Text>
-            </View>
-          </Pressable>
-        </View>
+        /* Same shape as the empty feed on Home, on purpose: a warm
+           circle you can see from across the room, a headline big
+           enough to read at arm's length, and one obvious thing to
+           press that answers your thumb. Six screens that each invent
+           their own empty state is most of what "the app looks old"
+           actually means. */
+        <Rise style={{ flex: 1 }}>
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 34 }}>
+            <Breathe>
+              <LinearGradient
+                colors={[C.purple, '#C026D3']}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                style={{ width: 84, height: 84, borderRadius: 42, alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ fontSize: 36 }}>🎬</Text>
+              </LinearGradient>
+            </Breathe>
+            <Text style={{ color: '#FFF', fontSize: 20, fontWeight: '900', marginTop: 16, textAlign: 'center', lineHeight: 27 }}>{t('no_reels')}</Text>
+            <Text style={{ color: 'rgba(255,255,255,0.72)', fontSize: 13.5, marginTop: 7, textAlign: 'center', lineHeight: 20 }}>
+              {t('no_reels_hint')}
+            </Text>
+            <Tap onPress={() => { tapMedium(); sfxPop(); setShooting(true); }} style={{ marginTop: 20 }}>
+              <LinearGradient
+                colors={[C.purple, '#C026D3']}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                style={{ borderRadius: 999, paddingHorizontal: 28, paddingVertical: 14 }}>
+                <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '900' }}>{t('shoot_a_reel')}</Text>
+              </LinearGradient>
+            </Tap>
+          </View>
+        </Rise>
       ) : null}
 
       {/* header — title + create, floating over the reel */}
