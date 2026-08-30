@@ -38,6 +38,39 @@ const load = (factory, tries = 3) =>
     return new Promise((r) => setTimeout(r, 400)).then(() => load(factory, tries - 1));
   });
 
+/* ─── THE ONE FAILURE SPLITTING THE APP ACTUALLY CREATES ─────────────
+   Every piece is named with a hash of what is inside it, so a new
+   version means new names. Somebody who had the app open when a new
+   version shipped is holding a page that asks for pieces by their OLD
+   names, and those names are gone from the server. Tap the camera
+   twenty minutes after a deploy and it 404s — for ever, because
+   pressing Try again asks for the same missing name again.
+
+   The page they are holding is simply out of date, and the fix for an
+   out-of-date page is to fetch it again: reloading brings down the new
+   list of names and the piece is there.
+
+   Once, though. If the piece is missing because the phone is in a
+   tunnel, reloading would be an endless loop of white screens — so the
+   attempt is remembered for the session, and the second failure gets
+   the message and the button instead. A piece arriving successfully
+   clears the mark, so the next deploy is allowed its one reload too. */
+const RELOAD_MARK = 'moments.chunkreload';
+
+const reloadOnce = () => {
+  try {
+    if (typeof window === 'undefined' || !window.location || !window.location.reload) return false;
+    if (window.sessionStorage.getItem(RELOAD_MARK)) return false;
+    window.sessionStorage.setItem(RELOAD_MARK, '1');
+    window.location.reload();
+    return true;
+  } catch (e) { return false; }
+};
+
+const clearReloadMark = () => {
+  try { window.sessionStorage.removeItem(RELOAD_MARK); } catch (e) {}
+};
+
 /* What you look at while a piece is on its way. Deliberately almost
    nothing: the app's own background and a quiet spinner. A skeleton
    layout here would be guessing at a screen we have not loaded yet,
@@ -103,8 +136,12 @@ const lazy = (factory, Fallback, inPlace) => {
     useEffect(() => {
       let alive = true;
       load(factory).then(
-        (m) => { if (alive) setLoaded(() => m.default); },
-        (e) => { if (alive) setFailed(e || new Error('This part could not be loaded')); },
+        (m) => { clearReloadMark(); if (alive) setLoaded(() => m.default); },
+        (e) => {
+          // an out-of-date page is worth one reload before giving up
+          if (reloadOnce()) return;
+          if (alive) setFailed(e || new Error('This part could not be loaded'));
+        },
       );
       return () => { alive = false; };
     }, [attempt]);

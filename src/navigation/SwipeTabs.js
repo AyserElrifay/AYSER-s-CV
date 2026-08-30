@@ -94,6 +94,8 @@ export const SwipeTabs = ({ children }) => {
   // gesture and no hint.
   const on = !(Platform.OS === 'web' && width >= 820);
   const hint = useHint(on && name === TAB_ORDER[0]);
+  const dismissHint = useRef(hint.dismiss);
+  dismissHint.current = hint.dismiss;
 
   /* ── WHERE THE FINGER STARTED, THE ONLY WAY THAT SURVIVES THE WEB ──
      The obvious source is `gestureState.x0`. On a phone it is right; in
@@ -146,12 +148,16 @@ export const SwipeTabs = ({ children }) => {
       if (!far) return;
       const next = targetOf(g.dx);
       if (!next) return;
-      hint.dismiss();
+      dismissHint.current();
       tapSelection();
       nav.navigate(next);
     },
     onPanResponderTerminationRequest: () => true,
-  }), [on, width, rtl, name, hint, nav]);
+    /* `hint` is a fresh object every render, so listing it here rebuilt
+       the whole responder sixty times a minute — and rebuilding it
+       mid-drag is how a gesture gets dropped halfway. It is read
+       through a ref instead, which never changes identity. */
+  }), [on, width, rtl, name, nav]);
 
   const handlers = on ? pan.panHandlers : {};
 
