@@ -1,0 +1,142 @@
+@import 'tailwindcss';
+
+/*
+ * Nisba is not a dashboard. It is a measuring instrument.
+ *
+ * Two materials, and the difference between them is the whole idea. The
+ * workspace is paper: light, quiet, nothing to look at. The deal card is a
+ * solid dark body sitting on top of it. Money lives inside that body and
+ * nowhere else, so "card-first, not dashboard-first" is something you see
+ * before anyone explains it to you.
+ *
+ * Colour rule, and it is a rule, not a preference: saturation belongs to margin
+ * state and nothing else. If green means "healthy margin", then nothing else in
+ * the product may be green — no button, no icon, no saved-successfully tick.
+ * This is the hardest constraint to keep and the one that pays for itself.
+ */
+@theme {
+  /* --- paper: the workspace ------------------------------------------------
+     A cool grey leaning very slightly green. Explicitly not cream: cream with a
+     high-contrast serif has become the house style of generated interfaces. */
+  --color-paper: #eaedea;
+  --color-paper-raised: #f4f6f3;
+  --color-paper-sunk: #dfe3df;
+  --color-line: #d2d7d2;
+  --color-line-strong: #bcc3bd;
+  --color-ink: #141a18;
+  --color-ink-soft: #58635e;
+  --color-ink-faint: #87908b;
+
+  /* --- card: the instrument ------------------------------------------------
+     Dark petrol, nearly black. A different material, not a darker paper. */
+  --color-card: #0f1a18;
+  --color-card-raised: #172522;
+  --color-card-line: #26332f;
+  --color-card-ink: #e9efec;
+  --color-card-ink-soft: #93a29c;
+  --color-card-ink-faint: #6b7975;
+
+  /* --- the only saturated colours in the product ---------------------------
+     Three signals. `below-floor` means the price went under the floor the
+     owner set — a line the agency drew itself — not that some percentage was
+     crossed. Tuned for the dark card, where the readings actually live. */
+  --color-healthy: #4fb585;
+  --color-thin: #d9a441;
+  --color-below: #e4695a;
+
+  /* The same three, dark enough to read on paper, for chips outside the card. */
+  --color-healthy-ink: #2c6b4c;
+  --color-thin-ink: #8a6314;
+  --color-below-ink: #a6392c;
+
+  --font-display: 'Alexandria', 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'IBM Plex Sans', 'IBM Plex Sans Arabic', ui-sans-serif, system-ui, sans-serif;
+  --font-arabic: 'IBM Plex Sans Arabic', 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+  /* Arabic-Indic digits fall through to Plex Sans Arabic, which has them and is
+     metrically close enough to hold a column. Plex Mono is Latin-only. */
+  --font-mono: 'IBM Plex Mono', 'IBM Plex Sans Arabic', ui-monospace, monospace;
+
+  --radius-card: 14px;
+}
+
+html {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  /* One vertical rhythm for both scripts. Arabic sits lower and taller than
+     Latin, so a shared line-height is what stops a bilingual table stepping up
+     and down as the language changes. */
+  line-height: 1.55;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  font-family: var(--font-sans);
+}
+
+html[lang='ar'] body {
+  font-family: var(--font-arabic);
+  line-height: 1.7;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+/*
+ * A reading, not a number.
+ *
+ * Monospaced and tabular so digits keep their column while the price is being
+ * dragged. Without this the whole row twitches on every frame and the thing
+ * stops feeling like an instrument and starts feeling like a web page.
+ */
+.reading {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1, 'zero' 1;
+  letter-spacing: -0.01em;
+}
+
+/*
+ * RTL rules, written down once so they stop being decided case by case.
+ *
+ *  1. Numbers stay left-to-right inside Arabic text. This is the thing that
+ *     breaks most often: an amount at the end of an Arabic sentence gets
+ *     reordered by the bidi algorithm and reads as nonsense. Every figure is
+ *     wrapped so it is isolated from the text around it.
+ *  2. The margin bar fills from the inline start — left in English, right in
+ *     Arabic. It is a quantity, and quantity follows reading direction.
+ *  3. A time axis always runs left to right, in both languages. Time is not a
+ *     quantity, and every chart convention in the world agrees on this.
+ *  4. Spacing uses logical properties (margin-inline-start, never margin-left)
+ *     from the first line, so nothing needs an RTL override later.
+ */
+.figure {
+  unicode-bidi: isolate;
+  direction: ltr;
+}
+
+html[lang='ar'] .figure:not(.figure--native) {
+  /* Latin digits inside Arabic still read left to right. */
+  direction: ltr;
+}
+
+:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+  border-radius: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
