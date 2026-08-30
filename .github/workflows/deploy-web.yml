@@ -96,6 +96,15 @@ jobs:
         run: npx expo export --platform web --output-dir dist
       - name: Inject PWA manifest + Open Graph tags
         run: node scripts/inject-html.mjs dist
+      # The app is cut into pieces that arrive when they are opened, and
+      # two ordinary-looking lines silently put it back together: an
+      # import of a whole directory, or one screen still importing a
+      # shared piece the eager way (Metro then moves it back into the
+      # file everybody downloads, leaving its chunk at 0 bytes). Both
+      # cost about a second of staring at nothing on a phone, and
+      # neither shows up in a diff. So the number is checked.
+      - name: Check the first download has not crept back up
+        run: node scripts/check-first-download.mjs dist
       - name: Disable Jekyll (keep _expo folder)
         run: touch dist/.nojekyll
       - uses: actions/configure-pages@v5

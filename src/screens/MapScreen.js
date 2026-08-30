@@ -28,15 +28,25 @@ import { fetchStoryPins } from '../services/stories';
 import { WORLD_EVENTS } from '../constants/events';
 import { updateCampfire, endCampfire } from '../services/campfires';
 import { openPartner } from '../services/broker';
-import {
-  Glass, Micro, Chip, NeonButton, GhostButton, FauxMap,
-  PersonPin, CampfirePin, MePin, SOSButton, ProfileModal, BookingSheet, TravelSheet, LeafletMap,
-} from '../components';
+import { BookingSheet } from '../components/BookingSheet';
+import { Chip } from '../components/Chip';
+import { FauxMap } from '../components/FauxMap';
+import { GhostButton } from '../components/GhostButton';
+import { Glass } from '../components/Glass';
+import { LeafletMap } from '../components/LeafletMap';
+import { CampfirePin, MePin, PersonPin, SOSButton } from '../components/MapPins';
+import { Micro } from '../components/Micro';
+import { NeonButton } from '../components/NeonButton';
+import { TravelSheet } from '../components/TravelSheet';
 import { tapLight, tapMedium, tapSelection, tapSuccess, tapCelebrate } from '../utils/feedback';
 // aliased: this screen already has its own `note`, which is a toast
 import { note as logFailure } from '../lib/crashLog';
 import { sfxPop, sfxSuccess } from '../utils/sfx';
 import { setupNotice } from '../lib/plumbing';
+
+/* Fetched when it is opened, not when the app starts. */
+import { lazyOverlay } from '../lib/lazyScreen';
+const ProfileModal = lazyOverlay(() => import('../components/ProfileModal').then((m) => ({ default: m.ProfileModal })));
 
 /* Which pins belong to each lens. `all` keeps everything; the rest are
    deliberately narrow, because the point of a lens is that the map goes

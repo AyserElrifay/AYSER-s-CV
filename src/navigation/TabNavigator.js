@@ -11,12 +11,23 @@ import { SQUADS, DMS } from '../constants/mockData';
 import { HomeScreen } from '../screens/HomeScreen';
 import { Boundary } from '../components/Boundary';
 import { SwipeTabs } from './SwipeTabs';
+import { lazyScreen } from '../lib/lazyScreen';
 
-import { MapScreen } from '../screens/MapScreen';
-import { ReelsScreen } from '../screens/ReelsScreen';
-import { ChillScreen } from '../screens/ChillScreen';
-import { ChatsScreen } from '../screens/ChatsScreen';
-import { ProfileScreen } from '../screens/ProfileScreen';
+/* ─── ONLY THE FEED IS IN THE FIRST DOWNLOAD ─────────────────────────
+   Home is what you land on, so it is here in full. The other five are
+   fetched the moment you first go to them and then kept, which on a
+   phone is the difference between waiting for the map, the camera and
+   five games before your own feed appears, and not.
+
+   Measured on the built bundle rather than assumed — the numbers are
+   in the commit. */
+/* These are named exports, and React.lazy only understands a default —
+   hence the one-line rename on the way through. */
+const MapScreen = lazyScreen(() => import('../screens/MapScreen').then((m) => ({ default: m.MapScreen })));
+const ReelsScreen = lazyScreen(() => import('../screens/ReelsScreen').then((m) => ({ default: m.ReelsScreen })));
+const ChillScreen = lazyScreen(() => import('../screens/ChillScreen').then((m) => ({ default: m.ChillScreen })));
+const ChatsScreen = lazyScreen(() => import('../screens/ChatsScreen').then((m) => ({ default: m.ChatsScreen })));
+const ProfileScreen = lazyScreen(() => import('../screens/ProfileScreen').then((m) => ({ default: m.ProfileScreen })));
 
 /* Each tab renders inside its own boundary. If one screen throws, that
    tab shows a "try again" instead of the whole app going down with it —
@@ -29,7 +40,8 @@ const guarded = (Screen, name) => {
     <Boundary soft name={name}>
       {/* The swipe lives inside the boundary on purpose: a screen that
           throws still loses only itself, and you can still swipe off it
-          to somewhere that works instead of being stranded. */}
+          to somewhere that works instead of being stranded — including
+          off one that is still arriving. */}
       <SwipeTabs>
         <Screen {...props} />
       </SwipeTabs>

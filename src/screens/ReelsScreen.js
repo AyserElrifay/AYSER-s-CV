@@ -14,14 +14,17 @@ import { fetchFeed, deletePost } from '../services/posts';
 import { mateUp, fetchMateStates } from '../services/mates';
 import { toggleVibe as persistVibe, toggleRepost as persistRepost, fetchEngagement } from '../services/social';
 import { SoundChip } from '../components/SoundChip';
-import { CommentsSheet } from '../components/CommentsSheet';
-import { CaptureModal } from '../components/CaptureModal';
-import { ProfileModal } from '../components/ProfileModal';
 import { tapLight, tapMedium } from '../utils/feedback';
 import { sfxStar, sfxPop } from '../utils/sfx';
 import { soundOn, setSoundOn, applySound, trackPlayer, untrackPlayer, stopVideos } from '../lib/videoSound';
 import { useIsFocused } from '@react-navigation/native';
 import { useLang } from '../context/LanguageContext';
+
+/* Fetched when it is opened, not when the app starts. */
+import { lazyOverlay } from '../lib/lazyScreen';
+const CaptureModal = lazyOverlay(() => import('../components/CaptureModal').then((m) => ({ default: m.CaptureModal })));
+const CommentsSheet = lazyOverlay(() => import('../components/CommentsSheet').then((m) => ({ default: m.CommentsSheet })));
+const ProfileModal = lazyOverlay(() => import('../components/ProfileModal').then((m) => ({ default: m.ProfileModal })));
 
 /* ─── TAB 3 · REELS — the standalone vertical feed ───
    TikTok-style full-screen pager with the Moments identity: the gold

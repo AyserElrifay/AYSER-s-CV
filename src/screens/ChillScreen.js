@@ -14,17 +14,30 @@ import { fetchVideos, deletePost } from '../services/posts';
 import { fetchTracks } from '../services/music';
 import { FILM_GENRES, fetchFilms, fetchOurScores } from '../services/films';
 import { usePlayer } from '../context/PlayerContext';
-import { Page, ScreenHeader, SectionHeader, Glass, GameRunner, RooftopRush, RockPaperScissors, StackGame, TowerClimb, StreetHop, CultureSheet } from '../components';
-import { CaptureModal } from '../components/CaptureModal';
+import { CultureSheet } from '../components/CultureSheet';
+import { GameRunner } from '../components/GameRunner';
+import { Glass } from '../components/Glass';
+import { Page } from '../components/Page';
+import { RockPaperScissors } from '../components/RockPaperScissors';
+import { RooftopRush } from '../components/RooftopRush';
+import { ScreenHeader } from '../components/ScreenHeader';
+import { SectionHeader } from '../components/SectionHeader';
+import { StackGame } from '../components/StackGame';
+import { StreetHop } from '../components/StreetHop';
+import { TowerClimb } from '../components/TowerClimb';
 import { MusicHubSheet } from '../components/MusicHubSheet';
 import { FilmSheet } from '../components/FilmSheet';
 import { BooksShelf } from '../components/BooksShelf';
-import { CommentsSheet } from '../components/CommentsSheet';
 import { GameHub } from '../components/lamma/GameHub';
 import { GreenSheet } from '../components/green/GreenSheet';
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
 import { trackPlayer } from '../lib/videoSound';
 import { sfxSuccess, sfxPop } from '../utils/sfx';
+
+/* Fetched when it is opened, not when the app starts. */
+import { lazyOverlay } from '../lib/lazyScreen';
+const CaptureModal = lazyOverlay(() => import('../components/CaptureModal').then((m) => ({ default: m.CaptureModal })));
+const CommentsSheet = lazyOverlay(() => import('../components/CommentsSheet').then((m) => ({ default: m.CommentsSheet })));
 
 /* ────────────── TAB 4 · CHILL — WATCH & UNWIND ──────────────
    Long-form videos (YouTube-style, real uploads of type 'vod') up top,

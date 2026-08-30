@@ -16,8 +16,15 @@ import { getProfile, updateProfile } from '../services/profiles';
 import { AV_NEUTRAL } from '../constants/mockData';
 import { fetchLanguagePartners, searchProfiles } from '../services/social';
 import { buildAvatarUrl } from '../services/avatarBuilder';
-import { Page, ScreenHeader, SectionHeader, Glass, Chip, Tick, AvatarStack, StreakBadge, OnlineDot } from '../components';
-import { CaptureModal } from '../components/CaptureModal';
+import { AvatarStack } from '../components/AvatarStack';
+import { Chip } from '../components/Chip';
+import { Glass } from '../components/Glass';
+import { OnlineDot } from '../components/OnlineDot';
+import { Page } from '../components/Page';
+import { ScreenHeader } from '../components/ScreenHeader';
+import { SectionHeader } from '../components/SectionHeader';
+import { StreakBadge } from '../components/StreakBadge';
+import { Tick } from '../components/Tick';
 import { sendMoment } from '../services/messages';
 import { ChatThread } from './ChatThread';
 import { AlbumSheet } from '../components/green/AlbumSheet';
@@ -26,6 +33,10 @@ import { isOwner } from '../services/music';
 import { tapLight, tapSelection, tapSuccess, tapCelebrate } from '../utils/feedback';
 import { isUnread, markThreadSeen } from '../lib/seen';
 import { setupNotice } from '../lib/plumbing';
+
+/* Fetched when it is opened, not when the app starts. */
+import { lazyOverlay } from '../lib/lazyScreen';
+const CaptureModal = lazyOverlay(() => import('../components/CaptureModal').then((m) => ({ default: m.CaptureModal })));
 
 /* ─────────────────── TAB 5 · CHATS — CONNECTIONS ─────────────────────
    Real mode: your actual DM threads, actual squads you've joined, and

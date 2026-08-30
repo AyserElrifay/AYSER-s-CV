@@ -20,10 +20,14 @@ import { fetchMyMates } from '../services/mates';
 import { getOrCreateDmThread, sendMessage } from '../services/messages';
 import { AV_NEUTRAL } from '../constants/mockData';
 import { getPrefs, setPref, subscribePrefs } from '../services/prefs';
-import {
-  Glass, Micro, Chip, SectionHeader,
-  NeonButton, TermsSheet, BardiSheet, HelpSheet, GestureTour,
-} from '../components';
+import { Chip } from '../components/Chip';
+import { GestureTour } from '../components/GestureTour';
+import { Glass } from '../components/Glass';
+import { HelpSheet } from '../components/HelpSheet';
+import { Micro } from '../components/Micro';
+import { NeonButton } from '../components/NeonButton';
+import { SectionHeader } from '../components/SectionHeader';
+import { TermsSheet } from '../components/TermsSheet';
 
 /* Common languages for the exchange pickers — flag + name, tap to choose. */
 const LANGUAGES = [
@@ -38,6 +42,10 @@ const LEVELS = ['Beginner', 'A2', 'B1', 'B2', 'Fluent'];
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
 import { sfxSuccess } from '../utils/sfx';
 import { setupNotice } from '../lib/plumbing';
+
+/* Fetched when it is opened, not when the app starts. */
+import { lazyOverlay } from '../lib/lazyScreen';
+const BardiSheet = lazyOverlay(() => import('../components/BardiSheet').then((m) => ({ default: m.BardiSheet })));
 
 /* A real, persisted on/off switch. */
 const Toggle = ({ on, onToggle }) => (

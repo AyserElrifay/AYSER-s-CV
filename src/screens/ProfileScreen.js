@@ -49,7 +49,13 @@ import { fetchMyMoments, deletePost, updatePost, fetchRepostsByUser } from '../s
 import { fetchTaggedPosts, removeTag } from '../services/tags';
 import { countMyCampfires } from '../services/campfires';
 import { countMates } from '../services/mates';
-import { Tick, GhostButton, BoostSheet, MatesSheet, AvatarBuilderSheet, PostCard, ReelsViewer, CommentsSheet, LikersSheet, HighlightsRail } from '../components';
+import { AvatarBuilderSheet } from '../components/AvatarBuilderSheet';
+import { BoostSheet } from '../components/BoostSheet';
+import { GhostButton } from '../components/GhostButton';
+import { HighlightsRail } from '../components/Highlights';
+import { MatesSheet } from '../components/MatesSheet';
+import { PostCard } from '../components/PostCard';
+import { Tick } from '../components/Tick';
 import { CloseFriendsSheet } from '../components/CloseFriendsSheet';
 import { countFollowers, countFollowing } from '../services/follows';
 import { PHOTO_RULE } from '../services/safety';
@@ -62,6 +68,12 @@ import { getCurrentCoords } from '../utils/location';
 import { MapCover } from '../components/MapCover';
 import { useStable } from '../hooks/useStable';
 import { setupNotice } from '../lib/plumbing';
+
+/* Fetched when it is opened, not when the app starts. */
+import { lazyOverlay } from '../lib/lazyScreen';
+const CommentsSheet = lazyOverlay(() => import('../components/CommentsSheet').then((m) => ({ default: m.CommentsSheet })));
+const ReelsViewer = lazyOverlay(() => import('../components/ReelsViewer').then((m) => ({ default: m.ReelsViewer })));
+const LikersSheet = lazyOverlay(() => import('../components/LikersSheet').then((m) => ({ default: m.LikersSheet })));
 
 /* ─── YOUR SPACE — the profile, Facebook / Instagram / X style ───
    Real mode shows your actual profile, your actual posts (with real

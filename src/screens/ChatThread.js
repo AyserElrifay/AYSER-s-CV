@@ -22,7 +22,6 @@ import { getProfile } from '../services/profiles';
 import { TruthOrDare } from '../components/TruthOrDare';
 import { WouldYouRather } from '../components/WouldYouRather';
 import { CallScreen } from '../components/CallScreen';
-import { CaptureModal } from '../components/CaptureModal';
 import { GameRunner } from '../components/GameRunner';
 import { BoardGame } from '../components/BoardGame';
 import { GAMES as BOARD_GAMES, gameById, isBoardGame } from '../services/boardGames';
@@ -35,6 +34,10 @@ import { sfxPop } from '../utils/sfx';
 import { note } from '../lib/crashLog';
 import { effectiveTtl } from '../services/accountSettings';
 import { setupNotice } from '../lib/plumbing';
+
+/* Fetched when it is opened, not when the app starts. */
+import { lazyOverlay } from '../lib/lazyScreen';
+const CaptureModal = lazyOverlay(() => import('../components/CaptureModal').then((m) => ({ default: m.CaptureModal })));
 
 /* ─── A conversation — kept deliberately simple and warm, the kind of
    place you want to hang out in. Call & video in the header, and games

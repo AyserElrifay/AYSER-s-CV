@@ -39,7 +39,59 @@ const responsiveCss = `
   </style>
 `;
 
+/* ─── THE ONE LINE EXPO'S WEB EXPORT FORGETS ─────────────────────────
+   Metro really does split the bundle. Ask for a piece of code with
+   `await import('x')` and the export writes a separate file for it and
+   records where it lives, right there in the main bundle:
+
+     618, {"19":320, "paths":{"813":"/AYSER-s-CV/_expo/.../three-….js"}}
+
+   And then nothing ever fetches it. Metro's async-require module reads
+   a function called `__loadBundleAsync` off the global, and on web
+   nobody defines it. Its own code says what happens next:
+
+     const u = g[`${__METRO_GLOBAL_PREFIX__}__loadBundleAsync`];
+     if (null != u) { … return u(path) }        ← never taken
+     …
+     return () => r.importAll(moduleId);        ← taken instead
+
+   It falls through to a SYNCHRONOUS require of a module that is, by
+   construction, in the other file. "Requiring unknown module 813".
+
+   That is why splitting this app "did not work" and was reverted: the
+   split was fine, the fetch was missing. Twelve lines, defined before
+   the bundle runs, and the piece arrives when it is asked for. `__d`
+   is already a global by then, so the chunk registers itself simply by
+   being executed.
+
+   __METRO_GLOBAL_PREFIX__ is '' in this build, checked in the output —
+   so the name really is exactly `__loadBundleAsync`. */
+const chunkLoader = `
+  <script>
+    (function () {
+      var inflight = {};
+      globalThis.__loadBundleAsync = function (path) {
+        if (inflight[path]) return inflight[path];
+        inflight[path] = new Promise(function (resolve, reject) {
+          var s = document.createElement('script');
+          s.src = path;
+          s.async = true;
+          s.onload = function () { resolve(); };
+          s.onerror = function () {
+            // let a later attempt try again rather than caching a failure
+            delete inflight[path];
+            reject(new Error('Could not load ' + path));
+          };
+          document.head.appendChild(s);
+        });
+        return inflight[path];
+      };
+    })();
+  </script>
+`;
+
 const tags = `
+  ${chunkLoader}
   ${responsiveCss}
   <!-- Absolute, not relative. A relative href resolves against whatever
        URL the page happens to be on, so one visit without the trailing
@@ -78,6 +130,10 @@ html = html.replace(
 
 if (!html.includes('og:title')) {
   html = html.replace('</head>', tags + '</head>');
+}
+if (!html.includes('__loadBundleAsync')) {
+  // an index.html patched by an older version of this script still needs it
+  html = html.replace('</head>', chunkLoader + '</head>');
 }
 if (html.includes('<title>')) {
   html = html.replace(/<title>[^<]*<\/title>/, `<title>${TITLE}</title>`);

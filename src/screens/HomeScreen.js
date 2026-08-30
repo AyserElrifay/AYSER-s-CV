@@ -21,14 +21,37 @@ import { fetchPost } from '../services/posts';
 import { Platform } from 'react-native';
 import { countUnread, subscribeNotifications } from '../services/notifications';
 import { sfxNotify } from '../utils/sfx';
-import {
-  Glass, StoriesBar, PostCard, MagicFlowModal, ProfileModal,
-  CommentsSheet, ComposeModal, SearchModal, StoryViewer, ReelsViewer,
-  CaptureModal, NotificationsSheet, LikersSheet, ReportSheet, Wordmark, BardiSheet,
-  TopicsSheet,
-} from '../components';
+import { Glass } from '../components/Glass';
+import { PostCard } from '../components/PostCard';
+import { StoriesBar } from '../components/StoriesBar';
+import { Wordmark } from '../components/Wordmark';
 import { Modal } from 'react-native';
-import { ProfileScreen } from './ProfileScreen';
+import { lazyOverlay } from '../lib/lazyScreen';
+
+/* ─── THE FEED FIRST, THE REST WHEN YOU REACH FOR IT ─────────────────
+   Everything below opens over the feed and none of it is on screen
+   when you arrive: the camera, Discover and its five games, the story
+   viewer, your own profile page. All of it used to be in the first
+   download, so opening the app meant waiting for the camera you had
+   not asked for.
+
+   They stay ordinary components after this line: written and rendered
+   exactly as before, and each one brings itself over the network the
+   first time it is opened. */
+const BardiSheet = lazyOverlay(() => import('../components/BardiSheet').then((m) => ({ default: m.BardiSheet })));
+const CaptureModal = lazyOverlay(() => import('../components/CaptureModal').then((m) => ({ default: m.CaptureModal })));
+const CommentsSheet = lazyOverlay(() => import('../components/CommentsSheet').then((m) => ({ default: m.CommentsSheet })));
+const ComposeModal = lazyOverlay(() => import('../components/ComposeModal').then((m) => ({ default: m.ComposeModal })));
+const LikersSheet = lazyOverlay(() => import('../components/LikersSheet').then((m) => ({ default: m.LikersSheet })));
+const MagicFlowModal = lazyOverlay(() => import('../components/MagicFlowModal').then((m) => ({ default: m.MagicFlowModal })));
+const NotificationsSheet = lazyOverlay(() => import('../components/NotificationsSheet').then((m) => ({ default: m.NotificationsSheet })));
+const ProfileModal = lazyOverlay(() => import('../components/ProfileModal').then((m) => ({ default: m.ProfileModal })));
+const ReelsViewer = lazyOverlay(() => import('../components/ReelsViewer').then((m) => ({ default: m.ReelsViewer })));
+const ReportSheet = lazyOverlay(() => import('../components/ReportSheet').then((m) => ({ default: m.ReportSheet })));
+const SearchModal = lazyOverlay(() => import('../components/SearchModal').then((m) => ({ default: m.SearchModal })));
+const StoryViewer = lazyOverlay(() => import('../components/StoryViewer').then((m) => ({ default: m.StoryViewer })));
+const TopicsSheet = lazyOverlay(() => import('../components/TopicsSheet').then((m) => ({ default: m.TopicsSheet })));
+const ProfileScreen = lazyOverlay(() => import('./ProfileScreen').then((m) => ({ default: m.ProfileScreen })));
 
 /* ───────────────────── TAB 1 · HOME — THE ACTION FEED ──────────────── */
 
@@ -492,6 +515,7 @@ export const HomeScreen = () => {
         }
       />
 
+      {/* ── EVERYTHING BELOW ARRIVES WHEN IT IS OPENED ────────────── */}
       {magicPost ? (
         <MagicFlowModal
           post={magicPost}
@@ -508,8 +532,11 @@ export const HomeScreen = () => {
         />
       ) : null}
       {profileUser ? <ProfileModal user={profileUser} onClose={() => setProfileUser(null)} /> : null}
-      {/* Your avatar opens the ONE real profile — same as the SPACE tab */}
-      <Modal visible={myProfileOpen} animationType="slide" onRequestClose={() => setMyProfileOpen(false)}>
+      {/* Your avatar opens the ONE real profile — same as the SPACE tab.
+          Guarded by the flag as well as by `visible`, so the profile
+          page is not even asked for until you open it. */}
+      {myProfileOpen ? (
+      <Modal visible animationType="slide" onRequestClose={() => setMyProfileOpen(false)}>
         <View style={{ flex: 1, backgroundColor: C.bg }}>
           <Pressable onPress={() => setMyProfileOpen(false)} hitSlop={10} style={{ position: 'absolute', top: insets.top + 12, left: 14, zIndex: 20, width: 38, height: 38, borderRadius: 19, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center' }}>
             <Ionicons name="chevron-back" size={22} color={C.text} />
@@ -517,6 +544,7 @@ export const HomeScreen = () => {
           <ProfileScreen />
         </View>
       </Modal>
+      ) : null}
       {commentsPost ? <CommentsSheet post={commentsPost} onClose={() => setCommentsPost(null)} /> : null}
       {notifOpen ? <NotificationsSheet onClose={() => setNotifOpen(false)} /> : null}
       {bardiOpen ? <BardiSheet onClose={() => setBardiOpen(false)} /> : null}
