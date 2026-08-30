@@ -1,5 +1,5 @@
 import React from 'react';
-import { Platform, useWindowDimensions } from 'react-native';
+import { Platform, View, useWindowDimensions } from 'react-native';
 import { DefaultTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -71,11 +71,32 @@ const TAB_ICONS = {
   SPACE: { lib: 'ion', on: 'person', off: 'person-outline' },
 };
 
+/* ─── THE BAR YOU LOOK AT ALL DAY ───────────────────────────────────
+   It was six 21px outlines in grey, under 9.5px capitals spaced out
+   like a spreadsheet header. Small, thin and colourless — the reason
+   Ayser said the app looks old, more than any single screen does,
+   because this is the one thing on screen the whole time.
+
+   Now the tab you are on sits in a soft violet pill, and everything is
+   bigger: the icon, the label, the row. Bigger is not only friendlier
+   to a nine-year-old's aim and to eyes that are not twenty any more —
+   it is also what current design looks like, and the two wants turn
+   out to be the same want. */
 const renderTabIcon = (routeName, focused, color) => {
   const cfg = TAB_ICONS[routeName];
   const name = focused ? cfg.on : cfg.off;
-  if (cfg.lib === 'mci') return <MaterialCommunityIcons name={name} size={21} color={color} />;
-  return <Ionicons name={name} size={21} color={color} />;
+  const glyph = cfg.lib === 'mci'
+    ? <MaterialCommunityIcons name={name} size={24} color={color} />
+    : <Ionicons name={name} size={24} color={color} />;
+  return (
+    <View style={{
+      minWidth: 56, height: 34, borderRadius: 17,
+      alignItems: 'center', justifyContent: 'center',
+      backgroundColor: focused ? C.purpleSoft : 'transparent',
+    }}>
+      {glyph}
+    </View>
+  );
 };
 
 /* Demo-mode only: the sample chats carry sample unread counts. In real
@@ -136,15 +157,16 @@ export const TabNavigator = () => {
             backgroundColor: C.bg2,
             borderTopColor: C.line,
             borderTopWidth: 1,
-            height: Platform.OS === 'ios' ? 84 : 66,
-            paddingTop: 6,
+            height: Platform.OS === 'ios' ? 92 : 74,
+            paddingTop: 8,
+            paddingBottom: Platform.OS === 'ios' ? 0 : 6,
           },
       tabBarItemStyle: sidebar
         ? { height: 50, borderRadius: 12, marginBottom: 4, justifyContent: 'flex-start', paddingLeft: 6 }
         : undefined,
       tabBarLabelStyle: sidebar
         ? { fontSize: 14, fontWeight: '800', letterSpacing: 0.4, marginLeft: 10, textAlign: 'left' }
-        : { fontSize: 9.5, fontWeight: '800', letterSpacing: 1.4 },
+        : { fontSize: 10.5, fontWeight: '900', letterSpacing: 0.6, marginTop: 3 },
       tabBarLabel: t(TAB_LABEL_KEY[route.name]),
       tabBarIcon: ({ focused, color }) => renderTabIcon(route.name, focused, color),
     })}
