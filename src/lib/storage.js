@@ -62,7 +62,8 @@ async function uploadToR2(userId, uri, ext, contentType) {
   if (error || !data || !data.uploadUrl) throw new Error('r2-presign unavailable');
 
   const body = await asBlob(uri);
-  if (body.size > MAX_UPLOAD_BYTES) throw new Error('File too large (max 60MB)');
+  // the number said out loud has to be the number that is enforced
+  if (body.size > MAX_UPLOAD_BYTES) throw new Error('File too large (max ' + Math.round(MAX_UPLOAD_BYTES / 1048576) + 'MB)');
 
   const put = await fetch(data.uploadUrl, { method: 'PUT', headers: { 'Content-Type': contentType }, body });
   if (!put.ok) throw new Error('R2 upload failed');

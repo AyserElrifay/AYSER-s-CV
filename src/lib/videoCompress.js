@@ -77,6 +77,36 @@ export function needsCompressing(bytes, seconds) {
   return bytes > TARGET_BYTES;
 }
 
+/* ─── WHAT TO DO WITH A VIDEO SOMEBODY CHOSE ─────────────────────────
+   Pulled out as one pure function for one reason: this decision was
+   wrong for months and nothing could catch it, because catching it
+   needed a real twenty-minute file in a real browser.
+
+   What it got wrong: a reel is capped at three minutes, and the cap
+   was applied to the long-form Video tab as well. Anything longer went
+   to the compressor, which re-records by playing the file back in real
+   time and stops at the cap — so posting a ten-minute video meant
+   waiting ten minutes to get three minutes of it, or being told "a
+   reel goes up to 3" about a video posted to the tab whose whole point
+   is that it is long.
+
+   Long-form does not shrink and does not cut. It goes as it is, and
+   only the real ceiling on the bucket can stop it.
+
+   'send' upload what was chosen · 'shrink' re-encode first ·
+   'refuse' say why, in megabytes.                                    */
+export function videoPlan({ bytes, seconds, longForm, maxBytes }) {
+  if (longForm) {
+    return (maxBytes && bytes > maxBytes) ? { action: 'refuse', why: 'too-big' } : { action: 'send' };
+  }
+  if (seconds != null && seconds > REEL_MAX_SECONDS + 0.5) return { action: 'shrink', why: 'too-long' };
+  return bytes > TARGET_BYTES ? { action: 'shrink', why: 'too-big' } : { action: 'send' };
+}
+
+/* Exported so the check can assert against the real numbers rather
+   than a copy of them that drifts. */
+export const VIDEO_LIMITS = { REEL_MAX_SECONDS, TARGET_BYTES };
+
 const pickMime = () => {
   if (typeof MediaRecorder === 'undefined') return null;
   const want = [

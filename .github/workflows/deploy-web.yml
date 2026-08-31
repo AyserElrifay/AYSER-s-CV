@@ -57,6 +57,13 @@ jobs:
       # exist only in English and Arabic without anybody noticing.
       - name: Check every language says everything
         run: node scripts/check-i18n.mjs
+      # A reel is three minutes; a long-form video is not. The cap was
+      # applied to both, so anything longer was re-encoded in real time
+      # and cut — or refused with a reel's message. Catching that used
+      # to need a twenty-minute file in a browser, which is why it
+      # survived for months. It is one pure function now.
+      - name: Check a long video is allowed to be long
+        run: node scripts/check-video-plan.mjs
       # `t` is the translator. Where a component already had a prop
       # called t — a track, a tag — calling t('key') binds to that
       # instead and throws the first time that branch renders. The build

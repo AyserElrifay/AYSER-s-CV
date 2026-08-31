@@ -14,7 +14,7 @@ import { createPost } from '../services/posts';
 import { createStory } from '../services/stories';
 import { uploadCapture, uploadMedia } from '../services/social';
 import { compressImage, MAX_UPLOAD_BYTES } from '../lib/storage';
-import { compressVideo, probeVideo, needsCompressing, REEL_MAX_SECONDS } from '../lib/videoCompress';
+import { compressVideo, probeVideo, videoPlan, REEL_MAX_SECONDS } from '../lib/videoCompress';
 import { fetchTracks, incrementTrackUse, publishSound } from '../services/music';
 /* Both called, neither imported — the same bug as the two sheets below,
    and on the same journey: markUsed runs when you post something you
@@ -1451,7 +1451,8 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
     try {
       const file = await pickFromDisk('video/*', 'environment');
       if (!file) return;
-      const fit = await fitVideo(file);
+      /* the long-form tab means long-form here too */
+      const fit = await fitVideo(file, { longForm: mode === 'video' });
       if (!fit) return;
       const mime = fit.contentType || file.type || 'video/mp4';
       const ext = fit.ext || (String(file.name || '').split('.').pop() || 'mp4').toLowerCase();
@@ -1523,7 +1524,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
         if (!file) return;
         const isVid = /^video\//.test(file.type || '');
         let fit = { blob: file };
-        if (isVid) { fit = await fitVideo(file); if (!fit) return; }
+        if (isVid) { fit = await fitVideo(file, { longForm: mode === 'video' }); if (!fit) return; }
         const body = fit.blob || file;
         const mime = fit.contentType || file.type || (isVid ? 'video/mp4' : 'image/jpeg');
         const ext = fit.ext || (file.name.split('.').pop() || (isVid ? 'mp4' : 'jpg')).toLowerCase();
@@ -1539,7 +1540,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
       if (!result.canceled && result.assets && result.assets[0]) {
         const a = result.assets[0];
         const isVid = (a.type || '').startsWith('video') || /^video\//.test(a.mimeType || '');
-        if (isVid && !(await fitVideo(a.uri))) return; // too big → clear message, not 'Load failed'
+        if (isVid && !(await fitVideo(a.uri, { longForm: mode === 'video' }))) return; // too big → clear message, not 'Load failed'
         const mime = a.mimeType || (isVid ? 'video/mp4' : 'image/jpeg');
         const ext = (mime.split('/')[1] || (isVid ? 'mp4' : 'jpg')).replace('jpeg', 'jpg');
         setShot({ uri: a.uri, kind: isVid ? 'video' : 'photo', ext, contentType: mime });
@@ -1560,8 +1561,9 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
      it, the original when we could not, and null when it genuinely
      cannot go (in which case the reason is already on screen).
      See src/lib/videoCompress.js. */
-  const fitVideo = async (fileOrUri, meta) => {
+  const fitVideo = async (fileOrUri, opts) => {
     if (!isWeb) return { uri: fileOrUri };
+    const longForm = !!(opts && opts.longForm);
     let blob = null;
     try {
       blob = (fileOrUri && typeof fileOrUri !== 'string') ? fileOrUri : await (await fetch(fileOrUri)).blob();
@@ -1569,7 +1571,18 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
 
     const info = await probeVideo(blob);
     const seconds = info && info.seconds;
-    if (!needsCompressing(blob.size, seconds)) return { uri: fileOrUri, blob, seconds };
+
+    /* The decision itself lives in src/lib/videoCompress.js, where it
+       can be checked without a browser and without a twenty-minute
+       file — which is why it was wrong for months. */
+    const plan = videoPlan({ bytes: blob.size, seconds, longForm, maxBytes: MAX_UPLOAD_BYTES });
+    if (plan.action === 'refuse') {
+      setCamError(t('cap_err_too_big')
+        .replace('{size}', Math.round(blob.size / 1048576))
+        .replace('{max}', Math.round(MAX_UPLOAD_BYTES / 1048576)));
+      return null;
+    }
+    if (plan.action === 'send') return { uri: fileOrUri, blob, seconds };
 
     setShrink(0);
     setCamError(null);
@@ -1592,11 +1605,11 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
       };
     }
     if (seconds && seconds > REEL_MAX_SECONDS + 0.5) {
-      setCamError('That clip is ' + Math.round(seconds / 60) + ' minutes and this browser cannot cut it. A reel goes up to 3 — trim it in Photos and try again ✂️');
+      setCamError(t('cap_err_reel_long').replace('{mins}', Math.round(seconds / 60)));
       return null;
     }
     if (blob.size > MAX_UPLOAD_BYTES) {
-      setCamError('That clip is ' + Math.round(blob.size / 1048576) + 'MB and this browser cannot shrink it. Trim it in Photos and try again ✂️');
+      setCamError(t('cap_err_cannot_shrink').replace('{size}', Math.round(blob.size / 1048576)));
       return null;
     }
     return { uri: fileOrUri, blob, seconds };
@@ -1608,7 +1621,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
       try {
         const file = await pickFromDisk('video/*');
         if (!file) return;
-        const fit = await fitVideo(file);
+        const fit = await fitVideo(file, { longForm: mode === 'video' });
         if (!fit) return;
         const body = fit.blob || file;
         const ext = fit.ext || (file.name.split('.').pop() || 'mp4').toLowerCase();
@@ -1622,7 +1635,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
       const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['videos'], quality: 1, videoMaxDuration: 900 });
       if (!result.canceled && result.assets && result.assets[0]) {
         const a = result.assets[0];
-        if (!(await fitVideo(a.uri))) return;
+        if (!(await fitVideo(a.uri, { longForm: mode === 'video' }))) return;
         const raw = (a.fileName || a.uri || 'video.mp4').split('?')[0];
         const ext = (raw.split('.').pop() || 'mp4').toLowerCase();
         setShot({ uri: a.uri, kind: 'video', ext: ext || 'mp4', contentType: a.mimeType || ('video/' + (ext || 'mp4')) });

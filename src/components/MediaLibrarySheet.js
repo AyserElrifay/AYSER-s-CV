@@ -8,7 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { SUPABASE_READY } from '../lib/supabase';
 import { fetchLibrary, addToLibrary, removeFromLibrary } from '../services/library';
 import { MAX_UPLOAD_BYTES } from '../lib/storage';
-import { compressVideo, probeVideo, needsCompressing, REEL_MAX_SECONDS } from '../lib/videoCompress';
+import { compressVideo, probeVideo, videoPlan, REEL_MAX_SECONDS } from '../lib/videoCompress';
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
 
 /* ── YOUR LIBRARY ───────────────────────────────────────────────────
@@ -88,7 +88,23 @@ export const MediaLibrarySheet = ({ onPick, onClose, only = null, inline = false
       if (/^video\//.test(file.type || '') || label === 'video') {
         const meta = await probeVideo(file);
         const seconds = meta && meta.seconds;
-        if (needsCompressing(file.size, seconds)) {
+        /* ── THE LIBRARY MUST NOT CUT ANYBODY'S VIDEO ─────────────────
+           Shrinking a heavy thirty-second clip is the point of this.
+           Shrinking a twelve-minute one is not: the re-encoder works by
+           playing the file back in real time and stops at the reel cap,
+           so a long video put in the library came back three minutes
+           long — and the library is reachable from the long-form tab,
+           where length is the whole idea.
+
+           So it is treated as long-form exactly when it IS long: kept
+           whole, with only the bucket's real ceiling able to stop it.
+           A short heavy clip is still shrunk, which is what this was
+           for. */
+        const tooLongToReEncode = seconds != null && seconds > REEL_MAX_SECONDS;
+        const plan = videoPlan({
+          bytes: file.size, seconds, longForm: tooLongToReEncode, maxBytes: MAX_UPLOAD_BYTES,
+        });
+        if (plan.action === 'shrink') {
           setSqueeze(0);
           const small = await compressVideo(file, {
             onProgress: setSqueeze,
