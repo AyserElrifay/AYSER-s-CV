@@ -1,0 +1,773 @@
+<title>Qirat Deal Card</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alexandria:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+
+<style>
+/*
+ * This is the product's own system, not a new one invented for a demo page:
+ * the same tokens, the same three faces, the same one rule about colour.
+ *
+ * Single-theme on purpose. Qirat is a light-paper product whose whole idea is
+ * a dark card sitting on that paper as a different material. Rendering it dark
+ * would be showing something that does not exist, so every colour here is
+ * painted explicitly and the page holds on either host ground.
+ */
+:root {
+  --paper: #eaedea;
+  --paper-raised: #f4f6f3;
+  --line: #d2d7d2;
+  --ink: #141a18;
+  --ink-soft: #58635e;
+  --ink-faint: #87908b;
+
+  --card: #0f1a18;
+  --card-raised: #172522;
+  --card-line: #26332f;
+  --card-ink: #e9efec;
+  --card-ink-soft: #93a29c;
+  --card-ink-faint: #6b7975;
+
+  /* The only saturated colours in the product. */
+  --healthy: #4fb585;
+  --thin: #d9a441;
+  --below: #e4695a;
+
+  --sans: 'IBM Plex Sans', 'IBM Plex Sans Arabic', ui-sans-serif, system-ui, sans-serif;
+  --arabic: 'IBM Plex Sans Arabic', 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+  --display: 'Alexandria', 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+  --mono: 'IBM Plex Mono', 'IBM Plex Sans Arabic', ui-monospace, monospace;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  line-height: 1.55;
+  -webkit-text-size-adjust: 100%;
+}
+
+#root[dir='rtl'] { font-family: var(--arabic); line-height: 1.7; }
+
+.page {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 2rem 1.25rem 4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+.topbar { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
+.wordmark { font-family: var(--display); font-weight: 600; font-size: 1.0625rem; letter-spacing: -0.01em; }
+
+button.link {
+  background: none; border: 0; padding: 0.25rem 0.4rem; cursor: pointer;
+  font: inherit; font-size: 0.8125rem; color: var(--ink-soft); border-radius: 6px;
+}
+button.link:hover { color: var(--ink); }
+
+.thesis { font-family: var(--display); font-weight: 400; font-size: 1.375rem; line-height: 1.35; margin: 0; text-wrap: balance; }
+.sub { margin: 0; font-size: 0.875rem; color: var(--ink-soft); max-width: 34rem; }
+
+/* --- the card: a different material, not a darker panel ------------------- */
+.card {
+  background: var(--card);
+  color: var(--card-ink);
+  border-radius: 14px;
+  padding: 1.5rem;
+  box-shadow: 0 1px 2px rgba(20,26,24,.08), 0 14px 32px -14px rgba(20,26,24,.4);
+  display: flex; flex-direction: column; gap: 1.25rem;
+}
+
+.card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+.card-title { font-size: 0.9375rem; font-weight: 500; margin: 0; }
+.card-sub { font-size: 0.75rem; color: var(--card-ink-faint); margin: 0.125rem 0 0; }
+.chip {
+  flex-shrink: 0; border: 1px solid var(--card-line); border-radius: 999px;
+  padding: 0.125rem 0.625rem; font-size: 0.6875rem; color: var(--card-ink-soft); white-space: nowrap;
+}
+
+.label { font-size: 0.6875rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--card-ink-faint); }
+
+/*
+ * A reading, not a number. Monospaced and tabular so the digits hold their
+ * columns while the price is moving — a proportional face lets them change
+ * width as they change value and the whole row twitches on every frame.
+ */
+.reading { font-family: var(--mono); font-variant-numeric: tabular-nums; font-feature-settings: 'tnum' 1, 'zero' 1; letter-spacing: -0.01em; }
+.price { font-size: 2.125rem; line-height: 1; margin-top: 0.3rem; transition: color .12s; }
+.price.is-below { color: var(--below); }
+
+/* Numbers stay left-to-right inside Arabic text; bdi opens the isolate. */
+bdi { unicode-bidi: isolate; }
+
+/* --- the instrument ------------------------------------------------------- */
+.track {
+  position: relative; height: 2.75rem; touch-action: none; user-select: none;
+  cursor: grab; margin-top: 1.1rem; border-radius: 6px;
+}
+.track:active { cursor: grabbing; }
+.track:focus-visible { outline: 2px solid var(--card-ink); outline-offset: 4px; }
+
+.rail, .under, .fill {
+  position: absolute; top: 50%; height: 6px; transform: translateY(-50%); border-radius: 999px;
+}
+.rail  { inset-inline: 0; background: var(--card-line); }
+.under { inset-inline-start: 0; background: color-mix(in srgb, var(--below) 25%, transparent); }
+.fill  { inset-inline-start: 0; background: var(--healthy); }
+.fill.is-thin  { background: var(--thin); }
+.fill.is-below { background: var(--below); }
+
+.detent { position: absolute; top: 50%; width: 1px; height: 1rem; transform: translateY(-50%); background: color-mix(in srgb, var(--card-ink-faint) 60%, transparent); }
+
+.handle {
+  position: absolute; top: 50%; width: 1.375rem; height: 1.375rem; border-radius: 999px;
+  background: var(--card-raised); border: 2px solid var(--healthy);
+  transform: translate(-50%, -50%); box-shadow: 0 3px 10px rgba(0,0,0,.45);
+  transition: transform .1s, border-color .12s;
+}
+.handle.is-thin  { border-color: var(--thin); }
+.handle.is-below { border-color: var(--below); }
+.handle.dragging { transform: translate(-50%, -50%) scale(1.14); }
+
+.band-ends { display: flex; justify-content: space-between; font-size: 0.6875rem; color: var(--card-ink-faint); margin-top: 0.35rem; }
+
+/* --- margin ---------------------------------------------------------------- */
+.meter-head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem; }
+.meter-label { font-size: 0.75rem; color: var(--card-ink-faint); }
+.meter-value { font-size: 0.9375rem; }
+.meter-track { height: 8px; border-radius: 999px; overflow: hidden; margin-top: 0.5rem; background: color-mix(in srgb, var(--healthy) 15%, transparent); }
+.meter-track.is-thin { background: color-mix(in srgb, var(--thin) 15%, transparent); }
+.meter-track.is-loss { background: color-mix(in srgb, var(--below) 15%, transparent); }
+.meter-fill { height: 100%; border-radius: 999px; background: var(--healthy); transition: width .1s; }
+.meter-fill.is-thin { background: var(--thin); }
+.meter-fill.is-loss { background: var(--below); }
+.meter-word { font-size: 0.75rem; margin: 0.4rem 0 0; }
+.is-healthy { color: var(--healthy); }
+.is-thin-text { color: var(--thin); }
+.is-below-text { color: var(--below); }
+
+.cells { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; border-top: 1px solid var(--card-line); padding-top: 1rem; margin: 0; }
+.cells dt { font-size: 0.75rem; color: var(--card-ink-faint); }
+.cells dd { margin: 0.25rem 0 0; font-size: 0.875rem; color: var(--card-ink-soft); }
+
+.note { font-size: 0.75rem; line-height: 1.6; margin: 0; }
+
+.actions { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+.commit {
+  border: 0; border-radius: 8px; padding: 0.55rem 1rem; font: inherit; font-size: 0.875rem;
+  font-weight: 500; cursor: pointer; background: var(--card-ink); color: var(--card);
+  transition: background .12s;
+}
+.commit.is-below { background: var(--below); color: var(--card); }
+.hint { font-size: 0.75rem; color: var(--card-ink-faint); }
+
+/* --- costs ---------------------------------------------------------------- */
+.costs { border-top: 1px solid var(--card-line); padding-top: 1rem; display: flex; flex-direction: column; gap: 0.6rem; }
+.costs-head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem; }
+.costs-total { font-size: 0.8125rem; color: var(--card-ink-soft); }
+.of { font-family: var(--sans); color: var(--card-ink-faint); margin-inline: 0.4rem; }
+
+.cost-form { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.cost-form input {
+  flex: 1 1 7rem; min-width: 0; border-radius: 8px; border: 1px solid var(--card-line);
+  background: var(--card-raised); color: var(--card-ink); padding: 0.45rem 0.6rem;
+  font: inherit; font-size: 0.8125rem;
+}
+.cost-form input.amount { font-family: var(--mono); }
+.cost-form input::placeholder { font-family: var(--sans); color: var(--card-ink-faint); }
+.cost-form input:focus-visible { outline: 2px solid var(--card-ink-soft); outline-offset: 1px; }
+.cost-add {
+  border: 1px solid var(--card-line); background: none; color: var(--card-ink-soft);
+  border-radius: 8px; padding: 0.45rem 0.85rem; font: inherit; font-size: 0.8125rem; cursor: pointer;
+}
+.cost-add:hover { color: var(--card-ink); }
+
+.ledger { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.3rem; }
+.ledger li { display: flex; justify-content: space-between; gap: 0.75rem; font-size: 0.75rem; color: var(--card-ink-faint); }
+
+.foot { display: flex; justify-content: space-between; gap: 0.75rem; border-top: 1px solid var(--card-line); padding-top: 1rem; font-size: 0.6875rem; color: var(--card-ink-faint); }
+
+/* --- try this -------------------------------------------------------------- */
+.try { background: var(--paper-raised); border: 1px solid var(--line); border-radius: 12px; padding: 1.25rem; }
+.try h2 { font-family: var(--display); font-size: 0.9375rem; font-weight: 500; margin: 0 0 0.75rem; }
+.try ol { margin: 0; padding-inline-start: 1.1rem; display: flex; flex-direction: column; gap: 0.5rem; }
+.try li { font-size: 0.8125rem; color: var(--ink-soft); line-height: 1.6; }
+.try strong { color: var(--ink); font-weight: 500; }
+
+.smallprint { font-size: 0.75rem; color: var(--ink-faint); line-height: 1.7; margin: 0; }
+
+@media (max-width: 30rem) {
+  .page { padding: 1.5rem 1rem 3rem; }
+  .cells { gap: 0.5rem; }
+  .cells dt { font-size: 0.6875rem; }
+  .cells dd { font-size: 0.8125rem; }
+  .price { font-size: 1.875rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
+}
+</style>
+
+<div class="page" id="root" dir="ltr">
+  <header class="topbar">
+    <span class="wordmark" id="wordmark">Qirat</span>
+    <button class="link" id="lang" type="button">العربية</button>
+  </header>
+
+  <div>
+    <h1 class="thesis" id="thesis">Drag the price. Watch what it costs you.</h1>
+    <p class="sub" id="sub">The whole product in one card. Push the price under the floor and the button changes what it says. Record what you actually spent and the margin stops flattering you.</p>
+  </div>
+
+  <article class="card">
+    <div class="card-head">
+      <div>
+        <h2 class="card-title" id="dealTitle">Brand Book — Sample Client</h2>
+        <p class="card-sub" id="dealSub">Sample Client · Brand Book</p>
+      </div>
+      <span class="chip" id="status">Draft</span>
+    </div>
+
+    <div>
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:1rem">
+        <div>
+          <span class="label" id="priceLabel">Agreed price</span>
+          <div class="reading price" id="price"></div>
+        </div>
+        <span class="reading" style="font-size:.6875rem;color:var(--card-ink-faint)">EGP</span>
+      </div>
+
+      <div class="track" id="track" role="slider" tabindex="0"
+           aria-valuemin="0" aria-valuemax="0" aria-valuenow="0" aria-label="Agreed price">
+        <div class="rail"></div>
+        <div class="under" id="under"></div>
+        <div class="fill" id="fill"></div>
+        <div class="detent" id="detentFloor"></div>
+        <div class="detent" id="detentTarget"></div>
+        <div class="handle" id="handle"></div>
+      </div>
+
+      <div class="band-ends">
+        <span id="floorEnd"></span>
+        <span id="ceilingEnd"></span>
+      </div>
+    </div>
+
+    <div>
+      <div class="meter-head">
+        <span class="meter-label" id="marginLabel">Margin</span>
+        <span class="reading meter-value" id="marginValue"></span>
+      </div>
+      <div class="meter-track" id="meterTrack"><div class="meter-fill" id="meterFill"></div></div>
+      <p class="meter-word" id="marginWord"></p>
+    </div>
+
+    <dl class="cells">
+      <div><dt id="costLabel">Cost</dt><dd class="reading" id="costCell"></dd></div>
+      <div><dt id="houseLabel">House share</dt><dd class="reading" id="houseCell"></dd></div>
+      <div><dt id="splitLabel">To be split</dt><dd class="reading" id="splitCell"></dd></div>
+    </dl>
+
+    <p class="note is-below-text" id="belowNote" hidden></p>
+
+    <div class="actions">
+      <button class="commit" id="commit" type="button"></button>
+      <span class="hint" id="hint"></span>
+    </div>
+
+    <section class="costs">
+      <div class="costs-head">
+        <span class="meter-label" id="costsTitle">Costs</span>
+        <span class="reading costs-total" id="costsTotal"></span>
+      </div>
+      <p class="note" id="costsNote"></p>
+      <ul class="ledger" id="ledger"></ul>
+      <form class="cost-form" id="costForm">
+        <input class="amount" id="costAmount" inputmode="decimal" required>
+        <input id="costVendor">
+        <button class="cost-add" type="submit" id="costAdd"></button>
+      </form>
+    </section>
+
+    <div class="foot">
+      <span id="deliveryLabel">Delivery</span>
+      <span class="reading" dir="ltr">2026-10-14</span>
+    </div>
+  </article>
+
+  <section class="try">
+    <h2 id="tryTitle">Three things to try</h2>
+    <ol id="tryList"></ol>
+  </section>
+
+  <p class="smallprint" id="smallprint"></p>
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  // ---------------------------------------------------------------------------
+  // The money module, ported.
+  //
+  // Integer minor units held as BigInt, one rounding function, no floats
+  // anywhere below this line. It is the same arithmetic the server runs, which
+  // is the point: the number you see mid-drag is the number that would be
+  // stored.
+  // ---------------------------------------------------------------------------
+  const EXPONENT = { EGP: 2 };
+  const BP = 10000n;
+
+  /** Exact integer division, ties to even, so a long run of splits has no drift. */
+  function divRound(n, d) {
+    if (d === 0n) throw new Error('division by zero');
+    let N = n, D = d;
+    if (D < 0n) { N = -N; D = -D; }
+    const q = N / D, r = N % D;
+    if (r === 0n) return q;
+    const negative = r < 0n;
+    const twice = (negative ? -r : r) * 2n;
+    if (twice > D) return negative ? q - 1n : q + 1n;
+    if (twice < D) return q;
+    return q % 2n === 0n ? q : (negative ? q - 1n : q + 1n);
+  }
+
+  const abs = (v) => (v < 0n ? -v : v);
+
+  function computeMargin(revenue, cost, houseRateBp) {
+    const profit = revenue - cost;
+    const isLoss = profit < 0n;
+    const house = isLoss ? profit : divRound(profit * BigInt(houseRateBp), BP);
+    return {
+      profit,
+      isLoss,
+      house,
+      distributable: isLoss ? 0n : profit - house,
+      // Null, not zero: a pro-bono deal has no margin, which is a different
+      // statement from "its margin is 0%".
+      marginBp: revenue === 0n ? null : Number(divRound(profit * BP, revenue)),
+    };
+  }
+
+  /** The cost a margin should run on: an estimate disproved by spending is not a guess any more. */
+  const effectiveCost = (estimated, actual) => (actual > estimated ? actual : estimated);
+
+  function costDriftBp(estimated, actual) {
+    if (estimated === 0n) return null;
+    return Number(divRound((actual - estimated) * BP, estimated));
+  }
+
+  /** An increment people actually quote in: 1, 2 or 5 times a power of ten. */
+  function niceStepFor(span) {
+    const magnitude = abs(span);
+    if (magnitude === 0n) return 1n;
+    const target = magnitude / 200n;
+    if (target <= 1n) return 1n;
+    let unit = 1n;
+    while (unit * 10n <= target) unit *= 10n;
+    for (const m of [1n, 2n, 5n, 10n]) if (unit * m >= target) return unit * m;
+    return unit * 10n;
+  }
+
+  const snapToStep = (v, step) => divRound(v, step) * step;
+
+  function toMajorString(minor, currency) {
+    const exp = EXPONENT[currency];
+    const negative = minor < 0n;
+    const digits = abs(minor).toString().padStart(exp + 1, '0');
+    const body = exp === 0 ? digits : digits.slice(0, -exp) + '.' + digits.slice(-exp);
+    return (negative ? '-' : '') + body;
+  }
+
+  /** Formats from the exact decimal string, so a bigint never becomes a double. */
+  function fmt(minor, currency) {
+    const exp = EXPONENT[currency];
+    return new Intl.NumberFormat(numberLocale(), {
+      minimumFractionDigits: exp,
+      maximumFractionDigits: exp,
+    }).format(toMajorString(minor, currency));
+  }
+
+  function fmtBp(bp) {
+    if (bp === null) return '—';
+    return new Intl.NumberFormat(numberLocale(), {
+      style: 'percent', minimumFractionDigits: 0, maximumFractionDigits: 1,
+    }).format(bp / 10000);
+  }
+
+  /** Lenient on the way in: a human typing, possibly in Arabic-Indic digits. */
+  function parseAmount(text, currency) {
+    const normalised = String(text)
+      .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660))
+      .replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x06f0))
+      .replace(/٫/g, '.')
+      .replace(/[\s,٬  ]/g, '')
+      .trim();
+    const match = /^(\d+)(?:\.(\d*))?$/.exec(normalised);
+    if (!match) return null;
+    const exp = EXPONENT[currency];
+    const fraction = (match[2] || '').slice(0, exp).padEnd(exp, '0');
+    return BigInt(match[1] + fraction);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Copy
+  // ---------------------------------------------------------------------------
+  const COPY = {
+    en: {
+      wordmark: 'Qirat',
+      lang: 'العربية',
+      thesis: 'Drag the price. Watch what it costs you.',
+      sub: 'The whole product in one card. Push the price under the floor and the button changes what it says. Record what you actually spent and the margin stops flattering you.',
+      dealSub: 'Sample Client · Brand Book',
+      priceLabel: 'Agreed price',
+      floor: 'Floor', ceiling: 'Ceiling',
+      margin: 'Margin',
+      healthy: 'Healthy', thin: 'Thin', loss: 'Losing money', unpriced: 'Not priced yet',
+      cost: 'Cost', house: 'House share', split: 'To be split',
+      belowNote: 'Under the floor for this service. The owner signs this one off.',
+      close: 'Close the deal', approve: 'Send for approval',
+      hintDrag: 'Drag, or use the arrow keys',
+      hintClosed: 'Closed. These terms are frozen.',
+      hintSent: 'Sent to the owner.',
+      statusDraft: 'Draft', statusWon: 'Won', statusPending: 'Awaiting approval',
+      costs: 'Costs', of: 'of',
+      costsNone: 'Nothing recorded yet. Until costs go in, the margin above is a guess.',
+      over: 'over estimate', under: 'under estimate',
+      driftAlert: 'Spending has passed the estimate. The margin above is now on what was actually spent, not on what was planned.',
+      amount: 'Amount', vendor: 'Paid to', add: 'Add',
+      delivery: 'Delivery',
+      tryTitle: 'Three things to try',
+      try: [
+        'Drag the handle <strong>left, past the floor</strong>. It gets heavier — the handle travels less than your finger does, so the floor is something you feel yourself pushing past. The button stops saying <em>Close the deal</em>.',
+        'Drag slowly across <strong>the floor and the target</strong>. It catches on each one, so those are values you can land on rather than approximately hit. On Android you should feel it too.',
+        'Record a cost of <strong>35,000</strong>. It blows past the 15,000 estimate, and the margin drops from 80% to 45% — because a margin computed on a disproved estimate is a number the deal no longer has.',
+      ],
+      smallprint: 'This is the instrument, running the same arithmetic as the product: integer minor units, one rounding rule, no floating point. Sign-in, the database and the row-level isolation are in the repository, not on this page — the full app needs a deployment.',
+    },
+    ar: {
+      wordmark: 'قيراط',
+      lang: 'English',
+      thesis: 'اسحب السعر. شوف بيكلّفك كام.',
+      sub: 'المنتج كله في كارت واحد. نزّل السعر تحت الأرضية، والزرار هيغيّر كلامه. سجّل اللي صرفته فعلاً، والهامش هيبطّل يجاملك.',
+      dealSub: 'عميل تجريبي · دليل الهوية',
+      priceLabel: 'السعر المتفق عليه',
+      floor: 'الأرضية', ceiling: 'السقف',
+      margin: 'الهامش',
+      healthy: 'صحي', thin: 'رفيع', loss: 'خسارة', unpriced: 'غير مُسعّرة',
+      cost: 'التكلفة', house: 'حصة الوكالة', split: 'القابل للتوزيع',
+      belowNote: 'تحت الأرضية لهذه الخدمة. المالك هو من يوافق عليها.',
+      close: 'اقفل الصفقة', approve: 'ابعت للموافقة',
+      hintDrag: 'اسحب، أو استخدم أسهم الكيبورد',
+      hintClosed: 'مغلقة. الشروط دي مجمّدة.',
+      hintSent: 'اتبعتت للمالك.',
+      statusDraft: 'مسودة', statusWon: 'مكسوبة', statusPending: 'بانتظار الموافقة',
+      costs: 'التكاليف', of: 'من',
+      costsNone: 'لم تُسجَّل أي تكلفة. بدون التكاليف، الهامش فوق مجرد تخمين.',
+      over: 'فوق التقدير', under: 'تحت التقدير',
+      driftAlert: 'المصروف تعدّى التقدير. الهامش فوق محسوب الآن على ما صُرف فعلاً، لا على ما خُطّط له.',
+      amount: 'المبلغ', vendor: 'مدفوع إلى', add: 'أضف',
+      delivery: 'التسليم',
+      tryTitle: 'تلات حاجات جرّبها',
+      try: [
+        'اسحب المقبض <strong>ناحية اليمين، تحت الأرضية</strong>. هيتقل — المقبض بيتحرك أقل من صباعك، فالأرضية بتبقى حاجة بتحس إنك بتعدّيها. والزرار هيبطّل يقول <em>اقفل الصفقة</em>.',
+        'اسحب بالراحة على <strong>الأرضية والمستهدف</strong>. بيمسك عند كل واحدة، فدي قيم تقدر تقف عليها بالظبط مش تقريباً. وعلى أندرويد هتحسها كمان.',
+        'سجّل تكلفة <strong>٣٥٬٠٠٠</strong>. هتعدّي التقدير اللي هو ١٥٬٠٠٠، والهامش هينزل من ٨٠٪ لـ٤٥٪ — لأن هامش محسوب على تقدير اتثبت غلطه هو رقم الصفقة مبقتش تملكه.',
+      ],
+      smallprint: 'دي الأداة نفسها، بتشغّل نفس حسابات المنتج: وحدات صغرى صحيحة، قاعدة تقريب واحدة، ولا فاصلة عائمة. تسجيل الدخول والداتابيز وعزل المستأجرين موجودين في الريبو مش في الصفحة دي — التطبيق الكامل محتاج نشر.',
+    },
+  };
+
+  // ---------------------------------------------------------------------------
+  // State
+  // ---------------------------------------------------------------------------
+  const CURRENCY = 'EGP';
+  const HOUSE_RATE_BP = 5000;
+  const HEALTHY_FROM_BP = 4000;
+  const DRIFT_ALERT_BP = 1500;
+
+  const BAND = { floor: 5000000n, target: 7500000n, ceiling: 12000000n };
+  const ESTIMATED_COST = 1500000n;
+
+  const SPAN = BAND.ceiling - BAND.floor;
+  const HEADROOM = (SPAN * 30n) / 100n;
+  const TRACK = { min: BAND.floor - HEADROOM, max: BAND.ceiling };
+  TRACK.width = TRACK.max - TRACK.min;
+  const STEP = niceStepFor(TRACK.width);
+
+  /** How much of a pointer movement survives below the floor. Lower is heavier. */
+  const RESISTANCE = 0.45;
+  /** How close, in track fractions, before the handle takes hold of a detent. */
+  const GRAB = 0.014;
+
+  let locale = (() => {
+    try { return localStorage.getItem('qirat-locale') === 'ar' ? 'ar' : 'en'; } catch { return 'en'; }
+  })();
+  let price = BAND.target;
+  let costs = [];
+  let status = 'draft';
+  let dragging = false;
+  let lastDetent = null;
+
+  const numberLocale = () => (locale === 'ar' ? 'ar-EG-u-nu-arab' : 'en-US-u-nu-latn');
+
+  const $ = (id) => document.getElementById(id);
+  const root = $('root');
+
+  // ---------------------------------------------------------------------------
+  // Geometry
+  // ---------------------------------------------------------------------------
+  const fractionOf = (value) => {
+    const clamped = value < TRACK.min ? TRACK.min : value > TRACK.max ? TRACK.max : value;
+    return Number(((clamped - TRACK.min) * 10000n) / TRACK.width) / 10000;
+  };
+
+  function readPointer(clientX) {
+    const rect = $('track').getBoundingClientRect();
+    if (!rect.width) return null;
+    const along = root.getAttribute('dir') === 'rtl'
+      ? (rect.right - clientX) / rect.width
+      : (clientX - rect.left) / rect.width;
+    return Math.max(0, Math.min(1, along));
+  }
+
+  function buzz(ms) {
+    if (navigator.vibrate) { try { navigator.vibrate(ms); } catch {} }
+  }
+
+  function applyFraction(raw) {
+    const floorAt = fractionOf(BAND.floor);
+    const targetAt = fractionOf(BAND.target);
+    const ceilingAt = fractionOf(BAND.ceiling);
+
+    // Resistance below the floor: the handle travels part of the distance the
+    // finger does, so the floor is a threshold rather than a line the handle
+    // glides over without noticing.
+    let fraction = raw < floorAt ? floorAt - (floorAt - raw) * RESISTANCE : raw;
+
+    const detents = [
+      { id: 'floor', at: floorAt, value: BAND.floor },
+      { id: 'target', at: targetAt, value: BAND.target },
+      { id: 'ceiling', at: ceilingAt, value: BAND.ceiling },
+    ];
+    const caught = detents.find((d) => Math.abs(fraction - d.at) < GRAB);
+
+    if (caught) {
+      price = caught.value;
+      if (lastDetent !== caught.id) { buzz(caught.id === 'floor' ? 18 : 8); lastDetent = caught.id; }
+    } else {
+      lastDetent = null;
+      const rawValue = TRACK.min + BigInt(Math.round(fraction * Number(TRACK.width)));
+      price = snapToStep(rawValue, STEP);
+      if (price < 0n) price = 0n;
+    }
+    render();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Render
+  // ---------------------------------------------------------------------------
+  function render() {
+    const t = COPY[locale];
+    const rtl = locale === 'ar';
+    root.setAttribute('dir', rtl ? 'rtl' : 'ltr');
+
+    const actual = costs.reduce((sum, c) => sum + c.amount, 0n);
+    const effective = effectiveCost(ESTIMATED_COST, actual);
+    const drift = costDriftBp(ESTIMATED_COST, actual);
+    const alerting = drift !== null && drift >= DRIFT_ALERT_BP;
+
+    const margin = computeMargin(price, effective, HOUSE_RATE_BP);
+    const belowFloor = price < BAND.floor;
+
+    /*
+     * Two questions, answered separately.
+     *
+     * The price says whether the floor was broken; the bar says how the margin
+     * is doing. A deal sold under the floor can still carry a 64% margin, and
+     * colouring that bar red would be the interface reporting a pricing policy
+     * as though it were a loss.
+     */
+    const health = margin.marginBp === null ? 'unpriced'
+      : margin.marginBp < 0 ? 'loss'
+      : margin.marginBp >= HEALTHY_FROM_BP ? 'healthy' : 'thin';
+
+    // Static copy
+    $('wordmark').textContent = t.wordmark;
+    $('lang').textContent = t.lang;
+    $('thesis').textContent = t.thesis;
+    $('sub').textContent = t.sub;
+    $('dealSub').textContent = t.dealSub;
+    $('priceLabel').textContent = t.priceLabel;
+    $('marginLabel').textContent = t.margin;
+    $('costLabel').textContent = t.cost;
+    $('houseLabel').textContent = t.house;
+    $('splitLabel').textContent = t.split;
+    $('costsTitle').textContent = t.costs;
+    $('deliveryLabel').textContent = t.delivery;
+    $('tryTitle').textContent = t.tryTitle;
+    $('smallprint').textContent = t.smallprint;
+    $('costAmount').placeholder = t.amount;
+    $('costVendor').placeholder = t.vendor;
+    $('costAdd').textContent = t.add;
+    $('tryList').innerHTML = t.try.map((item) => `<li>${item}</li>`).join('');
+    $('status').textContent =
+      status === 'won' ? t.statusWon : status === 'pending' ? t.statusPending : t.statusDraft;
+
+    // Price
+    $('price').innerHTML = `<bdi>${fmt(price, CURRENCY)}</bdi>`;
+    $('price').classList.toggle('is-below', belowFloor);
+    $('floorEnd').innerHTML = `${t.floor} <bdi class="reading">${fmt(BAND.floor, CURRENCY)}</bdi>`;
+    $('ceilingEnd').innerHTML = `${t.ceiling} <bdi class="reading">${fmt(BAND.ceiling, CURRENCY)}</bdi>`;
+
+    // Track — the fill grows from the inline start, because a quantity follows
+    // reading direction.
+    const at = fractionOf(price) * 100;
+    $('fill').style.inlineSize = at + '%';
+    $('under').style.inlineSize = fractionOf(BAND.floor) * 100 + '%';
+    $('handle').style.insetInlineStart = at + '%';
+    $('detentFloor').style.insetInlineStart = fractionOf(BAND.floor) * 100 + '%';
+    $('detentTarget').style.insetInlineStart = fractionOf(BAND.target) * 100 + '%';
+
+    const tone = belowFloor ? 'is-below' : health === 'thin' ? 'is-thin' : '';
+    $('fill').className = 'fill ' + tone;
+    $('handle').className = 'handle ' + tone + (dragging ? ' dragging' : '');
+
+    const track = $('track');
+    track.setAttribute('aria-valuemin', String(TRACK.min));
+    track.setAttribute('aria-valuemax', String(TRACK.max));
+    track.setAttribute('aria-valuenow', String(price));
+    track.setAttribute('aria-valuetext', `${fmt(price, CURRENCY)} ${CURRENCY}. ${belowFloor ? t.belowNote : t[health]}`);
+
+    // Margin
+    const healthClass = health === 'healthy' ? 'is-healthy' : health === 'thin' ? 'is-thin-text' : 'is-below-text';
+    $('marginValue').innerHTML = `<bdi>${fmtBp(margin.marginBp)}</bdi>`;
+    $('marginValue').className = 'reading meter-value ' + healthClass;
+    $('marginWord').textContent = t[health];
+    $('marginWord').className = 'meter-word ' + healthClass;
+    const filled = margin.marginBp === null ? 0 : Math.max(0, Math.min(10000, margin.marginBp)) / 100;
+    $('meterFill').style.width = filled + '%';
+    $('meterFill').className = 'meter-fill ' + (health === 'thin' ? 'is-thin' : health === 'loss' ? 'is-loss' : '');
+    $('meterTrack').className = 'meter-track ' + (health === 'thin' ? 'is-thin' : health === 'loss' ? 'is-loss' : '');
+
+    $('costCell').innerHTML = `<bdi>${fmt(effective, CURRENCY)}</bdi>`;
+    $('houseCell').innerHTML = `<bdi>${fmt(margin.house, CURRENCY)}</bdi>`;
+    $('splitCell').innerHTML = `<bdi>${fmt(margin.distributable, CURRENCY)}</bdi>`;
+
+    // Below the floor the button changes what it says. Nothing is disabled and
+    // nothing throws: the limit is a door, not a wall.
+    $('belowNote').hidden = !belowFloor || status !== 'draft';
+    $('belowNote').textContent = t.belowNote;
+    const commit = $('commit');
+    commit.textContent = belowFloor ? t.approve : t.close;
+    commit.className = 'commit' + (belowFloor ? ' is-below' : '');
+    commit.hidden = status !== 'draft';
+    $('hint').textContent =
+      status === 'won' ? t.hintClosed : status === 'pending' ? t.hintSent : t.hintDrag;
+
+    // Costs
+    $('costsTotal').innerHTML =
+      `<bdi>${fmt(actual, CURRENCY)}</bdi><span class="of">${t.of}</span><bdi>${fmt(ESTIMATED_COST, CURRENCY)}</bdi>`;
+
+    const note = $('costsNote');
+    if (costs.length === 0) {
+      note.textContent = t.costsNone;
+      note.className = 'note';
+    } else if (alerting) {
+      note.innerHTML = `<bdi>${fmtBp(Math.abs(drift))}</bdi> ${t.over}. ${t.driftAlert}`;
+      note.className = 'note is-below-text';
+    } else {
+      note.innerHTML = `<bdi>${fmtBp(Math.abs(drift ?? 0))}</bdi> ${drift >= 0 ? t.over : t.under}`;
+      note.className = 'note';
+      note.style.color = 'var(--card-ink-faint)';
+    }
+
+    $('ledger').innerHTML = costs
+      .map((c) => `<li><span>${c.vendor || '—'}</span><span class="reading"><bdi>${fmt(c.amount, CURRENCY)}</bdi></span></li>`)
+      .join('');
+  }
+
+  // ---------------------------------------------------------------------------
+  // Events
+  // ---------------------------------------------------------------------------
+  const track = $('track');
+
+  track.addEventListener('pointerdown', (e) => {
+    if (status !== 'draft') return;
+    track.setPointerCapture(e.pointerId);
+    dragging = true;
+    const f = readPointer(e.clientX);
+    if (f !== null) applyFraction(f);
+  });
+
+  track.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    const f = readPointer(e.clientX);
+    if (f !== null) applyFraction(f);
+  });
+
+  const endDrag = (e) => {
+    if (!dragging) return;
+    dragging = false;
+    lastDetent = null;
+    try { track.releasePointerCapture(e.pointerId); } catch {}
+    render();
+  };
+  track.addEventListener('pointerup', endDrag);
+  track.addEventListener('pointercancel', endDrag);
+
+  track.addEventListener('keydown', (e) => {
+    if (status !== 'draft') return;
+    // In a mirrored track the arrows follow the screen, not the number: the
+    // arrow pointing at the ceiling raises the price.
+    const rtl = root.getAttribute('dir') === 'rtl';
+    const up = rtl ? 'ArrowLeft' : 'ArrowRight';
+    const down = rtl ? 'ArrowRight' : 'ArrowLeft';
+    let next = null;
+    if (e.key === up || e.key === 'ArrowUp') next = price + STEP;
+    else if (e.key === down || e.key === 'ArrowDown') next = price - STEP;
+    else if (e.key === 'PageUp') next = price + STEP * 10n;
+    else if (e.key === 'PageDown') next = price - STEP * 10n;
+    else if (e.key === 'Home') next = TRACK.min;
+    else if (e.key === 'End') next = TRACK.max;
+    if (next === null) return;
+    e.preventDefault();
+    price = next < 0n ? 0n : next > TRACK.max ? TRACK.max : next;
+    render();
+  });
+
+  $('commit').addEventListener('click', () => {
+    status = price < BAND.floor ? 'pending' : 'won';
+    buzz(12);
+    render();
+  });
+
+  $('costForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const amount = parseAmount($('costAmount').value, CURRENCY);
+    if (amount === null || amount < 0n) {
+      $('costAmount').focus();
+      $('costAmount').select();
+      return;
+    }
+    costs.push({ amount, vendor: $('costVendor').value.trim() });
+    $('costAmount').value = '';
+    $('costVendor').value = '';
+    render();
+  });
+
+  $('lang').addEventListener('click', () => {
+    locale = locale === 'ar' ? 'en' : 'ar';
+    try { localStorage.setItem('qirat-locale', locale); } catch {}
+    render();
+  });
+
+  render();
+})();
+</script>
