@@ -38,6 +38,8 @@ import { CampfirePin, MePin, PersonPin, SOSButton } from '../components/MapPins'
 import { Micro } from '../components/Micro';
 import { NeonButton } from '../components/NeonButton';
 import { TravelSheet } from '../components/TravelSheet';
+import { LandingSheet } from '../components/LandingSheet';
+import { euCode, cityOf } from '../services/landing';
 import { tapLight, tapMedium, tapSelection, tapSuccess, tapCelebrate } from '../utils/feedback';
 // aliased: this screen already has its own `note`, which is a toast
 import { note as logFailure } from '../lib/crashLog';
@@ -373,6 +375,10 @@ export const MapScreen = () => {
      searches, already filled in. See components/TravelSheet.js for why
      it deliberately shows no prices of its own. */
   const [travelTo, setTravelTo] = useState(null);
+  /* Somebody who has just moved here, rather than somebody visiting —
+     see components/LandingSheet.js. Only offered inside the EU/EEA,
+     because that is where these rights actually are rights. */
+  const [landingAt, setLandingAt] = useState(null);
   const [destReviews, setDestReviews] = useState(null);
   const [revStars, setRevStars] = useState(0);
   const [revText, setRevText] = useState('');
@@ -1854,6 +1860,30 @@ export const MapScreen = () => {
                 </View>
               </Pressable>
 
+              {/* ── AND IF YOU ARE NOT VISITING BUT MOVING ────────────
+                  The row above is for a trip. This one is for the
+                  person who landed on Tuesday and has thirty days to
+                  register an address, find a doctor and open a bank
+                  account in a language they do not speak yet. */}
+              {euCode(destOpen.country) ? (
+                <Pressable onPress={() => { tapLight(); const d = destOpen; setDestOpen(null); setLandingAt({ country: euCode(d.country), city: cityOf(d), place: cityOf(d) }); }}>
+                  <View style={{
+                    flexDirection: 'row', alignItems: 'center', marginTop: 10,
+                    backgroundColor: C.greenSoft, borderWidth: 1, borderColor: C.green,
+                    borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14,
+                  }}>
+                    <Text style={{ fontSize: 20, marginRight: 10 }}>🧭</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: C.green, fontSize: 14, fontWeight: '900' }}>
+                        {t('ld_open').replace('{place}', cityOf(destOpen))}
+                      </Text>
+                      <Text style={{ color: C.faint, fontSize: 11, marginTop: 1 }}>{t('ld_open_sub')}</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color={C.green} />
+                  </View>
+                </Pressable>
+              ) : null}
+
               {/* get there — Uber for nearby spots, Book Trip when it's far */}
               {(() => {
                 const km = located ? kmBetween(myCoords, { latitude: destOpen.lat, longitude: destOpen.lng }) : null;
@@ -2040,6 +2070,12 @@ export const MapScreen = () => {
       {profileUser ? <ProfileModal user={profileUser} onClose={() => setProfileUser(null)} /> : null}
       {bookingVenue ? <BookingSheet venue={bookingVenue} onClose={() => { setBooked((x) => ({ ...x, [bookingVenue.id]: true })); setBookingVenue(null); }} /> : null}
       {travelTo ? <TravelSheet city={travelTo} onClose={() => setTravelTo(null)} /> : null}
+      {landingAt ? (
+        <LandingSheet
+          country={landingAt.country} city={landingAt.city} place={landingAt.place}
+          onClose={() => setLandingAt(null)}
+        />
+      ) : null}
     </View>
   );
 };

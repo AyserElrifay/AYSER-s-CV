@@ -92,6 +92,16 @@ jobs:
         env:
           SQL_CHECK_REQUIRED: '1'
         run: bash scripts/check-group-rules.sh
+      # Landing tells somebody who has just arrived in a country what to
+      # do first, and missing some of those deadlines costs money or a
+      # residence permit. So the rule that keeps it honest — nothing one
+      # person wrote reaches a newcomer until two people have vouched
+      # for it, and editing a step costs it that standing — is checked
+      # rather than trusted.
+      - name: Check a stranger's guess cannot look like fact
+        env:
+          SQL_CHECK_REQUIRED: '1'
+        run: bash scripts/check-landing-rules.sh
       - name: Export web bundle
         run: npx expo export --platform web --output-dir dist
       - name: Inject PWA manifest + Open Graph tags
