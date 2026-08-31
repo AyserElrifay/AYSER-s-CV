@@ -24,6 +24,12 @@ import {
 export const userRole = pgEnum('user_role', ['owner', 'account_manager', 'member', 'partner']);
 export const dealStatus = pgEnum('deal_status', ['draft', 'pending_approval', 'won', 'lost']);
 export const costKind = pgEnum('cost_kind', ['estimated', 'actual']);
+export const splitRuleKind = pgEnum('split_rule_kind', [
+  'partner_equity',
+  'manager_commission',
+  'bonus_pool',
+]);
+export const payoutPeriodStatus = pgEnum('payout_period_status', ['open', 'closed']);
 export const currencyCode = pgEnum('currency_code', [
   'EGP', 'USD', 'SAR', 'AED', 'QAR', 'EUR', 'GBP', 'KWD', 'BHD', 'OMR', 'JOD', 'TND', 'JPY',
 ]);
@@ -176,8 +182,73 @@ export const auditLog = pgTable(
   (t) => [index('audit_log_org_created_idx').on(t.orgId, t.createdAt)],
 );
 
-/** Columns a Member must never receive. Asserted against the grants by a test. */
-export const FINANCIAL_COLUMNS = {
+export const splitRules = pgTable(
+  'split_rules',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id').notNull(),
+    kind: splitRuleKind('kind').notNull(),
+    beneficiaryUserId: uuid('beneficiary_user_id'),
+    rateBp: integer('rate_bp').notNull(),
+    label: text('label'),
+    isActive: boolean('is_active').notNull().default(true),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('split_rules_org_active_idx').on(t.orgId, t.isActive)],
+);
+
+export const payoutPeriods = pgTable('payout_periods', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  orgId: uuid('org_id').notNull(),
+  startsOn: date('starts_on').notNull(),
+  endsOn: date('ends_on').notNull(),
+  status: payoutPeriodStatus('status').notNull().default('open'),
+  closedAt: timestamp('closed_at', { withTimezone: true }),
+  closedByUserId: uuid('closed_by_user_id'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const payoutStatements = pgTable(
+  'payout_statements',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id').notNull(),
+    periodId: uuid('period_id').notNull(),
+    beneficiaryUserId: uuid('beneficiary_user_id').notNull(),
+    currency: currencyCode('currency').notNull(),
+    amountMinor: minor('amount_minor').notNull(),
+    lines: jsonb('lines').notNull().default([]),
+    issuedAt: timestamp('issued_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('payout_statements_beneficiary_idx').on(t.orgId, t.beneficiaryUserId, t.issuedAt),
+  ],
+);
+
+export const payoutAdjustments = pgTable(
+  'payout_adjustments',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id').notNull(),
+    statementId: uuid('statement_id').notNull(),
+    beneficiaryUserId: uuid('beneficiary_user_id').notNull(),
+    currency: currencyCode('currency').notNull(),
+    amountMinor: minor('amount_minor').notNull(),
+    reason: text('reason').notNull(),
+    createdByUserId: uuid('created_by_user_id').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('payout_adjustments_statement_idx').on(t.orgId, t.statementId)],
+);
+
+/**
+ * Columns a Member must never receive, under any circumstance.
+ *
+ * A Member sees assigned work and nothing with a number on it. Asserted against
+ * the actual grants by a test, so adding a financial column to a table a Member
+ * can read fails the build rather than leaking quietly.
+ */
+export const MEMBER_FORBIDDEN_COLUMNS = {
   organizations: [
     'default_currency',
     'house_rate_bp',
@@ -207,4 +278,29 @@ export const FINANCIAL_COLUMNS = {
   // A Member holds INSERT on costs and no SELECT at all, so none of these is
   // reachable by them — the grant asymmetry, not a select list, is what does it.
   costs: ['amount_minor', 'currency'],
+  // A Member holds no privilege at all on the payout tables, so none of these
+  // is reachable. Listed anyway: the assertion should fail loudly if somebody
+  // ever grants the table wholesale.
+  split_rules: ['rate_bp'],
+  payout_statements: ['amount_minor', 'currency', 'lines'],
+  payout_adjustments: ['amount_minor', 'currency'],
+} as const;
+
+/**
+ * Columns a Partner must never receive.
+ *
+ * Deliberately shorter than the Member's list, and the difference is the
+ * product: a Partner is *entitled* to their own payout — the amount, the deals
+ * behind it, the rate it was paid at. What they may not see is the agency's
+ * economics: any deal's price, any service's band, any cost, the house rate.
+ *
+ * Row-level security does the other half. A Partner may select a statement
+ * amount, but only on the rows where they are the beneficiary.
+ */
+export const PARTNER_FORBIDDEN_COLUMNS = {
+  organizations: MEMBER_FORBIDDEN_COLUMNS.organizations,
+  services: MEMBER_FORBIDDEN_COLUMNS.services,
+  deals: MEMBER_FORBIDDEN_COLUMNS.deals,
+  clients: MEMBER_FORBIDDEN_COLUMNS.clients,
+  costs: MEMBER_FORBIDDEN_COLUMNS.costs,
 } as const;

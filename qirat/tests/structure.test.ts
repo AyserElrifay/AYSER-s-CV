@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { adminSql, closeAll, getDb, raw, resetTables } from './helpers/db';
 import { CURRENCY_CODES } from '../src/money/currency';
 import { APP_ROLES, DB_ROLE_BY_APP_ROLE, MANAGED_ROLES } from '../src/db/roles';
-import { FINANCIAL_COLUMNS } from '../src/db/schema';
+import { MEMBER_FORBIDDEN_COLUMNS, PARTNER_FORBIDDEN_COLUMNS } from '../src/db/schema';
 import { assertConnectionIsLeastPrivilege } from '../src/db/client';
 import { expectRefused } from './helpers/errors';
 
@@ -24,6 +24,10 @@ const APP_TABLES = [
   'deals',
   'costs',
   'audit_log',
+  'split_rules',
+  'payout_periods',
+  'payout_statements',
+  'payout_adjustments',
 ];
 
 beforeAll(async () => {
@@ -174,7 +178,7 @@ describe('financial columns', () => {
 
     const granted = new Set(rows.map((r) => `${r.table_name}.${r.column_name}`));
     const leaked: string[] = [];
-    for (const [table, columns] of Object.entries(FINANCIAL_COLUMNS)) {
+    for (const [table, columns] of Object.entries(MEMBER_FORBIDDEN_COLUMNS)) {
       for (const column of columns) {
         if (granted.has(`${table}.${column}`)) leaked.push(`${table}.${column}`);
       }
@@ -182,7 +186,7 @@ describe('financial columns', () => {
     expect(leaked).toEqual([]);
   });
 
-  it('are not granted to the Partner role either', async () => {
+  it('keep the agency’s economics away from a Partner', async () => {
     const rows = await adminSql()<{ table_name: string; column_name: string }[]>`
       select table_name, column_name
       from information_schema.column_privileges
@@ -191,12 +195,24 @@ describe('financial columns', () => {
         and privilege_type = 'SELECT'`;
     const granted = new Set(rows.map((r) => `${r.table_name}.${r.column_name}`));
     const leaked: string[] = [];
-    for (const [table, columns] of Object.entries(FINANCIAL_COLUMNS)) {
+    for (const [table, columns] of Object.entries(PARTNER_FORBIDDEN_COLUMNS)) {
       for (const column of columns) {
         if (granted.has(`${table}.${column}`)) leaked.push(`${table}.${column}`);
       }
     }
     expect(leaked).toEqual([]);
+  });
+
+  it('do let a Partner read their own payout, which is the point of them', async () => {
+    // The mirror of the test above. A Partner who cannot see the amount on
+    // their own statement has been given a product with nothing in it.
+    const rows = await adminSql()<{ column_name: string }[]>`
+      select column_name from information_schema.column_privileges
+      where table_schema = 'public' and table_name = 'payout_statements'
+        and grantee = ${DB_ROLE_BY_APP_ROLE.partner} and privilege_type = 'SELECT'`;
+    const granted = rows.map((r) => r.column_name);
+    expect(granted).toContain('amount_minor');
+    expect(granted).toContain('lines');
   });
 
   it('never allow password_hash to be read back by an application role', async () => {

@@ -17,13 +17,24 @@ try {
 process.env.DATABASE_URL = process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL;
 
 const TABLES = [
+  'payout_adjustments',
+  'payout_statements',
+  'payout_periods',
+  'split_rules',
   'audit_log',
+  'costs',
   'deals',
   'clients',
   'services',
   'brand_kits',
   'users',
   'organizations',
+] as const;
+
+/** Append-only tables refuse TRUNCATE by trigger. Only fixtures ever lift it. */
+const NO_TRUNCATE_TRIGGERS = [
+  ['audit_log', 'audit_log_no_truncate'],
+  ['payout_statements', 'payout_statements_no_truncate'],
 ] as const;
 
 let admin: postgres.Sql | undefined;
@@ -40,11 +51,15 @@ export function adminSql(): postgres.Sql {
 
 export async function resetTables(): Promise<void> {
   const sql = adminSql();
-  // audit_log refuses TRUNCATE by trigger, which is the point of it. Only the
-  // table's owner can lift that, and only fixtures ever do.
-  await sql.unsafe('alter table audit_log disable trigger audit_log_no_truncate');
+  // These tables refuse TRUNCATE by trigger, which is the point of them. Only
+  // the table's owner can lift that, and only fixtures ever do.
+  for (const [table, trigger] of NO_TRUNCATE_TRIGGERS) {
+    await sql.unsafe(`alter table ${table} disable trigger ${trigger}`);
+  }
   await sql.unsafe(`truncate ${TABLES.join(', ')} restart identity cascade`);
-  await sql.unsafe('alter table audit_log enable trigger audit_log_no_truncate');
+  for (const [table, trigger] of NO_TRUNCATE_TRIGGERS) {
+    await sql.unsafe(`alter table ${table} enable trigger ${trigger}`);
+  }
 }
 
 export async function closeAll(): Promise<void> {

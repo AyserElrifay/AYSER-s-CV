@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { as, closeAll, raw, resetTables, seedOrg, withTenant, type SeededOrg } from './helpers/db';
 import { expectRefused } from './helpers/errors';
-import { FINANCIAL_COLUMNS } from '../src/db/schema';
+import { MEMBER_FORBIDDEN_COLUMNS } from '../src/db/schema';
 import { canSeeFinancials } from '../src/db/roles';
 
 /**
@@ -25,7 +25,7 @@ afterAll(async () => {
 
 describe('the Member', () => {
   it('cannot select a financial column, on any table', async () => {
-    for (const [table, columns] of Object.entries(FINANCIAL_COLUMNS)) {
+    for (const [table, columns] of Object.entries(MEMBER_FORBIDDEN_COLUMNS)) {
       for (const column of columns) {
         await expectRefused(
           withTenant(as(org, 'member'), (tx) =>

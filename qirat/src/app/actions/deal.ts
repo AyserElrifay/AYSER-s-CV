@@ -171,9 +171,30 @@ export async function closeDealAction(
     );
     const houseRateBp = Array.from(settings)[0]?.house_rate_bp ?? 5000;
 
-    // The freeze. Split rules are a placeholder until the payout engine lands,
-    // but the house rate and the moment are real and are what a February deal
-    // will still be scored on in March.
+    /*
+     * The freeze, now with the real policy on it.
+     *
+     * The rules in force at this moment are copied onto the deal. If the owner
+     * cuts a partner's equity next quarter, this deal keeps the terms it closed
+     * on — which is what a partner was told, and quite possibly what they have
+     * already been paid against.
+     */
+    const ruleRows = await tx.execute<{
+      [column: string]: unknown;
+      id: string;
+      kind: string;
+      beneficiary_user_id: string | null;
+      rate_bp: number;
+    }>(raw`
+      select id, kind::text as kind, beneficiary_user_id, rate_bp
+      from split_rules where is_active order by created_at, id`);
+    const frozenRules = Array.from(ruleRows).map((row) => ({
+      id: row.id,
+      kind: row.kind,
+      beneficiaryUserId: row.beneficiary_user_id,
+      rateBp: row.rate_bp,
+    }));
+
     await tx.execute(raw`
       update deals
       set agreed_price_minor    = ${price.toString()}::bigint,
@@ -183,7 +204,7 @@ export async function closeDealAction(
           frozen_fx_rate        = 1.0,
           frozen_fx_source      = 'identity',
           frozen_fx_captured_at = now(),
-          frozen_split_rules    = ${JSON.stringify({ houseRateBp, rules: [] })}::jsonb
+          frozen_split_rules    = ${JSON.stringify({ houseRateBp, rules: frozenRules })}::jsonb
       where id = ${dealId}`);
     await tx.execute(raw`
       insert into audit_log (org_id, actor_user_id, actor_email, actor_role, action, entity_type, entity_id, payload)

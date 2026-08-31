@@ -3,10 +3,11 @@
 Every deal an agency signs becomes a branded proposal, a task board, a live
 margin, and a payout — from a single card.
 
-**Phase 0 is complete, and Phase 1's core is in.** Auth, organisations, four
-enforced roles, and tenant isolation proved by an automated suite — plus the
-deal card and the price instrument: drag the price and the margin moves with it,
-in either language.
+**Phases 0, 1, 4 and 5 are in — the whole wedge, end to end.** Sign up, drag a
+price, record what you actually spent, close the month, and a partner opens a
+statement showing every deal they touched and what it earned them. Tenant
+isolation, four enforced roles and the immutability rules are proved by an
+automated suite.
 
 `../` in this repository is a different project (`moments-superapp`). Qirat lives
 entirely in this directory and shares nothing with it.
@@ -49,16 +50,17 @@ npm run build                 # the route suite runs against the real build
 npm test
 ```
 
-263 tests, about thirteen seconds.
+303 tests, about fifteen seconds.
 
 | Suite | What it holds down |
 |---|---|
-| `src/money/*.test.ts` | 144 tests. Every function, negative margins, zero-revenue deals, currency mismatches, three-decimal and zero-decimal currencies, amounts past 2^53, step snapping, the below-floor routing rule, and a thousand generated splits that must each sum exactly. |
+| `src/money/*.test.ts` | 181 tests. Every function, negative margins, zero-revenue deals, currency mismatches, three-decimal and zero-decimal currencies, amounts past 2^53, step snapping, the below-floor routing rule, cost drift, and a thousand generated splits plus a thousand generated payout periods that must each balance exactly. |
 | `tests/structure.test.ts` | Every table has `org_id`, RLS **enabled and forced**, and a policy. The connection role owns nothing and cannot bypass RLS. No financial column is granted to a Member. |
 | `tests/isolation.test.ts` | Org A cannot read, join, subquery, update, delete or insert its way into Org B. Context does not survive its transaction. |
 | `tests/roles.test.ts` | A Member cannot select a financial column on any table. An account manager sees their own pipeline and cannot reassign a colleague's deal to themselves. |
 | `tests/immutability.test.ts` | The audit log refuses edits even from the table's owner. A closed deal's terms cannot move and it cannot be reopened. |
 | `tests/costs.test.ts` | A Member can record a cost and cannot read one back — not even their own. An account manager sees costs on their own deals only. A cost cannot attach to another organisation's deal. |
+| `tests/payouts.test.ts` | A Partner sees their own statement and no one else's. Statements cannot be edited or deleted, including by the role that owns the table. A closed period cannot be reopened. Corrections require a reason. |
 | `tests/routes.test.ts` | The same isolation, over HTTP, against the production build, with real signed sessions — every route, every role. |
 
 The structural suite is the one that matters most over time: it fails on a table
@@ -150,7 +152,16 @@ tests/            Isolation, roles, immutability, and HTTP-level route tests.
 Named honestly, so nothing here reads as more finished than it is:
 
 - **Deals cannot be created yet.** Onboarding seeds one and it is fully
-  priceable, but there is no "new deal" flow. Next.
+  priceable, but there is no "new deal" flow.
+- **The split policy has no editor.** Onboarding seeds a sensible one — a fifth
+  of distributable profit to whoever closed the deal, a twentieth to the team
+  pool — and `setSplitRulesAction` exists and is validated, but adding a partner
+  currently means an insert. The screen shows the policy; it does not yet edit
+  it.
+- **Statements print rather than download.** A browser's save-as-PDF produces a
+  real PDF from the page; a server-rendered one needs the render service.
+- **Proposal Studio is untouched.** It was moved behind the payout engine
+  deliberately, and that was the right call: the wedge now works end to end.
 - **No receipt photos.** Costs are recorded as amount, vendor and date; the
   column for the image is there and needs object storage credentials. The
   WhatsApp evening nudge that makes this happen without anyone opening the app

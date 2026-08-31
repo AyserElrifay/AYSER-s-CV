@@ -381,3 +381,70 @@ one trademark in the advertising and business-services class. That class is
 adjacent to an agency operations platform. This is a lawyer's question, not an
 engineer's, and it should be answered before the name goes on a contract or an
 investor document. The rename itself is mechanical and reversible.
+
+---
+
+## 19. The payout engine balances, or the period does not close
+
+**Decided:** `computePayouts` splits each deal independently using the rules
+frozen onto that deal, then gathers the results per person. Before a single row
+is written, `checkPayoutRunBalances` proves that, for every currency:
+
+    every statement + the bonus pool + what the agency retained
+      = the distributable profit of every deal in the period
+
+If that fails, the close is **refused** and the error says it is a bug rather
+than a rounding difference. An unbalanced run is money on one side of the books
+and not the other, and writing it would make the product worse than the
+spreadsheet it replaces.
+
+A thousand generated periods are tested for this invariant, with random
+revenues, costs, house rates and deal owners.
+
+**Splitting per deal rather than pooling first** is what lets a statement show
+its working: a partner sees each deal, the pool it produced, the rate applied
+and their share of it. That is the only form of a payout number anyone can
+actually agree with or dispute.
+
+---
+
+## 20. What a Partner may see, precisely
+
+**Decided:** two separate lists, because one list was wrong.
+
+`MEMBER_FORBIDDEN_COLUMNS` is everything financial. A Member sees assigned work
+and no number anywhere.
+
+`PARTNER_FORBIDDEN_COLUMNS` is shorter, and the difference *is* the product: a
+Partner is entitled to their own payout — the amount, the deals behind it, the
+rate it was paid at. What they may not see is the agency's economics: any deal's
+price, any service's band, any cost, the house rate.
+
+Row-level security does the other half. A Partner may select a statement amount,
+but only on rows where they are the beneficiary. There is no "mine" clause in
+the query that reads statements — an Owner gets the organisation's and a Partner
+gets their own, and the difference is a policy, so the route cannot get it wrong
+and neither can the next route.
+
+The first version of this used one list for both roles, which failed a test by
+forbidding a Partner from seeing their own statement. That test was right.
+
+---
+
+## 21. Statements are fixed; corrections are entries
+
+**Decided:** `payout_statements` holds no UPDATE or DELETE privilege for any
+role, *and* a trigger refuses both plus TRUNCATE — so it holds for the role that
+owns the table too. A correction is a new signed row in `payout_adjustments`
+carrying a reason, and adjustments are themselves immutable.
+
+A closed period cannot be reopened, by the same reasoning: reopening would
+restate statements people have already been paid against.
+
+The question a partner asks two years later is not "what does it say now" but
+"what changed, and who changed it". Only an append-only ledger can answer that.
+
+**PDF:** a statement is a printable page rather than a server-rendered PDF.
+Chromium does not fit in a serverless function, and a browser's own "save as
+PDF" produces a real one from a page designed to print. When a render service
+exists, the same markup becomes the PDF template.

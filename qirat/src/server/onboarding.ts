@@ -155,6 +155,29 @@ async function provision(args: {
               ${fromMajor(brandBook.costMin, DEFAULT_CURRENCY).minor},
               ${sampleDeliveryDate()}, 'draft')`);
 
+    /*
+     * A payout policy and this month's period, so the payouts screen is usable
+     * on day one rather than showing a form before it shows a product.
+     *
+     * The numbers are a starting point an owner will change: a fifth of
+     * distributable profit to whoever closed the deal, a twentieth to the team
+     * pool, and the rest retained. Partner equity is left empty on purpose —
+     * only the owner knows who the partners are.
+     */
+    for (const [kind, rateBp, label] of [
+      ['manager_commission', 2000, 'Commission on own deals'],
+      ['bonus_pool', 500, 'Team bonus pool'],
+    ] as const) {
+      await tx.execute(raw`
+        insert into split_rules (org_id, kind, rate_bp, label)
+        values (${orgId}, ${raw.raw(`'${kind}'::split_rule_kind`)}, ${rateBp}, ${label})`);
+    }
+
+    const { startsOn, endsOn } = currentMonth();
+    await tx.execute(raw`
+      insert into payout_periods (org_id, starts_on, ends_on)
+      values (${orgId}, ${startsOn}::date, ${endsOn}::date)`);
+
     await tx.execute(raw`
       insert into audit_log (org_id, actor_user_id, actor_email, actor_role, action, entity_type, entity_id, payload)
       values (${orgId}, ${userId}, ${args.email}, 'owner', 'organization.created', 'organization',
@@ -162,6 +185,18 @@ async function provision(args: {
   });
 
   return { orgId, slug: args.slug, userId };
+}
+
+/** The calendar month we are in, which is the unit agencies pay people by. */
+export function currentMonth(now = new Date()): { startsOn: string; endsOn: string } {
+  const year = now.getUTCFullYear();
+  const month = now.getUTCMonth();
+  const iso = (date: Date) => date.toISOString().slice(0, 10);
+  return {
+    startsOn: iso(new Date(Date.UTC(year, month, 1))),
+    // Day zero of the next month is the last day of this one, leap years included.
+    endsOn: iso(new Date(Date.UTC(year, month + 1, 0))),
+  };
 }
 
 function sampleDeliveryDate(): string {

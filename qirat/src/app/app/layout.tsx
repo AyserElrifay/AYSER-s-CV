@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { LanguageToggle } from '@/components/language-toggle';
 import { signOutAction } from '@/app/actions/auth';
 import { translator } from '@/i18n/dictionary';
@@ -39,6 +40,24 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             )}
           </div>
           <div className="flex items-center gap-1">
+            {/* A Member gets no navigation at all: their screen is today's work
+                and nothing else. Everyone else needs to reach their payouts. */}
+            {!plain && (
+              <>
+                <Link
+                  href="/app"
+                  className="rounded-[6px] px-2 py-1 text-[13px] text-ink-soft hover:text-ink"
+                >
+                  {t(user.role === 'partner' ? 'nav.statements' : 'nav.deals')}
+                </Link>
+                <Link
+                  href="/app/payouts"
+                  className="rounded-[6px] px-2 py-1 text-[13px] text-ink-soft hover:text-ink"
+                >
+                  {t('nav.payouts')}
+                </Link>
+              </>
+            )}
             {!plain && (
               <span className="me-2 rounded-full border border-line px-2.5 py-0.5 text-[12px] text-ink-soft">
                 {t(`role.${user.role}`)}
