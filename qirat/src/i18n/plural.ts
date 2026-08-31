@@ -46,3 +46,37 @@ function pick(forms: PluralForms, count: number, locale: Locale): string {
 export function dealsClosedNoun(count: number, locale: Locale): string {
   return pick(DEALS_CLOSED[locale], count, locale);
 }
+
+/**
+ * The unit a cost line is counted in.
+ *
+ * Same problem as the deals, one layer down: "12 يوم" is wrong for twelve, and
+ * "٢ يوم" is wrong for two, which takes the dual. A cost sheet full of that is
+ * a cost sheet an Arabic-speaking producer stops reading.
+ */
+const UNITS: Record<'day' | 'person' | 'item' | 'month', Record<Locale, PluralForms>> = {
+  day: {
+    en: { one: 'day', other: 'days' },
+    ar: { one: 'يوم', two: 'يومان', few: 'أيام', many: 'يوماً', other: 'يوم' },
+  },
+  person: {
+    en: { one: 'person', other: 'people' },
+    ar: { one: 'فرد', two: 'فردان', few: 'أفراد', many: 'فرداً', other: 'فرد' },
+  },
+  item: {
+    en: { one: 'item', other: 'items' },
+    ar: { one: 'بند', two: 'بندان', few: 'بنود', many: 'بنداً', other: 'بند' },
+  },
+  month: {
+    en: { one: 'month', other: 'months' },
+    ar: { one: 'شهر', two: 'شهران', few: 'أشهر', many: 'شهراً', other: 'شهر' },
+  },
+};
+
+export function unitNoun(
+  unit: 'day' | 'person' | 'item' | 'month',
+  count: number,
+  locale: Locale,
+): string {
+  return pick(UNITS[unit][locale], count, locale);
+}

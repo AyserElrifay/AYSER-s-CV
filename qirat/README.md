@@ -50,15 +50,16 @@ npm run build                 # the route suite runs against the real build
 npm test
 ```
 
-303 tests, about fifteen seconds.
+329 tests, about twelve seconds.
 
 | Suite | What it holds down |
 |---|---|
-| `src/money/*.test.ts` | 181 tests. Every function, negative margins, zero-revenue deals, currency mismatches, three-decimal and zero-decimal currencies, amounts past 2^53, step snapping, the below-floor routing rule, cost drift, and a thousand generated splits plus a thousand generated payout periods that must each balance exactly. |
+| `src/money/*.test.ts` | 205 tests. Every function, negative margins, zero-revenue deals, currency mismatches, three-decimal and zero-decimal currencies, amounts past 2^53, step snapping, the below-floor routing rule, cost drift, and a thousand generated splits plus a thousand generated payout periods that must each balance exactly. |
 | `tests/structure.test.ts` | Every table has `org_id`, RLS **enabled and forced**, and a policy. The connection role owns nothing and cannot bypass RLS. No financial column is granted to a Member. |
 | `tests/isolation.test.ts` | Org A cannot read, join, subquery, update, delete or insert its way into Org B. Context does not survive its transaction. |
 | `tests/roles.test.ts` | A Member cannot select a financial column on any table. An account manager sees their own pipeline and cannot reassign a colleague's deal to themselves. |
 | `tests/immutability.test.ts` | The audit log refuses edits even from the table's owner. A closed deal's terms cannot move and it cannot be reopened. |
+| `src/server/service-catalog.test.ts` | Every seeded cost template totals inside its own service's range, every service still makes money at its own floor, and every cost line is named in both languages. |
 | `tests/costs.test.ts` | A Member can record a cost and cannot read one back — not even their own. An account manager sees costs on their own deals only. A cost cannot attach to another organisation's deal. |
 | `tests/payouts.test.ts` | A Partner sees their own statement and no one else's. Statements cannot be edited or deleted, including by the role that owns the table. A closed period cannot be reopened. Corrections require a reason. |
 | `tests/routes.test.ts` | The same isolation, over HTTP, against the production build, with real signed sessions — every route, every role. |

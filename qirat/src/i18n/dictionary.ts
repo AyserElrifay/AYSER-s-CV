@@ -158,6 +158,12 @@ const en = {
   'catalogue.title': 'Service catalogue',
   'catalogue.band': 'Floor, target, ceiling',
   'catalogue.internal': 'Internal only. A client is shown one number.',
+  'catalogue.costToDeliver': 'Cost to deliver',
+  'catalogue.breakdown': 'What it is made of',
+  'catalogue.marginAtFloor': 'Margin at the floor',
+  'catalogue.marginAtTarget': 'Margin at target',
+  'catalogue.startingRates':
+    'These rates are a starting structure, not your numbers. Replace them with what you actually pay and every margin in the product gets more honest.',
 
   'member.plain': 'You are signed in as a member. This view holds no financial information.',
   'audit.title': 'Recent activity',
@@ -311,6 +317,12 @@ const ar: Record<StringKey, string> = {
   'catalogue.title': 'دليل الخدمات',
   'catalogue.band': 'الحد الأدنى، المستهدف، الأعلى',
   'catalogue.internal': 'للاستخدام الداخلي فقط. يرى العميل رقماً واحداً.',
+  'catalogue.costToDeliver': 'تكلفة التنفيذ',
+  'catalogue.breakdown': 'مما تتكوّن',
+  'catalogue.marginAtFloor': 'الهامش عند الأرضية',
+  'catalogue.marginAtTarget': 'الهامش عند المستهدف',
+  'catalogue.startingRates':
+    'هذه الأسعار بنية بداية، وليست أرقامك. استبدلها بما تدفعه فعلاً وسيصبح كل هامش في المنتج أصدق.',
 
   'member.plain': 'أنت مسجّل كعضو. لا تحتوي هذه الشاشة على أي معلومات مالية.',
   'audit.title': 'النشاط الأخير',

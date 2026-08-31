@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { costDriftBasisPoints, costPosition, effectiveCost } from './costs';
+import {
+  CostTemplateError,
+  costDriftBasisPoints,
+  costPosition,
+  costTemplateTotal,
+  effectiveCost,
+  priceCostTemplate,
+} from './costs';
 import { CurrencyMismatchError, fromMajor, toMajorString } from './money';
 import { computeMargin } from './margin';
 
@@ -113,5 +120,79 @@ describe('what the actuals do to the margin', () => {
     // And the house eats it: no freelancer is invoiced for a bad shoot.
     expect(toMajorString(margin.distributable)).toBe('0.00');
     expect(toMajorString(margin.houseShare)).toBe('-15000.00');
+  });
+});
+
+describe('pricing a cost template', () => {
+  const line = (label: string, amount: string, quantity: number, unit: 'day' | 'item' = 'day') => ({
+    label,
+    labelAr: label,
+    amount,
+    quantity,
+    unit,
+  });
+
+  it('multiplies each line by its units and sums them exactly', () => {
+    const { rows, total } = priceCostTemplate(
+      [
+        line('Director', '4000.00', 1),
+        line('Editor', '900.00', 4),
+        line('Location', '2000.00', 1, 'item'),
+      ],
+      'EGP',
+    );
+    expect(rows.map((r) => toMajorString(r.total))).toEqual(['4000.00', '3600.00', '2000.00']);
+    expect(toMajorString(total)).toBe('9600.00');
+  });
+
+  it('keeps the rate alongside the total, so the line can be read back', () => {
+    const { rows } = priceCostTemplate([line('Editor', '900.00', 4)], 'EGP');
+    expect(toMajorString(rows[0]!.rate)).toBe('900.00');
+    expect(rows[0]!.line.unit).toBe('day');
+  });
+
+  it('totals an empty template to nothing rather than throwing', () => {
+    expect(toMajorString(costTemplateTotal([], 'EGP'))).toBe('0.00');
+  });
+
+  it('handles a zero-quantity line without dropping it', () => {
+    // A line the agency has turned off for this deal still belongs on the sheet.
+    const { rows, total } = priceCostTemplate([line('Talent', '3000.00', 0)], 'EGP');
+    expect(rows).toHaveLength(1);
+    expect(toMajorString(total)).toBe('0.00');
+  });
+
+  it('refuses a fractional or negative quantity', () => {
+    expect(() => priceCostTemplate([line('Editor', '900.00', 2.5)], 'EGP')).toThrow(
+      CostTemplateError,
+    );
+    expect(() => priceCostTemplate([line('Editor', '900.00', -1)], 'EGP')).toThrow(
+      CostTemplateError,
+    );
+  });
+
+  it('names the line it is complaining about', () => {
+    expect(() => priceCostTemplate([line('Sound recordist', '900.00', 1.5)], 'EGP')).toThrow(
+      /Sound recordist/,
+    );
+  });
+
+  it('refuses an amount that is not a plain decimal', () => {
+    expect(() => priceCostTemplate([line('Editor', '9,00', 1)], 'EGP')).toThrow();
+  });
+
+  it('respects the currency it is priced in', () => {
+    // KWD has three decimal places, so the same string is a different amount.
+    expect(toMajorString(costTemplateTotal([line('Editor', '1.500', 2)], 'KWD'))).toBe('3.000');
+  });
+
+  it('feeds an estimate a margin can be computed on', () => {
+    const estimate = costTemplateTotal(
+      [line('Director', '4000.00', 1), line('Editor', '900.00', 4)],
+      'EGP',
+    );
+    const margin = computeMargin(egp('40000.00'), estimate, 5_000);
+    expect(toMajorString(estimate)).toBe('7600.00');
+    expect(margin.marginBasisPoints).toBe(8_100); // 81%
   });
 });

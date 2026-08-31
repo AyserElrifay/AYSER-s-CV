@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { sql as raw } from 'drizzle-orm';
 import { withTenant } from '@/db/client';
 import { hashPassword } from '@/auth/password';
-import { fromMajor } from '@/money';
+import { costTemplateTotal, fromMajor } from '@/money';
 import { DEFAULT_BRAND_KIT, DEFAULT_CURRENCY, DEFAULT_SERVICES } from './service-catalog';
 
 /**
@@ -128,14 +128,15 @@ async function provision(args: {
       await tx.execute(raw`
         insert into services (id, org_id, name, name_ar, currency, floor_minor, target_minor,
                               ceiling_minor, default_cost_min_minor, default_cost_max_minor,
-                              task_template)
+                              task_template, cost_template)
         values (${id}, ${orgId}, ${service.name}, ${service.nameAr}, ${DEFAULT_CURRENCY},
                 ${fromMajor(service.floor, DEFAULT_CURRENCY).minor},
                 ${fromMajor(service.target, DEFAULT_CURRENCY).minor},
                 ${fromMajor(service.ceiling, DEFAULT_CURRENCY).minor},
                 ${fromMajor(service.costMin, DEFAULT_CURRENCY).minor},
                 ${fromMajor(service.costMax, DEFAULT_CURRENCY).minor},
-                ${JSON.stringify(service.tasks)}::jsonb)`);
+                ${JSON.stringify(service.tasks)}::jsonb,
+                ${JSON.stringify(service.costs)}::jsonb)`);
     }
 
     // A sample client and a sample deal, so the deal card — the home screen —
@@ -152,7 +153,7 @@ async function provision(args: {
       values (${orgId}, ${clientId}, ${serviceIds[0]}, ${userId},
               ${`${brandBook.name} — Sample Client`}, ${DEFAULT_CURRENCY},
               ${fromMajor(brandBook.target, DEFAULT_CURRENCY).minor},
-              ${fromMajor(brandBook.costMin, DEFAULT_CURRENCY).minor},
+              ${costTemplateTotal(brandBook.costs, DEFAULT_CURRENCY).minor},
               ${sampleDeliveryDate()}, 'draft')`);
 
     /*

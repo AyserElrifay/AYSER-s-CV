@@ -448,3 +448,44 @@ The question a partner asks two years later is not "what does it say now" but
 Chromium does not fit in a serverless function, and a browser's own "save as
 PDF" produces a real one from a page designed to print. When a render service
 exists, the same markup becomes the PDF template.
+
+---
+
+## 22. A service costs what it is made of
+
+**Decided:** every service carries a `cost_template` — the videographer, the kit,
+the editor, the catering — and the estimate on a deal is that template priced
+out, not a number somebody remembered.
+
+The range alone (`default_cost_min_minor` / `max`) gave no reasoning. An estimate
+nobody can take apart is an estimate nobody argues with, and an estimate nobody
+argues with is how a margin quietly becomes fiction three deals before anyone
+notices.
+
+The template is **not** granted to a Member. `task_template` is theirs; what the
+work costs is not. The Member grant names its columns explicitly, so a new
+column is excluded by default — which was the intent, and is now commented so
+the next person knows it was a decision.
+
+**The seeded rates are a starting structure, not researched market data.** They
+are plausible Cairo day rates chosen to total inside each service's existing cost
+range, and the screen says so under the catalogue. An agency replaces them in the
+first week; the structure is the part that carries over.
+
+Three tests keep the seed honest: every template totals inside its own service's
+range, every service still makes money at its own floor, and every line is named
+in both languages.
+
+### What the templates immediately showed
+
+Priced out, four of the five services return 36–47% margin at their floor price.
+**Video Production returns 14.4%.**
+
+That is not a bug in the template; it is the pricing. The floor on video is set
+where a shoot barely covers itself, and the reason is visible in the build-up:
+location and permits, talent, transport and catering come to 6,200 — most of a
+third of the cost, and precisely the sort of spending that reaches a spreadsheet
+late or not at all. An agency selling video near its floor and forgetting the
+catering is losing money on it.
+
+Surfacing that on day one, from the seed, is the product working.

@@ -4,6 +4,7 @@ import { type TenantContext, withTenant } from '@/db/client';
 import { auditLog, clients, deals, organizations, services } from '@/db/schema';
 import {
   type CostPosition,
+  type CostTemplateLine,
   type CurrencyCode,
   type MarginBreakdown,
   type MarginSignal,
@@ -218,6 +219,8 @@ export interface ServiceBandModel {
   floorMinor: bigint;
   targetMinor: bigint;
   ceilingMinor: bigint;
+  /** The build-up behind the estimate. Not granted to a Member. */
+  costTemplate: CostTemplateLine[];
 }
 
 export async function getServiceBands(ctx: TenantContext): Promise<ServiceBandModel[]> {
@@ -231,6 +234,7 @@ export async function getServiceBands(ctx: TenantContext): Promise<ServiceBandMo
         floorMinor: services.floorMinor,
         targetMinor: services.targetMinor,
         ceilingMinor: services.ceilingMinor,
+        costTemplate: services.costTemplate,
       })
       .from(services)
       .orderBy(services.name),

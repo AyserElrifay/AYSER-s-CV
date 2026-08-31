@@ -1,3 +1,4 @@
+import { type CostTemplateLine } from '@/money';
 import {
   bigint,
   boolean,
@@ -97,6 +98,7 @@ export const services = pgTable('services', {
   defaultCostMinMinor: minor('default_cost_min_minor').notNull(),
   defaultCostMaxMinor: minor('default_cost_max_minor').notNull(),
   taskTemplate: jsonb('task_template').notNull().default([]),
+  costTemplate: jsonb('cost_template').$type<CostTemplateLine[]>().notNull().default([]),
   isActive: boolean('is_active').notNull().default(true),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
@@ -258,6 +260,7 @@ export const MEMBER_FORBIDDEN_COLUMNS = {
   ],
   services: [
     'currency',
+    'cost_template',
     'floor_minor',
     'target_minor',
     'ceiling_minor',

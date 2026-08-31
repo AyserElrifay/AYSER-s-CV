@@ -2,7 +2,14 @@ import { DealCard } from '@/components/deal-card';
 import { EmptyState } from '@/components/empty-state';
 import { Figure } from '@/components/figure';
 import { translator } from '@/i18n/dictionary';
-import { formatMoney, money } from '@/money';
+import {
+  formatBasisPoints,
+  formatMoney,
+  marginBasisPoints,
+  money,
+  priceCostTemplate,
+} from '@/money';
+import { unitNoun } from '@/i18n/plural';
 import { requireUser, contextFor } from '@/server/session';
 import { resolveLocale } from '@/server/locale';
 import {
@@ -90,8 +97,15 @@ export default async function AppHome() {
         <h2 className="text-[15px] font-medium">{t('catalogue.title')}</h2>
         <p className="mt-0.5 text-[12px] text-ink-faint">{t('catalogue.internal')}</p>
         <ul className="mt-4 max-w-2xl divide-y divide-line rounded-[10px] border border-line bg-paper-raised">
-          {bands.map((band) => (
-            <li key={band.id} className="flex items-baseline justify-between gap-4 px-4 py-3">
+          {bands.map((band) => {
+            const priced = priceCostTemplate(band.costTemplate, band.currency);
+            const atFloor = marginBasisPoints(
+              money(band.floorMinor, band.currency),
+              priced.total,
+            );
+            return (
+            <li key={band.id} className="px-4 py-3">
+              <div className="flex items-baseline justify-between gap-4">
               <span className="text-[14px]">
                 {locale === 'ar' && band.nameAr ? band.nameAr : band.name}
               </span>
@@ -116,9 +130,68 @@ export default async function AppHome() {
                   })}
                 </Figure>
               </span>
+              </div>
+
+              {/*
+                The build-up, one click away. Folded by default because the
+                catalogue is a list of prices; opened, it is the answer to
+                "why is that the cost", which is the question that decides
+                whether anyone trusts the margin above it.
+              */}
+              {band.costTemplate.length > 0 ? (
+                <details className="group mt-2">
+                  <summary className="cursor-pointer list-none text-[12px] text-ink-faint hover:text-ink-soft">
+                    {t('catalogue.costToDeliver')}{' '}
+                    <span className="reading">
+                      <Figure>
+                        {formatMoney(priced.total, { locale, display: 'none' })}
+                      </Figure>
+                    </span>
+                    {atFloor !== null ? (
+                      <>
+                        {' · '}
+                        {t('catalogue.marginAtFloor')}{' '}
+                        <span className="reading">
+                          <Figure>{formatBasisPoints(atFloor, { locale })}</Figure>
+                        </span>
+                      </>
+                    ) : null}
+                  </summary>
+                  <ul className="mt-2 space-y-1 border-s-2 border-line ps-3">
+                    {priced.rows.map((row, index) => (
+                      <li
+                        key={`${band.id}-${index}`}
+                        className="flex items-baseline justify-between gap-3 text-[12px]"
+                      >
+                        <span className="text-ink-soft">
+                          {locale === 'ar' ? row.line.labelAr : row.line.label}
+                          <span className="text-ink-faint">
+                            {' · '}
+                            <Figure>
+                              {new Intl.NumberFormat(
+                                locale === 'ar' ? 'ar-EG' : 'en-US',
+                              ).format(row.line.quantity)}
+                            </Figure>{' '}
+                            {unitNoun(row.line.unit, row.line.quantity, locale)}
+                          </span>
+                        </span>
+                        <span className="reading text-ink-soft">
+                          <Figure>
+                            {formatMoney(row.total, { locale, display: 'none' })}
+                          </Figure>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              ) : null}
             </li>
-          ))}
+            );
+          })}
         </ul>
+        <p className="mt-3 max-w-2xl text-[12px] leading-relaxed text-ink-faint">
+          {t('catalogue.startingRates')}
+        </p>
       </section>
 
       {user.role === 'owner' && (
