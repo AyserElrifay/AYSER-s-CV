@@ -3,10 +3,6 @@ import { View, Text, FlatList, Pressable, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Tap, Rise, Breathe } from '../lib/motion';
-import { SkeletonFeed } from '../components/Skeleton';
-import { Avatar } from '../components/Avatar';
 import { C } from '../constants/theme';
 import { av, AV_NEUTRAL } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
@@ -89,7 +85,7 @@ export const toStoryCard = (r) => ({
    reads it has to read it at the moment of drawing, not at import. A
    function does that; a constant cannot. */
 const headerBtn = () => ({
-  width: 42, height: 42, borderRadius: 21,
+  width: 38, height: 38, borderRadius: 19,
   backgroundColor: C.glass, borderWidth: 1, borderColor: C.line,
   alignItems: 'center', justifyContent: 'center',
 });
@@ -378,9 +374,6 @@ export const HomeScreen = () => {
     handle: (myProfile && myProfile.handle) ? '@' + myProfile.handle : null,
     emoji: (myProfile && myProfile.emoji) || '🧿',
     avatar: (myProfile && myProfile.avatar_url) || AV_NEUTRAL,
-    /* the raw one, which may be nothing — <Avatar/> draws a real
-       fallback for that case instead of showing an empty ring */
-    avatarUrl: (myProfile && myProfile.avatar_url) || null,
     verified: !!(myProfile && myProfile.verified),
     vouches: 0,
     vouchTag: 'New Explorer',
@@ -419,40 +412,27 @@ export const HomeScreen = () => {
                   {t('brand_tagline')}
                 </Text>
               </View>
-              {/* ── FIVE GREY CIRCLES, AND ONE OF THEM MATTERS ────────
-                  They were all the same: same size, same grey, same
-                  weight, so the eye had to read every one to find the
-                  one it wanted. Now the ✦ that starts a moment is a
-                  filled violet button and the rest are quiet beside
-                  it, and each one moves under your thumb when you
-                  press it — which is the whole of "this app is fast",
-                  and it costs nothing and waits for nothing. */}
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Tap testID="btn-bardi" onPress={() => { tapLight(); setBardiOpen(true); }} style={{ marginRight: 9 }}>
-                  <Image source={require('../assets/brand/bardi.png')} style={{ width: 42, height: 42, borderRadius: 14 }} />
-                </Tap>
-                <Tap testID="btn-notifs" onPress={() => { tapLight(); setNotifOpen(true); setUnread(0); }} style={[headerBtn(), { marginRight: 9 }]}>
-                  <Ionicons name={unread ? 'notifications' : 'notifications-outline'} size={19} color={unread ? C.purple : C.text} />
+                <Pressable testID="btn-bardi" onPress={() => { tapLight(); setBardiOpen(true); }} style={{ marginRight: 10 }}>
+                  <Image source={require('../assets/brand/bardi.png')} style={{ width: 38, height: 38, borderRadius: 12 }} />
+                </Pressable>
+                <Pressable testID="btn-notifs" onPress={() => { tapLight(); setNotifOpen(true); setUnread(0); }} style={[headerBtn(), { marginRight: 10 }]}>
+                  <Ionicons name={unread ? 'notifications' : 'notifications-outline'} size={17} color={unread ? C.purple : C.text} />
                   {unread ? (
-                    <View style={{ position: 'absolute', top: -3, right: -3, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: C.coral, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: 2, borderColor: C.bg }}>
-                      <Text style={{ color: '#FFF', fontSize: 10, fontWeight: '900' }}>{unread > 9 ? '9+' : unread}</Text>
+                    <View style={{ position: 'absolute', top: -4, right: -4, minWidth: 17, height: 17, borderRadius: 9, backgroundColor: C.coral, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: 1.5, borderColor: C.bg }}>
+                      <Text style={{ color: '#FFF', fontSize: 9.5, fontWeight: '900' }}>{unread > 9 ? '9+' : unread}</Text>
                     </View>
                   ) : null}
-                </Tap>
-                <Tap testID="btn-search" onPress={() => setSearching(true)} style={[headerBtn(), { marginRight: 9 }]}>
-                  <Ionicons name="search" size={19} color={C.text} />
-                </Tap>
-                <Tap testID="btn-compose" onPress={() => setComposing('post')} style={{ marginRight: 9 }}>
-                  <LinearGradient
-                    colors={[C.purple, '#C026D3']}
-                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                    style={{ width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' }}>
-                    <MaterialCommunityIcons name="star-four-points" size={22} color="#FFF" />
-                  </LinearGradient>
-                </Tap>
-                <Tap testID="btn-profile" onPress={() => { tapLight(); setMyProfileOpen(true); }}>
-                  <Avatar uri={me.avatarUrl} size={42} ring />
-                </Tap>
+                </Pressable>
+                <Pressable testID="btn-search" onPress={() => setSearching(true)} style={[headerBtn(), { marginRight: 10 }]}>
+                  <Ionicons name="search" size={17} color={C.text} />
+                </Pressable>
+                <Pressable testID="btn-compose" onPress={() => setComposing('post')} style={[headerBtn(), { marginRight: 10, backgroundColor: C.greenSoft, borderColor: 'rgba(16,185,129,0.4)' }]}>
+                  <Ionicons name="add" size={20} color={C.green} />
+                </Pressable>
+                <Pressable testID="btn-profile" onPress={() => { tapLight(); setMyProfileOpen(true); }}>
+                  <Image source={{ uri: me.avatar }} style={{ width: 38, height: 38, borderRadius: 19, borderWidth: 1.5, borderColor: C.purple }} />
+                </Pressable>
               </View>
             </View>
 
@@ -463,41 +443,25 @@ export const HomeScreen = () => {
             />
 
             {/* share box — your moment or your opinion, one tap away */}
-            {/* ── THE BOX YOU SAY SOMETHING IN ───────────────────────
-                Two bare coloured icons sat on the right of this, and
-                nobody who has not already learned them knows which is
-                which. They are chips with their names on now — which
-                is the difference between guessing and reading, for a
-                child and for somebody's mother equally. */}
-            <Glass style={{ padding: 13, marginTop: 18 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Avatar uri={me.avatarUrl} size={42} />
-                <Tap
-                  testID="share-box"
-                  onPress={() => setComposing('post')}
-                  style={{
-                    flex: 1, marginLeft: 11,
-                    backgroundColor: C.bg, borderWidth: 1, borderColor: C.line,
-                    borderRadius: 999, paddingVertical: 13, paddingHorizontal: 17,
-                  }}
-                >
-                  <Text style={{ color: C.dim, fontSize: 14.5 }}>{t('whats_your_moment')}</Text>
-                </Tap>
-              </View>
-              <View style={{ flexDirection: 'row', marginTop: 11 }}>
-                <Tap testID="btn-new-reel" onPress={() => setComposing('reel')} style={{ flex: 1, marginRight: 8 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: C.coralSoft, borderRadius: 14, paddingVertical: 10 }}>
-                    <Ionicons name="videocam" size={19} color={C.coral} />
-                    <Text style={{ color: C.coral, fontSize: 13, fontWeight: '900', marginLeft: 7 }}>{t('hs_video')}</Text>
-                  </View>
-                </Tap>
-                <Tap onPress={() => setComposing('post')} style={{ flex: 1 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: C.greenSoft, borderRadius: 14, paddingVertical: 10 }}>
-                    <Ionicons name="image" size={19} color={C.green} />
-                    <Text style={{ color: C.green, fontSize: 13, fontWeight: '900', marginLeft: 7 }}>{t('hs_photo')}</Text>
-                  </View>
-                </Tap>
-              </View>
+            <Glass style={{ flexDirection: 'row', alignItems: 'center', padding: 12, marginTop: 18 }}>
+              <Image source={{ uri: me.avatar }} style={{ width: 40, height: 40, borderRadius: 20 }} />
+              <Pressable
+                testID="share-box"
+                onPress={() => setComposing('post')}
+                style={{
+                  flex: 1, marginLeft: 10,
+                  backgroundColor: C.bg, borderWidth: 1, borderColor: C.line,
+                  borderRadius: 999, paddingVertical: 11, paddingHorizontal: 16,
+                }}
+              >
+                <Text style={{ color: C.faint, fontSize: 13.5 }}>{t('whats_your_moment')}</Text>
+              </Pressable>
+              <Pressable testID="btn-new-reel" onPress={() => setComposing('reel')} hitSlop={8} style={{ marginLeft: 12 }}>
+                <Ionicons name="videocam" size={22} color={C.coral} />
+              </Pressable>
+              <Pressable onPress={() => setComposing('post')} hitSlop={8} style={{ marginLeft: 12 }}>
+                <Ionicons name="image" size={22} color={C.green} />
+              </Pressable>
             </Glass>
           </View>
         }
@@ -533,78 +497,20 @@ export const HomeScreen = () => {
           );
         }}
         ListEmptyComponent={
-          /* ── AN EMPTY FEED IS THE SCREEN MOST PEOPLE MEET FIRST ────
-              It was a small ✨, two lines of grey, and then five
-              hundred pixels of nothing above the tab bar. Nothing to
-              look at and nothing to do — which is what "the app looks
-              old" actually looks like.
-
-              While the first load is still happening it now shows the
-              shape of the feed instead. Two grey cards where two real
-              ones are about to be tells you the app is working and,
-              because the layout is already right, nothing jumps when
-              the real posts land — which is most of what people mean
-              when they say something feels fast.
-
-              And when the feed really is empty, the space is filled by
-              the three things you could do about it, big enough to hit
-              without aiming. */
           SUPABASE_READY ? (
-            refreshing && !loadError ? (
-              <SkeletonFeed count={2} />
-            ) : (
-            <Rise>
-              <View style={{ alignItems: 'center', paddingTop: 10, paddingHorizontal: 8 }}>
-                <Breathe>
-                  <LinearGradient
-                    colors={loadError ? [C.glassHi, C.glass] : [C.purple, '#C026D3']}
-                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                    style={{ width: 76, height: 76, borderRadius: 38, alignItems: 'center', justifyContent: 'center' }}>
-                    <Text style={{ fontSize: 34 }}>{loadError ? '📡' : '✨'}</Text>
-                  </LinearGradient>
-                </Breathe>
-                <Text style={{ color: C.text, fontSize: 20, fontWeight: '900', marginTop: 12, textAlign: 'center', lineHeight: 26 }}>
-                  {loadError ? t('couldnt_load_moments') : t('no_moments_yet')}
-                </Text>
-                <Text style={{ color: C.dim, fontSize: 13.5, marginTop: 6, textAlign: 'center', lineHeight: 20, paddingHorizontal: 12 }}>
-                  {loadError
-                    ? t(loadError === 'setup' ? 'load_err_setup'
-                      : loadError === 'permission' ? 'load_err_permission'
-                      : 'load_err_offline')
-                    : t('share_first_moment_hint')}
-                </Text>
-
-                {loadError ? null : (
-                  <View style={{ alignSelf: 'stretch', marginTop: 16 }}>
-                    <Text style={{ color: C.faint, fontSize: 11, fontWeight: '900', letterSpacing: 1.2, marginBottom: 10, marginLeft: 4 }}>
-                      {t('hs_start_here').toUpperCase()}
-                    </Text>
-                    {[
-                      { key: 'reel', icon: 'camera', tint: C.coral, soft: C.coralSoft, label: t('hs_photo'), go: () => setComposing('story') },
-                      { key: 'write', icon: 'create', tint: C.purple, soft: C.purpleSoft, label: t('hs_write'), go: () => setComposing('post') },
-                      { key: 'people', icon: 'people', tint: C.green, soft: C.greenSoft, label: t('hs_find_people'), go: () => setSearching(true) },
-                    ].map((a, i) => (
-                      <Rise key={a.key} delay={90 + i * 70}>
-                        <Tap onPress={() => { tapLight(); a.go(); }}>
-                          <View style={{
-                            flexDirection: 'row', alignItems: 'center',
-                            backgroundColor: C.glass, borderWidth: 1, borderColor: C.line,
-                            borderRadius: 18, padding: 12, marginBottom: 8,
-                          }}>
-                            <View style={{ width: 44, height: 44, borderRadius: 15, backgroundColor: a.soft, alignItems: 'center', justifyContent: 'center' }}>
-                              <Ionicons name={a.icon} size={21} color={a.tint} />
-                            </View>
-                            <Text style={{ flex: 1, color: C.text, fontSize: 15.5, fontWeight: '800', marginLeft: 13 }}>{a.label}</Text>
-                            <Ionicons name={rtl ? 'chevron-back' : 'chevron-forward'} size={18} color={C.faint} />
-                          </View>
-                        </Tap>
-                      </Rise>
-                    ))}
-                  </View>
-                )}
-              </View>
-            </Rise>
-            )
+            <View style={{ alignItems: 'center', paddingVertical: 60, paddingHorizontal: 30 }}>
+              <Text style={{ fontSize: 34 }}>{loadError ? '📡' : '✨'}</Text>
+              <Text style={{ color: C.text, fontSize: 15.5, fontWeight: '800', marginTop: 10, textAlign: 'center' }}>
+                {loadError ? t('couldnt_load_moments') : t('no_moments_yet')}
+              </Text>
+              <Text style={{ color: C.faint, fontSize: 12.5, marginTop: 6, textAlign: 'center', lineHeight: 18 }}>
+                {loadError
+                  ? t(loadError === 'setup' ? 'load_err_setup'
+                    : loadError === 'permission' ? 'load_err_permission'
+                    : 'load_err_offline')
+                  : t('share_first_moment_hint')}
+              </Text>
+            </View>
           ) : null
         }
       />
