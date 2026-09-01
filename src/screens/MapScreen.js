@@ -38,7 +38,11 @@ import { CampfirePin, MePin, PersonPin, SOSButton } from '../components/MapPins'
 import { Micro } from '../components/Micro';
 import { NeonButton } from '../components/NeonButton';
 import { TravelSheet } from '../components/TravelSheet';
+import { ROOM_CODES } from '../constants/countryRoomIndex';
 import { LandingSheet } from '../components/LandingSheet';
+/* The country room — what to say, what to eat and what nobody writes
+   down, for the country this place is in. Lazy: its content is 75 KB
+   and most sessions never open it. */
 import { euCode, cityOf } from '../services/landing';
 import { tapLight, tapMedium, tapSelection, tapSuccess, tapCelebrate } from '../utils/feedback';
 // aliased: this screen already has its own `note`, which is a toast
@@ -49,6 +53,7 @@ import { setupNotice } from '../lib/plumbing';
 /* Fetched when it is opened, not when the app starts. */
 import { lazyOverlay } from '../lib/lazyScreen';
 const ProfileModal = lazyOverlay(() => import('../components/ProfileModal').then((m) => ({ default: m.ProfileModal })));
+const CountrySheet = lazyOverlay(() => import('../components/CountrySheet').then((mod) => ({ default: mod.CountrySheet })));
 
 /* Which pins belong to each lens. `all` keeps everything; the rest are
    deliberately narrow, because the point of a lens is that the map goes
@@ -100,6 +105,7 @@ export const MapScreen = () => {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { lang, t } = useLang();
+  const [countryRoom, setCountryRoom] = useState(null);   // an ISO code, or null
   const { isDark } = useTheme();
   const [profileUser, setProfileUser] = useState(null);
   const [sos, setSos] = useState(null); // null | 'ask' | 'sent'
@@ -1892,6 +1898,29 @@ export const MapScreen = () => {
                 </Pressable>
               ) : null}
 
+              {/* ── AND BEFORE EITHER OF THOSE ───────────────────────
+                  Whether you are visiting for four days or moving for
+                  four years, the same twelve sentences and the same
+                  three customs are what make the first week easier.
+                  Only offered for a country the room actually covers —
+                  an empty room is worse than no row. */}
+              {ROOM_CODES.has(destOpen.country) ? (
+                <Pressable onPress={() => { tapLight(); const d = destOpen; setDestOpen(null); setCountryRoom(ROOM_CODES.get(d.country)); }}>
+                  <View style={{
+                    flexDirection: 'row', alignItems: 'center', marginTop: 10,
+                    backgroundColor: C.glass, borderWidth: 1, borderColor: C.line,
+                    borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14,
+                  }}>
+                    <Text style={{ fontSize: 20, marginRight: 10 }}>🗣️</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: C.text, fontSize: 14, fontWeight: '900' }}>{t('country_title')}</Text>
+                      <Text style={{ color: C.faint, fontSize: 11, marginTop: 1 }} numberOfLines={1}>{t('country_sub')}</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color={C.faint} />
+                  </View>
+                </Pressable>
+              ) : null}
+
               {/* get there — Uber for nearby spots, Book Trip when it's far */}
               {(() => {
                 const km = located ? kmBetween(myCoords, { latitude: destOpen.lat, longitude: destOpen.lng }) : null;
@@ -2078,6 +2107,7 @@ export const MapScreen = () => {
       {profileUser ? <ProfileModal user={profileUser} onClose={() => setProfileUser(null)} /> : null}
       {bookingVenue ? <BookingSheet venue={bookingVenue} onClose={() => { setBooked((x) => ({ ...x, [bookingVenue.id]: true })); setBookingVenue(null); }} /> : null}
       {travelTo ? <TravelSheet city={travelTo} onClose={() => setTravelTo(null)} /> : null}
+      {countryRoom ? <CountrySheet startCode={countryRoom} onClose={() => setCountryRoom(null)} /> : null}
       {landingAt ? (
         <LandingSheet
           country={landingAt.country} city={landingAt.city} place={landingAt.place}

@@ -64,6 +64,12 @@ jobs:
       # survived for months. It is one pure function now.
       - name: Check a long video is allowed to be long
         run: node scripts/check-video-plan.mjs
+      # The country room is content, and content rots differently from
+      # code: a country added in a hurry with eight phrases and no
+      # customs crashes nothing, it just quietly becomes the thin,
+      # half-finished thing that stops somebody trusting the app.
+      - name: Check every country room is complete
+        run: node scripts/check-country-room.mjs
       # Every place, note and country name we know about used to be a
       # live DOM node on the map at all times — 328 of them, on screen
       # or not. Leaflet rewrites a transform on each one when you pinch,

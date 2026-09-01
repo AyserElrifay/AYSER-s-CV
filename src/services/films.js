@@ -12,9 +12,13 @@ import { withAffiliate } from './broker';
 
 export const FILM_GENRES = ['All', 'Trending', 'Drama', 'Comedy', 'Action', 'Science Fiction', 'Animation', 'Romance', 'Horror'];
 
-export async function fetchFilms({ genre, arabic, limit = 40 } = {}) {
+export async function fetchFilms({ genre, arabic, language, limit = 40 } = {}) {
   let q = supabase.from('films').select('*').limit(limit);
-  if (arabic) q = q.eq('language', 'ar');
+  /* The country room asks for one language at a time. It is the same
+     column `arabic` already used — named properly so a caller can ask
+     for Greek without a boolean per language being added here. */
+  if (language) q = q.eq('language', language);
+  else if (arabic) q = q.eq('language', 'ar');
   if (genre && genre !== 'All' && genre !== 'Trending') q = q.contains('genres', [genre]);
   const { data, error } = await q.order('popularity', { ascending: false, nullsFirst: false });
   if (error) throw error;

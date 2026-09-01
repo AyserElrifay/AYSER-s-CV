@@ -40,6 +40,10 @@ const TowerClimb = lazyOverlay(() => import('../components/TowerClimb').then((m)
 const StreetHop = lazyOverlay(() => import('../components/StreetHop').then((m) => ({ default: m.StreetHop })));
 const CaptureModal = lazyOverlay(() => import('../components/CaptureModal').then((m) => ({ default: m.CaptureModal })));
 const CommentsSheet = lazyOverlay(() => import('../components/CommentsSheet').then((m) => ({ default: m.CommentsSheet })));
+/* The country room carries every phrase, dish and custom for thirteen
+   countries — 75 KB that has no business being in the download somebody
+   waits through to see the feed. It arrives when the room is opened. */
+const CountrySheet = lazyOverlay(() => import('../components/CountrySheet').then((m) => ({ default: m.CountrySheet })));
 
 /* ────────────── TAB 4 · CHILL — WATCH & UNWIND ──────────────
    Long-form videos (YouTube-style, real uploads of type 'vod') up top,
@@ -122,6 +126,7 @@ export const ChillScreen = () => {
      nobody knew the app kept any heritage at all. See
      components/CultureSheet.js. */
   const [cultureOpen, setCultureOpen] = useState(false);
+  const [countryOpen, setCountryOpen] = useState(false);
   const { t } = useLang();
 
   // Every real, playable game — surfaced here so they're actually findable
@@ -244,6 +249,7 @@ export const ChillScreen = () => {
       {[
         { key: 'green', icon: 'leaf', tint: C.green, title: t('green_title'), sub: t('green_tagline'), go: () => setGreenOpen(true) },
         { key: 'culture', icon: 'business', tint: C.gold, title: t('culture_title'), sub: t('culture_sub'), go: () => setCultureOpen(true) },
+        { key: 'country', icon: 'globe-outline', tint: C.purple, title: t('country_title'), sub: t('country_sub'), go: () => setCountryOpen(true) },
       ].map((row) => (
         <Pressable key={row.key} onPress={() => { tapLight(); sfxPop(); row.go(); }}>
           <View style={{
@@ -581,6 +587,7 @@ export const ChillScreen = () => {
         sheets stacked with the back button between them. */}
     {lammaOpen ? <GameHub onClose={() => { setLammaOpen(false); setFocusPack(null); }} focusPack={focusPack} /> : null}
     {cultureOpen ? <CultureSheet onClose={() => setCultureOpen(false)} /> : null}
+    {countryOpen ? <CountrySheet onClose={() => setCountryOpen(false)} /> : null}
     {greenOpen ? (
       <GreenSheet
         onClose={() => setGreenOpen(false)}
