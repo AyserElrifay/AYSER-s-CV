@@ -124,6 +124,9 @@ function injectMapStyle() {
     .mm-z-far .mm-region-minor { display: none; }
     /* notes & campfires are street-level things — hidden when zoomed
        out so a popular area never turns into a wall of bubbles */
+    /* same inline-display trap as the places above: the rule below
+       cannot hide something the element sets on itself */
+    .mm-note { display: flex; }
     .mm-z-far .mm-note { display: none; }
 
     /* ── CARTOON GLOBE (zoomed all the way out) ──
@@ -195,7 +198,21 @@ function injectMapStyle() {
        you're zoomed out — small and label-free — so the world stays
        calm. Every other place stays hidden until you zoom hard into a
        city, where all of them appear in full with their names. */
-    .mm-dest { transform-origin: center bottom; transition: transform 0.2s ease; }
+    /* ── THE RULE THAT WAS NEVER ACTUALLY APPLIED ──────────────────
+       Every one of these was written inline as display:flex on the
+       element itself, and an inline style beats a stylesheet. So the
+       line below — hide the minor places until you have zoomed into a
+       city — lost every time, and all ~90 places showed their names at
+       every zoom from the continent view inwards. Five overlapping
+       white labels on top of one another over Romania is what Ayser
+       saw and called "معقد… كتبات كتيره… زحمة", and he was describing a
+       stylesheet that had no effect.
+
+       The display rule now lives here, where it can be reasoned
+       about — and note that a backtick inside this comment would end
+       the template literal the whole stylesheet is written in, which
+       is how the first attempt at this failed to build. */
+    .mm-dest { display: flex; transform-origin: center bottom; transition: transform 0.2s ease; }
     .mm-dest:not(.mm-dest-hero) { display: none; }        /* minors: hidden until city zoom */
     .mm-dest-hero { transform: scale(0.68); }             /* hero: small */
     .mm-dest-hero .mm-pill { display: none; }             /* hero: no label yet */
@@ -268,7 +285,7 @@ const pinHtml = (m) => {
       ? '<img src="' + m.media + '" style="width:100%;height:100%;object-fit:cover;display:block"/>'
       : '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:19px;background:#7C3AED">💬</div>';
     return (
-      '<div class="mm-float mm-note" style="position:relative;width:62px;height:74px;display:flex;flex-direction:column;align-items:center">' +
+      '<div class="mm-float mm-note" style="position:relative;width:62px;height:74px;flex-direction:column;align-items:center">' +
       '<div style="width:52px;height:52px;border-radius:16px;overflow:hidden;border:3px solid ' + ring +
       ';box-shadow:0 4px 12px rgba(0,0,0,0.35)' + (live ? ',0 0 0 2px rgba(124,58,237,0.35)' : '') + '">' + inner + '</div>' +
       (live ? '<div style="position:absolute;top:-6px;right:2px;background:#7C3AED;color:#fff;font:800 8px system-ui;padding:2px 5px;border-radius:999px;border:1.5px solid #fff">LIVE</div>' : '') +
@@ -281,7 +298,7 @@ const pinHtml = (m) => {
   // + name pill. Emoji-free keeps the map calm and uncluttered.
   if (m.kind === 'dest') {
     return (
-      '<div class="mm-dest' + (m.hero ? ' mm-dest-hero' : '') + '" style="position:relative;width:88px;height:44px;display:flex;flex-direction:column;align-items:center">' +
+      '<div class="mm-dest' + (m.hero ? ' mm-dest-hero' : '') + '" style="position:relative;width:88px;height:44px;flex-direction:column;align-items:center">' +
       '<div style="width:16px;height:16px;border-radius:50% 50% 50% 2px;transform:rotate(45deg);background:#F5B301;border:2px solid #fff;box-shadow:0 2px 5px rgba(0,0,0,0.25)"></div>' +
       '<div class="mm-pill" style="margin-top:5px">' + esc(m.label) + '</div>' +
       '</div>'
@@ -292,7 +309,7 @@ const pinHtml = (m) => {
   // bubble with the emoji, floats gently.
   if (m.kind === 'note') {
     return (
-      '<div class="mm-float mm-note" style="position:relative;width:40px;height:44px;display:flex;flex-direction:column;align-items:center">' +
+      '<div class="mm-float mm-note" style="position:relative;width:40px;height:44px;flex-direction:column;align-items:center">' +
       '<div style="width:30px;height:30px;border-radius:13px 13px 13px 3px;background:#7C3AED;display:flex;align-items:center;justify-content:center;font-size:15px;box-shadow:0 3px 8px rgba(124,58,237,0.4)">💬</div>' +
       '</div>'
     );

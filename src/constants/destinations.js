@@ -236,16 +236,24 @@ export const DESTINATIONS = [
 
   // ── 🕊️ THE HOLY LAND · الأرض المقدسة — heritage sacred to three
   //    faiths, grouped by its shared name (the owner's peaceful choice) ──
+  //
+  //    Three of these — Bethlehem, Jericho, Battir — are deliberately
+  //    also in the Palestine block above, and both listings are wanted.
+  //    What was not wanted is that they carried the SAME id, so the two
+  //    entries were one thing as far as any keyed list, marker or
+  //    review lookup was concerned: reviews left on one appeared on the
+  //    other. The hl_ prefix makes them two entries, as they always
+  //    were meant to be.
   { id: 'hl_jerusalem', hero: true, country: 'الأرض المقدسة · Holy Land', flag: '🕊️', emoji: '✨', name: 'Old City of Jerusalem', area: 'Jerusalem',
     lat: 31.7767, lng: 35.2323, tags: ['Faith', 'Culture'],
     desc: 'Al-Aqsa Mosque — the first qibla — the Church of the Holy Sepulchre and the Western Wall, all inside one square kilometre of walled stone lanes. Sacred to three faiths; there is nowhere else like it on Earth.' },
-  { id: 'ps_bethlehem', country: 'الأرض المقدسة · Holy Land', flag: '🕊️', emoji: '⛪', name: 'Bethlehem Old City', area: 'Bethlehem',
+  { id: 'hl_bethlehem', country: 'الأرض المقدسة · Holy Land', flag: '🕊️', emoji: '⛪', name: 'Bethlehem Old City', area: 'Bethlehem',
     lat: 31.7054, lng: 35.2024, tags: ['Culture', 'History'],
     desc: 'The Church of the Nativity and stone alleys layered with two thousand years of story. Craft workshops, olive-wood carvers, and a market that has never stopped.' },
-  { id: 'ps_jericho', country: 'الأرض المقدسة · Holy Land', flag: '🕊️', emoji: '🏜️', name: 'Jericho & Mount of Temptation', area: 'Jordan Valley',
+  { id: 'hl_jericho', country: 'الأرض المقدسة · Holy Land', flag: '🕊️', emoji: '🏜️', name: 'Jericho & Mount of Temptation', area: 'Jordan Valley',
     lat: 31.8611, lng: 35.4444, tags: ['Hiking', 'History'],
     desc: 'One of the oldest cities on Earth, below sea level in the Jordan Valley. Cable car or hike up to the cliff monastery for the full valley panorama.' },
-  { id: 'ps_battir', country: 'الأرض المقدسة · Holy Land', flag: '🕊️', emoji: '🌿', name: 'Battir Terraces', area: 'near Bethlehem',
+  { id: 'hl_battir', country: 'الأرض المقدسة · Holy Land', flag: '🕊️', emoji: '🌿', name: 'Battir Terraces', area: 'near Bethlehem',
     lat: 31.7275, lng: 35.1364, tags: ['Hiking', 'Culture'],
     desc: 'UNESCO-listed ancient irrigation terraces still farmed the same way after millennia. Green valley trails, spring water channels, and village hospitality.' },
   { id: 'ps_wadi_qelt', country: 'الأرض المقدسة · Holy Land', flag: '🕊️', emoji: '🏞️', name: 'Wadi Qelt · St. George Monastery', area: 'Jericho desert',
@@ -294,4 +302,219 @@ export const DESTINATIONS = [
   { id: 'lk_ella', hero: true, country: 'Sri Lanka', flag: '🇱🇰', emoji: '🚂', name: 'Ella · Nine Arches', area: 'Sri Lanka',
     lat: 6.8770, lng: 81.0610, tags: ['Hiking', 'Wellbeing'],
     desc: 'Tea-plantation trails (Little Adam\'s Peak) and the train crossing the Nine Arches Bridge through jungle — a classic cinematic moment. Travelers from everywhere, energy for days.' },
+
+  /* ── 🇪🇺 THE REST OF EUROPE, AND MORE OF MOROCCO ────────────────────
+     Ayser: "زود بقيت امكن في اوربا اثينا مغرب".
+
+     Europe was seven places in Spain, six in Romania, five in France
+     and one in Italy — a map of a continent with twenty-odd countries
+     missing from it, which is a poor showing for an app applying to
+     live there. Every entry below sits at its real coordinates, and
+     `area` is the CITY wherever there is one, because that is the key
+     the arrival guide is filed under: land at the Acropolis and the
+     first thirty days you are offered are Athens's.                  */
+
+  // ── 🇬🇷 GREECE ──
+  { id: 'gr_acropolis', hero: true, country: 'Greece', flag: '🇬🇷', emoji: '🏛️', name: 'The Acropolis', area: 'Athens',
+    lat: 37.9715, lng: 23.7257, tags: ['Culture', 'Heritage'],
+    desc: 'The Parthenon on its limestone hill, above a city that has been living underneath it for two and a half thousand years. Go at opening or an hour before closing — the light is better and the crowd is thinner.' },
+  { id: 'gr_plaka', country: 'Greece', flag: '🇬🇷', emoji: '🏘️', name: 'Plaka', area: 'Athens',
+    lat: 37.9725, lng: 23.7300, tags: ['Culture', 'Food'],
+    desc: 'The old quarter under the Acropolis: stepped lanes, tavernas and bougainvillea, and the only part of central Athens that is genuinely made for walking.' },
+  { id: 'gr_meteora', country: 'Greece', flag: '🇬🇷', emoji: '⛰️', name: 'Meteora', area: 'Kalabaka',
+    lat: 39.7217, lng: 21.6306, tags: ['Heritage', 'Hiking'],
+    desc: 'Monasteries built on top of sandstone pillars hundreds of metres above the plain. A UNESCO site you can walk between on footpaths rather than the road.' },
+  { id: 'gr_santorini', country: 'Greece', flag: '🇬🇷', emoji: '🌅', name: 'Oia', area: 'Santorini',
+    lat: 36.4618, lng: 25.3753, tags: ['Photo', 'Sunset'],
+    desc: 'White houses down the rim of a flooded volcanic caldera. Famous for the sunset, and famous for how many people come for it — the walk from Fira is the better half of the day.' },
+  { id: 'gr_delphi', country: 'Greece', flag: '🇬🇷', emoji: '🏺', name: 'Delphi', area: 'Delphi',
+    lat: 38.4824, lng: 22.5010, tags: ['Culture', 'Heritage'],
+    desc: 'The oracle the ancient world came to ask, on the slope of Mount Parnassus. The stadium at the top of the site is usually empty and is worth the climb.' },
+
+  // ── 🇮🇹 ITALY ──
+  { id: 'it_colosseum', country: 'Italy', flag: '🇮🇹', emoji: '🏟️', name: 'The Colosseum', area: 'Rome',
+    lat: 41.8902, lng: 12.4922, tags: ['Culture', 'Heritage'],
+    desc: 'Fifty thousand people fitted in here, and the engineering that moved them still shows in the arches. The Forum next door is included on the same ticket and is where the city actually ran.' },
+  { id: 'it_venice', country: 'Italy', flag: '🇮🇹', emoji: '🛶', name: 'Rialto & the Grand Canal', area: 'Venice',
+    lat: 45.4380, lng: 12.3358, tags: ['Culture', 'Photo'],
+    desc: 'A city with no roads. The vaporetto down the Grand Canal costs a fraction of a gondola and shows you the same palaces from the water.' },
+  { id: 'it_florence', country: 'Italy', flag: '🇮🇹', emoji: '🎨', name: 'The Duomo', area: 'Florence',
+    lat: 43.7731, lng: 11.2560, tags: ['Culture', 'Heritage'],
+    desc: 'Brunelleschi built the dome without a supporting frame and nobody has fully explained how. Climbing inside it is a different experience from looking at it.' },
+  { id: 'it_positano', country: 'Italy', flag: '🇮🇹', emoji: '🍋', name: 'Positano', area: 'Amalfi Coast',
+    lat: 40.6281, lng: 14.4850, tags: ['Photo', 'Swim'],
+    desc: 'A town poured down a cliff into the sea. The Path of the Gods above it is the walk people come back for, and it is free.' },
+  { id: 'it_cinque', country: 'Italy', flag: '🇮🇹', emoji: '🏘️', name: 'Vernazza', area: 'Cinque Terre',
+    lat: 44.1354, lng: 9.6845, tags: ['Hiking', 'Swim'],
+    desc: 'One of five fishing villages linked by coastal footpaths and a train that stops at each. The trail between them is the point; the train is there when your legs are done.' },
+
+  // ── 🇵🇹 PORTUGAL ──
+  { id: 'pt_alfama', hero: true, country: 'Portugal', flag: '🇵🇹', emoji: '🎶', name: 'Alfama', area: 'Lisbon',
+    lat: 38.7139, lng: -9.1300, tags: ['Culture', 'Food'],
+    desc: 'The oldest quarter, and the one the 1755 earthquake left standing. Steep lanes, viewpoints, and fado coming out of doorways in the evening.' },
+  { id: 'pt_sintra', country: 'Portugal', flag: '🇵🇹', emoji: '🏰', name: 'Pena Palace', area: 'Sintra',
+    lat: 38.7876, lng: -9.3906, tags: ['Heritage', 'Photo'],
+    desc: 'A romanticist palace painted red and yellow on a hilltop in the forest, half an hour by train from Lisbon. Go early — the hill fills up by mid-morning.' },
+  { id: 'pt_porto', country: 'Portugal', flag: '🇵🇹', emoji: '🍷', name: 'Ribeira', area: 'Porto',
+    lat: 41.1408, lng: -8.6130, tags: ['Culture', 'Food'],
+    desc: 'Tiled houses stacked above the Douro, with the port cellars on the far bank. Cross the Dom Luís I bridge on the upper deck for the view everyone photographs.' },
+  { id: 'pt_benagil', country: 'Portugal', flag: '🇵🇹', emoji: '🌊', name: 'Benagil Cave', area: 'Algarve',
+    lat: 37.0855, lng: -8.4256, tags: ['Swim', 'Photo'],
+    desc: 'A sea cave with a hole in its roof and a beach inside it. Reachable by kayak or a small boat; the cliff walk above it is spectacular and costs nothing.' },
+
+  // ── 🇳🇱 NETHERLANDS ──
+  { id: 'nl_jordaan', hero: true, country: 'Netherlands', flag: '🇳🇱', emoji: '🚲', name: 'The Jordaan', area: 'Amsterdam',
+    lat: 52.3745, lng: 4.8836, tags: ['Culture', 'Food'],
+    desc: 'Canals, narrow houses and courtyards, best seen from a bicycle like everybody else. The canal ring is a UNESCO site and was dug in the seventeenth century.' },
+  { id: 'nl_kinderdijk', country: 'Netherlands', flag: '🇳🇱', emoji: '🌬️', name: 'Kinderdijk Windmills', area: 'Kinderdijk',
+    lat: 51.8839, lng: 4.6350, tags: ['Heritage', 'Photo'],
+    desc: 'Nineteen eighteenth-century windmills that kept a whole polder dry, still standing in a row. Flat, so the whole site is walkable or cyclable.' },
+
+  // ── 🇩🇪 GERMANY ──
+  { id: 'de_neuschwanstein', hero: true, country: 'Germany', flag: '🇩🇪', emoji: '🏰', name: 'Neuschwanstein', area: 'Schwangau',
+    lat: 47.5576, lng: 10.7498, tags: ['Heritage', 'Photo'],
+    desc: 'The castle Ludwig II built and barely lived in, in the Bavarian Alps. The Marienbrücke bridge behind it is where the photograph comes from.' },
+  { id: 'de_eastside', country: 'Germany', flag: '🇩🇪', emoji: '🎨', name: 'East Side Gallery', area: 'Berlin',
+    lat: 52.5050, lng: 13.4394, tags: ['Culture', 'Photo'],
+    desc: 'The longest surviving stretch of the Berlin Wall, painted by artists from all over the world in 1990. Over a kilometre of it, along the Spree.' },
+  { id: 'de_bastei', country: 'Germany', flag: '🇩🇪', emoji: '🪨', name: 'Bastei Bridge', area: 'Saxon Switzerland',
+    lat: 50.9613, lng: 14.0736, tags: ['Hiking', 'Photo'],
+    desc: 'A stone bridge threaded between sandstone towers 190 metres above the Elbe. The national park around it has some of the best short hikes in the country.' },
+
+  // ── 🇨🇿 CZECHIA ──
+  { id: 'cz_charles', hero: true, country: 'Czechia', flag: '🇨🇿', emoji: '🌉', name: 'Charles Bridge', area: 'Prague',
+    lat: 50.0865, lng: 14.4114, tags: ['Culture', 'Heritage'],
+    desc: 'Begun in 1357, lined with baroque statues, and completely different at six in the morning than at midday. The castle side is where the good views are.' },
+  { id: 'cz_krumlov', country: 'Czechia', flag: '🇨🇿', emoji: '🏘️', name: 'Český Krumlov', area: 'Český Krumlov',
+    lat: 48.8127, lng: 14.3175, tags: ['Heritage', 'Photo'],
+    desc: 'A medieval town wrapped in a loop of the Vltava, with a castle above it and a rafting route straight through the middle in summer.' },
+
+  // ── 🇵🇱 POLAND ──
+  { id: 'pl_krakow', hero: true, country: 'Poland', flag: '🇵🇱', emoji: '🏙️', name: 'Main Market Square', area: 'Kraków',
+    lat: 50.0619, lng: 19.9370, tags: ['Culture', 'Food'],
+    desc: 'One of the largest medieval squares in Europe, and still the middle of the city rather than a museum of one. The Wawel castle and the Jewish quarter are both a short walk.' },
+  { id: 'pl_morskie', country: 'Poland', flag: '🇵🇱', emoji: '🏔️', name: 'Morskie Oko', area: 'Zakopane',
+    lat: 49.2015, lng: 20.0713, tags: ['Hiking', 'Photo'],
+    desc: 'A glacial lake in the Tatras, reached by a nine-kilometre walk up a closed road. Busy in the afternoon, quiet if you start at dawn.' },
+  { id: 'pl_gdansk', country: 'Poland', flag: '🇵🇱', emoji: '⚓', name: 'Long Market', area: 'Gdańsk',
+    lat: 54.3489, lng: 18.6533, tags: ['Culture', 'Heritage'],
+    desc: 'A Baltic merchant city rebuilt after the war from its own paintings and plans. The Solidarity museum at the shipyard is the other half of the story.' },
+
+  // ── 🇭🇷 CROATIA ──
+  { id: 'hr_dubrovnik', hero: true, country: 'Croatia', flag: '🇭🇷', emoji: '🧱', name: 'Dubrovnik Old Town', area: 'Dubrovnik',
+    lat: 42.6407, lng: 18.1077, tags: ['Heritage', 'Swim'],
+    desc: 'A walled city on the Adriatic you can walk the full circuit of, two kilometres of rampart above the roofs. Swim off the rocks outside the west wall afterwards.' },
+  { id: 'hr_plitvice', country: 'Croatia', flag: '🇭🇷', emoji: '💧', name: 'Plitvice Lakes', area: 'Plitvice',
+    lat: 44.8654, lng: 15.5820, tags: ['Hiking', 'Photo'],
+    desc: 'Sixteen terraced lakes falling into one another over travertine, crossed on wooden walkways. A UNESCO site; swimming is not allowed anywhere in it.' },
+  { id: 'hr_split', country: 'Croatia', flag: '🇭🇷', emoji: '🏛️', name: 'Diocletian\'s Palace', area: 'Split',
+    lat: 43.5081, lng: 16.4402, tags: ['Heritage', 'Food'],
+    desc: 'A Roman emperor\'s retirement palace that a whole town moved into and never left — the streets inside it are still lived in and full of bars.' },
+
+  // ── 🇦🇹 AUSTRIA ──
+  { id: 'at_hallstatt', hero: true, country: 'Austria', flag: '🇦🇹', emoji: '🏔️', name: 'Hallstatt', area: 'Hallstatt',
+    lat: 47.5622, lng: 13.6493, tags: ['Photo', 'Heritage'],
+    desc: 'A village on a lake under the Dachstein, with a salt mine above it that has been worked for three thousand years. Very small, and it knows it — come outside the middle of the day.' },
+  { id: 'at_schonbrunn', country: 'Austria', flag: '🇦🇹', emoji: '🏰', name: 'Schönbrunn', area: 'Vienna',
+    lat: 48.1858, lng: 16.3122, tags: ['Heritage', 'Culture'],
+    desc: 'The Habsburgs\' summer palace and its gardens. The Gloriette at the top of the hill is free to walk to and gives you the whole city.' },
+
+  // ── 🇭🇺 HUNGARY ──
+  { id: 'hu_parliament', hero: true, country: 'Hungary', flag: '🇭🇺', emoji: '🏛️', name: 'The Parliament', area: 'Budapest',
+    lat: 47.5072, lng: 19.0458, tags: ['Heritage', 'Photo'],
+    desc: 'A neo-gothic building on the Danube with 691 rooms. Best seen from the Buda side at night, when the whole river front is lit.' },
+  { id: 'hu_szechenyi', country: 'Hungary', flag: '🇭🇺', emoji: '♨️', name: 'Széchenyi Baths', area: 'Budapest',
+    lat: 47.5188, lng: 19.0827, tags: ['Wellbeing', 'Culture'],
+    desc: 'Thermal water at 38°C in an outdoor neo-baroque pool, in a city built on hot springs. Locals play chess in it. Bring flip-flops.' },
+  { id: 'hu_balaton', country: 'Hungary', flag: '🇭🇺', emoji: '⛵', name: 'Tihany', area: 'Lake Balaton',
+    lat: 46.9137, lng: 17.8894, tags: ['Swim', 'Photo'],
+    desc: 'A peninsula of lavender fields and an abbey above the largest lake in central Europe. The water is shallow and warm all summer.' },
+
+  // ── 🇱🇹 LITHUANIA ──
+  { id: 'lt_vilnius', hero: true, country: 'Lithuania', flag: '🇱🇹', emoji: '🏘️', name: 'Vilnius Old Town', area: 'Vilnius',
+    lat: 54.6800, lng: 25.2870, tags: ['Culture', 'Heritage'],
+    desc: 'One of the largest surviving medieval old towns in northern Europe, and a genuinely cheap city to spend a week in. Užupis, the self-declared republic across the river, is ten minutes away.' },
+  { id: 'lt_trakai', country: 'Lithuania', flag: '🇱🇹', emoji: '🏰', name: 'Trakai Island Castle', area: 'Trakai',
+    lat: 54.6522, lng: 24.9330, tags: ['Heritage', 'Photo'],
+    desc: 'A red-brick castle on an island in a lake, half an hour from Vilnius by train. Rent a kayak and look at it from the water.' },
+  { id: 'lt_nida', country: 'Lithuania', flag: '🇱🇹', emoji: '🏜️', name: 'Curonian Spit', area: 'Nida',
+    lat: 55.3033, lng: 21.0058, tags: ['Photo', 'Swim'],
+    desc: 'A ninety-eight-kilometre sand bar between a lagoon and the Baltic, with dunes tall enough to be called mountains locally. A UNESCO site shared with Russia.' },
+  { id: 'lt_crosses', country: 'Lithuania', flag: '🇱🇹', emoji: '✝️', name: 'Hill of Crosses', area: 'Šiauliai',
+    lat: 56.0153, lng: 23.4167, tags: ['Heritage', 'Culture'],
+    desc: 'A small hill covered in more than a hundred thousand crosses left by pilgrims. Bulldozed three times under Soviet rule and rebuilt each time overnight.' },
+
+  // ── 🇪🇪 ESTONIA ──
+  { id: 'ee_tallinn', hero: true, country: 'Estonia', flag: '🇪🇪', emoji: '🏰', name: 'Tallinn Old Town', area: 'Tallinn',
+    lat: 59.4370, lng: 24.7454, tags: ['Culture', 'Heritage'],
+    desc: 'A walled Hanseatic town that came through the war nearly intact, wrapped around a limestone hill. The whole country is famously online — the wifi in the medieval café will be better than yours.' },
+  { id: 'ee_lahemaa', country: 'Estonia', flag: '🇪🇪', emoji: '🌲', name: 'Lahemaa National Park', area: 'Lahemaa',
+    lat: 59.5333, lng: 25.8000, tags: ['Hiking', 'Photo'],
+    desc: 'Bog boardwalks, pine forest and a Baltic coastline of glacial boulders, an hour east of Tallinn. The Viru bog trail is short, flat and unlike anywhere else.' },
+  { id: 'ee_tartu', country: 'Estonia', flag: '🇪🇪', emoji: '🎓', name: 'Tartu', area: 'Tartu',
+    lat: 58.3780, lng: 26.7290, tags: ['Culture', 'Food'],
+    desc: 'The university town, and the reason Estonia has the student energy it does. Small, walkable, and cheaper than the capital.' },
+
+  // ── 🇨🇭 SWITZERLAND ──
+  { id: 'ch_lauterbrunnen', hero: true, country: 'Switzerland', flag: '🇨🇭', emoji: '💦', name: 'Lauterbrunnen', area: 'Lauterbrunnen',
+    lat: 46.5936, lng: 7.9086, tags: ['Hiking', 'Photo'],
+    desc: 'A valley with seventy-two waterfalls coming off vertical walls on both sides. Trains and cable cars go up from here into the whole Jungfrau region.' },
+  { id: 'ch_zermatt', country: 'Switzerland', flag: '🇨🇭', emoji: '🏔️', name: 'The Matterhorn', area: 'Zermatt',
+    lat: 45.9763, lng: 7.6586, tags: ['Hiking', 'Photo'],
+    desc: 'The mountain on the chocolate. Zermatt below it has no petrol cars, so you arrive by train and the town is quiet.' },
+
+  // ── 🇳🇴 NORWAY ──
+  { id: 'no_lofoten', hero: true, country: 'Norway', flag: '🇳🇴', emoji: '🎣', name: 'Reine', area: 'Lofoten',
+    lat: 67.9333, lng: 13.0833, tags: ['Photo', 'Hiking'],
+    desc: 'Red fishing huts under granite peaks, inside the Arctic Circle. Midnight sun in summer, northern lights in winter, and hikes straight from the village.' },
+  { id: 'no_geiranger', country: 'Norway', flag: '🇳🇴', emoji: '⛴️', name: 'Geirangerfjord', area: 'Geiranger',
+    lat: 62.1010, lng: 7.0053, tags: ['Photo', 'Heritage'],
+    desc: 'A UNESCO fjord with waterfalls falling straight into it from a kilometre up. The public ferry costs a fraction of the tourist cruise and takes the same route.' },
+
+  // ── 🇮🇸 ICELAND ──
+  { id: 'is_seljalandsfoss', hero: true, country: 'Iceland', flag: '🇮🇸', emoji: '💧', name: 'Seljalandsfoss', area: 'South Iceland',
+    lat: 63.6156, lng: -19.9886, tags: ['Photo', 'Hiking'],
+    desc: 'A sixty-metre waterfall with a path that goes behind the curtain of water. You will get wet; that is the whole idea.' },
+  { id: 'is_reynisfjara', country: 'Iceland', flag: '🇮🇸', emoji: '🖤', name: 'Reynisfjara', area: 'Vík',
+    lat: 63.4034, lng: -19.0448, tags: ['Photo'],
+    desc: 'A black sand beach with basalt columns and sea stacks. The waves here are genuinely dangerous — stay well back from the water, every year somebody does not.' },
+
+  // ── 🇸🇪 🇩🇰 🇫🇮 THE NORTH ──
+  { id: 'se_gamlastan', hero: true, country: 'Sweden', flag: '🇸🇪', emoji: '🏘️', name: 'Gamla Stan', area: 'Stockholm',
+    lat: 59.3251, lng: 18.0710, tags: ['Culture', 'Heritage'],
+    desc: 'The old town on its own island, one of the best preserved in Europe. Stockholm is spread over fourteen islands and the ferries between them are ordinary public transport.' },
+  { id: 'dk_nyhavn', hero: true, country: 'Denmark', flag: '🇩🇰', emoji: '⛵', name: 'Nyhavn', area: 'Copenhagen',
+    lat: 55.6799, lng: 12.5913, tags: ['Photo', 'Food'],
+    desc: 'The painted canal front, and the city that made cycling normal for everybody rather than for sport. Rent a bike on day one; it is faster than anything else here.' },
+  { id: 'fi_suomenlinna', hero: true, country: 'Finland', flag: '🇫🇮', emoji: '🏝️', name: 'Suomenlinna', area: 'Helsinki',
+    lat: 60.1454, lng: 24.9881, tags: ['Heritage', 'Hiking'],
+    desc: 'A sea fortress across six islands, reached by the ordinary commuter ferry from the market square. People live on it; it is a neighbourhood as much as a monument.' },
+
+  // ── 🇧🇪 BELGIUM · 🇮🇪 IRELAND ──
+  { id: 'be_bruges', hero: true, country: 'Belgium', flag: '🇧🇪', emoji: '🍫', name: 'Bruges', area: 'Bruges',
+    lat: 51.2085, lng: 3.2247, tags: ['Heritage', 'Food'],
+    desc: 'A medieval trading city that stopped growing when its river silted up, and so stayed as it was. Small enough to cross on foot in twenty minutes.' },
+  { id: 'ie_moher', hero: true, country: 'Ireland', flag: '🇮🇪', emoji: '🌊', name: 'Cliffs of Moher', area: 'County Clare',
+    lat: 52.9715, lng: -9.4309, tags: ['Photo', 'Hiking'],
+    desc: 'Fourteen kilometres of cliff up to 214 metres above the Atlantic. The coastal walk from Doolin arrives at them on foot and is the better way in.' },
+
+  // ── 🇲🇦 MOROCCO ──
+  { id: 'ma_jemaa', country: 'Morocco', flag: '🇲🇦', emoji: '🫖', name: 'Jemaa el-Fnaa', area: 'Marrakech',
+    lat: 31.6258, lng: -7.9891, tags: ['Culture', 'Food'],
+    desc: 'A square that is a market by day and an open-air kitchen with storytellers and musicians by night. UNESCO lists it for the performances, not the buildings.' },
+  { id: 'ma_fes', country: 'Morocco', flag: '🇲🇦', emoji: '🧵', name: 'Fes el-Bali', area: 'Fes',
+    lat: 34.0648, lng: -4.9739, tags: ['Culture', 'Heritage'],
+    desc: 'The largest car-free urban area in the world — nine thousand lanes, and donkeys still doing the deliveries. The tanneries have been working the same way since the eleventh century.' },
+  { id: 'ma_merzouga', country: 'Morocco', flag: '🇲🇦', emoji: '🐪', name: 'Erg Chebbi', area: 'Merzouga',
+    lat: 31.0996, lng: -4.0119, tags: ['Photo', 'Hiking'],
+    desc: 'Sahara dunes up to 150 metres high at the edge of the desert. Camps out in the sand are the reason to come; the sky at night is the reason people stay two.' },
+  { id: 'ma_ait', country: 'Morocco', flag: '🇲🇦', emoji: '🏜️', name: 'Aït Benhaddou', area: 'Ouarzazate',
+    lat: 31.0472, lng: -7.1318, tags: ['Heritage', 'Photo'],
+    desc: 'A fortified earthen village on the old caravan route to Marrakech, and a UNESCO site. You have seen it in films; it is smaller and more astonishing in person.' },
+  { id: 'ma_essaouira', country: 'Morocco', flag: '🇲🇦', emoji: '🪁', name: 'Essaouira', area: 'Essaouira',
+    lat: 31.5085, lng: -9.7595, tags: ['Swim', 'Food'],
+    desc: 'A walled Atlantic port with constant wind, which makes it hopeless for lying on the beach and excellent for kitesurfing. The fish is landed and grilled in the same hour.' },
+  { id: 'ma_todra', country: 'Morocco', flag: '🇲🇦', emoji: '🧗', name: 'Todra Gorge', area: 'Tinghir',
+    lat: 31.5897, lng: -5.5964, tags: ['Hiking', 'Photo'],
+    desc: 'A canyon three hundred metres deep and, at its narrowest, ten metres wide, with a road and a stream running through the bottom of it.' },
 ];

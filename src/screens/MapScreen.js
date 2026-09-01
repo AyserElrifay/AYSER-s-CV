@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { View, Text, ScrollView, Pressable, Modal, TextInput, Platform, Image, Linking } from 'react-native';
+import { View, Text, ScrollView, Pressable, Modal, TextInput, Platform, Image, Linking, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { C, DARK_MAP } from '../constants/theme';
@@ -932,7 +932,15 @@ export const MapScreen = () => {
 
         <Pressable onPress={() => { tapLight(); locateMe(); }} style={{ marginBottom: 10 }}>
           <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: C.floatSolid, borderWidth: 1, borderColor: located ? 'rgba(16,185,129,0.5)' : C.line, alignItems: 'center', justifyContent: 'center' }}>
-            <Ionicons name={locating ? 'ellipsis-horizontal' : 'locate'} size={21} color={located ? C.green : C.purple} />
+            {/* ── TWO BUTTONS, ONE GLYPH ────────────────────────────
+                While it was finding you this drew ⋯, and the button
+                directly under it — the tools menu — draws ⋯ too. Two
+                identical circles stacked on top of each other, one of
+                which does nothing while it is busy. A spinner says
+                "working" and cannot be mistaken for a menu. */}
+            {locating
+              ? <ActivityIndicator size="small" color={C.purple} />
+              : <Ionicons name="locate" size={21} color={located ? C.green : C.purple} />}
           </View>
         </Pressable>
         <Pressable testID="map-tools" onPress={() => { tapLight(); setTools((v) => !v); }}>
