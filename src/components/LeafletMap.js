@@ -385,6 +385,8 @@ export const LeafletMap = ({ center, markers = [], onPress, onMe, locate = true,
   const elRef = useRef(null);
   const mapRef = useRef(null);
   const layerRef = useRef(null);
+  const cullRef = useRef([]);
+  const cullFnRef = useRef(null);
   const meRef = useRef(null);
   const flownRef = useRef(false);
   /* Both tap handlers live in refs. Markers are only redrawn when the
@@ -580,6 +582,9 @@ export const LeafletMap = ({ center, markers = [], onPress, onMe, locate = true,
         if (globe3dRef.current) globe3dRef.current.setVisible(z < 4);
       };
       map.on('zoomend', applyZoomClasses);
+      const reCull = () => cullFnRef.current && cullFnRef.current();
+      map.on('zoomend', reCull);
+      map.on('moveend', reCull);
       applyZoomClasses();
       draw(L);
       setTimeout(() => map.invalidateSize(), 250);
@@ -602,9 +607,61 @@ export const LeafletMap = ({ center, markers = [], onPress, onMe, locate = true,
     tilesRef.current.setUrl(appDark ? DARK_TILES : LIGHT_TILES);
   }, [appDark]);
 
+  /* ── WHY THE MAP JERKED WHEN YOU PINCHED ──────────────────────────
+     Every single thing we know about was a live DOM node on the map at
+     all times — 328 of them, whether it was on screen or not, whether
+     the zoom rules were going to hide it or not. Leaflet has to write a
+     new transform to every marker it owns on a zoom, so a pinch meant
+     328 style writes and a relayout in one frame. Measured on a phone-
+     class CPU: panning was fine (median 16.7ms), but a zoom hit 133ms
+     and 150ms freezes with ten dropped frames.
+
+     So a marker now only exists on the map when it could actually be
+     seen: inside the view (with a quarter-screen margin, so panning
+     doesn't pop things in at the edge) AND allowed at this zoom by the
+     same tiering the stylesheet uses. The rules live in one place here
+     rather than being inferred from CSS. */
+  const showAt = (tier, z) => {
+    if (tier === 'country') return z >= 4 && z < 6;
+    /* a name the basemap never prints stays on at every zoom — that is
+       what mm-country-keep is for, and culling must not undo it */
+    if (tier === 'country-keep') return z >= 4;
+    /* a minor region name is hidden far out by mm-z-far and hidden close
+       in by mm-country: it has never been visible at any zoom */
+    if (tier === 'country-minor') return false;
+    if (tier === 'dest') return z >= 8;
+    if (tier === 'dest-hero') return z >= 4;
+    if (tier === 'note') return z >= 6;
+    /* people, moments, stories, events and trips are never hidden by
+       zoom — they are still culled by the view box above. */
+    if (tier === 'other') return true;
+    return true;
+  };
+  const cull = () => {
+    const map = mapRef.current;
+    const layer = layerRef.current;
+    if (!map || !layer) return;
+    const z = map.getZoom();
+    /* six tenths of a screen of margin on every side: Leaflet only tells
+       us the view settled at moveend, so a flick has to land inside the
+       margin or a pin would visibly pop in at the edge. */
+    const box = map.getBounds().pad(0.6);
+    cullRef.current.forEach((r) => {
+      const want = showAt(r.tier, z) && box.contains(r.ll);
+      if (want === r.on) return;
+      if (want) layer.addLayer(r.mk); else layer.removeLayer(r.mk);
+      r.on = want;
+    });
+  };
+  cullFnRef.current = cull;
+
   const draw = (L) => {
     if (!L || !layerRef.current) return;
     layerRef.current.clearLayers();
+    cullRef.current = [];
+    /* named `track`, not `keep`: the country loop below already has a
+       local `keep` holding a CSS class name, and it would shadow this. */
+    const track = (mk, tier) => { cullRef.current.push({ mk, ll: mk.getLatLng(), tier, on: false }); return mk; };
 
     // OUR OWN country names — every country the same way, in the app's
     // selected language (Arabic where we have it, else the Latin name).
@@ -646,7 +703,8 @@ export const LeafletMap = ({ center, markers = [], onPress, onMe, locate = true,
         html: '<div class="mm-country' + minor + keep + '">' + label + '</div>',
         className: '', iconSize: [200, 18], iconAnchor: [100, 9 + (NUDGE[c.n] || 0)],
       });
-      L.marker([pt[1], pt[0]], { icon, interactive: false, zIndexOffset: -100 }).addTo(layerRef.current);
+      track(L.marker([pt[1], pt[0]], { icon, interactive: false, zIndexOffset: -100 }),
+            KEEP.has(c.n) ? 'country-keep' : COUNTRY_MAJOR.has(c.n) ? 'country' : 'country-minor');
     });
 
     // your own live pin — only once your REAL location is known. Snap
@@ -708,10 +766,13 @@ export const LeafletMap = ({ center, markers = [], onPress, onMe, locate = true,
       });
       // a live story sits above everything else — it's the freshest thing there
       const z = m.kind === 'story' ? 700 : m.kind === 'moment' ? 600 : isPerson ? 500 : isDest ? 300 : 0;
-      const mk = L.marker([m.lat, m.lng], { icon, zIndexOffset: z }).addTo(layerRef.current);
+      const mk = L.marker([m.lat, m.lng], { icon, zIndexOffset: z });
       if (m.label && !isPerson && !isDest && !isShot && !isTrip) mk.bindTooltip(esc(m.label), { direction: 'top', offset: [0, -34] });
       mk.on('click', () => onPressRef.current && onPressRef.current(m));
+      track(mk, isDest ? (m.hero ? 'dest-hero' : 'dest') : isNote ? 'note' : 'other');
     });
+
+    cull();
   };
 
   // re-draw when data, language, or your own avatar/activity changes

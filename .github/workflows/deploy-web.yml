@@ -64,6 +64,14 @@ jobs:
       # survived for months. It is one pure function now.
       - name: Check a long video is allowed to be long
         run: node scripts/check-video-plan.mjs
+      # Every place, note and country name we know about used to be a
+      # live DOM node on the map at all times — 328 of them, on screen
+      # or not. Leaflet rewrites a transform on each one when you pinch,
+      # so a zoom dropped ten frames and froze for 150ms on a phone-
+      # class CPU. Markers are culled to the view now; a new one added
+      # straight to the layer would bring the stutter back silently.
+      - name: Check every map marker goes through the cull
+        run: node scripts/check-map-cull.mjs
       # `t` is the translator. Where a component already had a prop
       # called t — a track, a tag — calling t('key') binds to that
       # instead and throws the first time that branch renders. The build
