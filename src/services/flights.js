@@ -57,6 +57,12 @@ export const defaultDates = (from = new Date()) => {
 
 const q = (s) => encodeURIComponent(String(s || '').trim());
 
+/* Each row carries a noteKey for the sheet to translate, and keeps the
+   English note beside it. The English is not dead weight: t() answers
+   from English while another language is still being fetched, and on
+   the day the network is down these rows still say something true
+   rather than showing a key name to somebody planning a journey. */
+
 /* ── WHERE A SEARCH ACTUALLY GOES ──────────────────────────────────
    Three, because no single site is cheapest twice in a row and a
    traveller who finds that out on their own trusts the next thing we
@@ -76,6 +82,7 @@ export function flightSearches({ fromCity, toCity, fromCode, toCode, out, back }
     id: 'google',
     name: 'Google Flights',
     emoji: '🔎',
+    noteKey: 'travel_note_google_flights',
     note: 'Compares most airlines · shows the cheapest dates around yours',
     url: 'https://www.google.com/travel/flights?q=' +
       q('Flights to ' + d + (o ? ' from ' + o : '') + ' on ' + dates.out + ' through ' + dates.back),
@@ -85,6 +92,7 @@ export function flightSearches({ fromCity, toCity, fromCode, toCode, out, back }
     id: 'skyscanner',
     name: 'Skyscanner',
     emoji: '🛫',
+    noteKey: 'travel_note_skyscanner',
     note: 'Whole month view · often finds the cheapest day',
     url: 'https://www.skyscanner.net/transport/flights/' +
       q(o || 'anywhere').toLowerCase() + '/' + q(d).toLowerCase() + '/' +
@@ -95,6 +103,7 @@ export function flightSearches({ fromCity, toCity, fromCode, toCode, out, back }
     id: 'aviasales',
     name: 'Aviasales',
     emoji: '💸',
+    noteKey: 'travel_note_aviasales',
     note: 'Strong on routes into and out of the Middle East',
     url: 'https://www.aviasales.com/search?origin_name=' + q(o) + '&destination_name=' + q(d) +
       '&depart_date=' + dates.out + '&return_date=' + dates.back +
@@ -105,29 +114,70 @@ export function flightSearches({ fromCity, toCity, fromCode, toCode, out, back }
 }
 
 /* Somewhere to sleep, same rule and the same reason: a real search on
-   a real site, with the city and the dates already in it. */
-export function staySearches({ city, out, back }) {
+   a real site, with the city and the dates already in it.
+
+   ── HOSTEL OR HOTEL ───────────────────────────────────────────────
+   Ayser asked for the choice, and it is the right thing to ask for. A
+   nineteen-year-old going to Athens for four nights and a family going
+   to Athens for four nights are not looking for the same thing, and
+   one undifferentiated list of "places to sleep" serves neither of
+   them. Hostels are also the reason a young traveller can afford
+   Europe at all, so burying them under hotels is not neutral.
+
+   The choice is not decoration — it changes the search that opens.
+   Booking.com filters property type with nflt=ht_id: 203 is hostels,
+   204 is hotels. If that parameter ever changes shape, the link still
+   lands on the right city on the right dates and simply shows
+   everything — an unfiltered search is a failure we can live with,
+   which is why the filter rides on a link rather than on our own
+   copy of a list of hotels. */
+const BOOKING_TYPE = { hostels: 203, hotels: 204 };
+
+export function staySearches({ city, out, back, kind = 'any' }) {
   const dates = out && back ? { out, back } : defaultDates();
   if (!city) return [];
-  return [
-    {
-      id: 'booking',
-      name: 'Booking.com',
-      emoji: '🏨',
-      note: 'Hotels, flats and hostels · free cancellation on most',
-      url: 'https://www.booking.com/searchresults.html?ss=' + q(city) +
-        '&checkin=' + dates.out + '&checkout=' + dates.back +
-        (AFFILIATE.booking ? '&aid=' + q(AFFILIATE.booking) : ''),
-    },
-    {
-      id: 'hostelworld',
-      name: 'Hostelworld',
-      emoji: '🛏️',
-      note: 'Where a group of travellers usually ends up',
-      url: 'https://www.hostelworld.com/search?search_keywords=' + q(city) +
-        '&date_from=' + dates.out + '&date_to=' + dates.back,
-    },
-  ];
+  const type = BOOKING_TYPE[kind];
+
+  const booking = {
+    id: 'booking',
+    name: 'Booking.com',
+    emoji: kind === 'hostels' ? '🛏️' : '🏨',
+    noteKey: kind === 'hostels' ? 'stay_note_booking_hostels'
+      : kind === 'hotels' ? 'stay_note_booking_hotels' : 'stay_note_booking_any',
+    note: kind === 'hostels' ? 'Hostels only · free cancellation on most'
+      : kind === 'hotels' ? 'Hotels only · free cancellation on most'
+      : 'Hotels, flats and hostels · free cancellation on most',
+    url: 'https://www.booking.com/searchresults.html?ss=' + q(city) +
+      '&checkin=' + dates.out + '&checkout=' + dates.back +
+      (type ? '&nflt=' + q('ht_id=' + type) : '') +
+      (AFFILIATE.booking ? '&aid=' + q(AFFILIATE.booking) : ''),
+  };
+
+  const hostelworld = {
+    id: 'hostelworld',
+    name: 'Hostelworld',
+    emoji: '🎒',
+    noteKey: 'stay_note_hostelworld',
+    note: 'Hostels only · dorm beds and private rooms, and who else is staying',
+    url: 'https://www.hostelworld.com/search?search_keywords=' + q(city) +
+      '&date_from=' + dates.out + '&date_to=' + dates.back,
+  };
+
+  /* Google's plain search query is the stable way into its travel
+     results — the same reason Google Flights above is a q= and not a
+     hand-built scheme. */
+  const googleHotels = {
+    id: 'googlehotels',
+    name: 'Google Hotels',
+    emoji: '🔎',
+    noteKey: 'stay_note_google_hotels',
+    note: 'Compares the booking sites against each other',
+    url: 'https://www.google.com/travel/search?q=' + q('hotels in ' + city),
+  };
+
+  if (kind === 'hostels') return [hostelworld, booking];
+  if (kind === 'hotels') return [booking, googleHotels];
+  return [booking, hostelworld];
 }
 
 /* And a car, for the same reason again. */
@@ -139,6 +189,7 @@ export function carSearches({ city, out, back }) {
       id: 'discover',
       name: 'Discover Cars',
       emoji: '🚗',
+      noteKey: 'travel_note_discovercars',
       note: 'Compares the local desks as well as the big names',
       url: 'https://www.discovercars.com/search?pickup=' + q(city) +
         '&date_from=' + dates.out + '&date_to=' + dates.back,
