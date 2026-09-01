@@ -50,16 +50,20 @@ npm run build                 # the route suite runs against the real build
 npm test
 ```
 
-329 tests, about twelve seconds.
+411 tests, about twenty seconds.
 
 | Suite | What it holds down |
 |---|---|
-| `src/money/*.test.ts` | 205 tests. Every function, negative margins, zero-revenue deals, currency mismatches, three-decimal and zero-decimal currencies, amounts past 2^53, step snapping, the below-floor routing rule, cost drift, and a thousand generated splits plus a thousand generated payout periods that must each balance exactly. |
+| `src/money/*.test.ts` | 230 tests. Every function, negative margins, zero-revenue deals, currency mismatches, three-decimal and zero-decimal currencies, amounts past 2^53, step snapping, the below-floor routing rule, cost drift, and a thousand generated splits plus a thousand generated payout periods that must each balance exactly. |
 | `tests/structure.test.ts` | Every table has `org_id`, RLS **enabled and forced**, and a policy. The connection role owns nothing and cannot bypass RLS. No financial column is granted to a Member. |
 | `tests/isolation.test.ts` | Org A cannot read, join, subquery, update, delete or insert its way into Org B. Context does not survive its transaction. |
 | `tests/roles.test.ts` | A Member cannot select a financial column on any table. An account manager sees their own pipeline and cannot reassign a colleague's deal to themselves. |
 | `tests/immutability.test.ts` | The audit log refuses edits even from the table's owner. A closed deal's terms cannot move and it cannot be reopened. |
-| `src/server/service-catalog.test.ts` | Every seeded cost template totals inside its own service's range, every service still makes money at its own floor, and every cost line is named in both languages. |
+| `src/server/service-catalog.test.ts` | Both catalogues — MENA and Europe — held to one standard: every cost template totals inside its own service's range, every service still makes money at its own floor, every band is ordered, and every cost line is named in both languages. |
+| `src/money/tax.test.ts` | VAT in both directions. `net + vat` is exactly the gross that was handed in, at every rate and every rounding mode. A non-charging treatment stores no rate. Reclaimable tax is not a cost; unreclaimable tax is. |
+| `tests/vat.test.ts` | The Berlin case end to end: 60% margin, not the spreadsheet's 52.4%, and 600.00 of commission rather than 524.00. A closed deal's cost does not move when the agency changes its VAT registration. Open deals follow the agency default; deals set by hand and closed deals do not. |
+| `tests/onboarding.test.ts` | A German signup lands in euros on the European catalogue with Germany's rate offered and nothing registered on its behalf. An unknown or absent country still signs up, on the defaults. |
+| `src/i18n/dictionary.test.ts` | Every tax treatment is named and explained in both languages, and no two treatments share an explanation. |
 | `tests/costs.test.ts` | A Member can record a cost and cannot read one back — not even their own. An account manager sees costs on their own deals only. A cost cannot attach to another organisation's deal. |
 | `tests/payouts.test.ts` | A Partner sees their own statement and no one else's. Statements cannot be edited or deleted, including by the role that owns the table. A closed period cannot be reopened. Corrections require a reason. |
 | `tests/routes.test.ts` | The same isolation, over HTTP, against the production build, with real signed sessions — every route, every role. |

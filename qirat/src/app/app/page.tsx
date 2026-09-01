@@ -87,6 +87,7 @@ export default async function AppHome() {
                   healthyFromBp: settings.marginHealthyBp,
                   warningFromBp: settings.marginWarningBp,
                 }}
+                vat={{ registered: settings.vatRegistered, rateBp: settings.vatRateBp }}
               />
             ))
           )}

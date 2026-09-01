@@ -51,6 +51,7 @@ export async function signUpAction(_prev: FormState, data: FormData): Promise<Fo
       email,
       password,
       locale: text(data, 'locale') === 'ar' ? 'ar' : 'en',
+      country: text(data, 'country'),
     });
   } catch (error) {
     if (error instanceof SignupError) return { error: error.message, field: error.field };

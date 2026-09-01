@@ -21,6 +21,20 @@ export const CURRENCIES = {
   TND: { exponent: 3, name: 'Tunisian Dinar' },
   // Zero-decimal. A "piastre" of JPY does not exist.
   JPY: { exponent: 0, name: 'Japanese Yen' },
+
+  // Europe outside the euro, and the rest of the market. Appended in this
+  // order because a Postgres enum only grows at the end, and a test asserts
+  // this list and that enum are the same list.
+  CHF: { exponent: 2, name: 'Swiss Franc' },
+  SEK: { exponent: 2, name: 'Swedish Krona' },
+  NOK: { exponent: 2, name: 'Norwegian Krone' },
+  DKK: { exponent: 2, name: 'Danish Krone' },
+  PLN: { exponent: 2, name: 'Polish Złoty' },
+  CZK: { exponent: 2, name: 'Czech Koruna' },
+  HUF: { exponent: 2, name: 'Hungarian Forint' },
+  RON: { exponent: 2, name: 'Romanian Leu' },
+  TRY: { exponent: 2, name: 'Turkish Lira' },
+  MAD: { exponent: 2, name: 'Moroccan Dirham' },
 } as const;
 
 export type CurrencyCode = keyof typeof CURRENCIES;

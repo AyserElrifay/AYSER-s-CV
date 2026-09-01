@@ -9,6 +9,9 @@ import {
   type MarginBreakdown,
   type MarginSignal,
   type PriceBand,
+  type TaxTreatment,
+  type TaxedAmount,
+  applyVat,
   computeMargin,
   costPosition,
   marginSignal,
@@ -33,6 +36,11 @@ export interface OrgSettings {
   marginHealthyBp: number;
   marginWarningBp: number;
   costDriftAlertBp: number;
+  /** Decides whether a supplier's VAT is a cost or a loan. */
+  vatRegistered: boolean;
+  vatRateBp: number;
+  defaultTaxTreatment: TaxTreatment;
+  country: string | null;
 }
 
 export async function getOrgSettings(ctx: TenantContext): Promise<OrgSettings | null> {
@@ -47,6 +55,10 @@ export async function getOrgSettings(ctx: TenantContext): Promise<OrgSettings | 
         marginHealthyBp: organizations.marginHealthyBp,
         marginWarningBp: organizations.marginWarningBp,
         costDriftAlertBp: organizations.costDriftAlertBp,
+        vatRegistered: organizations.vatRegistered,
+        vatRateBp: organizations.vatRateBp,
+        defaultTaxTreatment: organizations.defaultTaxTreatment,
+        country: organizations.country,
       })
       .from(organizations)
       .limit(1),
@@ -87,6 +99,14 @@ export interface DealCardModel {
   /** Frozen deals are read-only. The slider does not appear on them. */
   isFrozen: boolean;
   /**
+   * The price with tax on it.
+   *
+   * `margin.revenue` is and stays the net — what the agency earns. This is what
+   * the client is invoiced, which is a different number and, under a reverse
+   * charge, the same one.
+   */
+  taxed: TaxedAmount;
+  /**
    * What was estimated against what has actually been spent. The margin above
    * is computed on `cost.effective`, so once spending passes the estimate the
    * card stops reporting a number the deal no longer has.
@@ -119,10 +139,20 @@ export async function getDealCards(
         agreedPriceMinor: deals.agreedPriceMinor,
         estimatedCostMinor: deals.estimatedCostMinor,
         frozenHouseRateBp: deals.frozenHouseRateBp,
+        taxTreatment: deals.taxTreatment,
+        vatRateBp: deals.vatRateBp,
+        frozenTaxTreatment: deals.frozenTaxTreatment,
+        frozenVatRateBp: deals.frozenVatRateBp,
         // Correlated, and evaluated under the caller's own policies on `costs`:
         // an account manager's totals cannot include a colleague's deal.
+        //
+        // `amount_minor` is what the cost cost. Reclaimable VAT was separated
+        // into `vat_minor` when the cost was entered and is not summed here:
+        // that money comes back, and counting it would understate every margin
+        // by the tax rate. Nothing about today's settings enters this sum.
         actualCostMinor: sql<string>`coalesce((
-          select sum(c.amount_minor) from costs c
+          select sum(c.amount_minor)
+          from costs c
           where c.deal_id = ${deals.id}
             and c.kind = 'actual'
             and c.currency = ${deals.currency}
@@ -198,6 +228,14 @@ export async function getDealCards(
       band,
       houseRateBp: houseRate,
       isFrozen: row.status === 'won',
+      // A closed deal keeps the treatment and rate it was invoiced under. VAT
+      // rates move by legislation, and a historical invoice must not move with
+      // them.
+      taxed: applyVat(
+        price,
+        row.frozenTaxTreatment ?? row.taxTreatment,
+        row.frozenVatRateBp ?? row.vatRateBp,
+      ),
       cost,
       costEntryCount: row.costEntryCount,
       unconvertedCostCount: row.unconvertedCostCount,

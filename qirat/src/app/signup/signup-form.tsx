@@ -2,12 +2,14 @@
 
 import { useActionState } from 'react';
 import { type FormState, signUpAction } from '@/app/actions/auth';
-import { TextField } from '@/components/field';
+import { SelectField, TextField } from '@/components/field';
+import { countriesFor } from '@/i18n/countries';
 import { type Locale, translator } from '@/i18n/dictionary';
 
 export function SignUpForm({ locale }: { locale: Locale }) {
   const t = translator(locale);
   const [state, action, pending] = useActionState<FormState, FormData>(signUpAction, {});
+  const countries = countriesFor(locale);
 
   return (
     <form action={action} className="space-y-4">
@@ -23,6 +25,13 @@ export function SignUpForm({ locale }: { locale: Locale }) {
         label={t('auth.yourName')}
         autoComplete="name"
         invalid={state.field === 'ownerName'}
+      />
+      <SelectField
+        name="country"
+        label={t('auth.country')}
+        hint={t('auth.countryHint')}
+        options={countries.map((country) => ({ value: country.code, label: country.name }))}
+        defaultValue={locale === 'ar' ? 'EG' : 'DE'}
       />
       <TextField
         name="email"

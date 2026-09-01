@@ -21,6 +21,7 @@ import { Figure } from './figure';
 export function CostStrip({
   dealId,
   cost,
+  vat,
   entryCount,
   unconvertedCount,
   locale,
@@ -28,6 +29,15 @@ export function CostStrip({
 }: {
   dealId: string;
   cost: CostPosition;
+  /**
+   * The agency's own tax position.
+   *
+   * The gross/net question is only asked of an agency that can reclaim its input
+   * VAT. For one that cannot, the tax is simply part of what the work cost, the
+   * whole figure is the cost, and asking would be a field to fill in for no
+   * change in the answer.
+   */
+  vat: { registered: boolean; rateBp: number };
   entryCount: number;
   unconvertedCount: number;
   locale: Locale;
@@ -37,6 +47,10 @@ export function CostStrip({
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<StringKey | null>(null);
   const [pending, startTransition] = useTransition();
+  // Defaults to on, because an invoice arrives with the tax already in it and
+  // the person copying the number is copying gross whether they notice or not.
+  const [includesVat, setIncludesVat] = useState(true);
+  const asksAboutVat = vat.registered && vat.rateBp > 0;
 
   const fmt = (value: Parameters<typeof formatMoney>[0]) =>
     formatMoney(value, { locale, display: 'none' });
@@ -49,6 +63,7 @@ export function CostStrip({
         amount: String(form.get('amount') ?? ''),
         vendor: String(form.get('vendor') ?? ''),
         spentOn: String(form.get('spentOn') ?? ''),
+        includesVat: asksAboutVat && includesVat,
       });
       if (result.ok) setOpen(false);
       else setError(result.error as StringKey);
@@ -127,6 +142,26 @@ export function CostStrip({
               />
             </label>
           </div>
+          {/* One checkbox, not a second amount field. The split is arithmetic the
+              product can do; what it cannot know is which number was typed. */}
+          {asksAboutVat ? (
+            <label className="flex items-center gap-2 text-[12px] text-card-ink-soft">
+              <input
+                type="checkbox"
+                name="includesVat"
+                checked={includesVat}
+                onChange={(event) => setIncludesVat(event.target.checked)}
+                className="size-3.5 accent-card-ink"
+              />
+              <span>
+                {t('cost.includesVat')}{' '}
+                <span className="reading text-card-ink-faint">
+                  <Figure>{formatBasisPoints(vat.rateBp, { locale })}</Figure>
+                </span>
+              </span>
+            </label>
+          ) : null}
+
           <label className="block">
             <span className="sr-only">{t('cost.date')}</span>
             <input
@@ -136,6 +171,12 @@ export function CostStrip({
               className="reading w-full rounded-[8px] border border-card-line bg-card-raised px-2.5 py-1.5 text-[13px] text-card-ink"
             />
           </label>
+
+          {asksAboutVat && includesVat ? (
+            <p className="text-[11px] leading-relaxed text-card-ink-faint">
+              {t('cost.vatSplitNote')}
+            </p>
+          ) : null}
 
           {error ? (
             <p role="alert" className="text-[12px] text-below">

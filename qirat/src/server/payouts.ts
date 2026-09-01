@@ -113,8 +113,12 @@ export async function buildPayoutRun(
       select d.id, d.owner_user_id, d.currency::text as currency,
              d.agreed_price_minor, d.estimated_cost_minor,
              d.frozen_house_rate_bp, d.frozen_split_rules,
+             -- The same total the deal card uses, and for the same reason: a
+             -- payout computed on gross costs pays out less than the deal
+             -- earned, every month, to the people least able to check.
              coalesce((
-               select sum(c.amount_minor) from costs c
+               select sum(c.amount_minor)
+               from costs c
                where c.deal_id = d.id and c.kind = 'actual' and c.currency = d.currency
              ), 0)::text as actual_cost_minor
       from deals d

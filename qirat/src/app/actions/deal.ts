@@ -4,7 +4,14 @@ import { sql as raw } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { withTenant } from '@/db/client';
 import { canSeeFinancials } from '@/db/roles';
-import { assertCurrencyCode, money, parseUserAmount, routeForClose } from '@/money';
+import {
+  type TaxTreatment,
+  assertCurrencyCode,
+  money,
+  parseUserAmount,
+  removeVat,
+  routeForClose,
+} from '@/money';
 import { contextFor, requireUser } from '@/server/session';
 
 /**
@@ -28,6 +35,10 @@ interface DealRow {
   currency: string;
   floor_minor: string | null;
   service_currency: string | null;
+  /** The agency's own tax position, read here so no caller can assert its own. */
+  vat_registered: boolean;
+  org_vat_rate_bp: number;
+  org_tax_treatment: TaxTreatment;
 }
 
 /** Load the deal and its band under the caller's own tenant context. */
@@ -41,9 +52,12 @@ async function loadDeal(dealId: string) {
   const rows = await withTenant(ctx, (tx) =>
     tx.execute<DealRow>(raw`
       select d.id, d.status::text as status, d.currency::text as currency,
-             s.floor_minor::text as floor_minor, s.currency::text as service_currency
+             s.floor_minor::text as floor_minor, s.currency::text as service_currency,
+             o.vat_registered, o.vat_rate_bp as org_vat_rate_bp,
+             o.default_tax_treatment::text as org_tax_treatment
       from deals d
       left join services s on s.id = d.service_id
+      cross join organizations o
       where d.id = ${dealId}`),
   );
   return { user, deal: Array.from(rows)[0] ?? null, denied: false as const };
@@ -204,7 +218,13 @@ export async function closeDealAction(
           frozen_fx_rate        = 1.0,
           frozen_fx_source      = 'identity',
           frozen_fx_captured_at = now(),
-          frozen_split_rules    = ${JSON.stringify({ houseRateBp, rules: frozenRules })}::jsonb
+          frozen_split_rules    = ${JSON.stringify({ houseRateBp, rules: frozenRules })}::jsonb,
+          -- The tax terms freeze with everything else. A VAT rate changes by
+          -- legislation, sometimes at a few weeks' notice, and an invoice
+          -- issued at 19% must keep saying 19% afterwards or every historical
+          -- deal silently disagrees with the paper the client is holding.
+          frozen_vat_rate_bp    = vat_rate_bp,
+          frozen_tax_treatment  = tax_treatment
       where id = ${dealId}`);
     await tx.execute(raw`
       insert into audit_log (org_id, actor_user_id, actor_email, actor_role, action, entity_type, entity_id, payload)
@@ -237,6 +257,15 @@ export async function addCostAction(input: {
   amount: string;
   vendor: string;
   spentOn: string;
+  /**
+   * Whether the figure typed is the one on the invoice, tax included.
+   *
+   * It usually is — a freelancer's invoice arrives as a single number and
+   * somebody entering it is entering gross whether they realise it or not. The
+   * split happens here rather than in the browser so that the rate applied is
+   * the agency's own, from its own row, and not whatever the page was holding.
+   */
+  includesVat?: boolean;
 }): Promise<DealActionResult> {
   if (!UUID.test(input.dealId)) return { ok: false, error: 'cost.saveFailed' };
 
@@ -254,6 +283,31 @@ export async function addCostAction(input: {
   }
   if (amountMinor < 0n) return { ok: false, error: 'cost.badAmount' };
 
+  /*
+   * What it cost, and what comes back.
+   *
+   * `amount_minor` is the cost — the net when the agency reclaims the tax, the
+   * whole invoice when it cannot. `vat_minor` is the reclaimable part, recorded
+   * so the VAT position can be answered without re-deriving it.
+   *
+   * The reclaim decision is made here, once, against the agency's position at
+   * the moment the money went out, and then stored. Reading it back off the
+   * organisation's row later would mean an agency deregistering next year
+   * silently changed what last year's deals cost — the same mistake the frozen
+   * house rate exists to prevent.
+   *
+   * An agency that cannot reclaim is never asked the question: for it the tax
+   * is simply part of the cost, and the margin comes out right without anyone
+   * having to think about it.
+   */
+  const canReclaim = deal.vat_registered && deal.org_vat_rate_bp > 0;
+  const invoice =
+    input.includesVat === true && canReclaim
+      ? removeVat(money(amountMinor, currency), 'standard', deal.org_vat_rate_bp)
+      : null;
+  const costMinor = invoice ? invoice.net.minor : amountMinor;
+  const vatMinor = invoice ? invoice.vat.minor : 0n;
+
   const spentOn = /^\d{4}-\d{2}-\d{2}$/.test(input.spentOn)
     ? input.spentOn
     : new Date().toISOString().slice(0, 10);
@@ -262,15 +316,21 @@ export async function addCostAction(input: {
   const ctx = contextFor(user);
   await withTenant(ctx, async (tx) => {
     await tx.execute(raw`
-      insert into costs (org_id, deal_id, kind, amount_minor, currency, vendor, spent_on,
+      insert into costs (org_id, deal_id, kind, amount_minor, vat_minor, currency, vendor, spent_on,
                          recorded_by_user_id)
-      values (${user.orgId}, ${input.dealId}, 'actual', ${amountMinor.toString()}::bigint,
+      values (${user.orgId}, ${input.dealId}, 'actual', ${costMinor.toString()}::bigint,
+              ${vatMinor.toString()}::bigint,
               ${raw.raw(`'${currency}'::currency_code`)}, ${vendor}, ${spentOn}::date, ${user.id})`);
     await tx.execute(raw`
       insert into audit_log (org_id, actor_user_id, actor_email, actor_role, action, entity_type, entity_id, payload)
       values (${user.orgId}, ${user.id}, ${user.email}, ${raw.raw(`'${user.role}'::user_role`)},
               'cost.added', 'deal', ${input.dealId},
-              ${JSON.stringify({ amountMinor: amountMinor.toString(), currency, vendor })}::jsonb)`);
+              ${JSON.stringify({
+                amountMinor: costMinor.toString(),
+                vatMinor: vatMinor.toString(),
+                currency,
+                vendor,
+              })}::jsonb)`);
   });
 
   revalidatePath('/app');

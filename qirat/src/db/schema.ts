@@ -33,6 +33,14 @@ export const splitRuleKind = pgEnum('split_rule_kind', [
 export const payoutPeriodStatus = pgEnum('payout_period_status', ['open', 'closed']);
 export const currencyCode = pgEnum('currency_code', [
   'EGP', 'USD', 'SAR', 'AED', 'QAR', 'EUR', 'GBP', 'KWD', 'BHD', 'OMR', 'JOD', 'TND', 'JPY',
+  'CHF', 'SEK', 'NOK', 'DKK', 'PLN', 'CZK', 'HUF', 'RON', 'TRY', 'MAD',
+]);
+export const taxTreatment = pgEnum('tax_treatment', [
+  'standard',
+  'reverse_charge',
+  'zero_rated',
+  'exempt',
+  'not_registered',
 ]);
 
 /** Money is bigint minor units in the database and bigint in TypeScript. */
@@ -51,6 +59,10 @@ export const organizations = pgTable('organizations', {
   defaultLocale: text('default_locale').notNull().default('en'),
   numberingSystem: text('numbering_system').notNull().default('latn'),
   costDriftAlertBp: integer('cost_drift_alert_bp').notNull().default(1500),
+  country: char('country', { length: 2 }),
+  vatRegistered: boolean('vat_registered').notNull().default(false),
+  vatRateBp: integer('vat_rate_bp').notNull().default(0),
+  defaultTaxTreatment: taxTreatment('default_tax_treatment').notNull().default('not_registered'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -127,6 +139,8 @@ export const deals = pgTable(
     estimatedCostMinor: minor('estimated_cost_minor').notNull(),
     deliveryDate: date('delivery_date'),
     status: dealStatus('status').notNull().default('draft'),
+    taxTreatment: taxTreatment('tax_treatment').notNull().default('not_registered'),
+    vatRateBp: integer('vat_rate_bp').notNull().default(0),
 
     // Frozen at close. Never recomputed from today's settings.
     closedAt: timestamp('closed_at', { withTimezone: true }),
@@ -135,6 +149,8 @@ export const deals = pgTable(
     frozenFxSource: text('frozen_fx_source'),
     frozenFxCapturedAt: timestamp('frozen_fx_captured_at', { withTimezone: true }),
     frozenSplitRules: jsonb('frozen_split_rules'),
+    frozenVatRateBp: integer('frozen_vat_rate_bp'),
+    frozenTaxTreatment: taxTreatment('frozen_tax_treatment'),
 
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
@@ -153,6 +169,7 @@ export const costs = pgTable(
     dealId: uuid('deal_id').notNull(),
     kind: costKind('kind').notNull().default('actual'),
     amountMinor: minor('amount_minor').notNull(),
+    vatMinor: minor('vat_minor').notNull(),
     currency: currencyCode('currency').notNull(),
     vendor: text('vendor'),
     description: text('description'),
@@ -257,6 +274,9 @@ export const MEMBER_FORBIDDEN_COLUMNS = {
     'margin_healthy_bp',
     'margin_warning_bp',
     'cost_drift_alert_bp',
+    'vat_registered',
+    'vat_rate_bp',
+    'default_tax_treatment',
   ],
   services: [
     'currency',
@@ -276,11 +296,15 @@ export const MEMBER_FORBIDDEN_COLUMNS = {
     'frozen_fx_source',
     'frozen_fx_captured_at',
     'frozen_split_rules',
+    'tax_treatment',
+    'vat_rate_bp',
+    'frozen_vat_rate_bp',
+    'frozen_tax_treatment',
   ],
   clients: ['default_currency'],
   // A Member holds INSERT on costs and no SELECT at all, so none of these is
   // reachable by them — the grant asymmetry, not a select list, is what does it.
-  costs: ['amount_minor', 'currency'],
+  costs: ['amount_minor', 'vat_minor', 'currency'],
   // A Member holds no privilege at all on the payout tables, so none of these
   // is reachable. Listed anyway: the assertion should fail loudly if somebody
   // ever grants the table wholesale.

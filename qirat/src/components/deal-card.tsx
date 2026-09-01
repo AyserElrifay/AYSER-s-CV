@@ -1,8 +1,11 @@
 import { CostStrip } from './cost-strip';
+import { TaxTreatmentPicker } from './tax-treatment-picker';
+import { Figure } from './figure';
 import { PriceInstrument } from './price-instrument';
 import { type DealCardModel } from '@/server/queries';
-import { type Locale, directionOf, translator } from '@/i18n/dictionary';
+import { type Locale, type StringKey, directionOf, translator } from '@/i18n/dictionary';
 import { type AppRole } from '@/db/roles';
+import { formatBasisPoints, formatMoney } from '@/money';
 
 /**
  * The deal card is the home screen.
@@ -20,11 +23,14 @@ export function DealCard({
   locale,
   role,
   thresholds,
+  vat,
 }: {
   deal: DealCardModel;
   locale: Locale;
   role: AppRole;
   thresholds: { healthyFromBp: number; warningFromBp: number };
+  /** The agency's own tax position, which decides whether costs are typed gross. */
+  vat: { registered: boolean; rateBp: number };
 }) {
   const t = translator(locale);
   // A frozen deal is read-only for everyone: its terms are the record of what
@@ -70,9 +76,12 @@ export function DealCard({
         />
       </div>
 
+      <InvoiceLine deal={deal} locale={locale} canEdit={canEdit} registered={vat.registered} />
+
       <CostStrip
         dealId={deal.id}
         cost={deal.cost}
+        vat={vat}
         entryCount={deal.costEntryCount}
         unconvertedCount={deal.unconvertedCostCount}
         locale={locale}
@@ -88,5 +97,63 @@ export function DealCard({
         </span>
       </footer>
     </article>
+  );
+}
+
+/**
+ * What the client is invoiced, when that is not what the agency earns.
+ *
+ * The instrument above reads net, always, because net is what the agency keeps
+ * and net is what the margin is computed on. But somebody sending the invoice
+ * needs the other number, and an account manager quoting over the phone needs
+ * to know which of the two they are saying out loud.
+ *
+ * It is one quiet line and it carries no colour. Saturation in this card means
+ * margin, and a tax rate is not a margin — the moment VAT is allowed to tint
+ * anything, the one thing colour means here stops meaning it.
+ */
+function InvoiceLine({
+  deal,
+  locale,
+  canEdit,
+  registered,
+}: {
+  deal: DealCardModel;
+  locale: Locale;
+  canEdit: boolean;
+  registered: boolean;
+}) {
+  const t = translator(locale);
+  const treatment = deal.taxed.treatment;
+
+  // An agency that is not registered has nothing to say here and is not made to
+  // read a line about a tax it does not charge.
+  if (!registered && treatment === 'not_registered') return null;
+
+  const gross = formatMoney(deal.taxed.gross, { locale, display: 'none' });
+  const charging = deal.taxed.vat.minor !== 0n;
+
+  return (
+    <div className="mt-3 flex items-baseline justify-between gap-3 text-[11px] text-card-ink-faint">
+      {registered && canEdit ? (
+        <TaxTreatmentPicker dealId={deal.id} treatment={treatment} locale={locale} />
+      ) : (
+        <span>{t(`tax.treatment.${treatment}` as StringKey)}</span>
+      )}
+      {charging ? (
+        <span className="reading shrink-0 text-card-ink-soft">
+          <Figure>{gross}</Figure>
+          <span className="ms-1.5 font-sans text-card-ink-faint">
+            {t('tax.inclusive')} <Figure>{formatBasisPoints(deal.taxed.rateBp, { locale })}</Figure>
+          </span>
+        </span>
+      ) : (
+        // Four treatments charge nothing and they charge nothing for four
+        // different reasons. Saying "the client accounts for the tax" under an
+        // exempt supply is worse than saying nothing: it describes an
+        // obligation that nobody has.
+        <span className="shrink-0">{t(`tax.why.${treatment}` as StringKey)}</span>
+      )}
+    </div>
   );
 }

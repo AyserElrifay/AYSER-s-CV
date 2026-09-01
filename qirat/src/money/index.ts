@@ -17,4 +17,5 @@ export * from './fx';
 export * from './margin';
 export * from './costs';
 export * from './payouts';
+export * from './tax';
 export * from './format';

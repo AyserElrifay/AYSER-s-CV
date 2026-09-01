@@ -56,6 +56,16 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                 >
                   {t('nav.payouts')}
                 </Link>
+                {/* Settings change how money is counted, so only the Owner
+                    reaches them — and the page redirects anyone else anyway. */}
+                {user.role === 'owner' && (
+                  <Link
+                    href="/app/settings"
+                    className="rounded-[6px] px-2 py-1 text-[13px] text-ink-soft hover:text-ink"
+                  >
+                    {t('nav.settings')}
+                  </Link>
+                )}
               </>
             )}
             {!plain && (

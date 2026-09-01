@@ -18,6 +18,8 @@ let orgB: SeededOrg;
 const ROUTES = [
   '/',
   '/app',
+  '/app/payouts',
+  '/app/settings',
   '/signin',
   '/signup',
   '/api/auth/session',
@@ -268,5 +270,45 @@ describe('switching language', () => {
       const response = await session.fetch(`/locale/ar?next=${encodeURIComponent(hostile)}`);
       expect(response.headers.get('location'), `${hostile} was followed`).toBe('/app');
     }
+  });
+});
+
+/**
+ * Settings decide how every margin in the product is computed, so the screen is
+ * the Owner's alone. The redirect is the courteous half of that; the column
+ * grants on `organizations` are the half that actually holds.
+ */
+describe('the settings screen', () => {
+  it('opens for the owner', async () => {
+    const session = new Session(server.baseUrl);
+    await session.signIn(orgA.emails.owner, SEED_PASSWORD);
+    const response = await session.fetch('/app/settings');
+    expect(response.status).toBe(200);
+    expect(await response.text()).toContain('Registered for VAT');
+  });
+
+  for (const role of ['account_manager', 'member', 'partner'] as const) {
+    it(`sends a ${role} away`, async () => {
+      const session = new Session(server.baseUrl);
+      const email =
+        role === 'account_manager'
+          ? orgA.emails.manager
+          : role === 'member'
+            ? orgA.emails.member
+            : orgA.emails.partner;
+      await session.signIn(email, SEED_PASSWORD);
+      const response = await session.fetch('/app/settings');
+      // Whatever happens, the agency's tax position is not on the page.
+      const body = response.status === 200 ? await response.text() : '';
+      expect(body).not.toContain('Registered for VAT');
+      expect([200, 307, 308]).toContain(response.status);
+      if (response.status !== 200) expect(response.headers.get('location')).toBe('/app');
+    });
+  }
+
+  it('refuses an anonymous visitor', async () => {
+    const anonymous = new Session(server.baseUrl);
+    const response = await anonymous.fetch('/app/settings');
+    expect(response.status).not.toBe(200);
   });
 });

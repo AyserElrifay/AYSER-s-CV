@@ -489,3 +489,84 @@ late or not at all. An agency selling video near its floor and forgetting the
 catering is losing money on it.
 
 Surfacing that on day one, from the seed, is the product working.
+
+## 23. A margin is computed on net, always
+
+This is the gap the product exists to close in Europe, and it is arithmetic
+rather than a feature.
+
+An agency in Berlin invoices a client in Paris under the reverse charge, so it
+adds no VAT: the invoice reads 10,000 and the agency earns 10,000. The
+freelancer who did the work invoices 4,000 plus 19%, so 4,760 leaves the bank.
+Put those two numbers side by side — which is what a spreadsheet does — and the
+deal reports **52.4%**. The real margin is **60%**, because the 760 is reclaimed:
+it was never the agency's money, it was the tax authority's, held briefly.
+
+On one deal that is an argument about a number. On a commission calculation it is
+a shortfall in somebody's pay, every month, in the direction they are least able
+to check: on this deal the account manager's share is 600 rather than 524.
+
+So: **VAT collected is not revenue and VAT paid is not a cost** — unless the
+agency cannot reclaim it, which is the one case that flips and is handled
+explicitly. `src/money/tax.ts` computes it; nothing in it infers a legal position
+from a country code, because which treatment applies to a given supply is a
+question for the agency and its accountant.
+
+Five treatments, and four of them charge nothing for four different reasons:
+`standard`, `reverse_charge`, `zero_rated`, `exempt`, `not_registered`. The card
+says which, in words, because "no VAT" and "the client accounts for the tax"
+describe different obligations and only one of them is somebody else's.
+
+## 24. The reclaim decision is made once and stored
+
+`costs.amount_minor` is **what the cost cost** — the net when the agency reclaims
+the tax, the whole invoice when it cannot. `costs.vat_minor` is the reclaimable
+part, recorded so the VAT position can be answered without re-deriving it.
+
+The first version of this read `organizations.vat_registered` at query time and
+added the VAT back for an unregistered agency. That was wrong for the same reason
+a deal reads its frozen house rate rather than today's: an agency that
+deregisters next year would have silently changed what last year's deals cost,
+and every closed statement would stop reconciling. The decision is now made when
+the money goes out and written down. `tests/vat.test.ts` flips the organisation's
+registration and asserts a closed deal's cost does not move.
+
+An agency that cannot reclaim is never asked the question. For it the tax is part
+of what the work cost, the whole figure goes in, and the margin is right without
+anyone having to think about it.
+
+## 25. Open deals follow the agency; closed ones never do
+
+A deal that has not closed has not been invoiced, so there is no paper to
+contradict. When an agency registers for VAT, every open deal still sitting on
+the old default moves with it — an agency that crosses the threshold on Tuesday
+should not have to open every draft to say so.
+
+A deal deliberately set to something else stays where somebody put it, which is
+why the action reads the outgoing default before overwriting it: only the old
+value can tell a deal that was following the agency from a deal that was set by
+hand.
+
+A closed deal is the opposite. Its treatment and rate are frozen at close beside
+the house rate and the split rules, because a VAT rate changes by legislation,
+sometimes at a few weeks' notice, and an invoice issued at 19% must keep saying
+19% afterwards or every historical deal disagrees with the paper the client is
+holding.
+
+## 26. Two catalogues, one standard
+
+A European agency signing up gets `EUROPE_SERVICES` priced in euros, a MENA one
+gets `DEFAULT_SERVICES` in pounds, and `startingPointFor(country)` decides.
+Neither is a translation of the other: a Berlin studio sells a "Brand Identity
+System" where a Cairo one sells a "Brand Book", and the cost build-ups are
+different because the costs are different.
+
+What is identical is the standard both are held to. The same tests run over both:
+every cost build-up totals inside its own range, every service still makes money
+at its own floor, every band is ordered, every cost line is named in both
+languages. A European agency that signed up and found a service whose floor loses
+money would have been handed the same broken product, in euros.
+
+The country never registers an agency for VAT on its behalf. It offers a rate and
+then stops talking; whether the agency is registered is a fact about the agency,
+and assuming it would put tax on invoices that must not carry it.

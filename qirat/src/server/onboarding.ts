@@ -4,7 +4,8 @@ import { sql as raw } from 'drizzle-orm';
 import { withTenant } from '@/db/client';
 import { hashPassword } from '@/auth/password';
 import { costTemplateTotal, fromMajor } from '@/money';
-import { DEFAULT_BRAND_KIT, DEFAULT_CURRENCY, DEFAULT_SERVICES } from './service-catalog';
+import { isKnownCountry } from '@/i18n/countries';
+import { DEFAULT_BRAND_KIT, startingPointFor } from './service-catalog';
 
 /**
  * Create an organisation, its owner, and enough real content that the first
@@ -22,6 +23,11 @@ export interface SignupInput {
   email: string;
   password: string;
   locale?: 'en' | 'ar';
+  /**
+   * ISO 3166-1 alpha-2. Decides the currency, the starting catalogue and the
+   * VAT rate offered — not the agency's legal position, which it sets itself.
+   */
+  country?: string;
 }
 
 export interface SignupResult {
@@ -66,6 +72,9 @@ export async function signUp(input: SignupInput): Promise<SignupResult> {
 
   const passwordHash = await hashPassword(input.password);
   const locale = input.locale ?? 'en';
+  // An unrecognised code is not an error: the agency still signs up, on the
+  // defaults, and changes its currency the way it would have anyway.
+  const country = isKnownCountry(input.country) ? input.country!.toUpperCase() : null;
 
   // Slug collisions are resolved by retrying, not by reading the table first:
   // under RLS a lookup cannot see other organisations' slugs, so the unique
@@ -74,7 +83,7 @@ export async function signUp(input: SignupInput): Promise<SignupResult> {
   for (let attempt = 0; attempt < 5; attempt++) {
     const slug = attempt === 0 ? slugify(agencyName) : `${slugify(agencyName)}-${randomUUID().slice(0, 4)}`;
     try {
-      return await provision({ slug, agencyName, ownerName, email, passwordHash, locale });
+      return await provision({ slug, agencyName, ownerName, email, passwordHash, locale, country });
     } catch (error) {
       if (isUniqueViolation(error, 'organizations_slug_key')) {
         lastError = error;
@@ -99,15 +108,21 @@ async function provision(args: {
   email: string;
   passwordHash: string;
   locale: 'en' | 'ar';
+  country: string | null;
 }): Promise<SignupResult> {
   const orgId = randomUUID();
   const userId = randomUUID();
+  const start = startingPointFor(args.country);
+  const currency = start.currency;
 
   await withTenant({ orgId, userId, role: 'owner' }, async (tx) => {
     await tx.execute(raw`
-      insert into organizations (id, slug, name, default_currency, default_locale, numbering_system)
-      values (${orgId}, ${args.slug}, ${args.agencyName}, ${DEFAULT_CURRENCY},
-              ${args.locale}, ${args.locale === 'ar' ? 'arab' : 'latn'})`);
+      insert into organizations (id, slug, name, default_currency, default_locale, numbering_system,
+                                 country, vat_registered, vat_rate_bp, default_tax_treatment)
+      values (${orgId}, ${args.slug}, ${args.agencyName}, ${currency},
+              ${args.locale}, ${args.locale === 'ar' ? 'arab' : 'latn'},
+              ${args.country}, ${start.vatRegistered}, ${start.vatRateBp},
+              ${start.taxTreatment})`);
 
     await tx.execute(raw`
       insert into users (id, org_id, email, password_hash, name, role, locale)
@@ -122,19 +137,20 @@ async function provision(args: {
               ${JSON.stringify(DEFAULT_BRAND_KIT.lockedConfig)}::jsonb)`);
 
     const serviceIds: string[] = [];
-    for (const service of DEFAULT_SERVICES) {
+    for (const service of start.services) {
       const id = randomUUID();
       serviceIds.push(id);
       await tx.execute(raw`
         insert into services (id, org_id, name, name_ar, currency, floor_minor, target_minor,
                               ceiling_minor, default_cost_min_minor, default_cost_max_minor,
                               task_template, cost_template)
-        values (${id}, ${orgId}, ${service.name}, ${service.nameAr}, ${DEFAULT_CURRENCY},
-                ${fromMajor(service.floor, DEFAULT_CURRENCY).minor},
-                ${fromMajor(service.target, DEFAULT_CURRENCY).minor},
-                ${fromMajor(service.ceiling, DEFAULT_CURRENCY).minor},
-                ${fromMajor(service.costMin, DEFAULT_CURRENCY).minor},
-                ${fromMajor(service.costMax, DEFAULT_CURRENCY).minor},
+        values (${id}, ${orgId}, ${service.name}, ${service.nameAr},
+                ${currency},
+                ${fromMajor(service.floor, currency).minor},
+                ${fromMajor(service.target, currency).minor},
+                ${fromMajor(service.ceiling, currency).minor},
+                ${fromMajor(service.costMin, currency).minor},
+                ${fromMajor(service.costMax, currency).minor},
                 ${JSON.stringify(service.tasks)}::jsonb,
                 ${JSON.stringify(service.costs)}::jsonb)`);
     }
@@ -144,17 +160,20 @@ async function provision(args: {
     const clientId = randomUUID();
     await tx.execute(raw`
       insert into clients (id, org_id, name, name_ar, country, default_currency)
-      values (${clientId}, ${orgId}, 'Sample Client', 'عميل تجريبي', 'EG', ${DEFAULT_CURRENCY})`);
+      values (${clientId}, ${orgId}, 'Sample Client', 'عميل تجريبي', ${args.country},
+              ${currency})`);
 
-    const brandBook = DEFAULT_SERVICES[0]!;
+    const first = start.services[0]!;
     await tx.execute(raw`
       insert into deals (org_id, client_id, service_id, owner_user_id, title, currency,
-                         agreed_price_minor, estimated_cost_minor, delivery_date, status)
+                         agreed_price_minor, estimated_cost_minor, delivery_date, status,
+                         tax_treatment, vat_rate_bp)
       values (${orgId}, ${clientId}, ${serviceIds[0]}, ${userId},
-              ${`${brandBook.name} — Sample Client`}, ${DEFAULT_CURRENCY},
-              ${fromMajor(brandBook.target, DEFAULT_CURRENCY).minor},
-              ${costTemplateTotal(brandBook.costs, DEFAULT_CURRENCY).minor},
-              ${sampleDeliveryDate()}, 'draft')`);
+              ${`${first.name} — Sample Client`}, ${currency},
+              ${fromMajor(first.target, currency).minor},
+              ${costTemplateTotal(first.costs, currency).minor},
+              ${sampleDeliveryDate()}, 'draft',
+              ${start.taxTreatment}, ${start.vatRateBp})`);
 
     /*
      * A payout policy and this month's period, so the payouts screen is usable
@@ -182,7 +201,12 @@ async function provision(args: {
     await tx.execute(raw`
       insert into audit_log (org_id, actor_user_id, actor_email, actor_role, action, entity_type, entity_id, payload)
       values (${orgId}, ${userId}, ${args.email}, 'owner', 'organization.created', 'organization',
-              ${orgId}, ${JSON.stringify({ slug: args.slug, services: DEFAULT_SERVICES.length })}::jsonb)`);
+              ${orgId}, ${JSON.stringify({
+                slug: args.slug,
+                country: args.country,
+                currency,
+                services: start.services.length,
+              })}::jsonb)`);
   });
 
   return { orgId, slug: args.slug, userId };
