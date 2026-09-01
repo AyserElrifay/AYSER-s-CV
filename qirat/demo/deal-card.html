@@ -136,6 +136,26 @@ bdi { unicode-bidi: isolate; }
 
 .band-ends { display: flex; justify-content: space-between; font-size: 0.6875rem; color: var(--card-ink-faint); margin-top: 0.35rem; }
 
+[hidden] { display: none !important; }
+
+.taxline {
+  display: flex; align-items: baseline; justify-content: space-between; gap: .75rem;
+  font-size: 0.6875rem; color: var(--card-ink-faint);
+}
+.taxline select {
+  font: inherit; font-family: var(--sans); color: var(--card-ink-faint);
+  background: transparent; border: 1px solid transparent; border-radius: 6px;
+  padding: .15rem .3rem; margin-inline-start: -.3rem; appearance: none; cursor: pointer;
+}
+.taxline select:hover { border-color: var(--card-line); color: var(--card-ink-soft); }
+.taxline select option { color: #14201C; }
+.taxline .reading { color: var(--card-ink-soft); }
+.grosscheck {
+  display: flex; align-items: center; gap: .45rem;
+  font-size: 0.6875rem; color: var(--card-ink-faint); margin-block: .6rem -.2rem; cursor: pointer;
+}
+.grosscheck input { accent-color: var(--card-ink-soft); inline-size: .85rem; block-size: .85rem; }
+
 /* --- margin ---------------------------------------------------------------- */
 .meter-head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem; }
 .meter-label { font-size: 0.75rem; color: var(--card-ink-faint); }
@@ -217,7 +237,10 @@ bdi { unicode-bidi: isolate; }
 <div class="page" id="root" dir="ltr">
   <header class="topbar">
     <span class="wordmark" id="wordmark">Qirat</span>
-    <button class="link" id="lang" type="button">العربية</button>
+    <span style="display:flex;gap:.9rem;align-items:baseline">
+      <button class="link" id="marketToggle" type="button"></button>
+      <button class="link" id="lang" type="button">العربية</button>
+    </span>
   </header>
 
   <div>
@@ -240,7 +263,7 @@ bdi { unicode-bidi: isolate; }
           <span class="label" id="priceLabel">Agreed price</span>
           <div class="reading price" id="price"></div>
         </div>
-        <span class="reading" style="font-size:.6875rem;color:var(--card-ink-faint)">EGP</span>
+        <span class="reading" id="currencyTag" style="font-size:.6875rem;color:var(--card-ink-faint)"></span>
       </div>
 
       <div class="track" id="track" role="slider" tabindex="0"
@@ -281,13 +304,27 @@ bdi { unicode-bidi: isolate; }
       <span class="hint" id="hint"></span>
     </div>
 
+    <!-- What the client is invoiced, when that is not what the agency earns.
+         No colour: saturation in this card means margin, and a tax rate is
+         not a margin. -->
+    <div class="taxline" id="taxLine" hidden>
+      <select id="treatment" aria-label="Tax treatment"></select>
+      <span class="reading" id="invoiced"></span>
+    </div>
+
     <section class="costs">
       <div class="costs-head">
         <span class="meter-label" id="costsTitle">Costs</span>
         <span class="reading costs-total" id="costsTotal"></span>
       </div>
       <p class="note" id="costsNote"></p>
+      <!-- The argument, stated once, where the money is. -->
+      <p class="note" id="reclaimNote" hidden></p>
       <ul class="ledger" id="ledger"></ul>
+      <label class="grosscheck" id="grossRow" hidden>
+        <input type="checkbox" id="costGross" checked>
+        <span id="grossLabel"></span>
+      </label>
       <form class="cost-form" id="costForm">
         <input class="amount" id="costAmount" inputmode="decimal" required>
         <input id="costVendor">
@@ -321,7 +358,7 @@ bdi { unicode-bidi: isolate; }
   // is the point: the number you see mid-drag is the number that would be
   // stored.
   // ---------------------------------------------------------------------------
-  const EXPONENT = { EGP: 2 };
+  const EXPONENT = { EGP: 2, EUR: 2 };
   const BP = 10000n;
 
   /** Exact integer division, ties to even, so a long run of splits has no drift. */
@@ -423,9 +460,31 @@ bdi { unicode-bidi: isolate; }
     en: {
       wordmark: 'Qirat',
       lang: 'العربية',
+      toBerlin: 'Berlin · EUR', toCairo: 'Cairo · EGP',
       thesis: 'Drag the price. Watch what it costs you.',
-      sub: 'The whole product in one card. Push the price under the floor and the button changes what it says. Record what you actually spent and the margin stops flattering you.',
-      dealSub: 'Sample Client · Brand Book',
+      sub: 'The whole product in one card. Push the price under the floor and the button changes what it says. Record what you actually spent and the margin stops flattering you — and in Berlin, watch the VAT stay out of it.',
+      dealTitle: 'Brand Identity System — Sample Client',
+      dealTitleCairo: 'Brand Book — Sample Client',
+      dealSub: 'Sample Client · Brand Identity System',
+      dealSubCairo: 'Sample Client · Brand Book',
+      treatments: {
+        standard: 'VAT charged',
+        reverse_charge: 'Reverse charge',
+        zero_rated: 'Zero-rated export',
+        exempt: 'Exempt supply',
+        not_registered: 'Not VAT registered',
+      },
+      why: {
+        standard: '',
+        reverse_charge: 'The client accounts for the tax',
+        zero_rated: 'No VAT — the supply leaves the VAT area',
+        exempt: 'No VAT — the supply is exempt',
+        not_registered: 'No VAT on this invoice',
+      },
+      inclusive: 'incl. VAT',
+      grossLabel: 'The amount on the invoice, VAT included at 19%',
+      reclaimed: 'reclaimed, and kept out of the margin. Counted as a cost — which is what a spreadsheet does — this deal would report',
+      instead: 'instead of',
       priceLabel: 'Agreed price',
       floor: 'Floor', ceiling: 'Ceiling',
       margin: 'Margin',
@@ -443,20 +502,43 @@ bdi { unicode-bidi: isolate; }
       driftAlert: 'Spending has passed the estimate. The margin above is now on what was actually spent, not on what was planned.',
       amount: 'Amount', vendor: 'Paid to', add: 'Add',
       delivery: 'Delivery',
-      tryTitle: 'Three things to try',
+      tryTitle: 'Four things to try',
       try: [
         'Drag the handle <strong>left, past the floor</strong>. It gets heavier — the handle travels less than your finger does, so the floor is something you feel yourself pushing past. The button stops saying <em>Close the deal</em>.',
         'Drag slowly across <strong>the floor and the target</strong>. It catches on each one, so those are values you can land on rather than approximately hit. On Android you should feel it too.',
-        'Record a cost of <strong>35,000</strong>. It blows past the 15,000 estimate, and the margin drops from 80% to 45% — because a margin computed on a disproved estimate is a number the deal no longer has.',
+        'Record a cost of <strong>11,900</strong> — a supplier\u2019s invoice, 10,000 plus 19% German VAT. It lands as <strong>10,000</strong> and the margin settles at 58.3%, because the 1,900 comes back: it was never the agency\u2019s money. The card then tells you what the same deal would have reported if anyone had counted the tax — <strong>50.4%</strong>. That gap is what an account manager gets paid on.',
+        'Switch the treatment to <strong>VAT charged</strong>. The price does not move — the agency still earns 24,000 — but the client is now invoiced 28,560. Two numbers, and every spreadsheet in this industry uses whichever one it happened to be handed.',
       ],
       smallprint: 'This is the instrument, running the same arithmetic as the product: integer minor units, one rounding rule, no floating point. Sign-in, the database and the row-level isolation are in the repository, not on this page — the full app needs a deployment.',
     },
     ar: {
       wordmark: 'قيراط',
       lang: 'English',
+      toBerlin: 'برلين · يورو', toCairo: 'القاهرة · جنيه',
       thesis: 'اسحب السعر. شوف بيكلّفك كام.',
-      sub: 'المنتج كله في كارت واحد. نزّل السعر تحت الأرضية، والزرار هيغيّر كلامه. سجّل اللي صرفته فعلاً، والهامش هيبطّل يجاملك.',
-      dealSub: 'عميل تجريبي · دليل الهوية',
+      sub: 'المنتج كله في كارت واحد. نزّل السعر تحت الأرضية، والزرار هيغيّر كلامه. سجّل اللي صرفته فعلاً، والهامش هيبطّل يجاملك — وفي برلين، شوف ضريبة القيمة المضافة وهي بتفضل بره الحساب.',
+      dealTitle: 'نظام الهوية — عميل تجريبي',
+      dealTitleCairo: 'دليل الهوية — عميل تجريبي',
+      dealSub: 'عميل تجريبي · نظام الهوية',
+      dealSubCairo: 'عميل تجريبي · دليل الهوية',
+      treatments: {
+        standard: 'ضريبة مضافة',
+        reverse_charge: 'الاحتساب العكسي',
+        zero_rated: 'تصدير بنسبة صفر',
+        exempt: 'توريد معفى',
+        not_registered: 'غير مسجّل ضريبياً',
+      },
+      why: {
+        standard: '',
+        reverse_charge: 'العميل هو من يحتسب الضريبة',
+        zero_rated: 'بدون ضريبة — التوريد خارج النطاق الضريبي',
+        exempt: 'بدون ضريبة — التوريد معفى',
+        not_registered: 'لا ضريبة على هذه الفاتورة',
+      },
+      inclusive: 'شاملة ضريبة',
+      grossLabel: 'المبلغ كما في الفاتورة، شاملاً ضريبة ١٩٪',
+      reclaimed: 'مستردّة، وخارج حساب الهامش. لو اتحسبت كتكلفة — وده اللي بيحصل في الإكسل — الصفقة دي كانت هتقول',
+      instead: 'بدل',
       priceLabel: 'السعر المتفق عليه',
       floor: 'الأرضية', ceiling: 'السقف',
       margin: 'الهامش',
@@ -474,11 +556,12 @@ bdi { unicode-bidi: isolate; }
       driftAlert: 'المصروف تعدّى التقدير. الهامش فوق محسوب الآن على ما صُرف فعلاً، لا على ما خُطّط له.',
       amount: 'المبلغ', vendor: 'مدفوع إلى', add: 'أضف',
       delivery: 'التسليم',
-      tryTitle: 'تلات حاجات جرّبها',
+      tryTitle: 'أربع حاجات جرّبها',
       try: [
         'اسحب المقبض <strong>ناحية اليمين، تحت الأرضية</strong>. هيتقل — المقبض بيتحرك أقل من صباعك، فالأرضية بتبقى حاجة بتحس إنك بتعدّيها. والزرار هيبطّل يقول <em>اقفل الصفقة</em>.',
         'اسحب بالراحة على <strong>الأرضية والمستهدف</strong>. بيمسك عند كل واحدة، فدي قيم تقدر تقف عليها بالظبط مش تقريباً. وعلى أندرويد هتحسها كمان.',
-        'سجّل تكلفة <strong>٣٥٬٠٠٠</strong>. هتعدّي التقدير اللي هو ١٥٬٠٠٠، والهامش هينزل من ٨٠٪ لـ٤٥٪ — لأن هامش محسوب على تقدير اتثبت غلطه هو رقم الصفقة مبقتش تملكه.',
+        'سجّل تكلفة <strong>١١٬٩٠٠</strong> — فاتورة مورّد، ١٠٬٠٠٠ زائد ١٩٪ ضريبة ألمانية. هتترسّب <strong>١٠٬٠٠٠</strong> والهامش هيستقر على ٥٨٫٣٪، لأن الـ١٬٩٠٠ بترجع: هي أصلاً مكانتش فلوس الوكالة. وبعدين الكارت هيقولك الصفقة دي كانت هتقول كام لو حد حسب الضريبة — <strong>٥٠٫٤٪</strong>. الفرق ده هو اللي الأكاونت مانجر بيتحاسب عليه.',
+        'غيّر المعاملة لـ<strong>ضريبة مضافة</strong>. السعر مش هيتحرك — الوكالة لسه بتكسب ٢٤٬٠٠٠ — بس العميل دلوقتي بيتفوتر ٢٨٬٥٦٠. رقمين، وكل شيت إكسل في المجال ده بيستخدم اللي وصله منهم.',
       ],
       smallprint: 'دي الأداة نفسها، بتشغّل نفس حسابات المنتج: وحدات صغرى صحيحة، قاعدة تقريب واحدة، ولا فاصلة عائمة. تسجيل الدخول والداتابيز وعزل المستأجرين موجودين في الريبو مش في الصفحة دي — التطبيق الكامل محتاج نشر.',
     },
@@ -487,19 +570,74 @@ bdi { unicode-bidi: isolate; }
   // ---------------------------------------------------------------------------
   // State
   // ---------------------------------------------------------------------------
-  const CURRENCY = 'EGP';
+  /*
+   * VAT, and why a margin computed on gross is wrong.
+   *
+   * Only a standard-rated supply carries tax. Working backwards from a gross
+   * figure, the net is rounded once and the tax is the remainder, so net + vat
+   * is exactly the number that was handed in — no residue can appear between
+   * the two. This is the same rule as src/money/tax.ts, half-even and all.
+   */
+  const chargesVat = (t) => t === 'standard';
+
+  function applyVat(net, t, rateBp) {
+    if (!chargesVat(t) || rateBp === 0) return { net, vat: 0n, gross: net, rateBp: 0 };
+    const vat = divRound(net * BigInt(rateBp), 10000n);
+    return { net, vat, gross: net + vat, rateBp };
+  }
+
+  function removeVat(gross, t, rateBp) {
+    if (!chargesVat(t) || rateBp === 0) return { net: gross, vat: 0n, gross, rateBp: 0 };
+    const net = divRound(gross * 10000n, 10000n + BigInt(rateBp));
+    return { net, vat: gross - net, gross, rateBp };
+  }
+
   const HOUSE_RATE_BP = 5000;
   const HEALTHY_FROM_BP = 4000;
   const DRIFT_ALERT_BP = 1500;
 
-  const BAND = { floor: 5000000n, target: 7500000n, ceiling: 12000000n };
-  const ESTIMATED_COST = 1500000n;
+  /*
+   * Two markets, one instrument.
+   *
+   * The same arithmetic runs in both. What changes is the currency, the band,
+   * and whether there is a tax to keep out of the margin — which is the whole
+   * difference between selling this in Cairo and selling it in Berlin.
+   */
+  const MARKETS = {
+    berlin: {
+      currency: 'EUR',
+      band: { floor: 1500000n, target: 2400000n, ceiling: 3800000n },
+      estimatedCost: 881000n,
+      vatRateBp: 1900,
+      treatment: 'reverse_charge',
+    },
+    cairo: {
+      currency: 'EGP',
+      band: { floor: 5000000n, target: 7500000n, ceiling: 12000000n },
+      estimatedCost: 1500000n,
+      vatRateBp: 0,
+      treatment: 'not_registered',
+    },
+  };
 
-  const SPAN = BAND.ceiling - BAND.floor;
-  const HEADROOM = (SPAN * 30n) / 100n;
-  const TRACK = { min: BAND.floor - HEADROOM, max: BAND.ceiling };
-  TRACK.width = TRACK.max - TRACK.min;
-  const STEP = niceStepFor(TRACK.width);
+  let market = 'berlin';
+  let CURRENCY, BAND, ESTIMATED_COST, VAT_RATE_BP, TRACK, STEP;
+  let treatment = MARKETS.berlin.treatment;
+
+  function loadMarket(name) {
+    const m = MARKETS[name];
+    market = name;
+    CURRENCY = m.currency;
+    BAND = m.band;
+    ESTIMATED_COST = m.estimatedCost;
+    VAT_RATE_BP = m.vatRateBp;
+    treatment = m.treatment;
+    const headroom = ((BAND.ceiling - BAND.floor) * 30n) / 100n;
+    TRACK = { min: BAND.floor - headroom, max: BAND.ceiling };
+    TRACK.width = TRACK.max - TRACK.min;
+    STEP = niceStepFor(TRACK.width);
+  }
+  loadMarket(market);
 
   /** How much of a pointer movement survives below the floor. Lower is heavier. */
   const RESISTANCE = 0.45;
@@ -603,7 +741,12 @@ bdi { unicode-bidi: isolate; }
     $('lang').textContent = t.lang;
     $('thesis').textContent = t.thesis;
     $('sub').textContent = t.sub;
-    $('dealSub').textContent = t.dealSub;
+    $('dealTitle').textContent = market === 'cairo' ? t.dealTitleCairo : t.dealTitle;
+    $('dealSub').textContent = market === 'cairo' ? t.dealSubCairo : t.dealSub;
+    $('currencyTag').textContent = CURRENCY;
+    $('marketToggle').textContent = market === 'berlin' ? t.toCairo : t.toBerlin;
+    $('grossLabel').textContent = t.grossLabel;
+    $('grossRow').hidden = VAT_RATE_BP === 0;
     $('priceLabel').textContent = t.priceLabel;
     $('marginLabel').textContent = t.margin;
     $('costLabel').textContent = t.cost;
@@ -671,6 +814,30 @@ bdi { unicode-bidi: isolate; }
     $('hint').textContent =
       status === 'won' ? t.hintClosed : status === 'pending' ? t.hintSent : t.hintDrag;
 
+    /*
+     * The invoice line.
+     *
+     * The price above is and stays the net — what the agency earns, and what
+     * the margin is computed on. This is what the client is invoiced, which is
+     * a different number and, under a reverse charge, the same one.
+     */
+    const taxed = applyVat(price, treatment, VAT_RATE_BP);
+    $('taxLine').hidden = VAT_RATE_BP === 0;
+    const select = $('treatment');
+    if (select.dataset.locale !== locale) {
+      select.innerHTML = Object.keys(t.treatments)
+        .map((key) => `<option value="${key}">${t.treatments[key]}</option>`)
+        .join('');
+      select.dataset.locale = locale;
+    }
+    select.value = treatment;
+    select.disabled = status !== 'draft';
+    $('invoiced').innerHTML = taxed.vat === 0n
+      ? `<span style="font-family:var(--sans)">${t.why[treatment]}</span>`
+      : `<bdi>${fmt(taxed.gross, CURRENCY)}</bdi>` +
+        `<span style="font-family:var(--sans);margin-inline-start:.4rem;color:var(--card-ink-faint)">` +
+        `${t.inclusive} <bdi>${fmtBp(VAT_RATE_BP)}</bdi></span>`;
+
     // Costs
     $('costsTotal').innerHTML =
       `<bdi>${fmt(actual, CURRENCY)}</bdi><span class="of">${t.of}</span><bdi>${fmt(ESTIMATED_COST, CURRENCY)}</bdi>`;
@@ -686,6 +853,25 @@ bdi { unicode-bidi: isolate; }
       note.innerHTML = `<bdi>${fmtBp(Math.abs(drift ?? 0))}</bdi> ${drift >= 0 ? t.over : t.under}`;
       note.className = 'note';
       note.style.color = 'var(--card-ink-faint)';
+    }
+
+    /*
+     * What the tax would have cost, if anyone had counted it.
+     *
+     * This line does not belong in the product — a card should not argue with
+     * you. It belongs here, because the whole point of the page is that the
+     * difference between these two numbers is somebody's pay.
+     */
+    const reclaimed = costs.reduce((sum, c) => sum + (c.vat ?? 0n), 0n);
+    const reclaimNote = $('reclaimNote');
+    reclaimNote.hidden = reclaimed === 0n;
+    if (reclaimed !== 0n) {
+      const asGross = computeMargin(price, effectiveCost(ESTIMATED_COST, actual + reclaimed), HOUSE_RATE_BP);
+      reclaimNote.innerHTML =
+        `<bdi class="reading">${fmt(reclaimed, CURRENCY)}</bdi> ${t.reclaimed} ` +
+        `<bdi class="reading">${fmtBp(asGross.marginBp)}</bdi> ${t.instead} ` +
+        `<bdi class="reading">${fmtBp(margin.marginBp)}</bdi>.`;
+      reclaimNote.style.color = 'var(--card-ink-faint)';
     }
 
     $('ledger').innerHTML = costs
@@ -756,11 +942,39 @@ bdi { unicode-bidi: isolate; }
       $('costAmount').select();
       return;
     }
-    costs.push({ amount, vendor: $('costVendor').value.trim() });
+    /*
+     * The gross split, done here rather than in the head of whoever is typing.
+     *
+     * A freelancer's invoice arrives as one number with the tax already in it.
+     * What is recorded is what the work cost — the net, because the tax comes
+     * back — and the tax sits beside it. Untick the box and the whole figure
+     * counts, which is what an agency that cannot reclaim actually faces.
+     */
+    const entered = VAT_RATE_BP > 0 && $('costGross').checked
+      ? removeVat(amount, 'standard', VAT_RATE_BP)
+      : { net: amount, vat: 0n };
+    costs.push({ amount: entered.net, vat: entered.vat, vendor: $('costVendor').value.trim() });
     $('costAmount').value = '';
     $('costVendor').value = '';
     render();
   });
+
+  $('marketToggle').addEventListener('click', () => {
+    // A different market, not a different product: the same instrument, the
+    // same arithmetic, a currency and a tax position that are not Cairo's.
+    loadMarket(market === 'berlin' ? 'cairo' : 'berlin');
+    price = BAND.target;
+    costs = [];
+    status = 'draft';
+    render();
+  });
+
+  $('treatment').addEventListener('change', (e) => {
+    treatment = e.target.value;
+    render();
+  });
+
+  $('costGross').addEventListener('change', render);
 
   $('lang').addEventListener('click', () => {
     locale = locale === 'ar' ? 'en' : 'ar';
