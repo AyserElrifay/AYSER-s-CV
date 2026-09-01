@@ -148,7 +148,9 @@ bdi { unicode-bidi: isolate; }
   padding: .15rem .3rem; margin-inline-start: -.3rem; appearance: none; cursor: pointer;
 }
 .taxline select:hover { border-color: var(--card-line); color: var(--card-ink-soft); }
-.taxline select option { color: #14201C; }
+/* The native option list renders on the OS ground, not on the card, so it
+   takes the page's ink rather than the card's. */
+.taxline select option { color: var(--ink); background: var(--paper-raised); }
 .taxline .reading { color: var(--card-ink-soft); }
 .grosscheck {
   display: flex; align-items: center; gap: .45rem;
