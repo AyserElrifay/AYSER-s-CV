@@ -5,6 +5,7 @@ import { withTenant } from '@/db/client';
 import { hashPassword } from '@/auth/password';
 import { costTemplateTotal, fromMajor } from '@/money';
 import { isKnownCountry } from '@/i18n/countries';
+import { normaliseUsername } from './team';
 import { DEFAULT_BRAND_KIT, startingPointFor } from './service-catalog';
 
 /**
@@ -124,10 +125,21 @@ async function provision(args: {
               ${args.country}, ${start.vatRegistered}, ${start.vatRateBp},
               ${start.taxTreatment})`);
 
+    /*
+     * The owner gets a username too.
+     *
+     * Everyone else on the team signs in with one, and an owner who is the only
+     * person in the agency still typing an email address is a small
+     * inconsistency that becomes a support question. Derived from the address
+     * they just gave, and unique by construction: this is the organisation's
+     * first row, so nothing can collide with it.
+     */
+    const username = usernameFromEmail(args.email);
+
     await tx.execute(raw`
-      insert into users (id, org_id, email, password_hash, name, role, locale)
-      values (${userId}, ${orgId}, ${args.email}, ${args.passwordHash}, ${args.ownerName},
-              'owner', ${args.locale})`);
+      insert into users (id, org_id, email, username, password_hash, name, role, locale)
+      values (${userId}, ${orgId}, ${args.email}, ${username}, ${args.passwordHash},
+              ${args.ownerName}, 'owner', ${args.locale})`);
 
     await tx.execute(raw`
       insert into brand_kits (org_id, palette, fonts, locked_config)
@@ -222,6 +234,21 @@ export function currentMonth(now = new Date()): { startsOn: string; endsOn: stri
     // Day zero of the next month is the last day of this one, leap years included.
     endsOn: iso(new Date(Date.UTC(year, month + 1, 0))),
   };
+}
+
+/**
+ * A username from an email address.
+ *
+ * The local part, cleaned to what the column allows, with a fallback for the
+ * addresses that clean to nothing — a two-character local part, or one that is
+ * entirely punctuation, would otherwise fail the check constraint and take the
+ * whole signup with it.
+ */
+function usernameFromEmail(email: string): string {
+  const candidate = normaliseUsername((email.split('@')[0] ?? '').replace(/[^a-zA-Z0-9._-]/g, ''));
+  return /^[a-z0-9](?:[a-z0-9._-]{1,30})[a-z0-9]$/.test(candidate)
+    ? candidate
+    : `owner.${randomUUID().slice(0, 8)}`;
 }
 
 function sampleDeliveryDate(): string {

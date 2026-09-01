@@ -114,13 +114,24 @@ export async function buildPayoutRun(
              d.agreed_price_minor, d.estimated_cost_minor,
              d.frozen_house_rate_bp, d.frozen_split_rules,
              -- The same total the deal card uses, and for the same reason: a
-             -- payout computed on gross costs pays out less than the deal
-             -- earned, every month, to the people least able to check.
-             coalesce((
-               select sum(c.amount_minor)
-               from costs c
-               where c.deal_id = d.id and c.kind = 'actual' and c.currency = d.currency
-             ), 0)::text as actual_cost_minor
+             -- payout computed on the wrong cost pays out the wrong amount,
+             -- every month, to the people least able to check.
+             --
+             -- Own people's days count here too. A deal that was delivered by
+             -- four of your own staff and paid a commission as though it cost
+             -- nothing to deliver is the exact error this table exists to stop.
+             (
+               coalesce((
+                 select sum(c.amount_minor)
+                 from costs c
+                 where c.deal_id = d.id and c.kind = 'actual' and c.currency = d.currency
+               ), 0)
+               + coalesce((
+                 select sum(w.amount_minor)
+                 from work_log w
+                 where w.deal_id = d.id and w.currency = d.currency
+               ), 0)
+             )::text as actual_cost_minor
       from deals d
       join payout_periods p on p.id = ${periodId}
       where d.status = 'won'

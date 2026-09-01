@@ -11,9 +11,11 @@ export function SignInForm({ locale }: { locale: Locale }) {
 
   return (
     <form action={action} className="space-y-4">
+      {/* Not type="email": the field takes a username too, and the browser's
+          own validation would refuse one before the form ever submitted. */}
       <TextField
         name="email"
-        type="email"
+        type="text"
         label={t('auth.email')}
         autoComplete="username"
         invalid={Boolean(state.error)}

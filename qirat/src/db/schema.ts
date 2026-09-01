@@ -79,8 +79,67 @@ export const users = pgTable(
     isActive: boolean('is_active').notNull().default(true),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     lastLoginAt: timestamp('last_login_at', { withTimezone: true }),
+    /** A way in that belongs to the person, because a freelancer is not an email address. */
+    username: text('username'),
+    title: text('title'),
+    phone: text('phone'),
+    dayRateMinor: minor('day_rate_minor'),
+    rateCurrency: currencyCode('rate_currency'),
+    mustChangePassword: boolean('must_change_password').notNull().default(false),
   },
-  (t) => [index('users_email_idx').on(t.email)],
+  (t) => [
+    index('users_email_idx').on(t.email),
+    uniqueIndex('users_org_username_key').on(t.orgId, t.username),
+  ],
+);
+
+/**
+ * Who is on which deal, at the rate agreed when they were put on it.
+ *
+ * The rate is copied here rather than read from the person, for the same reason
+ * a closed deal keeps the house rate it closed with: a raise in June must not
+ * change what April's work cost.
+ */
+export const dealAssignments = pgTable(
+  'deal_assignments',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id').notNull(),
+    dealId: uuid('deal_id').notNull(),
+    userId: uuid('user_id').notNull(),
+    dayRateMinor: minor('day_rate_minor').notNull(),
+    currency: currencyCode('currency').notNull(),
+    note: text('note'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('deal_assignments_user_idx').on(t.orgId, t.userId)],
+);
+
+/**
+ * The days themselves.
+ *
+ * Your own people's time, which never leaves the bank and is exactly the cost
+ * agencies forget. `days` is hundredths, so a quarter-day is 25.
+ */
+export const workLog = pgTable(
+  'work_log',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id').notNull(),
+    dealId: uuid('deal_id').notNull(),
+    userId: uuid('user_id').notNull(),
+    workedOn: date('worked_on').notNull(),
+    days: integer('days').notNull(),
+    dayRateMinor: minor('day_rate_minor').notNull(),
+    currency: currencyCode('currency').notNull(),
+    amountMinor: minor('amount_minor').notNull(),
+    note: text('note'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('work_log_deal_idx').on(t.orgId, t.dealId),
+    index('work_log_user_idx').on(t.orgId, t.userId, t.workedOn),
+  ],
 );
 
 export const brandKits = pgTable(
@@ -261,11 +320,23 @@ export const payoutAdjustments = pgTable(
 );
 
 /**
- * Columns a Member must never receive, under any circumstance.
+ * Columns a Member must never receive.
  *
- * A Member sees assigned work and nothing with a number on it. Asserted against
- * the actual grants by a test, so adding a financial column to a table a Member
- * can read fails the build rather than leaking quietly.
+ * The rule is narrower than "no numbers", and the distinction is the product: a
+ * Member may never see a fact about the *agency's* economics — any deal's price,
+ * any margin, any service band, what a colleague costs. They may see facts about
+ * *themselves*: their own day rate, the rate their assignment was agreed at, and
+ * the days they logged. Withholding those would mean a person cannot check what
+ * they are about to be paid, which is the same argument that gives a Partner
+ * their own statement.
+ *
+ * Row-level security does the other half, and does the part a column list
+ * cannot: `users`, `deal_assignments` and `work_log` all restrict a Member to
+ * rows that are their own, so the grant below can be generous without the
+ * answer ever being.
+ *
+ * Asserted against the actual grants by a test, so adding a financial column to
+ * a table a Member can read fails the build rather than leaking quietly.
  */
 export const MEMBER_FORBIDDEN_COLUMNS = {
   organizations: [
@@ -304,6 +375,8 @@ export const MEMBER_FORBIDDEN_COLUMNS = {
   clients: ['default_currency'],
   // A Member holds INSERT on costs and no SELECT at all, so none of these is
   // reachable by them — the grant asymmetry, not a select list, is what does it.
+  // That asymmetry is why the timesheet is a separate table: a Member reading
+  // their own logged days must not become a Member reading a printer's invoice.
   costs: ['amount_minor', 'vat_minor', 'currency'],
   // A Member holds no privilege at all on the payout tables, so none of these
   // is reachable. Listed anyway: the assertion should fail loudly if somebody
@@ -330,4 +403,9 @@ export const PARTNER_FORBIDDEN_COLUMNS = {
   deals: MEMBER_FORBIDDEN_COLUMNS.deals,
   clients: MEMBER_FORBIDDEN_COLUMNS.clients,
   costs: MEMBER_FORBIDDEN_COLUMNS.costs,
+  // A Partner is an investor, not a person on the crew: they hold no privilege
+  // at all on the staffing tables. Listed so the assertion fails loudly if
+  // somebody ever grants one of them wholesale.
+  deal_assignments: ['day_rate_minor', 'currency'],
+  work_log: ['day_rate_minor', 'amount_minor', 'currency', 'days'],
 } as const;

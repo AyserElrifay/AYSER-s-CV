@@ -115,9 +115,18 @@ export interface LoginCandidate {
   isActive: boolean;
   userName: string;
   locale: string;
+  mustChangePassword: boolean;
 }
 
-export async function findLoginCandidates(email: string): Promise<LoginCandidate[]> {
+/**
+ * Everyone who could be signing in with this credential.
+ *
+ * `identifier` is an email address or a username — one query, because two would
+ * answer "does this username exist?" by which came back faster. More than one
+ * row means the same person holds accounts at more than one agency, which is
+ * ordinary for a freelancer and is why sign-in asks which workspace.
+ */
+export async function findLoginCandidates(identifier: string): Promise<LoginCandidate[]> {
   const rows = await getDb().execute<{
     user_id: string;
     org_id: string;
@@ -128,7 +137,8 @@ export async function findLoginCandidates(email: string): Promise<LoginCandidate
     is_active: boolean;
     user_name: string;
     locale: string;
-  }>(raw`select * from qirat.authenticate_lookup(${email})`);
+    must_change_password: boolean;
+  }>(raw`select * from qirat.authenticate_lookup(${identifier})`);
 
   return Array.from(rows).map((row) => ({
     userId: row.user_id,
@@ -140,6 +150,7 @@ export async function findLoginCandidates(email: string): Promise<LoginCandidate
     isActive: row.is_active,
     userName: row.user_name,
     locale: row.locale,
+    mustChangePassword: row.must_change_password,
   }));
 }
 

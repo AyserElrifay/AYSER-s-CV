@@ -1,5 +1,14 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { SEED_PASSWORD, closeAll, resetTables, seedOrg, type SeededOrg } from './helpers/db';
+import {
+  SEED_PASSWORD,
+  as,
+  closeAll,
+  raw,
+  resetTables,
+  seedOrg,
+  withTenant,
+  type SeededOrg,
+} from './helpers/db';
 import { Session, startServer, type RunningServer } from './helpers/server';
 
 /**
@@ -34,6 +43,15 @@ beforeAll(async () => {
   await resetTables();
   orgA = await seedOrg('routesa');
   orgB = await seedOrg('routesb');
+  // Put each Member on their own agency's first deal, so the Member page has
+  // real content on it. A leak test against an empty page proves nothing.
+  for (const org of [orgA, orgB]) {
+    await withTenant(as(org, 'owner'), (tx) =>
+      tx.execute(raw`
+        insert into deal_assignments (org_id, deal_id, user_id, day_rate_minor, currency)
+        values (${org.orgId}, ${org.dealId}, ${org.memberId}, 120000, 'EGP')`),
+    );
+  }
   server = await startServer();
 }, 120_000);
 
@@ -123,12 +141,25 @@ describe('a Member over HTTP', () => {
     await session.signIn(orgA.emails.member, SEED_PASSWORD);
     const body = await (await session.fetch('/app')).text();
 
-    // The seeded deal is 80,000.00 EGP against 25,000.00 of cost.
-    for (const figure of ['80,000', '8000000', '25,000', '2500000', 'EGP']) {
+    // The seeded deal is 80,000.00 EGP against 25,000.00 of cost. The Member is
+    // on that deal and still may not be told any of it.
+    for (const figure of ['80,000', '8000000', '25,000', '2500000']) {
       expect(body.includes(figure), `a member was shown "${figure}"`).toBe(false);
     }
-    // And it is a real page, not an error.
-    expect(body).toContain('Today');
+    // The positive control, and it is a strong one now: the deal they are on is
+    // named on the page, so the search above ran against real content.
+    expect(body).toContain('routesa deal one');
+    expect(body).toContain('Your work');
+  });
+
+  it('is shown the rate of their own assignment and no other', async () => {
+    // Their own rate is a fact about them, like a Partner's own statement. A
+    // colleague's rate is not, and neither is what the deal sells for.
+    const session = new Session(server.baseUrl);
+    await session.signIn(orgA.emails.member, SEED_PASSWORD);
+    const body = await (await session.fetch('/app')).text();
+    expect(body).toContain('1,200.00');
+    expect(body).not.toContain('2,500.00');
   });
 
   it('cannot see another user in the organisation', async () => {

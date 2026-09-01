@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { closeAll, raw, resetTables, withTenant } from './helpers/db';
 import { signUp } from '../src/server/onboarding';
 import { EUROPE_SERVICES } from '../src/server/service-catalog';
+import { findLoginCandidates } from '../src/db/client';
 
 /**
  * Signing up from somewhere other than Cairo.
@@ -148,5 +149,58 @@ describe('the sign-up transaction', () => {
     // euros" without guessing from the rows it happens to hold today.
     expect(Array.from(rows)[0]!.payload.country).toBe('PT');
     expect(Array.from(rows)[0]!.payload.currency).toBe('EUR');
+  });
+});
+
+describe('the owner’s own way in', () => {
+  it('gets a username derived from their address', async () => {
+    const email = `hala.mansour-${randomUUID().slice(0, 6)}@studio.test`;
+    const { orgId, userId } = await signUp({
+      agencyName: 'Mansour Studio',
+      ownerName: 'Hala Mansour',
+      email,
+      password: 'seeded-password-long-enough',
+      country: 'EG',
+    });
+    const rows = await withTenant({ orgId, userId, role: 'owner' }, (tx) =>
+      tx.execute<{ [c: string]: unknown; username: string }>(
+        raw`select username from users where id = ${userId}`,
+      ),
+    );
+    expect(Array.from(rows)[0]!.username).toBe(email.split('@')[0]);
+  });
+
+  it('can sign in with it', async () => {
+    // The lookup takes either credential. If this ever stops being true, every
+    // person the owner added is locked out and only the owner notices.
+    const email = `owner-${randomUUID().slice(0, 6)}@studio.test`;
+    await signUp({
+      agencyName: 'Another Studio',
+      ownerName: 'An Owner',
+      email,
+      password: 'seeded-password-long-enough',
+      country: 'DE',
+    });
+    const byUsername = await findLoginCandidates(email.split('@')[0]!);
+    const byEmail = await findLoginCandidates(email);
+    expect(byUsername).toHaveLength(1);
+    expect(byUsername[0]!.userId).toBe(byEmail[0]!.userId);
+  });
+
+  it('falls back when the address cleans to nothing usable', async () => {
+    const email = `+-+@studio.test`;
+    const { orgId, userId } = await signUp({
+      agencyName: 'Punctuation Studio',
+      ownerName: 'A Founder',
+      email,
+      password: 'seeded-password-long-enough',
+    });
+    const rows = await withTenant({ orgId, userId, role: 'owner' }, (tx) =>
+      tx.execute<{ [c: string]: unknown; username: string }>(
+        raw`select username from users where id = ${userId}`,
+      ),
+    );
+    // Not an empty string, and not a signup that fell over on a check constraint.
+    expect(Array.from(rows)[0]!.username).toMatch(/^owner\.[0-9a-f]{8}$/);
   });
 });

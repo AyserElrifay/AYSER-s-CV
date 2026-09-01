@@ -1,5 +1,7 @@
 import { DealCard } from '@/components/deal-card';
 import { EmptyState } from '@/components/empty-state';
+import { MyWork, type AssignmentView, type LoggedDayView } from '@/components/my-work';
+import { type StaffMember } from '@/components/staff-strip';
 import { Figure } from '@/components/figure';
 import { translator } from '@/i18n/dictionary';
 import {
@@ -9,6 +11,9 @@ import {
   money,
   priceCostTemplate,
 } from '@/money';
+import { daysToString } from '@/money';
+import { myAssignments, myWorkLog } from '@/server/work';
+import { listPeople } from '@/server/team';
 import { unitNoun } from '@/i18n/plural';
 import { requireUser, contextFor } from '@/server/session';
 import { resolveLocale } from '@/server/locale';
@@ -27,18 +32,50 @@ export default async function AppHome() {
   const locale = await resolveLocale(user.locale);
   const t = translator(locale);
 
-  // A Member or Partner never reaches a query that selects a financial column.
-  // The database would refuse it anyway; not asking is how the refusal stays a
-  // safety net rather than the control.
+  /*
+   * A Member never reaches a query that selects the agency's economics.
+   *
+   * What they do reach is their own: the deals they were put on, the rate those
+   * assignments were agreed at, and the days they logged. Every one of those is
+   * a fact about them, and the database returns nothing else to this session —
+   * not the deal's price, not its margin, not a colleague's day.
+   */
   if (user.role === 'member') {
+    const [assignments, logged] = await Promise.all([myAssignments(ctx), myWorkLog(ctx)]);
+    const fmt = (minor: bigint, currency: Parameters<typeof money>[1]) =>
+      formatMoney(money(minor, currency), { locale, display: 'none' });
+
+    const assignmentViews: AssignmentView[] = assignments.map((assignment) => ({
+      dealId: assignment.dealId,
+      dealTitle: assignment.dealTitle,
+      clientName: assignment.clientName,
+      rate: fmt(assignment.dayRateMinor, assignment.currency),
+      currency: assignment.currency,
+      daysLogged: daysToString(assignment.daysLogged || 0),
+      // Counted nouns, properly: "1 day", "2 days", and in Arabic the dual and
+      // the plural that English does not have.
+      daysNoun: unitNoun('day', (assignment.daysLogged || 0) / 100, locale),
+      logged: fmt(assignment.loggedMinor, assignment.currency),
+    }));
+
+    const loggedViews: LoggedDayView[] = logged.map((entry) => ({
+      id: entry.id,
+      dealTitle: entry.dealTitle,
+      workedOn: entry.workedOn,
+      days: daysToString(entry.days),
+      amount: fmt(entry.amount.minor, entry.amount.currency),
+      currency: entry.amount.currency,
+      note: entry.note,
+    }));
+
     return (
       <section>
-        <h1 className="text-[20px] font-semibold tracking-tight">{t('home.member.title')}</h1>
+        <h1 className="text-[20px] font-semibold tracking-tight">{t('work.title')}</h1>
         <p className="mt-1 text-[13px] text-ink-soft">{user.name}</p>
         <div className="mt-6">
-          <EmptyState title={t('empty.tasks.title')} body={t('empty.tasks.body')} />
+          <MyWork assignments={assignmentViews} logged={loggedViews} locale={locale} />
         </div>
-        <p className="mt-6 text-[12px] leading-relaxed text-ink-faint">{t('member.plain')}</p>
+        <p className="mt-8 text-[12px] leading-relaxed text-ink-faint">{t('member.plain')}</p>
       </section>
     );
   }
@@ -59,11 +96,42 @@ export default async function AppHome() {
     return <EmptyState title={t('empty.deals.title')} body={t('empty.deals.body')} />;
   }
 
-  const [cards, bands, audit] = await Promise.all([
+  const [cards, bands, audit, assignments, people] = await Promise.all([
     getDealCards(ctx, settings),
     getServiceBands(ctx),
     user.role === 'owner' ? getRecentAudit(ctx) : Promise.resolve([]),
+    myAssignments(ctx),
+    listPeople(ctx),
   ]);
+
+  /*
+   * Staffing, grouped by deal.
+   *
+   * One query for every card rather than one per card. `myAssignments` returns
+   * what the caller's own policies allow, so an account manager gets their own
+   * deals' crews and could not get a colleague's if this asked for it.
+   */
+  const fmtMoney = (minor: bigint, currency: Parameters<typeof money>[1]) =>
+    formatMoney(money(minor, currency), { locale, display: 'none' });
+
+  const staffByDeal = new Map<string, StaffMember[]>();
+  for (const assignment of assignments) {
+    const list = staffByDeal.get(assignment.dealId) ?? [];
+    list.push({
+      userId: assignment.userId,
+      name: assignment.personName,
+      rate: fmtMoney(assignment.dayRateMinor, assignment.currency),
+      daysLogged: daysToString(assignment.daysLogged || 0),
+      logged: fmtMoney(assignment.loggedMinor, assignment.currency),
+    });
+    staffByDeal.set(assignment.dealId, list);
+  }
+
+  // Only people who can actually be put on a deal: active, and not a Partner,
+  // who is an investor rather than somebody on the crew.
+  const assignable = people
+    .filter((person) => person.isActive && person.role !== 'partner')
+    .map((person) => ({ id: person.id, name: person.name }));
 
   return (
     <div className="space-y-10">
@@ -88,6 +156,7 @@ export default async function AppHome() {
                   warningFromBp: settings.marginWarningBp,
                 }}
                 vat={{ registered: settings.vatRegistered, rateBp: settings.vatRateBp }}
+                staff={{ on: staffByDeal.get(deal.id) ?? [], available: assignable }}
               />
             ))
           )}

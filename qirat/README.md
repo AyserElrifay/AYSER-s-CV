@@ -50,7 +50,7 @@ npm run build                 # the route suite runs against the real build
 npm test
 ```
 
-411 tests, about twenty seconds.
+463 tests, about twenty-five seconds.
 
 | Suite | What it holds down |
 |---|---|
@@ -66,7 +66,9 @@ npm test
 | `src/i18n/dictionary.test.ts` | Every tax treatment is named and explained in both languages, and no two treatments share an explanation. |
 | `tests/costs.test.ts` | A Member can record a cost and cannot read one back — not even their own. An account manager sees costs on their own deals only. A cost cannot attach to another organisation's deal. |
 | `tests/payouts.test.ts` | A Partner sees their own statement and no one else's. Statements cannot be edited or deleted, including by the role that owns the table. A closed period cannot be reopened. Corrections require a reason. |
-| `tests/routes.test.ts` | The same isolation, over HTTP, against the production build, with real signed sessions — every route, every role. |
+| `tests/team.test.ts` | A Member sees the deals they are on and no others, their own assignment rate and not a colleague's, their own logged days and not the crew's. They cannot log time in somebody else's name, or against a deal they are not on — which would otherwise answer "is this a real deal id" for anybody guessing. Ends by closing a deal and proving the logged days move the payout: 4,520 instead of 5,500. |
+| `src/money/work.test.ts` | Days as exact hundredths. A third of a day is refused rather than rounded. A quarter of an odd rate rounds once, to even. Summing lines is not the same as pricing the total, and the lines are what a person checks their timesheet against. |
+| `tests/routes.test.ts` | The same isolation, over HTTP, against the production build, with real signed sessions — every route, every role. The Member's page is now checked with real content on it: the deal they are staffed on is named, their own rate is shown, and the price of that same deal is still nowhere in the bytes. |
 
 The structural suite is the one that matters most over time: it fails on a table
 that *has not been written yet* if that table arrives without `org_id`, without

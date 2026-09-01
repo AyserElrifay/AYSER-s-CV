@@ -22,6 +22,8 @@ const APP_TABLES = [
   'services',
   'clients',
   'deals',
+  'deal_assignments',
+  'work_log',
   'costs',
   'audit_log',
   'split_rules',

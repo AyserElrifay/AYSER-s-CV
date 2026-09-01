@@ -570,3 +570,80 @@ money would have been handed the same broken product, in euros.
 The country never registers an agency for VAT on its behalf. It offers a rate and
 then stops talking; whether the agency is registered is a fact about the agency,
 and assuming it would put tax on invoices that must not carry it.
+
+## 27. Everyone signs in as themselves
+
+An organisation could previously only ever hold its owner. Four roles were
+enforced in the database, tested at the query layer and over HTTP — and
+reachable by nobody, because there was no way to create a second account.
+
+So: the Owner adds people, and each gets a **username** and a password. A
+username rather than an email address, because a freelancer is not an email
+address: people join for one shoot and leave, half of them share a family
+address, and this product notifies over WhatsApp precisely because email is
+where work goes to be ignored here. `users.email` is now nullable and a phone
+number is the way to reach somebody; a `users_reachable` check requires one of
+the two, so an account nobody can sign into and nobody can contact cannot exist.
+
+The password the Owner chooses is handed back to them once, in readable form, so
+they can pass it on however they already talk to that person. It is stored only
+as a scrypt hash, and the account is flagged `must_change_password`.
+
+The one sanctioned RLS bypass — `qirat.authenticate_lookup` — now matches either
+credential in a single query. Two lookups would answer "does this username
+exist?" by which one came back faster.
+
+## 28. A day rate, frozen onto the assignment
+
+Every margin in the product used to be computed as though the agency's own
+people were free. That is the single most flattering assumption a spreadsheet
+can make, and it is why agencies believe retainers are profitable.
+
+A person has a **day rate**. Days, not hours: agencies quote crew, editors and
+designers by the day, an hour is a unit people estimate badly and record worse,
+and quarter-days cover the honest cases. Quantities are hundredths, so 0.5 is
+expressible and 0.333 is refused rather than silently rounded — somebody who
+types a third means a third, and this system does not have thirds.
+
+**The rate is copied onto the assignment**, not read from the person. Same rule
+as the house rate on a closed deal: a raise in June must not change what April's
+work cost. `deal_assignments.day_rate_minor` is where the rate stops moving, and
+`work_log` copies it again onto each entry, so a row keeps saying what it said
+when it was written.
+
+Logged days reach the deal card's cost, the margin, and the payout run.
+`tests/team.test.ts` closes a deal and proves it: the same deal pays its account
+manager **4,520 instead of 5,500** once the days that delivered it are counted.
+
+## 29. A Member's own numbers are not the agency's numbers
+
+The rule was "a Member must never receive a financial field". That was too
+blunt, and the Partner already showed why: a Partner sees their own statement,
+because a person is entitled to know what they are owed.
+
+The rule is now stated precisely. A Member may never see a fact about the
+**agency's** economics — any deal's price, any margin, any service band, what a
+colleague costs. They may see facts about **themselves**: their own day rate,
+the rate their assignment was agreed at, and the days they logged. Row-level
+security does the part a column list cannot — `users`, `deal_assignments` and
+`work_log` all restrict a Member to rows that are their own.
+
+Which is why the timesheet is a **separate table from `costs`**. A Member holds
+INSERT on `costs` and no SELECT at all, and that asymmetry is load-bearing: a
+Member reading their own logged days must not become a Member reading a
+printer's invoice. They are also genuinely two kinds of money — `costs` is what
+left the bank, `work_log` is time that never did — and the deal card sums both.
+
+Two clauses in `work_log_member_write` matter beyond the obvious. A Member may
+log only in their own name, and only against a deal they are actually on. Without
+the second, "did the insert succeed" answers "is this a real deal id" for
+anybody willing to guess.
+
+## 30. The Member's portal is the light material
+
+A Member's screen has no dark card. The dark card is the deal's economics, and
+this person is not being shown economics — giving them the same body would
+promise a number that is not coming. Their portal is paper: what you are on,
+what your day is worth, and a form with two fields for saying you worked
+Tuesday. No colour appears on it at all, which is the colour rule holding rather
+than an omission.

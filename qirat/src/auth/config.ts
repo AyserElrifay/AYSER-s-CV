@@ -59,7 +59,10 @@ export const authConfig: NextAuthConfig = {
   providers: [
     Credentials({
       credentials: {
-        email: { label: 'Email', type: 'email' },
+        // Named `email` because that is what the field was, and renaming it
+        // would invalidate every session issued before today. It accepts a
+        // username too.
+        email: { label: 'Email or username', type: 'text' },
         password: { label: 'Password', type: 'password' },
         // Only needed when one address belongs to more than one agency.
         workspace: { label: 'Workspace', type: 'text' },

@@ -1,4 +1,5 @@
 import { CostStrip } from './cost-strip';
+import { StaffStrip, type StaffMember } from './staff-strip';
 import { TaxTreatmentPicker } from './tax-treatment-picker';
 import { Figure } from './figure';
 import { PriceInstrument } from './price-instrument';
@@ -24,6 +25,7 @@ export function DealCard({
   role,
   thresholds,
   vat,
+  staff,
 }: {
   deal: DealCardModel;
   locale: Locale;
@@ -31,6 +33,8 @@ export function DealCard({
   thresholds: { healthyFromBp: number; warningFromBp: number };
   /** The agency's own tax position, which decides whether costs are typed gross. */
   vat: { registered: boolean; rateBp: number };
+  /** Who is on this deal, and who could be. */
+  staff: { on: StaffMember[]; available: Array<{ id: string; name: string }> };
 }) {
   const t = translator(locale);
   // A frozen deal is read-only for everyone: its terms are the record of what
@@ -77,6 +81,14 @@ export function DealCard({
       </div>
 
       <InvoiceLine deal={deal} locale={locale} canEdit={canEdit} registered={vat.registered} />
+
+      <StaffStrip
+        dealId={deal.id}
+        on={staff.on}
+        available={staff.available}
+        locale={locale}
+        canEdit={canEdit}
+      />
 
       <CostStrip
         dealId={deal.id}

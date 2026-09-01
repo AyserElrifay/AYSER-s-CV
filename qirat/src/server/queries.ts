@@ -115,6 +115,13 @@ export interface DealCardModel {
   costEntryCount: number;
   /** Costs recorded in another currency, excluded from the total until an FX path exists. */
   unconvertedCostCount: number;
+  /**
+   * Days the agency's own people have logged, in hundredths, and how many are
+   * on the deal. A staffed deal with no days on it is the interesting case: it
+   * means the margin is still reporting labour as free.
+   */
+  daysLogged: number;
+  peopleOnDeal: number;
 }
 
 /**
@@ -150,16 +157,39 @@ export async function getDealCards(
         // into `vat_minor` when the cost was entered and is not summed here:
         // that money comes back, and counting it would understate every margin
         // by the tax rate. Nothing about today's settings enters this sum.
-        actualCostMinor: sql<string>`coalesce((
-          select sum(c.amount_minor)
-          from costs c
-          where c.deal_id = ${deals.id}
-            and c.kind = 'actual'
-            and c.currency = ${deals.currency}
-        ), 0)::text`,
+        //
+        // Two sources, because there are two kinds of cost. `costs` is what left
+        // the bank — a printer, a stock licence, a freelancer's invoice.
+        // `work_log` is your own people's days, which never leave the bank and
+        // are the cost every agency forgets: the four days a designer spent on
+        // the retainer everyone agrees is profitable.
+        actualCostMinor: sql<string>`(
+          coalesce((
+            select sum(c.amount_minor)
+            from costs c
+            where c.deal_id = ${deals.id}
+              and c.kind = 'actual'
+              and c.currency = ${deals.currency}
+          ), 0)
+          + coalesce((
+            select sum(w.amount_minor)
+            from work_log w
+            where w.deal_id = ${deals.id} and w.currency = ${deals.currency}
+          ), 0)
+        )::text`,
+        // Days logged by the agency's own people, in hundredths.
+        daysLogged: sql<number>`coalesce((
+          select sum(w.days)::int from work_log w
+          where w.deal_id = ${deals.id} and w.currency = ${deals.currency}
+        ), 0)`,
+        peopleOnDeal: sql<number>`(
+          select count(*)::int from deal_assignments a where a.deal_id = ${deals.id}
+        )`,
         costEntryCount: sql<number>`(
-          select count(*)::int from costs c
-          where c.deal_id = ${deals.id} and c.currency = ${deals.currency}
+          (select count(*)::int from costs c
+           where c.deal_id = ${deals.id} and c.currency = ${deals.currency})
+          + (select count(*)::int from work_log w
+             where w.deal_id = ${deals.id} and w.currency = ${deals.currency})
         )`,
         // Counted, not silently added. A USD stock licence on an EGP deal needs
         // the deal's frozen rate to be converted, and until that path exists it
@@ -239,6 +269,8 @@ export async function getDealCards(
       cost,
       costEntryCount: row.costEntryCount,
       unconvertedCostCount: row.unconvertedCostCount,
+      daysLogged: row.daysLogged,
+      peopleOnDeal: row.peopleOnDeal,
       signal: marginSignal({
         marginBasisPoints: margin.marginBasisPoints,
         price,
