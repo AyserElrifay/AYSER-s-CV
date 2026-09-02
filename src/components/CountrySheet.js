@@ -43,6 +43,64 @@ const openUrl = (url) => {
 
 const GROUPS = ['first', 'eat', 'go', 'help'];
 
+/* ── THE FIRST WORD, AND WHAT IT ACTUALLY MEANS ──────────────────────
+   Ayser: "حجات بسيطه هالو و معنها اي واصلها باي للغه".
+
+   He is right that this is the thing people want, and it is also the
+   thing that makes somebody remember the word. "Ahoj" is a fact you
+   forget by lunchtime. "Ahoj is the sailors' hail, and the Czechs are
+   landlocked and enjoy that about themselves" is a thing you tell
+   somebody else that evening — and now you know the word for good.
+
+   Where the origin is disputed the line says "said to have", because
+   half of these are folk etymologies that people repeat, and passing
+   one off as settled fact is the same failure as inventing a price. */
+const Greeting = ({ h, ar, t }) => {
+  if (!h) return null;
+  return (
+    <View style={{
+      backgroundColor: C.glass, borderWidth: 1, borderColor: C.gold,
+      borderRadius: 16, padding: 15, marginBottom: 16,
+    }}>
+      <Text style={{ color: C.faint, fontSize: 10.5, fontWeight: '800', letterSpacing: 1 }}>
+        {t('country_hello')}
+      </Text>
+      <Text style={{ color: C.text, fontSize: 26, fontWeight: '900', marginTop: 6 }}>{h.native}</Text>
+      <Text style={{ color: C.gold, fontSize: 13, marginTop: 3 }}>{h.how}</Text>
+      <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 9, lineHeight: 19 }}>
+        {ar ? (h.meansAr || h.means) : h.means}
+      </Text>
+      {h.bye ? (
+        <View style={{ marginTop: 13, paddingTop: 12, borderTopWidth: 1, borderTopColor: C.line }}>
+          <Text style={{ color: C.faint, fontSize: 10.5, fontWeight: '800', letterSpacing: 1 }}>
+            {t('country_bye')}
+          </Text>
+          <Text style={{ color: C.text, fontSize: 18, fontWeight: '800', marginTop: 5 }}>{h.bye.native}</Text>
+          <Text style={{ color: C.gold, fontSize: 12.5, marginTop: 2 }}>{h.bye.how}</Text>
+          <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 7, lineHeight: 19 }}>
+            {ar ? (h.bye.meansAr || h.bye.means) : h.bye.means}
+          </Text>
+        </View>
+      ) : null}
+    </View>
+  );
+};
+
+/* The few words that are not survival but courtesy — the ones somebody
+   says back to you with a completely different face. `when` is the
+   part that makes them usable: knowing "eline sağlık" is useless
+   without knowing you say it to whoever cooked. */
+const WarmWord = ({ w, ar }) => (
+  <Card>
+    <Text style={{ color: C.text, fontSize: 16, fontWeight: '800' }}>{w.native}</Text>
+    <Text style={{ color: C.gold, fontSize: 12.5, marginTop: 3 }}>{w.how}</Text>
+    <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 5, lineHeight: 18 }}>{ar ? w.ar : w.en}</Text>
+    <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 6 }}>
+      {'\u2192 '}{ar ? (w.whenAr || w.when) : w.when}
+    </Text>
+  </Card>
+);
+
 const Label = ({ children, style }) => (
   <Text style={[{ color: C.faint, fontSize: 11, fontWeight: '800', letterSpacing: 1, marginBottom: 8 }, style]}>
     {children}
@@ -181,6 +239,13 @@ export const CountrySheet = ({ startCode, onClose }) => {
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 20 }}>
           {tab === 'say' ? (
             <>
+              <Greeting h={room.hello} ar={ar} t={t} />
+              {room.warm && room.warm.length ? (
+                <View style={{ marginBottom: 10 }}>
+                  <Label>{t('country_g_warm')}</Label>
+                  {room.warm.map((w, i) => <WarmWord key={'w' + i} w={w} ar={ar} />)}
+                </View>
+              ) : null}
               {GROUPS.map((g) => {
                 const rows = room.say.filter((p) => p.g === g);
                 if (!rows.length) return null;

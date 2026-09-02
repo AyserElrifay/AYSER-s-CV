@@ -12,7 +12,7 @@ import { COUNTRY_ROOMS } from '../src/constants/countryRoom.js';
 import { ROOM_CODES } from '../src/constants/countryRoomIndex.js';
 
 const GROUPS = new Set(['first', 'eat', 'go', 'help']);
-const MIN = { say: 12, eat: 4, know: 3, hear: 3 };
+const MIN = { say: 12, eat: 4, know: 3, hear: 3, warm: 4 };
 const problems = [];
 const seen = new Set();
 
@@ -37,6 +37,22 @@ for (const c of COUNTRY_ROOMS) {
   for (const g of GROUPS) {
     if (!(c.say || []).some((p) => p.g === g)) at('has nothing at all to say in the "' + g + '" moment');
   }
+
+  /* The greeting and what it means is the thing he asked for by name,
+     and it is the first thing anybody sees in the room. A country
+     without one is a country with a blank at the top of its page. */
+  const h = c.hello;
+  if (!h) at('has no greeting at all');
+  else {
+    for (const f of ['native', 'how', 'means', 'meansAr']) if (!h[f]) at('the greeting has no ' + f);
+    if (!h.bye) at('has a hello and no goodbye');
+    else for (const f of ['native', 'how', 'means', 'meansAr']) if (!h.bye[f]) at('the goodbye has no ' + f);
+  }
+  (c.warm || []).forEach((w, i) => {
+    for (const f of ['native', 'how', 'en', 'ar', 'when', 'whenAr']) {
+      if (!w[f]) at('warm word ' + i + ' has no ' + f);
+    }
+  });
 
   (c.eat || []).forEach((d, i) => {
     for (const f of ['name', 'what', 'whatAr']) if (!d[f]) at('dish ' + i + ' has no ' + f);
@@ -73,6 +89,7 @@ if (problems.length) {
 console.log(
   'Country room: ' + COUNTRY_ROOMS.length + ' countries, ' +
   COUNTRY_ROOMS.reduce((a, c) => a + c.say.length, 0) + ' phrases, ' +
+  COUNTRY_ROOMS.reduce((a, c) => a + c.warm.length, 0) + ' warm words, ' +
   COUNTRY_ROOMS.reduce((a, c) => a + c.eat.length, 0) + ' dishes, ' +
   COUNTRY_ROOMS.reduce((a, c) => a + c.know.length, 0) + ' customs, ' +
   COUNTRY_ROOMS.reduce((a, c) => a + c.hear.length, 0) + ' artists — all complete, and the map agrees.'

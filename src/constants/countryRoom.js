@@ -48,6 +48,20 @@ export const COUNTRY_ROOMS = [
   {
     code: 'GR', name: 'Greece', nameAr: 'اليونان',
     lang: 'Greek', langAr: 'اليونانية', filmLang: 'el',
+    hello: {
+      native: 'Γειά σου', how: 'YAH-soo',
+      means: 'Literally "health to you". The Greek word for health, υγεία, is sitting inside the hello — you are wishing somebody well every time you say it.',
+      meansAr: 'حرفياً "الصحة ليك". كلمة الصحة اليونانية υγεία جوّه كلمة السلام نفسها — يعني إنت بتتمنى للناس الخير كل مرة تقولها.',
+      bye: { native: 'Αντίο', how: 'ah-DEE-oh',
+             means: 'The formal goodbye. Between friends, γειά σου works on the way out as well as on the way in.',
+             meansAr: 'الوداع الرسمي. بين الأصحاب، γειά σου بتنفع وانت خارج زي ما بتنفع وانت داخل.' },
+    },
+    warm: [
+      { native: 'Χάρηκα', how: 'HA-ree-ka', en: 'Nice to meet you — literally "I was glad"', ar: 'تشرفنا — حرفياً "أنا اتبسطت"', when: 'At the end of a first meeting', whenAr: 'في آخر أول لقاء' },
+      { native: 'Στην υγειά σου!', how: 'stin ee-YAH-soo', en: 'Cheers — "to your health" again', ar: 'في صحتك — "لصحتك" برضه', when: 'Raising a glass', whenAr: 'وانت رافع الكباية' },
+      { native: 'Καλή όρεξη', how: 'ka-LEE O-rek-see', en: 'Good appetite', ar: 'بالهنا والشفا', when: 'Before anyone eats', whenAr: 'قبل ما حد ياكل' },
+      { native: 'Παρακαλώ', how: 'pah-rah-kah-LOH', en: 'You are welcome — and also "please", and also "go ahead"', ar: 'العفو — وكمان "من فضلك"، وكمان "اتفضل"', when: 'It does a lot of work', whenAr: 'بتعمل حاجات كتير' },
+    ],
     say: [
       { g: 'first', native: 'Γειά σου',    how: 'YAH-soo',            en: 'Hi — to one person, casually',   ar: 'أهلاً — لشخص واحد، بشكل ودّي' },
       { g: 'first', native: 'Γειά σας',    how: 'YAH-sas',            en: 'Hello — polite, or to more than one', ar: 'أهلاً — رسمي، أو لأكتر من واحد' },
@@ -105,6 +119,20 @@ export const COUNTRY_ROOMS = [
   {
     code: 'IT', name: 'Italy', nameAr: 'إيطاليا',
     lang: 'Italian', langAr: 'الإيطالية', filmLang: 'it',
+    hello: {
+      native: 'Ciao', how: 'chow',
+      means: 'From the Venetian s-ciào vostro — "I am your servant". A promise of service, worn down over centuries into hello. Use it with people you know; buongiorno with people you do not.',
+      meansAr: 'من الڤينيسي s-ciào vostro يعني "أنا خادمك". وعد بالخدمة اتآكل على مدى قرون لحد ما بقى "أهلاً". استعملها مع اللي تعرفهم، وbuongiorno مع اللي ما تعرفهمش.',
+      bye: { native: 'Arrivederci', how: 'ar-ree-veh-DAIR-chee',
+             means: 'Literally "until we see each other again".',
+             meansAr: 'حرفياً "لحد ما نتشاف تاني".' },
+    },
+    warm: [
+      { native: 'Piacere', how: 'pya-CHEH-reh', en: 'Pleased to meet you — literally "a pleasure"', ar: 'تشرفنا — حرفياً "متعة"', when: 'Shaking hands the first time', whenAr: 'أول سلام بالإيد' },
+      { native: 'Salute!', how: 'sa-LOO-teh', en: 'Cheers — "health". Also what you say when someone sneezes', ar: 'في صحتك — "صحة". وبتتقال كمان لما حد يعطس', when: 'Glasses, and sneezes', whenAr: 'مع الكبايات، ومع العطس' },
+      { native: 'Buon appetito', how: 'bwon ap-peh-TEE-toh', en: 'Good appetite — nobody starts eating without it', ar: 'بالهنا والشفا — محدش بيبدأ ياكل من غيرها', when: 'Before the first forkful', whenAr: 'قبل أول لقمة' },
+      { native: 'Figurati', how: 'fee-GOO-rah-tee', en: 'Don\u2019t mention it — literally "imagine that"', ar: 'ولا يهمك — حرفياً "تخيّل"', when: 'When they thank you', whenAr: 'لما يشكروك' },
+    ],
     say: [
       { g: 'first', native: 'Buongiorno',  how: 'bwon-JOR-no',      en: 'Good morning — until about 4pm', ar: 'صباح الخير — لحد الرابعة العصر تقريباً' },
       { g: 'first', native: 'Buonasera',   how: 'bwo-na-SEH-ra',    en: 'Good evening — after that',      ar: 'مساء الخير — بعد كده' },
@@ -162,6 +190,20 @@ export const COUNTRY_ROOMS = [
   {
     code: 'ES', name: 'Spain', nameAr: 'إسبانيا',
     lang: 'Spanish', langAr: 'الإسبانية', filmLang: 'es',
+    hello: {
+      native: 'Hola', how: 'OH-la',
+      means: 'The h is silent — say it "ola". Spaniards greet loudly and early; walking into a small shop without one is the thing that marks you out.',
+      meansAr: 'الـ h ما بتتنطقش — قولها "أولا". الإسبان بيسلموا بصوت عالي وبدري؛ ودخولك محل صغير من غير سلام هو اللي بيفضحك.',
+      bye: { native: 'Hasta luego', how: 'AH-sta LWEH-go',
+             means: 'Literally "until later" — used even with people you will never see again.',
+             meansAr: 'حرفياً "لحد بعدين" — بتتقال حتى لناس عمرك ما هتشوفهم تاني.' },
+    },
+    warm: [
+      { native: 'Mucho gusto', how: 'MOO-cho GOOS-toh', en: 'Pleased to meet you — literally "much pleasure"', ar: 'تشرفنا — حرفياً "متعة كبيرة"', when: 'A first introduction', whenAr: 'أول تعارف' },
+      { native: '¡Salud!', how: 'sa-LOOD', en: 'Cheers — "health"', ar: 'في صحتك — "صحة"', when: 'Every toast', whenAr: 'كل نخب' },
+      { native: 'Buen provecho', how: 'bwen pro-VEH-cho', en: 'Enjoy your meal — said to strangers at the next table', ar: 'بالهنا والشفا — بتتقال لناس ما تعرفهمش على الترابيزة اللي جنبك', when: 'Passing anyone eating', whenAr: 'وانت عدّي على حد بياكل' },
+      { native: 'De nada', how: 'deh NAH-da', en: 'You are welcome — literally "of nothing"', ar: 'العفو — حرفياً "من لا شيء"', when: 'After a thank you', whenAr: 'بعد الشكر' },
+    ],
     say: [
       { g: 'first', native: 'Hola',        how: 'OH-la',            en: 'Hi',                             ar: 'أهلاً' },
       { g: 'first', native: 'Buenos días', how: 'BWEH-nos DEE-as',  en: 'Good morning',                   ar: 'صباح الخير' },
@@ -219,6 +261,20 @@ export const COUNTRY_ROOMS = [
   {
     code: 'FR', name: 'France', nameAr: 'فرنسا',
     lang: 'French', langAr: 'الفرنسية', filmLang: 'fr',
+    hello: {
+      native: 'Bonjour', how: 'bon-ZHOOR',
+      means: 'Literally "good day" — bon jour, two ordinary words. Plain, and the single most load-bearing word in the country: nothing else works until it has been said.',
+      meansAr: 'حرفياً "نهار كويس" — bon jour، كلمتين عاديين. بسيطة، وهي أهم كلمة في البلد كلها: مفيش حاجة بتمشي قبل ما تتقال.',
+      bye: { native: 'Au revoir', how: 'oh ruh-VWAR',
+             means: 'Literally "until the re-seeing". Say it on the way out of a shop even if you bought nothing.',
+             meansAr: 'حرفياً "لحد الشوفة الجاية". قولها وانت خارج من المحل حتى لو ما اشتريتش حاجة.' },
+    },
+    warm: [
+      { native: 'Enchanté', how: 'on-shon-TEH', en: 'Pleased to meet you — literally "enchanted"', ar: 'تشرفنا — حرفياً "مسحور"', when: 'A first handshake', whenAr: 'أول سلام' },
+      { native: 'Santé!', how: 'son-TEH', en: 'Cheers — "health"', ar: 'في صحتك — "صحة"', when: 'Every glass, eyes up', whenAr: 'كل كباية، وعينك في عينه' },
+      { native: 'Bon appétit', how: 'bon ap-eh-TEE', en: 'Good appetite', ar: 'بالهنا والشفا', when: 'Before eating, without fail', whenAr: 'قبل الأكل، من غير استثناء' },
+      { native: 'Je vous en prie', how: 'zhuh voo zon PREE', en: 'You are welcome — the warm, polite one', ar: 'العفو — الصيغة الدافية المهذبة', when: 'After a thank you', whenAr: 'بعد الشكر' },
+    ],
     say: [
       { g: 'first', native: 'Bonjour',     how: 'bon-ZHOOR',        en: 'Hello — say it before anything else, always', ar: 'أهلاً — قولها قبل أي حاجة تانية، دايماً' },
       { g: 'first', native: 'Merci',       how: 'mer-SEE',          en: 'Thank you',                      ar: 'شكراً' },
@@ -276,6 +332,20 @@ export const COUNTRY_ROOMS = [
   {
     code: 'DE', name: 'Germany', nameAr: 'ألمانيا',
     lang: 'German', langAr: 'الألمانية', filmLang: 'de',
+    hello: {
+      native: 'Hallo', how: 'HAH-lo',
+      means: 'Fine everywhere. But Bavaria says Servus, Hamburg says Moin, and Moin works at any hour of the day despite sounding like "morning".',
+      meansAr: 'بتنفع في كل مكان. بس بافاريا بتقول Servus، وهامبورج بتقول Moin — وMoin بتنفع في أي وقت في اليوم رغم إنها شبه كلمة "صباح".',
+      bye: { native: 'Tschüss', how: 'chooss',
+             means: 'Said to have travelled from the Spanish adiós, through the Walloon adjuus, into the north German ports and out across the country.',
+             meansAr: 'بيقولوا إنها سافرت من الإسبانية adiós، عن طريق الوالونية adjuus، لموانئ شمال ألمانيا وبعدين للبلد كلها.' },
+    },
+    warm: [
+      { native: 'Freut mich', how: 'froyt mikh', en: 'Pleased to meet you — literally "it pleases me"', ar: 'تشرفنا — حرفياً "ده بيسعدني"', when: 'A first handshake', whenAr: 'أول سلام' },
+      { native: 'Prost!', how: 'prohst', en: 'Cheers — and you must make eye contact, or the superstition says seven years of bad luck', ar: 'في صحتك — ولازم تبص في عينه، وإلا الخرافة بتقول سبع سنين نحس', when: 'Every single glass', whenAr: 'كل كباية من غير استثناء' },
+      { native: 'Guten Appetit', how: 'GOO-ten ah-peh-TEET', en: 'Good appetite', ar: 'بالهنا والشفا', when: 'Before eating', whenAr: 'قبل الأكل' },
+      { native: 'Gern geschehen', how: 'gairn geh-SHEH-en', en: 'You are welcome — literally "gladly done"', ar: 'العفو — حرفياً "اتعمل بكل سرور"', when: 'After a thank you', whenAr: 'بعد الشكر' },
+    ],
     say: [
       { g: 'first', native: 'Hallo',       how: 'HAH-lo',           en: 'Hi',                             ar: 'أهلاً' },
       { g: 'first', native: 'Guten Tag',   how: 'GOO-ten TAHK',     en: 'Good day — the safe polite one', ar: 'نهارك سعيد — الرسمية المضمونة' },
@@ -333,6 +403,20 @@ export const COUNTRY_ROOMS = [
   {
     code: 'PT', name: 'Portugal', nameAr: 'البرتغال',
     lang: 'Portuguese', langAr: 'البرتغالية', filmLang: 'pt',
+    hello: {
+      native: 'Olá', how: 'oh-LAH',
+      means: 'The everyday hello. Portuguese also greets by time of day far more than English does — bom dia, boa tarde, boa noite, and people notice which one you pick.',
+      meansAr: 'السلام اليومي. والبرتغالية بتسلم حسب وقت اليوم أكتر بكتير من الإنجليزية — bom dia وboa tarde وboa noite، والناس بتلاحظ إنت اخترت أنهي واحدة.',
+      bye: { native: 'Adeus', how: 'ah-DEH-oosh',
+             means: 'Literally "to God" — a dele. It carries some finality; até logo, "until soon", is the lighter one.',
+             meansAr: 'حرفياً "لله". وفيها إحساس بالنهاية؛ وaté logo يعني "لحد قريب" وهي الأخف.' },
+    },
+    warm: [
+      { native: 'Muito prazer', how: 'MOOY-toh pra-ZAIR', en: 'Pleased to meet you — literally "much pleasure"', ar: 'تشرفنا — حرفياً "متعة كبيرة"', when: 'A first meeting', whenAr: 'أول لقاء' },
+      { native: 'Saúde!', how: 'sah-OO-deh', en: 'Cheers — "health"', ar: 'في صحتك — "صحة"', when: 'A toast, or a sneeze', whenAr: 'نخب، أو عطسة' },
+      { native: 'Bom apetite', how: 'bom ah-peh-TEE-teh', en: 'Good appetite', ar: 'بالهنا والشفا', when: 'Before eating', whenAr: 'قبل الأكل' },
+      { native: 'De nada', how: 'deh NAH-da', en: 'You are welcome — "of nothing"', ar: 'العفو — "من لا شيء"', when: 'After a thank you', whenAr: 'بعد الشكر' },
+    ],
     say: [
       { g: 'first', native: 'Olá',         how: 'oh-LAH',           en: 'Hi',                             ar: 'أهلاً' },
       { g: 'first', native: 'Bom dia',     how: 'bom DEE-ah',       en: 'Good morning',                   ar: 'صباح الخير' },
@@ -390,6 +474,20 @@ export const COUNTRY_ROOMS = [
   {
     code: 'NL', name: 'Netherlands', nameAr: 'هولندا',
     lang: 'Dutch', langAr: 'الهولندية', filmLang: 'nl',
+    hello: {
+      native: 'Hoi', how: 'hoy',
+      means: 'The short, friendly one. Hallo is fine too, and goedemorgen is what you say to a shopkeeper before nine.',
+      meansAr: 'القصيرة الودّية. وHallo كويسة برضه، وgoedemorgen هي اللي بتقولها لصاحب المحل قبل التسعة.',
+      bye: { native: 'Tot ziens', how: 'tot ZEENS',
+             means: 'Literally "until seeing". Doei is the casual one and sounds like "doo-ee".',
+             meansAr: 'حرفياً "لحد الشوفة". وDoei هي الودّية وبتتنطق "دووي".' },
+    },
+    warm: [
+      { native: 'Aangenaam', how: 'AHN-kheh-nahm', en: 'Pleased to meet you — literally "agreeable"', ar: 'تشرفنا — حرفياً "مستحبّ"', when: 'A first handshake', whenAr: 'أول سلام' },
+      { native: 'Proost!', how: 'prohst', en: 'Cheers', ar: 'في صحتك', when: 'Raising a glass', whenAr: 'وانت رافع الكباية' },
+      { native: 'Eet smakelijk', how: 'ayt SMAH-keh-luk', en: 'Enjoy your meal — literally "eat tastily"', ar: 'بالهنا والشفا — حرفياً "كُل بطعم"', when: 'Before eating', whenAr: 'قبل الأكل' },
+      { native: 'Geen probleem', how: 'khayn pro-BLAYM', en: 'No problem — the everyday you-are-welcome', ar: 'ولا يهمك — العفو اليومية', when: 'After a thank you', whenAr: 'بعد الشكر' },
+    ],
     say: [
       { g: 'first', native: 'Hoi',         how: 'hoy',              en: 'Hi',                             ar: 'أهلاً' },
       { g: 'first', native: 'Goedemorgen', how: 'KHOO-deh-mor-khen', en: 'Good morning',                  ar: 'صباح الخير' },
@@ -447,6 +545,20 @@ export const COUNTRY_ROOMS = [
   {
     code: 'RO', name: 'Romania', nameAr: 'رومانيا',
     lang: 'Romanian', langAr: 'الرومانية', filmLang: 'ro',
+    hello: {
+      native: 'Salut', how: 'sa-LOOT',
+      means: 'Straight from the Latin salus — health, safety, wellbeing. Romanian kept the Latin word where most of its neighbours did not.',
+      meansAr: 'جاية على طول من اللاتينية salus — صحة وأمان وعافية. الرومانية احتفظت بالكلمة اللاتينية في وقت جيرانها ما احتفظوش بيها.',
+      bye: { native: 'La revedere', how: 'la reh-veh-DEH-reh',
+             means: 'Literally "until the re-seeing" — the same idea as the French au revoir, from the same Latin root.',
+             meansAr: 'حرفياً "لحد الشوفة الجاية" — نفس فكرة au revoir الفرنسية، ومن نفس الأصل اللاتيني.' },
+    },
+    warm: [
+      { native: 'Îmi pare bine', how: 'uhm PAH-reh BEE-neh', en: 'Pleased to meet you — literally "it seems good to me"', ar: 'تشرفنا — حرفياً "ده باين لي كويس"', when: 'A first meeting', whenAr: 'أول لقاء' },
+      { native: 'Noroc!', how: 'no-ROK', en: 'Cheers — literally "luck"', ar: 'في صحتك — حرفياً "حظ"', when: 'Every glass', whenAr: 'كل كباية' },
+      { native: 'Poftă bună', how: 'POF-tuh BOO-nuh', en: 'Good appetite', ar: 'بالهنا والشفا', when: 'Before eating', whenAr: 'قبل الأكل' },
+      { native: 'Cu plăcere', how: 'koo pluh-CHEH-reh', en: 'You are welcome — "with pleasure"', ar: 'العفو — "بكل سرور"', when: 'After a thank you', whenAr: 'بعد الشكر' },
+    ],
     say: [
       { g: 'first', native: 'Bună',        how: 'BOO-nuh',          en: 'Hi',                             ar: 'أهلاً' },
       { g: 'first', native: 'Bună ziua',   how: 'BOO-nuh ZEE-wa',   en: 'Good day — the polite one',      ar: 'نهارك سعيد — الرسمية' },
@@ -505,6 +617,20 @@ export const COUNTRY_ROOMS = [
   {
     code: 'PL', name: 'Poland', nameAr: 'بولندا',
     lang: 'Polish', langAr: 'البولندية', filmLang: 'pl',
+    hello: {
+      native: 'Cześć', how: 'cheshch',
+      means: 'The same word as cześć meaning honour or reverence — you are literally saying "honour" to somebody. Hard to pronounce and worth the try; people light up when a foreigner attempts it.',
+      meansAr: 'نفس كلمة cześć اللي معناها شرف أو إجلال — يعني إنت حرفياً بتقول "شرف" لحد. صعبة في النطق وتستاهل المحاولة؛ الناس بتفرح لما أجنبي يحاول.',
+      bye: { native: 'Do widzenia', how: 'do vee-DZEH-nya',
+             means: 'Literally "until the seeing". The polite one; cześć works on the way out between friends.',
+             meansAr: 'حرفياً "لحد الشوفة". دي الرسمية؛ وcześć بتنفع وانت خارج بين الأصحاب.' },
+    },
+    warm: [
+      { native: 'Miło mi', how: 'MEE-wo mee', en: 'Pleased to meet you — literally "it is pleasant to me"', ar: 'تشرفنا — حرفياً "ده لطيف بالنسبة لي"', when: 'A first handshake', whenAr: 'أول سلام' },
+      { native: 'Na zdrowie!', how: 'na ZDRO-vyeh', en: 'Cheers — "to health". Also what you say when someone sneezes', ar: 'في صحتك — "للصحة". وبتتقال كمان لما حد يعطس', when: 'Toasts and sneezes', whenAr: 'النخب والعطس' },
+      { native: 'Smacznego', how: 'smach-NEH-go', en: 'Enjoy your meal', ar: 'بالهنا والشفا', when: 'Before eating', whenAr: 'قبل الأكل' },
+      { native: 'Nie ma za co', how: 'nyeh ma za tso', en: 'You are welcome — "there is nothing to thank for"', ar: 'العفو — "مفيش حاجة تستاهل الشكر"', when: 'After a thank you', whenAr: 'بعد الشكر' },
+    ],
     say: [
       { g: 'first', native: 'Cześć',       how: 'cheshch',          en: 'Hi',                             ar: 'أهلاً' },
       { g: 'first', native: 'Dzień dobry', how: 'jane DOB-ry',      en: 'Good day — use this with strangers', ar: 'نهارك سعيد — استعملها مع الغرب' },
@@ -562,6 +688,21 @@ export const COUNTRY_ROOMS = [
   {
     code: 'CZ', name: 'Czechia', nameAr: 'التشيك',
     lang: 'Czech', langAr: 'التشيكية', filmLang: 'cs',
+    hello: {
+      native: 'Ahoj', how: 'AH-hoy',
+      means: 'The sailors\u2019 hail — the same word as the English "ahoy". A landlocked country greets each other like sailors, and Czechs enjoy that about themselves: it is said to have come off the river, from the rowers and canoeists on the Vltava a century ago.',
+      meansAr: 'نداء البحارة — نفس كلمة "ahoy" الإنجليزية. بلد مالهاش بحر بتسلم على بعضها زي البحارة، والتشيك بيستظرفوا ده في نفسهم: بيقولوا إنها جات من النهر، من المجدّفين على نهر الفلتافا من حوالي قرن.',
+      bye: { native: 'Na shledanou', how: 'nas-KHLEH-da-noh',
+             means: 'Literally "until the seeing again". Say ahoj on the way out too if you are being casual.',
+             meansAr: 'حرفياً "لحد ما نتشاف تاني". وتقدر تقول ahoj وانت خارج كمان لو الجو ودّي.' },
+    },
+    warm: [
+      { native: 'Těší mě', how: 'TYEH-shee myeh', en: 'Pleased to meet you — literally "it pleases me"', ar: 'تشرفنا — حرفياً "ده بيسعدني"', when: 'The first time you shake a hand', whenAr: 'أول مرة تسلم على حد' },
+      { native: 'Na zdraví!', how: 'na ZDRA-vee', en: 'Cheers — literally "to health". Look them in the eye, or it does not count', ar: 'في صحتك — حرفياً "للصحة". بصله في عينه وإلا مش محسوبة', when: 'Every glass, every time', whenAr: 'مع كل كباية، كل مرة' },
+      { native: 'Dobrou chuť', how: 'DOB-roh khoot', en: 'Good appetite — said to anyone about to eat, even a stranger', ar: 'بالهنا والشفا — بتتقال لأي حد رايح ياكل، حتى لو ما تعرفوش', when: 'Before the first bite, always', whenAr: 'قبل أول لقمة، دايماً' },
+      { native: 'Není zač', how: 'NEH-nee zach', en: 'You are welcome — literally "there is nothing to thank for"', ar: 'العفو — حرفياً "مفيش حاجة تستاهل الشكر"', when: 'When they thank you', whenAr: 'لما يشكروك' },
+      { native: 'Jak se máš?', how: 'yak seh MAASH', en: 'How are you? — and they will answer honestly, which surprises people', ar: 'إزيك؟ — وهيردوا عليك بصراحة، وده بيفاجئ الناس', when: 'With someone you already know', whenAr: 'مع حد تعرفه' },
+    ],
     say: [
       { g: 'first', native: 'Ahoj',        how: 'AH-hoy',           en: 'Hi — yes, like the sailors',     ar: 'أهلاً — أيوه زي البحارة' },
       { g: 'first', native: 'Dobrý den',   how: 'DOB-ree den',      en: 'Good day — the polite one',      ar: 'نهارك سعيد — الرسمية' },
@@ -575,6 +716,12 @@ export const COUNTRY_ROOMS = [
       { g: 'go',    native: 'Kolik to stojí?', how: 'KO-leek to STO-yee', en: 'How much is it?',          ar: 'بكام؟' },
       { g: 'help',  native: 'Mluvíte anglicky?', how: 'MLOO-vee-teh AN-glits-kee', en: 'Do you speak English?', ar: 'بتتكلم إنجليزي؟' },
       { g: 'help',  native: 'Pomoc!',      how: 'PO-mots',          en: 'Help!',                          ar: 'إلحقوني!' },
+      { g: 'eat',   native: 'Jedno pivo, prosím', how: 'YED-no PEE-vo PRO-seem', en: 'One beer, please — and it will arrive before you finish asking', ar: 'بيرة واحدة من فضلك — وهتوصل قبل ما تخلص كلامك' },
+      { g: 'eat',   native: 'Ještě jedno',  how: 'YESH-tyeh YED-no', en: 'One more — the two words that keep a Czech evening going', ar: 'كمان واحدة — الكلمتين اللي بيمشوا الليلة التشيكية' },
+      { g: 'go',    native: 'Jízdenku, prosím', how: 'YEEZ-den-koo PRO-seem', en: 'A ticket, please — and validate it in the machine or it is not a ticket', ar: 'تذكرة من فضلك — واختمها في الماكينة وإلا مش تذكرة' },
+      { g: 'go',    native: 'Kolik je hodin?', how: 'KO-leek yeh HO-deen', en: 'What time is it?',            ar: 'الساعة كام؟' },
+      { g: 'help',  native: 'Nerozumím',   how: 'NEH-ro-zoo-meem',  en: 'I do not understand — more useful than any other sentence in week one', ar: 'مش فاهم — أنفع من أي جملة تانية في أول أسبوع' },
+      { g: 'help',  native: 'Můžete to napsat?', how: 'MOO-zheh-teh to NAP-sat', en: 'Could you write it down? — Czech is easier to read than to hear', ar: 'ممكن تكتبها؟ — التشيكي أسهل في القراية من السمع' },
     ],
     eat: [
       { name: 'Svíčková', nameAr: 'سفيتشكوفا',
@@ -589,6 +736,15 @@ export const COUNTRY_ROOMS = [
       { name: 'Trdelník', nameAr: 'ترْدِلنيك',
         what: 'The sugar chimney sold to tourists in Prague. Worth knowing it is not actually a Czech tradition.',
         whatAr: 'مدخنة السكر اللي بتتباع للسياح في براغ. تستاهل تعرف إنها مش تقليد تشيكي أصلاً.' },
+      { name: 'Guláš', nameAr: 'جولاش',
+        what: 'Thicker and darker than the Hungarian one, and served with dumplings rather than as a soup. The dish a Czech orders when they are not thinking.',
+        whatAr: 'أتخن وأغمق من المجري، وبتتقدم مع الكنيدليكي مش كشوربة. الأكلة اللي التشيكي بيطلبها من غير ما يفكر.' },
+      { name: 'Bramborák', nameAr: 'برامبوراك',
+        what: 'A fried potato pancake with garlic and marjoram. Cheap, hot, and sold from a window at a Christmas market.',
+        whatAr: 'فطيرة بطاطس مقلية بتوم وبردقوش. رخيصة وسخنة وبتتباع من شباك في سوق الكريسماس.' },
+      { name: 'Utopenec', nameAr: 'أوتوبينيتس',
+        what: 'A pickled sausage, and the name means "the drowned man". Czechs will hand you one to see what you do.',
+        whatAr: 'سجق مخلل، والاسم معناه "الغريق". التشيك هيدولك واحدة عشان يشوفوا هتعمل إيه.' },
     ],
     know: [
       { title: 'Beer is cheaper than water and that is not a joke',
@@ -603,6 +759,18 @@ export const COUNTRY_ROOMS = [
         titleAr: 'براغ مش التشيك',
         body: 'Prices in the centre are three times the rest of the country. Go one tram stop out and everything changes.',
         bodyAr: 'الأسعار في وسط البلد بتلات أضعاف باقي البلد. اطلع محطة ترام واحدة برة وكل حاجة تتغير.' },
+      { title: 'Look them in the eye when you toast',
+        titleAr: 'بصله في عينه وانت بتقول نخب',
+        body: 'Na zdraví, glass touched, eyes met, glass down on the table before you drink. Miss the eyes and somebody will make you do it again.',
+        bodyAr: 'Na zdraví، والكباية تلمس، والعين في العين، وتنزّل الكباية على الترابيزة قبل ما تشرب. لو ما بصتش في عينه حد هيخليك تعيدها.' },
+      { title: 'The beer mat is the bill',
+        titleAr: 'الفوطة اللي تحت الكباية دي الحساب',
+        body: 'Every round is a pencil mark on the paper mat under your glass. Do not throw it away, and do not add marks to it.',
+        bodyAr: 'كل جولة بتتحط كشخطة بالقلم على الفوطة الورق اللي تحت كبايتك. ما ترميهاش، وما تزوّدش عليها خطوط.' },
+      { title: 'A new beer arrives without being ordered',
+        titleAr: 'البيرة الجديدة بتيجي من غير ما تطلبها',
+        body: 'That is service, not a trick. Put the beer mat on top of the empty glass and it stops.',
+        bodyAr: 'دي خدمة مش حيلة. حط الفوطة فوق الكباية الفاضية وهتقف.' },
     ],
     hear: [
       { title: 'Má vlast (Vltava)', artist: 'Bedřich Smetana', year: '1874',
@@ -614,11 +782,31 @@ export const COUNTRY_ROOMS = [
       { title: 'Anything of theirs', artist: 'Čechomor', year: 'since 1988',
         why: 'Moravian folk songs played by a rock band. The bridge between the village and the city.',
         whyAr: 'أغاني شعبية مورافية بتعزفها فرقة روك. الجسر بين القرية والمدينة.' },
+      { title: 'Symphony No. 9, From the New World', artist: 'Antonín Dvořák', year: '1893',
+        why: 'Written in America and homesick for Bohemia the whole way through. It went to the moon with Apollo 11.',
+        whyAr: 'اتكتبت في أمريكا وهو مشتاق لبوهيميا طول الوقت. وراحت القمر مع أبولو ١١.' },
+      { title: 'Anything of theirs', artist: 'The Plastic People of the Universe', year: '1968–1988',
+        why: 'The band whose arrest started Charter 77, and with it the movement that ended the regime.',
+        whyAr: 'الفرقة اللي القبض عليها بدأ "ميثاق ٧٧"، ومعاه الحركة اللي أنهت النظام.' },
     ],
   },
   {
     code: 'TR', name: 'Türkiye', nameAr: 'تركيا',
     lang: 'Turkish', langAr: 'التركية', filmLang: 'tr',
+    hello: {
+      native: 'Merhaba', how: 'MER-ha-ba',
+      means: 'Borrowed straight from the Arabic مرحبا — so an Arabic speaker already knows the Turkish hello, and Turks notice when you say it properly.',
+      meansAr: 'مستعارة على طول من العربية "مرحبا" — يعني اللي بيتكلم عربي عارف السلام التركي أصلاً، والأتراك بيلاحظوا لما تقولها صح.',
+      bye: { native: 'Güle güle', how: 'gyoo-LEH gyoo-LEH',
+             means: 'Literally "smilingly, smilingly" — and it is only said by the person staying to the person leaving. The one leaving says hoşça kal, "stay well".',
+             meansAr: 'حرفياً "وانت بتضحك، وانت بتضحك" — وبيقولها بس اللي فاضل للي ماشي. واللي ماشي بيقول hoşça kal يعني "ابقى بخير".' },
+    },
+    warm: [
+      { native: 'Memnun oldum', how: 'mem-NOON ol-DOOM', en: 'Pleased to meet you — literally "I became pleased"', ar: 'تشرفنا — حرفياً "أنا اتبسطت"', when: 'A first meeting', whenAr: 'أول لقاء' },
+      { native: 'Şerefe!', how: 'sheh-reh-FEH', en: 'Cheers — literally "to honour"', ar: 'في صحتك — حرفياً "للشرف"', when: 'Raising a glass', whenAr: 'وانت رافع الكباية' },
+      { native: 'Afiyet olsun', how: 'ah-fee-YET ol-SOON', en: 'Good appetite — and also said after the meal, meaning "may it do you good"', ar: 'بالهنا والشفا — وبتتقال كمان بعد الأكل، بمعنى "يهنيك"', when: 'Before and after eating', whenAr: 'قبل الأكل وبعده' },
+      { native: 'Eline sağlık', how: 'eh-lee-NEH sah-LUK', en: 'Health to your hands — said to whoever cooked, and it means a great deal', ar: 'تسلم إيديك — بتتقال للي طبخ، ومعناها كبير عندهم', when: 'To the cook, always', whenAr: 'للي طبخ، دايماً' },
+    ],
     say: [
       { g: 'first', native: 'Merhaba',     how: 'MER-ha-ba',        en: 'Hello',                          ar: 'مرحبا' },
       { g: 'first', native: 'Günaydın',    how: 'gyoo-nigh-DUHN',   en: 'Good morning',                   ar: 'صباح الخير' },
@@ -676,6 +864,20 @@ export const COUNTRY_ROOMS = [
   {
     code: 'MA', name: 'Morocco', nameAr: 'المغرب',
     lang: 'Darija & French', langAr: 'الدارجة والفرنسية', filmLang: 'ar',
+    hello: {
+      native: 'السلام عليكم', how: 'as-salaamu alaykum',
+      means: 'Peace be upon you — and the reply gives it back with more: وعليكم السلام. It works in every Arabic-speaking country and it is never wrong.',
+      meansAr: 'وبيرد عليك بأكتر: وعليكم السلام. بتنفع في كل بلد عربي وعمرها ما بتبقى غلط.',
+      bye: { native: 'بسلامة', how: 'b-sla-MA',
+             means: 'Literally "with safety" — go in safety. The same idea as the Egyptian مع السلامة.',
+             meansAr: 'حرفياً "بأمان" — روح بالسلامة. نفس فكرة "مع السلامة" المصرية.' },
+    },
+    warm: [
+      { native: 'متشرفين', how: 'mut-shar-ri-FEEN', en: 'Honoured to meet you', ar: 'تشرفنا', when: 'A first meeting', whenAr: 'أول لقاء' },
+      { native: 'بصحتك', how: 'b-seh-HAK', en: 'To your health — said for a drink, a meal, a haircut, a new shirt', ar: 'بصحتك — بتتقال للمشروب والأكل والحلاقة والقميص الجديد', when: 'Almost anything good', whenAr: 'أي حاجة حلوة تقريباً' },
+      { native: 'الله يعطيك الصحة', how: 'allah y-3a-TEEK s-seh-HA', en: 'May God give you health — the thank-you that means the most here', ar: 'الله يعطيك الصحة — الشكر اللي معناه أكبر حاجة هنا', when: 'To anyone who did work for you', whenAr: 'لأي حد عمل حاجة لك' },
+      { native: 'بسّاحة', how: 'b-SSA-ha', en: 'Take your time / no rush — the opposite of what a tourist expects', ar: 'على مهلك — عكس اللي السايح متوقعه', when: 'When someone apologises for being slow', whenAr: 'لما حد يعتذر إنه بطيء' },
+    ],
     say: [
       { g: 'first', native: 'السلام عليكم', how: 'as-salaamu alaykum', en: 'Peace be upon you — works everywhere', ar: 'بتنفع في كل مكان' },
       { g: 'first', native: 'لاباس؟',      how: 'la-BAAS',          en: 'How are you? — literally "no harm?"', ar: 'إزيك؟ — حرفياً "لا بأس؟"' },
@@ -733,6 +935,20 @@ export const COUNTRY_ROOMS = [
   {
     code: 'EG', name: 'Egypt', nameAr: 'مصر',
     lang: 'Egyptian Arabic', langAr: 'المصري', filmLang: 'ar',
+    hello: {
+      native: 'السلام عليكم', how: 'as-salaamu alaykum',
+      means: 'Peace be upon you. أهلاً is the lighter one and comes from أهل — family: "you are family here".',
+      meansAr: 'و"أهلاً" هي الأخف وجاية من "أهل" — يعني "إنت من أهل البيت هنا".',
+      bye: { native: 'مع السلامة', how: 'ma3a s-sa-LAA-ma',
+             means: 'Literally "with safety" — go with safety. The one staying says it; the one leaving often says أستأذن, "I take my leave".',
+             meansAr: 'حرفياً "روح بالأمان". اللي فاضل بيقولها؛ واللي ماشي غالباً بيقول "أستأذن".' },
+    },
+    warm: [
+      { native: 'تشرفنا', how: 'ta-shar-RAF-na', en: 'Honoured to meet you — literally "we were honoured"', ar: 'حرفياً "اتشرفنا"', when: 'A first meeting', whenAr: 'أول لقاء' },
+      { native: 'تسلم إيدك', how: 'tis-lam EE-dak', en: 'Bless your hands — to whoever cooked, built, fixed or carried something', ar: 'للي طبخ أو بنى أو صلّح أو شال حاجة', when: 'After anyone does anything for you', whenAr: 'بعد ما حد يعمل لك أي حاجة' },
+      { native: 'ربنا يخليك', how: 'RAB-be-na yi-KHAL-leek', en: 'May God keep you — the warmest thank you there is', ar: 'أدفى شكر ممكن', when: 'When somebody has really helped', whenAr: 'لما حد يساعدك بجد' },
+      { native: 'ولا يهمك', how: 'wa-la yi-hem-MAK', en: 'Don\u2019t worry about it — the everyday you-are-welcome', ar: 'العفو اليومية', when: 'After a thank you, or an apology', whenAr: 'بعد الشكر، أو بعد اعتذار' },
+    ],
     say: [
       { g: 'first', native: 'إزيك',        how: 'iz-ZAY-yak',       en: 'How are you? — to a man; إزيك is izzayyik to a woman', ar: 'للراجل؛ وللست إزيّك' },
       { g: 'first', native: 'أهلاً',        how: 'AH-lan',           en: 'Welcome / hi',                   ar: 'ترحيب' },
