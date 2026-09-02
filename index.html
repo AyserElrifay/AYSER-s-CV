@@ -543,6 +543,11 @@ body.menu-locked{overflow:hidden}
 .feat .tags span{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--stone);font-weight:500}
 .feat .tags span:not(:last-child)::after{content:"·";margin-left:8px}
 .feat.span2{grid-column:1/-1}
+.roster-head{text-align:center;margin:clamp(52px,8vh,96px) 0 clamp(22px,4vh,38px)}
+.roster-head .label{color:var(--stone)}
+.roster{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:1px;background:var(--mist);border:1px solid var(--mist);border-radius:var(--r);overflow:hidden}
+.roster span{background:var(--paper);padding:24px 18px;font-weight:500;font-size:16px;letter-spacing:-.01em;text-align:center;transition:background .4s var(--ease)}
+.roster span:hover{background:var(--fog)}
 
 /* home index (quiet table of contents) */
 .home-index{margin-top:clamp(44px,7vh,80px);width:100%;max-width:520px;border-top:1px solid var(--mist);text-align:left}
@@ -662,7 +667,7 @@ body.menu-locked{overflow:hidden}
       <span class="label">02 — Clay Studio</span>
     </div>
     <h2 class="h2 rv center" style="margin-bottom:14px">We make brands <b>move.</b></h2>
-    <p class="body-lg muted rv d1 center" style="margin-bottom:clamp(40px,6vh,72px)">Content, film, copywriting, visuals, and events — the living side of the brand.</p>
+    <p class="body-lg muted rv d1 center" style="margin-bottom:clamp(40px,6vh,72px)">Content, film, copywriting, visuals, and events — the living side of the brand. From Cairo to Europe.</p>
 
     <div class="studio-caps rv">
       <span class="cap">Content</span><span class="cap">Film &amp; Video</span><span class="cap">Copywriting</span>
@@ -675,7 +680,12 @@ body.menu-locked{overflow:hidden}
         <p>When the global courier <b>J&amp;T Express</b> entered Egypt, we shaped the arrival — a creative rebranding campaign, an online communication campaign, and a full design system, headlined by <b>Lionel Messi</b> as brand ambassador under one line: <b>دقة، سرعة</b> — Accuracy. Speed.</p>
         <div class="tags"><span>Rebranding</span><span>Campaign</span><span>Social</span><span>Design</span></div>
       </article>
-      <article class="feat span2 rv">
+      <article class="feat rv">
+        <div class="fc"><h4>Exposure International</h4><span class="ft">Network · Global</span></div>
+        <p>Our international arm — opening <b>European and Gulf</b> markets to Clay's clients through media partnerships, PR, and cross-border campaigns.</p>
+        <div class="tags"><span>Partnerships</span><span>PR</span><span>Market Entry</span></div>
+      </article>
+      <article class="feat rv">
         <div class="fc"><h4>Twelve Real Estate</h4><span class="ft">Real Estate · Maghraby</span></div>
         <p>Marketing and content for <b>Twelve</b> — the real-estate venture by <b>Maghraby</b>. Brand-led campaigns that sell a lifestyle, not just an address.</p>
         <div class="tags"><span>Content</span><span>Campaign</span><span>Social</span></div>
@@ -700,6 +710,32 @@ body.menu-locked{overflow:hidden}
         <p>Billboards, social-media branding, and outdoor campaigns for the launch.</p>
         <div class="tags"><span>Billboards</span><span>Social</span><span>Design</span></div>
       </article>
+    </div>
+
+    <div class="roster-head rv">
+      <span class="label">Trusted across MENA, the Gulf, Europe &amp; the US</span>
+    </div>
+    <div class="roster rv">
+      <span>Maghraby</span>
+      <span>Sheraton</span>
+      <span>Astella — France</span>
+      <span>Majestic — USA</span>
+      <span>Set El Habayeb — Morocco</span>
+      <span>Capital Hills</span>
+      <span>Zeitoun</span>
+      <span>Margins</span>
+      <span>Cashcow</span>
+      <span>Grow</span>
+      <span>Magna</span>
+      <span>Qurtoba</span>
+      <span>Raq</span>
+      <span>Shima</span>
+      <span>Ripple Summit</span>
+      <span>Naval Academy</span>
+      <span>Arafa Roby</span>
+      <span>Pharmacon</span>
+      <span>Xeedia Pharma</span>
+      <span>Zeta Pharma</span>
     </div>
   </div>
 </section>
