@@ -2,7 +2,11 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { adminSql, closeAll, getDb, raw, resetTables } from './helpers/db';
 import { CURRENCY_CODES } from '../src/money/currency';
 import { APP_ROLES, DB_ROLE_BY_APP_ROLE, MANAGED_ROLES } from '../src/db/roles';
-import { MEMBER_FORBIDDEN_COLUMNS, PARTNER_FORBIDDEN_COLUMNS } from '../src/db/schema';
+import {
+  MEMBER_FORBIDDEN_COLUMNS,
+  PARTNER_FORBIDDEN_COLUMNS,
+  RELATIONSHIP_TABLES,
+} from '../src/db/schema';
 import { assertConnectionIsLeastPrivilege } from '../src/db/client';
 import { expectRefused } from './helpers/errors';
 
@@ -21,6 +25,8 @@ const APP_TABLES = [
   'brand_kits',
   'services',
   'clients',
+  'client_contacts',
+  'conversations',
   'deals',
   'deal_assignments',
   'work_log',
@@ -254,5 +260,37 @@ describe('the schema and the TypeScript agree', () => {
         select count(*)::int as n from pg_roles where rolname = ${dbRole}`;
       expect(rows[0]?.n, `${role} -> ${dbRole}`).toBe(1);
     }
+  });
+});
+
+/**
+ * The client relationship is the agency's, and the crew is not in it.
+ *
+ * Not a financial rule — there is no money on these tables — but the same kind
+ * of rule, and it fails the same way: quietly, the first time somebody grants a
+ * table wholesale because it seemed harmless.
+ */
+describe('the relationship tables', () => {
+  it('are closed to a Member and a Partner entirely', async () => {
+    const rows = await adminSql()<{ grantee: string; table_name: string; privilege_type: string }[]>`
+      select grantee, table_name, privilege_type
+      from information_schema.role_table_grants
+      where table_schema = 'public'
+        and table_name = any(${[...RELATIONSHIP_TABLES]})
+        and grantee = any(${[DB_ROLE_BY_APP_ROLE.member, DB_ROLE_BY_APP_ROLE.partner]})`;
+    expect(rows.map((r) => `${r.grantee} ${r.privilege_type} ${r.table_name}`)).toEqual([]);
+  });
+
+  it('are open to the owner and the account manager, because a note is for a colleague', async () => {
+    // The positive control: the assertion above would pass on tables nobody can
+    // reach at all, which would be a different product.
+    const rows = await adminSql()<{ grantee: string; table_name: string }[]>`
+      select distinct grantee, table_name
+      from information_schema.role_table_grants
+      where table_schema = 'public'
+        and table_name = any(${[...RELATIONSHIP_TABLES]})
+        and privilege_type = 'SELECT'
+        and grantee = any(${[DB_ROLE_BY_APP_ROLE.owner, DB_ROLE_BY_APP_ROLE.account_manager]})`;
+    expect(rows).toHaveLength(RELATIONSHIP_TABLES.length * 2);
   });
 });

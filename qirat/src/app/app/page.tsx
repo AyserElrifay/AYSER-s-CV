@@ -139,9 +139,15 @@ export default async function AppHome() {
         <h1 className="text-[20px] font-semibold tracking-tight">
           {user.role === 'owner' ? t('home.owner.title') : t('home.manager.title')}
         </h1>
-        <div className="mt-5 grid gap-4 sm:grid-cols-2">
+        {/* One card per row until there is real room for two. At 640px a deal
+            card is a landscape phone, and two of these side by side puts the
+            instrument under a thumb that cannot reach either end of it. */}
+        {/* `grid-cols-1` explicitly, not bare `grid`: an implicit column is
+            `auto`-sized to its content, so a card with a nowrap title grows
+            wider than the page instead of truncating inside it. */}
+        <div className="mt-5 grid grid-cols-1 gap-4 xl:grid-cols-2">
           {cards.length === 0 ? (
-            <div className="sm:col-span-2">
+            <div className="xl:col-span-2">
               <EmptyState title={t('empty.deals.title')} body={t('empty.deals.body')} />
             </div>
           ) : (

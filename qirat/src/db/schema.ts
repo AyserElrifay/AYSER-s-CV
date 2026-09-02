@@ -220,6 +220,74 @@ export const deals = pgTable(
   ],
 );
 
+export const conversationKind = pgEnum('conversation_kind', [
+  'call',
+  'meeting',
+  'site_visit',
+  'message',
+]);
+
+export const conversationState = pgEnum('conversation_state', [
+  'scheduled',
+  'happened',
+  'no_answer',
+  'cancelled',
+]);
+
+/** A client is an organisation; a contact is a person at it, with a number. */
+export const clientContacts = pgTable(
+  'client_contacts',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id').notNull(),
+    clientId: uuid('client_id').notNull(),
+    name: text('name').notNull(),
+    title: text('title'),
+    phone: text('phone'),
+    email: text('email'),
+    note: text('note'),
+    isPrimary: boolean('is_primary').notNull().default(false),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('client_contacts_client_idx').on(t.orgId, t.clientId)],
+);
+
+/**
+ * What is coming and what already happened, in one table.
+ *
+ * A calendar and a call log are the same rows at different moments. Splitting
+ * them would mean copying a meeting across after it happens, which is the step
+ * people skip — and skipping it is how the notes stop existing.
+ */
+export const conversations = pgTable(
+  'conversations',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    orgId: uuid('org_id').notNull(),
+    clientId: uuid('client_id'),
+    contactId: uuid('contact_id'),
+    dealId: uuid('deal_id'),
+    ownerUserId: uuid('owner_user_id').notNull(),
+    kind: conversationKind('kind').notNull().default('call'),
+    state: conversationState('state').notNull().default('scheduled'),
+    subject: text('subject').notNull(),
+    happensAt: timestamp('happens_at', { withTimezone: true }).notNull(),
+    minutes: integer('minutes'),
+    place: text('place'),
+    agenda: text('agenda'),
+    notes: text('notes'),
+    nextStep: text('next_step'),
+    nextStepOn: date('next_step_on'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('conversations_when_idx').on(t.orgId, t.happensAt),
+    index('conversations_client_idx').on(t.orgId, t.clientId),
+    index('conversations_owner_idx').on(t.orgId, t.ownerUserId),
+  ],
+);
+
 export const costs = pgTable(
   'costs',
   {
@@ -409,3 +477,14 @@ export const PARTNER_FORBIDDEN_COLUMNS = {
   deal_assignments: ['day_rate_minor', 'currency'],
   work_log: ['day_rate_minor', 'amount_minor', 'currency', 'days'],
 } as const;
+
+/**
+ * The client relationship is the agency's, and neither a Member nor a Partner
+ * holds any privilege on it.
+ *
+ * Not a financial rule — there is no money on these tables — but the same kind
+ * of rule, and worth asserting for the same reason. A freelancer does not need
+ * the client's mobile number, and an investor does not need to know who was
+ * called on Tuesday. Listed so a wholesale grant fails the build.
+ */
+export const RELATIONSHIP_TABLES = ['client_contacts', 'conversations'] as const;

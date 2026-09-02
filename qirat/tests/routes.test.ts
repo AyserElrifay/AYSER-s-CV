@@ -28,6 +28,7 @@ const ROUTES = [
   '/',
   '/app',
   '/app/payouts',
+  '/app/conversations',
   '/app/settings',
   '/signin',
   '/signup',
@@ -342,4 +343,35 @@ describe('the settings screen', () => {
     const response = await anonymous.fetch('/app/settings');
     expect(response.status).not.toBe(200);
   });
+});
+
+/**
+ * The client relationship is the agency's, not the crew's.
+ *
+ * An account manager reaches it because they are the one making the calls. A
+ * Member and a Partner are sent away, and the grants would refuse them anyway.
+ */
+describe('the conversations screen', () => {
+  for (const role of ['owner', 'account_manager'] as const) {
+    it(`opens for ${role}`, async () => {
+      const session = new Session(server.baseUrl);
+      const email = role === 'owner' ? orgA.emails.owner : orgA.emails.manager;
+      await session.signIn(email, SEED_PASSWORD);
+      const response = await session.fetch('/app/conversations');
+      expect(response.status).toBe(200);
+      expect(await response.text()).toContain('Who to call');
+    });
+  }
+
+  for (const role of ['member', 'partner'] as const) {
+    it(`sends a ${role} away`, async () => {
+      const session = new Session(server.baseUrl);
+      const email = role === 'member' ? orgA.emails.member : orgA.emails.partner;
+      await session.signIn(email, SEED_PASSWORD);
+      const response = await session.fetch('/app/conversations');
+      const body = response.status === 200 ? await response.text() : '';
+      expect(body).not.toContain('Who to call');
+      if (response.status !== 200) expect(response.headers.get('location')).toBe('/app');
+    });
+  }
 });

@@ -647,3 +647,77 @@ promise a number that is not coming. Their portal is paper: what you are on,
 what your day is worth, and a form with two fields for saying you worked
 Tuesday. No colour appears on it at all, which is the colour rule holding rather
 than an omission.
+
+## 31. The conversations, and the one thing a calendar never asks
+
+From the brief, and deferred twice while the money was built: a calendar with
+notes, and phone numbers, so somebody can call a client and write down what was
+said. It is the part of an agency that lives entirely in one person's head and
+in a WhatsApp thread nobody else can read.
+
+**One table for what is coming and what already happened.** A calendar and a
+call log are the same rows at different moments — the difference is a state and
+a note. Splitting them would mean copying a meeting across after it happens,
+which is exactly the step people skip, and skipping it is how the notes stop
+existing. A meeting whose time has passed without being marked appears in the
+log rather than being hidden until somebody remembers it: that row is the one
+needing action.
+
+**No money anywhere on this screen.** A conversation has no price and no margin,
+and putting a figure here would be the product guessing at the one thing it
+cannot know. The colour rule holds by having nothing to attach to.
+
+What it does have is a measurement, because that is what this product is: how
+many conversations happened and say nothing, how many promises are past their
+date, and which clients nobody has spoken to in two months. Three questions a
+calendar never asks, each cheap here and impossible from memory — which is the
+only reason this beats the calendar already on the phone.
+
+Two smaller rules. A next step with no date is refused, because it is a wish. And
+`updated_at` is set by a trigger rather than the caller: a note that says when it
+was last touched is only useful if that timestamp cannot be chosen.
+
+**Contacts, not companies.** Agencies deal with people. The brand manager who
+approves the work and the finance person who pays for it are different human
+beings with different numbers, and losing that distinction is how an invoice
+sits unpaid for six weeks because it was chased through the wrong one. Numbers
+are stored as typed — normalising one means guessing a country code, and a wrong
+guess is a number that does not ring — and every number is one tap from a call
+or from WhatsApp, which is the whole reason it lives in the product rather than
+in a phone.
+
+The relationship is the agency's, not one manager's: unlike deals, where a
+manager sees only their own pipeline, contacts and conversations are shared,
+because the point of writing a note down is that a colleague can read it while
+you are on a plane. A Member and a Partner hold no privilege on either table —
+a freelancer does not need the client's mobile number, and an investor does not
+need to know who was called on Tuesday.
+
+## 32. Two shapes, not one page at two widths
+
+A phone and a desktop are different instruments and now get different shells.
+
+**On a desktop** the navigation is a column held in the eye while you work:
+sticky, exactly one screen tall, with the sections, the role, the language and
+the way out. There is no top bar at all — a strip carrying two links above a
+page that already has a column is a band of empty pixels across the widest
+screen anybody owns.
+
+**On a phone** the navigation sits under the thumb: a fixed tab bar inside the
+safe area, with targets sized for a thumb rather than a cursor, and the label
+kept under the icon because an icon alone is a guess. The person holding it is
+standing in a print shop or on a shoot with one hand full, which is exactly the
+moment a cost gets recorded or does not.
+
+Both read one array of destinations, so a section cannot exist in one shape and
+go missing from the other — the failure mode of maintaining two navigations, and
+the reason people stop trusting the small one.
+
+A Member gets no navigation in either shape. Their screen is today's work.
+
+**The bug this found.** The deal card — the product's home screen — was seven
+pixels wider than every phone. The grid holding it was written as bare `grid`,
+whose implicit column is `auto`-sized to its content, so a card with a nowrap
+title grew past the page instead of truncating inside it. Measured rather than
+eyeballed: squeeze the card in the browser and ask what still overflows. The fix
+is `grid-cols-1`, which is `minmax(0, 1fr)`.
