@@ -24,6 +24,15 @@ export const MANAGED_ROLES = {
   app: 'qirat_app',
   /** Owns the sign-in lookup. Cannot log in; reachable only through that function. */
   bootstrap: 'qirat_bootstrap',
+  /**
+   * Owns the two functions a client's payment page runs through.
+   *
+   * The person paying an invoice has no account and must not need one: asking a
+   * client to sign up before they can pay you is how an invoice goes unpaid for
+   * a month. Like the bootstrap role it cannot log in, owns no tables, and is
+   * reachable only through an EXECUTE grant on those two functions.
+   */
+  publicReader: 'qirat_public',
   perAppRole: DB_ROLE_BY_APP_ROLE,
 } as const;
 

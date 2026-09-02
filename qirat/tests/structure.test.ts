@@ -31,6 +31,10 @@ const APP_TABLES = [
   'deal_assignments',
   'work_log',
   'costs',
+  'invoices',
+  'payments',
+  'ledger_entries',
+  'ledger_lines',
   'audit_log',
   'split_rules',
   'payout_periods',
@@ -144,25 +148,69 @@ describe('the connection role', () => {
   });
 });
 
-describe('the sign-in bypass', () => {
-  it('is the only SECURITY DEFINER function in the schema', async () => {
+/**
+ * Every way past row-level security, named.
+ *
+ * There are exactly three, and each exists because somebody legitimately has no
+ * account: the person signing in has not proved who they are yet, and the person
+ * paying an invoice is a client who must never be asked to sign up in order to
+ * pay you.
+ *
+ * The list is written out here on purpose. Adding a fourth SECURITY DEFINER
+ * anywhere in the schema fails this suite, which is the point: a bypass should
+ * be a decision somebody made in front of a test, not a convenience that
+ * appeared in a migration on a Thursday.
+ */
+const SANCTIONED_BYPASSES: Record<string, keyof typeof MANAGED_ROLES> = {
+  authenticate_lookup: 'bootstrap',
+  public_invoice: 'publicReader',
+  public_claim_payment: 'publicReader',
+};
+
+describe('the sanctioned bypasses', () => {
+  it('are the only SECURITY DEFINER functions in the schema', async () => {
     const rows = await adminSql()<{ name: string }[]>`
       select p.proname as name
       from pg_proc p join pg_namespace n on n.oid = p.pronamespace
       where n.nspname in ('public', 'qirat') and p.prosecdef
       order by p.proname`;
-    expect(rows.map((r) => r.name)).toEqual(['authenticate_lookup']);
+    expect(rows.map((r) => r.name).sort()).toEqual(Object.keys(SANCTIONED_BYPASSES).sort());
   });
 
-  it('is owned by a role that cannot log in', async () => {
-    const rows = await adminSql()<{ owner: string; canlogin: boolean }[]>`
-      select r.rolname as owner, r.rolcanlogin as canlogin
+  it('are each owned by a role that cannot log in', async () => {
+    /*
+     * The whole danger of SECURITY DEFINER is the owner.
+     *
+     * Left owned by whoever ran the migration — typically a superuser — the
+     * function runs with that role's privileges and bypasses RLS entirely
+     * rather than through the narrow door it was written to be.
+     */
+    const rows = await adminSql()<{ name: string; owner: string; canlogin: boolean }[]>`
+      select p.proname as name, r.rolname as owner, r.rolcanlogin as canlogin
       from pg_proc p
       join pg_namespace n on n.oid = p.pronamespace
       join pg_roles r on r.oid = p.proowner
-      where n.nspname = 'qirat' and p.proname = 'authenticate_lookup'`;
-    expect(rows[0]?.owner).toBe(MANAGED_ROLES.bootstrap);
-    expect(rows[0]?.canlogin).toBe(false);
+      where n.nspname = 'qirat' and p.prosecdef`;
+
+    expect(rows.length).toBe(Object.keys(SANCTIONED_BYPASSES).length);
+    for (const row of rows) {
+      const expected = SANCTIONED_BYPASSES[row.name];
+      expect(expected, `${row.name} is not a sanctioned bypass`).toBeDefined();
+      expect(row.owner, `${row.name} is owned by the wrong role`).toBe(
+        MANAGED_ROLES[expected!],
+      );
+      expect(row.canlogin, `${row.name}'s owner can log in`).toBe(false);
+    }
+  });
+
+  it('own nothing else they could reach through', async () => {
+    // A role that owns a table also owns the ability to read it past every
+    // policy on it. The bypass roles must own their functions and no tables.
+    const rows = await adminSql()<{ tablename: string; owner: string }[]>`
+      select tablename, tableowner as owner from pg_tables
+      where schemaname = 'public'
+        and tableowner = any(${[MANAGED_ROLES.bootstrap, MANAGED_ROLES.publicReader]})`;
+    expect(rows).toEqual([]);
   });
 
   it('is executable only by the application role', async () => {

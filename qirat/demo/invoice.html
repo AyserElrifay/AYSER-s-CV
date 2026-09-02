@@ -1,0 +1,634 @@
+<title>Qirat Invoice</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alexandria:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+
+<style>
+/*
+ * The one surface a client sees.
+ *
+ * The app puts every number on a dark card, and that card means "the agency's
+ * economics". A client must never see those, so this page does not borrow the
+ * material: it is paper throughout, and the only thing given weight is the
+ * amount owed. Single theme, every colour painted, so it holds on any ground.
+ */
+:root {
+  --paper: #eaedea;
+  --raised: #f4f6f3;
+  --line: #d2d7d2;
+  --line-soft: #e0e4e0;
+  --ink: #141a18;
+  --ink-soft: #58635e;
+  --ink-faint: #87908b;
+  --settled: #3f9a70;
+  --overdue: #c4503f;
+
+  --sans: 'IBM Plex Sans', 'IBM Plex Sans Arabic', ui-sans-serif, system-ui, sans-serif;
+  --arabic: 'IBM Plex Sans Arabic', 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+  --display: 'Alexandria', 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+  --mono: 'IBM Plex Mono', 'IBM Plex Sans Arabic', ui-monospace, monospace;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  line-height: 1.55;
+  -webkit-text-size-adjust: 100%;
+}
+#root[dir='rtl'] { font-family: var(--arabic); line-height: 1.75; }
+
+.page {
+  max-width: 34rem;
+  margin: 0 auto;
+  padding: 2rem 1.25rem 4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.topbar { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
+.by { font-size: 0.75rem; color: var(--ink-faint); }
+.by strong { font-weight: 500; color: var(--ink-soft); }
+button.link {
+  background: none; border: 0; padding: 0.25rem 0.4rem; cursor: pointer;
+  font: inherit; font-size: 0.8125rem; color: var(--ink-soft); border-radius: 6px;
+}
+button.link:hover { color: var(--ink); }
+button.link:focus-visible, .method:focus-visible, .pay:focus-visible,
+input:focus-visible, select:focus-visible {
+  outline: 2px solid var(--ink); outline-offset: 2px;
+}
+
+/* --- the amount ------------------------------------------------------------ */
+.sheet {
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 1.5rem;
+  display: flex; flex-direction: column; gap: 1.25rem;
+}
+
+.eyebrow {
+  font-size: 0.6875rem; letter-spacing: 0.07em; text-transform: uppercase;
+  color: var(--ink-faint);
+}
+.reading {
+  font-family: var(--mono); font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1, 'zero' 1; letter-spacing: -0.015em;
+}
+bdi { unicode-bidi: isolate; }
+
+.owed { display: flex; align-items: baseline; gap: 0.55rem; flex-wrap: wrap; margin-top: 0.35rem; }
+.owed .amount { font-size: 2.5rem; line-height: 1; }
+.owed .ccy { font-size: 0.8125rem; color: var(--ink-faint); }
+.is-settled .amount { color: var(--settled); }
+
+.due { font-size: 0.8125rem; margin: 0; color: var(--ink-soft); }
+.due.is-overdue { color: var(--overdue); }
+
+/* --- the invoice itself ----------------------------------------------------- */
+.what { font-size: 0.9375rem; margin: 0; }
+.lines { margin: 0; display: flex; flex-direction: column; gap: 0.4rem; }
+.row { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; font-size: 0.8125rem; }
+.row dt { color: var(--ink-soft); }
+.row dd { margin: 0; color: var(--ink); }
+.row.total {
+  border-top: 1px solid var(--line); padding-top: 0.6rem; margin-top: 0.2rem;
+  font-size: 0.9375rem;
+}
+.row.total dt { color: var(--ink); }
+.row.paid dd { color: var(--settled); }
+.forwhom { font-size: 0.75rem; color: var(--ink-faint); margin: 0.15rem 0 0; }
+.treatment { font-size: 0.75rem; color: var(--ink-faint); margin: 0.15rem 0 0; }
+/* A deduction, not another total: indented under the line it reduces. */
+.row.paid { font-size: 0.75rem; }
+.row.paid dt { color: var(--ink-faint); }
+
+/* --- how to send it --------------------------------------------------------- */
+.methods { display: flex; flex-direction: column; gap: 0.5rem; }
+.method {
+  display: flex; align-items: flex-start; gap: 0.7rem; width: 100%; text-align: start;
+  background: var(--paper); border: 1px solid var(--line); border-radius: 10px;
+  padding: 0.75rem 0.85rem; cursor: pointer; font: inherit; color: inherit;
+}
+.method:hover { border-color: var(--ink-faint); }
+.method[aria-pressed='true'] { border-color: var(--ink); background: var(--raised); }
+.method .dot {
+  inline-size: 0.85rem; block-size: 0.85rem; border-radius: 999px; margin-block-start: 0.28rem;
+  border: 1px solid var(--ink-faint); flex-shrink: 0;
+}
+.method[aria-pressed='true'] .dot { border-color: var(--ink); background: var(--ink); box-shadow: inset 0 0 0 2.5px var(--raised); }
+.method .name { font-size: 0.875rem; display: block; }
+.method .detail { font-size: 0.75rem; color: var(--ink-soft); display: block; margin-block-start: 0.1rem; }
+
+.instructions {
+  background: var(--paper); border: 1px solid var(--line-soft); border-radius: 10px;
+  padding: 0.85rem; font-size: 0.8125rem; color: var(--ink-soft); margin: 0;
+  white-space: pre-line;
+}
+.copy {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem;
+  margin-block-start: 0.6rem; padding-block-start: 0.6rem; border-block-start: 1px solid var(--line-soft);
+}
+
+.field { display: block; }
+.field span { font-size: 0.75rem; color: var(--ink-soft); display: block; }
+.field input {
+  margin-block-start: 0.3rem; inline-size: 100%; border-radius: 8px;
+  border: 1px solid var(--line); background: var(--paper); color: var(--ink);
+  padding: 0.5rem 0.65rem; font: inherit; font-size: 0.9375rem;
+}
+.field input.amount { font-family: var(--mono); }
+.two { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+.two > * { flex: 1 1 9rem; min-inline-size: 0; }
+
+.pay {
+  border: 0; border-radius: 9px; padding: 0.7rem 1.1rem; font: inherit; font-size: 0.9375rem;
+  font-weight: 500; cursor: pointer; background: var(--ink); color: var(--raised); inline-size: 100%;
+}
+.pay[disabled] { opacity: 0.45; cursor: default; }
+
+.note { font-size: 0.75rem; line-height: 1.65; color: var(--ink-faint); margin: 0; }
+
+.claimed {
+  border: 1px solid var(--line); border-radius: 10px; padding: 0.85rem;
+  background: var(--paper); font-size: 0.8125rem; color: var(--ink-soft);
+}
+.claimed strong { color: var(--ink); font-weight: 500; }
+
+.history { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.35rem; }
+.history li { display: flex; justify-content: space-between; gap: 0.75rem; font-size: 0.75rem; color: var(--ink-faint); }
+
+.foot { display: flex; justify-content: space-between; gap: 1rem; font-size: 0.6875rem; color: var(--ink-faint); }
+
+@media (max-width: 26rem) {
+  .page { padding: 1.5rem 0.9rem 3rem; }
+  .sheet { padding: 1.15rem; }
+  .owed .amount { font-size: 2rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
+}
+</style>
+
+<div class="page" id="root" dir="ltr">
+  <header class="topbar">
+    <p class="by" id="by"></p>
+    <span style="display:flex;gap:.5rem">
+      <button class="link" id="swap" type="button"></button>
+      <button class="link" id="lang" type="button">العربية</button>
+    </span>
+  </header>
+
+  <h1 class="what" id="thesis" style="font-family:var(--display);font-size:1.25rem;font-weight:500;margin:0;text-wrap:balance"></h1>
+
+  <section class="sheet">
+    <div>
+      <span class="eyebrow" id="owedLabel"></span>
+      <p class="owed reading" id="owed" style="margin:0">
+        <span class="amount" id="owedAmount"></span>
+        <span class="ccy" id="owedCcy"></span>
+      </p>
+      <p class="due" id="due"></p>
+    </div>
+
+    <div>
+      <p class="what" id="description"></p>
+      <p class="forwhom" id="forWhom"></p>
+      <dl class="lines" style="margin-top:.7rem">
+        <div class="row"><dt id="netLabel"></dt><dd class="reading" id="net"></dd></div>
+        <div class="row" id="vatRow"><dt id="vatLabel"></dt><dd class="reading" id="vat"></dd></div>
+        <div class="row total"><dt id="grossLabel"></dt><dd class="reading" id="gross"></dd></div>
+        <div class="row paid" id="paidRow" hidden><dt id="paidLabel"></dt><dd class="reading" id="paid"></dd></div>
+      </dl>
+      <p class="treatment" id="treatment"></p>
+    </div>
+
+    <ul class="history" id="history"></ul>
+  </section>
+
+  <section class="sheet" id="payBlock">
+    <div>
+      <span class="eyebrow" id="howLabel"></span>
+      <div class="methods" id="methods" style="margin-top:.6rem"></div>
+    </div>
+
+    <div>
+      <p class="instructions" id="instructions"></p>
+      <div class="copy">
+        <span style="font-size:.75rem;color:var(--ink-faint)" id="refLabel"></span>
+        <span class="reading" style="font-size:.8125rem" id="refValue" dir="ltr"></span>
+      </div>
+    </div>
+
+    <form id="claimForm" style="display:flex;flex-direction:column;gap:.75rem">
+      <div class="two">
+        <label class="field">
+          <span id="amountLabel"></span>
+          <input class="amount" id="claimAmount" inputmode="decimal" required>
+        </label>
+        <label class="field">
+          <span id="referenceLabel"></span>
+          <input id="claimReference">
+        </label>
+      </div>
+      <button class="pay" type="submit" id="claimButton"></button>
+      <p class="note" id="claimNote"></p>
+    </form>
+  </section>
+
+  <div class="claimed" id="claimed" hidden></div>
+
+  <footer class="foot">
+    <span id="footLeft"></span>
+    <span class="reading" id="footRight" dir="ltr"></span>
+  </footer>
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  // ---------------------------------------------------------------------------
+  // The money module, ported.
+  //
+  // Integer minor units held as BigInt, one rounding function, no floats below
+  // this line — the same arithmetic the server runs. It matters most here: this
+  // is the page where somebody decides how much to send.
+  // ---------------------------------------------------------------------------
+  const EXPONENT = { EGP: 2, EUR: 2 };
+  const BP = 10000n;
+
+  /** Exact integer division, ties to even. */
+  function divRound(n, d) {
+    if (d === 0n) throw new Error('division by zero');
+    let N = n, D = d;
+    if (D < 0n) { N = -N; D = -D; }
+    const q = N / D, r = N % D;
+    if (r === 0n) return q;
+    const negative = r < 0n;
+    const twice = (negative ? -r : r) * 2n;
+    if (twice > D) return negative ? q - 1n : q + 1n;
+    if (twice < D) return q;
+    return q % 2n === 0n ? q : (negative ? q - 1n : q + 1n);
+  }
+
+  const abs = (v) => (v < 0n ? -v : v);
+
+  /**
+   * VAT on a net price.
+   *
+   * Only a standard-rated supply carries any. A reverse charge shows nothing,
+   * and the reason is written on the invoice — the client accounts for it at
+   * their end, which is a fact their finance person needs and their supplier
+   * cannot state for them.
+   */
+  function applyVat(net, treatment, rateBp) {
+    if (treatment !== 'standard' || rateBp === 0) return { net, vat: 0n, gross: net };
+    const vat = divRound(net * BigInt(rateBp), BP);
+    return { net, vat, gross: net + vat };
+  }
+
+  function toMajorString(minor, currency) {
+    const exp = EXPONENT[currency];
+    const negative = minor < 0n;
+    const digits = abs(minor).toString().padStart(exp + 1, '0');
+    const body = exp === 0 ? digits : digits.slice(0, -exp) + '.' + digits.slice(-exp);
+    return (negative ? '-' : '') + body;
+  }
+
+  /** Formats from the exact decimal string, so a bigint never becomes a double. */
+  function fmt(minor, currency) {
+    const exp = EXPONENT[currency];
+    return new Intl.NumberFormat(numberLocale(), {
+      minimumFractionDigits: exp,
+      maximumFractionDigits: exp,
+    }).format(toMajorString(minor, currency));
+  }
+
+  function fmtBp(bp) {
+    return new Intl.NumberFormat(numberLocale(), {
+      style: 'percent', minimumFractionDigits: 0, maximumFractionDigits: 1,
+    }).format(bp / 10000);
+  }
+
+  /** Lenient: a human typing, possibly in Arabic-Indic digits. */
+  function parseAmount(text, currency) {
+    const normalised = String(text)
+      .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660))
+      .replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x06f0))
+      .replace(/٫/g, '.')
+      .replace(/[\s,٬ ]/g, '')
+      .trim();
+    const match = /^(\d+)(?:\.(\d*))?$/.exec(normalised);
+    if (!match) return null;
+    const exp = EXPONENT[currency];
+    const fraction = (match[2] || '').slice(0, exp).padEnd(exp, '0');
+    return BigInt(match[1] + fraction);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Two invoices, because the tax is the whole point
+  // ---------------------------------------------------------------------------
+  const INVOICES = {
+    berlin: {
+      number: 'QT-2026-0041',
+      agency: 'Kreuzberg Studio',
+      client: 'Maison Lafite, Paris',
+      currency: 'EUR',
+      work: 'Brand identity system — phase two of three',
+      workAr: 'نظام الهوية — المرحلة التانية من تلاتة',
+      netMinor: 2400000n,           // 24,000.00
+      treatment: 'reverse_charge',
+      rateBp: 0,
+      issuedOn: '2026-08-24',
+      dueOn: '2026-09-07',
+      instructions:
+        'Kreuzberg Studio UG\nIBAN  DE21 1001 0010 0123 4567 89\nBIC   PBNKDEFF\nBerliner Volksbank',
+      methods: ['bank_transfer', 'card'],
+    },
+    cairo: {
+      number: 'QT-2026-0042',
+      agency: 'استوديو المعادي',
+      agencyEn: 'Maadi Studio',
+      client: 'شركة النيل للأغذية',
+      clientEn: 'Nile Foods',
+      currency: 'EGP',
+      work: 'Ramadan campaign — three films and the cutdowns',
+      workAr: 'حملة رمضان — تلات أفلام والنسخ القصيرة',
+      netMinor: 7500000n,           // 75,000.00
+      treatment: 'standard',
+      rateBp: 1400,                 // Egypt, 14%
+      issuedOn: '2026-08-20',
+      dueOn: '2026-08-30',
+      instructions:
+        'بنك مصر — فرع المعادي\nرقم الحساب  1770 0100 0004 5512\nإنستاباي  maadi.studio@instapay',
+      instructionsEn:
+        'Banque Misr — Maadi branch\nAccount  1770 0100 0004 5512\nInstapay  maadi.studio@instapay',
+      methods: ['bank_transfer', 'wallet', 'card'],
+    },
+  };
+
+  // ---------------------------------------------------------------------------
+  // Copy
+  // ---------------------------------------------------------------------------
+  const COPY = {
+    en: {
+      lang: 'العربية',
+      toCairo: 'See the Cairo invoice', toBerlin: 'See the Berlin invoice',
+      by: (agency) => `Invoice from <strong>${agency}</strong>`,
+      thesis: (number) => `Invoice ${number}`,
+      owed: 'Amount due', settled: 'Settled in full',
+      net: 'Net', gross: 'Total', paid: 'Already received',
+      vat: (rate) => `VAT ${rate}`,
+      dueIn: (days) => `Due in ${days} ${days === 1 ? 'day' : 'days'}`,
+      dueToday: 'Due today',
+      overdue: (days) => `${days} ${days === 1 ? 'day' : 'days'} overdue`,
+      treatment: {
+        standard: 'VAT is included in the total above.',
+        reverse_charge:
+          'Reverse charge: no VAT is charged here. You account for it in your own return.',
+        not_registered: 'No VAT on this invoice.',
+      },
+      how: 'How to send it',
+      method: {
+        bank_transfer: ['Bank transfer', 'Arrives in one to two working days'],
+        card: ['Card', 'Not connected on this demo page'],
+        wallet: ['Instapay or wallet', 'Usually instant'],
+      },
+      reference: 'Quote this reference',
+      amountLabel: 'How much are you sending',
+      referenceLabel: 'Your transfer reference',
+      claim: 'I have sent it',
+      claimNote:
+        'This tells the studio to look for it. It is not a receipt — the invoice is marked paid once the money is seen in the account.',
+      claimed: (amount, ccy) =>
+        `<strong>${amount} ${ccy}</strong> reported as sent. The studio will confirm it against the bank, and you will get a receipt then.`,
+      cardSoon: 'Card payments need a provider account. On the real page this is where it goes.',
+      historyPaid: 'received',
+      footLeft: 'Paid through Qirat',
+      footRight: (number) => number,
+      badAmount: 'Enter an amount up to what is outstanding.',
+    },
+    ar: {
+      lang: 'English',
+      toCairo: 'شوف فاتورة القاهرة', toBerlin: 'شوف فاتورة برلين',
+      by: (agency) => `فاتورة من <strong>${agency}</strong>`,
+      thesis: (number) => `فاتورة ${number}`,
+      owed: 'المبلغ المستحق', settled: 'اتسدّدت بالكامل',
+      net: 'الصافي', gross: 'الإجمالي', paid: 'المستلم فعلاً',
+      vat: (rate) => `ضريبة القيمة المضافة ${rate}`,
+      dueIn: (days) => `مستحقة خلال ${days} ${days === 1 ? 'يوم' : days === 2 ? 'يومين' : 'أيام'}`,
+      dueToday: 'مستحقة النهارده',
+      overdue: (days) => `متأخرة ${days} ${days === 1 ? 'يوم' : days === 2 ? 'يومين' : 'أيام'}`,
+      treatment: {
+        standard: 'الضريبة داخلة في الإجمالي فوق.',
+        reverse_charge:
+          'احتساب عكسي: مفيش ضريبة مضافة هنا. حضرتك بتحتسبها في إقرارك.',
+        not_registered: 'مفيش ضريبة على الفاتورة دي.',
+      },
+      how: 'إزاي تبعتها',
+      method: {
+        bank_transfer: ['تحويل بنكي', 'بيوصل في يوم أو يومين عمل'],
+        card: ['كارت', 'مش موصّل في الصفحة التجريبية دي'],
+        wallet: ['إنستاباي أو محفظة', 'فوري عادةً'],
+      },
+      reference: 'اكتب الرقم ده في التحويل',
+      amountLabel: 'بتبعت كام',
+      referenceLabel: 'رقم التحويل بتاعك',
+      claim: 'بعتّها',
+      claimNote:
+        'ده بيقول للاستوديو يدوّر عليها. مش إيصال — الفاتورة بتتعلّم مدفوعة لما الفلوس تبان في الحساب.',
+      claimed: (amount, ccy) =>
+        `<strong>${amount} ${ccy}</strong> اتبلّغ إنها اتبعتت. الاستوديو هيأكّدها من البنك، وساعتها هيوصلك إيصال.`,
+      cardSoon: 'الدفع بالكارت محتاج حساب عند مزوّد. في الصفحة الحقيقية ده مكانه.',
+      historyPaid: 'استُلمت',
+      footLeft: 'مدفوعة عبر قيراط',
+      footRight: (number) => number,
+      badAmount: 'اكتب مبلغ في حدود المتبقّي.',
+    },
+  };
+
+  // ---------------------------------------------------------------------------
+  // State
+  // ---------------------------------------------------------------------------
+  let locale = (() => {
+    try { return localStorage.getItem('qirat-locale') === 'ar' ? 'ar' : 'en'; } catch { return 'en'; }
+  })();
+  let which = 'berlin';
+  let method = 'bank_transfer';
+  /** Confirmed receipts, and the one the payer has just claimed. */
+  let received = [];
+  let claim = null;
+
+  const numberLocale = () => (locale === 'ar' ? 'ar-EG-u-nu-arab' : 'en-US-u-nu-latn');
+  const $ = (id) => document.getElementById(id);
+  const root = $('root');
+
+  // Berlin's invoice arrives part-paid, because that is the interesting state:
+  // a total, a receipt against it, and a balance that is neither.
+  received = [{ amountMinor: 1000000n, on: '2026-08-28', reference: 'SEPA 88213' }];
+
+  const invoice = () => INVOICES[which];
+
+  function totals() {
+    const inv = invoice();
+    const taxed = applyVat(inv.netMinor, inv.treatment, inv.rateBp);
+    const paid = received.reduce((sum, r) => sum + r.amountMinor, 0n);
+    return { ...taxed, paid, outstanding: taxed.gross - paid };
+  }
+
+  /** Whole days between today and the due date, by date rather than by clock. */
+  function daysUntil(iso) {
+    const due = new Date(iso + 'T00:00:00Z');
+    const now = new Date();
+    const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+    return Math.round((due.getTime() - today) / 86400000);
+  }
+
+  function localised(key) {
+    const inv = invoice();
+    if (locale === 'en' && inv[key + 'En']) return inv[key + 'En'];
+    return inv[key];
+  }
+
+  // ---------------------------------------------------------------------------
+  // Render
+  // ---------------------------------------------------------------------------
+  function render() {
+    const t = COPY[locale];
+    const inv = invoice();
+    const sums = totals();
+    root.setAttribute('dir', locale === 'ar' ? 'rtl' : 'ltr');
+
+    $('lang').textContent = t.lang;
+    $('swap').textContent = which === 'berlin' ? t.toCairo : t.toBerlin;
+    $('by').innerHTML = t.by(localised('agency'));
+    $('thesis').textContent = t.thesis(inv.number);
+
+    const settled = sums.outstanding <= 0n;
+    $('owedLabel').textContent = settled ? t.settled : t.owed;
+    $('owed').className = 'owed reading' + (settled ? ' is-settled' : '');
+    $('owedAmount').innerHTML = `<bdi>${fmt(settled ? 0n : sums.outstanding, inv.currency)}</bdi>`;
+    $('owedCcy').textContent = inv.currency;
+
+    const days = daysUntil(inv.dueOn);
+    const due = $('due');
+    due.textContent = settled ? '' : days > 0 ? t.dueIn(days) : days === 0 ? t.dueToday : t.overdue(-days);
+    due.className = 'due' + (!settled && days < 0 ? ' is-overdue' : '');
+    due.hidden = settled;
+
+    $('description').textContent = locale === 'ar' ? inv.workAr : inv.work;
+    $('forWhom').textContent = localised('client');
+    $('netLabel').textContent = t.net;
+    $('net').innerHTML = `<bdi>${fmt(sums.net, inv.currency)}</bdi>`;
+    $('vatRow').hidden = inv.treatment !== 'standard';
+    $('vatLabel').textContent = t.vat(fmtBp(inv.rateBp));
+    $('vat').innerHTML = `<bdi>${fmt(sums.vat, inv.currency)}</bdi>`;
+    $('grossLabel').textContent = t.gross;
+    $('gross').innerHTML = `<bdi>${fmt(sums.gross, inv.currency)}</bdi>`;
+    $('paidRow').hidden = sums.paid === 0n;
+    $('paidLabel').textContent = t.paid;
+    $('paid').innerHTML = `<bdi>−${fmt(sums.paid, inv.currency)}</bdi>`;
+    $('treatment').textContent = t.treatment[inv.treatment];
+
+    $('history').innerHTML = received
+      .map((r) => `<li><span>${t.historyPaid} · ${r.reference}</span>` +
+        `<span class="reading"><bdi>${fmt(r.amountMinor, inv.currency)}</bdi> ` +
+        `<span dir="ltr">${r.on}</span></span></li>`)
+      .join('');
+
+    // --- how to send it ---
+    $('howLabel').textContent = t.how;
+    $('methods').innerHTML = inv.methods
+      .map((key) => {
+        const [name, detail] = t.method[key];
+        return `<button class="method" type="button" data-method="${key}" ` +
+          `aria-pressed="${key === method}"><span class="dot"></span>` +
+          `<span><span class="name">${name}</span><span class="detail">${detail}</span></span></button>`;
+      })
+      .join('');
+    for (const button of $('methods').querySelectorAll('.method')) {
+      button.addEventListener('click', () => {
+        method = button.dataset.method;
+        render();
+      });
+    }
+
+    const isCard = method === 'card';
+    $('instructions').textContent = isCard ? t.cardSoon : localised('instructions');
+    $('refLabel').textContent = t.reference;
+    $('refValue').textContent = inv.number;
+    $('amountLabel').textContent = t.amountLabel;
+    $('referenceLabel').textContent = t.referenceLabel;
+    $('claimButton').textContent = t.claim;
+    $('claimButton').disabled = isCard || settled;
+    $('claimNote').textContent = t.claimNote;
+    $('payBlock').hidden = settled;
+
+    // The amount defaults to what is outstanding, because that is what almost
+    // everybody sends — but it stays editable, because part payments are real.
+    const amountField = $('claimAmount');
+    if (document.activeElement !== amountField) {
+      amountField.value = settled ? '' : toMajorString(sums.outstanding, inv.currency);
+    }
+
+    const claimed = $('claimed');
+    claimed.hidden = claim === null;
+    if (claim) claimed.innerHTML = t.claimed(fmt(claim.amountMinor, inv.currency), inv.currency);
+
+    $('footLeft').textContent = t.footLeft;
+    $('footRight').textContent = inv.number;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Events
+  // ---------------------------------------------------------------------------
+  $('lang').addEventListener('click', () => {
+    locale = locale === 'ar' ? 'en' : 'ar';
+    try { localStorage.setItem('qirat-locale', locale); } catch {}
+    render();
+  });
+
+  $('swap').addEventListener('click', () => {
+    which = which === 'berlin' ? 'cairo' : 'berlin';
+    claim = null;
+    // Cairo's invoice is untouched, so the page also shows the ordinary case:
+    // nothing received, the whole amount outstanding, and a date already gone.
+    received = which === 'berlin'
+      ? [{ amountMinor: 1000000n, on: '2026-08-28', reference: 'SEPA 88213' }]
+      : [];
+    render();
+  });
+
+  $('claimForm').addEventListener('submit', (event) => {
+    event.preventDefault();
+    const inv = invoice();
+    const sums = totals();
+    const amount = parseAmount($('claimAmount').value, inv.currency);
+    if (amount === null || amount <= 0n || amount > sums.outstanding) {
+      $('claimNote').textContent = COPY[locale].badAmount;
+      $('claimAmount').focus();
+      $('claimAmount').select();
+      return;
+    }
+    /*
+     * A claim, not a receipt.
+     *
+     * The outstanding figure deliberately does not move. The payer says they
+     * sent it; the studio says it arrived; those are different facts on
+     * different days, and collapsing them is how a receivable disappears from
+     * the books before the money appears in the bank.
+     */
+    claim = { amountMinor: amount, reference: $('claimReference').value.trim() };
+    render();
+  });
+
+  render();
+})();
+</script>

@@ -66,7 +66,11 @@ async function provisionRoles(
   appPassword: string,
   log: (message: string) => void,
 ) {
-  const nologinRoles = [...Object.values(DB_ROLE_BY_APP_ROLE), MANAGED_ROLES.bootstrap];
+  const nologinRoles = [
+    ...Object.values(DB_ROLE_BY_APP_ROLE),
+    MANAGED_ROLES.bootstrap,
+    MANAGED_ROLES.publicReader,
+  ];
 
   for (const role of nologinRoles) {
     const present = await sql`select 1 from pg_roles where rolname = ${role}`;
