@@ -10,6 +10,7 @@
    the map's index agrees with the rooms it points at.               */
 import { COUNTRY_ROOMS } from '../src/constants/countryRoom.js';
 import { ROOM_CODES } from '../src/constants/countryRoomIndex.js';
+import { COUNTRY_STORIES, LEARN_PROPERLY } from '../src/constants/countryStory.js';
 
 const GROUPS = new Set(['first', 'eat', 'go', 'help']);
 const MIN = { say: 12, eat: 4, know: 3, hear: 3, warm: 4 };
@@ -80,6 +81,47 @@ for (const code of roomCodes) {
   }
 }
 
+/* ── THE SCENES ───────────────────────────────────────────────────────
+   A scene whose wrong answers say nothing is a quiz with the marking
+   hidden, which is the one thing this format exists not to be. Every
+   option must say what would actually have happened, and exactly one
+   per moment is the right one — two right answers means the moment has
+   not been thought through. */
+const roomCodesSet = new Set(COUNTRY_ROOMS.map((c) => c.code));
+for (const [code, scenes] of Object.entries(COUNTRY_STORIES)) {
+  if (!roomCodesSet.has(code)) problems.push('there is a scene for ' + code + ' and no room behind it');
+  scenes.forEach((sc) => {
+    const at = (m) => problems.push('scene ' + (sc.id || code) + ': ' + m);
+    for (const f of ['id', 'title', 'titleAr', 'set', 'setAr', 'end', 'endAr']) if (!sc[f]) at('has no ' + f);
+    if (!Array.isArray(sc.beats) || sc.beats.length < 2) at('needs at least two moments to be a scene');
+    (sc.beats || []).forEach((b, i) => {
+      for (const f of ['text', 'textAr', 'ask', 'askAr']) if (!b[f]) at('moment ' + i + ' has no ' + f);
+      if (!Array.isArray(b.options) || b.options.length < 2) at('moment ' + i + ' has fewer than two ways to answer');
+      const right = (b.options || []).filter((o) => o.right).length;
+      if (right !== 1) at('moment ' + i + ' has ' + right + ' right answers, and it must have exactly one');
+      (b.options || []).forEach((o, j) => {
+        if (!o.native) at('moment ' + i + ' option ' + j + ' has nothing to choose');
+        /* A phrase stays in its own language; an option in brackets is
+           an action, and an Arabic reader must be able to read it. */
+        if (/^\(/.test(o.native || '') && !o.nativeAr) {
+          at('moment ' + i + ' option ' + j + ' is an action with no Arabic — ' + o.native);
+        }
+        if (!o.then || !o.thenAr) at('moment ' + i + ' option ' + j + ' does not say what would have happened');
+      });
+    });
+  });
+}
+
+/* The referral row is the honest half of the business: it must name a
+   real partner the broker knows how to tag, or it earns nothing and
+   says nothing. */
+for (const x of LEARN_PROPERLY) {
+  for (const f of ['partner', 'name', 'url', 'note', 'noteAr']) {
+    if (!x[f]) problems.push('the ' + (x.name || 'unnamed') + ' referral has no ' + f);
+  }
+  if (x.url && !/^https:\/\//.test(x.url)) problems.push(x.name + ' is not an https link');
+}
+
 if (problems.length) {
   console.error('The country room is not complete:\n');
   problems.forEach((p) => console.error('  • ' + p));
@@ -92,5 +134,8 @@ console.log(
   COUNTRY_ROOMS.reduce((a, c) => a + c.warm.length, 0) + ' warm words, ' +
   COUNTRY_ROOMS.reduce((a, c) => a + c.eat.length, 0) + ' dishes, ' +
   COUNTRY_ROOMS.reduce((a, c) => a + c.know.length, 0) + ' customs, ' +
-  COUNTRY_ROOMS.reduce((a, c) => a + c.hear.length, 0) + ' artists — all complete, and the map agrees.'
+  COUNTRY_ROOMS.reduce((a, c) => a + c.hear.length, 0) + ' artists, ' +
+  Object.values(COUNTRY_STORIES).flat().length + ' scenes with ' +
+  Object.values(COUNTRY_STORIES).flat().reduce((a, s) => a + s.beats.length, 0) +
+  ' moments — all complete, and the map agrees.'
 );

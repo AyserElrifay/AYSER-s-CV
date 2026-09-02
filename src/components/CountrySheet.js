@@ -5,6 +5,8 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { C } from '../constants/theme';
 import { useLang } from '../context/LanguageContext';
 import { COUNTRY_ROOMS } from '../constants/countryRoom';
+import { COUNTRY_STORIES, LEARN_PROPERLY, hasStory } from '../constants/countryStory';
+import { withAffiliate } from '../services/broker';
 import { flagOf } from '../constants/countries';
 import { fetchFilms } from '../services/films';
 import { tapLight } from '../utils/feedback';
@@ -142,6 +144,129 @@ const Custom = ({ k, ar }) => (
   </Card>
 );
 
+
+/* ─── THE SCENE ──────────────────────────────────────────────────────
+   One moment at a time, three ways to answer it, and every answer
+   teaches — including the wrong ones, which say what would actually
+   have happened rather than the word "wrong". That is the difference
+   between a story and a quiz, and it is the whole reason this format
+   is worth having: nobody remembers being marked, everybody remembers
+   being told what the waiter would have done.
+
+   Nothing here is scored and nothing is locked. You can read every
+   outcome of every choice — the point is to know the room before you
+   are standing in it, not to win. */
+const Scene = ({ scene, ar, t }) => {
+  const [at, setAt] = useState(0);
+  const [picked, setPicked] = useState(null);
+  const beat = scene.beats[at];
+  const done = at >= scene.beats.length;
+
+  const choose = (i) => { tapLight(); setPicked(i); };
+  const next = () => { tapLight(); setPicked(null); setAt(at + 1); };
+
+  return (
+    <View>
+      <Text style={{ color: C.text, fontSize: 18, fontWeight: '900' }}>
+        {ar ? (scene.titleAr || scene.title) : scene.title}
+      </Text>
+      <Text style={{ color: C.faint, fontSize: 12.5, marginTop: 4, marginBottom: 16, lineHeight: 18, fontStyle: 'italic' }}>
+        {ar ? (scene.setAr || scene.set) : scene.set}
+      </Text>
+
+      {done ? (
+        <Card style={{ borderColor: C.gold }}>
+          <Text style={{ color: C.text, fontSize: 14, fontWeight: '800', lineHeight: 21 }}>
+            {ar ? (scene.endAr || scene.end) : scene.end}
+          </Text>
+          <Pressable onPress={() => { tapLight(); setAt(0); setPicked(null); }} style={{ marginTop: 12 }}>
+            <Text style={{ color: C.gold, fontSize: 13, fontWeight: '800' }}>{t('story_again')}</Text>
+          </Pressable>
+        </Card>
+      ) : (
+        <>
+          <Text style={{ color: C.faint, fontSize: 10.5, fontWeight: '800', letterSpacing: 1, marginBottom: 8 }}>
+            {String(at + 1)} / {String(scene.beats.length)}
+          </Text>
+          <Text style={{ color: C.text, fontSize: 15, lineHeight: 23, marginBottom: 14 }}>
+            {ar ? (beat.textAr || beat.text) : beat.text}
+          </Text>
+          <Text style={{ color: C.gold, fontSize: 13.5, fontWeight: '800', marginBottom: 10 }}>
+            {ar ? (beat.askAr || beat.ask) : beat.ask}
+          </Text>
+
+          {beat.options.map((o, i) => {
+            const open = picked === i;
+            return (
+              <Pressable key={i} onPress={() => choose(i)}>
+                <View style={{
+                  backgroundColor: C.glass, borderRadius: 14, padding: 13, marginBottom: 9,
+                  borderWidth: 1,
+                  borderColor: !open ? C.line : o.right ? C.green : C.gold,
+                }}>
+                  {/* A real phrase stays in its own language — that is the
+                      point of it. But an option in brackets is an ACTION,
+                      not a phrase, and an Arabic reader was being shown
+                      "(send it back)" in English with no way to read it. */}
+                  <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '800' }}>
+                    {ar ? (o.nativeAr || o.native) : o.native}
+                  </Text>
+                  {o.how ? <Text style={{ color: C.gold, fontSize: 12, marginTop: 3 }}>{o.how}</Text> : null}
+                  {open ? (
+                    <Text style={{
+                      color: C.dim, fontSize: 12.5, marginTop: 9, lineHeight: 19,
+                      borderTopWidth: 1, borderTopColor: C.line, paddingTop: 9,
+                    }}>
+                      {ar ? (o.thenAr || o.then) : o.then}
+                    </Text>
+                  ) : null}
+                </View>
+              </Pressable>
+            );
+          })}
+
+          {picked != null ? (
+            <Pressable onPress={next}>
+              <View style={{ backgroundColor: C.text, borderRadius: 14, paddingVertical: 12, alignItems: 'center', marginTop: 4 }}>
+                <Text style={{ color: C.bg, fontSize: 13.5, fontWeight: '900' }}>{t('story_next')}</Text>
+              </View>
+            </Pressable>
+          ) : null}
+        </>
+      )}
+    </View>
+  );
+};
+
+/* The honest end of the room. We do not teach a course, we say so, and
+   we point at people who do — and are paid for the introduction, which
+   is a business we are allowed to be in. A reshaped copy of somebody's
+   lessons is not. */
+const LearnProperly = ({ ar, t }) => (
+  <View style={{ marginTop: 22 }}>
+    <Label>{t('learn_properly')}</Label>
+    <Text style={{ color: C.faint, fontSize: 11.5, lineHeight: 17, marginBottom: 10 }}>
+      {t('learn_properly_note')}
+    </Text>
+    {LEARN_PROPERLY.map((x) => (
+      <Pressable key={x.partner} onPress={() => openUrl(withAffiliate(x.partner, x.url))}>
+        <Card>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Text style={{ fontSize: 19, marginEnd: 11 }}>{x.emoji}</Text>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>{x.name}</Text>
+              <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 2, lineHeight: 16 }}>
+                {ar ? (x.noteAr || x.note) : x.note}
+              </Text>
+            </View>
+            <Ionicons name="open-outline" size={17} color={C.faint} />
+          </View>
+        </Card>
+      </Pressable>
+    ))}
+  </View>
+);
+
 export const CountrySheet = ({ startCode, onClose }) => {
   const insets = useSafeAreaInsets();
   const { lang, t } = useLang();
@@ -151,6 +276,10 @@ export const CountrySheet = ({ startCode, onClose }) => {
   );
   const [tab, setTab] = useState('say');
   const room = useMemo(() => COUNTRY_ROOMS.find((c) => c.code === code) || COUNTRY_ROOMS[0], [code]);
+  /* Not every country has a scene yet, so the tab is not always there.
+     Switching from one that has it to one that does not would have left
+     you looking at a tab that no longer exists, and an empty screen. */
+  useEffect(() => { if (tab === 'story' && !hasStory(code)) setTab('say'); }, [code, tab]);
 
   /* Films are only fetched when somebody actually opens that tab, and
      only once per country — this room is mostly read offline material
@@ -168,6 +297,7 @@ export const CountrySheet = ({ startCode, onClose }) => {
 
   const TABS = [
     { k: 'say',   label: t('country_tab_say') },
+    ...(hasStory(room.code) ? [{ k: 'story', label: t('country_tab_story') }] : []),
     { k: 'eat',   label: t('country_tab_eat') },
     { k: 'know',  label: t('country_tab_know') },
     { k: 'watch', label: t('country_tab_watch') },
@@ -259,6 +389,18 @@ export const CountrySheet = ({ startCode, onClose }) => {
               <Text style={{ color: C.faint, fontSize: 11.5, lineHeight: 17, marginTop: 4 }}>
                 {t('country_how_note')}
               </Text>
+              <LearnProperly ar={ar} t={t} />
+            </>
+          ) : null}
+
+          {tab === 'story' ? (
+            <>
+              {(COUNTRY_STORIES[room.code] || []).map((sc) => (
+                <View key={sc.id} style={{ marginBottom: 24 }}>
+                  <Scene scene={sc} ar={ar} t={t} />
+                </View>
+              ))}
+              <LearnProperly ar={ar} t={t} />
             </>
           ) : null}
 

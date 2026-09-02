@@ -31,6 +31,18 @@ export const COMMISSION = {
   shahid:   { rate: 'MENA affiliate', cashback: 6 },
   disney:   { rate: 'Impact affiliate', cashback: 5 },
   youtube:  { rate: '—', cashback: 2 },
+  /* ── LANGUAGE SCHOOLS ──────────────────────────────────────────
+     Ayser: "ممكن نكسب من الreferring ما نحطهم جوه الابليكشن".
+
+     Yes, and this is the honest half of that idea. We do not teach a
+     course and we do not pretend to; when somebody finishes a scene
+     and wants the real thing, we send them to a real school and are
+     paid for the introduction. Nobody's material is copied, and the
+     person gets a better product than we could build. */
+  busuu:    { rate: 'affiliate', cashback: 8 },
+  babbel:   { rate: 'affiliate', cashback: 8 },
+  italki:   { rate: 'per first lesson', cashback: 10 },
+  preply:   { rate: 'per first lesson', cashback: 10 },
 };
 
 /* ── YOUR AFFILIATE IDs — the single place to activate earnings ────
@@ -59,6 +71,10 @@ export const AFFILIATE_TAGS = {
   epidemicsound: '', // Epidemic Sound partner id (music licensing)
   jarir: '',         // Jarir Bookstore affiliate id (via Arabclicks)   → &ref=…
   neelwafurat: '',   // النيل والفرات — ask for a partner code          → &ref=…
+  busuu: '',         // Busuu affiliate (via Impact/Awin) — tracking id
+  babbel: '',        // Babbel affiliate (via CJ/Awin) — publisher id
+  italki: '',        // italki affiliate — referral code                → ?ref=…
+  preply: '',        // Preply affiliate (via Impact) — tracking id
 };
 
 /* How each partner's tag is appended to the URL. Anything not listed
@@ -74,6 +90,7 @@ const TAG_PARAM = {
   uber: 'invite',
   playtomic: 'ref',
   appletv: 'at',
+  italki: 'ref',
 };
 
 export function withAffiliate(partner, url) {

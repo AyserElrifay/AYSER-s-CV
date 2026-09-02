@@ -21,4 +21,5 @@ export const ROOM_CODES = new Map([
   ['Türkiye', 'TR'],
   ['Morocco', 'MA'],
   ['Egypt', 'EG'],
+  ['China', 'CN'],
 ]);
