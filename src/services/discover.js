@@ -139,3 +139,34 @@ export function activeLabel(iso) {
   const days = Math.floor(hrs / 24);
   return days <= 7 ? `Active ${days}d ago` : 'Recently active';
 }
+
+
+/* ─── THE PEOPLE WHO SPEAK WHAT YOU ARE LEARNING ─────────────────────
+   The language exchange already existed — it lives in Chats and it
+   works. What it was missing is the moment it is actually wanted: you
+   have just read twelve Czech phrases and you want to say one of them
+   to a Czech person. That moment is inside the country room, not on a
+   different screen two taps away.
+
+   Matching on a free-text field is why this needs care. Somebody typed
+   "Czech", somebody typed "czech", somebody typed "Czech / English".
+   All three are the same person to a traveller and were three
+   different people to an exact match, which is why the room asks for
+   a language that CONTAINS the name rather than equals it. */
+export async function fetchSpeakersOf(language, { excludeId, limit = 12 } = {}) {
+  const name = String(language || '').trim();
+  if (!name) return [];
+  /* Only people who deliberately turned their learning profile on. A
+     room full of people who never asked to be practised at would be
+     the wrong thing to build, however good the numbers looked. */
+  let q = supabase
+    .from('profiles')
+    .select(COLS)
+    .eq('learning_visible', true)
+    .ilike('speaks_language', '%' + name + '%')
+    .limit(limit);
+  if (excludeId) q = q.neq('id', excludeId);
+  const { data, error } = await q.order('last_active_at', { ascending: false, nullsFirst: false });
+  if (error) throw error;
+  return clean(data);
+}

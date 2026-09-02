@@ -7,6 +7,9 @@ import { useLang } from '../context/LanguageContext';
 import { COUNTRY_ROOMS } from '../constants/countryRoom';
 import { COUNTRY_STORIES, LEARN_PROPERLY, hasStory } from '../constants/countryStory';
 import { withAffiliate } from '../services/broker';
+import { useAuth } from '../context/AuthContext';
+import { getProfile, updateProfile } from '../services/profiles';
+import { fetchSpeakersOf } from '../services/discover';
 import { flagOf } from '../constants/countries';
 import { fetchFilms } from '../services/films';
 import { tapLight } from '../utils/feedback';
@@ -238,6 +241,118 @@ const Scene = ({ scene, ar, t }) => {
   );
 };
 
+
+/* ─── AND SOMEBODY TO SAY IT TO ──────────────────────────────────────
+   Ayser: "ذائد شات مع الأجانب".
+
+   The exchange itself already existed and works — it is in Chats, it
+   is the HelloTalk shape, and people can switch it on there. What it
+   never had was the moment it is wanted. Nobody opens a Chats screen
+   thinking "I would like to practise Czech". They think it three
+   seconds after reading twelve Czech phrases, which is here.
+
+   So the room does two small things the exchange screen cannot: it
+   fills in the language for you — the field is free text and "Czech",
+   "czech" and "Czech / English" were three different people to an
+   exact match — and it shows you, right now, who actually speaks it.
+
+   It shows real accounts or it shows nothing. An empty list is a
+   truthful answer and an invented one is not. */
+const TalkToSomeone = ({ room, ar, t }) => {
+  const { user } = useAuth();
+  const [mine, setMine] = useState(null);        // my profile, once
+  const [people, setPeople] = useState(null);    // null = still asking
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    if (!user) { setMine(undefined); return () => {}; }
+    getProfile(user.id).then((p) => alive && setMine(p || undefined)).catch(() => alive && setMine(undefined));
+    return () => { alive = false; };
+  }, [user]);
+
+  useEffect(() => {
+    let alive = true;
+    setPeople(null);
+    fetchSpeakersOf(room.lang, { excludeId: user && user.id })
+      .then((r) => alive && setPeople(r || []))
+      .catch(() => alive && setPeople([]));
+    return () => { alive = false; };
+  }, [room.lang, user]);
+
+  const learning = !!(mine && String(mine.learning_language || '').toLowerCase().includes(room.lang.toLowerCase()));
+
+  const toggle = async () => {
+    if (!user || busy) return;
+    tapLight();
+    setBusy(true);
+    try {
+      const next = learning ? '' : room.lang;
+      await updateProfile(user.id, {
+        learning_language: next || null,
+        learning_visible: next ? true : (mine && mine.learning_visible) || false,
+      });
+      setMine({ ...(mine || {}), learning_language: next, learning_visible: next ? true : (mine && mine.learning_visible) });
+    } catch (e) { /* a failed save is not worth a crash on a reading screen */ }
+    finally { setBusy(false); }
+  };
+
+  return (
+    <View style={{ marginTop: 22 }}>
+      <Label>{t('talk_title')}</Label>
+
+      {user ? (
+        <Pressable onPress={toggle}>
+          <View style={{
+            flexDirection: 'row', alignItems: 'center', borderRadius: 14, padding: 13, marginBottom: 10,
+            backgroundColor: learning ? C.glass : 'transparent',
+            borderWidth: 1, borderColor: learning ? C.gold : C.line,
+          }}>
+            <Ionicons name={learning ? 'checkmark-circle' : 'ellipse-outline'} size={20} color={learning ? C.gold : C.faint} />
+            <Text style={{ color: learning ? C.text : C.dim, fontSize: 13.5, fontWeight: '800', marginStart: 10, flex: 1 }}>
+              {t('talk_im_learning').replace('{lang}', ar ? room.langAr : room.lang)}
+            </Text>
+            {busy ? <ActivityIndicator color={C.faint} /> : null}
+          </View>
+        </Pressable>
+      ) : null}
+
+      {people === null ? (
+        <ActivityIndicator color={C.faint} style={{ marginVertical: 14 }} />
+      ) : people.length === 0 ? (
+        <Text style={{ color: C.faint, fontSize: 12, lineHeight: 18 }}>
+          {t('talk_nobody').replace('{lang}', ar ? room.langAr : room.lang)}
+        </Text>
+      ) : (
+        <>
+          <Text style={{ color: C.faint, fontSize: 11.5, marginBottom: 9 }}>
+            {t('talk_count').replace('{n}', String(people.length)).replace('{lang}', ar ? room.langAr : room.lang)}
+          </Text>
+          {people.slice(0, 6).map((pr) => (
+            <Card key={pr.id}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }} numberOfLines={1}>
+                    {pr.country_flag ? pr.country_flag + ' ' : ''}{pr.name}
+                  </Text>
+                  <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 2 }} numberOfLines={1}>
+                    {[pr.speaks_language ? '🗣️ ' + pr.speaks_language : null,
+                      pr.learning_language ? '📗 ' + pr.learning_language : null]
+                      .filter(Boolean).join('  ·  ')}
+                  </Text>
+                </View>
+              </View>
+            </Card>
+          ))}
+        </>
+      )}
+      <Text style={{ color: C.faint, fontSize: 11, lineHeight: 16, marginTop: 6 }}>
+        {t('talk_note')}
+      </Text>
+    </View>
+  );
+};
+
 /* The honest end of the room. We do not teach a course, we say so, and
    we point at people who do — and are paid for the introduction, which
    is a business we are allowed to be in. A reshaped copy of somebody's
@@ -276,6 +391,26 @@ export const CountrySheet = ({ startCode, onClose }) => {
   );
   const [tab, setTab] = useState('say');
   const room = useMemo(() => COUNTRY_ROOMS.find((c) => c.code === code) || COUNTRY_ROOMS[0], [code]);
+
+  /* "اكتب باللغات الي user عايز يتعلمها" — the room cannot write in a
+     language it does not know you want. It knows now: whatever you set
+     as the language you are learning comes first in the picker, so the
+     room opens on your language instead of on whichever country I
+     happened to type first. */
+  const { user: me } = useAuth();
+  const [myLearning, setMyLearning] = useState('');
+  useEffect(() => {
+    let alive = true;
+    if (!me) return () => {};
+    getProfile(me.id).then((p) => alive && setMyLearning((p && p.learning_language) || '')).catch(() => {});
+    return () => { alive = false; };
+  }, [me]);
+  const ordered = useMemo(() => {
+    const want = String(myLearning || '').toLowerCase();
+    if (!want) return COUNTRY_ROOMS;
+    const hit = (c) => want.includes(c.lang.toLowerCase()) || c.lang.toLowerCase().includes(want);
+    return [...COUNTRY_ROOMS].sort((a, b) => (hit(b) ? 1 : 0) - (hit(a) ? 1 : 0));
+  }, [myLearning]);
   /* Not every country has a scene yet, so the tab is not always there.
      Switching from one that has it to one that does not would have left
      you looking at a tab that no longer exists, and an empty screen. */
@@ -326,7 +461,7 @@ export const CountrySheet = ({ startCode, onClose }) => {
           horizontal showsHorizontalScrollIndicator={false}
           style={{ flexGrow: 0, flexShrink: 0 }}
           contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 2 }}>
-          {COUNTRY_ROOMS.map((c) => {
+          {ordered.map((c) => {
             const on = c.code === code;
             return (
               <Pressable key={c.code} onPress={() => { tapLight(); setCode(c.code); setTab('say'); }}>
@@ -389,6 +524,7 @@ export const CountrySheet = ({ startCode, onClose }) => {
               <Text style={{ color: C.faint, fontSize: 11.5, lineHeight: 17, marginTop: 4 }}>
                 {t('country_how_note')}
               </Text>
+              <TalkToSomeone room={room} ar={ar} t={t} />
               <LearnProperly ar={ar} t={t} />
             </>
           ) : null}
