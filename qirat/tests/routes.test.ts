@@ -29,6 +29,7 @@ const ROUTES = [
   '/app',
   '/app/payouts',
   '/app/conversations',
+  '/app/month',
   '/app/settings',
   '/signin',
   '/signup',
@@ -374,4 +375,53 @@ describe('the conversations screen', () => {
       if (response.status !== 200) expect(response.headers.get('location')).toBe('/app');
     });
   }
+});
+
+/**
+ * The books are the owner's.
+ *
+ * Overheads and salaries are granted to that role alone, and the month screen
+ * is built entirely out of them. An account manager sees their own deals'
+ * economics and has no business with what the company costs to keep open.
+ */
+describe('the month screen', () => {
+  it('opens for the owner', async () => {
+    const session = new Session(server.baseUrl);
+    await session.signIn(orgA.emails.owner, SEED_PASSWORD);
+    const response = await session.fetch('/app/month');
+    expect(response.status).toBe(200);
+    expect(await response.text()).toContain('What the company costs');
+  });
+
+  for (const role of ['account_manager', 'member', 'partner'] as const) {
+    it(`sends a ${role} away`, async () => {
+      const session = new Session(server.baseUrl);
+      const email =
+        role === 'account_manager'
+          ? orgA.emails.manager
+          : role === 'member'
+            ? orgA.emails.member
+            : orgA.emails.partner;
+      await session.signIn(email, SEED_PASSWORD);
+      const response = await session.fetch('/app/month');
+      const body = response.status === 200 ? await response.text() : '';
+      expect(body).not.toContain('What the company costs');
+      if (response.status !== 200) expect(response.headers.get('location')).toBe('/app');
+    });
+  }
+
+  it('does not stop an account manager’s own screen from loading', async () => {
+    /*
+     * The regression this suite caught once already: the deals page reads the
+     * roster to staff a card, and the roster grew salary columns the manager
+     * has no grant on. Postgres refuses the whole query, so the leak that would
+     * have been is instead a page that will not load — for every manager in
+     * every agency, silently, until somebody signs in as one.
+     */
+    const session = new Session(server.baseUrl);
+    await session.signIn(orgA.emails.manager, SEED_PASSWORD);
+    const response = await session.fetch('/app');
+    expect(response.status).toBe(200);
+    expect(await response.text()).toContain('routesa deal one');
+  });
 });

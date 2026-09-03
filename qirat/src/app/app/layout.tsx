@@ -49,6 +49,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         // accounts. Both are the Owner's, and both pages redirect anyone else.
         ...(user.role === 'owner'
           ? ([
+              { href: '/app/month', key: 'nav.month', icon: 'month' },
               { href: '/app/team', key: 'nav.team', icon: 'team' },
               { href: '/app/settings', key: 'nav.settings', icon: 'settings' },
             ] as NavItem[])

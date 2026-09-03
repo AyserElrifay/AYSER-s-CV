@@ -50,7 +50,7 @@ npm run build                 # the route suite runs against the real build
 npm test
 ```
 
-482 tests, about twenty-five seconds.
+513 tests, about twenty seconds.
 
 | Suite | What it holds down |
 |---|---|
@@ -69,6 +69,8 @@ npm test
 | `tests/team.test.ts` | A Member sees the deals they are on and no others, their own assignment rate and not a colleague's, their own logged days and not the crew's. They cannot log time in somebody else's name, or against a deal they are not on — which would otherwise answer "is this a real deal id" for anybody guessing. Ends by closing a deal and proving the logged days move the payout: 4,520 instead of 5,500. |
 | `src/money/work.test.ts` | Days as exact hundredths. A third of a day is refused rather than rounded. A quarter of an odd rate rounds once, to even. Summing lines is not the same as pricing the total, and the lines are what a person checks their timesheet against. |
 | `tests/conversations.test.ts` | A call moves from the calendar to the log by a state rather than a copy. A next step with no date is refused. `updated_at` is the database's, not the caller's. The silence is counted: what happened and says nothing, what is past its date, who has not been spoken to. Shared between the owner and the managers; closed to a Member and a Partner entirely. |
+| `src/money/company.test.ts` | The month as a waterfall. A 50% gross month that is −4.3% after salaries and overheads. A loss is never shared out. Partner shares plus what is retained equal the profit exactly, to the minor unit. A yearly bill spread across the year; an office left in May still a cost in April. |
+| `tests/company.test.ts` | The month, derived rather than entered: a real closed deal comes out 62.5% gross and −11.25% real. Overheads are the owner's alone. A closed period refuses every edit except one — reopening, by the owner, with a reason, counted. |
 | `tests/routes.test.ts` | The same isolation, over HTTP, against the production build, with real signed sessions — every route, every role. The Member's page is now checked with real content on it: the deal they are staffed on is named, their own rate is shown, and the price of that same deal is still nowhere in the bytes. |
 
 The structural suite is the one that matters most over time: it fails on a table

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { addPersonAction, setDayRateAction, setPersonActiveAction } from '@/app/actions/team';
+import { setSalaryAction } from '@/app/actions/company';
 import { SelectField, TextField } from './field';
 import { Figure } from './figure';
 import { type Locale, type StringKey, translator } from '@/i18n/dictionary';
@@ -15,6 +16,8 @@ export interface PersonView {
   title: string | null;
   phone: string | null;
   rate: string | null;
+  /** What they cost the company whether or not a job exists. */
+  salary: string | null;
   currency: string | null;
   isActive: boolean;
   neverSignedIn: boolean;
@@ -175,6 +178,7 @@ export function TeamRoster({
 function PersonRow({ person, locale }: { person: PersonView; locale: Locale }) {
   const t = translator(locale);
   const [editing, setEditing] = useState(false);
+  const [payroll, setPayroll] = useState(false);
   const [pending, startTransition] = useTransition();
 
   return (
@@ -202,6 +206,8 @@ function PersonRow({ person, locale }: { person: PersonView; locale: Locale }) {
               initial={person.rate ?? ''}
               onDone={() => setEditing(false)}
               locale={locale}
+              save={setDayRateAction}
+              label={t('team.dayRate')}
             />
           ) : (
             <button
@@ -224,6 +230,38 @@ function PersonRow({ person, locale }: { person: PersonView; locale: Locale }) {
         </span>
       </div>
 
+      {/*
+        The salary sits under the day rate, not beside it, because they answer
+        different questions and reading them as a pair invites adding them up.
+      */}
+      <div className="mt-1.5 flex items-baseline justify-between gap-4">
+        {payroll ? (
+          <RateField
+            userId={person.id}
+            initial={person.salary ?? ''}
+            onDone={() => setPayroll(false)}
+            locale={locale}
+            save={setSalaryAction}
+            label={t('salary.title')}
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={() => setPayroll(true)}
+            className="text-[11px] text-ink-faint hover:text-ink-soft"
+          >
+            {t('salary.title')}:{' '}
+            {person.salary ? (
+              <span className="reading text-ink-soft">
+                <Figure>{person.salary}</Figure>
+              </span>
+            ) : (
+              t('salary.none')
+            )}
+          </button>
+        )}
+      </div>
+
       {!person.isYou ? (
         <button
           type="button"
@@ -242,17 +280,26 @@ function PersonRow({ person, locale }: { person: PersonView; locale: Locale }) {
   );
 }
 
-/** Editing a rate in place. A rate is one number; a page for it would be a form. */
+/**
+ * Editing an amount in place. One number does not need a page.
+ *
+ * Used for both the day rate and the salary: the only difference is which
+ * action it calls and what it is called, so it takes both.
+ */
 function RateField({
   userId,
   initial,
   onDone,
   locale,
+  save,
+  label,
 }: {
   userId: string;
   initial: string;
   onDone: () => void;
   locale: Locale;
+  save: (userId: string, amount: string) => Promise<{ ok: boolean; error?: string }>;
+  label: string;
 }) {
   const t = translator(locale);
   const [value, setValue] = useState(initial);
@@ -264,7 +311,7 @@ function RateField({
         value={value}
         autoFocus
         inputMode="decimal"
-        aria-label={t('team.dayRate')}
+        aria-label={label}
         onChange={(event) => setValue(event.target.value)}
         className="reading w-28 rounded-[6px] border border-line bg-paper px-2 py-1 text-[13px] text-ink"
       />
@@ -273,7 +320,7 @@ function RateField({
         disabled={pending}
         onClick={() =>
           startTransition(async () => {
-            await setDayRateAction(userId, value);
+            await save(userId, value);
             onDone();
           })
         }

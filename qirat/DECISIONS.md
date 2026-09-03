@@ -721,3 +721,78 @@ whose implicit column is `auto`-sized to its content, so a card with a nowrap
 title grew past the page instead of truncating inside it. Measured rather than
 eyeballed: squeeze the card in the browser and ask what still overflows. The fix
 is `grid-cols-1`, which is `minmax(0, 1fr)`.
+
+## 33. A deal's margin is not how you are doing
+
+The product could tell you a deal made 50%. It could not tell you whether the
+agency made money, because a deal's margin does not know about the rent, the
+software, the accountant, or the salaries that go out whether or not anybody
+booked anything that month.
+
+So the month screen is a waterfall, in the order an owner already draws it on
+the back of an envelope:
+
+    Billed
+    − suppliers and production
+    − your own people's days
+    = gross profit          ← every deal card in the product adds up to this
+    − commission earned on it
+    − salaries              ← no deal card can see this
+    − running the company   ← nor this
+    = what the month actually made
+
+`tests/company.test.ts` closes a real deal and proves the point: **62.5% gross,
+−11.25% real.** A month everyone in the studio would call strong, that lost
+9,000. Two numbers, one above the other, is the entire argument.
+
+Nothing on that screen is entered twice. Every figure is derived from rows that
+already existed — deals, costs, the work log, split rules — plus the two that
+did not: salaries and overheads. A derived month cannot disagree with itself.
+
+**A salary is not a day rate.** The day rate is what an hour of somebody's time
+costs a job; the salary is what they cost the company whether or not a job
+exists. Most agencies have both kinds of person, and confusing them is how a
+studio with four salaried staff believes its 45% margins mean it is comfortable.
+
+**A yearly bill is spread across the year.** A 12,000 licence paid in January
+would otherwise make January look terrible and eleven months look better than
+they were. What left the bank in January is a different and equally real
+question — and it is the ledger's, not this screen's.
+
+**Break-even, stated as a number.** Salaries plus overheads divided by the
+margin actually being achieved. It converts "we need more work" into a figure an
+owner can price against, which is the only form of that sentence anybody can act
+on.
+
+## 34. A closed month reopens, with a reason
+
+The old rule was that a closed period could never move. That is correct right up
+until the afternoon somebody finds a 40,000 print bill that belonged in last
+month — at which point an unbreakable lock does not protect the numbers. It
+moves the correction somewhere the product cannot see.
+
+So a period reopens: by the owner, with a reason of at least a sentence, and it
+says afterwards that it was reopened and how many times. The database enforces
+all of it — the trigger permits exactly one transition, `closed → open`, with a
+stamp and an incremented counter, and still refuses every other edit to a closed
+period.
+
+Statements already issued stay immutable. They were real, somebody may have been
+paid against one, and a correction is an adjusting entry. What reopening buys is
+the ability to close again with the truth in it.
+
+## 35. The bug the route suite caught, again
+
+The roster query grew two salary columns. Salaries are granted to the owner
+alone — correctly, because an account manager staffing a deal needs day rates,
+not the agency's payroll.
+
+But the deals screen reads the roster to staff a card. Postgres does not return
+the columns a role may not have; it refuses **the whole query**. So the leak that
+would have been was instead a page that would not load, for every account
+manager in every agency, silently, until somebody signed in as one.
+
+The fix is that the query asks for the payroll columns only when the caller
+holds the grant. The lesson is the one this suite keeps teaching: a permission
+model tight enough to be worth having will break things, and the place to find
+that out is a test that signs in as every role and fetches every route.

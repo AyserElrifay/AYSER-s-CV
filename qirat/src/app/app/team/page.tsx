@@ -41,6 +41,13 @@ export default async function TeamPage() {
             locale,
             display: 'none',
           }),
+    salary:
+      person.monthlySalaryMinor === null || person.salaryCurrency === null
+        ? null
+        : formatMoney(money(person.monthlySalaryMinor, person.salaryCurrency), {
+            locale,
+            display: 'none',
+          }),
     currency: person.rateCurrency,
     isActive: person.isActive,
     neverSignedIn: person.lastLoginAt === null,

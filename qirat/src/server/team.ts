@@ -25,6 +25,8 @@ export interface Person {
   phone: string | null;
   dayRateMinor: bigint | null;
   rateCurrency: CurrencyCode | null;
+  monthlySalaryMinor: bigint | null;
+  salaryCurrency: CurrencyCode | null;
   isActive: boolean;
   lastLoginAt: Date | null;
   mustChangePassword: boolean;
@@ -53,7 +55,17 @@ export function normaliseUsername(input: string): string {
 
 const USERNAME = /^[a-z0-9](?:[a-z0-9._-]{1,30})[a-z0-9]$/;
 
+/**
+ * The roster.
+ *
+ * Salaries are the owner's alone — an account manager staffing a deal needs day
+ * rates, not what the agency pays everybody every month — so the columns are
+ * only asked for when the caller holds the grant. Selecting them regardless
+ * would not leak anything; Postgres would refuse the whole query, and the deal
+ * screen that calls this would stop loading for every manager in the agency.
+ */
 export async function listPeople(ctx: TenantContext): Promise<Person[]> {
+  const payroll = ctx.role === 'owner';
   const rows = await withTenant(ctx, (tx) =>
     tx.execute<{
       [column: string]: unknown;
@@ -66,12 +78,17 @@ export async function listPeople(ctx: TenantContext): Promise<Person[]> {
       phone: string | null;
       day_rate_minor: bigint | null;
       rate_currency: string | null;
+      monthly_salary_minor: bigint | null;
+      salary_currency: string | null;
       is_active: boolean;
       last_login_at: Date | null;
       must_change_password: boolean;
     }>(raw`
       select id, name, username, email, role::text as role, title, phone,
-             day_rate_minor, rate_currency::text as rate_currency, is_active,
+             day_rate_minor, rate_currency::text as rate_currency,
+             ${payroll ? raw`monthly_salary_minor` : raw`null::bigint as monthly_salary_minor`},
+             ${payroll ? raw`salary_currency::text as salary_currency` : raw`null::text as salary_currency`},
+             is_active,
              last_login_at, must_change_password
       from users
       order by is_active desc, role, name`),
@@ -86,6 +103,8 @@ export async function listPeople(ctx: TenantContext): Promise<Person[]> {
     phone: row.phone,
     dayRateMinor: row.day_rate_minor,
     rateCurrency: row.rate_currency ? assertCurrencyCode(row.rate_currency) : null,
+    monthlySalaryMinor: row.monthly_salary_minor,
+    salaryCurrency: row.salary_currency ? assertCurrencyCode(row.salary_currency) : null,
     isActive: row.is_active,
     lastLoginAt: row.last_login_at,
     mustChangePassword: row.must_change_password,

@@ -26,6 +26,7 @@ const APP_TABLES = [
   'services',
   'clients',
   'client_contacts',
+  'overheads',
   'conversations',
   'deals',
   'deal_assignments',
