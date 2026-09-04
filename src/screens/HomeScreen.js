@@ -41,6 +41,9 @@ import { lazyOverlay } from '../lib/lazyScreen';
 const BardiSheet = lazyOverlay(() => import('../components/BardiSheet').then((m) => ({ default: m.BardiSheet })));
 /* What there is to join — campfires, invitations and groups in one
    place. Opened, not loaded with the feed. */
+/* A shared group link has to open the group. GroupPage is a Modal, so
+   it can live here as well as in Search. */
+const GroupPage = lazyOverlay(() => import('../components/GroupPage').then((mod) => ({ default: mod.GroupPage })));
 const WhatsOnSheet = lazyOverlay(() => import('../components/WhatsOnSheet').then((mod) => ({ default: mod.WhatsOnSheet })));
 const CaptureModal = lazyOverlay(() => import('../components/CaptureModal').then((m) => ({ default: m.CaptureModal })));
 const CommentsSheet = lazyOverlay(() => import('../components/CommentsSheet').then((m) => ({ default: m.CommentsSheet })));
@@ -169,6 +172,7 @@ export const HomeScreen = () => {
   /* The one place that answers "what can I join?" — see
      components/WhatsOnSheet.js for why it had to exist at all. */
   const [whatsOn, setWhatsOn] = useState(false);
+  const [sharedGroup, setSharedGroup] = useState(null);   // {id, postId} from a ?group= link
 
   const showToast = (msg) => {
     setToast(msg);
@@ -239,7 +243,17 @@ export const HomeScreen = () => {
         }))
         .catch(() => showToast(t('profile_gone')));
     }
-    if (postId || storyId || userId) window.history.replaceState({}, '', window.location.pathname);
+    /* ── A GROUP SOMEBODY SENT YOU ────────────────────────────────
+       ?group=<id>, optionally &gp=<post id> so the link lands on the
+       post they meant rather than at the top of the wall. No fetch
+       here: GroupPage loads the group itself and shows its own error
+       if the group is gone, which is one place that can be wrong
+       instead of two. */
+    const groupId = params.get('group');
+    const gPost = params.get('gp');
+    if (groupId) setSharedGroup({ id: groupId, postId: gPost || null });
+
+    if (postId || storyId || userId || groupId) window.history.replaceState({}, '', window.location.pathname);
   }, []);
 
   /* Share a story OUT — same link pattern as posts. */
@@ -567,6 +581,14 @@ export const HomeScreen = () => {
       />
 
       {/* ── EVERYTHING BELOW ARRIVES WHEN IT IS OPENED ────────────── */}
+      {sharedGroup ? (
+        <GroupPage
+          groupId={sharedGroup.id}
+          focusPostId={sharedGroup.postId}
+          onClose={() => setSharedGroup(null)}
+        />
+      ) : null}
+
       {whatsOn ? (
         <WhatsOnSheet
           /* No coords on purpose. This screen does not ask for your

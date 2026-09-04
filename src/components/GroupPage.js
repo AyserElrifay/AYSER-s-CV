@@ -9,6 +9,8 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { C } from '../constants/theme';
 import { useLang } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
+import { groupLink } from '../lib/shareLink';
+import { ShareSheet } from './ShareSheet';
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
 import { getProfile } from '../services/profiles';
 import { shortWhen } from './CommentsSheet';
@@ -61,7 +63,7 @@ const Avatar = ({ uri, size = 34 }) => (
    Its replies are fetched when you open them and not before. A wall of
    twenty posts pulling every reply on the way in is twenty requests
    for text almost nobody will read. */
-const WallPost = ({ post, me, onLike, onRemove, t }) => {
+const WallPost = ({ post, me, onLike, onRemove, onShare, t }) => {
   const [open, setOpen] = useState(false);
   const [rows, setRows] = useState(null);
   const [draft, setDraft] = useState('');
@@ -135,6 +137,13 @@ const WallPost = ({ post, me, onLike, onRemove, t }) => {
           <Ionicons name="chatbubble-outline" size={16} color={C.faint} />
           <Text style={{ color: C.faint, fontSize: 12, fontWeight: '800', marginLeft: 6 }}>{count}</Text>
         </Pressable>
+        {/* One post, passed on. The link carries the post id, so whoever
+            opens it lands on this post rather than at the top of a wall
+            with no idea which one they were sent. */}
+        <Pressable onPress={() => { tapLight(); onShare && onShare(post); }} hitSlop={8}
+          style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 20 }}>
+          <Ionicons name="share-outline" size={16} color={C.faint} />
+        </Pressable>
       </View>
 
       {open ? (
@@ -177,7 +186,7 @@ const WallPost = ({ post, me, onLike, onRemove, t }) => {
   );
 };
 
-export const GroupPage = ({ groupId, onClose, onChanged }) => {
+export const GroupPage = ({ groupId, focusPostId, onClose, onChanged }) => {
   const insets = useSafeAreaInsets();
   const { t } = useLang();
   const { user } = useAuth();
@@ -200,6 +209,8 @@ export const GroupPage = ({ groupId, onClose, onChanged }) => {
   const [sending, setSending] = useState(false);
   const [tab, setTab] = useState('wall');           // wall | people
   const [people, setPeople] = useState(null);
+  /* null, or what is being shared: the group itself, or one post on it. */
+  const [sharing, setSharing] = useState(null);
   const [busyJoin, setBusyJoin] = useState(false);
 
   const load = useCallback(async () => {
@@ -208,7 +219,12 @@ export const GroupPage = ({ groupId, onClose, onChanged }) => {
       const g = await fetchGroup(groupId, user && user.id);
       setGroup(g);
       const rows = await fetchWall(groupId);
-      setWall(rows);
+      /* Somebody sent a link to ONE post. Putting it first is the whole
+         difference between "here is the thing I wanted you to see" and
+         "here is a wall, go and find it". */
+      setWall(focusPostId
+        ? (rows || []).slice().sort((a, b) => (b.id === focusPostId ? 1 : 0) - (a.id === focusPostId ? 1 : 0))
+        : rows);
       /* Marking it seen is what makes the badge go away, and it only
          makes sense once the wall has actually arrived. */
       if (g.joined) markGroupSeen(groupId);
@@ -216,7 +232,7 @@ export const GroupPage = ({ groupId, onClose, onChanged }) => {
       setErr(explainGroups(e));
       setWall([]);
     }
-  }, [groupId, user]);
+  }, [groupId, user, focusPostId]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -312,6 +328,13 @@ export const GroupPage = ({ groupId, onClose, onChanged }) => {
                 style={{ position: 'absolute', top: insets.top + 8, left: 14, backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 999, padding: 8 }}>
                 <Ionicons name="chevron-back" size={20} color="#FFF" />
               </Pressable>
+              {/* A group nobody can link to only grows by somebody
+                  happening to search for it, which is not how anyone has
+                  ever joined a group. */}
+              <Pressable onPress={() => { tapLight(); setSharing({}); }} hitSlop={10}
+                style={{ position: 'absolute', top: insets.top + 8, right: 14, backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 999, padding: 8 }}>
+                <Ionicons name="share-outline" size={20} color="#FFF" />
+              </Pressable>
             </View>
 
             <View style={{ paddingHorizontal: 16, marginTop: -28 }}>
@@ -326,7 +349,11 @@ export const GroupPage = ({ groupId, onClose, onChanged }) => {
                 <Ionicons name={group && group.privacy === 'request' ? 'lock-closed' : 'earth'} size={13} color={C.faint} />
                 <Text style={{ color: C.faint, fontSize: 12.5, marginLeft: 5 }}>
                   {group ? t(group.privacy === 'request' ? 'gp_private' : 'gp_open') : ''}
-                  {group ? ' · ' + group.members + ' ' + t('gp_members') : ''}
+                  {/* A count we do not have is not a count. Printing it
+                      unguarded put the literal word "undefined" in front
+                      of somebody the moment the group row was slow or
+                      came back in an unexpected shape. */}
+                  {group && Number.isFinite(group.members) ? ' · ' + group.members + ' ' + t('gp_members') : ''}
                   {group && group.city ? ' · ' + group.city : ''}
                 </Text>
               </View>
@@ -403,7 +430,7 @@ export const GroupPage = ({ groupId, onClose, onChanged }) => {
                     </Text>
                   ) : null}
                   {(wall || []).map((p) => (
-                    <WallPost key={p.id} post={p} me={me} onLike={like} onRemove={drop} t={t} />
+                    <WallPost key={p.id} post={p} me={me} onLike={like} onRemove={drop} onShare={(x) => setSharing({ postId: x.id })} t={t} />
                   ))}
                 </>
               ) : (
@@ -460,6 +487,14 @@ export const GroupPage = ({ groupId, onClose, onChanged }) => {
           </ScrollView>
         </KeyboardAvoidingView>
       </View>
+
+      {sharing ? (
+        <ShareSheet
+          url={groupLink(groupId, sharing.postId)}
+          message={group ? group.name : null}
+          onClose={() => setSharing(null)}
+        />
+      ) : null}
     </Modal>
   );
 };
