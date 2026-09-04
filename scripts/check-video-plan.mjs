@@ -14,7 +14,14 @@
 
        node scripts/check-video-plan.mjs
 */
+import fs from 'node:fs';
 import { videoPlan, VIDEO_LIMITS } from '../src/lib/videoCompress.js';
+const { SHRINK_MAX_SECONDS } = VIDEO_LIMITS;
+/* Read as text on purpose: the one thing that cannot be asserted from
+   videoPlan alone is that the CALLER tells compressVideo the real
+   length. Get that wrong and a long film is silently cut to three
+   minutes and uploads perfectly. */
+const capture = fs.readFileSync('src/components/CaptureModal.js', 'utf8');
 
 const MB = 1024 * 1024;
 const MAX = 200 * MB;                      // the bucket's real ceiling
@@ -34,8 +41,14 @@ is('a 2-hour, 150MB video goes up as it is',
    videoPlan({ bytes: 150 * MB, seconds: 7200, longForm: true, maxBytes: MAX }).action, 'send');
 is('and is never re-encoded, whatever its length',
    videoPlan({ bytes: 199 * MB, seconds: 5400, longForm: true, maxBytes: MAX }).action, 'send');
-is('over the real ceiling it is refused, not silently cut',
-   videoPlan({ bytes: 260 * MB, seconds: 600, longForm: true, maxBytes: MAX }).action, 'refuse');
+/* Over the ceiling it is now SHRUNK rather than refused — but the
+   thing this line was really guarding still holds and still matters:
+   it must never be silently CUT. That is asserted below, on the caller,
+   because the cutting would happen there and not here. */
+is('over the real ceiling a ten-minute clip is shrunk, not refused',
+   videoPlan({ bytes: 260 * MB, seconds: 600, longForm: true, maxBytes: MAX }).action, 'shrink');
+is('and one too long to re-encode is still refused rather than started',
+   videoPlan({ bytes: 260 * MB, seconds: 3600, longForm: true, maxBytes: MAX }).action, 'refuse');
 
 console.log('\nreels — three minutes, and that stays true');
 is('a 12-minute reel is shrunk',
@@ -58,7 +71,26 @@ const library = (bytes, seconds) => videoPlan({
 is('a 12-minute clip is kept whole', library(80 * MB, 12 * 60), 'send');
 is('a heavy 30-second clip is still shrunk', library(90 * MB, 30), 'shrink');
 is('a light 30-second clip is left alone', library(6 * MB, 30), 'send');
-is('and one over the ceiling is refused', library(260 * MB, 900), 'refuse');
+/* ── OVER THE CEILING: SHRINK, DO NOT REFUSE ──────────────────────────
+   This used to assert 'refuse', and refusing was the wrong answer. A
+   157MB clip came back "Could not start the upload (HTTP 413)" and the
+   person was simply stuck. Now anything over the ceiling is re-encoded
+   first, and the only thing still refused is a clip so long that
+   re-encoding it in a browser — which runs at about real time — would
+   take longer than anybody would sit through. */
+is('one over the ceiling is SHRUNK, not refused', library(260 * MB, 900), 'shrink');
+is('a 157MB two-minute clip is shrunk', library(157 * MB, 120), 'shrink');
+is('and only a clip too long to re-encode is refused',
+   library(260 * MB, SHRINK_MAX_SECONDS + 60), 'refuse');
+is('a long clip UNDER the ceiling is still kept whole',
+   library(80 * MB, SHRINK_MAX_SECONDS + 60), 'send');
+
+/* The reason this matters more than it looks: compressVideo defaults
+   its maxSeconds to the three-minute reel cap, so routing a long video
+   through it without passing the real duration would CUT the film and
+   hand back something that uploads perfectly and is wrong. */
+is('shrinking a long clip must be told the real length',
+   /maxSeconds: longForm && seconds/.test(capture) ? 'passes' : 'missing', 'passes');
 
 console.log('\nand a file we could not measure');
 is('unknown length, small enough → send',

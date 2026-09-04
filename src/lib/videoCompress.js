@@ -26,6 +26,11 @@
    anything is off, the original is what gets uploaded.               */
 
 export const REEL_MAX_SECONDS = 180;        // three minutes
+/* Re-encoding in a browser runs at roughly real time, so this is a
+   limit on somebody's patience rather than on the file. Twenty minutes
+   of waiting is already a lot to ask; beyond it we say so plainly
+   instead of starting something nobody will wait for. */
+export const SHRINK_MAX_SECONDS = 20 * 60;
 const TARGET_BYTES = 36 * 1024 * 1024;      // comfortably inside every limit
 const MAX_LONG_SIDE = 1280;
 const AUDIO_BPS = 96000;
@@ -97,7 +102,30 @@ export function needsCompressing(bytes, seconds) {
    'refuse' say why, in megabytes.                                    */
 export function videoPlan({ bytes, seconds, longForm, maxBytes }) {
   if (longForm) {
-    return (maxBytes && bytes > maxBytes) ? { action: 'refuse', why: 'too-big' } : { action: 'send' };
+    if (!maxBytes || bytes <= maxBytes) return { action: 'send' };
+    /* ── OVER THE LIMIT: SHRINK IT, DO NOT REFUSE IT ────────────────
+       Ayser, after a 157MB clip came back "Could not start the upload
+       (HTTP 413)": make it smaller like TikTok does.
+
+       He is right that refusing is the wrong answer, and it is worth
+       being precise about why we cannot simply do what TikTok does.
+       TikTok compresses with the phone's own hardware encoder through
+       a native API. A web app has no access to that. All a browser can
+       do is play the file and record what it draws, which happens in
+       REAL TIME: a ten-minute video takes about ten minutes.
+
+       That is still far better than refusing, because the clips that
+       blow past the limit are almost always short and enormously
+       over-bitrated — 4K sixty-frames straight off a phone — and
+       re-encoding those to 720p is both quick and dramatic.
+
+       So the only thing we refuse now is a clip so long that
+       re-encoding it in a browser would take longer than anybody
+       would sit through. Everything else gets shrunk and tried. */
+    if (seconds != null && seconds > SHRINK_MAX_SECONDS) {
+      return { action: 'refuse', why: 'too-long-to-shrink' };
+    }
+    return { action: 'shrink', why: 'too-big' };
   }
   if (seconds != null && seconds > REEL_MAX_SECONDS + 0.5) return { action: 'shrink', why: 'too-long' };
   return bytes > TARGET_BYTES ? { action: 'shrink', why: 'too-big' } : { action: 'send' };
@@ -105,7 +133,7 @@ export function videoPlan({ bytes, seconds, longForm, maxBytes }) {
 
 /* Exported so the check can assert against the real numbers rather
    than a copy of them that drifts. */
-export const VIDEO_LIMITS = { REEL_MAX_SECONDS, TARGET_BYTES };
+export const VIDEO_LIMITS = { REEL_MAX_SECONDS, TARGET_BYTES, SHRINK_MAX_SECONDS };
 
 const pickMime = () => {
   if (typeof MediaRecorder === 'undefined') return null;

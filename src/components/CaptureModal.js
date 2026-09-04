@@ -1577,9 +1577,11 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
        file — which is why it was wrong for months. */
     const plan = videoPlan({ bytes: blob.size, seconds, longForm, maxBytes: MAX_UPLOAD_BYTES });
     if (plan.action === 'refuse') {
-      setCamError(t('cap_err_too_big')
-        .replace('{size}', Math.round(blob.size / 1048576))
-        .replace('{max}', Math.round(MAX_UPLOAD_BYTES / 1048576)));
+      setCamError(plan.why === 'too-long-to-shrink'
+        ? t('cap_err_too_long_shrink').replace('{mins}', String(Math.round((seconds || 0) / 60)))
+        : t('cap_err_too_big')
+          .replace('{size}', Math.round(blob.size / 1048576))
+          .replace('{max}', Math.round(MAX_UPLOAD_BYTES / 1048576)));
       return null;
     }
     if (plan.action === 'send') return { uri: fileOrUri, blob, seconds };
@@ -1590,7 +1592,18 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
     shrinkAbort.current = ctrl;
     let small = null;
     try {
-      small = await compressVideo(blob, { onProgress: setShrink, signal: ctrl && ctrl.signal });
+      /* ── maxSeconds, OR THE THREE-MINUTE TRAP AGAIN ───────────────
+         compressVideo defaults maxSeconds to REEL_MAX_SECONDS. For a
+         reel that is the point. For a long video being shrunk because
+         it is too big, it would silently CUT the film to three minutes
+         and hand back something that uploads perfectly and is wrong —
+         which is exactly the fault that survived for months the last
+         time. A long clip is re-encoded to its own full length. */
+      small = await compressVideo(blob, {
+        onProgress: setShrink,
+        signal: ctrl && ctrl.signal,
+        maxSeconds: longForm && seconds ? Math.ceil(seconds) + 2 : undefined,
+      });
     } finally {
       // the overlay covers the whole screen — it must never be left up
       setShrink(null);
@@ -1599,12 +1612,25 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
     if (ctrl && ctrl.signal.aborted) return null;
     if (small) {
       note('video-compressed', { from: small.from, to: small.to, seconds: Math.round(small.seconds) });
+      /* Shrinking is not a guarantee. A very long clip can come out of
+         the encoder still over the ceiling, and handing that to the
+         uploader just earns the same 413 after another long wait. Say
+         it now, with the number it actually came to. */
+      if (small.blob.size > MAX_UPLOAD_BYTES) {
+        setCamError(t('cap_err_still_big')
+          .replace('{size}', Math.round(small.blob.size / 1048576))
+          .replace('{max}', Math.round(MAX_UPLOAD_BYTES / 1048576)));
+        return null;
+      }
       return {
         uri: URL.createObjectURL(small.blob), blob: small.blob, bytes: small.blob.size,
         ext: small.ext, contentType: small.contentType, seconds: small.seconds,
       };
     }
-    if (seconds && seconds > REEL_MAX_SECONDS + 0.5) {
+    /* The three-minute rule is a REEL rule. Applying it here would tell
+       somebody posting a twelve-minute film to the long-form tab that
+       their film is too long, which is the whole thing that tab is for. */
+    if (!longForm && seconds && seconds > REEL_MAX_SECONDS + 0.5) {
       setCamError(t('cap_err_reel_long').replace('{mins}', Math.round(seconds / 60)));
       return null;
     }

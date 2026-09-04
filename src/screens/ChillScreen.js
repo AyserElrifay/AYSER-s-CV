@@ -30,6 +30,7 @@ import { sfxSuccess, sfxPop } from '../utils/sfx';
 
 /* Fetched when it is opened, not when the app starts. */
 import { lazyOverlay } from '../lib/lazyScreen';
+import { getProfile } from '../services/profiles';
 
 /* Fetched when it is opened, not when the app starts. */
 const GameRunner = lazyOverlay(() => import('../components/GameRunner').then((m) => ({ default: m.GameRunner })));
@@ -43,6 +44,8 @@ const CommentsSheet = lazyOverlay(() => import('../components/CommentsSheet').th
 /* The country room carries every phrase, dish and custom for thirteen
    countries — 75 KB that has no business being in the download somebody
    waits through to see the feed. It arrives when the room is opened. */
+/* Tapping whoever posted a video should open them. It did nothing. */
+const ProfileModal = lazyOverlay(() => import('../components/ProfileModal').then((m) => ({ default: m.ProfileModal })));
 const CountrySheet = lazyOverlay(() => import('../components/CountrySheet').then((m) => ({ default: m.CountrySheet })));
 
 /* ────────────── TAB 4 · CHILL — WATCH & UNWIND ──────────────
@@ -127,6 +130,7 @@ export const ChillScreen = () => {
      components/CultureSheet.js. */
   const [cultureOpen, setCultureOpen] = useState(false);
   const [countryOpen, setCountryOpen] = useState(false);
+  const [videoAuthor, setVideoAuthor] = useState(null);   // whose video you tapped
   const { t } = useLang();
 
   // Every real, playable game — surfaced here so they're actually findable
@@ -175,6 +179,24 @@ export const ChillScreen = () => {
   }, []);
   const playFrom = (i) => { if (tracks && tracks[i]) playTrack(tracks[i], tracks, i); };
 
+
+  /* The list row carries only a name and an avatar. The profile needs
+     the real row, so it is fetched on the tap rather than kept for
+     every video in the list on the chance one is tapped. */
+  const openVideoAuthor = async (v) => {
+    if (!v || !v.userId) return;
+    try {
+      const pr = await getProfile(v.userId);
+      if (pr) setVideoAuthor({
+        id: pr.id,
+        name: pr.name || v.author,
+        avatar: pr.avatar_url || v.avatar,
+        countryFlag: pr.country_flag || null,
+        intent: pr.intent || null,
+        bio: pr.bio || '',
+      });
+    } catch (e) { /* a profile that will not load is not worth a crash */ }
+  };
 
   const loadVideos = useCallback(async () => {
     if (!SUPABASE_READY) { setVideos([]); return; }
@@ -420,12 +442,23 @@ export const ChillScreen = () => {
                 </View>
               </View>
             </View>
-            {/* title row — avatar + title + author */}
+            {/* title row — avatar + title + author.
+                The avatar and the name are their own target now: tapping
+                a person should open the person, and tapping them used to
+                do nothing at all because the whole card was one press. */}
             <View style={{ flexDirection: 'row', marginTop: 10 }}>
-              <Image source={{ uri: v.avatar }} style={{ width: 36, height: 36, borderRadius: 18 }} />
+              <Pressable
+                onPress={(e) => { if (e && e.stopPropagation) e.stopPropagation(); tapLight(); openVideoAuthor(v); }}
+                hitSlop={6}>
+                <Image source={{ uri: v.avatar }} style={{ width: 36, height: 36, borderRadius: 18 }} />
+              </Pressable>
               <View style={{ flex: 1, marginLeft: 10 }}>
                 <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '800', lineHeight: 19 }} numberOfLines={2}>{v.title}</Text>
-                <Text style={{ color: C.faint, fontSize: 12, marginTop: 3 }}>{v.author}</Text>
+                <Pressable
+                  onPress={(e) => { if (e && e.stopPropagation) e.stopPropagation(); tapLight(); openVideoAuthor(v); }}
+                  hitSlop={6}>
+                  <Text style={{ color: C.dim, fontSize: 12, marginTop: 3, fontWeight: '700' }}>{v.author}</Text>
+                </Pressable>
               </View>
             </View>
           </Pressable>
@@ -586,6 +619,7 @@ export const ChillScreen = () => {
         closes itself on the way out rather than leaving two full-screen
         sheets stacked with the back button between them. */}
     {lammaOpen ? <GameHub onClose={() => { setLammaOpen(false); setFocusPack(null); }} focusPack={focusPack} /> : null}
+    {videoAuthor ? <ProfileModal user={videoAuthor} onClose={() => setVideoAuthor(null)} /> : null}
     {cultureOpen ? <CultureSheet onClose={() => setCultureOpen(false)} /> : null}
     {countryOpen ? <CountrySheet onClose={() => setCountryOpen(false)} /> : null}
     {greenOpen ? (
