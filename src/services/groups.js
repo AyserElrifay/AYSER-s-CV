@@ -202,6 +202,19 @@ export async function updateGroup(groupId, patch) {
   if (error) throw error;
 }
 
+/* ─── DELETING A GROUP ───────────────────────────────────────────────
+   The policy for this has been in the database since v5 — only the
+   owner, checked server-side — and there was simply no way to ask for
+   it. Everything hanging off the group (the wall, its comments, its
+   likes, the membership rows) is declared `on delete cascade`, so this
+   one statement takes the whole thing with it.
+
+   Which is exactly why the screen asks twice before calling it. */
+export async function deleteGroup(groupId) {
+  const { error } = await supabase.from('groups').delete().eq('id', groupId);
+  if (error) throw error;
+}
+
 export async function createGroup(ownerId, { name, emoji, about, privacy, city }) {
   const { data, error } = await supabase
     .from('groups')

@@ -15,7 +15,7 @@ import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
 import { getProfile } from '../services/profiles';
 import { shortWhen } from './CommentsSheet';
 import {
-  fetchGroup, fetchWall, postToGroup, removeGroupPost, setPostLike,
+  fetchGroup, fetchWall, postToGroup, removeGroupPost, setPostLike, updateGroup, deleteGroup,
   fetchPostComments, addPostComment, removePostComment,
   fetchMembers, approveMember, setMemberRole, removeMember,
   joinGroup, leaveGroup, markGroupSeen, explainGroups,
@@ -186,6 +186,193 @@ const WallPost = ({ post, me, onLike, onRemove, onShare, t }) => {
   );
 };
 
+
+/* ─── WHAT THE OWNER CAN DO ──────────────────────────────────────────
+   Ayser asked for: make people admins, edit the group, delete it,
+   remove someone, remove other people's posts, choose public or
+   private, accept or reject people, or let anyone in automatically.
+
+   Six of those already worked and were already in the People tab —
+   promoting to admin, removing a member, approving and rejecting a
+   request, and removing somebody else's post (the database policy has
+   let admins do that all along). They were invisible in the screenshot
+   for the honest reason that he is alone in the group: there is nobody
+   to promote and nothing waiting to be approved.
+
+   The three that genuinely did not exist are here: editing the group,
+   switching between "anyone can join" and "I approve each person", and
+   deleting the whole thing.
+
+   ── PRIVACY IS THE SAME SWITCH AS "AUTOMATIC" ─────────────────────
+   He asked for both "he can accept and reject" and "he can make it
+   automatic". Those are not two features, they are the two positions
+   of one switch, and saying so on the screen is clearer than offering
+   three settings that overlap. Open = anyone walks in. Request = you
+   approve each person. Nothing else to decide.
+
+   ── AND DELETING ASKS TWICE ───────────────────────────────────────
+   Everything under a group cascades: the wall, every comment, every
+   like, every membership. One tap must not be able to do that, so the
+   button changes into a plain question first and only the second tap
+   is the real one. */
+/* Declared out here, not inside GroupSettings. A component defined
+   inside another component is a NEW component type on every render, so
+   React throws the old one away and builds a fresh one — which means a
+   TextInput loses focus and its keyboard after every single character.
+   check-rerender.mjs caught this one before it ever reached a phone. */
+const Field = ({ label, value, onChangeText, multiline, maxLength, placeholder }) => (
+  <View style={{ marginBottom: 12 }}>
+    <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', letterSpacing: 0.8, marginBottom: 6 }}>{label}</Text>
+    <TextInput
+      value={value}
+      onChangeText={onChangeText}
+      placeholder={placeholder}
+      placeholderTextColor={C.faint}
+      multiline={!!multiline}
+      maxLength={maxLength}
+      style={{
+        color: C.text, fontSize: 14, backgroundColor: C.glass,
+        borderWidth: 1, borderColor: C.line, borderRadius: 12,
+        paddingHorizontal: 12, paddingVertical: 10,
+        minHeight: multiline ? 76 : 42, textAlignVertical: multiline ? 'top' : 'center',
+      }}
+    />
+  </View>
+);
+
+const Choice = ({ on, title, sub, onPress }) => (
+  <Pressable onPress={onPress}>
+    <View style={{
+      flexDirection: 'row', alignItems: 'flex-start', padding: 12, marginBottom: 8,
+      borderRadius: 14, borderWidth: 1,
+      borderColor: on ? C.purple : C.line,
+      backgroundColor: on ? C.purpleSoft : 'transparent',
+    }}>
+      <Ionicons name={on ? 'radio-button-on' : 'radio-button-off'} size={19} color={on ? C.purple : C.faint} />
+      <View style={{ flex: 1, minWidth: 0, marginStart: 10 }}>
+        <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800' }}>{title}</Text>
+        <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 2, lineHeight: 16 }}>{sub}</Text>
+      </View>
+    </View>
+  </Pressable>
+);
+
+const GroupSettings = ({ group, onClose, onSaved, onDeleted, t }) => {
+  const insets = useSafeAreaInsets();
+  const [name, setName] = useState(group.name || '');
+  const [emoji, setEmoji] = useState(group.emoji || '🌐');
+  const [about, setAbout] = useState(group.about || '');
+  const [city, setCity] = useState(group.city || '');
+  const [privacy, setPrivacy] = useState(group.privacy === 'request' ? 'request' : 'open');
+  const [busy, setBusy] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [err, setErr] = useState(null);
+
+  const save = async () => {
+    const nm = name.trim();
+    if (!nm || busy) return;
+    setBusy(true); setErr(null);
+    const patch = {
+      name: nm,
+      emoji: emoji.trim() || '🌐',
+      about: about.trim() || null,
+      city: city.trim() || null,
+      privacy,
+    };
+    try {
+      await updateGroup(group.id, patch);
+      onSaved && onSaved(patch);
+      tapSuccess();
+      onClose && onClose();
+    } catch (e) {
+      /* The box keeps what was typed. Losing somebody's edit because
+         the network blinked is worse than showing them a line of red. */
+      setErr(explainGroups(e));
+      setBusy(false);
+    }
+  };
+
+  const wipe = async () => {
+    if (busy) return;
+    setBusy(true); setErr(null);
+    try {
+      await deleteGroup(group.id);
+      onDeleted && onDeleted();
+    } catch (e) {
+      setErr(explainGroups(e));
+      setBusy(false);
+      setConfirming(false);
+    }
+  };
+
+  return (
+    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
+      <Pressable style={{ flex: 1, backgroundColor: 'rgba(6,4,18,0.55)' }} onPress={onClose} />
+      <View style={{
+        backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24,
+        paddingTop: 12, paddingHorizontal: 16, paddingBottom: insets.bottom + 18, maxHeight: '90%',
+      }}>
+        <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 12 }} />
+        <Text style={{ color: C.text, fontSize: 18, fontWeight: '900', marginBottom: 14 }}>{t('gs_title')}</Text>
+
+        <ScrollView showsVerticalScrollIndicator={false}>
+          <Field label={t('gs_name')} value={name} onChangeText={setName} maxLength={80} />
+          <Field label={t('gs_emoji')} value={emoji} onChangeText={setEmoji} maxLength={4} />
+          <Field label={t('gs_about')} value={about} onChangeText={setAbout} multiline maxLength={400} />
+          <Field label={t('gs_city')} value={city} onChangeText={setCity} maxLength={60} />
+
+          <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', letterSpacing: 0.8, marginBottom: 6, marginTop: 4 }}>
+            {t('gs_who')}
+          </Text>
+          <Choice
+            on={privacy === 'open'}
+            title={t('gs_open_t')}
+            sub={t('gs_open_s')}
+            onPress={() => { tapLight(); setPrivacy('open'); }}
+          />
+          <Choice
+            on={privacy === 'request'}
+            title={t('gs_req_t')}
+            sub={t('gs_req_s')}
+            onPress={() => { tapLight(); setPrivacy('request'); }}
+          />
+
+          {err ? <Text style={{ color: C.coral, fontSize: 12, marginTop: 4 }}>{err}</Text> : null}
+
+          <Pressable onPress={save} disabled={busy || !name.trim()} style={{ marginTop: 10 }}>
+            <View style={{
+              backgroundColor: name.trim() ? C.purple : C.line, borderRadius: 14,
+              paddingVertical: 13, alignItems: 'center',
+            }}>
+              {busy && !confirming
+                ? <ActivityIndicator color="#FFF" />
+                : <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '900' }}>{t('gs_save')}</Text>}
+            </View>
+          </Pressable>
+
+          {/* The second tap is the real one. */}
+          <Pressable onPress={() => { tapLight(); confirming ? wipe() : setConfirming(true); }} style={{ marginTop: 10, marginBottom: 8 }}>
+            <View style={{
+              borderRadius: 14, paddingVertical: 12, alignItems: 'center',
+              borderWidth: 1, borderColor: C.coral,
+              backgroundColor: confirming ? C.coral : 'transparent',
+            }}>
+              <Text style={{ color: confirming ? '#FFF' : C.coral, fontSize: 13.5, fontWeight: '900' }}>
+                {confirming ? t('gs_delete_sure') : t('gs_delete')}
+              </Text>
+            </View>
+          </Pressable>
+          {confirming ? (
+            <Text style={{ color: C.faint, fontSize: 11.5, textAlign: 'center', lineHeight: 16, marginBottom: 6 }}>
+              {t('gs_delete_note')}
+            </Text>
+          ) : null}
+        </ScrollView>
+      </View>
+    </Modal>
+  );
+};
+
 export const GroupPage = ({ groupId, focusPostId, onClose, onChanged }) => {
   const insets = useSafeAreaInsets();
   const { t } = useLang();
@@ -211,6 +398,10 @@ export const GroupPage = ({ groupId, focusPostId, onClose, onChanged }) => {
   const [people, setPeople] = useState(null);
   /* null, or what is being shared: the group itself, or one post on it. */
   const [sharing, setSharing] = useState(null);
+  /* Owner-only. Everything in here is already permitted by the database
+     — the policies have allowed the owner to update and delete since v5
+     — there was simply no way to ask for it. */
+  const [settings, setSettings] = useState(false);
   const [busyJoin, setBusyJoin] = useState(false);
 
   const load = useCallback(async () => {
@@ -335,6 +526,12 @@ export const GroupPage = ({ groupId, focusPostId, onClose, onChanged }) => {
                 style={{ position: 'absolute', top: insets.top + 8, right: 14, backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 999, padding: 8 }}>
                 <Ionicons name="share-outline" size={20} color="#FFF" />
               </Pressable>
+              {group && group.owner ? (
+                <Pressable onPress={() => { tapLight(); setSettings(true); }} hitSlop={10}
+                  style={{ position: 'absolute', top: insets.top + 8, right: 62, backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 999, padding: 8 }}>
+                  <Ionicons name="settings-outline" size={20} color="#FFF" />
+                </Pressable>
+              ) : null}
             </View>
 
             <View style={{ paddingHorizontal: 16, marginTop: -28 }}>
@@ -487,6 +684,16 @@ export const GroupPage = ({ groupId, focusPostId, onClose, onChanged }) => {
           </ScrollView>
         </KeyboardAvoidingView>
       </View>
+
+      {settings && group ? (
+        <GroupSettings
+          group={group}
+          onClose={() => setSettings(false)}
+          onSaved={(patch) => { setGroup((g) => ({ ...g, ...patch })); onChanged && onChanged(); }}
+          onDeleted={() => { setSettings(false); onChanged && onChanged(); onClose && onClose(); }}
+          t={t}
+        />
+      ) : null}
 
       {sharing ? (
         <ShareSheet
