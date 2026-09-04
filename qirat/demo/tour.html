@@ -1,0 +1,933 @@
+<title>Qirat End to End</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alexandria:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Arabic:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+
+<style>
+/*
+ * The whole product on one page.
+ *
+ * Three screens sharing one state, so the argument can actually be made rather
+ * than described: drag the price on a deal and watch the month change. The
+ * arithmetic is the product's own money module, ported — integer minor units
+ * held as BigInt, one rounding rule, no floating point anywhere.
+ *
+ * Single theme, every colour painted explicitly: Qirat is a light-paper product
+ * whose whole idea is a dark card sitting on that paper as a different
+ * material, and rendering it dark would be showing something that does not
+ * exist.
+ */
+:root {
+  --paper: #eaedea;
+  --paper-raised: #f4f6f3;
+  --line: #d2d7d2;
+  --ink: #141a18;
+  --ink-soft: #58635e;
+  --ink-faint: #87908b;
+
+  --card: #0f1a18;
+  --card-raised: #172522;
+  --card-line: #26332f;
+  --card-ink: #e9efec;
+  --card-ink-soft: #93a29c;
+  --card-ink-faint: #6b7975;
+
+  /* The only saturated colours in the product, and only ever on a margin. */
+  --healthy: #4fb585;
+  --thin: #d9a441;
+  --below: #e4695a;
+  --below-ink: #b8442f;
+
+  --sans: 'IBM Plex Sans', 'IBM Plex Sans Arabic', ui-sans-serif, system-ui, sans-serif;
+  --arabic: 'IBM Plex Sans Arabic', 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+  --display: 'Alexandria', 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+  --mono: 'IBM Plex Mono', 'IBM Plex Sans Arabic', ui-monospace, monospace;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+body {
+  margin: 0; background: var(--paper); color: var(--ink);
+  font-family: var(--sans); line-height: 1.55; -webkit-text-size-adjust: 100%;
+}
+#root[dir='rtl'] { font-family: var(--arabic); line-height: 1.7; }
+
+.shell { display: flex; min-height: 100dvh; }
+
+/* --- the desktop column ------------------------------------------------------ */
+.side {
+  display: none; inline-size: 13.5rem; flex-shrink: 0; flex-direction: column;
+  border-inline-end: 1px solid var(--line); background: var(--paper-raised);
+  padding: 1.15rem 0.9rem; position: sticky; top: 0; block-size: 100dvh;
+}
+@media (min-width: 62rem) { .side { display: flex; } }
+.brand { padding-inline: 0.5rem; }
+.brand b { font-family: var(--display); font-weight: 600; font-size: 1rem; display: block; }
+.brand span { font-size: 0.75rem; color: var(--ink-faint); display: block; margin-block-start: 0.1rem; }
+.side ul { list-style: none; margin: 1.6rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.15rem; }
+.navlink {
+  display: flex; align-items: center; gap: 0.6rem; inline-size: 100%; text-align: start;
+  border: 0; background: none; font: inherit; font-size: 0.875rem; color: var(--ink-soft);
+  padding: 0.5rem 0.6rem; border-radius: 8px; cursor: pointer;
+}
+.navlink:hover { background: var(--paper); color: var(--ink); }
+.navlink[aria-current='page'] { background: var(--paper); color: var(--ink); font-weight: 500; }
+.side .foot { margin-block-start: auto; display: flex; flex-direction: column; gap: 0.5rem; padding-block-start: 1.2rem; }
+.chip { border: 1px solid var(--line); border-radius: 999px; padding: 0.1rem 0.6rem; font-size: 0.75rem; color: var(--ink-soft); text-align: center; }
+
+/* --- the phone bar ----------------------------------------------------------- */
+.tabs {
+  position: fixed; inset-inline: 0; bottom: 0; z-index: 20;
+  border-block-start: 1px solid var(--line); background: color-mix(in srgb, var(--paper-raised) 95%, transparent);
+  backdrop-filter: blur(8px);
+}
+@media (min-width: 62rem) { .tabs { display: none; } }
+.tabs ul { list-style: none; margin: 0 auto; padding: 0; display: flex; max-inline-size: 32rem; }
+.tabs li { flex: 1; }
+.tab {
+  inline-size: 100%; border: 0; background: none; font: inherit; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: 0.1rem;
+  min-block-size: 3.25rem; justify-content: center; font-size: 0.625rem; color: var(--ink-faint);
+}
+.tab[aria-current='page'] { color: var(--ink); }
+
+.main { flex: 1; min-inline-size: 0; display: flex; flex-direction: column; }
+.topbar {
+  position: sticky; top: 0; z-index: 10; border-block-end: 1px solid var(--line);
+  background: color-mix(in srgb, var(--paper-raised) 92%, transparent); backdrop-filter: blur(8px);
+}
+@media (min-width: 62rem) { .topbar { display: none; } }
+.topbar > div {
+  max-inline-size: 60rem; margin: 0 auto; padding: 0.7rem 1rem;
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+}
+.content { max-inline-size: 60rem; inline-size: 100%; margin: 0 auto; padding: 1.5rem 1rem 6rem; }
+@media (min-width: 40rem) { .content { padding-inline: 1.5rem; } }
+@media (min-width: 62rem) { .content { padding-block-start: 2.5rem; padding-block-end: 3rem; } }
+
+button.link {
+  background: none; border: 0; padding: 0.25rem 0.4rem; cursor: pointer;
+  font: inherit; font-size: 0.8125rem; color: var(--ink-soft); border-radius: 6px;
+}
+button.link:hover { color: var(--ink); }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+h1 { font-size: 1.25rem; font-weight: 600; letter-spacing: -0.01em; margin: 0; }
+h2 { font-size: 0.9375rem; font-weight: 500; margin: 0; }
+.sub { margin: 0.25rem 0 0; font-size: 0.8125rem; color: var(--ink-soft); max-inline-size: 40rem; line-height: 1.65; }
+.stack { display: flex; flex-direction: column; gap: 1.5rem; }
+
+.reading { font-family: var(--mono); font-variant-numeric: tabular-nums; font-feature-settings: 'tnum' 1, 'zero' 1; letter-spacing: -0.01em; }
+bdi { unicode-bidi: isolate; }
+
+/* --- the deal card: a different material, not a darker panel ----------------- */
+.card {
+  background: var(--card); color: var(--card-ink); border-radius: 14px; padding: 1.35rem;
+  box-shadow: 0 1px 2px rgba(20,26,24,.08), 0 14px 32px -14px rgba(20,26,24,.4);
+  display: flex; flex-direction: column; gap: 1.1rem;
+}
+@media (min-width: 40rem) { .card { padding: 1.5rem; } }
+.card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+.card-title { font-size: 0.9375rem; font-weight: 500; margin: 0; }
+.card-sub { font-size: 0.75rem; color: var(--card-ink-faint); margin: 0.1rem 0 0; }
+.pill { flex-shrink: 0; border: 1px solid var(--card-line); border-radius: 999px; padding: 0.1rem 0.6rem; font-size: 0.6875rem; color: var(--card-ink-soft); white-space: nowrap; }
+.label { font-size: 0.6875rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--card-ink-faint); }
+.price { font-size: 2rem; line-height: 1; margin-block-start: 0.3rem; transition: color .12s; }
+.price.is-below { color: var(--below); }
+
+.track { position: relative; block-size: 2.75rem; touch-action: none; user-select: none; cursor: grab; margin-block-start: 1rem; border-radius: 6px; }
+.track:active { cursor: grabbing; }
+.rail, .under, .fill { position: absolute; top: 50%; block-size: 6px; transform: translateY(-50%); border-radius: 999px; }
+.rail { inset-inline: 0; background: var(--card-line); }
+.under { inset-inline-start: 0; background: color-mix(in srgb, var(--below) 25%, transparent); }
+.fill { inset-inline-start: 0; background: var(--healthy); }
+.fill.is-thin { background: var(--thin); }
+.fill.is-below { background: var(--below); }
+.detent { position: absolute; top: 50%; inline-size: 1px; block-size: 1rem; transform: translateY(-50%); background: color-mix(in srgb, var(--card-ink-faint) 60%, transparent); }
+.handle {
+  position: absolute; top: 50%; inline-size: 1.375rem; block-size: 1.375rem; border-radius: 999px;
+  background: var(--card-raised); border: 2px solid var(--healthy);
+  transform: translate(-50%, -50%); box-shadow: 0 3px 10px rgba(0,0,0,.45); transition: transform .1s, border-color .12s;
+}
+#root[dir='rtl'] .handle { transform: translate(50%, -50%); }
+.handle.is-thin { border-color: var(--thin); }
+.handle.is-below { border-color: var(--below); }
+.handle.dragging { transform: translate(-50%, -50%) scale(1.14); }
+#root[dir='rtl'] .handle.dragging { transform: translate(50%, -50%) scale(1.14); }
+.ends { display: flex; justify-content: space-between; font-size: 0.6875rem; color: var(--card-ink-faint); margin-block-start: 0.3rem; }
+
+.meter-head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem; }
+.meter-track { block-size: 8px; border-radius: 999px; overflow: hidden; margin-block-start: 0.5rem; background: color-mix(in srgb, var(--healthy) 15%, transparent); }
+.meter-track.is-thin { background: color-mix(in srgb, var(--thin) 15%, transparent); }
+.meter-track.is-loss { background: color-mix(in srgb, var(--below) 15%, transparent); }
+.meter-fill { block-size: 100%; border-radius: 999px; background: var(--healthy); transition: inline-size .1s; }
+.meter-fill.is-thin { background: var(--thin); }
+.meter-fill.is-loss { background: var(--below); }
+.is-healthy { color: var(--healthy); }
+.is-thin-text { color: var(--thin); }
+.is-below-text { color: var(--below); }
+
+.cells { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 0.6rem; border-block-start: 1px solid var(--card-line); padding-block-start: 0.9rem; margin: 0; }
+.cells dt { font-size: 0.6875rem; color: var(--card-ink-faint); }
+.cells dd { margin: 0.2rem 0 0; font-size: 0.8125rem; color: var(--card-ink-soft); }
+
+.note { font-size: 0.75rem; line-height: 1.6; margin: 0; }
+.actions { display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap; }
+.commit { border: 0; border-radius: 8px; padding: 0.5rem 0.95rem; font: inherit; font-size: 0.875rem; font-weight: 500; cursor: pointer; background: var(--card-ink); color: var(--card); }
+.commit.is-below { background: var(--below); color: var(--card); }
+.hint { font-size: 0.75rem; color: var(--card-ink-faint); }
+
+.crew { border-block-start: 1px solid var(--card-line); padding-block-start: 0.9rem; display: flex; flex-direction: column; gap: 0.5rem; }
+.crew-row { display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem; font-size: 0.75rem; color: var(--card-ink-soft); }
+.crew input[type=range] { inline-size: 6rem; accent-color: var(--healthy); }
+
+/* --- paper lists -------------------------------------------------------------- */
+.panel { border: 1px solid var(--line); border-radius: 12px; background: var(--paper-raised); }
+.rows { list-style: none; margin: 0; padding: 0; }
+.rows > li { padding: 0.7rem 0.9rem; border-block-start: 1px solid var(--line); display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
+.rows > li:first-child { border-block-start: 0; }
+.rows .name { font-size: 0.875rem; min-inline-size: 0; }
+.rows .meta { display: block; font-size: 0.75rem; color: var(--ink-faint); }
+.rows .val { font-size: 0.8125rem; color: var(--ink-soft); flex-shrink: 0; }
+
+.water > div { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; padding: 0.55rem 0.9rem; border-block-start: 1px solid var(--line); }
+.water > div:first-child { border-block-start: 0; }
+.water dt { font-size: 0.8125rem; color: var(--ink-soft); }
+.water dd { margin: 0; font-size: 0.8125rem; color: var(--ink-soft); }
+.water .deduct dt, .water .deduct dd { color: var(--ink-faint); }
+.water .big { padding-block: 0.9rem; }
+.water .big dt { font-size: 0.875rem; font-weight: 500; color: var(--ink); }
+.water .big dd { font-size: 1rem; color: var(--ink); }
+.water .final dd { font-size: 1.25rem; }
+.water .final.loss dd { color: var(--below-ink); }
+.water .pct { font-size: 0.75rem; font-weight: 400; color: var(--ink-faint); margin-inline-start: 0.4rem; }
+
+.tiles { display: grid; gap: 0.75rem; }
+@media (min-width: 40rem) { .tiles { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+.tile { border: 1px solid var(--line); border-radius: 12px; background: var(--paper-raised); padding: 0.9rem; }
+.tile .k { font-size: 0.75rem; color: var(--ink-faint); display: block; line-height: 1.4; }
+.tile .v { font-size: 1.25rem; display: block; margin-block-start: 0.35rem; }
+
+.side-by { display: grid; gap: 1.5rem; align-items: start; }
+@media (min-width: 62rem) { .side-by { grid-template-columns: minmax(0,1fr) 17rem; } }
+
+.field { display: block; }
+.field span { font-size: 0.75rem; color: var(--ink-soft); display: block; }
+.field input {
+  margin-block-start: 0.25rem; inline-size: 100%; border-radius: 8px; border: 1px solid var(--line);
+  background: var(--paper); color: var(--ink); padding: 0.4rem 0.6rem; font: inherit; font-size: 0.875rem;
+}
+.two { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+.two > * { flex: 1 1 8rem; min-inline-size: 0; }
+.btn { border: 1px solid var(--line); background: none; color: var(--ink-soft); border-radius: 8px; padding: 0.4rem 0.75rem; font: inherit; font-size: 0.8125rem; cursor: pointer; }
+.btn:hover { color: var(--ink); }
+.btn.solid { background: var(--ink); color: var(--paper); border-color: var(--ink); font-weight: 500; }
+
+.guide {
+  border: 1px solid var(--line); border-radius: 12px; background: var(--paper-raised);
+  padding: 0.9rem 1rem; font-size: 0.8125rem; line-height: 1.65; color: var(--ink-soft);
+}
+.guide b { color: var(--ink); font-weight: 500; }
+.smallprint { font-size: 0.75rem; color: var(--ink-faint); line-height: 1.7; margin: 0; }
+
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition-duration: .01ms !important; } }
+</style>
+
+<div class="shell" id="root" dir="ltr">
+  <nav class="side" id="side" aria-label="Sections">
+    <div class="brand"><b id="brandName">Qirat</b><span id="orgName">Kreuzberg Studio</span></div>
+    <ul id="sideNav"></ul>
+    <div class="foot">
+      <span class="chip" id="roleChip">Owner</span>
+      <div style="display:flex;justify-content:space-between;gap:.5rem;padding-inline:.15rem">
+        <button class="link" id="langSide" type="button">العربية</button>
+        <button class="link" id="marketSide" type="button"></button>
+      </div>
+    </div>
+  </nav>
+
+  <div class="main">
+    <header class="topbar">
+      <div>
+        <span style="min-inline-size:0"><b style="font-family:var(--display);font-size:.9375rem">Qirat</b>
+          <span style="font-size:.75rem;color:var(--ink-faint)" id="orgNameTop"></span></span>
+        <span style="display:flex;gap:.4rem;flex-shrink:0">
+          <button class="link" id="marketTop" type="button"></button>
+          <button class="link" id="langTop" type="button">العربية</button>
+        </span>
+      </div>
+    </header>
+
+    <main class="content">
+      <div class="stack">
+        <div>
+          <h1 id="screenTitle"></h1>
+          <p class="sub" id="screenSub"></p>
+        </div>
+        <div class="guide" id="guide"></div>
+        <div id="screen"></div>
+      </div>
+    </main>
+  </div>
+
+  <nav class="tabs" aria-label="Sections"><ul id="tabNav"></ul></nav>
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  // ---------------------------------------------------------------------------
+  // The money module, ported. BigInt minor units, one rounding rule, no floats.
+  // ---------------------------------------------------------------------------
+  const EXP = { EGP: 2, EUR: 2 };
+  const BP = 10000n;
+
+  /** Exact integer division, ties to even, so a long run of splits has no drift. */
+  function divRound(n, d) {
+    if (d === 0n) throw new Error('division by zero');
+    let N = n, D = d;
+    if (D < 0n) { N = -N; D = -D; }
+    const q = N / D, r = N % D;
+    if (r === 0n) return q;
+    const neg = r < 0n;
+    const twice = (neg ? -r : r) * 2n;
+    if (twice > D) return neg ? q - 1n : q + 1n;
+    if (twice < D) return q;
+    return q % 2n === 0n ? q : (neg ? q - 1n : q + 1n);
+  }
+  const abs = (v) => (v < 0n ? -v : v);
+  const bp = (v, rate) => divRound(v * BigInt(rate), BP);
+
+  function computeMargin(revenue, cost, houseRateBp) {
+    const profit = revenue - cost;
+    const isLoss = profit < 0n;
+    const house = isLoss ? profit : bp(profit, houseRateBp);
+    return {
+      profit, isLoss, house,
+      distributable: isLoss ? 0n : profit - house,
+      marginBp: revenue === 0n ? null : Number(divRound(profit * BP, revenue)),
+    };
+  }
+
+  /** An estimate stops being the best guess once more than it has been spent. */
+  const effectiveCost = (est, actual) => (actual > est ? actual : est);
+
+  function niceStepFor(span) {
+    const m = abs(span);
+    if (m === 0n) return 1n;
+    const target = m / 200n;
+    if (target <= 1n) return 1n;
+    let unit = 1n;
+    while (unit * 10n <= target) unit *= 10n;
+    for (const k of [1n, 2n, 5n, 10n]) if (unit * k >= target) return unit * k;
+    return unit * 10n;
+  }
+  const snap = (v, step) => divRound(v, step) * step;
+
+  function toMajor(minor, ccy) {
+    const e = EXP[ccy];
+    const neg = minor < 0n;
+    const d = abs(minor).toString().padStart(e + 1, '0');
+    return (neg ? '-' : '') + (e === 0 ? d : d.slice(0, -e) + '.' + d.slice(-e));
+  }
+  const numLocale = () => (locale === 'ar' ? 'ar-EG-u-nu-arab' : 'en-US-u-nu-latn');
+  function fmt(minor, ccy) {
+    const e = EXP[ccy];
+    return new Intl.NumberFormat(numLocale(), { minimumFractionDigits: e, maximumFractionDigits: e })
+      .format(toMajor(minor, ccy));
+  }
+  function fmtBp(v) {
+    if (v === null) return '—';
+    return new Intl.NumberFormat(numLocale(), { style: 'percent', minimumFractionDigits: 0, maximumFractionDigits: 1 })
+      .format(v / 10000);
+  }
+  function parseAmount(text, ccy) {
+    const s = String(text)
+      .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660))
+      .replace(/٫/g, '.').replace(/[\s,٬]/g, '').trim();
+    const m = /^(\d+)(?:\.(\d*))?$/.exec(s);
+    if (!m) return null;
+    const e = EXP[ccy];
+    return BigInt(m[1] + (m[2] || '').slice(0, e).padEnd(e, '0'));
+  }
+
+  /** Largest remainder, so the shares are exactly the amount being split. */
+  function allocate(total, weights) {
+    const sum = weights.reduce((a, b) => a + BigInt(b), 0n);
+    if (sum === 0n) return weights.map(() => 0n);
+    const base = weights.map((w) => (total * BigInt(w)) / sum);
+    let rest = total - base.reduce((a, b) => a + b, 0n);
+    const order = weights
+      .map((w, i) => ({ i, r: (total * BigInt(w)) % sum }))
+      .sort((a, b) => (b.r > a.r ? 1 : b.r < a.r ? -1 : a.i - b.i));
+    const out = base.slice();
+    for (let k = 0; rest > 0n; k++, rest--) out[order[k % order.length].i] += 1n;
+    return out;
+  }
+
+  /** VAT. Only a standard-rated supply carries any. */
+  function applyVat(net, treatment, rateBp) {
+    if (treatment !== 'standard' || rateBp === 0) return { net, vat: 0n, gross: net };
+    const vat = bp(net, rateBp);
+    return { net, vat, gross: net + vat };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Two markets
+  // ---------------------------------------------------------------------------
+  const MARKETS = {
+    berlin: {
+      org: 'Kreuzberg Studio', ccy: 'EUR',
+      deal: { title: 'Brand Identity System', client: 'Maison Lafite, Paris' },
+      band: { floor: 1500000n, target: 2400000n, ceiling: 3800000n },
+      estimate: 881000n,
+      treatment: 'reverse_charge', vatRateBp: 1900,
+      crew: [
+        { name: 'Lena Vogt', role: 'Designer', rateMinor: 60000n, days: 0 },
+        { name: 'Tomas Rand', role: 'Motion', rateMinor: 75000n, days: 0 },
+      ],
+      salariesMinor: 1200000n,
+      // Work already billed this month, before the live deal. Without this the
+      // month screen is a column of zeros and the argument it makes is invisible.
+      earlier: { revenue: 1800000n, direct: 540000n, labour: 240000n },
+      overheads: [
+        { name: 'Studio, Oranienstraße', minor: 220000n, cadence: 'monthly' },
+        { name: 'Adobe + Figma, annual', minor: 480000n, cadence: 'yearly' },
+        { name: 'Accountant', minor: 45000n, cadence: 'monthly' },
+      ],
+      partnerBp: 3000,
+    },
+    cairo: {
+      org: 'استوديو المعادي', orgEn: 'Maadi Studio', ccy: 'EGP',
+      deal: { title: 'إنتاج فيديو', titleEn: 'Video Production', client: 'شركة النيل للأغذية', clientEn: 'Nile Foods' },
+      band: { floor: 2500000n, target: 4000000n, ceiling: 6000000n },
+      estimate: 2140000n,
+      treatment: 'standard', vatRateBp: 1400,
+      crew: [
+        { name: 'مصطفى كامل', nameEn: 'Mostafa Kamel', role: 'Designer', rateMinor: 120000n, days: 0 },
+        { name: 'نادية فاروق', nameEn: 'Nadia Farouk', role: 'Producer', rateMinor: 180000n, days: 0 },
+      ],
+      salariesMinor: 4000000n,
+      earlier: { revenue: 11500000n, direct: 5200000n, labour: 700000n },
+      overheads: [
+        { name: 'إيجار الاستوديو', nameEn: 'Studio rent', minor: 1800000n, cadence: 'monthly' },
+        { name: 'اشتراكات سنوية', nameEn: 'Annual software', minor: 1200000n, cadence: 'yearly' },
+      ],
+      partnerBp: 2500,
+    },
+  };
+
+  const HOUSE_RATE_BP = 5000;
+  const HEALTHY_FROM_BP = 4000;
+  const COMMISSION_BP = 2000;
+  const RESISTANCE = 0.45;
+  const GRAB = 0.014;
+
+  // ---------------------------------------------------------------------------
+  // Copy
+  // ---------------------------------------------------------------------------
+  const COPY = {
+    en: {
+      lang: 'العربية', toCairo: 'Cairo', toBerlin: 'Berlin',
+      nav: { deals: 'Deals', month: 'The month', team: 'Team' },
+      role: 'Owner',
+      deals: {
+        title: 'Every deal in the agency',
+        sub: 'The card is the product. Drag the price and every number moves — including, two screens away, whether the month made money.',
+        guide: 'Try it: drag the handle <b>left, past the floor</b>. It gets heavier, and the button stops saying <em>Close the deal</em>. Then log a crew day below and watch the cost climb.',
+        agreed: 'Agreed price', floor: 'Floor', ceiling: 'Ceiling', margin: 'Margin',
+        healthy: 'Healthy', thin: 'Thin', loss: 'Losing money', unpriced: 'Not priced yet',
+        cost: 'Cost', house: 'House share', split: 'To be split',
+        belowNote: 'Under the floor for this service. The owner signs this one off.',
+        close: 'Close the deal', approve: 'Send for approval',
+        hintDrag: 'Drag, or use the arrow keys', hintClosed: 'Closed. These terms are frozen.',
+        hintSent: 'Sent to the owner.',
+        draft: 'Draft', won: 'Won', pending: 'Awaiting approval',
+        onDeal: 'On this deal', days: 'days', aDay: 'a day',
+        invoiced: 'Client is invoiced', incl: 'incl. VAT', reverse: 'Reverse charge — the client accounts for the tax',
+      },
+      month: {
+        title: 'How the month is actually going',
+        sub: 'The card above adds up to gross profit. The two lines after it are the ones a deal card cannot see, and they are usually why the money is not there.',
+        guide: 'This is the argument. <b>Gross margin</b> is what every agency tool shows you. <b>Real margin</b> is after the salaries and the rent. Go back and drag the price — this changes with it.',
+        revenue: 'Billed', direct: 'Suppliers and production', labour: 'Your own people’s days',
+        gross: 'Gross profit', commission: 'Commission earned on it',
+        salaries: 'Salaries', overheads: 'Running the company', operating: 'What the month actually made',
+        breakEven: 'You need this much billed to cover the month',
+        splitTitle: 'Where it goes', partner: 'Partner’s share', retained: 'Kept in the company',
+        lossNote: 'The month is behind. Nothing is shared out of a loss — the company carries it.',
+        overheadTitle: 'What the company costs', perMonth: 'a month',
+        monthly: 'Every month', yearly: 'Once a year',
+        spread: 'A yearly bill is spread across the year here, so one month does not look terrible and eleven look better than they were.',
+        notClosed: 'This is the work already billed this month. The deal on the first screen is <b>not</b> in these numbers yet — close it and every line moves.',
+        isClosed: 'The deal from the first screen is in these numbers now. Drag its price, or log a crew day, and watch this move.',
+      },
+      team: {
+        title: 'The people',
+        sub: 'Everyone signs in as themselves. The day rate is what their time costs a job; the salary is what they cost the company whether or not a job exists.',
+        guide: 'Change a <b>day rate</b> and the deal’s cost moves. Change a <b>salary</b> and only the month moves. That distinction is the point — most tools have only one of them.',
+        dayRate: 'Day rate', salary: 'Monthly salary', noSalary: 'No salary',
+        member: 'Member', owner: 'Owner', partner: 'Partner',
+        note: 'A Member never receives a financial field about the agency — not in the interface, and not from the database. They see their own rate and their own logged days, the same way a partner sees their own statement.',
+      },
+      smallprint: 'The whole product on one page, running the same arithmetic as the real thing: integer minor units, one rounding rule, no floating point. Sign-in, the database and the row-level tenant isolation are in the repository, not on this page.',
+    },
+    ar: {
+      lang: 'English', toCairo: 'القاهرة', toBerlin: 'برلين',
+      nav: { deals: 'الصفقات', month: 'الشهر', team: 'الفريق' },
+      role: 'المالك',
+      deals: {
+        title: 'كل صفقات الوكالة',
+        sub: 'الكارت هو المنتج. اسحب السعر وكل رقم هيتحرك — بما فيهم، على بعد شاشتين، إن كان الشهر كسب ولا لأ.',
+        guide: 'جرّب: اسحب المقبض <b>تحت الأرضية</b>. هيتقل، والزرار هيبطّل يقول <em>اقفل الصفقة</em>. وبعدين سجّل يوم لواحد من الكرو تحت وشوف التكلفة بتطلع.',
+        agreed: 'السعر المتفق عليه', floor: 'الأرضية', ceiling: 'السقف', margin: 'الهامش',
+        healthy: 'صحي', thin: 'رفيع', loss: 'خسارة', unpriced: 'غير مُسعّرة',
+        cost: 'التكلفة', house: 'حصة الوكالة', split: 'القابل للتوزيع',
+        belowNote: 'تحت الأرضية للخدمة دي. المالك هو اللي يوافق.',
+        close: 'اقفل الصفقة', approve: 'ابعت للموافقة',
+        hintDrag: 'اسحب، أو استخدم الأسهم', hintClosed: 'مغلقة. الشروط مجمّدة.',
+        hintSent: 'اتبعتت للمالك.',
+        draft: 'مسودة', won: 'مكسوبة', pending: 'بانتظار الموافقة',
+        onDeal: 'على الصفقة دي', days: 'يوم', aDay: 'لليوم',
+        invoiced: 'العميل بيتفوتر', incl: 'شاملة ضريبة', reverse: 'احتساب عكسي — العميل هو اللي يحتسب الضريبة',
+      },
+      month: {
+        title: 'الشهر ماشي إزاي فعلاً',
+        sub: 'الكارت فوق بيجمّع على الربح الإجمالي. السطرين اللي بعده مش شايفهم أي كارت صفقة، وهما عادةً السبب إن الفلوس مش موجودة.',
+        guide: 'دي الحجّة. <b>الهامش الإجمالي</b> هو اللي كل أدوات الوكالات بتوريهولك. <b>الهامش الحقيقي</b> بعد المرتبات والإيجار. ارجع اسحب السعر — الرقم ده بيتغيّر معاه.',
+        revenue: 'المفوتر', direct: 'الموردين والإنتاج', labour: 'أيام ناسك',
+        gross: 'الربح الإجمالي', commission: 'العمولة المستحقة عليه',
+        salaries: 'المرتبات', overheads: 'مصاريف تشغيل الشركة', operating: 'اللي الشهر كسبه فعلاً',
+        breakEven: 'محتاج تفوتر ده عشان تغطّي الشهر',
+        splitTitle: 'رايحة فين', partner: 'حصة الشريك', retained: 'باقي في الشركة',
+        lossNote: 'الشهر متأخر. مفيش حاجة بتتوزّع من خسارة — الشركة بتشيلها.',
+        overheadTitle: 'الشركة بتكلّف كام', perMonth: 'في الشهر',
+        monthly: 'كل شهر', yearly: 'مرة في السنة',
+        spread: 'الفاتورة السنوية بتتوزّع على السنة هنا، عشان شهر ما يبانش وحش وإحدعشر يبانوا أحسن من الحقيقة.',
+        notClosed: 'ده الشغل اللي اتفوتر الشهر ده. الصفقة اللي في الشاشة الأولى <b>لسه</b> مش داخلة في الأرقام دي — اقفلها وكل سطر هيتحرك.',
+        isClosed: 'الصفقة اللي في الشاشة الأولى داخلة في الأرقام دي دلوقتي. اسحب سعرها، أو سجّل يوم لواحد من الكرو، وشوف ده بيتحرك.',
+      },
+      team: {
+        title: 'الناس',
+        sub: 'كل واحد بيدخل باسمه. سعر اليوم تكلفة وقته على شغلانة؛ المرتب اللي بيكلّف الشركة سواء في شغل ولا مفيش.',
+        guide: 'غيّر <b>سعر اليوم</b> وتكلفة الصفقة هتتحرك. غيّر <b>المرتب</b> والشهر بس هو اللي هيتحرك. الفرق ده هو المقصود — أغلب الأدوات عندها واحد بس منهم.',
+        dayRate: 'سعر اليوم', salary: 'المرتب الشهري', noSalary: 'مفيش مرتب',
+        member: 'عضو', owner: 'مالك', partner: 'شريك',
+        note: 'العضو عمره ما بياخد حقل مالي عن الوكالة — لا في الواجهة ولا من الداتابيز. بيشوف سعره هو وأيامه هو، بنفس طريقة الشريك اللي بيشوف كشفه هو.',
+      },
+      smallprint: 'المنتج كله في صفحة واحدة، بيشغّل نفس حسابات المنتج الحقيقي: وحدات صغرى صحيحة، قاعدة تقريب واحدة، ولا فاصلة عائمة. تسجيل الدخول والداتابيز وعزل المستأجرين في الريبو مش في الصفحة دي.',
+    },
+  };
+
+  // ---------------------------------------------------------------------------
+  // State
+  // ---------------------------------------------------------------------------
+  let locale = (() => { try { return localStorage.getItem('qirat-locale') === 'ar' ? 'ar' : 'en'; } catch { return 'en'; } })();
+  let market = 'berlin';
+  let screen = 'deals';
+  let m = null;          // the live market, deep-copied so edits stick
+  let price = 0n;
+  let status = 'draft';
+  let dragging = false, lastDetent = null;
+  let TRACK = null, STEP = 1n;
+
+  const $ = (id) => document.getElementById(id);
+  const root = $('root');
+  const t = () => COPY[locale];
+  const nameOf = (o, key) => (locale === 'en' && o[key + 'En'] ? o[key + 'En'] : o[key]);
+
+  function loadMarket(which) {
+    market = which;
+    const src = MARKETS[which];
+    m = JSON.parse(JSON.stringify(src, (k, v) => (typeof v === 'bigint' ? v.toString() + 'n' : v)),
+      (k, v) => (typeof v === 'string' && /^\d+n$/.test(v) ? BigInt(v.slice(0, -1)) : v));
+    price = m.band.target;
+    status = 'draft';
+    const head = ((m.band.ceiling - m.band.floor) * 30n) / 100n;
+    TRACK = { min: m.band.floor - head, max: m.band.ceiling };
+    TRACK.width = TRACK.max - TRACK.min;
+    STEP = niceStepFor(TRACK.width);
+  }
+
+  // --- derived figures, in one place so every screen agrees --------------------
+  function figures() {
+    const labour = m.crew.reduce((sum, c) => sum + divRound(c.rateMinor * BigInt(Math.round(c.days * 100)), 100n), 0n);
+    const cost = effectiveCost(m.estimate, labour);
+    const margin = computeMargin(price, cost, HOUSE_RATE_BP);
+    const closed = status === 'won';
+
+    const revenue = m.earlier.revenue + (closed ? price : 0n);
+    const direct = m.earlier.direct + (closed ? m.estimate : 0n);
+    const closedLabour = m.earlier.labour + (closed ? labour : 0n);
+    const gross = revenue - direct - closedLabour;
+    const commission = gross > 0n ? bp(gross, COMMISSION_BP) : 0n;
+
+    const overheads = m.overheads.reduce(
+      (sum, o) => sum + (o.cadence === 'yearly' ? divRound(o.minor, 12n) : o.minor), 0n);
+    const operating = gross - commission - m.salariesMinor - overheads;
+    const isLoss = operating < 0n;
+    const partnerShare = isLoss ? 0n : allocate(bp(operating, m.partnerBp), [m.partnerBp])[0];
+
+    const grossBp = revenue === 0n ? null : Number(divRound(gross * BP, revenue));
+    const opBp = revenue === 0n ? null : Number(divRound(operating * BP, revenue));
+    const fixed = m.salariesMinor + overheads;
+    const breakEven = grossBp && grossBp > 0 ? divRound(fixed * BP, BigInt(grossBp)) : null;
+
+    return { labour, cost, margin, revenue, direct, closedLabour, gross, commission,
+             overheads, operating, isLoss, partnerShare, retained: operating - partnerShare,
+             grossBp, opBp, breakEven, closed };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Geometry
+  // ---------------------------------------------------------------------------
+  const fractionOf = (v) => {
+    const c = v < TRACK.min ? TRACK.min : v > TRACK.max ? TRACK.max : v;
+    return Number(((c - TRACK.min) * 10000n) / TRACK.width) / 10000;
+  };
+  function readPointer(clientX, el) {
+    const r = el.getBoundingClientRect();
+    if (!r.width) return null;
+    const along = root.getAttribute('dir') === 'rtl'
+      ? (r.right - clientX) / r.width : (clientX - r.left) / r.width;
+    return Math.max(0, Math.min(1, along));
+  }
+  const buzz = (ms) => { if (navigator.vibrate) { try { navigator.vibrate(ms); } catch {} } };
+
+  function applyFraction(raw) {
+    const fa = fractionOf(m.band.floor), ta = fractionOf(m.band.target), ca = fractionOf(m.band.ceiling);
+    // Resistance below the floor: the handle travels less than the finger, so
+    // the floor is something you feel yourself pushing past.
+    let f = raw < fa ? fa - (fa - raw) * RESISTANCE : raw;
+    const detents = [
+      { id: 'floor', at: fa, v: m.band.floor },
+      { id: 'target', at: ta, v: m.band.target },
+      { id: 'ceiling', at: ca, v: m.band.ceiling },
+    ];
+    const caught = detents.find((d) => Math.abs(f - d.at) < GRAB);
+    if (caught) {
+      price = caught.v;
+      if (lastDetent !== caught.id) { buzz(caught.id === 'floor' ? 18 : 8); lastDetent = caught.id; }
+    } else {
+      lastDetent = null;
+      const raw2 = TRACK.min + BigInt(Math.round(f * Number(TRACK.width)));
+      price = snap(raw2, STEP);
+      if (price < 0n) price = 0n;
+    }
+    render();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Screens
+  // ---------------------------------------------------------------------------
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const R = (v) => `<span class="reading"><bdi>${v}</bdi></span>`;
+
+  function dealsScreen() {
+    const c = t().deals;
+    const f = figures();
+    const below = price < m.band.floor;
+    const health = f.margin.marginBp === null ? 'unpriced'
+      : f.margin.marginBp < 0 ? 'loss'
+      : f.margin.marginBp >= HEALTHY_FROM_BP ? 'healthy' : 'thin';
+    const tone = below ? 'is-below' : health === 'thin' ? 'is-thin' : '';
+    const hClass = health === 'healthy' ? 'is-healthy' : health === 'thin' ? 'is-thin-text' : 'is-below-text';
+    const at = fractionOf(price) * 100;
+    const taxed = applyVat(price, m.treatment, m.vatRateBp);
+
+    return `
+      <article class="card">
+        <div class="card-head">
+          <div style="min-inline-size:0">
+            <h3 class="card-title">${esc(nameOf(m.deal, 'title'))}</h3>
+            <p class="card-sub">${esc(nameOf(m.deal, 'client'))}</p>
+          </div>
+          <span class="pill">${status === 'won' ? c.won : status === 'pending' ? c.pending : c.draft}</span>
+        </div>
+
+        <div>
+          <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:1rem">
+            <div>
+              <span class="label">${c.agreed}</span>
+              <div class="reading price ${below ? 'is-below' : ''}"><bdi>${fmt(price, m.ccy)}</bdi></div>
+            </div>
+            <span class="reading" style="font-size:.6875rem;color:var(--card-ink-faint)">${m.ccy}</span>
+          </div>
+
+          <div class="track" id="track" role="slider" tabindex="0"
+               aria-valuemin="${TRACK.min}" aria-valuemax="${TRACK.max}" aria-valuenow="${price}"
+               aria-label="${c.agreed}">
+            <div class="rail"></div>
+            <div class="under" style="inline-size:${fractionOf(m.band.floor) * 100}%"></div>
+            <div class="fill ${tone}" style="inline-size:${at}%"></div>
+            <div class="detent" style="inset-inline-start:${fractionOf(m.band.floor) * 100}%"></div>
+            <div class="detent" style="inset-inline-start:${fractionOf(m.band.target) * 100}%"></div>
+            <div class="handle ${tone} ${dragging ? 'dragging' : ''}" style="inset-inline-start:${at}%"></div>
+          </div>
+          <div class="ends">
+            <span>${c.floor} ${R(fmt(m.band.floor, m.ccy))}</span>
+            <span>${c.ceiling} ${R(fmt(m.band.ceiling, m.ccy))}</span>
+          </div>
+        </div>
+
+        <div>
+          <div class="meter-head">
+            <span style="font-size:.75rem;color:var(--card-ink-faint)">${c.margin}</span>
+            <span class="reading ${hClass}" style="font-size:.9375rem"><bdi>${fmtBp(f.margin.marginBp)}</bdi></span>
+          </div>
+          <div class="meter-track ${health === 'thin' ? 'is-thin' : health === 'loss' ? 'is-loss' : ''}">
+            <div class="meter-fill ${health === 'thin' ? 'is-thin' : health === 'loss' ? 'is-loss' : ''}"
+                 style="inline-size:${f.margin.marginBp === null ? 0 : Math.max(0, Math.min(10000, f.margin.marginBp)) / 100}%"></div>
+          </div>
+          <p class="note ${hClass}" style="margin-block-start:.4rem">${c[health]}</p>
+        </div>
+
+        <dl class="cells">
+          <div><dt>${c.cost}</dt><dd class="reading"><bdi>${fmt(f.cost, m.ccy)}</bdi></dd></div>
+          <div><dt>${c.house}</dt><dd class="reading"><bdi>${fmt(f.margin.house, m.ccy)}</bdi></dd></div>
+          <div><dt>${c.split}</dt><dd class="reading"><bdi>${fmt(f.margin.distributable, m.ccy)}</bdi></dd></div>
+        </dl>
+
+        ${below && status === 'draft' ? `<p class="note is-below-text">${c.belowNote}</p>` : ''}
+
+        <div class="actions">
+          ${status === 'draft'
+            ? `<button class="commit ${below ? 'is-below' : ''}" id="commit" type="button">${below ? c.approve : c.close}</button>` : ''}
+          <span class="hint">${status === 'won' ? c.hintClosed : status === 'pending' ? c.hintSent : c.hintDrag}</span>
+        </div>
+
+        <div style="display:flex;align-items:baseline;justify-content:space-between;gap:.75rem;font-size:.6875rem;color:var(--card-ink-faint)">
+          <span>${m.treatment === 'reverse_charge' ? c.reverse : c.invoiced}</span>
+          ${m.treatment === 'standard'
+            ? `<span class="reading" style="color:var(--card-ink-soft)"><bdi>${fmt(taxed.gross, m.ccy)}</bdi>
+                 <span style="font-family:var(--sans);color:var(--card-ink-faint)">${c.incl} <bdi>${fmtBp(m.vatRateBp)}</bdi></span></span>` : ''}
+        </div>
+
+        <div class="crew">
+          <span style="font-size:.75rem;color:var(--card-ink-faint)">${c.onDeal}</span>
+          ${m.crew.map((p, i) => `
+            <div class="crew-row">
+              <span style="min-inline-size:0">${esc(nameOf(p, 'name'))}
+                <span style="color:var(--card-ink-faint)"> · ${R(fmt(p.rateMinor, m.ccy))} ${c.aDay}</span></span>
+              <span style="display:flex;align-items:center;gap:.5rem;flex-shrink:0">
+                <input type="range" min="0" max="10" step="0.5" value="${p.days}" data-crew="${i}"
+                       aria-label="${esc(nameOf(p, 'name'))} ${c.days}">
+                <span class="reading" style="inline-size:2.5rem;text-align:end"><bdi>${p.days}</bdi></span>
+              </span>
+            </div>`).join('')}
+        </div>
+      </article>`;
+  }
+
+  function monthScreen() {
+    const c = t().month;
+    const f = figures();
+    const row = (label, value, cls = '') =>
+      `<div class="${cls}"><dt>${label}</dt><dd class="reading"><bdi>${value}</bdi></dd></div>`;
+    const ded = (label, v) =>
+      row(label, v === 0n ? fmt(0n, m.ccy) : '−' + fmt(v, m.ccy), 'deduct');
+
+    return `
+      <div class="side-by">
+        <div>
+          <dl class="panel water" style="margin:0">
+            ${row(c.revenue, fmt(f.revenue, m.ccy))}
+            ${ded(c.direct, f.direct)}
+            ${ded(c.labour, f.closedLabour)}
+            ${row(`${c.gross}${f.grossBp !== null ? `<span class="pct">${fmtBp(f.grossBp)}</span>` : ''}`,
+                  fmt(f.gross, m.ccy), 'big')}
+            ${ded(c.commission, f.commission)}
+            ${ded(c.salaries, m.salariesMinor)}
+            ${ded(c.overheads, f.overheads)}
+            ${row(`${c.operating}${f.opBp !== null ? `<span class="pct">${fmtBp(f.opBp)}</span>` : ''}`,
+                  fmt(f.operating, m.ccy), 'big final' + (f.isLoss ? ' loss' : ''))}
+          </dl>
+          <p class="smallprint" style="margin-block-start:.6rem;max-inline-size:34rem">${f.closed ? c.isClosed : c.notClosed}</p>
+          ${f.isLoss ? `<p class="note is-below-text" style="margin-block-start:.6rem;max-inline-size:32rem">${c.lossNote}</p>` : ''}
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:.75rem">
+          <div class="tile">
+            <span class="k">${c.breakEven}</span>
+            <span class="v reading"><bdi>${f.breakEven === null ? '—' : fmt(f.breakEven, m.ccy)}</bdi>
+              <span style="font-family:var(--sans);font-size:.6875rem;color:var(--ink-faint)">${m.ccy}</span></span>
+          </div>
+          <div class="tile">
+            <span class="k">${c.splitTitle}</span>
+            <div style="display:flex;justify-content:space-between;gap:.75rem;font-size:.8125rem;margin-block-start:.5rem">
+              <span style="color:var(--ink-soft)">${c.partner} <span style="color:var(--ink-faint)">${fmtBp(m.partnerBp)}</span></span>
+              <span class="reading"><bdi>${fmt(f.partnerShare, m.ccy)}</bdi></span>
+            </div>
+            <div style="display:flex;justify-content:space-between;gap:.75rem;font-size:.8125rem;border-block-start:1px solid var(--line);margin-block-start:.5rem;padding-block-start:.5rem">
+              <span style="color:var(--ink-soft)">${c.retained}</span>
+              <span class="reading"><bdi>${fmt(f.retained, m.ccy)}</bdi></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-block-start:1.5rem">
+        <h2>${c.overheadTitle}</h2>
+        <ul class="panel rows" style="margin-block-start:.75rem">
+          ${m.overheads.map((o) => `
+            <li>
+              <span class="name">${esc(nameOf(o, 'name'))}
+                <span class="meta">${o.cadence === 'yearly' ? c.yearly : c.monthly}</span></span>
+              <span class="val reading"><bdi>${fmt(o.cadence === 'yearly' ? divRound(o.minor, 12n) : o.minor, m.ccy)}</bdi>
+                <span style="font-family:var(--sans);font-size:.6875rem;color:var(--ink-faint)">${c.perMonth}</span></span>
+            </li>`).join('')}
+        </ul>
+        <p class="smallprint" style="margin-block-start:.6rem;max-inline-size:34rem">${c.spread}</p>
+      </div>`;
+  }
+
+  function teamScreen() {
+    const c = t().team;
+    return `
+      <ul class="panel rows">
+        ${m.crew.map((p, i) => `
+          <li>
+            <span class="name">${esc(nameOf(p, 'name'))}
+              <span class="meta">${c.member} · ${esc(p.role)}</span></span>
+            <span style="display:flex;gap:.5rem;flex-shrink:0">
+              <label class="field" style="inline-size:6.5rem"><span>${c.dayRate}</span>
+                <input class="reading" data-rate="${i}" inputmode="decimal" value="${toMajor(p.rateMinor, m.ccy)}"></label>
+            </span>
+          </li>`).join('')}
+        <li>
+          <span class="name">${locale === 'ar' ? 'المرتبات الشهرية' : 'Salaried staff, together'}
+            <span class="meta">${c.salary}</span></span>
+          <span style="flex-shrink:0">
+            <label class="field" style="inline-size:7.5rem"><span>${c.salary}</span>
+              <input class="reading" id="salaryField" inputmode="decimal" value="${toMajor(m.salariesMinor, m.ccy)}"></label>
+          </span>
+        </li>
+      </ul>
+      <p class="smallprint" style="margin-block-start:.9rem;max-inline-size:34rem">${c.note}</p>`;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Render
+  // ---------------------------------------------------------------------------
+  const SCREENS = ['deals', 'month', 'team'];
+
+  function render() {
+    const T = t();
+    root.setAttribute('dir', locale === 'ar' ? 'rtl' : 'ltr');
+    document.documentElement.lang = locale;
+
+    $('orgName').textContent = nameOf(m, 'org');
+    $('orgNameTop').textContent = nameOf(m, 'org');
+    $('roleChip').textContent = T.role;
+    for (const id of ['langSide', 'langTop']) $(id).textContent = T.lang;
+    for (const id of ['marketSide', 'marketTop']) $(id).textContent = market === 'berlin' ? T.toCairo : T.toBerlin;
+
+    const items = SCREENS.map((key) =>
+      `<button class="navlink" data-screen="${key}" ${key === screen ? 'aria-current="page"' : ''}>${T.nav[key]}</button>`);
+    $('sideNav').innerHTML = items.map((b) => `<li>${b}</li>`).join('');
+    $('tabNav').innerHTML = SCREENS.map((key) =>
+      `<li><button class="tab" data-screen="${key}" ${key === screen ? 'aria-current="page"' : ''}>${T.nav[key]}</button></li>`).join('');
+
+    const meta = T[screen];
+    $('screenTitle').textContent = meta.title;
+    $('screenSub').textContent = meta.sub;
+    $('guide').innerHTML = meta.guide;
+    $('screen').innerHTML =
+      screen === 'deals' ? dealsScreen() : screen === 'month' ? monthScreen() : teamScreen();
+
+    wire();
+  }
+
+  function wire() {
+    for (const button of document.querySelectorAll('[data-screen]')) {
+      button.addEventListener('click', () => { screen = button.dataset.screen; render(); });
+    }
+
+    const track = $('track');
+    if (track) {
+      track.addEventListener('pointerdown', (e) => {
+        if (status !== 'draft') return;
+        track.setPointerCapture(e.pointerId);
+        dragging = true;
+        const f = readPointer(e.clientX, track);
+        if (f !== null) applyFraction(f);
+      });
+      track.addEventListener('pointermove', (e) => {
+        if (!dragging) return;
+        const f = readPointer(e.clientX, track);
+        if (f !== null) applyFraction(f);
+      });
+      const end = (e) => {
+        if (!dragging) return;
+        dragging = false; lastDetent = null;
+        try { track.releasePointerCapture(e.pointerId); } catch {}
+        render();
+      };
+      track.addEventListener('pointerup', end);
+      track.addEventListener('pointercancel', end);
+      track.addEventListener('keydown', (e) => {
+        if (status !== 'draft') return;
+        // In a mirrored track the arrows follow the screen, not the number.
+        const rtl = root.getAttribute('dir') === 'rtl';
+        const up = rtl ? 'ArrowLeft' : 'ArrowRight';
+        const down = rtl ? 'ArrowRight' : 'ArrowLeft';
+        let next = null;
+        if (e.key === up || e.key === 'ArrowUp') next = price + STEP;
+        else if (e.key === down || e.key === 'ArrowDown') next = price - STEP;
+        else if (e.key === 'Home') next = TRACK.min;
+        else if (e.key === 'End') next = TRACK.max;
+        if (next === null) return;
+        e.preventDefault();
+        price = next < 0n ? 0n : next > TRACK.max ? TRACK.max : next;
+        render();
+      });
+    }
+
+    const commit = $('commit');
+    if (commit) commit.addEventListener('click', () => {
+      status = price < m.band.floor ? 'pending' : 'won';
+      buzz(12);
+      render();
+    });
+
+    for (const slider of document.querySelectorAll('[data-crew]')) {
+      slider.addEventListener('input', () => {
+        m.crew[Number(slider.dataset.crew)].days = Number(slider.value);
+        render();
+        const again = document.querySelector(`[data-crew="${slider.dataset.crew}"]`);
+        if (again) again.focus();
+      });
+    }
+
+    for (const input of document.querySelectorAll('[data-rate]')) {
+      input.addEventListener('change', () => {
+        const parsed = parseAmount(input.value, m.ccy);
+        if (parsed !== null && parsed >= 0n) m.crew[Number(input.dataset.rate)].rateMinor = parsed;
+        render();
+      });
+    }
+    const salary = $('salaryField');
+    if (salary) salary.addEventListener('change', () => {
+      const parsed = parseAmount(salary.value, m.ccy);
+      if (parsed !== null && parsed >= 0n) m.salariesMinor = parsed;
+      render();
+    });
+  }
+
+  for (const id of ['langSide', 'langTop']) {
+    $(id).addEventListener('click', () => {
+      locale = locale === 'ar' ? 'en' : 'ar';
+      try { localStorage.setItem('qirat-locale', locale); } catch {}
+      render();
+    });
+  }
+  for (const id of ['marketSide', 'marketTop']) {
+    $(id).addEventListener('click', () => { loadMarket(market === 'berlin' ? 'cairo' : 'berlin'); render(); });
+  }
+
+  loadMarket('berlin');
+  render();
+})();
+</script>
