@@ -325,3 +325,26 @@ export async function createPost({ userId, type = 'post', caption, place, mediaU
   }
   throw new Error('Could not share — try again.');
 }
+
+/* ─── THINGS WITH A TIME ON THEM, STILL AHEAD ────────────────────────
+   A moment with starts_at is an invitation — somebody has said where
+   and when, and other people can say they are coming. A moment without
+   one is just a post. The feed mixes them, which means an invitation to
+   something on Thursday is buried under whatever was posted this
+   morning and is gone by the time Thursday arrives.
+
+   This asks only for the ones still in the future, soonest first, so a
+   screen can show what there is to join rather than what was said
+   recently. */
+export async function fetchUpcoming({ limit = 30 } = {}) {
+  const now = new Date().toISOString();
+  const { data, error } = await supabase
+    .from('posts')
+    .select('id, user_id, type, media_url, caption, place, lat, lng, starts_at, squad_name, created_at, user:profiles!posts_user_id_fkey(name, avatar_url, country_flag)')
+    .not('starts_at', 'is', null)
+    .gt('starts_at', now)
+    .order('starts_at', { ascending: true })
+    .limit(limit);
+  if (error) throw error;
+  return data || [];
+}

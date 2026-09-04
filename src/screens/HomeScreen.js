@@ -39,6 +39,9 @@ import { lazyOverlay } from '../lib/lazyScreen';
    exactly as before, and each one brings itself over the network the
    first time it is opened. */
 const BardiSheet = lazyOverlay(() => import('../components/BardiSheet').then((m) => ({ default: m.BardiSheet })));
+/* What there is to join — campfires, invitations and groups in one
+   place. Opened, not loaded with the feed. */
+const WhatsOnSheet = lazyOverlay(() => import('../components/WhatsOnSheet').then((mod) => ({ default: mod.WhatsOnSheet })));
 const CaptureModal = lazyOverlay(() => import('../components/CaptureModal').then((m) => ({ default: m.CaptureModal })));
 const CommentsSheet = lazyOverlay(() => import('../components/CommentsSheet').then((m) => ({ default: m.CommentsSheet })));
 const ComposeModal = lazyOverlay(() => import('../components/ComposeModal').then((m) => ({ default: m.ComposeModal })));
@@ -163,6 +166,9 @@ export const HomeScreen = () => {
   const [openTag, setOpenTag] = useState(null);          // a hashtag somebody tapped in a caption
   const [reportPost, setReportPost] = useState(null); // a moment being reported
   const [toast, setToast] = useState(null);
+  /* The one place that answers "what can I join?" — see
+     components/WhatsOnSheet.js for why it had to exist at all. */
+  const [whatsOn, setWhatsOn] = useState(false);
 
   const showToast = (msg) => {
     setToast(msg);
@@ -463,6 +469,27 @@ export const HomeScreen = () => {
                 <Ionicons name="image" size={22} color={C.green} />
               </Pressable>
             </Glass>
+
+            {/* ── WHAT THERE IS TO JOIN ──────────────────────────────
+                Campfires were on the map, invitations were buried in
+                this feed under whatever was posted this morning, and
+                groups were inside the search modal. Three places, one
+                question. This is the question, in the one place people
+                actually look. */}
+            <Pressable onPress={() => { tapLight(); setWhatsOn(true); }} style={{ marginTop: 12 }}>
+              <View style={{
+                flexDirection: 'row', alignItems: 'center',
+                backgroundColor: C.glass, borderWidth: 1, borderColor: C.line,
+                borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14,
+              }}>
+                <Text style={{ fontSize: 19, marginEnd: 10 }}>🎟️</Text>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>{t('wo_open')}</Text>
+                  <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 1 }} numberOfLines={1}>{t('wo_sub')}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={C.faint} />
+              </View>
+            </Pressable>
           </View>
         }
         renderItem={({ item }) => {
@@ -540,6 +567,17 @@ export const HomeScreen = () => {
       />
 
       {/* ── EVERYTHING BELOW ARRIVES WHEN IT IS OPENED ────────────── */}
+      {whatsOn ? (
+        <WhatsOnSheet
+          /* No coords on purpose. This screen does not ask for your
+             location and is not going to start, so the sheet is told
+             nothing rather than being handed a guess — and fetchWhatsOn
+             treats "no location" as "do not filter by distance and do
+             not print a distance", which is the only honest option. */
+          onClose={() => setWhatsOn(false)}
+        />
+      ) : null}
+
       {magicPost ? (
         <MagicFlowModal
           post={magicPost}
