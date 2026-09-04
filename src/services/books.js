@@ -49,15 +49,43 @@ const shape = (d) => {
   };
 };
 
+
+/* ─── ONE DROPPED REQUEST MUST NOT CLOSE THE SHELF ───────────────────
+   The catalogue is somebody else's server reached over a phone
+   connection, and on a phone a request does not usually fail — it
+   hangs, or it comes back once out of every ten tries. There was
+   neither a timeout nor a retry here, so a single flaky moment turned
+   into "Could not open the shelf" and stayed that way.
+
+   Ten seconds, then one more attempt, then admit it. AbortController
+   because fetch on its own has no timeout at all and a hanging request
+   is worse than a failed one: it never resolves and the spinner spins
+   for ever. */
+async function getJson(url, { tries = 2, ms = 10000 } = {}) {
+  let last;
+  for (let i = 0; i < tries; i++) {
+    const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timer = ctl ? setTimeout(() => ctl.abort(), ms) : null;
+    try {
+      const r = await fetch(url, ctl ? { signal: ctl.signal } : undefined);
+      if (!r.ok) throw new Error('catalogue answered ' + r.status);
+      return await r.json();
+    } catch (e) {
+      last = e;
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  }
+  throw last || new Error('Could not reach the book catalogue');
+}
+
 export async function searchBooks(query, { limit = 24, freeOnly = false } = {}) {
   const q = String(query || '').trim();
   if (!q) return [];
   const url = `${OL}/search.json?q=${encodeURIComponent(q)}&limit=${limit}` +
     `&fields=key,title,author_name,first_publish_year,cover_i,ebook_access,ia,isbn` +
     (freeOnly ? '&ebook_access=public' : '');
-  const r = await fetch(url);
-  if (!r.ok) throw new Error('Could not reach the book catalogue');
-  const j = await r.json();
+  const j = await getJson(url);
   return ((j && j.docs) || []).map(shape).filter((b) => b.title);
 }
 

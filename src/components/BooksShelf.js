@@ -137,8 +137,22 @@ export const BooksShelf = () => {
         <View style={{ paddingVertical: 26, alignItems: 'center' }}>
           <Text style={{ fontSize: 26 }}>📚</Text>
           <Text style={{ color: C.faint, fontSize: 12.5, marginTop: 8, textAlign: 'center', lineHeight: 18 }}>
-            {err || 'Nothing on this shelf right now — try a search.'}
+            {err || t('books_shelf_empty')}
           </Text>
+          {/* The message said "try again" and was plain text. There was
+              nothing to tap, so the only way to retry was to leave the
+              screen and come back — which nobody does; they decide the
+              books are broken. It is a button now. */}
+          {err ? (
+            <Pressable onPress={() => { tapLight(); load(); }} style={{ marginTop: 12 }}>
+              <View style={{
+                borderWidth: 1, borderColor: C.line, borderRadius: 12,
+                paddingVertical: 9, paddingHorizontal: 18, backgroundColor: C.glass,
+              }}>
+                <Text style={{ color: C.text, fontSize: 13, fontWeight: '800' }}>{t('books_retry')}</Text>
+              </View>
+            </Pressable>
+          ) : null}
         </View>
       )}
 

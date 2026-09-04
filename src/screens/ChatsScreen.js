@@ -155,6 +155,9 @@ export const ChatsScreen = () => {
   const [exLearning, setExLearning] = useState('');
   const [exBusy, setExBusy] = useState(false);
   const [exSaved, setExSaved] = useState(false);
+  /* The exchange settings live in a sheet now, not on the main screen —
+     see the note above the render for why. */
+  const [exOpen, setExOpen] = useState(false);
   useEffect(() => {
     if (!SUPABASE_READY || !user) return;
     getProfile(user.id).then((p) => {
@@ -402,6 +405,30 @@ export const ChatsScreen = () => {
 
   return (
   <Page onSwipeCamera={() => { setShooting(true); }}>
+
+    {/* ─── WHY THIS ORDER CHANGED ──────────────────────────────────────
+       Ayser: "ليه شكل الشاتس زحمه و مش سهل ومش طبيعي و كائيب مش ممتع مش
+       محفز علي الكلام".
+
+       He was right, and the reason was not the styling. Your actual
+       conversations were the SIXTH thing on this screen — under Green
+       Minds, under Exchanges, under mate requests, under your mates,
+       under squads — and when you had no conversations yet the section
+       did not render at all. So the Chats screen opened onto five
+       headings, two navigation cards and a settings form with a toggle,
+       two text boxes and a Save button, and not one word anybody had
+       said to anybody.
+
+       That is why it felt crowded and discouraging: everything on it was
+       admin, and the thing you came to do was not there. Every messaging
+       app worth copying opens onto people and what they last said.
+
+       So: conversations first, then the fastest ways to start one (your
+       mates, requests, squads), then the places to go, and the exchange
+       settings moved off the screen entirely into a sheet behind one
+       button — because it is configuration you touch twice a year, not
+       content. */}
+
     <ScreenHeader
       kicker={t('connections_kicker')}
       title={t('chats_title')}
@@ -414,224 +441,7 @@ export const ChatsScreen = () => {
       }
     />
 
-    {/* ── GREEN MINDS ─────────────────────────────────────────────
-        The album, sitting in the chats where Ayser asked for it, as a
-        conversation from Green Minds. It is not a person and does not
-        pretend to be one: no profile was invented so that something
-        could appear to send these, because a fake human turns up in
-        member counts and searches forever afterwards. The sender is
-        the album, which is honestly what collected them.
-
-        Only the owner sees this row, and — far more importantly —
-        only the owner can read what is behind it. The server refuses
-        anybody else, by policy, whether or not this row is drawn. */}
-    {owner ? (
-      <Pressable onPress={() => { tapLight(); setAlbumOpen(true); }} style={{ marginBottom: 6 }}>
-        <Glass style={{ flexDirection: 'row', alignItems: 'center', padding: 13 }}>
-          <View style={{
-            width: 46, height: 46, borderRadius: 23, backgroundColor: 'rgba(31,122,90,0.14)',
-            borderWidth: 1, borderColor: 'rgba(31,122,90,0.4)',
-            alignItems: 'center', justifyContent: 'center',
-          }}>
-            <Text style={{ fontSize: 21 }}>🌿</Text>
-          </View>
-          <View style={{ flex: 1, minWidth: 0, marginStart: 12 }}>
-            <Text numberOfLines={1} style={{ color: C.text, fontSize: 15.5, fontWeight: '900' }}>
-              {t('green_album')}
-            </Text>
-            <Text numberOfLines={1} style={{ color: C.faint, fontSize: 12.5, marginTop: 2 }}>
-              {t('green_album_sub')}
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={C.faint} />
-        </Glass>
-      </Pressable>
-    ) : null}
-
-    {/* ── EXCHANGES ───────────────────────────────────────────────
-        A group per programme somebody has actually been on — Erasmus
-        and everything like it. Everyone sees this one: the whole point
-        is finding the people you were there with, and a directory only
-        the owner can read would find nobody anything.
-
-        It sits under Green Minds because that is where it belongs —
-        the same corner of the app, the same idea. */}
-    <Pressable onPress={() => { tapLight(); setProgOpen(true); }} style={{ marginBottom: 6 }}>
-      <Glass style={{ flexDirection: 'row', alignItems: 'center', padding: 13 }}>
-        <View style={{
-          width: 46, height: 46, borderRadius: 23, backgroundColor: 'rgba(31,122,90,0.14)',
-          borderWidth: 1, borderColor: 'rgba(31,122,90,0.4)',
-          alignItems: 'center', justifyContent: 'center',
-        }}>
-          <Text style={{ fontSize: 21 }}>🎒</Text>
-        </View>
-        <View style={{ flex: 1, minWidth: 0, marginStart: 12 }}>
-          <Text numberOfLines={1} style={{ color: C.text, fontSize: 15.5, fontWeight: '900' }}>
-            {t('prog_title')}
-          </Text>
-          <Text numberOfLines={1} style={{ color: C.faint, fontSize: 12.5, marginTop: 2 }}>
-            {t('prog_row_sub')}
-          </Text>
-        </View>
-        <Ionicons name="chevron-forward" size={18} color={C.faint} />
-      </Glass>
-    </Pressable>
-
-    {/* ── MATE REQUESTS — real friend requests waiting on you ── */}
-    {mateRequests.length ? (
-      <>
-        <SectionHeader title={'Mate requests 🤝 (' + mateRequests.length + ')'} />
-        {mateRequests.map((req) => {
-          const p = req.requester || {};
-          const done = !!justAccepted[req.id];
-          return (
-            <Glass key={req.id} tint={C.purpleSoft} border="rgba(124,58,237,0.3)" style={{ padding: 13, marginBottom: 10, flexDirection: 'row', alignItems: 'center' }}>
-              <Image source={{ uri: p.avatar_url || AV_NEUTRAL }} style={{ width: 46, height: 46, borderRadius: 23 }} />
-              <View style={{ flex: 1, marginLeft: 11 }}>
-                <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>{p.name || 'Explorer'} {p.country_flag || ''}</Text>
-                <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 2 }}>{t('wants_to_be_mate')}</Text>
-              </View>
-              {done ? (
-                <View style={{ backgroundColor: C.greenSoft, borderWidth: 1, borderColor: 'rgba(16,185,129,0.45)', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8 }}>
-                  <Text style={{ color: C.green, fontSize: 12, fontWeight: '900' }}>{t('mates_check')}</Text>
-                </View>
-              ) : (
-                <Pressable onPress={() => accept(req)}>
-                  <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 8 }}>
-                    <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '900' }}>{t('accept_mate')}</Text>
-                  </View>
-                </Pressable>
-              )}
-            </Glass>
-          );
-        })}
-        <View style={{ height: 10 }} />
-      </>
-    ) : null}
-
-    {/* ── YOUR MATES — one tap opens the chat ── */}
-    {myMates.length ? (
-      <>
-        <SectionHeader title={t('your_mates')} />
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 20 }}>
-          {myMates.map((m) => (
-            <Pressable
-              key={m.id}
-              onPress={() => { tapLight(); setThread({ chat: { user: { id: m.id, name: m.name || 'Explorer', avatar: m.avatar_url || AV_NEUTRAL } }, group: false }); }}
-              style={{ alignItems: 'center', marginRight: 14, width: 64 }}
-            >
-              <View>
-                <Image source={{ uri: m.avatar_url || AV_NEUTRAL }} style={{ width: 56, height: 56, borderRadius: 28, borderWidth: 2, borderColor: C.purple }} />
-                {isOnline(m.id) ? <OnlineDot size={15} /> : m.country_flag ? (
-                  <View style={{ position: 'absolute', bottom: -2, right: -3, backgroundColor: '#FFF', borderRadius: 8, paddingHorizontal: 2 }}>
-                    <Text style={{ fontSize: 11 }}>{m.country_flag}</Text>
-                  </View>
-                ) : null}
-              </View>
-              <Text style={{ color: C.dim, fontSize: 10.5, fontWeight: '700', marginTop: 5 }} numberOfLines={1}>
-                {(m.name || 'Explorer').split(' ')[0]}
-              </Text>
-            </Pressable>
-          ))}
-        </ScrollView>
-      </>
-    ) : null}
-
-    {/* A heading over nothing is worse than no heading. When there are
-        no squads yet the label and its button disappear — the empty
-        card below carries the way to make one. */}
-    {squads.length || squadCreating ? (
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <SectionHeader title={t('squads_label')} />
-        {SUPABASE_READY ? (
-          <Pressable onPress={() => { tapLight(); setSquadCreating((v) => !v); setSquadErr(null); }} hitSlop={8}>
-            <View style={{ backgroundColor: C.purpleSoft, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 }}>
-              <Text style={{ color: C.purple, fontSize: 12, fontWeight: '900' }}>{squadCreating ? t('close_x') : t('new_squad')}</Text>
-            </View>
-          </Pressable>
-        ) : null}
-      </View>
-    ) : null}
-    {squadCreating ? (
-      <Glass style={{ padding: 12, marginBottom: 12 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <Pressable onPress={pickSquadPhoto} style={{ marginRight: 8 }}>
-            {squadPhoto ? (
-              <Image source={{ uri: squadPhoto.preview }} style={{ width: 48, height: 48, borderRadius: 14 }} />
-            ) : (
-              <View style={{ width: 48, height: 48, borderRadius: 14, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center' }}>
-                <Ionicons name={squadPhotoBusy ? 'hourglass-outline' : 'camera-outline'} size={20} color={C.purple} />
-              </View>
-            )}
-          </Pressable>
-          <TextInput value={squadEmoji} onChangeText={setSquadEmoji} maxLength={4}
-            style={{ width: 48, textAlign: 'center', fontSize: 20, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 12, marginRight: 8 }} />
-          <TextInput placeholder={t('ch_squad_name_ph')} placeholderTextColor={C.faint} value={squadName} onChangeText={setSquadName}
-            style={{ flex: 1, color: C.text, fontSize: 14, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12 }} />
-        </View>
-        {squadErr ? <Text style={{ color: C.coral, fontSize: 11.5, marginTop: 8 }}>{squadErr}</Text> : null}
-        <Pressable onPress={submitSquad} style={{ marginTop: 10 }}>
-          <View style={{ backgroundColor: squadName.trim() ? C.purple : C.glassHi, borderRadius: 12, paddingVertical: 11, alignItems: 'center' }}>
-            <Text style={{ color: squadName.trim() ? '#FFF' : C.faint, fontSize: 13, fontWeight: '900' }}>{t('create_squad')}</Text>
-          </View>
-        </Pressable>
-      </Glass>
-    ) : null}
-    {squads.length ? squads.map((s) => (
-      <Pressable key={s.id} onPress={() => { tapLight(); setThread({ chat: s, group: true }); }}>
-        <Glass tint={C.blueSoft} border="rgba(59,130,246,0.35)" style={{ padding: 14, marginBottom: 12 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            {s.avatar_url ? (
-              <Image source={{ uri: s.avatar_url }} style={{ width: 46, height: 46, borderRadius: 15, marginRight: 12 }} />
-            ) : (
-              <View style={{ width: 46, height: 46, borderRadius: 15, backgroundColor: 'rgba(59,130,246,0.18)', borderWidth: 1, borderColor: 'rgba(59,130,246,0.4)', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
-                <Text style={{ fontSize: 22 }}>{s.emoji}</Text>
-              </View>
-            )}
-            <View style={{ flex: 1 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '800', flexShrink: 1 }} numberOfLines={1}>{s.name}</Text>
-                {s.activity ? <Chip label={s.activity} color={C.blue} tint="rgba(59,130,246,0.16)" style={{ marginLeft: 8, borderColor: 'rgba(59,130,246,0.35)' }} /> : null}
-              </View>
-              {s.last ? <Text style={{ color: C.dim, fontSize: 12, marginTop: 4 }} numberOfLines={1}>{s.last}</Text> : null}
-            </View>
-            <View style={{ alignItems: 'flex-end', marginLeft: 10 }}>
-              {s.time ? <Text style={{ color: C.faint, fontSize: 11 }}>{s.time}</Text> : null}
-              {s.unread > 0 ? (
-                <View style={{ marginTop: 6, minWidth: 20, height: 20, borderRadius: 10, backgroundColor: C.blue, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 }}>
-                  <Text style={{ color: '#fff', fontSize: 11, fontWeight: '900' }}>{s.unread}</Text>
-                </View>
-              ) : null}
-              {SUPABASE_READY ? (
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
-                  <Pressable onPress={() => openInvite(s)} hitSlop={8} style={{ marginRight: 12 }}>
-                    <Text style={{ color: C.purple, fontSize: 10.5, fontWeight: '900' }}>＋ {t('ch_invite')}</Text>
-                  </Pressable>
-                  <Pressable onPress={() => closeSquad(s)} hitSlop={8}>
-                    <Text style={{ color: C.coral, fontSize: 10.5, fontWeight: '800' }}>{t('ch_leave')} ✕</Text>
-                  </Pressable>
-                </View>
-              ) : null}
-            </View>
-          </View>
-          {s.members ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
-              <AvatarStack uris={s.members} />
-              <Text style={{ color: C.faint, fontSize: 11.5, marginLeft: 10 }}>
-                {s.members.length} {t('ch_mates_expire')}
-              </Text>
-            </View>
-          ) : null}
-        </Glass>
-      </Pressable>
-    )) : (
-      /* No squads and no chats is one situation, not two. It used to be
-         told twice, in two grey boxes, one under the other — see the
-         single invitation below. */
-      null
-    )}
-
-    {dms.length ? <SectionHeader title={t('direct_label')} style={{ marginTop: squads.length ? 14 : 0 }} /> : null}
+    {dms.length ? <SectionHeader title={t('direct_label')} /> : null}
     {dms.length ? dms.map((d) => (
       <Pressable key={d.id} onPress={() => { tapLight(); markThreadSeen(d.threadId); setThread({ chat: d, group: false }); }}>
         <Glass style={{ padding: 12, marginBottom: 10, flexDirection: 'row', alignItems: 'center' }}>
@@ -781,6 +591,222 @@ export const ChatsScreen = () => {
       </Glass>
     ) : null}
 
+    {/* ── YOUR MATES — one tap opens the chat ── */}
+    {myMates.length ? (
+      <>
+        <SectionHeader title={t('your_mates')} />
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 20 }}>
+          {myMates.map((m) => (
+            <Pressable
+              key={m.id}
+              onPress={() => { tapLight(); setThread({ chat: { user: { id: m.id, name: m.name || 'Explorer', avatar: m.avatar_url || AV_NEUTRAL } }, group: false }); }}
+              style={{ alignItems: 'center', marginRight: 14, width: 64 }}
+            >
+              <View>
+                <Image source={{ uri: m.avatar_url || AV_NEUTRAL }} style={{ width: 56, height: 56, borderRadius: 28, borderWidth: 2, borderColor: C.purple }} />
+                {isOnline(m.id) ? <OnlineDot size={15} /> : m.country_flag ? (
+                  <View style={{ position: 'absolute', bottom: -2, right: -3, backgroundColor: '#FFF', borderRadius: 8, paddingHorizontal: 2 }}>
+                    <Text style={{ fontSize: 11 }}>{m.country_flag}</Text>
+                  </View>
+                ) : null}
+              </View>
+              <Text style={{ color: C.dim, fontSize: 10.5, fontWeight: '700', marginTop: 5 }} numberOfLines={1}>
+                {(m.name || 'Explorer').split(' ')[0]}
+              </Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+      </>
+    ) : null}
+
+    {/* ── MATE REQUESTS — real friend requests waiting on you ── */}
+    {mateRequests.length ? (
+      <>
+        <SectionHeader title={'Mate requests 🤝 (' + mateRequests.length + ')'} />
+        {mateRequests.map((req) => {
+          const p = req.requester || {};
+          const done = !!justAccepted[req.id];
+          return (
+            <Glass key={req.id} tint={C.purpleSoft} border="rgba(124,58,237,0.3)" style={{ padding: 13, marginBottom: 10, flexDirection: 'row', alignItems: 'center' }}>
+              <Image source={{ uri: p.avatar_url || AV_NEUTRAL }} style={{ width: 46, height: 46, borderRadius: 23 }} />
+              <View style={{ flex: 1, marginLeft: 11 }}>
+                <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>{p.name || 'Explorer'} {p.country_flag || ''}</Text>
+                <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 2 }}>{t('wants_to_be_mate')}</Text>
+              </View>
+              {done ? (
+                <View style={{ backgroundColor: C.greenSoft, borderWidth: 1, borderColor: 'rgba(16,185,129,0.45)', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8 }}>
+                  <Text style={{ color: C.green, fontSize: 12, fontWeight: '900' }}>{t('mates_check')}</Text>
+                </View>
+              ) : (
+                <Pressable onPress={() => accept(req)}>
+                  <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 8 }}>
+                    <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '900' }}>{t('accept_mate')}</Text>
+                  </View>
+                </Pressable>
+              )}
+            </Glass>
+          );
+        })}
+        <View style={{ height: 10 }} />
+      </>
+    ) : null}
+
+    {/* A heading over nothing is worse than no heading. When there are
+        no squads yet the label and its button disappear — the empty
+        card below carries the way to make one. */}
+    {squads.length || squadCreating ? (
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <SectionHeader title={t('squads_label')} />
+        {SUPABASE_READY ? (
+          <Pressable onPress={() => { tapLight(); setSquadCreating((v) => !v); setSquadErr(null); }} hitSlop={8}>
+            <View style={{ backgroundColor: C.purpleSoft, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 }}>
+              <Text style={{ color: C.purple, fontSize: 12, fontWeight: '900' }}>{squadCreating ? t('close_x') : t('new_squad')}</Text>
+            </View>
+          </Pressable>
+        ) : null}
+      </View>
+    ) : null}
+    {squadCreating ? (
+      <Glass style={{ padding: 12, marginBottom: 12 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Pressable onPress={pickSquadPhoto} style={{ marginRight: 8 }}>
+            {squadPhoto ? (
+              <Image source={{ uri: squadPhoto.preview }} style={{ width: 48, height: 48, borderRadius: 14 }} />
+            ) : (
+              <View style={{ width: 48, height: 48, borderRadius: 14, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name={squadPhotoBusy ? 'hourglass-outline' : 'camera-outline'} size={20} color={C.purple} />
+              </View>
+            )}
+          </Pressable>
+          <TextInput value={squadEmoji} onChangeText={setSquadEmoji} maxLength={4}
+            style={{ width: 48, textAlign: 'center', fontSize: 20, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 12, marginRight: 8 }} />
+          <TextInput placeholder={t('ch_squad_name_ph')} placeholderTextColor={C.faint} value={squadName} onChangeText={setSquadName}
+            style={{ flex: 1, color: C.text, fontSize: 14, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12 }} />
+        </View>
+        {squadErr ? <Text style={{ color: C.coral, fontSize: 11.5, marginTop: 8 }}>{squadErr}</Text> : null}
+        <Pressable onPress={submitSquad} style={{ marginTop: 10 }}>
+          <View style={{ backgroundColor: squadName.trim() ? C.purple : C.glassHi, borderRadius: 12, paddingVertical: 11, alignItems: 'center' }}>
+            <Text style={{ color: squadName.trim() ? '#FFF' : C.faint, fontSize: 13, fontWeight: '900' }}>{t('create_squad')}</Text>
+          </View>
+        </Pressable>
+      </Glass>
+    ) : null}
+    {squads.length ? squads.map((s) => (
+      <Pressable key={s.id} onPress={() => { tapLight(); setThread({ chat: s, group: true }); }}>
+        <Glass tint={C.blueSoft} border="rgba(59,130,246,0.35)" style={{ padding: 14, marginBottom: 12 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            {s.avatar_url ? (
+              <Image source={{ uri: s.avatar_url }} style={{ width: 46, height: 46, borderRadius: 15, marginRight: 12 }} />
+            ) : (
+              <View style={{ width: 46, height: 46, borderRadius: 15, backgroundColor: 'rgba(59,130,246,0.18)', borderWidth: 1, borderColor: 'rgba(59,130,246,0.4)', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                <Text style={{ fontSize: 22 }}>{s.emoji}</Text>
+              </View>
+            )}
+            <View style={{ flex: 1 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '800', flexShrink: 1 }} numberOfLines={1}>{s.name}</Text>
+                {s.activity ? <Chip label={s.activity} color={C.blue} tint="rgba(59,130,246,0.16)" style={{ marginLeft: 8, borderColor: 'rgba(59,130,246,0.35)' }} /> : null}
+              </View>
+              {s.last ? <Text style={{ color: C.dim, fontSize: 12, marginTop: 4 }} numberOfLines={1}>{s.last}</Text> : null}
+            </View>
+            <View style={{ alignItems: 'flex-end', marginLeft: 10 }}>
+              {s.time ? <Text style={{ color: C.faint, fontSize: 11 }}>{s.time}</Text> : null}
+              {s.unread > 0 ? (
+                <View style={{ marginTop: 6, minWidth: 20, height: 20, borderRadius: 10, backgroundColor: C.blue, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 }}>
+                  <Text style={{ color: '#fff', fontSize: 11, fontWeight: '900' }}>{s.unread}</Text>
+                </View>
+              ) : null}
+              {SUPABASE_READY ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
+                  <Pressable onPress={() => openInvite(s)} hitSlop={8} style={{ marginRight: 12 }}>
+                    <Text style={{ color: C.purple, fontSize: 10.5, fontWeight: '900' }}>＋ {t('ch_invite')}</Text>
+                  </Pressable>
+                  <Pressable onPress={() => closeSquad(s)} hitSlop={8}>
+                    <Text style={{ color: C.coral, fontSize: 10.5, fontWeight: '800' }}>{t('ch_leave')} ✕</Text>
+                  </Pressable>
+                </View>
+              ) : null}
+            </View>
+          </View>
+          {s.members ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
+              <AvatarStack uris={s.members} />
+              <Text style={{ color: C.faint, fontSize: 11.5, marginLeft: 10 }}>
+                {s.members.length} {t('ch_mates_expire')}
+              </Text>
+            </View>
+          ) : null}
+        </Glass>
+      </Pressable>
+    )) : (
+      /* No squads and no chats is one situation, not two. It used to be
+         told twice, in two grey boxes, one under the other — see the
+         single invitation below. */
+      null
+    )}
+
+    {/* ── GREEN MINDS ─────────────────────────────────────────────
+        The album, sitting in the chats where Ayser asked for it, as a
+        conversation from Green Minds. It is not a person and does not
+        pretend to be one: no profile was invented so that something
+        could appear to send these, because a fake human turns up in
+        member counts and searches forever afterwards. The sender is
+        the album, which is honestly what collected them.
+
+        Only the owner sees this row, and — far more importantly —
+        only the owner can read what is behind it. The server refuses
+        anybody else, by policy, whether or not this row is drawn. */}
+    {owner ? (
+      <Pressable onPress={() => { tapLight(); setAlbumOpen(true); }} style={{ marginBottom: 6 }}>
+        <Glass style={{ flexDirection: 'row', alignItems: 'center', padding: 13 }}>
+          <View style={{
+            width: 46, height: 46, borderRadius: 23, backgroundColor: 'rgba(31,122,90,0.14)',
+            borderWidth: 1, borderColor: 'rgba(31,122,90,0.4)',
+            alignItems: 'center', justifyContent: 'center',
+          }}>
+            <Text style={{ fontSize: 21 }}>🌿</Text>
+          </View>
+          <View style={{ flex: 1, minWidth: 0, marginStart: 12 }}>
+            <Text numberOfLines={1} style={{ color: C.text, fontSize: 15.5, fontWeight: '900' }}>
+              {t('green_album')}
+            </Text>
+            <Text numberOfLines={1} style={{ color: C.faint, fontSize: 12.5, marginTop: 2 }}>
+              {t('green_album_sub')}
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={C.faint} />
+        </Glass>
+      </Pressable>
+    ) : null}
+
+    {/* ── EXCHANGES ───────────────────────────────────────────────
+        A group per programme somebody has actually been on — Erasmus
+        and everything like it. Everyone sees this one: the whole point
+        is finding the people you were there with, and a directory only
+        the owner can read would find nobody anything.
+
+        It sits under Green Minds because that is where it belongs —
+        the same corner of the app, the same idea. */}
+    <Pressable onPress={() => { tapLight(); setProgOpen(true); }} style={{ marginBottom: 6 }}>
+      <Glass style={{ flexDirection: 'row', alignItems: 'center', padding: 13 }}>
+        <View style={{
+          width: 46, height: 46, borderRadius: 23, backgroundColor: 'rgba(31,122,90,0.14)',
+          borderWidth: 1, borderColor: 'rgba(31,122,90,0.4)',
+          alignItems: 'center', justifyContent: 'center',
+        }}>
+          <Text style={{ fontSize: 21 }}>🎒</Text>
+        </View>
+        <View style={{ flex: 1, minWidth: 0, marginStart: 12 }}>
+          <Text numberOfLines={1} style={{ color: C.text, fontSize: 15.5, fontWeight: '900' }}>
+            {t('prog_title')}
+          </Text>
+          <Text numberOfLines={1} style={{ color: C.faint, fontSize: 12.5, marginTop: 2 }}>
+            {t('prog_row_sub')}
+          </Text>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={C.faint} />
+      </Glass>
+    </Pressable>
 
     {/* ── EXCHANGE PARTNERS — meet people in other countries, HelloTalk
         style: open it in Settings and you appear here for them too ── */}
@@ -792,49 +818,25 @@ export const ChatsScreen = () => {
       {t('exchange_blurb')}
     </Text>
 
-    {/* ── your exchange switch — HelloTalk-style, right here ── */}
+    {/* Configuration, behind one button, instead of a form taking a
+        third of the screen for ever. */}
     {SUPABASE_READY ? (
-      <Glass style={{ padding: 13, marginBottom: 12 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <Text style={{ fontSize: 20 }}>🌍</Text>
-          <View style={{ flex: 1, marginLeft: 10 }}>
-            <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800' }}>
-              {exOn ? t('youre_open_exchange') : t('join_exchange')}
+      <Pressable onPress={() => { tapLight(); setExOpen(true); }} style={{ marginBottom: 12 }}>
+        <Glass style={{ flexDirection: 'row', alignItems: 'center', padding: 12 }}>
+          <Text style={{ fontSize: 18 }}>🌍</Text>
+          <View style={{ flex: 1, minWidth: 0, marginStart: 10 }}>
+            <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800' }} numberOfLines={1}>
+              {exOn ? t('ex_on_title') : t('ex_off_title')}
             </Text>
-            <Text style={{ color: C.faint, fontSize: 11, marginTop: 1 }}>
-              {exOn ? t('exchange_on') : t('exchange_off')}
+            <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 1 }} numberOfLines={1}>
+              {exOn && (exSpeaks || exLearning)
+                ? [exSpeaks, exLearning].filter(Boolean).join('  →  ')
+                : t('ex_set_up')}
             </Text>
           </View>
-          <Pressable onPress={() => saveExchange(!exOn)} hitSlop={6}>
-            <View style={{ width: 46, height: 27, borderRadius: 14, backgroundColor: exOn ? C.green : C.glassHi, padding: 3, justifyContent: 'center' }}>
-              <View style={{ width: 21, height: 21, borderRadius: 11, backgroundColor: '#FFF', marginLeft: exOn ? 19 : 0 }} />
-            </View>
-          </Pressable>
-        </View>
-        {exOn ? (
-          <View style={{ marginTop: 10 }}>
-            <View style={{ flexDirection: 'row' }}>
-              <TextInput
-                placeholder={t('i_speak_placeholder')} placeholderTextColor={C.faint}
-                value={exSpeaks} onChangeText={setExSpeaks}
-                style={{ flex: 1, color: C.text, fontSize: 12.5, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 11, paddingHorizontal: 11, paddingVertical: 9, marginRight: 8 }}
-              />
-              <TextInput
-                placeholder={t('ch_learning_ph')} placeholderTextColor={C.faint}
-                value={exLearning} onChangeText={setExLearning}
-                style={{ flex: 1, color: C.text, fontSize: 12.5, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 11, paddingHorizontal: 11, paddingVertical: 9 }}
-              />
-            </View>
-            <Pressable onPress={() => saveExchange(true)} style={{ marginTop: 8 }}>
-              <View style={{ backgroundColor: exSaved ? C.greenSoft : C.purpleSoft, borderRadius: 11, paddingVertical: 9, alignItems: 'center' }}>
-                <Text style={{ color: exSaved ? C.green : C.purple, fontSize: 12, fontWeight: '900' }}>
-                  {exSaved ? t('saved_live_exchange') : exBusy ? t('saving_dots') : t('save_my_languages')}
-                </Text>
-              </View>
-            </Pressable>
-          </View>
-        ) : null}
-      </Glass>
+          <Ionicons name="chevron-forward" size={17} color={C.faint} />
+        </Glass>
+      </Pressable>
     ) : null}
 
     {partners.length ? (
@@ -933,6 +935,62 @@ export const ChatsScreen = () => {
         {t('exchange_empty')}
       </Text>
     )}
+
+
+    {/* The exchange settings, off the main screen. */}
+    {exOpen ? (
+      <Modal visible transparent animationType="slide" onRequestClose={() => setExOpen(false)}>
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(6,4,18,0.55)' }} onPress={() => setExOpen(false)} />
+        <View style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 16, paddingBottom: insets.bottom + 20 }}>
+          <Text style={{ color: C.text, fontSize: 17, fontWeight: '900', marginBottom: 4 }}>{t('exchange_partners')}</Text>
+          <Text style={{ color: C.faint, fontSize: 12, marginBottom: 12, lineHeight: 17 }}>{t('exchange_blurb')}</Text>
+      {/* ── your exchange switch — HelloTalk-style, right here ── */}
+      {SUPABASE_READY ? (
+        <Glass style={{ padding: 13, marginBottom: 12 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Text style={{ fontSize: 20 }}>🌍</Text>
+            <View style={{ flex: 1, marginLeft: 10 }}>
+              <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800' }}>
+                {exOn ? t('youre_open_exchange') : t('join_exchange')}
+              </Text>
+              <Text style={{ color: C.faint, fontSize: 11, marginTop: 1 }}>
+                {exOn ? t('exchange_on') : t('exchange_off')}
+              </Text>
+            </View>
+            <Pressable onPress={() => saveExchange(!exOn)} hitSlop={6}>
+              <View style={{ width: 46, height: 27, borderRadius: 14, backgroundColor: exOn ? C.green : C.glassHi, padding: 3, justifyContent: 'center' }}>
+                <View style={{ width: 21, height: 21, borderRadius: 11, backgroundColor: '#FFF', marginLeft: exOn ? 19 : 0 }} />
+              </View>
+            </Pressable>
+          </View>
+          {exOn ? (
+            <View style={{ marginTop: 10 }}>
+              <View style={{ flexDirection: 'row' }}>
+                <TextInput
+                  placeholder={t('i_speak_placeholder')} placeholderTextColor={C.faint}
+                  value={exSpeaks} onChangeText={setExSpeaks}
+                  style={{ flex: 1, color: C.text, fontSize: 12.5, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 11, paddingHorizontal: 11, paddingVertical: 9, marginRight: 8 }}
+                />
+                <TextInput
+                  placeholder={t('ch_learning_ph')} placeholderTextColor={C.faint}
+                  value={exLearning} onChangeText={setExLearning}
+                  style={{ flex: 1, color: C.text, fontSize: 12.5, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 11, paddingHorizontal: 11, paddingVertical: 9 }}
+                />
+              </View>
+              <Pressable onPress={() => saveExchange(true)} style={{ marginTop: 8 }}>
+                <View style={{ backgroundColor: exSaved ? C.greenSoft : C.purpleSoft, borderRadius: 11, paddingVertical: 9, alignItems: 'center' }}>
+                  <Text style={{ color: exSaved ? C.green : C.purple, fontSize: 12, fontWeight: '900' }}>
+                    {exSaved ? t('saved_live_exchange') : exBusy ? t('saving_dots') : t('save_my_languages')}
+                  </Text>
+                </View>
+              </Pressable>
+            </View>
+          ) : null}
+        </Glass>
+      ) : null}
+        </View>
+      </Modal>
+    ) : null}
 
     {/* stamped again on the way out, so anything that arrived while you
         were reading doesn't come back marked new */}
