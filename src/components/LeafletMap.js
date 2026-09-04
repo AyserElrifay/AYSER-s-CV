@@ -2,7 +2,8 @@ import React, { useRef, useEffect } from 'react';
 import { Platform } from 'react-native';
 import { WORLD } from '../constants/worldGeo';
 import { mountGlobe3D } from '../lib/globe3d';
-import { loadLeaflet } from '../lib/leaflet';
+import { loadLeaflet, loadVectorMap } from '../lib/leaflet';
+import { VECTOR_STYLE_URL, momentsStyle, patchCounts } from '../lib/mapStyle';
 
 /* A REAL interactive map on web — Leaflet + OpenStreetMap data with
    CARTO's playful "Voyager" tiles. Pannable, zoomable, opens on the
@@ -66,8 +67,23 @@ function injectMapStyle() {
     .mm-dark .mm-tiles {
       filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.88) saturate(0.65);
     }
-    /* fade tiles in as they load so the map assembles smoothly, not in a snap */
-    .mm-tiles.leaflet-tile { transition: opacity 0.45s ease; }
+    /* fade tiles in as they load so the map assembles smoothly, not in
+       a snap. It has to be a descendant selector: Leaflet puts a
+       layer's className on the LAYER, not on each tile, so the old
+       .mm-tiles.leaflet-tile (both classes on one element) matched
+       nothing at all and the fade this comment describes never once
+       happened. */
+    .mm-tiles .leaflet-tile { transition: opacity 0.45s ease; }
+    /* ── THE VECTOR MAP ────────────────────────────────────────────
+       Its colours are chosen in src/lib/mapStyle.js rather than
+       filtered out of somebody else's picture, so it gets none of the
+       correction above — only a whisper of extra saturation, which is
+       what stops a flat-coloured map looking like printed paper.
+       Night is a real night palette there, not an inversion, so the
+       dark rule must not reach it either. */
+    .mm-glmap { filter: saturate(1.06); }
+    .leaflet-container.mm-vector { background: #FBF6E9; }
+    .leaflet-container.mm-vector.mm-dark { background: #111A26; }
     /* our own country names — every country identical styling, so no
        country (incl. Israel & Palestine) is visually favoured. */
     .mm-country {
@@ -413,6 +429,11 @@ export const LeafletMap = ({ center, markers = [], onPress, onMe, locate = true,
   const centerRef = useRef(center);
   centerRef.current = center;
   const tilesRef = useRef(null);
+  /* The vector basemap and the sheet it was built from: both are
+     needed to repaint it when somebody changes the app's language or
+     its theme (langRef, above, is the language it should speak). */
+  const glRef = useRef(null);
+  const rawStyleRef = useRef(null);
   const appDarkRef = useRef(appDark);
   appDarkRef.current = appDark;
 
@@ -518,6 +539,64 @@ export const LeafletMap = ({ center, markers = [], onPress, onMe, locate = true,
       }).addTo(map);
       tilesRef.current = tiles;
 
+      /* ── AND THEN, IF IT CAN, THE MAP THAT SPEAKS YOUR LANGUAGE ────
+         The picture tiles above go on FIRST and unconditionally, so the
+         map is never an empty rectangle waiting on a download. The
+         vector map replaces them only once it has really drawn itself:
+         a WebGL context, three files from a CDN and a style sheet all
+         have to arrive, and any one of them failing leaves the map
+         exactly as it has always been rather than blank.
+
+         What it buys, and the reason for all of it: the place names are
+         drawn HERE, so they can be drawn in the language this person
+         chose. See src/lib/mapStyle.js. */
+      const startVector = async () => {
+        const v = await loadVectorMap();
+        if (cancelled || !v || !mapRef.current) return;
+        let raw = null;
+        try {
+          const res = await fetch(VECTOR_STYLE_URL);
+          if (res.ok) raw = await res.json();
+        } catch (e) { raw = null; }
+        if (cancelled || !raw || !mapRef.current) return;
+        rawStyleRef.current = raw;
+        let gl = null;
+        try {
+          gl = v.L.maplibreGL({
+            style: momentsStyle(raw, { lang: langRef.current, dark: isDark() }),
+            /* The data is OpenStreetMap's and the tiles are
+               OpenFreeMap's; both licences ask to be named, and both
+               deserve to be. */
+            attribution: '© OpenStreetMap · OpenFreeMap',
+            /* The canvas takes the same class the picture tiles had, so
+               everything already written about how the map is tinted
+               keeps applying to it. */
+            className: 'mm-glmap',
+          }).addTo(map);
+        } catch (e) { return; }
+        glRef.current = gl;
+        const inner = gl.getMaplibreMap && gl.getMaplibreMap();
+        const swap = () => {
+          if (cancelled || !mapRef.current) return;
+          try { map.removeLayer(tiles); } catch (e) {}
+          map.getContainer().classList.add('mm-vector');
+        };
+        /* Only when it has actually painted. 'load' fires after the
+           first frame is on the screen; if it never comes, the picture
+           tiles are still there and nobody notices anything. */
+        if (inner && inner.once) {
+          inner.once('load', swap);
+          inner.on('error', () => {
+            if (cancelled || !glRef.current) return;
+            try { map.removeLayer(glRef.current); } catch (e) {}
+            glRef.current = null;
+            map.getContainer().classList.remove('mm-vector');
+            if (!map.hasLayer(tiles)) tiles.addTo(map);
+          });
+        } else { swap(); }
+      };
+      startVector();
+
       // (Zoom-out is handled by the real 3-D globe overlay below, so no
       // satellite tile layer is needed on the flat map any more.)
       mapRef.current = map;
@@ -529,6 +608,13 @@ export const LeafletMap = ({ center, markers = [], onPress, onMe, locate = true,
         const dark = isDark();
         map.getContainer().classList.toggle('mm-dark', dark);
         tiles.setUrl(dark ? DARK_TILES : LIGHT_TILES);
+        /* The vector map has a night palette of its own rather than the
+           inverted-daylight trick, so switching theme means repainting
+           it — same sheet, other colours. */
+        const inner = glRef.current && glRef.current.getMaplibreMap && glRef.current.getMaplibreMap();
+        if (inner && rawStyleRef.current) {
+          try { inner.setStyle(momentsStyle(rawStyleRef.current, { lang: langRef.current, dark })); } catch (e) {}
+        }
       };
       applyTheme();
       if (mq) { try { mq.addEventListener('change', applyTheme); } catch (e) { mq.addListener && mq.addListener(applyTheme); } }
@@ -780,6 +866,22 @@ export const LeafletMap = ({ center, markers = [], onPress, onMe, locate = true,
     if (typeof window !== 'undefined' && window.L && mapRef.current) draw(window.L);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [markers, lang, meAvatar, meDoing, meName]);
+
+  /* ── AND THE BASEMAP CHANGES LANGUAGE TOO ─────────────────────────
+     Our own pins and country names already follow the app's language.
+     The names printed on the map underneath them did not — that is the
+     half of "وحد اللغه في الخريطه" that could not be done at all until
+     the basemap became something we draw ourselves. Switching the app
+     to Arabic now renames every city on it. */
+  useEffect(() => {
+    const gl = glRef.current;
+    const inner = gl && gl.getMaplibreMap && gl.getMaplibreMap();
+    if (!inner || !rawStyleRef.current) return;
+    const dark = appDarkRef.current != null
+      ? !!appDarkRef.current
+      : !!(typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    try { inner.setStyle(momentsStyle(rawStyleRef.current, { lang, dark })); } catch (e) {}
+  }, [lang]);
 
   // glide down from the globe the moment the user's REAL location is
   // known (never to a placeholder). Later GPS moves just slide the

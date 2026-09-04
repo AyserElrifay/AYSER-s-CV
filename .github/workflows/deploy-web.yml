@@ -71,6 +71,14 @@ jobs:
       # for the absence. Both are checkable with no browser at all.
       - name: Check a video card shows a picture and reads right
         run: node scripts/check-video-card.mjs
+      # The map draws its own labels now, which is the only way it can
+      # draw them in the language somebody chose. That means every
+      # label is a decision, and a style has a few hundred layers —
+      # so this asserts that every one carrying text was rewritten,
+      # and that the old picture map is still underneath if any of it
+      # fails.
+      - name: Check the map speaks the app's language
+        run: node scripts/check-map-language.mjs
       # The country room is content, and content rots differently from
       # code: a country added in a hurry with eight phrases and no
       # customs crashes nothing, it just quietly becomes the thin,
