@@ -165,7 +165,7 @@ export const STORIES = [
 export const FEED = [
   {
     id: 'p1', user: USERS.clay, type: 'vod',
-    media: pic('clayset', 900, 520), duration: '02:41',
+    media: pic('clayset', 900, 520), durationSec: 161,
     caption: 'Behind the scenes — the "Neon Desert" shoot. Cranes up at golden hour, lasers after dark. Come watch the magic (and eat from the catering truck).',
     place: 'Katameya Dunes Backlot', startsIn: 'Live now',
     coords: { latitude: 29.966, longitude: 31.361 },

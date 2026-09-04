@@ -64,6 +64,13 @@ jobs:
       # survived for months. It is one pure function now.
       - name: Check a long video is allowed to be long
         run: node scripts/check-video-plan.mjs
+      # A video in the feed was a black rectangle with "WATCH ·
+      # undefined" written on it — for as long as videos have existed.
+      # An <Image> handed an .mp4 draws nothing, and a chip built by
+      # gluing a string to a field nobody ever filled prints the word
+      # for the absence. Both are checkable with no browser at all.
+      - name: Check a video card shows a picture and reads right
+        run: node scripts/check-video-card.mjs
       # The country room is content, and content rots differently from
       # code: a country added in a hurry with eight phrases and no
       # customs crashes nothing, it just quietly becomes the thin,

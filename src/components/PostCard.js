@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { View, Text, Pressable, Image, ImageBackground, Animated, Easing, TextInput } from 'react-native';
+import { View, Text, Pressable, Image, ImageBackground, Animated, Easing, TextInput, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
@@ -14,6 +14,7 @@ import { sfxLaugh, sfxLaughBig } from '../utils/sfx';
 import { translateText } from '../services/bardi';
 import { tapLight, tapSuccess } from '../utils/feedback';
 import { planWhen, upForLabel } from '../constants/travel';
+import { watchLabel } from '../lib/clock';
 import { getOrCreateDmThread, sendMessage } from '../services/messages';
 import { useAuth } from '../context/AuthContext';
 
@@ -21,9 +22,57 @@ import { useAuth } from '../context/AuthContext';
 const typeChip = (post) => {
   if (post.sponsored) return { label: 'SPONSORED', tint: 'rgba(17,24,39,0.65)', color: 'rgba(255,255,255,0.9)' };
   if (post.type === 'reel') return { label: 'REEL ✦', tint: 'rgba(124,58,237,0.9)', color: '#FFF' };
-  if (post.type === 'vod') return { label: '▶ WATCH · ' + post.duration, tint: 'rgba(17,24,39,0.65)', color: '#FFF' };
+  /* "▶ WATCH · undefined" was on every video in the feed. See
+     src/lib/clock.js — the length is real now, and when there isn't one
+     the chip is simply "▶ WATCH". */
+  if (post.type === 'vod') return { label: watchLabel(post.durationSec), tint: 'rgba(17,24,39,0.65)', color: '#FFF' };
   if (post.plan) return { label: 'TRAVEL PLAN 🧳', tint: 'rgba(16,185,129,0.9)', color: '#FFF' };
   return { label: 'MOMENT', tint: 'rgba(17,24,39,0.65)', color: 'rgba(255,255,255,0.85)' };
+};
+
+/* ─── A VIDEO IS NOT A PICTURE ────────────────────────────────────────
+   "ليه الفديوز من بره لونها اسود" — because the card was doing this:
+
+       <ImageBackground source={{ uri: post.media }} />
+
+   with post.media being an .mp4. An <Image> handed a video draws
+   nothing at all, so every video in the feed was a dark empty box with
+   a play button floating on it. The profile grid had already learned
+   this (ProfileScreen's Tile) and the feed had not.
+
+   The order of preference, and why:
+     1. the still we uploaded with the clip — instant, cheap, right;
+     2. on the web, the clip itself in a <video preload="metadata">,
+        seeked a hair past zero so the browser paints a real frame.
+        This is what saves every video posted before thumbnails
+        existed, and it downloads a few hundred kilobytes, not the film;
+     3. a dark tile, which is at least honestly a video.
+
+   `pointerEvents: none` on the video matters: the card's own tap
+   handler opens the player, and a <video> would otherwise eat it. */
+const isVideoPost = (post) => post.type === 'vod' || post.type === 'reel';
+
+const Backdrop = ({ post, style, children }) => {
+  const still = post.thumb || (isVideoPost(post) ? null : post.media);
+  if (still) {
+    return <ImageBackground source={{ uri: still }} style={style}>{children}</ImageBackground>;
+  }
+  const canPaint = Platform.OS === 'web' && isVideoPost(post) && post.media;
+  return (
+    <View style={[style, { backgroundColor: '#15151B', overflow: 'hidden' }]}>
+      {canPaint ? (
+        <video
+          src={post.media + '#t=0.1'}
+          muted
+          playsInline
+          preload="metadata"
+          tabIndex={-1}
+          style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover', pointerEvents: 'none' }}
+        />
+      ) : null}
+      {children}
+    </View>
+  );
 };
 
 export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onLaugh: onLaughProp, onRemoveLaugh, isMine, onDelete, onEdit, onShare, onJoin, onVibe, onComment, onOpenProfile, onOpenReel, onOpenLikers, onOpenLaughers, onReport, onOpenTag }) => {
@@ -326,7 +375,7 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
           Double-tap either one to vibe, Instagram style. */}
       {post.media ? (
         <Pressable onPress={handleMediaTap}>
-          <ImageBackground source={{ uri: post.media }} style={mediaAspect ? { aspectRatio: mediaAspect, justifyContent: 'space-between' } : { height: mediaH, justifyContent: 'space-between' }}>
+          <Backdrop post={post} style={mediaAspect ? { aspectRatio: mediaAspect, justifyContent: 'space-between' } : { height: mediaH, justifyContent: 'space-between' }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', padding: 12 }}>
               <Chip label={tc.label} tint={tc.tint} color={tc.color} />
               {post.startsIn === 'Live now' ? <Chip label={t('live_badge')} tint="rgba(244,63,94,0.9)" color="#fff" style={{ borderColor: 'transparent' }} /> : null}
@@ -356,7 +405,7 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
             </LinearGradient>
             )}
             {burstOverlay}
-          </ImageBackground>
+          </Backdrop>
         </Pressable>
       ) : plan ? null : (
         <Pressable onPress={handleMediaTap}>

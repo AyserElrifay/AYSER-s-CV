@@ -2232,6 +2232,19 @@ alter table public.posts add column if not exists thumb_url text;
 notify pgrst, 'reload schema';
 
 
+-- ═══════════ HOW LONG THE VIDEO RUNS ═══════════
+-- The chip on every video card in the feed read "▶ WATCH · undefined".
+-- Not on a broken post — on all of them, since the day videos existed,
+-- because the card was written as '▶ WATCH · ' + post.duration and no
+-- column, no query and no mapping ever carried a duration. Seconds,
+-- measured by the same element that already has the clip open in the
+-- capture screen, so nothing loads the file twice to find out.
+alter table public.posts add column if not exists duration_sec int
+  check (duration_sec is null or duration_sec > 0);
+
+notify pgrst, 'reload schema';
+
+
 -- ═══════════ TRAVEL PLANS ═══════════
 -- "I'm in Romania this August, who's around?" — a post whose point is
 -- the trip behind it. Everything a plan needs beyond a normal moment

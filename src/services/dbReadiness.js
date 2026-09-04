@@ -39,6 +39,13 @@ const CHECKS = [
     column: 'thumb_url',
   },
   {
+    id: 'duration_sec',
+    label: 'How long a video is',
+    what: 'A video card cannot say how long it runs.',
+    table: 'posts',
+    column: 'duration_sec',
+  },
+  {
     id: 'theme_pref',
     label: 'Settings that follow the account',
     what: 'Dark mode and the message timer stay on one phone.',

@@ -1262,6 +1262,14 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
   const [videoOk, setVideoOk] = useState(false);        // it really decoded a frame
   const [diag, setDiag] = useState(null);               // owner-only facts
   const [probeDone, setProbeDone] = useState(false);    // the frame check has finished
+  /* How long the clip runs. The element that is already open on the
+     file knows it, so nothing extra is loaded to find out — and
+     without it every video card in the feed said "WATCH · undefined". */
+  const [clipSec, setClipSec] = useState(null);
+  const noteLength = (el) => {
+    const d = el && Number(el.duration);
+    if (Number.isFinite(d) && d > 0) setClipSec(d);
+  };
   const previewOkRef = useRef(false);   // the preview got the clip open — no second element needed
   /* ── ONE VIDEO ELEMENT AT A TIME ──────────────────────────────────
      This used to build its own <video> and load the clip into it while
@@ -1277,6 +1285,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
      preview never manages it, by which time nothing is competing. */
   const probeFromElement = (el) => {
     if (!el || !el.videoWidth) return;
+    noteLength(el);
     try {
       const w = el.videoWidth, h = el.videoHeight;
       setDiag((d) => ({ ...(d || {}), pw: w, ph: h }));
@@ -1304,7 +1313,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
   };
 
   const probeClip = (uri) => {
-    setClipWarn(null); setFirstFrame(null); setPlayErr(null); setVideoOk(false); setDiag(null); setProbeDone(false);
+    setClipWarn(null); setFirstFrame(null); setPlayErr(null); setVideoOk(false); setDiag(null); setProbeDone(false); setClipSec(null);
     previewOkRef.current = false;
     if (!isWeb || !uri) return;
     let done = false;
@@ -1320,6 +1329,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
     const finish = (msg) => { if (!done) { done = true; setProbeDone(true); setClipWarn(msg); try { el.src = ''; } catch (e) {} } };
     const grab = () => {
       try {
+        noteLength(el);
         const w = el.videoWidth, h = el.videoHeight;
         setDiag((d) => ({ ...(d || {}), pw: w, ph: h }));
         if (!w || !h) return finish(t('cap_err_nopic'));
@@ -1457,7 +1467,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
       const mime = fit.contentType || file.type || 'video/mp4';
       const ext = fit.ext || (String(file.name || '').split('.').pop() || 'mp4').toLowerCase();
       const uri = fit.uri === file ? URL.createObjectURL(file) : (typeof fit.uri === 'string' ? fit.uri : URL.createObjectURL(fit.blob || file));
-      setShot({ uri, blob: fit.blob || file, bytes: (fit.blob || file).size, kind: 'video', ext, contentType: mime });
+      setShot({ uri, blob: fit.blob || file, bytes: (fit.blob || file).size, kind: 'video', ext, contentType: mime, seconds: fit.seconds });
       probeClip(uri);
     } catch (e) {
       setCamError(t('cap_err_camopen'));
@@ -1530,7 +1540,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
         const ext = fit.ext || (file.name.split('.').pop() || (isVid ? 'mp4' : 'jpg')).toLowerCase();
         const uri = URL.createObjectURL(body);
         // keep the File: it uploads without Safari ever fetching a blob URL
-        setShot({ uri, blob: body, bytes: body.size, kind: isVid ? 'video' : 'photo', ext, contentType: mime });
+        setShot({ uri, blob: body, bytes: body.size, kind: isVid ? 'video' : 'photo', ext, contentType: mime, seconds: isVid ? fit.seconds : undefined });
         if (isVid) probeClip(uri);
         return;
       }
@@ -1543,7 +1553,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
         if (isVid && !(await fitVideo(a.uri, { longForm: mode === 'video' }))) return; // too big → clear message, not 'Load failed'
         const mime = a.mimeType || (isVid ? 'video/mp4' : 'image/jpeg');
         const ext = (mime.split('/')[1] || (isVid ? 'mp4' : 'jpg')).replace('jpeg', 'jpg');
-        setShot({ uri: a.uri, kind: isVid ? 'video' : 'photo', ext, contentType: mime });
+        setShot({ uri: a.uri, kind: isVid ? 'video' : 'photo', ext, contentType: mime, seconds: isVid && a.duration ? a.duration / 1000 : undefined });
         if (isVid) probeClip(a.uri);
       }
     } catch (e) { setCamError(t('cap_err_gallery')); }
@@ -1652,7 +1662,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
         const body = fit.blob || file;
         const ext = fit.ext || (file.name.split('.').pop() || 'mp4').toLowerCase();
         const uri = URL.createObjectURL(body);
-        setShot({ uri, blob: body, bytes: body.size, kind: 'video', ext, contentType: fit.contentType || file.type || 'video/mp4' });
+        setShot({ uri, blob: body, bytes: body.size, kind: 'video', ext, contentType: fit.contentType || file.type || 'video/mp4', seconds: fit.seconds });
         probeClip(uri);
       } catch (e) { setCamError(t('cap_err_videos')); }
       return;
@@ -1664,7 +1674,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
         if (!(await fitVideo(a.uri, { longForm: mode === 'video' }))) return;
         const raw = (a.fileName || a.uri || 'video.mp4').split('?')[0];
         const ext = (raw.split('.').pop() || 'mp4').toLowerCase();
-        setShot({ uri: a.uri, kind: 'video', ext: ext || 'mp4', contentType: a.mimeType || ('video/' + (ext || 'mp4')) });
+        setShot({ uri: a.uri, kind: 'video', ext: ext || 'mp4', contentType: a.mimeType || ('video/' + (ext || 'mp4')), seconds: a.duration ? a.duration / 1000 : undefined });
         probeClip(a.uri);
       }
     } catch (e) { setCamError(t('cap_err_videos')); }
@@ -1678,7 +1688,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
     if (!result.canceled && result.assets && result.assets[0]) {
       const a = result.assets[0];
       const isVid = (a.type || '').startsWith('video');
-      setShot({ uri: a.uri, kind: isVid ? 'video' : 'photo', ext: isVid ? 'mp4' : 'jpg', contentType: isVid ? 'video/mp4' : 'image/jpeg' });
+      setShot({ uri: a.uri, kind: isVid ? 'video' : 'photo', ext: isVid ? 'mp4' : 'jpg', contentType: isVid ? 'video/mp4' : 'image/jpeg', seconds: isVid && a.duration ? a.duration / 1000 : undefined });
     }
   };
 
@@ -1779,6 +1789,11 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
            picture, so it goes up with the clip. Best effort: no still
            is a worse grid, not a failed post. */
         let thumbUrl = null;
+        /* The length, from whichever measured it: the preview element
+           that had the file open, or the size check that had to decode
+           it anyway. Rounded, and only if it is real — a made-up number
+           on a card is worse than no number. */
+        const durationSec = clipSec || workingShot.seconds || null;
         const mediaUrl = alreadyUp
           ? workingShot.uri
           : isWeb
@@ -1818,7 +1833,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
           });
         } else if (mode === 'video') {
           const row = await createPost({
-            userId: user.id, type: 'vod', caption: finalCaption() || '🎬 Video', mediaUrl, thumbUrl,
+            userId: user.id, type: 'vod', caption: finalCaption() || '🎬 Video', mediaUrl, thumbUrl, durationSec,
             place: onMap ? (placeName.trim() || 'Right here') : null,
             lat: onMap && mapCoords ? mapCoords.latitude : null,
             lng: onMap && mapCoords ? mapCoords.longitude : null,
@@ -1826,7 +1841,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
           onPosted && onPosted(row);
         } else {
           const row = await createPost({
-            userId: user.id, type: 'reel', caption: finalCaption() || '🎬', mediaUrl, sound, thumbUrl,
+            userId: user.id, type: 'reel', caption: finalCaption() || '🎬', mediaUrl, sound, thumbUrl, durationSec,
             place: onMap ? (placeName.trim() || 'Right here') : null,
             lat: onMap && mapCoords ? mapCoords.latitude : null,
             lng: onMap && mapCoords ? mapCoords.longitude : null,
@@ -1975,6 +1990,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
                 el.play().catch((e) => setPlayErr((e && e.name) || 'blocked'));
                 el.onloadeddata = () => {
                   if (el.videoWidth > 0) { setVideoOk(true); previewOkRef.current = true; }
+                  noteLength(el);
                   // the clip's own shape, for the lens overlay
                   if (el.videoWidth && el.videoHeight) {
                     setFrameSize((f) => (f.w === el.videoWidth && f.h === el.videoHeight ? f : { w: el.videoWidth, h: el.videoHeight }));

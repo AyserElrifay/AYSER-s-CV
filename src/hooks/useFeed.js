@@ -49,6 +49,13 @@ export const toCard = (row) => ({
   },
   type: row.type || 'post',
   media: row.media_url || null, // no photo → renders as a text moment
+  /* ── THE STILL, AND THE LENGTH ────────────────────────────────────
+     Both of these existed on the row and neither one reached the card.
+     The still is why a posted video was a black rectangle in the feed:
+     the card handed the .mp4 URL to an <Image>, which draws nothing.
+     The length is why the chip on it read "WATCH · undefined". */
+  thumb: row.thumb_url || null,
+  durationSec: Number.isFinite(row.duration_sec) ? row.duration_sec : null,
   textBg: row.text_bg || null,
   caption: row.caption || '',
   // a travel plan rides along with the post it belongs to

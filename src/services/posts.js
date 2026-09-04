@@ -266,7 +266,7 @@ export async function fetchTravelPlans({ q = '', limit = 40 } = {}) {
   return rows.slice(0, limit);
 }
 
-export async function createPost({ userId, type = 'post', caption, place, mediaUrl, thumbUrl, textBg, lat, lng, squadName, sound, plan }) {
+export async function createPost({ userId, type = 'post', caption, place, mediaUrl, thumbUrl, durationSec, textBg, lat, lng, squadName, sound, plan }) {
   let payload = {
     user_id: userId,
     type,
@@ -279,6 +279,10 @@ export async function createPost({ userId, type = 'post', caption, place, mediaU
     // the still shown wherever a video can't play yet — a grid tile,
     // a chat card. Without it a posted reel was a blank white square.
     thumb_url: thumbUrl || null,
+    // how long the clip runs, in seconds. The card printed the word
+    // "undefined" where this should have been for as long as videos
+    // have existed, because nothing was ever measuring it.
+    duration_sec: Number.isFinite(durationSec) && durationSec > 0 ? Math.round(durationSec) : null,
     text_bg: textBg,
     lat,
     lng,
