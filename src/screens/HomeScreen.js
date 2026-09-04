@@ -94,7 +94,7 @@ export const HomeScreen = () => {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { t, rtl } = useLang();
-  const { posts, refreshing, refresh, prependPost, removePost, patchPost, loadError } = useFeed();
+  const { posts, refreshing, refresh, prependPost, removePost, patchPost, loadError, settled } = useFeed();
   const [joined, setJoined] = useState({});
   const [vibes, setVibes] = useState({});
   const [laughs, setLaughs] = useState({});
@@ -497,7 +497,31 @@ export const HomeScreen = () => {
           );
         }}
         ListEmptyComponent={
-          SUPABASE_READY ? (
+          /* Still loading and nothing has arrived yet: show the shape of
+             the feed, not the words "no moments yet". Those words are a
+             statement of fact, and until the first load has answered we
+             do not have the fact — so three quiet placeholder cards hold
+             the space instead of telling the person their feed is empty
+             when it might be a second from filling. */
+          SUPABASE_READY && !settled && !loadError ? (
+            <View style={{ paddingHorizontal: 14, paddingTop: 8 }}>
+              {[0, 1, 2].map((i) => (
+                <View key={i} style={{
+                  backgroundColor: C.glass, borderRadius: 18, padding: 14, marginBottom: 14,
+                  borderWidth: 1, borderColor: C.line, opacity: 1 - i * 0.22,
+                }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: C.line }} />
+                    <View style={{ marginStart: 10, flex: 1 }}>
+                      <View style={{ width: '45%', height: 11, borderRadius: 6, backgroundColor: C.line }} />
+                      <View style={{ width: '28%', height: 9, borderRadius: 6, backgroundColor: C.line, marginTop: 6 }} />
+                    </View>
+                  </View>
+                  <View style={{ height: 150, borderRadius: 12, backgroundColor: C.line, marginTop: 12 }} />
+                </View>
+              ))}
+            </View>
+          ) : SUPABASE_READY ? (
             <View style={{ alignItems: 'center', paddingVertical: 60, paddingHorizontal: 30 }}>
               <Text style={{ fontSize: 34 }}>{loadError ? '📡' : '✨'}</Text>
               <Text style={{ color: C.text, fontSize: 15.5, fontWeight: '800', marginTop: 10, textAlign: 'center' }}>

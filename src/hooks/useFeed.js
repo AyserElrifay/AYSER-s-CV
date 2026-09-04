@@ -77,6 +77,18 @@ export function useFeed() {
   const [refreshing, setRefreshing] = useState(false);
   const [isLive] = useState(SUPABASE_READY); // true whenever real mode is on, empty or not
   const [loadError, setLoadError] = useState(null);
+  /* ── EMPTY, OR NOT LOADED YET? ────────────────────────────────────
+     posts starts as [] and stays [] until the first fetch answers, so
+     for the whole of that first second an empty feed and a still-loading
+     feed look the same on screen — and the screen shows "No moments yet,
+     be the first". On a slow connection you open straight onto that and
+     then watch real posts push it away, which reads as the app opening
+     broken and then correcting itself.
+
+     settled is false until the first load has actually finished, once.
+     The screen shows a calm skeleton until then, and "be the first"
+     appears only after a real load came back with nothing. */
+  const [settled, setSettled] = useState(!SUPABASE_READY);
 
   const load = useCallback(async () => {
     if (!SUPABASE_READY) {
@@ -111,6 +123,8 @@ export function useFeed() {
          schema caches at people who were only looking for their friends.
          See src/lib/explain.js. */
       setLoadError(explain(e));
+    } finally {
+      setSettled(true);
     }
   }, []);
 
@@ -137,5 +151,5 @@ export function useFeed() {
     setPosts((p) => p.map((x) => (x.id === id ? { ...x, ...fields } : x)));
   }, []);
 
-  return { posts, refreshing, refresh, isLive, prependPost, removePost, patchPost, loadError };
+  return { posts, refreshing, refresh, isLive, prependPost, removePost, patchPost, loadError, settled };
 }
