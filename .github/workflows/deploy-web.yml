@@ -85,6 +85,12 @@ jobs:
       # what may play and what may be downloaded before anybody asks.
       - name: Check nobody's data bundle gets spent for them
         run: node scripts/check-data-saver.mjs
+      # Every clip got a cover already — whatever was on screen a
+      # quarter of a second in, which on a phone is very often the
+      # frame before the exposure settled. A cover that is a picture of
+      # nothing is why a posted reel looked like a black tile.
+      - name: Check a video's cover is a picture of something
+        run: node scripts/check-cover.mjs
       # The country room is content, and content rots differently from
       # code: a country added in a hurry with eight phrases and no
       # customs crashes nothing, it just quietly becomes the thin,

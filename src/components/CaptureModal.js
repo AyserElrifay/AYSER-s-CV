@@ -39,6 +39,7 @@ import { tapLight, tapMedium, tapSuccess, tapSelection } from '../utils/feedback
 import { getCurrentCoords } from '../utils/location';
 import { sfxPop, sfxSuccess } from '../utils/sfx';
 import { setupNotice } from '../lib/plumbing';
+import { grabFrames, pickBest } from '../lib/frames';
 
 /* ─── THE CAPTURE SCREEN — easier than IG, TikTok and Snap combined ───
    One tap opens a LIVE viewfinder. Tap the shutter for a photo, hold it
@@ -1266,6 +1267,20 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
      file knows it, so nothing extra is loaded to find out — and
      without it every video card in the feed said "WATCH · undefined". */
   const [clipSec, setClipSec] = useState(null);
+  /* ── THE COVER, CHOSEN RATHER THAN TAKEN ────────────────────────
+     "خلي الريل يبقي ليها cover منها automatic بتختاره منها او الي بنزل
+     الريل يقدر يعمل edite وهو بينزلها".
+
+     Every clip already got a cover: whatever was on screen a quarter
+     of a second in. On a phone that is very often the frame before the
+     exposure settled — which is how a posted reel ends up a black tile
+     in the grid even though it has a cover.
+
+     So six frames are pulled out across the clip, the one with
+     something actually IN it is chosen (src/lib/frames.js scores them),
+     and the strip is on screen so it can be overruled in one tap. */
+  const [covers, setCovers] = useState([]);
+  const [chosenCover, setChosenCover] = useState(null);
   const noteLength = (el) => {
     const d = el && Number(el.duration);
     if (Number.isFinite(d) && d > 0) setClipSec(d);
@@ -1314,6 +1329,18 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
 
   const probeClip = (uri) => {
     setClipWarn(null); setFirstFrame(null); setPlayErr(null); setVideoOk(false); setDiag(null); setProbeDone(false); setClipSec(null);
+    setCovers([]); setChosenCover(null);
+    /* the cover strip. Separate from the probe above on purpose: the
+       probe answers "did this record anything at all", which has to be
+       fast, and this walks the whole clip. */
+    if (isWeb && uri) {
+      grabFrames(uri, 6).then(({ frames }) => {
+        if (!frames.length) return;
+        setCovers(frames);
+        const best = pickBest(frames);
+        if (best >= 0) setChosenCover(frames[best].url);
+      }, () => {});
+    }
     previewOkRef.current = false;
     if (!isWeb || !uri) return;
     let done = false;
@@ -1799,9 +1826,12 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
           : isWeb
             ? await uploadCapture(user.id, workingShot.blob || workingShot.uri, workingShot.ext, workingShot.contentType, { onProgress: (l, t) => setUpPct(t ? l / t : 0) })
             : await uploadMedia(user.id, workingShot.uri);
-        if (isWeb && workingShot.kind === 'video' && firstFrame) {
+        /* the cover they chose, or the one we chose for them, or the
+           frame the probe happened to have — in that order */
+        const coverUrl = chosenCover || firstFrame;
+        if (isWeb && workingShot.kind === 'video' && coverUrl) {
           try {
-            thumbUrl = await uploadCapture(user.id, firstFrame, 'jpg', 'image/jpeg');
+            thumbUrl = await uploadCapture(user.id, coverUrl, 'jpg', 'image/jpeg');
           } catch (e) { thumbUrl = null; }   // a missing still is not a failed post
         }
         if (alreadyUp && shot.libraryId) markUsed(shot.libraryId);
@@ -2770,6 +2800,31 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
                       </View>
                     </Pressable>
                   ) : null}
+                </View>
+              ) : null}
+
+              {/* pick the frame this goes out with */}
+              {covers.length > 1 && shot && shot.kind === 'video' && !sendMode ? (
+                <View style={{ marginBottom: 10 }}>
+                  <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 11.5, fontWeight: '800', marginBottom: 6 }}>
+                    {t('cover_title')}
+                  </Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                    {covers.map((f) => {
+                      const on = chosenCover === f.url;
+                      return (
+                        <Pressable key={f.t} onPress={() => { tapLight(); setChosenCover(f.url); }} style={{ marginRight: 8 }}>
+                          <Image
+                            source={{ uri: f.url }}
+                            style={{
+                              width: 46, height: 68, borderRadius: 9, backgroundColor: 'rgba(255,255,255,0.1)',
+                              borderWidth: on ? 2.5 : 1, borderColor: on ? C.purple : 'rgba(255,255,255,0.35)',
+                            }}
+                          />
+                        </Pressable>
+                      );
+                    })}
+                  </ScrollView>
                 </View>
               ) : null}
 

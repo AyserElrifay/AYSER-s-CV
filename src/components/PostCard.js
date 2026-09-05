@@ -17,6 +17,7 @@ import { planWhen, upForLabel } from '../constants/travel';
 import { watchLabel } from '../lib/clock';
 import { videoPolicy, DEFAULT_DATA_MODE } from '../lib/dataSaver';
 import { getPrefs, subscribePrefs } from '../services/prefs';
+import { CoverSheet } from './CoverSheet';
 import { getOrCreateDmThread, sendMessage } from '../services/messages';
 import { useAuth } from '../context/AuthContext';
 
@@ -137,7 +138,7 @@ const Backdrop = ({ post, style, children }) => {
   );
 };
 
-export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onLaugh: onLaughProp, onRemoveLaugh, isMine, onDelete, onEdit, onShare, onJoin, onVibe, onComment, onOpenProfile, onOpenReel, onOpenLikers, onOpenLaughers, onReport, onOpenTag }) => {
+export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onLaugh: onLaughProp, onRemoveLaugh, isMine, onDelete, onEdit, onShare, onJoin, onVibe, onComment, onOpenProfile, onOpenReel, onOpenLikers, onOpenLaughers, onReport, onOpenTag, onSetCover }) => {
   // Moments are captured at an enforced 4:5 crop (ComposeModal) — sizing
   // the card by aspect ratio, not a fixed height, means the feed shows
   // exactly what was cropped, no extra cover-crop surprise.
@@ -186,6 +187,8 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
     } finally { setChatBusy(false); }
   };
   const [reported, setReported] = useState(false);
+  /* the picture people see before a video plays — see CoverSheet */
+  const [coverOpen, setCoverOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editCaption, setEditCaption] = useState(post.caption || '');
   const [editBusy, setEditBusy] = useState(false);
@@ -367,6 +370,16 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
                     <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800', marginLeft: 9 }}>{t('edit_caption')}</Text>
                   </View>
                 </Pressable>
+                {/* a video's cover, changeable after it is posted —
+                    only ever on your own, and only on a video */}
+                {onSetCover && isVideoPost(post) && post.media ? (
+                  <Pressable onPress={() => { setMenuOpen(false); setCoverOpen(true); }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', padding: 12, borderBottomWidth: 1, borderBottomColor: C.line }}>
+                      <Ionicons name="image-outline" size={17} color={C.purple} />
+                      <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800', marginLeft: 9 }}>{t('cover_change')}</Text>
+                    </View>
+                  </Pressable>
+                ) : null}
                 <Pressable onPress={() => setConfirmDel(true)}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', padding: 12 }}>
                     <Ionicons name="trash-outline" size={17} color={C.coral} />
@@ -386,6 +399,15 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
             </Pressable>
           )}
         </View>
+      ) : null}
+
+      {coverOpen ? (
+        <CoverSheet
+          videoUrl={post.media}
+          current={post.thumb}
+          onClose={() => setCoverOpen(false)}
+          onChoose={(dataUrl) => onSetCover(post, dataUrl)}
+        />
       ) : null}
 
       {/* inline caption editor — edit your own moment's words */}

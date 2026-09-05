@@ -6,7 +6,7 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { C } from '../constants/theme';
 import { av, AV_NEUTRAL } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
-import { toggleVibe, toggleLaugh, toggleRepost, joinPost, fetchEngagement } from '../services/social';
+import { toggleVibe, toggleLaugh, toggleRepost, joinPost, fetchEngagement, uploadCapture } from '../services/social';
 import { getProfile } from '../services/profiles';
 import { fetchMyPosts, deletePost, updatePost } from '../services/posts';
 import { fetchActiveStories, fetchStoryById, sweepMyExpiredStories } from '../services/stories';
@@ -385,6 +385,27 @@ export const HomeScreen = () => {
     if (SUPABASE_READY && user) await updatePost(post.id, user.id, { caption });
   };
 
+  /* ── THE PICTURE A VIDEO SHOWS ────────────────────────────────────
+     "او بعد ما ينزلها و يحطه" — change the cover after it is posted.
+     The sheet picks the frame (src/components/CoverSheet.js); this
+     puts it somewhere and writes it on the post. The card changes
+     first and the upload follows, because a cover you chose should
+     appear the moment you chose it. */
+  const onSetCover = async (post, dataUrl) => {
+    if (!dataUrl) return;
+    patchPost(post.id, { thumb: dataUrl });          // instantly, locally
+    if (!SUPABASE_READY || !user) return;
+    try {
+      const url = await uploadCapture(user.id, dataUrl, 'jpg', 'image/jpeg');
+      await updatePost(post.id, user.id, { thumb_url: url });
+      patchPost(post.id, { thumb: url });             // and now the real one
+    } catch (e) {
+      /* the cover stays as it was on the server; the card keeps the
+         one they chose until the feed is loaded again, which is the
+         gentler of the two lies available here */
+    }
+  };
+
   /* You, shaped like a profile card — tap your avatar to see it.
      Real mode reads your actual profiles row; nothing here is fabricated. */
   const me = {
@@ -524,6 +545,7 @@ export const HomeScreen = () => {
               isMine={(user && item.userId === user.id) || item.user.name === 'You'}
               onDelete={onDelete}
               onEdit={onEditPost}
+              onSetCover={onSetCover}
               onShare={onShare}
               onJoin={setMagicPost}
               onVibe={() => onVibe(item)}
