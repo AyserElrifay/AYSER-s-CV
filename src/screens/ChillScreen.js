@@ -19,6 +19,7 @@ import { Glass } from '../components/Glass';
 import { Page } from '../components/Page';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { SectionHeader } from '../components/SectionHeader';
+import { Shortcut, ShortcutRow } from '../components/Shortcut';
 import { MusicHubSheet } from '../components/MusicHubSheet';
 import { FilmSheet } from '../components/FilmSheet';
 import { BooksShelf } from '../components/BooksShelf';
@@ -144,6 +145,12 @@ export const ChillScreen = () => {
   const { playTrack, current } = usePlayer();
   const [tracks, setTracks] = useState(null);
   const [hubOpen, setHubOpen] = useState(false);
+  /* The book shelf is a small app of its own — a search box, seven
+     shelves, a reader. It was sitting in the middle of this screen
+     taking a screenful whether or not anybody wanted a book, and its
+     failure state ("Could not open the shelf") was the loudest thing
+     on the tab. It opens from the row of buttons now. */
+  const [booksOpen, setBooksOpen] = useState(false);
   /* A taste of the whole library rather than the top of one pile:
      take a couple from each mood so classics, chill and hype are all
      represented in the twelve rows this strip has room for. */
@@ -266,32 +273,27 @@ export const ChillScreen = () => {
         </LinearGradient>
       </Pressable>
 
-      {/* The two that used to be gradient blocks of their own. Same
-          reach, a third of the noise. */}
-      {[
-        { key: 'green', icon: 'leaf', tint: C.green, title: t('green_title'), sub: t('green_tagline'), go: () => setGreenOpen(true) },
-        { key: 'culture', icon: 'business', tint: C.gold, title: t('culture_title'), sub: t('culture_sub'), go: () => setCultureOpen(true) },
-        { key: 'country', icon: 'globe-outline', tint: C.purple, title: t('country_title'), sub: t('country_sub'), go: () => setCountryOpen(true) },
-      ].map((row) => (
-        <Pressable key={row.key} onPress={() => { tapLight(); sfxPop(); row.go(); }}>
-          <View style={{
-            flexDirection: 'row', alignItems: 'center', paddingVertical: 11,
-            borderBottomWidth: 1, borderBottomColor: C.line,
-          }}>
-            <View style={{
-              width: 36, height: 36, borderRadius: 11, alignItems: 'center', justifyContent: 'center',
-              backgroundColor: row.tint + '22',
-            }}>
-              <Ionicons name={row.icon} size={19} color={row.tint} />
-            </View>
-            <View style={{ flex: 1, minWidth: 0, marginStart: 12 }}>
-              <Text style={{ color: C.text, fontSize: 15, fontWeight: '800' }}>{row.title}</Text>
-              <Text numberOfLines={1} style={{ color: C.faint, fontSize: 12, marginTop: 1 }}>{row.sub}</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={17} color={C.faint} />
-          </View>
-        </Pressable>
-      ))}
+      {/* ── AND EVERYTHING ELSE IS A BUTTON ─────────────────────────
+          "خلي تاب الentertaining تبقي مور simple".
+
+          It was six full sections stacked down the screen, four of
+          which were EMPTY BOXES: "No tracks yet", "No videos yet",
+          "Could not open the shelf", "The film catalogue hasn't been
+          filled yet". Four screenfuls of apology. A person opening
+          this tab to be entertained scrolled past four notices that
+          there was nothing here.
+
+          The rule now, and it is the same one the Chats tab got: a
+          section with nothing in it is not a section, it is a button.
+          What there IS shows as itself; what there is not is one round
+          button that opens the place where you can go get some. */}
+      <ShortcutRow>
+        <Shortcut emoji="🌿" label={t('green_title')} onPress={() => { tapLight(); sfxPop(); setGreenOpen(true); }} />
+        <Shortcut emoji="🏛" label={t('culture_title')} onPress={() => { tapLight(); sfxPop(); setCultureOpen(true); }} />
+        <Shortcut emoji="🌍" label={t('country_title')} onPress={() => { tapLight(); sfxPop(); setCountryOpen(true); }} />
+        <Shortcut emoji="🎧" label={t('music_word')} onPress={() => { tapLight(); sfxPop(); setHubOpen(true); }} />
+        <Shortcut emoji="📚" label={t('read_word')} onPress={() => { tapLight(); sfxPop(); setBooksOpen(true); }} />
+      </ShortcutRow>
 
       <View style={{ height: 18 }} />
       <SectionHeader title={t('sec_play')} />
@@ -318,7 +320,11 @@ export const ChillScreen = () => {
         ))}
       </ScrollView>
 
-      {/* ── LISTEN — a real music library on your legal catalog ── */}
+      {/* ── LISTEN — only when there is something to listen to. The
+             Hub is a button up there; an empty music section is not a
+             section, it is a sign. ── */}
+      {tracks && tracks.length ? (
+      <>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         <SectionHeader title={t('sec_listen')} />
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -336,58 +342,27 @@ export const ChillScreen = () => {
       </View>
       <View style={{ height: 4 }} />
 
-      {tracks === null ? (
-        /* Shaped like the list that is coming, not like a sign saying
-           one is coming. A short "Loading…" slab turning into three tall
-           rows shoves everything below it down the screen the instant
-           the data lands — that lurch is what makes the app feel like it
-           froze and then jumped. Occupy the space now, fill it in later,
-           and nothing moves. */
-        <Glass style={{ padding: 6, marginBottom: 24 }}>
-          {[0, 1, 2].map((i) => (
-            <View key={i} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 8, opacity: 0.55 - i * 0.13 }}>
-              <View style={{ width: 44, height: 44, borderRadius: 11, backgroundColor: C.glassHi, marginRight: 12 }} />
-              <View style={{ flex: 1 }}>
-                <View style={{ height: 11, width: '70%', borderRadius: 6, backgroundColor: C.glassHi }} />
-                <View style={{ height: 9, width: '45%', borderRadius: 5, backgroundColor: C.glassHi, marginTop: 7 }} />
-              </View>
-            </View>
-          ))}
-        </Glass>
-      ) : tracks.length === 0 ? (
-        <Glass style={{ padding: 22, alignItems: 'center', marginBottom: 24 }}>
-          <Text style={{ fontSize: 34 }}>🎼</Text>
-          <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '900', marginTop: 8 }}>{t('no_tracks')}</Text>
-          <Text style={{ color: C.dim, fontSize: 12, marginTop: 4, textAlign: 'center', lineHeight: 17 }}>
-            {t('no_tracks_hint')}
-          </Text>
-          <Pressable onPress={() => { tapLight(); setHubOpen(true); }} style={{ marginTop: 12 }}>
-            <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 20, paddingVertical: 10 }}>
-              <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '900' }}>{t('open_music_hub')}</Text>
-            </View>
-          </Pressable>
-        </Glass>
-      ) : (
-        <Glass style={{ padding: 6, marginBottom: 24 }}>
-          {listenSample.map((t, i) => {
-            const on = current && current.id === t.id;
-            return (
-              <Pressable key={t.id} onPress={() => { tapLight(); sfxPop(); playFrom(i); }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 8, borderRadius: 12, backgroundColor: on ? C.purpleSoft : 'transparent' }}>
-                  <View style={{ width: 44, height: 44, borderRadius: 11, backgroundColor: on ? C.purple : C.glass, borderWidth: on ? 0 : 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
-                    <Text style={{ fontSize: 20 }}>{t.emoji}</Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ color: on ? C.purple : C.text, fontSize: 14, fontWeight: '800' }} numberOfLines={1}>{t.title}</Text>
-                    <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 1 }} numberOfLines={1}>{t.artist}{t.license ? ' · © ' + t.license : ''}</Text>
-                  </View>
-                  <Ionicons name={on ? 'musical-notes' : 'play'} size={on ? 18 : 20} color={on ? C.purple : C.dim} />
+      <Glass style={{ padding: 6, marginBottom: 24 }}>
+        {listenSample.map((t, i) => {
+          const on = current && current.id === t.id;
+          return (
+            <Pressable key={t.id} onPress={() => { tapLight(); sfxPop(); playFrom(i); }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 8, borderRadius: 12, backgroundColor: on ? C.purpleSoft : 'transparent' }}>
+                <View style={{ width: 44, height: 44, borderRadius: 11, backgroundColor: on ? C.purple : C.glass, borderWidth: on ? 0 : 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                  <Text style={{ fontSize: 20 }}>{t.emoji}</Text>
                 </View>
-              </Pressable>
-            );
-          })}
-        </Glass>
-      )}
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: on ? C.purple : C.text, fontSize: 14, fontWeight: '800' }} numberOfLines={1}>{t.title}</Text>
+                  <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 1 }} numberOfLines={1}>{t.artist}{t.license ? ' · © ' + t.license : ''}</Text>
+                </View>
+                <Ionicons name={on ? 'musical-notes' : 'play'} size={on ? 18 : 20} color={on ? C.purple : C.dim} />
+              </View>
+            </Pressable>
+          );
+        })}
+      </Glass>
+      </>
+      ) : null}
 
       {/* ── LONG-FORM VIDEOS (real uploads) ── */}
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -412,18 +387,16 @@ export const ChillScreen = () => {
           </View>
         </View>
       ) : videos.length === 0 ? (
-        <Glass style={{ padding: 24, alignItems: 'center', marginBottom: 24 }}>
-          <Text style={{ fontSize: 40 }}>🎬</Text>
-          <Text style={{ color: C.text, fontSize: 15, fontWeight: '900', marginTop: 10 }}>{t('no_videos')}</Text>
-          <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 5, textAlign: 'center', lineHeight: 18 }}>
-            {t('no_videos_hint')}
-          </Text>
-          <Pressable onPress={() => { tapSuccess(); sfxPop(); setShooting(true); }} style={{ marginTop: 14 }}>
-            <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 22, paddingVertical: 11 }}>
-              <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900' }}>{t('upload_video')}</Text>
-            </View>
-          </Pressable>
-        </Glass>
+        /* One line, not a box with a picture of a clapperboard on it.
+           "Upload" is already in the heading above; this says what the
+           space is for without pretending to be content. */
+        <Pressable onPress={() => { tapSuccess(); sfxPop(); setShooting(true); }} style={{ marginBottom: 24 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12 }}>
+            <Ionicons name="videocam-outline" size={18} color={C.purple} />
+            <Text style={{ color: C.dim, fontSize: 13, marginStart: 10, flex: 1 }} numberOfLines={1}>{t('no_videos_hint')}</Text>
+            <Ionicons name="chevron-forward" size={16} color={C.faint} />
+          </View>
+        </Pressable>
       ) : (
         videos.map((v) => (
           <Pressable key={v.id} onPress={() => { tapLight(); sfxPop(); setPlayer(v); }} style={{ marginBottom: 16 }}>
@@ -465,13 +438,13 @@ export const ChillScreen = () => {
         ))
       )}
 
-      {/* ── READ — free out-of-copyright books, and a real shop for the rest ── */}
-      <View style={{ marginTop: 26 }}>
-        <BooksShelf />
-      </View>
 
       {/* ── WATCH — real films from our own catalogue, with real posters,
-             a synopsis, and what the people here made of them ── */}
+             a synopsis, and what the people here made of them. Shown
+             only when there ARE films: an empty catalogue used to
+             announce itself with a genre picker and a paragraph. ── */}
+      {films && films.length ? (
+      <>
       <SectionHeader title={t('sec_watch')} style={{ marginTop: 8 }} />
       <Text style={{ color: C.dim, fontSize: 12.5, marginTop: -6, marginBottom: 12, lineHeight: 18 }}>
         {t('watch_hint')}
@@ -485,12 +458,7 @@ export const ChillScreen = () => {
           </Pressable>
         ))}
       </ScrollView>
-      {films === null ? (
-        <View style={{ height: 200, alignItems: 'center', justifyContent: 'center' }}>
-          <ActivityIndicator color={C.purple} />
-        </View>
-      ) : films.length ? (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 24 }}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 24 }}>
           {films.map((m) => {
             const ours = filmScores[m.id];
             return (
@@ -523,15 +491,9 @@ export const ChillScreen = () => {
               </Pressable>
             );
           })}
-        </ScrollView>
-      ) : (
-        <View style={{ paddingVertical: 30, alignItems: 'center', marginBottom: 20 }}>
-          <Text style={{ fontSize: 28 }}>🎬</Text>
-          <Text style={{ color: C.faint, fontSize: 12.5, marginTop: 8, textAlign: 'center', lineHeight: 18 }}>
-            {t('films_empty')}
-          </Text>
-        </View>
-      )}
+      </ScrollView>
+      </>
+      ) : null}
     </Page>
 
     {film ? (
@@ -541,6 +503,23 @@ export const ChillScreen = () => {
         onClose={() => setFilm(null)}
         onSaved={() => { if (films && films.length) fetchOurScores(films.map((r) => r.id)).then(setFilmScores).catch(() => {}); }}
       />
+    ) : null}
+
+    {/* The shelf, opened on purpose rather than sat in the way */}
+    {booksOpen ? (
+      <Modal visible transparent={false} animationType="slide" onRequestClose={() => setBooksOpen(false)}>
+        <View style={{ flex: 1, backgroundColor: C.bg }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingTop: 54, paddingBottom: 8 }}>
+            <Text style={{ color: C.text, fontSize: 20, fontWeight: '900', flex: 1 }}>{t('sec_read')}</Text>
+            <Pressable onPress={() => { tapLight(); setBooksOpen(false); }} hitSlop={10}>
+              <Ionicons name="close" size={24} color={C.dim} />
+            </Pressable>
+          </View>
+          <ScrollView contentContainerStyle={{ paddingHorizontal: 14, paddingBottom: 40 }}>
+            <BooksShelf />
+          </ScrollView>
+        </View>
+      </Modal>
     ) : null}
 
     {/* Music Hub — browse / upload / license; picking a track plays it here */}

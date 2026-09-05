@@ -23,6 +23,7 @@ import { OnlineDot } from '../components/OnlineDot';
 import { Page } from '../components/Page';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { SectionHeader } from '../components/SectionHeader';
+import { Shortcut, ShortcutRow } from '../components/Shortcut';
 import { StreakBadge } from '../components/StreakBadge';
 import { Tick } from '../components/Tick';
 import { sendMoment } from '../services/messages';
@@ -112,39 +113,6 @@ function activeLabel(iso) {
   if (days <= 7) return 'Active ' + days + 'd ago';
   return 'Recently active';
 }
-
-/* ─── ONE ROW FOR EVERYTHING THAT IS NOT A CONVERSATION ───────────────
-   Ayser, a second time: "أنا مش عجبني ان tap chats زحمه كده".
-
-   The first pass fixed the ORDER — conversations went to the top. It
-   did not fix the amount. Under two conversations there were still
-   two cards with a subtitle each, two section headings, a paragraph
-   explaining the language exchange, a settings row and a line saying
-   nobody had switched it on: about two hundred and fifty pixels of
-   places-to-go and admin, permanently, on the screen you open to talk
-   to somebody.
-
-   None of it is unimportant and none of it is a conversation. So it is
-   one row of round buttons under the title — the same move Telegram
-   makes with folders and WhatsApp with the status row — and everything
-   they used to explain lives inside the thing they open.
-
-   The rest of the screen is people, which is what it is for. */
-const Shortcut = ({ emoji, label, onPress }) => (
-  <Pressable onPress={onPress} style={{ alignItems: 'center', width: 76 }}>
-    <View style={{
-      width: 52, height: 52, borderRadius: 26, backgroundColor: C.glass,
-      borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center',
-    }}>
-      <Text style={{ fontSize: 23 }}>{emoji}</Text>
-    </View>
-    {/* two lines, because "شركاء التبادل" does not fit on one and a
-        label cut off mid-word is worse than a label on two lines */}
-    <Text numberOfLines={2} style={{ color: C.dim, fontSize: 10.5, lineHeight: 13, fontWeight: '800', marginTop: 5, textAlign: 'center', width: 74 }}>
-      {label}
-    </Text>
-  </Pressable>
-);
 
 export const ChatsScreen = () => {
   const insets = useSafeAreaInsets();
@@ -474,14 +442,22 @@ export const ChatsScreen = () => {
       }
     />
 
-    {/* the places to go, in one line, above your conversations */}
-    <View style={{ flexDirection: 'row', justifyContent: 'flex-start', marginBottom: 16, marginTop: 2 }}>
-      {owner ? <Shortcut emoji="🌿" label={t('green_album')} onPress={() => { tapLight(); setAlbumOpen(true); }} /> : null}
-      <Shortcut emoji="🎒" label={t('prog_title')} onPress={() => { tapLight(); setProgOpen(true); }} />
-      {SUPABASE_READY ? (
-        <Shortcut emoji="🌍" label={t('exchange_partners')} onPress={() => { tapLight(); setExOpen(true); }} />
-      ) : null}
-    </View>
+    {/* ─── THIS TAB IS CONVERSATIONS ────────────────────────────────
+        "و تاب الشات تبقي مخصصه اما للشاتس".
+
+        It went in three steps, and the last one is the honest one.
+        First the conversations were moved to the top. Then everything
+        else — Green Minds, the programme groups, the language
+        partners — became one row of round buttons instead of a stack
+        of cards. It was small, and it was still not a conversation.
+
+        So it is gone from the screen. Every one of those three is a
+        way to START a conversation, and the place for those is behind
+        the pencil, which is the button every messaging app puts there
+        for exactly this. Green Minds keeps its own button on the
+        entertainment tab, where it always belonged.
+
+        What is left on this screen: the people you are talking to. */}
 
     {dms.length ? <SectionHeader title={t('direct_label')} /> : null}
     {dms.length ? dms.map((d) => (
@@ -1125,6 +1101,18 @@ export const ChatsScreen = () => {
               <Text style={{ color: C.dim, fontSize: 14, fontWeight: '700' }}>{t('cancel')}</Text>
             </Pressable>
           </View>
+
+          {/* the three other ways to end up in a conversation, where
+              somebody is already asking to start one */}
+          {!composeQ.trim() ? (
+            <ShortcutRow style={{ paddingHorizontal: 12, marginBottom: 14 }}>
+              <Shortcut emoji="🎒" label={t('prog_title')} onPress={() => { tapLight(); setComposing(false); setProgOpen(true); }} />
+              {SUPABASE_READY ? (
+                <Shortcut emoji="🌍" label={t('exchange_partners')} onPress={() => { tapLight(); setComposing(false); setExOpen(true); }} />
+              ) : null}
+              {owner ? <Shortcut emoji="🌿" label={t('green_album')} onPress={() => { tapLight(); setComposing(false); setAlbumOpen(true); }} /> : null}
+            </ShortcutRow>
+          ) : null}
 
           <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '800', letterSpacing: 1, paddingHorizontal: 18, marginBottom: 4 }}>
             {composeQ.trim() ? 'PEOPLE' : 'YOUR MATES'}
