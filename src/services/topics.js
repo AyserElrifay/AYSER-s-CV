@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { suggestRooms, roomFor, FYP } from '../lib/classify';
 
 /* ── TOPICS ─────────────────────────────────────────────────────────
    A topic is a real hashtag with a name and a home. Tap one and you
@@ -60,23 +61,80 @@ export async function fetchTopic(slug) {
 /* The moments inside a topic. "Recent" is what it says. "Recommend"
    is the crowd's own answer — the ones people actually starred and
    talked about — not an editor's pick. */
-export async function fetchTopicPosts(tag, mode = 'recommend', limit = 40) {
+export async function fetchTopicPosts(tag, mode = 'recommend', limit = 40, slug = null) {
   const clean = String(tag || '').replace(/[%_(),]/g, ' ').trim();
   if (!clean) return [];
-  const { data, error } = await supabase
-    .from('posts')
-    .select('*, user:profiles!posts_user_id_fkey(*), vibe_rows:post_vibes(count), comment_rows:comments(count)')
-    .ilike('caption', '%' + clean + '%')
-    .order('created_at', { ascending: false })
-    .limit(limit);
-  if (error) throw error;
-  const rows = (data || []).map((r) => ({
+  const flat = (rows) => (rows || []).map((r) => ({
     ...r,
     vibes: (r.vibe_rows && r.vibe_rows[0] && r.vibe_rows[0].count) || 0,
     comments: (r.comment_rows && r.comment_rows[0] && r.comment_rows[0].count) || 0,
   }));
-  if (mode === 'recent') return rows;
-  return rows.slice().sort((a, b) => (b.vibes + 2 * b.comments) - (a.vibes + 2 * a.comments));
+  const cols = '*, user:profiles!posts_user_id_fkey(*), vibe_rows:post_vibes(count), comment_rows:comments(count)';
+
+  const { data, error } = await supabase
+    .from('posts').select(cols)
+    .ilike('caption', '%' + clean + '%')
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  const rows = flat(data);
+
+  /* ── AND THE ONES NOBODY TAGGED ──────────────────────────────────
+     "خلي الاب يحاول يعمل [يحدد] حتي للفديوز من غير هستاج من الكبشنز".
+
+     A room used to contain exactly the posts whose caption had the
+     literal hashtag in it, which is a small fraction of the posts that
+     are ABOUT it — most people never write a tag. So a second pass
+     reads recent captions and adds the ones this room's own words
+     match, marked `guessed` so the screen can say so rather than
+     pretending somebody filed them here.
+
+     Read on the phone rather than in the database on purpose: a
+     keyword list that lives in one file and can be corrected in one
+     place is worth more than a faster query, at this size. */
+  let guessed = [];
+  if (slug) {
+    const seen = new Set(rows.map((r) => r.id));
+    const { data: recent } = await supabase
+      .from('posts').select(cols)
+      .order('created_at', { ascending: false })
+      .limit(120);
+    guessed = flat(recent)
+      .filter((r) => !seen.has(r.id))
+      .filter((r) => {
+        /* the caption, not the place — see the note on roomFor in
+           src/lib/classify.js */
+        const hit = suggestRooms(r.caption || '', { limit: 2 });
+        return hit.some((h) => h.slug === slug);
+      })
+      .map((r) => ({ ...r, guessed: true }));
+  }
+
+  const all = rows.concat(guessed).slice(0, limit);
+  if (mode === 'recent') return all;
+  return all.slice().sort((a, b) => (b.vibes + 2 * b.comments) - (a.vibes + 2 * a.comments));
+}
+
+/* ── FOR YOU — the room for everything nobody could file ─────────────
+   The last resort he asked for by name: a post with no hashtag and no
+   word we recognise is not left in nowhere, it goes here. It is not a
+   category, it is an admission, and calling it that is the honest
+   version of what every large app means by "For you". */
+export async function fetchFypPosts(limit = 40) {
+  const { data, error } = await supabase
+    .from('posts')
+    .select('*, user:profiles!posts_user_id_fkey(*), vibe_rows:post_vibes(count), comment_rows:comments(count)')
+    .order('created_at', { ascending: false })
+    .limit(120);
+  if (error) throw error;
+  return (data || [])
+    .map((r) => ({
+      ...r,
+      vibes: (r.vibe_rows && r.vibe_rows[0] && r.vibe_rows[0].count) || 0,
+      comments: (r.comment_rows && r.comment_rows[0] && r.comment_rows[0].count) || 0,
+    }))
+    .filter((r) => roomFor(r).slug === FYP)
+    .slice(0, limit);
 }
 
 /* Pull the hashtags out of a caption so a card can offer them as

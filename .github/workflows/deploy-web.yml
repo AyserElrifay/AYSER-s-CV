@@ -91,6 +91,12 @@ jobs:
       # nothing is why a posted reel looked like a black tile.
       - name: Check a video's cover is a picture of something
         run: node scripts/check-cover.mjs
+      # Almost nobody writes a hashtag, so the rooms sat empty while the
+      # posts that belonged in them sat in the feed. This is the lexicon
+      # that reads a caption — and the rule that a post it cannot place
+      # goes to For You rather than to nowhere.
+      - name: Check an untagged post still lands somewhere
+        run: node scripts/check-classify.mjs
       # The country room is content, and content rots differently from
       # code: a country added in a hurry with eight phrases and no
       # customs crashes nothing, it just quietly becomes the thin,

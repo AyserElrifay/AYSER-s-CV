@@ -40,6 +40,7 @@ import { getCurrentCoords } from '../utils/location';
 import { sfxPop, sfxSuccess } from '../utils/sfx';
 import { setupNotice } from '../lib/plumbing';
 import { grabFrames, pickBest } from '../lib/frames';
+import { suggestTags } from '../lib/classify';
 
 /* ─── THE CAPTURE SCREEN — easier than IG, TikTok and Snap combined ───
    One tap opens a LIVE viewfinder. Tap the shutter for a photo, hold it
@@ -1503,15 +1504,29 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
 
   /* The rooms that already exist, offered as chips — a tag somebody can
      tap is a tag that leads somewhere, instead of a guess at spelling. */
+  const [topicRows, setTopicRows] = useState([]);
   useEffect(() => {
     if (!shot || tagIdeas.length || !SUPABASE_READY) return;
     fetchTopics().then((rows) => {
+      setTopicRows(rows || []);
       setTagIdeas((rows || []).slice()
         .sort((a, b) => (b.moments || 0) - (a.moments || 0))
         .slice(0, 14)
         .map((t) => t.tag));
     }).catch(() => {});
   }, [shot, tagIdeas.length]);
+
+  /* ── AND THE ONES THE CAPTION ITSELF SUGGESTS ────────────────────
+     "خلي الاب يحاول يعمل [يحدد] حتي للفديوز من غير هستاج من الكبشنز".
+
+     Most people never write a hashtag, so their post lands in no room
+     and is found by nobody. This reads what they just typed and offers
+     the rooms it sounds like — as chips, to tap. It never adds one by
+     itself: the caption is theirs. See src/lib/classify.js. */
+  const guessed = React.useMemo(
+    () => suggestTags(caption, { taken: tags, topics: topicRows, limit: 3 }),
+    [caption, tags, topicRows],
+  );
 
   const addTag = (raw) => {
     const clean = String(raw || '').trim().replace(/^#+/, '').replace(/[^\p{L}\p{N}_]/gu, '');
@@ -2729,8 +2744,20 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
 
                   {tags.length < 5 ? (
                     <>
+                      {guessed.length ? (
+                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 7 }}>
+                          {guessed.map((g) => (
+                            <Pressable key={g} onPress={() => addTag(g)}>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(124,58,237,0.28)', borderWidth: 1, borderColor: C.purple, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 6, marginRight: 6, marginBottom: 6 }}>
+                                <MaterialCommunityIcons name="star-four-points" size={11} color={C.gold} />
+                                <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '900', marginLeft: 5 }}>{g}</Text>
+                              </View>
+                            </Pressable>
+                          ))}
+                        </View>
+                      ) : null}
                       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: 10 }}>
-                        {tagIdeas.filter((t) => !tags.some((x) => x.toLowerCase() === t.toLowerCase())).map((t) => (
+                        {tagIdeas.filter((t) => !tags.some((x) => x.toLowerCase() === t.toLowerCase()) && !guessed.includes(t)).map((t) => (
                           <Pressable key={t} onPress={() => addTag(t)}>
                             <View style={{ backgroundColor: 'rgba(0,0,0,0.55)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', borderRadius: 999, paddingHorizontal: 11, paddingVertical: 6, marginRight: 6 }}>
                               <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '700' }}>{t}</Text>

@@ -140,6 +140,7 @@ export const STRINGS = {
     wo_empty_sub: 'This fills up with real things real people started. Light a campfire or post something with a time on it, and you are the first.',
     wo_partial: 'Some of this could not be loaded. Pull down to try again.',
     wo_open: 'See what you can join',
+    room_guessed: "sounds like this room",
     read_word: "Books",
     music_word: "Music",
     cover_title: "Cover",

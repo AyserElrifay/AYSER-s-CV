@@ -7,8 +7,10 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { C, R } from '../constants/theme';
 import { AV_NEUTRAL } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
-import { fetchTopics, fetchTopicPosts, TOPIC_CATEGORIES, tintOf } from '../services/topics';
+import { fetchTopics, fetchTopicPosts, fetchFypPosts, TOPIC_CATEGORIES, tintOf } from '../services/topics';
+import { FYP } from '../lib/classify';
 import { tapLight, tapSelection } from '../utils/feedback';
+import { useLang } from '../context/LanguageContext';
 
 /* ── TOPICS ─────────────────────────────────────────────────────────
    Rooms to post into. Every cover here is an emoji on a gradient we
@@ -49,6 +51,7 @@ const ago = (iso) => {
 /* One topic, opened: the moments actually in it. */
 const TopicPage = ({ topic, onBack, onOpenPost, onCompose }) => {
   const insets = useSafeAreaInsets();
+  const { t } = useLang();
   const [mode, setMode] = useState('recommend');
   const [rows, setRows] = useState(null);
   const [a, b] = tintOf(topic.tint);
@@ -56,8 +59,15 @@ const TopicPage = ({ topic, onBack, onOpenPost, onCompose }) => {
   useEffect(() => {
     if (!SUPABASE_READY) { setRows([]); return; }
     setRows(null);
-    fetchTopicPosts(topic.tag, mode).then(setRows).catch(() => setRows([]));
-  }, [topic.tag, mode]);
+    /* FYP is not a subject, it is the room for everything nobody could
+       file — so it is fetched by what it is NOT, rather than by a tag. */
+    const job = topic.slug === FYP
+      ? fetchFypPosts(40)
+      /* the slug is passed so a real room also collects the posts that
+         are about it but were never tagged — see services/topics.js */
+      : fetchTopicPosts(topic.tag, mode, 40, topic.slug);
+    job.then(setRows).catch(() => setRows([]));
+  }, [topic.tag, topic.slug, mode]);
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
@@ -113,6 +123,15 @@ const TopicPage = ({ topic, onBack, onOpenPost, onCompose }) => {
                       {(r.user && r.user.name) || 'Explorer'}{r.user && r.user.country_flag ? ' ' + r.user.country_flag : ''}
                     </Text>
                     <Text style={{ color: C.faint, fontSize: 11.5, marginLeft: 8 }}>{ago(r.created_at)}</Text>
+                    {/* nobody filed this here — the words did. Say so,
+                        rather than letting a guess look like a choice
+                        somebody made. */}
+                    {r.guessed ? (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 8, backgroundColor: C.glassHi, borderRadius: 999, paddingHorizontal: 7, paddingVertical: 2 }}>
+                        <MaterialCommunityIcons name="star-four-points" size={9} color={C.faint} />
+                        <Text style={{ color: C.faint, fontSize: 10, fontWeight: '700', marginLeft: 3 }}>{t('room_guessed')}</Text>
+                      </View>
+                    ) : null}
                   </View>
                   {r.caption ? (
                     <Text style={{ color: C.dim, fontSize: 13.5, lineHeight: 19, marginTop: 3 }} numberOfLines={3}>{r.caption}</Text>
@@ -160,10 +179,21 @@ export const TopicsSheet = ({ onClose, onOpenPost, onCompose, initialSlug = null
   const [topics, setTopics] = useState(null);
   const [open, setOpen] = useState(null);
 
+  /* ── WHY BACK DID NOTHING ─────────────────────────────────────────
+     This sheet can be opened straight into a room (tapping a hashtag
+     in the feed), and the back button reloads the list on its way out
+     so the counts are fresh. The reload then read `initialTag` again
+     and re-opened the very room you had just left — so from a room
+     opened by a hashtag there was no way back to the rooms at all.
+
+     The opening is a first-load thing, not a reload thing. */
+  const auto = React.useRef(false);
   const load = useCallback(() => {
     if (!SUPABASE_READY) { setTopics([]); return; }
     fetchTopics().then((rows) => {
       setTopics(rows);
+      if (auto.current) return;
+      auto.current = true;
       if (initialSlug) {
         const hit = rows.find((t) => t.slug === initialSlug);
         if (hit) setOpen(hit);
@@ -190,7 +220,16 @@ export const TopicsSheet = ({ onClose, onOpenPost, onCompose, initialSlug = null
 
   useEffect(load, [load]);
 
-  const featured = (topics || []).filter((t) => t.featured);
+  /* ── FOR YOU ─────────────────────────────────────────────────────
+     "او لو الفديوز صغير يعصنفها حاجه ذي fyp". Not a curated topic and
+     not a row in the database — the room for the posts whose words
+     matched nothing, which would otherwise be in no room at all. */
+  const FYP_ROOM = {
+    slug: FYP, tag: '#ForYou', title: 'For you', category: null,
+    blurb: 'Moments nobody filed under anything — the newest first.',
+    emoji: '✨', tint: 'violet', moments: 0, people: 0,
+  };
+  const featured = [FYP_ROOM].concat((topics || []).filter((t) => t.featured));
   const hottest = (topics || []).slice().sort((a, b) => b.moments - a.moments).slice(0, 3);
 
   return (
