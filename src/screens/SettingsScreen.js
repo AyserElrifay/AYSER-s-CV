@@ -20,6 +20,7 @@ import { fetchMyMates } from '../services/mates';
 import { getOrCreateDmThread, sendMessage } from '../services/messages';
 import { AV_NEUTRAL } from '../constants/mockData';
 import { getPrefs, setPref, subscribePrefs } from '../services/prefs';
+import { DATA_MODES, DEFAULT_DATA_MODE } from '../lib/dataSaver';
 import { Chip } from '../components/Chip';
 import { GestureTour } from '../components/GestureTour';
 import { Glass } from '../components/Glass';
@@ -390,6 +391,51 @@ export const SettingsScreen = ({ onClose }) => {
                     }}>
                       <Ionicons name={o.icon} size={14} color={on ? '#FFF' : C.faint} />
                       <Text style={{ color: on ? '#FFF' : C.dim, fontSize: 12.5, fontWeight: '800', marginLeft: 6 }}>{o.label}</Text>
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+
+          {/* ── DATA SAVER ────────────────────────────────────────────
+              "متخلص نت الناس بhigh quality". A feed that plays every
+              video it scrolls past spends a monthly bundle in an
+              afternoon, and in Egypt that is the difference between an
+              app somebody keeps and one they delete.
+
+              Three answers, and the middle one is the honest default:
+              follow the connection. What each one actually does is
+              written underneath it rather than left to be guessed —
+              see src/lib/dataSaver.js. */}
+          <View style={{ paddingVertical: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.line }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <View style={{ width: 30, height: 30, borderRadius: 9, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                <Ionicons name="cellular-outline" size={16} color={C.purple} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: C.text, fontSize: 14, fontWeight: '700' }}>{t('ds_title')}</Text>
+                <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 1 }}>
+                  {t('ds_sub_' + (DATA_MODES.includes(prefs.dataSaver) ? prefs.dataSaver : DEFAULT_DATA_MODE))}
+                </Text>
+              </View>
+            </View>
+            <View style={{ flexDirection: 'row', marginTop: 11, backgroundColor: C.glass, borderRadius: 12, padding: 3, borderWidth: 1, borderColor: C.line }}>
+              {[
+                { k: 'auto', label: t('ds_auto'), icon: 'flash-outline' },
+                { k: 'high', label: t('ds_high'), icon: 'videocam-outline' },
+                { k: 'saver', label: t('ds_saver'), icon: 'leaf-outline' },
+              ].map((o) => {
+                const on = (DATA_MODES.includes(prefs.dataSaver) ? prefs.dataSaver : DEFAULT_DATA_MODE) === o.k;
+                return (
+                  <Pressable key={o.k} onPress={() => { tapSelection(); setPref('dataSaver', o.k); }} style={{ flex: 1 }}>
+                    <View style={{
+                      flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+                      paddingVertical: 9, borderRadius: 10,
+                      backgroundColor: on ? C.purple : 'transparent',
+                    }}>
+                      <Ionicons name={o.icon} size={14} color={on ? '#FFF' : C.faint} />
+                      <Text numberOfLines={1} style={{ color: on ? '#FFF' : C.dim, fontSize: 12.5, fontWeight: '800', marginLeft: 6 }}>{o.label}</Text>
                     </View>
                   </Pressable>
                 );

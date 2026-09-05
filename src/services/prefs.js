@@ -12,6 +12,11 @@ export const flags = {
   sound: true,
   haptics: true,
   notifications: true,
+  /* 'auto' | 'high' | 'saver' — how much of somebody's bundle this app
+     is allowed to spend on videos they did not ask to watch. Not a
+     boolean, because "follow the connection" is a different answer
+     from "always" and from "never". See src/lib/dataSaver.js. */
+  dataSaver: 'auto',
 };
 
 let loaded = false;

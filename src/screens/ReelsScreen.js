@@ -17,6 +17,8 @@ import { SoundChip } from '../components/SoundChip';
 import { tapLight, tapMedium } from '../utils/feedback';
 import { sfxStar, sfxPop } from '../utils/sfx';
 import { soundOn, setSoundOn, applySound, trackPlayer, untrackPlayer, stopVideos } from '../lib/videoSound';
+import { isSaving, DEFAULT_DATA_MODE } from '../lib/dataSaver';
+import { getPrefs, subscribePrefs } from '../services/prefs';
 import { useIsFocused } from '@react-navigation/native';
 import { useLang } from '../context/LanguageContext';
 
@@ -41,6 +43,16 @@ const RailButton = ({ children, label, color = '#FFF', onPress }) => (
 );
 
 export const ReelsScreen = () => {
+  /* ── HOW MUCH TO PULL DOWN AHEAD OF SOMEBODY ────────────────────
+     Opening Reels is asking to watch, so the reel on screen plays.
+     What changes on a metered connection is how much of the FILE is
+     fetched before it is needed: 'auto' means the browser may pull the
+     whole clip down, which on a bundle is somebody's afternoon.
+     See src/lib/dataSaver.js. */
+  const [dataMode, setDataMode] = useState(getPrefs().dataSaver || DEFAULT_DATA_MODE);
+  useEffect(() => subscribePrefs((p) => setDataMode(p.dataSaver || DEFAULT_DATA_MODE)), []);
+  const reelPreload = isSaving(dataMode) ? 'metadata' : 'auto';
+
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { t } = useLang();
@@ -215,7 +227,7 @@ export const ReelsScreen = () => {
               src={item.media}
               // no crossOrigin — see the note in ReelsViewer.js: it can
               // only forbid playback, never enable it
-              autoPlay loop muted playsInline preload="auto"
+              autoPlay loop muted playsInline preload={reelPreload}
               /* iOS starts a video on its own only when muted is a real
                  property and something asks it to play; without this a
                  posted reel shows as a black rectangle that never moves */

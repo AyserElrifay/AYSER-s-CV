@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { View, Text, Pressable, Image, ImageBackground, Animated, Easing, TextInput, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -15,6 +15,8 @@ import { translateText } from '../services/bardi';
 import { tapLight, tapSuccess } from '../utils/feedback';
 import { planWhen, upForLabel } from '../constants/travel';
 import { watchLabel } from '../lib/clock';
+import { videoPolicy, DEFAULT_DATA_MODE } from '../lib/dataSaver';
+import { getPrefs, subscribePrefs } from '../services/prefs';
 import { getOrCreateDmThread, sendMessage } from '../services/messages';
 import { useAuth } from '../context/AuthContext';
 
@@ -30,6 +32,86 @@ const typeChip = (post) => {
   return { label: 'MOMENT', tint: 'rgba(17,24,39,0.65)', color: 'rgba(255,255,255,0.85)' };
 };
 
+const isVideoPost = (post) => post.type === 'vod' || post.type === 'reel';
+
+/* ─── AND IT STARTS PLAYING IF YOU STOP ON IT ─────────────────────────
+   "وخلي لو حد وقف علي الريل كتير الريل تشتغل".
+
+   Not the instant it touches the screen — that is the behaviour that
+   makes a feed exhausting and eats a bundle while you scroll past
+   forty things you did not look at. A clip starts when you have
+   actually stopped on it: most of the card on screen, and still there
+   most of a second later. Scroll on and it stops and rewinds.
+
+   Muted, always: a phone that shouts in a quiet room is uninstalled by
+   lunchtime. The sound is one tap away, in the player.
+
+   Three things switch it off completely, and each one is somebody's
+   real preference rather than an edge case:
+     • data saver, or a metered connection (src/lib/dataSaver.js);
+     • "reduce motion" in the phone's accessibility settings;
+     • a browser that refuses to autoplay, which is not an error and
+       is not reported as one — the poster simply stays.                */
+const VideoBackdrop = ({ post, style, children }) => {
+  const holder = useRef(null);
+  const vid = useRef(null);
+  const timer = useRef(null);
+  const [mode, setMode] = useState(getPrefs().dataSaver || DEFAULT_DATA_MODE);
+  useEffect(() => subscribePrefs((p) => setMode(p.dataSaver || DEFAULT_DATA_MODE)), []);
+  const reduced = Platform.OS === 'web' && typeof window !== 'undefined' && window.matchMedia
+    ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    : false;
+  const policy = videoPolicy(mode, { hasPoster: !!post.thumb, reducedMotion: reduced });
+
+  useEffect(() => {
+    if (!policy.autoplay || typeof IntersectionObserver === 'undefined') return undefined;
+    const el = holder.current;
+    if (!el) return undefined;
+    const stop = () => {
+      clearTimeout(timer.current);
+      const v = vid.current;
+      if (v && !v.paused) { try { v.pause(); v.currentTime = 0; } catch (e) {} }
+    };
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((e) => {
+        if (e.intersectionRatio > 0.65) {
+          clearTimeout(timer.current);
+          /* the dwell: you have to still be here in 700ms */
+          timer.current = setTimeout(() => {
+            const v = vid.current;
+            if (!v) return;
+            v.muted = true;
+            const go = v.play();
+            if (go && go.catch) go.catch(() => {});   // a refusal is not a failure
+          }, 700);
+        } else if (e.intersectionRatio < 0.35) stop();
+      });
+    }, { threshold: [0, 0.35, 0.65, 1] });
+    io.observe(el);
+    return () => { io.disconnect(); stop(); };
+  }, [policy.autoplay, post.id]);
+
+  return (
+    <View ref={holder} style={[style, { backgroundColor: '#15151B', overflow: 'hidden' }]}>
+      <video
+        ref={vid}
+        /* with a poster there is a picture from the first paint; with
+           none, the fragment makes the browser draw a real frame
+           instead of a black rectangle */
+        src={post.thumb ? post.media : post.media + '#t=0.1'}
+        poster={post.thumb || undefined}
+        muted
+        loop
+        playsInline
+        preload={policy.preload}
+        tabIndex={-1}
+        style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover', pointerEvents: 'none' }}
+      />
+      {children}
+    </View>
+  );
+};
+
 /* ─── A VIDEO IS NOT A PICTURE ────────────────────────────────────────
    "ليه الفديوز من بره لونها اسود" — because the card was doing this:
 
@@ -40,38 +122,18 @@ const typeChip = (post) => {
    a play button floating on it. The profile grid had already learned
    this (ProfileScreen's Tile) and the feed had not.
 
-   The order of preference, and why:
-     1. the still we uploaded with the clip — instant, cheap, right;
-     2. on the web, the clip itself in a <video preload="metadata">,
-        seeked a hair past zero so the browser paints a real frame.
-        This is what saves every video posted before thumbnails
-        existed, and it downloads a few hundred kilobytes, not the film;
-     3. a dark tile, which is at least honestly a video.
-
    `pointerEvents: none` on the video matters: the card's own tap
    handler opens the player, and a <video> would otherwise eat it. */
-const isVideoPost = (post) => post.type === 'vod' || post.type === 'reel';
-
 const Backdrop = ({ post, style, children }) => {
+  if (Platform.OS === 'web' && isVideoPost(post) && post.media) {
+    return <VideoBackdrop post={post} style={style}>{children}</VideoBackdrop>;
+  }
   const still = post.thumb || (isVideoPost(post) ? null : post.media);
   if (still) {
     return <ImageBackground source={{ uri: still }} style={style}>{children}</ImageBackground>;
   }
-  const canPaint = Platform.OS === 'web' && isVideoPost(post) && post.media;
   return (
-    <View style={[style, { backgroundColor: '#15151B', overflow: 'hidden' }]}>
-      {canPaint ? (
-        <video
-          src={post.media + '#t=0.1'}
-          muted
-          playsInline
-          preload="metadata"
-          tabIndex={-1}
-          style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover', pointerEvents: 'none' }}
-        />
-      ) : null}
-      {children}
-    </View>
+    <View style={[style, { backgroundColor: '#15151B', overflow: 'hidden' }]}>{children}</View>
   );
 };
 

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { TextInput } from 'react-native';
 import { looksPlayable, watchForBlankVideo } from '../lib/videoCheck';
 import { View, Text, Modal, Pressable, ImageBackground, FlatList, Dimensions, Image, Platform } from 'react-native';
@@ -17,12 +17,24 @@ import { useAuth } from '../context/AuthContext';
 import { deletePost, updatePost } from '../services/posts';
 import { note } from '../lib/crashLog';
 import { soundOn, setSoundOn, applySound, trackPlayer, untrackPlayer, stopVideos } from '../lib/videoSound';
+import { isSaving, DEFAULT_DATA_MODE } from '../lib/dataSaver';
+import { getPrefs, subscribePrefs } from '../services/prefs';
 
 const { height: H } = Dimensions.get('window');
 
 /* TikTok-style full-screen reels: swipe up for the next one, action
    rail on the right, sound tag at the bottom. */
 export const ReelsViewer = ({ reels, startIndex = 0, vibes, onVibe, onComment, onClose, onDeleted, onEdited }) => {
+  /* ── HOW MUCH TO PULL DOWN AHEAD OF SOMEBODY ────────────────────
+     Opening Reels is asking to watch, so the reel on screen plays.
+     What changes on a metered connection is how much of the FILE is
+     fetched before it is needed: 'auto' means the browser may pull the
+     whole clip down, which on a bundle is somebody's afternoon.
+     See src/lib/dataSaver.js. */
+  const [dataMode, setDataMode] = useState(getPrefs().dataSaver || DEFAULT_DATA_MODE);
+  useEffect(() => subscribePrefs((p) => setDataMode(p.dataSaver || DEFAULT_DATA_MODE)), []);
+  const reelPreload = isSaving(dataMode) ? 'metadata' : 'auto';
+
   const { t } = useLang();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
@@ -196,7 +208,7 @@ export const ReelsViewer = ({ reels, startIndex = 0, vibes, onVibe, onComment, o
               matters more than being able to inspect it. */}
           <video
             src={item.media}
-            autoPlay muted loop playsInline preload="auto"
+            autoPlay muted loop playsInline preload={reelPreload}
             ref={(el) => {
               if (!el || el.__wired) return;
               el.__wired = true;

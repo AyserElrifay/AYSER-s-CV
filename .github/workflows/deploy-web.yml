@@ -79,6 +79,12 @@ jobs:
       # fails.
       - name: Check the map speaks the app's language
         run: node scripts/check-map-language.mjs
+      # A feed that autoplays everything it scrolls past can spend a
+      # monthly data bundle in an afternoon, and the person it happens
+      # to never sees the moment it happened. This is the rule about
+      # what may play and what may be downloaded before anybody asks.
+      - name: Check nobody's data bundle gets spent for them
+        run: node scripts/check-data-saver.mjs
       # The country room is content, and content rots differently from
       # code: a country added in a hurry with eight phrases and no
       # customs crashes nothing, it just quietly becomes the thin,
