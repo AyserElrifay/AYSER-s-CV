@@ -113,6 +113,39 @@ function activeLabel(iso) {
   return 'Recently active';
 }
 
+/* ─── ONE ROW FOR EVERYTHING THAT IS NOT A CONVERSATION ───────────────
+   Ayser, a second time: "أنا مش عجبني ان tap chats زحمه كده".
+
+   The first pass fixed the ORDER — conversations went to the top. It
+   did not fix the amount. Under two conversations there were still
+   two cards with a subtitle each, two section headings, a paragraph
+   explaining the language exchange, a settings row and a line saying
+   nobody had switched it on: about two hundred and fifty pixels of
+   places-to-go and admin, permanently, on the screen you open to talk
+   to somebody.
+
+   None of it is unimportant and none of it is a conversation. So it is
+   one row of round buttons under the title — the same move Telegram
+   makes with folders and WhatsApp with the status row — and everything
+   they used to explain lives inside the thing they open.
+
+   The rest of the screen is people, which is what it is for. */
+const Shortcut = ({ emoji, label, onPress }) => (
+  <Pressable onPress={onPress} style={{ alignItems: 'center', width: 76 }}>
+    <View style={{
+      width: 52, height: 52, borderRadius: 26, backgroundColor: C.glass,
+      borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center',
+    }}>
+      <Text style={{ fontSize: 23 }}>{emoji}</Text>
+    </View>
+    {/* two lines, because "شركاء التبادل" does not fit on one and a
+        label cut off mid-word is worse than a label on two lines */}
+    <Text numberOfLines={2} style={{ color: C.dim, fontSize: 10.5, lineHeight: 13, fontWeight: '800', marginTop: 5, textAlign: 'center', width: 74 }}>
+      {label}
+    </Text>
+  </Pressable>
+);
+
 export const ChatsScreen = () => {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
@@ -441,6 +474,15 @@ export const ChatsScreen = () => {
       }
     />
 
+    {/* the places to go, in one line, above your conversations */}
+    <View style={{ flexDirection: 'row', justifyContent: 'flex-start', marginBottom: 16, marginTop: 2 }}>
+      {owner ? <Shortcut emoji="🌿" label={t('green_album')} onPress={() => { tapLight(); setAlbumOpen(true); }} /> : null}
+      <Shortcut emoji="🎒" label={t('prog_title')} onPress={() => { tapLight(); setProgOpen(true); }} />
+      {SUPABASE_READY ? (
+        <Shortcut emoji="🌍" label={t('exchange_partners')} onPress={() => { tapLight(); setExOpen(true); }} />
+      ) : null}
+    </View>
+
     {dms.length ? <SectionHeader title={t('direct_label')} /> : null}
     {dms.length ? dms.map((d) => (
       <Pressable key={d.id} onPress={() => { tapLight(); markThreadSeen(d.threadId); setThread({ chat: d, group: false }); }}>
@@ -745,100 +787,70 @@ export const ChatsScreen = () => {
       null
     )}
 
-    {/* ── GREEN MINDS ─────────────────────────────────────────────
-        The album, sitting in the chats where Ayser asked for it, as a
-        conversation from Green Minds. It is not a person and does not
-        pretend to be one: no profile was invented so that something
-        could appear to send these, because a fake human turns up in
-        member counts and searches forever afterwards. The sender is
-        the album, which is honestly what collected them.
+    {/* Green Minds, Exchanges and the language partners all used to sit
+        here as stacked cards with their own headings and a paragraph of
+        explanation. They are three buttons at the top of the screen now,
+        and what they used to explain is inside the sheet each one opens.
+        See the Shortcut row above, and the note on the component. */}
 
-        Only the owner sees this row, and — far more importantly —
-        only the owner can read what is behind it. The server refuses
-        anybody else, by policy, whether or not this row is drawn. */}
-    {owner ? (
-      <Pressable onPress={() => { tapLight(); setAlbumOpen(true); }} style={{ marginBottom: 6 }}>
-        <Glass style={{ flexDirection: 'row', alignItems: 'center', padding: 13 }}>
-          <View style={{
-            width: 46, height: 46, borderRadius: 23, backgroundColor: 'rgba(31,122,90,0.14)',
-            borderWidth: 1, borderColor: 'rgba(31,122,90,0.4)',
-            alignItems: 'center', justifyContent: 'center',
-          }}>
-            <Text style={{ fontSize: 21 }}>🌿</Text>
+    {/* The exchange settings, off the main screen. */}
+    {exOpen ? (
+      <Modal visible transparent animationType="slide" onRequestClose={() => setExOpen(false)}>
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(6,4,18,0.55)' }} onPress={() => setExOpen(false)} />
+        <View style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 16, paddingBottom: insets.bottom + 20 }}>
+          <Text style={{ color: C.text, fontSize: 17, fontWeight: '900', marginBottom: 4 }}>{t('exchange_partners')}</Text>
+          <Text style={{ color: C.faint, fontSize: 12, marginBottom: 12, lineHeight: 17 }}>{t('exchange_blurb')}</Text>
+      {/* ── your exchange switch — HelloTalk-style, right here ── */}
+      {SUPABASE_READY ? (
+        <Glass style={{ padding: 13, marginBottom: 12 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Text style={{ fontSize: 20 }}>🌍</Text>
+            <View style={{ flex: 1, marginLeft: 10 }}>
+              <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800' }}>
+                {exOn ? t('youre_open_exchange') : t('join_exchange')}
+              </Text>
+              <Text style={{ color: C.faint, fontSize: 11, marginTop: 1 }}>
+                {exOn ? t('exchange_on') : t('exchange_off')}
+              </Text>
+            </View>
+            <Pressable onPress={() => saveExchange(!exOn)} hitSlop={6}>
+              <View style={{ width: 46, height: 27, borderRadius: 14, backgroundColor: exOn ? C.green : C.glassHi, padding: 3, justifyContent: 'center' }}>
+                <View style={{ width: 21, height: 21, borderRadius: 11, backgroundColor: '#FFF', marginLeft: exOn ? 19 : 0 }} />
+              </View>
+            </Pressable>
           </View>
-          <View style={{ flex: 1, minWidth: 0, marginStart: 12 }}>
-            <Text numberOfLines={1} style={{ color: C.text, fontSize: 15.5, fontWeight: '900' }}>
-              {t('green_album')}
-            </Text>
-            <Text numberOfLines={1} style={{ color: C.faint, fontSize: 12.5, marginTop: 2 }}>
-              {t('green_album_sub')}
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={C.faint} />
+          {exOn ? (
+            <View style={{ marginTop: 10 }}>
+              <View style={{ flexDirection: 'row' }}>
+                <TextInput
+                  placeholder={t('i_speak_placeholder')} placeholderTextColor={C.faint}
+                  value={exSpeaks} onChangeText={setExSpeaks}
+                  style={{ flex: 1, color: C.text, fontSize: 12.5, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 11, paddingHorizontal: 11, paddingVertical: 9, marginRight: 8 }}
+                />
+                <TextInput
+                  placeholder={t('ch_learning_ph')} placeholderTextColor={C.faint}
+                  value={exLearning} onChangeText={setExLearning}
+                  style={{ flex: 1, color: C.text, fontSize: 12.5, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 11, paddingHorizontal: 11, paddingVertical: 9 }}
+                />
+              </View>
+              <Pressable onPress={() => saveExchange(true)} style={{ marginTop: 8 }}>
+                <View style={{ backgroundColor: exSaved ? C.greenSoft : C.purpleSoft, borderRadius: 11, paddingVertical: 9, alignItems: 'center' }}>
+                  <Text style={{ color: exSaved ? C.green : C.purple, fontSize: 12, fontWeight: '900' }}>
+                    {exSaved ? t('saved_live_exchange') : exBusy ? t('saving_dots') : t('save_my_languages')}
+                  </Text>
+                </View>
+              </Pressable>
+            </View>
+          ) : null}
         </Glass>
-      </Pressable>
-    ) : null}
+      ) : null}
 
-    {/* ── EXCHANGES ───────────────────────────────────────────────
-        A group per programme somebody has actually been on — Erasmus
-        and everything like it. Everyone sees this one: the whole point
-        is finding the people you were there with, and a directory only
-        the owner can read would find nobody anything.
-
-        It sits under Green Minds because that is where it belongs —
-        the same corner of the app, the same idea. */}
-    <Pressable onPress={() => { tapLight(); setProgOpen(true); }} style={{ marginBottom: 6 }}>
-      <Glass style={{ flexDirection: 'row', alignItems: 'center', padding: 13 }}>
-        <View style={{
-          width: 46, height: 46, borderRadius: 23, backgroundColor: 'rgba(31,122,90,0.14)',
-          borderWidth: 1, borderColor: 'rgba(31,122,90,0.4)',
-          alignItems: 'center', justifyContent: 'center',
-        }}>
-          <Text style={{ fontSize: 21 }}>🎒</Text>
-        </View>
-        <View style={{ flex: 1, minWidth: 0, marginStart: 12 }}>
-          <Text numberOfLines={1} style={{ color: C.text, fontSize: 15.5, fontWeight: '900' }}>
-            {t('prog_title')}
-          </Text>
-          <Text numberOfLines={1} style={{ color: C.faint, fontSize: 12.5, marginTop: 2 }}>
-            {t('prog_row_sub')}
-          </Text>
-        </View>
-        <Ionicons name="chevron-forward" size={18} color={C.faint} />
-      </Glass>
-    </Pressable>
-
-    {/* ── EXCHANGE PARTNERS — meet people in other countries, HelloTalk
-        style: open it in Settings and you appear here for them too ── */}
-    <SectionHeader title={t('exchange_partners')} style={{ marginTop: 22 }} />
-    {/* One line, not three. This sits below your own conversations now —
-        it's a place to meet people, not your inbox, and it was taking
-        the whole first screen with a paragraph nobody asked for. */}
-    <Text style={{ color: C.faint, fontSize: 11.5, marginTop: -6, marginBottom: 10, paddingHorizontal: 2 }}>
-      {t('exchange_blurb')}
-    </Text>
-
-    {/* Configuration, behind one button, instead of a form taking a
-        third of the screen for ever. */}
-    {SUPABASE_READY ? (
-      <Pressable onPress={() => { tapLight(); setExOpen(true); }} style={{ marginBottom: 12 }}>
-        <Glass style={{ flexDirection: 'row', alignItems: 'center', padding: 12 }}>
-          <Text style={{ fontSize: 18 }}>🌍</Text>
-          <View style={{ flex: 1, minWidth: 0, marginStart: 10 }}>
-            <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800' }} numberOfLines={1}>
-              {exOn ? t('ex_on_title') : t('ex_off_title')}
-            </Text>
-            <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 1 }} numberOfLines={1}>
-              {exOn && (exSpeaks || exLearning)
-                ? [exSpeaks, exLearning].filter(Boolean).join('  →  ')
-                : t('ex_set_up')}
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={17} color={C.faint} />
-        </Glass>
-      </Pressable>
-    ) : null}
-
+          {/* ── AND THE PEOPLE THEMSELVES ────────────────────────────
+              The partner list used to be the bottom third of the Chats
+              screen whether or not anybody was in it. It belongs with
+              the switch that puts you in it: open the row, set your
+              languages, see who else did. */}
+          <ScrollView style={{ maxHeight: 430 }} showsVerticalScrollIndicator={false}>
     {partners.length ? (
       <View style={{ marginBottom: 20 }}>
         {partners.map((lp, i) => (
@@ -935,59 +947,7 @@ export const ChatsScreen = () => {
         {t('exchange_empty')}
       </Text>
     )}
-
-
-    {/* The exchange settings, off the main screen. */}
-    {exOpen ? (
-      <Modal visible transparent animationType="slide" onRequestClose={() => setExOpen(false)}>
-        <Pressable style={{ flex: 1, backgroundColor: 'rgba(6,4,18,0.55)' }} onPress={() => setExOpen(false)} />
-        <View style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 16, paddingBottom: insets.bottom + 20 }}>
-          <Text style={{ color: C.text, fontSize: 17, fontWeight: '900', marginBottom: 4 }}>{t('exchange_partners')}</Text>
-          <Text style={{ color: C.faint, fontSize: 12, marginBottom: 12, lineHeight: 17 }}>{t('exchange_blurb')}</Text>
-      {/* ── your exchange switch — HelloTalk-style, right here ── */}
-      {SUPABASE_READY ? (
-        <Glass style={{ padding: 13, marginBottom: 12 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Text style={{ fontSize: 20 }}>🌍</Text>
-            <View style={{ flex: 1, marginLeft: 10 }}>
-              <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800' }}>
-                {exOn ? t('youre_open_exchange') : t('join_exchange')}
-              </Text>
-              <Text style={{ color: C.faint, fontSize: 11, marginTop: 1 }}>
-                {exOn ? t('exchange_on') : t('exchange_off')}
-              </Text>
-            </View>
-            <Pressable onPress={() => saveExchange(!exOn)} hitSlop={6}>
-              <View style={{ width: 46, height: 27, borderRadius: 14, backgroundColor: exOn ? C.green : C.glassHi, padding: 3, justifyContent: 'center' }}>
-                <View style={{ width: 21, height: 21, borderRadius: 11, backgroundColor: '#FFF', marginLeft: exOn ? 19 : 0 }} />
-              </View>
-            </Pressable>
-          </View>
-          {exOn ? (
-            <View style={{ marginTop: 10 }}>
-              <View style={{ flexDirection: 'row' }}>
-                <TextInput
-                  placeholder={t('i_speak_placeholder')} placeholderTextColor={C.faint}
-                  value={exSpeaks} onChangeText={setExSpeaks}
-                  style={{ flex: 1, color: C.text, fontSize: 12.5, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 11, paddingHorizontal: 11, paddingVertical: 9, marginRight: 8 }}
-                />
-                <TextInput
-                  placeholder={t('ch_learning_ph')} placeholderTextColor={C.faint}
-                  value={exLearning} onChangeText={setExLearning}
-                  style={{ flex: 1, color: C.text, fontSize: 12.5, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 11, paddingHorizontal: 11, paddingVertical: 9 }}
-                />
-              </View>
-              <Pressable onPress={() => saveExchange(true)} style={{ marginTop: 8 }}>
-                <View style={{ backgroundColor: exSaved ? C.greenSoft : C.purpleSoft, borderRadius: 11, paddingVertical: 9, alignItems: 'center' }}>
-                  <Text style={{ color: exSaved ? C.green : C.purple, fontSize: 12, fontWeight: '900' }}>
-                    {exSaved ? t('saved_live_exchange') : exBusy ? t('saving_dots') : t('save_my_languages')}
-                  </Text>
-                </View>
-              </Pressable>
-            </View>
-          ) : null}
-        </Glass>
-      ) : null}
+          </ScrollView>
         </View>
       </Modal>
     ) : null}
