@@ -97,6 +97,12 @@ jobs:
       # goes to For You rather than to nowhere.
       - name: Check an untagged post still lands somewhere
         run: node scripts/check-classify.mjs
+      # A track from the music hub is licensed for everybody. The sound
+      # somebody RECORDED belongs to them, and whether anybody may build
+      # on it is their switch. Getting that backwards hands a person's
+      # voice to strangers.
+      - name: Check a recorded sound stays its owner's
+        run: node scripts/check-sound.mjs
       # The country room is content, and content rots differently from
       # code: a country added in a hurry with eight phrases and no
       # customs crashes nothing, it just quietly becomes the thin,

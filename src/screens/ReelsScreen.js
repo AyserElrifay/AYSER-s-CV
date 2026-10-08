@@ -14,6 +14,8 @@ import { fetchFeed, deletePost } from '../services/posts';
 import { mateUp, fetchMateStates } from '../services/mates';
 import { toggleVibe as persistVibe, toggleRepost as persistRepost, fetchEngagement } from '../services/social';
 import { SoundChip } from '../components/SoundChip';
+import { SoundSheet } from '../components/SoundSheet';
+import { soundOfPost } from '../lib/sound';
 import { tapLight, tapMedium } from '../utils/feedback';
 import { sfxStar, sfxPop } from '../utils/sfx';
 import { soundOn, setSoundOn, applySound, trackPlayer, untrackPlayer, stopVideos } from '../lib/videoSound';
@@ -64,6 +66,9 @@ export const ReelsScreen = () => {
   const [commentsPost, setCommentsPost] = useState(null);
   const [profileUser, setProfileUser] = useState(null);
   const [shooting, setShooting] = useState(false);
+  /* the sound sheet, and the sound somebody picked to film with */
+  const [soundOpen, setSoundOpen] = useState(null);
+  const [withSound, setWithSound] = useState(null);
   const burst = useRef(new Animated.Value(0)).current;
   const [burstId, setBurstId] = useState(null);
   const [realReels, setRealReels] = useState(null); // null until loaded
@@ -126,7 +131,10 @@ export const ReelsScreen = () => {
           user: { id: r.user_id, name: (r.user && r.user.name) || 'Explorer', avatar: (r.user && r.user.avatar_url) || AV_NEUTRAL, verified: !!(r.user && r.user.verified), flag: (r.user && r.user.country_flag) || '' },
           media: r.media_url,
           caption: r.caption || '',
-          sound: r.sound_title ? { title: r.sound_title, artist: r.sound_artist || '', emoji: '🎵' } : null,
+          /* Every video has a sound. It is either a track somebody
+             chose, or the one they recorded — and the second one is
+             theirs, with a switch. See src/lib/sound.js. */
+          sound: soundOfPost(r),
           vibes: r.vibes || 0, comments: r.comments || 0, reposts: 0,
         }))))
       .catch(() => { setRealReels([]); setReelsErr(true); });
@@ -335,7 +343,9 @@ export const ReelsScreen = () => {
                     </LinearGradient>
                   </Pressable>
                 ) : (
-                  <SoundChip sound={item.sound} />
+                  <Pressable onPress={() => { tapLight(); setSoundOpen(item); }} hitSlop={6}>
+                    <SoundChip sound={item.sound} />
+                  </Pressable>
                 )}
               </View>
 
@@ -456,7 +466,23 @@ export const ReelsScreen = () => {
           }}
         />
       ) : null}
-      {shooting ? <CaptureModal initialMode="reel" onClose={() => setShooting(false)} /> : null}
+      {shooting ? (
+        <CaptureModal
+          initialMode="reel"
+          initialSound={withSound}
+          onClose={() => { setShooting(false); setWithSound(null); }}
+        />
+      ) : null}
+
+      {/* whose sound it is, what has been made with it, and — for the
+          person who recorded it — whether anybody else may. */}
+      {soundOpen ? (
+        <SoundSheet
+          postId={soundOpen.sound && soundOpen.sound.postId ? soundOpen.sound.postId : soundOpen.id}
+          onClose={() => setSoundOpen(null)}
+          onUseSound={(snd) => { setWithSound(snd); setShooting(true); }}
+        />
+      ) : null}
     </View>
   );
 };

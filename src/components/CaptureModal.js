@@ -714,13 +714,17 @@ const ArcadeLayer = ({ startRef }) => {
   );
 };
 
-export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPostedStory, sendMode = false, sendToName, onMoment }) => {
+export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClose, onPosted, onPostedStory, sendMode = false, sendToName, onMoment }) => {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { lang, t } = useLang();
   const reelGames = REEL_GAMES_BY_LANG[lang] || REEL_GAMES; // games in the app's language
   const [mode, setMode] = useState(initialMode); // 'story' | 'reel'
-  const [sound, setSound] = useState(null);
+  /* A sound can arrive with the screen: somebody tapped "use this
+     sound" on a reel and the camera opened with it already attached.
+     It carries soundPostId, which is what credits the person it came
+     from on the video that gets made. See src/lib/sound.js. */
+  const [sound, setSound] = useState(initialSound || null);
   const [facing, setFacing] = useState('user');
   // 'fill' frames it edge-to-edge (some of the sides get cropped);
   // 'wide' shows the WHOLE camera view with nothing cut off.
@@ -1280,6 +1284,10 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
      So six frames are pulled out across the clip, the one with
      something actually IN it is chosen (src/lib/frames.js scores them),
      and the strip is on screen so it can be overruled in one tap. */
+  /* Whether anybody else may build on the sound this clip records.
+     On unless they say otherwise — a sound nobody may touch is not a
+     sound, it is a file. */
+  const [soundReuse, setSoundReuse] = useState(true);
   const [covers, setCovers] = useState([]);
   const [chosenCover, setChosenCover] = useState(null);
   const noteLength = (el) => {
@@ -1878,7 +1886,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
           });
         } else if (mode === 'video') {
           const row = await createPost({
-            userId: user.id, type: 'vod', caption: finalCaption() || '🎬 Video', mediaUrl, thumbUrl, durationSec,
+            userId: user.id, type: 'vod', caption: finalCaption() || '🎬 Video', mediaUrl, thumbUrl, durationSec, sound, soundReuse,
             place: onMap ? (placeName.trim() || 'Right here') : null,
             lat: onMap && mapCoords ? mapCoords.latitude : null,
             lng: onMap && mapCoords ? mapCoords.longitude : null,
@@ -1886,7 +1894,7 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
           onPosted && onPosted(row);
         } else {
           const row = await createPost({
-            userId: user.id, type: 'reel', caption: finalCaption() || '🎬', mediaUrl, sound, thumbUrl, durationSec,
+            userId: user.id, type: 'reel', caption: finalCaption() || '🎬', mediaUrl, sound, soundReuse, thumbUrl, durationSec,
             place: onMap ? (placeName.trim() || 'Right here') : null,
             lat: onMap && mapCoords ? mapCoords.latitude : null,
             lng: onMap && mapCoords ? mapCoords.longitude : null,
@@ -2853,6 +2861,26 @@ export const CaptureModal = ({ initialMode = 'story', onClose, onPosted, onPoste
                     })}
                   </ScrollView>
                 </View>
+              ) : null}
+
+              {/* ── MAY ANYBODY ELSE USE THIS SOUND? ────────────────
+                  Only asked when the sound is theirs — a track from the
+                  hub is licensed for everybody already, so there is
+                  nothing to decide. On by default; off is a person
+                  saying no, and it is honoured everywhere. */}
+              {shot && shot.kind === 'video' && !sound && !sendMode ? (
+                <Pressable onPress={() => { tapLight(); setSoundReuse((v) => !v); }} style={{ marginBottom: 10 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.55)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 10 }}>
+                    <Text style={{ fontSize: 15 }}>🎙️</Text>
+                    <View style={{ flex: 1, minWidth: 0, marginStart: 9 }}>
+                      <Text numberOfLines={1} style={{ color: '#FFF', fontSize: 12.5, fontWeight: '800' }}>{t('sound_allow')}</Text>
+                      <Text numberOfLines={1} style={{ color: 'rgba(255,255,255,0.62)', fontSize: 10.5, marginTop: 1 }}>{t('sound_allow_hint')}</Text>
+                    </View>
+                    <View style={{ width: 42, height: 25, borderRadius: 13, backgroundColor: soundReuse ? C.green : 'rgba(255,255,255,0.22)', padding: 3, justifyContent: 'center' }}>
+                      <View style={{ width: 19, height: 19, borderRadius: 10, backgroundColor: '#FFF', marginLeft: soundReuse ? 17 : 0 }} />
+                    </View>
+                  </View>
+                </Pressable>
               ) : null}
 
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>

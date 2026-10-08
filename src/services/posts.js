@@ -266,7 +266,7 @@ export async function fetchTravelPlans({ q = '', limit = 40 } = {}) {
   return rows.slice(0, limit);
 }
 
-export async function createPost({ userId, type = 'post', caption, place, mediaUrl, thumbUrl, durationSec, textBg, lat, lng, squadName, sound, plan }) {
+export async function createPost({ userId, type = 'post', caption, place, mediaUrl, thumbUrl, durationSec, textBg, lat, lng, squadName, sound, soundReuse, plan }) {
   let payload = {
     user_id: userId,
     type,
@@ -290,6 +290,13 @@ export async function createPost({ userId, type = 'post', caption, place, mediaU
     sound_title: sound ? sound.title : null,
     sound_artist: sound ? sound.artist : null,
     sound_url: sound ? sound.audio_url || null : null,
+    /* whether anybody else may build on the sound THIS video recorded.
+       Allowed unless the person said otherwise — see src/lib/sound.js */
+    sound_reuse: soundReuse === false ? false : true,
+    /* and, when this video was made with somebody else's sound, which
+       video that was. The credit and the "made with this sound" list
+       both hang off this one column. */
+    sound_post_id: (sound && sound.soundPostId) || null,
   };
   const insert = () => supabase
     .from('posts')

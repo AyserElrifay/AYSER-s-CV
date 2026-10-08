@@ -2245,6 +2245,29 @@ alter table public.posts add column if not exists duration_sec int
 notify pgrst, 'reload schema';
 
 
+-- ═══════════ A SOUND SOMEBODY ELSE MAY BUILD ON ═══════════
+-- Two different things are called "the sound of a video": a track
+-- chosen from the music hub, which is licensed and free to anybody,
+-- and the ORIGINAL sound — somebody's voice, their street, their song,
+-- recorded when they filmed it. The second belongs to whoever filmed
+-- it, so whether anybody else may use it is their decision.
+--
+-- Reuse is allowed by default, because a sound nobody may touch is not
+-- a sound, it is a file. sound_reuse = false is a person saying no,
+-- and it is honoured everywhere the sound appears.
+alter table public.posts add column if not exists sound_reuse boolean not null default true;
+
+-- And which video a sound came FROM, when this one was made with
+-- somebody else's. It is what makes "videos made with this sound" a
+-- real list instead of a guess based on matching titles — and what
+-- makes the credit under a reel point at a person rather than a name.
+alter table public.posts add column if not exists sound_post_id uuid
+  references public.posts(id) on delete set null;
+create index if not exists posts_sound_post_idx on public.posts (sound_post_id);
+
+notify pgrst, 'reload schema';
+
+
 -- ═══════════ TRAVEL PLANS ═══════════
 -- "I'm in Romania this August, who's around?" — a post whose point is
 -- the trip behind it. Everything a plan needs beyond a normal moment
