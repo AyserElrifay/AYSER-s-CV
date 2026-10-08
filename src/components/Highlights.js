@@ -10,6 +10,7 @@ import {
 } from '../services/highlights';
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
 import { useLang } from '../context/LanguageContext';
+import { useSheetBack } from '../hooks/useSheetBack';
 
 /* ── HIGHLIGHTS ─────────────────────────────────────────────────────
    The row of circles under a profile. Everything in here is something
@@ -45,6 +46,9 @@ const Circle = ({ uri, label, onPress, onLongPress, plus }) => (
 /* Full-screen viewer: tap the right half for the next picture, the
    left half to go back, and out at the end. */
 const HighlightViewer = ({ highlight, isMine, onClose, onDeleted }) => {
+  /* the phone's own back closes this, the same as everything else;
+     see src/lib/sheetBack.js */
+  useSheetBack(onClose);
   const { t } = useLang();
   const insets = useSafeAreaInsets();
   const [i, setI] = useState(0);
@@ -125,6 +129,9 @@ const HighlightViewer = ({ highlight, isMine, onClose, onDeleted }) => {
 
 /* Make one, or add to one: pick from your own stories and moments. */
 const HighlightComposer = ({ userId, target, onClose, onSaved }) => {
+  /* the phone's own back closes this, the same as everything else;
+     see src/lib/sheetBack.js */
+  useSheetBack(onClose);
   const { t } = useLang();
   const insets = useSafeAreaInsets();
   const [title, setTitle] = useState(target ? target.title : '');

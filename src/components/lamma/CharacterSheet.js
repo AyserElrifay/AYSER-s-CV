@@ -8,6 +8,7 @@ import { tapLight, tapSuccess } from '../../utils/feedback';
 import { setFace } from '../../services/lamma';
 import { sendFaceToAlbum } from '../../services/green';
 import { SKINS, HEADS, COLLARS, EYES, BEARDS, DEFAULT_LOOK, bakePharaoh } from './pharaohArt';
+import { useSheetBack } from '../../hooks/useSheetBack';
 
 /* ─── لمّة · WHO ARE YOU TONIGHT ─────────────────────────────────────
    Ayser asked for the step before the game starts where everybody
@@ -88,6 +89,9 @@ const Row = ({ label, children }) => (
 );
 
 export const CharacterSheet = ({ roomId, packId, nickname, initial, onClose, onSaved }) => {
+  /* the phone's own back closes this, the same as everything else;
+     see src/lib/sheetBack.js */
+  useSheetBack(onClose);
   const insets = useSafeAreaInsets();
   const { t } = useLang();
   const [look, setLook] = useState({ ...DEFAULT_LOOK, ...(initial || {}) });

@@ -7,6 +7,7 @@ import { channelFor } from './channels';
 import { say, sayNote } from './languages';
 import { Strip, useCountdown, distributionSegments } from './Strip';
 import { tapMedium } from '../../utils/feedback';
+import { useSheetBack } from '../../hooks/useSheetBack';
 
 /* ─── لمّة · THE SHARED SCREEN ───────────────────────────────────────
    What the room looks like when the host is sharing their screen on a
@@ -340,8 +341,17 @@ export const StageTv = (props) => {
   );
 };
 
+/* The hook lives on the modal rather than on StageBody, because
+   StageBody is also drawn inline inside the game screen — and an
+   inline panel that is not covering anything must not swallow the
+   phone's back press from the screen it is sitting in. */
+const StageModal = (props) => {
+  useSheetBack(props.onClose);
+  return <StageBody {...props} />;
+};
+
 export const Stage = (props) => (
   <Modal visible={!!props.visible} animationType="fade" transparent={false} onRequestClose={props.onClose}>
-    <StageBody {...props} />
+    {props.visible ? <StageModal {...props} /> : null}
   </Modal>
 );

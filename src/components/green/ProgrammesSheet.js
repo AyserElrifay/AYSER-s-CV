@@ -12,6 +12,7 @@ import {
   KINDS, kindOf, findProgrammes, myProgrammes, addProgramme,
   joinProgramme, leaveProgramme, whereWhen,
 } from '../../services/programmes';
+import { useSheetBack } from '../../hooks/useSheetBack';
 
 /* ─── EXCHANGES ──────────────────────────────────────────────────────
    Every programme somebody in Moments has actually been on, and a
@@ -113,6 +114,9 @@ const Row = React.memo(({ p, t, onOpen, onToggle }) => {
 });
 
 export const ProgrammesSheet = ({ onClose, onOpenGroup }) => {
+  /* the phone's own back closes this, the same as everything else;
+     see src/lib/sheetBack.js */
+  useSheetBack(onClose);
   const insets = useSafeAreaInsets();
   const { t } = useLang();
   const { user } = useAuth();

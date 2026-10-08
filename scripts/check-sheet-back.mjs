@@ -78,21 +78,33 @@ is('pushing without a window is harmless', typeof pushSheet(() => {}), 'function
 globalThis.window = saved;
 
 console.log('\nevery sheet in the app has to use it');
-const dir = 'src/components';
-const files = fs.readdirSync(dir).filter((f) => f.endsWith('.js'));
+/* The first version of this only read the top of src/components, so
+   everything in green/ and lamma/ was never checked — and that is
+   exactly where the sheets with no back gesture were hiding. It walks
+   the whole tree now. */
+const files = [];
+(function walk(d) {
+  for (const f of fs.readdirSync(d)) {
+    const p = path.join(d, f);
+    if (fs.statSync(p).isDirectory()) walk(p);
+    else if (p.endsWith('.js')) files.push(p);
+  }
+})('src/components');
+
 const sheets = files.filter((f) => {
-  const s = fs.readFileSync(path.join(dir, f), 'utf8');
-  /* a sheet: it takes onClose, and it is an overlay rather than a
-     piece of a screen */
-  return /export const \w+ = \(\{[^}]*onClose/.test(s) && /<Modal|position: 'absolute', top: 0, bottom: 0/.test(s);
+  const s = fs.readFileSync(f, 'utf8');
+  /* a sheet: something takes onClose, and it covers the screen rather
+     than sitting inside one */
+  return /const \w+ = \(\{[^}]*onClose/.test(s)
+      && /<Modal|position: 'absolute', top: 0/.test(s);
 });
-const without = sheets.filter((f) => !/useSheetBack/.test(fs.readFileSync(path.join(dir, f), 'utf8')));
+const without = sheets.filter((f) => !/useSheetBack/.test(fs.readFileSync(f, 'utf8')));
 console.log('   ' + sheets.length + ' sheets found');
 is('all of them answer the back gesture', without, []);
 
 console.log('\nand the little bar at the top has to be real');
 const fake = files.filter((f) => {
-  const s = fs.readFileSync(path.join(dir, f), 'utf8');
+  const s = fs.readFileSync(f, 'utf8');
   if (!/onClose/.test(s)) return false;
   /* the decorative bar, drawn by hand, with nothing listening to it */
   return /width: 40, height: 4, borderRadius: 2/.test(s);

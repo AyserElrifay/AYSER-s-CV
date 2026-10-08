@@ -15,6 +15,7 @@ import { CHANNELS } from './channels';
 import { packFlags } from './languages';
 import { LammaGame } from './LammaGame';
 import { tapLight, tapMedium } from '../../utils/feedback';
+import { useSheetBack } from '../../hooks/useSheetBack';
 
 /* ─── لمّة · THE WAY IN ───────────────────────────────────────────────
    Two doors and nothing else: start one, or join one somebody is
@@ -35,6 +36,9 @@ import { tapLight, tapMedium } from '../../utils/feedback';
    rest of the game is still there, because somebody who came for one
    pack and stayed for another is a good evening, not a bug. */
 export const GameHub = ({ onClose, focusPack = null }) => {
+  /* the phone's own back closes this, the same as everything else;
+     see src/lib/sheetBack.js */
+  useSheetBack(onClose);
   const insets = useSafeAreaInsets();
   const { t, lang } = useLang();
   const { user } = useAuth();

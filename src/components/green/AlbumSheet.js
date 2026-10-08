@@ -8,6 +8,7 @@ import { C } from '../../constants/theme';
 import { useLang } from '../../context/LanguageContext';
 import { tapLight, tapSuccess } from '../../utils/feedback';
 import { fetchAlbum, removeFace } from '../../services/green';
+import { useSheetBack } from '../../hooks/useSheetBack';
 
 /* ─── عقول خضرا · THE PHARAOH ALBUM ──────────────────────────────────
    Every pharaoh anybody made, in one place, with a name and a date and
@@ -75,6 +76,9 @@ const when = (iso, lang) => {
 };
 
 export const AlbumSheet = ({ onClose }) => {
+  /* the phone's own back closes this, the same as everything else;
+     see src/lib/sheetBack.js */
+  useSheetBack(onClose);
   const insets = useSafeAreaInsets();
   const { t, lang } = useLang();
   const [faces, setFaces] = useState(null);      // null = still asking

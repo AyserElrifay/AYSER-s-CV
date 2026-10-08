@@ -14,6 +14,7 @@ import {
 } from '../../services/green';
 import { tapLight, tapMedium, tapSuccess } from '../../utils/feedback';
 import { PLAY_LANGS } from '../lamma/languages';
+import { useSheetBack } from '../../hooks/useSheetBack';
 
 /* ─── أخضر · GREEN MINDS ──────────────────────────────────────────────
    A corner of Moments for the things that are better done outside and
@@ -92,6 +93,9 @@ const Chip = ({ on, children, onPress }) => (
 export const GREEN_PACK = 'ffff6666-0000-4000-8000-000000000001';
 
 export const GreenSheet = ({ onClose, onPlay }) => {
+  /* the phone's own back closes this, the same as everything else;
+     see src/lib/sheetBack.js */
+  useSheetBack(onClose);
   const insets = useSafeAreaInsets();
   const { t, lang } = useLang();
   const { user } = useAuth();

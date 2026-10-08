@@ -7,6 +7,7 @@ import { LENSES, drawLens, placeOnFace } from '../lensArt';
 import { bakeFace } from './faceShot';
 import { loadFaceDetector, findFace, makeFaceTracker } from '../../lib/faceDetect';
 import { tapLight, tapMedium, tapSuccess } from '../../utils/feedback';
+import { useSheetBack } from '../../hooks/useSheetBack';
 
 /* ─── لمّة · YOUR FACE, IN THE PACK'S OWN WORLD ──────────────────────
    A letter in a circle is not a player. Everybody in a room together
@@ -77,6 +78,9 @@ const Overlay = ({ lens, frame }) => {
 };
 
 export const PharaohCam = ({ visible, onClose, onDone, t }) => {
+  /* the phone's own back closes this, the same as everything else;
+     see src/lib/sheetBack.js */
+  useSheetBack(onClose);
   const insets = useSafeAreaInsets();
   const videoRef = useRef(null);
   const streamRef = useRef(null);
