@@ -11,6 +11,8 @@ import { PAY_PROVIDERS, startCheckout } from '../services/payments';
 import { fetchLiveVenues } from '../services/venues';
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
 import { sfxPop, sfxSuccess } from '../utils/sfx';
+import { useSheetBack } from '../hooks/useSheetBack';
+import { SheetHandle } from './SheetHandle';
 
 /* Buy a Paid Boost. Pick a product → the Feedback Factor prices your
    clicks by your rating → set a budget → pick a gateway → pay.
@@ -18,6 +20,8 @@ import { sfxPop, sfxSuccess } from '../utils/sfx';
    blocked until they improve. */
 
 export const BoostSheet = ({ onClose }) => {
+  /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
+  useSheetBack(onClose);
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [product, setProduct] = useState('top_search');
@@ -72,7 +76,7 @@ export const BoostSheet = ({ onClose }) => {
   return (
     <Pressable onPress={onClose} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }}>
       <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, paddingBottom: insets.bottom + 22, paddingHorizontal: 16, maxHeight: '88%' }}>
-        <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 12 }} />
+        <SheetHandle onClose={onClose} />
         <ScrollView showsVerticalScrollIndicator={false}>
           {step === 1 ? (
             <>

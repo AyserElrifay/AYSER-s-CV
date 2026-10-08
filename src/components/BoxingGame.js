@@ -9,6 +9,7 @@ import { submitScore, fetchLeaderboard } from '../services/games';
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
 import { sfxPop, sfxStar, sfxSuccess } from '../utils/sfx';
 import { useStable } from '../hooks/useStable';
+import { useSheetBack } from '../hooks/useSheetBack';
 
 /* Games in Egyptian Arabic when the user turns it on (Settings). */
 const gamesAr = () => { try { return typeof localStorage !== 'undefined' && localStorage.getItem('mm_games_ar') === '1'; } catch (e) { return false; } };
@@ -37,6 +38,8 @@ const OPPONENTS = [
 ];
 
 export const BoxingGame = ({ onClose }) => {
+  /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
+  useSheetBack(onClose);
   const { user } = useAuth();
   const meAvatar = user ? buildAvatarUrl(user.id, user.avatar_dna) : null;
   const [phase, setPhase] = useState('ready'); // ready | playing | won | lost

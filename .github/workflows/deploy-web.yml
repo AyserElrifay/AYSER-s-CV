@@ -103,6 +103,12 @@ jobs:
       # voice to strangers.
       - name: Check a recorded sound stays its owner's
         run: node scripts/check-sound.mjs
+      # An installed web app's back gesture is the browser's back, and
+      # the browser knows nothing about a sheet opened by setting a
+      # state variable. Back therefore did nothing, or left the app —
+      # and the little grey bar every sheet drew was decoration.
+      - name: Check a sheet closes the way the phone says
+        run: node scripts/check-sheet-back.mjs
       # The country room is content, and content rots differently from
       # code: a country added in a hurry with eight phrases and no
       # customs crashes nothing, it just quietly becomes the thin,

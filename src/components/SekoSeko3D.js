@@ -7,6 +7,7 @@ import { submitScore, fetchLeaderboard } from '../services/games';
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
 import { sfxPop, sfxStar, sfxSuccess } from '../utils/sfx';
 import { SekoSeko } from './SekoSeko';
+import { useSheetBack } from '../hooks/useSheetBack';
 
 /* ─── سيكو سيكو 3D · first-person استغماية in an old-Cairo alley ────────────
    A real stylised-3D neighbourhood built with WebGL (three.js, loaded on
@@ -223,6 +224,8 @@ function buildScene(THREE, W, H) {
 }
 
 export const SekoSeko3D = ({ onClose }) => {
+  /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
+  useSheetBack(onClose);
   const { user } = useAuth();
   const [support, setSupport] = useState('checking'); // checking | ok | no
   const [phase, setPhase] = useState('ready');

@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { submitScore } from '../services/games';
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
 import { sfxPop, sfxSuccess } from '../utils/sfx';
+import { useSheetBack } from '../hooks/useSheetBack';
 
 /* ─── ROCK PAPER SCISSORS ──────────────────────────────────────────
    A quick hand, on your own. The other hand is picked BEFORE you tap
@@ -37,6 +38,8 @@ const saveBest = (n) => {
 };
 
 export const RockPaperScissors = ({ onClose }) => {
+  /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
+  useSheetBack(onClose);
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
 

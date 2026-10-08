@@ -12,6 +12,8 @@ import { sfxPop, sfxStar } from '../utils/sfx';
 import { tapSelection, tapLight } from '../utils/feedback';
 import { Micro } from './Micro';
 import { ProfileModal } from './ProfileModal';
+import { useSheetBack } from '../hooks/useSheetBack';
+import { SheetHandle } from './SheetHandle';
 
 /* Comments — real, with the full loop: reply to anyone (threads), and
    react with a ❤️ that persists. Country flags next to names. */
@@ -73,6 +75,8 @@ const toThread = (rows) => {
 };
 
 export const CommentsSheet = ({ post, onClose }) => {
+  /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
+  useSheetBack(onClose);
   const { t } = useLang();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
@@ -189,7 +193,7 @@ export const CommentsSheet = ({ post, onClose }) => {
           }}
         >
           <View style={{ alignItems: 'center', paddingTop: 10, paddingBottom: 6 }}>
-            <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: C.glassHi }} />
+          <SheetHandle onClose={onClose} />
           </View>
           <View style={{ paddingHorizontal: 18, paddingBottom: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
             <Micro>{t('cm_title')}</Micro>

@@ -10,6 +10,7 @@ import { sfxPop, sfxStar, sfxSuccess } from '../utils/sfx';
 import {
   CHAPTERS, makeLevel, drawScene, drawRunner, drawChaser, GROUND,
 } from './rushArt';
+import { useSheetBack } from '../hooks/useSheetBack';
 
 /* ─── ROOFTOP RUSH — a real side-scrolling platformer ─────────────────
    A painted canvas world (see rushArt.js): parallax skylines and alpine
@@ -64,6 +65,8 @@ const goalText = (ch, ar) => {
 };
 
 export const RooftopRush = ({ onClose, matchId = null, isHost = false, opponent = null }) => {
+  /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
+  useSheetBack(onClose);
   const { user } = useAuth();
   const ar = gamesAr();
   const isRace = !!matchId;

@@ -17,6 +17,8 @@ import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
 import { sfxPop } from '../utils/sfx';
 import { useStable } from '../hooks/useStable';
 import { useLang } from '../context/LanguageContext';
+import { useSheetBack } from '../hooks/useSheetBack';
+import { SheetHandle } from './SheetHandle';
 
 /* ── MUSIC ──────────────────────────────────────────────────────────
    A place to listen, not a place to manage a catalogue.
@@ -69,6 +71,8 @@ const Cover = ({ track, size = 52, radius = 8 }) => {
 };
 
 export const MusicHubSheet = ({ onPick, onClose }) => {
+  /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
+  useSheetBack(onClose);
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { t } = useLang();
@@ -296,7 +300,7 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
         borderWidth: 1, borderColor: C.line, height: '82%', paddingBottom: insets.bottom,
       }}>
         <View style={{ alignItems: 'center', paddingTop: 10, paddingBottom: 2 }}>
-          <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: C.glassHi }} />
+          <SheetHandle onClose={onClose} />
         </View>
 
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingTop: 6 }}>

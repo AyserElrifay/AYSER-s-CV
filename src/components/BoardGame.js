@@ -10,6 +10,7 @@ import { fetchMatch, openBoard, pushMove, subscribeBoard, subscribeMatchLive } f
 import { newBoard, applyMove, handFor, gameById, BOARD_META, raceRingIndex } from '../services/boardGames';
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
 import { sfxPop, sfxSuccess } from '../utils/sfx';
+import { useSheetBack } from '../hooks/useSheetBack';
 
 /* ── TWO PEOPLE, ONE BOARD ───────────────────────────────────────────
    The board you're both looking at is one row in the database. Your
@@ -45,6 +46,8 @@ const Pill = ({ children, tone, on }) => (
 );
 
 export const BoardGame = ({ matchId, kind, isHost, opponent, onClose, onRematch }) => {
+  /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
+  useSheetBack(onClose);
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const game = gameById(kind);

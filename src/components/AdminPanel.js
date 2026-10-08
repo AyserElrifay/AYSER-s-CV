@@ -16,6 +16,8 @@ import { askBardi } from '../services/bardi';
 import { AV_NEUTRAL } from '../constants/mockData';
 import { tapLight, tapSuccess } from '../utils/feedback';
 import { useStable } from '../hooks/useStable';
+import { SheetHandle } from './SheetHandle';
+import { useSheetBack } from '../hooks/useSheetBack';
 
 /* ─── MOMENTS STUDIO · the owner's control panel ──────────────────────
    One place to run everything: live stats, the report queue, verification
@@ -33,6 +35,8 @@ const TABS = [
 ];
 
 export const AdminPanel = ({ onClose }) => {
+  /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
+  useSheetBack(onClose);
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [tab, setTab] = useState('reports');
@@ -540,7 +544,7 @@ export const AdminPanel = ({ onClose }) => {
         {helpEdit ? (
           <Pressable onPress={() => setHelpEdit(null)} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }}>
             <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 16, paddingBottom: insets.bottom + 20 }}>
-              <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 12 }} />
+        <SheetHandle onClose={onClose} />
               <Text style={{ color: C.text, fontSize: 16, fontWeight: '900', marginBottom: 10 }}>{helpEdit === 'new' ? 'Add article' : 'Edit article'}</Text>
               <TextInput
                 placeholder="Category (e.g. Account, Privacy & safety)" placeholderTextColor={C.faint}

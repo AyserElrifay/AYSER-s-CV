@@ -13,6 +13,7 @@ import {
   STAGES, makeStage, drawHopScene, goalText, vehiclesOn, trainAt,
   VW_WORLD, COLS, COL, ROW_H, colX, rowY,
 } from './hopArt';
+import { useSheetBack } from '../hooks/useSheetBack';
 
 /* ─── THE CROSSING · Six Cities ───────────────────────────────────────
    Get to the other side. Traffic, water, and a railway between you and
@@ -48,6 +49,8 @@ const saveCard = (id) => {
 };
 
 export const StreetHop = ({ onClose }) => {
+  /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
+  useSheetBack(onClose);
   const { user } = useAuth();
   const ar = gamesAr();
   const myDna = React.useMemo(() => parseDna(user && user.avatar_dna), [user && user.avatar_dna]);

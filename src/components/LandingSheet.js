@@ -12,6 +12,8 @@ import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
 import {
   fetchArrival, confirmStep, fetchStepNotes, setStepDone, addStep, explainLanding,
 } from '../services/landing';
+import { useSheetBack } from '../hooks/useSheetBack';
+import { SheetHandle } from './SheetHandle';
 
 /* ─── FIRST 30 DAYS ─────────────────────────────────────────────────
    The screen for somebody who landed on Tuesday.
@@ -249,6 +251,8 @@ const Adder = ({ me, country, city, t, onAdded }) => {
 };
 
 export const LandingSheet = ({ country, city, place, onClose }) => {
+  /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
+  useSheetBack(onClose);
   const insets = useSafeAreaInsets();
   const { t } = useLang();
   const { user } = useAuth();
@@ -276,7 +280,7 @@ export const LandingSheet = ({ country, city, place, onClose }) => {
           backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24,
           paddingTop: 10, paddingBottom: insets.bottom + 18, paddingHorizontal: 16, maxHeight: '90%',
         }}>
-          <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 12 }} />
+        <SheetHandle onClose={onClose} />
           <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
             <ScrollView showsVerticalScrollIndicator={false}>
               <Text style={{ color: C.text, fontSize: 20, fontWeight: '900' }}>

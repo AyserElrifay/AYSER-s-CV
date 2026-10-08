@@ -34,6 +34,7 @@ import { sharePost, shareNote } from '../utils/share';
 const getCommentsSheet = () => require('./CommentsSheet').CommentsSheet;
 import { sfxPop, sfxSuccess } from '../utils/sfx';
 import { setupNotice } from '../lib/plumbing';
+import { useSheetBack } from '../hooks/useSheetBack';
 
 const { width: W } = Dimensions.get('window');
 const CELL = (W - 48) / 3;
@@ -47,6 +48,8 @@ const CELL = (W - 48) / 3;
 const isVideoUri = (u) => typeof u === 'string' && /\.(webm|mp4|mov|m4v)(\?|$)/i.test(u);
 
 export const ProfileModal = ({ user, onClose }) => {
+  /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
+  useSheetBack(onClose);
   const insets = useSafeAreaInsets();
   // their live stories — tap the photo to watch them
   const [theirStories, setTheirStories] = useState([]);

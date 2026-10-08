@@ -13,6 +13,8 @@ import { fetchSpeakersOf } from '../services/discover';
 import { flagOf } from '../constants/countries';
 import { fetchFilms } from '../services/films';
 import { tapLight } from '../utils/feedback';
+import { useSheetBack } from '../hooks/useSheetBack';
+import { SheetHandle } from './SheetHandle';
 
 /* ─── THE COUNTRY ROOM ───────────────────────────────────────────────
    One country at a time: the words you will need in your first week,
@@ -383,6 +385,8 @@ const LearnProperly = ({ ar, t }) => (
 );
 
 export const CountrySheet = ({ startCode, onClose }) => {
+  /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
+  useSheetBack(onClose);
   const insets = useSafeAreaInsets();
   const { lang, t } = useLang();
   const ar = lang === 'ar';
@@ -448,7 +452,7 @@ export const CountrySheet = ({ startCode, onClose }) => {
           backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24,
           paddingTop: 10, paddingBottom: insets.bottom + 20, maxHeight: '92%',
         }}>
-        <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 10 }} />
+        <SheetHandle onClose={onClose} />
 
         {/* which country — flags, because a person scanning for Greece
             finds the flag before they finish reading the word */}

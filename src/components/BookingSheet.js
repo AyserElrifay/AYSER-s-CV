@@ -12,6 +12,8 @@ import { getOrCreateDmThread, sendMessage } from '../services/messages';
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
 import { sfxSuccess } from '../utils/sfx';
 import { setupNotice } from '../lib/plumbing';
+import { useSheetBack } from '../hooks/useSheetBack';
+import { SheetHandle } from './SheetHandle';
 
 /* Book a place AND pay through Moments — that's how we earn: the app
    takes its commission (PLATFORM_FEE) on the payment, the rest goes to
@@ -24,6 +26,8 @@ const priceToNumber = (s) => {
 };
 
 export const BookingSheet = ({ venue, onClose }) => {
+  /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
+  useSheetBack(onClose);
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [provider, setProvider] = useState('paymob');
@@ -88,7 +92,7 @@ export const BookingSheet = ({ venue, onClose }) => {
   return (
     <Pressable onPress={onClose} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }}>
       <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, paddingBottom: insets.bottom + 22, paddingHorizontal: 16, maxHeight: '88%' }}>
-        <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 12 }} />
+        <SheetHandle onClose={onClose} />
         <ScrollView showsVerticalScrollIndicator={false}>
           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 14 }}>
             <View style={{ width: 52, height: 52, borderRadius: 15, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>

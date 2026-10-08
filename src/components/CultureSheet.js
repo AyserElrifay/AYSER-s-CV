@@ -5,6 +5,8 @@ import { C } from '../constants/theme';
 import { PLACES } from './worldCulture';
 import { useLang } from '../context/LanguageContext';
 import { tapLight } from '../utils/feedback';
+import { useSheetBack } from '../hooks/useSheetBack';
+import { SheetHandle } from './SheetHandle';
 
 /* ─── THE HERITAGE ROOM ──────────────────────────────────────────────
    Ayser: "خلي بردو مومنتس يبان انه بيحافظ علي تراث و الثقافه."
@@ -113,6 +115,8 @@ const Card = ({ place, lang, open, onToggle, t }) => {
 };
 
 export const CultureSheet = ({ onClose }) => {
+  /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
+  useSheetBack(onClose);
   const insets = useSafeAreaInsets();
   const { t, lang } = useLang();
   const [open, setOpen] = useState(null);
@@ -127,7 +131,7 @@ export const CultureSheet = ({ onClose }) => {
           backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24,
           paddingTop: 10, paddingBottom: insets.bottom + 22, paddingHorizontal: 16, maxHeight: '90%',
         }}>
-        <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 12 }} />
+        <SheetHandle onClose={onClose} />
         <ScrollView showsVerticalScrollIndicator={false}>
           <Text style={{ color: C.text, fontSize: 20, fontWeight: '900' }}>{t('culture_title')}</Text>
           <Text style={{ color: C.dim, fontSize: 12.5, lineHeight: 19, marginTop: 4, marginBottom: 16 }}>

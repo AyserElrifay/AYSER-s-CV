@@ -9,6 +9,7 @@ import { SUPABASE_READY } from '../lib/supabase';
 import { fetchReviews, saveReview, deleteReview, watchOptions } from '../services/films';
 import { openPartner } from '../services/broker';
 import { tapLight, tapSuccess } from '../utils/feedback';
+import { useSheetBack } from '../hooks/useSheetBack';
 
 /* One film: what it is, where to watch it legally, and what the people
    here made of it. The catalogue's global score and this crowd's score
@@ -26,6 +27,8 @@ const Stars = ({ value, size = 18, onPick }) => (
 );
 
 export const FilmSheet = ({ film, ourScore, onClose, onSaved }) => {
+  /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
+  useSheetBack(onClose);
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [reviews, setReviews] = useState(null);

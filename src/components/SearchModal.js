@@ -26,6 +26,7 @@ import { setupNotice } from '../lib/plumbing';
 
 /* Fetched when it is opened, not when the app starts. */
 import { lazyOverlay } from '../lib/lazyScreen';
+import { useSheetBack } from '../hooks/useSheetBack';
 const GameRunner = lazyOverlay(() => import('./GameRunner').then((m) => ({ default: m.GameRunner })));
 const RooftopRush = lazyOverlay(() => import('./RooftopRush').then((m) => ({ default: m.RooftopRush })));
 const RockPaperScissors = lazyOverlay(() => import('./RockPaperScissors').then((m) => ({ default: m.RockPaperScissors })));
@@ -365,6 +366,8 @@ const TrendRow = React.memo(({ item, rank, onPick }) => (
 ));
 
 export const SearchModal = ({ onClose, onOpenProfile, onOpenTopics, onOpenTag }) => {
+  /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
+  useSheetBack(onClose);
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { t } = useLang();

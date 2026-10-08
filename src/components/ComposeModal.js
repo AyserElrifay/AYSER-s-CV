@@ -20,6 +20,7 @@ import { SoundChip } from './SoundChip';
 import { TagPeoplePicker } from './TagPeoplePicker';
 import { tagPeople } from '../services/tags';
 import { UP_FOR, monthOptions } from '../constants/travel';
+import { useSheetBack } from '../hooks/useSheetBack';
 
 /* The creation studio — one place to share a Moment, a Reel, or a
    Story. Shoot from the camera or pick from the gallery, add a sound
@@ -33,6 +34,8 @@ const MODES = [
 ];
 
 export const ComposeModal = ({ initialMode = 'post', initialCaption = '', onClose, onPosted, onPostedStory, onOpenStudio }) => {
+  /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
+  useSheetBack(onClose);
   const { t } = useLang();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();

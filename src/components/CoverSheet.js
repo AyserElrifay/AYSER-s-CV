@@ -6,6 +6,7 @@ import { useLang } from '../context/LanguageContext';
 import { tapLight, tapSuccess } from '../utils/feedback';
 import { grabFrames, pickBest } from '../lib/frames';
 import { compressImage } from '../lib/storage';
+import { useSheetBack } from '../hooks/useSheetBack';
 
 /* ─── CHANGING THE COVER AFTER IT IS POSTED ───────────────────────────
    "او بعد ما ينزلها و يحطه" — the second half of the ask, and the
@@ -23,6 +24,8 @@ import { compressImage } from '../lib/storage';
    opened it decides what that means — which is what keeps this the
    same sheet for a moment, a reel and a video. */
 export const CoverSheet = ({ videoUrl, current, onClose, onChoose }) => {
+  /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
+  useSheetBack(onClose);
   const { t } = useLang();
   const [frames, setFrames] = useState(null);     // null = still looking
   const [blocked, setBlocked] = useState(false);

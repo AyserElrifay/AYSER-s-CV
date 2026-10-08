@@ -3,6 +3,7 @@ import { View, Text, Pressable } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { C } from '../constants/theme';
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
+import { useSheetBack } from '../hooks/useSheetBack';
 
 /* ── GAMES INSIDE A CALL — really multiplayer ──
    Both sides are already on the call's realtime channel, so every move
@@ -19,6 +20,8 @@ const PADDLE_W = 64;
 const PUCK = 18;
 
 export const CallGames = ({ role, send, eventRef, onClose }) => {
+  /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
+  useSheetBack(onClose);
   const isHost = role === 'host';
   const [game, setGame] = useState(null); // null | 'xo' | 'race' | 'hockey'
 

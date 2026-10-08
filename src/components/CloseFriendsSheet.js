@@ -9,6 +9,8 @@ import { fetchMyMates } from '../services/mates';
 import { fetchCloseFriendIds, setCloseFriend } from '../services/closeFriends';
 import { buildAvatarUrl } from '../services/avatarBuilder';
 import { tapSelection, tapSuccess } from '../utils/feedback';
+import { useSheetBack } from '../hooks/useSheetBack';
+import { SheetHandle } from './SheetHandle';
 
 /* ── CLOSE FRIENDS ───────────────────────────────────────────────────
    The smaller circle. Tick people, and anything you mark close-only
@@ -24,6 +26,8 @@ import { tapSelection, tapSuccess } from '../utils/feedback';
    The green ring is the same signal every app uses for this, and it's
    worth keeping because people already know what it means. */
 export const CloseFriendsSheet = ({ onClose }) => {
+  /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
+  useSheetBack(onClose);
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [mates, setMates] = useState(null);
@@ -71,7 +75,7 @@ export const CloseFriendsSheet = ({ onClose }) => {
         borderWidth: 1, borderColor: C.line, maxHeight: '88%', paddingBottom: insets.bottom + 10,
       }}>
         <View style={{ alignItems: 'center', paddingTop: 10 }}>
-          <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: C.glassHi }} />
+          <SheetHandle onClose={onClose} />
         </View>
 
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 12 }}>

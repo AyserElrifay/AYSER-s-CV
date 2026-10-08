@@ -9,6 +9,7 @@ import { buildAvatarUrl } from '../services/avatarBuilder';
 import { submitScore, fetchLeaderboard, finishMatch, subscribeMatchLive } from '../services/games';
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
 import { sfxPop, sfxStar, sfxSuccess } from '../utils/sfx';
+import { useSheetBack } from '../hooks/useSheetBack';
 
 // Games in Egyptian Arabic when the user turns it on (Settings).
 const gamesAr = () => { try { return typeof localStorage !== 'undefined' && localStorage.getItem('mm_games_ar') === '1'; } catch (e) { return false; } };
@@ -59,6 +60,8 @@ const pickLoot = () => {
 };
 
 export const GameRunner = ({ opponent = null, onClose, matchId = null, isHost = false, onRematch = null }) => {
+  /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
+  useSheetBack(onClose);
   const { user } = useAuth();
   const meAvatar = user ? buildAvatarUrl(user.id, user.avatar_dna) : null;
   const isMultiplayer = !!matchId;

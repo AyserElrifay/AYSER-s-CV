@@ -11,6 +11,7 @@ import { fetchTopics, fetchTopicPosts, fetchFypPosts, TOPIC_CATEGORIES, tintOf }
 import { FYP } from '../lib/classify';
 import { tapLight, tapSelection } from '../utils/feedback';
 import { useLang } from '../context/LanguageContext';
+import { useSheetBack } from '../hooks/useSheetBack';
 
 /* ── TOPICS ─────────────────────────────────────────────────────────
    Rooms to post into. Every cover here is an emoji on a gradient we
@@ -175,6 +176,8 @@ const TopicPage = ({ topic, onBack, onOpenPost, onCompose }) => {
 };
 
 export const TopicsSheet = ({ onClose, onOpenPost, onCompose, initialSlug = null, initialTag = null }) => {
+  /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
+  useSheetBack(onClose);
   const insets = useSafeAreaInsets();
   const [topics, setTopics] = useState(null);
   const [open, setOpen] = useState(null);

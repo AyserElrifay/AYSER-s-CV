@@ -10,6 +10,7 @@ import { fetchLibrary, addToLibrary, removeFromLibrary } from '../services/libra
 import { MAX_UPLOAD_BYTES } from '../lib/storage';
 import { compressVideo, probeVideo, videoPlan, REEL_MAX_SECONDS } from '../lib/videoCompress';
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
+import { useSheetBack } from '../hooks/useSheetBack';
 
 /* ── YOUR LIBRARY ───────────────────────────────────────────────────
    Everything you've uploaded, waiting to be posted. Add clips and
@@ -35,6 +36,8 @@ import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
 const mb = (n) => (n ? (n / (1024 * 1024)).toFixed(1) + ' MB' : '');
 
 export const MediaLibrarySheet = ({ onPick, onClose, only = null, inline = false }) => {
+  /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
+  useSheetBack(onClose);
   const { t } = useLang();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();

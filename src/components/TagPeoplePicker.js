@@ -10,6 +10,7 @@ import { searchProfiles } from '../services/social';
 import { AV_NEUTRAL } from '../constants/mockData';
 import { tapLight, tapSelection } from '../utils/feedback';
 import { useStable } from '../hooks/useStable';
+import { useSheetBack } from '../hooks/useSheetBack';
 
 /* Pick the people who are actually in the moment. Your mates come up
    first because that's who you're usually with; the search reaches
@@ -17,6 +18,8 @@ import { useStable } from '../hooks/useStable';
    isn't a person on this app. */
 
 export const TagPeoplePicker = ({ selected = [], onDone, onClose }) => {
+  /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
+  useSheetBack(onClose);
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [mates, setMates] = useState(null);

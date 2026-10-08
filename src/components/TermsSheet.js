@@ -3,6 +3,7 @@ import { View, Text, Modal, Pressable, ScrollView, Linking } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { C } from '../constants/theme';
+import { useSheetBack } from '../hooks/useSheetBack';
 
 /* The legal document — Terms of Use, the content-ownership rule that
    shifts liability to uploaders, and the DMCA / takedown policy that
@@ -19,6 +20,8 @@ const P = ({ children }) => (
 );
 
 export const TermsSheet = ({ onClose }) => {
+  /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
+  useSheetBack(onClose);
   const insets = useSafeAreaInsets();
   return (
     <Modal visible transparent={false} animationType="slide" onRequestClose={onClose}>

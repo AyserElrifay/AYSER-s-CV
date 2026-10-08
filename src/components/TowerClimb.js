@@ -13,6 +13,7 @@ import {
   CHAPTERS, makeTower, drawTowerScene, goalText, ledgeX,
   VW_WORLD, LEFT, RIGHT, FLOORS,
 } from './towerArt';
+import { useSheetBack } from '../hooks/useSheetBack';
 
 /* ─── THE CLIMB · Wonders ─────────────────────────────────────────────
    Climb the inside of a tower, one ledge at a time, with the weather
@@ -57,6 +58,8 @@ const saveCard = (id) => {
 };
 
 export const TowerClimb = ({ onClose }) => {
+  /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
+  useSheetBack(onClose);
   const { user } = useAuth();
   const ar = gamesAr();
   const myDna = React.useMemo(() => parseDna(user && user.avatar_dna), [user && user.avatar_dna]);

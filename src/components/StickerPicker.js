@@ -6,6 +6,8 @@ import { C, R } from '../constants/theme';
 import { STICKERS, stickerToDataUrl } from '../services/avatarArt';
 import { COMICS, comicToDataUrl } from '../services/comicArt';
 import { tapLight, tapSelection } from '../utils/feedback';
+import { SheetHandle } from './SheetHandle';
+import { useSheetBack } from '../hooks/useSheetBack';
 
 /* ── STICKERS ───────────────────────────────────────────────────────
    Two packs, both ours. "You" is your own avatar pulling a face — the
@@ -17,6 +19,8 @@ import { tapLight, tapSelection } from '../utils/feedback';
    Nothing here was downloaded, traced or borrowed, which is exactly
    why we can hand out this many of them. */
 export const StickerPicker = ({ dna, onPick, onClose }) => {
+  /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
+  useSheetBack(onClose);
   const insets = useSafeAreaInsets();
   const [busy, setBusy] = useState(null);
   const [pack, setPack] = useState('comics');
@@ -37,7 +41,7 @@ export const StickerPicker = ({ dna, onPick, onClose }) => {
         borderWidth: 1, borderColor: C.line, paddingBottom: insets.bottom + 14, maxHeight: '70%',
       }}>
         <View style={{ alignItems: 'center', paddingTop: 10, paddingBottom: 4 }}>
-          <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: C.glassHi }} />
+          <SheetHandle onClose={onClose} />
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingBottom: 8 }}>
           <Text style={{ color: C.text, fontSize: 15, fontWeight: '900', flex: 1 }}>Stickers</Text>

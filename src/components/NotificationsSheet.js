@@ -21,6 +21,8 @@ import { setupNotice } from '../lib/plumbing';
 
 /* Fetched when it is opened, not when the app starts. */
 import { lazyOverlay } from '../lib/lazyScreen';
+import { useSheetBack } from '../hooks/useSheetBack';
+import { SheetHandle } from './SheetHandle';
 const CommentsSheet = lazyOverlay(() => import('./CommentsSheet').then((m) => ({ default: m.CommentsSheet })));
 const ReelsViewer = lazyOverlay(() => import('./ReelsViewer').then((m) => ({ default: m.ReelsViewer })));
 const LikersSheet = lazyOverlay(() => import('./LikersSheet').then((m) => ({ default: m.LikersSheet })));
@@ -74,6 +76,8 @@ function bucketOf(ts) {
 const BUCKET_ORDER = ['Today', 'Yesterday', 'This week', 'This month', 'Earlier'];
 
 export const NotificationsSheet = ({ onClose }) => {
+  /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
+  useSheetBack(onClose);
   const { t } = useLang();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
@@ -284,7 +288,7 @@ export const NotificationsSheet = ({ onClose }) => {
         borderWidth: 1, borderColor: C.line, maxHeight: '80%', paddingBottom: insets.bottom + 12,
       }}>
         <View style={{ alignItems: 'center', paddingTop: 10, paddingBottom: 6 }}>
-          <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: C.glassHi }} />
+          <SheetHandle onClose={onClose} />
         </View>
         <View style={{ paddingHorizontal: 18, paddingBottom: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <Micro>{t('nt_title')}</Micro>

@@ -19,12 +19,15 @@ import { note } from '../lib/crashLog';
 import { soundOn, setSoundOn, applySound, trackPlayer, untrackPlayer, stopVideos } from '../lib/videoSound';
 import { isSaving, DEFAULT_DATA_MODE } from '../lib/dataSaver';
 import { getPrefs, subscribePrefs } from '../services/prefs';
+import { useSheetBack } from '../hooks/useSheetBack';
 
 const { height: H } = Dimensions.get('window');
 
 /* TikTok-style full-screen reels: swipe up for the next one, action
    rail on the right, sound tag at the bottom. */
 export const ReelsViewer = ({ reels, startIndex = 0, vibes, onVibe, onComment, onClose, onDeleted, onEdited }) => {
+  /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
+  useSheetBack(onClose);
   /* ── HOW MUCH TO PULL DOWN AHEAD OF SOMEBODY ────────────────────
      Opening Reels is asking to watch, so the reel on screen plays.
      What changes on a metered connection is how much of the FILE is

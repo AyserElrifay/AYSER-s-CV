@@ -13,11 +13,14 @@ import { SectionHeader } from './SectionHeader';
 import { NeonButton } from './NeonButton';
 import { GhostButton } from './GhostButton';
 import { RouteMap } from './RouteMap';
+import { useSheetBack } from '../hooks/useSheetBack';
 
 /* ──────────────── THE MAGIC FLOW · JOIN THE VIBE ─────────────────────
    Tap → route plots to the moment → YalaGo ride mock → squad created. */
 
 export const MagicFlowModal = ({ post, onClose, onComplete }) => {
+  /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
+  useSheetBack(onClose);
   const insets = useSafeAreaInsets();
   const [step, setStep] = useState('route');
   const [ride, setRide] = useState(RIDES[0]);

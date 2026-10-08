@@ -10,6 +10,7 @@ import { CallGames } from './CallGames';
 import { tapMedium, tapLight, tapSuccess } from '../utils/feedback';
 import { startRingback } from '../utils/sfx';
 import { useStable } from '../hooks/useStable';
+import { useSheetBack } from '../hooks/useSheetBack';
 
 /* ─── REAL calls ───
    The other person's device actually RINGS (Supabase Realtime broadcast
@@ -29,6 +30,8 @@ const isWeb = Platform.OS === 'web';
 const REAL_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export const CallScreen = ({ peer, video, incoming = false, callId: incomingCallId, onClose }) => {
+  /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
+  useSheetBack(onClose);
   const { user } = useAuth();
   const canReallyCall = SUPABASE_READY && isWeb && !!user && !!(peer && REAL_ID.test(peer.id || ''));
   const [state, setState] = useState(incoming ? 'connecting' : 'ringing'); // ringing | connecting | live | noanswer | failed | ended

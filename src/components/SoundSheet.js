@@ -10,6 +10,7 @@ import { useLang } from '../context/LanguageContext';
 import { tapLight, tapSuccess } from '../utils/feedback';
 import { canReuse, reuseSound } from '../lib/sound';
 import { fetchSound, setSoundReuse } from '../services/sounds';
+import { useSheetBack } from '../hooks/useSheetBack';
 
 /* ─── A SOUND, AND WHO IS ALLOWED TO USE IT ───────────────────────────
    "خلي الفديوز ليها سوندرز و الناس ممكن تسمح او تلغي ده ان الناس تreuse
@@ -26,6 +27,8 @@ import { fetchSound, setSoundReuse } from '../services/sounds';
         voice, their street, their song: whether anybody may build on
         it is their decision and nobody else's. */
 export const SoundSheet = ({ postId, onClose, onUseSound, onOpenPost }) => {
+  /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
+  useSheetBack(onClose);
   const { user } = useAuth();
   const { t } = useLang();
   const [data, setData] = useState(null);     // null = still loading

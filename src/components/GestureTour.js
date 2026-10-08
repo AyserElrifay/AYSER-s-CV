@@ -5,6 +5,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { C, R } from '../constants/theme';
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
 import { useLang } from '../context/LanguageContext';
+import { useSheetBack } from '../hooks/useSheetBack';
 
 /* ── THE FOUR THINGS WORTH KNOWING ───────────────────────────────────
    Shown once, the first time somebody gets into the app, and never
@@ -118,6 +119,8 @@ const Motion = ({ kind }) => {
 };
 
 export const GestureTour = ({ onClose }) => {
+  /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
+  useSheetBack(onClose);
   const { t } = useLang();
   const insets = useSafeAreaInsets();
   const [i, setI] = useState(0);

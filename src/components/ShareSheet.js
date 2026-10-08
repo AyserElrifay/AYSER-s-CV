@@ -8,6 +8,8 @@ import { useAuth } from '../context/AuthContext';
 import { fetchMyDmThreads, sendMessage } from '../services/messages';
 import { shareOut } from '../lib/shareLink';
 import { tapLight, tapSuccess } from '../utils/feedback';
+import { useSheetBack } from '../hooks/useSheetBack';
+import { SheetHandle } from './SheetHandle';
 
 /* ─── SEND THIS TO SOMEBODY ──────────────────────────────────────────
    Ayser: "Make that we can share the group link to moments chat and
@@ -41,6 +43,8 @@ const Avatar = ({ uri, name }) => (
 );
 
 export const ShareSheet = ({ url, message, onClose }) => {
+  /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
+  useSheetBack(onClose);
   const insets = useSafeAreaInsets();
   const { t } = useLang();
   const { user } = useAuth();
@@ -89,7 +93,7 @@ export const ShareSheet = ({ url, message, onClose }) => {
         backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24,
         paddingTop: 12, paddingHorizontal: 16, paddingBottom: insets.bottom + 18, maxHeight: '82%',
       }}>
-        <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 12 }} />
+        <SheetHandle onClose={onClose} />
         <Text style={{ color: C.text, fontSize: 18, fontWeight: '900' }}>{t('sh_title')}</Text>
         <Text style={{ color: C.faint, fontSize: 12.5, marginTop: 3, marginBottom: 14 }} numberOfLines={1}>{url}</Text>
 

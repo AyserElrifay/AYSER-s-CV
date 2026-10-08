@@ -20,6 +20,8 @@ import {
   fetchMembers, approveMember, setMemberRole, removeMember,
   joinGroup, leaveGroup, markGroupSeen, explainGroups,
 } from '../services/groups';
+import { useSheetBack } from '../hooks/useSheetBack';
+import { SheetHandle } from './SheetHandle';
 
 /* ─── A GROUP THAT IS A PLACE, NOT A LIST OF NAMES ───────────────────
    Ayser: "و خلي جروبي شبه جروبس الفيس بوك"
@@ -312,7 +314,7 @@ const GroupSettings = ({ group, onClose, onSaved, onDeleted, t }) => {
         backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24,
         paddingTop: 12, paddingHorizontal: 16, paddingBottom: insets.bottom + 18, maxHeight: '90%',
       }}>
-        <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 12 }} />
+        <SheetHandle onClose={onClose} />
         <Text style={{ color: C.text, fontSize: 18, fontWeight: '900', marginBottom: 14 }}>{t('gs_title')}</Text>
 
         <ScrollView showsVerticalScrollIndicator={false}>
@@ -374,6 +376,8 @@ const GroupSettings = ({ group, onClose, onSaved, onDeleted, t }) => {
 };
 
 export const GroupPage = ({ groupId, focusPostId, onClose, onChanged }) => {
+  /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
+  useSheetBack(onClose);
   const insets = useSafeAreaInsets();
   const { t } = useLang();
   const { user } = useAuth();

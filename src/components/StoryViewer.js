@@ -20,6 +20,8 @@ import { sfxPop, sfxSuccess } from '../utils/sfx';
 import { holdToClip } from '../lib/soundClip';
 import { soundOn, setSoundOn, applySound, trackPlayer, untrackPlayer, stopVideos } from '../lib/videoSound';
 import { setupNotice } from '../lib/plumbing';
+import { useSheetBack } from '../hooks/useSheetBack';
+import { SheetHandle } from './SheetHandle';
 
 const REACT_EMOJIS = ['❤️', '🔥', '😂', '😮', '😢', '👏'];
 
@@ -59,6 +61,8 @@ const hoursLeft = (createdAt) => {
    (DMs the poster), real share (a ?story= link), real delete of your
    own story, and real poll / question stickers. */
 export const StoryViewer = ({ stories, groups, startGroup = 0, startIndex = 0, onClose, onShare, onDeleted }) => {
+  /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
+  useSheetBack(onClose);
   const { t } = useLang();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
@@ -575,7 +579,7 @@ export const StoryViewer = ({ stories, groups, startGroup = 0, startIndex = 0, o
               onPress={() => {}}
               style={{ position: 'absolute', left: 0, right: 0, bottom: 0, maxHeight: '62%', backgroundColor: '#161619', borderTopLeftRadius: 22, borderTopRightRadius: 22, paddingTop: 12, paddingBottom: insets.bottom + 16 }}
             >
-              <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.25)', alignSelf: 'center', marginBottom: 12 }} />
+              <SheetHandle onClose={onClose} tint="rgba(255,255,255,0.35)" />
               <Text style={{ color: '#FFF', fontSize: 14.5, fontWeight: '900', textAlign: 'center', marginBottom: 10 }}>
                 👁 {viewers ? viewers.length : 0} viewer{viewers && viewers.length === 1 ? '' : 's'}
               </Text>

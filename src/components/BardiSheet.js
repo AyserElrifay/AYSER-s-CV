@@ -12,6 +12,7 @@ import { clearMyBardiMemory } from '../services/bardiOwner';
 import { loadChats, saveChats, newChat, chatTitle, clearAllChats } from '../services/bardiChat';
 import { isOwner } from '../services/music';
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
+import { useSheetBack } from '../hooks/useSheetBack';
 
 const BARDI_ICON = require('../assets/brand/bardi.png');
 const MEMORY_PREF_KEY = 'mm_bardi_remember';
@@ -48,6 +49,8 @@ const Bubbles = React.memo(({ messages }) => (
 ));
 
 export const BardiSheet = ({ onClose }) => {
+  /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
+  useSheetBack(onClose);
   const insets = useSafeAreaInsets();
   const { height: winH } = useWindowDimensions();
   const { user } = useAuth();

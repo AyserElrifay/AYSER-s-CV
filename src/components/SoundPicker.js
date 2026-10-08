@@ -5,9 +5,13 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { C, R } from '../constants/theme';
 import { SOUNDS } from '../constants/mockData';
 import { Micro } from './Micro';
+import { SheetHandle } from './SheetHandle';
+import { useSheetBack } from '../hooks/useSheetBack';
 
 /* Pick a track for your story or reel — IG/TikTok style. */
 export const SoundPicker = ({ selected, onSelect, onClose }) => {
+  /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
+  useSheetBack(onClose);
   const insets = useSafeAreaInsets();
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
@@ -19,7 +23,7 @@ export const SoundPicker = ({ selected, onSelect, onClose }) => {
         }}
       >
         <View style={{ alignItems: 'center', paddingTop: 10, paddingBottom: 6 }}>
-          <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: C.glassHi }} />
+          <SheetHandle onClose={onClose} />
         </View>
         <View style={{ paddingHorizontal: 18, paddingBottom: 10 }}>
           <Micro>Add a sound 🎵</Micro>

@@ -6,6 +6,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { C, R } from '../constants/theme';
 import { tapLight, tapSelection } from '../utils/feedback';
+import { useSheetBack } from '../hooks/useSheetBack';
 
 /* ── THE EFFECTS DRAWER ─────────────────────────────────────────────
    Everything the camera can do to a frame, in one place you pull up
@@ -53,6 +54,8 @@ export const EffectsSheet = ({
   onPickLens, onPickFilter, onPickEffect, onPickGame, onClear, onClose,
   inline = false,
 }) => {
+  /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
+  useSheetBack(onClose);
   const insets = useSafeAreaInsets();
   const [tab, setTab] = useState('you');
   const [q, setQ] = useState('');

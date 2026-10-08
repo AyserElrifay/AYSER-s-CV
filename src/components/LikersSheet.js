@@ -11,6 +11,8 @@ import { useAuth } from '../context/AuthContext';
 import { tapLight } from '../utils/feedback';
 import { Micro } from './Micro';
 import { ProfileModal } from './ProfileModal';
+import { useSheetBack } from '../hooks/useSheetBack';
+import { SheetHandle } from './SheetHandle';
 
 /* The people who starred a post. Tap anyone to open their profile —
    real accounts only, no fabricated names. */
@@ -27,6 +29,8 @@ const toProfileUser = (p) => ({
 });
 
 export const LikersSheet = ({ post, kind = 'star', onClose, onChanged }) => {
+  /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
+  useSheetBack(onClose);
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [people, setPeople] = useState(null);
@@ -65,7 +69,7 @@ export const LikersSheet = ({ post, kind = 'star', onClose, onChanged }) => {
         borderWidth: 1, borderColor: C.line, maxHeight: '72%', paddingBottom: insets.bottom + 12,
       }}>
         <View style={{ alignItems: 'center', paddingTop: 10, paddingBottom: 6 }}>
-          <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: C.glassHi }} />
+          <SheetHandle onClose={onClose} />
         </View>
         <View style={{ paddingHorizontal: 18, paddingBottom: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>

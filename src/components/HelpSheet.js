@@ -7,6 +7,7 @@ import { SUPABASE_READY } from '../lib/supabase';
 import { fetchHelpArticles } from '../services/help';
 import { tapLight, tapSelection } from '../utils/feedback';
 import { setupNotice } from '../lib/plumbing';
+import { useSheetBack } from '../hooks/useSheetBack';
 
 const SUPPORT_EMAIL = 'ayseryourlifecoach@gmail.com';
 
@@ -14,6 +15,8 @@ const SUPPORT_EMAIL = 'ayseryourlifecoach@gmail.com';
    owner edits them in Moments Studio), grouped by category, searchable,
    tap to expand. Never a hardcoded FAQ baked into the app bundle. */
 export const HelpSheet = ({ onClose }) => {
+  /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
+  useSheetBack(onClose);
   const insets = useSafeAreaInsets();
   const [articles, setArticles] = useState(null); // null = loading
   const [q, setQ] = useState('');

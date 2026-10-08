@@ -5,6 +5,8 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { C, R } from '../constants/theme';
 import { DEFAULT_LEN, MIN_LEN, MAX_LEN, clipUrl, parseClip, clock } from '../lib/soundClip';
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
+import { SheetHandle } from './SheetHandle';
+import { useSheetBack } from '../hooks/useSheetBack';
 
 /* ─── PICK THE BIT OF THE SONG YOU MEANT ──────────────────────────────
    A window you drag along the track. Fifteen seconds to start with,
@@ -27,6 +29,8 @@ import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
 const BAR_H = 54;
 
 export const SoundTrimmer = ({ sound, onDone, onClose }) => {
+  /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
+  useSheetBack(onClose);
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === 'web';
   const url = (sound && sound.audio_url) || null;
@@ -153,7 +157,7 @@ export const SoundTrimmer = ({ sound, onDone, onClose }) => {
         borderWidth: 1, borderColor: C.line, paddingBottom: insets.bottom + 14, paddingHorizontal: 18,
       }}>
         <View style={{ alignItems: 'center', paddingTop: 10, paddingBottom: 12 }}>
-          <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: C.glassHi }} />
+          <SheetHandle onClose={onClose} />
         </View>
 
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>

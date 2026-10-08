@@ -6,6 +6,8 @@ import { C } from '../constants/theme';
 import { useLang } from '../context/LanguageContext';
 import { flightSearches, staySearches, carSearches, defaultDates } from '../services/flights';
 import { tapLight } from '../utils/feedback';
+import { SheetHandle } from './SheetHandle';
+import { useSheetBack } from '../hooks/useSheetBack';
 
 /* ─── GETTING THERE, AND STAYING ─────────────────────────────────────
    Tap a city and this is how you actually reach it: the real searches
@@ -97,6 +99,8 @@ const Choice = ({ options, value, onChange }) => (
 );
 
 export const TravelSheet = ({ city, fromCity, onClose }) => {
+  /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
+  useSheetBack(onClose);
   const insets = useSafeAreaInsets();
   const { t } = useLang();
   const [stayKind, setStayKind] = useState('any');
@@ -123,7 +127,7 @@ export const TravelSheet = ({ city, fromCity, onClose }) => {
           backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24,
           paddingTop: 10, paddingBottom: insets.bottom + 22, paddingHorizontal: 16, maxHeight: '86%',
         }}>
-        <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 12 }} />
+        <SheetHandle onClose={onClose} />
         <ScrollView showsVerticalScrollIndicator={false}>
           <Text style={{ color: C.text, fontSize: 19, fontWeight: '900' }}>
             {t('travel_getting_there').replace('{place}', city)}

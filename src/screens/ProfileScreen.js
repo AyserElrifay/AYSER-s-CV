@@ -715,12 +715,33 @@ export const ProfileScreen = () => {
             );
             const statsBlock = (
               <View style={{ flex: 1, flexDirection: 'row' }}>
-                <Stat n={moments} label="Moments" />
-                {/* Followers and Following are two different numbers now —
-                    one direction each. Mates stay the mutual thing they
-                    always were, which is what chat and Close Friends use. */}
-                <Stat n={SUPABASE_READY ? followers : mates} label={t('followers')} onPress={() => setMatesOpen(true)} />
-                <Stat n={SUPABASE_READY ? following : mates} label={t('following')} onPress={() => setMatesOpen(true)} />
+                <Stat n={moments} label={t('moments')} />
+                {/* ── WHY THIS SAID 0 NEXT TO A LIST OF FIVE PEOPLE ────
+                    Ayser: "اذاي zero" — his profile said 0 Followers
+                    and 0 Following while the sheet over it listed five
+                    mates by name.
+
+                    Nothing was lying, and that made it worse. Those
+                    counts read the `follows` table, which is one-way
+                    and genuinely empty because nobody here follows
+                    anybody — this app's real relationship is a MATE,
+                    which is mutual and which both people agreed to.
+                    Three different things were on one row: a label
+                    that said followers, a count from follows, and a
+                    tap that opened mates.
+
+                    So the number that is real comes first. Followers
+                    and Following still appear — they are separate and
+                    they will matter — but only once there is somebody
+                    in them, instead of standing there at nought
+                    contradicting the list underneath. */}
+                <Stat n={mates} label={t('mates')} onPress={() => setMatesOpen(true)} />
+                {!SUPABASE_READY || followers ? (
+                  <Stat n={SUPABASE_READY ? followers : mates} label={t('followers')} onPress={() => setMatesOpen(true)} />
+                ) : null}
+                {!SUPABASE_READY || following ? (
+                  <Stat n={SUPABASE_READY ? following : mates} label={t('following')} onPress={() => setMatesOpen(true)} />
+                ) : null}
               </View>
             );
             const spacer = <View style={{ width: 16 }} />;

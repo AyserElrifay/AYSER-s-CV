@@ -8,6 +8,7 @@ import { submitScore, fetchLeaderboard } from '../services/games';
 import { buildCity, drawWorld, drawPerson, HIDE_SPOTS, WORLD_W, WORLD_H } from './sekoArt';
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
 import { sfxPop, sfxStar, sfxSuccess } from '../utils/sfx';
+import { useSheetBack } from '../hooks/useSheetBack';
 
 /* ─── سيكو سيكو · SEKO SEKO — Egyptian street games, real GTA-Vice-City look ───
    A walkable top-down neighbourhood drawn on a canvas (Vice City sunset:
@@ -23,6 +24,8 @@ const ROUND_SEC = 60;
 const KID_SHIRTS = ['#ff5e8a', '#3bd1c0', '#f2b134', '#7c5cff', '#ff9e2c'];
 
 export const SekoSeko = ({ onClose }) => {
+  /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
+  useSheetBack(onClose);
   const { user } = useAuth();
   const meAvatar = user ? buildAvatarUrl(user.id, user.avatar_dna) : null;
   const [phase, setPhase] = useState('ready'); // ready | playing | won | lost

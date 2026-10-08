@@ -10,6 +10,8 @@ import { joinCampfire } from '../services/campfires';
 import { joinPost } from '../services/social';
 import { joinGroup } from '../services/groups';
 import { tapLight } from '../utils/feedback';
+import { useSheetBack } from '../hooks/useSheetBack';
+import { SheetHandle } from './SheetHandle';
 
 /* ─── WHAT IS THERE TO JOIN ──────────────────────────────────────────
    Three things that all already existed and all lived somewhere else:
@@ -88,6 +90,8 @@ const Avatar = ({ uri, emoji }) => (
 );
 
 export const WhatsOnSheet = ({ coords, onClose, onOpenGroup, onOpenMoment }) => {
+  /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
+  useSheetBack(onClose);
   const insets = useSafeAreaInsets();
   const { t, lang } = useLang();
   const { user } = useAuth();
@@ -149,7 +153,7 @@ export const WhatsOnSheet = ({ coords, onClose, onOpenGroup, onOpenMoment }) => 
           backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24,
           paddingTop: 10, paddingBottom: insets.bottom + 20, paddingHorizontal: 16, maxHeight: '90%',
         }}>
-        <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 12 }} />
+        <SheetHandle onClose={onClose} />
         <Text style={{ color: C.text, fontSize: 20, fontWeight: '900' }}>{t('wo_title')}</Text>
         <Text style={{ color: C.faint, fontSize: 12.5, marginTop: 3, marginBottom: 14 }}>{t('wo_sub')}</Text>
 

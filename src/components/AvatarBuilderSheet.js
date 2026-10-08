@@ -18,6 +18,8 @@ import { updateProfile } from '../services/profiles';
 import { tapSelection, tapLight, tapSuccess } from '../utils/feedback';
 import { sfxPop, sfxSuccess } from '../utils/sfx';
 import { CharacterCanvas } from './CharacterCanvas';
+import { useSheetBack } from '../hooks/useSheetBack';
+import { SheetHandle } from './SheetHandle';
 
 /* ── YOUR CHARACTER · the studio ─────────────────────────────────────
    Everything is live: tap a jacket and it's on, drag the figure and it
@@ -95,6 +97,8 @@ const WearRow = ({ label, options, field, dna, onPick, crop }) => (
 );
 
 export const AvatarBuilderSheet = ({ initialDna, onClose, onSaved }) => {
+  /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
+  useSheetBack(onClose);
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [dna, setDna] = useState(() => parseLook(
@@ -183,7 +187,7 @@ export const AvatarBuilderSheet = ({ initialDna, onClose, onSaved }) => {
         borderWidth: 1, borderColor: C.line, maxHeight: '94%', paddingBottom: insets.bottom + 10,
       }}>
         <View style={{ alignItems: 'center', paddingTop: 10 }}>
-          <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: C.glassHi }} />
+          <SheetHandle onClose={onClose} />
         </View>
 
         {/* the live figure — drag it to turn it right round */}

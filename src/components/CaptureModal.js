@@ -41,6 +41,7 @@ import { sfxPop, sfxSuccess } from '../utils/sfx';
 import { setupNotice } from '../lib/plumbing';
 import { grabFrames, pickBest } from '../lib/frames';
 import { suggestTags } from '../lib/classify';
+import { useSheetBack } from '../hooks/useSheetBack';
 
 /* ─── THE CAPTURE SCREEN — easier than IG, TikTok and Snap combined ───
    One tap opens a LIVE viewfinder. Tap the shutter for a photo, hold it
@@ -715,6 +716,8 @@ const ArcadeLayer = ({ startRef }) => {
 };
 
 export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClose, onPosted, onPostedStory, sendMode = false, sendToName, onMoment }) => {
+  /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
+  useSheetBack(onClose);
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { lang, t } = useLang();

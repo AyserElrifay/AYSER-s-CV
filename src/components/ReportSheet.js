@@ -7,11 +7,15 @@ import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { REPORT_REASONS, reportContent } from '../services/reports';
 import { tapLight, tapSuccess } from '../utils/feedback';
+import { useSheetBack } from '../hooks/useSheetBack';
+import { SheetHandle } from './SheetHandle';
 
 /* A real report/takedown sheet, reusable for any content. Pick a reason,
    add an optional note (e.g. a rights-holder's copyright claim), send —
    it writes a genuine content_reports row. */
 export const ReportSheet = ({ contentType, contentId, contentLabel, onClose }) => {
+  /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
+  useSheetBack(onClose);
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [reason, setReason] = useState(null);
@@ -42,7 +46,7 @@ export const ReportSheet = ({ contentType, contentId, contentLabel, onClose }) =
       <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }} onPress={onClose} />
       <View style={{ backgroundColor: C.bg2, borderTopLeftRadius: 22, borderTopRightRadius: 22, borderWidth: 1, borderColor: C.line, maxHeight: '82%', paddingBottom: insets.bottom + 14 }}>
         <View style={{ alignItems: 'center', paddingTop: 10, paddingBottom: 4 }}>
-          <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: C.glassHi }} />
+          <SheetHandle onClose={onClose} />
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, paddingBottom: 6 }}>
           <Text style={{ color: C.text, fontSize: 16, fontWeight: '900' }}>Report{contentLabel ? ' · ' + contentLabel : ''}</Text>

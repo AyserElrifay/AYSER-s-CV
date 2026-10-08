@@ -7,6 +7,7 @@ import { tapLight, tapMedium } from '../utils/feedback';
 import { sfxPop, sfxSuccess } from '../utils/sfx';
 import { useAuth } from '../context/AuthContext';
 import { submitScore } from '../services/games';
+import { useSheetBack } from '../hooks/useSheetBack';
 
 /* ─── STACK — our own take on the timing-stacker ──────────────────────
    A block slides back and forth; tap to drop it on the tower. Only the
@@ -25,6 +26,8 @@ const BEST_KEY = 'mm_stack_best';
 const hueFor = (n) => 'hsl(' + ((262 + n * 24) % 360) + ', 62%, 60%)';
 
 export const StackGame = ({ onClose }) => {
+  /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
+  useSheetBack(onClose);
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [phase, setPhase] = useState('ready'); // ready | playing | over
