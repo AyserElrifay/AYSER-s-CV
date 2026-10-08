@@ -494,7 +494,7 @@ export const StoryViewer = ({ stories, groups, startGroup = 0, startIndex = 0, o
                 {commentsOpen ? (
                   <View style={{ marginTop: 10, backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 16, padding: 12 }}>
                     {comments.length ? (
-                      <ScrollView style={{ maxHeight: 168 }} showsVerticalScrollIndicator={false}>
+                      <ScrollView keyboardShouldPersistTaps="handled" style={{ maxHeight: 168 }} showsVerticalScrollIndicator={false}>
                         {comments.map((c) => {
                           const canRemove = !!(user && (c.user_id === user.id || isMine));
                           return (
@@ -583,7 +583,7 @@ export const StoryViewer = ({ stories, groups, startGroup = 0, startIndex = 0, o
               <Text style={{ color: '#FFF', fontSize: 14.5, fontWeight: '900', textAlign: 'center', marginBottom: 10 }}>
                 👁 {viewers ? viewers.length : 0} viewer{viewers && viewers.length === 1 ? '' : 's'}
               </Text>
-              <ScrollView style={{ paddingHorizontal: 16 }}>
+              <ScrollView keyboardShouldPersistTaps="handled" style={{ paddingHorizontal: 16 }}>
                 {(viewers || []).length === 0 ? (
                   <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12.5, textAlign: 'center', paddingVertical: 20 }}>{t('sv_no_one')}</Text>
                 ) : (viewers || []).map((v) => (

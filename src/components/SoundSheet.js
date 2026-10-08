@@ -117,7 +117,7 @@ export const SoundSheet = ({ postId, onClose, onUseSound, onOpenPost }) => {
         </View>
 
         {data && data.origin ? (
-          <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 28 }}>
+          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 28 }}>
             <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '800', letterSpacing: 1, marginBottom: 8 }}>
               {t('sound_made_with')} · {1 + (data.made || []).length}
             </Text>

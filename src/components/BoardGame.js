@@ -419,7 +419,7 @@ export const BoardGame = ({ matchId, kind, isHost, opponent, onClose, onRematch 
           )}
         </View>
 
-        <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 30, paddingTop: 6 }}>
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: insets.bottom + 30, paddingTop: 6 }}>
           {!state ? (
             <View style={{ paddingVertical: 60, alignItems: 'center' }}>
               <ActivityIndicator color={C.purple} />

@@ -61,3 +61,12 @@ export async function updatePassword(newPassword) {
   const { error } = await supabase.auth.updateUser({ password: newPassword });
   if (error) throw error;
 }
+
+/* Turns the tokens carried by a password-reset link into a live
+   session, so the new password can be saved against the right account.
+   See src/lib/recovery.js for why the tokens are read by hand. */
+export async function setSessionFromTokens(tokens) {
+  const { data, error } = await supabase.auth.setSession(tokens);
+  if (error) throw error;
+  return data;
+}

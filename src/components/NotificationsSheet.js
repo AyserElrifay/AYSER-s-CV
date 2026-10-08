@@ -317,7 +317,7 @@ export const NotificationsSheet = ({ onClose }) => {
 
         {/* filter chips — Instagram style */}
         {items && items.length ? (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, marginBottom: 4 }} contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 6 }}>
+          <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, marginBottom: 4 }} contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 6 }}>
             {FILTERS.map((f) => {
               const on = filter === f.k;
               return (
@@ -346,7 +346,7 @@ export const NotificationsSheet = ({ onClose }) => {
         ) : sections.length === 0 ? (
           <Text style={{ color: C.faint, fontSize: 13, textAlign: 'center', paddingVertical: 30 }}>{t('nt_empty_filter')}</Text>
         ) : (
-          <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 10 }} showsVerticalScrollIndicator={false}>
+          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 10 }} showsVerticalScrollIndicator={false}>
             {sections.map((s) => (
               <View key={s.title}>
                 <Text style={{ color: C.text, fontSize: 15, fontWeight: '900', marginTop: 14, marginBottom: 2 }}>{s.title}</Text>
@@ -366,7 +366,7 @@ export const NotificationsSheet = ({ onClose }) => {
             <Pressable onPress={() => setViewPost(null)} hitSlop={10} style={{ position: 'absolute', top: insets.top + 12, left: 14, zIndex: 20, width: 38, height: 38, borderRadius: 19, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center' }}>
               <Ionicons name="chevron-back" size={22} color={C.text} />
             </Pressable>
-            <ScrollView contentContainerStyle={{ paddingTop: insets.top + 60, paddingHorizontal: 14, paddingBottom: 40 }}>
+            <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingTop: insets.top + 60, paddingHorizontal: 14, paddingBottom: 40 }}>
               <PostCard
                 post={viewPost}
                 vibed={vibed}

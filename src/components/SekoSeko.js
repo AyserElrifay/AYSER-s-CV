@@ -257,7 +257,7 @@ export const SekoSeko = ({ onClose }) => {
                 ) : board.length === 0 ? (
                   <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, textAlign: 'center', paddingVertical: 24 }}>مفيش نتايج لسه — كن أول واحد!</Text>
                 ) : (
-                  <ScrollView>
+                  <ScrollView keyboardShouldPersistTaps="handled">
                     {board.map((r, i) => (
                       <View key={r.id} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: i < board.length - 1 ? 1 : 0, borderBottomColor: 'rgba(255,255,255,0.08)' }}>
                         <Text style={{ color: i === 0 ? C.gold : i < 3 ? '#FFF' : 'rgba(255,255,255,0.6)', fontSize: 15, fontWeight: '900', width: 34 }}>{i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '#' + (i + 1)}</Text>

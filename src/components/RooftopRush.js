@@ -715,7 +715,7 @@ export const RooftopRush = ({ onClose, matchId = null, isHost = false, opponent 
 
           {/* ── STORY / start ── */}
           {phase === 'story' ? (
-            <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 26 }} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(12,7,24,0.82)' }}>
+            <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 26 }} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(12,7,24,0.82)' }}>
               <Text style={{ color: '#20E3D2', fontSize: 11.5, fontWeight: '900', letterSpacing: 2, textAlign: 'center' }}>
                 {ar ? 'الفصل' : 'CHAPTER'} {chapterIdx + 1} / {CHAPTERS.length}
               </Text>
@@ -775,7 +775,7 @@ export const RooftopRush = ({ onClose, matchId = null, isHost = false, opponent 
 
           {/* ── chapter picker ── */}
           {phase === 'picker' ? (
-            <ScrollView contentContainerStyle={{ padding: 22, paddingTop: 34 }} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(12,7,24,0.94)' }}>
+            <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 22, paddingTop: 34 }} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(12,7,24,0.94)' }}>
               <Text style={{ color: '#FFF', fontSize: 17, fontWeight: '900', textAlign: 'center', marginBottom: 16 }}>🗺️ {T.chapters}</Text>
               {CHAPTERS.map((ch, i) => {
                 const lock = i > unlocked;
@@ -849,7 +849,7 @@ export const RooftopRush = ({ onClose, matchId = null, isHost = false, opponent 
                     {ar ? 'مفيش نتايج لسه — كن أول واحد!' : 'No scores yet — be the first!'}
                   </Text>
                 ) : (
-                  <ScrollView>
+                  <ScrollView keyboardShouldPersistTaps="handled">
                     {board.map((r, i) => (
                       <View key={r.id} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: i < board.length - 1 ? 1 : 0, borderBottomColor: 'rgba(255,255,255,0.08)' }}>
                         <Text style={{ color: i === 0 ? C.gold : i < 3 ? '#FFF' : 'rgba(255,255,255,0.6)', fontSize: 15, fontWeight: '900', width: 34 }}>{i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '#' + (i + 1)}</Text>

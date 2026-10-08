@@ -91,7 +91,7 @@ export const CoverSheet = ({ videoUrl, current, onClose, onChoose }) => {
             <ActivityIndicator color={C.purple} />
           </View>
         ) : frames.length ? (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+          <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
             {frames.map((f) => {
               const on = picked === f.url;
               return (

@@ -485,7 +485,7 @@ export const ChatThread = ({ chat, group, onClose }) => {
         </View>
 
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <ScrollView ref={scroller} contentContainerStyle={{ padding: 14, paddingBottom: 20 }} showsVerticalScrollIndicator={false}>
+          <ScrollView keyboardShouldPersistTaps="handled" ref={scroller} contentContainerStyle={{ padding: 14, paddingBottom: 20 }} showsVerticalScrollIndicator={false}>
             {/* An empty thread is the hardest message to write. One tap
                 sends the easy one, so nobody sits staring at a blank box
                 deciding how to start. */}
@@ -696,7 +696,7 @@ export const ChatThread = ({ chat, group, onClose }) => {
           {/* games menu */}
           {menu ? (
             <View style={{ position: 'absolute', bottom: 70, left: 12, right: 12, maxHeight: 400, backgroundColor: '#FFF', borderRadius: 16, borderWidth: 1, borderColor: C.line, padding: 6, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 14, shadowOffset: { width: 0, height: 6 } }}>
-              <ScrollView>
+              <ScrollView keyboardShouldPersistTaps="handled">
               {/* Two people, one board — a real invite the other side
                   accepts, and a game that survives closing the app. */}
               {isReal && !group ? (

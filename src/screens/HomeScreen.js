@@ -437,7 +437,7 @@ export const HomeScreen = () => {
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }} {...edgeSwipe}>
-      <FlatList
+      <FlatList keyboardShouldPersistTaps="handled"
         data={posts}
         keyExtractor={(p) => p.id}
         refreshing={refreshing}

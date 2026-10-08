@@ -97,7 +97,7 @@ export const ShareSheet = ({ url, message, onClose }) => {
         <Text style={{ color: C.text, fontSize: 18, fontWeight: '900' }}>{t('sh_title')}</Text>
         <Text style={{ color: C.faint, fontSize: 12.5, marginTop: 3, marginBottom: 14 }} numberOfLines={1}>{url}</Text>
 
-        <ScrollView showsVerticalScrollIndicator={false}>
+        <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           {threads === null ? (
             <ActivityIndicator color={C.gold} style={{ marginVertical: 18 }} />
           ) : threads.length ? (

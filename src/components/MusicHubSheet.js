@@ -317,7 +317,7 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
         {tracks === null ? (
           <View style={{ paddingVertical: 50 }}><ActivityIndicator color={C.purple} /></View>
         ) : (
-          <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: 30 }}>
+          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: 30 }}>
 
             {/* ── BROWSE ── */}
             {tab === 'browse' ? (
@@ -555,7 +555,7 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
                 <Ionicons name="ellipsis-horizontal" size={20} color={C.dim} />
               </Pressable>
             </View>
-            <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: 40 }}>
+            <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: 40 }}>
               {listTracks === null ? (
                 <ActivityIndicator color={C.purple} style={{ marginTop: 30 }} />
               ) : listTracks.length ? (

@@ -181,12 +181,12 @@ export const PeopleDiscover = () => {
   return (
     <View style={{ flex: 1 }}>
       {/* lanes */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={{ paddingVertical: 10 }}>
+      <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={{ paddingVertical: 10 }}>
         {LANES.map((l) => <Chip key={l.id} label={l.label} on={lane === l.id} onPress={() => { tapLight(); setLane(l.id); }} />)}
       </ScrollView>
 
       {/* place filters */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={{ paddingBottom: 10 }}>
+      <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={{ paddingBottom: 10 }}>
         <Chip label={country ? `${country} ✕` : 'Country ▾'} on={!!country} onPress={() => { tapLight(); if (country) setCountry(null); else setPlaceOpen(placeOpen === 'country' ? null : 'country'); }} />
         <Chip label={city ? `${city} ✕` : 'City ▾'} on={!!city} onPress={() => { tapLight(); if (city) setCity(null); else setPlaceOpen(placeOpen === 'city' ? null : 'city'); }} />
       </ScrollView>

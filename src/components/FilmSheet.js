@@ -77,7 +77,7 @@ export const FilmSheet = ({ film, ourScore, onClose, onSaved }) => {
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: C.bg }}>
-        <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 40 }} showsVerticalScrollIndicator={false}>
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: insets.bottom + 40 }} showsVerticalScrollIndicator={false}>
           <View>
             {film.backdrop_url ? (
               <Image source={{ uri: film.backdrop_url }} style={{ width: '100%', height: 210 }} />
@@ -129,7 +129,7 @@ export const FilmSheet = ({ film, ourScore, onClose, onSaved }) => {
           <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', letterSpacing: 1, paddingHorizontal: 16, marginTop: 22, marginBottom: 4 }}>
             WHERE TO WATCH
           </Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 8 }}>
+          <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 8 }}>
             {watchOptions(film).map((o) => (
               <Pressable key={o.id}
                 onPress={() => { tapLight(); openPartner(user, { id: 'film:' + film.id, partner: o.partner, url: o.url }); }}

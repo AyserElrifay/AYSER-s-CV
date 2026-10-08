@@ -16,6 +16,7 @@
  * ─────────────────────────────────────────────────────────────
  */
 
+import { isRecovering } from './src/lib/recovery';
 import React from 'react';
 import { View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -71,6 +72,8 @@ const StudioGate = () => {
 
 const Root = () => {
   const { loading, isAuthenticated, user } = useAuth();
+  /* Somebody arriving from a "forgot my password" email. */
+  const [recovering, setRecovering] = React.useState(isRecovering());
   const { gen, isDark } = useTheme();
 
   /* The detail behind a failure is for the person who can fix it, and
@@ -94,6 +97,7 @@ const Root = () => {
   if (loading || !splashDone) {
     return <Splash ready={!loading} onDone={() => setSplashDone(true)} />;
   }
+  if (recovering) return <AuthScreen recovery onDone={() => setRecovering(false)} />;
   if (!isAuthenticated) return <AuthScreen />;
   // the mini-player floats above the navigator, so music keeps playing as
   // you move between tabs. `key={gen}` forces a full remount when dark

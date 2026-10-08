@@ -93,7 +93,7 @@ export const BookingSheet = ({ venue, onClose }) => {
     <Pressable onPress={onClose} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }}>
       <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, paddingBottom: insets.bottom + 22, paddingHorizontal: 16, maxHeight: '88%' }}>
         <SheetHandle onClose={onClose} />
-        <ScrollView showsVerticalScrollIndicator={false}>
+        <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 14 }}>
             <View style={{ width: 52, height: 52, borderRadius: 15, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
               <Text style={{ fontSize: 26 }}>{venue.emoji || '📍'}</Text>

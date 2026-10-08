@@ -229,7 +229,7 @@ export const MediaLibrarySheet = ({ onPick, onClose, only = null, inline = false
         ) : rows === null ? (
           <ActivityIndicator color={C.purple} style={{ marginTop: 40 }} />
         ) : shown.length ? (
-          <ScrollView contentContainerStyle={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 12, paddingTop: 14, paddingBottom: insets.bottom + 30 }}>
+          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 12, paddingTop: 14, paddingBottom: insets.bottom + 30 }}>
             {shown.map((r) => (
               <Pressable
                 key={r.id}

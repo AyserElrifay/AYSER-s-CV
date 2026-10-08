@@ -22,7 +22,7 @@ export const Page = ({ children, onSwipeCamera }) => {
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }} {...swipe}>
-      <ScrollView
+      <ScrollView keyboardShouldPersistTaps="handled"
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingTop: insets.top + 14, paddingBottom: 130, paddingHorizontal: 16 }}
         showsVerticalScrollIndicator={false}

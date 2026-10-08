@@ -102,7 +102,7 @@ export class Boundary extends React.Component {
                 </Text>
               </Pressable>
             </View>
-            <ScrollView>
+            <ScrollView keyboardShouldPersistTaps="handled">
               <Text selectable style={{ color: C.text, fontSize: 11.5, fontWeight: '700' }}>
                 {this.state.detail.msg}
               </Text>

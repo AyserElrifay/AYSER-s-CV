@@ -28,7 +28,7 @@ export const SoundPicker = ({ selected, onSelect, onClose }) => {
         <View style={{ paddingHorizontal: 18, paddingBottom: 10 }}>
           <Micro>Add a sound 🎵</Micro>
         </View>
-        <FlatList
+        <FlatList keyboardShouldPersistTaps="handled"
           data={SOUNDS}
           keyExtractor={(s) => s.id}
           contentContainerStyle={{ paddingHorizontal: 14 }}

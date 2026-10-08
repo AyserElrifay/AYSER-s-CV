@@ -338,6 +338,11 @@ export const STRINGS = {
     auth_err_generic: 'Something went wrong. Please try again.',
     // The way in — signing in, where you are, what you are up for
     auth_reset_title: 'Reset your password',
+    // coming back from the link in the reset email
+    auth_recovery_title: 'Choose a new password',
+    auth_recovery_sub: 'You came back from the link in your email. Pick a new password and you are straight back in.',
+    auth_recovery_expired: 'That link has expired or has already been used. Links last one hour — ask for a fresh one and it will work.',
+    auth_recovery_again: 'SEND A NEW LINK',
     auth_via_phone: 'Phone',
     auth_account_email: 'Account email',
     auth_sending: 'SENDING…',

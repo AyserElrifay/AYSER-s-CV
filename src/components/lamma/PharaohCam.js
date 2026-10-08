@@ -226,7 +226,7 @@ export const PharaohCam = ({ visible, onClose, onDone, t }) => {
 
         {/* the regalia, one tap each */}
         {!shot ? (
-          <ScrollView
+          <ScrollView keyboardShouldPersistTaps="handled"
             horizontal
             showsHorizontalScrollIndicator={false}
             style={{ flexGrow: 0, marginTop: 14 }}

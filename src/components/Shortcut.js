@@ -39,7 +39,7 @@ export const Shortcut = ({ emoji, label, onPress }) => (
    narrowest phone we support, and it must never wrap into a second
    row, which is how a row of buttons turns back into a grid of cards. */
 export const ShortcutRow = ({ children, style }) => (
-  <ScrollView
+  <ScrollView keyboardShouldPersistTaps="handled"
     horizontal
     showsHorizontalScrollIndicator={false}
     contentContainerStyle={{ paddingRight: 8 }}

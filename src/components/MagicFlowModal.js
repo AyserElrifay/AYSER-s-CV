@@ -73,7 +73,7 @@ export const MagicFlowModal = ({ post, onClose, onComplete }) => {
         </View>
 
         {/* Step sheet */}
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 24 }}>
+        <ScrollView keyboardShouldPersistTaps="handled" style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 24 }}>
           {step === 'route' ? (
             <View>
               <Glass style={{ padding: 16, flexDirection: 'row', alignItems: 'center' }}>

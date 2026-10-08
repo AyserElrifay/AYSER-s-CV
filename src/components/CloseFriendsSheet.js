@@ -112,7 +112,7 @@ export const CloseFriendsSheet = ({ onClose }) => {
         {mates === null ? (
           <ActivityIndicator color={C.purple} style={{ marginTop: 40 }} />
         ) : shown.length ? (
-          <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 10, paddingBottom: 20 }}>
+          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 10, paddingBottom: 20 }}>
             {shown.map((m) => {
               const on = chosen.has(m.id);
               return (

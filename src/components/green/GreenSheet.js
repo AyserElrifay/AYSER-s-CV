@@ -169,7 +169,7 @@ export const GreenSheet = ({ onClose, onPlay }) => {
   return (
     <Modal visible transparent={false} animationType="slide" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: C.bg }}>
-        <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}>
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}>
 
           <LinearGradient
             colors={['#0E3B2E', GREEN]}

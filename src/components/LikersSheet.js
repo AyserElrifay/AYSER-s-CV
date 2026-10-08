@@ -92,7 +92,7 @@ export const LikersSheet = ({ post, kind = 'star', onClose, onChanged }) => {
             <Text style={{ color: C.faint, fontSize: 12.5, marginTop: 4, textAlign: 'center' }}>{isLaugh ? 'Be the first to laugh at this moment.' : 'Be the first to star this moment.'}</Text>
           </View>
         ) : (
-          <FlatList
+          <FlatList keyboardShouldPersistTaps="handled"
             data={people}
             keyExtractor={(p) => p.id}
             contentContainerStyle={{ paddingHorizontal: 16 }}

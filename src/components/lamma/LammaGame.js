@@ -478,7 +478,7 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
 
       {/* ── LOBBY ── */}
       {state.status === 'lobby' ? (
-        <ScrollView contentContainerStyle={{ padding: 16 }}>
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 16 }}>
           {/* THE CODE IS THE INVITATION, so it is the biggest thing on
               the screen and it can be sent in one tap. Everybody who
               types it lands in this room, sees the same question at the
@@ -922,7 +922,7 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
 
       {/* ── THE PODIUM ── the same bar, one last job */}
       {ended ? (
-        <ScrollView contentContainerStyle={{ padding: 16 }}>
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 16 }}>
           <Text style={{ color: C.text, fontSize: 24, fontWeight: '900', marginBottom: 16 }}>{t('lamma_final_rank')}</Text>
 
           {/* The three on blocks, rising, with the room watching. Only

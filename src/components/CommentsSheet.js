@@ -200,7 +200,7 @@ export const CommentsSheet = ({ post, onClose }) => {
             <Pressable testID="btn-close-comments" onPress={onClose}><Ionicons name="close" size={18} color={C.dim} /></Pressable>
           </View>
 
-          <FlatList
+          <FlatList keyboardShouldPersistTaps="handled"
             data={comments}
             keyExtractor={(c) => c.id}
             style={{ maxHeight: 340 }}

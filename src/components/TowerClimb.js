@@ -523,7 +523,7 @@ export const TowerClimb = ({ onClose }) => {
 
           {/* ── the story card ── */}
           {phase === 'story' ? (
-            <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 26 }} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(10,6,20,0.84)' }}>
+            <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 26 }} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(10,6,20,0.84)' }}>
               <Text style={{ color: place.accent, fontSize: 11.5, fontWeight: '900', letterSpacing: 2, textAlign: 'center' }}>
                 {ar ? 'المكان' : 'PLACE'} {chapterIdx + 1} / {CHAPTERS.length}
               </Text>
@@ -568,7 +568,7 @@ export const TowerClimb = ({ onClose }) => {
 
           {/* ── the places ── */}
           {phase === 'picker' ? (
-            <ScrollView contentContainerStyle={{ padding: 22, paddingTop: 34 }} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(10,6,20,0.95)' }}>
+            <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 22, paddingTop: 34 }} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(10,6,20,0.95)' }}>
               <Text style={{ color: '#FFF', fontSize: 17, fontWeight: '900', textAlign: 'center', marginBottom: 16 }}>🗺️ {T.places}</Text>
               {CHAPTERS.map((ch, i) => {
                 const lock = i > unlocked;
@@ -599,7 +599,7 @@ export const TowerClimb = ({ onClose }) => {
 
           {/* ── the reward: the culture card ── */}
           {phase === 'card' ? (
-            <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 22 }} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(10,6,20,0.92)' }}>
+            <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 22 }} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(10,6,20,0.92)' }}>
               <Text style={{ color: C.gold, fontSize: 12, fontWeight: '900', letterSpacing: 2, textAlign: 'center' }}>{T.got.toUpperCase()} 🎴</Text>
               <View style={{ marginTop: 12, borderRadius: 22, overflow: 'hidden', borderWidth: 1, borderColor: place.accent, backgroundColor: 'rgba(255,255,255,0.06)' }}>
                 <View style={{ backgroundColor: place.stone, paddingVertical: 14, alignItems: 'center' }}>
@@ -668,7 +668,7 @@ export const TowerClimb = ({ onClose }) => {
                     {ar ? 'مفيش نتايج لسه — كن أول واحد!' : 'No scores yet — be the first!'}
                   </Text>
                 ) : (
-                  <ScrollView>
+                  <ScrollView keyboardShouldPersistTaps="handled">
                     {board.map((r, i) => (
                       <View key={r.id} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: i < board.length - 1 ? 1 : 0, borderBottomColor: 'rgba(255,255,255,0.08)' }}>
                         <Text style={{ color: i === 0 ? C.gold : i < 3 ? '#FFF' : 'rgba(255,255,255,0.6)', fontSize: 15, fontWeight: '900', width: 34 }}>{i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '#' + (i + 1)}</Text>

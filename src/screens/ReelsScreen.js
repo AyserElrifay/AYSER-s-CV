@@ -393,7 +393,7 @@ export const ReelsScreen = () => {
   return (
     <View style={{ flex: 1, backgroundColor: '#000' }} onLayout={(e) => setPageH(e.nativeEvent.layout.height)}>
       {pageH > 0 && data.length ? (
-        <FlatList
+        <FlatList keyboardShouldPersistTaps="handled"
           data={data}
           keyExtractor={(r) => r.id}
           renderItem={renderReel}

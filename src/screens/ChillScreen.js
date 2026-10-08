@@ -298,7 +298,7 @@ export const ChillScreen = () => {
       <View style={{ height: 18 }} />
       <SectionHeader title={t('sec_play')} />
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 4, paddingRight: 8 }} style={{ marginTop: -4, marginBottom: 22 }}>
+      <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 4, paddingRight: 8 }} style={{ marginTop: -4, marginBottom: 22 }}>
         {games.map((g) => (
           <Pressable key={g.id} onPress={() => { tapLight(); sfxPop(); setGame(g); }} style={{ width: 150, marginRight: 10 }}>
             <View style={{
@@ -449,7 +449,7 @@ export const ChillScreen = () => {
       <Text style={{ color: C.dim, fontSize: 12.5, marginTop: -6, marginBottom: 12, lineHeight: 18 }}>
         {t('watch_hint')}
       </Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+      <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
         {FILM_GENRES.map((g) => (
           <Pressable key={g} onPress={() => { tapSelection(); setGenre(g); }}>
             <View style={{ backgroundColor: genre === g ? C.text : C.glass, borderWidth: 1, borderColor: genre === g ? C.text : C.line, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 7, marginRight: 8 }}>
@@ -458,7 +458,7 @@ export const ChillScreen = () => {
           </Pressable>
         ))}
       </ScrollView>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 24 }}>
+      <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 24 }}>
           {films.map((m) => {
             const ours = filmScores[m.id];
             return (
@@ -515,7 +515,7 @@ export const ChillScreen = () => {
               <Ionicons name="close" size={24} color={C.dim} />
             </Pressable>
           </View>
-          <ScrollView contentContainerStyle={{ paddingHorizontal: 14, paddingBottom: 40 }}>
+          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 14, paddingBottom: 40 }}>
             <BooksShelf />
           </ScrollView>
         </View>

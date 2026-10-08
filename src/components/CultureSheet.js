@@ -132,7 +132,7 @@ export const CultureSheet = ({ onClose }) => {
           paddingTop: 10, paddingBottom: insets.bottom + 22, paddingHorizontal: 16, maxHeight: '90%',
         }}>
         <SheetHandle onClose={onClose} />
-        <ScrollView showsVerticalScrollIndicator={false}>
+        <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           <Text style={{ color: C.text, fontSize: 20, fontWeight: '900' }}>{t('culture_title')}</Text>
           <Text style={{ color: C.dim, fontSize: 12.5, lineHeight: 19, marginTop: 4, marginBottom: 16 }}>
             {t('culture_sub')}

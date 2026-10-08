@@ -240,7 +240,7 @@ export const ProfileModal = ({ user, onClose }) => {
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: C.bg }}>
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 60 }}>
+        <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 60 }}>
           {/* cover — rounded, same as your own profile (their photo, else brand gradient) */}
           <View style={{ marginTop: insets.top + 8, marginHorizontal: 16 }}>
             {fullProfile && fullProfile.cover_url ? (
@@ -492,7 +492,7 @@ export const ProfileModal = ({ user, onClose }) => {
               <Pressable onPress={() => setViewMoment(null)} hitSlop={10} style={{ position: 'absolute', top: insets.top + 12, left: 14, zIndex: 20, width: 38, height: 38, borderRadius: 19, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center' }}>
                 <Ionicons name="chevron-back" size={22} color={C.text} />
               </Pressable>
-              <ScrollView contentContainerStyle={{ paddingTop: insets.top + 60, paddingHorizontal: 14, paddingBottom: 40 }}>
+              <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingTop: insets.top + 60, paddingHorizontal: 14, paddingBottom: 40 }}>
                 <PostCard
                   post={viewMoment}
                   vibed={!!myVibes[viewMoment.id]}

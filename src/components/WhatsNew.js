@@ -71,7 +71,7 @@ export const WhatsNew = () => {
             <Text style={{ color: '#FFF', fontSize: 21, fontWeight: '900', marginTop: 8, textAlign: 'center' }}>{title}</Text>
           </LinearGradient>
 
-          <ScrollView contentContainerStyle={{ padding: 20 }}>
+          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20 }}>
             {RELEASE.items.map((it, i) => {
               const copy = (ar && it.ar) || it.en;
               return (

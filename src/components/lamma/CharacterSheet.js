@@ -143,7 +143,7 @@ export const CharacterSheet = ({ roomId, packId, nickname, initial, onClose, onS
           </Pressable>
         </View>
 
-        <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 20 }}>
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 20 }}>
           <View style={{ alignItems: 'center', marginBottom: 6 }}>
             {uri ? (
               <Image

@@ -585,7 +585,7 @@ export const ProfileScreen = () => {
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
-      <ScrollView
+      <ScrollView keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ paddingTop: insets.top + 10, paddingBottom: 130 }}
         showsVerticalScrollIndicator={false}
       >
@@ -839,7 +839,7 @@ export const ProfileScreen = () => {
             24 hours a story gets. */}
         {SUPABASE_READY && user ? <HighlightsRail userId={user.id} isMine /> : null}
         {!SUPABASE_READY ? (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, marginTop: 20 }}>
+          <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, marginTop: 20 }}>
             {HIGHLIGHTS.map((h) => (
               <Pressable key={h.id} onPress={tapSelection} style={{ alignItems: 'center', marginRight: 16 }}>
                 <View style={{ width: 62, height: 62, borderRadius: 31, borderWidth: 1.5, borderColor: C.line, padding: 3 }}>
@@ -1058,7 +1058,7 @@ export const ProfileScreen = () => {
               onChangeText={setCountryQ}
               style={{ color: C.text, fontSize: 13, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 9, marginBottom: 8 }}
             />
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
+            <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
               {COUNTRY_LIST
                 .filter((c) => !countryQ.trim() || c.name.toLowerCase().includes(countryQ.trim().toLowerCase()))
                 .slice(0, 20)
@@ -1175,7 +1175,7 @@ export const ProfileScreen = () => {
 
             {/* category — shows next to your name on professional accounts */}
             {accountType === 'professional' ? (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 6 }}>
+              <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 6 }}>
                 {CATEGORIES.map((c) => {
                   const on = category === c;
                   return (
@@ -1258,7 +1258,7 @@ export const ProfileScreen = () => {
           <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 12, paddingBottom: insets.bottom + 20, paddingHorizontal: 16, maxHeight: '70%' }}>
             <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 12 }} />
             <Text style={{ color: C.text, fontSize: 16, fontWeight: '900', marginBottom: 10 }}>{t('verification_requests')}</Text>
-            <ScrollView>
+            <ScrollView keyboardShouldPersistTaps="handled">
               {verifQueue.length === 0 ? (
                 <Text style={{ color: C.faint, fontSize: 13, textAlign: 'center', paddingVertical: 26 }}>{t('no_pending_requests')}</Text>
               ) : verifQueue.map((r) => (
@@ -1338,7 +1338,7 @@ export const ProfileScreen = () => {
             <Pressable onPress={() => setViewMoment(null)} hitSlop={10} style={{ position: 'absolute', top: insets.top + 12, left: 14, zIndex: 20, width: 38, height: 38, borderRadius: 19, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center' }}>
               <Ionicons name="chevron-back" size={22} color={C.text} />
             </Pressable>
-            <ScrollView contentContainerStyle={{ paddingTop: insets.top + 60, paddingHorizontal: 14, paddingBottom: 40 }}>
+            <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingTop: insets.top + 60, paddingHorizontal: 14, paddingBottom: 40 }}>
               <PostCard
                 post={viewMoment}
                 isMine={viewMoment.mine !== false}

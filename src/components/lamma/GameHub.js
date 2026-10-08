@@ -134,7 +134,7 @@ export const GameHub = ({ onClose, focusPack = null }) => {
   return (
     <Modal visible transparent={false} animationType="slide" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: C.bg }}>
-        <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 30 }}>
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: insets.bottom + 30 }}>
 
           {/* ── THE FRONT DOOR ──────────────────────────────────────
               A quiz should look like a quiz before you have read a

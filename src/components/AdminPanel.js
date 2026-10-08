@@ -222,7 +222,7 @@ export const AdminPanel = ({ onClose }) => {
           })}
         </View>
 
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 10, paddingBottom: insets.bottom + 30 }}>
+        <ScrollView keyboardShouldPersistTaps="handled" style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 10, paddingBottom: insets.bottom + 30 }}>
           {tab === 'reports' ? (
             reports == null ? <ActivityIndicator color={C.purple} style={{ marginTop: 30 }} /> :
             reports.length === 0 ? <Empty t="No reports 🎉" /> :

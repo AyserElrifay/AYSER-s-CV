@@ -67,7 +67,7 @@ export const MatesSheet = ({ onClose }) => {
             </Text>
           </View>
         ) : (
-          <FlatList
+          <FlatList keyboardShouldPersistTaps="handled"
             data={mates}
             keyExtractor={(m) => m.id}
             contentContainerStyle={{ paddingHorizontal: 16 }}

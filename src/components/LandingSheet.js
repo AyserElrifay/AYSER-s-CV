@@ -282,7 +282,7 @@ export const LandingSheet = ({ country, city, place, onClose }) => {
         }}>
         <SheetHandle onClose={onClose} />
           <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-            <ScrollView showsVerticalScrollIndicator={false}>
+            <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
               <Text style={{ color: C.text, fontSize: 20, fontWeight: '900' }}>
                 {place ? t('ld_open').replace('{place}', place) : t('ld_title')}
               </Text>

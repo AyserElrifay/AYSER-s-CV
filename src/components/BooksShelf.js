@@ -99,7 +99,7 @@ export const BooksShelf = () => {
         ) : null}
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, marginBottom: 10 }}>
+      <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, marginBottom: 10 }}>
         {BOOK_SHELVES.map((s) => {
           const on = shelf.id === s.id && !q;
           return (
@@ -117,7 +117,7 @@ export const BooksShelf = () => {
       {books === null || searching ? (
         <View style={{ paddingVertical: 34 }}><ActivityIndicator color={C.purple} /></View>
       ) : books.length ? (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false}>
           {books.map((b) => (
             <Pressable key={b.id} onPress={() => { tapLight(); setOpen(b); }} style={{ width: 104, marginRight: 12 }}>
               <View>

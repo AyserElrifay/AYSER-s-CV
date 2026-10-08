@@ -9,7 +9,7 @@ import { useLang } from '../context/LanguageContext';
 export const StoriesBar = ({ stories, onOpenStory, onAddStory }) => {
   const { t } = useLang();
   return (
-  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 14 }} contentContainerStyle={{ paddingRight: 8 }}>
+  <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 14 }} contentContainerStyle={{ paddingRight: 8 }}>
     <Pressable testID="add-story" onPress={onAddStory} style={{ alignItems: 'center', marginRight: 14 }}>
       <View
         style={{

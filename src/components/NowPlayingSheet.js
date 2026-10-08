@@ -157,7 +157,7 @@ export const NowPlayingSheet = () => {
           {queue.length > 1 ? (
             <View style={{ flex: 1, marginTop: 24 }}>
               <Text style={{ color: 'rgba(255,255,255,0.55)', fontSize: 11, fontWeight: '800', letterSpacing: 1.2, paddingHorizontal: 26, marginBottom: 8 }}>UP NEXT</Text>
-              <ScrollView contentContainerStyle={{ paddingHorizontal: 20 }}>
+              <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 20 }}>
                 {queue.map((t, i) => (
                   <Pressable key={t.id + '-' + i} onPress={() => { tapLight(); playTrack(t, queue, i); }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 9, paddingHorizontal: 8, borderRadius: 12, backgroundColor: i === index ? 'rgba(255,255,255,0.08)' : 'transparent' }}>

@@ -157,7 +157,7 @@ export const WhatsOnSheet = ({ coords, onClose, onOpenGroup, onOpenMoment }) => 
         <Text style={{ color: C.text, fontSize: 20, fontWeight: '900' }}>{t('wo_title')}</Text>
         <Text style={{ color: C.faint, fontSize: 12.5, marginTop: 3, marginBottom: 14 }}>{t('wo_sub')}</Text>
 
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 16 }}>
+        <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 16 }}>
           {data === null ? (
             <ActivityIndicator color={C.gold} style={{ marginVertical: 30 }} />
           ) : (

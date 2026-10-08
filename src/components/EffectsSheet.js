@@ -115,7 +115,7 @@ export const EffectsSheet = ({
           <Pressable onPress={onClose} hitSlop={10} style={{ paddingHorizontal: 6 }}>
             <Ionicons name="chevron-down" size={22} color="rgba(255,255,255,0.8)" />
           </Pressable>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ alignItems: 'center' }}>
+          <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ alignItems: 'center' }}>
             {TABS.map((t) => (
               <Pressable key={t.k} onPress={() => { tapLight(); setTab(t.k); }} style={{ alignItems: 'center', marginHorizontal: 11 }}>
                 <Ionicons name={t.icon} size={17} color={tab === t.k ? '#FFF' : 'rgba(255,255,255,0.45)'} />
@@ -141,7 +141,7 @@ export const EffectsSheet = ({
           ) : null}
         </View>
 
-        <ScrollView contentContainerStyle={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 9, paddingTop: 12, paddingBottom: 30 }}>
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 9, paddingTop: 12, paddingBottom: 30 }}>
           {rows.length ? rows.map((row, i) => (
             <Cell
               key={row.kind + (row.item.id || i)}

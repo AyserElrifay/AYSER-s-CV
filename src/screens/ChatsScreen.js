@@ -613,7 +613,7 @@ export const ChatsScreen = () => {
     {myMates.length ? (
       <>
         <SectionHeader title={t('your_mates')} />
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 20 }}>
+        <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 20 }}>
           {myMates.map((m) => (
             <Pressable
               key={m.id}
@@ -826,7 +826,7 @@ export const ChatsScreen = () => {
               screen whether or not anybody was in it. It belongs with
               the switch that puts you in it: open the row, set your
               languages, see who else did. */}
-          <ScrollView style={{ maxHeight: 430 }} showsVerticalScrollIndicator={false}>
+          <ScrollView keyboardShouldPersistTaps="handled" style={{ maxHeight: 430 }} showsVerticalScrollIndicator={false}>
     {partners.length ? (
       <View style={{ marginBottom: 20 }}>
         {partners.map((lp, i) => (
@@ -976,7 +976,7 @@ export const ChatsScreen = () => {
           <Text style={{ color: C.faint, fontSize: 11.5, textAlign: 'center', marginTop: 3 }}>
             {sendDone ? t('ch_sent_to') + ' ' + sendDone + ' ' + t(sendDone === 1 ? 'ch_person' : 'ch_people') : t('ch_pick_anyone')}
           </Text>
-          <ScrollView contentContainerStyle={{ paddingHorizontal: 14, paddingTop: 12 }}>
+          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 14, paddingTop: 12 }}>
             {dms.filter((d) => d.threadId).map((d) => {
               const on = !!sendTo[d.threadId];
               return (

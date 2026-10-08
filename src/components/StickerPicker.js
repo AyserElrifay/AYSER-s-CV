@@ -58,7 +58,7 @@ export const StickerPicker = ({ dna, onPick, onClose }) => {
           ))}
         </View>
 
-        <ScrollView contentContainerStyle={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 12, paddingBottom: 10 }}>
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 12, paddingBottom: 10 }}>
           {(pack === 'comics' ? COMICS : STICKERS).map((st) => {
             const uri = pack === 'comics' ? comicToDataUrl(st, 160) : stickerToDataUrl(dna, st, 160);
             return (

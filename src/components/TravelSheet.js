@@ -128,7 +128,7 @@ export const TravelSheet = ({ city, fromCity, onClose }) => {
           paddingTop: 10, paddingBottom: insets.bottom + 22, paddingHorizontal: 16, maxHeight: '86%',
         }}>
         <SheetHandle onClose={onClose} />
-        <ScrollView showsVerticalScrollIndicator={false}>
+        <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           <Text style={{ color: C.text, fontSize: 19, fontWeight: '900' }}>
             {t('travel_getting_there').replace('{place}', city)}
           </Text>

@@ -93,7 +93,7 @@ export const Standings = ({ players, meId, questionIndex, t }) => {
       <Text style={{ color: C.faint, fontSize: 11, fontWeight: '900', letterSpacing: 1, marginBottom: 8 }}>
         {t('lamma_standings')}
       </Text>
-      <ScrollView style={{ maxHeight: 210 }} showsVerticalScrollIndicator={false}>
+      <ScrollView keyboardShouldPersistTaps="handled" style={{ maxHeight: 210 }} showsVerticalScrollIndicator={false}>
         {top.map((p) => <Row key={p.user_id} p={p} meId={meId} />)}
         {meIsBelow ? (
           <>

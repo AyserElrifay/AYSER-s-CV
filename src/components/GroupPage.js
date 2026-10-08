@@ -317,7 +317,7 @@ const GroupSettings = ({ group, onClose, onSaved, onDeleted, t }) => {
         <SheetHandle onClose={onClose} />
         <Text style={{ color: C.text, fontSize: 18, fontWeight: '900', marginBottom: 14 }}>{t('gs_title')}</Text>
 
-        <ScrollView showsVerticalScrollIndicator={false}>
+        <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           <Field label={t('gs_name')} value={name} onChangeText={setName} maxLength={80} />
           <Field label={t('gs_emoji')} value={emoji} onChangeText={setEmoji} maxLength={4} />
           <Field label={t('gs_about')} value={about} onChangeText={setAbout} multiline maxLength={400} />
@@ -512,7 +512,7 @@ export const GroupPage = ({ groupId, focusPostId, onClose, onChanged }) => {
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: C.bg }}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 30 }}>
+          <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 30 }}>
 
             {/* ── THE COVER ── */}
             <View style={{ height: HEAD }}>

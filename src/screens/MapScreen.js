@@ -865,7 +865,7 @@ export const MapScreen = () => {
              One row instead of a screen full of buttons. Each one is a
              way of looking at the same map, and each says what's
              actually on it right now rather than a number we made up. */
-          <ScrollView
+          <ScrollView keyboardShouldPersistTaps="handled"
             horizontal
             showsHorizontalScrollIndicator={false}
             style={{ marginTop: 10, flexGrow: 0 }}
@@ -974,7 +974,7 @@ export const MapScreen = () => {
           ))}
         </View>
         {rail === 'deals' ? (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, marginBottom: 8 }}>
+          <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, marginBottom: 8 }}>
             {DEAL_FILTERS.map((f) => (
               <Pressable key={f} onPress={() => { tapSelection(); setDealFilter(f); }}>
                 <View style={{ backgroundColor: dealFilter === f ? C.text : C.float, borderWidth: 1, borderColor: dealFilter === f ? C.text : C.line, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5, marginRight: 7 }}>
@@ -984,7 +984,7 @@ export const MapScreen = () => {
             ))}
           </ScrollView>
         ) : null}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
+        <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
           {rail === 'deals' ? (
             filteredDeals.map((d) => (
               <Pressable key={d.id} onPress={() => { tapLight(); sfxPop(); openPartner(user, d); }}>
@@ -1188,7 +1188,7 @@ export const MapScreen = () => {
               </Pressable>
             </Glass>
           ) : (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
+            <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
               {trips.length ? trips.map((tp) => {
                 const mine = user && tp.host_id === user.id;
                 const joined = user && (tp.members || []).some((m) => m.user_id === user.id);
@@ -1438,7 +1438,7 @@ export const MapScreen = () => {
               </Pressable>
             </View>
             {nearbyPeople.length ? (
-              <ScrollView showsVerticalScrollIndicator={false}>
+              <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
                 {nearbyPeople.map((p) => (
                   <View key={p.id} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: C.line }}>
                     <Pressable onPress={() => { closeSheet(); setProfileUser(p); }} style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
@@ -1786,7 +1786,7 @@ export const MapScreen = () => {
                 <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '800', letterSpacing: 1, marginTop: 18, marginBottom: 10 }}>
                   {t('moments_here').replace('{n}', placePosts.length)}
                 </Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false}>
                   {placePosts.map((p) => {
                     const media = p.media_url;
                     const isVid = p.type === 'vod' || p.type === 'reel' || /\.(mp4|mov|webm)(\?|$)/i.test(media || '');
@@ -1836,7 +1836,7 @@ export const MapScreen = () => {
         <Pressable onPress={() => setDestOpen(null)} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end', zIndex: 30 }}>
           <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, maxHeight: '82%' }}>
             <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 10 }} />
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 22 }}>
+            <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 22 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <View style={{ width: 56, height: 56, borderRadius: 18, backgroundColor: 'rgba(245,179,1,0.14)', borderWidth: 1.5, borderColor: 'rgba(245,179,1,0.5)', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
                   <Text style={{ fontSize: 28 }}>{destOpen.emoji}</Text>

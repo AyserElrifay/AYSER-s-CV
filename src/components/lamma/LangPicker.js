@@ -20,7 +20,7 @@ export const LangPicker = ({ value, onChange, label }) => (
         {label}
       </Text>
     ) : null}
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingEnd: 8 }}>
+    <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingEnd: 8 }}>
       {PLAY_LANGS.map((l) => {
         const on = l.code === value;
         return (

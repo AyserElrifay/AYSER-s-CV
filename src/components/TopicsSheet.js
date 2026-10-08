@@ -109,7 +109,7 @@ const TopicPage = ({ topic, onBack, onOpenPost, onCompose }) => {
         ))}
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 90 }}>
+      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: insets.bottom + 90 }}>
         {rows === null ? (
           <ActivityIndicator color={C.purple} style={{ marginTop: 30 }} />
         ) : rows.length ? (
@@ -261,10 +261,10 @@ export const TopicsSheet = ({ onClose, onOpenPost, onCompose, initialSlug = null
               Topics arrive with the next update of the app's data. Nothing invented to fill the page.
             </Text>
           ) : (
-            <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 30 }} showsVerticalScrollIndicator={false}>
+            <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: insets.bottom + 30 }} showsVerticalScrollIndicator={false}>
               {/* the ones worth starting with */}
               {featured.length ? (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 10 }}>
+                <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 10 }}>
                   {featured.map((t) => {
                     const [a, b] = tintOf(t.tint);
                     return (

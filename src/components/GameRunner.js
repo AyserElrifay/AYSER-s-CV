@@ -496,7 +496,7 @@ export const GameRunner = ({ opponent = null, onClose, matchId = null, isHost = 
               </Pressable>
 
               <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, fontWeight: '800', letterSpacing: 1, marginBottom: 8 }}>{gt('pick')}</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ maxHeight: 74, flexGrow: 0 }}>
+              <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} style={{ maxHeight: 74, flexGrow: 0 }}>
                 {GAME_LOCATIONS.map((g) => {
                   const on = g.id === loc.id;
                   return (
@@ -551,7 +551,7 @@ export const GameRunner = ({ opponent = null, onClose, matchId = null, isHost = 
                 ) : board.length === 0 ? (
                   <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, textAlign: 'center', paddingVertical: 24 }}>{gamesAr() ? 'مفيش نتايج لسه — كن أول واحد!' : 'No scores yet — be the first!'}</Text>
                 ) : (
-                  <ScrollView>
+                  <ScrollView keyboardShouldPersistTaps="handled">
                     {board.map((r, i) => (
                       <View key={r.id} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: i < board.length - 1 ? 1 : 0, borderBottomColor: 'rgba(255,255,255,0.08)' }}>
                         <Text style={{ color: i === 0 ? C.gold : i < 3 ? '#FFF' : 'rgba(255,255,255,0.6)', fontSize: 15, fontWeight: '900', width: 34 }}>{i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '#' + (i + 1)}</Text>

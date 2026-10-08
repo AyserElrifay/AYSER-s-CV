@@ -461,7 +461,7 @@ export const CountrySheet = ({ startCode, onClose }) => {
             all the room there is — without it the picker was squeezed
             to a four-pixel sliver and you could see the tops of the
             flags and nothing else. */}
-        <ScrollView
+        <ScrollView keyboardShouldPersistTaps="handled"
           horizontal showsHorizontalScrollIndicator={false}
           style={{ flexGrow: 0, flexShrink: 0 }}
           contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 2 }}>
@@ -505,7 +505,7 @@ export const CountrySheet = ({ startCode, onClose }) => {
           </View>
         </View>
 
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 20 }}>
+        <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 20 }}>
           {tab === 'say' ? (
             <>
               <Greeting h={room.hello} ar={ar} t={t} />
@@ -557,7 +557,7 @@ export const CountrySheet = ({ startCode, onClose }) => {
                   {t('country_films_none')}
                 </Text>
               ) : (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 20 }}>
+                <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 20 }}>
                   {films.map((f) => (
                     <View key={f.id} style={{ width: 110, marginEnd: 10 }}>
                       {f.poster_url ? (

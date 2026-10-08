@@ -113,7 +113,7 @@ export const AlbumSheet = ({ onClose }) => {
   return (
     <Modal visible transparent={false} animationType="slide" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: C.bg }}>
-        <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 30 }}>
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: insets.bottom + 30 }}>
           <LinearGradient
             colors={[GREEN, '#123F31']}
             start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}

@@ -213,7 +213,7 @@ export const SettingsScreen = ({ onClose }) => {
         <Text style={{ color: C.text, fontSize: 20, fontWeight: '900' }}>{t('settings')}</Text>
       </View>
 
-      <ScrollView
+      <ScrollView keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: insets.bottom + 40 }}
         showsVerticalScrollIndicator={false}
       >
@@ -274,7 +274,7 @@ export const SettingsScreen = ({ onClose }) => {
             {splitMates === null ? (
               <Text style={{ color: C.faint, fontSize: 12, paddingVertical: 10 }}>{t('loading_mates')}</Text>
             ) : splitMates.length ? (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
+              <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
                 {splitMates.map((m) => (
                   <Pressable key={m.id} onPress={() => sendSplitTo(m)} disabled={splitBusy || !(splitPer.total > 0)} style={{ alignItems: 'center', marginRight: 12, width: 62, opacity: splitPer.total > 0 ? 1 : 0.45 }}>
                     <Image source={{ uri: m.avatar_url || AV_NEUTRAL }} style={{ width: 46, height: 46, borderRadius: 23, borderWidth: 2, borderColor: C.green }} />
@@ -591,7 +591,7 @@ export const SettingsScreen = ({ onClose }) => {
               </Pressable>
             </View>
             <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', marginBottom: 7 }}>{t('i_speak')}</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+            <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
               {LANGUAGES.map((l) => {
                 const on = speaks === l.c;
                 return (
@@ -605,7 +605,7 @@ export const SettingsScreen = ({ onClose }) => {
               })}
             </ScrollView>
             <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', marginBottom: 7 }}>{t('i_practise')}</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+            <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
               {LANGUAGES.map((l) => {
                 const on = learning === l.c;
                 return (
@@ -721,7 +721,7 @@ export const SettingsScreen = ({ onClose }) => {
                 <Text style={{ color: C.dim, fontSize: 12.5, fontWeight: '800' }}>{t('st_clear')}</Text>
               </Pressable>
             </View>
-            <ScrollView contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 16 }}>
+            <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 16 }}>
               {recent().length ? recent().map((c, n) => (
                 <View key={n} style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 14, padding: 12, marginBottom: 9 }}>
                   <Text style={{ color: C.faint, fontSize: 10, fontWeight: '900', letterSpacing: 0.8 }}>

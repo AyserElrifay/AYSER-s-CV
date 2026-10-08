@@ -33,7 +33,7 @@ export const TermsSheet = ({ onClose }) => {
           <Text style={{ color: C.text, fontSize: 17, fontWeight: '900' }}>Terms & Content Policy</Text>
         </View>
 
-        <ScrollView contentContainerStyle={{ padding: 18, paddingBottom: insets.bottom + 40 }} showsVerticalScrollIndicator={false}>
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 18, paddingBottom: insets.bottom + 40 }} showsVerticalScrollIndicator={false}>
           <Text style={{ color: C.faint, fontSize: 12, marginBottom: 4 }}>Moments — Terms of Use · last updated {new Date().getFullYear()}</Text>
 
           <H>1. Using Moments</H>

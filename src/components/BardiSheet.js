@@ -425,7 +425,7 @@ export const BardiSheet = ({ onClose }) => {
                     </Pressable>
                   </View>
                 ) : null}
-                <ScrollView style={{ maxHeight: full ? 300 : 190 }}>
+                <ScrollView keyboardShouldPersistTaps="handled" style={{ maxHeight: full ? 300 : 190 }}>
                   {chats.map((c) => (
                     <View key={c.id} style={{ flexDirection: 'row', alignItems: 'center', borderTopWidth: 1, borderTopColor: C.line }}>
                       <Pressable onPress={() => openChat(c)} style={{ flex: 1, paddingHorizontal: 13, paddingVertical: 11 }}>

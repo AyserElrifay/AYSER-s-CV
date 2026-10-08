@@ -49,7 +49,7 @@ const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 const ColorRow = ({ label, colors, value, onPick }) => (
   <View style={{ marginBottom: 18 }}>
     <Text style={{ color: C.faint, fontSize: 11, fontWeight: '900', letterSpacing: 0.8, marginBottom: 10 }}>{label}</Text>
-    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+    <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false}>
       {colors.map((hex) => {
         const on = String(value || '').toLowerCase() === hex.toLowerCase();
         return (
@@ -73,7 +73,7 @@ const ColorRow = ({ label, colors, value, onPick }) => (
 const WearRow = ({ label, options, field, dna, onPick, crop }) => (
   <View style={{ marginBottom: 18 }}>
     <Text style={{ color: C.faint, fontSize: 11, fontWeight: '900', letterSpacing: 0.8, marginBottom: 10 }}>{label}</Text>
-    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+    <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false}>
       {options.map((o) => {
         const on = (dna[field] || '') === o.id;
         return (
@@ -224,7 +224,7 @@ export const AvatarBuilderSheet = ({ initialDna, onClose, onSaved }) => {
         </View>
 
         {/* tabs */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, marginTop: 12 }} contentContainerStyle={{ paddingHorizontal: 16 }}>
+        <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, marginTop: 12 }} contentContainerStyle={{ paddingHorizontal: 16 }}>
           {TABS.map((tb) => {
             const on = tab === tb.id;
             return (
@@ -238,7 +238,7 @@ export const AvatarBuilderSheet = ({ initialDna, onClose, onSaved }) => {
           })}
         </ScrollView>
 
-        <ScrollView style={{ marginTop: 14 }} contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 14 }} showsVerticalScrollIndicator={false}>
+        <ScrollView keyboardShouldPersistTaps="handled" style={{ marginTop: 14 }} contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 14 }} showsVerticalScrollIndicator={false}>
           {tab === 'body' ? (
             <>
               <Text style={{ color: C.faint, fontSize: 11, fontWeight: '900', letterSpacing: 0.8, marginBottom: 10 }}>WHO ARE YOU?</Text>
@@ -339,7 +339,7 @@ export const AvatarBuilderSheet = ({ initialDna, onClose, onSaved }) => {
           {tab === 'culture' ? (
             <>
               <Text style={{ color: C.faint, fontSize: 11, fontWeight: '900', letterSpacing: 0.8, marginBottom: 10 }}>DRESS FROM WHERE YOU'RE FROM</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
+              <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
                 {CULTURES.map((cu) => {
                   const on = dna.top === cu.look.top;
                   return (

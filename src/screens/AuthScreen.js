@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, Pressable, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { C, R } from '../constants/theme';
 import { useAuth } from '../context/AuthContext';
 import { updateProfile } from '../services/profiles';
 import { setIntent } from '../services/algorithm';
-import { resetPasswordByEmail, sendPhoneOtp, verifyPhoneOtp, updatePassword } from '../services/auth';
+import { resetPasswordByEmail, sendPhoneOtp, verifyPhoneOtp, updatePassword, setSessionFromTokens } from '../services/auth';
+import { recoveryTokens, recoveryError, clearRecovery } from '../lib/recovery';
 import { COUNTRY_LIST } from '../constants/countries';
 import { GhostButton } from '../components/GhostButton';
 import { Glass } from '../components/Glass';
@@ -60,7 +61,7 @@ const authErrorKey = (e) => {
   return 'auth_err_generic';
 };
 
-export const AuthScreen = () => {
+export const AuthScreen = ({ recovery = false, onDone }) => {
   const { isDemo, signIn, signUp, enterDemo, user, beginOnboarding, finishOnboarding } = useAuth();
   const { t, lang, setLang } = useLang();
   const [step, setStep] = useState(0);
@@ -80,6 +81,25 @@ export const AuthScreen = () => {
   const [otpSent, setOtpSent] = useState(false);
   const [otpVerified, setOtpVerified] = useState(false);
   const [newPass, setNewPass] = useState('');
+
+  /* ── COMING BACK FROM THE EMAIL LINK ──────────────────────────
+     The token in the address is exchanged for a real session before
+     the field is offered, because "set a new password" against no
+     session fails at the last step, after the person has typed it.
+     Better to find out now and say so. */
+  const [linkReady, setLinkReady] = useState(false);
+  const [linkDead, setLinkDead] = useState(recovery ? recoveryError() : null);
+  useEffect(() => {
+    if (!recovery || linkDead) return;
+    const tk = recoveryTokens();
+    if (!tk) { setLinkDead(t('auth_recovery_expired')); return; }
+    let alive = true;
+    setSessionFromTokens(tk)
+      .then(() => { if (alive) setLinkReady(true); })
+      .catch(() => { if (alive) setLinkDead(t('auth_recovery_expired')); });
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recovery]);
 
   const openReset = () => {
     setError(null); setNotice(null); setMode('reset');
@@ -132,8 +152,13 @@ export const AuthScreen = () => {
     try {
       await updatePassword(newPass);
       setNotice(t('auth_ok_pass_updated'));
-      // Session is already live from the OTP verify — releasing the gate lands in the app.
-      setTimeout(() => finishOnboarding(), 700);
+      // The session is already live — from the OTP verify, or from the
+      // tokens the email link arrived with. Releasing the gate lands
+      // in the app, signed in, with the password they just chose.
+      setTimeout(() => {
+        if (recovery) { clearRecovery(); if (onDone) onDone(); }
+        finishOnboarding();
+      }, 700);
     } catch (e) {
       setError(t('auth_err_pass_update'));
     } finally { setBusy(false); }
@@ -238,7 +263,51 @@ export const AuthScreen = () => {
           })}
         </ScrollView>
 
-        {step === 0 && mode === 'reset' ? (
+        {recovery ? (
+          /* ── BACK FROM THE EMAIL LINK ────────────────────────────
+             One field and one button. Nothing else is offered here,
+             because somebody who has just tapped a link in their
+             email to get back into their own account should not have
+             to find their way through a sign-in form to do it. */
+          <View style={{ alignItems: 'center' }}>
+            <Wordmark height={92} style={{ marginBottom: 4 }} />
+            <Text style={{ color: C.dim, fontSize: 14, marginBottom: 30 }}>
+              {linkDead ? t('auth_reset_title') : t('auth_recovery_title')}
+            </Text>
+            <Glass style={{ padding: 20, alignSelf: 'stretch', marginBottom: 30 }}>
+              {linkDead ? (
+                <>
+                  <Text style={{ color: C.dim, fontSize: 13.5, lineHeight: 20, marginBottom: 16 }}>
+                    {t('auth_recovery_expired')}
+                  </Text>
+                  <NeonButton
+                    label={t('auth_recovery_again')}
+                    onPress={() => { clearRecovery(); if (onDone) onDone(); }}
+                  />
+                </>
+              ) : !linkReady ? (
+                <Text style={{ color: C.dim, fontSize: 13.5 }}>{t('auth_checking')}</Text>
+              ) : (
+                <>
+                  <Text style={{ color: C.dim, fontSize: 13.5, lineHeight: 20, marginBottom: 16 }}>
+                    {t('auth_recovery_sub')}
+                  </Text>
+                  <TextInput
+                    placeholder={t('auth_new_password')} placeholderTextColor={C.faint}
+                    value={newPass} onChangeText={setNewPass} secureTextEntry style={inputStyle()}
+                  />
+                  <NeonButton
+                    label={busy ? t('auth_saving') : t('auth_set_password')}
+                    onPress={busy ? undefined : saveNewPassword}
+                    style={{ marginTop: 12 }}
+                  />
+                </>
+              )}
+              {error ? <Text style={{ color: C.coral, fontSize: 12.5, marginTop: 12 }}>{error}</Text> : null}
+              {notice ? <Text style={{ color: C.green, fontSize: 12.5, marginTop: 12 }}>{notice}</Text> : null}
+            </Glass>
+          </View>
+        ) : step === 0 && mode === 'reset' ? (
           <View style={{ alignItems: 'center' }}>
             <Wordmark height={92} style={{ marginBottom: 4 }} />
             <Text style={{ color: C.dim, fontSize: 14, marginBottom: 30 }}>{t('auth_reset_title')}</Text>

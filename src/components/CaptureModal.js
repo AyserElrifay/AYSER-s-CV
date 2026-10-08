@@ -1969,7 +1969,7 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
   useEffect(() => () => { if (soundPreviewRef.current) { try { soundPreviewRef.current.pause(); } catch (e) {} } }, []);
 
   const soundRail = (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 14, marginBottom: 16 }}>
+    <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 14, marginBottom: 16 }}>
       <Pressable onPress={() => { tapLight(); setHubOpen(true); }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(124,58,237,0.9)', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7, marginRight: 8 }}>
           <Text style={{ fontSize: 13 }}>🎧</Text>
@@ -2363,7 +2363,7 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
                   lenses are one tap away when you actually want one. */}
               {lensRailOpen ? (
               <>
-              <ScrollView
+              <ScrollView keyboardShouldPersistTaps="handled"
                 horizontal showsHorizontalScrollIndicator={false}
                 contentContainerStyle={{ paddingHorizontal: 14, alignItems: 'center', marginBottom: 8 }}
               >
@@ -2414,7 +2414,7 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
 
               {/* the strip under it, like a camera's category row */}
               {lensRailOpen ? (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, alignItems: 'center', marginBottom: 10 }}>
+              <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, alignItems: 'center', marginBottom: 10 }}>
                 <Pressable onPress={() => { tapLight(); setEffectsOpen(true); }} style={{ marginRight: 14 }}>
                   <Ionicons name="game-controller-outline" size={20} color="#FFF" />
                 </Pressable>
@@ -2564,7 +2564,7 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
               {/* real filters — tap to try, baked into the photo on send */}
               {panel === 'looks' ? (
               <>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 14, marginBottom: 10 }}>
+              <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 14, marginBottom: 10 }}>
                 <Pressable onPress={() => { tapLight(); setEditOpen((v) => !v); }}>
                   <View style={{ alignItems: 'center', justifyContent: 'center', marginRight: 10, width: 58 }}>
                     <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: editOpen ? '#FFF' : 'rgba(255,255,255,0.16)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.4)', alignItems: 'center', justifyContent: 'center' }}>
@@ -2589,7 +2589,7 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
               </ScrollView>
 
               {/* effects + game filters — spin the roulette, dare a question */}
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 14, marginBottom: 10 }}>
+              <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 14, marginBottom: 10 }}>
                 {[{ k: 'roulette', label: 'Roulette', emoji: '🎲' }, { k: 'question', label: 'Dare Q', emoji: '❓' }].map((g) => {
                   const on = gameCard && gameCard.kind === g.k;
                   return (
@@ -2767,7 +2767,7 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
                           ))}
                         </View>
                       ) : null}
-                      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: 10 }}>
+                      <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: 10 }}>
                         {tagIdeas.filter((t) => !tags.some((x) => x.toLowerCase() === t.toLowerCase()) && !guessed.includes(t)).map((t) => (
                           <Pressable key={t} onPress={() => addTag(t)}>
                             <View style={{ backgroundColor: 'rgba(0,0,0,0.55)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', borderRadius: 999, paddingHorizontal: 11, paddingVertical: 6, marginRight: 6 }}>
@@ -2847,7 +2847,7 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
                   <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 11.5, fontWeight: '800', marginBottom: 6 }}>
                     {t('cover_title')}
                   </Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false}>
                     {covers.map((f) => {
                       const on = chosenCover === f.url;
                       return (

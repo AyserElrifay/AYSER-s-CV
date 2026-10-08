@@ -104,7 +104,7 @@ export const TagPeoplePicker = ({ selected = [], onDone, onClose }) => {
         </View>
 
         {picked.length ? (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 12 }}>
+          <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 12 }}>
             {picked.map((p) => (
               <Pressable key={p.id} onPress={() => toggle(p)} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.purpleSoft, borderRadius: 999, paddingLeft: 4, paddingRight: 10, paddingVertical: 4, marginRight: 8 }}>
                 <Image source={{ uri: p.avatar_url || AV_NEUTRAL }} style={{ width: 24, height: 24, borderRadius: 12 }} />

@@ -191,7 +191,7 @@ const HighlightComposer = ({ userId, target, onClose, onSaved }) => {
         {cands === null ? (
           <ActivityIndicator color={C.purple} style={{ marginTop: 26 }} />
         ) : cands.length ? (
-          <ScrollView contentContainerStyle={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 12, paddingBottom: insets.bottom + 30 }}>
+          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 12, paddingBottom: insets.bottom + 30 }}>
             {cands.map((c) => {
               const on = picked.some((x) => x.key === c.key);
               return (
@@ -244,7 +244,7 @@ export const HighlightsRail = ({ userId, isMine }) => {
 
   return (
     <>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, marginTop: 20, alignItems: 'flex-start' }}>
+      <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, marginTop: 20, alignItems: 'flex-start' }}>
         {isMine ? (
           <Circle plus label={t('new_story')} onPress={() => { tapLight(); setComposing('new'); }} />
         ) : null}

@@ -68,7 +68,7 @@ export const HelpSheet = ({ onClose }) => {
           </View>
         </View>
 
-        <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
           {err ? (
             <Text style={{ color: C.coral, fontSize: 12, marginBottom: 14, lineHeight: 17 }}>⚠️ {err}</Text>
           ) : null}

@@ -329,7 +329,7 @@ export const ReelsViewer = ({ reels, startIndex = 0, vibes, onVibe, onComment, o
   return (
     <Modal visible transparent={false} animationType="slide" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: '#000' }}>
-        <FlatList
+        <FlatList keyboardShouldPersistTaps="handled"
           data={visible}
           keyExtractor={(r) => r.id}
           renderItem={renderReel}
