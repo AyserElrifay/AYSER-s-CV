@@ -314,6 +314,17 @@ export async function fetchMySquads(userId) {
       (gs || []).forEach((g) => { by[g.squad_id] = g; });
       squads.forEach((x) => { if (by[x.id]) x.plan = by[x.id]; });
     } catch (e) { /* the list still shows, just without the plan details */ }
+    /* and the last thing said in each, for the preview line */
+    try {
+      const { data: ms } = await supabase.from('messages')
+        .select('squad_id, body, created_at, user_id')
+        .in('squad_id', squads.map((x) => x.id))
+        .order('created_at', { ascending: false })
+        .limit(300);
+      const last = {};
+      (ms || []).forEach((m) => { if (!last[m.squad_id]) last[m.squad_id] = m; });
+      squads.forEach((x) => { const m = last[x.id]; if (m) { x.last = m.body; x.lastAt = m.created_at; x.lastFrom = m.user_id; } });
+    } catch (e) { /* no previews, still a list */ }
   }
   return squads;
 }

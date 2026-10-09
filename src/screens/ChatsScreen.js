@@ -40,7 +40,10 @@ import { SheetHandle, SheetBack } from '../components/SheetHandle';
 /* opened from here and from Together — lazy in both, so it stays its
    own download instead of joining everybody's first one */
 import { takeChat, onOpenChat } from '../lib/chatBus';
-import { splitChats } from '../lib/chatList';
+import { splitChats, inbox, quietFriend } from '../lib/chatList';
+import { getOrCreateDmThread, sendMessage } from '../services/messages';
+import { appLink, shareLink, shareNote } from '../utils/share';
+import { isNeedUnlock } from '../lib/unlockBus';
 import { lookOf, titleFor, whenFor } from '../lib/activityPins';
 const ProgrammesSheet = lazyOverlay(() => import('../components/green/ProgrammesSheet').then((m) => ({ default: m.ProgrammesSheet })));
 const CaptureModal = lazyOverlay(() => import('../components/CaptureModal').then((m) => ({ default: m.CaptureModal })));
@@ -333,6 +336,10 @@ export const ChatsScreen = () => {
   // ── invite mates into a squad — a real membership row per person ──
   const [inviteSquad, setInviteSquad] = useState(null); // the squad you're adding people to
   const [rowMenu, setRowMenu] = useState(null);          // a held row: invite or leave
+  const [inviteNote, setInviteNote] = useState(null);
+  const [helloBusy, setHelloBusy] = useState(null);
+  const [helloErr, setHelloErr] = useState(null);
+  const [nudgeOff, setNudgeOff] = useState(() => { try { return JSON.parse(localStorage.getItem('moments.nudgeOff') || '{}') || {}; } catch (e) { return {}; } });
   const [pastOpen, setPastOpen] = useState(false);
   const [invited, setInvited] = useState({});           // { mateId: true } — just-added this session
   const [members, setMembers] = useState({});           // { mateId: true } — already in the squad (persisted)
@@ -388,6 +395,8 @@ export const ChatsScreen = () => {
               verified: !!u.verified,
             },
             last: d.last,
+            lastAt: d.time,
+            lastFrom: d.lastFrom,
             time: timeAgo(d.time),
             // nothing has been said in here yet
             fresh: !d.time,
@@ -397,6 +406,34 @@ export const ChatsScreen = () => {
           };
         })
     : DMS;
+  /* the three piles of plan chats, the one nudge (src/lib/chatList.js) */
+  const split = splitChats(squads);
+  const nudge = SUPABASE_READY && realDms !== null ? quietFriend({ mates: myMates, dms, online: isOnline, dismissed: nudgeOff }) : null;
+  const dismissNudge = (id) => {
+    tapLight();
+    setNudgeOff((m) => { const n = { ...m, [id]: Date.now() }; try { localStorage.setItem('moments.nudgeOff', JSON.stringify(n)); } catch (e) {} return n; });
+  };
+  /* one tap: the hello goes, and the conversation opens on it */
+  const sayHello = async (mate, text) => {
+    if (helloBusy || !user) return;
+    tapLight(); setHelloBusy(mate.id); setHelloErr(null);
+    try {
+      const threadId = await getOrCreateDmThread(mate.id, user.id);
+      await sendMessage({ dmThreadId: threadId, userId: user.id, body: text });
+      tapSuccess();
+      dismissNudge(mate.id);
+      reload();
+      setThread({ chat: { user: { id: mate.id, name: mate.name || 'Explorer', avatar: mate.avatar_url || AV_NEUTRAL } }, group: false });
+    } catch (e) {
+      setHelloErr(isNeedUnlock(e) ? t('vc_why_dm') : t('lamma_offline'));
+    } finally { setHelloBusy(null); }
+  };
+  const inviteFriends = async () => {
+    tapLight();
+    const r = await shareLink({ url: appLink({ invite: user && user.id }), title: 'Moments', text: t('inv_text') });
+    const note = shareNote(r);
+    if (note) { setInviteNote(note); setTimeout(() => setInviteNote(null), 2400); }
+  };
   const myFlag = user && user.country_flag;
   /* ONLY people who really switched exchange on. Nothing here is
      invented: every language, flag, bio and "active" time is that
@@ -450,12 +487,11 @@ export const ChatsScreen = () => {
        content. */}
 
     <ScreenHeader
-      kicker={t('connections_kicker')}
       title={t('chats_title')}
       right={
-        <Pressable onPress={() => { tapLight(); setComposing(true); setComposeQ(''); setComposeResults([]); }} hitSlop={8}>
-          <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: C.purpleSoft, borderWidth: 1, borderColor: 'rgba(124,58,237,0.35)', alignItems: 'center', justifyContent: 'center' }}>
-            <Ionicons name="create-outline" size={17} color={C.purple} />
+        <Pressable onPress={() => { tapLight(); setComposing(true); setComposeQ(''); setComposeResults([]); }} hitSlop={8} accessibilityRole="button" accessibilityLabel={t('start_a_chat')}>
+          <View style={{ width: 40, height: 40, borderRadius: 20, borderWidth: 1.5, borderColor: C.text, alignItems: 'center', justifyContent: 'center' }}>
+            <Ionicons name="create-outline" size={18} color={C.text} />
           </View>
         </Pressable>
       }
@@ -478,71 +514,133 @@ export const ChatsScreen = () => {
 
         What is left on this screen: the people you are talking to. */}
 
-    {dms.length ? <SectionHeader title={t('direct_label')} /> : null}
-    {dms.length ? <ChatBox>{dms.map((d, di) => (
-      <Pressable key={d.id} onPress={() => { tapLight(); markThreadSeen(d.threadId); setThread({ chat: d, group: false }); }}>
-        <View style={{ paddingVertical: 11, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', borderBottomWidth: di === dms.length - 1 ? 0 : 1, borderBottomColor: C.line }}>
-          <View>
-            {d.user.avatar ? (
-              <Image source={{ uri: d.user.avatar }} style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: C.glassHi }} />
-            ) : (
-              <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: colorFor(d.user.id), alignItems: 'center', justifyContent: 'center' }}>
-                <Text style={{ color: '#FFF', fontSize: 18, fontWeight: '900' }}>{initialOf(d.user.name)}</Text>
-              </View>
-            )}
-            {d.user.id && isOnline(d.user.id) ? <OnlineDot /> : null}
+    {/* ── YOUR PEOPLE ── the faces first, online ones in front; the
+        first circle brings more of them in (an invite link) */}
+    {SUPABASE_READY ? (
+      <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 18, marginHorizontal: -16 }} contentContainerStyle={{ paddingHorizontal: 16 }}>
+        <Pressable onPress={inviteFriends} accessibilityRole="button" accessibilityLabel={t('ch_add_friends')} style={{ alignItems: 'center', marginEnd: 14, width: 64 }}>
+          <View style={{ width: 60, height: 60, borderRadius: 30, borderWidth: 1.5, borderStyle: 'dashed', borderColor: C.dim, alignItems: 'center', justifyContent: 'center' }}>
+            <Ionicons name="add" size={26} color={C.text} />
           </View>
-          <View style={{ flex: 1, marginLeft: 12 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }} numberOfLines={1}>{d.user.name}</Text>
-              {d.user.verified ? <Tick /> : null}
-              {d.translated ? (
-                <MaterialCommunityIcons name="translate" size={14} color={C.blue} style={{ marginLeft: 7 }} />
-              ) : null}
-              {streaks[d.threadId] ? <View style={{ marginLeft: 7 }}><StreakBadge info={streaks[d.threadId]} /></View> : null}
+          <Text style={{ color: C.dim, fontSize: 11.5, fontWeight: '600', marginTop: 6 }} numberOfLines={1}>{t('ch_add_friends')}</Text>
+        </Pressable>
+        {[...myMates].sort((a, b) => Number(isOnline(b.id)) - Number(isOnline(a.id))).map((m) => (
+          <Pressable key={m.id} onPress={() => { tapLight(); setThread({ chat: { user: { id: m.id, name: m.name || 'Explorer', avatar: m.avatar_url || AV_NEUTRAL } }, group: false }); }}
+            accessibilityRole="button" accessibilityLabel={(m.name || '') + (isOnline(m.id) ? ', ' + t('ch_online') : '')}
+            style={{ alignItems: 'center', marginEnd: 14, width: 64 }}>
+            <View>
+              {m.avatar_url ? <Image source={{ uri: m.avatar_url }} style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: C.glassHi }} />
+                : <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: colorFor(m.id), alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: '#FFF', fontSize: 22, fontWeight: '800' }}>{initialOf(m.name || '')}</Text></View>}
+              {isOnline(m.id) ? <View style={{ position: 'absolute', bottom: 1, right: 1, width: 15, height: 15, borderRadius: 8, backgroundColor: C.green, borderWidth: 2.5, borderColor: C.bg }} /> : null}
             </View>
-            {/* ── THE STATUS LINE ──────────────────────────────────────
-                The thing that makes a chat list readable without
-                reading it: a colour and a shape that say what is
-                waiting for you. A filled square means something new,
-                a hollow one means you've seen it, and the word next
-                to it names it. You can run your eye down the column
-                and know where to go. */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
-              <View
-                style={{
-                  width: 9, height: 9, borderRadius: 2.5, marginRight: 6,
-                  backgroundColor: d.unread ? C.purple : 'transparent',
-                  borderWidth: d.unread ? 0 : 1.5, borderColor: C.faint,
-                }}
-              />
-              <Text
-                style={{ color: d.unread ? C.purple : C.dim, fontSize: 11.5, fontWeight: d.unread ? '900' : '700' }}
-                numberOfLines={1}
-              >
-                {d.unread ? 'New message' : d.fresh ? 'Say hi' : 'Opened'}
-              </Text>
-              {/* a brand-new thread has no last message — the status
-                  already says everything, so don't echo it back */}
-              {d.fresh ? null : (
-                <Text style={{ color: C.faint, fontSize: 11.5, marginLeft: 6, flex: 1 }} numberOfLines={1}>
-                  · {d.last}
-                </Text>
-              )}
-            </View>
-            {d.translated ? (
-              <Text style={{ color: C.faint, fontSize: 10.5, marginTop: 2 }}>{t('ch_tap_translate')}</Text>
-            ) : null}
-          </View>
-          <View style={{ alignItems: 'flex-end', marginLeft: 10 }}>
-            <Text style={{ color: C.faint, fontSize: 11 }}>{d.time}</Text>
-            {d.unread > 0 ? (
-              <View style={{ marginTop: 8, width: 9, height: 9, borderRadius: 5, backgroundColor: C.purple }} />
-            ) : null}
-          </View>
+            <Text style={{ color: C.text, fontSize: 11.5, fontWeight: '600', marginTop: 6 }} numberOfLines={1}>{(m.name || 'Explorer').split(' ')[0]}</Text>
+          </Pressable>
+        ))}
+      </ScrollView>
+    ) : null}
+    {inviteNote ? <Text style={{ color: C.faint, fontSize: 12, marginTop: -10, marginBottom: 12 }}>{inviteNote}</Text> : null}
+
+    {/* ── THE ONE NUDGE ── a mate you have not talked to in a week,
+        and a hello you can send without thinking of one */}
+    {nudge ? (
+      <View style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 20, padding: 14, marginBottom: 18 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          {nudge.mate.avatar_url ? <Image source={{ uri: nudge.mate.avatar_url }} style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: C.glassHi }} />
+            : <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: colorFor(nudge.mate.id), alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: '#FFF', fontSize: 16, fontWeight: '800' }}>{initialOf(nudge.mate.name || '')}</Text></View>}
+          <Text style={{ flex: 1, minWidth: 0, color: C.text, fontSize: 14.5, fontWeight: '600', lineHeight: 20, marginStart: 11 }}>
+            {(nudge.online ? t('ch_nudge_online') : nudge.days === null ? t('ch_nudge_never') : t('ch_nudge_days').replace('{n}', String(nudge.days)))
+              .replace('{name}', (nudge.mate.name || '').split(' ')[0])}
+          </Text>
+          <Pressable onPress={() => dismissNudge(nudge.mate.id)} hitSlop={10} accessibilityRole="button" accessibilityLabel={t('close')} style={{ marginStart: 8 }}>
+            <Ionicons name="close" size={16} color={C.faint} />
+          </Pressable>
         </View>
-      </Pressable>
-    ))}</ChatBox> : null}
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 12 }}>
+          {['ch_hello_hi', 'ch_hello_coffee', 'ch_hello_walk'].map((k) => (
+            <Pressable key={k} onPress={() => sayHello(nudge.mate, t(k))} disabled={!!helloBusy} accessibilityRole="button"
+              style={{ borderWidth: 1, borderColor: C.line, backgroundColor: C.bg, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8, marginEnd: 8, marginBottom: 6, opacity: helloBusy ? 0.5 : 1 }}>
+              <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '600' }}>{t(k)}</Text>
+            </Pressable>
+          ))}
+        </View>
+        {helloErr ? <Text style={{ color: C.coral, fontSize: 12.5, marginTop: 4 }}>{helloErr}</Text> : null}
+      </View>
+    ) : null}
+
+    {/* ── THIS WEEK ── the chats of plans you are going to, as a strip */}
+    {split.coming.length ? (
+      <>
+        <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '800', letterSpacing: 1.1, marginBottom: 8 }}>{t('ch_this_week')}</Text>
+        <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 18, marginHorizontal: -16 }} contentContainerStyle={{ paddingHorizontal: 16 }}>
+          {split.coming.map((sq) => {
+            const look = lookOf(sq.plan.kind);
+            return (
+              <Pressable key={sq.id} onPress={() => { tapLight(); setThread({ chat: { ...sq, name: titleFor(sq.name, lang) }, group: true }); }}
+                onLongPress={() => { tapSelection(); setRowMenu(sq); }} delayLongPress={350} accessibilityRole="button"
+                style={{ width: 150, marginEnd: 10, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 16, padding: 12 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: look.from + '22', alignItems: 'center', justifyContent: 'center' }}>
+                    <Text style={{ fontSize: 15 }}>{look.emoji}</Text>
+                  </View>
+                  {sq.unread > 0 || (sq.lastAt && isUnread('sq' + sq.id, sq.lastAt, sq.lastFrom, user && user.id)) ? <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: C.purple, marginStart: 'auto' }} /> : null}
+                </View>
+                <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '700', marginTop: 8 }} numberOfLines={1}>{titleFor(sq.name, lang)}</Text>
+                <Text style={{ color: C.dim, fontSize: 12, marginTop: 2 }} numberOfLines={1}>{whenFor(sq.plan.starts_at, lang)}</Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      </>
+    ) : null}
+
+    {/* ── EVERY CONVERSATION, NEWEST FIRST ── people and your groups
+        together; what was said last, and who said it */}
+    {(dms.length || split.groups.length) ? (
+      <ChatBox>
+        {inbox(dms, split.groups).map((r, ri, all) => {
+          const lastRow = ri === all.length - 1;
+          const isDm = r.kind === 'dm';
+          const it = r.item;
+          const name = isDm ? it.user.name : titleFor(it.name, lang);
+          const unread = isDm ? !!it.unread : !!(it.lastAt && isUnread('sq' + it.id, it.lastAt, it.lastFrom, user && user.id));
+          const mine = (isDm ? it.lastFrom : it.lastFrom) && user && (isDm ? it.lastFrom : it.lastFrom) === user.id;
+          const preview = isDm ? (it.fresh ? t('ch_say_hi') : it.last) : (it.last || '');
+          const when = isDm ? it.time : timeAgo(it.lastAt);
+          return (
+            <Pressable key={r.key}
+              onPress={() => { tapLight(); if (isDm) { markThreadSeen(it.threadId); setThread({ chat: it, group: false }); } else { markThreadSeen('sq' + it.id); setThread({ chat: { ...it, name }, group: true }); } }}
+              onLongPress={isDm ? undefined : () => { tapSelection(); setRowMenu(it); }} delayLongPress={350}
+              accessibilityRole="button"
+              style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, borderBottomWidth: lastRow ? 0 : 1, borderBottomColor: C.line }}>
+              <View>
+                {isDm ? (
+                  it.user.avatar ? <Image source={{ uri: it.user.avatar }} style={{ width: 50, height: 50, borderRadius: 25, backgroundColor: C.glassHi }} />
+                    : <View style={{ width: 50, height: 50, borderRadius: 25, backgroundColor: colorFor(it.user.id), alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: '#FFF', fontSize: 19, fontWeight: '800' }}>{initialOf(it.user.name)}</Text></View>
+                ) : it.avatar_url ? <Image source={{ uri: it.avatar_url }} style={{ width: 50, height: 50, borderRadius: 25 }} />
+                  : <View style={{ width: 50, height: 50, borderRadius: 25, backgroundColor: C.glassHi, alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 22 }}>{it.emoji || '💬'}</Text></View>}
+                {isDm && it.user.id && isOnline(it.user.id) ? <View style={{ position: 'absolute', bottom: 0, right: 0, width: 14, height: 14, borderRadius: 7, backgroundColor: C.green, borderWidth: 2.5, borderColor: C.glass }} /> : null}
+              </View>
+              <View style={{ flex: 1, minWidth: 0, marginStart: 12 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={{ color: C.text, fontSize: 15.5, fontWeight: unread ? '800' : '600', flexShrink: 1 }} numberOfLines={1}>{name}</Text>
+                  {isDm && it.user.verified ? <Tick /> : null}
+                  {isDm && streaks[it.threadId] ? <View style={{ marginStart: 6 }}><StreakBadge info={streaks[it.threadId]} /></View> : null}
+                </View>
+                {preview ? (
+                  <Text style={{ color: unread ? C.text : C.dim, fontSize: 13.5, fontWeight: unread ? '600' : '400', marginTop: 3 }} numberOfLines={1}>
+                    {(mine ? t('ch_you_prefix') + ' ' : '') + preview}
+                  </Text>
+                ) : null}
+              </View>
+              <View style={{ alignItems: 'flex-end', marginStart: 10 }}>
+                {when ? <Text style={{ color: unread ? C.purple : C.faint, fontSize: 11.5, fontWeight: unread ? '800' : '500' }}>{when}</Text> : null}
+                {unread ? <View style={{ marginTop: 7, width: 9, height: 9, borderRadius: 5, backgroundColor: C.purple }} /> : null}
+              </View>
+            </Pressable>
+          );
+        })}
+      </ChatBox>
+    ) : null}
 
     {/* ── NOTHING HERE YET ─────────────────────────────────────────────
         One invitation, not three apologies. An empty inbox used to be
@@ -628,33 +726,6 @@ export const ChatsScreen = () => {
       </Glass>
     ) : null}
 
-    {/* ── YOUR MATES — one tap opens the chat ── */}
-    {myMates.length ? (
-      <>
-        <SectionHeader title={t('your_mates')} />
-        <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 20 }}>
-          {myMates.map((m) => (
-            <Pressable
-              key={m.id}
-              onPress={() => { tapLight(); setThread({ chat: { user: { id: m.id, name: m.name || 'Explorer', avatar: m.avatar_url || AV_NEUTRAL } }, group: false }); }}
-              style={{ alignItems: 'center', marginRight: 14, width: 64 }}
-            >
-              <View>
-                <Image source={{ uri: m.avatar_url || AV_NEUTRAL }} style={{ width: 56, height: 56, borderRadius: 28, borderWidth: 1, borderColor: C.line }} />
-                {isOnline(m.id) ? <OnlineDot size={15} /> : m.country_flag ? (
-                  <View style={{ position: 'absolute', bottom: -2, right: -3, backgroundColor: '#FFF', borderRadius: 8, paddingHorizontal: 2 }}>
-                    <Text style={{ fontSize: 11 }}>{m.country_flag}</Text>
-                  </View>
-                ) : null}
-              </View>
-              <Text style={{ color: C.dim, fontSize: 10.5, fontWeight: '700', marginTop: 5 }} numberOfLines={1}>
-                {(m.name || 'Explorer').split(' ')[0]}
-              </Text>
-            </Pressable>
-          ))}
-        </ScrollView>
-      </>
-    ) : null}
 
     {/* ── MATE REQUESTS — real friend requests waiting on you ── */}
     {mateRequests.length ? (
@@ -688,18 +759,10 @@ export const ChatsScreen = () => {
       </>
     ) : null}
 
-    {/* A heading over nothing is worse than no heading. When there are
-        no squads yet the label and its button disappear — the empty
-        card below carries the way to make one. */}
-    {squads.length || squadCreating ? (
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <SectionHeader title={t('squads_label')} />
-        {SUPABASE_READY ? (
-          <Pressable onPress={() => { tapLight(); setSquadCreating((v) => !v); setSquadErr(null); }} hitSlop={8}>
-            <Text style={{ color: C.text, fontSize: 13, fontWeight: '800' }}>{squadCreating ? t('close_x') : t('new_squad')}</Text>
-          </Pressable>
-        ) : null}
-      </View>
+    {SUPABASE_READY && (dms.length || squads.length) ? (
+      <Pressable onPress={() => { tapLight(); setSquadCreating((v) => !v); setSquadErr(null); }} hitSlop={8} accessibilityRole="button" style={{ alignSelf: 'flex-start', marginBottom: 12 }}>
+        <Text style={{ color: C.dim, fontSize: 13.5, fontWeight: '700' }}>{squadCreating ? t('close_x') : '+ ' + t('ch_new_group')}</Text>
+      </Pressable>
     ) : null}
     {squadCreating ? (
       <Glass style={{ padding: 12, marginBottom: 12 }}>
@@ -726,55 +789,27 @@ export const ChatsScreen = () => {
         </Pressable>
       </Glass>
     ) : null}
-    {/* ── PLANS AND GROUPS ── one quiet list, like a phone's own
-        messages: no buttons on the rows. Hold a row to invite or leave.
-        Coming plans first, soonest on top; finished ones folded away
-        (src/lib/chatList.js). */}
-    {squads.length ? (() => {
-      const { coming, groups, past } = splitChats(squads);
-      const Row = (sq, last) => {
-        const p = sq.plan;
-        const look = p ? lookOf(p.kind) : null;
-        const sub = p ? [whenFor(p.starts_at, lang), p.place_name].filter(Boolean).join(' · ') : (sq.last || '');
-        return (
-          <Pressable key={sq.id}
-            onPress={() => { tapLight(); setThread({ chat: { ...sq, name: titleFor(sq.name, lang) }, group: true }); }}
-            onLongPress={() => { tapSelection(); setRowMenu(sq); }}
-            delayLongPress={350}
-            accessibilityRole="button" accessibilityHint={t('ch_hold_hint')}
-            style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 11, paddingHorizontal: 14, borderBottomWidth: last ? 0 : 1, borderBottomColor: C.line }}>
-            {sq.avatar_url ? (
-              <Image source={{ uri: sq.avatar_url }} style={{ width: 42, height: 42, borderRadius: 21 }} />
-            ) : (
-              <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: look ? look.from + '22' : C.glassHi, alignItems: 'center', justifyContent: 'center' }}>
-                <Text style={{ fontSize: 20 }}>{look ? look.emoji : (sq.emoji || '💬')}</Text>
-              </View>
-            )}
-            <View style={{ flex: 1, minWidth: 0, marginStart: 12 }}>
-              <Text style={{ color: C.text, fontSize: 15, fontWeight: '700' }} numberOfLines={1}>{titleFor(sq.name, lang)}</Text>
-              {sub ? <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 2 }} numberOfLines={1}>{sub}</Text> : null}
-            </View>
-            {sq.unread > 0 ? <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: C.purple, marginStart: 10 }} /> : null}
-          </Pressable>
-        );
-      };
-      return (
-        <>
-          {coming.length ? <ChatBox>{coming.map((sq, i) => Row(sq, i === coming.length - 1))}</ChatBox> : null}
-          {groups.length ? <ChatBox>{groups.map((sq, i) => Row(sq, i === groups.length - 1))}</ChatBox> : null}
-          {past.length ? (
-            <>
-              <Pressable onPress={() => { tapLight(); setPastOpen((v) => !v); }} accessibilityRole="button"
-                style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6, marginBottom: 10 }}>
-                <Text style={{ color: C.dim, fontSize: 13, fontWeight: '700' }}>{t('ch_past_plans').replace('{n}', String(past.length))}</Text>
-                <Ionicons name={pastOpen ? 'chevron-up' : 'chevron-down'} size={14} color={C.dim} style={{ marginStart: 4 }} />
-              </Pressable>
-              {pastOpen ? <View style={{ opacity: 0.75 }}><ChatBox>{past.map((sq, i) => Row(sq, i === past.length - 1))}</ChatBox></View> : null}
-            </>
-          ) : null}
-        </>
-      );
-    })() : null}
+    {/* plans that are over, folded away — never deleted */}
+    {split.past.length ? (
+      <>
+        <Pressable onPress={() => { tapLight(); setPastOpen((v) => !v); }} accessibilityRole="button"
+          style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6, marginBottom: 10 }}>
+          <Text style={{ color: C.dim, fontSize: 13, fontWeight: '700' }}>{t('ch_past_plans').replace('{n}', String(split.past.length))}</Text>
+          <Ionicons name={pastOpen ? 'chevron-up' : 'chevron-down'} size={14} color={C.dim} style={{ marginStart: 4 }} />
+        </Pressable>
+        {pastOpen ? (
+          <View style={{ opacity: 0.75 }}><ChatBox>{split.past.map((sq, i) => (
+            <Pressable key={sq.id} onPress={() => { tapLight(); setThread({ chat: { ...sq, name: titleFor(sq.name, lang) }, group: true }); }}
+              onLongPress={() => { tapSelection(); setRowMenu(sq); }} delayLongPress={350} accessibilityRole="button"
+              style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 11, paddingHorizontal: 14, borderBottomWidth: i === split.past.length - 1 ? 0 : 1, borderBottomColor: C.line }}>
+              <Text style={{ fontSize: 18, width: 30 }}>{lookOf(sq.plan.kind).emoji}</Text>
+              <Text style={{ flex: 1, minWidth: 0, color: C.text, fontSize: 14.5, fontWeight: '600' }} numberOfLines={1}>{titleFor(sq.name, lang)}</Text>
+              <Text style={{ color: C.faint, fontSize: 12 }}>{whenFor(sq.plan.starts_at, lang)}</Text>
+            </Pressable>
+          ))}</ChatBox></View>
+        ) : null}
+      </>
+    ) : null}
 
     {/* hold a row: the two things that used to sit on every card */}
     {rowMenu ? (
