@@ -91,6 +91,20 @@ jobs:
             exit 1
           fi
           echo "Access token found."
+          # What KIND of key it is — never the key. The two easiest
+          # mistakes are pasting a project API key (sb_secret_/sb_publishable_
+          # or a long eyJ... JWT) instead of the personal token, and a
+          # stray space or line break from copying on a phone.
+          t="$SUPABASE_ACCESS_TOKEN"
+          trimmed="$(printf '%s' "$t" | tr -d '[:space:]')"
+          [ "$t" != "$trimmed" ] && echo "::warning::The saved key had spaces or a line break in it; they are stripped here."
+          case "$trimmed" in
+            sbp_*) echo "Looks right: a personal access token (sbp_…), ${#trimmed} characters." ;;
+            sb_secret_*|sb_publishable_*) echo "::error::This is a PROJECT API key, not a personal access token. Make one at https://supabase.com/dashboard/account/tokens (it starts with sbp_)."; exit 1 ;;
+            eyJ*) echo "::error::This is a project JWT key (anon or service_role), not a personal access token. Make one at https://supabase.com/dashboard/account/tokens (it starts with sbp_)."; exit 1 ;;
+            *) echo "::warning::This does not start with sbp_ — personal access tokens do. ${#trimmed} characters." ;;
+          esac
+          echo "SUPABASE_ACCESS_TOKEN=$trimmed" >> "$GITHUB_ENV"
 
       # The Management API runs SQL with the account token, so the
       # database password is never needed here.
