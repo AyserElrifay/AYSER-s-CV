@@ -39,7 +39,7 @@ export const VECTOR_STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty';
    still one language for the whole map rather than thirty. */
 const OSM_LANG = {
   en: 'en', ar: 'ar', es: 'es', fr: 'fr', it: 'it', ja: 'ja', ko: 'ko',
-  nl: 'nl', pt: 'pt', ro: 'ro', ru: 'ru', tr: 'tr', zh: 'zh',
+  nl: 'nl', pt: 'pt', ro: 'ro', ru: 'ru', tr: 'tr', zh: 'zh', cs: 'cs', et: 'et',
 };
 
 export const mapLangCode = (lang) => OSM_LANG[String(lang || 'en').slice(0, 2).toLowerCase()] || 'en';

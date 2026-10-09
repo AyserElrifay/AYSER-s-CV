@@ -24,6 +24,8 @@ export const LANGS = [
   { code: 'zh', label: 'Chinese', native: '中文', flag: '🇨🇳', rtl: false },
   { code: 'ko', label: 'Korean', native: '한국어', flag: '🇰🇷', rtl: false },
   { code: 'ja', label: 'Japanese', native: '日本語', flag: '🇯🇵', rtl: false },
+  { code: 'cs', label: 'Czech', native: 'Čeština', flag: '🇨🇿', rtl: false },
+  { code: 'et', label: 'Estonian', native: 'Eesti', flag: '🇪🇪', rtl: false },
 ];
 
 /* ─── WHY ONLY ENGLISH IS IN HERE ────────────────────────────────────

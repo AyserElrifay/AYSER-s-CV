@@ -27,7 +27,7 @@ const SCENE = [
   { kind: 'sport',   key: 'welcome_act_ball',   x: 0.70, y: 0.46, tilt: -4 },
   { kind: 'art',     key: 'welcome_act_sketch', x: 0.05, y: 0.55, tilt: 4 },
   { kind: 'food',    key: 'welcome_act_food',   x: 0.36, y: 0.66, tilt: -3 },
-  { kind: 'circle',  key: 'welcome_act_lang',   x: 0.36, y: 0.03, tilt: 3 },
+  { kind: 'circle',  key: 'welcome_act_lang',   x: 0.33, y: 0.03, tilt: 3 },
 ];
 const FOOD = { emoji: '🍲', from: '#FB923C', to: '#FACC15' };
 
@@ -55,9 +55,9 @@ const Card = ({ item, i, t }) => {
           shadowColor: '#0F172A', shadowOpacity: 0.25, shadowRadius: 10, shadowOffset: { width: 0, height: 6 }, elevation: 6 }}>
         <Text style={{ fontSize: 30 }}>{look.emoji}</Text>
       </LinearGradient>
-      <View style={{ backgroundColor: '#fff', borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3, marginTop: 6,
+      <View style={{ backgroundColor: '#fff', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3, marginTop: 6, maxWidth: 104,
         shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 4, shadowOffset: { width: 0, height: 2 }, elevation: 2 }}>
-        <Text style={{ color: '#1F2937', fontSize: 11, fontWeight: '800' }} numberOfLines={1}>{t(item.key)}</Text>
+        <Text style={{ color: '#1F2937', fontSize: 11, fontWeight: '800', textAlign: 'center' }} numberOfLines={2}>{t(item.key)}</Text>
       </View>
     </Animated.View>
   );
