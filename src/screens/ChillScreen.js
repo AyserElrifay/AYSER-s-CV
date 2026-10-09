@@ -3,6 +3,7 @@ import { View, Text, ScrollView, Pressable, Image, Modal, Platform, ActivityIndi
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { cachedPoster, derivePoster, posterTint } from '../lib/poster';
 import { C, R } from '../constants/theme';
 import { AV_NEUTRAL, PLAY_GAMES } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
@@ -68,10 +69,80 @@ const toVideo = (r) => ({
   userId: r.user_id, // owner — enables "delete my video"
   title: r.caption || 'Untitled video',
   media: r.media_url || r.media,
+  thumb: r.thumb_url || null,
   author: (r.user && (r.user.name)) || 'Explorer',
   avatar: (r.user && (r.user.avatar_url || r.user.avatar)) || AV_NEUTRAL,
   place: r.place || 'Video',
 });
+
+/* ─── A 78 RPM RECORD, NOT A THEATRE MASK ─────────────────────────────
+   "بص الصفحه شكلها وحش اوي". The clearest single reason was here: every
+   track in the list wore the same 🎭, because the cover is an emoji
+   column and every opera recording got the same one. Ten identical
+   masks down a list is what a placeholder looks like.
+
+   These ARE records — 78s from the archive, from before 1930 — so the
+   cover is drawn as one: a black disc, two grooves, and a paper label
+   in the middle. The label's colour comes from the title, so the same
+   record is always the same colour and no two neighbours are likely to
+   match. Nothing is fetched to draw it. */
+const LABELS = ['#C2410C', '#B45309', '#15803D', '#0E7490', '#1D4ED8', '#7C3AED', '#BE123C', '#A16207'];
+const labelOf = (key) => {
+  let h = 0;
+  const k = String(key || '');
+  for (let i = 0; i < k.length; i++) h = (h * 31 + k.charCodeAt(i)) >>> 0;
+  return LABELS[h % LABELS.length];
+};
+const RecordCover = ({ seed, size = 44, playing }) => (
+  <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: '#121214', alignItems: 'center', justifyContent: 'center' }}>
+    <View style={{ position: 'absolute', width: size * 0.82, height: size * 0.82, borderRadius: size, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)' }} />
+    <View style={{ position: 'absolute', width: size * 0.64, height: size * 0.64, borderRadius: size, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' }} />
+    <View style={{ width: size * 0.38, height: size * 0.38, borderRadius: size, backgroundColor: labelOf(seed), alignItems: 'center', justifyContent: 'center' }}>
+      {playing
+        ? <Ionicons name="musical-note" size={size * 0.2} color="#FFF" />
+        : <View style={{ width: size * 0.06, height: size * 0.06, borderRadius: size, backgroundColor: '#121214' }} />}
+    </View>
+  </View>
+);
+
+/* What the second line under a track says about its rights. "© Public
+   Domain" was on every row, and it was wrong as well as noisy: public
+   domain means there is NO copyright, so the © claimed the opposite of
+   the truth. A public-domain record needs no notice at all. Anything
+   under a licence that asks for credit gets the credit, in full. */
+const rightsLine = (t) => {
+  const lic = String(t.license || '');
+  if (!lic || /public domain/i.test(lic)) return '';
+  return t.attribution ? t.attribution : lic;
+};
+
+/* ─── A VIDEO'S FIRST FRAME, NEVER A BLACK BOX ───────────────────────
+   The other black box in his screenshot. This list drew its own
+   <video> on #000 with no cover, so in data saver — or any time the
+   browser had not painted a frame yet — it was a black rectangle with
+   a play button on it. Same answer as the feed (src/lib/poster.js): the
+   still it was posted with, or one taken from the clip once and kept,
+   and until then a colour of its own. */
+const VideoStill = ({ v }) => {
+  const [derived, setDerived] = useState(() => cachedPoster(v.id));
+  useEffect(() => {
+    if (v.thumb || derived || !v.media) return undefined;
+    let alive = true;
+    derivePoster(v.id, v.media).then((u) => { if (alive && u) setDerived(u); });
+    return () => { alive = false; };
+  }, [v.id, v.media, v.thumb, derived]);
+  const still = v.thumb || derived;
+  return (
+    <View style={{ width: '100%', aspectRatio: 16 / 9, borderRadius: 16, overflow: 'hidden', backgroundColor: posterTint(v.id) }}>
+      {still ? <Image source={{ uri: still }} style={{ width: '100%', height: '100%' }} resizeMode="cover" /> : null}
+      <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, alignItems: 'center', justifyContent: 'center' }}>
+        <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' }}>
+          <Ionicons name="play" size={24} color="#FFF" style={{ marginLeft: 3 }} />
+        </View>
+      </View>
+    </View>
+  );
+};
 
 /* A drawn icon and one accent per game. Six competing gradients with
    an emoji on each is the look Ayser recognised from a mile away — and
@@ -163,17 +234,22 @@ export const ChillScreen = () => {
     });
     const out = [];
     let round = 0;
-    while (out.length < 12 && round < 3) {
-      byMood.forEach((arr) => { if (arr[round] && out.length < 12) out.push(arr[round]); });
+    /* four, not twelve: a taste of the shelf with the whole shelf one
+       tap away, rather than a second shelf in the middle of the tab */
+    while (out.length < 4 && round < 3) {
+      byMood.forEach((arr) => { if (arr[round] && out.length < 4) out.push(arr[round]); });
       round++;
     }
-    return out.length ? out : (tracks || []).slice(0, 12);
+    return out.length ? out : (tracks || []).slice(0, 4);
   }, [tracks]);
 
   const toTrack = (t) => ({
     id: t.id, title: t.title, artist: t.artist || t.genre_shape || 'indie',
     emoji: t.cover_emoji || '🎵', audio_url: t.audio_url,
     attribution: t.attribution || null, license: t.license || null,
+    /* the sampler below picks across moods — and never could, because
+       the mood was dropped right here and every track read as "Other" */
+    mood: t.mood || null,
   });
   useEffect(() => {
     if (!SUPABASE_READY) { setTracks([]); return; }
@@ -298,27 +374,33 @@ export const ChillScreen = () => {
       <View style={{ height: 18 }} />
       <SectionHeader title={t('sec_play')} />
 
-      <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 4, paddingRight: 8 }} style={{ marginTop: -4, marginBottom: 22 }}>
+      {/* ── SIX GAMES, ALL OF THEM VISIBLE ─────────────────────────
+          They were 150-wide cards in a sideways strip: mostly empty
+          space, the icon a small square in one corner, and the third
+          card cut off by the edge of the phone so its name read "Rock
+          Paper". A grid of two shows all six at once, each as an icon
+          and a name — the way a phone shows its own apps. */}
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginTop: -4, marginBottom: 18 }}>
         {games.map((g) => (
-          <Pressable key={g.id} onPress={() => { tapLight(); sfxPop(); setGame(g); }} style={{ width: 150, marginRight: 10 }}>
-            <View style={{
-              height: 112, borderRadius: 14, padding: 12, justifyContent: 'space-between',
-              backgroundColor: C.glass, borderWidth: 1, borderColor: C.line,
-            }}>
+          <Pressable key={g.id} onPress={() => { tapLight(); sfxPop(); setGame(g); }} style={{ width: '48.5%', marginBottom: 8 }}>
+            {({ pressed }) => (
               <View style={{
-                width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center',
-                backgroundColor: gameTint(g.kind) + '22',
+                flexDirection: 'row', alignItems: 'center', borderRadius: 14, paddingVertical: 10, paddingHorizontal: 10, minHeight: 66,
+                backgroundColor: pressed ? C.glassHi : C.glass, borderWidth: 1, borderColor: C.line,
               }}>
-                <Ionicons name={GAME_ICON[g.kind] || 'game-controller'} size={17} color={gameTint(g.kind)} />
+                <View style={{ width: 36, height: 36, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: gameTint(g.kind) + '22' }}>
+                  <Ionicons name={GAME_ICON[g.kind] || 'game-controller'} size={18} color={gameTint(g.kind)} />
+                </View>
+                <View style={{ flex: 1, minWidth: 0, marginStart: 10, minHeight: 38, justifyContent: 'center' }}>
+                  {/* the name may take two lines — "Catch Your M…" is not a name */}
+                  <Text style={{ color: C.text, fontSize: 13, fontWeight: '800', lineHeight: 16 }} numberOfLines={2}>{t(g.nameKey)}</Text>
+                  <Text style={{ color: C.faint, fontSize: 10.5, marginTop: 1 }} numberOfLines={1}>{t(g.playersKey)}</Text>
+                </View>
               </View>
-              <View>
-                <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800' }} numberOfLines={1}>{t(g.nameKey)}</Text>
-                <Text style={{ color: C.faint, fontSize: 10.5, marginTop: 2 }} numberOfLines={1}>{t(g.playersKey)}</Text>
-              </View>
-            </View>
+            )}
           </Pressable>
         ))}
-      </ScrollView>
+      </View>
 
       {/* ── LISTEN — only when there is something to listen to. The
              Hub is a button up there; an empty music section is not a
@@ -327,18 +409,11 @@ export const ChillScreen = () => {
       <>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         <SectionHeader title={t('sec_listen')} />
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          {tracks && tracks.length ? (
-            <Pressable onPress={() => { tapLight(); sfxPop(); playFrom(0); }} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', marginRight: 14 }}>
-              <Ionicons name="play-circle" size={18} color={C.purple} />
-              <Text style={{ color: C.purple, fontSize: 12.5, fontWeight: '900', marginLeft: 4 }}>{t('play_all')}</Text>
-            </Pressable>
-          ) : null}
-          <Pressable onPress={() => { tapLight(); setHubOpen(true); }} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Ionicons name="add-circle" size={18} color={C.purple} />
-            <Text style={{ color: C.purple, fontSize: 12.5, fontWeight: '900', marginLeft: 4 }}>{t('music_hub')}</Text>
-          </Pressable>
-        </View>
+        {/* one action per heading, the same shape everywhere on the tab */}
+        <Pressable onPress={() => { tapLight(); setHubOpen(true); }} hitSlop={10} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+          <Text style={{ color: C.purple, fontSize: 12.5, fontWeight: '800' }}>{t('see_all')}</Text>
+          <Ionicons name="chevron-forward" size={14} color={C.purple} style={{ marginStart: 2 }} />
+        </Pressable>
       </View>
       <View style={{ height: 4 }} />
 
@@ -348,12 +423,14 @@ export const ChillScreen = () => {
           return (
             <Pressable key={t.id} onPress={() => { tapLight(); sfxPop(); playFrom(i); }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 8, borderRadius: 12, backgroundColor: on ? C.purpleSoft : 'transparent' }}>
-                <View style={{ width: 44, height: 44, borderRadius: 11, backgroundColor: on ? C.purple : C.glass, borderWidth: on ? 0 : 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
-                  <Text style={{ fontSize: 20 }}>{t.emoji}</Text>
+                <View style={{ marginEnd: 12 }}>
+                  <RecordCover seed={t.title} playing={on} />
                 </View>
-                <View style={{ flex: 1 }}>
+                <View style={{ flex: 1, minWidth: 0 }}>
                   <Text style={{ color: on ? C.purple : C.text, fontSize: 14, fontWeight: '800' }} numberOfLines={1}>{t.title}</Text>
-                  <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 1 }} numberOfLines={1}>{t.artist}{t.license ? ' · © ' + t.license : ''}</Text>
+                  <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 1 }} numberOfLines={1}>
+                    {[t.artist, rightsLine(t)].filter(Boolean).join(' · ')}
+                  </Text>
                 </View>
                 <Ionicons name={on ? 'musical-notes' : 'play'} size={on ? 18 : 20} color={on ? C.purple : C.dim} />
               </View>
@@ -367,9 +444,9 @@ export const ChillScreen = () => {
       {/* ── LONG-FORM VIDEOS (real uploads) ── */}
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         <SectionHeader title={t('sec_videos')} />
-        <Pressable onPress={() => { tapLight(); sfxPop(); setShooting(true); }} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <Ionicons name="add-circle" size={18} color={C.purple} />
-          <Text style={{ color: C.purple, fontSize: 12.5, fontWeight: '900', marginLeft: 4 }}>{t('upload')}</Text>
+        <Pressable onPress={() => { tapLight(); sfxPop(); setShooting(true); }} hitSlop={10} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+          <Ionicons name="add" size={15} color={C.purple} />
+          <Text style={{ color: C.purple, fontSize: 12.5, fontWeight: '800', marginStart: 2 }}>{t('upload')}</Text>
         </Pressable>
       </View>
       <View style={{ height: 4 }} />
@@ -400,21 +477,7 @@ export const ChillScreen = () => {
       ) : (
         videos.map((v) => (
           <Pressable key={v.id} onPress={() => { tapLight(); sfxPop(); setPlayer(v); }} style={{ marginBottom: 16 }}>
-            {/* 16:9 thumbnail — plays inline on tap */}
-            <View style={{ width: '100%', aspectRatio: 16 / 9, borderRadius: 16, overflow: 'hidden', backgroundColor: '#000' }}>
-              {isWeb && v.media ? (
-                <video src={v.media} muted playsInline preload="metadata" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              ) : v.media ? (
-                <Image source={{ uri: v.media }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
-              ) : (
-                <View style={{ flex: 1 }} />
-              )}
-              <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, alignItems: 'center', justifyContent: 'center' }}>
-                <View style={{ width: 54, height: 54, borderRadius: 27, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center' }}>
-                  <Ionicons name="play" size={26} color="#FFF" style={{ marginLeft: 3 }} />
-                </View>
-              </View>
-            </View>
+            <VideoStill v={v} />
             {/* title row — avatar + title + author.
                 The avatar and the name are their own target now: tapping
                 a person should open the person, and tapping them used to

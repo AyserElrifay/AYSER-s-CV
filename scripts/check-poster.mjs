@@ -96,6 +96,15 @@ ok('which really writes thumb_url', /updatePost\(post\.id, user\.id, \{ thumb_ur
 ok('the menu item is gated to your own videos',
    /onSetCover && isVideoPost\(post\) && post\.media/.test(card));
 
+console.log('\nthe Chill tab, which drew its own video list');
+const chill = fs.readFileSync('src/screens/ChillScreen.js', 'utf8');
+ok('its videos use the same still-or-colour as the feed', /<VideoStill v=\{v\} \/>/.test(chill) && /derivePoster\(v\.id, v\.media\)/.test(chill));
+/* the full-screen player stays black — that is a cinema, not a card */
+ok('and no card in the list is painted #000 any more', !/aspectRatio: 16 \/ 9, borderRadius: 16, overflow: 'hidden', backgroundColor: '#000'/.test(chill));
+ok('tracks wear a drawn record, not the same emoji ten times', /<RecordCover seed=\{t\.title\}/.test(chill) && !/\{t\.emoji\}/.test(chill));
+ok('a public-domain record does not claim a © it does not have', /public domain/i.test(chill) && !/' · © '/.test(chill));
+ok('the mood survives to the sampler that picks across moods', /mood: t\.mood \|\| null/.test(chill));
+
 if (bad) {
   console.log('\n' + bad + ' wrong. A video is still showing up as a black square.');
   process.exit(1);

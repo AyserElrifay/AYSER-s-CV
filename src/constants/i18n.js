@@ -748,6 +748,7 @@ export const STRINGS = {
     sec_videos: 'Videos',
     sec_watch: 'Watch',
     play_all: 'Play all',
+    see_all: 'See all',
     music_hub: 'Hub',
     upload: 'Upload',
     no_tracks: 'No tracks yet',
