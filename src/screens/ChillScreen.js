@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { cachedPoster, derivePoster, posterTint } from '../lib/poster';
+import { GreenMark } from '../components/green/GreenMark';
 import { C, R } from '../constants/theme';
 import { AV_NEUTRAL, PLAY_GAMES } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
@@ -364,7 +365,7 @@ export const ChillScreen = () => {
           What there IS shows as itself; what there is not is one round
           button that opens the place where you can go get some. */}
       <ShortcutRow>
-        <Shortcut emoji="🌿" label={t('green_title')} onPress={() => { tapLight(); sfxPop(); setGreenOpen(true); }} />
+        <Shortcut icon={<GreenMark size={26} />} label={t('green_title')} onPress={() => { tapLight(); sfxPop(); setGreenOpen(true); }} />
         <Shortcut emoji="🏛" label={t('culture_title')} onPress={() => { tapLight(); sfxPop(); setCultureOpen(true); }} />
         <Shortcut emoji="🌍" label={t('country_title')} onPress={() => { tapLight(); sfxPop(); setCountryOpen(true); }} />
         <Shortcut emoji="🎧" label={t('music_word')} onPress={() => { tapLight(); sfxPop(); setHubOpen(true); }} />

@@ -19,13 +19,13 @@ import { C } from '../constants/theme';
    The same row on both screens on purpose: two screens that solve the
    same problem the same way teach the app in one lesson instead of
    two. */
-export const Shortcut = ({ emoji, label, onPress }) => (
+export const Shortcut = ({ emoji, icon, label, onPress }) => (
   <Pressable onPress={onPress} style={{ alignItems: 'center', width: 76 }}>
     <View style={{
       width: 52, height: 52, borderRadius: 26, backgroundColor: C.glass,
       borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center',
     }}>
-      <Text style={{ fontSize: 23 }}>{emoji}</Text>
+      {icon || <Text style={{ fontSize: 23 }}>{emoji}</Text>}
     </View>
     {/* two lines, because a label cut off mid-word is worse than a
         label on two lines */}

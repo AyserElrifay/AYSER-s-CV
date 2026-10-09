@@ -52,6 +52,7 @@ export const STRINGS = {
     // أخضر — clean-ups, circles, art and projects, and the care code
     green_title: 'Green Minds',
     green_tagline: 'Small things, done outside, together',
+    green_motto: "Live the moment. Leave the place greener.",
     green_care: 'THE CARE CODE',
     green_care_1: 'Come as you are — no experience, no gear, no fee.',
     green_care_2: 'Leave the place better than you found it.',

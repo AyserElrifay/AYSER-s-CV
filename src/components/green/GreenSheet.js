@@ -15,6 +15,7 @@ import {
 import { tapLight, tapMedium, tapSuccess } from '../../utils/feedback';
 import { PLAY_LANGS } from '../lamma/languages';
 import { useSheetBack } from '../../hooks/useSheetBack';
+import { GreenMark } from './GreenMark';
 
 /* ─── أخضر · GREEN MINDS ──────────────────────────────────────────────
    A corner of Moments for the things that are better done outside and
@@ -184,9 +185,18 @@ export const GreenSheet = ({ onClose, onPlay }) => {
             <Pressable onPress={() => { tapLight(); onClose && onClose(); }} hitSlop={12} style={{ alignSelf: 'flex-start' }}>
               <Ionicons name="chevron-down" size={26} color="#FFF" />
             </Pressable>
-            <Text style={{ color: '#FFF', fontSize: 34, fontWeight: '900', marginTop: 12 }}>{t('green_title')}</Text>
-            <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 14, fontWeight: '700', marginTop: 4 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
+              <GreenMark size={38} onDark />
+              <Text style={{ color: '#FFF', fontSize: 34, fontWeight: '900', marginStart: 10 }}>{t('green_title')}</Text>
+            </View>
+            <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 14, fontWeight: '700', marginTop: 6 }}>
               {t('green_tagline')}
+            </Text>
+            {/* Our own line, in the spirit of the one Ayser liked on
+                EcoQuest's post ("Enjoy your time and stay green") but
+                not theirs — their words are their brand. */}
+            <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '900', marginTop: 14, letterSpacing: 0.2 }}>
+              {t('green_motto')}
             </Text>
           </LinearGradient>
 
