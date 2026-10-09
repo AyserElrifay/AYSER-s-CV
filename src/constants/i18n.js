@@ -902,6 +902,7 @@ export const STRINGS = {
     map_none_here: "Nothing to join in this area yet.",
     tg_hosting: "You're hosting",
     map_in_area_one: "1 thing to join in this area",
+    tg_chat: "Chat",
     lens_all: 'Everything',
     lens_places: 'Places to go',
     lens_people: 'People',

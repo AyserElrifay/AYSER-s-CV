@@ -9092,4 +9092,81 @@ begin
 end $$;
 
 
+-- ═══════════ EVERY PLAN HAS A CHAT ═══════════
+/* Joining is the start, not the end: the people going need somewhere to
+   say "I'm at the gate" or "running five minutes late". Every gathering
+   gets a group chat the moment its first person joins. Joining puts you
+   in it, leaving takes you out — one trigger on green_joins, so every
+   way of joining (the Join button, starting one, Go out now, the weekly
+   plans) does the same. It shows up in Chats like any other group. */
+alter table public.green_gatherings add column if not exists squad_id uuid references public.squads(id) on delete set null;
+
+create or replace function public.green_join_chat() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare g public.green_gatherings%rowtype; sq uuid;
+begin
+  if tg_op = 'INSERT' then
+    select * into g from public.green_gatherings where id = new.gathering_id for update;
+    if not found then return new; end if;
+    sq := g.squad_id;
+    if sq is null then
+      insert into public.squads (name, emoji)
+      values (left(g.title, 80),
+              case g.kind when 'culture' then '🎭' when 'walk' then '🥾' when 'sport' then '⚽' when 'art' then '🎨'
+                          when 'circle' then '💬' when 'cleanup' then '🌿' when 'project' then '🔨' when 'run' then '🏃'
+                          when 'coffee' then '☕' when 'focus' then '📚' else '✨' end)
+      returning id into sq;
+      update public.green_gatherings set squad_id = sq where id = g.id;
+    end if;
+    insert into public.squad_members (squad_id, user_id) values (sq, new.user_id) on conflict do nothing;
+    return new;
+  else
+    select squad_id into sq from public.green_gatherings where id = old.gathering_id;
+    if sq is not null then
+      delete from public.squad_members where squad_id = sq and user_id = old.user_id;
+    end if;
+    return old;
+  end if;
+end $$;
+drop trigger if exists green_joins_chat on public.green_joins;
+create trigger green_joins_chat after insert or delete on public.green_joins
+  for each row execute function public.green_join_chat();
+
+-- the plans already going: give each a chat with the people already in it
+do $$
+declare g record; sq uuid;
+begin
+  for g in select * from public.green_gatherings
+            where squad_id is null and cancelled_at is null and starts_at > now() - interval '1 day'
+              and exists (select 1 from public.green_joins j where j.gathering_id = green_gatherings.id) loop
+    insert into public.squads (name, emoji) values (left(g.title, 80), '✨') returning id into sq;
+    update public.green_gatherings set squad_id = sq where id = g.id;
+    insert into public.squad_members (squad_id, user_id)
+      select sq, j.user_id from public.green_joins j where j.gathering_id = g.id on conflict do nothing;
+  end loop;
+end $$;
+
+-- the list says which chat belongs to which plan
+create or replace function public.green_list(p_country text)
+returns jsonb
+language sql stable security definer set search_path = public as $$
+  select coalesce(jsonb_agg(row_to_json(x)::jsonb order by x.starts_at), '[]'::jsonb)
+    from (
+      select g.id, g.kind, g.title, g.about, g.country, g.city, g.place_name,
+             g.lat, g.lng, g.starts_at, g.minutes, g.capacity, g.language,
+             g.host_id, p.name as host_name, g.weekly_id, g.announced_at, g.squad_id,
+             (select count(*) from public.green_joins j where j.gathering_id = g.id) as going,
+             exists (select 1 from public.green_joins j
+                      where j.gathering_id = g.id and j.user_id = auth.uid()) as im_going
+        from public.green_gatherings g
+        left join public.profiles p on p.id = g.host_id
+       where g.cancelled_at is null
+         and g.starts_at > now() - interval '3 hours'
+         and (p_country is null or g.country = p_country)
+       order by g.starts_at
+       limit 60
+    ) x;
+$$;
+grant execute on function public.green_list(text) to anon, authenticated;
+
 notify pgrst, 'reload schema';

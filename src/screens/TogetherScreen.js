@@ -16,7 +16,8 @@ import { getProfile } from '../services/profiles';
 import { isEuCode } from '../lib/eu';
 import { lookOf, titleFor } from '../lib/activityPins';
 import { flagToIso, groupByDay } from '../lib/together';
-import { showOnMap } from '../lib/mapBus';
+import { showOnMap, goToTab } from '../lib/mapBus';
+import { openChat } from '../lib/chatBus';
 import { lazyOverlay } from '../lib/lazyScreen';
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
 
@@ -286,6 +287,16 @@ export const TogetherScreen = () => {
                           <Text style={{ color: C.faint, fontSize: 12.5, fontWeight: '800', flex: 1, minWidth: 0 }} numberOfLines={1}>
                             {(Number(g.going) || 0) + ' ' + t('green_going')}{g.weekly_id ? ' · ' + t('green_every_week') : ''}{g.about || g.lat != null ? '  ' + (expanded ? '▴' : '▾') : ''}
                           </Text>
+                          {(g.im_going || mine) && g.squad_id ? (
+                            /* the plan's own group chat — "I'm at the gate" */
+                            <Pressable onPress={() => { tapLight(); openChat({ id: g.squad_id, name: titleFor(g.title, lang), emoji: lookOf(g.kind).emoji }); goToTab('CHATS'); }}
+                              hitSlop={6} accessibilityRole="button" accessibilityLabel={t('tg_chat')} style={{ marginEnd: 8 }}>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1.5, borderColor: C.line }}>
+                                <Ionicons name="chatbubbles-outline" size={14} color={C.text} />
+                                <Text style={{ color: C.text, fontSize: 12.5, fontWeight: '900', marginStart: 5 }}>{t('tg_chat')}</Text>
+                              </View>
+                            </Pressable>
+                          ) : null}
                           {mine ? (
                             g.announced_at ? (
                               <Text style={{ color: C.green, fontSize: 12.5, fontWeight: '900' }}>{t('green_invited')}</Text>

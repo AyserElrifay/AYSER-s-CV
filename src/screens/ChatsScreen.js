@@ -39,6 +39,7 @@ import { lazyOverlay } from '../lib/lazyScreen';
 import { SheetHandle, SheetBack } from '../components/SheetHandle';
 /* opened from here and from Together — lazy in both, so it stays its
    own download instead of joining everybody's first one */
+import { takeChat, onOpenChat } from '../lib/chatBus';
 const ProgrammesSheet = lazyOverlay(() => import('../components/green/ProgrammesSheet').then((m) => ({ default: m.ProgrammesSheet })));
 const CaptureModal = lazyOverlay(() => import('../components/CaptureModal').then((m) => ({ default: m.CaptureModal })));
 
@@ -126,6 +127,12 @@ export const ChatsScreen = () => {
   const [composing, setComposing] = useState(false); // new-message search sheet
   const [albumOpen, setAlbumOpen] = useState(false);  // the Green Minds album
   const [progOpen, setProgOpen] = useState(false);    // exchanges & programmes
+  /* a plan's group chat, asked for from Together or the map (src/lib/chatBus.js) */
+  useEffect(() => {
+    const go = () => { const c = takeChat(); if (c) setThread({ chat: c, group: true }); };
+    go();
+    return onOpenChat(go);
+  }, []);
   /* Whether this row is drawn at all. It is a convenience, never the
      protection: the server refuses green_album() to anybody who is not
      an owner regardless of what any screen chooses to show. */

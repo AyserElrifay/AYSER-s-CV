@@ -33,5 +33,10 @@ is('a hangout that already happened counts', /g\.starts_at < now\(\)/.test(after
 is('the app opens the check wherever it is refused', /requestUnlock\('dm'\)/.test(read('src/services/messages.js')) && /requestUnlock\('big'\)/.test(read('src/services/green.js')) && /<UnlockHost \/>/.test(read('src/navigation/TabNavigator.js')));
 is('the map stays open to newcomers', !/trust_unlocked/.test(read('src/services/locations.js')));
 
+console.log('\nevery plan has a chat');
+const chatSql = sql.slice(sql.lastIndexOf('EVERY PLAN HAS A CHAT'));
+is('joining puts you in it, leaving takes you out — one trigger for every way in', /after insert or delete on public\.green_joins/.test(chatSql) && /delete from public\.squad_members where squad_id = sq and user_id = old\.user_id/.test(chatSql));
+is('only people going see the Chat button', /\(g\.im_going \|\| mine\) && g\.squad_id/.test(read('src/screens/TogetherScreen.js')));
+
 if (bad) { console.log('\n' + bad + ' wrong.'); process.exit(1); }
 console.log('\nGoing out is one tap; the big things are earned, and the database decides.');
