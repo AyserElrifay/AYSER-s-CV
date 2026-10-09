@@ -28,6 +28,7 @@ import { BooksShelf } from '../components/BooksShelf';
 import { GameHub } from '../components/lamma/GameHub';
 /* lazy here as well as in Notifications: one plain import anywhere puts
    the whole sheet back into everybody's first download */
+const KitchenSheet = lazyOverlay(() => import('../components/KitchenSheet').then((m) => ({ default: m.KitchenSheet })));
 const GreenSheet = lazyOverlay(() => import('../components/green/GreenSheet').then((m) => ({ default: m.GreenSheet })));
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
 import { trackPlayer } from '../lib/videoSound';
@@ -204,6 +205,7 @@ export const ChillScreen = () => {
      nobody knew the app kept any heritage at all. See
      components/CultureSheet.js. */
   const [cultureOpen, setCultureOpen] = useState(false);
+  const [foodOpen, setFoodOpen] = useState(false);
   const [countryOpen, setCountryOpen] = useState(false);
   const [videoAuthor, setVideoAuthor] = useState(null);   // whose video you tapped
   const { t } = useLang();
@@ -367,6 +369,8 @@ export const ChillScreen = () => {
           What there IS shows as itself; what there is not is one round
           button that opens the place where you can go get some. */}
       <ShortcutRow>
+        {/* home-cooked food from a neighbour's kitchen — see KitchenSheet */}
+        <Shortcut emoji="🍲" label={t('food_title')} onPress={() => { tapLight(); sfxPop(); setFoodOpen(true); }} />
         <Shortcut icon={<GreenMark size={26} />} label={t('green_title')} onPress={() => { tapLight(); sfxPop(); setGreenOpen(true); }} />
         <Shortcut emoji="🏛" label={t('culture_title')} onPress={() => { tapLight(); sfxPop(); setCultureOpen(true); }} />
         <Shortcut emoji="🌍" label={t('country_title')} onPress={() => { tapLight(); sfxPop(); setCountryOpen(true); }} />
@@ -667,6 +671,7 @@ export const ChillScreen = () => {
     {videoAuthor ? <ProfileModal user={videoAuthor} onClose={() => setVideoAuthor(null)} /> : null}
     {cultureOpen ? <CultureSheet onClose={() => setCultureOpen(false)} /> : null}
     {countryOpen ? <CountrySheet onClose={() => setCountryOpen(false)} /> : null}
+    {foodOpen ? <KitchenSheet onClose={() => setFoodOpen(false)} /> : null}
     {greenOpen ? (
       <GreenSheet
         onClose={() => setGreenOpen(false)}

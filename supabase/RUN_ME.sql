@@ -1583,7 +1583,7 @@ do $do$
 begin
   alter table public.notifications drop constraint if exists notifications_kind_check;
   alter table public.notifications add constraint notifications_kind_check
-    check (kind in ('vibe','laugh','comment','mate_request','mate_accept','message','call','tag','repost','green_invite'))
+    check (kind in ('vibe','laugh','comment','mate_request','mate_accept','message','call','tag','repost','green_invite','food_order','food_status'))
     not valid;
 exception when others then
   raise notice 'notifications kind constraint skipped: %', sqlerrm;
@@ -8653,6 +8653,223 @@ $$;
 grant execute on function public.green_list(text) to anon, authenticated;
 
 select public.green_roll_week();
+
+-- ═══════════ HOME KITCHENS · HOME-COOKED FOOD, ORDERED FROM A NEIGHBOUR ═══════════
+/* "زود توصيل وطلب أكل اورجنك مش مضر للبيئة اكل بيتي — شغاله في مصر
+   حاليا ولما اتقبل واروح اوربا انفزها هناك".
+
+   A cook opens a kitchen, lists what they make, how many portions a
+   day and on which days. A neighbour orders for a day, picks it up or
+   has the cook bring it, and pays cash when it arrives — no card
+   details pass through this app until a real payment provider is
+   connected in Ayser's name.
+
+   What is promised is what the COOK says, in their words: "organic" is
+   a protected word in the EU and nobody here inspects a kitchen, so
+   the screen labels it as the cook's own description, never a
+   certificate. The green part that CAN be checked is structural: a
+   kitchen says whether it uses reusable containers, and a buyer can ask
+   to bring their own box.
+
+   Nothing is invented: no sample kitchens, no ratings until people who
+   actually ordered leave them, and an empty list says so. */
+create table if not exists public.kitchens (
+  id          uuid primary key default gen_random_uuid(),
+  owner_id    uuid not null unique references public.profiles(id) on delete cascade,
+  name        text not null,
+  about       text,
+  how_we_cook text,                 -- the cook's own words: local, seasonal, organic...
+  country     text not null default 'EG',
+  city        text,
+  area        text,                 -- neighbourhood, shown to buyers
+  delivers    boolean not null default false,
+  delivery_fee numeric(10,2) not null default 0,
+  delivery_note text,               -- "within Heliopolis", "up to 5 km"
+  currency    text not null default 'EGP',
+  reusable    boolean not null default false,   -- food goes out in containers that come back
+  open        boolean not null default true,
+  created_at  timestamptz not null default now()
+);
+create table if not exists public.dishes (
+  id          uuid primary key default gen_random_uuid(),
+  kitchen_id  uuid not null references public.kitchens(id) on delete cascade,
+  title       text not null,
+  about       text,
+  photo_url   text,
+  price       numeric(10,2) not null check (price >= 0),
+  portions_per_day int not null default 10 check (portions_per_day > 0),
+  days        int[] not null default '{0,1,2,3,4,5,6}',  -- Postgres dow, 0 = Sunday
+  order_by_hour int not null default 12 check (order_by_hour between 0 and 23), -- the day before
+  veg         boolean not null default false,
+  active      boolean not null default true,
+  created_at  timestamptz not null default now()
+);
+create index if not exists dishes_kitchen_idx on public.dishes (kitchen_id);
+
+create table if not exists public.food_orders (
+  id          uuid primary key default gen_random_uuid(),
+  dish_id     uuid not null references public.dishes(id) on delete restrict,
+  kitchen_id  uuid not null references public.kitchens(id) on delete cascade,
+  buyer_id    uuid not null references public.profiles(id) on delete cascade,
+  for_date    date not null,
+  qty         int not null check (qty between 1 and 20),
+  unit_price  numeric(10,2) not null,
+  delivery    boolean not null default false,
+  delivery_fee numeric(10,2) not null default 0,
+  address     text,
+  phone       text,
+  own_box     boolean not null default false,
+  note        text,
+  status      text not null default 'placed'
+              check (status in ('placed','accepted','ready','done','declined','cancelled')),
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now()
+);
+create index if not exists food_orders_kitchen_idx on public.food_orders (kitchen_id, for_date);
+create index if not exists food_orders_buyer_idx on public.food_orders (buyer_id, created_at desc);
+
+alter table public.kitchens    enable row level security;
+alter table public.dishes      enable row level security;
+alter table public.food_orders enable row level security;
+
+drop policy if exists "kitchens are public" on public.kitchens;
+create policy "kitchens are public" on public.kitchens for select using (true);
+drop policy if exists "you run your own kitchen" on public.kitchens;
+create policy "you run your own kitchen" on public.kitchens for all
+  using (owner_id = auth.uid()) with check (owner_id = auth.uid());
+
+drop policy if exists "dishes are public" on public.dishes;
+create policy "dishes are public" on public.dishes for select using (true);
+drop policy if exists "a cook edits their own dishes" on public.dishes;
+create policy "a cook edits their own dishes" on public.dishes for all
+  using (exists (select 1 from public.kitchens k where k.id = kitchen_id and k.owner_id = auth.uid()))
+  with check (exists (select 1 from public.kitchens k where k.id = kitchen_id and k.owner_id = auth.uid()));
+
+/* An order is seen by the person who placed it and the kitchen it went
+   to — an address and a phone number are nobody else's business.
+   Writes go through the functions below, never straight to the table. */
+drop policy if exists "an order is seen by its two people" on public.food_orders;
+create policy "an order is seen by its two people" on public.food_orders for select
+  using (buyer_id = auth.uid()
+         or exists (select 1 from public.kitchens k where k.id = kitchen_id and k.owner_id = auth.uid()));
+
+-- portions already promised for a dish on a day
+create or replace function public.food_taken(p_dish uuid, p_date date)
+returns int language sql stable security definer set search_path = public as $$
+  select coalesce(sum(qty), 0)::int from public.food_orders
+   where dish_id = p_dish and for_date = p_date and status in ('placed','accepted','ready','done');
+$$;
+grant execute on function public.food_taken(uuid, date) to anon, authenticated;
+
+/* What can be ordered: every active dish of an open kitchen, with the
+   next days it is cooked on and how many portions are left on each. */
+create or replace function public.food_menu(p_country text, p_city text)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select coalesce(jsonb_agg(row_to_json(x)::jsonb order by x.kitchen_name, x.title), '[]'::jsonb) from (
+    select d.id, d.title, d.about, d.photo_url, d.price, d.veg, d.portions_per_day, d.days, d.order_by_hour,
+           k.id as kitchen_id, k.name as kitchen_name, k.how_we_cook, k.city, k.area, k.delivers,
+           k.delivery_fee, k.delivery_note, k.currency, k.reusable, k.owner_id,
+           p.name as cook_name, p.avatar_url as cook_avatar,
+           (select coalesce(jsonb_agg(jsonb_build_object('date', dd, 'left',
+                     d.portions_per_day - public.food_taken(d.id, dd)) order by dd), '[]'::jsonb)
+              from generate_series(current_date + 1, current_date + 7, interval '1 day') g(t),
+                   lateral (select g.t::date as dd) z
+             where extract(dow from dd)::int = any(d.days)) as next_days
+      from public.dishes d
+      join public.kitchens k on k.id = d.kitchen_id
+      left join public.profiles p on p.id = k.owner_id
+     where d.active and k.open
+       and (p_country is null or k.country = p_country)
+       and (p_city is null or k.city ilike p_city)
+     limit 200
+  ) x;
+$$;
+grant execute on function public.food_menu(text, text) to anon, authenticated;
+
+create or replace function public.food_order(
+  p_dish uuid, p_date date, p_qty int, p_delivery boolean,
+  p_address text, p_phone text, p_own_box boolean, p_note text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare
+  me uuid := auth.uid();
+  d public.dishes%rowtype;
+  k public.kitchens%rowtype;
+  left_ int;
+  deadline timestamptz;
+  o uuid;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  select * into d from public.dishes where id = p_dish and active;
+  if not found then return jsonb_build_object('ok', false, 'reason', 'no_dish'); end if;
+  select * into k from public.kitchens where id = d.kitchen_id and open;
+  if not found then return jsonb_build_object('ok', false, 'reason', 'closed'); end if;
+  if k.owner_id = me then return jsonb_build_object('ok', false, 'reason', 'own_kitchen'); end if;
+  if p_qty is null or p_qty < 1 or p_qty > 20 then return jsonb_build_object('ok', false, 'reason', 'bad_qty'); end if;
+  if p_date is null or not (extract(dow from p_date)::int = any(d.days)) then
+    return jsonb_build_object('ok', false, 'reason', 'not_that_day'); end if;
+  -- orders close at order_by_hour the day before, kitchen's local time
+  deadline := ((p_date - 1) + make_time(d.order_by_hour, 0, 0)) at time zone
+              (case k.country when 'EG' then 'Africa/Cairo' else 'Europe/Berlin' end);
+  if now() > deadline then return jsonb_build_object('ok', false, 'reason', 'too_late'); end if;
+  if coalesce(p_delivery, false) and not k.delivers then return jsonb_build_object('ok', false, 'reason', 'no_delivery'); end if;
+  if coalesce(p_delivery, false) and coalesce(length(btrim(p_address)), 0) < 5 then
+    return jsonb_build_object('ok', false, 'reason', 'no_address'); end if;
+  if coalesce(length(regexp_replace(coalesce(p_phone, ''), '\D', '', 'g')), 0) < 7 then
+    return jsonb_build_object('ok', false, 'reason', 'no_phone'); end if;
+
+  -- the portion count is checked and taken in one step, so two people
+  -- cannot both get the last plate
+  perform pg_advisory_xact_lock(hashtext(p_dish::text || p_date::text));
+  left_ := d.portions_per_day - public.food_taken(p_dish, p_date);
+  if left_ < p_qty then return jsonb_build_object('ok', false, 'reason', 'sold_out', 'left', greatest(left_, 0)); end if;
+
+  insert into public.food_orders (dish_id, kitchen_id, buyer_id, for_date, qty, unit_price, delivery,
+                                  delivery_fee, address, phone, own_box, note)
+  values (d.id, k.id, me, p_date, p_qty, d.price, coalesce(p_delivery, false),
+          case when coalesce(p_delivery, false) then k.delivery_fee else 0 end,
+          nullif(btrim(coalesce(p_address, '')), ''), btrim(p_phone), coalesce(p_own_box, false),
+          nullif(btrim(coalesce(p_note, '')), ''))
+  returning id into o;
+
+  insert into public.notifications (user_id, actor_id, kind, body)
+  values (k.owner_id, me, 'food_order', p_qty || ' × ' || d.title || ' · ' || to_char(p_date, 'Dy DD Mon'));
+  return jsonb_build_object('ok', true, 'id', o);
+end;
+$$;
+grant execute on function public.food_order(uuid, date, int, boolean, text, text, boolean, text) to authenticated;
+
+/* The cook moves an order along; the buyer may cancel until it is
+   accepted. Each step tells the other person. */
+create or replace function public.food_set_status(p_id uuid, p_status text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare
+  me uuid := auth.uid();
+  o public.food_orders%rowtype;
+  owner uuid;
+  t text;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  select * into o from public.food_orders where id = p_id;
+  if not found then return jsonb_build_object('ok', false, 'reason', 'no_order'); end if;
+  select k.owner_id into owner from public.kitchens k where k.id = o.kitchen_id;
+  select title into t from public.dishes where id = o.dish_id;
+  if me = o.buyer_id and p_status = 'cancelled' and o.status = 'placed' then
+    update public.food_orders set status = 'cancelled', updated_at = now() where id = p_id;
+    insert into public.notifications (user_id, actor_id, kind, body) values (owner, me, 'food_status', 'cancelled · ' || t);
+    return jsonb_build_object('ok', true);
+  end if;
+  if me <> owner then return jsonb_build_object('ok', false, 'reason', 'not_yours'); end if;
+  if not ((o.status = 'placed' and p_status in ('accepted','declined'))
+       or (o.status = 'accepted' and p_status in ('ready','cancelled'))
+       or (o.status = 'ready' and p_status = 'done')) then
+    return jsonb_build_object('ok', false, 'reason', 'bad_step');
+  end if;
+  update public.food_orders set status = p_status, updated_at = now() where id = p_id;
+  insert into public.notifications (user_id, actor_id, kind, body) values (o.buyer_id, me, 'food_status', p_status || ' · ' || t);
+  return jsonb_build_object('ok', true);
+end;
+$$;
+grant execute on function public.food_set_status(uuid, text) to authenticated;
 
 -- ═══════════ LAMMA ROOMS · LIVE, NOT POLLED ═══════════
 /* "اتأكد ان الرومز اللي زي اللايف دي شغالة". They worked — but not live.
