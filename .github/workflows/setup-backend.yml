@@ -37,6 +37,14 @@ on:
         description: 'Run supabase/RUN_ME.sql'
         type: boolean
         default: true
+      auth_urls:
+        description: 'Let the password-reset link come back to the app'
+        type: boolean
+        default: true
+      app_url:
+        description: 'Where the app lives (reset links return here)'
+        required: true
+        default: 'https://ayserelrifay.github.io/AYSER-s-CV/'
       deploy_function:
         description: 'Deploy the bardi-chat Edge Function'
         type: boolean
@@ -104,6 +112,46 @@ jobs:
             exit 1
           fi
           echo "Schema applied."
+
+      # A reset email's link is only honoured if its address is on the
+      # project's allow list — otherwise Supabase sends people to the
+      # Site URL instead and the app never sees the token. The list is
+      # READ first and added to, never replaced: anything already on it
+      # stays. SMTP is set too, but only if a RESEND_API_KEY secret and a
+      # sender address exist — the built-in mailer is for testing and
+      # sends only a handful of emails an hour.
+      - name: Allow the reset link back into the app (and SMTP if set)
+        if: ${{ inputs.auth_urls }}
+        env:
+          APP_URL: ${{ inputs.app_url }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          SMTP_SENDER: ${{ secrets.SMTP_SENDER }}
+        run: |
+          set -euo pipefail
+          api="https://api.supabase.com/v1/projects/$REF/config/auth"
+          curl -sS -f "$api" -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" > /tmp/auth.json
+          current=$(jq -r '.uri_allow_list // ""' /tmp/auth.json)
+          site=$(jq -r '.site_url // ""' /tmp/auth.json)
+          echo "site_url now: $site"
+          echo "allow list now: ${current:-<empty>}"
+          want="$APP_URL,${APP_URL}**"
+          merged=$(printf '%s,%s' "$current" "$want" | tr ',' '\n' | sed '/^$/d' | awk '!seen[$0]++' | paste -sd, -)
+          body=$(jq -n --arg l "$merged" '{uri_allow_list: $l}')
+          if [ -z "$site" ] || echo "$site" | grep -q 'localhost'; then
+            body=$(echo "$body" | jq --arg s "$APP_URL" '. + {site_url: $s}')
+          fi
+          if [ -n "${RESEND_API_KEY:-}" ] && [ -n "${SMTP_SENDER:-}" ]; then
+            body=$(echo "$body" | jq --arg k "$RESEND_API_KEY" --arg f "$SMTP_SENDER" \
+              '. + {smtp_host: "smtp.resend.com", smtp_port: "465", smtp_user: "resend", smtp_pass: $k, smtp_admin_email: $f, smtp_sender_name: "Moments", rate_limit_email_sent: 100}')
+            echo "SMTP: Resend will send the emails."
+          else
+            echo "::notice::No RESEND_API_KEY / SMTP_SENDER secret — emails still go through Supabase's built-in test mailer (a few per hour)."
+          fi
+          code=$(curl -sS -o /tmp/auth.out -w '%{http_code}' -X PATCH "$api" \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H 'Content-Type: application/json' --data "$body")
+          echo "HTTP $code"
+          if [ "$code" != "200" ]; then head -c 800 /tmp/auth.out; echo; echo "::error::Auth settings were not saved."; exit 1; fi
+          echo "allow list now: $(jq -r '.uri_allow_list' /tmp/auth.out)"
 
       # The runner has the open internet the app's own sandbox does not,
       # so the catalogue is filled here rather than by someone sitting in
@@ -215,6 +263,7 @@ jobs:
             echo "### Moments backend"
             echo ""
             echo "- Database schema: ${{ inputs.run_sql && 'applied' || 'skipped' }}"
+            echo "- Reset link allow list: ${{ inputs.auth_urls && 'updated' || 'skipped' }}"
             echo "- bardi-chat: ${{ inputs.deploy_function && 'deployed' || 'skipped' }}"
             echo "- music import: ${{ inputs.import_music && 'ran' || 'skipped' }}"
             echo "- quiz pictures: ${{ inputs.import_photos && 'ran' || 'skipped' }}"
