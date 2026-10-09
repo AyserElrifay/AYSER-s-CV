@@ -8910,4 +8910,186 @@ do $$ begin
   begin alter publication supabase_realtime add table public.room_players; exception when duplicate_object then null; end;
 end $$;
 
+-- ═══════════ GO OUT NOW · AND EARNING THE BIG THINGS ═══════════
+/* Ayser: "أنا النهارده الصبح عايز انزل اتمشي الفجر واظهر على الخريطة
+   وأي حد حواليا يقدر join — واعمل إظهار للمهتم بالجري".
+
+   GO OUT NOW is one call: what (a walk, a run, coffee, a focus session
+   to work alongside each other), when (now, or in a little while), and
+   where you are. It becomes an ordinary gathering — on the map, in
+   Together, joinable — and the people nearby who said they are into
+   that thing get one notification. "Nearby" is somebody whose live map
+   position from the last two hours is within 5 km; "into it" is a word
+   in their own hobbies. Nobody else is told, and nobody is told twice.
+
+   POSITIVE FRICTION. The map and everyone on it are open from the first
+   minute. Two things are earned: messaging a stranger, and hosting
+   something big (no cap, or more than 12). Either pass the four-question
+   care check once, or have joined one small hangout that has already
+   happened. Both rules live here, in the database, so no app version
+   can skip them. */
+
+do $$ begin
+  alter table public.green_gatherings drop constraint if exists green_gatherings_kind_check;
+  alter table public.green_gatherings add constraint green_gatherings_kind_check
+    check (kind in ('cleanup','circle','art','project','culture','walk','sport','run','coffee','focus')) not valid;
+exception when others then null; end $$;
+
+alter table public.profiles add column if not exists vibe_check_at timestamptz;
+
+-- hangouts you joined that have already happened, not counting your own
+create or replace function public.my_trust()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select jsonb_build_object(
+    'checked', (select vibe_check_at is not null from public.profiles where id = auth.uid()),
+    'xp', (select count(*) from public.green_joins j join public.green_gatherings g on g.id = j.gathering_id
+            where j.user_id = auth.uid() and g.host_id <> auth.uid() and g.cancelled_at is null and g.starts_at < now())
+  );
+$$;
+grant execute on function public.my_trust() to authenticated;
+
+create or replace function public.trust_unlocked(u uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select coalesce((select vibe_check_at is not null from public.profiles where id = u), false)
+      or exists (select 1 from public.green_joins j join public.green_gatherings g on g.id = j.gathering_id
+                  where j.user_id = u and g.host_id <> u and g.cancelled_at is null and g.starts_at < now());
+$$;
+
+/* The care check. The answers are checked here, not on the phone. Each
+   question has one right choice, by index; all four right passes. */
+create or replace function public.vibe_check_pass(p_answers int[])
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); key int[] := array[1, 0, 2, 1]; n_right int := 0; i int;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  if p_answers is null or array_length(p_answers, 1) <> 4 then return jsonb_build_object('ok', false, 'reason', 'incomplete'); end if;
+  for i in 1..4 loop if p_answers[i] = key[i] then n_right := n_right + 1; end if; end loop;
+  if n_right < 4 then return jsonb_build_object('ok', false, 'reason', 'not_yet', 'right', n_right); end if;
+  update public.profiles set vibe_check_at = coalesce(vibe_check_at, now()) where id = me;
+  return jsonb_build_object('ok', true);
+end;
+$$;
+grant execute on function public.vibe_check_pass(int[]) to authenticated;
+
+-- starting something: the new kinds, and big ones need trust
+create or replace function public.green_create(
+  p_kind text, p_title text, p_about text, p_country text, p_city text,
+  p_place text, p_lat double precision, p_lng double precision,
+  p_starts_at timestamptz, p_minutes int, p_capacity int, p_language text)
+returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare
+  me uuid := auth.uid();
+  g  public.green_gatherings%rowtype;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  if p_kind not in ('cleanup','circle','art','project','culture','walk','sport','run','coffee','focus') then
+    return jsonb_build_object('ok', false, 'reason', 'bad_kind');
+  end if;
+  if coalesce(length(btrim(p_title)), 0) < 3 then
+    return jsonb_build_object('ok', false, 'reason', 'no_title');
+  end if;
+  if p_starts_at is null or p_starts_at < now() - interval '1 hour' then
+    return jsonb_build_object('ok', false, 'reason', 'in_the_past');
+  end if;
+  if coalesce(length(btrim(p_country)), 0) <> 2 then
+    return jsonb_build_object('ok', false, 'reason', 'no_country');
+  end if;
+  if (p_capacity is null or p_capacity > 12) and not public.trust_unlocked(me) then
+    return jsonb_build_object('ok', false, 'reason', 'need_unlock');
+  end if;
+
+  insert into public.green_gatherings
+    (kind, title, about, country, city, place_name, lat, lng, starts_at, minutes, capacity, host_id, language)
+  values
+    (p_kind, btrim(p_title), nullif(btrim(coalesce(p_about, '')), ''), upper(btrim(p_country)),
+     nullif(btrim(coalesce(p_city, '')), ''), nullif(btrim(coalesce(p_place, '')), ''),
+     p_lat, p_lng, p_starts_at, p_minutes, p_capacity, me, p_language)
+  returning * into g;
+  insert into public.green_joins (gathering_id, user_id) values (g.id, me) on conflict do nothing;
+  return jsonb_build_object('ok', true, 'id', g.id);
+end;
+$$;
+
+-- the words in somebody's hobbies that mean they would want to know
+create or replace function public.go_now_words(p_kind text)
+returns text[] language sql immutable as $$
+  select case p_kind
+    when 'run'    then array['run','jog','marathon','جري','running','běh','jooks']
+    when 'walk'   then array['walk','hik','trek','مشي','تمشية','hiking','procház','matk']
+    when 'coffee' then array['coffee','café','cafe','قهوة','káva','kohv']
+    when 'focus'  then array['study','work','focus','read','مذاكرة','قراءة','studi','õpp']
+    when 'sport'  then array['football','soccer','sport','كورة','fotbal','jalgpall']
+    else array[p_kind] end;
+$$;
+
+create or replace function public.green_go_now(
+  p_kind text, p_title text, p_lat double precision, p_lng double precision,
+  p_in_minutes int, p_minutes int, p_country text, p_place text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare
+  me uuid := auth.uid();
+  r  jsonb;
+  gid uuid;
+  sent int := 0;
+  words text[];
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  if p_lat is null or p_lng is null then return jsonb_build_object('ok', false, 'reason', 'no_location'); end if;
+  if coalesce(p_in_minutes, 0) < 0 or coalesce(p_in_minutes, 0) > 720 then
+    return jsonb_build_object('ok', false, 'reason', 'bad_time');
+  end if;
+  -- a small hangout by definition: capped at 8, so nobody needs to unlock it
+  r := public.green_create(p_kind, p_title, null, p_country, null, p_place, p_lat, p_lng,
+         now() + make_interval(mins => coalesce(p_in_minutes, 0)), coalesce(p_minutes, 60), 8, null);
+  if not coalesce((r->>'ok')::boolean, false) then return r; end if;
+  gid := (r->>'id')::uuid;
+  words := public.go_now_words(p_kind);
+
+  insert into public.notifications (user_id, actor_id, kind, body, gathering_id)
+  select distinct l.user_id, me, 'green_invite', btrim(p_title), gid
+    from public.live_locations l
+    join public.profiles p on p.id = l.user_id
+   where l.user_id <> me
+     and l.updated_at > now() - interval '2 hours'
+     and 2 * 6371 * asin(sqrt(power(sin(radians(l.lat - p_lat) / 2), 2)
+           + cos(radians(p_lat)) * cos(radians(l.lat)) * power(sin(radians(l.lng - p_lng) / 2), 2))) <= 5
+     and exists (select 1 from unnest(words) w where lower(coalesce(p.hobbies, '')) like '%' || w || '%')
+   limit 50;
+  get diagnostics sent = row_count;
+  update public.green_gatherings set announced_at = now() where id = gid and sent > 0;
+  return jsonb_build_object('ok', true, 'id', gid, 'told', sent);
+end;
+$$;
+grant execute on function public.green_go_now(text, text, double precision, double precision, int, int, text, text) to authenticated;
+
+-- messaging somebody new: mates, people you have met at a hangout, or after you have earned it
+create or replace function public.get_or_create_dm_thread(other_user uuid)
+returns uuid language plpgsql security definer set search_path = public as $$
+declare
+  found_id uuid; new_id uuid; me uuid := auth.uid();
+begin
+  select p1.thread_id into found_id
+  from public.dm_participants p1
+  join public.dm_participants p2 on p1.thread_id = p2.thread_id
+  where p1.user_id = me and p2.user_id = other_user
+  limit 1;
+  if found_id is not null then return found_id; end if;
+  if not public.trust_unlocked(me)
+     and not exists (select 1 from public.mates m where m.status = 'accepted'
+                      and ((m.requester_id = me and m.addressee_id = other_user) or (m.requester_id = other_user and m.addressee_id = me)))
+     and not exists (select 1 from public.green_joins a join public.green_joins b on a.gathering_id = b.gathering_id
+                      where a.user_id = me and b.user_id = other_user)
+     -- a venue you are booking, or somebody hosting a live room right now, is open to anyone
+     and not exists (select 1 from public.venues v where v.owner_id = other_user and v.status = 'live')
+     and not exists (select 1 from public.campfires c where c.host_id = other_user and c.ended_at is null) then
+    raise exception 'need_unlock' using errcode = 'check_violation';
+  end if;
+  insert into public.dm_threads default values returning id into new_id;
+  insert into public.dm_participants (thread_id, user_id) values (new_id, me);
+  insert into public.dm_participants (thread_id, user_id) values (new_id, other_user);
+  return new_id;
+end $$;
+
+
 notify pgrst, 'reload schema';

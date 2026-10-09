@@ -7,6 +7,7 @@ import { C } from '../constants/theme';
 import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { usePresence } from '../context/PresenceContext';
+import { isNeedUnlock } from '../lib/unlockBus';
 import { useLang } from '../context/LanguageContext';
 import { fetchMyMoments, fetchRepostsByUser } from '../services/posts';
 import { fetchTaggedPosts } from '../services/tags';
@@ -119,7 +120,8 @@ export const ProfileModal = ({ user, onClose }) => {
     if (/relation .*mates.* does not exist|schema cache/i.test(m)) {
       return setupNotice('One step left: open Supabase → SQL Editor and run the file supabase/RUN_ME.sql (one paste turns on friends, chat & everything).');
     }
-    return m || 'Something went wrong — try again.';
+    /* never the server's own words — those are for whoever is on call */
+    return t('auth_err_generic');
   };
 
   const real = SUPABASE_READY && me && user && user.id && String(user.id).length > 20; // uuid = real account
@@ -202,7 +204,7 @@ export const ProfileModal = ({ user, onClose }) => {
       tapSuccess(); sfxSuccess(); // celebrate only when it actually worked
       if (next === 'mates') countMates(user.id).then(setMates).catch(() => {});
     } catch (e) {
-      setActionErr(explain(e));
+      setActionErr(isNeedUnlock(e) ? t('vc_why_dm') : explain(e));
     } finally { setBusy(false); }
   };
 
@@ -219,7 +221,7 @@ export const ProfileModal = ({ user, onClose }) => {
       setMsgSent(true);
       setTimeout(() => { setMsgSent(false); setMsgOpen(false); }, 1400);
     } catch (e) {
-      setActionErr(explain(e));
+      setActionErr(isNeedUnlock(e) ? t('vc_why_dm') : explain(e));
     } finally { setBusy(false); }
   };
 
@@ -394,7 +396,7 @@ export const ProfileModal = ({ user, onClose }) => {
                   returnKeyType="send"
                   style={{ flex: 1, color: C.text, fontSize: 13.5, paddingVertical: Platform.OS === 'ios' ? 8 : 6, paddingHorizontal: 6 }}
                 />
-                <Pressable onPress={doSend} hitSlop={8}>
+                <Pressable onPress={doSend} hitSlop={8} accessibilityRole="button" accessibilityLabel={t('send')}>
                   <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: msgSent ? C.green : msgText.trim() ? C.purple : C.glassHi, alignItems: 'center', justifyContent: 'center' }}>
                     <Ionicons name={msgSent ? 'checkmark' : 'arrow-up'} size={18} color={msgSent || msgText.trim() ? '#FFF' : C.faint} />
                   </View>

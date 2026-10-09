@@ -7,7 +7,7 @@ import { C } from '../constants/theme';
 import { useLang } from '../context/LanguageContext';
 import { tapSelection } from '../utils/feedback';
 import { tourSeen } from '../components/GestureTour';
-import { onMapTarget } from '../lib/mapBus';
+import { onMapTarget, onGoToTab } from '../lib/mapBus';
 
 /* ─── MOVING BETWEEN TABS WITHOUT AIMING AT ANYTHING ────────────────
    Six tabs along the bottom, and every one of them costs a deliberate
@@ -92,6 +92,7 @@ export const SwipeTabs = ({ children }) => {
      the map. Every tab wraps itself in this, so only the focused one
      acts. */
   useEffect(() => onMapTarget(() => { if (nav.isFocused() && name !== 'MAP') nav.navigate('MAP'); }), [nav, name]);
+  useEffect(() => onGoToTab((to) => { if (nav.isFocused() && name !== to) nav.navigate(to); }), [nav, name]);
   const { width } = useWindowDimensions();
   const { t, rtl } = useLang();
   // On a laptop the tab bar is a sidebar you can see the whole time and

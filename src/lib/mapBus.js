@@ -27,3 +27,9 @@ export function onMapTarget(fn) {
   subs.add(fn);
   return () => subs.delete(fn);
 }
+
+/* The same idea for a whole tab: "find a hangout" from inside a sheet
+   that does not know about navigation. */
+const tabSubs = new Set();
+export function goToTab(name) { tabSubs.forEach((fn) => { try { fn(name); } catch (e) {} }); }
+export function onGoToTab(fn) { tabSubs.add(fn); return () => tabSubs.delete(fn); }

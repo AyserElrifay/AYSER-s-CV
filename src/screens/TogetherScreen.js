@@ -23,6 +23,7 @@ import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
 const GreenSheet = lazyOverlay(() => import('../components/green/GreenSheet').then((m) => ({ default: m.GreenSheet })));
 const ProgrammesSheet = lazyOverlay(() => import('../components/green/ProgrammesSheet').then((m) => ({ default: m.ProgrammesSheet })));
 const LandingSheet = lazyOverlay(() => import('../components/LandingSheet').then((m) => ({ default: m.LandingSheet })));
+const GoNowSheet = lazyOverlay(() => import('../components/GoNowSheet').then((m) => ({ default: m.GoNowSheet })));
 const GroupPage = lazyOverlay(() => import('../components/GroupPage').then((m) => ({ default: m.GroupPage })));
 
 /* ─── TOGETHER · THE WEEK, NEAR YOU ───────────────────────────────────
@@ -198,6 +199,20 @@ export const TogetherScreen = () => {
           </Pressable>
         </View>
 
+        {/* ── going out now? ── the fastest way into the week: one tap
+            and you are on the map for anyone nearby to join */}
+        <Pressable onPress={() => { tapMedium(); setSheet('gonow'); }} accessibilityRole="button" style={{ marginBottom: 14 }}>
+          <LinearGradient colors={['#10B981', '#0EA5E9']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+            style={{ borderRadius: 22, padding: 16, flexDirection: 'row', alignItems: 'center' }}>
+            <Text style={{ fontSize: 34 }}>🏃</Text>
+            <View style={{ flex: 1, minWidth: 0, marginStart: 12 }}>
+              <Text style={{ color: '#FFF', fontSize: 17, fontWeight: '900' }}>{t('gn_cta')}</Text>
+              <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: 13, fontWeight: '600', marginTop: 2 }}>{t('gn_cta_sub')}</Text>
+            </View>
+            <Ionicons name={'chevron-forward'} size={20} color="#FFF" />
+          </LinearGradient>
+        </Pressable>
+
         {/* ── where ── */}
         <View style={{ flexDirection: 'row', marginBottom: 12 }}>
           <Pill on={scope === 'near'} label={myFlag + ' ' + t('tg_near_me')} onPress={() => { tapLight(); setScope('near'); setDay(null); }} />
@@ -361,6 +376,7 @@ export const TogetherScreen = () => {
         </View>
       </ScrollView>
 
+      {sheet === 'gonow' ? <GoNowSheet onClose={() => { setSheet(null); load(); }} /> : null}
       {sheet === 'start' ? <GreenSheet startNow homeCountry={myCode} onClose={() => { setSheet(null); load(); }} /> : null}
       {sheet === 'how' || sheet === 'ideas' ? <GreenSheet homeCountry={myCode} openOn={sheet} onClose={() => { setSheet(null); load(); }} /> : null}
       {sheet === 'prog' ? <ProgrammesSheet onClose={() => setSheet(null)} onOpenGroup={(id) => setSheet({ group: id })} /> : null}

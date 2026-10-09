@@ -21,6 +21,9 @@ export const ACTIVITY_LOOK = {
   circle:  { emoji: '💬', from: '#F59E0B', to: '#FB7185' },
   cleanup: { emoji: '🌿', from: '#059669', to: '#34D399' },
   project: { emoji: '🔨', from: '#6366F1', to: '#8B5CF6' },
+  run:     { emoji: '🏃', from: '#EF4444', to: '#F97316' },
+  coffee:  { emoji: '☕', from: '#B45309', to: '#F59E0B' },
+  focus:   { emoji: '📚', from: '#0EA5E9', to: '#6366F1' },
 };
 const FALLBACK = { emoji: '✨', from: '#7C3AED', to: '#EC4899' };
 

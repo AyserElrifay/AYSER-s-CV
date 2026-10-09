@@ -11,9 +11,22 @@ import { SQUADS, DMS } from '../constants/mockData';
 import { HomeScreen } from '../screens/HomeScreen';
 import { Boundary } from '../components/Boundary';
 import { SwipeTabs } from './SwipeTabs';
-import { lazyScreen, preloadTabs } from '../lib/lazyScreen';
+import { lazyScreen, preloadTabs, lazyOverlay } from '../lib/lazyScreen';
 import { isSaving, DEFAULT_DATA_MODE } from '../lib/dataSaver';
 import { getPrefs } from '../services/prefs';
+import { onUnlockRequest } from '../lib/unlockBus';
+import { goToTab } from '../lib/mapBus';
+
+const VibeCheckSheet = lazyOverlay(() => import('../components/VibeCheckSheet').then((m) => ({ default: m.VibeCheckSheet })));
+
+/* Whenever the database says "earn this first" (messaging a stranger,
+   hosting something big), the care check opens here — one listener
+   for the whole app. See src/lib/unlockBus.js. */
+const UnlockHost = () => {
+  const [why, setWhy] = React.useState(null);
+  React.useEffect(() => onUnlockRequest((w) => setWhy(w || 'any')), []);
+  return why ? <VibeCheckSheet why={why} onClose={() => setWhy(null)} onFindHangout={() => goToTab('TOGETHER')} /> : null;
+};
 
 /* ─── ONLY THE FEED IS IN THE FIRST DOWNLOAD ─────────────────────────
    Home is what you land on, so it is here in full. The other five are
@@ -124,6 +137,8 @@ export const TabNavigator = () => {
   // rows; on phones it stays the familiar bottom bar.
   const sidebar = Platform.OS === 'web' && width >= 820;
   return (
+  <>
+  <UnlockHost />
   <Tab.Navigator
     backBehavior="history"
     screenOptions={({ route }) => ({
@@ -179,5 +194,6 @@ export const TabNavigator = () => {
     <Tab.Screen name="REELS" component={ReelsTab} options={HIDDEN} />
     <Tab.Screen name="CHILL" component={ChillTab} options={HIDDEN} />
   </Tab.Navigator>
+  </>
   );
 };

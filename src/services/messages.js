@@ -1,11 +1,17 @@
 import { supabase } from '../lib/supabase';
+import { isNeedUnlock, requestUnlock } from '../lib/unlockBus';
 
 /* Real chat — squad group threads and 1:1 DMs share one table,
    distinguished by which foreign key is set. */
 
 export async function getOrCreateDmThread(otherUserId, myId) {
   const { data, error } = await supabase.rpc('get_or_create_dm_thread', { other_user: otherUserId });
-  if (error) throw error;
+  if (error) {
+    /* a stranger, and you have not earned messaging strangers yet:
+       the care check opens (see src/lib/unlockBus.js) */
+    if (isNeedUnlock(error)) requestUnlock('dm');
+    throw error;
+  }
   const threadId = data; // uuid
 
   /* Mark the two sides: whoever opened it has obviously accepted, the

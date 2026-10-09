@@ -1,5 +1,6 @@
 import { supabase, SUPABASE_READY } from '../lib/supabase';
 import { withDeadline } from '../lib/deadline';
+import { requestUnlock } from '../lib/unlockBus';
 
 /* ─── أخضر · THE GREEN CORNER ─────────────────────────────────────────
    Two halves, and the app must never blur them:
@@ -55,8 +56,8 @@ export async function listSparks(country) {
   return data || [];
 }
 
-export const createGathering = (g) =>
-  rpc('green_create', {
+export const createGathering = async (g) => {
+  const r = await rpc('green_create', {
     p_kind: g.kind,
     p_title: g.title,
     p_about: g.about || null,
@@ -70,6 +71,21 @@ export const createGathering = (g) =>
     p_capacity: g.capacity == null ? null : g.capacity,
     p_language: g.language || null,
   });
+  if (r && r.reason === 'need_unlock') requestUnlock('big');
+  return r;
+};
+
+/* ── GO OUT NOW ─────────────────────────────────────────────────────
+   "I'm going for a walk at dawn — show me on the map and let anyone
+   around join." One call; the server makes the gathering and tells
+   the people nearby who are into it. */
+export const goNow = async (g) => rpc('green_go_now', {
+  p_kind: g.kind, p_title: g.title, p_lat: g.lat, p_lng: g.lng,
+  p_in_minutes: g.inMinutes || 0, p_minutes: g.minutes || 60, p_country: g.country, p_place: g.place || null,
+});
+
+export const myTrust = () => rpc('my_trust', {});
+export const passVibeCheck = (answers) => rpc('vibe_check_pass', { p_answers: answers });
 
 export const joinGathering = (id, going) => rpc('green_join', { p_id: id, p_going: !!going });
 

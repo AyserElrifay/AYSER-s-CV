@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { View, Text, ScrollView, Pressable, Modal, TextInput, Platform, Image, Linking, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { C, DARK_MAP } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
 import { ME, DOING_OPTIONS, DEALS, DEAL_FILTERS, av, AV_NEUTRAL } from '../constants/mockData';
@@ -58,6 +59,7 @@ import { lazyOverlay } from '../lib/lazyScreen';
 import { SheetHandle, SheetBack } from '../components/SheetHandle';
 const ProfileModal = lazyOverlay(() => import('../components/ProfileModal').then((m) => ({ default: m.ProfileModal })));
 const CountrySheet = lazyOverlay(() => import('../components/CountrySheet').then((mod) => ({ default: mod.CountrySheet })));
+const GoNowSheet = lazyOverlay(() => import('../components/GoNowSheet').then((mod) => ({ default: mod.GoNowSheet })));
 const GreenSheet = lazyOverlay(() => import('../components/green/GreenSheet').then((mod) => ({ default: mod.GreenSheet })));
 
 /* Which pins belong to each lens. `all` keeps everything; the rest are
@@ -150,6 +152,7 @@ export const MapScreen = () => {
   const [shotOpen, setShotOpen] = useState(null);       // a moment/story opened from the map
   const [gatherings, setGatherings] = useState([]);    // this week's real things to join
   const [greenOpen, setGreenOpen] = useState(false);
+  const [goNow, setGoNow] = useState(false);
   const [momentPins, setMomentPins] = useState([]);     // moments shared AT a spot
   const [storyPins, setStoryPins] = useState([]);       // live stories on the map
   const [noteOpen, setNoteOpen] = useState(null);       // a tapped note
@@ -940,6 +943,17 @@ export const MapScreen = () => {
           Five circles stacked down the side of the map hid a third of
           Egypt. Only the two you reach for constantly stay out; the
           rest live behind one button and come out when you ask. */}
+      {/* ── GO OUT NOW ── "I'm going for a walk at dawn — show me and let
+          anyone around join". One tap from the map itself. */}
+      <Pressable onPress={() => { tapLight(); setGoNow(true); }} accessibilityRole="button" accessibilityLabel={t('gn_cta')}
+        style={{ position: 'absolute', left: 14, bottom: 196 }}>
+        <LinearGradient colors={['#10B981', '#0EA5E9']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+          style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, paddingHorizontal: 16, paddingVertical: 11,
+            shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 6 }}>
+          <Text style={{ fontSize: 17 }}>🏃</Text>
+          <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '900', marginStart: 7 }}>{t('gn_cta_short')}</Text>
+        </LinearGradient>
+      </Pressable>
       <View style={{ position: 'absolute', right: 14, bottom: 196, alignItems: 'center' }}>
         {tools ? (
           <>
@@ -2152,6 +2166,7 @@ export const MapScreen = () => {
 
       {profileUser ? <ProfileModal user={profileUser} onClose={() => setProfileUser(null)} /> : null}
       {greenOpen ? <GreenSheet onClose={() => setGreenOpen(false)} /> : null}
+      {goNow ? <GoNowSheet onClose={() => { setGoNow(false); listGatherings(null).then(setGatherings).catch(() => {}); }} /> : null}
       {bookingVenue ? <BookingSheet venue={bookingVenue} onClose={() => { setBooked((x) => ({ ...x, [bookingVenue.id]: true })); setBookingVenue(null); }} /> : null}
       {travelTo ? <TravelSheet city={travelTo} onClose={() => setTravelTo(null)} /> : null}
       {countryRoom ? <CountrySheet startCode={countryRoom} onClose={() => setCountryRoom(null)} /> : null}

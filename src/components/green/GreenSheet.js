@@ -502,6 +502,7 @@ export const GreenSheet = ({ onClose, onPlay, startNow, homeCountry, openOn }) =
                   <Text style={{ color: C.coral, fontSize: 12.5, fontWeight: '800', marginTop: 12 }}>
                     {form.err === 'no_title' ? t('green_err_title')
                       : form.err === 'in_the_past' ? t('green_err_past')
+                      : form.err === 'need_unlock' ? t('vc_why_big')
                       : t('lamma_offline')}
                   </Text>
                 ) : null}
