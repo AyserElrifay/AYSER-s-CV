@@ -83,6 +83,10 @@ export const CoverSheet = ({ videoUrl, current, onClose, onChoose }) => {
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={{ flex: 1, backgroundColor: 'rgba(6,4,18,0.55)' }} onPress={onClose} />
       <View style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 16, paddingBottom: 28 }}>
+        <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button" accessibilityLabel={t('close')}
+          style={{ position: 'absolute', top: 12, right: 12, zIndex: 2, width: 32, height: 32, borderRadius: 16, backgroundColor: C.glassHi, alignItems: 'center', justifyContent: 'center' }}>
+          <Ionicons name="close" size={18} color={C.text} />
+        </Pressable>
         <Text style={{ color: C.text, fontSize: 17, fontWeight: '900' }}>{t('cover_title')}</Text>
         <Text style={{ color: C.faint, fontSize: 12, marginTop: 3, marginBottom: 12 }}>{t('cover_sub')}</Text>
 

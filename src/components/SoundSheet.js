@@ -64,7 +64,11 @@ export const SoundSheet = ({ postId, onClose, onUseSound, onOpenPost }) => {
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={{ flex: 1, backgroundColor: 'rgba(6,4,18,0.55)' }} onPress={onClose} />
       <View style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '78%' }}>
-        <View style={{ padding: 16, paddingBottom: 10 }}>
+        <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button" accessibilityLabel={t('close')}
+          style={{ position: 'absolute', top: 12, right: 12, zIndex: 2, width: 32, height: 32, borderRadius: 16, backgroundColor: C.glassHi, alignItems: 'center', justifyContent: 'center' }}>
+          <Ionicons name="close" size={18} color={C.text} />
+        </Pressable>
+        <View style={{ padding: 16, paddingBottom: 10, paddingEnd: 52 }}>
           {data === null ? (
             <ActivityIndicator color={C.purple} style={{ paddingVertical: 20 }} />
           ) : !sound ? (

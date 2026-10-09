@@ -141,6 +141,10 @@ jobs:
       # where it happened, and nothing on the way invents a place or a ride.
       - name: Check the map, the feed and the welcome page tell the truth
         run: node scripts/check-map-activities.mjs
+      # Anything that covers the screen shows a way out — the back
+      # gesture alone strands anyone who does not know it.
+      - name: Check every screen has a way out you can see
+        run: node scripts/check-exits.mjs
       # The country room is content, and content rots differently from
       # code: a country added in a hurry with eight phrases and no
       # customs crashes nothing, it just quietly becomes the thin,
