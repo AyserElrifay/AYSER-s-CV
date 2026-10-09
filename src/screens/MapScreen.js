@@ -9,7 +9,7 @@ import { ME, DOING_OPTIONS, DEALS, DEAL_FILTERS, av, AV_NEUTRAL } from '../const
 import { MAP_PEOPLE, CAMPFIRES, BOOKINGS } from '../constants/mockData'; // demo-mode fallback only
 import { MapView, Marker, MAPS_READY } from '../utils/maps';
 import { takeMapTarget, onMapTarget } from '../lib/mapBus';
-import { listGatherings, joinGathering } from '../services/green';
+import { listGatherings, joinGathering, bardiMatchMe } from '../services/green';
 import { activityPin, lookOf, titleFor, whenFor } from '../lib/activityPins';
 import { kmBetween, projectToMap } from '../utils/geo';
 import { requestLocationPermission, getCurrentCoords, watchCoords } from '../utils/location';
@@ -276,6 +276,15 @@ export const MapScreen = () => {
     }, 5 * 60 * 1000);
     return () => clearInterval(id);
   }, [user, myDoing, located, myCoords.latitude, myCoords.longitude]);
+
+  /* Bardi looks, quietly, once you are visible: are a few people near you
+     into the same thing right now? It answers with one notification a
+     day at most, or with nothing. */
+  useEffect(() => {
+    if (!SUPABASE_READY || !user || !myDoing || !located) return;
+    const tm = setTimeout(() => { bardiMatchMe(); }, 4000);
+    return () => clearTimeout(tm);
+  }, [user, myDoing, located]);
 
   /* ── real data: nearby people, campfires, venues ── */
   const loadNearby = useCallback(() => {

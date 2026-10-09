@@ -47,7 +47,6 @@ import { setupNotice } from '../lib/plumbing';
 /* Fetched when it is opened, not when the app starts. */
 import { lazyOverlay } from '../lib/lazyScreen';
 import { SheetHandle, SheetBack } from '../components/SheetHandle';
-const BardiSheet = lazyOverlay(() => import('../components/BardiSheet').then((m) => ({ default: m.BardiSheet })));
 
 /* A real, persisted on/off switch. */
 const Toggle = ({ on, onToggle }) => (
@@ -83,7 +82,6 @@ export const SettingsScreen = ({ onClose }) => {
     return { total, ppl, per: total / ppl };
   })();
   const [planner, setPlanner] = useState(PLANNER_INIT);
-  const [bardiOpen, setBardiOpen] = useState(false);
   const [gamesArOn, setGamesArOn] = useState(() => { try { return typeof localStorage !== 'undefined' && localStorage.getItem('mm_games_ar') === '1'; } catch (e) { return false; } });
   const [langOpen, setLangOpen] = useState(false);
   const [prefs, setPrefs] = useState(getPrefs());
@@ -662,18 +660,9 @@ export const SettingsScreen = ({ onClose }) => {
           </Pressable>
         </Glass>
 
-        {/* ── BARDI — the real assistant (self-understanding, plans, ideas) ── */}
-        <SectionHeader title={t('bardi_section')} style={{ marginTop: 26 }} />
-        <Pressable onPress={() => setBardiOpen(true)}>
-          <Glass style={{ padding: 15, flexDirection: 'row', alignItems: 'center' }}>
-            <Image source={require('../assets/brand/bardi.png')} style={{ width: 44, height: 44, borderRadius: 13, marginRight: 12 }} />
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '900' }}>{t('talk_to_bardi')}</Text>
-              <Text style={{ color: C.faint, fontSize: 12, marginTop: 2 }}>{t('bardi_hint')}</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={C.faint} />
-          </Glass>
-        </Pressable>
+        {/* Bardi is no longer a chat you open. It works quietly inside the
+           app instead: a nudge in a quiet conversation, the care check,
+           and the occasional "people near you" — see src/lib/bardi.js. */}
 
         {/* ── ACCOUNT ── */}
         <SectionHeader title={t('account')} style={{ marginTop: 26 }} />
@@ -693,7 +682,6 @@ export const SettingsScreen = ({ onClose }) => {
       </ScrollView>
 
       {termsOpen ? <TermsSheet onClose={() => setTermsOpen(false)} /> : null}
-      {bardiOpen ? <BardiSheet onClose={() => setBardiOpen(false)} /> : null}
       {helpOpen ? <HelpSheet onClose={() => setHelpOpen(false)} /> : null}
       {tourOpen ? <GestureTour onClose={() => setTourOpen(false)} /> : null}
 

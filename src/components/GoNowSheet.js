@@ -35,14 +35,14 @@ const KINDS = [
 ];
 const WHEN = [0, 30, 60, 120];
 
-export const GoNowSheet = ({ onClose }) => {
+export const GoNowSheet = ({ onClose, initialKind, initialTitle }) => {
   useSheetBack(onClose);
   const insets = useSafeAreaInsets();
   const { t } = useLang();
   const { user } = useAuth();
-  const [kind, setKind] = useState('walk');
+  const [kind, setKind] = useState(initialKind || 'walk');
   const [inMin, setInMin] = useState(0);
-  const [title, setTitle] = useState('');
+  const [title, setTitle] = useState(initialTitle || '');
   const [place, setPlace] = useState('');
   const [country, setCountry] = useState(null);
   const [state, setState] = useState(null);     // null | 'busy' | { told, id, lat, lng } | { err }

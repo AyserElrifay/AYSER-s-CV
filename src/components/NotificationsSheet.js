@@ -21,8 +21,10 @@ import { setupNotice } from '../lib/plumbing';
 
 /* Fetched when it is opened, not when the app starts. */
 import { lazyOverlay } from '../lib/lazyScreen';
+import { readMatch } from '../lib/bardi';
 import { useSheetBack } from '../hooks/useSheetBack';
 import { SheetHandle } from './SheetHandle';
+const GoNowSheet = lazyOverlay(() => import('./GoNowSheet').then((m) => ({ default: m.GoNowSheet })));
 const CommentsSheet = lazyOverlay(() => import('./CommentsSheet').then((m) => ({ default: m.CommentsSheet })));
 const ReelsViewer = lazyOverlay(() => import('./ReelsViewer').then((m) => ({ default: m.ReelsViewer })));
 const LikersSheet = lazyOverlay(() => import('./LikersSheet').then((m) => ({ default: m.LikersSheet })));
@@ -55,6 +57,7 @@ const LINE = {
   green_invite: '🌿 invites you to join',
   food_order: '🍲 ordered from your kitchen',
   food_status: '🍲 updated your order',
+  bardi_match: '',
 };
 
 const FILTERS = [
@@ -94,6 +97,7 @@ export const NotificationsSheet = ({ onClose }) => {
   // tap targets
   const [profileUser, setProfileUser] = useState(null);
   const [greenOpen, setGreenOpen] = useState(false);   // a green invite, tapped
+  const [goNowFrom, setGoNowFrom] = useState(null);    // Bardi's "make it a hangout"
   const [foodTab, setFoodTab] = useState(null);       // a food notification, tapped
   const [viewPost, setViewPost] = useState(null);
   const [reelView, setReelView] = useState(null);
@@ -169,6 +173,7 @@ export const NotificationsSheet = ({ onClose }) => {
   const openNotif = async (n) => {
     /* an invitation opens the week it is in, where Join is one tap */
     if (n.kind === 'green_invite') { tapSelection(); setGreenOpen(true); return; }
+    if (n.kind === 'bardi_match') { const m = readMatch(n.body); if (m) { tapSelection(); setGoNowFrom(m); } return; }
     if (n.kind === 'food_order') { tapSelection(); setFoodTab('kitchen'); return; }
     if (n.kind === 'food_status') { tapSelection(); setFoodTab('orders'); return; }
     if (n.kind === 'mate_request' || n.kind === 'mate_accept' || n.kind === 'call') {
@@ -249,7 +254,22 @@ export const NotificationsSheet = ({ onClose }) => {
     );
   });
 
-  const Row = useStable(({ n }) => (
+  const Row = useStable(({ n }) => n.kind === 'bardi_match' ? (() => {
+    /* Bardi: no face, no name in bold — one quiet line and one button */
+    const m = readMatch(n.body);
+    if (!m) return null;
+    return (
+      <View style={{ paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: C.line, opacity: n.read ? 0.78 : 1 }}>
+        <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', letterSpacing: 1 }}>BARDI · {timeAgo(n.created_at)}</Text>
+        <Text style={{ color: C.text, fontSize: 14.5, lineHeight: 20, marginTop: 4 }}>
+          {t('bardi_match').replace('{n}', String(m.count)).replace('{what}', m.what)}
+        </Text>
+        <Pressable onPress={() => openNotif(n)} accessibilityRole="button" style={{ marginTop: 8, alignSelf: 'flex-start' }}>
+          <Text style={{ color: C.purple, fontSize: 14, fontWeight: '900' }}>{t('bardi_make_hangout')} ›</Text>
+        </Pressable>
+      </View>
+    );
+  })() : (
     <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, opacity: n.read ? 0.78 : 1 }}>
       <Pressable onPress={() => openNotif(n)} style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>
         <View>
@@ -374,6 +394,7 @@ export const NotificationsSheet = ({ onClose }) => {
       {/* tap targets */}
       {profileUser ? <ProfileModal user={profileUser} onClose={() => setProfileUser(null)} /> : null}
       {greenOpen ? <GreenSheet onClose={() => setGreenOpen(false)} /> : null}
+      {goNowFrom ? <GoNowSheet initialKind={goNowFrom.kind} initialTitle={goNowFrom.what} onClose={() => setGoNowFrom(null)} /> : null}
       {foodTab ? <KitchenSheet startTab={foodTab} onClose={() => setFoodTab(null)} /> : null}
 
       {viewPost ? (

@@ -28,7 +28,7 @@ console.log('\nearned, not given');
 is('big plans need trust', /\(p_capacity is null or p_capacity > 12\) and not public\.trust_unlocked\(me\)/.test(after));
 is('messaging a stranger needs trust', /raise exception 'need_unlock'/.test(after));
 is('mates, people met at a hangout, venues and live hosts are not strangers', /m\.status = 'accepted'/.test(after) && /a\.gathering_id = b\.gathering_id/.test(after) && /v\.status = 'live'/.test(after) && /c\.ended_at is null/.test(after));
-is('the answers are checked on the server', /key int\[\] := array\[1, 0, 2, 1\]/.test(after) && !/1, 0, 2, 1/.test(read('src/components/VibeCheckSheet.js')));
+is('two questions, checked on the server', /key int\[\] := array\[1, 2\]/.test(sql.slice(sql.lastIndexOf('THE CARE CHECK IS TWO QUESTIONS'))) && !/array\[1, 2\]|\[1, 2\]/.test(read('src/components/VibeCheckSheet.js')));
 is('a hangout that already happened counts', /g\.starts_at < now\(\)/.test(after));
 is('the app opens the check wherever it is refused', /requestUnlock\('dm'\)/.test(read('src/services/messages.js')) && /requestUnlock\('big'\)/.test(read('src/services/green.js')) && /<UnlockHost \/>/.test(read('src/navigation/TabNavigator.js')));
 is('the map stays open to newcomers', !/trust_unlocked/.test(read('src/services/locations.js')));

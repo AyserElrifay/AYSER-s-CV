@@ -18,18 +18,17 @@ import { tapLight, tapSuccess } from '../utils/feedback';
    answers are checked by the database (vibe_check_pass), so a wrong
    set is told how many it got right and can simply try again. */
 
+/* two questions — "مش أسئلة كتير" — the newcomer and the beliefs one */
 const QUESTIONS = [
   { q: 'vc_q1', a: ['vc_q1_a', 'vc_q1_b', 'vc_q1_c'] },
-  { q: 'vc_q2', a: ['vc_q2_a', 'vc_q2_b', 'vc_q2_c'] },
   { q: 'vc_q3', a: ['vc_q3_a', 'vc_q3_b', 'vc_q3_c'] },
-  { q: 'vc_q4', a: ['vc_q4_a', 'vc_q4_b', 'vc_q4_c'] },
 ];
 
 export const VibeCheckSheet = ({ why, onClose, onFindHangout }) => {
   useSheetBack(onClose);
   const insets = useSafeAreaInsets();
   const { t } = useLang();
-  const [answers, setAnswers] = useState([null, null, null, null]);
+  const [answers, setAnswers] = useState([null, null]);
   const [state, setState] = useState(null);   // null | 'busy' | 'passed' | { right }
   const [xp, setXp] = useState(null);
 

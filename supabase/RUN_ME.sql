@@ -9197,4 +9197,107 @@ returns int language sql stable security definer set search_path = public as $$
 $$;
 grant execute on function public.my_invites() to authenticated;
 
+-- ═══════════ BARDI · THE CARE CHECK IS TWO QUESTIONS ═══════════
+/* "خلي الدنيا بسيطة … مش أسئلة كتير". Two questions, not four: the
+   newcomer one and the beliefs one. Still checked here, not on the phone. */
+create or replace function public.vibe_check_pass(p_answers int[])
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); key int[] := array[1, 2]; n_right int := 0; i int;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  if p_answers is null or array_length(p_answers, 1) <> 2 then return jsonb_build_object('ok', false, 'reason', 'incomplete'); end if;
+  for i in 1..2 loop if p_answers[i] = key[i] then n_right := n_right + 1; end if; end loop;
+  if n_right < 2 then return jsonb_build_object('ok', false, 'reason', 'not_yet', 'right', n_right); end if;
+  update public.profiles set vibe_check_at = coalesce(vibe_check_at, now()) where id = me;
+  return jsonb_build_object('ok', true);
+end;
+$$;
+grant execute on function public.vibe_check_pass(int[]) to authenticated;
+
+-- ═══════════ BARDI · THE SILENT MATCHMAKER ═══════════
+/* Bardi does not chat. Once in a while it notices that a few people
+   near you are into the same thing as you right now, and says so once:
+   "2 people near you love specialty coffee right now — make it a
+   hangout?". The rules:
+     · "near" is within 2 km, and "right now" is a live map position
+       from the last hour — yours and theirs;
+     · "the same thing" is a word in both your own hobbies;
+     · at least two other people, or it says nothing;
+     · at most one of these a day, ever;
+     · the body carries the count and the hobby; the phone writes the
+       sentence in the reader's language.
+   bardi_match_me() runs when you open the map; bardi_match() runs for
+   everyone every 20 minutes when pg_cron is available. */
+do $do$
+begin
+  alter table public.notifications drop constraint if exists notifications_kind_check;
+  alter table public.notifications add constraint notifications_kind_check
+    check (kind in ('vibe','laugh','comment','mate_request','mate_accept','message','call','tag','repost','green_invite','food_order','food_status','bardi_match'))
+    not valid;
+exception when others then raise notice 'notifications kind constraint skipped: %', sqlerrm;
+end $do$;
+
+create or replace function public.bardi_match_for(u uuid)
+returns int language plpgsql security definer set search_path = public as $$
+declare
+  me record;
+  best record;
+begin
+  select * into me from public.live_locations where user_id = u and updated_at > now() - interval '60 minutes';
+  if not found then return 0; end if;
+  if exists (select 1 from public.notifications where user_id = u and kind = 'bardi_match'
+              and created_at > now() - interval '24 hours') then return 0; end if;
+
+  select h.tag, count(distinct h.user_id) as n into best
+    from (
+      select l.user_id, lower(btrim(x)) as tag
+        from public.live_locations l
+        join public.profiles p on p.id = l.user_id
+        cross join lateral unnest(string_to_array(coalesce(p.hobbies, ''), ',')) x
+       where l.user_id <> u
+         and l.updated_at > now() - interval '60 minutes'
+         and 2 * 6371 * asin(sqrt(power(sin(radians(l.lat - me.lat) / 2), 2)
+               + cos(radians(me.lat)) * cos(radians(l.lat)) * power(sin(radians(l.lng - me.lng) / 2), 2))) <= 2
+    ) h
+   where h.tag <> ''
+     and h.tag in (select lower(btrim(y)) from public.profiles p2
+                    cross join lateral unnest(string_to_array(coalesce(p2.hobbies, ''), ',')) y where p2.id = u)
+   group by h.tag
+   order by count(distinct h.user_id) desc, h.tag
+   limit 1;
+
+  if best is null or best.n < 2 then return 0; end if;
+  insert into public.notifications (user_id, actor_id, kind, body)
+  values (u, u, 'bardi_match', best.n || '|' || left(best.tag, 40));
+  return 1;
+end;
+$$;
+
+create or replace function public.bardi_match_me()
+returns int language sql security definer set search_path = public as $$
+  select public.bardi_match_for(auth.uid());
+$$;
+grant execute on function public.bardi_match_me() to authenticated;
+
+create or replace function public.bardi_match()
+returns int language plpgsql security definer set search_path = public as $$
+declare r record; sent int := 0;
+begin
+  for r in select user_id from public.live_locations where updated_at > now() - interval '60 minutes' loop
+    sent := sent + public.bardi_match_for(r.user_id);
+  end loop;
+  return sent;
+end;
+$$;
+
+-- every 20 minutes, where the database has a scheduler; skipped quietly where not
+do $do$
+begin
+  create extension if not exists pg_cron;
+  perform cron.unschedule(jobid) from cron.job where jobname = 'bardi-match';
+  perform cron.schedule('bardi-match', '*/20 * * * *', 'select public.bardi_match()');
+exception when others then
+  raise notice 'bardi-match schedule skipped: %', sqlerrm;
+end $do$;
+
 notify pgrst, 'reload schema';

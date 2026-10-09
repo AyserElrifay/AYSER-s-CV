@@ -21,6 +21,7 @@ import { StreakBadge } from '../components/StreakBadge';
 import { getProfile } from '../services/profiles';
 import { TruthOrDare } from '../components/TruthOrDare';
 import { WouldYouRather } from '../components/WouldYouRather';
+import { shouldNudge, nudgeGame } from '../lib/bardi';
 import { CallScreen } from '../components/CallScreen';
 import { BoardGame } from '../components/BoardGame';
 import { GAMES as BOARD_GAMES, gameById, isBoardGame } from '../services/boardGames';
@@ -165,6 +166,14 @@ export const ChatThread = ({ chat, group, onClose }) => {
 
   const [todOn, setTodOn] = useState(false);
   const [wyrOn, setWyrOn] = useState(false);
+
+  /* ── BARDI, GAME MASTER ── a quiet conversation gets one line offering
+     a quick game; nothing else (src/lib/bardi.js). Checked every 30
+     seconds while the chat is open; dismissed, it stays away a day. */
+  const nudgeKey = 'mm.bardi.quiet.' + ((group ? chat.id : peer && peer.id) || 'x');
+  const [nudgeTick, setNudgeTick] = useState(0);
+  const [nudgeOff, setNudgeOff] = useState(() => { try { return Number(localStorage.getItem(nudgeKey)) || 0; } catch (e) { return 0; } });
+  useEffect(() => { const iv = setInterval(() => setNudgeTick((n) => n + 1), 30000); return () => clearInterval(iv); }, []);
   const [splitOn, setSplitOn] = useState(false);
   const [splitTotal, setSplitTotal] = useState('');
   const [splitPeople, setSplitPeople] = useState('2');
@@ -675,6 +684,25 @@ export const ChatThread = ({ chat, group, onClose }) => {
             {todOn ? <TruthOrDare players={players} onRemove={() => setTodOn(false)} /> : null}
             {wyrOn ? <WouldYouRather onRemove={() => setWyrOn(false)} /> : null}
           </ScrollView>
+
+          {shouldNudge({ msgs, meId: user && user.id, dismissedAt: nudgeOff, gameOpen: todOn || wyrOn, now: Date.now() }) ? (() => {
+            const game = nudgeGame(nudgeKey);
+            const dismiss = () => { const at = Date.now(); setNudgeOff(at); try { localStorage.setItem(nudgeKey, String(at)); } catch (e) {} };
+            return (
+              /* quiet: one line, no animation, one accent button */
+              <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, borderTopWidth: 1, borderTopColor: C.line, backgroundColor: C.bg }}>
+                <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', letterSpacing: 1, marginEnd: 10 }}>BARDI</Text>
+                <Text style={{ color: C.text, fontSize: 13.5, flex: 1, minWidth: 0 }} numberOfLines={2}>{t(game === 'tod' ? 'bardi_quiet_tod' : 'bardi_quiet_wyr')}</Text>
+                <Pressable onPress={() => { tapLight(); dismiss(); if (game === 'tod') setTodOn(true); else setWyrOn(true); setTimeout(() => scroller.current && scroller.current.scrollToEnd({ animated: true }), 80); }}
+                  accessibilityRole="button" style={{ marginStart: 10 }}>
+                  <Text style={{ color: C.purple, fontSize: 13.5, fontWeight: '900' }}>{t('bardi_play')}</Text>
+                </Pressable>
+                <Pressable onPress={dismiss} hitSlop={10} accessibilityRole="button" accessibilityLabel={t('close')} style={{ marginStart: 14 }}>
+                  <Ionicons name="close" size={16} color={C.faint} />
+                </Pressable>
+              </View>
+            );
+          })() : null}
 
           {/* disappearing-messages picker */}
           {ttlOpen ? (

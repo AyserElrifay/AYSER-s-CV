@@ -39,7 +39,6 @@ import { lazyOverlay } from '../lib/lazyScreen';
    They stay ordinary components after this line: written and rendered
    exactly as before, and each one brings itself over the network the
    first time it is opened. */
-const BardiSheet = lazyOverlay(() => import('../components/BardiSheet').then((m) => ({ default: m.BardiSheet })));
 /* What there is to join — campfires, invitations and groups in one
    place. Opened, not loaded with the feed. */
 /* A shared group link has to open the group. GroupPage is a Modal, so
@@ -160,7 +159,6 @@ export const HomeScreen = () => {
   const [reelStart, setReelStart] = useState(null);
   const [myProfileOpen, setMyProfileOpen] = useState(false); // one profile everywhere
   const [notifOpen, setNotifOpen] = useState(false);
-  const [bardiOpen, setBardiOpen] = useState(false);
   const [unread, setUnread] = useState(0);
   const [sharedPost, setSharedPost] = useState(null); // opened from a ?post= link
   const [sharedStory, setSharedStory] = useState(null); // opened from a ?story= link
@@ -457,9 +455,6 @@ export const HomeScreen = () => {
                 </Text>
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Pressable testID="btn-bardi" accessibilityRole="button" accessibilityLabel={t('talk_to_bardi')} onPress={() => { tapLight(); setBardiOpen(true); }} style={{ marginRight: 10 }}>
-                  <Image source={require('../assets/brand/bardi.png')} style={{ width: 38, height: 38, borderRadius: 12 }} />
-                </Pressable>
                 <Pressable testID="btn-notifs" accessibilityRole="button" accessibilityLabel={t('notifications')} onPress={() => { tapLight(); setNotifOpen(true); setUnread(0); }} style={[headerBtn(), { marginRight: 10 }]}>
                   <Ionicons name={unread ? 'notifications' : 'notifications-outline'} size={17} color={unread ? C.purple : C.text} />
                   {unread ? (
@@ -665,7 +660,6 @@ export const HomeScreen = () => {
       ) : null}
       {commentsPost ? <CommentsSheet post={commentsPost} onClose={() => setCommentsPost(null)} /> : null}
       {notifOpen ? <NotificationsSheet onClose={() => setNotifOpen(false)} /> : null}
-      {bardiOpen ? <BardiSheet onClose={() => setBardiOpen(false)} /> : null}
       {likersPost ? (
         <LikersSheet
           post={likersPost} kind={likersKind}

@@ -141,3 +141,8 @@ export const myInvites = async () => {
   try { const { data, error } = await withDeadline(supabase.rpc('my_invites')); return error ? null : Number(data) || 0; }
   catch (e) { return null; }
 };
+
+/* ── BARDI, SILENT MATCHMAKER ── asked once when you are visible on the
+   map; the database decides whether there is anybody worth telling you
+   about (bardi_match_for in RUN_ME.sql), at most once a day */
+export const bardiMatchMe = () => rpc('bardi_match_me', {});
