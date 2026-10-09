@@ -686,6 +686,7 @@ export const HomeScreen = () => {
                 onLaugh={() => onLaugh(sharedPost)}
                 onRemoveLaugh={() => onRemoveLaugh(sharedPost)}
                 isMine={!!(user && sharedPost.userId === user.id)}
+                onSetCover={onSetCover}
                 onDelete={(p) => { onDelete(p); setSharedPost(null); }}
                 onShare={onShare}
                 onJoin={setMagicPost}

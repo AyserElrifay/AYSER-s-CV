@@ -20,6 +20,7 @@ import { soundOn, setSoundOn, applySound, trackPlayer, untrackPlayer, stopVideos
 import { isSaving, DEFAULT_DATA_MODE } from '../lib/dataSaver';
 import { getPrefs, subscribePrefs } from '../services/prefs';
 import { useSheetBack } from '../hooks/useSheetBack';
+import { SheetHandle } from './SheetHandle';
 
 const { height: H } = Dimensions.get('window');
 
@@ -362,7 +363,7 @@ export const ReelsViewer = ({ reels, startIndex = 0, vibes, onVibe, onComment, o
           <Modal visible transparent animationType="fade" onRequestClose={() => setManage(null)}>
             <Pressable onPress={() => !busy && setManage(null)} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }}>
               <Pressable onPress={() => {}} style={{ backgroundColor: '#150C2B', borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 20, paddingTop: 10, paddingBottom: insets.bottom + 20 }}>
-                <View style={{ alignSelf: 'center', width: 44, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.28)', marginBottom: 16 }} />
+                <SheetHandle onClose={() => !busy && setManage(null)} tint="rgba(255,255,255,0.28)" style={{ marginBottom: 8 }} />
                 <Text style={{ color: '#FFF', fontSize: 18, fontWeight: '900', marginBottom: 4 }}>{t('rv_your_reel')}</Text>
                 <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12.5, marginBottom: 16 }}>
                   {t('rv_your_reel_b')}

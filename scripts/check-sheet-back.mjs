@@ -103,11 +103,24 @@ console.log('   ' + sheets.length + ' sheets found');
 is('all of them answer the back gesture', without, []);
 
 console.log('\nand the little bar at the top has to be real');
-const fake = files.filter((f) => {
+/* The screens were never looked at, and that is where 22 of these were
+   hiding — including the profile's own edit sheet, which is the one he
+   could not swipe away. A sheet written inline inside a screen is still
+   a sheet. */
+const everywhere = [];
+(function walk(d) {
+  for (const f of fs.readdirSync(d)) {
+    const p = path.join(d, f);
+    if (fs.statSync(p).isDirectory()) walk(p);
+    else if (p.endsWith('.js')) everywhere.push(p);
+  }
+})('src');
+
+const fake = everywhere.filter((f) => {
+  if (f.endsWith('SheetHandle.js')) return false;
   const s = fs.readFileSync(f, 'utf8');
-  if (!/onClose/.test(s)) return false;
   /* the decorative bar, drawn by hand, with nothing listening to it */
-  return /width: 40, height: 4, borderRadius: 2/.test(s);
+  return /width: (?:36|40|44), height: (?:4|5), borderRadius: [23]/.test(s);
 });
 is('no sheet draws a drag handle that does not drag', fake, []);
 const handle = fs.readFileSync('src/components/SheetHandle.js', 'utf8');

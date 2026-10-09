@@ -37,6 +37,7 @@ import { setupNotice } from '../lib/plumbing';
 
 /* Fetched when it is opened, not when the app starts. */
 import { lazyOverlay } from '../lib/lazyScreen';
+import { SheetHandle, SheetBack } from '../components/SheetHandle';
 const CaptureModal = lazyOverlay(() => import('../components/CaptureModal').then((m) => ({ default: m.CaptureModal })));
 
 /* ─────────────────── TAB 5 · CHATS — CONNECTIONS ─────────────────────
@@ -969,9 +970,8 @@ export const ChatsScreen = () => {
       <Modal visible transparent animationType="slide" onRequestClose={() => setPendingShot(null)}>
         <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }} onPress={() => setPendingShot(null)} />
         <View style={{ backgroundColor: C.bg2, borderTopLeftRadius: 22, borderTopRightRadius: 22, borderWidth: 1, borderColor: C.line, maxHeight: '76%', paddingBottom: insets.bottom + 12 }}>
-          <View style={{ alignItems: 'center', paddingTop: 10 }}>
-            <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: C.glassHi }} />
-          </View>
+          <SheetHandle onClose={() => setPendingShot(null)} tint={C.glassHi} />
+          <SheetBack onClose={() => setPendingShot(null)} />
           <Text style={{ color: C.text, fontSize: 16, fontWeight: '900', textAlign: 'center', marginTop: 10 }}>{t('ch_send_to')}</Text>
           <Text style={{ color: C.faint, fontSize: 11.5, textAlign: 'center', marginTop: 3 }}>
             {sendDone ? t('ch_sent_to') + ' ' + sendDone + ' ' + t(sendDone === 1 ? 'ch_person' : 'ch_people') : t('ch_pick_anyone')}
@@ -1032,9 +1032,8 @@ export const ChatsScreen = () => {
       <Modal visible transparent animationType="slide" onRequestClose={() => setInviteSquad(null)}>
         <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }} onPress={() => setInviteSquad(null)} />
         <View style={{ backgroundColor: C.bg2, borderTopLeftRadius: 22, borderTopRightRadius: 22, borderWidth: 1, borderColor: C.line, maxHeight: '76%', paddingBottom: insets.bottom + 12 }}>
-          <View style={{ alignItems: 'center', paddingTop: 10, paddingBottom: 4 }}>
-            <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: C.glassHi }} />
-          </View>
+          <SheetHandle onClose={() => setInviteSquad(null)} tint={C.glassHi} />
+          <SheetBack onClose={() => setInviteSquad(null)} />
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, paddingBottom: 8 }}>
             <Text style={{ color: C.text, fontSize: 15, fontWeight: '900' }}>
               {inviteSquad.emoji} {t('ch_invite_to')} {inviteSquad.name}

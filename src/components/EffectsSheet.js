@@ -7,6 +7,7 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { C, R } from '../constants/theme';
 import { tapLight, tapSelection } from '../utils/feedback';
 import { useSheetBack } from '../hooks/useSheetBack';
+import { SheetHandle } from './SheetHandle';
 
 /* ── THE EFFECTS DRAWER ─────────────────────────────────────────────
    Everything the camera can do to a frame, in one place you pull up
@@ -106,9 +107,7 @@ export const EffectsSheet = ({
         borderTopWidth: 1, borderColor: 'rgba(255,255,255,0.18)',
         paddingBottom: insets.bottom,
       }}>
-        <View style={{ alignItems: 'center', paddingTop: 9 }}>
-          <View style={{ width: 44, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.3)' }} />
-        </View>
+        <SheetHandle onClose={onClose} tint="rgba(255,255,255,0.3)" />
 
         {/* categories, the way a camera drawer does it */}
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingTop: 8 }}>

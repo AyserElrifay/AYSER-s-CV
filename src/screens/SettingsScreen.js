@@ -46,6 +46,7 @@ import { setupNotice } from '../lib/plumbing';
 
 /* Fetched when it is opened, not when the app starts. */
 import { lazyOverlay } from '../lib/lazyScreen';
+import { SheetHandle, SheetBack } from '../components/SheetHandle';
 const BardiSheet = lazyOverlay(() => import('../components/BardiSheet').then((m) => ({ default: m.BardiSheet })));
 
 /* A real, persisted on/off switch. */
@@ -702,9 +703,8 @@ export const SettingsScreen = ({ onClose }) => {
         <Modal visible transparent animationType="slide" onRequestClose={() => setLogOpen(false)}>
           <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' }} onPress={() => setLogOpen(false)} />
           <View style={{ backgroundColor: C.bg2, borderTopLeftRadius: R + 6, borderTopRightRadius: R + 6, borderWidth: 1, borderColor: C.line, maxHeight: '78%', paddingBottom: insets.bottom + 12 }}>
-            <View style={{ alignItems: 'center', paddingTop: 10, paddingBottom: 8 }}>
-              <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: C.glassHi }} />
-            </View>
+            <SheetHandle onClose={() => setLogOpen(false)} tint={C.glassHi} />
+            <SheetBack onClose={() => setLogOpen(false)} />
             <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingBottom: 10 }}>
               <Text style={{ color: C.text, fontSize: 16, fontWeight: '900', flex: 1 }}>{t('st_what_went_wrong')}</Text>
               <Pressable
@@ -745,7 +745,8 @@ export const SettingsScreen = ({ onClose }) => {
       {langOpen ? (
         <Pressable onPress={() => setLangOpen(false)} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end' }}>
           <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, paddingBottom: insets.bottom + 20, paddingHorizontal: 16 }}>
-            <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 14 }} />
+            <SheetHandle onClose={() => setLangOpen(false)} />
+            <SheetBack onClose={() => setLangOpen(false)} />
             <Text style={{ color: C.text, fontSize: 18, fontWeight: '900', marginBottom: 6 }}>{t('language')} 🌍</Text>
             {langs.map((l) => {
               const on = l.code === lang;

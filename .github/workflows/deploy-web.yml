@@ -109,6 +109,21 @@ jobs:
       # and the little grey bar every sheet drew was decoration.
       - name: Check a sheet closes the way the phone says
         run: node scripts/check-sheet-back.mjs
+      # A ScrollView on the web eats the tap that dismisses the
+      # keyboard, so with a field focused the first press on a button
+      # did nothing and only a long press got through. The setting does
+      # not inherit, which is why it looked random.
+      - name: Check a button works on the first tap
+        run: node scripts/check-tap.mjs
+      # The reset email was sent, the link worked, and the app dropped
+      # the token on the floor. Forgetting your password was a closed
+      # door with nothing on screen to say so.
+      - name: Check forgetting your password is not a dead end
+        run: node scripts/check-recovery.mjs
+      # "ما ينفعش يبقي اسود" — a clip with no cover drew a black box,
+      # and black reads as a video that failed.
+      - name: Check no video card is a black rectangle
+        run: node scripts/check-poster.mjs
       # The country room is content, and content rots differently from
       # code: a country added in a hurry with eight phrases and no
       # customs crashes nothing, it just quietly becomes the thin,

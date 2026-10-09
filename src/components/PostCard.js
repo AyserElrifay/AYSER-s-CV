@@ -16,6 +16,7 @@ import { tapLight, tapSuccess } from '../utils/feedback';
 import { planWhen, upForLabel } from '../constants/travel';
 import { watchLabel } from '../lib/clock';
 import { videoPolicy, DEFAULT_DATA_MODE } from '../lib/dataSaver';
+import { cachedPoster, derivePoster, posterTint, forgetPoster } from '../lib/poster';
 import { getPrefs, subscribePrefs } from '../services/prefs';
 import { CoverSheet } from './CoverSheet';
 import { getOrCreateDmThread, sendMessage } from '../services/messages';
@@ -54,6 +55,21 @@ const isVideoPost = (post) => post.type === 'vod' || post.type === 'reel';
      • a browser that refuses to autoplay, which is not an error and
        is not reported as one — the poster simply stays.                */
 const VideoBackdrop = ({ post, style, children }) => {
+  /* ── A CLIP WITH NO COVER ──────────────────────────────────────
+     "ما ينفعش يبقي اسود — خد صوره من الفديو". If the post arrived
+     without a still, one is taken from the clip itself, once ever,
+     and kept. Until it arrives the card wears a colour of its own
+     rather than black, because black reads as a video that failed
+     and nobody taps those. See src/lib/poster.js. */
+  const [derived, setDerived] = useState(() => cachedPoster(post.id));
+  useEffect(() => {
+    if (post.thumb || derived) return undefined;
+    let alive = true;
+    derivePoster(post.id, post.media).then((url) => { if (alive && url) setDerived(url); });
+    return () => { alive = false; };
+  }, [post.id, post.media, post.thumb, derived]);
+  const poster = post.thumb || derived || null;
+
   const holder = useRef(null);
   const vid = useRef(null);
   const timer = useRef(null);
@@ -62,7 +78,7 @@ const VideoBackdrop = ({ post, style, children }) => {
   const reduced = Platform.OS === 'web' && typeof window !== 'undefined' && window.matchMedia
     ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
     : false;
-  const policy = videoPolicy(mode, { hasPoster: !!post.thumb, reducedMotion: reduced });
+  const policy = videoPolicy(mode, { hasPoster: !!poster, reducedMotion: reduced });
 
   useEffect(() => {
     if (!policy.autoplay || typeof IntersectionObserver === 'undefined') return undefined;
@@ -93,14 +109,14 @@ const VideoBackdrop = ({ post, style, children }) => {
   }, [policy.autoplay, post.id]);
 
   return (
-    <View ref={holder} style={[style, { backgroundColor: '#15151B', overflow: 'hidden' }]}>
+    <View ref={holder} style={[style, { backgroundColor: posterTint(post.id), overflow: 'hidden' }]}>
       <video
         ref={vid}
         /* with a poster there is a picture from the first paint; with
            none, the fragment makes the browser draw a real frame
            instead of a black rectangle */
-        src={post.thumb ? post.media : post.media + '#t=0.1'}
-        poster={post.thumb || undefined}
+        src={poster ? post.media : post.media + '#t=0.1'}
+        poster={poster || undefined}
         muted
         loop
         playsInline
@@ -133,8 +149,11 @@ const Backdrop = ({ post, style, children }) => {
   if (still) {
     return <ImageBackground source={{ uri: still }} style={style}>{children}</ImageBackground>;
   }
+  /* the last resort — a clip with no still, on a platform that cannot
+     take one from the file. A colour of its own rather than black:
+     black reads as a video that failed, and nobody taps those. */
   return (
-    <View style={[style, { backgroundColor: '#15151B', overflow: 'hidden' }]}>{children}</View>
+    <View style={[style, { backgroundColor: posterTint(post.id), overflow: 'hidden' }]}>{children}</View>
   );
 };
 
@@ -406,7 +425,7 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
           videoUrl={post.media}
           current={post.thumb}
           onClose={() => setCoverOpen(false)}
-          onChoose={(dataUrl) => onSetCover(post, dataUrl)}
+          onChoose={(dataUrl) => { forgetPoster(post.id); onSetCover(post, dataUrl); }}
         />
       ) : null}
 

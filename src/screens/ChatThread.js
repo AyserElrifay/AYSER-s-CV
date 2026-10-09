@@ -36,6 +36,7 @@ import { setupNotice } from '../lib/plumbing';
 
 /* Fetched when it is opened, not when the app starts. */
 import { lazyOverlay } from '../lib/lazyScreen';
+import { SheetHandle, SheetBack } from '../components/SheetHandle';
 
 /* Fetched when it is opened, not when the app starts. */
 const GameRunner = lazyOverlay(() => import('../components/GameRunner').then((m) => ({ default: m.GameRunner })));
@@ -937,7 +938,8 @@ export const ChatThread = ({ chat, group, onClose }) => {
         <Modal visible transparent animationType="fade" onRequestClose={() => setSplitOn(false)}>
           <Pressable onPress={() => setSplitOn(false)} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
             <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: insets.bottom + 22 }}>
-              <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 14 }} />
+              <SheetHandle onClose={() => setSplitOn(false)} />
+              <SheetBack onClose={() => setSplitOn(false)} />
               <Text style={{ color: C.text, fontSize: 18, fontWeight: '900' }}>{t('split_sheet_title')}</Text>
               <Text style={{ color: C.faint, fontSize: 12, marginTop: 3, marginBottom: 14 }}>{t('split_sheet_hint')}</Text>
 

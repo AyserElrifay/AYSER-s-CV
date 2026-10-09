@@ -27,6 +27,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import * as ImagePicker from 'expo-image-picker';
 import { C, R, TEXT_BGS } from '../constants/theme';
+import { cachedPoster, derivePoster, posterTint } from '../lib/poster';
 import { ME, HIGHLIGHTS, MY_MOMENTS, BADGES, av, AV_NEUTRAL } from '../constants/mockData'; // demo-mode fallback only
 import { COUNTRY_LIST } from '../constants/countries';
 
@@ -71,6 +72,7 @@ import { setupNotice } from '../lib/plumbing';
 
 /* Fetched when it is opened, not when the app starts. */
 import { lazyOverlay } from '../lib/lazyScreen';
+import { SheetHandle, SheetBack } from '../components/SheetHandle';
 const CommentsSheet = lazyOverlay(() => import('../components/CommentsSheet').then((m) => ({ default: m.CommentsSheet })));
 const ReelsViewer = lazyOverlay(() => import('../components/ReelsViewer').then((m) => ({ default: m.ReelsViewer })));
 const LikersSheet = lazyOverlay(() => import('../components/LikersSheet').then((m) => ({ default: m.LikersSheet })));
@@ -100,6 +102,15 @@ const Stat = ({ n, label, onPress }) => (
 );
 
 const GridCell = ({ item }) => {
+  const [derived, setDerived] = useState(() => cachedPoster(item.id));
+  const needs = !item.text && !item.thumb && item.kind === 'reel' && !!item.media;
+  useEffect(() => {
+    if (!needs || derived) return undefined;
+    let alive = true;
+    derivePoster(item.id, item.media).then((url) => { if (alive && url) setDerived(url); });
+    return () => { alive = false; };
+  }, [needs, derived, item.id, item.media]);
+
   if (item.text) {
     const bg = TEXT_BGS[item.textBg] || TEXT_BGS.plain;
     return (
@@ -133,17 +144,22 @@ const GridCell = ({ item }) => {
      their own still now; one that predates that gets a dark tile with a
      play mark on it, which at least reads as a video rather than as a
      hole in the grid. */
-  const still = item.thumb || (item.kind === 'reel' ? null : item.media);
+  /* A clip that came without a still used to leave a near-black tile
+     with a play mark on it, and a grid of those is what "الفديوهات ...
+     لونها اسود" actually looks like. One is taken from the clip
+     itself now, once ever — see src/lib/poster.js — and until it
+     arrives the tile wears a colour of its own rather than black. */
+  const still = item.thumb || derived || (item.kind === 'reel' ? null : item.media);
   if (!still) {
     return (
-      <View style={{ width: SIZE, height: SIZE, backgroundColor: '#1B1B21', alignItems: 'center', justifyContent: 'center' }}>
-        <MaterialCommunityIcons name="play-circle-outline" size={26} color="rgba(255,255,255,0.55)" />
+      <View style={{ width: SIZE, height: SIZE, backgroundColor: posterTint(item.id), alignItems: 'center', justifyContent: 'center' }}>
+        <MaterialCommunityIcons name="play-circle-outline" size={26} color="rgba(255,255,255,0.72)" />
       </View>
     );
   }
   return (
     <View style={{ width: SIZE, height: SIZE }}>
-      <Image source={{ uri: still }} style={{ width: SIZE, height: SIZE, backgroundColor: '#1B1B21' }} />
+      <Image source={{ uri: still }} style={{ width: SIZE, height: SIZE, backgroundColor: posterTint(item.id) }} />
       {item.kind === 'reel' ? (
         <MaterialCommunityIcons name="play-box-outline" size={16} color="#fff" style={{ position: 'absolute', top: 6, right: 6, textShadowColor: 'rgba(0,0,0,0.4)', textShadowRadius: 3 }} />
       ) : null}
@@ -567,6 +583,30 @@ export const ProfileScreen = () => {
     if (SUPABASE_READY && user) { try { await updatePost(post.id, user.id, { caption: newCaption }); } catch (e) {} }
   };
 
+  /* ── CHANGING A VIDEO'S COVER, FROM YOUR OWN PROFILE ──────────────
+     "خلي في اوبشن الي نزل الفديو يقدر يعدل". This option existed only
+     in the home feed, which is the one place you are least likely to
+     be looking at your own old clip. Your own grid is where you go to
+     fix it, so it is here too.
+
+     The picture changes the instant it is chosen; the upload follows.
+     A cover you picked should not wait on the network to appear. */
+  const onSetCover = async (post, dataUrl) => {
+    if (!dataUrl) return;
+    setMyMoments((list) => list.map((r) => (r.id === post.id ? { ...r, thumb_url: dataUrl } : r)));
+    setViewMoment((v) => (v && v.id === post.id ? { ...v, thumb: dataUrl } : v));
+    if (!SUPABASE_READY || !user) return;
+    try {
+      const url = await uploadCapture(user.id, dataUrl, 'jpg', 'image/jpeg');
+      await updatePost(post.id, user.id, { thumb_url: url });
+      setMyMoments((list) => list.map((r) => (r.id === post.id ? { ...r, thumb_url: url } : r)));
+      setViewMoment((v) => (v && v.id === post.id ? { ...v, thumb: url } : v));
+    } catch (e) {
+      /* the one they chose stays on screen until the next load — the
+         gentler of the two lies available here */
+    }
+  };
+
   const moments = SUPABASE_READY ? myMoments.length : ME.moments;
   const mates = SUPABASE_READY ? matesCount : ME.mates; // real accepted mates (schema_v8)
   const campfires = SUPABASE_READY ? campfiresHosted : ME.campfires;
@@ -651,7 +691,8 @@ export const ProfileScreen = () => {
         {coverPickerOpen ? (
           <Pressable onPress={() => setCoverPickerOpen(false)} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end', zIndex: 40 }}>
             <Pressable onPress={() => {}} style={{ backgroundColor: C.bg2, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 18, paddingBottom: insets.bottom + 22 }}>
-              <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 14 }} />
+              <SheetHandle onClose={() => setCoverPickerOpen(false)} />
+              <SheetBack onClose={() => setCoverPickerOpen(false)} />
               <Text style={{ color: C.text, fontSize: 16, fontWeight: '900', marginBottom: 12 }}>{t('your_cover')}</Text>
 
               <Pressable onPress={() => { setCoverPickerOpen(false); changeCover(); }}>
@@ -972,7 +1013,8 @@ export const ProfileScreen = () => {
             style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '90%' }}
             contentContainerStyle={{ paddingTop: 10, paddingBottom: insets.bottom + 22, paddingHorizontal: 16 }}
           >
-            <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 12 }} />
+            <SheetHandle onClose={() => setEditOpen(false)} />
+            <SheetBack onClose={() => setEditOpen(false)} />
             <Text style={{ color: C.text, fontSize: 18, fontWeight: '900', marginBottom: 12 }}>{t('edit_space')}</Text>
 
             {/* tap to change your profile photo */}
@@ -1105,7 +1147,8 @@ export const ProfileScreen = () => {
       {menu ? (
         <Pressable onPress={() => setMenu(false)} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end' }}>
           <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, paddingBottom: insets.bottom + 18, paddingHorizontal: 16 }}>
-            <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 10 }} />
+            <SheetHandle onClose={() => setMenu(false)} />
+            <SheetBack onClose={() => setMenu(false)} />
 
             {/* account type switch — includes Artist & Musician creator types */}
             <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', letterSpacing: 1, marginBottom: 8, marginTop: 4 }}>{t('account_type')}</Text>
@@ -1212,7 +1255,8 @@ export const ProfileScreen = () => {
       {fbOpen ? (
         <Pressable onPress={() => setFbOpen(false)} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }}>
           <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 12, paddingBottom: insets.bottom + 20, paddingHorizontal: 16 }}>
-            <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 12 }} />
+            <SheetHandle onClose={() => setFbOpen(false)} />
+            <SheetBack onClose={() => setFbOpen(false)} />
             {fbDone ? (
               <View style={{ alignItems: 'center', paddingVertical: 30 }}>
                 <Text style={{ fontSize: 34 }}>💛</Text>
@@ -1256,7 +1300,8 @@ export const ProfileScreen = () => {
       {verifQueue != null ? (
         <Pressable onPress={() => setVerifQueue(null)} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end' }}>
           <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 12, paddingBottom: insets.bottom + 20, paddingHorizontal: 16, maxHeight: '70%' }}>
-            <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 12 }} />
+            <SheetHandle onClose={() => setVerifQueue(null)} />
+            <SheetBack onClose={() => setVerifQueue(null)} />
             <Text style={{ color: C.text, fontSize: 16, fontWeight: '900', marginBottom: 10 }}>{t('verification_requests')}</Text>
             <ScrollView keyboardShouldPersistTaps="handled">
               {verifQueue.length === 0 ? (
@@ -1286,7 +1331,8 @@ export const ProfileScreen = () => {
       {adsOpen ? (
         <Pressable onPress={() => setAdsOpen(false)} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end' }}>
           <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, paddingBottom: insets.bottom + 22, paddingHorizontal: 16 }}>
-            <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 12 }} />
+            <SheetHandle onClose={() => setAdsOpen(false)} />
+            <SheetBack onClose={() => setAdsOpen(false)} />
             <Text style={{ color: C.text, fontSize: 18, fontWeight: '900' }}>{t('ads_manager_title')}</Text>
             <Text style={{ color: C.faint, fontSize: 12, marginTop: 2, marginBottom: 14 }}>{t('ads_manager_hint')}</Text>
 
@@ -1312,7 +1358,8 @@ export const ProfileScreen = () => {
       {dash ? (
         <Pressable onPress={() => setDash(false)} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end' }}>
           <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, paddingBottom: insets.bottom + 22, paddingHorizontal: 16 }}>
-            <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 12 }} />
+            <SheetHandle onClose={() => setDash(false)} />
+            <SheetBack onClose={() => setDash(false)} />
             <Text style={{ color: C.text, fontSize: 18, fontWeight: '900' }}>{t('dashboard')}</Text>
             <Text style={{ color: C.faint, fontSize: 12, marginTop: 2, marginBottom: 14 }}>{category} · {t('your_real_numbers')}</Text>
             <View style={{ flexDirection: 'row', marginBottom: 12 }}>
@@ -1347,6 +1394,7 @@ export const ProfileScreen = () => {
                 reposted={!!myReposts[viewMoment.id]}
                 onDelete={deleteMoment}
                 onEdit={editMoment}
+                onSetCover={onSetCover}
                 onComment={() => setCommentsPost(viewMoment)}
                 onOpenProfile={() => {}}
                 onOpenReel={() => {}}

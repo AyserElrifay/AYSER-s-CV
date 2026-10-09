@@ -52,6 +52,7 @@ import { setupNotice } from '../lib/plumbing';
 
 /* Fetched when it is opened, not when the app starts. */
 import { lazyOverlay } from '../lib/lazyScreen';
+import { SheetHandle, SheetBack } from '../components/SheetHandle';
 const ProfileModal = lazyOverlay(() => import('../components/ProfileModal').then((m) => ({ default: m.ProfileModal })));
 const CountrySheet = lazyOverlay(() => import('../components/CountrySheet').then((mod) => ({ default: mod.CountrySheet })));
 
@@ -1416,7 +1417,8 @@ export const MapScreen = () => {
       {sheet === 'nearby' ? (
         <Pressable onPress={closeSheet} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end', zIndex: 30 }}>
           <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, paddingBottom: insets.bottom + 20, paddingHorizontal: 16, maxHeight: '70%' }}>
-            <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 12 }} />
+            <SheetHandle onClose={closeSheet} />
+            <SheetBack onClose={closeSheet} />
             <Text style={{ color: C.text, fontSize: 18, fontWeight: '900' }}>{t('nearby_people')}</Text>
             <Text style={{ color: C.faint, fontSize: 12, marginTop: 2, marginBottom: 10 }}>
               {SUPABASE_READY ? 'People sharing their activity right now' : 'Mates & explorers around you right now'}
@@ -1485,7 +1487,8 @@ export const MapScreen = () => {
       {sheet === 'doing' ? (
         <Pressable onPress={closeSheet} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end', zIndex: 30 }}>
           <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, paddingBottom: insets.bottom + 22, paddingHorizontal: 16 }}>
-            <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 12 }} />
+            <SheetHandle onClose={closeSheet} />
+            <SheetBack onClose={closeSheet} />
             <Text style={{ color: C.text, fontSize: 18, fontWeight: '900' }}>{t('whats_up_q')} </Text>
             <Text style={{ color: C.faint, fontSize: 12, marginTop: 2, marginBottom: 14 }}>
               {SUPABASE_READY && !hasLocationPerm
@@ -1517,7 +1520,8 @@ export const MapScreen = () => {
       {sheet === 'drop' ? (
         <Pressable onPress={closeSheet} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end', zIndex: 30 }}>
           <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, paddingBottom: insets.bottom + 22, paddingHorizontal: 16 }}>
-            <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 12 }} />
+            <SheetHandle onClose={closeSheet} />
+            <SheetBack onClose={closeSheet} />
             <Text style={{ color: C.text, fontSize: 18, fontWeight: '900' }}>{t('drop_note')}</Text>
             <Text style={{ color: C.faint, fontSize: 12, marginTop: 2, marginBottom: 12 }}>
               {t('note_explain')}
@@ -1556,7 +1560,8 @@ export const MapScreen = () => {
       {noteOpen ? (
         <Pressable onPress={() => setNoteOpen(null)} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end', zIndex: 31 }}>
           <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, paddingBottom: insets.bottom + 22, paddingHorizontal: 16 }}>
-            <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 14 }} />
+            <SheetHandle onClose={() => setNoteOpen(null)} />
+            <SheetBack onClose={() => setNoteOpen(null)} />
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
               <Image source={{ uri: (noteOpen.user && noteOpen.user.avatar_url) || AV_NEUTRAL }} style={{ width: 40, height: 40, borderRadius: 20 }} />
               <View style={{ marginLeft: 11 }}>
@@ -1587,7 +1592,8 @@ export const MapScreen = () => {
       {noteEdit ? (
         <Pressable onPress={() => setNoteEdit(null)} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end', zIndex: 32 }}>
           <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, paddingBottom: insets.bottom + 22, paddingHorizontal: 16 }}>
-            <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 12 }} />
+            <SheetHandle onClose={() => setNoteEdit(null)} />
+            <SheetBack onClose={() => setNoteEdit(null)} />
             <Text style={{ color: C.text, fontSize: 18, fontWeight: '900', marginBottom: 10 }}>{t('edit_note')}</Text>
             <TextInput value={noteEditBody} onChangeText={setNoteEditBody} multiline
               style={{ color: C.text, fontSize: 14, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 12, marginBottom: 12, minHeight: 60, textAlignVertical: 'top' }} />
@@ -1617,7 +1623,8 @@ export const MapScreen = () => {
       {eventOpen ? (
         <Pressable onPress={() => setEventOpen(null)} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end', zIndex: 31 }}>
           <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, paddingBottom: insets.bottom + 22, paddingHorizontal: 16 }}>
-            <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 14 }} />
+            <SheetHandle onClose={() => setEventOpen(null)} />
+            <SheetBack onClose={() => setEventOpen(null)} />
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <View style={{ width: 52, height: 52, borderRadius: 16, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
                 <Text style={{ fontSize: 26 }}>{eventOpen.emoji}</Text>
@@ -1642,7 +1649,8 @@ export const MapScreen = () => {
       {fireManage ? (
         <Pressable onPress={() => setFireManage(null)} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end', zIndex: 32 }}>
           <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, paddingBottom: insets.bottom + 22, paddingHorizontal: 16 }}>
-            <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 12 }} />
+            <SheetHandle onClose={() => setFireManage(null)} />
+            <SheetBack onClose={() => setFireManage(null)} />
             <Text style={{ color: C.text, fontSize: 18, fontWeight: '900', marginBottom: 10 }}>{t('manage_campfire')}</Text>
             <TextInput value={fireTitle} onChangeText={setFireTitle} placeholder={t('title_placeholder')} placeholderTextColor={C.faint}
               style={{ color: C.text, fontSize: 14, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 12, marginBottom: 12 }} />
@@ -1677,7 +1685,8 @@ export const MapScreen = () => {
       {sheet === 'partner' ? (
         <Pressable onPress={closeSheet} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end', zIndex: 30 }}>
           <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, paddingBottom: insets.bottom + 22, paddingHorizontal: 16 }}>
-            <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 12 }} />
+            <SheetHandle onClose={closeSheet} />
+            <SheetBack onClose={closeSheet} />
             {partnerSent ? (
               <View style={{ alignItems: 'center', paddingVertical: 14 }}>
                 <Text style={{ fontSize: 34 }}>🎉</Text>
@@ -1752,7 +1761,8 @@ export const MapScreen = () => {
       {placeOpen ? (
         <Pressable onPress={() => setPlaceOpen(null)} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end', zIndex: 30 }}>
           <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, paddingBottom: insets.bottom + 22, paddingHorizontal: 16 }}>
-            <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 14 }} />
+            <SheetHandle onClose={() => setPlaceOpen(null)} />
+            <SheetBack onClose={() => setPlaceOpen(null)} />
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <View style={{ width: 52, height: 52, borderRadius: 16, backgroundColor: 'rgba(245,158,11,0.12)', borderWidth: 1, borderColor: 'rgba(245,158,11,0.4)', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
                 <Text style={{ fontSize: 26 }}>{placeOpen.emoji}</Text>
@@ -1835,7 +1845,8 @@ export const MapScreen = () => {
       {destOpen ? (
         <Pressable onPress={() => setDestOpen(null)} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end', zIndex: 30 }}>
           <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, maxHeight: '82%' }}>
-            <View style={{ alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: C.line, marginBottom: 10 }} />
+            <SheetHandle onClose={() => setDestOpen(null)} />
+            <SheetBack onClose={() => setDestOpen(null)} />
             <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 22 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <View style={{ width: 56, height: 56, borderRadius: 18, backgroundColor: 'rgba(245,179,1,0.14)', borderWidth: 1.5, borderColor: 'rgba(245,179,1,0.5)', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
