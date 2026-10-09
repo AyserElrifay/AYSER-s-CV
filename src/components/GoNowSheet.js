@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, Pressable, Modal, TextInput, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { C } from '../constants/theme';
 import { useLang } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
@@ -13,6 +12,7 @@ import { flagToIso } from '../lib/together';
 import { lookOf } from '../lib/activityPins';
 import { showOnMap } from '../lib/mapBus';
 import { useSheetBack } from '../hooks/useSheetBack';
+import { SheetHandle } from './SheetHandle';
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
 
 /* ─── GO OUT NOW ──────────────────────────────────────────────────────
@@ -46,6 +46,7 @@ export const GoNowSheet = ({ onClose, initialKind, initialTitle }) => {
   const [place, setPlace] = useState('');
   const [country, setCountry] = useState(null);
   const [state, setState] = useState(null);     // null | 'busy' | { told, id, lat, lng } | { err }
+  const [more, setMore] = useState(!!initialTitle);   // note and place, folded away
 
   useEffect(() => {
     if (!user) return;
@@ -68,85 +69,92 @@ export const GoNowSheet = ({ onClose, initialKind, initialTitle }) => {
 
   const done = state && state.id;
   const look = lookOf(kind);
+  const whenLabel = (m) => (m === 0 ? t('gn_now') : m < 60 ? t('gn_m30') : m === 60 ? t('gn_h1') : t('gn_h2'));
 
+  /* ── THE LOOK ── Swiss and quiet: one accent, big type, air. One tap
+     for what, one for when, one to go. A note and a place exist but stay
+     folded until asked for — most people never need them. */
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable onPress={onClose} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' }}>
-        <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: 20, paddingBottom: insets.bottom + 22 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 14 }}>
-            <Text style={{ color: C.text, fontSize: 22, fontWeight: '900', flex: 1 }}>{t('gn_title')}</Text>
-            <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button" accessibilityLabel={t('close')}
-              style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: C.glassHi, alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name="close" size={18} color={C.text} />
+      <Pressable onPress={onClose} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }}>
+        <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 24, paddingTop: 12, paddingBottom: insets.bottom + 24 }}>
+          <SheetHandle onClose={onClose} />
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={{ color: C.text, fontSize: 30, fontWeight: '900', letterSpacing: -0.6 }}>{done ? t('gn_live') : t('gn_heading')}</Text>
+              <Text style={{ color: C.dim, fontSize: 15, marginTop: 6 }}>
+                {done ? (state.told > 0 ? t('gn_told').replace('{n}', String(state.told)) : t('gn_told_none')) : t('gn_sub')}
+              </Text>
+            </View>
+            <Pressable onPress={onClose} hitSlop={12} accessibilityRole="button" accessibilityLabel={t('close')} style={{ paddingTop: 6, paddingStart: 12 }}>
+              <Ionicons name="close" size={24} color={C.faint} />
             </Pressable>
           </View>
 
           {done ? (
-            <View style={{ alignItems: 'center', paddingVertical: 10 }}>
-              <LinearGradient colors={[look.from, look.to]} style={{ width: 76, height: 76, borderRadius: 24, alignItems: 'center', justifyContent: 'center', transform: [{ rotate: '-5deg' }] }}>
-                <Text style={{ fontSize: 38 }}>{look.emoji}</Text>
-              </LinearGradient>
-              <Text style={{ color: C.text, fontSize: 19, fontWeight: '900', marginTop: 14, textAlign: 'center' }}>{t('gn_live')}</Text>
-              <Text style={{ color: C.dim, fontSize: 14, marginTop: 6, textAlign: 'center', lineHeight: 20 }}>
-                {state.told > 0 ? t('gn_told').replace('{n}', String(state.told)) : t('gn_told_none')}
-              </Text>
-              <Pressable onPress={() => { tapLight(); onClose(); showOnMap({ lat: state.lat, lng: state.lng }); }} style={{ marginTop: 18, alignSelf: 'stretch' }}>
-                <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingVertical: 15, alignItems: 'center' }}>
-                  <Text style={{ color: '#FFF', fontSize: 15.5, fontWeight: '900' }}>{t('show_on_map')}</Text>
-                </View>
-              </Pressable>
-            </View>
+            <Pressable onPress={() => { tapLight(); onClose(); showOnMap({ lat: state.lat, lng: state.lng }); }} accessibilityRole="button"
+              style={{ marginTop: 32, backgroundColor: C.purple, borderRadius: 18, paddingVertical: 18, alignItems: 'center' }}>
+              <Text style={{ color: '#FFF', fontSize: 17, fontWeight: '800' }}>{t('show_on_map')}</Text>
+            </Pressable>
           ) : (
             <>
-              <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '900', letterSpacing: 1.1, marginBottom: 8 }}>{t('gn_what')}</Text>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 6 }}>
+              {/* what — five big squares, one row */}
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 28 }}>
                 {KINDS.map((k) => {
                   const on = kind === k.id; const l = lookOf(k.id);
                   return (
-                    <Pressable key={k.id} onPress={() => { tapLight(); setKind(k.id); }} style={{ marginEnd: 8, marginBottom: 8 }} accessibilityRole="radio" accessibilityState={{ checked: on }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, paddingHorizontal: 13, paddingVertical: 9, borderWidth: 1.5, borderColor: on ? l.from : C.line, backgroundColor: on ? C.glassHi : C.glass }}>
-                        <Text style={{ fontSize: 16 }}>{l.emoji}</Text>
-                        <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '900', marginStart: 6 }}>{t(k.key)}</Text>
+                    <Pressable key={k.id} onPress={() => { tapLight(); setKind(k.id); }} accessibilityRole="radio" accessibilityState={{ checked: on }} accessibilityLabel={t(k.key)} style={{ alignItems: 'center', width: '19%' }}>
+                      <View style={{ width: '100%', aspectRatio: 1, maxWidth: 64, borderRadius: 18, alignItems: 'center', justifyContent: 'center',
+                        backgroundColor: on ? C.purple : C.glassHi }}>
+                        <Text style={{ fontSize: 26 }}>{l.emoji}</Text>
                       </View>
+                      <Text style={{ color: on ? C.text : C.faint, fontSize: 11.5, fontWeight: on ? '800' : '600', marginTop: 7, textAlign: 'center' }} numberOfLines={2}>{t(k.key)}</Text>
                     </Pressable>
                   );
                 })}
               </View>
 
-              <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '900', letterSpacing: 1.1, marginBottom: 8, marginTop: 4 }}>{t('gn_when')}</Text>
-              <View style={{ flexDirection: 'row', marginBottom: 12 }}>
+              {/* when — one segmented control */}
+              <View style={{ flexDirection: 'row', backgroundColor: C.glassHi, borderRadius: 14, padding: 4, marginTop: 26 }}>
                 {WHEN.map((m) => {
                   const on = inMin === m;
                   return (
-                    <Pressable key={m} onPress={() => { tapLight(); setInMin(m); }} style={{ flex: 1, marginEnd: m === 120 ? 0 : 8 }} accessibilityRole="radio" accessibilityState={{ checked: on }}>
-                      <View style={{ alignItems: 'center', borderRadius: 14, paddingVertical: 11, borderWidth: 1.5, borderColor: on ? C.purple : C.line, backgroundColor: on ? C.purpleSoft : C.glass }}>
-                        <Text style={{ color: C.text, fontSize: 13, fontWeight: '900' }}>{m === 0 ? t('gn_now') : t('gn_in').replace('{n}', String(m))}</Text>
-                      </View>
+                    <Pressable key={m} onPress={() => { tapLight(); setInMin(m); }} accessibilityRole="radio" accessibilityState={{ checked: on }}
+                      style={{ flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 11, backgroundColor: on ? C.bg : 'transparent',
+                        shadowColor: '#000', shadowOpacity: on ? 0.08 : 0, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } }}>
+                      <Text style={{ color: on ? C.text : C.dim, fontSize: 14, fontWeight: on ? '800' : '600' }}>{whenLabel(m)}</Text>
                     </Pressable>
                   );
                 })}
               </View>
 
-              <TextInput value={title} onChangeText={setTitle} placeholder={t('gn_title_' + kind)} placeholderTextColor={C.faint}
-                style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 14, color: C.text, paddingHorizontal: 14, paddingVertical: 12, fontSize: 14.5, marginBottom: 9 }} />
-              <TextInput value={place} onChangeText={setPlace} placeholder={t('gn_place')} placeholderTextColor={C.faint}
-                style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 14, color: C.text, paddingHorizontal: 14, paddingVertical: 12, fontSize: 14.5 }} />
+              {/* details — folded */}
+              {more ? (
+                <View style={{ marginTop: 18 }}>
+                  <TextInput value={title} onChangeText={setTitle} placeholder={t('gn_title_' + kind)} placeholderTextColor={C.faint}
+                    style={{ borderBottomWidth: 1, borderBottomColor: C.line, color: C.text, paddingVertical: 12, fontSize: 16 }} />
+                  <TextInput value={place} onChangeText={setPlace} placeholder={t('gn_place')} placeholderTextColor={C.faint}
+                    style={{ borderBottomWidth: 1, borderBottomColor: C.line, color: C.text, paddingVertical: 12, fontSize: 16 }} />
+                </View>
+              ) : (
+                <Pressable onPress={() => { tapLight(); setMore(true); }} accessibilityRole="button" style={{ marginTop: 18, alignSelf: 'flex-start' }}>
+                  <Text style={{ color: C.dim, fontSize: 14, fontWeight: '700' }}>+ {t('gn_add_note')}</Text>
+                </Pressable>
+              )}
 
-              <Text style={{ color: C.faint, fontSize: 12, lineHeight: 17, marginTop: 10 }}>{t('gn_note')}</Text>
               {state && state.err ? (
-                <Text style={{ color: C.coral, fontSize: 13, fontWeight: '800', marginTop: 8 }}>
+                <Text style={{ color: C.coral, fontSize: 13.5, fontWeight: '700', marginTop: 14 }}>
                   {state.err === 'no_location' ? t('gn_err_loc') : t('lamma_offline')}
                 </Text>
               ) : null}
 
-              <Pressable onPress={go} disabled={state === 'busy'} style={{ marginTop: 14 }} accessibilityRole="button">
-                <LinearGradient colors={[look.from, look.to]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                  style={{ borderRadius: 999, paddingVertical: 16, alignItems: 'center', flexDirection: 'row', justifyContent: 'center' }}>
-                  {state === 'busy' ? <ActivityIndicator color="#FFF" /> : (
-                    <Text style={{ color: '#FFF', fontSize: 16.5, fontWeight: '900' }}>{look.emoji + '  ' + t('gn_go')}</Text>
-                  )}
-                </LinearGradient>
+              <Pressable onPress={go} disabled={state === 'busy'} accessibilityRole="button"
+                style={{ marginTop: 26, backgroundColor: C.purple, borderRadius: 18, paddingVertical: 18, alignItems: 'center', opacity: state === 'busy' ? 0.7 : 1 }}>
+                {state === 'busy' ? <ActivityIndicator color="#FFF" /> : (
+                  <Text style={{ color: '#FFF', fontSize: 17, fontWeight: '800' }}>{t('gn_go_short').replace('{what}', (title.trim() || t(KINDS.find((k) => k.id === kind).key)))}</Text>
+                )}
               </Pressable>
+              <Text style={{ color: C.faint, fontSize: 12, textAlign: 'center', marginTop: 12 }}>{t('gn_fine')}</Text>
             </>
           )}
         </Pressable>
