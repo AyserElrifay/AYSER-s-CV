@@ -167,6 +167,9 @@ jobs:
       # Talk rooms: anchored, time-boxed, small, ending in a real meetup.
       - name: Check talk rooms
         run: node scripts/check-talk-rooms.mjs
+      # Chats: coming plans first, last week's folded away.
+      - name: Check the chats list
+        run: node scripts/check-chat-list.mjs
       # No signal must not mean no app.
       - name: Check the app works offline
         run: node scripts/check-offline.mjs

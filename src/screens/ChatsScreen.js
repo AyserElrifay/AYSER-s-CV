@@ -40,8 +40,15 @@ import { SheetHandle, SheetBack } from '../components/SheetHandle';
 /* opened from here and from Together — lazy in both, so it stays its
    own download instead of joining everybody's first one */
 import { takeChat, onOpenChat } from '../lib/chatBus';
+import { splitChats } from '../lib/chatList';
+import { lookOf, titleFor, whenFor } from '../lib/activityPins';
 const ProgrammesSheet = lazyOverlay(() => import('../components/green/ProgrammesSheet').then((m) => ({ default: m.ProgrammesSheet })));
 const CaptureModal = lazyOverlay(() => import('../components/CaptureModal').then((m) => ({ default: m.CaptureModal })));
+
+/* one rounded box of rows, hairlines between — the chats list's only container */
+const ChatBox = ({ children }) => (
+  <View style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 18, overflow: 'hidden', marginBottom: 18 }}>{children}</View>
+);
 
 /* ─────────────────── TAB 5 · CHATS — CONNECTIONS ─────────────────────
    Real mode: your actual DM threads, actual squads you've joined, and
@@ -122,7 +129,7 @@ export const ChatsScreen = () => {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { isOnline } = usePresence(); // real-time — a live Supabase Presence connection
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const [thread, setThread] = useState(null); // { chat, group }
   const [composing, setComposing] = useState(false); // new-message search sheet
   const [albumOpen, setAlbumOpen] = useState(false);  // the Green Minds album
@@ -325,6 +332,8 @@ export const ChatsScreen = () => {
 
   // ── invite mates into a squad — a real membership row per person ──
   const [inviteSquad, setInviteSquad] = useState(null); // the squad you're adding people to
+  const [rowMenu, setRowMenu] = useState(null);          // a held row: invite or leave
+  const [pastOpen, setPastOpen] = useState(false);
   const [invited, setInvited] = useState({});           // { mateId: true } — just-added this session
   const [members, setMembers] = useState({});           // { mateId: true } — already in the squad (persisted)
   const [inviteErr, setInviteErr] = useState(null);
@@ -470,9 +479,9 @@ export const ChatsScreen = () => {
         What is left on this screen: the people you are talking to. */}
 
     {dms.length ? <SectionHeader title={t('direct_label')} /> : null}
-    {dms.length ? dms.map((d) => (
+    {dms.length ? <ChatBox>{dms.map((d, di) => (
       <Pressable key={d.id} onPress={() => { tapLight(); markThreadSeen(d.threadId); setThread({ chat: d, group: false }); }}>
-        <Glass style={{ padding: 12, marginBottom: 10, flexDirection: 'row', alignItems: 'center' }}>
+        <View style={{ paddingVertical: 11, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', borderBottomWidth: di === dms.length - 1 ? 0 : 1, borderBottomColor: C.line }}>
           <View>
             {d.user.avatar ? (
               <Image source={{ uri: d.user.avatar }} style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: C.glassHi }} />
@@ -531,9 +540,9 @@ export const ChatsScreen = () => {
               <View style={{ marginTop: 8, width: 9, height: 9, borderRadius: 5, backgroundColor: C.purple }} />
             ) : null}
           </View>
-        </Glass>
+        </View>
       </Pressable>
-    )) : null}
+    ))}</ChatBox> : null}
 
     {/* ── NOTHING HERE YET ─────────────────────────────────────────────
         One invitation, not three apologies. An empty inbox used to be
@@ -631,7 +640,7 @@ export const ChatsScreen = () => {
               style={{ alignItems: 'center', marginRight: 14, width: 64 }}
             >
               <View>
-                <Image source={{ uri: m.avatar_url || AV_NEUTRAL }} style={{ width: 56, height: 56, borderRadius: 28, borderWidth: 2, borderColor: C.purple }} />
+                <Image source={{ uri: m.avatar_url || AV_NEUTRAL }} style={{ width: 56, height: 56, borderRadius: 28, borderWidth: 1, borderColor: C.line }} />
                 {isOnline(m.id) ? <OnlineDot size={15} /> : m.country_flag ? (
                   <View style={{ position: 'absolute', bottom: -2, right: -3, backgroundColor: '#FFF', borderRadius: 8, paddingHorizontal: 2 }}>
                     <Text style={{ fontSize: 11 }}>{m.country_flag}</Text>
@@ -687,9 +696,7 @@ export const ChatsScreen = () => {
         <SectionHeader title={t('squads_label')} />
         {SUPABASE_READY ? (
           <Pressable onPress={() => { tapLight(); setSquadCreating((v) => !v); setSquadErr(null); }} hitSlop={8}>
-            <View style={{ backgroundColor: C.purpleSoft, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 }}>
-              <Text style={{ color: C.purple, fontSize: 12, fontWeight: '900' }}>{squadCreating ? t('close_x') : t('new_squad')}</Text>
-            </View>
+            <Text style={{ color: C.text, fontSize: 13, fontWeight: '800' }}>{squadCreating ? t('close_x') : t('new_squad')}</Text>
           </Pressable>
         ) : null}
       </View>
@@ -719,59 +726,74 @@ export const ChatsScreen = () => {
         </Pressable>
       </Glass>
     ) : null}
-    {squads.length ? squads.map((s) => (
-      <Pressable key={s.id} onPress={() => { tapLight(); setThread({ chat: s, group: true }); }}>
-        <Glass tint={C.blueSoft} border="rgba(59,130,246,0.35)" style={{ padding: 14, marginBottom: 12 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            {s.avatar_url ? (
-              <Image source={{ uri: s.avatar_url }} style={{ width: 46, height: 46, borderRadius: 15, marginRight: 12 }} />
+    {/* ── PLANS AND GROUPS ── one quiet list, like a phone's own
+        messages: no buttons on the rows. Hold a row to invite or leave.
+        Coming plans first, soonest on top; finished ones folded away
+        (src/lib/chatList.js). */}
+    {squads.length ? (() => {
+      const { coming, groups, past } = splitChats(squads);
+      const Row = (sq, last) => {
+        const p = sq.plan;
+        const look = p ? lookOf(p.kind) : null;
+        const sub = p ? [whenFor(p.starts_at, lang), p.place_name].filter(Boolean).join(' · ') : (sq.last || '');
+        return (
+          <Pressable key={sq.id}
+            onPress={() => { tapLight(); setThread({ chat: { ...sq, name: titleFor(sq.name, lang) }, group: true }); }}
+            onLongPress={() => { tapSelection(); setRowMenu(sq); }}
+            delayLongPress={350}
+            accessibilityRole="button" accessibilityHint={t('ch_hold_hint')}
+            style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 11, paddingHorizontal: 14, borderBottomWidth: last ? 0 : 1, borderBottomColor: C.line }}>
+            {sq.avatar_url ? (
+              <Image source={{ uri: sq.avatar_url }} style={{ width: 42, height: 42, borderRadius: 21 }} />
             ) : (
-              <View style={{ width: 46, height: 46, borderRadius: 15, backgroundColor: 'rgba(59,130,246,0.18)', borderWidth: 1, borderColor: 'rgba(59,130,246,0.4)', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
-                <Text style={{ fontSize: 22 }}>{s.emoji}</Text>
+              <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: look ? look.from + '22' : C.glassHi, alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ fontSize: 20 }}>{look ? look.emoji : (sq.emoji || '💬')}</Text>
               </View>
             )}
-            <View style={{ flex: 1 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '800', flexShrink: 1 }} numberOfLines={1}>{s.name}</Text>
-                {s.activity ? <Chip label={s.activity} color={C.blue} tint="rgba(59,130,246,0.16)" style={{ marginLeft: 8, borderColor: 'rgba(59,130,246,0.35)' }} /> : null}
-              </View>
-              {s.last ? <Text style={{ color: C.dim, fontSize: 12, marginTop: 4 }} numberOfLines={1}>{s.last}</Text> : null}
+            <View style={{ flex: 1, minWidth: 0, marginStart: 12 }}>
+              <Text style={{ color: C.text, fontSize: 15, fontWeight: '700' }} numberOfLines={1}>{titleFor(sq.name, lang)}</Text>
+              {sub ? <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 2 }} numberOfLines={1}>{sub}</Text> : null}
             </View>
-            <View style={{ alignItems: 'flex-end', marginLeft: 10 }}>
-              {s.time ? <Text style={{ color: C.faint, fontSize: 11 }}>{s.time}</Text> : null}
-              {s.unread > 0 ? (
-                <View style={{ marginTop: 6, minWidth: 20, height: 20, borderRadius: 10, backgroundColor: C.blue, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 }}>
-                  <Text style={{ color: '#fff', fontSize: 11, fontWeight: '900' }}>{s.unread}</Text>
-                </View>
-              ) : null}
-              {SUPABASE_READY ? (
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
-                  <Pressable onPress={() => openInvite(s)} hitSlop={8} style={{ marginRight: 12 }}>
-                    <Text style={{ color: C.purple, fontSize: 10.5, fontWeight: '900' }}>＋ {t('ch_invite')}</Text>
-                  </Pressable>
-                  <Pressable onPress={() => closeSquad(s)} hitSlop={8}>
-                    <Text style={{ color: C.coral, fontSize: 10.5, fontWeight: '800' }}>{t('ch_leave')} ✕</Text>
-                  </Pressable>
-                </View>
-              ) : null}
-            </View>
-          </View>
-          {s.members ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
-              <AvatarStack uris={s.members} />
-              <Text style={{ color: C.faint, fontSize: 11.5, marginLeft: 10 }}>
-                {s.members.length} {t('ch_mates_expire')}
-              </Text>
-            </View>
+            {sq.unread > 0 ? <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: C.purple, marginStart: 10 }} /> : null}
+          </Pressable>
+        );
+      };
+      return (
+        <>
+          {coming.length ? <ChatBox>{coming.map((sq, i) => Row(sq, i === coming.length - 1))}</ChatBox> : null}
+          {groups.length ? <ChatBox>{groups.map((sq, i) => Row(sq, i === groups.length - 1))}</ChatBox> : null}
+          {past.length ? (
+            <>
+              <Pressable onPress={() => { tapLight(); setPastOpen((v) => !v); }} accessibilityRole="button"
+                style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6, marginBottom: 10 }}>
+                <Text style={{ color: C.dim, fontSize: 13, fontWeight: '700' }}>{t('ch_past_plans').replace('{n}', String(past.length))}</Text>
+                <Ionicons name={pastOpen ? 'chevron-up' : 'chevron-down'} size={14} color={C.dim} style={{ marginStart: 4 }} />
+              </Pressable>
+              {pastOpen ? <View style={{ opacity: 0.75 }}><ChatBox>{past.map((sq, i) => Row(sq, i === past.length - 1))}</ChatBox></View> : null}
+            </>
           ) : null}
-        </Glass>
-      </Pressable>
-    )) : (
-      /* No squads and no chats is one situation, not two. It used to be
-         told twice, in two grey boxes, one under the other — see the
-         single invitation below. */
-      null
-    )}
+        </>
+      );
+    })() : null}
+
+    {/* hold a row: the two things that used to sit on every card */}
+    {rowMenu ? (
+      <Modal visible transparent animationType="fade" onRequestClose={() => setRowMenu(null)}>
+        <Pressable onPress={() => setRowMenu(null)} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end' }}>
+          <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 18, paddingBottom: insets.bottom + 18 }}>
+            <Text style={{ color: C.faint, fontSize: 12, fontWeight: '800', marginBottom: 6 }} numberOfLines={1}>{titleFor(rowMenu.name, lang)}</Text>
+            <Pressable onPress={() => { const sq = rowMenu; setRowMenu(null); openInvite(sq); }} accessibilityRole="button" style={{ paddingVertical: 14, flexDirection: 'row', alignItems: 'center' }}>
+              <Ionicons name="person-add-outline" size={19} color={C.text} />
+              <Text style={{ color: C.text, fontSize: 16, fontWeight: '700', marginStart: 12 }}>{t('ch_invite')}</Text>
+            </Pressable>
+            <Pressable onPress={() => { const sq = rowMenu; setRowMenu(null); closeSquad(sq); }} accessibilityRole="button" style={{ paddingVertical: 14, flexDirection: 'row', alignItems: 'center' }}>
+              <Ionicons name="exit-outline" size={19} color={C.coral} />
+              <Text style={{ color: C.coral, fontSize: 16, fontWeight: '700', marginStart: 12 }}>{t('ch_leave')}</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
+    ) : null}
 
     {/* Green Minds, Exchanges and the language partners all used to sit
         here as stacked cards with their own headings and a paragraph of

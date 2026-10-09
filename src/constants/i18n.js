@@ -1036,6 +1036,8 @@ export const STRINGS = {
     tr_tile: "Talk room",
     tr_wire: "The audio can't connect on this network right now.",
     tr_made_mine: "{title} \u2014 {place}, {when}. It's on the map.",
+    ch_past_plans: "Past plans ({n})",
+    ch_hold_hint: "Hold to invite or leave",
     lens_all: 'Everything',
     lens_places: 'Places to go',
     lens_people: 'People',

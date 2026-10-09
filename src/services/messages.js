@@ -299,7 +299,23 @@ export async function fetchMySquads(userId) {
     ({ data, error } = await supabase.from('squad_members').select('squad:squads(id, name, emoji, created_at)').eq('user_id', userId));
   }
   if (error) throw error;
-  return (data || []).map((r) => r.squad).filter(Boolean);
+  const squads = (data || []).map((r) => r.squad).filter(Boolean);
+  /* A plan's chat is a squad too. Say which plan, when and where, so the
+     list can show "Thu 19:30 · Maadi corniche" with the plan's own
+     picture, keep the coming ones on top and fold the finished ones
+     away — a weekly plan makes a new chat every week, and last week's
+     is not what anybody is looking for. Extra, never required. */
+  if (squads.length) {
+    try {
+      const { data: gs } = await supabase.from('green_gatherings')
+        .select('squad_id, kind, starts_at, minutes, place_name, cancelled_at')
+        .in('squad_id', squads.map((x) => x.id));
+      const by = {};
+      (gs || []).forEach((g) => { by[g.squad_id] = g; });
+      squads.forEach((x) => { if (by[x.id]) x.plan = by[x.id]; });
+    } catch (e) { /* the list still shows, just without the plan details */ }
+  }
+  return squads;
 }
 
 /* Create a real squad (group chat) and join it as the first member. */
