@@ -145,6 +145,10 @@ jobs:
       # gesture alone strands anyone who does not know it.
       - name: Check every screen has a way out you can see
         run: node scripts/check-exits.mjs
+      # Together is what Moments is for: the real week near you, five
+      # tabs, and Reels/Chill kept with a way back.
+      - name: Check the Together tab
+        run: node scripts/check-together.mjs
       # The country room is content, and content rots differently from
       # code: a country added in a hurry with eight phrases and no
       # customs crashes nothing, it just quietly becomes the thin,

@@ -62,7 +62,12 @@ const PLACES = [
   { code: 'MD', flag: '🇲🇩' },
   { code: 'HU', flag: '🇭🇺' },
   { code: 'CZ', flag: '🇨🇿' },
+  { code: 'EE', flag: '🇪🇪' },
 ];
+
+/* the flag for any two-letter code, so a country that is not in the
+   short list above can still be the one somebody starts something in */
+const flagOf = (code) => String.fromCodePoint(...String(code).toUpperCase().split('').map((c) => 0x1F1E6 + c.charCodeAt(0) - 65));
 
 const GREEN = '#1F7A5A';
 const GREEN_SOFT = 'rgba(31,122,90,0.10)';
@@ -101,7 +106,7 @@ const Chip = ({ on, children, onPress }) => (
    renamed on a whim, and an id is neither. */
 export const GREEN_PACK = 'ffff6666-0000-4000-8000-000000000001';
 
-export const GreenSheet = ({ onClose, onPlay }) => {
+export const GreenSheet = ({ onClose, onPlay, startNow, homeCountry, openOn }) => {
   /* the phone's own back closes this, the same as everything else;
      see src/lib/sheetBack.js */
   useSheetBack(onClose);
@@ -117,7 +122,7 @@ export const GreenSheet = ({ onClose, onPlay }) => {
   const [form, setForm] = useState(null);            // the new-gathering sheet
   const [day, setDay] = useState(null);              // a day picked from the strip, or all week
   const [open, setOpen] = useState(null);            // the card showing its description
-  const [more, setMore] = useState(null);            // 'ideas' | 'how' | null
+  const [more, setMore] = useState(openOn || null);  // 'ideas' | 'how' | null
   const [sent, setSent] = useState(null);            // { id, n } after an invite
 
   /* the week, grouped by the day it falls on, in the reader's language */
@@ -154,6 +159,11 @@ export const GreenSheet = ({ onClose, onPlay }) => {
 
   useEffect(() => load(), [load]);
 
+  /* Opened from Together's "+": straight into starting one, and closing
+     the form is closing the whole thing — nobody asked for the list. */
+  useEffect(() => { if (startNow) startFrom(null); }, []);
+  const closeForm = () => { setForm(null); if (startNow && onClose) onClose(); };
+
   const going = async (row, yes) => {
     tapMedium();
     const r = await joinGathering(row.id, yes);
@@ -189,7 +199,7 @@ export const GreenSheet = ({ onClose, onPlay }) => {
       language: lang,
     });
     setBusy(false);
-    if (r && r.ok) { tapSuccess(); setForm(null); load(); }
+    if (r && r.ok) { tapSuccess(); load(); closeForm(); }
     else setForm((f) => ({ ...f, err: r && r.reason }));
   };
 
@@ -204,7 +214,7 @@ export const GreenSheet = ({ onClose, onPlay }) => {
       kind: spark ? spark.kind : 'cleanup',
       title: spark ? sparkText(spark, lang, 'title') : '',
       about: spark ? sparkText(spark, lang, 'about') : '',
-      country: (spark && spark.country) || country || 'EG',
+      country: (spark && spark.country) || country || homeCountry || 'EG',
       city: '', place: '',
       startsAt: soon.toISOString(),
       minutes: spark && spark.minutes ? String(spark.minutes) : '60',
@@ -394,10 +404,10 @@ export const GreenSheet = ({ onClose, onPlay }) => {
 
         {/* ── STARTING ONE ─────────────────────────────────────────── */}
         {form ? (
-          <Modal visible transparent={false} animationType="slide" onRequestClose={() => setForm(null)}>
+          <Modal visible transparent={false} animationType="slide" onRequestClose={closeForm}>
             <View style={{ flex: 1, backgroundColor: C.bg, paddingTop: insets.top + 8 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 8 }}>
-                <Pressable onPress={() => { tapLight(); setForm(null); }} hitSlop={10}>
+                <Pressable onPress={() => { tapLight(); closeForm(); }} hitSlop={10}>
                   <Ionicons name="close" size={25} color={C.text} />
                 </Pressable>
                 <Text style={{ color: C.text, fontSize: 17, fontWeight: '900', marginStart: 12 }}>{t('green_start_own')}</Text>
@@ -413,7 +423,9 @@ export const GreenSheet = ({ onClose, onPlay }) => {
                 </View>
 
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 12 }}>
-                  {PLACES.filter((p) => p.code).map((p) => (
+                  {(homeCountry && !PLACES.some((p) => p.code === homeCountry)
+                    ? [{ code: homeCountry, flag: flagOf(homeCountry) }, ...PLACES.filter((p) => p.code)]
+                    : PLACES.filter((p) => p.code)).map((p) => (
                     <Chip key={p.code} on={form.country === p.code} onPress={() => setForm((f) => ({ ...f, country: p.code }))}>
                       {p.flag + ' ' + p.code}
                     </Chip>
@@ -469,7 +481,7 @@ export const GreenSheet = ({ onClose, onPlay }) => {
                     onChangeText={(v) => setForm((f) => ({ ...f, minutes: v.replace(/[^0-9]/g, '') }))}
                     keyboardType="number-pad"
                     style={{
-                      flex: 1, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 14,
+                      flex: 1, minWidth: 0, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 14,
                       color: C.text, paddingHorizontal: 14, paddingVertical: 12, fontSize: 14, marginEnd: 10,
                     }}
                   />
@@ -480,7 +492,7 @@ export const GreenSheet = ({ onClose, onPlay }) => {
                     onChangeText={(v) => setForm((f) => ({ ...f, capacity: v.replace(/[^0-9]/g, '') }))}
                     keyboardType="number-pad"
                     style={{
-                      flex: 1, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 14,
+                      flex: 1, minWidth: 0, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 14,
                       color: C.text, paddingHorizontal: 14, paddingVertical: 12, fontSize: 14,
                     }}
                   />
@@ -494,7 +506,13 @@ export const GreenSheet = ({ onClose, onPlay }) => {
                   </Text>
                 ) : null}
 
-                {/* agreed to here, where it is being started */}
+                {/* agreed to here, where it is being started — and shown
+                    here, so "the care code above" is above */}
+                <View style={{ backgroundColor: GREEN_SOFT, borderRadius: 16, padding: 13, marginTop: 16 }}>
+                  {['green_care_1', 'green_care_2', 'green_care_3', 'green_care_4'].map((k) => (
+                    <Text key={k} style={{ color: C.text, fontSize: 12.5, fontWeight: '700', lineHeight: 18, marginBottom: 3 }}>{'· ' + t(k)}</Text>
+                  ))}
+                </View>
                 <Text style={{ color: C.faint, fontSize: 12, fontWeight: '700', lineHeight: 18, marginTop: 16 }}>
                   {t('green_agree')}
                 </Text>

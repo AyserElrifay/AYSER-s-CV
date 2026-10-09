@@ -21,7 +21,7 @@ import { sfxStar, sfxPop } from '../utils/sfx';
 import { soundOn, setSoundOn, applySound, trackPlayer, untrackPlayer, stopVideos } from '../lib/videoSound';
 import { isSaving, DEFAULT_DATA_MODE } from '../lib/dataSaver';
 import { getPrefs, subscribePrefs } from '../services/prefs';
-import { useIsFocused } from '@react-navigation/native';
+import { useIsFocused, useNavigation } from '@react-navigation/native';
 import { useLang } from '../context/LanguageContext';
 
 /* Fetched when it is opened, not when the app starts. */
@@ -56,6 +56,7 @@ export const ReelsScreen = () => {
   const reelPreload = isSaving(dataMode) ? 'metadata' : 'auto';
 
   const insets = useSafeAreaInsets();
+  const nav = useNavigation();
   const { user } = useAuth();
   const { t } = useLang();
   const [pageH, setPageH] = useState(0);
@@ -447,6 +448,11 @@ export const ReelsScreen = () => {
 
       {/* header — title + create, floating over the reel */}
       <View style={{ position: 'absolute', top: insets.top + 10, left: 16, right: 16, flexDirection: 'row', alignItems: 'center' }}>
+        {/* not on the tab bar any more — the way back to Together */}
+        <Pressable onPress={() => { tapLight(); nav.navigate('TOGETHER'); }} hitSlop={10} accessibilityRole="button" accessibilityLabel={t('back')}
+          style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center', marginEnd: 10 }}>
+          <Ionicons name="chevron-back" size={21} color="#FFF" />
+        </Pressable>
         <Text style={{ color: '#FFF', fontSize: 17, fontWeight: '900', letterSpacing: 2, flex: 1 }}>
           REELS <Text style={{ color: C.gold }}>✦</Text>
         </Text>

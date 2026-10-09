@@ -42,7 +42,7 @@ import { Micro } from '../components/Micro';
 import { NeonButton } from '../components/NeonButton';
 import { TravelSheet } from '../components/TravelSheet';
 import { ROOM_CODES } from '../constants/countryRoomIndex';
-import { LandingSheet } from '../components/LandingSheet';
+const LandingSheet = lazyOverlay(() => import('../components/LandingSheet').then((mod) => ({ default: mod.LandingSheet })));
 /* The country room — what to say, what to eat and what nobody writes
    down, for the country this place is in. Lazy: its content is 75 KB
    and most sessions never open it. */

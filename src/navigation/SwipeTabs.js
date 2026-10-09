@@ -36,7 +36,7 @@ import { onMapTarget } from '../lib/mapBus';
    that ignored that would move the highlight the wrong way down a bar
    the reader can see, which is worse than having no gesture at all. */
 
-export const TAB_ORDER = ['HOME', 'MAP', 'REELS', 'CHILL', 'CHATS', 'SPACE'];
+export const TAB_ORDER = ['HOME', 'MAP', 'TOGETHER', 'CHATS', 'SPACE'];
 
 const EDGE = 40;        // how far in from the side the gesture may start
 const OPEN = 55;        // how far it must travel to count

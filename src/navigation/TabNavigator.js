@@ -27,6 +27,7 @@ import { getPrefs } from '../services/prefs';
    hence the one-line rename on the way through. */
 const MapScreen = lazyScreen(() => import('../screens/MapScreen').then((m) => ({ default: m.MapScreen })));
 const ReelsScreen = lazyScreen(() => import('../screens/ReelsScreen').then((m) => ({ default: m.ReelsScreen })));
+const TogetherScreen = lazyScreen(() => import('../screens/TogetherScreen').then((m) => ({ default: m.TogetherScreen })));
 const ChillScreen = lazyScreen(() => import('../screens/ChillScreen').then((m) => ({ default: m.ChillScreen })));
 const ChatsScreen = lazyScreen(() => import('../screens/ChatsScreen').then((m) => ({ default: m.ChatsScreen })));
 const ProfileScreen = lazyScreen(() => import('../screens/ProfileScreen').then((m) => ({ default: m.ProfileScreen })));
@@ -57,18 +58,21 @@ const HomeTab = guarded(HomeScreen, 'Home');
 const MapTab = guarded(MapScreen, 'Map');
 const ReelsTab = guarded(ReelsScreen, 'Reels');
 const ChillTab = guarded(ChillScreen, 'Chill');
+const TogetherTab = guarded(TogetherScreen, 'Together');
 const ChatsTab = guarded(ChatsScreen, 'Chats');
 const ProfileTab = guarded(ProfileScreen, 'Profile');
 
 /* ─────────────────────── NAVIGATION SHELL ─────────────────────── */
 
 const Tab = createBottomTabNavigator();
+const HIDDEN = { tabBarButton: () => null, tabBarItemStyle: { display: 'none' } };
 
 const TAB_ICONS = {
   HOME: { lib: 'ion', on: 'home', off: 'home-outline' },
   MAP: { lib: 'ion', on: 'map', off: 'map-outline' },
   REELS: { lib: 'mci', on: 'star-four-points', off: 'star-four-points-outline' },
   CHILL: { lib: 'mci', on: 'popcorn', off: 'popcorn' },
+  TOGETHER: { lib: 'ion', on: 'people', off: 'people-outline' },
   CHATS: { lib: 'ion', on: 'chatbubbles', off: 'chatbubbles-outline' },
   SPACE: { lib: 'ion', on: 'person', off: 'person-outline' },
 };
@@ -103,14 +107,14 @@ export const buildNavTheme = () => ({
 });
 
 const TAB_LABEL_KEY = {
-  HOME: 'tab_home', MAP: 'tab_map', REELS: 'tab_reels', CHILL: 'tab_chill', CHATS: 'tab_chats', SPACE: 'tab_space',
+  HOME: 'tab_home', MAP: 'tab_map', REELS: 'tab_reels', CHILL: 'tab_chill', TOGETHER: 'tab_together', CHATS: 'tab_chats', SPACE: 'tab_space',
 };
 
 export const TabNavigator = () => {
   /* the other tabs, fetched in a quiet moment after the feed is up —
      see preloadTabs. Not in data saver. */
   React.useEffect(() => preloadTabs(
-    [ChatsScreen, ProfileScreen, MapScreen, ChillScreen, ReelsScreen],
+    [TogetherScreen, MapScreen, ChatsScreen, ProfileScreen, ChillScreen, ReelsScreen],
     { saving: isSaving(getPrefs().dataSaver || DEFAULT_DATA_MODE) },
   ), []);
   const { t } = useLang();
@@ -121,6 +125,7 @@ export const TabNavigator = () => {
   const sidebar = Platform.OS === 'web' && width >= 820;
   return (
   <Tab.Navigator
+    backBehavior="history"
     screenOptions={({ route }) => ({
       headerShown: false,
       // A cut between tabs reads as a glitch when a finger caused it;
@@ -159,8 +164,7 @@ export const TabNavigator = () => {
   >
     <Tab.Screen name="HOME" component={HomeTab} />
     <Tab.Screen name="MAP" component={MapTab} />
-    <Tab.Screen name="REELS" component={ReelsTab} />
-    <Tab.Screen name="CHILL" component={ChillTab} />
+    <Tab.Screen name="TOGETHER" component={TogetherTab} />
     <Tab.Screen
       name="CHATS"
       component={ChatsTab}
@@ -170,6 +174,10 @@ export const TabNavigator = () => {
       }}
     />
     <Tab.Screen name="SPACE" component={ProfileTab} />
+    {/* Not on the bar: five is what a tab bar holds, and these two are
+        not what Moments is. They open from Together, with a way back. */}
+    <Tab.Screen name="REELS" component={ReelsTab} options={HIDDEN} />
+    <Tab.Screen name="CHILL" component={ChillTab} options={HIDDEN} />
   </Tab.Navigator>
   );
 };

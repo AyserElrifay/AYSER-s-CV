@@ -23,15 +23,8 @@ export const explainLanding = explain;
 
    EU 27, plus the three EEA countries and Switzerland, where free
    movement and most of these rules apply too. */
-const EU_ISO = {
-  Austria: 'AT', Belgium: 'BE', Bulgaria: 'BG', Croatia: 'HR', Cyprus: 'CY',
-  Czechia: 'CZ', 'Czech Republic': 'CZ', Denmark: 'DK', Estonia: 'EE', Finland: 'FI',
-  France: 'FR', Germany: 'DE', Greece: 'GR', Hungary: 'HU', Ireland: 'IE',
-  Italy: 'IT', Latvia: 'LV', Lithuania: 'LT', Luxembourg: 'LU', Malta: 'MT',
-  Netherlands: 'NL', Poland: 'PL', Portugal: 'PT', Romania: 'RO', Slovakia: 'SK',
-  Slovenia: 'SI', Spain: 'ES', Sweden: 'SE',
-  Iceland: 'IS', Liechtenstein: 'LI', Norway: 'NO', Switzerland: 'CH',
-};
+import { EU_ISO } from '../lib/eu';
+
 
 /* The two-letter code for a country name as the map spells it, or null
    if the place is outside the area these rules cover. */
@@ -111,3 +104,5 @@ export async function addStep(authorId, { country, city, slug, title, body }) {
   if (error) throw error;
   return data;
 }
+
+export { isEuCode } from '../lib/eu';

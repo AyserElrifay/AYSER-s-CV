@@ -29,7 +29,6 @@ import { Tick } from '../components/Tick';
 import { sendMoment } from '../services/messages';
 import { ChatThread } from './ChatThread';
 import { AlbumSheet } from '../components/green/AlbumSheet';
-import { ProgrammesSheet } from '../components/green/ProgrammesSheet';
 import { isOwner } from '../services/music';
 import { tapLight, tapSelection, tapSuccess, tapCelebrate } from '../utils/feedback';
 import { isUnread, markThreadSeen } from '../lib/seen';
@@ -38,6 +37,9 @@ import { setupNotice } from '../lib/plumbing';
 /* Fetched when it is opened, not when the app starts. */
 import { lazyOverlay } from '../lib/lazyScreen';
 import { SheetHandle, SheetBack } from '../components/SheetHandle';
+/* opened from here and from Together — lazy in both, so it stays its
+   own download instead of joining everybody's first one */
+const ProgrammesSheet = lazyOverlay(() => import('../components/green/ProgrammesSheet').then((m) => ({ default: m.ProgrammesSheet })));
 const CaptureModal = lazyOverlay(() => import('../components/CaptureModal').then((m) => ({ default: m.CaptureModal })));
 
 /* ─────────────────── TAB 5 · CHATS — CONNECTIONS ─────────────────────

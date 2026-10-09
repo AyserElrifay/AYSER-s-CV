@@ -31,6 +31,7 @@ import { GameHub } from '../components/lamma/GameHub';
 const KitchenSheet = lazyOverlay(() => import('../components/KitchenSheet').then((m) => ({ default: m.KitchenSheet })));
 const GreenSheet = lazyOverlay(() => import('../components/green/GreenSheet').then((m) => ({ default: m.GreenSheet })));
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
+import { useNavigation } from '@react-navigation/native';
 import { trackPlayer } from '../lib/videoSound';
 import { sfxSuccess, sfxPop } from '../utils/sfx';
 
@@ -167,6 +168,7 @@ const gameTint = (kind) => ({
 }[kind] || C.purple);
 
 export const ChillScreen = () => {
+  const nav = useNavigation();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [genre, setGenre] = useState('All');
@@ -313,7 +315,7 @@ export const ChillScreen = () => {
   return (
     <>
     <Page>
-      <ScreenHeader kicker={t('chill_kicker')} title={t('chill_title')} />
+      <ScreenHeader kicker={t('chill_kicker')} title={t('chill_title')} onBack={() => { tapLight(); nav.navigate('TOGETHER'); }} backLabel={t('back')} />
 
       {/* ── ONE HERO, THEN QUIET ROWS ─────────────────────────────
           Ayser sent a photograph of this screen and said it looked
