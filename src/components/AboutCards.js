@@ -23,6 +23,18 @@ const Chip = ({ children }) => (
 /* the score: big, first, and earned — only by turning up (lib/xp.js) */
 const XpCard = ({ xp, events, own, t }) => {
   const lv = levelOf(xp);
+  /* nothing earned yet: an invitation, not a big black zero */
+  if (!xp) {
+    return (
+      <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 18, paddingVertical: 13, paddingHorizontal: 14, marginBottom: 18 }}>
+        <Text style={{ fontSize: 22 }}>🌿</Text>
+        <View style={{ flex: 1, minWidth: 0, marginStart: 11 }}>
+          <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '800' }}>{t('xp_lvl_' + lv.key) + ' · 0 XP'}</Text>
+          <Text style={{ color: C.dim, fontSize: 13, marginTop: 2 }}>{t('xp_how')}</Text>
+        </View>
+      </View>
+    );
+  }
   return (
     <View style={{ backgroundColor: C.text, borderRadius: 22, padding: 18, marginBottom: 18 }}>
       <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
@@ -32,7 +44,7 @@ const XpCard = ({ xp, events, own, t }) => {
         <Text style={{ color: C.bg, fontSize: 14, fontWeight: '800', marginBottom: 8 }}>{'🌿 ' + t('xp_lvl_' + lv.key)}</Text>
       </View>
       <Text style={{ color: C.bg, opacity: 0.75, fontSize: 13.5, marginTop: 2 }}>
-        {events > 0 ? t('xp_from').replace('{n}', String(events)) : own ? t('xp_how') : t('xp_label')}
+        {events > 0 ? t('xp_from').replace('{n}', String(events)) : t('xp_label')}
       </Text>
       {lv.next ? (
         <>

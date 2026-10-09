@@ -64,7 +64,7 @@ import { sendFeedback, FEEDBACK_KINDS } from '../services/feedback';
 import { SettingsScreen } from './SettingsScreen';
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
 import { sfxSuccess } from '../utils/sfx';
-import { shareProfile, sharePost, shareNote } from '../utils/share';
+import { shareProfile, sharePost, shareNote, shareLink, appLink } from '../utils/share';
 import { getCurrentCoords } from '../utils/location';
 import { MapCover } from '../components/MapCover';
 import { useStable } from '../hooks/useStable';
@@ -256,6 +256,15 @@ export const ProfileScreen = () => {
     else if (res && res.url) setShareToast(res.url);
     else if (res === 'unsupported') setShareToast(t('link_copied'));
     if (res !== 'shared') setTimeout(() => setShareToast(null), 2400);
+  };
+
+  /* Bring your friends in: your invite link (counted by claim_invite) */
+  const [inviteNote, setInviteNote] = useState(null);
+  const inviteFriends = async () => {
+    tapLight();
+    const r = await shareLink({ url: appLink({ invite: user && user.id }), title: 'Moments', text: t('inv_text') });
+    const note = shareNote(r);
+    if (note) { setInviteNote(note); setTimeout(() => setInviteNote(null), 2400); }
   };
 
   /* Pick a new profile photo → upload → save avatar_url on your profile.
@@ -840,6 +849,18 @@ export const ProfileScreen = () => {
               </Text>
             </Pressable>
           ) : null}
+          {/* actions — right under who you are, where every profile keeps
+              them; the third one brings your friends in (your invite link) */}
+          <View style={{ flexDirection: 'row', marginTop: 14 }}>
+            <GhostButton small label={t('edit_space')} onPress={() => openEditor()} style={{ flex: 1, marginRight: 8 }} />
+            <GhostButton small label={t('share_profile')} onPress={doShareProfile} style={{ flex: 1, marginRight: 8 }} />
+            <Pressable onPress={inviteFriends} accessibilityRole="button" accessibilityLabel={t('ch_add_friends')} style={{ width: 44 }}>
+              <View style={{ borderRadius: R - 4, borderWidth: 1, borderColor: C.line, backgroundColor: C.glass, paddingVertical: 10, alignItems: 'center' }}>
+                <Ionicons name="person-add-outline" size={16} color={C.text} />
+              </View>
+            </Pressable>
+          </View>
+          {inviteNote ? <Text style={{ color: C.faint, fontSize: 12, marginTop: 6 }}>{inviteNote}</Text> : null}
           <Pressable onPress={() => openEditor()} accessibilityRole="button">
             <AboutCards profile={myProfile} own />
           </Pressable>
@@ -856,16 +877,6 @@ export const ProfileScreen = () => {
             </View>
           ) : null}
 
-          {/* actions */}
-          <View style={{ flexDirection: 'row', marginTop: 6 }}>
-            <GhostButton small label={t('edit_space')} onPress={() => openEditor()} style={{ flex: 1, marginRight: 8 }} />
-            <GhostButton small label={t('share_profile')} onPress={doShareProfile} style={{ flex: 1, marginRight: 8 }} />
-            <Pressable onPress={tapLight} style={{ width: 44 }}>
-              <View style={{ borderRadius: R - 4, borderWidth: 1, borderColor: C.line, backgroundColor: C.glass, paddingVertical: 10, alignItems: 'center' }}>
-                <Ionicons name="person-add-outline" size={16} color={C.text} />
-              </View>
-            </Pressable>
-          </View>
         </View>
 
         {/* highlights — the stories you kept. Real ones now: your own
