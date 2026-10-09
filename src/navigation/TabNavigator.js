@@ -11,7 +11,9 @@ import { SQUADS, DMS } from '../constants/mockData';
 import { HomeScreen } from '../screens/HomeScreen';
 import { Boundary } from '../components/Boundary';
 import { SwipeTabs } from './SwipeTabs';
-import { lazyScreen } from '../lib/lazyScreen';
+import { lazyScreen, preloadTabs } from '../lib/lazyScreen';
+import { isSaving, DEFAULT_DATA_MODE } from '../lib/dataSaver';
+import { getPrefs } from '../services/prefs';
 
 /* ─── ONLY THE FEED IS IN THE FIRST DOWNLOAD ─────────────────────────
    Home is what you land on, so it is here in full. The other five are
@@ -105,6 +107,12 @@ const TAB_LABEL_KEY = {
 };
 
 export const TabNavigator = () => {
+  /* the other tabs, fetched in a quiet moment after the feed is up —
+     see preloadTabs. Not in data saver. */
+  React.useEffect(() => preloadTabs(
+    [ChatsScreen, ProfileScreen, MapScreen, ChillScreen, ReelsScreen],
+    { saving: isSaving(getPrefs().dataSaver || DEFAULT_DATA_MODE) },
+  ), []);
   const { t } = useLang();
   const { width } = useWindowDimensions();
   // On a wide screen (laptop/desktop) the bottom tab bar becomes a real

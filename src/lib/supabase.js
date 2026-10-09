@@ -24,3 +24,28 @@ export const supabase = SUPABASE_READY
       },
     })
   : null;
+
+/* ─── WHO IS SIGNED IN, WITHOUT ASKING THE NETWORK ────────────────────
+   The client's own getSession() answers instantly while the login is
+   fresh — but a login older than an hour has to be renewed first, and
+   getSession waits for that renewal before it says anything. So every
+   normal reopen of the app sat on the splash for a full round trip to
+   the server just to learn who was holding the phone, which the phone
+   already knew: it is written down in local storage.
+
+   This reads it straight from there. The renewal still happens, in the
+   background, and every query made in the meantime waits for it by
+   itself — the client does that on its own. What changes is that the
+   screen does not.
+
+   A session with no user or no refresh token is not one we can use, so
+   it reads as nobody. */
+export function storedSessionNow() {
+  try {
+    if (!SUPABASE_READY || typeof localStorage === 'undefined') return null;
+    const ref = String(url).replace(/^https?:\/\//, '').split('.')[0];
+    const raw = localStorage.getItem('sb-' + ref + '-auth-token');
+    const s = raw ? JSON.parse(raw) : null;
+    return s && s.user && s.user.id && s.refresh_token ? s : null;
+  } catch (e) { return null; }
+}

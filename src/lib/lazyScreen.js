@@ -126,16 +126,26 @@ const CouldNotOpen = ({ onRetry, onClose }) => {
 };
 
 const lazy = (factory, Fallback, inPlace) => {
+  /* ── ONCE IT IS HERE, IT IS HERE ────────────────────────────────
+     The piece is remembered after it first arrives, and a screen that
+     mounts later starts WITH it rather than drawing a spinner for one
+     frame while a promise that has already resolved resolves again.
+     That one frame, on every tab switch, is part of what made the app
+     feel like it was always loading. */
+  let ready = null;
+  const get = () => load(factory).then((m) => { ready = m.default; return m; });
+
   const Lazy = (props) => {
-    const [Loaded, setLoaded] = useState(null);
+    const [Loaded, setLoaded] = useState(() => ready);
     const [failed, setFailed] = useState(null);
     /* Bumped by Try again. The effect depends on it, so asking again is
        nothing more than changing this number. */
     const [attempt, setAttempt] = useState(0);
 
     useEffect(() => {
+      if (Loaded && attempt === 0) return undefined;
       let alive = true;
-      load(factory).then(
+      get().then(
         (m) => { clearReloadMark(); if (alive) setLoaded(() => m.default); },
         (e) => {
           // an out-of-date page is worth one reload before giving up
@@ -158,8 +168,38 @@ const lazy = (factory, Fallback, inPlace) => {
     return <Loaded {...props} />;
   };
   Lazy.displayName = 'Lazy';
+  /* fetch it now, without showing it — see preloadTabs */
+  Lazy.preload = () => get().catch(() => {});
   return Lazy;
 };
+
+/* ─── THE OTHER TABS, BEFORE YOU TAP THEM ────────────────────────────
+   Splitting the app made the first download small, which is right —
+   and made every tab after Home a spinner the first time you opened
+   it, which is not. So once the feed is on screen and the phone has a
+   quiet moment, the other tabs are fetched in the background, one
+   after another, without being shown. By the time somebody taps Map,
+   it is already on the phone.
+
+   Not in data saver. Downloading screens nobody asked for is exactly
+   what that setting is there to stop, and the tab still works — it just
+   arrives when tapped, the way it did before. */
+export function preloadTabs(screens, { saving } = {}) {
+  if (saving || typeof window === 'undefined') return () => {};
+  let stop = false;
+  const idle = (fn) => (window.requestIdleCallback
+    ? window.requestIdleCallback(fn, { timeout: 4000 })
+    : setTimeout(fn, 1200));
+  const t = setTimeout(() => {
+    idle(async () => {
+      for (const S of screens) {
+        if (stop) return;
+        if (S && S.preload) await S.preload();
+      }
+    });
+  }, 1500);
+  return () => { stop = true; clearTimeout(t); };
+}
 
 /* A whole tab. Shows a spinner while it comes, because the tab is the
    only thing on screen and blank would read as broken. */

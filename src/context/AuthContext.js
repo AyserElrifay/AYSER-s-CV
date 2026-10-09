@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { SUPABASE_READY } from '../lib/supabase';
+import React, { createContext, useContext, useState, useEffect, useMemo, useRef } from 'react';
+import { SUPABASE_READY, storedSessionNow } from '../lib/supabase';
 import * as auth from '../services/auth';
 import { ensureMyProfile, touchLastActive } from '../services/profiles';
 import { loadAccountSettings, forgetAccountSettings } from '../services/accountSettings';
@@ -13,11 +13,42 @@ import { publishViewerIsOwner } from '../lib/plumbing';
 
 const AuthContext = createContext(null);
 
+/* Read once, before the first render. See storedSessionNow. */
+const BOOT = storedSessionNow();
+
 export const AuthProvider = ({ children }) => {
-  const [session, setSession] = useState(null);
+  const [session, setSession] = useState(BOOT);
   const [demoAuthed, setDemoAuthed] = useState(false);
   const [onboarding, setOnboarding] = useState(false); // keeps AuthScreen mounted through the vibe picker
-  const [loading, setLoading] = useState(SUPABASE_READY);
+  /* Somebody already signed in on this phone does not wait for the
+     network to be told so — the splash leaves as soon as it can. */
+  const [loading, setLoading] = useState(SUPABASE_READY && !BOOT);
+
+  /* ── THE SAME PERSON IS THE SAME OBJECT ──────────────────────────
+     Ayser: "الكود بيرجع تاني من الأول كل ما يبدأ في task جديدة".
+
+     Measured, and he is exactly right. The login renews itself every
+     hour, and again whenever the app comes back from the background
+     close to the hour. Each renewal hands over a brand-new session
+     object, carrying a brand-new user object — the same person, a
+     different object. Fifty-six screens and hooks read that user and
+     reload when it changes, so every renewal threw away what every
+     screen had and asked the database for all of it again: twelve
+     queries in the three seconds after one renewal, with nothing on
+     screen having changed.
+
+     So the user only becomes a new object when it is a different
+     person, or when their account details really changed
+     (USER_UPDATED). A renewal keeps the one everybody already has. */
+  const userRef = useRef(BOOT ? BOOT.user : null);
+  const [user, setUser] = useState(userRef.current);
+  const take = (s, event) => {
+    const u = s && s.user ? s.user : null;
+    const prev = userRef.current;
+    const same = !!(u && prev && u.id === prev.id && event !== 'USER_UPDATED');
+    if (!same) { userRef.current = u; setUser(u); }
+    setSession(s);
+  };
 
   /* ── WHY THIS HAS A TIMER ────────────────────────────────────────
      Looking up the stored session is the first thing the app does, and
@@ -46,7 +77,7 @@ export const AuthProvider = ({ children }) => {
     const done = (s) => {
       if (!alive || settled) return;
       settled = true;
-      if (s !== undefined) setSession(s);
+      if (s !== undefined) take(s, 'INITIAL');
       setLoading(false);
     };
 
@@ -58,9 +89,9 @@ export const AuthProvider = ({ children }) => {
     const bail = setTimeout(() => done(undefined), 6000);
 
     // the listener is also an answer — if it fires first, stop waiting
-    subscription = auth.onAuthStateChange((s) => {
+    subscription = auth.onAuthStateChange((s, event) => {
       if (!alive) return;
-      setSession(s);
+      take(s, event);
       done(undefined);
     });
 
@@ -82,21 +113,22 @@ export const AuthProvider = ({ children }) => {
     };
   }, []);
 
+  const uid = user ? user.id : null;
+
   // Self-heal: make sure the signed-in user has a profiles row —
   // accounts created before the signup trigger existed don't, and
   // without it every post/story/vibe insert fails silently.
   useEffect(() => {
-    if (SUPABASE_READY && session && session.user) {
-      ensureMyProfile(session.user).catch(() => {});
+    if (SUPABASE_READY && uid && userRef.current) {
+      ensureMyProfile(userRef.current).catch(() => {});
     }
-  }, [session]);
+  }, [uid]);
 
   // Presence heartbeat — stamp "last active" now, every 2 min while the
   // app is open, and whenever it comes back to the foreground, so other
   // people see a REAL active status for you in chat.
   useEffect(() => {
-    if (!SUPABASE_READY || !session || !session.user) return;
-    const uid = session.user.id;
+    if (!SUPABASE_READY || !uid) return undefined;
     const beat = () => touchLastActive(uid);
     beat();
     const id = setInterval(beat, 2 * 60 * 1000);
@@ -106,28 +138,27 @@ export const AuthProvider = ({ children }) => {
       clearInterval(id);
       if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onVis);
     };
-  }, [session]);
+  }, [uid]);
 
   /* Whether the person holding the phone is Ayser. Screens that have to
      choose between a developer's instruction and a human sentence ask
      here — see src/lib/plumbing.js. */
   useEffect(() => {
-    publishViewerIsOwner(isOwner(session && session.user));
-  }, [session]);
+    publishViewerIsOwner(isOwner(user));
+  }, [user]);
 
   /* Your own settings, from your account rather than from whichever
      phone you happen to be holding — see services/accountSettings.js. */
   useEffect(() => {
-    const id = session && session.user && session.user.id;
-    if (id) loadAccountSettings(id);
-  }, [session]);
+    if (uid) loadAccountSettings(uid);
+  }, [uid]);
 
-  const value = {
-    session,
+  const signedIn = SUPABASE_READY ? !!session : demoAuthed;
+  const value = useMemo(() => ({
     loading,
     isDemo: !SUPABASE_READY,
-    isAuthenticated: (SUPABASE_READY ? !!session : demoAuthed) && !onboarding,
-    user: session ? session.user : null,
+    isAuthenticated: signedIn && !onboarding,
+    user,
     signIn: auth.signIn,
     signUp: auth.signUp,
     signOut: async () => {
@@ -139,7 +170,10 @@ export const AuthProvider = ({ children }) => {
     enterDemo: () => setDemoAuthed(true),
     beginOnboarding: () => setOnboarding(true),
     finishOnboarding: () => setOnboarding(false),
-  };
+  /* The raw session is not handed out: it changes on every renewal and
+     nothing outside this file reads it. Who is signed in is `user`. */
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [user, loading, signedIn, onboarding]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

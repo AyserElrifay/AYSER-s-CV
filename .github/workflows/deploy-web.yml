@@ -124,6 +124,11 @@ jobs:
       # and black reads as a video that failed.
       - name: Check no video card is a black rectangle
         run: node scripts/check-poster.mjs
+      # "الكود معمول await ... بيرجع تاني من الأول". Independent queries
+      # awaited one by one, every login renewal reloading 56 screens,
+      # a feed that waited for the splash and then for a second query.
+      - name: Check nothing waits when it does not have to
+        run: node scripts/check-loading.mjs
       # The country room is content, and content rots differently from
       # code: a country added in a hurry with eight phrases and no
       # customs crashes nothing, it just quietly becomes the thin,

@@ -29,6 +29,7 @@ import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { PlayerProvider } from './src/context/PlayerContext';
 import { PresenceProvider } from './src/context/PresenceContext';
 import { AuthScreen } from './src/screens/AuthScreen';
+import { primeFeed } from './src/hooks/useFeed';
 import { TabNavigator, buildNavTheme } from './src/navigation/TabNavigator';
 import { MiniPlayer } from './src/components/MiniPlayer';
 import { IncomingCallGate } from './src/components/IncomingCallGate';
@@ -74,6 +75,12 @@ const Root = () => {
   const { loading, isAuthenticated, user } = useAuth();
   /* Somebody arriving from a "forgot my password" email. */
   const [recovering, setRecovering] = React.useState(isRecovering());
+
+  /* The feed is asked for the moment we know who is here — while the
+     splash is still on screen, not after it. See src/hooks/useFeed.js. */
+  const uid = user ? user.id : null;
+  React.useEffect(() => { if (uid && !recovering) primeFeed(); }, [uid]); // eslint-disable-line
+
   const { gen, isDark } = useTheme();
 
   /* The detail behind a failure is for the person who can fix it, and
