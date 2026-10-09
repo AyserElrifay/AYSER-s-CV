@@ -50,6 +50,9 @@ const KINDS = [
   { id: 'culture', icon: 'drama-masks',     key: 'green_kind_culture' },
   { id: 'walk',    icon: 'walk',            key: 'green_kind_walk' },
   { id: 'sport',   icon: 'soccer',          key: 'green_kind_sport' },
+  { id: 'run',     icon: 'run',             key: 'gn_run' },
+  { id: 'coffee',  icon: 'coffee-outline',  key: 'gn_coffee' },
+  { id: 'focus',   icon: 'book-open-variant', key: 'gn_focus' },
 ];
 
 /* The six Ayser asked for, plus everywhere. Codes on the wire, flags
@@ -106,7 +109,7 @@ const Chip = ({ on, children, onPress }) => (
    renamed on a whim, and an id is neither. */
 export const GREEN_PACK = 'ffff6666-0000-4000-8000-000000000001';
 
-export const GreenSheet = ({ onClose, onPlay, startNow, homeCountry, openOn }) => {
+export const GreenSheet = ({ onClose, onPlay, startNow, homeCountry, openOn, prefill }) => {
   /* the phone's own back closes this, the same as everything else;
      see src/lib/sheetBack.js */
   useSheetBack(onClose);
@@ -193,6 +196,8 @@ export const GreenSheet = ({ onClose, onPlay, startNow, homeCountry, openOn }) =
       country: form.country || 'EG',
       city: form.city,
       place: form.place,
+      lat: form.lat == null ? null : form.lat,
+      lng: form.lng == null ? null : form.lng,
       startsAt: form.startsAt,
       minutes: form.minutes ? parseInt(form.minutes, 10) : null,
       capacity: form.capacity ? parseInt(form.capacity, 10) : null,
@@ -211,11 +216,12 @@ export const GreenSheet = ({ onClose, onPlay, startNow, homeCountry, openOn }) =
     const soon = new Date(Date.now() + 3 * 24 * 3600 * 1000);
     soon.setMinutes(0, 0, 0);
     setForm({
-      kind: spark ? spark.kind : 'cleanup',
+      kind: spark ? spark.kind : (prefill ? 'circle' : 'cleanup'),
       title: spark ? sparkText(spark, lang, 'title') : '',
       about: spark ? sparkText(spark, lang, 'about') : '',
       country: (spark && spark.country) || country || homeCountry || 'EG',
-      city: '', place: '',
+      city: '', place: (prefill && prefill.place) || '',
+      lat: prefill ? prefill.lat : null, lng: prefill ? prefill.lng : null,
       startsAt: soon.toISOString(),
       minutes: spark && spark.minutes ? String(spark.minutes) : '60',
       capacity: '',

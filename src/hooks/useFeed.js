@@ -4,7 +4,7 @@ import { explain } from '../lib/explain';
 import { fetchFeed, fetchReposts } from '../services/posts';
 import { fetchTagsForPosts } from '../services/tags';
 import { rankFeed } from '../services/algorithm';
-import { fetchFeedAds, injectAds } from '../services/nativeAds';
+import { actionFeed } from '../lib/actionFeed';
 import { FEED, ME, AV_NEUTRAL } from '../constants/mockData';
 
 /* Feed source for HomeScreen.
@@ -118,7 +118,7 @@ function readCache() {
     if (!c || c.uid !== uid || !Array.isArray(c.posts)) return null;
     /* a day-old feed is a worse first look than a skeleton */
     if (Date.now() - (c.at || 0) > 24 * 3600e3) return null;
-    return c.posts;
+    return actionFeed(c.posts);
   } catch (e) { return null; }
 }
 
@@ -132,7 +132,9 @@ function writeCache(posts) {
 }
 
 async function fetchFresh() {
-  const [rows, ads, reposts] = await Promise.all([fetchFeed(), fetchFeedAds(), fetchReposts()]);
+  /* no adverts in the feed: an organisation reaches people by hosting
+     something on the map, not by buying a card between their friends */
+  const [rows, reposts] = await Promise.all([fetchFeed(), fetchReposts()]);
   /* A repost brings the moment itself back, credited to whoever
      passed it on. If the moment is already in the feed we don't
      show it twice — we just put the credit on the card that's
@@ -147,7 +149,7 @@ async function fetchFresh() {
     byId.set(card.id, card);
     revived.push(card);
   });
-  return { all: cards.concat(revived), ads };
+  return { all: actionFeed(cards.concat(revived)) };
 }
 
 /* The head start. A request already on its way is reused by the first
@@ -192,9 +194,9 @@ export function useFeed() {
       return;
     }
     try {
-      const { all, ads } = await (takePrimed() || fetchFresh());
+      const { all } = await (takePrimed() || fetchFresh());
       const ranked = await rankFeed(all);
-      setPosts(injectAds(ranked, ads)); // native Sponsored cards, always labeled
+      setPosts(ranked);
       setLoadError(null);
       setSettled(true);
       writeCache(ranked);

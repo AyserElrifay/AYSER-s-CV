@@ -2538,7 +2538,9 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
                 </View>
               ) : (
               <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
-                {['story', 'reel', 'video'].map((m) => (
+                {/* stories only: reels and long videos were removed — Moments is
+                    not a place to scroll, it is a way out of the house */}
+                {['story'].map((m) => (
                   <Pressable key={m} onPress={() => { tapLight(); setMode(m); }} style={{ marginHorizontal: 12 }}>
                     <Text style={{ color: mode === m ? '#FFF' : 'rgba(255,255,255,0.5)', fontSize: 13.5, fontWeight: '900', letterSpacing: 1.2, textTransform: 'uppercase' }}>
                       {m === 'story' ? t('cap_m_story') : m === 'reel' ? t('cap_m_reel') : t('cap_m_video')}

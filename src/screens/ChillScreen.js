@@ -296,7 +296,7 @@ export const ChillScreen = () => {
     } catch (e) { setVideos([]); }
   }, []);
 
-  useEffect(() => { loadVideos(); }, [loadVideos]);
+  /* videos are no longer shown here, so they are no longer fetched */
 
   const onUploaded = (row) => {
     // optimistic prepend, then reconcile with the server
@@ -372,7 +372,6 @@ export const ChillScreen = () => {
           button that opens the place where you can go get some. */}
       <ShortcutRow>
         {/* home-cooked food from a neighbour's kitchen — see KitchenSheet */}
-        <Shortcut emoji="🍲" label={t('food_title')} onPress={() => { tapLight(); sfxPop(); setFoodOpen(true); }} />
         <Shortcut icon={<GreenMark size={26} />} label={t('green_title')} onPress={() => { tapLight(); sfxPop(); setGreenOpen(true); }} />
         <Shortcut emoji="🏛" label={t('culture_title')} onPress={() => { tapLight(); sfxPop(); setCultureOpen(true); }} />
         <Shortcut emoji="🌍" label={t('country_title')} onPress={() => { tapLight(); sfxPop(); setCountryOpen(true); }} />
@@ -450,67 +449,8 @@ export const ChillScreen = () => {
       </>
       ) : null}
 
-      {/* ── LONG-FORM VIDEOS (real uploads) ── */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <SectionHeader title={t('sec_videos')} />
-        <Pressable onPress={() => { tapLight(); sfxPop(); setShooting(true); }} hitSlop={10} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-          <Ionicons name="add" size={15} color={C.purple} />
-          <Text style={{ color: C.purple, fontSize: 12.5, fontWeight: '800', marginStart: 2 }}>{t('upload')}</Text>
-        </Pressable>
-      </View>
-      <View style={{ height: 4 }} />
-
-      {videos === null ? (
-        /* Same again, in the shape of a video card. */
-        <View style={{ marginBottom: 24, opacity: 0.5 }}>
-          <View style={{ width: '100%', aspectRatio: 16 / 9, borderRadius: 16, backgroundColor: C.glassHi }} />
-          <View style={{ flexDirection: 'row', marginTop: 10 }}>
-            <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: C.glassHi }} />
-            <View style={{ flex: 1, marginLeft: 10 }}>
-              <View style={{ height: 11, width: '80%', borderRadius: 6, backgroundColor: C.glassHi }} />
-              <View style={{ height: 9, width: '40%', borderRadius: 5, backgroundColor: C.glassHi, marginTop: 8 }} />
-            </View>
-          </View>
-        </View>
-      ) : videos.length === 0 ? (
-        /* One line, not a box with a picture of a clapperboard on it.
-           "Upload" is already in the heading above; this says what the
-           space is for without pretending to be content. */
-        <Pressable onPress={() => { tapSuccess(); sfxPop(); setShooting(true); }} style={{ marginBottom: 24 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12 }}>
-            <Ionicons name="videocam-outline" size={18} color={C.purple} />
-            <Text style={{ color: C.dim, fontSize: 13, marginStart: 10, flex: 1 }} numberOfLines={1}>{t('no_videos_hint')}</Text>
-            <Ionicons name="chevron-forward" size={16} color={C.faint} />
-          </View>
-        </Pressable>
-      ) : (
-        videos.map((v) => (
-          <Pressable key={v.id} onPress={() => { tapLight(); sfxPop(); setPlayer(v); }} style={{ marginBottom: 16 }}>
-            <VideoStill v={v} />
-            {/* title row — avatar + title + author.
-                The avatar and the name are their own target now: tapping
-                a person should open the person, and tapping them used to
-                do nothing at all because the whole card was one press. */}
-            <View style={{ flexDirection: 'row', marginTop: 10 }}>
-              <Pressable
-                onPress={(e) => { if (e && e.stopPropagation) e.stopPropagation(); tapLight(); openVideoAuthor(v); }}
-                hitSlop={6}>
-                <Image source={{ uri: v.avatar }} style={{ width: 36, height: 36, borderRadius: 18 }} />
-              </Pressable>
-              <View style={{ flex: 1, marginLeft: 10 }}>
-                <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '800', lineHeight: 19 }} numberOfLines={2}>{v.title}</Text>
-                <Pressable
-                  onPress={(e) => { if (e && e.stopPropagation) e.stopPropagation(); tapLight(); openVideoAuthor(v); }}
-                  hitSlop={6}>
-                  <Text style={{ color: C.dim, fontSize: 12, marginTop: 3, fontWeight: '700' }}>{v.author}</Text>
-                </Pressable>
-              </View>
-            </View>
-          </Pressable>
-        ))
-      )}
-
-
+      {/* Long-form videos were here. Removed: Moments is not a place to
+         watch; it is a way out of the house. */}
       {/* ── WATCH — real films from our own catalogue, with real posters,
              a synopsis, and what the people here made of them. Shown
              only when there ARE films: an empty catalogue used to
@@ -654,7 +594,6 @@ export const ChillScreen = () => {
 
     {/* "where to watch" sheet — deep-links to the real platform (affiliate) */}
 
-    {shooting ? <CaptureModal initialMode="video" onClose={() => setShooting(false)} onPosted={onUploaded} /> : null}
     {commentsPost ? <CommentsSheet post={commentsPost} onClose={() => setCommentsPost(null)} /> : null}
 
     {/* launched game */}

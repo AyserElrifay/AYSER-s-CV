@@ -158,7 +158,7 @@ const Backdrop = ({ post, style, children }) => {
   );
 };
 
-export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onLaugh: onLaughProp, onRemoveLaugh, isMine, onDelete, onEdit, onShare, onJoin, onVibe, onComment, onOpenProfile, onOpenReel, onOpenLikers, onOpenLaughers, onReport, onOpenTag, onSetCover }) => {
+export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onLaugh: onLaughProp, onRemoveLaugh, isMine, onDelete, onEdit, onShare, onJoin, onVibe, onComment, onOpenProfile, onOpenReel, onOpenLikers, onOpenLaughers, onReport, onOpenTag, onSetCover, onHangoutHere }) => {
   // Moments are captured at an enforced 4:5 crop (ComposeModal) — sizing
   // the card by aspect ratio, not a fixed height, means the feed shows
   // exactly what was cropped, no extra cover-crop surprise.
@@ -735,6 +735,22 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
             <Ionicons name="bookmark-outline" size={20} color={C.dim} />
           )}
         </View>
+
+        {/* not an event yet — so the card's main button makes it one: a
+            plan at this place that anyone can join (src/lib/actionFeed.js).
+            Its own row, full width: it is the point of the card. */}
+        {!post.sponsored && !post.joinable && onHangoutHere && (post.place || post.coords) ? (
+          <Pressable
+            onPress={() => { tapLight(); onHangoutHere(post); }}
+            accessibilityRole="button"
+            style={{ marginTop: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: C.purple, borderRadius: 999, paddingVertical: 10 }}
+          >
+            <Ionicons name="add" size={16} color={C.purple} />
+            <Text style={{ color: C.purple, fontSize: 13.5, fontWeight: '900', marginLeft: 4 }} numberOfLines={1}>
+              {t('feed_hangout_here') + (post.place ? ' · ' + post.place : '')}
+            </Text>
+          </Pressable>
+        ) : null}
 
         {/* social proof, Instagram style — tap to see who starred it */}
         {totalVibes > 0 ? (

@@ -78,7 +78,7 @@ is('and for whether it may play at all', /if \(!policy\.autoplay/.test(card), tr
 is('a card only plays after you have stopped on it', /setTimeout\([\s\S]{0,400}?\}, 700\)/.test(card), true);
 is('and it is always muted', /v\.muted = true/.test(card), true);
 is('and stops when it leaves the screen', /v\.pause\(\)/.test(card), true);
-for (const f of ['src/screens/ReelsScreen.js', 'src/components/ReelsViewer.js']) {
+for (const f of ['src/components/ReelsViewer.js']) {  // the Reels tab is gone; a single clip still opens here
   const s = code(f);
   is(f.split('/').pop() + ' no longer pulls whole files down regardless', /preload="auto"/.test(s), false);
   is('  and decides from the setting instead', /isSaving\(/.test(s), true);

@@ -47,9 +47,9 @@ console.log('\nfive tabs, Together in the middle');
 const nav = read('src/navigation/TabNavigator.js');
 const bar = [...nav.matchAll(/<Tab\.Screen\s+name="(\w+)"(?![^>]*options=\{HIDDEN\})/g)].map((m) => m[1]);
 is('the bar', bar, ['HOME', 'MAP', 'TOGETHER', 'CHATS', 'SPACE']);
-is('Reels and Chill are kept, off the bar', /name="REELS"[^>]*options=\{HIDDEN\}/.test(nav) && /name="CHILL"[^>]*options=\{HIDDEN\}/.test(nav), true);
+is('Chill is kept, off the bar', /name="CHILL"[^>]*options=\{HIDDEN\}/.test(nav), true);
+is('Reels are gone: no endless video feed', !/name="REELS"/.test(nav) && !fs.existsSync('src/screens/ReelsScreen.js'), true);
 is('the swipe follows the bar', /TAB_ORDER = \['HOME', 'MAP', 'TOGETHER', 'CHATS', 'SPACE'\]/.test(read('src/navigation/SwipeTabs.js')), true);
-is('Reels has a way back', /nav\.navigate\('TOGETHER'\)/.test(read('src/screens/ReelsScreen.js')), true);
 is('Chill has a way back', /onBack=\{\(\) => \{ tapLight\(\); nav\.navigate\('TOGETHER'\)/.test(read('src/screens/ChillScreen.js')), true);
 
 console.log('\nthe counts are the database\'s');

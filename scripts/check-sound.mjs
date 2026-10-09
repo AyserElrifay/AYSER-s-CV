@@ -77,9 +77,8 @@ is('and which sound it was made with', /sound_post_id:/.test(posts), true);
 const capture = code('src/components/CaptureModal.js');
 is('the camera can open with a sound already attached', /initialSound/.test(capture), true);
 is('and asks whether the recording may be reused', /setSoundReuse/.test(capture), true);
-const reels = code('src/screens/ReelsScreen.js');
-is('every reel shows a sound, not only the ones with a track', /soundOfPost\(r\)/.test(reels), true);
-is('and tapping it opens the sound', /setSoundOpen/.test(reels), true);
+/* the Reels tab was removed (no endless video feed); a single clip
+   still opens in ReelsViewer, which is checked for data saving */
 const sheet = code('src/components/SoundSheet.js');
 is('the sheet lists what was made with it', /fetchSound\(/.test(sheet), true);
 is('the switch is only for the person who recorded it', /mine && sound\.kind === 'original'/.test(sheet), true);

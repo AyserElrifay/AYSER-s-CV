@@ -155,6 +155,9 @@ jobs:
       # Going out is one tap; messaging strangers and big plans are earned.
       - name: Check go out now and the care check
         run: node scripts/check-go-now.mjs
+      # The feed only holds things you could go to, each with a button, and ends.
+      - name: Check the action feed
+        run: node scripts/check-action-feed.mjs
       # The country room is content, and content rots differently from
       # code: a country added in a hurry with eight phrases and no
       # customs crashes nothing, it just quietly becomes the thin,

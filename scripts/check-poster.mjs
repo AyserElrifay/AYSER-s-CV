@@ -98,7 +98,7 @@ ok('the menu item is gated to your own videos',
 
 console.log('\nthe Chill tab, which drew its own video list');
 const chill = fs.readFileSync('src/screens/ChillScreen.js', 'utf8');
-ok('its videos use the same still-or-colour as the feed', /<VideoStill v=\{v\} \/>/.test(chill) && /derivePoster\(v\.id, v\.media\)/.test(chill));
+ok('its video list is gone (no video feed) — or uses the same still-or-colour', !/<VideoStill v=\{v\} \/>/.test(chill) || /derivePoster\(v\.id, v\.media\)/.test(chill));
 /* the full-screen player stays black — that is a cinema, not a card */
 ok('and no card in the list is painted #000 any more', !/aspectRatio: 16 \/ 9, borderRadius: 16, overflow: 'hidden', backgroundColor: '#000'/.test(chill));
 ok('tracks wear a drawn record, not the same emoji ten times', /<RecordCover seed=\{t\.title\}/.test(chill) && !/\{t\.emoji\}/.test(chill));

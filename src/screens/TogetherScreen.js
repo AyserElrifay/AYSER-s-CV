@@ -371,8 +371,8 @@ export const TogetherScreen = () => {
           )}
           <Tile emoji="💡" label={t('green_ideas_btn')} from="#F59E0B" to="#FB7185" onPress={() => setSheet('ideas')} />
           <Tile emoji="🎲" label={t('tg_play')} from="#A855F7" to="#EC4899" onPress={() => nav.navigate('CHILL')} />
-          <Tile emoji="🎬" label={t('tg_reels')} from="#F43F5E" to="#F59E0B" onPress={() => nav.navigate('REELS')} />
           <Tile emoji="🗺️" label={t('tg_on_map')} from="#6366F1" to="#8B5CF6" onPress={() => nav.navigate('MAP')} />
+          <Tile emoji="🏃" label={t('gn_cta_short')} from="#10B981" to="#0EA5E9" onPress={() => setSheet('gonow')} />
         </View>
       </ScrollView>
 

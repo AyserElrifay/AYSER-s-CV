@@ -28,7 +28,6 @@ import { useSheetBack } from '../hooks/useSheetBack';
 
 const MODES = [
   { id: 'post', label: 'Moment', emoji: '✨' },
-  { id: 'reel', label: 'Reel', emoji: '🎬' },
   { id: 'story', label: 'Story', emoji: '⭕' },
   { id: 'travel', label: 'Travel', emoji: '🧳' },
 ];
@@ -108,6 +107,9 @@ export const ComposeModal = ({ initialMode = 'post', initialCaption = '', onClos
        headline and the destination were in, and then this line returned
        without a word, so the button looked broken and nothing posted. */
     if (!isStory && !isTravel && !caption.trim()) return;
+    /* every moment in the feed is tied to somewhere: that is what makes
+       it something to go to rather than something to scroll past */
+    if (!isStory && !isTravel && !place.trim()) { setError(t('feed_need_place')); return; }
     setError(null);
     setBusy(true);
     try {
@@ -467,9 +469,9 @@ export const ComposeModal = ({ initialMode = 'post', initialCaption = '', onClos
                 borderRadius: 999, paddingHorizontal: 14,
               }}
             >
-              <Ionicons name="location-outline" size={14} color={isTravel && !place.trim() ? C.coral : C.dim} />
+              <Ionicons name="location-outline" size={14} color={!place.trim() ? C.coral : C.dim} />
               <TextInput
-                placeholder={isTravel ? 'Where are you going?' : 'Add a place'}
+                placeholder={isTravel ? 'Where are you going?' : t('feed_where')}
                 placeholderTextColor={C.faint}
                 value={place}
                 onChangeText={setPlace}

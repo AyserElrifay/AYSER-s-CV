@@ -51,7 +51,6 @@ import { fetchTaggedPosts, removeTag } from '../services/tags';
 import { countMyCampfires } from '../services/campfires';
 import { countMates } from '../services/mates';
 import { AvatarBuilderSheet } from '../components/AvatarBuilderSheet';
-import { BoostSheet } from '../components/BoostSheet';
 import { GhostButton } from '../components/GhostButton';
 import { HighlightsRail } from '../components/Highlights';
 import { MatesSheet } from '../components/MatesSheet';
@@ -73,6 +72,7 @@ import { setupNotice } from '../lib/plumbing';
 /* Fetched when it is opened, not when the app starts. */
 import { lazyOverlay } from '../lib/lazyScreen';
 import { SheetHandle, SheetBack } from '../components/SheetHandle';
+const GreenSheet = lazyOverlay(() => import('../components/green/GreenSheet').then((m) => ({ default: m.GreenSheet })));
 const CommentsSheet = lazyOverlay(() => import('../components/CommentsSheet').then((m) => ({ default: m.CommentsSheet })));
 const ReelsViewer = lazyOverlay(() => import('../components/ReelsViewer').then((m) => ({ default: m.ReelsViewer })));
 const LikersSheet = lazyOverlay(() => import('../components/LikersSheet').then((m) => ({ default: m.LikersSheet })));
@@ -193,6 +193,7 @@ export const ProfileScreen = () => {
   const [dash, setDash] = useState(false);            // professional dashboard
   const [pageMade, setPageMade] = useState(false);
   const [adsOpen, setAdsOpen] = useState(false);      // ads manager
+  const [hostOpen, setHostOpen] = useState(false);    // organisations host on the map
   const [boostOpen, setBoostOpen] = useState(false);  // paid boost purchase
   const [editOpen, setEditOpen] = useState(false);
 
@@ -1255,14 +1256,11 @@ export const ProfileScreen = () => {
             {accountType === 'professional' ? (
               <MenuRow icon="stats-chart-outline" label={t('professional_dashboard')} sub="Reach, stars & what's working" onPress={() => { setMenu(false); setDash(true); }} />
             ) : null}
-            <MenuRow
-              icon="flag-outline"
-              label={pageMade ? 'Your Page · Moments Studio' : 'Create a Page'}
-              sub={pageMade ? 'Live — manage it anytime' : 'For your brand, band or business'}
-              onPress={() => setPageMade(true)}
-              right={pageMade ? <Ionicons name="checkmark-circle" size={20} color={C.green} /> : null}
-            />
-            <MenuRow icon="megaphone-outline" label={t('ads_manager')} sub="Boost moments · campaigns · media buying" onPress={() => { setMenu(false); setAdsOpen(true); }} />
+            {/* Organisations reach people the way everybody else does: by
+                hosting something on the map — a live room, a small event.
+                There are no adverts and no pages that only post at people.
+                (The old "Create a Page" said "Live" and made nothing.) */}
+            <MenuRow icon="flag-outline" label={t('org_host')} sub={t('org_host_sub')} onPress={() => { setMenu(false); setHostOpen(true); }} />
             <MenuRow icon="star-outline" label={t('close_friends')} sub="Share some moments with your inner circle" onPress={() => { setMenu(false); setCloseOpen(true); }} />
             <MenuRow icon="happy-outline" label={t('your_avatar')} sub="The cartoon character shown on the live map" onPress={() => { setMenu(false); setAvatarBuilderOpen(true); }} />
             <MenuRow icon="create-outline" label={t('edit_space')} sub="Name, bio, vibe & links" onPress={() => setEditOpen(true)} />
@@ -1461,7 +1459,7 @@ export const ProfileScreen = () => {
         </View>
       ) : null}
 
-      {boostOpen ? <BoostSheet onClose={() => setBoostOpen(false)} /> : null}
+      {hostOpen ? <GreenSheet startNow onClose={() => setHostOpen(false)} /> : null}
       {matesOpen ? <MatesSheet onClose={() => { setMatesOpen(false); reload(); }} /> : null}
       {avatarBuilderOpen ? (
         <AvatarBuilderSheet

@@ -26,6 +26,7 @@ import { PostCard } from '../components/PostCard';
 import { StoriesBar } from '../components/StoriesBar';
 import { Wordmark } from '../components/Wordmark';
 import { Modal } from 'react-native';
+import { goToTab } from '../lib/mapBus';
 import { lazyOverlay } from '../lib/lazyScreen';
 
 /* ─── THE FEED FIRST, THE REST WHEN YOU REACH FOR IT ─────────────────
@@ -52,6 +53,7 @@ const LikersSheet = lazyOverlay(() => import('../components/LikersSheet').then((
 const MagicFlowModal = lazyOverlay(() => import('../components/MagicFlowModal').then((m) => ({ default: m.MagicFlowModal })));
 const NotificationsSheet = lazyOverlay(() => import('../components/NotificationsSheet').then((m) => ({ default: m.NotificationsSheet })));
 const ProfileModal = lazyOverlay(() => import('../components/ProfileModal').then((m) => ({ default: m.ProfileModal })));
+const GreenSheet = lazyOverlay(() => import('../components/green/GreenSheet').then((m) => ({ default: m.GreenSheet })));
 const ReelsViewer = lazyOverlay(() => import('../components/ReelsViewer').then((m) => ({ default: m.ReelsViewer })));
 const ReportSheet = lazyOverlay(() => import('../components/ReportSheet').then((m) => ({ default: m.ReportSheet })));
 const SearchModal = lazyOverlay(() => import('../components/SearchModal').then((m) => ({ default: m.SearchModal })));
@@ -149,6 +151,7 @@ export const HomeScreen = () => {
   const [myProfile, setMyProfile] = useState(null); // the real profiles row for the signed-in user
   const [myMomentsCount, setMyMomentsCount] = useState(0);
   const [magicPost, setMagicPost] = useState(null);
+  const [hangoutAt, setHangoutAt] = useState(null);   // "make a plan here" from a post
   const [profileUser, setProfileUser] = useState(null);
   const [commentsPost, setCommentsPost] = useState(null);
   const [composing, setComposing] = useState(null); // null | 'post' | 'reel' | 'story'
@@ -497,9 +500,6 @@ export const HomeScreen = () => {
               >
                 <Text style={{ color: C.faint, fontSize: 13.5 }}>{t('whats_your_moment')}</Text>
               </Pressable>
-              <Pressable testID="btn-new-reel" onPress={() => setComposing('reel')} hitSlop={8} style={{ marginLeft: 12 }}>
-                <Ionicons name="videocam" size={22} color={C.coral} />
-              </Pressable>
               <Pressable onPress={() => setComposing('post')} hitSlop={8} style={{ marginLeft: 12 }}>
                 <Ionicons name="image" size={22} color={C.green} />
               </Pressable>
@@ -552,6 +552,7 @@ export const HomeScreen = () => {
               onComment={() => openComments(item)}
               onOpenProfile={setProfileUser}
               onOpenReel={openReel}
+              onHangoutHere={(p) => setHangoutAt(p)}
               onOpenTag={(tag) => setOpenTag(tag)}
               onOpenLikers={(p) => openLikers(p, 'star')}
               onOpenLaughers={(p) => openLikers(p, 'laugh')}
@@ -559,6 +560,17 @@ export const HomeScreen = () => {
             />
           );
         }}
+        /* the feed ends: at most thirty, then the week near you */
+        ListFooterComponent={posts.length ? (
+          <View style={{ alignItems: 'center', paddingVertical: 26 }}>
+            <Text style={{ fontSize: 26 }}>🌿</Text>
+            <Text style={{ color: C.text, fontSize: 15.5, fontWeight: '900', marginTop: 6 }}>{t('feed_end_t')}</Text>
+            <Text style={{ color: C.faint, fontSize: 13, marginTop: 4, textAlign: 'center' }}>{t('feed_end_b')}</Text>
+            <Pressable onPress={() => { tapLight(); goToTab('TOGETHER'); }} accessibilityRole="button" style={{ marginTop: 12, backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 20, paddingVertical: 11 }}>
+              <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '900' }}>{t('feed_end_cta')}</Text>
+            </Pressable>
+          </View>
+        ) : null}
         ListEmptyComponent={
           /* Still loading and nothing has arrived yet: show the shape of
              the feed, not the words "no moments yet". Those words are a
@@ -775,10 +787,18 @@ export const HomeScreen = () => {
           onDeleted={(id) => { onStoryDeleted(id); setSharedStory(null); }}
         />
       ) : null}
-      {reelStart !== null ? (
+      {hangoutAt ? (
+        <GreenSheet
+          startNow
+          prefill={{ place: hangoutAt.place || '', lat: hangoutAt.coords ? hangoutAt.coords.latitude : null, lng: hangoutAt.coords ? hangoutAt.coords.longitude : null }}
+          onClose={() => setHangoutAt(null)}
+        />
+      ) : null}
+      {reelStart !== null && reels[reelStart] ? (
+        /* one clip, full screen — never a swipe into the next one */
         <ReelsViewer
-          reels={reels}
-          startIndex={reelStart}
+          reels={[reels[reelStart]]}
+          startIndex={0}
           vibes={vibes}
           onVibe={onVibe}
           onComment={(p) => { setReelStart(null); openComments(p); }}
