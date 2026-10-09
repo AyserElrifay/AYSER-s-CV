@@ -104,6 +104,7 @@ export const NotificationsSheet = ({ onClose }) => {
   /* Reactions on the opened moment are REAL — the same writes the feed
      makes, so a star here shows up everywhere and survives a refresh. */
   const [clearing, setClearing] = useState(false);
+  const [clearArmed, setClearArmed] = useState(false);
   const [vibed, setVibed] = useState(false);
   const [laughed, setLaughed] = useState(false);
   const [reposted, setReposted] = useState(false);
@@ -339,17 +340,22 @@ export const NotificationsSheet = ({ onClose }) => {
         backgroundColor: C.bg2, borderTopLeftRadius: R + 6, borderTopRightRadius: R + 6,
         borderWidth: 1, borderColor: C.line, maxHeight: '80%', paddingBottom: insets.bottom + 12,
       }}>
-        <View style={{ alignItems: 'center', paddingTop: 10, paddingBottom: 6 }}>
-          <SheetHandle onClose={onClose} />
-        </View>
+        {/* the bar is the panel's own child, so dragging it moves the whole
+            sheet (SheetHandle moves its parent) — inside a wrapper it
+            dragged only itself and the sheet looked stuck */}
+        <SheetHandle onClose={onClose} />
         <View style={{ paddingHorizontal: 18, paddingBottom: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <Text style={{ color: C.text, fontSize: 20, fontWeight: '900' }}>{t('notifications')}</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            {/* Clear asks twice: it sat next to the close button, and one
+                slip wiped everything */}
             {items && items.length ? (
               <Pressable
                 onPress={async () => {
                   if (clearing) return;
+                  if (!clearArmed) { tapLight(); setClearArmed(true); setTimeout(() => setClearArmed(false), 3000); return; }
                   tapLight();
+                  setClearArmed(false);
                   setClearing(true);
                   const had = items.length;
                   setItems([]);                       // gone from the screen at once
@@ -357,13 +363,18 @@ export const NotificationsSheet = ({ onClose }) => {
                   catch (e) { load(); showToast('Could not clear — try again'); }
                   finally { setClearing(false); }
                 }}
-                hitSlop={8}
-                style={{ marginRight: 14 }}
+                accessibilityRole="button"
+                style={{ paddingHorizontal: 12, paddingVertical: 10, marginRight: 6 }}
               >
-                <Text style={{ color: C.dim, fontSize: 13, fontWeight: '700' }}>{clearing ? '…' : t('nt_clear')}</Text>
+                <Text style={{ color: clearArmed ? C.coral : C.dim, fontSize: 13.5, fontWeight: '700' }}>{clearing ? '…' : clearArmed ? t('nt_clear_sure') : t('nt_clear')}</Text>
               </Pressable>
             ) : null}
-            <Pressable onPress={onClose} hitSlop={8} accessibilityRole="button" accessibilityLabel={t('close')}><Ionicons name="close" size={18} color={C.dim} /></Pressable>
+            {/* a real target: 40 pt round, not an 18 pt glyph — on the web
+                hitSlop does not widen anything, so the old ✕ was a dot */}
+            <Pressable onPress={onClose} accessibilityRole="button" accessibilityLabel={t('close')}
+              style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: C.glassHi, alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="close" size={22} color={C.text} />
+            </Pressable>
           </View>
         </View>
 

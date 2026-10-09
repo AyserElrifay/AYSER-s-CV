@@ -50,7 +50,15 @@ export const SheetHandle = ({ onClose, height = 320, style, tint }) => {
        but not on every version, so this never assumes it did. */
     const node = self.current;
     const dom = node && (node.nodeType === 1 ? node : (node._node || node.node || null));
-    const el = dom && dom.parentNode;
+    /* The panel is usually the parent — but a sheet that centres the bar
+       in a small wrapper View made the parent that wrapper, and dragging
+       moved only the bar while the sheet sat still ("مش راضية تتقفل").
+       So: the first ancestor tall enough to be a sheet, not a strip. */
+    let el = dom && dom.parentNode;
+    for (let i = 0; el && el.nodeType === 1 && i < 4; i++) {
+      if ((el.offsetHeight || 0) >= 120) break;
+      el = el.parentNode;
+    }
     if (el && el.nodeType === 1 && el.style) panel.current = el;
     return panel.current;
   };

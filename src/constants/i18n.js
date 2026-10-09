@@ -1098,6 +1098,7 @@ export const STRINGS = {
     nt_v_food_status: "updated your order",
     nt_v_message: "sent you a message",
     nt_v_venue_decision: "about your organisation",
+    nt_clear_sure: "Clear all?",
     lens_all: 'Everything',
     lens_places: 'Places to go',
     lens_people: 'People',
