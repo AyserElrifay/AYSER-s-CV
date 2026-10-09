@@ -8,7 +8,8 @@ import { C } from '../constants/theme';
 import { useLang } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { SUPABASE_READY } from '../lib/supabase';
-import { listGatherings, joinGathering, announceGathering } from '../services/green';
+import { listGatherings, joinGathering, announceGathering, myInvites } from '../services/green';
+import { appLink, shareLink, shareNote } from '../utils/share';
 import { fetchWhatsOn } from '../services/whatson';
 import { joinCampfire } from '../services/campfires';
 import { joinGroup } from '../services/groups';
@@ -107,13 +108,16 @@ export const TogetherScreen = () => {
   const [busy, setBusy] = useState({});
   const [sent, setSent] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [sheet, setSheet] = useState(null);         // 'start' | 'green' | 'prog' | 'landing' | { group }
+  const [sheet, setSheet] = useState(null);
+  const [invited, setInvited] = useState(null);     // how many joined through your link — the real count
+  const [shareMsg, setShareMsg] = useState(null);         // 'start' | 'green' | 'prog' | 'landing' | { group }
 
   const uid = user && user.id;
   useEffect(() => {
     if (!SUPABASE_READY || !uid) return;
     let alive = true;
     getProfile(uid).then((p) => { if (alive) setMyCode(flagToIso(p && p.country_flag)); }).catch(() => {});
+    myInvites().then((n) => { if (alive) setInvited(n); });
     return () => { alive = false; };
   }, [uid]);
 
@@ -385,6 +389,34 @@ export const TogetherScreen = () => {
           <Tile emoji="🗺️" label={t('tg_on_map')} from="#6366F1" to="#8B5CF6" onPress={() => nav.navigate('MAP')} />
           <Tile emoji="🏃" label={t('gn_cta_short')} from="#10B981" to="#0EA5E9" onPress={() => setSheet('gonow')} />
         </View>
+
+        {/* ── bring your people ── a community grows by people bringing
+            people. Your own link, and how many really joined through it. */}
+        {uid ? (
+          <View style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 22, padding: 16, marginTop: 12 }}>
+            <Text style={{ color: C.text, fontSize: 16, fontWeight: '900' }}>{t('inv_title')}</Text>
+            <Text style={{ color: C.dim, fontSize: 13.5, lineHeight: 19, marginTop: 4 }}>{t('inv_sub')}</Text>
+            {invited != null ? (
+              <Text style={{ color: C.purple, fontSize: 14, fontWeight: '900', marginTop: 10 }}>
+                {invited === 0 ? t('inv_none') : invited === 1 ? t('inv_one') : t('inv_n').replace('{n}', String(invited))}
+              </Text>
+            ) : null}
+            <Pressable
+              onPress={async () => {
+                tapMedium();
+                const r = await shareLink({ url: appLink({ invite: uid }), title: 'Moments', text: t('inv_text') });
+                const note = shareNote(r); if (note) { setShareMsg(note); setTimeout(() => setShareMsg(null), 2400); }
+              }}
+              accessibilityRole="button" style={{ marginTop: 12 }}>
+              <LinearGradient colors={['#7C3AED', '#EC4899']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                style={{ borderRadius: 999, paddingVertical: 13, alignItems: 'center', flexDirection: 'row', justifyContent: 'center' }}>
+                <Ionicons name="share-outline" size={17} color="#FFF" />
+                <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '900', marginStart: 7 }}>{t('inv_share')}</Text>
+              </LinearGradient>
+            </Pressable>
+            {shareMsg ? <Text style={{ color: C.faint, fontSize: 12, textAlign: 'center', marginTop: 8 }}>{shareMsg}</Text> : null}
+          </View>
+        ) : null}
       </ScrollView>
 
       {sheet === 'gonow' ? <GoNowSheet onClose={() => { setSheet(null); load(); }} /> : null}

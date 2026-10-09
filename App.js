@@ -30,6 +30,8 @@ import { PlayerProvider } from './src/context/PlayerContext';
 import { PresenceProvider } from './src/context/PresenceContext';
 import { AuthScreen } from './src/screens/AuthScreen';
 import { primeFeed } from './src/hooks/useFeed';
+import { pendingInvite, clearInvite } from './src/lib/invite';
+import { claimInvite } from './src/services/green';
 import { TabNavigator, buildNavTheme } from './src/navigation/TabNavigator';
 import { MiniPlayer } from './src/components/MiniPlayer';
 import { IncomingCallGate } from './src/components/IncomingCallGate';
@@ -80,6 +82,12 @@ const Root = () => {
      splash is still on screen, not after it. See src/hooks/useFeed.js. */
   const uid = user ? user.id : null;
   React.useEffect(() => { if (uid && !recovering) primeFeed(); }, [uid]); // eslint-disable-line
+  /* came in through somebody's invite link: tell the server once */
+  React.useEffect(() => {
+    if (!uid || recovering) return;
+    const from = pendingInvite();
+    if (from) claimInvite(from).finally(clearInvite);
+  }, [uid]); // eslint-disable-line
 
   const { gen, isDark } = useTheme();
 

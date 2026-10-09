@@ -133,3 +133,11 @@ export const sparkText = (row, lang, prefix) => {
   const mine = (i18n && typeof i18n === 'object' ? i18n[lang] : null) || row[prefix + '_' + lang];
   return mine || row[prefix + '_en'] || row[prefix + '_ar'] || '';
 };
+
+/* ── BRING YOUR PEOPLE ── the invite link and the count behind it */
+export const claimInvite = (from) => rpc('claim_invite', { p_from: from });
+export const myInvites = async () => {
+  if (!SUPABASE_READY) return null;
+  try { const { data, error } = await withDeadline(supabase.rpc('my_invites')); return error ? null : Number(data) || 0; }
+  catch (e) { return null; }
+};

@@ -9169,4 +9169,32 @@ language sql stable security definer set search_path = public as $$
 $$;
 grant execute on function public.green_list(text) to anon, authenticated;
 
+-- ═══════════ BRING YOUR PEOPLE ═══════════
+/* An invite link that counts only what really happened: somebody
+   opened your link and made an account. A person can be counted once,
+   by one inviter, within two weeks of signing up, and never by
+   themselves. No reward is promised for it — the count is the point. */
+alter table public.profiles add column if not exists invited_by uuid references public.profiles(id) on delete set null;
+
+create or replace function public.claim_invite(p_from uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); n int;
+begin
+  if me is null or p_from is null or p_from = me then return jsonb_build_object('ok', false); end if;
+  update public.profiles set invited_by = p_from
+   where id = me and invited_by is null
+     and exists (select 1 from public.profiles where id = p_from)
+     and exists (select 1 from auth.users u where u.id = me and u.created_at > now() - interval '14 days');
+  get diagnostics n = row_count;
+  return jsonb_build_object('ok', n > 0);
+end;
+$$;
+grant execute on function public.claim_invite(uuid) to authenticated;
+
+create or replace function public.my_invites()
+returns int language sql stable security definer set search_path = public as $$
+  select count(*)::int from public.profiles where invited_by = auth.uid();
+$$;
+grant execute on function public.my_invites() to authenticated;
+
 notify pgrst, 'reload schema';

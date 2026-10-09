@@ -38,5 +38,12 @@ const chatSql = sql.slice(sql.lastIndexOf('EVERY PLAN HAS A CHAT'));
 is('joining puts you in it, leaving takes you out — one trigger for every way in', /after insert or delete on public\.green_joins/.test(chatSql) && /delete from public\.squad_members where squad_id = sq and user_id = old\.user_id/.test(chatSql));
 is('only people going see the Chat button', /\(g\.im_going \|\| mine\) && g\.squad_id/.test(read('src/screens/TogetherScreen.js')));
 
+console.log('\nbring your people — counted, not claimed');
+const inv = sql.slice(sql.lastIndexOf('BRING YOUR PEOPLE'));
+is('counted once, by one person, never yourself, within two weeks', /p_from = me/.test(inv) && /invited_by is null/.test(inv) && /interval '14 days'/.test(inv));
+is('the screen shows the database count, and zero as zero', /myInvites\(\)\.then/.test(read('src/screens/TogetherScreen.js')) && /inv_none/.test(read('src/screens/TogetherScreen.js')));
+is('no reward is promised', !/Pro|free year|reward/i.test(JSON.stringify(read('src/constants/i18n.js').match(/inv_[a-z]+: [^\n]+/g))));
+is('the code leaves the address bar at once', /history\.replaceState/.test(read('src/lib/invite.js')));
+
 if (bad) { console.log('\n' + bad + ' wrong.'); process.exit(1); }
 console.log('\nGoing out is one tap; the big things are earned, and the database decides.');
