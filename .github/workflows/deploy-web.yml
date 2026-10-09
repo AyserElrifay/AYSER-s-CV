@@ -129,6 +129,10 @@ jobs:
       # a feed that waited for the splash and then for a second query.
       - name: Check nothing waits when it does not have to
         run: node scripts/check-loading.mjs
+      # "You're like N people around the world" — the competitor said
+      # 102,192 to a forty-second-old account. Ours says what it counted.
+      - name: Check the people-like-you number is a count
+        run: node scripts/check-kindred.mjs
       # The country room is content, and content rots differently from
       # code: a country added in a hurry with eight phrases and no
       # customs crashes nothing, it just quietly becomes the thin,

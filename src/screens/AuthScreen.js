@@ -15,6 +15,8 @@ import { Wordmark } from '../components/Wordmark';
 import { setupNotice } from '../lib/plumbing';
 import { useLang } from '../context/LanguageContext';
 import { LANGS } from '../constants/i18n';
+import { countKindred } from '../services/kindred';
+import { kindredNumber } from '../lib/kindred';
 
 /* ─────────────── PASSWORDLESS-STYLE ONBOARDING · AUTH GATE ───────────
    Step 0 — sign in / create account (email+password via Supabase).
@@ -73,6 +75,12 @@ export const AuthScreen = ({ recovery = false, onDone }) => {
   const [notice, setNotice] = useState(null);
   const [busy, setBusy] = useState(false);
   const [pendingUserId, setPendingUserId] = useState(null);
+  /* the country picked a step ago, and the people like you — see
+     src/services/kindred.js. 'loading' while we count, an object once
+     we have, and never a number we did not count. */
+  const [myFlag, setMyFlag] = useState(null);
+  const [myVibe, setMyVibe] = useState(null);
+  const [kin, setKin] = useState(null);
 
   // Forgot-password flow: 'email' link, or 'phone' OTP → new password.
   const [resetVia, setResetVia] = useState('email'); // 'email' | 'phone'
@@ -207,6 +215,7 @@ export const AuthScreen = ({ recovery = false, onDone }) => {
   const countries = COUNTRY_LIST.filter((c) => c.name.toLowerCase().includes(countrySearch.trim().toLowerCase()));
 
   const pickCountry = async (c) => {
+    setMyFlag(c.flag || null);
     if (!isDemo) {
       const id = pendingUserId || (user ? user.id : null);
       if (id) {
@@ -223,7 +232,22 @@ export const AuthScreen = ({ recovery = false, onDone }) => {
     if (id) {
       try { await updateProfile(id, { intent: vibe, emoji: vibe.split(' ')[0] }); } catch (e) { /* non-blocking */ }
     }
-    finishOnboarding(); // releases the gate — App now renders the tabs
+    /* ── YOUR PEOPLE, COUNTED ───────────────────────────────────────
+       "خليه لما اختار preferences يقلي أنا شبه كام user حول العالم".
+       One screen between the vibe and the app: how many people here
+       picked the same thing, from where. Counted from the database —
+       and if the count does not come back in four seconds, the app
+       opens anyway. Nobody is kept out of the app by a statistic. */
+    setMyVibe(vibe);
+    setKin('loading');
+    setStep(3);
+    try {
+      const k = await countKindred({ intent: vibe, myFlag, meId: id });
+      if (!k) { finishOnboarding(); return; }
+      setKin(k);
+    } catch (e) {
+      finishOnboarding();
+    }
   };
 
   return (
@@ -462,6 +486,41 @@ export const AuthScreen = ({ recovery = false, onDone }) => {
             <Pressable onPress={() => setStep(2)} style={{ marginTop: 18 }}>
               <Text style={{ color: C.faint, fontSize: 12.5, fontWeight: '700' }}>{t('auth_skip')}</Text>
             </Pressable>
+          </View>
+        ) : step === 3 ? (
+          <View style={{ alignItems: 'center', paddingVertical: 20 }}>
+            {kin === 'loading' || !kin ? (
+              <Text style={{ color: C.dim, fontSize: 14 }}>{t('kin_looking')}</Text>
+            ) : kin.first ? (
+              <>
+                <Text style={{ fontSize: 56, marginBottom: 14 }}>{(myVibe || '').split(' ')[0]}</Text>
+                <Text style={{ color: C.text, fontSize: 24, fontWeight: '900', textAlign: 'center', marginBottom: 10 }}>{t('kin_first_title')}</Text>
+                <Text style={{ color: C.dim, fontSize: 14, textAlign: 'center', lineHeight: 20, marginBottom: 34, paddingHorizontal: 10 }}>{t('kin_first_sub')}</Text>
+              </>
+            ) : (
+              <>
+                <Text style={{ fontSize: 40, marginBottom: 6 }}>{(myVibe || '').split(' ')[0]}</Text>
+                <Text style={{ color: C.purple, fontSize: 64, fontWeight: '900', letterSpacing: -1.5 }}>{kindredNumber(kin.total, lang)}</Text>
+                <Text style={{ color: C.text, fontSize: 16, fontWeight: '800', textAlign: 'center', lineHeight: 22, marginTop: 2, marginBottom: 22, paddingHorizontal: 16 }}>
+                  {t(kin.total === 1 ? 'kin_same_one' : 'kin_same')}
+                </Text>
+                {/* the flags those people actually set, most common first */}
+                {kin.flags.length ? (
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center', marginBottom: 16, paddingHorizontal: 10 }}>
+                    {kin.flags.map((f) => <Text key={f} style={{ fontSize: 23, marginHorizontal: 3, marginBottom: 4 }}>{f}</Text>)}
+                    {kin.moreFlags ? <Text style={{ color: C.dim, fontSize: 14, fontWeight: '800', marginStart: 6 }}>+{kindredNumber(kin.moreFlags, lang)}</Text> : null}
+                  </View>
+                ) : null}
+                {kin.sameHere ? (
+                  <Text style={{ color: C.dim, fontSize: 14, marginBottom: 30 }}>
+                    {kin.myFlag} {kindredNumber(kin.sameHere, lang)} {t('kin_here')}
+                  </Text>
+                ) : <View style={{ height: 22 }} />}
+              </>
+            )}
+            {kin && kin !== 'loading' ? (
+              <NeonButton label={t('kin_go')} onPress={finishOnboarding} style={{ alignSelf: 'stretch' }} />
+            ) : null}
           </View>
         ) : (
           <View style={{ alignItems: 'center' }}>

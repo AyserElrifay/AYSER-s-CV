@@ -337,6 +337,14 @@ export const STRINGS = {
     auth_err_offline: 'Can’t connect right now — check your connection and try again.',
     auth_err_generic: 'Something went wrong. Please try again.',
     // The way in — signing in, where you are, what you are up for
+    // the people like you, counted — see src/lib/kindred.js
+    kin_looking: "Looking for your people…",
+    kin_same: "people on Moments are here for the same thing as you",
+    kin_same_one: "person on Moments is here for the same thing as you",
+    kin_here: "of them in your country",
+    kin_first_title: "You're the first one here",
+    kin_first_sub: "Nobody has picked this yet. Whoever comes next will find you.",
+    kin_go: "LET'S GO",
     auth_reset_title: 'Reset your password',
     // coming back from the link in the reset email
     auth_recovery_title: 'Choose a new password',
