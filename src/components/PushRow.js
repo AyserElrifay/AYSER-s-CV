@@ -9,7 +9,7 @@ import { tapLight, tapSuccess } from '../utils/feedback';
 /* One row that says what is true about notifications on this phone and
    offers the one thing that can be done about it. `ask` is the version
    shown once after joining a plan: a question, with "Not now". */
-export const PushRow = ({ ask, onDone }) => {
+export const PushRow = ({ ask, onDone, compact }) => {
   const { t, lang } = useLang();
   const [state, setState] = useState(null);     // pushState() | 'busy' | 'not_ready'
   useEffect(() => { let alive = true; pushState().then((s) => { if (alive) setState(s); }); return () => { alive = false; }; }, []);
@@ -31,6 +31,23 @@ export const PushRow = ({ ask, onDone }) => {
     : state === 'not_ready' ? t('pr_not_ready')
     : ask ? t('pr_ask') : t('pr_title');
   const canOn = state === 'off';
+
+  /* inside the notifications list: one quiet line, and only while there
+     is something to do about it */
+  if (compact) {
+    if (state === 'on') return null;
+    return (
+      <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6 }}>
+        <Ionicons name="phone-portrait-outline" size={16} color={C.dim} />
+        <Text style={{ flex: 1, minWidth: 0, color: C.dim, fontSize: 13, marginHorizontal: 8 }} numberOfLines={2}>{line}</Text>
+        {state === 'busy' ? <ActivityIndicator color={C.text} /> : canOn ? (
+          <Pressable onPress={turnOn} hitSlop={8} accessibilityRole="button">
+            <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800', textDecorationLine: 'underline' }}>{t('pr_turn_on')}</Text>
+          </Pressable>
+        ) : null}
+      </View>
+    );
+  }
 
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 16, padding: 12 }}>

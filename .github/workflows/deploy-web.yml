@@ -176,6 +176,9 @@ jobs:
       # Community XP: earned by showing up, and nothing else.
       - name: Check community XP
         run: node scripts/check-xp.mjs
+      # Notifications: one line per thing that happened.
+      - name: Check notification grouping
+        run: node scripts/check-notif-groups.mjs
       # No signal must not mean no app.
       - name: Check the app works offline
         run: node scripts/check-offline.mjs

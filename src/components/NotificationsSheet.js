@@ -14,7 +14,6 @@ import { toggleVibe, toggleLaugh, toggleRepost, fetchEngagement } from '../servi
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
 import { sfxSuccess, sfxStar, sfxLaugh } from '../utils/sfx';
 import { sharePost } from '../utils/share';
-import { Micro } from './Micro';
 import { PostCard } from './PostCard';
 import { useStable } from '../hooks/useStable';
 import { setupNotice } from '../lib/plumbing';
@@ -26,6 +25,7 @@ import { useSheetBack } from '../hooks/useSheetBack';
 import { SheetHandle } from './SheetHandle';
 import { PushRow } from './PushRow';
 import { goToTab } from '../lib/mapBus';
+import { groupNotifs, namesLine } from '../lib/notifGroups';
 const GoNowSheet = lazyOverlay(() => import('./GoNowSheet').then((m) => ({ default: m.GoNowSheet })));
 const CommentsSheet = lazyOverlay(() => import('./CommentsSheet').then((m) => ({ default: m.CommentsSheet })));
 const ReelsViewer = lazyOverlay(() => import('./ReelsViewer').then((m) => ({ default: m.ReelsViewer })));
@@ -47,31 +47,20 @@ const timeAgo = (ts) => {
   return Math.round(m / (60 * 24)) + 'd';
 };
 
-const LINE = {
-  vibe: '⭐ starred your moment',
-  laugh: '😂 laughed at your moment',
-  comment: '💬 commented',
-  mate_request: '🤝 wants to be your mate',
-  mate_accept: '🎉 accepted — you\'re mates now!',
-  call: '📞 called you — call them back',
-  tag: '🏷️ tagged you in a moment',
-  repost: '🔁 reposted your moment',
-  green_invite: '🌿 invites you to join',
-  food_order: '🍲 ordered from your kitchen',
-  food_status: '🍲 updated your order',
-  bardi_match: '',
-  plan_soon: '',
-  venue_decision: '🏢',
-  xp_award: '',
-};
 
 const FILTERS = [
-  { k: 'all', label: 'All', kinds: null },
-  { k: 'reactions', label: 'Reactions', kinds: ['vibe', 'laugh', 'repost'] },
-  { k: 'tags', label: 'Tags', kinds: ['tag'] },
-  { k: 'comments', label: 'Comments', kinds: ['comment'] },
-  { k: 'mates', label: 'Mates', kinds: ['mate_request', 'mate_accept'] },
+  { k: 'all', label: 'nt_f_all', kinds: null },
+  { k: 'people', label: 'nt_f_people', kinds: ['mate_request', 'mate_accept', 'message', 'call'] },
+  { k: 'moments', label: 'nt_f_moments', kinds: ['vibe', 'laugh', 'repost', 'tag', 'comment'] },
 ];
+
+/* the verb, in the reader's language, with no emoji: one per kind, and
+   a plural for the kinds that merge several people into one line */
+const verbOf = (t, kind, many) => {
+  const k = 'nt_v_' + kind + (many ? '_many' : '');
+  const v = t(k);
+  return v && v !== k ? v : t('nt_v_' + kind);
+};
 
 const isVideo = (u) => typeof u === 'string' && /\.(mp4|webm|mov|m4v)(\?|#|$)/i.test(u);
 
@@ -179,6 +168,7 @@ export const NotificationsSheet = ({ onClose }) => {
     /* an invitation opens the week it is in, where Join is one tap */
     if (n.kind === 'green_invite') { tapSelection(); setGreenOpen(true); return; }
     if (n.kind === 'plan_soon') { tapSelection(); onClose(); goToTab('TOGETHER'); return; }
+    if (n.kind === 'message') { tapSelection(); onClose(); goToTab('CHATS'); return; }
     if (n.kind === 'bardi_match') { const m = readMatch(n.body); if (m) { tapSelection(); setGoNowFrom(m); } return; }
     if (n.kind === 'food_order') { tapSelection(); setFoodTab('kitchen'); return; }
     if (n.kind === 'food_status') { tapSelection(); setFoodTab('orders'); return; }
@@ -242,7 +232,9 @@ export const NotificationsSheet = ({ onClose }) => {
   const filtered = (items || []).filter((n) => !activeKinds || activeKinds.includes(n.kind));
   const byBucket = {};
   filtered.forEach((n) => { const b = bucketOf(n.created_at); (byBucket[b] = byBucket[b] || []).push(n); });
-  const sections = BUCKET_ORDER.filter((t) => byBucket[t]).map((t) => ({ title: t, data: byBucket[t] }));
+  // one line per thing that happened, inside each section (lib/notifGroups.js)
+  const sections = BUCKET_ORDER.filter((b) => byBucket[b]).map((b) => ({ title: b, data: groupNotifs(byBucket[b]) }));
+  const words = { someone: t('nt_someone'), and: t('nt_and'), others: t('nt_and_others') };
 
   const Thumb = useStable(({ n }) => {
     const url = n.post && n.post.media_url;
@@ -260,7 +252,7 @@ export const NotificationsSheet = ({ onClose }) => {
     );
   });
 
-  const Row = useStable(({ n }) => n.kind === 'xp_award' ? (
+  const Row = useStable(({ n, g }) => n.kind === 'xp_award' ? (
     /* points for showing up — the score, and what it was for */
     <View style={{ paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: C.line, flexDirection: 'row', alignItems: 'center', opacity: n.read ? 0.78 : 1 }}>
       <Text style={{ color: C.text, fontSize: 18, fontWeight: '900', width: 64 }}>{'+' + (parseInt(String(n.body || '').split('|')[0], 10) || 0)}</Text>
@@ -295,27 +287,30 @@ export const NotificationsSheet = ({ onClose }) => {
       </View>
     );
   })() : (
-    <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, opacity: n.read ? 0.78 : 1 }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10 }}>
       <Pressable onPress={() => openNotif(n)} style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>
-        <View>
-          <Image source={{ uri: (n.actor && n.actor.avatar_url) || AV_NEUTRAL }} style={{ width: 44, height: 44, borderRadius: 22 }} />
-          {!n.read ? <View style={{ position: 'absolute', top: -2, right: -2, width: 11, height: 11, borderRadius: 6, backgroundColor: C.purple, borderWidth: 2, borderColor: C.bg2 }} /> : null}
+        <View style={{ width: 46, height: 46 }}>
+          {(g && g.actors.length > 1) ? (
+            <>
+              <Image source={{ uri: g.actors[1].avatar_url || AV_NEUTRAL }} style={{ position: 'absolute', top: 0, right: 0, width: 32, height: 32, borderRadius: 16, backgroundColor: C.glassHi }} />
+              <Image source={{ uri: g.actors[0].avatar_url || AV_NEUTRAL }} style={{ position: 'absolute', bottom: 0, left: 0, width: 32, height: 32, borderRadius: 16, borderWidth: 2, borderColor: C.bg2, backgroundColor: C.glassHi }} />
+            </>
+          ) : (
+            <Image source={{ uri: (n.actor && n.actor.avatar_url) || AV_NEUTRAL }} style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: C.glassHi }} />
+          )}
+          {!(g ? g.read : n.read) ? <View style={{ position: 'absolute', top: -1, right: -1, width: 11, height: 11, borderRadius: 6, backgroundColor: C.purple, borderWidth: 2, borderColor: C.bg2 }} /> : null}
         </View>
-        <View style={{ flex: 1, marginLeft: 11 }}>
-          <Text style={{ color: C.text, fontSize: 13.5, lineHeight: 19 }}>
-            <Text style={{ fontWeight: '900' }}>{(n.actor && n.actor.name) || 'Someone'}</Text>
-            {n.actor && n.actor.country_flag ? ' ' + n.actor.country_flag : ''}{' '}
-            <Text style={{ color: C.dim }}>{LINE[n.kind] || n.kind}</Text>
-            {'  '}<Text style={{ color: C.faint, fontSize: 11.5 }}>{timeAgo(n.created_at)}</Text>
+        <View style={{ flex: 1, minWidth: 0, marginLeft: 12 }}>
+          <Text style={{ color: C.text, fontSize: 14.5, lineHeight: 20 }} numberOfLines={3}>
+            <Text style={{ fontWeight: '800' }}>{g ? namesLine(g.actors, words) : ((n.actor && n.actor.name) || words.someone)}</Text>
+            {' '}<Text style={{ color: C.dim }}>{verbOf(t, n.kind, g && g.actors.length > 1)}</Text>
+            {'  '}<Text style={{ color: C.faint, fontSize: 12 }}>{timeAgo(n.created_at)}</Text>
           </Text>
           {(n.kind === 'green_invite' || n.kind === 'food_order' || n.kind === 'food_status' || n.kind === 'venue_decision') && n.body ? (
-            <Text style={{ color: C.text, fontSize: 12.5, fontWeight: '800', marginTop: 2 }} numberOfLines={1}>{n.body}</Text>
+            <Text style={{ color: C.text, fontSize: 13, fontWeight: '700', marginTop: 2 }} numberOfLines={1}>{n.body}</Text>
           ) : null}
           {n.kind === 'comment' && n.body ? (
-            <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 2 }} numberOfLines={1}>“{n.body}”</Text>
-          ) : null}
-          {n.post && n.post.caption ? (
-            <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 2 }} numberOfLines={1}>on: {n.post.caption}</Text>
+            <Text style={{ color: C.dim, fontSize: 13, marginTop: 2 }} numberOfLines={1}>“{n.body}”</Text>
           ) : null}
         </View>
         {opening === n.id ? <ActivityIndicator size="small" color={C.purple} style={{ marginLeft: 6 }} /> : null}
@@ -323,13 +318,11 @@ export const NotificationsSheet = ({ onClose }) => {
 
       {n.kind === 'mate_request' ? (
         accepted[n.id] ? (
-          <View style={{ backgroundColor: C.greenSoft, borderWidth: 1, borderColor: 'rgba(16,185,129,0.45)', borderRadius: 999, paddingHorizontal: 11, paddingVertical: 7, marginLeft: 10 }}>
-            <Text style={{ color: C.green, fontSize: 11.5, fontWeight: '900' }}>{t('nt_mates')}</Text>
-          </View>
+          <Text style={{ color: C.green, fontSize: 12.5, fontWeight: '800', marginLeft: 10 }}>{t('nt_mates')}</Text>
         ) : (
           <Pressable onPress={(e) => { if (e && e.stopPropagation) e.stopPropagation(); accept(n); }} style={{ marginLeft: 10 }}>
-            <View style={{ backgroundColor: C.purple, borderRadius: 10, paddingHorizontal: 15, paddingVertical: 8 }}>
-              <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '900' }}>{t('accept')}</Text>
+            <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 15, paddingVertical: 8 }}>
+              <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '800' }}>{t('accept')}</Text>
             </View>
           </Pressable>
         )
@@ -350,7 +343,7 @@ export const NotificationsSheet = ({ onClose }) => {
           <SheetHandle onClose={onClose} />
         </View>
         <View style={{ paddingHorizontal: 18, paddingBottom: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Micro>{t('nt_title')}</Micro>
+          <Text style={{ color: C.text, fontSize: 20, fontWeight: '900' }}>{t('notifications')}</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             {items && items.length ? (
               <Pressable
@@ -367,7 +360,7 @@ export const NotificationsSheet = ({ onClose }) => {
                 hitSlop={8}
                 style={{ marginRight: 14 }}
               >
-                <Text style={{ color: C.dim, fontSize: 12.5, fontWeight: '800' }}>{clearing ? 'Clearing…' : 'Clear all'}</Text>
+                <Text style={{ color: C.dim, fontSize: 13, fontWeight: '700' }}>{clearing ? '…' : t('nt_clear')}</Text>
               </Pressable>
             ) : null}
             <Pressable onPress={onClose} hitSlop={8} accessibilityRole="button" accessibilityLabel={t('close')}><Ionicons name="close" size={18} color={C.dim} /></Pressable>
@@ -375,17 +368,17 @@ export const NotificationsSheet = ({ onClose }) => {
         </View>
 
         {/* on the phone too, with the app closed */}
-        <View style={{ paddingHorizontal: 16, paddingBottom: 8 }}><PushRow /></View>
+        <View style={{ paddingHorizontal: 16, paddingBottom: 6 }}><PushRow compact /></View>
 
         {/* filter chips — Instagram style */}
         {items && items.length ? (
-          <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, marginBottom: 4 }} contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 6 }}>
+          <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, flexShrink: 0, minHeight: 46 }} contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 6, alignItems: 'center' }}>
             {FILTERS.map((f) => {
               const on = filter === f.k;
               return (
                 <Pressable key={f.k} onPress={() => { tapLight(); setFilter(f.k); }} style={{ marginRight: 8 }}>
                   <View style={{ backgroundColor: on ? C.text : C.glassHi, borderRadius: 999, paddingHorizontal: 15, paddingVertical: 8 }}>
-                    <Text style={{ color: on ? C.bg : C.text, fontSize: 12.5, fontWeight: '800' }}>{f.label}</Text>
+                    <Text style={{ color: on ? C.bg : C.text, fontSize: 13, fontWeight: '700' }}>{t(f.label)}</Text>
                   </View>
                 </Pressable>
               );
@@ -411,8 +404,8 @@ export const NotificationsSheet = ({ onClose }) => {
           <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 10 }} showsVerticalScrollIndicator={false}>
             {sections.map((s) => (
               <View key={s.title}>
-                <Text style={{ color: C.text, fontSize: 15, fontWeight: '900', marginTop: 14, marginBottom: 2 }}>{s.title}</Text>
-                {s.data.map((n) => <Row key={n.id} n={n} />)}
+                <Text style={{ color: C.faint, fontSize: 12, fontWeight: '800', letterSpacing: 0.8, marginTop: 16, marginBottom: 2 }}>{t('nt_b_' + s.title.toLowerCase().replace(' ', '_')).toUpperCase()}</Text>
+                {s.data.map((grp) => <Row key={grp.key} n={grp.n} g={grp} />)}
               </View>
             ))}
           </ScrollView>
