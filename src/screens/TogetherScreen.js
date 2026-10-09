@@ -9,6 +9,8 @@ import { useLang } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { SUPABASE_READY } from '../lib/supabase';
 import { listGatherings, joinGathering, announceGathering, myInvites } from '../services/green';
+import { pushSupport, wasAsked } from '../lib/push';
+import { PushRow } from '../components/PushRow';
 import { appLink, shareLink, shareNote } from '../utils/share';
 import { fetchWhatsOn } from '../services/whatson';
 import { joinCampfire } from '../services/campfires';
@@ -108,7 +110,8 @@ export const TogetherScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [sheet, setSheet] = useState(null);
   const [invited, setInvited] = useState(null);     // how many joined through your link — the real count
-  const [shareMsg, setShareMsg] = useState(null);         // 'start' | 'green' | 'prog' | 'landing' | { group }
+  const [shareMsg, setShareMsg] = useState(null);
+  const [askPush, setAskPush] = useState(false);     // after a first join: a nudge before it starts?         // 'start' | 'green' | 'prog' | 'landing' | { group }
 
   const uid = user && user.id;
   useEffect(() => {
@@ -159,7 +162,12 @@ export const TogetherScreen = () => {
     setRows((list) => (list || []).map((x) => (x.id === g.id ? { ...x, im_going: yes, going: Math.max(0, (Number(x.going) || 0) + (yes ? 1 : -1)) } : x)));
     const r = await joinGathering(g.id, yes);
     setBusy((b) => { const n = { ...b }; delete n[g.id]; return n; });
-    if (!(r && r.ok)) load(); else if (yes) tapSuccess();
+    if (!(r && r.ok)) load();
+    else if (yes) {
+      tapSuccess();
+      /* the one moment a notification obviously helps — asked once */
+      if (!wasAsked() && pushSupport() !== 'no') setAskPush(true);
+    }
   };
 
   const invite = async (g) => {
@@ -215,6 +223,8 @@ export const TogetherScreen = () => {
             </View>
           </View>
         </Pressable>
+
+        {askPush ? <View style={{ marginBottom: 14 }}><PushRow ask onDone={() => setAskPush(false)} /></View> : null}
 
         {/* ── where ── */}
         <View style={{ flexDirection: 'row', marginBottom: 12 }}>

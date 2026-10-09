@@ -164,6 +164,9 @@ jobs:
       # No signal must not mean no app.
       - name: Check the app works offline
         run: node scripts/check-offline.mjs
+      # Push: only what matters, nothing private on a lock screen.
+      - name: Check phone notifications
+        run: node scripts/check-push.mjs
       # The country room is content, and content rots differently from
       # code: a country added in a hurry with eight phrases and no
       # customs crashes nothing, it just quietly becomes the thin,

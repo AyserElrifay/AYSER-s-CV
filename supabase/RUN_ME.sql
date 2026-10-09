@@ -9314,4 +9314,135 @@ do $do$ begin
   alter table public.posts add constraint posts_intent_check check (intent in ('hangout','warning'));
 exception when duplicate_object then null; end $do$;
 
+-- ═══════════ PUSH · ON THE PHONE, EVEN WITH THE APP CLOSED ═══════════
+/* Web push. A phone that said yes leaves a subscription here; every
+   notification worth waking somebody for is handed to the `push` Edge
+   Function, which signs it with the VAPID key only it holds and sends
+   it. Likes and laughs never buzz a phone — a message, a plan about to
+   start, somebody asking to be a mate, do.
+
+   Nothing here holds a key. push_hook is a random value made by the
+   database itself, so the function can tell the database is calling it;
+   nobody types it, and no role but the owner can read it. */
+create table if not exists public.push_subscriptions (
+  endpoint   text primary key,
+  user_id    uuid not null references public.profiles(id) on delete cascade,
+  p256dh     text not null,
+  auth       text not null,
+  lang       text,
+  created_at timestamptz not null default now()
+);
+create index if not exists push_subscriptions_user_idx on public.push_subscriptions (user_id);
+alter table public.push_subscriptions enable row level security;
+drop policy if exists "see own push" on public.push_subscriptions;
+create policy "see own push" on public.push_subscriptions for select using (auth.uid() = user_id);
+
+create or replace function public.push_subscribe(p_endpoint text, p_p256dh text, p_auth text, p_lang text default null)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  if auth.uid() is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  if coalesce(p_endpoint, '') !~ '^https://' or coalesce(p_p256dh, '') = '' or coalesce(p_auth, '') = '' then
+    return jsonb_build_object('ok', false, 'reason', 'bad');
+  end if;
+  insert into public.push_subscriptions (endpoint, user_id, p256dh, auth, lang)
+  values (p_endpoint, auth.uid(), p_p256dh, p_auth, left(p_lang, 5))
+  on conflict (endpoint) do update set user_id = excluded.user_id, p256dh = excluded.p256dh, auth = excluded.auth, lang = excluded.lang;
+  return jsonb_build_object('ok', true);
+end;
+$$;
+grant execute on function public.push_subscribe(text, text, text, text) to authenticated;
+
+create or replace function public.push_unsubscribe(p_endpoint text)
+returns jsonb language sql security definer set search_path = public as $$
+  with d as (delete from public.push_subscriptions where endpoint = p_endpoint and user_id = auth.uid() returning 1)
+  select jsonb_build_object('ok', true, 'removed', (select count(*) from d));
+$$;
+grant execute on function public.push_unsubscribe(text) to authenticated;
+
+create table if not exists public.app_secrets (name text primary key, value text not null);
+alter table public.app_secrets enable row level security;     -- and no policy: owner only
+revoke all on public.app_secrets from anon, authenticated;
+insert into public.app_secrets (name, value)
+values ('push_hook', replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', ''))
+on conflict (name) do nothing;
+insert into public.app_secrets (name, value)
+values ('push_url', 'https://dvddiyztpyyuultndzso.supabase.co/functions/v1/push')
+on conflict (name) do nothing;
+
+-- the function checks the caller with this, using its own service key
+create or replace function public.push_hook_ok(p text)
+returns boolean language sql security definer set search_path = public as $$
+  select exists (select 1 from public.app_secrets where name = 'push_hook' and value = p and length(p) >= 32);
+$$;
+revoke all on function public.push_hook_ok(text) from public, anon, authenticated;
+
+/* the plan you said yes to, an hour before */
+do $do$
+begin
+  alter table public.notifications drop constraint if exists notifications_kind_check;
+  alter table public.notifications add constraint notifications_kind_check
+    check (kind in ('vibe','laugh','comment','mate_request','mate_accept','message','call','tag','repost','green_invite','food_order','food_status','bardi_match','plan_soon'))
+    not valid;
+exception when others then raise notice 'notifications kind constraint skipped: %', sqlerrm;
+end $do$;
+
+create or replace function public.plan_reminders()
+returns int language plpgsql security definer set search_path = public as $$
+declare n int := 0;
+begin
+  insert into public.notifications (user_id, actor_id, kind, body)
+  select j.user_id, g.host_id, 'plan_soon', g.id::text || '|' || left(g.title, 80)
+  from public.green_gatherings g
+  join public.green_joins j on j.gathering_id = g.id
+  where g.cancelled_at is null
+    and g.starts_at between now() + interval '40 minutes' and now() + interval '70 minutes'
+    and not exists (select 1 from public.notifications x
+                    where x.user_id = j.user_id and x.kind = 'plan_soon' and x.body like g.id::text || '|%');
+  get diagnostics n = row_count;
+  return n;
+end;
+$$;
+
+/* hand the ones worth waking somebody for to the push function —
+   never able to make the notification itself fail */
+create or replace function public.push_on_notification()
+returns trigger language plpgsql security definer set search_path = public as $$
+declare v_url text; v_hook text;
+begin
+  if new.kind not in ('message','call','mate_request','mate_accept','comment','tag','green_invite','bardi_match','plan_soon','food_order','food_status') then
+    return new;
+  end if;
+  if not exists (select 1 from public.push_subscriptions where user_id = new.user_id) then return new; end if;
+  select value into v_url from public.app_secrets where name = 'push_url';
+  select value into v_hook from public.app_secrets where name = 'push_hook';
+  begin
+    perform net.http_post(
+      url := v_url,
+      body := jsonb_build_object('id', new.id),
+      headers := jsonb_build_object('Content-Type', 'application/json', 'x-push-hook', v_hook)
+    );
+  exception when others then null;    -- no pg_net, no function yet: the in-app list still has it
+  end;
+  return new;
+end;
+$$;
+drop trigger if exists push_on_notification on public.notifications;
+create trigger push_on_notification after insert on public.notifications
+  for each row execute function public.push_on_notification();
+
+do $do$
+begin
+  create extension if not exists pg_net;
+exception when others then raise notice 'pg_net skipped: %', sqlerrm;
+end $do$;
+
+do $do$
+begin
+  create extension if not exists pg_cron;
+  perform cron.unschedule(jobid) from cron.job where jobname = 'plan-reminders';
+  perform cron.schedule('plan-reminders', '*/10 * * * *', 'select public.plan_reminders()');
+exception when others then
+  raise notice 'plan-reminders schedule skipped: %', sqlerrm;
+end $do$;
+
 notify pgrst, 'reload schema';

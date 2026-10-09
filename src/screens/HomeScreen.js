@@ -27,6 +27,7 @@ import { StoriesBar } from '../components/StoriesBar';
 import { Wordmark } from '../components/Wordmark';
 import { Modal } from 'react-native';
 import { goToTab } from '../lib/mapBus';
+import { takeLaunchTarget, onPushOpen } from '../lib/push';
 import { lazyOverlay } from '../lib/lazyScreen';
 
 /* ─── THE FEED FIRST, THE REST WHEN YOU REACH FOR IT ─────────────────
@@ -159,6 +160,13 @@ export const HomeScreen = () => {
   const [reelStart, setReelStart] = useState(null);
   const [myProfileOpen, setMyProfileOpen] = useState(false); // one profile everywhere
   const [notifOpen, setNotifOpen] = useState(false);
+  /* a tapped phone notification lands here: the list, or the tab it is about */
+  useEffect(() => {
+    const go = (tg) => { if (!tg) return; if (tg.notifications) setNotifOpen(true); else if (tg.tab) goToTab(tg.tab); };
+    const first = takeLaunchTarget();
+    if (first) setTimeout(() => go(first), 600);
+    return onPushOpen(go);
+  }, []);
   const [unread, setUnread] = useState(0);
   const [sharedPost, setSharedPost] = useState(null); // opened from a ?post= link
   const [sharedStory, setSharedStory] = useState(null); // opened from a ?story= link

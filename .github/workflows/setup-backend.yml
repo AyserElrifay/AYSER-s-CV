@@ -5,7 +5,8 @@ name: Set up Moments backend
 #
 #   1. runs supabase/RUN_ME.sql against the database (story comments,
 #      map covers, notification de-duping — all idempotent, safe twice)
-#   2. deploys the bardi-chat Edge Function
+#   2. deploys the bardi-chat and push Edge Functions (push makes its own
+#      VAPID keys, straight into Supabase secrets)
 #   3. sets its secrets (ALLOWED_ORIGIN, and GROQ_API_KEY if provided)
 #   4. calls the function once for real and checks Bardi answers
 #
@@ -223,6 +224,38 @@ jobs:
             echo "::warning::No GROQ_API_KEY secret — Bardi will have no provider until one is added."
           fi
 
+      # ── PUSH ── notifications on the phone with the app closed.
+      # The VAPID key pair is made here, once, straight into Supabase's
+      # secrets: no person ever sees the private half, and a re-run
+      # keeps the existing pair (a new one would silently break every
+      # phone that already said yes).
+      - name: Deploy push and give it its keys
+        id: push
+        if: ${{ inputs.deploy_function }}
+        env:
+          SITE_ORIGIN: ${{ inputs.site_origin }}
+        run: |
+          set -euo pipefail
+          supabase functions deploy push --project-ref "$REF" --no-verify-jwt
+          if supabase secrets list --project-ref "$REF" 2>/dev/null | grep -q VAPID_PRIVATE_KEY; then
+            echo "VAPID keys already set — kept."
+          else
+            keys=$(npx --yes web-push@3.6.7 generate-vapid-keys --json)
+            pub=$(echo "$keys" | jq -r .publicKey)
+            priv=$(echo "$keys" | jq -r .privateKey)
+            echo "::add-mask::$priv"
+            supabase secrets set --project-ref "$REF" "VAPID_PUBLIC_KEY=$pub" "VAPID_PRIVATE_KEY=$priv" "VAPID_SUBJECT=$SITE_ORIGIN" > /dev/null
+            unset keys priv
+            echo "VAPID keys made and set."
+          fi
+          sleep 5
+          code=$(curl -sS -o /tmp/push.out -w '%{http_code}' -m 30 "https://$REF.supabase.co/functions/v1/push" || echo 000)
+          if [ "$code" = "200" ] && jq -e .publicKey /tmp/push.out > /dev/null; then
+            echo "push answers with its public key."
+          else
+            echo "::warning::push deployed but GET returned $code — it may need a minute; re-run to check."
+          fi
+
       # Prove it works the way the APP calls it, not just the way curl
       # does. The browser sends an Origin header and a preflight first,
       # so a plain curl can pass while every real user still fails on
@@ -288,6 +321,7 @@ jobs:
             echo "- Database schema: $(say '${{ steps.sql.outcome }}' applied)"
             echo "- Reset link allow list: $(say '${{ steps.auth.outcome }}' updated)"
             echo "- bardi-chat: $(say '${{ steps.deploy.outcome }}' deployed)"
+            echo "- push notifications: $(say '${{ steps.push.outcome }}' deployed)"
             echo "- music import: $(say '${{ steps.music.outcome }}' ran)"
             echo "- quiz pictures: $(say '${{ steps.photos.outcome }}' ran)"
           } >> "$GITHUB_STEP_SUMMARY"

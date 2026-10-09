@@ -24,6 +24,8 @@ import { lazyOverlay } from '../lib/lazyScreen';
 import { readMatch } from '../lib/bardi';
 import { useSheetBack } from '../hooks/useSheetBack';
 import { SheetHandle } from './SheetHandle';
+import { PushRow } from './PushRow';
+import { goToTab } from '../lib/mapBus';
 const GoNowSheet = lazyOverlay(() => import('./GoNowSheet').then((m) => ({ default: m.GoNowSheet })));
 const CommentsSheet = lazyOverlay(() => import('./CommentsSheet').then((m) => ({ default: m.CommentsSheet })));
 const ReelsViewer = lazyOverlay(() => import('./ReelsViewer').then((m) => ({ default: m.ReelsViewer })));
@@ -58,6 +60,7 @@ const LINE = {
   food_order: '🍲 ordered from your kitchen',
   food_status: '🍲 updated your order',
   bardi_match: '',
+  plan_soon: '',
 };
 
 const FILTERS = [
@@ -173,6 +176,7 @@ export const NotificationsSheet = ({ onClose }) => {
   const openNotif = async (n) => {
     /* an invitation opens the week it is in, where Join is one tap */
     if (n.kind === 'green_invite') { tapSelection(); setGreenOpen(true); return; }
+    if (n.kind === 'plan_soon') { tapSelection(); onClose(); goToTab('TOGETHER'); return; }
     if (n.kind === 'bardi_match') { const m = readMatch(n.body); if (m) { tapSelection(); setGoNowFrom(m); } return; }
     if (n.kind === 'food_order') { tapSelection(); setFoodTab('kitchen'); return; }
     if (n.kind === 'food_status') { tapSelection(); setFoodTab('orders'); return; }
@@ -254,7 +258,15 @@ export const NotificationsSheet = ({ onClose }) => {
     );
   });
 
-  const Row = useStable(({ n }) => n.kind === 'bardi_match' ? (() => {
+  const Row = useStable(({ n }) => n.kind === 'plan_soon' ? (
+    /* your plan, an hour before: a reminder, not a person */
+    <Pressable onPress={() => openNotif(n)} accessibilityRole="button" style={{ paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: C.line, opacity: n.read ? 0.78 : 1 }}>
+      <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', letterSpacing: 1 }}>{timeAgo(n.created_at)}</Text>
+      <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '700', lineHeight: 20, marginTop: 4 }}>
+        {'⏰ ' + t('push_plan_soon').replace('{title}', String(n.body || '').split('|').slice(1).join('|'))}
+      </Text>
+    </Pressable>
+  ) : n.kind === 'bardi_match' ? (() => {
     /* Bardi: no face, no name in bold — one quiet line and one button */
     const m = readMatch(n.body);
     if (!m) return null;
@@ -349,6 +361,9 @@ export const NotificationsSheet = ({ onClose }) => {
           </View>
         </View>
 
+        {/* on the phone too, with the app closed */}
+        <View style={{ paddingHorizontal: 16, paddingBottom: 8 }}><PushRow /></View>
+
         {/* filter chips — Instagram style */}
         {items && items.length ? (
           <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, marginBottom: 4 }} contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 6 }}>
@@ -356,8 +371,8 @@ export const NotificationsSheet = ({ onClose }) => {
               const on = filter === f.k;
               return (
                 <Pressable key={f.k} onPress={() => { tapLight(); setFilter(f.k); }} style={{ marginRight: 8 }}>
-                  <View style={{ backgroundColor: on ? C.purple : C.glassHi, borderRadius: 999, paddingHorizontal: 15, paddingVertical: 8 }}>
-                    <Text style={{ color: on ? '#FFF' : C.text, fontSize: 12.5, fontWeight: '800' }}>{f.label}</Text>
+                  <View style={{ backgroundColor: on ? C.text : C.glassHi, borderRadius: 999, paddingHorizontal: 15, paddingVertical: 8 }}>
+                    <Text style={{ color: on ? C.bg : C.text, fontSize: 12.5, fontWeight: '800' }}>{f.label}</Text>
                   </View>
                 </Pressable>
               );

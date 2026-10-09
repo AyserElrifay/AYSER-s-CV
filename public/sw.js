@@ -99,3 +99,69 @@ self.addEventListener('fetch', (e) => {
     e.respondWith(cacheFirst(e.request));
   }
 });
+
+/* ── PUSH ── a notification from supabase/functions/push. The payload
+   carries only the kind, a first name and (for a plan) its title; the
+   sentence is written here, in the reader's language, from the same
+   language file the app uses — kept in the cache above. */
+const PUSH_EN = {
+  push_message: '{name} sent you a message',
+  push_call: '{name} is calling you',
+  push_mate_request: '{name} wants to be mates',
+  push_mate_accept: '{name} is now your mate',
+  push_comment: '{name} commented on your moment',
+  push_tag: '{name} tagged you in a moment',
+  push_green_invite: '{name} invites you: {title}',
+  push_bardi_match: '{n} people near you are into {what} right now',
+  push_plan_soon: '{title} starts in an hour',
+  push_food_order: 'A new order in your kitchen',
+  push_food_status: 'Your order was updated',
+};
+
+async function pushStrings(lang) {
+  if (!lang || lang === 'en' || !HAS_CACHES) return PUSH_EN;
+  try {
+    const url = new URL('i18n/' + lang + '.json', self.registration.scope).href;
+    let res = await caches.match(url);
+    if (!res) res = await fetch(url);
+    const all = await res.json();
+    return Object.assign({}, PUSH_EN, all);
+  } catch (e) { return PUSH_EN; }
+}
+
+self.addEventListener('push', (e) => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch (err) { d = {}; }
+  e.waitUntil((async () => {
+    const S = await pushStrings(d.lang);
+    const parts = String(d.body || '').split('|');
+    const line = String(S['push_' + d.kind] || 'Moments')
+      .replace('{name}', d.actor || '')
+      .replace('{title}', d.title || '')
+      .replace('{n}', parts[0] || '')
+      .replace('{what}', parts[1] || '');
+    const base = self.registration.scope;
+    await self.registration.showNotification('Moments', {
+      body: line.trim(),
+      icon: base + 'icon-192.png',
+      badge: base + 'favicon-32.png',
+      tag: d.id || d.kind || 'moments',
+      data: { url: base + (d.kind === 'plan_soon' || d.kind === 'green_invite' ? '?tab=TOGETHER' : '?notifications=1') },
+    });
+  })());
+});
+
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  const url = (e.notification.data && e.notification.data.url) || self.registration.scope;
+  e.waitUntil((async () => {
+    const wins = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const w of wins) {
+      if (w.url.startsWith(self.registration.scope)) {
+        try { w.postMessage({ type: 'open', url }); } catch (err) {}
+        return w.focus();
+      }
+    }
+    return self.clients.openWindow(url);
+  })());
+});
