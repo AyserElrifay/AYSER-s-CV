@@ -161,6 +161,9 @@ jobs:
       # Bardi is an invisible facilitator, not a chatbot.
       - name: Check Bardi stays out of the way
         run: node scripts/check-bardi.mjs
+      # The brain dump: a messy line in, one thing out, nothing leaves but a word.
+      - name: Check the brain dump
+        run: node scripts/check-brain-dump.mjs
       # No signal must not mean no app.
       - name: Check the app works offline
         run: node scripts/check-offline.mjs

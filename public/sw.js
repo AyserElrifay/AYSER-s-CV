@@ -116,6 +116,10 @@ const PUSH_EN = {
   push_plan_soon: '{title} starts in an hour',
   push_food_order: 'A new order in your kitchen',
   push_food_status: 'Your order was updated',
+  bardi_focus: '{n} people near you are {what} right now — focus together?',
+  bardi_focus_at: '{n} people near you are {what} right now — a session at {venue}?',
+  bd_kind_studying: 'Studying',
+  bd_kind_deep_work: 'Deep work',
 };
 
 async function pushStrings(lang) {
@@ -135,7 +139,12 @@ self.addEventListener('push', (e) => {
   e.waitUntil((async () => {
     const S = await pushStrings(d.lang);
     const parts = String(d.body || '').split('|');
-    const line = String(S['push_' + d.kind] || 'Moments')
+    /* body doubling: "n|studying|venue" */
+    const focus = d.kind === 'bardi_match' && (parts[1] === 'studying' || parts[1] === 'deep_work');
+    if (focus) parts[1] = String(S['bd_kind_' + parts[1]] || parts[1]).toLowerCase();
+    const key = focus ? (parts[2] ? 'bardi_focus_at' : 'bardi_focus') : 'push_' + d.kind;
+    const line = String(S[key] || 'Moments')
+      .replace('{venue}', parts[2] || '')
       .replace('{name}', d.actor || '')
       .replace('{title}', d.title || '')
       .replace('{n}', parts[0] || '')

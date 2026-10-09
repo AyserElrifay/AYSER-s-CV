@@ -25,7 +25,10 @@ console.log('\nthe game master: only when a conversation has gone quiet');
 const now = Date.parse('2026-10-09T12:00:00Z');
 const at = (mins) => new Date(now - mins * 60000).toISOString();
 const talk = [{ from: 'me', createdAt: at(10) }, { from: { name: 'Mona' }, userId: 'x', createdAt: at(8) }];
-is('both spoke, eight minutes of silence → offer a game', shouldNudge({ msgs: talk, meId: 'me', now }), true);
+is('both spoke, eight minutes of silence → offer a game', shouldNudge({ msgs: talk, meId: 'me', now }), 'quiet');
+is('a brand-new conversation gets the ice-breaker', shouldNudge({ msgs: [], meId: 'me', now, loaded: true }), 'new');
+is('but not while the messages are still loading', shouldNudge({ msgs: [], meId: 'me', now, loaded: false }), false);
+is('and not on a new chat dismissed today', shouldNudge({ msgs: [], meId: 'me', now, loaded: true, dismissedAt: now - 60000 }), false);
 is('a minute of silence is not silence', shouldNudge({ msgs: [{ from: 'me', createdAt: at(3) }, { from: {}, userId: 'x', createdAt: at(1) }], meId: 'me', now }), false);
 is('one person talking to themselves is not a conversation', shouldNudge({ msgs: [{ from: 'me', createdAt: at(30) }, { from: 'me', createdAt: at(20) }], meId: 'me', now }), false);
 is('a chat from last week is over, not quiet', shouldNudge({ msgs: [{ from: 'me', createdAt: at(9000) }, { from: {}, userId: 'x', createdAt: at(8000) }], meId: 'me', now }), false);
@@ -38,6 +41,12 @@ console.log('\nthe matchmaker: a count and a hobby, written by the phone');
 is('reads the count and the hobby', readMatch('2|specialty coffee'), { count: 2, what: 'specialty coffee', kind: 'coffee' });
 is('running becomes a run', readMatch('3|running').kind, 'run');
 is('fewer than two others is nothing', readMatch('1|coffee'), null);
+is('body doubling: studying near a real venue', readMatch('3|studying|Diwan Bookstore'), { count: 3, what: 'studying', kind: 'focus', focus: true, venue: 'Diwan Bookstore' });
+is('body doubling without a venue still offers a session', readMatch('2|deep_work').venue, null);
+const threadSrc = read('src/screens/ChatThread.js');
+is('tapping the game master sends the invitation, not just a local game', /send\(t\('bardi_invite_' \+ game\)\)/.test(threadSrc), true);
+is('no Bardi chat service is left', fs.existsSync('src/services/bardiChat.js') || fs.existsSync('src/services/bardiLocal.js'), false);
+is('the old Bardi chat table takes nothing new', /drop policy if exists "bardi_chat_own_insert" on public\.bardi_chats;\s*drop policy if exists "bardi_chat_own_update"/.test(read('supabase/RUN_ME.sql')), true);
 is('nonsense is nothing', readMatch('hello'), null);
 const sql = read('supabase/RUN_ME.sql');
 const bm = sql.slice(sql.lastIndexOf('BARDI · THE SILENT MATCHMAKER'));
@@ -48,8 +57,8 @@ console.log('\nthe concierge: two questions, not four');
 is('two questions on the screen', (read('src/components/VibeCheckSheet.js').match(/\{ q: 'vc_q/g) || []).length, 2);
 
 console.log('\nquiet, not flashy');
-const thread = read('src/screens/ChatThread.js');
-const nudge = thread.slice(thread.indexOf('shouldNudge({'), thread.indexOf('shouldNudge({') + 2500);
+const thread = threadSrc;
+const nudge = thread.slice(thread.indexOf('{nudgeWhy ? ('), thread.indexOf('{nudgeWhy ? (') + 2500);
 is('the nudge has no animation', !/Animated|useNativeDriver|LinearGradient/.test(nudge), true);
 
 if (bad) { console.log('\n' + bad + ' wrong.'); process.exit(1); }

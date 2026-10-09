@@ -28,6 +28,7 @@ import { Wordmark } from '../components/Wordmark';
 import { Modal } from 'react-native';
 import { goToTab } from '../lib/mapBus';
 import { takeLaunchTarget, onPushOpen } from '../lib/push';
+import { BrainDump } from '../components/BrainDump';
 import { lazyOverlay } from '../lib/lazyScreen';
 
 /* ─── THE FEED FIRST, THE REST WHEN YOU REACH FOR IT ─────────────────
@@ -474,8 +475,8 @@ export const HomeScreen = () => {
                 <Pressable testID="btn-search" accessibilityRole="button" accessibilityLabel={t('search')} onPress={() => setSearching(true)} style={[headerBtn(), { marginRight: 10 }]}>
                   <Ionicons name="search" size={17} color={C.text} />
                 </Pressable>
-                <Pressable testID="btn-compose" accessibilityRole="button" accessibilityLabel={t('whats_your_moment')} onPress={() => setComposing('post')} style={[headerBtn(), { marginRight: 10, backgroundColor: C.greenSoft, borderColor: 'rgba(16,185,129,0.4)' }]}>
-                  <Ionicons name="add" size={20} color={C.green} />
+                <Pressable testID="btn-compose" accessibilityRole="button" accessibilityLabel={t('whats_your_moment')} onPress={() => setComposing('post')} style={[headerBtn(), { marginRight: 10 }]}>
+                  <Ionicons name="add" size={20} color={C.text} />
                 </Pressable>
                 <Pressable testID="btn-profile" accessibilityRole="button" accessibilityLabel={me.name || t('tab_space')} onPress={() => { tapLight(); setMyProfileOpen(true); }}>
                   <Image source={{ uri: me.avatar }} style={{ width: 38, height: 38, borderRadius: 19, borderWidth: 1.5, borderColor: C.purple }} />
@@ -488,6 +489,9 @@ export const HomeScreen = () => {
               onOpenStory={setStoryIndex}
               onAddStory={() => setComposing('story')}
             />
+
+            {/* today, one thing at a time — Bardi's brain dump */}
+            {user ? <BrainDump /> : null}
 
             {/* share box — your moment or your opinion, one tap away */}
             <Glass style={{ flexDirection: 'row', alignItems: 'center', padding: 12, marginTop: 18 }}>

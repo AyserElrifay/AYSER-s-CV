@@ -237,6 +237,8 @@ jobs:
         run: |
           set -euo pipefail
           supabase functions deploy push --project-ref "$REF" --no-verify-jwt
+          # voice notes for the brain dump (signed-in only; uses GROQ_API_KEY)
+          supabase functions deploy bardi-listen --project-ref "$REF"
           if supabase secrets list --project-ref "$REF" 2>/dev/null | grep -q VAPID_PRIVATE_KEY; then
             echo "VAPID keys already set — kept."
           else

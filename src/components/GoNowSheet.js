@@ -35,7 +35,7 @@ const KINDS = [
 ];
 const WHEN = [0, 30, 60, 120];
 
-export const GoNowSheet = ({ onClose, initialKind, initialTitle }) => {
+export const GoNowSheet = ({ onClose, initialKind, initialTitle, initialPlace }) => {
   useSheetBack(onClose);
   const insets = useSafeAreaInsets();
   const { t } = useLang();
@@ -43,7 +43,7 @@ export const GoNowSheet = ({ onClose, initialKind, initialTitle }) => {
   const [kind, setKind] = useState(initialKind || 'walk');
   const [inMin, setInMin] = useState(0);
   const [title, setTitle] = useState(initialTitle || '');
-  const [place, setPlace] = useState('');
+  const [place, setPlace] = useState(initialPlace || '');
   const [country, setCountry] = useState(null);
   const [state, setState] = useState(null);     // null | 'busy' | { told, id, lat, lng } | { err }
   const [more, setMore] = useState(!!initialTitle);   // note and place, folded away

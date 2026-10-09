@@ -274,7 +274,9 @@ export const NotificationsSheet = ({ onClose }) => {
       <View style={{ paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: C.line, opacity: n.read ? 0.78 : 1 }}>
         <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', letterSpacing: 1 }}>BARDI · {timeAgo(n.created_at)}</Text>
         <Text style={{ color: C.text, fontSize: 14.5, lineHeight: 20, marginTop: 4 }}>
-          {t('bardi_match').replace('{n}', String(m.count)).replace('{what}', m.what)}
+          {m.focus
+            ? t(m.venue ? 'bardi_focus_at' : 'bardi_focus').replace('{n}', String(m.count)).replace('{what}', t('bd_kind_' + m.what).toLowerCase()).replace('{venue}', m.venue || '')
+            : t('bardi_match').replace('{n}', String(m.count)).replace('{what}', m.what)}
         </Text>
         <Pressable onPress={() => openNotif(n)} accessibilityRole="button" style={{ marginTop: 8, alignSelf: 'flex-start' }}>
           <Text style={{ color: C.purple, fontSize: 14, fontWeight: '900' }}>{t('bardi_make_hangout')} ›</Text>
@@ -409,7 +411,12 @@ export const NotificationsSheet = ({ onClose }) => {
       {/* tap targets */}
       {profileUser ? <ProfileModal user={profileUser} onClose={() => setProfileUser(null)} /> : null}
       {greenOpen ? <GreenSheet onClose={() => setGreenOpen(false)} /> : null}
-      {goNowFrom ? <GoNowSheet initialKind={goNowFrom.kind} initialTitle={goNowFrom.what} onClose={() => setGoNowFrom(null)} /> : null}
+      {goNowFrom ? (
+        <GoNowSheet initialKind={goNowFrom.kind}
+          initialTitle={goNowFrom.focus ? t('bardi_session_title') + (goNowFrom.venue ? ' · ' + goNowFrom.venue : '') : goNowFrom.what}
+          initialPlace={goNowFrom.venue || ''}
+          onClose={() => setGoNowFrom(null)} />
+      ) : null}
       {foodTab ? <KitchenSheet startTab={foodTab} onClose={() => setFoodTab(null)} /> : null}
 
       {viewPost ? (

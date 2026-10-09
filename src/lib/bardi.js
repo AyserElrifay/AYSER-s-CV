@@ -29,8 +29,12 @@ export const SNOOZE_HOURS = 24;        // dismissed once, gone for a day
    one-sided request), the last message is a few minutes old but the
    chat is still recent, no game is already open, and it was not
    dismissed in the last day. */
-export function shouldNudge({ msgs, meId, now = Date.now(), dismissedAt = 0, gameOpen = false }) {
+export function shouldNudge({ msgs, meId, now = Date.now(), dismissedAt = 0, gameOpen = false, loaded = false }) {
   if (gameOpen) return false;
+  if (dismissedAt && now - dismissedAt < SNOOZE_HOURS * 3600000) return false;
+  /* a brand-new conversation: the blank page is the hardest part, so
+     the ice-breaker is offered before anybody has to think of a line */
+  if (loaded && (!msgs || msgs.length === 0)) return 'new';
   const list = (msgs || []).filter((m) => m && m.createdAt);
   if (list.length < 2) return false;
   const mine = list.some((m) => m.from === 'me' || (meId && m.userId === meId));
@@ -40,8 +44,7 @@ export function shouldNudge({ msgs, meId, now = Date.now(), dismissedAt = 0, gam
   if (!Number.isFinite(last)) return false;
   const quiet = now - last;
   if (quiet < QUIET_MIN * 60000 || quiet > STALE_DAYS * 86400000) return false;
-  if (dismissedAt && now - dismissedAt < SNOOZE_HOURS * 3600000) return false;
-  return true;
+  return 'quiet';
 }
 
 /* Which game: the same one for the same conversation, so it does not
@@ -51,19 +54,22 @@ export function nudgeGame(threadKey) {
   return Math.abs(h) % 2 === 0 ? 'tod' : 'wyr';
 }
 
-/* The matchmaker's notification body is "count|hobby"; the phone writes
-   the sentence in the reader's language and picks the kind of hangout
-   the hobby sounds like. */
+/* The matchmaker's notification body is "count|hobby" — or, for body
+   doubling, "count|studying|venue". The phone writes the sentence in the
+   reader's language and picks the kind of hangout it sounds like. */
+export const FOCUS_STATUS = ['studying', 'deep_work'];
 export function readMatch(body) {
-  const [n, ...rest] = String(body || '').split('|');
-  const what = rest.join('|').trim();
+  const [n, w, ...rest] = String(body || '').split('|');
+  const what = String(w || '').trim();
+  const venue = rest.join('|').trim() || null;
   const count = parseInt(n, 10);
   if (!what || !Number.isFinite(count) || count < 2) return null;
-  const w = what.toLowerCase();
-  const kind = /run|jog|marathon|جري|běh|jooks/.test(w) ? 'run'
-    : /walk|hik|trek|مشي|procház|matk/.test(w) ? 'walk'
-    : /coffee|café|cafe|قهوة|káv|kohv/.test(w) ? 'coffee'
-    : /football|soccer|sport|كورة|fotbal|jalgpall/.test(w) ? 'sport'
+  if (FOCUS_STATUS.includes(what)) return { count, what, kind: 'focus', focus: true, venue };
+  const wl = what.toLowerCase();
+  const kind = /run|jog|marathon|جري|běh|jooks/.test(wl) ? 'run'
+    : /walk|hik|trek|مشي|procház|matk/.test(wl) ? 'walk'
+    : /coffee|café|cafe|قهوة|káv|kohv/.test(wl) ? 'coffee'
+    : /football|soccer|sport|كورة|fotbal|jalgpall/.test(wl) ? 'sport'
     : 'focus';
   return { count, what, kind };
 }

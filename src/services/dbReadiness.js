@@ -53,13 +53,6 @@ const CHECKS = [
     column: 'theme_pref',
   },
   {
-    id: 'bardi_chats',
-    label: "Bardi's chat history across devices",
-    what: 'The conversation is kept on the device only.',
-    table: 'bardi_chats',
-    column: 'user_id',
-  },
-  {
     id: 'groups',
     label: 'Groups',
     what: 'Create a group does nothing at all — there is no table to put one in.',

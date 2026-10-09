@@ -68,6 +68,7 @@ export const ChatThread = ({ chat, group, onClose }) => {
   const isReal = SUPABASE_READY && !!user && (group ? REAL_ID.test(chat.id || '') : REAL_ID.test((peer && peer.id) || ''));
 
   const [msgs, setMsgs] = useState([]); // always starts empty — real messages only
+  const [msgsLoaded, setMsgsLoaded] = useState(false);
   const [dmThreadId, setDmThreadId] = useState((!group && chat.threadId) || null);
   const [draft, setDraft] = useState('');
   const [chatErr, setChatErr] = useState(null); // never pretend a send worked
@@ -407,6 +408,7 @@ export const ChatThread = ({ chat, group, onClose }) => {
       if (cancelled) return;
       const local = (rows || []).map(toLocal);
       setMsgs(local);
+      setMsgsLoaded(true);
       local.filter((r) => r.gameMatchId).forEach((r) => loadMatch(r.gameMatchId));
       setTimeout(() => scroller.current && scroller.current.scrollToEnd({ animated: false }), 60);
       unsub = subscribeMessages({ squadId, dmThreadId: threadId }, (payload) => {
@@ -453,6 +455,9 @@ export const ChatThread = ({ chat, group, onClose }) => {
   };
 
   const callPeer = group ? { name: chat.name, avatar: chat.members ? chat.members[0] : AV_NEUTRAL } : peer;
+
+  /* Bardi, the game master: 'new' (a blank conversation) or 'quiet' */
+  const nudgeWhy = shouldNudge({ msgs, meId: user && user.id, dismissedAt: nudgeOff, gameOpen: todOn || wyrOn, now: Date.now(), loaded: msgsLoaded });
 
   return (
     <Modal visible transparent={false} animationType="slide" onRequestClose={onClose}>
@@ -685,15 +690,16 @@ export const ChatThread = ({ chat, group, onClose }) => {
             {wyrOn ? <WouldYouRather onRemove={() => setWyrOn(false)} /> : null}
           </ScrollView>
 
-          {shouldNudge({ msgs, meId: user && user.id, dismissedAt: nudgeOff, gameOpen: todOn || wyrOn, now: Date.now() }) ? (() => {
+          {nudgeWhy ? (() => {
             const game = nudgeGame(nudgeKey);
             const dismiss = () => { const at = Date.now(); setNudgeOff(at); try { localStorage.setItem(nudgeKey, String(at)); } catch (e) {} };
             return (
               /* quiet: one line, no animation, one accent button */
               <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, borderTopWidth: 1, borderTopColor: C.line, backgroundColor: C.bg }}>
                 <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', letterSpacing: 1, marginEnd: 10 }}>BARDI</Text>
-                <Text style={{ color: C.text, fontSize: 13.5, flex: 1, minWidth: 0 }} numberOfLines={2}>{t(game === 'tod' ? 'bardi_quiet_tod' : 'bardi_quiet_wyr')}</Text>
-                <Pressable onPress={() => { tapLight(); dismiss(); if (game === 'tod') setTodOn(true); else setWyrOn(true); setTimeout(() => scroller.current && scroller.current.scrollToEnd({ animated: true }), 80); }}
+                <Text style={{ color: C.text, fontSize: 13.5, flex: 1, minWidth: 0 }} numberOfLines={2}>{t((nudgeWhy === 'new' ? 'bardi_new_' : 'bardi_quiet_') + game)}</Text>
+                {/* one tap: the invitation goes to them, and the game opens */}
+                <Pressable onPress={() => { tapLight(); dismiss(); send(t('bardi_invite_' + game)); if (game === 'tod') setTodOn(true); else setWyrOn(true); setTimeout(() => scroller.current && scroller.current.scrollToEnd({ animated: true }), 80); }}
                   accessibilityRole="button" style={{ marginStart: 10 }}>
                   <Text style={{ color: C.purple, fontSize: 13.5, fontWeight: '900' }}>{t('bardi_play')}</Text>
                 </Pressable>

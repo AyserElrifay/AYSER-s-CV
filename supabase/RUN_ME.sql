@@ -9445,4 +9445,107 @@ exception when others then
   raise notice 'plan-reminders schedule skipped: %', sqlerrm;
 end $do$;
 
+-- ═══════════ BARDI · THE BRAIN DUMP AND BODY DOUBLING ═══════════
+/* The brain dump is parsed on the phone and never sent anywhere. What
+   the server learns is one word for what you are doing right now —
+   'studying' or 'deep_work' — and for how long, so that when two or
+   more people near you are doing the same, Bardi can offer a focus
+   session together at a real place on the map.
+
+   Bardi is no longer somebody to chat with: bardi_chats keeps what was
+   said before, readable by its owner, and takes nothing new. */
+drop policy if exists "bardi_chat_own_insert" on public.bardi_chats;
+drop policy if exists "bardi_chat_own_update" on public.bardi_chats;
+
+alter table public.profiles add column if not exists focus_status text;
+alter table public.profiles add column if not exists focus_until  timestamptz;
+
+create or replace function public.bardi_set_focus(p_status text, p_minutes int default 120)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare v text := nullif(btrim(coalesce(p_status, '')), ''); m int := least(greatest(coalesce(p_minutes, 120), 15), 240);
+begin
+  if auth.uid() is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  if v is not null and v not in ('studying', 'deep_work') then
+    return jsonb_build_object('ok', false, 'reason', 'bad_status');
+  end if;
+  update public.profiles
+     set focus_status = v,
+         focus_until  = case when v is null then null else now() + make_interval(mins => m) end
+   where id = auth.uid();
+  return jsonb_build_object('ok', true, 'matched', case when v is null then 0 else public.bardi_match_for(auth.uid()) end);
+end;
+$$;
+grant execute on function public.bardi_set_focus(text, int) to authenticated;
+
+/* the matchmaker, now with body doubling first: people focusing near
+   each other are offered a session at the nearest real venue; after
+   that, shared hobbies as before. Still at most one a day, still only
+   people who chose to be visible on the map. */
+create or replace function public.bardi_match_for(u uuid)
+returns int language plpgsql security definer set search_path = public as $$
+declare
+  me record;
+  mine text;
+  best record;
+  n_focus int;
+  venue text;
+begin
+  select * into me from public.live_locations where user_id = u and updated_at > now() - interval '60 minutes';
+  if not found then return 0; end if;
+  if exists (select 1 from public.notifications where user_id = u and kind = 'bardi_match'
+              and created_at > now() - interval '24 hours') then return 0; end if;
+
+  -- ── body doubling ──
+  select focus_status into mine from public.profiles where id = u and focus_until > now();
+  if mine is not null then
+    select count(distinct l.user_id) into n_focus
+      from public.live_locations l
+      join public.profiles p on p.id = l.user_id
+     where l.user_id <> u
+       and l.updated_at > now() - interval '60 minutes'
+       and p.focus_status in ('studying', 'deep_work') and p.focus_until > now()
+       and 2 * 6371 * asin(sqrt(power(sin(radians(l.lat - me.lat) / 2), 2)
+             + cos(radians(me.lat)) * cos(radians(l.lat)) * power(sin(radians(l.lng - me.lng) / 2), 2))) <= 2;
+    if n_focus >= 2 then
+      -- a real place on the map, the nearest within 2 km; a café or a library if there is one
+      select v.name into venue
+        from public.venues v
+       where v.status = 'live' and v.lat is not null and v.lng is not null
+         and 2 * 6371 * asin(sqrt(power(sin(radians(v.lat - me.lat) / 2), 2)
+               + cos(radians(me.lat)) * cos(radians(v.lat)) * power(sin(radians(v.lng - me.lng) / 2), 2))) <= 2
+       order by (coalesce(v.kind, '') ~* 'caf|coffee|library|cowork|study|book') desc,
+                power(v.lat - me.lat, 2) + power(v.lng - me.lng, 2)
+       limit 1;
+      insert into public.notifications (user_id, actor_id, kind, body)
+      values (u, u, 'bardi_match', n_focus || '|' || mine || coalesce('|' || left(venue, 60), ''));
+      return 1;
+    end if;
+  end if;
+
+  -- ── shared hobbies ──
+  select h.tag, count(distinct h.user_id) as n into best
+    from (
+      select l.user_id, lower(btrim(x)) as tag
+        from public.live_locations l
+        join public.profiles p on p.id = l.user_id
+        cross join lateral unnest(string_to_array(coalesce(p.hobbies, ''), ',')) x
+       where l.user_id <> u
+         and l.updated_at > now() - interval '60 minutes'
+         and 2 * 6371 * asin(sqrt(power(sin(radians(l.lat - me.lat) / 2), 2)
+               + cos(radians(me.lat)) * cos(radians(l.lat)) * power(sin(radians(l.lng - me.lng) / 2), 2))) <= 2
+    ) h
+   where h.tag <> ''
+     and h.tag in (select lower(btrim(y)) from public.profiles p2
+                    cross join lateral unnest(string_to_array(coalesce(p2.hobbies, ''), ',')) y where p2.id = u)
+   group by h.tag
+   order by count(distinct h.user_id) desc, h.tag
+   limit 1;
+
+  if best is null or best.n < 2 then return 0; end if;
+  insert into public.notifications (user_id, actor_id, kind, body)
+  values (u, u, 'bardi_match', best.n || '|' || left(best.tag, 40));
+  return 1;
+end;
+$$;
+
 notify pgrst, 'reload schema';
