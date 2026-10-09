@@ -27,6 +27,7 @@ const CommentsSheet = lazyOverlay(() => import('./CommentsSheet').then((m) => ({
 const ReelsViewer = lazyOverlay(() => import('./ReelsViewer').then((m) => ({ default: m.ReelsViewer })));
 const LikersSheet = lazyOverlay(() => import('./LikersSheet').then((m) => ({ default: m.LikersSheet })));
 const ProfileModal = lazyOverlay(() => import('./ProfileModal').then((m) => ({ default: m.ProfileModal })));
+const GreenSheet = lazyOverlay(() => import('./green/GreenSheet').then((m) => ({ default: m.GreenSheet })));
 
 /* The activity inbox — every star, laugh, comment and mate event on YOUR
    stuff, written by DB triggers so nothing is ever fabricated. Laid out
@@ -50,6 +51,7 @@ const LINE = {
   call: '📞 called you — call them back',
   tag: '🏷️ tagged you in a moment',
   repost: '🔁 reposted your moment',
+  green_invite: '🌿 invites you to join',
 };
 
 const FILTERS = [
@@ -88,6 +90,7 @@ export const NotificationsSheet = ({ onClose }) => {
 
   // tap targets
   const [profileUser, setProfileUser] = useState(null);
+  const [greenOpen, setGreenOpen] = useState(false);   // a green invite, tapped
   const [viewPost, setViewPost] = useState(null);
   const [reelView, setReelView] = useState(null);
   const [commentsPost, setCommentsPost] = useState(null);
@@ -160,6 +163,8 @@ export const NotificationsSheet = ({ onClose }) => {
   });
 
   const openNotif = async (n) => {
+    /* an invitation opens the week it is in, where Join is one tap */
+    if (n.kind === 'green_invite') { tapSelection(); setGreenOpen(true); return; }
     if (n.kind === 'mate_request' || n.kind === 'mate_accept' || n.kind === 'call') {
       tapSelection(); setProfileUser(actorProfile(n)); return;
     }
@@ -252,6 +257,9 @@ export const NotificationsSheet = ({ onClose }) => {
             <Text style={{ color: C.dim }}>{LINE[n.kind] || n.kind}</Text>
             {'  '}<Text style={{ color: C.faint, fontSize: 11.5 }}>{timeAgo(n.created_at)}</Text>
           </Text>
+          {n.kind === 'green_invite' && n.body ? (
+            <Text style={{ color: C.text, fontSize: 12.5, fontWeight: '800', marginTop: 2 }} numberOfLines={1}>{n.body}</Text>
+          ) : null}
           {n.kind === 'comment' && n.body ? (
             <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 2 }} numberOfLines={1}>“{n.body}”</Text>
           ) : null}
@@ -359,6 +367,7 @@ export const NotificationsSheet = ({ onClose }) => {
 
       {/* tap targets */}
       {profileUser ? <ProfileModal user={profileUser} onClose={() => setProfileUser(null)} /> : null}
+      {greenOpen ? <GreenSheet onClose={() => setGreenOpen(false)} /> : null}
 
       {viewPost ? (
         <Modal visible transparent animationType="slide" onRequestClose={() => setViewPost(null)}>

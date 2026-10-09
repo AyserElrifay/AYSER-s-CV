@@ -27,12 +27,22 @@ const rpc = async (name, args) => {
 /* Everything coming up, or one country's worth. */
 export async function listGatherings(country) {
   if (!SUPABASE_READY) return [];
-  const { data, error } = await withDeadline(
-    supabase.rpc('green_list', { p_country: country || null }),
-  );
-  if (error) throw error;
-  return Array.isArray(data) ? data : [];
+  const ask = () => withDeadline(supabase.rpc('green_list', { p_country: country || null }));
+  /* The weekly plans are turned into this week's gatherings by the
+     server. Asked at the same time as the list, not before it: almost
+     always it has nothing new to make, and when it did make some, the
+     list is asked once more. */
+  const [rolled, first] = await Promise.all([
+    withDeadline(supabase.rpc('green_roll_week')).catch(() => ({ data: 0 })),
+    ask(),
+  ]);
+  const res = rolled && rolled.data > 0 ? await ask() : first;
+  if (res.error) throw res.error;
+  return Array.isArray(res.data) ? res.data : [];
 }
+
+/* Tell everybody who is not already coming. Only the host may, once. */
+export const announceGathering = (id) => rpc('green_announce', { p_id: id });
 
 /* The ideas. Read straight from the table — there is nothing private
    in them and nothing to decide. */

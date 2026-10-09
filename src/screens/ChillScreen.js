@@ -26,7 +26,9 @@ import { MusicHubSheet } from '../components/MusicHubSheet';
 import { FilmSheet } from '../components/FilmSheet';
 import { BooksShelf } from '../components/BooksShelf';
 import { GameHub } from '../components/lamma/GameHub';
-import { GreenSheet } from '../components/green/GreenSheet';
+/* lazy here as well as in Notifications: one plain import anywhere puts
+   the whole sheet back into everybody's first download */
+const GreenSheet = lazyOverlay(() => import('../components/green/GreenSheet').then((m) => ({ default: m.GreenSheet })));
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
 import { trackPlayer } from '../lib/videoSound';
 import { sfxSuccess, sfxPop } from '../utils/sfx';

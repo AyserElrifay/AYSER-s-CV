@@ -1583,7 +1583,7 @@ do $do$
 begin
   alter table public.notifications drop constraint if exists notifications_kind_check;
   alter table public.notifications add constraint notifications_kind_check
-    check (kind in ('vibe','laugh','comment','mate_request','mate_accept','message','call','tag','repost'))
+    check (kind in ('vibe','laugh','comment','mate_request','mate_accept','message','call','tag','repost','green_invite'))
     not valid;
 exception when others then
   raise notice 'notifications kind constraint skipped: %', sqlerrm;
@@ -5592,7 +5592,7 @@ create index if not exists green_gatherings_when_idx on public.green_gatherings 
 do $$ begin
   alter table public.green_gatherings drop constraint if exists green_gatherings_kind_check;
   alter table public.green_gatherings add constraint green_gatherings_kind_check
-    check (kind in ('cleanup','circle','art','project')) not valid;
+    check (kind in ('cleanup','circle','art','project','culture','walk','sport')) not valid;
 exception when others then null; end $$;
 
 create table if not exists public.green_joins (
@@ -5691,7 +5691,7 @@ declare
   g  public.green_gatherings%rowtype;
 begin
   if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
-  if p_kind not in ('cleanup','circle','art','project') then
+  if p_kind not in ('cleanup','circle','art','project','culture','walk','sport') then
     return jsonb_build_object('ok', false, 'reason', 'bad_kind');
   end if;
   if coalesce(length(btrim(p_title)), 0) < 3 then
@@ -8494,6 +8494,165 @@ values
   ('eu', 'tax', 'Where you live is usually where you are taxed',
    'You generally become tax resident where you actually live, and a common rule of thumb is more than 183 days in a year — but each country writes its own test, and a treaty between the two decides who taxes what when both think you are theirs.\n\nRegistering with the tax office is often the same visit as getting your personal number. Doing it late is the expensive kind of late.', 80)
 on conflict (scope, coalesce(country, ''), lower(coalesce(city, '')), slug) do nothing;
+
+-- ═══════════ GREEN MINDS · A WEEK YOU CAN ACTUALLY JOIN ═══════════
+/* "وجهة green minds معقده جدا — What I can join". The screen now opens
+   on one list: what is on this week, day by day, with a Join button.
+
+   Some of it comes back every week (the opera on Thursday, football on
+   Tuesday...). Those are written once, in green_weekly, and the next
+   seven days of them are made into ordinary gatherings by
+   green_roll_week() — so joining, leaving, counting and calling one off
+   all work exactly as they do for a one-off, and every count is still
+   the number of real people who pressed Join. Nobody is pre-filled. */
+create table if not exists public.green_weekly (
+  id          uuid primary key default gen_random_uuid(),
+  weekday     int  not null check (weekday between 0 and 6),   -- 0 = Sunday, Postgres dow
+  start_time  time not null,
+  tz          text not null default 'Africa/Cairo',
+  minutes     int,
+  capacity    int,
+  kind        text not null,
+  title       text not null,
+  about       text,
+  country     text not null default 'EG',
+  city        text,
+  place_name  text,
+  host_id     uuid not null references public.profiles(id) on delete cascade,
+  active      boolean not null default true,
+  created_at  timestamptz not null default now()
+);
+alter table public.green_weekly enable row level security;
+drop policy if exists "the weekly plan is public" on public.green_weekly;
+create policy "the weekly plan is public" on public.green_weekly for select using (true);
+drop policy if exists "a host keeps their own weekly plan" on public.green_weekly;
+create policy "a host keeps their own weekly plan" on public.green_weekly
+  for all using (host_id = auth.uid()) with check (host_id = auth.uid());
+
+alter table public.green_gatherings add column if not exists weekly_id uuid references public.green_weekly(id) on delete set null;
+alter table public.green_gatherings add column if not exists announced_at timestamptz;
+create unique index if not exists green_gatherings_weekly_once on public.green_gatherings (weekly_id, starts_at) where weekly_id is not null;
+
+-- the next seven days of every weekly plan, made real; safe to call often
+create or replace function public.green_roll_week()
+returns int
+language plpgsql security definer set search_path = public as $$
+declare
+  w   public.green_weekly%rowtype;
+  d   int;
+  at  timestamptz;
+  gid uuid;
+  made int := 0;
+begin
+  for w in select * from public.green_weekly where active loop
+    for d in 0..7 loop
+      continue when extract(dow from ((now() at time zone w.tz)::date + d)) <> w.weekday;
+      at := (((now() at time zone w.tz)::date + d) + w.start_time) at time zone w.tz;
+      continue when at < now();
+      insert into public.green_gatherings
+        (kind, title, about, country, city, place_name, starts_at, minutes, capacity, host_id, weekly_id)
+      values (w.kind, w.title, w.about, w.country, w.city, w.place_name, at, w.minutes, w.capacity, w.host_id, w.id)
+      on conflict (weekly_id, starts_at) where weekly_id is not null do nothing
+      returning id into gid;
+      if gid is not null then
+        insert into public.green_joins (gathering_id, user_id) values (gid, w.host_id) on conflict do nothing;
+        made := made + 1;
+        gid := null;
+      end if;
+    end loop;
+  end loop;
+  return made;
+end;
+$$;
+grant execute on function public.green_roll_week() to anon, authenticated;
+
+/* "ابعت للusers انهم join". Only the person hosting it may send this,
+   once per gathering, and it goes to everybody who has not already
+   said they are coming. It is an ordinary in-app notification with the
+   host's name on it, so it reads as a person inviting you — because it
+   is. */
+alter table public.notifications add column if not exists gathering_id uuid references public.green_gatherings(id) on delete cascade;
+
+create or replace function public.green_announce(p_id uuid)
+returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare
+  me uuid := auth.uid();
+  g  public.green_gatherings%rowtype;
+  n  int;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  select * into g from public.green_gatherings where id = p_id;
+  if not found or g.cancelled_at is not null then return jsonb_build_object('ok', false, 'reason', 'no_gathering'); end if;
+  if g.host_id <> me then return jsonb_build_object('ok', false, 'reason', 'not_yours'); end if;
+  if g.announced_at is not null then return jsonb_build_object('ok', false, 'reason', 'already_sent'); end if;
+  insert into public.notifications (user_id, actor_id, kind, body, gathering_id)
+  select p.id, me, 'green_invite', g.title, g.id
+    from public.profiles p
+   where p.id <> me
+     and not exists (select 1 from public.green_joins j where j.gathering_id = g.id and j.user_id = p.id);
+  get diagnostics n = row_count;
+  update public.green_gatherings set announced_at = now() where id = g.id;
+  return jsonb_build_object('ok', true, 'sent', n);
+end;
+$$;
+grant execute on function public.green_announce(uuid) to authenticated;
+
+/* The first week, hosted by Ayser — the plan he asked for, Thursday's
+   opera and one thing on most other days. They are his: under his name,
+   editable and switchable off in green_weekly, and each one is a real
+   commitment to turn up. Written only if his account exists and only
+   once (keyed on title + weekday). */
+do $$
+declare owner uuid;
+begin
+  select u.id into owner from auth.users u where lower(u.email) = 'ayseryourlifecoach@gmail.com' limit 1;
+  if owner is null or not exists (select 1 from public.profiles where id = owner) then
+    raise notice 'green week: owner profile not found, nothing seeded';
+    return;
+  end if;
+  insert into public.green_weekly (weekday, start_time, minutes, capacity, kind, title, about, city, place_name, host_id)
+  select v.* , owner from (values
+    (6, time '09:00',  90, null::int, 'walk',    'Morning walk & pick-up · مشي الصبح ولمّ الزبالة',
+       'An easy walk round the park, picking up what others left behind. Bring water and a bag; everyone is welcome.', 'Cairo', 'Al-Azhar Park'),
+    (0, time '19:00',  90, 20,        'circle',  'Language exchange circle · دايرة تبادل لغات',
+       'Half the time in Arabic, half in English (or whatever the group speaks). Come to teach a little and learn a little.', 'Cairo', 'Merryland Park, Heliopolis'),
+    (2, time '18:30',  90, 14,        'sport',   'Football in the park · كورة في الجنينة',
+       'A friendly game, any level. Teams are picked on the spot.', 'Cairo', 'Madinaty Central Park'),
+    (3, time '18:00',  90, null,      'art',     'Sketching by the Nile · رسم على النيل',
+       'Bring a pencil and anything to draw on. Nobody is judged and nothing has to be finished.', 'Cairo', 'Zamalek, Nile corniche'),
+    (4, time '19:30', 150, null,      'culture', 'Opera night · ليلة أوبرا',
+       'We meet at the main gate 30 minutes before. Everyone buys their own ticket at the box office or online — check that night''s programme first.', 'Cairo', 'Cairo Opera House, Zamalek'),
+    (5, time '16:30',  60, null,      'walk',    'Sunset walk on the corniche · تمشية الغروب على الكورنيش',
+       'A slow walk along the river as the sun goes down. A good first one if you are new to the city.', 'Cairo', 'Maadi corniche')
+  ) as v(weekday, start_time, minutes, capacity, kind, title, about, city, place_name)
+  where not exists (select 1 from public.green_weekly w where w.weekday = v.weekday and w.title = v.title);
+end $$;
+
+-- the list again, now that it can say which ones repeat and which were announced
+create or replace function public.green_list(p_country text)
+returns jsonb
+language sql stable security definer set search_path = public as $$
+  select coalesce(jsonb_agg(row_to_json(x)::jsonb order by x.starts_at), '[]'::jsonb)
+    from (
+      select g.id, g.kind, g.title, g.about, g.country, g.city, g.place_name,
+             g.lat, g.lng, g.starts_at, g.minutes, g.capacity, g.language,
+             g.host_id, p.name as host_name, g.weekly_id, g.announced_at,
+             (select count(*) from public.green_joins j where j.gathering_id = g.id) as going,
+             exists (select 1 from public.green_joins j
+                      where j.gathering_id = g.id and j.user_id = auth.uid()) as im_going
+        from public.green_gatherings g
+        left join public.profiles p on p.id = g.host_id
+       where g.cancelled_at is null
+         and g.starts_at > now() - interval '3 hours'
+         and (p_country is null or g.country = p_country)
+       order by g.starts_at
+       limit 60
+    ) x;
+$$;
+grant execute on function public.green_list(text) to anon, authenticated;
+
+select public.green_roll_week();
 
 -- ═══════════ LAMMA ROOMS · LIVE, NOT POLLED ═══════════
 /* "اتأكد ان الرومز اللي زي اللايف دي شغالة". They worked — but not live.
