@@ -8,7 +8,9 @@ import { C } from '../constants/theme';
 import { useLang } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { SUPABASE_READY } from '../lib/supabase';
-import { listGatherings, joinGathering, announceGathering, myInvites } from '../services/green';
+import { listGatherings, joinGathering, announceGathering, myInvites, checkInAt } from '../services/green';
+import { canCheckIn } from '../lib/xp';
+import { getCurrentCoords } from '../utils/location';
 import { pushSupport, wasAsked } from '../lib/push';
 import { PushRow } from '../components/PushRow';
 import { talkRoomsNear } from '../services/talkRooms';
@@ -117,7 +119,8 @@ export const TogetherScreen = () => {
   const [shareMsg, setShareMsg] = useState(null);
   const [askPush, setAskPush] = useState(false);
   const [talks, setTalks] = useState(null);         // talk rooms you are standing inside
-  const [talkId, setTalkId] = useState(null);     // after a first join: a nudge before it starts?         // 'start' | 'green' | 'prog' | 'landing' | { group }
+  const [talkId, setTalkId] = useState(null);
+  const [checkMsg, setCheckMsg] = useState(null);   // { id, text } after a refused check-in     // after a first join: a nudge before it starts?         // 'start' | 'green' | 'prog' | 'landing' | { group }
 
   const uid = user && user.id;
   useEffect(() => {
@@ -176,6 +179,18 @@ export const TogetherScreen = () => {
       /* the one moment a notification obviously helps — asked once */
       if (!wasAsked() && pushSupport() !== 'no') setAskPush(true);
     }
+  };
+
+  /* "I'm here": where you are is checked once, against the place */
+  const checkIn = async (g) => {
+    if (busy[g.id]) return;
+    tapMedium();
+    setBusy((b) => ({ ...b, [g.id]: true })); setCheckMsg(null);
+    const at = await getCurrentCoords();
+    const r = at ? await checkInAt(g.id, at.latitude, at.longitude) : { ok: false, reason: 'no_location' };
+    setBusy((b) => { const n = { ...b }; delete n[g.id]; return n; });
+    if (r && r.ok) { tapSuccess(); setRows((list) => (list || []).map((x) => (x.id === g.id ? { ...x, checked_in: true } : x))); }
+    else setCheckMsg({ id: g.id, text: r && r.reason === 'too_far' ? t('xp_err_far') : r && r.reason === 'no_location' ? t('gn_err_loc') : t('lamma_offline') });
   };
 
   const invite = async (g) => {
@@ -315,7 +330,15 @@ export const TogetherScreen = () => {
                               </View>
                             </Pressable>
                           ) : null}
-                          {mine ? (
+                          {g.checked_in ? (
+                            <Text style={{ color: C.green, fontSize: 12.5, fontWeight: '900' }}>{'✓ ' + t('xp_checked_in')}</Text>
+                          ) : canCheckIn(g) ? (
+                            <Pressable onPress={() => checkIn(g)} disabled={!!busy[g.id]} accessibilityRole="button">
+                              <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 15, paddingVertical: 8, opacity: busy[g.id] ? 0.6 : 1 }}>
+                                <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '900' }}>{t('xp_im_here').replace('{n}', String(g.xp || 30))}</Text>
+                              </View>
+                            </Pressable>
+                          ) : mine ? (
                             g.announced_at ? (
                               <Text style={{ color: C.green, fontSize: 12.5, fontWeight: '900' }}>{t('green_invited')}</Text>
                             ) : (
@@ -331,6 +354,9 @@ export const TogetherScreen = () => {
                         </View>
                         {sent && sent.id === g.id ? (
                           <Text style={{ color: C.green, fontSize: 12, fontWeight: '800', marginTop: 8 }}>{t('green_sent_to')} {sent.n}</Text>
+                        ) : null}
+                        {checkMsg && checkMsg.id === g.id ? (
+                          <Text style={{ color: C.coral, fontSize: 12.5, fontWeight: '700', marginTop: 8 }}>{checkMsg.text}</Text>
                         ) : null}
                       </View>
                     </Pressable>

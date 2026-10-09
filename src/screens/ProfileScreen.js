@@ -841,7 +841,7 @@ export const ProfileScreen = () => {
             </Pressable>
           ) : null}
           <Pressable onPress={() => openEditor()} accessibilityRole="button">
-            <AboutCards profile={myProfile} />
+            <AboutCards profile={myProfile} own />
           </Pressable>
 
           {/* badges */}

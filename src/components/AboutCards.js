@@ -3,6 +3,7 @@ import { View, Text } from 'react-native';
 import { C } from '../constants/theme';
 import { useLang } from '../context/LanguageContext';
 import { flagOf } from '../constants/countries';
+import { levelOf } from '../lib/xp';
 
 /* ─── WHO THIS PERSON IS, AT A GLANCE ─────────────────────────────────
    Learned from the travel apps: a profile should say who somebody is in
@@ -19,15 +20,45 @@ const Chip = ({ children }) => (
   </View>
 );
 
-export const AboutCards = ({ profile }) => {
+/* the score: big, first, and earned — only by turning up (lib/xp.js) */
+const XpCard = ({ xp, events, own, t }) => {
+  const lv = levelOf(xp);
+  return (
+    <View style={{ backgroundColor: C.text, borderRadius: 22, padding: 18, marginBottom: 18 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
+        <Text style={{ color: C.bg, fontSize: 40, fontWeight: '900', letterSpacing: -1, fontVariant: ['tabular-nums'] }}>{lv.xp.toLocaleString()}</Text>
+        <Text style={{ color: C.bg, opacity: 0.7, fontSize: 13, fontWeight: '800', letterSpacing: 1, marginStart: 8, marginBottom: 8 }}>XP</Text>
+        <View style={{ flex: 1 }} />
+        <Text style={{ color: C.bg, fontSize: 14, fontWeight: '800', marginBottom: 8 }}>{'🌿 ' + t('xp_lvl_' + lv.key)}</Text>
+      </View>
+      <Text style={{ color: C.bg, opacity: 0.75, fontSize: 13.5, marginTop: 2 }}>
+        {events > 0 ? t('xp_from').replace('{n}', String(events)) : own ? t('xp_how') : t('xp_label')}
+      </Text>
+      {lv.next ? (
+        <>
+          <View style={{ height: 6, borderRadius: 3, backgroundColor: 'rgba(127,127,127,0.35)', marginTop: 14, overflow: 'hidden' }}>
+            <View style={{ width: Math.round(lv.progress * 100) + '%', height: 6, borderRadius: 3, backgroundColor: '#34D399' }} />
+          </View>
+          <Text style={{ color: C.bg, opacity: 0.6, fontSize: 12, marginTop: 6 }}>{t('xp_to_next').replace('{n}', String(lv.toNext)).replace('{level}', t('xp_lvl_' + lv.next))}</Text>
+        </>
+      ) : null}
+    </View>
+  );
+};
+
+export const AboutCards = ({ profile, own }) => {
   const { t } = useLang();
   if (!profile) return null;
+  const xp = Number(profile.community_xp) || 0;
+  const events = Number(profile.community_events) || 0;
+  const showXp = xp > 0 || own;
   const visited = Array.isArray(profile.visited_countries) ? profile.visited_countries.filter((c) => /^[A-Z]{2}$/i.test(c)) : [];
   const langs = split(profile.speaks_language);
   const hobbies = split(profile.hobbies);
-  if (!visited.length && !langs.length && !hobbies.length) return null;
+  if (!showXp && !visited.length && !langs.length && !hobbies.length) return null;
   return (
     <View style={{ marginTop: 18 }}>
+      {showXp ? <XpCard xp={xp} events={events} own={own} t={t} /> : null}
       {visited.length ? (
         <View style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 22, padding: 18, marginBottom: 18 }}>
           <Text style={{ color: C.text, fontSize: 32, fontWeight: '900', letterSpacing: -0.5 }}>{visited.length}</Text>

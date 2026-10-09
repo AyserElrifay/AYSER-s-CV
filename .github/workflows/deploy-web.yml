@@ -173,6 +173,9 @@ jobs:
       # Every security hole found so far, kept shut.
       - name: Check security
         run: node scripts/check-security.mjs
+      # Community XP: earned by showing up, and nothing else.
+      - name: Check community XP
+        run: node scripts/check-xp.mjs
       # No signal must not mean no app.
       - name: Check the app works offline
         run: node scripts/check-offline.mjs

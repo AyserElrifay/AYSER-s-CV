@@ -148,6 +148,11 @@ function injectMapStyle() {
       font: 900 10px -apple-system, system-ui, sans-serif; padding: 0 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.25);
     }
     .mm-act-mine { box-shadow: 0 0 0 3px #10B981, 0 6px 14px rgba(15,23,42,0.28); }
+    /* clean-ups glow green, with a leaf: the thing this map most wants done */
+    @keyframes mmEco { 0%,100% { box-shadow: 0 0 0 3px rgba(52,211,153,0.9), 0 0 14px 4px rgba(16,185,129,0.55), 0 6px 14px rgba(15,23,42,0.25); } 50% { box-shadow: 0 0 0 3px rgba(52,211,153,0.9), 0 0 26px 10px rgba(16,185,129,0.35), 0 6px 14px rgba(15,23,42,0.25); } }
+    .mm-act-eco { animation: mmBob 3.2s ease-in-out infinite, mmEco 2.4s ease-in-out infinite; }
+    .mm-act-leaf { position: absolute; top: -9px; left: -9px; width: 22px; height: 22px; border-radius: 11px; background: #fff; display: flex; align-items: center; justify-content: center; font-size: 13px; box-shadow: 0 1px 4px rgba(0,0,0,0.3); }
+    @media (prefers-reduced-motion: reduce) { .mm-act-eco { animation: none; transform: rotate(var(--tilt)); box-shadow: 0 0 0 3px rgba(52,211,153,0.9), 0 0 16px 6px rgba(16,185,129,0.45); } }
     .mm-act .mm-pill { margin-top: 14px; font-size: 10px; max-width: 104px; }
     .mm-z-far .mm-act .mm-pill, .mm-z-globe .mm-act { display: none; }
     @media (prefers-reduced-motion: reduce) { .mm-act-card { animation: none; transform: rotate(var(--tilt)); } }
@@ -379,7 +384,8 @@ const pinHtml = (m) => {
   if (m.kind === 'activity') {
     return (
       '<div class="mm-act">' +
-      '<div class="mm-act-card' + (m.mine ? ' mm-act-mine' : '') + '" style="--tilt:' + (Number(m.tilt) || 0) + 'deg;background:linear-gradient(135deg,' + m.from + ',' + m.to + ')">' +
+      '<div class="mm-act-card' + (m.mine ? ' mm-act-mine' : '') + (m.act === 'cleanup' ? ' mm-act-eco' : '') + '" style="--tilt:' + (Number(m.tilt) || 0) + 'deg;background:linear-gradient(135deg,' + m.from + ',' + m.to + ')">' +
+      (m.act === 'cleanup' ? '<span class="mm-act-leaf">🌿</span>' : '') +
       '<span class="mm-act-emoji">' + esc(m.emoji) + '</span>' +
       (m.going > 0 ? '<div class="mm-act-going">' + (Math.floor(Number(m.going)) || 0) + '</div>' : '') +
       (m.when ? '<div class="mm-act-when">' + esc(m.when) + '</div>' : '') +

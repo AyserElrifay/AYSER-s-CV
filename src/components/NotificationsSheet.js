@@ -62,6 +62,7 @@ const LINE = {
   bardi_match: '',
   plan_soon: '',
   venue_decision: '🏢',
+  xp_award: '',
 };
 
 const FILTERS = [
@@ -259,7 +260,16 @@ export const NotificationsSheet = ({ onClose }) => {
     );
   });
 
-  const Row = useStable(({ n }) => n.kind === 'plan_soon' ? (
+  const Row = useStable(({ n }) => n.kind === 'xp_award' ? (
+    /* points for showing up — the score, and what it was for */
+    <View style={{ paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: C.line, flexDirection: 'row', alignItems: 'center', opacity: n.read ? 0.78 : 1 }}>
+      <Text style={{ color: C.text, fontSize: 18, fontWeight: '900', width: 64 }}>{'+' + (parseInt(String(n.body || '').split('|')[0], 10) || 0)}</Text>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text style={{ color: C.text, fontSize: 14, fontWeight: '700' }} numberOfLines={1}>{t('xp_award_line')}</Text>
+        <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 2 }} numberOfLines={1}>{String(n.body || '').split('|').slice(1).join('|') + ' · ' + timeAgo(n.created_at)}</Text>
+      </View>
+    </View>
+  ) : n.kind === 'plan_soon' ? (
     /* your plan, an hour before: a reminder, not a person */
     <Pressable onPress={() => openNotif(n)} accessibilityRole="button" style={{ paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: C.line, opacity: n.read ? 0.78 : 1 }}>
       <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', letterSpacing: 1 }}>{timeAgo(n.created_at)}</Text>

@@ -9922,4 +9922,198 @@ drop policy if exists "owners can update own pending venue" on public.venues;
 create policy "owners can update own pending venue" on public.venues for update
   using (auth.uid() = owner_id and status = 'pending') with check (auth.uid() = owner_id and status = 'pending');
 
+-- ═══════════ COMMUNITY XP · SHOWING UP, COUNTED ═══════════
+/* Points for turning up to real things, so the score on a profile says
+   "this person shows up here". Earned, never typed:
+
+   · Saying "I'm going" is not showing up. During the gathering, people
+     there tap "I'm here", and the database checks they are within
+     300 m of the place (green_check_in). Only they are rewarded.
+   · Points are given after the gathering has ended, never if it was
+     called off, never for one created after its own start time, and
+     only when at least three people checked in — so two accounts
+     cannot farm points with an empty "event".
+   · A clean-up is worth 50, anything else 30; the host gets 20 more.
+     At most three rewarded gatherings a person per day.
+   · award_xp_due() runs every 15 minutes (pg_cron). A database trigger
+     fires when a row changes, and nothing changes when a clock passes
+     an end time, so a schedule is the trigger here.
+   · community_xp, community_events, vibe_check_at, invited_by and
+     verified cannot be written by a user's own profile update or
+     insert — only by the database's own functions. */
+alter table public.profiles add column if not exists community_xp int not null default 0;
+alter table public.profiles add column if not exists community_events int not null default 0;
+alter table public.green_joins add column if not exists checked_in_at timestamptz;
+alter table public.green_gatherings add column if not exists xp_awarded_at timestamptz;
+
+create table if not exists public.xp_awards (
+  user_id      uuid not null references public.profiles(id) on delete cascade,
+  gathering_id uuid not null references public.green_gatherings(id) on delete cascade,
+  points       int not null check (points > 0),
+  awarded_at   timestamptz not null default now(),
+  primary key (user_id, gathering_id)
+);
+alter table public.xp_awards enable row level security;
+drop policy if exists "see own xp" on public.xp_awards;
+create policy "see own xp" on public.xp_awards for select using (auth.uid() = user_id);
+
+/* earned columns stay earned: a direct update or insert from the app's
+   roles cannot touch them; the database's own (definer) functions can */
+-- deliberately NOT security definer: inside a definer function
+-- current_user is the function's owner, and the guard could never tell
+-- an app request ('authenticated') from the database's own functions
+create or replace function public.guard_profile_columns()
+returns trigger language plpgsql security invoker set search_path = public as $fn$
+begin
+  if current_user in ('authenticated', 'anon') then
+    if tg_op = 'INSERT' then
+      new.verified := false; new.vibe_check_at := null; new.invited_by := null;
+      new.community_xp := 0; new.community_events := 0;
+    else
+      if new.verified is distinct from old.verified then
+        if coalesce(nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'email', '') <> 'ayseryourlifecoach@gmail.com' then
+          new.verified := old.verified;
+        end if;
+      end if;
+      new.vibe_check_at := old.vibe_check_at;
+      new.invited_by := old.invited_by;
+      new.community_xp := old.community_xp;
+      new.community_events := old.community_events;
+    end if;
+  end if;
+  return new;
+end $fn$;
+drop trigger if exists profiles_guard_columns on public.profiles;
+create trigger profiles_guard_columns before update on public.profiles
+  for each row execute function public.guard_profile_columns();
+drop trigger if exists profiles_guard_insert on public.profiles;
+create trigger profiles_guard_insert before insert on public.profiles
+  for each row execute function public.guard_profile_columns();
+
+create or replace function public.green_ends_at(g public.green_gatherings)
+returns timestamptz language sql immutable as $$
+  select g.starts_at + make_interval(mins => greatest(coalesce(g.minutes, 120), 30));
+$$;
+
+/* "I'm here": from 20 minutes before the start until the end, within
+   300 m of the place. A plan without a point on the map cannot be
+   checked into — there is nothing to check against. */
+create or replace function public.green_check_in(p_id uuid, p_lat double precision, p_lng double precision)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); g public.green_gatherings%rowtype; n int;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  select * into g from public.green_gatherings where id = p_id;
+  if not found or g.cancelled_at is not null then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
+  if not exists (select 1 from public.green_joins where gathering_id = p_id and user_id = me) then
+    return jsonb_build_object('ok', false, 'reason', 'not_going');
+  end if;
+  if now() < g.starts_at - interval '20 minutes' then return jsonb_build_object('ok', false, 'reason', 'too_early'); end if;
+  if now() > public.green_ends_at(g) then return jsonb_build_object('ok', false, 'reason', 'over'); end if;
+  if g.lat is null or g.lng is null then return jsonb_build_object('ok', false, 'reason', 'no_place'); end if;
+  if p_lat is null or p_lng is null or public.km_between(g.lat, g.lng, p_lat, p_lng) > 0.3 then
+    return jsonb_build_object('ok', false, 'reason', 'too_far');
+  end if;
+  update public.green_joins set checked_in_at = coalesce(checked_in_at, now())
+   where gathering_id = p_id and user_id = me;
+  get diagnostics n = row_count;
+  return jsonb_build_object('ok', n > 0, 'points', case when g.kind = 'cleanup' then 50 else 30 end);
+end;
+$$;
+revoke execute on function public.green_check_in(uuid, double precision, double precision) from public, anon;
+grant execute on function public.green_check_in(uuid, double precision, double precision) to authenticated;
+
+do $do$
+begin
+  alter table public.notifications drop constraint if exists notifications_kind_check;
+  alter table public.notifications add constraint notifications_kind_check
+    check (kind in ('vibe','laugh','comment','mate_request','mate_accept','message','call','tag','repost','green_invite','food_order','food_status','bardi_match','plan_soon','venue_decision','xp_award'))
+    not valid;
+exception when others then raise notice 'notifications kind constraint skipped: %', sqlerrm;
+end $do$;
+
+create or replace function public.award_gathering_xp(p_id uuid)
+returns int language plpgsql security definer set search_path = public as $$
+declare g public.green_gatherings%rowtype; here int; r record; pts int; given int := 0;
+begin
+  select * into g from public.green_gatherings where id = p_id for update;
+  if not found or g.cancelled_at is not null or g.xp_awarded_at is not null then return 0; end if;
+  if now() < public.green_ends_at(g) then return 0; end if;
+  -- whatever happens next, this gathering is settled exactly once
+  update public.green_gatherings set xp_awarded_at = now() where id = g.id;
+  if g.created_at > g.starts_at then return 0; end if;              -- made up after the fact
+  select count(*) into here from public.green_joins where gathering_id = g.id and checked_in_at is not null;
+  if here < 3 then return 0; end if;
+  for r in select j.user_id from public.green_joins j
+            where j.gathering_id = g.id and j.checked_in_at is not null loop
+    if (select count(*) from public.xp_awards a join public.green_gatherings x on x.id = a.gathering_id
+         where a.user_id = r.user_id and x.starts_at::date = g.starts_at::date) >= 3 then
+      continue;                                                      -- three a day is plenty
+    end if;
+    pts := (case when g.kind = 'cleanup' then 50 else 30 end) + (case when r.user_id = g.host_id then 20 else 0 end);
+    insert into public.xp_awards (user_id, gathering_id, points) values (r.user_id, g.id, pts)
+    on conflict do nothing;
+    if found then
+      update public.profiles set community_xp = community_xp + pts, community_events = community_events + 1 where id = r.user_id;
+      insert into public.notifications (user_id, actor_id, kind, body)
+      values (r.user_id, g.host_id, 'xp_award', pts || '|' || left(g.title, 80));
+      given := given + 1;
+    end if;
+  end loop;
+  return given;
+end;
+$$;
+
+create or replace function public.award_xp_due()
+returns int language plpgsql security definer set search_path = public as $$
+declare r record; n int := 0;
+begin
+  for r in select g.id from public.green_gatherings g
+            where g.xp_awarded_at is null and g.cancelled_at is null
+              and g.starts_at > now() - interval '7 days'
+              and public.green_ends_at(g) < now() loop
+    n := n + public.award_gathering_xp(r.id);
+  end loop;
+  return n;
+end;
+$$;
+revoke execute on function public.award_gathering_xp(uuid) from public, anon, authenticated;
+revoke execute on function public.award_xp_due() from public, anon, authenticated;
+
+do $do$
+begin
+  create extension if not exists pg_cron;
+  perform cron.unschedule(jobid) from cron.job where jobname = 'award-xp';
+  perform cron.schedule('award-xp', '*/15 * * * *', 'select public.award_xp_due()');
+exception when others then
+  raise notice 'award-xp schedule skipped: %', sqlerrm;
+end $do$;
+
+/* the week, now also saying whether you checked in and how many points
+   it is worth — the card needs both */
+create or replace function public.green_list(p_country text)
+returns jsonb
+language sql stable security definer set search_path = public as $$
+  select coalesce(jsonb_agg(row_to_json(x)::jsonb order by x.starts_at), '[]'::jsonb)
+    from (
+      select g.id, g.kind, g.title, g.about, g.country, g.city, g.place_name,
+             g.lat, g.lng, g.starts_at, g.minutes, g.capacity, g.language,
+             g.host_id, p.name as host_name, g.weekly_id, g.announced_at, g.squad_id,
+             (select count(*) from public.green_joins j where j.gathering_id = g.id) as going,
+             exists (select 1 from public.green_joins j
+                      where j.gathering_id = g.id and j.user_id = auth.uid()) as im_going,
+             exists (select 1 from public.green_joins j
+                      where j.gathering_id = g.id and j.user_id = auth.uid() and j.checked_in_at is not null) as checked_in,
+             case when g.kind = 'cleanup' then 50 else 30 end as xp
+        from public.green_gatherings g
+        left join public.profiles p on p.id = g.host_id
+       where g.cancelled_at is null
+         and g.starts_at > now() - interval '3 hours'
+         and (p_country is null or g.country = p_country)
+       order by g.starts_at
+       limit 60
+    ) x;
+$$;
+grant execute on function public.green_list(text) to anon, authenticated;
+
 notify pgrst, 'reload schema';

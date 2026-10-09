@@ -123,6 +123,9 @@ export async function joinGathering(id, going) {
   return r;
 }
 
+/* "I'm here" — the database checks the time and the 300 m (green_check_in) */
+export const checkInAt = (id, lat, lng) => rpc('green_check_in', { p_id: id, p_lat: lat, p_lng: lng });
+
 /* send whatever waited; called at start and whenever the phone is back */
 export function flushOutbox() {
   if (!SUPABASE_READY) return Promise.resolve({ sent: 0, left: 0 });
