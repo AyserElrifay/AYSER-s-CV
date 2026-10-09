@@ -16,6 +16,7 @@ import { isSaving, DEFAULT_DATA_MODE } from '../lib/dataSaver';
 import { getPrefs } from '../services/prefs';
 import { onUnlockRequest } from '../lib/unlockBus';
 import { goToTab } from '../lib/mapBus';
+import { OfflineBar } from '../components/OfflineBar';
 
 const VibeCheckSheet = lazyOverlay(() => import('../components/VibeCheckSheet').then((m) => ({ default: m.VibeCheckSheet })));
 
@@ -192,6 +193,7 @@ export const TabNavigator = () => {
         is the opposite of getting people out of the house. */}
     <Tab.Screen name="CHILL" component={ChillTab} options={HIDDEN} />
   </Tab.Navigator>
+  <OfflineBar />
   </>
   );
 };

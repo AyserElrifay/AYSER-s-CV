@@ -6,7 +6,7 @@
    there `caches` is undefined, and touching it would throw inside
    respondWith and make the page fail to open. */
 
-const CACHE = 'moments-v4';
+const CACHE = 'moments-v5';
 // CacheStorage isn't available everywhere (Safari private mode, some
 // in-app browsers). Detect once; when absent we simply never cache.
 const HAS_CACHES = (typeof caches !== 'undefined');
@@ -23,8 +23,30 @@ self.addEventListener('activate', (e) => {
       await Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)));
     } catch (err) { /* ignore */ }
     await self.clients.claim();
+    await precache();
   })());
 });
+
+/* ── OFFLINE FIRST ── keep the whole app, not just what was visited.
+   precache.json is written at build time (scripts/inject-html.mjs).
+   Code from an older version is let go once the new list is kept, so
+   the cache holds one version and does not grow forever. */
+async function precache() {
+  if (!HAS_CACHES) return;
+  try {
+    const res = await fetch('precache.json', { cache: 'no-store' });
+    if (!res.ok) return;
+    const list = await res.json();
+    const c = await caches.open(CACHE);
+    const want = new Set(list.map((p) => new URL(p, self.registration.scope).href));
+    for (const url of want) {
+      try { if (!(await c.match(url))) { const r = await fetch(url); if (r.ok) await c.put(url, r); } } catch (e) {}
+    }
+    for (const req of await c.keys()) {
+      if (/\/_expo\/.*\.(js|css)$/.test(req.url) && !want.has(req.url)) await c.delete(req);
+    }
+  } catch (e) { /* offline at install, or no list: it fills as you go */ }
+}
 
 self.addEventListener('message', (e) => {
   if (e.data === 'skipWaiting') self.skipWaiting();
@@ -40,6 +62,11 @@ async function networkFirst(request) {
   } catch (err) {
     if (HAS_CACHES) {
       try { const cached = await caches.match(request); if (cached) return cached; } catch (e) {}
+      /* a link with ?invite=… or #… is still the same app: offline, open
+         the kept page rather than the browser's dinosaur */
+      if (request.mode === 'navigate') {
+        try { const shell = await caches.match(self.registration.scope); if (shell) return shell; } catch (e) {}
+      }
     }
     return Response.error();
   }
@@ -62,7 +89,8 @@ self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET' || url.origin !== self.location.origin) return;
 
   // App shell + all JS → network-first (fresh code the moment it ships).
-  if (e.request.mode === 'navigate' || /\.js$/.test(url.pathname) || /\/_expo\//.test(url.pathname)) {
+  // the language files too, so the app opens offline in your language
+  if (e.request.mode === 'navigate' || /\.js$/.test(url.pathname) || /\/_expo\//.test(url.pathname) || /\/i18n\/[a-z]+\.json$/.test(url.pathname)) {
     e.respondWith(networkFirst(e.request));
     return;
   }

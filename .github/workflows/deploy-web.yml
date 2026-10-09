@@ -161,6 +161,9 @@ jobs:
       # Bardi is an invisible facilitator, not a chatbot.
       - name: Check Bardi stays out of the way
         run: node scripts/check-bardi.mjs
+      # No signal must not mean no app.
+      - name: Check the app works offline
+        run: node scripts/check-offline.mjs
       # The country room is content, and content rots differently from
       # code: a country added in a hurry with eight phrases and no
       # customs crashes nothing, it just quietly becomes the thin,

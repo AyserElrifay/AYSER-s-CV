@@ -142,3 +142,24 @@ if (html.includes('<title>')) {
 }
 fs.writeFileSync(file, html);
 console.log('index.html patched: PWA + OG tags');
+
+/* ── OFFLINE: the list of the app's own code ──
+   public/sw.js reads this once a new version is live and keeps every
+   file in it, so the app opens on a phone with no signal — every tab,
+   not only the ones visited while online. Fonts, icons and pictures
+   are kept as they are used. */
+{
+  const root = path.join(process.cwd(), dist);
+  const out = ['./'];
+  const walk = (dir) => {
+    for (const name of fs.readdirSync(dir)) {
+      const full = path.join(dir, name);
+      if (fs.statSync(full).isDirectory()) walk(full);
+      else if (/\.(js|css)$/.test(name)) out.push(path.relative(root, full).split(path.sep).join('/'));
+    }
+  };
+  const js = path.join(root, '_expo');
+  if (fs.existsSync(js)) walk(js);
+  fs.writeFileSync(path.join(root, 'precache.json'), JSON.stringify(out));
+  console.log('precache.json: ' + out.length + ' files');
+}

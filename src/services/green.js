@@ -1,6 +1,7 @@
 import { supabase, SUPABASE_READY } from '../lib/supabase';
 import { withDeadline } from '../lib/deadline';
 import { requestUnlock } from '../lib/unlockBus';
+import { isOffline, remember, recall, enqueue, flush, withPendingJoins } from '../lib/offline';
 
 /* ─── أخضر · THE GREEN CORNER ─────────────────────────────────────────
    Two halves, and the app must never blur them:
@@ -18,7 +19,9 @@ const rpc = async (name, args) => {
   if (!SUPABASE_READY) return { ok: false, reason: 'offline' };
   try {
     const { data, error } = await withDeadline(supabase.rpc(name, args));
-    if (error) return { ok: false, reason: 'server', detail: error.message };
+    /* supabase-js hands a failed fetch back as an error rather than
+       throwing it — that is the network, not the server saying no */
+    if (error) return { ok: false, reason: /fetch|network|load failed/i.test(error.message || '') ? 'offline' : 'server', detail: error.message };
     return data || { ok: false, reason: 'empty' };
   } catch (e) {
     return { ok: false, reason: 'offline', detail: (e && e.message) || '' };
@@ -28,6 +31,24 @@ const rpc = async (name, args) => {
 /* Everything coming up, or one country's worth. */
 export async function listGatherings(country) {
   if (!SUPABASE_READY) return [];
+  /* offline: the week as it was last seen (src/lib/offline.js) */
+  const key = 'green_list.' + (country || 'all');
+  if (isOffline()) {
+    const kept = recall(key);
+    if (kept) return withPendingJoins(kept);
+  }
+  try {
+    const rows = await askGatherings(country);
+    remember(key, rows);
+    return withPendingJoins(rows);
+  } catch (e) {
+    const kept = recall(key);
+    if (kept) return withPendingJoins(kept);
+    throw e;
+  }
+}
+
+async function askGatherings(country) {
   const ask = () => withDeadline(supabase.rpc('green_list', { p_country: country || null }));
   /* The weekly plans are turned into this week's gatherings by the
      server. Asked at the same time as the list, not before it: almost
@@ -87,7 +108,31 @@ export const goNow = async (g) => rpc('green_go_now', {
 export const myTrust = () => rpc('my_trust', {});
 export const passVibeCheck = (answers) => rpc('vibe_check_pass', { p_answers: answers });
 
-export const joinGathering = (id, going) => rpc('green_join', { p_id: id, p_going: !!going });
+/* "I'm coming" works offline: it waits in the outbox and is sent when
+   the phone is back — the card says Going straight away either way. */
+export async function joinGathering(id, going) {
+  if (SUPABASE_READY && isOffline()) {
+    enqueue({ kind: 'join', id, going: !!going });
+    return { ok: true, queued: true };
+  }
+  const r = await rpc('green_join', { p_id: id, p_going: !!going });
+  if (r && !r.ok && r.reason === 'offline' && SUPABASE_READY) {
+    enqueue({ kind: 'join', id, going: !!going });
+    return { ok: true, queued: true };
+  }
+  return r;
+}
+
+/* send whatever waited; called at start and whenever the phone is back */
+export function flushOutbox() {
+  if (!SUPABASE_READY) return Promise.resolve({ sent: 0, left: 0 });
+  return flush(async (a) => {
+    if (a.kind !== 'join') return 'refused';
+    const r = await rpc('green_join', { p_id: a.id, p_going: !!a.going });
+    if (r && r.ok) return 'sent';
+    return r && r.reason === 'offline' ? 'network' : 'refused';
+  });
+}
 
 export const cancelGathering = (id) => rpc('green_cancel', { p_id: id });
 
