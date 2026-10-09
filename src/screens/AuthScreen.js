@@ -19,6 +19,9 @@ import { useLang } from '../context/LanguageContext';
 import { LANGS } from '../constants/i18n';
 import { countKindred } from '../services/kindred';
 import { kindredNumber } from '../lib/kindred';
+import { listGatherings, joinGathering } from '../services/green';
+import { lookOf, titleFor } from '../lib/activityPins';
+import { flagToIso } from '../lib/together';
 
 /* ─────────────── PASSWORDLESS-STYLE ONBOARDING · AUTH GATE ───────────
    Step 0 — sign in / create account (email+password via Supabase).
@@ -252,6 +255,39 @@ export const AuthScreen = ({ recovery = false, onDone }) => {
     } catch (e) {
       finishOnboarding();
     }
+  };
+
+  /* ── YOUR FIRST PLANS ─────────────────────────────────────────────
+     The last step of signing up is not a feed of strangers' photos: it
+     is up to three real things on near you this week, each with Join.
+     Somebody who leaves onboarding with a plan for Thursday has a
+     reason to open the app on Thursday. If nothing is on near them, the
+     app simply opens — nothing is shown from another country as if it
+     were theirs. */
+  const [firsts, setFirsts] = useState(null);
+  const [firstJoined, setFirstJoined] = useState({});
+  const toFirsts = async () => {
+    const code = flagToIso(myFlag);
+    if (isDemo || !code) { finishOnboarding(); return; }
+    setStep(4); setFirsts('loading');
+    try {
+      const rows = await listGatherings(code);
+      const soon = (rows || []).filter((g) => new Date(g.starts_at) > new Date())
+        .sort((x, y) => new Date(x.starts_at) - new Date(y.starts_at)).slice(0, 3);
+      if (!soon.length) { finishOnboarding(); return; }
+      setFirsts(soon);
+    } catch (e) { finishOnboarding(); }
+  };
+  const joinFirst = async (g) => {
+    if (firstJoined[g.id]) return;
+    setFirstJoined((j) => ({ ...j, [g.id]: 'busy' }));
+    const r = await joinGathering(g.id, true);
+    setFirstJoined((j) => ({ ...j, [g.id]: r && r.ok ? 'done' : undefined }));
+  };
+  const hourOf = (iso) => {
+    try {
+      return new Date(iso).toLocaleString(lang === 'ar' ? 'ar-EG' : lang, { weekday: 'short', hour: '2-digit', minute: '2-digit' });
+    } catch (e) { return ''; }
   };
 
   return (
@@ -502,6 +538,41 @@ export const AuthScreen = ({ recovery = false, onDone }) => {
               <Text style={{ color: C.faint, fontSize: 12.5, fontWeight: '700' }}>{t('auth_skip')}</Text>
             </Pressable>
           </View>
+        ) : step === 4 ? (
+          <View style={{ alignSelf: 'stretch', paddingVertical: 20 }}>
+            {firsts === 'loading' || !firsts ? (
+              <Text style={{ color: C.dim, fontSize: 14, textAlign: 'center' }}>{t('kin_looking')}</Text>
+            ) : (
+              <>
+                <Text style={{ fontSize: 44, textAlign: 'center' }}>🗓️</Text>
+                <Text style={{ color: C.text, fontSize: 24, fontWeight: '900', textAlign: 'center', marginTop: 8 }}>{t('first_title')}</Text>
+                <Text style={{ color: C.dim, fontSize: 14, textAlign: 'center', lineHeight: 20, marginTop: 6, marginBottom: 20 }}>{t('first_sub')}</Text>
+                {firsts.map((g) => {
+                  const look = lookOf(g.kind);
+                  const st = firstJoined[g.id];
+                  return (
+                    <View key={g.id} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.glass, borderWidth: 1, borderColor: st === 'done' ? 'rgba(16,185,129,0.6)' : C.line, borderRadius: 20, padding: 12, marginBottom: 10 }}>
+                      <View style={{ width: 50, height: 50, borderRadius: 16, backgroundColor: look.from, alignItems: 'center', justifyContent: 'center' }}>
+                        <Text style={{ fontSize: 25 }}>{look.emoji}</Text>
+                      </View>
+                      <View style={{ flex: 1, minWidth: 0, marginStart: 11 }}>
+                        <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '900' }} numberOfLines={2}>{titleFor(g.title, lang)}</Text>
+                        <Text style={{ color: C.faint, fontSize: 12, fontWeight: '700', marginTop: 2 }} numberOfLines={1}>
+                          {hourOf(g.starts_at)}{g.place_name ? ' · ' + g.place_name : ''}
+                        </Text>
+                      </View>
+                      <Pressable onPress={() => joinFirst(g)} disabled={!!st} accessibilityRole="button" hitSlop={6}>
+                        <View style={{ backgroundColor: st === 'done' ? C.glassHi : C.purple, borderRadius: 999, paddingHorizontal: 15, paddingVertical: 8, opacity: st === 'busy' ? 0.6 : 1 }}>
+                          <Text style={{ color: st === 'done' ? C.text : '#FFF', fontSize: 13, fontWeight: '900' }}>{st === 'done' ? '✓ ' + t('green_joined') : t('green_join')}</Text>
+                        </View>
+                      </Pressable>
+                    </View>
+                  );
+                })}
+                <NeonButton label={t('kin_go')} onPress={finishOnboarding} style={{ alignSelf: 'stretch', marginTop: 14 }} />
+              </>
+            )}
+          </View>
         ) : step === 3 ? (
           <View style={{ alignItems: 'center', paddingVertical: 20 }}>
             {kin === 'loading' || !kin ? (
@@ -534,7 +605,7 @@ export const AuthScreen = ({ recovery = false, onDone }) => {
               </>
             )}
             {kin && kin !== 'loading' ? (
-              <NeonButton label={t('kin_go')} onPress={finishOnboarding} style={{ alignSelf: 'stretch' }} />
+              <NeonButton label={t('kin_go')} onPress={toFirsts} style={{ alignSelf: 'stretch' }} />
             ) : null}
           </View>
         ) : (

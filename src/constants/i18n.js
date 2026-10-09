@@ -834,6 +834,8 @@ export const STRINGS = {
     tg_play: "Play & chill",
     tg_reels: "Reels",
     tg_on_map: "On the map",
+    first_title: "Your first plans",
+    first_sub: "Real things on near you this week. Tap Join and the host knows you're coming.",
     lens_all: 'Everything',
     lens_places: 'Places to go',
     lens_people: 'People',
