@@ -1006,15 +1006,34 @@ export const ProfileScreen = () => {
       {/* edit your space — real fields, saved to your real profile */}
       {editOpen ? (
         <Pressable onPress={() => setEditOpen(false)} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end' }}>
-          <ScrollView
-            onStartShouldSetResponder={() => true}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-            style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '90%' }}
-            contentContainerStyle={{ paddingTop: 10, paddingBottom: insets.bottom + 22, paddingHorizontal: 16 }}
-          >
+          {/* ── A TAP INSIDE THE SHEET STAYS INSIDE THE SHEET ──────────
+              Ayser: "بعض الزراير بالذات في الedit ما بتشتغلش غير بضغطه
+              طويله". Reproduced exactly: one quick tap on the Bio field
+              closed the whole sheet.
+
+              On the web a Pressable's onPress fires from the browser's
+              `click`, and clicks bubble. This sheet sits inside the
+              backdrop whose job is "tap outside to close", and nothing
+              between the two stopped the click — the old guard here was
+              onStartShouldSetResponder, which belongs to the touch
+              responder system and never touches a click. So a quick tap
+              on any field reached the backdrop and shut the sheet. A long
+              press produces no click at all, which is why holding the
+              finger down was the only thing that worked.
+
+              Every other sheet in the app already wraps its panel in a
+              Pressable that does nothing — whose real job is to stop the
+              click. This one does too now. The handle sits outside the
+              scroll area, so dragging it moves the sheet, not the text. */}
+          <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '90%', overflow: 'hidden' }}>
             <SheetHandle onClose={() => setEditOpen(false)} />
             <SheetBack onClose={() => setEditOpen(false)} />
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            style={{ flexGrow: 0 }}
+            contentContainerStyle={{ paddingBottom: insets.bottom + 22, paddingHorizontal: 16 }}
+          >
             <Text style={{ color: C.text, fontSize: 18, fontWeight: '900', marginBottom: 12 }}>{t('edit_space')}</Text>
 
             {/* tap to change your profile photo */}
@@ -1140,6 +1159,7 @@ export const ProfileScreen = () => {
               </View>
             </Pressable>
           </ScrollView>
+          </Pressable>
         </Pressable>
       ) : null}
 
