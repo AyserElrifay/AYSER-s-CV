@@ -97,6 +97,7 @@ jobs:
           # stray space or line break from copying on a phone.
           t="$SUPABASE_ACCESS_TOKEN"
           trimmed="$(printf '%s' "$t" | tr -d '[:space:]')"
+          echo "::add-mask::$trimmed"
           [ "$t" != "$trimmed" ] && echo "::warning::The saved key had spaces or a line break in it; they are stripped here."
           case "$trimmed" in
             sbp_*) echo "Looks right: a personal access token (sbp_…), ${#trimmed} characters." ;;
