@@ -110,6 +110,7 @@ jobs:
       # The Management API runs SQL with the account token, so the
       # database password is never needed here.
       - name: Run RUN_ME.sql on the database
+        id: sql
         if: ${{ inputs.run_sql }}
         run: |
           set -euo pipefail
@@ -136,6 +137,7 @@ jobs:
       # sender address exist — the built-in mailer is for testing and
       # sends only a handful of emails an hour.
       - name: Allow the reset link back into the app (and SMTP if set)
+        id: auth
         if: ${{ inputs.auth_urls }}
         env:
           APP_URL: ${{ inputs.app_url }}
@@ -173,6 +175,7 @@ jobs:
       # the app pressing a button. The script refuses anything published
       # after 1928.
       - name: Import public-domain music
+        id: music
         if: ${{ inputs.import_music }}
         env:
           PROJECT_REF: ${{ inputs.project_ref }}
@@ -182,6 +185,7 @@ jobs:
       # Only pictures Commons itself calls public domain or CC0 are
       # copied in; everything else is named in the log and left alone.
       - name: Find pictures for the Egypt quiz
+        id: photos
         if: ${{ inputs.import_photos }}
         env:
           PROJECT_REF: ${{ inputs.project_ref }}
@@ -195,6 +199,7 @@ jobs:
           version: latest
 
       - name: Deploy bardi-chat
+        id: deploy
         if: ${{ inputs.deploy_function }}
         run: |
           set -euo pipefail
@@ -277,9 +282,12 @@ jobs:
           {
             echo "### Moments backend"
             echo ""
-            echo "- Database schema: ${{ inputs.run_sql && 'applied' || 'skipped' }}"
-            echo "- Reset link allow list: ${{ inputs.auth_urls && 'updated' || 'skipped' }}"
-            echo "- bardi-chat: ${{ inputs.deploy_function && 'deployed' || 'skipped' }}"
-            echo "- music import: ${{ inputs.import_music && 'ran' || 'skipped' }}"
-            echo "- quiz pictures: ${{ inputs.import_photos && 'ran' || 'skipped' }}"
+            # what actually happened, not what was asked for: a step that
+            # failed or never ran says so
+            say() { case "$1" in success) echo "$2";; skipped|"") echo "skipped";; *) echo "FAILED — see the log above";; esac; }
+            echo "- Database schema: $(say '${{ steps.sql.outcome }}' applied)"
+            echo "- Reset link allow list: $(say '${{ steps.auth.outcome }}' updated)"
+            echo "- bardi-chat: $(say '${{ steps.deploy.outcome }}' deployed)"
+            echo "- music import: $(say '${{ steps.music.outcome }}' ran)"
+            echo "- quiz pictures: $(say '${{ steps.photos.outcome }}' ran)"
           } >> "$GITHUB_STEP_SUMMARY"
