@@ -9409,7 +9409,7 @@ create or replace function public.push_on_notification()
 returns trigger language plpgsql security definer set search_path = public as $$
 declare v_url text; v_hook text;
 begin
-  if new.kind not in ('message','call','mate_request','mate_accept','comment','tag','green_invite','bardi_match','plan_soon','food_order','food_status') then
+  if new.kind not in ('message','call','mate_request','mate_accept','comment','tag','green_invite','bardi_match','plan_soon','food_order','food_status','venue_decision') then
     return new;
   end if;
   if not exists (select 1 from public.push_subscriptions where user_id = new.user_id) then return new; end if;
@@ -9825,5 +9825,101 @@ begin
          and r.closed_at is null and now() < r.ends_at));
 exception when others then raise notice 'talk room realtime policies skipped: %', sqlerrm;
 end $do$;
+
+-- ═══════════ SECURITY · WHAT ONLY THE DATABASE MAY CALL ═══════════
+/* Postgres lets anyone execute a new function unless told otherwise,
+   and every public function is an RPC endpoint. These are helpers the
+   database calls for itself (triggers, cron, other functions); nobody
+   should be able to call them from outside:
+
+   · notify() wrote a notification to ANY user, from ANY "actor", with
+     ANY text — a forged "Mona sent you a message" that, with push on,
+     would buzz a stranger's phone. Triggers still use it; RPC cannot.
+   · bardi_match_for(u), bardi_match(), plan_reminders(): run matching
+     or reminders for other people / everyone at once.
+   · talk_me_at(u), trust_unlocked(u): answer questions about another
+     person (where they are, whether they passed the care check). */
+revoke execute on function public.notify(uuid, uuid, text, uuid, text) from public, anon, authenticated;
+revoke execute on function public.bardi_match_for(uuid) from public, anon, authenticated;
+revoke execute on function public.bardi_match() from public, anon, authenticated;
+revoke execute on function public.plan_reminders() from public, anon, authenticated;
+revoke execute on function public.talk_me_at(uuid) from public, anon, authenticated;
+revoke execute on function public.trust_unlocked(uuid) from public, anon, authenticated;
+
+/* A missed call says who called — and that is the caller, always. The
+   actor argument is kept so old app versions still work, and ignored. */
+create or replace function public.notify_call(recipient uuid, actor uuid)
+returns void language sql security definer set search_path = public as $$
+  select public.notify(recipient, auth.uid(), 'call', null, 'Missed call') where auth.uid() is not null;
+$$;
+revoke execute on function public.notify_call(uuid, uuid) from public, anon;
+grant execute on function public.notify_call(uuid, uuid) to authenticated;
+
+/* Where people are on the map is for people signed in to Moments, not
+   for anyone on the internet holding the public key. */
+drop policy if exists "live locations are viewable by everyone" on public.live_locations;
+create policy "live locations are viewable by everyone" on public.live_locations for select to authenticated using (true);
+
+-- ═══════════ OWNER · APPROVING ORGANISATIONS ═══════════
+/* A venue becomes 'live' — on the map, able to host talk rooms and
+   events as an organisation — only when the owner of Moments approves
+   it. Checked here against the signed-in email, not on the phone. */
+create or replace function public.is_app_owner()
+returns boolean language sql stable as $$
+  select coalesce(lower(auth.jwt() ->> 'email'), '') = 'ayseryourlifecoach@gmail.com';
+$$;
+
+create or replace function public.venues_pending()
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+begin
+  if not public.is_app_owner() then raise exception 'not authorized'; end if;
+  return coalesce((
+    select jsonb_agg(jsonb_build_object('id', v.id, 'name', v.name, 'kind', v.kind, 'sub', v.sub, 'emoji', v.emoji,
+                                        'lat', v.lat, 'lng', v.lng, 'created_at', v.created_at,
+                                        'owner', (select jsonb_build_object('id', p.id, 'name', p.name, 'email', u.email)
+                                                    from public.profiles p left join auth.users u on u.id = p.id where p.id = v.owner_id))
+                     order by v.created_at)
+      from public.venues v where v.status = 'pending'), '[]'::jsonb);
+end;
+$$;
+revoke execute on function public.venues_pending() from public, anon;
+grant execute on function public.venues_pending() to authenticated;
+
+do $do$
+begin
+  alter table public.notifications drop constraint if exists notifications_kind_check;
+  alter table public.notifications add constraint notifications_kind_check
+    check (kind in ('vibe','laugh','comment','mate_request','mate_accept','message','call','tag','repost','green_invite','food_order','food_status','bardi_match','plan_soon','venue_decision'))
+    not valid;
+exception when others then raise notice 'notifications kind constraint skipped: %', sqlerrm;
+end $do$;
+
+create or replace function public.venue_decide(p_id uuid, p_approve boolean)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare v record;
+begin
+  if not public.is_app_owner() then raise exception 'not authorized'; end if;
+  update public.venues set status = case when p_approve then 'live' else 'rejected' end
+   where id = p_id and status = 'pending' returning * into v;
+  if v.id is null then return jsonb_build_object('ok', false, 'reason', 'not_pending'); end if;
+  if v.owner_id is not null then
+    perform public.notify(v.owner_id, auth.uid(), 'venue_decision', null,
+      case when p_approve then v.name || ' is approved — you can host now' else v.name || ' was not approved' end);
+  end if;
+  return jsonb_build_object('ok', true, 'status', v.status);
+end;
+$$;
+revoke execute on function public.venue_decide(uuid, boolean) from public, anon;
+grant execute on function public.venue_decide(uuid, boolean) to authenticated;
+
+-- a venue owner may apply and edit a pending application, never approve
+-- it: before this, both the insert and the update let an owner write
+-- status = 'live' themselves
+drop policy if exists "signed-in users can apply as a venue" on public.venues;
+create policy "signed-in users can apply as a venue" on public.venues for insert
+  with check (auth.uid() = owner_id and status = 'pending');
+drop policy if exists "owners can update own pending venue" on public.venues;
+create policy "owners can update own pending venue" on public.venues for update
+  using (auth.uid() = owner_id and status = 'pending') with check (auth.uid() = owner_id and status = 'pending');
 
 notify pgrst, 'reload schema';

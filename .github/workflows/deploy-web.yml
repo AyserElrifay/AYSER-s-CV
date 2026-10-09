@@ -170,6 +170,9 @@ jobs:
       # Chats: coming plans first, last week's folded away.
       - name: Check the chats list
         run: node scripts/check-chat-list.mjs
+      # Every security hole found so far, kept shut.
+      - name: Check security
+        run: node scripts/check-security.mjs
       # No signal must not mean no app.
       - name: Check the app works offline
         run: node scripts/check-offline.mjs

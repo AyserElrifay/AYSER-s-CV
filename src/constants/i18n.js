@@ -1050,6 +1050,7 @@ export const STRINGS = {
     ch_you_prefix: "You:",
     ch_say_hi: "Say hi 👋",
     ch_new_group: "New group",
+    push_venue_decision: "News about your organisation on Moments",
     lens_all: 'Everything',
     lens_places: 'Places to go',
     lens_people: 'People',

@@ -97,3 +97,16 @@ export async function updateProfile(userId, fields) {
   }
   throw new Error('Could not save your profile — try again.');
 }
+
+/* ── organisations waiting for the owner's yes (owner only; the
+   database refuses anybody else — venues_pending / venue_decide) ── */
+export async function fetchPendingVenues() {
+  const { data, error } = await supabase.rpc('venues_pending');
+  if (error) throw error;
+  return Array.isArray(data) ? data : [];
+}
+export async function decideVenue(id, approve) {
+  const { data, error } = await supabase.rpc('venue_decide', { p_id: id, p_approve: !!approve });
+  if (error) throw error;
+  return data;
+}

@@ -116,6 +116,7 @@ const PUSH_EN = {
   push_plan_soon: '{title} starts in an hour',
   push_food_order: 'A new order in your kitchen',
   push_food_status: 'Your order was updated',
+  push_venue_decision: 'News about your organisation on Moments',
   bardi_focus: '{n} people near you are {what} right now — focus together?',
   bardi_focus_at: '{n} people near you are {what} right now — a session at {venue}?',
   bd_kind_studying: 'Studying',

@@ -7,7 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { fetchReports, setReportStatus } from '../services/reports';
 import { fetchFeedback, markFeedbackSeen } from '../services/feedback';
 import { fetchStudioStats } from '../services/feedback';
-import { fetchPendingVerifications, decideVerification } from '../services/profiles';
+import { fetchPendingVerifications, decideVerification, fetchPendingVenues, decideVenue } from '../services/profiles';
 import { fetchTracks, setTrackApproval, harvestFreeMusic, harvestPublicDomainClassics, clearImportedTracks, countImportedTracks } from '../services/music';
 import { fetchHelpArticles, createHelpArticle, updateHelpArticle, deleteHelpArticle } from '../services/help';
 import { checkDatabase } from '../services/dbReadiness';
@@ -16,6 +16,7 @@ import { askBardi } from '../services/bardi';
 import { AV_NEUTRAL } from '../constants/mockData';
 import { tapLight, tapSuccess } from '../utils/feedback';
 import { useStable } from '../hooks/useStable';
+import { recent, clearCrashes, asText } from '../lib/crashLog';
 import { SheetHandle } from './SheetHandle';
 import { useSheetBack } from '../hooks/useSheetBack';
 
@@ -26,11 +27,13 @@ import { useSheetBack } from '../hooks/useSheetBack';
 
 const TABS = [
   { k: 'reports', label: 'Reports', icon: 'flag-outline' },
+  { k: 'venues', label: 'Venues', icon: 'business-outline' },
   { k: 'verify', label: 'Verify', icon: 'shield-checkmark-outline' },
   { k: 'music', label: 'Music', icon: 'musical-notes-outline' },
   { k: 'feedback', label: 'Feedback', icon: 'chatbubbles-outline' },
   { k: 'help', label: 'Help', icon: 'help-circle-outline' },
   { k: 'bardi', label: 'Bardi', icon: 'sparkles-outline' },
+  { k: 'errors', label: 'Errors', icon: 'bug-outline' },
   { k: 'db', label: 'Setup', icon: 'server-outline' },
 ];
 
@@ -43,6 +46,9 @@ export const AdminPanel = ({ onClose }) => {
   const [stats, setStats] = useState(null);
   const [reports, setReports] = useState(null);
   const [verifs, setVerifs] = useState(null);
+  const [venues, setVenues] = useState(null);
+  const [venueErr, setVenueErr] = useState(null);
+  const [crashes, setCrashes] = useState(() => { try { return recent(); } catch (e) { return []; } });
   const [music, setMusic] = useState(null);
   const [importing, setImporting] = useState(null);
   const [imported, setImported] = useState(0);
@@ -71,6 +77,7 @@ export const AdminPanel = ({ onClose }) => {
   useEffect(() => { fetchStudioStats().then(setStats).catch(() => setStats(null)); }, []);
   useEffect(() => {
     if (tab === 'reports' && reports == null) fetchReports().then(setReports).catch(() => setReports([]));
+    if (tab === 'venues' && venues == null) fetchPendingVenues().then(setVenues).catch(() => { setVenues([]); setVenueErr(true); });
     if (tab === 'verify' && verifs == null) fetchPendingVerifications().then(setVerifs).catch(() => setVerifs([]));
     if (tab === 'music' && music == null) fetchTracks({ all: true, meId: user && user.id }).then((rows) => setMusic((rows || []).filter((t) => !t.is_approved && !t.is_official))).catch(() => setMusic([]));
     if (tab === 'feedback' && feedback == null) fetchFeedback().then(setFeedback).catch(() => setFeedback([]));
@@ -306,6 +313,52 @@ export const AdminPanel = ({ onClose }) => {
                 </Pressable>
               </View>
             )
+          ) : null}
+
+          {/* organisations asking to host: approved here, and only here */}
+          {tab === 'venues' ? (
+            venues == null ? <ActivityIndicator color={C.purple} style={{ marginTop: 30 }} /> :
+            venueErr ? <Empty t="Run the latest SQL (part 14) to see venue applications here." /> :
+            venues.length === 0 ? <Empty t="No organisations waiting" /> :
+            venues.map((v) => (
+              <View key={v.id} style={{ paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: C.line }}>
+                <Text style={{ color: C.text, fontSize: 15, fontWeight: '800' }}>{(v.emoji || '🏢') + ' ' + v.name}</Text>
+                <Text style={{ color: C.faint, fontSize: 12, marginTop: 2 }}>
+                  {[v.kind, v.sub, v.owner && v.owner.name, v.owner && v.owner.email].filter(Boolean).join(' · ')}
+                </Text>
+                {v.lat != null ? <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 2 }}>{Number(v.lat).toFixed(4) + ', ' + Number(v.lng).toFixed(4)}</Text> : null}
+                <View style={{ flexDirection: 'row', marginTop: 10 }}>
+                  <Pressable onPress={async () => { tapLight(); await decideVenue(v.id, false).catch(() => {}); setVenues((q) => q.filter((x) => x.id !== v.id)); }} style={{ marginRight: 8 }}>
+                    <View style={{ borderRadius: 999, borderWidth: 1, borderColor: C.line, paddingHorizontal: 14, paddingVertical: 8 }}><Text style={{ color: C.dim, fontSize: 12.5, fontWeight: '800' }}>Reject</Text></View>
+                  </Pressable>
+                  <Pressable onPress={async () => { await decideVenue(v.id, true).catch(() => {}); tapSuccess(); setVenues((q) => q.filter((x) => x.id !== v.id)); }}>
+                    <View style={{ borderRadius: 999, backgroundColor: C.green, paddingHorizontal: 14, paddingVertical: 8 }}><Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '900' }}>Approve ✓</Text></View>
+                  </Pressable>
+                </View>
+              </View>
+            ))
+          ) : null}
+
+          {/* what failed on THIS phone — kept on the device (src/lib/crashLog.js) */}
+          {tab === 'errors' ? (
+            <>
+              <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginBottom: 10 }}>
+                <Pressable onPress={() => { try { if (typeof navigator !== 'undefined' && navigator.clipboard) navigator.clipboard.writeText(asText()); } catch (e) {} tapSuccess(); }} hitSlop={8} style={{ marginRight: 16 }}>
+                  <Text style={{ color: C.text, fontSize: 13, fontWeight: '800' }}>Copy all</Text>
+                </Pressable>
+                <Pressable onPress={() => { clearCrashes(); setCrashes([]); tapLight(); }} hitSlop={8}>
+                  <Text style={{ color: C.dim, fontSize: 13, fontWeight: '800' }}>Clear</Text>
+                </Pressable>
+              </View>
+              {crashes.length ? crashes.map((c, n) => (
+                <View key={n} style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 14, padding: 12, marginBottom: 9 }}>
+                  <Text style={{ color: C.faint, fontSize: 10, fontWeight: '900', letterSpacing: 0.8 }}>{String(c.where).toUpperCase()} · {String(c.at).replace('T', ' ').slice(5, 16)}</Text>
+                  <Text selectable style={{ color: C.text, fontSize: 12, fontWeight: '700', marginTop: 5 }}>{c.msg}</Text>
+                  {c.stack ? <Text selectable style={{ color: C.faint, fontSize: 9.5, marginTop: 5, lineHeight: 13 }}>{c.stack}</Text> : null}
+                  {c.extra ? <Text selectable style={{ color: C.dim, fontSize: 9.5, marginTop: 5, lineHeight: 13 }}>{c.extra}</Text> : null}
+                </View>
+              )) : <Empty t="Nothing has failed on this phone since it was last cleared." />}
+            </>
           ) : null}
 
           {tab === 'verify' ? (

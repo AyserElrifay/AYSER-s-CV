@@ -61,6 +61,7 @@ const LINE = {
   food_status: '🍲 updated your order',
   bardi_match: '',
   plan_soon: '',
+  venue_decision: '🏢',
 };
 
 const FILTERS = [
@@ -297,7 +298,7 @@ export const NotificationsSheet = ({ onClose }) => {
             <Text style={{ color: C.dim }}>{LINE[n.kind] || n.kind}</Text>
             {'  '}<Text style={{ color: C.faint, fontSize: 11.5 }}>{timeAgo(n.created_at)}</Text>
           </Text>
-          {(n.kind === 'green_invite' || n.kind === 'food_order' || n.kind === 'food_status') && n.body ? (
+          {(n.kind === 'green_invite' || n.kind === 'food_order' || n.kind === 'food_status' || n.kind === 'venue_decision') && n.body ? (
             <Text style={{ color: C.text, fontSize: 12.5, fontWeight: '800', marginTop: 2 }} numberOfLines={1}>{n.body}</Text>
           ) : null}
           {n.kind === 'comment' && n.body ? (

@@ -274,19 +274,27 @@ const glowRing = (color) =>
    dropped straight into innerHTML via Leaflet's divIcon — escape them so
    a stray `<` or `&` in someone's name can never break the marker markup. */
 const esc = (s) => String(s == null ? '' : s)
-  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+/* A picture's address goes inside an attribute, so it is escaped too —
+   an avatar_url ending in  " onerror="…  would otherwise be code running
+   in everyone's browser who looks at the map — and only web addresses
+   or our own drawn (data:image) pictures are let through at all. */
+const safeSrc = (u) => {
+  const v = String(u == null ? '' : u).trim();
+  return /^(https?:\/\/|data:image\/|blob:)/i.test(v) ? esc(v) : '';
+};
 
 const pinHtml = (m) => {
   const flag = m.flag;
   const flagBadge = flag
-    ? '<div style="position:absolute;bottom:10px;right:-6px;background:#fff;border-radius:8px;font-size:11px;line-height:15px;padding:0 2px;box-shadow:0 1px 3px rgba(0,0,0,0.3)">' + flag + '</div>'
+    ? '<div style="position:absolute;bottom:10px;right:-6px;background:#fff;border-radius:8px;font-size:11px;line-height:15px;padding:0 2px;box-shadow:0 1px 3px rgba(0,0,0,0.3)">' + esc(flag) + '</div>'
     : '';
 
   // People: real photo in a floating avatar with a purple glow — Snap
   // energy, Moments identity. Name pill underneath.
   if (m.kind === 'person' && m.avatar) {
     const doing = m.emoji && m.emoji.length <= 3
-      ? '<div style="position:absolute;top:-7px;left:-7px;background:#fff;border-radius:9px;font-size:12px;line-height:17px;padding:0 2px;box-shadow:0 1px 3px rgba(0,0,0,0.3)">' + m.emoji + '</div>' : '';
+      ? '<div style="position:absolute;top:-7px;left:-7px;background:#fff;border-radius:9px;font-size:12px;line-height:17px;padding:0 2px;box-shadow:0 1px 3px rgba(0,0,0,0.3)">' + esc(m.emoji) + '</div>' : '';
     const name = (m.label || '').replace(/^[^ ]+ /, '').split(' ')[0] || m.label;
     /* If they've built a character, they stand on the map as
        themselves — the whole person, planted on the spot, the way a
@@ -296,7 +304,7 @@ const pinHtml = (m) => {
       return (
         '<div class="mm-float" style="position:relative;width:74px;height:104px;display:flex;flex-direction:column;align-items:center">' +
         '<div class="mm-heat"></div>' +
-        '<img src="' + m.standing + '" style="width:66px;height:auto;display:block;filter:drop-shadow(0 6px 10px rgba(0,0,0,0.30))"/>' +
+        '<img src="' + safeSrc(m.standing) + '" style="width:66px;height:auto;display:block;filter:drop-shadow(0 6px 10px rgba(0,0,0,0.30))"/>' +
         doing + flagBadge +
         '<div class="mm-pill" style="margin-top:-2px">' + esc(name) + '</div>' +
         '</div>'
@@ -310,7 +318,7 @@ const pinHtml = (m) => {
       '<div class="mm-float" style="position:relative;width:60px;height:78px">' +
       '<div class="mm-heat"></div>' +
       '<div class="mm-pin">' +
-      '<img src="' + m.avatar + '" class="mm-pin-face"/>' +
+      '<img src="' + safeSrc(m.avatar) + '" class="mm-pin-face"/>' +
       '</div>' +
       doing + flagBadge +
       '<div class="mm-pill" style="margin-top:2px">' + esc(name) + '</div>' +
@@ -332,7 +340,7 @@ const pinHtml = (m) => {
     const ring = live ? '#7C3AED' : FRAMES[Math.abs(h) % FRAMES.length];
     const tilt = live ? 0 : (Math.abs(h >> 3) % 9) - 4;
     const inner = m.media
-      ? '<img src="' + m.media + '" style="width:100%;height:100%;object-fit:cover;display:block"/>'
+      ? '<img src="' + safeSrc(m.media) + '" style="width:100%;height:100%;object-fit:cover;display:block"/>'
       : '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:19px;background:#7C3AED">💬</div>';
     return (
       '<div class="mm-float mm-note" style="position:relative;width:62px;height:74px;flex-direction:column;align-items:center">' +
@@ -373,7 +381,7 @@ const pinHtml = (m) => {
       '<div class="mm-act">' +
       '<div class="mm-act-card' + (m.mine ? ' mm-act-mine' : '') + '" style="--tilt:' + (Number(m.tilt) || 0) + 'deg;background:linear-gradient(135deg,' + m.from + ',' + m.to + ')">' +
       '<span class="mm-act-emoji">' + esc(m.emoji) + '</span>' +
-      (m.going > 0 ? '<div class="mm-act-going">' + m.going + '</div>' : '') +
+      (m.going > 0 ? '<div class="mm-act-going">' + (Math.floor(Number(m.going)) || 0) + '</div>' : '') +
       (m.when ? '<div class="mm-act-when">' + esc(m.when) + '</div>' : '') +
       '</div>' +
       '<div class="mm-pill">' + esc(m.label) + '</div>' +
@@ -413,7 +421,7 @@ const pinHtml = (m) => {
     const tone = m.emoji === '👩' ? '#EC4899' : '#0EA5E9';
     return (
       '<div class="mm-float" style="position:relative;width:66px;height:50px;display:flex;flex-direction:column;align-items:center">' +
-      '<div style="width:30px;height:30px;border-radius:50%;background:' + tone + ';border:2px solid #fff;display:flex;align-items:center;justify-content:center;font-size:15px;box-shadow:0 3px 8px rgba(0,0,0,0.3)">' + (m.emoji || '🧳') + '</div>' +
+      '<div style="width:30px;height:30px;border-radius:50%;background:' + tone + ';border:2px solid #fff;display:flex;align-items:center;justify-content:center;font-size:15px;box-shadow:0 3px 8px rgba(0,0,0,0.3)">' + esc(m.emoji || '🧳') + '</div>' +
       '<div class="mm-pill" style="margin-top:4px">' + esc(m.label) + '</div>' +
       '</div>'
     );
@@ -879,11 +887,11 @@ export const LeafletMap = ({ center, markers = [], onPress, onMe, locate = true,
       const doing = meDoingRef.current;
       const myLabel = esc((meNameRef.current || 'You') + ' ✦');
       const doingBadge = doing
-        ? '<div style="position:absolute;top:-6px;left:-6px;background:#fff;border-radius:9px;font-size:12px;line-height:17px;padding:0 2px;box-shadow:0 1px 3px rgba(0,0,0,0.3)">' + doing + '</div>' : '';
+        ? '<div style="position:absolute;top:-6px;left:-6px;background:#fff;border-radius:9px;font-size:12px;line-height:17px;padding:0 2px;box-shadow:0 1px 3px rgba(0,0,0,0.3)">' + esc(doing) + '</div>' : '';
       const meHtml = av
         ? '<div class="mm-float" style="position:relative;width:56px;height:86px;display:flex;flex-direction:column;align-items:center">' +
             '<div class="mm-heat"></div>' + glowRing('rgba(245,179,1,0.5)') +
-            '<img src="' + av + '" style="position:relative;width:50px;height:50px;border-radius:50%;object-fit:cover;border:3px solid #fff;box-shadow:0 0 0 3px #F5B301, 0 4px 10px rgba(0,0,0,0.3)"/>' +
+            '<img src="' + safeSrc(av) + '" style="position:relative;width:50px;height:50px;border-radius:50%;object-fit:cover;border:3px solid #fff;box-shadow:0 0 0 3px #F5B301, 0 4px 10px rgba(0,0,0,0.3)"/>' +
             doingBadge +
             '<div class="mm-pill" style="margin-top:3px">' + myLabel + '</div>' +
           '</div>'
