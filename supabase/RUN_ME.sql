@@ -9305,4 +9305,13 @@ end $do$;
    the count and the flags. Nothing is inferred from location. */
 alter table public.profiles add column if not exists visited_countries text[];
 
+-- ═══════════ POSTS · WHAT A MOMENT IS FOR ═══════════
+/* 'hangout' — a place worth going to: the card offers "make a plan here".
+   'warning' — a heads-up, or somebody needs a hand: the card offers a
+   better place or help, and never invites anyone to the place itself. */
+alter table public.posts add column if not exists intent text not null default 'hangout';
+do $do$ begin
+  alter table public.posts add constraint posts_intent_check check (intent in ('hangout','warning'));
+exception when duplicate_object then null; end $do$;
+
 notify pgrst, 'reload schema';

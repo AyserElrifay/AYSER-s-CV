@@ -977,12 +977,11 @@ export const MapScreen = () => {
           anyone around join". One tap from the map itself. */}
       <Pressable onPress={() => { tapLight(); setGoNow(true); }} accessibilityRole="button" accessibilityLabel={t('gn_cta')}
         style={{ position: 'absolute', left: 14, bottom: lens === 'activities' ? 236 : lens === 'all' ? 196 : 196 }}>
-        <LinearGradient colors={['#10B981', '#0EA5E9']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-          style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, paddingHorizontal: 16, paddingVertical: 11,
-            shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 6 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, paddingHorizontal: 16, paddingVertical: 11, backgroundColor: C.purple,
+            shadowColor: '#000', shadowOpacity: 0.22, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 6 }}>
           <Text style={{ fontSize: 17 }}>🏃</Text>
           <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '900', marginStart: 7 }}>{t('gn_cta_short')}</Text>
-        </LinearGradient>
+        </View>
       </Pressable>
       <View style={{ position: 'absolute', right: 14, bottom: lens === 'activities' ? 236 : 196, alignItems: 'center' }}>
         {tools ? (

@@ -266,7 +266,7 @@ export async function fetchTravelPlans({ q = '', limit = 40 } = {}) {
   return rows.slice(0, limit);
 }
 
-export async function createPost({ userId, type = 'post', caption, place, mediaUrl, thumbUrl, durationSec, textBg, lat, lng, squadName, sound, soundReuse, plan }) {
+export async function createPost({ userId, type = 'post', caption, place, mediaUrl, thumbUrl, durationSec, textBg, lat, lng, squadName, sound, soundReuse, plan, intent }) {
   let payload = {
     user_id: userId,
     type,
@@ -275,6 +275,10 @@ export async function createPost({ userId, type = 'post', caption, place, mediaU
     // a travel plan: the headline, the dates and what they're up for.
     // See supabase/RUN_ME.sql for the shape.
     plan: plan || null,
+    /* what the moment is for: a good place to go ('hangout'), or a
+       heads-up about one ('warning'). The card's main button follows
+       it — nobody gets invited to a place somebody just warned about. */
+    intent: intent === 'warning' ? 'warning' : 'hangout',
     media_url: mediaUrl,
     // the still shown wherever a video can't play yet — a grid tile,
     // a chat card. Without it a posted reel was a blank white square.
@@ -311,7 +315,7 @@ export async function createPost({ userId, type = 'post', caption, place, mediaU
      the row, so whoever asked can say so in plain words. */
   const dropped = [];
 
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < 10; i++) {
     const { data, error } = await insert();
     if (!error) {
       if (dropped.length && data) data.__dropped = dropped;

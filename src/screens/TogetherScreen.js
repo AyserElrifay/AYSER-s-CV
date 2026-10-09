@@ -52,10 +52,10 @@ const GroupPage = lazyOverlay(() => import('../components/GroupPage').then((m) =
 const Pill = ({ on, label, onPress }) => (
   <Pressable onPress={onPress} style={{ marginEnd: 8 }}>
     <View style={{
-      backgroundColor: on ? C.purple : C.glass, borderWidth: 1, borderColor: on ? C.purple : C.line,
+      backgroundColor: on ? C.text : C.glass, borderWidth: 1, borderColor: on ? C.text : C.line,
       borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8,
     }}>
-      <Text style={{ color: on ? '#FFF' : C.text, fontSize: 13, fontWeight: '900' }}>{label}</Text>
+      <Text style={{ color: on ? C.bg : C.text, fontSize: 13, fontWeight: '800' }}>{label}</Text>
     </View>
   </Pressable>
 );
@@ -69,11 +69,10 @@ const Section = ({ children }) => (
 /* the rooms around the week, each in its own colour */
 const Tile = ({ emoji, label, from, to, onPress }) => (
   <Pressable onPress={() => { tapLight(); onPress(); }} style={{ width: '31.5%', marginBottom: 10 }} accessibilityRole="button">
-    <LinearGradient colors={[from, to]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-      style={{ borderRadius: 20, paddingVertical: 16, paddingHorizontal: 8, alignItems: 'center', minHeight: 96, justifyContent: 'center' }}>
-      <Text style={{ fontSize: 28 }}>{emoji}</Text>
-      <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '900', textAlign: 'center', marginTop: 6 }} numberOfLines={2}>{label}</Text>
-    </LinearGradient>
+    <View style={{ borderRadius: 20, paddingVertical: 16, paddingHorizontal: 8, alignItems: 'center', minHeight: 96, justifyContent: 'center', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line }}>
+      <Text style={{ fontSize: 26 }}>{emoji}</Text>
+      <Text style={{ color: C.text, fontSize: 12.5, fontWeight: '800', textAlign: 'center', marginTop: 6 }} numberOfLines={2}>{label}</Text>
+    </View>
   </Pressable>
 );
 
@@ -85,10 +84,9 @@ const JoinPill = ({ going, busy, onPress, t }) => (
         <Text style={{ color: C.text, fontSize: 13, fontWeight: '900', marginStart: 4 }}>{t('green_joined')}</Text>
       </View>
     ) : (
-      <LinearGradient colors={['#7C3AED', '#EC4899']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-        style={{ borderRadius: 999, paddingHorizontal: 18, paddingVertical: 8, opacity: busy ? 0.6 : 1 }}>
+      <View style={{ borderRadius: 999, paddingHorizontal: 18, paddingVertical: 8, backgroundColor: C.purple, opacity: busy ? 0.6 : 1 }}>
         <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900' }}>{t('green_join')}</Text>
-      </LinearGradient>
+      </View>
     )}
   </Pressable>
 );
@@ -193,29 +191,29 @@ export const TogetherScreen = () => {
         {/* ── header ── */}
         <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginBottom: 14 }}>
           <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={{ color: C.purple, fontSize: 11.5, fontWeight: '900', letterSpacing: 1.4 }}>{t('tg_kicker')}</Text>
+            <Text style={{ color: C.dim, fontSize: 11.5, fontWeight: '900', letterSpacing: 1.4 }}>{t('tg_kicker')}</Text>
             <Text style={{ color: C.text, fontSize: 30, fontWeight: '900', marginTop: 4 }}>{t('tg_title')}</Text>
           </View>
           <Pressable onPress={() => { tapMedium(); setSheet('start'); }} accessibilityRole="button" accessibilityLabel={t('tg_start')} hitSlop={8}>
-            <LinearGradient colors={['#7C3AED', '#EC4899']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-              style={{ width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name="add" size={26} color="#FFF" />
-            </LinearGradient>
+            <View style={{ width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: C.text }}>
+              <Ionicons name="add" size={26} color={C.text} />
+            </View>
           </Pressable>
         </View>
 
         {/* ── going out now? ── the fastest way into the week: one tap
             and you are on the map for anyone nearby to join */}
         <Pressable onPress={() => { tapMedium(); setSheet('gonow'); }} accessibilityRole="button" style={{ marginBottom: 14 }}>
-          <LinearGradient colors={['#10B981', '#0EA5E9']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-            style={{ borderRadius: 22, padding: 16, flexDirection: 'row', alignItems: 'center' }}>
-            <Text style={{ fontSize: 34 }}>🏃</Text>
+          <View style={{ borderRadius: 22, padding: 16, flexDirection: 'row', alignItems: 'center', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line }}>
+            <Text style={{ fontSize: 30 }}>🏃</Text>
             <View style={{ flex: 1, minWidth: 0, marginStart: 12 }}>
-              <Text style={{ color: '#FFF', fontSize: 17, fontWeight: '900' }}>{t('gn_cta')}</Text>
-              <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: 13, fontWeight: '600', marginTop: 2 }}>{t('gn_cta_sub')}</Text>
+              <Text style={{ color: C.text, fontSize: 17, fontWeight: '900' }}>{t('gn_cta')}</Text>
+              <Text style={{ color: C.dim, fontSize: 13, fontWeight: '600', marginTop: 2 }}>{t('gn_cta_sub')}</Text>
             </View>
-            <Ionicons name={'chevron-forward'} size={20} color="#FFF" />
-          </LinearGradient>
+            <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: C.purple, alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name={'arrow-forward'} size={18} color="#FFF" />
+            </View>
+          </View>
         </Pressable>
 
         {/* ── where ── */}
@@ -228,23 +226,21 @@ export const TogetherScreen = () => {
         {rows === null ? (
           <ActivityIndicator color={C.purple} style={{ marginVertical: 40 }} />
         ) : rows.length === 0 ? (
-          <LinearGradient colors={['rgba(124,58,237,0.10)', 'rgba(236,72,153,0.10)']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-            style={{ borderRadius: 24, padding: 22, alignItems: 'center', marginTop: 4 }}>
+          <View style={{ borderRadius: 24, padding: 22, alignItems: 'center', marginTop: 4, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line }}>
             <Text style={{ fontSize: 40 }}>🌱</Text>
             <Text style={{ color: C.text, fontSize: 17, fontWeight: '900', textAlign: 'center', marginTop: 8 }}>{t('tg_empty_t')}</Text>
             <Text style={{ color: C.dim, fontSize: 13.5, textAlign: 'center', lineHeight: 20, marginTop: 6 }}>{t('tg_empty_b')}</Text>
             <Pressable onPress={() => { tapMedium(); setSheet('start'); }} style={{ marginTop: 16 }}>
-              <LinearGradient colors={['#7C3AED', '#EC4899']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                style={{ borderRadius: 999, paddingHorizontal: 24, paddingVertical: 13 }}>
+              <View style={{ borderRadius: 999, paddingHorizontal: 24, paddingVertical: 13, backgroundColor: C.purple }}>
                 <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '900' }}>{t('tg_start')}</Text>
-              </LinearGradient>
+              </View>
             </Pressable>
             {scope === 'near' ? (
               <Pressable onPress={() => { tapLight(); setScope('all'); }} style={{ marginTop: 12 }}>
                 <Text style={{ color: C.purple, fontSize: 13, fontWeight: '900' }}>{t('tg_see_everywhere')}</Text>
               </Pressable>
             ) : null}
-          </LinearGradient>
+          </View>
         ) : (
           <>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ marginBottom: 6 }}>
@@ -408,11 +404,10 @@ export const TogetherScreen = () => {
                 const note = shareNote(r); if (note) { setShareMsg(note); setTimeout(() => setShareMsg(null), 2400); }
               }}
               accessibilityRole="button" style={{ marginTop: 12 }}>
-              <LinearGradient colors={['#7C3AED', '#EC4899']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                style={{ borderRadius: 999, paddingVertical: 13, alignItems: 'center', flexDirection: 'row', justifyContent: 'center' }}>
+              <View style={{ borderRadius: 999, paddingVertical: 13, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', backgroundColor: C.purple }}>
                 <Ionicons name="share-outline" size={17} color="#FFF" />
                 <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '900', marginStart: 7 }}>{t('inv_share')}</Text>
-              </LinearGradient>
+              </View>
             </Pressable>
             {shareMsg ? <Text style={{ color: C.faint, fontSize: 12, textAlign: 'center', marginTop: 8 }}>{shareMsg}</Text> : null}
           </View>

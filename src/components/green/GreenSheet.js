@@ -16,6 +16,7 @@ import { tapLight, tapMedium, tapSuccess } from '../../utils/feedback';
 import { PLAY_LANGS } from '../lamma/languages';
 import { useSheetBack } from '../../hooks/useSheetBack';
 import { GreenMark } from './GreenMark';
+import { StartForm } from './StartForm';
 
 /* ─── أخضر · GREEN MINDS ──────────────────────────────────────────────
    A corner of Moments for the things that are better done outside and
@@ -42,17 +43,18 @@ import { GreenMark } from './GreenMark';
    shouting at anybody. The measure of this screen is whether it makes
    somebody want to go outside, not whether it holds them here.      */
 
+/* most-started first: the first row is the one people actually see */
 const KINDS = [
-  { id: 'cleanup', icon: 'broom',           key: 'green_kind_cleanup' },
-  { id: 'circle',  icon: 'account-group',   key: 'green_kind_circle' },
-  { id: 'art',     icon: 'palette-outline', key: 'green_kind_art' },
-  { id: 'project', icon: 'sprout-outline',  key: 'green_kind_project' },
-  { id: 'culture', icon: 'drama-masks',     key: 'green_kind_culture' },
   { id: 'walk',    icon: 'walk',            key: 'green_kind_walk' },
-  { id: 'sport',   icon: 'soccer',          key: 'green_kind_sport' },
-  { id: 'run',     icon: 'run',             key: 'gn_run' },
   { id: 'coffee',  icon: 'coffee-outline',  key: 'gn_coffee' },
+  { id: 'run',     icon: 'run',             key: 'gn_run' },
+  { id: 'sport',   icon: 'soccer',          key: 'green_kind_sport' },
+  { id: 'culture', icon: 'drama-masks',     key: 'green_kind_culture' },
+  { id: 'art',     icon: 'palette-outline', key: 'green_kind_art' },
+  { id: 'circle',  icon: 'account-group',   key: 'green_kind_circle' },
   { id: 'focus',   icon: 'book-open-variant', key: 'gn_focus' },
+  { id: 'cleanup', icon: 'broom',           key: 'green_kind_cleanup' },
+  { id: 'project', icon: 'sprout-outline',  key: 'green_kind_project' },
 ];
 
 /* The six Ayser asked for, plus everywhere. Codes on the wire, flags
@@ -191,7 +193,8 @@ export const GreenSheet = ({ onClose, onPlay, startNow, homeCountry, openOn, pre
     setBusy(true);
     const r = await createGathering({
       kind: form.kind,
-      title: form.title,
+      // nobody has to name it: an unnamed plan is called what it is
+      title: (form.title || '').trim() || t(kindOf(form.kind).key),
       about: form.about,
       country: form.country || 'EG',
       city: form.city,
@@ -213,10 +216,11 @@ export const GreenSheet = ({ onClose, onPlay, startNow, homeCountry, openOn, pre
      call it. */
   const startFrom = (spark) => {
     tapMedium();
-    const soon = new Date(Date.now() + 3 * 24 * 3600 * 1000);
-    soon.setMinutes(0, 0, 0);
+    // tomorrow at five: a real slot on the form's own day/time pickers
+    const soon = new Date(Date.now() + 24 * 3600 * 1000);
+    soon.setHours(17, 0, 0, 0);
     setForm({
-      kind: spark ? spark.kind : (prefill ? 'circle' : 'cleanup'),
+      kind: spark ? spark.kind : (prefill ? 'coffee' : 'walk'),
       title: spark ? sparkText(spark, lang, 'title') : '',
       about: spark ? sparkText(spark, lang, 'about') : '',
       country: (spark && spark.country) || country || homeCountry || 'EG',
@@ -227,6 +231,19 @@ export const GreenSheet = ({ onClose, onPlay, startNow, homeCountry, openOn, pre
       capacity: '',
     });
   };
+
+  const formPlaces = homeCountry && !PLACES.some((p) => p.code === homeCountry)
+    ? [{ code: homeCountry, flag: flagOf(homeCountry) }, ...PLACES.filter((p) => p.code)]
+    : PLACES.filter((p) => p.code);
+
+  /* Opened straight into starting one: just the sheet, over whatever
+     the person was looking at — not the whole Green Minds page behind it. */
+  if (startNow) {
+    return form ? (
+      <StartForm form={form} setForm={setForm} kinds={KINDS} places={formPlaces} busy={busy} t={t} lang={lang}
+        onSubmit={submit} onClose={() => { tapLight(); closeForm(); }} />
+    ) : null;
+  }
 
   return (
     <Modal visible transparent={false} animationType="slide" onRequestClose={onClose}>
@@ -408,130 +425,14 @@ export const GreenSheet = ({ onClose, onPlay, startNow, homeCountry, openOn, pre
           </View>
         </ScrollView>
 
-        {/* ── STARTING ONE ─────────────────────────────────────────── */}
+        {/* ── STARTING ONE ── what, when, where (./StartForm.js) */}
         {form ? (
-          <Modal visible transparent={false} animationType="slide" onRequestClose={closeForm}>
-            <View style={{ flex: 1, backgroundColor: C.bg, paddingTop: insets.top + 8 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 8 }}>
-                <Pressable onPress={() => { tapLight(); closeForm(); }} hitSlop={10}>
-                  <Ionicons name="close" size={25} color={C.text} />
-                </Pressable>
-                <Text style={{ color: C.text, fontSize: 17, fontWeight: '900', marginStart: 12 }}>{t('green_start_own')}</Text>
-              </View>
-
-              <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 30 }} keyboardShouldPersistTaps="handled">
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 12 }}>
-                  {KINDS.map((k) => (
-                    <Chip key={k.id} on={form.kind === k.id} onPress={() => setForm((f) => ({ ...f, kind: k.id }))}>
-                      {t(k.key)}
-                    </Chip>
-                  ))}
-                </View>
-
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 12 }}>
-                  {(homeCountry && !PLACES.some((p) => p.code === homeCountry)
-                    ? [{ code: homeCountry, flag: flagOf(homeCountry) }, ...PLACES.filter((p) => p.code)]
-                    : PLACES.filter((p) => p.code)).map((p) => (
-                    <Chip key={p.code} on={form.country === p.code} onPress={() => setForm((f) => ({ ...f, country: p.code }))}>
-                      {p.flag + ' ' + p.code}
-                    </Chip>
-                  ))}
-                </View>
-
-                {[
-                  ['title', 'green_ph_title', false],
-                  ['about', 'green_ph_about', true],
-                  ['city', 'green_ph_city', false],
-                  ['place', 'green_ph_place', false],
-                ].map(([field, ph, multi]) => (
-                  <TextInput
-                    key={field}
-                    placeholder={t(ph)}
-                    placeholderTextColor={C.faint}
-                    value={form[field]}
-                    onChangeText={(v) => setForm((f) => ({ ...f, [field]: v }))}
-                    multiline={multi}
-                    style={{
-                      backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 14,
-                      color: C.text, paddingHorizontal: 14, paddingVertical: 12, fontSize: 14,
-                      marginBottom: 10, minHeight: multi ? 84 : 0, textAlignVertical: multi ? 'top' : 'center',
-                    }}
-                  />
-                ))}
-
-                {/* when: a plain local datetime, because a wheel picker
-                    that behaves differently on every browser is worse
-                    than a field somebody can read back to themselves */}
-                <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '900', letterSpacing: 1, marginBottom: 6 }}>
-                  {t('green_when')}
-                </Text>
-                <TextInput
-                  value={String(form.startsAt || '').slice(0, 16).replace('T', ' ')}
-                  onChangeText={(v) => {
-                    const iso = v.trim().replace(' ', 'T');
-                    setForm((f) => ({ ...f, startsAt: iso.length >= 16 ? new Date(iso).toISOString() : f.startsAt }));
-                  }}
-                  placeholder="YYYY-MM-DD HH:MM"
-                  placeholderTextColor={C.faint}
-                  style={{
-                    backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 14,
-                    color: C.text, paddingHorizontal: 14, paddingVertical: 12, fontSize: 14, marginBottom: 10,
-                  }}
-                />
-
-                <View style={{ flexDirection: 'row' }}>
-                  <TextInput
-                    placeholder={t('green_minutes')}
-                    placeholderTextColor={C.faint}
-                    value={form.minutes}
-                    onChangeText={(v) => setForm((f) => ({ ...f, minutes: v.replace(/[^0-9]/g, '') }))}
-                    keyboardType="number-pad"
-                    style={{
-                      flex: 1, minWidth: 0, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 14,
-                      color: C.text, paddingHorizontal: 14, paddingVertical: 12, fontSize: 14, marginEnd: 10,
-                    }}
-                  />
-                  <TextInput
-                    placeholder={t('green_cap')}
-                    placeholderTextColor={C.faint}
-                    value={form.capacity}
-                    onChangeText={(v) => setForm((f) => ({ ...f, capacity: v.replace(/[^0-9]/g, '') }))}
-                    keyboardType="number-pad"
-                    style={{
-                      flex: 1, minWidth: 0, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 14,
-                      color: C.text, paddingHorizontal: 14, paddingVertical: 12, fontSize: 14,
-                    }}
-                  />
-                </View>
-
-                {form.err ? (
-                  <Text style={{ color: C.coral, fontSize: 12.5, fontWeight: '800', marginTop: 12 }}>
-                    {form.err === 'no_title' ? t('green_err_title')
-                      : form.err === 'in_the_past' ? t('green_err_past')
-                      : form.err === 'need_unlock' ? t('vc_why_big')
-                      : t('lamma_offline')}
-                  </Text>
-                ) : null}
-
-                {/* agreed to here, where it is being started — and shown
-                    here, so "the care code above" is above */}
-                <View style={{ backgroundColor: GREEN_SOFT, borderRadius: 16, padding: 13, marginTop: 16 }}>
-                  {['green_care_1', 'green_care_2', 'green_care_3', 'green_care_4'].map((k) => (
-                    <Text key={k} style={{ color: C.text, fontSize: 12.5, fontWeight: '700', lineHeight: 18, marginBottom: 3 }}>{'· ' + t(k)}</Text>
-                  ))}
-                </View>
-                <Text style={{ color: C.faint, fontSize: 12, fontWeight: '700', lineHeight: 18, marginTop: 16 }}>
-                  {t('green_agree')}
-                </Text>
-
-                <Pressable onPress={submit} disabled={busy} style={{ marginTop: 14 }}>
-                  <View style={{ backgroundColor: GREEN, borderRadius: 999, paddingVertical: 15, alignItems: 'center', opacity: busy ? 0.6 : 1 }}>
-                    <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '900' }}>{t('green_publish')}</Text>
-                  </View>
-                </Pressable>
-              </ScrollView>
-            </View>
-          </Modal>
+          <StartForm
+            form={form} setForm={setForm} kinds={KINDS} busy={busy} t={t} lang={lang}
+            places={formPlaces}
+            onSubmit={submit}
+            onClose={() => { tapLight(); closeForm(); }}
+          />
         ) : null}
       </View>
     </Modal>

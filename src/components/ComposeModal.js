@@ -42,6 +42,9 @@ export const ComposeModal = ({ initialMode = 'post', initialCaption = '', onClos
   // opened from a topic → the tag is already in the box, cursor after it
   const [caption, setCaption] = useState(initialCaption ? initialCaption + ' ' : '');
   const [place, setPlace] = useState('');
+  // what this moment is for — asked first, because it decides what the
+  // card asks of everyone else: come here, or help / go somewhere better
+  const [intent, setIntent] = useState(null);
   const [imageUri, setImageUri] = useState(null);
   const [imageMime, setImageMime] = useState('image/jpeg');
   const [textBg, setTextBg] = useState('plain');
@@ -107,6 +110,7 @@ export const ComposeModal = ({ initialMode = 'post', initialCaption = '', onClos
        headline and the destination were in, and then this line returned
        without a word, so the button looked broken and nothing posted. */
     if (!isStory && !isTravel && !caption.trim()) return;
+    if (!isStory && !isTravel && !intent) { setError(t('intent_need')); return; }
     /* every moment in the feed is tied to somewhere: that is what makes
        it something to go to rather than something to scroll past */
     if (!isStory && !isTravel && !place.trim()) { setError(t('feed_need_place')); return; }
@@ -144,6 +148,7 @@ export const ComposeModal = ({ initialMode = 'post', initialCaption = '', onClos
           mediaUrl,
           textBg: mediaUrl || textBg === 'plain' ? null : textBg,
           plan,
+          intent: isTravel ? 'hangout' : intent,
         });
         /* The tags go on the moment the instant it exists. Each one
            writes a real row and sends that person a real notification —
@@ -171,6 +176,7 @@ export const ComposeModal = ({ initialMode = 'post', initialCaption = '', onClos
           caption: row.caption,
           plan: planLost ? null : (row.plan || plan),
           __planLost: planLost,
+          intent: row.intent === 'warning' || (!row.intent && intent === 'warning') ? 'warning' : 'hangout',
           place: row.place || null,
           startsIn: 'Live now',
           coords: row && row.lat != null && row.lng != null ? { latitude: row.lat, longitude: row.lng } : null,
@@ -187,6 +193,7 @@ export const ComposeModal = ({ initialMode = 'post', initialCaption = '', onClos
           textBg: imageUri ? null : textBg,
           caption: caption.trim(),
           plan,
+          intent: intent === 'warning' ? 'warning' : 'hangout',
           place: place.trim() || null,
           startsIn: 'Live now',
           coords: null,
@@ -346,6 +353,25 @@ export const ComposeModal = ({ initialMode = 'post', initialCaption = '', onClos
                   );
                 })}
               </View>
+            </View>
+          ) : null}
+
+          {/* what is this? — two answers, one tap. Everything below
+              (the card's button in the feed) follows from it. */}
+          {mode === 'post' ? (
+            <View style={{ flexDirection: 'row', marginBottom: 14 }}>
+              {[{ id: 'hangout', icon: 'sunny-outline', key: 'intent_hangout', sub: 'intent_hangout_sub' },
+                { id: 'warning', icon: 'alert-circle-outline', key: 'intent_warning', sub: 'intent_warning_sub' }].map((o, i) => {
+                const on = intent === o.id;
+                return (
+                  <Pressable key={o.id} onPress={() => { setIntent(o.id); setError(null); }} accessibilityRole="radio" accessibilityState={{ checked: on }}
+                    style={{ flex: 1, marginStart: i ? 10 : 0, borderRadius: 16, borderWidth: 1.5, borderColor: on ? C.text : C.line, backgroundColor: on ? C.glass : 'transparent', padding: 12 }}>
+                    <Ionicons name={o.icon} size={20} color={on ? C.text : C.dim} />
+                    <Text style={{ color: C.text, fontSize: 14, fontWeight: '800', marginTop: 6 }} numberOfLines={1}>{t(o.key)}</Text>
+                    <Text style={{ color: C.dim, fontSize: 12, marginTop: 2 }} numberOfLines={2}>{t(o.sub)}</Text>
+                  </Pressable>
+                );
+              })}
             </View>
           ) : null}
 

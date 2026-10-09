@@ -49,7 +49,7 @@ const CELL = (W - 48) / 3;
 
 const isVideoUri = (u) => typeof u === 'string' && /\.(webm|mp4|mov|m4v)(\?|$)/i.test(u);
 
-export const ProfileModal = ({ user, onClose }) => {
+export const ProfileModal = ({ user, onClose, openMessage }) => {
   /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
   useSheetBack(onClose);
   const insets = useSafeAreaInsets();
@@ -61,8 +61,9 @@ export const ProfileModal = ({ user, onClose }) => {
   const [posts, setPosts] = useState(null);         // their real moments
   const [mates, setMates] = useState(null);         // real mate count
   const [mateState, setMateState] = useState('none'); // none|requested|incoming|mates
-  const [msgOpen, setMsgOpen] = useState(false);
-  const [msgText, setMsgText] = useState('');
+  // "Offer help" on a heads-up opens straight onto a message to them
+  const [msgOpen, setMsgOpen] = useState(!!openMessage);
+  const [msgText, setMsgText] = useState(typeof openMessage === 'string' ? openMessage : '');
   const [msgSent, setMsgSent] = useState(false);
   const [tab, setTab] = useState('grid');   // grid | reel | repost | tag
   const [taggedPosts, setTaggedPosts] = useState([]);   // moments they're in

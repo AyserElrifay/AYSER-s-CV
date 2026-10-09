@@ -158,7 +158,7 @@ const Backdrop = ({ post, style, children }) => {
   );
 };
 
-export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onLaugh: onLaughProp, onRemoveLaugh, isMine, onDelete, onEdit, onShare, onJoin, onVibe, onComment, onOpenProfile, onOpenReel, onOpenLikers, onOpenLaughers, onReport, onOpenTag, onSetCover, onHangoutHere }) => {
+export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onLaugh: onLaughProp, onRemoveLaugh, isMine, onDelete, onEdit, onShare, onJoin, onVibe, onComment, onOpenProfile, onOpenReel, onOpenLikers, onOpenLaughers, onReport, onOpenTag, onSetCover, onHangoutHere, onOfferHelp }) => {
   // Moments are captured at an enforced 4:5 crop (ComposeModal) — sizing
   // the card by aspect ratio, not a fixed height, means the feed shows
   // exactly what was cropped, no extra cover-crop surprise.
@@ -381,6 +381,12 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
             )}
           </View>
         </Pressable>
+        {post.intent === 'warning' ? (
+          <View accessibilityLabel={t('intent_badge')} style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: C.line, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 4, marginEnd: 10 }}>
+            <Ionicons name="alert-circle-outline" size={13} color={C.dim} />
+            <Text style={{ color: C.dim, fontSize: 11.5, fontWeight: '800', marginStart: 4 }}>{t('intent_badge')}</Text>
+          </View>
+        ) : null}
         <Pressable onPress={() => { tapLight(); setMenuOpen((o) => !o); setConfirmDel(false); }} hitSlop={10}>
           <Ionicons name="ellipsis-horizontal" size={18} color={C.faint} />
         </Pressable>
@@ -739,7 +745,30 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
         {/* not an event yet — so the card's main button makes it one: a
             plan at this place that anyone can join (src/lib/actionFeed.js).
             Its own row, full width: it is the point of the card. */}
-        {!post.sponsored && !post.joinable && onHangoutHere && (post.place || post.coords) ? (
+        {/* a heads-up about a place never invites anyone to it: the
+            card asks for somewhere better, or for a hand, instead */}
+        {!post.sponsored && post.intent === 'warning' ? (
+          <View style={{ marginTop: 12, flexDirection: 'row' }}>
+            <Pressable
+              onPress={() => { tapLight(); onComment && onComment(post); }}
+              accessibilityRole="button"
+              style={{ flex: 1, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: C.line, borderRadius: 999, paddingVertical: 10 }}
+            >
+              <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800' }} numberOfLines={1}>{t('intent_alt')}</Text>
+            </Pressable>
+            {onOfferHelp && !isMine ? (
+              <Pressable
+                onPress={() => { tapLight(); onOfferHelp(post); }}
+                accessibilityRole="button"
+                style={{ flex: 1, marginStart: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: C.purple, borderRadius: 999, paddingVertical: 10 }}
+              >
+                <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '800' }} numberOfLines={1}>{t('intent_help')}</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        ) : null}
+
+        {!post.sponsored && post.intent !== 'warning' && !post.joinable && onHangoutHere && (post.place || post.coords) ? (
           <Pressable
             onPress={() => { tapLight(); onHangoutHere(post); }}
             accessibilityRole="button"

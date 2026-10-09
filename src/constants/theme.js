@@ -6,11 +6,11 @@
    Purple #7C3AED · Green #10B981 · Blue #3B82F6 · Coral #F43F5E     */
 
 const LIGHT = {
-  bg: '#F4F5F7',                       // cloud-gray canvas
+  bg: '#F9F9F6',                       // warm off-white canvas — quiet, not clinical
   bg2: '#FFFFFF',                      // sheets & bars
   glass: '#FFFFFF',                    // cards are clean white
-  glassHi: 'rgba(17,24,39,0.06)',      // subtle pressed / track fill
-  line: 'rgba(17,24,39,0.08)',         // hairline borders
+  glassHi: 'rgba(26,26,26,0.05)',      // subtle pressed / track fill
+  line: 'rgba(26,26,26,0.08)',         // hairline borders
   purple: '#7C3AED',
   purpleSoft: 'rgba(124,58,237,0.09)',
   green: '#10B981',
@@ -21,9 +21,9 @@ const LIGHT = {
   coralSoft: 'rgba(244,63,94,0.09)',
   gold: '#F5B301',                     // the signature Star reaction
   goldSoft: 'rgba(245,179,1,0.12)',
-  text: '#111827',                     // near-black ink
-  dim: 'rgba(17,24,39,0.60)',
-  faint: 'rgba(17,24,39,0.38)',
+  text: '#1A1A1A',                     // charcoal ink
+  dim: 'rgba(26,26,26,0.60)',
+  faint: 'rgba(26,26,26,0.38)',
   ink: '#FFFFFF',                      // label color on neon buttons
   /* Panels that float ON TOP of the map/photos. These used to be
      hardcoded white, which meant white text on white in dark mode —

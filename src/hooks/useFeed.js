@@ -60,6 +60,8 @@ export const toCard = (row) => ({
   caption: row.caption || '',
   // a travel plan rides along with the post it belongs to
   plan: row.plan || null,
+  // 'hangout' or 'warning' — decides the card's main button
+  intent: row.intent === 'warning' ? 'warning' : 'hangout',
   // who it went out to — so Manage opens showing the truth, not a guess
   closeOnly: !!row.close_only,
   place: row.place || null,
