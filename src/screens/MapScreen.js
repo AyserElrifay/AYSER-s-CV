@@ -952,14 +952,14 @@ export const MapScreen = () => {
                 <Pressable key={o.k} onPress={() => { tapSelection(); setLens(o.k); if (o.k !== 'trips') setNewTrip(null); }}>
                   <View style={{
                     flexDirection: 'row', alignItems: 'center',
-                    backgroundColor: on ? C.purple : C.float,
-                    borderWidth: 1, borderColor: on ? C.purple : C.line,
+                    backgroundColor: on ? C.text : C.float,
+                    borderWidth: 1, borderColor: on ? C.text : C.line,
                     borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7, marginRight: 7,
                   }}>
                     <Text style={{ fontSize: 12.5, marginRight: 5 }}>{o.emoji}</Text>
-                    <Text style={{ color: on ? '#FFF' : C.dim, fontSize: 12, fontWeight: on ? '900' : '800' }}>{o.label}</Text>
+                    <Text style={{ color: on ? C.bg : C.dim, fontSize: 12, fontWeight: on ? '900' : '800' }}>{o.label}</Text>
                     {o.n ? (
-                      <Text style={{ color: on ? 'rgba(255,255,255,0.75)' : C.faint, fontSize: 11, fontWeight: '800', marginLeft: 5 }}>{o.n}</Text>
+                      <Text style={{ color: on ? C.bg : C.faint, opacity: on ? 0.7 : 1, fontSize: 11, fontWeight: '800', marginLeft: 5 }}>{o.n}</Text>
                     ) : null}
                   </View>
                 </Pressable>
@@ -1029,8 +1029,8 @@ export const MapScreen = () => {
           </View>
         </Pressable>
         <Pressable testID="map-tools" onPress={() => { tapLight(); setTools((v) => !v); }}>
-          <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: tools ? C.text : C.purple, alignItems: 'center', justifyContent: 'center', shadowColor: C.purple, shadowOpacity: 0.3, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } }}>
-            <Ionicons name={tools ? 'close' : 'ellipsis-horizontal'} size={21} color="#FFF" />
+          <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: tools ? C.text : C.floatSolid, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } }}>
+            <Ionicons name={tools ? 'close' : 'ellipsis-horizontal'} size={21} color={tools ? C.bg : C.text} />
           </View>
         </Pressable>
       </View>

@@ -1346,7 +1346,7 @@ export const STRINGS = {
     // Map
     search_places_placeholder: 'Search places to go, people, anywhere on Earth…', no_campfires_yet: 'No live campfires yet',
     be_first_host: 'Be the first to host one', no_venues_yet: 'No venues yet', own_place_cta: 'Own a place? Get listed →',
-    location_gate_title: 'Moments wants to know your location', location_gate_body: 'To show you nearby mates, campfires and places on the map. Your browser will double-check right after — that popup names the website itself, which we can\'t relabel, but the ask really is coming from Moments.', turn_on_location: 'Turn on location', maybe_later: 'Maybe later',
+    location_gate_title: 'Moments wants to know your location', location_gate_body: "To show plans and people near you. Your browser asks once more after this.", turn_on_location: 'Turn on location', maybe_later: 'Maybe later',
     send_sos_q: 'Send SOS?', send_sos_now: 'SEND SOS NOW', sos_live: 'Your SOS pin is live', nearby_people: 'Nearby people 📍', no_one_nearby: 'No one nearby yet',
     whats_up_q: 'What are you up to?', go_invisible: 'Go invisible (hide my activity)', pin_it_here: 'Pin it here 💬', manage_campfire: 'Manage campfire 🔥', put_place_on_moments: 'Put your place on Moments 🤝', apply_2min: 'Apply — takes 2 minutes', leave_feedback: 'Leave feedback ⭐', keep_typing: 'Keep typing…', searching_world: 'Searching the real world… nothing yet 🌍', drop_note: 'Drop a note 💬',
     directions_label: '🧭 Directions', deals_label: '🎟️ Deals on Waffarha',
