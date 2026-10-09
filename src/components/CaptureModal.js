@@ -1877,7 +1877,7 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
             : null;
           const row = await createStory(user.id, {
             mediaUrl, caption: finalCaption(), sound, sticker, closeOnly,
-            place: onMap ? (placeName.trim() || 'Right here') : null,
+            place: onMap ? (placeName.trim() || null) : null,
             lat: onMap && mapCoords ? mapCoords.latitude : null,
             lng: onMap && mapCoords ? mapCoords.longitude : null,
           });
@@ -1890,7 +1890,7 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
         } else if (mode === 'video') {
           const row = await createPost({
             userId: user.id, type: 'vod', caption: finalCaption() || '🎬 Video', mediaUrl, thumbUrl, durationSec, sound, soundReuse,
-            place: onMap ? (placeName.trim() || 'Right here') : null,
+            place: onMap ? (placeName.trim() || null) : null,
             lat: onMap && mapCoords ? mapCoords.latitude : null,
             lng: onMap && mapCoords ? mapCoords.longitude : null,
           });
@@ -1898,7 +1898,7 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
         } else {
           const row = await createPost({
             userId: user.id, type: 'reel', caption: finalCaption() || '🎬', mediaUrl, sound, soundReuse, thumbUrl, durationSec,
-            place: onMap ? (placeName.trim() || 'Right here') : null,
+            place: onMap ? (placeName.trim() || null) : null,
             lat: onMap && mapCoords ? mapCoords.latitude : null,
             lng: onMap && mapCoords ? mapCoords.longitude : null,
           });
@@ -1907,7 +1907,8 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
             id: row.id,
             user: { name: (row.user && row.user.name) || 'You', avatar: (row.user && row.user.avatar_url) || AV_NEUTRAL, verified: !!(row.user && row.user.verified) },
             type: 'reel', media: row.media_url, caption: row.caption,
-            place: 'Right here', startsIn: 'Live now', coords: ME.coords,
+            place: row.place || null, startsIn: 'Live now',
+            coords: row.lat != null && row.lng != null ? { latitude: row.lat, longitude: row.lng } : null,
             sound, vibes: 0, comments: 0, squad: 'New Vibe Squad',
           });
         }
@@ -1915,7 +1916,7 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
         // demo mode — local only
         if (mode === 'story') onPostedStory && onPostedStory({ user: { id: 'me', name: 'You', avatar: AV_NEUTRAL }, media: workingShot.uri, sound, caption: caption.trim() || null });
         else if (mode === 'video') onPosted && onPosted({ id: 'local-' + Date.now(), type: 'vod', media_url: workingShot.uri, caption: caption.trim() || '🎬 Video', user: { name: 'You', avatar_url: AV_NEUTRAL } });
-        else onPosted && onPosted({ id: 'local-' + Date.now(), user: { name: 'You', avatar: AV_NEUTRAL, verified: false }, type: 'reel', media: workingShot.uri, caption: caption.trim() || '🎬', place: 'Right here', startsIn: 'Live now', coords: ME.coords, sound, vibes: 0, comments: 0, squad: 'New Vibe Squad' });
+        else onPosted && onPosted({ id: 'local-' + Date.now(), user: { name: 'You', avatar: AV_NEUTRAL, verified: false }, type: 'reel', media: workingShot.uri, caption: caption.trim() || '🎬', place: null, startsIn: 'Live now', coords: null, sound, vibes: 0, comments: 0, squad: 'New Vibe Squad' });
       }
       tapSuccess(); sfxSuccess();
       clearDraft();

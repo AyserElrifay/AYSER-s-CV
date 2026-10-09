@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, Pressable, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { C, R } from '../constants/theme';
 import { useAuth } from '../context/AuthContext';
 import { updateProfile } from '../services/profiles';
@@ -12,6 +13,7 @@ import { Glass } from '../components/Glass';
 import { Micro } from '../components/Micro';
 import { NeonButton } from '../components/NeonButton';
 import { Wordmark } from '../components/Wordmark';
+import { Welcome } from '../components/Welcome';
 import { setupNotice } from '../lib/plumbing';
 import { useLang } from '../context/LanguageContext';
 import { LANGS } from '../constants/i18n';
@@ -65,9 +67,11 @@ const authErrorKey = (e) => {
 
 export const AuthScreen = ({ recovery = false, onDone }) => {
   const { isDemo, signIn, signUp, enterDemo, user, beginOnboarding, finishOnboarding } = useAuth();
-  const { t, lang, setLang } = useLang();
+  const { t, lang, setLang, rtl } = useLang();
   const [step, setStep] = useState(0);
   const [mode, setMode] = useState('signin'); // 'signin' | 'signup'
+  /* the welcome page first, the form only once somebody asks for it */
+  const [welcome, setWelcome] = useState(!recovery);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -331,6 +335,11 @@ export const AuthScreen = ({ recovery = false, onDone }) => {
               {notice ? <Text style={{ color: C.green, fontSize: 12.5, marginTop: 12 }}>{notice}</Text> : null}
             </Glass>
           </View>
+        ) : step === 0 && welcome && mode !== 'reset' ? (
+          <Welcome
+            onStart={() => { setMode('signup'); setError(null); setNotice(null); setWelcome(false); }}
+            onSignIn={() => { setMode('signin'); setError(null); setNotice(null); setWelcome(false); }}
+          />
         ) : step === 0 && mode === 'reset' ? (
           <View style={{ alignItems: 'center' }}>
             <Wordmark height={92} style={{ marginBottom: 4 }} />
@@ -399,6 +408,12 @@ export const AuthScreen = ({ recovery = false, onDone }) => {
           </View>
         ) : step === 0 ? (
           <View style={{ alignItems: 'center' }}>
+            {/* a way back to the welcome page — every screen has a way out */}
+            <Pressable onPress={() => { setWelcome(true); setError(null); setNotice(null); }} hitSlop={10}
+              accessibilityRole="button" accessibilityLabel={t('back')}
+              style={{ alignSelf: 'flex-start', width: 40, height: 40, borderRadius: 20, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center', marginBottom: 6 }}>
+              <Ionicons name={rtl ? 'chevron-forward' : 'chevron-back'} size={20} color={C.text} />
+            </Pressable>
             <Wordmark height={100} style={{ marginBottom: 2 }} />
             <Text style={{ color: C.dim, fontSize: 14, marginBottom: 40 }}>{t('auth_tagline')}</Text>
             <Glass style={{ padding: 20, alignSelf: 'stretch', marginBottom: 30 }}>

@@ -7,6 +7,7 @@ import { C } from '../constants/theme';
 import { useLang } from '../context/LanguageContext';
 import { tapSelection } from '../utils/feedback';
 import { tourSeen } from '../components/GestureTour';
+import { onMapTarget } from '../lib/mapBus';
 
 /* ─── MOVING BETWEEN TABS WITHOUT AIMING AT ANYTHING ────────────────
    Six tabs along the bottom, and every one of them costs a deliberate
@@ -87,6 +88,10 @@ export const SwipeTabs = ({ children }) => {
      It never matched once, so every completed swipe fell through and
      did nothing, with no error to show for it. */
   const name = useRoute().name;
+  /* "Show on the map" from a post: whichever tab is in front moves to
+     the map. Every tab wraps itself in this, so only the focused one
+     acts. */
+  useEffect(() => onMapTarget(() => { if (nav.isFocused() && name !== 'MAP') nav.navigate('MAP'); }), [nav, name]);
   const { width } = useWindowDimensions();
   const { t, rtl } = useLang();
   // On a laptop the tab bar is a sidebar you can see the whole time and

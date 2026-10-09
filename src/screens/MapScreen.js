@@ -7,6 +7,9 @@ import { useTheme } from '../context/ThemeContext';
 import { ME, DOING_OPTIONS, DEALS, DEAL_FILTERS, av, AV_NEUTRAL } from '../constants/mockData';
 import { MAP_PEOPLE, CAMPFIRES, BOOKINGS } from '../constants/mockData'; // demo-mode fallback only
 import { MapView, Marker, MAPS_READY } from '../utils/maps';
+import { takeMapTarget, onMapTarget } from '../lib/mapBus';
+import { listGatherings } from '../services/green';
+import { activityPin } from '../lib/activityPins';
 import { kmBetween, projectToMap } from '../utils/geo';
 import { requestLocationPermission, getCurrentCoords, watchCoords } from '../utils/location';
 import { SUPABASE_READY } from '../lib/supabase';
@@ -55,6 +58,7 @@ import { lazyOverlay } from '../lib/lazyScreen';
 import { SheetHandle, SheetBack } from '../components/SheetHandle';
 const ProfileModal = lazyOverlay(() => import('../components/ProfileModal').then((m) => ({ default: m.ProfileModal })));
 const CountrySheet = lazyOverlay(() => import('../components/CountrySheet').then((mod) => ({ default: mod.CountrySheet })));
+const GreenSheet = lazyOverlay(() => import('../components/green/GreenSheet').then((mod) => ({ default: mod.GreenSheet })));
 
 /* Which pins belong to each lens. `all` keeps everything; the rest are
    deliberately narrow, because the point of a lens is that the map goes
@@ -62,6 +66,7 @@ const CountrySheet = lazyOverlay(() => import('../components/CountrySheet').then
 const LENS_KINDS = {
   all: null,
   places: ['place', 'venue', 'dest', 'event'],
+  activities: ['activity', 'fire', 'trip'],
   people: ['person', 'fire'],
   stories: ['story', 'moment', 'note'],
   trips: ['trip', 'dest'],
@@ -143,6 +148,8 @@ export const MapScreen = () => {
   const [noteHours, setNoteHours] = useState(24);       // chosen duration
   const [realNotes, setRealNotes] = useState([]);       // pinned comments
   const [shotOpen, setShotOpen] = useState(null);       // a moment/story opened from the map
+  const [gatherings, setGatherings] = useState([]);    // this week's real things to join
+  const [greenOpen, setGreenOpen] = useState(false);
   const [momentPins, setMomentPins] = useState([]);     // moments shared AT a spot
   const [storyPins, setStoryPins] = useState([]);       // live stories on the map
   const [noteOpen, setNoteOpen] = useState(null);       // a tapped note
@@ -315,13 +322,16 @@ export const MapScreen = () => {
     }));
     // real major world events (World Cup, Olympics…)
     WORLD_EVENTS.forEach((e) => out.push({ id: 'ev_' + e.id, srcId: e.id, kind: 'event', lat: e.lat, lng: e.lng, label: e.name }));
+    // this week's gatherings — the opera on Thursday, the walk on Saturday —
+    // at the real place they meet. Only ones with a real point are here.
+    gatherings.forEach((g) => g.lat != null && g.lng != null && out.push(activityPin(g, lang)));
     // trips somebody is actually running, pinned where they're going
     trips.forEach((tp) => tp.lat != null && out.push({
       id: 'tp_' + tp.id, srcId: tp.id, kind: 'trip', lat: tp.lat, lng: tp.lng,
       emoji: tp.girls_only ? '👩' : '🧳', label: tp.title,
     }));
     return out;
-  }, [people, campfires, realVenues, realPlaces, realNotes, momentPins, storyPins, trips]);
+  }, [people, campfires, realVenues, realPlaces, realNotes, momentPins, storyPins, trips, gatherings, lang]);
 
   /* Which pins belong to the lens you're looking through. */
   const shownMarkers = useMemo(() => {
@@ -354,6 +364,7 @@ export const MapScreen = () => {
     else if (m.kind === 'note') { const n = realNotes.find((x) => x.id === m.srcId); if (n) setNoteOpen(n); }
     else if (m.kind === 'moment') { const p = momentPins.find((x) => x.id === m.srcId); if (p) openMomentPin(p); }
     else if (m.kind === 'story') { const st = storyPins.find((x) => x.id === m.srcId); if (st) openStoryPin(st); }
+    else if (m.kind === 'activity') setGreenOpen(true);
     else if (m.kind === 'event') { const e = WORLD_EVENTS.find((x) => x.id === m.srcId); if (e) setEventOpen(e); }
     // a trip pin sends you to the trips lens, where you can actually join it
     else if (m.kind === 'trip') { setLens('trips'); setNewTrip(null); }
@@ -727,9 +738,32 @@ export const MapScreen = () => {
     fetchActiveNotes().then((rows) => { if (!cancelled) setRealNotes(rows); }).catch(() => {});
     // these fail soft: the columns may not exist until RUN_ME.sql is re-run
     fetchMomentPins().then((rows) => { if (!cancelled) setMomentPins(rows); }).catch(() => {});
+    listGatherings(null).then((rows) => { if (!cancelled) setGatherings(rows); }).catch(() => {});
     fetchStoryPins().then((rows) => { if (!cancelled) setStoryPins(rows); }).catch(() => {});
     return () => { cancelled = true; };
   }, []);
+
+  /* A post asked to be shown here (src/lib/mapBus.js): fly to it, look
+     through the lens that has moments in it, and open the moment once
+     its pin is loaded — taken now if the map was already open, or on
+     arrival if this is the first time the map has been opened. */
+  const [wantMoment, setWantMoment] = useState(null);
+  useEffect(() => {
+    const go = (tg) => {
+      if (!tg) return;
+      setSheet(null);
+      setLens('all');
+      setMapFocus({ lat: tg.lat, lng: tg.lng, zoom: 16, ts: tg.ts || Date.now() });
+      if (tg.postId) setWantMoment(tg.postId);
+    };
+    go(takeMapTarget());
+    return onMapTarget(() => go(takeMapTarget()));
+  }, []);
+  useEffect(() => {
+    if (!wantMoment) return;
+    const p = momentPins.find((x) => x.id === wantMoment);
+    if (p) { setWantMoment(null); openMomentPin(p); }
+  }, [wantMoment, momentPins]);
 
   /* Tap a picture on the map → see the moment (or the live story)
      full-screen, with a way straight through to whoever shared it. */
@@ -874,6 +908,7 @@ export const MapScreen = () => {
           >
             {[
               { k: 'all', label: t('lens_all'), emoji: '🌍', n: mapMarkers.length },
+              { k: 'activities', label: t('lens_activities'), emoji: '🎉', n: mapMarkers.filter((m) => m.kind === 'activity').length + campfires.length + trips.length },
               { k: 'places', label: t('lens_places'), emoji: '📍', n: realPlaces.length + realVenues.length + DESTINATIONS.length },
               { k: 'people', label: t('lens_people'), emoji: '🟢', n: nearbyPeople.length + campfires.length },
               { k: 'stories', label: t('lens_stories'), emoji: '📸', n: storyPins.length + momentPins.length },
@@ -2116,6 +2151,7 @@ export const MapScreen = () => {
       ) : null}
 
       {profileUser ? <ProfileModal user={profileUser} onClose={() => setProfileUser(null)} /> : null}
+      {greenOpen ? <GreenSheet onClose={() => setGreenOpen(false)} /> : null}
       {bookingVenue ? <BookingSheet venue={bookingVenue} onClose={() => { setBooked((x) => ({ ...x, [bookingVenue.id]: true })); setBookingVenue(null); }} /> : null}
       {travelTo ? <TravelSheet city={travelTo} onClose={() => setTravelTo(null)} /> : null}
       {countryRoom ? <CountrySheet startCode={countryRoom} onClose={() => setCountryRoom(null)} /> : null}

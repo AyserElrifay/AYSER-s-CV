@@ -8529,6 +8529,11 @@ drop policy if exists "a host keeps their own weekly plan" on public.green_weekl
 create policy "a host keeps their own weekly plan" on public.green_weekly
   for all using (host_id = auth.uid()) with check (host_id = auth.uid());
 
+/* where it happens, so it can stand on the map. Only a real public
+   place gets coordinates; a plan without them is still on the list. */
+alter table public.green_weekly add column if not exists lat double precision;
+alter table public.green_weekly add column if not exists lng double precision;
+
 alter table public.green_gatherings add column if not exists weekly_id uuid references public.green_weekly(id) on delete set null;
 alter table public.green_gatherings add column if not exists announced_at timestamptz;
 create unique index if not exists green_gatherings_weekly_once on public.green_gatherings (weekly_id, starts_at) where weekly_id is not null;
@@ -8550,8 +8555,8 @@ begin
       at := (((now() at time zone w.tz)::date + d) + w.start_time) at time zone w.tz;
       continue when at < now();
       insert into public.green_gatherings
-        (kind, title, about, country, city, place_name, starts_at, minutes, capacity, host_id, weekly_id)
-      values (w.kind, w.title, w.about, w.country, w.city, w.place_name, at, w.minutes, w.capacity, w.host_id, w.id)
+        (kind, title, about, country, city, place_name, lat, lng, starts_at, minutes, capacity, host_id, weekly_id)
+      values (w.kind, w.title, w.about, w.country, w.city, w.place_name, w.lat, w.lng, at, w.minutes, w.capacity, w.host_id, w.id)
       on conflict (weekly_id, starts_at) where weekly_id is not null do nothing
       returning id into gid;
       if gid is not null then
@@ -8628,6 +8633,23 @@ begin
   ) as v(weekday, start_time, minutes, capacity, kind, title, about, city, place_name)
   where not exists (select 1 from public.green_weekly w where w.weekday = v.weekday and w.title = v.title);
 end $$;
+
+/* The public places those plans meet at, so they stand on the map.
+   Madinaty's park is left without a point: we are not sure enough of
+   where in it they meet, and a pin in the wrong place is worse than
+   none. Filled only where nobody has set one already. */
+update public.green_weekly w set lat = v.lat, lng = v.lng
+  from (values
+    ('Al-Azhar Park',               30.0410, 31.2650),
+    ('Merryland Park, Heliopolis',  30.1007, 31.3230),
+    ('Zamalek, Nile corniche',      30.0605, 31.2185),
+    ('Cairo Opera House, Zamalek',  30.0424, 31.2243),
+    ('Maadi corniche',              29.9650, 31.2420)
+  ) as v(place_name, lat, lng)
+ where w.place_name = v.place_name and w.lat is null;
+update public.green_gatherings g set lat = w.lat, lng = w.lng
+  from public.green_weekly w
+ where g.weekly_id = w.id and g.lat is null and w.lat is not null;
 
 -- the list again, now that it can say which ones repeat and which were announced
 create or replace function public.green_list(p_country text)

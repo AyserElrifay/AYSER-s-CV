@@ -126,6 +126,31 @@ function injectMapStyle() {
       object-fit: cover; transform: rotate(45deg);
       background: #EDE9FE;
     }
+    /* ── THINGS TO JOIN: bright cards, dropped on the map by hand ── */
+    @keyframes mmBob { 0%,100% { transform: translateY(0) rotate(var(--tilt)); } 50% { transform: translateY(-4px) rotate(var(--tilt)); } }
+    .mm-act { position: relative; width: 104px; display: flex; flex-direction: column; align-items: center; }
+    .mm-act-card {
+      position: relative; width: 58px; height: 58px; border-radius: 18px;
+      display: flex; align-items: center; justify-content: center;
+      border: 3px solid #fff; box-shadow: 0 6px 14px rgba(15,23,42,0.28);
+      animation: mmBob 3.4s ease-in-out infinite;
+    }
+    .mm-act-emoji { font-size: 29px; line-height: 1; filter: drop-shadow(0 2px 2px rgba(0,0,0,0.18)); }
+    .mm-act-when {
+      position: absolute; left: 50%; bottom: -9px; transform: translateX(-50%);
+      background: #111827; color: #fff; border-radius: 999px; padding: 2px 7px;
+      font: 800 9px -apple-system, system-ui, sans-serif; white-space: nowrap; letter-spacing: 0.2px;
+      border: 1.5px solid #fff;
+    }
+    .mm-act-going {
+      position: absolute; top: -8px; right: -10px; min-width: 20px; height: 20px; border-radius: 10px;
+      background: #fff; color: #111827; display: flex; align-items: center; justify-content: center;
+      font: 900 10px -apple-system, system-ui, sans-serif; padding: 0 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.25);
+    }
+    .mm-act-mine { box-shadow: 0 0 0 3px #10B981, 0 6px 14px rgba(15,23,42,0.28); }
+    .mm-act .mm-pill { margin-top: 14px; font-size: 10px; max-width: 104px; }
+    .mm-z-far .mm-act .mm-pill, .mm-z-globe .mm-act { display: none; }
+    @media (prefers-reduced-motion: reduce) { .mm-act-card { animation: none; transform: rotate(var(--tilt)); } }
     .mm-pill {
       background: rgba(255,255,255,0.97); border-radius: 8px; padding: 1.5px 6.5px; font-size: 9.5px;
       font-weight: 700; color: #1f2937; white-space: nowrap; text-align: center;
@@ -296,13 +321,19 @@ const pinHtml = (m) => {
      purple ring; a moment gets a soft white frame. */
   if (m.kind === 'moment' || m.kind === 'story') {
     const live = m.kind === 'story';
-    const ring = live ? '#7C3AED' : '#FFFFFF';
+    /* a moment gets a frame from a bright set, chosen by its id so it
+       keeps the same one, and a slight tilt — photos dropped on a map,
+       not tiles in a grid */
+    let h = 0; for (const ch of String(m.srcId || m.id)) h = (h * 31 + ch.charCodeAt(0)) | 0;
+    const FRAMES = ['#FFFFFF', '#FACC15', '#34D399', '#60A5FA', '#F472B6', '#FB923C'];
+    const ring = live ? '#7C3AED' : FRAMES[Math.abs(h) % FRAMES.length];
+    const tilt = live ? 0 : (Math.abs(h >> 3) % 9) - 4;
     const inner = m.media
       ? '<img src="' + m.media + '" style="width:100%;height:100%;object-fit:cover;display:block"/>'
       : '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:19px;background:#7C3AED">💬</div>';
     return (
       '<div class="mm-float mm-note" style="position:relative;width:62px;height:74px;flex-direction:column;align-items:center">' +
-      '<div style="width:52px;height:52px;border-radius:16px;overflow:hidden;border:3px solid ' + ring +
+      '<div style="width:52px;height:52px;border-radius:16px;overflow:hidden;transform:rotate(' + tilt + 'deg);border:3px solid ' + ring +
       ';box-shadow:0 4px 12px rgba(0,0,0,0.35)' + (live ? ',0 0 0 2px rgba(124,58,237,0.35)' : '') + '">' + inner + '</div>' +
       (live ? '<div style="position:absolute;top:-6px;right:2px;background:#7C3AED;color:#fff;font:800 8px system-ui;padding:2px 5px;border-radius:999px;border:1.5px solid #fff">LIVE</div>' : '') +
       (m.label ? '<div class="mm-pill" style="margin-top:4px">' + esc(m.label) + '</div>' : '') +
@@ -327,6 +358,36 @@ const pinHtml = (m) => {
     return (
       '<div class="mm-float mm-note" style="position:relative;width:40px;height:44px;flex-direction:column;align-items:center">' +
       '<div style="width:30px;height:30px;border-radius:13px 13px 13px 3px;background:#7C3AED;display:flex;align-items:center;justify-content:center;font-size:15px;box-shadow:0 3px 8px rgba(124,58,237,0.4)">💬</div>' +
+      '</div>'
+    );
+  }
+
+  /* Something to join this week, at the place it meets: a bright card
+     in the colour of what it is, the day and time under it, and how
+     many people are really going in the corner. See src/lib/activityPins.js. */
+  if (m.kind === 'activity') {
+    return (
+      '<div class="mm-act">' +
+      '<div class="mm-act-card' + (m.mine ? ' mm-act-mine' : '') + '" style="--tilt:' + (Number(m.tilt) || 0) + 'deg;background:linear-gradient(135deg,' + m.from + ',' + m.to + ')">' +
+      '<span class="mm-act-emoji">' + esc(m.emoji) + '</span>' +
+      (m.going > 0 ? '<div class="mm-act-going">' + m.going + '</div>' : '') +
+      (m.when ? '<div class="mm-act-when">' + esc(m.when) + '</div>' : '') +
+      '</div>' +
+      '<div class="mm-pill">' + esc(m.label) + '</div>' +
+      '</div>'
+    );
+  }
+
+  /* A campfire is somebody's live room, open right now — it gets the
+     same kind of card, glowing, rather than a dot nobody would tap. */
+  if (m.kind === 'fire') {
+    return (
+      '<div class="mm-act">' +
+      '<div class="mm-act-card" style="--tilt:-3deg;background:linear-gradient(135deg,#F97316,#EF4444)">' +
+      '<span class="mm-act-emoji">🔥</span>' +
+      '<div class="mm-act-when" style="background:#EF4444">LIVE</div>' +
+      '</div>' +
+      (m.label ? '<div class="mm-pill">' + esc(m.label) + '</div>' : '') +
       '</div>'
     );
   }
@@ -837,6 +898,7 @@ export const LeafletMap = ({ center, markers = [], onPress, onMe, locate = true,
       const isEvent = m.kind === 'event';
       const isTrip = m.kind === 'trip';
       const isShot = m.kind === 'moment' || m.kind === 'story';
+      const isAct = m.kind === 'activity' || m.kind === 'fire';
       /* A person standing on the map is a taller thing than a person in
          a teardrop, and it was being declared as the same size — 52×66
          for content that measures 74×120, anchored at [26,33]. The
@@ -847,13 +909,13 @@ export const LeafletMap = ({ center, markers = [], onPress, onMe, locate = true,
          100px down — anchor there and they stand where they are. */
       const icon = L.divIcon({
         html: pinHtml(m), className: '',
-        iconSize: isShot ? [62, 74] : isPerson ? (m.standing ? [74, 120] : [52, 66]) : isDest ? [88, 44] : isPlace ? [13, 13] : isNote ? [40, 44] : isEvent || isTrip ? [66, 50] : [16, 16],
-        iconAnchor: isShot ? [31, 70] : isPerson ? (m.standing ? [37, 100] : [26, 33]) : isDest ? [44, 22] : isPlace ? [7, 7] : isNote ? [20, 40] : isEvent || isTrip ? [33, 40] : [8, 8],
+        iconSize: isAct ? [104, 96] : isShot ? [62, 74] : isPerson ? (m.standing ? [74, 120] : [52, 66]) : isDest ? [88, 44] : isPlace ? [13, 13] : isNote ? [40, 44] : isEvent || isTrip ? [66, 50] : [16, 16],
+        iconAnchor: isAct ? [52, 66] : isShot ? [31, 70] : isPerson ? (m.standing ? [37, 100] : [26, 33]) : isDest ? [44, 22] : isPlace ? [7, 7] : isNote ? [20, 40] : isEvent || isTrip ? [33, 40] : [8, 8],
       });
       // a live story sits above everything else — it's the freshest thing there
-      const z = m.kind === 'story' ? 700 : m.kind === 'moment' ? 600 : isPerson ? 500 : isDest ? 300 : 0;
+      const z = m.kind === 'story' ? 700 : m.kind === 'moment' ? 600 : isAct ? 550 : isPerson ? 500 : isDest ? 300 : 0;
       const mk = L.marker([m.lat, m.lng], { icon, zIndexOffset: z });
-      if (m.label && !isPerson && !isDest && !isShot && !isTrip) mk.bindTooltip(esc(m.label), { direction: 'top', offset: [0, -34] });
+      if (m.label && !isPerson && !isDest && !isShot && !isTrip && !isAct) mk.bindTooltip(esc(m.label), { direction: 'top', offset: [0, -34] });
       mk.on('click', () => onPressRef.current && onPressRef.current(m));
       track(mk, isDest ? (m.hero ? 'dest-hero' : 'dest') : isNote ? 'note' : 'other');
     });

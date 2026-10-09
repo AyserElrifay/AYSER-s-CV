@@ -12,6 +12,7 @@ import { usePlayer } from '../context/PlayerContext';
 import { useLang } from '../context/LanguageContext';
 import { sfxLaugh, sfxLaughBig } from '../utils/sfx';
 import { translateText } from '../services/bardi';
+import { showOnMap } from '../lib/mapBus';
 import { tapLight, tapSuccess } from '../utils/feedback';
 import { planWhen, upForLabel } from '../constants/travel';
 import { watchLabel } from '../lib/clock';
@@ -355,9 +356,29 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
               </Text>
               {post.user.verified ? <Tick /> : null}
             </View>
-            <Text style={{ color: C.faint, fontSize: 12, marginTop: 2 }}>
-              {post.sponsored ? 'Sponsored' : post.place + ' · ' + post.startsIn}
-            </Text>
+            {post.sponsored ? (
+              <Text style={{ color: C.faint, fontSize: 12, marginTop: 2 }}>Sponsored</Text>
+            ) : post.coords ? (
+              /* where it happened, and a way to go and look — the feed
+                 and the map are the same world (src/lib/mapBus.js) */
+              <Pressable
+                onPress={() => { tapLight(); showOnMap({ lat: post.coords.latitude, lng: post.coords.longitude, postId: post.id }); }}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel={t('show_on_map')}
+                style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2, alignSelf: 'flex-start' }}
+              >
+                <Ionicons name="location" size={12} color={C.purple} />
+                <Text style={{ color: C.purple, fontSize: 12, fontWeight: '700', marginLeft: 3 }} numberOfLines={1}>
+                  {post.place || t('show_on_map')}
+                </Text>
+                <Text style={{ color: C.faint, fontSize: 12 }}>{' · ' + post.startsIn}</Text>
+              </Pressable>
+            ) : (
+              <Text style={{ color: C.faint, fontSize: 12, marginTop: 2 }}>
+                {(post.place ? post.place + ' · ' : '') + post.startsIn}
+              </Text>
+            )}
           </View>
         </Pressable>
         <Pressable onPress={() => { tapLight(); setMenuOpen((o) => !o); setConfirmDel(false); }} hitSlop={10}>

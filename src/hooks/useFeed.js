@@ -62,12 +62,12 @@ export const toCard = (row) => ({
   plan: row.plan || null,
   // who it went out to — so Manage opens showing the truth, not a guess
   closeOnly: !!row.close_only,
-  place: row.place || 'Somewhere out there',
+  place: row.place || null,
   // scheduled moments count down; plain posts show WHEN they were posted
   startsIn: row.starts_at ? relTime(row.starts_at) : agoTime(row.created_at),
   coords: row.lat != null && row.lng != null
     ? { latitude: row.lat, longitude: row.lng }
-    : ME.coords,
+    : null,
   vibes: row.vibes || 0,
   comments: row.comments || 0,
   squad: row.squad_name || 'New Vibe Squad',

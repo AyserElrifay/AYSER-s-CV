@@ -503,9 +503,9 @@ export const ProfileScreen = () => {
     caption: row.caption || '',
     plan: row.plan || null,        // a travel plan keeps its card on your profile
     closeOnly: !!row.close_only,   // so Manage opens on the real setting
-    place: row.place || 'Somewhere out there',
+    place: row.place || null,
     startsIn: '',
-    coords: ME.coords,
+    coords: row.lat != null && row.lng != null ? { latitude: row.lat, longitude: row.lng } : null,
     mine: true,
     vibes: row.vibesCount || 0,
     comments: 0,
@@ -532,9 +532,9 @@ export const ProfileScreen = () => {
     media: row.media_url || null,
     textBg: row.text_bg || null,
     caption: row.caption || '',
-    place: row.place || 'Somewhere out there',
+    place: row.place || null,
     startsIn: '',
-    coords: ME.coords,
+    coords: row.lat != null && row.lng != null ? { latitude: row.lat, longitude: row.lng } : null,
     vibes: row.vibesCount || 0,
     comments: 0, laughs: 0, reposts: 0,
     sound: row.sound_title ? { title: row.sound_title, artist: row.sound_artist || '', emoji: '🎵', audio_url: row.sound_url || null } : null,

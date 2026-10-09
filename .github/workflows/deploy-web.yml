@@ -137,6 +137,10 @@ jobs:
       # realtime, so "live" meant "within five seconds, by polling".
       - name: Check every live subscription has something to hear
         run: node scripts/check-live-rooms.mjs
+      # The map shows real gatherings at real points, a post opens the map
+      # where it happened, and nothing on the way invents a place or a ride.
+      - name: Check the map, the feed and the welcome page tell the truth
+        run: node scripts/check-map-activities.mjs
       # The country room is content, and content rots differently from
       # code: a country added in a hurry with eight phrases and no
       # customs crashes nothing, it just quietly becomes the thin,

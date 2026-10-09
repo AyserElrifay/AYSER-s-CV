@@ -169,9 +169,9 @@ export const ComposeModal = ({ initialMode = 'post', initialCaption = '', onClos
           caption: row.caption,
           plan: planLost ? null : (row.plan || plan),
           __planLost: planLost,
-          place: row.place || 'Somewhere out there',
+          place: row.place || null,
           startsIn: 'Live now',
-          coords: ME.coords,
+          coords: row && row.lat != null && row.lng != null ? { latitude: row.lat, longitude: row.lng } : null,
           sound,
           vibes: 0, comments: 0, squad: 'New Vibe Squad',
         };
@@ -185,9 +185,9 @@ export const ComposeModal = ({ initialMode = 'post', initialCaption = '', onClos
           textBg: imageUri ? null : textBg,
           caption: caption.trim(),
           plan,
-          place: place.trim() || 'Right here',
+          place: place.trim() || null,
           startsIn: 'Live now',
-          coords: ME.coords,
+          coords: null,
           sound,
           vibes: 0, comments: 0, squad: 'New Vibe Squad',
         };

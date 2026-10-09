@@ -151,7 +151,7 @@ export const NotificationsSheet = ({ onClose }) => {
     media: p.media_url || null,
     textBg: p.text_bg || null,
     caption: p.caption || '',
-    place: p.place || 'Somewhere out there',
+    place: p.place || null,
     startsIn: '',
     vibes: p.vibes || 0,
     comments: p.comments || 0,

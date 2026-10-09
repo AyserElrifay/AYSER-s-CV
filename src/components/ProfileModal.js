@@ -160,7 +160,7 @@ export const ProfileModal = ({ user, onClose }) => {
     media: row.media_url || null,
     textBg: row.text_bg || null,
     caption: row.caption || '',
-    place: row.place || 'Somewhere out there',
+    place: row.place || null,
     startsIn: '',
     vibes: row.vibesCount || 0,
     comments: 0, laughs: 0, reposts: 0,

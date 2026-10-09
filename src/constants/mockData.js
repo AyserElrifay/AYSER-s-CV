@@ -488,12 +488,6 @@ export const FIXERS = [
   { id: 'f3', name: 'AC Doctor', trade: 'HVAC', emoji: '❄️', jobs: 96, eta: '1 h', speed: 4.2, honesty: 4.8, price: 3.9 },
 ];
 
-export const RIDES = [
-  { id: 'r1', name: 'Yala Go', sub: '4 seats · closest', eta: '4 min', price: 'E£68', emoji: '🚗' },
-  { id: 'r2', name: 'Yala XL', sub: '6 seats · squad size', eta: '7 min', price: 'E£95', emoji: '🚐' },
-  { id: 'r3', name: 'Yala Lux', sub: 'Arrive like the moment matters', eta: '9 min', price: 'E£140', emoji: '🖤' },
-];
-
 /* ── SEARCH · trending topics & public groups (X / Facebook style) ── */
 export const TRENDING = [
   { id: 't1', tag: '#NeonDesert', category: 'Trending in Cairo', moments: '2,481' },
