@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { tNow } from '../context/LanguageContext';
 import { View, Text, Modal, Pressable, ScrollView, Image, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -383,7 +384,7 @@ export const BoardGame = ({ matchId, kind, isHost, opponent, onClose, onRematch 
     <Modal visible transparent={false} animationType="slide" onRequestClose={onClose}>
       <LinearGradient colors={['#150F2E', '#0C0A1E', '#07060F']} style={{ flex: 1 }}>
         <View style={{ paddingTop: insets.top + 8, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center' }}>
-          <Pressable onPress={onClose} hitSlop={12}>
+          <Pressable onPress={onClose} hitSlop={12} accessibilityRole="button" accessibilityLabel={tNow('close')}>
             <Ionicons name="chevron-down" size={26} color="rgba(255,255,255,0.85)" />
           </Pressable>
           <View style={{ flex: 1, alignItems: 'center' }}>

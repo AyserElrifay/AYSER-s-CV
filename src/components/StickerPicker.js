@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { tNow } from '../context/LanguageContext';
 import { View, Text, Modal, Pressable, ScrollView, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -45,7 +46,7 @@ export const StickerPicker = ({ dna, onPick, onClose }) => {
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingBottom: 8 }}>
           <Text style={{ color: C.text, fontSize: 15, fontWeight: '900', flex: 1 }}>Stickers</Text>
-          <Pressable onPress={onClose} hitSlop={8}><Ionicons name="close" size={18} color={C.dim} /></Pressable>
+          <Pressable onPress={onClose} hitSlop={8} accessibilityRole="button" accessibilityLabel={tNow('close')}><Ionicons name="close" size={18} color={C.dim} /></Pressable>
         </View>
 
         {/* two packs — the comic strip, and you */}

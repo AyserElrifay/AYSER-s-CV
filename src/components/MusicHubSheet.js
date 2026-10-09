@@ -265,7 +265,7 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
           <Ionicons name={saved.has(track.id) ? 'heart' : 'heart-outline'} size={19} color={saved.has(track.id) ? C.purple : C.dim} />
         </Pressable>
         {onRemove ? (
-          <Pressable onPress={onRemove} hitSlop={8} style={{ paddingHorizontal: 6 }}>
+          <Pressable onPress={onRemove} hitSlop={8} style={{ paddingHorizontal: 6 }} accessibilityRole="button" accessibilityLabel={t('remove')}>
             <Ionicons name="remove-circle-outline" size={19} color={C.dim} />
           </Pressable>
         ) : (
@@ -305,7 +305,7 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
 
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingTop: 6 }}>
           <Text style={{ color: C.text, fontSize: 21, fontWeight: '900', flex: 1 }}>{t('music')}</Text>
-          <Pressable onPress={onClose} hitSlop={8}><Ionicons name="close" size={20} color={C.dim} /></Pressable>
+          <Pressable onPress={onClose} hitSlop={8} accessibilityRole="button" accessibilityLabel={t('close')}><Ionicons name="close" size={20} color={C.dim} /></Pressable>
         </View>
 
         <View style={{ flexDirection: 'row', paddingHorizontal: 18, paddingTop: 8, paddingBottom: 4 }}>

@@ -197,7 +197,7 @@ export const CommentsSheet = ({ post, onClose }) => {
           </View>
           <View style={{ paddingHorizontal: 18, paddingBottom: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
             <Micro>{t('cm_title')}</Micro>
-            <Pressable testID="btn-close-comments" onPress={onClose}><Ionicons name="close" size={18} color={C.dim} /></Pressable>
+            <Pressable testID="btn-close-comments" onPress={onClose} accessibilityRole="button" accessibilityLabel={t('close')}><Ionicons name="close" size={18} color={C.dim} /></Pressable>
           </View>
 
           <FlatList keyboardShouldPersistTaps="handled"
@@ -316,7 +316,7 @@ export const CommentsSheet = ({ post, onClose }) => {
                 borderWidth: 1, borderColor: text.trim() ? C.green : C.line,
                 alignItems: 'center', justifyContent: 'center',
               }}
-            >
+             accessibilityRole="button" accessibilityLabel={t('send')}>
               <Ionicons name="arrow-up" size={19} color={text.trim() ? C.ink : C.faint} />
             </Pressable>
           </View>

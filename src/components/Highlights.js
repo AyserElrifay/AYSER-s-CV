@@ -86,11 +86,11 @@ const HighlightViewer = ({ highlight, isMine, onClose, onDeleted }) => {
         <View style={{ position: 'absolute', top: insets.top + 24, left: 14, right: 14, flexDirection: 'row', alignItems: 'center' }}>
           <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '900', flex: 1 }} numberOfLines={1}>{highlight.title}</Text>
           {isMine ? (
-            <Pressable onPress={dropItem} hitSlop={10} style={{ marginRight: 16 }}>
+            <Pressable onPress={dropItem} hitSlop={10} style={{ marginRight: 16 }} accessibilityRole="button" accessibilityLabel={t('delete')}>
               <Ionicons name="trash-outline" size={19} color="#FFF" />
             </Pressable>
           ) : null}
-          <Pressable onPress={onClose} hitSlop={10}>
+          <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button" accessibilityLabel={t('close')}>
             <Ionicons name="close" size={24} color="#FFF" />
           </Pressable>
         </View>
@@ -167,7 +167,7 @@ const HighlightComposer = ({ userId, target, onClose, onSaved }) => {
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: C.bg }}>
         <View style={{ paddingTop: insets.top + 10, paddingHorizontal: 16, paddingBottom: 8, flexDirection: 'row', alignItems: 'center' }}>
-          <Pressable onPress={onClose} hitSlop={10} style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center' }}>
+          <Pressable onPress={onClose} hitSlop={10} style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center' }} accessibilityRole="button" accessibilityLabel={t('close')}>
             <Ionicons name="close" size={19} color={C.text} />
           </Pressable>
           <Text style={{ color: C.text, fontSize: 16, fontWeight: '900', flex: 1, textAlign: 'center' }}>

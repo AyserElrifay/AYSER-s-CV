@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { tNow } from '../context/LanguageContext';
 import { View, Text, Modal, Pressable, Platform, Animated, Easing } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -120,7 +121,7 @@ export const RockPaperScissors = ({ onClose }) => {
     <Modal visible transparent animationType="slide" onRequestClose={close}>
       <LinearGradient colors={['#1B1035', '#2B1055', '#160B2B']} style={{ flex: 1 }}>
         <View style={{ paddingTop: insets.top + 12, paddingHorizontal: 18, flexDirection: 'row', alignItems: 'center' }}>
-          <Pressable onPress={close} hitSlop={12}>
+          <Pressable onPress={close} hitSlop={12} accessibilityRole="button" accessibilityLabel={tNow('close')}>
             <Ionicons name="chevron-down" size={26} color="#FFF" />
           </Pressable>
           <View style={{ flex: 1, alignItems: 'center' }}>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { tNow } from '../context/LanguageContext';
 import { View, Text, Modal, Pressable, ScrollView, Image, ActivityIndicator, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -88,7 +89,7 @@ export const CloseFriendsSheet = ({ onClose }) => {
               {chosen.size ? chosen.size + (chosen.size === 1 ? ' person' : ' people') + ' on your list' : 'Nobody on the list yet'}
             </Text>
           </View>
-          <Pressable onPress={onClose} hitSlop={10}>
+          <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button" accessibilityLabel={tNow('close')}>
             <Ionicons name="close" size={22} color={C.faint} />
           </Pressable>
         </View>

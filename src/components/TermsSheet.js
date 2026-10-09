@@ -1,4 +1,5 @@
 import React from 'react';
+import { tNow } from '../context/LanguageContext';
 import { View, Text, Modal, Pressable, ScrollView, Linking } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -27,7 +28,7 @@ export const TermsSheet = ({ onClose }) => {
     <Modal visible transparent={false} animationType="slide" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: C.bg }}>
         <View style={{ paddingTop: insets.top + 10, paddingBottom: 12, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: C.line }}>
-          <Pressable onPress={onClose} hitSlop={10} style={{ marginRight: 6 }}>
+          <Pressable onPress={onClose} hitSlop={10} style={{ marginRight: 6 }} accessibilityRole="button" accessibilityLabel={tNow('back')}>
             <Ionicons name="chevron-back" size={26} color={C.text} />
           </Pressable>
           <Text style={{ color: C.text, fontSize: 17, fontWeight: '900' }}>Terms & Content Policy</Text>

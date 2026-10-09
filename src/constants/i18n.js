@@ -836,6 +836,7 @@ export const STRINGS = {
     tg_on_map: "On the map",
     first_title: "Your first plans",
     first_sub: "Real things on near you this week. Tap Join and the host knows you're coming.",
+    translate_btn: "Translate",
     lens_all: 'Everything',
     lens_places: 'Places to go',
     lens_people: 'People',

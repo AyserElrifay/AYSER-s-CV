@@ -325,7 +325,7 @@ export const NotificationsSheet = ({ onClose }) => {
                 <Text style={{ color: C.dim, fontSize: 12.5, fontWeight: '800' }}>{clearing ? 'Clearing…' : 'Clear all'}</Text>
               </Pressable>
             ) : null}
-            <Pressable onPress={onClose} hitSlop={8}><Ionicons name="close" size={18} color={C.dim} /></Pressable>
+            <Pressable onPress={onClose} hitSlop={8} accessibilityRole="button" accessibilityLabel={t('close')}><Ionicons name="close" size={18} color={C.dim} /></Pressable>
           </View>
         </View>
 

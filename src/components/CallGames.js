@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { tNow } from '../context/LanguageContext';
 import { View, Text, Pressable } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { C } from '../constants/theme';
@@ -209,7 +210,7 @@ export const CallGames = ({ role, send, eventRef, onClose }) => {
         <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '900', flex: 1, marginLeft: game ? 6 : 2 }}>
           {game === 'xo' ? 'XO ✖️⭕' : game === 'race' ? 'Tap Race 🏁' : game === 'hockey' ? 'Air Hockey 🏒' : game === 'rps' ? 'Rock Paper Scissors ✊✋✌️' : 'Games 🎮'}
         </Text>
-        <Pressable onPress={onClose} hitSlop={8}><Ionicons name="close" size={20} color="rgba(255,255,255,0.8)" /></Pressable>
+        <Pressable onPress={onClose} hitSlop={8} accessibilityRole="button" accessibilityLabel={tNow('close')}><Ionicons name="close" size={20} color="rgba(255,255,255,0.8)" /></Pressable>
       </View>
 
       {!game ? (

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { tNow } from '../context/LanguageContext';
 import { View, Text, Modal, Pressable, TextInput, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -50,7 +51,7 @@ export const ReportSheet = ({ contentType, contentId, contentLabel, onClose }) =
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, paddingBottom: 6 }}>
           <Text style={{ color: C.text, fontSize: 16, fontWeight: '900' }}>Report{contentLabel ? ' · ' + contentLabel : ''}</Text>
-          <Pressable onPress={onClose} hitSlop={8}><Ionicons name="close" size={18} color={C.dim} /></Pressable>
+          <Pressable onPress={onClose} hitSlop={8} accessibilityRole="button" accessibilityLabel={tNow('close')}><Ionicons name="close" size={18} color={C.dim} /></Pressable>
         </View>
 
         {done ? (

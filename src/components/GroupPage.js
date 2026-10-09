@@ -177,7 +177,7 @@ const WallPost = ({ post, me, onLike, onRemove, onShare, t }) => {
                 placeholder={t('gp_reply_ph')} placeholderTextColor={C.faint}
                 style={{ flex: 1, color: C.text, fontSize: 13, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 999, paddingHorizontal: 13, paddingVertical: Platform.OS === 'ios' ? 9 : 6 }}
               />
-              <Pressable onPress={send} disabled={!draft.trim() || busy} hitSlop={8} style={{ marginLeft: 8, opacity: draft.trim() && !busy ? 1 : 0.4 }}>
+              <Pressable onPress={send} disabled={!draft.trim() || busy} hitSlop={8} style={{ marginLeft: 8, opacity: draft.trim() && !busy ? 1 : 0.4 }} accessibilityRole="button" accessibilityLabel={t('send')}>
                 <Ionicons name="send" size={18} color={C.purple} />
               </Pressable>
             </View>
@@ -520,7 +520,7 @@ export const GroupPage = ({ groupId, focusPostId, onClose, onChanged }) => {
                 ? <Image source={{ uri: group.cover_url }} resizeMode="cover" style={{ width: '100%', height: HEAD }} />
                 : <LinearGradient colors={colours} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ width: '100%', height: HEAD }} />}
               <Pressable onPress={onClose} hitSlop={10}
-                style={{ position: 'absolute', top: insets.top + 8, left: 14, backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 999, padding: 8 }}>
+                style={{ position: 'absolute', top: insets.top + 8, left: 14, backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 999, padding: 8 }} accessibilityRole="button" accessibilityLabel={t('back')}>
                 <Ionicons name="chevron-back" size={20} color="#FFF" />
               </Pressable>
               {/* A group nobody can link to only grows by somebody

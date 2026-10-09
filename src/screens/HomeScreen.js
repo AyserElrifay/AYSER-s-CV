@@ -454,10 +454,10 @@ export const HomeScreen = () => {
                 </Text>
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Pressable testID="btn-bardi" onPress={() => { tapLight(); setBardiOpen(true); }} style={{ marginRight: 10 }}>
+                <Pressable testID="btn-bardi" accessibilityRole="button" accessibilityLabel={t('talk_to_bardi')} onPress={() => { tapLight(); setBardiOpen(true); }} style={{ marginRight: 10 }}>
                   <Image source={require('../assets/brand/bardi.png')} style={{ width: 38, height: 38, borderRadius: 12 }} />
                 </Pressable>
-                <Pressable testID="btn-notifs" onPress={() => { tapLight(); setNotifOpen(true); setUnread(0); }} style={[headerBtn(), { marginRight: 10 }]}>
+                <Pressable testID="btn-notifs" accessibilityRole="button" accessibilityLabel={t('notifications')} onPress={() => { tapLight(); setNotifOpen(true); setUnread(0); }} style={[headerBtn(), { marginRight: 10 }]}>
                   <Ionicons name={unread ? 'notifications' : 'notifications-outline'} size={17} color={unread ? C.purple : C.text} />
                   {unread ? (
                     <View style={{ position: 'absolute', top: -4, right: -4, minWidth: 17, height: 17, borderRadius: 9, backgroundColor: C.coral, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: 1.5, borderColor: C.bg }}>
@@ -465,13 +465,13 @@ export const HomeScreen = () => {
                     </View>
                   ) : null}
                 </Pressable>
-                <Pressable testID="btn-search" onPress={() => setSearching(true)} style={[headerBtn(), { marginRight: 10 }]}>
+                <Pressable testID="btn-search" accessibilityRole="button" accessibilityLabel={t('search')} onPress={() => setSearching(true)} style={[headerBtn(), { marginRight: 10 }]}>
                   <Ionicons name="search" size={17} color={C.text} />
                 </Pressable>
-                <Pressable testID="btn-compose" onPress={() => setComposing('post')} style={[headerBtn(), { marginRight: 10, backgroundColor: C.greenSoft, borderColor: 'rgba(16,185,129,0.4)' }]}>
+                <Pressable testID="btn-compose" accessibilityRole="button" accessibilityLabel={t('whats_your_moment')} onPress={() => setComposing('post')} style={[headerBtn(), { marginRight: 10, backgroundColor: C.greenSoft, borderColor: 'rgba(16,185,129,0.4)' }]}>
                   <Ionicons name="add" size={20} color={C.green} />
                 </Pressable>
-                <Pressable testID="btn-profile" onPress={() => { tapLight(); setMyProfileOpen(true); }}>
+                <Pressable testID="btn-profile" accessibilityRole="button" accessibilityLabel={me.name || t('tab_space')} onPress={() => { tapLight(); setMyProfileOpen(true); }}>
                   <Image source={{ uri: me.avatar }} style={{ width: 38, height: 38, borderRadius: 19, borderWidth: 1.5, borderColor: C.purple }} />
                 </Pressable>
               </View>

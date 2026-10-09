@@ -105,7 +105,7 @@ export const InstallPrompt = ({ force = false, onClose }) => {
           <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '900' }}>{t('install_title')}</Text>
           <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 2 }}>{t('install_hint')}</Text>
         </View>
-        <Pressable onPress={close} hitSlop={12}>
+        <Pressable onPress={close} hitSlop={12} accessibilityRole="button" accessibilityLabel={t('close')}>
           <Ionicons name="close" size={19} color={C.faint} />
         </Pressable>
       </View>

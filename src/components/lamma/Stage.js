@@ -1,4 +1,5 @@
 import React from 'react';
+import { tNow } from '../../context/LanguageContext';
 import { View, Text, Modal, Pressable, Image, useWindowDimensions } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
@@ -117,7 +118,7 @@ export const StageBody = ({
           </View>
         ) : (
         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: wide ? 18 : 12 }}>
-          <Pressable onPress={onClose} hitSlop={12}>
+          <Pressable onPress={onClose} hitSlop={12} accessibilityRole="button" accessibilityLabel={tNow('close')}>
             <Ionicons name="close" size={wide ? 30 : 24} color="rgba(255,255,255,0.55)" />
           </Pressable>
           <View style={{ flex: 1, minWidth: 0, alignItems: 'center' }}>

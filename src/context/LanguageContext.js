@@ -9,6 +9,12 @@ import { publishLang } from '../lib/plumbing';
    blank. The choice persists across launches. */
 
 const Ctx = createContext(null);
+
+/* For the few places that need a word outside a component's own
+   useLang — mostly what a screen reader says for an icon-only button.
+   It is whatever language the app is showing right now. */
+let labelT = (key) => STRINGS.en[key] || key;
+export const tNow = (key) => labelT(key);
 export const useLang = () => useContext(Ctx) || fallback;
 
 const fallback = {
@@ -164,6 +170,7 @@ export const LanguageProvider = ({ children }) => {
   };
 
   const t = (key) => (loaded[lang] && loaded[lang][key]) || STRINGS.en[key] || key;
+  labelT = t;
   const meta = LANGS.find((l) => l.code === lang) || LANGS[0];
 
   // ── REAL RTL, not just swapped words ──

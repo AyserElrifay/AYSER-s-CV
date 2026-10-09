@@ -149,6 +149,9 @@ jobs:
       # tabs, and Reels/Chill kept with a way back.
       - name: Check the Together tab
         run: node scripts/check-together.mjs
+      # An icon-only button must have a name a screen reader can say.
+      - name: Check every icon button has a name
+        run: node scripts/check-a11y.mjs
       # The country room is content, and content rots differently from
       # code: a country added in a hurry with eight phrases and no
       # customs crashes nothing, it just quietly becomes the thin,

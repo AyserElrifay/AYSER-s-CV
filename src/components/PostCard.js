@@ -702,7 +702,7 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
           </Pressable>
           {/* Translate — Bardi already speaks every language the app does */}
           {(post.caption || '').trim().length > 3 ? (
-            <Pressable onPress={doTranslate} hitSlop={8} style={{ marginRight: 16 }}>
+            <Pressable onPress={doTranslate} hitSlop={8} style={{ marginRight: 16 }} accessibilityRole="button" accessibilityLabel={t('translate_btn')}>
               <Ionicons name="language-outline" size={20} color={translated ? C.purple : C.dim} />
             </Pressable>
           ) : null}

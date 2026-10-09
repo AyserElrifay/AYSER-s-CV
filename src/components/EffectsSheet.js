@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { tNow } from '../context/LanguageContext';
 import { View, Text, Modal, Pressable, ScrollView, TextInput, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -111,7 +112,7 @@ export const EffectsSheet = ({
 
         {/* categories, the way a camera drawer does it */}
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingTop: 8 }}>
-          <Pressable onPress={onClose} hitSlop={10} style={{ paddingHorizontal: 6 }}>
+          <Pressable onPress={onClose} hitSlop={10} style={{ paddingHorizontal: 6 }} accessibilityRole="button" accessibilityLabel={tNow('close')}>
             <Ionicons name="chevron-down" size={22} color="rgba(255,255,255,0.8)" />
           </Pressable>
           <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ alignItems: 'center' }}>

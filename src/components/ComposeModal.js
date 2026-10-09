@@ -234,7 +234,7 @@ export const ComposeModal = ({ initialMode = 'post', initialCaption = '', onClos
           <Pressable
             onPress={onClose}
             style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center' }}
-          >
+           accessibilityRole="button" accessibilityLabel={t('close')}>
             <Ionicons name="close" size={19} color={C.text} />
           </Pressable>
           <Micro color={C.purple}>{t('cmp_create')}</Micro>

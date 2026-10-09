@@ -636,7 +636,7 @@ export const ProfileScreen = () => {
             {me.verified ? <Tick /> : null}
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Pressable onPress={tapLight} hitSlop={8} style={{ marginRight: 18 }}>
+            <Pressable onPress={tapLight} hitSlop={8} style={{ marginRight: 18 }} accessibilityRole="button" accessibilityLabel={t('add')}>
               <MaterialCommunityIcons name="plus-box-outline" size={24} color={C.text} />
             </Pressable>
             <Pressable onPress={() => { tapLight(); setMenu(true); }} hitSlop={8} style={{ marginRight: 18 }}>

@@ -53,7 +53,7 @@ export const MatesSheet = ({ onClose }) => {
         </View>
         <View style={{ paddingHorizontal: 18, paddingBottom: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <Micro>{t('mt_title')}{mates ? ' · ' + mates.length : ''}</Micro>
-          <Pressable onPress={onClose} hitSlop={8}><Ionicons name="close" size={18} color={C.dim} /></Pressable>
+          <Pressable onPress={onClose} hitSlop={8} accessibilityRole="button" accessibilityLabel={t('close')}><Ionicons name="close" size={18} color={C.dim} /></Pressable>
         </View>
 
         {mates === null ? (

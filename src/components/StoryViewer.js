@@ -369,7 +369,7 @@ export const StoryViewer = ({ stories, groups, startGroup = 0, startIndex = 0, o
               <Pressable onPress={() => onShare && onShare(story)} hitSlop={10} style={{ marginRight: 14 }}>
                 <Ionicons name="paper-plane-outline" size={22} color="#FFF" />
               </Pressable>
-              <Pressable onPress={onClose} hitSlop={10}>
+              <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button" accessibilityLabel={t('close')}>
                 <Ionicons name="close" size={26} color="#FFF" />
               </Pressable>
             </View>
@@ -531,7 +531,7 @@ export const StoryViewer = ({ stories, groups, startGroup = 0, startIndex = 0, o
                           onSubmitEditing={postComment}
                           style={{ flex: 1, color: '#FFF', fontSize: 13, backgroundColor: 'rgba(255,255,255,0.14)', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9, marginRight: 8 }}
                         />
-                        <Pressable onPress={postComment} hitSlop={8} disabled={commentBusy}>
+                        <Pressable onPress={postComment} hitSlop={8} disabled={commentBusy} accessibilityRole="button" accessibilityLabel={t('send')}>
                           <Ionicons name="arrow-up-circle" size={28} color={commentText.trim() ? '#FFF' : 'rgba(255,255,255,0.4)'} />
                         </Pressable>
                       </View>

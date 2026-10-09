@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { tNow } from '../../context/LanguageContext';
 import { View, Text, Pressable, Modal, ScrollView, Platform, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -187,7 +188,7 @@ export const PharaohCam = ({ visible, onClose, onDone, t }) => {
     <Modal visible={!!visible} animationType="slide" transparent={false} onRequestClose={close}>
       <View style={{ flex: 1, backgroundColor: '#0A0614', paddingTop: insets.top + 8 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 10 }}>
-          <Pressable onPress={close} hitSlop={10}>
+          <Pressable onPress={close} hitSlop={10} accessibilityRole="button" accessibilityLabel={tNow('close')}>
             <Ionicons name="close" size={26} color="#FFF" />
           </Pressable>
           <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '900', marginStart: 12, flex: 1 }}>

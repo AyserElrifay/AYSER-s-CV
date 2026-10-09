@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { tNow } from '../context/LanguageContext';
 import { View, Text, Modal, FlatList, Pressable, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
@@ -80,7 +81,7 @@ export const LikersSheet = ({ post, kind = 'star', onClose, onChanged }) => {
             )}
             <Micro>{'  ' + (isLaugh ? 'Laughs' : 'Stars') + (people && people.length ? ' · ' + people.length : '')}</Micro>
           </View>
-          <Pressable onPress={onClose} hitSlop={8}><Ionicons name="close" size={18} color={C.dim} /></Pressable>
+          <Pressable onPress={onClose} hitSlop={8} accessibilityRole="button" accessibilityLabel={tNow('close')}><Ionicons name="close" size={18} color={C.dim} /></Pressable>
         </View>
 
         {people === null ? (

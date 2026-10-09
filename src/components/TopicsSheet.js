@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { tNow } from '../context/LanguageContext';
 import { View, Text, Modal, Pressable, ScrollView, Image, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -75,7 +76,7 @@ const TopicPage = ({ topic, onBack, onOpenPost, onCompose }) => {
       <LinearGradient colors={[a, b]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
         style={{ paddingTop: insets.top + 10, paddingHorizontal: 16, paddingBottom: 18 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <Pressable onPress={onBack} hitSlop={10}>
+          <Pressable onPress={onBack} hitSlop={10} accessibilityRole="button" accessibilityLabel={t('back')}>
             <Ionicons name="chevron-back" size={24} color="#FFF" />
           </Pressable>
           <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '900', flex: 1, textAlign: 'center' }} numberOfLines={1}>
@@ -247,7 +248,7 @@ export const TopicsSheet = ({ onClose, onOpenPost, onCompose, initialSlug = null
       ) : (
         <View style={{ flex: 1, backgroundColor: C.bg }}>
           <View style={{ paddingTop: insets.top + 10, paddingHorizontal: 16, paddingBottom: 8, flexDirection: 'row', alignItems: 'center' }}>
-            <Pressable onPress={onClose} hitSlop={10}>
+            <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button" accessibilityLabel={tNow('back')}>
               <Ionicons name="chevron-back" size={24} color={C.text} />
             </Pressable>
             <Text style={{ color: C.text, fontSize: 17, fontWeight: '900', flex: 1, textAlign: 'center' }}>Topics</Text>

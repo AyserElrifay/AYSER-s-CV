@@ -161,7 +161,7 @@ export const MediaLibrarySheet = ({ onPick, onClose, only = null, inline = false
   const body = (
       <View style={inline ? [StyleSheet.absoluteFill, { backgroundColor: C.bg, zIndex: 60 }] : { flex: 1, backgroundColor: C.bg }}>
         <View style={{ paddingTop: insets.top + 10, paddingHorizontal: 16, paddingBottom: 8, flexDirection: 'row', alignItems: 'center' }}>
-          <Pressable onPress={onClose} hitSlop={10} style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center' }}>
+          <Pressable onPress={onClose} hitSlop={10} style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center' }} accessibilityRole="button" accessibilityLabel={t('close')}>
             <Ionicons name="close" size={19} color={C.text} />
           </Pressable>
           <View style={{ flex: 1, alignItems: 'center' }}>

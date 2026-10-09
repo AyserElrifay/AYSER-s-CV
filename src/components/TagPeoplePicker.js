@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { tNow } from '../context/LanguageContext';
 import { View, Text, Modal, Pressable, TextInput, ScrollView, Image, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -83,7 +84,7 @@ export const TagPeoplePicker = ({ selected = [], onDone, onClose }) => {
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: C.bg }}>
         <View style={{ paddingTop: insets.top + 10, paddingHorizontal: 16, paddingBottom: 10, flexDirection: 'row', alignItems: 'center' }}>
-          <Pressable onPress={onClose} hitSlop={10} style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center' }}>
+          <Pressable onPress={onClose} hitSlop={10} style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center' }} accessibilityRole="button" accessibilityLabel={tNow('close')}>
             <Ionicons name="close" size={19} color={C.text} />
           </Pressable>
           <Text style={{ color: C.text, fontSize: 16, fontWeight: '900', flex: 1, textAlign: 'center' }}>Tag people</Text>

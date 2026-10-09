@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { tNow } from '../context/LanguageContext';
 import { View, Text, Modal, Pressable, TextInput, ScrollView, Platform, ActivityIndicator, KeyboardAvoidingView, Image, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -383,7 +384,7 @@ export const BardiSheet = ({ onClose }) => {
                 </Pressable>
               ) : null}
               {messages.length ? (
-                <Pressable onPress={startNewChat} hitSlop={10} style={{ marginRight: 14 }}>
+                <Pressable onPress={startNewChat} hitSlop={10} style={{ marginRight: 14 }} accessibilityRole="button" accessibilityLabel={tNow('edit')}>
                   <Ionicons name="create-outline" size={21} color={C.dim} />
                 </Pressable>
               ) : null}

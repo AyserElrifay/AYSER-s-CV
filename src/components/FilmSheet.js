@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { tNow } from '../context/LanguageContext';
 import { View, Text, Modal, Pressable, ScrollView, Image, TextInput, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -86,7 +87,7 @@ export const FilmSheet = ({ film, ourScore, onClose, onSaved }) => {
             )}
             <LinearGradient colors={['transparent', C.bg]} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 90 }} />
             <Pressable onPress={onClose} hitSlop={10}
-              style={{ position: 'absolute', top: insets.top + 8, left: 14, width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' }}>
+              style={{ position: 'absolute', top: insets.top + 8, left: 14, width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' }} accessibilityRole="button" accessibilityLabel={tNow('close')}>
               <Ionicons name="chevron-down" size={20} color="#FFF" />
             </Pressable>
           </View>
