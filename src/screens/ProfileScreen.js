@@ -30,6 +30,7 @@ import { C, R, TEXT_BGS } from '../constants/theme';
 import { cachedPoster, derivePoster, posterTint } from '../lib/poster';
 import { ME, HIGHLIGHTS, MY_MOMENTS, BADGES, av, AV_NEUTRAL } from '../constants/mockData'; // demo-mode fallback only
 import { COUNTRY_LIST } from '../constants/countries';
+import { AboutCards } from '../components/AboutCards';
 
 /* Hobbies — pick what you love; they show on your profile and (later)
    power matching with people into the same things. */
@@ -228,6 +229,8 @@ export const ProfileScreen = () => {
   const [editStudy, setEditStudy] = useState('');
   const [editLangs, setEditLangs] = useState('');
   const [countryQ, setCountryQ] = useState('');       // country search in edit
+  const [editVisited, setEditVisited] = useState([]); // countries you have been to (codes)
+  const [visitQ, setVisitQ] = useState('');
   const [editErr, setEditErr] = useState(null);
   const [savedEdit, setSavedEdit] = useState(false);
   const [shareToast, setShareToast] = useState(null);  // "link copied" confirmation
@@ -353,6 +356,7 @@ export const ProfileScreen = () => {
       setEditWork(p.occupation || '');
       setEditStudy(p.education || '');
       setEditLangs(p.speaks_language || '');
+      setEditVisited(Array.isArray(p.visited_countries) ? p.visited_countries : []);
       if (p.account_type) setAccountType(p.account_type);
       setArtistGenre(p.artist_genre || '');
     }).catch(() => {});
@@ -398,6 +402,7 @@ export const ProfileScreen = () => {
         occupation: editWork.trim() || null,
         education: editStudy.trim() || null,
         speaks_language: editLangs.trim() || null,
+        visited_countries: editVisited.length ? editVisited : null,
         account_type: accountType,
         artist_genre: (accountType === 'artist' || accountType === 'musician') ? (artistGenre.trim() || null) : null,
       });
@@ -797,7 +802,7 @@ export const ProfileScreen = () => {
           })()}
 
           <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 14, flexWrap: 'wrap' }}>
-            <Text style={{ color: C.text, fontSize: 16, fontWeight: '900' }}>{me.name}</Text>
+            <Text style={{ color: C.text, fontSize: 22, fontWeight: '900', letterSpacing: -0.3 }}>{me.name}{myProfile && myProfile.age ? ', ' + myProfile.age : ''}</Text>
             {accountType === 'private' ? (
               <Ionicons name="lock-closed" size={13} color={C.faint} style={{ marginLeft: 6 }} />
             ) : null}
@@ -826,31 +831,18 @@ export const ProfileScreen = () => {
             </View>
           </Pressable>
 
-          {/* about you — one clean, light line (TikTok-simple, not crowded).
-              Tap it to edit those same fields. */}
-          {myProfile && (myProfile.age || myProfile.occupation || myProfile.education || myProfile.speaks_language) ? (
+          {/* about you — the same cards everybody else sees on your profile
+              (src/components/AboutCards.js); tap to edit them */}
+          {myProfile && (myProfile.occupation || myProfile.education) ? (
             <Pressable onPress={() => openEditor()} hitSlop={6} style={{ alignSelf: 'flex-start' }}>
-              <Text style={{ color: C.faint, fontSize: 12.5, marginTop: 8, lineHeight: 18 }}>
-                {[
-                  myProfile.age ? '🎂 ' + myProfile.age : null,
-                  myProfile.occupation ? '💼 ' + myProfile.occupation : null,
-                  myProfile.education ? '🎓 ' + myProfile.education : null,
-                  myProfile.speaks_language ? '🗣️ ' + myProfile.speaks_language : null,
-                ].filter(Boolean).join('   ·   ')}
+              <Text style={{ color: C.dim, fontSize: 14, marginTop: 8 }}>
+                {[myProfile.occupation, myProfile.education].filter(Boolean).join(' · ')}
               </Text>
             </Pressable>
           ) : null}
-
-          {/* your hobbies — straight from the profile row */}
-          {myProfile && myProfile.hobbies ? (
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 10 }}>
-              {String(myProfile.hobbies).split(',').map((h) => h.trim()).filter(Boolean).map((h) => (
-                <View key={h} style={{ backgroundColor: C.purpleSoft, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5, marginRight: 6, marginBottom: 6 }}>
-                  <Text style={{ color: C.purple, fontSize: 11.5, fontWeight: '800' }}>{h}</Text>
-                </View>
-              ))}
-            </View>
-          ) : null}
+          <Pressable onPress={() => openEditor()} accessibilityRole="button">
+            <AboutCards profile={myProfile} />
+          </Pressable>
 
           {/* badges */}
           {badges.length ? (
@@ -1128,6 +1120,38 @@ export const ProfileScreen = () => {
                   const on = editFlag === c.flag;
                   return (
                     <Pressable key={c.code} onPress={() => { tapSelection(); setEditFlag(on ? '' : c.flag); }}>
+                      <View style={{ alignItems: 'center', marginRight: 12, width: 56 }}>
+                        <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: on ? C.purpleSoft : C.glass, borderWidth: on ? 2 : 1, borderColor: on ? C.purple : C.line, alignItems: 'center', justifyContent: 'center' }}>
+                          <Text style={{ fontSize: 22 }}>{c.flag}</Text>
+                        </View>
+                        <Text style={{ color: on ? C.purple : C.faint, fontSize: 9, fontWeight: '700', marginTop: 3 }} numberOfLines={1}>{c.name}</Text>
+                      </View>
+                    </Pressable>
+                  );
+                })}
+            </ScrollView>
+
+            {/* countries you have been to — tap to add or remove; shows as a card */}
+            <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', letterSpacing: 1, marginBottom: 8 }}>{t('pm_visited_edit').replace('{n}', String(editVisited.length))}</Text>
+            {editVisited.length ? (
+              <Text style={{ fontSize: 20, marginBottom: 8 }}>{editVisited.map((c) => COUNTRY_LIST.find((x) => x.code === c)).filter(Boolean).map((c) => c.flag).join(' ')}</Text>
+            ) : null}
+            <TextInput
+              placeholder={t('search_country_ph')}
+              placeholderTextColor={C.faint}
+              value={visitQ}
+              onChangeText={setVisitQ}
+              style={{ color: C.text, fontSize: 13, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 9, marginBottom: 8 }}
+            />
+            <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
+              {COUNTRY_LIST
+                .filter((c) => !visitQ.trim() || c.name.toLowerCase().includes(visitQ.trim().toLowerCase()))
+                .slice(0, 20)
+                .map((c) => {
+                  const on = editVisited.indexOf(c.code) >= 0;
+                  return (
+                    <Pressable key={c.code} onPress={() => { tapSelection(); setEditVisited((v) => (on ? v.filter((x) => x !== c.code) : [...v, c.code])); }}
+                      accessibilityRole="checkbox" accessibilityState={{ checked: on }} accessibilityLabel={c.name}>
                       <View style={{ alignItems: 'center', marginRight: 12, width: 56 }}>
                         <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: on ? C.purpleSoft : C.glass, borderWidth: on ? 2 : 1, borderColor: on ? C.purple : C.line, alignItems: 'center', justifyContent: 'center' }}>
                           <Text style={{ fontSize: 22 }}>{c.flag}</Text>

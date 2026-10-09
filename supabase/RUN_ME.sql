@@ -9300,4 +9300,9 @@ exception when others then
   raise notice 'bardi-match schedule skipped: %', sqlerrm;
 end $do$;
 
+-- ═══════════ PROFILE · COUNTRIES YOU HAVE BEEN TO ═══════════
+/* Two-letter codes the person picked themselves; the profile shows
+   the count and the flags. Nothing is inferred from location. */
+alter table public.profiles add column if not exists visited_countries text[];
+
 notify pgrst, 'reload schema';

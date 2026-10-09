@@ -8,6 +8,7 @@ import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { usePresence } from '../context/PresenceContext';
 import { isNeedUnlock } from '../lib/unlockBus';
+import { AboutCards } from './AboutCards';
 import { useLang } from '../context/LanguageContext';
 import { fetchMyMoments, fetchRepostsByUser } from '../services/posts';
 import { fetchTaggedPosts } from '../services/tags';
@@ -311,7 +312,7 @@ export const ProfileModal = ({ user, onClose }) => {
             })()}
 
             <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12, flexWrap: 'wrap' }}>
-              <Text style={{ color: C.text, fontSize: 18, fontWeight: '900' }}>{user.name}</Text>
+              <Text style={{ color: C.text, fontSize: 24, fontWeight: '900', letterSpacing: -0.4 }}>{user.name}{fullProfile && fullProfile.age ? ', ' + fullProfile.age : ''}</Text>
               {user.verified ? <Tick size={16} /> : null}
               {user.countryFlag ? <Text style={{ fontSize: 16, marginLeft: 6 }}>{user.countryFlag}</Text> : null}
               {user.intent ? (
@@ -330,25 +331,13 @@ export const ProfileModal = ({ user, onClose }) => {
             {(user.bio || (fullProfile && fullProfile.bio)) ? (
               <Text style={{ color: C.text, fontSize: 14, lineHeight: 21, marginTop: 12 }}>{user.bio || fullProfile.bio}</Text>
             ) : null}
-            {fullProfile && (fullProfile.age || fullProfile.occupation || fullProfile.education || fullProfile.speaks_language) ? (
-              <Text style={{ color: C.faint, fontSize: 12.5, marginTop: 8, lineHeight: 18 }}>
-                {[
-                  fullProfile.age ? '🎂 ' + fullProfile.age : null,
-                  fullProfile.occupation ? '💼 ' + fullProfile.occupation : null,
-                  fullProfile.education ? '🎓 ' + fullProfile.education : null,
-                  fullProfile.speaks_language ? '🗣️ ' + fullProfile.speaks_language : null,
-                ].filter(Boolean).join('   ·   ')}
+            {fullProfile && (fullProfile.occupation || fullProfile.education) ? (
+              <Text style={{ color: C.dim, fontSize: 14, marginTop: 6 }}>
+                {[fullProfile.occupation, fullProfile.education].filter(Boolean).join(' · ')}
               </Text>
             ) : null}
-            {fullProfile && fullProfile.hobbies ? (
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 10 }}>
-                {String(fullProfile.hobbies).split(',').map((h) => h.trim()).filter(Boolean).map((h) => (
-                  <View key={h} style={{ backgroundColor: C.purpleSoft, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5, marginRight: 6, marginBottom: 6 }}>
-                    <Text style={{ color: C.purple, fontSize: 11.5, fontWeight: '800' }}>{h}</Text>
-                  </View>
-                ))}
-              </View>
-            ) : null}
+            {/* where they have been, what they speak, what they love */}
+            <AboutCards profile={fullProfile} />
 
             {/* Joined — the same chip your own space carries. Two profiles
                 in one app should not be describing a person differently. */}
