@@ -8495,4 +8495,21 @@ values
    'You generally become tax resident where you actually live, and a common rule of thumb is more than 183 days in a year — but each country writes its own test, and a treaty between the two decides who taxes what when both think you are theirs.\n\nRegistering with the tax office is often the same visit as getting your personal number. Doing it late is the expensive kind of late.', 80)
 on conflict (scope, coalesce(country, ''), lower(coalesce(city, '')), slug) do nothing;
 
+-- ═══════════ LAMMA ROOMS · LIVE, NOT POLLED ═══════════
+/* "اتأكد ان الرومز اللي زي اللايف دي شغالة". They worked — but not live.
+   The room screen subscribes to row changes on game_rooms and
+   room_players, and neither table had ever been added to the realtime
+   publication, so those subscriptions were listening to nothing. The
+   host's broadcast still moved everybody on to the next question, and
+   a five-second poll caught the rest, which is why nothing looked
+   broken: somebody joining the lobby, or answering, just appeared up to
+   five seconds late on every other phone.
+
+   Row changes are still filtered by the policies above: a phone only
+   ever hears about a room it is in. Safe to run twice. */
+do $$ begin
+  begin alter publication supabase_realtime add table public.game_rooms;   exception when duplicate_object then null; end;
+  begin alter publication supabase_realtime add table public.room_players; exception when duplicate_object then null; end;
+end $$;
+
 notify pgrst, 'reload schema';
