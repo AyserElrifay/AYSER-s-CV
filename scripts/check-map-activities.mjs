@@ -48,6 +48,11 @@ const sql = read('supabase/RUN_ME.sql');
 is('the weekly plans carry their place to the week', /\(kind, title, about, country, city, place_name, lat, lng, starts_at/.test(sql), true);
 is('Madinaty has no guessed point', !/'Madinaty Central Park',\s*\d/.test(sql), true);
 
+console.log('\nin this area means on the screen');
+is('the count is the list on the screen', /t\('map_in_area'\)\.replace\('\{n\}', String\(inView\.length\)\)/.test(map), true);
+is('and the list is what is inside the map\'s edges', /g\.lat <= view\.n && g\.lat >= view\.s && g\.lng <= view\.e && g\.lng >= view\.w/.test(map), true);
+is('with your location known, the dive lands on your neighbourhood', /const near = locateRef\.current && c\.latitude != null \? 13 : 7;/.test(fs.readFileSync('src/components/LeafletMap.js', 'utf8')), true);
+
 console.log('\nthe feed and the map are one place');
 const card = read('src/components/PostCard.js');
 const bus = read('src/lib/mapBus.js');

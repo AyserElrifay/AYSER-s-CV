@@ -61,7 +61,7 @@ export function activityPin(g, lang) {
      dropped on the map by hand rather than printed in a grid */
   let h = 0; for (const ch of String(g.id)) h = (h * 31 + ch.charCodeAt(0)) | 0;
   return {
-    id: 'ga_' + g.id, srcId: g.id, kind: 'activity',
+    id: 'ga_' + g.id, srcId: g.id, kind: 'activity', act: g.kind || null,
     lat: g.lat, lng: g.lng,
     emoji: look.emoji, from: look.from, to: look.to,
     tilt: (Math.abs(h) % 9) - 4,

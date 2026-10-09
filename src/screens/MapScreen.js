@@ -9,8 +9,8 @@ import { ME, DOING_OPTIONS, DEALS, DEAL_FILTERS, av, AV_NEUTRAL } from '../const
 import { MAP_PEOPLE, CAMPFIRES, BOOKINGS } from '../constants/mockData'; // demo-mode fallback only
 import { MapView, Marker, MAPS_READY } from '../utils/maps';
 import { takeMapTarget, onMapTarget } from '../lib/mapBus';
-import { listGatherings } from '../services/green';
-import { activityPin } from '../lib/activityPins';
+import { listGatherings, joinGathering } from '../services/green';
+import { activityPin, lookOf, titleFor, whenFor } from '../lib/activityPins';
 import { kmBetween, projectToMap } from '../utils/geo';
 import { requestLocationPermission, getCurrentCoords, watchCoords } from '../utils/location';
 import { SUPABASE_READY } from '../lib/supabase';
@@ -153,6 +153,9 @@ export const MapScreen = () => {
   const [gatherings, setGatherings] = useState([]);    // this week's real things to join
   const [greenOpen, setGreenOpen] = useState(false);
   const [goNow, setGoNow] = useState(false);
+  const [view, setView] = useState(null);          // what the map is showing, for "in this area"
+  const [actKind, setActKind] = useState(null);    // the kind chips on Things to join
+  const [joiningG, setJoiningG] = useState({});
   const [momentPins, setMomentPins] = useState([]);     // moments shared AT a spot
   const [storyPins, setStoryPins] = useState([]);       // live stories on the map
   const [noteOpen, setNoteOpen] = useState(null);       // a tapped note
@@ -339,8 +342,26 @@ export const MapScreen = () => {
   /* Which pins belong to the lens you're looking through. */
   const shownMarkers = useMemo(() => {
     const keep = LENS_KINDS[lens];
-    return keep ? mapMarkers.filter((m) => keep.indexOf(m.kind) >= 0) : mapMarkers;
-  }, [mapMarkers, lens]);
+    const out = keep ? mapMarkers.filter((m) => keep.indexOf(m.kind) >= 0) : mapMarkers;
+    return actKind ? out.filter((m) => m.kind !== 'activity' || m.act === actKind) : out;
+  }, [mapMarkers, lens, actKind]);
+
+  /* ── IN THIS AREA ── the gatherings inside what the map is showing,
+     soonest first. "In this area" is the rectangle on the screen, and
+     the count is the length of this list — nothing else. */
+  const inView = useMemo(() => {
+    const ok = (g) => g.lat != null && g.lng != null && (!actKind || g.kind === actKind)
+      && (!view || (g.lat <= view.n && g.lat >= view.s && g.lng <= view.e && g.lng >= view.w));
+    return gatherings.filter(ok).sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at)).slice(0, 30);
+  }, [gatherings, view, actKind]);
+  const joinFromMap = async (g) => {
+    if (joiningG[g.id]) return;
+    tapLight();
+    setJoiningG((j) => ({ ...j, [g.id]: true }));
+    const r = await joinGathering(g.id, !g.im_going);
+    setJoiningG((j) => { const n = { ...j }; delete n[g.id]; return n; });
+    if (r && r.ok) listGatherings(null).then(setGatherings).catch(() => {});
+  };
 
   const onMarkerPress = (m) => {
     setSheet(null); // whatever's open, a map tap replaces it — never stacks
@@ -946,7 +967,7 @@ export const MapScreen = () => {
       {/* ── GO OUT NOW ── "I'm going for a walk at dawn — show me and let
           anyone around join". One tap from the map itself. */}
       <Pressable onPress={() => { tapLight(); setGoNow(true); }} accessibilityRole="button" accessibilityLabel={t('gn_cta')}
-        style={{ position: 'absolute', left: 14, bottom: 196 }}>
+        style={{ position: 'absolute', left: 14, bottom: lens === 'activities' ? 236 : lens === 'all' ? 196 : 196 }}>
         <LinearGradient colors={['#10B981', '#0EA5E9']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
           style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, paddingHorizontal: 16, paddingVertical: 11,
             shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 6 }}>
@@ -954,7 +975,7 @@ export const MapScreen = () => {
           <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '900', marginStart: 7 }}>{t('gn_cta_short')}</Text>
         </LinearGradient>
       </Pressable>
-      <View style={{ position: 'absolute', right: 14, bottom: 196, alignItems: 'center' }}>
+      <View style={{ position: 'absolute', right: 14, bottom: lens === 'activities' ? 236 : 196, alignItems: 'center' }}>
         {tools ? (
           <>
             <Pressable onPress={() => { setTools(false); openSheet('doing'); }} style={{ marginBottom: 10 }}>
@@ -1005,6 +1026,78 @@ export const MapScreen = () => {
           </View>
         </Pressable>
       </View>
+
+      {/* ── THINGS TO JOIN, IN THIS AREA ─────────────────────────────
+          The thing worth learning from the travel apps: open the map and
+          see, at the bottom, what you could go to around here — counted
+          from what is on the screen, each with Join. */}
+      {lens === 'all' || lens === 'activities' ? (
+      <View style={{ position: 'absolute', bottom: 14, left: 0, right: 0 }} pointerEvents="box-none">
+        {lens === 'activities' ? (
+          <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, marginBottom: 8 }}>
+            {[null, 'walk', 'run', 'coffee', 'focus', 'sport', 'culture', 'circle', 'art', 'cleanup'].map((k) => {
+              const on = actKind === k; const l = k ? lookOf(k) : null;
+              return (
+                <Pressable key={k || 'all'} onPress={() => { tapSelection(); setActKind(k); }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: on ? C.text : C.floatSolid, borderWidth: 1, borderColor: on ? C.text : C.line, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6, marginRight: 7 }}>
+                    {l ? <Text style={{ fontSize: 13, marginRight: 5 }}>{l.emoji}</Text> : null}
+                    <Text style={{ color: on ? C.bg : C.text, fontSize: 12, fontWeight: '800' }}>
+                      {k ? t(k === 'focus' ? 'gn_focus' : k === 'run' ? 'gn_run' : k === 'coffee' ? 'gn_coffee' : 'green_kind_' + k) : t('lens_all')}
+                    </Text>
+                  </View>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        ) : null}
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginBottom: 8 }}>
+          <View style={{ backgroundColor: C.floatSolid, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1, borderColor: C.line }}>
+            <Text style={{ color: C.text, fontSize: 13, fontWeight: '900' }}>{inView.length === 1 ? t('map_in_area_one') : t('map_in_area').replace('{n}', String(inView.length))}</Text>
+          </View>
+        </View>
+        <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
+          {inView.length ? inView.map((g) => {
+            const l = lookOf(g.kind);
+            return (
+              <Pressable key={g.id} onPress={() => { tapLight(); setMapFocus({ lat: g.lat, lng: g.lng, zoom: 16, ts: Date.now() }); }}>
+                <Glass tint={C.floatSolid} style={{ width: 256, padding: 12, marginRight: 10 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <LinearGradient colors={[l.from, l.to]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ width: 46, height: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center', transform: [{ rotate: '-4deg' }] }}>
+                      <Text style={{ fontSize: 23 }}>{l.emoji}</Text>
+                    </LinearGradient>
+                    <View style={{ flex: 1, minWidth: 0, marginStart: 10 }}>
+                      <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '900' }} numberOfLines={1}>{titleFor(g.title, lang)}</Text>
+                      <Text style={{ color: C.dim, fontSize: 11.5, marginTop: 2 }} numberOfLines={1}>
+                        {whenFor(g.starts_at, lang)}{g.place_name ? ' · ' + g.place_name : ''}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10 }}>
+                    <Text style={{ color: C.faint, fontSize: 12, fontWeight: '800', flex: 1 }}>{(Number(g.going) || 0) + ' ' + t('green_going')}</Text>
+                    {user && g.host_id === user.id ? (
+                      <Text style={{ color: C.green, fontSize: 12, fontWeight: '900' }}>{t('tg_hosting')}</Text>
+                    ) : (
+                      <Pressable onPress={() => joinFromMap(g)} disabled={!!joiningG[g.id]} accessibilityRole="button">
+                        <View style={{ backgroundColor: g.im_going ? C.glassHi : C.purple, borderRadius: 999, paddingHorizontal: 15, paddingVertical: 6, opacity: joiningG[g.id] ? 0.6 : 1 }}>
+                          <Text style={{ color: g.im_going ? C.text : '#FFF', fontSize: 12, fontWeight: '900' }}>{g.im_going ? '✓ ' + t('green_joined') : t('green_join')}</Text>
+                        </View>
+                      </Pressable>
+                    )}
+                  </View>
+                </Glass>
+              </Pressable>
+            );
+          }) : (
+            <Pressable onPress={() => { tapLight(); setGoNow(true); }}>
+              <Glass tint={C.floatSolid} style={{ width: 256, padding: 14, marginRight: 10 }}>
+                <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '900' }}>{t('map_none_here')}</Text>
+                <Text style={{ color: C.purple, fontSize: 12.5, fontWeight: '900', marginTop: 6 }}>{t('gn_cta_short')} ›</Text>
+              </Glass>
+            </Pressable>
+          )}
+        </ScrollView>
+      </View>
+      ) : null}
 
       {/* ── the bottom rail ─────────────────────────────────────────
           Only shows up when the lens you're on has something to put
@@ -1337,7 +1430,7 @@ export const MapScreen = () => {
           )) : null}
         </MapView>
       ) : Platform.OS === 'web' ? (
-        <LeafletMap center={myCoords} markers={shownMarkers} onPress={onMarkerPress} onMe={onMePress} locate={located} focus={mapFocus} lang={lang} meAvatar={user ? buildAvatarUrl(user.id) : null} meDoing={myDoing} meName={user && user.user_metadata && user.user_metadata.name} route={routeTo} appDark={isDark} />
+        <LeafletMap onViewport={setView} center={myCoords} markers={shownMarkers} onPress={onMarkerPress} onMe={onMePress} locate={located} focus={mapFocus} lang={lang} meAvatar={user ? buildAvatarUrl(user.id) : null} meDoing={myDoing} meName={user && user.user_metadata && user.user_metadata.name} route={routeTo} appDark={isDark} />
       ) : (
         <FauxMap center={myCoords}>
           <View style={{ position: 'absolute', left: '38%', top: '50%' }}>

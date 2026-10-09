@@ -206,6 +206,9 @@ function injectMapStyle() {
       background: rgba(255,255,255,0.96);
     }
     .mm-dark .mm-zoom { background: rgba(24,24,32,0.94); }
+    /* on a touch screen two fingers already zoom, and the buttons sat on
+       top of the "in this area" cards; they stay for mouse and trackpad */
+    @media (hover: none) and (pointer: coarse) { .mm-zoom { display: none; } }
     .mm-zoom-btn {
       width: 42px; height: 42px; border: 0; background: transparent; cursor: pointer;
       font-size: 22px; font-weight: 700; line-height: 1; color: #1F2937;
@@ -458,7 +461,7 @@ const OSM_TILES = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 const LIGHT_TILES = OSM_TILES;
 const DARK_TILES = OSM_TILES;
 
-export const LeafletMap = ({ center, markers = [], onPress, onMe, locate = true, focus = null, lang = 'en', meAvatar = null, meDoing = null, meName = null, route = null, appDark = null }) => {
+export const LeafletMap = ({ center, markers = [], onPress, onMe, locate = true, focus = null, lang = 'en', meAvatar = null, meDoing = null, meName = null, route = null, appDark = null, onViewport = null }) => {
   const elRef = useRef(null);
   const mapRef = useRef(null);
   const layerRef = useRef(null);
@@ -475,6 +478,8 @@ export const LeafletMap = ({ center, markers = [], onPress, onMe, locate = true,
   onPressRef.current = onPress;
   const onMeRef = useRef(onMe);
   onMeRef.current = onMe;
+  const onViewportRef = useRef(onViewport);
+  onViewportRef.current = onViewport;
   const locateRef = useRef(locate);
   locateRef.current = locate;
   const langRef = useRef(lang);
@@ -700,12 +705,16 @@ export const LeafletMap = ({ center, markers = [], onPress, onMe, locate = true,
           // zoom THROUGH the planet, then let the flat map fly the rest of
           // the way in — one continuous zoom from space to the street
           if (g && g.diveIn) {
+            /* with your real position known, land in your neighbourhood
+               — the streets you could walk to tonight — not the whole
+               country; without it, the country is the honest view */
+            const near = locateRef.current && c.latitude != null ? 13 : 7;
             g.diveIn(() => {
               g.setVisible(false);
-              map.flyTo([lat, lng], 7, { duration: 1.5, easeLinearity: 0.12 });
+              map.flyTo([lat, lng], near, { duration: 1.5, easeLinearity: 0.12 });
             });
           } else {
-            map.flyTo([lat, lng], 6, { duration: 1.8 });
+            map.flyTo([lat, lng], locateRef.current && c.latitude != null ? 13 : 6, { duration: 1.8 });
           }
         },
       });
@@ -732,6 +741,14 @@ export const LeafletMap = ({ center, markers = [], onPress, onMe, locate = true,
       const reCull = () => cullFnRef.current && cullFnRef.current();
       map.on('zoomend', reCull);
       map.on('moveend', reCull);
+      /* tell the screen what is in view, so "in this area" means this area */
+      const tellView = () => {
+        if (!onViewportRef.current) return;
+        const bb = map.getBounds();
+        onViewportRef.current({ n: bb.getNorth(), s: bb.getSouth(), e: bb.getEast(), w: bb.getWest(), zoom: map.getZoom() });
+      };
+      map.on('moveend', tellView);
+      setTimeout(tellView, 0);
       applyZoomClasses();
       draw(L);
       setTimeout(() => map.invalidateSize(), 250);
