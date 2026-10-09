@@ -9548,4 +9548,282 @@ begin
 end;
 $$;
 
+-- ═══════════ TALK ROOMS · TALK FIRST, THEN MEET ═══════════
+/* Not Clubhouse. A talk room is a short voice ice-breaker for people
+   who are physically near each other, and its whole job is to end in a
+   real meetup:
+
+   · ANCHORED. Every room has a point and a radius (0.5–10 km). It is
+     listed to, and can be joined by, only people whose live location
+     is inside it. There is no global list and no way to join from
+     elsewhere — the checks are here, not on the phone.
+   · TIME-BOXED. 15 or 30 minutes, fixed when it starts. ends_at is
+     set once and nothing can move it: there is no update policy and
+     no function that extends it.
+   · SMALL. 2–8 people. Audio goes phone to phone (WebRTC mesh); this
+     database only decides who may be in the room, and the Realtime
+     channel that carries the connection setup admits exactly those
+     people, and only until ends_at.
+   · THE BRIDGE. Three minutes before the end, Bardi offers to take it
+     offline: talk_room_meet() turns the room into a green_gathering on
+     the map — at the organisation's own venue when an organisation
+     hosts, or its next event there — and everyone else in the room
+     can say "I'm in" with one tap. */
+create table if not exists public.talk_rooms (
+  id           uuid primary key default gen_random_uuid(),
+  host_id      uuid not null references public.profiles(id) on delete cascade,
+  title        text not null,
+  area_name    text,
+  country      text not null,
+  lat          double precision not null,
+  lng          double precision not null,
+  radius_km    numeric not null default 3 check (radius_km between 0.5 and 10),
+  minutes      int not null check (minutes in (15, 30)),
+  capacity     int not null default 6 check (capacity between 2 and 8),
+  venue_id     uuid references public.venues(id) on delete set null,
+  started_at   timestamptz not null default now(),
+  ends_at      timestamptz not null,
+  closed_at    timestamptz,
+  gathering_id uuid references public.green_gatherings(id) on delete set null
+);
+create index if not exists talk_rooms_live_idx on public.talk_rooms (ends_at) where closed_at is null;
+alter table public.talk_rooms enable row level security;   -- read only through the functions below
+
+create table if not exists public.talk_room_members (
+  room_id   uuid not null references public.talk_rooms(id) on delete cascade,
+  user_id   uuid not null references public.profiles(id) on delete cascade,
+  joined_at timestamptz not null default now(),
+  left_at   timestamptz,
+  primary key (room_id, user_id)
+);
+alter table public.talk_room_members enable row level security;
+
+create or replace function public.km_between(a_lat double precision, a_lng double precision, b_lat double precision, b_lng double precision)
+returns double precision language sql immutable as $$
+  select 2 * 6371 * asin(sqrt(power(sin(radians(b_lat - a_lat) / 2), 2)
+       + cos(radians(a_lat)) * cos(radians(b_lat)) * power(sin(radians(b_lng - a_lng) / 2), 2)));
+$$;
+
+-- where you are, if you are visible on the map now (the only "where" this uses)
+create or replace function public.talk_me_at(u uuid)
+returns table (lat double precision, lng double precision)
+language sql stable security definer set search_path = public as $$
+  select l.lat, l.lng from public.live_locations l
+   where l.user_id = u and l.updated_at > now() - interval '30 minutes';
+$$;
+
+create or replace function public.talk_room_live(r public.talk_rooms)
+returns boolean language sql stable as $$
+  select r.closed_at is null and now() < r.ends_at;
+$$;
+
+/* the rooms you are standing inside, soonest-ending last */
+create or replace function public.talk_rooms_near()
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare me uuid := auth.uid(); at record;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  select * into at from public.talk_me_at(me);
+  if not found then return jsonb_build_object('ok', false, 'reason', 'not_visible', 'rooms', '[]'::jsonb); end if;
+  return jsonb_build_object('ok', true, 'now', now(), 'rooms', coalesce((
+    select jsonb_agg(jsonb_build_object(
+             'id', r.id, 'title', r.title, 'area', r.area_name, 'minutes', r.minutes,
+             'ends_at', r.ends_at, 'capacity', r.capacity,
+             'here', (select count(*) from public.talk_room_members m where m.room_id = r.id and m.left_at is null),
+             'host', (select name from public.profiles where id = r.host_id),
+             'org', (select v.name from public.venues v where v.id = r.venue_id),
+             'mine', exists (select 1 from public.talk_room_members m where m.room_id = r.id and m.user_id = me and m.left_at is null))
+           order by r.ends_at desc)
+      from public.talk_rooms r
+     where public.talk_room_live(r)
+       and public.km_between(r.lat, r.lng, at.lat, at.lng) <= r.radius_km), '[]'::jsonb));
+end;
+$$;
+grant execute on function public.talk_rooms_near() to authenticated;
+
+/* start one: anchored where you are — or, for an organisation, at its
+   own approved venue. Hosting voice with strangers is earned like a DM. */
+create or replace function public.talk_room_start(p_title text, p_minutes int, p_radius_km numeric, p_area text, p_country text, p_venue uuid default null)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); a_lat double precision; a_lng double precision; v_id uuid; r public.talk_rooms%rowtype;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  if coalesce(length(btrim(p_title)), 0) < 3 then return jsonb_build_object('ok', false, 'reason', 'no_title'); end if;
+  if p_minutes not in (15, 30) then return jsonb_build_object('ok', false, 'reason', 'bad_minutes'); end if;
+  if not public.trust_unlocked(me) then return jsonb_build_object('ok', false, 'reason', 'need_unlock'); end if;
+  if exists (select 1 from public.talk_rooms x where x.host_id = me and public.talk_room_live(x)) then
+    return jsonb_build_object('ok', false, 'reason', 'already_hosting');
+  end if;
+  if p_venue is not null then
+    select id, lat, lng into v_id, a_lat, a_lng from public.venues
+     where id = p_venue and owner_id = me and status = 'live' and lat is not null;
+    if v_id is null then return jsonb_build_object('ok', false, 'reason', 'not_your_venue'); end if;
+  else
+    select t.lat, t.lng into a_lat, a_lng from public.talk_me_at(me) t;
+    if a_lat is null then return jsonb_build_object('ok', false, 'reason', 'not_visible'); end if;
+  end if;
+  insert into public.talk_rooms (host_id, title, area_name, country, lat, lng, radius_km, minutes, venue_id, ends_at)
+  values (me, left(btrim(p_title), 80), nullif(left(btrim(coalesce(p_area, '')), 60), ''),
+          upper(coalesce(nullif(btrim(p_country), ''), 'EG')),
+          a_lat, a_lng,
+          least(greatest(coalesce(p_radius_km, 3), 0.5), 10), p_minutes, v_id,
+          now() + make_interval(mins => p_minutes))
+  returning * into r;
+  insert into public.talk_room_members (room_id, user_id) values (r.id, me);
+  return jsonb_build_object('ok', true, 'id', r.id, 'ends_at', r.ends_at, 'now', now());
+end;
+$$;
+grant execute on function public.talk_room_start(text, int, numeric, text, text, uuid) to authenticated;
+
+create or replace function public.talk_room_join(p_id uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); at record; r public.talk_rooms%rowtype; here int;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  select * into r from public.talk_rooms where id = p_id;
+  if not found or not public.talk_room_live(r) then return jsonb_build_object('ok', false, 'reason', 'closed'); end if;
+  if not exists (select 1 from public.talk_room_members where room_id = r.id and user_id = me and left_at is null) then
+    select * into at from public.talk_me_at(me);
+    if not found then return jsonb_build_object('ok', false, 'reason', 'not_visible'); end if;
+    if public.km_between(r.lat, r.lng, at.lat, at.lng) > r.radius_km then
+      return jsonb_build_object('ok', false, 'reason', 'too_far');
+    end if;
+    select count(*) into here from public.talk_room_members where room_id = r.id and left_at is null;
+    if here >= r.capacity then return jsonb_build_object('ok', false, 'reason', 'full'); end if;
+    insert into public.talk_room_members (room_id, user_id) values (r.id, me)
+    on conflict (room_id, user_id) do update set left_at = null, joined_at = now();
+  end if;
+  return jsonb_build_object('ok', true, 'id', r.id, 'title', r.title, 'ends_at', r.ends_at, 'now', now(),
+                            'host_id', r.host_id, 'org', (select name from public.venues where id = r.venue_id),
+                            'gathering_id', r.gathering_id);
+end;
+$$;
+grant execute on function public.talk_room_join(uuid) to authenticated;
+
+create or replace function public.talk_room_leave(p_id uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  update public.talk_room_members set left_at = now() where room_id = p_id and user_id = auth.uid() and left_at is null;
+  -- the host leaving early closes it for everyone; the clock closes it otherwise
+  update public.talk_rooms set closed_at = now() where id = p_id and host_id = auth.uid() and closed_at is null;
+  return jsonb_build_object('ok', true);
+end;
+$$;
+grant execute on function public.talk_room_leave(uuid) to authenticated;
+
+/* ── THE OFFLINE BRIDGE ──
+   What the end of the room offers, worked out here so every phone in
+   the room sees the same thing:
+     · an organisation's room → its next event at its venue if there is
+       one this week, else a meetup at its venue;
+     · anyone else → the nearest live café or similar inside the room's
+       area, else the room's own point. */
+create or replace function public.talk_room_bridge(p_id uuid)
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare me uuid := auth.uid(); r public.talk_rooms%rowtype; v record; ev record; spot record;
+begin
+  select * into r from public.talk_rooms where id = p_id;
+  if not found then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
+  if not exists (select 1 from public.talk_room_members where room_id = r.id and user_id = me) then
+    return jsonb_build_object('ok', false, 'reason', 'not_in_room');
+  end if;
+  if r.gathering_id is not null then
+    return jsonb_build_object('ok', true, 'made', true, 'gathering', (
+      select jsonb_build_object('id', g.id, 'title', g.title, 'place', g.place_name, 'starts_at', g.starts_at, 'lat', g.lat, 'lng', g.lng,
+                                'going', exists (select 1 from public.green_joins j where j.gathering_id = g.id and j.user_id = me))
+        from public.green_gatherings g where g.id = r.gathering_id));
+  end if;
+  if r.venue_id is not null then
+    select * into v from public.venues where id = r.venue_id;
+    select g.id, g.title, g.place_name, g.starts_at into ev
+      from public.green_gatherings g
+     where g.host_id = r.host_id and g.cancelled_at is null
+       and g.starts_at between now() and now() + interval '7 days'
+     order by g.starts_at limit 1;
+    if ev.id is not null then
+      return jsonb_build_object('ok', true, 'made', false, 'kind', 'org_event',
+        'event', jsonb_build_object('id', ev.id, 'title', ev.title, 'place', ev.place_name, 'starts_at', ev.starts_at), 'org', v.name);
+    end if;
+    return jsonb_build_object('ok', true, 'made', false, 'kind', 'org_venue', 'place', v.name, 'org', v.name);
+  end if;
+  select x.name into spot from public.venues x
+   where x.status = 'live' and x.lat is not null
+     and public.km_between(r.lat, r.lng, x.lat, x.lng) <= r.radius_km
+   order by (coalesce(x.kind, '') ~* 'caf|coffee|tea|library|book|park') desc,
+            public.km_between(r.lat, r.lng, x.lat, x.lng)
+   limit 1;
+  return jsonb_build_object('ok', true, 'made', false, 'kind', 'nearby', 'place', spot.name);
+end;
+$$;
+grant execute on function public.talk_room_bridge(uuid) to authenticated;
+
+/* "Take it offline": the first tap makes the meetup (once — a second
+   tap returns the same one), pinned on the map, in an hour unless told
+   otherwise; whoever taps is going. Everyone else in the room answers
+   for themselves with one tap (green_join). */
+create or replace function public.talk_room_meet(p_id uuid, p_in_minutes int default 60)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); r public.talk_rooms%rowtype; v record; spot record; g public.green_gatherings%rowtype; n int;
+begin
+  select * into r from public.talk_rooms where id = p_id for update;
+  if not found then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
+  if not exists (select 1 from public.talk_room_members where room_id = r.id and user_id = me) then
+    return jsonb_build_object('ok', false, 'reason', 'not_in_room');
+  end if;
+  -- the bridge is offered at the end, and for a little while after it
+  if now() < r.ends_at - interval '3 minutes' or now() > r.ends_at + interval '30 minutes' then
+    return jsonb_build_object('ok', false, 'reason', 'not_yet');
+  end if;
+  if r.gathering_id is null then
+    if r.venue_id is not null then
+      select name, lat, lng into spot from public.venues where id = r.venue_id;
+    else
+      select x.name, x.lat, x.lng into spot from public.venues x
+       where x.status = 'live' and x.lat is not null
+         and public.km_between(r.lat, r.lng, x.lat, x.lng) <= r.radius_km
+       order by (coalesce(x.kind, '') ~* 'caf|coffee|tea|library|book|park') desc,
+                public.km_between(r.lat, r.lng, x.lat, x.lng)
+       limit 1;
+    end if;
+    select count(*) into n from public.talk_room_members where room_id = r.id;
+    insert into public.green_gatherings (kind, title, country, place_name, lat, lng, starts_at, minutes, capacity, host_id)
+    values ('coffee', left(r.title, 70) || ' · IRL', r.country, coalesce(spot.name, r.area_name),
+            coalesce(spot.lat, r.lat), coalesce(spot.lng, r.lng),
+            now() + make_interval(mins => least(greatest(coalesce(p_in_minutes, 60), 15), 24 * 60)),
+            60, greatest(n, 4), me)
+    returning * into g;
+    update public.talk_rooms set gathering_id = g.id where id = r.id;
+  else
+    select * into g from public.green_gatherings where id = r.gathering_id;
+  end if;
+  insert into public.green_joins (gathering_id, user_id) values (g.id, me) on conflict do nothing;
+  return jsonb_build_object('ok', true, 'gathering_id', g.id, 'title', g.title, 'place', g.place_name,
+                            'starts_at', g.starts_at, 'lat', g.lat, 'lng', g.lng);
+end;
+$$;
+grant execute on function public.talk_room_meet(uuid, int) to authenticated;
+
+/* ── WHO MAY BE ON THE ROOM'S WIRE ──
+   The phones set up their audio over a private Realtime channel named
+   talk:<room id>. Only current members of a room that has not ended
+   may read or write it — so the geo-fence, the capacity and the clock
+   apply to the connection itself, not only to the list. */
+do $do$
+begin
+  alter table realtime.messages enable row level security;
+  drop policy if exists "talk room members read" on realtime.messages;
+  create policy "talk room members read" on realtime.messages for select to authenticated
+    using (realtime.topic() like 'talk:%' and exists (
+      select 1 from public.talk_room_members m join public.talk_rooms r on r.id = m.room_id
+       where 'talk:' || r.id::text = realtime.topic() and m.user_id = auth.uid() and m.left_at is null
+         and r.closed_at is null and now() < r.ends_at));
+  drop policy if exists "talk room members write" on realtime.messages;
+  create policy "talk room members write" on realtime.messages for insert to authenticated
+    with check (realtime.topic() like 'talk:%' and exists (
+      select 1 from public.talk_room_members m join public.talk_rooms r on r.id = m.room_id
+       where 'talk:' || r.id::text = realtime.topic() and m.user_id = auth.uid() and m.left_at is null
+         and r.closed_at is null and now() < r.ends_at));
+exception when others then raise notice 'talk room realtime policies skipped: %', sqlerrm;
+end $do$;
+
 notify pgrst, 'reload schema';

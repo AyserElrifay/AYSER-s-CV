@@ -164,6 +164,9 @@ jobs:
       # The brain dump: a messy line in, one thing out, nothing leaves but a word.
       - name: Check the brain dump
         run: node scripts/check-brain-dump.mjs
+      # Talk rooms: anchored, time-boxed, small, ending in a real meetup.
+      - name: Check talk rooms
+        run: node scripts/check-talk-rooms.mjs
       # No signal must not mean no app.
       - name: Check the app works offline
         run: node scripts/check-offline.mjs

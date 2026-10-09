@@ -11,6 +11,8 @@ import { SUPABASE_READY } from '../lib/supabase';
 import { listGatherings, joinGathering, announceGathering, myInvites } from '../services/green';
 import { pushSupport, wasAsked } from '../lib/push';
 import { PushRow } from '../components/PushRow';
+import { talkRoomsNear } from '../services/talkRooms';
+import { fmt, remaining, offsetFrom } from '../lib/talkClock';
 import { appLink, shareLink, shareNote } from '../utils/share';
 import { fetchWhatsOn } from '../services/whatson';
 import { joinCampfire } from '../services/campfires';
@@ -29,6 +31,8 @@ const ProgrammesSheet = lazyOverlay(() => import('../components/green/Programmes
 const LandingSheet = lazyOverlay(() => import('../components/LandingSheet').then((m) => ({ default: m.LandingSheet })));
 const GoNowSheet = lazyOverlay(() => import('../components/GoNowSheet').then((m) => ({ default: m.GoNowSheet })));
 const GroupPage = lazyOverlay(() => import('../components/GroupPage').then((m) => ({ default: m.GroupPage })));
+const TalkRoomSheet = lazyOverlay(() => import('../components/TalkRoom').then((m) => ({ default: m.TalkRoomSheet })));
+const StartTalkSheet = lazyOverlay(() => import('../components/TalkRoom').then((m) => ({ default: m.StartTalkSheet })));
 
 /* ─── TOGETHER · THE WEEK, NEAR YOU ───────────────────────────────────
    Ayser: "all the people, not just new people — make community".
@@ -111,7 +115,9 @@ export const TogetherScreen = () => {
   const [sheet, setSheet] = useState(null);
   const [invited, setInvited] = useState(null);     // how many joined through your link — the real count
   const [shareMsg, setShareMsg] = useState(null);
-  const [askPush, setAskPush] = useState(false);     // after a first join: a nudge before it starts?         // 'start' | 'green' | 'prog' | 'landing' | { group }
+  const [askPush, setAskPush] = useState(false);
+  const [talks, setTalks] = useState(null);         // talk rooms you are standing inside
+  const [talkId, setTalkId] = useState(null);     // after a first join: a nudge before it starts?         // 'start' | 'green' | 'prog' | 'landing' | { group }
 
   const uid = user && user.id;
   useEffect(() => {
@@ -130,8 +136,10 @@ export const TogetherScreen = () => {
     Promise.all([
       listGatherings(country).catch(() => []),
       fetchWhatsOn({ userId: uid }).catch(() => ({ now: [], soon: [], groups: [] })),
-    ]).then(([gs, wo]) => {
+      talkRoomsNear().catch(() => null),
+    ]).then(([gs, wo, tr]) => {
       if (!alive) return;
+      setTalks(tr && tr.ok ? { rooms: tr.rooms || [], offset: offsetFrom(tr.now) } : null);
       setRows(gs || []);
       setOn(wo || { now: [], soon: [], groups: [] });
       setRefreshing(false);
@@ -333,6 +341,30 @@ export const TogetherScreen = () => {
           </>
         )}
 
+        {/* ── talk first, then meet ── only rooms whose area you are in */}
+        {talks && talks.rooms.length ? (
+          <>
+            <Section>{t('tr_section')}</Section>
+            {talks.rooms.map((r) => (
+              <Pressable key={r.id} onPress={() => { tapMedium(); setTalkId(r.id); }} accessibilityRole="button"
+                style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 18, padding: 12, marginBottom: 9, flexDirection: 'row', alignItems: 'center' }}>
+                <View style={{ width: 42, height: 42, borderRadius: 14, backgroundColor: C.glassHi, alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ fontSize: 20 }}>🎙️</Text>
+                </View>
+                <View style={{ flex: 1, minWidth: 0, marginStart: 11 }}>
+                  <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '800' }} numberOfLines={1}>{r.title}</Text>
+                  <Text style={{ color: C.faint, fontSize: 12, marginTop: 2 }} numberOfLines={1}>
+                    {[r.org || r.host, r.area, t('tr_here_left').replace('{n}', String(r.here)).replace('{t}', fmt(remaining(r.ends_at, talks.offset)))].filter(Boolean).join(' · ')}
+                  </Text>
+                </View>
+                <View style={{ borderRadius: 999, paddingHorizontal: 16, paddingVertical: 8, backgroundColor: C.purple }}>
+                  <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900' }}>{r.mine ? t('tr_back_in') : t('tr_join')}</Text>
+                </View>
+              </Pressable>
+            ))}
+          </>
+        ) : null}
+
         {/* ── right now ── */}
         {on && on.now && on.now.length ? (
           <>
@@ -394,6 +426,7 @@ export const TogetherScreen = () => {
           <Tile emoji="🎲" label={t('tg_play')} from="#A855F7" to="#EC4899" onPress={() => nav.navigate('CHILL')} />
           <Tile emoji="🗺️" label={t('tg_on_map')} from="#6366F1" to="#8B5CF6" onPress={() => nav.navigate('MAP')} />
           <Tile emoji="🏃" label={t('gn_cta_short')} from="#10B981" to="#0EA5E9" onPress={() => setSheet('gonow')} />
+          <Tile emoji="🎙️" label={t('tr_tile')} from="#111" to="#111" onPress={() => setSheet('talk')} />
         </View>
 
         {/* ── bring your people ── a community grows by people bringing
@@ -425,6 +458,8 @@ export const TogetherScreen = () => {
       </ScrollView>
 
       {sheet === 'gonow' ? <GoNowSheet onClose={() => { setSheet(null); load(); }} /> : null}
+      {sheet === 'talk' ? <StartTalkSheet country={myCode} onClose={() => setSheet(null)} onStarted={(id) => { setSheet(null); setTalkId(id); }} /> : null}
+      {talkId ? <TalkRoomSheet roomId={talkId} onClose={() => { setTalkId(null); load(); }} /> : null}
       {sheet === 'start' ? <GreenSheet startNow homeCountry={myCode} onClose={() => { setSheet(null); load(); }} /> : null}
       {sheet === 'how' || sheet === 'ideas' ? <GreenSheet homeCountry={myCode} openOn={sheet} onClose={() => { setSheet(null); load(); }} /> : null}
       {sheet === 'prog' ? <ProgrammesSheet onClose={() => setSheet(null)} onOpenGroup={(id) => setSheet({ group: id })} /> : null}
