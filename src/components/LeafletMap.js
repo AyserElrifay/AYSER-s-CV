@@ -112,6 +112,10 @@ function injectMapStyle() {
     .mm-country-keep { display: block; }
     .mm-z-globe .mm-country { display: none; }
     .mm-z-globe .mm-country-keep { display: none; }
+    /* The drawn (vector) map names Palestine itself now, as "Palestine"
+       in the reader's language (src/lib/mapStyle.js) — ours on top of
+       it would be the same word twice. Kept for the picture tiles. */
+    .mm-vector:not(.mm-z-far) .mm-country-keep { display: none; }
     /* the teardrop itself — a circle with a point, drawn in CSS */
     .mm-pin {
       position: relative; width: 56px; height: 56px; margin: 0 auto;

@@ -61,6 +61,33 @@ export function nameExpression(lang) {
   ];
 }
 
+/* ── PALESTINE, NAMED LIKE EVERY OTHER COUNTRY ───────────────────────
+   Ayser sent the map zoomed into the region: "Israel" in plain type,
+   and next to it "Palestinian Territories". OpenStreetMap's English
+   name for that one country is a description, not a name, and every
+   other country on the map is called by its name. So it is called
+   Palestine here, in the reader's language, like Israel, Jordan and
+   Egypt beside it — one rule for every country.
+
+   Matched on the country code first (the tile schema carries iso_a2
+   on country labels), and on the old English wording as a fallback. */
+export const PALESTINE = {
+  en: 'Palestine', ar: 'فلسطين', es: 'Palestina', fr: 'Palestine', it: 'Palestina',
+  ja: 'パレスチナ', ko: '팔레스타인', nl: 'Palestina', pt: 'Palestina', ro: 'Palestina',
+  ru: 'Палестина', tr: 'Filistin', zh: '巴勒斯坦', cs: 'Palestina', et: 'Palestiina',
+};
+const IS_PALESTINE = ['any',
+  ['==', ['get', 'iso_a2'], 'PS'],
+  ['==', ['get', 'name:en'], 'Palestinian Territories'],
+  ['==', ['get', 'name:en'], 'Palestinian Territory'],
+  ['==', ['get', 'name_int'], 'Palestinian Territories'],
+];
+
+/* what every label on the map draws */
+export function labelExpression(lang) {
+  return ['case', IS_PALESTINE, PALESTINE[mapLangCode(lang)] || PALESTINE.en, nameExpression(lang)];
+}
+
 /* ── EVERY LABEL, NOT THE ONES WE THOUGHT OF ─────────────────────────
    A style has a few hundred layers and the label ones are not named
    predictably — "place_label_city", "poi_z14", "waterway-name". So
@@ -77,7 +104,7 @@ export const patchCounts = () => ({ labels: lastSpoken, painted: lastPainted });
 
 export function speakStyle(style, lang) {
   if (!style || !Array.isArray(style.layers)) return style;
-  const name = nameExpression(lang);
+  const name = labelExpression(lang);
   let touched = 0;
   const layers = style.layers.map((layer) => {
     const layout = layer && layer.layout;

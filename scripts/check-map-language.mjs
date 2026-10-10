@@ -20,7 +20,7 @@
 */
 import fs from 'node:fs';
 import {
-  speakStyle, cartoonStyle, momentsStyle, nameExpression, mapLangCode,
+  speakStyle, cartoonStyle, momentsStyle, nameExpression, labelExpression, PALESTINE, mapLangCode,
   patchCounts, VECTOR_STYLE_URL, CARTOON_COLORS, NIGHT_COLORS,
 } from '../src/lib/mapStyle.js';
 import { LANGS } from '../src/constants/i18n.js';
@@ -84,7 +84,10 @@ const ar = speakStyle(STYLE, 'ar');
 is('all ' + LABELLED + ' label layers were rewritten', patchCounts().labels, LABELLED);
 const fields = ar.layers.filter((l) => l.layout && l.layout['text-field']).map((l) => JSON.stringify(l.layout['text-field']));
 is('and every one of them now asks for the same thing', new Set(fields).size, 1);
-is('specifically, Arabic', JSON.parse(fields[0])[1], ['get', 'name:ar']);
+is('specifically, Arabic', JSON.parse(fields[0])[3][1], ['get', 'name:ar']);
+is('Palestine is called Palestine, not "Palestinian Territories"', JSON.parse(fields[0])[2], 'فلسطين');
+is('found by its country code first', JSON.stringify(labelExpression('en')[1]).includes('"iso_a2"],"PS"'), true);
+is('in every language the app speaks', LANGS.map((l) => mapLangCode(l.code || l)).filter((c) => !PALESTINE[c]), []);
 is('the icon-only layer was left alone', ar.layers.find((l) => l.id === 'poi-icon-only').layout['text-field'], undefined);
 is('its icon is untouched', ar.layers.find((l) => l.id === 'poi-icon-only').layout['icon-image'], 'circle');
 is('and the old {name} template is gone, not wrapped', /\{name\}/.test(JSON.stringify(ar.layers)), false);
