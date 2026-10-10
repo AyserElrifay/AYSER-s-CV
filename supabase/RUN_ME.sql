@@ -11688,4 +11688,15 @@ begin
 end;
 $$;
 
+-- ═══════════ HOME · THE FIRST REAL EVENING: PAINTING NIGHT ═══════════
+/* Ayser's painting night — everyone who can be recognised in it agreed
+   to be in the app (he confirmed, 2026-10-10). The video and a still
+   from it are served with the app itself. */
+alter table public.app_highlights add column if not exists poster_url text;
+insert into public.app_highlights (media_url, poster_url, kind, caption, consent_at)
+select 'https://ayserelrifay.github.io/AYSER-s-CV/media/painting-night.mp4',
+       'https://ayserelrifay.github.io/AYSER-s-CV/media/painting-night.jpg',
+       'video', 'Painting night with friends', '2026-10-10T20:00:00Z'
+where not exists (select 1 from public.app_highlights where media_url = 'https://ayserelrifay.github.io/AYSER-s-CV/media/painting-night.mp4');
+
 notify pgrst, 'reload schema';

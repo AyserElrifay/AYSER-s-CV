@@ -9,7 +9,7 @@ import { supabase, SUPABASE_READY } from '../lib/supabase';
 export async function fetchHighlight() {
   if (!SUPABASE_READY) return null;
   try {
-    const { data } = await supabase.from('app_highlights').select('id, media_url, kind, caption, live, created_at')
+    const { data } = await supabase.from('app_highlights').select('*')
       .eq('live', true).order('created_at', { ascending: false }).limit(1);
     return (data && data[0]) || null;
   } catch (e) { return null; }

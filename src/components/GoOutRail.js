@@ -26,7 +26,7 @@ import { tapLight, tapSuccess } from '../utils/feedback';
        up to look like more than it is.
    If there is neither, this draws nothing. */
 
-const HighlightVideo = ({ uri }) => {
+const HighlightVideo = ({ uri, poster }) => {
   const ref = useRef(null);
   const holder = useRef(null);
   /* plays only while it is on the screen, and never on data saver */
@@ -41,7 +41,7 @@ const HighlightVideo = ({ uri }) => {
   }, [uri]);
   return (
     <View ref={holder} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
-      <video ref={ref} src={uri + '#t=0.1'} muted loop playsInline preload="metadata" tabIndex={-1}
+      <video ref={ref} src={poster ? uri : uri + '#t=0.1'} poster={poster || undefined} muted loop playsInline preload="metadata" tabIndex={-1}
         style={{ width: '100%', height: '100%', objectFit: 'cover', pointerEvents: 'none' }} />
     </View>
   );
@@ -103,7 +103,7 @@ export const GoOutRail = ({ onFind, onOpenPlan }) => {
       {hl ? (
         <Pressable onPress={() => { tapLight(); onFind(); }} accessibilityRole="button" accessibilityLabel={t('hl_cta')}>
           <View style={{ height: 230, borderRadius: 22, overflow: 'hidden', backgroundColor: C.glassHi }}>
-            {hl.kind === 'video' ? <HighlightVideo uri={hl.media_url} /> : <Image source={{ uri: hl.media_url }} style={{ width: '100%', height: '100%' }} />}
+            {hl.kind === 'video' ? <HighlightVideo uri={hl.media_url} poster={hl.poster_url} /> : <Image source={{ uri: hl.media_url }} style={{ width: '100%', height: '100%' }} />}
             <LinearGradient colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.7)']} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 140 }} />
             <View style={{ position: 'absolute', left: 16, right: 16, bottom: 14 }}>
               <Text style={{ color: '#FFF', fontSize: 19, fontWeight: '900', letterSpacing: -0.3 }}>{t('hl_title')}</Text>
