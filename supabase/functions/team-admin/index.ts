@@ -64,7 +64,13 @@ Deno.serve(async (req) => {
   } catch { claims = {}; }
   const fresh = claims.aal === 'aal2' && (claims.amr || []).some((a: any) =>
     ['totp', 'mfa/totp', 'mfa/webauthn', 'webauthn', 'mfa/phone'].includes(a && a.method) && Number(a.timestamp) * 1000 > Date.now() - 30 * 60 * 1000);
-  if (!fresh) return json(403, { error: 'locked' });
+  /* asked only when the owner set a second step up — the same rule as
+     studio_fresh() (part 29) */
+  if (!fresh) {
+    const { data: fs } = await db.auth.admin.mfa.listFactors({ userId: who.user.id });
+    const enrolled = ((fs && fs.factors) || []).some((f: any) => f.status === 'verified');
+    if (enrolled) return json(403, { error: 'locked' });
+  }
 
   let b: any = {};
   try { b = await req.json(); } catch { return json(400, { error: 'body' }); }

@@ -51,7 +51,7 @@ is('no secret keys in any file', leaks, []);
 console.log('\nthe owner\'s tools stay out of everyone\'s app');
 is('Settings has no owner-only rows (the Studio opens from a private link)', /isOwner\(/.test(read('src/screens/SettingsScreen.js')), false);
 /* the owner, or a team member the owner made — and the SERVER says which (my_studio, studio_can) */
-is('the Studio opens only for the owner or their team, as the server says', /if \(!user \|\| !studioRequested\(\)\) return undefined;/.test(read('App.js')) && /a = await myStudio\(\);/.test(read('App.js')) && /setSt\(isOwner\(user\) \? \{ problem:/.test(read('App.js')) && /if \(a\.identity && \(force \|\| !a\.unlocked\)\) \{ setSt\(\{ lock: a\.identity \}\)/.test(read('App.js')), true);
+is('the Studio opens only for the owner or their team, as the server says', /if \(!user \|\| !studioRequested\(\)\) return undefined;/.test(read('App.js')) && /a = await myStudio\(\);/.test(read('App.js')) && /setSt\(isOwner\(user\) \? \{ problem:/.test(read('App.js')) && /setSt\(\{ lock: a\.identity \}\)/.test(read('App.js')), true);
 
 console.log(bad ? '\n' + bad + ' wrong.' : '\nSecurity: every hole found so far is still shut.');
 process.exit(bad ? 1 : 0);

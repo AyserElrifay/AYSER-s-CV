@@ -11639,4 +11639,53 @@ language sql stable security definer set search_path = public as $$
 $$;
 grant execute on function public.green_list(text) to anon, authenticated;
 
+-- ═══════════ STUDIO · THE SECOND STEP ONLY FOR WHOEVER SET ONE UP ═══════════
+/* Ayser: "شيل الأوثنتيكيتور ده". The code app was a step too many. So
+   the second step is asked only of somebody who actually set one up —
+   the pattern Supabase itself recommends: with no passkey or code on
+   the account, the password is enough, as it was before; the moment a
+   passkey (Face ID / fingerprint) or a code is added, every Studio
+   action needs it again, in the last 30 minutes. Nothing else changes. */
+create or replace function public.studio_enrolled()
+returns boolean language plpgsql stable security definer set search_path = public as $$
+declare yes boolean := false;
+begin
+  if auth.uid() is null or to_regclass('auth.mfa_factors') is null then return false; end if;
+  execute 'select exists (select 1 from auth.mfa_factors where user_id = $1 and status = ''verified'')'
+    into yes using auth.uid();
+  return coalesce(yes, false);
+end;
+$$;
+revoke execute on function public.studio_enrolled() from public, anon;
+grant execute on function public.studio_enrolled() to authenticated;
+
+create or replace function public.studio_fresh()
+returns boolean language plpgsql stable security definer set search_path = public as $$
+declare c jsonb := nullif(current_setting('request.jwt.claims', true), '')::jsonb;
+begin
+  if c is null or auth.uid() is null then return false; end if;
+  if not public.studio_enrolled() then return true; end if;   -- no second step set up: the password is enough
+  if coalesce(c ->> 'aal', '') <> 'aal2' then return false; end if;
+  return exists (
+    select 1 from jsonb_array_elements(coalesce(c -> 'amr', '[]'::jsonb)) a
+     where a ->> 'method' in ('totp', 'mfa/totp', 'mfa/webauthn', 'webauthn', 'mfa/phone')
+       and to_timestamp((a ->> 'timestamp')::double precision) > now() - interval '30 minutes');
+end;
+$$;
+
+create or replace function public.my_studio()
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare who text := public.studio_identity(); fresh boolean := public.studio_fresh();
+begin
+  if who is null then return jsonb_build_object('owner', false, 'role', null); end if;
+  return jsonb_build_object(
+    'identity', who,
+    'enrolled', public.studio_enrolled(),
+    'unlocked', fresh,
+    'owner', who = 'owner' and fresh,
+    'role', case when fresh then (select role from public.team_members where user_id = auth.uid() and disabled_at is null) end,
+    'username', (select username from public.team_members where user_id = auth.uid()));
+end;
+$$;
+
 notify pgrst, 'reload schema';

@@ -16,18 +16,20 @@ const is = (what, got, want) => {
 const read = (f) => fs.readFileSync(f, 'utf8');
 const sql = read('supabase/RUN_ME.sql');
 const part = sql.slice(sql.indexOf('STUDIO · LOCKED BEHIND A SECOND STEP'));
+const optional = sql.slice(sql.indexOf('STUDIO · THE SECOND STEP ONLY FOR WHOEVER SET ONE UP'));
 const app = read('App.js');
 const team = read('supabase/functions/team-admin/index.ts');
 
 /* the LAST definition of each is the one that counts */
 const lastDef = (name) => sql.slice(sql.lastIndexOf('create or replace function public.' + name + '('));
-is('a second step in the last 30 minutes, read from the server-signed token', /coalesce\(c ->> 'aal', ''\) <> 'aal2' then return false/.test(part) && /interval '30 minutes'/.test(part), true);
+is('a second step in the last 30 minutes, read from the server-signed token', /coalesce\(c ->> 'aal', ''\) <> 'aal2' then return false/.test(lastDef('studio_fresh')) && /interval '30 minutes'/.test(lastDef('studio_fresh')), true);
+is('…asked only of an account that set one up (Ayser: no code app)', /if not public\.studio_enrolled\(\) then return true; end if;/.test(lastDef('studio_fresh')) && /status = ''verified''/.test(optional), true);
 is('the owner check needs it', /return public\.studio_identity\(\) = 'owner' and public\.studio_fresh\(\);/.test(lastDef('is_app_owner')), true);
 is('the team check needs it', /if not public\.studio_fresh\(\) then return false; end if;/.test(lastDef('studio_can')), true);
 is('the last is_app_owner in the file is the locked one', sql.lastIndexOf('create or replace function public.is_app_owner()') > sql.indexOf('STUDIO · LOCKED BEHIND A SECOND STEP'), true);
 is('no Studio table is still opened by the bare email', !/using \(\s*\(auth\.jwt\(\) ->> 'email'\) = 'ayseryourlifecoach@gmail\.com'/.test(part) &&
   ['owner reads all reports', 'owner reads feedback', 'help_owner_write', 'bardi_config_owner', 'bardi_knowledge_owner', 'vr update owner'].every((n) => part.includes('"' + n + '"')), true);
-is('team management needs it too', /claims\.aal === 'aal2'/.test(team) && /return json\(403, \{ error: 'locked' \}\)/.test(team), true);
+is('team management needs it too', /claims\.aal === 'aal2'/.test(team) && /if \(enrolled\) return json\(403, \{ error: 'locked' \}\)/.test(team), true);
 is('the Studio asks for the lock every time it opens', /look\(true\);   \/\/ the lock every time the Studio is opened/.test(app), true);
 is('and again after 2 minutes away or 25 minutes open', /2 \* 60 \* 1000/.test(app) && /25 \* 60 \* 1000/.test(app), true);
 is('Face ID / fingerprint is a real passkey, verified by the server', /mfa\.webauthn\.authenticate/.test(read('src/services/studioLock.js')) && /mfa\.webauthn\.register/.test(read('src/services/studioLock.js')), true);

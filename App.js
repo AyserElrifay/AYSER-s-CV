@@ -91,7 +91,9 @@ const StudioGate = () => {
     }
     /* part 25 run: the server says whether this session passed its second
        step recently; without it the Studio does not open at all */
-    if (a.identity && (force || !a.unlocked)) { setSt({ lock: a.identity }); return; }
+    /* the lock only for an account that set one up (Face ID / a code);
+       without one the server lets the password through (part 29) */
+    if (a.identity && (a.enrolled !== false) && (force || !a.unlocked)) { setSt({ lock: a.identity }); return; }
     if (a.owner || a.role) { opened.current = Date.now(); setSt({ access: a }); return; }
   }, [user]);
   React.useEffect(() => {
