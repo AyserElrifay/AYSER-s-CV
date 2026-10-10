@@ -11415,4 +11415,135 @@ begin
   update public.verification_requests set status = case when approve then 'approved' else 'rejected' end where user_id = target;
 end; $$;
 
+-- ═══════════ STUDIO · WHO DID WHAT, AND WHO IS HERE ═══════════
+/* Ayser: when somebody on the team does something, or is online, show
+   it next to me — "Mona approved a guide".
+
+   Written by the database itself, in the same moment as the decision —
+   a trigger on each table a decision changes — so it cannot be skipped
+   by a screen, and cannot be written by hand: there is no insert policy,
+   only these functions. Read by the owner only. */
+
+create table if not exists public.studio_log (
+  id         bigserial primary key,
+  actor_id   uuid,
+  actor_name text,
+  action     text not null,
+  detail     text,
+  at         timestamptz not null default now()
+);
+create index if not exists studio_log_at_idx on public.studio_log (at desc);
+alter table public.studio_log enable row level security;
+drop policy if exists "studio log: the owner" on public.studio_log;
+create policy "studio log: the owner" on public.studio_log for select using (public.is_app_owner());
+
+create table if not exists public.studio_seen (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  seen_at timestamptz not null default now()
+);
+alter table public.studio_seen enable row level security;
+-- read through studio_activity() only
+
+create or replace function public.studio_log_add(p_action text, p_detail text)
+returns void language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); nm text;
+begin
+  if me is null then
+    nm := 'Owner (team settings)';
+  else
+    select coalesce((select username from public.team_members where user_id = me), (select name from public.profiles where id = me), 'Someone') into nm;
+  end if;
+  insert into public.studio_log (actor_id, actor_name, action, detail) values (me, nm, p_action, left(p_detail, 200));
+end;
+$$;
+revoke execute on function public.studio_log_add(text, text) from public, anon, authenticated;
+
+create or replace function public.studio_log_decision() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare who text;
+begin
+  if tg_table_name = 'verification_requests' then
+    if new.status is distinct from old.status and new.status in ('approved', 'rejected') then
+      select name into who from public.profiles where id = new.user_id;
+      perform public.studio_log_add(
+        case when new.status = 'approved' then 'approved ' else 'rejected ' end
+        || case new.role when 'guide' then 'a tour guide' when 'host' then 'a host' else 'a verification' end,
+        who);
+    end if;
+  elsif tg_table_name = 'safety_reports' then
+    if new.status is distinct from old.status and new.status in ('strike', 'no_action') then
+      select name into who from public.profiles where id = new.reported_id;
+      perform public.studio_log_add(case when new.status = 'strike' then 'gave a strike' else 'closed a chat report, no action' end, who);
+    end if;
+  elsif tg_table_name = 'safety_standing' then
+    select name into who from public.profiles where id = new.user_id;
+    if old.state = 'coach' and new.state is null then perform public.studio_log_add('marked a coach session done', who); end if;
+    if new.state = 'closed' and old.state is distinct from 'closed' then perform public.studio_log_add('closed an account (2nd strike)', who); end if;
+  elsif tg_table_name = 'venues' then
+    if new.status is distinct from old.status and new.status in ('live', 'rejected') then
+      perform public.studio_log_add(case when new.status = 'live' then 'approved an organisation' else 'rejected an organisation' end, new.name);
+    end if;
+  elsif tg_table_name = 'content_reports' then
+    if new.status is distinct from old.status then
+      perform public.studio_log_add(case when new.status = 'removed' then 'took down reported ' else 'reviewed a report on ' end || coalesce(new.content_type, 'content'), new.reason);
+    end if;
+  elsif tg_table_name = 'team_members' then
+    if tg_op = 'INSERT' then perform public.studio_log_add('added to the team', new.username || ' · ' || new.role);
+    elsif tg_op = 'DELETE' then perform public.studio_log_add('removed from the team', old.username);
+    elsif new.disabled_at is not null and old.disabled_at is null then perform public.studio_log_add('paused', new.username);
+    elsif new.disabled_at is null and old.disabled_at is not null then perform public.studio_log_add('resumed', new.username);
+    elsif new.role is distinct from old.role then perform public.studio_log_add('changed a role', new.username || ' → ' || new.role);
+    end if;
+    if tg_op = 'DELETE' then return old; end if;
+  end if;
+  return new;
+end $$;
+
+do $do$
+declare t text;
+begin
+  foreach t in array array['verification_requests','safety_reports','safety_standing','venues','content_reports'] loop
+    if to_regclass('public.' || t) is not null then
+      execute format('drop trigger if exists %I on public.%I', t || '_studio_log', t);
+      execute format('create trigger %I after update on public.%I for each row execute function public.studio_log_decision()', t || '_studio_log', t);
+    end if;
+  end loop;
+  drop trigger if exists team_members_studio_log on public.team_members;
+  create trigger team_members_studio_log after insert or update or delete on public.team_members
+    for each row execute function public.studio_log_decision();
+end $do$;
+
+/* "I am here": every minute while the Studio is open; "opened the
+   Studio" goes in the log at most every half hour per person */
+create or replace function public.studio_ping()
+returns void language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); last timestamptz;
+begin
+  if me is null or public.studio_identity() is null or not public.studio_fresh() then return; end if;
+  select seen_at into last from public.studio_seen where user_id = me;
+  insert into public.studio_seen (user_id, seen_at) values (me, now())
+  on conflict (user_id) do update set seen_at = now();
+  if last is null or last < now() - interval '30 minutes' then perform public.studio_log_add('opened the Studio', null); end if;
+end;
+$$;
+revoke execute on function public.studio_ping() from public, anon;
+grant execute on function public.studio_ping() to authenticated;
+
+/* the owner's view: who is here now, and what was done */
+create or replace function public.studio_activity()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select case when not public.is_app_owner() then '{}'::jsonb else jsonb_build_object(
+    'online', coalesce((
+      select jsonb_agg(jsonb_build_object('name', coalesce(m.username, p.name, 'You'), 'role', coalesce(m.role, 'owner'), 'seen_at', s.seen_at) order by s.seen_at desc)
+        from public.studio_seen s
+        left join public.team_members m on m.user_id = s.user_id
+        left join public.profiles p on p.id = s.user_id
+       where s.seen_at > now() - interval '2 minutes' and s.user_id <> auth.uid()), '[]'::jsonb),
+    'log', coalesce((
+      select jsonb_agg(jsonb_build_object('who', l.actor_name, 'action', l.action, 'detail', l.detail, 'at', l.at) order by l.at desc)
+        from (select * from public.studio_log order by at desc limit 60) l), '[]'::jsonb)) end;
+$$;
+revoke execute on function public.studio_activity() from public, anon;
+grant execute on function public.studio_activity() to authenticated;
+
 notify pgrst, 'reload schema';

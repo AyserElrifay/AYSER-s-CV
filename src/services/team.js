@@ -39,3 +39,15 @@ export async function teamAction(action, payload) {
   }
   return data;
 }
+
+/* "I am here" — every minute while the Studio is open (studio_ping) */
+export async function studioPing() {
+  try { await supabase.rpc('studio_ping'); } catch (e) {}
+}
+
+/* the owner's view: { online: [{ name, role, seen_at }], log: [{ who, action, detail, at }] } */
+export async function studioActivity() {
+  const { data, error } = await supabase.rpc('studio_activity');
+  if (error) throw error;
+  return { online: (data && data.online) || [], log: (data && data.log) || [] };
+}

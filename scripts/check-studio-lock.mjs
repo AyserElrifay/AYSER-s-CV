@@ -33,5 +33,10 @@ is('and again after 2 minutes away or 25 minutes open', /2 \* 60 \* 1000/.test(a
 is('Face ID / fingerprint is a real passkey, verified by the server', /mfa\.webauthn\.authenticate/.test(read('src/services/studioLock.js')) && /mfa\.webauthn\.register/.test(read('src/services/studioLock.js')), true);
 is('and a code is there as the way back', /factorType: 'totp'/.test(read('src/services/studioLock.js')) && /challengeAndVerify/.test(read('src/services/studioLock.js')), true);
 
+const logPart = sql.slice(sql.indexOf('STUDIO · WHO DID WHAT, AND WHO IS HERE'));
+is('the activity log is written by the database at each decision', /create trigger %I after update on public\.%I for each row execute function public\.studio_log_decision\(\)/.test(logPart), true);
+is('nobody writes the log by hand, and only the owner reads it', !/on public\.studio_log for (insert|update|delete|all)/.test(logPart) && /for select using \(public\.is_app_owner\(\)\)/.test(logPart) && /revoke execute on function public\.studio_log_add\(text, text\) from public, anon, authenticated/.test(logPart), true);
+is('online means unlocked and in the Studio in the last 2 minutes', /not public\.studio_fresh\(\) then return/.test(logPart) && /interval '2 minutes'/.test(logPart), true);
+
 if (bad) { console.log('\n' + bad + ' wrong.'); process.exit(1); }
 console.log('\nThe Studio opens with Face ID, a fingerprint or a code — and the server refuses everything without it.');

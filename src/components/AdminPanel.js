@@ -8,7 +8,7 @@ import { fetchReports, setReportStatus } from '../services/reports';
 import { removeGatheringPhoto } from '../services/green';
 import { fetchPendingHosts, documentUrl, decideHost } from '../services/hosts';
 import { fetchSafetyQueue, decideReport, coachDone } from '../services/standing';
-import { fetchTeam, teamAction, TEAM_ROLES } from '../services/team';
+import { fetchTeam, teamAction, TEAM_ROLES, studioPing, studioActivity } from '../services/team';
 import { askAdvice } from '../services/advice';
 import { useLang } from '../context/LanguageContext';
 import { fetchFeedback, markFeedbackSeen } from '../services/feedback';
@@ -38,6 +38,7 @@ const TABS = [
   { k: 'reports', label: 'Reports', icon: 'flag-outline', area: 'safety' },
   { k: 'hosts', label: 'Guides', icon: 'id-card-outline', area: 'verify' },
   { k: 'team', label: 'Team', icon: 'people-outline' },
+  { k: 'activity', label: 'Activity', icon: 'pulse-outline' },
   { k: 'venues', label: 'Venues', icon: 'business-outline' },
   { k: 'verify', label: 'Verify', icon: 'shield-checkmark-outline' },
   { k: 'music', label: 'Music', icon: 'musical-notes-outline' },
@@ -152,6 +153,40 @@ const Attention = ({ a, tabs, onTab, onClose }) => {
         )}
       </ScrollView>
     </View>
+  );
+};
+
+/* ── WHO DID WHAT, AND WHO IS HERE ───────────────────────────────────
+   Written by the database at the moment of each decision (studio_log
+   in RUN_ME.sql), read by the owner only. */
+const ago = (iso) => {
+  const m = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
+  if (m < 1) return 'now';
+  if (m < 60) return m + 'm';
+  const h = Math.round(m / 60);
+  return h < 48 ? h + 'h' : Math.round(h / 24) + 'd';
+};
+const LogLine = ({ l }) => (
+  <View style={{ flexDirection: 'row', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: C.line }}>
+    <Text style={{ flex: 1, color: C.text, fontSize: 13.5, lineHeight: 19 }}>
+      <Text style={{ fontWeight: '900' }}>{l.who || 'Someone'}</Text>{' ' + l.action}{l.detail ? <Text style={{ color: C.dim }}>{' · ' + l.detail}</Text> : null}
+    </Text>
+    <Text style={{ color: C.faint, fontSize: 11.5, marginStart: 8 }}>{ago(l.at)}</Text>
+  </View>
+);
+const LiveStrip = ({ act, onOpen }) => {
+  if (!act || (!act.online.length && !act.log.length)) return null;
+  const last = act.log[0];
+  return (
+    <Pressable onPress={onOpen} style={{ marginHorizontal: 16, marginTop: 8, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
+      {act.online.map((o) => (
+        <View key={o.name} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.greenSoft, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3, marginEnd: 6, marginBottom: 4 }}>
+          <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: C.green, marginEnd: 5 }} />
+          <Text style={{ color: C.text, fontSize: 11.5, fontWeight: '800' }}>{o.name + ' · online'}</Text>
+        </View>
+      ))}
+      {last ? <Text style={{ color: C.dim, fontSize: 12, flexShrink: 1, marginBottom: 4 }} numberOfLines={1}>{last.who + ' ' + last.action + (last.detail ? ' · ' + last.detail : '') + ' · ' + ago(last.at)}</Text> : null}
+    </Pressable>
   );
 };
 
@@ -401,6 +436,7 @@ export const AdminPanel = ({ onClose, access = { owner: true } }) => {
   const [venues, setVenues] = useState(null);
   const [venueErr, setVenueErr] = useState(null);
   const [hosts, setHosts] = useState(null);
+  const [act, setAct] = useState(null);
   const [safety, setSafety] = useState(null);
   const [safetyErr, setSafetyErr] = useState(null);
   const [hostErr, setHostErr] = useState(null);
@@ -431,6 +467,14 @@ export const AdminPanel = ({ onClose, access = { owner: true } }) => {
   const [dbRows, setDbRows] = useState(null);
 
   useEffect(() => { if (owner) fetchStudioStats().then(setStats).catch(() => setStats(null)); }, [owner]);
+  /* here, every minute; and for the owner, who else is here and what they did */
+  useEffect(() => {
+    studioPing();
+    const load = () => { if (owner) studioActivity().then(setAct).catch(() => {}); };
+    load();
+    const t = setInterval(() => { studioPing(); load(); }, 20 * 1000);
+    return () => clearInterval(t);
+  }, [owner]);
   useEffect(() => {
     if (tab === 'reports' && reports == null) fetchReports().then(setReports).catch(() => setReports([]));
     if (tab === 'venues' && venues == null) fetchPendingVenues().then(setVenues).catch(() => { setVenues([]); setVenueErr(true); });
@@ -566,6 +610,8 @@ export const AdminPanel = ({ onClose, access = { owner: true } }) => {
           <Stat n={stats && stats.openReports} l="REPORTS" tint={stats && stats.openReports ? C.coral : C.text} />
           <Stat n={stats && stats.newFeedback} l="FEEDBACK" tint={stats && stats.newFeedback ? C.purple : C.text} />
         </View> : null}
+
+        {owner ? <LiveStrip act={act} onOpen={() => setTab('activity')} /> : null}
 
         {/* Bardi assist */}
         {owner ? <Pressable onPress={askBardiSummary} style={{ marginHorizontal: 16, marginTop: 10 }}>
@@ -712,6 +758,18 @@ export const AdminPanel = ({ onClose, access = { owner: true } }) => {
           ) : null}
 
           {tab === 'team' && owner ? <TeamTab /> : null}
+          {tab === 'activity' && owner ? (
+            act == null ? <Empty t="Run the latest SQL (part 26) to see the team's activity here." /> : (
+              <>
+                <Text style={{ color: C.faint, fontSize: 11, fontWeight: '900', letterSpacing: 1, marginTop: 6 }}>ONLINE NOW</Text>
+                {act.online.length ? act.online.map((o) => (
+                  <Text key={o.name} style={{ color: C.text, fontSize: 14, fontWeight: '700', marginTop: 6 }}>{'🟢 ' + o.name + '  ·  ' + o.role}</Text>
+                )) : <Text style={{ color: C.dim, fontSize: 13, marginTop: 6 }}>Nobody else is in the Studio.</Text>}
+                <Text style={{ color: C.faint, fontSize: 11, fontWeight: '900', letterSpacing: 1, marginTop: 18 }}>WHAT WAS DONE</Text>
+                {act.log.length ? act.log.map((l, i) => <LogLine key={i} l={l} />) : <Text style={{ color: C.dim, fontSize: 13, marginTop: 6 }}>Nothing yet.</Text>}
+              </>
+            )
+          ) : null}
 
           {/* reported chats, worst first, and who is waiting for a session */}
           {tab === 'safety' ? (
