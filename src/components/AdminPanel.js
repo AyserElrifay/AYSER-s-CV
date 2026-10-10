@@ -10,6 +10,8 @@ import { fetchPendingHosts, documentUrl, decideHost } from '../services/hosts';
 import { fetchSafetyQueue, decideReport, coachDone } from '../services/standing';
 import { fetchTeam, teamAction, TEAM_ROLES, studioPing, studioActivity } from '../services/team';
 import { askAdvice } from '../services/advice';
+import { fetchAllHighlights, addHighlight, setHighlightLive } from '../services/appHighlights';
+import { uploadMediaSmart } from '../lib/storage';
 import { useLang } from '../context/LanguageContext';
 import { fetchFeedback, markFeedbackSeen } from '../services/feedback';
 import { fetchStudioStats } from '../services/feedback';
@@ -39,6 +41,7 @@ const TABS = [
   { k: 'hosts', label: 'Guides', icon: 'id-card-outline', area: 'verify' },
   { k: 'team', label: 'Team', icon: 'people-outline' },
   { k: 'activity', label: 'Activity', icon: 'pulse-outline' },
+  { k: 'highlights', label: 'Highlights', icon: 'film-outline' },
   { k: 'venues', label: 'Venues', icon: 'business-outline' },
   { k: 'verify', label: 'Verify', icon: 'shield-checkmark-outline' },
   { k: 'music', label: 'Music', icon: 'musical-notes-outline' },
@@ -187,6 +190,77 @@ const LiveStrip = ({ act, onOpen }) => {
       ))}
       {last ? <Text style={{ color: C.dim, fontSize: 12, flexShrink: 1, marginBottom: 4 }} numberOfLines={1}>{last.who + ' ' + last.action + (last.detail ? ' · ' + last.detail : '') + ' · ' + ago(last.at)}</Text> : null}
     </Pressable>
+  );
+};
+
+/* ── HOME HIGHLIGHTS: a real evening, with everyone's agreement ──────
+   Live on Home only after the owner confirms that everybody who can be
+   recognised agreed to be in the app — the database refuses it without
+   that (highlight_add in RUN_ME.sql). A post on a personal page is not
+   the same as an advert for an app; people get to say yes to this. */
+const pickMedia = () => new Promise((resolve) => {
+  if (typeof document === 'undefined') return resolve(null);
+  const input = document.createElement('input');
+  input.type = 'file'; input.accept = 'image/*,video/mp4,video/webm,video/quicktime';
+  input.style.display = 'none';
+  input.onchange = () => { resolve((input.files && input.files[0]) || null); input.remove(); };
+  document.body.appendChild(input); input.click();
+  return undefined;
+});
+const HighlightsTab = ({ userId }) => {
+  const [list, setList] = useState(null);
+  const [file, setFile] = useState(null);
+  const [caption, setCaption] = useState('');
+  const [agreed, setAgreed] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState(null);
+  const load = () => fetchAllHighlights().then(setList).catch(() => setList(false));
+  useEffect(() => { load(); }, []);
+  const isVideo = file && /^video\//.test(file.type);
+  const publish = async () => {
+    if (!file || !agreed || busy) return;
+    setBusy(true); setMsg(null);
+    try {
+      const ext = (file.name.split('.').pop() || (isVideo ? 'mp4' : 'jpg')).toLowerCase();
+      const url = await uploadMediaSmart(userId, URL.createObjectURL(file), ext, file.type || (isVideo ? 'video/mp4' : 'image/jpeg'));
+      await addHighlight({ mediaUrl: url, kind: isVideo ? 'video' : 'photo', caption, everyoneAgreed: agreed });
+      tapSuccess(); setFile(null); setCaption(''); setAgreed(false); setMsg('Live on Home.'); load();
+    } catch (e) { setMsg(/consent/.test(e.message) ? 'Tick the box first.' : 'Could not publish — try again.'); }
+    setBusy(false);
+  };
+  if (list === false) return <Text style={{ color: C.faint, fontSize: 13, textAlign: 'center', paddingVertical: 40 }}>Run the latest SQL (part 27) to add Home highlights.</Text>;
+  return (
+    <>
+      <Text style={{ color: C.dim, fontSize: 13, lineHeight: 19, marginTop: 4 }}>A real evening on Moments, at the top of Home with one button: find one like it this week.</Text>
+      <Pressable onPress={async () => { tapLight(); const f = await pickMedia(); if (f) setFile(f); }} style={{ marginTop: 12 }}>
+        <View style={{ height: 160, borderRadius: 16, borderWidth: 1.5, borderStyle: 'dashed', borderColor: C.line, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+          {file ? (isVideo ? <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>🎬 {file.name}</Text> : <Image source={{ uri: URL.createObjectURL(file) }} style={{ width: '100%', height: '100%' }} />)
+            : <Text style={{ color: C.dim, fontSize: 14, fontWeight: '800' }}>＋ Choose a photo or a short video</Text>}
+        </View>
+      </Pressable>
+      <TextInput value={caption} onChangeText={setCaption} maxLength={140} placeholder="One line (optional) — e.g. Painting night, Zamalek" placeholderTextColor={C.faint} style={field()} />
+      <Pressable onPress={() => { tapLight(); setAgreed((a) => !a); }} accessibilityRole="checkbox" accessibilityState={{ checked: agreed }}
+        style={{ flexDirection: 'row', alignItems: 'flex-start', marginTop: 12, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: agreed ? C.text : C.line }}>
+        <Ionicons name={agreed ? 'checkbox' : 'square-outline'} size={20} color={agreed ? C.text : C.faint} />
+        <Text style={{ flex: 1, color: C.text, fontSize: 13, lineHeight: 19, marginStart: 8 }}>Everyone who can be recognised in this agreed to be shown in the Moments app. (A post on my own page is not enough — I asked them for this.)</Text>
+      </Pressable>
+      <Pressable onPress={publish} disabled={!file || !agreed || busy} style={{ marginTop: 12 }}>
+        <View style={{ borderRadius: 14, backgroundColor: C.purple, paddingVertical: 12, alignItems: 'center', opacity: file && agreed && !busy ? 1 : 0.45 }}>
+          {busy ? <ActivityIndicator color="#FFF" /> : <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '900' }}>Put it on Home</Text>}
+        </View>
+      </Pressable>
+      {msg ? <Text style={{ color: C.dim, fontSize: 13, marginTop: 8 }}>{msg}</Text> : null}
+      <Text style={{ color: C.faint, fontSize: 11, fontWeight: '900', letterSpacing: 1, marginTop: 20 }}>ON HOME</Text>
+      {list == null ? <ActivityIndicator color={C.purple} style={{ marginTop: 16 }} /> : list.length ? list.map((h) => (
+        <View key={h.id} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.line }}>
+          <Text style={{ fontSize: 18, marginEnd: 8 }}>{h.kind === 'video' ? '🎬' : '🖼'}</Text>
+          <Text style={{ flex: 1, color: C.text, fontSize: 13.5 }} numberOfLines={1}>{h.caption || h.kind}{h.live ? '' : '  · off'}</Text>
+          <Pressable onPress={async () => { await setHighlightLive(h.id, !h.live).catch(() => {}); tapLight(); load(); }}>
+            <Text style={{ color: h.live ? C.coral : C.green, fontSize: 12.5, fontWeight: '800' }}>{h.live ? 'Take off' : 'Put back'}</Text>
+          </Pressable>
+        </View>
+      )) : <Text style={{ color: C.dim, fontSize: 13, marginTop: 8 }}>Nothing yet — the Home card stays hidden until there is one.</Text>}
+    </>
   );
 };
 
@@ -758,6 +832,7 @@ export const AdminPanel = ({ onClose, access = { owner: true } }) => {
           ) : null}
 
           {tab === 'team' && owner ? <TeamTab /> : null}
+          {tab === 'highlights' && owner ? <HighlightsTab userId={user && user.id} /> : null}
           {tab === 'activity' && owner ? (
             act == null ? <Empty t="Run the latest SQL (part 26) to see the team's activity here." /> : (
               <>

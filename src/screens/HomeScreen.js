@@ -29,6 +29,7 @@ import { Modal } from 'react-native';
 import { goToTab, showOnMap } from '../lib/mapBus';
 import { takeLaunchTarget, onPushOpen } from '../lib/push';
 import { BrainDump } from '../components/BrainDump';
+import { GoOutRail } from '../components/GoOutRail';
 import { lazyOverlay } from '../lib/lazyScreen';
 
 /* ─── THE FEED FIRST, THE REST WHEN YOU REACH FOR IT ─────────────────
@@ -489,6 +490,14 @@ export const HomeScreen = () => {
               onOpenStory={setStoryIndex}
               onAddStory={() => setComposing('story')}
             />
+
+            {/* real evenings and real plans with real photos — the reason to go (src/components/GoOutRail.js) */}
+            {user ? (
+              <GoOutRail
+                onFind={() => setWhatsOn(true)}
+                onOpenPlan={(g) => { if (g.lat != null && g.lng != null) showOnMap({ lat: g.lat, lng: g.lng }); else goToTab('TOGETHER'); }}
+              />
+            ) : null}
 
             {/* today, one thing at a time — Bardi's brain dump */}
             {user ? <BrainDump /> : null}

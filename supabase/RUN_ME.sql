@@ -11546,4 +11546,54 @@ $$;
 revoke execute on function public.studio_activity() from public, anon;
 grant execute on function public.studio_activity() to authenticated;
 
+-- ═══════════ HOME · WHAT A MOMENTS EVENING LOOKS LIKE ═══════════
+/* Ayser: photos or videos to make people want to go out. A real one,
+   from a real evening — chosen by the owner in the Studio, and shown
+   on Home only after he confirms that everybody who can be recognised
+   in it agreed to be in the app. Without that box ticked it cannot go
+   live; the database refuses it, not the screen. */
+create table if not exists public.app_highlights (
+  id          uuid primary key default gen_random_uuid(),
+  media_url   text not null,
+  kind        text not null check (kind in ('photo', 'video')),
+  caption     text,
+  consent_at  timestamptz not null,
+  added_by    uuid,
+  live        boolean not null default true,
+  created_at  timestamptz not null default now()
+);
+alter table public.app_highlights enable row level security;
+drop policy if exists "highlights: live ones for everyone" on public.app_highlights;
+create policy "highlights: live ones for everyone" on public.app_highlights for select using (live or public.is_app_owner());
+
+create or replace function public.highlight_add(p_media text, p_kind text, p_caption text, p_everyone_agreed boolean)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare hid uuid;
+begin
+  if not public.is_app_owner() then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
+  if p_everyone_agreed is not true then return jsonb_build_object('ok', false, 'reason', 'consent'); end if;
+  if p_kind not in ('photo', 'video') then return jsonb_build_object('ok', false, 'reason', 'kind'); end if;
+  if p_media is null or p_media !~ '^https://' then return jsonb_build_object('ok', false, 'reason', 'media'); end if;
+  insert into public.app_highlights (media_url, kind, caption, consent_at, added_by)
+  values (p_media, p_kind, nullif(left(btrim(coalesce(p_caption, '')), 140), ''), now(), auth.uid())
+  returning id into hid;
+  perform public.studio_log_add('added a Home highlight', p_kind);
+  return jsonb_build_object('ok', true, 'id', hid);
+end;
+$$;
+revoke execute on function public.highlight_add(text, text, text, boolean) from public, anon;
+grant execute on function public.highlight_add(text, text, text, boolean) to authenticated;
+
+create or replace function public.highlight_set_live(p_id uuid, p_live boolean)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_app_owner() then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
+  update public.app_highlights set live = p_live where id = p_id;
+  perform public.studio_log_add(case when p_live then 'put a highlight back on Home' else 'took a highlight off Home' end, null);
+  return jsonb_build_object('ok', true);
+end;
+$$;
+revoke execute on function public.highlight_set_live(uuid, boolean) from public, anon;
+grant execute on function public.highlight_set_live(uuid, boolean) to authenticated;
+
 notify pgrst, 'reload schema';

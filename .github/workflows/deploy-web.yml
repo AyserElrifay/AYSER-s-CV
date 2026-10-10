@@ -215,6 +215,9 @@ jobs:
       # The Studio: Face ID / fingerprint / code, enforced by the server.
       - name: Check the Studio lock
         run: node scripts/check-studio-lock.mjs
+      # Home: real evenings and plans; nobody shown who did not agree.
+      - name: Check the go-out rail
+        run: node scripts/check-go-out.mjs
       # No signal must not mean no app.
       - name: Check the app works offline
         run: node scripts/check-offline.mjs
