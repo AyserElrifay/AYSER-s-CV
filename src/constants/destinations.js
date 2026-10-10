@@ -127,7 +127,7 @@ export const DESTINATIONS = [
   { id: 'eg_siwa_salt', country: 'Egypt', flag: '🇪🇬', emoji: '🧂', name: 'Siwa Salt Lakes', area: 'Siwa Oasis',
     lat: 29.2211, lng: 25.6390, tags: ['Wellbeing', 'Photo'],
     desc: 'Impossibly turquoise pools ringed by white salt crystals — so salty you float without trying. Otherworldly to see, genuinely therapeutic to swim.' },
-  { id: 'eg_shali', country: 'Egypt', flag: '🇪🇬', emoji: '🏯', name: 'Shali Fortress', area: 'Siwa Oasis',
+  { id: 'eg_shali', photo: 'place-shali.jpg', video: 'place-shali.mp4', country: 'Egypt', flag: '🇪🇬', emoji: '🏯', name: 'Shali Fortress', area: 'Siwa Oasis',
     lat: 29.2032, lng: 25.5196, tags: ['Culture', 'Sunset'],
     desc: 'A melting salt-and-mud citadel rising from the oasis. Climb its winding paths at sunset for the full palm-grove panorama and real Siwan heritage.' },
   { id: 'eg_wadi_rayan', country: 'Egypt', flag: '🇪🇬', emoji: '🏜️', name: 'Wadi El Rayan', area: 'Fayoum',

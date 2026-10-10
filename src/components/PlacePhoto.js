@@ -14,7 +14,7 @@ import { isSaving } from '../lib/dataSaver';
    — the sheet looks as it did, with its emoji.
    A few places carry a photo Ayser sent himself (`photo` in
    src/constants/destinations.js); that one comes first, with no
-   credit line because it is ours. Three carry a short silent clip of
+   credit line because it is ours. Some carry a short silent clip of
    his instead (`video`, with `photo` as its still): it plays muted on a
    loop, and on data saver only the still shows. */
 
