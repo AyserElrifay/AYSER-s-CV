@@ -14,6 +14,7 @@ import { activityPin, lookOf, titleFor, whenFor } from '../lib/activityPins';
 import { rankPeople, rankPlans } from '../lib/recommend';
 import { getProfile } from '../services/profiles';
 import { PlacePhoto } from '../components/PlacePhoto';
+import { PlaceVoices } from '../components/PlaceVoices';
 import { MapPanel, PeoplePanel, personWhere, MAP_PANEL_PEEK, MAP_PANEL_CHIPS, PEOPLE_PANEL_PEEK } from '../components/MapPanel';
 import { kmBetween, projectToMap } from '../utils/geo';
 import { requestLocationPermission, getCurrentCoords, watchCoords } from '../utils/location';
@@ -27,7 +28,7 @@ import { buildAvatarUrl, buildStandingUrl } from '../services/avatarBuilder';
 import { fetchNearbyPlaces } from '../services/places';
 import { DESTINATIONS } from '../constants/destinations';
 import { fetchDestReviews, addDestReview } from '../services/destinations';
-import { fetchPostsNearby, fetchMomentPins } from '../services/posts';
+import { fetchMomentPins } from '../services/posts';
 import { requestTrip } from '../services/trips';
 import { fetchTrips, hostTrip, joinTrip, leaveTrip, cancelTrip } from '../services/tripPlans';
 import { getOrCreateDmThread, sendMessage } from '../services/messages';
@@ -65,6 +66,7 @@ const ProfileModal = lazyOverlay(() => import('../components/ProfileModal').then
 const CountrySheet = lazyOverlay(() => import('../components/CountrySheet').then((mod) => ({ default: mod.CountrySheet })));
 const GoNowSheet = lazyOverlay(() => import('../components/GoNowSheet').then((mod) => ({ default: mod.GoNowSheet })));
 const GreenSheet = lazyOverlay(() => import('../components/green/GreenSheet').then((mod) => ({ default: mod.GreenSheet })));
+const ComposeModal = lazyOverlay(() => import('../components/ComposeModal').then((mod) => ({ default: mod.ComposeModal })));
 
 /* Which pins belong to each lens. `all` keeps everything; the rest are
    deliberately narrow, because the point of a lens is that the map goes
@@ -136,7 +138,6 @@ export const MapScreen = () => {
   const openSheet = (name) => { tapLight(); setSheet(name); };
   const closeSheet = () => setSheet(null);
   const [placeOpen, setPlaceOpen] = useState(null); // a tapped real-world place
-  const [placePosts, setPlacePosts] = useState(null); // real moments shared there
   const [rail, setRail] = useState('book');      // 'book' | 'deals' — the Places lens's rail
 
   /* ── ONE MAP, A FEW LENSES ────────────────────────────────────────
@@ -265,19 +266,10 @@ export const MapScreen = () => {
     });
   }, [located]);
 
-  /* ── real moments shared AT a tapped place: photos & videos people
-     actually posted there. Nothing scripted — a genuine query around
-     the spot's coordinates (and its name). ── */
-  useEffect(() => {
-    if (!placeOpen) { setPlacePosts(null); return; }
-    if (!SUPABASE_READY) { setPlacePosts([]); return; }
-    let cancelled = false;
-    setPlacePosts(null); // loading
-    fetchPostsNearby({ lat: placeOpen.lat, lng: placeOpen.lng, name: placeOpen.name })
-      .then((rows) => { if (!cancelled) setPlacePosts(rows); })
-      .catch(() => { if (!cancelled) setPlacePosts([]); });
-    return () => { cancelled = true; };
-  }, [placeOpen]);
+  /* what people shared at a tapped place is fetched by PlaceVoices
+     itself (src/components/PlaceVoices.js); "share it here" opens the
+     composer on that place, with its real spot */
+  const [composeAt, setComposeAt] = useState(null);
 
   /* Rehydrate your real "doing" status from the server on load — the
      local myDoing state resets to null every time the app opens, but
@@ -1861,9 +1853,11 @@ export const MapScreen = () => {
       {/* a REAL place (OpenStreetMap) — directions + tracked deals */}
       {placeOpen ? (
         <Pressable onPress={() => setPlaceOpen(null)} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end', zIndex: 30 }}>
-          <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, paddingBottom: insets.bottom + 22, paddingHorizontal: 16 }}>
+          <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, maxHeight: '86%' }}>
             <SheetHandle onClose={() => setPlaceOpen(null)} />
             <SheetBack onClose={() => setPlaceOpen(null)} />
+            {/* a place with stories, photos and words is taller than a phone: it scrolls */}
+            <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 22 }}>
             {/* a free photo of this very place, credited — or nothing */}
             <PlacePhoto place={placeOpen} height={160} />
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -1890,56 +1884,16 @@ export const MapScreen = () => {
                 </View>
               </Pressable>
             </View>
-            {/* real moments shared here — photos & videos, straight from
-                the feed, whenever someone posted from this exact spot */}
-            {placePosts === null ? (
-              <Text style={{ color: C.faint, fontSize: 11.5, textAlign: 'center', marginTop: 16 }}>{t('looking_for_moments')}</Text>
-            ) : placePosts.length ? (
-              <>
-                <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '800', letterSpacing: 1, marginTop: 18, marginBottom: 10 }}>
-                  {t('moments_here').replace('{n}', placePosts.length)}
-                </Text>
-                <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false}>
-                  {placePosts.map((p) => {
-                    const media = p.media_url;
-                    const isVid = p.type === 'vod' || p.type === 'reel' || /\.(mp4|mov|webm)(\?|$)/i.test(media || '');
-                    return (
-                      <Pressable key={p.id} onPress={() => {
-                        const author = p.user;
-                        if (author) { setPlaceOpen(null); setProfileUser({ id: author.id, name: author.name || 'Explorer', avatar: author.avatar_url || AV_NEUTRAL, handle: author.handle, verified: !!author.verified, intent: author.intent, bio: author.bio }); }
-                      }} style={{ marginRight: 10 }}>
-                        <View style={{ width: 108, height: 148, borderRadius: 14, overflow: 'hidden', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line }}>
-                          {media ? (
-                            <Image source={{ uri: media }} style={{ width: '100%', height: '100%' }} />
-                          ) : (
-                            <View style={{ flex: 1, padding: 8, justifyContent: 'center' }}>
-                              <Text style={{ color: C.text, fontSize: 12, fontWeight: '700' }} numberOfLines={5}>{p.caption || '✨'}</Text>
-                            </View>
-                          )}
-                          {isVid ? (
-                            <View style={{ position: 'absolute', top: 8, right: 8, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 999, width: 24, height: 24, alignItems: 'center', justifyContent: 'center' }}>
-                              <Ionicons name="play" size={13} color="#FFF" />
-                            </View>
-                          ) : null}
-                          <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.45)', paddingHorizontal: 7, paddingVertical: 5, flexDirection: 'row', alignItems: 'center' }}>
-                            <Image source={{ uri: (p.user && p.user.avatar_url) || AV_NEUTRAL }} style={{ width: 16, height: 16, borderRadius: 8, marginRight: 5 }} />
-                            <Text style={{ color: '#FFF', fontSize: 10, fontWeight: '700', flex: 1 }} numberOfLines={1}>{(p.user && p.user.name) || 'Explorer'}</Text>
-                          </View>
-                        </View>
-                      </Pressable>
-                    );
-                  })}
-                </ScrollView>
-              </>
-            ) : SUPABASE_READY ? (
-              <Text style={{ color: C.faint, fontSize: 11.5, textAlign: 'center', marginTop: 16 }}>
-                {t('no_moments_here')}
-              </Text>
-            ) : null}
+            {/* everything people really shared here — live stories, photos,
+                and what they say — and a way to add yours (PlaceVoices.js) */}
+            <PlaceVoices place={placeOpen}
+              onShare={(pl) => { setPlaceOpen(null); setComposeAt({ name: pl.name, lat: pl.lat, lng: pl.lng }); }}
+              onOpenPerson={(u) => { setPlaceOpen(null); setProfileUser(u); }} />
 
             <Text style={{ color: C.faint, fontSize: 10.5, textAlign: 'center', marginTop: 14 }}>
               {t('place_attribution')}
             </Text>
+            </ScrollView>
           </Pressable>
         </Pressable>
       ) : null}
@@ -2160,6 +2114,10 @@ export const MapScreen = () => {
                   </View>
                 ))
               )}
+              {/* and what people shared there themselves */}
+              <PlaceVoices place={destOpen}
+                onShare={(pl) => { setDestOpen(null); setComposeAt({ name: pl.name, lat: pl.lat, lng: pl.lng }); }}
+                onOpenPerson={(u) => { setDestOpen(null); setProfileUser(u); }} />
             </ScrollView>
           </Pressable>
         </Pressable>
@@ -2221,6 +2179,12 @@ export const MapScreen = () => {
 
       {profileUser ? <ProfileModal user={profileUser} onClose={() => setProfileUser(null)} /> : null}
       {greenOpen ? <GreenSheet onClose={() => setGreenOpen(false)} /> : null}
+      {composeAt ? (
+        <ComposeModal initialMode="post" initialPlace={composeAt}
+          onClose={() => setComposeAt(null)}
+          onPosted={() => { setComposeAt(null); fetchMomentPins().then(setMomentPins).catch(() => {}); }}
+          onPostedStory={() => setComposeAt(null)} />
+      ) : null}
       {goNow ? <GoNowSheet onClose={() => { setGoNow(false); listGatherings(null).then(setGatherings).catch(() => {}); }} /> : null}
       {bookingVenue ? <BookingSheet venue={bookingVenue} onClose={() => { setBooked((x) => ({ ...x, [bookingVenue.id]: true })); setBookingVenue(null); }} /> : null}
       {travelTo ? <TravelSheet city={travelTo} onClose={() => setTravelTo(null)} /> : null}

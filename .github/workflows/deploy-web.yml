@@ -197,6 +197,9 @@ jobs:
       # Public places: a free photo of that very place, credited, or none.
       - name: Check place photos
         run: node scripts/check-commons-photo.mjs
+      # Places: what people really shared there, and posts that belong to a place.
+      - name: Check place voices
+        run: node scripts/check-place-voices.mjs
       # No signal must not mean no app.
       - name: Check the app works offline
         run: node scripts/check-offline.mjs

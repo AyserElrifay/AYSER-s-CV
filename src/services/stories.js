@@ -122,6 +122,23 @@ export async function fetchStoryPins(limit = 80) {
   return data || [];
 }
 
+/* Live stories shared at one place (~400 m) — "right now, here". */
+export async function fetchStoriesNearby({ lat, lng }, radiusKm = 0.4) {
+  if (lat == null || lng == null) return [];
+  const dLat = radiusKm / 111;
+  const dLng = radiusKm / (111 * Math.max(0.2, Math.cos((lat * Math.PI) / 180)));
+  const { data, error } = await supabase
+    .from('stories')
+    .select('id, user_id, media_url, caption, place, lat, lng, created_at, user:profiles!stories_user_id_fkey(name, avatar_url, country_flag)')
+    .gte('lat', lat - dLat).lte('lat', lat + dLat)
+    .gte('lng', lng - dLng).lte('lng', lng + dLng)
+    .gt('expires_at', new Date().toISOString())
+    .order('created_at', { ascending: false })
+    .limit(12);
+  if (error) throw error;
+  return data || [];
+}
+
 /* Storage hygiene — expired stories don't just hide, they're GONE:
    a security-definer RPC deletes your expired rows and returns their
    media URLs, then we remove the actual files from storage so they stop

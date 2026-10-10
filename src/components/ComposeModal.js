@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { View, Text, Modal, TextInput, Pressable, Image, ScrollView, Platform } from 'react-native';
+import { View, Text, Modal, TextInput, Pressable, Image, ScrollView, Platform, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as ImagePicker from 'expo-image-picker';
+import { requestLocationPermission, getCurrentCoords } from '../utils/location';
 import { C, R, TEXT_BGS } from '../constants/theme';
 import { useLang } from '../context/LanguageContext';
 import { ME, av } from '../constants/mockData';
@@ -32,7 +33,7 @@ const MODES = [
   { id: 'travel', label: 'Travel', emoji: '🧳' },
 ];
 
-export const ComposeModal = ({ initialMode = 'post', initialCaption = '', onClose, onPosted, onPostedStory, onOpenStudio }) => {
+export const ComposeModal = ({ initialMode = 'post', initialCaption = '', initialPlace = null, onClose, onPosted, onPostedStory, onOpenStudio }) => {
   /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
   useSheetBack(onClose);
   const { t } = useLang();
@@ -41,7 +42,26 @@ export const ComposeModal = ({ initialMode = 'post', initialCaption = '', onClos
   const [mode, setMode] = useState(initialMode);
   // opened from a topic → the tag is already in the box, cursor after it
   const [caption, setCaption] = useState(initialCaption ? initialCaption + ' ' : '');
-  const [place, setPlace] = useState('');
+  /* Opened from a place on the map, the moment belongs to that place:
+     its name is filled in and its real coordinates go with the post, so
+     it shows up on the map and on that place's page. Change the name and
+     the coordinates are dropped — a typed name is not a spot. */
+  const [place, setPlace] = useState((initialPlace && initialPlace.name) || '');
+  /* Or, only if they ask: pinned to where they are standing. Off by
+     default — a moment posted from home must not put home on the map. */
+  const [here, setHere] = useState(null);           // { lat, lng } | 'busy' | null
+  const fromPlace = initialPlace && initialPlace.lat != null && initialPlace.lng != null && place.trim() === String(initialPlace.name || '').trim()
+    ? { lat: initialPlace.lat, lng: initialPlace.lng } : null;
+  const spot = fromPlace || (here && here !== 'busy' ? here : null);
+  const pinHere = async () => {
+    if (here) { setHere(null); return; }
+    setHere('busy');
+    try {
+      const ok = await requestLocationPermission();
+      const c = ok ? await getCurrentCoords() : null;
+      setHere(c ? { lat: c.latitude, lng: c.longitude } : null);
+    } catch (e) { setHere(null); }
+  };
   // what this moment is for — asked first, because it decides what the
   // card asks of everyone else: come here, or help / go somewhere better
   const [intent, setIntent] = useState(null);
@@ -145,6 +165,8 @@ export const ComposeModal = ({ initialMode = 'post', initialCaption = '', onClos
           type: isReel ? 'reel' : isTravel ? 'travel' : 'post',
           caption: caption.trim(),
           place: place.trim() || null,
+          lat: spot ? spot.lat : null,
+          lng: spot ? spot.lng : null,
           mediaUrl,
           textBg: mediaUrl || textBg === 'plain' ? null : textBg,
           plan,
@@ -503,6 +525,15 @@ export const ComposeModal = ({ initialMode = 'post', initialCaption = '', onClos
                 onChangeText={setPlace}
                 style={{ flex: 1, color: C.text, fontSize: 12.5, marginLeft: 6, paddingVertical: Platform.OS === 'ios' ? 10 : 8 }}
               />
+              {/* pin it where you are — only when asked, never by default */}
+              {!fromPlace && !isTravel ? (
+                <Pressable onPress={pinHere} accessibilityRole="switch" accessibilityState={{ checked: !!(here && here !== 'busy') }} accessibilityLabel={t('pv_pin_here')}
+                  style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6, paddingStart: 8 }}>
+                  {here === 'busy' ? <ActivityIndicator size="small" color={C.dim} /> : (
+                    <Text style={{ color: here ? C.green : C.dim, fontSize: 12, fontWeight: '800' }}>{here ? '📍 ' + t('pv_pinned') : '📍 ' + t('pv_pin_here')}</Text>
+                  )}
+                </Pressable>
+              ) : fromPlace ? <Text style={{ color: C.green, fontSize: 12, fontWeight: '800', paddingStart: 8 }}>📍</Text> : null}
             </View>
           ) : null}
 
