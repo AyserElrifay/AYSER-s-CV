@@ -10211,9 +10211,20 @@ returns jsonb
 language sql stable security definer set search_path = public as $$
   with me as (
     select city, country from public.profiles where id = auth.uid()
+  ), my_mates as (
+    select case when m.requester_id = auth.uid() then m.addressee_id else m.requester_id end as mate_id
+      from public.mates m
+     where m.status = 'accepted' and auth.uid() in (m.requester_id, m.addressee_id)
   ), rows as (
     select p.id, p.name, p.handle, p.avatar_url, p.avatar_dna, p.emoji, p.intent, p.verified,
-           p.country_flag, p.country, p.city, p.last_active_at,
+           p.country_flag, p.country, p.city, p.last_active_at, p.hobbies,
+           -- for the "why you're seeing this": friends in common, and whether they are yours
+           exists (select 1 from my_mates mm where mm.mate_id = p.id) as is_mate,
+           (select count(*) from my_mates mm
+             where exists (select 1 from public.mates x
+                            where x.status = 'accepted'
+                              and ((x.requester_id = mm.mate_id and x.addressee_id = p.id)
+                                or (x.addressee_id = mm.mate_id and x.requester_id = p.id)))) as mutuals,
            -- what they are doing is only true while they are there
            case when l.updated_at > now() - interval '30 minutes' then l.doing end as doing,
            case when l.updated_at > now() - interval '30 minutes' then 'now'
@@ -10243,5 +10254,77 @@ language sql stable security definer set search_path = public as $$
 $$;
 revoke execute on function public.people_on_map(double precision, double precision) from public, anon;
 grant execute on function public.people_on_map(double precision, double precision) to authenticated;
+
+
+/* Plans: how many of YOUR mates are going — "2 friends going" is the
+   strongest reason anybody gives for going to something. A count, never
+   who: the names are on the plan itself, for people who open it. */
+create or replace function public.green_list(p_country text)
+returns jsonb
+language sql stable security definer set search_path = public as $$
+  with my_mates as (
+    select case when m.requester_id = auth.uid() then m.addressee_id else m.requester_id end as mate_id
+      from public.mates m
+     where m.status = 'accepted' and auth.uid() is not null and auth.uid() in (m.requester_id, m.addressee_id)
+  )
+  select coalesce(jsonb_agg(row_to_json(x)::jsonb order by x.starts_at), '[]'::jsonb)
+    from (
+      select g.id, g.kind, g.title, g.about, g.country, g.city, g.place_name,
+             g.lat, g.lng, g.starts_at, g.minutes, g.capacity, g.language,
+             g.host_id, p.name as host_name, g.weekly_id, g.announced_at, g.squad_id,
+             (select count(*) from public.green_joins j where j.gathering_id = g.id) as going,
+             (select count(*) from public.green_joins j join my_mates mm on mm.mate_id = j.user_id
+               where j.gathering_id = g.id) as mates_going,
+             exists (select 1 from public.green_joins j
+                      where j.gathering_id = g.id and j.user_id = auth.uid()) as im_going,
+             exists (select 1 from public.green_joins j
+                      where j.gathering_id = g.id and j.user_id = auth.uid() and j.checked_in_at is not null) as checked_in,
+             case when g.kind = 'cleanup' then 50 else 30 end as xp
+        from public.green_gatherings g
+        left join public.profiles p on p.id = g.host_id
+       where g.cancelled_at is null
+         and g.starts_at > now() - interval '3 hours'
+         and (p_country is null or g.country = p_country)
+       order by g.starts_at
+       limit 60
+    ) x;
+$$;
+grant execute on function public.green_list(text) to anon, authenticated;
+
+/* people_you_may_know took any account's id and was open to anybody
+   with the public key: anyone could ask who anyone's friends' friends
+   are. Now only for you, and only signed in. */
+create or replace function public.people_you_may_know(uid uuid, lim int default 30)
+returns table (id uuid, name text, avatar_url text, country_flag text, country text, city text, mutuals bigint)
+language sql stable security definer set search_path = public as $fn$
+  with my_mates as (
+    select case when requester_id = auth.uid() then addressee_id else requester_id end as mate_id
+    from mates
+    where status = 'accepted' and auth.uid() is not null and uid = auth.uid()
+      and (requester_id = auth.uid() or addressee_id = auth.uid())
+  ),
+  candidates as (
+    select case when m.requester_id = mm.mate_id then m.addressee_id else m.requester_id end as cand,
+           mm.mate_id as via
+    from mates m
+    join my_mates mm on (m.requester_id = mm.mate_id or m.addressee_id = mm.mate_id)
+    where m.status = 'accepted'
+  )
+  select p.id, p.name, p.avatar_url, p.country_flag, p.country, p.city,
+         count(distinct c.via) as mutuals
+  from candidates c
+  join profiles p on p.id = c.cand
+  where c.cand <> auth.uid()
+    and c.cand not in (select mate_id from my_mates)
+    and not exists (
+      select 1 from mates x
+      where (x.requester_id = auth.uid() and x.addressee_id = c.cand)
+         or (x.requester_id = c.cand and x.addressee_id = auth.uid()))
+  group by p.id, p.name, p.avatar_url, p.country_flag, p.country, p.city
+  order by mutuals desc
+  limit lim;
+$fn$;
+revoke execute on function public.people_you_may_know(uuid, int) from public, anon;
+grant execute on function public.people_you_may_know(uuid, int) to authenticated;
 
 notify pgrst, 'reload schema';

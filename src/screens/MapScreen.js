@@ -11,6 +11,8 @@ import { MapView, Marker, MAPS_READY } from '../utils/maps';
 import { takeMapTarget, onMapTarget } from '../lib/mapBus';
 import { listGatherings, joinGathering, bardiMatchMe } from '../services/green';
 import { activityPin, lookOf, titleFor, whenFor } from '../lib/activityPins';
+import { rankPeople, rankPlans } from '../lib/recommend';
+import { getProfile } from '../services/profiles';
 import { MapPanel, PeoplePanel, personWhere, MAP_PANEL_PEEK, MAP_PANEL_CHIPS, PEOPLE_PANEL_PEEK } from '../components/MapPanel';
 import { kmBetween, projectToMap } from '../utils/geo';
 import { requestLocationPermission, getCurrentCoords, watchCoords } from '../utils/location';
@@ -97,6 +99,9 @@ const normalizePerson = (row) => ({
   countryFlag: row.profile && row.profile.country_flag,
   city: row.profile && row.profile.city,
   country: row.profile && row.profile.country,
+  hobbies: row.profile && row.profile.hobbies,
+  mutuals: Number(row.mutuals) || 0,
+  isMate: !!row.is_mate,
   doing: row.seen === 'now' ? row.doing : null,
   /* 'now' — shared in the last half hour; 'recent' — this week, at a
      rounded spot; null — no spot at all, only their city */
@@ -197,6 +202,12 @@ export const MapScreen = () => {
   });
   const [realPeople, setRealPeople] = useState([]);
   const [peopleLoaded, setPeopleLoaded] = useState(false);   // a count of 0 before the answer is not a count
+  /* your own hobbies, city and country — what the suggestions are ranked against */
+  const [meProfile, setMeProfile] = useState(null);
+  useEffect(() => {
+    if (!SUPABASE_READY || !user) return;
+    getProfile(user.id).then(setMeProfile).catch(() => {});
+  }, [user && user.id]);
   const [realCampfires, setRealCampfires] = useState([]);
   const [realVenues, setRealVenues] = useState([]);
   const [realPlaces, setRealPlaces] = useState([]); // genuine venues from OpenStreetMap
@@ -320,16 +331,14 @@ export const MapScreen = () => {
   const venues = SUPABASE_READY ? realVenues : BOOKINGS;
   const filteredDeals = DEALS.filter((d) => dealFilter === 'All' || d.cat === dealFilter);
 
-  /* here now first, then seen this week, then by city (the server's
-     order, which knows your city) — distance only orders within a band */
   const nearbyPeople = useMemo(() => {
-    const band = (p) => (p.seen === 'now' ? 0 : p.seen === 'recent' ? 1 : 2);
-    return [...people]
-      /* a distance only from where you really are: before your location
-         is known, myCoords is a stand-in, and a distance from it is made up */
-      .map((p, i) => ({ ...p, i, km: p.coords && located ? kmBetween(myCoords, p.coords) : null }))
-      .sort((a, b) => band(a) - band(b) || (band(a) < 2 ? (a.km == null ? 1e9 : a.km) - (b.km == null ? 1e9 : b.km) : a.i - b.i));
-  }, [people, myCoords, located]);
+    /* a distance only from where you really are: before your location
+       is known, myCoords is a stand-in, and a distance from it is made up.
+       The order: src/lib/recommend.js — nearby is the gate, then mutual
+       friends, then shared interests. */
+    const withKm = [...people].map((p) => ({ ...p, km: p.coords && located ? kmBetween(myCoords, p.coords) : null }));
+    return rankPeople(withKm, meProfile);
+  }, [people, myCoords, located, meProfile]);
   const hereNow = nearbyPeople.filter((p) => p.seen === 'now').length;
 
   /* Markers for the real (web) Leaflet map, on true coordinates. */
@@ -379,8 +388,10 @@ export const MapScreen = () => {
   const inView = useMemo(() => {
     const ok = (g) => g.lat != null && g.lng != null && (!actKind || g.kind === actKind)
       && (!view || (g.lat <= view.n && g.lat >= view.s && g.lng <= view.e && g.lng >= view.w));
-    return gatherings.filter(ok).sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at)).slice(0, 30);
-  }, [gatherings, view, actKind]);
+    /* the map's edges are the gate; inside them, friends going, then
+       what you love, then how soon (src/lib/recommend.js) */
+    return rankPlans(gatherings.filter(ok), meProfile).slice(0, 30);
+  }, [gatherings, view, actKind, meProfile]);
   /* the panel at the bottom (MapPanel.js): the map's buttons sit just
      above it, and step aside while it is pulled up */
   const [panelOpen, setPanelOpen] = useState(false);

@@ -4,6 +4,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { C } from '../constants/theme';
 import { lookOf, titleFor, whenFor } from '../lib/activityPins';
+import { whyText } from '../lib/recommend';
 import { tapLight, tapSelection } from '../utils/feedback';
 
 /* ─── WHAT IS AROUND HERE, AT THE BOTTOM OF THE MAP ───────────────────
@@ -71,9 +72,15 @@ export const MapPanel = ({
           <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 2 }} numberOfLines={1}>
             {whenFor(g.starts_at, lang)}{g.place_name ? ' · ' + g.place_name : ''}
           </Text>
-          {going ? (
-            <View style={{ alignSelf: 'flex-start', backgroundColor: C.glassHi, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3, marginTop: 6 }}>
-              <Text style={{ color: C.text, fontSize: 11.5, fontWeight: '700' }}>{going + ' ' + t('green_going')}</Text>
+          {going || g.why ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
+              {going ? (
+                <View style={{ backgroundColor: C.glassHi, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3, marginEnd: 8 }}>
+                  <Text style={{ color: C.text, fontSize: 11.5, fontWeight: '700' }}>{going + ' ' + t('green_going')}</Text>
+                </View>
+              ) : null}
+              {/* why it is here, from real counts — see src/lib/recommend.js */}
+              {g.why ? <Text style={{ flexShrink: 1, color: C.green, fontSize: 11.5, fontWeight: '800' }} numberOfLines={1}>{whyText(g.why, t)}</Text> : null}
             </View>
           ) : null}
         </View>
@@ -104,7 +111,7 @@ export const MapPanel = ({
         <Text style={{ color: C.text, fontSize: 13, fontWeight: '800', flexShrink: 1 }} numberOfLines={1}>{p.name}</Text>
         {p.seen === 'now' ? <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: C.green, marginStart: 5 }} /> : null}
       </View>
-      <Text style={{ color: C.faint, fontSize: 11.5 }} numberOfLines={1}>{personWhere(p, t)}</Text>
+      <Text style={{ color: p.why ? C.green : C.faint, fontSize: 11.5, fontWeight: p.why ? '800' : '400' }} numberOfLines={1}>{whyText(p.why, t) || personWhere(p, t)}</Text>
     </Pressable>
   );
 
@@ -201,7 +208,7 @@ export const PeoplePanel = ({ t, people, hereNow = 0, loading = false, open, onO
         <Text style={{ color: C.text, fontSize: 13, fontWeight: '800', flexShrink: 1 }} numberOfLines={1}>{p.name}</Text>
         {p.seen === 'now' ? <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: C.green, marginStart: 5 }} /> : null}
       </View>
-      <Text style={{ color: C.faint, fontSize: 11.5 }} numberOfLines={1}>{personWhere(p, t)}</Text>
+      <Text style={{ color: p.why ? C.green : C.faint, fontSize: 11.5, fontWeight: p.why ? '800' : '400' }} numberOfLines={1}>{whyText(p.why, t) || personWhere(p, t)}</Text>
     </Pressable>
   );
 
@@ -215,6 +222,7 @@ export const PeoplePanel = ({ t, people, hereNow = 0, loading = false, open, onO
       <View style={{ flex: 1, minWidth: 0, marginStart: 12 }}>
         <Text style={{ color: C.text, fontSize: 15.5, fontWeight: '800' }} numberOfLines={1}>{p.countryFlag ? p.countryFlag + ' ' : ''}{p.name}</Text>
         <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 2 }} numberOfLines={1}>{personWhere(p, t)}</Text>
+        {p.why ? <Text style={{ color: C.green, fontSize: 12, fontWeight: '800', marginTop: 1 }} numberOfLines={1}>{whyText(p.why, t)}</Text> : null}
       </View>
       <Ionicons name="chevron-forward" size={18} color={C.faint} />
     </Pressable>

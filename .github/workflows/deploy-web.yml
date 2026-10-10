@@ -185,6 +185,9 @@ jobs:
       # The People lens: everyone real, nobody more exact than they agreed.
       - name: Check the People lens
         run: node scripts/check-people-map.mjs
+      # Suggestions: location is the gate; friends and interests rank inside it.
+      - name: Check suggestions
+        run: node scripts/check-recommend.mjs
       # No signal must not mean no app.
       - name: Check the app works offline
         run: node scripts/check-offline.mjs

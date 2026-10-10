@@ -30,9 +30,10 @@ export async function fetchNearbyPeople(at = null) {
   if (!error && Array.isArray(data)) {
     return data.map((r) => ({
       user_id: r.id, lat: r.lat, lng: r.lng, doing: r.doing, seen: r.seen, km: r.km,
+      mutuals: Number(r.mutuals) || 0, is_mate: !!r.is_mate,
       profile: {
         name: r.name, handle: r.handle, avatar_url: r.avatar_url, avatar_dna: r.avatar_dna, emoji: r.emoji,
-        intent: r.intent, verified: r.verified, country_flag: r.country_flag, country: r.country, city: r.city,
+        intent: r.intent, verified: r.verified, country_flag: r.country_flag, country: r.country, city: r.city, hobbies: r.hobbies,
       },
     }));
   }
@@ -44,10 +45,10 @@ export async function fetchNearbyPeople(at = null) {
   const cutoff = new Date(Date.now() - 30 * 60 * 1000).toISOString();
   const [live, profiles] = await Promise.all([
     supabase.from('live_locations')
-      .select('user_id, lat, lng, doing, updated_at, profile:profiles(name, handle, avatar_url, avatar_dna, emoji, intent, verified, country_flag, country, city)')
+      .select('user_id, lat, lng, doing, updated_at, profile:profiles(name, handle, avatar_url, avatar_dna, emoji, intent, verified, country_flag, country, city, hobbies)')
       .gt('updated_at', cutoff),
     supabase.from('profiles')
-      .select('id, name, handle, avatar_url, avatar_dna, emoji, intent, verified, country_flag, country, city, last_active_at')
+      .select('id, name, handle, avatar_url, avatar_dna, emoji, intent, verified, country_flag, country, city, hobbies, last_active_at')
       .order('last_active_at', { ascending: false, nullsFirst: false })
       .limit(200),
   ]);
