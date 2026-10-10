@@ -9,10 +9,12 @@ const is = (what, got, want) => {
   if (!ok) bad++;
 };
 const read = (f) => fs.readFileSync(f, 'utf8');
+/* the code itself, not what the comments say about it */
+const code = (f) => read(f).replace(/\/\*[\s\S]*?\*\//g, '').replace(/\{\/\*[\s\S]*?\*\/\}/g, '');
 const sql = read('supabase/RUN_ME.sql');
 const part = sql.slice(sql.indexOf('PLANS · REAL PHOTOS, NEVER STOCK'));
-const photo = read('src/components/green/PlanPhoto.js');
-const form = read('src/components/green/StartForm.js');
+const photo = code('src/components/green/PlanPhoto.js');
+const form = code('src/components/green/StartForm.js');
 const sheet = read('src/components/green/GreenSheet.js');
 const admin = read('src/components/AdminPanel.js');
 is('only a file uploaded to our storage, in the uploader\'s own folder', /p_url not like 'https:\/\/dvddiyztpyyuultndzso\.supabase\.co\/storage\/v1\/object\/public\/media\/' \|\| me::text \|\| '\/%'/.test(part), true);
