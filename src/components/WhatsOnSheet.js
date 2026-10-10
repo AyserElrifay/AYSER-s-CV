@@ -9,6 +9,9 @@ import { fetchWhatsOn } from '../services/whatson';
 import { joinCampfire } from '../services/campfires';
 import { joinPost } from '../services/social';
 import { joinGroup } from '../services/groups';
+import { joinGathering } from '../services/green';
+import { titleFor } from '../lib/activityPins';
+import { PlanThumb } from './green/PlanPhoto';
 import { tapLight } from '../utils/feedback';
 import { useSheetBack } from '../hooks/useSheetBack';
 import { SheetHandle } from './SheetHandle';
@@ -89,7 +92,7 @@ const Avatar = ({ uri, emoji }) => (
     )
 );
 
-export const WhatsOnSheet = ({ coords, onClose, onOpenGroup, onOpenMoment }) => {
+export const WhatsOnSheet = ({ coords, onClose, onOpenGroup, onOpenMoment, onOpenPlan }) => {
   /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
   useSheetBack(onClose);
   const insets = useSafeAreaInsets();
@@ -123,6 +126,24 @@ export const WhatsOnSheet = ({ coords, onClose, onOpenGroup, onOpenMoment }) => 
   };
 
   const labels = { join: t('wo_join'), done: t('wo_joined'), waiting: t('wo_waiting') };
+
+  /* a plan: its own picture, name, when and where, how many are going */
+  const renderPlan = (x) => (
+    <Row key={'g' + x.id} onPress={onOpenPlan ? () => onOpenPlan(x.g) : undefined}>
+      <PlanThumb g={x.g} size={36} radius={18} />
+      <View style={{ flex: 1, minWidth: 0, marginStart: 11 }}>
+        <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }} numberOfLines={1}>{titleFor(x.title, lang)}</Text>
+        <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 2 }} numberOfLines={1}>
+          {[x.live ? t('wo_now_label') : whenText(x.when), x.place, x.going ? x.going + ' ' + t('green_going') : null, km(x.km)].filter(Boolean).join(' · ')}
+        </Text>
+      </View>
+      <JoinButton
+        state={joins['g' + x.id] || (x.imGoing ? 'done' : 'idle')}
+        labels={labels}
+        onPress={() => doJoin('g' + x.id, async () => { const r = await joinGathering(x.id, true); if (!r || !r.ok) throw new Error('join'); })}
+      />
+    </Row>
+  );
 
   /* The service hands back facts; the words happen here, so they happen
      in the language the app is actually in. Weekday and date go through
@@ -166,7 +187,7 @@ export const WhatsOnSheet = ({ coords, onClose, onOpenGroup, onOpenMoment }) => 
               {data.now.length ? (
                 <>
                   <Label>{t('wo_now')}</Label>
-                  {data.now.map((c) => (
+                  {data.now.map((c) => c.kind === 'plan' ? renderPlan(c) : (
                     <Row key={c.id}>
                       <Avatar uri={c.hostAvatar} emoji="🔥" />
                       <View style={{ flex: 1, minWidth: 0, marginStart: 11 }}>
@@ -189,7 +210,7 @@ export const WhatsOnSheet = ({ coords, onClose, onOpenGroup, onOpenMoment }) => 
               {data.soon.length ? (
                 <>
                   <Label>{t('wo_soon')}</Label>
-                  {data.soon.map((p) => (
+                  {data.soon.map((p) => p.kind === 'plan' ? renderPlan(p) : (
                     <Row key={p.id} onPress={onOpenMoment ? () => onOpenMoment(p.id) : undefined}>
                       <Avatar uri={p.hostAvatar} emoji="✨" />
                       <View style={{ flex: 1, minWidth: 0, marginStart: 11 }}>

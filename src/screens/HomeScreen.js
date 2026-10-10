@@ -26,7 +26,7 @@ import { PostCard } from '../components/PostCard';
 import { StoriesBar } from '../components/StoriesBar';
 import { Wordmark } from '../components/Wordmark';
 import { Modal } from 'react-native';
-import { goToTab } from '../lib/mapBus';
+import { goToTab, showOnMap } from '../lib/mapBus';
 import { takeLaunchTarget, onPushOpen } from '../lib/push';
 import { BrainDump } from '../components/BrainDump';
 import { lazyOverlay } from '../lib/lazyScreen';
@@ -639,6 +639,8 @@ export const HomeScreen = () => {
              treats "no location" as "do not filter by distance and do
              not print a distance", which is the only honest option. */
           onClose={() => setWhatsOn(false)}
+          /* a plan opens where it lives: on the map at its spot, or in Together */
+          onOpenPlan={(g) => { setWhatsOn(false); if (g.lat != null && g.lng != null) showOnMap({ lat: g.lat, lng: g.lng }); else goToTab('TOGETHER'); }}
         />
       ) : null}
 

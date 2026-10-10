@@ -22,5 +22,10 @@ is('the post carries the place\'s real spot', /lat: spot \? spot\.lat : null/.te
 is('a renamed place drops the spot — a typed name is not a spot', /place\.trim\(\) === String\(initialPlace\.name \|\| ''\)\.trim\(\)/.test(compose), true);
 is('your own location only when you ask', /const \[here, setHere\] = useState\(null\)/.test(compose) && /onPress=\{pinHere\}/.test(compose), true);
 is('a tall place sheet scrolls', /a place with stories, photos and words is taller than a phone: it scrolls/.test(map), true);
+const whatson = read('src/services/whatson.js');
+const sheet = read('src/components/WhatsOnSheet.js');
+is('"What you can join" asks for the plans the map shows', /settle\(listGatherings\(null\)\)/.test(whatson) && /c\.kind === 'plan' \? renderPlan\(c\)/.test(sheet) && /p\.kind === 'plan' \? renderPlan\(p\)/.test(sheet), true);
+is('a heads-up is never offered as something to join', /p\.intent !== 'warning'/.test(whatson), true);
+is('and joins them for real', /joinGathering\(x\.id, true\)/.test(sheet), true);
 if (bad) { console.log('\n' + bad + ' wrong.'); process.exit(1); }
 console.log('\nA place shows what people really shared there, and a post can belong to the place.');

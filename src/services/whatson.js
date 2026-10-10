@@ -1,6 +1,7 @@
 import { fetchLiveCampfires } from './campfires';
 import { fetchUpcoming } from './posts';
 import { fetchGroups } from './groups';
+import { listGatherings } from './green';
 
 /* ─── WHAT IS THERE TO JOIN ──────────────────────────────────────────
    Ayser, after using Joiner in Lithuania and an activities app in
@@ -62,10 +63,15 @@ export function whenParts(startsAt) {
    groups table was slow. */
 export async function fetchWhatsOn({ userId, coords, radiusKm = 60 } = {}) {
   const settle = (p) => p.then((v) => v).catch(() => null);
-  const [fires, soon, groups] = await Promise.all([
+  /* The plans — walks, runs, coffee, the weekly ones — are what the map
+     and Together are full of. This sheet never asked for them, so it
+     said "Nothing on yet, right here" while the map showed five things
+     to join. They are the first thing it asks for now. */
+  const [fires, soon, groups, plans] = await Promise.all([
     settle(fetchLiveCampfires()),
     settle(fetchUpcoming({ limit: 30 })),
     settle(fetchGroups(userId)),
+    settle(listGatherings(null)),
   ]);
 
   const me = coords && coords.latitude != null
@@ -81,9 +87,25 @@ export async function fetchWhatsOn({ userId, coords, radiusKm = 60 } = {}) {
   };
   const withinRadius = (row) => row.km == null || row.km <= radiusKm;
 
+  const nowMs = Date.now();
+  const planRows = (plans || []).filter((g) => g && g.starts_at).map(near).filter(withinRadius).map((g) => {
+    const start = new Date(g.starts_at).getTime();
+    const end = start + (Number(g.minutes) || 120) * 60000;
+    return {
+      kind: 'plan', id: g.id, g,
+      title: g.title, place: g.place_name || g.city || null,
+      startsAt: g.starts_at, when: whenParts(g.starts_at),
+      going: Number(g.going) || 0, imGoing: !!g.im_going,
+      live: start <= nowMs && nowMs < end,
+      past: end <= nowMs,
+      lat: g.lat, lng: g.lng, km: g.km,
+    };
+  }).filter((x) => !x.past);
+  const byTime = (a, b) => new Date(a.startsAt) - new Date(b.startsAt);
+
   return {
     /* Live right now, and someone is already sitting there. */
-    now: (fires || []).map(near).filter(withinRadius).map((c) => ({
+    now: planRows.filter((x) => x.live).concat((fires || []).map(near).filter(withinRadius).map((c) => ({
       kind: 'campfire',
       id: c.id,
       title: c.title || 'Campfire',
@@ -92,10 +114,11 @@ export async function fetchWhatsOn({ userId, coords, radiusKm = 60 } = {}) {
       hostAvatar: (c.host && c.host.avatar_url) || null,
       lat: c.lat, lng: c.lng, km: c.km,
       endsAt: c.ends_at || null,
-    })),
+    }))),
 
     /* Has a time on it and the time has not passed. */
-    soon: (soon || []).map(near).filter(withinRadius).map((p) => ({
+    /* a heads-up ("overcharged us, avoid") is never something to join */
+    soon: planRows.filter((x) => !x.live).concat((soon || []).filter((p) => p.intent !== 'warning').map(near).filter(withinRadius).map((p) => ({
       kind: 'invite',
       id: p.id,
       title: p.caption || 'A moment',
@@ -108,7 +131,7 @@ export async function fetchWhatsOn({ userId, coords, radiusKm = 60 } = {}) {
       when: whenParts(p.starts_at),
       media: p.media_url || null,
       lat: p.lat, lng: p.lng, km: p.km,
-    })),
+    }))).sort(byTime),
 
     /* Open groups you are not already in, biggest first — fetchGroups
        already orders by member count. A group you are waiting on shows
@@ -131,6 +154,6 @@ export async function fetchWhatsOn({ userId, coords, radiusKm = 60 } = {}) {
        failed must not be drawn as "nothing here" — that would be the
        same lie the feed used to tell before it knew the difference
        between empty and not-loaded. */
-    reached: { now: fires != null, soon: soon != null, groups: groups != null },
+    reached: { now: fires != null || plans != null, soon: soon != null || plans != null, groups: groups != null },
   };
 }
