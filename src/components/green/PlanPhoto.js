@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, Image, Pressable, ScrollView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { C } from '../../constants/theme';
 import { lookOf } from '../../lib/activityPins';
 import { tapLight } from '../../utils/feedback';
+import { placePhoto } from '../../lib/commonsPhoto';
 
 /* ─── A PLAN'S PICTURE: REAL, OR ITS DRAWN LOOK ───────────────────────
    Ayser: photos or emoji? Real photos where there are real ones — the
@@ -16,10 +17,31 @@ import { tapLight } from '../../utils/feedback';
 
 const safe = (u) => (typeof u === 'string' && /^https:\/\//i.test(u) ? u : null);
 
-export const planPhotoOf = (g) => safe(g && g.photo_url) || safe(g && Array.isArray(g.past_photos) ? g.past_photos[0] : null);
+export const planPhotoOf = (g) => safe(g && g.photo_url) || safe(g && g.weekly_photo) || safe(g && Array.isArray(g.past_photos) ? g.past_photos[0] : null);
+
+/* With no photo of the plan itself: a photo of the PLACE, if a freely
+   licensed one of that very place exists on Wikimedia Commons — found
+   and credited by src/lib/commonsPhoto.js, kept on the phone a month.
+   "Cairo Opera House" finds the Opera House; a park with no article
+   finds nothing and keeps its emoji. Never somebody's photo off Google
+   or Instagram: those belong to the people who took them. */
+export const usePlacePhoto = (g) => {
+  const own = planPhotoOf(g);
+  const name = g && g.place_name;
+  const [p, setP] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    setP(null);
+    if (own || !name || g.lat == null || g.lng == null) return undefined;
+    placePhoto({ name, lat: g.lat, lng: g.lng }).then((r) => { if (alive) setP(r); }).catch(() => {});
+    return () => { alive = false; };
+  }, [own, name, g && g.lat, g && g.lng]); // eslint-disable-line react-hooks/exhaustive-deps
+  return own ? null : p;
+};
 
 export const PlanThumb = ({ g, size = 58, radius = 18, tilt = false }) => {
-  const url = planPhotoOf(g);
+  const place = usePlacePhoto(g);
+  const url = planPhotoOf(g) || (place && safe(place.url));
   const look = lookOf(g && g.kind);
   if (url) {
     return (
@@ -57,5 +79,16 @@ export const PastPhotos = ({ g, t, onReport }) => {
         ))}
       </ScrollView>
     </View>
+  );
+};
+
+/* the credit a Commons photo asks for, shown where the plan is opened */
+export const PlaceCredit = ({ g, t }) => {
+  const p = usePlacePhoto(g);
+  if (!p) return null;
+  return (
+    <Text style={{ color: C.faint, fontSize: 11, marginTop: 8 }} numberOfLines={2}>
+      {'📷 ' + (t ? t('pl_place_photo') : 'Photo of the place') + ' · ' + (p.artist ? p.artist + ' · ' : '') + p.license + ' · Wikimedia Commons'}
+    </Text>
   );
 };

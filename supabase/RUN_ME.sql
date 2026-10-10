@@ -11598,4 +11598,45 @@ $$;
 revoke execute on function public.highlight_set_live(uuid, boolean) from public, anon;
 grant execute on function public.highlight_set_live(uuid, boolean) to authenticated;
 
+-- ═══════════ PLANS · ONE PHOTO FOR EVERY WEEK OF A WEEKLY PLAN ═══════════
+/* Ayser: put a real photo of Madinaty Central Park on "Football in the
+   park". The host adds it once, on any week of a weekly plan, and every
+   week of that plan shows it — not only the one it was added to, and
+   not only after it has happened. */
+create or replace function public.green_list(p_country text)
+returns jsonb
+language sql stable security definer set search_path = public as $$
+  with my_mates as (
+    select case when m.requester_id = auth.uid() then m.addressee_id else m.requester_id end as mate_id
+      from public.mates m
+     where m.status = 'accepted' and auth.uid() is not null and auth.uid() in (m.requester_id, m.addressee_id)
+  )
+  select coalesce(jsonb_agg(row_to_json(x)::jsonb order by x.starts_at), '[]'::jsonb)
+    from (
+      select g.id, g.kind, g.title, g.about, g.country, g.city, g.place_name,
+             g.lat, g.lng, g.starts_at, g.minutes, g.capacity, g.language,
+             g.host_id, p.name as host_name, p.host_role as host_role, g.weekly_id, g.announced_at, g.squad_id,
+             g.photo_url, public.green_past_photos(g) as past_photos,
+             (select o.photo_url from public.green_gatherings o
+               where g.weekly_id is not null and o.weekly_id = g.weekly_id and o.photo_url is not null and o.cancelled_at is null
+               order by o.starts_at desc limit 1) as weekly_photo,
+             (select count(*) from public.green_joins j where j.gathering_id = g.id) as going,
+             (select count(*) from public.green_joins j join my_mates mm on mm.mate_id = j.user_id
+               where j.gathering_id = g.id) as mates_going,
+             exists (select 1 from public.green_joins j
+                      where j.gathering_id = g.id and j.user_id = auth.uid()) as im_going,
+             exists (select 1 from public.green_joins j
+                      where j.gathering_id = g.id and j.user_id = auth.uid() and j.checked_in_at is not null) as checked_in,
+             case when g.kind = 'cleanup' then 50 else 30 end as xp
+        from public.green_gatherings g
+        left join public.profiles p on p.id = g.host_id
+       where g.cancelled_at is null
+         and g.starts_at > now() - interval '3 hours'
+         and (p_country is null or g.country = p_country)
+       order by g.starts_at
+       limit 60
+    ) x;
+$$;
+grant execute on function public.green_list(text) to anon, authenticated;
+
 notify pgrst, 'reload schema';

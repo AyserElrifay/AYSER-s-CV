@@ -8,7 +8,8 @@ import { C } from '../constants/theme';
 import { useLang } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { SUPABASE_READY } from '../lib/supabase';
-import { listGatherings, joinGathering, announceGathering, myInvites, checkInAt } from '../services/green';
+import { listGatherings, joinGathering, announceGathering, myInvites, checkInAt, setGatheringPhoto, removeGatheringPhoto } from '../services/green';
+import { uploadPlanPhoto } from '../lib/storage';
 import { canCheckIn } from '../lib/xp';
 import { getCurrentCoords } from '../utils/location';
 import { pushSupport, wasAsked } from '../lib/push';
@@ -27,7 +28,7 @@ import { showOnMap, goToTab } from '../lib/mapBus';
 import { openChat } from '../lib/chatBus';
 import { lazyOverlay } from '../lib/lazyScreen';
 import { HostBadge } from '../components/HostCard';
-import { PlanThumb, PastPhotos } from '../components/green/PlanPhoto';
+import { PlanThumb, PastPhotos, PlaceCredit } from '../components/green/PlanPhoto';
 import { ReportSheet } from '../components/ReportSheet';
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
 
@@ -135,6 +136,26 @@ export const TogetherScreen = () => {
   }, [uid]);
 
   const country = scope === 'near' ? myCode : null;
+  /* the host puts a real photo on their plan — once, and every week of
+     a weekly plan shows it (weekly_photo in RUN_ME.sql) */
+  const [photoBusy, setPhotoBusy] = useState(null);
+  const changePhoto = async (g) => {
+    if (!user || photoBusy) return;
+    if (g.photo_url) { setPhotoBusy(g.id); try { await removeGatheringPhoto(g.id); } catch (e) {} setPhotoBusy(null); load(); return; }
+    const file = await new Promise((resolve) => {
+      if (typeof document === 'undefined') return resolve(null);
+      const input = document.createElement('input');
+      input.type = 'file'; input.accept = 'image/*'; input.style.display = 'none';
+      input.onchange = () => { resolve((input.files && input.files[0]) || null); input.remove(); };
+      document.body.appendChild(input); input.click();
+      return undefined;
+    });
+    if (!file) return;
+    setPhotoBusy(g.id);
+    try { const url = await uploadPlanPhoto(user.id, file); await setGatheringPhoto(g.id, url); tapSuccess(); load(); } catch (e) {}
+    setPhotoBusy(null);
+  };
+
   const load = useCallback(() => {
     let alive = true;
     if (!SUPABASE_READY || !uid) { setRows([]); setOn({ now: [], soon: [], groups: [] }); return () => {}; }
@@ -318,6 +339,14 @@ export const TogetherScreen = () => {
                         {expanded && !mine ? <Text style={{ color: C.faint, fontSize: 11.5, lineHeight: 16, marginTop: 8 }}>{t('hc_liability')}</Text> : null}
                         {/* photos people really took there last time */}
                         {expanded ? <PastPhotos g={g} t={t} onReport={(u) => reportPhoto(g, u)} /> : null}
+                        {expanded ? <PlaceCredit g={g} t={t} /> : null}
+                        {expanded && mine ? (
+                          <Pressable onPress={() => { tapLight(); changePhoto(g); }} disabled={photoBusy === g.id} accessibilityRole="button"
+                            style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10, alignSelf: 'flex-start', opacity: photoBusy === g.id ? 0.5 : 1 }}>
+                            <Ionicons name={g.photo_url ? 'trash-outline' : 'camera-outline'} size={15} color={C.purple} />
+                            <Text style={{ color: C.purple, fontSize: 13, fontWeight: '900', marginStart: 5 }}>{t(g.photo_url ? 'pl_remove_photo' : 'pl_add_photo')}</Text>
+                          </Pressable>
+                        ) : null}
                         {expanded && g.lat != null && g.lng != null ? (
                           <Pressable onPress={() => { tapLight(); showOnMap({ lat: g.lat, lng: g.lng }); }} style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10, alignSelf: 'flex-start' }}>
                             <Ionicons name="map-outline" size={15} color={C.purple} />
