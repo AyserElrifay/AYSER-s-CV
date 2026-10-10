@@ -1133,6 +1133,7 @@ export const STRINGS = {
     in_skip: "Skip",
     in_next: "Next",
     in_private: "PRIVATE BY DESIGN",
+    menu: "Menu",
     lens_all: 'Everything',
     lens_places: 'Places to go',
     lens_people: 'People',

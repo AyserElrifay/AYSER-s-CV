@@ -651,13 +651,13 @@ export const ProfileScreen = () => {
             {me.verified ? <Tick /> : null}
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Pressable onPress={tapLight} hitSlop={8} style={{ marginRight: 18 }} accessibilityRole="button" accessibilityLabel={t('add')}>
-              <MaterialCommunityIcons name="plus-box-outline" size={24} color={C.text} />
-            </Pressable>
-            <Pressable onPress={() => { tapLight(); setMenu(true); }} hitSlop={8} style={{ marginRight: 18 }}>
+            {/* real 40pt targets: hitSlop does not enlarge a target on the web */}
+            <Pressable onPress={() => { tapLight(); setMenu(true); }} accessibilityRole="button" accessibilityLabel={t('menu')}
+              style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center', marginEnd: 4 }}>
               <Ionicons name="menu-outline" size={26} color={C.text} />
             </Pressable>
-            <Pressable onPress={() => { tapLight(); setSettings(true); }} hitSlop={8}>
+            <Pressable onPress={() => { tapLight(); setSettings(true); }} accessibilityRole="button" accessibilityLabel={t('settings')}
+              style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center' }}>
               <Ionicons name="settings-outline" size={22} color={C.text} />
             </Pressable>
           </View>

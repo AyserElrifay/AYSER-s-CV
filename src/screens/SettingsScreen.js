@@ -667,28 +667,37 @@ export const SettingsScreen = ({ onClose }) => {
       {/* the kept failures, in full, for the one account that can act
           on them */}
 
-      {/* language picker */}
+      {/* language picker — fifteen languages are taller than a phone, so
+          the title and ✕ stay put and only the list scrolls */}
       {langOpen ? (
         <Pressable onPress={() => setLangOpen(false)} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end' }}>
-          <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, paddingBottom: insets.bottom + 20, paddingHorizontal: 16 }}>
+          <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, paddingHorizontal: 16, maxHeight: '86%', marginTop: insets.top + 12 }}>
             <SheetHandle onClose={() => setLangOpen(false)} />
             <SheetBack onClose={() => setLangOpen(false)} />
-            <Text style={{ color: C.text, fontSize: 18, fontWeight: '900', marginBottom: 6 }}>{t('language')} 🌍</Text>
-            {langs.map((l) => {
-              const on = l.code === lang;
-              return (
-                <Pressable key={l.code} onPress={() => { tapSelection(); setLang(l.code); setLangOpen(false); }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.line }}>
-                    <Text style={{ fontSize: 24, marginRight: 14 }}>{l.flag}</Text>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ color: C.text, fontSize: 15, fontWeight: on ? '900' : '600' }}>{l.native}</Text>
-                      <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 1 }}>{l.label}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+              <Text style={{ flex: 1, color: C.text, fontSize: 18, fontWeight: '900' }}>{t('language')} 🌍</Text>
+              <Pressable onPress={() => setLangOpen(false)} accessibilityRole="button" accessibilityLabel={t('close')}
+                style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: C.glass, alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="close" size={20} color={C.text} />
+              </Pressable>
+            </View>
+            <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 20 }}>
+              {langs.map((l) => {
+                const on = l.code === lang;
+                return (
+                  <Pressable key={l.code} onPress={() => { tapSelection(); setLang(l.code); setLangOpen(false); }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.line }}>
+                      <Text style={{ fontSize: 24, marginEnd: 14 }}>{l.flag}</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ color: C.text, fontSize: 15, fontWeight: on ? '900' : '600' }}>{l.native}</Text>
+                        <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 1 }}>{l.label}</Text>
+                      </View>
+                      {on ? <Ionicons name="checkmark-circle" size={22} color={C.purple} /> : <View style={{ width: 22, height: 22, borderRadius: 11, borderWidth: 1.5, borderColor: C.line }} />}
                     </View>
-                    {on ? <Ionicons name="checkmark-circle" size={22} color={C.purple} /> : <View style={{ width: 22, height: 22, borderRadius: 11, borderWidth: 1.5, borderColor: C.line }} />}
-                  </View>
-                </Pressable>
-              );
-            })}
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
           </Pressable>
         </Pressable>
       ) : null}
