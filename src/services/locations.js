@@ -21,8 +21,7 @@ export async function goInvisible(userId) {
    they agreed to (people_on_map in RUN_ME.sql): here now → their pin;
    seen this week → a spot rounded to ~1 km; everyone else → no spot,
    just their city. The rows come back in the shape the map already
-   reads. If the database has not been updated yet, the old live-only
-   query still works. */
+   reads. If the database has not been updated yet, see below. */
 export async function fetchNearbyPeople(at = null) {
   const { data, error } = await supabase.rpc('people_on_map', {
     p_lat: at && at.latitude != null ? at.latitude : null,
@@ -37,13 +36,29 @@ export async function fetchNearbyPeople(at = null) {
       },
     }));
   }
+  /* The database has not been updated yet (part 17 not run). Still
+     everyone: the live rows (last 30 minutes) give the pins, and the
+     profiles — readable by any signed-in user — give the rest, with no
+     spot, only their city. Same shape, same precision rules. It used to
+     fall back to the live rows alone, and said "0 people on Moments". */
   const cutoff = new Date(Date.now() - 30 * 60 * 1000).toISOString();
-  const old = await supabase
-    .from('live_locations')
-    .select('user_id, lat, lng, doing, updated_at, profile:profiles(name, handle, avatar_url, avatar_dna, emoji, intent, verified, country_flag)')
-    .gt('updated_at', cutoff);
-  if (old.error) throw old.error;
-  return (old.data || []).map((r) => ({ ...r, seen: 'now' }));
+  const [live, profiles] = await Promise.all([
+    supabase.from('live_locations')
+      .select('user_id, lat, lng, doing, updated_at, profile:profiles(name, handle, avatar_url, avatar_dna, emoji, intent, verified, country_flag, country, city)')
+      .gt('updated_at', cutoff),
+    supabase.from('profiles')
+      .select('id, name, handle, avatar_url, avatar_dna, emoji, intent, verified, country_flag, country, city, last_active_at')
+      .order('last_active_at', { ascending: false, nullsFirst: false })
+      .limit(200),
+  ]);
+  if (live.error && profiles.error) throw profiles.error;
+  const out = (live.data || []).map((r) => ({ ...r, seen: 'now' }));
+  const here = new Set(out.map((r) => r.user_id));
+  for (const pr of profiles.data || []) {
+    if (!pr || !pr.id || here.has(pr.id) || !String(pr.name || '').trim()) continue;
+    out.push({ user_id: pr.id, lat: null, lng: null, doing: null, seen: null, km: null, profile: pr });
+  }
+  return out;
 }
 
 /* Your own current row — used to rehydrate the "doing" badge on load,

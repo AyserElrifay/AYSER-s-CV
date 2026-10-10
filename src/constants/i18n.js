@@ -1158,6 +1158,8 @@ export const STRINGS = {
     pp_people_n: "{n} people on Moments",
     pp_people_one: "1 person on Moments",
     pp_here_now_n: "{n} here now",
+    pp_people_title: "People on Moments",
+    pp_people_none: "Nobody else here yet",
     lens_all: 'Everything',
     lens_places: 'Places to go',
     lens_people: 'People',

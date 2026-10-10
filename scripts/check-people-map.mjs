@@ -35,7 +35,9 @@ is('old exact positions are no longer readable by others', /for select to authen
 
 console.log('\nthe app');
 is('the map asks for everyone', /rpc\('people_on_map'/.test(svc), true);
-is('and still works before the database is updated', /from\('live_locations'\)/.test(svc.slice(svc.indexOf('people_on_map'))), true);
+is('and before the database is updated, still everyone — from the profiles', /from\('profiles'\)/.test(svc.slice(svc.indexOf('people_on_map'))) && /from\('live_locations'\)/.test(svc.slice(svc.indexOf('people_on_map'))), true);
+is('no "0 people" before the answer has come back', /loading \? t\('pp_people_title'\)/.test(panel) && /setPeopleLoaded\(true\)/.test(map), true);
+is('and no "0 people on Moments" at all — an empty list says so in words', /!n \? t\('pp_people_none'\)/.test(panel), true);
 is('a person without a spot has no pin', /coords: row\.lat != null && row\.lng != null \?/.test(map), true);
 is('a this-week pin is drawn quieter', /away: p\.seen !== 'now'/.test(map) && /\.mm-away \{/.test(read('src/components/LeafletMap.js')), true);
 is('no distance from the stand-in location', /km: p\.coords && located \? kmBetween/.test(map), true);

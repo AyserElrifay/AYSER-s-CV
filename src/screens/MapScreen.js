@@ -196,6 +196,7 @@ export const MapScreen = () => {
     catch (e) { return false; }
   });
   const [realPeople, setRealPeople] = useState([]);
+  const [peopleLoaded, setPeopleLoaded] = useState(false);   // a count of 0 before the answer is not a count
   const [realCampfires, setRealCampfires] = useState([]);
   const [realVenues, setRealVenues] = useState([]);
   const [realPlaces, setRealPlaces] = useState([]); // genuine venues from OpenStreetMap
@@ -300,8 +301,8 @@ export const MapScreen = () => {
   const loadNearby = useCallback(() => {
     if (!SUPABASE_READY) return;
     fetchNearbyPeople(myCoordsRef.current)
-      .then((rows) => setRealPeople((rows || []).filter((r) => r.user_id !== (user && user.id)).map(normalizePerson)))
-      .catch(() => {});
+      .then((rows) => { setRealPeople((rows || []).filter((r) => r.user_id !== (user && user.id)).map(normalizePerson)); setPeopleLoaded(true); })
+      .catch(() => setPeopleLoaded(true));
   }, [user]);
 
   useEffect(() => {
@@ -1083,7 +1084,7 @@ export const MapScreen = () => {
           there. On Everything and on Stories the map is just the map. */}
       {lens === 'people' ? (
         <PeoplePanel
-          t={t} people={nearbyPeople} hereNow={hereNow}
+          t={t} people={nearbyPeople} hereNow={hereNow} loading={SUPABASE_READY && !peopleLoaded}
           open={panelOpen} onOpen={setPanelOpen}
           onPerson={(p) => { setPanelOpen(false); if (p.coords) setMapFocus({ lat: p.coords.latitude, lng: p.coords.longitude, zoom: 15, ts: Date.now() }); setProfileUser(p); }}
           onGoNow={() => setGoNow(true)}

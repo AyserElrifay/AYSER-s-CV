@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { View, Text, ScrollView, Pressable, Image, PanResponder, useWindowDimensions } from 'react-native';
+import { View, Text, ScrollView, Pressable, Image, PanResponder, ActivityIndicator, useWindowDimensions } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { C } from '../constants/theme';
@@ -179,7 +179,7 @@ export const MapPanel = ({
    Moments, here-now first, then seen around this week, then your city
    and country — faces you can tap, in the travel apps' shape (a big
    count, a row of faces, See all). The count is the people listed. */
-export const PeoplePanel = ({ t, people, hereNow = 0, open, onOpen, onPerson, onGoNow }) => {
+export const PeoplePanel = ({ t, people, hereNow = 0, loading = false, open, onOpen, onPerson, onGoNow }) => {
   const { height } = useWindowDimensions();
   const drag = useRef(PanResponder.create({
     onMoveShouldSetPanResponder: (e, g) => Math.abs(g.dy) > 6 && Math.abs(g.dy) > Math.abs(g.dx),
@@ -231,7 +231,7 @@ export const PeoplePanel = ({ t, people, hereNow = 0, open, onOpen, onPerson, on
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20 }}>
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={{ color: C.text, fontSize: 19, fontWeight: '800', letterSpacing: -0.3 }} numberOfLines={1}>
-              {n === 1 ? t('pp_people_one') : t('pp_people_n').replace('{n}', String(n))}
+              {loading ? t('pp_people_title') : !n ? t('pp_people_none') : n === 1 ? t('pp_people_one') : t('pp_people_n').replace('{n}', String(n))}
             </Text>
             {hereNow ? (
               <Text style={{ color: C.green, fontSize: 12.5, fontWeight: '700', marginTop: 1 }}>{t('pp_here_now_n').replace('{n}', String(hereNow))}</Text>
@@ -246,7 +246,9 @@ export const PeoplePanel = ({ t, people, hereNow = 0, open, onOpen, onPerson, on
         </View>
       </View>
 
-      {open ? (
+      {loading ? (
+        <View style={{ paddingVertical: 40, alignItems: 'center' }}><ActivityIndicator color={C.text} /></View>
+      ) : open ? (
         <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 16, paddingTop: 6 }} style={{ flexGrow: 0, flexShrink: 1 }}>
           {people.map(renderRow)}
