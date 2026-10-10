@@ -6,6 +6,16 @@ import { supabase, SUPABASE_READY } from '../lib/supabase';
    can be recognised in it agreed (highlight_add in RUN_ME.sql refuses
    it otherwise). */
 
+/* the live ones, newest first — Home shows them side by side */
+export async function fetchHighlights() {
+  if (!SUPABASE_READY) return [];
+  try {
+    const { data } = await supabase.from('app_highlights').select('*')
+      .eq('live', true).order('created_at', { ascending: false }).limit(6);
+    return data || [];
+  } catch (e) { return []; }
+}
+
 export async function fetchHighlight() {
   if (!SUPABASE_READY) return null;
   try {

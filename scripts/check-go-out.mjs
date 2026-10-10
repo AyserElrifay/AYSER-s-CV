@@ -18,7 +18,7 @@ is('only the owner adds or removes one', /highlight_add[\s\S]{0,300}is_app_owner
 is('the Studio asks the question in plain words', /Everyone who can be recognised in this agreed to be shown in the Moments app/.test(admin), true);
 is('only plans with a real photo are on the rail', /filter\(\(g\) => planPhotoOf\(g\) && /.test(rail), true);
 is('no stock pictures', !/unsplash|pexels|pixabay|stock/i.test(rail.replace(/\/\*[\s\S]*?\*\//g, '')), true);
-is('nothing is drawn when there is nothing real', /if \(!hl && !plans\.length\) return null;/.test(rail), true);
+is('nothing is drawn when there is nothing real', /if \(!hls\.length && !plans\.length\) return null;/.test(rail), true);
 is('a highlight video plays only on screen, never on data saver', /IntersectionObserver/.test(rail) && /isSaving\(/.test(rail) && /muted loop playsInline/.test(rail), true);
 is('join right from the card', /joinGathering\(g\.id, true\)/.test(rail), true);
 if (bad) { console.log('\n' + bad + ' wrong.'); process.exit(1); }

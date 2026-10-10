@@ -1261,7 +1261,7 @@ export const STRINGS = {
     notif_safety_reviewed: "Your report was reviewed. Thank you for telling us.",
     hr_you_blocked: "You blocked them.",
     hr_unblock: "Unblock",
-    hl_title: "This is what a Moments evening looks like",
+    hl_title: "This is what Moments looks like",
     hl_cta: "Find one this week",
     gr_title: "Coming up — from real photos",
     pl_add_photo: "Add a photo of the place — every week shows it",

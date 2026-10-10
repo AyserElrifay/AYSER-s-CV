@@ -1,10 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, Pressable, ScrollView, Image } from 'react-native';
+import { View, Text, Pressable, ScrollView, Image, Dimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { C } from '../constants/theme';
 import { useLang } from '../context/LanguageContext';
 import { listGatherings, joinGathering } from '../services/green';
-import { fetchHighlight } from '../services/appHighlights';
+import { fetchHighlights } from '../services/appHighlights';
 import { planPhotoOf } from './green/PlanPhoto';
 import { titleFor, whenFor } from '../lib/activityPins';
 import { getPrefs } from '../services/prefs';
@@ -73,12 +73,13 @@ const PlanCard = ({ g, lang, t, onOpen, onJoin, joining }) => (
 
 export const GoOutRail = ({ onFind, onOpenPlan }) => {
   const { t, lang } = useLang();
-  const [hl, setHl] = useState(null);
+  const [hls, setHls] = useState([]);
+  const cardW = Math.min(420, Dimensions.get('window').width - 56);
   const [plans, setPlans] = useState([]);
   const [joining, setJoining] = useState({});
   useEffect(() => {
     let alive = true;
-    fetchHighlight().then((h) => { if (alive) setHl(h); });
+    fetchHighlights().then((h) => { if (alive) setHls(h); });
     listGatherings(null).then((rows) => {
       if (!alive) return;
       const now = Date.now();
@@ -97,27 +98,34 @@ export const GoOutRail = ({ onFind, onOpenPlan }) => {
     setJoining((j) => ({ ...j, [g.id]: false }));
   };
 
-  if (!hl && !plans.length) return null;
+  if (!hls.length && !plans.length) return null;
   return (
     <View style={{ marginTop: 16 }}>
-      {hl ? (
-        <Pressable onPress={() => { tapLight(); onFind(); }} accessibilityRole="button" accessibilityLabel={t('hl_cta')}>
-          <View style={{ height: 230, borderRadius: 22, overflow: 'hidden', backgroundColor: C.glassHi }}>
-            {hl.kind === 'video' ? <HighlightVideo uri={hl.media_url} poster={hl.poster_url} /> : <Image source={{ uri: hl.media_url }} style={{ width: '100%', height: '100%' }} />}
-            <LinearGradient colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.7)']} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 140 }} />
-            <View style={{ position: 'absolute', left: 16, right: 16, bottom: 14 }}>
-              <Text style={{ color: '#FFF', fontSize: 19, fontWeight: '900', letterSpacing: -0.3 }}>{t('hl_title')}</Text>
-              {hl.caption ? <Text style={{ color: 'rgba(255,255,255,0.88)', fontSize: 13, marginTop: 3 }} numberOfLines={2}>{hl.caption}</Text> : null}
-              <View style={{ alignSelf: 'flex-start', marginTop: 10, backgroundColor: '#FFF', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8 }}>
-                <Text style={{ color: '#1A1A1A', fontSize: 13, fontWeight: '900' }}>{t('hl_cta')}</Text>
+      {hls.length ? (
+        /* one evening fills the width; two or more swipe sideways */
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled"
+          snapToInterval={hls.length > 1 ? cardW + 10 : undefined} decelerationRate="fast" scrollEnabled={hls.length > 1}>
+          {hls.map((hl) => (
+            <Pressable key={hl.id} onPress={() => { tapLight(); onFind(); }} accessibilityRole="button" accessibilityLabel={t('hl_cta')}
+              style={{ width: hls.length > 1 ? cardW : '100%', marginEnd: hls.length > 1 ? 10 : 0 }}>
+              <View style={{ height: 230, borderRadius: 22, overflow: 'hidden', backgroundColor: C.glassHi }}>
+                {hl.kind === 'video' ? <HighlightVideo uri={hl.media_url} poster={hl.poster_url} /> : <Image source={{ uri: hl.media_url }} style={{ width: '100%', height: '100%' }} />}
+                <LinearGradient colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.7)']} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 140 }} />
+                <View style={{ position: 'absolute', left: 16, right: 16, bottom: 14 }}>
+                  <Text style={{ color: '#FFF', fontSize: 19, fontWeight: '900', letterSpacing: -0.3 }}>{t('hl_title')}</Text>
+                  {hl.caption ? <Text style={{ color: 'rgba(255,255,255,0.88)', fontSize: 13, marginTop: 3 }} numberOfLines={2}>{hl.caption}</Text> : null}
+                  <View style={{ alignSelf: 'flex-start', marginTop: 10, backgroundColor: '#FFF', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8 }}>
+                    <Text style={{ color: '#1A1A1A', fontSize: 13, fontWeight: '900' }}>{t('hl_cta')}</Text>
+                  </View>
+                </View>
               </View>
-            </View>
-          </View>
-        </Pressable>
+            </Pressable>
+          ))}
+        </ScrollView>
       ) : null}
       {plans.length ? (
         <>
-          <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '900', letterSpacing: 1, marginTop: hl ? 18 : 0, marginBottom: 10 }}>{t('gr_title').toUpperCase()}</Text>
+          <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '900', letterSpacing: 1, marginTop: hls.length ? 18 : 0, marginBottom: 10 }}>{t('gr_title').toUpperCase()}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             {plans.map((g) => <PlanCard key={g.id} g={g} lang={lang} t={t} onOpen={onOpenPlan} onJoin={join} joining={joining[g.id]} />)}
           </ScrollView>

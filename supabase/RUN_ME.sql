@@ -11699,4 +11699,15 @@ select 'https://ayserelrifay.github.io/AYSER-s-CV/media/painting-night.mp4',
        'video', 'Painting night with friends', '2026-10-10T20:00:00Z'
 where not exists (select 1 from public.app_highlights where media_url = 'https://ayserelrifay.github.io/AYSER-s-CV/media/painting-night.mp4');
 
+-- ═══════════ HOME · A DESERT TRIP ═══════════
+/* A trip Ayser led: the bus at night, the drive, the Bedouin camp. The
+   words written over the original are cropped off and its music taken
+   out (it is almost certainly somebody else's song); everybody who can
+   be recognised in it agreed to be in the app. */
+insert into public.app_highlights (media_url, poster_url, kind, caption, consent_at)
+select 'https://ayserelrifay.github.io/AYSER-s-CV/media/desert-trip.mp4',
+       'https://ayserelrifay.github.io/AYSER-s-CV/media/desert-trip.jpg',
+       'video', 'A desert trip — strangers on the bus, friends by the camp', now()
+where not exists (select 1 from public.app_highlights where media_url = 'https://ayserelrifay.github.io/AYSER-s-CV/media/desert-trip.mp4');
+
 notify pgrst, 'reload schema';
