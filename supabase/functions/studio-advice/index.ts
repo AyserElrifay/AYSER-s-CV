@@ -109,6 +109,84 @@ const tool = (kind: string) => ({
 
 const ageDays = (iso?: string | null) => (iso ? Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 86400000)) : null);
 
+/* ── "WHAT NEEDS MY ATTENTION" ───────────────────────────────────────
+   The owner's button at the top of the Studio. It used to go to the
+   chat persona, which is a life coach, and a life coach answers a list
+   of numbers with "what is your main goal?". This answers with three
+   actions, from the real queues and the real week, and nothing else. */
+const TABS = ['safety', 'reports', 'hosts', 'venues', 'verify', 'feedback', 'team', 'music', 'help'];
+async function overview(asUser: any, db: any, lang: string) {
+  const { data: me } = await asUser.rpc('my_studio');
+  if (!me || !me.owner) return json(403, { error: 'not_allowed' });
+  const since = new Date(Date.now() - 7 * 86400000).toISOString();
+  const soon = new Date(Date.now() + 7 * 86400000).toISOString();
+  const n = async (q: any) => { try { const { count } = await q; return count || 0; } catch { return 0; } };
+  const head = { count: 'exact', head: true };
+  const [safetyOpen, threats, coachWaiting, hostsPending, venuesPending, reportsOpen, feedbackNew,
+         users, usersNew, postsNew, plansSoon, checkIns] = await Promise.all([
+    n(db.from('safety_reports').select('id', head).eq('status', 'open')),
+    n(db.from('safety_reports').select('id', head).eq('status', 'open').in('ai_verdict', ['threat', 'violence', 'sexual'])),
+    n(db.from('safety_standing').select('user_id', head).eq('state', 'coach')),
+    n(db.from('verification_requests').select('user_id', head).eq('status', 'pending').in('role', ['guide', 'host'])),
+    n(db.from('venues').select('id', head).eq('status', 'pending')),
+    n(db.from('content_reports').select('id', head).eq('status', 'open')),
+    n(db.from('feedback').select('id', head).eq('status', 'new')),
+    n(db.from('profiles').select('id', head)),
+    n(db.from('profiles').select('id', head).gte('created_at', since)),
+    n(db.from('posts').select('id', head).gte('created_at', since)),
+    n(db.from('green_gatherings').select('id', head).is('cancelled_at', null).gte('starts_at', new Date().toISOString()).lte('starts_at', soon)),
+    n(db.from('green_joins').select('user_id', head).gte('checked_in_at', since)),
+  ]);
+  const counts = { safetyOpen, threats, coachWaiting, hostsPending, venuesPending, reportsOpen, feedbackNew, users, usersNew, postsNew, plansSoon, checkIns };
+  if (!KEY) return json(200, { ok: true, counts, actions: [], error: 'not_configured' });
+  try {
+    const client = new Anthropic({ apiKey: KEY });
+    const msg = await client.messages.create({
+      model: 'claude-opus-5',
+      max_tokens: 700,
+      system: `You are Bardi, the operations assistant inside the Moments Studio. Moments helps people meet in real life (plans, walks, trips), early stage, run by its founder Ayser with a small team.
+Give exactly three actions for today, most important first. Safety comes before everything (threat reports first), then people waiting on a decision (guides, organisations, reports, coach sessions), then growth — more plans happening and more people actually showing up.
+Each action: a short imperative title and one sentence on why, using the real numbers. No greetings, no questions back, no praise, nothing generic. If a queue is empty, do not mention it.
+Write in ${lang === 'ar' ? 'Egyptian Arabic' : 'English'}.`,
+      tools: [{
+        name: 'record_actions',
+        description: 'The three actions for today.',
+        input_schema: {
+          type: 'object',
+          properties: {
+            actions: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: { title: { type: 'string' }, why: { type: 'string' }, tab: { type: 'string', enum: [...TABS, 'none'] } },
+                required: ['title', 'why', 'tab'],
+                additionalProperties: false,
+              },
+            },
+          },
+          required: ['actions'],
+          additionalProperties: false,
+        },
+      }],
+      tool_choice: { type: 'tool', name: 'record_actions' },
+      messages: [{ role: 'user', content: 'The numbers right now:\n' + JSON.stringify({
+        open_chat_reports: safetyOpen, of_them_threats_violence_or_sexual: threats, waiting_for_a_coach_session: coachWaiting,
+        guide_and_host_applications_waiting: hostsPending, organisations_waiting: venuesPending, content_reports_open: reportsOpen,
+        new_feedback: feedbackNew, users_total: users, new_users_last_7_days: usersNew, posts_last_7_days: postsNew,
+        plans_in_the_next_7_days: plansSoon, check_ins_last_7_days: checkIns,
+      }, null, 1) }],
+    });
+    const use = msg.content.find((x: any) => x.type === 'tool_use') as any;
+    const actions = ((use && use.input && use.input.actions) || []).slice(0, 3).map((a: any) => ({
+      title: String(a.title || '').slice(0, 120), why: String(a.why || '').slice(0, 300),
+      tab: TABS.includes(a.tab) ? a.tab : null,
+    }));
+    return json(200, { ok: true, counts, actions });
+  } catch {
+    return json(200, { ok: true, counts, actions: [], error: 'failed' });
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
   if (req.method !== 'POST') return json(405, { error: 'method' });
@@ -123,8 +201,9 @@ Deno.serve(async (req) => {
   try { b = await req.json(); } catch { return json(400, { error: 'body' }); }
   const kind = String(b.kind || '');
   const ref = String(b.ref || '');
-  if (!RECS[kind] || !/^[0-9a-f-]{36}$/i.test(ref)) return json(400, { error: 'bad_item' });
   const lang = String(b.lang || 'en').slice(0, 2);
+  if (kind === 'overview') return overview(asUser, db, lang);
+  if (!RECS[kind] || !/^[0-9a-f-]{36}$/i.test(ref)) return json(400, { error: 'bad_item' });
 
   // the database says who may ask about what — the same rule as the queues
   let allowed = false;

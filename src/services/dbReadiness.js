@@ -90,9 +90,21 @@ async function probeBucket() {
     what: 'A long clip is refused before it is sent, however small the app makes it.',
   };
   try {
-    const { data, error } = await supabase.storage.getBucket('media');
-    if (error || !data) return { ...base, state: 'unknown', detail: (error && error.message) || 'the bucket did not answer' };
-    const limit = data.file_size_limit;
+    /* The database is asked, not the storage service: storage describes
+       a bucket only to the service key, and to everyone else answers
+       "Bucket not found" — about a bucket that exists (part 24). */
+    let info = null;
+    const { data: viaDb, error: dbErr } = await supabase.rpc('media_bucket_info');
+    if (!dbErr && viaDb) info = viaDb;
+    if (!info) {
+      const { data, error } = await supabase.storage.getBucket('media');
+      if (error || !data) {
+        return { ...base, state: 'unknown', detail: /not found/i.test((error && error.message) || '') ? 'run part 24 so this can be checked' : ((error && error.message) || 'the bucket did not answer') };
+      }
+      info = { exists: true, limit: data.file_size_limit };
+    }
+    if (!info.exists) return { ...base, state: 'missing', what: 'There is no "media" bucket, so photos and videos have nowhere to go.' };
+    const limit = info.limit;
     if (limit == null) return { ...base, state: 'ready' };     // no limit set at all
     if (limit >= MIN_BUCKET) return { ...base, state: 'ready' };
     return {

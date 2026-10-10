@@ -18,7 +18,6 @@ import { fetchTracks, setTrackApproval, harvestFreeMusic, harvestPublicDomainCla
 import { fetchHelpArticles, createHelpArticle, updateHelpArticle, deleteHelpArticle } from '../services/help';
 import { checkDatabase } from '../services/dbReadiness';
 import { fetchBardiConfig, saveBardiConfig, fetchBardiKnowledge, addBardiKnowledge, deleteBardiKnowledge, invalidateBardiBrain } from '../services/bardiOwner';
-import { askBardi } from '../services/bardi';
 import { AV_NEUTRAL } from '../constants/mockData';
 import { tapLight, tapSuccess } from '../utils/feedback';
 import { useStable } from '../hooks/useStable';
@@ -103,6 +102,55 @@ const BardiAdvice = ({ kind, refId }) => {
         </>
       )}
       <Text style={{ color: C.faint, fontSize: 10.5, marginTop: 6 }}>Advice only — you decide.{kind === 'host' ? ' Comparing the face with the card is yours.' : ''}</Text>
+    </View>
+  );
+};
+
+/* What is waiting, counted, each line opening its tab; then Bardi's
+   three actions for today when the function can answer. */
+const WAITING = [
+  ['threats', 'safety', '⚠️', ['threat report — first', 'threat reports — first']],
+  ['safetyOpen', 'safety', '🛡', ['reported chat', 'reported chats']],
+  ['coachWaiting', 'safety', '🤝', ['person waiting for a coach session', 'people waiting for a coach session']],
+  ['hostsPending', 'hosts', '🪪', ['guide / host application', 'guide / host applications']],
+  ['venuesPending', 'venues', '🏢', ['organisation waiting', 'organisations waiting']],
+  ['reportsOpen', 'reports', '🚩', ['content report', 'content reports']],
+  ['feedbackNew', 'feedback', '💬', ['new feedback', 'new feedback']],
+];
+const Attention = ({ a, tabs, onTab, onClose }) => {
+  const c = a.counts || {};
+  const can = (k) => tabs.some((t) => t.k === k);
+  const rows = WAITING.filter(([key, tab]) => c[key] > 0 && can(tab) && !(key === 'safetyOpen' && c.threats >= c.safetyOpen));
+  return (
+    <View style={{ marginHorizontal: 16, marginTop: 8, backgroundColor: C.bg2, borderWidth: 1, borderColor: C.line, borderRadius: 14, padding: 12, maxHeight: 300 }}>
+      <ScrollView keyboardShouldPersistTaps="handled" nestedScrollEnabled>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Text style={{ flex: 1, color: C.faint, fontSize: 11, fontWeight: '900', letterSpacing: 1 }}>WAITING FOR YOU</Text>
+          <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button" accessibilityLabel="Close"><Ionicons name="close" size={18} color={C.dim} /></Pressable>
+        </View>
+        {rows.length ? rows.map(([key, tab, emoji, label]) => (
+          <Pressable key={key} onPress={() => { tapLight(); onTab(tab); }} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 7 }}>
+            <Text style={{ width: 24, fontSize: 15 }}>{emoji}</Text>
+            <Text style={{ flex: 1, color: C.text, fontSize: 13.5, fontWeight: '700' }}>{c[key] + ' ' + label[c[key] === 1 ? 0 : 1]}</Text>
+            <Ionicons name="chevron-forward" size={15} color={C.faint} />
+          </Pressable>
+        )) : <Text style={{ color: C.text, fontSize: 13.5, marginTop: 6 }}>Nothing is waiting on a decision. ✓</Text>}
+        {(a.actions || []).length ? (
+          <>
+            <Text style={{ color: C.faint, fontSize: 11, fontWeight: '900', letterSpacing: 1, marginTop: 12 }}>BARDI · TODAY</Text>
+            {a.actions.map((x, i) => (
+              <Pressable key={i} disabled={!x.tab || !can(x.tab)} onPress={() => { tapLight(); onTab(x.tab); }} style={{ marginTop: 8 }}>
+                <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800' }}>{(i + 1) + '. ' + x.title}</Text>
+                <Text style={{ color: C.dim, fontSize: 12.5, lineHeight: 18, marginTop: 1 }}>{x.why}</Text>
+              </Pressable>
+            ))}
+          </>
+        ) : (
+          <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 10 }}>
+            {a.error === 'not_configured' ? "Bardi's three actions need ANTHROPIC_API_KEY." : a.error === 'no_function' ? "Bardi's three actions need the studio-advice function deployed." : a.error ? 'Bardi could not answer this time.' : ''}
+          </Text>
+        )}
+      </ScrollView>
     </View>
   );
 };
@@ -339,6 +387,7 @@ const HostReview = ({ h, onDone }) => {
 
 export const AdminPanel = ({ onClose, access = { owner: true } }) => {
   const tabs = TABS.filter((t) => canOpen(access, t));
+  const { lang } = useLang();
   const owner = !!access.owner;
   /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
   useSheetBack(onClose);
@@ -467,21 +516,28 @@ export const AdminPanel = ({ onClose, access = { owner: true } }) => {
     try { await deleteHelpArticle(id); setHelp((l) => l.filter((a) => a.id !== id)); tapSuccess(); } catch (e) {}
   };
 
+  /* "What needs my attention": first what is really waiting, counted
+     (works with no AI at all), then Bardi's three actions from the same
+     numbers — supabase/functions/studio-advice, kind 'overview'. */
   const askBardiSummary = async () => {
     if (bardiBusy) return;
     setBardiBusy(true); setBardiMsg(null);
-    try {
-      const s = stats || {};
-      const rTop = (reports || []).slice(0, 5).map((r) => r.reason + (r.detail ? ': ' + r.detail : '')).join('; ');
-      const fTop = (feedback || []).slice(0, 5).map((f) => f.kind + ': ' + f.body).join('; ');
-      const prompt = `You are helping me run Moments (a social app). Here's the live state — give me 3 short, prioritised actions.\n`
-        + `Users: ${s.users}, Posts: ${s.posts}, Tracks: ${s.tracks}, Open reports: ${s.openReports}, New feedback: ${s.newFeedback}.\n`
-        + (rTop ? `Recent reports: ${rTop}.\n` : '')
-        + (fTop ? `Recent feedback: ${fTop}.\n` : '');
-      const reply = await askBardi([{ role: 'user', content: prompt }], { language: 'ar', profile: { name: 'Ayser' } });
-      setBardiMsg(reply);
-    } catch (e) { setBardiMsg('باردي مش متاح دلوقتي — جرّب تاني.'); }
-    finally { setBardiBusy(false); }
+    const r = await askAdvice('overview', 'today', { lang: lang === 'ar' ? 'ar' : 'en' });
+    if (r && r.ok && r.counts) { setBardiMsg(r); setBardiBusy(false); return; }
+    /* the function is not there yet: count it here, the same queues */
+    const [sq, hp, vp] = await Promise.all([
+      fetchSafetyQueue().catch(() => null), fetchPendingHosts().catch(() => null), fetchPendingVenues().catch(() => null),
+    ]);
+    setBardiMsg({
+      counts: {
+        safetyOpen: sq ? sq.reports.length : 0,
+        threats: sq ? sq.reports.filter((x) => ['threat', 'violence', 'sexual'].includes(x.ai_verdict)).length : 0,
+        coachWaiting: sq ? sq.coach.length : 0, hostsPending: hp ? hp.length : 0, venuesPending: vp ? vp.length : 0,
+        reportsOpen: (stats && stats.openReports) || 0, feedbackNew: (stats && stats.newFeedback) || 0,
+      },
+      actions: [], error: 'no_function',
+    });
+    setBardiBusy(false);
   };
 
   const Stat = useStable(({ n, l, tint }) => (
@@ -518,11 +574,7 @@ export const AdminPanel = ({ onClose, access = { owner: true } }) => {
             {bardiBusy ? <ActivityIndicator size="small" color={C.purple} /> : <Ionicons name="sparkles" size={16} color={C.purple} />}
           </View>
         </Pressable> : null}
-        {bardiMsg ? (
-          <View style={{ marginHorizontal: 16, marginTop: 8, backgroundColor: C.bg2, borderWidth: 1, borderColor: C.line, borderRadius: 14, padding: 12 }}>
-            <Text style={{ color: C.text, fontSize: 13, lineHeight: 20 }}>{bardiMsg}</Text>
-          </View>
-        ) : null}
+        {bardiMsg ? <Attention a={bardiMsg} tabs={tabs} onTab={(k) => { setTab(k); setBardiMsg(null); }} onClose={() => setBardiMsg(null)} /> : null}
 
         {/* tabs */}
         {/* ten tabs do not fit a phone's width: they scroll sideways */}

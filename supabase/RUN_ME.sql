@@ -11267,4 +11267,21 @@ drop trigger if exists venues_forget_advice on public.venues;
 create trigger venues_forget_advice after update on public.venues
   for each row execute function public.forget_venue_advice();
 
+-- ═══════════ SETUP · THE VIDEO BUCKET, ASKED PROPERLY ═══════════
+/* The Setup tab said "Big video uploads — could not tell: Bucket not
+   found" although uploads work. The app asked the storage service about
+   the bucket with an ordinary session, and the storage service only
+   describes buckets to the service key — so it said "not found" about a
+   bucket that is right there. This asks the database instead, for the
+   owner only. */
+create or replace function public.media_bucket_info()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select case when not public.is_app_owner() then null else coalesce(
+    (select jsonb_build_object('exists', true, 'limit', b.file_size_limit, 'public', b.public)
+       from storage.buckets b where b.id = 'media'),
+    jsonb_build_object('exists', false)) end;
+$$;
+revoke execute on function public.media_bucket_info() from public, anon;
+grant execute on function public.media_bucket_info() to authenticated;
+
 notify pgrst, 'reload schema';
