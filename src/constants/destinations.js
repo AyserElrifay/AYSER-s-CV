@@ -62,7 +62,7 @@ export const DESTINATIONS = [
   { id: 'eg_giza_pass', country: 'Egypt', flag: '🇪🇬', emoji: '🎫', name: 'Giza Pyramids Entrance', area: 'Giza',
     lat: 29.9814, lng: 31.1329, tags: ['Meet point'],
     desc: 'The official gate and ticket point — the natural meetup spot for your squad before heading into the plateau together.' },
-  { id: 'eg_gem', country: 'Egypt', flag: '🇪🇬', emoji: '🏛️', name: 'Grand Egyptian Museum', area: 'Giza',
+  { id: 'eg_gem', photo: 'place-gem.jpg', country: 'Egypt', flag: '🇪🇬', emoji: '🏛️', name: 'Grand Egyptian Museum', area: 'Giza',
     lat: 29.9947, lng: 31.1197, tags: ['Culture', 'History'],
     desc: 'The vast new museum a short way from the pyramids — the grand staircase lined with colossal statues, and the treasures of Tutankhamun shown together.' },
   { id: 'eg_egyptian_museum', country: 'Egypt', flag: '🇪🇬', emoji: '🏺', name: 'Egyptian Museum', area: 'Tahrir, Cairo',
