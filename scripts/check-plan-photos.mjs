@@ -27,11 +27,5 @@ is('only https ever reaches an image', /\/\^https:\\\/\\\/\/i\.test\(u\)/.test(p
 is('the photo is optional in the form', /sf_photo_sub/.test(form) && !/required/.test(form.slice(form.indexOf('pickPhoto'))), true);
 is('a failed upload never loses the plan', /the plan stands either way/.test(sheet), true);
 is('a photo can be reported, and the owner sees it before taking it down', /contentType="plan_photo"/.test(sheet) && /r\.content_type === 'plan_photo'/.test(admin) && /removeGatheringPhoto\(gid, url/.test(admin), true);
-const pins = read('src/lib/activityPins.js');
-const leaf = read('src/components/LeafletMap.js');
-const globe = read('src/lib/globe3d.js');
-is('a plan pin on the map shows its real photo, https only', /photo: \[g\.photo_url/.test(pins) && /safeSrc\(m\.photo\)/.test(leaf), true);
-is('the world by day: a light sky, stars only at night', /\.mm-dark \.mm-globe3d \{/.test(leaf) && /stars\.visible = night/.test(globe), true);
-is('the whole planet fits a phone held upright', /restZFor\(w, h\)/.test(globe), true);
 if (bad) { console.log('\n' + bad + ' wrong.'); process.exit(1); }
 console.log('\nPlans show real photos — the host\'s, or from last time — and nothing pretends to be the place.');

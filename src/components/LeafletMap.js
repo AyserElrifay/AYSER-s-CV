@@ -136,14 +136,6 @@ function injectMapStyle() {
       animation: mmBob 3.4s ease-in-out infinite;
     }
     .mm-act-emoji { font-size: 29px; line-height: 1; filter: drop-shadow(0 2px 2px rgba(0,0,0,0.18)); }
-    /* with a real photo: the picture fills a taller white-framed card,
-       with a little point under it where it meets — a photo pinned to
-       the spot, not an icon */
-    .mm-act-photo { width: 64px; height: 76px; border-radius: 16px; overflow: visible; }
-    .mm-act-photo .mm-act-img { width: 100%; height: 100%; object-fit: cover; border-radius: 13px; display: block; }
-    .mm-act-photo::after { content: ''; position: absolute; left: 50%; bottom: -8px; width: 12px; height: 12px; background: #fff; transform: translateX(-50%) rotate(45deg); border-radius: 2px; z-index: -1; box-shadow: 2px 2px 4px rgba(15,23,42,0.18); }
-    .mm-act-badge { position: absolute; top: -9px; left: -9px; width: 24px; height: 24px; border-radius: 12px; background: #fff; display: flex; align-items: center; justify-content: center; font-size: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.3); }
-    .mm-act-photo .mm-act-when { bottom: -11px; }
     .mm-act-when {
       position: absolute; left: 50%; bottom: -9px; transform: translateX(-50%);
       background: #111827; color: #fff; border-radius: 999px; padding: 2px 7px;
@@ -192,12 +184,9 @@ function injectMapStyle() {
     /* the REAL 3-D Earth canvas — fills the view on full zoom-out, deep
        space behind it. It's a true sphere (three.js), so the world is
        genuinely curved, not a flat map in a ring. */
-    /* ── THE WORLD BY DAY ── a light app gets a daylight planet: soft
-       sky round it, no black space, no stars (see globe3d.js). The
-       night version stays for the dark theme. */
     .mm-globe3d {
       position: absolute; inset: 0; z-index: 460;
-      background: radial-gradient(110% 90% at 50% 38%, #FFFFFF 0%, #EEF6FB 45%, #E3EFF7 100%);
+      background: radial-gradient(120% 120% at 50% 40%, #0a1226 0%, #04060d 70%);
       opacity: 0; transition: opacity 0.65s ease; pointer-events: none;
     }
     /* The way down, said out loud. A planet with no instructions looks
@@ -206,7 +195,6 @@ function injectMapStyle() {
        and without the live glow */
     .mm-away { opacity: 0.6; filter: grayscale(0.35); }
     .mm-away .mm-heat { display: none; }
-    .mm-dark .mm-globe3d { background: radial-gradient(120% 120% at 50% 40%, #0a1226 0%, #04060d 70%); }
     .mm-globe-hint {
       position: absolute; left: 50%; transform: translateX(-50%);
       /* at the top, under the lenses: at the bottom it sat on the
@@ -402,12 +390,9 @@ const pinHtml = (m) => {
   if (m.kind === 'activity') {
     return (
       '<div class="mm-act">' +
-      '<div class="mm-act-card' + (m.photo ? ' mm-act-photo' : '') + (m.mine ? ' mm-act-mine' : '') + (m.act === 'cleanup' ? ' mm-act-eco' : '') + '" style="--tilt:' + (Number(m.tilt) || 0) + 'deg;background:linear-gradient(135deg,' + m.from + ',' + m.to + ')">' +
+      '<div class="mm-act-card' + (m.mine ? ' mm-act-mine' : '') + (m.act === 'cleanup' ? ' mm-act-eco' : '') + '" style="--tilt:' + (Number(m.tilt) || 0) + 'deg;background:linear-gradient(135deg,' + m.from + ',' + m.to + ')">' +
       (m.act === 'cleanup' ? '<span class="mm-act-leaf">🌿</span>' : '') +
-      /* the plan's real photo when it has one, its kind as a badge in the corner */
-      (m.photo
-        ? '<img class="mm-act-img" src="' + safeSrc(m.photo) + '" alt=""/><span class="mm-act-badge">' + esc(m.emoji) + '</span>'
-        : '<span class="mm-act-emoji">' + esc(m.emoji) + '</span>') +
+      '<span class="mm-act-emoji">' + esc(m.emoji) + '</span>' +
       (m.going > 0 ? '<div class="mm-act-going">' + (Math.floor(Number(m.going)) || 0) + '</div>' : '') +
       (m.when ? '<div class="mm-act-when">' + esc(m.when) + '</div>' : '') +
       '</div>' +

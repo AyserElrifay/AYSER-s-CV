@@ -70,8 +70,5 @@ export function activityPin(g, lang) {
     when: whenFor(g.starts_at, lang),
     going,
     mine: !!g.im_going,
-    /* a real photo of it, when there is one (the host's, or from last
-       time) — the pin shows the picture, the way a map of moments does */
-    photo: [g.photo_url, Array.isArray(g.past_photos) ? g.past_photos[0] : null].find((u) => typeof u === 'string' && /^https:\/\//i.test(u)) || null,
   };
 }

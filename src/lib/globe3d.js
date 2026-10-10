@@ -22,46 +22,18 @@ function loadThree() {
 const EARTH_TEX = 'https://unpkg.com/three-globe@2.31.0/example/img/earth-blue-marble.jpg';
 const BUMP_TEX = 'https://unpkg.com/three-globe@2.31.0/example/img/earth-topology.png';
 
-/* Repaint the satellite picture in the map's own daylight colours.
-   Ayser held up a map whose world view is all bright: a light, clear
-   blue sea, and land in soft greens and sand. NASA's Blue Marble (public
-   domain) has a near-black navy ocean, which is what made our planet
-   look like night even in the light theme. So, once, on the phone:
-   every ocean pixel is lifted toward a clear sky-blue (keeping a little
-   of its own depth so coasts still read), and land gets a gentle lift
-   in colour and light. Ice and cloud stay white. */
-const SEA = [140, 206, 242];
+/* Cartoonify the satellite texture in-memory: boost saturation and
+   lightness toward Snap's candy palette (mint land, playful blue sea)
+   so the planet matches the app's cartoon map instead of NASA colours. */
 function cartoonify(img) {
-  const scale = Math.min(1, 2048 / (img.width || 2048));
   const c = document.createElement('canvas');
-  c.width = Math.round(img.width * scale); c.height = Math.round(img.height * scale);
+  c.width = img.width; c.height = img.height;
   const x = c.getContext('2d');
-  x.drawImage(img, 0, 0, c.width, c.height);
-  try {
-    const d = x.getImageData(0, 0, c.width, c.height);
-    const a = d.data;
-    for (let i = 0; i < a.length; i += 4) {
-      const r = a[i], g = a[i + 1], b = a[i + 2];
-      /* the open sea is blue over red; the deepest of it is so dark it
-         is barely blue at all, and was left as dark blotches */
-      const dark = Math.max(r, g, b) < 72 && b >= r && b + 6 >= g;
-      if ((b > r + 22 && b >= g && r < 110) || dark) {
-        // sea: mostly the clear blue, a fifth of its own shade for depth
-        const depth = (b - r) / 255;
-        a[i] = SEA[0] * 0.82 + r * 0.18 - depth * 18;
-        a[i + 1] = SEA[1] * 0.82 + g * 0.18 - depth * 8;
-        a[i + 2] = SEA[2] * 0.82 + b * 0.18;
-      } else {
-        // land: a little more colour, a little more light
-        const L = 0.3 * r + 0.59 * g + 0.11 * b;
-        const lift = (v) => Math.min(255, (L + (v - L) * 1.08) * 1.2 + 12);
-        a[i] = lift(r); a[i + 1] = lift(g); a[i + 2] = lift(b);
-      }
-    }
-    x.putImageData(d, 0, 0);
-  } catch (e) {
-    // a canvas the browser will not let us read: the old filter, at least
-    if ('filter' in x) { x.filter = 'saturate(1.6) brightness(1.3)'; x.drawImage(c, 0, 0); }
+  x.drawImage(img, 0, 0);
+  // saturate + brighten via filter re-draw when supported
+  if ('filter' in x) {
+    x.filter = 'saturate(1.9) brightness(1.25) contrast(1.05) hue-rotate(-8deg)';
+    x.drawImage(c, 0, 0);
   }
   return c;
 }
@@ -74,21 +46,7 @@ export function mountGlobe3D(container, { onDive } = {}) {
   let visible = false, disposed = false;
   let dragging = false, lastX = 0, lastY = 0, velX = 0.0015, velY = 0;
   let moved = 0, diving = false;
-  /* The camera's resting distance. It was a fixed 3.05, which frames
-     the planet for a wide screen: on a phone, held upright, the globe
-     came out wider than the screen and you saw a slab of ocean rather
-     than a world. Now it is set from the screen's own shape so the
-     whole planet fits — about 82% of the width or 62% of the height,
-     whichever is smaller — with sky round it. */
-  const FOV = 38;
-  const restZFor = (w, h) => {
-    const v = (FOV * Math.PI) / 360;                     // half the vertical angle
-    const hHalf = Math.atan(Math.tan(v) * (w / Math.max(1, h)));
-    const fitW = 1 / Math.sin(Math.atan(Math.tan(hHalf) * 0.82));
-    const fitH = 1 / Math.sin(Math.atan(Math.tan(v) * 0.62));
-    return Math.max(3.05, fitW, fitH);
-  };
-  let REST_Z = 3.05; // camera distance at rest — set from the screen below
+  const REST_Z = 3.05; // camera distance at rest
 
   loadThree().then((T) => {
     if (!T || disposed) return;
@@ -103,9 +61,8 @@ export function mountGlobe3D(container, { onDive } = {}) {
     container.appendChild(renderer.domElement);
 
     scene = new THREE.Scene();
-    camera = new THREE.PerspectiveCamera(FOV, w / h, 0.1, 100);
-    REST_Z = restZFor(w, h);
-    camera.position.set(0, 0, REST_Z);
+    camera = new THREE.PerspectiveCamera(38, w / h, 0.1, 100);
+    camera.position.set(0, 0, 3.05);
 
     // lights — a soft "sun" plus fill so the night side isn't pure black
     scene.add(new THREE.AmbientLight(0xffffff, 0.55));
@@ -228,9 +185,6 @@ export function mountGlobe3D(container, { onDive } = {}) {
       if (!visible) return;
       if (!dragging) { earth.rotation.y += 0.0016; velY *= 0.94; earth.rotation.x += velY; }
       stars.rotation.y += 0.0003;
-      /* stars only at night: by day the planet floats in a light sky */
-      const night = !!(container.parentElement && container.parentElement.classList.contains('mm-dark'));
-      if (stars.visible !== night) stars.visible = night;
       renderer.render(scene, camera);
     };
     tick();
@@ -275,8 +229,6 @@ export function mountGlobe3D(container, { onDive } = {}) {
       const w = container.clientWidth || window.innerWidth;
       const h = container.clientHeight || window.innerHeight;
       camera.aspect = w / h; camera.updateProjectionMatrix(); renderer.setSize(w, h);
-      REST_Z = restZFor(w, h);
-      if (!diving) camera.position.z = REST_Z;
     },
     destroy() {
       disposed = true;
