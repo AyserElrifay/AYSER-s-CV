@@ -191,6 +191,10 @@ function injectMapStyle() {
     }
     /* The way down, said out loud. A planet with no instructions looks
        like a picture; one line fixes that. Only visible on the globe. */
+    /* seen around this week, at a rounded spot — not here now: quieter,
+       and without the live glow */
+    .mm-away { opacity: 0.6; filter: grayscale(0.35); }
+    .mm-away .mm-heat { display: none; }
     .mm-globe-hint {
       position: absolute; left: 50%; transform: translateX(-50%);
       /* at the top, under the lenses: at the bottom it sat on the
@@ -309,7 +313,7 @@ const pinHtml = (m) => {
        draws it from their own settings), not anybody else's avatars. */
     if (m.standing) {
       return (
-        '<div class="mm-float" style="position:relative;width:74px;height:104px;display:flex;flex-direction:column;align-items:center">' +
+        '<div class="mm-float' + (m.away ? ' mm-away' : '') + '" style="position:relative;width:74px;height:104px;display:flex;flex-direction:column;align-items:center">' +
         '<div class="mm-heat"></div>' +
         '<img src="' + safeSrc(m.standing) + '" style="width:66px;height:auto;display:block;filter:drop-shadow(0 6px 10px rgba(0,0,0,0.30))"/>' +
         doing + flagBadge +
@@ -322,7 +326,7 @@ const pinHtml = (m) => {
        lands on the spot, rather than a floating circle hovering near
        it. You can tell at a glance who is where. */
     return (
-      '<div class="mm-float" style="position:relative;width:60px;height:78px">' +
+      '<div class="mm-float' + (m.away ? ' mm-away' : '') + '" style="position:relative;width:60px;height:78px">' +
       '<div class="mm-heat"></div>' +
       '<div class="mm-pin">' +
       '<img src="' + safeSrc(m.avatar) + '" class="mm-pin-face"/>' +

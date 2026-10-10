@@ -22,6 +22,19 @@ import { tapLight, tapSelection } from '../utils/feedback';
 
 export const MAP_PANEL_PEEK = 176;          // collapsed height, without chips
 export const MAP_PANEL_CHIPS = 44;          // the kind chips, on the activities lens
+export const PEOPLE_PANEL_PEEK = 248;       // the People lens: title and one row of faces
+
+const distance = (km) => (km < 1 ? Math.max(1, Math.round(km * 1000 / 50) * 50) + ' m' : km.toFixed(1) + ' km');
+
+/* one line on where somebody is, at exactly the precision they agreed
+   to: here now (with how far), around here this week (roughly), or
+   only their city — never a made-up distance */
+export function personWhere(p, t) {
+  const km = p.km != null && isFinite(p.km) ? p.km : null;
+  if (p.seen === 'now') return t('pp_here_now') + (km != null ? ' · ' + distance(km) : '');
+  if (p.seen === 'recent') return t('pp_this_week') + (km != null ? ' · ~' + (km < 1 ? '1 km' : Math.round(km) + ' km') : '');
+  return p.city || t('pp_on_moments');
+}
 
 const KINDS = [null, 'walk', 'run', 'coffee', 'focus', 'sport', 'culture', 'movie', 'circle', 'art', 'cleanup'];
 const kindLabel = (t, k) => (k ? t(k === 'focus' ? 'gn_focus' : k === 'run' ? 'gn_run' : k === 'coffee' ? 'gn_coffee' : k === 'movie' ? 'gn_movie' : 'green_kind_' + k) : t('lens_all'));
@@ -89,11 +102,9 @@ export const MapPanel = ({
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
         <Text style={{ color: C.text, fontSize: 13, fontWeight: '800', flexShrink: 1 }} numberOfLines={1}>{p.name}</Text>
-        <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: C.green, marginStart: 5 }} />
+        {p.seen === 'now' ? <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: C.green, marginStart: 5 }} /> : null}
       </View>
-      {p.km != null && isFinite(p.km) ? (
-        <Text style={{ color: C.faint, fontSize: 11.5 }}>{p.km < 1 ? Math.max(1, Math.round(p.km * 1000 / 50) * 50) + ' m' : p.km.toFixed(1) + ' km'}</Text>
-      ) : null}
+      <Text style={{ color: C.faint, fontSize: 11.5 }} numberOfLines={1}>{personWhere(p, t)}</Text>
     </Pressable>
   );
 
@@ -158,6 +169,99 @@ export const MapPanel = ({
           </View>
         ) : null}
       </ScrollView>
+    </View>
+  );
+};
+
+/* ─── THE PEOPLE LENS ─────────────────────────────────────────────────
+   "ليه people فاضيه … واحنا عندنا ٧٠ user حقيقي". It showed only who
+   had shared a live spot in the last half hour. Now: the real people on
+   Moments, here-now first, then seen around this week, then your city
+   and country — faces you can tap, in the travel apps' shape (a big
+   count, a row of faces, See all). The count is the people listed. */
+export const PeoplePanel = ({ t, people, hereNow = 0, open, onOpen, onPerson, onGoNow }) => {
+  const { height } = useWindowDimensions();
+  const drag = useRef(PanResponder.create({
+    onMoveShouldSetPanResponder: (e, g) => Math.abs(g.dy) > 6 && Math.abs(g.dy) > Math.abs(g.dx),
+    onPanResponderRelease: (e, g) => {
+      if (g.dy < -24) onOpen(true);
+      else if (g.dy > 24) onOpen(false);
+    },
+  })).current;
+  const n = people.length;
+
+  const renderFace = (p) => (
+    <Pressable key={p.id} onPress={() => { tapLight(); onPerson(p); }} accessibilityRole="button" accessibilityLabel={p.name}
+      style={{ width: 104, marginEnd: 10 }}>
+      <View style={{ width: 104, height: 124, borderRadius: 18, backgroundColor: C.glassHi, overflow: 'hidden' }}>
+        <Image source={{ uri: p.cartoonAvatar || p.avatar }} style={{ width: 104, height: 124 }} />
+        {p.countryFlag ? <Text style={{ position: 'absolute', top: 7, left: 8, fontSize: 16 }}>{p.countryFlag}</Text> : null}
+      </View>
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
+        <Text style={{ color: C.text, fontSize: 13, fontWeight: '800', flexShrink: 1 }} numberOfLines={1}>{p.name}</Text>
+        {p.seen === 'now' ? <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: C.green, marginStart: 5 }} /> : null}
+      </View>
+      <Text style={{ color: C.faint, fontSize: 11.5 }} numberOfLines={1}>{personWhere(p, t)}</Text>
+    </Pressable>
+  );
+
+  const renderRow = (p, k) => (
+    <Pressable key={p.id} onPress={() => { tapLight(); onPerson(p); }} accessibilityRole="button" accessibilityLabel={p.name}
+      style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderTopWidth: k ? 1 : 0, borderTopColor: C.line }}>
+      <View>
+        <Image source={{ uri: p.cartoonAvatar || p.avatar }} style={{ width: 50, height: 50, borderRadius: 25, backgroundColor: C.glassHi }} />
+        {p.seen === 'now' ? <View style={{ position: 'absolute', bottom: 1, right: 1, width: 12, height: 12, borderRadius: 6, backgroundColor: C.green, borderWidth: 2, borderColor: C.floatSolid }} /> : null}
+      </View>
+      <View style={{ flex: 1, minWidth: 0, marginStart: 12 }}>
+        <Text style={{ color: C.text, fontSize: 15.5, fontWeight: '800' }} numberOfLines={1}>{p.countryFlag ? p.countryFlag + ' ' : ''}{p.name}</Text>
+        <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 2 }} numberOfLines={1}>{personWhere(p, t)}</Text>
+      </View>
+      <Ionicons name="chevron-forward" size={18} color={C.faint} />
+    </Pressable>
+  );
+
+  return (
+    <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, maxHeight: open ? height * 0.7 : undefined, backgroundColor: C.floatSolid,
+      borderTopLeftRadius: 26, borderTopRightRadius: 26, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 18, shadowOffset: { width: 0, height: -4 }, elevation: 12 }}>
+      <View {...drag.panHandlers}>
+        <Pressable onPress={() => { tapSelection(); onOpen(!open); }} accessibilityRole="button" accessibilityLabel={open ? t('close') : t('see_all')}
+          style={{ alignItems: 'center', paddingTop: 9, paddingBottom: 6 }}>
+          <View style={{ width: 38, height: 5, borderRadius: 2.5, backgroundColor: C.line }} />
+        </Pressable>
+        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20 }}>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={{ color: C.text, fontSize: 19, fontWeight: '800', letterSpacing: -0.3 }} numberOfLines={1}>
+              {n === 1 ? t('pp_people_one') : t('pp_people_n').replace('{n}', String(n))}
+            </Text>
+            {hereNow ? (
+              <Text style={{ color: C.green, fontSize: 12.5, fontWeight: '700', marginTop: 1 }}>{t('pp_here_now_n').replace('{n}', String(hereNow))}</Text>
+            ) : null}
+          </View>
+          {n > 3 ? (
+            <Pressable onPress={() => { tapSelection(); onOpen(!open); }} accessibilityRole="button" style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6, marginStart: 8 }}>
+              <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '700' }}>{open ? t('map_less') : t('see_all')}</Text>
+              <Ionicons name={open ? 'chevron-down' : 'chevron-up'} size={15} color={C.text} style={{ marginStart: 3 }} />
+            </Pressable>
+          ) : null}
+        </View>
+      </View>
+
+      {open ? (
+        <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 16, paddingTop: 6 }} style={{ flexGrow: 0, flexShrink: 1 }}>
+          {people.map(renderRow)}
+        </ScrollView>
+      ) : n ? (
+        <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 14 }}>
+          {people.slice(0, 20).map(renderFace)}
+        </ScrollView>
+      ) : (
+        <Pressable onPress={() => { tapLight(); onGoNow(); }} accessibilityRole="button" style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16 }}>
+          <Text style={{ flex: 1, color: C.text, fontSize: 15, fontWeight: '800' }}>{t('gn_cta_short')}</Text>
+          <Ionicons name="chevron-forward" size={18} color={C.faint} />
+        </Pressable>
+      )}
     </View>
   );
 };

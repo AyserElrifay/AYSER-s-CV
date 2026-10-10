@@ -11,7 +11,7 @@ import { MapView, Marker, MAPS_READY } from '../utils/maps';
 import { takeMapTarget, onMapTarget } from '../lib/mapBus';
 import { listGatherings, joinGathering, bardiMatchMe } from '../services/green';
 import { activityPin, lookOf, titleFor, whenFor } from '../lib/activityPins';
-import { MapPanel, MAP_PANEL_PEEK, MAP_PANEL_CHIPS } from '../components/MapPanel';
+import { MapPanel, PeoplePanel, personWhere, MAP_PANEL_PEEK, MAP_PANEL_CHIPS, PEOPLE_PANEL_PEEK } from '../components/MapPanel';
 import { kmBetween, projectToMap } from '../utils/geo';
 import { requestLocationPermission, getCurrentCoords, watchCoords } from '../utils/location';
 import { SUPABASE_READY } from '../lib/supabase';
@@ -95,8 +95,14 @@ const normalizePerson = (row) => ({
   verified: !!(row.profile && row.profile.verified),
   intent: (row.profile && row.profile.intent) || 'Exploring 🧭',
   countryFlag: row.profile && row.profile.country_flag,
-  doing: row.doing,
-  coords: { latitude: row.lat, longitude: row.lng },
+  city: row.profile && row.profile.city,
+  country: row.profile && row.profile.country,
+  doing: row.seen === 'now' ? row.doing : null,
+  /* 'now' — shared in the last half hour; 'recent' — this week, at a
+     rounded spot; null — no spot at all, only their city */
+  seen: row.seen || null,
+  serverKm: row.km != null ? Number(row.km) : null,
+  coords: row.lat != null && row.lng != null ? { latitude: row.lat, longitude: row.lng } : null,
 });
 
 const normalizeCampfire = (row) => ({
@@ -125,7 +131,7 @@ export const MapScreen = () => {
   const closeSheet = () => setSheet(null);
   const [placeOpen, setPlaceOpen] = useState(null); // a tapped real-world place
   const [placePosts, setPlacePosts] = useState(null); // real moments shared there
-  const [rail, setRail] = useState('fires');     // 'fires' | 'book'
+  const [rail, setRail] = useState('book');      // 'book' | 'deals' — the Places lens's rail
 
   /* ── ONE MAP, A FEW LENSES ────────────────────────────────────────
      The map had a button for everything and, between the four floating
@@ -169,6 +175,8 @@ export const MapScreen = () => {
   const [bookingVenue, setBookingVenue] = useState(null);
 
   const [myCoords, setMyCoords] = useState(ME.coords); // internal fallback for distances only
+  /* your real position for the people list's order — never the fallback */
+  const myCoordsRef = useRef(null);
   const [located, setLocated] = useState(false);       // true ONLY when real GPS resolved
   const [locating, setLocating] = useState(true);
   const [hasLocationPerm, setHasLocationPerm] = useState(false);
@@ -213,7 +221,7 @@ export const MapScreen = () => {
     } else {
       const coords = await getCurrentCoords();
       if (coords) {
-        setMyCoords(coords);
+        setMyCoords(coords); myCoordsRef.current = coords;
         setLocated(true);
       } else {
         note('📍 Couldn’t get a GPS fix — check your browser’s location permission and try again.');
@@ -239,6 +247,7 @@ export const MapScreen = () => {
   useEffect(() => {
     if (!located) return;
     return watchCoords((coords) => {
+      myCoordsRef.current = coords;
       setMyCoords((prev) => (kmBetween(prev, coords) < 0.01 ? prev : coords));
     });
   }, [located]);
@@ -290,7 +299,7 @@ export const MapScreen = () => {
   /* ── real data: nearby people, campfires, venues ── */
   const loadNearby = useCallback(() => {
     if (!SUPABASE_READY) return;
-    fetchNearbyPeople()
+    fetchNearbyPeople(myCoordsRef.current)
       .then((rows) => setRealPeople((rows || []).filter((r) => r.user_id !== (user && user.id)).map(normalizePerson)))
       .catch(() => {});
   }, [user]);
@@ -310,15 +319,22 @@ export const MapScreen = () => {
   const venues = SUPABASE_READY ? realVenues : BOOKINGS;
   const filteredDeals = DEALS.filter((d) => dealFilter === 'All' || d.cat === dealFilter);
 
-  const nearbyPeople = useMemo(
-    () => [...people].map((p) => ({ ...p, km: kmBetween(myCoords, p.coords) })).sort((a, b) => a.km - b.km),
-    [people, myCoords]
-  );
+  /* here now first, then seen this week, then by city (the server's
+     order, which knows your city) — distance only orders within a band */
+  const nearbyPeople = useMemo(() => {
+    const band = (p) => (p.seen === 'now' ? 0 : p.seen === 'recent' ? 1 : 2);
+    return [...people]
+      /* a distance only from where you really are: before your location
+         is known, myCoords is a stand-in, and a distance from it is made up */
+      .map((p, i) => ({ ...p, i, km: p.coords && located ? kmBetween(myCoords, p.coords) : null }))
+      .sort((a, b) => band(a) - band(b) || (band(a) < 2 ? (a.km == null ? 1e9 : a.km) - (b.km == null ? 1e9 : b.km) : a.i - b.i));
+  }, [people, myCoords, located]);
+  const hereNow = nearbyPeople.filter((p) => p.seen === 'now').length;
 
   /* Markers for the real (web) Leaflet map, on true coordinates. */
   const mapMarkers = useMemo(() => {
     const out = [];
-    people.forEach((p) => p.coords && out.push({ id: 'p_' + p.id, srcId: p.id, kind: 'person', lat: p.coords.latitude, lng: p.coords.longitude, emoji: p.doing || p.emoji || '🧿', avatar: p.cartoonAvatar || p.avatar, standing: p.standing, flag: p.countryFlag, label: (p.countryFlag ? p.countryFlag + ' ' : '') + p.name }));
+    people.forEach((p) => p.coords && out.push({ id: 'p_' + p.id, srcId: p.id, kind: 'person', lat: p.coords.latitude, lng: p.coords.longitude, emoji: p.doing || p.emoji || '🧿', avatar: p.cartoonAvatar || p.avatar, standing: p.standing, flag: p.countryFlag, label: (p.countryFlag ? p.countryFlag + ' ' : '') + p.name, away: p.seen !== 'now' }));
     campfires.forEach((c) => c.coords && out.push({ id: 'c_' + c.id, srcId: c.id, kind: 'fire', lat: c.coords.latitude, lng: c.coords.longitude, emoji: '🔥', label: c.title }));
     (SUPABASE_READY ? realVenues : []).forEach((v) => v.lat != null && out.push({ id: 'v_' + v.id, srcId: v.id, kind: 'venue', lat: v.lat, lng: v.lng, emoji: v.emoji || '📍', label: v.name }));
     // REAL places from OpenStreetMap, pinned at their true coordinates
@@ -367,9 +383,10 @@ export const MapScreen = () => {
   /* the panel at the bottom (MapPanel.js): the map's buttons sit just
      above it, and step aside while it is pulled up */
   const [panelOpen, setPanelOpen] = useState(false);
-  const hasPanel = lens === 'all' || lens === 'activities';
+  const hasPanel = lens === 'all' || lens === 'activities' || lens === 'people';
   const panelUp = hasPanel && panelOpen;
-  const aboveBottom = hasPanel ? MAP_PANEL_PEEK + (lens === 'activities' ? MAP_PANEL_CHIPS : 0) + 12 : 196;
+  const aboveBottom = lens === 'people' ? PEOPLE_PANEL_PEEK + 12
+    : hasPanel ? MAP_PANEL_PEEK + (lens === 'activities' ? MAP_PANEL_CHIPS : 0) + 12 : 196;
   const joinFromMap = async (g) => {
     if (joiningG[g.id]) return;
     tapLight();
@@ -665,7 +682,7 @@ export const MapScreen = () => {
     });
     nearbyPeople.forEach((p) => {
       if ((p.name || '').toLowerCase().includes(q)) {
-        out.push({ id: 'su_' + p.id, kind: 'person', name: p.name, sub: p.intent || 'On the map now', emoji: p.doing || p.emoji || '🧿', lat: p.coords && p.coords.latitude, lng: p.coords && p.coords.longitude, src: p });
+        out.push({ id: 'su_' + p.id, kind: 'person', name: p.name, sub: personWhere(p, t), emoji: p.doing || p.emoji || '🧿', lat: p.coords && p.coords.latitude, lng: p.coords && p.coords.longitude, src: p });
       }
     });
     campfires.forEach((c) => {
@@ -711,16 +728,19 @@ export const MapScreen = () => {
   const [routeTo, setRouteTo] = useState(null);
   const meetUp = async (p) => {
     tapLight();
-    if (!p.coords) return;
-    const km = kmBetween(myCoords, p.coords);
-    const mins = Math.max(1, Math.round(km <= 3 ? km * 13.3 : km * 2 + 8));
-    const distTxt = km < 1 ? Math.round(km * 1000) + ' m' : km.toFixed(1) + ' km';
+    /* a route only to somebody really there now, from where you really
+       are — a rounded "this week" spot is not a place to walk to, and a
+       distance from the stand-in location would be invented */
+    if (!p.coords || p.seen !== 'now') { closeSheet(); setProfileUser(p); return; }
+    const km = located ? kmBetween(myCoords, p.coords) : null;
+    const mins = km != null ? Math.max(1, Math.round(km <= 3 ? km * 13.3 : km * 2 + 8)) : null;
+    const distTxt = km != null ? (km < 1 ? Math.round(km * 1000) + ' m' : km.toFixed(1) + ' km') : null;
     setRouteTo({ lat: p.coords.latitude, lng: p.coords.longitude, ts: Date.now() });
     closeSheet();
-    if (!SUPABASE_READY || !user) { note('🤝 ' + distTxt + ' · ~' + mins + ' min'); return; }
+    if (!SUPABASE_READY || !user) { note('🤝 ' + (distTxt ? distTxt + ' · ~' + mins + ' min' : p.name)); return; }
     try {
       const threadId = await getOrCreateDmThread(p.id, user && user.id);
-      await sendMessage({ dmThreadId: threadId, userId: user.id, body: '🤝 Meet up? I’m ' + distTxt + ' away (~' + mins + ' min) — heading your way!' });
+      await sendMessage({ dmThreadId: threadId, userId: user.id, body: distTxt ? '🤝 Meet up? I’m ' + distTxt + ' away (~' + mins + ' min) — heading your way!' : '🤝 Meet up? I’m nearby — heading your way!' });
       sfxPop();
       note('🤝 Invite sent to ' + (p.name || '').split(' ')[0] + ' · ' + distTxt + ' · ~' + mins + ' min');
     } catch (e) {
@@ -956,7 +976,7 @@ export const MapScreen = () => {
             ].map((o) => {
               const on = lens === o.k;
               return (
-                <Pressable key={o.k} onPress={() => { tapSelection(); setLens(o.k); if (o.k !== 'trips') setNewTrip(null); }}>
+                <Pressable key={o.k} onPress={() => { tapSelection(); setLens(o.k); setPanelOpen(false); if (o.k !== 'trips') setNewTrip(null); }}>
                   <View style={{
                     flexDirection: 'row', alignItems: 'center',
                     backgroundColor: on ? C.text : C.float,
@@ -1061,13 +1081,18 @@ export const MapScreen = () => {
       {/* ── the bottom rail ─────────────────────────────────────────
           Only shows up when the lens you're on has something to put
           there. On Everything and on Stories the map is just the map. */}
-      {lens === 'people' || lens === 'places' ? (
+      {lens === 'people' ? (
+        <PeoplePanel
+          t={t} people={nearbyPeople} hereNow={hereNow}
+          open={panelOpen} onOpen={setPanelOpen}
+          onPerson={(p) => { setPanelOpen(false); if (p.coords) setMapFocus({ lat: p.coords.latitude, lng: p.coords.longitude, zoom: 15, ts: Date.now() }); setProfileUser(p); }}
+          onGoNow={() => setGoNow(true)}
+        />
+      ) : null}
+      {lens === 'places' ? (
       <View style={{ position: 'absolute', bottom: 14, left: 0, right: 0 }}>
         <View style={{ flexDirection: 'row', marginLeft: 16, marginBottom: 8 }}>
-          {(lens === 'people'
-            ? [{ k: 'fires', label: '🔥 Campfires' }]
-            : [{ k: 'book', label: '📅 Book' }, { k: 'deals', label: '🎟️ Deals' }]
-          ).map((o) => (
+          {[{ k: 'book', label: '📅 Book' }, { k: 'deals', label: '🎟️ Deals' }].map((o) => (
             <Pressable key={o.k} onPress={() => { tapSelection(); setRail(o.k); }}>
               <View style={{ backgroundColor: rail === o.k ? C.purple : C.float, borderWidth: 1, borderColor: rail === o.k ? C.purple : C.line, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 7, marginRight: 8 }}>
                 <Text style={{ color: rail === o.k ? '#FFF' : C.dim, fontSize: 12, fontWeight: '800' }}>{o.label}</Text>
@@ -1111,44 +1136,6 @@ export const MapScreen = () => {
                 </Glass>
               </Pressable>
             ))
-          ) : rail === 'fires' ? (
-            campfires.length ? campfires.map((c) => (
-              <Glass key={c.id} tint={C.float} style={{ width: 252, padding: 13, marginRight: 12 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Text style={{ fontSize: 20, marginRight: 8 }}>🔥</Text>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800' }} numberOfLines={1}>{c.title}</Text>
-                    <Text style={{ color: C.dim, fontSize: 11, marginTop: 1 }}>
-                      {t('hosting_now').replace('{name}', c.host.name.split(' ')[0])}
-                    </Text>
-                  </View>
-                </View>
-                {c.topic ? (
-                  <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 8, fontStyle: 'italic' }} numberOfLines={1}>
-                    "{c.topic}"
-                  </Text>
-                ) : null}
-                {user && c.hostId === user.id ? (
-                  <Pressable onPress={() => openCampfireManage(c)} style={{ marginTop: 10 }}>
-                    <View style={{ borderRadius: 14, backgroundColor: C.purpleSoft, borderWidth: 1, borderColor: 'rgba(124,58,237,0.4)', paddingVertical: 10, alignItems: 'center' }}>
-                      <Text style={{ color: C.purple, fontSize: 12, fontWeight: '900' }}>{t('manage_edit_end')}</Text>
-                    </View>
-                  </Pressable>
-                ) : joinedFires[c.id] ? (
-                  <View style={{ marginTop: 10, borderRadius: 14, backgroundColor: C.greenSoft, borderWidth: 1, borderColor: 'rgba(16,185,129,0.5)', paddingVertical: 10, alignItems: 'center' }}>
-                    <Text style={{ color: C.green, fontSize: 12, fontWeight: '900' }}>{t('host_got_message')}</Text>
-                  </View>
-                ) : (
-                  <NeonButton small label={t('join_the_moment')} style={{ marginTop: 10 }} onPress={() => joinFire(c)} />
-                )}
-              </Glass>
-            )) : (
-              <Glass tint={C.float} style={{ width: 252, padding: 16, marginRight: 12, alignItems: 'center' }}>
-                <Text style={{ fontSize: 22 }}>🔥</Text>
-                <Text style={{ color: C.text, fontSize: 13, fontWeight: '800', marginTop: 6, textAlign: 'center' }}>{t('no_campfires_yet')}</Text>
-                <Text style={{ color: C.faint, fontSize: 11, marginTop: 3, textAlign: 'center' }}>{t('be_first_host')}</Text>
-              </Glass>
-            )
           ) : (
             <>
               {venues.length ? venues.map((b) => (
@@ -1555,7 +1542,7 @@ export const MapScreen = () => {
                       </View>
                       <View style={{ flex: 1, marginLeft: 12 }}>
                         <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>{p.name}</Text>
-                        <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 2 }}>{p.intent} · {p.km.toFixed(1)} {t('km_away')}</Text>
+                        <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 2 }}>{personWhere(p, t)}</Text>
                       </View>
                     </Pressable>
                     <Pressable onPress={() => meetUp(p)} style={{ marginRight: 7 }}>

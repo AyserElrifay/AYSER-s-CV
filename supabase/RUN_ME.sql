@@ -10186,4 +10186,62 @@ begin
 end;
 $$;
 
+
+-- ═══════════ PEOPLE · EVERYONE REAL, NOBODY'S EXACT SPOT ═══════════
+/* Ayser: "ليه people فاضيه … واحنا عندنا ٧٠ user حقيقي". The People
+   lens showed only somebody who had shared a live position in the last
+   thirty minutes — so on most nights it showed nobody but you.
+
+   Now it shows the real people on Moments, nearest first, each at the
+   precision they have actually agreed to:
+     · here now (shared in the last 30 minutes) → their pin, as before
+     · seen around this week → a spot rounded to ~1 km (2 decimals),
+       never the exact one
+     · everyone else → no spot at all: their city or country, in the list
+   And the old exact rows stop being readable by anybody else: before,
+   any signed-in client could read every live_locations row, however
+   old — the exact place somebody stood last month. */
+
+drop policy if exists "live locations are viewable by everyone" on public.live_locations;
+create policy "live locations are viewable by everyone" on public.live_locations for select to authenticated
+  using (user_id = auth.uid() or updated_at > now() - interval '30 minutes');
+
+create or replace function public.people_on_map(p_lat double precision default null, p_lng double precision default null)
+returns jsonb
+language sql stable security definer set search_path = public as $$
+  with me as (
+    select city, country from public.profiles where id = auth.uid()
+  ), rows as (
+    select p.id, p.name, p.handle, p.avatar_url, p.avatar_dna, p.emoji, p.intent, p.verified,
+           p.country_flag, p.country, p.city, p.last_active_at,
+           -- what they are doing is only true while they are there
+           case when l.updated_at > now() - interval '30 minutes' then l.doing end as doing,
+           case when l.updated_at > now() - interval '30 minutes' then 'now'
+                when l.updated_at > now() - interval '7 days'     then 'recent' end as seen,
+           case when l.updated_at > now() - interval '30 minutes' then l.lat
+                when l.updated_at > now() - interval '7 days'     then round(l.lat::numeric, 2)::double precision end as lat,
+           case when l.updated_at > now() - interval '30 minutes' then l.lng
+                when l.updated_at > now() - interval '7 days'     then round(l.lng::numeric, 2)::double precision end as lng
+      from public.profiles p
+      left join public.live_locations l on l.user_id = p.id
+     where auth.uid() is not null
+       and p.id <> auth.uid()
+       and coalesce(btrim(p.name), '') <> ''
+  ), ranked as (
+    select r.*,
+           case when r.lat is not null and p_lat is not null and p_lng is not null
+                then round(public.km_between(p_lat, p_lng, r.lat, r.lng)::numeric, 1)::double precision end as km,
+           case when r.seen = 'now' then 0
+                when r.seen = 'recent' then 1
+                when r.city is not null and lower(r.city) = lower((select city from me)) then 2
+                when r.country is not null and r.country = (select country from me) then 3
+                else 4 end as rank
+      from rows r
+  )
+  select coalesce(jsonb_agg(to_jsonb(x) - 'rank' order by x.rank, x.km nulls last, x.last_active_at desc nulls last), '[]'::jsonb)
+    from (select * from ranked order by rank, km nulls last, last_active_at desc nulls last limit 200) x;
+$$;
+revoke execute on function public.people_on_map(double precision, double precision) from public, anon;
+grant execute on function public.people_on_map(double precision, double precision) to authenticated;
+
 notify pgrst, 'reload schema';

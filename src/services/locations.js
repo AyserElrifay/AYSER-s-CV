@@ -17,15 +17,33 @@ export async function goInvisible(userId) {
   if (error) throw error;
 }
 
-/* Only people active in the last 30 minutes count as "live" on the map. */
-export async function fetchNearbyPeople() {
+/* The real people on Moments, nearest first, each at the precision
+   they agreed to (people_on_map in RUN_ME.sql): here now → their pin;
+   seen this week → a spot rounded to ~1 km; everyone else → no spot,
+   just their city. The rows come back in the shape the map already
+   reads. If the database has not been updated yet, the old live-only
+   query still works. */
+export async function fetchNearbyPeople(at = null) {
+  const { data, error } = await supabase.rpc('people_on_map', {
+    p_lat: at && at.latitude != null ? at.latitude : null,
+    p_lng: at && at.longitude != null ? at.longitude : null,
+  });
+  if (!error && Array.isArray(data)) {
+    return data.map((r) => ({
+      user_id: r.id, lat: r.lat, lng: r.lng, doing: r.doing, seen: r.seen, km: r.km,
+      profile: {
+        name: r.name, handle: r.handle, avatar_url: r.avatar_url, avatar_dna: r.avatar_dna, emoji: r.emoji,
+        intent: r.intent, verified: r.verified, country_flag: r.country_flag, country: r.country, city: r.city,
+      },
+    }));
+  }
   const cutoff = new Date(Date.now() - 30 * 60 * 1000).toISOString();
-  const { data, error } = await supabase
+  const old = await supabase
     .from('live_locations')
     .select('user_id, lat, lng, doing, updated_at, profile:profiles(name, handle, avatar_url, avatar_dna, emoji, intent, verified, country_flag)')
     .gt('updated_at', cutoff);
-  if (error) throw error;
-  return data;
+  if (old.error) throw old.error;
+  return (old.data || []).map((r) => ({ ...r, seen: 'now' }));
 }
 
 /* Your own current row — used to rehydrate the "doing" badge on load,

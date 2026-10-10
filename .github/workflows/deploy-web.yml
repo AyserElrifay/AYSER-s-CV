@@ -182,6 +182,9 @@ jobs:
       # Films: a few picked for you, a reason to meet, where they stream.
       - name: Check film picks
         run: node scripts/check-film-picks.mjs
+      # The People lens: everyone real, nobody more exact than they agreed.
+      - name: Check the People lens
+        run: node scripts/check-people-map.mjs
       # No signal must not mean no app.
       - name: Check the app works offline
         run: node scripts/check-offline.mjs
