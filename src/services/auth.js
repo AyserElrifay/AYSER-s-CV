@@ -1,3 +1,4 @@
+import { signInAddress } from '../lib/teamAddress';
 import { supabase } from '../lib/supabase';
 
 /* All auth calls live here so screens never touch supabase directly. */
@@ -13,7 +14,8 @@ export async function signUp(email, password, name) {
 }
 
 export async function signIn(email, password) {
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  /* a Studio team member types a username; see src/services/team.js */
+  const { data, error } = await supabase.auth.signInWithPassword({ email: signInAddress(email), password });
   if (error) throw error;
   return data;
 }

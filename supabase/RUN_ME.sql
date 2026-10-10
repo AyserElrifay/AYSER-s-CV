@@ -11034,4 +11034,183 @@ begin
   end if;
 end $do$;
 
+-- ═══════════ STUDIO TEAM · USERNAMES, ROLES, AND THE OWNER IN CONTROL ═══════════
+/* Ayser: a team in the Studio, each with a username and a password,
+   and him in control of whether they exist at all.
+
+   Each team member is a real sign-in account, made by the team-admin
+   function (supabase/functions/team-admin) — only that function, with
+   the owner's own session, can create, pause, re-password or delete
+   one. What a member may SEE is decided here, on the server, by their
+   role, never by which tabs the screen happens to draw:
+     · 'safety' — reported chats, strikes, coach sessions, content reports
+     · 'verify' — guides and hosts, their documents
+     · 'all'    — both
+   Managing the team, Bardi, music, the database tab: the owner only.
+   A paused member loses access the same second: every check below
+   reads disabled_at, not just the sign-in. */
+
+create table if not exists public.team_members (
+  user_id     uuid primary key references auth.users(id) on delete cascade,
+  username    text not null unique check (username ~ '^[a-z0-9_.]{3,20}$'),
+  role        text not null check (role in ('safety', 'verify', 'all')),
+  added_at    timestamptz not null default now(),
+  disabled_at timestamptz
+);
+alter table public.team_members enable row level security;
+drop policy if exists "team: see yourself" on public.team_members;
+create policy "team: see yourself" on public.team_members for select using (user_id = auth.uid());
+-- no write policies: only the team-admin function (service role) writes
+
+create or replace function public.studio_can(p_area text)
+returns boolean language sql stable security definer set search_path = public as $$
+  select public.is_app_owner() or exists (
+    select 1 from public.team_members m
+     where m.user_id = auth.uid() and m.disabled_at is null
+       and (m.role = 'all' or m.role = p_area));
+$$;
+revoke execute on function public.studio_can(text) from public, anon;
+grant execute on function public.studio_can(text) to authenticated;
+
+/* what the Studio may show this person */
+create or replace function public.my_studio()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select jsonb_build_object(
+    'owner', public.is_app_owner(),
+    'role', (select role from public.team_members where user_id = auth.uid() and disabled_at is null),
+    'username', (select username from public.team_members where user_id = auth.uid()));
+$$;
+revoke execute on function public.my_studio() from public, anon;
+grant execute on function public.my_studio() to authenticated;
+
+/* the owner's list */
+create or replace function public.team_list()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select case when not public.is_app_owner() then '[]'::jsonb else coalesce((
+    select jsonb_agg(jsonb_build_object('user_id', m.user_id, 'username', m.username, 'role', m.role,
+             'added_at', m.added_at, 'disabled', m.disabled_at is not null,
+             'last_sign_in', to_jsonb(u) ->> 'last_sign_in_at') order by m.added_at)
+      from public.team_members m join auth.users u on u.id = m.user_id), '[]'::jsonb) end;
+$$;
+revoke execute on function public.team_list() from public, anon;
+grant execute on function public.team_list() to authenticated;
+
+/* the documents and the reports, for the roles that review them */
+drop policy if exists "verification docs: you and the owner" on storage.objects;
+create policy "verification docs: you and the owner" on storage.objects for select to authenticated
+  using (bucket_id = 'verification' and ((storage.foldername(name))[1] = auth.uid()::text or public.studio_can('verify')));
+drop policy if exists "verification docs: removed by you or the owner" on storage.objects;
+create policy "verification docs: removed by you or the owner" on storage.objects for delete to authenticated
+  using (bucket_id = 'verification' and ((storage.foldername(name))[1] = auth.uid()::text or public.studio_can('verify')));
+drop policy if exists "team reads reports" on public.content_reports;
+create policy "team reads reports" on public.content_reports for select using (public.studio_can('safety'));
+drop policy if exists "team updates reports" on public.content_reports;
+create policy "team updates reports" on public.content_reports for update using (public.studio_can('safety'));
+
+/* the review functions, opened to the right role */
+create or replace function public.hosts_pending()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select case when not public.studio_can('verify') then '[]'::jsonb else coalesce((
+    select jsonb_agg(jsonb_build_object(
+      'user_id', r.user_id, 'role', r.role, 'doc_path', r.doc_path, 'selfie_path', r.selfie_path,
+      'terms_version', r.terms_version, 'asked_at', r.created_at,
+      'name', p.name, 'avatar_url', p.avatar_url, 'city', p.city,
+      'langs', p.guide_langs, 'areas', p.guide_areas, 'since', p.guide_since, 'about', p.guide_about)
+      order by r.created_at)
+    from public.verification_requests r join public.profiles p on p.id = r.user_id
+    where r.status = 'pending' and r.role in ('guide', 'host')), '[]'::jsonb) end;
+$$;
+
+create or replace function public.host_decide(p_user uuid, p_approve boolean)
+returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare r public.verification_requests%rowtype;
+begin
+  if not public.studio_can('verify') then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
+  select * into r from public.verification_requests where user_id = p_user and role in ('guide', 'host');
+  if not found then return jsonb_build_object('ok', false, 'reason', 'no_request'); end if;
+  if p_approve then
+    update public.profiles set host_role = r.role, host_verified_at = now() where id = p_user;
+  end if;
+  update public.verification_requests
+     set status = case when p_approve then 'approved' else 'rejected' end, decided_at = now(),
+         doc_path = null, selfie_path = null
+   where user_id = p_user;
+  insert into public.notifications (user_id, actor_id, kind, body)
+  values (p_user, auth.uid(), 'venue_decision', case when p_approve then 'host_ok' else 'host_no' end);
+  return jsonb_build_object('ok', true, 'doc_path', r.doc_path, 'selfie_path', r.selfie_path);
+end;
+$$;
+
+create or replace function public.host_revoke(p_user uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  if not public.studio_can('verify') then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
+  update public.profiles set host_role = null, host_verified_at = null where id = p_user;
+  return jsonb_build_object('ok', true);
+end;
+$$;
+
+create or replace function public.safety_queue()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select case when not public.studio_can('safety') then '{}'::jsonb else jsonb_build_object(
+    'reports', coalesce((
+      select jsonb_agg(jsonb_build_object(
+        'id', r.id, 'reason', r.reason, 'messages', r.messages, 'at', r.created_at,
+        'ai_verdict', r.ai_verdict, 'ai_reason', r.ai_reason,
+        'reported_id', r.reported_id, 'reported_name', rp.name, 'reported_avatar', rp.avatar_url,
+        'reporter_name', fp.name, 'strikes', coalesce(st.strikes, 0))
+        order by case r.ai_verdict when 'threat' then 0 when 'violence' then 1 when 'sexual' then 2 when 'harassment' then 3 when 'hate' then 3 when 'unsure' then 4 when 'none' then 6 else 5 end, r.created_at)
+      from public.safety_reports r
+      join public.profiles rp on rp.id = r.reported_id
+      left join public.profiles fp on fp.id = r.reporter_id
+      left join public.safety_standing st on st.user_id = r.reported_id
+      where r.status = 'open'), '[]'::jsonb),
+    'coach', coalesce((
+      select jsonb_agg(jsonb_build_object('user_id', s.user_id, 'name', p.name, 'avatar', p.avatar_url, 'strikes', s.strikes, 'asked_at', s.coach_asked_at) order by s.coach_asked_at nulls last)
+      from public.safety_standing s join public.profiles p on p.id = s.user_id
+      where s.state = 'coach'), '[]'::jsonb)) end;
+$$;
+
+create or replace function public.safety_decide(p_id uuid, p_strike boolean)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare r public.safety_reports%rowtype; n int; st text;
+begin
+  if not public.studio_can('safety') then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
+  select * into r from public.safety_reports where id = p_id for update;
+  if not found then return jsonb_build_object('ok', false, 'reason', 'no_report'); end if;
+  if r.status <> 'open' then return jsonb_build_object('ok', false, 'reason', 'decided'); end if;
+
+  if p_strike then
+    insert into public.safety_standing (user_id, strikes, state, updated_at) values (r.reported_id, 1, 'coach', now())
+    on conflict (user_id) do update set strikes = public.safety_standing.strikes + 1,
+      state = case when public.safety_standing.strikes + 1 >= 2 then 'closed' else 'coach' end,
+      coach_asked_at = null, updated_at = now()
+    returning strikes, state into n, st;
+    -- the other open reports about the same moment are answered by this one
+    update public.safety_reports set status = 'strike', decided_at = now()
+     where reported_id = r.reported_id and status = 'open' and created_at <= r.created_at + interval '1 day';
+    insert into public.notifications (user_id, actor_id, kind, body)
+    values (r.reported_id, auth.uid(), 'safety', case when st = 'closed' then 'closed' else 'strike' end);
+  else
+    update public.safety_reports set status = 'no_action', decided_at = now() where id = p_id;
+  end if;
+  if r.reporter_id is not null then
+    insert into public.notifications (user_id, actor_id, kind, body) values (r.reporter_id, auth.uid(), 'safety', 'reviewed');
+  end if;
+  return jsonb_build_object('ok', true, 'strikes', n, 'state', st);
+end;
+$$;
+
+create or replace function public.safety_coach_done(p_user uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  if not public.studio_can('safety') then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
+  update public.safety_standing set state = null, updated_at = now() where user_id = p_user and state = 'coach';
+  if not found then return jsonb_build_object('ok', false, 'reason', 'not_waiting'); end if;
+  insert into public.notifications (user_id, actor_id, kind, body) values (p_user, auth.uid(), 'safety', 'back');
+  return jsonb_build_object('ok', true);
+end;
+$$;
+
 notify pgrst, 'reload schema';

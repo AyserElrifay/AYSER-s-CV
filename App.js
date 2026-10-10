@@ -37,6 +37,7 @@ import { MiniPlayer } from './src/components/MiniPlayer';
 import { IncomingCallGate } from './src/components/IncomingCallGate';
 import { WhatsNew } from './src/components/WhatsNew';
 import { isOwner } from './src/services/music';
+import { myStudio } from './src/services/team';
 import { studioRequested, stripStudioParam } from './src/utils/studioLink';
 import { initPwa } from './src/lib/pwa';
 import { Boundary } from './src/components/Boundary';
@@ -70,11 +71,20 @@ if (typeof window !== 'undefined') {
    the link alone opens nothing for anyone but Ayser. */
 const StudioGate = () => {
   const { user } = useAuth();
-  const [open, setOpen] = React.useState(false);
+  const [access, setAccess] = React.useState(null);   // { owner, role } once the SERVER says yes
   React.useEffect(() => {
-    if (studioRequested() && isOwner(user)) { setOpen(true); stripStudioParam(); }
+    if (!user || !studioRequested()) return undefined;
+    let alive = true;
+    /* the owner, or a team member the owner made (src/services/team.js);
+       the server answers, and checks again on every single action */
+    myStudio().then((a) => {
+      if (!alive) return;
+      if (a) { setAccess(a); stripStudioParam(); }
+      else if (isOwner(user)) { setAccess({ owner: true }); stripStudioParam(); }   // before part 22 is run
+    });
+    return () => { alive = false; };
   }, [user]);
-  return open ? <AdminPanel onClose={() => setOpen(false)} /> : null;
+  return access ? <AdminPanel access={access} onClose={() => setAccess(null)} /> : null;
 };
 
 const Root = () => {

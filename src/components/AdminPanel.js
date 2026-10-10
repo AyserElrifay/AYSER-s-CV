@@ -8,6 +8,7 @@ import { fetchReports, setReportStatus } from '../services/reports';
 import { removeGatheringPhoto } from '../services/green';
 import { fetchPendingHosts, documentUrl, decideHost } from '../services/hosts';
 import { fetchSafetyQueue, decideReport, coachDone } from '../services/standing';
+import { fetchTeam, teamAction, TEAM_ROLES } from '../services/team';
 import { fetchFeedback, markFeedbackSeen } from '../services/feedback';
 import { fetchStudioStats } from '../services/feedback';
 import { fetchPendingVerifications, decideVerification, fetchPendingVenues, decideVenue } from '../services/profiles';
@@ -28,11 +29,15 @@ import { useSheetBack } from '../hooks/useSheetBack';
    requests, music approvals and user feedback — all real data, owner-only.
    Bardi is built in: one tap summarises what needs attention. */
 
+/* area: which team role may open it (studio_can in RUN_ME.sql). No
+   area means the owner only. The server enforces this on every call;
+   hiding a tab is only so nobody is shown a door that will not open. */
 const TABS = [
-  { k: 'safety', label: 'Safety', icon: 'shield-outline' },
-  { k: 'reports', label: 'Reports', icon: 'flag-outline' },
+  { k: 'safety', label: 'Safety', icon: 'shield-outline', area: 'safety' },
+  { k: 'reports', label: 'Reports', icon: 'flag-outline', area: 'safety' },
+  { k: 'hosts', label: 'Guides', icon: 'id-card-outline', area: 'verify' },
+  { k: 'team', label: 'Team', icon: 'people-outline' },
   { k: 'venues', label: 'Venues', icon: 'business-outline' },
-  { k: 'hosts', label: 'Guides', icon: 'id-card-outline' },
   { k: 'verify', label: 'Verify', icon: 'shield-checkmark-outline' },
   { k: 'music', label: 'Music', icon: 'musical-notes-outline' },
   { k: 'feedback', label: 'Feedback', icon: 'chatbubbles-outline' },
@@ -41,6 +46,128 @@ const TABS = [
   { k: 'errors', label: 'Errors', icon: 'bug-outline' },
   { k: 'db', label: 'Setup', icon: 'server-outline' },
 ];
+const canOpen = (access, t) => !!access && (access.owner || (!!t.area && (access.role === 'all' || access.role === t.area)));
+
+/* ── THE TEAM: made, paused and removed here, by the owner only ──────
+   A member signs in on the normal sign-in screen with the username and
+   password made here. Nothing is emailed anywhere. */
+const makePassword = () => {
+  const abc = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const a = new Uint32Array(14);
+  try { crypto.getRandomValues(a); } catch (e) { for (let i = 0; i < a.length; i++) a[i] = Math.floor(Math.random() * 1e9); }
+  return Array.from(a, (n) => abc[n % abc.length]).join('');
+};
+const TEAM_ERR = { username: 'Username: 3–20 letters, numbers, _ or .', password: 'Password: at least 10 characters.', taken: 'That username is taken.', not_owner: 'Only the owner can do this.', create_failed: 'Could not create it — try another username.' };
+const field = () => ({ color: C.text, fontSize: 14.5, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, backgroundColor: C.bg2, marginTop: 8 });
+const RolePick = ({ value, onChange }) => (
+  <View style={{ flexDirection: 'row', marginTop: 8 }}>
+    {TEAM_ROLES.map((r) => (
+      <Pressable key={r.k} onPress={() => { tapLight(); onChange(r.k); }} style={{ marginRight: 6 }}>
+        <View style={{ borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7, borderWidth: 1, borderColor: value === r.k ? C.text : C.line, backgroundColor: value === r.k ? C.text : 'transparent' }}>
+          <Text style={{ color: value === r.k ? C.bg : C.text, fontSize: 12.5, fontWeight: '800' }}>{r.label}</Text>
+        </View>
+      </Pressable>
+    ))}
+  </View>
+);
+const TeamMember = ({ m, onChanged }) => {
+  const [busy, setBusy] = useState(false);
+  const [pw, setPw] = useState(null);       // a new password being set
+  const [armed, setArmed] = useState(false);
+  const [msg, setMsg] = useState(null);
+  const act = async (action, payload, after) => {
+    if (busy) return;
+    setBusy(true); setMsg(null);
+    try { await teamAction(action, { user_id: m.user_id, ...(payload || {}) }); tapSuccess(); if (after) after(); onChanged(); }
+    catch (e) { setMsg(TEAM_ERR[e.message] || 'Did not work — try again.'); }
+    setBusy(false);
+  };
+  const btn = (label, onPress, tone) => (
+    <Pressable onPress={onPress} disabled={busy} style={{ marginRight: 6, marginTop: 8 }}>
+      <View style={{ borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7, borderWidth: tone ? 0 : 1, borderColor: C.line, backgroundColor: tone || 'transparent' }}>
+        <Text style={{ color: tone ? '#FFF' : C.text, fontSize: 12, fontWeight: '800' }}>{label}</Text>
+      </View>
+    </Pressable>
+  );
+  return (
+    <View style={{ paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: C.line, opacity: busy ? 0.6 : 1 }}>
+      <Text style={{ color: C.text, fontSize: 15, fontWeight: '800' }}>{m.username}{m.disabled ? '  · paused' : ''}</Text>
+      <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 1 }}>{m.last_sign_in ? 'Last signed in ' + String(m.last_sign_in).slice(0, 16).replace('T', ' ') : 'Has not signed in yet'}</Text>
+      <RolePick value={m.role} onChange={(r) => { if (r !== m.role) act('set_role', { role: r }); }} />
+      {pw != null ? (
+        <View>
+          <TextInput value={pw} onChangeText={setPw} autoCapitalize="none" placeholder="New password (10+ characters)" placeholderTextColor={C.faint} style={field()} />
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+            {btn('Make one', () => setPw(makePassword()))}
+            {btn('Save password', () => act('set_password', { password: pw }, () => { setMsg('New password: ' + pw + ' — give it to them yourself.'); setPw(null); }), C.purple)}
+            {btn('Cancel', () => setPw(null))}
+          </View>
+        </View>
+      ) : (
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+          {btn('New password', () => setPw(''))}
+          {m.disabled ? btn('Resume', () => act('resume'), C.green) : btn('Pause', () => act('pause'))}
+          {btn(armed ? 'Tap again: delete' : 'Remove', () => { if (armed) act('remove'); else setArmed(true); }, armed ? C.coral : null)}
+        </View>
+      )}
+      {msg ? <Text selectable style={{ color: C.dim, fontSize: 12.5, marginTop: 8 }}>{msg}</Text> : null}
+    </View>
+  );
+};
+const TeamTab = () => {
+  const [list, setList] = useState(null);
+  const [err, setErr] = useState(null);
+  const [u, setU] = useState('');
+  const [pw, setPw] = useState(() => makePassword());
+  const [role, setRole] = useState('safety');
+  const [busy, setBusy] = useState(false);
+  const [made, setMade] = useState(null);
+  const load = () => fetchTeam().then((l) => { setList(l); setErr(null); }).catch(() => { setList([]); setErr(true); });
+  useEffect(() => { load(); }, []);
+  const create = async () => {
+    if (busy) return;
+    setBusy(true); setMade(null);
+    const username = u.trim().toLowerCase();
+    try {
+      await teamAction('create', { username, password: pw, role });
+      tapSuccess(); setMade({ username, password: pw }); setU(''); setPw(makePassword()); load();
+    } catch (e) { setMade({ error: TEAM_ERR[e.message] || 'Did not work. Is the team-admin function deployed?' }); }
+    setBusy(false);
+  };
+  if (err) return <Text style={{ color: C.faint, fontSize: 13, textAlign: 'center', paddingVertical: 40 }}>Run the latest SQL (part 22) to manage the team here.</Text>;
+  return (
+    <>
+      <Text style={{ color: C.faint, fontSize: 11, fontWeight: '900', letterSpacing: 1, marginTop: 6 }}>ADD SOMEONE</Text>
+      <TextInput value={u} onChangeText={setU} autoCapitalize="none" autoCorrect={false} placeholder="Username (e.g. mona)" placeholderTextColor={C.faint} style={field()} />
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <TextInput value={pw} onChangeText={setPw} autoCapitalize="none" autoCorrect={false} placeholder="Password" placeholderTextColor={C.faint} style={[field(), { flex: 1 }]} />
+        <Pressable onPress={() => { tapLight(); setPw(makePassword()); }} hitSlop={8} style={{ marginStart: 8, marginTop: 8 }}>
+          <Ionicons name="refresh" size={20} color={C.dim} />
+        </Pressable>
+      </View>
+      <RolePick value={role} onChange={setRole} />
+      <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 6 }}>{(TEAM_ROLES.find((r) => r.k === role) || {}).sub}</Text>
+      <Pressable onPress={create} disabled={busy || !u.trim()} style={{ marginTop: 12 }}>
+        <View style={{ borderRadius: 14, backgroundColor: C.purple, paddingVertical: 12, alignItems: 'center', opacity: busy || !u.trim() ? 0.5 : 1 }}>
+          {busy ? <ActivityIndicator color="#FFF" /> : <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '900' }}>Create account</Text>}
+        </View>
+      </Pressable>
+      {made ? (
+        <View style={{ marginTop: 10, padding: 12, borderRadius: 12, backgroundColor: made.error ? C.coralSoft : C.glass, borderWidth: 1, borderColor: C.line }}>
+          {made.error ? <Text style={{ color: C.text, fontSize: 13 }}>{made.error}</Text> : (
+            <Text selectable style={{ color: C.text, fontSize: 13, lineHeight: 19 }}>
+              {'Made. Give them, in person or privately:\nUsername: ' + made.username + '\nPassword: ' + made.password + '\nThey sign in on the normal sign-in screen, then open the Studio link.'}
+            </Text>
+          )}
+        </View>
+      ) : null}
+      <Text style={{ color: C.faint, fontSize: 11, fontWeight: '900', letterSpacing: 1, marginTop: 22 }}>THE TEAM</Text>
+      {list == null ? <ActivityIndicator color={C.purple} style={{ marginTop: 20 }} /> :
+        list.length ? list.map((m) => <TeamMember key={m.user_id} m={m} onChanged={load} />) :
+        <Text style={{ color: C.faint, fontSize: 13, textAlign: 'center', paddingVertical: 20 }}>Nobody yet — just you.</Text>}
+    </>
+  );
+};
 
 /* One reported conversation: who, why, Bardi's reading, and the five
    messages themselves. A strike is given here, by a person — never by
@@ -150,12 +277,14 @@ const HostReview = ({ h, onDone }) => {
   );
 };
 
-export const AdminPanel = ({ onClose }) => {
+export const AdminPanel = ({ onClose, access = { owner: true } }) => {
+  const tabs = TABS.filter((t) => canOpen(access, t));
+  const owner = !!access.owner;
   /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
   useSheetBack(onClose);
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const [tab, setTab] = useState('safety');
+  const [tab, setTab] = useState(() => (tabs[0] ? tabs[0].k : 'safety'));
   const [stats, setStats] = useState(null);
   const [reports, setReports] = useState(null);
   const [verifs, setVerifs] = useState(null);
@@ -191,7 +320,7 @@ export const AdminPanel = ({ onClose }) => {
   const [bErr, setBErr] = useState(null);
   const [dbRows, setDbRows] = useState(null);
 
-  useEffect(() => { fetchStudioStats().then(setStats).catch(() => setStats(null)); }, []);
+  useEffect(() => { if (owner) fetchStudioStats().then(setStats).catch(() => setStats(null)); }, [owner]);
   useEffect(() => {
     if (tab === 'reports' && reports == null) fetchReports().then(setReports).catch(() => setReports([]));
     if (tab === 'venues' && venues == null) fetchPendingVenues().then(setVenues).catch(() => { setVenues([]); setVenueErr(true); });
@@ -308,27 +437,27 @@ export const AdminPanel = ({ onClose }) => {
       <View style={{ flex: 1, backgroundColor: C.bg }}>
         <View style={{ paddingTop: insets.top + 10, paddingHorizontal: 16, paddingBottom: 8, flexDirection: 'row', alignItems: 'center' }}>
           <Pressable onPress={() => { tapLight(); onClose(); }} hitSlop={10}><Ionicons name="chevron-down" size={26} color={C.text} /></Pressable>
-          <Text style={{ flex: 1, textAlign: 'center', color: C.text, fontSize: 16, fontWeight: '900' }}>Moments Studio</Text>
+          <Text style={{ flex: 1, textAlign: 'center', color: C.text, fontSize: 16, fontWeight: '900' }}>{owner ? 'Moments Studio' : 'Moments Studio · ' + (access.username || 'team')}</Text>
           <View style={{ width: 26 }} />
         </View>
 
-        {/* live stats */}
-        <View style={{ marginHorizontal: 16, backgroundColor: C.bg2, borderRadius: 16, borderWidth: 1, borderColor: C.line, flexDirection: 'row', paddingVertical: 14 }}>
+        {/* live stats — the owner's */}
+        {owner ? <View style={{ marginHorizontal: 16, backgroundColor: C.bg2, borderRadius: 16, borderWidth: 1, borderColor: C.line, flexDirection: 'row', paddingVertical: 14 }}>
           <Stat n={stats && stats.users} l="USERS" />
           <Stat n={stats && stats.posts} l="POSTS" />
           <Stat n={stats && stats.tracks} l="TRACKS" />
           <Stat n={stats && stats.openReports} l="REPORTS" tint={stats && stats.openReports ? C.coral : C.text} />
           <Stat n={stats && stats.newFeedback} l="FEEDBACK" tint={stats && stats.newFeedback ? C.purple : C.text} />
-        </View>
+        </View> : null}
 
         {/* Bardi assist */}
-        <Pressable onPress={askBardiSummary} style={{ marginHorizontal: 16, marginTop: 10 }}>
+        {owner ? <Pressable onPress={askBardiSummary} style={{ marginHorizontal: 16, marginTop: 10 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.purpleSoft, borderRadius: 14, paddingHorizontal: 13, paddingVertical: 11 }}>
             <Image source={require('../assets/brand/bardi.png')} style={{ width: 26, height: 26, borderRadius: 8, marginRight: 9 }} />
             <Text style={{ flex: 1, color: C.purple, fontSize: 12.5, fontWeight: '800' }}>{bardiBusy ? 'Bardi is thinking…' : 'Ask Bardi what needs my attention'}</Text>
             {bardiBusy ? <ActivityIndicator size="small" color={C.purple} /> : <Ionicons name="sparkles" size={16} color={C.purple} />}
           </View>
-        </Pressable>
+        </Pressable> : null}
         {bardiMsg ? (
           <View style={{ marginHorizontal: 16, marginTop: 8, backgroundColor: C.bg2, borderWidth: 1, borderColor: C.line, borderRadius: 14, padding: 12 }}>
             <Text style={{ color: C.text, fontSize: 13, lineHeight: 20 }}>{bardiMsg}</Text>
@@ -338,7 +467,7 @@ export const AdminPanel = ({ onClose }) => {
         {/* tabs */}
         {/* ten tabs do not fit a phone's width: they scroll sideways */}
         <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, marginTop: 12, marginBottom: 4 }} contentContainerStyle={{ paddingHorizontal: 16 }}>
-          {TABS.map((t) => {
+          {tabs.map((t) => {
             const on = tab === t.k;
             return (
               <Pressable key={t.k} onPress={() => { tapLight(); setTab(t.k); }} style={{ minWidth: 58, paddingHorizontal: 8, alignItems: 'center', paddingVertical: 9, borderBottomWidth: 2, borderBottomColor: on ? C.purple : 'transparent' }}>
@@ -466,6 +595,8 @@ export const AdminPanel = ({ onClose }) => {
               </View>
             ))
           ) : null}
+
+          {tab === 'team' && owner ? <TeamTab /> : null}
 
           {/* reported chats, worst first, and who is waiting for a session */}
           {tab === 'safety' ? (

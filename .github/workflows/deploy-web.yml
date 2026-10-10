@@ -206,6 +206,9 @@ jobs:
       # Harassment: one button reports and blocks; a person gives strikes; the database enforces them.
       - name: Check reports, blocks and strikes
         run: node scripts/check-harassment.mjs
+      # The Studio team: the owner makes it; the server decides what each one opens.
+      - name: Check the Studio team
+        run: node scripts/check-team.mjs
       # No signal must not mean no app.
       - name: Check the app works offline
         run: node scripts/check-offline.mjs
