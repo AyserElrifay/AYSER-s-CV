@@ -13,16 +13,14 @@ import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LanguageContext';
 import { openPartner } from '../services/broker';
 import { fetchVideos, deletePost } from '../services/posts';
-import { fetchTracks } from '../services/music';
-import { FILM_GENRES, fetchFilms, fetchOurScores } from '../services/films';
-import { usePlayer } from '../context/PlayerContext';
+import { fetchFilms, watchOptions } from '../services/films';
+import { pickFilms, regionOf } from '../lib/filmPicks';
 import { CultureSheet } from '../components/CultureSheet';
 import { Glass } from '../components/Glass';
 import { Page } from '../components/Page';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { SectionHeader } from '../components/SectionHeader';
 import { Shortcut, ShortcutRow } from '../components/Shortcut';
-import { MusicHubSheet } from '../components/MusicHubSheet';
 import { FilmSheet } from '../components/FilmSheet';
 import { BooksShelf } from '../components/BooksShelf';
 import { GameHub } from '../components/lamma/GameHub';
@@ -64,10 +62,6 @@ const CountrySheet = lazyOverlay(() => import('../components/CountrySheet').then
 
 const isWeb = Platform.OS === 'web';
 
-/* The genre is a value the catalogue is queried with, so it stays
-   English on the wire; only what people read changes. */
-const genreKey = (g) => 'genre_' + String(g).toLowerCase().replace('science fiction', 'scifi').replace(/[^a-z]/g, '');
-
 // Shape a DB 'vod' row (or a local optimistic one) into a video card.
 const toVideo = (r) => ({
   id: r.id,
@@ -79,47 +73,6 @@ const toVideo = (r) => ({
   avatar: (r.user && (r.user.avatar_url || r.user.avatar)) || AV_NEUTRAL,
   place: r.place || 'Video',
 });
-
-/* ─── A 78 RPM RECORD, NOT A THEATRE MASK ─────────────────────────────
-   "بص الصفحه شكلها وحش اوي". The clearest single reason was here: every
-   track in the list wore the same 🎭, because the cover is an emoji
-   column and every opera recording got the same one. Ten identical
-   masks down a list is what a placeholder looks like.
-
-   These ARE records — 78s from the archive, from before 1930 — so the
-   cover is drawn as one: a black disc, two grooves, and a paper label
-   in the middle. The label's colour comes from the title, so the same
-   record is always the same colour and no two neighbours are likely to
-   match. Nothing is fetched to draw it. */
-const LABELS = ['#C2410C', '#B45309', '#15803D', '#0E7490', '#1D4ED8', '#7C3AED', '#BE123C', '#A16207'];
-const labelOf = (key) => {
-  let h = 0;
-  const k = String(key || '');
-  for (let i = 0; i < k.length; i++) h = (h * 31 + k.charCodeAt(i)) >>> 0;
-  return LABELS[h % LABELS.length];
-};
-const RecordCover = ({ seed, size = 44, playing }) => (
-  <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: '#121214', alignItems: 'center', justifyContent: 'center' }}>
-    <View style={{ position: 'absolute', width: size * 0.82, height: size * 0.82, borderRadius: size, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)' }} />
-    <View style={{ position: 'absolute', width: size * 0.64, height: size * 0.64, borderRadius: size, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' }} />
-    <View style={{ width: size * 0.38, height: size * 0.38, borderRadius: size, backgroundColor: labelOf(seed), alignItems: 'center', justifyContent: 'center' }}>
-      {playing
-        ? <Ionicons name="musical-note" size={size * 0.2} color="#FFF" />
-        : <View style={{ width: size * 0.06, height: size * 0.06, borderRadius: size, backgroundColor: '#121214' }} />}
-    </View>
-  </View>
-);
-
-/* What the second line under a track says about its rights. "© Public
-   Domain" was on every row, and it was wrong as well as noisy: public
-   domain means there is NO copyright, so the © claimed the opposite of
-   the truth. A public-domain record needs no notice at all. Anything
-   under a licence that asks for credit gets the credit, in full. */
-const rightsLine = (t) => {
-  const lic = String(t.license || '');
-  if (!lic || /public domain/i.test(lic)) return '';
-  return t.attribution ? t.attribution : lic;
-};
 
 /* ─── A VIDEO'S FIRST FRAME, NEVER A BLACK BOX ───────────────────────
    The other black box in his screenshot. This list drew its own
@@ -171,29 +124,37 @@ export const ChillScreen = () => {
   const nav = useNavigation();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const [genre, setGenre] = useState('All');
-  const [films, setFilms] = useState(null);        // real rows from our catalogue
-  const [filmScores, setFilmScores] = useState({}); // what people HERE gave them
+  /* FILMS — twelve picked for you, from your hobbies and your vibe and
+     what streams in your country (src/lib/filmPicks.js). No shelf to
+     scroll, no genre picker, no stars: a film is a reason to meet. */
+  const { t, lang } = useLang();
+  const [films, setFilms] = useState(null);
   const [film, setFilm] = useState(null);
-
-  /* The catalogue lives in our own table, refreshed nightly, so the
-     app never carries an API key and still works if the upstream
-     service is down. */
+  const [me, setMe] = useState(null);
+  const [movieNight, setMovieNight] = useState(null);   // a film turned into a plan
   useEffect(() => {
     if (!SUPABASE_READY) { setFilms([]); return; }
     let alive = true;
-    setFilms(null);
-    fetchFilms({ genre, arabic: false })
-      .then(async (rows) => {
-        if (!alive) return;
-        setFilms(rows);
-        if (rows.length) {
-          try { setFilmScores(await fetchOurScores(rows.map((r) => r.id))); } catch (e) {}
-        }
-      })
-      .catch(() => alive && setFilms([]));
+    Promise.all([
+      withDeadline(fetchFilms({ limit: 300 })).catch(() => []),
+      user ? getProfile(user.id).catch(() => null) : Promise.resolve(null),
+    ]).then(([rows, prof]) => {
+      if (!alive) return;
+      setMe(prof);
+      setFilms(pickFilms(rows, prof, { lang }));
+    });
     return () => { alive = false; };
-  }, [genre]);
+  }, [user && user.id, lang]);
+  const region = regionOf(me);
+  const watchTogether = (f) => {
+    const where = watchOptions(f, region).filter((o) => o.here).map((o) => o.name).slice(0, 3).join(', ');
+    setFilm(null);
+    setMovieNight({
+      kind: 'movie', hour: 20, minutes: 150,   // a film and the talk after it
+      title: t('film_night_title').replace('{title}', f.title),
+      about: (where ? t('film_night_about_on').replace('{where}', where) : t('film_night_about')).replace('{title}', f.title + (f.year ? ' (' + f.year + ')' : '')),
+    });
+  };
   const [videos, setVideos] = useState(null);     // null until first load
   const [player, setPlayer] = useState(null);     // the video now playing
   const [commentsPost, setCommentsPost] = useState(null);
@@ -210,7 +171,6 @@ export const ChillScreen = () => {
   const [foodOpen, setFoodOpen] = useState(false);
   const [countryOpen, setCountryOpen] = useState(false);
   const [videoAuthor, setVideoAuthor] = useState(null);   // whose video you tapped
-  const { t } = useLang();
 
   // Every real, playable game — surfaced here so they're actually findable
   // (they used to be buried in Search → Play).
@@ -219,55 +179,12 @@ export const ChillScreen = () => {
   const PLAYABLE = ['runner', 'stack', 'rooftop', 'rps', 'tower', 'hop'];
   const games = PLAY_GAMES.filter((g) => PLAYABLE.includes(g.kind));
 
-  // ── music: a real listening library on your legal catalog ──
-  const { playTrack, current } = usePlayer();
-  const [tracks, setTracks] = useState(null);
-  const [hubOpen, setHubOpen] = useState(false);
   /* The book shelf is a small app of its own — a search box, seven
      shelves, a reader. It was sitting in the middle of this screen
      taking a screenful whether or not anybody wanted a book, and its
      failure state ("Could not open the shelf") was the loudest thing
      on the tab. It opens from the row of buttons now. */
   const [booksOpen, setBooksOpen] = useState(false);
-  /* A taste of the whole library rather than the top of one pile:
-     take a couple from each mood so classics, chill and hype are all
-     represented in the twelve rows this strip has room for. */
-  const listenSample = React.useMemo(() => {
-    const byMood = new Map();
-    (tracks || []).forEach((t) => {
-      const k = String(t.mood || 'Other');
-      const arr = byMood.get(k) || [];
-      if (arr.length < 3) { arr.push(t); byMood.set(k, arr); }
-    });
-    const out = [];
-    let round = 0;
-    /* four, not twelve: a taste of the shelf with the whole shelf one
-       tap away, rather than a second shelf in the middle of the tab */
-    while (out.length < 4 && round < 3) {
-      byMood.forEach((arr) => { if (arr[round] && out.length < 4) out.push(arr[round]); });
-      round++;
-    }
-    return out.length ? out : (tracks || []).slice(0, 4);
-  }, [tracks]);
-
-  const toTrack = (t) => ({
-    id: t.id, title: t.title, artist: t.artist || t.genre_shape || 'indie',
-    emoji: t.cover_emoji || '🎵', audio_url: t.audio_url,
-    attribution: t.attribution || null, license: t.license || null,
-    /* the sampler below picks across moods — and never could, because
-       the mood was dropped right here and every track read as "Other" */
-    mood: t.mood || null,
-  });
-  useEffect(() => {
-    if (!SUPABASE_READY) { setTracks([]); return; }
-    /* A dead connection never rejects on its own, and a placeholder
-       that never resolves is worse than an error — see
-       src/lib/deadline.js */
-    withDeadline(fetchTracks())
-      .then((rows) => setTracks((rows || []).map(toTrack)))
-      .catch(() => setTracks([]));
-  }, []);
-  const playFrom = (i) => { if (tracks && tracks[i]) playTrack(tracks[i], tracks, i); };
 
 
   /* The list row carries only a name and an avatar. The profile needs
@@ -375,7 +292,6 @@ export const ChillScreen = () => {
         <Shortcut icon={<GreenMark size={26} />} label={t('green_title')} onPress={() => { tapLight(); sfxPop(); setGreenOpen(true); }} />
         <Shortcut emoji="🏛" label={t('culture_title')} onPress={() => { tapLight(); sfxPop(); setCultureOpen(true); }} />
         <Shortcut emoji="🌍" label={t('country_title')} onPress={() => { tapLight(); sfxPop(); setCountryOpen(true); }} />
-        <Shortcut emoji="🎧" label={t('music_word')} onPress={() => { tapLight(); sfxPop(); setHubOpen(true); }} />
         <Shortcut emoji="📚" label={t('read_word')} onPress={() => { tapLight(); sfxPop(); setBooksOpen(true); }} />
       </ShortcutRow>
 
@@ -410,112 +326,43 @@ export const ChillScreen = () => {
         ))}
       </View>
 
-      {/* ── LISTEN — only when there is something to listen to. The
-             Hub is a button up there; an empty music section is not a
-             section, it is a sign. ── */}
-      {tracks && tracks.length ? (
-      <>
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <SectionHeader title={t('sec_listen')} />
-        {/* one action per heading, the same shape everywhere on the tab */}
-        <Pressable onPress={() => { tapLight(); setHubOpen(true); }} hitSlop={10} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-          <Text style={{ color: C.purple, fontSize: 12.5, fontWeight: '800' }}>{t('see_all')}</Text>
-          <Ionicons name="chevron-forward" size={14} color={C.purple} style={{ marginStart: 2 }} />
-        </Pressable>
-      </View>
-      <View style={{ height: 4 }} />
-
-      <Glass style={{ padding: 6, marginBottom: 24 }}>
-        {listenSample.map((t, i) => {
-          const on = current && current.id === t.id;
-          return (
-            <Pressable key={t.id} onPress={() => { tapLight(); sfxPop(); playFrom(i); }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 8, borderRadius: 12, backgroundColor: on ? C.purpleSoft : 'transparent' }}>
-                <View style={{ marginEnd: 12 }}>
-                  <RecordCover seed={t.title} playing={on} />
-                </View>
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text style={{ color: on ? C.purple : C.text, fontSize: 14, fontWeight: '800' }} numberOfLines={1}>{t.title}</Text>
-                  <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 1 }} numberOfLines={1}>
-                    {[t.artist, rightsLine(t)].filter(Boolean).join(' · ')}
-                  </Text>
-                </View>
-                <Ionicons name={on ? 'musical-notes' : 'play'} size={on ? 18 : 20} color={on ? C.purple : C.dim} />
-              </View>
-            </Pressable>
-          );
-        })}
-      </Glass>
-      </>
-      ) : null}
-
       {/* Long-form videos were here. Removed: Moments is not a place to
-         watch; it is a way out of the house. */}
-      {/* ── WATCH — real films from our own catalogue, with real posters,
-             a synopsis, and what the people here made of them. Shown
-             only when there ARE films: an empty catalogue used to
-             announce itself with a genre picker and a paragraph. ── */}
+         watch; it is a way out of the house. So was LISTEN, a music
+         player — the same reason. */}
+      {/* ── FILMS — picked for you, each one a reason to get together.
+             Shown only when there are films. ── */}
       {films && films.length ? (
       <>
-      <SectionHeader title={t('sec_watch')} style={{ marginTop: 8 }} />
+      <SectionHeader title={t('film_for_you')} style={{ marginTop: 8 }} />
       <Text style={{ color: C.dim, fontSize: 12.5, marginTop: -6, marginBottom: 12, lineHeight: 18 }}>
-        {t('watch_hint')}
+        {t('film_for_you_sub')}
       </Text>
-      <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
-        {FILM_GENRES.map((g) => (
-          <Pressable key={g} onPress={() => { tapSelection(); setGenre(g); }}>
-            <View style={{ backgroundColor: genre === g ? C.text : C.glass, borderWidth: 1, borderColor: genre === g ? C.text : C.line, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 7, marginRight: 8 }}>
-              <Text style={{ color: genre === g ? '#FFF' : C.dim, fontSize: 12, fontWeight: '800' }}>{t(genreKey(g))}</Text>
-            </View>
-          </Pressable>
-        ))}
-      </ScrollView>
       <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 24 }}>
-          {films.map((m) => {
-            const ours = filmScores[m.id];
-            return (
-              <Pressable key={m.id} onPress={() => { tapLight(); sfxPop(); setFilm(m); }}>
-                <View style={{ width: 138, marginRight: 12 }}>
+          {films.map((m) => (
+              <Pressable key={m.id} onPress={() => { tapLight(); sfxPop(); setFilm(m); }} accessibilityRole="button" accessibilityLabel={m.title}>
+                <View style={{ width: 138, marginEnd: 12 }}>
                   <View style={{ height: 196, borderRadius: 16, overflow: 'hidden', backgroundColor: C.glassHi }}>
-                    {m.poster_url ? (
-                      <Image source={{ uri: m.poster_url }} style={{ width: '100%', height: '100%' }} />
-                    ) : (
-                      <LinearGradient colors={['#4C1D95', '#7C3AED']} style={{ flex: 1, padding: 12, justifyContent: 'flex-end' }}>
-                        <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '900' }} numberOfLines={3}>{m.title}</Text>
-                      </LinearGradient>
-                    )}
-                    {m.rating ? (
-                      <View style={{ position: 'absolute', top: 8, left: 8, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 }}>
-                        <Text style={{ color: '#FFF', fontSize: 10.5, fontWeight: '900' }}>⭐ {m.rating}</Text>
-                      </View>
-                    ) : null}
-                    {ours && ours.votes ? (
-                      <View style={{ position: 'absolute', top: 8, right: 8, backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 }}>
-                        <Text style={{ color: '#FFF', fontSize: 10.5, fontWeight: '900' }}>★ {ours.stars}</Text>
-                      </View>
-                    ) : null}
+                    <Image source={{ uri: m.poster_url }} style={{ width: '100%', height: '100%' }} />
                   </View>
                   <Text style={{ color: C.text, fontSize: 12.5, fontWeight: '800', marginTop: 7 }} numberOfLines={1}>{m.title}</Text>
                   <Text style={{ color: C.faint, fontSize: 11, marginTop: 1 }} numberOfLines={1}>
                     {[m.year, (m.genres || [])[0]].filter(Boolean).join(' · ')}
                   </Text>
+                  <Pressable onPress={() => watchTogether(m)} accessibilityRole="button" style={{ marginTop: 6, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', paddingVertical: 4 }}>
+                    <Text style={{ fontSize: 12 }}>🍿</Text>
+                    <Text style={{ color: C.text, fontSize: 12, fontWeight: '800', marginStart: 4, textDecorationLine: 'underline' }}>{t('film_watch_together_short')}</Text>
+                  </Pressable>
                 </View>
               </Pressable>
-            );
-          })}
+          ))}
       </ScrollView>
       </>
       ) : null}
     </Page>
 
-    {film ? (
-      <FilmSheet
-        film={film}
-        ourScore={filmScores[film.id]}
-        onClose={() => setFilm(null)}
-        onSaved={() => { if (films && films.length) fetchOurScores(films.map((r) => r.id)).then(setFilmScores).catch(() => {}); }}
-      />
-    ) : null}
+    {film ? <FilmSheet film={film} region={region} onClose={() => setFilm(null)} onWatchTogether={watchTogether} /> : null}
+    {/* "Watch together": the ordinary start-one form, filled in with the film */}
+    {movieNight ? <GreenSheet startNow homeCountry={region || (me && me.country) || 'EG'} prefill={movieNight} onClose={() => setMovieNight(null)} /> : null}
 
     {/* The shelf, opened on purpose rather than sat in the way */}
     {booksOpen ? (
@@ -534,15 +381,6 @@ export const ChillScreen = () => {
       </Modal>
     ) : null}
 
-    {/* Music Hub — browse / upload / license; picking a track plays it here */}
-    {hubOpen ? (
-      /* No onPick here: tapping a track in the sheet already plays it.
-         A "Use" button only belongs where a track is being chosen FOR
-         something — the reel composer. */
-      <MusicHubSheet
-        onClose={() => { setHubOpen(false); if (SUPABASE_READY) fetchTracks().then((rows) => setTracks((rows || []).map(toTrack))).catch(() => {}); }}
-      />
-    ) : null}
 
     {/* video player — real playback, with a comments button */}
     {player ? (

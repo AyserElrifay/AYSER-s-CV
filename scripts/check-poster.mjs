@@ -101,9 +101,9 @@ const chill = fs.readFileSync('src/screens/ChillScreen.js', 'utf8');
 ok('its video list is gone (no video feed) — or uses the same still-or-colour', !/<VideoStill v=\{v\} \/>/.test(chill) || /derivePoster\(v\.id, v\.media\)/.test(chill));
 /* the full-screen player stays black — that is a cinema, not a card */
 ok('and no card in the list is painted #000 any more', !/aspectRatio: 16 \/ 9, borderRadius: 16, overflow: 'hidden', backgroundColor: '#000'/.test(chill));
-ok('tracks wear a drawn record, not the same emoji ten times', /<RecordCover seed=\{t\.title\}/.test(chill) && !/\{t\.emoji\}/.test(chill));
-ok('a public-domain record does not claim a © it does not have', /public domain/i.test(chill) && !/' · © '/.test(chill));
-ok('the mood survives to the sampler that picks across moods', /mood: t\.mood \|\| null/.test(chill));
+/* The music list these three guarded is gone: "remove passive
+   consumption" took LISTEN out of the Chill tab altogether. */
+ok('no music list on the Chill tab any more', !/sec_listen|listenSample|MusicHubSheet/.test(chill));
 
 if (bad) {
   console.log('\n' + bad + ' wrong. A video is still showing up as a black square.');

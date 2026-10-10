@@ -445,10 +445,11 @@ export const TogetherScreen = () => {
           <Tile emoji="🎓" label={t('prog_title')} from="#3B82F6" to="#06B6D4" onPress={() => setSheet('prog')} />
           {isEuCode(myCode) ? (
             <Tile emoji="🧭" label={t('ld_title')} from="#10B981" to="#84CC16" onPress={() => setSheet('landing')} />
-          ) : (
-            <Tile emoji="🌿" label={t('green_how')} from="#10B981" to="#84CC16" onPress={() => setSheet('how')} />
-          )}
-          <Tile emoji="💡" label={t('green_ideas_btn')} from="#F59E0B" to="#FB7185" onPress={() => setSheet('ideas')} />
+          ) : null}
+          {/* "Ideas" and "How we do it" were two doors into the same Green
+              Minds sheet — Ayser: "ideas هي هي green minds". One door; the
+              ideas and the how-to are inside it. */}
+          <Tile emoji="🌿" label={t('green_title')} from="#10B981" to="#84CC16" onPress={() => setSheet('green')} />
           <Tile emoji="🎲" label={t('tg_play')} from="#A855F7" to="#EC4899" onPress={() => nav.navigate('CHILL')} />
           <Tile emoji="🗺️" label={t('tg_on_map')} from="#6366F1" to="#8B5CF6" onPress={() => nav.navigate('MAP')} />
           <Tile emoji="🏃" label={t('gn_cta_short')} from="#10B981" to="#0EA5E9" onPress={() => setSheet('gonow')} />
@@ -487,7 +488,7 @@ export const TogetherScreen = () => {
       {sheet === 'talk' ? <StartTalkSheet country={myCode} onClose={() => setSheet(null)} onStarted={(id) => { setSheet(null); setTalkId(id); }} /> : null}
       {talkId ? <TalkRoomSheet roomId={talkId} onClose={() => { setTalkId(null); load(); }} /> : null}
       {sheet === 'start' ? <GreenSheet startNow homeCountry={myCode} onClose={() => { setSheet(null); load(); }} /> : null}
-      {sheet === 'how' || sheet === 'ideas' ? <GreenSheet homeCountry={myCode} openOn={sheet} onClose={() => { setSheet(null); load(); }} /> : null}
+      {sheet === 'green' ? <GreenSheet homeCountry={myCode} onClose={() => { setSheet(null); load(); }} /> : null}
       {sheet === 'prog' ? <ProgrammesSheet onClose={() => setSheet(null)} onOpenGroup={(id) => setSheet({ group: id })} /> : null}
       {sheet === 'landing' ? <LandingSheet country={myCode} onClose={() => setSheet(null)} /> : null}
       {sheet && sheet.group ? <GroupPage groupId={sheet.group} onClose={() => setSheet(null)} /> : null}

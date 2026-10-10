@@ -24,6 +24,7 @@ export const ACTIVITY_LOOK = {
   run:     { emoji: '🏃', from: '#EF4444', to: '#F97316' },
   coffee:  { emoji: '☕', from: '#B45309', to: '#F59E0B' },
   focus:   { emoji: '📚', from: '#0EA5E9', to: '#6366F1' },
+  movie:   { emoji: '🍿', from: '#DC2626', to: '#F59E0B' },
 };
 const FALLBACK = { emoji: '✨', from: '#7C3AED', to: '#EC4899' };
 

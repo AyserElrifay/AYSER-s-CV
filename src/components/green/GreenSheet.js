@@ -53,6 +53,7 @@ const KINDS = [
   { id: 'art',     icon: 'palette-outline', key: 'green_kind_art' },
   { id: 'circle',  icon: 'account-group',   key: 'green_kind_circle' },
   { id: 'focus',   icon: 'book-open-variant', key: 'gn_focus' },
+  { id: 'movie',   icon: 'popcorn',         key: 'gn_movie' },
   { id: 'cleanup', icon: 'broom',           key: 'green_kind_cleanup' },
   { id: 'project', icon: 'sprout-outline',  key: 'green_kind_project' },
 ];
@@ -220,16 +221,18 @@ export const GreenSheet = ({ onClose, onPlay, startNow, homeCountry, openOn, pre
     tapMedium();
     // tomorrow at five: a real slot on the form's own day/time pickers
     const soon = new Date(Date.now() + 24 * 3600 * 1000);
-    soon.setHours(17, 0, 0, 0);
+    soon.setHours(prefill && prefill.hour != null ? prefill.hour : 17, 0, 0, 0);
+    /* a prefill may bring the whole plan — "Watch together" brings the
+       film as the title and what to watch it on (FilmSheet.js) */
     setForm({
-      kind: spark ? spark.kind : (prefill ? 'coffee' : 'walk'),
-      title: spark ? sparkText(spark, lang, 'title') : '',
-      about: spark ? sparkText(spark, lang, 'about') : '',
+      kind: spark ? spark.kind : (prefill ? prefill.kind || 'coffee' : 'walk'),
+      title: spark ? sparkText(spark, lang, 'title') : (prefill && prefill.title) || '',
+      about: spark ? sparkText(spark, lang, 'about') : (prefill && prefill.about) || '',
       country: (spark && spark.country) || country || homeCountry || 'EG',
       city: '', place: (prefill && prefill.place) || '',
       lat: prefill ? prefill.lat : null, lng: prefill ? prefill.lng : null,
       startsAt: soon.toISOString(),
-      minutes: spark && spark.minutes ? String(spark.minutes) : '60',
+      minutes: spark && spark.minutes ? String(spark.minutes) : prefill && prefill.minutes ? String(prefill.minutes) : '60',
       capacity: '',
     });
   };
@@ -240,9 +243,12 @@ export const GreenSheet = ({ onClose, onPlay, startNow, homeCountry, openOn, pre
 
   /* Opened straight into starting one: just the sheet, over whatever
      the person was looking at — not the whole Green Minds page behind it. */
+  /* a plan that arrives with its kind (movie night) shows that kind
+     first, where it can be seen to be chosen */
+  const formKinds = prefill && prefill.kind ? [kindOf(prefill.kind), ...KINDS.filter((k) => k.id !== prefill.kind)] : KINDS;
   if (startNow) {
     return form ? (
-      <StartForm form={form} setForm={setForm} kinds={KINDS} places={formPlaces} busy={busy} t={t} lang={lang}
+      <StartForm form={form} setForm={setForm} kinds={formKinds} places={formPlaces} busy={busy} t={t} lang={lang}
         onSubmit={submit} onClose={() => { tapLight(); closeForm(); }} />
     ) : null;
   }

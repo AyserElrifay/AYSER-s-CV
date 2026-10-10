@@ -28,6 +28,8 @@
           PROJECT_REF, PAGES
 */
 
+import { FILM_REGIONS } from '../src/lib/filmPicks.js';
+
 const REF = process.env.PROJECT_REF || 'dvddiyztpyyuultndzso';
 const TOKEN = process.env.SUPABASE_ACCESS_TOKEN;
 const TMDB = process.env.TMDB_KEY || '';
@@ -230,7 +232,7 @@ async function tmdb(path, params = {}) {
 }
 
 async function fromTmdb() {
-  const genreMap = new Map();
+  const genreMap = GENRES;
   for (const lang of ['en-US', 'ar']) {
     const g = await tmdb('/genre/movie/list', { language: lang });
     ((g && g.genres) || []).forEach((x) => { if (!genreMap.has(x.id)) genreMap.set(x.id, x.name); });
@@ -269,9 +271,67 @@ async function fromTmdb() {
   }
 }
 
+/* ── WHERE IT IS STREAMED · 29 countries ─────────────────────────────
+   Egypt, Morocco and the 27 EU states (src/lib/filmPicks.js). For each:
+   what is popular AND streamable there, then — for every TMDB title we
+   hold — which services carry it in each of those countries. TMDB's
+   watch-provider data comes from JustWatch; the app says so where it
+   shows it. Kept on the row as regions (where) and providers (who). */
+const where = new Map();        // tmdb id → { EG: { names, link }, ... }
+
+async function fromTmdbRegions() {
+  for (const region of FILM_REGIONS) {
+    for (let page = 1; page <= Math.min(2, PAGES); page++) {
+      const j = await tmdb('/discover/movie', {
+        watch_region: region, region, sort_by: 'popularity.desc',
+        with_watch_monetization_types: 'flatrate|free|ads',
+        page: String(page), language: 'en-US',
+      });
+      const results = (j && j.results) || [];
+      if (!results.length) break;
+      for (const m of results) {
+        if (!m.id || !m.title || m.adult) continue;
+        push({
+          id: m.id, title: m.title,
+          year: m.release_date ? parseInt(m.release_date.slice(0, 4), 10) : null,
+          overview: m.overview || null,
+          poster_url: m.poster_path ? IMG + '/w500' + m.poster_path : null,
+          backdrop_url: m.backdrop_path ? IMG + '/w780' + m.backdrop_path : null,
+          genres: (m.genre_ids || []).map((g) => GENRES.get(g)).filter(Boolean),
+          rating: typeof m.vote_average === 'number' ? Math.round(m.vote_average * 10) / 10 : null,
+          language: m.original_language || null,
+          popularity: typeof m.popularity === 'number' ? Math.round(m.popularity * 100) / 100 : null,
+        });
+      }
+    }
+    console.log(`tmdb streamable in ${region} → ${rows.length} collected`);
+  }
+}
+
+async function providersForAll(limit = 2500) {
+  const ids = rows.filter((r) => r.id < APPLE_BASE).map((r) => r.id).slice(0, limit);
+  let done = 0;
+  for (const id of ids) {
+    const j = await tmdb(`/movie/${id}/watch/providers`);
+    const res = (j && j.results) || {};
+    const here = {};
+    for (const region of FILM_REGIONS) {
+      const r = res[region];
+      if (!r) continue;
+      const names = [...new Set([...(r.flatrate || []), ...(r.free || []), ...(r.ads || [])].map((x) => x.provider_name).filter(Boolean))];
+      if (names.length) here[region] = { names: names.slice(0, 8), link: r.link || null };
+    }
+    if (Object.keys(here).length) where.set(id, here);
+    if (++done % 200 === 0) console.log(`  where to watch: ${done}/${ids.length}`);
+    await sleep(30);                         // TMDB allows far more; be polite
+  }
+}
+
+const GENRES = new Map();
+
 /* TMDB first when we have it, so its richer rows claim the titles they
    cover; Apple then fills everything TMDB didn't. */
-if (TMDB) await fromTmdb();
+if (TMDB) { await fromTmdb(); await fromTmdbRegions(); await providersForAll(); }
 else console.log('No TMDB_KEY — filling the catalogue from Apple alone (this works fine).');
 await fromAppleCharts();
 await fromApple();
@@ -281,18 +341,27 @@ if (!rows.length) { console.log('nothing to write'); process.exit(0); }
 let written = 0;
 for (let i = 0; i < rows.length; i += 100) {
   const chunk = rows.slice(i, i + 100);
-  const values = chunk.map((r) => `(${r.id}, ${esc(r.title)}, ${r.year || 'null'}, ${esc(r.overview)},
+  const values = chunk.map((r) => {
+    const here = where.get(r.id) || null;
+    /* JSON goes in as text and is cast: esc() would cut a long one at
+       2000 characters, so it is escaped on its own */
+    const prov = here ? "'" + JSON.stringify(here).replace(/'/g, "''") + "'::jsonb" : 'null';
+    return `(${r.id}, ${esc(r.title)}, ${r.year || 'null'}, ${esc(r.overview)},
     ${esc(r.poster_url)}, ${esc(r.backdrop_url)}, ${arr(r.genres)}, ${r.rating == null ? 'null' : r.rating},
-    ${esc(r.language)}, ${r.popularity == null ? 'null' : r.popularity}, now())`).join(',');
+    ${esc(r.language)}, ${r.popularity == null ? 'null' : r.popularity}, ${arr(here ? Object.keys(here) : null)}, ${prov}, now())`;
+  }).join(',');
   const out = await sql(`
     insert into public.films
-      (id, title, year, overview, poster_url, backdrop_url, genres, rating, language, popularity, updated_at)
+      (id, title, year, overview, poster_url, backdrop_url, genres, rating, language, popularity, regions, providers, updated_at)
     values ${values}
     on conflict (id) do update set
       title = excluded.title, year = excluded.year, overview = excluded.overview,
       poster_url = excluded.poster_url, backdrop_url = excluded.backdrop_url,
       genres = excluded.genres, rating = excluded.rating,
-      popularity = excluded.popularity, updated_at = now()
+      popularity = excluded.popularity,
+      regions = coalesce(excluded.regions, films.regions),
+      providers = coalesce(excluded.providers, films.providers),
+      updated_at = now()
     returning id;`);
   written += Array.isArray(out) ? out.length : 0;
 }

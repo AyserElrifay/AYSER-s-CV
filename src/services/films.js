@@ -6,11 +6,10 @@ import { withAffiliate } from './broker';
    that points at the services which legally carry it — that is the
    only lawful way to do this and, as it happens, the honest one too.
 
-   Two scores, never merged: the catalogue's global rating, and what
-   the people in this app actually thought. They measure different
-   things and showing them as one number would be a small lie. */
-
-export const FILM_GENRES = ['All', 'Trending', 'Drama', 'Comedy', 'Action', 'Science Fiction', 'Animation', 'Romance', 'Horror'];
+   A film is a reason to get together, not something to sit through
+   here: the app shows a short list picked for you
+   (src/lib/filmPicks.js), where each one is legally streamed, and a
+   "Watch together" that turns it into a plan. No stars, no reviews. */
 
 export async function fetchFilms({ genre, arabic, language, limit = 40 } = {}) {
   let q = supabase.from('films').select('*').limit(limit);
@@ -37,66 +36,48 @@ export async function searchFilms(term, { limit = 30 } = {}) {
   return data || [];
 }
 
-/* What this crowd gave it — kept apart from the catalogue's own score. */
-export async function fetchOurScores(filmIds) {
-  if (!filmIds || !filmIds.length) return {};
-  const { data, error } = await supabase.rpc('film_scores', { ids: filmIds });
-  if (error) return {};
-  const out = {};
-  (data || []).forEach((r) => { out[r.film_id] = { stars: Number(r.avg_stars), votes: Number(r.votes) }; });
-  return out;
-}
+/* The services we can link into, by the names the catalogue uses.
+   Several names, one service: TMDB calls Prime "Amazon Prime Video"
+   in one country and "Amazon Video" in another. */
+const SERVICES = [
+  { id: 'netflix', name: 'Netflix',     emoji: '🅽', partner: 'netflix', match: /^netflix/i,
+    url: (t) => 'https://www.netflix.com/search?q=' + t },
+  { id: 'prime',   name: 'Prime Video', emoji: '📦', partner: 'amazon',  match: /amazon|prime video/i,
+    url: (t) => 'https://www.primevideo.com/search/ref=atv_nb_sr?phrase=' + t },
+  { id: 'shahid',  name: 'Shahid',      emoji: '🎬', partner: 'shahid',  match: /shahid/i,
+    url: (t) => 'https://shahid.mbc.net/en/search?q=' + t },
+  { id: 'disney',  name: 'Disney+',     emoji: '✨', partner: 'disney',  match: /disney/i,
+    url: (t) => 'https://www.disneyplus.com/search?q=' + t },
+  { id: 'max',     name: 'Max',         emoji: '🟦', partner: 'max',     match: /^(hbo )?max\b|hbo max/i,
+    url: (t) => 'https://play.max.com/search?q=' + t },
+  { id: 'appletv', name: 'Apple TV',    emoji: '',  partner: 'appletv', match: /apple tv/i,
+    url: (t) => 'https://tv.apple.com/search?term=' + t },
+  { id: 'youtube', name: 'YouTube',     emoji: '▶️', partner: 'youtube', match: /youtube/i,
+    url: (t) => 'https://www.youtube.com/results?search_query=' + t + '+full+movie' },
+];
+const DEFAULT = ['netflix', 'prime', 'shahid', 'appletv', 'youtube'];
 
-export async function fetchReviews(filmId) {
-  const { data, error } = await supabase
-    .from('film_reviews')
-    .select('stars, body, created_at, edited_at, user_id, user:profiles!film_reviews_user_id_fkey(id, name, avatar_url, country_flag)')
-    .eq('film_id', filmId)
-    .order('created_at', { ascending: false })
-    .limit(60);
-  if (error) throw error;
-  return data || [];
-}
-
-/* One opinion per person, changeable. Upsert rather than insert so
-   saying it again edits what you said instead of stacking. */
-export async function saveReview(filmId, userId, stars, body) {
-  const { data, error } = await supabase
-    .from('film_reviews')
-    .upsert({
-      film_id: filmId, user_id: userId,
-      stars: Math.max(1, Math.min(5, Math.round(stars))),
-      body: String(body || '').trim().slice(0, 1200) || null,
-      edited_at: new Date().toISOString(),
-    }, { onConflict: 'film_id,user_id' })
-    .select('*')
-    .single();
-  if (error) throw error;
-  return data;
-}
-
-export async function deleteReview(filmId, userId) {
-  const { error } = await supabase.from('film_reviews').delete().eq('film_id', filmId).eq('user_id', userId);
-  if (error) throw error;
-}
-
-/* Where to watch it, legally. These are search links into each
-   service rather than deep links to a stream: a service either carries
-   a title or it doesn't, and pretending to know which is how you end
-   up sending people to a dead page. Affiliate tags attach where a
-   programme exists — the link works either way. */
-export function watchOptions(film) {
+/* Where to watch it, here. When the catalogue knows which services
+   carry the title in your country (TMDB, from JustWatch), those come
+   first and say so; a service we cannot link into gets the catalogue's
+   own "where to watch" page. When it does not know, the usual search
+   links — a service either carries a title or it doesn't. */
+export function watchOptions(film, region = null) {
   const t = encodeURIComponent(film.title || '');
-  return [
-    { id: 'prime',   name: 'Prime Video', emoji: '📦', partner: 'amazon',
-      url: 'https://www.primevideo.com/search/ref=atv_nb_sr?phrase=' + t },
-    { id: 'netflix', name: 'Netflix',     emoji: '🅽', partner: 'netflix',
-      url: 'https://www.netflix.com/search?q=' + t },
-    { id: 'shahid',  name: 'Shahid',      emoji: '🎬', partner: 'shahid',
-      url: 'https://shahid.mbc.net/en/search?q=' + t },
-    { id: 'appletv', name: 'Apple TV',    emoji: '',  partner: 'appletv',
-      url: 'https://tv.apple.com/search?term=' + t },
-    { id: 'youtube', name: 'YouTube',     emoji: '▶️', partner: 'youtube',
-      url: 'https://www.youtube.com/results?search_query=' + t + '+full+movie' },
-  ].map((o) => ({ ...o, url: withAffiliate(o.partner, o.url) }));
+  const here = region && film.providers && film.providers[region];
+  const names = here && Array.isArray(here.names) ? here.names : [];
+  const out = [];
+  const used = new Set();
+  for (const nm of names) {
+    const sv = SERVICES.find((x) => x.match.test(nm));
+    if (sv && !used.has(sv.id)) { used.add(sv.id); out.push({ id: sv.id, name: sv.name, emoji: sv.emoji, partner: sv.partner, url: sv.url(t), here: true }); }
+    else if (!sv && here.link && !used.has(nm)) { used.add(nm); out.push({ id: 'p:' + nm, name: nm, emoji: '📺', partner: 'tmdb', url: here.link, here: true }); }
+  }
+  if (!out.length) {
+    for (const id of DEFAULT) {
+      const sv = SERVICES.find((x) => x.id === id);
+      out.push({ id: sv.id, name: sv.name, emoji: sv.emoji, partner: sv.partner, url: sv.url(t), here: false });
+    }
+  }
+  return out.map((o) => ({ ...o, url: withAffiliate(o.partner, o.url) }));
 }

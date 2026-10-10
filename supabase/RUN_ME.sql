@@ -10116,4 +10116,74 @@ language sql stable security definer set search_path = public as $$
 $$;
 grant execute on function public.green_list(text) to anon, authenticated;
 
+
+-- ═══════════ FILMS · WATCH TOGETHER, IN 29 COUNTRIES ═══════════
+/* Films are a reason to get together, not something to sit through in
+   the app. So: no stars and no reviews any more — the old reviews stay
+   stored but nobody can add to them — and a film can become a plan,
+   "movie night", like any other kind.
+
+   And the catalogue knows where each title is really streamed, in
+   Egypt, Morocco and the 27 EU countries (scripts/import-films.mjs,
+   TMDB with JustWatch data): regions = the countries it streams in,
+   providers = { "EG": { "names": [...], "link": "..." }, ... }. */
+
+alter table public.films add column if not exists regions   text[];
+alter table public.films add column if not exists providers jsonb;
+create index if not exists films_regions_idx on public.films using gin (regions);
+
+drop policy if exists "write your own review"  on public.film_reviews;
+drop policy if exists "change your own review" on public.film_reviews;
+
+-- the kinds of plan, in one place, so a new one is one line
+create or replace function public.green_kinds()
+returns text[] language sql immutable as $$
+  select array['cleanup','circle','art','project','culture','walk','sport','run','coffee','focus','movie'];
+$$;
+
+do $$ begin
+  alter table public.green_gatherings drop constraint if exists green_gatherings_kind_check;
+  alter table public.green_gatherings add constraint green_gatherings_kind_check
+    check (kind = any(public.green_kinds())) not valid;
+exception when others then null; end $$;
+
+create or replace function public.green_create(
+  p_kind text, p_title text, p_about text, p_country text, p_city text,
+  p_place text, p_lat double precision, p_lng double precision,
+  p_starts_at timestamptz, p_minutes int, p_capacity int, p_language text)
+returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare
+  me uuid := auth.uid();
+  g  public.green_gatherings%rowtype;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  if not (p_kind = any(public.green_kinds())) then
+    return jsonb_build_object('ok', false, 'reason', 'bad_kind');
+  end if;
+  if coalesce(length(btrim(p_title)), 0) < 3 then
+    return jsonb_build_object('ok', false, 'reason', 'no_title');
+  end if;
+  if p_starts_at is null or p_starts_at < now() - interval '1 hour' then
+    return jsonb_build_object('ok', false, 'reason', 'in_the_past');
+  end if;
+  if coalesce(length(btrim(p_country)), 0) <> 2 then
+    return jsonb_build_object('ok', false, 'reason', 'no_country');
+  end if;
+  if (p_capacity is null or p_capacity > 12) and not public.trust_unlocked(me) then
+    return jsonb_build_object('ok', false, 'reason', 'need_unlock');
+  end if;
+
+  insert into public.green_gatherings
+    (kind, title, about, country, city, place_name, lat, lng, starts_at, minutes, capacity, host_id, language)
+  values
+    (p_kind, btrim(p_title), nullif(btrim(coalesce(p_about, '')), ''), upper(btrim(p_country)),
+     nullif(btrim(coalesce(p_city, '')), ''), nullif(btrim(coalesce(p_place, '')), ''),
+     p_lat, p_lng, p_starts_at, p_minutes, p_capacity, me, p_language)
+  returning * into g;
+  insert into public.green_joins (gathering_id, user_id) values (g.id, me) on conflict do nothing;
+  return jsonb_build_object('ok', true, 'id', g.id);
+end;
+$$;
+
 notify pgrst, 'reload schema';

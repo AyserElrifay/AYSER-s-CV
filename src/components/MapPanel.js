@@ -23,8 +23,8 @@ import { tapLight, tapSelection } from '../utils/feedback';
 export const MAP_PANEL_PEEK = 176;          // collapsed height, without chips
 export const MAP_PANEL_CHIPS = 44;          // the kind chips, on the activities lens
 
-const KINDS = [null, 'walk', 'run', 'coffee', 'focus', 'sport', 'culture', 'circle', 'art', 'cleanup'];
-const kindLabel = (t, k) => (k ? t(k === 'focus' ? 'gn_focus' : k === 'run' ? 'gn_run' : k === 'coffee' ? 'gn_coffee' : 'green_kind_' + k) : t('lens_all'));
+const KINDS = [null, 'walk', 'run', 'coffee', 'focus', 'sport', 'culture', 'movie', 'circle', 'art', 'cleanup'];
+const kindLabel = (t, k) => (k ? t(k === 'focus' ? 'gn_focus' : k === 'run' ? 'gn_run' : k === 'coffee' ? 'gn_coffee' : k === 'movie' ? 'gn_movie' : 'green_kind_' + k) : t('lens_all'));
 
 export const MapPanel = ({
   t, lang, user, plans, people, open, onOpen, joining, onJoin, onFocus, onGoNow, onPerson,
