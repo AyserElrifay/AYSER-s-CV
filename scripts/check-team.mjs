@@ -22,14 +22,14 @@ const app = read('App.js');
 import { signInAddress } from '../src/lib/teamAddress.js';
 
 is('only the owner can call team-admin, checked on every request', /from\('app_owners'\)\.select\('email'\)\.ilike\('email', email\)/.test(fn) && /return json\(403, \{ error: 'not_owner' \}\)/.test(fn), true);
-is('it only ever touches team accounts, never a user', /never touch an account that is not a team account/.test(fn) && (fn.match(/await isTeam\(\)/g) || []).length === 5, true);
+is('it only ever touches team accounts, never a user', /never touch an account that is not a team account/.test(fn) && (fn.match(/case '/g) || []).length - 1 === (fn.match(/await isTeam\(\)/g) || []).length, true);
 is('no password is logged or stored by us', !/console\./.test(fn) && !/password['"]?\s*:\s*b\.password[\s\S]{0,40}team_members/.test(fn), true);
 is('team addresses are on a reserved domain that can never get mail', /team\.moments\.invalid/.test(fn), true);
 is('nobody writes the team table but the function', /create policy "team: see yourself" on public\.team_members for select using \(user_id = auth\.uid\(\)\)/.test(part) && !/on public\.team_members for (insert|update|delete|all)/.test(part), true);
 is('a paused member loses access at once', /m\.disabled_at is null/.test(part.slice(part.indexOf('studio_can'))) && /ban_duration: '876000h'/.test(fn), true);
 is('safety and verify reviews follow the role', /studio_can\('safety'\) then return jsonb_build_object\('ok', false/.test(part) && /create or replace function public\.hosts_pending\(\)[\s\S]{0,200}studio_can\('verify'\)/.test(part), true);
 is('the team list is the owner\'s only', /team_list\(\)[\s\S]{0,120}not public\.is_app_owner\(\)/.test(part), true);
-is('the Studio opens for whoever the server says, and only them', /myStudio\(\)\.then/.test(app) && /<AdminPanel access=\{access\}/.test(app), true);
+is('the Studio opens for whoever the server says, and only them', /const a = await myStudio\(\);/.test(app) && /<AdminPanel access=\{st\.access\}/.test(app), true);
 is('tabs without an area are the owner\'s', /canOpen = \(access, t\) => !!access && \(access\.owner \|\| \(!!t\.area/.test(admin) && /\{ k: 'team', label: 'Team', icon: 'people-outline' \}/.test(admin), true);
 is('the Team tab draws only for the owner', /tab === 'team' && owner \? <TeamTab \/>/.test(admin), true);
 {

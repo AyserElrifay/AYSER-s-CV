@@ -20,7 +20,7 @@ export async function myStudio() {
   try {
     const { data, error } = await supabase.rpc('my_studio');
     if (error || !data) return null;
-    return data.owner || data.role ? data : null;
+    return data.identity || data.owner || data.role ? data : null;
   } catch (e) { return null; }
 }
 

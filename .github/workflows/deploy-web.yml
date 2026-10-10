@@ -212,6 +212,9 @@ jobs:
       # Bardi advises on every Studio decision; it can never make one.
       - name: Check Bardi's Studio advice
         run: node scripts/check-advice.mjs
+      # The Studio: Face ID / fingerprint / code, enforced by the server.
+      - name: Check the Studio lock
+        run: node scripts/check-studio-lock.mjs
       # No signal must not mean no app.
       - name: Check the app works offline
         run: node scripts/check-offline.mjs

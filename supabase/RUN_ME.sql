@@ -11284,4 +11284,135 @@ $$;
 revoke execute on function public.media_bucket_info() from public, anon;
 grant execute on function public.media_bucket_info() to authenticated;
 
+-- ═══════════ STUDIO · LOCKED BEHIND A SECOND STEP, CHECKED BY THE SERVER ═══════════
+/* Ayser: the Studio secured as strongly as it can be — Face ID, a
+   fingerprint or a code.
+
+   A lock drawn on the phone can be stepped around by anyone who reads
+   the app's code. So the lock is HERE: every owner and team power —
+   every queue, every decision, every document, every report, the team
+   itself — now needs a session that passed a second step (a passkey:
+   Face ID / fingerprint, or an authenticator-app code) in the last 30
+   minutes. A stolen password opens nothing. A phone left unlocked on a
+   table opens nothing half an hour later. The app asks for the second
+   step again when it is needed (src/components/StudioLock.js).
+
+   The second step is Supabase's own: it signs into the session token
+   an assurance level ('aal2') and when each method was used ('amr').
+   Those are read here, from the token the server itself issued. */
+
+create or replace function public.studio_fresh()
+returns boolean language plpgsql stable security definer set search_path = public as $$
+declare c jsonb := nullif(current_setting('request.jwt.claims', true), '')::jsonb;
+begin
+  if c is null or coalesce(c ->> 'aal', '') <> 'aal2' then return false; end if;
+  return exists (
+    select 1 from jsonb_array_elements(coalesce(c -> 'amr', '[]'::jsonb)) a
+     where a ->> 'method' in ('totp', 'mfa/totp', 'mfa/webauthn', 'webauthn', 'mfa/phone')
+       and to_timestamp((a ->> 'timestamp')::double precision) > now() - interval '30 minutes');
+end;
+$$;
+revoke execute on function public.studio_fresh() from public, anon;
+grant execute on function public.studio_fresh() to authenticated;
+
+/* who you are, before the lock: the owner by email, or a team member */
+create or replace function public.studio_identity()
+returns text language plpgsql stable security definer set search_path = public as $$
+declare c jsonb := nullif(current_setting('request.jwt.claims', true), '')::jsonb; e text;
+begin
+  e := lower(coalesce(c ->> 'email', ''));
+  if e <> '' and (e = 'ayseryourlifecoach@gmail.com' or exists (select 1 from public.app_owners where lower(email) = e)) then return 'owner'; end if;
+  if exists (select 1 from public.team_members where user_id = auth.uid() and disabled_at is null) then return 'team'; end if;
+  return null;
+end;
+$$;
+revoke execute on function public.studio_identity() from public, anon;
+grant execute on function public.studio_identity() to authenticated;
+
+/* THE owner check, everywhere it is used: the right email AND the
+   second step, recently */
+create or replace function public.is_app_owner()
+returns boolean language plpgsql stable security definer set search_path = public as $$
+begin
+  return public.studio_identity() = 'owner' and public.studio_fresh();
+end;
+$$;
+grant execute on function public.is_app_owner() to authenticated;
+
+create or replace function public.studio_can(p_area text)
+returns boolean language plpgsql stable security definer set search_path = public as $$
+begin
+  if not public.studio_fresh() then return false; end if;
+  return public.studio_identity() = 'owner' or exists (
+    select 1 from public.team_members m
+     where m.user_id = auth.uid() and m.disabled_at is null
+       and (m.role = 'all' or m.role = p_area));
+end;
+$$;
+
+/* what the app should show: who you are, and whether you are unlocked */
+create or replace function public.my_studio()
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare who text := public.studio_identity(); fresh boolean := public.studio_fresh();
+begin
+  if who is null then return jsonb_build_object('owner', false, 'role', null); end if;
+  return jsonb_build_object(
+    'identity', who,
+    'unlocked', fresh,
+    'owner', who = 'owner' and fresh,
+    'role', case when fresh then (select role from public.team_members where user_id = auth.uid() and disabled_at is null) end,
+    'username', (select username from public.team_members where user_id = auth.uid()));
+end;
+$$;
+
+/* the places that still compared the email by hand now ask the one check */
+drop policy if exists "owner reads all reports" on public.content_reports;
+create policy "owner reads all reports" on public.content_reports for select using (public.is_app_owner());
+drop policy if exists "owner updates reports" on public.content_reports;
+create policy "owner updates reports" on public.content_reports for update using (public.is_app_owner());
+do $do$ begin
+  if to_regclass('public.feedback') is not null then
+    drop policy if exists "owner reads feedback" on public.feedback;
+    create policy "owner reads feedback" on public.feedback for select using (public.is_app_owner());
+    drop policy if exists "owner updates feedback" on public.feedback;
+    create policy "owner updates feedback" on public.feedback for update using (public.is_app_owner());
+  end if;
+  if to_regclass('public.help_articles') is not null then
+    drop policy if exists "help_owner_write" on public.help_articles;
+    create policy "help_owner_write" on public.help_articles for all using (public.is_app_owner()) with check (public.is_app_owner());
+  end if;
+  if to_regclass('public.bardi_config') is not null then
+    drop policy if exists "bardi_config_owner" on public.bardi_config;
+    create policy "bardi_config_owner" on public.bardi_config for all using (public.is_app_owner()) with check (public.is_app_owner());
+  end if;
+  if to_regclass('public.bardi_knowledge') is not null then
+    drop policy if exists "bardi_knowledge_owner" on public.bardi_knowledge;
+    create policy "bardi_knowledge_owner" on public.bardi_knowledge for all using (public.is_app_owner()) with check (public.is_app_owner());
+  end if;
+  if to_regclass('public.topics') is not null then
+    drop policy if exists "only the owner curates topics" on public.topics;
+    create policy "only the owner curates topics" on public.topics for all using (public.is_app_owner()) with check (public.is_app_owner());
+  end if;
+  if to_regclass('public.trips') is not null then
+    drop policy if exists "trips_del" on public.trips;
+    create policy "trips_del" on public.trips for delete using (auth.uid() = host_id or public.is_app_owner());
+  end if;
+end $do$;
+drop policy if exists "vr select own or owner" on public.verification_requests;
+create policy "vr select own or owner" on public.verification_requests for select using (auth.uid() = user_id or public.is_app_owner());
+drop policy if exists "vr update owner" on public.verification_requests;
+create policy "vr update owner" on public.verification_requests for update using (public.is_app_owner());
+drop policy if exists "the owner can take a story down" on public.stories;
+create policy "the owner can take a story down" on public.stories for delete using (public.is_app_owner());
+drop policy if exists "the owner can take a post down" on public.posts;
+create policy "the owner can take a post down" on public.posts for delete using (public.is_app_owner());
+
+create or replace function public.approve_verification(target uuid, approve boolean)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_app_owner() then raise exception 'not authorized'; end if;
+  update public.profiles set verified = approve where id = target;
+  update public.verification_requests set status = case when approve then 'approved' else 'rejected' end where user_id = target;
+end; $$;
+
 notify pgrst, 'reload schema';

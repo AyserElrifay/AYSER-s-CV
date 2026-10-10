@@ -18,6 +18,7 @@
 //    set_role      { user_id, role }
 //    pause         { user_id }      signed out of everything, can't sign in
 //    resume        { user_id }
+//    reset_lock    { user_id }      their Face ID / code removed; they set new ones
 //    remove        { user_id }      the account is deleted
 //  Passwords are never stored or logged here; they go straight to the
 //  auth service, which keeps only a hash.
@@ -53,6 +54,17 @@ Deno.serve(async (req) => {
   if (!email) return json(401, { error: 'signed_out' });
   const { data: owner } = await db.from('app_owners').select('email').ilike('email', email).maybeSingle();
   if (!owner) return json(403, { error: 'not_owner' });
+  /* and a second step in the last 30 minutes — the same rule as
+     studio_fresh() in RUN_ME.sql. The token was just verified by
+     getUser above, so its claims can be read as they are. */
+  let claims: any = {};
+  try {
+    const part = jwt.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    claims = JSON.parse(atob(part + '='.repeat((4 - (part.length % 4)) % 4)));
+  } catch { claims = {}; }
+  const fresh = claims.aal === 'aal2' && (claims.amr || []).some((a: any) =>
+    ['totp', 'mfa/totp', 'mfa/webauthn', 'webauthn', 'mfa/phone'].includes(a && a.method) && Number(a.timestamp) * 1000 > Date.now() - 30 * 60 * 1000);
+  if (!fresh) return json(403, { error: 'locked' });
 
   let b: any = {};
   try { b = await req.json(); } catch { return json(400, { error: 'body' }); }
@@ -102,6 +114,14 @@ Deno.serve(async (req) => {
       if (!(await isTeam())) return json(404, { error: 'no_member' });
       await db.auth.admin.updateUserById(id, { ban_duration: 'none' });
       await db.from('team_members').update({ disabled_at: null }).eq('user_id', id);
+      return json(200, { ok: true });
+    }
+    case 'reset_lock': {
+      // a member lost the phone with their passkey and their code: their
+      // second steps are removed, and they set new ones at the next sign-in
+      if (!(await isTeam())) return json(404, { error: 'no_member' });
+      const { data: fs } = await db.auth.admin.mfa.listFactors({ userId: id });
+      for (const f of (fs && fs.factors) || []) { await db.auth.admin.mfa.deleteFactor({ id: f.id, userId: id }); }
       return json(200, { ok: true });
     }
     case 'remove': {

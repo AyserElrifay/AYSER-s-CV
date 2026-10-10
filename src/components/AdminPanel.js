@@ -164,7 +164,7 @@ const makePassword = () => {
   try { crypto.getRandomValues(a); } catch (e) { for (let i = 0; i < a.length; i++) a[i] = Math.floor(Math.random() * 1e9); }
   return Array.from(a, (n) => abc[n % abc.length]).join('');
 };
-const TEAM_ERR = { username: 'Username: 3–20 letters, numbers, _ or .', password: 'Password: at least 10 characters.', taken: 'That username is taken.', not_owner: 'Only the owner can do this.', create_failed: 'Could not create it — try another username.' };
+const TEAM_ERR = { locked: 'Unlock the Studio again first (it has been more than 30 minutes).', username: 'Username: 3–20 letters, numbers, _ or .', password: 'Password: at least 10 characters.', taken: 'That username is taken.', not_owner: 'Only the owner can do this.', create_failed: 'Could not create it — try another username.' };
 const field = () => ({ color: C.text, fontSize: 14.5, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, backgroundColor: C.bg2, marginTop: 8 });
 const RolePick = ({ value, onChange }) => (
   <View style={{ flexDirection: 'row', marginTop: 8 }}>
@@ -214,6 +214,7 @@ const TeamMember = ({ m, onChanged }) => {
         <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
           {btn('New password', () => setPw(''))}
           {m.disabled ? btn('Resume', () => act('resume'), C.green) : btn('Pause', () => act('pause'))}
+          {btn('Reset lock', () => act('reset_lock', null, () => setMsg('Their Face ID / code is cleared — they set a new one when they next open the Studio.')))}
           {btn(armed ? 'Tap again: delete' : 'Remove', () => { if (armed) act('remove'); else setArmed(true); }, armed ? C.coral : null)}
         </View>
       )}

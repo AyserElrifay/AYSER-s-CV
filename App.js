@@ -46,6 +46,7 @@ import { SafetyHold } from './src/components/SafetyHold';
 import { lazyOverlay } from './src/lib/lazyScreen';
 /* the Studio's code is fetched only once the owner check has passed —
    nobody else's phone ever downloads it */
+const StudioLock = lazyOverlay(() => import('./src/components/StudioLock').then((m) => ({ default: m.StudioLock })));
 const AdminPanel = lazyOverlay(() => import('./src/components/AdminPanel').then((m) => ({ default: m.AdminPanel })));
 import { Splash } from './src/components/Splash';
 import { GestureTour, tourSeen } from './src/components/GestureTour';
@@ -71,20 +72,40 @@ if (typeof window !== 'undefined') {
    the link alone opens nothing for anyone but Ayser. */
 const StudioGate = () => {
   const { user } = useAuth();
-  const [access, setAccess] = React.useState(null);   // { owner, role } once the SERVER says yes
+  /* null | { lock: identity } | { access } — always what the SERVER said */
+  const [st, setSt] = React.useState(null);
+  const opened = React.useRef(0);
+  const look = React.useCallback(async (force) => {
+    const a = await myStudio();
+    if (!a) { setSt(null); return; }
+    /* part 25 run: the server says whether this session passed its second
+       step recently; without it the Studio does not open at all */
+    if (a.identity && (force || !a.unlocked)) { setSt({ lock: a.identity }); return; }
+    if (a.owner || a.role) { opened.current = Date.now(); setSt({ access: a }); return; }
+    if (!a.identity && isOwner(user)) { opened.current = Date.now(); setSt({ access: { owner: true } }); }  // before part 22
+  }, [user]);
   React.useEffect(() => {
     if (!user || !studioRequested()) return undefined;
-    let alive = true;
-    /* the owner, or a team member the owner made (src/services/team.js);
-       the server answers, and checks again on every single action */
-    myStudio().then((a) => {
-      if (!alive) return;
-      if (a) { setAccess(a); stripStudioParam(); }
-      else if (isOwner(user)) { setAccess({ owner: true }); stripStudioParam(); }   // before part 22 is run
-    });
-    return () => { alive = false; };
-  }, [user]);
-  return access ? <AdminPanel access={access} onClose={() => setAccess(null)} /> : null;
+    stripStudioParam();
+    look(true);   // the lock every time the Studio is opened
+    return undefined;
+  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+  /* Locks itself again: after 2 minutes in the background, and after 25
+     minutes open (the server stops at 30 anyway). */
+  React.useEffect(() => {
+    if (!st || !st.access || typeof document === 'undefined') return undefined;
+    let hiddenAt = 0;
+    const onVis = () => {
+      if (document.visibilityState === 'hidden') hiddenAt = Date.now();
+      else if (hiddenAt && Date.now() - hiddenAt > 2 * 60 * 1000) look(true);
+    };
+    document.addEventListener('visibilitychange', onVis);
+    const t = setInterval(() => { if (Date.now() - opened.current > 25 * 60 * 1000) look(true); }, 30 * 1000);
+    return () => { document.removeEventListener('visibilitychange', onVis); clearInterval(t); };
+  }, [st, look]);
+  if (!st) return null;
+  if (st.lock) return <StudioLock identity={st.lock} onUnlocked={() => look(false)} onClose={() => setSt(null)} />;
+  return <AdminPanel access={st.access} onClose={() => setSt(null)} />;
 };
 
 const Root = () => {
