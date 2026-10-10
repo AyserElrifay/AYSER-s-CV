@@ -8,7 +8,7 @@ import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { usePresence } from '../context/PresenceContext';
 import { isNeedUnlock } from '../lib/unlockBus';
-import { AboutCards } from './AboutCards';
+import { Passport, ShowedUp } from './Passport';
 import { useLang } from '../context/LanguageContext';
 import { fetchMyMoments, fetchRepostsByUser } from '../services/posts';
 import { fetchTaggedPosts } from '../services/tags';
@@ -245,112 +245,34 @@ export const ProfileModal = ({ user, onClose, openMessage }) => {
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: C.bg }}>
         <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 60 }}>
-          {/* cover — rounded, same as your own profile (their photo, else brand gradient) */}
-          <View style={{ marginTop: insets.top + 8, marginHorizontal: 16 }}>
-            {fullProfile && fullProfile.cover_url ? (
-              <Image source={{ uri: fullProfile.cover_url }} style={{ width: '100%', height: 130, borderRadius: 18 }} />
-            ) : (
-              <LinearGradient colors={['#7C3AED', '#5B21B6', '#2A0F63']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ height: 130, borderRadius: 18 }} />
-            )}
-            <Pressable onPress={onClose} style={{ position: 'absolute', top: 10, left: 10, width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center' }} accessibilityRole="button" accessibilityLabel={t('close')}>
-              <Ionicons name="chevron-down" size={19} color="#FFF" />
+          {/* a plain way back, then their pass (src/components/Passport.js) */}
+          <View style={{ marginTop: insets.top + 8, marginHorizontal: 16, flexDirection: 'row', alignItems: 'center' }}>
+            <Pressable onPress={onClose} style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: C.glassHi, alignItems: 'center', justifyContent: 'center' }} accessibilityRole="button" accessibilityLabel={t('close')}>
+              <Ionicons name="chevron-down" size={22} color={C.text} />
             </Pressable>
+            <View style={{ flex: 1 }} />
+            {onlineNow ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: C.green, marginRight: 6 }} />
+                <Text style={{ color: C.green, fontSize: 12.5, fontWeight: '800' }}>{t('pm_online')}</Text>
+              </View>
+            ) : null}
           </View>
 
-          <View style={{ paddingHorizontal: 16, marginTop: 14 }}>
-            {/* identity — avatar on the LEFT, stats to its right (clean,
-                balanced Instagram-style header). A plain flexDirection:'row'
-                flips under Arabic (document dir="rtl" reverses which edge
-                "row" starts from), so we swap child order when rtl is on and
-                use a fixed-width spacer for the gap — keeps the avatar
-                pinned LEFT in both languages. */}
-            {(() => {
-              const hasStory = theirStories.length > 0;
-              const avatarBlock = (
-                <Pressable
-                  onPress={() => { if (hasStory) { tapLight(); setStoryOpen(true); } }}
-                  disabled={!hasStory}
-                >
-                  <LinearGradient
-                    colors={hasStory ? [C.gold, C.purple, C.green] : [C.line, C.line, C.line]}
-                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                    style={{ width: 88, height: 88, borderRadius: 44, alignItems: 'center', justifyContent: 'center' }}
-                  >
-                    <View style={{ backgroundColor: C.bg, borderRadius: 44, padding: 3 }}>
-                      <Image source={{ uri: user.avatar }} style={{ width: 76, height: 76, borderRadius: 38 }} />
-                    </View>
-                  </LinearGradient>
-                  {hasStory ? (
-                    <View style={{ position: 'absolute', bottom: -2, alignSelf: 'center', backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2, borderWidth: 2, borderColor: C.bg }}>
-                      <Text style={{ color: '#FFF', fontSize: 9, fontWeight: '900' }}>
-                        {theirStories.length > 1 ? theirStories.length + ' STORIES' : 'STORY'}
-                      </Text>
-                    </View>
-                  ) : null}
-                </Pressable>
-              );
-              const statsBlock = (
-                <View style={{ flex: 1, flexDirection: 'row' }}>
-                  {stats.map((s) => (
-                    <View key={s.l} style={{ flex: 1, alignItems: 'center' }}>
-                      {/* same weight and casing as your own space —
-                          two profiles that show the same three numbers
-                          should not shout one of them */}
-                      <Text style={{ color: C.text, fontSize: 21, fontWeight: '900' }}>{s.n}</Text>
-                      <Text style={{ color: C.faint, fontSize: 12, fontWeight: '600', marginTop: 2 }}>{s.l}</Text>
-                    </View>
-                  ))}
-                </View>
-              );
-              const spacer = <View style={{ width: 16 }} />;
-              return (
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  {rtl ? statsBlock : avatarBlock}
-                  {spacer}
-                  {rtl ? avatarBlock : statsBlock}
-                </View>
-              );
-            })()}
-
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12, flexWrap: 'wrap' }}>
-              <Text style={{ color: C.text, fontSize: 24, fontWeight: '900', letterSpacing: -0.4 }}>{user.name}{fullProfile && fullProfile.age ? ', ' + fullProfile.age : ''}</Text>
-              {user.verified ? <Tick size={16} /> : null}
-              {user.countryFlag ? <Text style={{ fontSize: 16, marginLeft: 6 }}>{user.countryFlag}</Text> : null}
-              {user.intent ? (
-                <View style={{ backgroundColor: C.purpleSoft, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3, marginLeft: 8 }}>
-                  <Text style={{ color: C.purple, fontSize: 11, fontWeight: '800' }}>{user.intent}</Text>
-                </View>
-              ) : null}
-            </View>
-            {onlineNow ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
-                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: C.green, marginRight: 6 }} />
-                <Text style={{ color: C.green, fontSize: 12, fontWeight: '800' }}>{t('pm_online')}</Text>
-              </View>
+          <View style={{ paddingHorizontal: 16, marginTop: 12 }}>
+            <Passport
+              profile={fullProfile ? { ...fullProfile, bio: fullProfile.bio || user.bio } : { bio: user.bio }}
+              name={user.name}
+              avatar={user.avatar}
+              verified={user.verified}
+            />
+            {theirStories.length ? (
+              <Pressable onPress={() => { tapLight(); setStoryOpen(true); }} accessibilityRole="button" style={{ marginTop: 10, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center' }}>
+                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: C.purple, marginEnd: 6 }} />
+                <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '700', textDecorationLine: 'underline' }}>{t('pp_story')}</Text>
+              </Pressable>
             ) : null}
-            {user.handle ? <Text style={{ color: C.dim, fontSize: 13, marginTop: 2 }}>{user.handle}</Text> : null}
-            {(user.bio || (fullProfile && fullProfile.bio)) ? (
-              <Text style={{ color: C.text, fontSize: 14, lineHeight: 21, marginTop: 12 }}>{user.bio || fullProfile.bio}</Text>
-            ) : null}
-            {fullProfile && (fullProfile.occupation || fullProfile.education) ? (
-              <Text style={{ color: C.dim, fontSize: 14, marginTop: 6 }}>
-                {[fullProfile.occupation, fullProfile.education].filter(Boolean).join(' · ')}
-              </Text>
-            ) : null}
-            {/* where they have been, what they speak, what they love */}
-            <AboutCards profile={fullProfile} />
-
-            {/* Joined — the same chip your own space carries. Two profiles
-                in one app should not be describing a person differently. */}
-            {fullProfile && fullProfile.created_at ? (
-              <View style={{ flexDirection: 'row', marginTop: 10 }}>
-                <View style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 }}>
-                  <Text style={{ color: C.dim, fontSize: 12, fontWeight: '700' }}>
-                    📅 {t('pm_joined')} {new Date(fullProfile.created_at).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}
-                  </Text>
-                </View>
-              </View>
-            ) : null}
+            <ShowedUp count={fullProfile && fullProfile.community_events} />
 
             {/* actions — real friend request + real DM */}
             {!isMe ? (

@@ -30,7 +30,7 @@ import { C, R, TEXT_BGS } from '../constants/theme';
 import { cachedPoster, derivePoster, posterTint } from '../lib/poster';
 import { ME, HIGHLIGHTS, MY_MOMENTS, BADGES, av, AV_NEUTRAL } from '../constants/mockData'; // demo-mode fallback only
 import { COUNTRY_LIST } from '../constants/countries';
-import { AboutCards } from '../components/AboutCards';
+import { Passport, ShowedUp } from '../components/Passport';
 
 /* Hobbies — pick what you love; they show on your profile and (later)
    power matching with people into the same things. */
@@ -634,7 +634,7 @@ export const ProfileScreen = () => {
   /* Real badges are derived, never invented: verified + how long you've been here. */
   const realBadges = [
     me.verified ? { id: 'b-verified', emoji: '✦', label: 'Verified' } : null,
-    myProfile && myProfile.created_at ? { id: 'b-joined', emoji: '📅', label: 'Joined ' + monthYear(myProfile.created_at) } : null,
+    // "since Jul 2026" is on the pass itself now
   ].filter(Boolean);
   const badges = SUPABASE_READY ? realBadges : BADGES;
 
@@ -661,45 +661,6 @@ export const ProfileScreen = () => {
               <Ionicons name="settings-outline" size={22} color={C.text} />
             </Pressable>
           </View>
-        </View>
-
-        {/* ── COVER — a photo, or the map of where you are ── */}
-        <View style={{ marginTop: 12, marginHorizontal: 16 }}>
-          {myProfile && myProfile.cover_kind === 'map' && myProfile.cover_lat != null ? (
-            <Pressable onPress={() => { tapLight(); setCoverPickerOpen(true); }}>
-              <MapCover
-                lat={myProfile.cover_lat}
-                lng={myProfile.cover_lng}
-                place={myProfile.cover_place || myProfile.country || ''}
-                dark={isDark}
-              />
-              <Pressable onPress={removeCover} hitSlop={8} style={{ position: 'absolute', top: 8, right: 8 }}>
-                <View style={{ backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 999, width: 26, height: 26, alignItems: 'center', justifyContent: 'center' }}>
-                  <Ionicons name="close" size={15} color="#FFF" />
-                </View>
-              </Pressable>
-            </Pressable>
-          ) : myProfile && myProfile.cover_url ? (
-            <Pressable onPress={() => { tapLight(); setCoverPickerOpen(true); }}>
-              <Image source={{ uri: myProfile.cover_url }} style={{ width: '100%', height: 130, borderRadius: 18 }} />
-              <Pressable onPress={removeCover} hitSlop={8} style={{ position: 'absolute', top: 8, right: 8 }}>
-                <View style={{ backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 999, width: 26, height: 26, alignItems: 'center', justifyContent: 'center' }}>
-                  <Ionicons name="close" size={15} color="#FFF" />
-                </View>
-              </Pressable>
-              <View style={{ position: 'absolute', bottom: 8, right: 8, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 }}>
-                <Text style={{ color: '#FFF', fontSize: 10.5, fontWeight: '800' }}>{coverBusy ? t('uploading') : t('change_cover')}</Text>
-              </View>
-            </Pressable>
-          ) : (
-            <Pressable onPress={() => { tapLight(); setCoverPickerOpen(true); }}>
-              <LinearGradient colors={['rgba(124,58,237,0.18)', 'rgba(245,179,1,0.14)']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                style={{ height: 86, borderRadius: 18, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: C.line, borderStyle: 'dashed' }}>
-                <Text style={{ color: C.dim, fontSize: 12.5, fontWeight: '800' }}>{coverBusy ? t('uploading') : t('add_cover')}</Text>
-                <Text style={{ color: C.faint, fontSize: 11, marginTop: 3 }}>{t('cover_hint')}</Text>
-              </LinearGradient>
-            </Pressable>
-          )}
         </View>
 
         {/* pick which kind of cover you want */}
@@ -745,110 +706,20 @@ export const ProfileScreen = () => {
 
         {/* identity */}
         <View style={{ paddingHorizontal: 16, marginTop: 18 }}>
-          {(() => {
-            // Avatar on the LEFT, stats spread to its right — the clean,
-            // balanced Instagram-style header. A plain flexDirection:'row'
-            // flips under Arabic (document dir="rtl" reverses which edge
-            // "row" starts from), so we swap child order when rtl is on and
-            // use a fixed-width spacer (direction-agnostic) for the gap —
-            // that keeps the avatar pinned LEFT in both languages.
-            const avatarBlock = (
-              <Pressable onPress={() => { tapLight(); setEditOpen(true); }}>
-                <LinearGradient
-                  colors={[C.gold, C.purple, C.green]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={{ width: 92, height: 92, borderRadius: 46, alignItems: 'center', justifyContent: 'center' }}
-                >
-                  <View style={{ backgroundColor: C.bg, borderRadius: 46, padding: 3 }}>
-                    <Image source={{ uri: me.avatar }} style={{ width: 80, height: 80, borderRadius: 40 }} />
-                  </View>
-                </LinearGradient>
-                <View style={{ position: 'absolute', bottom: 0, right: 0, width: 26, height: 26, borderRadius: 13, backgroundColor: C.purple, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: C.bg }}>
-                  <Ionicons name="camera" size={13} color="#FFF" />
-                </View>
-              </Pressable>
-            );
-            const statsBlock = (
-              <View style={{ flex: 1, flexDirection: 'row' }}>
-                <Stat n={moments} label={t('moments')} />
-                {/* ── WHY THIS SAID 0 NEXT TO A LIST OF FIVE PEOPLE ────
-                    Ayser: "اذاي zero" — his profile said 0 Followers
-                    and 0 Following while the sheet over it listed five
-                    mates by name.
-
-                    Nothing was lying, and that made it worse. Those
-                    counts read the `follows` table, which is one-way
-                    and genuinely empty because nobody here follows
-                    anybody — this app's real relationship is a MATE,
-                    which is mutual and which both people agreed to.
-                    Three different things were on one row: a label
-                    that said followers, a count from follows, and a
-                    tap that opened mates.
-
-                    So the number that is real comes first. Followers
-                    and Following still appear — they are separate and
-                    they will matter — but only once there is somebody
-                    in them, instead of standing there at nought
-                    contradicting the list underneath. */}
-                <Stat n={mates} label={t('mates')} onPress={() => setMatesOpen(true)} />
-                {!SUPABASE_READY || followers ? (
-                  <Stat n={SUPABASE_READY ? followers : mates} label={t('followers')} onPress={() => setMatesOpen(true)} />
-                ) : null}
-                {!SUPABASE_READY || following ? (
-                  <Stat n={SUPABASE_READY ? following : mates} label={t('following')} onPress={() => setMatesOpen(true)} />
-                ) : null}
-              </View>
-            );
-            const spacer = <View style={{ width: 16 }} />;
-            return (
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                {rtl ? statsBlock : avatarBlock}
-                {spacer}
-                {rtl ? avatarBlock : statsBlock}
-              </View>
-            );
-          })()}
-
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 14, flexWrap: 'wrap' }}>
-            <Text style={{ color: C.text, fontSize: 22, fontWeight: '900', letterSpacing: -0.3 }}>{me.name}{myProfile && myProfile.age ? ', ' + myProfile.age : ''}</Text>
-            {accountType === 'private' ? (
-              <Ionicons name="lock-closed" size={13} color={C.faint} style={{ marginLeft: 6 }} />
-            ) : null}
-            {accountType === 'professional' ? (
-              <Text style={{ color: C.faint, fontSize: 12.5, marginLeft: 8 }}>· {category}</Text>
-            ) : null}
-            {accountType === 'artist' || accountType === 'musician' ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.purpleSoft, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3, marginLeft: 8 }}>
-                <Text style={{ color: C.purple, fontSize: 11, fontWeight: '900' }}>{accountType === 'musician' ? '🎵' : '🎨'} {artistGenre || (accountType === 'musician' ? 'Musician' : 'Artist')}</Text>
-              </View>
-            ) : null}
-            {me.intent ? (
-              <View style={{ backgroundColor: C.purpleSoft, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3, marginLeft: 8 }}>
-                <Text style={{ color: C.purple, fontSize: 11, fontWeight: '800' }}>{me.intent}</Text>
-              </View>
-            ) : null}
-          </View>
-          {/* Your bio — just tap it to edit. No hidden long-press: the
-              little pencil says "this is editable" at a glance. */}
-          <Pressable onPress={() => openEditor('bio')} hitSlop={6} style={{ marginTop: 6, alignSelf: 'flex-start' }}>
-            <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
-              <Text style={{ color: me.bio ? C.dim : C.faint, fontSize: 13.5, lineHeight: 20, flexShrink: 1 }}>
-                {me.bio || t('add_bio')}
-              </Text>
-              <Ionicons name="pencil" size={12} color={C.faint} style={{ marginLeft: 6, marginTop: 4 }} />
-            </View>
-          </Pressable>
-
-          {/* about you — the same cards everybody else sees on your profile
-              (src/components/AboutCards.js); tap to edit them */}
-          {myProfile && (myProfile.occupation || myProfile.education) ? (
-            <Pressable onPress={() => openEditor()} hitSlop={6} style={{ alignSelf: 'flex-start' }}>
-              <Text style={{ color: C.dim, fontSize: 14, marginTop: 8 }}>
-                {[myProfile.occupation, myProfile.education].filter(Boolean).join(' · ')}
-              </Text>
-            </Pressable>
-          ) : null}
+          {/* ── THE LOCAL PASS ── who you are, where you are local, the
+              level you earned by turning up (src/components/Passport.js).
+              Not a gallery with a follower count. */}
+          <Passport
+            profile={myProfile}
+            name={me.name}
+            avatar={me.avatar}
+            verified={me.verified}
+            own
+            onPhoto={() => { tapLight(); setEditOpen(true); }}
+            onEdit={(focus) => openEditor(focus)}
+            mates={SUPABASE_READY ? mates : undefined}
+            onMates={() => setMatesOpen(true)}
+          />
           {/* actions — right under who you are, where every profile keeps
               them; the third one brings your friends in (your invite link) */}
           <View style={{ flexDirection: 'row', marginTop: 14 }}>
@@ -861,9 +732,7 @@ export const ProfileScreen = () => {
             </Pressable>
           </View>
           {inviteNote ? <Text style={{ color: C.faint, fontSize: 12, marginTop: 6 }}>{inviteNote}</Text> : null}
-          <Pressable onPress={() => openEditor()} accessibilityRole="button">
-            <AboutCards profile={myProfile} own />
-          </Pressable>
+          {SUPABASE_READY && user ? <ShowedUp userId={user.id} own /> : null}
 
           {/* badges */}
           {badges.length ? (

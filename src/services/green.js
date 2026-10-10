@@ -123,6 +123,20 @@ export async function joinGathering(id, going) {
   return r;
 }
 
+/* The gatherings you really showed up to — checked in at the place,
+   newest first. Your own passport's "Showed up" list. */
+export async function fetchShowedUp(userId) {
+  if (!SUPABASE_READY || !userId) return [];
+  try {
+    const { data, error } = await withDeadline(supabase.from('green_joins')
+      .select('checked_in_at, g:green_gatherings(id, title, kind, place_name, starts_at)')
+      .eq('user_id', userId).not('checked_in_at', 'is', null)
+      .order('checked_in_at', { ascending: false }).limit(20));
+    if (error) return [];
+    return (data || []).filter((r) => r.g).map((r) => ({ ...r.g, checked_in_at: r.checked_in_at }));
+  } catch (e) { return []; }
+}
+
 /* "I'm here" — the database checks the time and the 300 m (green_check_in) */
 export const checkInAt = (id, lat, lng) => rpc('green_check_in', { p_id: id, p_lat: lat, p_lng: lng });
 

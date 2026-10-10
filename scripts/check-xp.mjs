@@ -46,7 +46,8 @@ is('it runs on a schedule (nothing changes when a clock passes an end time)', /c
 
 console.log('\non screen');
 is('clean-ups glow on the map, with a leaf', /m\.act === 'cleanup' \? ' mm-act-eco'/.test(fs.readFileSync('src/components/LeafletMap.js', 'utf8')), true);
-is('the profile shows the score first', /showXp \? <XpCard/.test(fs.readFileSync('src/components/AboutCards.js', 'utf8')), true);
+is('the pass carries the level, stamped on', /t\('xp_lvl_' \+ lv\.key\)\.toUpperCase\(\)/.test(fs.readFileSync('src/components/Passport.js', 'utf8')), true);
+is('"showed up" lists only real check-ins', /\.not\('checked_in_at', 'is', null\)/.test(fs.readFileSync('src/services/green.js', 'utf8')), true);
 
 console.log(bad ? '\n' + bad + ' wrong.' : '\nXP: earned by showing up, and nothing else.');
 process.exit(bad ? 1 : 0);
