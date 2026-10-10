@@ -6,6 +6,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useLang } from '../context/LanguageContext';
 import { Wordmark } from './Wordmark';
 import { tapLight, tapMedium } from '../utils/feedback';
+import { publicMedia } from '../lib/publicMedia';
 
 /* ─── THE FIRST THIRTY SECONDS ────────────────────────────────────────
    Ayser showed the opening screens of a competitor: full-bleed, two
@@ -31,14 +32,6 @@ const markSeen = () => { try { localStorage.setItem(INTRO_SEEN, '1'); } catch (e
 const reduceMotion = () => Platform.OS === 'web' && typeof window !== 'undefined' && window.matchMedia
   && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-/* where public/ ends up once deployed — read off the page, as the
-   language files are (LanguageContext) */
-const mediaUrl = (name) => {
-  let base = '/';
-  try { if (typeof document !== 'undefined' && document.baseURI) base = document.baseURI; } catch (e) {}
-  return String(base).replace(/[^/]*$/, '') + 'media/' + name;
-};
-
 /* the photo, drifting a little closer while its page is on screen */
 const Photo = ({ name, active, width, height }) => {
   const v = useRef(new Animated.Value(0)).current;
@@ -51,7 +44,7 @@ const Photo = ({ name, active, width, height }) => {
   const scale = v.interpolate({ inputRange: [0, 1], outputRange: [1, 1.08] });
   return (
     <Animated.View style={{ position: 'absolute', top: 0, left: 0, width, height, transform: [{ scale }] }}>
-      <Image source={{ uri: mediaUrl(name) }} resizeMode="cover" accessibilityIgnoresInvertColors style={{ width, height }} />
+      <Image source={{ uri: publicMedia(name) }} resizeMode="cover" accessibilityIgnoresInvertColors style={{ width, height }} />
     </Animated.View>
   );
 };

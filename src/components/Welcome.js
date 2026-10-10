@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, Pressable, Animated, Easing, Platform } from 'react-native';
+import { View, Text, Pressable, Animated, Easing, Platform, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { C } from '../constants/theme';
 import { useLang } from '../context/LanguageContext';
@@ -7,6 +7,7 @@ import { useTheme } from '../context/ThemeContext';
 import { Wordmark } from './Wordmark';
 import { ACTIVITY_LOOK } from '../lib/activityPins';
 import { tapLight } from '../utils/feedback';
+import { publicMedia } from '../lib/publicMedia';
 
 /* ─── THE FIRST THING ANYBODY SEES ────────────────────────────────────
    Ayser: "عايزين welcome page زي المنافسين". The ones he showed open on
@@ -14,12 +15,18 @@ import { tapLight } from '../utils/feedback';
    later. The old first screen was a sign-in box: it asked for a
    password before it had said what the app is.
 
-   This is a drawn map, ours — no stock photos, nobody's pictures used
-   without asking — with the kinds of things people really do on
-   Moments standing on it in the same bright cards the real map uses
+   Behind the cards: one photo Ayser sent of places at home — Dahab from
+   above, a fisherman on the Alexandria sea wall, a heron at sunset, a
+   park's trees, tea on a tray, a desert cave — a different one each
+   day. They set the mood; none is captioned as a Moments evening, and
+   none shows a face up close. On them, the kinds of things people
+   really do on Moments, in the same bright cards the real map uses
    (src/lib/activityPins.js). No member counts, no "join 1M people":
    there is nothing on this screen that is not true of the app on the
    day you open it. */
+
+const PHOTOS = ['welcome-dahab.jpg', 'welcome-fisher.jpg', 'welcome-heron.jpg', 'welcome-trees.jpg', 'welcome-tea.jpg', 'welcome-cave.jpg'];
+const photoOfToday = () => PHOTOS[Math.floor(Date.now() / 86400000) % PHOTOS.length];
 
 const SCENE = [
   { kind: 'culture', key: 'welcome_act_opera',  x: 0.06, y: 0.10, tilt: -6 },
@@ -79,20 +86,14 @@ export const Welcome = ({ onStart, onSignIn }) => {
     loop.start();
     return () => loop.stop();
   }, []);
-  const land = isDark ? ['#16324A', '#1F2B4D'] : ['#D9F5E5', '#DCEEFF'];
   return (
     <View style={{ alignSelf: 'stretch', alignItems: 'center' }}>
-      {/* the map, drawn: land, a river, two parks — and what is on */}
-      <LinearGradient colors={land} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-        style={{ alignSelf: 'stretch', height: 330, borderRadius: 30, overflow: 'hidden', marginBottom: 22 }}>
-        <View style={{ position: 'absolute', left: '-10%', top: '58%', width: '130%', height: 46, borderRadius: 30,
-          backgroundColor: isDark ? '#1E5A8A' : '#9ED8F5', transform: [{ rotate: '-14deg' }] }} />
-        <View style={{ position: 'absolute', left: '55%', top: '-8%', width: 44, height: '80%', borderRadius: 30,
-          backgroundColor: isDark ? '#1E5A8A' : '#9ED8F5', transform: [{ rotate: '22deg' }] }} />
-        <View style={{ position: 'absolute', left: '8%', top: '30%', width: 96, height: 70, borderRadius: 40,
-          backgroundColor: isDark ? '#1D4B35' : '#B7EBC3' }} />
-        <View style={{ position: 'absolute', right: '6%', top: '74%', width: 110, height: 64, borderRadius: 40,
-          backgroundColor: isDark ? '#1D4B35' : '#B7EBC3' }} />
+      {/* today's photo, and what is on */}
+      <View style={{ alignSelf: 'stretch', height: 330, borderRadius: 30, overflow: 'hidden', marginBottom: 22, backgroundColor: isDark ? '#1F2B4D' : '#DCEEFF' }}>
+        <Image source={{ uri: publicMedia(photoOfToday()) }} resizeMode="cover" accessibilityIgnoresInvertColors
+          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%' }} />
+        <LinearGradient colors={['rgba(0,0,0,0.18)', 'rgba(0,0,0,0.05)', 'rgba(0,0,0,0.3)']}
+          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
         {/* you are here */}
         <View style={{ position: 'absolute', left: '50%', top: '42%', marginLeft: -9, marginTop: -9 }}>
           <Animated.View style={{ position: 'absolute', width: 18, height: 18, borderRadius: 9, backgroundColor: C.purple,
@@ -101,7 +102,7 @@ export const Welcome = ({ onStart, onSignIn }) => {
           <View style={{ width: 18, height: 18, borderRadius: 9, backgroundColor: C.purple, borderWidth: 3, borderColor: '#fff' }} />
         </View>
         {SCENE.map((item, i) => <Card key={item.key} item={item} i={i} t={t} />)}
-      </LinearGradient>
+      </View>
 
       <Wordmark height={64} style={{ marginBottom: 6 }} />
       <Text style={{ color: C.text, fontSize: 25, fontWeight: '900', textAlign: 'center', lineHeight: 31, marginTop: 4 }}>

@@ -212,7 +212,7 @@ export const DESTINATIONS = [
     desc: 'A short evening trek into Dahab\'s mountains ending at an open Bedouin camp. Guitar around the fire, stories in the circle, stars everywhere.' },
 
   // ── 🇪🇬 ALEXANDRIA · the Mediterranean city ──
-  { id: 'eg_qaitbay', country: 'Egypt', flag: '🇪🇬', emoji: '🏰', name: 'Citadel of Qaitbay', area: 'Alexandria',
+  { id: 'eg_qaitbay', photo: 'intro-talk.jpg', country: 'Egypt', flag: '🇪🇬', emoji: '🏰', name: 'Citadel of Qaitbay', area: 'Alexandria',
     lat: 31.2140, lng: 29.8856, tags: ['Heritage', 'Photo'],
     desc: 'A 15th-century sea fort at the tip of the Eastern Harbour, built on the site of the ancient Lighthouse of Alexandria. Waves against the walls, fishing boats all around.' },
   { id: 'eg_bibliotheca', country: 'Egypt', flag: '🇪🇬', emoji: '📚', name: 'Bibliotheca Alexandrina', area: 'Alexandria',
@@ -224,7 +224,7 @@ export const DESTINATIONS = [
   { id: 'eg_shoqafa', country: 'Egypt', flag: '🇪🇬', emoji: '🏛️', name: 'Catacombs of Kom el-Shoqafa', area: 'Alexandria',
     lat: 31.1786, lng: 29.8933, tags: ['Heritage', 'History'],
     desc: 'Roman-era tombs cut deep into the rock, where Egyptian, Greek and Roman art meet on the same walls. A spiral staircase takes you down.' },
-  { id: 'eg_stanley', country: 'Egypt', flag: '🇪🇬', emoji: '🌉', name: 'Stanley Bridge & Corniche', area: 'Alexandria',
+  { id: 'eg_stanley', photo: 'intro-plans.jpg', country: 'Egypt', flag: '🇪🇬', emoji: '🌉', name: 'Stanley Bridge & Corniche', area: 'Alexandria',
     lat: 31.2353, lng: 29.9480, tags: ['Photo', 'Food'],
     desc: 'The bridge over Stanley Bay and the long sea road around it — evening walks, sea breeze, and fish and seafood places along the way.' },
 
@@ -237,7 +237,7 @@ export const DESTINATIONS = [
     desc: 'A big desert lake two hours from Cairo, its south shore lined with lodges and day-use spots. Birds over the water and long sunsets behind the hills.' },
 
   // ── 🇪🇬 WESTERN DESERT · another planet ──
-  { id: 'eg_black_desert', country: 'Egypt', flag: '🇪🇬', emoji: '🌋', name: 'Black Desert', area: 'Bahariya',
+  { id: 'eg_black_desert', photo: 'place-black-desert.jpg', country: 'Egypt', flag: '🇪🇬', emoji: '🌋', name: 'Black Desert', area: 'Bahariya',
     lat: 28.2000, lng: 28.8600, tags: ['Hiking', 'Photo'],
     desc: 'Volcanic hills dusted in black basalt. Climb the English Mountain at sunset for a gold-on-black panorama that looks unreal on camera.' },
   { id: 'eg_crystal_mountain', country: 'Egypt', flag: '🇪🇬', emoji: '💎', name: 'Crystal Mountain', area: 'Bahariya–Farafra road',
