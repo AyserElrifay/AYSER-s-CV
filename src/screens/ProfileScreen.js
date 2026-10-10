@@ -31,6 +31,7 @@ import { cachedPoster, derivePoster, posterTint } from '../lib/poster';
 import { ME, HIGHLIGHTS, MY_MOMENTS, BADGES, av, AV_NEUTRAL } from '../constants/mockData'; // demo-mode fallback only
 import { COUNTRY_LIST } from '../constants/countries';
 import { Passport, ShowedUp } from '../components/Passport';
+import { HostCard } from '../components/HostCard';
 
 /* Hobbies — pick what you love; they show on your profile and (later)
    power matching with people into the same things. */
@@ -720,6 +721,7 @@ export const ProfileScreen = () => {
             mates={SUPABASE_READY ? mates : undefined}
             onMates={() => setMatesOpen(true)}
           />
+          {myProfile ? <HostCard profile={myProfile} /> : null}
           {/* actions — right under who you are, where every profile keeps
               them; the third one brings your friends in (your invite link) */}
           <View style={{ flexDirection: 'row', marginTop: 14 }}>

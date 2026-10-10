@@ -200,6 +200,9 @@ jobs:
       # Places: what people really shared there, and posts that belong to a place.
       - name: Check place voices
         run: node scripts/check-place-voices.mjs
+      # Guides and hosts: checked by a person, papers private, every plan says who runs it.
+      - name: Check guides and hosts
+        run: node scripts/check-hosts.mjs
       # No signal must not mean no app.
       - name: Check the app works offline
         run: node scripts/check-offline.mjs

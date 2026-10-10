@@ -64,7 +64,8 @@ export async function fetchPendingVerifications() {
     .eq('status', 'pending')
     .order('created_at', { ascending: true });
   if (error) throw error;
-  return data || [];
+  /* guides and hosts have their own tab, with their documents */
+  return (data || []).filter((r) => r.role !== 'guide' && r.role !== 'host');
 }
 
 // Owner only: approve or reject → flips the profile's verified tick.

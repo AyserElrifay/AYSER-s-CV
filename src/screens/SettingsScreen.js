@@ -45,6 +45,7 @@ import { setupNotice } from '../lib/plumbing';
 /* Fetched when it is opened, not when the app starts. */
 import { lazyOverlay } from '../lib/lazyScreen';
 import { SheetHandle, SheetBack } from '../components/SheetHandle';
+const HostApplySheet = lazyOverlay(() => import('../components/HostApplySheet').then((m) => ({ default: m.HostApplySheet })));
 
 /* A real, persisted on/off switch. */
 const Toggle = ({ on, onToggle }) => (
@@ -99,6 +100,7 @@ export const SettingsScreen = ({ onClose }) => {
 
   const [helpOpen, setHelpOpen] = useState(false);
   const [tourOpen, setTourOpen] = useState(false);
+  const [hostOpen, setHostOpen] = useState(false);
   // the account's message timer — 48h until they say otherwise
   const [msgTtl, setMsgTtl] = useState(() => {
     const s = cachedAccountSettings();
@@ -532,6 +534,19 @@ export const SettingsScreen = ({ onClose }) => {
               <Ionicons name="chevron-forward" size={16} color={C.faint} />
             </View>
           </Pressable>
+          {/* licensed guides and activity hosts: show the card or ID, get the badge */}
+          <Pressable onPress={() => { tapLight(); setHostOpen(true); }} accessibilityRole="button">
+            <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.line }}>
+              <View style={{ width: 30, height: 30, borderRadius: 9, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                <Ionicons name="id-card-outline" size={16} color={C.purple} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: C.text, fontSize: 14, fontWeight: '700' }}>{t('ha_title')}</Text>
+                <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 1 }}>{t('ha_row_hint')}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color={C.faint} />
+            </View>
+          </Pressable>
           <Pressable onPress={() => { tapLight(); setTermsOpen(true); }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.line }}>
               <View style={{ width: 30, height: 30, borderRadius: 9, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
@@ -662,6 +677,7 @@ export const SettingsScreen = ({ onClose }) => {
 
       {termsOpen ? <TermsSheet onClose={() => setTermsOpen(false)} /> : null}
       {helpOpen ? <HelpSheet onClose={() => setHelpOpen(false)} /> : null}
+      {hostOpen ? <HostApplySheet onClose={() => setHostOpen(false)} /> : null}
       {tourOpen ? <GestureTour onClose={() => setTourOpen(false)} /> : null}
 
       {/* the kept failures, in full, for the one account that can act

@@ -10510,4 +10510,231 @@ language sql stable security definer set search_path = public as $$
 $$;
 grant execute on function public.green_list(text) to anon, authenticated;
 
+
+-- ═══════════ HOSTS · LICENSED GUIDES AND VERIFIED HOSTS ═══════════
+/* Ayser: tour guides verified, with a page of their own — how many
+   trips and hours they have led, their licence card checked — so people
+   trust them, above all for the pyramids and the museums. Anybody else
+   who hosts activities is verified with a national ID instead, and
+   signs that they are responsible for their activity, not Moments.
+
+   What is public: the badge, when it was checked, the languages and
+   areas they chose to list, and numbers counted here from plans that
+   really happened. What is never public: the card, the ID, the selfie.
+   Those go to a private storage bucket that only the person and the
+   owner can open, and are deleted once the owner has decided. */
+
+alter table public.profiles add column if not exists host_role        text;          -- 'guide' | 'host' — set only by the owner
+alter table public.profiles add column if not exists host_verified_at timestamptz;   -- set only by the owner
+alter table public.profiles add column if not exists guide_langs      text[];
+alter table public.profiles add column if not exists guide_areas      text[];
+alter table public.profiles add column if not exists guide_since      int;           -- the year they started, as they say
+alter table public.profiles add column if not exists guide_about      text;
+
+alter table public.verification_requests add column if not exists role              text;
+alter table public.verification_requests add column if not exists doc_path          text;
+alter table public.verification_requests add column if not exists selfie_path       text;
+alter table public.verification_requests add column if not exists terms_version     text;
+alter table public.verification_requests add column if not exists terms_accepted_at timestamptz;
+alter table public.verification_requests add column if not exists decided_at        timestamptz;
+
+-- earned columns stay earned; the host badge is one of them now
+create or replace function public.guard_profile_columns()
+returns trigger language plpgsql security invoker set search_path = public as $fn$
+begin
+  if current_user in ('authenticated', 'anon') then
+    if tg_op = 'INSERT' then
+      new.verified := false; new.vibe_check_at := null; new.invited_by := null;
+      new.community_xp := 0; new.community_events := 0;
+      new.host_role := null; new.host_verified_at := null;
+    else
+      if new.verified is distinct from old.verified then
+        if coalesce(nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'email', '') <> 'ayseryourlifecoach@gmail.com' then
+          new.verified := old.verified;
+        end if;
+      end if;
+      new.vibe_check_at := old.vibe_check_at;
+      new.invited_by := old.invited_by;
+      new.community_xp := old.community_xp;
+      new.community_events := old.community_events;
+      new.host_role := old.host_role;
+      new.host_verified_at := old.host_verified_at;
+    end if;
+  end if;
+  return new;
+end $fn$;
+
+/* A request with documents is made only through host_apply below,
+   which checks the files are the asker's own. Written straight into
+   the table, a row could name somebody else's file — so a direct
+   insert can only be the plain artist request it always was. */
+drop policy if exists "vr insert own" on public.verification_requests;
+create policy "vr insert own" on public.verification_requests for insert with check (
+  auth.uid() = user_id and status = 'pending'
+  and role is null and doc_path is null and selfie_path is null);
+
+-- the private place the documents go: your own folder, readable by you and the owner
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('verification', 'verification', false, 10485760, array['image/jpeg','image/png','image/webp','image/heic'])
+on conflict (id) do update set public = false, file_size_limit = 10485760,
+  allowed_mime_types = array['image/jpeg','image/png','image/webp','image/heic'];
+
+drop policy if exists "verification docs: put your own" on storage.objects;
+create policy "verification docs: put your own" on storage.objects for insert to authenticated
+  with check (bucket_id = 'verification' and (storage.foldername(name))[1] = auth.uid()::text);
+drop policy if exists "verification docs: you and the owner" on storage.objects;
+create policy "verification docs: you and the owner" on storage.objects for select to authenticated
+  using (bucket_id = 'verification' and ((storage.foldername(name))[1] = auth.uid()::text or public.is_app_owner()));
+drop policy if exists "verification docs: removed by you or the owner" on storage.objects;
+create policy "verification docs: removed by you or the owner" on storage.objects for delete to authenticated
+  using (bucket_id = 'verification' and ((storage.foldername(name))[1] = auth.uid()::text or public.is_app_owner()));
+
+/* Asking. The declaration is required and its version is kept with the
+   request; a document has to be in the asker's own folder. */
+create or replace function public.host_apply(
+  p_role text, p_doc text, p_selfie text, p_langs text[], p_areas text[],
+  p_since int, p_about text, p_terms_version text)
+returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid();
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  if p_role not in ('guide', 'host') then return jsonb_build_object('ok', false, 'reason', 'bad_role'); end if;
+  if coalesce(p_terms_version, '') = '' then return jsonb_build_object('ok', false, 'reason', 'no_terms'); end if;
+  if p_doc is null or split_part(p_doc, '/', 1) <> me::text then return jsonb_build_object('ok', false, 'reason', 'no_document'); end if;
+  if p_selfie is null or split_part(p_selfie, '/', 1) <> me::text then return jsonb_build_object('ok', false, 'reason', 'no_selfie'); end if;
+  if exists (select 1 from public.profiles where id = me and host_role = p_role) then
+    return jsonb_build_object('ok', false, 'reason', 'already');
+  end if;
+
+  insert into public.verification_requests
+    (user_id, kind, role, doc_path, selfie_path, terms_version, terms_accepted_at, status, note, decided_at)
+  values (me, p_role, p_role, p_doc, p_selfie, p_terms_version, now(), 'pending', null, null)
+  on conflict (user_id) do update set
+    kind = excluded.kind, role = excluded.role, doc_path = excluded.doc_path, selfie_path = excluded.selfie_path,
+    terms_version = excluded.terms_version, terms_accepted_at = excluded.terms_accepted_at,
+    status = 'pending', decided_at = null, created_at = now();
+
+  update public.profiles set
+    guide_langs = (select array_agg(distinct l) from unnest(coalesce(p_langs, '{}')) l where length(btrim(l)) between 2 and 30),
+    guide_areas = (select array_agg(distinct a) from unnest(coalesce(p_areas, '{}')) a where length(btrim(a)) between 2 and 40),
+    guide_since = case when p_since between 1960 and extract(year from now())::int then p_since end,
+    guide_about = nullif(left(btrim(coalesce(p_about, '')), 400), '')
+  where id = me;
+  return jsonb_build_object('ok', true);
+end;
+$$;
+revoke execute on function public.host_apply(text, text, text, text[], text[], int, text, text) from public, anon;
+grant execute on function public.host_apply(text, text, text, text[], text[], int, text, text) to authenticated;
+
+-- the owner's queue: who asked, as what, and where the documents are
+create or replace function public.hosts_pending()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select case when not public.is_app_owner() then '[]'::jsonb else coalesce((
+    select jsonb_agg(jsonb_build_object(
+      'user_id', r.user_id, 'role', r.role, 'doc_path', r.doc_path, 'selfie_path', r.selfie_path,
+      'terms_version', r.terms_version, 'asked_at', r.created_at,
+      'name', p.name, 'avatar_url', p.avatar_url, 'city', p.city,
+      'langs', p.guide_langs, 'areas', p.guide_areas, 'since', p.guide_since, 'about', p.guide_about)
+      order by r.created_at)
+    from public.verification_requests r join public.profiles p on p.id = r.user_id
+    where r.status = 'pending' and r.role in ('guide', 'host')), '[]'::jsonb) end;
+$$;
+revoke execute on function public.hosts_pending() from public, anon;
+grant execute on function public.hosts_pending() to authenticated;
+
+/* The owner decides. The documents are not needed after that, so the
+   answer hands back where they are and the Studio deletes them. */
+create or replace function public.host_decide(p_user uuid, p_approve boolean)
+returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare r public.verification_requests%rowtype;
+begin
+  if not public.is_app_owner() then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
+  select * into r from public.verification_requests where user_id = p_user and role in ('guide', 'host');
+  if not found then return jsonb_build_object('ok', false, 'reason', 'no_request'); end if;
+  if p_approve then
+    update public.profiles set host_role = r.role, host_verified_at = now() where id = p_user;
+  end if;
+  update public.verification_requests
+     set status = case when p_approve then 'approved' else 'rejected' end, decided_at = now(),
+         doc_path = null, selfie_path = null
+   where user_id = p_user;
+  insert into public.notifications (user_id, actor_id, kind, body)
+  values (p_user, auth.uid(), 'venue_decision', case when p_approve then 'host_ok' else 'host_no' end);
+  return jsonb_build_object('ok', true, 'doc_path', r.doc_path, 'selfie_path', r.selfie_path);
+end;
+$$;
+revoke execute on function public.host_decide(uuid, boolean) from public, anon;
+grant execute on function public.host_decide(uuid, boolean) to authenticated;
+
+-- and takes a badge away, if it ever has to
+create or replace function public.host_revoke(p_user uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_app_owner() then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
+  update public.profiles set host_role = null, host_verified_at = null where id = p_user;
+  return jsonb_build_object('ok', true);
+end;
+$$;
+revoke execute on function public.host_revoke(uuid) from public, anon;
+grant execute on function public.host_revoke(uuid) to authenticated;
+
+/* A guide's numbers, counted from plans that really happened: led (it
+   ended, and somebody other than the host checked in), people who were
+   really there, and the hours those plans ran. Nothing typed in. */
+create or replace function public.host_stats(p_user uuid)
+returns jsonb language sql stable security definer set search_path = public as $$
+  with led as (
+    select g.id, coalesce(g.minutes, 120) as minutes
+      from public.green_gatherings g
+     where g.host_id = p_user and g.cancelled_at is null
+       and public.green_ends_at(g) < now()
+       and exists (select 1 from public.green_joins j where j.gathering_id = g.id and j.user_id <> p_user and j.checked_in_at is not null)
+  )
+  select jsonb_build_object(
+    'led', (select count(*) from led),
+    'people', (select count(distinct j.user_id) from public.green_joins j join led on led.id = j.gathering_id
+                where j.user_id <> p_user and j.checked_in_at is not null),
+    'hours', (select coalesce(round(sum(minutes) / 60.0), 0) from led),
+    'role', (select host_role from public.profiles where id = p_user),
+    'since', (select host_verified_at from public.profiles where id = p_user));
+$$;
+grant execute on function public.host_stats(uuid) to anon, authenticated;
+
+
+-- the plan list now says who is a licensed guide or a verified host
+create or replace function public.green_list(p_country text)
+returns jsonb
+language sql stable security definer set search_path = public as $$
+  with my_mates as (
+    select case when m.requester_id = auth.uid() then m.addressee_id else m.requester_id end as mate_id
+      from public.mates m
+     where m.status = 'accepted' and auth.uid() is not null and auth.uid() in (m.requester_id, m.addressee_id)
+  )
+  select coalesce(jsonb_agg(row_to_json(x)::jsonb order by x.starts_at), '[]'::jsonb)
+    from (
+      select g.id, g.kind, g.title, g.about, g.country, g.city, g.place_name,
+             g.lat, g.lng, g.starts_at, g.minutes, g.capacity, g.language,
+             g.host_id, p.name as host_name, p.host_role as host_role, g.weekly_id, g.announced_at, g.squad_id,
+             g.photo_url, public.green_past_photos(g) as past_photos,
+             (select count(*) from public.green_joins j where j.gathering_id = g.id) as going,
+             (select count(*) from public.green_joins j join my_mates mm on mm.mate_id = j.user_id
+               where j.gathering_id = g.id) as mates_going,
+             exists (select 1 from public.green_joins j
+                      where j.gathering_id = g.id and j.user_id = auth.uid()) as im_going,
+             exists (select 1 from public.green_joins j
+                      where j.gathering_id = g.id and j.user_id = auth.uid() and j.checked_in_at is not null) as checked_in,
+             case when g.kind = 'cleanup' then 50 else 30 end as xp
+        from public.green_gatherings g
+        left join public.profiles p on p.id = g.host_id
+       where g.cancelled_at is null
+         and g.starts_at > now() - interval '3 hours'
+         and (p_country is null or g.country = p_country)
+       order by g.starts_at
+       limit 60
+    ) x;
+$$;
+grant execute on function public.green_list(text) to anon, authenticated;
+
 notify pgrst, 'reload schema';

@@ -4,6 +4,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { C } from '../constants/theme';
 import { lookOf, titleFor, whenFor } from '../lib/activityPins';
 import { whyText } from '../lib/recommend';
+import { HostBadge } from './HostCard';
 import { PlanThumb } from './green/PlanPhoto';
 import { tapLight, tapSelection } from '../utils/feedback';
 
@@ -68,6 +69,7 @@ export const MapPanel = ({
           <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 2 }} numberOfLines={1}>
             {whenFor(g.starts_at, lang)}{g.place_name ? ' · ' + g.place_name : ''}
           </Text>
+          {g.host_role ? <View style={{ marginTop: 5 }}><HostBadge role={g.host_role} small /></View> : null}
           {going || g.why ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
               {going ? (

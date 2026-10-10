@@ -9,6 +9,7 @@ import { useAuth } from '../context/AuthContext';
 import { usePresence } from '../context/PresenceContext';
 import { isNeedUnlock } from '../lib/unlockBus';
 import { Passport, ShowedUp } from './Passport';
+import { HostCard } from './HostCard';
 import { useLang } from '../context/LanguageContext';
 import { fetchMyMoments, fetchRepostsByUser } from '../services/posts';
 import { fetchTaggedPosts } from '../services/tags';
@@ -273,6 +274,7 @@ export const ProfileModal = ({ user, onClose, openMessage }) => {
               </Pressable>
             ) : null}
             <ShowedUp count={fullProfile && fullProfile.community_events} />
+            {fullProfile ? <HostCard profile={fullProfile} /> : null}
 
             {/* actions — real friend request + real DM */}
             {!isMe ? (

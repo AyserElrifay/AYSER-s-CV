@@ -308,7 +308,7 @@ export const NotificationsSheet = ({ onClose }) => {
             {'  '}<Text style={{ color: C.faint, fontSize: 12 }}>{timeAgo(n.created_at)}</Text>
           </Text>
           {(n.kind === 'green_invite' || n.kind === 'food_order' || n.kind === 'food_status' || n.kind === 'venue_decision') && n.body ? (
-            <Text style={{ color: C.text, fontSize: 13, fontWeight: '700', marginTop: 2 }} numberOfLines={1}>{n.body}</Text>
+            <Text style={{ color: C.text, fontSize: 13, fontWeight: '700', marginTop: 2 }} numberOfLines={2}>{n.body === 'host_ok' || n.body === 'host_no' ? t('notif_' + n.body) : n.body}</Text>
           ) : null}
           {n.kind === 'comment' && n.body ? (
             <Text style={{ color: C.dim, fontSize: 13, marginTop: 2 }} numberOfLines={1}>“{n.body}”</Text>

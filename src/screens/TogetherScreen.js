@@ -26,6 +26,7 @@ import { flagToIso, groupByDay } from '../lib/together';
 import { showOnMap, goToTab } from '../lib/mapBus';
 import { openChat } from '../lib/chatBus';
 import { lazyOverlay } from '../lib/lazyScreen';
+import { HostBadge } from '../components/HostCard';
 import { PlanThumb, PastPhotos } from '../components/green/PlanPhoto';
 import { ReportSheet } from '../components/ReportSheet';
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
@@ -306,12 +307,15 @@ export const TogetherScreen = () => {
                             <Text numberOfLines={1} style={{ color: C.faint, fontSize: 12.5, fontWeight: '700', marginTop: 3 }}>
                               {hour(g.starts_at)}{g.place_name ? ' · ' + g.place_name : g.city ? ' · ' + g.city : ''}
                             </Text>
+                            {g.host_role ? <View style={{ marginTop: 5 }}><HostBadge role={g.host_role} small /></View> : null}
                           </View>
                         </View>
 
                         {expanded && g.about ? (
                           <Text style={{ color: C.dim, fontSize: 13.5, lineHeight: 20, marginTop: 10 }}>{g.about}</Text>
                         ) : null}
+                        {/* who is responsible: the person running it, not Moments */}
+                        {expanded && !mine ? <Text style={{ color: C.faint, fontSize: 11.5, lineHeight: 16, marginTop: 8 }}>{t('hc_liability')}</Text> : null}
                         {/* photos people really took there last time */}
                         {expanded ? <PastPhotos g={g} t={t} onReport={(u) => reportPhoto(g, u)} /> : null}
                         {expanded && g.lat != null && g.lng != null ? (

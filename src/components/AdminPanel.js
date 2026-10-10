@@ -6,6 +6,7 @@ import { C } from '../constants/theme';
 import { useAuth } from '../context/AuthContext';
 import { fetchReports, setReportStatus } from '../services/reports';
 import { removeGatheringPhoto } from '../services/green';
+import { fetchPendingHosts, documentUrl, decideHost } from '../services/hosts';
 import { fetchFeedback, markFeedbackSeen } from '../services/feedback';
 import { fetchStudioStats } from '../services/feedback';
 import { fetchPendingVerifications, decideVerification, fetchPendingVenues, decideVenue } from '../services/profiles';
@@ -29,6 +30,7 @@ import { useSheetBack } from '../hooks/useSheetBack';
 const TABS = [
   { k: 'reports', label: 'Reports', icon: 'flag-outline' },
   { k: 'venues', label: 'Venues', icon: 'business-outline' },
+  { k: 'hosts', label: 'Guides', icon: 'id-card-outline' },
   { k: 'verify', label: 'Verify', icon: 'shield-checkmark-outline' },
   { k: 'music', label: 'Music', icon: 'musical-notes-outline' },
   { k: 'feedback', label: 'Feedback', icon: 'chatbubbles-outline' },
@@ -37,6 +39,64 @@ const TABS = [
   { k: 'errors', label: 'Errors', icon: 'bug-outline' },
   { k: 'db', label: 'Setup', icon: 'server-outline' },
 ];
+
+/* One guide or host asking for the badge: the document and the selfie
+   side by side, through links that expire in ten minutes. Decided here,
+   and only here — then both photos are deleted (decideHost). */
+const HostReview = ({ h, onDone }) => {
+  const [doc, setDoc] = useState(null);
+  const [selfie, setSelfie] = useState(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    documentUrl(h.doc_path).then((u) => { if (alive) setDoc(u); }).catch(() => {});
+    documentUrl(h.selfie_path).then((u) => { if (alive) setSelfie(u); }).catch(() => {});
+    return () => { alive = false; };
+  }, [h.doc_path, h.selfie_path]);
+  const decide = async (yes) => {
+    if (busy) return;
+    setBusy(true);
+    try { await decideHost(h.user_id, yes); if (yes) tapSuccess(); else tapLight(); onDone(h.user_id); } catch (e) { setBusy(false); }
+  };
+  const pic = (u, label) => (
+    <View style={{ flex: 1, marginRight: 8 }}>
+      <View style={{ height: 150, borderRadius: 12, overflow: 'hidden', backgroundColor: C.glassHi }}>
+        {u ? <Image source={{ uri: u }} resizeMode="contain" style={{ width: '100%', height: '100%' }} /> : null}
+      </View>
+      <Text style={{ color: C.faint, fontSize: 11, marginTop: 4 }}>{label}</Text>
+    </View>
+  );
+  return (
+    <View style={{ paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: C.line }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <Image source={{ uri: h.avatar_url || AV_NEUTRAL }} style={{ width: 40, height: 40, borderRadius: 20, marginRight: 10 }} />
+        <View style={{ flex: 1 }}>
+          <Text style={{ color: C.text, fontSize: 15, fontWeight: '800' }}>{(h.role === 'guide' ? '🪪 ' : '🙋 ') + (h.name || 'Someone')}</Text>
+          <Text style={{ color: C.faint, fontSize: 12, marginTop: 1 }}>
+            {[h.role === 'guide' ? 'Tour guide · licence card' : 'Activity host · national ID', h.city, h.since ? 'since ' + h.since : null].filter(Boolean).join(' · ')}
+          </Text>
+        </View>
+      </View>
+      {(h.langs && h.langs.length) || (h.areas && h.areas.length) ? (
+        <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 8 }}>{[(h.langs || []).join(', '), (h.areas || []).join(', ')].filter(Boolean).join('  ·  ')}</Text>
+      ) : null}
+      {h.about ? <Text style={{ color: C.text, fontSize: 13, marginTop: 6, lineHeight: 18 }}>{h.about}</Text> : null}
+      <View style={{ flexDirection: 'row', marginTop: 10 }}>
+        {pic(doc, h.role === 'guide' ? 'Licence card' : 'ID')}
+        {pic(selfie, 'Selfie')}
+      </View>
+      <Text style={{ color: C.faint, fontSize: 11, marginTop: 6 }}>Signed: {h.terms_version || '—'} · The face, name and photo on the card must match.</Text>
+      <View style={{ flexDirection: 'row', marginTop: 10, opacity: busy ? 0.5 : 1 }}>
+        <Pressable onPress={() => decide(false)} disabled={busy} style={{ marginRight: 8 }}>
+          <View style={{ borderRadius: 999, borderWidth: 1, borderColor: C.line, paddingHorizontal: 14, paddingVertical: 8 }}><Text style={{ color: C.dim, fontSize: 12.5, fontWeight: '800' }}>Reject</Text></View>
+        </Pressable>
+        <Pressable onPress={() => decide(true)} disabled={busy}>
+          <View style={{ borderRadius: 999, backgroundColor: C.green, paddingHorizontal: 14, paddingVertical: 8 }}><Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '900' }}>Approve ✓</Text></View>
+        </Pressable>
+      </View>
+    </View>
+  );
+};
 
 export const AdminPanel = ({ onClose }) => {
   /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
@@ -49,6 +109,8 @@ export const AdminPanel = ({ onClose }) => {
   const [verifs, setVerifs] = useState(null);
   const [venues, setVenues] = useState(null);
   const [venueErr, setVenueErr] = useState(null);
+  const [hosts, setHosts] = useState(null);
+  const [hostErr, setHostErr] = useState(null);
   const [crashes, setCrashes] = useState(() => { try { return recent(); } catch (e) { return []; } });
   const [music, setMusic] = useState(null);
   const [importing, setImporting] = useState(null);
@@ -79,6 +141,7 @@ export const AdminPanel = ({ onClose }) => {
   useEffect(() => {
     if (tab === 'reports' && reports == null) fetchReports().then(setReports).catch(() => setReports([]));
     if (tab === 'venues' && venues == null) fetchPendingVenues().then(setVenues).catch(() => { setVenues([]); setVenueErr(true); });
+    if (tab === 'hosts' && hosts == null) fetchPendingHosts().then(setHosts).catch(() => { setHosts([]); setHostErr(true); });
     if (tab === 'verify' && verifs == null) fetchPendingVerifications().then(setVerifs).catch(() => setVerifs([]));
     if (tab === 'music' && music == null) fetchTracks({ all: true, meId: user && user.id }).then((rows) => setMusic((rows || []).filter((t) => !t.is_approved && !t.is_official))).catch(() => setMusic([]));
     if (tab === 'feedback' && feedback == null) fetchFeedback().then(setFeedback).catch(() => setFeedback([]));
@@ -218,17 +281,18 @@ export const AdminPanel = ({ onClose }) => {
         ) : null}
 
         {/* tabs */}
-        <View style={{ flexDirection: 'row', marginHorizontal: 16, marginTop: 12, marginBottom: 4 }}>
+        {/* ten tabs do not fit a phone's width: they scroll sideways */}
+        <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, marginTop: 12, marginBottom: 4 }} contentContainerStyle={{ paddingHorizontal: 16 }}>
           {TABS.map((t) => {
             const on = tab === t.k;
             return (
-              <Pressable key={t.k} onPress={() => { tapLight(); setTab(t.k); }} style={{ flex: 1, alignItems: 'center', paddingVertical: 9, borderBottomWidth: 2, borderBottomColor: on ? C.purple : 'transparent' }}>
+              <Pressable key={t.k} onPress={() => { tapLight(); setTab(t.k); }} style={{ minWidth: 58, paddingHorizontal: 8, alignItems: 'center', paddingVertical: 9, borderBottomWidth: 2, borderBottomColor: on ? C.purple : 'transparent' }}>
                 <Ionicons name={t.icon} size={18} color={on ? C.purple : C.faint} />
                 <Text style={{ color: on ? C.purple : C.faint, fontSize: 11, fontWeight: '800', marginTop: 2 }}>{t.label}</Text>
               </Pressable>
             );
           })}
-        </View>
+        </ScrollView>
 
         <ScrollView keyboardShouldPersistTaps="handled" style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 10, paddingBottom: insets.bottom + 30 }}>
           {tab === 'reports' ? (
@@ -346,6 +410,14 @@ export const AdminPanel = ({ onClose }) => {
                 </View>
               </View>
             ))
+          ) : null}
+
+          {/* licensed guides and activity hosts */}
+          {tab === 'hosts' ? (
+            hosts == null ? <ActivityIndicator color={C.purple} style={{ marginTop: 30 }} /> :
+            hostErr ? <Empty t="Run the latest SQL (part 20) to see guide applications here." /> :
+            hosts.length === 0 ? <Empty t="No guides or hosts waiting" /> :
+            hosts.map((h) => <HostReview key={h.user_id} h={h} onDone={(id) => setHosts((q) => q.filter((x) => x.user_id !== id))} />)
           ) : null}
 
           {/* what failed on THIS phone — kept on the device (src/lib/crashLog.js) */}
