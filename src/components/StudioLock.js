@@ -17,6 +17,17 @@ import { lockFactors, passkeySupported, addPasskey, unlockWithPasskey, startCode
    back if the phone is lost, an authenticator-app code. After that: one
    tap, or six digits. */
 
+/* the clipboard, with the old way as a fallback for browsers that refuse the new one */
+const copyText = async (text) => {
+  try { await navigator.clipboard.writeText(text); return true; } catch (e) {}
+  try {
+    const el = document.createElement('textarea');
+    el.value = text; el.setAttribute('readonly', ''); el.style.position = 'fixed'; el.style.opacity = '0';
+    document.body.appendChild(el); el.select(); el.setSelectionRange(0, text.length);
+    const ok = document.execCommand('copy'); el.remove(); return ok;
+  } catch (e) { return false; }
+};
+
 const Big = ({ icon, title, sub, onPress, busy, tone }) => (
   <Pressable onPress={onPress} disabled={busy} accessibilityRole="button"
     style={{ flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 18, marginTop: 12, backgroundColor: tone || C.glass, borderWidth: tone ? 0 : 1, borderColor: C.line, opacity: busy ? 0.6 : 1 }}>
@@ -95,11 +106,20 @@ export const StudioLock = ({ identity, onUnlocked, onClose }) => {
             <View style={{ marginTop: 18 }}>
               <Text style={{ color: C.text, fontSize: 14.5, lineHeight: 21 }}>1. Put the code in a code app on this phone — the iPhone's own Passwords app works, or Google / Microsoft Authenticator.</Text>
               {setup.uri ? (
-                <Big icon="phone-portrait-outline" title="Add it to this phone" sub="Opens your code app with everything filled in" tone={C.purple}
-                  onPress={() => { tapLight(); try { window.location.href = setup.uri; } catch (e) {} }} />
+                /* a real link, not a script jump: Safari on an iPhone only
+                   hands an otpauth:// address to the Passwords app when a
+                   person taps an actual <a> */
+                <a href={setup.uri} onClick={() => tapLight()}
+                  style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 16, borderRadius: 18, marginTop: 12, background: C.purple, color: '#FFF', textDecoration: 'none', fontFamily: 'inherit' }}>
+                  <span style={{ fontSize: 24 }}>📲</span>
+                  <span style={{ display: 'flex', flexDirection: 'column' }}>
+                    <span style={{ fontSize: 15.5, fontWeight: 800 }}>Add it to this phone</span>
+                    <span style={{ fontSize: 12.5, opacity: 0.85, marginTop: 2 }}>Opens Passwords (or your code app) with everything filled in</span>
+                  </span>
+                </a>
               ) : null}
               <Big icon="copy-outline" title={copied ? 'Key copied ✓' : 'Copy the key'} sub="Then in the app: “Enter a setup key” and paste it"
-                onPress={async () => { tapLight(); try { await navigator.clipboard.writeText(setup.secret); setCopied(true); } catch (e) {} }} />
+                onPress={() => { tapLight(); copyText(setup.secret).then((ok) => setCopied(ok)); }} />
               <Text style={{ color: C.faint, fontSize: 12, lineHeight: 17, marginTop: 10 }}>Or scan the code below from another phone. Keep this key to yourself — it is as secret as a password; never send a screenshot of this screen.</Text>
               {setup.qr ? <Image source={{ uri: setup.qr }} style={{ width: 200, height: 200, alignSelf: 'center', marginTop: 14, backgroundColor: '#FFF', borderRadius: 12 }} /> : null}
               <Text selectable style={{ color: C.text, fontSize: 13, fontWeight: '700', textAlign: 'center', marginTop: 10, letterSpacing: 1 }}>{setup.secret}</Text>
