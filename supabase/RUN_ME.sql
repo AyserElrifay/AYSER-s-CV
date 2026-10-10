@@ -11508,9 +11508,11 @@ begin
       execute format('create trigger %I after update on public.%I for each row execute function public.studio_log_decision()', t || '_studio_log', t);
     end if;
   end loop;
-  drop trigger if exists team_members_studio_log on public.team_members;
-  create trigger team_members_studio_log after insert or update or delete on public.team_members
-    for each row execute function public.studio_log_decision();
+  if to_regclass('public.team_members') is not null then   -- part 22 makes it
+    drop trigger if exists team_members_studio_log on public.team_members;
+    create trigger team_members_studio_log after insert or update or delete on public.team_members
+      for each row execute function public.studio_log_decision();
+  end if;
 end $do$;
 
 /* "I am here": every minute while the Studio is open; "opened the
