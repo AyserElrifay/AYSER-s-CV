@@ -303,12 +303,15 @@ export const NotificationsSheet = ({ onClose }) => {
         </View>
         <View style={{ flex: 1, minWidth: 0, marginLeft: 12 }}>
           <Text style={{ color: C.text, fontSize: 14.5, lineHeight: 20 }} numberOfLines={3}>
-            <Text style={{ fontWeight: '800' }}>{g ? namesLine(g.actors, words) : ((n.actor && n.actor.name) || words.someone)}</Text>
+            <Text style={{ fontWeight: '800' }}>{g ? namesLine(g.actors, words) : (n.kind === 'safety' && n.body !== 'report' && n.body !== 'coach') ? 'Moments' : ((n.actor && n.actor.name) || words.someone)}</Text>
             {' '}<Text style={{ color: C.dim }}>{verbOf(t, n.kind, g && g.actors.length > 1)}</Text>
             {'  '}<Text style={{ color: C.faint, fontSize: 12 }}>{timeAgo(n.created_at)}</Text>
           </Text>
           {(n.kind === 'green_invite' || n.kind === 'food_order' || n.kind === 'food_status' || n.kind === 'venue_decision') && n.body ? (
             <Text style={{ color: C.text, fontSize: 13, fontWeight: '700', marginTop: 2 }} numberOfLines={2}>{n.body === 'host_ok' || n.body === 'host_no' ? t('notif_' + n.body) : n.body}</Text>
+          ) : null}
+          {n.kind === 'safety' && n.body ? (
+            <Text style={{ color: C.text, fontSize: 13, fontWeight: '700', marginTop: 2 }} numberOfLines={3}>{t('notif_safety_' + n.body)}</Text>
           ) : null}
           {n.kind === 'comment' && n.body ? (
             <Text style={{ color: C.dim, fontSize: 13, marginTop: 2 }} numberOfLines={1}>“{n.body}”</Text>

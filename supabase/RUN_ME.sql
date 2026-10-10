@@ -10737,4 +10737,301 @@ language sql stable security definer set search_path = public as $$
 $$;
 grant execute on function public.green_list(text) to anon, authenticated;
 
+-- ═══════════ SAFETY · REPORT, BLOCK, STRIKES ═══════════
+/* Ayser: one button in the chat, a confirmation, then the last five
+   messages are taken and Bardi reviews them for threats, violence or
+   harassment. Confirmed: a strike, the person is blocked, and they
+   have a session with a Moments life coach before they can talk to
+   anyone again. A second time closes the account.
+
+   How it is built, and why:
+     · the report, the five messages and the block happen in one step,
+       on the server, the moment the reporter confirms — the reporter
+       is protected straight away, whatever happens next;
+     · the five messages are THEIR last five in that conversation,
+       copied into the report, so a message that disappears after 48
+       hours (or is deleted) is still there for the review;
+     · Bardi (Claude, through the safety-review function) reads them and
+       sorts the queue: threat, violence, harassment… or nothing;
+     · a strike is given by a person in the Studio, with Bardi's reading
+       in front of them — never by the machine alone. A strike shuts
+       somebody out, and that decision needs a human (GDPR art. 22);
+     · strikes live in their own table, readable only by the person
+       themselves — never on the public profile. */
+
+create table if not exists public.user_blocks (
+  blocker_id uuid not null references public.profiles(id) on delete cascade,
+  blocked_id uuid not null references public.profiles(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (blocker_id, blocked_id),
+  check (blocker_id <> blocked_id)
+);
+alter table public.user_blocks enable row level security;
+drop policy if exists "blocks: yours" on public.user_blocks;
+create policy "blocks: yours" on public.user_blocks for select using (blocker_id = auth.uid());
+drop policy if exists "blocks: add yours" on public.user_blocks;
+create policy "blocks: add yours" on public.user_blocks for insert with check (blocker_id = auth.uid());
+drop policy if exists "blocks: remove yours" on public.user_blocks;
+create policy "blocks: remove yours" on public.user_blocks for delete using (blocker_id = auth.uid());
+
+create table if not exists public.safety_standing (
+  user_id        uuid primary key references public.profiles(id) on delete cascade,
+  strikes        int not null default 0,
+  state          text,              -- null | 'coach' (until the session) | 'closed'
+  coach_asked_at timestamptz,
+  updated_at     timestamptz not null default now()
+);
+alter table public.safety_standing enable row level security;
+drop policy if exists "standing: your own" on public.safety_standing;
+create policy "standing: your own" on public.safety_standing for select using (user_id = auth.uid());
+-- no insert/update/delete policies: only the functions below change it
+
+create table if not exists public.safety_reports (
+  id           uuid primary key default gen_random_uuid(),
+  reporter_id  uuid references public.profiles(id) on delete set null,
+  reported_id  uuid not null references public.profiles(id) on delete cascade,
+  dm_thread_id uuid references public.dm_threads(id) on delete set null,
+  squad_id     uuid,
+  reason       text not null,
+  messages     jsonb not null default '[]'::jsonb,
+  ai_verdict   text,
+  ai_reason    text,
+  ai_at        timestamptz,
+  status       text not null default 'open',   -- 'open' | 'strike' | 'no_action'
+  decided_at   timestamptz,
+  created_at   timestamptz not null default now()
+);
+alter table public.safety_reports enable row level security;
+drop policy if exists "safety reports: the reporter sees theirs" on public.safety_reports;
+create policy "safety reports: the reporter sees theirs" on public.safety_reports for select using (reporter_id = auth.uid());
+create index if not exists safety_reports_open_idx on public.safety_reports (status, created_at);
+
+do $do$
+begin
+  alter table public.notifications drop constraint if exists notifications_kind_check;
+  alter table public.notifications add constraint notifications_kind_check
+    check (kind in ('vibe','laugh','comment','mate_request','mate_accept','message','call','tag','repost','green_invite','food_order','food_status','bardi_match','plan_soon','venue_decision','xp_award','safety'))
+    not valid;
+exception when others then raise notice 'notifications kind constraint skipped: %', sqlerrm;
+end $do$;
+
+/* tell whoever runs the Studio */
+create or replace function public.safety_tell_owners(p_actor uuid, p_body text)
+returns void language sql security definer set search_path = public as $$
+  insert into public.notifications (user_id, actor_id, kind, body)
+  select u.id, p_actor, 'safety', p_body
+    from auth.users u join public.app_owners o on lower(o.email) = lower(u.email);
+$$;
+revoke execute on function public.safety_tell_owners(uuid, text) from public, anon, authenticated;
+
+/* The one button. Both people must really be in that conversation. */
+create or replace function public.report_harassment(p_user uuid, p_dm uuid, p_squad uuid, p_reason text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); rid uuid; snap jsonb;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  if p_user is null or p_user = me then return jsonb_build_object('ok', false, 'reason', 'bad_user'); end if;
+  if (p_dm is null) = (p_squad is null) then return jsonb_build_object('ok', false, 'reason', 'bad_thread'); end if;
+  if p_reason not in ('threat', 'harassment', 'sexual', 'hate', 'other') then return jsonb_build_object('ok', false, 'reason', 'bad_reason'); end if;
+  if p_dm is not null and not (public.is_dm_participant(p_dm, me) and public.is_dm_participant(p_dm, p_user)) then
+    return jsonb_build_object('ok', false, 'reason', 'not_in_thread');
+  end if;
+  if p_squad is not null and not (
+       exists (select 1 from public.squad_members where squad_id = p_squad and user_id = me)
+   and exists (select 1 from public.squad_members where squad_id = p_squad and user_id = p_user)) then
+    return jsonb_build_object('ok', false, 'reason', 'not_in_thread');
+  end if;
+
+  -- protected first: blocked, whatever happens next
+  insert into public.user_blocks (blocker_id, blocked_id) values (me, p_user) on conflict do nothing;
+
+  -- the same report twice in a day is one report
+  select id into rid from public.safety_reports
+   where reporter_id = me and reported_id = p_user and status = 'open' and created_at > now() - interval '1 day'
+   limit 1;
+  if rid is not null then return jsonb_build_object('ok', true, 'id', rid, 'again', true); end if;
+
+  select coalesce(jsonb_agg(jsonb_build_object('body', m.body, 'kind', m.kind, 'media', m.media_url is not null, 'at', m.created_at) order by m.created_at), '[]'::jsonb)
+    into snap
+    from (select body, kind, media_url, created_at from public.messages
+           where user_id = p_user
+             and ((p_dm is not null and dm_thread_id = p_dm) or (p_squad is not null and squad_id = p_squad))
+           order by created_at desc limit 5) m;
+
+  insert into public.safety_reports (reporter_id, reported_id, dm_thread_id, squad_id, reason, messages)
+  values (me, p_user, p_dm, p_squad, p_reason, snap)
+  returning id into rid;
+  perform public.safety_tell_owners(me, 'report');
+  return jsonb_build_object('ok', true, 'id', rid, 'count', jsonb_array_length(snap));
+end;
+$$;
+revoke execute on function public.report_harassment(uuid, uuid, uuid, text) from public, anon;
+grant execute on function public.report_harassment(uuid, uuid, uuid, text) to authenticated;
+
+/* Bardi's reading, written by the safety-review function only */
+create or replace function public.safety_set_ai(p_id uuid, p_verdict text, p_reason text)
+returns void language sql security definer set search_path = public as $$
+  update public.safety_reports
+     set ai_verdict = case when p_verdict in ('threat','violence','harassment','sexual','hate','none','unsure') then p_verdict else 'unsure' end,
+         ai_reason = left(coalesce(p_reason, ''), 300), ai_at = now()
+   where id = p_id and ai_at is null;
+$$;
+revoke execute on function public.safety_set_ai(uuid, text, text) from public, anon, authenticated;
+grant execute on function public.safety_set_ai(uuid, text, text) to service_role;
+
+/* the Studio queue: open reports, worst first, and who is waiting for a session */
+create or replace function public.safety_queue()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select case when not public.is_app_owner() then '{}'::jsonb else jsonb_build_object(
+    'reports', coalesce((
+      select jsonb_agg(jsonb_build_object(
+        'id', r.id, 'reason', r.reason, 'messages', r.messages, 'at', r.created_at,
+        'ai_verdict', r.ai_verdict, 'ai_reason', r.ai_reason,
+        'reported_id', r.reported_id, 'reported_name', rp.name, 'reported_avatar', rp.avatar_url,
+        'reporter_name', fp.name, 'strikes', coalesce(st.strikes, 0))
+        order by case r.ai_verdict when 'threat' then 0 when 'violence' then 1 when 'sexual' then 2 when 'harassment' then 3 when 'hate' then 3 when 'unsure' then 4 when 'none' then 6 else 5 end, r.created_at)
+      from public.safety_reports r
+      join public.profiles rp on rp.id = r.reported_id
+      left join public.profiles fp on fp.id = r.reporter_id
+      left join public.safety_standing st on st.user_id = r.reported_id
+      where r.status = 'open'), '[]'::jsonb),
+    'coach', coalesce((
+      select jsonb_agg(jsonb_build_object('user_id', s.user_id, 'name', p.name, 'avatar', p.avatar_url, 'strikes', s.strikes, 'asked_at', s.coach_asked_at) order by s.coach_asked_at nulls last)
+      from public.safety_standing s join public.profiles p on p.id = s.user_id
+      where s.state = 'coach'), '[]'::jsonb)) end;
+$$;
+revoke execute on function public.safety_queue() from public, anon;
+grant execute on function public.safety_queue() to authenticated;
+
+/* A person decides. One strike: a session with a life coach before
+   talking to anyone again. Two: the account is closed. */
+create or replace function public.safety_decide(p_id uuid, p_strike boolean)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare r public.safety_reports%rowtype; n int; st text;
+begin
+  if not public.is_app_owner() then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
+  select * into r from public.safety_reports where id = p_id for update;
+  if not found then return jsonb_build_object('ok', false, 'reason', 'no_report'); end if;
+  if r.status <> 'open' then return jsonb_build_object('ok', false, 'reason', 'decided'); end if;
+
+  if p_strike then
+    insert into public.safety_standing (user_id, strikes, state, updated_at) values (r.reported_id, 1, 'coach', now())
+    on conflict (user_id) do update set strikes = public.safety_standing.strikes + 1,
+      state = case when public.safety_standing.strikes + 1 >= 2 then 'closed' else 'coach' end,
+      coach_asked_at = null, updated_at = now()
+    returning strikes, state into n, st;
+    -- the other open reports about the same moment are answered by this one
+    update public.safety_reports set status = 'strike', decided_at = now()
+     where reported_id = r.reported_id and status = 'open' and created_at <= r.created_at + interval '1 day';
+    insert into public.notifications (user_id, actor_id, kind, body)
+    values (r.reported_id, auth.uid(), 'safety', case when st = 'closed' then 'closed' else 'strike' end);
+  else
+    update public.safety_reports set status = 'no_action', decided_at = now() where id = p_id;
+  end if;
+  if r.reporter_id is not null then
+    insert into public.notifications (user_id, actor_id, kind, body) values (r.reporter_id, auth.uid(), 'safety', 'reviewed');
+  end if;
+  return jsonb_build_object('ok', true, 'strikes', n, 'state', st);
+end;
+$$;
+revoke execute on function public.safety_decide(uuid, boolean) from public, anon;
+grant execute on function public.safety_decide(uuid, boolean) to authenticated;
+
+/* the person with a strike asks for their session */
+create or replace function public.safety_ask_coach()
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); s public.safety_standing%rowtype;
+begin
+  select * into s from public.safety_standing where user_id = me;
+  if not found or s.state is distinct from 'coach' then return jsonb_build_object('ok', false, 'reason', 'no_need'); end if;
+  if s.coach_asked_at is not null and s.coach_asked_at > now() - interval '12 hours' then
+    return jsonb_build_object('ok', true, 'again', true);
+  end if;
+  update public.safety_standing set coach_asked_at = now(), updated_at = now() where user_id = me;
+  perform public.safety_tell_owners(me, 'coach');
+  return jsonb_build_object('ok', true);
+end;
+$$;
+revoke execute on function public.safety_ask_coach() from public, anon;
+grant execute on function public.safety_ask_coach() to authenticated;
+
+/* the session happened: they can talk again. The strike stays. */
+create or replace function public.safety_coach_done(p_user uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_app_owner() then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
+  update public.safety_standing set state = null, updated_at = now() where user_id = p_user and state = 'coach';
+  if not found then return jsonb_build_object('ok', false, 'reason', 'not_waiting'); end if;
+  insert into public.notifications (user_id, actor_id, kind, body) values (p_user, auth.uid(), 'safety', 'back');
+  return jsonb_build_object('ok', true);
+end;
+$$;
+revoke execute on function public.safety_coach_done(uuid) from public, anon;
+grant execute on function public.safety_coach_done(uuid) to authenticated;
+
+/* What a strike means, enforced here and not only on the screen:
+   waiting for the session — no messages, posts, stories, comments,
+   plans, joins or friend requests; closed — nothing at all, location
+   included. */
+create or replace function public.safety_gate() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare st text;
+begin
+  if auth.uid() is null then return new; end if;
+  select state into st from public.safety_standing where user_id = auth.uid();
+  if st = 'closed' then
+    raise exception 'safety_closed' using errcode = 'check_violation';
+  end if;
+  if st = 'coach' and tg_argv[0] = 'social' then
+    raise exception 'safety_coach' using errcode = 'check_violation';
+  end if;
+  return new;
+end $$;
+
+/* blocked means blocked: no new messages either way in a private chat,
+   and no friend request */
+create or replace function public.block_gate() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare other uuid;
+begin
+  if tg_table_name = 'messages' then
+    if new.dm_thread_id is null then return new; end if;
+    if exists (select 1 from public.dm_participants p join public.user_blocks b
+                 on (b.blocker_id = p.user_id and b.blocked_id = new.user_id)
+                 or (b.blocker_id = new.user_id and b.blocked_id = p.user_id)
+                where p.thread_id = new.dm_thread_id and p.user_id <> new.user_id) then
+      raise exception 'blocked' using errcode = 'check_violation';
+    end if;
+  elsif tg_table_name = 'mates' then
+    if exists (select 1 from public.user_blocks b
+                where (b.blocker_id = new.requester_id and b.blocked_id = new.addressee_id)
+                   or (b.blocker_id = new.addressee_id and b.blocked_id = new.requester_id)) then
+      raise exception 'blocked' using errcode = 'check_violation';
+    end if;
+  end if;
+  return new;
+end $$;
+
+do $do$
+declare t text;
+begin
+  foreach t in array array['messages','posts','stories','comments','green_gatherings','green_joins','mates','campfires','story_replies'] loop
+    if to_regclass('public.' || t) is not null then
+      execute format('drop trigger if exists %I on public.%I', t || '_safety_gate', t);
+      execute format('create trigger %I before insert on public.%I for each row execute function public.safety_gate(%L)', t || '_safety_gate', t, 'social');
+    end if;
+  end loop;
+  if to_regclass('public.live_locations') is not null then
+    drop trigger if exists live_locations_safety_gate on public.live_locations;
+    create trigger live_locations_safety_gate before insert or update on public.live_locations
+      for each row execute function public.safety_gate('all');
+  end if;
+  drop trigger if exists messages_block_gate on public.messages;
+  create trigger messages_block_gate before insert on public.messages for each row execute function public.block_gate();
+  if to_regclass('public.mates') is not null then
+    drop trigger if exists mates_block_gate on public.mates;
+    create trigger mates_block_gate before insert on public.mates for each row execute function public.block_gate();
+  end if;
+end $do$;
+
 notify pgrst, 'reload schema';

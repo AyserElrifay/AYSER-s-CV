@@ -42,6 +42,7 @@ import { studioRequested, stripStudioParam } from './src/utils/studioLink';
 import { initPwa } from './src/lib/pwa';
 import { Boundary } from './src/components/Boundary';
 import { InstallPrompt } from './src/components/InstallPrompt';
+import { SafetyHold } from './src/components/SafetyHold';
 import { Splash } from './src/components/Splash';
 import { GestureTour, tourSeen } from './src/components/GestureTour';
 import { installCrashLog, setDiagnostics } from './src/lib/crashLog';
@@ -129,6 +130,8 @@ const Root = () => {
       <StudioGate />
       <InstallPrompt />
       {tour ? <GestureTour onClose={() => setTour(false)} /> : null}
+      {/* after a strike: over everything (src/components/SafetyHold.js) */}
+      <SafetyHold />
     </View>
   );
 };

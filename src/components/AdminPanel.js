@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { fetchReports, setReportStatus } from '../services/reports';
 import { removeGatheringPhoto } from '../services/green';
 import { fetchPendingHosts, documentUrl, decideHost } from '../services/hosts';
+import { fetchSafetyQueue, decideReport, coachDone } from '../services/standing';
 import { fetchFeedback, markFeedbackSeen } from '../services/feedback';
 import { fetchStudioStats } from '../services/feedback';
 import { fetchPendingVerifications, decideVerification, fetchPendingVenues, decideVenue } from '../services/profiles';
@@ -28,6 +29,7 @@ import { useSheetBack } from '../hooks/useSheetBack';
    Bardi is built in: one tap summarises what needs attention. */
 
 const TABS = [
+  { k: 'safety', label: 'Safety', icon: 'shield-outline' },
   { k: 'reports', label: 'Reports', icon: 'flag-outline' },
   { k: 'venues', label: 'Venues', icon: 'business-outline' },
   { k: 'hosts', label: 'Guides', icon: 'id-card-outline' },
@@ -39,6 +41,56 @@ const TABS = [
   { k: 'errors', label: 'Errors', icon: 'bug-outline' },
   { k: 'db', label: 'Setup', icon: 'server-outline' },
 ];
+
+/* One reported conversation: who, why, Bardi's reading, and the five
+   messages themselves. A strike is given here, by a person — never by
+   Bardi alone. */
+const VERDICT = {
+  threat: ['⚠️ Threat', '#DC2626'], violence: ['⚠️ Violence', '#DC2626'], sexual: ['🔞 Sexual', '#DB2777'],
+  harassment: ['🚫 Harassment', '#EA580C'], hate: ['✋ Hate', '#EA580C'], unsure: ['❔ Unsure', '#6B7280'], none: ['✓ Nothing found', '#16A34A'],
+};
+const SafetyReport = ({ r, onDone }) => {
+  const [busy, setBusy] = useState(false);
+  const [armed, setArmed] = useState(false);
+  const v = VERDICT[r.ai_verdict];
+  const decide = async (strike) => {
+    if (busy) return;
+    setBusy(true);
+    try { await decideReport(r.id, strike); if (strike) tapSuccess(); else tapLight(); onDone(r.id); } catch (e) { setBusy(false); }
+  };
+  return (
+    <View style={{ paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: C.line }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <Image source={{ uri: r.reported_avatar || AV_NEUTRAL }} style={{ width: 40, height: 40, borderRadius: 20, marginRight: 10 }} />
+        <View style={{ flex: 1 }}>
+          <Text style={{ color: C.text, fontSize: 15, fontWeight: '800' }}>{r.reported_name || 'Someone'}{r.strikes ? '  · ' + r.strikes + ' strike' + (r.strikes > 1 ? 's' : '') : ''}</Text>
+          <Text style={{ color: C.faint, fontSize: 12, marginTop: 1 }}>Reported for {r.reason} by {r.reporter_name || 'someone'} · {String(r.at || '').slice(0, 16).replace('T', ' ')}</Text>
+        </View>
+      </View>
+      <View style={{ marginTop: 8, flexDirection: 'row', alignItems: 'center' }}>
+        <Text style={{ color: v ? v[1] : C.faint, fontSize: 12.5, fontWeight: '900' }}>{v ? 'Bardi: ' + v[0] : 'Bardi has not read it'}</Text>
+      </View>
+      {r.ai_reason ? <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 2 }}>{r.ai_reason}</Text> : null}
+      <View style={{ marginTop: 8, padding: 10, borderRadius: 12, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line }}>
+        {(r.messages || []).length ? (r.messages || []).map((m, i) => (
+          <Text key={i} selectable style={{ color: C.text, fontSize: 13, lineHeight: 19, marginTop: i ? 6 : 0 }}>
+            {(m.media ? '📷 ' : '') + (m.body || '')}
+          </Text>
+        )) : <Text style={{ color: C.faint, fontSize: 12.5 }}>No messages from them were left in the chat.</Text>}
+      </View>
+      <View style={{ flexDirection: 'row', marginTop: 10, opacity: busy ? 0.5 : 1 }}>
+        <Pressable onPress={() => decide(false)} disabled={busy} style={{ marginRight: 8 }}>
+          <View style={{ borderRadius: 999, borderWidth: 1, borderColor: C.line, paddingHorizontal: 14, paddingVertical: 8 }}><Text style={{ color: C.dim, fontSize: 12.5, fontWeight: '800' }}>No action</Text></View>
+        </Pressable>
+        <Pressable onPress={() => { if (armed) decide(true); else { tapLight(); setArmed(true); } }} disabled={busy}>
+          <View style={{ borderRadius: 999, backgroundColor: C.coral, paddingHorizontal: 14, paddingVertical: 8 }}>
+            <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '900' }}>{armed ? (r.strikes >= 1 ? 'Tap again: close the account' : 'Tap again: strike + coach session') : 'Give a strike'}</Text>
+          </View>
+        </Pressable>
+      </View>
+    </View>
+  );
+};
 
 /* One guide or host asking for the badge: the document and the selfie
    side by side, through links that expire in ten minutes. Decided here,
@@ -103,13 +155,15 @@ export const AdminPanel = ({ onClose }) => {
   useSheetBack(onClose);
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const [tab, setTab] = useState('reports');
+  const [tab, setTab] = useState('safety');
   const [stats, setStats] = useState(null);
   const [reports, setReports] = useState(null);
   const [verifs, setVerifs] = useState(null);
   const [venues, setVenues] = useState(null);
   const [venueErr, setVenueErr] = useState(null);
   const [hosts, setHosts] = useState(null);
+  const [safety, setSafety] = useState(null);
+  const [safetyErr, setSafetyErr] = useState(null);
   const [hostErr, setHostErr] = useState(null);
   const [crashes, setCrashes] = useState(() => { try { return recent(); } catch (e) { return []; } });
   const [music, setMusic] = useState(null);
@@ -141,6 +195,7 @@ export const AdminPanel = ({ onClose }) => {
   useEffect(() => {
     if (tab === 'reports' && reports == null) fetchReports().then(setReports).catch(() => setReports([]));
     if (tab === 'venues' && venues == null) fetchPendingVenues().then(setVenues).catch(() => { setVenues([]); setVenueErr(true); });
+    if (tab === 'safety' && safety == null) fetchSafetyQueue().then(setSafety).catch(() => { setSafety({ reports: [], coach: [] }); setSafetyErr(true); });
     if (tab === 'hosts' && hosts == null) fetchPendingHosts().then(setHosts).catch(() => { setHosts([]); setHostErr(true); });
     if (tab === 'verify' && verifs == null) fetchPendingVerifications().then(setVerifs).catch(() => setVerifs([]));
     if (tab === 'music' && music == null) fetchTracks({ all: true, meId: user && user.id }).then((rows) => setMusic((rows || []).filter((t) => !t.is_approved && !t.is_official))).catch(() => setMusic([]));
@@ -410,6 +465,35 @@ export const AdminPanel = ({ onClose }) => {
                 </View>
               </View>
             ))
+          ) : null}
+
+          {/* reported chats, worst first, and who is waiting for a session */}
+          {tab === 'safety' ? (
+            safety == null ? <ActivityIndicator color={C.purple} style={{ marginTop: 30 }} /> :
+            safetyErr ? <Empty t="Run the latest SQL (part 21) to see reported chats here." /> : (
+              <>
+                {safety.coach.length ? (
+                  <>
+                    <Text style={{ color: C.faint, fontSize: 11, fontWeight: '900', letterSpacing: 1, marginTop: 6 }}>WAITING FOR A LIFE-COACH SESSION</Text>
+                    {safety.coach.map((c) => (
+                      <View key={c.user_id} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.line }}>
+                        <Image source={{ uri: c.avatar || AV_NEUTRAL }} style={{ width: 36, height: 36, borderRadius: 18, marginRight: 10 }} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>{c.name || 'Someone'}</Text>
+                          <Text style={{ color: C.faint, fontSize: 11.5 }}>{c.asked_at ? 'Asked for a session ' + String(c.asked_at).slice(0, 10) : 'Has not asked yet'}</Text>
+                        </View>
+                        <Pressable onPress={async () => { await coachDone(c.user_id).catch(() => {}); tapSuccess(); setSafety((q) => ({ ...q, coach: q.coach.filter((x) => x.user_id !== c.user_id) })); }}>
+                          <View style={{ borderRadius: 999, backgroundColor: C.green, paddingHorizontal: 12, paddingVertical: 7 }}><Text style={{ color: '#FFF', fontSize: 12, fontWeight: '900' }}>Session done ✓</Text></View>
+                        </Pressable>
+                      </View>
+                    ))}
+                  </>
+                ) : null}
+                {safety.reports.length ? safety.reports.map((r) => (
+                  <SafetyReport key={r.id} r={r} onDone={(id) => { setSafety((q) => ({ ...q, reports: q.reports.filter((x) => x.id !== id) })); fetchSafetyQueue().then(setSafety).catch(() => {}); }} />
+                )) : <Empty t="No reported chats" />}
+              </>
+            )
           ) : null}
 
           {/* licensed guides and activity hosts */}

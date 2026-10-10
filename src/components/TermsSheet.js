@@ -62,6 +62,13 @@ export const TermsSheet = ({ onClose }) => {
           <H>6. Repeat infringers</H>
           <P>Accounts that repeatedly upload infringing or abusive content will be suspended or removed.</P>
 
+          <H>6a. Threats and harassment in chats</H>
+          <P>Every chat has a Report button. When you report someone, you block them straight away, and their last five messages in that chat are copied to the Moments team. They are not told who reported them.</P>
+          <P>Those messages are first read by an AI service (Anthropic's Claude) that only sorts how serious they look. It decides nothing, and what it reads is not used to train it. A person at Moments decides. A confirmed report is a strike: no messages, posts or plans until a session with a Moments life coach. A second confirmed report closes the account.</P>
+
+          <H>6b. Guides and hosts</H>
+          <P>Licensed tour guides and activity hosts can be verified with their licence card or ID and a selfie. These photos are seen only by the Moments team and deleted once checked. A guide or host runs their own activities and is responsible for them; Moments connects people and is not the organiser.</P>
+
           <H>7. The app is provided "as is"</H>
           <P>We work hard to keep Moments running and safe, but we can't promise it will always be perfect or available. To the extent the law allows, Moments is provided as-is and we're not liable for content posted by users — that content belongs to, and is the responsibility of, the people who post it.</P>
 

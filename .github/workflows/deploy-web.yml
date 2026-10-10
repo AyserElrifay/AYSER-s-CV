@@ -203,6 +203,9 @@ jobs:
       # Guides and hosts: checked by a person, papers private, every plan says who runs it.
       - name: Check guides and hosts
         run: node scripts/check-hosts.mjs
+      # Harassment: one button reports and blocks; a person gives strikes; the database enforces them.
+      - name: Check reports, blocks and strikes
+        run: node scripts/check-harassment.mjs
       # No signal must not mean no app.
       - name: Check the app works offline
         run: node scripts/check-offline.mjs

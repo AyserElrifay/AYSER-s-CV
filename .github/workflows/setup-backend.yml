@@ -212,11 +212,18 @@ jobs:
         if: ${{ inputs.deploy_function }}
         env:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           SITE_ORIGIN: ${{ inputs.site_origin }}
         run: |
           set -euo pipefail
           supabase secrets set --project-ref "$REF" "ALLOWED_ORIGIN=$SITE_ORIGIN" > /dev/null
           echo "ALLOWED_ORIGIN set to $SITE_ORIGIN"
+          if [ -n "${ANTHROPIC_API_KEY:-}" ]; then
+            supabase secrets set --project-ref "$REF" "ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY" > /dev/null
+            echo "ANTHROPIC_API_KEY set."
+          else
+            echo "::warning::No ANTHROPIC_API_KEY secret — reports wait in the Studio without Bardi's reading."
+          fi
           if [ -n "${GROQ_API_KEY:-}" ]; then
             supabase secrets set --project-ref "$REF" "GROQ_API_KEY=$GROQ_API_KEY" > /dev/null
             echo "GROQ_API_KEY set."
@@ -239,6 +246,8 @@ jobs:
           supabase functions deploy push --project-ref "$REF" --no-verify-jwt
           # voice notes for the brain dump (signed-in only; uses GROQ_API_KEY)
           supabase functions deploy bardi-listen --project-ref "$REF"
+          # Bardi reads reported chats for the Studio (signed-in only; uses ANTHROPIC_API_KEY)
+          supabase functions deploy safety-review --project-ref "$REF"
           if supabase secrets list --project-ref "$REF" 2>/dev/null | grep -q VAPID_PRIVATE_KEY; then
             echo "VAPID keys already set — kept."
           else

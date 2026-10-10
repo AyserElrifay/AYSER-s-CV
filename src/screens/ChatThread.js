@@ -14,6 +14,8 @@ import { StickerPicker } from '../components/StickerPicker';
 import { createMatch, fetchMatch, respondMatch } from '../services/games';
 import { noteScreenshot, isThreadOpen, acceptMessageRequest, declineMessageRequest } from '../services/messages';
 import { looksExplicit, EXPLICIT_BLOCKED } from '../services/safety';
+import { fetchMyBlocks, safetyRefusal } from '../services/standing';
+import { ChatReportSheet } from '../components/ChatReportSheet';
 import { amFollowing, follow } from '../services/follows';
 import { getMateStatus } from '../services/mates';
 import { useScreenshotWatch } from '../hooks/useScreenshotWatch';
@@ -72,12 +74,26 @@ export const ChatThread = ({ chat, group, onClose }) => {
   const [dmThreadId, setDmThreadId] = useState((!group && chat.threadId) || null);
   const [draft, setDraft] = useState('');
   const [chatErr, setChatErr] = useState(null); // never pretend a send worked
+  /* Something wrong here: report or block (src/components/ChatReportSheet.js).
+     People you blocked stay out of sight in a group, too. */
+  const [reportOpen, setReportOpen] = useState(false);
+  const [blocked, setBlocked] = useState(() => new Set());
+  useEffect(() => {
+    if (!isReal) return undefined;
+    let alive = true;
+    fetchMyBlocks(user.id).then((b) => { if (alive) setBlocked(b); }).catch(() => {});
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isReal]);
 
   const explainChat = (e) => {
     // kept whether or not it's read — a failure that leaves no trace
     // can only be diagnosed by guessing
     note('chat', e);
     const m = (e && e.message) || '';
+    const held = safetyRefusal(e);
+    if (held === 'blocked') return t('hr_cant_send');
+    if (held === 'coach' || held === 'closed') return t(held === 'coach' ? 'sk_coach' : 'sk_closed');
     if (/does not exist|schema cache|get_or_create_dm_thread/i.test(m)) {
       return setupNotice('Messages need one more step: run supabase/RUN_ME.sql in the Supabase SQL Editor.');
     }
@@ -161,9 +177,9 @@ export const ChatThread = ({ chat, group, onClose }) => {
   // hide anything past the window (the DB sweep also removes it for
   // real). Moments/snaps are exempt — they carry the streak history.
   const ttlCutoff = effTtl > 0 ? Date.now() - effTtl * 3600 * 1000 : null;
-  const visibleMsgs = ttlCutoff
+  const visibleMsgs = (ttlCutoff
     ? msgs.filter((m) => m.kind === 'moment' || m.mediaUrl || !m.createdAt || new Date(m.createdAt).getTime() >= ttlCutoff)
-    : msgs;
+    : msgs).filter((m) => !(group && m.userId && blocked.has(m.userId)));
 
   const [todOn, setTodOn] = useState(false);
   const [wyrOn, setWyrOn] = useState(false);
@@ -489,6 +505,11 @@ export const ChatThread = ({ chat, group, onClose }) => {
           {!group && isReal ? (
             <Pressable onPress={() => { tapLight(); setTtlOpen((v) => !v); }} hitSlop={8} style={{ marginRight: 10 }}>
               <Ionicons name="timer-outline" size={22} color={ttl ? C.purple : C.dim} />
+            </Pressable>
+          ) : null}
+          {isReal ? (
+            <Pressable onPress={() => { tapLight(); setReportOpen(true); }} hitSlop={8} accessibilityRole="button" accessibilityLabel={t('hr_title')} style={{ marginRight: 4 }}>
+              <Ionicons name="shield-outline" size={22} color={C.dim} />
             </Pressable>
           ) : null}
           <Pressable onPress={() => { tapMedium(); setCall({ video: false }); }} hitSlop={8} style={{ marginHorizontal: 10 }}>
@@ -904,6 +925,18 @@ export const ChatThread = ({ chat, group, onClose }) => {
       </View>
 
       {call ? <CallScreen peer={callPeer} video={call.video} onClose={() => setCall(null)} /> : null}
+      {reportOpen ? (
+        <ChatReportSheet
+          people={group
+            ? msgs.slice().reverse().filter((m, i, all) => m.userId && m.from !== 'me' && all.findIndex((x) => x.userId === m.userId) === i)
+                .map((m) => ({ id: m.userId, name: m.from.name, avatar: m.from.avatar }))
+            : [{ id: peer.id, name: peer.name, avatar: peer.avatar }]}
+          dmThreadId={group ? null : dmThreadId}
+          squadId={group ? chat.id : null}
+          onBlocked={(id) => setBlocked((b) => new Set([...b, id]))}
+          onClose={() => { setReportOpen(false); if (!group && peer && blocked.has(peer.id)) onClose(); }}
+        />
+      ) : null}
 
       {/* ── Catch Your Mate — real live duel ── */}
       {activeMatch ? (

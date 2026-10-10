@@ -38,6 +38,7 @@ const getCommentsSheet = () => require('./CommentsSheet').CommentsSheet;
 import { sfxPop, sfxSuccess } from '../utils/sfx';
 import { setupNotice } from '../lib/plumbing';
 import { useSheetBack } from '../hooks/useSheetBack';
+import { fetchMyBlocks, unblockPerson } from '../services/standing';
 
 const { width: W } = Dimensions.get('window');
 const CELL = (W - 48) / 3;
@@ -133,6 +134,15 @@ export const ProfileModal = ({ user, onClose, openMessage }) => {
   const onlineNow = real && !isMe && isOnline(user.id);
 
   const [fullProfile, setFullProfile] = useState(null); // hydrated row (hobbies, bio…)
+  /* blocked from a chat: shown here, with the way back (src/components/ChatReportSheet.js) */
+  const [iBlocked, setIBlocked] = useState(false);
+  useEffect(() => {
+    if (!real || isMe) return undefined;
+    let alive = true;
+    fetchMyBlocks(me.id).then((b) => { if (alive) setIBlocked(b.has(user.id)); }).catch(() => {});
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [real, isMe, user && user.id]);
   /* Private is a real state, not a label: the read policy on posts and
      stories already refuses these rows to anyone who isn't an accepted
      mate, so the screen only has to say so. */
@@ -276,6 +286,14 @@ export const ProfileModal = ({ user, onClose, openMessage }) => {
             <ShowedUp count={fullProfile && fullProfile.community_events} />
             {fullProfile ? <HostCard profile={fullProfile} /> : null}
 
+            {iBlocked ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 14, padding: 12, borderRadius: 14, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line }}>
+                <Text style={{ flex: 1, color: C.dim, fontSize: 13.5, fontWeight: '700' }}>{t('hr_you_blocked')}</Text>
+                <Pressable onPress={async () => { tapLight(); try { await unblockPerson(me.id, user.id); setIBlocked(false); } catch (e) {} }} accessibilityRole="button" hitSlop={8}>
+                  <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800', textDecorationLine: 'underline' }}>{t('hr_unblock')}</Text>
+                </Pressable>
+              </View>
+            ) : null}
             {/* actions — real friend request + real DM */}
             {!isMe ? (
               <View style={{ flexDirection: 'row', marginTop: 14 }}>
