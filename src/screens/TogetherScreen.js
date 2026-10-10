@@ -26,6 +26,8 @@ import { flagToIso, groupByDay } from '../lib/together';
 import { showOnMap, goToTab } from '../lib/mapBus';
 import { openChat } from '../lib/chatBus';
 import { lazyOverlay } from '../lib/lazyScreen';
+import { PlanThumb, PastPhotos } from '../components/green/PlanPhoto';
+import { ReportSheet } from '../components/ReportSheet';
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
 
 const GreenSheet = lazyOverlay(() => import('../components/green/GreenSheet').then((m) => ({ default: m.GreenSheet })));
@@ -182,6 +184,11 @@ export const TogetherScreen = () => {
   };
 
   /* "I'm here": where you are is checked once, against the place */
+  /* a photo somebody finds wrong: one report, to the owner's Studio,
+     carrying which plan and which picture */
+  const [reportingPhoto, setReportingPhoto] = useState(null);
+  const reportPhoto = (g, url) => setReportingPhoto({ id: g.id + ' ' + url, label: titleFor(g.title, lang) });
+
   const checkIn = async (g) => {
     if (busy[g.id]) return;
     tapMedium();
@@ -287,17 +294,13 @@ export const TogetherScreen = () => {
               <View key={d.key}>
                 <Section>{dayLabel(d, true).toUpperCase()}</Section>
                 {d.items.map((g) => {
-                  const look = lookOf(g.kind);
                   const mine = uid && g.host_id === uid;
                   const expanded = open === g.id;
                   return (
                     <Pressable key={g.id} onPress={() => { tapLight(); setOpen(expanded ? null : g.id); }}>
                       <View style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: g.im_going ? 'rgba(16,185,129,0.55)' : C.line, borderRadius: 22, padding: 12, marginBottom: 10 }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                          <LinearGradient colors={[look.from, look.to]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                            style={{ width: 58, height: 58, borderRadius: 18, alignItems: 'center', justifyContent: 'center', transform: [{ rotate: '-4deg' }] }}>
-                            <Text style={{ fontSize: 28 }}>{look.emoji}</Text>
-                          </LinearGradient>
+                          <PlanThumb g={g} size={58} radius={18} tilt />
                           <View style={{ flex: 1, minWidth: 0, marginStart: 12 }}>
                             <Text numberOfLines={2} style={{ color: C.text, fontSize: 15.5, fontWeight: '900', lineHeight: 20 }}>{titleFor(g.title, lang)}</Text>
                             <Text numberOfLines={1} style={{ color: C.faint, fontSize: 12.5, fontWeight: '700', marginTop: 3 }}>
@@ -309,6 +312,8 @@ export const TogetherScreen = () => {
                         {expanded && g.about ? (
                           <Text style={{ color: C.dim, fontSize: 13.5, lineHeight: 20, marginTop: 10 }}>{g.about}</Text>
                         ) : null}
+                        {/* photos people really took there last time */}
+                        {expanded ? <PastPhotos g={g} t={t} onReport={(u) => reportPhoto(g, u)} /> : null}
                         {expanded && g.lat != null && g.lng != null ? (
                           <Pressable onPress={() => { tapLight(); showOnMap({ lat: g.lat, lng: g.lng }); }} style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10, alignSelf: 'flex-start' }}>
                             <Ionicons name="map-outline" size={15} color={C.purple} />
@@ -488,6 +493,7 @@ export const TogetherScreen = () => {
       {sheet === 'talk' ? <StartTalkSheet country={myCode} onClose={() => setSheet(null)} onStarted={(id) => { setSheet(null); setTalkId(id); }} /> : null}
       {talkId ? <TalkRoomSheet roomId={talkId} onClose={() => { setTalkId(null); load(); }} /> : null}
       {sheet === 'start' ? <GreenSheet startNow homeCountry={myCode} onClose={() => { setSheet(null); load(); }} /> : null}
+      {reportingPhoto ? <ReportSheet contentType="plan_photo" contentId={reportingPhoto.id} contentLabel={reportingPhoto.label} onClose={() => setReportingPhoto(null)} /> : null}
       {sheet === 'green' ? <GreenSheet homeCountry={myCode} onClose={() => { setSheet(null); load(); }} /> : null}
       {sheet === 'prog' ? <ProgrammesSheet onClose={() => setSheet(null)} onOpenGroup={(id) => setSheet({ group: id })} /> : null}
       {sheet === 'landing' ? <LandingSheet country={myCode} onClose={() => setSheet(null)} /> : null}

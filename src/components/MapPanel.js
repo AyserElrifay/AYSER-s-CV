@@ -1,10 +1,10 @@
 import React, { useRef } from 'react';
 import { View, Text, ScrollView, Pressable, Image, PanResponder, ActivityIndicator, useWindowDimensions } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { C } from '../constants/theme';
 import { lookOf, titleFor, whenFor } from '../lib/activityPins';
 import { whyText } from '../lib/recommend';
+import { PlanThumb } from './green/PlanPhoto';
 import { tapLight, tapSelection } from '../utils/feedback';
 
 /* ─── WHAT IS AROUND HERE, AT THE BOTTOM OF THE MAP ───────────────────
@@ -57,16 +57,12 @@ export const MapPanel = ({
   const count = plans.length === 1 ? t('map_in_area_one') : t('map_in_area').replace('{n}', String(plans.length));
 
   const renderPlan = (g, k) => {
-    const l = lookOf(g.kind);
     const mine = user && g.host_id === user.id;
     const going = Number(g.going) || 0;
     return (
       <Pressable key={g.id} onPress={() => { tapLight(); onFocus(g); }} accessibilityRole="button"
         style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderTopWidth: k ? 1 : 0, borderTopColor: C.line }}>
-        <LinearGradient colors={[l.from, l.to]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-          style={{ width: 58, height: 58, borderRadius: 29, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ fontSize: 27 }}>{l.emoji}</Text>
-        </LinearGradient>
+        <PlanThumb g={g} size={58} radius={29} />
         <View style={{ flex: 1, minWidth: 0, marginStart: 14 }}>
           <Text style={{ color: C.text, fontSize: 16, fontWeight: '800', letterSpacing: -0.2 }} numberOfLines={1}>{titleFor(g.title, lang)}</Text>
           <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 2 }} numberOfLines={1}>

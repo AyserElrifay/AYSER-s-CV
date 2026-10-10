@@ -191,6 +191,9 @@ jobs:
       # A welcome from the founder: once, new accounts only, words from the database.
       - name: Check the founder's welcome
         run: node scripts/check-founder.mjs
+      # Plan photos: real ones only, from our storage, reportable.
+      - name: Check plan photos
+        run: node scripts/check-plan-photos.mjs
       # No signal must not mean no app.
       - name: Check the app works offline
         run: node scripts/check-offline.mjs

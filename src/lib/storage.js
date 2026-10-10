@@ -319,6 +319,14 @@ export function compressImage(uri, maxSide = 1600, quality = 0.85) {
   });
 }
 
+/* A plan's photo (green_set_photo in RUN_ME.sql): always to OUR
+   storage, into the uploader's own folder — the database accepts no
+   other address — and small, because it is shown on a phone list. */
+export async function uploadPlanPhoto(userId, file) {
+  const small = await compressImage(URL.createObjectURL(file), 1280, 0.82);
+  return uploadToSupabase(userId, small, 'jpg', 'image/jpeg');
+}
+
 /* One entry point for every upload. Tries R2, falls back to Supabase.
    `uri` may be a string OR the Blob itself — pass the Blob when you
    have it and Safari's blob-fetch bug never comes up. */

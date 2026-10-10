@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, Pressable, ScrollView, Modal, TextInput, ActivityIndicator } from 'react-native';
+import { View, Text, Pressable, ScrollView, Modal, TextInput, ActivityIndicator, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { C } from '../../constants/theme';
@@ -21,6 +21,20 @@ import { SheetHandle } from '../SheetHandle';
    types one. */
 
 const TIMES = [9, 13, 17, 20];
+
+/* a photo of the real place or the real plan — optional, one tap. The
+   file is kept here and sent after the plan exists (GreenSheet.js). */
+const pickPhoto = () => new Promise((resolve) => {
+  if (typeof document === 'undefined') return resolve(null);
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.style.display = 'none';
+  input.onchange = () => { resolve((input.files && input.files[0]) || null); input.remove(); };
+  document.body.appendChild(input);
+  input.click();
+  return undefined;
+});
 
 const dayKey = (d) => d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
 
@@ -130,6 +144,29 @@ export const StartForm = ({ form, setForm, kinds, places, busy, onSubmit, onClos
             <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '900', letterSpacing: 1.1, marginTop: 24 }}>{t('sf_where')}</Text>
             <TextInput value={form.place} onChangeText={(v) => setForm((f) => ({ ...f, place: v }))}
               placeholder={t('sf_where_ph')} placeholderTextColor={C.faint} style={field} />
+
+            {/* a real photo, if they have one — never required */}
+            {form.photoPreview ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 14 }}>
+                <Image source={{ uri: form.photoPreview }} style={{ width: 64, height: 64, borderRadius: 14, backgroundColor: C.glassHi }} />
+                <Text style={{ flex: 1, color: C.dim, fontSize: 13, marginStart: 12 }}>{t('sf_photo_added')}</Text>
+                <Pressable onPress={() => { tapLight(); setForm((f) => ({ ...f, photoFile: null, photoPreview: null })); }} accessibilityRole="button" accessibilityLabel={t('sf_photo_remove')}
+                  style={{ width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' }}>
+                  <Ionicons name="close" size={20} color={C.dim} />
+                </Pressable>
+              </View>
+            ) : (
+              <Pressable onPress={async () => { tapLight(); const file = await pickPhoto(); if (file) setForm((f) => ({ ...f, photoFile: file, photoPreview: URL.createObjectURL(file) })); }}
+                accessibilityRole="button" style={{ flexDirection: 'row', alignItems: 'center', marginTop: 14 }}>
+                <View style={{ width: 64, height: 64, borderRadius: 14, borderWidth: 1.5, borderColor: C.line, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' }}>
+                  <Ionicons name="camera-outline" size={22} color={C.dim} />
+                </View>
+                <View style={{ flex: 1, marginStart: 12 }}>
+                  <Text style={{ color: C.text, fontSize: 14, fontWeight: '700' }}>{t('sf_photo')}</Text>
+                  <Text style={{ color: C.faint, fontSize: 12, marginTop: 1 }}>{t('sf_photo_sub')}</Text>
+                </View>
+              </Pressable>
+            )}
 
             {/* everything else, folded */}
             {more ? (

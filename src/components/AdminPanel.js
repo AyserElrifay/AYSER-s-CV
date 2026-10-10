@@ -5,6 +5,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { C } from '../constants/theme';
 import { useAuth } from '../context/AuthContext';
 import { fetchReports, setReportStatus } from '../services/reports';
+import { removeGatheringPhoto } from '../services/green';
 import { fetchFeedback, markFeedbackSeen } from '../services/feedback';
 import { fetchStudioStats } from '../services/feedback';
 import { fetchPendingVerifications, decideVerification, fetchPendingVenues, decideVenue } from '../services/profiles';
@@ -240,12 +241,20 @@ export const AdminPanel = ({ onClose }) => {
                   <Text style={{ color: C.faint, fontSize: 10.5 }}>{r.status}</Text>
                 </View>
                 {r.detail ? <Text style={{ color: C.text, fontSize: 12.5, marginTop: 4 }}>{r.detail}</Text> : null}
+                {/* a reported plan photo: the picture itself, so the decision is made looking at it */}
+                {r.content_type === 'plan_photo' && /^https:\/\//.test(r.content_id.split(' ')[1] || '') ? (
+                  <Image source={{ uri: r.content_id.split(' ')[1] }} style={{ width: 120, height: 120, borderRadius: 12, marginTop: 8, backgroundColor: C.glassHi }} />
+                ) : null}
                 <Text style={{ color: C.faint, fontSize: 10.5, marginTop: 4 }}>by {(r.reporter && r.reporter.name) || 'someone'} · {r.content_id.slice(0, 10)}…</Text>
                 <View style={{ flexDirection: 'row', marginTop: 8 }}>
                   <Pressable onPress={async () => { await setReportStatus(r.id, 'reviewed'); setReports((l) => l.map((x) => x.id === r.id ? { ...x, status: 'reviewed' } : x)); tapSuccess(); }} style={{ marginRight: 8 }}>
                     <View style={{ borderRadius: 999, borderWidth: 1, borderColor: C.line, paddingHorizontal: 12, paddingVertical: 7 }}><Text style={{ color: C.dim, fontSize: 12, fontWeight: '800' }}>Mark reviewed</Text></View>
                   </Pressable>
-                  <Pressable onPress={async () => { await setReportStatus(r.id, 'removed'); setReports((l) => l.map((x) => x.id === r.id ? { ...x, status: 'removed' } : x)); tapSuccess(); }}>
+                  <Pressable onPress={async () => {
+                    /* a plan photo really comes down: off the plan, or the post it came from */
+                    if (r.content_type === 'plan_photo') { const [gid, url] = r.content_id.split(' '); await removeGatheringPhoto(gid, url || null); }
+                    await setReportStatus(r.id, 'removed'); setReports((l) => l.map((x) => x.id === r.id ? { ...x, status: 'removed' } : x)); tapSuccess();
+                  }}>
                     <View style={{ borderRadius: 999, backgroundColor: C.coral, paddingHorizontal: 12, paddingVertical: 7 }}><Text style={{ color: '#FFF', fontSize: 12, fontWeight: '900' }}>Take down</Text></View>
                   </Pressable>
                 </View>

@@ -10,7 +10,11 @@ import { SUPABASE_READY } from '../../lib/supabase';
 import { explain } from '../../lib/explain';
 import {
   listGatherings, listSparks, createGathering, joinGathering, cancelGathering, sparkText, announceGathering,
+  setGatheringPhoto, removeGatheringPhoto,
 } from '../../services/green';
+import { PlanThumb, PastPhotos, planPhotoOf } from './PlanPhoto';
+import { ReportSheet } from '../ReportSheet';
+import { uploadPlanPhoto } from '../../lib/storage';
 import { tapLight, tapMedium, tapSuccess } from '../../utils/feedback';
 import { PLAY_LANGS } from '../lamma/languages';
 import { useSheetBack } from '../../hooks/useSheetBack';
@@ -132,6 +136,23 @@ export const GreenSheet = ({ onClose, onPlay, startNow, homeCountry, openOn, pre
   const [sent, setSent] = useState(null);            // { id, n } after an invite
   const [manage, setManage] = useState(null);         // the plan you host, its two actions
   const [confirmOff, setConfirmOff] = useState(false);
+  const [reportingPhoto, setReportingPhoto] = useState(null);   // a "last time" photo somebody reports
+
+  /* the host adds a photo to a plan that has none, or takes theirs down */
+  const changePhoto = async (g) => {
+    if (!user) return;
+    if (g.photo_url) { await removeGatheringPhoto(g.id); load(); return; }
+    const file = await new Promise((resolve) => {
+      if (typeof document === 'undefined') return resolve(null);
+      const input = document.createElement('input');
+      input.type = 'file'; input.accept = 'image/*'; input.style.display = 'none';
+      input.onchange = () => { resolve((input.files && input.files[0]) || null); input.remove(); };
+      document.body.appendChild(input); input.click();
+      return undefined;
+    });
+    if (!file) return;
+    try { const url = await uploadPlanPhoto(user.id, file); await setGatheringPhoto(g.id, url); tapSuccess(); load(); } catch (e) {}
+  };
 
   /* the week, grouped by the day it falls on, in the reader's language */
   const days = React.useMemo(() => {
@@ -209,6 +230,13 @@ export const GreenSheet = ({ onClose, onPlay, startNow, homeCountry, openOn, pre
       capacity: form.capacity ? parseInt(form.capacity, 10) : null,
       language: lang,
     });
+    if (r && r.ok && form.photoFile && user && r.id) {
+      /* the plan stands either way; its photo follows it up */
+      try {
+        const url = await uploadPlanPhoto(user.id, form.photoFile);
+        await setGatheringPhoto(r.id, url);
+      } catch (e) { /* no photo is fine — the drawn look stays */ }
+    }
     setBusy(false);
     if (r && r.ok) { tapSuccess(); load(); closeForm(); }
     else setForm((f) => ({ ...f, err: r && r.reason }));
@@ -312,9 +340,11 @@ export const GreenSheet = ({ onClose, onPlay, startNow, homeCountry, openOn, pre
                         <View key={g.id} style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 18, padding: 12, marginBottom: 10 }}>
                           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                             <Pressable onPress={() => setOpen(open === g.id ? null : g.id)} accessibilityRole="button" style={{ flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center' }}>
-                              <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: look.from + '22', alignItems: 'center', justifyContent: 'center' }}>
-                                <Text style={{ fontSize: 20 }}>{look.emoji}</Text>
-                              </View>
+                              {planPhotoOf(g) ? <PlanThumb g={g} size={42} radius={21} /> : (
+                                <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: look.from + '22', alignItems: 'center', justifyContent: 'center' }}>
+                                  <Text style={{ fontSize: 20 }}>{look.emoji}</Text>
+                                </View>
+                              )}
                               <View style={{ flex: 1, minWidth: 0, marginStart: 12 }}>
                                 <Text numberOfLines={1} style={{ color: C.text, fontSize: 15, fontWeight: '800' }}>{titleFor(g.title, lang)}</Text>
                                 <Text numberOfLines={1} style={{ color: C.dim, fontSize: 12.5, marginTop: 2 }}>
@@ -343,6 +373,7 @@ export const GreenSheet = ({ onClose, onPlay, startNow, homeCountry, openOn, pre
                           {open === g.id && g.about ? (
                             <Text style={{ color: C.dim, fontSize: 13, lineHeight: 19, marginTop: 10 }}>{g.about}</Text>
                           ) : null}
+                          {open === g.id ? <PastPhotos g={g} t={t} onReport={(u) => setReportingPhoto({ id: g.id + ' ' + u, label: titleFor(g.title, lang) })} /> : null}
                           {sent && sent.id === g.id ? (
                             <Text style={{ color: GREEN, fontSize: 12, fontWeight: '800', marginTop: 8 }}>{t('green_sent_to')} {sent.n}</Text>
                           ) : null}
@@ -421,6 +452,11 @@ export const GreenSheet = ({ onClose, onPlay, startNow, homeCountry, openOn, pre
                     <Text style={{ color: C.text, fontSize: 16, fontWeight: '700', marginStart: 12 }}>{t('green_invite_all')}</Text>
                   </Pressable>
                 )}
+                {/* the plan's own photo: add one later, or take it down */}
+                <Pressable onPress={() => { const g = manage; setManage(null); changePhoto(g); }} accessibilityRole="button" style={{ paddingVertical: 14, flexDirection: 'row', alignItems: 'center' }}>
+                  <Ionicons name={manage.photo_url ? 'trash-outline' : 'camera-outline'} size={19} color={C.text} />
+                  <Text style={{ color: C.text, fontSize: 16, fontWeight: '700', marginStart: 12 }}>{manage.photo_url ? t('sf_photo_remove') : t('sf_photo')}</Text>
+                </Pressable>
                 <Pressable onPress={() => { if (!confirmOff) { tapLight(); setConfirmOff(true); return; } const g = manage; setManage(null); drop(g); }} accessibilityRole="button" style={{ paddingVertical: 14, flexDirection: 'row', alignItems: 'center' }}>
                   <Ionicons name="close-circle-outline" size={19} color={C.coral} />
                   <Text style={{ color: C.coral, fontSize: 16, fontWeight: '700', marginStart: 12 }}>{confirmOff ? t('green_call_off_sure') : t('green_call_off')}</Text>
@@ -429,6 +465,8 @@ export const GreenSheet = ({ onClose, onPlay, startNow, homeCountry, openOn, pre
             </Pressable>
           </Modal>
         ) : null}
+
+        {reportingPhoto ? <ReportSheet contentType="plan_photo" contentId={reportingPhoto.id} contentLabel={reportingPhoto.label} onClose={() => setReportingPhoto(null)} /> : null}
 
         {/* ── STARTING ONE ── what, when, where (./StartForm.js) */}
         {form ? (

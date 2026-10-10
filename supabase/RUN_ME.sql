@@ -10391,4 +10391,123 @@ $$;
 revoke execute on function public.founder_welcome(text) from public, anon;
 grant execute on function public.founder_welcome(text) to authenticated;
 
+
+-- ═══════════ PLANS · REAL PHOTOS, NEVER STOCK ═══════════
+/* Ayser asked: photos on places and plans, or the emoji? Photos — but
+   only real ones. Two sources, both real:
+     · the host's own photo of the plan, optional, one tap;
+     · "from last time": photos people really posted from the same
+       spot (within ~300 m), and earlier weeks of the same weekly plan.
+   No stock pictures pretending to be the place, nothing scraped. With
+   no photo, the plan keeps its drawn look.
+
+   A photo has to be a file somebody uploaded to OUR storage, into
+   their own folder — never an outside link (no tracking pixels, no
+   hot-linking). Anybody can report one; the host or the owner can
+   take it down. */
+
+alter table public.green_gatherings add column if not exists photo_url text;
+
+create or replace function public.green_set_photo(p_id uuid, p_url text)
+returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid();
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  if not exists (select 1 from public.green_gatherings where id = p_id and host_id = me) then
+    return jsonb_build_object('ok', false, 'reason', 'not_host');
+  end if;
+  if p_url is not null and p_url not like 'https://dvddiyztpyyuultndzso.supabase.co/storage/v1/object/public/media/' || me::text || '/%' then
+    return jsonb_build_object('ok', false, 'reason', 'bad_url');
+  end if;
+  update public.green_gatherings set photo_url = p_url where id = p_id;
+  return jsonb_build_object('ok', true);
+end;
+$$;
+revoke execute on function public.green_set_photo(uuid, text) from public, anon;
+grant execute on function public.green_set_photo(uuid, text) to authenticated;
+
+-- the host takes their own photo down; the owner, acting on a report,
+-- can take down either the plan's photo or the post a "last time"
+-- photo came from
+create or replace function public.green_photo_remove(p_id uuid, p_url text default null)
+returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare owner boolean := public.is_app_owner(); n int := 0;
+begin
+  if auth.uid() is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  if not owner and not exists (select 1 from public.green_gatherings where id = p_id and host_id = auth.uid()) then
+    return jsonb_build_object('ok', false, 'reason', 'not_allowed');
+  end if;
+  update public.green_gatherings set photo_url = null
+   where id = p_id and (p_url is null or photo_url = p_url);
+  get diagnostics n = row_count;
+  if owner and p_url is not null then
+    delete from public.posts where media_url = p_url;
+  end if;
+  return jsonb_build_object('ok', true);
+end;
+$$;
+revoke execute on function public.green_photo_remove(uuid, text) from public, anon;
+grant execute on function public.green_photo_remove(uuid, text) to authenticated;
+
+/* photos from last time: up to four, newest first — earlier weeks of
+   the same weekly plan, then image posts from within ~300 m */
+create or replace function public.green_past_photos(g public.green_gatherings)
+returns jsonb
+language sql stable security definer set search_path = public as $$
+  select coalesce(jsonb_agg(u order by at desc), '[]'::jsonb) from (
+    select u, at from (
+      select o.photo_url as u, o.starts_at as at
+        from public.green_gatherings o
+       where g.weekly_id is not null and o.weekly_id = g.weekly_id and o.id <> g.id
+         and o.photo_url is not null and o.starts_at < now() and o.cancelled_at is null
+      union all
+      select p.media_url, p.created_at
+        from public.posts p
+       where g.lat is not null and p.lat is not null and p.media_url is not null
+         and p.type = 'post' and p.media_url !~* '\.(mp4|webm|mov|m4v)(\?|$)'
+         and p.created_at > now() - interval '180 days'
+         and abs(p.lat - g.lat) < 0.004 and abs(p.lng - g.lng) < 0.005
+         and public.km_between(g.lat, g.lng, p.lat, p.lng) <= 0.3
+    ) s
+    order by at desc
+    limit 4
+  ) x;
+$$;
+revoke execute on function public.green_past_photos(public.green_gatherings) from public, anon, authenticated;
+
+create or replace function public.green_list(p_country text)
+returns jsonb
+language sql stable security definer set search_path = public as $$
+  with my_mates as (
+    select case when m.requester_id = auth.uid() then m.addressee_id else m.requester_id end as mate_id
+      from public.mates m
+     where m.status = 'accepted' and auth.uid() is not null and auth.uid() in (m.requester_id, m.addressee_id)
+  )
+  select coalesce(jsonb_agg(row_to_json(x)::jsonb order by x.starts_at), '[]'::jsonb)
+    from (
+      select g.id, g.kind, g.title, g.about, g.country, g.city, g.place_name,
+             g.lat, g.lng, g.starts_at, g.minutes, g.capacity, g.language,
+             g.host_id, p.name as host_name, g.weekly_id, g.announced_at, g.squad_id,
+             g.photo_url, public.green_past_photos(g) as past_photos,
+             (select count(*) from public.green_joins j where j.gathering_id = g.id) as going,
+             (select count(*) from public.green_joins j join my_mates mm on mm.mate_id = j.user_id
+               where j.gathering_id = g.id) as mates_going,
+             exists (select 1 from public.green_joins j
+                      where j.gathering_id = g.id and j.user_id = auth.uid()) as im_going,
+             exists (select 1 from public.green_joins j
+                      where j.gathering_id = g.id and j.user_id = auth.uid() and j.checked_in_at is not null) as checked_in,
+             case when g.kind = 'cleanup' then 50 else 30 end as xp
+        from public.green_gatherings g
+        left join public.profiles p on p.id = g.host_id
+       where g.cancelled_at is null
+         and g.starts_at > now() - interval '3 hours'
+         and (p_country is null or g.country = p_country)
+       order by g.starts_at
+       limit 60
+    ) x;
+$$;
+grant execute on function public.green_list(text) to anon, authenticated;
+
 notify pgrst, 'reload schema';

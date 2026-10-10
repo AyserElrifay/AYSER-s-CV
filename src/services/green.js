@@ -208,3 +208,16 @@ export const myInvites = async () => {
    map; the database decides whether there is anybody worth telling you
    about (bardi_match_for in RUN_ME.sql), at most once a day */
 export const bardiMatchMe = () => rpc('bardi_match_me', {});
+
+/* ── PHOTOS ── a plan's own photo, set by its host; taken down by the
+   host or the owner. Never an outside link: see green_set_photo. */
+export async function setGatheringPhoto(id, url) {
+  const { data, error } = await supabase.rpc('green_set_photo', { p_id: id, p_url: url || null });
+  if (error) return { ok: false, reason: 'offline' };
+  return data || { ok: false };
+}
+export async function removeGatheringPhoto(id, url = null) {
+  const { data, error } = await supabase.rpc('green_photo_remove', { p_id: id, p_url: url });
+  if (error) return { ok: false, reason: 'offline' };
+  return data || { ok: false };
+}
