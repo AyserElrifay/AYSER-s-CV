@@ -29,7 +29,7 @@ is('nobody writes the team table but the function', /create policy "team: see yo
 is('a paused member loses access at once', /m\.disabled_at is null/.test(part.slice(part.indexOf('studio_can'))) && /ban_duration: '876000h'/.test(fn), true);
 is('safety and verify reviews follow the role', /studio_can\('safety'\) then return jsonb_build_object\('ok', false/.test(part) && /create or replace function public\.hosts_pending\(\)[\s\S]{0,200}studio_can\('verify'\)/.test(part), true);
 is('the team list is the owner\'s only', /team_list\(\)[\s\S]{0,120}not public\.is_app_owner\(\)/.test(part), true);
-is('the Studio opens for whoever the server says, and only them', /const a = await myStudio\(\);/.test(app) && /<AdminPanel access=\{st\.access\}/.test(app), true);
+is('the Studio opens for whoever the server says, and only them', /a = await myStudio\(\);/.test(app) && /<AdminPanel access=\{st\.access\}/.test(app), true);
 is('tabs without an area are the owner\'s', /canOpen = \(access, t\) => !!access && \(access\.owner \|\| \(!!t\.area/.test(admin) && /\{ k: 'team', label: 'Team', icon: 'people-outline' \}/.test(admin), true);
 is('the Team tab draws only for the owner', /tab === 'team' && owner \? <TeamTab \/>/.test(admin), true);
 {

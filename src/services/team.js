@@ -20,7 +20,7 @@ export async function myStudio() {
   try {
     const { data, error } = await supabase.rpc('my_studio');
     if (error || !data) return null;
-    return data.identity || data.owner || data.role ? data : null;
+    return data;   // the caller decides what an answer with no identity means
   } catch (e) { return null; }
 }
 

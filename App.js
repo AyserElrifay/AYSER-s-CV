@@ -43,6 +43,7 @@ import { initPwa } from './src/lib/pwa';
 import { Boundary } from './src/components/Boundary';
 import { InstallPrompt } from './src/components/InstallPrompt';
 import { SafetyHold } from './src/components/SafetyHold';
+import { StudioProblem } from './src/components/StudioProblem';
 import { lazyOverlay } from './src/lib/lazyScreen';
 /* the Studio's code is fetched only once the owner check has passed —
    nobody else's phone ever downloads it */
@@ -76,13 +77,22 @@ const StudioGate = () => {
   const [st, setSt] = React.useState(null);
   const opened = React.useRef(0);
   const look = React.useCallback(async (force) => {
-    const a = await myStudio();
-    if (!a) { setSt(null); return; }
+    /* asked up to three times: a token being refreshed, a dropped
+       request, must not read as "no" */
+    let a = null;
+    for (let i = 0; i < 3 && !a; i++) {
+      a = await myStudio();
+      if (!a && i < 2) await new Promise((r) => setTimeout(r, 1200));
+    }
+    if (!a || (!a.identity && !a.owner && !a.role)) {
+      /* the owner's own email gets told why; anybody else gets nothing */
+      setSt(isOwner(user) ? { problem: a ? 'not_recognised' : 'no_answer' } : null);
+      return;
+    }
     /* part 25 run: the server says whether this session passed its second
        step recently; without it the Studio does not open at all */
     if (a.identity && (force || !a.unlocked)) { setSt({ lock: a.identity }); return; }
     if (a.owner || a.role) { opened.current = Date.now(); setSt({ access: a }); return; }
-    if (!a.identity && isOwner(user)) { opened.current = Date.now(); setSt({ access: { owner: true } }); }  // before part 22
   }, [user]);
   React.useEffect(() => {
     if (!user || !studioRequested()) return undefined;
@@ -104,6 +114,7 @@ const StudioGate = () => {
     return () => { document.removeEventListener('visibilitychange', onVis); clearInterval(t); };
   }, [st, look]);
   if (!st) return null;
+  if (st.problem) return <StudioProblem why={st.problem} email={user && user.email} onRetry={() => { setSt(null); look(true); }} onClose={() => setSt(null)} />;
   if (st.lock) return <StudioLock identity={st.lock} onUnlocked={() => look(false)} onClose={() => setSt(null)} />;
   return <AdminPanel access={st.access} onClose={() => setSt(null)} />;
 };
