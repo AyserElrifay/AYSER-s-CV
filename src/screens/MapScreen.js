@@ -13,6 +13,7 @@ import { listGatherings, joinGathering, bardiMatchMe } from '../services/green';
 import { activityPin, lookOf, titleFor, whenFor } from '../lib/activityPins';
 import { rankPeople, rankPlans } from '../lib/recommend';
 import { getProfile } from '../services/profiles';
+import { PlacePhoto } from '../components/PlacePhoto';
 import { MapPanel, PeoplePanel, personWhere, MAP_PANEL_PEEK, MAP_PANEL_CHIPS, PEOPLE_PANEL_PEEK } from '../components/MapPanel';
 import { kmBetween, projectToMap } from '../utils/geo';
 import { requestLocationPermission, getCurrentCoords, watchCoords } from '../utils/location';
@@ -1863,6 +1864,8 @@ export const MapScreen = () => {
           <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, paddingBottom: insets.bottom + 22, paddingHorizontal: 16 }}>
             <SheetHandle onClose={() => setPlaceOpen(null)} />
             <SheetBack onClose={() => setPlaceOpen(null)} />
+            {/* a free photo of this very place, credited — or nothing */}
+            <PlacePhoto place={placeOpen} height={160} />
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <View style={{ width: 52, height: 52, borderRadius: 16, backgroundColor: 'rgba(245,158,11,0.12)', borderWidth: 1, borderColor: 'rgba(245,158,11,0.4)', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
                 <Text style={{ fontSize: 26 }}>{placeOpen.emoji}</Text>
@@ -1948,6 +1951,7 @@ export const MapScreen = () => {
             <SheetHandle onClose={() => setDestOpen(null)} />
             <SheetBack onClose={() => setDestOpen(null)} />
             <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 22 }}>
+              <PlacePhoto place={destOpen} height={190} />
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <View style={{ width: 56, height: 56, borderRadius: 18, backgroundColor: 'rgba(245,179,1,0.14)', borderWidth: 1.5, borderColor: 'rgba(245,179,1,0.5)', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
                   <Text style={{ fontSize: 28 }}>{destOpen.emoji}</Text>

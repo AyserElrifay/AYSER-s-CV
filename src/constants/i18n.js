@@ -1172,6 +1172,8 @@ export const STRINGS = {
     sf_photo_added: "Your photo goes on the plan",
     sf_photo_remove: "Remove the photo",
     pl_last_time: "From last time",
+    photo_credit: "Photo: {who} · {license} · Wikimedia Commons",
+    photo_someone: "a Wikimedia contributor",
     lens_all: 'Everything',
     lens_places: 'Places to go',
     lens_people: 'People',

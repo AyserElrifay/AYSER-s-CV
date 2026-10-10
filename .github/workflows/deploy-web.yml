@@ -194,6 +194,9 @@ jobs:
       # Plan photos: real ones only, from our storage, reportable.
       - name: Check plan photos
         run: node scripts/check-plan-photos.mjs
+      # Public places: a free photo of that very place, credited, or none.
+      - name: Check place photos
+        run: node scripts/check-commons-photo.mjs
       # No signal must not mean no app.
       - name: Check the app works offline
         run: node scripts/check-offline.mjs
