@@ -14,6 +14,7 @@ import { Micro } from '../components/Micro';
 import { NeonButton } from '../components/NeonButton';
 import { Wordmark } from '../components/Wordmark';
 import { Welcome } from '../components/Welcome';
+import { Intro, introSeen } from '../components/Intro';
 import { setupNotice } from '../lib/plumbing';
 import { useLang } from '../context/LanguageContext';
 import { LANGS } from '../constants/i18n';
@@ -75,6 +76,8 @@ export const AuthScreen = ({ recovery = false, onDone }) => {
   const [mode, setMode] = useState('signin'); // 'signin' | 'signup'
   /* the welcome page first, the form only once somebody asks for it */
   const [welcome, setWelcome] = useState(!recovery);
+  /* the first time only: the full-screen intro, then the choice */
+  const [intro, setIntro] = useState(() => !recovery && !introSeen());
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -372,10 +375,18 @@ export const AuthScreen = ({ recovery = false, onDone }) => {
             </Glass>
           </View>
         ) : step === 0 && welcome && mode !== 'reset' ? (
-          <Welcome
-            onStart={() => { setMode('signup'); setError(null); setNotice(null); setWelcome(false); }}
-            onSignIn={() => { setMode('signin'); setError(null); setNotice(null); setWelcome(false); }}
-          />
+          <>
+            {intro ? (
+              <Intro
+                onStart={() => { setIntro(false); setMode('signup'); setError(null); setNotice(null); setWelcome(false); }}
+                onSignIn={() => { setIntro(false); setMode('signin'); setError(null); setNotice(null); setWelcome(false); }}
+              />
+            ) : null}
+            <Welcome
+              onStart={() => { setMode('signup'); setError(null); setNotice(null); setWelcome(false); }}
+              onSignIn={() => { setMode('signin'); setError(null); setNotice(null); setWelcome(false); }}
+            />
+          </>
         ) : step === 0 && mode === 'reset' ? (
           <View style={{ alignItems: 'center' }}>
             <Wordmark height={92} style={{ marginBottom: 4 }} />
