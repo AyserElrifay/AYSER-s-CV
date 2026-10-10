@@ -336,7 +336,7 @@ jobs:
             echo "- Database schema: $(say '${{ steps.sql.outcome }}' applied)"
             echo "- Reset link allow list: $(say '${{ steps.auth.outcome }}' updated)"
             echo "- bardi-chat: $(say '${{ steps.deploy.outcome }}' deployed)"
-            echo "- push notifications: $(say '${{ steps.push.outcome }}' deployed)"
+            echo "- push, safety-review, team-admin, studio-advice: $(say '${{ steps.push.outcome }}' deployed)"
             echo "- music import: $(say '${{ steps.music.outcome }}' ran)"
             echo "- quiz pictures: $(say '${{ steps.photos.outcome }}' ran)"
           } >> "$GITHUB_STEP_SUMMARY"
