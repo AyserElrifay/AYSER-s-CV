@@ -188,6 +188,9 @@ jobs:
       # Suggestions: location is the gate; friends and interests rank inside it.
       - name: Check suggestions
         run: node scripts/check-recommend.mjs
+      # A welcome from the founder: once, new accounts only, words from the database.
+      - name: Check the founder's welcome
+        run: node scripts/check-founder.mjs
       # No signal must not mean no app.
       - name: Check the app works offline
         run: node scripts/check-offline.mjs

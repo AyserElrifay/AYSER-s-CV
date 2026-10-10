@@ -10327,4 +10327,68 @@ $fn$;
 revoke execute on function public.people_you_may_know(uuid, int) from public, anon;
 grant execute on function public.people_you_may_know(uuid, int) to authenticated;
 
+
+-- ═══════════ FOUNDER · A WELCOME FROM AYSER ═══════════
+/* Every new account gets one message from the founder, in their own
+   language: a real direct message from the owner's real account
+   (app_owners), so a reply lands in Ayser's own inbox. Once per
+   person, and only for accounts created in the last three days — the
+   people already here are not suddenly greeted.
+
+   The words live HERE, not in the app: a phone asks to be welcomed
+   and says which language, and can never choose what the founder's
+   account says. To change the message, edit this text and run it. */
+
+create table if not exists public.founder_welcomes (
+  user_id uuid primary key references public.profiles(id) on delete cascade,
+  sent_at timestamptz not null default now()
+);
+alter table public.founder_welcomes enable row level security;   -- nobody reads it directly
+
+create or replace function public.founder_welcome(p_lang text default 'en')
+returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare
+  me uuid := auth.uid();
+  founder uuid;
+  texts jsonb := '{"en": "Hi {name} 👋 I''m Ayser, the founder of Moments.\n\nI built it for one reason: less scrolling, more real time with people near you.\n\nOne small step this week: join one plan on the map — or start your own, even if it''s just a coffee.\n\nSomething broken or missing? Reply here. This chat comes straight to me.", "ar": "أهلًا {name} 👋 أنا أيسر، مؤسس Moments.\n\nعملته لسبب واحد: scroll أقل، ووقت حقيقي أكتر مع ناس قريبين منك.\n\nخطوة صغيرة الأسبوع ده: انضم لخطة واحدة على الخريطة — أو اعمل واحدة بنفسك، حتى لو قهوة.\n\nفي حاجة مش شغالة أو ناقصة؟ رد عليا هنا. الشات ده بيوصلني أنا على طول.", "cs": "Ahoj {name} 👋 Jsem Ayser, zakladatel Moments.\n\nPostavil jsem ho z jediného důvodu: méně scrollování, víc skutečného času s lidmi kolem tebe.\n\nJeden malý krok na tento týden: přidej se k jednomu plánu na mapě — nebo založ vlastní, klidně jen kávu.\n\nNěco nefunguje nebo chybí? Odpověz tady. Tenhle chat jde přímo ke mně.", "es": "Hola {name} 👋 Soy Ayser, el fundador de Moments.\n\nLo hice por una sola razón: menos scroll y más tiempo real con gente cerca de ti.\n\nUn pequeño paso esta semana: únete a un plan del mapa — o crea el tuyo, aunque sea un café.\n\n¿Algo no funciona o falta? Responde aquí. Este chat me llega directamente a mí.", "et": "Tere, {name} 👋 Mina olen Ayser, Momentsi asutaja.\n\nEhitasin selle ühel põhjusel: vähem kerimist, rohkem päris aega inimestega sinu lähedal.\n\nÜks väike samm sel nädalal: liitu ühe plaaniga kaardil — või alusta oma, olgu või kohv.\n\nMidagi ei tööta või on puudu? Vasta siia. See vestlus jõuab otse minuni.", "fr": "Salut {name} 👋 Je suis Ayser, le fondateur de Moments.\n\nJe l’ai créé pour une seule raison : moins de scroll, plus de vrai temps avec les gens près de toi.\n\nUn petit pas cette semaine : rejoins un plan sur la carte — ou lance le tien, même un simple café.\n\nQuelque chose ne marche pas ou manque ? Réponds ici. Ce chat arrive directement chez moi.", "it": "Ciao {name} 👋 Sono Ayser, il fondatore di Moments.\n\nL’ho creato per un solo motivo: meno scroll, più tempo vero con le persone vicino a te.\n\nUn piccolo passo questa settimana: unisciti a un piano sulla mappa — o creane uno tuo, anche solo un caffè.\n\nQualcosa non funziona o manca? Rispondi qui. Questa chat arriva direttamente a me.", "ja": "こんにちは、{name}さん 👋 Momentsの創業者、Ayserです。\n\n作った理由はひとつ。スクロールを減らして、近くの人とのリアルな時間を増やすためです。\n\n今週の小さな一歩：マップのプランにひとつ参加するか、自分で始めてみてください。コーヒー1杯でも大丈夫。\n\n動かない所や足りない物があれば、ここに返信してください。このチャットは私に直接届きます。", "ko": "안녕하세요 {name}님 👋 Moments를 만든 Ayser예요.\n\n이유는 하나예요. 스크롤은 덜, 가까운 사람들과의 진짜 시간은 더.\n\n이번 주 작은 한 걸음: 지도에서 약속 하나에 참여하거나 직접 하나 열어 보세요. 커피 한 잔이어도 좋아요.\n\n안 되거나 부족한 게 있나요? 여기 답장해 주세요. 이 채팅은 저한테 바로 와요.", "nl": "Hoi {name} 👋 Ik ben Ayser, de oprichter van Moments.\n\nIk heb het om één reden gemaakt: minder scrollen, meer echte tijd met mensen bij jou in de buurt.\n\nEén kleine stap deze week: doe mee met één plan op de kaart — of begin er zelf een, al is het maar een koffie.\n\nIets kapot of mis je iets? Antwoord hier. Deze chat komt rechtstreeks bij mij.", "pt": "Oi {name} 👋 Eu sou o Ayser, fundador do Moments.\n\nCriei por um único motivo: menos scroll, mais tempo de verdade com gente perto de você.\n\nUm passo pequeno esta semana: entre em um plano no mapa — ou crie o seu, nem que seja um café.\n\nAlgo quebrado ou faltando? Responda aqui. Este chat chega direto em mim.", "ro": "Salut {name} 👋 Sunt Ayser, fondatorul Moments.\n\nL-am făcut dintr-un singur motiv: mai puțin scroll, mai mult timp adevărat cu oameni din apropiere.\n\nUn pas mic săptămâna asta: alătură-te unui plan de pe hartă — sau pornește-l pe al tău, chiar și doar o cafea.\n\nCeva nu merge sau lipsește? Răspunde aici. Chatul ăsta ajunge direct la mine.", "ru": "Привет, {name} 👋 Я Айсер, основатель Moments.\n\nЯ сделал его ради одного: меньше скроллинга, больше настоящего времени с людьми рядом.\n\nОдин маленький шаг на этой неделе: присоединись к одному плану на карте — или начни свой, пусть даже просто кофе.\n\nЧто-то не работает или чего-то не хватает? Ответь здесь. Этот чат приходит прямо мне.", "tr": "Merhaba {name} 👋 Ben Ayser, Moments’ın kurucusuyum.\n\nTek bir sebeple yaptım: daha az kaydırma, yakınındaki insanlarla daha çok gerçek zaman.\n\nBu hafta küçük bir adım: haritadaki bir plana katıl — ya da kendininkini başlat, sadece bir kahve bile olsa.\n\nBozuk ya da eksik bir şey mi var? Buradan yanıtla. Bu sohbet doğrudan bana geliyor.", "zh": "你好 {name} 👋 我是 Moments 的创始人 Ayser。\n\n我做它只为一件事：少刷屏，多和身边的人真实相处。\n\n这周的一小步：在地图上加入一个计划——或者自己发起一个，哪怕只是喝杯咖啡。\n\n有什么不好用或缺少的？直接在这里回复。这个对话会直接到我这里。"}'::jsonb;
+  body text;
+  first_name text;
+  tid uuid;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  select u.id into founder
+    from auth.users u join public.app_owners o on lower(o.email) = lower(u.email)
+   order by u.created_at limit 1;
+  if founder is null then return jsonb_build_object('ok', false, 'reason', 'no_founder'); end if;
+  if me = founder then return jsonb_build_object('ok', false, 'reason', 'self'); end if;
+  if exists (select 1 from public.founder_welcomes where user_id = me) then
+    return jsonb_build_object('ok', false, 'reason', 'already');
+  end if;
+  if (select created_at from auth.users where id = me) < now() - interval '3 days' then
+    return jsonb_build_object('ok', false, 'reason', 'not_new');
+  end if;
+
+  select split_part(btrim(coalesce(name, '')), ' ', 1) into first_name from public.profiles where id = me;
+  if coalesce(first_name, '') = '' or first_name = 'Explorer' then first_name := ''; end if;
+  body := coalesce(texts ->> lower(coalesce(p_lang, 'en')), texts ->> 'en');
+  body := case when first_name = '' then replace(body, ' {name}', '') else replace(body, '{name}', first_name) end;
+
+  -- the thread between the two of them, or a new one; both sides accepted
+  select p1.thread_id into tid
+    from public.dm_participants p1 join public.dm_participants p2 on p1.thread_id = p2.thread_id
+   where p1.user_id = me and p2.user_id = founder limit 1;
+  if tid is null then
+    insert into public.dm_threads default values returning id into tid;
+    insert into public.dm_participants (thread_id, user_id, accepted) values (tid, me, true), (tid, founder, true);
+  end if;
+
+  insert into public.founder_welcomes (user_id) values (me);
+  insert into public.messages (dm_thread_id, user_id, body) values (tid, founder, body);
+  return jsonb_build_object('ok', true, 'thread', tid);
+end;
+$$;
+revoke execute on function public.founder_welcome(text) from public, anon;
+grant execute on function public.founder_welcome(text) to authenticated;
+
 notify pgrst, 'reload schema';
