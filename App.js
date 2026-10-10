@@ -36,13 +36,16 @@ import { TabNavigator, buildNavTheme } from './src/navigation/TabNavigator';
 import { MiniPlayer } from './src/components/MiniPlayer';
 import { IncomingCallGate } from './src/components/IncomingCallGate';
 import { WhatsNew } from './src/components/WhatsNew';
-import { AdminPanel } from './src/components/AdminPanel';
 import { isOwner } from './src/services/music';
 import { studioRequested, stripStudioParam } from './src/utils/studioLink';
 import { initPwa } from './src/lib/pwa';
 import { Boundary } from './src/components/Boundary';
 import { InstallPrompt } from './src/components/InstallPrompt';
 import { SafetyHold } from './src/components/SafetyHold';
+import { lazyOverlay } from './src/lib/lazyScreen';
+/* the Studio's code is fetched only once the owner check has passed —
+   nobody else's phone ever downloads it */
+const AdminPanel = lazyOverlay(() => import('./src/components/AdminPanel').then((m) => ({ default: m.AdminPanel })));
 import { Splash } from './src/components/Splash';
 import { GestureTour, tourSeen } from './src/components/GestureTour';
 import { installCrashLog, setDiagnostics } from './src/lib/crashLog';
