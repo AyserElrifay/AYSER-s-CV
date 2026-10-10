@@ -115,7 +115,7 @@ export const DESTINATIONS = [
     desc: 'A colossal natural amphitheatre with towering waterfalls. The walk in puts you face-to-face with the mountains\' full scale — deep-recharge territory.' },
 
   // ── 🇪🇬 EGYPT · Sinai, Fayoum & Siwa (camping + culture) ──
-  { id: 'eg_mount_sinai', country: 'Egypt', flag: '🇪🇬', emoji: '🌄', name: 'Mount Sinai (Jabal Musa)', area: 'Saint Catherine',
+  { id: 'eg_mount_sinai', photo: 'place-sinai.jpg', video: 'place-sinai.mp4', country: 'Egypt', flag: '🇪🇬', emoji: '🌄', name: 'Mount Sinai (Jabal Musa)', area: 'Saint Catherine',
     lat: 28.5394, lng: 33.9750, tags: ['Hiking', 'Camping', 'Culture'],
     desc: 'The legendary night hike that ends with sunrise from the summit. Bedouin guides, campfire circles, and one of the most soul-resetting experiences in Egypt.' },
   { id: 'eg_wadi_hitan', country: 'Egypt', flag: '🇪🇬', emoji: '🐋', name: 'Wadi El-Hitan (Whale Valley)', area: 'Fayoum',
@@ -148,6 +148,9 @@ export const DESTINATIONS = [
   { id: 'eg_wadi_gemal', country: 'Egypt', flag: '🇪🇬', emoji: '🐪', name: 'Wadi el Gemal Reserve', area: 'Marsa Alam',
     lat: 24.6833, lng: 35.0833, tags: ['Safari', 'Culture'],
     desc: 'Mountains meeting mangrove beaches. Deep safari trails, migrating birds, hidden bays — and the living culture of the Ababda tribes.' },
+  { id: 'eg_marsa_reefs', photo: 'place-marsa-reef.jpg', video: 'place-marsa-reef.mp4', country: 'Egypt', flag: '🇪🇬', emoji: '🐠', name: 'Marsa Alam Reefs', area: 'Marsa Alam',
+    lat: 25.0676, lng: 34.8790, tags: ['Swim', 'Diving'],
+    desc: 'Coral reefs a few strokes from the shore all along this coast — clownfish in their anemones, hard and soft corals, and water clear enough to see it all with just a mask.' },
   { id: 'eg_ras_mohamed', country: 'Egypt', flag: '🇪🇬', emoji: '🪸', name: 'Ras Mohamed', area: 'Sharm El-Sheikh',
     lat: 27.7373, lng: 34.2455, tags: ['Hiking', 'Diving'],
     desc: 'Where the two gulfs meet: cliff walks to hidden beaches, a mysterious salt lake, and reef walls with colours you won\'t believe from above.' },
@@ -246,7 +249,7 @@ export const DESTINATIONS = [
   { id: 'eg_agabat', country: 'Egypt', flag: '🇪🇬', emoji: '🏂', name: 'Agabat Valley', area: 'Farafra',
     lat: 27.2600, lng: 28.1500, tags: ['Sandboard', 'Camping'],
     desc: 'Soft dunes against giant chalk sculptures — the Western Desert\'s best sandboarding, and a totally isolated evening camp spot.' },
-  { id: 'eg_white_desert', country: 'Egypt', flag: '🇪🇬', emoji: '🍄', name: 'White Desert', area: 'National Park',
+  { id: 'eg_white_desert', photo: 'place-white-desert.jpg', video: 'place-white-desert.mp4', country: 'Egypt', flag: '🇪🇬', emoji: '🍄', name: 'White Desert', area: 'National Park',
     lat: 27.1000, lng: 27.9700, tags: ['Camping', 'Stars'],
     desc: 'The crown jewel: wind-carved white chalk shapes (the Mushroom, the Chicken) glowing under moonlight like a frozen planet. Absolute silence, Milky Way overhead — Egypt\'s greatest campsite.' },
   { id: 'eg_great_sand_sea', country: 'Egypt', flag: '🇪🇬', emoji: '🏜️', name: 'Great Sand Sea', area: 'near Siwa',
