@@ -193,7 +193,9 @@ function injectMapStyle() {
        like a picture; one line fixes that. Only visible on the globe. */
     .mm-globe-hint {
       position: absolute; left: 50%; transform: translateX(-50%);
-      bottom: 168px; z-index: 470; pointer-events: none;
+      /* at the top, under the lenses: at the bottom it sat on the
+         Go out now button and the panel */
+      top: 128px; z-index: 470; pointer-events: none; white-space: nowrap;
       background: rgba(10,14,26,0.62); color: #FFF;
       font: 700 12px/1 -apple-system, system-ui, sans-serif;
       padding: 9px 14px; border-radius: 999px;
@@ -475,7 +477,7 @@ const OSM_TILES = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 const LIGHT_TILES = OSM_TILES;
 const DARK_TILES = OSM_TILES;
 
-export const LeafletMap = ({ center, markers = [], onPress, onMe, locate = true, focus = null, lang = 'en', meAvatar = null, meDoing = null, meName = null, route = null, appDark = null, onViewport = null }) => {
+export const LeafletMap = ({ center, markers = [], onPress, onMe, locate = true, focus = null, lang = 'en', meAvatar = null, meDoing = null, meName = null, route = null, appDark = null, onViewport = null, globeHint = 'Pinch or tap the planet to come down' }) => {
   const elRef = useRef(null);
   const mapRef = useRef(null);
   const layerRef = useRef(null);
@@ -497,6 +499,9 @@ export const LeafletMap = ({ center, markers = [], onPress, onMe, locate = true,
   const locateRef = useRef(locate);
   locateRef.current = locate;
   const langRef = useRef(lang);
+  const hintRef = useRef(null);
+  /* the planet's one line, in the reader's language */
+  useEffect(() => { if (hintRef.current) hintRef.current.textContent = globeHint; }, [globeHint]);
   langRef.current = lang;
   const meAvatarRef = useRef(meAvatar);
   meAvatarRef.current = meAvatar;
@@ -708,7 +713,8 @@ export const LeafletMap = ({ center, markers = [], onPress, onMe, locate = true,
       map.getContainer().appendChild(globeEl);
       const hintEl = document.createElement('div');
       hintEl.className = 'mm-globe-hint';
-      hintEl.textContent = 'Pinch or tap the planet to come down';
+      hintEl.textContent = globeHint;
+      hintRef.current = hintEl;
       map.getContainer().appendChild(hintEl);
       const globe3d = mountGlobe3D(globeEl, {
         onDive: () => {

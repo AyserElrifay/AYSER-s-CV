@@ -49,7 +49,10 @@ is('the weekly plans carry their place to the week', /\(kind, title, about, coun
 is('Madinaty has no guessed point', !/'Madinaty Central Park',\s*\d/.test(sql), true);
 
 console.log('\nin this area means on the screen');
-is('the count is the list on the screen', /t\('map_in_area'\)\.replace\('\{n\}', String\(inView\.length\)\)/.test(map), true);
+/* the count now lives in the panel under the map (MapPanel.js), and is
+   counted from the very list the map hands it */
+const panel = code('src/components/MapPanel.js');
+is('the count is the list on the screen', /plans=\{inView\}/.test(map) && /t\('map_in_area'\)\.replace\('\{n\}', String\(plans\.length\)\)/.test(panel), true);
 is('and the list is what is inside the map\'s edges', /g\.lat <= view\.n && g\.lat >= view\.s && g\.lng <= view\.e && g\.lng >= view\.w/.test(map), true);
 is('with your location known, the dive lands on your neighbourhood', /const near = locateRef\.current && c\.latitude != null \? 13 : 7;/.test(fs.readFileSync('src/components/LeafletMap.js', 'utf8')), true);
 
