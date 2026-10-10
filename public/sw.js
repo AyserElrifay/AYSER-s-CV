@@ -1,12 +1,26 @@
 /* Moments service worker — installable & fast, but never stale, and
-   never breaks the page. Strategy: network-first for the app shell AND
-   the app's own JS (new deploys ship instantly), cache-first only for
-   immutable assets. Every cache use is guarded, because some browsers
+   never breaks the page.
+
+   Ayser: "بيحمل صفحة قديمة قبل ما عدلها". The page itself was asked
+   for "network first", but that fetch went through the browser's own
+   cache, and GitHub Pages lets a browser keep index.html for ten
+   minutes — so for ten minutes after a deploy the "fresh" page was the
+   old one, pointing at the old code. Now:
+
+     · the page and the language files are always checked with the
+       server (cache: 'no-cache' — a tiny "has it changed?" request,
+       answered 304 when it has not), so a new version shows on the
+       very next open, with no reload and no blink;
+     · the app's code files have their contents' hash in their names,
+       so a name never changes meaning: they come straight from this
+       phone, with no network at all, which is what makes opening fast.
+
+   Every cache use is guarded, because some browsers
    (Safari Private Browsing, in-app webviews) expose no CacheStorage —
    there `caches` is undefined, and touching it would throw inside
    respondWith and make the page fail to open. */
 
-const CACHE = 'moments-v5';
+const CACHE = 'moments-v6';
 // CacheStorage isn't available everywhere (Safari private mode, some
 // in-app browsers). Detect once; when absent we simply never cache.
 const HAS_CACHES = (typeof caches !== 'undefined');
@@ -31,6 +45,7 @@ self.addEventListener('activate', (e) => {
    precache.json is written at build time (scripts/inject-html.mjs).
    Code from an older version is let go once the new list is kept, so
    the cache holds one version and does not grow forever. */
+let lastPrecache = 0;
 async function precache() {
   if (!HAS_CACHES) return;
   try {
@@ -54,7 +69,12 @@ self.addEventListener('message', (e) => {
 
 async function networkFirst(request) {
   try {
-    const fresh = await fetch(request);
+    /* past the browser's cache, to the server: "is this still it?" */
+    /* a page load cannot be re-sent with options (the browser throws on
+       a navigate-mode Request with an init), so it is asked for by URL */
+    const fresh = request.mode === 'navigate'
+      ? await fetch(request.url, { cache: 'no-cache', credentials: 'same-origin' })
+      : await fetch(request, { cache: 'no-cache' });
     if (HAS_CACHES && fresh && fresh.ok) {
       try { const c = await caches.open(CACHE); c.put(request, fresh.clone()); } catch (e) {}
     }
@@ -88,10 +108,22 @@ self.addEventListener('fetch', (e) => {
   try { url = new URL(e.request.url); } catch (err) { return; }
   if (e.request.method !== 'GET' || url.origin !== self.location.origin) return;
 
-  // App shell + all JS → network-first (fresh code the moment it ships).
-  // the language files too, so the app opens offline in your language
+  // The app's code: its name carries a hash of its contents, so what is
+  // kept here can never be out of date → straight from the phone.
+  if (/\/_expo\/static\/.*-[0-9a-f]{16,}\.(js|css)$/.test(url.pathname)) {
+    e.respondWith(cacheFirst(e.request));
+    return;
+  }
+  // The page, any other JS, and the language files → asked of the server
+  // every time (fresh the moment a version ships), kept for offline.
   if (e.request.mode === 'navigate' || /\.js$/.test(url.pathname) || /\/_expo\//.test(url.pathname) || /\/i18n\/[a-z]+\.json$/.test(url.pathname)) {
     e.respondWith(networkFirst(e.request));
+    /* a new page may mean a new version: keep its code for offline too
+       (at most every ten minutes; precache only fetches what is missing) */
+    if (e.request.mode === 'navigate' && Date.now() - lastPrecache > 600000) {
+      lastPrecache = Date.now();
+      e.waitUntil(precache());
+    }
     return;
   }
   // Immutable static assets → cache-first (guarded).
