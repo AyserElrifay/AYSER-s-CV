@@ -36,7 +36,8 @@ export const StudioLock = ({ identity, onUnlocked, onClose }) => {
   const [busy, setBusy] = useState(null);
   const [err, setErr] = useState(null);
   const [code, setCode] = useState('');
-  const [setup, setSetup] = useState(null);   // { id, qr, secret } while adding a code
+  const [setup, setSetup] = useState(null);   // { id, qr, secret, uri } while adding a code
+  const [copied, setCopied] = useState(false);
   const load = () => lockFactors().then(setF).catch(() => setF({ passkeys: [], codes: [] }));
   useEffect(() => { load(); }, []);
 
@@ -92,7 +93,14 @@ export const StudioLock = ({ identity, onUnlocked, onClose }) => {
             </>
           ) : setup ? (
             <View style={{ marginTop: 18 }}>
-              <Text style={{ color: C.text, fontSize: 14.5, lineHeight: 21 }}>1. Open an authenticator app (Google Authenticator, Microsoft Authenticator, 1Password…) and scan this — or type the key.</Text>
+              <Text style={{ color: C.text, fontSize: 14.5, lineHeight: 21 }}>1. Put the code in a code app on this phone — the iPhone's own Passwords app works, or Google / Microsoft Authenticator.</Text>
+              {setup.uri ? (
+                <Big icon="phone-portrait-outline" title="Add it to this phone" sub="Opens your code app with everything filled in" tone={C.purple}
+                  onPress={() => { tapLight(); try { window.location.href = setup.uri; } catch (e) {} }} />
+              ) : null}
+              <Big icon="copy-outline" title={copied ? 'Key copied ✓' : 'Copy the key'} sub="Then in the app: “Enter a setup key” and paste it"
+                onPress={async () => { tapLight(); try { await navigator.clipboard.writeText(setup.secret); setCopied(true); } catch (e) {} }} />
+              <Text style={{ color: C.faint, fontSize: 12, lineHeight: 17, marginTop: 10 }}>Or scan the code below from another phone. Keep this key to yourself — it is as secret as a password; never send a screenshot of this screen.</Text>
               {setup.qr ? <Image source={{ uri: setup.qr }} style={{ width: 200, height: 200, alignSelf: 'center', marginTop: 14, backgroundColor: '#FFF', borderRadius: 12 }} /> : null}
               <Text selectable style={{ color: C.text, fontSize: 13, fontWeight: '700', textAlign: 'center', marginTop: 10, letterSpacing: 1 }}>{setup.secret}</Text>
               <Text style={{ color: C.text, fontSize: 14.5, marginTop: 16 }}>2. Type the 6 digits it shows.</Text>

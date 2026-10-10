@@ -56,7 +56,10 @@ export async function startCode() {
   await clearStale();
   const { data, error } = await supabase.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'Moments Studio ' + Date.now() });
   if (error) throw error;
-  return { id: data.id, qr: asImage(data.totp && data.totp.qr_code), secret: data.totp && data.totp.secret };
+  /* uri: otpauth://… — tapped on a phone, it opens the phone's own code
+     app (on an iPhone: Passwords) with the code already filled in, which
+     is the only easy way when the QR is on the same screen */
+  return { id: data.id, qr: asImage(data.totp && data.totp.qr_code), secret: data.totp && data.totp.secret, uri: data.totp && data.totp.uri };
 }
 
 export async function unlockWithCode(factorId, code) {
