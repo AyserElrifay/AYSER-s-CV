@@ -145,7 +145,7 @@ export const DESTINATIONS = [
   { id: 'eg_nayzak', country: 'Egypt', flag: '🇪🇬', emoji: '💠', name: 'Al-Nayzak Pool', area: 'Marsa Alam',
     lat: 25.2494, lng: 34.7996, tags: ['Swim', 'Calm'],
     desc: 'A meteor-shaped natural rock pool open to the Red Sea — glass-clear turquoise water in untouched surroundings. Swim, float, reset.' },
-  { id: 'eg_wadi_gemal', country: 'Egypt', flag: '🇪🇬', emoji: '🐪', name: 'Wadi el Gemal Reserve', area: 'Marsa Alam',
+  { id: 'eg_wadi_gemal', photo: 'place-wadi-gemal.jpg', country: 'Egypt', flag: '🇪🇬', emoji: '🐪', name: 'Wadi el Gemal Reserve', area: 'Marsa Alam',
     lat: 24.6833, lng: 35.0833, tags: ['Safari', 'Culture'],
     desc: 'Mountains meeting mangrove beaches. Deep safari trails, migrating birds, hidden bays — and the living culture of the Ababda tribes.' },
   { id: 'eg_marsa_reefs', photo: 'place-marsa-reef.jpg', video: 'place-marsa-reef.mp4', country: 'Egypt', flag: '🇪🇬', emoji: '🐠', name: 'Marsa Alam Reefs', area: 'Marsa Alam',

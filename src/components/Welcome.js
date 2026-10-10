@@ -18,7 +18,8 @@ import { publicMedia } from '../lib/publicMedia';
    Behind the cards: one photo Ayser sent of places at home — Dahab from
    above, a fisherman on the Alexandria sea wall, a heron at sunset, a
    dog watching the kites in Dahab, a park's trees, tea on a tray, a
-   desert cave, a street cat, a breakfast table — a different one each
+   desert cave, a street cat, a breakfast table, a Saint Catherine
+   wadi, a sunset over the Red Sea — a different one each
    day. They set the mood; none is captioned as a Moments evening, and
    none shows a face up close. On them, the kinds of things people
    really do on Moments, in the same bright cards the real map uses
@@ -26,7 +27,7 @@ import { publicMedia } from '../lib/publicMedia';
    there is nothing on this screen that is not true of the app on the
    day you open it. */
 
-const PHOTOS = ['welcome-dahab.jpg', 'welcome-fisher.jpg', 'welcome-heron.jpg', 'welcome-kite.jpg', 'welcome-trees.jpg', 'welcome-tea.jpg', 'welcome-cave.jpg', 'welcome-cat.jpg', 'welcome-breakfast.jpg'];
+const PHOTOS = ['welcome-dahab.jpg', 'welcome-fisher.jpg', 'welcome-heron.jpg', 'welcome-kite.jpg', 'welcome-trees.jpg', 'welcome-tea.jpg', 'welcome-cave.jpg', 'welcome-cat.jpg', 'welcome-breakfast.jpg', 'welcome-catherine.jpg', 'welcome-sunset.jpg'];
 const photoOfToday = () => PHOTOS[Math.floor(Date.now() / 86400000) % PHOTOS.length];
 
 const SCENE = [
