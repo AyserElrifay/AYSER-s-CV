@@ -250,6 +250,8 @@ jobs:
           supabase functions deploy safety-review --project-ref "$REF"
           # the owner makes, pauses and removes Studio team accounts (owner session only)
           supabase functions deploy team-admin --project-ref "$REF"
+          # Bardi advises on every Studio decision (Studio members only; uses ANTHROPIC_API_KEY)
+          supabase functions deploy studio-advice --project-ref "$REF"
           if supabase secrets list --project-ref "$REF" 2>/dev/null | grep -q VAPID_PRIVATE_KEY; then
             echo "VAPID keys already set — kept."
           else

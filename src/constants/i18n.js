@@ -1204,7 +1204,7 @@ export const STRINGS = {
     ha_doc_sub: "Clear, the whole card, no glare",
     ha_selfie: "A selfie now",
     ha_selfie_sub: "Your face, holding up two fingers — so the card matches you",
-    ha_private: "Only the Moments team sees these, and they are deleted as soon as we've checked.",
+    ha_private: "Only the Moments team sees these — Bardi, our assistant, helps check them — and they are deleted as soon as we've checked.",
     ha_langs: "Languages you guide in",
     ha_areas: "Where you host",
     ha_since: "Guiding since (year)",

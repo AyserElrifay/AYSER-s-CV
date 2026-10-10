@@ -209,6 +209,9 @@ jobs:
       # The Studio team: the owner makes it; the server decides what each one opens.
       - name: Check the Studio team
         run: node scripts/check-team.mjs
+      # Bardi advises on every Studio decision; it can never make one.
+      - name: Check Bardi's Studio advice
+        run: node scripts/check-advice.mjs
       # No signal must not mean no app.
       - name: Check the app works offline
         run: node scripts/check-offline.mjs

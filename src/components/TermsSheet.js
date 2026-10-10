@@ -67,7 +67,7 @@ export const TermsSheet = ({ onClose }) => {
           <P>Those messages are first read by an AI service (Anthropic's Claude) that only sorts how serious they look. It decides nothing, and what it reads is not used to train it. A person at Moments decides. A confirmed report is a strike: no messages, posts or plans until a session with a Moments life coach. A second confirmed report closes the account.</P>
 
           <H>6b. Guides and hosts</H>
-          <P>Licensed tour guides and activity hosts can be verified with their licence card or ID and a selfie. These photos are seen only by the Moments team and deleted once checked. A guide or host runs their own activities and is responsible for them; Moments connects people and is not the organiser.</P>
+          <P>Licensed tour guides and activity hosts can be verified with their licence card or ID and a selfie. These photos are seen only by the Moments team — with help from an AI service (Anthropic's Claude) that reads the document and suggests a decision, but never compares faces and never decides — and they are deleted once checked. A guide or host runs their own activities and is responsible for them; Moments connects people and is not the organiser.</P>
 
           <H>7. The app is provided "as is"</H>
           <P>We work hard to keep Moments running and safe, but we can't promise it will always be perfect or available. To the extent the law allows, Moments is provided as-is and we're not liable for content posted by users — that content belongs to, and is the responsibility of, the people who post it.</P>

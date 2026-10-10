@@ -9,6 +9,8 @@ import { removeGatheringPhoto } from '../services/green';
 import { fetchPendingHosts, documentUrl, decideHost } from '../services/hosts';
 import { fetchSafetyQueue, decideReport, coachDone } from '../services/standing';
 import { fetchTeam, teamAction, TEAM_ROLES } from '../services/team';
+import { askAdvice } from '../services/advice';
+import { useLang } from '../context/LanguageContext';
 import { fetchFeedback, markFeedbackSeen } from '../services/feedback';
 import { fetchStudioStats } from '../services/feedback';
 import { fetchPendingVerifications, decideVerification, fetchPendingVenues, decideVenue } from '../services/profiles';
@@ -47,6 +49,63 @@ const TABS = [
   { k: 'db', label: 'Setup', icon: 'server-outline' },
 ];
 const canOpen = (access, t) => !!access && (access.owner || (!!t.area && (access.role === 'all' || access.role === t.area)));
+
+/* ── BARDI'S ADVICE, ON EVERY DECISION ───────────────────────────────
+   Asked by itself when an item is shown (kept on the server after the
+   first time, so it is paid for once). A recommendation, how sure, and
+   the checks behind it — the buttons underneath are still the
+   decision. See supabase/functions/studio-advice. */
+const REC = {
+  approve: ['Bardi: approve', '#16A34A'], reject: ['Bardi: reject', '#DC2626'], ask_more: ['Bardi: ask for more', '#D97706'],
+  remove: ['Bardi: take it down', '#DC2626'], keep: ['Bardi: keep it', '#16A34A'],
+};
+const MARK = { ok: '✓', problem: '✗', unclear: '?' };
+const ADVICE_ERR = { not_configured: 'Bardi needs ANTHROPIC_API_KEY to read applications.', not_allowed: 'Your role cannot ask about this.', no_item: 'Already decided.' };
+const BardiAdvice = ({ kind, refId }) => {
+  const { lang } = useLang();
+  const [a, setA] = useState(null);       // null = asking
+  const [err, setErr] = useState(null);
+  const [open, setOpen] = useState(false);
+  const ask = (refresh) => {
+    setA(null); setErr(null);
+    askAdvice(kind, refId, { lang: lang === 'ar' ? 'ar' : 'en', refresh }).then((r) => {
+      if (r && r.ok && r.advice) setA(r.advice); else { setErr(ADVICE_ERR[r && r.error] || 'Bardi could not read this one.'); setA(false); }
+    });
+  };
+  useEffect(() => { ask(false); }, [kind, refId]); // eslint-disable-line react-hooks/exhaustive-deps
+  const rec = a && REC[a.recommendation];
+  return (
+    <View style={{ marginTop: 10, padding: 10, borderRadius: 12, backgroundColor: C.purpleSoft }}>
+      {a === null ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <ActivityIndicator size="small" color={C.purple} />
+          <Text style={{ color: C.purple, fontSize: 12.5, fontWeight: '800', marginStart: 8 }}>Bardi is reading it…</Text>
+        </View>
+      ) : !a ? (
+        <Text style={{ color: C.dim, fontSize: 12.5 }}>{err}</Text>
+      ) : (
+        <>
+          <Pressable onPress={() => { tapLight(); setOpen((o) => !o); }} style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Text style={{ color: rec ? rec[1] : C.text, fontSize: 13, fontWeight: '900', flex: 1 }}>{(rec ? rec[0] : 'Bardi') + ' · ' + a.confidence + ' confidence'}</Text>
+            <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={16} color={C.dim} />
+          </Pressable>
+          <Text style={{ color: C.text, fontSize: 12.5, lineHeight: 18, marginTop: 4 }}>{a.summary}</Text>
+          {open ? (a.checks || []).map((c, i) => (
+            <Text key={i} style={{ color: c.result === 'problem' ? C.coral : C.text, fontSize: 12, lineHeight: 17, marginTop: 5 }}>
+              {MARK[c.result] + '  ' + c.label + (c.note ? ' — ' + c.note : '')}
+            </Text>
+          )) : null}
+          {open ? (
+            <Pressable onPress={() => ask(true)} style={{ marginTop: 8, alignSelf: 'flex-start' }}>
+              <Text style={{ color: C.purple, fontSize: 12, fontWeight: '800' }}>Ask again</Text>
+            </Pressable>
+          ) : null}
+        </>
+      )}
+      <Text style={{ color: C.faint, fontSize: 10.5, marginTop: 6 }}>Advice only — you decide.{kind === 'host' ? ' Comparing the face with the card is yours.' : ''}</Text>
+    </View>
+  );
+};
 
 /* ── THE TEAM: made, paused and removed here, by the owner only ──────
    A member signs in on the normal sign-in screen with the username and
@@ -265,6 +324,7 @@ const HostReview = ({ h, onDone }) => {
         {pic(selfie, 'Selfie')}
       </View>
       <Text style={{ color: C.faint, fontSize: 11, marginTop: 6 }}>Signed: {h.terms_version || '—'} · The face, name and photo on the card must match.</Text>
+      <BardiAdvice kind="host" refId={h.user_id} />
       <View style={{ flexDirection: 'row', marginTop: 10, opacity: busy ? 0.5 : 1 }}>
         <Pressable onPress={() => decide(false)} disabled={busy} style={{ marginRight: 8 }}>
           <View style={{ borderRadius: 999, borderWidth: 1, borderColor: C.line, paddingHorizontal: 14, paddingVertical: 8 }}><Text style={{ color: C.dim, fontSize: 12.5, fontWeight: '800' }}>Reject</Text></View>
@@ -494,6 +554,7 @@ export const AdminPanel = ({ onClose, access = { owner: true } }) => {
                   <Image source={{ uri: r.content_id.split(' ')[1] }} style={{ width: 120, height: 120, borderRadius: 12, marginTop: 8, backgroundColor: C.glassHi }} />
                 ) : null}
                 <Text style={{ color: C.faint, fontSize: 10.5, marginTop: 4 }}>by {(r.reporter && r.reporter.name) || 'someone'} · {r.content_id.slice(0, 10)}…</Text>
+                {r.status === 'open' ? <BardiAdvice kind="report" refId={r.id} /> : null}
                 <View style={{ flexDirection: 'row', marginTop: 8 }}>
                   <Pressable onPress={async () => { await setReportStatus(r.id, 'reviewed'); setReports((l) => l.map((x) => x.id === r.id ? { ...x, status: 'reviewed' } : x)); tapSuccess(); }} style={{ marginRight: 8 }}>
                     <View style={{ borderRadius: 999, borderWidth: 1, borderColor: C.line, paddingHorizontal: 12, paddingVertical: 7 }}><Text style={{ color: C.dim, fontSize: 12, fontWeight: '800' }}>Mark reviewed</Text></View>
@@ -584,6 +645,7 @@ export const AdminPanel = ({ onClose, access = { owner: true } }) => {
                   {[v.kind, v.sub, v.owner && v.owner.name, v.owner && v.owner.email].filter(Boolean).join(' · ')}
                 </Text>
                 {v.lat != null ? <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 2 }}>{Number(v.lat).toFixed(4) + ', ' + Number(v.lng).toFixed(4)}</Text> : null}
+                <BardiAdvice kind="venue" refId={v.id} />
                 <View style={{ flexDirection: 'row', marginTop: 10 }}>
                   <Pressable onPress={async () => { tapLight(); await decideVenue(v.id, false).catch(() => {}); setVenues((q) => q.filter((x) => x.id !== v.id)); }} style={{ marginRight: 8 }}>
                     <View style={{ borderRadius: 999, borderWidth: 1, borderColor: C.line, paddingHorizontal: 14, paddingVertical: 8 }}><Text style={{ color: C.dim, fontSize: 12.5, fontWeight: '800' }}>Reject</Text></View>

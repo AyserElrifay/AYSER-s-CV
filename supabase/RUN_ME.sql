@@ -11213,4 +11213,58 @@ begin
 end;
 $$;
 
+-- ═══════════ STUDIO · BARDI ADVISES EVERY DECISION ═══════════
+/* Ayser: Bardi should help with every decision in the Studio — read a
+   tour guide's application and say whether to accept them.
+
+   Bardi (the studio-advice function, Claude) reads what the reviewer
+   would read — the licence card or ID, the selfie, what they wrote, the
+   account's history — and writes a recommendation with the checks
+   behind it. The decision is still a person's button: nothing here can
+   approve, reject or strike anybody.
+
+   Kept so it is read once, not paid for every time the tab opens, and
+   readable only by the role that reviews that kind of thing. A
+   guide's advice talks about their documents, so it is deleted the
+   moment their application is decided, with the documents. */
+
+create table if not exists public.studio_advice (
+  kind       text not null check (kind in ('host', 'venue', 'report')),
+  ref        text not null,
+  advice     jsonb not null,
+  created_at timestamptz not null default now(),
+  primary key (kind, ref)
+);
+alter table public.studio_advice enable row level security;
+drop policy if exists "advice: the reviewers of that kind" on public.studio_advice;
+create policy "advice: the reviewers of that kind" on public.studio_advice for select using (
+  case kind when 'host' then public.studio_can('verify')
+            when 'report' then public.studio_can('safety')
+            else public.is_app_owner() end);
+-- no write policies: only the studio-advice function (service role) writes
+
+create or replace function public.forget_host_advice() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if new.status is distinct from old.status and new.status <> 'pending' then
+    delete from public.studio_advice where kind = 'host' and ref = new.user_id::text;
+  end if;
+  return new;
+end $$;
+drop trigger if exists verification_forget_advice on public.verification_requests;
+create trigger verification_forget_advice after update on public.verification_requests
+  for each row execute function public.forget_host_advice();
+
+create or replace function public.forget_venue_advice() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if new.status is distinct from old.status and new.status <> 'pending' then
+    delete from public.studio_advice where kind = 'venue' and ref = new.id::text;
+  end if;
+  return new;
+end $$;
+drop trigger if exists venues_forget_advice on public.venues;
+create trigger venues_forget_advice after update on public.venues
+  for each row execute function public.forget_venue_advice();
+
 notify pgrst, 'reload schema';
