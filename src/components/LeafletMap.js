@@ -112,10 +112,15 @@ function injectMapStyle() {
     .mm-country-keep { display: block; }
     .mm-z-globe .mm-country { display: none; }
     .mm-z-globe .mm-country-keep { display: none; }
-    /* The drawn (vector) map names Palestine itself now, as "Palestine"
-       in the reader's language (src/lib/mapStyle.js) — ours on top of
-       it would be the same word twice. Kept for the picture tiles. */
-    .mm-vector:not(.mm-z-far) .mm-country-keep { display: none; }
+    /* ── EVERY NAME ONCE ────────────────────────────────────────────
+       Ayser: "الخريطة فيها الأسامي متكررة" — Romania over Romania,
+       Poland under Poland, Israel and Palestine twice each. Our own
+       country names were drawn on top of the drawn (vector) map, which
+       names every country itself, in the reader's language, Palestine
+       included (src/lib/mapStyle.js). So once the drawn map is on, ours
+       go — at every zoom, whatever the culling set inline. They stay
+       for the picture tiles, which name some countries and not others. */
+    .mm-vector .mm-country { display: none !important; }
     /* the teardrop itself — a circle with a point, drawn in CSS */
     .mm-pin {
       position: relative; width: 56px; height: 56px; margin: 0 auto;

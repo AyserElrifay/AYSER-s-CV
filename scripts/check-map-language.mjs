@@ -87,6 +87,7 @@ is('and every one of them now asks for the same thing', new Set(fields).size, 1)
 is('specifically, Arabic', JSON.parse(fields[0])[3][1], ['get', 'name:ar']);
 is('Palestine is called Palestine, not "Palestinian Territories"', JSON.parse(fields[0])[2], 'فلسطين');
 is('found by its country code first', JSON.stringify(labelExpression('en')[1]).includes('"iso_a2"],"PS"'), true);
+is('every country is named once: ours step aside when the drawn map names them', /\.mm-vector \.mm-country \{ display: none !important; \}/.test(fs.readFileSync('src/components/LeafletMap.js', 'utf8')), true);
 is('in every language the app speaks', LANGS.map((l) => mapLangCode(l.code || l)).filter((c) => !PALESTINE[c]), []);
 is('the icon-only layer was left alone', ar.layers.find((l) => l.id === 'poi-icon-only').layout['text-field'], undefined);
 is('its icon is untouched', ar.layers.find((l) => l.id === 'poi-icon-only').layout['icon-image'], 'circle');
