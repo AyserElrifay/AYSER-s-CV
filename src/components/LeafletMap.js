@@ -44,7 +44,7 @@ function injectMapStyle() {
     @keyframes mmPulse { 0% { transform: scale(0.9); opacity: 0.55; } 70% { transform: scale(1.7); opacity: 0; } 100% { opacity: 0; } }
     .mm-float { animation: mmFloat 3.2s ease-in-out infinite; }
     /* soft loading backdrop before the street tiles paint */
-    .leaflet-container { background: #dfeaf2; touch-action: none; -ms-touch-action: none; }
+    .leaflet-container { background: #FBF6E9; touch-action: none; -ms-touch-action: none; }
     /* GPU-hint the moving layers so pans/zooms stay 60fps-smooth */
     .leaflet-marker-icon, .leaflet-tile, .leaflet-map-pane { will-change: transform; }
     .leaflet-zoom-anim .leaflet-zoom-animated { transition-timing-function: cubic-bezier(0.22, 0.8, 0.32, 1); }
@@ -121,6 +121,16 @@ function injectMapStyle() {
        go — at every zoom, whatever the culling set inline. They stay
        for the picture tiles, which name some countries and not others. */
     .mm-vector .mm-country { display: none !important; }
+    /* ── AND ONCE ON THE PICTURE TILES TOO ─────────────────────────────
+       Ayser sent the map again: Polska over Poland, Україна beside
+       Ukraine, Türkiye under Turkey — two names a country, in two
+       alphabets. That is the picture-tile map with our names on top of
+       it. Those tiles name the countries themselves, in each country's
+       own language, and nothing can change a word painted into a PNG.
+       So on them ours step aside as well, and every country is named
+       once. The one exception is a country those tiles never print:
+       mm-country-keep, which is how Palestine stays on the map. */
+    .leaflet-container:not(.mm-vector) .mm-country:not(.mm-country-keep) { display: none !important; }
     /* the teardrop itself — a circle with a point, drawn in CSS */
     .mm-pin {
       position: relative; width: 56px; height: 56px; margin: 0 auto;
@@ -634,29 +644,56 @@ export const LeafletMap = ({ center, markers = [], onPress, onMe, locate = true,
         maxZoom: 19, className: 'mm-tiles',
         updateWhenIdle: true, keepBuffer: 4,
         attribution: '© OpenStreetMap',
-      }).addTo(map);
+      });
       tilesRef.current = tiles;
 
-      /* ── AND THEN, IF IT CAN, THE MAP THAT SPEAKS YOUR LANGUAGE ────
-         The picture tiles above go on FIRST and unconditionally, so the
-         map is never an empty rectangle waiting on a download. The
-         vector map replaces them only once it has really drawn itself:
-         a WebGL context, three files from a CDN and a style sheet all
-         have to arrive, and any one of them failing leaves the map
-         exactly as it has always been rather than blank.
+      /* ── THE MAP THAT SPEAKS YOUR LANGUAGE, AND WHY IT KEPT LEAVING ──
+         The place names on the vector map are drawn HERE, so they can be
+         drawn in the language this person chose (src/lib/mapStyle.js).
+         The picture tiles are the stand-in for when it cannot draw: each
+         name painted in its own country's alphabet, Polska and Україна
+         and Ελλάς on one screen, and nothing we can do about a word
+         inside a PNG.
 
-         What it buys, and the reason for all of it: the place names are
-         drawn HERE, so they can be drawn in the language this person
-         chose. See src/lib/mapStyle.js. */
+         Ayser's screenshot showed exactly that map, with the vector
+         map's own credit line still in the corner — so it HAD drawn, and
+         then been thrown away. The reason was here: the first 'error'
+         it raised, at any time, removed it and brought the pictures
+         back. MapLibre raises 'error' for every single tile or font file
+         that fails to arrive, on a phone network that is routine, and it
+         asks for that file again by itself. One missed tile was costing
+         the whole map its language.
+
+         So now:
+           · the pictures are NOT put down first. On a warm phone the
+             drawn map is there in a second or two, and the planet covers
+             the map while it opens anyway; they only come in if it has
+             not drawn within PICTURE_WAIT, or cannot be drawn at all
+             (no WebGL, a file that did not arrive);
+           · once it has drawn it stays. An error is not a reason to
+             leave; only a lost WebGL context is, and only until the
+             phone gives it back;
+           · a map that never draws in GIVE_UP is put away for good. */
+      const PICTURE_WAIT = 2500;
+      const GIVE_UP = 15000;
+      let drawn = false;
+      const showPictures = () => {
+        if (cancelled || !mapRef.current) return;
+        map.getContainer().classList.remove('mm-vector');
+        if (!map.hasLayer(tiles)) tiles.addTo(map);
+      };
+      const pictureTimer = setTimeout(() => { if (!drawn) showPictures(); }, PICTURE_WAIT);
       const startVector = async () => {
         const v = await loadVectorMap();
-        if (cancelled || !v || !mapRef.current) return;
+        if (cancelled || !mapRef.current) return;
+        if (!v) { showPictures(); return; }
         let raw = null;
         try {
           const res = await fetch(VECTOR_STYLE_URL);
           if (res.ok) raw = await res.json();
         } catch (e) { raw = null; }
-        if (cancelled || !raw || !mapRef.current) return;
+        if (cancelled || !mapRef.current) return;
+        if (!raw) { showPictures(); return; }
         rawStyleRef.current = raw;
         let gl = null;
         try {
@@ -671,27 +708,45 @@ export const LeafletMap = ({ center, markers = [], onPress, onMe, locate = true,
                keeps applying to it. */
             className: 'mm-glmap',
           }).addTo(map);
-        } catch (e) { return; }
+        } catch (e) { showPictures(); return; }
         glRef.current = gl;
         const inner = gl.getMaplibreMap && gl.getMaplibreMap();
-        const swap = () => {
+        let nudge = null;
+        const drawnNow = () => {
           if (cancelled || !mapRef.current) return;
+          drawn = true;
+          clearTimeout(pictureTimer);
+          if (nudge) { clearInterval(nudge); nudge = null; }
           try { map.removeLayer(tiles); } catch (e) {}
           map.getContainer().classList.add('mm-vector');
         };
-        /* Only when it has actually painted. 'load' fires after the
-           first frame is on the screen; if it never comes, the picture
-           tiles are still there and nobody notices anything. */
         if (inner && inner.once) {
-          inner.once('load', swap);
-          inner.on('error', () => {
-            if (cancelled || !glRef.current) return;
-            try { map.removeLayer(glRef.current); } catch (e) {}
+          inner.once('load', drawnNow);
+          /* 'load' is fired from inside a frame, and MapLibre only draws
+             a frame when something asks for one. Watched in a browser:
+             everything had arrived (map.loaded() was true), two frames
+             had been drawn, and then nothing asked for a third — so
+             'load' never came, and the pictures stayed until somebody
+             happened to move the map. Asking for a frame every half
+             second until it has drawn costs nothing and ends the wait. */
+          nudge = setInterval(() => {
+            if (drawn || cancelled || glRef.current !== gl) { clearInterval(nudge); nudge = null; return; }
+            try { inner.triggerRepaint(); } catch (e) {}
+          }, 500);
+          /* Heard and deliberately ignored — see above. Listening at all
+             also stops MapLibre printing every retried tile to the
+             console as if it were a crash. */
+          inner.on('error', () => {});
+          inner.on('webglcontextlost', showPictures);
+          inner.on('webglcontextrestored', () => { if (drawn) drawnNow(); });
+          setTimeout(() => {
+            if (drawn || cancelled || !mapRef.current || glRef.current !== gl) return;
+            if (nudge) { clearInterval(nudge); nudge = null; }
+            try { map.removeLayer(gl); } catch (e) {}
             glRef.current = null;
-            map.getContainer().classList.remove('mm-vector');
-            if (!map.hasLayer(tiles)) tiles.addTo(map);
-          });
-        } else { swap(); }
+            showPictures();
+          }, GIVE_UP);
+        } else { drawnNow(); }
       };
       startVector();
 
@@ -802,6 +857,12 @@ export const LeafletMap = ({ center, markers = [], onPress, onMe, locate = true,
     if (appDark == null || !mapRef.current || !tilesRef.current) return;
     mapRef.current.getContainer().classList.toggle('mm-dark', !!appDark);
     tilesRef.current.setUrl(appDark ? DARK_TILES : LIGHT_TILES);
+    /* and the drawn map, which has a night palette of its own: without
+       this the in-app switch left it in daylight until the next open */
+    const inner = glRef.current && glRef.current.getMaplibreMap && glRef.current.getMaplibreMap();
+    if (inner && rawStyleRef.current) {
+      try { inner.setStyle(momentsStyle(rawStyleRef.current, { lang: langRef.current, dark: !!appDark })); } catch (e) {}
+    }
   }, [appDark]);
 
   /* ── WHY THE MAP JERKED WHEN YOU PINCHED ──────────────────────────

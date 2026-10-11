@@ -134,9 +134,19 @@ is('and so does nothing', momentsStyle(null, { lang: 'ar' }), null);
 
 console.log('\nthe map must never be left blank if any of this fails');
 const map = fs.readFileSync('src/components/LeafletMap.js', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
-is('the picture tiles are still added, unconditionally', /L\.tileLayer\([\s\S]{0,400}\}\)\.addTo\(map\)/.test(map), true);
-is('and are only removed once the vector map has really drawn', /once\('load', swap\)/.test(map), true);
-is('a vector map that errors puts them back', /if \(!map\.hasLayer\(tiles\)\) tiles\.addTo\(map\)/.test(map), true);
+is('the picture tiles come in when the drawn map is late', /setTimeout\(\(\) => \{ if \(!drawn\) showPictures\(\); \}, PICTURE_WAIT\)/.test(map), true);
+is('or cannot be drawn at all', /if \(!v\) \{ showPictures\(\); return; \}/.test(map) && /if \(!raw\) \{ showPictures\(\); return; \}/.test(map), true);
+is('and showing them really puts them on the map', /const showPictures = \(\) => \{[\s\S]{0,200}if \(!map\.hasLayer\(tiles\)\) tiles\.addTo\(map\)/.test(map), true);
+is('they are only taken away once the vector map has really drawn', /once\('load', drawnNow\)/.test(map), true);
+/* Ayser's screenshot: the drawn map had loaded, then one failed tile
+   raised 'error' and the handler threw the whole map away. */
+is('an error after it has drawn does not take the drawn map away', /inner\.on\('error', \(\) => \{\}\);/.test(map), true);
+is('nothing listening for errors removes a layer', /on\('error',[^;]{0,300}removeLayer/.test(map), false);
+is('a map that never draws is put away and the pictures come back', /GIVE_UP\)/.test(map) && /glRef\.current = null;\s*showPictures\(\);/.test(map), true);
+is('it is asked for a frame until it has drawn, so its load is not left waiting', /nudge = setInterval\([\s\S]{0,200}inner\.triggerRepaint\(\)/.test(map), true);
+is('a lost WebGL context shows the pictures until it is back', /on\('webglcontextlost', showPictures\)/.test(map) && /on\('webglcontextrestored'/.test(map), true);
+is('on the picture tiles our names step aside too, except one they never print',
+   /\.leaflet-container:not\(\.mm-vector\) \.mm-country:not\(\.mm-country-keep\) \{ display: none !important; \}/.test(fs.readFileSync('src/components/LeafletMap.js', 'utf8')), true);
 is('OpenStreetMap is credited, which its licence requires', /attribution: '© OpenStreetMap'/.test(map), true);
 const lib = fs.readFileSync('src/lib/leaflet.js', 'utf8');
 is('no WebGL → no vector map, checked before anything is downloaded', /getContext\('webgl2'\)/.test(lib), true);
