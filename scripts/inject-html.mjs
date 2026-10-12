@@ -143,6 +143,36 @@ if (html.includes('<title>')) {
 fs.writeFileSync(file, html);
 console.log('index.html patched: PWA + OG tags');
 
+/* ── THE MAIN FILE'S NAME HAS TO CHANGE WHEN IT DOES ──
+   Ayser opened the map after an update and got "Could not load
+   MapScreen-7365….js". Expo names AppEntry by a hash taken BEFORE the
+   names of the other pieces are written into it, so a new map piece
+   gives AppEntry new contents under the very same name. A phone that
+   kept the old AppEntry (the browser's ten minutes, or the offline
+   copy, which trusts a hashed name never to change) then asks for a
+   map piece that no longer exists, and reloading does not help: the
+   page asks for "AppEntry-bb66…" again and gets the old one again.
+   So it is renamed here by a hash of what it finally contains. */
+{
+  const web = path.join(process.cwd(), dist, '_expo', 'static', 'js', 'web');
+  if (fs.existsSync(web)) {
+    const crypto = await import('crypto');
+    for (const name of fs.readdirSync(web)) {
+      const m = /^AppEntry-[0-9a-f]+\.js$/.exec(name);
+      if (!m) continue;
+      const body = fs.readFileSync(path.join(web, name));
+      const hash = crypto.createHash('md5').update(body).digest('hex');
+      const next = 'AppEntry-' + hash + '.js';
+      if (next === name) continue;
+      fs.renameSync(path.join(web, name), path.join(web, next));
+      const page = fs.readFileSync(file, 'utf8');
+      if (!page.includes(name)) throw new Error('index.html does not load ' + name);
+      fs.writeFileSync(file, page.split(name).join(next));
+      console.log('main file named by its contents: ' + next);
+    }
+  }
+}
+
 /* ── OFFLINE: the list of the app's own code ──
    public/sw.js reads this once a new version is live and keeps every
    file in it, so the app opens on a phone with no signal — every tab,
