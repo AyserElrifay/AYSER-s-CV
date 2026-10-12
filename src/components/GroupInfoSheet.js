@@ -6,7 +6,7 @@ import { C } from '../constants/theme';
 import { useLang } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import {
-  squadPeople, squadSetRole, squadRemove, squadInvite, squadRename, squadMakeLink, squadRevokeLinks, chatLinkUrl, rankOf,
+  squadPeople, squadSetRole, squadRemove, squadInvite, squadRename, squadSetAbout, squadMakeLink, squadRevokeLinks, chatLinkUrl, rankOf,
 } from '../services/squadAdmin';
 import { leaveSquad } from '../services/messages';
 import { fetchMyMates } from '../services/mates';
@@ -126,6 +126,9 @@ export const GroupInfoSheet = ({ squadId, onClose, onLeft, onChanged }) => {
               </Text>
             </View>
 
+            {/* about the group, and the one pinned note (the plan's details) — admins write, everyone reads */}
+            <AboutBox data={data} canEdit={canAdmin} t={t} onSaved={() => { load(); onChanged && onChanged(); }} />
+
             {/* invite link + add people — admins */}
             {canAdmin ? (
               <View style={{ marginTop: 18, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 18, padding: 14 }}>
@@ -229,3 +232,32 @@ const Chip = ({ label, onPress, danger }) => (
     </View>
   </Pressable>
 );
+
+const AboutBox = ({ data, canEdit, t, onSaved }) => {
+  const [edit, setEdit] = useState(false);
+  const [about, setAbout] = useState(data.squad.about || '');
+  const [pinned, setPinned] = useState(data.squad.pinned || '');
+  if (!edit && !data.squad.about && !data.squad.pinned && !canEdit) return null;
+  const box = { borderWidth: 1, borderColor: C.line, borderRadius: 12, padding: 10, color: C.text, fontSize: 14, marginTop: 6, minHeight: 60, textAlignVertical: 'top' };
+  return (
+    <View style={{ marginTop: 16, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 18, padding: 14 }}>
+      {edit ? (
+        <>
+          <Text style={{ color: C.faint, fontSize: 12, fontWeight: '800' }}>{t('gc_about').toUpperCase()}</Text>
+          <TextInput value={about} onChangeText={setAbout} multiline maxLength={600} style={box} />
+          <Text style={{ color: C.faint, fontSize: 12, fontWeight: '800', marginTop: 10 }}>{'📌 ' + t('gc_pinned').toUpperCase()}</Text>
+          <TextInput value={pinned} onChangeText={setPinned} multiline maxLength={600} placeholder={t('gc_pinned_ph')} placeholderTextColor={C.faint} style={box} />
+          <Pressable onPress={async () => { const r = await squadSetAbout(data.squad.id, about, pinned); if (r && r.ok) { tapSuccess(); setEdit(false); onSaved(); } }} style={{ marginTop: 10, alignSelf: 'flex-end' }}>
+            <Text style={{ color: C.purple, fontSize: 15, fontWeight: '900' }}>{t('gc_save')}</Text>
+          </Pressable>
+        </>
+      ) : (
+        <Pressable onPress={canEdit ? () => { tapLight(); setEdit(true); } : undefined} disabled={!canEdit}>
+          {data.squad.about ? <Text style={{ color: C.text, fontSize: 14, lineHeight: 20 }}>{data.squad.about}</Text> : null}
+          {data.squad.pinned ? <Text style={{ color: C.text, fontSize: 14, lineHeight: 20, marginTop: data.squad.about ? 8 : 0 }}>{'📌 ' + data.squad.pinned}</Text> : null}
+          {canEdit ? <Text style={{ color: C.purple, fontSize: 13.5, fontWeight: '900', marginTop: data.squad.about || data.squad.pinned ? 8 : 0 }}>{'✎ ' + t('gc_edit_about')}</Text> : null}
+        </Pressable>
+      )}
+    </View>
+  );
+};

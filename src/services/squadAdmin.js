@@ -33,3 +33,18 @@ export const squadJoinLink = (token) => act('squad_join_link', { p_token: token 
 /* the link itself: opens Moments, and also counts as your invite for
    whoever makes an account through it (src/lib/invite.js) */
 export const chatLinkUrl = (token, myId) => appLink({ chat: token, invite: myId || null });
+
+/* ── CIRCLES · a group tied to a place, public ones listed nearby ── */
+export const createCircle = ({ name, about, lat, lng, place, isPublic }) =>
+  act('create_circle', { p_name: name, p_about: about || null, p_lat: lat, p_lng: lng, p_place: place || null, p_public: isPublic !== false });
+export const joinCircle = (squadId) => act('join_circle', { p_squad: squadId });
+export const squadSetAbout = (squadId, about, pinned) => act('squad_set_about', { p_squad: squadId, p_about: about, p_pinned: pinned });
+export async function circlesNear(lat, lng) {
+  if (lat == null || lng == null) return [];
+  const r = await act('circles_near', { p_lat: lat, p_lng: lng });
+  return Array.isArray(r) ? r : [];
+}
+/* where you last really were (LeafletMap keeps it), for "near you" */
+export function lastFix() {
+  try { const v = JSON.parse(localStorage.getItem('moments.lastFix') || 'null'); return v && Number.isFinite(v.lat) ? v : null; } catch (e) { return null; }
+}

@@ -32,6 +32,7 @@ import { HostBadge } from '../components/HostCard';
 import { PlanHead, PastPhotos } from '../components/green/PlanPhoto';
 import { ReportSheet } from '../components/ReportSheet';
 import { CreatorsRail } from '../components/CreatorsRail';
+import { CirclesNear } from '../components/CirclesNear';
 const TripsSheet = lazyOverlay(() => import('../components/TripsSheet').then((m) => ({ default: m.TripsSheet })));
 const SettleSheet = lazyOverlay(() => import('../components/SettleSheet').then((m) => ({ default: m.SettleSheet })));
 const RewardsSheet = lazyOverlay(() => import('../components/RewardsSheet').then((m) => ({ default: m.RewardsSheet })));
@@ -579,6 +580,7 @@ export const TogetherScreen = () => {
         {/* ── hangout creators ── the hosts people really come back to,
             counted by the database (top_creators); follow one and you hear
             when they start something new */}
+        {uid ? <CirclesNear /> : null}
         {uid ? <CreatorsRail creators={creators} me={uid} onFollow={follow} onBecome={() => setSheet({ rewards: 'creator' })} /> : null}
 
         {/* ── bring your people ── a community grows by people bringing

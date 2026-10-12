@@ -77,10 +77,11 @@ export const ChatThread = ({ chat, group, onClose }) => {
   const [groupName, setGroupName] = useState(group ? chat.name : null);
   const [myRole, setMyRole] = useState(null);
   const [infoOpen, setInfoOpen] = useState(false);
-  const [msgMenu, setMsgMenu] = useState(null);       // the message held down, in a group
+  const [msgMenu, setMsgMenu] = useState(null);
+  const [pinned, setPinned] = useState(null);         // the admins' pinned note: the plan's details       // the message held down, in a group
   const refreshGroup = () => {
     if (!group || !isReal) return;
-    squadPeople(chat.id).then((r) => { if (r && r.ok) { setMyRole(r.me); if (r.squad && r.squad.name) setGroupName(r.squad.name); } });
+    squadPeople(chat.id).then((r) => { if (r && r.ok) { setMyRole(r.me); if (r.squad && r.squad.name) setGroupName(r.squad.name); setPinned((r.squad && r.squad.pinned) || null); } });
   };
   useEffect(() => { refreshGroup(); }, [chat && chat.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const [msgsLoaded, setMsgsLoaded] = useState(false);
@@ -540,6 +541,12 @@ export const ChatThread = ({ chat, group, onClose }) => {
           </Pressable>
         </View>
 
+        {group && pinned ? (
+          <Pressable onPress={() => { tapLight(); setInfoOpen(true); }} style={{ flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 14, paddingVertical: 9, backgroundColor: C.purpleSoft, borderBottomWidth: 1, borderBottomColor: C.line }}>
+            <Text style={{ fontSize: 14, marginEnd: 8 }}>📌</Text>
+            <Text style={{ color: C.text, fontSize: 13.5, lineHeight: 19, flex: 1 }} numberOfLines={3}>{pinned}</Text>
+          </Pressable>
+        ) : null}
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <ScrollView keyboardShouldPersistTaps="handled" ref={scroller} contentContainerStyle={{ padding: 14, paddingBottom: 20 }} showsVerticalScrollIndicator={false}>
             {/* An empty thread is the hardest message to write. One tap

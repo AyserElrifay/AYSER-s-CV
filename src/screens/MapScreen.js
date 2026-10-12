@@ -50,6 +50,7 @@ import { NeonButton } from '../components/NeonButton';
 import { TravelSheet } from '../components/TravelSheet';
 import { ROOM_CODES } from '../constants/countryRoomIndex';
 const LandingSheet = lazyOverlay(() => import('../components/LandingSheet').then((mod) => ({ default: mod.LandingSheet })));
+const CircleSheet = lazyOverlay(() => import('../components/CircleSheet').then((mod) => ({ default: mod.CircleSheet })));
 const TripsSheet = lazyOverlay(() => import('../components/TripsSheet').then((mod) => ({ default: mod.TripsSheet })));
 /* The country room — what to say, what to eat and what nobody writes
    down, for the country this place is in. Lazy: its content is 75 KB
@@ -163,6 +164,7 @@ export const MapScreen = () => {
   const [partnerSent, setPartnerSent] = useState(false);
   const [offers, setOffers] = useState([]);       // trips & deals people can book through Moments
   const [tripsOpen, setTripsOpen] = useState(false);
+  const [circleAt, setCircleAt] = useState(null);   // a place someone is starting a circle at
   const [dropTitle, setDropTitle] = useState('');
   const [noteHours, setNoteHours] = useState(24);       // chosen duration
   const [realNotes, setRealNotes] = useState([]);       // pinned comments
@@ -1861,6 +1863,12 @@ export const MapScreen = () => {
               </View>
             </View>
             <View style={{ flexDirection: 'row', marginTop: 16 }}>
+              {/* a group for this place, to send to friends inside Moments or not */}
+              <Pressable onPress={() => { tapLight(); setCircleAt({ name: placeOpen.name, lat: placeOpen.lat, lng: placeOpen.lng }); }} style={{ flex: 1, marginRight: 10 }}>
+                <View style={{ backgroundColor: C.purple, borderRadius: 14, paddingVertical: 13, alignItems: 'center' }}>
+                  <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '900' }}>{'⭕ ' + t('ci_here')}</Text>
+                </View>
+              </Pressable>
               <Pressable onPress={() => directionsTo(placeOpen)} style={{ flex: 1 }}>
                 <View style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 14, paddingVertical: 13, alignItems: 'center' }}>
                   <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800' }}>{t('directions_label')}</Text>
@@ -2168,6 +2176,7 @@ export const MapScreen = () => {
           onPosted={() => { setComposeAt(null); fetchMomentPins().then(setMomentPins).catch(() => {}); }}
           onPostedStory={() => setComposeAt(null)} />
       ) : null}
+      {circleAt ? <CircleSheet place={circleAt} onClose={() => setCircleAt(null)} /> : null}
       {tripsOpen ? <TripsSheet onClose={() => setTripsOpen(false)} /> : null}
       {goNow ? <GoNowSheet onClose={() => { setGoNow(false); listGatherings(null).then(setGatherings).catch(() => {}); }} /> : null}
       {bookingVenue ? <BookingSheet venue={bookingVenue} onClose={() => { setBooked((x) => ({ ...x, [bookingVenue.id]: true })); setBookingVenue(null); }} /> : null}
