@@ -166,6 +166,7 @@ export const RewardsSheet = ({ onClose, tab: first = 'loyalty', onStartPlan }) =
       <Rule icon="link-outline" text={t('rw_inv_r1')} />
       <Rule icon="location-outline" text={t('rw_inv_r2')} />
       <Rule icon="gift-outline" text={t('rw_inv_r3')} />
+      <Rule icon="star-outline" text={t('rw_inv_plus') + (refs && refs.plus_days ? ' · ' + t('rw_inv_plus_n').replace('{n}', String(refs.plus_days)) : '')} />
       <Rule icon="shield-checkmark-outline" text={t('rw_inv_r4').replace('{n}', String(refs ? refs.month_left : 10))} />
     </View>
   );

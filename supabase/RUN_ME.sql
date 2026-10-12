@@ -12831,3 +12831,72 @@ begin
     execute format('grant execute on function public.%s to authenticated', f);
   end loop;
 end $$;
+
+-- ═══════════ INVITES · EVERY TWO FRIENDS WHO JOIN = ONE DAY OF PLUS ═══════════
+/* Ayser: "خلي كل ما حد يدخل اتنين ياخد يوم بريميم". Counted by the
+   database when the second, fourth, sixth… invited account is claimed
+   (claim_invite: a real new account, within 14 days of signing up,
+   never yourself). At most 15 days earned in any 30, so a pile of
+   throwaway accounts buys little. While Plus is free for everybody the
+   days are banked: they start after the free period ends. */
+create table if not exists public.plus_bonus (
+  id         bigserial primary key,
+  user_id    uuid not null references public.profiles(id) on delete cascade,
+  days       int not null,
+  reason     text not null,
+  created_at timestamptz not null default now()
+);
+alter table public.plus_bonus enable row level security;
+drop policy if exists "plus bonus: see your own" on public.plus_bonus;
+create policy "plus bonus: see your own" on public.plus_bonus for select using (auth.uid() = user_id);
+
+create or replace function public.grant_plus_days(p_user uuid, p_days int, p_reason text)
+returns void language plpgsql security definer set search_path = public as $$
+declare base timestamptz; free_end timestamptz;
+begin
+  if (select coalesce(sum(days), 0) from public.plus_bonus where user_id = p_user and created_at > now() - interval '30 days') + p_days > 15 then return; end if;
+  select case when value is null or value = 'null'::jsonb then null else (value #>> '{}')::timestamptz end into free_end
+    from public.app_settings where key = 'plus_free_until';
+  select until into base from public.plus_members where user_id = p_user and status = 'active';
+  base := greatest(now(), coalesce(free_end, now()), coalesce(base, now()));
+  insert into public.plus_members (user_id, status, until, source) values (p_user, 'active', base + make_interval(days => p_days), 'invites')
+  on conflict (user_id) do update set status = 'active', until = base + make_interval(days => p_days);
+  insert into public.plus_bonus (user_id, days, reason) values (p_user, p_days, p_reason);
+end;
+$$;
+revoke execute on function public.grant_plus_days(uuid, int, text) from public, anon, authenticated;
+
+create or replace function public.claim_invite(p_from uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); n int; total int;
+begin
+  if me is null or p_from is null or p_from = me then return jsonb_build_object('ok', false); end if;
+  update public.profiles set invited_by = p_from
+   where id = me and invited_by is null
+     and exists (select 1 from public.profiles where id = p_from)
+     and exists (select 1 from auth.users u where u.id = me and u.created_at > now() - interval '14 days');
+  get diagnostics n = row_count;
+  if n > 0 then
+    select count(*) into total from public.profiles where invited_by = p_from;
+    if total % 2 = 0 then perform public.grant_plus_days(p_from, 1, 'two_invites'); end if;
+  end if;
+  return jsonb_build_object('ok', n > 0);
+end;
+$$;
+grant execute on function public.claim_invite(uuid) to authenticated;
+
+create or replace function public.my_referrals()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select jsonb_build_object(
+    'joined',    (select count(*) from public.profiles where invited_by = auth.uid()),
+    'showed_up', (select count(*) from public.referral_rewards where inviter_id = auth.uid()),
+    'xp',        (select coalesce(sum(inviter_points), 0) from public.referral_rewards where inviter_id = auth.uid()),
+    'plus_days', (select coalesce(sum(days), 0) from public.plus_bonus where user_id = auth.uid() and reason = 'two_invites'),
+    'month_left', greatest(0, 10 - (select count(*) from public.referral_rewards
+                                     where inviter_id = auth.uid() and awarded_at > now() - interval '30 days')),
+    'people', coalesce((select jsonb_agg(jsonb_build_object('name', split_part(coalesce(p.name, ''), ' ', 1), 'avatar_url', p.avatar_url,
+                                  'showed_up', r.invitee_id is not null) order by p.created_at desc)
+                          from (select * from public.profiles where invited_by = auth.uid() order by created_at desc limit 30) p
+                          left join public.referral_rewards r on r.invitee_id = p.id), '[]'::jsonb)
+  );
+$$;

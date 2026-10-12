@@ -1466,6 +1466,8 @@ export const STRINGS = {
     gc_link_removed: "You were removed from this group, so the link doesn’t work for you.",
     gc_link_full: "This group is full.",
     gc_banner: "Make an account to join “{name}”",
+    rw_inv_plus: "Every 2 friends who join = 1 free day of Moments Plus (up to 15 days a month).",
+    rw_inv_plus_n: "{n} days earned",
     lens_all: 'Everything',
     lens_places: 'Places to go',
     lens_people: 'People',
