@@ -228,6 +228,7 @@ export const OffersTab = ({ userId }) => {
             <Btn label="Edit" onPress={() => { tapLight(); setMsg(null); setForm(toForm(o)); }} />
             <Btn label="Bookings" onPress={() => openBookings(o)} />
             {o.status !== 'live' ? <Btn label="Publish" solid onPress={() => status(o, 'live')} /> : <Btn label="Unpublish" onPress={() => status(o, 'draft')} />}
+            {o.status !== 'soon' && o.status !== 'live' ? <Btn label="Coming soon" onPress={() => status(o, 'soon')} /> : null}
             {o.status !== 'closed' ? <Btn label="Close" danger onPress={() => status(o, 'closed')} /> : null}
           </View>
         </View>

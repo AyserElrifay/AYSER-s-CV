@@ -10,6 +10,18 @@ import { payBooking } from '../services/payments';
 import { remember, recall } from '../lib/offline';
 import { tapLight, tapMedium, tapSelection, tapSuccess } from '../utils/feedback';
 import { useSheetBack } from '../hooks/useSheetBack';
+import { LinearGradient } from 'expo-linear-gradient';
+
+const COVER = { trip: ['#0EA5E9', '#7C3AED', '🧳'], stay: ['#F59E0B', '#EF4444', '🏨'], experience: ['#10B981', '#0EA5E9', '🧗'], deal: ['#EC4899', '#F59E0B', '🎟️'], table: ['#F97316', '#EF4444', '🍽️'] };
+const Cover = ({ kind, h }) => { const c = COVER[kind] || COVER.trip; return (
+  <LinearGradient colors={[c[0], c[1]]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ height: h, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+    <Text style={{ fontSize: h * 0.9, position: 'absolute', right: -h * 0.12, bottom: -h * 0.25, opacity: 0.2 }}>{c[2]}</Text>
+    <Text style={{ fontSize: h * 0.32 }}>{c[2]}</Text>
+  </LinearGradient>); };
+const Soon = ({ t }) => (
+  <View style={{ alignSelf: 'flex-start', borderRadius: 999, backgroundColor: C.goldSoft, paddingHorizontal: 10, paddingVertical: 4 }}>
+    <Text style={{ color: '#8A6400', fontSize: 12.5, fontWeight: '900' }}>{t('bk_soon')}</Text>
+  </View>);
 
 /* ─── TRIPS & DEALS ────────────────────────────────────────────────────
    Ayser: "الناس تحجز علي طول من خلالنا … رحله دهب ب2800 … صور وتفاصيل".
@@ -139,7 +151,7 @@ const Offer = ({ o, t, lang, onBack, onBooked }) => {
             <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled">
               {photos.map((u, i) => <Image key={i} source={{ uri: u }} style={{ width, height: 300, backgroundColor: C.glassHi }} />)}
             </ScrollView>
-          ) : <View style={{ height: insets.top + 70 }} />}
+          ) : <Cover kind={o.kind} h={260} />}
           <Pressable onPress={() => { tapLight(); onBack(); }} accessibilityRole="button" accessibilityLabel={t('close')}
             style={{ position: 'absolute', top: insets.top + 10, left: 14, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' }}>
             <Ionicons name="chevron-back" size={22} color="#FFF" />
@@ -159,7 +171,7 @@ const Offer = ({ o, t, lang, onBack, onBooked }) => {
               {'📅 ' + when(o.starts_at, lang) + (o.ends_at ? ' → ' + when(o.ends_at, lang) : '')}
             </Text>
           ) : null}
-          <View style={{ marginTop: 12 }}><Price o={o} t={t} lang={lang} big /></View>
+          <View style={{ marginTop: 12 }}>{o.status === 'soon' ? <Soon t={t} /> : <Price o={o} t={t} lang={lang} big />}</View>
           {o.seats_left != null ? (
             <Text style={{ color: full ? '#E11D48' : C.dim, fontSize: 13, fontWeight: '800', marginTop: 6 }}>{full ? t('bk_full') : t('bk_seats_left').replace('{n}', String(o.seats_left))}</Text>
           ) : null}
@@ -187,8 +199,8 @@ const Offer = ({ o, t, lang, onBack, onBooked }) => {
         </View>
       </ScrollView>
 
-      {/* the booking bar */}
-      <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: C.floatSolid, borderTopWidth: 1, borderTopColor: C.line, padding: 14, paddingBottom: insets.bottom + 14 }}>
+      {/* the booking bar — not for something coming soon */}
+      {o.status === 'soon' ? null : <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: C.floatSolid, borderTopWidth: 1, borderTopColor: C.line, padding: 14, paddingBottom: insets.bottom + 14 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <Text style={{ color: C.dim, fontSize: 13.5, fontWeight: '700' }}>{t('bk_people')}</Text>
           <Pressable onPress={() => { tapSelection(); setQty((q) => Math.max(1, q - 1)); }} hitSlop={8} accessibilityRole="button" accessibilityLabel="−" style={{ marginStart: 12 }}>
@@ -210,7 +222,7 @@ const Offer = ({ o, t, lang, onBack, onBooked }) => {
             {busy ? <ActivityIndicator color="#FFF" /> : <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '900' }}>{full ? t('bk_full') : t('bk_book')}</Text>}
           </View>
         </Pressable>
-      </View>
+      </View>}
     </View>
   );
 };
@@ -290,14 +302,14 @@ export const TripsSheet = ({ onClose, country, openOn }) => {
                     return (
                       <Pressable key={o.id} onPress={() => { tapLight(); setOpen(o); }} accessibilityRole="button" style={{ marginBottom: 14 }}>
                         <View style={{ borderRadius: 22, overflow: 'hidden', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line }}>
-                          {ph ? <Image source={{ uri: ph }} style={{ width: '100%', height: 190, backgroundColor: C.glassHi }} /> : null}
+                          {ph ? <Image source={{ uri: ph }} style={{ width: '100%', height: 190, backgroundColor: C.glassHi }} /> : <Cover kind={o.kind} h={150} />}
                           <View style={{ padding: 14 }}>
                             <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '800', letterSpacing: 1 }}>
                               {(t('bk_kind_' + o.kind) + (o.city ? ' · ' + o.city : '') + (o.starts_at ? ' · ' + when(o.starts_at, lang) : '')).toUpperCase()}
                             </Text>
                             <Text style={{ color: C.text, fontSize: 18, fontWeight: '900', marginTop: 3 }} numberOfLines={2}>{pick(o, 'title', lang)}</Text>
                             <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginTop: 8 }}>
-                              <View style={{ flex: 1 }}><Price o={o} t={t} lang={lang} /></View>
+                              <View style={{ flex: 1 }}>{o.status === 'soon' ? <Soon t={t} /> : <Price o={o} t={t} lang={lang} />}</View>
                               {o.seats_left != null ? <Text style={{ color: o.seats_left ? C.dim : '#E11D48', fontSize: 12.5, fontWeight: '800' }}>{o.seats_left ? t('bk_seats_left').replace('{n}', String(o.seats_left)) : t('bk_full')}</Text> : null}
                             </View>
                           </View>

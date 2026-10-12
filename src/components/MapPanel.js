@@ -38,6 +38,10 @@ export function personWhere(p, t) {
   return p.city || t('pp_on_moments');
 }
 
+import { AV_NEUTRAL } from '../constants/mockData';
+/* the photo a person put on their profile; the cartoon only when they have none */
+export const faceOf = (p) => (p.avatar && p.avatar !== AV_NEUTRAL ? p.avatar : p.cartoonAvatar || p.avatar);
+
 const KINDS = [null, 'walk', 'run', 'coffee', 'focus', 'sport', 'culture', 'movie', 'circle', 'art', 'cleanup'];
 const kindLabel = (t, k) => (k ? t(k === 'focus' ? 'gn_focus' : k === 'run' ? 'gn_run' : k === 'coffee' ? 'gn_coffee' : k === 'movie' ? 'gn_movie' : 'green_kind_' + k) : t('lens_all'));
 
@@ -102,7 +106,7 @@ export const MapPanel = ({
     <Pressable key={p.id} onPress={() => { tapLight(); onPerson(p); }} accessibilityRole="button" accessibilityLabel={p.name}
       style={{ width: 104, marginEnd: 10 }}>
       <View style={{ width: 104, height: 124, borderRadius: 18, backgroundColor: C.glassHi, overflow: 'hidden' }}>
-        <Image source={{ uri: p.cartoonAvatar || p.avatar }} style={{ width: 104, height: 124 }} />
+        <Image source={{ uri: faceOf(p) }} style={{ width: 104, height: 124 }} />
         {p.countryFlag ? <Text style={{ position: 'absolute', top: 7, left: 8, fontSize: 16 }}>{p.countryFlag}</Text> : null}
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
@@ -203,7 +207,7 @@ export const PeoplePanel = ({ t, people, hereNow = 0, loading = false, open, onO
     <Pressable key={p.id} onPress={() => { tapLight(); onPerson(p); }} accessibilityRole="button" accessibilityLabel={p.name}
       style={{ width: 104, marginEnd: 10 }}>
       <View style={{ width: 104, height: 124, borderRadius: 18, backgroundColor: C.glassHi, overflow: 'hidden' }}>
-        <Image source={{ uri: p.cartoonAvatar || p.avatar }} style={{ width: 104, height: 124 }} />
+        <Image source={{ uri: faceOf(p) }} style={{ width: 104, height: 124 }} />
         {p.countryFlag ? <Text style={{ position: 'absolute', top: 7, left: 8, fontSize: 16 }}>{p.countryFlag}</Text> : null}
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
@@ -218,7 +222,7 @@ export const PeoplePanel = ({ t, people, hereNow = 0, loading = false, open, onO
     <Pressable key={p.id} onPress={() => { tapLight(); onPerson(p); }} accessibilityRole="button" accessibilityLabel={p.name}
       style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderTopWidth: k ? 1 : 0, borderTopColor: C.line }}>
       <View>
-        <Image source={{ uri: p.cartoonAvatar || p.avatar }} style={{ width: 50, height: 50, borderRadius: 25, backgroundColor: C.glassHi }} />
+        <Image source={{ uri: faceOf(p) }} style={{ width: 50, height: 50, borderRadius: 25, backgroundColor: C.glassHi }} />
         {p.seen === 'now' ? <View style={{ position: 'absolute', bottom: 1, right: 1, width: 12, height: 12, borderRadius: 6, backgroundColor: C.green, borderWidth: 2, borderColor: C.floatSolid }} /> : null}
       </View>
       <View style={{ flex: 1, minWidth: 0, marginStart: 12 }}>

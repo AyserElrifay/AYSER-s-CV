@@ -12854,7 +12854,7 @@ create or replace function public.grant_plus_days(p_user uuid, p_days int, p_rea
 returns void language plpgsql security definer set search_path = public as $$
 declare base timestamptz; free_end timestamptz;
 begin
-  if (select coalesce(sum(days), 0) from public.plus_bonus where user_id = p_user and created_at > now() - interval '30 days') + p_days > 15 then return; end if;
+  if (select coalesce(sum(days), 0) from public.plus_bonus where user_id = p_user and created_at > now() - interval '30 days') + p_days > 14 then return; end if;
   select case when value is null or value = 'null'::jsonb then null else (value #>> '{}')::timestamptz end into free_end
     from public.app_settings where key = 'plus_free_until';
   select until into base from public.plus_members where user_id = p_user and status = 'active';
@@ -12878,7 +12878,8 @@ begin
   get diagnostics n = row_count;
   if n > 0 then
     select count(*) into total from public.profiles where invited_by = p_from;
-    if total % 2 = 0 then perform public.grant_plus_days(p_from, 1, 'two_invites'); end if;
+    -- Ayser: "invite 5 friends and win a Premium week" — five new accounts, seven days
+    if total % 5 = 0 then perform public.grant_plus_days(p_from, 7, 'five_invites'); end if;
   end if;
   return jsonb_build_object('ok', n > 0);
 end;
@@ -12891,7 +12892,7 @@ returns jsonb language sql stable security definer set search_path = public as $
     'joined',    (select count(*) from public.profiles where invited_by = auth.uid()),
     'showed_up', (select count(*) from public.referral_rewards where inviter_id = auth.uid()),
     'xp',        (select coalesce(sum(inviter_points), 0) from public.referral_rewards where inviter_id = auth.uid()),
-    'plus_days', (select coalesce(sum(days), 0) from public.plus_bonus where user_id = auth.uid() and reason = 'two_invites'),
+    'plus_days', (select coalesce(sum(days), 0) from public.plus_bonus where user_id = auth.uid() and reason in ('two_invites', 'five_invites')),
     'month_left', greatest(0, 10 - (select count(*) from public.referral_rewards
                                      where inviter_id = auth.uid() and awarded_at > now() - interval '30 days')),
     'people', coalesce((select jsonb_agg(jsonb_build_object('name', split_part(coalesce(p.name, ''), ' ', 1), 'avatar_url', p.avatar_url,
@@ -12900,3 +12901,197 @@ returns jsonb language sql stable security definer set search_path = public as $
                           left join public.referral_rewards r on r.invitee_id = p.id), '[]'::jsonb)
   );
 $$;
+
+-- ═══════════ CIRCLES ON PLACES · PINNED DETAILS · COMING SOON · VOLUNTEERING ═══════════
+/* Ayser, in one message:
+   · "الناس يعجبها مكان من على الخريطة يدوسو عليه و يعملو create a circle
+      … ويظهر في الnear circle لبقيت الusers" — a CIRCLE is a group chat
+     tied to a place. Public ones are listed to people within 25 km and
+     anyone may join; private ones only through an invite link.
+   · "الادمن … يقدر يعمل pin لتفاصيل الخروجه و يعدل في description الجروب"
+     — every group has an About and one pinned note, edited by admins.
+   · "خلي رحله دهب للحجز دلوقتي الباقي … coming soon" — an offer can be
+     'soon': shown, never bookable.
+   · Volunteering joins Green Minds as IDEAS (food bank, Red Crescent,
+     Resala, Red Cross, an orphanage afternoon, a school visit) — ideas
+     with "start one", never presented as events or as partnerships. */
+
+alter table public.squads add column if not exists about text;
+alter table public.squads add column if not exists pinned text;
+alter table public.squads add column if not exists lat double precision;
+alter table public.squads add column if not exists lng double precision;
+alter table public.squads add column if not exists place_name text;
+
+create or replace function public.create_circle(p_name text, p_about text, p_lat double precision, p_lng double precision, p_place text, p_public boolean)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare sid uuid;
+begin
+  if auth.uid() is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  if length(trim(coalesce(p_name, ''))) not between 2 and 80 then return jsonb_build_object('ok', false, 'reason', 'name'); end if;
+  if (select count(*) from public.squads where created_by = auth.uid() and created_at > now() - interval '1 day') >= 5 then
+    return jsonb_build_object('ok', false, 'reason', 'too_many');
+  end if;
+  insert into public.squads (name, emoji, created_by, about, lat, lng, place_name, open)
+  values (trim(p_name), '⭕', auth.uid(), nullif(trim(coalesce(p_about, '')), ''), p_lat, p_lng, nullif(trim(coalesce(p_place, '')), ''), coalesce(p_public, true))
+  returning id into sid;
+  insert into public.squad_members (squad_id, user_id, role, accepted) values (sid, auth.uid(), 'owner', true);
+  return jsonb_build_object('ok', true, 'id', sid);
+end;
+$$;
+
+create or replace function public.circles_near(p_lat double precision, p_lng double precision)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select coalesce(jsonb_agg(x order by (x->>'km')::numeric), '[]'::jsonb) from (
+    select jsonb_build_object('id', s.id, 'name', s.name, 'emoji', s.emoji, 'about', s.about, 'place_name', s.place_name,
+             'lat', s.lat, 'lng', s.lng, 'km', round(public.km_between(p_lat, p_lng, s.lat, s.lng)::numeric, 1),
+             'members', (select count(*) from public.squad_members m where m.squad_id = s.id and coalesce(m.accepted, true)),
+             'mine', public.is_squad_member(s.id, auth.uid())) x
+      from public.squads s
+     where s.open and s.lat is not null and p_lat is not null
+       and public.km_between(p_lat, p_lng, s.lat, s.lng) <= 25
+       and not exists (select 1 from public.programmes p where p.squad_id = s.id)
+     limit 30) q;
+$$;
+
+create or replace function public.join_circle(p_squad uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  if auth.uid() is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  if not public.squad_is_open(p_squad) then return jsonb_build_object('ok', false, 'reason', 'private'); end if;
+  if public.squad_banned(p_squad, auth.uid()) then return jsonb_build_object('ok', false, 'reason', 'removed'); end if;
+  insert into public.squad_members (squad_id, user_id, role, accepted) values (p_squad, auth.uid(), 'member', true)
+  on conflict (squad_id, user_id) do update set accepted = true;
+  return jsonb_build_object('ok', true);
+end;
+$$;
+
+create or replace function public.squad_set_about(p_squad uuid, p_about text, p_pinned text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  if public.squad_rank(public.squad_role(p_squad, auth.uid())) < 3 then return jsonb_build_object('ok', false, 'reason', 'rank'); end if;
+  update public.squads set about = left(nullif(trim(coalesce(p_about, '')), ''), 600),
+                           pinned = left(nullif(trim(coalesce(p_pinned, '')), ''), 600)
+   where id = p_squad;
+  return jsonb_build_object('ok', true);
+end;
+$$;
+
+create or replace function public.squad_people(p_squad uuid)
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare me_role text := public.squad_role(p_squad, auth.uid());
+begin
+  if me_role is null then return jsonb_build_object('ok', false, 'reason', 'not_member'); end if;
+  return jsonb_build_object('ok', true, 'me', me_role,
+    'squad', (select jsonb_build_object('id', id, 'name', name, 'emoji', emoji, 'avatar_url', avatar_url, 'open', open,
+                                        'about', about, 'pinned', pinned, 'place_name', place_name) from public.squads where id = p_squad),
+    'plan', (select jsonb_build_object('id', id, 'title', title, 'starts_at', starts_at) from public.green_gatherings where squad_id = p_squad limit 1),
+    'members', coalesce((select jsonb_agg(jsonb_build_object('id', p.id, 'name', p.name, 'avatar_url', p.avatar_url,
+                                   'role', m.role, 'pending', not coalesce(m.accepted, true))
+                                 order by public.squad_rank(m.role) desc, coalesce(m.accepted, true) desc, p.name)
+                          from public.squad_members m join public.profiles p on p.id = m.user_id
+                         where m.squad_id = p_squad), '[]'::jsonb),
+    'links', case when public.squad_rank(me_role) >= 3 then coalesce((
+               select jsonb_agg(jsonb_build_object('token', token, 'expires_at', expires_at, 'uses', uses) order by created_at desc)
+                 from public.squad_links where squad_id = p_squad and revoked_at is null and expires_at > now()), '[]'::jsonb) end);
+end;
+$$;
+
+do $$
+declare f text;
+begin
+  foreach f in array array['create_circle(text, text, double precision, double precision, text, boolean)','join_circle(uuid)','squad_set_about(uuid, text, text)'] loop
+    execute format('revoke execute on function public.%s from public, anon', f);
+    execute format('grant execute on function public.%s to authenticated', f);
+  end loop;
+end $$;
+grant execute on function public.circles_near(double precision, double precision) to authenticated;
+
+-- ── coming soon ──
+do $$ begin
+  alter table public.offers drop constraint if exists offers_status_check;
+  alter table public.offers add constraint offers_status_check check (status in ('draft','soon','live','closed'));
+exception when others then null; end $$;
+
+create or replace function public.list_offers(p_kind text, p_country text)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select coalesce(jsonb_agg(public.offer_json(o) order by (o.status = 'soon'), o.starts_at nulls last, o.created_at desc), '[]'::jsonb)
+    from public.offers o
+   where o.status in ('live', 'soon')
+     and (o.starts_at is null or o.starts_at > now())
+     and (p_kind is null or o.kind = p_kind)
+     and (p_country is null or o.country = p_country);
+$$;
+drop policy if exists "offers: live for everyone, drafts for the owner" on public.offers;
+create policy "offers: live for everyone, drafts for the owner" on public.offers for select
+  using (status in ('live', 'soon') or public.owner_ok());
+
+create or replace function public.offer_set_status(p_id uuid, p_status text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  if not public.owner_ok() then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
+  if p_status not in ('draft','soon','live','closed') then return jsonb_build_object('ok', false, 'reason', 'status'); end if;
+  if p_status = 'live' and exists (select 1 from public.offers where id = p_id and cardinality(photos) = 0) then
+    return jsonb_build_object('ok', false, 'reason', 'no_photo');
+  end if;
+  if p_status = 'live' and exists (select 1 from public.offers where id = p_id and price <= 0) then
+    return jsonb_build_object('ok', false, 'reason', 'no_price');
+  end if;
+  update public.offers set status = p_status, updated_at = now() where id = p_id;
+  return jsonb_build_object('ok', found);
+end;
+$$;
+
+-- Dahab opens for booking: a seat is reserved, and the dates and program are agreed with the organiser
+update public.offers set status = 'live',
+  summary = 'A few days in Dahab with TravellersOutdoors. Reserve your seat now; the organiser contacts you to confirm the dates, the program and the payment.',
+  summary_ar = 'كام يوم في دهب مع TravellersOutdoors. احجز مكانك دلوقتي، والمنظّم هيكلمك يأكد المواعيد والبرنامج والدفع.',
+  updated_at = now()
+ where id = '0ffe0000-0000-4000-8000-000000000001' and status = 'draft';
+update public.offers set status = 'soon', summary = null, summary_ar = null, updated_at = now()
+ where id = '0ffe0000-0000-4000-8000-000000000002' and status = 'draft';
+
+insert into public.offers (id, kind, status, operator, title, title_ar, city, country, lat, lng, photos, price, currency, pay_modes)
+values
+ ('0ffe0000-0000-4000-8000-000000000003','trip','soon','TravellersOutdoors','Siwa Oasis','واحة سيوة','Siwa','EG',29.2032,25.5195,array['media/place-shali.jpg'],0,'EGP','{reserve}'),
+ ('0ffe0000-0000-4000-8000-000000000004','trip','soon','TravellersOutdoors','Marsa Alam','مرسى علم','Marsa Alam','EG',25.0676,34.8790,array['media/place-marsa-reef.jpg'],0,'EGP','{reserve}'),
+ ('0ffe0000-0000-4000-8000-000000000005','experience','soon',null,'Day use · Fayoum','داي يوز · الفيوم','Fayoum','EG',29.3084,30.8428,'{}',0,'EGP','{reserve}'),
+ ('0ffe0000-0000-4000-8000-000000000006','experience','soon',null,'Day use · Alexandria','داي يوز · إسكندرية','Alexandria','EG',31.2001,29.9187,'{}',0,'EGP','{reserve}'),
+ ('0ffe0000-0000-4000-8000-000000000007','experience','soon',null,'Day use · Port Said','داي يوز · بورسعيد','Port Said','EG',31.2653,32.3019,'{}',0,'EGP','{reserve}'),
+ ('0ffe0000-0000-4000-8000-000000000008','experience','soon',null,'Wadi Degla hike','هايك وادي دجلة','Cairo','EG',29.9550,31.3450,'{}',0,'EGP','{reserve}'),
+ ('0ffe0000-0000-4000-8000-000000000009','experience','soon',null,'Kayak on the Nile','كاياك في النيل','Cairo','EG',30.0444,31.2240,'{}',0,'EGP','{reserve}'),
+ ('0ffe0000-0000-4000-8000-00000000000a','experience','soon',null,'Climbing & zipline','تسلق وزيب لاين','Cairo','EG',30.0300,31.2800,'{}',0,'EGP','{reserve}')
+on conflict (id) do nothing;
+-- the Dahab hotels Ayser named: drafts until each hotel agrees to be listed
+insert into public.offers (id, kind, status, title, title_ar, city, country, photos, price, currency, pay_modes)
+values
+ ('0ffe0000-0000-4000-8000-00000000000b','stay','draft','La Perla · Dahab','لابيرلا · دهب','Dahab','EG','{}',0,'EGP','{reserve}'),
+ ('0ffe0000-0000-4000-8000-00000000000c','stay','draft','Dahab Fly','دهب فلاي','Dahab','EG','{}',0,'EGP','{reserve}'),
+ ('0ffe0000-0000-4000-8000-00000000000d','stay','draft','Dalida · Dahab','داليدا · دهب','Dahab','EG','{}',0,'EGP','{reserve}')
+on conflict (id) do nothing;
+
+-- ── volunteering and a weekly circle, as ideas ──
+insert into public.green_sparks (kind, country, title_ar, title_en, about_ar, about_en, minutes, people, sort)
+select * from (values
+ ('project','EG','تطوع: تعبئة كراتين في بنك الطعام المصري','Volunteer: packing food boxes at the Egyptian Food Bank',
+  'مجموعة صغيرة تروح تعبي كراتين أكل مع بعض. سجّلوا الأول من صفحة التطوع بتاعتهم، وروحوا سوا في الميعاد اللي يحددوه.',
+  'A small group packs food boxes together. Register first on their volunteering page, then go together at the slot they give you.',180,'4–12',20),
+ ('project','EG','تطوع مع الهلال الأحمر المصري','Volunteer with the Egyptian Red Crescent',
+  'شوفوا حملات التطوع اللي فاتحينها (تبرع بالدم، تعبئة، توعية)، سجلوا، وروحوا كمجموعة.',
+  'Look at the drives they have open (blood donation, packing, awareness), sign up, and go as a group.',180,'3–10',21),
+ ('project','EG','يوم تطوع مع جمعية رسالة','A volunteering day with Resala',
+  'رسالة عندها أنشطة كتير كل أسبوع. اختاروا نشاط، سجلوا، واتقابلوا هناك.',
+  'Resala runs many activities every week. Pick one, register, and meet there.',180,'3–12',22),
+ ('project',null,'تطوع مع الصليب الأحمر في مدينتك','Volunteer with the Red Cross in your city',
+  'جمعية الصليب الأحمر في بلدك بتحتاج متطوعين بانتظام. سجلوا على موقعهم واختاروا يوم تروحوا فيه سوا.',
+  'Your country''s Red Cross society needs volunteers all year. Register on their site and pick a day to go together.',180,'2–10',23),
+ ('project','EG','عصرية لعب في دار أيتام','An afternoon of play at an orphanage',
+  'بعد موافقة الدار بس: ألعاب، رسم، كورة. من غير صور للأطفال، والدار هي اللي تحدد الميعاد والعدد.',
+  'Only with the home''s agreement: games, drawing, football. No photos of the children; the home sets the time and the numbers.',120,'3–8',24),
+ ('project','EG','زيارة مدرسة: أدبي ولا علمي؟','A school visit: arts or science track?',
+  'بعد موافقة المدرسة: تحكوا للطلبة إزاي يختاروا بين أدبي وعلمي، الجامعة، والتنمية المستدامة والثقافة — من تجربتكم.',
+  'With the school''s agreement: tell students how to choose between the arts and science tracks, about university, sustainable development and culture — from your own experience.',90,'2–6',25),
+ ('circle','EG','دايرة تطوير الذات · كل سبت','A self-development circle · every Saturday',
+  'نفس الميعاد كل سبت: كل واحد يقول هدف صغير للأسبوع، والأسبوع اللي بعده يحكي عمل إيه.',
+  'Same time every Saturday: everyone names one small goal for the week, and next week says how it went.',75,'4–12',26)
+) v(kind, country, title_ar, title_en, about_ar, about_en, minutes, people, sort)
+where not exists (select 1 from public.green_sparks s where s.title_en = v.title_en);

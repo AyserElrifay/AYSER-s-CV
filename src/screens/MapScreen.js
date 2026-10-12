@@ -341,7 +341,7 @@ export const MapScreen = () => {
   /* Markers for the real (web) Leaflet map, on true coordinates. */
   const mapMarkers = useMemo(() => {
     const out = [];
-    people.forEach((p) => p.coords && out.push({ id: 'p_' + p.id, srcId: p.id, kind: 'person', lat: p.coords.latitude, lng: p.coords.longitude, emoji: p.doing || p.emoji || '🧿', avatar: p.cartoonAvatar || p.avatar, standing: p.standing, flag: p.countryFlag, label: (p.countryFlag ? p.countryFlag + ' ' : '') + p.name, away: p.seen !== 'now' }));
+    people.forEach((p) => p.coords && out.push({ id: 'p_' + p.id, srcId: p.id, kind: 'person', lat: p.coords.latitude, lng: p.coords.longitude, emoji: p.doing || p.emoji || '🧿', avatar: p.avatar && p.avatar !== AV_NEUTRAL ? p.avatar : p.cartoonAvatar || p.avatar, standing: p.standing, flag: p.countryFlag, label: (p.countryFlag ? p.countryFlag + ' ' : '') + p.name, away: p.seen !== 'now' }));
     campfires.forEach((c) => c.coords && out.push({ id: 'c_' + c.id, srcId: c.id, kind: 'fire', lat: c.coords.latitude, lng: c.coords.longitude, emoji: '🔥', label: c.title }));
     (SUPABASE_READY ? realVenues : []).forEach((v) => v.lat != null && out.push({ id: 'v_' + v.id, srcId: v.id, kind: 'venue', lat: v.lat, lng: v.lng, emoji: v.emoji || '📍', label: v.name }));
     // REAL places from OpenStreetMap, pinned at their true coordinates
