@@ -31,6 +31,7 @@ import { cachedPoster, derivePoster, posterTint } from '../lib/poster';
 import { ME, HIGHLIGHTS, MY_MOMENTS, BADGES, av, AV_NEUTRAL } from '../constants/mockData'; // demo-mode fallback only
 import { COUNTRY_LIST } from '../constants/countries';
 import { Passport, ShowedUp } from '../components/Passport';
+import { BrainDump } from '../components/BrainDump';
 import { HostCard } from '../components/HostCard';
 
 /* Hobbies — pick what you love; they show on your profile and (later)
@@ -752,6 +753,8 @@ export const ProfileScreen = () => {
               </View>
             </Pressable>
           ) : null}
+          {/* Bardi's "today, one thing at a time" — a tool for you, so it lives here, not in the feed */}
+          {user ? <View style={{ marginTop: 14 }}><BrainDump /></View> : null}
           {SUPABASE_READY && user ? <ShowedUp userId={user.id} own /> : null}
 
           {/* badges */}

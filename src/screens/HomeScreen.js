@@ -29,7 +29,6 @@ import { Greeting } from '../components/Greeting';
 import { Modal } from 'react-native';
 import { goToTab, showOnMap } from '../lib/mapBus';
 import { takeLaunchTarget, onPushOpen } from '../lib/push';
-import { BrainDump } from '../components/BrainDump';
 import { GoOutRail } from '../components/GoOutRail';
 import { lazyOverlay } from '../lib/lazyScreen';
 
@@ -493,53 +492,10 @@ export const HomeScreen = () => {
             {/* real evenings and real plans with real photos — the reason to go (src/components/GoOutRail.js) */}
             {user ? (
               <GoOutRail
-                onFind={() => setWhatsOn(true)}
+                onFind={() => goToTab('TOGETHER')}
                 onOpenPlan={(g) => { if (g.lat != null && g.lng != null) showOnMap({ lat: g.lat, lng: g.lng }); else goToTab('TOGETHER'); }}
               />
             ) : null}
-
-            {/* today, one thing at a time — Bardi's brain dump */}
-            {user ? <BrainDump /> : null}
-
-            {/* share box — your moment or your opinion, one tap away */}
-            <Glass style={{ flexDirection: 'row', alignItems: 'center', padding: 12, marginTop: 18 }}>
-              <Image source={{ uri: me.avatar }} style={{ width: 40, height: 40, borderRadius: 20 }} />
-              <Pressable
-                testID="share-box"
-                onPress={() => setComposing('post')}
-                style={{
-                  flex: 1, marginLeft: 10,
-                  backgroundColor: C.bg, borderWidth: 1, borderColor: C.line,
-                  borderRadius: 999, paddingVertical: 11, paddingHorizontal: 16,
-                }}
-              >
-                <Text style={{ color: C.faint, fontSize: 13.5 }}>{t('whats_your_moment')}</Text>
-              </Pressable>
-              <Pressable onPress={() => setComposing('post')} hitSlop={8} style={{ marginLeft: 12 }}>
-                <Ionicons name="image" size={22} color={C.green} />
-              </Pressable>
-            </Glass>
-
-            {/* ── WHAT THERE IS TO JOIN ──────────────────────────────
-                Campfires were on the map, invitations were buried in
-                this feed under whatever was posted this morning, and
-                groups were inside the search modal. Three places, one
-                question. This is the question, in the one place people
-                actually look. */}
-            <Pressable onPress={() => { tapLight(); setWhatsOn(true); }} style={{ marginTop: 12 }}>
-              <View style={{
-                flexDirection: 'row', alignItems: 'center',
-                backgroundColor: C.glass, borderWidth: 1, borderColor: C.line,
-                borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14,
-              }}>
-                <Text style={{ fontSize: 19, marginEnd: 10 }}>🎟️</Text>
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>{t('wo_open')}</Text>
-                  <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 1 }} numberOfLines={1}>{t('wo_sub')}</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color={C.faint} />
-              </View>
-            </Pressable>
           </View>
         }
         renderItem={({ item }) => {

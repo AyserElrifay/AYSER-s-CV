@@ -8,7 +8,7 @@ import { C } from '../constants/theme';
 import { useLang } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { SUPABASE_READY } from '../lib/supabase';
-import { listGatherings, joinGathering, announceGathering, myInvites, checkInAt, setGatheringPhoto, removeGatheringPhoto, topCreators, followCreator, keptGatherings } from '../services/green';
+import { listGatherings, joinGathering, announceGathering, checkInAt, setGatheringPhoto, removeGatheringPhoto, topCreators, followCreator, keptGatherings } from '../services/green';
 import { remember, recall } from '../lib/offline';
 import { uploadPlanPhoto } from '../lib/storage';
 import { canCheckIn } from '../lib/xp';
@@ -31,7 +31,6 @@ import { lazyOverlay } from '../lib/lazyScreen';
 import { HostBadge } from '../components/HostCard';
 import { PlanHead, PastPhotos } from '../components/green/PlanPhoto';
 import { ReportSheet } from '../components/ReportSheet';
-import { CreatorsRail } from '../components/CreatorsRail';
 import { CirclesNear } from '../components/CirclesNear';
 const TripsSheet = lazyOverlay(() => import('../components/TripsSheet').then((m) => ({ default: m.TripsSheet })));
 const SettleSheet = lazyOverlay(() => import('../components/SettleSheet').then((m) => ({ default: m.SettleSheet })));
@@ -113,10 +112,10 @@ const Section = ({ children }) => (
 
 /* the rooms around the week, each in its own colour */
 const Tile = ({ emoji, label, from, to, onPress }) => (
-  <Pressable onPress={() => { tapLight(); onPress(); }} style={{ width: '31.5%', marginBottom: 10 }} accessibilityRole="button">
-    <View style={{ borderRadius: 20, paddingVertical: 16, paddingHorizontal: 8, alignItems: 'center', minHeight: 96, justifyContent: 'center', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line }}>
+  <Pressable onPress={() => { tapLight(); onPress(); }} style={{ width: '48.5%', marginBottom: 10 }} accessibilityRole="button">
+    <View style={{ borderRadius: 20, paddingVertical: 16, paddingHorizontal: 8, alignItems: 'center', minHeight: 84, flexDirection: 'row', justifyContent: 'center', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line }}>
       <Text style={{ fontSize: 26 }}>{emoji}</Text>
-      <Text style={{ color: C.text, fontSize: 12.5, fontWeight: '800', textAlign: 'center', marginTop: 6 }} numberOfLines={2}>{label}</Text>
+      <Text style={{ color: C.text, fontSize: 12.5, fontWeight: '800', marginStart: 10 }} numberOfLines={2}>{label}</Text>
     </View>
   </Pressable>
 );
@@ -160,7 +159,6 @@ export const TogetherScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [sheet, setSheet] = useState(null);
   const [creators, setCreators] = useState(() => recall('creators.' + (readCode() || 'all')) || []);     // hosts people really came to (top_creators)
-  const [invited, setInvited] = useState(null);     // how many joined through your link — the real count
   const [shareMsg, setShareMsg] = useState(null);
   const [askPush, setAskPush] = useState(false);
   const [talks, setTalks] = useState(null);         // talk rooms you are standing inside
@@ -177,7 +175,6 @@ export const TogetherScreen = () => {
       setMyCode(code); setCodeKnown(true);
       try { if (code) localStorage.setItem(CODE_KEY, code); else localStorage.removeItem(CODE_KEY); } catch (e) {}
     }).catch(() => { if (alive) setCodeKnown(true); });
-    myInvites().then((n) => { if (alive) setInvited(n); });
     return () => { alive = false; };
   }, [uid]);
 
@@ -556,61 +553,30 @@ export const TogetherScreen = () => {
           </>
         ) : null}
 
-        {/* ── the rooms around it ── */}
+        {/* ── circles near you ── groups people started at places nearby */}
+        {uid ? <CirclesNear /> : null}
+
+        {/* ── more ── Ayser: "يبقي مترابط و سهل و الfeatures مش كتير". Nine
+            tiles became four: the map, Go out now and talk rooms already
+            have their own doors above and in the tabs; the papers live
+            inside Settling in; exchanges live in Chats. */}
         <Section>{t('tg_more')}</Section>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
-          {/* trips, deals and stays, booked through Moments (TripsSheet.js) */}
           <Tile emoji="🧳" label={t('bk_tile')} from="#7C3AED" to="#F5B301" onPress={() => setSheet({ trips: 'browse' })} />
-          <Tile emoji="🎓" label={t('prog_title')} from="#3B82F6" to="#06B6D4" onPress={() => setSheet('prog')} />
-          {/* newcomers and the people welcoming them (SettleSheet.js) */}
-          <Tile emoji="🤝" label={t('st_title')} from="#F59E0B" to="#EF4444" onPress={() => setSheet('settle')} />
-          {isEuCode(myCode) ? (
-            <Tile emoji="🧭" label={t('ld_title')} from="#10B981" to="#84CC16" onPress={() => setSheet('landing')} />
-          ) : null}
-          {/* "Ideas" and "How we do it" were two doors into the same Green
-              Minds sheet — Ayser: "ideas هي هي green minds". One door; the
-              ideas and the how-to are inside it. */}
           <Tile emoji="🌿" label={t('green_title')} from="#10B981" to="#84CC16" onPress={() => setSheet('green')} />
+          <Tile emoji="🤝" label={t('st_title')} from="#F59E0B" to="#EF4444" onPress={() => setSheet('settle')} />
           <Tile emoji="🎲" label={t('tg_play')} from="#A855F7" to="#EC4899" onPress={() => nav.navigate('CHILL')} />
-          <Tile emoji="🗺️" label={t('tg_on_map')} from="#6366F1" to="#8B5CF6" onPress={() => nav.navigate('MAP')} />
-          <Tile emoji="🏃" label={t('gn_cta_short')} from="#10B981" to="#0EA5E9" onPress={() => setSheet('gonow')} />
-          <Tile emoji="🎙️" label={t('tr_tile')} from="#111" to="#111" onPress={() => setSheet('talk')} />
         </View>
 
-        {/* ── hangout creators ── the hosts people really come back to,
-            counted by the database (top_creators); follow one and you hear
-            when they start something new */}
-        {uid ? <CirclesNear /> : null}
-        {uid ? <CreatorsRail creators={creators} me={uid} onFollow={follow} onBecome={() => setSheet({ rewards: 'creator' })} /> : null}
-
-        {/* ── bring your people ── a community grows by people bringing
-            people. Your own link, and how many really joined through it. */}
+        {/* ── bring your people ── one line; the details are in Rewards */}
         {uid ? (
-          <View style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 22, padding: 16, marginTop: 12 }}>
-            <Text style={{ color: C.text, fontSize: 16, fontWeight: '900' }}>{t('inv_title')}</Text>
-            <Text style={{ color: C.dim, fontSize: 13.5, lineHeight: 19, marginTop: 4 }}>{t('rw_inv_sub')}</Text>
-            {invited != null ? (
-              <Text style={{ color: C.purple, fontSize: 14, fontWeight: '900', marginTop: 10 }}>
-                {invited === 0 ? t('inv_none') : invited === 1 ? t('inv_one') : t('inv_n').replace('{n}', String(invited))}
-              </Text>
-            ) : null}
-            <Pressable
-              onPress={async () => {
-                tapMedium();
-                const r = await shareLink({ url: appLink({ invite: uid }), title: 'Moments', text: t('inv_text') });
-                const note = shareNote(r); if (note) { setShareMsg(note); setTimeout(() => setShareMsg(null), 2400); }
-              }}
-              accessibilityRole="button" style={{ marginTop: 12 }}>
-              <View style={{ borderRadius: 999, paddingVertical: 13, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', backgroundColor: C.purple }}>
-                <Ionicons name="share-outline" size={17} color="#FFF" />
-                <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '900', marginStart: 7 }}>{t('inv_share')}</Text>
-              </View>
-            </Pressable>
-            {shareMsg ? <Text style={{ color: C.faint, fontSize: 12, textAlign: 'center', marginTop: 8 }}>{shareMsg}</Text> : null}
-            <Pressable onPress={() => { tapLight(); setSheet({ rewards: 'loyalty' }); }} accessibilityRole="button" style={{ marginTop: 12, alignSelf: 'center' }} hitSlop={8}>
-              <Text style={{ color: C.purple, fontSize: 14, fontWeight: '900' }}>{t('rw_open')} ›</Text>
-            </Pressable>
-          </View>
+          <Pressable onPress={() => { tapLight(); setSheet({ rewards: 'invite' }); }} accessibilityRole="button" style={{ marginTop: 12 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.goldSoft, borderWidth: 1, borderColor: C.gold, borderRadius: 18, padding: 14 }}>
+              <Text style={{ fontSize: 20, marginEnd: 10 }}>🎁</Text>
+              <Text style={{ color: C.text, fontSize: 14, fontWeight: '800', flex: 1 }} numberOfLines={2}>{t('rw_inv_plus')}</Text>
+              <Ionicons name="chevron-forward" size={17} color={C.dim} />
+            </View>
+          </Pressable>
         ) : null}
       </ScrollView>
 

@@ -41,7 +41,7 @@ is('only people going see the Chat button', /\(g\.im_going \|\| mine\) && g\.squ
 console.log('\nbring your people — counted, not claimed');
 const inv = sql.slice(sql.lastIndexOf('BRING YOUR PEOPLE'));
 is('counted once, by one person, never yourself, within two weeks', /p_from = me/.test(inv) && /invited_by is null/.test(inv) && /interval '14 days'/.test(inv));
-is('the screen shows the database count, and zero as zero', /myInvites\(\)\.then/.test(read('src/screens/TogetherScreen.js')) && /inv_none/.test(read('src/screens/TogetherScreen.js')));
+is('the screen shows the database count, and zero as zero', /myReferrals\(\)\.then/.test(read('src/components/RewardsSheet.js')) && /refs \? refs\.joined : null/.test(read('src/components/RewardsSheet.js')));
 is('no reward is promised', !/Pro|free year|reward/i.test(JSON.stringify(read('src/constants/i18n.js').match(/inv_[a-z]+: [^\n]+/g))));
 is('the code leaves the address bar at once', /history\.replaceState/.test(read('src/lib/invite.js')));
 
