@@ -81,7 +81,10 @@ function injectMapStyle() {
        what stops a flat-coloured map looking like printed paper.
        Night is a real night palette there, not an inversion, so the
        dark rule must not reach it either. */
-    .mm-glmap { filter: saturate(1.06); }
+    .mm-glmap { filter: saturate(1.06); transition: opacity 0.35s ease; }
+    /* the drawn map is shown once it has finished drawing, faded in over
+       whatever was there, never half-drawn */
+    .leaflet-container:not(.mm-vector) .mm-glmap { opacity: 0; }
     .leaflet-container.mm-vector { background: #FBF6E9; }
     .leaflet-container.mm-vector.mm-dark { background: #111A26; }
     /* our own country names — every country identical styling, so no
@@ -500,6 +503,19 @@ const OSM_TILES = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 const LIGHT_TILES = OSM_TILES;
 const DARK_TILES = OSM_TILES;
 
+/* where you last really were, kept on this phone so the next open can
+   start there (see the map's first setView). Written only from a real
+   GPS fix, never from a stand-in. */
+const FIX_KEY = 'moments.lastFix';
+const readFix = () => {
+  try {
+    const v = JSON.parse(localStorage.getItem(FIX_KEY) || 'null');
+    return v && Number.isFinite(v.lat) && Number.isFinite(v.lng) ? v : null;
+  } catch (e) { return null; }
+};
+const keepFix = (c) => {
+  try { localStorage.setItem(FIX_KEY, JSON.stringify({ lat: +c.latitude.toFixed(4), lng: +c.longitude.toFixed(4) })); } catch (e) {}
+};
 export const LeafletMap = ({ center, markers = [], onPress, onMe, locate = true, focus = null, lang = 'en', meAvatar = null, meDoing = null, meName = null, route = null, appDark = null, onViewport = null, globeHint = 'Pinch or tap the planet to come down' }) => {
   const elRef = useRef(null);
   const mapRef = useRef(null);
@@ -508,6 +524,7 @@ export const LeafletMap = ({ center, markers = [], onPress, onMe, locate = true,
   const cullFnRef = useRef(null);
   const meRef = useRef(null);
   const flownRef = useRef(false);
+  const startFixRef = useRef(undefined);   // where this map opened (lastFix), read once
   /* Both tap handlers live in refs. Markers are only redrawn when the
      data changes, so a handler bound to a pin outlives the render that
      created it — and the handler it captured closes over the people
@@ -552,6 +569,8 @@ export const LeafletMap = ({ center, markers = [], onPress, onMe, locate = true,
     injectMapStyle();
     loadLeaflet().then((L) => {
       if (cancelled || !L || !elRef.current || mapRef.current) return;
+      const lastFix = readFix();
+      startFixRef.current = lastFix;
       const map = L.map(elRef.current, {
         zoomControl: false, attributionControl: true,
         minZoom: 2, maxZoom: 18, worldCopyJump: true,
@@ -570,7 +589,11 @@ export const LeafletMap = ({ center, markers = [], onPress, onMe, locate = true,
         bounceAtZoomLimits: false,   // no rubber-band fight at the ends
         touchZoom: true, doubleClickZoom: true, dragging: true,
         preferCanvas: true,
-      }).setView([24, 14], 2.5); // Earth view — Egypt/Europe in frame
+      }).setView(lastFix ? [lastFix.lat, lastFix.lng] : [24, 14], lastFix ? 14 : 2.5, { animate: false });
+      /* Ayser: "ما ينفعش يفتح على حاجة وبعد كده يتعدل". The map opens
+         where you last were, at street level — not on the planet with a
+         two-second flight down to you. Only the very first time on a
+         phone, with no place known yet, does it start on the planet. */
 
       /* Pinch has always worked, but a map with no visible + and − reads
          as a picture rather than something you can move around in — and
@@ -717,8 +740,9 @@ export const LeafletMap = ({ center, markers = [], onPress, onMe, locate = true,
           drawn = true;
           clearTimeout(pictureTimer);
           if (nudge) { clearInterval(nudge); nudge = null; }
-          try { map.removeLayer(tiles); } catch (e) {}
           map.getContainer().classList.add('mm-vector');
+          // the pictures leave after the drawn map has faded in over them
+          setTimeout(() => { if (drawn) { try { map.removeLayer(tiles); } catch (e) {} } }, 400);
         };
         if (inner && inner.once) {
           inner.once('load', drawnNow);
@@ -1061,9 +1085,16 @@ export const LeafletMap = ({ center, markers = [], onPress, onMe, locate = true,
   // "You" pin — the camera stays wherever the user panned it.
   useEffect(() => {
     if (!mapRef.current || !center || !locate) return;
+    keepFix(center);
     if (!flownRef.current) {
       flownRef.current = true;
-      mapRef.current.flyTo([center.latitude, center.longitude], 14, { duration: 2.4 });
+      /* no flight: if the map already opened where you are (lastFix),
+         it stays put; otherwise it is simply there, without the trip */
+      const m = mapRef.current;
+      const c = m.getCenter();
+      const lastFix = startFixRef.current;
+      const far = !lastFix || Math.abs(c.lat - center.latitude) > 0.01 || Math.abs(c.lng - center.longitude) > 0.01;
+      if (far) m.setView([center.latitude, center.longitude], Math.max(m.getZoom(), 14), { animate: false });
       if (typeof window !== 'undefined' && window.L) draw(window.L);
     } else if (meRef.current) {
       meRef.current.setLatLng([center.latitude, center.longitude]);

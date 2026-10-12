@@ -43,7 +43,7 @@ const kindLabel = (t, k) => (k ? t(k === 'focus' ? 'gn_focus' : k === 'run' ? 'g
 
 export const MapPanel = ({
   t, lang, user, plans, people, open, onOpen, joining, onJoin, onFocus, onGoNow, onPerson,
-  chips = false, kind = null, onKind,
+  chips = false, kind = null, onKind, loading = false,
 }) => {
   const { height } = useWindowDimensions();
   const drag = useRef(PanResponder.create({
@@ -124,7 +124,7 @@ export const MapPanel = ({
         </Pressable>
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingBottom: 2 }}>
           <Text style={{ flex: 1, color: C.text, fontSize: 19, fontWeight: '800', letterSpacing: -0.3 }} numberOfLines={1}>
-            {plans.length ? count : t('map_none_here')}
+            {plans.length ? count : loading ? '\u00A0' : t('map_none_here')}
           </Text>
           {plans.length > 1 || (people.length && !open) ? (
             <Pressable onPress={() => { tapSelection(); onOpen(!open); }} accessibilityRole="button" style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6, marginStart: 8 }}>
@@ -153,7 +153,11 @@ export const MapPanel = ({
 
       <ScrollView keyboardShouldPersistTaps="handled" scrollEnabled={open} showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 14 }} style={{ flexGrow: 0, flexShrink: 1 }}>
-        {plans.length ? shown.map(renderPlan) : (
+        {plans.length ? shown.map(renderPlan) : loading ? (
+          /* still finding out: the same height, saying nothing — never
+             "nothing here" a second before five things appear */
+          <View style={{ height: 86 }} />
+        ) : (
           <Pressable onPress={() => { tapLight(); onGoNow(); }} accessibilityRole="button" style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 14 }}>
             <View style={{ width: 58, height: 58, borderRadius: 29, borderWidth: 1.5, borderColor: C.line, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' }}>
               <Ionicons name="add" size={24} color={C.text} />

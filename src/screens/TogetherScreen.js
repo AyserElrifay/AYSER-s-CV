@@ -8,7 +8,8 @@ import { C } from '../constants/theme';
 import { useLang } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { SUPABASE_READY } from '../lib/supabase';
-import { listGatherings, joinGathering, announceGathering, myInvites, checkInAt, setGatheringPhoto, removeGatheringPhoto, topCreators, followCreator } from '../services/green';
+import { listGatherings, joinGathering, announceGathering, myInvites, checkInAt, setGatheringPhoto, removeGatheringPhoto, topCreators, followCreator, keptGatherings } from '../services/green';
+import { remember, recall } from '../lib/offline';
 import { uploadPlanPhoto } from '../lib/storage';
 import { canCheckIn } from '../lib/xp';
 import { getCurrentCoords } from '../utils/location';
@@ -132,23 +133,30 @@ const JoinPill = ({ going, busy, onPress, t }) => (
   </Pressable>
 );
 
+/* Your country, remembered on this phone: the list is asked for your
+   country from the first moment, instead of "everywhere" first and then
+   swapped for your country once the profile arrives. */
+const CODE_KEY = 'moments.myCode';
+const readCode = () => { try { return localStorage.getItem(CODE_KEY) || null; } catch (e) { return null; } };
+
 export const TogetherScreen = () => {
   const insets = useSafeAreaInsets();
   const nav = useNavigation();
   const { t, lang } = useLang();
   const { user } = useAuth();
 
-  const [myCode, setMyCode] = useState(null);       // the country on your profile, as a code
+  const [myCode, setMyCode] = useState(readCode);   // the country on your profile, as a code
+  const [codeKnown, setCodeKnown] = useState(() => readCode() != null || !SUPABASE_READY);
   const [scope, setScope] = useState('near');       // 'near' | 'all'
-  const [rows, setRows] = useState(null);           // null = still asking
-  const [on, setOn] = useState(null);               // fetchWhatsOn: now / soon / groups
+  const [rows, setRows] = useState(() => keptGatherings(readCode()));  // the week as last seen; null = still asking
+  const [on, setOn] = useState(() => recall('whatson') || null);  // fetchWhatsOn: now / soon / groups
   const [day, setDay] = useState(null);
   const [open, setOpen] = useState(null);
   const [busy, setBusy] = useState({});
   const [sent, setSent] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [sheet, setSheet] = useState(null);
-  const [creators, setCreators] = useState([]);     // hosts people really came to (top_creators)
+  const [creators, setCreators] = useState(() => recall('creators.' + (readCode() || 'all')) || []);     // hosts people really came to (top_creators)
   const [invited, setInvited] = useState(null);     // how many joined through your link — the real count
   const [shareMsg, setShareMsg] = useState(null);
   const [askPush, setAskPush] = useState(false);
@@ -160,7 +168,12 @@ export const TogetherScreen = () => {
   useEffect(() => {
     if (!SUPABASE_READY || !uid) return;
     let alive = true;
-    getProfile(uid).then((p) => { if (alive) setMyCode(flagToIso(p && p.country_flag)); }).catch(() => {});
+    getProfile(uid).then((p) => {
+      if (!alive) return;
+      const code = flagToIso(p && p.country_flag);
+      setMyCode(code); setCodeKnown(true);
+      try { if (code) localStorage.setItem(CODE_KEY, code); else localStorage.removeItem(CODE_KEY); } catch (e) {}
+    }).catch(() => { if (alive) setCodeKnown(true); });
     myInvites().then((n) => { if (alive) setInvited(n); });
     return () => { alive = false; };
   }, [uid]);
@@ -189,6 +202,9 @@ export const TogetherScreen = () => {
   const load = useCallback(() => {
     let alive = true;
     if (!SUPABASE_READY || !uid) { setRows([]); setOn({ now: [], soon: [], groups: [] }); return () => {}; }
+    /* not before your country is known — otherwise the whole world's
+       list shows for a second and is then swapped for yours */
+    if (scope === 'near' && !codeKnown) return () => {};
     /* both at once: the week and what else is on are separate questions */
     Promise.all([
       listGatherings(country).catch(() => []),
@@ -197,14 +213,14 @@ export const TogetherScreen = () => {
       topCreators(country).catch(() => []),
     ]).then(([gs, wo, tr, cr]) => {
       if (!alive) return;
-      setCreators(cr || []);
+      setCreators(cr || []); remember('creators.' + (country || 'all'), cr || []);
       setTalks(tr && tr.ok ? { rooms: tr.rooms || [], offset: offsetFrom(tr.now) } : null);
       setRows(gs || []);
-      setOn(wo || { now: [], soon: [], groups: [] });
+      setOn(wo || { now: [], soon: [], groups: [] }); if (wo) remember('whatson', wo);
       setRefreshing(false);
     });
     return () => { alive = false; };
-  }, [country, uid]);
+  }, [country, uid, scope, codeKnown]);
   useEffect(() => load(), [load]);
 
   const days = useMemo(() => groupByDay(rows), [rows]);

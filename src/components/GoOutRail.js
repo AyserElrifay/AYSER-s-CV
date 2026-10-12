@@ -3,7 +3,8 @@ import { View, Text, Pressable, ScrollView, Image, Dimensions } from 'react-nati
 import { LinearGradient } from 'expo-linear-gradient';
 import { C } from '../constants/theme';
 import { useLang } from '../context/LanguageContext';
-import { listGatherings, joinGathering } from '../services/green';
+import { listGatherings, keptGatherings, joinGathering } from '../services/green';
+import { remember, recall } from '../lib/offline';
 import { fetchHighlights } from '../services/appHighlights';
 import { planPhotoOf } from './green/PlanPhoto';
 import { titleFor, whenFor } from '../lib/activityPins';
@@ -73,17 +74,19 @@ const PlanCard = ({ g, lang, t, onOpen, onJoin, joining }) => (
 
 export const GoOutRail = ({ onFind, onOpenPlan }) => {
   const { t, lang } = useLang();
-  const [hls, setHls] = useState([]);
+  /* opens on what was here last time, then brought up to date — the
+     rail never pops into a Home that was already laid out without it */
+  const upcoming = (rows) => { const now = Date.now(); return (rows || []).filter((g) => planPhotoOf(g) && new Date(g.starts_at).getTime() > now).slice(0, 8); };
+  const [hls, setHls] = useState(() => recall('highlights') || []);
   const cardW = Math.min(420, Dimensions.get('window').width - 56);
-  const [plans, setPlans] = useState([]);
+  const [plans, setPlans] = useState(() => upcoming(keptGatherings(null)));
   const [joining, setJoining] = useState({});
   useEffect(() => {
     let alive = true;
-    fetchHighlights().then((h) => { if (alive) setHls(h); });
+    fetchHighlights().then((h) => { if (alive) { setHls(h); remember('highlights', h); } });
     listGatherings(null).then((rows) => {
       if (!alive) return;
-      const now = Date.now();
-      setPlans((rows || []).filter((g) => planPhotoOf(g) && new Date(g.starts_at).getTime() > now).slice(0, 8));
+      setPlans(upcoming(rows));
     }).catch(() => {});
     return () => { alive = false; };
   }, []);

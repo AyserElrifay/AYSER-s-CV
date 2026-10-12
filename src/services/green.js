@@ -48,6 +48,16 @@ export async function listGatherings(country) {
   }
 }
 
+/* The week as it was last seen, straight away and without waiting: a
+   screen opens on this and is quietly brought up to date, instead of
+   opening empty ("Nothing to join") and then filling in. null = never
+   seen on this phone. */
+export function keptGatherings(country) {
+  if (!SUPABASE_READY) return null;
+  const kept = recall('green_list.' + (country || 'all'));
+  return kept ? withPendingJoins(kept) : null;
+}
+
 async function askGatherings(country) {
   const ask = () => withDeadline(supabase.rpc('green_list', { p_country: country || null }));
   /* The weekly plans are turned into this week's gatherings by the

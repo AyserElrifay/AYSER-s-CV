@@ -9,7 +9,7 @@ import { ME, DOING_OPTIONS, DEALS, DEAL_FILTERS, av, AV_NEUTRAL } from '../const
 import { MAP_PEOPLE, CAMPFIRES, BOOKINGS } from '../constants/mockData'; // demo-mode fallback only
 import { MapView, Marker, MAPS_READY } from '../utils/maps';
 import { takeMapTarget, onMapTarget } from '../lib/mapBus';
-import { listGatherings, joinGathering, bardiMatchMe } from '../services/green';
+import { listGatherings, keptGatherings, joinGathering, bardiMatchMe } from '../services/green';
 import { activityPin, lookOf, titleFor, whenFor } from '../lib/activityPins';
 import { rankPeople, rankPlans } from '../lib/recommend';
 import { getProfile } from '../services/profiles';
@@ -164,7 +164,8 @@ export const MapScreen = () => {
   const [noteHours, setNoteHours] = useState(24);       // chosen duration
   const [realNotes, setRealNotes] = useState([]);       // pinned comments
   const [shotOpen, setShotOpen] = useState(null);       // a moment/story opened from the map
-  const [gatherings, setGatherings] = useState([]);    // this week's real things to join
+  const [gatherings, setGatherings] = useState(() => keptGatherings(null) || []);
+  const [gatheringsReady, setGatheringsReady] = useState(() => !SUPABASE_READY || keptGatherings(null) != null);    // this week's real things to join
   const [greenOpen, setGreenOpen] = useState(false);
   const [goNow, setGoNow] = useState(false);
   const [view, setView] = useState(null);          // what the map is showing, for "in this area"
@@ -803,7 +804,7 @@ export const MapScreen = () => {
     fetchActiveNotes().then((rows) => { if (!cancelled) setRealNotes(rows); }).catch(() => {});
     // these fail soft: the columns may not exist until RUN_ME.sql is re-run
     fetchMomentPins().then((rows) => { if (!cancelled) setMomentPins(rows); }).catch(() => {});
-    listGatherings(null).then((rows) => { if (!cancelled) setGatherings(rows); }).catch(() => {});
+    listGatherings(null).then((rows) => { if (!cancelled) { setGatherings(rows); setGatheringsReady(true); } }).catch(() => { if (!cancelled) setGatheringsReady(true); });
     fetchStoryPins().then((rows) => { if (!cancelled) setStoryPins(rows); }).catch(() => {});
     return () => { cancelled = true; };
   }, []);
@@ -1080,6 +1081,7 @@ export const MapScreen = () => {
           onGoNow={() => setGoNow(true)}
           onPerson={(p) => setProfileUser(p)}
           chips={lens === 'activities'} kind={actKind} onKind={setActKind}
+          loading={!view || !gatheringsReady || (locating && !located && !showLocationGate)}
         />
       ) : null}
 
