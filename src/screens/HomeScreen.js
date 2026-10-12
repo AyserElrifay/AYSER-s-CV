@@ -25,6 +25,7 @@ import { Glass } from '../components/Glass';
 import { PostCard } from '../components/PostCard';
 import { StoriesBar } from '../components/StoriesBar';
 import { Wordmark } from '../components/Wordmark';
+import { Greeting } from '../components/Greeting';
 import { Modal } from 'react-native';
 import { goToTab, showOnMap } from '../lib/mapBus';
 import { takeLaunchTarget, onPushOpen } from '../lib/push';
@@ -460,9 +461,7 @@ export const HomeScreen = () => {
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
               <View>
                 <Wordmark height={46} style={{ marginLeft: -4, marginBottom: -2 }} />
-                <Text style={{ color: C.faint, fontSize: 11, marginTop: 2, letterSpacing: 0.4 }}>
-                  {t('brand_tagline')}
-                </Text>
+                <Greeting />
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <Pressable testID="btn-notifs" accessibilityRole="button" accessibilityLabel={t('notifications')} onPress={() => { tapLight(); setNotifOpen(true); setUnread(0); }} style={[headerBtn(), { marginRight: 10 }]}>

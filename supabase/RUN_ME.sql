@@ -13095,3 +13095,12 @@ select * from (values
   'Same time every Saturday: everyone names one small goal for the week, and next week says how it went.',75,'4–12',26)
 ) v(kind, country, title_ar, title_en, about_ar, about_en, minutes, people, sort)
 where not exists (select 1 from public.green_sparks s where s.title_en = v.title_en);
+
+-- ═══════════ PROFILE · WHAT YOU LOVE WHEN YOU TRAVEL ═══════════
+/* Ayser: "خلي الناس تقدر تحكي عن نفسها اكتر … بيعملو اي بيحبو اي تحبه
+   في السفر". What you do (occupation) and speak were already there; one
+   more line, in your own words, shown on your pass. */
+alter table public.profiles add column if not exists travel_love text;
+do $$ begin
+  alter table public.profiles add constraint profiles_travel_love_len check (travel_love is null or length(travel_love) <= 160) not valid;
+exception when others then null; end $$;

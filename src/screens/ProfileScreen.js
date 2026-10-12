@@ -231,6 +231,7 @@ export const ProfileScreen = () => {
   const [editWork, setEditWork] = useState('');
   const [editStudy, setEditStudy] = useState('');
   const [editLangs, setEditLangs] = useState('');
+  const [editTravel, setEditTravel] = useState('');   // what you love when you travel
   const [countryQ, setCountryQ] = useState('');       // country search in edit
   const [editVisited, setEditVisited] = useState([]); // countries you have been to (codes)
   const [visitQ, setVisitQ] = useState('');
@@ -368,6 +369,7 @@ export const ProfileScreen = () => {
       setEditWork(p.occupation || '');
       setEditStudy(p.education || '');
       setEditLangs(p.speaks_language || '');
+      setEditTravel(p.travel_love || '');
       setEditVisited(Array.isArray(p.visited_countries) ? p.visited_countries : []);
       if (p.account_type) setAccountType(p.account_type);
       setArtistGenre(p.artist_genre || '');
@@ -414,6 +416,7 @@ export const ProfileScreen = () => {
         occupation: editWork.trim() || null,
         education: editStudy.trim() || null,
         speaks_language: editLangs.trim() || null,
+        travel_love: editTravel.trim() || null,
         visited_countries: editVisited.length ? editVisited : null,
         account_type: accountType,
         artist_genre: (accountType === 'artist' || accountType === 'musician') ? (artistGenre.trim() || null) : null,
@@ -997,7 +1000,11 @@ export const ProfileScreen = () => {
             />
             <TextInput
               placeholder={t('languages_ph')} placeholderTextColor={C.faint} value={editLangs} onChangeText={setEditLangs}
-              style={{ color: C.text, fontSize: 14, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 11, marginBottom: 12 }}
+              style={{ color: C.text, fontSize: 14, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 11, marginBottom: 9 }}
+            />
+            <TextInput
+              placeholder={t('travel_ph')} placeholderTextColor={C.faint} value={editTravel} onChangeText={setEditTravel} maxLength={160} multiline
+              style={{ color: C.text, fontSize: 14, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 11, marginBottom: 12, minHeight: 50, textAlignVertical: 'top' }}
             />
 
             {/* country — searchable, the whole planet; saves country + flag */}

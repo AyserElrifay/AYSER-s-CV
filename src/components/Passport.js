@@ -102,6 +102,8 @@ export const Passport = ({ profile, name, avatar, verified, own, onPhoto, onEdit
       <View style={{ borderTopWidth: 1, borderStyle: 'dashed', borderColor: C.line, marginTop: 14, paddingTop: 10 }}>
         {langs.length ? <Text style={line} numberOfLines={2}><Text style={{ color: C.faint }}>{t('pp_speaks') + '  '}</Text>{langs.join(' · ')}</Text> : null}
         {loves.length ? <Text style={line} numberOfLines={2}><Text style={{ color: C.faint }}>{t('pp_loves') + '  '}</Text>{loves.join(' · ')}</Text> : null}
+        {p.occupation ? <Text style={line} numberOfLines={2}><Text style={{ color: C.faint }}>{t('pp_does') + '  '}</Text>{p.occupation}</Text> : null}
+        {p.travel_love ? <Text style={line} numberOfLines={3}><Text style={{ color: C.faint }}>{'✈️ ' + t('pp_travel') + '  '}</Text>{p.travel_love}</Text> : null}
         {visited.length ? (
           <View style={{ marginTop: 10 }}>
             <Text style={{ color: C.faint, fontSize: 12, fontWeight: '800', letterSpacing: 1 }}>{t('pp_stamps').replace('{n}', String(visited.length))}</Text>
