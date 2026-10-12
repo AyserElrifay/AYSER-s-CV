@@ -29,7 +29,7 @@ import { showOnMap, goToTab } from '../lib/mapBus';
 import { openChat } from '../lib/chatBus';
 import { lazyOverlay } from '../lib/lazyScreen';
 import { HostBadge } from '../components/HostCard';
-import { PlanHead, PastPhotos, PlaceCredit } from '../components/green/PlanPhoto';
+import { PlanHead, PastPhotos } from '../components/green/PlanPhoto';
 import { ReportSheet } from '../components/ReportSheet';
 import { CreatorsRail } from '../components/CreatorsRail';
 const TripsSheet = lazyOverlay(() => import('../components/TripsSheet').then((m) => ({ default: m.TripsSheet })));
@@ -414,32 +414,35 @@ export const TogetherScreen = () => {
                         {expanded && !mine ? <Text style={{ color: C.faint, fontSize: 11.5, lineHeight: 16, marginTop: 8 }}>{t('hc_liability')}</Text> : null}
                         {/* photos people really took there last time */}
                         {expanded ? <PastPhotos g={g} t={t} onReport={(u) => reportPhoto(g, u)} /> : null}
-                        {expanded ? <PlaceCredit g={g} t={t} /> : null}
-                        {expanded && mine ? (
-                          <Pressable onPress={() => { tapLight(); changePhoto(g); }} disabled={photoBusy === g.id} accessibilityRole="button"
-                            style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10, alignSelf: 'flex-start', opacity: photoBusy === g.id ? 0.5 : 1 }}>
-                            <Ionicons name={g.photo_url ? 'trash-outline' : 'camera-outline'} size={15} color={C.purple} />
-                            <Text style={{ color: C.purple, fontSize: 13, fontWeight: '900', marginStart: 5 }}>{t(g.photo_url ? 'pl_remove_photo' : 'pl_add_photo')}</Text>
-                          </Pressable>
-                        ) : null}
-                        {expanded && g.lat != null && g.lng != null ? (
-                          <Pressable onPress={() => { tapLight(); showOnMap({ lat: g.lat, lng: g.lng }); }} style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10, alignSelf: 'flex-start' }}>
-                            <Ionicons name="map-outline" size={15} color={C.purple} />
-                            <Text style={{ color: C.purple, fontSize: 13, fontWeight: '900', marginStart: 5 }}>{t('show_on_map')}</Text>
-                          </Pressable>
+                        {expanded && (mine || (g.lat != null && g.lng != null)) ? (
+                          <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 10 }}>
+                            {mine ? (
+                              <Pressable onPress={() => { tapLight(); changePhoto(g); }} disabled={photoBusy === g.id} accessibilityRole="button"
+                                style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, backgroundColor: C.purpleSoft, paddingHorizontal: 11, paddingVertical: 7, marginEnd: 8, opacity: photoBusy === g.id ? 0.5 : 1 }}>
+                                <Ionicons name={g.photo_url ? 'trash-outline' : 'camera-outline'} size={14} color={C.purple} />
+                                <Text style={{ color: C.purple, fontSize: 12.5, fontWeight: '800', marginStart: 5 }}>{t(g.photo_url ? 'pl_remove_photo_short' : 'pl_add_photo_short')}</Text>
+                              </Pressable>
+                            ) : null}
+                            {g.lat != null && g.lng != null ? (
+                              <Pressable onPress={() => { tapLight(); showOnMap({ lat: g.lat, lng: g.lng }); }} accessibilityRole="button"
+                                style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, backgroundColor: C.purpleSoft, paddingHorizontal: 11, paddingVertical: 7 }}>
+                                <Ionicons name="map-outline" size={14} color={C.purple} />
+                                <Text style={{ color: C.purple, fontSize: 12.5, fontWeight: '800', marginStart: 5 }}>{t('show_on_map')}</Text>
+                              </Pressable>
+                            ) : null}
+                          </View>
                         ) : null}
 
                         <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 11 }}>
                           <Text style={{ color: C.faint, fontSize: 12.5, fontWeight: '800', flex: 1, minWidth: 0 }} numberOfLines={1}>
-                            {(Number(g.going) || 0) + ' ' + t('green_going')}{g.weekly_id ? ' · ' + t('green_every_week') : ''}{'  ' + (expanded ? '▴' : '▾')}
+                            {'👥 ' + (Number(g.going) || 0) + ' ' + t('green_going')}{g.weekly_id ? ' · ' + t('green_every_week') : ''}
                           </Text>
                           {(g.im_going || mine) && g.squad_id ? (
                             /* the plan's own group chat — "I'm at the gate" */
                             <Pressable onPress={() => { tapLight(); openChat({ id: g.squad_id, name: titleFor(g.title, lang), emoji: lookOf(g.kind).emoji }); goToTab('CHATS'); }}
                               hitSlop={6} accessibilityRole="button" accessibilityLabel={t('tg_chat')} style={{ marginEnd: 8 }}>
-                              <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1.5, borderColor: C.line }}>
-                                <Ionicons name="chatbubbles-outline" size={14} color={C.text} />
-                                <Text style={{ color: C.text, fontSize: 12.5, fontWeight: '900', marginStart: 5 }}>{t('tg_chat')}</Text>
+                              <View style={{ width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: C.line }}>
+                                <Ionicons name="chatbubbles-outline" size={17} color={C.text} />
                               </View>
                             </Pressable>
                           ) : null}

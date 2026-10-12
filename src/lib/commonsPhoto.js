@@ -36,10 +36,16 @@ export function sameName(placeName, title) {
   return need > 0 && shared(placeName, title) >= need;
 }
 
+/* a photograph, not a logo: Ayser's "Al-Azhar Park" plan showed the
+   university's emblem. Emblems, seals, maps and flags are drawings
+   (svg/png) or say so in the file name. */
+const NOT_PHOTO = /logo|emblem|seal|coat_of_arms|coat of arms|flag|map|icon|symbol|crest|diagram|plan\b|sign/i;
+export const isPhoto = (file) => /\.(jpe?g|webp)$/i.test(String(file || '')) && !NOT_PHOTO.test(String(file || ''));
+
 /* the article to trust: names the place, most shared words, then nearest */
 export function pickPage(placeName, pages) {
   return (pages || [])
-    .filter((p) => p && p.thumbnail && p.thumbnail.source && p.pageimage && sameName(placeName, p.title))
+    .filter((p) => p && p.thumbnail && p.thumbnail.source && p.pageimage && isPhoto(p.pageimage) && sameName(placeName, p.title))
     .sort((a, b) => shared(placeName, b.title) - shared(placeName, a.title)
       || (a.dist == null ? 1e9 : a.dist) - (b.dist == null ? 1e9 : b.dist))[0] || null;
 }
@@ -57,7 +63,7 @@ export function creditOf(meta) {
 
 /* v2: a month of "no photo" kept under the old rule must not hide the
    name search from a phone that asked before it existed */
-const KEY = 'moments.commons2.';
+const KEY = 'moments.commons3.';
 const MONTH = 30 * 24 * 3600 * 1000;
 const recall = (k) => { try { const v = JSON.parse(localStorage.getItem(KEY + k) || 'null'); return v && Date.now() - v.at < MONTH ? v : null; } catch (e) { return null; } };
 const keep = (k, photo) => { try { localStorage.setItem(KEY + k, JSON.stringify({ at: Date.now(), photo })); } catch (e) {} };
@@ -158,7 +164,11 @@ export async function placePhoto({ name, lat, lng }) {
       + '&prop=pageimages%7Ccoordinates&piprop=thumbnail%7Cname&pithumbsize=900&pilicense=free&colimit=6');
     if (!j) continue;
     reached = true;
-    const page = pickPage(q, toPages(j).filter((pg) => isNearPlace(pg, hasSpot ? lat : null, hasSpot ? lng : null)));
+    /* and it must be the same KIND of place: a search for "Al-Azhar"
+       (park stripped) must not settle on Al-Azhar University */
+    const kinds = String(name).toLowerCase().split(/[^a-z]+/).filter((w) => GENERIC.has(w) && !['central', 'main', 'nile'].includes(w));
+    const page = pickPage(q, toPages(j).filter((pg) => isNearPlace(pg, hasSpot ? lat : null, hasSpot ? lng : null)
+      && kinds.every((w) => String(pg.title).toLowerCase().indexOf(w) >= 0)));
     if (!page) continue;
     const photo = await commonsCredit(page);
     if (photo) { keep(k, photo); return photo; }

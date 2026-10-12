@@ -106,10 +106,17 @@ export const PlanHead = ({ g, children }) => {
   const url = own || (place && safe(place.url));
   const look = lookOf(g && g.kind);
   if (!url) {
+    /* no real photo of this place: a bright cover in the activity's own
+       colours rather than a stranger's stock picture passed off as this
+       plan, or a wrong photo of somewhere else */
     return (
-      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-        <PlanThumb g={g} size={58} radius={18} tilt />
-        <View style={{ flex: 1, minWidth: 0, marginStart: 12 }}>{children}</View>
+      <View>
+        <LinearGradient colors={[look.from, look.to]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+          style={{ height: 120, borderRadius: 16, marginBottom: 11, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+          <Text style={{ fontSize: 120, position: 'absolute', right: -14, bottom: -34, opacity: 0.22 }}>{look.emoji}</Text>
+          <Text style={{ fontSize: 50 }}>{look.emoji}</Text>
+        </LinearGradient>
+        {children}
       </View>
     );
   }
