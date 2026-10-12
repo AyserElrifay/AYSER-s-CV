@@ -98,30 +98,39 @@ export const GoOutRail = ({ onFind, onOpenPlan }) => {
     setJoining((j) => ({ ...j, [g.id]: false }));
   };
 
+  const renderHighlight = (hl) => (
+    <Pressable key={hl.id} onPress={() => { tapLight(); onFind(); }} accessibilityRole="button" accessibilityLabel={t('hl_cta')}>
+      <View style={{ height: 230, borderRadius: 22, overflow: 'hidden', backgroundColor: C.glassHi }}>
+        {hl.kind === 'video' ? <HighlightVideo uri={hl.media_url} poster={hl.poster_url} /> : <Image source={{ uri: hl.media_url }} style={{ width: '100%', height: '100%' }} />}
+        <LinearGradient colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.7)']} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 140 }} />
+        <View style={{ position: 'absolute', left: 16, right: 16, bottom: 14 }}>
+          <Text style={{ color: '#FFF', fontSize: 19, fontWeight: '900', letterSpacing: -0.3 }}>{t('hl_title')}</Text>
+          {hl.caption ? <Text style={{ color: 'rgba(255,255,255,0.88)', fontSize: 13, marginTop: 3 }} numberOfLines={2}>{hl.caption}</Text> : null}
+          <View style={{ alignSelf: 'flex-start', marginTop: 10, backgroundColor: '#FFF', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8 }}>
+            <Text style={{ color: '#1A1A1A', fontSize: 13, fontWeight: '900' }}>{t('hl_cta')}</Text>
+          </View>
+        </View>
+      </View>
+    </Pressable>
+  );
+
   if (!hls.length && !plans.length) return null;
   return (
     <View style={{ marginTop: 16 }}>
       {hls.length ? (
-        /* one evening fills the width; two or more swipe sideways */
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled"
-          snapToInterval={hls.length > 1 ? cardW + 10 : undefined} decelerationRate="fast" scrollEnabled={hls.length > 1}>
-          {hls.map((hl) => (
-            <Pressable key={hl.id} onPress={() => { tapLight(); onFind(); }} accessibilityRole="button" accessibilityLabel={t('hl_cta')}
-              style={{ width: hls.length > 1 ? cardW : '100%', marginEnd: hls.length > 1 ? 10 : 0 }}>
-              <View style={{ height: 230, borderRadius: 22, overflow: 'hidden', backgroundColor: C.glassHi }}>
-                {hl.kind === 'video' ? <HighlightVideo uri={hl.media_url} poster={hl.poster_url} /> : <Image source={{ uri: hl.media_url }} style={{ width: '100%', height: '100%' }} />}
-                <LinearGradient colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.7)']} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 140 }} />
-                <View style={{ position: 'absolute', left: 16, right: 16, bottom: 14 }}>
-                  <Text style={{ color: '#FFF', fontSize: 19, fontWeight: '900', letterSpacing: -0.3 }}>{t('hl_title')}</Text>
-                  {hl.caption ? <Text style={{ color: 'rgba(255,255,255,0.88)', fontSize: 13, marginTop: 3 }} numberOfLines={2}>{hl.caption}</Text> : null}
-                  <View style={{ alignSelf: 'flex-start', marginTop: 10, backgroundColor: '#FFF', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8 }}>
-                    <Text style={{ color: '#1A1A1A', fontSize: 13, fontWeight: '900' }}>{t('hl_cta')}</Text>
-                  </View>
-                </View>
-              </View>
-            </Pressable>
-          ))}
-        </ScrollView>
+        /* ── WHY THERE WAS A BLANK HOLE ON HOME ──────────────────────
+           Ayser's Home had an empty band, 230 high, under "Your vibe".
+           One evening was live, and a single card was given width
+           '100%' INSIDE a sideways ScrollView — whose content is only as
+           wide as what is in it, so 100% of it is nothing. The card
+           kept its height and lost its width. One card now sits in an
+           ordinary View that is the full width; two or more swipe. */
+        hls.length > 1 ? (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled"
+            snapToInterval={cardW + 10} decelerationRate="fast">
+            {hls.map((hl) => <View key={hl.id} style={{ width: cardW, marginEnd: 10 }}>{renderHighlight(hl)}</View>)}
+          </ScrollView>
+        ) : renderHighlight(hls[0])
       ) : null}
       {plans.length ? (
         <>
