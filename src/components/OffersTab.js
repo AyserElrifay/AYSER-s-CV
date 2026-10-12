@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, Pressable, TextInput, Image, ActivityIndicator } from 'react-native';
 import { C } from '../constants/theme';
 import {
-  ownerOffers, offerSave, offerSetStatus, ownerBookings, ownerMarkBooking, ownerSetSetting, appSettings, photoUrl, money,
+  ownerOffers, offerSave, offerSetVideo, offerSetStatus, ownerBookings, ownerMarkBooking, ownerSetSetting, appSettings, photoUrl, money,
 } from '../services/offers';
 import { uploadPlanPhoto } from '../lib/storage';
 import { tapLight, tapSuccess } from '../utils/feedback';
@@ -40,7 +40,7 @@ const toForm = (o) => ({
   id: o.id || '', kind: o.kind || 'trip', title: o.title || '', title_ar: o.title_ar || '', operator: o.operator || '',
   summary: o.summary || '', summary_ar: o.summary_ar || '', city: o.city || '', country: o.country || 'EG',
   lat: o.lat == null ? '' : String(o.lat), lng: o.lng == null ? '' : String(o.lng),
-  photos: joinL(o.photos), itinerary: joinL(o.itinerary), itinerary_ar: joinL(o.itinerary_ar),
+  photos: joinL(o.photos), video: o.video || '', itinerary: joinL(o.itinerary), itinerary_ar: joinL(o.itinerary_ar),
   includes: joinL(o.includes), includes_ar: joinL(o.includes_ar), excludes: joinL(o.excludes), excludes_ar: joinL(o.excludes_ar),
   good_to_know: joinL(o.good_to_know), good_to_know_ar: joinL(o.good_to_know_ar),
   price: o.price == null ? '' : String(o.price), currency: o.currency || 'EGP', price_usd: o.price_usd == null ? '' : String(o.price_usd),
@@ -82,7 +82,7 @@ export const OffersTab = ({ userId }) => {
     setBusy(true); setMsg(null);
     const r = await offerSave(fromForm(form));
     setBusy(false);
-    if (r && r.ok) { tapSuccess(); setForm((f) => ({ ...f, id: r.id })); setMsg('Saved.'); load(); }
+    if (r && r.ok) { await offerSetVideo(r.id, form.video); tapSuccess(); setForm((f) => ({ ...f, id: r.id })); setMsg('Saved.'); load(); }
     else setMsg('Not saved: ' + ((r && (r.detail || r.reason)) || 'error'));
   };
   const status = async (o, s) => {
@@ -155,6 +155,7 @@ export const OffersTab = ({ userId }) => {
         </View>
         <Field label="Photos — one per line (real ones only)" value={form.photos} onChange={set('photos')} multi ph="media/welcome-dahab.jpg" />
         <Btn label={busy ? 'Uploading…' : '＋ Upload a photo'} onPress={upload} disabled={busy} />
+        <Field label="Video (media/… or a link; plays silently on the trip page)" value={form.video} onChange={set('video')} ph="media/offer-siwa.mp4" />
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 6 }}>
           {lines(form.photos).map((p, i) => <Image key={i} source={{ uri: photoUrl(p) }} style={{ width: 70, height: 70, borderRadius: 8, marginEnd: 6, marginTop: 6, backgroundColor: C.glassHi }} />)}
         </View>

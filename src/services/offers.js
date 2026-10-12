@@ -56,3 +56,4 @@ export const money = (n, cur, lang) => {
   const c = String(cur || 'EGP').toUpperCase();
   return c === 'USD' ? '$' + s : c === 'EUR' ? '€' + s : s + ' ' + (lang === 'ar' && c === 'EGP' ? 'ج.م' : c);
 };
+export const offerSetVideo = (id, video) => act('offer_set_video', { p_id: id, p_video: video || null });

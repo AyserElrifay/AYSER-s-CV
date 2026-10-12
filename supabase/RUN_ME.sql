@@ -13104,3 +13104,27 @@ alter table public.profiles add column if not exists travel_love text;
 do $$ begin
   alter table public.profiles add constraint profiles_travel_love_len check (travel_love is null or length(travel_love) <= 160) not valid;
 exception when others then null; end $$;
+
+-- ═══════════ TRIPS · THE ORGANISER'S OWN VIDEOS ═══════════
+/* TravellersOutdoors' own footage (Ayser: his, and the people in it
+   agreed), silent, logo-free, trimmed — Siwa without the woman in the
+   niqab, as he asked. Played on the trip's page while it is on screen. */
+alter table public.offers add column if not exists video text;
+create or replace function public.offer_set_video(p_id uuid, p_video text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  if not public.owner_ok() then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
+  update public.offers set video = nullif(trim(coalesce(p_video, '')), ''), updated_at = now() where id = p_id;
+  return jsonb_build_object('ok', found);
+end;
+$$;
+revoke execute on function public.offer_set_video(uuid, text) from public, anon;
+grant execute on function public.offer_set_video(uuid, text) to authenticated;
+
+update public.offers set video = 'media/offer-siwa.mp4', photos = array['media/offer-siwa.jpg','media/place-shali.jpg'] where id = '0ffe0000-0000-4000-8000-000000000003';
+update public.offers set video = 'media/offer-marsa.mp4', photos = array['media/offer-marsa.jpg','media/offer-marsa-sea.jpg','media/place-marsa-reef.jpg'] where id = '0ffe0000-0000-4000-8000-000000000004';
+update public.offers set video = 'media/offer-alex.mp4', photos = array['media/offer-alex.jpg'] where id = '0ffe0000-0000-4000-8000-000000000006';
+insert into public.offers (id, kind, status, operator, title, title_ar, city, country, lat, lng, photos, video, price, currency, pay_modes)
+values ('0ffe0000-0000-4000-8000-00000000000e','trip','soon','TravellersOutdoors','White Desert & the Western desert','الصحرا البيضا والصحرا الغربية',
+        'Farafra','EG',27.3700,28.0500,array['media/offer-desert.jpg','media/place-white-desert.jpg'],'media/offer-desert.mp4',0,'EGP','{reserve}')
+on conflict (id) do nothing;

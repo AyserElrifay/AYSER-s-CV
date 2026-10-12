@@ -27,7 +27,7 @@ import { tapLight, tapSuccess } from '../utils/feedback';
        up to look like more than it is.
    If there is neither, this draws nothing. */
 
-const HighlightVideo = ({ uri, poster }) => {
+export const HighlightVideo = ({ uri, poster }) => {
   const ref = useRef(null);
   const holder = useRef(null);
   /* plays only while it is on the screen, and never on data saver */

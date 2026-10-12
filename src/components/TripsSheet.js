@@ -11,6 +11,7 @@ import { remember, recall } from '../lib/offline';
 import { tapLight, tapMedium, tapSelection, tapSuccess } from '../utils/feedback';
 import { useSheetBack } from '../hooks/useSheetBack';
 import { LinearGradient } from 'expo-linear-gradient';
+import { HighlightVideo } from './GoOutRail';
 
 const COVER = { trip: ['#0EA5E9', '#7C3AED', '🧳'], stay: ['#F59E0B', '#EF4444', '🏨'], experience: ['#10B981', '#0EA5E9', '🧗'], deal: ['#EC4899', '#F59E0B', '🎟️'], table: ['#F97316', '#EF4444', '🍽️'] };
 const Cover = ({ kind, h }) => { const c = COVER[kind] || COVER.trip; return (
@@ -147,7 +148,10 @@ const Offer = ({ o, t, lang, onBack, onBooked }) => {
     <View style={{ flex: 1 }}>
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 190 }}>
         <View>
-          {photos.length ? (
+          {o.video ? (
+            /* the organiser's own video of the place, silent, playing while on screen */
+            <View style={{ width, height: 340, backgroundColor: '#000' }}><HighlightVideo uri={photoUrl(o.video)} poster={photos[0]} /></View>
+          ) : photos.length ? (
             <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled">
               {photos.map((u, i) => <Image key={i} source={{ uri: u }} style={{ width, height: 300, backgroundColor: C.glassHi }} />)}
             </ScrollView>
@@ -156,7 +160,7 @@ const Offer = ({ o, t, lang, onBack, onBooked }) => {
             style={{ position: 'absolute', top: insets.top + 10, left: 14, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' }}>
             <Ionicons name="chevron-back" size={22} color="#FFF" />
           </Pressable>
-          {photos.length > 1 ? (
+          {photos.length > 1 && !o.video ? (
             <View style={{ position: 'absolute', bottom: 10, right: 12, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3 }}>
               <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '800' }}>{'1 / ' + photos.length}</Text>
             </View>
@@ -303,6 +307,7 @@ export const TripsSheet = ({ onClose, country, openOn }) => {
                       <Pressable key={o.id} onPress={() => { tapLight(); setOpen(o); }} accessibilityRole="button" style={{ marginBottom: 14 }}>
                         <View style={{ borderRadius: 22, overflow: 'hidden', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line }}>
                           {ph ? <Image source={{ uri: ph }} style={{ width: '100%', height: 190, backgroundColor: C.glassHi }} /> : <Cover kind={o.kind} h={150} />}
+                          {o.video ? <View style={{ position: 'absolute', top: 10, right: 10, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 999, paddingHorizontal: 9, paddingVertical: 4 }}><Text style={{ color: '#FFF', fontSize: 12, fontWeight: '800' }}>▶ video</Text></View> : null}
                           <View style={{ padding: 14 }}>
                             <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '800', letterSpacing: 1 }}>
                               {(t('bk_kind_' + o.kind) + (o.city ? ' · ' + o.city : '') + (o.starts_at ? ' · ' + when(o.starts_at, lang) : '')).toUpperCase()}
