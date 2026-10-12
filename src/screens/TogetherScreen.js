@@ -32,6 +32,7 @@ import { HostBadge } from '../components/HostCard';
 import { PlanHead, PastPhotos, PlaceCredit } from '../components/green/PlanPhoto';
 import { ReportSheet } from '../components/ReportSheet';
 import { CreatorsRail } from '../components/CreatorsRail';
+const TripsSheet = lazyOverlay(() => import('../components/TripsSheet').then((m) => ({ default: m.TripsSheet })));
 const SettleSheet = lazyOverlay(() => import('../components/SettleSheet').then((m) => ({ default: m.SettleSheet })));
 const RewardsSheet = lazyOverlay(() => import('../components/RewardsSheet').then((m) => ({ default: m.RewardsSheet })));
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
@@ -180,6 +181,15 @@ export const TogetherScreen = () => {
   }, [uid]);
 
   const country = scope === 'near' ? myCode : null;
+  /* back from the payment page (Paymob sends people to ?bookings=1):
+     straight to My bookings, where the booking shows its status */
+  useEffect(() => {
+    try {
+      if (typeof window === 'undefined' || !/[?&]bookings=1/.test(window.location.search)) return;
+      setSheet({ trips: 'mine' });
+      window.history.replaceState({}, '', window.location.pathname + window.location.search.replace(/[?&]bookings=1/, '').replace(/^&/, '?') + window.location.hash);
+    } catch (e) {}
+  }, []);
   /* the host puts a real photo on their plan — once, and every week of
      a weekly plan shows it (weekly_photo in RUN_ME.sql) */
   const [photoBusy, setPhotoBusy] = useState(null);
@@ -545,6 +555,8 @@ export const TogetherScreen = () => {
         {/* ── the rooms around it ── */}
         <Section>{t('tg_more')}</Section>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
+          {/* trips, deals and stays, booked through Moments (TripsSheet.js) */}
+          <Tile emoji="🧳" label={t('bk_tile')} from="#7C3AED" to="#F5B301" onPress={() => setSheet({ trips: 'browse' })} />
           <Tile emoji="🎓" label={t('prog_title')} from="#3B82F6" to="#06B6D4" onPress={() => setSheet('prog')} />
           {/* newcomers and the people welcoming them (SettleSheet.js) */}
           <Tile emoji="🤝" label={t('st_title')} from="#F59E0B" to="#EF4444" onPress={() => setSheet('settle')} />
@@ -602,6 +614,7 @@ export const TogetherScreen = () => {
       {talkId ? <TalkRoomSheet roomId={talkId} onClose={() => { setTalkId(null); load(); }} /> : null}
       {sheet === 'start' ? <GreenSheet startNow homeCountry={myCode} onClose={() => { setSheet(null); load(); }} /> : null}
       {sheet && sheet.start ? <GreenSheet startNow prefill={sheet.start} homeCountry={myCode} onClose={() => { setSheet(null); load(); }} /> : null}
+      {sheet && sheet.trips ? <TripsSheet openOn={sheet.trips} onClose={() => setSheet(null)} /> : null}
       {sheet === 'settle' ? <SettleSheet myCode={myCode} onClose={() => setSheet(null)} onSwap={(p) => setSheet({ start: p })} onPapers={isEuCode(myCode) ? () => setSheet('landing') : null} /> : null}
       {reportingPhoto ? <ReportSheet contentType="plan_photo" contentId={reportingPhoto.id} contentLabel={reportingPhoto.label} onClose={() => setReportingPhoto(null)} /> : null}
       {sheet === 'green' ? <GreenSheet homeCountry={myCode} onClose={() => { setSheet(null); load(); }} /> : null}

@@ -1,95 +1,88 @@
-// Supabase Edge Function: create-checkout
-// Creates a real payment checkout with the gateway's SECRET keys (kept
-// here on the server, never in the app) and returns a checkout URL.
-// Deploy:  supabase functions deploy create-checkout
-// Secrets: supabase secrets set PAYMOB_API_KEY=... PAYMOB_INTEGRATION_ID=... PAYMOB_IFRAME_ID=...
+// ═══════════════════════════════════════════════════════════════════
+//  create-checkout — pay for a Moments booking through Paymob
 //
-// Called by src/services/payments.js → startCheckout()
-// Body: { provider, amount, currency, kind, refId, description }
-// Returns: { checkoutUrl }
+//  The app sends ONE thing: which booking. The amount, the currency and
+//  the reference come from the database (booking_for_payment in
+//  RUN_ME.sql), never from the phone — a price sent by the app could be
+//  any price. The booking must be the caller's own, still 'pending' and
+//  younger than 30 minutes (its seats are held that long).
+//
+//  The booking code (MM-XXXXXX) is Paymob's merchant_order_id, and the
+//  signed webhook (paymob-webhook) reads it back to mark the booking
+//  paid. Nothing here marks anything paid.
+//
+//  POST { bookingId }  with the user's session  →  { checkoutUrl }
+//  503 { error: 'not_configured' } until the secrets below exist.
+//
+//  Secrets (Supabase → Edge Functions → Secrets, never in the app):
+//    PAYMOB_API_KEY, PAYMOB_INTEGRATION_ID, PAYMOB_IFRAME_ID, PAYMOB_HMAC
+//  Deploy: supabase functions deploy create-checkout
+// ═══════════════════════════════════════════════════════════════════
+import { createClient } from 'npm:@supabase/supabase-js@2.45.4';
 
-import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
-
+const ORIGIN = Deno.env.get('ALLOWED_ORIGIN') || 'https://ayserelrifay.github.io';
 const cors = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  'Access-Control-Allow-Origin': ORIGIN,
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'authorization, content-type, apikey, x-client-info',
+  'Vary': 'Origin',
 };
+const json = (status: number, body: unknown) =>
+  new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } });
+const UUID = /^[0-9a-f-]{36}$/i;
 
-async function paymobCheckout(amount: number, currency: string, refId: string, description: string) {
-  const API_KEY = Deno.env.get("PAYMOB_API_KEY")!;
-  const INTEGRATION_ID = Deno.env.get("PAYMOB_INTEGRATION_ID")!;
-  const IFRAME_ID = Deno.env.get("PAYMOB_IFRAME_ID")!;
-  const cents = Math.round(amount * 100);
-
-  // 1) auth
-  const auth = await fetch("https://accept.paymob.com/api/auth/tokens", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ api_key: API_KEY }),
-  }).then((r) => r.json());
-  const token = auth.token;
-
-  // 2) order (merchant_order_id = our payment/boost ref, read back in the webhook)
-  const order = await fetch("https://accept.paymob.com/api/ecommerce/orders", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      auth_token: token,
-      delivery_needed: false,
-      amount_cents: cents,
-      currency,
-      merchant_order_id: refId || `moments-${Date.now()}`,
-      items: [{ name: description || "Moments", amount_cents: cents, quantity: 1 }],
-    }),
-  }).then((r) => r.json());
-
-  // 3) payment key
-  const pk = await fetch("https://accept.paymob.com/api/acceptance/payment_keys", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      auth_token: token,
-      amount_cents: cents,
-      expiration: 3600,
-      order_id: order.id,
-      currency,
-      integration_id: Number(INTEGRATION_ID),
-      billing_data: {
-        first_name: "Moments", last_name: "User", email: "user@moments.app",
-        phone_number: "+201000000000", country: "EG", city: "Cairo",
-        street: "NA", building: "NA", floor: "NA", apartment: "NA",
-      },
-    }),
-  }).then((r) => r.json());
-
-  return `https://accept.paymob.com/api/acceptance/iframes/${IFRAME_ID}?payment_token=${pk.token}`;
+async function paymob(path: string, body: unknown) {
+  const r = await fetch('https://accept.paymob.com/api/' + path, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+  });
+  if (!r.ok) throw new Error('paymob ' + path + ' ' + r.status);
+  return r.json();
 }
 
-serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
+  if (req.method !== 'POST') return json(405, { error: 'method' });
+
+  const API_KEY = Deno.env.get('PAYMOB_API_KEY');
+  const INTEGRATION_ID = Deno.env.get('PAYMOB_INTEGRATION_ID');
+  const IFRAME_ID = Deno.env.get('PAYMOB_IFRAME_ID');
+  if (!API_KEY || !INTEGRATION_ID || !IFRAME_ID || !Deno.env.get('PAYMOB_HMAC')) return json(503, { error: 'not_configured' });
+
+  const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } });
+  const jwt = (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '');
+  const { data: who } = await db.auth.getUser(jwt);
+  const user = who && who.user;
+  if (!user) return json(401, { error: 'signed_out' });
+
+  let bookingId = '';
+  try { bookingId = String((await req.json()).bookingId || ''); } catch { /* fall through */ }
+  if (!UUID.test(bookingId)) return json(400, { error: 'booking' });
+
+  const { data: b } = await db.rpc('booking_for_payment', { p_id: bookingId, p_user: user.id });
+  if (!b || !b.ok) return json(409, { error: 'not_payable' });
+
   try {
-    const { provider, amount, currency = "EGP", refId, description } = await req.json();
-    let checkoutUrl: string;
-
-    switch (provider) {
-      case "paymob":
-        checkoutUrl = await paymobCheckout(amount, currency, refId, description);
-        break;
-      // TODO: add moyasar / paytabs / paddle the same way (each has a
-      // "create payment → hosted page" call; secrets already documented).
-      default:
-        return new Response(JSON.stringify({ error: `provider ${provider} not configured` }), {
-          status: 400, headers: { ...cors, "Content-Type": "application/json" },
-        });
-    }
-
-    return new Response(JSON.stringify({ checkoutUrl }), {
-      headers: { ...cors, "Content-Type": "application/json" },
+    const cents = Math.round(Number(b.total) * 100);
+    const auth = await paymob('auth/tokens', { api_key: API_KEY });
+    const order = await paymob('ecommerce/orders', {
+      auth_token: auth.token, delivery_needed: false, amount_cents: cents, currency: b.currency,
+      merchant_order_id: b.code,
+      items: [{ name: String(b.title).slice(0, 50), amount_cents: cents, quantity: 1 }],
     });
+    const att = await db.rpc('attach_payment_order', { p_id: bookingId, p_user: user.id, p_provider: 'paymob', p_order: String(order.id) });
+    if (!att.data || !att.data.ok) return json(409, { error: 'not_payable' });
+    // Paymob insists on billing fields; only the email is real, the rest is its placeholder "NA"
+    const pk = await paymob('acceptance/payment_keys', {
+      auth_token: auth.token, amount_cents: cents, expiration: 1800, order_id: order.id, currency: b.currency,
+      integration_id: Number(INTEGRATION_ID),
+      billing_data: {
+        first_name: 'Moments', last_name: 'Guest', email: b.email || 'NA', phone_number: 'NA',
+        country: 'NA', city: 'NA', street: 'NA', building: 'NA', floor: 'NA', apartment: 'NA',
+      },
+    });
+    return json(200, { checkoutUrl: `https://accept.paymob.com/api/acceptance/iframes/${IFRAME_ID}?payment_token=${pk.token}` });
   } catch (e) {
-    return new Response(JSON.stringify({ error: String(e) }), {
-      status: 500, headers: { ...cors, "Content-Type": "application/json" },
-    });
+    console.error('checkout failed', String(e).slice(0, 200));
+    return json(502, { error: 'gateway' });
   }
 });

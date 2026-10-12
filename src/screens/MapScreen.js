@@ -5,7 +5,8 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { C, DARK_MAP } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
-import { ME, DOING_OPTIONS, DEALS, DEAL_FILTERS, av, AV_NEUTRAL } from '../constants/mockData';
+import { ME, DOING_OPTIONS, av, AV_NEUTRAL } from '../constants/mockData';
+import { listOffers, photoUrl, money } from '../services/offers';
 import { MAP_PEOPLE, CAMPFIRES, BOOKINGS } from '../constants/mockData'; // demo-mode fallback only
 import { MapView, Marker, MAPS_READY } from '../utils/maps';
 import { takeMapTarget, onMapTarget } from '../lib/mapBus';
@@ -49,6 +50,7 @@ import { NeonButton } from '../components/NeonButton';
 import { TravelSheet } from '../components/TravelSheet';
 import { ROOM_CODES } from '../constants/countryRoomIndex';
 const LandingSheet = lazyOverlay(() => import('../components/LandingSheet').then((mod) => ({ default: mod.LandingSheet })));
+const TripsSheet = lazyOverlay(() => import('../components/TripsSheet').then((mod) => ({ default: mod.TripsSheet })));
 /* The country room — what to say, what to eat and what nobody writes
    down, for the country this place is in. Lazy: its content is 75 KB
    and most sessions never open it. */
@@ -159,7 +161,8 @@ export const MapScreen = () => {
   const [myDoing, setMyDoing] = useState(null);  // your activity badge
   const [waved, setWaved] = useState({});
   const [partnerSent, setPartnerSent] = useState(false);
-  const [dealFilter, setDealFilter] = useState('All');
+  const [offers, setOffers] = useState([]);       // trips & deals people can book through Moments
+  const [tripsOpen, setTripsOpen] = useState(false);
   const [dropTitle, setDropTitle] = useState('');
   const [noteHours, setNoteHours] = useState(24);       // chosen duration
   const [realNotes, setRealNotes] = useState([]);       // pinned comments
@@ -323,7 +326,7 @@ export const MapScreen = () => {
   const people = SUPABASE_READY ? realPeople : MAP_PEOPLE;
   const campfires = SUPABASE_READY ? realCampfires : [...realCampfires, ...CAMPFIRES];
   const venues = SUPABASE_READY ? realVenues : BOOKINGS;
-  const filteredDeals = DEALS.filter((d) => dealFilter === 'All' || d.cat === dealFilter);
+  useEffect(() => { if (rail === 'deals') listOffers(null, null).then(setOffers); }, [rail]);
 
   const nearbyPeople = useMemo(() => {
     /* a distance only from where you really are: before your location
@@ -537,11 +540,7 @@ export const MapScreen = () => {
     Linking.openURL('https://www.google.com/maps/dir/?api=1&destination=' + pl.lat + ',' + pl.lng).catch(() => {});
   };
 
-  /* Deals for a real place — a tracked Waffarha referral (the money trail). */
-  const dealsFor = (pl) => {
-    tapSuccess(); sfxSuccess();
-    openPartner(user, { id: pl.id, partner: 'waffarha', url: 'https://waffarha.com/ar/search?word=' + encodeURIComponent(pl.name) });
-  };
+
 
   /* ── your activity badge → a real row in live_locations ──
      Honesty fix: the UI used to flip to "invisible" instantly and
@@ -1099,7 +1098,7 @@ export const MapScreen = () => {
       {lens === 'places' ? (
       <View style={{ position: 'absolute', bottom: 14, left: 0, right: 0 }}>
         <View style={{ flexDirection: 'row', marginLeft: 16, marginBottom: 8 }}>
-          {[{ k: 'book', label: '📅 Book' }, { k: 'deals', label: '🎟️ Deals' }].map((o) => (
+          {[{ k: 'book', label: '📅 Book' }, { k: 'deals', label: '🧳 ' + t('bk_tile') }].map((o) => (
             <Pressable key={o.k} onPress={() => { tapSelection(); setRail(o.k); }}>
               <View style={{ backgroundColor: rail === o.k ? C.purple : C.float, borderWidth: 1, borderColor: rail === o.k ? C.purple : C.line, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 7, marginRight: 8 }}>
                 <Text style={{ color: rail === o.k ? '#FFF' : C.dim, fontSize: 12, fontWeight: '800' }}>{o.label}</Text>
@@ -1107,42 +1106,29 @@ export const MapScreen = () => {
             </Pressable>
           ))}
         </View>
-        {rail === 'deals' ? (
-          <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, marginBottom: 8 }}>
-            {DEAL_FILTERS.map((f) => (
-              <Pressable key={f} onPress={() => { tapSelection(); setDealFilter(f); }}>
-                <View style={{ backgroundColor: dealFilter === f ? C.text : C.float, borderWidth: 1, borderColor: dealFilter === f ? C.text : C.line, borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5, marginRight: 7 }}>
-                  <Text style={{ color: dealFilter === f ? '#FFF' : C.dim, fontSize: 11, fontWeight: '800' }}>{f}</Text>
-                </View>
-              </Pressable>
-            ))}
-          </ScrollView>
-        ) : null}
         <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
           {rail === 'deals' ? (
-            filteredDeals.map((d) => (
-              <Pressable key={d.id} onPress={() => { tapLight(); sfxPop(); openPartner(user, d); }}>
-                <Glass tint={C.float} style={{ width: 236, padding: 13, marginRight: 12 }}>
+            offers.length ? offers.map((o) => (
+              <Pressable key={o.id} onPress={() => { tapLight(); setTripsOpen(true); }}>
+                <Glass tint={C.float} style={{ width: 236, padding: 10, marginRight: 12 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <Text style={{ fontSize: 22, marginRight: 9 }}>{d.emoji}</Text>
+                    {o.photos && o.photos[0] ? <Image source={{ uri: photoUrl(o.photos[0]) }} style={{ width: 48, height: 48, borderRadius: 10, marginRight: 10, backgroundColor: C.glassHi }} /> : null}
                     <View style={{ flex: 1 }}>
-                      <Text style={{ color: C.text, fontSize: 13, fontWeight: '800' }} numberOfLines={1}>{d.title}</Text>
-                      <Text style={{ color: C.dim, fontSize: 10.5, marginTop: 1 }} numberOfLines={1}>{d.sub} · {d.region}</Text>
+                      <Text style={{ color: C.text, fontSize: 13, fontWeight: '800' }} numberOfLines={1}>{lang === 'ar' && o.title_ar ? o.title_ar : o.title}</Text>
+                      <Text style={{ color: C.dim, fontSize: 11, marginTop: 1 }} numberOfLines={1}>{t('bk_kind_' + o.kind) + (o.city ? ' · ' + o.city : '')}</Text>
+                      <Text style={{ color: C.text, fontSize: 12.5, fontWeight: '900', marginTop: 3 }}>{money(o.plus && o.member_price != null ? o.member_price : o.price, o.currency, lang)}</Text>
                     </View>
-                  </View>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10 }}>
-                    <View style={{ backgroundColor: C.greenSoft, borderWidth: 1, borderColor: 'rgba(16,185,129,0.4)', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, marginRight: 6 }}>
-                      <Text style={{ color: C.green, fontSize: 10.5, fontWeight: '900' }}>{d.badge}</Text>
-                    </View>
-                    <View style={{ backgroundColor: 'rgba(245,179,1,0.15)', borderWidth: 1, borderColor: 'rgba(245,179,1,0.45)', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 4 }}>
-                      <Text style={{ color: '#8A6400', fontSize: 10, fontWeight: '900' }}>✦ +{d.cashback} {t('cashback_back')}</Text>
-                    </View>
-                    <View style={{ flex: 1 }} />
-                    <Text style={{ color: C.faint, fontSize: 10 }}>↗</Text>
                   </View>
                 </Glass>
               </Pressable>
-            ))
+            )) : (
+              <Pressable onPress={() => { tapLight(); setTripsOpen(true); }}>
+                <Glass tint={C.float} style={{ width: 236, padding: 14, marginRight: 12 }}>
+                  <Text style={{ color: C.text, fontSize: 13, fontWeight: '800' }}>{'🧳 ' + t('bk_title')}</Text>
+                  <Text style={{ color: C.dim, fontSize: 11.5, marginTop: 4 }} numberOfLines={3}>{t('bk_empty')}</Text>
+                </Glass>
+              </Pressable>
+            )
           ) : (
             <>
               {venues.length ? venues.map((b) => (
@@ -1875,12 +1861,7 @@ export const MapScreen = () => {
               </View>
             </View>
             <View style={{ flexDirection: 'row', marginTop: 16 }}>
-              <Pressable onPress={() => dealsFor(placeOpen)} style={{ flex: 1, marginRight: 10 }}>
-                <View style={{ backgroundColor: C.green, borderRadius: 14, paddingVertical: 13, alignItems: 'center' }}>
-                  <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '900' }}>{t('deals_label')}</Text>
-                </View>
-              </Pressable>
-              <Pressable onPress={() => directionsTo(placeOpen)} style={{ width: 132 }}>
+              <Pressable onPress={() => directionsTo(placeOpen)} style={{ flex: 1 }}>
                 <View style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 14, paddingVertical: 13, alignItems: 'center' }}>
                   <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800' }}>{t('directions_label')}</Text>
                 </View>
@@ -2187,6 +2168,7 @@ export const MapScreen = () => {
           onPosted={() => { setComposeAt(null); fetchMomentPins().then(setMomentPins).catch(() => {}); }}
           onPostedStory={() => setComposeAt(null)} />
       ) : null}
+      {tripsOpen ? <TripsSheet onClose={() => setTripsOpen(false)} /> : null}
       {goNow ? <GoNowSheet onClose={() => { setGoNow(false); listGatherings(null).then(setGatherings).catch(() => {}); }} /> : null}
       {bookingVenue ? <BookingSheet venue={bookingVenue} onClose={() => { setBooked((x) => ({ ...x, [bookingVenue.id]: true })); setBookingVenue(null); }} /> : null}
       {travelTo ? <TravelSheet city={travelTo} onClose={() => setTravelTo(null)} /> : null}

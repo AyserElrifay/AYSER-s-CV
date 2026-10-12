@@ -1,9 +1,8 @@
 /* ── REAL PLACES · OpenStreetMap (Overpass API) ────────────────────
    Genuinely real venues around the user's GPS — restaurants, cafés,
    bars, fast food, bakeries. Free, worldwide, no API key, no scraping.
-   This is how we put real places on the map. Waffarha / Talabat have no
-   public feed we can pull client-side, so the honest bridge is: real
-   place data from OSM + an affiliate "order/deal" action on tap. */
+   This is how we put real places on the map. Deals and bookings are
+   Moments' own (offers, RUN_ME.sql "BOOKINGS"), agreed with each place. */
 
 const OVERPASS = 'https://overpass-api.de/api/interpreter';
 

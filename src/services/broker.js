@@ -12,7 +12,6 @@ import { supabase, SUPABASE_READY } from '../lib/supabase';
    accounts are approved. */
 
 export const COMMISSION = {
-  waffarha: { rate: '10–20%', cashback: 15 },
   booking:  { rate: '4–6%',  cashback: 10 },
   groupon:  { rate: '~10%',  cashback: 10 },
   playtomic:{ rate: 'per booking', cashback: 8 },
@@ -58,7 +57,6 @@ export const AFFILIATE_TAGS = {
   getyourguide: '',  // GetYourGuide "partner_id"                      → &partner_id=…
   viator: '',        // Viator "pid" (via Travelpayouts/direct)        → &pid=…
   hostelworld: '',   // Hostelworld affiliate id (via Partnerize)      → &affiliate=…
-  waffarha: '',      // Waffarha — ask partnerships for a ref code     → &ref=…
   groupon: '',       // Groupon via Rakuten/CJ — deep link id          → &utm_medium=afl&sid=…
   uber: '',          // Uber referral/invite code                      → &invite=…
   playtomic: '',     // Playtomic partner code (b2b@playtomic.io)      → &ref=…
@@ -86,7 +84,6 @@ const TAG_PARAM = {
   getyourguide: 'partner_id',
   viator: 'pid',
   hostelworld: 'affiliate',
-  waffarha: 'ref',
   uber: 'invite',
   playtomic: 'ref',
   appletv: 'at',
@@ -126,7 +123,7 @@ export async function countMyReferrals(userId) {
 }
 
 /* Your referrals grouped by partner — the earnings dashboard's data.
-   [{ partner: 'waffarha', clicks: 12, rate: '10–20%' }, …] best first. */
+   [{ partner: 'booking', clicks: 12, rate: '10–20%' }, …] best first. */
 export async function fetchMyReferralBreakdown(userId) {
   const { data, error } = await supabase
     .from('partner_clicks')

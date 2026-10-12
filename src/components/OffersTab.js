@@ -1,0 +1,237 @@
+import React, { useEffect, useState } from 'react';
+import { View, Text, Pressable, TextInput, Image, ActivityIndicator } from 'react-native';
+import { C } from '../constants/theme';
+import {
+  ownerOffers, offerSave, offerSetStatus, ownerBookings, ownerMarkBooking, ownerSetSetting, appSettings, photoUrl, money,
+} from '../services/offers';
+import { uploadPlanPhoto } from '../lib/storage';
+import { tapLight, tapSuccess } from '../utils/feedback';
+
+/* ─── STUDIO · TRIPS & DEALS ───────────────────────────────────────────
+   The owner's desk for what people can book: write an offer (or finish
+   one of the drafts), add real photos, publish; see who booked, mark a
+   transfer received or a refund sent; read what each partner is owed.
+   Every action is refused by the database for anybody but the owner
+   with a fresh second step (owner_ok in RUN_ME.sql). English, like the
+   rest of the Studio. Lists are typed one line per item. */
+
+const lines = (s) => String(s || '').split('\n').map((x) => x.trim()).filter(Boolean);
+const joinL = (a) => (Array.isArray(a) ? a.join('\n') : '');
+const KINDS = ['trip', 'deal', 'stay', 'experience', 'table'];
+const MODES = ['reserve', 'at_venue', 'online'];
+
+const Field = ({ label, value, onChange, multi, ph, num }) => (
+  <View style={{ marginTop: 10 }}>
+    <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '800', letterSpacing: 0.8 }}>{label.toUpperCase()}</Text>
+    <TextInput value={value == null ? '' : String(value)} onChangeText={onChange} multiline={!!multi} placeholder={ph} placeholderTextColor={C.faint}
+      keyboardType={num ? 'decimal-pad' : 'default'}
+      style={{ marginTop: 4, borderWidth: 1, borderColor: C.line, borderRadius: 10, padding: 10, color: C.text, fontSize: 14, minHeight: multi ? 70 : undefined, textAlignVertical: multi ? 'top' : 'center' }} />
+  </View>
+);
+const Btn = ({ label, onPress, solid, danger, disabled }) => (
+  <Pressable onPress={onPress} disabled={disabled} style={{ marginEnd: 8, marginTop: 8 }}>
+    <View style={{ borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9, backgroundColor: solid ? C.purple : 'transparent', borderWidth: 1, borderColor: solid ? C.purple : danger ? '#E11D48' : C.line, opacity: disabled ? 0.5 : 1 }}>
+      <Text style={{ color: solid ? '#FFF' : danger ? '#E11D48' : C.text, fontSize: 13, fontWeight: '800' }}>{label}</Text>
+    </View>
+  </Pressable>
+);
+
+const toForm = (o) => ({
+  id: o.id || '', kind: o.kind || 'trip', title: o.title || '', title_ar: o.title_ar || '', operator: o.operator || '',
+  summary: o.summary || '', summary_ar: o.summary_ar || '', city: o.city || '', country: o.country || 'EG',
+  lat: o.lat == null ? '' : String(o.lat), lng: o.lng == null ? '' : String(o.lng),
+  photos: joinL(o.photos), itinerary: joinL(o.itinerary), itinerary_ar: joinL(o.itinerary_ar),
+  includes: joinL(o.includes), includes_ar: joinL(o.includes_ar), excludes: joinL(o.excludes), excludes_ar: joinL(o.excludes_ar),
+  good_to_know: joinL(o.good_to_know), good_to_know_ar: joinL(o.good_to_know_ar),
+  price: o.price == null ? '' : String(o.price), currency: o.currency || 'EGP', price_usd: o.price_usd == null ? '' : String(o.price_usd),
+  member_price: o.member_price == null ? '' : String(o.member_price),
+  starts_at: o.starts_at ? String(o.starts_at).slice(0, 16).replace('T', ' ') : '', ends_at: o.ends_at ? String(o.ends_at).slice(0, 16).replace('T', ' ') : '',
+  seats: o.seats == null ? '' : String(o.seats), pay_modes: o.pay_modes || ['reserve'],
+  free_cancel_hours: o.free_cancel_hours == null ? '' : String(o.free_cancel_hours),
+  commission_pct: o.commission_pct == null ? '' : String(o.commission_pct),
+});
+const fromForm = (f) => {
+  const time = (s) => { const v = String(s || '').trim(); if (!v) return ''; const d = new Date(v.replace(' ', 'T')); return isNaN(d) ? '' : d.toISOString(); };
+  return {
+    ...f,
+    photos: lines(f.photos), itinerary: lines(f.itinerary), itinerary_ar: lines(f.itinerary_ar),
+    includes: lines(f.includes), includes_ar: lines(f.includes_ar), excludes: lines(f.excludes), excludes_ar: lines(f.excludes_ar),
+    good_to_know: lines(f.good_to_know), good_to_know_ar: lines(f.good_to_know_ar),
+    starts_at: time(f.starts_at), ends_at: time(f.ends_at),
+  };
+};
+
+export const OffersTab = ({ userId }) => {
+  const [list, setList] = useState(null);
+  const [settings, setSettings] = useState({});
+  const [form, setForm] = useState(null);
+  const [msg, setMsg] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [bookingsOf, setBookingsOf] = useState(null);   // { offer, rows }
+  const [freeUntil, setFreeUntil] = useState('');
+
+  const load = () => {
+    ownerOffers().then((r) => setList(r == null ? false : r));
+    appSettings().then((s) => { setSettings(s); const v = s.plus_free_until; setFreeUntil(v && v !== 'null' ? String(v).slice(0, 10) : ''); });
+  };
+  useEffect(() => { load(); }, []);
+  const set = (k) => (v) => setForm((f) => ({ ...f, [k]: v }));
+
+  const save = async () => {
+    if (busy) return;
+    setBusy(true); setMsg(null);
+    const r = await offerSave(fromForm(form));
+    setBusy(false);
+    if (r && r.ok) { tapSuccess(); setForm((f) => ({ ...f, id: r.id })); setMsg('Saved.'); load(); }
+    else setMsg('Not saved: ' + ((r && (r.detail || r.reason)) || 'error'));
+  };
+  const status = async (o, s) => {
+    tapLight();
+    const r = await offerSetStatus(o.id, s);
+    if (r && r.ok) { tapSuccess(); load(); setMsg(s === 'live' ? 'Published.' : 'Updated.'); }
+    else setMsg(r && r.reason === 'no_photo' ? 'Add at least one real photo before publishing.' : r && r.reason === 'no_price' ? 'Set a price before publishing.' : 'Could not change it.');
+  };
+  const upload = async () => {
+    if (typeof document === 'undefined') return;
+    const file = await new Promise((resolve) => {
+      const input = document.createElement('input');
+      input.type = 'file'; input.accept = 'image/*'; input.style.display = 'none';
+      input.onchange = () => { resolve((input.files && input.files[0]) || null); input.remove(); };
+      document.body.appendChild(input); input.click();
+    });
+    if (!file) return;
+    setBusy(true);
+    try { const url = await uploadPlanPhoto(userId, file); setForm((f) => ({ ...f, photos: (f.photos ? f.photos + '\n' : '') + url })); }
+    catch (e) { setMsg('Upload failed.'); }
+    setBusy(false);
+  };
+  const openBookings = async (o) => { tapLight(); setBookingsOf({ offer: o, rows: null }); setBookingsOf({ offer: o, rows: await ownerBookings(o.id) }); };
+  const mark = async (b, s) => { tapLight(); const r = await ownerMarkBooking(b.id, s); if (r && r.ok) { tapSuccess(); openBookings(bookingsOf.offer); load(); } };
+
+  if (list === false) return <Text style={{ color: C.faint, fontSize: 13, textAlign: 'center', paddingVertical: 40 }}>Run the latest SQL (part 33) to add trips and deals.</Text>;
+  if (list == null) return <ActivityIndicator color={C.dim} style={{ marginTop: 30 }} />;
+
+  if (bookingsOf) {
+    const rows = bookingsOf.rows;
+    return (
+      <View>
+        <Btn label="‹ Back" onPress={() => setBookingsOf(null)} />
+        <Text style={{ color: C.text, fontSize: 17, fontWeight: '900', marginTop: 10 }}>{bookingsOf.offer.title}</Text>
+        {rows == null ? <ActivityIndicator color={C.dim} style={{ marginTop: 20 }} /> : !rows.length ? <Text style={{ color: C.dim, marginTop: 12 }}>No bookings yet.</Text> : rows.map((b) => (
+          <View key={b.id} style={{ borderWidth: 1, borderColor: C.line, borderRadius: 14, padding: 12, marginTop: 10 }}>
+            <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '800' }}>{b.code + ' · ' + (b.name || '') + ' · ' + b.qty + ' ppl'}</Text>
+            <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 2 }}>{(b.email || '') + ' · ' + b.pay_mode + ' · ' + b.status}</Text>
+            <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 2 }}>{'Total ' + money(b.total, b.currency) + ' — Moments ' + money(b.moments_share, b.currency) + ' · partner ' + money(b.partner_share, b.currency)}</Text>
+            {b.note ? <Text style={{ color: C.text, fontSize: 13, marginTop: 4, fontStyle: 'italic' }}>{'“' + b.note + '”'}</Text> : null}
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+              {b.status === 'reserved' ? <Btn label="Payment received" solid onPress={() => mark(b, 'paid')} /> : null}
+              {b.status === 'paid' ? <Btn label="They came" onPress={() => mark(b, 'attended')} /> : null}
+              {b.status === 'refund_requested' ? <Btn label="Refund sent" onPress={() => mark(b, 'refunded')} /> : null}
+              {b.status === 'reserved' ? <Btn label="Cancel" danger onPress={() => mark(b, 'cancelled')} /> : null}
+            </View>
+          </View>
+        ))}
+      </View>
+    );
+  }
+
+  if (form) {
+    return (
+      <View>
+        <Btn label="‹ All offers" onPress={() => { setForm(null); setMsg(null); }} />
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 6 }}>
+          {KINDS.map((k) => <Btn key={k} label={k} solid={form.kind === k} onPress={() => set('kind')(k)} />)}
+        </View>
+        <Field label="Title (English)" value={form.title} onChange={set('title')} ph="Dahab — three days by the sea" />
+        <Field label="Title (Arabic)" value={form.title_ar} onChange={set('title_ar')} />
+        <Field label="Run by (operator)" value={form.operator} onChange={set('operator')} ph="TravellersOutdoors" />
+        <Field label="Summary (English)" value={form.summary} onChange={set('summary')} multi />
+        <Field label="Summary (Arabic)" value={form.summary_ar} onChange={set('summary_ar')} multi />
+        <Field label="City" value={form.city} onChange={set('city')} />
+        <Field label="Country code" value={form.country} onChange={set('country')} ph="EG" />
+        <View style={{ flexDirection: 'row' }}>
+          <View style={{ flex: 1, marginEnd: 8 }}><Field label="Lat" value={form.lat} onChange={set('lat')} num /></View>
+          <View style={{ flex: 1 }}><Field label="Lng" value={form.lng} onChange={set('lng')} num /></View>
+        </View>
+        <Field label="Photos — one per line (real ones only)" value={form.photos} onChange={set('photos')} multi ph="media/welcome-dahab.jpg" />
+        <Btn label={busy ? 'Uploading…' : '＋ Upload a photo'} onPress={upload} disabled={busy} />
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 6 }}>
+          {lines(form.photos).map((p, i) => <Image key={i} source={{ uri: photoUrl(p) }} style={{ width: 70, height: 70, borderRadius: 8, marginEnd: 6, marginTop: 6, backgroundColor: C.glassHi }} />)}
+        </View>
+        <Field label="Program — one step per line (English)" value={form.itinerary} onChange={set('itinerary')} multi ph="Day 1 · Leave Cairo 11 pm" />
+        <Field label="Program (Arabic)" value={form.itinerary_ar} onChange={set('itinerary_ar')} multi />
+        <Field label="Included (English)" value={form.includes} onChange={set('includes')} multi />
+        <Field label="Included (Arabic)" value={form.includes_ar} onChange={set('includes_ar')} multi />
+        <Field label="Not included (English)" value={form.excludes} onChange={set('excludes')} multi />
+        <Field label="Not included (Arabic)" value={form.excludes_ar} onChange={set('excludes_ar')} multi />
+        <Field label="Good to know (English)" value={form.good_to_know} onChange={set('good_to_know')} multi />
+        <Field label="Good to know (Arabic)" value={form.good_to_know_ar} onChange={set('good_to_know_ar')} multi />
+        <View style={{ flexDirection: 'row' }}>
+          <View style={{ flex: 1, marginEnd: 8 }}><Field label="Price" value={form.price} onChange={set('price')} num ph="2800" /></View>
+          <View style={{ width: 90, marginEnd: 8 }}><Field label="Currency" value={form.currency} onChange={set('currency')} ph="EGP" /></View>
+          <View style={{ flex: 1 }}><Field label="≈ USD" value={form.price_usd} onChange={set('price_usd')} num ph="54" /></View>
+        </View>
+        <Field label="Plus price (agreed with the partner; empty = none)" value={form.member_price} onChange={set('member_price')} num />
+        <View style={{ flexDirection: 'row' }}>
+          <View style={{ flex: 1, marginEnd: 8 }}><Field label="Starts (YYYY-MM-DD HH:MM)" value={form.starts_at} onChange={set('starts_at')} /></View>
+          <View style={{ flex: 1 }}><Field label="Ends" value={form.ends_at} onChange={set('ends_at')} /></View>
+        </View>
+        <View style={{ flexDirection: 'row' }}>
+          <View style={{ flex: 1, marginEnd: 8 }}><Field label="Seats (empty = no limit)" value={form.seats} onChange={set('seats')} num /></View>
+          <View style={{ flex: 1, marginEnd: 8 }}><Field label="Free cancel (hours before)" value={form.free_cancel_hours} onChange={set('free_cancel_hours')} num /></View>
+          <View style={{ flex: 1 }}><Field label="Commission %" value={form.commission_pct} onChange={set('commission_pct')} num ph="15" /></View>
+        </View>
+        <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '800', letterSpacing: 0.8, marginTop: 12 }}>HOW PEOPLE PAY</Text>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+          {MODES.map((m) => {
+            const on = form.pay_modes.indexOf(m) >= 0;
+            return <Btn key={m} label={(on ? '✓ ' : '') + (m === 'reserve' ? 'Reserve, pay the organiser' : m === 'at_venue' ? 'Pay at the place' : 'Online (Paymob)')} solid={on}
+              onPress={() => set('pay_modes')(on ? form.pay_modes.filter((x) => x !== m) : [...form.pay_modes, m])} />;
+          })}
+        </View>
+        {msg ? <Text style={{ color: /^Not|Could|Add|Set/.test(msg) ? '#E11D48' : C.green, fontSize: 13.5, marginTop: 10 }}>{msg}</Text> : null}
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 6 }}>
+          <Btn label={busy ? 'Saving…' : 'Save'} solid onPress={save} disabled={busy} />
+        </View>
+      </View>
+    );
+  }
+
+  const online = settings.payments_online === true;
+  return (
+    <View>
+      <Text style={{ color: C.dim, fontSize: 13, lineHeight: 19, marginTop: 4 }}>Trips, deals and stays people book through Moments. Drafts are only seen here; nothing goes live without a real photo and a price.</Text>
+      <Btn label="＋ New offer" solid onPress={() => { tapLight(); setMsg(null); setForm(toForm({})); }} />
+
+      <View style={{ borderWidth: 1, borderColor: C.line, borderRadius: 14, padding: 12, marginTop: 12 }}>
+        <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '900' }}>Moments Plus</Text>
+        <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 3 }}>Free for everyone until the date below (empty = open-ended). Nobody is charged automatically when it ends.</Text>
+        <Field label="Free until (YYYY-MM-DD)" value={freeUntil} onChange={setFreeUntil} ph="empty = no end date yet" />
+        <Btn label="Save Plus date" onPress={async () => { const v = freeUntil.trim() ? new Date(freeUntil.trim() + 'T23:59:00').toISOString() : null; const r = await ownerSetSetting('plus_free_until', v); setMsg(r && r.ok ? 'Plus date saved.' : 'Could not save.'); load(); }} />
+        <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '900', marginTop: 14 }}>{'Online payments: ' + (online ? 'ON' : 'OFF')}</Text>
+        <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 3 }}>Turn on only after the Paymob keys are set and a test payment went through.</Text>
+        <Btn label={online ? 'Turn off' : 'Turn on'} danger={online} onPress={async () => { const r = await ownerSetSetting('payments_online', !online); setMsg(r && r.ok ? 'Saved.' : 'Could not save.'); load(); }} />
+      </View>
+      {msg ? <Text style={{ color: C.green, fontSize: 13.5, marginTop: 10 }}>{msg}</Text> : null}
+
+      {list.map((o) => (
+        <View key={o.id} style={{ borderWidth: 1, borderColor: o.status === 'live' ? C.green : C.line, borderRadius: 14, padding: 12, marginTop: 12 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            {o.photos && o.photos[0] ? <Image source={{ uri: photoUrl(o.photos[0]) }} style={{ width: 52, height: 52, borderRadius: 8, marginEnd: 10 }} /> : null}
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: C.text, fontSize: 15, fontWeight: '900' }}>{o.title}</Text>
+              <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 2 }}>{o.status.toUpperCase() + ' · ' + o.kind + ' · ' + money(o.price, o.currency) + (o.seats ? ' · ' + o.seats_taken + '/' + o.seats + ' seats' : '')}</Text>
+            </View>
+          </View>
+          <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 6 }}>{o.bookings + ' bookings · paid ' + money(o.paid_total, o.currency) + ' — Moments ' + money(o.moments_share, o.currency) + ' · owed to partner ' + money(o.partner_share, o.currency)}</Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+            <Btn label="Edit" onPress={() => { tapLight(); setMsg(null); setForm(toForm(o)); }} />
+            <Btn label="Bookings" onPress={() => openBookings(o)} />
+            {o.status !== 'live' ? <Btn label="Publish" solid onPress={() => status(o, 'live')} /> : <Btn label="Unpublish" onPress={() => status(o, 'draft')} />}
+            {o.status !== 'closed' ? <Btn label="Close" danger onPress={() => status(o, 'closed')} /> : null}
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+};

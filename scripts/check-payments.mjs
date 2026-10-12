@@ -1,0 +1,23 @@
+// Money: the phone never sets a price, and only Paymob's signature marks a booking paid.
+import fs from 'node:fs';
+const read = (p) => fs.readFileSync(new URL('../' + p, import.meta.url), 'utf8');
+const sql = read('supabase/RUN_ME.sql');
+const co = read('supabase/functions/create-checkout/index.ts');
+const wh = read('supabase/functions/paymob-webhook/index.ts');
+const app = read('src/services/payments.js');
+let bad = 0;
+const is = (name, ok) => { if (!ok) bad++; console.log((ok ? '  PASS  ' : '  FAIL  ') + name); };
+is('checkout takes only a booking id from the app', /bookingId/.test(co) && !/\bamount\b\s*[,}]\s*=\s*await req\.json/.test(co) && !/const \{[^}]*amount[^}]*\} = await req\.json/.test(co));
+is('checkout reads the price from the database', /booking_for_payment/.test(co) && /b\.total/.test(co));
+is('checkout refuses without its secrets', /not_configured/.test(co));
+is('the webhook recomputes Paymob\'s HMAC', /SHA-512/.test(wh) && /FIELDS/.test(wh) && /signature/.test(wh));
+is('the webhook only counts a finished success', /obj\.success !== true/.test(wh) && /pending === true/.test(wh));
+is('marking paid is server-only', /revoke execute on function public\.mark_booking_paid\(text, text, bigint, text\) from public, anon, authenticated/.test(sql));
+is('marking paid checks the amount', /round\(b\.total \* 100\) <> p_amount_cents/.test(sql));
+is('the booking price is the database\'s', /unit := case when plus_ then o\.member_price else o\.price end/.test(sql));
+is('seats are counted inside a lock', /from public\.offers where id = p_offer for update/.test(sql));
+is('bookings cannot be written directly', !/on public\.bookings for (insert|update|all)/.test(sql));
+is('nothing goes live without a photo and a price', /no_photo/.test(sql) && /no_price/.test(sql));
+is('the app no longer sends amounts', !/amount,\s*currency/.test(app.split('payBooking')[0].split('startCheckout')[1] || ''));
+console.log(bad ? `\n${bad} wrong.` : '\nPayments: prices from the database, paid only on a signed callback.');
+process.exit(bad ? 1 : 0);

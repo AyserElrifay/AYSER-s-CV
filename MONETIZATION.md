@@ -16,7 +16,6 @@
 
 | الشبكة | بتديك | فين تسجّل | اللي هتحطه في الكود |
 |---|---|---|---|
-| **Waffarha وفرها** | 10–20% على عروض الخروج | كلّم شراكاتهم: partners@waffarha.com أو من صفحة "انضم كشريك" على waffarha.com | `waffarha: 'كود-الإحالة'` |
 | **Travelpayouts** | شبكة واحدة بتفتح: طيران، فنادق، Booking، GetYourGuide وغيرهم (حتى 7%) | travelpayouts.com → Sign up (فوري، مجاني) | `travelpayouts: 'marker'` |
 | **Booking.com** | 4–6% على الحجوزات | إمّا عبر Travelpayouts (أسهل وأسرع) أو مباشرة: partners.booking.com | `booking: 'aid'` |
 | **Amazon Associates** | 1–10% على المشتريات | affiliate-program.amazon.com (خد بالك: لازم 3 مبيعات في أول 180 يوم) | `amazon: 'store-id-20'` |

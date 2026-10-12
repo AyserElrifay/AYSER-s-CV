@@ -11972,3 +11972,495 @@ revoke execute on function public.tell_followers() from public, anon, authentica
 drop trigger if exists green_gatherings_tell_followers on public.green_gatherings;
 create trigger green_gatherings_tell_followers after insert on public.green_gatherings
   for each row execute function public.tell_followers();
+
+-- ═══════════ BOOKINGS · TRIPS, DEALS AND STAYS, BOOKED THROUGH MOMENTS ═══════════
+/* Ayser: "بوابه دفع … ديركت مع المطاعم الكفيهات والفنادق … الناس تحجز علي
+   طول من خلالنا و نسبه المطعم او الكافيه تروحله … رحله دهب ب2800".
+
+   OFFERS are what can be booked: a trip (Dahab, three days, 2800 EGP),
+   a deal at a café, a stay at a hotel. Each belongs to a partner (a
+   venue, with its own commission) or names who runs it. An offer is a
+   DRAFT until the owner publishes it — nothing appears to anybody
+   before a person has checked the price, the dates and the photos.
+
+   BOOKINGS are priced HERE, never by the phone: the app sends which
+   offer and how many, the database reads the price (the Plus price if
+   you have Plus), checks the seats inside a lock, and writes down the
+   split at that moment — Moments' commission and the partner's share —
+   so a later change of commission never rewrites an old booking.
+
+   Three ways to pay, chosen per offer:
+     · online   — through the payment gateway (supabase/functions/
+                  create-checkout). The booking is 'pending' and holds
+                  its seats for 30 minutes; only the gateway's signed
+                  webhook can mark it paid (mark_booking_paid is not
+                  callable from the app);
+     · at_venue — reserve now, pay the place when you arrive;
+     · reserve  — reserve a seat; the organiser confirms payment (a
+                  transfer, InstaPay) and the owner marks it paid.
+   Until the gateway's keys exist, offers simply do not offer 'online'.
+
+   MOMENTS PLUS. A member price on offers — a discount the partner
+   agreed to, not one we invent — while Moments is new, free for
+   everybody: no card, nothing charged later by surprise. The owner
+   ends the founding period by setting a date; until then my_plus()
+   answers yes for everyone. */
+
+create or replace function public.owner_ok()
+returns boolean language sql stable security definer set search_path = public as $$
+  select public.is_app_owner() and public.studio_fresh();
+$$;
+revoke execute on function public.owner_ok() from public, anon;
+grant execute on function public.owner_ok() to authenticated;
+
+alter table public.venues add column if not exists commission_pct numeric(5,2) not null default 15;
+do $$ begin
+  alter table public.venues add constraint venues_commission_range check (commission_pct between 0 and 50);
+exception when others then null; end $$;
+
+create table if not exists public.app_settings (
+  key        text primary key,
+  value      jsonb,
+  updated_at timestamptz not null default now()
+);
+alter table public.app_settings enable row level security;
+drop policy if exists "settings: everyone reads" on public.app_settings;
+create policy "settings: everyone reads" on public.app_settings for select using (true);
+-- written only by the owner's functions below
+insert into public.app_settings (key, value) values ('plus_free_until', 'null'::jsonb) on conflict (key) do nothing;
+
+create table if not exists public.plus_members (
+  user_id     uuid primary key references public.profiles(id) on delete cascade,
+  status      text not null check (status in ('active','cancelled','expired')),
+  until       timestamptz,
+  source      text,                       -- 'gateway' | 'gift' | 'founding'
+  created_at  timestamptz not null default now()
+);
+alter table public.plus_members enable row level security;
+drop policy if exists "plus: see your own" on public.plus_members;
+create policy "plus: see your own" on public.plus_members for select using (auth.uid() = user_id);
+
+create or replace function public.is_plus(u uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select u is not null and (
+    exists (select 1 from public.app_settings s where s.key = 'plus_free_until'
+              and (s.value is null or s.value = 'null'::jsonb or (s.value #>> '{}')::timestamptz > now()))
+    or exists (select 1 from public.plus_members m where m.user_id = u and m.status = 'active'
+                 and (m.until is null or m.until > now())));
+$$;
+
+create or replace function public.my_plus()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select jsonb_build_object(
+    'plus', public.is_plus(auth.uid()),
+    'founding', exists (select 1 from public.app_settings s where s.key = 'plus_free_until'
+                          and (s.value is null or s.value = 'null'::jsonb or (s.value #>> '{}')::timestamptz > now())),
+    'free_until', (select case when value is null or value = 'null'::jsonb then null else value #>> '{}' end
+                     from public.app_settings where key = 'plus_free_until'),
+    'member', (select jsonb_build_object('status', status, 'until', until) from public.plus_members where user_id = auth.uid()));
+$$;
+grant execute on function public.my_plus() to authenticated;
+
+create table if not exists public.offers (
+  id            uuid primary key default gen_random_uuid(),
+  venue_id      uuid references public.venues(id) on delete set null,
+  operator      text,                                   -- who runs it, when not a venue
+  kind          text not null check (kind in ('trip','deal','stay','table','experience')),
+  status        text not null default 'draft' check (status in ('draft','live','closed')),
+  title         text not null,
+  title_ar      text,
+  summary       text,
+  summary_ar    text,
+  city          text,
+  country       text,
+  lat           double precision,
+  lng           double precision,
+  photos        text[] not null default '{}',
+  itinerary     text[] not null default '{}',
+  itinerary_ar  text[] not null default '{}',
+  includes      text[] not null default '{}',
+  includes_ar   text[] not null default '{}',
+  excludes      text[] not null default '{}',
+  excludes_ar   text[] not null default '{}',
+  good_to_know  text[] not null default '{}',
+  good_to_know_ar text[] not null default '{}',
+  price         numeric(10,2) not null check (price >= 0),
+  currency      text not null default 'EGP',
+  price_usd     numeric(10,2),
+  member_price  numeric(10,2),
+  starts_at     timestamptz,
+  ends_at       timestamptz,
+  seats         int check (seats is null or seats > 0),
+  pay_modes     text[] not null default '{reserve}',
+  free_cancel_hours int,
+  commission_pct numeric(5,2),
+  created_by    uuid references public.profiles(id) on delete set null,
+  created_at    timestamptz not null default now(),
+  updated_at    timestamptz not null default now(),
+  check (member_price is null or member_price <= price),
+  check (pay_modes <@ array['online','at_venue','reserve'])
+);
+create index if not exists offers_live_idx on public.offers (status, country, starts_at);
+alter table public.offers enable row level security;
+drop policy if exists "offers: live for everyone, drafts for the owner" on public.offers;
+create policy "offers: live for everyone, drafts for the owner" on public.offers for select
+  using (status = 'live' or public.owner_ok());
+
+create table if not exists public.bookings (
+  id             uuid primary key default gen_random_uuid(),
+  code           text not null unique,
+  offer_id       uuid not null references public.offers(id) on delete restrict,
+  user_id        uuid not null references public.profiles(id) on delete cascade,
+  qty            int not null check (qty between 1 and 20),
+  unit_price     numeric(10,2) not null,
+  plus_applied   boolean not null default false,
+  total          numeric(10,2) not null,
+  currency       text not null,
+  pay_mode       text not null check (pay_mode in ('online','at_venue','reserve')),
+  status         text not null check (status in ('pending','reserved','paid','cancelled','refund_requested','refunded','attended')),
+  commission_pct numeric(5,2) not null,
+  moments_share  numeric(10,2) not null,
+  partner_share  numeric(10,2) not null,
+  provider       text,
+  provider_order text,
+  provider_txn   text,
+  note           text check (note is null or length(note) <= 300),
+  created_at     timestamptz not null default now(),
+  paid_at        timestamptz,
+  cancelled_at   timestamptz
+);
+create index if not exists bookings_offer_idx on public.bookings (offer_id, status);
+create index if not exists bookings_user_idx on public.bookings (user_id, created_at desc);
+alter table public.bookings enable row level security;
+create or replace function public.runs_offer(p_offer uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.offers o join public.venues v on v.id = o.venue_id
+                  where o.id = p_offer and v.owner_id = auth.uid());
+$$;
+drop policy if exists "bookings: yours, your venue's, or the owner" on public.bookings;
+create policy "bookings: yours, your venue's, or the owner" on public.bookings for select using (
+  auth.uid() = user_id or public.owner_ok() or public.runs_offer(offer_id));
+-- no write policies: every change goes through the functions below
+
+create or replace function public.offer_seats_taken(p_offer uuid)
+returns int language sql stable security definer set search_path = public as $$
+  select coalesce(sum(qty), 0)::int from public.bookings
+   where offer_id = p_offer
+     and (status in ('reserved','paid','attended','refund_requested')
+          or (status = 'pending' and created_at > now() - interval '30 minutes'));
+$$;
+
+create or replace function public.offer_json(o public.offers)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select to_jsonb(o) - 'commission_pct' - 'created_by'
+    || jsonb_build_object(
+      'seats_left', case when o.seats is null then null else greatest(0, o.seats - public.offer_seats_taken(o.id)) end,
+      'partner', (select name from public.venues where id = o.venue_id),
+      'plus', public.is_plus(auth.uid()),
+      'online_ready', exists (select 1 from public.app_settings where key = 'payments_online' and value = 'true'::jsonb));
+$$;
+
+create or replace function public.list_offers(p_kind text, p_country text)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select coalesce(jsonb_agg(public.offer_json(o) order by o.starts_at nulls last, o.created_at desc), '[]'::jsonb)
+    from public.offers o
+   where o.status = 'live'
+     and (o.starts_at is null or o.starts_at > now())
+     and (p_kind is null or o.kind = p_kind)
+     and (p_country is null or o.country = p_country);
+$$;
+grant execute on function public.list_offers(text, text) to anon, authenticated;
+
+create or replace function public.booking_code()
+returns text language sql volatile as $$
+  select 'MM-' || upper(substr(md5(random()::text || clock_timestamp()::text), 1, 6));
+$$;
+
+create or replace function public.book_offer(p_offer uuid, p_qty int, p_mode text, p_note text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); o public.offers%rowtype; v public.venues%rowtype; left_ int;
+        unit numeric; plus_ boolean; pct numeric; tot numeric; b public.bookings%rowtype; tries int := 0;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  if p_qty is null or p_qty < 1 or p_qty > 20 then return jsonb_build_object('ok', false, 'reason', 'qty'); end if;
+  select * into o from public.offers where id = p_offer for update;   -- one booking at a time per offer: seats are counted honestly
+  if not found or o.status <> 'live' then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
+  if o.starts_at is not null and o.starts_at <= now() then return jsonb_build_object('ok', false, 'reason', 'started'); end if;
+  if p_mode is null or not (p_mode = any(o.pay_modes)) then return jsonb_build_object('ok', false, 'reason', 'mode'); end if;
+  if p_mode = 'online' and not exists (select 1 from public.app_settings where key = 'payments_online' and value = 'true'::jsonb) then
+    return jsonb_build_object('ok', false, 'reason', 'online_off');
+  end if;
+  if exists (select 1 from public.bookings where offer_id = o.id and user_id = me
+               and (status in ('reserved','paid') or (status = 'pending' and created_at > now() - interval '30 minutes'))) then
+    return jsonb_build_object('ok', false, 'reason', 'already');
+  end if;
+  if o.seats is not null then
+    left_ := o.seats - public.offer_seats_taken(o.id);
+    if left_ < p_qty then return jsonb_build_object('ok', false, 'reason', 'full', 'left', greatest(left_, 0)); end if;
+  end if;
+  plus_ := public.is_plus(me) and o.member_price is not null;
+  unit := case when plus_ then o.member_price else o.price end;
+  tot := round(unit * p_qty, 2);
+  select * into v from public.venues where id = o.venue_id;
+  pct := coalesce(o.commission_pct, v.commission_pct, 15);
+  loop
+    begin
+      insert into public.bookings (code, offer_id, user_id, qty, unit_price, plus_applied, total, currency, pay_mode, status,
+                                   commission_pct, moments_share, partner_share, note)
+      values (public.booking_code(), o.id, me, p_qty, unit, plus_, tot, o.currency, p_mode,
+              case when p_mode = 'online' then 'pending' else 'reserved' end,
+              pct, round(tot * pct / 100, 2), tot - round(tot * pct / 100, 2), nullif(trim(coalesce(p_note, '')), ''))
+      returning * into b;
+      exit;
+    exception when unique_violation then
+      tries := tries + 1; if tries > 5 then raise; end if;
+    end;
+  end loop;
+  -- the partner hears about it (their venue account), in the app
+  if v.owner_id is not null and v.owner_id <> me then
+    insert into public.notifications (user_id, actor_id, kind, body)
+    values (v.owner_id, me, 'booking', p_qty || '|' || left(o.title, 80));
+  end if;
+  return jsonb_build_object('ok', true, 'id', b.id, 'code', b.code, 'total', b.total, 'currency', b.currency,
+                            'status', b.status, 'plus', plus_);
+end;
+$$;
+revoke execute on function public.book_offer(uuid, int, text, text) from public, anon;
+grant execute on function public.book_offer(uuid, int, text, text) to authenticated;
+
+create or replace function public.cancel_booking(p_id uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare b public.bookings%rowtype; o public.offers%rowtype;
+begin
+  select * into b from public.bookings where id = p_id and user_id = auth.uid() for update;
+  if not found then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
+  select * into o from public.offers where id = b.offer_id;
+  if b.status in ('pending','reserved') then
+    update public.bookings set status = 'cancelled', cancelled_at = now() where id = b.id;
+    return jsonb_build_object('ok', true, 'status', 'cancelled');
+  elsif b.status = 'paid' then
+    -- a refund is a person's decision on a real transfer; asking is recorded here
+    if o.starts_at is not null and o.free_cancel_hours is not null
+       and now() > o.starts_at - make_interval(hours => o.free_cancel_hours) then
+      return jsonb_build_object('ok', false, 'reason', 'too_late');
+    end if;
+    update public.bookings set status = 'refund_requested', cancelled_at = now() where id = b.id;
+    return jsonb_build_object('ok', true, 'status', 'refund_requested');
+  end if;
+  return jsonb_build_object('ok', false, 'reason', 'status');
+end;
+$$;
+revoke execute on function public.cancel_booking(uuid) from public, anon;
+grant execute on function public.cancel_booking(uuid) to authenticated;
+
+create or replace function public.my_bookings()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select coalesce(jsonb_agg(jsonb_build_object(
+           'id', b.id, 'code', b.code, 'qty', b.qty, 'total', b.total, 'currency', b.currency,
+           'status', b.status, 'pay_mode', b.pay_mode, 'plus', b.plus_applied, 'created_at', b.created_at,
+           'offer', jsonb_build_object('id', o.id, 'title', o.title, 'title_ar', o.title_ar, 'kind', o.kind,
+                                       'photo', o.photos[1], 'starts_at', o.starts_at, 'city', o.city,
+                                       'free_cancel_hours', o.free_cancel_hours))
+         order by b.created_at desc), '[]'::jsonb)
+    from public.bookings b join public.offers o on o.id = b.offer_id
+   where b.user_id = auth.uid() and (b.status <> 'pending' or b.created_at > now() - interval '30 minutes');
+$$;
+grant execute on function public.my_bookings() to authenticated;
+
+/* ── the gateway's side: callable only by the server (service role) ── */
+create or replace function public.attach_payment_order(p_id uuid, p_user uuid, p_provider text, p_order text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare b public.bookings%rowtype;
+begin
+  select * into b from public.bookings where id = p_id and user_id = p_user for update;
+  if not found or b.status <> 'pending' or b.created_at < now() - interval '30 minutes' then
+    return jsonb_build_object('ok', false, 'reason', 'not_payable');
+  end if;
+  update public.bookings set provider = p_provider, provider_order = p_order where id = b.id;
+  return jsonb_build_object('ok', true, 'total', b.total, 'currency', b.currency, 'code', b.code);
+end;
+$$;
+revoke execute on function public.attach_payment_order(uuid, uuid, text, text) from public, anon, authenticated;
+
+create or replace function public.booking_for_payment(p_id uuid, p_user uuid)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select jsonb_build_object('ok', true, 'id', b.id, 'code', b.code, 'total', b.total, 'currency', b.currency,
+                            'title', o.title, 'email', (select email from auth.users where id = b.user_id))
+    from public.bookings b join public.offers o on o.id = b.offer_id
+   where b.id = p_id and b.user_id = p_user and b.status = 'pending' and b.created_at > now() - interval '30 minutes';
+$$;
+revoke execute on function public.booking_for_payment(uuid, uuid) from public, anon, authenticated;
+
+create or replace function public.mark_booking_paid(p_code text, p_txn text, p_amount_cents bigint, p_currency text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare b public.bookings%rowtype;
+begin
+  select * into b from public.bookings where code = p_code for update;
+  if not found then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
+  if b.status = 'paid' then return jsonb_build_object('ok', true, 'already', true); end if;
+  if round(b.total * 100) <> p_amount_cents or upper(b.currency) <> upper(p_currency) then
+    return jsonb_build_object('ok', false, 'reason', 'amount');           -- never trust a mismatched amount
+  end if;
+  update public.bookings set status = 'paid', paid_at = now(), provider_txn = p_txn where id = b.id;
+  return jsonb_build_object('ok', true);
+end;
+$$;
+revoke execute on function public.mark_booking_paid(text, text, bigint, text) from public, anon, authenticated;
+
+/* ── the owner's side (the Studio, after the second step) ── */
+create or replace function public.offer_save(p jsonb)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare oid uuid := nullif(p ->> 'id', '')::uuid;
+        arr text[]; a2 text[];
+begin
+  if not public.owner_ok() then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
+  if coalesce(trim(p ->> 'title'), '') = '' or (p ->> 'price') is null then return jsonb_build_object('ok', false, 'reason', 'incomplete'); end if;
+  if oid is null then
+    insert into public.offers (kind, title, price, created_by) values (coalesce(p ->> 'kind', 'trip'), p ->> 'title', (p ->> 'price')::numeric, auth.uid())
+    returning id into oid;
+  end if;
+  update public.offers set
+    kind = coalesce(p ->> 'kind', kind),
+    venue_id = case when p ? 'venue_id' then nullif(p ->> 'venue_id', '')::uuid else venue_id end,
+    operator = case when p ? 'operator' then nullif(p ->> 'operator', '') else operator end,
+    title = p ->> 'title', title_ar = nullif(p ->> 'title_ar', ''),
+    summary = nullif(p ->> 'summary', ''), summary_ar = nullif(p ->> 'summary_ar', ''),
+    city = nullif(p ->> 'city', ''), country = nullif(upper(p ->> 'country'), ''),
+    lat = nullif(p ->> 'lat', '')::double precision, lng = nullif(p ->> 'lng', '')::double precision,
+    photos = coalesce((select array_agg(x) from jsonb_array_elements_text(p -> 'photos') x where trim(x) <> ''), '{}'),
+    itinerary = coalesce((select array_agg(x) from jsonb_array_elements_text(p -> 'itinerary') x where trim(x) <> ''), '{}'),
+    itinerary_ar = coalesce((select array_agg(x) from jsonb_array_elements_text(p -> 'itinerary_ar') x where trim(x) <> ''), '{}'),
+    includes = coalesce((select array_agg(x) from jsonb_array_elements_text(p -> 'includes') x where trim(x) <> ''), '{}'),
+    includes_ar = coalesce((select array_agg(x) from jsonb_array_elements_text(p -> 'includes_ar') x where trim(x) <> ''), '{}'),
+    excludes = coalesce((select array_agg(x) from jsonb_array_elements_text(p -> 'excludes') x where trim(x) <> ''), '{}'),
+    excludes_ar = coalesce((select array_agg(x) from jsonb_array_elements_text(p -> 'excludes_ar') x where trim(x) <> ''), '{}'),
+    good_to_know = coalesce((select array_agg(x) from jsonb_array_elements_text(p -> 'good_to_know') x where trim(x) <> ''), '{}'),
+    good_to_know_ar = coalesce((select array_agg(x) from jsonb_array_elements_text(p -> 'good_to_know_ar') x where trim(x) <> ''), '{}'),
+    price = (p ->> 'price')::numeric,
+    currency = coalesce(nullif(upper(p ->> 'currency'), ''), 'EGP'),
+    price_usd = nullif(p ->> 'price_usd', '')::numeric,
+    member_price = nullif(p ->> 'member_price', '')::numeric,
+    starts_at = nullif(p ->> 'starts_at', '')::timestamptz,
+    ends_at = nullif(p ->> 'ends_at', '')::timestamptz,
+    seats = nullif(p ->> 'seats', '')::int,
+    pay_modes = coalesce((select array_agg(x) from jsonb_array_elements_text(p -> 'pay_modes') x), '{reserve}'),
+    free_cancel_hours = nullif(p ->> 'free_cancel_hours', '')::int,
+    commission_pct = nullif(p ->> 'commission_pct', '')::numeric,
+    updated_at = now()
+  where id = oid;
+  return jsonb_build_object('ok', true, 'id', oid);
+exception when others then
+  return jsonb_build_object('ok', false, 'reason', 'invalid', 'detail', sqlerrm);
+end;
+$$;
+revoke execute on function public.offer_save(jsonb) from public, anon;
+grant execute on function public.offer_save(jsonb) to authenticated;
+
+create or replace function public.offer_set_status(p_id uuid, p_status text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  if not public.owner_ok() then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
+  if p_status not in ('draft','live','closed') then return jsonb_build_object('ok', false, 'reason', 'status'); end if;
+  if p_status = 'live' and exists (select 1 from public.offers where id = p_id and cardinality(photos) = 0) then
+    return jsonb_build_object('ok', false, 'reason', 'no_photo');      -- nothing goes live without a real photo
+  end if;
+  if p_status = 'live' and exists (select 1 from public.offers where id = p_id and price <= 0) then
+    return jsonb_build_object('ok', false, 'reason', 'no_price');
+  end if;
+  update public.offers set status = p_status, updated_at = now() where id = p_id;
+  return jsonb_build_object('ok', found);
+end;
+$$;
+revoke execute on function public.offer_set_status(uuid, text) from public, anon;
+grant execute on function public.offer_set_status(uuid, text) to authenticated;
+
+create or replace function public.owner_offers()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select case when not public.owner_ok() then '[]'::jsonb else coalesce((
+    select jsonb_agg(to_jsonb(o) || jsonb_build_object(
+             'seats_taken', public.offer_seats_taken(o.id),
+             'bookings', (select count(*) from public.bookings b where b.offer_id = o.id and b.status in ('reserved','paid','attended')),
+             'paid_total', (select coalesce(sum(total), 0) from public.bookings b where b.offer_id = o.id and b.status in ('paid','attended')),
+             'moments_share', (select coalesce(sum(moments_share), 0) from public.bookings b where b.offer_id = o.id and b.status in ('paid','attended')),
+             'partner_share', (select coalesce(sum(partner_share), 0) from public.bookings b where b.offer_id = o.id and b.status in ('paid','attended')))
+           order by o.updated_at desc)
+      from public.offers o), '[]'::jsonb) end;
+$$;
+revoke execute on function public.owner_offers() from public, anon;
+grant execute on function public.owner_offers() to authenticated;
+
+create or replace function public.owner_bookings(p_offer uuid)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select case when not public.owner_ok() then '[]'::jsonb else coalesce((
+    select jsonb_agg(jsonb_build_object('id', b.id, 'code', b.code, 'qty', b.qty, 'total', b.total, 'currency', b.currency,
+                       'status', b.status, 'pay_mode', b.pay_mode, 'note', b.note, 'created_at', b.created_at,
+                       'moments_share', b.moments_share, 'partner_share', b.partner_share,
+                       'name', p.name, 'email', u.email)
+           order by b.created_at desc)
+      from public.bookings b join public.profiles p on p.id = b.user_id join auth.users u on u.id = b.user_id
+     where b.offer_id = p_offer and b.status <> 'pending'), '[]'::jsonb) end;
+$$;
+revoke execute on function public.owner_bookings(uuid) from public, anon;
+grant execute on function public.owner_bookings(uuid) to authenticated;
+
+/* a transfer the organiser received (InstaPay, cash), a refund sent, or
+   somebody who came: the owner records it, and the record says so */
+create or replace function public.owner_mark_booking(p_id uuid, p_status text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  if not public.owner_ok() then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
+  if p_status not in ('paid','attended','refunded','cancelled') then return jsonb_build_object('ok', false, 'reason', 'status'); end if;
+  update public.bookings set status = p_status,
+         paid_at = case when p_status = 'paid' then coalesce(paid_at, now()) else paid_at end,
+         provider = case when p_status = 'paid' and provider is null then 'manual' else provider end,
+         cancelled_at = case when p_status in ('refunded','cancelled') then coalesce(cancelled_at, now()) else cancelled_at end
+   where id = p_id;
+  return jsonb_build_object('ok', found);
+end;
+$$;
+revoke execute on function public.owner_mark_booking(uuid, text) from public, anon;
+grant execute on function public.owner_mark_booking(uuid, text) to authenticated;
+
+create or replace function public.owner_set_setting(p_key text, p_value jsonb)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  if not public.owner_ok() then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
+  if p_key not in ('plus_free_until', 'payments_online') then return jsonb_build_object('ok', false, 'reason', 'key'); end if;
+  insert into public.app_settings (key, value, updated_at) values (p_key, p_value, now())
+  on conflict (key) do update set value = excluded.value, updated_at = now();
+  return jsonb_build_object('ok', true);
+end;
+$$;
+revoke execute on function public.owner_set_setting(text, jsonb) from public, anon;
+grant execute on function public.owner_set_setting(text, jsonb) to authenticated;
+
+do $do$
+begin
+  alter table public.notifications drop constraint if exists notifications_kind_check;
+  alter table public.notifications add constraint notifications_kind_check
+    check (kind in ('vibe','laugh','comment','mate_request','mate_accept','message','call','tag','repost','green_invite','food_order','food_status','bardi_match','plan_soon','venue_decision','xp_award','safety','creator_plan','booking'))
+    not valid;
+exception when others then raise notice 'notifications kind constraint skipped: %', sqlerrm;
+end $do$;
+
+/* two drafts from Ayser's own trips, NOT live: the owner checks the
+   details, adds photos and dates, and publishes them from the Studio */
+insert into public.offers (id, kind, status, operator, title, title_ar, summary, summary_ar, city, country, lat, lng,
+                           photos, includes, includes_ar, price, currency, price_usd, pay_modes)
+values
+ ('0ffe0000-0000-4000-8000-000000000001', 'trip', 'draft', 'TravellersOutdoors',
+  'Dahab trip', 'رحلة دهب',
+  'Draft — check the days, what is included and the dates before publishing.',
+  'مسودة — راجع الأيام والمتضمن والمواعيد قبل النشر.',
+  'Dahab', 'EG', 28.5009, 34.5136,
+  array['media/welcome-dahab.jpg','media/welcome-kite.jpg','media/welcome-seaside.jpg'],
+  array['Transport from Cairo and back'], array['المواصلات من القاهرة والعودة'],
+  2800, 'EGP', 54, '{reserve}'),
+ ('0ffe0000-0000-4000-8000-000000000002', 'trip', 'draft', 'TravellersOutdoors',
+  'El Gouna: hotel and transport', 'الجونة: فندق ومواصلات',
+  'Draft — add the hotel, the nights, the price and real photos before publishing.',
+  'مسودة — ضيف الفندق وعدد الليالي والسعر وصور حقيقية قبل النشر.',
+  'El Gouna', 'EG', 27.3942, 33.6782,
+  '{}', array['Hotel stay','Transport from Cairo and back'], array['إقامة في فندق','المواصلات من القاهرة والعودة'],
+  0, 'EGP', null, '{reserve}')
+on conflict (id) do nothing;

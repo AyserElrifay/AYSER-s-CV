@@ -234,15 +234,13 @@ export const MAP_PEOPLE = [
 export const DOING_OPTIONS = ['⚽', '🎾', '☕', '🎬', '🤿', '🎧', '⛰️', '🏊', '🎮', '📚'];
 
 /* ── OUTING DEALS · real external offers opened inside Moments (the
-   broker layer). Global coverage: Waffarha for Egypt, Groupon for
+   broker layer). Global coverage: Groupon for
    US/EU, Playtomic for courts worldwide, Meetup for playing with
    strangers. Every click is logged (partner_clicks) = the referral
    proof for our 10–20% commission, and users earn $MOMENT cashback. ── */
 export const DEAL_FILTERS = ['All', '🎢 Fun', '🍽️ Food', '🏨 Stay', '🎾 Sport', '👥 Meet'];
 
 export const DEALS = [
-  { id: 'dl1', partner: 'waffarha', emoji: '🎢', cat: '🎢 Fun', region: '🇪🇬 Egypt', title: 'Waffarha · Outings & fun', sub: 'Parks, karting, escape rooms', badge: 'Up to 70% off', cashback: 15, url: 'https://www.waffarha.com/' },
-  { id: 'dl2', partner: 'waffarha', emoji: '🍽️', cat: '🍽️ Food', region: '🇪🇬 Egypt', title: 'Waffarha · Restaurants', sub: 'Dining deals around you', badge: 'Save big', cashback: 15, url: 'https://www.waffarha.com/en/category/restaurants' },
   { id: 'dl3', partner: 'groupon', emoji: '🎟️', cat: '🎢 Fun', region: '🇺🇸🇪🇺 US & Europe', title: 'Groupon · Things to do', sub: 'Activities, spas, events', badge: 'Daily deals', cashback: 10, url: 'https://www.groupon.com/' },
   { id: 'dl4', partner: 'booking', emoji: '🏨', cat: '🏨 Stay', region: '🌍 Worldwide', title: 'Booking.com · Hotels', sub: 'Stays anywhere on earth', badge: 'Member prices', cashback: 10, url: 'https://www.booking.com/' },
   { id: 'dl5', partner: 'airbnb', emoji: '🏡', cat: '🏨 Stay', region: '🌍 Worldwide', title: 'Airbnb · Homes', sub: 'Unique stays & experiences', badge: 'Live anywhere', cashback: 8, url: 'https://www.airbnb.com/' },

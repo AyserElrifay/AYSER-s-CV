@@ -252,6 +252,9 @@ jobs:
           supabase functions deploy team-admin --project-ref "$REF"
           # Bardi advises on every Studio decision (Studio members only; uses ANTHROPIC_API_KEY)
           supabase functions deploy studio-advice --project-ref "$REF"
+          # bookings: checkout reads the price from the database; the webhook is signed by Paymob (PAYMOB_* secrets)
+          supabase functions deploy create-checkout --project-ref "$REF"
+          supabase functions deploy paymob-webhook --project-ref "$REF" --no-verify-jwt
           if supabase secrets list --project-ref "$REF" 2>/dev/null | grep -q VAPID_PRIVATE_KEY; then
             echo "VAPID keys already set — kept."
           else

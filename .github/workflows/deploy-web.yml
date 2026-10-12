@@ -179,6 +179,9 @@ jobs:
       # Green Minds: sustainability plans only, not every outing.
       - name: Check Green Minds kinds
         run: node scripts/check-green-kinds.mjs
+      # Money: prices from the database, paid only on Paymob's signature.
+      - name: Check payments
+        run: node scripts/check-payments.mjs
       # Notifications: one line per thing that happened.
       - name: Check notification grouping
         run: node scripts/check-notif-groups.mjs
