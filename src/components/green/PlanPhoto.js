@@ -32,7 +32,7 @@ export const usePlacePhoto = (g) => {
   useEffect(() => {
     let alive = true;
     setP(null);
-    if (own || !name || g.lat == null || g.lng == null) return undefined;
+    if (own || !name) return undefined;
     placePhoto({ name, lat: g.lat, lng: g.lng }).then((r) => { if (alive) setP(r); }).catch(() => {});
     return () => { alive = false; };
   }, [own, name, g && g.lat, g && g.lng]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -88,7 +88,45 @@ export const PlaceCredit = ({ g, t }) => {
   if (!p) return null;
   return (
     <Text style={{ color: C.faint, fontSize: 11, marginTop: 8 }} numberOfLines={2}>
-      {'📷 ' + (t ? t('pl_place_photo') : 'Photo of the place') + ' · ' + (p.artist ? p.artist + ' · ' : '') + p.license + ' · Wikimedia Commons'}
+      {'📷 ' + (p.title || (t ? t('pl_place_photo') : 'Photo of the place')) + ' · ' + (p.artist ? p.artist + ' · ' : '') + p.license + ' · Wikimedia Commons'}
     </Text>
+  );
+};
+
+/* ─── THE TOP OF A PLAN: ITS PLACE, BIG ───────────────────────────────
+   Ayser: "عايز الخانات دي يبقى فيها صور للأماكن". A 58-pixel square
+   does not make anybody want to go anywhere. With a real photo — the
+   host's, last week's, or the place's own from Commons — the card
+   opens on it, full width; without one it keeps the drawn tile beside
+   the title, exactly as before. A Commons photo carries its credit on
+   the picture itself, which its licence asks for. */
+export const PlanHead = ({ g, children }) => {
+  const place = usePlacePhoto(g);
+  const own = planPhotoOf(g);
+  const url = own || (place && safe(place.url));
+  const look = lookOf(g && g.kind);
+  if (!url) {
+    return (
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <PlanThumb g={g} size={58} radius={18} tilt />
+        <View style={{ flex: 1, minWidth: 0, marginStart: 12 }}>{children}</View>
+      </View>
+    );
+  }
+  return (
+    <View>
+      <View style={{ height: 150, borderRadius: 16, overflow: 'hidden', backgroundColor: C.glassHi, marginBottom: 11 }}>
+        <Image source={{ uri: url }} style={{ width: '100%', height: 150 }} accessibilityLabel={(place && place.title) || (g && g.place_name) || ''} />
+        <View style={{ position: 'absolute', top: 8, left: 8, backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 10, paddingHorizontal: 6, paddingVertical: 2 }}>
+          <Text style={{ fontSize: 16 }}>{look.emoji}</Text>
+        </View>
+        {!own && place ? (
+          <View style={{ position: 'absolute', right: 6, bottom: 6, maxWidth: '80%', backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 6, paddingHorizontal: 5, paddingVertical: 1 }}>
+            <Text style={{ color: '#FFF', fontSize: 9.5 }} numberOfLines={1}>{'📷 ' + place.title + (place.artist ? ' · ' + place.artist : '') + ' · ' + place.license}</Text>
+          </View>
+        ) : null}
+      </View>
+      {children}
+    </View>
   );
 };

@@ -28,7 +28,7 @@ import { showOnMap, goToTab } from '../lib/mapBus';
 import { openChat } from '../lib/chatBus';
 import { lazyOverlay } from '../lib/lazyScreen';
 import { HostBadge } from '../components/HostCard';
-import { PlanThumb, PastPhotos, PlaceCredit } from '../components/green/PlanPhoto';
+import { PlanHead, PastPhotos, PlaceCredit } from '../components/green/PlanPhoto';
 import { ReportSheet } from '../components/ReportSheet';
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
 
@@ -60,6 +60,33 @@ const StartTalkSheet = lazyOverlay(() => import('../components/TalkRoom').then((
    Every number is a count of real rows and every card a real thing
    somebody made. A quiet week shows as a quiet week, with the button to
    be the one who starts something. */
+
+/* ─── HOW IT GOES ─────────────────────────────────────────────────────
+   Ayser: "لو دخلت عليها ألاقي شرح للبروجرام". Opening a plan said one
+   line at best. Somebody new to a city wants to know what they are
+   walking into: when to arrive, what happens, when it ends, whether
+   they can leave quietly. Four steps a plan, by what kind of plan it
+   is, with the real clock times worked out from when it starts and how
+   long it runs. The host's own words (`about`) still come first. */
+const PROGRAM = { walk: 'walk', run: 'walk', cleanup: 'walk', circle: 'circle', sport: 'sport', art: 'art', culture: 'culture', movie: 'culture' };
+const PlanProgram = ({ g, t, hour }) => {
+  const key = PROGRAM[g.kind] || 'any';
+  const start = new Date(g.starts_at).getTime();
+  if (!start) return null;
+  const mins = Number(g.minutes) || 90;
+  const at = key === 'culture' ? [0, 20, 30, mins] : [0, 10, Math.round(mins / 2), mins];
+  return (
+    <View style={{ marginTop: 12, backgroundColor: C.bg, borderRadius: 14, padding: 12, borderWidth: 1, borderColor: C.line }}>
+      <Text style={{ color: C.faint, fontSize: 11, fontWeight: '900', letterSpacing: 1, marginBottom: 6 }}>{t('pg_title').toUpperCase()}</Text>
+      {at.map((m, i) => (
+        <View key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', marginTop: i ? 7 : 0 }}>
+          <Text style={{ color: C.purple, fontSize: 12.5, fontWeight: '900', width: 74 }}>{hour(new Date(start + m * 60000).toISOString())}</Text>
+          <Text style={{ color: C.text, fontSize: 13.5, lineHeight: 19, flex: 1 }}>{t('pg_' + key + '_' + (i + 1))}</Text>
+        </View>
+      ))}
+    </View>
+  );
+};
 
 const Pill = ({ on, label, onPress }) => (
   <Pressable onPress={onPress} style={{ marginEnd: 8 }}>
@@ -321,20 +348,19 @@ export const TogetherScreen = () => {
                   return (
                     <Pressable key={g.id} onPress={() => { tapLight(); setOpen(expanded ? null : g.id); }}>
                       <View style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: g.im_going ? 'rgba(16,185,129,0.55)' : C.line, borderRadius: 22, padding: 12, marginBottom: 10 }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                          <PlanThumb g={g} size={58} radius={18} tilt />
-                          <View style={{ flex: 1, minWidth: 0, marginStart: 12 }}>
-                            <Text numberOfLines={2} style={{ color: C.text, fontSize: 15.5, fontWeight: '900', lineHeight: 20 }}>{titleFor(g.title, lang)}</Text>
-                            <Text numberOfLines={1} style={{ color: C.faint, fontSize: 12.5, fontWeight: '700', marginTop: 3 }}>
-                              {hour(g.starts_at)}{g.place_name ? ' · ' + g.place_name : g.city ? ' · ' + g.city : ''}
-                            </Text>
-                            {g.host_role ? <View style={{ marginTop: 5 }}><HostBadge role={g.host_role} small /></View> : null}
-                          </View>
-                        </View>
+                        <PlanHead g={g}>
+                          <Text numberOfLines={2} style={{ color: C.text, fontSize: 15.5, fontWeight: '900', lineHeight: 20 }}>{titleFor(g.title, lang)}</Text>
+                          <Text numberOfLines={1} style={{ color: C.faint, fontSize: 12.5, fontWeight: '700', marginTop: 3 }}>
+                            {hour(g.starts_at)}{g.place_name ? ' · ' + g.place_name : g.city ? ' · ' + g.city : ''}
+                          </Text>
+                          {g.host_role ? <View style={{ marginTop: 5 }}><HostBadge role={g.host_role} small /></View> : null}
+                        </PlanHead>
 
                         {expanded && g.about ? (
                           <Text style={{ color: C.dim, fontSize: 13.5, lineHeight: 20, marginTop: 10 }}>{g.about}</Text>
                         ) : null}
+                        {/* what actually happens, hour by hour */}
+                        {expanded ? <PlanProgram g={g} t={t} hour={hour} /> : null}
                         {/* who is responsible: the person running it, not Moments */}
                         {expanded && !mine ? <Text style={{ color: C.faint, fontSize: 11.5, lineHeight: 16, marginTop: 8 }}>{t('hc_liability')}</Text> : null}
                         {/* photos people really took there last time */}
@@ -356,7 +382,7 @@ export const TogetherScreen = () => {
 
                         <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 11 }}>
                           <Text style={{ color: C.faint, fontSize: 12.5, fontWeight: '800', flex: 1, minWidth: 0 }} numberOfLines={1}>
-                            {(Number(g.going) || 0) + ' ' + t('green_going')}{g.weekly_id ? ' · ' + t('green_every_week') : ''}{g.about || g.lat != null ? '  ' + (expanded ? '▴' : '▾') : ''}
+                            {(Number(g.going) || 0) + ' ' + t('green_going')}{g.weekly_id ? ' · ' + t('green_every_week') : ''}{'  ' + (expanded ? '▴' : '▾')}
                           </Text>
                           {(g.im_going || mine) && g.squad_id ? (
                             /* the plan's own group chat — "I'm at the gate" */
