@@ -168,7 +168,7 @@ export const NotificationsSheet = ({ onClose }) => {
   const openNotif = async (n) => {
     /* an invitation opens the week it is in, where Join is one tap */
     if (n.kind === 'green_invite') { tapSelection(); setGreenOpen(true); return; }
-    if (n.kind === 'plan_soon') { tapSelection(); onClose(); goToTab('TOGETHER'); return; }
+    if (n.kind === 'plan_soon' || n.kind === 'creator_plan') { tapSelection(); onClose(); goToTab('TOGETHER'); return; }
     if (n.kind === 'message') { tapSelection(); onClose(); goToTab('CHATS'); return; }
     if (n.kind === 'bardi_match') { const m = readMatch(n.body); if (m) { tapSelection(); setGoNowFrom(m); } return; }
     if (n.kind === 'food_order') { tapSelection(); setFoodTab('kitchen'); return; }
@@ -307,7 +307,7 @@ export const NotificationsSheet = ({ onClose }) => {
             {' '}<Text style={{ color: C.dim }}>{verbOf(t, n.kind, g && g.actors.length > 1)}</Text>
             {'  '}<Text style={{ color: C.faint, fontSize: 12 }}>{timeAgo(n.created_at)}</Text>
           </Text>
-          {(n.kind === 'green_invite' || n.kind === 'food_order' || n.kind === 'food_status' || n.kind === 'venue_decision') && n.body ? (
+          {(n.kind === 'green_invite' || n.kind === 'creator_plan' || n.kind === 'food_order' || n.kind === 'food_status' || n.kind === 'venue_decision') && n.body ? (
             <Text style={{ color: C.text, fontSize: 13, fontWeight: '700', marginTop: 2 }} numberOfLines={2}>{n.body === 'host_ok' || n.body === 'host_no' ? t('notif_' + n.body) : n.body}</Text>
           ) : null}
           {n.kind === 'safety' && n.body ? (

@@ -6,7 +6,7 @@ import { useLang } from '../context/LanguageContext';
 import { flagOf } from '../constants/countries';
 import { levelOf } from '../lib/xp';
 import { lookOf, titleFor } from '../lib/activityPins';
-import { fetchShowedUp } from '../services/green';
+import { fetchShowedUp, creatorRecord } from '../services/green';
 import { tapLight } from '../utils/feedback';
 
 /* ─── THE LOCAL PASS ──────────────────────────────────────────────────
@@ -34,6 +34,13 @@ export const Passport = ({ profile, name, avatar, verified, own, onPhoto, onEdit
   const { t, lang } = useLang();
   const p = profile || {};
   const lv = levelOf(p.community_xp);
+  /* the creator star is the database's word (creator_record), not ours */
+  const [creator, setCreator] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    if (p.id) creatorRecord(p.id).then((r) => { if (alive) setCreator(!!(r && r.is_creator)); });
+    return () => { alive = false; };
+  }, [p.id]);
   const tone = STAMP[lv.index] || STAMP[0];
   const place = p.city || p.cover_place || null;
   const langs = split(p.speaks_language);
@@ -66,6 +73,7 @@ export const Passport = ({ profile, name, avatar, verified, own, onPhoto, onEdit
           <Text style={{ color: C.dim, fontSize: 13.5, marginTop: 3 }} numberOfLines={1}>
             {place ? t('pp_local_in').replace('{place}', place) : t('pp_member')}
           </Text>
+          {creator ? <Text style={{ color: C.text, fontSize: 12.5, fontWeight: '800', marginTop: 2 }}><Text style={{ color: C.gold }}>★ </Text>{t('rw_creator_badge')}</Text> : null}
           {p.created_at ? <Text style={{ color: C.faint, fontSize: 12.5, marginTop: 1 }}>{t('pp_since').replace('{when}', monthYear(p.created_at, lang))}</Text> : null}
           {typeof mates === 'number' && mates > 0 ? (
             <Pressable onPress={onMates} disabled={!onMates} hitSlop={6} style={{ marginTop: 6, alignSelf: 'flex-start' }}>

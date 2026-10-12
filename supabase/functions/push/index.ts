@@ -39,7 +39,7 @@ const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } });
 
 // the plan's own title rides along; nothing a person wrote to somebody does
-const TITLED = new Set(['plan_soon', 'bardi_match', 'green_invite']);
+const TITLED = new Set(['plan_soon', 'bardi_match', 'green_invite', 'creator_plan']);
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
   let title = '';
   if (TITLED.has(n.kind) && n.body) {
     const parts = String(n.body).split('|');
-    title = (parts.length > 1 ? parts.slice(1).join('|') : n.kind === 'green_invite' ? String(n.body) : '').slice(0, 80);
+    title = (parts.length > 1 ? parts.slice(1).join('|') : n.kind === 'green_invite' || n.kind === 'creator_plan' ? String(n.body) : '').slice(0, 80);
   }
 
   let sent = 0;

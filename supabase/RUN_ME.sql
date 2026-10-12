@@ -11711,3 +11711,264 @@ select 'https://ayserelrifay.github.io/AYSER-s-CV/media/desert-trip.mp4',
 where not exists (select 1 from public.app_highlights where media_url = 'https://ayserelrifay.github.io/AYSER-s-CV/media/desert-trip.mp4');
 
 notify pgrst, 'reload schema';
+
+-- ═══════════ LOYALTY · REFERRALS · HANGOUT CREATORS ═══════════
+/* Ayser: "اعملي loyalty program و referrals و الhangouts creators".
+   All three stand on the one thing this app can prove: somebody turned
+   up. Nothing here is earned by tapping, sharing or signing up alone.
+
+   REFERRALS. An invite now pays, but only when the person you brought
+   actually shows up: the first time they are rewarded for a gathering
+   (award_gathering_xp — three people checked in, within 300 m, after
+   it ended), you get 50 XP and they get 25 on top. Once per person, at
+   most ten a month per inviter, never for your own hangout's guests
+   counted twice. A thousand empty sign-ups are worth nothing.
+
+   LOYALTY. The levels already exist (src/lib/xp.js). Added: a weekly
+   streak — how many weeks in a row you were rewarded for showing up —
+   and perks. A perk is a real offer a real place gave (a free drink, a
+   discount) tied to a level. The code is only handed to somebody who
+   has reached that level, by the database. No perks are invented: the
+   list is empty until the owner adds one.
+
+   CREATORS. Whoever hosts hangouts people come back to. The numbers
+   are counted, never typed: hangouts hosted that were settled with at
+   least three check-ins, the different people who came, and how many
+   came more than once. Three such hangouts make you a Hangout Creator.
+   People can follow a host; when the host starts something new, the
+   followers are told once (a weekly plan only the first time, and never
+   more than once a day per host). */
+
+-- ── REFERRALS ──
+create table if not exists public.referral_rewards (
+  invitee_id   uuid primary key references public.profiles(id) on delete cascade,
+  inviter_id   uuid not null references public.profiles(id) on delete cascade,
+  gathering_id uuid references public.green_gatherings(id) on delete set null,
+  inviter_points int not null,
+  invitee_points int not null,
+  awarded_at   timestamptz not null default now()
+);
+create index if not exists referral_rewards_inviter_idx on public.referral_rewards (inviter_id, awarded_at);
+alter table public.referral_rewards enable row level security;
+drop policy if exists "see your own referrals" on public.referral_rewards;
+create policy "see your own referrals" on public.referral_rewards for select using (auth.uid() in (inviter_id, invitee_id));
+
+create or replace function public.reward_referral()
+returns trigger language plpgsql security definer set search_path = public as $$
+declare inv uuid; who text; g text;
+begin
+  select invited_by into inv from public.profiles where id = new.user_id;
+  if inv is null or inv = new.user_id then return new; end if;
+  if exists (select 1 from public.referral_rewards where invitee_id = new.user_id) then return new; end if;
+  if (select count(*) from public.referral_rewards
+       where inviter_id = inv and awarded_at > now() - interval '30 days') >= 10 then return new; end if;
+  insert into public.referral_rewards (invitee_id, inviter_id, gathering_id, inviter_points, invitee_points)
+  values (new.user_id, inv, new.gathering_id, 50, 25)
+  on conflict do nothing;
+  if not found then return new; end if;
+  update public.profiles set community_xp = community_xp + 50 where id = inv;
+  update public.profiles set community_xp = community_xp + 25 where id = new.user_id;
+  select split_part(coalesce(name, ''), ' ', 1) into who from public.profiles where id = new.user_id;
+  select left(title, 60) into g from public.green_gatherings where id = new.gathering_id;
+  insert into public.notifications (user_id, actor_id, kind, body)
+  values (inv, new.user_id, 'xp_award', '50|🤝 ' || coalesce(nullif(who, ''), '…') || ' · ' || coalesce(g, ''));
+  insert into public.notifications (user_id, actor_id, kind, body)
+  values (new.user_id, inv, 'xp_award', '25|🤝 ' || coalesce(g, ''));
+  return new;
+end;
+$$;
+revoke execute on function public.reward_referral() from public, anon, authenticated;
+drop trigger if exists xp_awards_referral on public.xp_awards;
+create trigger xp_awards_referral after insert on public.xp_awards
+  for each row execute function public.reward_referral();
+
+create or replace function public.my_referrals()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select jsonb_build_object(
+    'joined',    (select count(*) from public.profiles where invited_by = auth.uid()),
+    'showed_up', (select count(*) from public.referral_rewards where inviter_id = auth.uid()),
+    'xp',        (select coalesce(sum(inviter_points), 0) from public.referral_rewards where inviter_id = auth.uid()),
+    'month_left', greatest(0, 10 - (select count(*) from public.referral_rewards
+                                     where inviter_id = auth.uid() and awarded_at > now() - interval '30 days')),
+    'people', coalesce((select jsonb_agg(jsonb_build_object('name', split_part(coalesce(p.name, ''), ' ', 1), 'avatar_url', p.avatar_url,
+                                  'showed_up', r.invitee_id is not null) order by p.created_at desc)
+                          from (select * from public.profiles where invited_by = auth.uid() order by created_at desc limit 30) p
+                          left join public.referral_rewards r on r.invitee_id = p.id), '[]'::jsonb)
+  );
+$$;
+revoke execute on function public.my_referrals() from public, anon;
+grant execute on function public.my_referrals() to authenticated;
+
+-- ── LOYALTY ──
+create table if not exists public.loyalty_perks (
+  id          uuid primary key default gen_random_uuid(),
+  level_key   text not null check (level_key in ('neighbour','regular','local','pillar','legend')),
+  partner     text not null,                 -- the place that gives it
+  title       text not null,                 -- "A free tea with any breakfast"
+  city        text,
+  country     text,                          -- ISO code, null = everywhere
+  code        text,                          -- shown only once the level is reached
+  url         text,
+  active      boolean not null default true,
+  expires_at  timestamptz,
+  created_at  timestamptz not null default now()
+);
+alter table public.loyalty_perks enable row level security;
+-- nobody reads the table directly (the codes are in it); the owner manages it
+drop policy if exists "owner manages perks" on public.loyalty_perks;
+create policy "owner manages perks" on public.loyalty_perks for all
+  using (public.is_app_owner()) with check (public.is_app_owner());
+
+create or replace function public.level_at(p_key text)
+returns int language sql immutable as $$
+  select case p_key when 'neighbour' then 100 when 'regular' then 300 when 'local' then 700
+                    when 'pillar' then 1500 when 'legend' then 3000 else 0 end;
+$$;
+
+create or replace function public.my_loyalty()
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare me uuid := auth.uid(); xp int; weeks date[]; streak int := 0; w date; cur date;
+begin
+  if me is null then return null; end if;
+  select community_xp into xp from public.profiles where id = me;
+  xp := coalesce(xp, 0);
+  -- the weeks you were rewarded for showing up, newest first
+  select array_agg(distinct date_trunc('week', g.starts_at)::date order by date_trunc('week', g.starts_at)::date desc)
+    into weeks
+    from public.xp_awards a join public.green_gatherings g on g.id = a.gathering_id
+   where a.user_id = me;
+  cur := date_trunc('week', now())::date;
+  if weeks is not null then
+    -- this week still counts as "not broken yet"
+    if weeks[1] = cur or weeks[1] = cur - 7 then
+      w := weeks[1];
+      foreach cur in array weeks loop
+        exit when cur <> w;
+        streak := streak + 1; w := w - 7;
+      end loop;
+    end if;
+  end if;
+  return jsonb_build_object(
+    'xp', xp,
+    'events', (select community_events from public.profiles where id = me),
+    'streak', streak,
+    'this_week', coalesce(weeks[1] = date_trunc('week', now())::date, false),
+    'perks', coalesce((
+      select jsonb_agg(jsonb_build_object(
+               'id', p.id, 'level', p.level_key, 'partner', p.partner, 'title', p.title, 'city', p.city,
+               'unlocked', xp >= public.level_at(p.level_key),
+               'code', case when xp >= public.level_at(p.level_key) then p.code end,
+               'url', p.url, 'expires_at', p.expires_at)
+             order by public.level_at(p.level_key), p.created_at)
+        from public.loyalty_perks p
+       where p.active and (p.expires_at is null or p.expires_at > now())
+    ), '[]'::jsonb)
+  );
+end;
+$$;
+revoke execute on function public.my_loyalty() from public, anon;
+grant execute on function public.my_loyalty() to authenticated;
+
+-- ── CREATORS ──
+create table if not exists public.creator_follows (
+  follower_id uuid not null references public.profiles(id) on delete cascade,
+  creator_id  uuid not null references public.profiles(id) on delete cascade,
+  created_at  timestamptz not null default now(),
+  primary key (follower_id, creator_id),
+  check (follower_id <> creator_id)
+);
+create index if not exists creator_follows_creator_idx on public.creator_follows (creator_id);
+alter table public.creator_follows enable row level security;
+drop policy if exists "see your follows" on public.creator_follows;
+create policy "see your follows" on public.creator_follows for select using (auth.uid() = follower_id);
+drop policy if exists "follow as yourself" on public.creator_follows;
+create policy "follow as yourself" on public.creator_follows for insert with check (auth.uid() = follower_id);
+drop policy if exists "unfollow as yourself" on public.creator_follows;
+create policy "unfollow as yourself" on public.creator_follows for delete using (auth.uid() = follower_id);
+
+/* one host's real record: only hangouts that were settled with at least
+   three people checked in count */
+create or replace function public.creator_record(p_user uuid)
+returns jsonb language sql stable security definer set search_path = public as $$
+  with mine as (
+    select g.id from public.green_gatherings g
+     where g.host_id = p_user and g.cancelled_at is null and g.xp_awarded_at is not null
+       and (select count(*) from public.green_joins j where j.gathering_id = g.id and j.checked_in_at is not null) >= 3
+  ), came as (
+    select j.user_id, count(*) n from public.green_joins j
+     where j.gathering_id in (select id from mine) and j.checked_in_at is not null and j.user_id <> p_user
+     group by j.user_id
+  )
+  select jsonb_build_object(
+    'id', p_user,
+    'hosted',    (select count(*) from mine),
+    'people',    (select count(*) from came),
+    'returning', (select count(*) from came where n >= 2),
+    'followers', (select count(*) from public.creator_follows where creator_id = p_user),
+    'i_follow',  exists (select 1 from public.creator_follows where creator_id = p_user and follower_id = auth.uid()),
+    'is_creator', (select count(*) from mine) >= 3,
+    'next', (select jsonb_build_object('id', g.id, 'title', g.title, 'starts_at', g.starts_at, 'place_name', g.place_name)
+               from public.green_gatherings g
+              where g.host_id = p_user and g.cancelled_at is null and g.starts_at > now()
+              order by g.starts_at limit 1)
+  );
+$$;
+grant execute on function public.creator_record(uuid) to authenticated;
+
+/* the hosts near you that people actually come to — ranked by how many
+   different people came in the last six months */
+create or replace function public.top_creators(p_country text)
+returns jsonb language sql stable security definer set search_path = public as $$
+  with settled as (
+    select g.id, g.host_id from public.green_gatherings g
+     where g.cancelled_at is null and g.xp_awarded_at is not null
+       and g.starts_at > now() - interval '180 days'
+       and (p_country is null or g.country = p_country)
+       and (select count(*) from public.green_joins j where j.gathering_id = g.id and j.checked_in_at is not null) >= 3
+  ), ranked as (
+    select s.host_id, count(distinct j.user_id) people
+      from settled s join public.green_joins j on j.gathering_id = s.id
+     where j.checked_in_at is not null and j.user_id <> s.host_id
+     group by s.host_id
+     order by people desc
+     limit 12
+  )
+  select coalesce(jsonb_agg(public.creator_record(r.host_id)
+           || jsonb_build_object('name', p.name, 'avatar_url', p.avatar_url, 'country_flag', p.country_flag, 'verified', p.verified)
+           order by r.people desc), '[]'::jsonb)
+    from ranked r join public.profiles p on p.id = r.host_id;
+$$;
+grant execute on function public.top_creators(text) to authenticated;
+
+do $do$
+begin
+  alter table public.notifications drop constraint if exists notifications_kind_check;
+  alter table public.notifications add constraint notifications_kind_check
+    check (kind in ('vibe','laugh','comment','mate_request','mate_accept','message','call','tag','repost','green_invite','food_order','food_status','bardi_match','plan_soon','venue_decision','xp_award','safety','creator_plan'))
+    not valid;
+exception when others then raise notice 'notifications kind constraint skipped: %', sqlerrm;
+end $do$;
+
+create or replace function public.tell_followers()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if new.cancelled_at is not null or new.starts_at < now() then return new; end if;
+  -- a weekly plan is news once, not every week
+  if new.weekly_id is not null and exists (
+       select 1 from public.green_gatherings x where x.weekly_id = new.weekly_id and x.id <> new.id) then
+    return new;
+  end if;
+  insert into public.notifications (user_id, actor_id, kind, body, gathering_id)
+  select f.follower_id, new.host_id, 'creator_plan', left(new.title, 80), new.id
+    from public.creator_follows f
+   where f.creator_id = new.host_id
+     and not exists (select 1 from public.notifications n
+                      where n.user_id = f.follower_id and n.actor_id = new.host_id
+                        and n.kind = 'creator_plan' and n.created_at > now() - interval '1 day');
+  return new;
+end;
+$$;
+revoke execute on function public.tell_followers() from public, anon, authenticated;
+drop trigger if exists green_gatherings_tell_followers on public.green_gatherings;
+create trigger green_gatherings_tell_followers after insert on public.green_gatherings
+  for each row execute function public.tell_followers();

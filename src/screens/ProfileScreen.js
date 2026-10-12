@@ -77,6 +77,7 @@ import { SheetHandle, SheetBack } from '../components/SheetHandle';
 const GreenSheet = lazyOverlay(() => import('../components/green/GreenSheet').then((m) => ({ default: m.GreenSheet })));
 const CommentsSheet = lazyOverlay(() => import('../components/CommentsSheet').then((m) => ({ default: m.CommentsSheet })));
 const ReelsViewer = lazyOverlay(() => import('../components/ReelsViewer').then((m) => ({ default: m.ReelsViewer })));
+const RewardsSheet = lazyOverlay(() => import('../components/RewardsSheet').then((m) => ({ default: m.RewardsSheet })));
 const LikersSheet = lazyOverlay(() => import('../components/LikersSheet').then((m) => ({ default: m.LikersSheet })));
 
 /* ─── YOUR SPACE — the profile, Facebook / Instagram / X style ───
@@ -207,6 +208,7 @@ export const ProfileScreen = () => {
   const [campfiresHosted, setCampfiresHosted] = useState(0);
   const [matesCount, setMatesCount] = useState(0);
   const [matesOpen, setMatesOpen] = useState(false);
+  const [rewardsOpen, setRewardsOpen] = useState(false);
   const [avatarBuilderOpen, setAvatarBuilderOpen] = useState(false);
   const [closeOpen, setCloseOpen] = useState(false);
   const [followers, setFollowers] = useState(null);   // null until it answers
@@ -734,6 +736,19 @@ export const ProfileScreen = () => {
             </Pressable>
           </View>
           {inviteNote ? <Text style={{ color: C.faint, fontSize: 12, marginTop: 6 }}>{inviteNote}</Text> : null}
+          {/* loyalty, invites and hangout creators — one door (RewardsSheet) */}
+          {SUPABASE_READY && user ? (
+            <Pressable onPress={() => { tapLight(); setRewardsOpen(true); }} accessibilityRole="button" style={{ marginTop: 10 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: R - 4, borderWidth: 1, borderColor: C.gold, backgroundColor: C.goldSoft, paddingVertical: 11, paddingHorizontal: 14 }}>
+                <Ionicons name="gift-outline" size={18} color={C.text} />
+                <View style={{ flex: 1, marginStart: 10 }}>
+                  <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '900' }}>{t('rw_open')}</Text>
+                  <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 1 }} numberOfLines={1}>{t('rw_open_sub')}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={C.dim} />
+              </View>
+            </Pressable>
+          ) : null}
           {SUPABASE_READY && user ? <ShowedUp userId={user.id} own /> : null}
 
           {/* badges */}
@@ -1366,6 +1381,7 @@ export const ProfileScreen = () => {
       ) : null}
 
       {hostOpen ? <GreenSheet startNow onClose={() => setHostOpen(false)} /> : null}
+      {rewardsOpen ? <RewardsSheet onClose={() => setRewardsOpen(false)} onStartPlan={() => { setRewardsOpen(false); setHostOpen(true); }} /> : null}
       {matesOpen ? <MatesSheet onClose={() => { setMatesOpen(false); reload(); }} /> : null}
       {avatarBuilderOpen ? (
         <AvatarBuilderSheet

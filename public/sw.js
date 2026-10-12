@@ -146,6 +146,7 @@ const PUSH_EN = {
   push_green_invite: '{name} invites you: {title}',
   push_bardi_match: '{n} people near you are into {what} right now',
   push_plan_soon: '{title} starts in an hour',
+  push_creator_plan: '{name} started something new: {title}',
   push_food_order: 'A new order in your kitchen',
   push_food_status: 'Your order was updated',
   push_venue_decision: 'News about your organisation on Moments',
@@ -188,7 +189,7 @@ self.addEventListener('push', (e) => {
       icon: base + 'icon-192.png',
       badge: base + 'favicon-32.png',
       tag: d.id || d.kind || 'moments',
-      data: { url: base + (d.kind === 'plan_soon' || d.kind === 'green_invite' ? '?tab=TOGETHER' : '?notifications=1') },
+      data: { url: base + (d.kind === 'plan_soon' || d.kind === 'green_invite' || d.kind === 'creator_plan' ? '?tab=TOGETHER' : '?notifications=1') },
     });
   })());
 });

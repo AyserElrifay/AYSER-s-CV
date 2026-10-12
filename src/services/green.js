@@ -221,3 +221,26 @@ export async function removeGatheringPhoto(id, url = null) {
   if (error) return { ok: false, reason: 'offline' };
   return data || { ok: false };
 }
+
+/* ── LOYALTY · REFERRALS · CREATORS ── every number below is counted by
+   the database from check-ins (RUN_ME.sql "LOYALTY · REFERRALS · HANGOUT
+   CREATORS"); the app only shows it. null = could not ask. */
+const ask = async (name, args) => {
+  if (!SUPABASE_READY) return null;
+  try { const { data, error } = await withDeadline(supabase.rpc(name, args || {})); return error ? null : data; }
+  catch (e) { return null; }
+};
+export const myLoyalty = () => ask('my_loyalty');
+export const myReferrals = () => ask('my_referrals');
+export const creatorRecord = (id) => ask('creator_record', { p_user: id });
+export const topCreators = async (country) => { const r = await ask('top_creators', { p_country: country || null }); return Array.isArray(r) ? r : []; };
+export async function followCreator(me, id, on) {
+  if (!SUPABASE_READY || !me || !id || me === id) return false;
+  try {
+    const q = on
+      ? supabase.from('creator_follows').insert({ follower_id: me, creator_id: id })
+      : supabase.from('creator_follows').delete().eq('follower_id', me).eq('creator_id', id);
+    const { error } = await withDeadline(q);
+    return !error || /duplicate/i.test(error.message || '');
+  } catch (e) { return false; }
+}

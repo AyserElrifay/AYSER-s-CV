@@ -28,7 +28,7 @@ is('the plan reminder fires once per person per plan', /not exists \(select 1 fr
 
 console.log('\nwhat a lock screen shows');
 is('never the words of a message or a comment', /body: n\.kind === 'bardi_match' \? n\.body : ''/.test(fn), true);
-is('a plan\'s own title, and a first name, are all that ride along', /TITLED = new Set\(\['plan_soon', 'bardi_match', 'green_invite'\]\)/.test(fn), true);
+is('a plan\'s own title, and a first name, are all that ride along', /TITLED = new Set\(\['plan_soon', 'bardi_match', 'green_invite', 'creator_plan'\]\)/.test(fn), true);
 is('a phone that unsubscribed is forgotten (404/410)', /404 \|\| code === 410/.test(fn), true);
 
 console.log('\nkeys');

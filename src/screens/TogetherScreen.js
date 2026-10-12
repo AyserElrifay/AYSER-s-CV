@@ -8,7 +8,7 @@ import { C } from '../constants/theme';
 import { useLang } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { SUPABASE_READY } from '../lib/supabase';
-import { listGatherings, joinGathering, announceGathering, myInvites, checkInAt, setGatheringPhoto, removeGatheringPhoto } from '../services/green';
+import { listGatherings, joinGathering, announceGathering, myInvites, checkInAt, setGatheringPhoto, removeGatheringPhoto, topCreators, followCreator } from '../services/green';
 import { uploadPlanPhoto } from '../lib/storage';
 import { canCheckIn } from '../lib/xp';
 import { getCurrentCoords } from '../utils/location';
@@ -30,6 +30,8 @@ import { lazyOverlay } from '../lib/lazyScreen';
 import { HostBadge } from '../components/HostCard';
 import { PlanHead, PastPhotos, PlaceCredit } from '../components/green/PlanPhoto';
 import { ReportSheet } from '../components/ReportSheet';
+import { CreatorsRail } from '../components/CreatorsRail';
+const RewardsSheet = lazyOverlay(() => import('../components/RewardsSheet').then((m) => ({ default: m.RewardsSheet })));
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
 
 const GreenSheet = lazyOverlay(() => import('../components/green/GreenSheet').then((m) => ({ default: m.GreenSheet })));
@@ -146,6 +148,7 @@ export const TogetherScreen = () => {
   const [sent, setSent] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [sheet, setSheet] = useState(null);
+  const [creators, setCreators] = useState([]);     // hosts people really came to (top_creators)
   const [invited, setInvited] = useState(null);     // how many joined through your link — the real count
   const [shareMsg, setShareMsg] = useState(null);
   const [askPush, setAskPush] = useState(false);
@@ -191,8 +194,10 @@ export const TogetherScreen = () => {
       listGatherings(country).catch(() => []),
       fetchWhatsOn({ userId: uid }).catch(() => ({ now: [], soon: [], groups: [] })),
       talkRoomsNear().catch(() => null),
-    ]).then(([gs, wo, tr]) => {
+      topCreators(country).catch(() => []),
+    ]).then(([gs, wo, tr, cr]) => {
       if (!alive) return;
+      setCreators(cr || []);
       setTalks(tr && tr.ok ? { rooms: tr.rooms || [], offset: offsetFrom(tr.now) } : null);
       setRows(gs || []);
       setOn(wo || { now: [], soon: [], groups: [] });
@@ -262,6 +267,17 @@ export const TogetherScreen = () => {
     setJoined((j) => ({ ...j, [key]: 'busy' }));
     try { await fn(); setJoined((j) => ({ ...j, [key]: 'done' })); }
     catch (e) { setJoined((j) => { const n = { ...j }; delete n[key]; return n; }); }
+  };
+
+  const creatorIds = useMemo(() => new Set(creators.filter((c) => c.is_creator).map((c) => c.id)), [creators]);
+  const follow = async (c) => {
+    if (!uid) return;
+    const on = !c.i_follow;
+    tapLight();
+    setCreators((l) => l.map((x) => (x.id === c.id ? { ...x, i_follow: on, followers: Math.max(0, (x.followers || 0) + (on ? 1 : -1)) } : x)));
+    const ok = await followCreator(uid, c.id, on);
+    if (!ok) setCreators((l) => l.map((x) => (x.id === c.id ? { ...x, i_follow: !on, followers: Math.max(0, (x.followers || 0) + (on ? -1 : 1)) } : x)));
+    else if (on) tapSuccess();
   };
 
   const shown = days.filter((d) => day === null || d.key === day);
@@ -354,6 +370,12 @@ export const TogetherScreen = () => {
                             {hour(g.starts_at)}{g.place_name ? ' · ' + g.place_name : g.city ? ' · ' + g.city : ''}
                           </Text>
                           {g.host_role ? <View style={{ marginTop: 5 }}><HostBadge role={g.host_role} small /></View> : null}
+                          {creatorIds.has(g.host_id) ? (
+                            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 5 }}>
+                              <Ionicons name="star" size={12} color={C.gold} />
+                              <Text style={{ color: C.dim, fontSize: 12, fontWeight: '800', marginStart: 4 }}>{t('rw_creator_badge')}</Text>
+                            </View>
+                          ) : null}
                         </PlanHead>
 
                         {expanded && g.about ? (
@@ -520,12 +542,17 @@ export const TogetherScreen = () => {
           <Tile emoji="🎙️" label={t('tr_tile')} from="#111" to="#111" onPress={() => setSheet('talk')} />
         </View>
 
+        {/* ── hangout creators ── the hosts people really come back to,
+            counted by the database (top_creators); follow one and you hear
+            when they start something new */}
+        {uid ? <CreatorsRail creators={creators} me={uid} onFollow={follow} onBecome={() => setSheet({ rewards: 'creator' })} /> : null}
+
         {/* ── bring your people ── a community grows by people bringing
             people. Your own link, and how many really joined through it. */}
         {uid ? (
           <View style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 22, padding: 16, marginTop: 12 }}>
             <Text style={{ color: C.text, fontSize: 16, fontWeight: '900' }}>{t('inv_title')}</Text>
-            <Text style={{ color: C.dim, fontSize: 13.5, lineHeight: 19, marginTop: 4 }}>{t('inv_sub')}</Text>
+            <Text style={{ color: C.dim, fontSize: 13.5, lineHeight: 19, marginTop: 4 }}>{t('rw_inv_sub')}</Text>
             {invited != null ? (
               <Text style={{ color: C.purple, fontSize: 14, fontWeight: '900', marginTop: 10 }}>
                 {invited === 0 ? t('inv_none') : invited === 1 ? t('inv_one') : t('inv_n').replace('{n}', String(invited))}
@@ -544,6 +571,9 @@ export const TogetherScreen = () => {
               </View>
             </Pressable>
             {shareMsg ? <Text style={{ color: C.faint, fontSize: 12, textAlign: 'center', marginTop: 8 }}>{shareMsg}</Text> : null}
+            <Pressable onPress={() => { tapLight(); setSheet({ rewards: 'loyalty' }); }} accessibilityRole="button" style={{ marginTop: 12, alignSelf: 'center' }} hitSlop={8}>
+              <Text style={{ color: C.purple, fontSize: 14, fontWeight: '900' }}>{t('rw_open')} ›</Text>
+            </Pressable>
           </View>
         ) : null}
       </ScrollView>
@@ -556,6 +586,7 @@ export const TogetherScreen = () => {
       {sheet === 'green' ? <GreenSheet homeCountry={myCode} onClose={() => { setSheet(null); load(); }} /> : null}
       {sheet === 'prog' ? <ProgrammesSheet onClose={() => setSheet(null)} onOpenGroup={(id) => setSheet({ group: id })} /> : null}
       {sheet === 'landing' ? <LandingSheet country={myCode} onClose={() => setSheet(null)} /> : null}
+      {sheet && sheet.rewards ? <RewardsSheet tab={sheet.rewards} onClose={() => setSheet(null)} onStartPlan={() => setSheet('start')} /> : null}
       {sheet && sheet.group ? <GroupPage groupId={sheet.group} onClose={() => setSheet(null)} /> : null}
     </View>
   );
