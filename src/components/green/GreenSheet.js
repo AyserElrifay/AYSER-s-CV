@@ -21,6 +21,7 @@ import { useSheetBack } from '../../hooks/useSheetBack';
 import { GreenMark } from './GreenMark';
 import { StartForm } from './StartForm';
 import { lookOf, titleFor } from '../../lib/activityPins';
+import { isGreen, GREEN_KINDS } from '../../lib/greenKinds';
 
 /* ─── أخضر · GREEN MINDS ──────────────────────────────────────────────
    A corner of Moments for the things that are better done outside and
@@ -181,7 +182,10 @@ export const GreenSheet = ({ onClose, onPlay, startNow, homeCountry, openOn, pre
     setRows(null);
     if (!SUPABASE_READY || !user) { setRows([]); setWhy('offline'); return () => {}; }
     Promise.all([listGatherings(country), listSparks(country)])
-      .then(([gs, sp]) => { if (alive) { setRows(gs); setSparks(sp); setWhy(null); } })
+      /* the page is about clean-ups, planting and repair — the week
+         filtered to those (src/lib/greenKinds.js). Starting a plan
+         from elsewhere (startNow) is untouched. */
+      .then(([gs, sp]) => { if (alive) { setRows(startNow ? gs : (gs || []).filter(isGreen)); setSparks(startNow ? sp : (sp || []).filter(isGreen)); setWhy(null); } })
       .catch((e) => { if (alive) { setRows([]); setWhy(explain(e)); } });
     return () => { alive = false; };
   }, [country, user]);
@@ -253,7 +257,7 @@ export const GreenSheet = ({ onClose, onPlay, startNow, homeCountry, openOn, pre
     /* a prefill may bring the whole plan — "Watch together" brings the
        film as the title and what to watch it on (FilmSheet.js) */
     setForm({
-      kind: spark ? spark.kind : (prefill ? prefill.kind || 'coffee' : 'walk'),
+      kind: spark ? spark.kind : (prefill ? prefill.kind || 'coffee' : startNow ? 'walk' : 'cleanup'),
       title: spark ? sparkText(spark, lang, 'title') : (prefill && prefill.title) || '',
       about: spark ? sparkText(spark, lang, 'about') : (prefill && prefill.about) || '',
       country: (spark && spark.country) || country || homeCountry || 'EG',
@@ -273,7 +277,9 @@ export const GreenSheet = ({ onClose, onPlay, startNow, homeCountry, openOn, pre
      the person was looking at — not the whole Green Minds page behind it. */
   /* a plan that arrives with its kind (movie night) shows that kind
      first, where it can be seen to be chosen */
-  const formKinds = prefill && prefill.kind ? [kindOf(prefill.kind), ...KINDS.filter((k) => k.id !== prefill.kind)] : KINDS;
+  const formKinds = prefill && prefill.kind ? [kindOf(prefill.kind), ...KINDS.filter((k) => k.id !== prefill.kind)]
+    : startNow ? KINDS
+    : KINDS.filter((k) => GREEN_KINDS.indexOf(k.id) >= 0);   // started from Green Minds: a green kind
   if (startNow) {
     return form ? (
       <StartForm form={form} setForm={setForm} kinds={formKinds} places={formPlaces} busy={busy} t={t} lang={lang}

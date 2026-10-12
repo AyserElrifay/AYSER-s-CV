@@ -176,6 +176,9 @@ jobs:
       # Community XP: earned by showing up, and nothing else.
       - name: Check community XP
         run: node scripts/check-xp.mjs
+      # Green Minds: sustainability plans only, not every outing.
+      - name: Check Green Minds kinds
+        run: node scripts/check-green-kinds.mjs
       # Notifications: one line per thing that happened.
       - name: Check notification grouping
         run: node scripts/check-notif-groups.mjs

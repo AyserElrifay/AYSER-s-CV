@@ -32,6 +32,7 @@ import { HostBadge } from '../components/HostCard';
 import { PlanHead, PastPhotos, PlaceCredit } from '../components/green/PlanPhoto';
 import { ReportSheet } from '../components/ReportSheet';
 import { CreatorsRail } from '../components/CreatorsRail';
+const SettleSheet = lazyOverlay(() => import('../components/SettleSheet').then((m) => ({ default: m.SettleSheet })));
 const RewardsSheet = lazyOverlay(() => import('../components/RewardsSheet').then((m) => ({ default: m.RewardsSheet })));
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
 
@@ -545,6 +546,8 @@ export const TogetherScreen = () => {
         <Section>{t('tg_more')}</Section>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
           <Tile emoji="🎓" label={t('prog_title')} from="#3B82F6" to="#06B6D4" onPress={() => setSheet('prog')} />
+          {/* newcomers and the people welcoming them (SettleSheet.js) */}
+          <Tile emoji="🤝" label={t('st_title')} from="#F59E0B" to="#EF4444" onPress={() => setSheet('settle')} />
           {isEuCode(myCode) ? (
             <Tile emoji="🧭" label={t('ld_title')} from="#10B981" to="#84CC16" onPress={() => setSheet('landing')} />
           ) : null}
@@ -598,6 +601,8 @@ export const TogetherScreen = () => {
       {sheet === 'talk' ? <StartTalkSheet country={myCode} onClose={() => setSheet(null)} onStarted={(id) => { setSheet(null); setTalkId(id); }} /> : null}
       {talkId ? <TalkRoomSheet roomId={talkId} onClose={() => { setTalkId(null); load(); }} /> : null}
       {sheet === 'start' ? <GreenSheet startNow homeCountry={myCode} onClose={() => { setSheet(null); load(); }} /> : null}
+      {sheet && sheet.start ? <GreenSheet startNow prefill={sheet.start} homeCountry={myCode} onClose={() => { setSheet(null); load(); }} /> : null}
+      {sheet === 'settle' ? <SettleSheet myCode={myCode} onClose={() => setSheet(null)} onSwap={(p) => setSheet({ start: p })} onPapers={isEuCode(myCode) ? () => setSheet('landing') : null} /> : null}
       {reportingPhoto ? <ReportSheet contentType="plan_photo" contentId={reportingPhoto.id} contentLabel={reportingPhoto.label} onClose={() => setReportingPhoto(null)} /> : null}
       {sheet === 'green' ? <GreenSheet homeCountry={myCode} onClose={() => { setSheet(null); load(); }} /> : null}
       {sheet === 'prog' ? <ProgrammesSheet onClose={() => setSheet(null)} onOpenGroup={(id) => setSheet({ group: id })} /> : null}
