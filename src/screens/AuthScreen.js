@@ -13,6 +13,7 @@ import { Glass } from '../components/Glass';
 import { Micro } from '../components/Micro';
 import { NeonButton } from '../components/NeonButton';
 import { Wordmark } from '../components/Wordmark';
+import { ChatLinkBanner } from '../components/ChatLinkBanner';
 import { Welcome } from '../components/Welcome';
 import { Intro, introSeen } from '../components/Intro';
 import { setupNotice } from '../lib/plumbing';
@@ -463,6 +464,7 @@ export const AuthScreen = ({ recovery = false, onDone }) => {
             </Pressable>
             <Wordmark height={100} style={{ marginBottom: 2 }} />
             <Text style={{ color: C.dim, fontSize: 14, marginBottom: 40 }}>{t('auth_tagline')}</Text>
+            <ChatLinkBanner />
             <Glass style={{ padding: 20, alignSelf: 'stretch', marginBottom: 30 }}>
               <Text style={{ color: C.text, fontSize: 18, fontWeight: '800', textAlign: 'center', marginBottom: 18 }}>
                 {mode === 'signup' ? t('auth_create_title') : t('auth_signin_title')}

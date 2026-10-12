@@ -31,6 +31,8 @@ import { PresenceProvider } from './src/context/PresenceContext';
 import { AuthScreen } from './src/screens/AuthScreen';
 import { primeFeed } from './src/hooks/useFeed';
 import { pendingInvite, clearInvite } from './src/lib/invite';
+import { pendingChatLink } from './src/lib/chatLink';
+import { JoinChatSheet } from './src/components/JoinChatSheet';
 import { claimInvite } from './src/services/green';
 import { TabNavigator, buildNavTheme } from './src/navigation/TabNavigator';
 import { MiniPlayer } from './src/components/MiniPlayer';
@@ -149,7 +151,8 @@ const Root = () => {
      feel like an ad rather than a hand. */
   const [tour, setTour] = React.useState(false);
   React.useEffect(() => {
-    if (!isAuthenticated || tourSeen()) return undefined;
+    // not on top of a group invitation (JoinChatSheet): one thing at a time
+    if (!isAuthenticated || tourSeen() || pendingChatLink()) return undefined;
     const t = setTimeout(() => setTour(true), 1400);
     return () => clearTimeout(t);
   }, [isAuthenticated]);
@@ -176,6 +179,8 @@ const Root = () => {
       <WhatsNew />
       <StudioGate />
       <InstallPrompt />
+      {/* arrived through a group chat's invite link (src/lib/chatLink.js) */}
+      <JoinChatSheet />
       {tour ? <GestureTour onClose={() => setTour(false)} /> : null}
       {/* after a strike: over everything (src/components/SafetyHold.js) */}
       <SafetyHold />

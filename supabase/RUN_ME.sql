@@ -12464,3 +12464,370 @@ values
   '{}', array['Hotel stay','Transport from Cairo and back'], array['إقامة في فندق','المواصلات من القاهرة والعودة'],
   0, 'EGP', null, '{reserve}')
 on conflict (id) do nothing;
+
+-- ═══════════ GROUP CHATS · ADMINS, MODERATORS AND INVITE LINKS ═══════════
+/* Ayser: "مش عارف أتحكم في الجروب وابقي أدمن واضيف الناس او اعمل حد تاني
+   أدمن … موديريتور وأقدر ابعت لينك الشات لناس حتي من بره مومنتس".
+
+   Every group chat now has roles, decided here and nowhere else:
+     · owner     — whoever made it; for a plan's chat, the host. Can do
+                   everything, including handing the group to someone else.
+     · admin     — adds people, makes invite links, names the group,
+                   makes others moderators, removes people.
+     · moderator — keeps it kind: deletes any message, removes members.
+     · member    — talks, leaves whenever they like.
+
+   An INVITE LINK (…/?chat=<token>) works for anybody, inside Moments or
+   not: someone without the app opens it, makes an account, and lands
+   in the group. Links expire (a week by default), can be switched off
+   at once, and somebody an admin removed cannot come back through one.
+
+   Three holes closed on the way:
+     · anybody could add THEMSELVES to any group (the insert policy let
+       you insert your own row anywhere). Now only into a group you have
+       just created, or an open programme group; everything else is an
+       invite or a link;
+     · an invitation that was still waiting could already read the
+       group's messages — pending is not a member;
+     · accepting an invitation could never save (there was no rule that
+       let you update your own row), so invites stayed pending forever. */
+
+alter table public.squads add column if not exists created_by uuid references public.profiles(id) on delete set null;
+alter table public.squads add column if not exists open boolean not null default false;
+alter table public.squad_members add column if not exists role text not null default 'member';
+do $$ begin
+  alter table public.squad_members add constraint squad_members_role_check check (role in ('owner','admin','moderator','member'));
+exception when others then null; end $$;
+
+-- programme groups (Erasmus, exchanges) are the open ones: anyone may join
+update public.squads s set open = true where exists (select 1 from public.programmes p where p.squad_id = s.id) and not s.open;
+
+-- a member is somebody who said yes, not somebody invited
+create or replace function public.is_squad_member(sid uuid, uid uuid)
+returns boolean language sql security definer stable set search_path = public as $$
+  select exists (select 1 from public.squad_members where squad_id = sid and user_id = uid and coalesce(accepted, true));
+$$;
+create or replace function public.squad_role(sid uuid, uid uuid)
+returns text language sql security definer stable set search_path = public as $$
+  select role from public.squad_members where squad_id = sid and user_id = uid and coalesce(accepted, true);
+$$;
+create or replace function public.squad_rank(r text)
+returns int language sql immutable as $$
+  select case r when 'owner' then 4 when 'admin' then 3 when 'moderator' then 2 when 'member' then 1 else 0 end;
+$$;
+
+drop policy if exists "squad members read squad messages" on public.messages;
+create policy "squad members read squad messages" on public.messages for select using (
+  (squad_id is not null and public.is_squad_member(messages.squad_id, auth.uid()))
+  or
+  (dm_thread_id is not null and exists (select 1 from public.dm_participants p where p.thread_id = messages.dm_thread_id and p.user_id = auth.uid()))
+);
+drop policy if exists "squad members send squad messages" on public.messages;
+create policy "squad members send squad messages" on public.messages for insert with check (
+  auth.uid() = user_id and (
+    (squad_id is not null and public.is_squad_member(messages.squad_id, auth.uid()))
+    or
+    (dm_thread_id is not null and exists (select 1 from public.dm_participants p where p.thread_id = messages.dm_thread_id and p.user_id = auth.uid()))
+  )
+);
+
+create table if not exists public.squad_bans (
+  squad_id   uuid not null references public.squads(id) on delete cascade,
+  user_id    uuid not null references public.profiles(id) on delete cascade,
+  banned_by  uuid references public.profiles(id) on delete set null,
+  created_at timestamptz not null default now(),
+  primary key (squad_id, user_id)
+);
+alter table public.squad_bans enable row level security;
+-- read and written only through the functions below
+
+create or replace function public.squad_has_members(sid uuid)
+returns boolean language sql security definer stable set search_path = public as $$
+  select exists (select 1 from public.squad_members where squad_id = sid);
+$$;
+create or replace function public.squad_is_open(sid uuid)
+returns boolean language sql security definer stable set search_path = public as $$
+  select coalesce((select open from public.squads where id = sid), false);
+$$;
+
+create or replace function public.squad_banned(sid uuid, uid uuid)
+returns boolean language sql security definer stable set search_path = public as $$
+  select exists (select 1 from public.squad_bans where squad_id = sid and user_id = uid);
+$$;
+drop policy if exists "members can invite to their squads" on public.squad_members;
+create policy "members can invite to their squads" on public.squad_members for insert with check (
+  -- yourself: into a group you just made (no one in it yet), or an open one
+  (auth.uid() = user_id and (not public.squad_has_members(squad_id) or public.squad_is_open(squad_id))
+     and not public.squad_banned(squad_id, auth.uid()))
+  -- somebody else: an invitation they still have to accept, sent by an admin
+  or (auth.uid() <> user_id and coalesce(accepted, true) = false
+      and public.squad_rank(public.squad_role(squad_id, auth.uid())) >= 3)
+);
+drop policy if exists "accept your own invitation" on public.squad_members;
+create policy "accept your own invitation" on public.squad_members for update
+  using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+drop policy if exists "members can update their squad" on public.squads;
+create policy "members can update their squad" on public.squads for update
+  using (public.squad_rank(public.squad_role(id, auth.uid())) >= 3);
+
+/* roles are the database's word: a request from the app cannot set or
+   change one. The first person into a new group is its owner. */
+create or replace function public.guard_squad_member()
+returns trigger language plpgsql security invoker set search_path = public as $fn$
+begin
+  if current_user in ('authenticated', 'anon') then
+    if tg_op = 'INSERT' then
+      new.role := case when not public.squad_has_members(new.squad_id) and new.user_id = auth.uid() then 'owner' else 'member' end;
+      new.invited_by := case when new.user_id = auth.uid() then null else auth.uid() end;
+    else
+      new.role := old.role; new.squad_id := old.squad_id; new.user_id := old.user_id; new.invited_by := old.invited_by;
+    end if;
+  end if;
+  return new;
+end $fn$;
+drop trigger if exists squad_members_guard on public.squad_members;
+create trigger squad_members_guard before insert or update on public.squad_members
+  for each row execute function public.guard_squad_member();
+
+create or replace function public.squad_stamp_creator()
+returns trigger language plpgsql security invoker set search_path = public as $fn$
+begin
+  if current_user in ('authenticated', 'anon') then new.created_by := auth.uid(); new.open := false; end if;
+  return new;
+end $fn$;
+drop trigger if exists squads_stamp_creator on public.squads;
+create trigger squads_stamp_creator before insert on public.squads
+  for each row execute function public.squad_stamp_creator();
+
+-- a plan's chat belongs to its host
+create or replace function public.green_join_chat() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare g public.green_gatherings%rowtype; sq uuid;
+begin
+  if tg_op = 'INSERT' then
+    select * into g from public.green_gatherings where id = new.gathering_id for update;
+    if not found then return new; end if;
+    sq := g.squad_id;
+    if sq is null then
+      insert into public.squads (name, emoji, created_by)
+      values (left(g.title, 80),
+              case g.kind when 'culture' then '🎭' when 'walk' then '🥾' when 'sport' then '⚽' when 'art' then '🎨'
+                          when 'circle' then '💬' when 'cleanup' then '🌿' when 'project' then '🔨' when 'run' then '🏃'
+                          when 'coffee' then '☕' when 'focus' then '📚' else '✨' end, g.host_id)
+      returning id into sq;
+      update public.green_gatherings set squad_id = sq where id = g.id;
+    end if;
+    if not exists (select 1 from public.squad_bans b where b.squad_id = sq and b.user_id = new.user_id) then
+      insert into public.squad_members (squad_id, user_id, role, accepted)
+      values (sq, new.user_id, case when new.user_id = g.host_id then 'owner' else 'member' end, true)
+      on conflict (squad_id, user_id) do update set accepted = true,
+        role = case when excluded.role = 'owner' then 'owner' else public.squad_members.role end;
+    end if;
+    return new;
+  else
+    select squad_id into sq from public.green_gatherings where id = old.gathering_id;
+    if sq is not null then
+      delete from public.squad_members where squad_id = sq and user_id = old.user_id and role <> 'owner';
+    end if;
+    return old;
+  end if;
+end $$;
+
+-- the groups already there: the host of a plan, or else the first one in, is the owner
+update public.squad_members m set role = 'owner'
+  from public.green_gatherings g
+ where g.squad_id = m.squad_id and g.host_id = m.user_id and m.role <> 'owner';
+update public.squads s set created_by = g.host_id from public.green_gatherings g where g.squad_id = s.id and s.created_by is null;
+update public.squad_members m set role = 'owner'
+ where m.role = 'member' and coalesce(m.accepted, true)
+   and not exists (select 1 from public.squad_members o where o.squad_id = m.squad_id and o.role = 'owner')
+   and m.user_id = (select x.user_id from public.squad_members x where x.squad_id = m.squad_id and coalesce(x.accepted, true)
+                     order by x.joined_at nulls last, x.user_id limit 1);
+
+/* ── who is here, and what each may do ── */
+create or replace function public.squad_people(p_squad uuid)
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare me_role text := public.squad_role(p_squad, auth.uid());
+begin
+  if me_role is null then return jsonb_build_object('ok', false, 'reason', 'not_member'); end if;
+  return jsonb_build_object('ok', true, 'me', me_role,
+    'squad', (select jsonb_build_object('id', id, 'name', name, 'emoji', emoji, 'avatar_url', avatar_url, 'open', open) from public.squads where id = p_squad),
+    'plan', (select jsonb_build_object('id', id, 'title', title, 'starts_at', starts_at) from public.green_gatherings where squad_id = p_squad limit 1),
+    'members', coalesce((select jsonb_agg(jsonb_build_object('id', p.id, 'name', p.name, 'avatar_url', p.avatar_url,
+                                   'role', m.role, 'pending', not coalesce(m.accepted, true))
+                                 order by public.squad_rank(m.role) desc, coalesce(m.accepted, true) desc, p.name)
+                          from public.squad_members m join public.profiles p on p.id = m.user_id
+                         where m.squad_id = p_squad), '[]'::jsonb),
+    'links', case when public.squad_rank(me_role) >= 3 then coalesce((
+               select jsonb_agg(jsonb_build_object('token', token, 'expires_at', expires_at, 'uses', uses) order by created_at desc)
+                 from public.squad_links where squad_id = p_squad and revoked_at is null and expires_at > now()), '[]'::jsonb) end);
+end;
+$$;
+
+create or replace function public.squad_set_role(p_squad uuid, p_user uuid, p_role text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare mine text := public.squad_role(p_squad, auth.uid()); theirs text := public.squad_role(p_squad, p_user);
+begin
+  if p_role not in ('owner','admin','moderator','member') then return jsonb_build_object('ok', false, 'reason', 'role'); end if;
+  if theirs is null then return jsonb_build_object('ok', false, 'reason', 'not_member'); end if;
+  if p_user = auth.uid() then return jsonb_build_object('ok', false, 'reason', 'self'); end if;
+  -- you act only on people below you, and give only what is below you (the owner may hand over ownership)
+  if public.squad_rank(mine) <= public.squad_rank(theirs) then return jsonb_build_object('ok', false, 'reason', 'rank'); end if;
+  if p_role = 'owner' then
+    if mine <> 'owner' then return jsonb_build_object('ok', false, 'reason', 'rank'); end if;
+    update public.squad_members set role = 'admin' where squad_id = p_squad and user_id = auth.uid();
+  elsif public.squad_rank(p_role) >= public.squad_rank(mine) or public.squad_rank(mine) < 3 then
+    return jsonb_build_object('ok', false, 'reason', 'rank');
+  end if;
+  update public.squad_members set role = p_role where squad_id = p_squad and user_id = p_user;
+  return jsonb_build_object('ok', true);
+end;
+$$;
+
+create or replace function public.squad_remove(p_squad uuid, p_user uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare mine text := public.squad_role(p_squad, auth.uid());
+        theirs text := (select role from public.squad_members where squad_id = p_squad and user_id = p_user);
+begin
+  if theirs is null then return jsonb_build_object('ok', false, 'reason', 'not_member'); end if;
+  if p_user = auth.uid() then return jsonb_build_object('ok', false, 'reason', 'self'); end if;
+  if public.squad_rank(mine) < 2 or public.squad_rank(mine) <= public.squad_rank(theirs) then
+    return jsonb_build_object('ok', false, 'reason', 'rank');
+  end if;
+  delete from public.squad_members where squad_id = p_squad and user_id = p_user;
+  insert into public.squad_bans (squad_id, user_id, banned_by) values (p_squad, p_user, auth.uid()) on conflict do nothing;
+  return jsonb_build_object('ok', true);
+end;
+$$;
+
+create or replace function public.squad_unban(p_squad uuid, p_user uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  if public.squad_rank(public.squad_role(p_squad, auth.uid())) < 3 then return jsonb_build_object('ok', false, 'reason', 'rank'); end if;
+  delete from public.squad_bans where squad_id = p_squad and user_id = p_user;
+  return jsonb_build_object('ok', true);
+end;
+$$;
+
+/* adding somebody is still an invitation they accept — nobody is
+   dropped into a room; only admins send them */
+create or replace function public.squad_invite(p_squad uuid, p_user uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  if public.squad_rank(public.squad_role(p_squad, auth.uid())) < 3 then return jsonb_build_object('ok', false, 'reason', 'rank'); end if;
+  if exists (select 1 from public.squad_bans where squad_id = p_squad and user_id = p_user) then
+    delete from public.squad_bans where squad_id = p_squad and user_id = p_user;   -- an admin asking them back is the unban
+  end if;
+  insert into public.squad_members (squad_id, user_id, role, accepted, invited_by)
+  values (p_squad, p_user, 'member', false, auth.uid()) on conflict do nothing;
+  return jsonb_build_object('ok', true);
+end;
+$$;
+
+create or replace function public.squad_delete_message(p_message uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare m public.messages%rowtype;
+begin
+  select * into m from public.messages where id = p_message;
+  if not found or m.squad_id is null then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
+  if m.user_id <> auth.uid() and public.squad_rank(public.squad_role(m.squad_id, auth.uid())) < 2 then
+    return jsonb_build_object('ok', false, 'reason', 'rank');
+  end if;
+  delete from public.messages where id = p_message;
+  return jsonb_build_object('ok', true);
+end;
+$$;
+
+create or replace function public.squad_rename(p_squad uuid, p_name text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  if public.squad_rank(public.squad_role(p_squad, auth.uid())) < 3 then return jsonb_build_object('ok', false, 'reason', 'rank'); end if;
+  if length(trim(coalesce(p_name, ''))) not between 1 and 80 then return jsonb_build_object('ok', false, 'reason', 'name'); end if;
+  update public.squads set name = trim(p_name) where id = p_squad;
+  return jsonb_build_object('ok', true);
+end;
+$$;
+
+/* ── invite links ── */
+create table if not exists public.squad_links (
+  token      text primary key,
+  squad_id   uuid not null references public.squads(id) on delete cascade,
+  created_by uuid references public.profiles(id) on delete set null,
+  created_at timestamptz not null default now(),
+  expires_at timestamptz not null,
+  revoked_at timestamptz,
+  uses       int not null default 0
+);
+create index if not exists squad_links_squad_idx on public.squad_links (squad_id);
+alter table public.squad_links enable row level security;
+-- only through the functions below
+
+create or replace function public.squad_make_link(p_squad uuid, p_days int)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare tok text;
+begin
+  if public.squad_rank(public.squad_role(p_squad, auth.uid())) < 3 then return jsonb_build_object('ok', false, 'reason', 'rank'); end if;
+  tok := substr(md5(random()::text || clock_timestamp()::text || p_squad::text), 1, 10)
+      || substr(md5(random()::text || auth.uid()::text), 1, 6);
+  insert into public.squad_links (token, squad_id, created_by, expires_at)
+  values (tok, p_squad, auth.uid(), now() + make_interval(days => least(greatest(coalesce(p_days, 7), 1), 30)));
+  return jsonb_build_object('ok', true, 'token', tok);
+end;
+$$;
+
+create or replace function public.squad_revoke_links(p_squad uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  if public.squad_rank(public.squad_role(p_squad, auth.uid())) < 3 then return jsonb_build_object('ok', false, 'reason', 'rank'); end if;
+  update public.squad_links set revoked_at = now() where squad_id = p_squad and revoked_at is null;
+  return jsonb_build_object('ok', true);
+end;
+$$;
+
+-- what a link opens, readable before signing in: the group's name and how many are in it, never who
+create or replace function public.squad_link_info(p_token text)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select coalesce((
+    select jsonb_build_object('ok', true, 'name', s.name, 'emoji', s.emoji, 'avatar_url', s.avatar_url,
+             'members', (select count(*) from public.squad_members m where m.squad_id = s.id and coalesce(m.accepted, true)),
+             'plan', (select jsonb_build_object('title', g.title, 'starts_at', g.starts_at, 'place_name', g.place_name)
+                        from public.green_gatherings g where g.squad_id = s.id limit 1),
+             'member', public.is_squad_member(s.id, auth.uid()), 'squad_id', case when public.is_squad_member(s.id, auth.uid()) then s.id end)
+      from public.squad_links l join public.squads s on s.id = l.squad_id
+     where l.token = p_token and l.revoked_at is null and l.expires_at > now()),
+    jsonb_build_object('ok', false, 'reason', 'expired'));
+$$;
+grant execute on function public.squad_link_info(text) to anon, authenticated;
+
+create or replace function public.squad_join_link(p_token text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare l public.squad_links%rowtype;
+begin
+  if auth.uid() is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  select * into l from public.squad_links where token = p_token and revoked_at is null and expires_at > now() for update;
+  if not found then return jsonb_build_object('ok', false, 'reason', 'expired'); end if;
+  if exists (select 1 from public.squad_bans where squad_id = l.squad_id and user_id = auth.uid()) then
+    return jsonb_build_object('ok', false, 'reason', 'removed');
+  end if;
+  if (select count(*) from public.squad_members where squad_id = l.squad_id) >= 300 then
+    return jsonb_build_object('ok', false, 'reason', 'full');
+  end if;
+  insert into public.squad_members (squad_id, user_id, role, accepted)
+  values (l.squad_id, auth.uid(), 'member', true)
+  on conflict (squad_id, user_id) do update set accepted = true;
+  update public.squad_links set uses = uses + 1 where token = l.token;
+  return jsonb_build_object('ok', true, 'squad_id', l.squad_id);
+end;
+$$;
+
+do $$
+declare f text;
+begin
+  foreach f in array array['squad_people(uuid)','squad_set_role(uuid, uuid, text)','squad_remove(uuid, uuid)','squad_unban(uuid, uuid)',
+                           'squad_invite(uuid, uuid)','squad_delete_message(uuid)','squad_rename(uuid, text)','squad_make_link(uuid, int)',
+                           'squad_revoke_links(uuid)','squad_join_link(text)'] loop
+    execute format('revoke execute on function public.%s from public, anon', f);
+    execute format('grant execute on function public.%s to authenticated', f);
+  end loop;
+end $$;

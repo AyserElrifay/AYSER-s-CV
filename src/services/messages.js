@@ -363,19 +363,12 @@ export async function fetchSquadMemberIds(squadId) {
 /* An invite, not a membership. It sits pending until they accept, and
    the squad doesn't show up in their list before that — being dropped
    into a group without a say is exactly the thing people hate. */
-export async function addSquadMember(squadId, userId, invitedBy) {
-  const row = { squad_id: squadId, user_id: userId, accepted: false, invited_by: invitedBy || null };
-  let { error } = await supabase
-    .from('squad_members')
-    .upsert(row, { onConflict: 'squad_id,user_id', ignoreDuplicates: true });
-  if (error && /accepted|invited_by|column/i.test(error.message || '')) {
-    // older database without the invite columns — fall back rather than fail
-    const res = await supabase
-      .from('squad_members')
-      .upsert({ squad_id: squadId, user_id: userId }, { onConflict: 'squad_id,user_id', ignoreDuplicates: true });
-    error = res.error;
-  }
+export async function addSquadMember(squadId, userId) {
+  /* only a group's owner or admins may invite — checked by the database
+     (squad_invite in RUN_ME.sql), which also says so when it refuses */
+  const { data, error } = await supabase.rpc('squad_invite', { p_squad: squadId, p_user: userId });
   if (error) throw error;
+  if (!data || !data.ok) throw new Error(data && data.reason === 'rank' ? 'only_admins' : 'not_saved');
 }
 
 /* Leave (close) a squad — your membership row is deleted; the squad

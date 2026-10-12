@@ -361,7 +361,8 @@ export const ChatsScreen = () => {
       setMembers((v) => ({ ...v, [mate.id]: true })); // it's saved — mark as a real member
     } catch (e) {
       setInvited((v) => { const n = { ...v }; delete n[mate.id]; return n; });
-      setInviteErr(/does not exist|policy|security|row-level/i.test(e.message || '')
+      setInviteErr(/only_admins/.test(e.message || '') ? t('gc_only_admins')
+        : /does not exist|policy|security|row-level|function/i.test(e.message || '')
         ? setupNotice('Inviting mates needs the latest setup step — run RUN_ME.sql once.')
         : 'Could not add them.');
     }

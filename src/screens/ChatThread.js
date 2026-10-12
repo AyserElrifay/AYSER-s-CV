@@ -39,6 +39,8 @@ import { setupNotice } from '../lib/plumbing';
 
 /* Fetched when it is opened, not when the app starts. */
 import { lazyOverlay } from '../lib/lazyScreen';
+import { squadPeople, squadDeleteMessage, rankOf } from '../services/squadAdmin';
+const GroupInfoSheet = lazyOverlay(() => import('../components/GroupInfoSheet').then((m) => ({ default: m.GroupInfoSheet })));
 import { SheetHandle, SheetBack } from '../components/SheetHandle';
 
 /* Fetched when it is opened, not when the app starts. */
@@ -57,7 +59,7 @@ export const ChatThread = ({ chat, group, onClose }) => {
   const { user } = useAuth();
   const { lang, t } = useLang();   // translate into whatever the app is set to
   const peer = group ? null : chat.user;
-  const title = group ? chat.name : peer.name;
+  const title0 = group ? chat.name : peer.name;
   const avatarUri = group ? null : peer.avatar;
   // real participants only — no fabricated names padding a group
   const players = group
@@ -70,6 +72,17 @@ export const ChatThread = ({ chat, group, onClose }) => {
   const isReal = SUPABASE_READY && !!user && (group ? REAL_ID.test(chat.id || '') : REAL_ID.test((peer && peer.id) || ''));
 
   const [msgs, setMsgs] = useState([]); // always starts empty — real messages only
+  /* a group's own name (an admin may rename it) and your role in it —
+     which decides whether a long press can delete someone's message */
+  const [groupName, setGroupName] = useState(group ? chat.name : null);
+  const [myRole, setMyRole] = useState(null);
+  const [infoOpen, setInfoOpen] = useState(false);
+  const [msgMenu, setMsgMenu] = useState(null);       // the message held down, in a group
+  const refreshGroup = () => {
+    if (!group || !isReal) return;
+    squadPeople(chat.id).then((r) => { if (r && r.ok) { setMyRole(r.me); if (r.squad && r.squad.name) setGroupName(r.squad.name); } });
+  };
+  useEffect(() => { refreshGroup(); }, [chat && chat.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const [msgsLoaded, setMsgsLoaded] = useState(false);
   const [dmThreadId, setDmThreadId] = useState((!group && chat.threadId) || null);
   const [draft, setDraft] = useState('');
@@ -484,9 +497,11 @@ export const ChatThread = ({ chat, group, onClose }) => {
             <Ionicons name="chevron-back" size={28} color={C.text} />
           </Pressable>
           {group ? (
-            <View style={{ width: 40, height: 40, borderRadius: 13, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ fontSize: 20 }}>{chat.emoji}</Text>
-            </View>
+            <Pressable onPress={isReal ? () => { tapLight(); setInfoOpen(true); } : undefined} accessibilityRole="button" accessibilityLabel={t('gc_info')}>
+              <View style={{ width: 40, height: 40, borderRadius: 13, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ fontSize: 20 }}>{chat.emoji}</Text>
+              </View>
+            </Pressable>
           ) : (
             <View>
               <Image source={{ uri: avatarUri }} style={{ width: 40, height: 40, borderRadius: 20 }} />
@@ -495,7 +510,7 @@ export const ChatThread = ({ chat, group, onClose }) => {
           )}
           <View style={{ flex: 1, marginLeft: 10 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Text style={{ color: C.text, fontSize: 15.5, fontWeight: '800', flexShrink: 1 }} numberOfLines={1}>{title}</Text>
+              <Text style={{ color: C.text, fontSize: 15.5, fontWeight: '800', flexShrink: 1 }} numberOfLines={1}>{(group && groupName) || title0}</Text>
               {streak.n > 0 ? <View style={{ marginLeft: 7 }}><StreakBadge info={streak} /></View> : null}
             </View>
             <Text style={{ color: ttl > 0 ? C.purple : (/now/.test(activeLabel) ? C.green : C.faint), fontSize: 11.5, marginTop: 1 }} numberOfLines={1}>
@@ -505,6 +520,11 @@ export const ChatThread = ({ chat, group, onClose }) => {
           {!group && isReal ? (
             <Pressable onPress={() => { tapLight(); setTtlOpen((v) => !v); }} hitSlop={8} style={{ marginRight: 10 }}>
               <Ionicons name="timer-outline" size={22} color={ttl ? C.purple : C.dim} />
+            </Pressable>
+          ) : null}
+          {group && isReal ? (
+            <Pressable onPress={() => { tapLight(); setInfoOpen(true); }} hitSlop={8} accessibilityRole="button" accessibilityLabel={t('gc_info')} style={{ marginRight: 10 }}>
+              <Ionicons name="people-outline" size={23} color={C.text} />
             </Pressable>
           ) : null}
           {isReal ? (
@@ -653,7 +673,11 @@ export const ChatThread = ({ chat, group, onClose }) => {
                       })()
                     ) : (
                     <Pressable
-                      onLongPress={() => translateMsg({ id: m.id, body: m.text })}
+                      onLongPress={() => {
+                        /* in a group, a moderator (or the sender) gets a choice; otherwise it translates */
+                        if (group && isReal && (mine || rankOf(myRole) >= 2) && !String(m.id).startsWith('x')) { tapLight(); setMsgMenu(m); }
+                        else translateMsg({ id: m.id, body: m.text });
+                      }}
                       delayLongPress={320}
                       style={{ backgroundColor: mine ? C.purple : '#FFF', borderWidth: mine ? 0 : 1, borderColor: C.line, borderRadius: 18, borderBottomRightRadius: mine ? 5 : 18, borderBottomLeftRadius: mine ? 18 : 5, paddingHorizontal: 14, paddingVertical: 9 }}
                     >
@@ -924,6 +948,29 @@ export const ChatThread = ({ chat, group, onClose }) => {
         </KeyboardAvoidingView>
       </View>
 
+      {infoOpen ? (
+        <GroupInfoSheet squadId={chat.id} onClose={() => { setInfoOpen(false); refreshGroup(); }}
+          onChanged={refreshGroup} onLeft={() => { setInfoOpen(false); onClose(); }} />
+      ) : null}
+      {msgMenu ? (
+        <Modal visible transparent animationType="fade" onRequestClose={() => setMsgMenu(null)}>
+          <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end' }} onPress={() => setMsgMenu(null)}>
+            <View style={{ backgroundColor: C.bg2, borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 16, paddingBottom: insets.bottom + 16 }}>
+              <Text style={{ color: C.dim, fontSize: 13.5, marginBottom: 8 }} numberOfLines={2}>{msgMenu.text}</Text>
+              <Pressable onPress={() => { const m = msgMenu; setMsgMenu(null); translateMsg({ id: m.id, body: m.text }); }} style={{ paddingVertical: 12 }}>
+                <Text style={{ color: C.text, fontSize: 15.5, fontWeight: '700' }}>{t('gc_translate')}</Text>
+              </Pressable>
+              <Pressable onPress={async () => {
+                const m = msgMenu; setMsgMenu(null);
+                const r = await squadDeleteMessage(m.id);
+                if (r && r.ok) setMsgs((ms) => ms.filter((x) => x.id !== m.id));
+              }} style={{ paddingVertical: 12 }}>
+                <Text style={{ color: '#E11D48', fontSize: 15.5, fontWeight: '800' }}>{t('gc_delete_msg')}</Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Modal>
+      ) : null}
       {call ? <CallScreen peer={callPeer} video={call.video} onClose={() => setCall(null)} /> : null}
       {reportOpen ? (
         <ChatReportSheet
