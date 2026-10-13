@@ -25,25 +25,26 @@ const STOCK = [
   { id: 'animals', re: RE_OF.animals, files: [] },
   { id: 'cleanup', re: RE_OF.cleanup, files: [] },
   { id: 'school', re: RE_OF.school, files: [{ img: 'act-talk-2.jpg' }, { img: 'act-talk-1.jpg' }, { img: 'act-kids-2.jpg' }] },
-  { id: 'kids', re: RE_OF.kids, files: clip('act-kids-v', 1).concat([{ img: 'sport-football-1.jpg' }], [1, 2, 3, 4, 5].map((k) => ({ img: 'act-kids-' + k + (k === 1 || k === 3 ? 'w' : '') + '.jpg' }))) },
-  { id: 'volunteer', re: RE_OF.volunteer, files: n('act-volunteer-', 3).concat([{ img: 'sport-football-1.jpg' }], [1, 2, 3, 4, 5].map((k) => ({ img: 'act-kids-' + k + (k === 1 || k === 3 ? 'w' : '') + '.jpg' }))) },
-  { id: 'talk', re: RE_OF.talk, files: n('act-talk-', 6) },
-  { id: 'music', re: RE_OF.music, files: clip('act-music-v', 1).map((x) => ({ ...x, own: true })) },
-  { id: 'match', re: RE_OF.match, files: clip('act-match-v', 1).map((x) => ({ ...x, own: true })) },
+  { id: 'kids', re: RE_OF.kids, files: [{ img: 'reel-kids.jpg', clip: 'reel-kids.mp4' }].concat(clip('act-kids-v', 1).concat([{ img: 'sport-football-1.jpg' }], [1, 2, 3, 4, 5].map((k) => ({ img: 'act-kids-' + k + (k === 1 || k === 3 ? 'w' : '') + '.jpg' })))) },
+  { id: 'volunteer', re: RE_OF.volunteer, files: [{ img: 'reel-volunteer.jpg', clip: 'reel-volunteer.mp4' }].concat(n('act-volunteer-', 3).concat([{ img: 'sport-football-1.jpg' }], [1, 2, 3, 4, 5].map((k) => ({ img: 'act-kids-' + k + (k === 1 || k === 3 ? 'w' : '') + '.jpg' })))) },
+  { id: 'talk', re: RE_OF.talk, files: [{ img: 'reel-talk.jpg', clip: 'reel-talk.mp4' }].concat(n('act-talk-', 6)) },
+  { id: 'music', re: RE_OF.music, files: [{ img: 'reel-music.jpg', clip: 'reel-music.mp4', own: true }].concat(clip('act-music-v', 1).map((x) => ({ ...x, own: true }))) },
+  { id: 'match', re: RE_OF.match, files: [{ img: 'reel-match.jpg', clip: 'reel-match.mp4', own: true }].concat(clip('act-match-v', 1).map((x) => ({ ...x, own: true }))) },
   { id: 'climb', re: RE_OF.climb, files: [
-    { img: 'act-climb-1.jpg' }, { img: 'mario-crew.jpg' }, { img: 'mario-ferrata-w.jpg' }, { img: 'mario-mirror-w.jpg' },
-    { img: 'mario-ropes-w.jpg' }, { img: 'mario-crew-v.jpg', clip: 'mario-crew-v.mp4' },
+    { img: 'reel-climb.jpg', clip: 'reel-climb.mp4' },
+    { img: 'act-climb-1.jpg' }, { img: 'mario-crew-w.jpg' }, { img: 'mario-ferrata-w.jpg' }, { img: 'mario-mirror-w.jpg' },
+    { img: 'mario-ropes-w.jpg' },
   ].map((x) => ({ ...x, own: true })) },
-  { id: 'padel', re: RE_OF.padel, files: n('act-padel-', 4).concat(clip('act-padel-v', 3), [1, 2, 3, 4].map((k) => ({ img: 'padel-ayser-' + k + (k === 1 || k === 3 ? 'w' : '') + '.jpg', credit: 'Shahd Elzayaat' }))) },
-  { id: 'football', re: RE_OF.football, files: [1, 2, 3].map((k) => ({ img: 'football-crew-' + k + '.jpg', own: true })).concat([5, 4, 2, 3].map((k) => ({ img: 'sport-football-' + k + '.jpg' }))) },
-  { id: 'crochet', re: RE_OF.crochet, files: clip('act-crochet-v', 4).concat(n('act-crochet-', 3)) },
-  { id: 'sketch', re: RE_OF.sketch, files: n('art-sketch-', 5) },
-  { id: 'walk', re: RE_OF.walk, files: n('act-walk-', 5).concat(clip('act-walk-v', 1)) },
-  { id: 'swim', re: RE_OF.swim, files: n('act-swim-', 2) },
-  { id: 'read', re: RE_OF.read, files: n('act-read-', 6) },
-  { id: 'coffee', re: RE_OF.coffee, files: n('act-coffee-', 3).concat(clip('act-coffee-v', 2)) },
-  { id: 'movie', re: RE_OF.movie, files: clip('act-movie-v', 1).map((x) => ({ ...x, own: true })) },
-  { id: 'beach', re: RE_OF.beach, files: n('act-beach-', 1).concat(clip('act-beach-v', 2)) },
+  { id: 'padel', re: RE_OF.padel, files: [{ img: 'reel-padel.jpg', clip: 'reel-padel.mp4', credit: 'Shahd Elzayaat · Pexels' }].concat(n('act-padel-', 4).concat(clip('act-padel-v', 3), [1, 2, 3, 4].map((k) => ({ img: 'padel-ayser-' + k + (k === 1 || k === 3 ? 'w' : '') + '.jpg', credit: 'Shahd Elzayaat' })))) },
+  { id: 'football', re: RE_OF.football, files: [{ img: 'reel-football.jpg', clip: 'reel-football.mp4', credit: 'Moments · Pexels' }].concat([1, 2, 3].map((k) => ({ img: 'football-crew-' + k + '.jpg', own: true })).concat([5, 4, 2, 3].map((k) => ({ img: 'sport-football-' + k + '.jpg' })))) },
+  { id: 'crochet', re: RE_OF.crochet, files: [{ img: 'reel-crochet.jpg', clip: 'reel-crochet.mp4' }].concat(clip('act-crochet-v', 4).concat(n('act-crochet-', 3))) },
+  { id: 'sketch', re: RE_OF.sketch, files: [{ img: 'reel-sketch.jpg', clip: 'reel-sketch.mp4' }].concat(n('art-sketch-', 5)) },
+  { id: 'walk', re: RE_OF.walk, files: [{ img: 'reel-walk.jpg', clip: 'reel-walk.mp4' }].concat(n('act-walk-', 5).concat(clip('act-walk-v', 1))) },
+  { id: 'swim', re: RE_OF.swim, files: [{ img: 'reel-swim.jpg', clip: 'reel-swim.mp4' }].concat(n('act-swim-', 2)) },
+  { id: 'read', re: RE_OF.read, files: [{ img: 'reel-read.jpg', clip: 'reel-read.mp4' }].concat(n('act-read-', 6)) },
+  { id: 'coffee', re: RE_OF.coffee, files: [{ img: 'reel-coffee.jpg', clip: 'reel-coffee.mp4' }].concat(n('act-coffee-', 3).concat(clip('act-coffee-v', 2))) },
+  { id: 'movie', re: RE_OF.movie, files: [{ img: 'reel-movie.jpg', clip: 'reel-movie.mp4' }].concat(clip('act-movie-v', 1).map((x) => ({ ...x, own: true }))) },
+  { id: 'beach', re: RE_OF.beach, files: [{ img: 'reel-beach.jpg', clip: 'reel-beach.mp4' }].concat(n('act-beach-', 1).concat(clip('act-beach-v', 2))) },
   { id: 'church', re: RE_OF.church, files: [{ img: 'cave-church-2.jpg' }, { img: 'cave-church-silhouette.jpg' }].map((x) => ({ ...x, own: true })) },
   { id: 'rooftop', re: RE_OF.rooftop, files: [{ img: 'rooftop-giza.jpg', own: true }] },
 ];
@@ -59,10 +60,17 @@ const stockOf = (g) => {
   const seen = order.get(hit.id);
   const key = String((g && g.id) || s);
   if (!seen.has(key)) seen.set(key, seen.size);
-  const len = hit.files.length;
-  const start = (seen.get(key) * Math.max(1, Math.min(3, len - 1))) % len;
-  const pics = [];
-  for (let i = 0; i < Math.min(3, len); i++) pics.push(hit.files[(start + i) % len]);
+  /* the activity's short reel opens the first plan of its kind; the
+     plans after it open on stills, so the same clip is never shown twice
+     on one screen */
+  const reel = /^reel-/.test(hit.files[0].img) ? hit.files[0] : null;
+  const rest = reel ? hit.files.slice(1) : hit.files;
+  const n = seen.get(key);
+  const len = rest.length;
+  if (!len) return { id: hit.id, pics: [reel] };
+  const start = (n * Math.max(1, Math.min(3, len - 1))) % len;
+  const pics = reel && n === 0 ? [reel] : [];
+  for (let i = 0; pics.length < Math.min(3, len + (reel && n === 0 ? 1 : 0)); i++) pics.push(rest[(start + i) % len]);
   return { id: hit.id, pics };
 };
 
