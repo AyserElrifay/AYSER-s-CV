@@ -13463,3 +13463,33 @@ revoke all on function public.create_topic_circle(text, text, text, double preci
 grant execute on function public.create_topic_circle(text, text, text, double precision, double precision) to authenticated;
 
 notify pgrst, 'reload schema';
+
+-- ═══════════════════════════════════════════════════════════════════
+--  GROUPS · HANDING OVER OWNERSHIP
+--
+--  Ayser: "خلي اني ممكن اخلي حد أدمن وانقل الملكيه". Making someone an
+--  admin already existed (group_set_role); handing the group over did
+--  not. Only the owner can, only to somebody already in the group, and
+--  the old owner stays on as an admin rather than being dropped.
+--  Safe to re-run.
+-- ═══════════════════════════════════════════════════════════════════
+create or replace function public.group_transfer_owner(gid uuid, uid uuid)
+returns void language plpgsql security definer set search_path = public as $$
+declare v_owner uuid;
+begin
+  select owner_id into v_owner from public.groups where id = gid for update;
+  if v_owner is null then raise exception 'no such group'; end if;
+  if v_owner is distinct from auth.uid() then raise exception 'only the owner hands the group over'; end if;
+  if uid = v_owner then raise exception 'you already own it'; end if;
+  if not exists (select 1 from public.group_members where group_id = gid and user_id = uid and status = 'joined') then
+    raise exception 'they have to be in the group first';
+  end if;
+  update public.groups set owner_id = uid where id = gid;
+  update public.group_members set role = 'owner' where group_id = gid and user_id = uid;
+  update public.group_members set role = 'admin' where group_id = gid and user_id = v_owner;
+end;
+$$;
+revoke all on function public.group_transfer_owner(uuid, uuid) from public, anon;
+grant execute on function public.group_transfer_owner(uuid, uuid) to authenticated;
+
+notify pgrst, 'reload schema';

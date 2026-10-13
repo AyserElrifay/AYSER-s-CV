@@ -17,7 +17,7 @@ import { shortWhen } from './CommentsSheet';
 import {
   fetchGroup, fetchWall, postToGroup, removeGroupPost, setPostLike, updateGroup, deleteGroup,
   fetchPostComments, addPostComment, removePostComment,
-  fetchMembers, approveMember, setMemberRole, removeMember,
+  fetchMembers, approveMember, setMemberRole, removeMember, transferOwner,
   joinGroup, leaveGroup, markGroupSeen, explainGroups,
 } from '../services/groups';
 import { useSheetBack } from '../hooks/useSheetBack';
@@ -270,6 +270,31 @@ const GroupSettings = ({ group, onClose, onSaved, onDeleted, t }) => {
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [err, setErr] = useState(null);
+  /* ── admins and the owner ── who is in the group, so the owner can
+     make somebody an admin or hand the group over (second tap) */
+  const [members, setMembers] = useState(null);
+  const [handOver, setHandOver] = useState(null);     // the member awaiting the second tap
+  const [roleBusy, setRoleBusy] = useState(null);
+  const loadMembers = () => fetchMembers(group.id).then((r) => setMembers((r || []).filter((m) => m.status === 'joined')), () => setMembers([]));
+  useEffect(() => { if (group.owner) loadMembers(); }, [group.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const toggleAdmin = async (m) => {
+    if (roleBusy) return;
+    tapSelection(); setRoleBusy(m.id); setErr(null);
+    try { await setMemberRole(group.id, m.id, m.role === 'admin' ? 'member' : 'admin'); tapSuccess(); await loadMembers(); }
+    catch (e) { setErr(explainGroups(e)); }
+    setRoleBusy(null);
+  };
+  const giveAway = async (m) => {
+    if (roleBusy) return;
+    if (handOver !== m.id) { tapLight(); setHandOver(m.id); return; }
+    setRoleBusy(m.id); setErr(null);
+    try {
+      await transferOwner(group.id, m.id);
+      tapSuccess();
+      onSaved && onSaved({ owner: false, admin: true, owner_id: m.id });
+      onClose && onClose();
+    } catch (e) { setErr(explainGroups(e)); setRoleBusy(null); setHandOver(null); }
+  };
 
   const save = async () => {
     const nm = name.trim();
@@ -339,6 +364,36 @@ const GroupSettings = ({ group, onClose, onSaved, onDeleted, t }) => {
             sub={t('gs_req_s')}
             onPress={() => { tapLight(); setPrivacy('request'); }}
           />
+
+          {group.owner ? (
+            <View style={{ marginTop: 8 }}>
+              <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', letterSpacing: 0.8, marginBottom: 4 }}>{t('gs_people')}</Text>
+              <Text style={{ color: C.dim, fontSize: 12, lineHeight: 17, marginBottom: 8 }}>{t('gs_people_sub')}</Text>
+              {members == null ? <ActivityIndicator color={C.purple} style={{ marginVertical: 8 }} />
+                : members.filter((m) => m.role !== 'owner').length === 0 ? <Text style={{ color: C.dim, fontSize: 12.5, marginBottom: 8 }}>{t('gs_people_none')}</Text>
+                : members.filter((m) => m.role !== 'owner').map((m) => (
+                  <View key={m.id} style={{ borderWidth: 1, borderColor: handOver === m.id ? C.gold : C.line, borderRadius: 14, padding: 10, marginBottom: 8 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <Text style={{ flex: 1, color: C.text, fontSize: 14, fontWeight: '800' }} numberOfLines={1}>{m.name}</Text>
+                      {m.role === 'admin' ? <Text style={{ color: C.purple, fontSize: 11.5, fontWeight: '900' }}>{t('gp_admin')}</Text> : null}
+                    </View>
+                    <View style={{ flexDirection: 'row', marginTop: 8 }}>
+                      <Pressable onPress={() => toggleAdmin(m)} disabled={!!roleBusy} style={{ marginEnd: 8 }}>
+                        <View style={{ borderRadius: 999, borderWidth: 1, borderColor: C.purple, paddingHorizontal: 12, paddingVertical: 6, opacity: roleBusy === m.id ? 0.5 : 1 }}>
+                          <Text style={{ color: C.purple, fontSize: 12, fontWeight: '800' }}>{t(m.role === 'admin' ? 'gp_make_member' : 'gp_make_admin')}</Text>
+                        </View>
+                      </Pressable>
+                      <Pressable onPress={() => giveAway(m)} disabled={!!roleBusy}>
+                        <View style={{ borderRadius: 999, borderWidth: 1, borderColor: C.gold, backgroundColor: handOver === m.id ? C.gold : 'transparent', paddingHorizontal: 12, paddingVertical: 6 }}>
+                          <Text style={{ color: handOver === m.id ? '#1A1A1A' : '#8A6400', fontSize: 12, fontWeight: '800' }}>{t(handOver === m.id ? 'gs_owner_sure' : 'gs_make_owner')}</Text>
+                        </View>
+                      </Pressable>
+                    </View>
+                    {handOver === m.id ? <Text style={{ color: C.dim, fontSize: 11.5, lineHeight: 16, marginTop: 6 }}>{t('gs_owner_note').replace('{name}', m.name)}</Text> : null}
+                  </View>
+                ))}
+            </View>
+          ) : null}
 
           {err ? <Text style={{ color: C.coral, fontSize: 12, marginTop: 4 }}>{err}</Text> : null}
 

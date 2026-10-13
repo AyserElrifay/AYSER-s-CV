@@ -186,6 +186,12 @@ export async function setMemberRole(groupId, userId, role) {
   const { error } = await supabase.rpc('group_set_role', { gid: groupId, uid: userId, new_role: role });
   if (error) throw error;
 }
+/* the owner hands the whole group to somebody already in it; they
+   stay on as an admin (group_transfer_owner in RUN_ME.sql) */
+export async function transferOwner(groupId, userId) {
+  const { error } = await supabase.rpc('group_transfer_owner', { gid: groupId, uid: userId });
+  if (error) throw error;
+}
 export async function removeMember(groupId, userId) {
   const { error } = await supabase.rpc('group_remove_member', { gid: groupId, uid: userId });
   if (error) throw error;
