@@ -1657,6 +1657,7 @@ export const STRINGS = {
     md_pray_note: "Prayer times are worked out for where you are and can differ from your local mosque by a minute or two.",
     md_today_one: "One thing today",
     md_today: "Today",
+    feed_refreshing: "Getting what's new…",
     lens_all: 'Everything',
     lens_places: 'Places to go',
     lens_people: 'People',

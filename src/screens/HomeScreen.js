@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { View, Text, FlatList, Pressable, Image } from 'react-native';
+import { View, Text, FlatList, Pressable, Image, Animated, Easing, ActivityIndicator } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
@@ -105,6 +106,35 @@ export const HomeScreen = () => {
   const { user } = useAuth();
   const { t, rtl } = useLang();
   const { posts, refreshing, refresh, prependPost, removePost, patchPost, loadError, settled } = useFeed();
+
+  /* ── TAP HOME AGAIN: BACK TO THE TOP, AND FRESH ──────────────────────
+     Ayser: "لما أنزل لآخر الصفحة وأدوس على البيت تاني يعمل refresh
+     ويرجعني لأول الصفحة". The way every feed app does it: the list glides
+     up, and once it is there the feed is asked again, with a small
+     spinning pill at the top so you can see it happening (the browser's
+     own pull-to-refresh spinner does not show on the web). */
+  const nav = useNavigation();
+  const listRef = useRef(null);
+  const scrollY = useRef(0);
+  const [topPill, setTopPill] = useState(false);
+  const pill = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(pill, { toValue: topPill ? 1 : 0, duration: 220, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+  }, [topPill, pill]);
+  useEffect(() => {
+    if (!nav || !nav.addListener) return undefined;
+    return nav.addListener('tabPress', () => {
+      if (!nav.isFocused || !nav.isFocused()) return;
+      tapLight();
+      const far = scrollY.current > 40;
+      try { listRef.current && listRef.current.scrollToOffset({ offset: 0, animated: true }); } catch (e) {}
+      setTopPill(true);
+      setTimeout(async () => {
+        try { await refresh(); } catch (e) {}
+        setTimeout(() => setTopPill(false), 350);
+      }, far ? 380 : 0);
+    });
+  }, [nav, refresh]);
   const [joined, setJoined] = useState({});
   const [vibes, setVibes] = useState({});
   const [laughs, setLaughs] = useState({});
@@ -448,7 +478,16 @@ export const HomeScreen = () => {
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }} {...edgeSwipe}>
+      <Animated.View pointerEvents="none" style={{ position: 'absolute', top: insets.top + 10, left: 0, right: 0, alignItems: 'center', zIndex: 20, opacity: pill, transform: [{ translateY: pill.interpolate({ inputRange: [0, 1], outputRange: [-24, 0] }) }] }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.text, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 7 }}>
+          <ActivityIndicator size="small" color={C.bg} />
+          <Text style={{ color: C.bg, fontSize: 12.5, fontWeight: '800', marginStart: 8 }}>{t('feed_refreshing')}</Text>
+        </View>
+      </Animated.View>
       <FlatList keyboardShouldPersistTaps="handled"
+        ref={listRef}
+        onScroll={(e) => { scrollY.current = e.nativeEvent.contentOffset.y; }}
+        scrollEventThrottle={64}
         data={posts}
         keyExtractor={(p) => p.id}
         refreshing={refreshing}
