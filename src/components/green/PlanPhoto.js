@@ -23,6 +23,7 @@ const STOCK = [
      when he sends them — until then they keep their drawn cover */
   { id: 'animals', re: /animal|shelter|rescue|strays?\b|\bpets?\b|حيوان|قطط|كلاب|ملجأ|ملجا|🐾|🐶|🐱/i, files: [] },
   { id: 'cleanup', re: /clean|litter|pick-?up|trash|garbage|تنضيف|تنظيف|نضافة|نظافة|زبال|🧹/i, files: [] },
+  { id: 'school', re: /schools?\b|awareness|مدرس|مدارس|توعي|نشر ثقافة|نشر الثقافة|🏫/i, files: [{ img: 'act-talk-2.jpg' }, { img: 'act-talk-1.jpg' }, { img: 'act-kids-2.jpg' }] },
   { id: 'kids', re: /orphan|\bkids\b|children|child care|أيتام|ايتام|اطفال|أطفال/i, files: clip('act-kids-v', 1).concat([{ img: 'sport-football-1.jpg' }], [1, 2, 3, 4, 5].map((k) => ({ img: 'act-kids-' + k + (k === 1 || k === 3 ? 'w' : '') + '.jpg' }))) },
   { id: 'volunteer', re: /volunteer|charity|donat|food bank|تطوع|متطوع|خيري|تبرع/i, files: n('act-volunteer-', 3).concat([{ img: 'sport-football-1.jpg' }], [1, 2, 3, 4, 5].map((k) => ({ img: 'act-kids-' + k + (k === 1 || k === 3 ? 'w' : '') + '.jpg' }))) },
   { id: 'talk', re: /language|exchange|conversation|\bspeak|english|\bcircle\b|لغات|لغة|لغه|تبادل|محادث|دردش|كلام|💬/i, files: n('act-talk-', 6) },

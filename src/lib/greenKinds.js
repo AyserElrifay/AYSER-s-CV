@@ -11,7 +11,7 @@
 */
 export const GREEN_KINDS = ['cleanup', 'project'];
 
-const WORDS = /clean|litter|pick-?up|plant(ing)?\b|trees?\b|recycl|compost|gardening|plastic|repair|upcycl|volunteer|food bank|red crescent|red cross|resala|orphan|school visit|animal|shelter|rescue|strays?\b|حيوان|قطط|كلاب|ملجأ|ملجا|تطوع|بنك الطعام|أيتام|مدرسة|تنضيف|تنظيف|نضافة|نظافة|زبال|شجر|زرع|نبات|تدوير|بلاستيك/i;
+const WORDS = /clean|litter|pick-?up|plant(ing)?\b|trees?\b|recycl|compost|gardening|plastic|repair|upcycl|volunteer|food bank|red crescent|red cross|resala|orphan|school visit|schools?\b|awareness|مدارس|توعي|نشر ثقافة|نشر الثقافة|animal|shelter|rescue|strays?\b|حيوان|قطط|كلاب|ملجأ|ملجا|تطوع|بنك الطعام|أيتام|مدرسة|تنضيف|تنظيف|نضافة|نظافة|زبال|شجر|زرع|نبات|تدوير|بلاستيك/i;
 
 export const isGreen = (g) => !!g && (
   GREEN_KINDS.indexOf(g.kind) >= 0

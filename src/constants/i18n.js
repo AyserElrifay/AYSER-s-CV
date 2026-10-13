@@ -1959,6 +1959,7 @@ export const STRINGS = {
     sp_w_cinema: "Cinema",
     sk_animals: "Walk a dog, feed the cats, clean a kennel. They can't say thanks, but you'll feel it.",
     sk_cleanup: "Gloves on, bags out, music on. One street cleaner by the end of the morning.",
+    sk_school: "One afternoon in a classroom, one idea they'll keep. Come share what you know.",
     lens_all: 'Everything',
     lens_places: 'Places to go',
     lens_people: 'People',
