@@ -5,7 +5,8 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { C } from '../constants/theme';
 import { useLang } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
-import { listOffers, bookOffer, cancelBooking, myBookings, myPlus, photoUrl, money } from '../services/offers';
+import { listOffers, bookOffer, cancelBooking, myBookings, myPlus, offerWant, photoUrl, money } from '../services/offers';
+import { appLink, shareLink, shareNote } from '../utils/share';
 import { payBooking } from '../services/payments';
 import { remember, recall } from '../lib/offline';
 import { tapLight, tapMedium, tapSelection, tapSuccess } from '../utils/feedback';
@@ -14,10 +15,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { HighlightVideo } from './GoOutRail';
 
 const COVER = { trip: ['#0EA5E9', '#7C3AED', '🧳'], stay: ['#F59E0B', '#EF4444', '🏨'], experience: ['#10B981', '#0EA5E9', '🧗'], deal: ['#EC4899', '#F59E0B', '🎟️'], table: ['#F97316', '#EF4444', '🍽️'] };
-const Cover = ({ kind, h }) => { const c = COVER[kind] || COVER.trip; return (
+const Cover = ({ kind, h, flag }) => { const c = COVER[kind] || COVER.trip; return (
   <LinearGradient colors={[c[0], c[1]]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ height: h, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
     <Text style={{ fontSize: h * 0.9, position: 'absolute', right: -h * 0.12, bottom: -h * 0.25, opacity: 0.2 }}>{c[2]}</Text>
-    <Text style={{ fontSize: h * 0.32 }}>{c[2]}</Text>
+    <Text style={{ fontSize: h * 0.32 }}>{flag || c[2]}</Text>
   </LinearGradient>); };
 const Soon = ({ t }) => (
   <View style={{ alignSelf: 'flex-start', borderRadius: 999, backgroundColor: C.goldSoft, paddingHorizontal: 10, paddingVertical: 4 }}>
@@ -38,6 +39,12 @@ const Soon = ({ t }) => (
    And "My bookings", with each booking's code and honest status. */
 
 const KINDS = [null, 'trip', 'deal', 'stay', 'experience'];
+
+/* where a trip is — Egypt or Europe, side by side and in the order the
+   database gives them, so neither side is the "main" one */
+const EUROPE = new Set(['EE', 'RO', 'IT', 'CZ', 'DE', 'FR', 'ES', 'PT', 'GR', 'AT', 'NL', 'BE', 'PL', 'HU', 'HR', 'SK', 'SI', 'LV', 'LT', 'FI', 'SE', 'DK', 'NO', 'IE', 'CH', 'BG', 'MT', 'CY', 'LU', 'IS', 'GB']);
+const regionOf = (o) => (o.country === 'EG' ? 'eg' : EUROPE.has(o.country) ? 'eu' : 'other');
+const flagOf = (cc) => (cc && /^[A-Z]{2}$/.test(cc) ? String.fromCodePoint(...cc.split('').map((c) => 0x1F1E6 + c.charCodeAt(0) - 65)) + ' ' : '');
 
 const when = (iso, lang) => {
   if (!iso) return '';
@@ -89,7 +96,7 @@ const List = ({ title, items, icon, color }) => (items && items.length ? (
   </View>
 ) : null);
 
-const Offer = ({ o, t, lang, onBack, onBooked }) => {
+const Offer = ({ o, t, lang, onBack, onBooked, user, onNeedSignIn }) => {
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const photos = (o.photos || []).map(photoUrl).filter(Boolean);
@@ -100,17 +107,38 @@ const Offer = ({ o, t, lang, onBack, onBooked }) => {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
   const [done, setDone] = useState(null);
+  const [want, setWant] = useState({ on: !!o.i_want, n: Number(o.wants) || 0 });
+  const [note2, setNote2] = useState(null);
   const unit = o.plus && o.member_price != null ? Number(o.member_price) : Number(o.price);
   const max = o.seats_left == null ? 20 : Math.min(20, o.seats_left);
   const full = o.seats_left === 0;
 
+  /* a link that opens this very trip — and counts as your invite for
+     whoever makes an account through it */
+  const share = async () => {
+    tapLight();
+    const res = await shareLink({ url: appLink({ trip: o.id, invite: user ? user.id : null }), title: pick(o, 'title', lang),
+      text: t('bk_share_text').replace('{title}', pick(o, 'title', lang)) });
+    const n = shareNote(res); if (n) { setNote2(n === 'Link copied \u2713' ? t('bk_copied') : n); setTimeout(() => setNote2(null), 2500); }
+  };
+  const toggleWant = async () => {
+    if (busy) return;
+    if (!user) { setErr(t('bk_err_signed_out')); return; }
+    tapSelection(); setBusy(true); setErr(null);
+    const r = await offerWant(o.id, !want.on);
+    setBusy(false);
+    if (r && r.ok) { if (r.i_want) tapSuccess(); setWant({ on: !!r.i_want, n: Number(r.wants) || 0 }); onBooked && onBooked(); }
+    else setErr(t(r && r.reason === 'signed_out' ? 'bk_err_signed_out' : 'bk_err'));
+  };
+
   const book = async () => {
     if (busy || !mode || full) return;
+    if (!user) { setErr(t('bk_err_signed_out')); return; }
     tapMedium(); setBusy(true); setErr(null);
     const r = await bookOffer(o.id, qty, mode, note);
     if (!r || !r.ok) {
       const why = r && r.reason;
-      setErr(t(['full', 'already', 'started', 'online_off'].indexOf(why) >= 0 ? 'bk_err_' + why : 'bk_err'));
+      setErr(t(['full', 'already', 'started', 'online_off', 'signed_out'].indexOf(why) >= 0 ? 'bk_err_' + why : 'bk_err'));
       setBusy(false); return;
     }
     tapSuccess();
@@ -155,11 +183,17 @@ const Offer = ({ o, t, lang, onBack, onBooked }) => {
             <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled">
               {photos.map((u, i) => <Image key={i} source={{ uri: u }} style={{ width, height: 300, backgroundColor: C.glassHi }} />)}
             </ScrollView>
-          ) : <Cover kind={o.kind} h={260} />}
+          ) : <Cover kind={o.kind} h={260} flag={flagOf(o.country).trim()} />}
           <Pressable onPress={() => { tapLight(); onBack(); }} accessibilityRole="button" accessibilityLabel={t('close')}
             style={{ position: 'absolute', top: insets.top + 10, left: 14, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' }}>
             <Ionicons name="chevron-back" size={22} color="#FFF" />
           </Pressable>
+          <Pressable onPress={share} accessibilityRole="button" accessibilityLabel={t('bk_share')}
+            style={{ position: 'absolute', top: insets.top + 10, right: 14, height: 40, borderRadius: 20, paddingHorizontal: 14, flexDirection: 'row', backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' }}>
+            <Ionicons name="share-outline" size={19} color="#FFF" />
+            <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '800', marginStart: 6 }}>{t('bk_share')}</Text>
+          </Pressable>
+          {note2 ? <View style={{ position: 'absolute', top: insets.top + 58, right: 14, backgroundColor: 'rgba(0,0,0,0.7)', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6, maxWidth: 260 }}><Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '700' }}>{note2}</Text></View> : null}
           {photos.length > 1 && !o.video ? (
             <View style={{ position: 'absolute', bottom: 10, right: 12, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3 }}>
               <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '800' }}>{'1 / ' + photos.length}</Text>
@@ -167,7 +201,7 @@ const Offer = ({ o, t, lang, onBack, onBooked }) => {
           ) : null}
         </View>
         <View style={{ padding: 18 }}>
-          <Text style={{ color: C.faint, fontSize: 12, fontWeight: '800', letterSpacing: 1.2 }}>{(t('bk_kind_' + o.kind) + (o.city ? ' · ' + o.city : '')).toUpperCase()}</Text>
+          <Text style={{ color: C.faint, fontSize: 12, fontWeight: '800', letterSpacing: 1.2 }}>{flagOf(o.country) + (t('bk_kind_' + o.kind) + (o.city ? ' · ' + o.city : '')).toUpperCase()}</Text>
           <Text style={{ color: C.text, fontSize: 25, fontWeight: '900', letterSpacing: -0.3, marginTop: 4 }}>{pick(o, 'title', lang)}</Text>
           {o.partner || o.operator ? <Text style={{ color: C.dim, fontSize: 13.5, marginTop: 3 }}>{t('bk_by').replace('{name}', o.partner || o.operator)}</Text> : null}
           {o.starts_at ? (
@@ -184,10 +218,10 @@ const Offer = ({ o, t, lang, onBack, onBooked }) => {
           <List title={t('bk_includes')} items={pick(o, 'includes', lang)} icon="checkmark-circle" color={C.green} />
           <List title={t('bk_excludes')} items={pick(o, 'excludes', lang)} icon="close-circle" color="#E11D48" />
           <List title={t('bk_good')} items={pick(o, 'good_to_know', lang)} icon="information-circle" color={C.dim} />
-          <Text style={{ color: C.dim, fontSize: 13, lineHeight: 19, marginTop: 18 }}>
+          {o.status === 'soon' ? null : <Text style={{ color: C.dim, fontSize: 13, lineHeight: 19, marginTop: 18 }}>
             {o.free_cancel_hours != null ? t('bk_cancel_free').replace('{h}', String(o.free_cancel_hours)) : t('bk_cancel_ask')}
-          </Text>
-          {modes.length > 1 ? (
+          </Text>}
+          {modes.length > 1 && o.status !== 'soon' ? (
             <View style={{ marginTop: 18 }}>
               {modes.map((m) => (
                 <Pressable key={m} onPress={() => { tapSelection(); setMode(m); }} accessibilityRole="radio" accessibilityState={{ selected: mode === m }}
@@ -198,13 +232,30 @@ const Offer = ({ o, t, lang, onBack, onBooked }) => {
               ))}
             </View>
           ) : null}
-          <TextInput value={note} onChangeText={setNote} maxLength={300} placeholder={t('bk_note_ph')} placeholderTextColor={C.faint}
-            style={{ marginTop: 14, borderWidth: 1, borderColor: C.line, borderRadius: 14, padding: 12, color: C.text, fontSize: 14 }} />
+          {o.status === 'soon' ? null : <TextInput value={note} onChangeText={setNote} maxLength={300} placeholder={t('bk_note_ph')} placeholderTextColor={C.faint}
+            style={{ marginTop: 14, borderWidth: 1, borderColor: C.line, borderRadius: 14, padding: 12, color: C.text, fontSize: 14 }} />}
         </View>
       </ScrollView>
 
       {/* the booking bar — not for something coming soon */}
-      {o.status === 'soon' ? null : <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: C.floatSolid, borderTopWidth: 1, borderTopColor: C.line, padding: 14, paddingBottom: insets.bottom + 14 }}>
+      {o.status === 'soon' ? (
+        <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: C.floatSolid, borderTopWidth: 1, borderTopColor: C.line, padding: 14, paddingBottom: insets.bottom + 14 }}>
+          <Text style={{ color: C.dim, fontSize: 13, lineHeight: 19 }}>
+            {want.n ? t(want.n === 1 ? 'bk_wants_1' : 'bk_wants_n').replace('{n}', String(want.n)) + ' · ' : ''}{t('bk_want_sub')}
+          </Text>
+          {err ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
+              <Text style={{ color: '#E11D48', fontSize: 13, flex: 1 }}>{err}</Text>
+              {!user && onNeedSignIn ? <Pressable onPress={() => { tapLight(); onNeedSignIn(); }} accessibilityRole="button"><Text style={{ color: C.purple, fontSize: 14, fontWeight: '900' }}>{t('bk_sign_in')}</Text></Pressable> : null}
+            </View>
+          ) : null}
+          <Pressable onPress={toggleWant} disabled={busy} accessibilityRole="button" accessibilityState={{ selected: want.on }} style={{ marginTop: 10 }}>
+            <View style={{ borderRadius: 999, paddingVertical: 15, alignItems: 'center', backgroundColor: want.on ? 'transparent' : C.purple, borderWidth: 1.5, borderColor: C.purple }}>
+              {busy ? <ActivityIndicator color={want.on ? C.purple : '#FFF'} /> : <Text style={{ color: want.on ? C.purple : '#FFF', fontSize: 16, fontWeight: '900' }}>{want.on ? '✓ ' + t('bk_wanted') : t('bk_want')}</Text>}
+            </View>
+          </Pressable>
+        </View>
+      ) : <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: C.floatSolid, borderTopWidth: 1, borderTopColor: C.line, padding: 14, paddingBottom: insets.bottom + 14 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <Text style={{ color: C.dim, fontSize: 13.5, fontWeight: '700' }}>{t('bk_people')}</Text>
           <Pressable onPress={() => { tapSelection(); setQty((q) => Math.max(1, q - 1)); }} hitSlop={8} accessibilityRole="button" accessibilityLabel="−" style={{ marginStart: 12 }}>
@@ -220,7 +271,12 @@ const Offer = ({ o, t, lang, onBack, onBooked }) => {
             <Text style={{ color: C.text, fontSize: 18, fontWeight: '900' }}>{money(unit * qty, o.currency, lang)}</Text>
           </View>
         </View>
-        {err ? <Text style={{ color: '#E11D48', fontSize: 13, marginTop: 8 }}>{err}</Text> : null}
+        {err ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
+            <Text style={{ color: '#E11D48', fontSize: 13, flex: 1 }}>{err}</Text>
+            {!user && onNeedSignIn ? <Pressable onPress={() => { tapLight(); onNeedSignIn(); }} accessibilityRole="button"><Text style={{ color: C.purple, fontSize: 14, fontWeight: '900' }}>{t('bk_sign_in')}</Text></Pressable> : null}
+          </View>
+        ) : null}
         <Pressable onPress={book} disabled={busy || !mode || full} accessibilityRole="button" style={{ marginTop: 10 }}>
           <View style={{ borderRadius: 999, paddingVertical: 15, alignItems: 'center', backgroundColor: busy || !mode || full ? C.glassHi : C.purple }}>
             {busy ? <ActivityIndicator color="#FFF" /> : <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '900' }}>{full ? t('bk_full') : t('bk_book')}</Text>}
@@ -231,7 +287,7 @@ const Offer = ({ o, t, lang, onBack, onBooked }) => {
   );
 };
 
-export const TripsSheet = ({ onClose, country, openOn }) => {
+export const TripsSheet = ({ onClose, country, openOn, focus, onNeedSignIn }) => {
   useSheetBack(onClose);
   const insets = useSafeAreaInsets();
   const { t, lang } = useLang();
@@ -242,6 +298,15 @@ export const TripsSheet = ({ onClose, country, openOn }) => {
   const [mine, setMine] = useState(null);
   const [plus, setPlus] = useState(null);
   const [open, setOpen] = useState(null);
+  const [region, setRegion] = useState(null);
+  /* opened from a shared link or a notification: straight to that trip */
+  const [focusId, setFocusId] = useState(focus || null);
+  useEffect(() => {
+    if (!focusId || !offers) return;
+    const hit = offers.find((o) => o.id === focusId);
+    if (hit) setOpen(hit);
+    setFocusId(null);
+  }, [focusId, offers]);
 
   const load = useCallback(() => {
     listOffers(null, country || null).then((r) => { setOffers(r); remember('offers.' + (country || 'all'), r); });
@@ -249,7 +314,8 @@ export const TripsSheet = ({ onClose, country, openOn }) => {
   }, [country, user]);
   useEffect(() => { load(); }, [load]);
 
-  const shown = useMemo(() => (offers || []).filter((o) => !kind || o.kind === kind), [offers, kind]);
+  const shown = useMemo(() => (offers || []).filter((o) => (!kind || o.kind === kind) && (!region || regionOf(o) === region)), [offers, kind, region]);
+  const regionsHere = useMemo(() => ['eg', 'eu'].filter((r) => (offers || []).some((o) => regionOf(o) === r)), [offers]);
   const kindsHere = useMemo(() => KINDS.filter((k) => !k || (offers || []).some((o) => o.kind === k)), [offers]);
 
   const cancel = async (b) => {
@@ -263,7 +329,7 @@ export const TripsSheet = ({ onClose, country, openOn }) => {
     <Modal visible transparent={false} animationType="slide" onRequestClose={() => (open ? setOpen(null) : onClose())}>
       <View style={{ flex: 1, backgroundColor: C.bg }}>
         {open ? (
-          <Offer o={open} t={t} lang={lang} onBooked={load}
+          <Offer o={open} t={t} lang={lang} onBooked={load} user={user} onNeedSignIn={onNeedSignIn}
             onBack={(goTo) => { setOpen(null); if (goTo === 'mine') setTab('mine'); }} />
         ) : (
           <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingTop: insets.top + 8, paddingHorizontal: 16, paddingBottom: insets.bottom + 40 }}>
@@ -286,6 +352,16 @@ export const TripsSheet = ({ onClose, country, openOn }) => {
             {tab === 'browse' ? (
               <>
                 <PlusCard plus={plus} t={t} lang={lang} />
+                {regionsHere.length > 1 ? (
+                  <View style={{ flexDirection: 'row', marginBottom: 10 }}>
+                    {[null].concat(regionsHere).map((r) => (
+                      <Pressable key={r || 'all'} onPress={() => { tapSelection(); setRegion(r); }} accessibilityRole="tab" accessibilityState={{ selected: region === r }}
+                        style={{ marginEnd: 8, borderRadius: 999, borderWidth: 1, borderColor: region === r ? C.text : C.line, backgroundColor: region === r ? C.text : 'transparent', paddingHorizontal: 14, paddingVertical: 7 }}>
+                        <Text style={{ color: region === r ? C.bg : C.text, fontSize: 13.5, fontWeight: '800' }}>{r ? t('bk_region_' + r) : t('bk_everywhere')}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                ) : null}
                 {kindsHere.length > 2 ? (
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ marginBottom: 12 }}>
                     {kindsHere.map((k) => (
@@ -306,15 +382,16 @@ export const TripsSheet = ({ onClose, country, openOn }) => {
                     return (
                       <Pressable key={o.id} onPress={() => { tapLight(); setOpen(o); }} accessibilityRole="button" style={{ marginBottom: 14 }}>
                         <View style={{ borderRadius: 22, overflow: 'hidden', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line }}>
-                          {ph ? <Image source={{ uri: ph }} style={{ width: '100%', height: 190, backgroundColor: C.glassHi }} /> : <Cover kind={o.kind} h={150} />}
+                          {ph ? <Image source={{ uri: ph }} style={{ width: '100%', height: 190, backgroundColor: C.glassHi }} /> : <Cover kind={o.kind} h={150} flag={flagOf(o.country).trim()} />}
                           {o.video ? <View style={{ position: 'absolute', top: 10, right: 10, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 999, paddingHorizontal: 9, paddingVertical: 4 }}><Text style={{ color: '#FFF', fontSize: 12, fontWeight: '800' }}>▶ video</Text></View> : null}
                           <View style={{ padding: 14 }}>
                             <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '800', letterSpacing: 1 }}>
-                              {(t('bk_kind_' + o.kind) + (o.city ? ' · ' + o.city : '') + (o.starts_at ? ' · ' + when(o.starts_at, lang) : '')).toUpperCase()}
+                              {flagOf(o.country) + (t('bk_kind_' + o.kind) + (o.city ? ' · ' + o.city : '') + (o.starts_at ? ' · ' + when(o.starts_at, lang) : '')).toUpperCase()}
                             </Text>
                             <Text style={{ color: C.text, fontSize: 18, fontWeight: '900', marginTop: 3 }} numberOfLines={2}>{pick(o, 'title', lang)}</Text>
                             <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginTop: 8 }}>
                               <View style={{ flex: 1 }}>{o.status === 'soon' ? <Soon t={t} /> : <Price o={o} t={t} lang={lang} />}</View>
+                              {o.status === 'soon' && Number(o.wants) > 0 ? <Text style={{ color: C.dim, fontSize: 12.5, fontWeight: '800' }}>{t(Number(o.wants) === 1 ? 'bk_wants_1' : 'bk_wants_n').replace('{n}', String(o.wants))}</Text> : null}
                               {o.seats_left != null ? <Text style={{ color: o.seats_left ? C.dim : '#E11D48', fontSize: 12.5, fontWeight: '800' }}>{o.seats_left ? t('bk_seats_left').replace('{n}', String(o.seats_left)) : t('bk_full')}</Text> : null}
                             </View>
                           </View>

@@ -13171,3 +13171,123 @@ create view public.lamma_questions_public with (security_invoker = true) as
 grant select on public.lamma_questions_public to anon, authenticated;
 
 notify pgrst, 'reload schema';
+
+-- ═══════════════════════════════════════════════════════════════════
+--  TRIPS · THE PYRAMIDS, EUROPE COMING SOON, "I WANT TO GO"
+--
+--  Ayser: "حط الاهرامات في الرحلات وحط في اوربا Coming soon … اعمل
+--  احسن حاجه تنجحنا تخلي الابلكيشن ينتشر من غير تحيز".
+--
+--  · New trips are 'soon' only: no price, no dates, no operator — none
+--    of that exists yet, so none of it is written. The owner fills it
+--    in from the Studio and publishes when a trip is real.
+--  · "I want to go" on a coming-soon trip. One tap, one row per
+--    person. The count is real and shown as it is, and it tells the
+--    owner which trip to open first — demand decides, not a guess.
+--    When a trip goes live, everybody who asked hears about it once.
+--  Safe to re-run.
+-- ═══════════════════════════════════════════════════════════════════
+
+create table if not exists public.offer_wants (
+  offer_id   uuid not null references public.offers(id) on delete cascade,
+  user_id    uuid not null references public.profiles(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (offer_id, user_id)
+);
+alter table public.offer_wants enable row level security;
+-- nobody reads the rows (who wants what is private); the count comes from offer_json
+drop policy if exists "your own wishes" on public.offer_wants;
+create policy "your own wishes" on public.offer_wants for select using (user_id = auth.uid());
+
+create or replace function public.offer_json(o public.offers)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select to_jsonb(o) - 'commission_pct' - 'created_by'
+    || jsonb_build_object(
+      'seats_left', case when o.seats is null then null else greatest(0, o.seats - public.offer_seats_taken(o.id)) end,
+      'partner', (select name from public.venues where id = o.venue_id),
+      'plus', public.is_plus(auth.uid()),
+      'online_ready', exists (select 1 from public.app_settings where key = 'payments_online' and value = 'true'::jsonb),
+      'wants', (select count(*) from public.offer_wants w where w.offer_id = o.id),
+      'i_want', exists (select 1 from public.offer_wants w where w.offer_id = o.id and w.user_id = auth.uid()));
+$$;
+
+create or replace function public.offer_want(p_offer uuid, p_on boolean)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid();
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  if not exists (select 1 from public.offers where id = p_offer and status in ('soon','live')) then
+    return jsonb_build_object('ok', false, 'reason', 'gone');
+  end if;
+  if coalesce(p_on, true) then
+    insert into public.offer_wants (offer_id, user_id) values (p_offer, me) on conflict do nothing;
+  else
+    delete from public.offer_wants where offer_id = p_offer and user_id = me;
+  end if;
+  return jsonb_build_object('ok', true, 'i_want', coalesce(p_on, true),
+                            'wants', (select count(*) from public.offer_wants where offer_id = p_offer));
+end $$;
+revoke all on function public.offer_want(uuid, boolean) from public, anon;
+grant execute on function public.offer_want(uuid, boolean) to authenticated;
+
+-- the Studio sees the same count next to each trip
+create or replace function public.owner_offers()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select case when not public.owner_ok() then '[]'::jsonb else coalesce((
+    select jsonb_agg(to_jsonb(o) || jsonb_build_object(
+             'seats_taken', public.offer_seats_taken(o.id),
+             'bookings', (select count(*) from public.bookings b where b.offer_id = o.id and b.status in ('reserved','paid','attended')),
+             'paid_total', (select coalesce(sum(total), 0) from public.bookings b where b.offer_id = o.id and b.status in ('paid','attended')),
+             'moments_share', (select coalesce(sum(moments_share), 0) from public.bookings b where b.offer_id = o.id and b.status in ('paid','attended')),
+             'partner_share', (select coalesce(sum(partner_share), 0) from public.bookings b where b.offer_id = o.id and b.status in ('paid','attended')),
+             'wants', (select count(*) from public.offer_wants w where w.offer_id = o.id))
+           order by o.updated_at desc)
+      from public.offers o), '[]'::jsonb) end;
+$$;
+revoke execute on function public.owner_offers() from public, anon;
+grant execute on function public.owner_offers() to authenticated;
+
+-- ── "IT'S OPEN" — once, to the people who asked ──────────────────────
+do $do$ begin
+  alter table public.notifications drop constraint if exists notifications_kind_check;
+  alter table public.notifications add constraint notifications_kind_check
+    check (kind in ('vibe','laugh','comment','mate_request','mate_accept','message','call','tag','repost','green_invite','food_order','food_status','bardi_match','plan_soon','venue_decision','xp_award','safety','creator_plan','booking','trip_open'))
+    not valid;
+exception when others then raise notice 'notifications kind constraint skipped: %', sqlerrm;
+end $do$;
+
+create or replace function public.tell_trip_wanters()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if new.status = 'live' and old.status is distinct from 'live' then
+    insert into public.notifications (user_id, actor_id, kind, body)
+    -- body: <offer id>|<Arabic title>|<English title>, so a tap opens the trip itself
+    select w.user_id, w.user_id, 'trip_open',
+           new.id::text || '|' || left(coalesce(new.title_ar, new.title), 80) || '|' || left(new.title, 80)
+      from public.offer_wants w
+     where w.offer_id = new.id
+       and not exists (select 1 from public.notifications n
+                        where n.user_id = w.user_id and n.kind = 'trip_open'
+                          and n.body like new.id::text || '|%');
+  end if;
+  return new;
+exception when others then return new;   -- a notification never blocks publishing
+end $$;
+drop trigger if exists offers_tell_wanters on public.offers;
+create trigger offers_tell_wanters after update of status on public.offers
+  for each row execute function public.tell_trip_wanters();
+
+-- ── THE TRIPS ────────────────────────────────────────────────────────
+insert into public.offers (id, kind, status, title, title_ar, city, country, lat, lng, photos, video, price, currency, pay_modes)
+values
+ ('0ffe0000-0000-4000-8000-00000000000f','trip','soon','The Pyramids of Giza & the Grand Egyptian Museum','أهرامات الجيزة والمتحف المصري الكبير','Giza','EG',29.9792,31.1342,'{}',null,0,'EGP','{reserve}'),
+ ('0ffe0000-0000-4000-8000-000000000010','trip','soon','Mount Sinai at sunrise','طلوع جبل موسى مع الشروق','Saint Catherine','EG',28.5392,33.9750,array['media/place-sinai.jpg'],'media/place-sinai.mp4',0,'EGP','{reserve}'),
+ ('0ffe0000-0000-4000-8000-000000000011','experience','soon','Tallinn Old Town & Kalamaja walk','تمشية في تالين القديمة وكالاماجا','Tallinn','EE',59.4370,24.7536,'{}',null,0,'EUR','{reserve}'),
+ ('0ffe0000-0000-4000-8000-000000000012','experience','soon','Viru bog boardwalk · Lahemaa','ممشى مستنقع فيرو · لاهيما','Lahemaa','EE',59.4590,25.6870,'{}',null,0,'EUR','{reserve}'),
+ ('0ffe0000-0000-4000-8000-000000000013','trip','soon','Brașov & Bran in the Carpathians','براشوف وبران في جبال الكاربات','Brașov','RO',45.6427,25.5887,'{}',null,0,'EUR','{reserve}'),
+ ('0ffe0000-0000-4000-8000-000000000014','trip','soon','Transfăgărășan road & Bâlea lake','طريق ترانسفاجاراشان وبحيرة باليا','Făgăraș','RO',45.6033,24.6167,'{}',null,0,'EUR','{reserve}'),
+ ('0ffe0000-0000-4000-8000-000000000015','trip','soon','Lake Como day trip','يوم في بحيرة كومو','Como','IT',45.8081,9.0852,'{}',null,0,'EUR','{reserve}'),
+ ('0ffe0000-0000-4000-8000-000000000016','trip','soon','A weekend in Prague','ويك إند في براغ','Prague','CZ',50.0755,14.4378,'{}',null,0,'EUR','{reserve}')
+on conflict (id) do nothing;
+
+notify pgrst, 'reload schema';

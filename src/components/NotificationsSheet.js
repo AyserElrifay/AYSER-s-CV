@@ -25,6 +25,7 @@ import { useSheetBack } from '../hooks/useSheetBack';
 import { SheetHandle } from './SheetHandle';
 import { PushRow } from './PushRow';
 import { goToTab } from '../lib/mapBus';
+import { openTrip } from '../lib/tripLink';
 import { groupNotifs, namesLine } from '../lib/notifGroups';
 const GoNowSheet = lazyOverlay(() => import('./GoNowSheet').then((m) => ({ default: m.GoNowSheet })));
 const CommentsSheet = lazyOverlay(() => import('./CommentsSheet').then((m) => ({ default: m.CommentsSheet })));
@@ -80,7 +81,7 @@ const BUCKET_ORDER = ['Today', 'Yesterday', 'This week', 'This month', 'Earlier'
 export const NotificationsSheet = ({ onClose }) => {
   /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
   useSheetBack(onClose);
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [items, setItems] = useState(null);
@@ -169,6 +170,7 @@ export const NotificationsSheet = ({ onClose }) => {
     /* an invitation opens the week it is in, where Join is one tap */
     if (n.kind === 'green_invite') { tapSelection(); setGreenOpen(true); return; }
     if (n.kind === 'plan_soon' || n.kind === 'creator_plan') { tapSelection(); onClose(); goToTab('TOGETHER'); return; }
+    if (n.kind === 'trip_open') { tapSelection(); onClose(); openTrip(String(n.body || '').split('|')[0]); return; }
     if (n.kind === 'message') { tapSelection(); onClose(); goToTab('CHATS'); return; }
     if (n.kind === 'bardi_match') { const m = readMatch(n.body); if (m) { tapSelection(); setGoNowFrom(m); } return; }
     if (n.kind === 'food_order') { tapSelection(); setFoodTab('kitchen'); return; }
@@ -297,18 +299,23 @@ export const NotificationsSheet = ({ onClose }) => {
               <Image source={{ uri: g.actors[0].avatar_url || AV_NEUTRAL }} style={{ position: 'absolute', bottom: 0, left: 0, width: 32, height: 32, borderRadius: 16, borderWidth: 2, borderColor: C.bg2, backgroundColor: C.glassHi }} />
             </>
           ) : (
-            <Image source={{ uri: (n.actor && n.actor.avatar_url) || AV_NEUTRAL }} style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: C.glassHi }} />
+            n.kind === 'trip_open' ? (
+              <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: C.glassHi, alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 22 }}>🧳</Text></View>
+            ) : <Image source={{ uri: (n.actor && n.actor.avatar_url) || AV_NEUTRAL }} style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: C.glassHi }} />
           )}
           {!(g ? g.read : n.read) ? <View style={{ position: 'absolute', top: -1, right: -1, width: 11, height: 11, borderRadius: 6, backgroundColor: C.purple, borderWidth: 2, borderColor: C.bg2 }} /> : null}
         </View>
         <View style={{ flex: 1, minWidth: 0, marginLeft: 12 }}>
           <Text style={{ color: C.text, fontSize: 14.5, lineHeight: 20 }} numberOfLines={3}>
-            <Text style={{ fontWeight: '800' }}>{g ? namesLine(g.actors, words) : (n.kind === 'safety' && n.body !== 'report' && n.body !== 'coach') ? 'Moments' : ((n.actor && n.actor.name) || words.someone)}</Text>
+            <Text style={{ fontWeight: '800' }}>{g ? namesLine(g.actors, words) : ((n.kind === 'safety' && n.body !== 'report' && n.body !== 'coach') || n.kind === 'trip_open') ? 'Moments' : ((n.actor && n.actor.name) || words.someone)}</Text>
             {' '}<Text style={{ color: C.dim }}>{verbOf(t, n.kind, g && g.actors.length > 1)}</Text>
             {'  '}<Text style={{ color: C.faint, fontSize: 12 }}>{timeAgo(n.created_at)}</Text>
           </Text>
           {(n.kind === 'green_invite' || n.kind === 'creator_plan' || n.kind === 'booking' || n.kind === 'food_order' || n.kind === 'food_status' || n.kind === 'venue_decision') && n.body ? (
             <Text style={{ color: C.text, fontSize: 13, fontWeight: '700', marginTop: 2 }} numberOfLines={2}>{n.body === 'host_ok' || n.body === 'host_no' ? t('notif_' + n.body) : n.body}</Text>
+          ) : null}
+          {n.kind === 'trip_open' && n.body ? (
+            <Text style={{ color: C.text, fontSize: 13, fontWeight: '700', marginTop: 2 }} numberOfLines={2}>{String(n.body).split('|')[lang === 'ar' ? 1 : 2] || ''}</Text>
           ) : null}
           {n.kind === 'safety' && n.body ? (
             <Text style={{ color: C.text, fontSize: 13, fontWeight: '700', marginTop: 2 }} numberOfLines={3}>{t('notif_safety_' + n.body)}</Text>

@@ -221,7 +221,7 @@ export const OffersTab = ({ userId }) => {
             {o.photos && o.photos[0] ? <Image source={{ uri: photoUrl(o.photos[0]) }} style={{ width: 52, height: 52, borderRadius: 8, marginEnd: 10 }} /> : null}
             <View style={{ flex: 1 }}>
               <Text style={{ color: C.text, fontSize: 15, fontWeight: '900' }}>{o.title}</Text>
-              <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 2 }}>{o.status.toUpperCase() + ' · ' + o.kind + ' · ' + money(o.price, o.currency) + (o.seats ? ' · ' + o.seats_taken + '/' + o.seats + ' seats' : '')}</Text>
+              <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 2 }}>{o.status.toUpperCase() + ' · ' + o.kind + ' · ' + money(o.price, o.currency) + (o.seats ? ' · ' + o.seats_taken + '/' + o.seats + ' seats' : '') + (o.wants ? ' · ' + o.wants + ' want to go' : '')}</Text>
             </View>
           </View>
           <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 6 }}>{o.bookings + ' bookings · paid ' + money(o.paid_total, o.currency) + ' — Moments ' + money(o.moments_share, o.currency) + ' · owed to partner ' + money(o.partner_share, o.currency)}</Text>

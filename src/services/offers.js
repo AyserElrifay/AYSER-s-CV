@@ -57,3 +57,7 @@ export const money = (n, cur, lang) => {
   return c === 'USD' ? '$' + s : c === 'EUR' ? '€' + s : s + ' ' + (lang === 'ar' && c === 'EGP' ? 'ج.م' : c);
 };
 export const offerSetVideo = (id, video) => act('offer_set_video', { p_id: id, p_video: video || null });
+
+/* "I want to go" on a coming-soon trip — one row per person; the
+   database counts and, when the trip opens, tells everybody who asked */
+export const offerWant = (id, on) => act('offer_want', { p_offer: id, p_on: on !== false });

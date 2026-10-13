@@ -33,6 +33,8 @@ import { primeFeed } from './src/hooks/useFeed';
 import { pendingInvite, clearInvite } from './src/lib/invite';
 import { pendingChatLink } from './src/lib/chatLink';
 import { JoinChatSheet } from './src/components/JoinChatSheet';
+import { TripLinkGate } from './src/components/TripLinkGate';
+import { pendingTrip } from './src/lib/tripLink';
 import { claimInvite } from './src/services/green';
 import { TabNavigator, buildNavTheme } from './src/navigation/TabNavigator';
 import { MiniPlayer } from './src/components/MiniPlayer';
@@ -152,7 +154,7 @@ const Root = () => {
   const [tour, setTour] = React.useState(false);
   React.useEffect(() => {
     // not on top of a group invitation (JoinChatSheet): one thing at a time
-    if (!isAuthenticated || tourSeen() || pendingChatLink()) return undefined;
+    if (!isAuthenticated || tourSeen() || pendingChatLink() || pendingTrip()) return undefined;
     const t = setTimeout(() => setTour(true), 1400);
     return () => clearTimeout(t);
   }, [isAuthenticated]);
@@ -164,7 +166,8 @@ const Root = () => {
     return <Splash ready={!loading} onDone={() => setSplashDone(true)} />;
   }
   if (recovering) return <AuthScreen recovery onDone={() => setRecovering(false)} />;
-  if (!isAuthenticated) return <AuthScreen />;
+  // a trip somebody sent opens over sign-in: looking needs no account
+  if (!isAuthenticated) return <><AuthScreen /><TripLinkGate /></>;
   // the mini-player floats above the navigator, so music keeps playing as
   // you move between tabs. `key={gen}` forces a full remount when dark
   // mode toggles, so every already-mounted screen re-reads the new colors.
@@ -181,6 +184,8 @@ const Root = () => {
       <InstallPrompt />
       {/* arrived through a group chat's invite link (src/lib/chatLink.js) */}
       <JoinChatSheet />
+      {/* a shared trip, or a trip that just opened (src/lib/tripLink.js) */}
+      <TripLinkGate signedIn />
       {tour ? <GestureTour onClose={() => setTour(false)} /> : null}
       {/* after a strike: over everything (src/components/SafetyHold.js) */}
       <SafetyHold />
