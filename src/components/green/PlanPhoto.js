@@ -16,6 +16,8 @@ import { useLang } from '../../context/LanguageContext';
    Ayser's own (padel-ayser-*, by Shahd Elzayaat) and carry her name; `own` ones (ours, blurred) carry no badge. */
 const n = (pre, k, credit) => Array.from({ length: k }, (_, i) => ({ img: pre + (i + 1) + '.jpg', credit }));
 const clip = (pre, k) => Array.from({ length: k }, (_, i) => ({ img: pre + (i + 1) + '.jpg', clip: pre + (i + 1) + '.mp4' }));
+/* what you DO comes first (a sunset walk is a walk); where it happens —
+   the beach, a church, a rooftop — only when nothing else matched */
 const STOCK = [
   { id: 'kids', re: /orphan|\bkids\b|children|child care|أيتام|ايتام|اطفال|أطفال/i, files: clip('act-kids-v', 1).concat(n('act-kids-', 5)) },
   { id: 'volunteer', re: /volunteer|charity|donat|food bank|تطوع|متطوع|خيري|تبرع/i, files: n('act-volunteer-', 3).concat(n('act-kids-', 5)) },
@@ -26,16 +28,16 @@ const STOCK = [
     { img: 'act-climb-1.jpg' }, { img: 'mario-crew.jpg' }, { img: 'mario-ferrata.jpg' }, { img: 'mario-mirror.jpg' },
     { img: 'place-eg-mario-ropes.jpg' }, { img: 'mario-crew-v.jpg', clip: 'mario-crew-v.mp4' },
   ].map((x) => ({ ...x, own: true })) },
-  { id: 'church', re: /church|monastery|كنيس|⛪/i, files: [{ img: 'cave-church-2.jpg' }, { img: 'cave-church-3.jpg' }].map((x) => ({ ...x, own: true })) },
-  { id: 'rooftop', re: /rooftop|\broof|sunset|الروف|روف توب|سطوح|غروب|🌅/i, files: [{ img: 'rooftop-giza.jpg', own: true }] },
-  { id: 'football', re: /foot|soccer|كورة|كوره|⚽/i, files: n('sport-football-', 5) },
+  { id: 'football', re: /foot|soccer|كورة|كوره|⚽/i, files: [2, 4, 5].map((k) => ({ img: 'sport-football-' + k + '.jpg' })) },
   { id: 'sketch', re: /sketch|draw|رسم(?!ي)|اسكتش|✏️|🎨|\bart\b/i, files: n('art-sketch-', 5) },
   { id: 'padel', re: /padel|(^|[^ت])بادل|tennis|تنس|🎾/i, files: n('act-padel-', 4).concat(clip('act-padel-v', 5), n('padel-ayser-', 4, 'Shahd Elzayaat')) },
   { id: 'walk', re: /walk|hike|hiking|trail|stroll|مشي|تمشي|مشوار|🥾|🚶/i, files: n('act-walk-', 5).concat(clip('act-walk-v', 1)) },
   { id: 'swim', re: /swim|pool|سباح|حمام سباحة|🏊/i, files: n('act-swim-', 2) },
-  { id: 'beach', re: /beach|\bsea\b|seaside|شاطئ|بحر|🏖|🌊/i, files: n('act-beach-', 1).concat(clip('act-beach-v', 2)) },
   { id: 'read', re: /\bread|\bbook|library|كتاب|قراء|مكتب[ةه]|📚|📖|\bfocus\b/i, files: n('act-read-', 6) },
   { id: 'coffee', re: /coffee|caf[eé]|espresso|latte|قهو|كافيه|☕/i, files: n('act-coffee-', 3).concat(clip('act-coffee-v', 2)) },
+  { id: 'beach', re: /beach|\bsea\b|seaside|شاطئ|بحر|🏖|🌊/i, files: n('act-beach-', 1).concat(clip('act-beach-v', 2)) },
+  { id: 'church', re: /church|monastery|كنيس|⛪/i, files: [{ img: 'cave-church-2.jpg' }, { img: 'cave-church-3.jpg' }].map((x) => ({ ...x, own: true })) },
+  { id: 'rooftop', re: /rooftop|\broof\b|الروف|روف توب|سطوح/i, files: [{ img: 'rooftop-giza.jpg', own: true }] },
 ];
 /* each plan gets its own run of pictures: the first football plan on the
    list starts on photo 1, the next on photo 4, and so on — so two plans
@@ -50,7 +52,7 @@ const stockOf = (g) => {
   const key = String((g && g.id) || s);
   if (!seen.has(key)) seen.set(key, seen.size);
   const len = hit.files.length;
-  const start = (seen.get(key) * 3) % len;
+  const start = (seen.get(key) * Math.max(1, Math.min(3, len - 1))) % len;
   const pics = [];
   for (let i = 0; i < Math.min(3, len); i++) pics.push(hit.files[(start + i) % len]);
   return { id: hit.id, pics };
