@@ -44,12 +44,12 @@ function cartoonify(img) {
 /* mountGlobe3D(container, { onDive }) → { setVisible, resize, destroy }.
    onDive() is called when the user taps the globe (to dive into the flat
    map). The globe auto-rotates and can be dragged to spin. */
-export function mountGlobe3D(container, { onDive } = {}) {
+export function mountGlobe3D(container, { onDive, natural = false, restZ = 3.05 } = {}) {
   let THREE, renderer, scene, camera, earth, clouds, atmosphere, raf, stars;
   let visible = false, disposed = false;
   let dragging = false, lastX = 0, lastY = 0, velX = 0.0015, velY = 0;
   let moved = 0, diving = false;
-  const REST_Z = 3.05; // camera distance at rest
+  const REST_Z = restZ; // camera distance at rest
 
   loadThree().then((T) => {
     if (!T || disposed) return;
@@ -65,7 +65,7 @@ export function mountGlobe3D(container, { onDive } = {}) {
 
     scene = new THREE.Scene();
     camera = new THREE.PerspectiveCamera(38, w / h, 0.1, 100);
-    camera.position.set(0, 0, 3.05);
+    camera.position.set(0, 0, REST_Z);
 
     // lights — a soft "sun" plus fill so the night side isn't pure black
     scene.add(new THREE.AmbientLight(0xffffff, 0.55));
@@ -82,6 +82,7 @@ export function mountGlobe3D(container, { onDive } = {}) {
     const geo = new THREE.SphereGeometry(1, 64, 64);
     const mat = new THREE.MeshPhongMaterial({
       map: loader.load(EARTH_TEX, (tex) => {
+        if (natural) return;   // the welcome screen shows the real Earth
         try {
           tex.image = cartoonify(tex.image);
           tex.needsUpdate = true;
@@ -104,7 +105,8 @@ export function mountGlobe3D(container, { onDive } = {}) {
         'varying vec3 vN; void main(){ vN = normalize(normalMatrix * normal); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0);} ',
       fragmentShader:
         // soft halo in the PLANET'S own candy colours (aqua-mint), not a ring
-        'varying vec3 vN; void main(){ float i = pow(0.66 - dot(vN, vec3(0.0,0.0,1.0)), 4.0); gl_FragColor = vec4(0.36,0.78,0.72,1.0) * i * 0.55; }',
+        (natural ? 'varying vec3 vN; void main(){ float i = pow(0.68 - dot(vN, vec3(0.0,0.0,1.0)), 3.0); gl_FragColor = vec4(0.35,0.6,1.0,1.0) * i * 0.9; }'
+          : 'varying vec3 vN; void main(){ float i = pow(0.66 - dot(vN, vec3(0.0,0.0,1.0)), 4.0); gl_FragColor = vec4(0.36,0.78,0.72,1.0) * i * 0.55; }'),
     });
     atmosphere = new THREE.Mesh(new THREE.SphereGeometry(1.09, 64, 64), atmMat);
     scene.add(atmosphere);

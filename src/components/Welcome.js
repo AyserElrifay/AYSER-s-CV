@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable, Animated, Easing, Platform, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { C } from '../constants/theme';
@@ -82,55 +82,104 @@ const Feature = ({ emoji, label }) => (
   </View>
 );
 
+/* ─── HELLO, LIKE A NEW iPHONE ─────────────────────────────────────────
+   Ayser: "الواجهة اللي في الأول دي لازم تبقى تحفة، وفين كوكب الأرض؟ خد
+   inspiration لما تعمل setup لأي جهاز Apple". The first screen is now
+   the real Earth turning slowly in the dark, and "hello" fading through
+   the languages Moments speaks — then the name, one line, and the way
+   in. The Earth is the same three.js globe as the map's (natural
+   colours here); until it has loaded, a soft drawn planet holds its
+   place, so the screen is never empty. */
+/* a few stars, always in the same places */
+const STARS = Array.from({ length: 34 }, (_, k) => {
+  const a = Math.sin(k * 12.9898) * 43758.5453, b = Math.sin(k * 78.233) * 12345.678;
+  const fx = a - Math.floor(a), fy = b - Math.floor(b);
+  return [Math.round(fx * 96), Math.round(fy * 96), fx > 0.85 ? 2.5 : 1.5, 0.25 + (fy * 0.55)];
+});
+const HELLOS = ['Hello', 'أهلاً', 'Bonjour', 'Hola', 'Ciao', 'Merhaba', 'Olá', 'Salut', 'Hallo', 'Привет', 'こんにちは', '안녕하세요', '你好', 'Ahoj', 'Tere'];
+
+const Hello = () => {
+  const [i, setI] = useState(0);
+  const fade = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    let alive = true;
+    const run = () => {
+      if (!alive) return;
+      Animated.sequence([
+        Animated.timing(fade, { toValue: 1, duration: 650, easing: Easing.out(Easing.cubic), useNativeDriver: Platform.OS !== 'web' }),
+        Animated.delay(1100),
+        Animated.timing(fade, { toValue: 0, duration: 550, easing: Easing.in(Easing.cubic), useNativeDriver: Platform.OS !== 'web' }),
+      ]).start(() => { if (!alive) return; setI((n) => (n + 1) % HELLOS.length); run(); });
+    };
+    run();
+    return () => { alive = false; };
+  }, []);
+  return (
+    <Animated.Text style={{
+      color: '#FFFFFF', fontSize: 50, fontWeight: '300', letterSpacing: -0.5, textAlign: 'center',
+      opacity: fade, transform: [{ translateY: fade.interpolate({ inputRange: [0, 1], outputRange: [8, 0] }) }],
+    }}>{HELLOS[i]}</Animated.Text>
+  );
+};
+
+/* The Earth: a 12-second loop rendered from NASA's Blue Marble (public
+   domain), centred on Egypt and Europe and turning the way the real one
+   does — served from our own site, so it plays at once and offline,
+   with no 3-D library to fetch. Its first frame is the still under it. */
+const Earth = () => {
+  const reduce = Platform.OS === 'web' && typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const breathe = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(breathe, { toValue: 1, duration: 1400, easing: Easing.out(Easing.cubic), useNativeDriver: Platform.OS !== 'web' }).start();
+  }, []);
+  const size = 300;
+  return (
+    <Animated.View pointerEvents="none" style={{ position: 'absolute', left: '50%', top: 128, width: size, height: size, marginLeft: -size / 2,
+      opacity: breathe, transform: [{ scale: breathe.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1] }) }] }}>
+      <Image source={{ uri: publicMedia('earth-spin.jpg') }} style={{ position: 'absolute', width: size, height: size }} />
+      {Platform.OS === 'web' && !reduce ? (
+        <video src={publicMedia('earth-spin.mp4')} poster={publicMedia('earth-spin.jpg')} autoPlay muted loop playsInline preload="auto"
+          style={{ position: 'absolute', width: size, height: size, objectFit: 'cover', display: 'block' }} />
+      ) : null}
+    </Animated.View>
+  );
+};
+
 export const Welcome = ({ onStart, onSignIn }) => {
   const { t } = useLang();
-  const { isDark } = useTheme();
-  const pulse = useRef(new Animated.Value(0)).current;
+  const rise = useRef(new Animated.Value(0)).current;
   useEffect(() => {
-    const loop = Animated.loop(Animated.timing(pulse, { toValue: 1, duration: 2200, easing: Easing.out(Easing.quad), useNativeDriver: Platform.OS !== 'web' }));
-    loop.start();
-    return () => loop.stop();
+    Animated.timing(rise, { toValue: 1, duration: 900, delay: 250, easing: Easing.out(Easing.cubic), useNativeDriver: Platform.OS !== 'web' }).start();
   }, []);
   return (
     <View style={{ alignSelf: 'stretch', alignItems: 'center' }}>
-      {/* today's photo, and what is on */}
-      <View style={{ alignSelf: 'stretch', height: 330, borderRadius: 30, overflow: 'hidden', marginBottom: 22, backgroundColor: isDark ? '#1F2B4D' : '#DCEEFF' }}>
-        <Image source={{ uri: publicMedia(photoOfToday()) }} resizeMode="cover" accessibilityIgnoresInvertColors
-          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%' }} />
-        <LinearGradient colors={['rgba(0,0,0,0.18)', 'rgba(0,0,0,0.05)', 'rgba(0,0,0,0.3)']}
-          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
-        {/* you are here */}
-        <View style={{ position: 'absolute', left: '50%', top: '42%', marginLeft: -9, marginTop: -9 }}>
-          <Animated.View style={{ position: 'absolute', width: 18, height: 18, borderRadius: 9, backgroundColor: C.purple,
-            opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.5, 0] }),
-            transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 3.2] }) }] }} />
-          <View style={{ width: 18, height: 18, borderRadius: 9, backgroundColor: C.purple, borderWidth: 3, borderColor: '#fff' }} />
+      <View style={{ alignSelf: 'stretch', height: 440, borderRadius: 34, overflow: 'hidden', marginBottom: 26, backgroundColor: '#000' }}>
+        {STARS.map(([x, y, r, o], k) => <View key={k} pointerEvents="none" style={{ position: 'absolute', left: x + '%', top: y + '%', width: r, height: r, borderRadius: r, backgroundColor: '#FFF', opacity: o }} />)}
+        <Earth />
+        <View pointerEvents="none" style={{ position: 'absolute', top: 34, left: 0, right: 0, alignItems: 'center' }}>
+          <Hello />
         </View>
-        {SCENE.map((item, i) => <Card key={item.key} item={item} i={i} t={t} />)}
+        <LinearGradient pointerEvents="none" colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.9)']} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 90 }} />
       </View>
 
-      <Wordmark height={64} style={{ marginBottom: 6 }} />
-      <Text style={{ color: C.text, fontSize: 25, fontWeight: '900', textAlign: 'center', lineHeight: 31, marginTop: 4 }}>
-        {t('welcome_title')}
-      </Text>
-      <Text style={{ color: C.dim, fontSize: 14.5, textAlign: 'center', lineHeight: 21, marginTop: 8, paddingHorizontal: 10 }}>
-        {t('welcome_sub')}
-      </Text>
+      <Animated.View style={{ alignSelf: 'stretch', alignItems: 'center', opacity: rise, transform: [{ translateY: rise.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) }] }}>
+        <Wordmark height={58} style={{ marginBottom: 4 }} />
+        <Text style={{ color: C.text, fontSize: 26, fontWeight: '900', textAlign: 'center', lineHeight: 32, marginTop: 4, letterSpacing: -0.4 }}>
+          {t('welcome_title')}
+        </Text>
+        <Text style={{ color: C.dim, fontSize: 15, textAlign: 'center', lineHeight: 22, marginTop: 8, paddingHorizontal: 14 }}>
+          {t('welcome_sub')}
+        </Text>
 
-      <View style={{ flexDirection: 'row', alignSelf: 'stretch', marginTop: 20, marginBottom: 24 }}>
-        <Feature emoji="🗓️" label={t('welcome_f_week')} />
-        <Feature emoji="🤝" label={t('welcome_f_join')} />
-        <Feature emoji="🌿" label={t('welcome_f_green')} />
-      </View>
-
-      <Pressable onPress={() => { tapLight(); onStart(); }} accessibilityRole="button"
-        style={{ alignSelf: 'stretch', backgroundColor: C.purple, borderRadius: 999, paddingVertical: 16, alignItems: 'center' }}>
-        <Text style={{ color: '#fff', fontSize: 16.5, fontWeight: '900' }}>{t('welcome_start')}</Text>
-      </Pressable>
-      <Pressable onPress={() => { tapLight(); onSignIn(); }} accessibilityRole="button"
-        style={{ alignSelf: 'stretch', borderRadius: 999, paddingVertical: 15, alignItems: 'center', marginTop: 10, borderWidth: 1.5, borderColor: C.line }}>
-        <Text style={{ color: C.text, fontSize: 15, fontWeight: '800' }}>{t('welcome_have')}</Text>
-      </Pressable>
+        <Pressable onPress={() => { tapLight(); onStart(); }} accessibilityRole="button"
+          style={{ alignSelf: 'stretch', backgroundColor: C.text, borderRadius: 999, paddingVertical: 17, alignItems: 'center', marginTop: 28 }}>
+          <Text style={{ color: C.bg, fontSize: 17, fontWeight: '800' }}>{t('welcome_start')}</Text>
+        </Pressable>
+        <Pressable onPress={() => { tapLight(); onSignIn(); }} accessibilityRole="button" hitSlop={8}
+          style={{ alignSelf: 'stretch', paddingVertical: 15, alignItems: 'center', marginTop: 4 }}>
+          <Text style={{ color: C.purple, fontSize: 15.5, fontWeight: '800' }}>{t('welcome_have')}</Text>
+        </Pressable>
+      </Animated.View>
     </View>
   );
 };
