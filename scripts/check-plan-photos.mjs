@@ -13,7 +13,7 @@ const read = (f) => fs.readFileSync(f, 'utf8');
 const code = (f) => read(f).replace(/\/\*[\s\S]*?\*\//g, '').replace(/\{\/\*[\s\S]*?\*\/\}/g, '');
 const sql = read('supabase/RUN_ME.sql');
 const part = sql.slice(sql.indexOf('PLANS · REAL PHOTOS, NEVER STOCK'));
-const photo = code('src/components/green/PlanPhoto.js');
+const photo = code('src/components/green/PlanPhoto.js') + code('src/lib/activityMatch.js');
 const form = code('src/components/green/StartForm.js');
 const sheet = read('src/components/green/GreenSheet.js');
 const admin = read('src/components/AdminPanel.js');

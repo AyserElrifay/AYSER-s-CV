@@ -22,6 +22,9 @@ import { getPrefs, subscribePrefs } from '../services/prefs';
 import { CoverSheet } from './CoverSheet';
 import { getOrCreateDmThread, sendMessage } from '../services/messages';
 import { useAuth } from '../context/AuthContext';
+import { lazyOverlay } from '../lib/lazyScreen';
+/* the line under a post that leads to a real plan, trip or places — fetched only once the feed is up */
+const PostLink = lazyOverlay(() => import('./PostLink').then((m) => ({ default: m.PostLink })));
 
 /* Chips sit on photos, so they stay dark with light text for contrast. */
 const typeChip = (post) => {
@@ -777,7 +780,7 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
               <Text style={{ color: C.purple, fontSize: 13.5, fontWeight: '900' }}>{'🤝 ' + t('pc_join_next')}</Text>
             </View>
           </Pressable>
-        ) : null}
+        ) : !post.sponsored && !post.joinable && !isMine ? <PostLink post={post} t={t} lang={lang} /> : null}
 
         {/* "Make a plan here" used to sit under every post with a place —
             a button on a photo of somebody's sunset turned every moment

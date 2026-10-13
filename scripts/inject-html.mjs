@@ -270,6 +270,16 @@ console.log('index.html patched: PWA + OG tags');
   const pts = (mod.DESTINATIONS || []).map((d) => (d.photo ? [d.id, d.name, d.emoji, d.lat, d.lng, d.photo, d.area || ''] : [d.id, d.name, d.emoji, d.lat, d.lng]));
   fs.writeFileSync(path.join(process.cwd(), dist, 'places.json'), JSON.stringify(pts));
   console.log('places.json: ' + pts.length + ' places');
+  /* one place per country, for the line under a post from that country
+     (src/components/PostLink.js): [country, flag, id, lat, lng] */
+  const byCountry = {};
+  (mod.DESTINATIONS || []).forEach((d) => {
+    if (!d.country) return;
+    if (!byCountry[d.country] || (d.hero && !byCountry[d.country].hero)) byCountry[d.country] = d;
+  });
+  const cs = Object.values(byCountry).map((d) => [d.country, d.flag || '', d.id, d.lat, d.lng]);
+  fs.writeFileSync(path.join(process.cwd(), dist, 'countries.json'), JSON.stringify(cs));
+  console.log('countries.json: ' + cs.length + ' countries');
 }
 
 /* ─── WHAT THIS PAGE WILL RUN, AND WHO MAY FRAME IT ──────────────────

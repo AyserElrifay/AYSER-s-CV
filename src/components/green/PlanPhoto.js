@@ -9,6 +9,7 @@ import { publicMedia } from '../../lib/publicMedia';
 import { getPrefs } from '../../services/prefs';
 import { isSaving } from '../../lib/dataSaver';
 import { useLang } from '../../context/LanguageContext';
+import { RE_OF } from '../../lib/activityMatch';
 
 /* activities Ayser sent real free photos and clips for (Pexels,
    credited): the activity, never "this plan". A clip carries its own
@@ -21,29 +22,29 @@ const clip = (pre, k) => Array.from({ length: k }, (_, i) => ({ img: pre + (i + 
 const STOCK = [
   /* Ayser asked for these two under volunteering; their pictures come
      when he sends them — until then they keep their drawn cover */
-  { id: 'animals', re: /animal|shelter|rescue|strays?\b|\bpets?\b|حيوان|قطط|كلاب|ملجأ|ملجا|🐾|🐶|🐱/i, files: [] },
-  { id: 'cleanup', re: /clean|litter|pick-?up|trash|garbage|تنضيف|تنظيف|نضافة|نظافة|زبال|🧹/i, files: [] },
-  { id: 'school', re: /schools?\b|awareness|مدرس|مدارس|توعي|نشر ثقافة|نشر الثقافة|🏫/i, files: [{ img: 'act-talk-2.jpg' }, { img: 'act-talk-1.jpg' }, { img: 'act-kids-2.jpg' }] },
-  { id: 'kids', re: /orphan|\bkids\b|children|child care|أيتام|ايتام|اطفال|أطفال/i, files: clip('act-kids-v', 1).concat([{ img: 'sport-football-1.jpg' }], [1, 2, 3, 4, 5].map((k) => ({ img: 'act-kids-' + k + (k === 1 || k === 3 ? 'w' : '') + '.jpg' }))) },
-  { id: 'volunteer', re: /volunteer|charity|donat|food bank|تطوع|متطوع|خيري|تبرع/i, files: n('act-volunteer-', 3).concat([{ img: 'sport-football-1.jpg' }], [1, 2, 3, 4, 5].map((k) => ({ img: 'act-kids-' + k + (k === 1 || k === 3 ? 'w' : '') + '.jpg' }))) },
-  { id: 'talk', re: /language|exchange|conversation|\bspeak|english|\bcircle\b|لغات|لغة|لغه|تبادل|محادث|دردش|كلام|💬/i, files: n('act-talk-', 6) },
-  { id: 'music', re: /music|\bjam\b|guitar|\bsing|karaoke|campfire|bonfire|\bcamp\b|مزيك|موسيق|غنا|جيتار|كاريوكي|كامب|🎸|🎶|🎤/i, files: clip('act-music-v', 1).map((x) => ({ ...x, own: true })) },
-  { id: 'match', re: /\bmatch|watch party|ماتش|مباراة|نشجع|تشجيع|\bcheer|📺/i, files: clip('act-match-v', 1).map((x) => ({ ...x, own: true })) },
-  { id: 'climb', re: /climb|zip ?line|abseil|rappel|high ropes|mario|تسلق|زيب|ماريو|🧗/i, files: [
+  { id: 'animals', re: RE_OF.animals, files: [] },
+  { id: 'cleanup', re: RE_OF.cleanup, files: [] },
+  { id: 'school', re: RE_OF.school, files: [{ img: 'act-talk-2.jpg' }, { img: 'act-talk-1.jpg' }, { img: 'act-kids-2.jpg' }] },
+  { id: 'kids', re: RE_OF.kids, files: clip('act-kids-v', 1).concat([{ img: 'sport-football-1.jpg' }], [1, 2, 3, 4, 5].map((k) => ({ img: 'act-kids-' + k + (k === 1 || k === 3 ? 'w' : '') + '.jpg' }))) },
+  { id: 'volunteer', re: RE_OF.volunteer, files: n('act-volunteer-', 3).concat([{ img: 'sport-football-1.jpg' }], [1, 2, 3, 4, 5].map((k) => ({ img: 'act-kids-' + k + (k === 1 || k === 3 ? 'w' : '') + '.jpg' }))) },
+  { id: 'talk', re: RE_OF.talk, files: n('act-talk-', 6) },
+  { id: 'music', re: RE_OF.music, files: clip('act-music-v', 1).map((x) => ({ ...x, own: true })) },
+  { id: 'match', re: RE_OF.match, files: clip('act-match-v', 1).map((x) => ({ ...x, own: true })) },
+  { id: 'climb', re: RE_OF.climb, files: [
     { img: 'act-climb-1.jpg' }, { img: 'mario-crew.jpg' }, { img: 'mario-ferrata-w.jpg' }, { img: 'mario-mirror-w.jpg' },
     { img: 'mario-ropes-w.jpg' }, { img: 'mario-crew-v.jpg', clip: 'mario-crew-v.mp4' },
   ].map((x) => ({ ...x, own: true })) },
-  { id: 'football', re: /foot|soccer|كورة|كوره|⚽/i, files: [1, 2, 3].map((k) => ({ img: 'football-crew-' + k + '.jpg', own: true })).concat([5, 4, 2, 3].map((k) => ({ img: 'sport-football-' + k + '.jpg' }))) },
-  { id: 'sketch', re: /sketch|draw|رسم(?!ي)|اسكتش|✏️|🎨|\bart\b/i, files: n('art-sketch-', 5) },
-  { id: 'padel', re: /padel|(^|[^ت])بادل|tennis|تنس|🎾/i, files: n('act-padel-', 4).concat(clip('act-padel-v', 3), [1, 2, 3, 4].map((k) => ({ img: 'padel-ayser-' + k + (k === 1 || k === 3 ? 'w' : '') + '.jpg', credit: 'Shahd Elzayaat' }))) },
-  { id: 'walk', re: /walk|hike|hiking|trail|stroll|مشي|تمشي|مشوار|🥾|🚶/i, files: n('act-walk-', 5).concat(clip('act-walk-v', 1)) },
-  { id: 'swim', re: /swim|pool|سباح|حمام سباحة|🏊/i, files: n('act-swim-', 2) },
-  { id: 'read', re: /\bread|\bbook|library|كتاب|قراء|مكتب[ةه]|📚|📖|\bfocus\b/i, files: n('act-read-', 6) },
-  { id: 'coffee', re: /coffee|caf[eé]|espresso|latte|قهو|كافيه|☕/i, files: n('act-coffee-', 3).concat(clip('act-coffee-v', 2)) },
-  { id: 'movie', re: /movie|cinema|film|سينما|فيلم|افلام|أفلام|🍿|🎬/i, files: clip('act-movie-v', 1).map((x) => ({ ...x, own: true })) },
-  { id: 'beach', re: /beach|\bsea\b|seaside|شاطئ|بحر|🏖|🌊/i, files: n('act-beach-', 1).concat(clip('act-beach-v', 2)) },
-  { id: 'church', re: /church|monastery|كنيس|⛪/i, files: [{ img: 'cave-church-2.jpg' }, { img: 'cave-church-silhouette.jpg' }].map((x) => ({ ...x, own: true })) },
-  { id: 'rooftop', re: /rooftop|\broof\b|الروف|روف توب|سطوح/i, files: [{ img: 'rooftop-giza.jpg', own: true }] },
+  { id: 'padel', re: RE_OF.padel, files: n('act-padel-', 4).concat(clip('act-padel-v', 3), [1, 2, 3, 4].map((k) => ({ img: 'padel-ayser-' + k + (k === 1 || k === 3 ? 'w' : '') + '.jpg', credit: 'Shahd Elzayaat' }))) },
+  { id: 'football', re: RE_OF.football, files: [1, 2, 3].map((k) => ({ img: 'football-crew-' + k + '.jpg', own: true })).concat([5, 4, 2, 3].map((k) => ({ img: 'sport-football-' + k + '.jpg' }))) },
+  { id: 'sketch', re: RE_OF.sketch, files: n('art-sketch-', 5) },
+  { id: 'walk', re: RE_OF.walk, files: n('act-walk-', 5).concat(clip('act-walk-v', 1)) },
+  { id: 'swim', re: RE_OF.swim, files: n('act-swim-', 2) },
+  { id: 'read', re: RE_OF.read, files: n('act-read-', 6) },
+  { id: 'coffee', re: RE_OF.coffee, files: n('act-coffee-', 3).concat(clip('act-coffee-v', 2)) },
+  { id: 'movie', re: RE_OF.movie, files: clip('act-movie-v', 1).map((x) => ({ ...x, own: true })) },
+  { id: 'beach', re: RE_OF.beach, files: n('act-beach-', 1).concat(clip('act-beach-v', 2)) },
+  { id: 'church', re: RE_OF.church, files: [{ img: 'cave-church-2.jpg' }, { img: 'cave-church-silhouette.jpg' }].map((x) => ({ ...x, own: true })) },
+  { id: 'rooftop', re: RE_OF.rooftop, files: [{ img: 'rooftop-giza.jpg', own: true }] },
 ];
 /* each plan gets its own run of pictures: the first football plan on the
    list starts on photo 1, the next on photo 4, and so on — so two plans
