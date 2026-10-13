@@ -69,17 +69,34 @@ const HOURS = { uni: { m: [8, 0, 14, 0], d: [10, 0, 16, 0], e: [14, 0, 20, 0] },
 const SLEEP = { early: { bed: [22, 0], wake: [6, 0] }, regular: { bed: [23, 30], wake: [7, 30] }, late: { bed: [1, 0], wake: [9, 0] } };
 const DAYS = { sun: ['SU', 'MO', 'TU', 'WE', 'TH'], mon: ['MO', 'TU', 'WE', 'TH', 'FR'], all: ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'] };
 const JS_DAY = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
+const CHURCH = { m: [8, 0, 10, 0], l: [10, 30, 12, 30], e: [18, 0, 20, 0] };
 const at = (base, h, m) => { const d = new Date(base); d.setHours(h, m, 0, 0); return d; };
 const hm = (h, m) => String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+
+/* ─── YOUR OWN DAYS, YOUR OWN HOURS ───────────────────────────────────
+   Ayser: "افرض حد بيدرس يومين وبيشتغل خمسة، بيبتدي ٨ وبيخلص ٥". So
+   university and work each have their own days (tapped, any of the
+   seven) and their own hours (one of three, or set with + and −). An
+   older answer ('m', 'sun') is read into the same shape. */
+const blockOf = (a, kind) => {
+  const v = a[kind];
+  if (v && typeof v === 'object' && Array.isArray(v.days)) return v;
+  const h = HOURS[kind][typeof v === 'string' ? v : (kind === 'uni' ? 'm' : 'd')];
+  return { days: DAYS[a.days || 'sun'] || DAYS.sun, s: [h[0], h[1]], e: [h[2], h[3]] };
+};
+const has = (a, kind) => (kind === 'uni' ? a.role === 'student' || a.role === 'both' : a.role === 'work' || a.role === 'both');
+/* faith, for whoever has one: the five prayers, or church, or nothing */
+const faithOf = (a) => a.faith || (a.pray === true ? 'muslim' : a.pray === false ? 'none' : null);
+const muslim = (a) => faithOf(a) === 'muslim' && !!a.at;
 
 /* the questions, in order; some only follow from an earlier answer */
 const steps = (a) => {
   const s = ['role'];
-  if (a.role === 'student' || a.role === 'both') s.push('uni');
-  if (a.role === 'work' || a.role === 'both') s.push('work');
-  if (a.role && a.role !== 'none') s.push('days');
-  s.push('pray');
-  if (a.pray && !a.at) s.push('loc');
+  if (has(a, 'uni')) s.push('uni');
+  if (has(a, 'work')) s.push('work');
+  s.push('faith');
+  if (faithOf(a) === 'christian') s.push('church');
+  if (faithOf(a) === 'muslim' && !a.at) s.push('loc');
   s.push('sleep');
   return s;
 };
@@ -105,29 +122,168 @@ const Q = ({ title, n, of, children }) => (
   </View>
 );
 
-/* today's list, in time order */
+const Chip = ({ label, on, onPress, wide }) => (
+  <Pressable onPress={onPress} accessibilityRole="checkbox" accessibilityState={{ checked: !!on }} style={{ marginEnd: 6, marginBottom: 8, flexGrow: wide ? 1 : 0 }}>
+    <View style={{ minWidth: 44, alignItems: 'center', borderRadius: 999, borderWidth: 1.5, borderColor: on ? C.purple : C.line, backgroundColor: on ? C.purple : C.glass, paddingHorizontal: 12, paddingVertical: 10 }}>
+      <Text style={{ color: on ? '#FFF' : C.text, fontSize: 14, fontWeight: '800' }}>{label}</Text>
+    </View>
+  </Pressable>
+);
+const Label = ({ children }) => <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '900', letterSpacing: 1, marginTop: 6, marginBottom: 8 }}>{String(children).toUpperCase()}</Text>;
+
+/* the seven days in the reader's language, the week starting where theirs does */
+const dayNames = (lang) => {
+  const order = lang === 'ar' ? ['SA', 'SU', 'MO', 'TU', 'WE', 'TH', 'FR'] : ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'];
+  return order.map((d) => {
+    let name = d;
+    try { name = new Date(2024, 0, 7 + JS_DAY.indexOf(d)).toLocaleDateString(lang || 'en', { weekday: 'short' }); } catch (e) {}
+    return { d, name };
+  });
+};
+const step30 = (hmv, k) => { let m = hmv[0] * 60 + hmv[1] + k * 30; m = Math.max(5 * 60, Math.min(23 * 60 + 30, m)); return [Math.floor(m / 60), m % 60]; };
+
+const Stepper = ({ label, value, onMinus, onPlus }) => (
+  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+    <Text style={{ color: C.dim, fontSize: 14, fontWeight: '800', width: 70 }}>{label}</Text>
+    <Pressable onPress={onMinus} accessibilityRole="button" accessibilityLabel="−" hitSlop={6}><View style={{ width: 44, height: 44, borderRadius: 22, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center' }}><Ionicons name="remove" size={20} color={C.text} /></View></Pressable>
+    <Text style={{ color: C.text, fontSize: 22, fontWeight: '900', width: 96, textAlign: 'center', fontVariant: ['tabular-nums'] }}>{hm(value[0], value[1])}</Text>
+    <Pressable onPress={onPlus} accessibilityRole="button" accessibilityLabel="+" hitSlop={6}><View style={{ width: 44, height: 44, borderRadius: 22, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center' }}><Ionicons name="add" size={20} color={C.text} /></View></Pressable>
+  </View>
+);
+
+/* university or work: which days, and from when to when — tap only */
+const Hours = ({ kind, value, onDone, t, lang }) => {
+  const [v, setV] = useState(value);
+  const [custom, setCustom] = useState(() => !['m', 'd', 'e'].some((k) => { const h = HOURS[kind][k]; return h[0] === value.s[0] && h[1] === value.s[1] && h[2] === value.e[0] && h[3] === value.e[1]; }));
+  const flip = (d) => { tapSelection(); setV((x) => ({ ...x, days: x.days.indexOf(d) >= 0 ? x.days.filter((y) => y !== d) : x.days.concat(d) })); };
+  const preset = (k) => { tapSelection(); const h = HOURS[kind][k]; setCustom(false); setV((x) => ({ ...x, s: [h[0], h[1]], e: [h[2], h[3]] })); };
+  const isPreset = (k) => { const h = HOURS[kind][k]; return !custom && h[0] === v.s[0] && h[1] === v.s[1] && h[2] === v.e[0] && h[3] === v.e[1]; };
+  const move = (which, k) => {
+    tapLight();
+    setV((x) => {
+      const n = { ...x, [which]: step30(x[which], k) };
+      const sm = n.s[0] * 60 + n.s[1]; const em = n.e[0] * 60 + n.e[1];
+      if (em <= sm) { if (which === 's') n.e = step30(n.s, 1); else n.s = step30(n.e, -1); }
+      return n;
+    });
+  };
+  return (
+    <View>
+      <Label>{t('md_days_label')}</Label>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+        {dayNames(lang).map(({ d, name }) => <Chip key={d} label={name} on={v.days.indexOf(d) >= 0} onPress={() => flip(d)} />)}
+      </View>
+      <Label>{t('md_hours_label')}</Label>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+        {['m', 'd', 'e'].map((k) => { const h = HOURS[kind][k]; return <Chip key={k} label={hm(h[0], h[1]) + '–' + hm(h[2], h[3])} on={isPreset(k)} onPress={() => preset(k)} />; })}
+        <Chip label={t('md_custom')} on={custom} onPress={() => { tapSelection(); setCustom(true); }} />
+      </View>
+      {custom ? (
+        <View style={{ marginTop: 4 }}>
+          <Stepper label={t('md_from')} value={v.s} onMinus={() => move('s', -1)} onPlus={() => move('s', 1)} />
+          <Stepper label={t('md_to')} value={v.e} onMinus={() => move('e', -1)} onPlus={() => move('e', 1)} />
+        </View>
+      ) : null}
+      <Pressable disabled={!v.days.length} onPress={() => onDone(v)} accessibilityRole="button" style={{ marginTop: 14 }}>
+        <View style={{ borderRadius: 999, backgroundColor: v.days.length ? C.purple : C.glassHi, paddingVertical: 15, alignItems: 'center' }}>
+          <Text style={{ color: v.days.length ? '#FFF' : C.faint, fontSize: 16, fontWeight: '900' }}>{t('md_continue')}</Text>
+        </View>
+      </Pressable>
+    </View>
+  );
+};
+
+/* church: which day, and when — or not every week */
+const Church = ({ value, onDone, t, lang }) => {
+  const [v, setV] = useState(value || { day: lang === 'ar' ? 'FR' : 'SU', slot: 'm' });
+  return (
+    <View>
+      <Label>{t('md_days_label')}</Label>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+        {dayNames(lang).filter(({ d }) => ['FR', 'SA', 'SU'].indexOf(d) >= 0).map(({ d, name }) => <Chip key={d} label={name} on={v.day === d} onPress={() => { tapSelection(); setV({ ...v, day: d }); }} />)}
+      </View>
+      <Label>{t('md_hours_label')}</Label>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+        {['m', 'l', 'e'].map((k) => { const h = CHURCH[k]; return <Chip key={k} label={hm(h[0], h[1]) + '–' + hm(h[2], h[3])} on={v.slot === k} onPress={() => { tapSelection(); setV({ ...v, slot: k }); }} />; })}
+      </View>
+      <Pressable onPress={() => onDone(v)} accessibilityRole="button" style={{ marginTop: 14 }}>
+        <View style={{ borderRadius: 999, backgroundColor: C.purple, paddingVertical: 15, alignItems: 'center' }}>
+          <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '900' }}>{t('md_continue')}</Text>
+        </View>
+      </Pressable>
+      <Pressable onPress={() => onDone(null)} accessibilityRole="button" style={{ marginTop: 12, alignItems: 'center' }}>
+        <Text style={{ color: C.dim, fontSize: 14, fontWeight: '800' }}>{t('md_church_none')}</Text>
+      </Pressable>
+    </View>
+  );
+};
+
+/* ─── THE REST OF LIFE, GIVEN A PLACE IN THE DAY ─────────────────────
+   Ayser: "فين بقية الحياة اللي قلنا عليها؟ خليها متوزعة". Family, time
+   for yourself, moving, a proper meal: each is put into a real gap in
+   the day — after work for a walk, the evening for family, a quiet
+   twenty minutes before winding down — around whatever is already
+   there. If a day is full, a part waits for a day that is not. */
+const BLOCKS = [
+  { id: 'health', min: 30, prefer: [[12.5, 15], [19, 21]] },
+  { id: 'move', min: 30, prefer: [[17, 20.5], [6.5, 9.5]] },
+  { id: 'family', min: 45, prefer: [[19, 22.5], [13, 18]] },
+  { id: 'me', min: 20, prefer: [[20.5, 23.5], [7, 10]] },
+];
+function placeBalance(busy, from, until, day, t) {
+  const taken = busy.map((x) => [x.at.getTime() - 10 * 60000, x.end.getTime() + 10 * 60000]);
+  const free = (s, e) => s >= from && e <= until && !taken.some(([a, b]) => s < b && e > a);
+  const out = [];
+  BLOCKS.forEach((b) => {
+    const len = b.min * 60000;
+    const windows = b.prefer.concat([[0, 24]]);
+    for (const [ws, we] of windows) {
+      let found = null;
+      for (let h = ws; h + b.min / 60 <= we && !found; h += 0.25) {
+        const s = at(day, Math.floor(h), Math.round((h % 1) * 60)).getTime();
+        if (free(s, s + len)) found = s;
+      }
+      if (found != null) {
+        const bl = BALANCE.find((x) => x.id === b.id);
+        out.push({ id: 'bal:' + b.id, emoji: bl.emoji, label: t('md_blk_' + b.id), at: new Date(found), end: new Date(found + len), balance: true });
+        taken.push([found - 10 * 60000, found + len + 10 * 60000]);
+        break;
+      }
+    }
+  });
+  return out;
+}
+
+/* today's day, in time order */
 function todayItems(a, t, now = new Date(), extra = []) {
   const out = extra.slice();
   const sl = SLEEP[a.sleep || 'regular'];
-  out.push({ id: 'wake', emoji: '⏰', label: t('md_wake'), at: at(now, sl.wake[0], sl.wake[1]) });
-  const workday = a.role && a.role !== 'none' && (DAYS[a.days || 'sun'] || []).indexOf(JS_DAY[now.getDay()]) >= 0;
-  if (workday && (a.role === 'student' || a.role === 'both')) { const h = HOURS.uni[a.uni || 'm']; out.push({ id: 'uni', emoji: '🎓', label: t('md_uni') + ' · ' + hm(h[0], h[1]) + '–' + hm(h[2], h[3]), at: at(now, h[0], h[1]) }); }
-  if (workday && (a.role === 'work' || a.role === 'both')) { const h = HOURS.work[a.work || 'd']; out.push({ id: 'work', emoji: '💼', label: t('md_work') + ' · ' + hm(h[0], h[1]) + '–' + hm(h[2], h[3]), at: at(now, h[0], h[1]) }); }
-  if (a.pray && a.at) {
+  const wake = at(now, sl.wake[0], sl.wake[1]);
+  out.push({ id: 'wake', emoji: '⏰', label: t('md_wake'), at: wake, end: new Date(wake.getTime() + 20 * 60000) });
+  const today = JS_DAY[now.getDay()];
+  ['uni', 'work'].forEach((kind) => {
+    if (!has(a, kind)) return;
+    const b = blockOf(a, kind);
+    if (b.days.indexOf(today) < 0) return;
+    out.push({ id: kind, emoji: kind === 'uni' ? '🎓' : '💼', label: t('md_' + kind) + ' · ' + hm(b.s[0], b.s[1]) + '–' + hm(b.e[0], b.e[1]), at: at(now, b.s[0], b.s[1]), end: at(now, b.e[0], b.e[1]) });
+  });
+  if (muslim(a)) {
     const p = prayerTimes(now, a.at.lat, a.at.lng);
-    [['fajr', '🌅'], ['dhuhr', '☀️'], ['asr', '🌤️'], ['maghrib', '🌇'], ['isha', '🌙']].forEach(([k, e]) => out.push({ id: k, emoji: e, label: '🕌 ' + t('md_' + k), at: p[k] }));
+    [['fajr', '🌅'], ['dhuhr', '☀️'], ['asr', '🌤️'], ['maghrib', '🌇'], ['isha', '🌙']].forEach(([k, e]) => out.push({ id: k, emoji: e, label: '🕌 ' + t('md_' + k), at: p[k], end: new Date(p[k].getTime() + 15 * 60000) }));
+  }
+  if (faithOf(a) === 'christian' && a.church && a.church.day === today) {
+    const h = CHURCH[a.church.slot || 'm'];
+    out.push({ id: 'church', emoji: '⛪', label: t('md_church') + ' · ' + hm(h[0], h[1]) + '–' + hm(h[2], h[3]), at: at(now, h[0], h[1]), end: at(now, h[2], h[3]) });
   }
   const bed = at(now, sl.bed[0], sl.bed[1]);
   if (sl.bed[0] < 12) bed.setDate(bed.getDate() + 1);       // after midnight is still tonight
-  out.push({ id: 'wind', emoji: '📵', label: t('md_wind'), at: new Date(bed.getTime() - 30 * 60000) });
-  out.push({ id: 'sleep', emoji: '😴', label: t('md_sleep'), at: bed });
-  // how long each thing lasts, so "now" has an end you can see coming
-  out.forEach((x) => {
-    if (x.end) return;
-    if (x.id === 'uni' || x.id === 'work') { const h = HOURS[x.id][a[x.id] || (x.id === 'uni' ? 'm' : 'd')]; x.end = at(now, h[2], h[3]); }
-    else if (x.id === 'sleep') { const w = new Date(x.at); w.setHours(sl.wake[0], sl.wake[1], 0, 0); if (w <= x.at) w.setDate(w.getDate() + 1); x.end = w; }
-    else x.end = new Date(x.at.getTime() + (x.id === 'wind' ? 30 : 20) * 60000);
-  });
+  const wind = new Date(bed.getTime() - 30 * 60000);
+  out.push({ id: 'wind', emoji: '📵', label: t('md_wind'), at: wind, end: bed });
+  const w2 = new Date(bed); w2.setHours(sl.wake[0], sl.wake[1], 0, 0); if (w2 <= bed) w2.setDate(w2.getDate() + 1);
+  out.push({ id: 'sleep', emoji: '😴', label: t('md_sleep'), at: bed, end: w2 });
+  // the rest of life, in the gaps that are left
+  out.push(...placeBalance(out, wake.getTime() + 20 * 60000, wind.getTime(), now, t));
+  out.forEach((x) => { if (!x.end) x.end = new Date(x.at.getTime() + 20 * 60000); });
   return out.sort((x, y) => x.at - y.at);
 }
 
@@ -139,25 +295,53 @@ const span = (ms, t) => {
   return t('md_hm').replace('{h}', String(h)).replace('{m}', String(r));
 };
 
-/* everything worth a reminder, repeating, for the phone's calendar */
+/* ─── A FEW REMINDERS THAT REPEAT, NOT A HUNDRED AND FIFTY ──────────
+   Ayser saw "152 Events" and said: معقد. A reminder for every prayer of
+   every day of a month is a wall to scroll before "Add All". So each
+   thing is ONE event that repeats — waking, university and work on
+   their own days, church, winding down, the four parts of a day, and
+   the five prayers — about fifteen in all. Prayer times move a minute
+   or so a day, so the screen says to add it again every couple of
+   weeks; each event keeps the same id, so a calendar that knows ids
+   updates it instead of doubling it. */
+/* the first day, from tomorrow, that is one of `days` — a weekly event
+   has to start on one of its own days, or a calendar adds a stray one */
+const firstOn = (days, h, m) => {
+  const d = new Date(); d.setDate(d.getDate() + 1);
+  for (let i = 0; i < 7 && days.indexOf(JS_DAY[d.getDay()]) < 0; i++) d.setDate(d.getDate() + 1);
+  return at(d, h, m);
+};
+
 function calendarEvents(a, t) {
   const now = new Date();
   const ev = [];
   const sl = SLEEP[a.sleep || 'regular'];
   const tomorrow = new Date(now); tomorrow.setDate(now.getDate() + 1);
-  ev.push({ title: '⏰ ' + t('md_wake'), start: at(tomorrow, sl.wake[0], sl.wake[1]), minutes: 10, days: 'daily', alarm: 0 });
-  const bed = at(now, sl.bed[0], sl.bed[1]); if (sl.bed[0] < 12) bed.setDate(bed.getDate() + 1);
-  ev.push({ title: '📵 ' + t('md_wind'), start: new Date(bed.getTime() - 30 * 60000), minutes: 30, days: 'daily', alarm: 0 });
-  const days = DAYS[a.days || 'sun'];
-  if (a.role === 'student' || a.role === 'both') { const h = HOURS.uni[a.uni || 'm']; ev.push({ title: '🎓 ' + t('md_uni'), start: at(tomorrow, h[0], h[1]), minutes: (h[2] - h[0]) * 60 + (h[3] - h[1]), days, alarm: 30 }); }
-  if (a.role === 'work' || a.role === 'both') { const h = HOURS.work[a.work || 'd']; ev.push({ title: '💼 ' + t('md_work'), start: at(tomorrow, h[0], h[1]), minutes: (h[2] - h[0]) * 60 + (h[3] - h[1]), days, alarm: 30 }); }
-  if (a.pray && a.at) {
-    // prayer times move a little every day, so each of the next 30 days is its own event
-    for (let i = 0; i < 30; i++) {
-      const d = new Date(now); d.setDate(now.getDate() + i);
-      const p = prayerTimes(d, a.at.lat, a.at.lng);
-      ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'].forEach((k) => { if (p[k] > now) ev.push({ title: '🕌 ' + t('md_' + k), start: p[k], minutes: 10, alarm: 0 }); });
-    }
+  ev.push({ uid: 'wake', title: '⏰ ' + t('md_wake'), start: at(tomorrow, sl.wake[0], sl.wake[1]), minutes: 10, days: 'daily', alarm: 0 });
+  const bed = at(tomorrow, sl.bed[0], sl.bed[1]); if (sl.bed[0] < 12) bed.setDate(bed.getDate() + 1);
+  ev.push({ uid: 'wind', title: '📵 ' + t('md_wind'), start: new Date(bed.getTime() - 30 * 60000), minutes: 30, days: 'daily', alarm: 0 });
+  ['uni', 'work'].forEach((kind) => {
+    if (!has(a, kind)) return;
+    const b = blockOf(a, kind);
+    if (!b.days.length) return;
+    ev.push({ uid: kind, title: (kind === 'uni' ? '🎓 ' : '💼 ') + t('md_' + kind), start: firstOn(b.days, b.s[0], b.s[1]), minutes: (b.e[0] * 60 + b.e[1]) - (b.s[0] * 60 + b.s[1]), days: b.days, alarm: 30 });
+  });
+  if (faithOf(a) === 'christian' && a.church) {
+    const h = CHURCH[a.church.slot || 'm'];
+    ev.push({ uid: 'church', title: '⛪ ' + t('md_church'), start: firstOn([a.church.day], h[0], h[1]), minutes: (h[2] * 60 + h[3]) - (h[0] * 60 + h[1]), days: [a.church.day], alarm: 30 });
+  }
+  // the four parts of a day, where they fall on a usual working day
+  let day = tomorrow;
+  for (let i = 1; i <= 7; i++) {
+    const d = new Date(now); d.setDate(now.getDate() + i);
+    if (['uni', 'work'].some((k) => has(a, k) && blockOf(a, k).days.indexOf(JS_DAY[d.getDay()]) >= 0)) { day = d; break; }
+  }
+  todayItems(a, t, day).filter((x) => x.balance).forEach((x) => {
+    ev.push({ uid: x.id.replace(':', '-'), title: x.emoji + ' ' + x.label, start: at(tomorrow, x.at.getHours(), x.at.getMinutes()), minutes: Math.round((x.end - x.at) / 60000), days: 'daily', alarm: 0 });
+  });
+  if (muslim(a)) {
+    const p = prayerTimes(tomorrow, a.at.lat, a.at.lng);
+    ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'].forEach((k) => ev.push({ uid: k, title: '🕌 ' + t('md_' + k), start: p[k], minutes: 10, days: 'daily', alarm: 0 }));
   }
   return ev;
 }
@@ -165,7 +349,7 @@ function calendarEvents(a, t) {
 export const MyDay = ({ onClose }) => {
   useSheetBack(onClose);
   const insets = useSafeAreaInsets();
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const [a, setA] = useState(() => read() || {});
   const [setup, setSetup] = useState(() => !(read() && read().ready));
   const [step, setStep] = useState(0);
@@ -190,7 +374,7 @@ export const MyDay = ({ onClose }) => {
     let patch = patchIn;
     tapSelection();
     // praying, and the map already knows roughly where you are: no extra question
-    if (patch.pray && !a.at) { const f = lastFix(); if (f) patch = { ...patch, at: { lat: f.lat, lng: f.lng } }; }
+    if (patch.faith === 'muslim' && !a.at) { const f = lastFix(); if (f) patch = { ...patch, at: { lat: f.lat, lng: f.lng } }; }
     const next = { ...a, ...patch };
     setA(next);
     const l = steps(next);
@@ -204,7 +388,7 @@ export const MyDay = ({ onClose }) => {
     const c = await Promise.race([getCurrentCoords().catch(() => null), new Promise((r) => setTimeout(() => r(null), 8000))]);
     setLocBusy(false);
     const fix = c ? { lat: c.latitude, lng: c.longitude } : lastFix();
-    if (fix) answer({ at: { lat: fix.lat, lng: fix.lng } }); else answer({ pray: false });
+    if (fix) answer({ at: { lat: fix.lat, lng: fix.lng } }); else answer({ faith: 'none' });
   };
   const items = useMemo(() => (setup ? [] : todayItems(a, t, new Date(), plans.filter((g) => g.im_going || added.indexOf(g.id) >= 0).map(planItem))), [a, setup, t, plans, added]);
   /* the clock moves on its own: every half minute the card catches up */
@@ -269,28 +453,27 @@ export const MyDay = ({ onClose }) => {
                 <Choice emoji="🌱" title={t('md_role_none')} on={a.role === 'none'} onPress={() => answer({ role: 'none' })} />
               </Q>
             ) : cur === 'uni' || cur === 'work' ? (
-              <Q n={step + 1} of={list.length} title={t(cur === 'uni' ? 'md_q_uni' : 'md_q_work')}>
-                {['m', 'd', 'e'].map((k) => { const h = HOURS[cur][k]; return (
-                  <Choice key={k} emoji={k === 'm' ? '🌅' : k === 'd' ? '☀️' : '🌆'} title={t('md_slot_' + k)} sub={hm(h[0], h[1]) + ' – ' + hm(h[2], h[3])} on={a[cur] === k} onPress={() => answer({ [cur]: k })} />
-                ); })}
+              <Q n={step + 1} of={list.length} title={t(cur === 'uni' ? 'md_q_uni2' : 'md_q_work2')}>
+                <Hours key={cur} kind={cur} t={t} lang={lang}
+                  value={a[cur] && typeof a[cur] === 'object' ? a[cur] : { ...blockOf(a, cur), days: a[cur] ? blockOf(a, cur).days : (lang === 'ar' ? DAYS.sun : DAYS.mon) }}
+                  onDone={(v) => answer({ [cur]: v })} />
               </Q>
-            ) : cur === 'days' ? (
-              <Q n={step + 1} of={list.length} title={t('md_q_days')}>
-                <Choice emoji="📅" title={t('md_days_sun')} on={a.days === 'sun'} onPress={() => answer({ days: 'sun' })} />
-                <Choice emoji="📅" title={t('md_days_mon')} on={a.days === 'mon'} onPress={() => answer({ days: 'mon' })} />
-                <Choice emoji="🔁" title={t('md_days_all')} on={a.days === 'all'} onPress={() => answer({ days: 'all' })} />
+            ) : cur === 'faith' ? (
+              <Q n={step + 1} of={list.length} title={t('md_q_faith')}>
+                <Choice emoji="🕌" title={t('md_faith_muslim')} on={faithOf(a) === 'muslim'} onPress={() => answer({ faith: 'muslim', pray: undefined })} />
+                <Choice emoji="⛪" title={t('md_faith_christian')} on={faithOf(a) === 'christian'} onPress={() => answer({ faith: 'christian', pray: undefined })} />
+                <Choice emoji="➖" title={t('md_faith_none')} on={faithOf(a) === 'none'} onPress={() => answer({ faith: 'none', pray: undefined })} />
               </Q>
-            ) : cur === 'pray' ? (
-              <Q n={step + 1} of={list.length} title={t('md_q_pray')}>
-                <Choice emoji="🕌" title={t('md_pray_yes')} on={a.pray === true} onPress={() => answer({ pray: true })} />
-                <Choice emoji="➖" title={t('md_pray_no')} on={a.pray === false} onPress={() => answer({ pray: false, at: null })} />
+            ) : cur === 'church' ? (
+              <Q n={step + 1} of={list.length} title={t('md_q_church')}>
+                <Church value={a.church} t={t} lang={lang} onDone={(v) => answer({ church: v })} />
               </Q>
             ) : cur === 'loc' ? (
               <Q n={step + 1} of={list.length} title={t('md_q_loc')}>
                 {locBusy ? <ActivityIndicator color={C.purple} style={{ marginVertical: 20 }} /> : (
                   <>
                     <Choice emoji="📍" title={t('md_loc_btn')} onPress={useLocation} />
-                    <Choice emoji="⏭️" title={t('md_loc_skip')} onPress={() => answer({ pray: false })} />
+                    <Choice emoji="⏭️" title={t('md_loc_skip')} onPress={() => answer({ faith: 'none' })} />
                   </>
                 )}
               </Q>
@@ -482,7 +665,7 @@ export const MyDay = ({ onClose }) => {
                   </Pressable>
                 );
               }) : null}
-              {a.pray ? <Text style={{ color: C.faint, fontSize: 12, lineHeight: 17, marginTop: 4 }}>{t('md_pray_note')}</Text> : null}
+              {muslim(a) ? <Text style={{ color: C.faint, fontSize: 12, lineHeight: 17, marginTop: 4 }}>{t('md_pray_note')}</Text> : null}
 
               <Pressable onPress={toCalendar} accessibilityRole="button" style={{ marginTop: 18 }}>
                 <View style={{ borderRadius: 999, backgroundColor: C.purple, paddingVertical: 15, alignItems: 'center', flexDirection: 'row', justifyContent: 'center' }}>
@@ -491,6 +674,7 @@ export const MyDay = ({ onClose }) => {
                 </View>
               </Pressable>
               <Text style={{ color: C.dim, fontSize: 12.5, lineHeight: 18, marginTop: 8, textAlign: 'center' }}>{calNote || t('md_cal_sub')}</Text>
+              {muslim(a) ? <Text style={{ color: C.faint, fontSize: 12, lineHeight: 17, marginTop: 6, textAlign: 'center' }}>{t('md_cal_refresh')}</Text> : null}
             </View>
           )}
         </ScrollView>
@@ -507,7 +691,7 @@ export const MyDay = ({ onClose }) => {
    holding the Moments logo), each one line that is true right now.
    Here, beside My day, because they read the same plan. */
 const nextPrayer = (a, now) => {
-  if (!a || !a.pray || !a.at) return null;
+  if (!a || !muslim(a)) return null;
   for (let i = 0; i < 2; i++) {
     const d = new Date(now); d.setDate(d.getDate() + i);
     const p = prayerTimes(d, a.at.lat, a.at.lng);

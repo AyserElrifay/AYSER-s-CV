@@ -11,14 +11,15 @@ const pad = (n) => String(n).padStart(2, '0');
 const stamp = (d) => d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + 'T' + pad(d.getHours()) + pad(d.getMinutes()) + '00';
 const esc = (s) => String(s || '').replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/,/g, '\\,').replace(/;/g, '\\;');
 
-/* events: [{ title, start: Date, minutes, days?: ['MO',…] | 'daily', alarm?: minutes before (0 = at the time) }] */
+/* events: [{ uid?, title, start: Date, minutes, days?: ['MO',…] | 'daily', alarm?: minutes before (0 = at the time) }] */
 export function buildIcs(events) {
   const now = stamp(new Date());
   const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Moments//My day//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', 'X-WR-CALNAME:Moments · My day'];
   events.forEach((e, i) => {
     const end = new Date(e.start.getTime() + Math.max(5, e.minutes || 15) * 60000);
     lines.push('BEGIN:VEVENT');
-    lines.push('UID:moments-myday-' + now + '-' + i + '@therealmoments.com');
+    // the same id every time for the same reminder, so adding again updates it instead of doubling it
+    lines.push('UID:' + (e.uid ? 'moments-myday-' + e.uid : 'moments-myday-' + now + '-' + i) + '@therealmoments.com');
     lines.push('DTSTAMP:' + now);
     lines.push('DTSTART:' + stamp(e.start));
     lines.push('DTEND:' + stamp(end));
