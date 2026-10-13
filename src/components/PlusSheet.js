@@ -92,13 +92,21 @@ export const PlusSheet = ({ onClose, why }) => {
         {note ? <Text style={{ color: C.gold, fontSize: 12.5, textAlign: 'center', marginTop: 6 }}>{note}</Text> : null}
 
         {/* an early-member offer, where there is one (plus_prices) */}
-        {price && price.offer ? (
+        {price && price.offer && p && p.payments_online ? (
           <View style={{ marginTop: 14, borderRadius: 16, backgroundColor: 'rgba(245,179,1,0.14)', padding: 12 }}>
             <Text style={{ color: C.gold, fontSize: 14, fontWeight: '900' }}>{'🎉 ' + t('px_offer')}</Text>
             <Text style={{ color: '#E6E4EE', fontSize: 12.5, lineHeight: 18, marginTop: 3 }}>{t('px_offer_sub')}</Text>
           </View>
         ) : null}
-        {p == null ? <ActivityIndicator color={C.gold} style={{ marginVertical: 18 }} /> : trial ? (
+        {p == null ? <ActivityIndicator color={C.gold} style={{ marginVertical: 18 }} /> : !p.payments_online ? (
+          /* payments are coming soon: everyone is on Plus, as a thank-you */
+          <View style={{ marginTop: 16, borderRadius: 18, borderWidth: 1.5, borderColor: C.gold, padding: 16 }}>
+            <Text style={{ color: C.gold, fontSize: 15.5, fontWeight: '900' }}>{'✦ ' + t('px_gift_title')}</Text>
+            <Text style={{ color: '#E6E4EE', fontSize: 14, lineHeight: 21, marginTop: 8 }}>{t('px_gift_body')}</Text>
+            <Text style={{ color: '#F9F9F6', fontSize: 14, fontWeight: '800', marginTop: 10 }}>{t('px_gift_sign')}</Text>
+            <Text style={{ color: '#8E8AA3', fontSize: 12, marginTop: 10 }}>{t('px_pay_soon_line')}</Text>
+          </View>
+        ) : trial ? (
           <Text style={{ color: C.gold, fontSize: 15, fontWeight: '900', textAlign: 'center', marginTop: 16 }}>
             {until ? t('px_trial_until').replace('{date}', day(until)) : t('px_you')}
           </Text>

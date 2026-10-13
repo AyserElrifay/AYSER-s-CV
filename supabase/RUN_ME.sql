@@ -14933,6 +14933,27 @@ grant execute on function public.owner_venue_commission(uuid, numeric) to authen
 notify pgrst, 'reload schema';
 
 -- ═══════════════════════════════════════════════════════════════════
+--  PAYMENTS COMING SOON · PLUS AS A THANK-YOU
+--  Ayser: "خلي الدفع coming soon دلوقتي" — and everyone enjoys the paid
+--  plan free, as a thank-you to the first people on Moments. While
+--  online payments are switched off (the Studio's payments_online),
+--  everybody signed in is Plus; switching payments on brings the prices
+--  and the limits back on their own.
+--  Safe to re-run.
+-- ═══════════════════════════════════════════════════════════════════
+create or replace function public.is_plus(u uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select u is not null and (
+    not coalesce((select value = 'true'::jsonb from public.app_settings where key = 'payments_online'), false)
+    or (public.plus_price() is null and exists (select 1 from public.app_settings s where s.key = 'plus_free_until'
+              and (s.value is null or s.value = 'null'::jsonb or (s.value #>> '{}')::timestamptz > now())))
+    or exists (select 1 from public.plus_members m where m.user_id = u and m.status = 'active'
+                 and (m.until is null or m.until > now())));
+$$;
+
+notify pgrst, 'reload schema';
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة
