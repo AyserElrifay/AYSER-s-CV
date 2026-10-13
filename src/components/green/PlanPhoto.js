@@ -35,6 +35,7 @@ const STOCK = [
   { id: 'swim', re: /swim|pool|سباح|حمام سباحة|🏊/i, files: n('act-swim-', 2) },
   { id: 'read', re: /\bread|\bbook|library|كتاب|قراء|مكتب[ةه]|📚|📖|\bfocus\b/i, files: n('act-read-', 6) },
   { id: 'coffee', re: /coffee|caf[eé]|espresso|latte|قهو|كافيه|☕/i, files: n('act-coffee-', 3).concat(clip('act-coffee-v', 2)) },
+  { id: 'movie', re: /movie|cinema|film|سينما|فيلم|افلام|أفلام|🍿|🎬/i, files: clip('act-movie-v', 1).map((x) => ({ ...x, own: true })) },
   { id: 'beach', re: /beach|\bsea\b|seaside|شاطئ|بحر|🏖|🌊/i, files: n('act-beach-', 1).concat(clip('act-beach-v', 2)) },
   { id: 'church', re: /church|monastery|كنيس|⛪/i, files: [{ img: 'cave-church-2.jpg' }, { img: 'cave-church-3.jpg' }].map((x) => ({ ...x, own: true })) },
   { id: 'rooftop', re: /rooftop|\broof\b|الروف|روف توب|سطوح/i, files: [{ img: 'rooftop-giza.jpg', own: true }] },

@@ -8,10 +8,10 @@ export const DESTINATIONS = [
   /* Places in Palestine and Israel are not listed (Ayser's decision
      for the places-to-go list); the map itself still shows the world. */
   // ── 🇪🇬 EGYPT ──
-  { id: 'eg_cave_church', photo: 'place-eg-cave-church.jpg', country: 'Egypt', flag: '🇪🇬', emoji: '⛪', name: 'St. Simon Cave Church', area: 'Mokattam, Cairo',
+  { id: 'eg_cave_church', photo: 'place-eg-cave-church.jpg', photos: ['cave-church-2.jpg', 'cave-church-3.jpg'], country: 'Egypt', flag: '🇪🇬', emoji: '⛪', name: 'St. Simon Cave Church', area: 'Mokattam, Cairo',
     lat: 30.0329, lng: 31.2757, tags: ['Culture', 'Calm'],
     desc: 'A breathtaking monastery carved straight into Mokattam mountain. Vast rock-hewn halls, a deeply peaceful vibe, and one of Cairo\'s most surreal escapes from the noise.' },
-  { id: 'eg_mario_ropes', photo: 'place-eg-mario-ropes.jpg', country: 'Egypt', flag: '🇪🇬', emoji: '🧗', name: 'Mario High Ropes', area: 'Mokattam, Cairo',
+  { id: 'eg_mario_ropes', photo: 'place-eg-mario-ropes.jpg', photos: ['mario-ferrata.jpg', 'mario-crew.jpg', 'mario-mirror.jpg', 'act-climb-1.jpg'], country: 'Egypt', flag: '🇪🇬', emoji: '🧗', name: 'Mario High Ropes', area: 'Mokattam, Cairo',
     lat: 30.0341, lng: 31.2744, tags: ['Adrenaline', 'Groups'],
     desc: 'Ropes courses and ziplines strung between the rocky heights next to the Cave Church. Physical challenges for every fitness level — perfect for a crew day out.' },
   { id: 'eg_giza_complex', photo: 'place-eg-giza-complex.jpg', credit: 'Pexels', hero: true, country: 'Egypt', flag: '🇪🇬', emoji: '🐫', name: 'Giza Pyramids Plateau', area: 'Giza',

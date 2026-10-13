@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Image, Pressable, Linking, Platform } from 'react-native';
+import { View, Text, Image, Pressable, Linking, Platform, ScrollView } from 'react-native';
 import { C } from '../constants/theme';
 import { useLang } from '../context/LanguageContext';
 import { placePhoto } from '../lib/commonsPhoto';
@@ -17,6 +17,26 @@ import { isSaving } from '../lib/dataSaver';
    credit line because it is ours. Some carry a short silent clip of
    his instead (`video`, with `photo` as its still): it plays muted on a
    loop, and on data saver only the still shows. */
+
+/* a place with several of our own photos (\`photos\`): swipe through them */
+const Gallery = ({ place, height }) => {
+  const [w, setW] = useState(0);
+  const [at, setAt] = useState(0);
+  const list = [place.photo].concat(place.photos.filter((x) => x !== place.photo));
+  return (
+    <View onLayout={(e) => setW(e.nativeEvent.layout.width)} style={{ width: '100%', height, borderRadius: 16, overflow: 'hidden', backgroundColor: C.glassHi }}>
+      {w ? (
+        <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" scrollEventThrottle={64}
+          onScroll={(e) => { const i = Math.round(e.nativeEvent.contentOffset.x / w); if (i !== at) setAt(i); }}>
+          {list.map((f) => <Image key={f} source={{ uri: publicMedia(f) }} accessibilityLabel={place.name} style={{ width: w, height }} />)}
+        </ScrollView>
+      ) : null}
+      <View pointerEvents="none" style={{ position: 'absolute', bottom: 8, left: 0, right: 0, flexDirection: 'row', justifyContent: 'center' }}>
+        {list.map((f, i) => <View key={f} style={{ width: i === at ? 14 : 6, height: 6, borderRadius: 3, marginHorizontal: 2, backgroundColor: i === at ? '#FFF' : 'rgba(255,255,255,0.55)' }} />)}
+      </View>
+    </View>
+  );
+};
 
 export const PlacePhoto = ({ place, height = 180 }) => {
   const { t } = useLang();
@@ -38,7 +58,9 @@ export const PlacePhoto = ({ place, height = 180 }) => {
               style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
           </View>
         ) : (
-          <Image source={{ uri: own }} accessibilityLabel={place.name} style={{ width: '100%', height, borderRadius: 16, backgroundColor: C.glassHi }} />
+          place.photos && place.photos.length ? <Gallery place={place} height={height} /> : (
+            <Image source={{ uri: own }} accessibilityLabel={place.name} style={{ width: '100%', height, borderRadius: 16, backgroundColor: C.glassHi }} />
+          )
         )}
         {/* a free-licence photo says where it came from */}
         {place.credit ? <Text style={{ color: C.faint, fontSize: 10.5, marginTop: 5 }} numberOfLines={1}>{t('photo_from').replace('{who}', place.credit)}</Text> : null}

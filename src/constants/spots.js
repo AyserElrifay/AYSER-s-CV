@@ -49,6 +49,7 @@ export const SPOTS = [
   { id: 'playhaus_maadi', kind: 'fun', name: 'The Playhaus', area: 'Maadi', what: 'boardgames' },
   { id: 'bunker_golden_square', kind: 'fun', name: 'Bunker', area: 'One Golden Square, New Cairo', what: 'bowling' },
   { id: 'ground_control_d5', kind: 'fun', name: 'Ground Control', area: 'District 5, New Cairo', what: 'bowling' },
+  { id: 'golf_city_cinema_obour', kind: 'fun', name: 'Golf City Cinema', area: 'Golf City Mall, Obour', what: 'cinema' },
   { id: 'autovrooom_obour', kind: 'fun', name: 'Autovrooom', area: 'Avenue Mall, Obour', what: 'karting' },
   { id: 'autovrooom_new_cairo', kind: 'fun', name: 'Autovrooom', area: 'New Cairo', what: 'karting' },
   { id: 'ascent_zayed', kind: 'fun', name: 'Ascent Indoor Climbing', area: 'Sheikh Zayed', what: 'climbing' },
