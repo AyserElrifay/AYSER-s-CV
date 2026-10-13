@@ -52,6 +52,7 @@ import { ROOM_CODES } from '../constants/countryRoomIndex';
 const LandingSheet = lazyOverlay(() => import('../components/LandingSheet').then((mod) => ({ default: mod.LandingSheet })));
 const CircleSheet = lazyOverlay(() => import('../components/CircleSheet').then((mod) => ({ default: mod.CircleSheet })));
 const TripsSheet = lazyOverlay(() => import('../components/TripsSheet').then((mod) => ({ default: mod.TripsSheet })));
+const PlacesFeed = lazyOverlay(() => import('../components/PlacesFeed').then((mod) => ({ default: mod.PlacesFeed })));
 /* The country room — what to say, what to eat and what nobody writes
    down, for the country this place is in. Lazy: its content is 75 KB
    and most sessions never open it. */
@@ -397,7 +398,7 @@ export const MapScreen = () => {
   const hasPanel = lens === 'all' || lens === 'activities' || lens === 'people';
   const panelUp = hasPanel && panelOpen;
   const aboveBottom = lens === 'people' ? PEOPLE_PANEL_PEEK + 12
-    : hasPanel ? MAP_PANEL_PEEK + (lens === 'activities' ? MAP_PANEL_CHIPS : 0) + 12 : 196;
+    : hasPanel ? MAP_PANEL_PEEK + (lens === 'activities' ? MAP_PANEL_CHIPS : 0) + 12 : lens === 'places' ? 252 : 196;   // places: room for "See all … in photos"
   const joinFromMap = async (g) => {
     if (joiningG[g.id]) return;
     tapLight();
@@ -457,6 +458,7 @@ export const MapScreen = () => {
 
   /* ── curated destination sheet: guide + reviews + Uber ── */
   const [destOpen, setDestOpen] = useState(null);
+  const [feedOpen, setFeedOpen] = useState(false);   // every place as a big photo card (PlacesFeed)
   /* Where a city turns into a journey: the real flight, stay and car
      searches, already filled in. See components/TravelSheet.js for why
      it deliberately shows no prices of its own. */
@@ -1099,6 +1101,12 @@ export const MapScreen = () => {
       ) : null}
       {lens === 'places' ? (
       <View style={{ position: 'absolute', bottom: 14, left: 0, right: 0 }}>
+        <Pressable onPress={() => { tapLight(); setFeedOpen(true); }} accessibilityRole="button" style={{ marginHorizontal: 16, marginBottom: 10 }}>
+          <View style={{ backgroundColor: C.text, borderRadius: 999, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+            <Ionicons name="images-outline" size={17} color={C.bg} />
+            <Text style={{ color: C.bg, fontSize: 14.5, fontWeight: '900', marginStart: 8 }}>{t('pf_open').replace('{n}', String(DESTINATIONS.length))}</Text>
+          </View>
+        </Pressable>
         <View style={{ flexDirection: 'row', marginLeft: 16, marginBottom: 8 }}>
           {[{ k: 'book', label: '📅 Book' }, { k: 'deals', label: '🧳 ' + t('bk_tile') }].map((o) => (
             <Pressable key={o.k} onPress={() => { tapSelection(); setRail(o.k); }}>
@@ -1888,6 +1896,8 @@ export const MapScreen = () => {
           </Pressable>
         </Pressable>
       ) : null}
+
+      {feedOpen ? <PlacesFeed places={DESTINATIONS} onClose={() => setFeedOpen(false)} onOpen={(d) => openDest(d)} /> : null}
 
       {/* curated destination — the guide sheet: story, reviews, Uber */}
       {destOpen ? (

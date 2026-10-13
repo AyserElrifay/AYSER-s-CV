@@ -155,7 +155,7 @@ export const OffersTab = ({ userId }) => {
         </View>
         <Field label="Photos — one per line (real ones only)" value={form.photos} onChange={set('photos')} multi ph="media/welcome-dahab.jpg" />
         <Btn label={busy ? 'Uploading…' : '＋ Upload a photo'} onPress={upload} disabled={busy} />
-        <Field label="Video (media/… or a link; plays silently on the trip page)" value={form.video} onChange={set('video')} ph="media/offer-siwa.mp4" />
+        <Field label="Video (media/… or a link; plays silently on the trip page)" value={form.video} onChange={set('video')} ph="media/offer-marsa.mp4" />
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 6 }}>
           {lines(form.photos).map((p, i) => <Image key={i} source={{ uri: photoUrl(p) }} style={{ width: 70, height: 70, borderRadius: 8, marginEnd: 6, marginTop: 6, backgroundColor: C.glassHi }} />)}
         </View>

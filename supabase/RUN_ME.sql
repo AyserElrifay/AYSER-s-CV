@@ -13121,7 +13121,8 @@ $$;
 revoke execute on function public.offer_set_video(uuid, text) from public, anon;
 grant execute on function public.offer_set_video(uuid, text) to authenticated;
 
-update public.offers set video = 'media/offer-siwa.mp4', photos = array['media/offer-siwa.jpg','media/place-shali.jpg'] where id = '0ffe0000-0000-4000-8000-000000000003';
+-- Siwa: no video (Ayser asked for it to be taken down); its stills stay
+update public.offers set video = null, photos = array['media/offer-siwa.jpg','media/place-shali.jpg'] where id = '0ffe0000-0000-4000-8000-000000000003';
 update public.offers set video = 'media/offer-marsa.mp4', photos = array['media/offer-marsa.jpg','media/offer-marsa-sea.jpg','media/place-marsa-reef.jpg'] where id = '0ffe0000-0000-4000-8000-000000000004';
 update public.offers set video = 'media/offer-alex.mp4', photos = array['media/offer-alex.jpg'] where id = '0ffe0000-0000-4000-8000-000000000006';
 insert into public.offers (id, kind, status, operator, title, title_ar, city, country, lat, lng, photos, video, price, currency, pay_modes)
@@ -13291,3 +13292,11 @@ values
 on conflict (id) do nothing;
 
 notify pgrst, 'reload schema';
+
+-- ═══════════════════════════════════════════════════════════════════
+--  SIWA · THE VIDEO COMES DOWN
+--  Ayser: "فديو سيوه امسحه". The trip keeps its photos.
+--  Safe to re-run.
+-- ═══════════════════════════════════════════════════════════════════
+update public.offers set video = null where id = '0ffe0000-0000-4000-8000-000000000003';
+update public.offers set video = null where video in ('media/offer-siwa.mp4', 'media/place-shali.mp4');
