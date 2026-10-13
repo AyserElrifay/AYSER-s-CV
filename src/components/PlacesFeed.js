@@ -11,6 +11,59 @@ import { lastFix } from '../services/squadAdmin';
 import { tapLight, tapSelection } from '../utils/feedback';
 import { useSheetBack } from '../hooks/useSheetBack';
 import { openPartner } from '../lib/partnerLink';
+import { lazyOverlay } from '../lib/lazyScreen';
+import { SPOTS, SPOT_KINDS, directionsUrl } from '../constants/spots';
+
+const GoNowSheet = lazyOverlay(() => import('./GoNowSheet').then((m) => ({ default: m.GoNowSheet })));
+
+/* Out in Cairo (src/constants/spots.js): real places by name and area —
+   directions open the maps app on the place's own name, and a plan
+   there is one tap. No guessed pins, no borrowed photos. */
+const Spots = ({ t, onPlan }) => {
+  const [kind, setKind] = useState('cafe');
+  const list = SPOTS.filter((s) => s.kind === kind);
+  const k = SPOT_KINDS.find((x) => x.id === kind);
+  return (
+    <View style={{ marginTop: 6, marginBottom: 14 }}>
+      <Text style={{ color: C.text, fontSize: 18, fontWeight: '900' }}>{'🏙️ ' + t('sp_title')}</Text>
+      <Text style={{ color: C.dim, fontSize: 13, marginTop: 2, marginBottom: 10 }}>{t('sp_sub')}</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ marginBottom: 10 }}>
+        {SPOT_KINDS.map((x) => (
+          <Pressable key={x.id} onPress={() => { tapSelection(); setKind(x.id); }} style={{ marginEnd: 8 }}>
+            <View style={{ borderRadius: 999, borderWidth: 1.5, borderColor: kind === x.id ? C.text : C.line, backgroundColor: kind === x.id ? C.text : C.glass, paddingHorizontal: 13, paddingVertical: 8 }}>
+              <Text style={{ color: kind === x.id ? C.bg : C.text, fontSize: 13.5, fontWeight: '800' }}>{x.emoji + ' ' + t('sp_k_' + x.id)}</Text>
+            </View>
+          </Pressable>
+        ))}
+      </ScrollView>
+      {list.map((s) => (
+        <View key={s.id} style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 18, borderWidth: 1, borderColor: C.line, backgroundColor: C.glass, padding: 12, marginBottom: 8 }}>
+          <LinearGradient colors={tintOf(s.id)} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ width: 48, height: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginEnd: 12 }}>
+            <Text style={{ fontSize: 22 }}>{k.emoji}</Text>
+          </LinearGradient>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: C.text, fontSize: 15, fontWeight: '900' }} numberOfLines={1}>{s.name}</Text>
+            <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 1 }} numberOfLines={1}>{t('sp_w_' + s.what)}</Text>
+            <Text style={{ color: C.faint, fontSize: 12, marginTop: 1 }} numberOfLines={1}>{'📍 ' + s.area}</Text>
+          </View>
+          <Pressable onPress={() => { tapLight(); try { Linking.openURL(directionsUrl(s)); } catch (e) {} }} accessibilityRole="link" accessibilityLabel={t('sp_directions')} hitSlop={6} style={{ marginStart: 6 }}>
+            <View style={{ width: 38, height: 38, borderRadius: 19, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="navigate-outline" size={17} color={C.text} />
+            </View>
+          </Pressable>
+          <Pressable onPress={() => { tapLight(); onPlan(s); }} accessibilityRole="button" hitSlop={6} style={{ marginStart: 6 }}>
+            <View style={{ borderRadius: 999, backgroundColor: C.purple, paddingHorizontal: 12, paddingVertical: 9 }}>
+              <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '900' }}>{t('sp_plan')}</Text>
+            </View>
+          </Pressable>
+        </View>
+      ))}
+      <Pressable onPress={() => { tapLight(); openPartner('place'); }} accessibilityRole="button" style={{ marginTop: 2 }}>
+        <Text style={{ color: C.purple, fontSize: 13, fontWeight: '800' }}>{t('sp_claim')}</Text>
+      </Pressable>
+    </View>
+  );
+};
 
 /* ─── PLACES, AS BIG AS THEIR PHOTOS ───────────────────────────────────
    Ayser: "طريقه عرض hype احسن". A list where every place is a full-width
@@ -112,6 +165,7 @@ const Card = ({ place, dist, onOpen, t }) => (
    a list two lazy pieces both import gets pulled into the first
    download, and this one is ninety kilobytes */
 export const PlacesFeed = ({ onClose, onOpen, places }) => {
+  const [planAt, setPlanAt] = useState(null);       // a spot somebody wants to make a plan at
   const DESTINATIONS = places || [];
   useSheetBack(onClose);
   const insets = useSafeAreaInsets();
@@ -136,6 +190,8 @@ export const PlacesFeed = ({ onClose, onOpen, places }) => {
     DESTINATIONS.forEach((d) => { const k = d.country; if (!n[k]) n[k] = { name: k, flag: d.flag, n: 0 }; n[k].n += 1; });
     return Object.values(n).sort((a, b) => b.n - a.n);
   }, [DESTINATIONS.length]);
+  /* Out in Cairo sits at the top for people in Egypt, or who chose Egypt */
+  const egypt = where ? where.name === 'Egypt' : !!(here && here.lat > 22 && here.lat < 32 && here.lng > 24 && here.lng < 37);
   const shown = all.filter((x) => (!tag || (x.d.tags || []).includes(tag)) && (!where || x.d.country === where.name));
 
   return (
@@ -186,6 +242,7 @@ export const PlacesFeed = ({ onClose, onOpen, places }) => {
                 </Pressable>
               ))}
             </ScrollView>
+            {egypt && !tag ? <Spots t={t} onPlan={setPlanAt} /> : null}
           </View>
         )}
         renderItem={({ item }) => <Card place={item.d} dist={item.dist} onOpen={onOpen} t={t} />}
@@ -193,7 +250,7 @@ export const PlacesFeed = ({ onClose, onOpen, places }) => {
           <View>
               {/* coming through Moments: said once, plainly, not dressed up as places */}
               <View style={{ flexDirection: 'row', marginTop: 6 }}>
-                {[['☕', 'pf_soon_cafes'], ['🛏️', 'pf_soon_stays']].map(([e, k], i) => (
+                {[['🛏️', 'pf_soon_stays']].map(([e, k], i) => (
                   <Pressable key={k} onPress={() => { tapLight(); openPartner('place'); }} accessibilityRole="button" style={{ flex: 1, marginEnd: i === 0 ? 10 : 0 }}>
                     <View style={{ borderRadius: 16, borderWidth: 1, borderStyle: 'dashed', borderColor: C.line, padding: 12, minHeight: 84 }}>
                       <Text style={{ fontSize: 20 }}>{e}</Text>
@@ -206,6 +263,7 @@ export const PlacesFeed = ({ onClose, onOpen, places }) => {
           </View>
         )}
       />
+      {planAt ? <GoNowSheet onClose={() => setPlanAt(null)} initialTitle={planAt.name} initialPlace={planAt.name + ', ' + planAt.area} /> : null}
     </View>
   );
 };
