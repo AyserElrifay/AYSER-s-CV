@@ -17,6 +17,8 @@ const clip = (pre, k) => Array.from({ length: k }, (_, i) => ({ img: pre + (i + 
 const STOCK = [
   { re: /foot|soccer|كور|⚽/i, files: n('sport-football-', 5) },
   { re: /sketch|draw|رسم|اسكتش|✏️|🎨|\bart\b/i, files: n('art-sketch-', 5) },
+  { re: /padel|بادل|tennis|تنس|🎾/i, files: n('act-padel-', 4).concat(clip('act-padel-v', 4)) },
+  { re: /walk|hike|hiking|trail|stroll|مشي|تمشي|مشوار|🥾|🚶/i, files: n('act-walk-', 5).concat(clip('act-walk-v', 1)) },
   { re: /swim|pool|سباح|حمام سباحة|🏊/i, files: n('act-swim-', 2) },
   { re: /beach|\bsea\b|seaside|شاطئ|بحر|🏖|🌊/i, files: n('act-beach-', 1).concat(clip('act-beach-v', 2)) },
   { re: /\bread|\bbook|library|كتاب|قراء|مكتب[ةه]|📚|📖|\bfocus\b/i, files: n('act-read-', 6) },
@@ -128,7 +130,7 @@ export const PlanHead = ({ g, children }) => {
   const own = planPhotoOf(g);
   const url = own || (place && safe(place.url));
   const look = lookOf(g && g.kind);
-  /* a football, sketching, swimming, beach, reading or coffee plan with
+  /* a football, sketching, padel, walk, swimming, beach, reading or coffee plan with
      no photo of its own: a real photo of the activity (Pexels, credited) — the game, not this game */
   const ball = !url ? stockOf(g) : null;
   if (ball) {
