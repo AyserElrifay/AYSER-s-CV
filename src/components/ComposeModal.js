@@ -22,6 +22,9 @@ import { TagPeoplePicker } from './TagPeoplePicker';
 import { tagPeople } from '../services/tags';
 import { UP_FOR, monthOptions } from '../constants/travel';
 import { useSheetBack } from '../hooks/useSheetBack';
+import { keptGatherings } from '../services/green';
+import { lastFix } from '../services/squadAdmin';
+import { placesNear } from '../lib/placePoints';
 
 /* The creation studio — one place to share a Moment, a Reel, or a
    Story. Shoot from the camera or pick from the gallery, add a sound
@@ -52,7 +55,36 @@ export const ComposeModal = ({ initialMode = 'post', initialCaption = '', initia
   const [here, setHere] = useState(null);           // { lat, lng } | 'busy' | null
   const fromPlace = initialPlace && initialPlace.lat != null && initialPlace.lng != null && place.trim() === String(initialPlace.name || '').trim()
     ? { lat: initialPlace.lat, lng: initialPlace.lng } : null;
-  const spot = fromPlace || (here && here !== 'busy' ? here : null);
+  /* ── A MOMENT FROM AN OUTING BELONGS TO THE OUTING ─────────────────
+     Ayser: "خلّي إلزامي لما تنزّل صورة Moments تحط اللوكيشن بسهولة،
+     وMoments يربط الصورة بأماكن الخروج اللي على الخريطة أو في Together —
+     بس لو صورة خروجة". So the first question is whether it is. If it
+     is, where it was is required — and one tap: the Together plans you
+     joined today, and the places on the map near you. Picking one ties
+     the moment to it (its real spot, and the plan), so it shows on that
+     place's page. Not from an outing (a thought, something at home):
+     no place asked, and nothing goes on the map. */
+  const [outing, setOuting] = useState(true);
+  const [picked, setPicked] = useState(null);      // { name, lat, lng, gid? } — a real spot chosen from the list
+  const pickedNow = picked && place.trim() === picked.name ? picked : null;
+  const spot = pickedNow || fromPlace || (here && here !== 'busy' ? here : null);
+  const [nearPlaces, setNearPlaces] = useState([]);
+  const myPlans = React.useMemo(() => {
+    const now = Date.now();
+    return (keptGatherings(null) || []).filter((g) => g.im_going && g.lat != null && g.lng != null
+      && Math.abs(new Date(g.starts_at).getTime() - now) < 12 * 3600 * 1000).slice(0, 4);
+  }, []);
+  React.useEffect(() => {
+    if (!outing || fromPlace) return undefined;
+    const at = (here && here !== 'busy') ? here : lastFix();
+    if (!at) { setNearPlaces([]); return undefined; }
+    let alive = true;
+    /* the list of places is loaded only when it is needed, so the
+       composer does not pull the whole map list into every download */
+    placesNear(at, 5, 5).then((r) => { if (alive) setNearPlaces(r.map((d) => ({ d, k: d.km }))); }).catch(() => {});
+    return () => { alive = false; };
+  }, [outing, here && here.lat, here && here.lng]);
+  const choose = (name, lat, lng, gid) => { tapSuccess(); setPlace(name); setPicked({ name, lat, lng, gid: gid || null }); setError(null); };
   const pinHere = async () => {
     if (here) { setHere(null); return; }
     setHere('busy');
@@ -133,7 +165,9 @@ export const ComposeModal = ({ initialMode = 'post', initialCaption = '', initia
     if (!isStory && !isTravel && !intent) { setError(t('intent_need')); return; }
     /* every moment in the feed is tied to somewhere: that is what makes
        it something to go to rather than something to scroll past */
-    if (!isStory && !isTravel && !place.trim()) { setError(t('feed_need_place')); return; }
+    if (!isStory && !isTravel && outing && !place.trim()) { setError(t('feed_need_place')); return; }
+    // an outing needs a real spot, so it can sit on the map and on the place's page
+    if (!isStory && !isTravel && outing && !spot) { setError(t('cmp_need_spot')); return; }
     setError(null);
     setBusy(true);
     try {
@@ -164,9 +198,10 @@ export const ComposeModal = ({ initialMode = 'post', initialCaption = '', initia
           userId: user.id,
           type: isReel ? 'reel' : isTravel ? 'travel' : 'post',
           caption: caption.trim(),
-          place: place.trim() || null,
-          lat: spot ? spot.lat : null,
-          lng: spot ? spot.lng : null,
+          place: (outing || isTravel) && place.trim() ? place.trim() : null,
+          lat: outing && spot ? spot.lat : null,
+          lng: outing && spot ? spot.lng : null,
+          gatheringId: outing && pickedNow ? pickedNow.gid : null,
           mediaUrl,
           textBg: mediaUrl || textBg === 'plain' ? null : textBg,
           plan,
@@ -216,7 +251,7 @@ export const ComposeModal = ({ initialMode = 'post', initialCaption = '', initia
           caption: caption.trim(),
           plan,
           intent: intent === 'warning' ? 'warning' : 'hangout',
-          place: place.trim() || null,
+          place: (outing || isTravel) && place.trim() ? place.trim() : null,
           startsIn: 'Live now',
           coords: null,
           sound,
@@ -508,8 +543,46 @@ export const ComposeModal = ({ initialMode = 'post', initialCaption = '', initia
             ) : null}
           </View>
 
-          {/* place — for Moments & Reels */}
-          {!isStory ? (
+          {/* from an outing? — and if so, where, in one tap */}
+          {!isStory && !isTravel ? (
+            <View style={{ flexDirection: 'row', marginTop: 12 }}>
+              {[[true, '🧭 ' + t('cmp_outing_yes')], [false, '🏠 ' + t('cmp_outing_no')]].map(([v, label]) => (
+                <Pressable key={String(v)} onPress={() => { setOuting(v); setError(null); }} accessibilityRole="radio" accessibilityState={{ selected: outing === v }} style={{ marginRight: 8 }}>
+                  <View style={{ borderRadius: 999, borderWidth: 1, borderColor: outing === v ? C.purple : C.line, backgroundColor: outing === v ? C.purpleSoft : C.glass, paddingHorizontal: 13, paddingVertical: 7 }}>
+                    <Text style={{ color: outing === v ? C.purple : C.dim, fontSize: 12.5, fontWeight: '800' }}>{label}</Text>
+                  </View>
+                </Pressable>
+              ))}
+            </View>
+          ) : null}
+          {!isStory && !isTravel && outing && !fromPlace && (myPlans.length || nearPlaces.length) ? (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ marginTop: 10 }}>
+              {myPlans.map((g) => {
+                const nm = g.place_name || g.title;
+                const on = pickedNow && pickedNow.gid === g.id;
+                return (
+                  <Pressable key={'g' + g.id} onPress={() => choose(nm, g.lat, g.lng, g.id)} style={{ marginRight: 8 }}>
+                    <View style={{ borderRadius: 999, borderWidth: 1, borderColor: on ? C.green : C.line, backgroundColor: on ? C.greenSoft : C.glass, paddingHorizontal: 12, paddingVertical: 7, maxWidth: 230 }}>
+                      <Text style={{ color: C.text, fontSize: 12.5, fontWeight: '800' }} numberOfLines={1}>{'🌿 ' + (g.title || nm)}</Text>
+                    </View>
+                  </Pressable>
+                );
+              })}
+              {nearPlaces.map(({ d, k }) => {
+                const on = pickedNow && pickedNow.name === d.name;
+                return (
+                  <Pressable key={'d' + d.id} onPress={() => choose(d.name, d.lat, d.lng)} style={{ marginRight: 8 }}>
+                    <View style={{ borderRadius: 999, borderWidth: 1, borderColor: on ? C.green : C.line, backgroundColor: on ? C.greenSoft : C.glass, paddingHorizontal: 12, paddingVertical: 7 }}>
+                      <Text style={{ color: C.text, fontSize: 12.5, fontWeight: '800' }} numberOfLines={1}>{d.emoji + ' ' + d.name + ' · ' + (k < 1 ? Math.round(k * 1000) + ' m' : k.toFixed(1) + ' km')}</Text>
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          ) : null}
+
+          {/* place — for Moments & Reels; only asked for an outing */}
+          {!isStory && (outing || isTravel) ? (
             <View
               style={{
                 flexDirection: 'row', alignItems: 'center', marginTop: 12,

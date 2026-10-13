@@ -13669,3 +13669,19 @@ revoke all on function public.studio_set_standing(uuid, text) from public, anon;
 grant execute on function public.studio_set_standing(uuid, text) to authenticated;
 
 notify pgrst, 'reload schema';
+
+-- ═══════════════════════════════════════════════════════════════════
+--  MOMENTS FROM AN OUTING · TIED TO THE PLAN THEY CAME FROM
+--
+--  Ayser: a moment from an outing must say where, easily, and Moments
+--  ties it to the places on the map or in Together. The place side
+--  needed nothing new: a moment carries the real spot it was picked
+--  from, and the place's page shows the moments within 400 m of it.
+--  This is the Together side: which plan it came from.
+--  Safe to re-run.
+-- ═══════════════════════════════════════════════════════════════════
+alter table public.posts add column if not exists gathering_id uuid
+  references public.green_gatherings(id) on delete set null;
+create index if not exists posts_gathering_idx on public.posts (gathering_id) where gathering_id is not null;
+
+notify pgrst, 'reload schema';

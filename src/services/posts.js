@@ -266,7 +266,7 @@ export async function fetchTravelPlans({ q = '', limit = 40 } = {}) {
   return rows.slice(0, limit);
 }
 
-export async function createPost({ userId, type = 'post', caption, place, mediaUrl, thumbUrl, durationSec, textBg, lat, lng, squadName, sound, soundReuse, plan, intent }) {
+export async function createPost({ userId, type = 'post', caption, place, mediaUrl, thumbUrl, durationSec, textBg, lat, lng, squadName, sound, soundReuse, plan, intent, gatheringId }) {
   let payload = {
     user_id: userId,
     type,
@@ -290,6 +290,8 @@ export async function createPost({ userId, type = 'post', caption, place, mediaU
     text_bg: textBg,
     lat,
     lng,
+    // the Together plan this moment came from, when it was picked from the list
+    gathering_id: gatheringId || null,
     squad_name: squadName,
     sound_title: sound ? sound.title : null,
     sound_artist: sound ? sound.artist : null,

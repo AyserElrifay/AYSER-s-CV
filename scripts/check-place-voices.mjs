@@ -18,7 +18,7 @@ is('a heads-up is marked as one', /p\.intent === 'warning'/.test(voices) && /pv_
 is('only stories still live', /\.gt\('expires_at', new Date\(\)\.toISOString\(\)\)/.test(stories.slice(stories.indexOf('fetchStoriesNearby'))), true);
 is('both the real places and the curated ones have it', /<PlaceVoices place=\{placeOpen\}/.test(map) && /<PlaceVoices place=\{destOpen\}/.test(map), true);
 is('"share it here" opens the composer on that place', /setComposeAt\(\{ name: pl\.name, lat: pl\.lat, lng: pl\.lng \}\)/.test(map) && /initialPlace=\{composeAt\}/.test(map), true);
-is('the post carries the place\'s real spot', /lat: spot \? spot\.lat : null/.test(compose), true);
+is('the post carries the place\'s real spot', /lat: (outing && )?spot \? spot\.lat : null/.test(compose), true);
 is('a renamed place drops the spot — a typed name is not a spot', /place\.trim\(\) === String\(initialPlace\.name \|\| ''\)\.trim\(\)/.test(compose), true);
 is('your own location only when you ask', /const \[here, setHere\] = useState\(null\)/.test(compose) && /onPress=\{pinHere\}/.test(compose), true);
 is('a tall place sheet scrolls', /a place with stories, photos and words is taller than a phone: it scrolls/.test(map), true);

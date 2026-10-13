@@ -36,6 +36,8 @@ import { note } from '../lib/crashLog';
 import { isOwner } from '../services/music';
 import { LENSES, drawLens, placeOnFace } from './lensArt';
 import { tapLight, tapMedium, tapSuccess, tapSelection } from '../utils/feedback';
+import { keptGatherings } from '../services/green';
+import { placesNear } from '../lib/placePoints';
 import { getCurrentCoords } from '../utils/location';
 import { sfxPop, sfxSuccess } from '../utils/sfx';
 import { setupNotice } from '../lib/plumbing';
@@ -738,6 +740,25 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
   const [mapCoords, setMapCoords] = useState(null);
   const [placeName, setPlaceName] = useState('');
   const [gpsBusy, setGpsBusy] = useState(false);
+  /* once it is on the map: the places and today's Together plans right
+     where you are, one tap each, so the moment is tied to the outing
+     (its real spot, its plan) rather than a typed name */
+  const [capPicks, setCapPicks] = useState([]);
+  const [capGid, setCapGid] = useState(null);
+  useEffect(() => {
+    if (!onMap || !mapCoords) { setCapPicks([]); return undefined; }
+    let alive = true;
+    const at = { lat: mapCoords.latitude, lng: mapCoords.longitude };
+    const now = Date.now();
+    const plans = (keptGatherings(null) || []).filter((g) => g.im_going && g.lat != null && g.lng != null
+      && Math.abs(new Date(g.starts_at).getTime() - now) < 12 * 3600 * 1000).slice(0, 3)
+      .map((g) => ({ key: 'g' + g.id, label: '🌿 ' + (g.title || g.place_name), name: g.place_name || g.title, lat: g.lat, lng: g.lng, gid: g.id }));
+    placesNear(at, 5, 4).then((r) => {
+      if (!alive) return;
+      setCapPicks(plans.concat(r.map((d) => ({ key: 'd' + d.id, label: d.emoji + ' ' + d.name, name: d.name, lat: d.lat, lng: d.lng }))));
+    }).catch(() => setCapPicks(plans));
+    return () => { alive = false; };
+  }, [onMap, mapCoords && mapCoords.latitude, mapCoords && mapCoords.longitude]);
 
   const toggleOnMap = async () => {
     tapLight();
@@ -1893,6 +1914,7 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
             place: onMap ? (placeName.trim() || null) : null,
             lat: onMap && mapCoords ? mapCoords.latitude : null,
             lng: onMap && mapCoords ? mapCoords.longitude : null,
+            gatheringId: onMap ? capGid : null,
           });
           onPosted && onPosted(row);
         } else {
@@ -1901,6 +1923,7 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
             place: onMap ? (placeName.trim() || null) : null,
             lat: onMap && mapCoords ? mapCoords.latitude : null,
             lng: onMap && mapCoords ? mapCoords.longitude : null,
+            gatheringId: onMap ? capGid : null,
           });
           if (sound && sound.audio_url) { incrementTrackUse(sound.id); publishSound(sound.id); }
           onPosted && onPosted({
@@ -2815,6 +2838,20 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
                       </Text>
                     </View>
                   </Pressable>
+                  {onMap && capPicks.length ? (
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ marginTop: 8 }}>
+                      {capPicks.map((x) => {
+                        const on = placeName === x.name;
+                        return (
+                          <Pressable key={x.key} onPress={() => { tapSelection(); setPlaceName(x.name); setMapCoords({ latitude: x.lat, longitude: x.lng }); setCapGid(x.gid || null); }} style={{ marginRight: 8 }}>
+                            <View style={{ borderRadius: 999, borderWidth: 1, borderColor: on ? C.green : 'rgba(255,255,255,0.35)', backgroundColor: on ? 'rgba(16,185,129,0.35)' : 'rgba(0,0,0,0.55)', paddingHorizontal: 12, paddingVertical: 7, maxWidth: 220 }}>
+                              <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '800' }} numberOfLines={1}>{x.label}</Text>
+                            </View>
+                          </Pressable>
+                        );
+                      })}
+                    </ScrollView>
+                  ) : null}
                   {onMap ? (
                     <View style={{ marginTop: 8, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)', paddingHorizontal: 12, paddingVertical: Platform.OS === 'ios' ? 10 : 2 }}>
                       <TextInput

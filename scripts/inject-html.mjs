@@ -255,3 +255,17 @@ console.log('index.html patched: PWA + OG tags');
   fs.writeFileSync(path.join(root, 'precache.json'), JSON.stringify(out));
   console.log('precache.json: ' + out.length + ' files');
 }
+
+/* ─── THE PLACES, SMALL ───────────────────────────────────────────────
+   The composer suggests the places near you when a moment is from an
+   outing. Importing the full list (descriptions and all) into the
+   composer pulled ninety kilobytes into everybody's first download, so
+   the build writes just what a suggestion needs — id, name, emoji and
+   where — to places.json, fetched only when somebody posts. */
+{
+  const { pathToFileURL } = await import('url');
+  const mod = await import(pathToFileURL(path.join(process.cwd(), 'src/constants/destinations.js')).href);
+  const pts = (mod.DESTINATIONS || []).map((d) => [d.id, d.name, d.emoji, d.lat, d.lng]);
+  fs.writeFileSync(path.join(process.cwd(), dist, 'places.json'), JSON.stringify(pts));
+  console.log('places.json: ' + pts.length + ' places');
+}
