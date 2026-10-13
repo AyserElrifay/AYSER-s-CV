@@ -11,13 +11,14 @@ import { isSaving } from '../../lib/dataSaver';
 
 /* activities Ayser sent real free photos and clips for (Pexels,
    credited): the activity, never "this plan". A clip carries its own
-   still (same name, .jpg), shown first and on data saver. */
-const n = (pre, k) => Array.from({ length: k }, (_, i) => ({ img: pre + (i + 1) + '.jpg' }));
+   still (same name, .jpg), shown first and on data saver. A few are
+   Ayser's own (padel-ayser-*, by Shahd Elzayaat) and carry her name. */
+const n = (pre, k, credit) => Array.from({ length: k }, (_, i) => ({ img: pre + (i + 1) + '.jpg', credit }));
 const clip = (pre, k) => Array.from({ length: k }, (_, i) => ({ img: pre + (i + 1) + '.jpg', clip: pre + (i + 1) + '.mp4' }));
 const STOCK = [
   { re: /foot|soccer|كور|⚽/i, files: n('sport-football-', 5) },
   { re: /sketch|draw|رسم|اسكتش|✏️|🎨|\bart\b/i, files: n('art-sketch-', 5) },
-  { re: /padel|بادل|tennis|تنس|🎾/i, files: n('act-padel-', 4).concat(clip('act-padel-v', 4)) },
+  { re: /padel|بادل|tennis|تنس|🎾/i, files: n('act-padel-', 4).concat(clip('act-padel-v', 4), n('padel-ayser-', 4, 'Shahd Elzayaat')) },
   { re: /walk|hike|hiking|trail|stroll|مشي|تمشي|مشوار|🥾|🚶/i, files: n('act-walk-', 5).concat(clip('act-walk-v', 1)) },
   { re: /swim|pool|سباح|حمام سباحة|🏊/i, files: n('act-swim-', 2) },
   { re: /beach|\bsea\b|seaside|شاطئ|بحر|🏖|🌊/i, files: n('act-beach-', 1).concat(clip('act-beach-v', 2)) },
@@ -147,7 +148,7 @@ export const PlanHead = ({ g, children }) => {
             <Text style={{ fontSize: 16 }}>{look.emoji}</Text>
           </View>
           <View style={{ position: 'absolute', right: 6, bottom: 6, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 6, paddingHorizontal: 5, paddingVertical: 1 }}>
-            <Text style={{ color: '#FFF', fontSize: 9.5 }}>📷 Pexels</Text>
+            <Text style={{ color: '#FFF', fontSize: 9.5 }}>{ball.credit ? '📷 ' + ball.credit : '📷 Pexels'}</Text>
           </View>
         </View>
         {children}
