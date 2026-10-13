@@ -27,6 +27,7 @@ import { recent, clearCrashes, asText } from '../lib/crashLog';
 import { SheetHandle } from './SheetHandle';
 import { OffersTab } from './OffersTab';
 import { PartnersTab } from './PartnersTab';
+import { PeopleTab } from './PeopleTab';
 import { useSheetBack } from '../hooks/useSheetBack';
 
 /* ─── MOMENTS STUDIO · the owner's control panel ──────────────────────
@@ -38,6 +39,7 @@ import { useSheetBack } from '../hooks/useSheetBack';
    area means the owner only. The server enforces this on every call;
    hiding a tab is only so nobody is shown a door that will not open. */
 const TABS = [
+  { k: 'people', label: 'People', icon: 'person-circle-outline', area: 'safety' },
   { k: 'safety', label: 'Safety', icon: 'shield-outline', area: 'safety' },
   { k: 'reports', label: 'Reports', icon: 'flag-outline', area: 'safety' },
   { k: 'hosts', label: 'Guides', icon: 'id-card-outline', area: 'verify' },
@@ -839,6 +841,7 @@ export const AdminPanel = ({ onClose, access = { owner: true } }) => {
           {tab === 'highlights' && owner ? <HighlightsTab userId={user && user.id} /> : null}
           {tab === 'offers' && owner ? <OffersTab userId={user && user.id} /> : null}
           {tab === 'partners' && owner ? <PartnersTab /> : null}
+          {tab === 'people' ? <PeopleTab /> : null}
           {tab === 'activity' && owner ? (
             act == null ? <Empty t="Run the latest SQL (part 26) to see the team's activity here." /> : (
               <>

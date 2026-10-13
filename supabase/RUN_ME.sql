@@ -13563,3 +13563,109 @@ select '9a0e0000-0000-4000-8000-00000000a001', p.id,
 on conflict (id) do nothing;
 
 notify pgrst, 'reload schema';
+
+-- ═══════════════════════════════════════════════════════════════════
+--  STUDIO · PEOPLE — FIND SOMEBODY, TAKE A POST DOWN, HOLD OR CLOSE
+--
+--  Ayser: "خليني في الموقع ده أقدر أتحكم: امسح منشورات، اقفل اكونتات،
+--  اعمل بلوك لحد لغاية ما ياخد الـ one to one".
+--
+--  The hold and the closing already existed, but only as the result of
+--  a confirmed report. These let the Studio do it directly to a person:
+--    · hold   — 'coach': no messages, posts, plans or joins until the
+--               one-to-one session; the person sees why and can ask
+--               for the session (SafetyHold), and it is lifted from here;
+--    · close  — 'closed': nothing at all;
+--    · reopen — back to normal. Strikes are kept as history.
+--  Plus their recent posts and stories, each removable. Safety area of
+--  the Studio (owner, or a team member with the safety role), and every
+--  action goes in the Studio log.
+--  Safe to re-run.
+-- ═══════════════════════════════════════════════════════════════════
+create or replace function public.studio_find_people(q text)
+returns jsonb language plpgsql stable security definer set search_path = public, auth as $$
+declare s text := trim(coalesce(q, ''));
+begin
+  if not public.studio_can('safety') then return '[]'::jsonb; end if;
+  if char_length(s) < 2 then return '[]'::jsonb; end if;
+  return coalesce((
+    select jsonb_agg(x order by x->>'name') from (
+      select jsonb_build_object(
+               'id', p.id, 'name', p.name, 'handle', p.handle, 'avatar_url', p.avatar_url,
+               'city', p.city, 'country_flag', p.country_flag,
+               'created_at', p.created_at, 'last_active_at', p.last_active_at,
+               'email', case when public.is_app_owner() then u.email end,
+               'state', st.state, 'strikes', coalesce(st.strikes, 0), 'coach_asked_at', st.coach_asked_at,
+               'posts', (select count(*) from public.posts x where x.user_id = p.id)) x
+        from public.profiles p
+        left join auth.users u on u.id = p.id
+        left join public.safety_standing st on st.user_id = p.id
+       where p.name ilike '%' || s || '%'
+          or p.handle ilike '%' || s || '%'
+          or p.id::text = s
+          or (public.is_app_owner() and u.email ilike '%' || s || '%')
+       limit 30) q), '[]'::jsonb);
+end $$;
+revoke all on function public.studio_find_people(text) from public, anon;
+grant execute on function public.studio_find_people(text) to authenticated;
+
+create or replace function public.studio_person_content(p_user uuid)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select case when not public.studio_can('safety') then '{}'::jsonb else jsonb_build_object(
+    'posts', coalesce((select jsonb_agg(jsonb_build_object('id', x.id, 'type', x.type, 'caption', x.caption,
+                         'media_url', x.media_url, 'thumb_url', x.thumb_url, 'created_at', x.created_at) order by x.created_at desc)
+                         from (select * from public.posts where user_id = p_user order by created_at desc limit 40) x), '[]'::jsonb),
+    'stories', coalesce((select jsonb_agg(jsonb_build_object('id', x.id, 'caption', x.caption, 'media_url', x.media_url,
+                         'created_at', x.created_at) order by x.created_at desc)
+                         from (select * from public.stories where user_id = p_user and expires_at > now() order by created_at desc limit 20) x), '[]'::jsonb)
+  ) end;
+$$;
+revoke all on function public.studio_person_content(uuid) from public, anon;
+grant execute on function public.studio_person_content(uuid) to authenticated;
+
+create or replace function public.studio_remove_content(p_kind text, p_id uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare who uuid;
+begin
+  if not public.studio_can('safety') then return jsonb_build_object('ok', false, 'reason', 'not_allowed'); end if;
+  if p_kind = 'post' then
+    delete from public.posts where id = p_id returning user_id into who;
+  elsif p_kind = 'story' then
+    delete from public.stories where id = p_id returning user_id into who;
+  else
+    return jsonb_build_object('ok', false, 'reason', 'kind');
+  end if;
+  if who is null then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
+  perform public.studio_log_add('removed a ' || p_kind, (select name from public.profiles where id = who));
+  return jsonb_build_object('ok', true);
+end $$;
+revoke all on function public.studio_remove_content(text, uuid) from public, anon;
+grant execute on function public.studio_remove_content(text, uuid) to authenticated;
+
+create or replace function public.studio_set_standing(p_user uuid, p_state text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare nm text;
+begin
+  if not public.studio_can('safety') then return jsonb_build_object('ok', false, 'reason', 'not_allowed'); end if;
+  if p_state not in ('coach', 'closed', 'clear') then return jsonb_build_object('ok', false, 'reason', 'state'); end if;
+  if p_user = auth.uid() then return jsonb_build_object('ok', false, 'reason', 'self'); end if;
+  -- the Studio's own people are not held from the Studio
+  if exists (select 1 from public.team_members where user_id = p_user and disabled_at is null)
+     or exists (select 1 from auth.users where id = p_user and lower(email) = 'ayseryourlifecoach@gmail.com') then
+    return jsonb_build_object('ok', false, 'reason', 'team');
+  end if;
+  select name into nm from public.profiles where id = p_user;
+  if nm is null then return jsonb_build_object('ok', false, 'reason', 'no_user'); end if;
+  insert into public.safety_standing (user_id, strikes, state, coach_asked_at, updated_at)
+  values (p_user, 0, nullif(p_state, 'clear'), null, now())
+  on conflict (user_id) do update
+    set state = nullif(p_state, 'clear'), coach_asked_at = null, updated_at = now();
+  insert into public.notifications (user_id, actor_id, kind, body)
+  values (p_user, auth.uid(), 'safety', case p_state when 'coach' then 'strike' when 'closed' then 'closed' else 'back' end);
+  perform public.studio_log_add(case p_state when 'coach' then 'held until a one-to-one' when 'closed' then 'closed an account' else 'reopened an account' end, nm);
+  return jsonb_build_object('ok', true, 'state', nullif(p_state, 'clear'));
+end $$;
+revoke all on function public.studio_set_standing(uuid, text) from public, anon;
+grant execute on function public.studio_set_standing(uuid, text) to authenticated;
+
+notify pgrst, 'reload schema';
