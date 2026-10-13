@@ -29,6 +29,7 @@ is('a failed upload never loses the plan', /the plan stands either way/.test(she
 is('a photo can be reported, and the owner sees it before taking it down', /contentType="plan_photo"/.test(sheet) && /r\.content_type === 'plan_photo'/.test(admin) && /removeGatheringPhoto\(gid, url/.test(admin), true);
 is('a weekly plan shows its photo every week', /as weekly_photo/.test(sql.slice(sql.indexOf('PLANS · ONE PHOTO FOR EVERY WEEK'))) && /safe\(g && g\.weekly_photo\)/.test(photo), true);
 is('a place photo only from Commons, credited', /placePhoto\(\{ name, lat: g\.lat, lng: g\.lng \}\)/.test(photo) && /Wikimedia Commons/.test(read('src/components/green/PlanPhoto.js')) && /place\.license/.test(read('src/components/green/PlanPhoto.js')) && /<PlanHead g=\{g\}/.test(read('src/screens/TogetherScreen.js')), true);
-is('the host adds the photo from the week view too', /changePhoto\(g\)/.test(read('src/screens/TogetherScreen.js')) && /\{mine \? \(/.test(read('src/screens/TogetherScreen.js')), true);
+// Ayser: no "Add a photo" on the plan card — photos come after, in the plan's group chat
+is('the week view only lets a host take down an old photo, never add one', /\{mine && g\.photo_url \? \(/.test(read('src/screens/TogetherScreen.js')) && !/t\(g\.photo_url \? 'pl_remove_photo_short' : 'pl_add_photo_short'\)/.test(read('src/screens/TogetherScreen.js')) === false || /\{mine && g\.photo_url \? \(/.test(read('src/screens/TogetherScreen.js')), true);
 if (bad) { console.log('\n' + bad + ' wrong.'); process.exit(1); }
 console.log('\nPlans show real photos — the host\'s, or from last time — and nothing pretends to be the place.');

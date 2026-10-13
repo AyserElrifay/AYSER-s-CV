@@ -419,9 +419,11 @@ export const TogetherScreen = () => {
                         {expanded && !mine ? <Text style={{ color: C.faint, fontSize: 11.5, lineHeight: 16, marginTop: 8 }}>{t('hc_liability')}</Text> : null}
                         {/* photos people really took there last time */}
                         {expanded ? <PastPhotos g={g} t={t} onReport={(u) => reportPhoto(g, u)} /> : null}
-                        {expanded && (mine || (g.lat != null && g.lng != null)) ? (
+                        {/* no "Add a photo" on the card: photos come after, from the people who
+                            went, in the plan's own group chat. A host can still take down an old one. */}
+                        {expanded && ((mine && g.photo_url) || (g.lat != null && g.lng != null)) ? (
                           <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 10 }}>
-                            {mine ? (
+                            {mine && g.photo_url ? (
                               <Pressable onPress={() => { tapLight(); changePhoto(g); }} disabled={photoBusy === g.id} accessibilityRole="button"
                                 style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, backgroundColor: C.purpleSoft, paddingHorizontal: 11, paddingVertical: 7, marginEnd: 8, opacity: photoBusy === g.id ? 0.5 : 1 }}>
                                 <Ionicons name={g.photo_url ? 'trash-outline' : 'camera-outline'} size={14} color={C.purple} />
