@@ -21,7 +21,7 @@ import { appLink, shareLink, shareNote } from '../utils/share';
    and pays the people who work at the gatherings — said here plainly,
    with no invented percentages. */
 const GIVES = ['help', 'crew', 'perks', 'future'];
-const PERKS = [['join', '🤝'], ['papyrus', '🌾'], ['focus', '🪁'], ['trips', '🧳'], ['icons', '🎨'], ['widgets', '🧩']];
+const PERKS = [['join', '🤝'], ['light', '💬'], ['papyrus', '🌾'], ['focus', '🪁'], ['trips', '🧳'], ['icons', '🎨'], ['widgets', '🧩']];
 
 const money = (n, cur, lang) => {
   try { return new Intl.NumberFormat(lang === 'ar' ? 'ar-EG' : lang || 'en', { style: 'currency', currency: cur, maximumFractionDigits: 0 }).format(n); } catch (e) { return n + ' ' + cur; }
@@ -91,6 +91,13 @@ export const PlusSheet = ({ onClose, why }) => {
         ) : null}
         {note ? <Text style={{ color: C.gold, fontSize: 12.5, textAlign: 'center', marginTop: 6 }}>{note}</Text> : null}
 
+        {/* an early-member offer, where there is one (plus_prices) */}
+        {price && price.offer ? (
+          <View style={{ marginTop: 14, borderRadius: 16, backgroundColor: 'rgba(245,179,1,0.14)', padding: 12 }}>
+            <Text style={{ color: C.gold, fontSize: 14, fontWeight: '900' }}>{'🎉 ' + t('px_offer')}</Text>
+            <Text style={{ color: '#E6E4EE', fontSize: 12.5, lineHeight: 18, marginTop: 3 }}>{t('px_offer_sub')}</Text>
+          </View>
+        ) : null}
         {p == null ? <ActivityIndicator color={C.gold} style={{ marginVertical: 18 }} /> : trial ? (
           <Text style={{ color: C.gold, fontSize: 15, fontWeight: '900', textAlign: 'center', marginTop: 16 }}>
             {until ? t('px_trial_until').replace('{date}', day(until)) : t('px_you')}

@@ -14603,6 +14603,173 @@ grant execute on function public.my_light_left() to authenticated;
 notify pgrst, 'reload schema';
 
 -- ═══════════════════════════════════════════════════════════════════
+--  ONE PRICE, IN EVERY COUNTRY'S MONEY · AN EARLY-MEMBER OFFER
+--
+--  Ayser: "التسعيرة ما يعادل ٥ ونص يورو، تمن كوباية قهوة أو بيرة … كل
+--  بلد هنترجم العملة … والأوفر ثابت في كذا بلد" and "خلي كل أكونت ليه
+--  two hangouts free بعد كده يدفع الاشتراك".
+--  · plus_prices: a default (5.50 EUR a month) and, per country (ISO
+--    code), the same price in that country's money — or a fixed
+--    early-member offer (Egypt: 150 EGP a month). A year is ten months.
+--    The owner changes them in the Studio (owner_set_setting).
+--  · plus_price() now answers for the person asking, from the flag on
+--    their profile; the payment page uses the buyer's own country.
+--  · Your first two hangouts with other people are free; the third
+--    asks for Plus (green_join). Leaving and your own stay free.
+--  Safe to re-run (the prices are only written the first time).
+-- ═══════════════════════════════════════════════════════════════════
+insert into public.app_settings (key, value) values ('plus_prices', jsonb_build_object(
+  'default', jsonb_build_object('month', 5.5, 'year', 55, 'currency', 'EUR'),
+  'countries', jsonb_build_object(
+    'EG', jsonb_build_object('month', 150, 'year', 1500, 'currency', 'EGP', 'offer', true),
+    'RO', jsonb_build_object('month', 27, 'year', 270, 'currency', 'RON'),
+    'CZ', jsonb_build_object('month', 135, 'year', 1350, 'currency', 'CZK'),
+    'GB', jsonb_build_object('month', 4.75, 'year', 47.5, 'currency', 'GBP'),
+    'TR', jsonb_build_object('month', 200, 'year', 2000, 'currency', 'TRY', 'offer', true),
+    'SA', jsonb_build_object('month', 22, 'year', 220, 'currency', 'SAR'),
+    'AE', jsonb_build_object('month', 22, 'year', 220, 'currency', 'AED'))))
+on conflict (key) do nothing;
+
+create or replace function public.country_of(u uuid)
+returns text language sql stable security definer set search_path = public as $$
+  select case when length(f) >= 2 and ascii(substr(f, 1, 1)) between 127462 and 127487
+              then chr(ascii(substr(f, 1, 1)) - 127397) || chr(ascii(substr(f, 2, 1)) - 127397) end
+    from (select coalesce(country_flag, '') as f from public.profiles where id = u) x;
+$$;
+revoke execute on function public.country_of(uuid) from public, anon, authenticated;
+
+create or replace function public.plus_price_for(u uuid)
+returns jsonb language sql stable security definer set search_path = public as $$
+  with s as (select value from public.app_settings where key = 'plus_prices'),
+       old as (select case when value is null or value = 'null'::jsonb then null else value end as v from public.app_settings where key = 'plus_price')
+  select coalesce(
+    (select (s.value -> 'countries' -> public.country_of(u)) || jsonb_build_object('country', public.country_of(u)) from s
+      where s.value -> 'countries' ? coalesce(public.country_of(u), '')),
+    (select s.value -> 'default' from s where s.value ? 'default'),
+    (select v from old));
+$$;
+revoke execute on function public.plus_price_for(uuid) from public, anon, authenticated;
+
+create or replace function public.plus_price()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select public.plus_price_for(auth.uid());
+$$;
+revoke execute on function public.plus_price() from public, anon;
+grant execute on function public.plus_price() to authenticated;
+
+create or replace function public.owner_set_setting(p_key text, p_value jsonb)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  if not public.owner_ok() then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
+  if p_key not in ('plus_free_until', 'payments_online', 'plus_price', 'plus_prices', 'bookings_sheet_hook') then return jsonb_build_object('ok', false, 'reason', 'key'); end if;
+  if p_key = 'plus_price' and p_value is not null and p_value <> 'null'::jsonb and not (
+       jsonb_typeof(p_value -> 'month') = 'number' and (p_value ->> 'month')::numeric > 0
+   and jsonb_typeof(p_value -> 'year') = 'number' and (p_value ->> 'year')::numeric > 0
+   and coalesce(p_value ->> 'currency', '') ~ '^[A-Z]{3}$') then
+    return jsonb_build_object('ok', false, 'reason', 'price');
+  end if;
+  if p_key = 'bookings_sheet_hook' and p_value is not null and p_value <> 'null'::jsonb and (p_value #>> '{}') !~ '^https://script\.google\.com/' then
+    return jsonb_build_object('ok', false, 'reason', 'url');
+  end if;
+  insert into public.app_settings (key, value, updated_at) values (p_key, p_value, now())
+  on conflict (key) do update set value = excluded.value, updated_at = now();
+  return jsonb_build_object('ok', true);
+end;
+$$;
+revoke execute on function public.owner_set_setting(text, jsonb) from public, anon;
+grant execute on function public.owner_set_setting(text, jsonb) to authenticated;
+
+create or replace function public.plus_order_for_payment(p_plan text, p_user uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare pr jsonb := public.plus_price_for(p_user); amt numeric; c text;
+begin
+  if pr is null or p_plan not in ('month', 'year') then return jsonb_build_object('ok', false, 'reason', 'no_price'); end if;
+  if not coalesce((select value = 'true'::jsonb from public.app_settings where key = 'payments_online'), false) then
+    return jsonb_build_object('ok', false, 'reason', 'offline');
+  end if;
+  if (select count(*) from public.plus_orders where user_id = p_user and created_at > now() - interval '1 hour') >= 10 then
+    return jsonb_build_object('ok', false, 'reason', 'slow_down');
+  end if;
+  amt := (pr ->> p_plan)::numeric;
+  c := 'MP-' || upper(substr(md5(gen_random_uuid()::text), 1, 6));
+  insert into public.plus_orders (user_id, plan, amount, currency, code) values (p_user, p_plan, amt, pr ->> 'currency', c);
+  return jsonb_build_object('ok', true, 'code', c, 'total', amt, 'currency', pr ->> 'currency',
+                            'title', 'Moments Plus · ' || p_plan, 'email', (select email from auth.users where id = p_user));
+end;
+$$;
+revoke execute on function public.plus_order_for_payment(text, uuid) from public, anon, authenticated;
+
+create or replace function public.green_join(p_id uuid, p_going boolean)
+returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare
+  me uuid := auth.uid();
+  g  public.green_gatherings%rowtype;
+  n  int;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  select * into g from public.green_gatherings where id = p_id;
+  if not found then return jsonb_build_object('ok', false, 'reason', 'no_gathering'); end if;
+  if g.cancelled_at is not null then return jsonb_build_object('ok', false, 'reason', 'cancelled'); end if;
+
+  if coalesce(p_going, true) then
+    -- your first two hangouts are free; after that, Plus
+    if g.host_id <> me and not public.is_plus(me)
+       and not exists (select 1 from public.green_joins where gathering_id = p_id and user_id = me)
+       and (select count(*) from public.green_joins j join public.green_gatherings o on o.id = j.gathering_id
+             where j.user_id = me and o.host_id <> me) >= 2 then
+      return jsonb_build_object('ok', false, 'reason', 'plus');
+    end if;
+    -- girls only / guys only, read from the profile, never from the app
+    if coalesce(g.audience, 'all') <> 'all' and g.host_id <> me then
+      if coalesce((select gender from public.profiles where id = me), '') = '' then
+        return jsonb_build_object('ok', false, 'reason', 'audience_gender');
+      elsif g.audience = 'women' and (select gender from public.profiles where id = me) <> 'f' then
+        return jsonb_build_object('ok', false, 'reason', 'audience_women');
+      elsif g.audience = 'men' and (select gender from public.profiles where id = me) <> 'm' then
+        return jsonb_build_object('ok', false, 'reason', 'audience_men');
+      end if;
+    end if;
+    -- an age group, read from the age on the profile
+    if (g.age_min is not null or g.age_max is not null) and g.host_id <> me then
+      if (select age from public.profiles where id = me) is null then
+        return jsonb_build_object('ok', false, 'reason', 'age_unknown');
+      elsif (select age from public.profiles where id = me) < coalesce(g.age_min, 0)
+         or (select age from public.profiles where id = me) > coalesce(g.age_max, 200) then
+        return jsonb_build_object('ok', false, 'reason', 'age_out');
+      end if;
+    end if;
+    if g.capacity is not null then
+      select count(*) into n from public.green_joins where gathering_id = p_id;
+      if n >= g.capacity and not exists (
+        select 1 from public.green_joins where gathering_id = p_id and user_id = me
+      ) then
+        return jsonb_build_object('ok', false, 'reason', 'full');
+      end if;
+    end if;
+    insert into public.green_joins (gathering_id, user_id) values (p_id, me) on conflict do nothing;
+  else
+    delete from public.green_joins where gathering_id = p_id and user_id = me;
+  end if;
+
+  select count(*) into n from public.green_joins where gathering_id = p_id;
+  return jsonb_build_object('ok', true, 'going', n, 'im_going', coalesce(p_going, true));
+end;
+$$;
+grant execute on function public.green_join(uuid, boolean) to authenticated;
+
+-- how many free hangouts are left, for the Plus screen
+create or replace function public.my_free_hangouts()
+returns int language sql stable security definer set search_path = public as $$
+  select greatest(0, 2 - (select count(*) from public.green_joins j join public.green_gatherings o on o.id = j.gathering_id
+                           where j.user_id = auth.uid() and o.host_id <> auth.uid()))::int;
+$$;
+revoke execute on function public.my_free_hangouts() from public, anon;
+grant execute on function public.my_free_hangouts() to authenticated;
+
+notify pgrst, 'reload schema';
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة
