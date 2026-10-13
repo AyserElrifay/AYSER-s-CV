@@ -19,6 +19,10 @@ const clip = (pre, k) => Array.from({ length: k }, (_, i) => ({ img: pre + (i + 
 /* what you DO comes first (a sunset walk is a walk); where it happens —
    the beach, a church, a rooftop — only when nothing else matched */
 const STOCK = [
+  /* Ayser asked for these two under volunteering; their pictures come
+     when he sends them — until then they keep their drawn cover */
+  { id: 'animals', re: /animal|shelter|rescue|strays?\b|\bpets?\b|حيوان|قطط|كلاب|ملجأ|ملجا|🐾|🐶|🐱/i, files: [] },
+  { id: 'cleanup', re: /clean|litter|pick-?up|trash|garbage|تنضيف|تنظيف|نضافة|نظافة|زبال|🧹/i, files: [] },
   { id: 'kids', re: /orphan|\bkids\b|children|child care|أيتام|ايتام|اطفال|أطفال/i, files: clip('act-kids-v', 1).concat([{ img: 'sport-football-1.jpg' }], [1, 2, 3, 4, 5].map((k) => ({ img: 'act-kids-' + k + (k === 1 || k === 3 ? 'w' : '') + '.jpg' }))) },
   { id: 'volunteer', re: /volunteer|charity|donat|food bank|تطوع|متطوع|خيري|تبرع/i, files: n('act-volunteer-', 3).concat([{ img: 'sport-football-1.jpg' }], [1, 2, 3, 4, 5].map((k) => ({ img: 'act-kids-' + k + (k === 1 || k === 3 ? 'w' : '') + '.jpg' }))) },
   { id: 'talk', re: /language|exchange|conversation|\bspeak|english|\bcircle\b|لغات|لغة|لغه|تبادل|محادث|دردش|كلام|💬/i, files: n('act-talk-', 6) },
@@ -46,8 +50,8 @@ const STOCK = [
 const order = new Map();
 const stockOf = (g) => {
   const s = String((g && g.title) || '') + ' ' + String((g && g.kind) || '');
-  const hit = STOCK.find((x) => x.re.test(s));
-  if (!hit) return null;
+  const hit = STOCK.find((x) => x.files.length && x.re.test(s));
+  if (!hit || !hit.files.length) return null;
   if (!order.has(hit.id)) order.set(hit.id, new Map());
   const seen = order.get(hit.id);
   const key = String((g && g.id) || s);

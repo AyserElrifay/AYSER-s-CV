@@ -1957,6 +1957,8 @@ export const STRINGS = {
     sk_talk: "Speak a little, laugh a lot. Every accent is welcome here.",
     sk_movie: "Popcorn, the lights go down, and a film to talk about after.",
     sp_w_cinema: "Cinema",
+    sk_animals: "Walk a dog, feed the cats, clean a kennel. They can't say thanks, but you'll feel it.",
+    sk_cleanup: "Gloves on, bags out, music on. One street cleaner by the end of the morning.",
     lens_all: 'Everything',
     lens_places: 'Places to go',
     lens_people: 'People',
