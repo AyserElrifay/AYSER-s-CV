@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, Modal, Pressable, ScrollView, ActivityIndicator, Animated, Easing } from 'react-native';
+import { View, Text, Modal, Pressable, ScrollView, ActivityIndicator, Animated, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { C } from '../constants/theme';
@@ -8,6 +8,8 @@ import { BrainDump } from './BrainDump';
 import { prayerTimes } from '../lib/prayerTimes';
 import { buildIcs, openIcs } from '../lib/ics';
 import { lastFix } from '../services/squadAdmin';
+import { keptGatherings, listGatherings } from '../services/green';
+import { goToTab } from '../lib/mapBus';
 import { getCurrentCoords } from '../utils/location';
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
 import { useSheetBack } from '../hooks/useSheetBack';
@@ -35,6 +37,33 @@ const write = (v) => { try { if (v) localStorage.setItem(KEY, JSON.stringify(v))
 const dayKey = (d = new Date()) => d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
 const doneKey = () => 'mm.myday.done.' + dayKey();
 const readDone = () => { try { return JSON.parse(localStorage.getItem(doneKey()) || '[]'); } catch (e) { return []; } };
+const rd = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k) || 'null'); return v == null ? d : v; } catch (e) { return d; } };
+const wr = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
+const NOTES = 'mm.myday.notes';
+const addedKey = () => 'mm.myday.add.' + dayKey();
+
+/* ─── A BALANCED DAY ──────────────────────────────────────────────────
+   Ayser: "خليها متوازنة — جزء لأهلك، لنفسك، لصحتك ورياضتك، حتى لو
+   تعرض عليك تمشي شوية". Four small parts of a day, each just a tap:
+   done or not. In free time the card offers one small idea for a part
+   not done yet — a walk, a call home, a glass of water — and "Another"
+   if that one does not fit. Ideas, never rules: nothing turns red. */
+const BALANCE = [
+  { id: 'family', emoji: '👨‍👩‍👧' },
+  { id: 'me', emoji: '🧘' },
+  { id: 'health', emoji: '💧' },
+  { id: 'move', emoji: '🚶' },
+];
+const balOrder = (h) => (h >= 5 && h < 11 ? ['move', 'health', 'me', 'family'] : h >= 11 && h < 17 ? ['health', 'move', 'family', 'me'] : ['family', 'me', 'move', 'health']);
+const sameDay = (x, y) => x.getFullYear() === y.getFullYear() && x.getMonth() === y.getMonth() && x.getDate() === y.getDate();
+
+/* the plans on Moments today: the ones you are going to are part of
+   your day by themselves; others you can add with one tap */
+const plansToday = (rows, now = new Date()) => (rows || []).filter((g) => g && g.starts_at && sameDay(new Date(g.starts_at), now));
+const planItem = (g) => {
+  const s = new Date(g.starts_at);
+  return { id: 'g:' + g.id, emoji: g.emoji || '🤝', label: g.title || '', at: s, end: new Date(s.getTime() + (g.minutes || 90) * 60000), plan: true };
+};
 
 const HOURS = { uni: { m: [8, 0, 14, 0], d: [10, 0, 16, 0], e: [14, 0, 20, 0] }, work: { m: [8, 0, 16, 0], d: [9, 0, 17, 0], e: [12, 0, 20, 0] } };
 const SLEEP = { early: { bed: [22, 0], wake: [6, 0] }, regular: { bed: [23, 30], wake: [7, 30] }, late: { bed: [1, 0], wake: [9, 0] } };
@@ -77,8 +106,8 @@ const Q = ({ title, n, of, children }) => (
 );
 
 /* today's list, in time order */
-function todayItems(a, t, now = new Date()) {
-  const out = [];
+function todayItems(a, t, now = new Date(), extra = []) {
+  const out = extra.slice();
   const sl = SLEEP[a.sleep || 'regular'];
   out.push({ id: 'wake', emoji: '⏰', label: t('md_wake'), at: at(now, sl.wake[0], sl.wake[1]) });
   const workday = a.role && a.role !== 'none' && (DAYS[a.days || 'sun'] || []).indexOf(JS_DAY[now.getDay()]) >= 0;
@@ -143,6 +172,17 @@ export const MyDay = ({ onClose }) => {
   const [done, setDone] = useState(readDone);
   const [locBusy, setLocBusy] = useState(false);
   const [calNote, setCalNote] = useState(null);
+  const [plans, setPlans] = useState(() => plansToday(keptGatherings(null)));
+  useEffect(() => {
+    let alive = true;
+    listGatherings(null).then((r) => { if (alive) setPlans(plansToday(r)); }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
+  const [added, setAdded] = useState(() => rd(addedKey(), []));
+  const [notes, setNotes] = useState(() => rd(NOTES, []));
+  const [draft, setDraft] = useState('');
+  const [allNotes, setAllNotes] = useState(false);
+  const [skip, setSkip] = useState(0);
 
   const list = steps(a);
   const cur = list[Math.min(step, list.length - 1)];
@@ -166,7 +206,7 @@ export const MyDay = ({ onClose }) => {
     const fix = c ? { lat: c.latitude, lng: c.longitude } : lastFix();
     if (fix) answer({ at: { lat: fix.lat, lng: fix.lng } }); else answer({ pray: false });
   };
-  const items = useMemo(() => (setup ? [] : todayItems(a, t)), [a, setup, t]);
+  const items = useMemo(() => (setup ? [] : todayItems(a, t, new Date(), plans.filter((g) => g.im_going || added.indexOf(g.id) >= 0).map(planItem))), [a, setup, t, plans, added]);
   /* the clock moves on its own: every half minute the card catches up */
   const [now, setNow] = useState(Date.now());
   useEffect(() => { const i = setInterval(() => setNow(Date.now()), 30000); return () => clearInterval(i); }, []);
@@ -186,6 +226,19 @@ export const MyDay = ({ onClose }) => {
     setDone(n);
     try { localStorage.setItem(doneKey(), JSON.stringify(n)); } catch (e) {}
   };
+  /* one small idea for a part of the day not done yet */
+  const balLeft = balOrder(new Date(now).getHours()).filter((id) => done.indexOf('bal:' + id) < 0);
+  const ideaArea = balLeft.length ? BALANCE.find((b) => b.id === balLeft[skip % balLeft.length]) : null;
+  const ideaN = 1 + ((Math.floor(skip / Math.max(1, balLeft.length)) + new Date(now).getDate()) % 3);
+  const offers = plans.filter((g) => !g.im_going && added.indexOf(g.id) < 0 && new Date(g.starts_at).getTime() > now).slice(0, 2);
+  const addPlan = (g) => { tapSuccess(); const n = added.concat(g.id); setAdded(n); wr(addedKey(), n); };
+  const addNote = () => {
+    const v = draft.trim(); if (!v) return;
+    tapLight();
+    const n = [{ id: Date.now().toString(36), text: v.slice(0, 200) }].concat(notes).slice(0, 30);
+    setNotes(n); wr(NOTES, n); setDraft('');
+  };
+  const dropNote = (id) => { tapLight(); const n = notes.filter((x) => x.id !== id); setNotes(n); wr(NOTES, n); };
   const toCalendar = () => {
     tapLight();
     const ok = openIcs(buildIcs(calendarEvents(a, t)));
@@ -293,6 +346,29 @@ export const MyDay = ({ onClose }) => {
                         </Pressable>
                       </View>
                     ) : null}
+                    {free ? (
+                      ideaArea ? (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: C.line }}>
+                          <Text style={{ fontSize: 24, marginEnd: 10 }}>{ideaArea.emoji}</Text>
+                          <View style={{ flex: 1 }}>
+                            <Text style={{ color: C.faint, fontSize: 11, fontWeight: '900', letterSpacing: 1 }}>{t('md_bal_' + ideaArea.id).toUpperCase()}</Text>
+                            <Text style={{ color: C.text, fontSize: 15, fontWeight: '800', marginTop: 1 }}>{t('md_idea_' + ideaArea.id + '_' + ideaN)}</Text>
+                          </View>
+                          <Pressable onPress={() => toggle('bal:' + ideaArea.id)} accessibilityRole="button" accessibilityLabel={t('md_idea_did')} hitSlop={6} style={{ marginStart: 8 }}>
+                            <View style={{ borderRadius: 999, backgroundColor: C.green, paddingHorizontal: 12, paddingVertical: 8 }}>
+                              <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900' }}>{'✓ ' + t('md_idea_did')}</Text>
+                            </View>
+                          </Pressable>
+                          <Pressable onPress={() => { tapLight(); setSkip((n) => n + 1); }} accessibilityRole="button" accessibilityLabel={t('md_idea_other')} hitSlop={8} style={{ marginStart: 6 }}>
+                            <View style={{ width: 34, height: 34, borderRadius: 17, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center' }}>
+                              <Ionicons name="refresh" size={16} color={C.dim} />
+                            </View>
+                          </Pressable>
+                        </View>
+                      ) : (
+                        <Text style={{ color: C.green, fontSize: 14, fontWeight: '900', marginTop: 12 }}>{t('md_bal_all')}</Text>
+                      )
+                    ) : null}
                     {nextItem ? (
                       <Text style={{ color: C.dim, fontSize: 13.5, fontWeight: '700', marginTop: 12 }}>
                         {t('md_then').replace('{what}', nextItem.emoji + ' ' + nextItem.label).replace('{t}', span(nextItem.at.getTime() - now, t))}
@@ -302,11 +378,81 @@ export const MyDay = ({ onClose }) => {
                 );
               })()}
 
+              {/* the four parts of a day, each a tap */}
+              <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '900', letterSpacing: 1, marginTop: 18, marginBottom: 8 }}>{t('md_bal_title').toUpperCase()}</Text>
+              <View style={{ flexDirection: 'row' }}>
+                {BALANCE.map((b, i) => {
+                  const on = done.indexOf('bal:' + b.id) >= 0;
+                  return (
+                    <Pressable key={b.id} onPress={() => toggle('bal:' + b.id)} accessibilityRole="checkbox" accessibilityState={{ checked: on }} accessibilityLabel={t('md_bal_' + b.id)} style={{ flex: 1, marginEnd: i < BALANCE.length - 1 ? 8 : 0 }}>
+                      <View style={{ borderRadius: 16, borderWidth: 1, borderColor: on ? C.green : C.line, backgroundColor: on ? C.greenSoft : C.glass, paddingVertical: 10, alignItems: 'center' }}>
+                        <Text style={{ fontSize: 20 }}>{on ? '✓' : b.emoji}</Text>
+                        <Text style={{ color: on ? C.green : C.dim, fontSize: 11.5, fontWeight: '800', marginTop: 3 }} numberOfLines={1}>{t('md_bal_' + b.id)}</Text>
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              {/* something on Moments today, for the free time — one tap puts it in your day */}
+              {!nowItem && offers.length ? (
+                <View style={{ marginTop: 16 }}>
+                  <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '900', letterSpacing: 1, marginBottom: 8 }}>{t('md_from_app').toUpperCase()}</Text>
+                  {offers.map((g) => {
+                    const s = new Date(g.starts_at);
+                    return (
+                      <View key={g.id} style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 16, borderWidth: 1, borderColor: C.line, backgroundColor: C.glass, padding: 12, marginBottom: 8 }}>
+                        <Pressable onPress={() => { tapLight(); onClose(); goToTab('TOGETHER'); }} accessibilityRole="button" style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>
+                          <Text style={{ fontSize: 20, marginEnd: 10 }}>{g.emoji || '🤝'}</Text>
+                          <View style={{ flex: 1 }}>
+                            <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '800' }} numberOfLines={1}>{g.title}</Text>
+                            <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 1 }} numberOfLines={1}>{hm(s.getHours(), s.getMinutes()) + (g.place_name ? ' · ' + g.place_name : '')}</Text>
+                          </View>
+                        </Pressable>
+                        <Pressable onPress={() => addPlan(g)} accessibilityRole="button" hitSlop={6} style={{ marginStart: 8 }}>
+                          <View style={{ borderRadius: 999, borderWidth: 1, borderColor: C.purple, paddingHorizontal: 12, paddingVertical: 7 }}>
+                            <Text style={{ color: C.purple, fontSize: 12.5, fontWeight: '900' }}>{'＋ ' + t('md_add_day')}</Text>
+                          </View>
+                        </Pressable>
+                      </View>
+                    );
+                  })}
+                </View>
+              ) : null}
+
               {/* free time is Papyrus's: the one thing worth doing with it */}
               {!nowItem ? (
                 <View style={{ marginTop: 16 }}>
                   <BrainDump />
                 </View>
+              ) : null}
+
+              {/* notes to yourself: one line, kept until you clear them */}
+              <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '900', letterSpacing: 1, marginTop: 18, marginBottom: 8 }}>{'📝 ' + t('md_notes').toUpperCase()}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 16, borderWidth: 1, borderColor: C.line, backgroundColor: C.glass, paddingStart: 14, paddingEnd: 6 }}>
+                <TextInput value={draft} onChangeText={setDraft} onSubmitEditing={addNote} returnKeyType="done" blurOnSubmit={false} maxLength={200}
+                  placeholder={t('md_note_ph')} placeholderTextColor={C.faint}
+                  style={{ flex: 1, color: C.text, fontSize: 14.5, paddingVertical: 12, outlineStyle: 'none' }} />
+                {draft.trim() ? (
+                  <Pressable onPress={addNote} accessibilityRole="button" accessibilityLabel={t('md_note_add')} hitSlop={8}>
+                    <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: C.purple, alignItems: 'center', justifyContent: 'center' }}>
+                      <Ionicons name="arrow-up" size={17} color="#FFF" />
+                    </View>
+                  </Pressable>
+                ) : null}
+              </View>
+              {(allNotes ? notes : notes.slice(0, 3)).map((n) => (
+                <View key={n.id} style={{ flexDirection: 'row', alignItems: 'flex-start', borderRadius: 14, backgroundColor: '#FFF6D6', paddingVertical: 10, paddingHorizontal: 12, marginTop: 6 }}>
+                  <Text style={{ color: '#4A3B12', fontSize: 14, lineHeight: 20, flex: 1 }}>{n.text}</Text>
+                  <Pressable onPress={() => dropNote(n.id)} accessibilityRole="button" accessibilityLabel={t('md_note_clear')} hitSlop={10} style={{ marginStart: 8, marginTop: 2 }}>
+                    <Ionicons name="close" size={16} color="#8A7535" />
+                  </Pressable>
+                </View>
+              ))}
+              {notes.length > 3 ? (
+                <Pressable onPress={() => { tapLight(); setAllNotes((v) => !v); }} accessibilityRole="button" style={{ marginTop: 6 }}>
+                  <Text style={{ color: C.dim, fontSize: 12.5, fontWeight: '800' }}>{allNotes ? t('md_hide_day') : t('md_note_more').replace('{n}', String(notes.length - 3))}</Text>
+                </Pressable>
               ) : null}
 
               {/* the whole day — a row of small marks, not a list to face */}
@@ -350,5 +496,79 @@ export const MyDay = ({ onClose }) => {
         </ScrollView>
       </View>
     </Modal>
+  );
+};
+
+/* ─── WIDGETS ON HOME (MOMENTS PLUS) ──────────────────────────────────
+   Ayser: "لو الناس مشتركة premium تقدر تعمل widgets". A web app cannot
+   put a widget on the phone's own home screen — that needs the App
+   Store version — so the widgets live where somebody looks first: the
+   top of Home. Small, only the ones they picked (Personalise, by
+   holding the Moments logo), each one line that is true right now.
+   Here, beside My day, because they read the same plan. */
+const nextPrayer = (a, now) => {
+  if (!a || !a.pray || !a.at) return null;
+  for (let i = 0; i < 2; i++) {
+    const d = new Date(now); d.setDate(d.getDate() + i);
+    const p = prayerTimes(d, a.at.lat, a.at.lng);
+    const k = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'].find((x) => p[x].getTime() > now);
+    if (k) return { k, at: p[k] };
+  }
+  return null;
+};
+
+const Tile = ({ emoji, title, sub, onPress }) => (
+  <Pressable onPress={onPress} accessibilityRole="button" style={{ width: '48.5%', marginBottom: 8 }}>
+    <View style={{ borderRadius: 18, borderWidth: 1, borderColor: C.line, backgroundColor: C.glass, padding: 12, minHeight: 74 }}>
+      <Text style={{ fontSize: 18 }}>{emoji}</Text>
+      <Text style={{ color: C.text, fontSize: 14, fontWeight: '900', marginTop: 4 }} numberOfLines={1}>{title}</Text>
+      {sub ? <Text style={{ color: C.dim, fontSize: 12, fontWeight: '700', marginTop: 1 }} numberOfLines={1}>{sub}</Text> : null}
+    </View>
+  </Pressable>
+);
+
+export const HomeWidgets = ({ ids }) => {
+  const { t } = useLang();
+  const [open, setOpen] = useState(false);
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => { const i = setInterval(() => setNow(Date.now()), 30000); return () => clearInterval(i); }, []);
+  useEffect(() => { if (!open) setNow(Date.now()); }, [open]);
+  const a = read();
+  const ready = !!(a && a.ready);
+  const show = (id) => { tapLight(); if (id === 'plan') goToTab('TOGETHER'); else setOpen(true); };
+  const tiles = ids.map((id) => {
+    if (id === 'now') {
+      if (!ready) return <Tile key={id} emoji="🗓️" title={t('md_title')} sub={t('wg_setup')} onPress={() => show(id)} />;
+      const done = readDone();
+      const items = todayItems(a, t, new Date(now));
+      const x = items.find((y) => y.at.getTime() <= now && now < y.end.getTime() && done.indexOf(y.id) < 0);
+      const nx = items.find((y) => y.at.getTime() > now && done.indexOf(y.id) < 0);
+      return x
+        ? <Tile key={id} emoji={x.emoji} title={x.label} sub={t('md_left').replace('{t}', span(x.end.getTime() - now, t))} onPress={() => show(id)} />
+        : <Tile key={id} emoji="🌿" title={nx ? t('md_free_for').replace('{t}', span(nx.at.getTime() - now, t)) : t('md_free_rest')} sub={nx ? nx.emoji + ' ' + nx.label : null} onPress={() => show(id)} />;
+    }
+    if (id === 'prayer') {
+      const p = nextPrayer(a, now);
+      return p
+        ? <Tile key={id} emoji="🕌" title={t('md_' + p.k) + ' · ' + hm(p.at.getHours(), p.at.getMinutes())} sub={t('wg_in').replace('{t}', span(p.at.getTime() - now, t))} onPress={() => show(id)} />
+        : <Tile key={id} emoji="🕌" title={t('wg_prayer')} sub={t('wg_setup')} onPress={() => show(id)} />;
+    }
+    if (id === 'plan') {
+      const g = (keptGatherings(null) || []).filter((r) => r.im_going && new Date(r.starts_at).getTime() > now - 3600000).sort((p, q) => new Date(p.starts_at) - new Date(q.starts_at))[0];
+      return g
+        ? <Tile key={id} emoji={g.emoji || '🤝'} title={g.title} sub={t('wg_in').replace('{t}', span(Math.max(0, new Date(g.starts_at).getTime() - now), t))} onPress={() => show(id)} />
+        : <Tile key={id} emoji="🤝" title={t('wg_plan')} sub={t('wg_find_plan')} onPress={() => show(id)} />;
+    }
+    if (id === 'note') {
+      const n = rd(NOTES, [])[0];
+      return <Tile key={id} emoji="📝" title={n ? n.text : t('wg_note')} sub={n ? null : t('wg_add_note')} onPress={() => show(id)} />;
+    }
+    return null;
+  });
+  return (
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginTop: 12 }}>
+      {tiles}
+      {open ? <MyDay onClose={() => setOpen(false)} /> : null}
+    </View>
   );
 };

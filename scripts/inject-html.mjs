@@ -102,6 +102,8 @@ const tags = `
   <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
   <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+  <!-- the icon somebody picked (src/lib/appIcon.js), before the phone reads it -->
+  <script>try{var L=['night','nile','sunset','papyrus','paper'],qi=new URLSearchParams(location.search).get('icon');if(qi==='classic')localStorage.removeItem('mm.icon');else if(L.indexOf(qi)>=0)localStorage.setItem('mm.icon',qi);var mi=localStorage.getItem('mm.icon');if(L.indexOf(mi)>=0){var q=function(s){return document.querySelectorAll(s)};q('link[rel=manifest]')[0].href='/icons/manifest-'+mi+'.json';q('link[rel=apple-touch-icon]')[0].href='/icons/'+mi+'-180.png';q('link[rel=icon]').forEach(function(l){l.href='/icons/'+mi+'-192.png'})}}catch(e){}</script>
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />

@@ -56,6 +56,10 @@ const LikersSheet = lazyOverlay(() => import('../components/LikersSheet').then((
 const MagicFlowModal = lazyOverlay(() => import('../components/MagicFlowModal').then((m) => ({ default: m.MagicFlowModal })));
 const NotificationsSheet = lazyOverlay(() => import('../components/NotificationsSheet').then((m) => ({ default: m.NotificationsSheet })));
 const ProfileModal = lazyOverlay(() => import('../components/ProfileModal').then((m) => ({ default: m.ProfileModal })));
+const Personalise = lazyOverlay(() => import('../components/Personalise').then((m) => ({ default: m.Personalise })));
+const HomeWidgets = lazyOverlay(() => import('../components/MyDay').then((m) => ({ default: m.HomeWidgets })));
+/* the widgets somebody picked (src/components/Personalise.js); none = nothing loads */
+const readWidgets = () => { try { const v = JSON.parse(localStorage.getItem('mm.widgets') || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } };
 const GreenSheet = lazyOverlay(() => import('../components/green/GreenSheet').then((m) => ({ default: m.GreenSheet })));
 const ReelsViewer = lazyOverlay(() => import('../components/ReelsViewer').then((m) => ({ default: m.ReelsViewer })));
 const ReportSheet = lazyOverlay(() => import('../components/ReportSheet').then((m) => ({ default: m.ReportSheet })));
@@ -191,6 +195,14 @@ export const HomeScreen = () => {
   const [storyIndex, setStoryIndex] = useState(null);
   const [reelStart, setReelStart] = useState(null);
   const [myProfileOpen, setMyProfileOpen] = useState(false); // one profile everywhere
+  const [personalise, setPersonalise] = useState(false);     // hold the logo: app icon and widgets
+  const [widgets, setWidgets] = useState(readWidgets);
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.addEventListener) return undefined;
+    const f = () => setWidgets(readWidgets());
+    window.addEventListener('mm-widgets', f);
+    return () => window.removeEventListener('mm-widgets', f);
+  }, []);
   const [notifOpen, setNotifOpen] = useState(false);
   /* a tapped phone notification lands here: the list, or the tab it is about */
   useEffect(() => {
@@ -498,7 +510,9 @@ export const HomeScreen = () => {
           <View style={{ marginBottom: 20 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
               <View>
-                <Wordmark height={46} style={{ marginLeft: -4, marginBottom: -2 }} />
+                <Pressable onLongPress={() => { tapSuccess(); setPersonalise(true); }} delayLongPress={600} style={{ outlineStyle: "none" }} accessibilityRole="image" accessibilityLabel="Moments" accessibilityHint={t('pz_title')}>
+                  <Wordmark height={46} style={{ marginLeft: -4, marginBottom: -2 }} />
+                </Pressable>
                 <Greeting />
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -521,6 +535,8 @@ export const HomeScreen = () => {
                 </Pressable>
               </View>
             </View>
+
+            {widgets.length ? <HomeWidgets ids={widgets} /> : null}
 
             <StoriesBar
               stories={stories}
@@ -666,6 +682,7 @@ export const HomeScreen = () => {
       {/* Your avatar opens the ONE real profile — same as the SPACE tab.
           Guarded by the flag as well as by `visible`, so the profile
           page is not even asked for until you open it. */}
+      {personalise ? <Personalise onClose={() => setPersonalise(false)} /> : null}
       {myProfileOpen ? (
       <Modal visible animationType="slide" onRequestClose={() => setMyProfileOpen(false)}>
         <View style={{ flex: 1, backgroundColor: C.bg }}>

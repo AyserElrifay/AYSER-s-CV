@@ -65,6 +65,7 @@ const PlusCard = ({ plus, t, lang }) => {
       <Text style={{ color: '#F9F9F6', fontSize: 16.5, fontWeight: '900', marginTop: 4 }}>{t('bk_plus_title')}</Text>
       <Text style={{ color: '#C9C9D1', fontSize: 13, lineHeight: 19, marginTop: 4 }}>{t('bk_plus_sub')}</Text>
       {until ? <Text style={{ color: C.gold, fontSize: 12.5, fontWeight: '800', marginTop: 8 }}>{t('bk_plus_until').replace('{date}', until)}</Text> : null}
+      <Text style={{ color: '#C9C9D1', fontSize: 12.5, lineHeight: 18, marginTop: 8 }}>{'✨ ' + t('pz_hint')}</Text>
     </View>
   );
 };

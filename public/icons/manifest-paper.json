@@ -1,0 +1,41 @@
+{
+  "name": "Moments — Don't scroll it. Live it.",
+  "short_name": "Moments",
+  "description": "The social super-app: live map, real mates, moments, reels, deals & adventures.",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#7C3AED",
+  "background_color": "#F4F5F7",
+  "icons": [
+    {
+      "src": "/icons/paper-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/paper-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/paper-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "display_override": [
+    "standalone",
+    "minimal-ui"
+  ],
+  "categories": [
+    "social",
+    "travel",
+    "lifestyle"
+  ]
+}
