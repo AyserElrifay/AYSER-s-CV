@@ -5,7 +5,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { C } from '../constants/theme';
 import { useLang } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
-import { listOffers, bookOffer, cancelBooking, myBookings, myPlus, offerWant, photoUrl, money } from '../services/offers';
+import { listOffers, bookOffer, bookingPhotoOk, cancelBooking, myBookings, myPlus, offerWant, photoUrl, money } from '../services/offers';
 import { appLink, shareLink, shareNote } from '../utils/share';
 import { payBooking } from '../services/payments';
 import { remember, recall } from '../lib/offline';
@@ -150,6 +150,7 @@ const Offer = ({ o, t, lang, onBack, onBooked, user, onNeedSignIn }) => {
     else setErr(t(r && r.reason === 'signed_out' ? 'bk_err_signed_out' : 'bk_err'));
   };
 
+  const [photoOk, setPhotoOk] = useState(false);
   const book = async () => {
     if (busy || !mode || full) return;
     if (!user) { setErr(t('bk_err_signed_out')); return; }
@@ -161,6 +162,7 @@ const Offer = ({ o, t, lang, onBack, onBooked, user, onNeedSignIn }) => {
       setBusy(false); return;
     }
     tapSuccess();
+    if (photoOk && r.id) bookingPhotoOk(r.id, true).catch(() => {});
     setDone(r);
     if (r.status === 'pending') {
       const p = await payBooking(r.id);
@@ -254,6 +256,14 @@ const Offer = ({ o, t, lang, onBack, onBooked, user, onNeedSignIn }) => {
           ) : null}
           {o.status === 'soon' ? null : <TextInput value={note} onChangeText={setNote} maxLength={300} placeholder={t('bk_note_ph')} placeholderTextColor={C.faint}
             style={{ marginTop: 14, borderWidth: 1, borderColor: C.line, borderRadius: 14, padding: 12, color: C.text, fontSize: 14 }} />}
+          {/* small, at the bottom, and off unless they say yes */}
+          {o.status === 'soon' ? null : (
+            <Pressable onPress={() => { tapSelection(); setPhotoOk((v) => !v); }} accessibilityRole="checkbox" accessibilityState={{ checked: photoOk }}
+              style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10 }}>
+              <Ionicons name={photoOk ? 'checkbox' : 'square-outline'} size={16} color={photoOk ? C.purple : C.faint} />
+              <Text style={{ flex: 1, color: C.faint, fontSize: 11.5, lineHeight: 15, marginStart: 6 }}>{t('bk_photo_ok')}</Text>
+            </Pressable>
+          )}
         </View>
       </ScrollView>
 

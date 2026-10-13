@@ -32,6 +32,7 @@ export const bookOffer = (offerId, qty, mode, note) => act('book_offer', { p_off
 export const cancelBooking = (id) => act('cancel_booking', { p_id: id });
 export const myBookings = async () => { const r = await call('my_bookings'); return Array.isArray(r) ? r : []; };
 export const myPlus = () => call('my_plus');
+export const bookingPhotoOk = (id, ok) => act('booking_set_photo_ok', { p_id: id, p_ok: !!ok });
 
 /* the Studio's side — refused by the database for anybody but the owner */
 export const ownerOffers = async () => { const r = await call('owner_offers'); return Array.isArray(r) ? r : null; };

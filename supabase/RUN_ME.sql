@@ -14770,6 +14770,62 @@ grant execute on function public.my_free_hangouts() to authenticated;
 notify pgrst, 'reload schema';
 
 -- ═══════════════════════════════════════════════════════════════════
+--  BOOKINGS: PHOTO CONSENT, AND A SHEET THE TEAM CAN EDIT
+--
+--  Ayser: "لما حد يحجز رحلة يبقى في زرار يسمحلنا نصوّر ونستخدم صوره …
+--  وخلي كل ما حد يحجز رحلة أو حاجة ينزل في شيت … أنا والتيم".
+--  · bookings.photo_ok — the person's own yes to being photographed and
+--    shown, set only by them (booking_set_photo_ok); no by default.
+--  · Every new booking, and every change of its status, is sent to the
+--    Google Sheet whose Apps Script address the owner saves in the
+--    Studio (bookings_sheet_hook). Only what the team needs: the code,
+--    the trip, the name, people, total, how they pay, the status, their
+--    note and the photo answer. Nothing is sent while no address is set,
+--    and a failure never blocks a booking.
+--  Safe to re-run.
+-- ═══════════════════════════════════════════════════════════════════
+alter table public.bookings add column if not exists photo_ok boolean not null default false;
+
+create or replace function public.booking_set_photo_ok(p_id uuid, p_ok boolean)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  update public.bookings set photo_ok = coalesce(p_ok, false) where id = p_id and user_id = auth.uid();
+  return jsonb_build_object('ok', found);
+end;
+$$;
+revoke execute on function public.booking_set_photo_ok(uuid, boolean) from public, anon;
+grant execute on function public.booking_set_photo_ok(uuid, boolean) to authenticated;
+
+do $$ begin create extension if not exists pg_net; exception when others then null; end $$;
+
+create or replace function public.booking_to_sheet() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare hook text; body jsonb;
+begin
+  select value #>> '{}' into hook from public.app_settings where key = 'bookings_sheet_hook';
+  if hook is null or hook !~ '^https://script\.google\.com/' then return new; end if;
+  if tg_op = 'UPDATE' and new.status is not distinct from old.status and new.photo_ok is not distinct from old.photo_ok then return new; end if;
+  body := jsonb_build_object(
+    'code', new.code, 'trip', (select title from public.offers where id = new.offer_id),
+    'name', (select name from public.profiles where id = new.user_id),
+    'people', new.qty, 'total', new.total, 'currency', new.currency, 'pay', new.pay_mode,
+    'status', new.status, 'note', new.note, 'photo_ok', new.photo_ok,
+    'booked_at', new.created_at, 'event', lower(tg_op));
+  begin
+    execute 'select net.http_post(url := $1, body := $2, headers := ''{"Content-Type":"application/json"}''::jsonb)' using hook, body;
+  exception when others then null;
+  end;
+  return new;
+end;
+$$;
+revoke execute on function public.booking_to_sheet() from public, anon, authenticated;
+drop trigger if exists bookings_to_sheet on public.bookings;
+create trigger bookings_to_sheet after insert or update on public.bookings
+  for each row execute function public.booking_to_sheet();
+
+notify pgrst, 'reload schema';
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة

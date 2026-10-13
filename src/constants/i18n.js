@@ -2032,6 +2032,7 @@ export const STRINGS = {
     px_offer: "Early-member price",
     px_offer_sub: "You're one of the first people on Moments, so this price is yours — with special surprises along the way.",
     px_f_light: "4 light moments a week instead of 2",
+    bk_photo_ok: "It's OK to photograph me on this trip and share the photos on Moments.",
     lens_all: 'Everything',
     lens_places: 'Places to go',
     lens_people: 'People',

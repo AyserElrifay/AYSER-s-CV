@@ -169,11 +169,12 @@ export const OffersTab = ({ userId }) => {
   const [freeUntil, setFreeUntil] = useState('');
   const [priceM, setPriceM] = useState(''); const [priceY, setPriceY] = useState(''); const [priceC, setPriceC] = useState('EGP');
   const [party, setParty] = useState(null);             // the offer just published
+  const [hook, setHook] = useState('');
 
   const load = () => {
     ownerOffers().then((r) => setList(r == null ? false : r));
     appSettings().then((s) => {
-      setSettings(s); const v = s.plus_free_until; setFreeUntil(v && v !== 'null' ? String(v).slice(0, 10) : '');
+      setSettings(s); setHook(s.bookings_sheet_hook && s.bookings_sheet_hook !== 'null' ? String(s.bookings_sheet_hook).replace(/^"|"$/g, '') : ''); const v = s.plus_free_until; setFreeUntil(v && v !== 'null' ? String(v).slice(0, 10) : '');
       const pr = s.plus_price && typeof s.plus_price === 'object' ? s.plus_price : null;
       setPriceM(pr ? String(pr.month) : ''); setPriceY(pr ? String(pr.year) : ''); setPriceC(pr ? pr.currency : 'EGP');
     });
@@ -326,6 +327,14 @@ export const OffersTab = ({ userId }) => {
           const v = priceM.trim() || priceY.trim() ? { month: m, year: y, currency: priceC } : null;
           if (v && (!(m > 0) || !(y > 0) || !/^[A-Z]{3}$/.test(priceC))) { setMsg('Both prices and a 3-letter currency, please.'); return; }
           const r = await ownerSetSetting('plus_price', v); setMsg(r && r.ok ? (v ? 'Plus is now a subscription.' : 'Plus is free again.') : 'Could not save.'); load();
+        }} />
+        <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '900', marginTop: 14 }}>Bookings sheet</Text>
+        <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 3 }}>Each new booking also lands in your team sheet. Paste the web-app address of the sheet (see the bookings-sheet guide).</Text>
+        <Field label="Apps Script address" value={hook} onChange={setHook} ph="https://script.google.com/macros/s/…/exec" />
+        <Btn label="Save sheet address" onPress={async () => {
+          const v = hook.trim() ? hook.trim() : null;
+          if (v && !/^https:\/\/script\.google\.com\//.test(v)) { setMsg('That has to be a script.google.com address.'); return; }
+          const r = await ownerSetSetting('bookings_sheet_hook', v); setMsg(r && r.ok ? 'Saved.' : 'Could not save.'); load();
         }} />
         <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '900', marginTop: 14 }}>{'Online payments: ' + (online ? 'ON' : 'OFF')}</Text>
         <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 3 }}>Turn on only after the Paymob keys are set and a test payment went through.</Text>
