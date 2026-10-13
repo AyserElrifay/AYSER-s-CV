@@ -13128,3 +13128,46 @@ insert into public.offers (id, kind, status, operator, title, title_ar, city, co
 values ('0ffe0000-0000-4000-8000-00000000000e','trip','soon','TravellersOutdoors','White Desert & the Western desert','الصحرا البيضا والصحرا الغربية',
         'Farafra','EG',27.3700,28.0500,array['media/offer-desert.jpg','media/place-white-desert.jpg'],'media/offer-desert.mp4',0,'EGP','{reserve}')
 on conflict (id) do nothing;
+
+-- ═══════════════════════════════════════════════════════════════════
+--  SECURITY ADVISOR · NO MORE SECURITY-DEFINER VIEWS
+--
+--  Supabase flagged two views as CRITICAL "Security Definer View":
+--  a plain view runs with its creator's rights, so it walks straight
+--  past row level security. Both are now security_invoker.
+--
+--  · groups_with_counts — the reader's own policies on groups and
+--    group_members already show exactly what the view should show
+--    (every group; joined members only), so invoker mode changes
+--    nothing anybody sees.
+--
+--  · lamma_questions_public — this one exists precisely because the
+--    questions table is closed (it holds correct_index). In invoker
+--    mode the reader would see nothing, so the answer-free columns
+--    now come from one narrow security definer function that never
+--    selects correct_index, and the view reads from that.
+--  Safe to re-run.
+-- ═══════════════════════════════════════════════════════════════════
+
+alter view public.groups_with_counts set (security_invoker = true);
+grant select on public.groups_with_counts to anon, authenticated;
+
+create or replace function public.lamma_questions_open()
+returns table (id uuid, pack_id uuid, order_index int, text_ar text, text_en text, text_i18n jsonb,
+               note_ar text, note_en text, note_i18n jsonb,
+               media_url text, media_type text, timer_ms int, options jsonb, points_style text)
+language sql stable security definer set search_path = public as $$
+  select q.id, q.pack_id, q.order_index, q.text_ar, q.text_en, q.text_i18n,
+         q.note_ar, q.note_en, q.note_i18n,
+         q.media_url, q.media_type, q.timer_ms, q.options, q.points_style
+    from public.questions q
+$$;
+revoke all on function public.lamma_questions_open() from public;
+grant execute on function public.lamma_questions_open() to anon, authenticated;
+
+drop view if exists public.lamma_questions_public;
+create view public.lamma_questions_public with (security_invoker = true) as
+  select * from public.lamma_questions_open();
+grant select on public.lamma_questions_public to anon, authenticated;
+
+notify pgrst, 'reload schema';
