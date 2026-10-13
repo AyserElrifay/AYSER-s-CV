@@ -7,7 +7,18 @@ import { tapLight } from '../../utils/feedback';
 import { placePhoto } from '../../lib/commonsPhoto';
 import { publicMedia } from '../../lib/publicMedia';
 
-const FOOTBALL = [1, 2, 3, 4, 5].map((n) => 'sport-football-' + n + '.jpg');
+/* activities Ayser sent real free photos for (Pexels, credited):
+   the activity, never "this plan" */
+const STOCK = [
+  { re: /foot|soccer|كور|⚽/i, files: [1, 2, 3, 4, 5].map((n) => 'sport-football-' + n + '.jpg') },
+  { re: /sketch|draw|رسم|اسكتش|✏️|🎨|^art$|\bart\b/i, files: [1, 2, 3, 4, 5].map((n) => 'art-sketch-' + n + '.jpg') },
+];
+const stockOf = (g) => {
+  const s = String((g && g.title) || '') + ' ' + String((g && g.kind) || '');
+  const hit = STOCK.find((x) => x.re.test(s));
+  if (!hit) return null;
+  return hit.files[String((g && g.id) || '').split('').reduce((n, c) => n + c.charCodeAt(0), 0) % hit.files.length];
+};
 
 /* ─── A PLAN'S PICTURE: REAL, OR ITS DRAWN LOOK ───────────────────────
    Ayser: photos or emoji? Real photos where there are real ones — the
@@ -108,10 +119,9 @@ export const PlanHead = ({ g, children }) => {
   const own = planPhotoOf(g);
   const url = own || (place && safe(place.url));
   const look = lookOf(g && g.kind);
-  /* a football plan with no photo of its own: a real photo of football
-     (Pexels, credited) — the game, not this game */
-  const ball = !url && /foot|soccer|كور|⚽/i.test(String((g && g.title) || '') + ' ' + String((g && g.kind) || ''))
-    ? FOOTBALL[String((g && g.id) || '').split('').reduce((n, c) => n + c.charCodeAt(0), 0) % FOOTBALL.length] : null;
+  /* a football or sketching plan with no photo of its own: a real photo
+     of the activity (Pexels, credited) — the game, not this game */
+  const ball = !url ? stockOf(g) : null;
   if (ball) {
     return (
       <View>
