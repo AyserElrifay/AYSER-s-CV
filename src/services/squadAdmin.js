@@ -25,6 +25,8 @@ export const squadRemove = (squadId, userId) => act('squad_remove', { p_squad: s
 export const squadInvite = (squadId, userId) => act('squad_invite', { p_squad: squadId, p_user: userId });
 export const squadDeleteMessage = (messageId) => act('squad_delete_message', { p_message: messageId });
 export const squadRename = (squadId, name) => act('squad_rename', { p_squad: squadId, p_name: name });
+/* one group per destination: everyone travelling to the same place (travel_group_join) */
+export const travelGroupJoin = (place) => act('travel_group_join', { p_place: place });
 export const squadSetPhoto = (squadId, url) => act('squad_set_photo', { p_squad: squadId, p_url: url || null });
 export const squadMakeLink = (squadId, days) => act('squad_make_link', { p_squad: squadId, p_days: days || 7 });
 export const squadRevokeLinks = (squadId) => act('squad_revoke_links', { p_squad: squadId });

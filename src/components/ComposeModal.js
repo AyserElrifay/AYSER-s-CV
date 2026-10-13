@@ -96,7 +96,9 @@ export const ComposeModal = ({ initialMode = 'post', initialCaption = '', initia
   };
   // what this moment is for — asked first, because it decides what the
   // card asks of everyone else: come here, or help / go somewhere better
-  const [intent, setIntent] = useState(null);
+  /* Ayser: "خايف من الخيار ده يبقى في طاقة سلبية" — no Heads-up any more:
+     every moment is a good one */
+  const intent = 'hangout';
   const [imageUri, setImageUri] = useState(null);
   const [imageMime, setImageMime] = useState('image/jpeg');
   const [textBg, setTextBg] = useState('plain');
@@ -162,7 +164,6 @@ export const ComposeModal = ({ initialMode = 'post', initialCaption = '', initia
        headline and the destination were in, and then this line returned
        without a word, so the button looked broken and nothing posted. */
     if (!isStory && !isTravel && !caption.trim()) return;
-    if (!isStory && !isTravel && !intent) { setError(t('intent_need')); return; }
     /* every moment in the feed is tied to somewhere: that is what makes
        it something to go to rather than something to scroll past */
     if (!isStory && !isTravel && outing && !place.trim()) { setError(t('feed_need_place')); return; }
@@ -272,6 +273,8 @@ export const ComposeModal = ({ initialMode = 'post', initialCaption = '', initia
         return;
       }
       tapSuccess();
+      /* you posted a trip: you are in that destination's travellers group */
+      if (isTravel && place.trim()) import('../services/squadAdmin').then((m) => m.travelGroupJoin(place.trim())).catch(() => {});
       onPosted(card);
       onClose();
     } catch (e) {
@@ -410,25 +413,6 @@ export const ComposeModal = ({ initialMode = 'post', initialCaption = '', initia
                   );
                 })}
               </View>
-            </View>
-          ) : null}
-
-          {/* what is this? — two answers, one tap. Everything below
-              (the card's button in the feed) follows from it. */}
-          {mode === 'post' ? (
-            <View style={{ flexDirection: 'row', marginBottom: 14 }}>
-              {[{ id: 'hangout', icon: 'sunny-outline', key: 'intent_hangout', sub: 'intent_hangout_sub' },
-                { id: 'warning', icon: 'alert-circle-outline', key: 'intent_warning', sub: 'intent_warning_sub' }].map((o, i) => {
-                const on = intent === o.id;
-                return (
-                  <Pressable key={o.id} onPress={() => { setIntent(o.id); setError(null); }} accessibilityRole="radio" accessibilityState={{ checked: on }}
-                    style={{ flex: 1, marginStart: i ? 10 : 0, borderRadius: 16, borderWidth: 1.5, borderColor: on ? C.text : C.line, backgroundColor: on ? C.glass : 'transparent', padding: 12 }}>
-                    <Ionicons name={o.icon} size={20} color={on ? C.text : C.dim} />
-                    <Text style={{ color: C.text, fontSize: 14, fontWeight: '800', marginTop: 6 }} numberOfLines={1}>{t(o.key)}</Text>
-                    <Text style={{ color: C.dim, fontSize: 12, marginTop: 2 }} numberOfLines={2}>{t(o.sub)}</Text>
-                  </Pressable>
-                );
-              })}
             </View>
           ) : null}
 

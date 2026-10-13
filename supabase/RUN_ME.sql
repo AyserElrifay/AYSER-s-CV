@@ -14495,6 +14495,51 @@ grant execute on function public.squad_set_photo(uuid, text) to authenticated;
 notify pgrst, 'reload schema';
 
 -- ═══════════════════════════════════════════════════════════════════
+--  TRAVELLERS TO THE SAME PLACE, ONE GROUP
+--  Ayser: "خلي الـ travel plan لما تدوس يدخلك جروب ناس مسافرين نفس
+--  المكان". One group chat per destination (the place written on the
+--  plan, compared without case or extra spaces). Join from any travel
+--  plan to that place; the person who posts the plan is put in it too.
+--  Nobody removed from it can come back this way.
+--  Safe to re-run.
+-- ═══════════════════════════════════════════════════════════════════
+create table if not exists public.travel_groups (
+  place_key  text primary key,
+  squad_id   uuid not null references public.squads(id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+alter table public.travel_groups enable row level security;
+
+create or replace function public.travel_group_join(p_place text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); k text; nm text; sq uuid;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  nm := left(btrim(regexp_replace(coalesce(p_place, ''), '\s+', ' ', 'g')), 60);
+  if length(nm) < 2 then return jsonb_build_object('ok', false, 'reason', 'no_place'); end if;
+  k := lower(nm);
+  select squad_id into sq from public.travel_groups where place_key = k;
+  if sq is null then
+    insert into public.squads (name, emoji) values ('✈️ ' || nm, '✈️') returning id into sq;
+    insert into public.travel_groups (place_key, squad_id) values (k, sq)
+    on conflict (place_key) do nothing;
+    select squad_id into sq from public.travel_groups where place_key = k;
+  end if;
+  if exists (select 1 from public.squad_bans where squad_id = sq and user_id = me) then
+    return jsonb_build_object('ok', false, 'reason', 'removed');
+  end if;
+  insert into public.squad_members (squad_id, user_id, role, accepted) values (sq, me, 'member', true)
+  on conflict (squad_id, user_id) do update set accepted = true;
+  return jsonb_build_object('ok', true, 'squad_id', sq, 'name', '✈️ ' || nm, 'emoji', '✈️',
+    'people', (select count(*) from public.squad_members where squad_id = sq));
+end;
+$$;
+revoke execute on function public.travel_group_join(text) from public, anon;
+grant execute on function public.travel_group_join(text) to authenticated;
+
+notify pgrst, 'reload schema';
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة

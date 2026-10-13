@@ -24,6 +24,34 @@ import { getOrCreateDmThread, sendMessage } from '../services/messages';
 import { useAuth } from '../context/AuthContext';
 import { lazyOverlay } from '../lib/lazyScreen';
 /* the line under a post that leads to a real plan, trip or places — fetched only once the feed is up */
+/* a travel plan opens the group of everyone going to the same place */
+const TravelGroupButton = ({ post, mine, t }) => {
+  const [busy, setBusy] = useState(false);
+  const go = async () => {
+    if (busy) return;
+    tapLight(); setBusy(true);
+    try {
+      const m = await import('../services/squadAdmin');
+      const r = await m.travelGroupJoin(post.place);
+      if (r && r.ok) {
+        tapSuccess();
+        const c = await import('../lib/chatBus');
+        c.openChat({ id: r.squad_id, name: r.name, emoji: r.emoji });
+        goToTab('CHATS');
+      }
+    } catch (e) {}
+    setBusy(false);
+  };
+  return (
+    <Pressable onPress={go} accessibilityRole="button" style={{ marginTop: 12 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: C.purple, borderRadius: 999, paddingVertical: 11, paddingHorizontal: 14, opacity: busy ? 0.6 : 1 }}>
+        <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '900' }} numberOfLines={1}>
+          {'✈️ ' + t(mine ? 'tv_open' : 'tv_join').replace('{place}', post.place)}
+        </Text>
+      </View>
+    </Pressable>
+  );
+};
 const PostLink = lazyOverlay(() => import('./PostLink').then((m) => ({ default: m.PostLink })));
 
 /* Chips sit on photos, so they stay dark with light text for contrast. */
@@ -780,7 +808,8 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
               <Text style={{ color: C.purple, fontSize: 13.5, fontWeight: '900' }}>{'🤝 ' + t('pc_join_next')}</Text>
             </View>
           </Pressable>
-        ) : !post.sponsored && !post.joinable && !isMine ? <PostLink post={post} t={t} lang={lang} /> : null}
+        ) : post.type === 'travel' && post.place ? <TravelGroupButton post={post} mine={isMine} t={t} />
+          : !post.sponsored && !post.joinable && !isMine ? <PostLink post={post} t={t} lang={lang} /> : null}
 
         {/* "Make a plan here" used to sit under every post with a place —
             a button on a photo of somebody's sunset turned every moment

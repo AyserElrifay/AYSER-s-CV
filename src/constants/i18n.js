@@ -2024,6 +2024,8 @@ export const STRINGS = {
     ag_err_out: "This one is for a different age group.",
     gc_photo: "Change the group photo",
     gc_photo_remove: "Remove photo",
+    tv_join: "Join everyone going to {place}",
+    tv_open: "Open the {place} travellers group",
     lens_all: 'Everything',
     lens_places: 'Places to go',
     lens_people: 'People',
