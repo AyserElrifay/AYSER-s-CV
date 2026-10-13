@@ -28,7 +28,7 @@ const STOCK = [
     { img: 'act-climb-1.jpg' }, { img: 'mario-crew.jpg' }, { img: 'mario-ferrata.jpg' }, { img: 'mario-mirror.jpg' },
     { img: 'place-eg-mario-ropes.jpg' }, { img: 'mario-crew-v.jpg', clip: 'mario-crew-v.mp4' },
   ].map((x) => ({ ...x, own: true })) },
-  { id: 'football', re: /foot|soccer|كورة|كوره|⚽/i, files: [5, 4, 2, 3].map((k) => ({ img: 'sport-football-' + k + '.jpg' })) },
+  { id: 'football', re: /foot|soccer|كورة|كوره|⚽/i, files: [1, 2, 3].map((k) => ({ img: 'football-crew-' + k + '.jpg', own: true })).concat([5, 4, 2, 3].map((k) => ({ img: 'sport-football-' + k + '.jpg' }))) },
   { id: 'sketch', re: /sketch|draw|رسم(?!ي)|اسكتش|✏️|🎨|\bart\b/i, files: n('art-sketch-', 5) },
   { id: 'padel', re: /padel|(^|[^ت])بادل|tennis|تنس|🎾/i, files: n('act-padel-', 4).concat(clip('act-padel-v', 5), n('padel-ayser-', 4, 'Shahd Elzayaat')) },
   { id: 'walk', re: /walk|hike|hiking|trail|stroll|مشي|تمشي|مشوار|🥾|🚶/i, files: n('act-walk-', 5).concat(clip('act-walk-v', 1)) },
