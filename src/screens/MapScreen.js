@@ -28,6 +28,7 @@ import { fetchLiveVenues, applyAsVenue } from '../services/venues';
 import { buildAvatarUrl, buildStandingUrl } from '../services/avatarBuilder';
 import { fetchNearbyPlaces } from '../services/places';
 import { DESTINATIONS } from '../constants/destinations';
+import { openPartner as openPartnerPage } from '../lib/partnerLink';
 import { fetchDestReviews, addDestReview } from '../services/destinations';
 import { fetchMomentPins } from '../services/posts';
 import { requestTrip } from '../services/trips';
@@ -1172,7 +1173,7 @@ export const MapScreen = () => {
                   <Text style={{ color: C.faint, fontSize: 11, marginTop: 3, textAlign: 'center' }}>{t('own_place_cta')}</Text>
                 </Glass>
               )}
-              <Pressable onPress={() => openSheet('partner')}>
+              <Pressable onPress={() => { tapLight(); openPartnerPage('place'); }}>
                 <Glass tint="rgba(124,58,237,0.08)" border="rgba(124,58,237,0.35)" style={{ width: 200, padding: 13, marginRight: 12, alignItems: 'center', justifyContent: 'center' }}>
                   <Text style={{ fontSize: 24 }}>🤝</Text>
                   <Text style={{ color: C.text, fontSize: 13, fontWeight: '800', marginTop: 6, textAlign: 'center' }}>{t('own_a_place')}</Text>

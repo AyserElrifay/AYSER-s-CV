@@ -30,6 +30,7 @@ import { openChat } from '../lib/chatBus';
 import { lazyOverlay, preloadTabs } from '../lib/lazyScreen';
 import { isSaving, DEFAULT_DATA_MODE } from '../lib/dataSaver';
 import { getPrefs } from '../services/prefs';
+import { openPartner } from '../lib/partnerLink';
 import { HostBadge } from '../components/HostCard';
 import { PlanHead, PastPhotos } from '../components/green/PlanPhoto';
 import { ReportSheet } from '../components/ReportSheet';
@@ -584,6 +585,14 @@ export const TogetherScreen = () => {
             </View>
           </Pressable>
         ) : null}
+        {/* ── own a place, or run trips? ── the partner page (PartnerSheet) */}
+        <Pressable onPress={() => { tapLight(); openPartner('place'); }} accessibilityRole="button" style={{ marginTop: 10 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: C.line, borderRadius: 18, padding: 14 }}>
+            <Text style={{ fontSize: 20, marginEnd: 10 }}>🤝</Text>
+            <Text style={{ color: C.text, fontSize: 14, fontWeight: '800', flex: 1 }} numberOfLines={2}>{t('pt_together_line')}</Text>
+            <Ionicons name="chevron-forward" size={17} color={C.dim} />
+          </View>
+        </Pressable>
       </ScrollView>
 
       {sheet === 'gonow' ? <GoNowSheet onClose={() => { setSheet(null); load(); }} /> : null}

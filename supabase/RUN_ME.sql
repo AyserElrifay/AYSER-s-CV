@@ -13300,3 +13300,115 @@ notify pgrst, 'reload schema';
 -- ═══════════════════════════════════════════════════════════════════
 update public.offers set video = null where id = '0ffe0000-0000-4000-8000-000000000003';
 update public.offers set video = null where video in ('media/offer-siwa.mp4', 'media/place-shali.mp4');
+
+-- ═══════════════════════════════════════════════════════════════════
+--  PARTNERS · PLACES AND EXPERIENCES APPLY THEMSELVES
+--
+--  Ayser, after Hype's partner page: "خد من خبرتهم … بدل ما نجري ورا
+--  مطاعم وكافيهات". Instead of chasing venues one by one, they come to
+--  us: one page, two kinds of partner, five fields.
+--
+--    · place       — a café, restaurant, gym, coworking space, a
+--                    hidden gem: somewhere people come to;
+--    · experience  — trips, retreats, yoga in the park, workshops,
+--                    tour guides: no four walls needed.
+--
+--  Anyone may apply, signed in or not — a café owner who got the link
+--  on WhatsApp should not have to make an account first. A plain
+--  table nobody can read; one function that writes to it and checks
+--  what it is given; the Studio is the only reader.
+--  Safe to re-run.
+-- ═══════════════════════════════════════════════════════════════════
+
+create table if not exists public.partner_applications (
+  id          uuid primary key default gen_random_uuid(),
+  kind        text not null check (kind in ('place','experience')),
+  name        text not null check (char_length(name) between 2 and 80),
+  brand       text not null check (char_length(brand) between 2 and 100),
+  email       text check (email is null or email ~* '^[^@\s]+@[^@\s]+\.[^@\s]+$'),
+  phone       text check (phone is null or phone ~ '^[+0-9 ()-]{6,24}$'),
+  city        text check (city is null or char_length(city) <= 60),
+  about       text check (about is null or char_length(about) <= 1000),
+  user_id     uuid references public.profiles(id) on delete set null,
+  status      text not null default 'new' check (status in ('new','talking','accepted','declined')),
+  note        text,                                    -- the owner's own note
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now(),
+  check (email is not null or phone is not null)        -- some way to reach them
+);
+create index if not exists partner_apps_new_idx on public.partner_applications (status, created_at desc);
+alter table public.partner_applications enable row level security;
+-- no policies: nobody reads or writes it directly
+
+create or replace function public.partner_apply(p jsonb)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare k text := lower(trim(coalesce(p->>'kind', '')));
+        n text := trim(coalesce(p->>'name', ''));
+        b text := trim(coalesce(p->>'brand', ''));
+        e text := nullif(lower(trim(coalesce(p->>'email', ''))), '');
+        ph text := nullif(trim(coalesce(p->>'phone', '')), '');
+        c text := nullif(trim(coalesce(p->>'city', '')), '');
+        a text := nullif(trim(coalesce(p->>'about', '')), '');
+begin
+  if k not in ('place','experience') then return jsonb_build_object('ok', false, 'reason', 'kind'); end if;
+  if char_length(n) < 2 or char_length(b) < 2 then return jsonb_build_object('ok', false, 'reason', 'name'); end if;
+  if e is null and ph is null then return jsonb_build_object('ok', false, 'reason', 'contact'); end if;
+  if e is not null and e !~* '^[^@\s]+@[^@\s]+\.[^@\s]+$' then return jsonb_build_object('ok', false, 'reason', 'email'); end if;
+  if ph is not null and ph !~ '^[+0-9 ()-]{6,24}$' then return jsonb_build_object('ok', false, 'reason', 'phone'); end if;
+  -- the same place asking twice in a day is one application, and a
+  -- flood is refused rather than stored
+  if exists (select 1 from public.partner_applications x
+              where lower(x.brand) = lower(b) and coalesce(x.email, x.phone) = coalesce(e, ph)
+                and x.created_at > now() - interval '1 day') then
+    return jsonb_build_object('ok', true, 'again', true);
+  end if;
+  if (select count(*) from public.partner_applications where created_at > now() - interval '1 hour') >= 60 then
+    return jsonb_build_object('ok', false, 'reason', 'busy');
+  end if;
+  insert into public.partner_applications (kind, name, brand, email, phone, city, about, user_id)
+  values (k, left(n, 80), left(b, 100), e, ph, left(c, 60), left(a, 1000), auth.uid());
+  return jsonb_build_object('ok', true);
+end $$;
+revoke all on function public.partner_apply(jsonb) from public;
+grant execute on function public.partner_apply(jsonb) to anon, authenticated;
+
+create or replace function public.owner_partner_apps()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select case when not public.owner_ok() then '[]'::jsonb else coalesce((
+    select jsonb_agg(to_jsonb(x) order by (x.status = 'new') desc, x.created_at desc)
+      from public.partner_applications x), '[]'::jsonb) end;
+$$;
+revoke execute on function public.owner_partner_apps() from public, anon;
+grant execute on function public.owner_partner_apps() to authenticated;
+
+create or replace function public.owner_partner_set(p_id uuid, p_status text, p_note text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  if not public.owner_ok() then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
+  if p_status not in ('new','talking','accepted','declined') then return jsonb_build_object('ok', false, 'reason', 'status'); end if;
+  update public.partner_applications
+     set status = p_status, note = coalesce(nullif(trim(coalesce(p_note, '')), ''), note), updated_at = now()
+   where id = p_id;
+  return jsonb_build_object('ok', found);
+end $$;
+revoke execute on function public.owner_partner_set(uuid, text, text) from public, anon;
+grant execute on function public.owner_partner_set(uuid, text, text) to authenticated;
+
+-- ── HOW LONG A TRIP TAKES ────────────────────────────────────────────
+-- "From 2,800 EGP · 7h" the way a trip card should read. Set by the
+-- owner in the Studio; empty means the card simply doesn't say.
+alter table public.offers add column if not exists duration_hours numeric(5,1)
+  check (duration_hours is null or (duration_hours > 0 and duration_hours <= 720));
+
+create or replace function public.offer_set_duration(p_id uuid, p_hours numeric)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  if not public.owner_ok() then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
+  update public.offers set duration_hours = case when p_hours is null or p_hours <= 0 then null else least(p_hours, 720) end,
+         updated_at = now() where id = p_id;
+  return jsonb_build_object('ok', found);
+end $$;
+revoke execute on function public.offer_set_duration(uuid, numeric) from public, anon;
+grant execute on function public.offer_set_duration(uuid, numeric) to authenticated;
+
+notify pgrst, 'reload schema';

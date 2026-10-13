@@ -1,0 +1,62 @@
+import React, { useEffect, useState } from 'react';
+import { View, Text, Pressable, ActivityIndicator, Linking } from 'react-native';
+import { C } from '../constants/theme';
+import { ownerPartnerApps, ownerPartnerSet } from '../services/partners';
+import { appLink, shareLink } from '../utils/share';
+
+/* ─── STUDIO · PARTNERS ────────────────────────────────────────────────
+   Every place and experience that applied on the partner page
+   (PartnerSheet), newest first, the new ones on top. Call, WhatsApp or
+   email them from here, and move each one along: new → talking →
+   accepted / declined. Refused by the database for anyone but the owner. */
+const STATUS = ['new', 'talking', 'accepted', 'declined'];
+const COLOR = { new: '#7C3AED', talking: '#D97706', accepted: '#16A34A', declined: '#9CA3AF' };
+const wa = (phone) => 'https://wa.me/' + String(phone || '').replace(/[^0-9]/g, '');
+
+const Btn = ({ label, onPress, color }) => (
+  <Pressable onPress={onPress} accessibilityRole="button" style={{ marginEnd: 8, marginTop: 8 }}>
+    <View style={{ borderRadius: 999, borderWidth: 1, borderColor: color || C.line, paddingHorizontal: 12, paddingVertical: 6 }}>
+      <Text style={{ color: color || C.text, fontSize: 12.5, fontWeight: '800' }}>{label}</Text>
+    </View>
+  </Pressable>
+);
+
+export const PartnersTab = () => {
+  const [rows, setRows] = useState(null);
+  const [filter, setFilter] = useState('open');
+  const load = () => ownerPartnerApps().then((r) => setRows(r || []));
+  useEffect(() => { load(); }, []);
+  const move = async (x, status) => { const r = await ownerPartnerSet(x.id, status); if (r && r.ok) load(); };
+  const shown = (rows || []).filter((x) => (filter === 'open' ? x.status === 'new' || x.status === 'talking' : x.status === filter));
+  return (
+    <View>
+      <Text style={{ color: C.dim, fontSize: 13, lineHeight: 19 }}>
+        Places and experiences that applied on the partner page. Send the page to a venue with the button below — it opens without an account.
+      </Text>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 4 }}>
+        <Btn label="Send the partner page" color={C.purple} onPress={() => shareLink({ url: appLink({ partner: 'place' }), title: 'Moments', text: 'Put your place on Moments' })} />
+        {['open', 'accepted', 'declined'].map((k) => <Btn key={k} label={(filter === k ? '● ' : '') + k} onPress={() => setFilter(k)} />)}
+      </View>
+      {rows == null ? <ActivityIndicator color={C.dim} style={{ marginTop: 20 }} />
+        : !shown.length ? <Text style={{ color: C.dim, marginTop: 14 }}>Nothing here yet.</Text>
+        : shown.map((x) => (
+          <View key={x.id} style={{ borderWidth: 1, borderColor: C.line, borderRadius: 16, padding: 13, marginTop: 12 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={{ color: C.text, fontSize: 15.5, fontWeight: '900', flex: 1 }} numberOfLines={1}>{(x.kind === 'place' ? '📍 ' : '🧭 ') + x.brand}</Text>
+              <Text style={{ color: COLOR[x.status], fontSize: 12, fontWeight: '900' }}>{x.status.toUpperCase()}</Text>
+            </View>
+            <Text style={{ color: C.dim, fontSize: 13, marginTop: 3 }}>{[x.name, x.city, new Date(x.created_at).toLocaleDateString()].filter(Boolean).join(' · ')}</Text>
+            {x.about ? <Text selectable style={{ color: C.text, fontSize: 13.5, lineHeight: 19, marginTop: 6 }}>{x.about}</Text> : null}
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+              {x.phone ? <Btn label={'📞 ' + x.phone} onPress={() => Linking.openURL('tel:' + x.phone).catch(() => {})} /> : null}
+              {x.phone ? <Btn label="WhatsApp" color="#16A34A" onPress={() => Linking.openURL(wa(x.phone)).catch(() => {})} /> : null}
+              {x.email ? <Btn label={'✉️ ' + x.email} onPress={() => Linking.openURL('mailto:' + x.email).catch(() => {})} /> : null}
+            </View>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+              {STATUS.filter((s) => s !== x.status).map((s) => <Btn key={s} label={'→ ' + s} color={COLOR[s]} onPress={() => move(x, s)} />)}
+            </View>
+          </View>
+        ))}
+    </View>
+  );
+};

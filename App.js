@@ -34,6 +34,8 @@ import { pendingInvite, clearInvite } from './src/lib/invite';
 import { pendingChatLink } from './src/lib/chatLink';
 import { JoinChatSheet } from './src/components/JoinChatSheet';
 import { TripLinkGate } from './src/components/TripLinkGate';
+import { PartnerLinkGate } from './src/components/PartnerLinkGate';
+import { pendingPartner } from './src/lib/partnerLink';
 import { pendingTrip } from './src/lib/tripLink';
 import { claimInvite } from './src/services/green';
 import { TabNavigator, buildNavTheme } from './src/navigation/TabNavigator';
@@ -154,7 +156,7 @@ const Root = () => {
   const [tour, setTour] = React.useState(false);
   React.useEffect(() => {
     // not on top of a group invitation (JoinChatSheet): one thing at a time
-    if (!isAuthenticated || tourSeen() || pendingChatLink() || pendingTrip()) return undefined;
+    if (!isAuthenticated || tourSeen() || pendingChatLink() || pendingTrip() || pendingPartner()) return undefined;
     const t = setTimeout(() => setTour(true), 1400);
     return () => clearTimeout(t);
   }, [isAuthenticated]);
@@ -167,7 +169,7 @@ const Root = () => {
   }
   if (recovering) return <AuthScreen recovery onDone={() => setRecovering(false)} />;
   // a trip somebody sent opens over sign-in: looking needs no account
-  if (!isAuthenticated) return <><AuthScreen /><TripLinkGate /></>;
+  if (!isAuthenticated) return <><AuthScreen /><TripLinkGate /><PartnerLinkGate /></>;
   // the mini-player floats above the navigator, so music keeps playing as
   // you move between tabs. `key={gen}` forces a full remount when dark
   // mode toggles, so every already-mounted screen re-reads the new colors.
@@ -186,6 +188,8 @@ const Root = () => {
       <JoinChatSheet />
       {/* a shared trip, or a trip that just opened (src/lib/tripLink.js) */}
       <TripLinkGate signedIn />
+      {/* the partner page, from a link or from inside (src/lib/partnerLink.js) */}
+      <PartnerLinkGate />
       {tour ? <GestureTour onClose={() => setTour(false)} /> : null}
       {/* after a strike: over everything (src/components/SafetyHold.js) */}
       <SafetyHold />

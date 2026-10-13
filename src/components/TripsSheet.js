@@ -44,6 +44,8 @@ const KINDS = [null, 'trip', 'deal', 'stay', 'experience'];
    database gives them, so neither side is the "main" one */
 const EUROPE = new Set(['EE', 'RO', 'IT', 'CZ', 'DE', 'FR', 'ES', 'PT', 'GR', 'AT', 'NL', 'BE', 'PL', 'HU', 'HR', 'SK', 'SI', 'LV', 'LT', 'FI', 'SE', 'DK', 'NO', 'IE', 'CH', 'BG', 'MT', 'CY', 'LU', 'IS', 'GB']);
 const regionOf = (o) => (o.country === 'EG' ? 'eg' : EUROPE.has(o.country) ? 'eu' : 'other');
+/* "7h", or "2 days" from a day up */
+const hoursLabel = (h, t) => { const n = Number(h); return n >= 24 ? t('bk_days').replace('{n}', String(Math.round(n / 24))) : t('bk_hours').replace('{n}', String(n)); };
 const flagOf = (cc) => (cc && /^[A-Z]{2}$/.test(cc) ? String.fromCodePoint(...cc.split('').map((c) => 0x1F1E6 + c.charCodeAt(0) - 65)) + ' ' : '');
 
 const when = (iso, lang) => {
@@ -204,6 +206,7 @@ const Offer = ({ o, t, lang, onBack, onBooked, user, onNeedSignIn }) => {
           <Text style={{ color: C.faint, fontSize: 12, fontWeight: '800', letterSpacing: 1.2 }}>{flagOf(o.country) + (t('bk_kind_' + o.kind) + (o.city ? ' · ' + o.city : '')).toUpperCase()}</Text>
           <Text style={{ color: C.text, fontSize: 25, fontWeight: '900', letterSpacing: -0.3, marginTop: 4 }}>{pick(o, 'title', lang)}</Text>
           {o.partner || o.operator ? <Text style={{ color: C.dim, fontSize: 13.5, marginTop: 3 }}>{t('bk_by').replace('{name}', o.partner || o.operator)}</Text> : null}
+          {o.duration_hours ? <Text style={{ color: C.dim, fontSize: 14, fontWeight: '700', marginTop: 6 }}>{'⏱ ' + hoursLabel(o.duration_hours, t)}</Text> : null}
           {o.starts_at ? (
             <Text style={{ color: C.text, fontSize: 14, fontWeight: '700', marginTop: 8 }}>
               {'📅 ' + when(o.starts_at, lang) + (o.ends_at ? ' → ' + when(o.ends_at, lang) : '')}
@@ -391,6 +394,7 @@ export const TripsSheet = ({ onClose, country, openOn, focus, onNeedSignIn }) =>
                             <Text style={{ color: C.text, fontSize: 18, fontWeight: '900', marginTop: 3 }} numberOfLines={2}>{pick(o, 'title', lang)}</Text>
                             <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginTop: 8 }}>
                               <View style={{ flex: 1 }}>{o.status === 'soon' ? <Soon t={t} /> : <Price o={o} t={t} lang={lang} />}</View>
+                              {o.duration_hours ? <Text style={{ color: C.dim, fontSize: 12.5, fontWeight: '800', marginEnd: 10 }}>{'⏱ ' + hoursLabel(o.duration_hours, t)}</Text> : null}
                               {o.status === 'soon' && Number(o.wants) > 0 ? <Text style={{ color: C.dim, fontSize: 12.5, fontWeight: '800' }}>{t(Number(o.wants) === 1 ? 'bk_wants_1' : 'bk_wants_n').replace('{n}', String(o.wants))}</Text> : null}
                               {o.seats_left != null ? <Text style={{ color: o.seats_left ? C.dim : '#E11D48', fontSize: 12.5, fontWeight: '800' }}>{o.seats_left ? t('bk_seats_left').replace('{n}', String(o.seats_left)) : t('bk_full')}</Text> : null}
                             </View>
