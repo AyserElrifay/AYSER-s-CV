@@ -22,7 +22,7 @@ import { isSaving } from '../lib/dataSaver';
 const Gallery = ({ place, height }) => {
   const [w, setW] = useState(0);
   const [at, setAt] = useState(0);
-  const list = [place.photo].concat(place.photos.filter((x) => x !== place.photo));
+  const list = [place.wide || place.photo].concat(place.photos.filter((x) => x !== place.photo));
   return (
     <View onLayout={(e) => setW(e.nativeEvent.layout.width)} style={{ width: '100%', height, borderRadius: 16, overflow: 'hidden', backgroundColor: C.glassHi }}>
       {w ? (
