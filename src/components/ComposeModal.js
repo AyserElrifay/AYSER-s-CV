@@ -278,7 +278,11 @@ export const ComposeModal = ({ initialMode = 'post', initialCaption = '', initia
       onPosted(card);
       onClose();
     } catch (e) {
-      setError('Could not share. Try again.');
+      /* the database keeps light moments few and kind (light_post_guard) */
+      const m = String((e && e.message) || '');
+      if (/light_limit:(\d+)/.test(m)) setError(t('lt_limit').replace('{n}', /light_limit:(\d+)/.exec(m)[1]));
+      else if (/light_mood/.test(m)) setError(t('lt_mood'));
+      else setError('Could not share. Try again.');
     } finally {
       setBusy(false);
     }

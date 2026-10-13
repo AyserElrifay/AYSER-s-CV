@@ -14552,6 +14552,57 @@ update public.offers set title = 'Brasov & Bran in the Carpathians', city = 'Bra
  where id = '0ffe0000-0000-4000-8000-000000000013' and title = 'Brașov & Bran in the Carpathians';
 
 -- ═══════════════════════════════════════════════════════════════════
+--  LIGHT MOMENTS: SHORT, FUNNY, KIND — AND A FEW A WEEK
+--
+--  Ayser: "خلي عادي الناس تحط حاجة زي أنا لسه جاي أو بحب الجبنة …
+--  حاجات خفيفة وسريعة، لكن حاجة نكد أو حزن لا. وخلي في limit للـ users
+--  ٢ posts كده في الأسبوع، ولو عمل اشتراك Plus بيبقوا ٤".
+--  A light moment is a plain post tied to no place, no spot, no plan and
+--  no outing. The database allows 2 in any 7 days, 4 with Plus, and
+--  turns away one whose words are plainly sad or angry (a short word
+--  list in English and Arabic — it catches the obvious, not everything).
+--  Moments from somewhere are not counted and not limited.
+--  Safe to re-run.
+-- ═══════════════════════════════════════════════════════════════════
+create or replace function public.is_light_post(p public.posts)
+returns boolean language sql immutable set search_path = public as $$
+  select coalesce(p.type, 'post') = 'post' and coalesce(btrim(p.place), '') = '' and p.lat is null
+     and p.gathering_id is null and p.starts_at is null and p.plan is null;
+$$;
+
+create or replace function public.light_post_guard() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare n int; cap int;
+begin
+  if not public.is_light_post(new) then return new; end if;
+  if coalesce(new.caption, '') ~* '(\m(sad|depress\w*|miserable|lonely|hate|crying|cried|heartbroken|hopeless|worst day|kill myself|suicid\w*|want to die|angry|furious|disgusted)\M|زعلان|زعلانة|حزين|حزينة|مكتئب|اكتئاب|نكد|مخنوق|مخنوقة|خنقة|زهقان|مضايق|مقهور|قرفان|بكره نفسي|عايز اموت|عايزة اموت|انتحار|حياتي وحشة|💔|😭|😢|😞|😡|🤬)' then
+    raise exception 'light_mood' using errcode = 'P0001';
+  end if;
+  cap := case when public.is_plus(new.user_id) then 4 else 2 end;
+  select count(*) into n from public.posts p
+   where p.user_id = new.user_id and p.created_at > now() - interval '7 days' and public.is_light_post(p);
+  if n >= cap then raise exception 'light_limit:%', cap using errcode = 'P0001'; end if;
+  return new;
+end;
+$$;
+revoke execute on function public.light_post_guard() from public, anon, authenticated;
+drop trigger if exists posts_light_guard on public.posts;
+create trigger posts_light_guard before insert on public.posts
+  for each row execute function public.light_post_guard();
+
+-- how many you have left this week
+create or replace function public.my_light_left()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select jsonb_build_object(
+    'cap', case when public.is_plus(auth.uid()) then 4 else 2 end,
+    'used', (select count(*) from public.posts p where p.user_id = auth.uid() and p.created_at > now() - interval '7 days' and public.is_light_post(p)));
+$$;
+revoke execute on function public.my_light_left() from public, anon;
+grant execute on function public.my_light_left() to authenticated;
+
+notify pgrst, 'reload schema';
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة

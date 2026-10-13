@@ -19,6 +19,14 @@ export function isActionPost(c) {
   return !!(c.coords || place || c.plan || c.joinable);
 }
 
+/* Ayser: "خلي عادي الناس تحط حاجة زي أنا لسه جاي أو بحب الجبنة … حاجات
+   خفيفة وسريعة". A light moment — a few words or a photo from nowhere in
+   particular — belongs in the feed too. The database keeps them few (2 a
+   week, 4 with Plus) and kind (no sad or angry ones): light_post_guard. */
+export function isLightPost(c) {
+  return !!c && !c.sponsored && (c.type || 'post') === 'post' && !isActionPost(c) && !!((c.caption || '').trim() || c.media);
+}
+
 /* what the button on the card does */
 export function actionOf(c) {
   if (!isActionPost(c)) return null;
@@ -28,4 +36,4 @@ export function actionOf(c) {
 /* your own moments always stay in your feed — a moment that is not from
    an outing reaches other people through your profile, but it never
    vanishes from under the person who just posted it */
-export const actionFeed = (cards, me) => (cards || []).filter((c) => isActionPost(c) || (me && c && !c.sponsored && c.userId === me)).slice(0, FEED_MAX);
+export const actionFeed = (cards, me) => (cards || []).filter((c) => isActionPost(c) || isLightPost(c) || (me && c && !c.sponsored && c.userId === me)).slice(0, FEED_MAX);
