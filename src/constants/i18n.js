@@ -1607,6 +1607,7 @@ export const STRINGS = {
     pd_from_you: "{d} from you",
     pd_nearby: "Nearby",
     pf_tag_date: "Date spots",
+    pf_tag_hike: "Hiking",
     pf_tag_souv: "Gifts & souvenirs",
     sp_today: "My day",
     cmp_outing_yes: "From an outing",

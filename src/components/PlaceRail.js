@@ -48,7 +48,15 @@ export const PlaceRail = () => {
   if (!list || !list.length) return null;
   return (
     <View style={{ marginTop: 18 }}>
-      <Text style={{ color: C.text, fontSize: 17, fontWeight: '900', marginBottom: 10 }}>{'📍 ' + t('rail_title')}</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+        <Text style={{ flex: 1, color: C.text, fontSize: 17, fontWeight: '900' }}>{'📍 ' + t('rail_title')}</Text>
+        {/* the hikes: St. Catherine, Wadi Degla, the Dolomites… one tap */}
+        <Pressable onPress={() => { tapLight(); showOnMap({ placesTag: 'Hiking' }); }} accessibilityRole="button" hitSlop={6}>
+          <View style={{ borderRadius: 999, borderWidth: 1, borderColor: C.line, paddingHorizontal: 12, paddingVertical: 6 }}>
+            <Text style={{ color: C.text, fontSize: 13, fontWeight: '800' }}>{'🥾 ' + t('pf_tag_hike') + ' ›'}</Text>
+          </View>
+        </Pressable>
+      </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" decelerationRate="fast" snapToInterval={148}>
         {list.map((p) => <Card key={p.id} p={p} onPress={() => { tapLight(); showOnMap({ lat: p.lat, lng: p.lng, placeId: p.id }); }} />)}
       </ScrollView>

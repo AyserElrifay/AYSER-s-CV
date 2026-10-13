@@ -472,7 +472,8 @@ export const MapScreen = () => {
 
   /* ── curated destination sheet: guide + reviews + Uber ── */
   const [destOpen, setDestOpen] = useState(null);
-  const [feedOpen, setFeedOpen] = useState(false);   // every place as a big photo card (PlacesFeed)
+  const [feedOpen, setFeedOpen] = useState(false);
+  const [feedTag, setFeedTag] = useState(null);   // every place as a big photo card (PlacesFeed)
   /* Where a city turns into a journey: the real flight, stay and car
      searches, already filled in. See components/TravelSheet.js for why
      it deliberately shows no prices of its own. */
@@ -835,6 +836,8 @@ export const MapScreen = () => {
     const go = (tg) => {
       if (!tg) return;
       setSheet(null);
+      // "Hiking" from Home: the places list, opened on that kind
+      if (tg.placesTag) { setFeedTag(tg.placesTag); setFeedOpen(true); return; }
       setLens('all');
       setMapFocus({ lat: tg.lat, lng: tg.lng, zoom: 16, ts: tg.ts || Date.now() });
       if (tg.postId) setWantMoment(tg.postId);
@@ -1929,7 +1932,7 @@ export const MapScreen = () => {
         </Pressable>
       ) : null}
 
-      {feedOpen ? <PlacesFeed places={DESTINATIONS} onClose={() => setFeedOpen(false)} onOpen={(d) => openDest(d)} /> : null}
+      {feedOpen ? <PlacesFeed places={DESTINATIONS} initialTag={feedTag} onClose={() => { setFeedOpen(false); setFeedTag(null); }} onOpen={(d) => openDest(d)} /> : null}
 
       {/* curated destination — the guide sheet: story, reviews, Uber */}
       {destOpen ? (

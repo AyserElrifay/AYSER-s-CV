@@ -130,8 +130,8 @@ const Credit = ({ place, t }) => {
    real places in src/constants/destinations.js — somewhere good for a
    date (a view, a sunset, a garden, a waterfront), and somewhere to buy
    a gift worth bringing home (bazaars, crafts, markets). */
-const PINNED = ['Date spot', 'Souvenirs'];
-export const tagLabel = (x, t) => (x === 'Date spot' ? '💕 ' + t('pf_tag_date') : x === 'Souvenirs' ? '🎁 ' + t('pf_tag_souv') : x);
+const PINNED = ['Hiking', 'Date spot', 'Souvenirs'];
+export const tagLabel = (x, t) => (x === 'Hiking' ? '🥾 ' + t('pf_tag_hike') : x === 'Date spot' ? '💕 ' + t('pf_tag_date') : x === 'Souvenirs' ? '🎁 ' + t('pf_tag_souv') : x);
 
 const H = 210;
 const Card = ({ place, dist, onOpen, t }) => (
@@ -164,13 +164,13 @@ const Card = ({ place, dist, onOpen, t }) => (
 /* the places come from the map screen as a prop rather than an import:
    a list two lazy pieces both import gets pulled into the first
    download, and this one is ninety kilobytes */
-export const PlacesFeed = ({ onClose, onOpen, places }) => {
+export const PlacesFeed = ({ onClose, onOpen, places, initialTag = null }) => {
   const [planAt, setPlanAt] = useState(null);       // a spot somebody wants to make a plan at
   const DESTINATIONS = places || [];
   useSheetBack(onClose);
   const insets = useSafeAreaInsets();
   const { t } = useLang();
-  const [tag, setTag] = useState(null);
+  const [tag, setTag] = useState(initialTag);
   const [where, setWhere] = useState(null);       // a country, or null = everywhere (nearest first)
   const [picking, setPicking] = useState(false);
   const here = lastFix();

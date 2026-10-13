@@ -11,7 +11,8 @@ let pending = null;
 const subs = new Set();
 
 export function showOnMap(target) {
-  if (!target || target.lat == null || target.lng == null) return;
+  // a spot, or (placesTag) the places list opened on one kind, e.g. Hiking
+  if (!target || ((target.lat == null || target.lng == null) && !target.placesTag)) return;
   pending = { ...target, ts: Date.now() };
   subs.forEach((fn) => { try { fn(pending); } catch (e) {} });
 }
