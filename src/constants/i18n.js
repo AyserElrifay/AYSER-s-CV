@@ -1912,6 +1912,7 @@ export const STRINGS = {
     sp_directions: "Directions",
     sp_plan: "Plan here",
     sp_claim: "Your place? Add your own photos and details →",
+    sp_w_climbing: "Indoor climbing",
     lens_all: 'Everything',
     lens_places: 'Places to go',
     lens_people: 'People',
