@@ -171,6 +171,8 @@ export const myUnrated = () => rpc('my_unrated', {});
 export const rateGathering = (id, stars, note) => rpc('green_rate', { p_id: id, p_stars: stars, p_note: note || null });
 export const myOrganiser = () => rpc('my_organiser', {});
 export const myVolunteering = () => rpc('my_volunteering', {});
+/* girls only, guys only or everyone — the server checks the host's own profile */
+export const setAudience = (id, audience) => rpc('green_set_audience', { p_id: id, p_audience: audience });
 export const setJoinedAs = (as) => rpc('set_joined_as', { p_as: as });
 
 /* ── THE PHARAOH ALBUM ──────────────────────────────────────────────

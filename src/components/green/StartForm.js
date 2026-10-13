@@ -168,6 +168,20 @@ export const StartForm = ({ form, setForm, kinds, places, busy, onSubmit, onClos
               </Pressable>
             )}
 
+            {/* who it's for: everyone, girls only, guys only (green_set_audience) */}
+            <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '900', letterSpacing: 1, marginTop: 16, marginBottom: 6 }}>{t('au_who').toUpperCase()}</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+              {[['all', '👥'], ['women', '👩'], ['men', '👨']].map(([k, e]) => {
+                const on = (form.audience || 'all') === k;
+                return (
+                  <Pressable key={k} onPress={() => { tapLight(); setForm((f) => ({ ...f, audience: k, err: null })); }} accessibilityRole="radio" accessibilityState={{ checked: on }}
+                    style={{ marginEnd: 8, marginBottom: 6, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8, borderWidth: 1.5, borderColor: on ? C.text : C.line, backgroundColor: on ? C.text : 'transparent' }}>
+                    <Text style={{ color: on ? C.bg : C.text, fontSize: 13.5, fontWeight: '800' }}>{e + ' ' + t('au_' + k)}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
             {/* everything else, folded */}
             {more ? (
               <View style={{ marginTop: 6 }}>
@@ -206,6 +220,7 @@ export const StartForm = ({ form, setForm, kinds, places, busy, onSubmit, onClos
                 {form.err === 'no_title' ? t('green_err_title')
                   : form.err === 'in_the_past' ? t('green_err_past')
                   : form.err === 'need_unlock' ? t('vc_why_big')
+                  : form.err === 'audience_host' ? t('au_err_host')
                   : t('lamma_offline')}
               </Text>
             ) : null}

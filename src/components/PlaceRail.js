@@ -48,7 +48,7 @@ export const PlaceRail = () => {
   if (!list || !list.length) return null;
   return (
     <View style={{ marginTop: 18 }}>
-      <Text style={{ color: C.text, fontSize: 17, fontWeight: '900', marginBottom: 10 }}>{'📍 ' + t('pr_title')}</Text>
+      <Text style={{ color: C.text, fontSize: 17, fontWeight: '900', marginBottom: 10 }}>{'📍 ' + t('rail_title')}</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" decelerationRate="fast" snapToInterval={148}>
         {list.map((p) => <Card key={p.id} p={p} onPress={() => { tapLight(); showOnMap({ lat: p.lat, lng: p.lng, placeId: p.id }); }} />)}
       </ScrollView>

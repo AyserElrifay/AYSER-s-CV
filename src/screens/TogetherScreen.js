@@ -202,6 +202,7 @@ export const TogetherScreen = () => {
   const [rows, setRows] = useState(() => keptGatherings(readCode()));  // the week as last seen; null = still asking
   const [on, setOn] = useState(() => recall('whatson') || null);  // fetchWhatsOn: now / soon / groups
   const [day, setDay] = useState(null);
+  const [aud, setAud] = useState(null);   // null = all · 'all' = mixed · 'women' · 'men'
   const [open, setOpen] = useState(null);
   const [busy, setBusy] = useState({});
   const [sent, setSent] = useState(null);
@@ -281,7 +282,7 @@ export const TogetherScreen = () => {
   }, [country, uid, scope, codeKnown]);
   useEffect(() => load(), [load]);
 
-  const days = useMemo(() => groupByDay(rows), [rows]);
+  const days = useMemo(() => groupByDay(aud ? (rows || []).filter((g) => (g.audience || 'all') === aud) : rows), [rows, aud]);
   const dayLabel = (d, long) => {
     if (d.offset === 0) return t('green_today');
     if (d.offset === 1) return t('green_tomorrow');
@@ -303,6 +304,7 @@ export const TogetherScreen = () => {
     setRows((list) => (list || []).map((x) => (x.id === g.id ? { ...x, im_going: yes, going: Math.max(0, (Number(x.going) || 0) + (yes ? 1 : -1)) } : x)));
     const r = await joinGathering(g.id, yes);
     setBusy((b) => { const n = { ...b }; delete n[g.id]; return n; });
+    if (r && !r.ok && /^audience_/.test(r.reason || '')) setCheckMsg({ id: g.id, text: t('au_err_' + r.reason.slice(9)) });
     if (!(r && r.ok)) load();
     else if (yes) {
       tapSuccess();
@@ -423,6 +425,14 @@ export const TogetherScreen = () => {
           </View>
         ) : (
           <>
+            {/* girls only · guys only · mixed — shown once any of them exists */}
+            {(rows || []).some((g) => g.audience && g.audience !== 'all') ? (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ marginBottom: 6 }}>
+                {[[null, '✨', 'au_any'], ['all', '👥', 'au_mixed'], ['women', '👩', 'au_women'], ['men', '👨', 'au_men']].map(([k, e, key]) => (
+                  <Pill key={key} on={aud === k} label={e + ' ' + t(key)} onPress={() => { tapLight(); setAud(k); setDay(null); }} />
+                ))}
+              </ScrollView>
+            ) : null}
             <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ marginBottom: 6 }}>
               <Pill on={day === null} label={t('green_all_week')} onPress={() => { tapLight(); setDay(null); }} />
               {days.map((d) => (
@@ -445,6 +455,11 @@ export const TogetherScreen = () => {
                             {hour(g.starts_at)}{g.place_name ? ' · ' + g.place_name : g.city ? ' · ' + g.city : ''}
                           </Text>
                           {g.host_role ? <View style={{ marginTop: 5 }}><HostBadge role={g.host_role} small /></View> : null}
+                          {g.audience && g.audience !== 'all' ? (
+                            <View style={{ alignSelf: 'flex-start', marginTop: 6, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3, backgroundColor: g.audience === 'women' ? '#FCE7F3' : '#DBEAFE' }}>
+                              <Text style={{ color: g.audience === 'women' ? '#9D174D' : '#1E40AF', fontSize: 12, fontWeight: '900' }}>{(g.audience === 'women' ? '👩 ' : '👨 ') + t('au_' + g.audience)}</Text>
+                            </View>
+                          ) : null}
                           {creatorIds.has(g.host_id) ? (
                             <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 5 }}>
                               <Ionicons name="star" size={12} color={C.gold} />

@@ -1199,7 +1199,7 @@ export const ProfileScreen = () => {
                 so an admin console never sits in anyone's settings menu. */}
             {/* everyone: send feedback into the owner's Studio */}
             <MenuRow icon="sparkles-outline" label="Moments Plus" sub={t('px_menu_sub')} onPress={() => { setMenu(false); setPlusOpen(true); }} />
-            <MenuRow icon="ribbon-outline" label={t('vc_title')} sub={t('vc_menu_sub')} onPress={() => { setMenu(false); setCertOpen(true); }} />
+            <MenuRow icon="ribbon-outline" label={t('vh_title')} sub={t('vh_menu_sub')} onPress={() => { setMenu(false); setCertOpen(true); }} />
             <MenuRow icon="chatbubble-ellipses-outline" label={t('send_feedback')} sub={t('fb_menu_sub')} onPress={() => { setMenu(false); setFbOpen(true); }} />
 
             {/* category — shows next to your name on professional accounts */}

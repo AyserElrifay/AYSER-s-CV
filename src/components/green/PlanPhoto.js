@@ -35,8 +35,10 @@ const STOCK = [
     { img: 'act-climb-1.jpg' }, { img: 'mario-crew-w.jpg' }, { img: 'mario-ferrata-w.jpg' }, { img: 'mario-mirror-w.jpg' },
     { img: 'mario-ropes-w.jpg' },
   ].map((x) => ({ ...x, own: true })) },
-  { id: 'padel', re: RE_OF.padel, files: [{ img: 'reel-padel.jpg', clip: 'reel-padel.mp4', credit: 'Shahd Elzayaat · Pexels' }].concat(n('act-padel-', 4).concat(clip('act-padel-v', 3), [1, 2, 3, 4].map((k) => ({ img: 'padel-ayser-' + k + (k === 1 || k === 3 ? 'w' : '') + '.jpg', credit: 'Shahd Elzayaat' })))) },
-  { id: 'football', re: RE_OF.football, files: [{ img: 'reel-football.jpg', clip: 'reel-football.mp4', credit: 'Moments · Pexels' }].concat([1, 2, 3].map((k) => ({ img: 'football-crew-' + k + '.jpg', own: true })).concat([5, 4, 2, 3].map((k) => ({ img: 'sport-football-' + k + '.jpg' })))) },
+  { id: 'padel', re: RE_OF.padel, files: [{ img: 'reel-padel.jpg', clip: 'reel-padel.mp4', credit: 'Shahd Elzayaat · Pexels' }].concat(n('act-padel-', 4).map((x, i) => (i === 1 ? x : { ...x, who: 'women' })).concat(clip('act-padel-v', 3), [1, 2, 3, 4].map((k) => ({ img: 'padel-ayser-' + k + (k === 1 || k === 3 ? 'w' : '') + '.jpg', credit: 'Shahd Elzayaat', who: 'men' })))) },
+  /* `who` marks a picture of only women or only men, so a girls-only or
+     guys-only plan never opens on the other */
+  { id: 'football', re: RE_OF.football, files: [{ img: 'reel-football.jpg', clip: 'reel-football.mp4', credit: 'Moments · Pexels', who: 'men' }].concat([1, 2, 3].map((k) => ({ img: 'football-crew-' + k + '.jpg', own: true, who: 'men' })), [5, 4].map((k) => ({ img: 'sport-football-' + k + '.jpg', who: 'women' })), [2, 3].map((k) => ({ img: 'sport-football-' + k + '.jpg', who: 'men' }))) },
   { id: 'crochet', re: RE_OF.crochet, files: [{ img: 'reel-crochet.jpg', clip: 'reel-crochet.mp4' }].concat(clip('act-crochet-v', 4).concat(n('act-crochet-', 3))) },
   { id: 'sketch', re: RE_OF.sketch, files: [{ img: 'reel-sketch.jpg', clip: 'reel-sketch.mp4' }].concat(n('art-sketch-', 5)) },
   { id: 'walk', re: RE_OF.walk, files: [{ img: 'reel-walk.jpg', clip: 'reel-walk.mp4' }].concat(n('act-walk-', 5).concat(clip('act-walk-v', 1))) },
@@ -63,8 +65,12 @@ const stockOf = (g) => {
   /* the activity's short reel opens the first plan of its kind; the
      plans after it open on stills, so the same clip is never shown twice
      on one screen */
-  const reel = /^reel-/.test(hit.files[0].img) ? hit.files[0] : null;
-  const rest = reel ? hit.files.slice(1) : hit.files;
+  const aud = g && g.audience;
+  const fit = hit.files.filter((f) => !f.who || !aud || aud === 'all' || (aud === 'women' ? f.who === 'women' : f.who === 'men'));
+  const files = fit.length ? fit : hit.files.filter((f) => !f.who);
+  if (!files.length) return null;
+  const reel = /^reel-/.test(files[0].img) ? files[0] : null;
+  const rest = reel ? files.slice(1) : files;
   const n = seen.get(key);
   const len = rest.length;
   if (!len) return { id: hit.id, pics: [reel] };
