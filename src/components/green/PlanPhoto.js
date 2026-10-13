@@ -16,6 +16,7 @@ import { isSaving } from '../../lib/dataSaver';
 const n = (pre, k, credit) => Array.from({ length: k }, (_, i) => ({ img: pre + (i + 1) + '.jpg', credit }));
 const clip = (pre, k) => Array.from({ length: k }, (_, i) => ({ img: pre + (i + 1) + '.jpg', clip: pre + (i + 1) + '.mp4' }));
 const STOCK = [
+  { re: /volunteer|charity|donat|food bank|تطوع|متطوع|خيري|تبرع/i, files: n('act-volunteer-', 3) },
   { re: /\bmatch|watch party|ماتش|مباراة|نشجع|تشجيع|\bcheer|📺/i, files: clip('act-match-v', 1).map((x) => ({ ...x, own: true })) },
   { re: /climb|zip ?line|abseil|rappel|تسلق|زيب|🧗/i, files: n('act-climb-', 1).map((x) => ({ ...x, own: true })) },
   { re: /foot|soccer|كور|⚽/i, files: n('sport-football-', 5) },
