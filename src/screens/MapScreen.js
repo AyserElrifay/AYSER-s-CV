@@ -99,7 +99,7 @@ const normalizePerson = (row) => ({
   name: (row.profile && row.profile.name) || 'Explorer',
   handle: row.profile && row.profile.handle,
   avatar: (row.profile && row.profile.avatar_url) || AV_NEUTRAL, // real photo — used in their full profile
-  cartoonAvatar: buildAvatarUrl(row.user_id, row.profile && row.profile.avatar_dna), // shown on the live map instead
+  cartoonAvatar: buildAvatarUrl(row.user_id, row.profile && row.profile.avatar_dna), // only when there is no photo
   // the whole character, standing — what the map marker uses
   standing: buildStandingUrl(row.user_id, row.profile && row.profile.avatar_dna),
   emoji: (row.profile && row.profile.emoji) || '🧿',
@@ -133,6 +133,18 @@ const VENUE_KINDS = ['Sport', 'Stay', 'Food', 'Experience'];
 export const MapScreen = () => {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  /* you on the map as yourself: the photo on your profile, the cartoon
+     only until you have put one there */
+  const [myPhoto, setMyPhoto] = useState(null);
+  useEffect(() => {
+    if (!user) { setMyPhoto(null); return undefined; }
+    let alive = true;
+    const meta = user.user_metadata && user.user_metadata.avatar_url;
+    if (meta && /^https:\/\//.test(meta)) setMyPhoto(meta);
+    getProfile(user.id).then((r) => { if (alive && r && r.avatar_url && /^https:\/\//.test(r.avatar_url) && r.avatar_url !== AV_NEUTRAL) setMyPhoto(r.avatar_url); }).catch(() => {});
+    return () => { alive = false; };
+  }, [user && user.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const myFace = user ? myPhoto || buildAvatarUrl(user.id) : null;
   const { lang, t } = useLang();
   const [countryRoom, setCountryRoom] = useState(null);   // an ISO code, or null
   const { isDark } = useTheme();
@@ -451,7 +463,7 @@ export const MapScreen = () => {
     setProfileUser({
       id: user.id,
       name: (user.user_metadata && user.user_metadata.name) || 'You',
-      avatar: buildAvatarUrl(user.id),
+      avatar: myFace,
       intent: myDoing ? 'Right now: ' + myDoing : 'On the map now',
     });
   };
@@ -1399,7 +1411,7 @@ export const MapScreen = () => {
           )) : null}
         </MapView>
       ) : Platform.OS === 'web' ? (
-        <LeafletMap onViewport={setView} center={myCoords} markers={shownMarkers} onPress={onMarkerPress} onMe={onMePress} locate={located} focus={mapFocus} lang={lang} meAvatar={user ? buildAvatarUrl(user.id) : null} meDoing={myDoing} meName={user && user.user_metadata && user.user_metadata.name} route={routeTo} appDark={isDark} globeHint={t('map_globe_hint')} />
+        <LeafletMap onViewport={setView} center={myCoords} markers={shownMarkers} onPress={onMarkerPress} onMe={onMePress} locate={located} focus={mapFocus} lang={lang} meAvatar={myFace} meDoing={myDoing} meName={user && user.user_metadata && user.user_metadata.name} route={routeTo} appDark={isDark} globeHint={t('map_globe_hint')} />
       ) : (
         <FauxMap center={myCoords}>
           <View style={{ position: 'absolute', left: '38%', top: '50%' }}>
@@ -1537,7 +1549,7 @@ export const MapScreen = () => {
 
             {/* YOU — see and control whether you appear for others */}
             <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.purpleSoft, borderRadius: 14, padding: 10, marginBottom: 10 }}>
-              <Image source={{ uri: user ? buildAvatarUrl(user.id) : AV_NEUTRAL }} style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: '#EDE9FE' }} />
+              <Image source={{ uri: myFace || AV_NEUTRAL }} style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: '#EDE9FE' }} />
               <View style={{ flex: 1, marginLeft: 11 }}>
                 <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800' }}>{t('you_word')} {myDoing || ''}</Text>
                 <Text style={{ color: myDoing ? C.green : C.faint, fontSize: 11, marginTop: 1 }}>
@@ -1556,7 +1568,7 @@ export const MapScreen = () => {
                   <View key={p.id} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: C.line }}>
                     <Pressable onPress={() => { closeSheet(); setProfileUser(p); }} style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
                       <View>
-                        <Image source={{ uri: p.cartoonAvatar || p.avatar }} style={{ width: 46, height: 46, borderRadius: 23 }} />
+                        <Image source={{ uri: p.avatar && p.avatar !== AV_NEUTRAL ? p.avatar : p.cartoonAvatar || p.avatar }} style={{ width: 46, height: 46, borderRadius: 23 }} />
                         {p.doing ? (
                           <View style={{ position: 'absolute', bottom: -2, right: -4, width: 20, height: 20, borderRadius: 10, backgroundColor: C.floatSolid, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center' }}>
                             <Text style={{ fontSize: 10 }}>{p.doing}</Text>

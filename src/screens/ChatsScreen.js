@@ -390,11 +390,9 @@ export const ChatsScreen = () => {
             user: {
               id: u.id,
               name: u.name || 'Someone',
-              /* The character they built, when they built one — it's
-                 their face in this app, and a list of drawn people
-                 reads as a place rather than a contacts book. Their
-                 photo, then a neutral, when they haven't. */
-              avatar: (u.id && u.avatar_dna ? buildAvatarUrl(u.id, u.avatar_dna) : null) || u.avatar_url || null,
+              /* Ayser: people show as themselves — their photo first,
+                 the character they built only when there is no photo */
+              avatar: u.avatar_url || (u.id && u.avatar_dna ? buildAvatarUrl(u.id, u.avatar_dna) : null) || null,
               verified: !!u.verified,
             },
             last: d.last,
