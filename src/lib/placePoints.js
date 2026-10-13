@@ -26,3 +26,11 @@ export async function placesNear(at, radius = 5, n = 5) {
   return all.map(([id, name, emoji, lat, lng]) => ({ id, name, emoji, lat, lng, km: km(at, { lat, lng }) }))
     .filter((p) => p.km <= radius).sort((a, b) => a.km - b.km).slice(0, n);
 }
+
+/* the places with a real photo, nearest first when we know where you are:
+   [{ id, name, emoji, lat, lng, photo, area, km }] */
+export async function photoPlaces(at, n = 10) {
+  const all = await load();
+  return all.filter((x) => x[5]).map(([id, name, emoji, lat, lng, photo, area]) => ({ id, name, emoji, lat, lng, photo, area, km: at && at.lat != null ? km(at, { lat, lng }) : null }))
+    .sort((a, b) => (a.km == null || b.km == null ? 0 : a.km - b.km)).slice(0, n);
+}

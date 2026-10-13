@@ -31,6 +31,7 @@ import { Modal } from 'react-native';
 import { goToTab, showOnMap } from '../lib/mapBus';
 import { takeLaunchTarget, onPushOpen } from '../lib/push';
 import { GoOutRail } from '../components/GoOutRail';
+import { PlaceRail } from '../components/PlaceRail';
 import { lazyOverlay } from '../lib/lazyScreen';
 
 /* ─── THE FEED FIRST, THE REST WHEN YOU REACH FOR IT ─────────────────
@@ -551,6 +552,8 @@ export const HomeScreen = () => {
                 onOpenPlan={(g) => { if (g.lat != null && g.lng != null) showOnMap({ lat: g.lat, lng: g.lng }); else goToTab('TOGETHER'); }}
               />
             ) : null}
+            {/* places worth going to, in real photos (src/components/PlaceRail.js) */}
+            <PlaceRail />
           </View>
         }
         renderItem={({ item }) => {

@@ -826,6 +826,8 @@ export const MapScreen = () => {
       setLens('all');
       setMapFocus({ lat: tg.lat, lng: tg.lng, zoom: 16, ts: tg.ts || Date.now() });
       if (tg.postId) setWantMoment(tg.postId);
+      // a place asked for by id (the photo rail on Home): open its own page
+      if (tg.placeId) { const d = DESTINATIONS.find((x) => x.id === tg.placeId); if (d) setTimeout(() => openDest(d), 350); }
     };
     go(takeMapTarget());
     return onMapTarget(() => go(takeMapTarget()));

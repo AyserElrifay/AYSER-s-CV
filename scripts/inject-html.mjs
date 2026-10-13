@@ -267,7 +267,7 @@ console.log('index.html patched: PWA + OG tags');
 {
   const { pathToFileURL } = await import('url');
   const mod = await import(pathToFileURL(path.join(process.cwd(), 'src/constants/destinations.js')).href);
-  const pts = (mod.DESTINATIONS || []).map((d) => [d.id, d.name, d.emoji, d.lat, d.lng]);
+  const pts = (mod.DESTINATIONS || []).map((d) => (d.photo ? [d.id, d.name, d.emoji, d.lat, d.lng, d.photo, d.area || ''] : [d.id, d.name, d.emoji, d.lat, d.lng]));
   fs.writeFileSync(path.join(process.cwd(), dist, 'places.json'), JSON.stringify(pts));
   console.log('places.json: ' + pts.length + ' places');
 }

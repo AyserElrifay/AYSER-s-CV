@@ -1936,6 +1936,7 @@ export const STRINGS = {
     px_free_note: "Everything else in Moments stays free.",
     px_trips_card: "Members pay less on trips — and get a few lovely extras.",
     px_menu_sub: "What's in it, and how to get it",
+    pr_title: "Places worth going to",
     lens_all: 'Everything',
     lens_places: 'Places to go',
     lens_people: 'People',
