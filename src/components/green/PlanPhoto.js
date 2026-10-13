@@ -1,23 +1,32 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Image, Pressable, ScrollView } from 'react-native';
+import { View, Text, Image, Pressable, ScrollView, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { C } from '../../constants/theme';
 import { lookOf } from '../../lib/activityPins';
 import { tapLight } from '../../utils/feedback';
 import { placePhoto } from '../../lib/commonsPhoto';
 import { publicMedia } from '../../lib/publicMedia';
+import { getPrefs } from '../../services/prefs';
+import { isSaving } from '../../lib/dataSaver';
 
-/* activities Ayser sent real free photos for (Pexels, credited):
-   the activity, never "this plan" */
+/* activities Ayser sent real free photos and clips for (Pexels,
+   credited): the activity, never "this plan". A clip carries its own
+   still (same name, .jpg), shown first and on data saver. */
+const n = (pre, k) => Array.from({ length: k }, (_, i) => ({ img: pre + (i + 1) + '.jpg' }));
+const clip = (pre, k) => Array.from({ length: k }, (_, i) => ({ img: pre + (i + 1) + '.jpg', clip: pre + (i + 1) + '.mp4' }));
 const STOCK = [
-  { re: /foot|soccer|كور|⚽/i, files: [1, 2, 3, 4, 5].map((n) => 'sport-football-' + n + '.jpg') },
-  { re: /sketch|draw|رسم|اسكتش|✏️|🎨|^art$|\bart\b/i, files: [1, 2, 3, 4, 5].map((n) => 'art-sketch-' + n + '.jpg') },
+  { re: /foot|soccer|كور|⚽/i, files: n('sport-football-', 5) },
+  { re: /sketch|draw|رسم|اسكتش|✏️|🎨|\bart\b/i, files: n('art-sketch-', 5) },
+  { re: /swim|pool|سباح|حمام سباحة|🏊/i, files: n('act-swim-', 2) },
+  { re: /beach|\bsea\b|seaside|شاطئ|بحر|🏖|🌊/i, files: n('act-beach-', 1).concat(clip('act-beach-v', 2)) },
+  { re: /\bread|\bbook|library|كتاب|قراء|مكتب[ةه]|📚|📖|\bfocus\b/i, files: n('act-read-', 6) },
+  { re: /coffee|caf[eé]|espresso|latte|قهو|كافيه|☕/i, files: n('act-coffee-', 3).concat(clip('act-coffee-v', 2)) },
 ];
 const stockOf = (g) => {
   const s = String((g && g.title) || '') + ' ' + String((g && g.kind) || '');
   const hit = STOCK.find((x) => x.re.test(s));
   if (!hit) return null;
-  return hit.files[String((g && g.id) || '').split('').reduce((n, c) => n + c.charCodeAt(0), 0) % hit.files.length];
+  return hit.files[String((g && g.id) || '').split('').reduce((m, c) => m + c.charCodeAt(0), 0) % hit.files.length];
 };
 
 /* ─── A PLAN'S PICTURE: REAL, OR ITS DRAWN LOOK ───────────────────────
@@ -119,14 +128,19 @@ export const PlanHead = ({ g, children }) => {
   const own = planPhotoOf(g);
   const url = own || (place && safe(place.url));
   const look = lookOf(g && g.kind);
-  /* a football or sketching plan with no photo of its own: a real photo
-     of the activity (Pexels, credited) — the game, not this game */
+  /* a football, sketching, swimming, beach, reading or coffee plan with
+     no photo of its own: a real photo of the activity (Pexels, credited) — the game, not this game */
   const ball = !url ? stockOf(g) : null;
   if (ball) {
     return (
       <View>
         <View style={{ height: 150, borderRadius: 16, overflow: 'hidden', backgroundColor: C.glassHi, marginBottom: 11 }}>
-          <Image source={{ uri: publicMedia(ball) }} style={{ width: '100%', height: 150 }} accessibilityIgnoresInvertColors />
+          {ball.clip && Platform.OS === 'web' && !isSaving((getPrefs() || {}).dataSaver) ? (
+            <video src={publicMedia(ball.clip)} poster={publicMedia(ball.img)} autoPlay muted loop playsInline preload="metadata"
+              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+          ) : (
+            <Image source={{ uri: publicMedia(ball.img) }} style={{ width: '100%', height: 150 }} accessibilityIgnoresInvertColors />
+          )}
           <View style={{ position: 'absolute', top: 8, left: 8, backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 10, paddingHorizontal: 6, paddingVertical: 2 }}>
             <Text style={{ fontSize: 16 }}>{look.emoji}</Text>
           </View>
