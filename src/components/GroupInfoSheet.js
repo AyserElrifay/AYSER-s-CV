@@ -6,7 +6,7 @@ import { C } from '../constants/theme';
 import { useLang } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import {
-  squadPeople, squadSetRole, squadRemove, squadInvite, squadRename, squadSetAbout, squadMakeLink, squadRevokeLinks, chatLinkUrl, rankOf,
+  squadPeople, squadSetRole, squadRemove, squadInvite, squadRename, squadSetPhoto, squadSetAbout, squadMakeLink, squadRevokeLinks, chatLinkUrl, rankOf,
 } from '../services/squadAdmin';
 import { leaveSquad } from '../services/messages';
 import { fetchMyMates } from '../services/mates';
@@ -16,6 +16,16 @@ import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
 import { useSheetBack } from '../hooks/useSheetBack';
 import { kept, keep } from '../lib/kept';
 import { SheetHandle } from './SheetHandle';
+import { uploadPlanPhoto } from '../lib/storage';
+
+const pickPhoto = () => new Promise((resolve) => {
+  if (typeof document === 'undefined') return resolve(null);
+  const input = document.createElement('input');
+  input.type = 'file'; input.accept = 'image/*'; input.style.display = 'none';
+  input.onchange = () => { resolve((input.files && input.files[0]) || null); input.remove(); };
+  document.body.appendChild(input); input.click();
+  return undefined;
+});
 
 /* ─── A GROUP CHAT, AND WHO RUNS IT ────────────────────────────────────
    Ayser: "مش عارف أتحكم في الجروب وابقي أدمن واضيف الناس او اعمل حد تاني
@@ -90,6 +100,26 @@ export const GroupInfoSheet = ({ squadId, onClose, onLeft, onChanged }) => {
     const r = await squadRename(squadId, naming);
     if (r && r.ok) { tapSuccess(); setNaming(null); load(); onChanged && onChanged(); } else flash(t('gc_failed'));
   };
+  /* owners and admins change the group's photo (squad_set_photo) */
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const changePhoto = async () => {
+    if (!canAdmin || photoBusy) return;
+    tapLight();
+    const file = await pickPhoto();
+    if (!file) return;
+    setPhotoBusy(true);
+    try {
+      const url = await uploadPlanPhoto(me, file);
+      const r = await squadSetPhoto(squadId, url);
+      if (r && r.ok) { tapSuccess(); load(); onChanged && onChanged(); } else flash(t('gc_failed'));
+    } catch (e) { flash(t('gc_failed')); }
+    setPhotoBusy(false);
+  };
+  const removePhoto = async () => {
+    tapLight();
+    const r = await squadSetPhoto(squadId, null);
+    if (r && r.ok) { load(); onChanged && onChanged(); } else flash(t('gc_failed'));
+  };
   const leave = async () => {
     tapLight();
     try { await leaveSquad(squadId, me); onLeft && onLeft(); } catch (e) { flash(t('gc_failed')); }
@@ -107,9 +137,19 @@ export const GroupInfoSheet = ({ squadId, onClose, onLeft, onChanged }) => {
           <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 18, paddingBottom: 30 }}>
             {/* the group */}
             <View style={{ alignItems: 'center' }}>
-              {data.squad.avatar_url
-                ? <Image source={{ uri: data.squad.avatar_url }} style={{ width: 70, height: 70, borderRadius: 22 }} />
-                : <View style={{ width: 70, height: 70, borderRadius: 22, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 34 }}>{data.squad.emoji || '💬'}</Text></View>}
+              <Pressable onPress={canAdmin ? changePhoto : undefined} disabled={!canAdmin} accessibilityRole={canAdmin ? 'button' : undefined} accessibilityLabel={canAdmin ? t('gc_photo') : undefined}>
+                {data.squad.avatar_url
+                  ? <Image source={{ uri: data.squad.avatar_url }} style={{ width: 70, height: 70, borderRadius: 22 }} />
+                  : <View style={{ width: 70, height: 70, borderRadius: 22, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 34 }}>{data.squad.emoji || '💬'}</Text></View>}
+                {canAdmin ? (
+                  <View style={{ position: 'absolute', right: -4, bottom: -4, width: 28, height: 28, borderRadius: 14, backgroundColor: C.purple, borderWidth: 2, borderColor: C.bg2, alignItems: 'center', justifyContent: 'center' }}>
+                    {photoBusy ? <ActivityIndicator color="#FFF" size="small" /> : <Ionicons name="camera" size={14} color="#FFF" />}
+                  </View>
+                ) : null}
+              </Pressable>
+              {canAdmin && data.squad.avatar_url ? (
+                <Pressable onPress={removePhoto} hitSlop={6} style={{ marginTop: 6 }}><Text style={{ color: C.faint, fontSize: 12.5, fontWeight: '700' }}>{t('gc_photo_remove')}</Text></Pressable>
+              ) : null}
               {naming != null ? (
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10, alignSelf: 'stretch' }}>
                   <TextInput value={naming} onChangeText={setNaming} maxLength={80} autoFocus

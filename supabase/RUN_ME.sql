@@ -14474,6 +14474,27 @@ grant execute on function public.green_list(text) to anon, authenticated;
 notify pgrst, 'reload schema';
 
 -- ═══════════════════════════════════════════════════════════════════
+--  A GROUP'S PHOTO
+--  Ayser: "خلينا نقدر نعدّل صورة الجروب". Owners and admins (the same
+--  rank as renaming) can set the group's photo or take it off; any
+--  https address only, and nobody else.
+--  Safe to re-run.
+-- ═══════════════════════════════════════════════════════════════════
+create or replace function public.squad_set_photo(p_squad uuid, p_url text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  if public.squad_rank(public.squad_role(p_squad, auth.uid())) < 3 then return jsonb_build_object('ok', false, 'reason', 'rank'); end if;
+  if p_url is not null and (p_url !~ '^https://' or length(p_url) > 600) then return jsonb_build_object('ok', false, 'reason', 'url'); end if;
+  update public.squads set avatar_url = p_url where id = p_squad;
+  return jsonb_build_object('ok', true);
+end;
+$$;
+revoke execute on function public.squad_set_photo(uuid, text) from public, anon;
+grant execute on function public.squad_set_photo(uuid, text) to authenticated;
+
+notify pgrst, 'reload schema';
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة

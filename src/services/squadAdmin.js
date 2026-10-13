@@ -25,6 +25,7 @@ export const squadRemove = (squadId, userId) => act('squad_remove', { p_squad: s
 export const squadInvite = (squadId, userId) => act('squad_invite', { p_squad: squadId, p_user: userId });
 export const squadDeleteMessage = (messageId) => act('squad_delete_message', { p_message: messageId });
 export const squadRename = (squadId, name) => act('squad_rename', { p_squad: squadId, p_name: name });
+export const squadSetPhoto = (squadId, url) => act('squad_set_photo', { p_squad: squadId, p_url: url || null });
 export const squadMakeLink = (squadId, days) => act('squad_make_link', { p_squad: squadId, p_days: days || 7 });
 export const squadRevokeLinks = (squadId) => act('squad_revoke_links', { p_squad: squadId });
 export const squadLinkInfo = (token) => act('squad_link_info', { p_token: token });

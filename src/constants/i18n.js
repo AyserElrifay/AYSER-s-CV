@@ -2022,6 +2022,8 @@ export const STRINGS = {
     ag_any: "Any age",
     ag_err_unknown: "Add your age on your profile to join this one.",
     ag_err_out: "This one is for a different age group.",
+    gc_photo: "Change the group photo",
+    gc_photo_remove: "Remove photo",
     lens_all: 'Everything',
     lens_places: 'Places to go',
     lens_people: 'People',
