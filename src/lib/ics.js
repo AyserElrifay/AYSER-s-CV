@@ -25,6 +25,7 @@ export function buildIcs(events) {
     lines.push('DTEND:' + stamp(end));
     lines.push('SUMMARY:' + esc(e.title));
     if (e.days === 'daily') lines.push('RRULE:FREQ=DAILY');
+    else if (e.days === 'yearly') lines.push('RRULE:FREQ=YEARLY');
     else if (Array.isArray(e.days) && e.days.length) lines.push('RRULE:FREQ=WEEKLY;BYDAY=' + e.days.join(','));
     if (e.alarm != null) {
       lines.push('BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:' + esc(e.title), 'TRIGGER:' + (e.alarm > 0 ? '-PT' + e.alarm + 'M' : 'PT0M'), 'END:VALARM');

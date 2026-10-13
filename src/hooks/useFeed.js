@@ -74,6 +74,7 @@ export const toCard = (row) => ({
   comments: row.comments || 0,
   squad: row.squad_name || 'New Vibe Squad',
   joinable: row.starts_at != null, // scheduled moments are invitations; plain posts are not
+  gatheringId: row.gathering_id || null, // a moment from an outing: the plan it came from
   // passed on by somebody — the card says so, in their name
   repostedBy: row.reposted_by
     ? { id: row.reposted_by.id, name: row.reposted_by.name, avatar: row.reposted_by.avatar_url || AV_NEUTRAL }

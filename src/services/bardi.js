@@ -52,3 +52,14 @@ export async function translateText(text, lang = 'en') {
   if (clean) { if (transCache.size > 200) transCache.clear(); transCache.set(key, clean); }
   return clean;
 }
+
+/* ── THE DIARY, TALKED OVER ─────────────────────────────────────────
+   Only when somebody taps "talk it over" in their diary
+   (src/components/Diary.js): their last few entries, in their own
+   words, and what they care about from their compass. Papyrus answers
+   as itself — what it notices, one kind question, one small step. */
+export async function reflectWithPapyrus(lines, lang = 'en', compass = '') {
+  const content = 'My diary from the last days:\n' + String(lines || '').slice(0, 3500)
+    + '\n\nPlease read it like a close friend: tell me briefly what you notice, ask me one kind question, and suggest one small step for tomorrow.';
+  return ask({ messages: [{ role: 'user', content }], language: lang, profile: compass ? { goal: compass.slice(0, 200) } : undefined });
+}

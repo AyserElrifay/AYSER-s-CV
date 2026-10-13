@@ -3,8 +3,12 @@ import { View, Text, Modal, Pressable, ScrollView, ActivityIndicator, Animated, 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { C } from '../constants/theme';
-import { useLang } from '../context/LanguageContext';
+import { useLang, tNow } from '../context/LanguageContext';
 import { BrainDump } from './BrainDump';
+import { Focus } from './Focus';
+import { Compass, GROW, growLabel, growEmoji, readCompass, KEY as COMPASS_KEY } from './Compass';
+import { Dates, readDates, dateNudges, yearly, nextOf } from './Dates';
+import { Diary } from './Diary';
 import { prayerTimes } from '../lib/prayerTimes';
 import { buildIcs, openIcs } from '../lib/ics';
 import { lastFix } from '../services/squadAdmin';
@@ -32,6 +36,7 @@ import { useSheetBack } from '../hooks/useSheetBack';
    hours, whether you pray. Nothing is sent anywhere. */
 
 const KEY = 'mm.myday.v1';
+const REMIND = 'mm.myday.remind';
 const read = () => { try { return JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { return null; } };
 const write = (v) => { try { if (v) localStorage.setItem(KEY, JSON.stringify(v)); else localStorage.removeItem(KEY); } catch (e) {} };
 const dayKey = (d = new Date()) => d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
@@ -97,6 +102,7 @@ const steps = (a) => {
   s.push('faith');
   if (faithOf(a) === 'christian') s.push('church');
   if (faithOf(a) === 'muslim' && !a.at) s.push('loc');
+  s.push('grow');
   s.push('sleep');
   return s;
 };
@@ -218,6 +224,30 @@ const Church = ({ value, onDone, t, lang }) => {
   );
 };
 
+/* "where would you like to be better?" — up to three, or none */
+const GrowStep = ({ t, faith, onDone }) => {
+  const [pick, setPick] = useState(() => readCompass().grow || []);
+  const flip = (id) => { tapSelection(); setPick((x) => (x.indexOf(id) >= 0 ? x.filter((y) => y !== id) : x.concat(id).slice(-3))); };
+  return (
+    <View>
+      <Text style={{ color: C.dim, fontSize: 14, marginTop: -8, marginBottom: 14 }}>{t('cp_grow_sub')}</Text>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+        {GROW.map((g) => <Chip key={g.id} label={g.emoji + ' ' + t('cp_grow_' + g.id)} on={pick.indexOf(g.id) >= 0} onPress={() => flip(g.id)} />)}
+      </View>
+      {pick.length ? (
+        <View style={{ marginTop: 6, borderRadius: 16, backgroundColor: C.purpleSoft, padding: 12 }}>
+          {pick.map((id) => { const g = GROW.find((x) => x.id === id); return <Text key={id} style={{ color: C.text, fontSize: 13.5, fontWeight: '700' }}>{growEmoji(g, faith) + '  ' + growLabel(g, faith, t) + ' · ' + t('md_min').replace('{n}', String(g.min))}</Text>; })}
+        </View>
+      ) : null}
+      <Pressable onPress={() => onDone(pick)} accessibilityRole="button" style={{ marginTop: 14 }}>
+        <View style={{ borderRadius: 999, backgroundColor: C.purple, paddingVertical: 15, alignItems: 'center' }}>
+          <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '900' }}>{pick.length ? t('md_continue') : t('md_skip_grow')}</Text>
+        </View>
+      </Pressable>
+    </View>
+  );
+};
+
 /* ─── THE REST OF LIFE, GIVEN A PLACE IN THE DAY ─────────────────────
    Ayser: "فين بقية الحياة اللي قلنا عليها؟ خليها متوزعة". Family, time
    for yourself, moving, a proper meal: each is put into a real gap in
@@ -230,11 +260,18 @@ const BLOCKS = [
   { id: 'family', min: 45, prefer: [[19, 22.5], [13, 18]] },
   { id: 'me', min: 20, prefer: [[20.5, 23.5], [7, 10]] },
 ];
-function placeBalance(busy, from, until, day, t) {
+/* where each place to grow fits best in a day */
+const GROW_WHEN = { faith: [[5.5, 8], [20, 22.5]], learn: [[20, 22.5], [13, 16]], body: [[17, 20.5], [6.5, 9]], love: [[19, 21.5]], friends: [[12, 14.5], [18, 21]], career: [[20, 22.5], [7, 9]], calm: [[21.5, 23.5], [7, 9]], create: [[18, 21.5]] };
+const growBlocks = (a, t) => (readCompass().grow || []).map((id) => {
+  const g = GROW.find((x) => x.id === id);
+  return g ? { id: 'grow:' + id, min: g.min, prefer: GROW_WHEN[id] || [[18, 22]], emoji: growEmoji(g, faithOf(a)), label: growLabel(g, faithOf(a), t) } : null;
+}).filter(Boolean);
+
+function placeBalance(busy, from, until, day, t, extraBlocks = []) {
   const taken = busy.map((x) => [x.at.getTime() - 10 * 60000, x.end.getTime() + 10 * 60000]);
   const free = (s, e) => s >= from && e <= until && !taken.some(([a, b]) => s < b && e > a);
   const out = [];
-  BLOCKS.forEach((b) => {
+  BLOCKS.concat(extraBlocks).forEach((b) => {
     const len = b.min * 60000;
     const windows = b.prefer.concat([[0, 24]]);
     for (const [ws, we] of windows) {
@@ -245,7 +282,9 @@ function placeBalance(busy, from, until, day, t) {
       }
       if (found != null) {
         const bl = BALANCE.find((x) => x.id === b.id);
-        out.push({ id: 'bal:' + b.id, emoji: bl.emoji, label: t('md_blk_' + b.id), at: new Date(found), end: new Date(found + len), balance: true });
+        out.push(bl
+          ? { id: 'bal:' + b.id, emoji: bl.emoji, label: t('md_blk_' + b.id), at: new Date(found), end: new Date(found + len), balance: true }
+          : { id: b.id, emoji: b.emoji, label: b.label + ' · ' + t('md_min').replace('{n}', String(b.min)), at: new Date(found), end: new Date(found + len), balance: true });
         taken.push([found - 10 * 60000, found + len + 10 * 60000]);
         break;
       }
@@ -282,7 +321,7 @@ function todayItems(a, t, now = new Date(), extra = []) {
   const w2 = new Date(bed); w2.setHours(sl.wake[0], sl.wake[1], 0, 0); if (w2 <= bed) w2.setDate(w2.getDate() + 1);
   out.push({ id: 'sleep', emoji: '😴', label: t('md_sleep'), at: bed, end: w2 });
   // the rest of life, in the gaps that are left
-  out.push(...placeBalance(out, wake.getTime() + 20 * 60000, wind.getTime(), now, t));
+  out.push(...placeBalance(out, wake.getTime() + 20 * 60000, wind.getTime(), now, t, growBlocks(a, t)));
   out.forEach((x) => { if (!x.end) x.end = new Date(x.at.getTime() + 20 * 60000); });
   return out.sort((x, y) => x.at - y.at);
 }
@@ -343,6 +382,13 @@ function calendarEvents(a, t) {
     const p = prayerTimes(tomorrow, a.at.lat, a.at.lng);
     ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'].forEach((k) => ev.push({ uid: k, title: '🕌 ' + t('md_' + k), start: p[k], minutes: 10, days: 'daily', alarm: 0 }));
   }
+  // the dates that matter: every year for birthdays and anniversaries (a gift reminder three days ahead), once for a trip
+  readDates().forEach((x) => {
+    const d = nextOf(x); d.setHours(9, 0, 0, 0);
+    if (d < now) return;
+    ev.push({ uid: 'date-' + x.id, title: (x.kind === 'birthday' ? '🎂 ' : x.kind === 'anniversary' ? '💍 ' : x.kind === 'trip' ? '🧳 ' : '⭐ ') + x.name, start: d, minutes: 30,
+      days: yearly(x.kind) ? 'yearly' : null, alarm: yearly(x.kind) ? 3 * 24 * 60 : x.kind === 'trip' ? 24 * 60 : 60 });
+  });
   return ev;
 }
 
@@ -367,6 +413,10 @@ export const MyDay = ({ onClose }) => {
   const [draft, setDraft] = useState('');
   const [allNotes, setAllNotes] = useState(false);
   const [skip, setSkip] = useState(0);
+  const [sheet, setSheet] = useState(null);          // 'focus' | 'compass' | 'dates' | 'diary'
+  const [ver, setVer] = useState(0);                 // the compass or the dates changed: the day is worked out again
+  const closeSheet = () => { setSheet(null); setVer((v) => v + 1); };
+  const [remind, setRemind] = useState(() => { try { return localStorage.getItem(REMIND) === '1'; } catch (e) { return false; } });
 
   const list = steps(a);
   const cur = list[Math.min(step, list.length - 1)];
@@ -390,7 +440,8 @@ export const MyDay = ({ onClose }) => {
     const fix = c ? { lat: c.latitude, lng: c.longitude } : lastFix();
     if (fix) answer({ at: { lat: fix.lat, lng: fix.lng } }); else answer({ faith: 'none' });
   };
-  const items = useMemo(() => (setup ? [] : todayItems(a, t, new Date(), plans.filter((g) => g.im_going || added.indexOf(g.id) >= 0).map(planItem))), [a, setup, t, plans, added]);
+  const items = useMemo(() => (setup ? [] : todayItems(a, t, new Date(), plans.filter((g) => g.im_going || added.indexOf(g.id) >= 0).map(planItem))), [a, setup, t, plans, added, ver]); // eslint-disable-line react-hooks/exhaustive-deps
+  const nudges = useMemo(() => dateNudges(readDates(), t), [t, ver]); // eslint-disable-line react-hooks/exhaustive-deps
   /* the clock moves on its own: every half minute the card catches up */
   const [now, setNow] = useState(Date.now());
   useEffect(() => { const i = setInterval(() => setNow(Date.now()), 30000); return () => clearInterval(i); }, []);
@@ -399,7 +450,6 @@ export const MyDay = ({ onClose }) => {
   const open = (x) => done.indexOf(x.id) < 0 && !(later[x.id] && later[x.id] > now);
   const nowItem = items.find((x) => x.at.getTime() <= now && now < x.end.getTime() && open(x));
   const nextItem = items.find((x) => x.at.getTime() > now && open(x) && x !== nowItem);
-  const nextId = (nowItem || nextItem || {}).id;
   const pop = useRef(new Animated.Value(1)).current;
   const celebrate = () => { pop.setValue(0.92); Animated.spring(pop, { toValue: 1, friction: 4, tension: 160, useNativeDriver: true }).start(); };
   const notNow = (x) => { tapLight(); setLater((l) => ({ ...l, [x.id]: Date.now() + 15 * 60000 })); };
@@ -423,6 +473,14 @@ export const MyDay = ({ onClose }) => {
     setNotes(n); wr(NOTES, n); setDraft('');
   };
   const dropNote = (id) => { tapLight(); const n = notes.filter((x) => x.id !== id); setNotes(n); wr(NOTES, n); };
+  const flipRemind = async () => {
+    tapLight();
+    const n = !remind;
+    if (n && typeof window.Notification !== 'undefined' && window.Notification.permission === 'default') { try { await window.Notification.requestPermission(); } catch (e) {} }
+    setRemind(n);
+    try { if (n) localStorage.setItem(REMIND, '1'); else localStorage.removeItem(REMIND); } catch (e) {}
+    if (n) scheduleReminders(t);
+  };
   const toCalendar = () => {
     tapLight();
     const ok = openIcs(buildIcs(calendarEvents(a, t)));
@@ -467,6 +525,13 @@ export const MyDay = ({ onClose }) => {
             ) : cur === 'church' ? (
               <Q n={step + 1} of={list.length} title={t('md_q_church')}>
                 <Church value={a.church} t={t} lang={lang} onDone={(v) => answer({ church: v })} />
+              </Q>
+            ) : cur === 'grow' ? (
+              <Q n={step + 1} of={list.length} title={t('cp_grow_q')}>
+                <GrowStep t={t} faith={faithOf(a)} onDone={(g) => {
+                  try { localStorage.setItem(COMPASS_KEY, JSON.stringify({ ...readCompass(), grow: g })); } catch (e) {}
+                  answer({});
+                }} />
               </Q>
             ) : cur === 'loc' ? (
               <Q n={step + 1} of={list.length} title={t('md_q_loc')}>
@@ -561,6 +626,52 @@ export const MyDay = ({ onClose }) => {
                 );
               })()}
 
+              {/* ── THE PLAN — the next three things, ticked like a list on the
+                  lock screen; the dates that matter on top when they are near ── */}
+              <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '900', letterSpacing: 1, marginTop: 18, marginBottom: 8 }}>{t('md_plan').toUpperCase()}</Text>
+              <View style={{ borderRadius: 20, borderWidth: 1, borderColor: C.line, backgroundColor: C.glass, paddingHorizontal: 14, paddingVertical: 6 }}>
+                {nudges.concat(items.filter((x) => x.end.getTime() > now && done.indexOf(x.id) < 0 && x.id !== 'sleep').slice(0, 3)).map((x, i, arr) => {
+                  const isDone = done.indexOf(x.id) >= 0;
+                  return (
+                    <Pressable key={x.id} onPress={() => toggle(x.id)} accessibilityRole="checkbox" accessibilityState={{ checked: isDone }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: i < arr.length - 1 ? 1 : 0, borderBottomColor: C.line, opacity: isDone ? 0.5 : 1 }}>
+                        <Ionicons name={isDone ? 'checkbox' : 'square-outline'} size={22} color={isDone ? C.green : C.faint} />
+                        <Text style={{ color: C.text, fontSize: 15, fontWeight: '700', flex: 1, marginStart: 10, textDecorationLine: isDone ? 'line-through' : 'none' }} numberOfLines={1}>{x.emoji + ' ' + x.label}</Text>
+                        {x.at ? <Text style={{ color: C.dim, fontSize: 13, fontWeight: '800', fontVariant: ['tabular-nums'], marginStart: 8 }}>{hm(x.at.getHours(), x.at.getMinutes())}</Text> : null}
+                      </View>
+                    </Pressable>
+                  );
+                })}
+                <Pressable onPress={() => { tapLight(); setShowAll((v) => !v); }} accessibilityRole="button" style={{ paddingVertical: 10 }}>
+                  <Text style={{ color: C.purple, fontSize: 13.5, fontWeight: '900' }}>{showAll ? t('md_hide_day') : t('md_see_day')}</Text>
+                </Pressable>
+              </View>
+              {showAll ? items.map((x) => {
+                const isDone = done.indexOf(x.id) >= 0;
+                return (
+                  <Pressable key={x.id} onPress={() => toggle(x.id)} accessibilityRole="checkbox" accessibilityState={{ checked: isDone }} style={{ marginTop: 6 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 14, borderWidth: 1, borderColor: C.line, backgroundColor: C.glass, paddingVertical: 10, paddingHorizontal: 12, opacity: isDone ? 0.55 : 1 }}>
+                      <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '900', width: 50, fontVariant: ['tabular-nums'] }}>{hm(x.at.getHours(), x.at.getMinutes())}</Text>
+                      <Text style={{ fontSize: 16, marginEnd: 8 }}>{x.emoji}</Text>
+                      <Text style={{ color: C.text, fontSize: 14, fontWeight: '700', flex: 1, textDecorationLine: isDone ? 'line-through' : 'none' }} numberOfLines={1}>{x.label}</Text>
+                      <Ionicons name={isDone ? 'checkmark-circle' : 'ellipse-outline'} size={20} color={isDone ? C.green : C.faint} />
+                    </View>
+                  </Pressable>
+                );
+              }) : null}
+
+              {/* ── FOUR DOORS: focus, your compass, the dates that matter, your diary ── */}
+              <View style={{ flexDirection: 'row', marginTop: 14 }}>
+                {[['focus', '🪁'], ['compass', '🧭'], ['dates', '🎂'], ['diary', '📓']].map(([k, e], i) => (
+                  <Pressable key={k} onPress={() => { tapLight(); setSheet(k); }} accessibilityRole="button" style={{ flex: 1, marginEnd: i < 3 ? 8 : 0 }}>
+                    <View style={{ borderRadius: 18, borderWidth: 1, borderColor: C.line, backgroundColor: C.glass, paddingVertical: 12, alignItems: 'center' }}>
+                      <Text style={{ fontSize: 24 }}>{e}</Text>
+                      <Text style={{ color: C.text, fontSize: 12, fontWeight: '800', marginTop: 4 }} numberOfLines={1}>{t('md_door_' + k)}</Text>
+                    </View>
+                  </Pressable>
+                ))}
+              </View>
+
               {/* the four parts of a day, each a tap */}
               <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '900', letterSpacing: 1, marginTop: 18, marginBottom: 8 }}>{t('md_bal_title').toUpperCase()}</Text>
               <View style={{ flexDirection: 'row' }}>
@@ -638,33 +749,6 @@ export const MyDay = ({ onClose }) => {
                 </Pressable>
               ) : null}
 
-              {/* the whole day — a row of small marks, not a list to face */}
-              <Pressable onPress={() => { tapLight(); setShowAll((v) => !v); }} accessibilityRole="button" style={{ marginTop: 18 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
-                  {items.map((y) => {
-                    const d = done.indexOf(y.id) >= 0; const cur = y.id === nextId;
-                    return (
-                      <View key={y.id} style={{ width: 30, height: 30, borderRadius: 15, marginEnd: 6, marginBottom: 6, alignItems: 'center', justifyContent: 'center', backgroundColor: d ? C.greenSoft : cur ? C.purpleSoft : C.glass, borderWidth: cur ? 1.5 : 1, borderColor: cur ? C.purple : C.line, opacity: !d && !cur && y.end.getTime() < now ? 0.4 : 1 }}>
-                        <Text style={{ fontSize: 13 }}>{d ? '✓' : y.emoji}</Text>
-                      </View>
-                    );
-                  })}
-                  <Text style={{ color: C.dim, fontSize: 12.5, fontWeight: '800', marginStart: 4 }}>{showAll ? t('md_hide_day') : t('md_see_day')}</Text>
-                </View>
-              </Pressable>
-              {showAll ? items.map((x) => {
-                const isDone = done.indexOf(x.id) >= 0;
-                return (
-                  <Pressable key={x.id} onPress={() => toggle(x.id)} accessibilityRole="checkbox" accessibilityState={{ checked: isDone }} style={{ marginTop: 6 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 14, borderWidth: 1, borderColor: C.line, backgroundColor: C.glass, paddingVertical: 10, paddingHorizontal: 12, opacity: isDone ? 0.55 : 1 }}>
-                      <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '900', width: 50, fontVariant: ['tabular-nums'] }}>{hm(x.at.getHours(), x.at.getMinutes())}</Text>
-                      <Text style={{ fontSize: 16, marginEnd: 8 }}>{x.emoji}</Text>
-                      <Text style={{ color: C.text, fontSize: 14, fontWeight: '700', flex: 1, textDecorationLine: isDone ? 'line-through' : 'none' }} numberOfLines={1}>{x.label}</Text>
-                      <Ionicons name={isDone ? 'checkmark-circle' : 'ellipse-outline'} size={20} color={isDone ? C.green : C.faint} />
-                    </View>
-                  </Pressable>
-                );
-              }) : null}
               {muslim(a) ? <Text style={{ color: C.faint, fontSize: 12, lineHeight: 17, marginTop: 4 }}>{t('md_pray_note')}</Text> : null}
 
               <Pressable onPress={toCalendar} accessibilityRole="button" style={{ marginTop: 18 }}>
@@ -675,13 +759,57 @@ export const MyDay = ({ onClose }) => {
               </Pressable>
               <Text style={{ color: C.dim, fontSize: 12.5, lineHeight: 18, marginTop: 8, textAlign: 'center' }}>{calNote || t('md_cal_sub')}</Text>
               {muslim(a) ? <Text style={{ color: C.faint, fontSize: 12, lineHeight: 17, marginTop: 6, textAlign: 'center' }}>{t('md_cal_refresh')}</Text> : null}
+
+              {/* reminders while Moments is open — the calendar rings even when it is closed */}
+              <Pressable onPress={flipRemind} accessibilityRole="switch" accessibilityState={{ checked: remind }} style={{ marginTop: 16 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 16, borderWidth: 1, borderColor: remind ? C.purple : C.line, backgroundColor: remind ? C.purpleSoft : C.glass, padding: 13 }}>
+                  <Text style={{ fontSize: 20, marginEnd: 10 }}>🔔</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '800' }}>{t('md_remind')}</Text>
+                    <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 1 }}>{t('md_remind_sub')}</Text>
+                  </View>
+                  <Ionicons name={remind ? 'toggle' : 'toggle-outline'} size={30} color={remind ? C.purple : C.faint} />
+                </View>
+              </Pressable>
             </View>
           )}
         </ScrollView>
       </View>
+      {sheet === 'focus' ? <Focus onClose={closeSheet} /> : null}
+      {sheet === 'compass' ? <Compass onClose={closeSheet} faith={faithOf(a)} /> : null}
+      {sheet === 'dates' ? <Dates onClose={closeSheet} /> : null}
+      {sheet === 'diary' ? <Diary onClose={closeSheet} /> : null}
     </Modal>
   );
 };
+
+/* ─── REMINDERS WHILE MOMENTS IS OPEN ────────────────────────────────
+   Ayser: "خلّي فيه reminder الناس تفعّله عشان يفكّرهم بوقت كل حاجة".
+   Switched on in My day. While Moments is open (or just put away), each
+   thing in today's plan taps you on the shoulder when its time comes —
+   a notification with its name. A web page cannot promise this once the
+   phone has closed it, which is what the calendar reminders are for;
+   the switch says so. App.js starts this on every open, when it is on. */
+let timers = [];
+export function scheduleReminders(tIn) {
+  timers.forEach(clearTimeout); timers = [];
+  try { if (localStorage.getItem(REMIND) !== '1') return; } catch (e) { return; }
+  const a = read();
+  if (!a || !a.ready || typeof window.Notification === 'undefined' || window.Notification.permission !== 'granted') return;
+  const t = tIn || tNow;
+  const now = Date.now();
+  const show = (x) => {
+    try {
+      const title = x.emoji + ' ' + x.label;
+      if (navigator.serviceWorker && navigator.serviceWorker.ready) navigator.serviceWorker.ready.then((r) => r.showNotification(title, { tag: 'mm-day-' + x.id, icon: '/icon-192.png' })).catch(() => {});
+      else new window.Notification(title); // eslint-disable-line no-new
+    } catch (e) {}
+  };
+  todayItems(a, t, new Date()).forEach((x) => {
+    const ms = x.at.getTime() - now;
+    if (ms > 0 && ms < 16 * 3600 * 1000 && x.id !== 'sleep') timers.push(setTimeout(() => { if (readDone().indexOf(x.id) < 0) show(x); }, ms));
+  });
+}
 
 /* ─── WIDGETS ON HOME (MOMENTS PLUS) ──────────────────────────────────
    Ayser: "لو الناس مشتركة premium تقدر تعمل widgets". A web app cannot
@@ -723,13 +851,22 @@ export const HomeWidgets = ({ ids }) => {
   const tiles = ids.map((id) => {
     if (id === 'now') {
       if (!ready) return <Tile key={id} emoji="🗓️" title={t('md_title')} sub={t('wg_setup')} onPress={() => show(id)} />;
+      // the plan, like the list on a lock screen: the next three, ticked
       const done = readDone();
-      const items = todayItems(a, t, new Date(now));
-      const x = items.find((y) => y.at.getTime() <= now && now < y.end.getTime() && done.indexOf(y.id) < 0);
-      const nx = items.find((y) => y.at.getTime() > now && done.indexOf(y.id) < 0);
-      return x
-        ? <Tile key={id} emoji={x.emoji} title={x.label} sub={t('md_left').replace('{t}', span(x.end.getTime() - now, t))} onPress={() => show(id)} />
-        : <Tile key={id} emoji="🌿" title={nx ? t('md_free_for').replace('{t}', span(nx.at.getTime() - now, t)) : t('md_free_rest')} sub={nx ? nx.emoji + ' ' + nx.label : null} onPress={() => show(id)} />;
+      const next3 = dateNudges(readDates(), t).concat(todayItems(a, t, new Date(now)).filter((y) => y.end.getTime() > now && done.indexOf(y.id) < 0 && y.id !== 'sleep')).slice(0, 3);
+      return (
+        <Pressable key={id} onPress={() => show(id)} accessibilityRole="button" style={{ width: '100%', marginBottom: 8 }}>
+          <View style={{ borderRadius: 18, borderWidth: 1, borderColor: C.line, backgroundColor: C.glass, paddingHorizontal: 14, paddingVertical: 10 }}>
+            {next3.length ? next3.map((y) => (
+              <View key={y.id} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 3 }}>
+                <Ionicons name="square-outline" size={17} color={C.faint} />
+                <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '700', flex: 1, marginStart: 8 }} numberOfLines={1}>{y.emoji + ' ' + y.label}</Text>
+                {y.at ? <Text style={{ color: C.dim, fontSize: 12.5, fontWeight: '800', fontVariant: ['tabular-nums'] }}>{hm(y.at.getHours(), y.at.getMinutes())}</Text> : null}
+              </View>
+            )) : <Text style={{ color: C.dim, fontSize: 14, fontWeight: '700' }}>{'🌿 ' + t('md_free_rest')}</Text>}
+          </View>
+        </Pressable>
+      );
     }
     if (id === 'prayer') {
       const p = nextPrayer(a, now);

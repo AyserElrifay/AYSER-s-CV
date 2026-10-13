@@ -136,6 +136,13 @@ const Root = () => {
      splash is still on screen, not after it. See src/hooks/useFeed.js. */
   const uid = user ? user.id : null;
   React.useEffect(() => { if (uid && !recovering) primeFeed(); }, [uid]); // eslint-disable-line
+  /* My day's reminders, if somebody switched them on (src/components/MyDay.js) —
+     the piece is fetched only for them */
+  React.useEffect(() => {
+    let on = false;
+    try { on = localStorage.getItem('mm.myday.remind') === '1'; } catch (e) {}
+    if (uid && on) import('./src/components/MyDay').then((m) => m.scheduleReminders()).catch(() => {});
+  }, [uid]);
   /* came in through somebody's invite link: tell the server once */
   React.useEffect(() => {
     if (!uid || recovering) return;

@@ -12,7 +12,7 @@ import { usePlayer } from '../context/PlayerContext';
 import { useLang } from '../context/LanguageContext';
 import { sfxLaugh, sfxLaughBig } from '../utils/sfx';
 import { translateText } from '../services/bardi';
-import { showOnMap } from '../lib/mapBus';
+import { showOnMap, goToTab } from '../lib/mapBus';
 import { tapLight, tapSuccess } from '../utils/feedback';
 import { planWhen, upForLabel } from '../constants/travel';
 import { watchLabel } from '../lib/clock';
@@ -766,6 +766,17 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
               </Pressable>
             ) : null}
           </View>
+        ) : null}
+
+        {/* a moment FROM an outing still invites: the plan it came from runs
+            again (weekly plans do), so the way in is one tap — not a pitch on
+            every photo, only on the ones that were a real plan */}
+        {!post.sponsored && !post.joinable && post.gatheringId && !isMine ? (
+          <Pressable onPress={() => { tapLight(); goToTab('TOGETHER'); }} accessibilityRole="button" style={{ marginTop: 12 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: C.purple, borderRadius: 999, paddingVertical: 10 }}>
+              <Text style={{ color: C.purple, fontSize: 13.5, fontWeight: '900' }}>{'🤝 ' + t('pc_join_next')}</Text>
+            </View>
+          </Pressable>
         ) : null}
 
         {/* "Make a plan here" used to sit under every post with a place —
