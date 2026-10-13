@@ -19,7 +19,12 @@ const STOCK = [
   { re: /volunteer|charity|donat|food bank|تطوع|متطوع|خيري|تبرع/i, files: n('act-volunteer-', 3) },
   { re: /music|\bjam\b|guitar|\bsing|karaoke|campfire|bonfire|\bcamp\b|مزيك|موسيق|غنا|جيتار|كاريوكي|كامب|🎸|🎶|🎤/i, files: clip('act-music-v', 1).map((x) => ({ ...x, own: true })) },
   { re: /\bmatch|watch party|ماتش|مباراة|نشجع|تشجيع|\bcheer|📺/i, files: clip('act-match-v', 1).map((x) => ({ ...x, own: true })) },
-  { re: /climb|zip ?line|abseil|rappel|تسلق|زيب|🧗/i, files: n('act-climb-', 1).map((x) => ({ ...x, own: true })) },
+  { re: /climb|zip ?line|abseil|rappel|high ropes|mario|تسلق|زيب|ماريو|🧗/i, files: [
+    { img: 'act-climb-1.jpg' }, { img: 'mario-crew.jpg' }, { img: 'mario-ferrata.jpg' }, { img: 'mario-mirror.jpg' },
+    { img: 'place-eg-mario-ropes.jpg' }, { img: 'mario-crew-v.jpg', clip: 'mario-crew-v.mp4' },
+  ].map((x) => ({ ...x, own: true })) },
+  { re: /church|monastery|كنيس|⛪/i, files: [{ img: 'cave-church-2.jpg' }, { img: 'cave-church-3.jpg' }].map((x) => ({ ...x, own: true })) },
+  { re: /rooftop|\broof|sunset|روف|سطوح|غروب|🌅/i, files: [{ img: 'rooftop-giza.jpg', own: true }] },
   { re: /foot|soccer|كور|⚽/i, files: n('sport-football-', 5) },
   { re: /sketch|draw|رسم|اسكتش|✏️|🎨|\bart\b/i, files: n('art-sketch-', 5) },
   { re: /padel|بادل|tennis|تنس|🎾/i, files: n('act-padel-', 4).concat(clip('act-padel-v', 5), n('padel-ayser-', 4, 'Shahd Elzayaat')) },
