@@ -14826,6 +14826,113 @@ create trigger bookings_to_sheet after insert or update on public.bookings
 notify pgrst, 'reload schema';
 
 -- ═══════════════════════════════════════════════════════════════════
+--  ACCOUNT TYPES THAT MEAN SOMETHING HERE · A PAGE FOR ACCEPTED VENUES
+--
+--  Ayser: "خلي الـ types بتاعتنا ليها علاقة بالأب يعني مثلًا coach
+--  organiser … وخلي في type لما بيتقبل المطاعم أو الفنادق أو الكافيهات
+--  … صفحة الفندق ويقدر يضيف صور ويعدل في السعر، بس عنده لما بيظهرها
+--  بيقولوا إن الأبلكيشن بياخد منه cut نسبة".
+--  · account_type now: public (member), organiser, coach, artist
+--    (creator), private — and partner, which only the owner gives: a
+--    profile cannot make itself a partner.
+--  · When the owner moves a partner application to "accepted", the
+--    applicant (if they applied signed in) gets a venue page and the
+--    partner account type. They edit its about, photos and starting
+--    price; the Moments commission (10% unless the owner sets another)
+--    is shown to them and only the owner can change it.
+--  Safe to re-run.
+-- ═══════════════════════════════════════════════════════════════════
+create table if not exists public.partner_venues (
+  id             uuid primary key default gen_random_uuid(),
+  user_id        uuid not null unique references public.profiles(id) on delete cascade,
+  application_id uuid references public.partner_applications(id) on delete set null,
+  name           text not null,
+  kind           text,
+  city           text,
+  about          text check (about is null or char_length(about) <= 1200),
+  photos         text[] not null default '{}',
+  price_from     numeric(10,2),
+  currency       text not null default 'EGP',
+  commission_pct numeric(5,2) not null default 10 check (commission_pct between 0 and 50),
+  created_at     timestamptz not null default now(),
+  updated_at     timestamptz not null default now()
+);
+alter table public.partner_venues enable row level security;
+drop policy if exists "venues: anyone signed in reads" on public.partner_venues;
+create policy "venues: anyone signed in reads" on public.partner_venues for select to authenticated using (true);
+
+-- nobody turns themselves into a partner
+create or replace function public.guard_partner_type() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if new.account_type is distinct from old.account_type and (new.account_type = 'partner' or old.account_type = 'partner')
+     and not public.owner_ok() and current_setting('moments.partner_ok', true) is distinct from '1' then
+    new.account_type := old.account_type;
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.guard_partner_type() from public, anon, authenticated;
+drop trigger if exists profiles_guard_partner on public.profiles;
+create trigger profiles_guard_partner before update of account_type on public.profiles
+  for each row execute function public.guard_partner_type();
+
+create or replace function public.partner_on_accept() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if new.status = 'accepted' and old.status is distinct from 'accepted' and new.user_id is not null then
+    insert into public.partner_venues (user_id, application_id, name, kind, city, about)
+    values (new.user_id, new.id, new.brand, new.kind, new.city, new.about)
+    on conflict (user_id) do nothing;
+    perform set_config('moments.partner_ok', '1', true);
+    update public.profiles set account_type = 'partner' where id = new.user_id;
+    insert into public.notifications (user_id, actor_id, kind, body) values (new.user_id, new.user_id, 'venue_decision', 'partner_ok');
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.partner_on_accept() from public, anon, authenticated;
+drop trigger if exists partner_apps_accept on public.partner_applications;
+create trigger partner_apps_accept after update of status on public.partner_applications
+  for each row execute function public.partner_on_accept();
+
+create or replace function public.my_venue()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select coalesce((select to_jsonb(v) from public.partner_venues v where v.user_id = auth.uid()), 'null'::jsonb);
+$$;
+revoke execute on function public.my_venue() from public, anon;
+grant execute on function public.my_venue() to authenticated;
+
+create or replace function public.venue_save(p_about text, p_photos text[], p_price numeric, p_currency text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  if exists (select 1 from unnest(coalesce(p_photos, '{}')) u where u !~ '^https://') or coalesce(array_length(p_photos, 1), 0) > 12 then
+    return jsonb_build_object('ok', false, 'reason', 'photos');
+  end if;
+  if p_price is not null and (p_price < 0 or p_price > 1000000) then return jsonb_build_object('ok', false, 'reason', 'price'); end if;
+  update public.partner_venues set about = nullif(left(btrim(coalesce(p_about, '')), 1200), ''), photos = coalesce(p_photos, '{}'),
+         price_from = p_price, currency = coalesce(nullif(upper(p_currency), ''), currency), updated_at = now()
+   where user_id = auth.uid();
+  return jsonb_build_object('ok', found);
+end;
+$$;
+revoke execute on function public.venue_save(text, text[], numeric, text) from public, anon;
+grant execute on function public.venue_save(text, text[], numeric, text) to authenticated;
+
+create or replace function public.owner_venue_commission(p_user uuid, p_pct numeric)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  if not public.owner_ok() then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
+  update public.partner_venues set commission_pct = p_pct, updated_at = now() where user_id = p_user;
+  return jsonb_build_object('ok', found);
+end;
+$$;
+revoke execute on function public.owner_venue_commission(uuid, numeric) from public, anon;
+grant execute on function public.owner_venue_commission(uuid, numeric) to authenticated;
+
+notify pgrst, 'reload schema';
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة

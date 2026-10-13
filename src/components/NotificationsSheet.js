@@ -313,7 +313,7 @@ export const NotificationsSheet = ({ onClose }) => {
             {'  '}<Text style={{ color: C.faint, fontSize: 12 }}>{timeAgo(n.created_at)}</Text>
           </Text>
           {(n.kind === 'green_invite' || n.kind === 'creator_plan' || n.kind === 'booking' || n.kind === 'food_order' || n.kind === 'food_status' || n.kind === 'venue_decision') && n.body ? (
-            <Text style={{ color: C.text, fontSize: 13, fontWeight: '700', marginTop: 2 }} numberOfLines={2}>{n.body === 'host_ok' || n.body === 'host_no' ? t('notif_' + n.body) : n.body}</Text>
+            <Text style={{ color: C.text, fontSize: 13, fontWeight: '700', marginTop: 2 }} numberOfLines={2}>{n.body === 'host_ok' || n.body === 'host_no' || n.body === 'partner_ok' ? t('notif_' + n.body) : n.body}</Text>
           ) : null}
           {n.kind === 'trip_open' && n.body ? (
             <Text style={{ color: C.text, fontSize: 13, fontWeight: '700', marginTop: 2 }} numberOfLines={2}>{String(n.body).split('|')[lang === 'ar' ? 1 : 2] || ''}</Text>

@@ -77,6 +77,7 @@ import { SheetHandle, SheetBack } from '../components/SheetHandle';
 const GreenSheet = lazyOverlay(() => import('../components/green/GreenSheet').then((m) => ({ default: m.GreenSheet })));
 const CommentsSheet = lazyOverlay(() => import('../components/CommentsSheet').then((m) => ({ default: m.CommentsSheet })));
 const ReelsViewer = lazyOverlay(() => import('../components/ReelsViewer').then((m) => ({ default: m.ReelsViewer })));
+const VenueSheet = lazyOverlay(() => import('../components/VenueSheet').then((m) => ({ default: m.VenueSheet })));
 const VolunteerCert = lazyOverlay(() => import('../components/VolunteerCert').then((m) => ({ default: m.VolunteerCert })));
 const PlusSheet = lazyOverlay(() => import('../components/PlusSheet').then((m) => ({ default: m.PlusSheet })));
 const MyDay = lazyOverlay(() => import('../components/MyDay').then((m) => ({ default: m.MyDay })));
@@ -194,6 +195,7 @@ export const ProfileScreen = () => {
   const [fbOpen, setFbOpen] = useState(false);
   const [plusOpen, setPlusOpen] = useState(false);
   const [certOpen, setCertOpen] = useState(false);
+  const [venueOpen, setVenueOpen] = useState(false);
   const [fbKind, setFbKind] = useState('idea');
   const [fbBody, setFbBody] = useState('');
   const [fbDone, setFbDone] = useState(false);
@@ -1137,19 +1139,22 @@ export const ProfileScreen = () => {
             {/* account type switch — includes Artist & Musician creator types */}
             <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', letterSpacing: 1, marginBottom: 8, marginTop: 4 }}>{t('account_type')}</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}>
-              {[
-                { k: 'public', e: '🌍' }, { k: 'private', e: '🔒' }, { k: 'professional', e: '💼' },
-                { k: 'artist', e: '🎨' }, { k: 'musician', e: '🎵' },
-              ].map(({ k, e }) => {
+              {/* Ayser: types that mean something on Moments. 'partner' is given
+                  by the Moments team when a place is accepted — not picked here */}
+              {(accountType === 'partner' ? [{ k: 'partner', e: '🏨' }] : []).concat([
+                { k: 'public', e: '🙌' }, { k: 'organiser', e: '🧭' }, { k: 'coach', e: '🏋️' },
+                { k: 'artist', e: '🎨' }, { k: 'private', e: '🔒' },
+              ]).map(({ k, e }) => {
                 const on = accountType === k;
                 return (
                   <Pressable key={k} onPress={() => {
+                    if (accountType === 'partner' || k === 'partner') return;
                     tapSelection(); setAccountType(k);
                     if (SUPABASE_READY && user) updateProfile(user.id, { account_type: k }).catch(() => {});
                   }} style={{ width: '31.5%', marginRight: '2.75%', marginBottom: 8 }}>
                     <View style={{ backgroundColor: on ? C.purple : C.glass, borderWidth: 1, borderColor: on ? C.purple : C.line, borderRadius: 12, paddingVertical: 10, alignItems: 'center' }}>
                       <Text style={{ fontSize: 15 }}>{e}</Text>
-                      <Text style={{ color: on ? '#FFF' : C.dim, fontSize: 11, fontWeight: '800', marginTop: 3, textTransform: 'capitalize' }}>{k}</Text>
+                      <Text style={{ color: on ? '#FFF' : C.dim, fontSize: 11, fontWeight: '800', marginTop: 3 }}>{t('at_' + k)}</Text>
                     </View>
                   </Pressable>
                 );
@@ -1199,6 +1204,7 @@ export const ProfileScreen = () => {
                 so an admin console never sits in anyone's settings menu. */}
             {/* everyone: send feedback into the owner's Studio */}
             <MenuRow icon="sparkles-outline" label="Moments Plus" sub={t('px_menu_sub')} onPress={() => { setMenu(false); setPlusOpen(true); }} />
+            {accountType === 'partner' ? <MenuRow icon="business-outline" label={t('vn_menu')} sub={t('vn_menu_sub')} onPress={() => { setMenu(false); setVenueOpen(true); }} /> : null}
             <MenuRow icon="ribbon-outline" label={t('vh_title')} sub={t('vh_menu_sub')} onPress={() => { setMenu(false); setCertOpen(true); }} />
             <MenuRow icon="chatbubble-ellipses-outline" label={t('send_feedback')} sub={t('fb_menu_sub')} onPress={() => { setMenu(false); setFbOpen(true); }} />
 
@@ -1450,6 +1456,7 @@ export const ProfileScreen = () => {
       {dumpOpen ? <MyDay onClose={() => setDumpOpen(false)} /> : null}
       {plusOpen ? <PlusSheet onClose={() => setPlusOpen(false)} /> : null}
       {certOpen ? <VolunteerCert onClose={() => setCertOpen(false)} /> : null}
+      {venueOpen ? <VenueSheet onClose={() => setVenueOpen(false)} /> : null}
       {rewardsOpen ? <RewardsSheet onClose={() => setRewardsOpen(false)} onStartPlan={() => { setRewardsOpen(false); setHostOpen(true); }} /> : null}
       {matesOpen ? <MatesSheet onClose={() => { setMatesOpen(false); reload(); }} /> : null}
       {avatarBuilderOpen ? (
