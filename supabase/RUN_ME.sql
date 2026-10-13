@@ -13412,3 +13412,54 @@ revoke execute on function public.offer_set_duration(uuid, numeric) from public,
 grant execute on function public.offer_set_duration(uuid, numeric) to authenticated;
 
 notify pgrst, 'reload schema';
+
+-- ═══════════════════════════════════════════════════════════════════
+--  CIRCLES BY TOPIC · FRIENDS, SELF-DEVELOPMENT, LANGUAGES
+--
+--  Ayser: "ليه في اتنين exchange … وادينا اختيارات تلاته كمان: صحاب،
+--  تطوير ذات، تعلم لغه". Three buttons in Chats, each listing the open
+--  group chats on that topic — nearest first when we know where you
+--  are, the busiest first when we don't — and one tap to start one.
+--  A circle without a place is fine here: a language circle can meet
+--  online. The topic is a column, not a guess from the name.
+--  Safe to re-run.
+-- ═══════════════════════════════════════════════════════════════════
+
+alter table public.squads add column if not exists topic text;
+do $do$ begin
+  alter table public.squads drop constraint if exists squads_topic_check;
+  alter table public.squads add constraint squads_topic_check check (topic is null or topic in ('friends','growth','language'));
+exception when others then raise notice 'squads topic constraint skipped: %', sqlerrm;
+end $do$;
+create index if not exists squads_topic_idx on public.squads (topic) where topic is not null;
+
+create or replace function public.topic_circles(p_topic text, p_lat double precision, p_lng double precision)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select coalesce(jsonb_agg(x order by (x->>'km') is null, (x->>'km')::numeric, (x->>'members')::int desc), '[]'::jsonb) from (
+    select jsonb_build_object('id', s.id, 'name', s.name, 'emoji', s.emoji, 'about', s.about, 'place_name', s.place_name,
+             'km', case when p_lat is null or s.lat is null then null
+                        else round(public.km_between(p_lat, p_lng, s.lat, s.lng)::numeric, 1) end,
+             'members', (select count(*) from public.squad_members m where m.squad_id = s.id and coalesce(m.accepted, true)),
+             'mine', public.is_squad_member(s.id, auth.uid())) x
+      from public.squads s
+     where s.open and s.topic = p_topic
+       and (p_lat is null or s.lat is null or public.km_between(p_lat, p_lng, s.lat, s.lng) <= 50)
+     limit 40) q;
+$$;
+grant execute on function public.topic_circles(text, double precision, double precision) to authenticated;
+
+create or replace function public.create_topic_circle(p_topic text, p_name text, p_about text, p_lat double precision, p_lng double precision)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare r jsonb;
+begin
+  if p_topic not in ('friends','growth','language') then return jsonb_build_object('ok', false, 'reason', 'topic'); end if;
+  r := public.create_circle(p_name, p_about, p_lat, p_lng, null, true);
+  if coalesce((r->>'ok')::boolean, false) then
+    update public.squads set topic = p_topic where id = (r->>'id')::uuid;
+  end if;
+  return r;
+end $$;
+revoke all on function public.create_topic_circle(text, text, text, double precision, double precision) from public, anon;
+grant execute on function public.create_topic_circle(text, text, text, double precision, double precision) to authenticated;
+
+notify pgrst, 'reload schema';

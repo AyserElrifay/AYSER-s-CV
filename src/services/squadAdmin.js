@@ -48,3 +48,11 @@ export async function circlesNear(lat, lng) {
 export function lastFix() {
   try { const v = JSON.parse(localStorage.getItem('moments.lastFix') || 'null'); return v && Number.isFinite(v.lat) ? v : null; } catch (e) { return null; }
 }
+
+/* ── CIRCLES BY TOPIC · friends, self-development, languages ── */
+export async function topicCircles(topic, at) {
+  const r = await act('topic_circles', { p_topic: topic, p_lat: at ? at.lat : null, p_lng: at ? at.lng : null });
+  return Array.isArray(r) ? r : [];
+}
+export const createTopicCircle = (topic, name, about, at) =>
+  act('create_topic_circle', { p_topic: topic, p_name: name, p_about: about || null, p_lat: at ? at.lat : null, p_lng: at ? at.lng : null });

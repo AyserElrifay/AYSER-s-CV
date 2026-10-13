@@ -24,6 +24,7 @@ import { Page } from '../components/Page';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { SectionHeader } from '../components/SectionHeader';
 import { Shortcut, ShortcutRow } from '../components/Shortcut';
+import { TopicCircles, TOPICS } from '../components/TopicCircles';
 import { StreakBadge } from '../components/StreakBadge';
 import { Tick } from '../components/Tick';
 import { sendMoment } from '../services/messages';
@@ -179,6 +180,7 @@ export const ChatsScreen = () => {
   /* The exchange settings live in a sheet now, not on the main screen —
      see the note above the render for why. */
   const [exOpen, setExOpen] = useState(false);
+  const [topic, setTopic] = useState(null);         // friends | growth | language (TopicCircles)
   useEffect(() => {
     if (!SUPABASE_READY || !user) return;
     getProfile(user.id).then((p) => {
@@ -837,12 +839,14 @@ export const ChatsScreen = () => {
         and what they used to explain is inside the sheet each one opens.
         See the Shortcut row above, and the note on the component. */}
 
+    {topic ? <TopicCircles topic={topic} onClose={() => setTopic(null)} onPartners={() => { setTopic(null); setExOpen(true); }} /> : null}
+
     {/* The exchange settings, off the main screen. */}
     {exOpen ? (
       <Modal visible transparent animationType="slide" onRequestClose={() => setExOpen(false)}>
         <Pressable style={{ flex: 1, backgroundColor: 'rgba(6,4,18,0.55)' }} onPress={() => setExOpen(false)} />
         <View style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 16, paddingBottom: insets.bottom + 20 }}>
-          <Text style={{ color: C.text, fontSize: 17, fontWeight: '900', marginBottom: 4 }}>{t('exchange_partners')}</Text>
+          <Text style={{ color: C.text, fontSize: 17, fontWeight: '900', marginBottom: 4 }}>{t('tc_partners')}</Text>
           <Text style={{ color: C.faint, fontSize: 12, marginBottom: 12, lineHeight: 17 }}>{t('exchange_blurb')}</Text>
       {/* ── your exchange switch — HelloTalk-style, right here ── */}
       {SUPABASE_READY ? (
@@ -1172,10 +1176,12 @@ export const ChatsScreen = () => {
               somebody is already asking to start one */}
           {!composeQ.trim() ? (
             <ShortcutRow style={{ paddingHorizontal: 12, marginBottom: 14 }}>
-              <Shortcut emoji="🎒" label={t('prog_title')} onPress={() => { tapLight(); setComposing(false); setProgOpen(true); }} />
-              {SUPABASE_READY ? (
-                <Shortcut emoji="🌍" label={t('exchange_partners')} onPress={() => { tapLight(); setComposing(false); setExOpen(true); }} />
-              ) : null}
+              {/* one "exchange" only: study abroad is the programmes; the
+                  language partners live inside "Learn a language" */}
+              {SUPABASE_READY ? ['friends', 'growth', 'language'].map((k) => (
+                <Shortcut key={k} emoji={TOPICS[k].emoji} label={t('tc_btn_' + k)} onPress={() => { tapLight(); setComposing(false); setTopic(k); }} />
+              )) : null}
+              <Shortcut emoji="🎒" label={t('tc_btn_study')} onPress={() => { tapLight(); setComposing(false); setProgOpen(true); }} />
               {owner ? <Shortcut emoji="🌿" label={t('green_album')} onPress={() => { tapLight(); setComposing(false); setAlbumOpen(true); }} /> : null}
             </ShortcutRow>
           ) : null}
