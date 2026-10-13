@@ -162,6 +162,23 @@ jobs:
             body=$(echo "$body" | jq --arg k "$RESEND_API_KEY" --arg f "$SMTP_SENDER" \
               '. + {smtp_host: "smtp.resend.com", smtp_port: "465", smtp_user: "resend", smtp_pass: $k, smtp_admin_email: $f, smtp_sender_name: "Moments", rate_limit_email_sent: 100}')
             echo "SMTP: Resend will send the emails."
+            # Our own emails: the Moments name, Arabic and English, our
+            # button — never the word Supabase (supabase/templates/*.html).
+            # Custom templates need custom SMTP, so they go in here.
+            body=$(echo "$body" | jq \
+              --rawfile rec supabase/templates/recovery.html \
+              --rawfile con supabase/templates/confirmation.html \
+              --rawfile mag supabase/templates/magic_link.html \
+              --rawfile chg supabase/templates/email_change.html \
+              --rawfile inv supabase/templates/invite.html \
+              '. + {
+                mailer_subjects_recovery: "Reset your Moments password · غيّر كلمة السر", mailer_templates_recovery_content: $rec,
+                mailer_subjects_confirmation: "Welcome to Moments — confirm your email · أكّد إيميلك", mailer_templates_confirmation_content: $con,
+                mailer_subjects_magic_link: "Your Moments sign-in link · لينك الدخول", mailer_templates_magic_link_content: $mag,
+                mailer_subjects_email_change: "Confirm your new email · أكّد إيميلك الجديد", mailer_templates_email_change_content: $chg,
+                mailer_subjects_invite: "You are invited to Moments · معزوم على Moments", mailer_templates_invite_content: $inv
+              }')
+            echo "Email templates: Moments (no Supabase branding)."
           else
             echo "::notice::No RESEND_API_KEY / SMTP_SENDER secret — emails still go through Supabase's built-in test mailer (a few per hour)."
           fi

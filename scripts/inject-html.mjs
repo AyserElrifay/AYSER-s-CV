@@ -192,6 +192,15 @@ const kiteIntro = `
   })();
 </script>
 `;
+/* ─── THE OLD ADDRESS ─────────────────────────────────────────────────
+   The app moved from ayserelrifay.github.io/AYSER-s-CV to its own
+   domain, and now lives at the root of therealmoments.com. A phone that
+   still opens the old address (an old home-screen icon, an old link)
+   gets a page whose pictures point nowhere. So the old address goes
+   straight on to the new one, keeping whatever was after the "?" — a
+   trip link, an invite — and before anything else loads. */
+const moveHome = `<script>(function(){try{var h=location.hostname;if(/\\.github\\.io$/i.test(h)){location.replace('https://therealmoments.com/'+location.search+location.hash);}}catch(e){}})();</script>`;
+html = html.replace(/<head([^>]*)>/, (m) => m + moveHome);
 html = html.replace(/<body([^>]*)>/, (m) => m + kiteIntro);
 fs.writeFileSync(file, html);
 console.log('index.html patched: PWA + OG tags');

@@ -10,6 +10,7 @@ import { publicMedia } from '../lib/publicMedia';
 import { lastFix } from '../services/squadAdmin';
 import { tapLight, tapSelection } from '../utils/feedback';
 import { useSheetBack } from '../hooks/useSheetBack';
+import { openPartner } from '../lib/partnerLink';
 
 /* ─── PLACES, AS BIG AS THEIR PHOTOS ───────────────────────────────────
    Ayser: "طريقه عرض hype احسن". A list where every place is a full-width
@@ -108,6 +109,8 @@ export const PlacesFeed = ({ onClose, onOpen, places }) => {
   const insets = useSafeAreaInsets();
   const { t } = useLang();
   const [tag, setTag] = useState(null);
+  const [where, setWhere] = useState(null);       // a country, or null = everywhere (nearest first)
+  const [picking, setPicking] = useState(false);
   const here = lastFix();
 
   const all = useMemo(() => DESTINATIONS
@@ -118,7 +121,13 @@ export const PlacesFeed = ({ onClose, onOpen, places }) => {
     DESTINATIONS.forEach((d) => (d.tags || []).forEach((x) => { n[x] = (n[x] || 0) + 1; }));
     return Object.keys(n).filter((x) => x !== 'Photo').sort((a, b) => n[b] - n[a]).slice(0, 10);
   }, []);
-  const shown = tag ? all.filter((x) => (x.d.tags || []).includes(tag)) : all;
+  /* where to: every country that has places, with how many */
+  const countries = useMemo(() => {
+    const n = {};
+    DESTINATIONS.forEach((d) => { const k = d.country; if (!n[k]) n[k] = { name: k, flag: d.flag, n: 0 }; n[k].n += 1; });
+    return Object.values(n).sort((a, b) => b.n - a.n);
+  }, [DESTINATIONS.length]);
+  const shown = all.filter((x) => (!tag || (x.d.tags || []).includes(tag)) && (!where || x.d.country === where.name));
 
   return (
     <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: C.bg, zIndex: 25 }}>
@@ -141,7 +150,39 @@ export const PlacesFeed = ({ onClose, onOpen, places }) => {
             </View>
             <Text style={{ color: C.text, fontSize: 28, fontWeight: '900', letterSpacing: -0.4, marginTop: 8 }}>{'📍 ' + t('pf_title')}</Text>
             <Text style={{ color: C.dim, fontSize: 14, marginTop: 4 }}>{here ? t('pf_sub_near') : t('pf_sub')}</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ marginTop: 14, marginBottom: 14 }}>
+            {/* coming through Moments: said once, plainly, not dressed up as places */}
+            <View style={{ flexDirection: 'row', marginTop: 14 }}>
+              {[['☕', 'pf_soon_cafes'], ['🛏️', 'pf_soon_stays']].map(([e, k], i) => (
+                <Pressable key={k} onPress={() => { tapLight(); openPartner('place'); }} accessibilityRole="button" style={{ flex: 1, marginEnd: i === 0 ? 10 : 0 }}>
+                  <View style={{ borderRadius: 16, borderWidth: 1, borderStyle: 'dashed', borderColor: C.line, padding: 12, minHeight: 84 }}>
+                    <Text style={{ fontSize: 20 }}>{e}</Text>
+                    <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '900', marginTop: 4 }}>{t(k)}</Text>
+                    <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 2 }}>{t('bk_soon') + ' · ' + t('pf_soon_own')}</Text>
+                  </View>
+                </Pressable>
+              ))}
+            </View>
+
+            {/* where to */}
+            <Pressable onPress={() => { tapSelection(); setPicking((v) => !v); }} accessibilityRole="button" style={{ alignSelf: 'flex-start', marginTop: 14 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, backgroundColor: C.purpleSoft, paddingHorizontal: 14, paddingVertical: 8 }}>
+                <Text style={{ color: C.purple, fontSize: 14, fontWeight: '900' }}>{where ? where.flag + ' ' + where.name : '🧭 ' + t('pf_where_any')}</Text>
+                <Ionicons name={picking ? 'chevron-up' : 'chevron-down'} size={15} color={C.purple} style={{ marginStart: 6 }} />
+              </View>
+            </Pressable>
+            {picking ? (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 8 }}>
+                {[null].concat(countries).map((c) => (
+                  <Pressable key={c ? c.name : 'any'} onPress={() => { tapSelection(); setWhere(c); setPicking(false); }} style={{ marginEnd: 8, marginBottom: 8 }}>
+                    <View style={{ borderRadius: 999, borderWidth: 1, borderColor: (where && c && where.name === c.name) || (!where && !c) ? C.purple : C.line, paddingHorizontal: 12, paddingVertical: 7 }}>
+                      <Text style={{ color: C.text, fontSize: 13, fontWeight: '800' }}>{c ? c.flag + ' ' + c.name + ' · ' + c.n : '🧭 ' + t('pf_where_any')}</Text>
+                    </View>
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
+
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ marginTop: 12, marginBottom: 14 }}>
               {[null].concat(tags).map((x) => (
                 <Pressable key={x || 'all'} onPress={() => { tapSelection(); setTag(x); }} accessibilityRole="tab" accessibilityState={{ selected: tag === x }}
                   style={{ marginEnd: 8, borderRadius: 999, borderWidth: 1, borderColor: tag === x ? C.text : C.line, backgroundColor: tag === x ? C.text : 'transparent', paddingHorizontal: 14, paddingVertical: 7 }}>

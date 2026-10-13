@@ -1944,6 +1944,41 @@ export const MapScreen = () => {
 
               <Text style={{ color: C.text, fontSize: 13.5, lineHeight: 21, marginTop: 14 }}>{destOpen.desc}</Text>
 
+              {/* ── DETAILS, AND WHAT ELSE IS CLOSE ─────────────────────
+                  How far it is from where you really are (only when we
+                  know), and the other places within 30 km of it — the
+                  way somebody plans a day out: here, then there. */}
+              {(() => {
+                const fix = located ? myCoords : null;
+                const at = { latitude: destOpen.lat, longitude: destOpen.lng };
+                const away = fix ? kmBetween(fix, at) : null;
+                const near = DESTINATIONS.filter((d) => d.id !== destOpen.id)
+                  .map((d) => ({ d, k: kmBetween(at, { latitude: d.lat, longitude: d.lng }) }))
+                  .filter((x) => x.k <= 30).sort((a, b) => a.k - b.k).slice(0, 8);
+                const fmt = (k) => (k < 1 ? Math.round(k * 1000) + ' m' : (k < 10 ? k.toFixed(1) : Math.round(k)) + ' km');
+                return (
+                  <View>
+                    {away != null ? <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 10 }}>{'🧭 ' + t('pd_from_you').replace('{d}', fmt(away))}</Text> : null}
+                    {near.length ? (
+                      <View style={{ marginTop: 14 }}>
+                        <Text style={{ color: C.faint, fontSize: 11, fontWeight: '900', letterSpacing: 1, marginBottom: 8 }}>{t('pd_nearby').toUpperCase()}</Text>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                          {near.map(({ d, k }) => (
+                            <Pressable key={d.id} onPress={() => { tapLight(); openDest(d); }} accessibilityRole="button" style={{ marginRight: 8 }}>
+                              <View style={{ width: 150, borderRadius: 14, borderWidth: 1, borderColor: C.line, backgroundColor: C.glass, padding: 10 }}>
+                                <Text style={{ fontSize: 20 }}>{d.emoji}</Text>
+                                <Text style={{ color: C.text, fontSize: 13, fontWeight: '800', marginTop: 4 }} numberOfLines={2}>{d.name}</Text>
+                                <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 2 }}>{fmt(k) + ((d.tags || [])[0] ? ' · ' + d.tags[0] : '')}</Text>
+                              </View>
+                            </Pressable>
+                          ))}
+                        </ScrollView>
+                      </View>
+                    ) : null}
+                  </View>
+                );
+              })()}
+
               {/* Flights, a bed and a car — the real searches, one tap. */}
               <Pressable onPress={() => { tapLight(); const to = destOpen.name; setDestOpen(null); setTravelTo(to); }}>
                 <View style={{

@@ -393,63 +393,15 @@ export const AuthScreen = ({ recovery = false, onDone }) => {
             <Wordmark height={92} style={{ marginBottom: 4 }} />
             <Text style={{ color: C.dim, fontSize: 14, marginBottom: 30 }}>{t('auth_reset_title')}</Text>
             <Glass style={{ padding: 20, alignSelf: 'stretch', marginBottom: 30 }}>
-              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 18 }}>
-                {['email', 'phone'].map((v) => (
-                  <Pressable
-                    key={v}
-                    onPress={() => { setResetVia(v); setError(null); setNotice(null); }}
-                    style={{
-                      flex: 1, paddingVertical: 10, borderRadius: R - 6, alignItems: 'center',
-                      backgroundColor: resetVia === v ? C.purple : C.glass,
-                      borderWidth: 1, borderColor: resetVia === v ? C.purple : C.line,
-                    }}
-                  >
-                    <Text style={{ color: resetVia === v ? '#fff' : C.dim, fontWeight: '800', fontSize: 13 }}>
-                      {v === 'email' ? '✉️  ' + t('email_label') : '📱  ' + t('auth_via_phone')}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-
-              {resetVia === 'email' ? (
-                <>
-                  <TextInput
-                    placeholder={t('auth_account_email')} placeholderTextColor={C.faint} value={email} onChangeText={setEmail}
-                    autoCapitalize="none" keyboardType="email-address" autoComplete="email" style={inputStyle()}
-                  />
-                  {error ? <Text style={{ color: C.coral, fontSize: 12, textAlign: 'center', marginBottom: 10 }}>{error}</Text> : null}
-                  {notice ? <Text style={{ color: C.green, fontSize: 12, textAlign: 'center', marginBottom: 10 }}>{notice}</Text> : null}
-                  <NeonButton label={busy ? t('auth_sending') : t('auth_send_reset') + ' ⚡'} onPress={busy ? undefined : sendEmailReset} style={{ marginBottom: 12 }} />
-                </>
-              ) : (
-                <>
-                  <TextInput
-                    placeholder={t('auth_phone_ph')} placeholderTextColor={C.faint} value={phone} onChangeText={setPhone}
-                    autoCapitalize="none" keyboardType="phone-pad" editable={!otpVerified} style={inputStyle()}
-                  />
-                  {otpSent && !otpVerified ? (
-                    <TextInput
-                      placeholder={t('auth_code_ph')} placeholderTextColor={C.faint} value={otp} onChangeText={setOtp}
-                      keyboardType="number-pad" maxLength={6} style={inputStyle()}
-                    />
-                  ) : null}
-                  {otpVerified ? (
-                    <TextInput
-                      placeholder={t('auth_new_password')} placeholderTextColor={C.faint} value={newPass} onChangeText={setNewPass}
-                      secureTextEntry style={inputStyle()}
-                    />
-                  ) : null}
-                  {error ? <Text style={{ color: C.coral, fontSize: 12, textAlign: 'center', marginBottom: 10 }}>{error}</Text> : null}
-                  {notice ? <Text style={{ color: C.green, fontSize: 12, textAlign: 'center', marginBottom: 10 }}>{notice}</Text> : null}
-                  {!otpSent ? (
-                    <NeonButton label={busy ? t('auth_sending') : t('auth_send_sms') + ' 📱'} onPress={busy ? undefined : sendOtp} style={{ marginBottom: 12 }} />
-                  ) : !otpVerified ? (
-                    <NeonButton label={busy ? t('auth_checking') : t('auth_verify_code') + ' ⚡'} onPress={busy ? undefined : verifyOtp} style={{ marginBottom: 12 }} />
-                  ) : (
-                    <NeonButton label={busy ? t('auth_saving') : t('auth_set_password') + ' ⚡'} onPress={busy ? undefined : saveNewPassword} style={{ marginBottom: 12 }} />
-                  )}
-                </>
-              )}
+              {/* email only: the text-message route needs an SMS provider
+                  nobody pays for, and it failed in front of people */}
+              <TextInput
+                placeholder={t('auth_account_email')} placeholderTextColor={C.faint} value={email} onChangeText={setEmail}
+                autoCapitalize="none" keyboardType="email-address" autoComplete="email" style={inputStyle()}
+              />
+              {error ? <Text style={{ color: C.coral, fontSize: 12, textAlign: 'center', marginBottom: 10 }}>{error}</Text> : null}
+              {notice ? <Text style={{ color: C.green, fontSize: 12, textAlign: 'center', marginBottom: 10 }}>{notice}</Text> : null}
+              <NeonButton label={busy ? t('auth_sending') : t('auth_send_reset') + ' ⚡'} onPress={busy ? undefined : sendEmailReset} style={{ marginBottom: 12 }} />
 
               <GhostButton small label={t('auth_back_signin')} onPress={() => { setMode('signin'); setError(null); setNotice(null); }} />
             </Glass>

@@ -1,11 +1,12 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, Pressable, TextInput, Image, ActivityIndicator } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, Text, Pressable, TextInput, Image, ActivityIndicator, Animated, Easing } from 'react-native';
 import { C } from '../constants/theme';
 import {
   ownerOffers, offerSave, offerSetVideo, offerSetDuration, offerSetStatus, ownerBookings, ownerMarkBooking, ownerSetSetting, appSettings, photoUrl, money,
 } from '../services/offers';
 import { uploadPlanPhoto } from '../lib/storage';
 import { tapLight, tapSuccess } from '../utils/feedback';
+import { appLink, shareLink } from '../utils/share';
 
 /* ─── STUDIO · TRIPS & DEALS ───────────────────────────────────────────
    The owner's desk for what people can book: write an offer (or finish
@@ -35,6 +36,103 @@ const Btn = ({ label, onPress, solid, danger, disabled }) => (
     </View>
   </Pressable>
 );
+
+/* ─── IS THIS TRIP READY? ─────────────────────────────────────────────
+   Ayser: "حط حاجة تسعدني لما أعمل new travel … في الأسعار وحاجات تانية
+   مهمة عشان ما تتنسيش". Every line a traveller asks before paying,
+   ticked off as it is filled in — so nothing important is forgotten,
+   and the bar filling up is the small pleasure of a trip coming
+   together. Required ones block nothing here (the database still
+   refuses to publish without a photo and a price); they are just the
+   ones a trip should never go out without. */
+const CHECKS = [
+  ['Title in English', (f) => f.title.trim().length > 3, true],
+  ['Title in Arabic', (f) => f.title_ar.trim().length > 1, true],
+  ['A real photo', (f) => lines(f.photos).length > 0, true],
+  ['Price', (f) => Number(f.price) > 0, true],
+  ['≈ USD price for travellers from abroad', (f) => Number(f.price_usd) > 0, false],
+  ['Dates', (f) => !!String(f.starts_at).trim(), true],
+  ['Seats', (f) => Number(f.seats) > 0, false],
+  ['Program (2+ steps)', (f) => lines(f.itinerary).length >= 2, true],
+  ['What is included', (f) => lines(f.includes).length > 0, true],
+  ['What is not included', (f) => lines(f.excludes).length > 0, false],
+  ['Good to know (what to bring, meeting point)', (f) => lines(f.good_to_know).length > 0, false],
+  ['Free cancellation window', (f) => String(f.free_cancel_hours).trim() !== '', false],
+  ['How long it takes', (f) => Number(f.duration) > 0, false],
+  ['Where (city or map point)', (f) => !!f.city.trim() || (String(f.lat).trim() && String(f.lng).trim()), false],
+  ['A video', (f) => !!f.video.trim(), false],
+];
+const warningsOf = (f) => {
+  const w = [];
+  const p = Number(f.price); const mp = Number(f.member_price);
+  if (f.member_price && mp >= p) w.push('The Plus price is not lower than the normal price.');
+  const st = f.starts_at && new Date(String(f.starts_at).replace(' ', 'T'));
+  const en = f.ends_at && new Date(String(f.ends_at).replace(' ', 'T'));
+  if (st && !isNaN(st) && st < new Date()) w.push('The start date is in the past.');
+  if (st && en && !isNaN(st) && !isNaN(en) && en < st) w.push('It ends before it starts.');
+  if (Number(f.commission_pct) > 40) w.push('A commission above 40% is unusual — check it with the partner.');
+  if (f.pay_modes.length === 0) w.push('Pick at least one way to pay.');
+  if (Number(f.price) > 0 && Number(f.price_usd) > 0 && f.currency === 'EGP') {
+    const rate = Number(f.price) / Number(f.price_usd);
+    if (rate < 20 || rate > 120) w.push('The EGP and USD prices do not look like the same amount (' + Math.round(rate) + ' EGP per $).');
+  }
+  return w;
+};
+
+const Readiness = ({ f }) => {
+  const done = CHECKS.filter(([, ok]) => ok(f)).length;
+  const missingMust = CHECKS.filter(([, ok, must]) => must && !ok(f));
+  const missingNice = CHECKS.filter(([, ok, must]) => !must && !ok(f));
+  const pct = done / CHECKS.length;
+  const p = Number(f.price) || 0;
+  const cut = Math.min(100, Math.max(0, Number(f.commission_pct) || 0)) / 100;
+  const seats = Number(f.seats) || 0;
+  const cur = f.currency || 'EGP';
+  const warn = warningsOf(f);
+  const mood = pct >= 1 ? '🎉 Everything a traveller asks is here.' : missingMust.length === 0 ? '✨ Ready to publish — the extras make it better.' : '🧳 Coming together…';
+  return (
+    <View style={{ borderWidth: 1, borderColor: missingMust.length ? C.line : C.green, borderRadius: 16, padding: 12, marginTop: 10, backgroundColor: C.glass }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '900', flex: 1 }}>{mood}</Text>
+        <Text style={{ color: C.dim, fontSize: 12.5, fontWeight: '800' }}>{done + ' / ' + CHECKS.length}</Text>
+      </View>
+      <View style={{ height: 8, borderRadius: 4, backgroundColor: C.glassHi, marginTop: 8, overflow: 'hidden' }}>
+        <View style={{ width: Math.round(pct * 100) + '%', height: 8, borderRadius: 4, backgroundColor: pct >= 1 ? C.green : C.purple }} />
+      </View>
+      {missingMust.length ? <Text style={{ color: '#E11D48', fontSize: 12.5, marginTop: 8 }}>{'Still needed: ' + missingMust.map(([l]) => l).join(' · ')}</Text> : null}
+      {missingNice.length ? <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 4 }}>{'Nice to add: ' + missingNice.map(([l]) => l).join(' · ')}</Text> : null}
+      {p > 0 ? (
+        <View style={{ marginTop: 10, borderTopWidth: 1, borderTopColor: C.line, paddingTop: 8 }}>
+          <Text style={{ color: C.text, fontSize: 13, fontWeight: '800' }}>
+            {'Per person: ' + money(p, cur) + (Number(f.price_usd) > 0 ? ' (≈ $' + Number(f.price_usd) + ')' : '') + (cut ? ' → Moments ' + money(Math.round(p * cut), cur) + ' · organiser ' + money(Math.round(p * (1 - cut)), cur) : '')}
+          </Text>
+          {seats ? <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 2 }}>{'Full trip (' + seats + ' seats): ' + money(p * seats, cur) + (cut ? ' · Moments ' + money(Math.round(p * seats * cut), cur) : '')}</Text> : null}
+          {Number(f.member_price) > 0 && Number(f.member_price) < p ? <Text style={{ color: '#8A6400', fontSize: 12.5, marginTop: 2 }}>{'Plus members save ' + money(p - Number(f.member_price), cur) + ' each'}</Text> : null}
+        </View>
+      ) : null}
+      {warn.map((x) => <Text key={x} style={{ color: '#D97706', fontSize: 12.5, marginTop: 4 }}>{'⚠️ ' + x}</Text>)}
+    </View>
+  );
+};
+
+/* published: a moment worth a little ceremony, and the link to send */
+const Party = ({ offer, onClose }) => {
+  const pop = useRef(new Animated.Value(0)).current;
+  useEffect(() => { Animated.spring(pop, { toValue: 1, friction: 5, tension: 120, useNativeDriver: true }).start(); }, [pop]);
+  const [note, setNote] = useState(null);
+  return (
+    <Animated.View style={{ transform: [{ scale: pop.interpolate({ inputRange: [0, 1], outputRange: [0.85, 1] }) }], opacity: pop, marginTop: 12, borderRadius: 18, padding: 16, backgroundColor: '#1A1A1A' }}>
+      <Text style={{ fontSize: 34 }}>🎉🧳✨</Text>
+      <Text style={{ color: '#FDE68A', fontSize: 18, fontWeight: '900', marginTop: 6 }}>{offer.title + ' is live!'}</Text>
+      <Text style={{ color: '#E5E5EA', fontSize: 13.5, marginTop: 4, lineHeight: 19 }}>People can book it now — and everyone who tapped “I want to go” is being told.</Text>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+        <Btn label="Share the trip" solid onPress={async () => { const r = await shareLink({ url: appLink({ trip: offer.id }), title: offer.title, text: offer.title + ' — on Moments' }); setNote(r === 'copied' ? 'Link copied ✓' : null); }} />
+        <Btn label="Close" onPress={onClose} />
+      </View>
+      {note ? <Text style={{ color: '#A7F3D0', fontSize: 12.5, marginTop: 6 }}>{note}</Text> : null}
+    </Animated.View>
+  );
+};
 
 const toForm = (o) => ({
   id: o.id || '', kind: o.kind || 'trip', title: o.title || '', title_ar: o.title_ar || '', operator: o.operator || '',
@@ -69,6 +167,7 @@ export const OffersTab = ({ userId }) => {
   const [busy, setBusy] = useState(false);
   const [bookingsOf, setBookingsOf] = useState(null);   // { offer, rows }
   const [freeUntil, setFreeUntil] = useState('');
+  const [party, setParty] = useState(null);             // the offer just published
 
   const load = () => {
     ownerOffers().then((r) => setList(r == null ? false : r));
@@ -88,7 +187,7 @@ export const OffersTab = ({ userId }) => {
   const status = async (o, s) => {
     tapLight();
     const r = await offerSetStatus(o.id, s);
-    if (r && r.ok) { tapSuccess(); load(); setMsg(s === 'live' ? 'Published.' : 'Updated.'); }
+    if (r && r.ok) { tapSuccess(); load(); setMsg(s === 'live' ? null : 'Updated.'); if (s === 'live') setParty(o); }
     else setMsg(r && r.reason === 'no_photo' ? 'Add at least one real photo before publishing.' : r && r.reason === 'no_price' ? 'Set a price before publishing.' : 'Could not change it.');
   };
   const upload = async () => {
@@ -142,6 +241,7 @@ export const OffersTab = ({ userId }) => {
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 6 }}>
           {KINDS.map((k) => <Btn key={k} label={k} solid={form.kind === k} onPress={() => set('kind')(k)} />)}
         </View>
+        <Readiness f={form} />
         <Field label="Title (English)" value={form.title} onChange={set('title')} ph="Dahab — three days by the sea" />
         <Field label="Title (Arabic)" value={form.title_ar} onChange={set('title_ar')} />
         <Field label="Run by (operator)" value={form.operator} onChange={set('operator')} ph="TravellersOutdoors" />
@@ -195,6 +295,7 @@ export const OffersTab = ({ userId }) => {
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 6 }}>
           <Btn label={busy ? 'Saving…' : 'Save'} solid onPress={save} disabled={busy} />
         </View>
+        <Readiness f={form} />
       </View>
     );
   }
@@ -215,6 +316,7 @@ export const OffersTab = ({ userId }) => {
         <Btn label={online ? 'Turn off' : 'Turn on'} danger={online} onPress={async () => { const r = await ownerSetSetting('payments_online', !online); setMsg(r && r.ok ? 'Saved.' : 'Could not save.'); load(); }} />
       </View>
       {msg ? <Text style={{ color: C.green, fontSize: 13.5, marginTop: 10 }}>{msg}</Text> : null}
+      {party ? <Party offer={party} onClose={() => setParty(null)} /> : null}
 
       {list.map((o) => (
         <View key={o.id} style={{ borderWidth: 1, borderColor: o.status === 'live' ? C.green : C.line, borderRadius: 14, padding: 12, marginTop: 12 }}>
