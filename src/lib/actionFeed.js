@@ -25,4 +25,7 @@ export function actionOf(c) {
   return c.joinable ? 'join' : 'hangout';
 }
 
-export const actionFeed = (cards) => (cards || []).filter(isActionPost).slice(0, FEED_MAX);
+/* your own moments always stay in your feed — a moment that is not from
+   an outing reaches other people through your profile, but it never
+   vanishes from under the person who just posted it */
+export const actionFeed = (cards, me) => (cards || []).filter((c) => isActionPost(c) || (me && c && !c.sponsored && c.userId === me)).slice(0, FEED_MAX);

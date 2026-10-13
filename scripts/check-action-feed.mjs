@@ -20,6 +20,8 @@ is('a post pinned on the map', isActionPost({ coords: { latitude: 1, longitude: 
 is('a plan with a time', isActionPost({ joinable: true }), true);
 is('a travel plan', isActionPost({ plan: { to: 'Tallinn' } }), true);
 is('a photo of nowhere in particular is not', isActionPost({ caption: 'mood', place: '  ' }), false);
+is('your own moment with no place still stays in your feed', actionFeed([{ id: 1, userId: 'me', caption: 'I love cheese' }], 'me').length, 1);
+is('somebody else\'s moment with no place does not', actionFeed([{ id: 1, userId: 'x', caption: 'mood' }], 'me').length, 0);
 is('an advert is not', isActionPost({ sponsored: true, place: 'Mall' }), false);
 is('something to join says join', actionOf({ joinable: true, place: 'x' }), 'join');
 is('a place says make a plan here', actionOf({ place: 'x' }), 'hangout');
@@ -27,7 +29,7 @@ is('the feed stops at thirty', actionFeed(Array.from({ length: 50 }, (_, i) => (
 
 console.log('\nand the app keeps to it');
 const feed = read('src/hooks/useFeed.js');
-is('the feed is filtered on the way in', /all: actionFeed\(/.test(feed) && /return actionFeed\(c\.posts\)/.test(feed), true);
+is('the feed is filtered on the way in', /all: actionFeed\(/.test(feed) && /return actionFeed\(c\.posts/.test(feed), true);
 is('no adverts are mixed in', !/injectAds|fetchFeedAds/.test(feed), true);
 is('a new moment needs a place', /feed_need_place/.test(read('src/components/ComposeModal.js')), true);
 is('an ordinary moment is not turned into a pitch (no "make a plan here" under every post)', /onHangoutHere\(post\)/.test(read('src/components/PostCard.js')), false);

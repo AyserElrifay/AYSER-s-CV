@@ -539,6 +539,11 @@ export const ComposeModal = ({ initialMode = 'post', initialCaption = '', initia
               ))}
             </View>
           ) : null}
+          {/* say where a moment that is not from an outing goes, so nobody
+              thinks it was deleted */}
+          {!isStory && !isTravel && outing === false ? (
+            <Text style={{ color: C.faint, fontSize: 12.5, lineHeight: 17, marginTop: 8 }}>{t('cmp_outing_no_note')}</Text>
+          ) : null}
           {!isStory && !isTravel && outing && !fromPlace && (myPlans.length || nearPlaces.length) ? (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ marginTop: 10 }}>
               {myPlans.map((g) => {

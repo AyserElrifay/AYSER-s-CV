@@ -1612,6 +1612,7 @@ export const STRINGS = {
     sp_today: "My day",
     cmp_outing_yes: "From an outing",
     cmp_outing_no: "Not an outing",
+    cmp_outing_no_note: "It shows on your profile and to you. Add where it was to show it to people near you.",
     cmp_need_spot: "Where was it? Tap a place below, or pin where you are.",
     md_title: "My day",
     md_sub: "A calm plan for today — set up by tapping, no typing.",

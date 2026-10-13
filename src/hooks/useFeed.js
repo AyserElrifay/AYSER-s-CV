@@ -121,7 +121,7 @@ function readCache() {
     if (!c || c.uid !== uid || !Array.isArray(c.posts)) return null;
     /* a day-old feed is a worse first look than a skeleton */
     if (Date.now() - (c.at || 0) > 24 * 3600e3) return null;
-    return actionFeed(c.posts);
+    return actionFeed(c.posts, uid);
   } catch (e) { return null; }
 }
 
@@ -152,7 +152,7 @@ async function fetchFresh() {
     byId.set(card.id, card);
     revived.push(card);
   });
-  return { all: actionFeed(cards.concat(revived)) };
+  return { all: actionFeed(cards.concat(revived), whoNow()) };
 }
 
 /* The head start. A request already on its way is reused by the first
