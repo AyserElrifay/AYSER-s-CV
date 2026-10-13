@@ -279,7 +279,7 @@ export const NotificationsSheet = ({ onClose }) => {
     if (!m) return null;
     return (
       <View style={{ paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: C.line, opacity: n.read ? 0.78 : 1 }}>
-        <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', letterSpacing: 1 }}>BARDI · {timeAgo(n.created_at)}</Text>
+        <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', letterSpacing: 1 }}>{t('bd_name').toUpperCase()} · {timeAgo(n.created_at)}</Text>
         <Text style={{ color: C.text, fontSize: 14.5, lineHeight: 20, marginTop: 4 }}>
           {m.focus
             ? t(m.venue ? 'bardi_focus_at' : 'bardi_focus').replace('{n}', String(m.count)).replace('{what}', t('bd_kind_' + m.what).toLowerCase()).replace('{venue}', m.venue || '')

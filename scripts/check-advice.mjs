@@ -31,7 +31,7 @@ is('the advice is read only by that kind\'s reviewers', /when 'host' then public
 is('a guide\'s advice goes when their application is decided', /delete from public\.studio_advice where kind = 'host'/.test(part), true);
 is('every queue shows it', /<BardiAdvice kind="host"/.test(admin) && /<BardiAdvice kind="venue"/.test(admin) && /<BardiAdvice kind="report"/.test(admin), true);
 is('and says plainly it is advice', /Advice only — you decide\./.test(admin), true);
-is('the terms and the form say an AI helps check documents', /never compares faces and never decides/.test(read('src/components/TermsSheet.js')) && /Bardi, our assistant, helps check them/.test(read('src/constants/i18n.js')), true);
+is('the terms and the form say an AI helps check documents', /never compares faces and never decides/.test(read('src/components/TermsSheet.js')) && /(Bardi|Papyrus), our assistant, helps check them/.test(read('src/constants/i18n.js')), true);
 
 if (bad) { console.log('\n' + bad + ' wrong.'); process.exit(1); }
 console.log('\nBardi reads and recommends on every Studio decision; the buttons stay a person\'s.');

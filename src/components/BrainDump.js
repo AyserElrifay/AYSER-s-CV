@@ -95,7 +95,7 @@ export const BrainDump = () => {
     const listening = rec === 'on';
     return (
       <View style={card}>
-        <Text style={kicker}>BARDI · {t('bd_today')}</Text>
+        <Text style={kicker}>{t('bd_name').toUpperCase()} · {t('bd_today')}</Text>
         <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginTop: 8 }}>
           <TextInput
             value={text}
@@ -143,7 +143,7 @@ export const BrainDump = () => {
   return (
     <View style={card}>
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-        <Text style={[kicker, { flex: 1 }]}>BARDI · {t('bd_now')}</Text>
+        <Text style={[kicker, { flex: 1 }]}>{t('bd_name').toUpperCase()} · {t('bd_now')}</Text>
         <Text style={{ color: C.faint, fontSize: 11.5 }}>{t('bd_of').replace('{i}', String(position)).replace('{n}', String(total))}</Text>
         <Pressable onPress={() => { tapLight(); commit(null); }} hitSlop={10} accessibilityRole="button" accessibilityLabel={t('bd_again')} style={{ marginStart: 12 }}>
           <Ionicons name="refresh" size={15} color={C.faint} />

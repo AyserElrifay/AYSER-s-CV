@@ -33,7 +33,7 @@ import { useSheetBack } from '../hooks/useSheetBack';
 /* ─── MOMENTS STUDIO · the owner's control panel ──────────────────────
    One place to run everything: live stats, the report queue, verification
    requests, music approvals and user feedback — all real data, owner-only.
-   Bardi is built in: one tap summarises what needs attention. */
+   Papyrus is built in: one tap summarises what needs attention. */
 
 /* area: which team role may open it (studio_can in RUN_ME.sql). No
    area means the owner only. The server enforces this on every call;
@@ -53,7 +53,7 @@ const TABS = [
   { k: 'music', label: 'Music', icon: 'musical-notes-outline' },
   { k: 'feedback', label: 'Feedback', icon: 'chatbubbles-outline' },
   { k: 'help', label: 'Help', icon: 'help-circle-outline' },
-  { k: 'bardi', label: 'Bardi', icon: 'sparkles-outline' },
+  { k: 'bardi', label: 'Papyrus', icon: 'sparkles-outline' },
   { k: 'errors', label: 'Errors', icon: 'bug-outline' },
   { k: 'db', label: 'Setup', icon: 'server-outline' },
 ];
@@ -65,11 +65,11 @@ const canOpen = (access, t) => !!access && (access.owner || (!!t.area && (access
    the checks behind it — the buttons underneath are still the
    decision. See supabase/functions/studio-advice. */
 const REC = {
-  approve: ['Bardi: approve', '#16A34A'], reject: ['Bardi: reject', '#DC2626'], ask_more: ['Bardi: ask for more', '#D97706'],
-  remove: ['Bardi: take it down', '#DC2626'], keep: ['Bardi: keep it', '#16A34A'],
+  approve: ['Papyrus: approve', '#16A34A'], reject: ['Papyrus: reject', '#DC2626'], ask_more: ['Papyrus: ask for more', '#D97706'],
+  remove: ['Papyrus: take it down', '#DC2626'], keep: ['Papyrus: keep it', '#16A34A'],
 };
 const MARK = { ok: '✓', problem: '✗', unclear: '?' };
-const ADVICE_ERR = { not_configured: 'Bardi needs ANTHROPIC_API_KEY to read applications.', not_allowed: 'Your role cannot ask about this.', no_item: 'Already decided.' };
+const ADVICE_ERR = { not_configured: 'Papyrus needs ANTHROPIC_API_KEY to read applications.', not_allowed: 'Your role cannot ask about this.', no_item: 'Already decided.' };
 const BardiAdvice = ({ kind, refId }) => {
   const { lang } = useLang();
   const [a, setA] = useState(null);       // null = asking
@@ -78,7 +78,7 @@ const BardiAdvice = ({ kind, refId }) => {
   const ask = (refresh) => {
     setA(null); setErr(null);
     askAdvice(kind, refId, { lang: lang === 'ar' ? 'ar' : 'en', refresh }).then((r) => {
-      if (r && r.ok && r.advice) setA(r.advice); else { setErr(ADVICE_ERR[r && r.error] || 'Bardi could not read this one.'); setA(false); }
+      if (r && r.ok && r.advice) setA(r.advice); else { setErr(ADVICE_ERR[r && r.error] || 'Papyrus could not read this one.'); setA(false); }
     });
   };
   useEffect(() => { ask(false); }, [kind, refId]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -88,14 +88,14 @@ const BardiAdvice = ({ kind, refId }) => {
       {a === null ? (
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <ActivityIndicator size="small" color={C.purple} />
-          <Text style={{ color: C.purple, fontSize: 12.5, fontWeight: '800', marginStart: 8 }}>Bardi is reading it…</Text>
+          <Text style={{ color: C.purple, fontSize: 12.5, fontWeight: '800', marginStart: 8 }}>Papyrus is reading it…</Text>
         </View>
       ) : !a ? (
         <Text style={{ color: C.dim, fontSize: 12.5 }}>{err}</Text>
       ) : (
         <>
           <Pressable onPress={() => { tapLight(); setOpen((o) => !o); }} style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Text style={{ color: rec ? rec[1] : C.text, fontSize: 13, fontWeight: '900', flex: 1 }}>{(rec ? rec[0] : 'Bardi') + ' · ' + a.confidence + ' confidence'}</Text>
+            <Text style={{ color: rec ? rec[1] : C.text, fontSize: 13, fontWeight: '900', flex: 1 }}>{(rec ? rec[0] : 'Papyrus') + ' · ' + a.confidence + ' confidence'}</Text>
             <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={16} color={C.dim} />
           </Pressable>
           <Text style={{ color: C.text, fontSize: 12.5, lineHeight: 18, marginTop: 4 }}>{a.summary}</Text>
@@ -116,7 +116,7 @@ const BardiAdvice = ({ kind, refId }) => {
   );
 };
 
-/* What is waiting, counted, each line opening its tab; then Bardi's
+/* What is waiting, counted, each line opening its tab; then Papyrus's
    three actions for today when the function can answer. */
 const WAITING = [
   ['threats', 'safety', '⚠️', ['threat report — first', 'threat reports — first']],
@@ -157,7 +157,7 @@ const Attention = ({ a, tabs, onTab, onClose }) => {
           </>
         ) : (
           <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 10 }}>
-            {a.error === 'not_configured' ? "Bardi's three actions need ANTHROPIC_API_KEY." : a.error === 'no_function' ? "Bardi's three actions need the studio-advice function deployed." : a.error ? 'Bardi could not answer this time.' : ''}
+            {a.error === 'not_configured' ? "Papyrus's three actions need ANTHROPIC_API_KEY." : a.error === 'no_function' ? "Papyrus's three actions need the studio-advice function deployed." : a.error ? 'Papyrus could not answer this time.' : ''}
           </Text>
         )}
       </ScrollView>
@@ -392,9 +392,9 @@ const TeamTab = () => {
   );
 };
 
-/* One reported conversation: who, why, Bardi's reading, and the five
+/* One reported conversation: who, why, Papyrus's reading, and the five
    messages themselves. A strike is given here, by a person — never by
-   Bardi alone. */
+   Papyrus alone. */
 const VERDICT = {
   threat: ['⚠️ Threat', '#DC2626'], violence: ['⚠️ Violence', '#DC2626'], sexual: ['🔞 Sexual', '#DB2777'],
   harassment: ['🚫 Harassment', '#EA580C'], hate: ['✋ Hate', '#EA580C'], unsure: ['❔ Unsure', '#6B7280'], none: ['✓ Nothing found', '#16A34A'],
@@ -418,7 +418,7 @@ const SafetyReport = ({ r, onDone }) => {
         </View>
       </View>
       <View style={{ marginTop: 8, flexDirection: 'row', alignItems: 'center' }}>
-        <Text style={{ color: v ? v[1] : C.faint, fontSize: 12.5, fontWeight: '900' }}>{v ? 'Bardi: ' + v[0] : 'Bardi has not read it'}</Text>
+        <Text style={{ color: v ? v[1] : C.faint, fontSize: 12.5, fontWeight: '900' }}>{v ? 'Papyrus: ' + v[0] : 'Papyrus has not read it'}</Text>
       </View>
       {r.ai_reason ? <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 2 }}>{r.ai_reason}</Text> : null}
       <View style={{ marginTop: 8, padding: 10, borderRadius: 12, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line }}>
@@ -535,7 +535,7 @@ export const AdminPanel = ({ onClose, access = { owner: true } }) => {
   const [bardiMsg, setBardiMsg] = useState(null);
   const [bardiBusy, setBardiBusy] = useState(false);
 
-  // Bardi Brain portal
+  // Papyrus Brain portal
   const [bInstr, setBInstr] = useState(null); // owner instructions (null = loading)
   const [bSaved, setBSaved] = useState(false);
   const [bKnow, setBKnow] = useState(null);   // knowledge entries
@@ -574,10 +574,10 @@ export const AdminPanel = ({ onClose, access = { owner: true } }) => {
   const saveInstr = async () => {
     setBErr(null);
     try { await saveBardiConfig(bInstr || ''); invalidateBardiBrain(); tapSuccess(); setBSaved(true); setTimeout(() => setBSaved(false), 1400); }
-    catch (e) { setBErr(/does not exist|schema/i.test(e.message || '') ? 'Run RUN_ME.sql once to turn on the Bardi portal.' : (e.message || 'Could not save.')); }
+    catch (e) { setBErr(/does not exist|schema/i.test(e.message || '') ? 'Run RUN_ME.sql once to turn on the Papyrus portal.' : (e.message || 'Could not save.')); }
   };
   // fetch a web page's readable text in the owner's own browser (the
-  // sandbox can't, but the owner's browser can) so Bardi can learn from it.
+  // sandbox can't, but the owner's browser can) so Papyrus can learn from it.
   const fetchUrlText = async () => {
     const url = bUrl.trim();
     if (!url) return;
@@ -608,7 +608,7 @@ export const AdminPanel = ({ onClose, access = { owner: true } }) => {
       invalidateBardiBrain();
       setBTitle(''); setBContent(''); setBUrl(''); tapSuccess();
     } catch (e) {
-      setBErr(/does not exist|schema/i.test(e.message || '') ? 'Run RUN_ME.sql once to turn on the Bardi portal.' : (e.message || 'Could not add.'));
+      setBErr(/does not exist|schema/i.test(e.message || '') ? 'Run RUN_ME.sql once to turn on the Papyrus portal.' : (e.message || 'Could not add.'));
     } finally { setBBusy(false); }
   };
   const removeKnowledge = async (id) => {
@@ -642,7 +642,7 @@ export const AdminPanel = ({ onClose, access = { owner: true } }) => {
   };
 
   /* "What needs my attention": first what is really waiting, counted
-     (works with no AI at all), then Bardi's three actions from the same
+     (works with no AI at all), then Papyrus's three actions from the same
      numbers — supabase/functions/studio-advice, kind 'overview'. */
   const askBardiSummary = async () => {
     if (bardiBusy) return;
@@ -693,11 +693,11 @@ export const AdminPanel = ({ onClose, access = { owner: true } }) => {
 
         {owner ? <LiveStrip act={act} onOpen={() => setTab('activity')} /> : null}
 
-        {/* Bardi assist */}
+        {/* Papyrus assist */}
         {owner ? <Pressable onPress={askBardiSummary} style={{ marginHorizontal: 16, marginTop: 10 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.purpleSoft, borderRadius: 14, paddingHorizontal: 13, paddingVertical: 11 }}>
             <Image source={require('../assets/brand/bardi.png')} style={{ width: 26, height: 26, borderRadius: 8, marginRight: 9 }} />
-            <Text style={{ flex: 1, color: C.purple, fontSize: 12.5, fontWeight: '800' }}>{bardiBusy ? 'Bardi is thinking…' : 'Ask Bardi what needs my attention'}</Text>
+            <Text style={{ flex: 1, color: C.purple, fontSize: 12.5, fontWeight: '800' }}>{bardiBusy ? 'Papyrus is thinking…' : 'Ask Papyrus what needs my attention'}</Text>
             {bardiBusy ? <ActivityIndicator size="small" color={C.purple} /> : <Ionicons name="sparkles" size={16} color={C.purple} />}
           </View>
         </Pressable> : null}
@@ -1076,15 +1076,15 @@ export const AdminPanel = ({ onClose, access = { owner: true } }) => {
           {tab === 'bardi' ? (
             <>
               <Text style={{ color: C.dim, fontSize: 12, lineHeight: 18, marginBottom: 12 }}>
-                This is your Bardi control room. Steer Bardi's persona and teach it from books/content — it applies to every user's Bardi instantly, no code changes.
+                This is your Papyrus control room. Steer Papyrus's persona and teach it from books/content — it applies to every user's Papyrus instantly, no code changes.
               </Text>
 
-              {/* Bardi's steering instructions */}
+              {/* Papyrus's steering instructions */}
               <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', letterSpacing: 1, marginBottom: 6 }}>BARDI'S INSTRUCTIONS</Text>
               {bInstr == null ? <ActivityIndicator color={C.purple} style={{ marginVertical: 20 }} /> : (
                 <>
                   <TextInput
-                    placeholder="How Bardi should behave, extra rules, tone, things it should always know…"
+                    placeholder="How Papyrus should behave, extra rules, tone, things it should always know…"
                     placeholderTextColor={C.faint} multiline value={bInstr} onChangeText={setBInstr}
                     style={{ color: C.text, fontSize: 13.5, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 11, minHeight: 100, textAlignVertical: 'top', marginBottom: 8 }}
                   />
@@ -1117,20 +1117,20 @@ export const AdminPanel = ({ onClose, access = { owner: true } }) => {
                   </Pressable>
                 </View>
                 <TextInput
-                  placeholder="…or paste the content (a chapter, notes, an article) Bardi should learn from"
+                  placeholder="…or paste the content (a chapter, notes, an article) Papyrus should learn from"
                   placeholderTextColor={C.faint} multiline value={bContent} onChangeText={setBContent}
                   style={{ color: C.text, fontSize: 13, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, minHeight: 90, textAlignVertical: 'top', marginBottom: 8 }}
                 />
                 {bErr ? <Text style={{ color: C.coral, fontSize: 11.5, marginBottom: 8 }}>{bErr}</Text> : null}
                 <Pressable onPress={addKnowledge} disabled={bBusy}>
                   <View style={{ backgroundColor: C.green, borderRadius: 10, paddingVertical: 11, alignItems: 'center' }}>
-                    <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900' }}>{bBusy ? 'Adding…' : '+ Teach Bardi this'}</Text>
+                    <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900' }}>{bBusy ? 'Adding…' : '+ Teach Papyrus this'}</Text>
                   </View>
                 </Pressable>
               </View>
 
               {bKnow == null ? <ActivityIndicator color={C.purple} /> :
-                bKnow.length === 0 ? <Empty t="No knowledge added yet — teach Bardi something above" /> :
+                bKnow.length === 0 ? <Empty t="No knowledge added yet — teach Papyrus something above" /> :
                 bKnow.map((k) => (
                   <View key={k.id} style={{ backgroundColor: C.bg2, borderWidth: 1, borderColor: C.line, borderRadius: 12, padding: 12, marginBottom: 10 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>

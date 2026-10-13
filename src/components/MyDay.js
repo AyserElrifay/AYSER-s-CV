@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { View, Text, Modal, Pressable, ScrollView, ActivityIndicator } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { View, Text, Modal, Pressable, ScrollView, ActivityIndicator, Animated, Easing } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { C } from '../constants/theme';
@@ -92,8 +92,23 @@ function todayItems(a, t, now = new Date()) {
   if (sl.bed[0] < 12) bed.setDate(bed.getDate() + 1);       // after midnight is still tonight
   out.push({ id: 'wind', emoji: '📵', label: t('md_wind'), at: new Date(bed.getTime() - 30 * 60000) });
   out.push({ id: 'sleep', emoji: '😴', label: t('md_sleep'), at: bed });
+  // how long each thing lasts, so "now" has an end you can see coming
+  out.forEach((x) => {
+    if (x.end) return;
+    if (x.id === 'uni' || x.id === 'work') { const h = HOURS[x.id][a[x.id] || (x.id === 'uni' ? 'm' : 'd')]; x.end = at(now, h[2], h[3]); }
+    else if (x.id === 'sleep') { const w = new Date(x.at); w.setHours(sl.wake[0], sl.wake[1], 0, 0); if (w <= x.at) w.setDate(w.getDate() + 1); x.end = w; }
+    else x.end = new Date(x.at.getTime() + (x.id === 'wind' ? 30 : 20) * 60000);
+  });
   return out.sort((x, y) => x.at - y.at);
 }
+
+/* "2h 10m" / "25 min" — time you can feel, not a clock to read */
+const span = (ms, t) => {
+  const m = Math.max(1, Math.round(ms / 60000));
+  if (m < 60) return t('md_min').replace('{n}', String(m));
+  const h = Math.floor(m / 60); const r = m % 60;
+  return t('md_hm').replace('{h}', String(h)).replace('{m}', String(r));
+};
 
 /* everything worth a reminder, repeating, for the phone's calendar */
 function calendarEvents(a, t) {
@@ -152,12 +167,22 @@ export const MyDay = ({ onClose }) => {
     if (fix) answer({ at: { lat: fix.lat, lng: fix.lng } }); else answer({ pray: false });
   };
   const items = useMemo(() => (setup ? [] : todayItems(a, t)), [a, setup, t]);
-  const now = Date.now();
-  const nextId = (items.find((x) => x.at.getTime() > now && done.indexOf(x.id) < 0) || {}).id;
+  /* the clock moves on its own: every half minute the card catches up */
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => { const i = setInterval(() => setNow(Date.now()), 30000); return () => clearInterval(i); }, []);
+  const [later, setLater] = useState({});          // id -> until (ms): "not now" for a while
+  const [showAll, setShowAll] = useState(false);
+  const open = (x) => done.indexOf(x.id) < 0 && !(later[x.id] && later[x.id] > now);
+  const nowItem = items.find((x) => x.at.getTime() <= now && now < x.end.getTime() && open(x));
+  const nextItem = items.find((x) => x.at.getTime() > now && open(x) && x !== nowItem);
+  const nextId = (nowItem || nextItem || {}).id;
+  const pop = useRef(new Animated.Value(1)).current;
+  const celebrate = () => { pop.setValue(0.92); Animated.spring(pop, { toValue: 1, friction: 4, tension: 160, useNativeDriver: true }).start(); };
+  const notNow = (x) => { tapLight(); setLater((l) => ({ ...l, [x.id]: Date.now() + 15 * 60000 })); };
   const toggle = (id) => {
     tapLight();
     const n = done.indexOf(id) >= 0 ? done.filter((x) => x !== id) : done.concat(id);
-    if (n.length > done.length) tapSuccess();
+    if (n.length > done.length) { tapSuccess(); celebrate(); }
     setDone(n);
     try { localStorage.setItem(doneKey(), JSON.stringify(n)); } catch (e) {}
   };
@@ -225,26 +250,92 @@ export const MyDay = ({ onClose }) => {
             )
           ) : (
             <View>
-              {/* Bardi's one thing, on top */}
-              <Text style={{ color: C.faint, fontSize: 12, fontWeight: '900', letterSpacing: 1, marginBottom: 8 }}>{('🧠 ' + t('md_today_one')).toUpperCase()}</Text>
-              <BrainDump />
-
-              <Text style={{ color: C.faint, fontSize: 12, fontWeight: '900', letterSpacing: 1, marginTop: 22, marginBottom: 8 }}>{t('md_today').toUpperCase()}</Text>
-              {items.map((x) => {
-                const isDone = done.indexOf(x.id) >= 0;
-                const past = x.at.getTime() < now;
-                const next = x.id === nextId;
+              {/* ── ONE THING AT A TIME, AND TIME YOU CAN SEE ──────────────
+                  Ayser: "مش todo عادية — حاجة جديدة، بسيطة، ADHD killer،
+                  عملية، مش مزعجة". So there is no list to face. There is
+                  one card: what is happening now, with how long is left as
+                  a bar that empties, or — between things — the free time
+                  you have until the next one, and Papyrus's one thing to do
+                  with it. Done or Not now, nothing else. Whatever was missed
+                  just slips past: no red, no count, no streak to break. */}
+              {(() => {
+                const x = nowItem;
+                const free = !x;
+                const startMs = free ? (items.filter((y) => y.end.getTime() <= now).map((y) => y.end.getTime()).sort((p, q) => q - p)[0] || now - 30 * 60000) : x.at.getTime();
+                const endMs = free ? (nextItem ? nextItem.at.getTime() : null) : x.end.getTime();
+                const frac = endMs ? Math.max(0, Math.min(1, (now - startMs) / Math.max(1, endMs - startMs))) : 0;
                 return (
-                  <Pressable key={x.id} onPress={() => toggle(x.id)} accessibilityRole="checkbox" accessibilityState={{ checked: isDone }} style={{ marginBottom: 8 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 16, borderWidth: next ? 1.5 : 1, borderColor: next ? C.purple : C.line, backgroundColor: next ? C.purpleSoft : C.glass, paddingVertical: 13, paddingHorizontal: 14, opacity: isDone || (past && !next) ? 0.55 : 1 }}>
-                      <Text style={{ color: C.text, fontSize: 14, fontWeight: '900', width: 52, fontVariant: ['tabular-nums'] }}>{hm(x.at.getHours(), x.at.getMinutes())}</Text>
-                      <Text style={{ fontSize: 18, marginEnd: 10 }}>{x.emoji}</Text>
-                      <Text style={{ color: C.text, fontSize: 15, fontWeight: '800', flex: 1, textDecorationLine: isDone ? 'line-through' : 'none' }} numberOfLines={1}>{x.label}</Text>
-                      <Ionicons name={isDone ? 'checkmark-circle' : 'ellipse-outline'} size={24} color={isDone ? C.green : C.faint} />
+                  <Animated.View style={{ transform: [{ scale: pop }], borderRadius: 26, padding: 18, backgroundColor: free ? C.glass : C.purpleSoft, borderWidth: 1.5, borderColor: free ? C.line : C.purple }}>
+                    <Text style={{ color: free ? C.dim : C.purple, fontSize: 12, fontWeight: '900', letterSpacing: 1.2 }}>{(free ? t('md_free') : t('md_now')).toUpperCase()}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
+                      <Text style={{ fontSize: 40, marginEnd: 12 }}>{free ? '🌿' : x.emoji}</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ color: C.text, fontSize: 22, fontWeight: '900', letterSpacing: -0.3 }} numberOfLines={2}>{free ? (endMs ? t('md_free_for').replace('{t}', span(endMs - now, t)) : t('md_free_rest')) : x.label}</Text>
+                        {!free ? <Text style={{ color: C.dim, fontSize: 14, fontWeight: '700', marginTop: 2 }}>{t('md_left').replace('{t}', span(endMs - now, t))}</Text> : null}
+                      </View>
+                    </View>
+                    {endMs ? (
+                      <View style={{ height: 10, borderRadius: 5, backgroundColor: 'rgba(124,58,237,0.12)', marginTop: 14, overflow: 'hidden' }}>
+                        <View style={{ width: Math.round((1 - frac) * 100) + '%', height: 10, borderRadius: 5, backgroundColor: free ? C.green : C.purple }} />
+                      </View>
+                    ) : null}
+                    {!free ? (
+                      <View style={{ flexDirection: 'row', marginTop: 14 }}>
+                        <Pressable onPress={() => toggle(x.id)} accessibilityRole="button" style={{ flex: 1, marginEnd: 8 }}>
+                          <View style={{ borderRadius: 999, backgroundColor: C.purple, paddingVertical: 13, alignItems: 'center' }}>
+                            <Text style={{ color: '#FFF', fontSize: 15.5, fontWeight: '900' }}>{'✓ ' + t('md_done')}</Text>
+                          </View>
+                        </Pressable>
+                        <Pressable onPress={() => notNow(x)} accessibilityRole="button" style={{ flex: 1 }}>
+                          <View style={{ borderRadius: 999, borderWidth: 1, borderColor: C.line, paddingVertical: 13, alignItems: 'center' }}>
+                            <Text style={{ color: C.dim, fontSize: 15.5, fontWeight: '800' }}>{t('md_not_now')}</Text>
+                          </View>
+                        </Pressable>
+                      </View>
+                    ) : null}
+                    {nextItem ? (
+                      <Text style={{ color: C.dim, fontSize: 13.5, fontWeight: '700', marginTop: 12 }}>
+                        {t('md_then').replace('{what}', nextItem.emoji + ' ' + nextItem.label).replace('{t}', span(nextItem.at.getTime() - now, t))}
+                      </Text>
+                    ) : null}
+                  </Animated.View>
+                );
+              })()}
+
+              {/* free time is Papyrus's: the one thing worth doing with it */}
+              {!nowItem ? (
+                <View style={{ marginTop: 16 }}>
+                  <BrainDump />
+                </View>
+              ) : null}
+
+              {/* the whole day — a row of small marks, not a list to face */}
+              <Pressable onPress={() => { tapLight(); setShowAll((v) => !v); }} accessibilityRole="button" style={{ marginTop: 18 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
+                  {items.map((y) => {
+                    const d = done.indexOf(y.id) >= 0; const cur = y.id === nextId;
+                    return (
+                      <View key={y.id} style={{ width: 30, height: 30, borderRadius: 15, marginEnd: 6, marginBottom: 6, alignItems: 'center', justifyContent: 'center', backgroundColor: d ? C.greenSoft : cur ? C.purpleSoft : C.glass, borderWidth: cur ? 1.5 : 1, borderColor: cur ? C.purple : C.line, opacity: !d && !cur && y.end.getTime() < now ? 0.4 : 1 }}>
+                        <Text style={{ fontSize: 13 }}>{d ? '✓' : y.emoji}</Text>
+                      </View>
+                    );
+                  })}
+                  <Text style={{ color: C.dim, fontSize: 12.5, fontWeight: '800', marginStart: 4 }}>{showAll ? t('md_hide_day') : t('md_see_day')}</Text>
+                </View>
+              </Pressable>
+              {showAll ? items.map((x) => {
+                const isDone = done.indexOf(x.id) >= 0;
+                return (
+                  <Pressable key={x.id} onPress={() => toggle(x.id)} accessibilityRole="checkbox" accessibilityState={{ checked: isDone }} style={{ marginTop: 6 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 14, borderWidth: 1, borderColor: C.line, backgroundColor: C.glass, paddingVertical: 10, paddingHorizontal: 12, opacity: isDone ? 0.55 : 1 }}>
+                      <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '900', width: 50, fontVariant: ['tabular-nums'] }}>{hm(x.at.getHours(), x.at.getMinutes())}</Text>
+                      <Text style={{ fontSize: 16, marginEnd: 8 }}>{x.emoji}</Text>
+                      <Text style={{ color: C.text, fontSize: 14, fontWeight: '700', flex: 1, textDecorationLine: isDone ? 'line-through' : 'none' }} numberOfLines={1}>{x.label}</Text>
+                      <Ionicons name={isDone ? 'checkmark-circle' : 'ellipse-outline'} size={20} color={isDone ? C.green : C.faint} />
                     </View>
                   </Pressable>
                 );
-              })}
+              }) : null}
               {a.pray ? <Text style={{ color: C.faint, fontSize: 12, lineHeight: 17, marginTop: 4 }}>{t('md_pray_note')}</Text> : null}
 
               <Pressable onPress={toCalendar} accessibilityRole="button" style={{ marginTop: 18 }}>

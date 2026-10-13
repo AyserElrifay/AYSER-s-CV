@@ -128,7 +128,7 @@ async function askBardiDirect(messages, opts) {
     }
     return out;
   };
-  const asText = (h) => h.map((m) => (m.role === 'assistant' ? 'Bardi' : 'User') + ': ' + String(m.content || '')).join('\n') + '\nBardi:';
+  const asText = (h) => h.map((m) => (m.role === 'assistant' ? 'Papyrus' : 'User') + ': ' + String(m.content || '')).join('\n') + '\nPapyrus:';
 
   const full = window(6000, 40);
   const tail = window(1200, 8);
