@@ -233,6 +233,7 @@ export const ProfileScreen = () => {
   const [editStudy, setEditStudy] = useState('');
   const [editLangs, setEditLangs] = useState('');
   const [editTravel, setEditTravel] = useState('');   // what you love when you travel
+  const [editGender, setEditGender] = useState(null);  // 'f' | 'm' | 'n' — opens women-only groups and trips
   const [countryQ, setCountryQ] = useState('');       // country search in edit
   const [editVisited, setEditVisited] = useState([]); // countries you have been to (codes)
   const [visitQ, setVisitQ] = useState('');
@@ -371,6 +372,7 @@ export const ProfileScreen = () => {
       setEditStudy(p.education || '');
       setEditLangs(p.speaks_language || '');
       setEditTravel(p.travel_love || '');
+      setEditGender(p.gender || null);
       setEditVisited(Array.isArray(p.visited_countries) ? p.visited_countries : []);
       if (p.account_type) setAccountType(p.account_type);
       setArtistGenre(p.artist_genre || '');
@@ -418,6 +420,7 @@ export const ProfileScreen = () => {
         education: editStudy.trim() || null,
         speaks_language: editLangs.trim() || null,
         travel_love: editTravel.trim() || null,
+        gender: editGender || null,
         visited_countries: editVisited.length ? editVisited : null,
         account_type: accountType,
         artist_genre: (accountType === 'artist' || accountType === 'musician') ? (artistGenre.trim() || null) : null,
@@ -1009,6 +1012,20 @@ export const ProfileScreen = () => {
               placeholder={t('travel_ph')} placeholderTextColor={C.faint} value={editTravel} onChangeText={setEditTravel} maxLength={160} multiline
               style={{ color: C.text, fontSize: 14, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 11, marginBottom: 12, minHeight: 50, textAlignVertical: 'top' }}
             />
+
+            {/* who you are — only used to open women-only groups and trips;
+                never shown on your profile */}
+            <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', letterSpacing: 1, marginBottom: 8 }}>{t('pf_i_am')}</Text>
+            <View style={{ flexDirection: 'row', marginBottom: 4 }}>
+              {[['f', 'pf_woman'], ['m', 'pf_man'], ['n', 'pf_rather_not']].map(([k, label]) => (
+                <Pressable key={k} onPress={() => { tapSelection(); setEditGender(editGender === k ? null : k); }} accessibilityRole="radio" accessibilityState={{ selected: editGender === k }} style={{ marginRight: 8 }}>
+                  <View style={{ borderRadius: 999, borderWidth: 1, borderColor: editGender === k ? C.purple : C.line, backgroundColor: editGender === k ? C.purpleSoft : C.glass, paddingHorizontal: 13, paddingVertical: 8 }}>
+                    <Text style={{ color: editGender === k ? C.purple : C.text, fontSize: 13, fontWeight: '800' }}>{t(label)}</Text>
+                  </View>
+                </Pressable>
+              ))}
+            </View>
+            <Text style={{ color: C.faint, fontSize: 11.5, lineHeight: 16, marginBottom: 12 }}>{t('pf_i_am_note')}</Text>
 
             {/* country — searchable, the whole planet; saves country + flag */}
             <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', letterSpacing: 1, marginBottom: 8 }}>{t('your_country')}</Text>

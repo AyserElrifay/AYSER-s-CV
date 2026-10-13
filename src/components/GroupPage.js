@@ -267,6 +267,7 @@ const GroupSettings = ({ group, onClose, onSaved, onDeleted, t }) => {
   const [about, setAbout] = useState(group.about || '');
   const [city, setCity] = useState(group.city || '');
   const [privacy, setPrivacy] = useState(group.privacy === 'request' ? 'request' : 'open');
+  const [womenOnly, setWomenOnly] = useState(!!group.women_only);
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [err, setErr] = useState(null);
@@ -306,6 +307,9 @@ const GroupSettings = ({ group, onClose, onSaved, onDeleted, t }) => {
       about: about.trim() || null,
       city: city.trim() || null,
       privacy,
+      // only sent when it changed, so a database that has not had the
+      // women-only update yet still saves everything else
+      ...(womenOnly !== !!group.women_only ? { women_only: womenOnly } : {}),
     };
     try {
       await updateGroup(group.id, patch);
@@ -364,6 +368,14 @@ const GroupSettings = ({ group, onClose, onSaved, onDeleted, t }) => {
             sub={t('gs_req_s')}
             onPress={() => { tapLight(); setPrivacy('request'); }}
           />
+
+          <Pressable onPress={() => { tapLight(); setWomenOnly((v) => !v); }} accessibilityRole="checkbox" accessibilityState={{ checked: womenOnly }} style={{ flexDirection: 'row', alignItems: 'flex-start', marginTop: 6, marginBottom: 8 }}>
+            <Ionicons name={womenOnly ? 'checkbox' : 'square-outline'} size={20} color={womenOnly ? '#EC4899' : C.faint} />
+            <View style={{ flex: 1, marginLeft: 8 }}>
+              <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800' }}>{'👩 ' + t('gp_women_only')}</Text>
+              <Text style={{ color: C.faint, fontSize: 11.5, lineHeight: 16, marginTop: 2 }}>{t('gs_women_note')}</Text>
+            </View>
+          </Pressable>
 
           {group.owner ? (
             <View style={{ marginTop: 8 }}>
@@ -465,6 +477,7 @@ export const GroupPage = ({ groupId, focusPostId, onClose, onChanged }) => {
      — there was simply no way to ask for it. */
   const [settings, setSettings] = useState(false);
   const [busyJoin, setBusyJoin] = useState(false);
+  const [joinNote, setJoinNote] = useState(null);
 
   const load = useCallback(async () => {
     setErr(null);
@@ -553,7 +566,11 @@ export const GroupPage = ({ groupId, focusPostId, onClose, onChanged }) => {
         if (status === 'joined') { tapSuccess(); load(); }
       }
       onChanged && onChanged();
-    } catch (e) { /* the button springs back on the next load */ }
+    } catch (e) {
+      /* the button springs back on the next load; a women-only group
+         says why it refused (the database decides, from the profile) */
+      if (group.women_only) setJoinNote(t('gp_women_only_no'));
+    }
     setBusyJoin(false);
   };
 
@@ -614,6 +631,7 @@ export const GroupPage = ({ groupId, focusPostId, onClose, onChanged }) => {
                       came back in an unexpected shape. */}
                   {group && Number.isFinite(group.members) ? ' · ' + group.members + ' ' + t('gp_members') : ''}
                   {group && group.city ? ' · ' + group.city : ''}
+                  {group && group.women_only ? ' · 👩 ' + t('gp_women_only') : ''}
                 </Text>
               </View>
               {group && group.about ? (
@@ -621,6 +639,7 @@ export const GroupPage = ({ groupId, focusPostId, onClose, onChanged }) => {
               ) : null}
 
               {me && group && !group.owner ? (
+                <View>
                 <Pressable onPress={toggleJoin} style={{ marginTop: 14 }}>
                   <View style={{
                     backgroundColor: group.joined ? C.glass : group.waiting ? C.glass : C.purple,
@@ -632,6 +651,8 @@ export const GroupPage = ({ groupId, focusPostId, onClose, onChanged }) => {
                     </Text>
                   </View>
                 </Pressable>
+                {joinNote ? <Text style={{ color: C.coral, fontSize: 12.5, marginTop: 6 }}>{joinNote}</Text> : null}
+                </View>
               ) : null}
 
               {/* ── WALL / PEOPLE ── */}

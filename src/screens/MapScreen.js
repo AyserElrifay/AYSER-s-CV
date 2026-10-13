@@ -29,6 +29,7 @@ import { buildAvatarUrl, buildStandingUrl } from '../services/avatarBuilder';
 import { fetchNearbyPlaces } from '../services/places';
 import { DESTINATIONS } from '../constants/destinations';
 import { openPartner as openPartnerPage } from '../lib/partnerLink';
+import { openTrip } from '../lib/tripLink';
 import { fetchDestReviews, addDestReview } from '../services/destinations';
 import { fetchMomentPins } from '../services/posts';
 import { requestTrip } from '../services/trips';
@@ -330,7 +331,7 @@ export const MapScreen = () => {
   const people = SUPABASE_READY ? realPeople : MAP_PEOPLE;
   const campfires = SUPABASE_READY ? realCampfires : [...realCampfires, ...CAMPFIRES];
   const venues = SUPABASE_READY ? realVenues : BOOKINGS;
-  useEffect(() => { if (rail === 'deals') listOffers(null, null).then(setOffers); }, [rail]);
+  useEffect(() => { if (rail === 'deals' || lens === 'trips') listOffers(null, null).then(setOffers); }, [rail, lens]);
 
   const nearbyPeople = useMemo(() => {
     /* a distance only from where you really are: before your location
@@ -1282,6 +1283,22 @@ export const MapScreen = () => {
             </Glass>
           ) : (
             <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
+              {/* Moments' own trips first (Dahab, Siwa, Europe…), the ones
+                  people start themselves after — the lens was empty with
+                  a dozen trips sitting one tap away in TripsSheet */}
+              {offers.filter((o) => o.kind === 'trip' || o.kind === 'experience').map((o) => (
+                <Pressable key={o.id} onPress={() => { tapLight(); openTrip(o.id); }} accessibilityRole="button">
+                  <Glass tint={C.float} style={{ width: 236, marginRight: 12, overflow: 'hidden' }}>
+                    {o.photos && o.photos[0] ? <Image source={{ uri: photoUrl(o.photos[0]) }} style={{ width: '100%', height: 92, backgroundColor: C.glassHi }} /> : null}
+                    <View style={{ padding: 11 }}>
+                      <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800' }} numberOfLines={1}>{lang === 'ar' && o.title_ar ? o.title_ar : o.title}</Text>
+                      <Text style={{ color: C.dim, fontSize: 11.5, marginTop: 2 }} numberOfLines={1}>
+                        {(o.city || '') + ' · ' + (o.status === 'soon' ? t('bk_soon') : money(o.plus && o.member_price != null ? o.member_price : o.price, o.currency, lang))}
+                      </Text>
+                    </View>
+                  </Glass>
+                </Pressable>
+              ))}
               {trips.length ? trips.map((tp) => {
                 const mine = user && tp.host_id === user.id;
                 const joined = user && (tp.members || []).some((m) => m.user_id === user.id);
@@ -1327,7 +1344,7 @@ export const MapScreen = () => {
                     )}
                   </Glass>
                 );
-              }) : (
+              }) : offers.length ? null : (
                 <Glass tint={C.float} style={{ width: 262, padding: 16, alignItems: 'center' }}>
                   <Text style={{ fontSize: 22 }}>🧳</Text>
                   <Text style={{ color: C.text, fontSize: 13, fontWeight: '800', marginTop: 6, textAlign: 'center' }}>

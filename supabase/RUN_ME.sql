@@ -13493,3 +13493,73 @@ revoke all on function public.group_transfer_owner(uuid, uuid) from public, anon
 grant execute on function public.group_transfer_owner(uuid, uuid) to authenticated;
 
 notify pgrst, 'reload schema';
+
+-- ═══════════════════════════════════════════════════════════════════
+--  GROUPS FOR WOMEN ONLY · AND THE MOMS' MORNING COFFEE
+--
+--  Ayser: "اعمل جروب للستات يتقابلوا في كافيه بعد ما يودّوا الولاد
+--  المدرسة". A group can now be for women only, and that is enforced
+--  by the database when somebody joins or asks to — the same way a
+--  girls-only trip already was — not by hiding a button. It reads the
+--  gender on the profile; a profile that has not said cannot join.
+--  The first such group is the moms' coffee, by request, so an admin
+--  sees who is asking. Ayser starts it; he hands it to a mom as soon
+--  as one is in (Group settings → Admins & owner) and can then leave.
+--  Safe to re-run.
+-- ═══════════════════════════════════════════════════════════════════
+alter table public.groups add column if not exists women_only boolean not null default false;
+
+create or replace function public.group_women_ok(gid uuid, uid uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select not coalesce((select women_only from public.groups where id = gid), false)
+      or coalesce((select gender from public.profiles where id = uid), '') = 'f';
+$$;
+
+drop policy if exists "you join, or you ask" on public.group_members;
+create policy "you join, or you ask" on public.group_members for insert with check (
+  auth.uid() = user_id and role = 'member' and public.group_women_ok(group_id, auth.uid()) and (
+    (status = 'joined'    and public.group_is_open(group_id)) or
+    (status = 'requested' and not public.group_is_open(group_id))
+  )
+);
+
+create or replace function public.group_approve(gid uuid, uid uuid)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_group_admin(gid, auth.uid()) then
+    raise exception 'not an admin of this group';
+  end if;
+  if not public.group_women_ok(gid, uid) then
+    raise exception 'this group is for women only';
+  end if;
+  update public.group_members
+     set status = 'joined'
+   where group_id = gid and user_id = uid and status = 'requested';
+end;
+$$;
+
+-- the view lists g.*, fixed when it was made; rebuilt so it carries
+-- the new column, and kept security_invoker
+drop view if exists public.groups_with_counts;
+create view public.groups_with_counts with (security_invoker = true) as
+  select g.*, coalesce(m.cnt, 0) as members_count
+  from public.groups g
+  left join (
+    select group_id, count(*) as cnt
+      from public.group_members
+     where status = 'joined'
+     group by group_id
+  ) m on m.group_id = g.id;
+grant select on public.groups_with_counts to anon, authenticated;
+
+-- ── the moms' morning coffee ─────────────────────────────────────────
+insert into public.groups (id, owner_id, name, emoji, about, city, privacy, women_only)
+select '9a0e0000-0000-4000-8000-00000000a001', p.id,
+       'Moms'' coffee after school drop-off · قهوة الأمهات بعد المدرسة', '☕',
+       'For moms only. Weekday mornings after dropping the kids at school — a café near the schools, an hour for ourselves. We pick the café each week here. · للأمهات بس. الصبح بعد ما نوصّل الولاد المدرسة — كافيه قريب، ساعة لنفسنا. بنختار الكافيه كل أسبوع هنا.',
+       'Cairo', 'request', true
+  from auth.users u join public.profiles p on p.id = u.id
+ where lower(u.email) = 'ayseryourlifecoach@gmail.com'
+on conflict (id) do nothing;
+
+notify pgrst, 'reload schema';
