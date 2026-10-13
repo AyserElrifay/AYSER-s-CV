@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, Pressable, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, Pressable, ScrollView, ActivityIndicator, RefreshControl, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -8,7 +8,7 @@ import { C } from '../constants/theme';
 import { useLang } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { SUPABASE_READY } from '../lib/supabase';
-import { listGatherings, joinGathering, announceGathering, checkInAt, setGatheringPhoto, removeGatheringPhoto, topCreators, followCreator, keptGatherings } from '../services/green';
+import { listGatherings, joinGathering, announceGathering, checkInAt, setGatheringPhoto, removeGatheringPhoto, topCreators, followCreator, keptGatherings, myUnrated, rateGathering } from '../services/green';
 import { remember, recall } from '../lib/offline';
 import { uploadPlanPhoto } from '../lib/storage';
 import { canCheckIn } from '../lib/xp';
@@ -143,6 +143,48 @@ const JoinPill = ({ going, busy, onPress, t }) => (
    swapped for your country once the profile arrives. */
 const CODE_KEY = 'moments.myCode';
 const readCode = () => { try { return localStorage.getItem(CODE_KEY) || null; } catch (e) { return null; } };
+
+/* ── HOW WAS IT? ── the one hangout you checked in to and have not rated:
+   five stars and a line, sent once (green_rate). The ratings are what
+   make an organiser verified later. */
+const RateLast = ({ t, lang }) => {
+  const [g, setG] = useState(null);
+  const [stars, setStars] = useState(0);
+  const [note, setNote] = useState('');
+  const [done, setDone] = useState(false);
+  useEffect(() => { myUnrated().then((r) => { if (r && r.id) setG(r); }).catch(() => {}); }, []);
+  if (!g) return null;
+  if (done) return <Text style={{ color: C.green, fontSize: 14, fontWeight: '800', marginBottom: 14 }}>{'✓ ' + t('rt_thanks')}</Text>;
+  const send = async () => {
+    if (!stars) return;
+    tapMedium();
+    const r = await rateGathering(g.id, stars, note.trim());
+    if (r && r.ok) setDone(true);
+  };
+  return (
+    <View style={{ borderRadius: 22, padding: 16, marginBottom: 14, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line }}>
+      <Text style={{ color: C.text, fontSize: 16, fontWeight: '900' }}>{t('rt_q').replace('{title}', titleFor(g.title, lang))}</Text>
+      <View style={{ flexDirection: 'row', marginTop: 10 }}>
+        {[1, 2, 3, 4, 5].map((n) => (
+          <Pressable key={n} onPress={() => { tapLight(); setStars(n); }} accessibilityRole="button" accessibilityLabel={String(n)} hitSlop={4} style={{ marginEnd: 8 }}>
+            <Ionicons name={n <= stars ? 'star' : 'star-outline'} size={30} color={n <= stars ? C.gold : C.faint} />
+          </Pressable>
+        ))}
+      </View>
+      {stars ? (
+        <View>
+          <TextInput value={note} onChangeText={setNote} maxLength={400} placeholder={t('rt_ph')} placeholderTextColor={C.faint}
+            style={{ color: C.text, fontSize: 14, borderBottomWidth: 1, borderBottomColor: C.line, paddingVertical: 8, marginTop: 8, outlineStyle: 'none' }} />
+          <Pressable onPress={send} accessibilityRole="button" style={{ marginTop: 12, alignSelf: 'flex-start' }}>
+            <View style={{ borderRadius: 999, backgroundColor: C.text, paddingHorizontal: 18, paddingVertical: 9 }}>
+              <Text style={{ color: C.bg, fontSize: 14, fontWeight: '900' }}>{t('rt_send')}</Text>
+            </View>
+          </Pressable>
+        </View>
+      ) : null}
+    </View>
+  );
+};
 
 export const TogetherScreen = () => {
   const insets = useSafeAreaInsets();
@@ -351,6 +393,7 @@ export const TogetherScreen = () => {
           </View>
         </Pressable>
 
+        <RateLast t={t} lang={lang} />
         {askPush ? <View style={{ marginBottom: 14 }}><PushRow ask onDone={() => setAskPush(false)} /></View> : null}
 
         {/* ── where ── */}

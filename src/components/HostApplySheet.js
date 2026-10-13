@@ -6,6 +6,7 @@ import { C } from '../constants/theme';
 import { useLang } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { applyAsHost, myHostRequest } from '../services/hosts';
+import { myOrganiser } from '../services/green';
 import { useSheetBack } from '../hooks/useSheetBack';
 import { tapLight, tapSuccess } from '../utils/feedback';
 
@@ -52,9 +53,13 @@ export const HostApplySheet = ({ onClose }) => {
   const [err, setErr] = useState(null);
 
   useEffect(() => { if (user) myHostRequest(user.id).then(setState).catch(() => {}); }, [user && user.id]);
+  /* a verified organiser earns it: the record is counted by the server
+     (organiser_record) and it refuses a request before it is there */
+  const [rec, setRec] = useState(null);
+  useEffect(() => { if (user) myOrganiser().then((r) => { if (r && r.need_hosted) setRec(r); }).catch(() => {}); }, [user && user.id]);
 
   const toggle = (list, setList, v) => setList(list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
-  const ready = !!doc && !!selfie && agree && (role !== 'guide' || langs.length > 0);
+  const ready = !!doc && !!selfie && agree && (role !== 'guide' || langs.length > 0) && !(role === 'host' && rec && !rec.ready);
 
   const submit = async () => {
     if (!ready || busy || !user) return;
@@ -63,7 +68,7 @@ export const HostApplySheet = ({ onClose }) => {
       const r = await applyAsHost(user.id, { role, docFile: doc.file, selfieFile: selfie.file, langs, areas, since, about });
       if (r && r.ok) { tapSuccess(); setState({ status: 'pending', role }); }
       else setErr(r && r.reason === 'already' ? t('ha_already') : t('lamma_offline'));
-    } catch (e) { setErr(t('lamma_offline')); }
+    } catch (e) { setErr(/organiser_not_ready/.test(String((e && e.message) || '')) ? t('or_not_yet') : t('lamma_offline')); }
     setBusy(false);
   };
 
@@ -123,6 +128,31 @@ export const HostApplySheet = ({ onClose }) => {
                   <Ionicons name={role === o.k ? 'radio-button-on' : 'radio-button-off'} size={20} color={role === o.k ? C.text : C.faint} />
                 </Pressable>
               ))}
+
+              {/* an organiser's record, before anything else is asked */}
+              {role === 'host' && rec ? (
+                <View style={{ marginTop: 6, padding: 14, borderRadius: 16, backgroundColor: C.glass, borderWidth: 1, borderColor: rec.ready ? C.green : C.line }}>
+                  <Text style={{ color: C.text, fontSize: 15, fontWeight: '900' }}>{rec.ready ? '✅ ' + t('or_ready') : '🧭 ' + t('or_path')}</Text>
+                  {[
+                    [t('or_hosted'), Number(rec.hosted) || 0, rec.need_hosted],
+                    [t('or_ratings'), Number(rec.ratings) || 0, rec.need_ratings],
+                  ].map(([label, have, need]) => (
+                    <View key={label} style={{ marginTop: 10 }}>
+                      <View style={{ flexDirection: 'row' }}>
+                        <Text style={{ color: C.dim, fontSize: 13, flex: 1 }}>{label}</Text>
+                        <Text style={{ color: C.text, fontSize: 13, fontWeight: '800' }}>{Math.min(have, need) + ' / ' + need}</Text>
+                      </View>
+                      <View style={{ height: 6, borderRadius: 3, backgroundColor: C.line, marginTop: 4, overflow: 'hidden' }}>
+                        <View style={{ width: Math.min(100, (have / need) * 100) + '%', height: 6, backgroundColor: have >= need ? C.green : C.purple }} />
+                      </View>
+                    </View>
+                  ))}
+                  <Text style={{ color: C.dim, fontSize: 13, marginTop: 10 }}>
+                    {t('or_avg').replace('{n}', rec.avg != null ? String(rec.avg) : '–').replace('{need}', String(rec.need_avg))}
+                  </Text>
+                  <Text style={{ color: C.faint, fontSize: 12, lineHeight: 17, marginTop: 8 }}>{t('or_how')}</Text>
+                </View>
+              ) : null}
 
               {/* 2 · the document and a live selfie */}
               <Text style={head}>{t('ha_proof').toUpperCase()}</Text>

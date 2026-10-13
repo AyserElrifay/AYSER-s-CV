@@ -21,7 +21,7 @@ import { useLang } from '../context/LanguageContext';
 import { LANGS } from '../constants/i18n';
 import { countKindred } from '../services/kindred';
 import { kindredNumber } from '../lib/kindred';
-import { listGatherings, joinGathering } from '../services/green';
+import { listGatherings, joinGathering, setJoinedAs } from '../services/green';
 import { lookOf, titleFor } from '../lib/activityPins';
 import { flagToIso } from '../lib/together';
 
@@ -233,7 +233,15 @@ export const AuthScreen = ({ recovery = false, onDone }) => {
         try { await updateProfile(id, { country: c.name, country_flag: c.flag }); } catch (e) { /* non-blocking */ }
       }
     }
-    setStep(2); // → pick your vibe
+    setStep(5); // → member, or member who wants to organise
+  };
+
+  /* Ayser: "اعرض عليهم join as member or member then organiser". Saved on
+     the profile (set_joined_as); organising for real — and being paid —
+     comes later, once your hangouts and their ratings say so. */
+  const pickAs = (as) => {
+    if (!isDemo && (pendingUserId || user)) setJoinedAs(as).catch(() => {});
+    setStep(2);
   };
 
   const pickVibe = async (vibe) => {
@@ -499,9 +507,27 @@ export const AuthScreen = ({ recovery = false, onDone }) => {
                 </View>
               </ScrollView>
             </View>
-            <Pressable onPress={() => setStep(2)} style={{ marginTop: 18 }}>
+            <Pressable onPress={() => setStep(5)} style={{ marginTop: 18 }}>
               <Text style={{ color: C.faint, fontSize: 12.5, fontWeight: '700' }}>{t('auth_skip')}</Text>
             </Pressable>
+          </View>
+        ) : step === 5 ? (
+          <View style={{ alignSelf: 'stretch', paddingVertical: 10 }}>
+            <Text style={{ fontSize: 50, textAlign: 'center' }}>🤝</Text>
+            <Text style={{ color: C.text, fontSize: 24, fontWeight: '900', textAlign: 'center', marginTop: 8 }}>{t('as_title')}</Text>
+            <Text style={{ color: C.dim, fontSize: 14, textAlign: 'center', lineHeight: 20, marginTop: 6, marginBottom: 20 }}>{t('as_sub')}</Text>
+            {[['member', '🙌'], ['organiser', '🧭']].map(([k, e]) => (
+              <Pressable key={k} onPress={() => pickAs(k)} accessibilityRole="button" style={{ marginBottom: 10 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.glass, borderWidth: 1.5, borderColor: C.line, borderRadius: 20, padding: 16 }}>
+                  <Text style={{ fontSize: 30, marginEnd: 14 }}>{e}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: C.text, fontSize: 16.5, fontWeight: '900' }}>{t('as_' + k)}</Text>
+                    <Text style={{ color: C.dim, fontSize: 13, lineHeight: 18, marginTop: 3 }}>{t('as_' + k + '_sub')}</Text>
+                  </View>
+                </View>
+              </Pressable>
+            ))}
+            <Text style={{ color: C.gold, fontSize: 13, fontWeight: '800', textAlign: 'center', marginTop: 8 }}>{'✦ ' + t('as_trial')}</Text>
           </View>
         ) : step === 4 ? (
           <View style={{ alignSelf: 'stretch', paddingVertical: 20 }}>

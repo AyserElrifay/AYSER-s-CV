@@ -126,6 +126,9 @@ export async function joinGathering(id, going) {
     return { ok: true, queued: true };
   }
   const r = await rpc('green_join', { p_id: id, p_going: !!going });
+  /* joining somebody's hangout needs Plus: the server said no, so the
+     Plus screen opens (PlusGate in App.js) */
+  if (r && !r.ok && r.reason === 'plus') { try { window.dispatchEvent(new Event('mm-need-plus')); } catch (e) {} }
   if (r && !r.ok && r.reason === 'offline' && SUPABASE_READY) {
     enqueue({ kind: 'join', id, going: !!going });
     return { ok: true, queued: true };
@@ -162,6 +165,12 @@ export function flushOutbox() {
 }
 
 export const cancelGathering = (id) => rpc('green_cancel', { p_id: id });
+
+/* how it went: only somebody who checked in, after it ended (green_rate) */
+export const myUnrated = () => rpc('my_unrated', {});
+export const rateGathering = (id, stars, note) => rpc('green_rate', { p_id: id, p_stars: stars, p_note: note || null });
+export const myOrganiser = () => rpc('my_organiser', {});
+export const setJoinedAs = (as) => rpc('set_joined_as', { p_as: as });
 
 /* ── THE PHARAOH ALBUM ──────────────────────────────────────────────
    The pharaoh somebody keeps — photographed or drawn — goes to the

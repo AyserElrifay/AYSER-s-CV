@@ -13907,6 +13907,288 @@ revoke execute on function public.mark_plus_paid(text, text, bigint, text) from 
 notify pgrst, 'reload schema';
 
 -- ═══════════════════════════════════════════════════════════════════
+--  HANGOUTS ARE FOR MEMBERS · A FREE WEEK · ORGANISERS WHO EARN IT
+--
+--  Ayser: "خلي الناس عشان تشارك في الhangouts لازم اشتراك بس أدي لكل
+--  users اشتراك ببلاش لمدة أسبوع واعرض عليهم ياخدوا أسبوعين كمان ب
+--  invite 2 … ولما يبقى member ممكن يقدم يبقى organiser وياخد فلوس،
+--  بس عشان يبقى verified لازم يعمل كذا تجمع ناجح والناس تبقى مبسوطة
+--  عن طريق rating و feedback … واحنا بنقبله manual مع patch و meeting".
+--
+--  (1) Saying "I'm coming" to somebody else's hangout needs Plus — the
+--      database answers, not the app (green_join → reason 'plus').
+--      Leaving is always allowed; your own hangouts are always yours.
+--      While the owner has set no price, Plus is open to everybody
+--      (is_plus), so nobody is locked out of something they cannot buy.
+--  (2) Everybody gets one free week of Plus, once: new accounts when
+--      they are made, existing ones the first time this runs.
+--  (3) Two friends who make an account with your link: two more weeks,
+--      once.
+--  (4) After a hangout you checked in to, you can rate it 1–5 with a
+--      line of feedback. Only people who were really there, once each,
+--      never the host, within 14 days of it ending.
+--  (5) Organisers. Anybody may say at sign-up they want to organise
+--      (joined_as). Asking to be a verified organiser is only accepted
+--      by the database once your record is real: 5 hangouts settled
+--      with at least 3 people checked in, and at least 10 ratings
+--      averaging 4.5 or more. The owner then decides by hand in the
+--      Studio (host_decide), which gives the badge.
+--  Safe to re-run.
+-- ═══════════════════════════════════════════════════════════════════
+
+-- (5a) how somebody wants to be here: a member, or a member who wants to organise
+alter table public.profiles add column if not exists joined_as text;
+create or replace function public.set_joined_as(p_as text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  if auth.uid() is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  if p_as not in ('member', 'organiser') then return jsonb_build_object('ok', false, 'reason', 'bad'); end if;
+  update public.profiles set joined_as = p_as where id = auth.uid();
+  return jsonb_build_object('ok', true);
+end;
+$$;
+revoke execute on function public.set_joined_as(text) from public, anon;
+grant execute on function public.set_joined_as(text) to authenticated;
+
+-- (2) one free week, once per person
+create table if not exists public.plus_trials (
+  user_id    uuid primary key references public.profiles(id) on delete cascade,
+  started_at timestamptz not null default now()
+);
+alter table public.plus_trials enable row level security;
+drop policy if exists "plus trial: your own" on public.plus_trials;
+create policy "plus trial: your own" on public.plus_trials for select to authenticated using (auth.uid() = user_id);
+
+create or replace function public.give_trial(p_user uuid)
+returns void language plpgsql security definer set search_path = public as $$
+declare base timestamptz;
+begin
+  insert into public.plus_trials (user_id) values (p_user) on conflict do nothing;
+  if not found then return; end if;
+  select until into base from public.plus_members where user_id = p_user and status = 'active';
+  base := greatest(now(), coalesce(base, now()));
+  insert into public.plus_members (user_id, status, until, source) values (p_user, 'active', base + interval '7 days', 'trial')
+  on conflict (user_id) do update set status = 'active', until = base + interval '7 days',
+    source = case when public.plus_members.source is null or public.plus_members.status <> 'active' then 'trial' else public.plus_members.source end;
+end;
+$$;
+revoke execute on function public.give_trial(uuid) from public, anon, authenticated;
+
+create or replace function public.trial_on_signup() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  perform public.give_trial(new.id);
+  return new;
+end;
+$$;
+revoke execute on function public.trial_on_signup() from public, anon, authenticated;
+drop trigger if exists profiles_free_week on public.profiles;
+create trigger profiles_free_week after insert on public.profiles
+  for each row execute function public.trial_on_signup();
+
+-- everybody already here gets theirs once
+do $$
+declare r record;
+begin
+  for r in select p.id from public.profiles p where not exists (select 1 from public.plus_trials t where t.user_id = p.id) loop
+    perform public.give_trial(r.id);
+  end loop;
+end $$;
+
+-- (3) two friends = two more weeks, once; five friends still = a week
+create or replace function public.claim_invite(p_from uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); n int; total int; base timestamptz;
+begin
+  if me is null or p_from is null or p_from = me then return jsonb_build_object('ok', false); end if;
+  update public.profiles set invited_by = p_from
+   where id = me and invited_by is null
+     and exists (select 1 from public.profiles where id = p_from)
+     and exists (select 1 from auth.users u where u.id = me and u.created_at > now() - interval '14 days');
+  get diagnostics n = row_count;
+  if n > 0 then
+    select count(*) into total from public.profiles where invited_by = p_from;
+    if total = 2 and not exists (select 1 from public.plus_bonus where user_id = p_from and reason = 'two_invites') then
+      select until into base from public.plus_members where user_id = p_from and status = 'active';
+      base := greatest(now(), coalesce(base, now()));
+      insert into public.plus_members (user_id, status, until, source) values (p_from, 'active', base + interval '14 days', 'invites')
+      on conflict (user_id) do update set status = 'active', until = base + interval '14 days';
+      insert into public.plus_bonus (user_id, days, reason) values (p_from, 14, 'two_invites');
+      insert into public.notifications (user_id, actor_id, kind, body) values (p_from, me, 'xp_award', '0|✦ +14');
+    elsif total % 5 = 0 then
+      perform public.grant_plus_days(p_from, 7, 'five_invites');
+    end if;
+  end if;
+  return jsonb_build_object('ok', n > 0);
+end;
+$$;
+revoke execute on function public.claim_invite(uuid) from public, anon;
+grant execute on function public.claim_invite(uuid) to authenticated;
+
+-- what the Plus screen needs to say about the free week and the invites
+create or replace function public.my_plus()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select jsonb_build_object(
+    'plus', public.is_plus(auth.uid()),
+    'founding', public.plus_price() is null and exists (select 1 from public.app_settings s where s.key = 'plus_free_until'
+                          and (s.value is null or s.value = 'null'::jsonb or (s.value #>> '{}')::timestamptz > now())),
+    'free_until', (select case when value is null or value = 'null'::jsonb then null else value #>> '{}' end
+                     from public.app_settings where key = 'plus_free_until'),
+    'price', public.plus_price(),
+    'payments_online', coalesce((select value = 'true'::jsonb from public.app_settings where key = 'payments_online'), false),
+    'member', (select jsonb_build_object('status', status, 'until', until, 'source', source) from public.plus_members where user_id = auth.uid()),
+    'invited', (select count(*) from public.profiles where invited_by = auth.uid()),
+    'two_invites_done', exists (select 1 from public.plus_bonus where user_id = auth.uid() and reason = 'two_invites'));
+$$;
+grant execute on function public.my_plus() to authenticated;
+
+-- (1) "I'm coming" needs Plus; leaving never does
+create or replace function public.green_join(p_id uuid, p_going boolean)
+returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare
+  me uuid := auth.uid();
+  g  public.green_gatherings%rowtype;
+  n  int;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  select * into g from public.green_gatherings where id = p_id;
+  if not found then return jsonb_build_object('ok', false, 'reason', 'no_gathering'); end if;
+  if g.cancelled_at is not null then return jsonb_build_object('ok', false, 'reason', 'cancelled'); end if;
+
+  if coalesce(p_going, true) then
+    if g.host_id <> me and not public.is_plus(me)
+       and not exists (select 1 from public.green_joins where gathering_id = p_id and user_id = me) then
+      return jsonb_build_object('ok', false, 'reason', 'plus');
+    end if;
+    if g.capacity is not null then
+      select count(*) into n from public.green_joins where gathering_id = p_id;
+      if n >= g.capacity and not exists (
+        select 1 from public.green_joins where gathering_id = p_id and user_id = me
+      ) then
+        return jsonb_build_object('ok', false, 'reason', 'full');
+      end if;
+    end if;
+    insert into public.green_joins (gathering_id, user_id) values (p_id, me) on conflict do nothing;
+  else
+    delete from public.green_joins where gathering_id = p_id and user_id = me;
+  end if;
+
+  select count(*) into n from public.green_joins where gathering_id = p_id;
+  return jsonb_build_object('ok', true, 'going', n, 'im_going', coalesce(p_going, true));
+end;
+$$;
+grant execute on function public.green_join(uuid, boolean) to authenticated;
+
+-- (4) how was it — only from people who were there
+create table if not exists public.green_ratings (
+  gathering_id uuid not null references public.green_gatherings(id) on delete cascade,
+  user_id      uuid not null references public.profiles(id) on delete cascade,
+  stars        int not null check (stars between 1 and 5),
+  note         text check (note is null or char_length(note) <= 400),
+  created_at   timestamptz not null default now(),
+  primary key (gathering_id, user_id)
+);
+alter table public.green_ratings enable row level security;
+drop policy if exists "ratings: your own" on public.green_ratings;
+create policy "ratings: your own" on public.green_ratings for select to authenticated using (auth.uid() = user_id);
+
+create or replace function public.green_rate(p_id uuid, p_stars int, p_note text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); g public.green_gatherings%rowtype;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  if p_stars is null or p_stars < 1 or p_stars > 5 then return jsonb_build_object('ok', false, 'reason', 'bad'); end if;
+  select * into g from public.green_gatherings where id = p_id;
+  if not found or g.host_id = me then return jsonb_build_object('ok', false, 'reason', 'not_yours_to_rate'); end if;
+  if not exists (select 1 from public.green_joins where gathering_id = p_id and user_id = me and checked_in_at is not null) then
+    return jsonb_build_object('ok', false, 'reason', 'not_there');
+  end if;
+  if public.green_ends_at(g) > now() or public.green_ends_at(g) < now() - interval '14 days' then
+    return jsonb_build_object('ok', false, 'reason', 'not_now');
+  end if;
+  insert into public.green_ratings (gathering_id, user_id, stars, note)
+  values (p_id, me, p_stars, nullif(left(trim(coalesce(p_note, '')), 400), ''))
+  on conflict (gathering_id, user_id) do update set stars = excluded.stars, note = excluded.note;
+  return jsonb_build_object('ok', true);
+end;
+$$;
+revoke execute on function public.green_rate(uuid, int, text) from public, anon;
+grant execute on function public.green_rate(uuid, int, text) to authenticated;
+
+-- the one hangout waiting for your stars, if any
+create or replace function public.my_unrated()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select coalesce((
+    select jsonb_build_object('id', g.id, 'title', g.title, 'kind', g.kind, 'place_name', g.place_name, 'starts_at', g.starts_at)
+      from public.green_joins j join public.green_gatherings g on g.id = j.gathering_id
+     where j.user_id = auth.uid() and j.checked_in_at is not null and g.host_id <> auth.uid()
+       and g.cancelled_at is null
+       and public.green_ends_at(g) < now() and public.green_ends_at(g) > now() - interval '14 days'
+       and not exists (select 1 from public.green_ratings r where r.gathering_id = g.id and r.user_id = auth.uid())
+     order by g.starts_at desc limit 1), 'null'::jsonb);
+$$;
+revoke execute on function public.my_unrated() from public, anon;
+grant execute on function public.my_unrated() to authenticated;
+
+-- (5b) an organiser's real record, and whether it is enough to ask
+create or replace function public.organiser_record(p_user uuid)
+returns jsonb language sql stable security definer set search_path = public as $$
+  with mine as (
+    select g.id from public.green_gatherings g
+     where g.host_id = p_user and g.cancelled_at is null and public.green_ends_at(g) < now()
+       and (select count(*) from public.green_joins j where j.gathering_id = g.id and j.checked_in_at is not null and j.user_id <> p_user) >= 3
+  ), rated as (
+    select r.stars from public.green_ratings r join public.green_gatherings g on g.id = r.gathering_id where g.host_id = p_user
+  )
+  select jsonb_build_object(
+    'hosted', (select count(*) from mine),
+    'ratings', (select count(*) from rated),
+    'avg', (select round(avg(stars)::numeric, 2) from rated),
+    'need_hosted', 5, 'need_ratings', 10, 'need_avg', 4.5,
+    'ready', (select count(*) from mine) >= 5 and (select count(*) from rated) >= 10
+             and coalesce((select avg(stars) from rated), 0) >= 4.5,
+    'role', (select host_role from public.profiles where id = p_user),
+    'joined_as', (select joined_as from public.profiles where id = p_user),
+    'request', (select status from public.verification_requests where user_id = p_user and role = 'host'));
+$$;
+revoke execute on function public.organiser_record(uuid) from public, anon, authenticated;
+
+create or replace function public.my_organiser()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select public.organiser_record(auth.uid());
+$$;
+revoke execute on function public.my_organiser() from public, anon;
+grant execute on function public.my_organiser() to authenticated;
+
+-- asking to be a verified organiser is refused until the record is there
+create or replace function public.organiser_needs_record() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if new.role = 'host' and new.status = 'pending'
+     and (tg_op = 'INSERT' or old.status is distinct from 'pending' or old.role is distinct from 'host')
+     and not coalesce((public.organiser_record(new.user_id) ->> 'ready')::boolean, false) then
+    raise exception 'organiser_not_ready' using errcode = 'P0001';
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.organiser_needs_record() from public, anon, authenticated;
+drop trigger if exists verification_organiser_record on public.verification_requests;
+create trigger verification_organiser_record before insert or update on public.verification_requests
+  for each row execute function public.organiser_needs_record();
+
+-- the Studio sees the record next to each request
+create or replace function public.organiser_record_for_studio(p_user uuid)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select case when public.studio_can('verify') then public.organiser_record(p_user) else null end;
+$$;
+revoke execute on function public.organiser_record_for_studio(uuid) from public, anon;
+grant execute on function public.organiser_record_for_studio(uuid) to authenticated;
+
+notify pgrst, 'reload schema';
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة

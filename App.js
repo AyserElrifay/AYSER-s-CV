@@ -54,6 +54,17 @@ import { lazyOverlay } from './src/lib/lazyScreen';
 /* the Studio's code is fetched only once the owner check has passed —
    nobody else's phone ever downloads it */
 const StudioLock = lazyOverlay(() => import('./src/components/StudioLock').then((m) => ({ default: m.StudioLock })));
+const PlusSheet = lazyOverlay(() => import('./src/components/PlusSheet').then((m) => ({ default: m.PlusSheet })));
+/* the server refused a join because it needs Plus (src/services/green.js) */
+const PlusGate = () => {
+  const [open, setOpen] = React.useState(false);
+  React.useEffect(() => {
+    const on = () => setOpen(true);
+    try { window.addEventListener('mm-need-plus', on); } catch (e) {}
+    return () => { try { window.removeEventListener('mm-need-plus', on); } catch (e) {} };
+  }, []);
+  return open ? <PlusSheet why="join" onClose={() => setOpen(false)} /> : null;
+};
 const AdminPanel = lazyOverlay(() => import('./src/components/AdminPanel').then((m) => ({ default: m.AdminPanel })));
 import { Splash } from './src/components/Splash';
 import { GestureTour, tourSeen } from './src/components/GestureTour';
@@ -200,6 +211,7 @@ const Root = () => {
       {tour ? <GestureTour onClose={() => setTour(false)} /> : null}
       {/* after a strike: over everything (src/components/SafetyHold.js) */}
       <SafetyHold />
+      <PlusGate />
     </View>
   );
 };
