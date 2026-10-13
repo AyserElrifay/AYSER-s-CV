@@ -81,7 +81,6 @@ export const SettingsScreen = ({ onClose }) => {
     return { total, ppl, per: total / ppl };
   })();
   const [planner, setPlanner] = useState(PLANNER_INIT);
-  const [gamesArOn, setGamesArOn] = useState(() => { try { return typeof localStorage !== 'undefined' && localStorage.getItem('mm_games_ar') === '1'; } catch (e) { return false; } });
   const [langOpen, setLangOpen] = useState(false);
   const [prefs, setPrefs] = useState(getPrefs());
   const [referrals, setReferrals] = useState(null);
@@ -636,23 +635,6 @@ export const SettingsScreen = ({ onClose }) => {
             <Text style={{ color: C.faint, fontSize: 12, textAlign: 'center' }}>{t('exchange_offline')}</Text>
           </Glass>
         )}
-
-        {/* ── GAMES — Egyptian-Arabic option ── */}
-        <SectionHeader title={t('games_section')} style={{ marginTop: 26 }} />
-        <Glass style={{ padding: 15, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <View style={{ flex: 1, marginRight: 12 }}>
-            <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>ألعاب باللهجة المصرية 🇪🇬</Text>
-            <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 2 }}>{t('games_in_masri')}</Text>
-          </View>
-          <Pressable onPress={() => {
-            const n = !gamesArOn; setGamesArOn(n);
-            try { if (typeof localStorage !== 'undefined') localStorage.setItem('mm_games_ar', n ? '1' : '0'); } catch (e) {}
-          }}>
-            <View style={{ width: 46, height: 27, borderRadius: 14, backgroundColor: gamesArOn ? C.purple : C.glassHi, padding: 3, justifyContent: 'center' }}>
-              <View style={{ width: 21, height: 21, borderRadius: 11, backgroundColor: '#FFF', marginLeft: gamesArOn ? 19 : 0 }} />
-            </View>
-          </Pressable>
-        </Glass>
 
         {/* Bardi is no longer a chat you open. It works quietly inside the
            app instead: a nudge in a quiet conversation, the care check,

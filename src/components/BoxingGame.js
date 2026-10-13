@@ -10,9 +10,11 @@ import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
 import { sfxPop, sfxStar, sfxSuccess } from '../utils/sfx';
 import { useStable } from '../hooks/useStable';
 import { useSheetBack } from '../hooks/useSheetBack';
+import { langNow } from '../context/LanguageContext';
 
 /* Games in Egyptian Arabic when the user turns it on (Settings). */
-const gamesAr = () => { try { return typeof localStorage !== 'undefined' && localStorage.getItem('mm_games_ar') === '1'; } catch (e) { return false; } };
+/* games speak the app's own language: Arabic when the app is Arabic, otherwise English */
+const gamesAr = () => langNow() === 'ar';
 const GT = {
   jab: ['JAB 👊', 'لكمة 👊'], hook: ['HOOK 🥊', 'هوك 🥊'], block: ['BLOCK 🛡️', 'صدّ 🛡️'],
   start: ['FIGHT! ▶', 'يلا نتخانق ▶'], again: ['Rematch', 'تاني'], board: ['🏆 Global leaderboard', '🏆 الترتيب العالمي'],

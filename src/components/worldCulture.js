@@ -1,3 +1,4 @@
+import { langNow } from '../context/LanguageContext';
 /* ─── THE WORLD THE GAMES ARE SET IN ──────────────────────────────────
    Both arcade games — the climb and the crossing — travel the same six
    places, in the same order, so they feel like one world rather than two
@@ -96,11 +97,9 @@ export const PLACES = [
 
 export const placeAt = (i) => PLACES[((i % PLACES.length) + PLACES.length) % PLACES.length];
 
-/* Games speak whichever language the player picked for games. Kept here
-   so both games read the same flag and never disagree. */
-export const gamesAr = () => {
-  try { return typeof localStorage !== 'undefined' && localStorage.getItem('mm_games_ar') === '1'; } catch (e) { return false; }
-};
+/* Games speak the app's own language — Arabic when the app is Arabic,
+   English otherwise. Kept here so both games read the same answer. */
+export const gamesAr = () => langNow() === 'ar';
 
 /* Small deterministic RNG — the same seed builds the same level on every
    device, which is what makes a shared leaderboard mean anything. */

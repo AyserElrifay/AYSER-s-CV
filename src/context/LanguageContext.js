@@ -15,6 +15,9 @@ const Ctx = createContext(null);
    It is whatever language the app is showing right now. */
 let labelT = (key) => STRINGS.en[key] || key;
 export const tNow = (key) => labelT(key);
+/* the app's language right now, for code outside React (the games speak it) */
+let langCur = 'en';
+export const langNow = () => langCur;
 export const useLang = () => useContext(Ctx) || fallback;
 
 const fallback = {
@@ -171,6 +174,7 @@ export const LanguageProvider = ({ children }) => {
 
   const t = (key) => (loaded[lang] && loaded[lang][key]) || STRINGS.en[key] || key;
   labelT = t;
+  langCur = lang;
   const meta = LANGS.find((l) => l.code === lang) || LANGS[0];
 
   // ── REAL RTL, not just swapped words ──

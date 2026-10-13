@@ -11,6 +11,7 @@ import {
   CHAPTERS, makeLevel, drawScene, drawRunner, drawChaser, GROUND,
 } from './rushArt';
 import { useSheetBack } from '../hooks/useSheetBack';
+import { langNow } from '../context/LanguageContext';
 
 /* ─── ROOFTOP RUSH — a real side-scrolling platformer ─────────────────
    A painted canvas world (see rushArt.js): parallax skylines and alpine
@@ -47,7 +48,8 @@ const RACE_TARGET = 2600;   // race distance, in world px
 const COYOTE_MS = 110;      // grace after running off an edge
 const BUFFER_MS = 130;      // a tap just before landing still counts
 
-const gamesAr = () => { try { return typeof localStorage !== 'undefined' && localStorage.getItem('mm_games_ar') === '1'; } catch (e) { return false; } };
+/* games speak the app's own language: Arabic when the app is Arabic, otherwise English */
+const gamesAr = () => langNow() === 'ar';
 
 const loadProgress = () => {
   try {
