@@ -7,6 +7,9 @@ import { whyText } from '../lib/recommend';
 import { HostBadge } from './HostCard';
 import { PlanThumb } from './green/PlanPhoto';
 import { tapLight, tapSelection } from '../utils/feedback';
+import { LinearGradient } from 'expo-linear-gradient';
+import { publicMedia } from '../lib/publicMedia';
+import { moodOfToday } from '../lib/mood';
 
 /* ─── WHAT IS AROUND HERE, AT THE BOTTOM OF THE MAP ───────────────────
    Ayser sent two screens of a travel app: under the map, one white
@@ -162,12 +165,20 @@ export const MapPanel = ({
              "nothing here" a second before five things appear */
           <View style={{ height: 86 }} />
         ) : (
-          <Pressable onPress={() => { tapLight(); onGoNow(); }} accessibilityRole="button" style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 14 }}>
-            <View style={{ width: 58, height: 58, borderRadius: 29, borderWidth: 1.5, borderColor: C.line, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name="add" size={24} color={C.text} />
+          /* nothing here yet: a real photo of people out together (a mood,
+             not anybody on Moments — src/lib/mood.js) and the one button */
+          <Pressable onPress={() => { tapLight(); onGoNow(); }} accessibilityRole="button" style={{ marginTop: 10 }}>
+            <View style={{ height: 118, borderRadius: 20, overflow: 'hidden', backgroundColor: C.glassHi }}>
+              <Image source={{ uri: publicMedia(moodOfToday()) }} accessibilityIgnoresInvertColors style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%' }} />
+              <LinearGradient colors={['rgba(0,0,0,0.05)', 'rgba(0,0,0,0.62)']} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
+              <View style={{ position: 'absolute', left: 14, right: 14, bottom: 12, flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={{ flex: 1, color: '#FFF', fontSize: 16.5, fontWeight: '900' }} numberOfLines={2}>{t('map_start_one')}</Text>
+                <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: C.purple, alignItems: 'center', justifyContent: 'center' }}>
+                  <Ionicons name="add" size={22} color="#FFF" />
+                </View>
+              </View>
+              <Text style={{ position: 'absolute', top: 8, right: 12, color: 'rgba(255,255,255,0.75)', fontSize: 9.5 }}>{t('photo_from').replace('{who}', 'Pexels')}</Text>
             </View>
-            <Text style={{ flex: 1, color: C.text, fontSize: 15, fontWeight: '800', marginStart: 14 }}>{t('map_start_one')}</Text>
-            <Ionicons name="chevron-forward" size={18} color={C.faint} />
           </Pressable>
         )}
 

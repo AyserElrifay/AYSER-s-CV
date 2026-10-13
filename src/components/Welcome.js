@@ -8,6 +8,7 @@ import { Wordmark } from './Wordmark';
 import { ACTIVITY_LOOK } from '../lib/activityPins';
 import { tapLight } from '../utils/feedback';
 import { publicMedia } from '../lib/publicMedia';
+import { moodOfToday } from '../lib/mood';
 
 /* ─── THE FIRST THING ANYBODY SEES ────────────────────────────────────
    Ayser: "عايزين welcome page زي المنافسين". The ones he showed open on
@@ -29,7 +30,8 @@ import { publicMedia } from '../lib/publicMedia';
    day you open it. */
 
 const PHOTOS = ['welcome-dahab.jpg', 'welcome-fisher.jpg', 'welcome-heron.jpg', 'welcome-kite.jpg', 'welcome-trees.jpg', 'welcome-tea.jpg', 'welcome-cave.jpg', 'welcome-cat.jpg', 'welcome-breakfast.jpg', 'welcome-catherine.jpg', 'welcome-sunset.jpg', 'welcome-nile.jpg', 'welcome-seaside.jpg'];
-const photoOfToday = () => PHOTOS[Math.floor(Date.now() / 86400000) % PHOTOS.length];
+/* and, every other day, people out together (src/lib/mood.js) — a mood, never shown as members */
+const photoOfToday = () => { const d = Math.floor(Date.now() / 86400000); return d % 2 ? moodOfToday() : PHOTOS[Math.floor(d / 2) % PHOTOS.length]; };
 
 const SCENE = [
   { kind: 'culture', key: 'welcome_act_opera',  x: 0.06, y: 0.10, tilt: -6 },
