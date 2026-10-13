@@ -14,6 +14,7 @@ import { useSheetBack } from '../hooks/useSheetBack';
 import { LinearGradient } from 'expo-linear-gradient';
 import { HighlightVideo } from './GoOutRail';
 import { lazyOverlay } from '../lib/lazyScreen';
+import { publicMedia } from '../lib/publicMedia';
 
 const COVER = { trip: ['#0EA5E9', '#7C3AED', '🧳'], stay: ['#F59E0B', '#EF4444', '🏨'], experience: ['#10B981', '#0EA5E9', '🧗'], deal: ['#EC4899', '#F59E0B', '🎟️'], table: ['#F97316', '#EF4444', '🍽️'] };
 const Cover = ({ kind, h, flag }) => { const c = COVER[kind] || COVER.trip; return (
@@ -370,6 +371,16 @@ export const TripsSheet = ({ onClose, country, openOn, focus, onNeedSignIn }) =>
 
             {tab === 'browse' ? (
               <>
+                {/* travel buddies: a real night on a trip bus, blurred so
+                    nobody in it can be recognised (no one was asked) */}
+                <View style={{ height: 180, borderRadius: 22, overflow: 'hidden', backgroundColor: '#1A1A1A', marginBottom: 14 }}>
+                  <HighlightVideo uri={publicMedia('travel-buddies.mp4')} poster={publicMedia('travel-buddies.jpg')} />
+                  <LinearGradient colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.7)']} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 110 }} />
+                  <View style={{ position: 'absolute', left: 14, right: 14, bottom: 12 }}>
+                    <Text style={{ color: '#FFF', fontSize: 20, fontWeight: '900' }}>{'🚌 ' + t('bk_buddies')}</Text>
+                    <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13, fontWeight: '700', marginTop: 2 }}>{t('bk_buddies_sub')}</Text>
+                  </View>
+                </View>
                 <PlusCard plus={plus} t={t} lang={lang} />
                 {regionsHere.length > 1 ? (
                   <View style={{ flexDirection: 'row', marginBottom: 10 }}>

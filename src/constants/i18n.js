@@ -1937,6 +1937,8 @@ export const STRINGS = {
     px_trips_card: "Members pay less on trips — and get a few lovely extras.",
     px_menu_sub: "What's in it, and how to get it",
     pr_title: "Places worth going to",
+    bk_buddies: "Travel buddies",
+    bk_buddies_sub: "Trips are better with people. Book one and go together.",
     lens_all: 'Everything',
     lens_places: 'Places to go',
     lens_people: 'People',
