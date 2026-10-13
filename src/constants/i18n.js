@@ -1609,6 +1609,7 @@ export const STRINGS = {
     pd_nearby: "Nearby",
     pf_tag_date: "Date spots",
     pf_tag_souv: "Gifts & souvenirs",
+    sp_today: "One thing today",
     lens_all: 'Everything',
     lens_places: 'Places to go',
     lens_people: 'People',

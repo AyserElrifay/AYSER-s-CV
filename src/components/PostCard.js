@@ -768,18 +768,10 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
           </View>
         ) : null}
 
-        {!post.sponsored && post.intent !== 'warning' && !post.joinable && onHangoutHere && (post.place || post.coords) ? (
-          <Pressable
-            onPress={() => { tapLight(); onHangoutHere(post); }}
-            accessibilityRole="button"
-            style={{ marginTop: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: C.purple, borderRadius: 999, paddingVertical: 10 }}
-          >
-            <Ionicons name="add" size={16} color={C.purple} />
-            <Text style={{ color: C.purple, fontSize: 13.5, fontWeight: '900', marginLeft: 4 }} numberOfLines={1}>
-              {t('feed_hangout_here') + (post.place ? ' · ' + post.place : '')}
-            </Text>
-          </Pressable>
-        ) : null}
+        {/* "Make a plan here" used to sit under every post with a place —
+            a button on a photo of somebody's sunset turned every moment
+            into a sales pitch. Ayser: the feed shows the moments, without
+            "join the moment". A post that IS a plan still has its Join. */}
 
         {/* social proof, Instagram style — tap to see who starred it */}
         {totalVibes > 0 ? (

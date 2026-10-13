@@ -209,6 +209,7 @@ export const ProfileScreen = () => {
   const [campfiresHosted, setCampfiresHosted] = useState(0);
   const [matesCount, setMatesCount] = useState(0);
   const [matesOpen, setMatesOpen] = useState(false);
+  const [dumpOpen, setDumpOpen] = useState(false);   // Bardi's one thing today, in a sheet
   const [rewardsOpen, setRewardsOpen] = useState(false);
   const [avatarBuilderOpen, setAvatarBuilderOpen] = useState(false);
   const [closeOpen, setCloseOpen] = useState(false);
@@ -743,21 +744,29 @@ export const ProfileScreen = () => {
             </Pressable>
           </View>
           {inviteNote ? <Text style={{ color: C.faint, fontSize: 12, marginTop: 6 }}>{inviteNote}</Text> : null}
-          {/* loyalty, invites and hangout creators — one door (RewardsSheet) */}
-          {SUPABASE_READY && user ? (
-            <Pressable onPress={() => { tapLight(); setRewardsOpen(true); }} accessibilityRole="button" style={{ marginTop: 10 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: R - 4, borderWidth: 1, borderColor: C.gold, backgroundColor: C.goldSoft, paddingVertical: 11, paddingHorizontal: 14 }}>
-                <Ionicons name="gift-outline" size={18} color={C.text} />
-                <View style={{ flex: 1, marginStart: 10 }}>
-                  <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '900' }}>{t('rw_open')}</Text>
-                  <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 1 }} numberOfLines={1}>{t('rw_open_sub')}</Text>
+          {/* ── TWO SMALL DOORS, NOT TWO BIG CARDS ────────────────────
+              Ayser: "بسيط، سهل، مريح نفسيًا، مش زحمة". Rewards (loyalty,
+              invites, creators) and Bardi's "one thing today" used to be
+              two full cards stacked under the pass. They are one row of
+              two tiles now; each opens what it used to show. */}
+          {user ? (
+            <View style={{ flexDirection: 'row', marginTop: 10 }}>
+              {SUPABASE_READY ? (
+                <Pressable onPress={() => { tapLight(); setRewardsOpen(true); }} accessibilityRole="button" style={{ flex: 1, marginRight: 8 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: R - 4, borderWidth: 1, borderColor: C.gold, backgroundColor: C.goldSoft, paddingVertical: 11, paddingHorizontal: 12 }}>
+                    <Ionicons name="gift-outline" size={17} color={C.text} />
+                    <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '900', marginStart: 8, flex: 1 }} numberOfLines={1}>{t('rw_open')}</Text>
+                  </View>
+                </Pressable>
+              ) : null}
+              <Pressable onPress={() => { tapLight(); setDumpOpen(true); }} accessibilityRole="button" style={{ flex: 1 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: R - 4, borderWidth: 1, borderColor: C.line, backgroundColor: C.glass, paddingVertical: 11, paddingHorizontal: 12 }}>
+                  <Text style={{ fontSize: 15 }}>🧠</Text>
+                  <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '900', marginStart: 8, flex: 1 }} numberOfLines={1}>{t('sp_today')}</Text>
                 </View>
-                <Ionicons name="chevron-forward" size={16} color={C.dim} />
-              </View>
-            </Pressable>
+              </Pressable>
+            </View>
           ) : null}
-          {/* Bardi's "today, one thing at a time" — a tool for you, so it lives here, not in the feed */}
-          {user ? <View style={{ marginTop: 14 }}><BrainDump /></View> : null}
           {SUPABASE_READY && user ? <ShowedUp userId={user.id} own /> : null}
 
           {/* badges */}
@@ -1408,6 +1417,15 @@ export const ProfileScreen = () => {
       ) : null}
 
       {hostOpen ? <GreenSheet startNow onClose={() => setHostOpen(false)} /> : null}
+      {dumpOpen ? (
+        <Modal visible transparent animationType="slide" onRequestClose={() => setDumpOpen(false)}>
+          <Pressable style={{ flex: 1, backgroundColor: 'rgba(6,4,18,0.45)' }} onPress={() => setDumpOpen(false)} />
+          <View style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 16, paddingBottom: insets.bottom + 20 }}>
+            <View style={{ alignItems: 'center', marginTop: -6, marginBottom: 6 }}><SheetHandle onClose={() => setDumpOpen(false)} /></View>
+            <BrainDump />
+          </View>
+        </Modal>
+      ) : null}
       {rewardsOpen ? <RewardsSheet onClose={() => setRewardsOpen(false)} onStartPlan={() => { setRewardsOpen(false); setHostOpen(true); }} /> : null}
       {matesOpen ? <MatesSheet onClose={() => { setMatesOpen(false); reload(); }} /> : null}
       {avatarBuilderOpen ? (
