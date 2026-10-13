@@ -371,8 +371,8 @@ export const TripsSheet = ({ onClose, country, openOn, focus, onNeedSignIn }) =>
 
             {tab === 'browse' ? (
               <>
-                {/* travel buddies: a real night on a trip bus, blurred so
-                    nobody in it can be recognised (no one was asked) */}
+                {/* travel buddies: a real night on a trip bus, softly blurred
+                    (Ayser asked for a light touch) */}
                 <View style={{ height: 180, borderRadius: 22, overflow: 'hidden', backgroundColor: '#1A1A1A', marginBottom: 14 }}>
                   <HighlightVideo uri={publicMedia('travel-buddies.mp4')} poster={publicMedia('travel-buddies.jpg')} />
                   <LinearGradient colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.7)']} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 110 }} />
