@@ -33,7 +33,7 @@ on:
       site_origin:
         description: 'Origin allowed to call bardi-chat (CORS)'
         required: true
-        default: 'https://ayserelrifay.github.io'
+        default: 'https://therealmoments.com'
       run_sql:
         description: 'Run supabase/RUN_ME.sql'
         type: boolean
@@ -45,7 +45,7 @@ on:
       app_url:
         description: 'Where the app lives (reset links return here)'
         required: true
-        default: 'https://ayserelrifay.github.io/AYSER-s-CV/'
+        default: 'https://therealmoments.com/'
       deploy_function:
         description: 'Deploy the bardi-chat Edge Function'
         type: boolean

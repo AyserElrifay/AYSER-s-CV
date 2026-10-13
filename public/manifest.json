@@ -2,28 +2,28 @@
   "name": "Moments — Don't scroll it. Live it.",
   "short_name": "Moments",
   "description": "The social super-app: live map, real mates, moments, reels, deals & adventures.",
-  "id": "/AYSER-s-CV/",
-  "start_url": "/AYSER-s-CV/",
-  "scope": "/AYSER-s-CV/",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
   "theme_color": "#7C3AED",
   "background_color": "#F4F5F7",
   "icons": [
     {
-      "src": "/AYSER-s-CV/icon-192.png",
+      "src": "/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/AYSER-s-CV/icon-512.png",
+      "src": "/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/AYSER-s-CV/icon-maskable-512.png",
+      "src": "/icon-maskable-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"

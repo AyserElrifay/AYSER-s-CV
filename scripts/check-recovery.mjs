@@ -32,7 +32,7 @@ const is = (what, got, want) => {
   if (!ok) bad++;
 };
 
-const APP = 'https://ayserelrifay.github.io/AYSER-s-CV/';
+const APP = 'https://therealmoments.com/';
 
 console.log('the link as Supabase actually sends it');
 const good = parseRecovery(APP + '#access_token=eyJabc.def.ghi&expires_in=3600&refresh_token=r1r1r1&token_type=bearer&type=recovery');

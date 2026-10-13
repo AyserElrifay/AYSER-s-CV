@@ -24,7 +24,7 @@
 //
 //  Deploy:
 //    supabase functions deploy bardi-chat --no-verify-jwt
-//    supabase secrets set ALLOWED_ORIGIN=https://ayserelrifay.github.io
+//    supabase secrets set ALLOWED_ORIGIN=https://therealmoments.com
 //  Then pick a provider:
 //    FREE, no limits (recommended): a free Groq key —
 //      supabase secrets set GROQ_API_KEY=gsk_...

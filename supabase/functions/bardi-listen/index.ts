@@ -16,7 +16,7 @@
 //  (JWT on: only signed-in people can send audio.)
 // ═══════════════════════════════════════════════════════════════════
 const KEY = Deno.env.get('GROQ_API_KEY') || '';
-const ORIGIN = Deno.env.get('ALLOWED_ORIGIN') || 'https://ayserelrifay.github.io';
+const ORIGIN = Deno.env.get('ALLOWED_ORIGIN') || 'https://therealmoments.com';
 const MAX_BYTES = 8 * 1024 * 1024;          // ~4 minutes of speech; a brain dump is a minute
 
 const cors = {

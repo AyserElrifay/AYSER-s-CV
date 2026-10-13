@@ -10,7 +10,7 @@ const dist = process.argv[2] || 'dist';
 const file = path.join(process.cwd(), dist, 'index.html');
 let html = fs.readFileSync(file, 'utf8');
 
-const BASE = 'https://ayserelrifay.github.io/AYSER-s-CV/';
+const BASE = 'https://therealmoments.com/';
 const TITLE = "Moments — Don't scroll it. Live it.";
 const DESC = 'The social super-app: live world map, real mates, moments & reels, deals, and curated adventures.';
 
@@ -97,11 +97,11 @@ const tags = `
        URL the page happens to be on, so one visit without the trailing
        slash and the manifest 404s — at which point iOS has nothing to
        read and adds a plain bookmark instead of the app. -->
-  <link rel="manifest" href="/AYSER-s-CV/manifest.json" />
+  <link rel="manifest" href="/manifest.json" />
   <meta name="theme-color" content="#7C3AED" />
-  <link rel="apple-touch-icon" sizes="180x180" href="/AYSER-s-CV/apple-touch-icon.png" />
-  <link rel="icon" type="image/png" sizes="32x32" href="/AYSER-s-CV/favicon-32.png" />
-  <link rel="icon" type="image/png" sizes="192x192" href="/AYSER-s-CV/icon-192.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />

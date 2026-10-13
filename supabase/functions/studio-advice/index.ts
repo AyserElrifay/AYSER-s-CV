@@ -34,7 +34,7 @@ import { encodeBase64 } from 'jsr:@std/encoding@1/base64';
 
 const KEY = Deno.env.get('ANTHROPIC_API_KEY') || '';
 const URL_ = Deno.env.get('SUPABASE_URL')!;
-const ORIGIN = Deno.env.get('ALLOWED_ORIGIN') || 'https://ayserelrifay.github.io';
+const ORIGIN = Deno.env.get('ALLOWED_ORIGIN') || 'https://therealmoments.com';
 const cors = {
   'Access-Control-Allow-Origin': ORIGIN,
   'Access-Control-Allow-Methods': 'POST, OPTIONS',

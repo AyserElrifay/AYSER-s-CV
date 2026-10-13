@@ -11,7 +11,7 @@
       "output": "single"
     },
     "experiments": {
-      "baseUrl": "/AYSER-s-CV"
+      "baseUrl": ""
     },
     "ios": {
       "supportsTablet": true,

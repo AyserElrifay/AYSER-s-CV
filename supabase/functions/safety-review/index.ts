@@ -24,7 +24,7 @@ import Anthropic from 'npm:@anthropic-ai/sdk';
 import { createClient } from 'npm:@supabase/supabase-js@2.45.4';
 
 const KEY = Deno.env.get('ANTHROPIC_API_KEY') || '';
-const ORIGIN = Deno.env.get('ALLOWED_ORIGIN') || 'https://ayserelrifay.github.io';
+const ORIGIN = Deno.env.get('ALLOWED_ORIGIN') || 'https://therealmoments.com';
 const cors = {
   'Access-Control-Allow-Origin': ORIGIN,
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
