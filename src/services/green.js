@@ -170,6 +170,7 @@ export const cancelGathering = (id) => rpc('green_cancel', { p_id: id });
 export const myUnrated = () => rpc('my_unrated', {});
 export const rateGathering = (id, stars, note) => rpc('green_rate', { p_id: id, p_stars: stars, p_note: note || null });
 export const myOrganiser = () => rpc('my_organiser', {});
+export const myVolunteering = () => rpc('my_volunteering', {});
 export const setJoinedAs = (as) => rpc('set_joined_as', { p_as: as });
 
 /* ── THE PHARAOH ALBUM ──────────────────────────────────────────────

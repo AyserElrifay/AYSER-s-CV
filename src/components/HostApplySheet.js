@@ -151,6 +151,7 @@ export const HostApplySheet = ({ onClose }) => {
                     {t('or_avg').replace('{n}', rec.avg != null ? String(rec.avg) : '–').replace('{need}', String(rec.need_avg))}
                   </Text>
                   <Text style={{ color: C.faint, fontSize: 12, lineHeight: 17, marginTop: 8 }}>{t('or_how')}</Text>
+                  <Text style={{ color: C.text, fontSize: 13, fontWeight: '800', lineHeight: 19, marginTop: 10 }}>{'✨ ' + t('or_perks')}</Text>
                 </View>
               ) : null}
 

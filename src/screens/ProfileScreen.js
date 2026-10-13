@@ -77,6 +77,7 @@ import { SheetHandle, SheetBack } from '../components/SheetHandle';
 const GreenSheet = lazyOverlay(() => import('../components/green/GreenSheet').then((m) => ({ default: m.GreenSheet })));
 const CommentsSheet = lazyOverlay(() => import('../components/CommentsSheet').then((m) => ({ default: m.CommentsSheet })));
 const ReelsViewer = lazyOverlay(() => import('../components/ReelsViewer').then((m) => ({ default: m.ReelsViewer })));
+const VolunteerCert = lazyOverlay(() => import('../components/VolunteerCert').then((m) => ({ default: m.VolunteerCert })));
 const PlusSheet = lazyOverlay(() => import('../components/PlusSheet').then((m) => ({ default: m.PlusSheet })));
 const MyDay = lazyOverlay(() => import('../components/MyDay').then((m) => ({ default: m.MyDay })));
 const RewardsSheet = lazyOverlay(() => import('../components/RewardsSheet').then((m) => ({ default: m.RewardsSheet })));
@@ -192,6 +193,7 @@ export const ProfileScreen = () => {
   const [verifQueue, setVerifQueue] = useState(null); // owner: pending list
   const [fbOpen, setFbOpen] = useState(false);
   const [plusOpen, setPlusOpen] = useState(false);
+  const [certOpen, setCertOpen] = useState(false);
   const [fbKind, setFbKind] = useState('idea');
   const [fbBody, setFbBody] = useState('');
   const [fbDone, setFbDone] = useState(false);
@@ -1197,6 +1199,7 @@ export const ProfileScreen = () => {
                 so an admin console never sits in anyone's settings menu. */}
             {/* everyone: send feedback into the owner's Studio */}
             <MenuRow icon="sparkles-outline" label="Moments Plus" sub={t('px_menu_sub')} onPress={() => { setMenu(false); setPlusOpen(true); }} />
+            <MenuRow icon="ribbon-outline" label={t('vc_title')} sub={t('vc_menu_sub')} onPress={() => { setMenu(false); setCertOpen(true); }} />
             <MenuRow icon="chatbubble-ellipses-outline" label={t('send_feedback')} sub={t('fb_menu_sub')} onPress={() => { setMenu(false); setFbOpen(true); }} />
 
             {/* category — shows next to your name on professional accounts */}
@@ -1446,6 +1449,7 @@ export const ProfileScreen = () => {
       {hostOpen ? <GreenSheet startNow onClose={() => setHostOpen(false)} /> : null}
       {dumpOpen ? <MyDay onClose={() => setDumpOpen(false)} /> : null}
       {plusOpen ? <PlusSheet onClose={() => setPlusOpen(false)} /> : null}
+      {certOpen ? <VolunteerCert onClose={() => setCertOpen(false)} /> : null}
       {rewardsOpen ? <RewardsSheet onClose={() => setRewardsOpen(false)} onStartPlan={() => { setRewardsOpen(false); setHostOpen(true); }} /> : null}
       {matesOpen ? <MatesSheet onClose={() => { setMatesOpen(false); reload(); }} /> : null}
       {avatarBuilderOpen ? (

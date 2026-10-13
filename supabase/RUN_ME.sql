@@ -14189,6 +14189,47 @@ grant execute on function public.organiser_record_for_studio(uuid) to authentica
 notify pgrst, 'reload schema';
 
 -- ═══════════════════════════════════════════════════════════════════
+--  VOLUNTEERING HOURS, COUNTED · FOR A CERTIFICATE
+--
+--  Ayser: "Take trainings and volunteering hours certificates". The
+--  hours are never typed: they are the volunteering gatherings you
+--  really checked in to (or led, with somebody checked in), after they
+--  ended, at their planned length. Volunteering = the same kinds and
+--  words Green Minds uses (src/lib/greenKinds.js).
+--  Safe to re-run.
+-- ═══════════════════════════════════════════════════════════════════
+create or replace function public.is_volunteering(g public.green_gatherings)
+returns boolean language sql immutable set search_path = public as $$
+  select g.kind in ('cleanup', 'project')
+      or coalesce(g.title, '') || ' ' || coalesce(g.about, '') ~* '(clean|litter|pick-?up|planting|trees?\M|recycl|compost|gardening|plastic|repair|upcycl|volunteer|food bank|red crescent|red cross|resala|orphan|school|awareness|animal|shelter|rescue|stray|تطوع|بنك الطعام|أيتام|ايتام|مدرس|توعي|تنضيف|تنظيف|نضافة|نظافة|زبال|شجر|زرع|تدوير|بلاستيك|حيوان|ملجأ)';
+$$;
+
+create or replace function public.my_volunteering()
+returns jsonb language sql stable security definer set search_path = public as $$
+  with mine as (
+    select g.id, g.title, g.starts_at, coalesce(g.minutes, 120) as minutes, (g.host_id = auth.uid()) as led
+      from public.green_gatherings g
+     where g.cancelled_at is null and public.green_ends_at(g) < now() and public.is_volunteering(g)
+       and (
+         exists (select 1 from public.green_joins j where j.gathering_id = g.id and j.user_id = auth.uid() and j.checked_in_at is not null)
+         or (g.host_id = auth.uid() and exists (select 1 from public.green_joins j where j.gathering_id = g.id and j.user_id <> auth.uid() and j.checked_in_at is not null))
+       )
+  )
+  select jsonb_build_object(
+    'name', (select name from public.profiles where id = auth.uid()),
+    'hours', (select coalesce(round(sum(minutes) / 60.0, 1), 0) from mine),
+    'count', (select count(*) from mine),
+    'led', (select count(*) from mine where led),
+    'since', (select min(starts_at) from mine),
+    'list', coalesce((select jsonb_agg(jsonb_build_object('title', title, 'at', starts_at, 'minutes', minutes, 'led', led) order by starts_at desc)
+                        from (select * from mine order by starts_at desc limit 40) x), '[]'::jsonb));
+$$;
+revoke execute on function public.my_volunteering() from public, anon;
+grant execute on function public.my_volunteering() to authenticated;
+
+notify pgrst, 'reload schema';
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة

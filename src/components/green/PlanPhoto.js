@@ -36,6 +36,7 @@ const STOCK = [
   ].map((x) => ({ ...x, own: true })) },
   { id: 'padel', re: RE_OF.padel, files: n('act-padel-', 4).concat(clip('act-padel-v', 3), [1, 2, 3, 4].map((k) => ({ img: 'padel-ayser-' + k + (k === 1 || k === 3 ? 'w' : '') + '.jpg', credit: 'Shahd Elzayaat' }))) },
   { id: 'football', re: RE_OF.football, files: [1, 2, 3].map((k) => ({ img: 'football-crew-' + k + '.jpg', own: true })).concat([5, 4, 2, 3].map((k) => ({ img: 'sport-football-' + k + '.jpg' }))) },
+  { id: 'crochet', re: RE_OF.crochet, files: clip('act-crochet-v', 4).concat(n('act-crochet-', 3)) },
   { id: 'sketch', re: RE_OF.sketch, files: n('art-sketch-', 5) },
   { id: 'walk', re: RE_OF.walk, files: n('act-walk-', 5).concat(clip('act-walk-v', 1)) },
   { id: 'swim', re: RE_OF.swim, files: n('act-swim-', 2) },

@@ -16,6 +16,7 @@ export const ACTIVITIES = [
   { id: 'climb', emoji: '🧗', re: /climb|zip ?line|abseil|rappel|high ropes|mario|تسلق|زيب|ماريو|🧗/i },
   { id: 'padel', emoji: '🎾', re: /padel|(^|[^ت])بادل|tennis|تنس|🎾/i },
   { id: 'football', emoji: '⚽', re: /foot|soccer|pitch|five-a-side|كورة|كوره|ملعب|خماسي|⚽/i },
+  { id: 'crochet', emoji: '🧶', re: /crochet|knit|yarn|كروشيه|كروشية|تريكو|🧶/i },
   { id: 'sketch', emoji: '🎨', re: /sketch|draw|رسم(?!ي)|اسكتش|✏️|🎨|\bart\b/i },
   { id: 'walk', emoji: '🥾', re: /walk|hike|hiking|trail|stroll|مشي|تمشي|مشوار|🥾|🚶/i },
   { id: 'swim', emoji: '🏊', re: /swim|pool|سباح|حمام سباحة|🏊/i },
