@@ -13285,8 +13285,8 @@ values
  ('0ffe0000-0000-4000-8000-000000000010','trip','soon','Mount Sinai at sunrise','طلوع جبل موسى مع الشروق','Saint Catherine','EG',28.5392,33.9750,array['media/place-sinai.jpg'],'media/place-sinai.mp4',0,'EGP','{reserve}'),
  ('0ffe0000-0000-4000-8000-000000000011','experience','soon','Tallinn Old Town & Kalamaja walk','تمشية في تالين القديمة وكالاماجا','Tallinn','EE',59.4370,24.7536,'{}',null,0,'EUR','{reserve}'),
  ('0ffe0000-0000-4000-8000-000000000012','experience','soon','Viru bog boardwalk · Lahemaa','ممشى مستنقع فيرو · لاهيما','Lahemaa','EE',59.4590,25.6870,'{}',null,0,'EUR','{reserve}'),
- ('0ffe0000-0000-4000-8000-000000000013','trip','soon','Brașov & Bran in the Carpathians','براشوف وبران في جبال الكاربات','Brașov','RO',45.6427,25.5887,'{}',null,0,'EUR','{reserve}'),
- ('0ffe0000-0000-4000-8000-000000000014','trip','soon','Transfăgărășan road & Bâlea lake','طريق ترانسفاجاراشان وبحيرة باليا','Făgăraș','RO',45.6033,24.6167,'{}',null,0,'EUR','{reserve}'),
+ ('0ffe0000-0000-4000-8000-000000000013','trip','soon','Brasov & Bran in the Carpathians','براشوف وبران في جبال الكاربات','Brasov','RO',45.6427,25.5887,'{}',null,0,'EUR','{reserve}'),
+ ('0ffe0000-0000-4000-8000-000000000014','trip','soon','Transfagarasan Road & Balea Lake','طريق ترانسفاجاراشان وبحيرة باليا','Fagaras','RO',45.6033,24.6167,'{}',null,0,'EUR','{reserve}'),
  ('0ffe0000-0000-4000-8000-000000000015','trip','soon','Lake Como day trip','يوم في بحيرة كومو','Como','IT',45.8081,9.0852,'{}',null,0,'EUR','{reserve}'),
  ('0ffe0000-0000-4000-8000-000000000016','trip','soon','A weekend in Prague','ويك إند في براغ','Prague','CZ',50.0755,14.4378,'{}',null,0,'EUR','{reserve}')
 on conflict (id) do nothing;
@@ -14538,6 +14538,18 @@ revoke execute on function public.travel_group_join(text) from public, anon;
 grant execute on function public.travel_group_join(text) to authenticated;
 
 notify pgrst, 'reload schema';
+
+-- ═══════════════════════════════════════════════════════════════════
+--  TRIP NAMES IN PLAIN ENGLISH LETTERS
+--  Ayser: "ظاهرلي بالروماني مع إني عامل الـ app بالإنجليزي". The
+--  Romanian trips were spelled with Romanian letters (ă, ș, â); the
+--  English name now uses plain letters, as English signs do.
+--  Safe to re-run.
+-- ═══════════════════════════════════════════════════════════════════
+update public.offers set title = 'Transfagarasan Road & Balea Lake', city = 'Fagaras'
+ where id = '0ffe0000-0000-4000-8000-000000000014' and title = 'Transfăgărășan road & Bâlea lake';
+update public.offers set title = 'Brasov & Bran in the Carpathians', city = 'Brasov'
+ where id = '0ffe0000-0000-4000-8000-000000000013' and title = 'Brașov & Bran in the Carpathians';
 
 -- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT

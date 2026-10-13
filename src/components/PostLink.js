@@ -59,7 +59,7 @@ export const PostLink = ({ post, t, lang }) => {
       const iso = (list.find((d) => d.country === country && d.flag) || {}).flag;
       const all = await loadOffers();
       const trip = (all || []).find((o) => o.country && iso && String.fromCodePoint(...o.country.split('').map((c) => 0x1F1E6 + c.charCodeAt(0) - 65)) === iso);
-      if (trip) { if (alive) setLink({ kind: 'trip', emoji: '🧳', label: (lang === 'ar' && trip.title_ar) || trip.title_en || trip.title || country, id: trip.id }); return; }
+      if (trip) { if (alive) setLink({ kind: 'trip', emoji: '🧳', label: (lang === 'ar' && trip.title_ar) || trip.title || country, id: trip.id }); return; }
       const d = list.find((x) => x.country === country);
       if (d && alive) setLink({ kind: 'places', emoji: d.flag || '📍', label: t('pl_link_places').replace('{country}', country), d });
     })().catch(() => {});
