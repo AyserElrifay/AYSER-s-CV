@@ -17,7 +17,9 @@ import { useLang } from '../../context/LanguageContext';
 const n = (pre, k, credit) => Array.from({ length: k }, (_, i) => ({ img: pre + (i + 1) + '.jpg', credit }));
 const clip = (pre, k) => Array.from({ length: k }, (_, i) => ({ img: pre + (i + 1) + '.jpg', clip: pre + (i + 1) + '.mp4' }));
 const STOCK = [
-  { id: 'volunteer', re: /volunteer|charity|donat|food bank|تطوع|متطوع|خيري|تبرع/i, files: n('act-volunteer-', 3) },
+  { id: 'kids', re: /orphan|\bkids\b|children|child care|أيتام|ايتام|اطفال|أطفال/i, files: clip('act-kids-v', 1).concat(n('act-kids-', 5)) },
+  { id: 'volunteer', re: /volunteer|charity|donat|food bank|تطوع|متطوع|خيري|تبرع/i, files: n('act-volunteer-', 3).concat(n('act-kids-', 5)) },
+  { id: 'talk', re: /language|exchange|conversation|\bspeak|english|\bcircle\b|لغات|لغة|لغه|تبادل|محادث|دردش|كلام|💬/i, files: n('act-talk-', 6) },
   { id: 'music', re: /music|\bjam\b|guitar|\bsing|karaoke|campfire|bonfire|\bcamp\b|مزيك|موسيق|غنا|جيتار|كاريوكي|كامب|🎸|🎶|🎤/i, files: clip('act-music-v', 1).map((x) => ({ ...x, own: true })) },
   { id: 'match', re: /\bmatch|watch party|ماتش|مباراة|نشجع|تشجيع|\bcheer|📺/i, files: clip('act-match-v', 1).map((x) => ({ ...x, own: true })) },
   { id: 'climb', re: /climb|zip ?line|abseil|rappel|high ropes|mario|تسلق|زيب|ماريو|🧗/i, files: [

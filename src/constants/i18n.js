@@ -1953,6 +1953,8 @@ export const STRINGS = {
     sk_beach: "Sand, salt and the sun going down. Bring a towel and come.",
     sk_read: "A good book, a warm drink and people who love pages too.",
     sk_coffee: "One cup, no rush. The easiest way to meet someone new.",
+    sk_kids: "An afternoon of games and smiles. Kids remember who came.",
+    sk_talk: "Speak a little, laugh a lot. Every accent is welcome here.",
     lens_all: 'Everything',
     lens_places: 'Places to go',
     lens_people: 'People',
