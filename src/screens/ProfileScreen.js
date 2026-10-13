@@ -31,7 +31,6 @@ import { cachedPoster, derivePoster, posterTint } from '../lib/poster';
 import { ME, HIGHLIGHTS, MY_MOMENTS, BADGES, av, AV_NEUTRAL } from '../constants/mockData'; // demo-mode fallback only
 import { COUNTRY_LIST } from '../constants/countries';
 import { Passport, ShowedUp } from '../components/Passport';
-import { BrainDump } from '../components/BrainDump';
 import { HostCard } from '../components/HostCard';
 
 /* Hobbies — pick what you love; they show on your profile and (later)
@@ -78,6 +77,7 @@ import { SheetHandle, SheetBack } from '../components/SheetHandle';
 const GreenSheet = lazyOverlay(() => import('../components/green/GreenSheet').then((m) => ({ default: m.GreenSheet })));
 const CommentsSheet = lazyOverlay(() => import('../components/CommentsSheet').then((m) => ({ default: m.CommentsSheet })));
 const ReelsViewer = lazyOverlay(() => import('../components/ReelsViewer').then((m) => ({ default: m.ReelsViewer })));
+const MyDay = lazyOverlay(() => import('../components/MyDay').then((m) => ({ default: m.MyDay })));
 const RewardsSheet = lazyOverlay(() => import('../components/RewardsSheet').then((m) => ({ default: m.RewardsSheet })));
 const LikersSheet = lazyOverlay(() => import('../components/LikersSheet').then((m) => ({ default: m.LikersSheet })));
 
@@ -761,7 +761,7 @@ export const ProfileScreen = () => {
               ) : null}
               <Pressable onPress={() => { tapLight(); setDumpOpen(true); }} accessibilityRole="button" style={{ flex: 1 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: R - 4, borderWidth: 1, borderColor: C.line, backgroundColor: C.glass, paddingVertical: 11, paddingHorizontal: 12 }}>
-                  <Text style={{ fontSize: 15 }}>🧠</Text>
+                  <Text style={{ fontSize: 15 }}>🗓️</Text>
                   <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '900', marginStart: 8, flex: 1 }} numberOfLines={1}>{t('sp_today')}</Text>
                 </View>
               </Pressable>
@@ -1417,15 +1417,7 @@ export const ProfileScreen = () => {
       ) : null}
 
       {hostOpen ? <GreenSheet startNow onClose={() => setHostOpen(false)} /> : null}
-      {dumpOpen ? (
-        <Modal visible transparent animationType="slide" onRequestClose={() => setDumpOpen(false)}>
-          <Pressable style={{ flex: 1, backgroundColor: 'rgba(6,4,18,0.45)' }} onPress={() => setDumpOpen(false)} />
-          <View style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 16, paddingBottom: insets.bottom + 20 }}>
-            <View style={{ alignItems: 'center', marginTop: -6, marginBottom: 6 }}><SheetHandle onClose={() => setDumpOpen(false)} /></View>
-            <BrainDump />
-          </View>
-        </Modal>
-      ) : null}
+      {dumpOpen ? <MyDay onClose={() => setDumpOpen(false)} /> : null}
       {rewardsOpen ? <RewardsSheet onClose={() => setRewardsOpen(false)} onStartPlan={() => { setRewardsOpen(false); setHostOpen(true); }} /> : null}
       {matesOpen ? <MatesSheet onClose={() => { setMatesOpen(false); reload(); }} /> : null}
       {avatarBuilderOpen ? (
