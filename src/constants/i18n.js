@@ -1886,6 +1886,7 @@ export const STRINGS = {
     dy_w_sad: "Sad",
     dy_w_angry: "Angry",
     dy_w_loved: "Loved",
+    photo_from: "Photo \u00b7 {who}",
     lens_all: 'Everything',
     lens_places: 'Places to go',
     lens_people: 'People',

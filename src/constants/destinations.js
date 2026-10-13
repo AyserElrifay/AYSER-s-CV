@@ -71,7 +71,7 @@ export const DESTINATIONS = [
   { id: 'fr_chamonix', country: 'France', flag: '🇫🇷', emoji: '🏔️', name: 'Chamonix', area: 'French Alps',
     lat: 45.9237, lng: 6.8694, tags: ['Climbing', 'Adventure'],
     desc: 'The iconic Alpine town at the foot of Mont Blanc. Cable cars, climbing routes and long-distance trails — the absolute dream base for mountain people.' },
-  { id: 'fr_eiffel', hero: true, country: 'France', flag: '🇫🇷', emoji: '🗼', name: 'Eiffel Tower', area: 'Paris',
+  { id: 'fr_eiffel', photo: 'place-fr-eiffel.jpg', credit: 'Pexels', hero: true, country: 'France', flag: '🇫🇷', emoji: '🗼', name: 'Eiffel Tower', area: 'Paris',
     lat: 48.8584, lng: 2.2945, tags: ['Culture', 'Photo', 'Date spot'],
     desc: 'The classic — but take the stairs and it becomes a workout with the best panoramic reward in Paris. Iron-lattice engineering meets serious altitude.' },
   { id: 'fr_calanques', country: 'France', flag: '🇫🇷', emoji: '⛰️', name: 'Calanques National Park', area: 'Marseille',
@@ -255,7 +255,7 @@ export const DESTINATIONS = [
   { id: 'jo_wadi_rum', hero: true, country: 'Jordan', flag: '🇯🇴', emoji: '🌕', name: 'Wadi Rum', area: 'Jordan',
     lat: 29.5320, lng: 35.4190, tags: ['Camping', 'Culture'],
     desc: 'The Valley of the Moon — red sands and Mars-like massifs. One of Earth\'s greatest camps: Bedouin zarb dinners and stories around the fire.' },
-  { id: 'tr_cappadocia', hero: true, country: 'Türkiye', flag: '🇹🇷', emoji: '🎈', name: 'Cappadocia · Rose Valley', area: 'Göreme',
+  { id: 'tr_cappadocia', photo: 'place-tr-cappadocia.jpg', credit: 'Pexels', hero: true, country: 'Türkiye', flag: '🇹🇷', emoji: '🎈', name: 'Cappadocia · Rose Valley', area: 'Göreme',
     lat: 38.6600, lng: 34.8500, tags: ['Hiking', 'Photo', 'Date spot'],
     desc: 'Beyond the balloons: winding trails through fairy-chimney valleys and rock-carved churches. Dawn here is a filmmaker\'s dream.' },
   { id: 'id_batur', hero: true, country: 'Indonesia', flag: '🇮🇩', emoji: '🌋', name: 'Mount Batur', area: 'Bali',
@@ -289,7 +289,7 @@ export const DESTINATIONS = [
      first thirty days you are offered are Athens's.                  */
 
   // ── 🇬🇷 GREECE ──
-  { id: 'gr_acropolis', hero: true, country: 'Greece', flag: '🇬🇷', emoji: '🏛️', name: 'The Acropolis', area: 'Athens',
+  { id: 'gr_acropolis', photo: 'place-gr-acropolis.jpg', credit: 'Pexels', hero: true, country: 'Greece', flag: '🇬🇷', emoji: '🏛️', name: 'The Acropolis', area: 'Athens',
     lat: 37.9715, lng: 23.7257, tags: ['Culture', 'Heritage'],
     desc: 'The Parthenon on its limestone hill, above a city that has been living underneath it for two and a half thousand years. Go at opening or an hour before closing — the light is better and the crowd is thinner.' },
   { id: 'gr_plaka', country: 'Greece', flag: '🇬🇷', emoji: '🏘️', name: 'Plaka', area: 'Athens',
@@ -337,7 +337,7 @@ export const DESTINATIONS = [
     desc: 'A sea cave with a hole in its roof and a beach inside it. Reachable by kayak or a small boat; the cliff walk above it is spectacular and costs nothing.' },
 
   // ── 🇳🇱 NETHERLANDS ──
-  { id: 'nl_jordaan', hero: true, country: 'Netherlands', flag: '🇳🇱', emoji: '🚲', name: 'The Jordaan', area: 'Amsterdam',
+  { id: 'nl_jordaan', photo: 'place-nl-jordaan.jpg', credit: 'Pexels', hero: true, country: 'Netherlands', flag: '🇳🇱', emoji: '🚲', name: 'The Jordaan', area: 'Amsterdam',
     lat: 52.3745, lng: 4.8836, tags: ['Culture', 'Food'],
     desc: 'Canals, narrow houses and courtyards, best seen from a bicycle like everybody else. The canal ring is a UNESCO site and was dug in the seventeenth century.' },
   { id: 'nl_kinderdijk', country: 'Netherlands', flag: '🇳🇱', emoji: '🌬️', name: 'Kinderdijk Windmills', area: 'Kinderdijk',
@@ -375,10 +375,10 @@ export const DESTINATIONS = [
     desc: 'A Baltic merchant city rebuilt after the war from its own paintings and plans. The Solidarity museum at the shipyard is the other half of the story.' },
 
   // ── 🇭🇷 CROATIA ──
-  { id: 'hr_dubrovnik', hero: true, country: 'Croatia', flag: '🇭🇷', emoji: '🧱', name: 'Dubrovnik Old Town', area: 'Dubrovnik',
+  { id: 'hr_dubrovnik', photo: 'place-hr-dubrovnik.jpg', credit: 'Pexels', hero: true, country: 'Croatia', flag: '🇭🇷', emoji: '🧱', name: 'Dubrovnik Old Town', area: 'Dubrovnik',
     lat: 42.6407, lng: 18.1077, tags: ['Heritage', 'Swim'],
     desc: 'A walled city on the Adriatic you can walk the full circuit of, two kilometres of rampart above the roofs. Swim off the rocks outside the west wall afterwards.' },
-  { id: 'hr_plitvice', country: 'Croatia', flag: '🇭🇷', emoji: '💧', name: 'Plitvice Lakes', area: 'Plitvice',
+  { id: 'hr_plitvice', photo: 'place-hr-plitvice.jpg', credit: 'Pexels', country: 'Croatia', flag: '🇭🇷', emoji: '💧', name: 'Plitvice Lakes', area: 'Plitvice',
     lat: 44.8654, lng: 15.5820, tags: ['Hiking', 'Photo'],
     desc: 'Sixteen terraced lakes falling into one another over travertine, crossed on wooden walkways. A UNESCO site; swimming is not allowed anywhere in it.' },
   { id: 'hr_split', country: 'Croatia', flag: '🇭🇷', emoji: '🏛️', name: 'Diocletian\'s Palace', area: 'Split',
@@ -419,7 +419,7 @@ export const DESTINATIONS = [
     desc: 'A small hill covered in more than a hundred thousand crosses left by pilgrims. Bulldozed three times under Soviet rule and rebuilt each time overnight.' },
 
   // ── 🇪🇪 ESTONIA ──
-  { id: 'ee_tallinn', hero: true, country: 'Estonia', flag: '🇪🇪', emoji: '🏰', name: 'Tallinn Old Town', area: 'Tallinn',
+  { id: 'ee_tallinn', photo: 'place-ee-tallinn.jpg', credit: 'Pexels', hero: true, country: 'Estonia', flag: '🇪🇪', emoji: '🏰', name: 'Tallinn Old Town', area: 'Tallinn',
     lat: 59.4370, lng: 24.7454, tags: ['Culture', 'Heritage'],
     desc: 'A walled Hanseatic town that came through the war nearly intact, wrapped around a limestone hill. The whole country is famously online — the wifi in the medieval café will be better than yours.' },
   { id: 'ee_lahemaa', country: 'Estonia', flag: '🇪🇪', emoji: '🌲', name: 'Lahemaa National Park', area: 'Lahemaa',
@@ -521,7 +521,7 @@ export const DESTINATIONS = [
   { id: 'tr_hagia_sophia', country: 'Türkiye', flag: '🇹🇷', emoji: '🕌', name: 'Hagia Sophia', area: 'Istanbul',
     lat: 41.0086, lng: 28.9802, tags: ['Culture', 'Heritage'],
     desc: 'Fifteen centuries under one dome. Walk across Sultanahmet Square to the Blue Mosque after, and end at the Grand Bazaar.' },
-  { id: 'uk_big_ben', country: 'United Kingdom', flag: '🇬🇧', emoji: '🕰️', name: 'Big Ben & Westminster', area: 'London',
+  { id: 'uk_big_ben', photo: 'place-uk-big-ben.jpg', credit: 'Pexels', country: 'United Kingdom', flag: '🇬🇧', emoji: '🕰️', name: 'Big Ben & Westminster', area: 'London',
     lat: 51.5007, lng: -0.1246, tags: ['Culture', 'Photo'],
     desc: 'The clock tower over the Thames. Cross Westminster Bridge at dusk and walk the South Bank all the way to Tower Bridge.' },
   { id: 'us_statue_liberty', hero: true, country: 'United States', flag: '🇺🇸', emoji: '🗽', name: 'Statue of Liberty', area: 'New York',
@@ -590,7 +590,7 @@ export const DESTINATIONS = [
   { id: 'ee_pirita', country: 'Estonia', flag: '🇪🇪', emoji: '🏖️', name: 'Pirita Beach', area: 'Tallinn',
     lat: 59.4690, lng: 24.8330, tags: ['Sea', 'Sport'],
     desc: 'The city\'s long sandy beach, with a seaside path for running and cycling and beach volleyball in summer.' },
-  { id: 'ee_toompea_view', country: 'Estonia', flag: '🇪🇪', emoji: '🔭', name: 'Kohtuotsa Viewpoint', area: 'Tallinn, Toompea',
+  { id: 'ee_toompea_view', photo: 'place-ee-toompea-view.jpg', credit: 'Pexels', country: 'Estonia', flag: '🇪🇪', emoji: '🔭', name: 'Kohtuotsa Viewpoint', area: 'Tallinn, Toompea',
     lat: 59.4380, lng: 24.7420, tags: ['Photo', 'Sunset', 'Date spot'],
     desc: 'The red roofs of the old town and the sea behind them, from the top of Toompea hill. Free, and the obvious first photo.' },
   { id: 'ee_jagala', country: 'Estonia', flag: '🇪🇪', emoji: '💦', name: 'Jägala Waterfall', area: 'Harju County',
@@ -659,7 +659,7 @@ export const DESTINATIONS = [
   { id: 'ro_sapanta', country: 'Romania', flag: '🇷🇴', emoji: '💙', name: 'Merry Cemetery', area: 'Săpânța, Maramureș',
     lat: 47.9710, lng: 23.6950, tags: ['Culture', 'Heritage'],
     desc: 'Bright blue carved crosses, each with a funny poem about the person under it. Maramureș at its most itself.' },
-  { id: 'ro_timisoara', country: 'Romania', flag: '🇷🇴', emoji: '⛪', name: 'Union Square', area: 'Timișoara',
+  { id: 'ro_timisoara', photo: 'place-ro-timisoara.jpg', credit: 'Pexels', country: 'Romania', flag: '🇷🇴', emoji: '⛪', name: 'Union Square', area: 'Timișoara',
     lat: 45.7580, lng: 21.2290, tags: ['Culture', 'Food'],
     desc: 'Baroque squares and terraces in the city where the 1989 revolution began.' },
   { id: 'ro_iasi', country: 'Romania', flag: '🇷🇴', emoji: '🏛️', name: 'Palace of Culture', area: 'Iași',

@@ -40,6 +40,8 @@ export const PlacePhoto = ({ place, height = 180 }) => {
         ) : (
           <Image source={{ uri: own }} accessibilityLabel={place.name} style={{ width: '100%', height, borderRadius: 16, backgroundColor: C.glassHi }} />
         )}
+        {/* a free-licence photo says where it came from */}
+        {place.credit ? <Text style={{ color: C.faint, fontSize: 10.5, marginTop: 5 }} numberOfLines={1}>{t('photo_from').replace('{who}', place.credit)}</Text> : null}
       </View>
     );
   }
