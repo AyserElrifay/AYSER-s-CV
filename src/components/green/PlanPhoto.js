@@ -5,6 +5,9 @@ import { C } from '../../constants/theme';
 import { lookOf } from '../../lib/activityPins';
 import { tapLight } from '../../utils/feedback';
 import { placePhoto } from '../../lib/commonsPhoto';
+import { publicMedia } from '../../lib/publicMedia';
+
+const FOOTBALL = [1, 2, 3, 4, 5].map((n) => 'sport-football-' + n + '.jpg');
 
 /* ─── A PLAN'S PICTURE: REAL, OR ITS DRAWN LOOK ───────────────────────
    Ayser: photos or emoji? Real photos where there are real ones — the
@@ -105,6 +108,26 @@ export const PlanHead = ({ g, children }) => {
   const own = planPhotoOf(g);
   const url = own || (place && safe(place.url));
   const look = lookOf(g && g.kind);
+  /* a football plan with no photo of its own: a real photo of football
+     (Pexels, credited) — the game, not this game */
+  const ball = !url && /foot|soccer|كور|⚽/i.test(String((g && g.title) || '') + ' ' + String((g && g.kind) || ''))
+    ? FOOTBALL[String((g && g.id) || '').split('').reduce((n, c) => n + c.charCodeAt(0), 0) % FOOTBALL.length] : null;
+  if (ball) {
+    return (
+      <View>
+        <View style={{ height: 150, borderRadius: 16, overflow: 'hidden', backgroundColor: C.glassHi, marginBottom: 11 }}>
+          <Image source={{ uri: publicMedia(ball) }} style={{ width: '100%', height: 150 }} accessibilityIgnoresInvertColors />
+          <View style={{ position: 'absolute', top: 8, left: 8, backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 10, paddingHorizontal: 6, paddingVertical: 2 }}>
+            <Text style={{ fontSize: 16 }}>{look.emoji}</Text>
+          </View>
+          <View style={{ position: 'absolute', right: 6, bottom: 6, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 6, paddingHorizontal: 5, paddingVertical: 1 }}>
+            <Text style={{ color: '#FFF', fontSize: 9.5 }}>📷 Pexels</Text>
+          </View>
+        </View>
+        {children}
+      </View>
+    );
+  }
   if (!url) {
     /* no real photo of this place: a bright cover in the activity's own
        colours rather than a stranger's stock picture passed off as this

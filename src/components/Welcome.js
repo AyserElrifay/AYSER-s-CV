@@ -29,7 +29,7 @@ import { moodOfToday } from '../lib/mood';
    there is nothing on this screen that is not true of the app on the
    day you open it. */
 
-const PHOTOS = ['welcome-dahab.jpg', 'welcome-fisher.jpg', 'welcome-heron.jpg', 'welcome-kite.jpg', 'welcome-trees.jpg', 'welcome-tea.jpg', 'welcome-cave.jpg', 'welcome-cat.jpg', 'welcome-breakfast.jpg', 'welcome-catherine.jpg', 'welcome-sunset.jpg', 'welcome-nile.jpg', 'welcome-seaside.jpg'];
+const PHOTOS = ['welcome-dahab.jpg', 'welcome-fisher.jpg', 'welcome-heron.jpg', 'welcome-kite.jpg', 'welcome-trees.jpg', 'welcome-tea.jpg', 'welcome-cave.jpg', 'welcome-cat.jpg', 'welcome-breakfast.jpg', 'welcome-catherine.jpg', 'welcome-sunset.jpg', 'welcome-nile.jpg', 'welcome-seaside.jpg', 'welcome-moldova.jpg'];
 /* and, every other day, people out together (src/lib/mood.js) — a mood, never shown as members */
 const photoOfToday = () => { const d = Math.floor(Date.now() / 86400000); return d % 2 ? moodOfToday() : PHOTOS[Math.floor(d / 2) % PHOTOS.length]; };
 

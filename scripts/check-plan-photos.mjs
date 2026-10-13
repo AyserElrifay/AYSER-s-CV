@@ -22,7 +22,8 @@ is('only the host sets it', /where id = p_id and host_id = me/.test(part), true)
 is('last time: earlier weeks of the same plan, and image posts within 300 m', /o\.weekly_id = g\.weekly_id/.test(part) && /km_between\(g\.lat, g\.lng, p\.lat, p\.lng\) <= 0\.3/.test(part) && /mp4\|webm\|mov/.test(part), true);
 is('the list carries both', /g\.photo_url, public\.green_past_photos\(g\) as past_photos/.test(part), true);
 is('the host or the owner can take one down', /green_photo_remove/.test(part) && /is_app_owner\(\)/.test(part.slice(part.indexOf('green_photo_remove'))), true);
-is('no stock pictures anywhere: a plan without a photo keeps its drawn look', /LinearGradient colors=\{\[look\.from, look\.to\]\}/.test(photo) && !/unsplash|pexels|pixabay|stock/i.test(photo + form), true);
+// Ayser asked for real football photos on football plans: allowed, credited, and only there
+is('a plan without a photo keeps its drawn look — except football, with a credited free photo', /LinearGradient colors=\{\[look\.from, look\.to\]\}/.test(photo) && /📷 Pexels/.test(photo) && /foot\|soccer/.test(photo) && !/unsplash|pixabay/i.test(photo + form), true);
 is('only https ever reaches an image', /\/\^https:\\\/\\\/\/i\.test\(u\)/.test(photo), true);
 is('the photo is optional in the form', /sf_photo_sub/.test(form) && !/required/.test(form.slice(form.indexOf('pickPhoto'))), true);
 is('a failed upload never loses the plan', /the plan stands either way/.test(sheet), true);
