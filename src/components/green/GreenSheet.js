@@ -9,7 +9,7 @@ import { useAuth } from '../../context/AuthContext';
 import { SUPABASE_READY } from '../../lib/supabase';
 import { explain } from '../../lib/explain';
 import {
-  listGatherings, keptGatherings, listSparks, createGathering, setAudience, joinGathering, cancelGathering, sparkText, announceGathering,
+  listGatherings, keptGatherings, listSparks, createGathering, setAudience, setAges, joinGathering, cancelGathering, sparkText, announceGathering,
   setGatheringPhoto, removeGatheringPhoto,
 } from '../../services/green';
 import { PlanThumb, PastPhotos, planPhotoOf } from './PlanPhoto';
@@ -243,6 +243,9 @@ export const GreenSheet = ({ onClose, onPlay, startNow, homeCountry, openOn, pre
     if (r && r.ok && r.id && form.audience && form.audience !== 'all') {
       const a = await setAudience(r.id, form.audience);
       if (!(a && a.ok)) { setBusy(false); setForm((f) => ({ ...f, err: a && a.reason === 'audience_host' ? 'audience_host' : 'server' })); load(); return; }
+    }
+    if (r && r.ok && r.id && form.ages && (form.ages[0] != null || form.ages[1] != null)) {
+      await setAges(r.id, form.ages[0], form.ages[1]);
     }
     if (r && r.ok && form.photoFile && user && r.id) {
       /* the plan stands either way; its photo follows it up */

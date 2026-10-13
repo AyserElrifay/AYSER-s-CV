@@ -173,6 +173,8 @@ export const myOrganiser = () => rpc('my_organiser', {});
 export const myVolunteering = () => rpc('my_volunteering', {});
 /* girls only, guys only or everyone — the server checks the host's own profile */
 export const setAudience = (id, audience) => rpc('green_set_audience', { p_id: id, p_audience: audience });
+/* an age group — checked by the server against each person's profile age */
+export const setAges = (id, min, max) => rpc('green_set_ages', { p_id: id, p_min: min, p_max: max });
 export const setJoinedAs = (as) => rpc('set_joined_as', { p_as: as });
 
 /* ── THE PHARAOH ALBUM ──────────────────────────────────────────────

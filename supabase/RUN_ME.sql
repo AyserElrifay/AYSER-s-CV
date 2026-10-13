@@ -14350,6 +14350,130 @@ grant execute on function public.green_list(text) to anon, authenticated;
 notify pgrst, 'reload schema';
 
 -- ═══════════════════════════════════════════════════════════════════
+--  AGE GROUPS
+--
+--  Ayser: "فين موضوع الـ age". Next to girls only / guys only: a host
+--  can keep a hangout to an age group (18–25, 25–35, 35+, or their own
+--  range). The database checks it against the age on the profile when
+--  somebody says "I'm coming"; a profile with no age cannot join a
+--  hangout that has an age group.
+--  Safe to re-run.
+-- ═══════════════════════════════════════════════════════════════════
+alter table public.green_gatherings add column if not exists age_min int;
+alter table public.green_gatherings add column if not exists age_max int;
+
+create or replace function public.green_set_ages(p_id uuid, p_min int, p_max int)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid();
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  if (p_min is not null and (p_min < 13 or p_min > 99)) or (p_max is not null and (p_max < 13 or p_max > 99))
+     or (p_min is not null and p_max is not null and p_min > p_max) then
+    return jsonb_build_object('ok', false, 'reason', 'bad');
+  end if;
+  update public.green_gatherings set age_min = p_min, age_max = p_max where id = p_id and host_id = me and cancelled_at is null;
+  if not found then return jsonb_build_object('ok', false, 'reason', 'not_yours'); end if;
+  return jsonb_build_object('ok', true);
+end;
+$$;
+revoke execute on function public.green_set_ages(uuid, int, int) from public, anon;
+grant execute on function public.green_set_ages(uuid, int, int) to authenticated;
+
+create or replace function public.green_join(p_id uuid, p_going boolean)
+returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare
+  me uuid := auth.uid();
+  g  public.green_gatherings%rowtype;
+  n  int;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  select * into g from public.green_gatherings where id = p_id;
+  if not found then return jsonb_build_object('ok', false, 'reason', 'no_gathering'); end if;
+  if g.cancelled_at is not null then return jsonb_build_object('ok', false, 'reason', 'cancelled'); end if;
+
+  if coalesce(p_going, true) then
+    if g.host_id <> me and not public.is_plus(me)
+       and not exists (select 1 from public.green_joins where gathering_id = p_id and user_id = me) then
+      return jsonb_build_object('ok', false, 'reason', 'plus');
+    end if;
+    -- girls only / guys only, read from the profile, never from the app
+    if coalesce(g.audience, 'all') <> 'all' and g.host_id <> me then
+      if coalesce((select gender from public.profiles where id = me), '') = '' then
+        return jsonb_build_object('ok', false, 'reason', 'audience_gender');
+      elsif g.audience = 'women' and (select gender from public.profiles where id = me) <> 'f' then
+        return jsonb_build_object('ok', false, 'reason', 'audience_women');
+      elsif g.audience = 'men' and (select gender from public.profiles where id = me) <> 'm' then
+        return jsonb_build_object('ok', false, 'reason', 'audience_men');
+      end if;
+    end if;
+    -- an age group, read from the age on the profile
+    if (g.age_min is not null or g.age_max is not null) and g.host_id <> me then
+      if (select age from public.profiles where id = me) is null then
+        return jsonb_build_object('ok', false, 'reason', 'age_unknown');
+      elsif (select age from public.profiles where id = me) < coalesce(g.age_min, 0)
+         or (select age from public.profiles where id = me) > coalesce(g.age_max, 200) then
+        return jsonb_build_object('ok', false, 'reason', 'age_out');
+      end if;
+    end if;
+    if g.capacity is not null then
+      select count(*) into n from public.green_joins where gathering_id = p_id;
+      if n >= g.capacity and not exists (
+        select 1 from public.green_joins where gathering_id = p_id and user_id = me
+      ) then
+        return jsonb_build_object('ok', false, 'reason', 'full');
+      end if;
+    end if;
+    insert into public.green_joins (gathering_id, user_id) values (p_id, me) on conflict do nothing;
+  else
+    delete from public.green_joins where gathering_id = p_id and user_id = me;
+  end if;
+
+  select count(*) into n from public.green_joins where gathering_id = p_id;
+  return jsonb_build_object('ok', true, 'going', n, 'im_going', coalesce(p_going, true));
+end;
+$$;
+grant execute on function public.green_join(uuid, boolean) to authenticated;
+
+create or replace function public.green_list(p_country text)
+returns jsonb
+language sql stable security definer set search_path = public as $$
+  with my_mates as (
+    select case when m.requester_id = auth.uid() then m.addressee_id else m.requester_id end as mate_id
+      from public.mates m
+     where m.status = 'accepted' and auth.uid() is not null and auth.uid() in (m.requester_id, m.addressee_id)
+  )
+  select coalesce(jsonb_agg(row_to_json(x)::jsonb order by x.starts_at), '[]'::jsonb)
+    from (
+      select g.id, g.kind, g.title, g.about, g.country, g.city, g.place_name,
+             g.lat, g.lng, g.starts_at, g.minutes, g.capacity, g.language,
+             g.host_id, p.name as host_name, p.host_role as host_role, g.weekly_id, g.announced_at, g.squad_id,
+             g.photo_url, public.green_past_photos(g) as past_photos, coalesce(g.audience, 'all') as audience, g.age_min, g.age_max,
+             (select o.photo_url from public.green_gatherings o
+               where g.weekly_id is not null and o.weekly_id = g.weekly_id and o.photo_url is not null and o.cancelled_at is null
+               order by o.starts_at desc limit 1) as weekly_photo,
+             (select count(*) from public.green_joins j where j.gathering_id = g.id) as going,
+             (select count(*) from public.green_joins j join my_mates mm on mm.mate_id = j.user_id
+               where j.gathering_id = g.id) as mates_going,
+             exists (select 1 from public.green_joins j
+                      where j.gathering_id = g.id and j.user_id = auth.uid()) as im_going,
+             exists (select 1 from public.green_joins j
+                      where j.gathering_id = g.id and j.user_id = auth.uid() and j.checked_in_at is not null) as checked_in,
+             case when g.kind = 'cleanup' then 50 else 30 end as xp
+        from public.green_gatherings g
+        left join public.profiles p on p.id = g.host_id
+       where g.cancelled_at is null
+         and g.starts_at > now() - interval '3 hours'
+         and (p_country is null or g.country = p_country)
+       order by g.starts_at
+       limit 60
+    ) x;
+$$;
+grant execute on function public.green_list(text) to anon, authenticated;
+
+notify pgrst, 'reload schema';
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة

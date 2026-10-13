@@ -182,6 +182,21 @@ export const StartForm = ({ form, setForm, kinds, places, busy, onSubmit, onClos
               })}
             </View>
 
+            {/* an age group, if it matters (green_set_ages) */}
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 4 }}>
+              {[[null, null, 'ag_any'], [18, 25, null], [25, 35, null], [35, null, null]].map(([lo, hi, key]) => {
+                const cur = form.ages || [null, null];
+                const on = cur[0] === lo && cur[1] === hi;
+                const label = key ? t(key) : hi ? lo + '–' + hi : lo + '+';
+                return (
+                  <Pressable key={label} onPress={() => { tapLight(); setForm((f) => ({ ...f, ages: [lo, hi], err: null })); }} accessibilityRole="radio" accessibilityState={{ checked: on }}
+                    style={{ marginEnd: 8, marginBottom: 6, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8, borderWidth: 1.5, borderColor: on ? C.text : C.line, backgroundColor: on ? C.text : 'transparent' }}>
+                    <Text style={{ color: on ? C.bg : C.text, fontSize: 13.5, fontWeight: '800' }}>{'🎂 ' + label}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
             {/* everything else, folded */}
             {more ? (
               <View style={{ marginTop: 6 }}>

@@ -305,6 +305,7 @@ export const TogetherScreen = () => {
     const r = await joinGathering(g.id, yes);
     setBusy((b) => { const n = { ...b }; delete n[g.id]; return n; });
     if (r && !r.ok && /^audience_/.test(r.reason || '')) setCheckMsg({ id: g.id, text: t('au_err_' + r.reason.slice(9)) });
+    if (r && !r.ok && /^age_/.test(r.reason || '')) setCheckMsg({ id: g.id, text: t('ag_err_' + r.reason.slice(4)) });
     if (!(r && r.ok)) load();
     else if (yes) {
       tapSuccess();
@@ -455,6 +456,11 @@ export const TogetherScreen = () => {
                             {hour(g.starts_at)}{g.place_name ? ' · ' + g.place_name : g.city ? ' · ' + g.city : ''}
                           </Text>
                           {g.host_role ? <View style={{ marginTop: 5 }}><HostBadge role={g.host_role} small /></View> : null}
+                          {g.age_min != null || g.age_max != null ? (
+                            <View style={{ alignSelf: 'flex-start', marginTop: 6, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3, backgroundColor: '#FEF3C7' }}>
+                              <Text style={{ color: '#92400E', fontSize: 12, fontWeight: '900' }}>{'🎂 ' + (g.age_max != null ? (g.age_min || 13) + '–' + g.age_max : g.age_min + '+')}</Text>
+                            </View>
+                          ) : null}
                           {g.audience && g.audience !== 'all' ? (
                             <View style={{ alignSelf: 'flex-start', marginTop: 6, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3, backgroundColor: g.audience === 'women' ? '#FCE7F3' : '#DBEAFE' }}>
                               <Text style={{ color: g.audience === 'women' ? '#9D174D' : '#1E40AF', fontSize: 12, fontWeight: '900' }}>{(g.audience === 'women' ? '👩 ' : '👨 ') + t('au_' + g.audience)}</Text>
