@@ -21,6 +21,7 @@ import {
   joinGroup, leaveGroup, markGroupSeen, explainGroups,
 } from '../services/groups';
 import { useSheetBack } from '../hooks/useSheetBack';
+import { kept, keep } from '../lib/kept';
 import { SheetHandle } from './SheetHandle';
 
 /* ─── A GROUP THAT IS A PLACE, NOT A LIST OF NAMES ───────────────────
@@ -393,9 +394,11 @@ export const GroupPage = ({ groupId, focusPostId, onClose, onChanged }) => {
     ? { id: user.id, name: (mine && mine.name) || 'You', avatar: (mine && mine.avatar_url) || null }
     : null;
 
-  const [group, setGroup] = useState(null);
+  // last time's group and wall at once, then the fresh ones (src/lib/kept.js)
+  const KG = 'group.' + groupId + '.' + (user ? user.id : '');
+  const [group, setGroup] = useState(() => kept(KG));
   const [err, setErr] = useState(null);
-  const [wall, setWall] = useState(null);
+  const [wall, setWall] = useState(() => (focusPostId ? null : kept(KG + '.wall')));
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
   const [tab, setTab] = useState('wall');           // wall | people
@@ -412,20 +415,20 @@ export const GroupPage = ({ groupId, focusPostId, onClose, onChanged }) => {
     setErr(null);
     try {
       const g = await fetchGroup(groupId, user && user.id);
-      setGroup(g);
+      setGroup(keep(KG, g));
       const rows = await fetchWall(groupId);
       /* Somebody sent a link to ONE post. Putting it first is the whole
          difference between "here is the thing I wanted you to see" and
          "here is a wall, go and find it". */
       setWall(focusPostId
         ? (rows || []).slice().sort((a, b) => (b.id === focusPostId ? 1 : 0) - (a.id === focusPostId ? 1 : 0))
-        : rows);
+        : keep(KG + '.wall', rows));
       /* Marking it seen is what makes the badge go away, and it only
          makes sense once the wall has actually arrived. */
       if (g.joined) markGroupSeen(groupId);
     } catch (e) {
-      setErr(explainGroups(e));
-      setWall([]);
+      if (!kept(KG)) setErr(explainGroups(e));   // what was already showing stays
+      setWall((x) => x || []);
     }
   }, [groupId, user, focusPostId]);
 

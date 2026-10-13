@@ -6,6 +6,7 @@ import { askFounderWelcome } from '../services/founder';
 import { loadAccountSettings, forgetAccountSettings } from '../services/accountSettings';
 import { isOwner } from '../services/music';
 import { publishViewerIsOwner } from '../lib/plumbing';
+import { forgetKept } from '../lib/kept';
 
 /* Session state for the whole app.
    Real mode  — session comes from Supabase and survives restarts.
@@ -174,6 +175,7 @@ export const AuthProvider = ({ children }) => {
       if (SUPABASE_READY) await auth.signOut();
       // the next person on this phone must not inherit these
       forgetAccountSettings();
+      forgetKept();
       setDemoAuthed(false);
     },
     enterDemo: () => setDemoAuthed(true),

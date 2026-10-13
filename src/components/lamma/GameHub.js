@@ -16,6 +16,7 @@ import { packFlags } from './languages';
 import { LammaGame } from './LammaGame';
 import { tapLight, tapMedium } from '../../utils/feedback';
 import { useSheetBack } from '../../hooks/useSheetBack';
+import { kept, keep } from '../../lib/kept';
 
 /* ─── لمّة · THE WAY IN ───────────────────────────────────────────────
    Two doors and nothing else: start one, or join one somebody is
@@ -43,7 +44,7 @@ export const GameHub = ({ onClose, focusPack = null }) => {
   const { t, lang } = useLang();
   const { user } = useAuth();
 
-  const [packs, setPacks] = useState(null);      // null = still asking
+  const [packs, setPacks] = useState(() => kept('packs.' + (user ? user.id : '') + '.' + (focusPack || '')));      // null = still asking; last time's at once
   const [why, setWhy] = useState(null);          // null | 'setup' | 'permission' | 'offline'
   const [code, setCode] = useState('');
   const [err, setErr] = useState(null);
@@ -57,7 +58,8 @@ export const GameHub = ({ onClose, focusPack = null }) => {
      answers Groups gives, from the same place: src/lib/explain.js */
   const load = useCallback(() => {
     let alive = true;
-    setPacks(null);
+    const k = 'packs.' + (user ? user.id : '') + '.' + (focusPack || '');
+    setPacks(kept(k));
     if (!SUPABASE_READY || !user) { setPacks([]); setWhy('offline'); return () => {}; }
     /* WHERE YOU LIVE IS ON YOUR PROFILE, not on your sign-in. The
        signed-in user is an auth record — an id, an email, a token — and
@@ -76,9 +78,9 @@ export const GameHub = ({ onClose, focusPack = null }) => {
         const list = focusPack
           ? rows.slice().sort((a, b) => (a.id === focusPack ? 0 : 1) - (b.id === focusPack ? 0 : 1))
           : rows;
-        setPacks(list); setWhy(null);
+        setPacks(keep(k, list)); setWhy(null);
       })
-      .catch((e) => { if (alive) { setPacks([]); setWhy(explain(e)); } });
+      .catch((e) => { if (alive) { if (kept(k)) return; setPacks([]); setWhy(explain(e)); } });
     return () => { alive = false; };
   }, [user, focusPack]);
 

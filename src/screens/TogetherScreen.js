@@ -27,7 +27,9 @@ import { lookOf, titleFor } from '../lib/activityPins';
 import { flagToIso, groupByDay } from '../lib/together';
 import { showOnMap, goToTab } from '../lib/mapBus';
 import { openChat } from '../lib/chatBus';
-import { lazyOverlay } from '../lib/lazyScreen';
+import { lazyOverlay, preloadTabs } from '../lib/lazyScreen';
+import { isSaving, DEFAULT_DATA_MODE } from '../lib/dataSaver';
+import { getPrefs } from '../services/prefs';
 import { HostBadge } from '../components/HostCard';
 import { PlanHead, PastPhotos } from '../components/green/PlanPhoto';
 import { ReportSheet } from '../components/ReportSheet';
@@ -146,6 +148,10 @@ export const TogetherScreen = () => {
   const nav = useNavigation();
   const { t, lang } = useLang();
   const { user } = useAuth();
+  /* the four tiles' sheets, fetched in a quiet moment once this tab is
+     up, so the first tap opens one at once instead of waiting for it to
+     download. Not in data saver. */
+  useEffect(() => preloadTabs([GreenSheet, TripsSheet, SettleSheet, RewardsSheet], { saving: isSaving(getPrefs().dataSaver || DEFAULT_DATA_MODE) }), []);
 
   const [myCode, setMyCode] = useState(readCode);   // the country on your profile, as a code
   const [codeKnown, setCodeKnown] = useState(() => readCode() != null || !SUPABASE_READY);

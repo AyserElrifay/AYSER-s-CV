@@ -14,6 +14,7 @@ import { titleFor } from '../lib/activityPins';
 import { PlanThumb } from './green/PlanPhoto';
 import { tapLight } from '../utils/feedback';
 import { useSheetBack } from '../hooks/useSheetBack';
+import { kept, keep } from '../lib/kept';
 import { SheetHandle } from './SheetHandle';
 
 /* ─── WHAT IS THERE TO JOIN ──────────────────────────────────────────
@@ -98,15 +99,15 @@ export const WhatsOnSheet = ({ coords, onClose, onOpenGroup, onOpenMoment, onOpe
   const insets = useSafeAreaInsets();
   const { t, lang } = useLang();
   const { user } = useAuth();
-  const [data, setData] = useState(null);      // null = still asking
+  const [data, setData] = useState(() => kept('whatson.' + (user ? user.id : '')));      // null = still asking
   const [joins, setJoins] = useState({});      // id -> 'busy' | 'done'
 
   const load = useCallback(() => {
     let alive = true;
-    setData(null);
+    const k = 'whatson.' + (user ? user.id : '');
     fetchWhatsOn({ userId: user && user.id, coords })
-      .then((d) => alive && setData(d))
-      .catch(() => alive && setData({ now: [], soon: [], groups: [], reached: { now: false, soon: false, groups: false } }));
+      .then((d) => alive && setData(keep(k, d)))
+      .catch(() => alive && setData((x) => x || { now: [], soon: [], groups: [], reached: { now: false, soon: false, groups: false } }));
     return () => { alive = false; };
   }, [user, coords]);
   useEffect(load, [load]);

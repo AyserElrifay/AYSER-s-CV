@@ -14,6 +14,7 @@ import { shareLink, shareNote } from '../utils/share';
 import { AV_NEUTRAL } from '../constants/mockData';
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
 import { useSheetBack } from '../hooks/useSheetBack';
+import { kept, keep } from '../lib/kept';
 import { SheetHandle } from './SheetHandle';
 
 /* ─── A GROUP CHAT, AND WHO RUNS IT ────────────────────────────────────
@@ -36,7 +37,7 @@ export const GroupInfoSheet = ({ squadId, onClose, onLeft, onChanged }) => {
   const { t } = useLang();
   const { user } = useAuth();
   const me = user && user.id;
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(() => kept('squad.' + squadId + '.' + me));   // last time's, at once
   const [mates, setMates] = useState(null);
   const [adding, setAdding] = useState(false);
   const [invited, setInvited] = useState({});
@@ -46,7 +47,7 @@ export const GroupInfoSheet = ({ squadId, onClose, onLeft, onChanged }) => {
   const [busy, setBusy] = useState(false);
   const [confirmLeave, setConfirmLeave] = useState(false);
 
-  const load = useCallback(() => squadPeople(squadId).then((r) => setData(r)), [squadId]);
+  const load = useCallback(() => squadPeople(squadId).then((r) => setData((x) => keep('squad.' + squadId + '.' + me, r) || x)), [squadId, me]);
   useEffect(() => { load(); }, [load]);
 
   const flash = (s) => { setNote(s); setTimeout(() => setNote(null), 2600); };

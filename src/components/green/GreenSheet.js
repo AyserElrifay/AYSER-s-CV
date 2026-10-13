@@ -9,7 +9,7 @@ import { useAuth } from '../../context/AuthContext';
 import { SUPABASE_READY } from '../../lib/supabase';
 import { explain } from '../../lib/explain';
 import {
-  listGatherings, listSparks, createGathering, joinGathering, cancelGathering, sparkText, announceGathering,
+  listGatherings, keptGatherings, listSparks, createGathering, joinGathering, cancelGathering, sparkText, announceGathering,
   setGatheringPhoto, removeGatheringPhoto,
 } from '../../services/green';
 import { PlanThumb, PastPhotos, planPhotoOf } from './PlanPhoto';
@@ -17,6 +17,7 @@ import { ReportSheet } from '../ReportSheet';
 import { uploadPlanPhoto } from '../../lib/storage';
 import { tapLight, tapMedium, tapSuccess } from '../../utils/feedback';
 import { PLAY_LANGS } from '../lamma/languages';
+import { kept, keep } from '../../lib/kept';
 import { useSheetBack } from '../../hooks/useSheetBack';
 import { GreenMark } from './GreenMark';
 import { StartForm } from './StartForm';
@@ -126,8 +127,12 @@ export const GreenSheet = ({ onClose, onPlay, startNow, homeCountry, openOn, pre
   const { user } = useAuth();
 
   const [country, setCountry] = useState(null);
-  const [rows, setRows] = useState(null);            // null = still asking
-  const [sparks, setSparks] = useState([]);
+  /* opens on what it showed last time and catches up quietly — a
+     spinner only the very first time (src/lib/kept.js) */
+  const keyOf = (c) => 'green.' + (startNow ? 'all' : 'green') + '.' + (c || 'all') + '.' + (user ? user.id : '');
+  const fromPhone = (c) => { const g = keptGatherings(c); return g ? (startNow ? g : g.filter(isGreen)) : null; };
+  const [rows, setRows] = useState(() => kept(keyOf(null)) || fromPhone(null));   // null = still asking
+  const [sparks, setSparks] = useState(() => kept(keyOf(null) + '.sparks') || []);
   const [why, setWhy] = useState(null);
   const [busy, setBusy] = useState(false);
   const [form, setForm] = useState(null);            // the new-gathering sheet
@@ -179,14 +184,15 @@ export const GreenSheet = ({ onClose, onPlay, startNow, homeCountry, openOn, pre
 
   const load = useCallback(() => {
     let alive = true;
-    setRows(null);
+    const k = keyOf(country);
+    setRows(kept(k) || fromPhone(country));   // the same list as before: no spinner; a new country: its own
     if (!SUPABASE_READY || !user) { setRows([]); setWhy('offline'); return () => {}; }
     Promise.all([listGatherings(country), listSparks(country)])
       /* the page is about clean-ups, planting and repair — the week
          filtered to those (src/lib/greenKinds.js). Starting a plan
          from elsewhere (startNow) is untouched. */
-      .then(([gs, sp]) => { if (alive) { setRows(startNow ? gs : (gs || []).filter(isGreen)); setSparks(startNow ? sp : (sp || []).filter(isGreen)); setWhy(null); } })
-      .catch((e) => { if (alive) { setRows([]); setWhy(explain(e)); } });
+      .then(([gs, sp]) => { if (alive) { setRows(keep(k, startNow ? gs : (gs || []).filter(isGreen))); setSparks(keep(k + '.sparks', startNow ? sp : (sp || []).filter(isGreen))); setWhy(null); } })
+      .catch((e) => { if (alive) { setRows((r) => r || []); setWhy(kept(k) ? null : explain(e)); } });
     return () => { alive = false; };
   }, [country, user]);
 

@@ -13,6 +13,7 @@ import {
   joinProgramme, leaveProgramme, whereWhen,
 } from '../../services/programmes';
 import { useSheetBack } from '../../hooks/useSheetBack';
+import { kept, keep } from '../../lib/kept';
 
 /* ─── EXCHANGES ──────────────────────────────────────────────────────
    Every programme somebody in Moments has actually been on, and a
@@ -121,8 +122,10 @@ export const ProgrammesSheet = ({ onClose, onOpenGroup }) => {
   const { t } = useLang();
   const { user } = useAuth();
 
-  const [mine, setMine] = useState(null);
-  const [found, setFound] = useState(null);
+  // last time's lists at once, then the fresh ones (src/lib/kept.js)
+  const K = 'progs.' + (user ? user.id : '');
+  const [mine, setMine] = useState(() => kept(K + '.mine'));
+  const [found, setFound] = useState(() => kept(K + '.found..'));
   const [q, setQ] = useState('');
   const [kind, setKind] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -133,9 +136,9 @@ export const ProgrammesSheet = ({ onClose, onOpenGroup }) => {
 
   const load = useCallback(async () => {
     const [m, f] = await Promise.all([myProgrammes(), findProgrammes(q, null, kind)]);
-    setMine(m && m.ok ? (m.programmes || []) : []);
-    setFound(f && f.ok ? (f.programmes || []) : []);
-  }, [q, kind]);
+    setMine((x) => (m && m.ok ? keep(K + '.mine', m.programmes || []) : x || []));
+    setFound((x) => (f && f.ok ? keep(K + '.found.' + q + '.' + (kind || ''), f.programmes || []) : x || []));
+  }, [q, kind, K]);
 
   useEffect(() => {
     /* A small pause so a search runs once when somebody stops typing,

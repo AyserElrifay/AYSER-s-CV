@@ -11,6 +11,7 @@ import { myLoyalty, myReferrals, creatorRecord } from '../services/green';
 import { appLink, shareLink, shareNote } from '../utils/share';
 import { tapLight, tapMedium, tapSelection } from '../utils/feedback';
 import { useSheetBack } from '../hooks/useSheetBack';
+import { kept, keep } from '../lib/kept';
 import { SheetHandle } from './SheetHandle';
 import { AV_NEUTRAL } from '../constants/mockData';
 
@@ -55,17 +56,19 @@ export const RewardsSheet = ({ onClose, tab: first = 'loyalty', onStartPlan }) =
   const { user } = useAuth();
   const uid = user && user.id;
   const [tab, setTab] = useState(TABS.includes(first) ? first : 'loyalty');
-  const [loyal, setLoyal] = useState(undefined);   // undefined = asking, null = could not
-  const [refs, setRefs] = useState(undefined);
-  const [mine, setMine] = useState(undefined);
+  // last time's numbers at once, then the fresh ones (src/lib/kept.js)
+  const K = 'rewards.' + (uid || '');
+  const [loyal, setLoyal] = useState(() => (kept(K + '.l') == null ? undefined : kept(K + '.l')));   // undefined = asking, null = could not
+  const [refs, setRefs] = useState(() => (kept(K + '.r') == null ? undefined : kept(K + '.r')));
+  const [mine, setMine] = useState(() => (kept(K + '.m') == null ? undefined : kept(K + '.m')));
   const [note, setNote] = useState(null);
 
   useEffect(() => {
     if (!SUPABASE_READY || !uid) { setLoyal(null); setRefs(null); setMine(null); return; }
     let alive = true;
-    myLoyalty().then((r) => alive && setLoyal(r || null));
-    myReferrals().then((r) => alive && setRefs(r || null));
-    creatorRecord(uid).then((r) => alive && setMine(r || null));
+    myLoyalty().then((r) => alive && setLoyal(keep(K + '.l', r) || kept(K + '.l')));
+    myReferrals().then((r) => alive && setRefs(keep(K + '.r', r) || kept(K + '.r')));
+    creatorRecord(uid).then((r) => alive && setMine(keep(K + '.m', r) || kept(K + '.m')));
     return () => { alive = false; };
   }, [uid]);
 

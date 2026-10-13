@@ -25,6 +25,7 @@ import { useSheetBack } from '../hooks/useSheetBack';
 import { SheetHandle } from './SheetHandle';
 import { PushRow } from './PushRow';
 import { goToTab } from '../lib/mapBus';
+import { kept, keep } from '../lib/kept';
 import { openTrip } from '../lib/tripLink';
 import { groupNotifs, namesLine } from '../lib/notifGroups';
 const GoNowSheet = lazyOverlay(() => import('./GoNowSheet').then((m) => ({ default: m.GoNowSheet })));
@@ -84,7 +85,7 @@ export const NotificationsSheet = ({ onClose }) => {
   const { t, lang } = useLang();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const [items, setItems] = useState(null);
+  const [items, setItems] = useState(() => kept('notifs.' + (user ? user.id : '')));   // last time's, at once
   const [accepted, setAccepted] = useState({});
   const [loadErr, setLoadErr] = useState(null);
   const [filter, setFilter] = useState('all');
@@ -116,13 +117,13 @@ export const NotificationsSheet = ({ onClose }) => {
     if (!SUPABASE_READY || !user) { setItems([]); return; }
     try {
       const rows = await fetchMyNotifications(user.id);
-      setItems(rows);
+      setItems(keep('notifs.' + user.id, rows));
       markAllRead(user.id).catch(() => {});
       // housekeeping, once per open: a week-old notification is storage,
       // not news
       pruneOldNotifications(user.id);
     } catch (e) {
-      setItems([]);
+      setItems((x) => x || []);   // what was already showing stays
       setLoadErr(/does not exist|schema cache/i.test(e.message || '')
         ? setupNotice('One step left: run supabase/RUN_ME.sql to turn on notifications.')
         : 'Could not load activity');
@@ -368,7 +369,7 @@ export const NotificationsSheet = ({ onClose }) => {
                   setClearArmed(false);
                   setClearing(true);
                   const had = items.length;
-                  setItems([]);                       // gone from the screen at once
+                  setItems(keep('notifs.' + user.id, []));   // gone from the screen at once
                   try { await clearMyNotifications(user.id); showToast('Cleared ' + had); }
                   catch (e) { load(); showToast('Could not clear — try again'); }
                   finally { setClearing(false); }

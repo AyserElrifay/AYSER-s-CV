@@ -14,6 +14,7 @@ import { buildAvatarUrl } from '../services/avatarBuilder';
 import { ProfileModal } from './ProfileModal';
 import { tapLight, tapMedium } from '../utils/feedback';
 import { useStable } from '../hooks/useStable';
+import { kept, keep } from '../lib/kept';
 
 /* ── DISCOVER PEOPLE ────────────────────────────────────────────────
    Browsing instead of guessing a name into a search box. Five lanes,
@@ -77,7 +78,9 @@ export const PeopleDiscover = () => {
 
   const load = useCallback(async () => {
     if (!SUPABASE_READY || !user) { setRows([]); return; }
-    setRows(null); setErr(null);
+    // the same lane and place as before opens on what it showed (src/lib/kept.js)
+    const k = 'people.' + user.id + '.' + lane + '.' + (country || '') + '.' + (city || '');
+    setRows(kept(k)); setErr(null);
     try {
       const opts = { country, city, excludeId: user.id };
       let out = [];
@@ -90,8 +93,9 @@ export const PeopleDiscover = () => {
       // database couldn't filter for us
       if (country) out = out.filter((p) => p.country === country);
       if (city) out = out.filter((p) => (p.city || '').toLowerCase() === city.toLowerCase());
-      setRows(out);
+      setRows(keep(k, out));
     } catch (e) {
+      if (kept(k)) { setRows(kept(k)); return; }
       setRows([]);
       setErr('Could not load people');
     }
