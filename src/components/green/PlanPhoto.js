@@ -90,9 +90,7 @@ const StockHead = ({ stock, look, t, children }) => {
           <Text style={{ fontSize: 16 }}>{look.emoji}</Text>
         </View>
         {cur.own ? null : (
-          <View pointerEvents="none" style={{ position: 'absolute', right: 6, top: 8, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 6, paddingHorizontal: 5, paddingVertical: 1 }}>
-            <Text style={{ color: '#FFF', fontSize: 9.5 }}>{cur.credit ? '📷 ' + cur.credit : '📷 Pexels'}</Text>
-          </View>
+          <Text pointerEvents="none" style={{ position: 'absolute', right: 8, top: 6, color: 'rgba(255,255,255,0.55)', fontSize: 8, fontWeight: '600', textShadowColor: 'rgba(0,0,0,0.4)', textShadowRadius: 2 }}>{cur.credit || 'Pexels'}</Text>
         )}
         <View pointerEvents="none" style={{ position: 'absolute', left: 12, right: 12, bottom: 9, flexDirection: 'row', alignItems: 'flex-end' }}>
           <Text style={{ flex: 1, color: '#FFF', fontSize: 13.5, fontWeight: '800', lineHeight: 18 }} numberOfLines={2}>{t('sk_' + stock.id)}</Text>
