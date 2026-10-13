@@ -11,7 +11,7 @@
 //  signed webhook (paymob-webhook) reads it back to mark the booking
 //  paid. Nothing here marks anything paid.
 //
-//  POST { bookingId }  with the user's session  →  { checkoutUrl }
+//  POST { bookingId } or { plan: 'month' | 'year' }  with the user's session  →  { checkoutUrl }
 //  503 { error: 'not_configured' } until the secrets below exist.
 //
 //  Secrets (Supabase → Edge Functions → Secrets, never in the app):
@@ -54,12 +54,16 @@ Deno.serve(async (req) => {
   const user = who && who.user;
   if (!user) return json(401, { error: 'signed_out' });
 
-  let bookingId = '';
-  try { bookingId = String((await req.json()).bookingId || ''); } catch { /* fall through */ }
-  if (!UUID.test(bookingId)) return json(400, { error: 'booking' });
+  let bookingId = '', plan = '';
+  try { const body = await req.json(); bookingId = String(body.bookingId || ''); plan = String(body.plan || ''); } catch { /* fall through */ }
+  // a booking, or Moments Plus (month | year) — the price always comes from the database
+  const isPlus = plan === 'month' || plan === 'year';
+  if (!isPlus && !UUID.test(bookingId)) return json(400, { error: 'booking' });
 
-  const { data: b } = await db.rpc('booking_for_payment', { p_id: bookingId, p_user: user.id });
-  if (!b || !b.ok) return json(409, { error: 'not_payable' });
+  const { data: b } = isPlus
+    ? await db.rpc('plus_order_for_payment', { p_plan: plan, p_user: user.id })
+    : await db.rpc('booking_for_payment', { p_id: bookingId, p_user: user.id });
+  if (!b || !b.ok) return json(409, { error: (b && b.reason) || 'not_payable' });
 
   try {
     const cents = Math.round(Number(b.total) * 100);
@@ -69,7 +73,9 @@ Deno.serve(async (req) => {
       merchant_order_id: b.code,
       items: [{ name: String(b.title).slice(0, 50), amount_cents: cents, quantity: 1 }],
     });
-    const att = await db.rpc('attach_payment_order', { p_id: bookingId, p_user: user.id, p_provider: 'paymob', p_order: String(order.id) });
+    const att = isPlus
+      ? await db.rpc('attach_plus_order', { p_code: b.code, p_user: user.id, p_order: String(order.id) })
+      : await db.rpc('attach_payment_order', { p_id: bookingId, p_user: user.id, p_provider: 'paymob', p_order: String(order.id) });
     if (!att.data || !att.data.ok) return json(409, { error: 'not_payable' });
     // Paymob insists on billing fields; only the email is real, the rest is its placeholder "NA"
     const pk = await paymob('acceptance/payment_keys', {

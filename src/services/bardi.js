@@ -30,7 +30,7 @@ async function ask(body) {
   const reply = !error && data && typeof data.reply === 'string' ? data.reply.trim() : '';
   if (reply) return reply;
   const status = error && error.context && error.context.status;
-  throw failure(status === 401 ? 'signed_out' : status === 429 ? 'slow_down' : 'busy');
+  throw failure(status === 401 ? 'signed_out' : status === 402 ? 'plus' : status === 429 ? 'slow_down' : 'busy');
 }
 
 /* ── TRANSLATION ────────────────────────────────────────────────────

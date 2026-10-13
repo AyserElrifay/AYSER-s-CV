@@ -167,11 +167,16 @@ export const OffersTab = ({ userId }) => {
   const [busy, setBusy] = useState(false);
   const [bookingsOf, setBookingsOf] = useState(null);   // { offer, rows }
   const [freeUntil, setFreeUntil] = useState('');
+  const [priceM, setPriceM] = useState(''); const [priceY, setPriceY] = useState(''); const [priceC, setPriceC] = useState('EGP');
   const [party, setParty] = useState(null);             // the offer just published
 
   const load = () => {
     ownerOffers().then((r) => setList(r == null ? false : r));
-    appSettings().then((s) => { setSettings(s); const v = s.plus_free_until; setFreeUntil(v && v !== 'null' ? String(v).slice(0, 10) : ''); });
+    appSettings().then((s) => {
+      setSettings(s); const v = s.plus_free_until; setFreeUntil(v && v !== 'null' ? String(v).slice(0, 10) : '');
+      const pr = s.plus_price && typeof s.plus_price === 'object' ? s.plus_price : null;
+      setPriceM(pr ? String(pr.month) : ''); setPriceY(pr ? String(pr.year) : ''); setPriceC(pr ? pr.currency : 'EGP');
+    });
   };
   useEffect(() => { load(); }, []);
   const set = (k) => (v) => setForm((f) => ({ ...f, [k]: v }));
@@ -311,6 +316,17 @@ export const OffersTab = ({ userId }) => {
         <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 3 }}>Free for everyone until the date below (empty = open-ended). Nobody is charged automatically when it ends.</Text>
         <Field label="Free until (YYYY-MM-DD)" value={freeUntil} onChange={setFreeUntil} ph="empty = no end date yet" />
         <Btn label="Save Plus date" onPress={async () => { const v = freeUntil.trim() ? new Date(freeUntil.trim() + 'T23:59:00').toISOString() : null; const r = await ownerSetSetting('plus_free_until', v); setMsg(r && r.ok ? 'Plus date saved.' : 'Could not save.'); load(); }} />
+        <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '900', marginTop: 14 }}>Plus price</Text>
+        <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 3 }}>Saving a price ends the free period for everyone: from then on Plus is what people buy (invite and reward days are kept). Clear both to make it free again.</Text>
+        <Field label="Per month" value={priceM} onChange={setPriceM} ph="e.g. the monthly price" />
+        <Field label="Per year" value={priceY} onChange={setPriceY} ph="e.g. the yearly price" />
+        <Field label="Currency (3 letters)" value={priceC} onChange={(v) => setPriceC(v.toUpperCase().slice(0, 3))} ph="EGP" />
+        <Btn label="Save Plus price" onPress={async () => {
+          const m = Number(priceM), y = Number(priceY);
+          const v = priceM.trim() || priceY.trim() ? { month: m, year: y, currency: priceC } : null;
+          if (v && (!(m > 0) || !(y > 0) || !/^[A-Z]{3}$/.test(priceC))) { setMsg('Both prices and a 3-letter currency, please.'); return; }
+          const r = await ownerSetSetting('plus_price', v); setMsg(r && r.ok ? (v ? 'Plus is now a subscription.' : 'Plus is free again.') : 'Could not save.'); load();
+        }} />
         <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '900', marginTop: 14 }}>{'Online payments: ' + (online ? 'ON' : 'OFF')}</Text>
         <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 3 }}>Turn on only after the Paymob keys are set and a test payment went through.</Text>
         <Btn label={online ? 'Turn off' : 'Turn on'} danger={online} onPress={async () => { const r = await ownerSetSetting('payments_online', !online); setMsg(r && r.ok ? 'Saved.' : 'Could not save.'); load(); }} />

@@ -53,10 +53,11 @@ Deno.serve(async (req) => {
     return new Response('not a payment', { status: 200 });
   }
   const code = String(pick(obj, 'order.merchant_order_id') || '');
-  if (!/^MM-[A-Z0-9]{6}$/.test(code)) return new Response('order', { status: 200 });
+  if (!/^M[MP]-[A-Z0-9]{6}$/.test(code)) return new Response('order', { status: 200 });
 
   const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } });
-  const { data } = await db.rpc('mark_booking_paid', {
+  // MM- is a booking, MP- is Moments Plus
+  const { data } = await db.rpc(code.startsWith('MP-') ? 'mark_plus_paid' : 'mark_booking_paid', {
     p_code: code, p_txn: String(obj.id), p_amount_cents: Number(obj.amount_cents), p_currency: String(obj.currency || ''),
   });
   if (!data || !data.ok) console.error('not marked', code, data && data.reason);

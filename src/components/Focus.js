@@ -7,6 +7,8 @@ import { useLang } from '../context/LanguageContext';
 import { setFocus } from '../services/bardiFocus';
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
 import { useSheetBack } from '../hooks/useSheetBack';
+import { lazyOverlay } from '../lib/lazyScreen';
+import { getPlus } from '../lib/plus';
 
 /* ─── FOCUS: THE KITE CLIMBS WHILE YOU WORK ───────────────────────────
    Ayser: "حاجة زي الـ pomodoro technique لما تعمل focus · studying mood
@@ -22,6 +24,7 @@ import { useSheetBack } from '../hooks/useSheetBack';
    one word, so people near you doing the same can be found
    (setFocus, the same signal the brain dump uses) — nothing else. */
 
+const PlusSheet = lazyOverlay(() => import('./PlusSheet').then((m) => ({ default: m.PlusSheet })));
 const LOG = 'mm.focus.log';
 const rd = () => { try { return JSON.parse(localStorage.getItem(LOG) || '{}'); } catch (e) { return {}; } };
 const dayKey = (d = new Date()) => d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
@@ -59,6 +62,10 @@ export const Focus = ({ onClose }) => {
   const [now, setNow] = useState(Date.now());
   const [today, setToday] = useState(() => rd()[dayKey()] || { min: 0, rounds: 0 });
   const lock = useRef(null);
+  // the long rounds (50 and 90 minutes) are Moments Plus
+  const [plus, setPlus] = useState(false);
+  const [plusSheet, setPlusSheet] = useState(false);
+  useEffect(() => { getPlus().then((r) => setPlus(!!(r && r.plus))); }, []);
 
   useEffect(() => { const i = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(i); }, []);
   // the screen stays on while a round runs, where the phone allows it
@@ -149,9 +156,9 @@ export const Focus = ({ onClose }) => {
             </View>
             <View style={{ flexDirection: 'row', justifyContent: 'center', marginBottom: 14 }}>
               {LENGTHS.map(([w, r], i) => (
-                <Pressable key={w} onPress={() => { tapSelection(); setLen(i); }} style={{ marginHorizontal: 4 }}>
+                <Pressable key={w} onPress={() => { tapSelection(); if (i > 0 && !plus) setPlusSheet(true); else setLen(i); }} style={{ marginHorizontal: 4 }}>
                   <View style={{ borderRadius: 16, borderWidth: 1.5, borderColor: len === i ? C.purple : C.line, backgroundColor: '#FFF', paddingHorizontal: 14, paddingVertical: 8, alignItems: 'center' }}>
-                    <Text style={{ color: C.text, fontSize: 16, fontWeight: '900' }}>{t('md_min').replace('{n}', String(w))}</Text>
+                    <Text style={{ color: C.text, fontSize: 16, fontWeight: '900' }}>{t('md_min').replace('{n}', String(w)) + (i > 0 && !plus ? ' ✦' : '')}</Text>
                     <Text style={{ color: C.dim, fontSize: 11.5, fontWeight: '700' }}>{'+ ' + t('fo_rest').replace('{n}', String(r))}</Text>
                   </View>
                 </Pressable>
@@ -179,6 +186,7 @@ export const Focus = ({ onClose }) => {
         )}
         <Text style={{ color: C.faint, fontSize: 12, textAlign: 'center', marginTop: 10 }}>{t('fo_shared')}</Text>
       </View>
+      {plusSheet ? <PlusSheet why="focus" onClose={() => { setPlusSheet(false); getPlus(true).then((r) => setPlus(!!(r && r.plus))); }} /> : null}
     </Modal>
   );
 };

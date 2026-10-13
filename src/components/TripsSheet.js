@@ -13,6 +13,7 @@ import { tapLight, tapMedium, tapSelection, tapSuccess } from '../utils/feedback
 import { useSheetBack } from '../hooks/useSheetBack';
 import { LinearGradient } from 'expo-linear-gradient';
 import { HighlightVideo } from './GoOutRail';
+import { lazyOverlay } from '../lib/lazyScreen';
 
 const COVER = { trip: ['#0EA5E9', '#7C3AED', '🧳'], stay: ['#F59E0B', '#EF4444', '🏨'], experience: ['#10B981', '#0EA5E9', '🧗'], deal: ['#EC4899', '#F59E0B', '🎟️'], table: ['#F97316', '#EF4444', '🍽️'] };
 const Cover = ({ kind, h, flag }) => { const c = COVER[kind] || COVER.trip; return (
@@ -55,7 +56,21 @@ const when = (iso, lang) => {
 };
 const pick = (o, field, lang) => (lang === 'ar' && o[field + '_ar'] && (Array.isArray(o[field + '_ar']) ? o[field + '_ar'].length : true) ? o[field + '_ar'] : o[field]);
 
+const PlusSheet = lazyOverlay(() => import('./PlusSheet').then((m) => ({ default: m.PlusSheet })));
 const PlusCard = ({ plus, t, lang }) => {
+  const [open, setOpen] = useState(false);
+  if (plus && !plus.plus && plus.price) {
+    return (
+      <Pressable onPress={() => setOpen(true)} accessibilityRole="button" style={{ marginBottom: 14 }}>
+        <View style={{ backgroundColor: '#1A1A1A', borderRadius: 20, padding: 16 }}>
+          <Text style={{ color: C.gold, fontSize: 11.5, fontWeight: '900', letterSpacing: 1.4 }}>✦ MOMENTS PLUS</Text>
+          <Text style={{ color: '#F9F9F6', fontSize: 16, fontWeight: '900', marginTop: 4 }}>{t('px_trips_card')}</Text>
+          <Text style={{ color: C.gold, fontSize: 13.5, fontWeight: '900', marginTop: 8 }}>{t('px_get') + ' ›'}</Text>
+        </View>
+        {open ? <PlusSheet why="trips" onClose={() => setOpen(false)} /> : null}
+      </Pressable>
+    );
+  }
   if (!plus || !plus.plus) return null;
   let until = null;
   try { if (plus.free_until) until = new Date(plus.free_until).toLocaleDateString(lang === 'ar' ? 'ar-EG' : lang, { day: 'numeric', month: 'long' }); } catch (e) {}

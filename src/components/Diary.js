@@ -8,6 +8,7 @@ import { reflectWithPapyrus } from '../services/bardi';
 import { readCompass, compassLine } from './Compass';
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
 import { useSheetBack } from '../hooks/useSheetBack';
+import { lazyOverlay } from '../lib/lazyScreen';
 
 /* ─── THE DIARY: HOW YOU FEEL, AND HOW IT CHANGES ─────────────────────
    Ayser: "تدوين مشاعرك وداياري مع بردي، ويحللها ويتابع تطورك ومشاعرك،
@@ -20,6 +21,7 @@ import { useSheetBack } from '../hooks/useSheetBack';
    phone, and Papyrus answers with what it notices, one kind question
    and one small step. It is a friend who listens, not a doctor. */
 
+const PlusSheet = lazyOverlay(() => import('./PlusSheet').then((m) => ({ default: m.PlusSheet })));
 const KEY = 'mm.diary.v1';
 const read = () => { try { return JSON.parse(localStorage.getItem(KEY) || '[]'); } catch (e) { return []; } };
 const save = (v) => { try { localStorage.setItem(KEY, JSON.stringify(v.slice(-400))); } catch (e) {} };
@@ -51,6 +53,7 @@ export const Diary = ({ onClose }) => {
   const [busy, setBusy] = useState(false);
   const [reply, setReply] = useState(null);
   const [err, setErr] = useState(null);
+  const [plusSheet, setPlusSheet] = useState(false);
 
   const write = () => {
     if (mood == null) return;
@@ -77,7 +80,8 @@ export const Diary = ({ onClose }) => {
       const r = await reflectWithPapyrus(lines, lang, compassLine(readCompass(), t));
       setReply(r);
     } catch (e) {
-      setErr(t(e && e.code === 'signed_out' ? 'dy_err_signin' : 'dy_err_busy'));
+      if (e && e.code === 'plus') setPlusSheet(true);
+      else setErr(t(e && e.code === 'signed_out' ? 'dy_err_signin' : 'dy_err_busy'));
     }
     setBusy(false);
   };
@@ -145,7 +149,7 @@ export const Diary = ({ onClose }) => {
             <View style={{ marginTop: 14 }}>
               <Pressable onPress={talk} disabled={busy} accessibilityRole="button">
                 <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', borderRadius: 999, borderWidth: 1.5, borderColor: C.purple, paddingVertical: 13 }}>
-                  {busy ? <ActivityIndicator color={C.purple} /> : <Text style={{ color: C.purple, fontSize: 15, fontWeight: '900' }}>{'🌾 ' + t('dy_talk')}</Text>}
+                  {busy ? <ActivityIndicator color={C.purple} /> : <Text style={{ color: C.purple, fontSize: 15, fontWeight: '900' }}>{'🌾 ' + t('dy_talk') + ' ✦'}</Text>}
                 </View>
               </Pressable>
               <Text style={{ color: C.faint, fontSize: 11.5, textAlign: 'center', marginTop: 6 }}>{t('dy_talk_note')}</Text>
@@ -168,6 +172,7 @@ export const Diary = ({ onClose }) => {
           <Text style={{ color: C.faint, fontSize: 12, textAlign: 'center', marginTop: 14 }}>{t('dy_private')}</Text>
         </ScrollView>
       </View>
+      {plusSheet ? <PlusSheet why="papyrus" onClose={() => setPlusSheet(false)} /> : null}
     </Modal>
   );
 };

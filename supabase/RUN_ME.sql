@@ -13763,6 +13763,150 @@ $$;
 notify pgrst, 'reload schema';
 
 -- ═══════════════════════════════════════════════════════════════════
+--  MOMENTS PLUS · A REAL SUBSCRIPTION
+--
+--  Ayser: "حط موضوع الـ premium من دلوقتي — الحاجات اللي باشتراك".
+--  Plus was free for everyone (the founding period). Now it can be
+--  bought, monthly or yearly, through the same Paymob checkout as
+--  bookings:
+--
+--   · the price is the owner's, set in the Studio (plus_price) — never
+--     invented here, never sent by a phone;
+--   · the moment a price is saved, the free founding period is over for
+--     new days (is_plus stops counting it) — so "from now" starts
+--     exactly when there is a way to pay. Days already given (invites,
+--     rewards) are kept;
+--   · a payment is marked by Paymob's signed webhook only, the amount
+--     checked against the order, and it adds 30 or 365 days on top of
+--     whatever is left.
+--  Safe to re-run.
+-- ═══════════════════════════════════════════════════════════════════
+create table if not exists public.plus_orders (
+  id            uuid primary key default gen_random_uuid(),
+  user_id       uuid not null references auth.users(id) on delete cascade,
+  plan          text not null check (plan in ('month', 'year')),
+  amount        numeric(10,2) not null check (amount > 0),
+  currency      text not null default 'EGP',
+  code          text not null unique,
+  status        text not null default 'pending' check (status in ('pending', 'paid')),
+  provider_order text,
+  provider_txn  text,
+  created_at    timestamptz not null default now(),
+  paid_at       timestamptz
+);
+alter table public.plus_orders enable row level security;
+drop policy if exists "plus orders: your own" on public.plus_orders;
+create policy "plus orders: your own" on public.plus_orders for select to authenticated using (auth.uid() = user_id);
+
+-- the owner may now save the Plus price too
+create or replace function public.owner_set_setting(p_key text, p_value jsonb)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  if not public.owner_ok() then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
+  if p_key not in ('plus_free_until', 'payments_online', 'plus_price') then return jsonb_build_object('ok', false, 'reason', 'key'); end if;
+  if p_key = 'plus_price' and p_value is not null and p_value <> 'null'::jsonb and not (
+       jsonb_typeof(p_value -> 'month') = 'number' and (p_value ->> 'month')::numeric > 0
+   and jsonb_typeof(p_value -> 'year') = 'number' and (p_value ->> 'year')::numeric > 0
+   and coalesce(p_value ->> 'currency', '') ~ '^[A-Z]{3}$') then
+    return jsonb_build_object('ok', false, 'reason', 'price');
+  end if;
+  insert into public.app_settings (key, value, updated_at) values (p_key, p_value, now())
+  on conflict (key) do update set value = excluded.value, updated_at = now();
+  return jsonb_build_object('ok', true);
+end;
+$$;
+revoke execute on function public.owner_set_setting(text, jsonb) from public, anon;
+grant execute on function public.owner_set_setting(text, jsonb) to authenticated;
+
+-- the price, if there is one
+create or replace function public.plus_price()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select case when value is null or value = 'null'::jsonb then null else value end
+    from public.app_settings where key = 'plus_price';
+$$;
+revoke execute on function public.plus_price() from public, anon;
+grant execute on function public.plus_price() to authenticated;
+
+-- free for everyone only while there is no price
+create or replace function public.is_plus(u uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select u is not null and (
+    (public.plus_price() is null and exists (select 1 from public.app_settings s where s.key = 'plus_free_until'
+              and (s.value is null or s.value = 'null'::jsonb or (s.value #>> '{}')::timestamptz > now())))
+    or exists (select 1 from public.plus_members m where m.user_id = u and m.status = 'active'
+                 and (m.until is null or m.until > now())));
+$$;
+
+create or replace function public.my_plus()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select jsonb_build_object(
+    'plus', public.is_plus(auth.uid()),
+    'founding', public.plus_price() is null and exists (select 1 from public.app_settings s where s.key = 'plus_free_until'
+                          and (s.value is null or s.value = 'null'::jsonb or (s.value #>> '{}')::timestamptz > now())),
+    'free_until', (select case when value is null or value = 'null'::jsonb then null else value #>> '{}' end
+                     from public.app_settings where key = 'plus_free_until'),
+    'price', public.plus_price(),
+    'payments_online', coalesce((select value = 'true'::jsonb from public.app_settings where key = 'payments_online'), false),
+    'member', (select jsonb_build_object('status', status, 'until', until) from public.plus_members where user_id = auth.uid()));
+$$;
+grant execute on function public.my_plus() to authenticated;
+
+-- server side only (create-checkout): a pending order at today's price
+create or replace function public.plus_order_for_payment(p_plan text, p_user uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare pr jsonb := public.plus_price(); amt numeric; c text;
+begin
+  if pr is null or p_plan not in ('month', 'year') then return jsonb_build_object('ok', false, 'reason', 'no_price'); end if;
+  if not coalesce((select value = 'true'::jsonb from public.app_settings where key = 'payments_online'), false) then
+    return jsonb_build_object('ok', false, 'reason', 'offline');
+  end if;
+  if (select count(*) from public.plus_orders where user_id = p_user and created_at > now() - interval '1 hour') >= 10 then
+    return jsonb_build_object('ok', false, 'reason', 'slow_down');
+  end if;
+  amt := (pr ->> p_plan)::numeric;
+  c := 'MP-' || upper(substr(md5(gen_random_uuid()::text), 1, 6));
+  insert into public.plus_orders (user_id, plan, amount, currency, code) values (p_user, p_plan, amt, pr ->> 'currency', c);
+  return jsonb_build_object('ok', true, 'code', c, 'total', amt, 'currency', pr ->> 'currency',
+                            'title', 'Moments Plus · ' || p_plan, 'email', (select email from auth.users where id = p_user));
+end;
+$$;
+revoke execute on function public.plus_order_for_payment(text, uuid) from public, anon, authenticated;
+
+create or replace function public.attach_plus_order(p_code text, p_user uuid, p_order text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  update public.plus_orders set provider_order = p_order
+   where code = p_code and user_id = p_user and status = 'pending';
+  return jsonb_build_object('ok', found);
+end;
+$$;
+revoke execute on function public.attach_plus_order(text, uuid, text) from public, anon, authenticated;
+
+-- server side only (paymob-webhook, signed): paid → the days are added
+create or replace function public.mark_plus_paid(p_code text, p_txn text, p_amount_cents bigint, p_currency text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare o public.plus_orders%rowtype; base timestamptz;
+begin
+  select * into o from public.plus_orders where code = p_code for update;
+  if not found then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
+  if o.status = 'paid' then return jsonb_build_object('ok', true, 'already', true); end if;
+  if round(o.amount * 100) <> p_amount_cents or upper(o.currency) <> upper(p_currency) then
+    return jsonb_build_object('ok', false, 'reason', 'amount');
+  end if;
+  update public.plus_orders set status = 'paid', paid_at = now(), provider_txn = p_txn where id = o.id;
+  select until into base from public.plus_members where user_id = o.user_id and status = 'active';
+  base := greatest(now(), coalesce(base, now()));
+  insert into public.plus_members (user_id, status, until, source)
+  values (o.user_id, 'active', base + make_interval(days => case o.plan when 'year' then 365 else 30 end), 'paid')
+  on conflict (user_id) do update set status = 'active', until = base + make_interval(days => case o.plan when 'year' then 365 else 30 end);
+  return jsonb_build_object('ok', true);
+end;
+$$;
+revoke execute on function public.mark_plus_paid(text, text, bigint, text) from public, anon, authenticated;
+
+notify pgrst, 'reload schema';
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة

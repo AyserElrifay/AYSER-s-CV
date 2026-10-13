@@ -10,12 +10,14 @@ import { ICONS, currentIcon, setAppIcon, installed } from '../lib/appIcon';
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
 import { useSheetBack } from '../hooks/useSheetBack';
 import { SheetHandle } from './SheetHandle';
+import { lazyOverlay } from '../lib/lazyScreen';
 
 /* ─── MAKE MOMENTS YOURS (MOMENTS PLUS) ───────────────────────────────
    Opened by holding the Moments logo on Home. Two things only: the app
    icon (src/lib/appIcon.js) and which small widgets sit at the top of
    Home (HomeWidgets in src/components/MyDay.js). Both are Moments Plus;
    whether somebody has it is the server's answer (my_plus), not ours. */
+const PlusSheet = lazyOverlay(() => import('./PlusSheet').then((m) => ({ default: m.PlusSheet })));
 const WIDGETS = [
   { id: 'now', emoji: '🗓️' },
   { id: 'prayer', emoji: '🕌' },
@@ -52,6 +54,7 @@ export const Personalise = ({ onClose }) => {
     setWid(n); saveWidgets(n);
   };
   const locked = plus === false;
+  const [plusSheet, setPlusSheet] = useState(false);
   /* on an iPhone a home-screen app keeps its own storage, apart from
      the browser — so the pick travels in the link (?icon=, read first
      thing by the page, scripts/inject-html.mjs) */
@@ -70,7 +73,16 @@ export const Personalise = ({ onClose }) => {
         <Text style={{ color: C.gold, fontSize: 11.5, fontWeight: '900', letterSpacing: 1.4, textAlign: 'center' }}>MOMENTS PLUS</Text>
         <Text style={{ color: C.text, fontSize: 21, fontWeight: '900', textAlign: 'center', marginTop: 2 }}>{t('pz_title')}</Text>
         {plus == null ? <ActivityIndicator color={C.dim} style={{ marginTop: 8 }} /> : null}
-        {locked ? <Text style={{ color: C.dim, fontSize: 13.5, lineHeight: 19, textAlign: 'center', marginTop: 6 }}>{t('pz_plus_only')}</Text> : null}
+        {locked ? (
+          <View style={{ alignItems: 'center' }}>
+            <Text style={{ color: C.dim, fontSize: 13.5, lineHeight: 19, textAlign: 'center', marginTop: 6 }}>{t('pz_plus_only')}</Text>
+            <Pressable onPress={() => { tapLight(); setPlusSheet(true); }} accessibilityRole="button" style={{ marginTop: 10 }}>
+              <View style={{ borderRadius: 999, backgroundColor: C.gold, paddingHorizontal: 20, paddingVertical: 11 }}>
+                <Text style={{ color: '#1A1A1A', fontSize: 14.5, fontWeight: '900' }}>{'✦ ' + t('px_get')}</Text>
+              </View>
+            </Pressable>
+          </View>
+        ) : null}
 
         <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} style={{ marginTop: 12, opacity: plus ? 1 : 0.45 }} pointerEvents={plus ? 'auto' : 'none'}>
           <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '900', letterSpacing: 1, marginBottom: 8 }}>{t('pz_icon').toUpperCase()}</Text>
@@ -116,6 +128,7 @@ export const Personalise = ({ onClose }) => {
           <Text style={{ color: C.dim, fontSize: 12.5, lineHeight: 18, marginTop: 2 }}>{t('pz_widgets_sub')}</Text>
         </ScrollView>
       </View>
+      {plusSheet ? <PlusSheet why="icons" onClose={() => setPlusSheet(false)} /> : null}
     </Modal>
   );
 };

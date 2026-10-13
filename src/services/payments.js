@@ -50,3 +50,22 @@ export async function payBooking(bookingId) {
     return { ok: false, reason: 'offline' };
   }
 }
+
+/* ── MOMENTS PLUS ── the app names the plan; the server reads the
+   owner's price, and Paymob's signed webhook adds the days. */
+export async function buyPlus(plan) {
+  if (!SUPABASE_READY) return { ok: false, reason: 'offline' };
+  try {
+    const { data, error } = await supabase.functions.invoke('create-checkout', { body: { plan } });
+    if (error) {
+      const status = error.context && error.context.status;
+      return { ok: false, reason: status === 503 ? 'not_configured' : status === 409 ? 'not_ready' : 'gateway' };
+    }
+    if (!data || !data.checkoutUrl) return { ok: false, reason: 'gateway' };
+    if (typeof window !== 'undefined' && window.location) window.location.assign(data.checkoutUrl);
+    else Linking.openURL(data.checkoutUrl).catch(() => {});
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, reason: 'offline' };
+  }
+}

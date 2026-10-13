@@ -288,6 +288,16 @@ async function ownerBrain() {
   brain = { at: Date.now(), instructions: (cfg[0] && cfg[0].instructions) || "", knowledge: kb };
   return brain;
 }
+async function isPlus(uid: string): Promise<boolean> {
+  if (!SUPABASE_URL || !SERVICE) return false;
+  try {
+    const r = await fetch(SUPABASE_URL + "/rest/v1/rpc/is_plus", {
+      method: "POST", headers: { apikey: SERVICE, authorization: "Bearer " + SERVICE, "content-type": "application/json" },
+      body: JSON.stringify({ u: uid }),
+    });
+    return r.ok && (await r.json()) === true;
+  } catch { return false; }
+}
 const memoryOf = async (uid: string) =>
   (await rest("bardi_memory?select=note&user_id=eq." + uid + "&order=created_at.desc&limit=30")).map((r) => String(r.note || "")).reverse();
 
@@ -316,6 +326,8 @@ Deno.serve(async (req: Request) => {
     if (task === "translate") {
       system = translatorSystem(LANG_NAMES[String(body.target || "")] ? LANG_NAMES[String(body.target)] : (LANG_NAMES[language] || "English"));
     } else {
+      // talking with Papyrus is Moments Plus; translating stays free for everyone
+      if (!(await isPlus(uid))) return json(CORS, 402, { error: "plus" });
       const [b, memory] = await Promise.all([ownerBrain(), memoryOf(uid)]);
       system = bardiSystem({ language, profile: body.profile, memory, instructions: b.instructions, knowledge: b.knowledge });
     }
