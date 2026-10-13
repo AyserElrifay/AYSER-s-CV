@@ -1001,7 +1001,7 @@ export const LeafletMap = ({ center, markers = [], onPress, onMe, locate = true,
       const meHtml = av
         ? '<div class="mm-float" style="position:relative;width:56px;height:86px;display:flex;flex-direction:column;align-items:center">' +
             '<div class="mm-heat"></div>' + glowRing('rgba(245,179,1,0.5)') +
-            '<img src="' + safeSrc(av) + '" style="position:relative;width:50px;height:50px;border-radius:50%;object-fit:cover;border:3px solid #fff;box-shadow:0 0 0 3px #F5B301, 0 4px 10px rgba(0,0,0,0.3)"/>' +
+            '<img src="' + safeSrc(av) + '" style="position:relative;width:52px;height:52px;border-radius:14px;object-fit:cover;border:3px solid #fff;box-shadow:0 0 0 3px #F5B301, 0 4px 10px rgba(0,0,0,0.3)"/>' +
             doingBadge +
             '<div class="mm-pill" style="margin-top:3px">' + myLabel + '</div>' +
           '</div>'
