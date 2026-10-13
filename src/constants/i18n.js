@@ -1607,6 +1607,8 @@ export const STRINGS = {
     pf_where_any: "Anywhere",
     pd_from_you: "{d} from you",
     pd_nearby: "Nearby",
+    pf_tag_date: "Date spots",
+    pf_tag_souv: "Gifts & souvenirs",
     lens_all: 'Everything',
     lens_places: 'Places to go',
     lens_people: 'People',

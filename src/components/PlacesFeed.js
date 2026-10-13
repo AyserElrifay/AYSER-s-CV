@@ -72,6 +72,13 @@ const Credit = ({ place, t }) => {
   );
 };
 
+/* Ayser: "أماكن الـ dating والهدايا والـ souvenirs". Two kinds tagged on
+   real places in src/constants/destinations.js — somewhere good for a
+   date (a view, a sunset, a garden, a waterfront), and somewhere to buy
+   a gift worth bringing home (bazaars, crafts, markets). */
+const PINNED = ['Date spot', 'Souvenirs'];
+export const tagLabel = (x, t) => (x === 'Date spot' ? '💕 ' + t('pf_tag_date') : x === 'Souvenirs' ? '🎁 ' + t('pf_tag_souv') : x);
+
 const H = 210;
 const Card = ({ place, dist, onOpen, t }) => (
   <Pressable onPress={() => { tapLight(); onOpen(place); }} accessibilityRole="button" accessibilityLabel={place.name} style={{ marginBottom: 14 }}>
@@ -119,7 +126,8 @@ export const PlacesFeed = ({ onClose, onOpen, places }) => {
   const tags = useMemo(() => {
     const n = {};
     DESTINATIONS.forEach((d) => (d.tags || []).forEach((x) => { n[x] = (n[x] || 0) + 1; }));
-    return Object.keys(n).filter((x) => x !== 'Photo').sort((a, b) => n[b] - n[a]).slice(0, 10);
+    // date spots and gifts & souvenirs always first; then the commonest kinds
+    return PINNED.filter((x) => n[x]).concat(Object.keys(n).filter((x) => x !== 'Photo' && PINNED.indexOf(x) < 0).sort((a, b) => n[b] - n[a]).slice(0, 9));
   }, []);
   /* where to: every country that has places, with how many */
   const countries = useMemo(() => {
@@ -186,7 +194,7 @@ export const PlacesFeed = ({ onClose, onOpen, places }) => {
               {[null].concat(tags).map((x) => (
                 <Pressable key={x || 'all'} onPress={() => { tapSelection(); setTag(x); }} accessibilityRole="tab" accessibilityState={{ selected: tag === x }}
                   style={{ marginEnd: 8, borderRadius: 999, borderWidth: 1, borderColor: tag === x ? C.text : C.line, backgroundColor: tag === x ? C.text : 'transparent', paddingHorizontal: 14, paddingVertical: 7 }}>
-                  <Text style={{ color: tag === x ? C.bg : C.text, fontSize: 13.5, fontWeight: '800' }}>{x || t('bk_everywhere')}</Text>
+                  <Text style={{ color: tag === x ? C.bg : C.text, fontSize: 13.5, fontWeight: '800' }}>{x ? tagLabel(x, t) : t('bk_everywhere')}</Text>
                 </Pressable>
               ))}
             </ScrollView>
