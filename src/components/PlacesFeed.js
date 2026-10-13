@@ -158,21 +158,8 @@ export const PlacesFeed = ({ onClose, onOpen, places }) => {
             </View>
             <Text style={{ color: C.text, fontSize: 28, fontWeight: '900', letterSpacing: -0.4, marginTop: 8 }}>{'📍 ' + t('pf_title')}</Text>
             <Text style={{ color: C.dim, fontSize: 14, marginTop: 4 }}>{here ? t('pf_sub_near') : t('pf_sub')}</Text>
-            {/* coming through Moments: said once, plainly, not dressed up as places */}
-            <View style={{ flexDirection: 'row', marginTop: 14 }}>
-              {[['☕', 'pf_soon_cafes'], ['🛏️', 'pf_soon_stays']].map(([e, k], i) => (
-                <Pressable key={k} onPress={() => { tapLight(); openPartner('place'); }} accessibilityRole="button" style={{ flex: 1, marginEnd: i === 0 ? 10 : 0 }}>
-                  <View style={{ borderRadius: 16, borderWidth: 1, borderStyle: 'dashed', borderColor: C.line, padding: 12, minHeight: 84 }}>
-                    <Text style={{ fontSize: 20 }}>{e}</Text>
-                    <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '900', marginTop: 4 }}>{t(k)}</Text>
-                    <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 2 }}>{t('bk_soon') + ' · ' + t('pf_soon_own')}</Text>
-                  </View>
-                </Pressable>
-              ))}
-            </View>
-
             {/* where to */}
-            <Pressable onPress={() => { tapSelection(); setPicking((v) => !v); }} accessibilityRole="button" style={{ alignSelf: 'flex-start', marginTop: 14 }}>
+            <Pressable onPress={() => { tapSelection(); setPicking((v) => !v); }} accessibilityRole="button" style={{ alignSelf: 'flex-start', marginTop: 12 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, backgroundColor: C.purpleSoft, paddingHorizontal: 14, paddingVertical: 8 }}>
                 <Text style={{ color: C.purple, fontSize: 14, fontWeight: '900' }}>{where ? where.flag + ' ' + where.name : '🧭 ' + t('pf_where_any')}</Text>
                 <Ionicons name={picking ? 'chevron-up' : 'chevron-down'} size={15} color={C.purple} style={{ marginStart: 6 }} />
@@ -201,6 +188,22 @@ export const PlacesFeed = ({ onClose, onOpen, places }) => {
           </View>
         )}
         renderItem={({ item }) => <Card place={item.d} dist={item.dist} onOpen={onOpen} t={t} />}
+        ListFooterComponent={(
+          <View>
+              {/* coming through Moments: said once, plainly, not dressed up as places */}
+              <View style={{ flexDirection: 'row', marginTop: 6 }}>
+                {[['☕', 'pf_soon_cafes'], ['🛏️', 'pf_soon_stays']].map(([e, k], i) => (
+                  <Pressable key={k} onPress={() => { tapLight(); openPartner('place'); }} accessibilityRole="button" style={{ flex: 1, marginEnd: i === 0 ? 10 : 0 }}>
+                    <View style={{ borderRadius: 16, borderWidth: 1, borderStyle: 'dashed', borderColor: C.line, padding: 12, minHeight: 84 }}>
+                      <Text style={{ fontSize: 20 }}>{e}</Text>
+                      <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '900', marginTop: 4 }}>{t(k)}</Text>
+                      <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 2 }}>{t('bk_soon') + ' · ' + t('pf_soon_own')}</Text>
+                    </View>
+                  </Pressable>
+                ))}
+              </View>
+          </View>
+        )}
       />
     </View>
   );

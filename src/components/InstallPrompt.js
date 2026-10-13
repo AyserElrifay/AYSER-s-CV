@@ -30,6 +30,12 @@ const KEY = 'mm_install_hint_v1';
 const seen = () => {
   try { return typeof localStorage !== 'undefined' && localStorage.getItem(KEY) === '1'; } catch (e) { return false; }
 };
+/* not on the first visits: somebody who just arrived has not decided
+   they want the app yet, and a box over the screen is in their way */
+const VISITS = 'mm_visits';
+const visit = () => {
+  try { const n = (parseInt(localStorage.getItem(VISITS) || '0', 10) || 0) + 1; localStorage.setItem(VISITS, String(n)); return n; } catch (e) { return 0; }
+};
 const remember = () => {
   try { if (typeof localStorage !== 'undefined') localStorage.setItem(KEY, '1'); } catch (e) {}
 };
@@ -64,13 +70,15 @@ export const InstallPrompt = ({ force = false, onClose }) => {
   const insets = useSafeAreaInsets();
   const [show, setShow] = useState(false);
   const [canPrompt, setCanPrompt] = useState(!!deferred);
+  const [open, setOpen] = useState(false);          // the iPhone steps, only when asked
 
   useEffect(() => {
     if (Platform.OS !== 'web') return undefined;
     if (isStandalone()) return undefined;                 // already installed
     if (!force && seen()) return undefined;
+    if (!force && visit() < 3) return undefined;            // from the third visit on
 
-    const t = setTimeout(() => { setCanPrompt(!!deferred); setShow(true); }, force ? 0 : 20000);
+    const t = setTimeout(() => { setCanPrompt(!!deferred); setShow(true); }, force ? 0 : 45000);
     return () => clearTimeout(t);
   }, [force]);
 
@@ -92,49 +100,48 @@ export const InstallPrompt = ({ force = false, onClose }) => {
 
   const ios = isIos();
 
+  /* ONE SLIM LINE, not a card over the screen: "كل يوم" the app has to
+     stay out of the way. The iPhone steps open only when tapped. */
   return (
     <View style={{
       position: 'absolute', left: 14, right: 14, bottom: insets.bottom + 78,
-      backgroundColor: C.float, borderRadius: R + 4, borderWidth: 1, borderColor: C.line,
-      padding: 15, zIndex: 90,
-      shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 22, shadowOffset: { width: 0, height: 10 },
+      backgroundColor: C.float, borderRadius: 999, borderWidth: 1, borderColor: C.line,
+      paddingVertical: 7, paddingHorizontal: 8, zIndex: 90,
+      shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 14, shadowOffset: { width: 0, height: 6 },
+      ...(open ? { borderRadius: 22, padding: 12 } : null),
     }}>
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-        <Image source={{ uri: 'icon-192.png' }} style={{ width: 40, height: 40, borderRadius: 10 }} />
-        <View style={{ flex: 1, marginLeft: 11 }}>
-          <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '900' }}>{t('install_title')}</Text>
-          <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 2 }}>{t('install_hint')}</Text>
-        </View>
-        <Pressable onPress={close} hitSlop={12} accessibilityRole="button" accessibilityLabel={t('close')}>
-          <Ionicons name="close" size={19} color={C.faint} />
+        <Image source={{ uri: 'icon-192.png' }} style={{ width: 28, height: 28, borderRadius: 8 }} />
+        <Pressable onPress={() => { tapLight(); if (canPrompt && !ios) install(); else setOpen((v) => !v); }} accessibilityRole="button" style={{ flex: 1, marginLeft: 9 }}>
+          <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800' }} numberOfLines={1}>{t('install_title')}</Text>
+        </Pressable>
+        {canPrompt && !ios ? (
+          <Pressable onPress={install} accessibilityRole="button" style={{ marginEnd: 6 }}>
+            <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 6 }}>
+              <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '900' }}>Install</Text>
+            </View>
+          </Pressable>
+        ) : null}
+        <Pressable onPress={close} hitSlop={12} accessibilityRole="button" accessibilityLabel={t('close')} style={{ padding: 4 }}>
+          <Ionicons name="close" size={17} color={C.faint} />
         </Pressable>
       </View>
-
-      {ios ? (
-        <View style={{ marginTop: 12 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.glassHi, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10 }}>
+      {open ? (
+        ios ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.glassHi, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginTop: 10 }}>
             <Ionicons name="share-outline" size={19} color={C.purple} />
             <Text style={{ color: C.text, fontSize: 12.5, fontWeight: '700', marginLeft: 9, flex: 1, lineHeight: 18 }}>
               Tap <Text style={{ fontWeight: '900' }}>Share</Text> at the bottom of Safari, then{' '}
               <Text style={{ fontWeight: '900' }}>Add to Home Screen</Text>.
             </Text>
           </View>
-          <Pressable onPress={close} style={{ marginTop: 10, alignSelf: 'center' }}>
-            <Text style={{ color: C.dim, fontSize: 12.5, fontWeight: '800' }}>Got it</Text>
-          </Pressable>
-        </View>
-      ) : canPrompt ? (
-        <Pressable onPress={install} style={{ marginTop: 12 }}>
-          <View style={{ backgroundColor: C.purple, borderRadius: 14, paddingVertical: 12, alignItems: 'center' }}>
-            <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '900' }}>Install</Text>
-          </View>
-        </Pressable>
-      ) : (
-        <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 10, lineHeight: 17 }}>
-          Open your browser's menu and choose <Text style={{ fontWeight: '900' }}>{t('install_app')}</Text> (or
-          <Text style={{ fontWeight: '900' }}> {t('add_to_home')}</Text>).
-        </Text>
-      )}
+        ) : (
+          <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 8, lineHeight: 17 }}>
+            Open your browser's menu and choose <Text style={{ fontWeight: '900' }}>{t('install_app')}</Text> (or
+            <Text style={{ fontWeight: '900' }}> {t('add_to_home')}</Text>).
+          </Text>
+        )
+      ) : null}
     </View>
   );
 };
