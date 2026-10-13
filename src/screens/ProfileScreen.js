@@ -61,7 +61,7 @@ import { Tick } from '../components/Tick';
 import { CloseFriendsSheet } from '../components/CloseFriendsSheet';
 import { countFollowers, countFollowing } from '../services/follows';
 import { PHOTO_RULE } from '../services/safety';
-import { sendFeedback, FEEDBACK_KINDS } from '../services/feedback';
+import { sendFeedback, FEEDBACK_KINDS, myMessages } from '../services/feedback';
 import { SettingsScreen } from './SettingsScreen';
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
 import { sfxSuccess } from '../utils/sfx';
@@ -193,6 +193,8 @@ export const ProfileScreen = () => {
   const [fbKind, setFbKind] = useState('idea');
   const [fbBody, setFbBody] = useState('');
   const [fbDone, setFbDone] = useState(false);
+  const [fbMine, setFbMine] = useState([]);          // what you sent us, and the team's answers
+  useEffect(() => { if (fbOpen && user) myMessages(user.id).then(setFbMine).catch(() => {}); }, [fbOpen, user]); // eslint-disable-line react-hooks/exhaustive-deps
   const [category, setCategory] = useState('Creator');
   const [dash, setDash] = useState(false);            // professional dashboard
   const [pageMade, setPageMade] = useState(false);
@@ -1192,7 +1194,7 @@ export const ProfileScreen = () => {
                 only from a private ?studio=1 link (src/utils/studioLink.js),
                 so an admin console never sits in anyone's settings menu. */}
             {/* everyone: send feedback into the owner's Studio */}
-            <MenuRow icon="chatbubble-ellipses-outline" label={t('send_feedback')} sub="Ideas, bugs or love — it reaches Ayser" onPress={() => { setMenu(false); setFbOpen(true); }} />
+            <MenuRow icon="chatbubble-ellipses-outline" label={t('send_feedback')} sub={t('fb_menu_sub')} onPress={() => { setMenu(false); setFbOpen(true); }} />
 
             {/* category — shows next to your name on professional accounts */}
             {accountType === 'professional' ? (
@@ -1219,8 +1221,8 @@ export const ProfileScreen = () => {
                 (The old "Create a Page" said "Live" and made nothing.) */}
             <MenuRow icon="flag-outline" label={t('org_host')} sub={t('org_host_sub')} onPress={() => { setMenu(false); setHostOpen(true); }} />
             <MenuRow icon="star-outline" label={t('close_friends')} sub="Share some moments with your inner circle" onPress={() => { setMenu(false); setCloseOpen(true); }} />
-            <MenuRow icon="happy-outline" label={t('your_avatar')} sub="The cartoon character shown on the live map" onPress={() => { setMenu(false); setAvatarBuilderOpen(true); }} />
-            <MenuRow icon="create-outline" label={t('edit_space')} sub="Name, bio, vibe & links" onPress={() => setEditOpen(true)} />
+            <MenuRow icon="happy-outline" label={t('your_avatar')} sub={t('mr_avatar_sub')} onPress={() => { setMenu(false); setAvatarBuilderOpen(true); }} />
+            <MenuRow icon="create-outline" label={t('edit_space')} sub={t('mr_edit_sub')} onPress={() => setEditOpen(true)} />
           </Pressable>
         </Pressable>
       ) : null}
@@ -1246,7 +1248,7 @@ export const ProfileScreen = () => {
                     return (
                       <Pressable key={k.code} onPress={() => { tapLight(); setFbKind(k.code); }} style={{ marginRight: 8 }}>
                         <View style={{ backgroundColor: on ? C.purple : C.glass, borderWidth: 1, borderColor: on ? C.purple : C.line, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8 }}>
-                          <Text style={{ color: on ? '#FFF' : C.dim, fontSize: 12, fontWeight: '800' }}>{k.label}</Text>
+                          <Text style={{ color: on ? '#FFF' : C.dim, fontSize: 12, fontWeight: '800' }}>{k.emoji + ' ' + t('fb_kind_' + k.code)}</Text>
                         </View>
                       </Pressable>
                     );
@@ -1258,13 +1260,35 @@ export const ProfileScreen = () => {
                 />
                 <Pressable onPress={async () => {
                   if (!fbBody.trim()) return;
-                  try { await sendFeedback(user && user.id, fbKind, fbBody); tapSuccess(); sfxSuccess(); setFbDone(true); setFbBody(''); setTimeout(() => { setFbDone(false); setFbOpen(false); }, 1500); }
+                  try { await sendFeedback(user && user.id, fbKind, fbBody); tapSuccess(); sfxSuccess(); setFbDone(true); setFbBody(''); setTimeout(() => { setFbDone(false); if (user) myMessages(user.id).then(setFbMine).catch(() => {}); }, 1500); }
                   catch (e) {}
                 }} style={{ marginTop: 12 }}>
                   <View style={{ backgroundColor: fbBody.trim() ? C.purple : C.glassHi, borderRadius: 14, paddingVertical: 14, alignItems: 'center' }}>
                     <Text style={{ color: fbBody.trim() ? '#FFF' : C.faint, fontSize: 14, fontWeight: '900' }}>{t('send')}</Text>
                   </View>
                 </Pressable>
+                {/* what you sent, and what the Moments team answered */}
+                {fbMine.length ? (
+                  <ScrollView keyboardShouldPersistTaps="handled" style={{ maxHeight: 260, marginTop: 16 }}>
+                    <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '900', letterSpacing: 1, marginBottom: 8 }}>{t('fb_yours').toUpperCase()}</Text>
+                    {fbMine.slice(0, 6).map((m) => {
+                      const k = FEEDBACK_KINDS.find((x) => x.code === m.kind);
+                      return (
+                        <View key={m.id} style={{ borderRadius: 14, borderWidth: 1, borderColor: C.line, backgroundColor: C.glass, padding: 12, marginBottom: 8 }}>
+                          <Text style={{ color: C.text, fontSize: 13.5, lineHeight: 19 }} numberOfLines={3}>{(k ? k.emoji + ' ' : '') + m.body}</Text>
+                          {m.reply ? (
+                            <View style={{ marginTop: 8, borderRadius: 12, backgroundColor: C.purpleSoft, padding: 10 }}>
+                              <Text style={{ color: C.purple, fontSize: 10.5, fontWeight: '900', letterSpacing: 1 }}>{t('fb_team').toUpperCase()}</Text>
+                              <Text style={{ color: C.text, fontSize: 13.5, lineHeight: 19, marginTop: 2 }}>{m.reply}</Text>
+                            </View>
+                          ) : (
+                            <Text style={{ color: C.faint, fontSize: 12, marginTop: 6 }}>{t('fb_waiting')}</Text>
+                          )}
+                        </View>
+                      );
+                    })}
+                  </ScrollView>
+                ) : null}
               </>
             )}
           </Pressable>

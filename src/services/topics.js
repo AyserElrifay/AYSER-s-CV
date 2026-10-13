@@ -69,7 +69,7 @@ export async function fetchTopicPosts(tag, mode = 'recommend', limit = 40, slug 
     vibes: (r.vibe_rows && r.vibe_rows[0] && r.vibe_rows[0].count) || 0,
     comments: (r.comment_rows && r.comment_rows[0] && r.comment_rows[0].count) || 0,
   }));
-  const cols = '*, user:profiles!posts_user_id_fkey(*), vibe_rows:post_vibes(count), comment_rows:comments(count)';
+  const cols = '*, user:profiles!posts_user_id_fkey(id, name, handle, emoji, avatar_url, avatar_dna, bio, intent, verified, country, country_flag, city, hobbies, account_type, artist_genre, last_active_at), vibe_rows:post_vibes(count), comment_rows:comments(count)';
 
   const { data, error } = await supabase
     .from('posts').select(cols)
@@ -123,7 +123,7 @@ export async function fetchTopicPosts(tag, mode = 'recommend', limit = 40, slug 
 export async function fetchFypPosts(limit = 40) {
   const { data, error } = await supabase
     .from('posts')
-    .select('*, user:profiles!posts_user_id_fkey(*), vibe_rows:post_vibes(count), comment_rows:comments(count)')
+    .select('*, user:profiles!posts_user_id_fkey(id, name, handle, emoji, avatar_url, avatar_dna, bio, intent, verified, country, country_flag, city, hobbies, account_type, artist_genre, last_active_at), vibe_rows:post_vibes(count), comment_rows:comments(count)')
     .order('created_at', { ascending: false })
     .limit(120);
   if (error) throw error;

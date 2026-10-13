@@ -16,7 +16,7 @@ import { supabase } from '../lib/supabase';
 
    Filters: country and city, applied by the database, not in the app. */
 
-const COLS = 'id, name, avatar_url, avatar_dna, country, country_flag, city, bio, hobbies, speaks_language, learning_language, learning_level, learning_visible, last_active_at, lat, lng, verified';
+const COLS = 'id, name, avatar_url, avatar_dna, country, country_flag, city, bio, hobbies, speaks_language, learning_language, learning_level, learning_visible, last_active_at, verified';
 
 const clean = (rows) => (rows || []).filter((r) => r && r.id && r.name);
 
@@ -45,14 +45,21 @@ export async function fetchPeopleYouMayKnow(myId, limit = 30) {
    works without PostGIS; the candidate set is already small. */
 export async function fetchNearby(myId, { lat, lng, limit = 40 } = {}) {
   if (lat == null || lng == null) return [];
-  const { data, error } = await supabase
-    .from('profiles').select(COLS)
-    .not('lat', 'is', null).not('lng', 'is', null)
+  /* Never somebody's spot: the area they are in, to about a kilometre
+     (area_lat / area_lng, RUN_ME.sql "SECURITY"). A database not set up
+     for that yet still answers the old way. */
+  let { data, error } = await supabase
+    .from('profiles').select(COLS + ', area_lat, area_lng')
+    .not('area_lat', 'is', null).not('area_lng', 'is', null)
     .limit(300);
+  if (error && (error.code === '42703' || /does not exist/i.test(error.message || ''))) {
+    ({ data, error } = await supabase.from('profiles').select(COLS + ', area_lat:lat, area_lng:lng')
+      .not('lat', 'is', null).not('lng', 'is', null).limit(300));
+  }
   if (error) throw error;
   return clean(data)
     .filter((p) => p.id !== myId)
-    .map((p) => ({ ...p, km: haversineKm(lat, lng, p.lat, p.lng) }))
+    .map(({ area_lat, area_lng, ...p }) => ({ ...p, km: haversineKm(lat, lng, area_lat, area_lng) }))
     .sort((a, b) => a.km - b.km)
     .slice(0, limit);
 }

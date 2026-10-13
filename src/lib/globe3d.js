@@ -11,7 +11,10 @@ function loadThree() {
   if (threePromise) return threePromise;
   threePromise = new Promise((resolve) => {
     const s = document.createElement('script');
-    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
+    // the exact npm build (r128), with its fingerprint: anything else is refused
+    s.src = 'https://unpkg.com/three@0.128.0/build/three.min.js';
+    s.integrity = 'sha384-CI3ELBVUz9XQO+97x6nwMDPosPR5XvsxW2ua7N1Xeygeh1IxtgqtCkGfQY9WWdHu';
+    s.crossOrigin = 'anonymous';
     s.onload = () => resolve(window.THREE);
     s.onerror = () => resolve(null);
     document.head.appendChild(s);

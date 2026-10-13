@@ -82,7 +82,7 @@ export async function countMates(userId) {
 export async function fetchMyMates(myId) {
   const { data, error } = await supabase
     .from('mates')
-    .select('*, requester:profiles!mates_requester_id_fkey(*), addressee:profiles!mates_addressee_id_fkey(*)')
+    .select('*, requester:profiles!mates_requester_id_fkey(id, name, handle, emoji, avatar_url, avatar_dna, bio, intent, verified, country, country_flag, city, hobbies, account_type, artist_genre, last_active_at), addressee:profiles!mates_addressee_id_fkey(id, name, handle, emoji, avatar_url, avatar_dna, bio, intent, verified, country, country_flag, city, hobbies, account_type, artist_genre, last_active_at)')
     .eq('status', 'accepted')
     .or(`requester_id.eq.${myId},addressee_id.eq.${myId}`)
     .order('created_at', { ascending: false });
@@ -94,7 +94,7 @@ export async function fetchMyMates(myId) {
 export async function fetchIncomingRequests(myId) {
   const { data, error } = await supabase
     .from('mates')
-    .select('*, requester:profiles!mates_requester_id_fkey(*)')
+    .select('*, requester:profiles!mates_requester_id_fkey(id, name, handle, emoji, avatar_url, avatar_dna, bio, intent, verified, country, country_flag, city, hobbies, account_type, artist_genre, last_active_at)')
     .eq('addressee_id', myId)
     .eq('status', 'pending')
     .order('created_at', { ascending: false });

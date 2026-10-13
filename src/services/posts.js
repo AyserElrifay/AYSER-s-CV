@@ -6,7 +6,7 @@ import { supabase } from '../lib/supabase';
 export async function fetchFeed() {
   const { data, error } = await supabase
     .from('posts')
-    .select('*, user:profiles!posts_user_id_fkey(*), vibe_rows:post_vibes(count), comment_rows:comments(count)')
+    .select('*, user:profiles!posts_user_id_fkey(id, name, handle, emoji, avatar_url, avatar_dna, bio, intent, verified, country, country_flag, city, hobbies, account_type, artist_genre, last_active_at), vibe_rows:post_vibes(count), comment_rows:comments(count)')
     .order('created_at', { ascending: false })
     .limit(30);
   if (error) throw error;
@@ -26,7 +26,7 @@ export async function fetchFeed() {
 export async function fetchReposts(limit = 24) {
   const { data, error } = await supabase
     .from('post_reposts')
-    .select('created_at, by:profiles!post_reposts_user_id_fkey(id, name, avatar_url, country_flag, verified), post:posts!post_reposts_post_id_fkey(*, user:profiles!posts_user_id_fkey(*), vibe_rows:post_vibes(count), comment_rows:comments(count))')
+    .select('created_at, by:profiles!post_reposts_user_id_fkey(id, name, avatar_url, country_flag, verified), post:posts!post_reposts_post_id_fkey(*, user:profiles!posts_user_id_fkey(id, name, handle, emoji, avatar_url, avatar_dna, bio, intent, verified, country, country_flag, city, hobbies, account_type, artist_genre, last_active_at), vibe_rows:post_vibes(count), comment_rows:comments(count))')
     .order('created_at', { ascending: false })
     .limit(limit);
   if (error) return [];                       // table/FK not there yet → feed still loads
@@ -46,7 +46,7 @@ export async function fetchReposts(limit = 24) {
 export async function fetchRepostsByUser(userId) {
   const { data, error } = await supabase
     .from('post_reposts')
-    .select('created_at, post:posts!post_reposts_post_id_fkey(*, user:profiles!posts_user_id_fkey(*), vibes:post_vibes(count))')
+    .select('created_at, post:posts!post_reposts_post_id_fkey(*, user:profiles!posts_user_id_fkey(id, name, handle, emoji, avatar_url, avatar_dna, bio, intent, verified, country, country_flag, city, hobbies, account_type, artist_genre, last_active_at), vibes:post_vibes(count))')
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
     .limit(60);
@@ -67,7 +67,7 @@ export async function searchPosts(q) {
   const like = '%' + q.replace(/[%_(),]/g, ' ').trim() + '%';
   const { data, error } = await supabase
     .from('posts')
-    .select('*, user:profiles!posts_user_id_fkey(*), vibe_rows:post_vibes(count), comment_rows:comments(count)')
+    .select('*, user:profiles!posts_user_id_fkey(id, name, handle, emoji, avatar_url, avatar_dna, bio, intent, verified, country, country_flag, city, hobbies, account_type, artist_genre, last_active_at), vibe_rows:post_vibes(count), comment_rows:comments(count)')
     .or('caption.ilike.' + like + ',place.ilike.' + like)
     .order('created_at', { ascending: false })
     .limit(15);
@@ -95,7 +95,7 @@ export async function fetchPostsNearby({ lat, lng, name }, radiusKm = 0.4) {
   }
   const { data, error } = await supabase
     .from('posts')
-    .select('*, user:profiles!posts_user_id_fkey(*), vibe_rows:post_vibes(count), comment_rows:comments(count)')
+    .select('*, user:profiles!posts_user_id_fkey(id, name, handle, emoji, avatar_url, avatar_dna, bio, intent, verified, country, country_flag, city, hobbies, account_type, artist_genre, last_active_at), vibe_rows:post_vibes(count), comment_rows:comments(count)')
     .or(filter)
     .order('created_at', { ascending: false })
     .limit(24);
@@ -130,7 +130,7 @@ export async function fetchMomentPins(days = 3, limit = 120) {
 export async function fetchPost(postId) {
   const { data, error } = await supabase
     .from('posts')
-    .select('*, user:profiles!posts_user_id_fkey(*), vibe_rows:post_vibes(count), comment_rows:comments(count)')
+    .select('*, user:profiles!posts_user_id_fkey(id, name, handle, emoji, avatar_url, avatar_dna, bio, intent, verified, country, country_flag, city, hobbies, account_type, artist_genre, last_active_at), vibe_rows:post_vibes(count), comment_rows:comments(count)')
     .eq('id', postId)
     .single();
   if (error) throw error;
@@ -146,7 +146,7 @@ export async function fetchPost(postId) {
 export async function fetchVideos() {
   const { data, error } = await supabase
     .from('posts')
-    .select('*, user:profiles!posts_user_id_fkey(*)')
+    .select('*, user:profiles!posts_user_id_fkey(id, name, handle, emoji, avatar_url, avatar_dna, bio, intent, verified, country, country_flag, city, hobbies, account_type, artist_genre, last_active_at)')
     .eq('type', 'vod')
     .order('created_at', { ascending: false })
     .limit(40);
@@ -172,7 +172,7 @@ export async function fetchMyMoments(userId) {
 export async function fetchMyPosts(userId) {
   const { data, error } = await supabase
     .from('posts')
-    .select('*, user:profiles!posts_user_id_fkey(*)')
+    .select('*, user:profiles!posts_user_id_fkey(id, name, handle, emoji, avatar_url, avatar_dna, bio, intent, verified, country, country_flag, city, hobbies, account_type, artist_genre, last_active_at)')
     .eq('user_id', userId)
     .order('created_at', { ascending: false });
   if (error) throw error;
@@ -204,7 +204,7 @@ export async function updatePost(postId, userId, fields) {
       .update(payload)
       .eq('id', postId)
       .eq('user_id', userId)
-      .select('*, user:profiles!posts_user_id_fkey(*)')
+      .select('*, user:profiles!posts_user_id_fkey(id, name, handle, emoji, avatar_url, avatar_dna, bio, intent, verified, country, country_flag, city, hobbies, account_type, artist_genre, last_active_at)')
       .single();
     if (!error) {
       if (dropped.length && data) data.__dropped = dropped;
@@ -234,7 +234,7 @@ export async function updatePost(postId, userId, fields) {
 export async function fetchTravelPlans({ q = '', limit = 40 } = {}) {
   let sel = supabase
     .from('posts')
-    .select('*, user:profiles!posts_user_id_fkey(*)')
+    .select('*, user:profiles!posts_user_id_fkey(id, name, handle, emoji, avatar_url, avatar_dna, bio, intent, verified, country, country_flag, city, hobbies, account_type, artist_genre, last_active_at)')
     .not('plan', 'is', null)
     .order('created_at', { ascending: false })
     .limit(120);
@@ -307,7 +307,7 @@ export async function createPost({ userId, type = 'post', caption, place, mediaU
   const insert = () => supabase
     .from('posts')
     .insert(payload)
-    .select('*, user:profiles!posts_user_id_fkey(*)')
+    .select('*, user:profiles!posts_user_id_fkey(id, name, handle, emoji, avatar_url, avatar_dna, bio, intent, verified, country, country_flag, city, hobbies, account_type, artist_genre, last_active_at)')
     .single();
 
   /* Dropping a column the database does not have yet is what keeps

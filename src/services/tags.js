@@ -54,7 +54,7 @@ export async function fetchTagsForPosts(postIds) {
 export async function fetchTaggedPosts(userId) {
   const { data, error } = await supabase
     .from('post_tags')
-    .select('created_at, post:posts!post_tags_post_id_fkey(*, user:profiles!posts_user_id_fkey(*), vibes:post_vibes(count))')
+    .select('created_at, post:posts!post_tags_post_id_fkey(*, user:profiles!posts_user_id_fkey(id, name, handle, emoji, avatar_url, avatar_dna, bio, intent, verified, country, country_flag, city, hobbies, account_type, artist_genre, last_active_at), vibes:post_vibes(count))')
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
     .limit(60);

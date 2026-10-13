@@ -17,12 +17,37 @@ export async function ensureMyProfile(user) {
   if (error && error.code !== '23505') throw error;
 }
 
+/* ─── WHAT OF A PROFILE ANYBODY MAY READ ──────────────────────────────
+   The database hands out a profile column by column (RUN_ME.sql,
+   "SECURITY · WHAT ANYBODY CAN READ"): the public face — name, photo,
+   flag, bio — to anybody signed in; where somebody is, their gender and
+   their settings to nobody but themselves. So nothing here asks for "*"
+   of somebody else's row: that would be refused whole.
+
+   PUBLIC_PROFILE only names columns that have been there since the
+   early days, so it works on a database that has not had the newest
+   setup yet as well as on one that has. */
+export const PUBLIC_PROFILE = 'id, name, handle, emoji, avatar_url, avatar_dna, bio, intent, verified, country, country_flag, city, hobbies, account_type, artist_genre, last_active_at';
+const PROFILE_PAGE = PUBLIC_PROFILE + ', cover_url, cover_kind, cover_lat, cover_lng, cover_place, age, occupation, education, '
+  + 'speaks_language, learning_language, learning_level, learning_visible, host_role, host_verified_at, guide_langs, guide_areas, guide_since, guide_about, '
+  + 'community_xp, community_events, visited_countries, travel_love, created_at';
+
+/* the database not set up for the new way yet: a column or a function it does not have */
+const notYet = (e) => !!e && (/^(42703|PGRST202|PGRST204|42883)$/.test(String(e.code || '')) || /does not exist|could not find/i.test(String(e.message || '')));
+
+async function myId() {
+  try { const { data } = await supabase.auth.getSession(); return (data && data.session && data.session.user && data.session.user.id) || null; } catch (e) { return null; }
+}
+
 export async function getProfile(userId) {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', userId)
-    .single();
+  // your own full row — only ever yours — from the server
+  if (userId && userId === (await myId())) {
+    const { data, error } = await supabase.rpc('my_profile');
+    if (!error && data) return data;
+    if (error && !notYet(error)) throw error;
+  }
+  let { data, error } = await supabase.from('profiles').select(PROFILE_PAGE).eq('id', userId).single();
+  if (error && notYet(error)) ({ data, error } = await supabase.from('profiles').select('*').eq('id', userId).single());
   if (error) throw error;
   return data;
 }
@@ -81,13 +106,12 @@ export async function decideVerification(targetUserId, approve) {
 export async function updateProfile(userId, fields) {
   let attempt = { ...fields };
   for (let i = 0; i < 8; i++) {
-    const { data, error } = await supabase
+    // no "select" back: the row is read again the one way that may read all of it
+    const { error } = await supabase
       .from('profiles')
       .update(attempt)
-      .eq('id', userId)
-      .select()
-      .single();
-    if (!error) return data;
+      .eq('id', userId);
+    if (!error) return getProfile(userId);
     const missing = /find the '([^']+)' column/i.exec(error.message || '');
     if (missing && Object.prototype.hasOwnProperty.call(attempt, missing[1])) {
       delete attempt[missing[1]];

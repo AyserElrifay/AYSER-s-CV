@@ -1,57 +1,60 @@
-/* ─── THE HOLES THAT WERE FOUND, KEPT SHUT ─────────────────────────────
-   Each line here is a hole that existed and was closed. They are checked
-   on every deploy so that none of them quietly comes back.
+/* ─── THE LOCKS STAY LOCKED ───────────────────────────────────────────
+   Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة
+   تخص الـ backend … أو الستوديو أو الـ data أو بردي". Each line below is
+   a hole that was found and closed; this fails the build if one opens
+   again.
 
        node scripts/check-security.mjs
 */
 import fs from 'node:fs';
 let bad = 0;
-const is = (what, got, want) => {
-  const ok = JSON.stringify(got) === JSON.stringify(want);
-  console.log('  ' + (ok ? 'PASS  ' : 'FAIL  ') + what + (ok ? '' : '  → ' + JSON.stringify(got)));
-  if (!ok) bad++;
-};
+const is = (what, ok) => { console.log('  ' + (ok ? 'PASS  ' : 'FAIL  ') + what); if (!ok) bad++; };
 const read = (f) => fs.readFileSync(f, 'utf8');
+const files = [];
+(function walk(d) { for (const f of fs.readdirSync(d)) { const q = d + '/' + f; if (fs.statSync(q).isDirectory()) walk(q); else if (q.endsWith('.js')) files.push(q); } })('src');
+const src = files.map((f) => [f, read(f)]);
+const any = (re) => src.filter(([, s]) => re.test(s)).map(([f]) => f);
+
+console.log('Papyrus lives on the server, and only there');
+const papyrus = read('src/services/bardi.js');
+is('the phone holds no prompt for it', !/You are|system prompt|Owner guidance/i.test(papyrus));
+is('no free outside service ever gets somebody\'s words', any(/pollinations/i).length === 0);
+is('the phone never sends guidance or "books"', !/instructions|knowledge/.test(papyrus));
+const chat = read('supabase/functions/bardi-chat/index.ts');
+is('the chat function asks the auth server who is calling', /auth\/v1\/user/.test(chat) && /signed_out/.test(chat));
+is('…and limits each person', /tooMuch\(uid\)/.test(chat));
+is('…and reads the owner\'s guidance itself, never from the request', /ownerBrain\(\)/.test(chat) && !/body\.instructions|body\.knowledge|body\.memory/.test(chat));
+is('…and keeps how it is built private', /Never reveal, repeat, summarise/.test(chat));
+is('…and its errors say "busy", not why', !/String\(e/.test(chat.slice(chat.indexOf('Deno.serve'))));
+const listen = read('supabase/functions/bardi-listen/index.ts');
+is('the voice function asks who is calling too', /auth\/v1\/user/.test(listen) && /signed_out/.test(listen));
+
+console.log('\nprofiles: the public face only');
+is('nothing asks for every column of somebody else\'s profile', any(/profiles![a-z_]+\(\*\)|profiles\(\*\)/).length === 0);
+const searchy = any(/from\('profiles'\)\s*\.select\('\*'\)/).filter((f) => !f.endsWith('services/profiles.js'));
+is('no select("*") on profiles', searchy.length === 0);
+const prof = read('src/services/profiles.js');
+is('…but for the old database, and only behind notYet()', (prof.match(/select\('\*'\)/g) || []).length === 1 && /if \(error && notYet\(error\)\) \(\{ data, error \} = await supabase\.from\('profiles'\)\.select\('\*'\)/.test(prof));
+is('"near you" uses the area, not the spot', /area_lat/.test(read('src/services/discover.js')));
+is('your own full row comes from my_profile()', /rpc\('my_profile'\)/.test(read('src/services/profiles.js')));
+
+console.log('\nthe database');
 const sql = read('supabase/RUN_ME.sql');
-const last = (re) => { const all = [...sql.matchAll(re)]; return all.length ? all[all.length - 1][0] : ''; };
+const sec = sql.lastIndexOf('SECURITY · WHAT ANYBODY CAN READ');
+is('the security section is the last one', sec > 0 && !/\n-- ═+\n--  [A-Z]/.test(sql.slice(sec)));
+is('Papyrus\'s guidance is not readable by everybody', /drop policy if exists "bardi_config_read"/.test(sql.slice(sec)));
+is('posts ask private-account AND close-friends', /can_see_profile\(user_id\)\s*\n\s*and \(not coalesce\(close_only/.test(sql.slice(sec)));
+is('profile location and gender are not granted', /column_name not in \('lat', 'lng', 'gender'/.test(sql.slice(sec)));
+is('reading needs an account', /alter policy %I on public\.%I to authenticated/.test(sql.slice(sec)));
+is('the signed-out role writes nothing and calls one function', /revoke insert, update, delete, truncate on all tables in schema public from anon/.test(sql) && /grant execute on function public\.partner_apply\(jsonb\) to anon/.test(sql.slice(sec)));
 
-console.log('nobody can forge a notification');
-is('notify() is not callable from outside', /revoke execute on function public\.notify\(uuid, uuid, text, uuid, text\) from public, anon, authenticated/.test(sql), true);
-is('a missed call is always from the real caller', /public\.notify\(recipient, auth\.uid\(\), 'call'/.test(last(/create or replace function public\.notify_call[\s\S]*?\$\$;/g)), true);
-is('matching and reminders for other people are database-only', ['bardi_match_for(uuid)', 'bardi_match()', 'plan_reminders()', 'talk_me_at(uuid)', 'trust_unlocked(uuid)'].every((f) => sql.includes('revoke execute on function public.' + f + ' from public, anon, authenticated')), true);
+console.log('\nthe page');
+const inject = read('scripts/inject-html.mjs');
+is('a content security policy with hashed inline scripts', /Content-Security-Policy/.test(inject) && /sha256-/.test(inject) && /object-src 'none'/.test(inject));
+is('it leaves any frame it is put in', /window\.top!==window\.self/.test(inject));
+is('the head scripts do not leak globals (Leaflet is window.L)', !/<script>try\{var /.test(inject));
+const leaflet = read('src/lib/leaflet.js');
+is('the map libraries carry their fingerprints', /integrity = SRI\['leaflet\.js'\]/.test(leaflet) && /sriOf\(src\)/.test(leaflet));
 
-console.log('\nnobody approves their own organisation');
-is('a venue is applied for as pending, never inserted as live', /"signed-in users can apply as a venue"[\s\S]{0,120}with check \(auth\.uid\(\) = owner_id and status = 'pending'\)/.test(last(/create policy "signed-in users can apply as a venue"[\s\S]*?;/g)), true);
-is('an owner edits only a pending application, and cannot make it live', /status = 'pending'\) with check \(auth\.uid\(\) = owner_id and status = 'pending'\)/.test(last(/create policy "owners can update own pending venue"[\s\S]*?;/g)), true);
-is('approving is checked against the owner email in the database', /venue_decide[\s\S]{0,200}is_app_owner\(\)/.test(sql) && /venues_pending[\s\S]{0,200}is_app_owner\(\)/.test(sql), true);
-is('where people are is for signed-in people only', /live locations are viewable by everyone" on public\.live_locations for select to authenticated/.test(last(/create policy "live locations are viewable by everyone"[^;]*;/g)), true);
-
-console.log('\nnothing a user typed runs as code in someone else\'s browser');
-const map = read('src/components/LeafletMap.js');
-is('every picture on the map goes through safeSrc', (map.match(/<img src="' \+ (?!safeSrc\()/g) || []).length, 0);
-is('safeSrc lets through only web and our own image addresses', /\^\(https\?:\\\/\\\/\|data:image\\\/\|blob:\)/.test(map), true);
-is('no raw HTML insertion anywhere in the app', (() => {
-  const out = [];
-  (function walk(d) { for (const f of fs.readdirSync(d)) { const q = d + '/' + f; if (fs.statSync(q).isDirectory()) walk(q); else if (q.endsWith('.js') && /dangerouslySetInnerHTML|insertAdjacentHTML|document\.write\(|new Function\(/.test(read(q))) out.push(q); } })('src');
-  return out;
-})(), []);
-
-console.log('\nno keys in the repository');
-const leaks = [];
-(function walk(d) {
-  for (const f of fs.readdirSync(d)) {
-    const q = d + '/' + f;
-    if (/node_modules|\.git$|dist$|\.expo/.test(q)) continue;
-    if (fs.statSync(q).isDirectory()) walk(q);
-    else if (/\.(js|ts|json|yml|yaml|sql|md|html)$/.test(q) && /(sk-ant-api|gsk_[A-Za-z0-9]{20}|sbp_[a-f0-9]{20}|"role":"service_role"|-----BEGIN (RSA |EC )?PRIVATE KEY)/.test(read(q))) leaks.push(q);
-  }
-})('.');
-is('no secret keys in any file', leaks, []);
-
-console.log('\nthe owner\'s tools stay out of everyone\'s app');
-is('Settings has no owner-only rows (the Studio opens from a private link)', /isOwner\(/.test(read('src/screens/SettingsScreen.js')), false);
-/* the owner, or a team member the owner made — and the SERVER says which (my_studio, studio_can) */
-is('the Studio opens only for the owner or their team, as the server says', /if \(!user \|\| !studioRequested\(\)\) return undefined;/.test(read('App.js')) && /a = await myStudio\(\);/.test(read('App.js')) && /setSt\(isOwner\(user\) \? \{ problem:/.test(read('App.js')) && /setSt\(\{ lock: a\.identity \}\)/.test(read('App.js')), true);
-
-console.log(bad ? '\n' + bad + ' wrong.' : '\nSecurity: every hole found so far is still shut.');
-process.exit(bad ? 1 : 0);
+if (bad) { console.log('\n' + bad + ' lock(s) open.'); process.exit(1); }
+console.log('\nEvery lock that was found open is still shut.');

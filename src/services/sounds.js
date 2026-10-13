@@ -9,7 +9,7 @@ import { soundOfPost } from '../lib/sound';
    sound" is a fact stored on the post and not a guess based on two
    titles matching. */
 
-const COLS = '*, user:profiles!posts_user_id_fkey(*), vibe_rows:post_vibes(count), comment_rows:comments(count)';
+const COLS = '*, user:profiles!posts_user_id_fkey(id, name, handle, emoji, avatar_url, avatar_dna, bio, intent, verified, country, country_flag, city, hobbies, account_type, artist_genre, last_active_at), vibe_rows:post_vibes(count), comment_rows:comments(count)';
 
 const flat = (rows) => (rows || []).map((r) => ({
   ...r,

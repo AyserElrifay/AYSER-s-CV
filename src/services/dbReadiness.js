@@ -125,6 +125,8 @@ async function probe(check) {
     const { error } = await supabase.from(check.table).select(check.column).limit(1);
     if (!error) return { ...check, state: 'ready' };
     const msg = String((error && error.message) || '').toLowerCase();
+    // there, and kept private (a profile's own settings): that is ready
+    if (/permission denied/.test(msg)) return { ...check, state: 'ready' };
     if (/does not exist|could not find|schema cache|relation/.test(msg)) {
       return { ...check, state: 'missing' };
     }

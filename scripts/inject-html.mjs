@@ -103,7 +103,7 @@ const tags = `
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
   <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
   <!-- the icon somebody picked (src/lib/appIcon.js), before the phone reads it -->
-  <script>try{var L=['night','nile','sunset','papyrus','paper'],qi=new URLSearchParams(location.search).get('icon');if(qi==='classic')localStorage.removeItem('mm.icon');else if(L.indexOf(qi)>=0)localStorage.setItem('mm.icon',qi);var mi=localStorage.getItem('mm.icon');if(L.indexOf(mi)>=0){var q=function(s){return document.querySelectorAll(s)};q('link[rel=manifest]')[0].href='/icons/manifest-'+mi+'.json';q('link[rel=apple-touch-icon]')[0].href='/icons/'+mi+'-180.png';q('link[rel=icon]').forEach(function(l){l.href='/icons/'+mi+'-192.png'})}}catch(e){}</script>
+  <script>(function(){try{var IC=['night','nile','sunset','papyrus','paper'],qi=new URLSearchParams(location.search).get('icon');if(qi==='classic')localStorage.removeItem('mm.icon');else if(IC.indexOf(qi)>=0)localStorage.setItem('mm.icon',qi);var mi=localStorage.getItem('mm.icon');if(IC.indexOf(mi)>=0){var q=function(s){return document.querySelectorAll(s)};q('link[rel=manifest]')[0].href='/icons/manifest-'+mi+'.json';q('link[rel=apple-touch-icon]')[0].href='/icons/'+mi+'-180.png';q('link[rel=icon]').forEach(function(l){l.href='/icons/'+mi+'-192.png'})}}catch(e){}})()</script>
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -270,4 +270,52 @@ console.log('index.html patched: PWA + OG tags');
   const pts = (mod.DESTINATIONS || []).map((d) => [d.id, d.name, d.emoji, d.lat, d.lng]);
   fs.writeFileSync(path.join(process.cwd(), dist, 'places.json'), JSON.stringify(pts));
   console.log('places.json: ' + pts.length + ' places');
+}
+
+/* ─── WHAT THIS PAGE WILL RUN, AND WHO MAY FRAME IT ──────────────────
+   Ayser: "خلي الأبلكيشن آمن جدًا". The last step, after every other
+   script above is in the page:
+
+   · A Content Security Policy. Scripts run only from this site, from
+     the two pinned map/globe libraries on unpkg (each also carries its
+     own fingerprint, src/lib/leaflet.js), and the few small scripts
+     written into this page — each allowed by its exact hash, worked out
+     here. So text somebody manages to slip into the page (a caption, a
+     name) can never become code. No plugins, no <base> tricks, forms
+     only to here and to the payment page.
+   · Never inside somebody else's frame: GitHub Pages cannot send the
+     frame-ancestors header, so the page leaves any frame it is put in
+     (clickjacking — a fake page over a real button).
+   · Links to other sites carry only our address, not the page's. */
+{
+  const crypto = await import('crypto');
+  let page = fs.readFileSync(file, 'utf8');
+  page = page.replace(/<meta http-equiv="Content-Security-Policy"[^>]*>\s*/g, '');
+  const unframe = "<script>if(window.top!==window.self){try{window.top.location.replace(window.location.href)}catch(e){document.documentElement.style.display='none'}}</script>";
+  if (!page.includes(unframe)) page = page.replace('<head>', '<head>' + unframe);
+  const hashes = [];
+  page.replace(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g, (m, body) => {
+    hashes.push("'sha256-" + crypto.createHash('sha256').update(body, 'utf8').digest('base64') + "'");
+    return m;
+  });
+  const csp = [
+    "default-src 'self'",
+    "script-src 'self' https://unpkg.com " + [...new Set(hashes)].join(' '),
+    "style-src 'self' 'unsafe-inline' https://unpkg.com",
+    "img-src 'self' data: blob: https:",
+    "media-src 'self' data: blob: https:",
+    "font-src 'self' data:",
+    "connect-src 'self' https: wss://*.supabase.co",
+    "worker-src 'self' blob:",
+    "frame-src https:",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self' https://accept.paymob.com",
+    'upgrade-insecure-requests',
+  ].join('; ');
+  const metas = '<meta http-equiv="Content-Security-Policy" content="' + csp + '" />'
+    + (page.includes('name="referrer"') ? '' : '<meta name="referrer" content="strict-origin-when-cross-origin" />');
+  page = page.replace('<head>', '<head>' + metas);
+  fs.writeFileSync(file, page);
+  console.log('content security policy: ' + hashes.length + ' inline scripts allowed by hash');
 }

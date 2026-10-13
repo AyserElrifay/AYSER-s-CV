@@ -13685,3 +13685,236 @@ alter table public.posts add column if not exists gathering_id uuid
 create index if not exists posts_gathering_idx on public.posts (gathering_id) where gathering_id is not null;
 
 notify pgrst, 'reload schema';
+
+-- ═══════════════════════════════════════════════════════════════════
+--  REPLYING TO PEOPLE · THE TEAM ANSWERS WHAT THEY SEND
+--
+--  Ayser: "ركّز في البراندنج والرد على الناس". Somebody who wrote to us
+--  (an idea, a problem, a thank-you) used to hear nothing back: it went
+--  into the Studio and stopped there. Now the team answers from the
+--  Studio, as "the Moments team" — never a staff member's own name — the
+--  person is told, and the reply waits under what they wrote.
+--  Safe to re-run.
+-- ═══════════════════════════════════════════════════════════════════
+alter table public.feedback add column if not exists reply      text;
+alter table public.feedback add column if not exists replied_at timestamptz;
+
+-- whoever on the team answers people can read what they wrote
+drop policy if exists "the team reads feedback" on public.feedback;
+create policy "the team reads feedback" on public.feedback for select to authenticated
+  using (public.studio_can('safety'));
+
+drop policy if exists "you read what you sent" on public.feedback;
+create policy "you read what you sent" on public.feedback for select to authenticated
+  using (auth.uid() = user_id);
+
+do $do$ begin
+  alter table public.notifications drop constraint if exists notifications_kind_check;
+  alter table public.notifications add constraint notifications_kind_check
+    check (kind in ('vibe','laugh','comment','mate_request','mate_accept','message','call','tag','repost','green_invite','food_order','food_status','bardi_match','plan_soon','venue_decision','xp_award','safety','creator_plan','booking','trip_open','team_reply'))
+    not valid;
+exception when others then raise notice 'notifications kind constraint skipped: %', sqlerrm;
+end $do$;
+
+create or replace function public.studio_reply_feedback(p_id uuid, p_reply text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare v text := btrim(coalesce(p_reply, '')); who uuid;
+begin
+  if not public.studio_can('safety') then return jsonb_build_object('ok', false, 'reason', 'not_allowed'); end if;
+  if char_length(v) < 1 or char_length(v) > 1000 then return jsonb_build_object('ok', false, 'reason', 'length'); end if;
+  update public.feedback set reply = v, replied_at = now(), status = 'seen'
+   where id = p_id returning user_id into who;
+  if not found then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
+  -- told by "Moments": the person themselves stands in as the actor, so
+  -- no staff member's name or face ever travels with it
+  if who is not null then
+    insert into public.notifications (user_id, actor_id, kind, body)
+    values (who, who, 'team_reply', left(v, 280));
+  end if;
+  perform public.studio_log_add('replied to a message', left(v, 60));
+  return jsonb_build_object('ok', true);
+end $$;
+revoke all on function public.studio_reply_feedback(uuid, text) from public, anon;
+grant execute on function public.studio_reply_feedback(uuid, text) to authenticated;
+
+-- an answer from the team reaches the phone too (and so does "the trip you wanted is open")
+create or replace function public.push_on_notification()
+returns trigger language plpgsql security definer set search_path = public as $$
+declare v_url text; v_hook text;
+begin
+  if new.kind not in ('message','call','mate_request','mate_accept','comment','tag','green_invite','bardi_match','plan_soon','food_order','food_status','venue_decision','trip_open','team_reply') then
+    return new;
+  end if;
+  if not exists (select 1 from public.push_subscriptions where user_id = new.user_id) then return new; end if;
+  select value into v_url from public.app_secrets where name = 'push_url';
+  select value into v_hook from public.app_secrets where name = 'push_hook';
+  begin
+    perform net.http_post(
+      url := v_url,
+      body := jsonb_build_object('id', new.id),
+      headers := jsonb_build_object('Content-Type', 'application/json', 'x-push-hook', v_hook)
+    );
+  exception when others then null;    -- no pg_net, no function yet: the in-app list still has it
+  end;
+  return new;
+end;
+$$;
+
+notify pgrst, 'reload schema';
+
+-- ═══════════════════════════════════════════════════════════════════
+--  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
+--
+--  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة
+--  تخص الـ backend … أو الـ data … أو بردي". An audit of every policy
+--  in this file found these, each closed here:
+--
+--   1. Papyrus's guidance and "books" (bardi_config, bardi_knowledge)
+--      were readable by anybody. Now only the owner reads them; the
+--      bardi-chat function reads them with the server key.
+--   2. "posts are viewable by everyone" survived a rename: the cleanup
+--      dropped "…readable…", not "…viewable…". Policies add up with OR,
+--      so it quietly cancelled the private-account rule AND the close
+--      friends rule. Gone; one policy now asks both.
+--   3. Every profile's exact location (lat, lng), gender and private
+--      settings were readable by anybody with the app's public key,
+--      signed in or not. The table is now read column by column: the
+--      public face of a profile is readable, the rest is not. "Near
+--      you" gets the area (about a kilometre), never the spot. Your own
+--      full row comes from my_profile().
+--   4. Everything people made (posts, profiles, comments, who is going
+--      where…) was readable without an account. Moments needs one, so
+--      now reading needs one too. Help articles and public settings
+--      stay open.
+--   5. Signed-out visitors could write to search_terms. Not any more,
+--      nor to any table: the anonymous role writes nothing directly.
+--   6. An improved arrival step could be given somebody else's name.
+--   7. The girls-only trip check read gender with the person's own
+--      rights, which (3) closes; it asks a server function instead.
+--   8. Every server function could be called signed out. Now only the
+--      partner application can; everything else needs an account.
+--
+--  KEEP THIS SECTION LAST: (3) and (4) look at the tables as they are,
+--  so a column or a policy added below would miss them.
+--  Safe to re-run.
+-- ═══════════════════════════════════════════════════════════════════
+
+-- 1 · Papyrus's guidance: the owner only
+drop policy if exists "bardi_config_read" on public.bardi_config;
+drop policy if exists "bardi_knowledge_read" on public.bardi_knowledge;
+
+-- 2 · posts: private accounts AND close friends, both, always
+drop policy if exists "posts are viewable by everyone" on public.posts;
+drop policy if exists "posts_close_sel" on public.posts;
+drop policy if exists "read posts you are allowed to see" on public.posts;
+create policy "read posts you are allowed to see" on public.posts
+  for select to authenticated using (
+    public.can_see_profile(user_id)
+    and (not coalesce(close_only, false) or auth.uid() = user_id or public.is_close_friend(user_id, auth.uid()))
+  );
+
+-- 7 · girls-only trips, asked of the server
+create or replace function public.i_am_a_woman()
+returns boolean language sql stable security definer set search_path = public as $$
+  select coalesce((select gender from public.profiles where id = auth.uid()), '') = 'f';
+$$;
+revoke all on function public.i_am_a_woman() from public, anon;
+grant execute on function public.i_am_a_woman() to authenticated;
+
+drop policy if exists "tm_ins" on public.trip_members;
+create policy "tm_ins" on public.trip_members for insert with check (
+  auth.uid() = user_id
+  and (
+    select count(*) from public.trip_members m where m.trip_id = trip_members.trip_id
+  ) < (select seats from public.trips t where t.id = trip_members.trip_id)
+  and (
+    not (select girls_only from public.trips t where t.id = trip_members.trip_id)
+    or public.i_am_a_woman()
+  )
+);
+
+-- 6 · an improved step keeps its author
+create or replace function public.arrival_keep_author()
+returns trigger language plpgsql as $$
+begin
+  new.author_id := old.author_id;
+  return new;
+end $$;
+drop trigger if exists arrival_keep_author on public.arrival_steps;
+create trigger arrival_keep_author before update on public.arrival_steps
+  for each row execute function public.arrival_keep_author();
+
+-- 5 · the anonymous role writes nothing directly (its few doors — a
+--     partner application, say — are server functions, untouched)
+drop policy if exists "anyone can log a search" on public.search_terms;
+create policy "anyone can log a search" on public.search_terms for insert to authenticated
+  with check (char_length(term) between 2 and 40);
+revoke insert, update, delete, truncate on all tables in schema public from anon;
+
+-- 3 · profiles: the public face readable, the rest not
+alter table public.profiles add column if not exists area_lat double precision
+  generated always as (round(lat::numeric, 2)::double precision) stored;
+alter table public.profiles add column if not exists area_lng double precision
+  generated always as (round(lng::numeric, 2)::double precision) stored;
+
+create or replace function public.my_profile()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select to_jsonb(p) from public.profiles p where p.id = auth.uid();
+$$;
+revoke all on function public.my_profile() from public, anon;
+grant execute on function public.my_profile() to authenticated;
+
+do $$
+declare cols text;
+begin
+  select string_agg(quote_ident(column_name), ', ' order by ordinal_position) into cols
+    from information_schema.columns
+   where table_schema = 'public' and table_name = 'profiles'
+     and column_name not in ('lat', 'lng', 'gender', 'tos_accepted_at', 'theme_pref', 'message_ttl_hours',
+                             'vibe_check_at', 'invited_by', 'focus_status', 'focus_until');
+  execute 'revoke select on public.profiles from anon, authenticated';
+  execute 'grant select (' || cols || ') on public.profiles to authenticated';
+end $$;
+
+-- 8 · server functions: nothing for the signed-out role but the one door
+--     it needs (a partner applying). Supabase lets the anonymous role call
+--     every function by default; most check who is asking themselves, but
+--     "most" is not a lock. Whoever could call a function signed in still
+--     can — that is kept exactly — and extension functions are left alone.
+do $$
+declare r record; auth_ok boolean; svc_ok boolean;
+begin
+  for r in
+    select p.oid, p.oid::regprocedure::text as sig
+      from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public' and p.prokind = 'f'
+       and not exists (select 1 from pg_depend d where d.objid = p.oid and d.deptype = 'e')
+  loop
+    auth_ok := has_function_privilege('authenticated', r.oid, 'execute');
+    svc_ok  := has_function_privilege('service_role', r.oid, 'execute');
+    execute format('revoke execute on function %s from public, anon', r.sig);
+    if auth_ok then execute format('grant execute on function %s to authenticated', r.sig); end if;
+    if svc_ok  then execute format('grant execute on function %s to service_role', r.sig); end if;
+  end loop;
+end $$;
+do $$ begin
+  if to_regprocedure('public.partner_apply(jsonb)') is not null then
+    grant execute on function public.partner_apply(jsonb) to anon;
+  end if;
+end $$;
+alter default privileges in schema public revoke execute on functions from public, anon;
+
+-- 4 · reading needs an account (help and public settings stay open)
+do $$
+declare r record;
+begin
+  for r in
+    select tablename, policyname from pg_policies
+     where schemaname = 'public' and cmd = 'SELECT' and qual = 'true' and roles = '{public}'
+       and tablename not in ('app_settings', 'help_articles')
+  loop
+    execute format('alter policy %I on public.%I to authenticated', r.policyname, r.tablename);
+  end loop;
+end $$;
+
+notify pgrst, 'reload schema';

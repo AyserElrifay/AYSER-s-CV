@@ -1,308 +1,54 @@
 import { supabase, SUPABASE_READY } from '../lib/supabase';
-import { loadBardiBrain, addBardiMemory } from './bardiOwner';
 
-/* ─── Bardi — Ayser's AI, living inside Moments ───────────────────────
-   Bardi has no separate server: it runs as a Supabase Edge Function
-   ('bardi-chat') deployed on THIS project, so we just invoke it. The
-   function takes a chat history + optional profile/language and returns
-   a single reply. With ANTHROPIC_API_KEY set it's sharper; without one
-   it still answers free via Pollinations. Everything here is real — if
-   the function isn't deployed yet, we say so honestly instead of faking
-   an answer. */
+/* ─── PAPYRUS, FROM THE PHONE'S SIDE ──────────────────────────────────
+   Papyrus (بردي in Arabic) lives on the server, in the 'bardi-chat'
+   function, and nowhere else. The phone holds no prompt, no guidance,
+   no "books" and no list of models — there is nothing here to read or
+   to change. It sends the words to answer and gets words back.
+
+   Ayser: "متخليش الـ users يوصلوا لأي معلومة تخص الـ backend … أو بردي".
+   That is also why there is no fallback any more: when the server is
+   busy the app says so in its own words, instead of handing somebody's
+   sentence to a free service on the internet.
+
+   Today the phone only asks for translations (posts and chats). */
 
 export const BARDI_READY = SUPABASE_READY;
 
-const LANG_NAME = {
-  ar: 'Arabic', en: 'English', fr: 'French', es: 'Spanish', tr: 'Turkish',
-  pt: 'Portuguese', ro: 'Romanian', it: 'Italian', nl: 'Dutch', ru: 'Russian',
-  zh: 'Chinese', ko: 'Korean', ja: 'Japanese',
-};
+/* what failed, in words the app can say — never the server's own */
+const failure = (code) => { const e = new Error('papyrus-' + code); e.code = code; return e; };
 
-/* Translation is not a conversation. Bardi's own prompt tells it to be
-   a coach who asks questions before it advises — so asked to translate
-   "17??" it did exactly that, and answered the post instead of
-   translating it. A translation runs on its own prompt with none of the
-   persona in it. */
-function translatorSystem(target) {
-  return 'You are a translation engine, not an assistant. Translate the user message into ' + target + '.\n'
-    + 'Output ONLY the translation. Never answer the message, never ask a question, never add notes, quotes or explanation.\n'
-    + 'Keep emoji, numbers, names and @handles exactly as they are.\n'
-    + 'If the message is already in ' + target + ', or is only numbers, symbols or emoji, output it back unchanged.';
+async function ask(body) {
+  if (!SUPABASE_READY) throw failure('unreachable');
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) throw failure('offline');
+  const call = supabase.functions.invoke('bardi-chat', { body });
+  const late = new Promise((resolve) => setTimeout(() => resolve({ late: true }), 15000));
+  let res;
+  try { res = await Promise.race([call, late]); } catch (e) { throw failure('unreachable'); }
+  if (res && res.late) throw failure('busy');
+  const { data, error } = res || {};
+  const reply = !error && data && typeof data.reply === 'string' ? data.reply.trim() : '';
+  if (reply) return reply;
+  const status = error && error.context && error.context.status;
+  throw failure(status === 401 ? 'signed_out' : status === 429 ? 'slow_down' : 'busy');
 }
-
-function bardiSystem(language, profile, brain) {
-  const lang = LANG_NAME[language] || "the user's language";
-  let p = `You are Bardi, a warm, sharp personal assistant living inside Moments — a social app by Ayser.
-You help people understand themselves, grow, plan trips and start projects.
-Be concise, kind and practical. Ask one question at a time when you need more. Always reply in ${lang}.`;
-  if (profile && (profile.name || profile.bio)) {
-    p += `\nYou're talking to ${profile.name || 'someone'}${profile.bio ? ` (bio: ${profile.bio})` : ''}.`;
-  }
-  // owner-authored steering + knowledge ("books"), and this user's memory
-  if (brain && brain.instructions) {
-    p += `\n\nOwner guidance (follow this):\n${String(brain.instructions).slice(0, 4000)}`;
-  }
-  if (brain && brain.knowledge && brain.knowledge.length) {
-    const kb = brain.knowledge.slice(0, 8).map((k) => `• ${k.title}: ${String(k.content || '').slice(0, 1200)}`).join('\n');
-    p += `\n\nKnowledge you can draw on:\n${kb}`;
-  }
-  if (brain && brain.memory && brain.memory.length) {
-    p += `\n\nWhat you remember about this person (from your past chats with them):\n- ` + brain.memory.slice(0, 20).join('\n- ');
-  }
-  return p;
-}
-
-/* fetch with a hard timeout — a hung request must never leave Bardi
-   "thinking" forever; it should fail fast so the next provider is tried. */
-async function fetchT(url, options, ms) {
-  const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
-  const timer = setTimeout(() => { try { ctrl && ctrl.abort(); } catch (e) {} }, ms || 16000);
-  try {
-    return await fetch(url, { ...(options || {}), signal: ctrl ? ctrl.signal : undefined });
-  } finally { clearTimeout(timer); }
-}
-
-// A reply is "real" only if it isn't an error page / rate-limit blurb.
-function cleanReply(text) {
-  const t = String(text || '').trim();
-  if (!t || t.length < 2) return null;
-  if (/^\s*(\{?\s*"?error|error:|not\s*found|rate.?limit|too many|unauthor|<!doctype|<html|payment required)/i.test(t)) return null;
-  return t;
-}
-
-async function pollinationsGET(prompt, sys, model, ms) {
-  const url = 'https://text.pollinations.ai/' + encodeURIComponent(prompt)
-    + '?model=' + encodeURIComponent(model) + '&referrer=moments.app&system=' + encodeURIComponent(sys);
-  const r = await fetchT(url, {}, ms || 8000);
-  if (!r.ok) return null;
-  return cleanReply(await r.text());
-}
-
-async function pollinationsPOST(hist, sys, model, ms) {
-  const r = await fetchT('https://text.pollinations.ai/openai', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({
-      model, referrer: 'moments.app',
-      messages: [{ role: 'system', content: sys }, ...hist.map((m) => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: String(m.content || '') }))],
-    }),
-  }, ms || 9000);
-  if (!r.ok) return null;
-  const data = await r.json().catch(() => null);
-  return cleanReply(data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content);
-}
-
-/* Fallback that talks to Bardi straight from the browser — free, needs no
-   Edge Function deploy. Uses Pollinations (CORS-open) so Bardi is alive the
-   moment the app loads. Real AI, not a canned reply.
-
-   Pollinations' free tier is flaky and rate-limits hard, so we're resilient:
-   try several models, GET first (short prompts, no preflight) then POST,
-   each with a timeout — so one throttled model never sinks the whole thing. */
-async function askBardiDirect(messages, opts) {
-  let sys = opts.task === 'translate'
-    ? translatorSystem(opts.target || (LANG_NAME[opts.language] || 'English'))
-    : bardiSystem(opts.language || 'en', opts.profile, opts.brain);
-  // The free fallback is flaky and hates big payloads/URLs, so keep it lean:
-  // the persona is at the START, so trimming drops only trailing extras.
-  if (sys.length > 1500) sys = sys.slice(0, 1500);
-  /* HOW MUCH OF THE CONVERSATION IT REMEMBERS. This was the last eight
-     messages — four exchanges — so Bardi lost the thread of anything
-     longer than a short back-and-forth, which reads as the chat being
-     wiped. A budget in characters instead of a count keeps as much as
-     the request can actually carry: long answers take fewer turns,
-     short ones take many more.
-
-     The free tier does dislike big payloads, though, and forgetting is
-     better than not answering at all — so if the whole window gets
-     nowhere, there is one last attempt with just the tail. Bardi
-     remembers when he can and always replies. */
-  const window = (limitChars, limitCount) => {
-    const out = [];
-    let budget = limitChars;
-    for (let i = (messages || []).length - 1; i >= 0 && out.length < limitCount; i--) {
-      const text = String((messages[i] && messages[i].content) || '');
-      if (out.length && budget - text.length < 0) break;
-      budget -= text.length;
-      out.unshift(messages[i]);
-    }
-    return out;
-  };
-  const asText = (h) => h.map((m) => (m.role === 'assistant' ? 'Papyrus' : 'User') + ': ' + String(m.content || '')).join('\n') + '\nPapyrus:';
-
-  const full = window(6000, 40);
-  const tail = window(1200, 8);
-
-  /* The free tier throttles hard, so one quick round is not enough to
-     call it dead. We do a fast pass across several models, then a
-     second, patient pass with longer timeouts — that second pass is
-     what rescues most "Bardi isn't working" moments. The last pass
-     trades the older half of the conversation for an answer. */
-  const MODELS = ['openai-fast', 'openai', 'mistral', 'llama', 'openai-large'];
-  const ROUNDS = [
-    { models: MODELS.slice(0, 3), ms: 9000, hist: full },
-    { models: MODELS, ms: 20000, hist: full },
-    { models: MODELS.slice(0, 3), ms: 12000, hist: tail },
-  ];
-
-  let sawResponse = false;
-  for (const round of ROUNDS) {
-    const hist = round.hist;
-    if (!hist.length) continue;
-    const convo = asText(hist);
-    // GET only while the whole URL (prompt + system) stays under the
-    // limit, else a huge URL trips 414 "URI too long" — a real cause of
-    // silent fails.
-    const getOk = convo.length + sys.length < 1400;
-    for (const model of round.models) {
-      const tries = [];
-      if (getOk) tries.push(pollinationsGET(convo, sys, model, round.ms).then((r) => { sawResponse = true; return r; }).catch(() => null));
-      tries.push(pollinationsPOST(hist, sys, model, round.ms).then((r) => { sawResponse = true; return r; }).catch(() => null));
-      const results = await Promise.all(tries);
-      const hit = results.find(Boolean);
-      if (hit) return hit;
-    }
-    // no point repeating the same window with the same payload
-    if (round.hist === tail && full.length === tail.length) break;
-  }
-  // Tell the caller WHICH kind of failure this was, so the UI can say
-  // something true instead of a shrug.
-  const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
-  const err = new Error(offline ? 'bardi-offline' : sawResponse ? 'bardi-busy' : 'bardi-unreachable');
-  err.code = offline ? 'offline' : sawResponse ? 'busy' : 'unreachable';
-  throw err;
-}
-
-/* Send the conversation to Bardi and get its reply.
-   messages: [{ role:'user'|'assistant', content:string }]
-   opts: { language?: 'ar'|'en'|…, profile?: { name, bio } }
-
-   Prefers Ayser's deployed bardi-chat Edge Function (his real Bardi); if
-   it isn't deployed yet, falls back to talking to Bardi directly from the
-   browser so it always works. */
-export async function askBardi(messages, opts = {}) {
-  // Pull the owner's steering + knowledge ("books") and this user's
-  // memory, so Bardi is shaped by the owner portal and remembers the
-  // person — passed to the model so the endpoint stays a pure
-  // pass-through (no server-side reads of anyone's data).
-  const remember = opts.remember !== false; // user can turn Bardi's memory off
-  let brain = opts.brain;
-  // a translation carries no persona, no memory and no owner steering
-  if (opts.task === 'translate') brain = null;
-  else if (!brain && SUPABASE_READY) {
-    try { brain = await loadBardiBrain(opts.userId, remember); } catch (e) { brain = null; }
-  }
-  const optsB = { ...opts, brain };
-
-  const body = {
-    messages: (messages || []).map((m) => ({ role: m.role, content: m.content })),
-    language: opts.language || 'en',
-  };
-  if (opts.task) body.task = opts.task;          // 'translate' → the endpoint drops the persona
-  if (opts.target) body.target = opts.target;
-  if (opts.profile && opts.task !== 'translate') body.profile = opts.profile;
-  if (brain && brain.instructions) body.instructions = brain.instructions;
-  if (brain && brain.knowledge && brain.knowledge.length) body.knowledge = brain.knowledge;
-  if (brain && brain.memory && brain.memory.length) body.memory = brain.memory;
-
-  let reply = null;
-  /* Why the hosted endpoint didn't answer. The fallback's own error used
-     to be the only thing anyone saw, so a deployed-but-misconfigured
-     endpoint looked identical to a busy free gateway and we spent a
-     night guessing between them. Now the real reason travels with the
-     error. */
-  let edgeWhy = SUPABASE_READY ? null : 'no backend configured';
-  // 1) the deployed Edge Function, when available. Race it against a
-  //    timeout so a cold/hung function never freezes Bardi — we just
-  //    fall through to the live browser fallback instead.
-  if (SUPABASE_READY) {
-    try {
-      const invoke = supabase.functions.invoke('bardi-chat', { body });
-      const timeout = new Promise((resolve) => setTimeout(() => resolve({ __timeout: true }), 15000));
-      const res = await Promise.race([invoke, timeout]);
-      if (res && res.__timeout) edgeWhy = 'the endpoint took longer than 15s';
-      else {
-        const { data, error } = res || {};
-        const r = !error && data && (data.reply || data.message || data.content);
-        if (r) reply = r;
-        else edgeWhy = (error && (error.message || String(error)))
-          || (data && data.error)
-          || 'the endpoint answered with no reply';
-      }
-    } catch (e) { edgeWhy = (e && e.message) || String(e); }
-  }
-  // 2) live fallback, straight from the browser
-  if (!reply) {
-    try {
-      reply = await askBardiDirect(messages, optsB);
-    } catch (e) {
-      if (edgeWhy) e.edgeWhy = edgeWhy;
-      throw e;
-    }
-  }
-
-  // learn from this chat (the user's OWN conversation with Bardi, consented):
-  // remember durable first-person facts — only when memory is left on.
-  if (reply && opts.userId && remember) rememberFromChat(opts.userId, messages);
-  return reply;
-}
-
-/* Lightweight, no-extra-AI memory: when the user states a durable fact
-   about themselves ("I'm a…", "my goal is…", "أنا…", "هدفي…"), keep it so
-   Bardi recalls it next time. Only the user's own words, only obvious
-   self-facts — never stored silently from anyone else's chats. */
-const MEMORY_CUES = /\b(i am|i'm|my name is|my goal|i want to|i work|i study|i love|i hate|i feel)\b|أنا |اسمي |هدفي |بحب |بكره |بشتغل |بدرس |نفسي /i;
-function rememberFromChat(userId, messages) {
-  try {
-    const lastUser = [...(messages || [])].reverse().find((m) => m.role === 'user');
-    const text = lastUser && String(lastUser.content || '').trim();
-    if (text && text.length >= 8 && text.length <= 300 && MEMORY_CUES.test(text)) {
-      addBardiMemory(userId, text);
-    }
-  } catch (e) { /* non-blocking */ }
-}
-
-/* Quick-start intents that give Bardi a helpful, concrete first prompt —
-   self-understanding, travel plans, projects: the things Ayser wants it to
-   help people with. */
-export const BARDI_STARTERS = [
-  { id: 'self', emoji: '🪞', title: 'Understand myself', prompt: 'Ask me 3 short questions to help me understand myself better, then give me one insight.' },
-  { id: 'travel', emoji: '✈️', title: 'Plan a trip', prompt: 'Help me plan a trip. Ask me where, how many days and my budget, then build a day-by-day plan.' },
-  { id: 'project', emoji: '🚀', title: 'Start a project', prompt: 'I want to start a project. Help me turn my idea into a clear first-week plan with concrete steps.' },
-  { id: 'grow', emoji: '🌱', title: 'Grow a habit', prompt: 'Help me build one small daily habit that improves my life. Keep it realistic and specific.' },
-];
 
 /* ── TRANSLATION ────────────────────────────────────────────────────
-   Bardi already speaks every language the app does, so translation is
-   the same endpoint with a much narrower brief: return the sentence in
-   the other language and nothing else — no preamble, no "here is the
-   translation", no explanation nobody asked for.
-
-   Results are cached per text+language for the session: the same
-   caption scrolling past three times should cost one call. */
+   The same endpoint with a narrow brief: the sentence in the other
+   language and nothing else. Cached per text and language for the
+   session: the same caption scrolling past three times costs one call. */
 const transCache = new Map();
 
 export async function translateText(text, lang = 'en') {
   const body = String(text || '').trim();
   if (!body) return '';
-  /* Nothing to translate: "17??", "😂😂", "!!!" — there are no words in
-     it. Sending that to a model only invites it to make conversation. */
+  /* Nothing to translate: "17??", "😂😂", "!!!" — there are no words in it. */
   if (!/\p{Letter}/u.test(body)) return body;
   const key = lang + '|' + body;
   const hit = transCache.get(key);
   if (hit) return hit;
-
-  const target = lang === 'ar' ? 'Egyptian Arabic' : (LANG_NAME[lang] || 'English');
-  const out = await askBardi(
-    [{ role: 'user', content: body }],
-    {
-      language: lang,
-      target,
-      task: 'translate',        // no coach, no memory, no owner steering
-      remember: false,          // a translation is not something to remember about someone
-    }
-  );
-  const clean = String(out || '').trim().replace(/^["\u201c]|["\u201d]$/g, '');
+  const out = await ask({ messages: [{ role: 'user', content: body.slice(0, 4000) }], language: lang, target: lang, task: 'translate' });
+  const clean = String(out || '').trim().replace(/^["“]|["”]$/g, '');
   if (clean) { if (transCache.size > 200) transCache.clear(); transCache.set(key, clean); }
   return clean;
 }

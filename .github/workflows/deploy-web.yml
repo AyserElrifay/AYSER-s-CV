@@ -52,6 +52,9 @@ jobs:
       # message was right there and easier to pass along than a sentence.
       - name: Check the plumbing stays out of sight
         run: node scripts/check-leaks.mjs
+      # Every hole a security pass found and closed, kept closed.
+      - name: Check the locks stay locked
+        run: node scripts/check-security.mjs
       # A key added to English is a key owed to twelve other languages.
       # The fallback hides the gap, which is how thirty-one keys came to
       # exist only in English and Arabic without anybody noticing.

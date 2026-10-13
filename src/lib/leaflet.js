@@ -39,6 +39,22 @@ export function warmMap() {
   loadLeaflet();
 }
 
+/* ─── EXACTLY THE FILES WE CHOSE, OR NOTHING ─────────────────────────
+   The map's libraries come from a public CDN. Each one carries the
+   fingerprint of the exact file we picked (worked out from the npm
+   package the CDN serves; Leaflet's match the ones Leaflet publishes),
+   so if the CDN ever served anything else the browser refuses to run
+   it and the map falls back — it never runs somebody else's code. */
+const SRI = {
+  'leaflet.js': 'sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH',
+  'leaflet.css': 'sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H',
+  'maplibre-gl.js': 'sha384-SYKAG6cglRMN0RVvhNeBY0r3FYKNOJtznwA0v7B5Vp9tr31xAHsZC0DqkQ/pZDmj',
+  'maplibre-gl.css': 'sha384-MinO0mNliZ3vwppuPOUnGa+iq619pfMhLVUXfC4LHwSCvF9H+6P/KO4Q7qBOYV5V',
+  'leaflet-maplibre-gl.js': 'sha384-tXYNKOHx4T02jMP7YYCtBxPIv1B5gaA5mcVPBzqMp6d7VzWzxJgI2aWF/nJLrQdS',
+  'mapbox-gl-rtl-text.min.js': 'sha384-I3WtIlwH0n6Kkm84+GyC2qO1D3VHr0ELYnhw54/FX8uh4JjTrKMsU6gq8mgDWa02',
+};
+const sriOf = (url) => SRI[url.slice(url.lastIndexOf('/') + 1)];
+
 export function loadLeaflet() {
   if (typeof window === 'undefined') return Promise.resolve(null);
   if (window.L) return Promise.resolve(window.L);
@@ -47,9 +63,11 @@ export function loadLeaflet() {
     const css = document.createElement('link');
     css.rel = 'stylesheet';
     css.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+    css.integrity = SRI['leaflet.css']; css.crossOrigin = 'anonymous';
     document.head.appendChild(css);
     const js = document.createElement('script');
     js.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+    js.integrity = SRI['leaflet.js']; js.crossOrigin = 'anonymous';
     js.onload = () => resolve(window.L);
     js.onerror = () => resolve(null);
     document.head.appendChild(js);
@@ -84,6 +102,7 @@ let vectorPromise = null;
 const script = (src) => new Promise((resolve) => {
   const el = document.createElement('script');
   el.src = src;
+  if (sriOf(src)) { el.integrity = sriOf(src); el.crossOrigin = 'anonymous'; }
   el.onload = () => resolve(true);
   el.onerror = () => resolve(false);
   document.head.appendChild(el);
@@ -102,7 +121,7 @@ export function loadVectorMap() {
     } catch (e) { return null; }
     if (!window.maplibregl) {
       const css = document.createElement('link');
-      css.rel = 'stylesheet'; css.href = MAPLIBRE_CSS;
+      css.rel = 'stylesheet'; css.href = MAPLIBRE_CSS; css.integrity = sriOf(MAPLIBRE_CSS); css.crossOrigin = 'anonymous';
       document.head.appendChild(css);
       if (!(await script(MAPLIBRE_JS)) || !window.maplibregl) return null;
     }

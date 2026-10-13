@@ -4,11 +4,33 @@ import { setupNotice } from '../lib/plumbing';
 /* User feedback → the owner's Studio inbox. Real rows, owner-only reads. */
 
 export const FEEDBACK_KINDS = [
-  { code: 'idea', label: '💡 Idea' },
-  { code: 'bug', label: '🐞 Bug' },
-  { code: 'love', label: '❤️ Love it' },
-  { code: 'other', label: '✋ Other' },
+  { code: 'idea', emoji: '💡', label: '💡 Idea' },
+  { code: 'bug', emoji: '🐞', label: '🐞 Bug' },
+  { code: 'love', emoji: '❤️', label: '❤️ Love it' },
+  { code: 'other', emoji: '✋', label: '✋ Other' },
 ];
+
+/* What you sent us, and what the team answered (RUN_ME.sql, "REPLYING
+   TO PEOPLE"). Only ever your own rows. A database that has not had
+   that part yet still lists what you sent, without answers. */
+export async function myMessages(userId) {
+  if (!userId) return [];
+  let { data, error } = await supabase.from('feedback').select('id, kind, body, reply, replied_at, created_at')
+    .eq('user_id', userId).order('created_at', { ascending: false }).limit(20);
+  if (error && /reply|column/i.test(error.message || '')) {
+    ({ data, error } = await supabase.from('feedback').select('id, kind, body, created_at')
+      .eq('user_id', userId).order('created_at', { ascending: false }).limit(20));
+  }
+  if (error) return [];
+  return data || [];
+}
+
+/* the team answers, as "the Moments team" — checked on the server */
+export async function replyFeedback(id, text) {
+  const { data, error } = await supabase.rpc('studio_reply_feedback', { p_id: id, p_reply: String(text || '').trim() });
+  if (error) return { ok: false, reason: 'server' };
+  return data || { ok: false };
+}
 
 export async function sendFeedback(userId, kind, body) {
   const { error } = await supabase.from('feedback').insert({ user_id: userId || null, kind: kind || 'idea', body: (body || '').trim() });

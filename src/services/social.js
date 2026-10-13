@@ -102,7 +102,7 @@ export async function fetchEngagement(userId) {
 export async function fetchVibers(postId) {
   const { data, error } = await supabase
     .from('post_vibes')
-    .select('created_at, user:profiles!post_vibes_user_id_fkey(*)')
+    .select('created_at, user:profiles!post_vibes_user_id_fkey(id, name, handle, emoji, avatar_url, avatar_dna, bio, intent, verified, country, country_flag, city, hobbies, account_type, artist_genre, last_active_at)')
     .eq('post_id', postId)
     .order('created_at', { ascending: false })
     .limit(100);
@@ -114,7 +114,7 @@ export async function fetchVibers(postId) {
 export async function fetchLaughers(postId) {
   const { data, error } = await supabase
     .from('post_laughs')
-    .select('created_at, user:profiles!post_laughs_user_id_fkey(*)')
+    .select('created_at, user:profiles!post_laughs_user_id_fkey(id, name, handle, emoji, avatar_url, avatar_dna, bio, intent, verified, country, country_flag, city, hobbies, account_type, artist_genre, last_active_at)')
     .eq('post_id', postId)
     .order('created_at', { ascending: false })
     .limit(100);
@@ -127,7 +127,7 @@ export async function fetchComments(postId) {
     .from('comments')
     // name the exact FK (comments.user_id → profiles) so PostgREST never
     // has to guess — fixes "more than one relationship was found"
-    .select('*, user:profiles!comments_user_id_fkey(*)')
+    .select('*, user:profiles!comments_user_id_fkey(id, name, handle, emoji, avatar_url, avatar_dna, bio, intent, verified, country, country_flag, city, hobbies, account_type, artist_genre, last_active_at)')
     .eq('post_id', postId)
     .order('created_at', { ascending: true })
     .limit(100);
@@ -141,7 +141,7 @@ export async function addComment(postId, userId, body, parentId) {
     const { data, error } = await supabase
       .from('comments')
       .insert(payload)
-      .select('*, user:profiles!comments_user_id_fkey(*)')
+      .select('*, user:profiles!comments_user_id_fkey(id, name, handle, emoji, avatar_url, avatar_dna, bio, intent, verified, country, country_flag, city, hobbies, account_type, artist_genre, last_active_at)')
       .single();
     if (!error) return data;
     // DB without the replies column yet → post it as a normal comment
@@ -167,7 +167,7 @@ export async function editComment(commentId, userId, body) {
     .update({ body: text.slice(0, 2000) })
     .eq('id', commentId)
     .eq('user_id', userId)
-    .select('*, user:profiles!comments_user_id_fkey(*)')
+    .select('*, user:profiles!comments_user_id_fkey(id, name, handle, emoji, avatar_url, avatar_dna, bio, intent, verified, country, country_flag, city, hobbies, account_type, artist_genre, last_active_at)')
     .single();
   if (error) throw error;
   return data;
@@ -217,7 +217,7 @@ export async function searchProfiles(query) {
   if (!q) return [];
   const { data, error } = await supabase
     .from('profiles')
-    .select('*')
+    .select('id, name, handle, emoji, avatar_url, avatar_dna, bio, intent, verified, country, country_flag, city, hobbies, account_type, artist_genre, last_active_at')
     .or('name.ilike.%' + q + '%,handle.ilike.%' + q + '%')
     .limit(20);
   if (error) throw error;

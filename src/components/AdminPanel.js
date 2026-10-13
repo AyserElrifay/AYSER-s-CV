@@ -13,7 +13,7 @@ import { askAdvice } from '../services/advice';
 import { fetchAllHighlights, addHighlight, setHighlightLive } from '../services/appHighlights';
 import { uploadMediaSmart } from '../lib/storage';
 import { useLang } from '../context/LanguageContext';
-import { fetchFeedback, markFeedbackSeen } from '../services/feedback';
+import { fetchFeedback, markFeedbackSeen, replyFeedback } from '../services/feedback';
 import { fetchStudioStats } from '../services/feedback';
 import { fetchPendingVerifications, decideVerification, fetchPendingVenues, decideVenue } from '../services/profiles';
 import { fetchTracks, setTrackApproval, harvestFreeMusic, harvestPublicDomainClassics, clearImportedTracks, countImportedTracks } from '../services/music';
@@ -528,6 +528,8 @@ export const AdminPanel = ({ onClose, access = { owner: true } }) => {
   const [wipeArmed, setWipeArmed] = useState(false);
   const [wipeCount, setWipeCount] = useState(0);
   const [feedback, setFeedback] = useState(null);
+  const [fbReply, setFbReply] = useState({});      // id -> draft answer
+  const [fbSending, setFbSending] = useState(null);
   const [help, setHelp] = useState(null);
   const [helpEdit, setHelpEdit] = useState(null); // 'new' | article row | null
   const [helpForm, setHelpForm] = useState({ category: '', title: '', body: '' });
@@ -1041,6 +1043,29 @@ export const AdminPanel = ({ onClose, access = { owner: true } }) => {
                   {f.status === 'new' ? <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: C.purple }} /> : null}
                 </View>
                 <Text style={{ color: C.text, fontSize: 13, lineHeight: 19 }}>{f.body}</Text>
+                {f.reply ? (
+                  <View style={{ marginTop: 8, borderRadius: 10, backgroundColor: C.purpleSoft, padding: 9 }}>
+                    <Text style={{ color: C.purple, fontSize: 10, fontWeight: '900', letterSpacing: 1 }}>ANSWERED AS THE MOMENTS TEAM</Text>
+                    <Text style={{ color: C.text, fontSize: 12.5, lineHeight: 18, marginTop: 2 }}>{f.reply}</Text>
+                  </View>
+                ) : f.user_id ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginTop: 8 }}>
+                    <TextInput value={fbReply[f.id] || ''} onChangeText={(v) => setFbReply((r) => ({ ...r, [f.id]: v }))} multiline maxLength={1000}
+                      placeholder="Answer as the Moments team…" placeholderTextColor={C.faint}
+                      style={{ flex: 1, color: C.text, fontSize: 13, borderWidth: 1, borderColor: C.line, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8, minHeight: 38 }} />
+                    <Pressable disabled={!(fbReply[f.id] || '').trim() || fbSending === f.id} onPress={async () => {
+                      const text = (fbReply[f.id] || '').trim(); if (!text) return;
+                      setFbSending(f.id);
+                      const r = await replyFeedback(f.id, text);
+                      setFbSending(null);
+                      if (r && r.ok) { tapSuccess(); setFeedback((l) => (l || []).map((x) => (x.id === f.id ? { ...x, reply: text, status: 'seen' } : x))); }
+                    }} style={{ marginLeft: 8 }}>
+                      <View style={{ backgroundColor: (fbReply[f.id] || '').trim() ? C.purple : C.glassHi, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10 }}>
+                        <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '900' }}>{fbSending === f.id ? '…' : 'Reply'}</Text>
+                      </View>
+                    </Pressable>
+                  </View>
+                ) : null}
               </View>
             ))
           ) : null}
