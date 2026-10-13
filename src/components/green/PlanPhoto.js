@@ -8,6 +8,7 @@ import { placePhoto } from '../../lib/commonsPhoto';
 import { publicMedia } from '../../lib/publicMedia';
 import { getPrefs } from '../../services/prefs';
 import { isSaving } from '../../lib/dataSaver';
+import { useLang } from '../../context/LanguageContext';
 
 /* activities Ayser sent real free photos and clips for (Pexels,
    credited): the activity, never "this plan". A clip carries its own
@@ -16,29 +17,90 @@ import { isSaving } from '../../lib/dataSaver';
 const n = (pre, k, credit) => Array.from({ length: k }, (_, i) => ({ img: pre + (i + 1) + '.jpg', credit }));
 const clip = (pre, k) => Array.from({ length: k }, (_, i) => ({ img: pre + (i + 1) + '.jpg', clip: pre + (i + 1) + '.mp4' }));
 const STOCK = [
-  { re: /volunteer|charity|donat|food bank|تطوع|متطوع|خيري|تبرع/i, files: n('act-volunteer-', 3) },
-  { re: /music|\bjam\b|guitar|\bsing|karaoke|campfire|bonfire|\bcamp\b|مزيك|موسيق|غنا|جيتار|كاريوكي|كامب|🎸|🎶|🎤/i, files: clip('act-music-v', 1).map((x) => ({ ...x, own: true })) },
-  { re: /\bmatch|watch party|ماتش|مباراة|نشجع|تشجيع|\bcheer|📺/i, files: clip('act-match-v', 1).map((x) => ({ ...x, own: true })) },
-  { re: /climb|zip ?line|abseil|rappel|high ropes|mario|تسلق|زيب|ماريو|🧗/i, files: [
+  { id: 'volunteer', re: /volunteer|charity|donat|food bank|تطوع|متطوع|خيري|تبرع/i, files: n('act-volunteer-', 3) },
+  { id: 'music', re: /music|\bjam\b|guitar|\bsing|karaoke|campfire|bonfire|\bcamp\b|مزيك|موسيق|غنا|جيتار|كاريوكي|كامب|🎸|🎶|🎤/i, files: clip('act-music-v', 1).map((x) => ({ ...x, own: true })) },
+  { id: 'match', re: /\bmatch|watch party|ماتش|مباراة|نشجع|تشجيع|\bcheer|📺/i, files: clip('act-match-v', 1).map((x) => ({ ...x, own: true })) },
+  { id: 'climb', re: /climb|zip ?line|abseil|rappel|high ropes|mario|تسلق|زيب|ماريو|🧗/i, files: [
     { img: 'act-climb-1.jpg' }, { img: 'mario-crew.jpg' }, { img: 'mario-ferrata.jpg' }, { img: 'mario-mirror.jpg' },
     { img: 'place-eg-mario-ropes.jpg' }, { img: 'mario-crew-v.jpg', clip: 'mario-crew-v.mp4' },
   ].map((x) => ({ ...x, own: true })) },
-  { re: /church|monastery|كنيس|⛪/i, files: [{ img: 'cave-church-2.jpg' }, { img: 'cave-church-3.jpg' }].map((x) => ({ ...x, own: true })) },
-  { re: /rooftop|\broof|sunset|روف|سطوح|غروب|🌅/i, files: [{ img: 'rooftop-giza.jpg', own: true }] },
-  { re: /foot|soccer|كور|⚽/i, files: n('sport-football-', 5) },
-  { re: /sketch|draw|رسم|اسكتش|✏️|🎨|\bart\b/i, files: n('art-sketch-', 5) },
-  { re: /padel|بادل|tennis|تنس|🎾/i, files: n('act-padel-', 4).concat(clip('act-padel-v', 5), n('padel-ayser-', 4, 'Shahd Elzayaat')) },
-  { re: /walk|hike|hiking|trail|stroll|مشي|تمشي|مشوار|🥾|🚶/i, files: n('act-walk-', 5).concat(clip('act-walk-v', 1)) },
-  { re: /swim|pool|سباح|حمام سباحة|🏊/i, files: n('act-swim-', 2) },
-  { re: /beach|\bsea\b|seaside|شاطئ|بحر|🏖|🌊/i, files: n('act-beach-', 1).concat(clip('act-beach-v', 2)) },
-  { re: /\bread|\bbook|library|كتاب|قراء|مكتب[ةه]|📚|📖|\bfocus\b/i, files: n('act-read-', 6) },
-  { re: /coffee|caf[eé]|espresso|latte|قهو|كافيه|☕/i, files: n('act-coffee-', 3).concat(clip('act-coffee-v', 2)) },
+  { id: 'church', re: /church|monastery|كنيس|⛪/i, files: [{ img: 'cave-church-2.jpg' }, { img: 'cave-church-3.jpg' }].map((x) => ({ ...x, own: true })) },
+  { id: 'rooftop', re: /rooftop|\broof|sunset|الروف|روف توب|سطوح|غروب|🌅/i, files: [{ img: 'rooftop-giza.jpg', own: true }] },
+  { id: 'football', re: /foot|soccer|كورة|كوره|⚽/i, files: n('sport-football-', 5) },
+  { id: 'sketch', re: /sketch|draw|رسم(?!ي)|اسكتش|✏️|🎨|\bart\b/i, files: n('art-sketch-', 5) },
+  { id: 'padel', re: /padel|(^|[^ت])بادل|tennis|تنس|🎾/i, files: n('act-padel-', 4).concat(clip('act-padel-v', 5), n('padel-ayser-', 4, 'Shahd Elzayaat')) },
+  { id: 'walk', re: /walk|hike|hiking|trail|stroll|مشي|تمشي|مشوار|🥾|🚶/i, files: n('act-walk-', 5).concat(clip('act-walk-v', 1)) },
+  { id: 'swim', re: /swim|pool|سباح|حمام سباحة|🏊/i, files: n('act-swim-', 2) },
+  { id: 'beach', re: /beach|\bsea\b|seaside|شاطئ|بحر|🏖|🌊/i, files: n('act-beach-', 1).concat(clip('act-beach-v', 2)) },
+  { id: 'read', re: /\bread|\bbook|library|كتاب|قراء|مكتب[ةه]|📚|📖|\bfocus\b/i, files: n('act-read-', 6) },
+  { id: 'coffee', re: /coffee|caf[eé]|espresso|latte|قهو|كافيه|☕/i, files: n('act-coffee-', 3).concat(clip('act-coffee-v', 2)) },
 ];
+/* each plan gets its own run of pictures: the first football plan on the
+   list starts on photo 1, the next on photo 4, and so on — so two plans
+   side by side never open on the same one */
+const order = new Map();
 const stockOf = (g) => {
   const s = String((g && g.title) || '') + ' ' + String((g && g.kind) || '');
   const hit = STOCK.find((x) => x.re.test(s));
   if (!hit) return null;
-  return hit.files[String((g && g.id) || '').split('').reduce((m, c) => m + c.charCodeAt(0), 0) % hit.files.length];
+  if (!order.has(hit.id)) order.set(hit.id, new Map());
+  const seen = order.get(hit.id);
+  const key = String((g && g.id) || s);
+  if (!seen.has(key)) seen.set(key, seen.size);
+  const len = hit.files.length;
+  const start = (seen.get(key) * 3) % len;
+  const pics = [];
+  for (let i = 0; i < Math.min(3, len); i++) pics.push(hit.files[(start + i) % len]);
+  return { id: hit.id, pics };
+};
+
+/* the activity's pictures, swiped like a little album, with one line
+   that makes you want to come. Only the first may move; the rest are
+   stills, so a list of plans stays light. */
+const StockHead = ({ stock, look, t, children }) => {
+  const [w, setW] = useState(0);
+  const [at, setAt] = useState(0);
+  const moving = Platform.OS === 'web' && !isSaving((getPrefs() || {}).dataSaver);
+  const cur = stock.pics[at] || stock.pics[0];
+  return (
+    <View>
+      <View onLayout={(e) => setW(e.nativeEvent.layout.width)} style={{ height: 170, borderRadius: 16, overflow: 'hidden', backgroundColor: C.glassHi, marginBottom: 11 }}>
+        {w ? (
+          <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled"
+            onScroll={(e) => { const i = Math.round(e.nativeEvent.contentOffset.x / w); if (i !== at) setAt(i); }} scrollEventThrottle={64}>
+            {stock.pics.map((p, i) => (
+              <View key={p.img} style={{ width: w, height: 170 }}>
+                {i === 0 && p.clip && moving ? (
+                  <video src={publicMedia(p.clip)} poster={publicMedia(p.img)} autoPlay muted loop playsInline preload="metadata"
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                ) : (
+                  <Image source={{ uri: publicMedia(p.img) }} style={{ width: w, height: 170 }} accessibilityIgnoresInvertColors />
+                )}
+              </View>
+            ))}
+          </ScrollView>
+        ) : null}
+        <LinearGradient pointerEvents="none" colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.65)']} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 80 }} />
+        <View pointerEvents="none" style={{ position: 'absolute', top: 8, left: 8, backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 10, paddingHorizontal: 6, paddingVertical: 2 }}>
+          <Text style={{ fontSize: 16 }}>{look.emoji}</Text>
+        </View>
+        {cur.own ? null : (
+          <View pointerEvents="none" style={{ position: 'absolute', right: 6, top: 8, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 6, paddingHorizontal: 5, paddingVertical: 1 }}>
+            <Text style={{ color: '#FFF', fontSize: 9.5 }}>{cur.credit ? '📷 ' + cur.credit : '📷 Pexels'}</Text>
+          </View>
+        )}
+        <View pointerEvents="none" style={{ position: 'absolute', left: 12, right: 12, bottom: 9, flexDirection: 'row', alignItems: 'flex-end' }}>
+          <Text style={{ flex: 1, color: '#FFF', fontSize: 13.5, fontWeight: '800', lineHeight: 18 }} numberOfLines={2}>{t('sk_' + stock.id)}</Text>
+          {stock.pics.length > 1 ? (
+            <View style={{ flexDirection: 'row', marginStart: 8, marginBottom: 4 }}>
+              {stock.pics.map((p, i) => <View key={p.img} style={{ width: i === at ? 14 : 6, height: 6, borderRadius: 3, marginStart: 4, backgroundColor: i === at ? '#FFF' : 'rgba(255,255,255,0.5)' }} />)}
+            </View>
+          ) : null}
+        </View>
+      </View>
+      {children}
+    </View>
+  );
 };
 
 /* ─── A PLAN'S PICTURE: REAL, OR ITS DRAWN LOOK ───────────────────────
@@ -136,36 +198,15 @@ export const PlaceCredit = ({ g, t }) => {
    the title, exactly as before. A Commons photo carries its credit on
    the picture itself, which its licence asks for. */
 export const PlanHead = ({ g, children }) => {
+  const { t } = useLang();
   const place = usePlacePhoto(g);
   const own = planPhotoOf(g);
   const url = own || (place && safe(place.url));
   const look = lookOf(g && g.kind);
   /* a football, sketching, padel, walk, swimming, beach, reading or coffee plan with
      no photo of its own: a real photo of the activity (Pexels, credited) — the game, not this game */
-  const ball = !url ? stockOf(g) : null;
-  if (ball) {
-    return (
-      <View>
-        <View style={{ height: 150, borderRadius: 16, overflow: 'hidden', backgroundColor: C.glassHi, marginBottom: 11 }}>
-          {ball.clip && Platform.OS === 'web' && !isSaving((getPrefs() || {}).dataSaver) ? (
-            <video src={publicMedia(ball.clip)} poster={publicMedia(ball.img)} autoPlay muted loop playsInline preload="metadata"
-              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-          ) : (
-            <Image source={{ uri: publicMedia(ball.img) }} style={{ width: '100%', height: 150 }} accessibilityIgnoresInvertColors />
-          )}
-          <View style={{ position: 'absolute', top: 8, left: 8, backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 10, paddingHorizontal: 6, paddingVertical: 2 }}>
-            <Text style={{ fontSize: 16 }}>{look.emoji}</Text>
-          </View>
-          {ball.own ? null : (
-            <View style={{ position: 'absolute', right: 6, bottom: 6, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 6, paddingHorizontal: 5, paddingVertical: 1 }}>
-            <Text style={{ color: '#FFF', fontSize: 9.5 }}>{ball.credit ? '📷 ' + ball.credit : '📷 Pexels'}</Text>
-          </View>
-          )}
-        </View>
-        {children}
-      </View>
-    );
-  }
+  const stock = !url ? stockOf(g) : null;
+  if (stock) return <StockHead stock={stock} look={look} t={t}>{children}</StockHead>;
   if (!url) {
     /* no real photo of this place: a bright cover in the activity's own
        colours rather than a stranger's stock picture passed off as this
