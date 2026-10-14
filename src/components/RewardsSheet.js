@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Modal, Pressable, ScrollView, Image, ActivityIndicator } from 'react-native';
+import { View, Text, Modal, Pressable, ScrollView, Image, ActivityIndicator, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { C, R } from '../constants/theme';
@@ -7,7 +7,7 @@ import { useLang } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { SUPABASE_READY } from '../lib/supabase';
 import { LEVELS, levelOf } from '../lib/xp';
-import { myLoyalty, myReferrals, creatorRecord } from '../services/green';
+import { myLoyalty, myReferrals, creatorRecord, myRewards, redeemReward } from '../services/green';
 import { appLink, shareLink, shareNote } from '../utils/share';
 import { tapLight, tapMedium, tapSelection } from '../utils/feedback';
 import { useSheetBack } from '../hooks/useSheetBack';
@@ -62,6 +62,18 @@ export const RewardsSheet = ({ onClose, tab: first = 'loyalty', onStartPlan }) =
   const [refs, setRefs] = useState(() => (kept(K + '.r') == null ? undefined : kept(K + '.r')));
   const [mine, setMine] = useState(() => (kept(K + '.m') == null ? undefined : kept(K + '.m')));
   const [note, setNote] = useState(null);
+  const [rewards, setRewards] = useState(null);
+  const [askFor, setAskFor] = useState(null);     // the reward being asked for
+  const [why, setWhy] = useState('');
+  const [rwMsg, setRwMsg] = useState(null);
+  useEffect(() => { if (uid) myRewards().then((r) => setRewards(r || null)).catch(() => {}); }, [uid]);
+  const ask = async () => {
+    if (!askFor) return;
+    tapMedium(); setRwMsg(null);
+    const r = await redeemReward(askFor, why.trim());
+    if (r && r.ok) { setAskFor(null); setWhy(''); setRwMsg(t('rd_sent')); myRewards().then((x) => setRewards(x || null)); }
+    else setRwMsg(t((r && r.reason) === 'already' ? 'rd_already' : (r && r.reason) === 'not_yet' ? 'rd_not_yet' : 'rd_err'));
+  };
 
   useEffect(() => {
     if (!SUPABASE_READY || !uid) { setLoyal(null); setRefs(null); setMine(null); return; }
@@ -138,6 +150,42 @@ export const RewardsSheet = ({ onClose, tab: first = 'loyalty', onStartPlan }) =
       )) : (
         <Text style={{ color: C.dim, fontSize: 13.5, lineHeight: 19, marginTop: 8 }}>{t('rw_perks_none')}</Text>
       )}
+      {rewardsBlock()}
+    </View>
+  );
+
+  /* what your XP can become — and the training and grant come back as sessions for others */
+  const rewardsBlock = () => (
+    <View>
+      <Text style={{ color: C.faint, fontSize: 12, fontWeight: '800', letterSpacing: 1.2, marginTop: 22 }}>{t('rd_title').toUpperCase()}</Text>
+      <Text style={{ color: C.dim, fontSize: 13.5, lineHeight: 19, marginTop: 4 }}>{t('rd_sub')}</Text>
+      {(rewards && rewards.options ? rewards.options : []).map((o) => (
+        <View key={o.kind} style={{ marginTop: 10, borderRadius: 16, borderWidth: 1, borderColor: o.ok ? C.purple : C.line, backgroundColor: o.ok ? 'rgba(124,58,237,0.06)' : C.glass, padding: 14 }}>
+          <Text style={{ color: C.text, fontSize: 15, fontWeight: '800' }}>{t('rd_' + o.kind)}</Text>
+          <Text style={{ color: C.dim, fontSize: 13, lineHeight: 18, marginTop: 3 }}>{t('rd_' + o.kind + '_sub')}</Text>
+          <Text style={{ color: C.faint, fontSize: 12, fontWeight: '700', marginTop: 6 }}>{o.need.toLocaleString() + ' XP'}</Text>
+          {o.status === 'pending' ? <Text style={{ color: C.gold, fontSize: 13, fontWeight: '800', marginTop: 8 }}>{'⏳ ' + t('rd_pending')}</Text>
+            : o.status === 'approved' || o.status === 'done' ? <Text style={{ color: C.green, fontSize: 13, fontWeight: '800', marginTop: 8 }}>{'✓ ' + t('rd_approved')}</Text>
+            : o.ok ? (askFor === o.kind ? (
+              <View style={{ marginTop: 8 }}>
+                <TextInput value={why} onChangeText={setWhy} maxLength={400} placeholder={t('rd_why')} placeholderTextColor={C.faint}
+                  style={{ color: C.text, fontSize: 14, borderBottomWidth: 1, borderBottomColor: C.line, paddingVertical: 8, outlineStyle: 'none' }} />
+                <Pressable onPress={ask} accessibilityRole="button" style={{ marginTop: 10, alignSelf: 'flex-start' }}>
+                  <View style={{ borderRadius: 999, backgroundColor: C.purple, paddingHorizontal: 16, paddingVertical: 8 }}>
+                    <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '900' }}>{t('rd_send')}</Text>
+                  </View>
+                </Pressable>
+              </View>
+            ) : (
+              <Pressable onPress={() => { tapLight(); setAskFor(o.kind); setRwMsg(null); }} accessibilityRole="button" style={{ marginTop: 8, alignSelf: 'flex-start' }}>
+                <View style={{ borderRadius: 999, borderWidth: 1.5, borderColor: C.purple, paddingHorizontal: 14, paddingVertical: 7 }}>
+                  <Text style={{ color: C.purple, fontSize: 13, fontWeight: '900' }}>{t('rd_ask')}</Text>
+                </View>
+              </Pressable>
+            )) : <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 8 }}>{t('rd_left').replace('{n}', String(Math.max(0, o.need - (rewards.xp || 0))))}</Text>}
+        </View>
+      ))}
+      {rwMsg ? <Text style={{ color: C.dim, fontSize: 13, marginTop: 8 }}>{rwMsg}</Text> : null}
     </View>
   );
 

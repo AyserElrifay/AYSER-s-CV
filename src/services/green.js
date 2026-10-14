@@ -258,6 +258,11 @@ const ask = async (name, args) => {
   catch (e) { return null; }
 };
 export const myLoyalty = () => ask('my_loyalty');
+/* what XP can become (a Plus discount, a training seat, a grant) — RUN_ME.sql "LOYALTY" */
+export const myRewards = () => ask('my_rewards');
+export const redeemReward = (kind, note) => rpc('redeem_reward', { p_kind: kind, p_note: note || null });
+export const ownerRewards = () => ask('owner_rewards');
+export const ownerDecideReward = (id, status) => rpc('owner_decide_reward', { p_id: id, p_status: status });
 export const myReferrals = () => ask('my_referrals');
 export const creatorRecord = (id) => ask('creator_record', { p_user: id });
 export const topCreators = async (country) => { const r = await ask('top_creators', { p_country: country || null }); return Array.isArray(r) ? r : []; };

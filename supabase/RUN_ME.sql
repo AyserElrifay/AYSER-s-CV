@@ -15993,6 +15993,95 @@ $$;
 notify pgrst, 'reload schema';
 
 -- ═══════════════════════════════════════════════════════════════════
+--  LOYALTY · WHAT YOUR XP CAN BECOME, AND PAYING IT FORWARD
+--  Ayser: "اللي يجمع بونتس كتير من الهانج أوتس ممكن ياخد خصم في مومنتس
+--  أو منحة أو تريننج ببلاش — بشرط يعلّم غيره (butterfly effect)". XP is
+--  earned only by showing up (check-ins), so it cannot be bought. At
+--  three levels a member can ask for something real; a person in the
+--  Studio approves it. The training and the grant come with a promise:
+--  you run sessions for others afterwards.
+-- ═══════════════════════════════════════════════════════════════════
+create table if not exists public.loyalty_redemptions (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid not null references public.profiles(id) on delete cascade,
+  kind        text not null check (kind in ('plus_off','training','grant')),
+  xp_at       int not null,
+  note        text check (note is null or length(note) <= 400),
+  status      text not null default 'pending' check (status in ('pending','approved','declined','done')),
+  created_at  timestamptz not null default now(),
+  decided_at  timestamptz,
+  decided_by  uuid references public.profiles(id) on delete set null
+);
+create index if not exists loyalty_redemptions_user_idx on public.loyalty_redemptions (user_id, kind, created_at desc);
+alter table public.loyalty_redemptions enable row level security;
+drop policy if exists "redemptions: yours, or the Studio" on public.loyalty_redemptions;
+create policy "redemptions: yours, or the Studio" on public.loyalty_redemptions for select using (auth.uid() = user_id or public.owner_ok());
+
+create or replace function public.reward_need(p_kind text)
+returns int language sql immutable as $$
+  select case p_kind when 'plus_off' then public.level_at('regular') when 'training' then public.level_at('local')
+                     when 'grant' then public.level_at('pillar') end;
+$$;
+
+create or replace function public.my_rewards()
+returns jsonb language sql stable security definer set search_path = public as $$
+  with me as (select coalesce(community_xp, 0) as xp from public.profiles where id = auth.uid())
+  select jsonb_build_object('xp', me.xp, 'options', (
+    select jsonb_agg(jsonb_build_object('kind', k, 'need', public.reward_need(k),
+             'ok', me.xp >= public.reward_need(k),
+             'status', (select r.status from public.loyalty_redemptions r where r.user_id = auth.uid() and r.kind = k order by r.created_at desc limit 1),
+             'at', (select r.created_at from public.loyalty_redemptions r where r.user_id = auth.uid() and r.kind = k order by r.created_at desc limit 1))
+           order by public.reward_need(k))
+      from unnest(array['plus_off','training','grant']) k))
+    from me;
+$$;
+grant execute on function public.my_rewards() to authenticated;
+
+create or replace function public.redeem_reward(p_kind text, p_note text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); xp int;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  if p_kind not in ('plus_off','training','grant') then return jsonb_build_object('ok', false, 'reason', 'kind'); end if;
+  select coalesce(community_xp, 0) into xp from public.profiles where id = me;
+  if xp < public.reward_need(p_kind) then return jsonb_build_object('ok', false, 'reason', 'not_yet'); end if;
+  if exists (select 1 from public.loyalty_redemptions where user_id = me and kind = p_kind
+               and (status = 'pending' or (status in ('approved','done') and created_at > now() - interval '180 days'))) then
+    return jsonb_build_object('ok', false, 'reason', 'already');
+  end if;
+  insert into public.loyalty_redemptions (user_id, kind, xp_at, note) values (me, p_kind, xp, nullif(btrim(coalesce(p_note, '')), ''));
+  return jsonb_build_object('ok', true);
+end;
+$$;
+revoke execute on function public.redeem_reward(text, text) from public, anon;
+grant execute on function public.redeem_reward(text, text) to authenticated;
+
+create or replace function public.owner_rewards()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select case when not public.owner_ok() then null else coalesce((
+    select jsonb_agg(jsonb_build_object('id', r.id, 'kind', r.kind, 'xp', r.xp_at, 'note', r.note, 'status', r.status, 'at', r.created_at,
+                                        'name', p.name, 'email', u.email) order by (r.status = 'pending') desc, r.created_at desc)
+      from (select * from public.loyalty_redemptions order by created_at desc limit 200) r
+      join public.profiles p on p.id = r.user_id join auth.users u on u.id = r.user_id), '[]'::jsonb) end;
+$$;
+revoke execute on function public.owner_rewards() from public, anon;
+grant execute on function public.owner_rewards() to authenticated;
+
+create or replace function public.owner_decide_reward(p_id uuid, p_status text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  if not public.owner_ok() then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
+  if p_status not in ('approved','declined','done') then return jsonb_build_object('ok', false, 'reason', 'status'); end if;
+  update public.loyalty_redemptions set status = p_status, decided_at = now(), decided_by = auth.uid() where id = p_id;
+  return jsonb_build_object('ok', found);
+end;
+$$;
+revoke execute on function public.owner_decide_reward(uuid, text) from public, anon;
+grant execute on function public.owner_decide_reward(uuid, text) to authenticated;
+
+notify pgrst, 'reload schema';
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة
