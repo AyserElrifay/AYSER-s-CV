@@ -73,15 +73,14 @@ const PlusCard = ({ plus, t, lang }) => {
     );
   }
   if (!plus || !plus.plus) return null;
-  let until = null;
-  try { if (plus.free_until) until = new Date(plus.free_until).toLocaleDateString(lang === 'ar' ? 'ar-EG' : lang, { day: 'numeric', month: 'long' }); } catch (e) {}
+  /* Ayser's thank-you to the first members — the same words as the Plus screen */
   return (
     <View style={{ backgroundColor: '#1A1A1A', borderRadius: 20, padding: 16, marginBottom: 14 }}>
-      <Text style={{ color: C.gold, fontSize: 11.5, fontWeight: '900', letterSpacing: 1.4 }}>MOMENTS PLUS</Text>
-      <Text style={{ color: '#F9F9F6', fontSize: 16.5, fontWeight: '900', marginTop: 4 }}>{t('bk_plus_title')}</Text>
-      <Text style={{ color: '#C9C9D1', fontSize: 13, lineHeight: 19, marginTop: 4 }}>{t('bk_plus_sub')}</Text>
-      {until ? <Text style={{ color: C.gold, fontSize: 12.5, fontWeight: '800', marginTop: 8 }}>{t('bk_plus_until').replace('{date}', until)}</Text> : null}
-      <Text style={{ color: '#C9C9D1', fontSize: 12.5, lineHeight: 18, marginTop: 8 }}>{'✨ ' + t('pz_hint')}</Text>
+      <Text style={{ color: C.gold, fontSize: 11.5, fontWeight: '900', letterSpacing: 1.4 }}>✦ MOMENTS PLUS</Text>
+      <Text style={{ color: '#F9F9F6', fontSize: 16.5, fontWeight: '900', marginTop: 4 }}>{t('px_gift_title')}</Text>
+      <Text style={{ color: '#C9C9D1', fontSize: 13.5, lineHeight: 20, marginTop: 6 }}>{t('px_gift_body')}</Text>
+      <Text style={{ color: '#F9F9F6', fontSize: 13.5, fontWeight: '800', marginTop: 8 }}>{t('px_gift_sign')}</Text>
+      <Text style={{ color: C.gold, fontSize: 12.5, fontWeight: '800', lineHeight: 18, marginTop: 10 }}>{'🎁 ' + t('px_pay_soon_line')}</Text>
     </View>
   );
 };
