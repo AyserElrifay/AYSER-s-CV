@@ -177,7 +177,7 @@ export const MapPanel = ({
                   <Ionicons name="add" size={22} color="#FFF" />
                 </View>
               </View>
-              <Text style={{ position: 'absolute', top: 8, right: 12, color: 'rgba(255,255,255,0.55)', fontSize: 8 }}>{'Pexels'}</Text>
+              <Text style={{ position: 'absolute', top: 4, right: 8, color: 'rgba(255,255,255,0.4)', fontSize: 6.5 }}>{'Pexels'}</Text>
             </View>
           </Pressable>
         )}

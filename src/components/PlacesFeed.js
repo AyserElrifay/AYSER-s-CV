@@ -115,7 +115,7 @@ const Credit = ({ place, t }) => {
     placePhoto({ name: place.name, lat: place.lat, lng: place.lng }).then((p) => { if (alive) setPhoto(p); }).catch(() => {});
     return () => { alive = false; };
   }, [place.id]);
-  if (place.photo && place.credit) return <Text style={{ position: 'absolute', bottom: 6, right: 12, color: 'rgba(255,255,255,0.7)', fontSize: 9.5 }}>{t('photo_from').replace('{who}', place.credit)}</Text>;
+  if (place.photo && place.credit) return <Text style={{ position: 'absolute', bottom: 4, right: 8, color: 'rgba(255,255,255,0.45)', fontSize: 7 }}>{t('photo_from').replace('{who}', place.credit)}</Text>;
   if (!photo || !photo.page) return null;
   return (
     <Pressable onPress={() => { try { Linking.openURL(photo.page); } catch (e) {} }} accessibilityRole="link" style={{ position: 'absolute', bottom: 6, right: 12 }}>

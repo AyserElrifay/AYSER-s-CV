@@ -63,7 +63,7 @@ export const PlacePhoto = ({ place, height = 180 }) => {
           )
         )}
         {/* a free-licence photo says where it came from */}
-        {place.credit ? <Text style={{ color: C.faint, fontSize: 10.5, marginTop: 5 }} numberOfLines={1}>{t('photo_from').replace('{who}', place.credit)}</Text> : null}
+        {place.credit ? <Text style={{ color: C.faint, fontSize: 8, opacity: 0.6, marginTop: 4 }} numberOfLines={1}>{t('photo_from').replace('{who}', place.credit)}</Text> : null}
       </View>
     );
   }

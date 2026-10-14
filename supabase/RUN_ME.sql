@@ -15250,6 +15250,41 @@ grant execute on function public.hide_booking(uuid) to authenticated;
 notify pgrst, 'reload schema';
 
 -- ═══════════════════════════════════════════════════════════════════
+--  LIGHT MOMENTS · PHOTOS ARE NOT COUNTED
+--  Ayser: "خلّي الصور عادي، ممكن تنزل كتير في الشهر". The weekly cap
+--  (2, or 4 with Plus) is for quick text-only posts. A light post
+--  with a photo or a clip is never counted and never blocked by it;
+--  the happy-things-only check still reads every caption.
+-- ═══════════════════════════════════════════════════════════════════
+create or replace function public.light_post_guard() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare n int; cap int;
+begin
+  if not public.is_light_post(new) then return new; end if;
+  if coalesce(new.caption, '') ~* '(\m(sad|depress\w*|miserable|lonely|hate|crying|cried|heartbroken|hopeless|worst day|kill myself|suicid\w*|want to die|angry|furious|disgusted)\M|زعلان|زعلانة|حزين|حزينة|مكتئب|اكتئاب|نكد|مخنوق|مخنوقة|خنقة|زهقان|مضايق|مقهور|قرفان|بكره نفسي|عايز اموت|عايزة اموت|انتحار|حياتي وحشة|💔|😭|😢|😞|😡|🤬)' then
+    raise exception 'light_mood' using errcode = 'P0001';
+  end if;
+  if coalesce(btrim(new.media_url), '') <> '' then return new; end if;   -- a photo or a clip: no weekly cap
+  cap := case when public.is_plus(new.user_id) then 4 else 2 end;
+  select count(*) into n from public.posts p
+   where p.user_id = new.user_id and p.created_at > now() - interval '7 days'
+     and public.is_light_post(p) and coalesce(btrim(p.media_url), '') = '';
+  if n >= cap then raise exception 'light_limit:%', cap using errcode = 'P0001'; end if;
+  return new;
+end;
+$$;
+
+create or replace function public.my_light_left()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select jsonb_build_object(
+    'cap', case when public.is_plus(auth.uid()) then 4 else 2 end,
+    'used', (select count(*) from public.posts p where p.user_id = auth.uid() and p.created_at > now() - interval '7 days'
+               and public.is_light_post(p) and coalesce(btrim(p.media_url), '') = ''));
+$$;
+
+notify pgrst, 'reload schema';
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة

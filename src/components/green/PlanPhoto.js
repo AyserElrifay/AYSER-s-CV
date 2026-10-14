@@ -67,8 +67,11 @@ const stockOf = (g) => {
      plans after it open on stills, so the same clip is never shown twice
      on one screen */
   const aud = g && g.audience;
-  const fit = hit.files.filter((f) => !f.who || !aud || aud === 'all' || (aud === 'women' ? f.who === 'women' : f.who === 'men'));
-  const files = fit.length ? fit : hit.files.filter((f) => !f.who);
+  /* a ladies-only plan shows women only — never an untagged picture
+     that may have a man in it; with none, it keeps its drawn cover */
+  const fit = aud === 'women' ? hit.files.filter((f) => f.who === 'women')
+    : hit.files.filter((f) => !f.who || !aud || aud === 'all' || f.who === 'men');
+  const files = fit.length || aud === 'women' ? fit : hit.files.filter((f) => !f.who);
   /* members' own photos of this activity come first after the reel —
      not on a ladies-only plan, whose pictures stay ladies' */
   const members = aud === 'women' ? [] : memberPhotosFor(hit.id);
@@ -125,7 +128,7 @@ const StockHead = ({ stock, look, t, children }) => {
             <Text style={{ color: '#FFF', fontSize: 11, fontWeight: '800' }} numberOfLines={1}>{cur.credit}</Text>
           </View>
         ) : (
-          <Text pointerEvents="none" style={{ position: 'absolute', right: 8, top: 6, color: 'rgba(255,255,255,0.55)', fontSize: 8, fontWeight: '600', textShadowColor: 'rgba(0,0,0,0.4)', textShadowRadius: 2 }}>{cur.credit || 'Pexels'}</Text>
+          <Text pointerEvents="none" style={{ position: 'absolute', right: 6, top: 4, color: 'rgba(255,255,255,0.4)', fontSize: 6.5, fontWeight: '500', textShadowColor: 'rgba(0,0,0,0.3)', textShadowRadius: 1 }}>{cur.credit || 'Pexels'}</Text>
         )}
         <View pointerEvents="none" style={{ position: 'absolute', left: 12, right: 12, bottom: 9, flexDirection: 'row', alignItems: 'flex-end' }}>
           <Text style={{ flex: 1, color: '#FFF', fontSize: 13.5, fontWeight: '800', lineHeight: 18 }} numberOfLines={2}>{t('sk_' + stock.id)}</Text>

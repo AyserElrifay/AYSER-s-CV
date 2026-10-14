@@ -24,6 +24,8 @@ import { joinGroup } from '../services/groups';
 import { getProfile } from '../services/profiles';
 import { isEuCode } from '../lib/eu';
 import { lookOf, titleFor } from '../lib/activityPins';
+import { activityOf } from '../lib/activityMatch';
+import { lastFix } from '../services/squadAdmin';
 import { flagToIso, groupByDay } from '../lib/together';
 import { showOnMap, goToTab } from '../lib/mapBus';
 import { openChat } from '../lib/chatBus';
@@ -147,6 +149,63 @@ const readCode = () => { try { return localStorage.getItem(CODE_KEY) || null; } 
 /* ── HOW WAS IT? ── the one hangout you checked in to and have not rated:
    five stars and a line, sent once (green_rate). The ratings are what
    make an organiser verified later. */
+/* ─── PLANS AROUND YOU, IDEAS FROM EVERYWHERE ─────────────────────────
+   Ayser: "احنا بنرسم في مصر على النيل — اعمل رسم على نهر بودابست بردو
+   بس جروب مختلف… على حسب إنت فاتح مومنتس فين". Plans are shown by where
+   the phone is (the last place the map found you): within NEAR_KM, or,
+   with no fix yet, in your country. Everything further away is not
+   joinable from here — it comes back as an idea to start where you
+   are, which makes a new plan with its own local group. */
+const NEAR_KM = 80;
+const kmBetween = (a, b) => {
+  const r = Math.PI / 180;
+  const dLat = (b.lat - a.lat) * r; const dLng = (b.lng - a.lng) * r;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * r) * Math.cos(b.lat * r) * Math.sin(dLng / 2) ** 2;
+  return 12742 * Math.asin(Math.sqrt(h));
+};
+const isNear = (g, fix, code) => (fix && g.lat != null && g.lng != null
+  ? kmBetween(fix, { lat: Number(g.lat), lng: Number(g.lng) }) <= NEAR_KM
+  : !!code && g.country === code);
+/* the idea without its old place: "Sketching on the Nile" → "Sketching",
+   so the new group names its own river */
+const ideaTitle = (title) => {
+  const s = String(title || '').trim();
+  const cut = s.replace(/\s+(on|at|in|by|near|along)\s+(the\s+)?[^·|,]+$/i, '').replace(/\s+(على|في|عند|جنب)\s+[^·|,]+$/, '').trim();
+  return cut.length >= 3 ? cut : s;
+};
+const ideaKey = (g) => ((activityOf(String(g.title || '') + ' ' + String(g.kind || '')) || {}).id) || 'k:' + String(g.kind || '') + ':' + String(g.title || '').toLowerCase();
+
+const IdeasElsewhere = ({ ideas, t, lang, onStart }) => {
+  if (!ideas.length) return null;
+  return (
+    <View style={{ marginTop: 6, marginBottom: 16 }}>
+      <Text style={{ color: C.text, fontSize: 17, fontWeight: '900' }}>{'🌍 ' + t('id_title')}</Text>
+      <Text style={{ color: C.dim, fontSize: 13, fontWeight: '600', marginTop: 2, marginBottom: 10 }}>{t('id_sub')}</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        {ideas.map((g) => {
+          const look = lookOf(g.kind);
+          return (
+            <View key={g.id} style={{ width: 210, marginEnd: 10, borderRadius: 20, overflow: 'hidden', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line }}>
+              <LinearGradient colors={[look.from, look.to]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ height: 74, alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ fontSize: 34 }}>{look.emoji}</Text>
+              </LinearGradient>
+              <View style={{ padding: 12 }}>
+                <Text numberOfLines={2} style={{ color: C.text, fontSize: 14.5, fontWeight: '900', lineHeight: 19, minHeight: 38 }}>{titleFor(g.title, lang)}</Text>
+                <Text numberOfLines={1} style={{ color: C.faint, fontSize: 12, fontWeight: '700', marginTop: 3 }}>{'📍 ' + t('id_in').replace('{place}', g.city || g.place_name || g.country || '')}</Text>
+                <Pressable onPress={() => onStart(g)} accessibilityRole="button" style={{ marginTop: 10, alignSelf: 'flex-start' }}>
+                  <View style={{ borderRadius: 999, paddingHorizontal: 14, paddingVertical: 7, backgroundColor: C.purple }}>
+                    <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '900' }}>{t('id_start')}</Text>
+                  </View>
+                </Pressable>
+              </View>
+            </View>
+          );
+        })}
+      </ScrollView>
+    </View>
+  );
+};
+
 const RateLast = ({ t, lang }) => {
   const [g, setG] = useState(null);
   const [stars, setStars] = useState(0);
@@ -199,6 +258,8 @@ export const TogetherScreen = () => {
   const [myCode, setMyCode] = useState(readCode);   // the country on your profile, as a code
   const [codeKnown, setCodeKnown] = useState(() => readCode() != null || !SUPABASE_READY);
   const [scope, setScope] = useState('near');       // 'near' | 'all'
+  const [fix] = useState(lastFix);                  // where Moments was opened (the map's last fix)
+  const [elsewhere, setElsewhere] = useState([]);   // plans away from you, offered as ideas
   const [rows, setRows] = useState(() => keptGatherings(readCode()));  // the week as last seen; null = still asking
   const [on, setOn] = useState(() => recall('whatson') || null);  // fetchWhatsOn: now / soon / groups
   const [day, setDay] = useState(null);
@@ -269,7 +330,7 @@ export const TogetherScreen = () => {
     if (scope === 'near' && !codeKnown) return () => {};
     /* both at once: the week and what else is on are separate questions */
     Promise.all([
-      listGatherings(country).catch(() => []),
+      listGatherings(scope === 'near' ? null : country).catch(() => []),
       fetchWhatsOn({ userId: uid }).catch(() => ({ now: [], soon: [], groups: [] })),
       talkRoomsNear().catch(() => null),
       topCreators(country).catch(() => []),
@@ -277,12 +338,25 @@ export const TogetherScreen = () => {
       if (!alive) return;
       setCreators(cr || []); remember('creators.' + (country || 'all'), cr || []);
       setTalks(tr && tr.ok ? { rooms: tr.rooms || [], offset: offsetFrom(tr.now) } : null);
-      setRows(gs || []);
+      /* near: what is around you; the rest becomes ideas (one per activity) */
+      if (scope === 'near') {
+        const all = gs || [];
+        const here = all.filter((g) => isNear(g, fix, myCode));
+        const seen = new Set(here.map(ideaKey));
+        const ideas = [];
+        all.forEach((g) => {
+          if (here.includes(g) || ideas.length >= 8) return;
+          const k = ideaKey(g);
+          if (seen.has(k)) return;
+          seen.add(k); ideas.push(g);
+        });
+        setRows(here); setElsewhere(ideas);
+      } else { setRows(gs || []); setElsewhere([]); }
       setOn(wo || { now: [], soon: [], groups: [] }); if (wo) remember('whatson', wo);
       setRefreshing(false);
     });
     return () => { alive = false; };
-  }, [country, uid, scope, codeKnown]);
+  }, [country, uid, scope, codeKnown, fix, myCode]);
   useEffect(() => load(), [load]);
 
   const days = useMemo(() => groupByDay(aud ? (rows || []).filter((g) => (g.audience || 'all') === aud) : rows), [rows, aud]);
@@ -305,7 +379,7 @@ export const TogetherScreen = () => {
     && ((g.audience === 'women' && myGender !== 'f') || (g.audience === 'men' && myGender !== 'm'));
   const startLike = (g, audience) => {
     tapMedium(); setOther(null);
-    setSheet({ start: { kind: g.kind, title: titleFor(g.title, lang), about: g.about || '', place: g.place_name || '', lat: g.lat, lng: g.lng, audience } });
+    setSheet({ start: { kind: g.kind, title: ideaTitle(titleFor(g.title, lang)), about: g.about || '', place: g.place_name || '', lat: g.lat, lng: g.lng, audience } });
   };
   const join = async (g) => {
     if (busy[g.id]) return;
@@ -416,7 +490,7 @@ export const TogetherScreen = () => {
 
         {/* ── where ── */}
         <View style={{ flexDirection: 'row', marginBottom: 12 }}>
-          <Pill on={scope === 'near'} label={myFlag + ' ' + t('tg_near_me')} onPress={() => { tapLight(); setScope('near'); setDay(null); }} />
+          <Pill on={scope === 'near'} label={(fix ? '📍' : myFlag) + ' ' + t('tg_near_me')} onPress={() => { tapLight(); setScope('near'); setDay(null); }} />
           <Pill on={scope === 'all'} label={'🌍 ' + t('tg_everywhere')} onPress={() => { tapLight(); setScope('all'); setDay(null); }} />
         </View>
 
@@ -667,6 +741,11 @@ export const TogetherScreen = () => {
               </Pressable>
             ))}
           </>
+        ) : null}
+
+        {scope === 'near' ? (
+          <IdeasElsewhere ideas={elsewhere} t={t} lang={lang}
+            onStart={(g) => { tapMedium(); setSheet({ start: { kind: g.kind, title: ideaTitle(titleFor(g.title, lang)), about: g.about || '', minutes: g.minutes, audience: g.audience && g.audience !== 'all' ? g.audience : undefined } }); }} />
         ) : null}
 
         {/* ── circles near you ── groups people started at places nearby */}
