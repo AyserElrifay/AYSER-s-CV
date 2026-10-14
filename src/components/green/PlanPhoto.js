@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, Image, Pressable, ScrollView, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { lazyOverlay } from '../../lib/lazyScreen';
 import { C } from '../../constants/theme';
 import { lookOf } from '../../lib/activityPins';
 import { tapLight } from '../../utils/feedback';
@@ -11,6 +13,8 @@ import { isSaving } from '../../lib/dataSaver';
 import { useLang } from '../../context/LanguageContext';
 import { RE_OF } from '../../lib/activityMatch';
 import { loadMemberPhotos, memberPhotosFor, memberPhotosReady, onMemberPhotos } from '../../lib/memberPhotos';
+
+const ProfileModal = lazyOverlay(() => import('../ProfileModal').then((m) => ({ default: m.ProfileModal })));
 
 /* activities Ayser sent real free photos and clips for (Pexels,
    credited): the activity, never "this plan". A clip carries its own
@@ -100,6 +104,7 @@ const StockHead = ({ stock, look, t, children }) => {
   const [at, setAt] = useState(0);
   const moving = Platform.OS === 'web' && !isSaving((getPrefs() || {}).dataSaver);
   const cur = stock.pics[at] || stock.pics[0];
+  const [who, setWho] = useState(null);
   return (
     <View>
       <View onLayout={(e) => setW(e.nativeEvent.layout.width)} style={{ height: 170, borderRadius: 16, overflow: 'hidden', backgroundColor: C.glassHi, marginBottom: 11 }}>
@@ -113,7 +118,17 @@ const StockHead = ({ stock, look, t, children }) => {
                   <video src={publicMedia(p.clip)} poster={publicMedia(p.img)} autoPlay muted loop playsInline preload="metadata"
                     style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                 ) : (
-                  <Image source={{ uri: p.url || publicMedia(p.img) }} style={{ width: w, height: 170 }} accessibilityIgnoresInvertColors />
+                  p.member ? (
+                    /* a member's photo is somebody: shown whole, never with
+                       the face cut off — the same picture, blurred, fills
+                       the sides */
+                    <View style={{ width: w, height: 170 }}>
+                      <Image source={{ uri: p.url }} blurRadius={18} style={{ position: 'absolute', width: w, height: 170, opacity: 0.85 }} />
+                      <Image source={{ uri: p.url }} resizeMode="contain" style={{ width: w, height: 170 }} accessibilityIgnoresInvertColors />
+                    </View>
+                  ) : (
+                    <Image source={{ uri: p.url || publicMedia(p.img) }} style={{ width: w, height: 170 }} accessibilityIgnoresInvertColors />
+                  )
                 )}
               </View>
             ))}
@@ -124,9 +139,14 @@ const StockHead = ({ stock, look, t, children }) => {
           <Text style={{ fontSize: 16 }}>{look.emoji}</Text>
         </View>
         {cur.own ? null : cur.member ? (
-          <View pointerEvents="none" style={{ position: 'absolute', right: 8, top: 8, backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 }}>
-            <Text style={{ color: '#FFF', fontSize: 11, fontWeight: '800' }} numberOfLines={1}>{cur.credit}</Text>
-          </View>
+          /* their name opens their page */
+          <Pressable onPress={() => { if (cur.by) { tapLight(); setWho(cur.by); } }} disabled={!cur.by} hitSlop={8}
+            accessibilityRole="button" accessibilityLabel={cur.credit}
+            style={{ position: 'absolute', right: 8, top: 8, flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 999, paddingStart: 3, paddingEnd: 9, paddingVertical: 3 }}>
+            {cur.by && /^https:\/\//.test(cur.by.avatar || '') ? <Image source={{ uri: cur.by.avatar }} style={{ width: 20, height: 20, borderRadius: 10, marginEnd: 5 }} /> : null}
+            <Text style={{ color: '#FFF', fontSize: 11.5, fontWeight: '800' }} numberOfLines={1}>{cur.by && /^https:\/\//.test(cur.by.avatar || '') ? String(cur.credit).replace(/^📸\s*/, '') : cur.credit}</Text>
+            {cur.by ? <Ionicons name="chevron-forward" size={12} color="#FFF" style={{ marginStart: 2 }} /> : null}
+          </Pressable>
         ) : (
           <Text pointerEvents="none" style={{ position: 'absolute', right: 6, top: 4, color: 'rgba(255,255,255,0.4)', fontSize: 6.5, fontWeight: '500', textShadowColor: 'rgba(0,0,0,0.3)', textShadowRadius: 1 }}>{cur.credit || 'Pexels'}</Text>
         )}
@@ -140,6 +160,7 @@ const StockHead = ({ stock, look, t, children }) => {
         </View>
       </View>
       {children}
+      {who ? <ProfileModal user={who} onClose={() => setWho(null)} /> : null}
     </View>
   );
 };

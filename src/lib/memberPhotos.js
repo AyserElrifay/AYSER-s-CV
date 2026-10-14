@@ -18,7 +18,7 @@ export function loadMemberPhotos() {
   if (byAct || loading || !SUPABASE_READY) return loading;
   const since = new Date(Date.now() - 180 * 86400000).toISOString();
   loading = supabase.from('posts')
-    .select('id, type, media_url, caption, place, user:profiles!posts_user_id_fkey(name)')
+    .select('id, type, media_url, caption, place, user:profiles!posts_user_id_fkey(id, name, avatar_url, country_flag)')
     .not('type', 'in', '(reel,vod,travel)').not('media_url', 'is', null).gte('created_at', since)
     .order('created_at', { ascending: false }).limit(200)
     .then(({ data }) => {
@@ -29,7 +29,8 @@ export function loadMemberPhotos() {
         const act = activityOf([p.place, p.caption].filter(Boolean).join(' '));
         if (!act) return;
         const list = map[act.id] || (map[act.id] = []);
-        if (list.length < 4) list.push({ img: 'post-' + p.id, url, credit: '📸 ' + String((p.user && p.user.name) || '').trim(), member: true });
+        if (list.length < 4) list.push({ img: 'post-' + p.id, url, credit: '📸 ' + String((p.user && p.user.name) || '').trim(), member: true,
+          by: p.user && p.user.id ? { id: p.user.id, name: p.user.name, avatar: p.user.avatar_url, avatar_url: p.user.avatar_url, country_flag: p.user.country_flag } : null });
       });
       byAct = map;
     })
