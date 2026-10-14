@@ -33,6 +33,8 @@ const STOCK = [
   { id: 'kids', re: RE_OF.kids, files: [{ img: 'reel-kids.jpg', clip: 'reel-kids.mp4' }].concat(clip('act-kids-v', 1).concat([{ img: 'sport-football-1.jpg' }], [1, 2, 3, 4, 5].map((k) => ({ img: 'act-kids-' + k + (k === 1 || k === 3 ? 'w' : '') + '.jpg' })))) },
   { id: 'volunteer', re: RE_OF.volunteer, files: [{ img: 'reel-volunteer.jpg', clip: 'reel-volunteer.mp4' }].concat(n('act-volunteer-', 3).concat([{ img: 'sport-football-1.jpg' }], [1, 2, 3, 4, 5].map((k) => ({ img: 'act-kids-' + k + (k === 1 || k === 3 ? 'w' : '') + '.jpg' })))) },
   { id: 'talk', re: RE_OF.talk, files: [{ img: 'reel-talk.jpg', clip: 'reel-talk.mp4' }].concat(n('act-talk-', 6)) },
+  /* Ayser's own pictures of opera houses, and a dancer on a stage (Pexels) */
+  { id: 'opera', re: RE_OF.opera, files: [{ img: 'act-opera-v1.jpg', clip: 'act-opera-v1.mp4' }].concat(n('act-opera-', 6)) },
   { id: 'music', re: RE_OF.music, files: [{ img: 'reel-music.jpg', clip: 'reel-music.mp4', own: true }].concat(clip('act-music-v', 1).map((x) => ({ ...x, own: true }))) },
   { id: 'match', re: RE_OF.match, files: [{ img: 'reel-match.jpg', clip: 'reel-match.mp4', own: true }].concat(clip('act-match-v', 1).map((x) => ({ ...x, own: true }))) },
   { id: 'climb', re: RE_OF.climb, files: [

@@ -2306,6 +2306,7 @@ export const STRINGS = {
     fg_tasks: "Earn a little more time today",
     fg_task_reflect: "Answer today's question",
     fg_task_plan: "Say I'm going to a plan",
+    sk_opera: "Red velvet, gold balconies, the lights going down. Come together.",
     lens_all: 'Everything',
     lens_places: 'Places to go',
     lens_people: 'People',

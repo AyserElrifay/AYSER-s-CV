@@ -11,6 +11,7 @@ export const ACTIVITIES = [
   { id: 'kids', emoji: '👧', re: /orphan|\bkids\b|children|child care|أيتام|ايتام|اطفال|أطفال/i },
   { id: 'volunteer', emoji: '🤝', re: /volunteer|charity|donat|food bank|تطوع|متطوع|خيري|تبرع/i },
   { id: 'talk', emoji: '💬', re: /language|exchange|conversation|\bspeak|english|\bcircle\b|لغات|لغة|لغه|تبادل|محادث|دردش|كلام|💬/i },
+  { id: 'opera', emoji: '🎭', re: /opera|ballet|theat(er|re)|symphony|orchestra|concert hall|\bstage\b|أوبرا|اوبرا|باليه|مسرح|سيمفوني|أوركستر|🎭|🩰/i },
   { id: 'music', emoji: '🎸', re: /music|\bjam\b|guitar|\bsing|karaoke|campfire|bonfire|\bcamp\b|مزيك|موسيق|غنا|جيتار|كاريوكي|كامب|🎸|🎶|🎤/i },
   { id: 'match', emoji: '📺', re: /\bmatch|watch party|ماتش|مباراة|نشجع|تشجيع|\bcheer|📺/i },
   { id: 'climb', emoji: '🧗', re: /climb|zip ?line|abseil|rappel|high ropes|mario|تسلق|زيب|ماريو|🧗/i },
