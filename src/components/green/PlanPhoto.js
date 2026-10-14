@@ -10,6 +10,7 @@ import { getPrefs } from '../../services/prefs';
 import { isSaving } from '../../lib/dataSaver';
 import { useLang } from '../../context/LanguageContext';
 import { RE_OF } from '../../lib/activityMatch';
+import { loadMemberPhotos, memberPhotosFor, memberPhotosReady, onMemberPhotos } from '../../lib/memberPhotos';
 
 /* activities Ayser sent real free photos and clips for (Pexels,
    credited): the activity, never "this plan". A clip carries its own
@@ -35,7 +36,7 @@ const STOCK = [
     { img: 'act-climb-1.jpg' }, { img: 'mario-crew-w.jpg' }, { img: 'mario-ferrata-w.jpg' }, { img: 'mario-mirror-w.jpg' },
     { img: 'mario-ropes-w.jpg' },
   ].map((x) => ({ ...x, own: true })) },
-  { id: 'padel', re: RE_OF.padel, files: [{ img: 'reel-padel.jpg', clip: 'reel-padel.mp4', credit: 'Shahd Elzayaat · Pexels' }].concat(n('act-padel-', 4).map((x, i) => (i === 1 ? x : { ...x, who: 'women' })).concat(clip('act-padel-v', 3), [1, 2, 3, 4].map((k) => ({ img: 'padel-ayser-' + k + (k === 1 || k === 3 ? 'w' : '') + '.jpg', credit: 'Shahd Elzayaat', who: 'men' })))) },
+  { id: 'padel', re: RE_OF.padel, files: [{ img: 'reel-padel.jpg', clip: 'reel-padel.mp4', credit: 'Shahd Elzayaat · Pexels', who: 'men' }].concat(n('act-padel-', 4).map((x, i) => (i === 1 ? x : { ...x, who: 'women' })).concat(clip('act-padel-v', 3), [1, 2, 3, 4].map((k) => ({ img: 'padel-ayser-' + k + (k === 1 || k === 3 ? 'w' : '') + '.jpg', credit: 'Shahd Elzayaat', who: 'men' })))) },
   /* `who` marks a picture of only women or only men, so a girls-only or
      guys-only plan never opens on the other */
   { id: 'football', re: RE_OF.football, files: [{ img: 'reel-football.jpg', clip: 'reel-football.mp4', credit: 'Moments · Pexels', who: 'men' }].concat([1, 2, 3].map((k) => ({ img: 'football-crew-' + k + '.jpg', own: true, who: 'men' })), [5, 4].map((k) => ({ img: 'sport-football-' + k + '.jpg', who: 'women' })), [2, 3].map((k) => ({ img: 'sport-football-' + k + '.jpg', who: 'men' }))) },
@@ -56,8 +57,8 @@ const STOCK = [
 const order = new Map();
 const stockOf = (g) => {
   const s = String((g && g.title) || '') + ' ' + String((g && g.kind) || '');
-  const hit = STOCK.find((x) => x.files.length && x.re.test(s));
-  if (!hit || !hit.files.length) return null;
+  const hit = STOCK.find((x) => (x.files.length || memberPhotosFor(x.id).length) && x.re.test(s));
+  if (!hit) return null;
   if (!order.has(hit.id)) order.set(hit.id, new Map());
   const seen = order.get(hit.id);
   const key = String((g && g.id) || s);
@@ -68,15 +69,23 @@ const stockOf = (g) => {
   const aud = g && g.audience;
   const fit = hit.files.filter((f) => !f.who || !aud || aud === 'all' || (aud === 'women' ? f.who === 'women' : f.who === 'men'));
   const files = fit.length ? fit : hit.files.filter((f) => !f.who);
-  if (!files.length) return null;
-  const reel = /^reel-/.test(files[0].img) ? files[0] : null;
+  /* members' own photos of this activity come first after the reel —
+     not on a ladies-only plan, whose pictures stay ladies' */
+  const members = aud === 'women' ? [] : memberPhotosFor(hit.id);
+  if (!files.length && !members.length) return null;
+  const reel = files.length && /^reel-/.test(files[0].img) ? files[0] : null;
   const rest = reel ? files.slice(1) : files;
   const n = seen.get(key);
   const len = rest.length;
-  if (!len) return { id: hit.id, pics: [reel] };
-  const start = (n * Math.max(1, Math.min(3, len - 1))) % len;
-  const pics = reel && n === 0 ? [reel] : [];
-  for (let i = 0; pics.length < Math.min(3, len + (reel && n === 0 ? 1 : 0)); i++) pics.push(rest[(start + i) % len]);
+  /* a member's real photo opens the card; the reel follows it */
+  const pics = members.slice();
+  if (reel && n === 0) pics.push(reel);
+  if (len) {
+    const start = (n * Math.max(1, Math.min(3, len - 1))) % len;
+    const want = pics.length + Math.min(3, len);
+    for (let i = 0; pics.length < want; i++) pics.push(rest[(start + i) % len]);
+  }
+  if (!pics.length) return reel ? { id: hit.id, pics: [reel] } : null;
   return { id: hit.id, pics };
 };
 
@@ -96,11 +105,12 @@ const StockHead = ({ stock, look, t, children }) => {
             onScroll={(e) => { const i = Math.round(e.nativeEvent.contentOffset.x / w); if (i !== at) setAt(i); }} scrollEventThrottle={64}>
             {stock.pics.map((p, i) => (
               <View key={p.img} style={{ width: w, height: 170 }}>
-                {i === 0 && p.clip && moving ? (
+                {/* a member's own photo is a full address; ours are in public/media */}
+                {p.clip && moving && i === stock.pics.findIndex((x) => x.clip) && i <= 1 ? (
                   <video src={publicMedia(p.clip)} poster={publicMedia(p.img)} autoPlay muted loop playsInline preload="metadata"
                     style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                 ) : (
-                  <Image source={{ uri: publicMedia(p.img) }} style={{ width: w, height: 170 }} accessibilityIgnoresInvertColors />
+                  <Image source={{ uri: p.url || publicMedia(p.img) }} style={{ width: w, height: 170 }} accessibilityIgnoresInvertColors />
                 )}
               </View>
             ))}
@@ -110,7 +120,11 @@ const StockHead = ({ stock, look, t, children }) => {
         <View pointerEvents="none" style={{ position: 'absolute', top: 8, left: 8, backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 10, paddingHorizontal: 6, paddingVertical: 2 }}>
           <Text style={{ fontSize: 16 }}>{look.emoji}</Text>
         </View>
-        {cur.own ? null : (
+        {cur.own ? null : cur.member ? (
+          <View pointerEvents="none" style={{ position: 'absolute', right: 8, top: 8, backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 }}>
+            <Text style={{ color: '#FFF', fontSize: 11, fontWeight: '800' }} numberOfLines={1}>{cur.credit}</Text>
+          </View>
+        ) : (
           <Text pointerEvents="none" style={{ position: 'absolute', right: 8, top: 6, color: 'rgba(255,255,255,0.55)', fontSize: 8, fontWeight: '600', textShadowColor: 'rgba(0,0,0,0.4)', textShadowRadius: 2 }}>{cur.credit || 'Pexels'}</Text>
         )}
         <View pointerEvents="none" style={{ position: 'absolute', left: 12, right: 12, bottom: 9, flexDirection: 'row', alignItems: 'flex-end' }}>
@@ -223,6 +237,9 @@ export const PlaceCredit = ({ g, t }) => {
    the picture itself, which its licence asks for. */
 export const PlanHead = ({ g, children }) => {
   const { t } = useLang();
+  /* members' photos arrive a moment after the list; the card redraws once */
+  const [, setMp] = useState(memberPhotosReady());
+  useEffect(() => { loadMemberPhotos(); return onMemberPhotos(() => setMp(true)); }, []);
   const place = usePlacePhoto(g);
   const own = planPhotoOf(g);
   const url = own || (place && safe(place.url));
@@ -230,7 +247,9 @@ export const PlanHead = ({ g, children }) => {
   /* a football, sketching, padel, walk, swimming, beach, reading or coffee plan with
      no photo of its own: a real photo of the activity (Pexels, credited) — the game, not this game */
   const stock = !url ? stockOf(g) : null;
-  if (stock) return <StockHead stock={stock} look={look} t={t}>{children}</StockHead>;
+  /* keyed by its pictures: when members' photos arrive the album starts
+     again on the first one, instead of the browser holding the old one in view */
+  if (stock) return <StockHead key={stock.pics.map((p) => p.img).join('|')} stock={stock} look={look} t={t}>{children}</StockHead>;
   if (!url) {
     /* no real photo of this place: a bright cover in the activity's own
        colours rather than a stranger's stock picture passed off as this

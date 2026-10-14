@@ -279,6 +279,7 @@ export const GreenSheet = ({ onClose, onPlay, startNow, homeCountry, openOn, pre
       startsAt: soon.toISOString(),
       minutes: spark && spark.minutes ? String(spark.minutes) : prefill && prefill.minutes ? String(prefill.minutes) : '60',
       capacity: '',
+      audience: (prefill && prefill.audience) || 'all',
     });
   };
 

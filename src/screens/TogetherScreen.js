@@ -213,6 +213,8 @@ export const TogetherScreen = () => {
   const [askPush, setAskPush] = useState(false);
   const [talks, setTalks] = useState(null);         // talk rooms you are standing inside
   const [talkId, setTalkId] = useState(null);
+  const [myGender, setMyGender] = useState(null);   // 'm' | 'f' | 'n' | null, from your profile
+  const [other, setOther] = useState(null);         // a ladies-only (or guys-only) plan you can't join: { id, g }
   const [checkMsg, setCheckMsg] = useState(null);   // { id, text } after a refused check-in     // after a first join: a nudge before it starts?         // 'start' | 'green' | 'prog' | 'landing' | { group }
 
   const uid = user && user.id;
@@ -223,6 +225,7 @@ export const TogetherScreen = () => {
       if (!alive) return;
       const code = flagToIso(p && p.country_flag);
       setMyCode(code); setCodeKnown(true);
+      setMyGender((p && p.gender) || null);
       try { if (code) localStorage.setItem(CODE_KEY, code); else localStorage.removeItem(CODE_KEY); } catch (e) {}
     }).catch(() => { if (alive) setCodeKnown(true); });
     return () => { alive = false; };
@@ -294,8 +297,19 @@ export const TogetherScreen = () => {
     catch (e) { return ''; }
   };
 
+  /* a ladies-only plan is there for everybody to see, marked pink; a
+     guy who taps it is offered the same plan for guys or for everyone
+     instead of a bare "no". The server says no on its own as well
+     (green_join), this only answers sooner. */
+  const notForMe = (g) => uid && g.host_id !== uid && myGender
+    && ((g.audience === 'women' && myGender !== 'f') || (g.audience === 'men' && myGender !== 'm'));
+  const startLike = (g, audience) => {
+    tapMedium(); setOther(null);
+    setSheet({ start: { kind: g.kind, title: titleFor(g.title, lang), about: g.about || '', place: g.place_name || '', lat: g.lat, lng: g.lng, audience } });
+  };
   const join = async (g) => {
     if (busy[g.id]) return;
+    if (!g.im_going && notForMe(g)) { tapLight(); setOther(other && other.id === g.id ? null : { id: g.id, g }); return; }
     tapMedium();
     setBusy((b) => ({ ...b, [g.id]: true }));
     const yes = !g.im_going;
@@ -304,7 +318,8 @@ export const TogetherScreen = () => {
     setRows((list) => (list || []).map((x) => (x.id === g.id ? { ...x, im_going: yes, going: Math.max(0, (Number(x.going) || 0) + (yes ? 1 : -1)) } : x)));
     const r = await joinGathering(g.id, yes);
     setBusy((b) => { const n = { ...b }; delete n[g.id]; return n; });
-    if (r && !r.ok && /^audience_/.test(r.reason || '')) setCheckMsg({ id: g.id, text: t('au_err_' + r.reason.slice(9)) });
+    if (r && !r.ok && (r.reason === 'audience_women' || r.reason === 'audience_men')) setOther({ id: g.id, g });
+    else if (r && !r.ok && /^audience_/.test(r.reason || '')) setCheckMsg({ id: g.id, text: t('au_err_' + r.reason.slice(9)) });
     if (r && !r.ok && /^age_/.test(r.reason || '')) setCheckMsg({ id: g.id, text: t('ag_err_' + r.reason.slice(4)) });
     if (!(r && r.ok)) load();
     else if (yes) {
@@ -449,7 +464,7 @@ export const TogetherScreen = () => {
                   const expanded = open === g.id;
                   return (
                     <Pressable key={g.id} onPress={() => { tapLight(); setOpen(expanded ? null : g.id); }}>
-                      <View style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: g.im_going ? 'rgba(16,185,129,0.55)' : C.line, borderRadius: 22, padding: 12, marginBottom: 10 }}>
+                      <View style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: g.im_going ? 'rgba(16,185,129,0.55)' : g.audience === 'women' ? '#F9A8D4' : C.line, borderWidth: g.audience === 'women' && !g.im_going ? 1.5 : 1, borderRadius: 22, padding: 12, marginBottom: 10 }}>
                         <PlanHead g={g}>
                           <Text numberOfLines={2} style={{ color: C.text, fontSize: 15.5, fontWeight: '900', lineHeight: 20 }}>{titleFor(g.title, lang)}</Text>
                           <Text numberOfLines={1} style={{ color: C.faint, fontSize: 12.5, fontWeight: '700', marginTop: 3 }}>
@@ -463,7 +478,7 @@ export const TogetherScreen = () => {
                           ) : null}
                           {g.audience && g.audience !== 'all' ? (
                             <View style={{ alignSelf: 'flex-start', marginTop: 6, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3, backgroundColor: g.audience === 'women' ? '#FCE7F3' : '#DBEAFE' }}>
-                              <Text style={{ color: g.audience === 'women' ? '#9D174D' : '#1E40AF', fontSize: 12, fontWeight: '900' }}>{(g.audience === 'women' ? '👩 ' : '👨 ') + t('au_' + g.audience)}</Text>
+                              <Text style={{ color: g.audience === 'women' ? '#9D174D' : '#1E40AF', fontSize: 12, fontWeight: '900' }}>{(g.audience === 'women' ? '🌸 ' : '👨 ') + t('au_' + g.audience)}</Text>
                             </View>
                           ) : null}
                           {creatorIds.has(g.host_id) ? (
@@ -536,7 +551,15 @@ export const TogetherScreen = () => {
                               </Pressable>
                             )
                           ) : (
-                            <JoinPill going={!!g.im_going} busy={!!busy[g.id]} onPress={() => join(g)} t={t} />
+                            !g.im_going && notForMe(g) ? (
+                              <Pressable onPress={() => join(g)} hitSlop={6} accessibilityRole="button">
+                                <View style={{ borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8, backgroundColor: g.audience === 'women' ? '#FCE7F3' : '#DBEAFE' }}>
+                                  <Text style={{ color: g.audience === 'women' ? '#9D174D' : '#1E40AF', fontSize: 12.5, fontWeight: '900' }}>{(g.audience === 'women' ? '🌸 ' : '👨 ') + t('au_' + g.audience)}</Text>
+                                </View>
+                              </Pressable>
+                            ) : (
+                              <JoinPill going={!!g.im_going} busy={!!busy[g.id]} onPress={() => join(g)} t={t} />
+                            )
                           )}
                         </View>
                         {sent && sent.id === g.id ? (
@@ -544,6 +567,26 @@ export const TogetherScreen = () => {
                         ) : null}
                         {checkMsg && checkMsg.id === g.id ? (
                           <Text style={{ color: C.coral, fontSize: 12.5, fontWeight: '700', marginTop: 8 }}>{checkMsg.text}</Text>
+                        ) : null}
+                        {other && other.id === g.id ? (
+                          <View style={{ marginTop: 10, borderRadius: 16, padding: 12, backgroundColor: g.audience === 'women' ? '#FDF2F8' : '#EFF6FF' }}>
+                            <Text style={{ color: C.text, fontSize: 14, fontWeight: '900' }}>{t(g.audience === 'women' ? 'au_only_ladies' : 'au_only_guys')}</Text>
+                            <Text style={{ color: C.dim, fontSize: 13, marginTop: 2, lineHeight: 18 }}>{t('au_start_like')}</Text>
+                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 10 }}>
+                              {myGender === 'm' || myGender === 'f' ? (
+                                <Pressable onPress={() => startLike(g, myGender === 'm' ? 'men' : 'women')} accessibilityRole="button" style={{ marginEnd: 8, marginBottom: 6 }}>
+                                  <View style={{ borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8, backgroundColor: C.purple }}>
+                                    <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900' }}>{myGender === 'm' ? '👨 ' + t('au_start_guys') : '🌸 ' + t('au_start_ladies')}</Text>
+                                  </View>
+                                </Pressable>
+                              ) : null}
+                              <Pressable onPress={() => startLike(g, 'all')} accessibilityRole="button" style={{ marginBottom: 6 }}>
+                                <View style={{ borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1.5, borderColor: C.purple }}>
+                                  <Text style={{ color: C.purple, fontSize: 13, fontWeight: '900' }}>{'👥 ' + t('au_start_mixed')}</Text>
+                                </View>
+                              </Pressable>
+                            </View>
+                          </View>
                         ) : null}
                       </View>
                     </Pressable>
