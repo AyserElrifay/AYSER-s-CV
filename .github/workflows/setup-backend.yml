@@ -359,6 +359,17 @@ jobs:
               echo "CORS is correct too."
               exit 0
             fi
+            # bardi-chat answers signed-in people only; refusing a signed-out call
+            # is it working, not failing
+            if [ "$code" = "401" ] && grep -q signed_out /tmp/bardi.out; then
+              echo "bardi-chat is up and refuses signed-out calls, as it should."
+              if [ "$allow" != "$SITE_ORIGIN" ]; then
+                echo "::error::The preflight does not allow $SITE_ORIGIN — every browser call will be blocked."
+                exit 1
+              fi
+              echo "CORS is correct too."
+              exit 0
+            fi
             echo "attempt $i → HTTP $code"
             grep -i '^access-control-allow-origin:' /tmp/bardi.h || echo "(no allow-origin header)"
             head -c 600 /tmp/bardi.out; echo
