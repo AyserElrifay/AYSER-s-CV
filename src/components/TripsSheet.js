@@ -250,6 +250,22 @@ const Offer = ({ o, t, lang, onBack, onBooked, user, onNeedSignIn }) => {
               {o.faith_time ? <Text style={{ color: C.text, fontSize: 14, lineHeight: 20, marginTop: 8 }}>{'🕊️ ' + t('rt_faith')}</Text> : null}
             </View>
           ) : null}
+          {(o.leaders || []).length ? (
+            <View style={{ marginTop: 18 }}>
+              <Text style={{ color: C.faint, fontSize: 12, fontWeight: '900', letterSpacing: 1.1, marginBottom: 8 }}>{t('rt_leaders').toUpperCase()}</Text>
+              {o.leaders.map((l) => (
+                <View key={l.id} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8 }}>
+                  {l.photo ? <Image source={{ uri: photoUrl(l.photo) }} style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: C.glassHi }} />
+                    : <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: C.purple, fontSize: 18, fontWeight: '900' }}>{String(l.name || '?').trim().charAt(0)}</Text></View>}
+                  <View style={{ flex: 1, marginStart: 12 }}>
+                    <Text style={{ color: C.text, fontSize: 15, fontWeight: '800' }}>{l.name}</Text>
+                    <Text style={{ color: C.purple, fontSize: 12.5, fontWeight: '800', marginTop: 1 }}>{t('rl_' + l.role) + '  ·  ✓ ' + t('rt_checked')}</Text>
+                    {(lang === 'ar' && l.credential_ar) || l.credential ? <Text style={{ color: C.dim, fontSize: 13, marginTop: 2 }}>{lang === 'ar' && l.credential_ar ? l.credential_ar : l.credential}</Text> : null}
+                  </View>
+                </View>
+              ))}
+            </View>
+          ) : null}
           <List title={t('rt_conditions')} items={pick(o, 'conditions', lang)} icon="shield-checkmark" color={C.purple} />
           <List title={t('bk_program')} items={pick(o, 'itinerary', lang)} icon="ellipse" color={C.purple} />
           <List title={t('bk_includes')} items={pick(o, 'includes', lang)} icon="checkmark-circle" color={C.green} />

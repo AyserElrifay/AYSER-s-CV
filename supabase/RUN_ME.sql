@@ -16722,6 +16722,98 @@ update public.offers set good_to_know_ar = array['دي مش جلسات علاج 
 notify pgrst, 'reload schema';
 
 -- ═══════════════════════════════════════════════════════════════════
+--  WHO LEADS A TRIP
+--
+--  Ayser: "مش أي حد — ناس متخصصة: صاحبي دكتور علم النفس عبد الرحمن،
+--  وأنا ممكن أعمل رحلة بنفسي، وcoaches وtrainers، وممكن شيخ في الجامع
+--  أو قس من كنيسة أعرفهم". Every trip can name the people who lead it,
+--  each with their role and one line of what qualifies them. Only the
+--  team adds them, and a leader shows on the trip only once the team has
+--  ticked that it checked their credentials — a title nobody checked is
+--  not shown at all.
+--
+--  Safe to re-run.
+-- ═══════════════════════════════════════════════════════════════════
+
+create table if not exists public.offer_leaders (
+  id            uuid primary key default gen_random_uuid(),
+  offer_id      uuid not null references public.offers(id) on delete cascade,
+  profile_id    uuid references public.profiles(id) on delete set null,
+  name          text not null check (char_length(name) between 2 and 80),
+  role          text not null check (role in ('psychologist','coach','trainer','imam','priest','founder','guide','other')),
+  credential    text check (char_length(credential) <= 200),
+  credential_ar text check (char_length(credential_ar) <= 200),
+  photo         text,
+  sort          int not null default 0,
+  verified      boolean not null default false,
+  created_at    timestamptz not null default now()
+);
+create index if not exists offer_leaders_offer_idx on public.offer_leaders (offer_id, sort);
+alter table public.offer_leaders enable row level security;
+drop policy if exists "leaders: checked ones are public" on public.offer_leaders;
+create policy "leaders: checked ones are public" on public.offer_leaders for select using (verified or public.owner_ok());
+
+create or replace function public.owner_save_leader(p jsonb) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare lid uuid := nullif(p ->> 'id', '')::uuid;
+begin
+  if not public.owner_ok() then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
+  if lid is null then
+    insert into public.offer_leaders (offer_id, name, role) values ((p ->> 'offer_id')::uuid, trim(p ->> 'name'), coalesce(p ->> 'role', 'other'))
+    returning id into lid;
+  end if;
+  update public.offer_leaders set
+    name = trim(p ->> 'name'), role = coalesce(p ->> 'role', role),
+    credential = nullif(trim(p ->> 'credential'), ''), credential_ar = nullif(trim(p ->> 'credential_ar'), ''),
+    photo = case when (p ->> 'photo') ~ '^(https://|media/)' then p ->> 'photo' else null end,
+    profile_id = nullif(p ->> 'profile_id', '')::uuid,
+    sort = coalesce(nullif(p ->> 'sort', '')::int, sort),
+    verified = coalesce((p ->> 'verified')::boolean, verified)
+  where id = lid;
+  return jsonb_build_object('ok', true, 'id', lid);
+exception when others then
+  return jsonb_build_object('ok', false, 'reason', 'invalid', 'detail', sqlerrm);
+end $$;
+
+create or replace function public.owner_delete_leader(p_id uuid) returns jsonb
+language plpgsql security definer set search_path = public as $$
+begin
+  if not public.owner_ok() then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
+  delete from public.offer_leaders where id = p_id;
+  return jsonb_build_object('ok', true);
+end $$;
+
+create or replace function public.owner_leaders(p_offer uuid) returns jsonb
+language sql stable security definer set search_path = public as $$
+  select case when not public.owner_ok() then null else
+    coalesce((select jsonb_agg(to_jsonb(l) order by l.sort, l.created_at) from public.offer_leaders l where l.offer_id = p_offer), '[]'::jsonb) end;
+$$;
+
+revoke execute on function public.owner_save_leader(jsonb) from public, anon;
+revoke execute on function public.owner_delete_leader(uuid) from public, anon;
+revoke execute on function public.owner_leaders(uuid) from public, anon;
+grant execute on function public.owner_save_leader(jsonb) to authenticated;
+grant execute on function public.owner_delete_leader(uuid) to authenticated;
+grant execute on function public.owner_leaders(uuid) to authenticated;
+
+create or replace function public.offer_json(o public.offers)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select to_jsonb(o) - 'commission_pct' - 'created_by'
+    || jsonb_build_object(
+      'seats_left', case when o.seats is null then null else greatest(0, o.seats - public.offer_seats_taken(o.id)) end,
+      'partner', (select name from public.venues where id = o.venue_id),
+      'plus', public.is_plus(auth.uid()),
+      'online_ready', exists (select 1 from public.app_settings where key = 'payments_online' and value = 'true'::jsonb),
+      'wants', (select count(*) from public.offer_wants w where w.offer_id = o.id),
+      'i_want', exists (select 1 from public.offer_wants w where w.offer_id = o.id and w.user_id = auth.uid()),
+      'leaders', (select coalesce(jsonb_agg(jsonb_build_object('id', l.id, 'name', l.name, 'role', l.role,
+                      'credential', l.credential, 'credential_ar', l.credential_ar, 'photo', l.photo, 'profile_id', l.profile_id) order by l.sort, l.created_at), '[]'::jsonb)
+                    from public.offer_leaders l where l.offer_id = o.id and l.verified));
+$$;
+
+notify pgrst, 'reload schema';
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة

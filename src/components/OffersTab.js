@@ -2,8 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable, TextInput, Image, ActivityIndicator, Animated, Easing } from 'react-native';
 import { C } from '../constants/theme';
 import {
-  ownerOffers, offerSave, offerSetVideo, offerSetDuration, offerSetStatus, ownerBookings, ownerMarkBooking, ownerSetSetting, appSettings, photoUrl, money,
-} from '../services/offers';
+  ownerOffers, offerSave, offerSetVideo, offerSetDuration, offerSetStatus, ownerBookings, ownerMarkBooking, ownerSetSetting, appSettings, photoUrl, money,, ownerLeaders, ownerSaveLeader, ownerDeleteLeader } from '../services/offers';
 import { uploadPlanPhoto } from '../lib/storage';
 import { tapLight, tapSuccess } from '../utils/feedback';
 import { appLink, shareLink } from '../utils/share';
@@ -131,6 +130,47 @@ const Party = ({ offer, onClose }) => {
       </View>
       {note ? <Text style={{ color: '#A7F3D0', fontSize: 12.5, marginTop: 6 }}>{note}</Text> : null}
     </Animated.View>
+  );
+};
+
+/* who leads this trip — name, role, one line of what qualifies them;
+   shown on the trip only after "credentials checked" is ticked */
+const ROLES = [['psychologist', 'Psychologist'], ['coach', 'Coach'], ['trainer', 'Trainer'], ['imam', 'Sheikh / Imam'], ['priest', 'Priest'], ['founder', 'Founder'], ['guide', 'Guide'], ['other', 'Host']];
+const blankLeader = () => ({ id: '', name: '', role: 'psychologist', credential: '', credential_ar: '', photo: '', verified: false });
+const LeadersEditor = ({ offerId }) => {
+  const [list, setList] = useState(null);
+  const [f, setF] = useState(blankLeader());
+  const [msg, setMsg] = useState(null);
+  const load = () => ownerLeaders(offerId).then(setList);
+  useEffect(() => { if (offerId) load(); }, [offerId]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (!offerId) return <Text style={{ color: C.faint, fontSize: 12.5, marginTop: 8 }}>Save the trip first, then add who leads it.</Text>;
+  const save = async () => {
+    if (f.name.trim().length < 2) { setMsg('Add a name.'); return; }
+    const r = await ownerSaveLeader({ ...f, offer_id: offerId });
+    if (r && r.ok) { setF(blankLeader()); setMsg('Saved'); load(); } else setMsg('Could not save (' + ((r && r.reason) || 'error') + ')');
+  };
+  return (
+    <View style={{ marginTop: 8 }}>
+      {(list || []).map((l) => (
+        <View key={l.id} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: C.line }}>
+          <Text style={{ flex: 1, color: C.text, fontSize: 13.5 }}>{l.name + ' · ' + l.role + (l.verified ? ' · ✓ checked' : ' · not shown yet')}</Text>
+          <Btn label="Edit" onPress={() => setF({ ...blankLeader(), ...l, credential: l.credential || '', credential_ar: l.credential_ar || '', photo: l.photo || '' })} />
+          <Btn label="Remove" danger onPress={async () => { await ownerDeleteLeader(l.id); load(); }} />
+        </View>
+      ))}
+      <Field label="Name" value={f.name} onChange={(v) => setF({ ...f, name: v })} ph="Dr. Abdelrahman …" />
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+        {ROLES.map(([k, label]) => <Btn key={k} label={(f.role === k ? '✓ ' : '') + label} solid={f.role === k} onPress={() => setF({ ...f, role: k })} />)}
+      </View>
+      <Field label="What qualifies them (English)" value={f.credential} onChange={(v) => setF({ ...f, credential: v })} ph="Clinical psychologist, 8 years" />
+      <Field label="What qualifies them (Arabic)" value={f.credential_ar} onChange={(v) => setF({ ...f, credential_ar: v })} />
+      <Field label="Photo (https:// or media/…)" value={f.photo} onChange={(v) => setF({ ...f, photo: v })} />
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+        <Btn label={(f.verified ? '✓ ' : '') + 'I checked their credentials'} solid={f.verified} onPress={() => setF({ ...f, verified: !f.verified })} />
+        <Btn label={f.id ? 'Save leader' : 'Add leader'} solid onPress={save} />
+      </View>
+      {msg ? <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 4 }}>{msg}</Text> : null}
+    </View>
   );
 };
 
@@ -306,6 +346,8 @@ export const OffersTab = ({ userId }) => {
         </View>
         <Field label="Conditions people agree to before booking (English, one per line)" value={form.conditions} onChange={set('conditions')} multi />
         <Field label="Conditions (Arabic)" value={form.conditions_ar} onChange={set('conditions_ar')} multi />
+        <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '800', letterSpacing: 0.8, marginTop: 12 }}>WHO LEADS IT</Text>
+        <LeadersEditor offerId={form.id} />
         <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '800', letterSpacing: 0.8, marginTop: 12 }}>HOW PEOPLE PAY</Text>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
           {MODES.map((m) => {

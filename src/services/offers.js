@@ -65,3 +65,9 @@ export const offerSetVideo = (id, video) => act('offer_set_video', { p_id: id, p
    database counts and, when the trip opens, tells everybody who asked */
 export const offerWant = (id, on) => act('offer_want', { p_offer: id, p_on: on !== false });
 export const offerSetDuration = (id, hours) => act('offer_set_duration', { p_id: id, p_hours: hours == null || !isFinite(hours) ? null : hours });
+
+/* ── who leads a trip (RUN_ME.sql "WHO LEADS A TRIP") — the team adds
+   them; one shows on the trip only once its credentials were checked */
+export const ownerLeaders = async (offerId) => { const r = await call('owner_leaders', { p_offer: offerId }); return Array.isArray(r) ? r : []; };
+export const ownerSaveLeader = (p) => act('owner_save_leader', { p });
+export const ownerDeleteLeader = (id) => act('owner_delete_leader', { p_id: id });
