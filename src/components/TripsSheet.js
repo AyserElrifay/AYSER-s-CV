@@ -58,6 +58,7 @@ const when = (iso, lang) => {
 };
 const pick = (o, field, lang) => (lang === 'ar' && o[field + '_ar'] && (Array.isArray(o[field + '_ar']) ? o[field + '_ar'].length : true) ? o[field + '_ar'] : o[field]);
 
+const CapsuleSheet = lazyOverlay(() => import('./CapsuleSheet').then((m) => ({ default: m.CapsuleSheet })));
 const PlusSheet = lazyOverlay(() => import('./PlusSheet').then((m) => ({ default: m.PlusSheet })));
 const PlusCard = ({ plus, t, lang }) => {
   const [open, setOpen] = useState(false);
@@ -350,6 +351,7 @@ export const TripsSheet = ({ onClose, country, openOn, focus, onNeedSignIn }) =>
 
   // cancelling asks once more — a single stray tap must not undo a trip
   const [sure, setSure] = useState(null);
+  const [capsule, setCapsule] = useState(null);   // notes for the people on this trip
   const [bkMsg, setBkMsg] = useState(null);
   const cancel = async (b) => {
     if (sure !== b.id) { tapLight(); setSure(b.id); setBkMsg(null); return; }
@@ -506,6 +508,11 @@ export const TripsSheet = ({ onClose, country, openOn, focus, onNeedSignIn }) =>
                       </View>
                     ) : null}
                     {bkMsg && bkMsg.id === b.id ? <Text style={{ color: '#E11D48', fontSize: 12.5, marginTop: 6 }}>{bkMsg.text}</Text> : null}
+                    {b.status === 'reserved' || b.status === 'paid' || b.status === 'attended' ? (
+                      <Pressable onPress={() => { tapLight(); setCapsule(b); }} accessibilityRole="button" style={{ marginTop: 10, alignSelf: 'flex-start' }}>
+                        <Text style={{ color: C.purple, fontSize: 14, fontWeight: '900' }}>{'✉️ ' + t('tk_trip_link')}</Text>
+                      </Pressable>
+                    ) : null}
                     {b.status === 'pending' || b.status === 'reserved' || b.status === 'paid' ? (
                       <View style={{ flexDirection: 'row', marginTop: 10 }}>
                         {b.status === 'pending' ? (
@@ -535,6 +542,7 @@ export const TripsSheet = ({ onClose, country, openOn, focus, onNeedSignIn }) =>
           </ScrollView>
         )}
       </View>
+      {capsule ? <CapsuleSheet kind="trip" id={capsule.offer.id} title={capsule.offer.title} onClose={() => setCapsule(null)} /> : null}
     </Modal>
   );
 };

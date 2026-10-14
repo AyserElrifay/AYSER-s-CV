@@ -15629,6 +15629,181 @@ grant execute on function public.owner_decide_prompt(uuid, boolean, date) to aut
 notify pgrst, 'reload schema';
 
 -- ═══════════════════════════════════════════════════════════════════
+--  TIME CAPSULE · NOTES THAT OPEN WHEN IT ENDS, AND A MEMORY BOOK
+--  Ayser's spec: on a trip or a plan, people write notes to each other
+--  like the letters on an exchange, handed out only at the end. A note
+--  is sealed for its recipient until the plan or the trip is over —
+--  sealed by the database itself: the row is invisible to them until
+--  unlock_at has passed, however they ask for it. The host may open
+--  them early. Afterwards each person can put their notes, their photos
+--  and their reflections from those days into one book.
+--
+--  The event is one of ours: a plan (green_gatherings, ends at
+--  green_ends_at) or a trip (offers, ends at ends_at, or starts_at plus
+--  duration_hours). Only people on it can write, and only to each other.
+-- ═══════════════════════════════════════════════════════════════════
+create table if not exists public.capsule_messages (
+  id           uuid primary key default gen_random_uuid(),
+  event_kind   text not null check (event_kind in ('plan','trip')),
+  event_id     uuid not null,
+  sender_id    uuid not null references public.profiles(id) on delete cascade,
+  recipient_id uuid not null references public.profiles(id) on delete cascade,
+  body         text not null check (length(btrim(body)) between 1 and 1500),
+  unlock_at    timestamptz not null,
+  read_at      timestamptz,
+  created_at   timestamptz not null default now(),
+  check (sender_id <> recipient_id)
+);
+create index if not exists capsule_messages_to_idx on public.capsule_messages (recipient_id, unlock_at);
+create index if not exists capsule_messages_event_idx on public.capsule_messages (event_kind, event_id);
+alter table public.capsule_messages enable row level security;
+drop policy if exists "capsule: what you wrote, and what has opened for you" on public.capsule_messages;
+create policy "capsule: what you wrote, and what has opened for you" on public.capsule_messages for select
+  using (auth.uid() = sender_id or (auth.uid() = recipient_id and unlock_at <= now()));
+-- no insert, update or delete policy: writing and opening go through the functions below
+
+-- when an event ends, and whether someone is on it
+create or replace function public.capsule_event(p_kind text, p_id uuid)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select case p_kind
+    when 'plan' then (select jsonb_build_object('title', g.title, 'starts_at', g.starts_at, 'ends_at', public.green_ends_at(g), 'host_id', g.host_id)
+                        from public.green_gatherings g where g.id = p_id and g.cancelled_at is null)
+    when 'trip' then (select jsonb_build_object('title', o.title, 'starts_at', o.starts_at,
+                               'ends_at', coalesce(o.ends_at, o.starts_at + make_interval(hours => coalesce(o.duration_hours, 24)::int)),
+                               'host_id', (select v.owner_id from public.venues v where v.id = o.venue_id))
+                        from public.offers o where o.id = p_id)
+  end;
+$$;
+revoke execute on function public.capsule_event(text, uuid) from public, anon, authenticated;
+
+create or replace function public.capsule_members(p_kind text, p_id uuid)
+returns setof uuid language sql stable security definer set search_path = public as $$
+  select j.user_id from public.green_joins j where p_kind = 'plan' and j.gathering_id = p_id
+  union select g.host_id from public.green_gatherings g where p_kind = 'plan' and g.id = p_id
+  union select b.user_id from public.bookings b where p_kind = 'trip' and b.offer_id = p_id and b.status in ('reserved','paid','attended');
+$$;
+revoke execute on function public.capsule_members(text, uuid) from public, anon, authenticated;
+
+-- the sheet: when it opens, who is on it, what you sent, what waits for you
+create or replace function public.capsule_view(p_kind text, p_id uuid)
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare me uuid := auth.uid(); e jsonb; opens timestamptz;
+begin
+  if me is null or not exists (select 1 from public.capsule_members(p_kind, p_id) m where m = me) then
+    return jsonb_build_object('ok', false, 'reason', 'not_on_it');
+  end if;
+  e := public.capsule_event(p_kind, p_id);
+  if e is null then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
+  select coalesce(min(unlock_at), (e->>'ends_at')::timestamptz) into opens
+    from public.capsule_messages where event_kind = p_kind and event_id = p_id;
+  return jsonb_build_object('ok', true, 'title', e->>'title', 'ends_at', e->>'ends_at', 'opens_at', opens,
+    'host', (e->>'host_id')::uuid = me,
+    'people', (select coalesce(jsonb_agg(jsonb_build_object('id', p.id, 'name', p.name, 'avatar', p.avatar_url) order by p.name), '[]'::jsonb)
+                 from public.profiles p where p.id in (select * from public.capsule_members(p_kind, p_id)) and p.id <> me),
+    'sent', (select coalesce(jsonb_agg(jsonb_build_object('id', c.id, 'to', p.name, 'body', c.body, 'at', c.created_at) order by c.created_at), '[]'::jsonb)
+               from public.capsule_messages c join public.profiles p on p.id = c.recipient_id
+              where c.event_kind = p_kind and c.event_id = p_id and c.sender_id = me),
+    'waiting', (select count(*) from public.capsule_messages c where c.event_kind = p_kind and c.event_id = p_id and c.recipient_id = me and c.unlock_at > now()),
+    'open', (select coalesce(jsonb_agg(jsonb_build_object('id', c.id, 'from', p.name, 'avatar', p.avatar_url, 'body', c.body, 'read', c.read_at is not null) order by c.created_at), '[]'::jsonb)
+               from public.capsule_messages c join public.profiles p on p.id = c.sender_id
+              where c.event_kind = p_kind and c.event_id = p_id and c.recipient_id = me and c.unlock_at <= now()));
+end;
+$$;
+grant execute on function public.capsule_view(text, uuid) to authenticated;
+
+create or replace function public.capsule_send(p_kind text, p_id uuid, p_to uuid, p_body text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); e jsonb; ends timestamptz;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  if p_to = me then return jsonb_build_object('ok', false, 'reason', 'self'); end if;
+  if not exists (select 1 from public.capsule_members(p_kind, p_id) m where m = me)
+     or not exists (select 1 from public.capsule_members(p_kind, p_id) m where m = p_to) then
+    return jsonb_build_object('ok', false, 'reason', 'not_on_it');
+  end if;
+  if exists (select 1 from public.user_blocks b where (b.blocker_id = p_to and b.blocked_id = me) or (b.blocker_id = me and b.blocked_id = p_to)) then
+    return jsonb_build_object('ok', false, 'reason', 'blocked');
+  end if;
+  if length(btrim(coalesce(p_body, ''))) = 0 or length(p_body) > 1500 then return jsonb_build_object('ok', false, 'reason', 'length'); end if;
+  e := public.capsule_event(p_kind, p_id);
+  ends := (e->>'ends_at')::timestamptz;
+  if ends is null or ends < now() - interval '2 days' then return jsonb_build_object('ok', false, 'reason', 'over'); end if;
+  if (select count(*) from public.capsule_messages where event_kind = p_kind and event_id = p_id and sender_id = me) >= 60 then
+    return jsonb_build_object('ok', false, 'reason', 'too_many');
+  end if;
+  insert into public.capsule_messages (event_kind, event_id, sender_id, recipient_id, body, unlock_at)
+  values (p_kind, p_id, me, p_to, btrim(p_body), greatest(ends, now()));
+  return jsonb_build_object('ok', true);
+end;
+$$;
+revoke execute on function public.capsule_send(text, uuid, uuid, text) from public, anon;
+grant execute on function public.capsule_send(text, uuid, uuid, text) to authenticated;
+
+-- the host hands the notes out now
+create or replace function public.capsule_open_now(p_kind text, p_id uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare e jsonb := public.capsule_event(p_kind, p_id);
+begin
+  if e is null or (e->>'host_id')::uuid is distinct from auth.uid() then return jsonb_build_object('ok', false, 'reason', 'not_host'); end if;
+  update public.capsule_messages set unlock_at = now() where event_kind = p_kind and event_id = p_id and unlock_at > now();
+  return jsonb_build_object('ok', true);
+end;
+$$;
+revoke execute on function public.capsule_open_now(text, uuid) from public, anon;
+grant execute on function public.capsule_open_now(text, uuid) to authenticated;
+
+create or replace function public.capsule_mark_read(p_id uuid)
+returns void language sql security definer set search_path = public as $$
+  update public.capsule_messages set read_at = coalesce(read_at, now())
+   where id = p_id and recipient_id = auth.uid() and unlock_at <= now();
+$$;
+grant execute on function public.capsule_mark_read(uuid) to authenticated;
+
+-- every event you have notes in, newest first
+create or replace function public.my_capsules()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select coalesce(jsonb_agg(x order by x->>'ends_at' desc), '[]'::jsonb) from (
+    select jsonb_build_object('kind', c.event_kind, 'id', c.event_id,
+             'title', public.capsule_event(c.event_kind, c.event_id)->>'title',
+             'ends_at', public.capsule_event(c.event_kind, c.event_id)->>'ends_at',
+             'waiting', count(*) filter (where c.recipient_id = auth.uid() and c.unlock_at > now()),
+             'open', count(*) filter (where c.recipient_id = auth.uid() and c.unlock_at <= now()),
+             'unread', count(*) filter (where c.recipient_id = auth.uid() and c.unlock_at <= now() and c.read_at is null)) as x
+      from public.capsule_messages c
+     where auth.uid() in (c.sender_id, c.recipient_id)
+     group by c.event_kind, c.event_id) t;
+$$;
+grant execute on function public.my_capsules() to authenticated;
+
+-- the memory book: the event, your photos and reflections from those days, your opened notes
+create or replace function public.my_memory_book(p_kind text, p_id uuid)
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare me uuid := auth.uid(); e jsonb; s timestamptz; f timestamptz;
+begin
+  if me is null or not exists (select 1 from public.capsule_members(p_kind, p_id) m where m = me) then
+    return jsonb_build_object('ok', false, 'reason', 'not_on_it');
+  end if;
+  e := public.capsule_event(p_kind, p_id);
+  if e is null then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
+  s := coalesce((e->>'starts_at')::timestamptz, now()) - interval '12 hours';
+  f := coalesce((e->>'ends_at')::timestamptz, now()) + interval '1 day';
+  return jsonb_build_object('ok', true, 'title', e->>'title', 'starts_at', e->>'starts_at', 'ends_at', e->>'ends_at',
+    'name', (select name from public.profiles where id = me),
+    'photos', (select coalesce(jsonb_agg(jsonb_build_object('url', p.media_url, 'caption', p.caption, 'at', p.created_at) order by p.created_at), '[]'::jsonb)
+                 from public.posts p where p.user_id = me and p.media_url is not null and p.media_url !~* '\.(mp4|mov|webm)(\?|$)'
+                  and p.created_at between s and f),
+    'reflections', (select coalesce(jsonb_agg(jsonb_build_object('day', r.day, 'prompt', r.prompt, 'body', r.body) order by r.day), '[]'::jsonb)
+                      from public.reflections r where r.user_id = me and r.day between s::date and f::date),
+    'notes', (select coalesce(jsonb_agg(jsonb_build_object('from', pr.name, 'body', c.body) order by c.created_at), '[]'::jsonb)
+                from public.capsule_messages c join public.profiles pr on pr.id = c.sender_id
+               where c.event_kind = p_kind and c.event_id = p_id and c.recipient_id = me and c.unlock_at <= now()));
+end;
+$$;
+grant execute on function public.my_memory_book(text, uuid) to authenticated;
+
+notify pgrst, 'reload schema';
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة

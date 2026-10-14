@@ -47,6 +47,7 @@ const ProgrammesSheet = lazyOverlay(() => import('../components/green/Programmes
 const LandingSheet = lazyOverlay(() => import('../components/LandingSheet').then((m) => ({ default: m.LandingSheet })));
 const GoNowSheet = lazyOverlay(() => import('../components/GoNowSheet').then((m) => ({ default: m.GoNowSheet })));
 const GroupPage = lazyOverlay(() => import('../components/GroupPage').then((m) => ({ default: m.GroupPage })));
+const CapsuleSheet = lazyOverlay(() => import('../components/CapsuleSheet').then((m) => ({ default: m.CapsuleSheet })));
 const TalkRoomSheet = lazyOverlay(() => import('../components/TalkRoom').then((m) => ({ default: m.TalkRoomSheet })));
 const StartTalkSheet = lazyOverlay(() => import('../components/TalkRoom').then((m) => ({ default: m.StartTalkSheet })));
 
@@ -597,6 +598,15 @@ export const TogetherScreen = () => {
                           <Text style={{ color: C.faint, fontSize: 12.5, fontWeight: '800', flex: 1, minWidth: 0 }} numberOfLines={1}>
                             {'👥 ' + (Number(g.going) || 0) + ' ' + t('green_going')}{g.weekly_id ? ' · ' + t('green_every_week') : ''}
                           </Text>
+                          {g.im_going || mine ? (
+                            /* notes to the others on it, sealed until it ends (CapsuleSheet) */
+                            <Pressable onPress={() => { tapLight(); setSheet({ capsule: g }); }}
+                              hitSlop={6} accessibilityRole="button" accessibilityLabel={t('tk_title')} style={{ marginEnd: 8 }}>
+                              <View style={{ width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: C.line }}>
+                                <Text style={{ fontSize: 16 }}>✉️</Text>
+                              </View>
+                            </Pressable>
+                          ) : null}
                           {(g.im_going || mine) && g.squad_id ? (
                             /* the plan's own group chat — "I'm at the gate" */
                             <Pressable onPress={() => { tapLight(); openChat({ id: g.squad_id, name: titleFor(g.title, lang), emoji: lookOf(g.kind).emoji }); goToTab('CHATS'); }}
@@ -788,6 +798,7 @@ export const TogetherScreen = () => {
       {talkId ? <TalkRoomSheet roomId={talkId} onClose={() => { setTalkId(null); load(); }} /> : null}
       {sheet === 'start' ? <GreenSheet startNow homeCountry={myCode} onClose={() => { setSheet(null); load(); }} /> : null}
       {sheet && sheet.start ? <GreenSheet startNow prefill={sheet.start} homeCountry={myCode} onClose={() => { setSheet(null); load(); }} /> : null}
+      {sheet && sheet.capsule ? <CapsuleSheet kind="plan" id={sheet.capsule.id} title={titleFor(sheet.capsule.title, lang)} onClose={() => setSheet(null)} /> : null}
       {sheet && sheet.trips ? <TripsSheet openOn={sheet.trips} onClose={() => setSheet(null)} /> : null}
       {sheet === 'settle' ? <SettleSheet myCode={myCode} onClose={() => setSheet(null)} onSwap={(p) => setSheet({ start: p })} onPapers={isEuCode(myCode) ? () => setSheet('landing') : null} /> : null}
       {reportingPhoto ? <ReportSheet contentType="plan_photo" contentId={reportingPhoto.id} contentLabel={reportingPhoto.label} onClose={() => setReportingPhoto(null)} /> : null}
