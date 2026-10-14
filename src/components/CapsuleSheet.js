@@ -109,7 +109,15 @@ export const CapsuleSheet = ({ kind, id, title, onClose }) => {
               ))}
             </>
           ) : v == null ? <ActivityIndicator color={C.dim} style={{ marginTop: 40 }} /> : !v.ok ? (
-            <Text style={{ color: C.dim, fontSize: 15, marginTop: 30 }}>{t(v.reason === 'not_on_it' ? 'cp_not_on_it' : 'cp_err_other')}</Text>
+            <View style={{ marginTop: 12 }}>
+              {/* what this is, said plainly — then why it is not open yet */}
+              <Text style={{ color: C.text, fontSize: 30, fontWeight: '800' }}>{'✉️ ' + t('tk_title')}</Text>
+              {ev.title ? <Text style={{ color: C.dim, fontSize: 15, fontWeight: '700', marginTop: 4 }}>{ev.title}</Text> : null}
+              <Text style={{ color: C.text, fontSize: 15.5, lineHeight: 23, marginTop: 14 }}>{t('tk_explain')}</Text>
+              <View style={{ marginTop: 18, borderRadius: 16, padding: 14, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line }}>
+                <Text style={{ color: C.dim, fontSize: 14, lineHeight: 20 }}>{t(v.reason === 'not_on_it' ? 'tk_not_on_it' : 'tk_soon')}</Text>
+              </View>
+            </View>
           ) : (
             <>
               <Text style={{ color: C.faint, fontSize: 12, fontWeight: '800', letterSpacing: 1.2, marginTop: 12 }}>{t('tk_title').toUpperCase()}</Text>

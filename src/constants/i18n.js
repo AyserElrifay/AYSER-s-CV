@@ -2282,6 +2282,8 @@ export const STRINGS = {
     nu_going: "You're going",
     nu_weeks: "{n} weeks in a row out with people",
     nu_weeks_1: "Out with people this week — keep it going",
+    tk_explain: "Write a short note to anyone on this plan. It stays sealed and opens for them when the plan is over — a thank-you or a memory they read on the way home.",
+    tk_soon: "This is being switched on — try again a little later.",
     lens_all: 'Everything',
     lens_places: 'Places to go',
     lens_people: 'People',
