@@ -6,6 +6,9 @@ import { C } from '../constants/theme';
 import { useLang } from '../context/LanguageContext';
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
 import { useSheetBack } from '../hooks/useSheetBack';
+import { lazyOverlay } from '../lib/lazyScreen';
+
+const GiftHelper = lazyOverlay(() => import('./GiftHelper').then((m) => ({ default: m.GiftHelper })));
 
 /* ─── THE DATES THAT MATTER ───────────────────────────────────────────
    Ayser: "الـ dates والرحلات وعيد الميلاد والهدية". A birthday, an
@@ -52,6 +55,7 @@ export const Dates = ({ onClose }) => {
   const { t, lang } = useLang();
   const [list, setList] = useState(readDates);
   const [adding, setAdding] = useState(false);
+  const [gift, setGift] = useState(null);   // null | { name }
   const now0 = new Date();
   const [f, setF] = useState({ name: '', kind: 'birthday', m: now0.getMonth() + 1, d: now0.getDate() });
   const maxDay = new Date(2024, f.m, 0).getDate();
@@ -84,6 +88,11 @@ export const Dates = ({ onClose }) => {
                   <Text style={{ color: C.text, fontSize: 15, fontWeight: '900' }} numberOfLines={1}>{x.name}</Text>
                   <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 1 }}>{x.d + ' ' + monthName(x.m, lang) + ' · ' + (n === 0 ? t('dt_is_today') : t('dt_in').replace('{n}', String(n)))}</Text>
                 </View>
+                {yearly(x.kind) ? (
+                  <Pressable onPress={() => { tapLight(); setGift({ name: x.name }); }} hitSlop={8} accessibilityRole="button" accessibilityLabel={t('gh_title')} style={{ marginEnd: 12 }}>
+                    <Text style={{ fontSize: 20 }}>🎁</Text>
+                  </Pressable>
+                ) : null}
                 <Pressable onPress={() => drop(x.id)} hitSlop={10} accessibilityRole="button" accessibilityLabel={t('md_note_clear')}><Ionicons name="close" size={18} color={C.faint} /></Pressable>
               </View>
             );
@@ -130,9 +139,15 @@ export const Dates = ({ onClose }) => {
               </View>
             </Pressable>
           )}
+          <Pressable onPress={() => { tapLight(); setGift({ name: '' }); }} accessibilityRole="button" style={{ marginTop: 10 }}>
+            <View style={{ borderRadius: 999, backgroundColor: C.purpleSoft, paddingVertical: 13, alignItems: 'center' }}>
+              <Text style={{ color: C.purple, fontSize: 15, fontWeight: '900' }}>{'🎁 ' + t('gh_open')}</Text>
+            </View>
+          </Pressable>
           <Text style={{ color: C.faint, fontSize: 12, textAlign: 'center', marginTop: 12 }}>{t('dt_private')}</Text>
         </ScrollView>
       </View>
+      {gift ? <GiftHelper name={gift.name} onClose={() => setGift(null)} /> : null}
     </Modal>
   );
 };

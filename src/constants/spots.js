@@ -21,6 +21,7 @@ export const SPOT_KINDS = [
   { id: 'fun', emoji: '🎳' },
   { id: 'sports', emoji: '🎾' },
   { id: 'wellness', emoji: '🧘' },
+  { id: 'gifts', emoji: '🎁' },
 ];
 
 /* what: a key in i18n (sp_w_*) — the kind of place, in a few words */
@@ -50,6 +51,13 @@ export const SPOTS = [
   { id: 'bunker_golden_square', kind: 'fun', name: 'Bunker', area: 'One Golden Square, New Cairo', what: 'bowling' },
   { id: 'ground_control_d5', kind: 'fun', name: 'Ground Control', area: 'District 5, New Cairo', what: 'bowling' },
   { id: 'golf_city_cinema_obour', kind: 'fun', name: 'Golf City Cinema', area: 'Golf City Mall, Obour', what: 'cinema' },
+  // 🎁 gifts — well-known places, by name and area only
+  { id: 'azza_fahmy_zamalek', kind: 'gifts', name: 'Azza Fahmy', area: 'Zamalek', what: 'jewellery' },
+  { id: 'nefertari_zamalek', kind: 'gifts', name: 'Nefertari', area: 'Zamalek', what: 'bodycare' },
+  { id: 'diwan_zamalek', kind: 'gifts', name: 'Diwan Bookstore', area: 'Zamalek', what: 'books' },
+  { id: 'fair_trade_zamalek', kind: 'gifts', name: 'Fair Trade Egypt', area: 'Zamalek', what: 'handmade' },
+  { id: 'khan_khalili_gifts', kind: 'gifts', name: 'Khan el-Khalili', area: 'Islamic Cairo', what: 'bazaar' },
+  { id: 'souq_fustat', kind: 'gifts', name: 'Souq El Fustat', area: 'Old Cairo', what: 'handmade' },
   { id: 'autovrooom_obour', kind: 'fun', name: 'Autovrooom', area: 'Avenue Mall, Obour', what: 'karting' },
   { id: 'autovrooom_new_cairo', kind: 'fun', name: 'Autovrooom', area: 'New Cairo', what: 'karting' },
   { id: 'ascent_zayed', kind: 'fun', name: 'Ascent Indoor Climbing', area: 'Sheikh Zayed', what: 'climbing' },

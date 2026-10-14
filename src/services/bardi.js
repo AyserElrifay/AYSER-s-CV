@@ -63,3 +63,21 @@ export async function reflectWithPapyrus(lines, lang = 'en', compass = '') {
     + '\n\nPlease read it like a close friend: tell me briefly what you notice, ask me one kind question, and suggest one small step for tomorrow.';
   return ask({ messages: [{ role: 'user', content }], language: lang, profile: compass ? { goal: compass.slice(0, 200) } : undefined });
 }
+
+/* ── A GIFT, CHOSEN TOGETHER ────────────────────────────────────────
+   Ayser: "خلي بردي يساعدك تختار الهدية — قوله الشخص ده يقربلك إيه وكام
+   معلومة عنه". Only what somebody types in the gift helper
+   (src/components/GiftHelper.js) leaves the phone, and only when they
+   ask. Papyrus answers with a few ideas, each with why and roughly what
+   it costs in their money, and where in their city such a thing is
+   sold — never a made-up shop. */
+export async function giftIdeas({ who, age, loves, budget, occasion, city }, lang = 'en') {
+  const content = 'Help me choose a gift.\n'
+    + '- For: ' + String(who || '').slice(0, 60) + (age ? ', about ' + String(age).slice(0, 3) + ' years old' : '') + '\n'
+    + '- Occasion: ' + String(occasion || '').slice(0, 40) + '\n'
+    + '- What they love / what they are like: ' + String(loves || '').slice(0, 600) + '\n'
+    + (budget ? '- Budget: ' + String(budget).slice(0, 40) + '\n' : '')
+    + (city ? '- I am in: ' + String(city).slice(0, 60) + '\n' : '')
+    + '\nGive me 4 short, thoughtful ideas — at least one experience we could do together and one handmade or personal idea. For each: the idea, one line on why it fits them, and the kind of shop that sells it. Do not invent shop names. Keep it short and warm.';
+  return ask({ messages: [{ role: 'user', content }], language: lang });
+}
