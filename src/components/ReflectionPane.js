@@ -5,6 +5,7 @@ import { C } from '../constants/theme';
 import { useLang } from '../context/LanguageContext';
 import { reflectionToday, reflect, fallbackPrompt, MOODS } from '../services/reflection';
 import { lazyOverlay } from '../lib/lazyScreen';
+import { earnBonus } from '../lib/feedGate';
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
 import { AV_NEUTRAL } from '../constants/mockData';
 
@@ -46,7 +47,7 @@ export const ReflectionPane = ({ user }) => {
     tapMedium(); setBusy(true); setErr(null);
     const r = await reflect(body, mood);
     setBusy(false);
-    if (r && r.ok) { tapSuccess(); setEditing(false); load(); return; }
+    if (r && r.ok) { tapSuccess(); earnBonus('reflect'); setEditing(false); load(); return; }
     setErr(r && r.reason === 'light_mood' ? t('lt_mood') : r && r.reason === 'long' ? t('rf_long') : t('rf_err'));
   };
 
@@ -103,11 +104,12 @@ export const ReflectionPane = ({ user }) => {
               <Image source={{ uri: a.avatar || AV_NEUTRAL }} style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: C.glassHi }} />
               <View style={{ flex: 1, minWidth: 0, marginStart: 10 }}>
                 <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800' }}>{(a.name || '') + (a.mood ? '  ' + MOODS[a.mood - 1] : '')}<Text style={{ color: C.faint, fontWeight: '600' }}>{'  · ' + ago(a.at, t)}</Text></Text>
+                {a.prompt && a.prompt !== p.body && a.prompt !== p.body_ar ? <Text style={{ color: C.faint, fontSize: 12, fontStyle: 'italic', marginTop: 2 }} numberOfLines={2}>{a.prompt}</Text> : null}
                 <Text style={{ color: C.text, fontSize: 15, lineHeight: 21, marginTop: 2 }}>{a.body}</Text>
               </View>
             </View>
           )) : <Text style={{ color: C.dim, fontSize: 14, textAlign: 'center', marginTop: 8 }}>{t('rf_first')}</Text>}
-          <Text style={{ color: C.faint, fontSize: 12, textAlign: 'center', marginTop: 12 }}>{t('rf_24h')}</Text>
+          <Text style={{ color: C.faint, fontSize: 12, textAlign: 'center', marginTop: 12 }}>{t('rf_24h').replace('{h}', String(data.hours || 48))}</Text>
         </View>
       )}
 

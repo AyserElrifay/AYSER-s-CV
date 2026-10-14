@@ -16814,6 +16814,50 @@ $$;
 notify pgrst, 'reload schema';
 
 -- ═══════════════════════════════════════════════════════════════════
+--  REFLECTION · ANSWERS STAY 48 HOURS
+--
+--  Ayser asked 48 or 37. 48: while Moments is small, two days of
+--  answers is what makes the page feel alive, and a round number is
+--  one people can remember. The window is a Studio setting
+--  (app_settings 'reflection_hours', 12–72) so it can come down to 24
+--  once there are many answers a day. Your own answer is in My journey
+--  forever either way; you still see the others only once you have
+--  answered today's question.
+--
+--  Safe to re-run.
+-- ═══════════════════════════════════════════════════════════════════
+
+create or replace function public.reflection_hours() returns int
+language sql stable security definer set search_path = public as $$
+  select greatest(12, least(72, coalesce((select (value #>> '{}')::int from public.app_settings where key = 'reflection_hours'), 48)));
+$$;
+
+create or replace function public.reflection_today()
+returns jsonb language sql stable security definer set search_path = public as $$
+  with mine as (select r.* from public.reflections r where r.user_id = auth.uid() and r.day = current_date)
+  select jsonb_build_object(
+    'prompt', public.today_prompt(),
+    'mine', (select jsonb_build_object('body', body, 'mood', mood) from mine),
+    'hours', public.reflection_hours(),
+    'count', (select count(*) from public.reflections r where r.day = current_date),
+    'answers', case when exists (select 1 from mine) then (
+       select coalesce(jsonb_agg(jsonb_build_object('id', r.id, 'body', r.body, 'mood', r.mood, 'at', r.created_at, 'prompt', r.prompt,
+                                                    'name', p.name, 'avatar', p.avatar_url, 'user_id', r.user_id)
+                                 order by r.created_at desc), '[]'::jsonb)
+         from (select * from public.reflections where user_id <> auth.uid()
+                 and created_at > now() - make_interval(hours => public.reflection_hours()) order by created_at desc limit 150) r
+         join public.profiles p on p.id = r.user_id
+        where not exists (select 1 from public.user_blocks b where (b.blocker_id = auth.uid() and b.blocked_id = r.user_id)
+                                                        or (b.blocker_id = r.user_id and b.blocked_id = auth.uid())))
+     end);
+$$;
+grant execute on function public.reflection_today() to authenticated;
+
+insert into public.app_settings (key, value) values ('reflection_hours', '48'::jsonb) on conflict (key) do nothing;
+
+notify pgrst, 'reload schema';
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة

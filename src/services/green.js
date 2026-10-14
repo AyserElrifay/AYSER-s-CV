@@ -1,3 +1,4 @@
+import { earnBonus } from '../lib/feedGate';
 import { supabase, SUPABASE_READY } from '../lib/supabase';
 import { withDeadline } from '../lib/deadline';
 import { requestUnlock } from '../lib/unlockBus';
@@ -129,6 +130,8 @@ export async function joinGathering(id, going) {
   /* joining somebody's hangout needs Plus: the server said no, so the
      Plus screen opens (PlusGate in App.js) */
   if (r && !r.ok && r.reason === 'plus') { try { window.dispatchEvent(new Event('mm-need-plus')); } catch (e) {} }
+  /* saying yes to a plan is one of today's small things (src/lib/feedGate.js) */
+  if (r && r.ok && going) earnBonus('plan');
   if (r && !r.ok && r.reason === 'offline' && SUPABASE_READY) {
     enqueue({ kind: 'join', id, going: !!going });
     return { ok: true, queued: true };

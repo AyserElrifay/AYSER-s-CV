@@ -33,7 +33,8 @@ import { takeLaunchTarget, onPushOpen } from '../lib/push';
 import { GoOutRail } from '../components/GoOutRail';
 import { NextUp } from '../components/NextUp';
 import { lazyOverlay } from '../lib/lazyScreen';
-import { readGate, addSeconds, markSeenAll, budgetSeconds } from '../lib/feedGate';
+import { readGate, addSeconds, markSeenAll, budgetSeconds, onGate } from '../lib/feedGate';
+import { FeedClock, FeedReopen } from '../components/FeedClock';
 import { myVolunteering } from '../services/green';
 
 /* ─── THE FEED FIRST, THE REST WHEN YOU REACH FOR IT ─────────────────
@@ -142,7 +143,8 @@ export const HomeScreen = () => {
     return () => clearInterval(id);
   }, [focused, homeTab]);
   useEffect(() => { if (focused) { finishedNow.current = false; setGate(readGate()); } }, [focused]);
-  const budget = budgetSeconds(volunteer);
+  useEffect(() => onGate(setGate), []);   // a task done elsewhere: more time, at once
+  const budget = budgetSeconds(volunteer, gate);
   const feedClosed = !!user && (gate.used >= budget || (gate.done && !finishedNow.current));
   const shown = homeTab === 'moments' && !feedClosed ? posts : [];
   const onEnd = () => { if (homeTab === 'moments' && posts.length && !gate.done) { finishedNow.current = true; setGate(markSeenAll()); } };
@@ -607,6 +609,9 @@ export const HomeScreen = () => {
               />
             ) : null}
 
+            {/* the minutes left today, ticking */}
+            {user && homeTab === 'moments' && !feedClosed ? <FeedClock budget={budget} running={focused} /> : null}
+
             {/* the day's window is over: a kind line, and the way out */}
             {homeTab === 'moments' && feedClosed ? (
               <View style={{ alignItems: 'center', borderRadius: 24, paddingVertical: 30, paddingHorizontal: 22, marginTop: 18, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line }}>
@@ -616,9 +621,7 @@ export const HomeScreen = () => {
                 <Pressable onPress={() => { tapLight(); goToTab('TOGETHER'); }} accessibilityRole="button" style={{ marginTop: 16, backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 20, paddingVertical: 11 }}>
                   <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '900' }}>{t('feed_end_cta')}</Text>
                 </Pressable>
-                <Pressable onPress={() => pickTab('reflect')} accessibilityRole="button" style={{ marginTop: 12 }}>
-                  <Text style={{ color: C.dim, fontSize: 13.5, fontWeight: '700' }}>{t('fg_reflect')}</Text>
-                </Pressable>
+                <FeedReopen onReflect={() => pickTab('reflect')} onPlans={() => goToTab('TOGETHER')} />
               </View>
             ) : null}
           </View>
