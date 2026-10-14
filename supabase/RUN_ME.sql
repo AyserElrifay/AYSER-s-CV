@@ -16594,6 +16594,39 @@ where not exists (select 1 from public.green_sparks s where s.title_en = v.title
 notify pgrst, 'reload schema';
 
 -- ═══════════════════════════════════════════════════════════════════
+--  WEEKS IN A ROW, OUT WITH PEOPLE
+--
+--  The one number Home shows about you: how many weeks in a row you
+--  actually turned up somewhere — counted from check-ins at the place
+--  (green_check_in, within 300 m), not from saying you would go. Weeks,
+--  not days: a habit, not a chore. This week counts from the moment you
+--  check in; until then last week still holds the run.
+--
+--  Safe to re-run.
+-- ═══════════════════════════════════════════════════════════════════
+
+create or replace function public.my_out_weeks() returns jsonb
+language plpgsql stable security definer set search_path = public as $$
+declare me uuid := auth.uid(); wk date; n int := 0; this_week boolean;
+begin
+  if me is null then return jsonb_build_object('weeks', 0); end if;
+  this_week := exists (select 1 from public.green_joins
+                        where user_id = me and checked_in_at >= date_trunc('week', now()));
+  wk := (date_trunc('week', now()) - case when this_week then interval '0' else interval '7 days' end)::date;
+  loop
+    exit when not exists (select 1 from public.green_joins
+                           where user_id = me and checked_in_at >= wk and checked_in_at < wk + 7);
+    n := n + 1; wk := wk - 7;
+    exit when n > 520;
+  end loop;
+  return jsonb_build_object('weeks', n, 'this_week', this_week);
+end $$;
+revoke execute on function public.my_out_weeks() from public, anon;
+grant execute on function public.my_out_weeks() to authenticated;
+
+notify pgrst, 'reload schema';
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة

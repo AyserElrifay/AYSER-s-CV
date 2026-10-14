@@ -31,7 +31,7 @@ import { Modal } from 'react-native';
 import { goToTab, showOnMap } from '../lib/mapBus';
 import { takeLaunchTarget, onPushOpen } from '../lib/push';
 import { GoOutRail } from '../components/GoOutRail';
-import { PlaceRail } from '../components/PlaceRail';
+import { NextUp } from '../components/NextUp';
 import { lazyOverlay } from '../lib/lazyScreen';
 import { readGate, addSeconds, markSeenAll, budgetSeconds } from '../lib/feedGate';
 import { myVolunteering } from '../services/green';
@@ -574,6 +574,10 @@ export const HomeScreen = () => {
               </View>
             </View>
 
+            {/* the first thing: the next real plan near you, and one button */}
+            <NextUp user={user} onStart={() => goToTab('TOGETHER')}
+              onOpen={(g) => { if (g.lat != null && g.lng != null) showOnMap({ lat: g.lat, lng: g.lng }); else goToTab('TOGETHER'); }} />
+
             {/* Moments · Reflection */}
             <View style={{ flexDirection: 'row', marginTop: 16, backgroundColor: C.glass, borderRadius: 999, padding: 4, borderWidth: 1, borderColor: C.line }}>
               {[['moments', t('hm_moments')], ['reflect', t('hm_reflect')]].map(([k, label]) => (
@@ -602,8 +606,6 @@ export const HomeScreen = () => {
                 onOpenPlan={(g) => { if (g.lat != null && g.lng != null) showOnMap({ lat: g.lat, lng: g.lng }); else goToTab('TOGETHER'); }}
               />
             ) : null}
-            {/* places worth going to, in real photos (src/components/PlaceRail.js) */}
-            {homeTab === 'moments' ? <PlaceRail /> : null}
 
             {/* the day's window is over: a kind line, and the way out */}
             {homeTab === 'moments' && feedClosed ? (
