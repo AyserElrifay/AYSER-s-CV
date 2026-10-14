@@ -16356,6 +16356,152 @@ insert into public.questions (pack_id, order_index, text_ar, text_en, timer_ms, 
 notify pgrst, 'reload schema';
 
 -- ═══════════════════════════════════════════════════════════════════
+--  CATCH YOUR MATE · A STRANGER, THEN MAYBE A HELLO
+--
+--  Duels used to start only from a chat, so only with people you
+--  already talk to. Now anybody can press "Play a stranger": the first
+--  two people waiting are put in one match. They see a first name and
+--  a face, nothing else.
+--
+--  After the race either one can say "let's get to know each other".
+--  Only when BOTH say it do they become mates — and being mates is
+--  what lets them message each other. One side wanting it is never
+--  told to the other side; that is the whole point of asking both.
+--
+--  The world board reads the best run per player with their country,
+--  so the map can put the champion of each country on it.
+--
+--  Safe to re-run.
+-- ═══════════════════════════════════════════════════════════════════
+
+create table if not exists public.catch_queue (
+  user_id uuid primary key references public.profiles(id) on delete cascade,
+  since   timestamptz not null default now()
+);
+alter table public.catch_queue enable row level security;
+-- no policies: only the functions below touch it
+
+create table if not exists public.catch_hellos (
+  match_id uuid not null references public.game_matches(id) on delete cascade,
+  user_id  uuid not null references public.profiles(id) on delete cascade,
+  at       timestamptz not null default now(),
+  primary key (match_id, user_id)
+);
+alter table public.catch_hellos enable row level security;
+drop policy if exists "hellos: your own" on public.catch_hellos;
+create policy "hellos: your own" on public.catch_hellos for select using (user_id = auth.uid());
+
+create or replace function public.catch_blocked(a uuid, b uuid) returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.user_blocks
+                  where (blocker_id = a and blocked_id = b) or (blocker_id = b and blocked_id = a));
+$$;
+
+-- Press once to join the line, then again every couple of seconds:
+-- the same call tells you when somebody has been paired with you.
+create or replace function public.catch_find_mate() returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); m public.game_matches%rowtype; other uuid;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'sign_in'); end if;
+  -- one pairing at a time, or two people pressing together pair twice
+  perform pg_advisory_xact_lock(hashtext('catch_queue'));
+
+  -- somebody already paired with me while I was waiting
+  select * into m from public.game_matches
+   where kind = 'catch_stranger' and guest_id = me and status = 'active'
+     and started_at is null and created_at > now() - interval '2 minutes'
+   order by created_at desc limit 1;
+  if found then
+    delete from public.catch_queue where user_id = me;
+    return jsonb_build_object('ok', true, 'match_id', m.id, 'host', false, 'mate', m.host_id);
+  end if;
+
+  select q.user_id into other from public.catch_queue q
+   where q.user_id <> me and q.since > now() - interval '40 seconds'
+     and not public.catch_blocked(me, q.user_id)
+   order by q.since
+   limit 1 for update;
+  if other is not null then
+    delete from public.catch_queue where user_id in (me, other);
+    insert into public.game_matches (kind, host_id, guest_id, status)
+    values ('catch_stranger', me, other, 'active') returning * into m;
+    return jsonb_build_object('ok', true, 'match_id', m.id, 'host', true, 'mate', other);
+  end if;
+
+  insert into public.catch_queue (user_id) values (me)
+  on conflict (user_id) do update set since = now();
+  return jsonb_build_object('ok', true, 'waiting', true);
+end $$;
+
+create or replace function public.catch_leave_queue() returns void
+language sql security definer set search_path = public as $$
+  delete from public.catch_queue where user_id = auth.uid();
+$$;
+
+-- The stranger, as much as a stranger gets: a first name and a face.
+create or replace function public.catch_mate_card(p_match uuid) returns jsonb
+language plpgsql stable security definer set search_path = public as $$
+declare me uuid := auth.uid(); m public.game_matches%rowtype; o uuid; p public.profiles%rowtype;
+begin
+  select * into m from public.game_matches where id = p_match;
+  if not found or me not in (m.host_id, m.guest_id) then return null; end if;
+  o := case when m.host_id = me then m.guest_id else m.host_id end;
+  select * into p from public.profiles where id = o;
+  return jsonb_build_object('id', o, 'name', split_part(coalesce(p.name, ''), ' ', 1),
+                            'avatar', p.avatar_url, 'flag', p.country_flag);
+end $$;
+
+-- "Let's get to know each other." Mutual → mates.
+create or replace function public.catch_hello(p_match uuid) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); m public.game_matches%rowtype; o uuid;
+begin
+  select * into m from public.game_matches where id = p_match;
+  if not found or me is null or me not in (m.host_id, m.guest_id) then
+    return jsonb_build_object('ok', false, 'reason', 'not_yours');
+  end if;
+  o := case when m.host_id = me then m.guest_id else m.host_id end;
+  if public.catch_blocked(me, o) then return jsonb_build_object('ok', false, 'reason', 'not_yours'); end if;
+  insert into public.catch_hellos (match_id, user_id) values (p_match, me) on conflict do nothing;
+  if exists (select 1 from public.catch_hellos where match_id = p_match and user_id = o) then
+    if not exists (select 1 from public.mates
+                    where (requester_id = me and addressee_id = o) or (requester_id = o and addressee_id = me)) then
+      insert into public.mates (requester_id, addressee_id, status) values (o, me, 'accepted');
+    else
+      update public.mates set status = 'accepted'
+       where (requester_id = me and addressee_id = o) or (requester_id = o and addressee_id = me);
+    end if;
+    return jsonb_build_object('ok', true, 'mutual', true, 'mate', o);
+  end if;
+  return jsonb_build_object('ok', true, 'mutual', false);
+end $$;
+
+-- Best run per player, with where they are from.
+create or replace function public.catch_world(p_game text default 'runner') returns jsonb
+language sql stable security definer set search_path = public as $$
+  select coalesce(jsonb_agg(r order by r.score desc), '[]'::jsonb) from (
+    select * from (
+    select distinct on (s.user_id) s.user_id as id, s.score,
+           split_part(coalesce(p.name, ''), ' ', 1) as name, p.avatar_url as avatar,
+           p.country_flag as flag, p.country
+      from public.game_scores s join public.profiles p on p.id = s.user_id
+     where s.game = p_game
+     order by s.user_id, s.score desc
+  ) r0 order by r0.score desc limit 200
+  ) r;
+$$;
+
+grant execute on function public.catch_find_mate() to authenticated;
+grant execute on function public.catch_leave_queue() to authenticated;
+grant execute on function public.catch_mate_card(uuid) to authenticated;
+grant execute on function public.catch_hello(uuid) to authenticated;
+grant execute on function public.catch_world(text) to authenticated;
+revoke execute on function public.catch_blocked(uuid, uuid) from public, anon, authenticated;
+
+notify pgrst, 'reload schema';
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة

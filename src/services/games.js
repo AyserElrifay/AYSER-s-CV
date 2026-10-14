@@ -142,3 +142,19 @@ export function subscribeBoard(matchId, onRow) {
   ch.subscribe();
   return { leave: () => { try { supabase.removeChannel(ch); } catch (e) {} } };
 }
+
+/* ── A STRANGER, THEN MAYBE A HELLO ─────────────────────────────────
+   RUN_ME.sql "CATCH YOUR MATE · A STRANGER". The line, the pairing and
+   the hello all live in the database: two people both saying hello is
+   what makes them mates, and nothing here can say it for anybody. */
+const rpc = async (name, args) => {
+  try {
+    const { data, error } = await supabase.rpc(name, args || {});
+    return error ? null : data;
+  } catch (e) { return null; }
+};
+export const findStranger = () => rpc('catch_find_mate');
+export const leaveStrangerLine = () => rpc('catch_leave_queue');
+export const strangerCard = (matchId) => rpc('catch_mate_card', { p_match: matchId });
+export const sayHello = (matchId) => rpc('catch_hello', { p_match: matchId });
+export const worldBoard = async (game = 'runner') => { const r = await rpc('catch_world', { p_game: game }); return Array.isArray(r) ? r : []; };

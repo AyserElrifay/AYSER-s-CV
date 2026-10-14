@@ -6,7 +6,10 @@ import { C } from '../constants/theme';
 import { GAME_LOCATIONS } from '../constants/mockData';
 import { useAuth } from '../context/AuthContext';
 import { buildAvatarUrl } from '../services/avatarBuilder';
-import { submitScore, fetchLeaderboard, finishMatch, subscribeMatchLive } from '../services/games';
+import { submitScore, fetchLeaderboard, finishMatch, subscribeMatchLive, findStranger, leaveStrangerLine, strangerCard, sayHello } from '../services/games';
+import { getProfile } from '../services/profiles';
+import { AV_NEUTRAL } from '../constants/mockData';
+import { lazyOverlay } from '../lib/lazyScreen';
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
 import { sfxPop, sfxStar, sfxSuccess } from '../utils/sfx';
 import { useSheetBack } from '../hooks/useSheetBack';
@@ -19,6 +22,13 @@ const GT = {
   score: ['SCORE', 'النتيجة'], start: ['START RUN ▶', 'يلا نجري ▶'], best: ['Best', 'أعلى'],
   over: ['Tough luck!', 'حظ أوحش!'], again: ['Run again ↻', 'تاني ↻'], board: ['🏆 Global leaderboard', '🏆 الترتيب العالمي'],
   hazards: ['Dodge the hazards, grab the loot:', 'فوت الموانع واجمع الكنوز:'], pick: ['PICK YOUR CITY', 'اختار مدينتك'],
+  world: ['🌍 World map', '🌍 خريطة العالم'], stranger: ['🎲 Play a stranger', '🎲 العب مع حد غريب'],
+  looking: ['Looking for somebody free…', 'بندور على حد فاضي…'], nobody: ['Nobody free right now — try again in a bit.', 'مفيش حد فاضي دلوقتي — جرب كمان شوية.'],
+  cancel: ['Cancel', 'إلغاء'], sign_in: ['Sign in to play somebody.', 'سجل دخول عشان تلعب مع حد.'],
+  hello: ["🤝 Let's get to know each other", '🤝 يلا نتعرف'], hello_sent: ['Sent. If they say yes too, you become mates.', 'اتبعت. لو هو كمان قال آه، هتبقوا أصحاب.'],
+  hello_yes: ['You are mates now — say hi in Chats 👋', 'بقيتوا أصحاب — سلّم عليه في الشات 👋'],
+  tea: ['☕ Winner picks the café — everyone pays their own.', '☕ الكسبان يختار القهوة — وكل واحد يدفع حسابه.'],
+  stranger_note: ['They see your first name and photo only.', 'هو شايف اسمك الأول وصورتك بس.'],
 };
 const gt = (k) => GT[k][gamesAr() ? 1 : 0];
 
@@ -54,6 +64,28 @@ const LEVEL_EVERY = 250;
 const BEST_KEY = 'mm_runner_best';
 const DUEL_MS = 45000; // 45-second real-time head-to-head sprint
 
+/* A face that actually runs: the photo is the head, two shoes take
+   turns underneath it and the body leans into the stride. One shared
+   clock (stride) drives every runner on the track, so two of them
+   never run out of step with the game. */
+const Runner = ({ uri, size = 46, stride, ring = C.gold, dim = false }) => {
+  const swingA = stride.interpolate({ inputRange: [0, 1], outputRange: ['-28deg', '28deg'] });
+  const swingB = stride.interpolate({ inputRange: [0, 1], outputRange: ['28deg', '-28deg'] });
+  const lift = stride.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0, -4, 0] });
+  return (
+    <Animated.View style={{ alignItems: 'center', opacity: dim ? 0.85 : 1, transform: [{ translateY: lift }, { rotate: '-6deg' }] }}>
+      {uri ? <Image source={{ uri }} style={{ width: size, height: size, borderRadius: size / 2, borderWidth: 2.5, borderColor: ring, backgroundColor: '#0D2B5E' }} />
+        : <Text style={{ fontSize: size * 0.85 }}>🏃</Text>}
+      <View style={{ flexDirection: 'row', marginTop: -5, height: 18 }}>
+        <Animated.Text style={{ fontSize: size * 0.3, transform: [{ rotate: swingA }] }}>👟</Animated.Text>
+        <Animated.Text style={{ fontSize: size * 0.3, marginStart: 2, transform: [{ rotate: swingB }] }}>👟</Animated.Text>
+      </View>
+    </Animated.View>
+  );
+};
+
+const WorldScoreMap = lazyOverlay(() => import('./WorldScoreMap').then((m) => ({ default: m.WorldScoreMap })));
+
 const pickLoot = () => {
   const total = LOOT.reduce((n, l) => n + l.w, 0);
   let r = Math.random() * total;
@@ -61,11 +93,27 @@ const pickLoot = () => {
   return LOOT[0];
 };
 
-export const GameRunner = ({ opponent = null, onClose, matchId = null, isHost = false, onRematch = null }) => {
+export const GameRunner = ({ opponent = null, onClose, matchId = null, isHost = false, onRematch = null, stranger = false }) => {
   /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
   useSheetBack(onClose);
   const { user } = useAuth();
-  const meAvatar = user ? buildAvatarUrl(user.id, user.avatar_dna) : null;
+  /* you, as yourself: the photo on your profile; the cartoon only until
+     you have put one there */
+  const [myPhoto, setMyPhoto] = useState(null);
+  useEffect(() => {
+    if (!user) return undefined;
+    let alive = true;
+    const meta = user.user_metadata && user.user_metadata.avatar_url;
+    if (meta && /^https:\/\//.test(meta)) setMyPhoto(meta);
+    getProfile(user.id).then((r) => { if (alive && r && r.avatar_url && /^https:\/\//.test(r.avatar_url) && r.avatar_url !== AV_NEUTRAL) setMyPhoto(r.avatar_url); }).catch(() => {});
+    return () => { alive = false; };
+  }, [user]);
+  const meAvatar = user ? myPhoto || buildAvatarUrl(user.id, user.avatar_dna) : null;
+  const [world, setWorld] = useState(false);
+  const [seek, setSeek] = useState(null); // null | 'looking' | 'nobody' | 'sign_in' | { matchId, isHost, opponent }
+  const seekTimer = useRef(null);
+  const [hello, setHello] = useState(null); // null | 'sent' | 'yes'
+  const helloTimer = useRef(null);
   const isMultiplayer = !!matchId;
   const [loc, setLoc] = useState(GAME_LOCATIONS[0]);
   const [phase, setPhase] = useState('ready'); // ready | playing | over
@@ -116,6 +164,15 @@ export const GameRunner = ({ opponent = null, onClose, matchId = null, isHost = 
   const laneAnim = useRef(new Animated.Value(1)).current;
   const bob = useRef(new Animated.Value(0)).current;
   const banner = useRef(new Animated.Value(0)).current;
+  const stride = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const a = Animated.loop(Animated.sequence([
+      Animated.timing(stride, { toValue: 1, duration: 170, easing: Easing.linear, useNativeDriver: true }),
+      Animated.timing(stride, { toValue: 0, duration: 170, easing: Easing.linear, useNativeDriver: true }),
+    ]));
+    a.start();
+    return () => a.stop();
+  }, [stride]);
   useEffect(() => {
     Animated.loop(Animated.sequence([
       Animated.timing(bob, { toValue: 1, duration: 340, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
@@ -342,6 +399,46 @@ export const GameRunner = ({ opponent = null, onClose, matchId = null, isHost = 
     maybeStart();
   };
 
+  /* ── a stranger: join the line, ask again every two seconds ── */
+  const stopSeeking = () => { clearTimeout(seekTimer.current); seekTimer.current = null; };
+  useEffect(() => () => { stopSeeking(); clearTimeout(helloTimer.current); }, []);
+  const seekStranger = async () => {
+    if (!user) { setSeek('sign_in'); return; }
+    tapMedium(); setSeek('looking');
+    const until = Date.now() + 40000;
+    const ask = async () => {
+      const r = await findStranger();
+      if (r && r.match_id) {
+        stopSeeking();
+        const card = (await strangerCard(r.match_id)) || { id: r.mate, name: '' };
+        tapSuccess(); sfxSuccess();
+        setSeek({ matchId: r.match_id, isHost: !!r.host, opponent: { id: card.id, name: card.name || (gamesAr() ? 'لاعب' : 'Player'), avatar: card.avatar || buildAvatarUrl(card.id) } });
+        return;
+      }
+      if (!r || Date.now() > until) { stopSeeking(); leaveStrangerLine(); setSeek(r ? 'nobody' : 'nobody'); return; }
+      seekTimer.current = setTimeout(ask, 2000);
+    };
+    ask();
+  };
+  const cancelSeek = () => { tapLight(); stopSeeking(); leaveStrangerLine(); setSeek(null); };
+
+  /* ── after a race with a stranger: hello, and ask again for a while
+     so the first one to say it finds out when the other one does ── */
+  const tapHello = async () => {
+    tapMedium();
+    const r = await sayHello(matchId);
+    if (r && r.mutual) { tapSuccess(); setHello('yes'); return; }
+    setHello('sent');
+    let tries = 0;
+    const again = async () => {
+      tries += 1;
+      const q = await sayHello(matchId);
+      if (q && q.mutual) { tapSuccess(); setHello('yes'); return; }
+      if (tries < 15) helloTimer.current = setTimeout(again, 3000);
+    };
+    helloTimer.current = setTimeout(again, 3000);
+  };
+
   const caughtMate = score >= 600; // solo/practice only — catch them at the end of level 3
 
   /* Changing lanes used to animate `left`, which is a layout — the
@@ -366,6 +463,16 @@ export const GameRunner = ({ opponent = null, onClose, matchId = null, isHost = 
     ghost: true,
   };
   const oppFirst = foe.ghost ? 'your record' : String(foe.name || 'Mate').split(' ')[0];
+
+  /* where the mate you chase stands: ahead by however many points they
+     lead, level with you when it is even, behind you once you pass. In
+     practice the mate is your own record. */
+  const chaseGap = (isMultiplayer ? peerScore : best) - score;
+  const foeY = Math.max(36, Math.min(playerY + 44, playerY - 70 - chaseGap * 0.5));
+
+  if (seek && typeof seek === 'object') {
+    return <GameRunner key={seek.matchId} matchId={seek.matchId} isHost={seek.isHost} opponent={seek.opponent} stranger onClose={() => setSeek(null)} />;
+  }
 
   return (
     <Modal visible transparent={false} animationType="slide" onRequestClose={onClose}>
@@ -403,10 +510,10 @@ export const GameRunner = ({ opponent = null, onClose, matchId = null, isHost = 
 
           {/* the mate you're chasing — practice/solo mode only (a real
               duel shows their LIVE score in the corner instead) */}
-          {!isMultiplayer && track.h > 0 ? (
-            <View style={{ position: 'absolute', top: 38, left: laneX(1) - 18, alignItems: 'center' }}>
-              <Image source={{ uri: foe.avatar }} style={{ width: 34, height: 34, borderRadius: 17, borderWidth: 2, borderColor: '#FFF', opacity: 0.92 }} />
-              <Text style={{ fontSize: 18, marginTop: -4 }}>💨</Text>
+          {track.h > 0 && (isMultiplayer ? mpPhase === 'racing' : phase === 'playing') ? (
+            <View pointerEvents="none" style={{ position: 'absolute', top: foeY, left: track.w / 2 - 18, alignItems: 'center', zIndex: 3 }}>
+              <Runner uri={foe.avatar} size={36} stride={stride} ring={foe.ghost ? 'rgba(255,255,255,0.6)' : '#F472B6'} dim={foe.ghost} />
+              <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 10, fontWeight: '800', marginTop: 1 }} numberOfLines={1}>{foe.ghost ? (gamesAr() ? 'رقمك' : 'your record') : oppFirst}</Text>
             </View>
           ) : null}
 
@@ -450,14 +557,7 @@ export const GameRunner = ({ opponent = null, onClose, matchId = null, isHost = 
                 { translateY: bob.interpolate({ inputRange: [0, 1], outputRange: [0, -5] }) },
               ],
             }}>
-              {meAvatar ? (
-                <>
-                  <Image source={{ uri: meAvatar }} style={{ width: 46, height: 46, borderRadius: 23, borderWidth: 2.5, borderColor: C.gold, backgroundColor: '#0D2B5E' }} />
-                  <Text style={{ fontSize: 15, marginTop: -6 }}>👟</Text>
-                </>
-              ) : (
-                <Text style={{ fontSize: 40 }}>🏃</Text>
-              )}
+              <Runner uri={meAvatar} size={46} stride={stride} />
             </Animated.View>
           ) : null}
 
@@ -491,9 +591,21 @@ export const GameRunner = ({ opponent = null, onClose, matchId = null, isHost = 
               </Text>
               <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11.5, marginBottom: 12 }}>{gt('best')} {best}</Text>
 
-              <Pressable onPress={() => { tapLight(); setBoard('loading'); fetchLeaderboard('runner').then(setBoard).catch(() => setBoard([])); }} style={{ marginBottom: 14 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.12)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', borderRadius: 999, paddingHorizontal: 16, paddingVertical: 9 }}>
-                  <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '900' }}>{gt('board')}</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', marginBottom: 14 }}>
+                <Pressable onPress={() => { tapLight(); setBoard('loading'); fetchLeaderboard('runner').then(setBoard).catch(() => setBoard([])); }} accessibilityRole="button" style={{ margin: 4 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.12)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9 }}>
+                    <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '900' }}>{gt('board')}</Text>
+                  </View>
+                </Pressable>
+                <Pressable onPress={() => { tapLight(); setWorld(true); }} accessibilityRole="button" style={{ margin: 4 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.12)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9 }}>
+                    <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '900' }}>{gt('world')}</Text>
+                  </View>
+                </Pressable>
+              </View>
+              <Pressable onPress={seekStranger} accessibilityRole="button" style={{ marginBottom: 14 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(244,114,182,0.22)', borderWidth: 1.5, borderColor: '#F472B6', borderRadius: 999, paddingHorizontal: 18, paddingVertical: 10 }}>
+                  <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900' }}>{gt('stranger')}</Text>
                 </View>
               </Pressable>
 
@@ -539,6 +651,18 @@ export const GameRunner = ({ opponent = null, onClose, matchId = null, isHost = 
               </Pressable>
               <Pressable onPress={() => { tapLight(); setPhase('ready'); }} style={{ marginTop: 14 }}>
                 <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: 13, fontWeight: '700' }}>Change city / mate</Text>
+              </Pressable>
+            </View>
+          ) : null}
+
+          {/* looking for a stranger */}
+          {typeof seek === 'string' ? (
+            <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(4,10,26,0.92)', alignItems: 'center', justifyContent: 'center', padding: 26, zIndex: 9 }}>
+              {seek === 'looking' ? <Runner uri={meAvatar} size={64} stride={stride} /> : <Text style={{ fontSize: 44 }}>{seek === 'sign_in' ? '🔑' : '🌙'}</Text>}
+              <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '900', marginTop: 14, textAlign: 'center' }}>{gt(seek === 'looking' ? 'looking' : seek === 'sign_in' ? 'sign_in' : 'nobody')}</Text>
+              {seek === 'looking' ? <Text style={{ color: 'rgba(255,255,255,0.65)', fontSize: 12.5, marginTop: 8, textAlign: 'center' }}>{gt('stranger_note')}</Text> : null}
+              <Pressable onPress={cancelSeek} accessibilityRole="button" style={{ marginTop: 20 }}>
+                <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: 13.5, fontWeight: '800' }}>{seek === 'looking' ? gt('cancel') : (gamesAr() ? 'تمام' : 'OK')}</Text>
               </Pressable>
             </View>
           ) : null}
@@ -643,6 +767,18 @@ export const GameRunner = ({ opponent = null, onClose, matchId = null, isHost = 
               {myFinal > peerFinal ? 'You caught ' + oppFirst + '!' : myFinal < peerFinal ? oppFirst + ' caught you!' : 'Dead heat!'}
             </Text>
             <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 14, marginTop: 10 }}>You {myFinal} · {oppFirst} {peerFinal}</Text>
+            <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12.5, marginTop: 10, textAlign: 'center' }}>{gt('tea')}</Text>
+            {stranger ? (
+              hello ? (
+                <Text style={{ color: hello === 'yes' ? C.green : 'rgba(255,255,255,0.85)', fontSize: 13.5, fontWeight: '800', marginTop: 18, textAlign: 'center', maxWidth: 280 }}>{gt(hello === 'yes' ? 'hello_yes' : 'hello_sent')}</Text>
+              ) : (
+                <Pressable onPress={tapHello} accessibilityRole="button" style={{ marginTop: 18 }}>
+                  <View style={{ backgroundColor: 'rgba(244,114,182,0.25)', borderWidth: 1.5, borderColor: '#F472B6', borderRadius: 999, paddingHorizontal: 22, paddingVertical: 12 }}>
+                    <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '900' }}>{gt('hello')}</Text>
+                  </View>
+                </Pressable>
+              )
+            ) : null}
             {onRematch ? (
               <Pressable onPress={() => { tapMedium(); onRematch(); }} style={{ marginTop: 22 }}>
                 <View style={{ backgroundColor: C.gold, borderRadius: 999, paddingHorizontal: 36, paddingVertical: 14, flexDirection: 'row', alignItems: 'center' }}>
@@ -656,6 +792,7 @@ export const GameRunner = ({ opponent = null, onClose, matchId = null, isHost = 
             </Pressable>
           </View>
         ) : null}
+        {world ? <WorldScoreMap ar={gamesAr()} onClose={() => setWorld(false)} /> : null}
       </LinearGradient>
     </Modal>
   );
