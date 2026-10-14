@@ -101,7 +101,12 @@ jobs:
           echo "::add-mask::$trimmed"
           [ "$t" != "$trimmed" ] && echo "::warning::The saved key had spaces or a line break in it; they are stripped here."
           case "$trimmed" in
-            sbp_*) echo "Looks right: a personal access token (sbp_…), ${#trimmed} characters." ;;
+            sbp_*)
+              # sbp_ and forty more: any other length was copied with a letter too many or too few
+              if [ "${#trimmed}" -ne 44 ]; then
+                echo "::warning::The token starts with sbp_ but is ${#trimmed} characters long — Supabase personal access tokens are usually 44. If the next step says 401, a character was added or lost when it was copied: make a new one at https://supabase.com/dashboard/account/tokens and paste it again."
+              fi
+              echo "Looks right: a personal access token (sbp_…), ${#trimmed} characters." ;;
             sb_secret_*|sb_publishable_*) echo "::error::This is a PROJECT API key, not a personal access token. Make one at https://supabase.com/dashboard/account/tokens (it starts with sbp_)."; exit 1 ;;
             eyJ*) echo "::error::This is a project JWT key (anon or service_role), not a personal access token. Make one at https://supabase.com/dashboard/account/tokens (it starts with sbp_)."; exit 1 ;;
             *) echo "::warning::This does not start with sbp_ — personal access tokens do. ${#trimmed} characters." ;;
@@ -115,13 +120,6 @@ jobs:
         if: ${{ inputs.run_sql }}
         run: |
           set -euo pipefail
-          # the token's shape, checked before anything is sent — its value is never printed
-          case "${SUPABASE_ACCESS_TOKEN:-}" in
-            sbp_*) ;;
-            "") echo "::error::SUPABASE_ACCESS_TOKEN is empty. Add it under Settings → Secrets and variables → Actions."; exit 1 ;;
-            eyJ*) echo "::error::SUPABASE_ACCESS_TOKEN holds a project API key (it starts with eyJ). It must be a personal access token from Supabase → Account → Access Tokens, which starts with sbp_."; exit 1 ;;
-            *) echo "::error::SUPABASE_ACCESS_TOKEN does not look like a Supabase personal access token — those start with sbp_ (Supabase → Account → Access Tokens)."; exit 1 ;;
-          esac
           jq -Rs '{query: .}' supabase/RUN_ME.sql > /tmp/q.json
           code=$(curl -sS -o /tmp/sql.out -w '%{http_code}' \
             -X POST "https://api.supabase.com/v1/projects/$REF/database/query" \
