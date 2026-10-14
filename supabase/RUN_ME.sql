@@ -16082,6 +16082,280 @@ grant execute on function public.owner_decide_reward(uuid, text) to authenticate
 notify pgrst, 'reload schema';
 
 -- ═══════════════════════════════════════════════════════════════════
+--  لمّة · ONE EGYPT, THE COUNTRIES WE ARE IN, AND THE GLOBAL GOALS
+--
+--  Ayser asked for one Egypt pack on the shelf, not two, and for the
+--  rest to be the countries Moments is actually used in. "Egypt in 15"
+--  stays — it is the round he runs. "Do You Know Egypt?" and the old
+--  "Europe" pack go to private: nobody sees them, nothing is deleted,
+--  and one line brings either back.
+--
+--  "Europe" becomes the UN's 17 Sustainable Development Goals — what
+--  each goal is about, in words only. No emblem of anybody's: the UN
+--  logo has its own rules, and the Red Cross and Red Crescent emblems
+--  are protected by the Geneva Conventions, so that pack was not made.
+--
+--  Every country pack carries its country, so somebody in Budapest
+--  sees Hungary first and somebody in Rabat sees Morocco first. They
+--  are written in Arabic and English only, and make no claim on the
+--  shelf to more — the flags stay honest.
+--
+--  Safe to re-run.
+-- ═══════════════════════════════════════════════════════════════════
+
+update public.game_packs set visibility = 'private'
+ where id in ('eeee5555-0000-4000-8000-000000000001',    -- Do You Know Egypt?
+              'bbbb2222-0000-4000-8000-000000000002');   -- Europe
+
+delete from public.game_packs where id in (
+  'a1b2c3d4-0000-4000-8000-0000000000a1',
+  'a1b2c3d4-0000-4000-8000-0000000000a2',
+  'a1b2c3d4-0000-4000-8000-0000000000a3',
+  'a1b2c3d4-0000-4000-8000-0000000000a4',
+  'a1b2c3d4-0000-4000-8000-0000000000a5',
+  'a1b2c3d4-0000-4000-8000-0000000000a6',
+  'a1b2c3d4-0000-4000-8000-0000000000a7',
+  'a1b2c3d4-0000-4000-8000-0000000000b1');
+
+insert into public.game_packs (id, title_ar, title_en, description_ar, description_en,
+                               category, country, locale, is_official, visibility, sort_order) values
+ ('a1b2c3d4-0000-4000-8000-0000000000a1','المجر','Hungary',
+  'بودابست والدانوب ومكعب مشهور',
+  'Budapest, the Danube and one famous cube',
+  'geography','HU','en',true,'public',100);
+
+insert into public.questions (pack_id, order_index, text_ar, text_en, timer_ms, options, correct_index, points_style) values
+('a1b2c3d4-0000-4000-8000-0000000000a1',0,'عاصمة المجر إيه؟','What is the capital of Hungary?',20000,
+ '[{"index": 0, "text_ar": "فيينا", "text_en": "Vienna"}, {"index": 1, "text_ar": "براغ", "text_en": "Prague"}, {"index": 2, "text_ar": "بوخارست", "text_en": "Bucharest"}, {"index": 3, "text_ar": "بودابست", "text_en": "Budapest"}]',3,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000a1',1,'أنهي نهر بيعدي في بودابست؟','Which river runs through Budapest?',20000,
+ '[{"index": 0, "text_ar": "الراين", "text_en": "The Rhine"}, {"index": 1, "text_ar": "الفلتافا", "text_en": "The Vltava"}, {"index": 2, "text_ar": "الدانوب", "text_en": "The Danube"}, {"index": 3, "text_ar": "السين", "text_en": "The Seine"}]',2,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000a1',2,'أكبر بحيرة في وسط أوروبا، وهي في المجر؟','Which is the largest lake in Central Europe, in Hungary?',20000,
+ '[{"index": 0, "text_ar": "بحيرة جنيف", "text_en": "Lake Geneva"}, {"index": 1, "text_ar": "بحيرة بالاتون", "text_en": "Lake Balaton"}, {"index": 2, "text_ar": "بحيرة بليد", "text_en": "Lake Bled"}, {"index": 3, "text_ar": "بحيرة كومو", "text_en": "Lake Como"}]',1,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000a1',3,'المجري إرنو روبيك اخترع أنهي لعبة؟','Which puzzle did the Hungarian Ernő Rubik invent?',20000,
+ '[{"index": 0, "text_ar": "مكعب روبيك", "text_en": "The Rubik''s Cube"}, {"index": 1, "text_ar": "تتريس", "text_en": "Tetris"}, {"index": 2, "text_ar": "سودوكو", "text_en": "Sudoku"}, {"index": 3, "text_ar": "الكلمات المتقاطعة", "text_en": "The crossword"}]',0,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000a1',4,'عملة المجر اسمها إيه؟','What is Hungary''s currency?',20000,
+ '[{"index": 0, "text_ar": "اليورو", "text_en": "The euro"}, {"index": 1, "text_ar": "الكورونا", "text_en": "The koruna"}, {"index": 2, "text_ar": "الزلوتي", "text_en": "The zloty"}, {"index": 3, "text_ar": "الفورنت", "text_en": "The forint"}]',3,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000a1',5,'أنهي بهار بيدي الجولاش لونه الأحمر؟','Which spice gives goulash its red colour?',20000,
+ '[{"index": 0, "text_ar": "الزعفران", "text_en": "Saffron"}, {"index": 1, "text_ar": "القرفة", "text_en": "Cinnamon"}, {"index": 2, "text_ar": "البابريكا", "text_en": "Paprika"}, {"index": 3, "text_ar": "الحبهان", "text_en": "Cardamom"}]',2,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000a1',6,'بودا وأوبودا اتجمعوا مع أنهي مدينة سنة ١٨٧٣ وبقوا بودابست؟','Buda and Óbuda joined which town in 1873 to make Budapest?',20000,
+ '[{"index": 0, "text_ar": "سيجد", "text_en": "Szeged"}, {"index": 1, "text_ar": "بِشت", "text_en": "Pest"}, {"index": 2, "text_ar": "ديبريتسن", "text_en": "Debrecen"}, {"index": 3, "text_ar": "جيور", "text_en": "Győr"}]',1,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000a1',7,'اللغة المجرية قريبة بعيدة لأنهي لغات؟','Hungarian is a distant cousin of which languages?',20000,
+ '[{"index": 0, "text_ar": "الفنلندي والإستوني", "text_en": "Finnish and Estonian"}, {"index": 1, "text_ar": "الروسي والبولندي", "text_en": "Russian and Polish"}, {"index": 2, "text_ar": "الإيطالي والإسباني", "text_en": "Italian and Spanish"}, {"index": 3, "text_ar": "الألماني والهولندي", "text_en": "German and Dutch"}]',0,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000a1',8,'أنهي حمام مياه ساخنة مشهور في بودابست؟','Which famous thermal bath is in Budapest?',20000,
+ '[{"index": 0, "text_ar": "البلو لاجون", "text_en": "The Blue Lagoon"}, {"index": 1, "text_ar": "حمامات كاراكالا", "text_en": "The Baths of Caracalla"}, {"index": 2, "text_ar": "باموكالي", "text_en": "Pamukkale"}, {"index": 3, "text_ar": "حمامات سيتشيني", "text_en": "The Széchenyi Baths"}]',3,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000a1',9,'الكيكة الحلزونية اللي شبه المدخنة اسمها إيه في المجر؟','What is the spiral "chimney cake" called in Hungary?',20000,
+ '[{"index": 0, "text_ar": "بقلاوة", "text_en": "Baklava"}, {"index": 1, "text_ar": "تشوروز", "text_en": "Churros"}, {"index": 2, "text_ar": "كورتوشكالاتش", "text_en": "Kürtőskalács"}, {"index": 3, "text_ar": "شتروديل", "text_en": "Strudel"}]',2,'standard');
+
+insert into public.game_packs (id, title_ar, title_en, description_ar, description_en,
+                               category, country, locale, is_official, visibility, sort_order) values
+ ('a1b2c3d4-0000-4000-8000-0000000000a2','رومانيا','Romania',
+  'الكاربات والقلاع وعشرة من عشرة',
+  'Carpathians, castles and a perfect ten',
+  'geography','RO','en',true,'public',100);
+
+insert into public.questions (pack_id, order_index, text_ar, text_en, timer_ms, options, correct_index, points_style) values
+('a1b2c3d4-0000-4000-8000-0000000000a2',0,'عاصمة رومانيا إيه؟','What is the capital of Romania?',20000,
+ '[{"index": 0, "text_ar": "بودابست", "text_en": "Budapest"}, {"index": 1, "text_ar": "صوفيا", "text_en": "Sofia"}, {"index": 2, "text_ar": "بلجراد", "text_en": "Belgrade"}, {"index": 3, "text_ar": "بوخارست", "text_en": "Bucharest"}]',3,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000a2',1,'قلعة بران مرتبطة بأنهي أسطورة؟','Bran Castle is linked to which legend?',20000,
+ '[{"index": 0, "text_ar": "روبن هود", "text_en": "Robin Hood"}, {"index": 1, "text_ar": "الملك آرثر", "text_en": "King Arthur"}, {"index": 2, "text_ar": "دراكولا", "text_en": "Dracula"}, {"index": 3, "text_ar": "فرانكشتاين", "text_en": "Frankenstein"}]',2,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000a2',2,'أنهي جبال بتلف جوه رومانيا؟','Which mountains curve through Romania?',20000,
+ '[{"index": 0, "text_ar": "الألب", "text_en": "The Alps"}, {"index": 1, "text_ar": "جبال الكاربات", "text_en": "The Carpathians"}, {"index": 2, "text_ar": "البرانس", "text_en": "The Pyrenees"}, {"index": 3, "text_ar": "الأورال", "text_en": "The Urals"}]',1,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000a2',3,'الروماني أقرب لأنهي لغة؟','Romanian is closest to which language?',20000,
+ '[{"index": 0, "text_ar": "الإيطالي", "text_en": "Italian"}, {"index": 1, "text_ar": "الروسي", "text_en": "Russian"}, {"index": 2, "text_ar": "الألماني", "text_en": "German"}, {"index": 3, "text_ar": "المجري", "text_en": "Hungarian"}]',0,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000a2',4,'مين أول واحدة خدت ١٠ من ١٠ في الجمباز الأولمبي سنة ١٩٧٦؟','Who scored the first perfect 10 in Olympic gymnastics, in 1976?',20000,
+ '[{"index": 0, "text_ar": "سيمون بايلز", "text_en": "Simone Biles"}, {"index": 1, "text_ar": "أولجا كوربوت", "text_en": "Olga Korbut"}, {"index": 2, "text_ar": "لاريسا لاتينينا", "text_en": "Larisa Latynina"}, {"index": 3, "text_ar": "ناديا كومانيتشي", "text_en": "Nadia Comăneci"}]',3,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000a2',5,'الدانوب بيخلص في رومانيا وبيصب في أنهي بحر؟','The Danube ends in Romania, flowing into which sea?',20000,
+ '[{"index": 0, "text_ar": "البحر الأدرياتيكي", "text_en": "The Adriatic"}, {"index": 1, "text_ar": "بحر البلطيق", "text_en": "The Baltic"}, {"index": 2, "text_ar": "البحر الأسود", "text_en": "The Black Sea"}, {"index": 3, "text_ar": "بحر الشمال", "text_en": "The North Sea"}]',2,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000a2',6,'عملة رومانيا اسمها إيه؟','What is Romania''s currency?',20000,
+ '[{"index": 0, "text_ar": "اليورو", "text_en": "The euro"}, {"index": 1, "text_ar": "الليو", "text_en": "The leu"}, {"index": 2, "text_ar": "الفورنت", "text_en": "The forint"}, {"index": 3, "text_ar": "الليف", "text_en": "The lev"}]',1,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000a2',7,'قصر البرلمان الضخم في أنهي مدينة؟','The huge Palace of the Parliament is in which city?',20000,
+ '[{"index": 0, "text_ar": "بوخارست", "text_en": "Bucharest"}, {"index": 1, "text_ar": "كلوج", "text_en": "Cluj-Napoca"}, {"index": 2, "text_ar": "ياش", "text_en": "Iași"}, {"index": 3, "text_ar": "تيميشوارا", "text_en": "Timișoara"}]',0,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000a2',8,'أنهي منطقة في رومانيا مشهورة بالقلاع والمدن المحصّنة؟','Which Romanian region is famous for castles and fortified towns?',20000,
+ '[{"index": 0, "text_ar": "توسكانا", "text_en": "Tuscany"}, {"index": 1, "text_ar": "بافاريا", "text_en": "Bavaria"}, {"index": 2, "text_ar": "بروفانس", "text_en": "Provence"}, {"index": 3, "text_ar": "ترانسلفانيا", "text_en": "Transylvania"}]',3,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000a2',9,'محشي الكرنب الروماني اسمه إيه؟','What are Romania''s cabbage rolls called?',20000,
+ '[{"index": 0, "text_ar": "باييا", "text_en": "Paella"}, {"index": 1, "text_ar": "بيروجي", "text_en": "Pierogi"}, {"index": 2, "text_ar": "سارماله", "text_en": "Sarmale"}, {"index": 3, "text_ar": "مسقعة", "text_en": "Moussaka"}]',2,'standard');
+
+insert into public.game_packs (id, title_ar, title_en, description_ar, description_en,
+                               category, country, locale, is_official, visibility, sort_order) values
+ ('a1b2c3d4-0000-4000-8000-0000000000a3','التشيك','Czechia',
+  'براغ والكباري وكلمة "روبوت"',
+  'Prague, bridges and the word "robot"',
+  'geography','CZ','en',true,'public',100);
+
+insert into public.questions (pack_id, order_index, text_ar, text_en, timer_ms, options, correct_index, points_style) values
+('a1b2c3d4-0000-4000-8000-0000000000a3',0,'عاصمة التشيك إيه؟','What is the capital of Czechia?',20000,
+ '[{"index": 0, "text_ar": "برنو", "text_en": "Brno"}, {"index": 1, "text_ar": "براتيسلافا", "text_en": "Bratislava"}, {"index": 2, "text_ar": "فيينا", "text_en": "Vienna"}, {"index": 3, "text_ar": "براغ", "text_en": "Prague"}]',3,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000a3',1,'أنهي نهر بيعدي في براغ؟','Which river runs through Prague?',20000,
+ '[{"index": 0, "text_ar": "الدانوب", "text_en": "The Danube"}, {"index": 1, "text_ar": "التيمز", "text_en": "The Thames"}, {"index": 2, "text_ar": "الفلتافا", "text_en": "The Vltava"}, {"index": 3, "text_ar": "السين", "text_en": "The Seine"}]',2,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000a3',2,'الساعة القديمة المشهورة في براغ نوعها إيه؟','What is the famous medieval clock in Prague''s Old Town?',20000,
+ '[{"index": 0, "text_ar": "ساعة كوكو", "text_en": "A cuckoo clock"}, {"index": 1, "text_ar": "ساعة فلكية", "text_en": "An astronomical clock"}, {"index": 2, "text_ar": "ساعة مية", "text_en": "A water clock"}, {"index": 3, "text_ar": "ساعة شمسية", "text_en": "A sundial"}]',1,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000a3',3,'أنهي كوبري حجر قديم عليه تماثيل بيعدي الفلتافا؟','Which old stone bridge with statues crosses the Vltava?',20000,
+ '[{"index": 0, "text_ar": "كوبري تشارلز", "text_en": "Charles Bridge"}, {"index": 1, "text_ar": "تاور بريدج", "text_en": "Tower Bridge"}, {"index": 2, "text_ar": "ريالتو", "text_en": "The Rialto"}, {"index": 3, "text_ar": "كوبري السلاسل", "text_en": "The Chain Bridge"}]',0,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000a3',4,'سنة ١٩٩٣ تشيكوسلوفاكيا اتقسمت بهدوء لتشيك و…','In 1993 Czechoslovakia split peacefully into Czechia and…',20000,
+ '[{"index": 0, "text_ar": "سلوفينيا", "text_en": "Slovenia"}, {"index": 1, "text_ar": "بولندا", "text_en": "Poland"}, {"index": 2, "text_ar": "النمسا", "text_en": "Austria"}, {"index": 3, "text_ar": "سلوفاكيا", "text_en": "Slovakia"}]',3,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000a3',5,'عملة التشيك اسمها إيه؟','What is the Czech currency?',20000,
+ '[{"index": 0, "text_ar": "اليورو", "text_en": "The euro"}, {"index": 1, "text_ar": "الفورنت", "text_en": "The forint"}, {"index": 2, "text_ar": "الكورونا", "text_en": "The koruna"}, {"index": 3, "text_ar": "الزلوتي", "text_en": "The zloty"}]',2,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000a3',6,'مين الكاتب من براغ اللي كتب "التحول"؟','Which Prague writer wrote "The Metamorphosis"?',20000,
+ '[{"index": 0, "text_ar": "جوته", "text_en": "Goethe"}, {"index": 1, "text_ar": "فرانز كافكا", "text_en": "Franz Kafka"}, {"index": 2, "text_ar": "تولستوي", "text_en": "Leo Tolstoy"}, {"index": 3, "text_ar": "فيكتور هوجو", "text_en": "Victor Hugo"}]',1,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000a3',7,'كلمة "روبوت" ظهرت أول مرة في مسرحية لأنهي كاتب تشيكي؟','The word "robot" first appeared in a play by which Czech writer?',20000,
+ '[{"index": 0, "text_ar": "كارل تشابيك", "text_en": "Karel Čapek"}, {"index": 1, "text_ar": "فرانز كافكا", "text_en": "Franz Kafka"}, {"index": 2, "text_ar": "فاتسلاف هافل", "text_en": "Václav Havel"}, {"index": 3, "text_ar": "ميلان كونديرا", "text_en": "Milan Kundera"}]',0,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000a3',8,'أنهي مدينة مياه معدنية تشيكية فيها مهرجان سينما دولي؟','Which Czech spa town hosts an international film festival?',20000,
+ '[{"index": 0, "text_ar": "برنو", "text_en": "Brno"}, {"index": 1, "text_ar": "أولوموتس", "text_en": "Olomouc"}, {"index": 2, "text_ar": "أوسترافا", "text_en": "Ostrava"}, {"index": 3, "text_ar": "كارلوفي فاري", "text_en": "Karlovy Vary"}]',3,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000a3',9,'تاني أكبر مدينة في التشيك؟','Which Czech city is the second largest?',20000,
+ '[{"index": 0, "text_ar": "أوسترافا", "text_en": "Ostrava"}, {"index": 1, "text_ar": "براتيسلافا", "text_en": "Bratislava"}, {"index": 2, "text_ar": "برنو", "text_en": "Brno"}, {"index": 3, "text_ar": "كراكوف", "text_en": "Kraków"}]',2,'standard');
+
+insert into public.game_packs (id, title_ar, title_en, description_ar, description_en,
+                               category, country, locale, is_official, visibility, sort_order) values
+ ('a1b2c3d4-0000-4000-8000-0000000000a4','فرنسا','France',
+  'باريس والجبال وجايزتين نوبل',
+  'Paris, mountains and two Nobel prizes',
+  'geography','FR','en',true,'public',100);
+
+insert into public.questions (pack_id, order_index, text_ar, text_en, timer_ms, options, correct_index, points_style) values
+('a1b2c3d4-0000-4000-8000-0000000000a4',0,'عاصمة فرنسا إيه؟','What is the capital of France?',20000,
+ '[{"index": 0, "text_ar": "ليون", "text_en": "Lyon"}, {"index": 1, "text_ar": "مارسيليا", "text_en": "Marseille"}, {"index": 2, "text_ar": "نيس", "text_en": "Nice"}, {"index": 3, "text_ar": "باريس", "text_en": "Paris"}]',3,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000a4',1,'برج إيفل اتبنى لمعرض عالمي سنة كام؟','The Eiffel Tower was built for the World''s Fair of which year?',20000,
+ '[{"index": 0, "text_ar": "١٧٨٩", "text_en": "1789"}, {"index": 1, "text_ar": "١٩٢٠", "text_en": "1920"}, {"index": 2, "text_ar": "١٨٨٩", "text_en": "1889"}, {"index": 3, "text_ar": "١٩٥٠", "text_en": "1950"}]',2,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000a4',2,'أنهي لوحة متعلقة في اللوفر؟','Which painting hangs in the Louvre?',20000,
+ '[{"index": 0, "text_ar": "ليلة النجوم", "text_en": "The Starry Night"}, {"index": 1, "text_ar": "الموناليزا", "text_en": "The Mona Lisa"}, {"index": 2, "text_ar": "الصرخة", "text_en": "The Scream"}, {"index": 3, "text_ar": "الفتاة ذات القرط اللؤلؤي", "text_en": "Girl with a Pearl Earring"}]',1,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000a4',3,'أطول نهر في فرنسا؟','What is the longest river in France?',20000,
+ '[{"index": 0, "text_ar": "اللوار", "text_en": "The Loire"}, {"index": 1, "text_ar": "السين", "text_en": "The Seine"}, {"index": 2, "text_ar": "الرون", "text_en": "The Rhône"}, {"index": 3, "text_ar": "الجارون", "text_en": "The Garonne"}]',0,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000a4',4,'أنهي سباق عجل بيخلص في الشانزليزيه؟','Which bike race finishes on the Champs-Élysées?',20000,
+ '[{"index": 0, "text_ar": "طواف إيطاليا", "text_en": "The Giro d''Italia"}, {"index": 1, "text_ar": "طواف إسبانيا", "text_en": "The Vuelta"}, {"index": 2, "text_ar": "باريس–داكار", "text_en": "Paris–Dakar"}, {"index": 3, "text_ar": "طواف فرنسا", "text_en": "The Tour de France"}]',3,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000a4',5,'أعلى قمة في الألب على حدود فرنسا وإيطاليا؟','Which peak on the French–Italian border is the highest in the Alps?',20000,
+ '[{"index": 0, "text_ar": "الماترهورن", "text_en": "The Matterhorn"}, {"index": 1, "text_ar": "إتنا", "text_en": "Mount Etna"}, {"index": 2, "text_ar": "مون بلان", "text_en": "Mont Blanc"}, {"index": 3, "text_ar": "بن نيفيس", "text_en": "Ben Nevis"}]',2,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000a4',6,'كلمة "كرواسون" معناها إيه بالفرنساوي؟','What does "croissant" mean in French?',20000,
+ '[{"index": 0, "text_ar": "زبدة", "text_en": "Butter"}, {"index": 1, "text_ar": "هلال", "text_en": "Crescent"}, {"index": 2, "text_ar": "صباح", "text_en": "Morning"}, {"index": 3, "text_ar": "لفّة", "text_en": "Roll"}]',1,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000a4',7,'شعار فرنسا إيه؟','What is the motto of France?',20000,
+ '[{"index": 0, "text_ar": "حرية، مساواة، إخاء", "text_en": "Liberty, equality, fraternity"}, {"index": 1, "text_ar": "وحدة، عمل، تقدم", "text_en": "Unity, work, progress"}, {"index": 2, "text_ar": "القوة في الاتحاد", "text_en": "Strength through unity"}, {"index": 3, "text_ar": "سلام وعيش", "text_en": "Peace and bread"}]',0,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000a4',8,'مين العالمة اللي اشتغلت في باريس وخدت نوبل مرتين؟','Which scientist, working in Paris, won two Nobel Prizes?',20000,
+ '[{"index": 0, "text_ar": "آدا لوفليس", "text_en": "Ada Lovelace"}, {"index": 1, "text_ar": "روزاليند فرانكلين", "text_en": "Rosalind Franklin"}, {"index": 2, "text_ar": "ليزا مايتنر", "text_en": "Lise Meitner"}, {"index": 3, "text_ar": "ماري كوري", "text_en": "Marie Curie"}]',3,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000a4',9,'نابليون اتولد في أنهي جزيرة؟','On which island was Napoleon born?',20000,
+ '[{"index": 0, "text_ar": "صقلية", "text_en": "Sicily"}, {"index": 1, "text_ar": "سردينيا", "text_en": "Sardinia"}, {"index": 2, "text_ar": "كورسيكا", "text_en": "Corsica"}, {"index": 3, "text_ar": "إلبا", "text_en": "Elba"}]',2,'standard');
+
+insert into public.game_packs (id, title_ar, title_en, description_ar, description_en,
+                               category, country, locale, is_official, visibility, sort_order) values
+ ('a1b2c3d4-0000-4000-8000-0000000000a5','إسبانيا','Spain',
+  'جاودي والحمرا والباييا',
+  'Gaudí, the Alhambra and paella',
+  'geography','ES','en',true,'public',100);
+
+insert into public.questions (pack_id, order_index, text_ar, text_en, timer_ms, options, correct_index, points_style) values
+('a1b2c3d4-0000-4000-8000-0000000000a5',0,'عاصمة إسبانيا إيه؟','What is the capital of Spain?',20000,
+ '[{"index": 0, "text_ar": "برشلونة", "text_en": "Barcelona"}, {"index": 1, "text_ar": "إشبيلية", "text_en": "Seville"}, {"index": 2, "text_ar": "فالنسيا", "text_en": "Valencia"}, {"index": 3, "text_ar": "مدريد", "text_en": "Madrid"}]',3,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000a5',1,'أنهي كنيسة لجاودي في برشلونة لسه بتتكمّل؟','Which Barcelona basilica by Gaudí is still being finished?',20000,
+ '[{"index": 0, "text_ar": "قصر الحمرا", "text_en": "The Alhambra"}, {"index": 1, "text_ar": "البرادو", "text_en": "The Prado"}, {"index": 2, "text_ar": "الساجرادا فاميليا", "text_en": "The Sagrada Família"}, {"index": 3, "text_ar": "الجوجنهايم", "text_en": "The Guggenheim"}]',2,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000a5',2,'قصر الحمرا في أنهي مدينة؟','The Alhambra palace is in which city?',20000,
+ '[{"index": 0, "text_ar": "مدريد", "text_en": "Madrid"}, {"index": 1, "text_ar": "غرناطة", "text_en": "Granada"}, {"index": 2, "text_ar": "بلباو", "text_en": "Bilbao"}, {"index": 3, "text_ar": "فالنسيا", "text_en": "Valencia"}]',1,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000a5',3,'الباييا أصلها منين؟','Paella comes from which region?',20000,
+ '[{"index": 0, "text_ar": "فالنسيا", "text_en": "Valencia"}, {"index": 1, "text_ar": "جاليسيا", "text_en": "Galicia"}, {"index": 2, "text_ar": "بلاد الباسك", "text_en": "The Basque Country"}, {"index": 3, "text_ar": "مدريد", "text_en": "Madrid"}]',0,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000a5',4,'مين رسم "جيرنيكا"؟','Who painted "Guernica"?',20000,
+ '[{"index": 0, "text_ar": "سلفادور دالي", "text_en": "Salvador Dalí"}, {"index": 1, "text_ar": "فرانسيسكو جويا", "text_en": "Francisco Goya"}, {"index": 2, "text_ar": "دييجو فيلاسكيز", "text_en": "Diego Velázquez"}, {"index": 3, "text_ar": "بابلو بيكاسو", "text_en": "Pablo Picasso"}]',3,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000a5',5,'أنهي مضيق بين إسبانيا والمغرب؟','Which strait lies between Spain and Morocco?',20000,
+ '[{"index": 0, "text_ar": "البوسفور", "text_en": "The Bosphorus"}, {"index": 1, "text_ar": "مضيق دوفر", "text_en": "The Strait of Dover"}, {"index": 2, "text_ar": "مضيق جبل طارق", "text_en": "The Strait of Gibraltar"}, {"index": 3, "text_ar": "مضيق ميسينا", "text_en": "The Strait of Messina"}]',2,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000a5',6,'غير الإسباني، أنهي لغة رسمية في برشلونة؟','Besides Spanish, which language is official in Barcelona?',20000,
+ '[{"index": 0, "text_ar": "الباسكي", "text_en": "Basque"}, {"index": 1, "text_ar": "الكتالوني", "text_en": "Catalan"}, {"index": 2, "text_ar": "البرتغالي", "text_en": "Portuguese"}, {"index": 3, "text_ar": "الإيطالي", "text_en": "Italian"}]',1,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000a5',7,'إسبانيا كسبت أول كأس عالم سنة كام؟','Spain won its first World Cup in which year?',20000,
+ '[{"index": 0, "text_ar": "٢٠١٠", "text_en": "2010"}, {"index": 1, "text_ar": "٢٠٠٦", "text_en": "2006"}, {"index": 2, "text_ar": "٢٠١٤", "text_en": "2014"}, {"index": 3, "text_ar": "١٩٩٨", "text_en": "1998"}]',0,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000a5',8,'لوحة "لاس مينيناس" لفيلاسكيز في أنهي متحف في مدريد؟','Velázquez''s "Las Meninas" hangs in which Madrid museum?',20000,
+ '[{"index": 0, "text_ar": "اللوفر", "text_en": "The Louvre"}, {"index": 1, "text_ar": "الأوفيتزي", "text_en": "The Uffizi"}, {"index": 2, "text_ar": "الرايكس ميوزيام", "text_en": "The Rijksmuseum"}, {"index": 3, "text_ar": "البرادو", "text_en": "The Prado"}]',3,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000a5',9,'جزر الكناري في أنهي محيط؟','The Canary Islands are in which ocean?',20000,
+ '[{"index": 0, "text_ar": "الهندي", "text_en": "The Indian Ocean"}, {"index": 1, "text_ar": "الهادي", "text_en": "The Pacific"}, {"index": 2, "text_ar": "الأطلنطي", "text_en": "The Atlantic"}, {"index": 3, "text_ar": "المتجمد الشمالي", "text_en": "The Arctic"}]',2,'standard');
+
+insert into public.game_packs (id, title_ar, title_en, description_ar, description_en,
+                               category, country, locale, is_official, visibility, sort_order) values
+ ('a1b2c3d4-0000-4000-8000-0000000000a6','إيطاليا','Italy',
+  'قنوات وبراكين وأول بيتزا',
+  'Canals, volcanoes and the first pizza',
+  'geography','IT','en',true,'public',100);
+
+insert into public.questions (pack_id, order_index, text_ar, text_en, timer_ms, options, correct_index, points_style) values
+('a1b2c3d4-0000-4000-8000-0000000000a6',0,'عاصمة إيطاليا إيه؟','What is the capital of Italy?',20000,
+ '[{"index": 0, "text_ar": "ميلانو", "text_en": "Milan"}, {"index": 1, "text_ar": "نابولي", "text_en": "Naples"}, {"index": 2, "text_ar": "فلورنسا", "text_en": "Florence"}, {"index": 3, "text_ar": "روما", "text_en": "Rome"}]',3,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000a6',1,'أنهي مدينة إيطالية مبنية على قنوات مية؟','Which Italian city is built on canals?',20000,
+ '[{"index": 0, "text_ar": "فلورنسا", "text_en": "Florence"}, {"index": 1, "text_ar": "تورينو", "text_en": "Turin"}, {"index": 2, "text_ar": "البندقية", "text_en": "Venice"}, {"index": 3, "text_ar": "بولونيا", "text_en": "Bologna"}]',2,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000a6',2,'البرج المايل المشهور في أنهي مدينة؟','The famous leaning tower is in which city?',20000,
+ '[{"index": 0, "text_ar": "سيينا", "text_en": "Siena"}, {"index": 1, "text_ar": "بيزا", "text_en": "Pisa"}, {"index": 2, "text_ar": "فيرونا", "text_en": "Verona"}, {"index": 3, "text_ar": "جنوة", "text_en": "Genoa"}]',1,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000a6',3,'أنهي بركان دفن بومبي سنة ٧٩ ميلادي؟','Which volcano buried Pompeii in 79 AD?',20000,
+ '[{"index": 0, "text_ar": "فيزوف", "text_en": "Vesuvius"}, {"index": 1, "text_ar": "إتنا", "text_en": "Etna"}, {"index": 2, "text_ar": "سترومبولي", "text_en": "Stromboli"}, {"index": 3, "text_ar": "كليمنجارو", "text_en": "Kilimanjaro"}]',0,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000a6',4,'مين رسم سقف كنيسة سيستينا؟','Who painted the Sistine Chapel ceiling?',20000,
+ '[{"index": 0, "text_ar": "ليوناردو دافنشي", "text_en": "Leonardo da Vinci"}, {"index": 1, "text_ar": "رافاييل", "text_en": "Raphael"}, {"index": 2, "text_ar": "بوتيتشيلي", "text_en": "Botticelli"}, {"index": 3, "text_ar": "مايكل أنجلو", "text_en": "Michelangelo"}]',3,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000a6',5,'أنهي دولة موجودة بالكامل جوه روما؟','Which country sits entirely inside Rome?',20000,
+ '[{"index": 0, "text_ar": "موناكو", "text_en": "Monaco"}, {"index": 1, "text_ar": "سان مارينو", "text_en": "San Marino"}, {"index": 2, "text_ar": "الفاتيكان", "text_en": "Vatican City"}, {"index": 3, "text_ar": "مالطا", "text_en": "Malta"}]',2,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000a6',6,'على الخريطة إيطاليا شكلها زي…','On a map, Italy is famously shaped like a…',20000,
+ '[{"index": 0, "text_ar": "برنيطة", "text_en": "Hat"}, {"index": 1, "text_ar": "جزمة", "text_en": "Boot"}, {"index": 2, "text_ar": "سمكة", "text_en": "Fish"}, {"index": 3, "text_ar": "براد شاي", "text_en": "Teapot"}]',1,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000a6',7,'بيتزا مارجريتا اتولدت في أنهي مدينة؟','Pizza Margherita was born in which city?',20000,
+ '[{"index": 0, "text_ar": "نابولي", "text_en": "Naples"}, {"index": 1, "text_ar": "روما", "text_en": "Rome"}, {"index": 2, "text_ar": "ميلانو", "text_en": "Milan"}, {"index": 3, "text_ar": "باليرمو", "text_en": "Palermo"}]',0,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000a6',8,'أكبر جزيرة في البحر المتوسط؟','What is the largest island in the Mediterranean?',20000,
+ '[{"index": 0, "text_ar": "سردينيا", "text_en": "Sardinia"}, {"index": 1, "text_ar": "قبرص", "text_en": "Cyprus"}, {"index": 2, "text_ar": "كريت", "text_en": "Crete"}, {"index": 3, "text_ar": "صقلية", "text_en": "Sicily"}]',3,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000a6',9,'أنهي مدرج قديم موجود في روما؟','Which ancient arena stands in Rome?',20000,
+ '[{"index": 0, "text_ar": "البارثينون", "text_en": "The Parthenon"}, {"index": 1, "text_ar": "الأكروبوليس", "text_en": "The Acropolis"}, {"index": 2, "text_ar": "الكولوسيوم", "text_en": "The Colosseum"}, {"index": 3, "text_ar": "آيا صوفيا", "text_en": "Hagia Sophia"}]',2,'standard');
+
+insert into public.game_packs (id, title_ar, title_en, description_ar, description_en,
+                               category, country, locale, is_official, visibility, sort_order) values
+ ('a1b2c3d4-0000-4000-8000-0000000000a7','المغرب','Morocco',
+  'الأطلس وفاس ونص النهائي',
+  'The Atlas, Fez and a semi-final',
+  'geography','MA','en',true,'public',100);
+
+insert into public.questions (pack_id, order_index, text_ar, text_en, timer_ms, options, correct_index, points_style) values
+('a1b2c3d4-0000-4000-8000-0000000000a7',0,'عاصمة المغرب إيه؟','What is the capital of Morocco?',20000,
+ '[{"index": 0, "text_ar": "الدار البيضاء", "text_en": "Casablanca"}, {"index": 1, "text_ar": "مراكش", "text_en": "Marrakech"}, {"index": 2, "text_ar": "فاس", "text_en": "Fez"}, {"index": 3, "text_ar": "الرباط", "text_en": "Rabat"}]',3,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000a7',1,'أكبر مدينة في المغرب؟','What is Morocco''s largest city?',20000,
+ '[{"index": 0, "text_ar": "الرباط", "text_en": "Rabat"}, {"index": 1, "text_ar": "طنجة", "text_en": "Tangier"}, {"index": 2, "text_ar": "الدار البيضاء", "text_en": "Casablanca"}, {"index": 3, "text_ar": "أكادير", "text_en": "Agadir"}]',2,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000a7',2,'أنهي جبال بتعدّي المغرب؟','Which mountains cross Morocco?',20000,
+ '[{"index": 0, "text_ar": "الألب", "text_en": "The Alps"}, {"index": 1, "text_ar": "الأطلس", "text_en": "The Atlas"}, {"index": 2, "text_ar": "الأنديز", "text_en": "The Andes"}, {"index": 3, "text_ar": "الهيمالايا", "text_en": "The Himalayas"}]',1,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000a7',3,'جامعة القرويين اللي أسستها فاطمة الفهرية سنة ٨٥٩ في أنهي مدينة؟','Al-Qarawiyyin, founded by Fatima al-Fihri in 859, is in which city?',20000,
+ '[{"index": 0, "text_ar": "فاس", "text_en": "Fez"}, {"index": 1, "text_ar": "الرباط", "text_en": "Rabat"}, {"index": 2, "text_ar": "القاهرة", "text_en": "Cairo"}, {"index": 3, "text_ar": "تونس", "text_en": "Tunis"}]',0,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000a7',4,'أنهي مدينة مغربية اسمها المدينة الزرقا؟','Which Moroccan town is known as the blue city?',20000,
+ '[{"index": 0, "text_ar": "الصويرة", "text_en": "Essaouira"}, {"index": 1, "text_ar": "ورزازات", "text_en": "Ouarzazate"}, {"index": 2, "text_ar": "مكناس", "text_en": "Meknes"}, {"index": 3, "text_ar": "شفشاون", "text_en": "Chefchaouen"}]',3,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000a7',5,'أنهي أكلة واخدة اسمها من الطاجن الفخار اللي بتتطبخ فيه؟','Which dish is named after the clay pot it cooks in?',20000,
+ '[{"index": 0, "text_ar": "الباييا", "text_en": "Paella"}, {"index": 1, "text_ar": "المسقعة", "text_en": "Moussaka"}, {"index": 2, "text_ar": "الطاجين", "text_en": "Tagine"}, {"index": 3, "text_ar": "اللازانيا", "text_en": "Lasagne"}]',2,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000a7',6,'عملة المغرب اسمها إيه؟','What is Morocco''s currency?',20000,
+ '[{"index": 0, "text_ar": "الدينار", "text_en": "The dinar"}, {"index": 1, "text_ar": "الدرهم", "text_en": "The dirham"}, {"index": 2, "text_ar": "الريال", "text_en": "The riyal"}, {"index": 3, "text_ar": "الجنيه", "text_en": "The pound"}]',1,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000a7',7,'أنهي ميدان مشهور قلب مراكش؟','Which famous square is the heart of Marrakech?',20000,
+ '[{"index": 0, "text_ar": "جامع الفنا", "text_en": "Jemaa el-Fnaa"}, {"index": 1, "text_ar": "ميدان التحرير", "text_en": "Tahrir Square"}, {"index": 2, "text_ar": "ميدان تقسيم", "text_en": "Taksim Square"}, {"index": 3, "text_ar": "بلازا مايور", "text_en": "Plaza Mayor"}]',0,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000a7',8,'في كأس العالم ٢٠٢٢ المغرب بقى أول منتخب أفريقي يوصل لأنهي دور؟','At the 2022 World Cup, Morocco was the first African team to reach which stage?',20000,
+ '[{"index": 0, "text_ar": "النهائي", "text_en": "The final"}, {"index": 1, "text_ar": "ربع النهائي", "text_en": "The quarter-final"}, {"index": 2, "text_ar": "دور الـ١٦", "text_en": "The round of 16"}, {"index": 3, "text_ar": "نص النهائي", "text_en": "The semi-final"}]',3,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000a7',9,'المغرب هتنظم كأس العالم ٢٠٣٠ مع…','Morocco hosts the 2030 World Cup together with…',20000,
+ '[{"index": 0, "text_ar": "فرنسا وإيطاليا", "text_en": "France and Italy"}, {"index": 1, "text_ar": "مصر وتونس", "text_en": "Egypt and Tunisia"}, {"index": 2, "text_ar": "إسبانيا والبرتغال", "text_en": "Spain and Portugal"}, {"index": 3, "text_ar": "أمريكا والمكسيك", "text_en": "The USA and Mexico"}]',2,'standard');
+
+insert into public.game_packs (id, title_ar, title_en, description_ar, description_en,
+                               category, country, locale, is_official, visibility, sort_order) values
+ ('a1b2c3d4-0000-4000-8000-0000000000b1','الأهداف العالمية الـ١٧','The 17 Global Goals',
+  'الأهداف اللي العالم حطها لسنة ٢٠٣٠ — كل هدف عن إيه',
+  'The goals the world set for 2030 — what each one is about',
+  'general',null,'en',true,'public',30);
+
+insert into public.questions (pack_id, order_index, text_ar, text_en, timer_ms, options, correct_index, points_style) values
+('a1b2c3d4-0000-4000-8000-0000000000b1',0,'أهداف التنمية المستدامة عددها كام؟','How many Sustainable Development Goals are there?',20000,
+ '[{"index": 0, "text_ar": "٨", "text_en": "8"}, {"index": 1, "text_ar": "١٠", "text_en": "10"}, {"index": 2, "text_ar": "٢٥", "text_en": "25"}, {"index": 3, "text_ar": "١٧", "text_en": "17"}]',3,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000b1',1,'العالم اتفق عليها سنة كام؟','In which year did the world adopt them?',20000,
+ '[{"index": 0, "text_ar": "٢٠٠٠", "text_en": "2000"}, {"index": 1, "text_ar": "٢٠١٠", "text_en": "2010"}, {"index": 2, "text_ar": "٢٠١٥", "text_en": "2015"}, {"index": 3, "text_ar": "٢٠٢٠", "text_en": "2020"}]',2,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000b1',2,'المفروض تتحقق قبل سنة كام؟','By which year are they meant to be reached?',20000,
+ '[{"index": 0, "text_ar": "٢٠٢٥", "text_en": "2025"}, {"index": 1, "text_ar": "٢٠٣٠", "text_en": "2030"}, {"index": 2, "text_ar": "٢٠٥٠", "text_en": "2050"}, {"index": 3, "text_ar": "٢١٠٠", "text_en": "2100"}]',1,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000b1',3,'كام دولة اتفقت عليها؟','How many countries agreed to them?',20000,
+ '[{"index": 0, "text_ar": "١٩٣", "text_en": "193"}, {"index": 1, "text_ar": "٥٠", "text_en": "50"}, {"index": 2, "text_ar": "١٠٠", "text_en": "100"}, {"index": 3, "text_ar": "٢٧", "text_en": "27"}]',0,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000b1',4,'الهدف رقم ١ إيه؟','What is Goal 1?',20000,
+ '[{"index": 0, "text_ar": "القضاء على الجوع", "text_en": "Zero hunger"}, {"index": 1, "text_ar": "مية نضيفة", "text_en": "Clean water"}, {"index": 2, "text_ar": "السلام", "text_en": "Peace"}, {"index": 3, "text_ar": "القضاء على الفقر", "text_en": "No poverty"}]',3,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000b1',5,'الهدف رقم ٢ إيه؟','What is Goal 2?',20000,
+ '[{"index": 0, "text_ar": "القضاء على الفقر", "text_en": "No poverty"}, {"index": 1, "text_ar": "تعليم جيد", "text_en": "Quality education"}, {"index": 2, "text_ar": "القضاء على الجوع", "text_en": "Zero hunger"}, {"index": 3, "text_ar": "العمل المناخي", "text_en": "Climate action"}]',2,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000b1',6,'الهدف رقم ٤ إيه؟','What is Goal 4?',20000,
+ '[{"index": 0, "text_ar": "المساواة بين الجنسين", "text_en": "Gender equality"}, {"index": 1, "text_ar": "تعليم جيد", "text_en": "Quality education"}, {"index": 2, "text_ar": "طاقة نضيفة", "text_en": "Clean energy"}, {"index": 3, "text_ar": "صحة جيدة", "text_en": "Good health"}]',1,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000b1',7,'الهدف رقم ٥ إيه؟','What is Goal 5?',20000,
+ '[{"index": 0, "text_ar": "المساواة بين الجنسين", "text_en": "Gender equality"}, {"index": 1, "text_ar": "تقليل عدم المساواة", "text_en": "Reduced inequalities"}, {"index": 2, "text_ar": "عمل لائق", "text_en": "Decent work"}, {"index": 3, "text_ar": "الشراكات", "text_en": "Partnerships"}]',0,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000b1',8,'الهدف رقم ٦ إيه؟','What is Goal 6?',20000,
+ '[{"index": 0, "text_ar": "طاقة نضيفة بسعر معقول", "text_en": "Affordable clean energy"}, {"index": 1, "text_ar": "مدن مستدامة", "text_en": "Sustainable cities"}, {"index": 2, "text_ar": "الحياة على الأرض", "text_en": "Life on land"}, {"index": 3, "text_ar": "مية نضيفة وصرف صحي", "text_en": "Clean water and sanitation"}]',3,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000b1',9,'الهدف رقم ١٣ إيه؟','What is Goal 13?',20000,
+ '[{"index": 0, "text_ar": "الحياة تحت المية", "text_en": "Life below water"}, {"index": 1, "text_ar": "الحياة على الأرض", "text_en": "Life on land"}, {"index": 2, "text_ar": "العمل المناخي", "text_en": "Climate action"}, {"index": 3, "text_ar": "القضاء على الجوع", "text_en": "Zero hunger"}]',2,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000b1',10,'الهدف ١٤ "الحياة تحت المية" بيحمي إيه؟','Goal 14, "Life below water", protects what?',20000,
+ '[{"index": 0, "text_ar": "الغابات", "text_en": "Forests"}, {"index": 1, "text_ar": "المحيطات والبحار", "text_en": "Oceans and seas"}, {"index": 2, "text_ar": "المدن", "text_en": "Cities"}, {"index": 3, "text_ar": "الشغل", "text_en": "Jobs"}]',1,'standard'),
+('a1b2c3d4-0000-4000-8000-0000000000b1',11,'الهدف ١٧، الأخير، إيه؟','What is Goal 17, the last one?',20000,
+ '[{"index": 0, "text_ar": "الشراكات لتحقيق الأهداف", "text_en": "Partnerships for the goals"}, {"index": 1, "text_ar": "السلام والعدل", "text_en": "Peace and justice"}, {"index": 2, "text_ar": "الصناعة والابتكار", "text_en": "Industry and innovation"}, {"index": 3, "text_ar": "الاستهلاك المسؤول", "text_en": "Responsible consumption"}]',0,'standard');
+
+notify pgrst, 'reload schema';
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة

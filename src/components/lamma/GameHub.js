@@ -13,6 +13,7 @@ import { fetchPacks, packTitle, createRoom, joinRoom, advance } from '../../serv
 import { getProfile } from '../../services/profiles';
 import { CHANNELS } from './channels';
 import { packFlags } from './languages';
+import { flagOf } from '../../constants/countries';
 import { LammaGame } from './LammaGame';
 import { tapLight, tapMedium } from '../../utils/feedback';
 import { useSheetBack } from '../../hooks/useSheetBack';
@@ -276,7 +277,7 @@ export const GameHub = ({ onClose, focusPack = null }) => {
                             <MaterialCommunityIcons name={ch.icon} size={20} color="#FFF" />
                           </View>
                           <Text style={{ color: C.text, fontSize: 15.5, fontWeight: '900', marginTop: 10 }} numberOfLines={2}>
-                            {packTitle(p, lang)}
+                            {(p.country ? flagOf(p.country) + ' ' : '') + packTitle(p, lang)}
                           </Text>
                           {(lang === 'ar' ? p.description_ar : p.description_en) ? (
                             <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 4, lineHeight: 16 }} numberOfLines={2}>

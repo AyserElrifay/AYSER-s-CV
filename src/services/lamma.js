@@ -1,6 +1,7 @@
 import { supabase, SUPABASE_READY } from '../lib/supabase';
 import { withDeadline } from '../lib/deadline';
 import { COUNTRIES } from '../constants/mockData';
+import { COUNTRY_LIST } from '../constants/countries';
 
 /* ─── لمّة · TALKING TO THE ROOM ──────────────────────────────────────
    Every function here ASKS. None of them tell.
@@ -135,7 +136,11 @@ const codeFor = (place) => {
   if (!place) return null;
   const s = String(place).trim();
   if (/^[A-Za-z]{2}$/.test(s)) return s.toUpperCase();   // already a code
-  const hit = COUNTRIES.find((c) => c.name.toLowerCase() === s.toLowerCase());
+  // the short list first, then the whole planet — "Hungary" and
+  // "Czech Republic" have packs of their own and are not on the short one
+  const low = s.toLowerCase();
+  const hit = COUNTRIES.find((c) => c.name.toLowerCase() === low)
+    || COUNTRY_LIST.find((c) => c.name.toLowerCase() === low || (low === 'czech republic' && c.code === 'CZ'));
   return hit ? hit.code : null;
 };
 
