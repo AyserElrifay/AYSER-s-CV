@@ -2167,6 +2167,7 @@ export const STRINGS = {
     lb_s_history: "History",
     lb_s_travel: "Travel",
     lb_s_arabic: "عربي",
+    ag_label: "Ages {range}",
     lens_all: 'Everything',
     lens_places: 'Places to go',
     lens_people: 'People',

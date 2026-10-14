@@ -547,7 +547,7 @@ export const TogetherScreen = () => {
                           {g.host_role ? <View style={{ marginTop: 5 }}><HostBadge role={g.host_role} small /></View> : null}
                           {g.age_min != null || g.age_max != null ? (
                             <View style={{ alignSelf: 'flex-start', marginTop: 6, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3, backgroundColor: '#FEF3C7' }}>
-                              <Text style={{ color: '#92400E', fontSize: 12, fontWeight: '900' }}>{'🎂 ' + (g.age_max != null ? (g.age_min || 13) + '–' + g.age_max : g.age_min + '+')}</Text>
+                              <Text style={{ color: '#92400E', fontSize: 12, fontWeight: '900' }}>{t('ag_label').replace('{range}', g.age_max != null ? (g.age_min || 13) + '–' + g.age_max : g.age_min + '+')}</Text>
                             </View>
                           ) : null}
                           {g.audience && g.audience !== 'all' ? (

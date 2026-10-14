@@ -15285,6 +15285,63 @@ $$;
 notify pgrst, 'reload schema';
 
 -- ═══════════════════════════════════════════════════════════════════
+--  AGE GROUPS ARE A LABEL, NOT A GATE
+--  Ayser: "ما تخليش موضوع السن عائق… خلينا نكتفي إن التجمع ده من سن كذا
+--  لكذا". A plan can say who it suits; joining never asks for an age.
+-- ═══════════════════════════════════════════════════════════════════
+create or replace function public.green_join(p_id uuid, p_going boolean)
+returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare
+  me uuid := auth.uid();
+  g  public.green_gatherings%rowtype;
+  n  int;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  select * into g from public.green_gatherings where id = p_id;
+  if not found then return jsonb_build_object('ok', false, 'reason', 'no_gathering'); end if;
+  if g.cancelled_at is not null then return jsonb_build_object('ok', false, 'reason', 'cancelled'); end if;
+
+  if coalesce(p_going, true) then
+    -- your first two hangouts are free; after that, Plus
+    if g.host_id <> me and not public.is_plus(me)
+       and not exists (select 1 from public.green_joins where gathering_id = p_id and user_id = me)
+       and (select count(*) from public.green_joins j join public.green_gatherings o on o.id = j.gathering_id
+             where j.user_id = me and o.host_id <> me) >= 2 then
+      return jsonb_build_object('ok', false, 'reason', 'plus');
+    end if;
+    -- girls only / guys only, read from the profile, never from the app
+    if coalesce(g.audience, 'all') <> 'all' and g.host_id <> me then
+      if coalesce((select gender from public.profiles where id = me), '') = '' then
+        return jsonb_build_object('ok', false, 'reason', 'audience_gender');
+      elsif g.audience = 'women' and (select gender from public.profiles where id = me) <> 'f' then
+        return jsonb_build_object('ok', false, 'reason', 'audience_women');
+      elsif g.audience = 'men' and (select gender from public.profiles where id = me) <> 'm' then
+        return jsonb_build_object('ok', false, 'reason', 'audience_men');
+      end if;
+    end if;
+    -- an age group is a label for the plan ("25–35"), not a gate
+    if g.capacity is not null then
+      select count(*) into n from public.green_joins where gathering_id = p_id;
+      if n >= g.capacity and not exists (
+        select 1 from public.green_joins where gathering_id = p_id and user_id = me
+      ) then
+        return jsonb_build_object('ok', false, 'reason', 'full');
+      end if;
+    end if;
+    insert into public.green_joins (gathering_id, user_id) values (p_id, me) on conflict do nothing;
+  else
+    delete from public.green_joins where gathering_id = p_id and user_id = me;
+  end if;
+
+  select count(*) into n from public.green_joins where gathering_id = p_id;
+  return jsonb_build_object('ok', true, 'going', n, 'im_going', coalesce(p_going, true));
+end;
+$$;
+
+notify pgrst, 'reload schema';
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة
