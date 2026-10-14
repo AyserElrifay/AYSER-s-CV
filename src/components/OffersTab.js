@@ -135,7 +135,7 @@ const Party = ({ offer, onClose }) => {
 
 /* who leads this trip — name, role, one line of what qualifies them;
    shown on the trip only after "credentials checked" is ticked */
-const ROLES = [['psychologist', 'Psychologist'], ['coach', 'Coach'], ['trainer', 'Trainer'], ['imam', 'Sheikh / Imam'], ['priest', 'Priest'], ['founder', 'Founder'], ['guide', 'Guide'], ['other', 'Host']];
+const ROLES = [['teacher', 'Teacher'], ['psychologist', 'Psychologist'], ['coach', 'Coach'], ['trainer', 'Trainer'], ['imam', 'Sheikh / Imam'], ['priest', 'Priest'], ['founder', 'Founder'], ['guide', 'Guide'], ['other', 'Host']];
 const blankLeader = () => ({ id: '', name: '', role: 'psychologist', credential: '', credential_ar: '', photo: '', verified: false });
 const LeadersEditor = ({ offerId }) => {
   const [list, setList] = useState(null);
@@ -187,7 +187,7 @@ const toForm = (o) => ({
   seats: o.seats == null ? '' : String(o.seats), pay_modes: o.pay_modes || ['reserve'],
   free_cancel_hours: o.free_cancel_hours == null ? '' : String(o.free_cancel_hours),
   commission_pct: o.commission_pct == null ? '' : String(o.commission_pct),
-  track: o.track || '', faith_time: !!o.faith_time,
+  track: o.track || '', faith_time: !!o.faith_time, topic: o.topic || '', ages: o.ages || '',
   conditions: joinL(o.conditions), conditions_ar: joinL(o.conditions_ar),
 });
 const fromForm = (f) => {
@@ -343,7 +343,16 @@ export const OffersTab = ({ userId }) => {
         <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
           <Btn label={(form.track === 'reflection' ? '✓ ' : '') + '🌙 Reflection trip'} solid={form.track === 'reflection'} onPress={() => set('track')(form.track === 'reflection' ? '' : 'reflection')} />
           <Btn label={(form.faith_time ? '✓ ' : '') + '🕊️ Optional time with God'} solid={form.faith_time} onPress={() => set('faith_time')(!form.faith_time)} />
+          <Btn label={(form.track === 'workshop' ? '✓ ' : '') + '🎓 Workshop'} solid={form.track === 'workshop'} onPress={() => set('track')(form.track === 'workshop' ? '' : 'workshop')} />
         </View>
+        {form.track === 'workshop' ? (
+          <View>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+              {['writing', 'poetry', 'dance', 'music', 'singing', 'art', 'languages', 'kids'].map((k) => <Btn key={k} label={(form.topic === k ? '✓ ' : '') + k} solid={form.topic === k} onPress={() => set('topic')(k)} />)}
+            </View>
+            <Field label="Ages (for children, e.g. 6–12)" value={form.ages} onChange={set('ages')} />
+          </View>
+        ) : null}
         <Field label="Conditions people agree to before booking (English, one per line)" value={form.conditions} onChange={set('conditions')} multi />
         <Field label="Conditions (Arabic)" value={form.conditions_ar} onChange={set('conditions_ar')} multi />
         <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '800', letterSpacing: 0.8, marginTop: 12 }}>WHO LEADS IT</Text>

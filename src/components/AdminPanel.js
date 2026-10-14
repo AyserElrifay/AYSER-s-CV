@@ -29,6 +29,7 @@ import { OffersTab } from './OffersTab';
 import { PartnersTab } from './PartnersTab';
 import { PromptsTab } from './PromptsTab';
 import { RewardsTab } from './RewardsTab';
+import { TeachersTab } from './TeachersTab';
 import { PeopleTab } from './PeopleTab';
 import { useSheetBack } from '../hooks/useSheetBack';
 
@@ -52,6 +53,7 @@ const TABS = [
   { k: 'partners', label: 'Partners', icon: 'storefront-outline' },
   { k: 'prompts', label: 'Reflection', icon: 'chatbox-ellipses-outline' },
   { k: 'rewards', label: 'Rewards', icon: 'gift-outline' },
+  { k: 'teachers', label: 'Teachers', icon: 'school-outline' },
   { k: 'venues', label: 'Venues', icon: 'business-outline' },
   { k: 'verify', label: 'Verify', icon: 'shield-checkmark-outline' },
   { k: 'music', label: 'Music', icon: 'musical-notes-outline' },
@@ -849,6 +851,7 @@ export const AdminPanel = ({ onClose, access = { owner: true } }) => {
           {tab === 'partners' && owner ? <PartnersTab /> : null}
           {tab === 'prompts' && owner ? <PromptsTab /> : null}
           {tab === 'rewards' && owner ? <RewardsTab /> : null}
+          {tab === 'teachers' && owner ? <TeachersTab /> : null}
           {tab === 'people' ? <PeopleTab /> : null}
           {tab === 'activity' && owner ? (
             act == null ? <Empty t="Run the latest SQL (part 26) to see the team's activity here." /> : (

@@ -41,9 +41,12 @@ const Soon = ({ t }) => (
        allows), and a total that is a preview: the database prices it.
    And "My bookings", with each booking's code and honest status. */
 
-const KINDS = [null, 'reflection', 'trip', 'deal', 'stay', 'experience'];
+const KINDS = [null, 'reflection', 'workshop', 'trip', 'deal', 'stay', 'experience'];
 /* 'reflection' is a kind of trip, not a kind of offer: it is the track */
-const isKind = (o, k) => (k === 'reflection' ? o.track === 'reflection' : o.kind === k);
+const isKind = (o, k) => (k === 'reflection' || k === 'workshop' ? o.track === k : o.kind === k);
+const TOPIC_EMOJI = { writing: '✍️', poetry: '📜', dance: '💃', music: '🎸', singing: '🎤', art: '🎨', languages: '💬', kids: '🧸' };
+/* the line above a title: what it is */
+const kindLabel = (o, t) => (o.track === 'reflection' ? '🌙 ' + t('rt_badge') : o.track === 'workshop' ? (TOPIC_EMOJI[o.topic] || '🎓') + ' ' + t('ws_badge') + (o.topic ? ' · ' + t('ws_' + o.topic) : '') : t('bk_kind_' + o.kind));
 
 /* where a trip is — Egypt or Europe, side by side and in the order the
    database gives them, so neither side is the "main" one */
@@ -61,6 +64,7 @@ const when = (iso, lang) => {
 const pick = (o, field, lang) => (lang === 'ar' && o[field + '_ar'] && (Array.isArray(o[field + '_ar']) ? o[field + '_ar'].length : true) ? o[field + '_ar'] : o[field]);
 
 const CapsuleSheet = lazyOverlay(() => import('./CapsuleSheet').then((m) => ({ default: m.CapsuleSheet })));
+const TeacherApplySheet = lazyOverlay(() => import('./TeacherApplySheet').then((m) => ({ default: m.TeacherApplySheet })));
 const PlusSheet = lazyOverlay(() => import('./PlusSheet').then((m) => ({ default: m.PlusSheet })));
 const PlusCard = ({ plus, t, lang }) => {
   const [open, setOpen] = useState(false);
@@ -229,7 +233,8 @@ const Offer = ({ o, t, lang, onBack, onBooked, user, onNeedSignIn }) => {
           ) : null}
         </View>
         <View style={{ padding: 18 }}>
-          <Text style={{ color: C.faint, fontSize: 12, fontWeight: '800', letterSpacing: 1.2 }}>{flagOf(o.country) + (t('bk_kind_' + o.kind) + (o.city ? ' · ' + o.city : '')).toUpperCase()}</Text>
+          <Text style={{ color: C.faint, fontSize: 12, fontWeight: '800', letterSpacing: 1.2 }}>{flagOf(o.country) + (kindLabel(o, t) + (o.city ? ' · ' + o.city : '')).toUpperCase()}</Text>
+          {o.ages ? <Text style={{ color: '#B45309', fontSize: 13.5, fontWeight: '800', marginTop: 6 }}>{'🧸 ' + t('ws_ages').replace('{ages}', o.ages)}</Text> : null}
           <Text style={{ color: C.text, fontSize: 25, fontWeight: '900', letterSpacing: -0.3, marginTop: 4 }}>{pick(o, 'title', lang)}</Text>
           {o.partner || o.operator ? <Text style={{ color: C.dim, fontSize: 13.5, marginTop: 3 }}>{t('bk_by').replace('{name}', o.partner || o.operator)}</Text> : null}
           {o.duration_hours ? <Text style={{ color: C.dim, fontSize: 14, fontWeight: '700', marginTop: 6 }}>{'⏱ ' + hoursLabel(o.duration_hours, t)}</Text> : null}
@@ -362,6 +367,7 @@ export const TripsSheet = ({ onClose, country, openOn, focus, onNeedSignIn }) =>
   const { user } = useAuth();
   const [tab, setTab] = useState(openOn === 'mine' ? 'mine' : 'browse');
   const [kind, setKind] = useState(null);
+  const [teach, setTeach] = useState(false);
   const [offers, setOffers] = useState(() => recall('offers.' + (country || 'all')));
   const [mine, setMine] = useState(null);
   const [plus, setPlus] = useState(null);
@@ -478,6 +484,18 @@ export const TripsSheet = ({ onClose, country, openOn, focus, onNeedSignIn }) =>
                     ))}
                   </ScrollView>
                 ) : null}
+                {kind === 'workshop' ? (
+                  <Pressable onPress={() => { tapLight(); setTeach(true); }} accessibilityRole="button" style={{ marginBottom: 12 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 18, padding: 14, backgroundColor: C.purpleSoft, borderWidth: 1, borderColor: 'rgba(124,58,237,0.3)' }}>
+                      <Text style={{ fontSize: 22 }}>🎓</Text>
+                      <View style={{ flex: 1, marginStart: 10 }}>
+                        <Text style={{ color: C.text, fontSize: 15, fontWeight: '900' }}>{t('ta_cta')}</Text>
+                        <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 2 }}>{t('ta_cta_sub')}</Text>
+                      </View>
+                      <Ionicons name="chevron-forward" size={18} color={C.purple} />
+                    </View>
+                  </Pressable>
+                ) : null}
                 {offers == null ? <ActivityIndicator color={C.dim} style={{ marginTop: 30 }} />
                   : !shown.length ? (
                     <View style={{ borderWidth: 1, borderStyle: 'dashed', borderColor: C.line, borderRadius: 18, padding: 20 }}>
@@ -492,7 +510,7 @@ export const TripsSheet = ({ onClose, country, openOn, focus, onNeedSignIn }) =>
                           {o.video ? <View style={{ position: 'absolute', top: 10, right: 10, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 999, paddingHorizontal: 9, paddingVertical: 4 }}><Text style={{ color: '#FFF', fontSize: 12, fontWeight: '800' }}>▶ video</Text></View> : null}
                           <View style={{ padding: 14 }}>
                             <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '800', letterSpacing: 1 }}>
-                              {flagOf(o.country) + ((o.track === 'reflection' ? '🌙 ' + t('rt_badge') : t('bk_kind_' + o.kind)) + (o.city ? ' · ' + o.city : '') + (o.starts_at ? ' · ' + when(o.starts_at, lang) : '')).toUpperCase()}
+                              {flagOf(o.country) + (kindLabel(o, t) + (o.city ? ' · ' + o.city : '') + (o.starts_at ? ' · ' + when(o.starts_at, lang) : '')).toUpperCase()}
                             </Text>
                             <Text style={{ color: C.text, fontSize: 18, fontWeight: '900', marginTop: 3 }} numberOfLines={2}>{pick(o, 'title', lang)}</Text>
                             <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginTop: 8 }}>
@@ -579,6 +597,7 @@ export const TripsSheet = ({ onClose, country, openOn, focus, onNeedSignIn }) =>
           </ScrollView>
         )}
       </View>
+      {teach ? <TeacherApplySheet onClose={() => setTeach(false)} /> : null}
       {capsule ? <CapsuleSheet kind="trip" id={capsule.offer.id} title={capsule.offer.title} onClose={() => setCapsule(null)} /> : null}
     </Modal>
   );

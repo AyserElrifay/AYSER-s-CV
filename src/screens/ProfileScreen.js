@@ -80,6 +80,7 @@ const ReelsViewer = lazyOverlay(() => import('../components/ReelsViewer').then((
 const VenueSheet = lazyOverlay(() => import('../components/VenueSheet').then((m) => ({ default: m.VenueSheet })));
 const VolunteerCert = lazyOverlay(() => import('../components/VolunteerCert').then((m) => ({ default: m.VolunteerCert })));
 const CapsuleSheet = lazyOverlay(() => import('../components/CapsuleSheet').then((m) => ({ default: m.CapsuleSheet })));
+const TeacherApplySheet = lazyOverlay(() => import('../components/TeacherApplySheet').then((m) => ({ default: m.TeacherApplySheet })));
 const LibrarySheet = lazyOverlay(() => import('../components/LibrarySheet').then((m) => ({ default: m.LibrarySheet })));
 const PlusSheet = lazyOverlay(() => import('../components/PlusSheet').then((m) => ({ default: m.PlusSheet })));
 const MyDay = lazyOverlay(() => import('../components/MyDay').then((m) => ({ default: m.MyDay })));
@@ -198,6 +199,7 @@ export const ProfileScreen = () => {
   const [plusOpen, setPlusOpen] = useState(false);
   const [certOpen, setCertOpen] = useState(false);
   const [libOpen, setLibOpen] = useState(false);
+  const [teachOpen, setTeachOpen] = useState(false);
   const [capsOpen, setCapsOpen] = useState(false);
   const [venueOpen, setVenueOpen] = useState(false);
   const [fbKind, setFbKind] = useState('idea');
@@ -1211,6 +1213,7 @@ export const ProfileScreen = () => {
             {accountType === 'partner' ? <MenuRow icon="business-outline" label={t('vn_menu')} sub={t('vn_menu_sub')} onPress={() => { setMenu(false); setVenueOpen(true); }} /> : null}
             <MenuRow icon="mail-outline" label={t('tk_title')} sub={t('tk_menu_sub')} onPress={() => { setMenu(false); setCapsOpen(true); }} />
             <MenuRow icon="library-outline" label={t('lb_title')} sub={t('lb_menu_sub')} onPress={() => { setMenu(false); setLibOpen(true); }} />
+            <MenuRow icon="school-outline" label={t('ta_title')} sub={t('ta_menu_sub')} onPress={() => { setMenu(false); setTeachOpen(true); }} />
             <MenuRow icon="ribbon-outline" label={t('vh_title')} sub={t('vh_menu_sub')} onPress={() => { setMenu(false); setCertOpen(true); }} />
             <MenuRow icon="chatbubble-ellipses-outline" label={t('send_feedback')} sub={t('fb_menu_sub')} onPress={() => { setMenu(false); setFbOpen(true); }} />
 
@@ -1463,6 +1466,7 @@ export const ProfileScreen = () => {
       {plusOpen ? <PlusSheet onClose={() => setPlusOpen(false)} /> : null}
       {certOpen ? <VolunteerCert onClose={() => setCertOpen(false)} /> : null}
       {libOpen ? <LibrarySheet onClose={() => setLibOpen(false)} /> : null}
+      {teachOpen ? <TeacherApplySheet onClose={() => setTeachOpen(false)} /> : null}
       {capsOpen ? <CapsuleSheet onClose={() => setCapsOpen(false)} /> : null}
       {venueOpen ? <VenueSheet onClose={() => setVenueOpen(false)} /> : null}
       {rewardsOpen ? <RewardsSheet onClose={() => setRewardsOpen(false)} onStartPlan={() => { setRewardsOpen(false); setHostOpen(true); }} /> : null}

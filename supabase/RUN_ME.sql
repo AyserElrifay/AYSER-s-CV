@@ -16858,6 +16858,208 @@ insert into public.app_settings (key, value) values ('reflection_hours', '48'::j
 notify pgrst, 'reload schema';
 
 -- ═══════════════════════════════════════════════════════════════════
+--  WORKSHOPS, AND TEACHERS WHO APPLY
+--
+--  Ayser: "ورش كتابة، شعر، رقص، مزيكا وغنا، وحاجة للأطفال — وApply as
+--  teacher، نستفيد بمدرسين المزيكا وغيرهم". A workshop is an offer with
+--  track 'workshop', a topic, and for children an age range. Anybody can
+--  apply to teach; the team reads it and says yes or no. A yes puts the
+--  subjects on their profile (only the team can), and they can then be
+--  named as the teacher of a workshop (offer_leaders, role 'teacher').
+--
+--  Children: a parent or guardian books, no photos of the children are
+--  posted, and whoever teaches children is checked by the team in
+--  person before their first workshop — the application says so.
+--
+--  Six written here as "coming soon" — no dates, no prices, nobody
+--  booked — to collect real "I want this" taps.
+--
+--  Safe to re-run.
+-- ═══════════════════════════════════════════════════════════════════
+
+alter table public.offers add column if not exists topic text;
+alter table public.offers add column if not exists ages  text;
+alter table public.offers drop constraint if exists offers_track_check;
+alter table public.offers add constraint offers_track_check check (track is null or track in ('reflection','workshop'));
+
+alter table public.offer_leaders drop constraint if exists offer_leaders_role_check;
+alter table public.offer_leaders add constraint offer_leaders_role_check
+  check (role in ('psychologist','coach','trainer','imam','priest','founder','guide','teacher','other'));
+
+alter table public.profiles add column if not exists teacher_subjects    text[];
+alter table public.profiles add column if not exists teacher_verified_at timestamptz;
+
+create or replace function public.guard_profile_columns()
+returns trigger language plpgsql security invoker set search_path = public as $fn$
+begin
+  if current_user in ('authenticated', 'anon') then
+    if tg_op = 'INSERT' then
+      new.verified := false; new.vibe_check_at := null; new.invited_by := null;
+      new.community_xp := 0; new.community_events := 0;
+      new.host_role := null; new.host_verified_at := null;
+      new.teacher_subjects := null; new.teacher_verified_at := null;
+    else
+      if new.verified is distinct from old.verified then
+        if coalesce(nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'email', '') <> 'ayseryourlifecoach@gmail.com' then
+          new.verified := old.verified;
+        end if;
+      end if;
+      new.vibe_check_at := old.vibe_check_at;
+      new.invited_by := old.invited_by;
+      new.community_xp := old.community_xp;
+      new.community_events := old.community_events;
+      new.host_role := old.host_role;
+      new.host_verified_at := old.host_verified_at;
+      new.teacher_subjects := old.teacher_subjects;
+      new.teacher_verified_at := old.teacher_verified_at;
+    end if;
+  end if;
+  return new;
+end $fn$;
+
+create or replace function public.offer_save(p jsonb)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare oid uuid := nullif(p ->> 'id', '')::uuid;
+        arr text[]; a2 text[];
+begin
+  if not public.owner_ok() then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
+  if coalesce(trim(p ->> 'title'), '') = '' or (p ->> 'price') is null then return jsonb_build_object('ok', false, 'reason', 'incomplete'); end if;
+  if oid is null then
+    insert into public.offers (kind, title, price, created_by) values (coalesce(p ->> 'kind', 'trip'), p ->> 'title', (p ->> 'price')::numeric, auth.uid())
+    returning id into oid;
+  end if;
+  update public.offers set
+    kind = coalesce(p ->> 'kind', kind),
+    venue_id = case when p ? 'venue_id' then nullif(p ->> 'venue_id', '')::uuid else venue_id end,
+    operator = case when p ? 'operator' then nullif(p ->> 'operator', '') else operator end,
+    title = p ->> 'title', title_ar = nullif(p ->> 'title_ar', ''),
+    summary = nullif(p ->> 'summary', ''), summary_ar = nullif(p ->> 'summary_ar', ''),
+    city = nullif(p ->> 'city', ''), country = nullif(upper(p ->> 'country'), ''),
+    lat = nullif(p ->> 'lat', '')::double precision, lng = nullif(p ->> 'lng', '')::double precision,
+    photos = coalesce((select array_agg(x) from jsonb_array_elements_text(p -> 'photos') x where trim(x) <> ''), '{}'),
+    itinerary = coalesce((select array_agg(x) from jsonb_array_elements_text(p -> 'itinerary') x where trim(x) <> ''), '{}'),
+    itinerary_ar = coalesce((select array_agg(x) from jsonb_array_elements_text(p -> 'itinerary_ar') x where trim(x) <> ''), '{}'),
+    includes = coalesce((select array_agg(x) from jsonb_array_elements_text(p -> 'includes') x where trim(x) <> ''), '{}'),
+    includes_ar = coalesce((select array_agg(x) from jsonb_array_elements_text(p -> 'includes_ar') x where trim(x) <> ''), '{}'),
+    excludes = coalesce((select array_agg(x) from jsonb_array_elements_text(p -> 'excludes') x where trim(x) <> ''), '{}'),
+    excludes_ar = coalesce((select array_agg(x) from jsonb_array_elements_text(p -> 'excludes_ar') x where trim(x) <> ''), '{}'),
+    good_to_know = coalesce((select array_agg(x) from jsonb_array_elements_text(p -> 'good_to_know') x where trim(x) <> ''), '{}'),
+    good_to_know_ar = coalesce((select array_agg(x) from jsonb_array_elements_text(p -> 'good_to_know_ar') x where trim(x) <> ''), '{}'),
+    price = (p ->> 'price')::numeric,
+    currency = coalesce(nullif(upper(p ->> 'currency'), ''), 'EGP'),
+    price_usd = nullif(p ->> 'price_usd', '')::numeric,
+    member_price = nullif(p ->> 'member_price', '')::numeric,
+    starts_at = nullif(p ->> 'starts_at', '')::timestamptz,
+    ends_at = nullif(p ->> 'ends_at', '')::timestamptz,
+    seats = nullif(p ->> 'seats', '')::int,
+    pay_modes = coalesce((select array_agg(x) from jsonb_array_elements_text(p -> 'pay_modes') x), '{reserve}'),
+    free_cancel_hours = nullif(p ->> 'free_cancel_hours', '')::int,
+    commission_pct = nullif(p ->> 'commission_pct', '')::numeric,
+    track = case when p ? 'track' then nullif(p ->> 'track', '') else track end,
+    topic = case when p ? 'topic' then nullif(p ->> 'topic', '') else topic end,
+    ages = case when p ? 'ages' then nullif(left(trim(p ->> 'ages'), 20), '') else ages end,
+    faith_time = case when p ? 'faith_time' then coalesce((p ->> 'faith_time')::boolean, false) else faith_time end,
+    conditions = case when p ? 'conditions' then coalesce((select array_agg(x) from jsonb_array_elements_text(p -> 'conditions') x where trim(x) <> ''), '{}') else conditions end,
+    conditions_ar = case when p ? 'conditions_ar' then coalesce((select array_agg(x) from jsonb_array_elements_text(p -> 'conditions_ar') x where trim(x) <> ''), '{}') else conditions_ar end,
+    updated_at = now()
+  where id = oid;
+  return jsonb_build_object('ok', true, 'id', oid);
+exception when others then
+  return jsonb_build_object('ok', false, 'reason', 'invalid', 'detail', sqlerrm);
+end;
+$$;
+
+create table if not exists public.teacher_applications (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid not null unique references public.profiles(id) on delete cascade,
+  subjects    text[] not null default '{}',
+  about       text check (char_length(about) <= 800),
+  years       int check (years between 0 and 70),
+  link        text check (char_length(link) <= 300),
+  city        text check (char_length(city) <= 80),
+  kids        boolean not null default false,
+  status      text not null default 'pending' check (status in ('pending','approved','declined')),
+  created_at  timestamptz not null default now(),
+  decided_at  timestamptz
+);
+alter table public.teacher_applications enable row level security;
+drop policy if exists "teacher applications: your own" on public.teacher_applications;
+create policy "teacher applications: your own" on public.teacher_applications for select using (user_id = auth.uid());
+
+create or replace function public.teacher_apply(p jsonb) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); subs text[];
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  subs := (select array_agg(distinct x) from jsonb_array_elements_text(coalesce(p -> 'subjects', '[]'::jsonb)) x
+            where x in ('writing','poetry','dance','music','singing','art','languages','kids','other'));
+  if coalesce(array_length(subs, 1), 0) = 0 then return jsonb_build_object('ok', false, 'reason', 'no_subject'); end if;
+  if char_length(btrim(coalesce(p ->> 'about', ''))) < 20 then return jsonb_build_object('ok', false, 'reason', 'short'); end if;
+  if coalesce((p ->> 'agree')::boolean, false) is not true then return jsonb_build_object('ok', false, 'reason', 'no_terms'); end if;
+  insert into public.teacher_applications (user_id, subjects, about, years, link, city, kids, status)
+  values (me, subs, left(btrim(p ->> 'about'), 800), nullif(p ->> 'years', '')::int,
+          case when (p ->> 'link') ~ '^https://' then left(p ->> 'link', 300) end,
+          nullif(left(btrim(coalesce(p ->> 'city', '')), 80), ''),
+          coalesce((p ->> 'kids')::boolean, false), 'pending')
+  on conflict (user_id) do update set subjects = excluded.subjects, about = excluded.about, years = excluded.years,
+    link = excluded.link, city = excluded.city, kids = excluded.kids, status = 'pending', created_at = now(), decided_at = null;
+  return jsonb_build_object('ok', true);
+exception when others then
+  return jsonb_build_object('ok', false, 'reason', 'invalid');
+end $$;
+
+create or replace function public.my_teacher_application() returns jsonb
+language sql stable security definer set search_path = public as $$
+  select to_jsonb(a) - 'user_id' from public.teacher_applications a where a.user_id = auth.uid();
+$$;
+
+create or replace function public.owner_teachers() returns jsonb
+language sql stable security definer set search_path = public as $$
+  select case when not public.owner_ok() then null else coalesce((
+    select jsonb_agg(to_jsonb(a) || jsonb_build_object('name', p.name, 'avatar', p.avatar_url)
+                     order by (a.status = 'pending') desc, a.created_at desc)
+      from public.teacher_applications a join public.profiles p on p.id = a.user_id), '[]'::jsonb) end;
+$$;
+
+create or replace function public.owner_decide_teacher(p_id uuid, p_approve boolean) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare a public.teacher_applications%rowtype;
+begin
+  if not public.owner_ok() then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
+  select * into a from public.teacher_applications where id = p_id;
+  if not found then return jsonb_build_object('ok', false, 'reason', 'not_found'); end if;
+  update public.teacher_applications set status = case when p_approve then 'approved' else 'declined' end, decided_at = now() where id = p_id;
+  if p_approve then
+    update public.profiles set teacher_subjects = a.subjects, teacher_verified_at = now() where id = a.user_id;
+  else
+    update public.profiles set teacher_subjects = null, teacher_verified_at = null where id = a.user_id;
+  end if;
+  return jsonb_build_object('ok', true);
+end $$;
+
+revoke execute on function public.teacher_apply(jsonb) from public, anon;
+revoke execute on function public.my_teacher_application() from public, anon;
+revoke execute on function public.owner_teachers() from public, anon;
+revoke execute on function public.owner_decide_teacher(uuid, boolean) from public, anon;
+grant execute on function public.teacher_apply(jsonb) to authenticated;
+grant execute on function public.my_teacher_application() to authenticated;
+grant execute on function public.owner_teachers() to authenticated;
+grant execute on function public.owner_decide_teacher(uuid, boolean) to authenticated;
+
+insert into public.offers (id, kind, status, track, topic, ages, title, title_ar, city, country, summary, summary_ar,
+  conditions, conditions_ar, photos, price, currency, pay_modes)
+values
+('0ffe0000-0000-4000-8000-0000000000b1','experience','soon','workshop','writing',null,'Creative writing · four evenings','الكتابة الإبداعية · أربع أمسيات','Cairo','EG','Small group, one prompt each week, and kind feedback. Leave with four short pieces you are proud of.','مجموعة صغيرة، وفكرة كتابة كل أسبوع، وتعليقات لطيفة. وتمشي ومعاك أربع قطع قصيرة فخور بيها.','{}','{}','{media/act-read-2.jpg}',0,'EGP','{reserve}'),
+('0ffe0000-0000-4000-8000-0000000000b2','experience','soon','workshop','poetry',null,'Poetry night · read, write, listen','ليلة شعر · اقرا، اكتب، واسمع','Cairo','EG','Arabic and English. Bring a poem you love or one you wrote — or just come and listen.','بالعربي والإنجليزي. هات قصيدة بتحبها أو كتبتها — أو تعالى اسمع بس.','{}','{}','{media/act-read-4.jpg}',0,'EGP','{reserve}'),
+('0ffe0000-0000-4000-8000-0000000000b3','experience','soon','workshop','dance',null,'Dance for beginners','رقص للمبتدئين','Cairo','EG','No partner, no experience. An hour of steps, music and laughing at ourselves.','من غير شريك ولا خبرة. ساعة خطوات ومزيكا وضحك على نفسنا.','{}','{}','{media/act-opera-v1.jpg}',0,'EGP','{reserve}'),
+('0ffe0000-0000-4000-8000-0000000000b4','experience','soon','workshop','singing',null,'Sing together · a small choir','نغني سوا · كورال صغير','Alexandria','EG','You do not need a good voice — you need to come. Warm-ups, one song, and a recording at the end.','مش محتاج صوت حلو — محتاج تيجي. تسخين، وأغنية، وتسجيل في الآخر.','{}','{}','{media/act-opera-2.jpg}',0,'EGP','{reserve}'),
+('0ffe0000-0000-4000-8000-0000000000b5','experience','soon','workshop','music',null,'Your first guitar chords','أول كوردات جيتار','Cairo','EG','Three chords in one evening, enough to play a song you know. Guitars to borrow.','تلات كوردات في ليلة، كفاية تعزف أغنية بتعرفها. في جيتارات تستلفها.','{}','{}','{media/reel-music.jpg}',0,'EGP','{reserve}'),
+('0ffe0000-0000-4000-8000-0000000000b6','experience','soon','workshop','kids','6–12','Kids · art and stories','للأطفال · رسم وحكايات','Cairo','EG','A story read aloud, then drawing it. A parent or guardian books and stays nearby.','حكاية بنقراها، وبعدين نرسمها. ولي الأمر هو اللي يحجز ويفضل قريب.',array['A parent or guardian books and stays nearby','No photos of the children are posted','Teachers for children are checked by the Moments team in person'],array['ولي الأمر هو اللي يحجز ويفضل قريب','مفيش صور للأطفال بتتنشر','مدرّسين الأطفال بيتقابلوا ويتأكد منهم فريق Moments شخصيًا'],'{media/art-sketch-2.jpg}',0,'EGP','{reserve}')
+on conflict (id) do nothing;
+
+notify pgrst, 'reload schema';
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة

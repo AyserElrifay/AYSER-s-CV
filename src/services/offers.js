@@ -71,3 +71,9 @@ export const offerSetDuration = (id, hours) => act('offer_set_duration', { p_id:
 export const ownerLeaders = async (offerId) => { const r = await call('owner_leaders', { p_offer: offerId }); return Array.isArray(r) ? r : []; };
 export const ownerSaveLeader = (p) => act('owner_save_leader', { p });
 export const ownerDeleteLeader = (id) => act('owner_delete_leader', { p_id: id });
+
+/* ── teachers (RUN_ME.sql "WORKSHOPS, AND TEACHERS WHO APPLY") ── */
+export const teacherApply = (p) => act('teacher_apply', { p });
+export const myTeacherApplication = () => call('my_teacher_application');
+export const ownerTeachers = async () => { const r = await call('owner_teachers'); return Array.isArray(r) ? r : null; };
+export const ownerDecideTeacher = (id, approve) => act('owner_decide_teacher', { p_id: id, p_approve: !!approve });
