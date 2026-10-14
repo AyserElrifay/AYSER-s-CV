@@ -188,6 +188,14 @@ export const ideaPhoto = (g) => {
   return p ? p.url || publicMedia(p.img) : null;
 };
 
+/* and its clip, when the activity has one: { clip, still } */
+export const ideaClip = (g) => {
+  if (planPhotoOf(g)) return null;
+  const st = stockOf(g);
+  const p = st && st.pics.find((x) => x.clip);
+  return p ? { clip: publicMedia(p.clip), still: publicMedia(p.img) } : null;
+};
+
 /* With no photo of the plan itself: a photo of the PLACE, if a freely
    licensed one of that very place exists on Wikimedia Commons — found
    and credited by src/lib/commonsPhoto.js, kept on the phone a month.

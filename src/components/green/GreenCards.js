@@ -25,6 +25,18 @@ const PICS = [
   { re: /school|orphan|kids|children|مدرسة|أيتام|أطفال/i, img: 'act-kids-2.jpg' },
   { re: /forest|park|tree|plant|garden|walk|trail|غابة|جنينة|حديقة|شجر|زرع|مشي/i, img: 'welcome-trees.jpg' },
 ];
+/* the same kinds of place, moving — Ayser's clips (Pexels) */
+const CLIPS = [
+  { re: /beach|sea|corniche|cove|baltic|atlantic|shore|شط|شاطئ|بحر|كورنيش|خليج/i, clip: 'reel-beach' },
+  { re: /food|box|bank|crescent|red cross|resala|charity|volunteer|بنك|كراتين|هلال|صليب|رسالة|تطوع/i, clip: 'reel-volunteer' },
+  { re: /school|orphan|kids|children|مدرسة|أيتام|أطفال/i, clip: 'reel-kids' },
+  { re: /forest|park|walk|trail|pick-?up|غابة|جنينة|حديقة|مشي/i, clip: 'reel-walk' },
+];
+export const greenClip = (text) => {
+  const hit = CLIPS.find((c) => c.re.test(String(text || '')));
+  return hit ? { clip: publicMedia(hit.clip + '.mp4'), still: publicMedia(hit.clip + '.jpg') } : null;
+};
+
 const FALLBACK = ['welcome-trees.jpg', 'act-volunteer-1.jpg', 'welcome-nile.jpg', 'act-volunteer-3.jpg'];
 
 const hash = (s) => { let h = 0; for (const ch of String(s || '')) h = (h * 31 + ch.charCodeAt(0)) | 0; return Math.abs(h); };
@@ -60,15 +72,22 @@ export const GreenHero = ({ title, line, top }) => (
 );
 
 /* one plan: its picture, when, where, who is going, and Join */
-export const PlanCard = ({ g, lang, t, mine, onJoin, onManage, onOpen, open, children }) => {
+export const PlanCard = ({ g, lang, t, mine, onJoin, onManage, onOpen, open, move, children }) => {
   const own = planPhotoOf(g);
-  const pic = own || greenPic([g.title, g.place_name, g.about].join(' '), g.id);
+  const text = [g.title, g.place_name, g.about].join(' ');
+  const pic = own || greenPic(text, g.id);
+  const clip = !own && move ? greenClip(text) : null;
   const n = Number(g.going) || 0;
   return (
     <View style={{ borderRadius: 22, overflow: 'hidden', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, marginBottom: 14 }}>
       <Pressable onPress={onOpen} accessibilityRole="button">
         <View style={{ height: 150 }}>
-          <Image source={{ uri: pic }} style={{ width: '100%', height: 150 }} accessibilityIgnoresInvertColors />
+          {clip ? (
+            <video src={clip.clip} poster={clip.still} autoPlay muted loop playsInline preload="metadata"
+              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+          ) : (
+            <Image source={{ uri: pic }} style={{ width: '100%', height: 150 }} accessibilityIgnoresInvertColors />
+          )}
           <LinearGradient colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.6)']} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 80 }} />
           <Text numberOfLines={2} style={{ position: 'absolute', left: 14, right: 14, bottom: 10, color: '#FFF', fontSize: 19, fontWeight: '900' }}>{titleFor(g.title, lang)}</Text>
         </View>
@@ -109,10 +128,19 @@ export const PlanCard = ({ g, lang, t, mine, onJoin, onManage, onOpen, open, chi
 };
 
 /* one idea: a picture, what it is, how long, and Start this */
-export const IdeaCard = ({ s, title, about, t, onStart }) => (
+export const IdeaCard = ({ s, title, about, t, onStart, move }) => {
+  const clip = move ? greenClip(s.title_en + ' ' + (s.about_en || '')) : null;
+  return (
   <Pressable onPress={onStart} accessibilityRole="button" style={{ width: 230, marginEnd: 12 }}>
     <View style={{ borderRadius: 20, overflow: 'hidden', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line }}>
-      <Image source={{ uri: greenPic(s.title_en + ' ' + (s.about_en || ''), s.id) }} style={{ width: '100%', height: 110 }} accessibilityIgnoresInvertColors />
+      {clip ? (
+        <View style={{ height: 110 }}>
+          <video src={clip.clip} poster={clip.still} autoPlay muted loop playsInline preload="metadata"
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+        </View>
+      ) : (
+        <Image source={{ uri: greenPic(s.title_en + ' ' + (s.about_en || ''), s.id) }} style={{ width: '100%', height: 110 }} accessibilityIgnoresInvertColors />
+      )}
       <View style={{ padding: 12 }}>
         <Text numberOfLines={2} style={{ color: C.text, fontSize: 15, fontWeight: '900', lineHeight: 20, minHeight: 40 }}>{title}</Text>
         <Text numberOfLines={2} style={{ color: C.dim, fontSize: 12.5, lineHeight: 17, marginTop: 4, minHeight: 34 }}>{about}</Text>
@@ -123,4 +151,5 @@ export const IdeaCard = ({ s, title, about, t, onStart }) => (
       </View>
     </View>
   </Pressable>
-);
+  );
+};

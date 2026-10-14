@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, Pressable, ScrollView, Modal, TextInput, ActivityIndicator } from 'react-native';
+import { View, Text, Pressable, ScrollView, Modal, TextInput, ActivityIndicator, Platform } from 'react-native';
+import { isSaving, DEFAULT_DATA_MODE } from '../../lib/dataSaver';
+import { getPrefs } from '../../services/prefs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
@@ -309,6 +311,10 @@ export const GreenSheet = ({ onClose, onPlay, startNow, homeCountry, openOn, pre
   const here = /^[A-Z]{2}$/.test(String(homeCountry || '')) ? homeCountry : null;
   const local = here ? sparks.filter((s) => s.country === here || !s.country) : sparks;
   const shownSparks = (local.length >= 3 ? local : sparks).slice(0, 10);
+  /* the first two plans and the first two ideas move (their kind of
+     place, as a clip); never on data saver, never on a phone app */
+  const moving = Platform.OS === 'web' && !isSaving((getPrefs() || {}).dataSaver || DEFAULT_DATA_MODE);
+  const movers = (rows || []).slice(0, 2).map((g) => g.id);
 
   return (
     <Modal visible transparent={false} animationType="slide" onRequestClose={onClose}>
@@ -364,7 +370,7 @@ export const GreenSheet = ({ onClose, onPlay, startNow, homeCountry, openOn, pre
                     {d.items.map((g) => {
                       const mine = user && g.host_id === user.id;
                       return (
-                        <PlanCard key={g.id} g={g} lang={lang} t={t} mine={mine} open={open === g.id}
+                        <PlanCard key={g.id} g={g} lang={lang} t={t} mine={mine} open={open === g.id} move={moving && movers.indexOf(g.id) >= 0}
                           onOpen={() => setOpen(open === g.id ? null : g.id)}
                           onJoin={() => going(g, !g.im_going)}
                           onManage={() => { tapLight(); setManage(g); setConfirmOff(false); }}>
@@ -393,8 +399,8 @@ export const GreenSheet = ({ onClose, onPlay, startNow, homeCountry, openOn, pre
                 <Text style={{ color: C.text, fontSize: 20, fontWeight: '900' }}>{t('green_ideas')}</Text>
                 <Text style={{ color: C.dim, fontSize: 13.5, marginTop: 2, marginBottom: 12 }}>{t('green_ideas_sub')}</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ marginHorizontal: -16 }} contentContainerStyle={{ paddingHorizontal: 16 }}>
-                  {shownSparks.map((s) => (
-                    <IdeaCard key={s.id} s={s} t={t} title={sparkText(s, lang, 'title')} about={sparkText(s, lang, 'about')} onStart={() => { tapLight(); startFrom(s); }} />
+                  {shownSparks.map((s, i) => (
+                    <IdeaCard key={s.id} s={s} t={t} move={moving && i < 2} title={sparkText(s, lang, 'title')} about={sparkText(s, lang, 'about')} onStart={() => { tapLight(); startFrom(s); }} />
                   ))}
                 </ScrollView>
               </View>

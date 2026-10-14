@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, Pressable, ScrollView, ActivityIndicator, RefreshControl, TextInput, Image } from 'react-native';
+import { View, Text, Pressable, ScrollView, ActivityIndicator, RefreshControl, TextInput, Image, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -35,7 +35,7 @@ import { isSaving, DEFAULT_DATA_MODE } from '../lib/dataSaver';
 import { getPrefs } from '../services/prefs';
 import { openPartner } from '../lib/partnerLink';
 import { HostBadge } from '../components/HostCard';
-import { PlanHead, PastPhotos, ideaPhoto } from '../components/green/PlanPhoto';
+import { PlanHead, PastPhotos, ideaPhoto, ideaClip } from '../components/green/PlanPhoto';
 import { greenPic } from '../components/green/GreenCards';
 import { isGreen } from '../lib/greenKinds';
 import { ReportSheet } from '../components/ReportSheet';
@@ -181,6 +181,8 @@ const ideaKey = (g) => ((activityOf(String(g.title || '') + ' ' + String(g.kind 
 
 const IdeasElsewhere = ({ ideas, t, lang, onStart }) => {
   if (!ideas.length) return null;
+  const moving = Platform.OS === 'web' && !isSaving((getPrefs() || {}).dataSaver || DEFAULT_DATA_MODE);
+  const clipIds = ideas.filter((g) => ideaClip(g)).slice(0, 2).map((g) => g.id);
   return (
     <View style={{ marginTop: 6, marginBottom: 16 }}>
       <Text style={{ color: C.text, fontSize: 17, fontWeight: '900' }}>{'🌍 ' + t('id_title')}</Text>
@@ -189,9 +191,20 @@ const IdeasElsewhere = ({ ideas, t, lang, onStart }) => {
         {ideas.map((g) => {
           const look = lookOf(g.kind);
           const pic = ideaPhoto(g) || (isGreen(g) ? greenPic([g.title, g.about].join(' '), g.id) : null);
+          /* the first two cards with a clip of their activity move; the
+             rest stay stills, so the rail stays light */
+          const clip = moving && clipIds.indexOf(g.id) >= 0 ? ideaClip(g) : null;
           return (
             <View key={g.id} style={{ width: 210, marginEnd: 10, borderRadius: 20, overflow: 'hidden', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line }}>
-              {pic ? (
+              {clip ? (
+                <View style={{ height: 110 }}>
+                  <video src={clip.clip} poster={clip.still} autoPlay muted loop playsInline preload="metadata"
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                  <View style={{ position: 'absolute', top: 8, left: 8, backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 10, paddingHorizontal: 6, paddingVertical: 2 }}>
+                    <Text style={{ fontSize: 15 }}>{look.emoji}</Text>
+                  </View>
+                </View>
+              ) : pic ? (
                 <View style={{ height: 110 }}>
                   <Image source={{ uri: pic }} style={{ width: '100%', height: 110 }} accessibilityIgnoresInvertColors />
                   <View style={{ position: 'absolute', top: 8, left: 8, backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 10, paddingHorizontal: 6, paddingVertical: 2 }}>
