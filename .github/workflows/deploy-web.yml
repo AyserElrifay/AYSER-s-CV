@@ -293,6 +293,10 @@ jobs:
           SQL_CHECK_REQUIRED: '1'
         run: bash scripts/check-landing-rules.sh
       - name: Export web bundle
+        env:
+          # the public address of the R2 media bucket — not a secret, but kept
+          # with the others; empty means uploads stay on Supabase Storage
+          EXPO_PUBLIC_R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
         run: npx expo export --platform web --output-dir dist
       - name: Inject PWA manifest + Open Graph tags
         run: node scripts/inject-html.mjs dist

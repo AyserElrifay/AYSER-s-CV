@@ -6,6 +6,7 @@ import { useLang } from '../context/LanguageContext';
 import { reflectionToday, reflect, fallbackPrompt, MOODS } from '../services/reflection';
 import { lazyOverlay } from '../lib/lazyScreen';
 import { earnBonus } from '../lib/feedGate';
+import { usePrivacyShield, NO_SAVE } from '../hooks/usePrivacyShield';
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
 import { AV_NEUTRAL } from '../constants/mockData';
 
@@ -31,6 +32,9 @@ export const ReflectionPane = ({ user }) => {
   const [editing, setEditing] = useState(false);
   const [journey, setJourney] = useState(false);
 
+  /* other people's answers are theirs: no screenshots in the apps, and
+     covered on the web when the page loses focus */
+  const { covered } = usePrivacyShield(!!(data && data.mine && (data.answers || []).length));
   const load = () => reflectionToday().then((r) => setData(r || { prompt: fallbackPrompt(), mine: null, count: 0, answers: null })).catch(() => setData({ prompt: fallbackPrompt(), mine: null, count: 0, answers: null }));
   useEffect(() => { load(); }, []);
 
@@ -98,8 +102,13 @@ export const ReflectionPane = ({ user }) => {
           </Text>
         </View>
       ) : (
-        <View style={{ marginTop: 14 }}>
-          {(data.answers || []).length ? (data.answers || []).map((a) => (
+        <View style={[{ marginTop: 14 }, NO_SAVE]}>
+          {covered ? (
+            <View style={{ alignItems: 'center', paddingVertical: 30 }}>
+              <Ionicons name="eye-off-outline" size={26} color={C.faint} />
+              <Text style={{ color: C.faint, fontSize: 13, fontWeight: '700', marginTop: 6 }}>{t('vo_covered')}</Text>
+            </View>
+          ) : (data.answers || []).length ? (data.answers || []).map((a) => (
             <View key={a.id} style={{ flexDirection: 'row', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: C.line }}>
               <Image source={{ uri: a.avatar || AV_NEUTRAL }} style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: C.glassHi }} />
               <View style={{ flex: 1, minWidth: 0, marginStart: 10 }}>

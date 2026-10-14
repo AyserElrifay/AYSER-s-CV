@@ -13,7 +13,7 @@ import { useLang } from '../context/LanguageContext';
 import { createPost } from '../services/posts';
 import { createStory } from '../services/stories';
 import { uploadCapture, uploadMedia } from '../services/social';
-import { compressImage, MAX_UPLOAD_BYTES } from '../lib/storage';
+import { compressImage, MAX_UPLOAD_BYTES, uploadEphemeral } from '../lib/storage';
 import { compressVideo, probeVideo, videoPlan, REEL_MAX_SECONDS } from '../lib/videoCompress';
 import { fetchTracks, incrementTrackUse, publishSound } from '../services/music';
 /* Both called, neither imported — the same bug as the two sheets below,
@@ -717,7 +717,7 @@ const ArcadeLayer = ({ startRef }) => {
   );
 };
 
-export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClose, onPosted, onPostedStory, sendMode = false, sendToName, onMoment }) => {
+export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClose, onPosted, onPostedStory, sendMode = false, sendToName, onMoment, viewOnce = false }) => {
   /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
   useSheetBack(onClose);
   const insets = useSafeAreaInsets();
@@ -1834,12 +1834,25 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
     } else if (isWeb && shot.kind === 'photo') {
       // gallery pictures arrive full-resolution — shrink to feed size
       // (invisible on a phone, ~6x fewer bytes stored & downloaded)
-      const small = await compressImage(shot.uri, 1600, 0.85);
+      const small = await compressImage(shot.uri, 1080, 0.8);
       workingShot = { ...shot, uri: small, blob: null, ext: 'jpg', contentType: 'image/jpeg' };
     }
     try {
       // ── Moment mode: send the snap straight into a chat ──
       if (sendMode) {
+        /* a direct message: the snap goes to the private bucket and is
+           seen once (src/lib/storage.js uploadEphemeral). If that storage
+           is not switched on yet, it is sent the ordinary way below. */
+        if (viewOnce && SUPABASE_READY && user && isWeb && !workingShot.remote) {
+          let onceKey = null;
+          try { onceKey = await uploadEphemeral(workingShot.blob || workingShot.uri, workingShot.contentType || (workingShot.kind === 'video' ? 'video/mp4' : 'image/jpeg')); } catch (e) { onceKey = null; }
+          if (onceKey) {
+            onMoment && (await onMoment({ onceKey, mediaKind: workingShot.kind === 'video' ? 'video' : 'photo' }));
+            tapSuccess(); sfxSuccess();
+            onClose();
+            return;
+          }
+        }
         let mediaUrl = workingShot.uri;
         if (SUPABASE_READY && user && !alreadyUp) {
           mediaUrl = isWeb

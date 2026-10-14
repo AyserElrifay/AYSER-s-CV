@@ -530,3 +530,12 @@ export async function declineSquadInvite(squadId, userId) {
   if (error) throw error;
   return true;
 }
+
+/* A view-once photo or video (RUN_ME.sql "VIEW-ONCE MESSAGES"): the
+   message holds no address, only that it exists and whether it has
+   been opened. */
+export async function sendOnce({ dmThreadId, key, kind }) {
+  const { data, error } = await supabase.rpc('view_once_send', { p_thread: dmThreadId, p_key: key, p_kind: kind === 'video' ? 'video' : 'photo' });
+  if (error || !data || !data.ok) throw error || new Error((data && data.reason) || 'send_failed');
+  return data.message;
+}

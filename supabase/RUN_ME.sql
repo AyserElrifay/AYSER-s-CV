@@ -17060,6 +17060,92 @@ on conflict (id) do nothing;
 notify pgrst, 'reload schema';
 
 -- ═══════════════════════════════════════════════════════════════════
+--  VIEW-ONCE MESSAGES · NOTHING LEFT BEHIND
+--
+--  Ayser's spec: a photo or video in a direct message can be sent to be
+--  seen once. The file never goes where the other media goes: it is
+--  put in a private Cloudflare R2 bucket that is never public, and a
+--  lifecycle rule on that bucket deletes every object after one day.
+--  No backups. The database keeps only the object's name — never an
+--  address anybody can open.
+--
+--  To see it, the recipient asks the r2-presign function, which asks
+--  view_once_open below AS the recipient: only they can open it, only
+--  once, only within a day. That marks it opened on the message (so the
+--  sender sees "Opened") and hands back a 60-second address. When the
+--  viewer is closed, view_once_burn forgets the object's name and the
+--  function deletes the object at once.
+--
+--  Safe to re-run.
+-- ═══════════════════════════════════════════════════════════════════
+
+alter table public.messages add column if not exists once_opened_at timestamptz;
+
+-- the object's name lives apart from the message, in a table nobody
+-- can read at all — only the functions below touch it
+create table if not exists public.view_once_keys (
+  message_id uuid primary key references public.messages(id) on delete cascade,
+  object_key text not null
+);
+alter table public.view_once_keys enable row level security;
+revoke all on public.view_once_keys from anon, authenticated;
+
+create or replace function public.view_once_send(p_thread uuid, p_key text, p_kind text) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); r public.messages%rowtype;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  if p_kind not in ('photo', 'video') then return jsonb_build_object('ok', false, 'reason', 'kind'); end if;
+  if split_part(coalesce(p_key, ''), '/', 1) <> me::text or p_key like '%..%' then return jsonb_build_object('ok', false, 'reason', 'key'); end if;
+  if not exists (select 1 from public.dm_participants where thread_id = p_thread and user_id = me) then
+    return jsonb_build_object('ok', false, 'reason', 'not_yours');
+  end if;
+  insert into public.messages (dm_thread_id, user_id, body, kind, media_kind)
+  values (p_thread, me, case when p_kind = 'video' then '🎬' else '📸' end, 'once', p_kind)
+  returning * into r;
+  insert into public.view_once_keys (message_id, object_key) values (r.id, p_key);
+  return jsonb_build_object('ok', true, 'message', to_jsonb(r));
+end $$;
+
+create or replace function public.view_once_open(p_id uuid) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); m public.messages%rowtype; k text;
+begin
+  select * into m from public.messages where id = p_id and kind = 'once' for update;
+  if not found then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
+  if m.user_id = me then return jsonb_build_object('ok', false, 'reason', 'yours'); end if;
+  if not exists (select 1 from public.dm_participants where thread_id = m.dm_thread_id and user_id = me) then
+    return jsonb_build_object('ok', false, 'reason', 'not_yours');
+  end if;
+  select object_key into k from public.view_once_keys where message_id = p_id;
+  if m.once_opened_at is not null or k is null then return jsonb_build_object('ok', false, 'reason', 'opened'); end if;
+  if m.created_at < now() - interval '24 hours' then return jsonb_build_object('ok', false, 'reason', 'expired'); end if;
+  update public.messages set once_opened_at = now() where id = p_id;
+  return jsonb_build_object('ok', true, 'object_key', k, 'kind', m.media_kind);
+end $$;
+
+create or replace function public.view_once_burn(p_id uuid) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); k text;
+begin
+  if not exists (select 1 from public.messages m join public.dm_participants p on p.thread_id = m.dm_thread_id and p.user_id = me
+                  where m.id = p_id and m.kind = 'once' and m.once_opened_at is not null) then
+    return jsonb_build_object('ok', false, 'reason', 'not_yours');
+  end if;
+  delete from public.view_once_keys where message_id = p_id returning object_key into k;
+  return jsonb_build_object('ok', true, 'object_key', k);
+end $$;
+
+revoke execute on function public.view_once_send(uuid, text, text) from public, anon;
+revoke execute on function public.view_once_open(uuid) from public, anon;
+revoke execute on function public.view_once_burn(uuid) from public, anon;
+grant execute on function public.view_once_send(uuid, text, text) to authenticated;
+grant execute on function public.view_once_open(uuid) to authenticated;
+grant execute on function public.view_once_burn(uuid) to authenticated;
+
+notify pgrst, 'reload schema';
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة

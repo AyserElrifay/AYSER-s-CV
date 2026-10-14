@@ -339,3 +339,27 @@ export async function uploadMediaSmart(userId, uri, ext, contentType, opts) {
   // `opts` carries onProgress and an abort signal — see uploadToSupabase
   return uploadToSupabase(userId, uri, ext, contentType, opts);
 }
+
+/* ── VIEW ONCE · the private bucket (supabase/functions/r2-presign) ──
+   The file goes to a bucket that is never public and empties itself
+   after a day. What comes back is only the object's name, which goes
+   into the database through view_once_send — never an address. */
+export async function uploadEphemeral(uriOrBlob, contentType) {
+  const body = await asBlob(uriOrBlob);
+  if (body.size > MAX_UPLOAD_BYTES) throw new Error('File too large');
+  const { data, error } = await supabase.functions.invoke('r2-presign', { body: { purpose: 'ephemeral', contentType, size: body.size } });
+  if (error || !data || !data.uploadUrl) throw new Error('view-once storage is not switched on');
+  const put = await fetch(data.uploadUrl, { method: 'PUT', headers: { 'Content-Type': contentType }, body });
+  if (!put.ok) throw new Error('upload failed');
+  return data.key;
+}
+/* the recipient, once: a 60-second address, or why not */
+export async function openOnce(id) {
+  const { data, error } = await supabase.functions.invoke('r2-presign', { body: { purpose: 'view', id } });
+  if (error || !data || !data.url) return { ok: false };
+  return { ok: true, url: data.url, kind: data.kind };
+}
+/* closed: the object is deleted now, not in a day */
+export async function burnOnce(id) {
+  try { await supabase.functions.invoke('r2-presign', { body: { purpose: 'burn', id } }); } catch (e) {}
+}

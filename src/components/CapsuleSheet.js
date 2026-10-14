@@ -6,6 +6,7 @@ import { C } from '../constants/theme';
 import { useLang } from '../context/LanguageContext';
 import { capsuleView, capsuleSend, capsuleOpenNow, capsuleMarkRead, myCapsules, memoryBook } from '../services/capsule';
 import { blindReveal } from '../services/green';
+import { usePrivacyShield, NO_SAVE } from '../hooks/usePrivacyShield';
 import { useSheetBack } from '../hooks/useSheetBack';
 import { tapLight, tapMedium, tapSuccess, tapCelebrate } from '../utils/feedback';
 import { AV_NEUTRAL } from '../constants/mockData';
@@ -65,6 +66,8 @@ export const CapsuleSheet = ({ kind, id, title, onClose }) => {
   const [body, setBody] = useState('');
   const [msg, setMsg] = useState(null);
   const [opened, setOpened] = useState(null);   // the note shown big, once
+  /* a note opened for you is yours alone: no screenshots in the apps */
+  const { covered } = usePrivacyShield(!!opened);
   useSheetBack(() => (opened ? setOpened(null) : ev && !(kind && id) ? setEv(null) : onClose && onClose()));
 
   const load = () => { if (ev) capsuleView(ev.kind, ev.id).then((r) => setV(r || { ok: false, reason: 'offline' })); };
@@ -222,7 +225,7 @@ export const CapsuleSheet = ({ kind, id, title, onClose }) => {
           <Pressable onPress={() => setOpened(null)} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: 'rgba(20,20,22,0.82)', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
             <View style={{ width: '100%', maxWidth: 420, borderRadius: 26, padding: 26, backgroundColor: '#FFFDF7' }}>
               <Text style={{ fontSize: 34, textAlign: 'center' }}>✨💌✨</Text>
-              <Text style={{ color: '#1A1A1A', fontSize: 17, lineHeight: 26, marginTop: 14 }}>{opened.body}</Text>
+              <Text style={[{ color: '#1A1A1A', fontSize: 17, lineHeight: 26, marginTop: 14 }, NO_SAVE]}>{covered ? '· · ·' : opened.body}</Text>
               <Text style={{ color: '#6B6B70', fontSize: 14, fontWeight: '700', marginTop: 16, textAlign: 'right' }}>{'— ' + (opened.from || '')}</Text>
             </View>
             <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 13, marginTop: 14 }}>{t('close')}</Text>

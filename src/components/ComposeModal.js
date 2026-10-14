@@ -198,7 +198,7 @@ export const ComposeModal = ({ initialMode = 'post', initialCaption = '', initia
         let mediaUrl = null;
         if (imageUri) {
           // shrink to feed size before uploading — same look, ~6x fewer bytes
-          const small = Platform.OS === 'web' ? await compressImage(imageUri, 1600, 0.85) : imageUri;
+          const small = Platform.OS === 'web' ? await compressImage(imageUri, 1080, 0.8) : imageUri;
           const shrunk = small !== imageUri;
           const ext = shrunk ? 'jpg' : (imageMime.split('/')[1] === 'jpeg' ? 'jpg' : (imageMime.split('/')[1] || 'jpg'));
           mediaUrl = await uploadCapture(user.id, small, ext, shrunk ? 'image/jpeg' : imageMime);

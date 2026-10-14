@@ -8,6 +8,7 @@ import { AV_NEUTRAL } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { usePresence } from '../context/PresenceContext';
+import { sendOnce } from '../services/messages';
 import { getOrCreateDmThread, fetchMessages, sendMessage, sendMoment, sendGameInvite, subscribeMessages, getThreadTtl, setThreadTtl, sweepExpired, streakInfo } from '../services/messages';
 import { uploadCapture } from '../services/social';
 import { StickerPicker } from '../components/StickerPicker';
@@ -44,6 +45,7 @@ const GroupInfoSheet = lazyOverlay(() => import('../components/GroupInfoSheet').
 import { SheetHandle, SheetBack } from '../components/SheetHandle';
 
 /* Fetched when it is opened, not when the app starts. */
+const OnceViewer = lazyOverlay(() => import('../components/OnceViewer').then((m) => ({ default: m.OnceViewer })));
 const GameRunner = lazyOverlay(() => import('../components/GameRunner').then((m) => ({ default: m.GameRunner })));
 const CaptureModal = lazyOverlay(() => import('../components/CaptureModal').then((m) => ({ default: m.CaptureModal })));
 
@@ -312,6 +314,7 @@ export const ChatThread = ({ chat, group, onClose }) => {
     mediaUrl: row.media_url || null,
     mediaKind: row.media_kind || null,
     gameMatchId: row.game_match_id || null,
+    onceOpenedAt: row.once_opened_at || null,
     from: row.user_id === user.id
       ? 'me'
       : { name: (row.user && row.user.name) || (peer && peer.name) || 'Someone', avatar: (row.user && row.user.avatar_url) || (peer && peer.avatar) || AV_NEUTRAL },
@@ -326,6 +329,7 @@ export const ChatThread = ({ chat, group, onClose }) => {
   // ── Moments in chat: shoot a snap and send it right here ──
   const [momentOpen, setMomentOpen] = useState(false);
   const [viewMoment, setViewMoment] = useState(null); // { mediaUrl, mediaKind } — full-screen viewer
+  const [onceOpen, setOnceOpen] = useState(null);      // a view-once message being looked at
 
   /* ── LONG-PRESS TO TRANSLATE ──────────────────────────────────────
      The bubble has always called `translateMsg` on a long press and
@@ -383,7 +387,17 @@ export const ChatThread = ({ chat, group, onClose }) => {
     await handleSendMoment({ mediaUrl, mediaKind: 'photo', caption: st.label });
   };
 
-  const handleSendMoment = async ({ mediaUrl, mediaKind, caption }) => {
+  const handleSendMoment = async ({ mediaUrl, mediaKind, caption, onceKey }) => {
+    /* seen once: only the private object's name goes in (view_once_send) */
+    if (onceKey && isReal && dmThreadId) {
+      try {
+        const row = await sendOnce({ dmThreadId, key: onceKey, kind: mediaKind });
+        setChatErr(null);
+        setMsgs((m) => (m.some((x) => x.id === row.id) ? m : [...m, toLocal(row)]));
+      } catch (e) { setChatErr(explainChat(e)); }
+      setTimeout(() => scroller.current && scroller.current.scrollToEnd({ animated: true }), 80);
+      return;
+    }
     if (isReal) {
       const squadId = group ? chat.id : null;
       if (!squadId && !dmThreadId) {
@@ -645,6 +659,18 @@ export const ChatThread = ({ chat, group, onClose }) => {
                           </View>
                         );
                       })()
+                    ) : m.kind === 'once' ? (
+                      /* seen once, then gone — the message never held an address */
+                      <Pressable onPress={() => { if (!mine && !m.onceOpenedAt) { tapMedium(); setOnceOpen(m.id); setMsgs((ms) => ms.map((x) => (x.id === m.id ? { ...x, onceOpenedAt: new Date().toISOString() } : x))); } }}
+                        disabled={mine || !!m.onceOpenedAt} accessibilityRole="button">
+                        <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 18, paddingHorizontal: 14, paddingVertical: 11, borderWidth: 1.5,
+                          borderColor: m.onceOpenedAt ? C.line : C.coral, backgroundColor: m.onceOpenedAt ? 'transparent' : C.coralSoft }}>
+                          <Ionicons name={m.onceOpenedAt ? 'eye-off-outline' : m.mediaKind === 'video' ? 'videocam' : 'image'} size={18} color={m.onceOpenedAt ? C.faint : C.coral} />
+                          <Text style={{ color: m.onceOpenedAt ? C.faint : C.text, fontSize: 14, fontWeight: '800', marginStart: 8 }}>
+                            {m.onceOpenedAt ? t('vo_opened') : mine ? t('vo_sent') : t('vo_tap')}
+                          </Text>
+                        </View>
+                      </Pressable>
                     ) : (m.kind === 'moment' || m.mediaUrl) ? (
                       /* a Moment — a circular snap. Received: mystery circle you
                          can open twice, then it's gone. Long-press to save it. */
@@ -1030,9 +1056,12 @@ export const ChatThread = ({ chat, group, onClose }) => {
           sendMode
           sendToName={group ? chat.name : (peer && (peer.name || '').split(' ')[0])}
           onMoment={handleSendMoment}
+          viewOnce={!group}
           onClose={() => setMomentOpen(false)}
         />
       ) : null}
+
+      {onceOpen ? <OnceViewer id={onceOpen} onClose={() => setOnceOpen(null)} /> : null}
 
       {/* ── full-screen Moment viewer ── */}
       {viewMoment ? (

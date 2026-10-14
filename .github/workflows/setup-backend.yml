@@ -258,6 +258,12 @@ jobs:
         if: ${{ inputs.deploy_function }}
         env:
           SITE_ORIGIN: ${{ inputs.site_origin }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_EPHEMERAL_BUCKET: ${{ secrets.R2_EPHEMERAL_BUCKET }}
+          R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
         run: |
           set -euo pipefail
           supabase functions deploy push --project-ref "$REF" --no-verify-jwt
@@ -272,6 +278,18 @@ jobs:
           # bookings: checkout reads the price from the database; the webhook is signed by Paymob (PAYMOB_* secrets)
           supabase functions deploy create-checkout --project-ref "$REF"
           supabase functions deploy paymob-webhook --project-ref "$REF" --no-verify-jwt
+          # media straight to Cloudflare R2 and view-once messages (signed-in only; R2_* secrets)
+          supabase functions deploy r2-presign --project-ref "$REF"
+          # the R2 keys live only as function secrets; set here when the repository has them
+          if [ -n "${R2_ACCOUNT_ID:-}" ] && [ -n "${R2_ACCESS_KEY_ID:-}" ] && [ -n "${R2_SECRET_ACCESS_KEY:-}" ]; then
+            supabase secrets set --project-ref "$REF" \
+              R2_ACCOUNT_ID="$R2_ACCOUNT_ID" R2_ACCESS_KEY_ID="$R2_ACCESS_KEY_ID" R2_SECRET_ACCESS_KEY="$R2_SECRET_ACCESS_KEY" \
+              R2_BUCKET="${R2_BUCKET:-moments-media}" R2_EPHEMERAL_BUCKET="${R2_EPHEMERAL_BUCKET:-moments-ephemeral}" \
+              R2_PUBLIC_URL="${R2_PUBLIC_URL:-}" >/dev/null
+            echo "R2 keys set for r2-presign."
+          else
+            echo "R2 not connected yet — add R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY (and R2_PUBLIC_URL) as repository secrets."
+          fi
           if supabase secrets list --project-ref "$REF" 2>/dev/null | grep -q VAPID_PRIVATE_KEY; then
             echo "VAPID keys already set — kept."
           else
