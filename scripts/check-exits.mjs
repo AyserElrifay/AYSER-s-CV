@@ -23,6 +23,8 @@ const OWN_EXIT = {
   'src/components/IncomingCallGate.js': /onPress=\{decline\}/,
   'src/components/WhatsNew.js': /onPress=\{close\}/,
   /* the intro: Skip goes to the last page, whose two buttons both leave */
+  /* the first screen: both of its buttons leave it */
+  'src/components/Welcome.js': /onStart\(\)[\s\S]*onSignIn\(\)/,
   'src/components/Intro.js': /in_skip[\s\S]*finish\(onStart\)[\s\S]*finish\(onSignIn\)/,
 };
 const NOT_SCREENS = ['src/hooks/useSheetBack.js', 'src/components/SheetHandle.js', 'src/components/LeafletMap.js'];
