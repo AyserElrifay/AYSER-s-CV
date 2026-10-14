@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable, TextInput, Image, ActivityIndicator, Animated, Easing } from 'react-native';
 import { C } from '../constants/theme';
 import {
-  ownerOffers, offerSave, offerSetVideo, offerSetDuration, offerSetStatus, ownerBookings, ownerMarkBooking, ownerSetSetting, appSettings, photoUrl, money,, ownerLeaders, ownerSaveLeader, ownerDeleteLeader } from '../services/offers';
+  ownerOffers, offerSave, offerSetVideo, offerSetDuration, offerSetStatus, ownerBookings, ownerMarkBooking, ownerSetSetting, appSettings, photoUrl, money, ownerLeaders, ownerSaveLeader, ownerDeleteLeader } from '../services/offers';
 import { uploadPlanPhoto } from '../lib/storage';
 import { tapLight, tapSuccess } from '../utils/feedback';
 import { appLink, shareLink } from '../utils/share';
