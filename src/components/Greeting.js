@@ -9,11 +9,11 @@ import { useLang } from '../context/LanguageContext';
    first, then the same greeting in the other fourteen, one at a time,
    fading. A small sign that people from everywhere are here. */
 const G = {
-  morning: { en: 'Good morning', ar: 'صباح الخير', es: 'Buenos días', fr: 'Bonjour', it: 'Buongiorno', pt: 'Bom dia', nl: 'Goedemorgen', ro: 'Bună dimineața', ru: 'Доброе утро', tr: 'Günaydın', cs: 'Dobré ráno', et: 'Tere hommikust', ja: 'おはよう', ko: '좋은 아침', zh: '早上好' },
-  day: { en: 'Hello', ar: 'أهلًا', es: 'Hola', fr: 'Salut', it: 'Ciao', pt: 'Olá', nl: 'Hallo', ro: 'Salut', ru: 'Привет', tr: 'Merhaba', cs: 'Ahoj', et: 'Tere', ja: 'こんにちは', ko: '안녕하세요', zh: '你好' },
-  evening: { en: 'Good evening', ar: 'مساء الخير', es: 'Buenas noches', fr: 'Bonsoir', it: 'Buonasera', pt: 'Boa noite', nl: 'Goedenavond', ro: 'Bună seara', ru: 'Добрый вечер', tr: 'İyi akşamlar', cs: 'Dobrý večer', et: 'Tere õhtust', ja: 'こんばんは', ko: '좋은 저녁', zh: '晚上好' },
+  morning: { en: 'Good morning', ar: 'صباح الخير', es: 'Buenos días', fr: 'Bonjour', it: 'Buongiorno', pt: 'Bom dia', nl: 'Goedemorgen', ro: 'Bună dimineața', ru: 'Доброе утро', tr: 'Günaydın', cs: 'Dobré ráno', et: 'Tere hommikust', hi: 'सुप्रभात', ja: 'おはよう', ko: '좋은 아침', zh: '早上好' },
+  day: { en: 'Hello', ar: 'أهلًا', es: 'Hola', fr: 'Salut', it: 'Ciao', pt: 'Olá', nl: 'Hallo', ro: 'Salut', ru: 'Привет', tr: 'Merhaba', cs: 'Ahoj', et: 'Tere', hi: 'नमस्ते', ja: 'こんにちは', ko: '안녕하세요', zh: '你好' },
+  evening: { en: 'Good evening', ar: 'مساء الخير', es: 'Buenas noches', fr: 'Bonsoir', it: 'Buonasera', pt: 'Boa noite', nl: 'Goedenavond', ro: 'Bună seara', ru: 'Добрый вечер', tr: 'İyi akşamlar', cs: 'Dobrý večer', et: 'Tere õhtust', hi: 'शुभ संध्या', ja: 'こんばんは', ko: '좋은 저녁', zh: '晚上好' },
 };
-const ORDER = ['en', 'ar', 'es', 'fr', 'it', 'pt', 'nl', 'ro', 'ru', 'tr', 'cs', 'et', 'ja', 'ko', 'zh'];
+const ORDER = ['en', 'ar', 'es', 'fr', 'it', 'pt', 'nl', 'ro', 'ru', 'tr', 'cs', 'et', 'hi', 'ja', 'ko', 'zh'];
 
 export const Greeting = () => {
   const { lang } = useLang();

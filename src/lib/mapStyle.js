@@ -39,7 +39,7 @@ export const VECTOR_STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty';
    still one language for the whole map rather than thirty. */
 const OSM_LANG = {
   en: 'en', ar: 'ar', es: 'es', fr: 'fr', it: 'it', ja: 'ja', ko: 'ko',
-  nl: 'nl', pt: 'pt', ro: 'ro', ru: 'ru', tr: 'tr', zh: 'zh', cs: 'cs', et: 'et',
+  nl: 'nl', pt: 'pt', ro: 'ro', ru: 'ru', tr: 'tr', zh: 'zh', cs: 'cs', et: 'et', hi: 'hi',
 };
 
 export const mapLangCode = (lang) => OSM_LANG[String(lang || 'en').slice(0, 2).toLowerCase()] || 'en';
@@ -74,7 +74,7 @@ export function nameExpression(lang) {
 export const PALESTINE = {
   en: 'Palestine', ar: 'فلسطين', es: 'Palestina', fr: 'Palestine', it: 'Palestina',
   ja: 'パレスチナ', ko: '팔레스타인', nl: 'Palestina', pt: 'Palestina', ro: 'Palestina',
-  ru: 'Палестина', tr: 'Filistin', zh: '巴勒斯坦', cs: 'Palestina', et: 'Palestiina',
+  ru: 'Палестина', tr: 'Filistin', zh: '巴勒斯坦', cs: 'Palestina', et: 'Palestiina', hi: 'फ़िलिस्तीन',
 };
 const IS_PALESTINE = ['any',
   ['==', ['get', 'iso_a2'], 'PS'],

@@ -41,7 +41,7 @@ const STARS = Array.from({ length: 34 }, (_, k) => {
   const fx = a - Math.floor(a), fy = b - Math.floor(b);
   return [Math.round(fx * 96), Math.round(fy * 96), fx > 0.85 ? 2.5 : 1.5, 0.25 + (fy * 0.55)];
 });
-const HELLOS = ['Hello', 'أهلاً', 'Bonjour', 'Hola', 'Ciao', 'Merhaba', 'Olá', 'Salut', 'Hallo', 'Привет', 'こんにちは', '안녕하세요', '你好', 'Ahoj', 'Tere'];
+const HELLOS = ['Hello', 'أهلاً', 'Bonjour', 'Hola', 'Ciao', 'Merhaba', 'Olá', 'Salut', 'Hallo', 'Привет', 'こんにちは', '안녕하세요', '你好', 'Ahoj', 'Tere', 'नमस्ते'];
 
 const Hello = () => {
   const [i, setI] = useState(0);

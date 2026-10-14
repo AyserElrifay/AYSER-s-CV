@@ -26,6 +26,7 @@ export const LANGS = [
   { code: 'ja', label: 'Japanese', native: '日本語', flag: '🇯🇵', rtl: false },
   { code: 'cs', label: 'Czech', native: 'Čeština', flag: '🇨🇿', rtl: false },
   { code: 'et', label: 'Estonian', native: 'Eesti', flag: '🇪🇪', rtl: false },
+  { code: 'hi', label: 'Hindi', native: 'हिन्दी', flag: '🇮🇳', rtl: false },
 ];
 
 /* ─── WHY ONLY ENGLISH IS IN HERE ────────────────────────────────────
