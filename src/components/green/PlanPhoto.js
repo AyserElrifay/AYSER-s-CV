@@ -178,6 +178,16 @@ const safe = (u) => (typeof u === 'string' && /^https:\/\//i.test(u) ? u : null)
 
 export const planPhotoOf = (g) => safe(g && g.photo_url) || safe(g && g.weekly_photo) || safe(g && Array.isArray(g.past_photos) ? g.past_photos[0] : null);
 
+/* one still for a small card (the ideas rail): the plan's own photo,
+   else the first picture of its activity — a still, never the clip */
+export const ideaPhoto = (g) => {
+  const own = planPhotoOf(g);
+  if (own) return own;
+  const st = stockOf(g);
+  const p = st && st.pics[0];
+  return p ? p.url || publicMedia(p.img) : null;
+};
+
 /* With no photo of the plan itself: a photo of the PLACE, if a freely
    licensed one of that very place exists on Wikimedia Commons — found
    and credited by src/lib/commonsPhoto.js, kept on the phone a month.

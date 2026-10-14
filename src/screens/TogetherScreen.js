@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, Pressable, ScrollView, ActivityIndicator, RefreshControl, TextInput } from 'react-native';
+import { View, Text, Pressable, ScrollView, ActivityIndicator, RefreshControl, TextInput, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -35,7 +35,9 @@ import { isSaving, DEFAULT_DATA_MODE } from '../lib/dataSaver';
 import { getPrefs } from '../services/prefs';
 import { openPartner } from '../lib/partnerLink';
 import { HostBadge } from '../components/HostCard';
-import { PlanHead, PastPhotos } from '../components/green/PlanPhoto';
+import { PlanHead, PastPhotos, ideaPhoto } from '../components/green/PlanPhoto';
+import { greenPic } from '../components/green/GreenCards';
+import { isGreen } from '../lib/greenKinds';
 import { ReportSheet } from '../components/ReportSheet';
 import { CirclesNear } from '../components/CirclesNear';
 const TripsSheet = lazyOverlay(() => import('../components/TripsSheet').then((m) => ({ default: m.TripsSheet })));
@@ -186,11 +188,21 @@ const IdeasElsewhere = ({ ideas, t, lang, onStart }) => {
       <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         {ideas.map((g) => {
           const look = lookOf(g.kind);
+          const pic = ideaPhoto(g) || (isGreen(g) ? greenPic([g.title, g.about].join(' '), g.id) : null);
           return (
             <View key={g.id} style={{ width: 210, marginEnd: 10, borderRadius: 20, overflow: 'hidden', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line }}>
-              <LinearGradient colors={[look.from, look.to]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ height: 74, alignItems: 'center', justifyContent: 'center' }}>
-                <Text style={{ fontSize: 34 }}>{look.emoji}</Text>
-              </LinearGradient>
+              {pic ? (
+                <View style={{ height: 110 }}>
+                  <Image source={{ uri: pic }} style={{ width: '100%', height: 110 }} accessibilityIgnoresInvertColors />
+                  <View style={{ position: 'absolute', top: 8, left: 8, backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 10, paddingHorizontal: 6, paddingVertical: 2 }}>
+                    <Text style={{ fontSize: 15 }}>{look.emoji}</Text>
+                  </View>
+                </View>
+              ) : (
+                <LinearGradient colors={[look.from, look.to]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ height: 110, alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ fontSize: 40 }}>{look.emoji}</Text>
+                </LinearGradient>
+              )}
               <View style={{ padding: 12 }}>
                 <Text numberOfLines={2} style={{ color: C.text, fontSize: 14.5, fontWeight: '900', lineHeight: 19, minHeight: 38 }}>{titleFor(g.title, lang)}</Text>
                 <Text numberOfLines={1} style={{ color: C.faint, fontSize: 12, fontWeight: '700', marginTop: 3 }}>{'📍 ' + t('id_in').replace('{place}', g.city || g.place_name || g.country || '')}</Text>
@@ -343,7 +355,13 @@ export const TogetherScreen = () => {
       /* near: what is around you; the rest becomes ideas (one per activity) */
       if (scope === 'near') {
         const all = gs || [];
-        const here = all.filter((g) => isNear(g, fix, myCode));
+        const near0 = all.filter((g) => isNear(g, fix, myCode));
+        /* a plan with no pin is near when it is in a city you already
+           have pinned plans from — "Sketching by the Nile, in Cairo" is
+           not an idea from another city to somebody in Cairo */
+        const myCities = new Set(near0.map((g) => String(g.city || '').trim().toLowerCase()).filter(Boolean));
+        const here = all.filter((g) => near0.includes(g)
+          || ((g.lat == null || g.lng == null) && myCities.has(String(g.city || '').trim().toLowerCase())));
         const seen = new Set(here.map(ideaKey));
         const ideas = [];
         all.forEach((g) => {
