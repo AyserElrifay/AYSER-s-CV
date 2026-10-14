@@ -8,7 +8,8 @@ import { C } from '../constants/theme';
 import { useLang } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { SUPABASE_READY } from '../lib/supabase';
-import { listGatherings, joinGathering, announceGathering, checkInAt, setGatheringPhoto, removeGatheringPhoto, topCreators, followCreator, keptGatherings, myUnrated, rateGathering } from '../services/green';
+import { listGatherings, joinGathering, announceGathering, checkInAt, setGatheringPhoto, removeGatheringPhoto, topCreators, followCreator, keptGatherings, myUnrated, rateGathering, listSparks } from '../services/green';
+import { COUNTRY_LIST } from '../constants/countries';
 import { remember, recall } from '../lib/offline';
 import { uploadPlanPhoto } from '../lib/storage';
 import { canCheckIn } from '../lib/xp';
@@ -181,7 +182,7 @@ const IdeasElsewhere = ({ ideas, t, lang, onStart }) => {
   return (
     <View style={{ marginTop: 6, marginBottom: 16 }}>
       <Text style={{ color: C.text, fontSize: 17, fontWeight: '900' }}>{'🌍 ' + t('id_title')}</Text>
-      <Text style={{ color: C.dim, fontSize: 13, fontWeight: '600', marginTop: 2, marginBottom: 10 }}>{t('id_sub')}</Text>
+      <Text style={{ color: C.dim, fontSize: 13, fontWeight: '600', marginTop: 2, marginBottom: 10 }}>{t(ideas.every((g) => String(g.id).startsWith('sp_')) ? 'id_sub_starter' : 'id_sub')}</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         {ideas.map((g) => {
           const look = lookOf(g.kind);
@@ -352,12 +353,29 @@ export const TogetherScreen = () => {
           seen.add(k); ideas.push(g);
         });
         setRows(here); setElsewhere(ideas);
+        /* Few real plans anywhere yet: the starter ideas for your own
+           country fill the rail (RUN_ME.sql "IDEAS FOR EVERY COUNTRY").
+           They say where they are for, never that anybody is going. */
+        if (ideas.length < 4) {
+          listSparks(myCode).then((sp) => {
+            if (!alive) return;
+            const name = (COUNTRY_LIST.find((c) => c.code === myCode) || {}).name || (lang === 'ar' ? 'مدينتك' : 'your city');
+            const extra = (sp || []).filter((x) => !seen.has(ideaKey({ kind: x.kind, title: x.title_en })))
+              .slice(0, 8 - ideas.length)
+              .map((x) => ({
+                id: 'sp_' + x.id, kind: x.kind, title: x.title_en + ' · ' + x.title_ar,
+                about: lang === 'ar' ? x.about_ar || x.about_en : x.about_en || x.about_ar,
+                minutes: x.minutes, country: x.country ? (COUNTRY_LIST.find((c) => c.code === x.country) || {}).name || x.country : name,
+              }));
+            if (extra.length) setElsewhere(ideas.concat(extra));
+          }).catch(() => {});
+        }
       } else { setRows(gs || []); setElsewhere([]); }
       setOn(wo || { now: [], soon: [], groups: [] }); if (wo) remember('whatson', wo);
       setRefreshing(false);
     });
     return () => { alive = false; };
-  }, [country, uid, scope, codeKnown, fix, myCode]);
+  }, [country, uid, scope, codeKnown, fix, myCode, lang]);
   useEffect(() => load(), [load]);
 
   const days = useMemo(() => groupByDay(aud ? (rows || []).filter((g) => (g.audience || 'all') === aud) : rows), [rows, aud]);

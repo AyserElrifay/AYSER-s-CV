@@ -75,6 +75,8 @@ const PLACES = [
   { code: 'HU', flag: '🇭🇺' },
   { code: 'CZ', flag: '🇨🇿' },
   { code: 'EE', flag: '🇪🇪' },
+  { code: 'RO', flag: '🇷🇴' },
+  { code: 'MA', flag: '🇲🇦' },
 ];
 
 /* the flag for any two-letter code, so a country that is not in the

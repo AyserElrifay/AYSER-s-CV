@@ -16502,6 +16502,98 @@ revoke execute on function public.catch_blocked(uuid, uuid) from public, anon, a
 notify pgrst, 'reload schema';
 
 -- ═══════════════════════════════════════════════════════════════════
+--  IDEAS FOR EVERY COUNTRY WE ARE IN
+--
+--  Ayser: "مش عايز Budapest و كايرو بس — كل البلاد المدعومة، مصر وأوروبا
+--  بتركيز شديد، والمغرب". Starter ideas for Morocco, Romania, Estonia,
+--  Italy, Portugal, Greece, Germany, the Netherlands and Poland, three
+--  more for Egypt outside Cairo, and one for any city with a river.
+--  They are ideas, not plans: nothing here says anybody is going. The
+--  first person who starts one is the first person going.
+--
+--  Safe to re-run: an idea already there by its English title is left.
+-- ═══════════════════════════════════════════════════════════════════
+
+insert into public.green_sparks (kind, country, title_ar, title_en, about_ar, about_en, minutes, people, sort)
+select * from (values
+ ('cleanup','MA','ساعة على الكورنيش','An hour on the corniche',
+  'اختاروا حتة من الكورنيش أو الشط، كيس وجوانتي لكل واحد، ساعة بس، وصورة قبل وبعد.',
+  'Pick a stretch of the corniche or the beach, a bag and gloves each, one hour only, a photo before and after.',60,'3–12',40),
+ ('art','MA','رسم في المدينة القديمة','Sketching in the medina',
+  'اتقابلوا عند باب من أبواب المدينة القديمة، كل واحد يرسم عشر تفاصيل، وفي الآخر تفرجوا على بعض على كوباية شاي بالنعناع.',
+  'Meet at one of the medina gates, everyone sketches ten details, then show each other over mint tea.',90,'2–8',41),
+ ('walk','MA','مشي الصبح لحد نقطة عالية','A morning walk to a viewpoint',
+  'اختاروا مسار معروف لحد نقطة عالية تشوفوا منها المدينة. ابدأوا بدري قبل الحر، ومعاكم مية.',
+  'Choose a known path up to a point that looks over the town. Start early, before the heat, and carry water.',120,'3–10',42),
+ ('project','MA','زرع في جنينة مدرسة','Planting in a school garden',
+  'بعد موافقة المدرسة بس: كل واحد يجيب شتلة، وتزرعوها مع الطلبة وتعلموهم يسقوها إزاي.',
+  'Only with the schools agreement: everyone brings a seedling, you plant them with the students and show them how to water.',120,'3–8',43),
+ ('cleanup','RO','تنضيف جنينة الصبح','A morning park clean-up',
+  'جنينة قريبة منكم، ساعة الصبح بدري، أكياس منفصلة للبلاستيك والباقي.',
+  'A park near you, one early-morning hour, separate bags for plastic and the rest.',60,'3–12',44),
+ ('walk','RO','هايك يوم في الكاربات','A day hike in the Carpathians',
+  'اختاروا مسار متعلّم عليه، روحوا مع حد عارفه، ومعاكم مية وأكل وجاكيت — الجو فوق بيتغير بسرعة.',
+  'Pick a marked trail, go with someone who knows it, and carry water, food and a jacket — the weather up there turns fast.',360,'3–10',45),
+ ('culture','RO','مشي في البلد القديمة: كل واحد حكاية','An old-town walk, one story each',
+  'كل واحد يختار مبنى ويحكي حكايته في دقيقتين. محدش لازم يكون خبير.',
+  'Each person picks a building and tells its story in two minutes. Nobody needs to be an expert.',90,'3–12',46),
+ ('cleanup','EE','تنضيف شط البلطيق','A Baltic beach clean-up',
+  'الشط بعد العاصفة بيبقى مليان حاجات البحر رجّعها. ساعة، أكياس، وصورة للي جمعتوه.',
+  'After a storm the shore is full of what the sea brought back. One hour, bags, and a photo of what you gathered.',60,'3–12',47),
+ ('walk','EE','مشي على ممشى المستنقع','A bog boardwalk walk',
+  'إستونيا مليانة مماشي خشب فوق المستنقعات. اختاروا واحد، امشوا بهدوء، واقفوا عند برج المراقبة.',
+  'Estonia is full of wooden boardwalks across its bogs. Pick one, walk it quietly, and stop at the lookout tower.',120,'2–10',48),
+ ('art','IT','ارسم ميدان','Sketch a piazza',
+  'اقعدوا في ميدان واحد ساعة، وكل واحد يرسمه من زاوية مختلفة.',
+  'Sit in one piazza for an hour, each of you drawing it from a different side.',75,'2–8',49),
+ ('cleanup','IT','ساعة على البحيرة أو البحر','An hour by the lake or the sea',
+  'حتة صغيرة من الشط، ساعة، وكيس لكل واحد. اللي يخلص بدري يساعد اللي جنبه.',
+  'A small stretch of shore, an hour, a bag each. Whoever finishes early helps the person next to them.',60,'3–12',50),
+ ('walk','PT','الغروب من الميرادورو','Sunset at a miradouro',
+  'اختاروا ميرادورو (نقطة مشاهدة) واطلعوا له مشي قبل الغروب بنص ساعة.',
+  'Choose a miradouro — a viewpoint — and walk up to it half an hour before sunset.',90,'2–12',51),
+ ('cleanup','PT','تنضيف شط على الأطلنطي','An Atlantic beach clean-up',
+  'اتقابلوا الصبح بدري على الشط، ساعة واحدة، وفرّزوا البلاستيك لوحده.',
+  'Meet early on the beach, one hour, and keep the plastic apart.',60,'3–12',52),
+ ('cleanup','GR','تنضيف خليج صغير','A small-cove clean-up',
+  'خليج صغير، عوم بعد التنضيف كمكافأة. أكياس وجوانتي.',
+  'A small cove, with a swim after as the reward. Bags and gloves.',90,'3–10',53),
+ ('culture','GR','اقرأ أسطورة مكان ما حصلت','Read a myth where it happened',
+  'اختاروا مكان ليه أسطورة يونانية، وحد يقرأها بصوت عالي هناك.',
+  'Choose a place with a Greek myth of its own, and have one person read it out loud right there.',60,'2–10',54),
+ ('project','DE','عصرية تصليح','A repair afternoon',
+  'كل واحد يجيب حاجة بايظة — عجلة، لمبة، هدوم — وتصلحوها سوا بدل ما ترموها.',
+  'Everyone brings something broken — a bike, a lamp, a shirt — and you fix them together instead of throwing them away.',150,'3–10',55),
+ ('run','DE','جري في الجنينة على راحة الكل','An easy-pace park run',
+  'خمسة كيلو في جنينة، على سرعة أبطأ واحد، ومحدش بيتساب لوحده في الآخر.',
+  'Five kilometres in a park, at the pace of the slowest runner, and nobody finishes alone.',45,'3–15',56),
+ ('cleanup','NL','مشي جنب القناة بكيس','A canal-side litter walk',
+  'امشوا جنب قناة وكل واحد معاه كيس وماسك. اللي في المية سيبوه للبلدية.',
+  'Walk along a canal with a bag and a litter picker each. Leave what is in the water to the city.',60,'3–12',57),
+ ('sport','NL','لفة عجل برة المدينة','A bike ride out of town',
+  'عشرين كيلو على مسار عجل، وقفة في النص، ورجوع قبل المغرب.',
+  'Twenty kilometres on a cycle path, a stop halfway, and back before dark.',150,'3–12',58),
+ ('walk','PL','مشي في الغابة وبيكنيك','A forest walk and a picnic',
+  'كل واحد يجيب أكلة صغيرة، وتاكلوا في نص المشوار.',
+  'Everyone brings one small dish, and you eat halfway along.',150,'3–12',59),
+ ('cleanup','EG','ساعة على كورنيش إسكندرية','An hour on the Alexandria corniche',
+  'حتة من الكورنيش أو الشط، ساعة الصبح، وصورة قبل وبعد.',
+  'A stretch of the corniche or the beach, one morning hour, a photo before and after.',60,'3–12',60),
+ ('walk','EG','الشروق في دهب قبل الحر','Sunrise in Dahab, before the heat',
+  'اتقابلوا قبل الشروق على الممشى، وامشوا لحد ما الشمس تطلع على الجبال.',
+  'Meet before sunrise on the promenade, and walk until the sun is up over the mountains.',75,'2–12',61),
+ ('culture','EG','مشي في القاهرة الإسلامية: كل واحد حكاية','A walk through Islamic Cairo, one story each',
+  'من باب زويلة للمعز، وكل واحد يحكي حكاية مكان في دقيقتين.',
+  'From Bab Zuweila along al-Muizz Street, with each person telling one places story in two minutes.',120,'3–12',62),
+ ('cleanup',null,'تنضيف ضفة نهر مدينتك','A clean-up on your citys river',
+  'نفس الفكرة في أي مدينة فيها نهر: النيل، الدانوب، التاجة، السين… ساعة وأكياس.',
+  'The same idea in any city with a river — the Nile, the Danube, the Tagus, the Seine… one hour and some bags.',60,'3–12',63)
+) v(kind, country, title_ar, title_en, about_ar, about_en, minutes, people, sort)
+where not exists (select 1 from public.green_sparks s where s.title_en = v.title_en);
+
+notify pgrst, 'reload schema';
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة

@@ -2270,6 +2270,7 @@ export const STRINGS = {
     rd_already: "You already asked for this one.",
     rd_not_yet: "Not enough XP yet.",
     rd_err: "Couldn't send — try again.",
+    id_sub_starter: "Ideas to start here \u2014 nobody is going yet, so you could be first.",
     lens_all: 'Everything',
     lens_places: 'Places to go',
     lens_people: 'People',
