@@ -2126,6 +2126,8 @@ export const STRINGS = {
     bk_cancelled_by_you: "You cancelled this booking.",
     bk_cancelled_by_moments: "Cancelled by Moments.",
     bk_cancelled_note: "Cancelled. Didn't mean to? Bring it back below.",
+    bk_remove: "Remove",
+    bk_remove_sure: "Yes, remove it",
     lens_all: 'Everything',
     lens_places: 'Places to go',
     lens_people: 'People',

@@ -5,13 +5,14 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { C } from '../constants/theme';
 import { useLang } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
-import { listOffers, bookOffer, bookingPhotoOk, cancelBooking, restoreBooking, myBookings, myPlus, offerWant, photoUrl, money } from '../services/offers';
+import { listOffers, bookOffer, bookingPhotoOk, cancelBooking, restoreBooking, hideBooking, myBookings, myPlus, offerWant, photoUrl, money } from '../services/offers';
 import { appLink, shareLink, shareNote } from '../utils/share';
 import { payBooking } from '../services/payments';
 import { remember, recall } from '../lib/offline';
 import { tapLight, tapMedium, tapSelection, tapSuccess } from '../utils/feedback';
 import { useSheetBack } from '../hooks/useSheetBack';
 import { LinearGradient } from 'expo-linear-gradient';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { HighlightVideo } from './GoOutRail';
 import { lazyOverlay } from '../lib/lazyScreen';
 import { publicMedia } from '../lib/publicMedia';
@@ -356,6 +357,19 @@ export const TripsSheet = ({ onClose, country, openOn, focus, onNeedSignIn }) =>
     const r = await cancelBooking(b.id);
     if (r && r.ok) { tapSuccess(); myBookings().then(setMine); }
   };
+  // clearing a cancelled booking off the list: the server keeps the row
+  // (partner and Studio records), this phone also remembers right away
+  const HIDDEN = 'mm.bookings.hidden';
+  const [hidden, setHidden] = useState([]);
+  useEffect(() => { AsyncStorage.getItem(HIDDEN).then((v) => { try { setHidden(JSON.parse(v) || []); } catch (e) {} }).catch(() => {}); }, []);
+  const [sureHide, setSureHide] = useState(null);
+  const hide = async (b) => {
+    if (sureHide !== b.id) { tapLight(); setSureHide(b.id); return; }
+    setSureHide(null); tapSuccess();
+    const next = hidden.concat(b.id).slice(-200);
+    setHidden(next); AsyncStorage.setItem(HIDDEN, JSON.stringify(next)).catch(() => {});
+    hideBooking(b.id);
+  };
   const restore = async (b) => {
     tapLight(); setBkMsg(null);
     const r = await restoreBooking(b.id);
@@ -456,8 +470,8 @@ export const TripsSheet = ({ onClose, country, openOn, focus, onNeedSignIn }) =>
               </>
             ) : (
               mine == null ? <ActivityIndicator color={C.dim} style={{ marginTop: 30 }} />
-                : !mine.length ? <Text style={{ color: C.dim, fontSize: 14, textAlign: 'center', marginTop: 20 }}>{t('bk_mine_empty')}</Text>
-                : mine.map((b) => (
+                : !mine.filter((b) => !hidden.includes(b.id)).length ? <Text style={{ color: C.dim, fontSize: 14, textAlign: 'center', marginTop: 20 }}>{t('bk_mine_empty')}</Text>
+                : mine.filter((b) => !hidden.includes(b.id)).map((b) => (
                   <View key={b.id} style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 18, padding: 14, marginBottom: 10 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                       {b.offer.photo ? <Image source={{ uri: photoUrl(b.offer.photo) }} style={{ width: 52, height: 52, borderRadius: 12, marginEnd: 12, backgroundColor: C.glassHi }} /> : null}
@@ -474,11 +488,21 @@ export const TripsSheet = ({ onClose, country, openOn, focus, onNeedSignIn }) =>
                     {b.status === 'cancelled' ? (
                       <View style={{ marginTop: 8 }}>
                         <Text style={{ color: C.faint, fontSize: 12.5 }}>{t(b.cancelled_by === 'moments' ? 'bk_cancelled_by_moments' : b.cancelled_by === 'you' ? 'bk_cancelled_by_you' : 'bk_cancelled_note')}</Text>
-                        {b.cancelled_by !== 'moments' && (!b.offer.starts_at || new Date(b.offer.starts_at) > new Date()) ? (
-                          <Pressable onPress={() => restore(b)} accessibilityRole="button" style={{ marginTop: 8, alignSelf: 'flex-start' }}>
-                            <Text style={{ color: C.purple, fontSize: 14, fontWeight: '900' }}>{'↺ ' + t('bk_restore')}</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
+                          {b.cancelled_by !== 'moments' && (!b.offer.starts_at || new Date(b.offer.starts_at) > new Date()) ? (
+                            <Pressable onPress={() => restore(b)} accessibilityRole="button" style={{ marginEnd: 18 }}>
+                              <Text style={{ color: C.purple, fontSize: 14, fontWeight: '900' }}>{'↺ ' + t('bk_restore')}</Text>
+                            </Pressable>
+                          ) : null}
+                          <Pressable onPress={() => hide(b)} accessibilityRole="button" style={{ marginEnd: 16 }}>
+                            <Text style={{ color: sureHide === b.id ? '#E11D48' : C.dim, fontSize: 14, fontWeight: '800' }}>{sureHide === b.id ? t('bk_remove_sure') : t('bk_remove')}</Text>
                           </Pressable>
-                        ) : null}
+                          {sureHide === b.id ? (
+                            <Pressable onPress={() => { tapLight(); setSureHide(null); }} accessibilityRole="button">
+                              <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>{t('bk_keep')}</Text>
+                            </Pressable>
+                          ) : null}
+                        </View>
                       </View>
                     ) : null}
                     {bkMsg && bkMsg.id === b.id ? <Text style={{ color: '#E11D48', fontSize: 12.5, marginTop: 6 }}>{bkMsg.text}</Text> : null}

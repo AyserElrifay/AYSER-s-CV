@@ -31,6 +31,7 @@ export const listOffers = async (kind, country) => { const r = await call('list_
 export const bookOffer = (offerId, qty, mode, note) => act('book_offer', { p_offer: offerId, p_qty: qty, p_mode: mode, p_note: note || null });
 export const cancelBooking = (id) => act('cancel_booking', { p_id: id });
 export const restoreBooking = (id) => act('restore_booking', { p_id: id });
+export const hideBooking = (id) => act('hide_booking', { p_id: id });
 export const myBookings = async () => { const r = await call('my_bookings'); return Array.isArray(r) ? r : []; };
 export const myPlus = () => call('my_plus');
 export const bookingPhotoOk = (id, ok) => act('booking_set_photo_ok', { p_id: id, p_ok: !!ok });

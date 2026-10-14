@@ -15213,6 +15213,43 @@ grant execute on function public.restore_booking(uuid) to authenticated;
 notify pgrst, 'reload schema';
 
 -- ═══════════════════════════════════════════════════════════════════
+--  BOOKINGS · CLEARING ONE OFF YOUR LIST
+--  A finished booking (cancelled or refunded) can be taken off the
+--  member's own list. The row stays — the partner's and the Studio's
+--  records and the money ledger never lose a booking — it is only
+--  hidden from "My bookings".
+-- ═══════════════════════════════════════════════════════════════════
+alter table public.bookings add column if not exists hidden_at timestamptz;
+
+create or replace function public.my_bookings()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select coalesce(jsonb_agg(jsonb_build_object(
+           'id', b.id, 'code', b.code, 'qty', b.qty, 'total', b.total, 'currency', b.currency,
+           'status', b.status, 'cancelled_by', b.cancelled_by, 'pay_mode', b.pay_mode, 'plus', b.plus_applied, 'created_at', b.created_at,
+           'offer', jsonb_build_object('id', o.id, 'title', o.title, 'title_ar', o.title_ar, 'kind', o.kind,
+                                       'photo', o.photos[1], 'starts_at', o.starts_at, 'city', o.city,
+                                       'free_cancel_hours', o.free_cancel_hours))
+         order by b.created_at desc), '[]'::jsonb)
+    from public.bookings b join public.offers o on o.id = b.offer_id
+   where b.user_id = auth.uid() and b.hidden_at is null and (b.status <> 'pending' or b.created_at > now() - interval '30 minutes');
+$$;
+
+create or replace function public.hide_booking(p_id uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  if auth.uid() is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  update public.bookings set hidden_at = now()
+   where id = p_id and user_id = auth.uid() and status in ('cancelled','refunded') and hidden_at is null;
+  if not found then return jsonb_build_object('ok', false, 'reason', 'status'); end if;
+  return jsonb_build_object('ok', true);
+end;
+$$;
+revoke execute on function public.hide_booking(uuid) from public, anon;
+grant execute on function public.hide_booking(uuid) to authenticated;
+
+notify pgrst, 'reload schema';
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة
