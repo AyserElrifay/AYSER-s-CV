@@ -5,6 +5,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { C } from '../constants/theme';
 import { useLang } from '../context/LanguageContext';
 import { capsuleView, capsuleSend, capsuleOpenNow, capsuleMarkRead, myCapsules, memoryBook } from '../services/capsule';
+import { blindReveal } from '../services/green';
 import { useSheetBack } from '../hooks/useSheetBack';
 import { tapLight, tapMedium, tapSuccess, tapCelebrate } from '../utils/feedback';
 import { AV_NEUTRAL } from '../constants/mockData';
@@ -45,6 +46,13 @@ function printBook(b, t, lang) {
   setTimeout(() => { try { w.focus(); w.print(); } catch (e) {} }, 700);
 }
 
+/* a person on a blind meet is an emoji until both of you show yourselves */
+const Face = ({ p, size = 52, ring }) => (p.avatar ? <Image source={{ uri: p.avatar }} style={{ width: size, height: size, borderRadius: size / 2, borderWidth: 2.5, borderColor: ring ? C.purple : 'transparent' }} /> : (
+  <View style={{ width: size, height: size, borderRadius: size / 2, alignItems: 'center', justifyContent: 'center', backgroundColor: '#EDE9FE', borderWidth: 2.5, borderColor: ring ? C.purple : 'transparent' }}>
+    <Text style={{ fontSize: size * 0.5 }}>{p.emoji || '🙂'}</Text>
+  </View>
+));
+
 const when = (iso, lang) => { try { return new Date(iso).toLocaleString(lang === 'ar' ? 'ar-EG' : lang, { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }); } catch (e) { return ''; } };
 
 export const CapsuleSheet = ({ kind, id, title, onClose }) => {
@@ -72,6 +80,8 @@ export const CapsuleSheet = ({ kind, id, title, onClose }) => {
   const open = (n) => { tapCelebrate(); setOpened(n); if (!n.read) capsuleMarkRead(n.id); };
   const book = async () => { tapLight(); const b = await memoryBook(ev.kind, ev.id); if (b && b.ok) printBook(b, t, lang); };
   const openNow = async () => { tapMedium(); await capsuleOpenNow(ev.kind, ev.id); load(); };
+  const reveal = async (p) => { tapMedium(); const r = await blindReveal(ev.id, p.id, !p.i_revealed); if (r && r.mutual) tapCelebrate(); load(); };
+
 
   return (
     <Modal visible transparent={false} animationType="slide" onRequestClose={onClose}>
@@ -105,6 +115,15 @@ export const CapsuleSheet = ({ kind, id, title, onClose }) => {
               <Text style={{ color: C.faint, fontSize: 12, fontWeight: '800', letterSpacing: 1.2, marginTop: 12 }}>{t('tk_title').toUpperCase()}</Text>
               <Text style={{ color: C.text, fontSize: 26, fontWeight: '800', marginTop: 4 }}>{v.title}</Text>
               <Text style={{ color: C.dim, fontSize: 14, lineHeight: 20, marginTop: 6 }}>{t('tk_sub').replace('{when}', when(v.opens_at || v.ends_at, lang))}</Text>
+              {v.blind && v.me ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 14, borderRadius: 18, padding: 14, backgroundColor: '#F5F3FF', borderWidth: 1, borderColor: '#DDD6FE' }}>
+                  <Text style={{ fontSize: 30 }}>{v.me.emoji || '🎭'}</Text>
+                  <View style={{ flex: 1, marginStart: 12 }}>
+                    <Text style={{ color: '#4C1D95', fontSize: 15.5, fontWeight: '900' }}>{t('bm_you_are').replace('{name}', v.me.name || '')}</Text>
+                    <Text style={{ color: '#5B21B6', fontSize: 12.5, lineHeight: 17, marginTop: 2 }}>{t('bm_sub')}</Text>
+                  </View>
+                </View>
+              ) : null}
 
               {/* sealed for you */}
               {Number(v.waiting) ? (
@@ -122,7 +141,7 @@ export const CapsuleSheet = ({ kind, id, title, onClose }) => {
                   {v.open.map((n) => (
                     <Pressable key={n.id} onPress={() => open(n)} accessibilityRole="button" style={{ marginBottom: 8 }}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 16, padding: 14, backgroundColor: n.read ? C.glass : '#F3EEFF', borderWidth: 1, borderColor: n.read ? C.line : '#C4B5FD' }}>
-                        <Image source={{ uri: n.avatar || AV_NEUTRAL }} style={{ width: 34, height: 34, borderRadius: 17 }} />
+                        {n.avatar || !n.emoji ? <Image source={{ uri: n.avatar || AV_NEUTRAL }} style={{ width: 34, height: 34, borderRadius: 17 }} /> : <Face p={n} size={34} />}
                         <Text style={{ flex: 1, color: C.text, fontSize: 15, fontWeight: '800', marginStart: 10 }}>{t('tk_from').replace('{name}', n.from || '')}</Text>
                         <Text style={{ fontSize: 18 }}>{n.read ? '📖' : '✨'}</Text>
                       </View>
@@ -142,10 +161,17 @@ export const CapsuleSheet = ({ kind, id, title, onClose }) => {
               {!v.people.length ? <Text style={{ color: C.dim, fontSize: 14, marginTop: 6 }}>{t('tk_nobody')}</Text> : (
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ marginTop: 10 }}>
                   {v.people.map((p) => (
-                    <Pressable key={p.id} onPress={() => { tapLight(); setTo(p); setMsg(null); }} accessibilityRole="radio" accessibilityState={{ checked: to && to.id === p.id }} style={{ alignItems: 'center', width: 70, marginEnd: 8 }}>
-                      <Image source={{ uri: p.avatar || AV_NEUTRAL }} style={{ width: 52, height: 52, borderRadius: 26, borderWidth: 2.5, borderColor: to && to.id === p.id ? C.purple : 'transparent' }} />
-                      <Text numberOfLines={1} style={{ color: C.text, fontSize: 12, fontWeight: '700', marginTop: 4 }}>{p.name}</Text>
-                    </Pressable>
+                    <View key={p.id} style={{ alignItems: 'center', width: 84, marginEnd: 8 }}>
+                      <Pressable onPress={() => { tapLight(); setTo(p); setMsg(null); }} accessibilityRole="radio" accessibilityState={{ checked: to && to.id === p.id }} style={{ alignItems: 'center' }}>
+                        {p.avatar || !v.blind ? <Image source={{ uri: p.avatar || AV_NEUTRAL }} style={{ width: 52, height: 52, borderRadius: 26, borderWidth: 2.5, borderColor: to && to.id === p.id ? C.purple : 'transparent' }} /> : <Face p={p} ring={to && to.id === p.id} />}
+                        <Text numberOfLines={1} style={{ color: C.text, fontSize: 12, fontWeight: '700', marginTop: 4 }}>{p.name}</Text>
+                      </Pressable>
+                      {v.blind && !p.revealed ? (
+                        <Pressable onPress={() => reveal(p)} accessibilityRole="button" hitSlop={6} style={{ marginTop: 4 }}>
+                          <Text style={{ color: p.i_revealed ? C.green : C.purple, fontSize: 11, fontWeight: '800', textAlign: 'center' }}>{p.i_revealed ? '✓ ' + t('bm_shown') : t('bm_show')}</Text>
+                        </Pressable>
+                      ) : v.blind && p.revealed ? <Text style={{ color: C.green, fontSize: 11, fontWeight: '800', marginTop: 4 }}>{'🤝 ' + t('bm_both')}</Text> : null}
+                    </View>
                   ))}
                 </ScrollView>
               )}

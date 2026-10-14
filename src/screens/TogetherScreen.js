@@ -551,6 +551,11 @@ export const TogetherScreen = () => {
                               <Text style={{ color: '#92400E', fontSize: 12, fontWeight: '900' }}>{t('ag_label').replace('{range}', g.age_max != null ? (g.age_min || 13) + '–' + g.age_max : g.age_min + '+')}</Text>
                             </View>
                           ) : null}
+                          {g.blind ? (
+                            <View style={{ alignSelf: 'flex-start', marginTop: 6, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3, backgroundColor: '#EDE9FE' }}>
+                              <Text style={{ color: '#5B21B6', fontSize: 12, fontWeight: '900' }}>{'🎭 ' + t('bm_title')}</Text>
+                            </View>
+                          ) : null}
                           {g.audience && g.audience !== 'all' ? (
                             <View style={{ alignSelf: 'flex-start', marginTop: 6, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3, backgroundColor: g.audience === 'women' ? '#FCE7F3' : '#DBEAFE' }}>
                               <Text style={{ color: g.audience === 'women' ? '#9D174D' : '#1E40AF', fontSize: 12, fontWeight: '900' }}>{(g.audience === 'women' ? '🌸 ' : '👨 ') + t('au_' + g.audience)}</Text>
@@ -603,11 +608,11 @@ export const TogetherScreen = () => {
                             <Pressable onPress={() => { tapLight(); setSheet({ capsule: g }); }}
                               hitSlop={6} accessibilityRole="button" accessibilityLabel={t('tk_title')} style={{ marginEnd: 8 }}>
                               <View style={{ width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: C.line }}>
-                                <Text style={{ fontSize: 16 }}>✉️</Text>
+                                <Text style={{ fontSize: 16 }}>{g.blind ? '🎭' : '✉️'}</Text>
                               </View>
                             </Pressable>
                           ) : null}
-                          {(g.im_going || mine) && g.squad_id ? (
+                          {(g.im_going || mine) && g.squad_id && !g.blind ? (
                             /* the plan's own group chat — "I'm at the gate" */
                             <Pressable onPress={() => { tapLight(); openChat({ id: g.squad_id, name: titleFor(g.title, lang), emoji: lookOf(g.kind).emoji }); goToTab('CHATS'); }}
                               hitSlop={6} accessibilityRole="button" accessibilityLabel={t('tg_chat')} style={{ marginEnd: 8 }}>

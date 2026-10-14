@@ -197,6 +197,17 @@ export const StartForm = ({ form, setForm, kinds, places, busy, onSubmit, onClos
               })}
             </View>
 
+            {/* a blind meet: everybody is a made-up name and an emoji until two of them choose to show themselves */}
+            <Pressable onPress={() => { tapLight(); setForm((f) => ({ ...f, blind: !f.blind })); }} accessibilityRole="switch" accessibilityState={{ checked: !!form.blind }}
+              style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10, borderRadius: 14, padding: 12, borderWidth: 1.5, borderColor: form.blind ? C.text : C.line }}>
+              <Text style={{ fontSize: 20 }}>🎭</Text>
+              <View style={{ flex: 1, marginStart: 10 }}>
+                <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>{t('bm_title')}</Text>
+                <Text style={{ color: C.faint, fontSize: 12, marginTop: 1, lineHeight: 16 }}>{t('bm_form_sub')}</Text>
+              </View>
+              <Ionicons name={form.blind ? 'checkbox' : 'square-outline'} size={22} color={form.blind ? C.text : C.faint} />
+            </Pressable>
+
             {/* everything else, folded */}
             {more ? (
               <View style={{ marginTop: 6 }}>

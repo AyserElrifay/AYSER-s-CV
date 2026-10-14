@@ -15804,6 +15804,195 @@ grant execute on function public.my_memory_book(text, uuid) to authenticated;
 notify pgrst, 'reload schema';
 
 -- ═══════════════════════════════════════════════════════════════════
+--  BLIND MEET · MEET FIRST, FACES AND NAMES LATER
+--  Ayser: "blind meet — ناس من غير ما يشوفوا شكل بعض… أسامي مش أساميهم
+--  وشكلهم إيموجي… لحد ما يتقبّلوا، وفي آخر اليوم يكتبوا لبعض". A host
+--  marks a plan as a blind meet. It is still a plan at a real public
+--  place, with the host there. Inside it, everybody is a made-up name
+--  and an emoji; a real name and photo show to someone only when both
+--  of you chose to show yourselves. There is no group chat (it would
+--  show names); at the end, the sealed notes (TIME CAPSULE) are how
+--  people tell each other how it felt.
+-- ═══════════════════════════════════════════════════════════════════
+alter table public.green_gatherings add column if not exists blind boolean not null default false;
+
+create or replace function public.green_set_blind(p_id uuid, p_on boolean)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  update public.green_gatherings set blind = coalesce(p_on, false)
+   where id = p_id and host_id = auth.uid() and cancelled_at is null;
+  return jsonb_build_object('ok', found);
+end;
+$$;
+revoke execute on function public.green_set_blind(uuid, boolean) from public, anon;
+grant execute on function public.green_set_blind(uuid, boolean) to authenticated;
+
+create table if not exists public.blind_reveals (
+  gathering_id uuid not null references public.green_gatherings(id) on delete cascade,
+  user_id      uuid not null references public.profiles(id) on delete cascade,
+  target_id    uuid not null references public.profiles(id) on delete cascade,
+  created_at   timestamptz not null default now(),
+  primary key (gathering_id, user_id, target_id)
+);
+alter table public.blind_reveals enable row level security;
+drop policy if exists "blind reveals: the ones you made" on public.blind_reveals;
+create policy "blind reveals: the ones you made" on public.blind_reveals for select using (auth.uid() = user_id);
+
+create or replace function public.is_blind_event(p_kind text, p_id uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select p_kind = 'plan' and coalesce((select blind from public.green_gatherings where id = p_id), false);
+$$;
+revoke execute on function public.is_blind_event(text, uuid) from public, anon, authenticated;
+
+-- a made-up name and an emoji, the same for that person all through that plan
+create or replace function public.blind_alias(p_id uuid, p_user uuid)
+returns jsonb language sql immutable set search_path = public as $$
+  with h as (select ('x' || substr(md5(p_id::text || p_user::text), 1, 8))::bit(32)::int as n)
+  select jsonb_build_object(
+    'name', (array['Quiet','Brave','Sunny','Curious','Gentle','Bright','Calm','Lucky','Swift','Kind','Wild','Merry'])[1 + abs(n) % 12]
+            || ' ' || (array['Owl','Fox','Dolphin','Falcon','Panda','Otter','Lion','Heron','Gazelle','Koala','Tiger','Turtle'])[1 + abs(n / 12) % 12],
+    'emoji', (array['🦉','🦊','🐬','🦅','🐼','🦦','🦁','🪿','🦌','🐨','🐯','🐢'])[1 + abs(n / 12) % 12])
+    from h;
+$$;
+
+-- how `subject` appears to `viewer` on this event
+create or replace function public.blind_face(p_kind text, p_id uuid, p_viewer uuid, p_subject uuid)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select case
+    when not public.is_blind_event(p_kind, p_id)
+      or (p_viewer <> p_subject
+          and exists (select 1 from public.blind_reveals where gathering_id = p_id and user_id = p_viewer and target_id = p_subject)
+          and exists (select 1 from public.blind_reveals where gathering_id = p_id and user_id = p_subject and target_id = p_viewer))
+      then (select jsonb_build_object('name', name, 'avatar', avatar_url, 'emoji', null, 'revealed', public.is_blind_event(p_kind, p_id)) from public.profiles where id = p_subject)
+    else public.blind_alias(p_id, p_subject) || jsonb_build_object('avatar', null, 'revealed', false)
+  end;
+$$;
+revoke execute on function public.blind_face(text, uuid, uuid, uuid) from public, anon, authenticated;
+
+create or replace function public.blind_reveal(p_id uuid, p_target uuid, p_on boolean)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid();
+begin
+  if me is null or not public.is_blind_event('plan', p_id)
+     or not exists (select 1 from public.capsule_members('plan', p_id) m where m = me)
+     or not exists (select 1 from public.capsule_members('plan', p_id) m where m = p_target) then
+    return jsonb_build_object('ok', false, 'reason', 'not_on_it');
+  end if;
+  if coalesce(p_on, true) then
+    insert into public.blind_reveals (gathering_id, user_id, target_id) values (p_id, me, p_target) on conflict do nothing;
+  else
+    delete from public.blind_reveals where gathering_id = p_id and user_id = me and target_id = p_target;
+  end if;
+  return jsonb_build_object('ok', true, 'mutual', exists (select 1 from public.blind_reveals where gathering_id = p_id and user_id = p_target and target_id = me) and coalesce(p_on, true));
+end;
+$$;
+revoke execute on function public.blind_reveal(uuid, uuid, boolean) from public, anon;
+grant execute on function public.blind_reveal(uuid, uuid, boolean) to authenticated;
+
+create or replace function public.green_join_chat() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare g public.green_gatherings%rowtype; sq uuid;
+begin
+  if tg_op = 'INSERT' then
+    select * into g from public.green_gatherings where id = new.gathering_id for update;
+    if not found then return new; end if;
+    -- a blind meet has no group chat: names would show there (Blind meet below)
+    if coalesce(g.blind, false) then return new; end if;
+    sq := g.squad_id;
+    if sq is null then
+      insert into public.squads (name, emoji, created_by)
+      values (left(g.title, 80),
+              case g.kind when 'culture' then '🎭' when 'walk' then '🥾' when 'sport' then '⚽' when 'art' then '🎨'
+                          when 'circle' then '💬' when 'cleanup' then '🌿' when 'project' then '🔨' when 'run' then '🏃'
+                          when 'coffee' then '☕' when 'focus' then '📚' else '✨' end, g.host_id)
+      returning id into sq;
+      update public.green_gatherings set squad_id = sq where id = g.id;
+    end if;
+    if not exists (select 1 from public.squad_bans b where b.squad_id = sq and b.user_id = new.user_id) then
+      insert into public.squad_members (squad_id, user_id, role, accepted)
+      values (sq, new.user_id, case when new.user_id = g.host_id then 'owner' else 'member' end, true)
+      on conflict (squad_id, user_id) do update set accepted = true,
+        role = case when excluded.role = 'owner' then 'owner' else public.squad_members.role end;
+    end if;
+    return new;
+  else
+    select squad_id into sq from public.green_gatherings where id = old.gathering_id;
+    if sq is not null then
+      delete from public.squad_members where squad_id = sq and user_id = old.user_id and role <> 'owner';
+    end if;
+    return old;
+  end if;
+end $$;
+
+create or replace function public.green_list(p_country text)
+returns jsonb
+language sql stable security definer set search_path = public as $$
+  with my_mates as (
+    select case when m.requester_id = auth.uid() then m.addressee_id else m.requester_id end as mate_id
+      from public.mates m
+     where m.status = 'accepted' and auth.uid() is not null and auth.uid() in (m.requester_id, m.addressee_id)
+  )
+  select coalesce(jsonb_agg(row_to_json(x)::jsonb order by x.starts_at), '[]'::jsonb)
+    from (
+      select g.id, g.kind, g.title, g.about, g.country, g.city, g.place_name,
+             g.lat, g.lng, g.starts_at, g.minutes, g.capacity, g.language,
+             g.host_id, p.name as host_name, p.host_role as host_role, g.weekly_id, g.announced_at, g.squad_id,
+             g.photo_url, public.green_past_photos(g) as past_photos, coalesce(g.audience, 'all') as audience, coalesce(g.blind, false) as blind, g.age_min, g.age_max,
+             (select o.photo_url from public.green_gatherings o
+               where g.weekly_id is not null and o.weekly_id = g.weekly_id and o.photo_url is not null and o.cancelled_at is null
+               order by o.starts_at desc limit 1) as weekly_photo,
+             (select count(*) from public.green_joins j where j.gathering_id = g.id) as going,
+             (select count(*) from public.green_joins j join my_mates mm on mm.mate_id = j.user_id
+               where j.gathering_id = g.id) as mates_going,
+             exists (select 1 from public.green_joins j
+                      where j.gathering_id = g.id and j.user_id = auth.uid()) as im_going,
+             exists (select 1 from public.green_joins j
+                      where j.gathering_id = g.id and j.user_id = auth.uid() and j.checked_in_at is not null) as checked_in,
+             case when g.kind = 'cleanup' then 50 else 30 end as xp
+        from public.green_gatherings g
+        left join public.profiles p on p.id = g.host_id
+       where g.cancelled_at is null
+         and g.starts_at > now() - interval '3 hours'
+         and (p_country is null or g.country = p_country)
+       order by g.starts_at
+       limit 60
+    ) x;
+$$;
+
+create or replace function public.capsule_view(p_kind text, p_id uuid)
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare me uuid := auth.uid(); e jsonb; opens timestamptz;
+begin
+  if me is null or not exists (select 1 from public.capsule_members(p_kind, p_id) m where m = me) then
+    return jsonb_build_object('ok', false, 'reason', 'not_on_it');
+  end if;
+  e := public.capsule_event(p_kind, p_id);
+  if e is null then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
+  select coalesce(min(unlock_at), (e->>'ends_at')::timestamptz) into opens
+    from public.capsule_messages where event_kind = p_kind and event_id = p_id;
+  return jsonb_build_object('ok', true, 'title', e->>'title', 'ends_at', e->>'ends_at', 'opens_at', opens,
+    'host', (e->>'host_id')::uuid = me,
+    'blind', public.is_blind_event(p_kind, p_id),
+    'me', public.blind_face(p_kind, p_id, me, me),
+    'people', (select coalesce(jsonb_agg(public.blind_face(p_kind, p_id, me, p.id) || jsonb_build_object('id', p.id,
+                          'i_revealed', exists (select 1 from public.blind_reveals r where r.gathering_id = p_id and r.user_id = me and r.target_id = p.id))
+                        order by p.id), '[]'::jsonb)
+                 from public.profiles p where p.id in (select * from public.capsule_members(p_kind, p_id)) and p.id <> me),
+    'sent', (select coalesce(jsonb_agg(jsonb_build_object('id', c.id, 'to', public.blind_face(p_kind, p_id, me, c.recipient_id)->>'name', 'body', c.body, 'at', c.created_at) order by c.created_at), '[]'::jsonb)
+               from public.capsule_messages c
+              where c.event_kind = p_kind and c.event_id = p_id and c.sender_id = me),
+    'waiting', (select count(*) from public.capsule_messages c where c.event_kind = p_kind and c.event_id = p_id and c.recipient_id = me and c.unlock_at > now()),
+    'open', (select coalesce(jsonb_agg(jsonb_build_object('id', c.id, 'from', public.blind_face(p_kind, p_id, me, c.sender_id)->>'name',
+                                    'avatar', public.blind_face(p_kind, p_id, me, c.sender_id)->>'avatar', 'emoji', public.blind_face(p_kind, p_id, me, c.sender_id)->>'emoji',
+                                    'body', c.body, 'read', c.read_at is not null) order by c.created_at), '[]'::jsonb)
+               from public.capsule_messages c
+              where c.event_kind = p_kind and c.event_id = p_id and c.recipient_id = me and c.unlock_at <= now()));
+end;
+$$;
+
+notify pgrst, 'reload schema';
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة
