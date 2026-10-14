@@ -16627,6 +16627,101 @@ grant execute on function public.my_out_weeks() to authenticated;
 notify pgrst, 'reload schema';
 
 -- ═══════════════════════════════════════════════════════════════════
+--  REFLECTION TRIPS
+--
+--  Ayser: "رحلات بشروط معينة — reflection trips — ممكن فيها reflection
+--  with God … الهدف positive psychology". A trip can now be a reflection
+--  trip: it carries its conditions (shown before anybody books, and
+--  agreed to on the booking), and may offer time for reflection with
+--  God — optional, in your own faith, your own way, or simply quiet.
+--  Never required, never one faith over another.
+--
+--  It is built on positive psychology — gratitude, strengths, meaning,
+--  savouring, connection — and says plainly that it is not therapy.
+--
+--  Four are written here, as "coming soon": no dates, no price, nobody
+--  booked. They collect real "I want this" taps until the Studio gives
+--  one a host, a date and a price.
+--
+--  Safe to re-run.
+-- ═══════════════════════════════════════════════════════════════════
+
+alter table public.offers add column if not exists track text;
+alter table public.offers add column if not exists faith_time boolean not null default false;
+alter table public.offers add column if not exists conditions text[] not null default '{}';
+alter table public.offers add column if not exists conditions_ar text[] not null default '{}';
+do $$ begin
+  alter table public.offers add constraint offers_track_check check (track is null or track in ('reflection'));
+exception when duplicate_object then null; end $$;
+
+create or replace function public.offer_save(p jsonb)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare oid uuid := nullif(p ->> 'id', '')::uuid;
+        arr text[]; a2 text[];
+begin
+  if not public.owner_ok() then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
+  if coalesce(trim(p ->> 'title'), '') = '' or (p ->> 'price') is null then return jsonb_build_object('ok', false, 'reason', 'incomplete'); end if;
+  if oid is null then
+    insert into public.offers (kind, title, price, created_by) values (coalesce(p ->> 'kind', 'trip'), p ->> 'title', (p ->> 'price')::numeric, auth.uid())
+    returning id into oid;
+  end if;
+  update public.offers set
+    kind = coalesce(p ->> 'kind', kind),
+    venue_id = case when p ? 'venue_id' then nullif(p ->> 'venue_id', '')::uuid else venue_id end,
+    operator = case when p ? 'operator' then nullif(p ->> 'operator', '') else operator end,
+    title = p ->> 'title', title_ar = nullif(p ->> 'title_ar', ''),
+    summary = nullif(p ->> 'summary', ''), summary_ar = nullif(p ->> 'summary_ar', ''),
+    city = nullif(p ->> 'city', ''), country = nullif(upper(p ->> 'country'), ''),
+    lat = nullif(p ->> 'lat', '')::double precision, lng = nullif(p ->> 'lng', '')::double precision,
+    photos = coalesce((select array_agg(x) from jsonb_array_elements_text(p -> 'photos') x where trim(x) <> ''), '{}'),
+    itinerary = coalesce((select array_agg(x) from jsonb_array_elements_text(p -> 'itinerary') x where trim(x) <> ''), '{}'),
+    itinerary_ar = coalesce((select array_agg(x) from jsonb_array_elements_text(p -> 'itinerary_ar') x where trim(x) <> ''), '{}'),
+    includes = coalesce((select array_agg(x) from jsonb_array_elements_text(p -> 'includes') x where trim(x) <> ''), '{}'),
+    includes_ar = coalesce((select array_agg(x) from jsonb_array_elements_text(p -> 'includes_ar') x where trim(x) <> ''), '{}'),
+    excludes = coalesce((select array_agg(x) from jsonb_array_elements_text(p -> 'excludes') x where trim(x) <> ''), '{}'),
+    excludes_ar = coalesce((select array_agg(x) from jsonb_array_elements_text(p -> 'excludes_ar') x where trim(x) <> ''), '{}'),
+    good_to_know = coalesce((select array_agg(x) from jsonb_array_elements_text(p -> 'good_to_know') x where trim(x) <> ''), '{}'),
+    good_to_know_ar = coalesce((select array_agg(x) from jsonb_array_elements_text(p -> 'good_to_know_ar') x where trim(x) <> ''), '{}'),
+    price = (p ->> 'price')::numeric,
+    currency = coalesce(nullif(upper(p ->> 'currency'), ''), 'EGP'),
+    price_usd = nullif(p ->> 'price_usd', '')::numeric,
+    member_price = nullif(p ->> 'member_price', '')::numeric,
+    starts_at = nullif(p ->> 'starts_at', '')::timestamptz,
+    ends_at = nullif(p ->> 'ends_at', '')::timestamptz,
+    seats = nullif(p ->> 'seats', '')::int,
+    pay_modes = coalesce((select array_agg(x) from jsonb_array_elements_text(p -> 'pay_modes') x), '{reserve}'),
+    free_cancel_hours = nullif(p ->> 'free_cancel_hours', '')::int,
+    commission_pct = nullif(p ->> 'commission_pct', '')::numeric,
+    track = case when p ? 'track' then nullif(p ->> 'track', '') else track end,
+    faith_time = case when p ? 'faith_time' then coalesce((p ->> 'faith_time')::boolean, false) else faith_time end,
+    conditions = case when p ? 'conditions' then coalesce((select array_agg(x) from jsonb_array_elements_text(p -> 'conditions') x where trim(x) <> ''), '{}') else conditions end,
+    conditions_ar = case when p ? 'conditions_ar' then coalesce((select array_agg(x) from jsonb_array_elements_text(p -> 'conditions_ar') x where trim(x) <> ''), '{}') else conditions_ar end,
+    updated_at = now()
+  where id = oid;
+  return jsonb_build_object('ok', true, 'id', oid);
+exception when others then
+  return jsonb_build_object('ok', false, 'reason', 'invalid', 'detail', sqlerrm);
+end;
+$$;
+
+insert into public.offers (id, kind, status, track, faith_time, title, title_ar, city, country, summary, summary_ar,
+  itinerary, itinerary_ar, conditions, conditions_ar, includes, includes_ar, good_to_know, photos, price, currency, pay_modes)
+values
+('0ffe0000-0000-4000-8000-0000000000a1','trip','soon','reflection',true,'Siwa · three days of quiet','سيوة · تلات أيام هدوء','Siwa','EG','Salt lakes, the desert at night and a small group. Mornings in silence, evenings around a fire, and one question a day to take home.','بحيرات الملح، والصحرا بالليل، ومجموعة صغيرة. الصبح سكوت، وبالليل حوالين نار، وسؤال كل يوم تاخده معاك.',array['Day 1 · Arrive, the first circle: why I came','Day 2 · Sunrise in silence · gratitude page · salt lakes · stars','Day 3 · What I am taking home · the last circle'],array['اليوم ١ · الوصول، أول دايرة: أنا جيت ليه','اليوم ٢ · شروق في سكوت · صفحة امتنان · بحيرات الملح · النجوم','اليوم ٣ · هاخد إيه معايا · آخر دايرة'],array['Small group: twelve people at most','Phones go in a box during the sessions — and back to you after','Every day: a quiet morning hour, a gratitude page, an evening circle','Optional time for reflection with God — in your own faith, your own way, or simply quiet','Kindness first: no debates about anybody''s beliefs'],array['مجموعة صغيرة: ١٢ شخص بالكتير','الموبايلات في صندوق وقت الجلسات — وترجعلك بعدها','كل يوم: ساعة هادية الصبح، صفحة امتنان، ودايرة بالليل','وقت اختياري للتأمل مع ربنا — في دينك وبطريقتك، أو سكوت بس','اللطف الأول: مفيش جدال عن معتقدات حد'],array['A host trained in group facilitation','A small journal for the trip'],array['منظّم متدرّب على إدارة المجموعات','كراسة صغيرة للرحلة'],array['This is not therapy. If you are going through something heavy, please talk to a professional too.'],'{}',0,'EGP','{reserve}'),
+('0ffe0000-0000-4000-8000-0000000000a2','trip','soon','reflection',true,'St Catherine · a mountain and a question','سانت كاترين · جبل وسؤال','St Catherine','EG','A night climb to see the sun come up over Sinai, in a group that walks at the pace of the slowest. Time alone on the mountain, and time together after.','طلعة بالليل نشوف الشمس بتطلع على سينا، في مجموعة ماشية على سرعة أبطأ واحد. وقت لوحدك على الجبل، ووقت سوا بعده.',array['Evening · the first circle and an early night','2 am · the climb · sunrise in silence','Day · rest, a gratitude walk, the closing circle'],array['بالليل · أول دايرة ونوم بدري','٢ الفجر · الطلعة · الشروق في سكوت','بالنهار · راحة، مشية امتنان، ودايرة الختام'],array['Small group: twelve people at most','Phones go in a box during the sessions — and back to you after','Every day: a quiet morning hour, a gratitude page, an evening circle','Optional time for reflection with God — in your own faith, your own way, or simply quiet','Kindness first: no debates about anybody''s beliefs'],array['مجموعة صغيرة: ١٢ شخص بالكتير','الموبايلات في صندوق وقت الجلسات — وترجعلك بعدها','كل يوم: ساعة هادية الصبح، صفحة امتنان، ودايرة بالليل','وقت اختياري للتأمل مع ربنا — في دينك وبطريقتك، أو سكوت بس','اللطف الأول: مفيش جدال عن معتقدات حد'],array['A host trained in group facilitation','A small journal for the trip'],array['منظّم متدرّب على إدارة المجموعات','كراسة صغيرة للرحلة'],array['This is not therapy. If you are going through something heavy, please talk to a professional too.'],'{}',0,'EGP','{reserve}'),
+('0ffe0000-0000-4000-8000-0000000000a3','trip','soon','reflection',true,'Wadi El Rayan · one day, slower','وادي الريان · يوم واحد أبطأ','Fayoum','EG','A day trip from Cairo: the waterfalls, the dunes and a long lunch. Short exercises from positive psychology along the way — strengths, gratitude, savouring.','رحلة يوم من القاهرة: الشلالات والكثبان وغدا طويل. تمارين قصيرة من علم النفس الإيجابي على الطريق — نقط قوتك، والامتنان، وإنك تستمتع باللحظة.',array['Morning · leave Cairo, the first question on the road','Noon · the falls · a walk in silence · lunch together','Afternoon · the dunes · three good things · back by night'],array['الصبح · نطلع من القاهرة، أول سؤال في الطريق','الضهر · الشلالات · مشية في سكوت · غدا سوا','العصر · الكثبان · تلات حاجات حلوة · نرجع بالليل'],array['Small group: twelve people at most','Phones go in a box during the sessions — and back to you after','Every day: a quiet morning hour, a gratitude page, an evening circle','Optional time for reflection with God — in your own faith, your own way, or simply quiet','Kindness first: no debates about anybody''s beliefs'],array['مجموعة صغيرة: ١٢ شخص بالكتير','الموبايلات في صندوق وقت الجلسات — وترجعلك بعدها','كل يوم: ساعة هادية الصبح، صفحة امتنان، ودايرة بالليل','وقت اختياري للتأمل مع ربنا — في دينك وبطريقتك، أو سكوت بس','اللطف الأول: مفيش جدال عن معتقدات حد'],array['A host trained in group facilitation','A small journal for the trip'],array['منظّم متدرّب على إدارة المجموعات','كراسة صغيرة للرحلة'],array['This is not therapy. If you are going through something heavy, please talk to a professional too.'],'{}',0,'EGP','{reserve}'),
+('0ffe0000-0000-4000-8000-0000000000a4','trip','soon','reflection',true,'The Carpathians · a weekend to slow down','الكاربات · ويكند تهدى فيه','Brașov','RO','Mountain trails, a wooden guesthouse, and a small group from different countries. Walk, write, talk — and leave lighter.','مسارات في الجبل، وبيت ضيافة خشب، ومجموعة صغيرة من بلاد مختلفة. امشي، واكتب، واتكلم — وارجع أخف.',array['Friday · arrive, the first circle','Saturday · a trail in silence · strengths conversation · the evening circle','Sunday · a gratitude walk · what I am taking home'],array['الجمعة · الوصول، أول دايرة','السبت · مسار في سكوت · كلام عن نقط القوة · دايرة بالليل','الحد · مشية امتنان · هاخد إيه معايا'],array['Small group: twelve people at most','Phones go in a box during the sessions — and back to you after','Every day: a quiet morning hour, a gratitude page, an evening circle','Optional time for reflection with God — in your own faith, your own way, or simply quiet','Kindness first: no debates about anybody''s beliefs'],array['مجموعة صغيرة: ١٢ شخص بالكتير','الموبايلات في صندوق وقت الجلسات — وترجعلك بعدها','كل يوم: ساعة هادية الصبح، صفحة امتنان، ودايرة بالليل','وقت اختياري للتأمل مع ربنا — في دينك وبطريقتك، أو سكوت بس','اللطف الأول: مفيش جدال عن معتقدات حد'],array['A host trained in group facilitation','A small journal for the trip'],array['منظّم متدرّب على إدارة المجموعات','كراسة صغيرة للرحلة'],array['This is not therapy. If you are going through something heavy, please talk to a professional too.'],'{}',0,'EUR','{reserve}')
+on conflict (id) do nothing;
+-- their pictures: the places themselves, from public/media
+update public.offers set photos = '{media/offer-siwa.jpg,media/place-shali.jpg}' where id = '0ffe0000-0000-4000-8000-0000000000a1' and photos = '{}';
+update public.offers set photos = '{media/welcome-catherine.jpg,media/place-sinai.jpg}' where id = '0ffe0000-0000-4000-8000-0000000000a2' and photos = '{}';
+update public.offers set photos = '{media/desert-trip.jpg}' where id = '0ffe0000-0000-4000-8000-0000000000a3' and photos = '{}';
+update public.offers set photos = '{media/place-ro-peles.jpg}' where id = '0ffe0000-0000-4000-8000-0000000000a4' and photos = '{}';
+update public.offers set good_to_know_ar = array['دي مش جلسات علاج نفسي. لو بتمر بحاجة تقيلة، كلّم متخصص كمان.'] where id::text like '0ffe0000-0000-4000-8000-0000000000a%';
+
+notify pgrst, 'reload schema';
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة

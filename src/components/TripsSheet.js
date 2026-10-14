@@ -41,7 +41,9 @@ const Soon = ({ t }) => (
        allows), and a total that is a preview: the database prices it.
    And "My bookings", with each booking's code and honest status. */
 
-const KINDS = [null, 'trip', 'deal', 'stay', 'experience'];
+const KINDS = [null, 'reflection', 'trip', 'deal', 'stay', 'experience'];
+/* 'reflection' is a kind of trip, not a kind of offer: it is the track */
+const isKind = (o, k) => (k === 'reflection' ? o.track === 'reflection' : o.kind === k);
 
 /* where a trip is — Egypt or Europe, side by side and in the order the
    database gives them, so neither side is the "main" one */
@@ -152,8 +154,12 @@ const Offer = ({ o, t, lang, onBack, onBooked, user, onNeedSignIn }) => {
   };
 
   const [photoOk, setPhotoOk] = useState(false);
+  /* a reflection trip is booked on its conditions, read and agreed */
+  const needsAgree = o.track === 'reflection' && (o.conditions || []).length > 0;
+  const [agreed, setAgreed] = useState(false);
   const book = async () => {
     if (busy || !mode || full) return;
+    if (needsAgree && !agreed) { setErr(t('rt_agree_first')); return; }
     if (!user) { setErr(t('bk_err_signed_out')); return; }
     tapMedium(); setBusy(true); setErr(null);
     const r = await bookOffer(o.id, qty, mode, note);
@@ -237,6 +243,14 @@ const Offer = ({ o, t, lang, onBack, onBooked, user, onNeedSignIn }) => {
             <Text style={{ color: full ? '#E11D48' : C.dim, fontSize: 13, fontWeight: '800', marginTop: 6 }}>{full ? t('bk_full') : t('bk_seats_left').replace('{n}', String(o.seats_left))}</Text>
           ) : null}
           {pick(o, 'summary', lang) ? <Text style={{ color: C.text, fontSize: 15, lineHeight: 22, marginTop: 14 }}>{pick(o, 'summary', lang)}</Text> : null}
+          {o.track === 'reflection' ? (
+            <View style={{ marginTop: 16, borderRadius: 18, padding: 14, backgroundColor: 'rgba(124,58,237,0.07)', borderWidth: 1, borderColor: 'rgba(124,58,237,0.25)' }}>
+              <Text style={{ color: C.purple, fontSize: 13, fontWeight: '900', letterSpacing: 0.6 }}>{'🌙 ' + t('rt_badge').toUpperCase()}</Text>
+              <Text style={{ color: C.text, fontSize: 14, lineHeight: 20, marginTop: 6 }}>{t('rt_goal')}</Text>
+              {o.faith_time ? <Text style={{ color: C.text, fontSize: 14, lineHeight: 20, marginTop: 8 }}>{'🕊️ ' + t('rt_faith')}</Text> : null}
+            </View>
+          ) : null}
+          <List title={t('rt_conditions')} items={pick(o, 'conditions', lang)} icon="shield-checkmark" color={C.purple} />
           <List title={t('bk_program')} items={pick(o, 'itinerary', lang)} icon="ellipse" color={C.purple} />
           <List title={t('bk_includes')} items={pick(o, 'includes', lang)} icon="checkmark-circle" color={C.green} />
           <List title={t('bk_excludes')} items={pick(o, 'excludes', lang)} icon="close-circle" color="#E11D48" />
@@ -257,6 +271,13 @@ const Offer = ({ o, t, lang, onBack, onBooked, user, onNeedSignIn }) => {
           ) : null}
           {o.status === 'soon' ? null : <TextInput value={note} onChangeText={setNote} maxLength={300} placeholder={t('bk_note_ph')} placeholderTextColor={C.faint}
             style={{ marginTop: 14, borderWidth: 1, borderColor: C.line, borderRadius: 14, padding: 12, color: C.text, fontSize: 14 }} />}
+          {needsAgree && o.status !== 'soon' ? (
+            <Pressable onPress={() => { tapSelection(); setAgreed((v) => !v); setErr(null); }} accessibilityRole="checkbox" accessibilityState={{ checked: agreed }}
+              style={{ flexDirection: 'row', alignItems: 'center', marginTop: 14 }}>
+              <Ionicons name={agreed ? 'checkbox' : 'square-outline'} size={20} color={agreed ? C.purple : C.dim} />
+              <Text style={{ flex: 1, color: C.text, fontSize: 14, fontWeight: '700', lineHeight: 19, marginStart: 8 }}>{t('rt_agree')}</Text>
+            </Pressable>
+          ) : null}
           {/* small, at the bottom, and off unless they say yes */}
           {o.status === 'soon' ? null : (
             <Pressable onPress={() => { tapSelection(); setPhotoOk((v) => !v); }} accessibilityRole="checkbox" accessibilityState={{ checked: photoOk }}
@@ -345,9 +366,9 @@ export const TripsSheet = ({ onClose, country, openOn, focus, onNeedSignIn }) =>
   }, [country, user]);
   useEffect(() => { load(); }, [load]);
 
-  const shown = useMemo(() => (offers || []).filter((o) => (!kind || o.kind === kind) && (!region || regionOf(o) === region)), [offers, kind, region]);
+  const shown = useMemo(() => (offers || []).filter((o) => (!kind || isKind(o, kind)) && (!region || regionOf(o) === region)), [offers, kind, region]);
   const regionsHere = useMemo(() => ['eg', 'eu'].filter((r) => (offers || []).some((o) => regionOf(o) === r)), [offers]);
-  const kindsHere = useMemo(() => KINDS.filter((k) => !k || (offers || []).some((o) => o.kind === k)), [offers]);
+  const kindsHere = useMemo(() => KINDS.filter((k) => !k || (offers || []).some((o) => isKind(o, k))), [offers]);
 
   // cancelling asks once more — a single stray tap must not undo a trip
   const [sure, setSure] = useState(null);
@@ -455,7 +476,7 @@ export const TripsSheet = ({ onClose, country, openOn, focus, onNeedSignIn }) =>
                           {o.video ? <View style={{ position: 'absolute', top: 10, right: 10, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 999, paddingHorizontal: 9, paddingVertical: 4 }}><Text style={{ color: '#FFF', fontSize: 12, fontWeight: '800' }}>▶ video</Text></View> : null}
                           <View style={{ padding: 14 }}>
                             <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '800', letterSpacing: 1 }}>
-                              {flagOf(o.country) + (t('bk_kind_' + o.kind) + (o.city ? ' · ' + o.city : '') + (o.starts_at ? ' · ' + when(o.starts_at, lang) : '')).toUpperCase()}
+                              {flagOf(o.country) + ((o.track === 'reflection' ? '🌙 ' + t('rt_badge') : t('bk_kind_' + o.kind)) + (o.city ? ' · ' + o.city : '') + (o.starts_at ? ' · ' + when(o.starts_at, lang) : '')).toUpperCase()}
                             </Text>
                             <Text style={{ color: C.text, fontSize: 18, fontWeight: '900', marginTop: 3 }} numberOfLines={2}>{pick(o, 'title', lang)}</Text>
                             <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginTop: 8 }}>

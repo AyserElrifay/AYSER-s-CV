@@ -147,6 +147,8 @@ const toForm = (o) => ({
   seats: o.seats == null ? '' : String(o.seats), pay_modes: o.pay_modes || ['reserve'],
   free_cancel_hours: o.free_cancel_hours == null ? '' : String(o.free_cancel_hours),
   commission_pct: o.commission_pct == null ? '' : String(o.commission_pct),
+  track: o.track || '', faith_time: !!o.faith_time,
+  conditions: joinL(o.conditions), conditions_ar: joinL(o.conditions_ar),
 });
 const fromForm = (f) => {
   const time = (s) => { const v = String(s || '').trim(); if (!v) return ''; const d = new Date(v.replace(' ', 'T')); return isNaN(d) ? '' : d.toISOString(); };
@@ -155,6 +157,7 @@ const fromForm = (f) => {
     photos: lines(f.photos), itinerary: lines(f.itinerary), itinerary_ar: lines(f.itinerary_ar),
     includes: lines(f.includes), includes_ar: lines(f.includes_ar), excludes: lines(f.excludes), excludes_ar: lines(f.excludes_ar),
     good_to_know: lines(f.good_to_know), good_to_know_ar: lines(f.good_to_know_ar),
+    conditions: lines(f.conditions), conditions_ar: lines(f.conditions_ar),
     starts_at: time(f.starts_at), ends_at: time(f.ends_at),
   };
 };
@@ -296,6 +299,13 @@ export const OffersTab = ({ userId }) => {
           <View style={{ flex: 1, marginEnd: 8 }}><Field label="Free cancel (hours before)" value={form.free_cancel_hours} onChange={set('free_cancel_hours')} num /></View>
           <View style={{ flex: 1 }}><Field label="Commission %" value={form.commission_pct} onChange={set('commission_pct')} num ph="15" /></View>
         </View>
+        <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '800', letterSpacing: 0.8, marginTop: 12 }}>REFLECTION TRIP</Text>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+          <Btn label={(form.track === 'reflection' ? '✓ ' : '') + '🌙 Reflection trip'} solid={form.track === 'reflection'} onPress={() => set('track')(form.track === 'reflection' ? '' : 'reflection')} />
+          <Btn label={(form.faith_time ? '✓ ' : '') + '🕊️ Optional time with God'} solid={form.faith_time} onPress={() => set('faith_time')(!form.faith_time)} />
+        </View>
+        <Field label="Conditions people agree to before booking (English, one per line)" value={form.conditions} onChange={set('conditions')} multi />
+        <Field label="Conditions (Arabic)" value={form.conditions_ar} onChange={set('conditions_ar')} multi />
         <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '800', letterSpacing: 0.8, marginTop: 12 }}>HOW PEOPLE PAY</Text>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
           {MODES.map((m) => {
