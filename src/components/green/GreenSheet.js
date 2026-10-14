@@ -12,7 +12,7 @@ import {
   listGatherings, keptGatherings, listSparks, createGathering, setAudience, setAges, setBlind, joinGathering, cancelGathering, sparkText, announceGathering,
   setGatheringPhoto, removeGatheringPhoto,
 } from '../../services/green';
-import { PlanThumb, PastPhotos, planPhotoOf } from './PlanPhoto';
+import { PastPhotos } from './PlanPhoto';
 import { ReportSheet } from '../ReportSheet';
 import { uploadPlanPhoto } from '../../lib/storage';
 import { tapLight, tapMedium, tapSuccess } from '../../utils/feedback';
@@ -21,8 +21,9 @@ import { kept, keep } from '../../lib/kept';
 import { useSheetBack } from '../../hooks/useSheetBack';
 import { GreenMark } from './GreenMark';
 import { StartForm } from './StartForm';
-import { lookOf, titleFor } from '../../lib/activityPins';
+import { titleFor } from '../../lib/activityPins';
 import { isGreen, GREEN_KINDS } from '../../lib/greenKinds';
+import { GreenHero, PlanCard, IdeaCard } from './GreenCards';
 
 /* ─── أخضر · GREEN MINDS ──────────────────────────────────────────────
    A corner of Moments for the things that are better done outside and
@@ -304,21 +305,23 @@ export const GreenSheet = ({ onClose, onPlay, startNow, homeCountry, openOn, pre
     ) : null;
   }
 
+  /* the ideas for where you are first, and the ones for anywhere */
+  const here = /^[A-Z]{2}$/.test(String(homeCountry || '')) ? homeCountry : null;
+  const local = here ? sparks.filter((s) => s.country === here || !s.country) : sparks;
+  const shownSparks = (local.length >= 3 ? local : sparks).slice(0, 10);
+
   return (
     <Modal visible transparent={false} animationType="slide" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: C.bg }}>
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}>
 
-          {/* a plain header: what this is, in one line — the week below is the point */}
-          <View style={{ paddingTop: insets.top + 8, paddingHorizontal: 18 }}>
-            <Pressable onPress={() => { tapLight(); onClose && onClose(); }} hitSlop={12} accessibilityRole="button" accessibilityLabel={t('close')} style={{ alignSelf: 'flex-start' }}>
-              <Ionicons name="chevron-down" size={26} color={C.text} />
+          {/* a picture, the name, and one line that makes you want to come */}
+          <View>
+            <GreenHero title={t('green_title')} line={t('gm_hero')} top={insets.top} />
+            <Pressable onPress={() => { tapLight(); onClose && onClose(); }} hitSlop={12} accessibilityRole="button" accessibilityLabel={t('close')}
+              style={{ position: 'absolute', top: insets.top + 8, left: 14, width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="chevron-down" size={24} color="#FFF" />
             </Pressable>
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10 }}>
-              <GreenMark size={26} />
-              <Text style={{ color: C.text, fontSize: 26, fontWeight: '900', letterSpacing: -0.4, marginStart: 8 }}>{t('green_title')}</Text>
-            </View>
-            <Text style={{ color: C.dim, fontSize: 14, marginTop: 4 }}>{t('green_tagline')}</Text>
           </View>
 
           <View style={{ padding: 16 }}>
@@ -331,10 +334,12 @@ export const GreenSheet = ({ onClose, onPlay, startNow, homeCountry, openOn, pre
                 thing is the week: day by day, each with a Join button,
                 and everything else is one tap away underneath. */}
 
+            <Text style={{ color: C.text, fontSize: 20, fontWeight: '900', marginBottom: 10 }}>{t('gm_week')}</Text>
             {rows === null ? (
               <ActivityIndicator color={GREEN} style={{ marginVertical: 24 }} />
             ) : rows.length === 0 ? (
               <View style={{ borderWidth: 1, borderColor: C.line, borderStyle: 'dashed', borderRadius: 18, padding: 20, marginBottom: 18, alignItems: 'center' }}>
+                <Text style={{ fontSize: 30, marginBottom: 6 }}>🌱</Text>
                 <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '800', textAlign: 'center' }}>
                   {why === 'offline' ? t('lamma_conn_hint') : t('green_week_empty')}
                 </Text>
@@ -357,50 +362,17 @@ export const GreenSheet = ({ onClose, onPlay, startNow, homeCountry, openOn, pre
                       {d.long.toUpperCase()}
                     </Text>
                     {d.items.map((g) => {
-                      const look = lookOf(g.kind);
                       const mine = user && g.host_id === user.id;
                       return (
-                        <View key={g.id} style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 18, padding: 12, marginBottom: 10 }}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                            <Pressable onPress={() => setOpen(open === g.id ? null : g.id)} accessibilityRole="button" style={{ flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center' }}>
-                              {planPhotoOf(g) ? <PlanThumb g={g} size={42} radius={21} /> : (
-                                <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: look.from + '22', alignItems: 'center', justifyContent: 'center' }}>
-                                  <Text style={{ fontSize: 20 }}>{look.emoji}</Text>
-                                </View>
-                              )}
-                              <View style={{ flex: 1, minWidth: 0, marginStart: 12 }}>
-                                <Text numberOfLines={1} style={{ color: C.text, fontSize: 15, fontWeight: '800' }}>{titleFor(g.title, lang)}</Text>
-                                <Text numberOfLines={1} style={{ color: C.dim, fontSize: 12.5, marginTop: 2 }}>
-                                  {[hour(g.starts_at, lang), g.place_name || g.city].filter(Boolean).join(' · ')}
-                                </Text>
-                                <Text numberOfLines={1} style={{ color: C.faint, fontSize: 12, marginTop: 1 }}>
-                                  {[g.going + ' ' + t('green_going'), g.weekly_id ? t('green_every_week') : null, mine ? t('green_hosting') : null].filter(Boolean).join(' · ')}
-                                </Text>
-                              </View>
-                            </Pressable>
-                            {mine ? (
-                              <Pressable onPress={() => { tapLight(); setManage(g); setConfirmOff(false); }} hitSlop={10} accessibilityRole="button" accessibilityLabel={t('green_manage')}
-                                style={{ width: 38, height: 38, borderRadius: 19, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center', marginStart: 10 }}>
-                                <Ionicons name="ellipsis-horizontal" size={18} color={C.text} />
-                              </Pressable>
-                            ) : (
-                              <Pressable onPress={() => going(g, !g.im_going)} accessibilityRole="button" style={{ marginStart: 10 }}>
-                                <View style={{ backgroundColor: g.im_going ? 'transparent' : GREEN, borderWidth: g.im_going ? 1 : 0, borderColor: C.line, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 8 }}>
-                                  <Text style={{ color: g.im_going ? C.text : '#FFF', fontSize: 13, fontWeight: '800' }}>
-                                    {g.im_going ? '✓ ' + t('green_joined') : t('green_join')}
-                                  </Text>
-                                </View>
-                              </Pressable>
-                            )}
-                          </View>
-                          {open === g.id && g.about ? (
-                            <Text style={{ color: C.dim, fontSize: 13, lineHeight: 19, marginTop: 10 }}>{g.about}</Text>
-                          ) : null}
+                        <PlanCard key={g.id} g={g} lang={lang} t={t} mine={mine} open={open === g.id}
+                          onOpen={() => setOpen(open === g.id ? null : g.id)}
+                          onJoin={() => going(g, !g.im_going)}
+                          onManage={() => { tapLight(); setManage(g); setConfirmOff(false); }}>
                           {open === g.id ? <PastPhotos g={g} t={t} onReport={(u) => setReportingPhoto({ id: g.id + ' ' + u, label: titleFor(g.title, lang) })} /> : null}
                           {sent && sent.id === g.id ? (
                             <Text style={{ color: GREEN, fontSize: 12, fontWeight: '800', marginTop: 8 }}>{t('green_sent_to')} {sent.n}</Text>
                           ) : null}
-                        </View>
+                        </PlanCard>
                       );
                     })}
                   </View>
@@ -408,22 +380,30 @@ export const GreenSheet = ({ onClose, onPlay, startNow, homeCountry, openOn, pre
               </>
             )}
 
-            {/* ── AND THE REST, ONE TAP AWAY ──────────────────────── */}
-            <View style={{ flexDirection: 'row', marginTop: 8, marginBottom: 14 }}>
-              {[
-                { key: 'start', icon: 'plus', label: t('green_start_short'), on: () => startFrom(null) },
-                { key: 'ideas', icon: 'lightbulb-on-outline', label: t('green_ideas_btn'), on: () => setMore(more === 'ideas' ? null : 'ideas') },
-                { key: 'how', icon: 'hand-heart-outline', label: t('green_how'), on: () => setMore(more === 'how' ? null : 'how') },
-              ].map((b, i) => (
-                <Pressable key={b.key} onPress={() => { tapLight(); b.on(); }} style={{ flex: 1, marginStart: i ? 8 : 0 }}>
-                  <View style={{ alignItems: 'center', paddingVertical: 12, borderRadius: 16, borderWidth: 1,
-                    borderColor: more === b.key ? GREEN : C.line, backgroundColor: more === b.key ? GREEN_SOFT : C.glass }}>
-                    <MaterialCommunityIcons name={b.icon} size={20} color={GREEN} />
-                    <Text style={{ color: C.text, fontSize: 12, fontWeight: '900', marginTop: 4 }} numberOfLines={1}>{b.label}</Text>
-                  </View>
-                </Pressable>
-              ))}
-            </View>
+            {/* ── START ONE, OR PICK AN IDEA ───────────────────────── */}
+            <Pressable onPress={() => { tapMedium(); startFrom(null); }} accessibilityRole="button" style={{ marginTop: 6 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: GREEN, borderRadius: 999, paddingVertical: 15 }}>
+                <Ionicons name="add" size={20} color="#FFF" />
+                <Text style={{ color: '#FFF', fontSize: 15.5, fontWeight: '900', marginStart: 6 }}>{t('green_start_own')}</Text>
+              </View>
+            </Pressable>
+
+            {shownSparks.length ? (
+              <View style={{ marginTop: 24 }}>
+                <Text style={{ color: C.text, fontSize: 20, fontWeight: '900' }}>{t('green_ideas')}</Text>
+                <Text style={{ color: C.dim, fontSize: 13.5, marginTop: 2, marginBottom: 12 }}>{t('green_ideas_sub')}</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ marginHorizontal: -16 }} contentContainerStyle={{ paddingHorizontal: 16 }}>
+                  {shownSparks.map((s) => (
+                    <IdeaCard key={s.id} s={s} t={t} title={sparkText(s, lang, 'title')} about={sparkText(s, lang, 'about')} onStart={() => { tapLight(); startFrom(s); }} />
+                  ))}
+                </ScrollView>
+              </View>
+            ) : null}
+
+            <Pressable onPress={() => { tapLight(); setMore(more === 'how' ? null : 'how'); }} accessibilityRole="button" style={{ marginTop: 22, marginBottom: 10, flexDirection: 'row', alignItems: 'center' }}>
+              <MaterialCommunityIcons name="hand-heart-outline" size={18} color={GREEN} />
+              <Text style={{ color: GREEN, fontSize: 14, fontWeight: '900', marginStart: 7 }}>{t('green_how') + (more === 'how' ? ' ▾' : ' ›')}</Text>
+            </Pressable>
 
             {more === 'how' ? (
               <View style={{ backgroundColor: GREEN_SOFT, borderWidth: 1, borderColor: 'rgba(31,122,90,0.35)', borderRadius: 18, padding: 15, marginBottom: 14 }}>
@@ -441,20 +421,6 @@ export const GreenSheet = ({ onClose, onPlay, startNow, homeCountry, openOn, pre
               </View>
             ) : null}
 
-            {more === 'ideas' ? sparks.map((s) => {
-              const k = kindOf(s.kind);
-              return (
-                <Pressable key={s.id} onPress={() => startFrom(s)}>
-                  <View style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 16, padding: 13, marginBottom: 8, flexDirection: 'row', alignItems: 'center' }}>
-                    <MaterialCommunityIcons name={k.icon} size={17} color={GREEN} />
-                    <Text style={{ color: C.text, fontSize: 14, fontWeight: '800', marginStart: 9, flex: 1, minWidth: 0 }} numberOfLines={1}>
-                      {sparkText(s, lang, 'title')}
-                    </Text>
-                    <Text style={{ color: GREEN, fontSize: 12, fontWeight: '900' }}>{t('green_start_one')}</Text>
-                  </View>
-                </Pressable>
-              );
-            }) : null}
           </View>
         </ScrollView>
 
