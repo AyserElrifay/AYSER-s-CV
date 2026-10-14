@@ -5,7 +5,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { C } from '../constants/theme';
 import { useLang } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
-import { listOffers, bookOffer, bookingPhotoOk, cancelBooking, myBookings, myPlus, offerWant, photoUrl, money } from '../services/offers';
+import { listOffers, bookOffer, bookingPhotoOk, cancelBooking, restoreBooking, myBookings, myPlus, offerWant, photoUrl, money } from '../services/offers';
 import { appLink, shareLink, shareNote } from '../utils/share';
 import { payBooking } from '../services/payments';
 import { remember, recall } from '../lib/offline';
@@ -347,10 +347,24 @@ export const TripsSheet = ({ onClose, country, openOn, focus, onNeedSignIn }) =>
   const regionsHere = useMemo(() => ['eg', 'eu'].filter((r) => (offers || []).some((o) => regionOf(o) === r)), [offers]);
   const kindsHere = useMemo(() => KINDS.filter((k) => !k || (offers || []).some((o) => o.kind === k)), [offers]);
 
+  // cancelling asks once more — a single stray tap must not undo a trip
+  const [sure, setSure] = useState(null);
+  const [bkMsg, setBkMsg] = useState(null);
   const cancel = async (b) => {
-    tapLight();
+    if (sure !== b.id) { tapLight(); setSure(b.id); setBkMsg(null); return; }
+    setSure(null);
     const r = await cancelBooking(b.id);
     if (r && r.ok) { tapSuccess(); myBookings().then(setMine); }
+  };
+  const restore = async (b) => {
+    tapLight(); setBkMsg(null);
+    const r = await restoreBooking(b.id);
+    if (r && r.ok) { tapSuccess(); myBookings().then(setMine); return; }
+    const why = r && r.reason;
+    if (why === 'full' || why === 'started' || why === 'gone' || why === 'already' || why === 'by_moments') { setBkMsg({ id: b.id, text: t('bk_restore_' + why) }); return; }
+    // not possible from here — open the trip so it can be booked again
+    const o = (offers || []).find((x) => x.id === b.offer.id);
+    if (o) setOpen(o); else setBkMsg({ id: b.id, text: t('bk_restore_gone') });
   };
   const payAgain = async (b) => { tapLight(); await payBooking(b.id); };
 
@@ -457,6 +471,17 @@ export const TripsSheet = ({ onClose, country, openOn, focus, onNeedSignIn }) =>
                       <View style={{ flex: 1 }} />
                       <Text style={{ color: b.status === 'paid' || b.status === 'attended' ? C.green : b.status === 'cancelled' ? C.faint : C.text, fontSize: 12.5, fontWeight: '800' }}>{t('bk_status_' + b.status)}</Text>
                     </View>
+                    {b.status === 'cancelled' ? (
+                      <View style={{ marginTop: 8 }}>
+                        <Text style={{ color: C.faint, fontSize: 12.5 }}>{t(b.cancelled_by === 'moments' ? 'bk_cancelled_by_moments' : b.cancelled_by === 'you' ? 'bk_cancelled_by_you' : 'bk_cancelled_note')}</Text>
+                        {b.cancelled_by !== 'moments' && (!b.offer.starts_at || new Date(b.offer.starts_at) > new Date()) ? (
+                          <Pressable onPress={() => restore(b)} accessibilityRole="button" style={{ marginTop: 8, alignSelf: 'flex-start' }}>
+                            <Text style={{ color: C.purple, fontSize: 14, fontWeight: '900' }}>{'↺ ' + t('bk_restore')}</Text>
+                          </Pressable>
+                        ) : null}
+                      </View>
+                    ) : null}
+                    {bkMsg && bkMsg.id === b.id ? <Text style={{ color: '#E11D48', fontSize: 12.5, marginTop: 6 }}>{bkMsg.text}</Text> : null}
                     {b.status === 'pending' || b.status === 'reserved' || b.status === 'paid' ? (
                       <View style={{ flexDirection: 'row', marginTop: 10 }}>
                         {b.status === 'pending' ? (
@@ -464,9 +489,20 @@ export const TripsSheet = ({ onClose, country, openOn, focus, onNeedSignIn }) =>
                             <Text style={{ color: C.purple, fontSize: 14, fontWeight: '900' }}>{t('bk_pay_now')}</Text>
                           </Pressable>
                         ) : null}
-                        <Pressable onPress={() => cancel(b)} accessibilityRole="button">
-                          <Text style={{ color: C.dim, fontSize: 14, fontWeight: '800' }}>{t('bk_cancel')}</Text>
-                        </Pressable>
+                        {sure === b.id ? (
+                          <>
+                            <Pressable onPress={() => cancel(b)} accessibilityRole="button" style={{ marginEnd: 16 }}>
+                              <Text style={{ color: '#E11D48', fontSize: 14, fontWeight: '900' }}>{t('bk_cancel_sure')}</Text>
+                            </Pressable>
+                            <Pressable onPress={() => { tapLight(); setSure(null); }} accessibilityRole="button">
+                              <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>{t('bk_keep')}</Text>
+                            </Pressable>
+                          </>
+                        ) : (
+                          <Pressable onPress={() => cancel(b)} accessibilityRole="button">
+                            <Text style={{ color: C.dim, fontSize: 14, fontWeight: '800' }}>{t('bk_cancel')}</Text>
+                          </Pressable>
+                        )}
                       </View>
                     ) : null}
                   </View>

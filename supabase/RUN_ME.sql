@@ -15122,6 +15122,97 @@ create trigger partner_orders_to_sheet after insert or update on public.partner_
 notify pgrst, 'reload schema';
 
 -- ═══════════════════════════════════════════════════════════════════
+--  BOOKINGS · WHO CANCELLED, AND TAKING IT BACK
+--  A booking only ever becomes 'cancelled' by a tap: the member's own
+--  "Cancel booking", or the owner's "Cancel" in the Studio. Nothing
+--  expires it. The row now says which one it was, and a member can
+--  bring back a booking they cancelled themselves while the trip is
+--  still ahead and there is room.
+-- ═══════════════════════════════════════════════════════════════════
+alter table public.bookings add column if not exists cancelled_by text
+  check (cancelled_by is null or cancelled_by in ('you','moments'));
+
+create or replace function public.cancel_booking(p_id uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare b public.bookings%rowtype; o public.offers%rowtype;
+begin
+  select * into b from public.bookings where id = p_id and user_id = auth.uid() for update;
+  if not found then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
+  select * into o from public.offers where id = b.offer_id;
+  if b.status in ('pending','reserved') then
+    update public.bookings set status = 'cancelled', cancelled_at = now(), cancelled_by = 'you' where id = b.id;
+    return jsonb_build_object('ok', true, 'status', 'cancelled');
+  elsif b.status = 'paid' then
+    -- a refund is a person's decision on a real transfer; asking is recorded here
+    if o.starts_at is not null and o.free_cancel_hours is not null
+       and now() > o.starts_at - make_interval(hours => o.free_cancel_hours) then
+      return jsonb_build_object('ok', false, 'reason', 'too_late');
+    end if;
+    update public.bookings set status = 'refund_requested', cancelled_at = now() where id = b.id;
+    return jsonb_build_object('ok', true, 'status', 'refund_requested');
+  end if;
+  return jsonb_build_object('ok', false, 'reason', 'status');
+end;
+$$;
+
+create or replace function public.owner_mark_booking(p_id uuid, p_status text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  if not public.owner_ok() then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
+  if p_status not in ('paid','attended','refunded','cancelled') then return jsonb_build_object('ok', false, 'reason', 'status'); end if;
+  update public.bookings set status = p_status,
+         paid_at = case when p_status = 'paid' then coalesce(paid_at, now()) else paid_at end,
+         provider = case when p_status = 'paid' and provider is null then 'manual' else provider end,
+         cancelled_at = case when p_status in ('refunded','cancelled') then coalesce(cancelled_at, now()) else cancelled_at end,
+         cancelled_by = case when p_status = 'cancelled' then 'moments' else cancelled_by end
+   where id = p_id;
+  return jsonb_build_object('ok', found);
+end;
+$$;
+
+create or replace function public.my_bookings()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select coalesce(jsonb_agg(jsonb_build_object(
+           'id', b.id, 'code', b.code, 'qty', b.qty, 'total', b.total, 'currency', b.currency,
+           'status', b.status, 'cancelled_by', b.cancelled_by, 'pay_mode', b.pay_mode, 'plus', b.plus_applied, 'created_at', b.created_at,
+           'offer', jsonb_build_object('id', o.id, 'title', o.title, 'title_ar', o.title_ar, 'kind', o.kind,
+                                       'photo', o.photos[1], 'starts_at', o.starts_at, 'city', o.city,
+                                       'free_cancel_hours', o.free_cancel_hours))
+         order by b.created_at desc), '[]'::jsonb)
+    from public.bookings b join public.offers o on o.id = b.offer_id
+   where b.user_id = auth.uid() and (b.status <> 'pending' or b.created_at > now() - interval '30 minutes');
+$$;
+
+create or replace function public.restore_booking(p_id uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); b public.bookings%rowtype; o public.offers%rowtype; left_ int;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  select * into b from public.bookings where id = p_id and user_id = me for update;
+  if not found or b.status <> 'cancelled' then return jsonb_build_object('ok', false, 'reason', 'status'); end if;
+  if b.cancelled_by = 'moments' then return jsonb_build_object('ok', false, 'reason', 'by_moments'); end if;
+  select * into o from public.offers where id = b.offer_id for update;
+  if not found or o.status <> 'live' then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
+  if o.starts_at is not null and o.starts_at <= now() then return jsonb_build_object('ok', false, 'reason', 'started'); end if;
+  if exists (select 1 from public.bookings where offer_id = o.id and user_id = me and id <> b.id
+               and (status in ('reserved','paid') or (status = 'pending' and created_at > now() - interval '30 minutes'))) then
+    return jsonb_build_object('ok', false, 'reason', 'already');
+  end if;
+  if o.seats is not null then
+    left_ := o.seats - public.offer_seats_taken(o.id);
+    if left_ < b.qty then return jsonb_build_object('ok', false, 'reason', 'full', 'left', greatest(left_, 0)); end if;
+  end if;
+  -- payments are not online yet, so it comes back held, to be paid as agreed
+  update public.bookings set status = 'reserved', cancelled_at = null, cancelled_by = null where id = b.id;
+  return jsonb_build_object('ok', true, 'status', 'reserved');
+end;
+$$;
+revoke execute on function public.restore_booking(uuid) from public, anon;
+grant execute on function public.restore_booking(uuid) to authenticated;
+
+notify pgrst, 'reload schema';
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة

@@ -211,7 +211,13 @@ export const OffersTab = ({ userId }) => {
     setBusy(false);
   };
   const openBookings = async (o) => { tapLight(); setBookingsOf({ offer: o, rows: null }); setBookingsOf({ offer: o, rows: await ownerBookings(o.id) }); };
-  const mark = async (b, s) => { tapLight(); const r = await ownerMarkBooking(b.id, s); if (r && r.ok) { tapSuccess(); openBookings(bookingsOf.offer); load(); } };
+  const [sureCancel, setSureCancel] = useState(null);
+  const mark = async (b, s) => {
+    // a cancel asks once more: it lands on a real person's trip
+    if (s === 'cancelled' && sureCancel !== b.id) { tapLight(); setSureCancel(b.id); return; }
+    setSureCancel(null);
+    tapLight(); const r = await ownerMarkBooking(b.id, s); if (r && r.ok) { tapSuccess(); openBookings(bookingsOf.offer); load(); }
+  };
 
   if (list === false) return <Text style={{ color: C.faint, fontSize: 13, textAlign: 'center', paddingVertical: 40 }}>Run the latest SQL (part 33) to add trips and deals.</Text>;
   if (list == null) return <ActivityIndicator color={C.dim} style={{ marginTop: 30 }} />;
@@ -232,7 +238,8 @@ export const OffersTab = ({ userId }) => {
               {b.status === 'reserved' ? <Btn label="Payment received" solid onPress={() => mark(b, 'paid')} /> : null}
               {b.status === 'paid' ? <Btn label="They came" onPress={() => mark(b, 'attended')} /> : null}
               {b.status === 'refund_requested' ? <Btn label="Refund sent" onPress={() => mark(b, 'refunded')} /> : null}
-              {b.status === 'reserved' ? <Btn label="Cancel" danger onPress={() => mark(b, 'cancelled')} /> : null}
+              {b.status === 'reserved' ? <Btn label={sureCancel === b.id ? 'Yes, cancel their booking' : 'Cancel'} danger onPress={() => mark(b, 'cancelled')} /> : null}
+              {sureCancel === b.id ? <Btn label="Keep it" onPress={() => setSureCancel(null)} /> : null}
             </View>
           </View>
         ))}

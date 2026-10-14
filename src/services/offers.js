@@ -30,6 +30,7 @@ export const photoUrl = (p) => (!p ? null : /^https?:|^data:|^blob:/.test(p) ? p
 export const listOffers = async (kind, country) => { const r = await call('list_offers', { p_kind: kind || null, p_country: country || null }); return Array.isArray(r) ? r : []; };
 export const bookOffer = (offerId, qty, mode, note) => act('book_offer', { p_offer: offerId, p_qty: qty, p_mode: mode, p_note: note || null });
 export const cancelBooking = (id) => act('cancel_booking', { p_id: id });
+export const restoreBooking = (id) => act('restore_booking', { p_id: id });
 export const myBookings = async () => { const r = await call('my_bookings'); return Array.isArray(r) ? r : []; };
 export const myPlus = () => call('my_plus');
 export const bookingPhotoOk = (id, ok) => act('booking_set_photo_ok', { p_id: id, p_ok: !!ok });
