@@ -110,7 +110,9 @@ const VideoBackdrop = ({ post, style, children }) => {
   const reduced = Platform.OS === 'web' && typeof window !== 'undefined' && window.matchMedia
     ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
     : false;
-  const policy = videoPolicy(mode, { hasPoster: !!poster, reducedMotion: reduced });
+  /* Ayser's spec: no video plays by itself in the feed — a clip waits,
+     still, until somebody taps it, which keeps the feed calm */
+  const policy = { ...videoPolicy(mode, { hasPoster: !!poster, reducedMotion: reduced }), autoplay: false };
 
   useEffect(() => {
     if (!policy.autoplay || typeof IntersectionObserver === 'undefined') return undefined;

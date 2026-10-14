@@ -87,7 +87,7 @@ export const LibrarySheet = ({ onClose }) => {
   const [plus, setPlus] = useState(null);
   const [asked, setAsked] = useState(false);
   const [club, setClub] = useState(null);
-  useSheetBack(true, () => (book ? setBook(null) : onClose && onClose()));
+  useSheetBack(() => (book ? setBook(null) : onClose && onClose()));
 
   useEffect(() => {
     let alive = true;

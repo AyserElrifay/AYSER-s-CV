@@ -5,7 +5,7 @@
        node scripts/check-action-feed.mjs
 */
 import fs from 'node:fs';
-import { isActionPost, actionOf, actionFeed, FEED_MAX } from '../src/lib/actionFeed.js';
+import { isActionPost, actionOf, actionFeed, FEED_MAX, isVisualPost } from '../src/lib/actionFeed.js';
 let bad = 0;
 const is = (what, got, want) => {
   const ok = JSON.stringify(got) === JSON.stringify(want);
@@ -23,6 +23,9 @@ is('a photo of nowhere in particular is not an action post', isActionPost({ capt
 is('but a light moment is in the feed', actionFeed([{ id: 1, userId: 'x', caption: 'I love cheese' }], 'me').length, 1);
 is('your own moment with no place still stays in your feed', actionFeed([{ id: 1, userId: 'me', caption: 'I love cheese' }], 'me').length, 1);
 is('an advert is not', isActionPost({ sponsored: true, place: 'Mall' }), false);
+is('a photo or a video is in the feed again', actionFeed([{ id: 1, userId: 'x', type: 'reel', media: 'https://x/v.mp4' }, { id: 2, userId: 'x', media: 'https://x/p.jpg' }], 'me').length, 2);
+is('an advert with a photo is still not', isVisualPost({ sponsored: true, media: 'x' }), false);
+is('no clip plays by itself in the feed', /autoplay: false/.test(read('src/components/PostCard.js')), true);
 is('something to join says join', actionOf({ joinable: true, place: 'x' }), 'join');
 is('a place says make a plan here', actionOf({ place: 'x' }), 'hangout');
 is('the feed stops at thirty', actionFeed(Array.from({ length: 50 }, (_, i) => ({ id: i, place: 'p' }))).length, FEED_MAX);

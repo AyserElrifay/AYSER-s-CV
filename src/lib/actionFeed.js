@@ -27,6 +27,14 @@ export function isLightPost(c) {
   return !!c && !c.sponsored && (c.type || 'post') === 'post' && !isActionPost(c) && !!((c.caption || '').trim() || c.media);
 }
 
+/* Ayser's spec: the Moments tab is visual again — photos and videos,
+   clips included (they never play by themselves: PostCard). Text-only
+   posts stay rare because the database keeps them rare
+   (text_post_guard: free 2 a month, Plus 4 a week). */
+export function isVisualPost(c) {
+  return !!c && !c.sponsored && !!c.media && ['post', 'reel', 'vod', 'travel'].includes(c.type || 'post');
+}
+
 /* what the button on the card does */
 export function actionOf(c) {
   if (!isActionPost(c)) return null;
@@ -36,4 +44,4 @@ export function actionOf(c) {
 /* your own moments always stay in your feed — a moment that is not from
    an outing reaches other people through your profile, but it never
    vanishes from under the person who just posted it */
-export const actionFeed = (cards, me) => (cards || []).filter((c) => isActionPost(c) || isLightPost(c) || (me && c && !c.sponsored && c.userId === me)).slice(0, FEED_MAX);
+export const actionFeed = (cards, me) => (cards || []).filter((c) => isActionPost(c) || isLightPost(c) || isVisualPost(c) || (me && c && !c.sponsored && c.userId === me)).slice(0, FEED_MAX);

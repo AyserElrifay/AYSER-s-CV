@@ -15342,6 +15342,293 @@ $$;
 notify pgrst, 'reload schema';
 
 -- ═══════════════════════════════════════════════════════════════════
+--  THE FEED · REFLECTION, AND FEW TEXT POSTS
+--  Ayser's spec: Home has two tabs. "Moments" is visual — photos and
+--  videos, with text-only posts kept rare (free: 2 a month, Plus: 4 a
+--  week). "Reflection" is one question a day for everybody: you see
+--  what others answered only after you answer, answers show for that
+--  day only, and every answer stays in your own "My journey".
+--  Questions are ours at first; members who know the place (14 days of
+--  reflections, or 3 hangouts they really showed up to) may suggest
+--  one, and a person in the Studio approves it — then it carries their
+--  name: "Today's reflection suggested by …".
+-- ═══════════════════════════════════════════════════════════════════
+
+-- one place for "is this heavy?", used by posts, reflections and suggestions
+create or replace function public.is_heavy_text(p text)
+returns boolean language sql immutable set search_path = public as $$
+  select coalesce(p, '') ~* '(\m(sad|depress\w*|miserable|lonely|hate|crying|cried|heartbroken|hopeless|worst day|kill myself|suicid\w*|want to die|angry|furious|disgusted)\M|زعلان|زعلانة|حزين|حزينة|مكتئب|اكتئاب|نكد|مخنوق|مخنوقة|خنقة|زهقان|مضايق|مقهور|قرفان|بكره نفسي|عايز اموت|عايزة اموت|انتحار|حياتي وحشة|💔|😭|😢|😞|😡|🤬)';
+$$;
+
+-- a text post: words only, not a plan, not a place-and-time to meet
+create or replace function public.is_text_post(p public.posts)
+returns boolean language sql immutable set search_path = public as $$
+  select coalesce(p.type, 'post') = 'post' and coalesce(btrim(p.media_url), '') = ''
+     and p.gathering_id is null and p.starts_at is null and p.plan is null;
+$$;
+
+create or replace function public.text_post_guard() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare n int; plus_ boolean;
+begin
+  if coalesce(new.type, 'post') <> 'post' or new.gathering_id is not null or new.starts_at is not null or new.plan is not null then
+    return new;
+  end if;
+  if public.is_heavy_text(new.caption) then raise exception 'light_mood' using errcode = 'P0001'; end if;
+  if not public.is_text_post(new) then return new; end if;            -- a photo or a clip: no cap
+  plus_ := public.is_plus(new.user_id);
+  select count(*) into n from public.posts p
+   where p.user_id = new.user_id and public.is_text_post(p)
+     and p.created_at > now() - case when plus_ then interval '7 days' else interval '30 days' end;
+  if plus_ and n >= 4 then raise exception 'text_limit:4:week' using errcode = 'P0001'; end if;
+  if not plus_ and n >= 2 then raise exception 'text_limit:2:month' using errcode = 'P0001'; end if;
+  return new;
+end;
+$$;
+revoke execute on function public.text_post_guard() from public, anon, authenticated;
+drop trigger if exists posts_light_guard on public.posts;
+drop trigger if exists posts_text_guard on public.posts;
+create trigger posts_text_guard before insert on public.posts
+  for each row execute function public.text_post_guard();
+
+create or replace function public.my_text_left()
+returns jsonb language sql stable security definer set search_path = public as $$
+  with t as (select public.is_plus(auth.uid()) as plus_)
+  select jsonb_build_object(
+    'cap', case when t.plus_ then 4 else 2 end,
+    'period', case when t.plus_ then 'week' else 'month' end,
+    'used', (select count(*) from public.posts p where p.user_id = auth.uid() and public.is_text_post(p)
+               and p.created_at > now() - case when t.plus_ then interval '7 days' else interval '30 days' end))
+    from t;
+$$;
+grant execute on function public.my_text_left() to authenticated;
+
+-- ── the question of the day ──
+create table if not exists public.prompt_pool (
+  n       int primary key,
+  body    text not null,
+  body_ar text
+);
+insert into public.prompt_pool (n, body, body_ar) values
+  (1,  'What is one small thing that made you smile today?', 'إيه حاجة صغيرة خلّتك تبتسم النهارده؟'),
+  (2,  'Share a quiet moment you lived this week.', 'احكي عن لحظة هادية عشتها الأسبوع ده.'),
+  (3,  'Who made your day a little better, and how?', 'مين خلّى يومك أحلى شوية، وإزاي؟'),
+  (4,  'What did you see outside today that you liked?', 'شفت إيه برّه النهارده وعجبك؟'),
+  (5,  'What is something you are looking forward to?', 'إيه حاجة مستنيها وفرحان بيها؟'),
+  (6,  'What is a place near you that feels like home?', 'إيه مكان قريب منك بتحس فيه إنك في بيتك؟'),
+  (7,  'What did you learn this week, big or small?', 'اتعلمت إيه الأسبوع ده، كبير أو صغير؟'),
+  (8,  'What is a sound, smell or taste that made today good?', 'صوت أو ريحة أو طعم خلّى النهارده حلو؟'),
+  (9,  'Who would you like to thank, and for what?', 'نفسك تشكر مين، وعلى إيه؟'),
+  (10, 'What is one kind thing someone did for you lately?', 'إيه حاجة لطيفة حد عملهالك مؤخرًا؟'),
+  (11, 'What made you laugh this week?', 'إيه اللي ضحّكك الأسبوع ده؟'),
+  (12, 'What would a perfect slow Saturday look like for you?', 'يوم سبت هادي ومثالي بالنسبالك شكله إيه؟'),
+  (13, 'What is a small win you had today?', 'إيه نجاح صغير عملته النهارده؟'),
+  (14, 'What is something you did for the first time recently?', 'إيه حاجة عملتها لأول مرة مؤخرًا؟'),
+  (15, 'Which song is with you today?', 'أنهي أغنية معاك النهارده؟'),
+  (16, 'What is a walk you would love to take again?', 'إيه مشوار نفسك تمشيه تاني؟'),
+  (17, 'What do you love about the city you are in?', 'بتحب إيه في المدينة اللي إنت فيها؟'),
+  (18, 'Who is someone you would like to see more often?', 'مين نفسك تشوفه أكتر؟'),
+  (19, 'What is a habit that has been good to you?', 'إيه عادة كانت حلوة معاك؟'),
+  (20, 'What is a food that tastes like a good memory?', 'إيه أكلة طعمها زي ذكرى حلوة؟'),
+  (21, 'What is the best part of your morning?', 'إيه أحلى حاجة في صباحك؟'),
+  (22, 'What is a moment with a friend you keep thinking about?', 'إيه لحظة مع صاحب لسه بتفكر فيها؟'),
+  (23, 'What is something you are proud of this month?', 'إيه حاجة فخور بيها الشهر ده؟'),
+  (24, 'Where would you go tomorrow if you had the whole day free?', 'لو بكره كله فاضي، هتروح فين؟'),
+  (25, 'What is a skill you would love to learn with other people?', 'إيه مهارة نفسك تتعلمها مع ناس؟'),
+  (26, 'What is something beautiful you noticed on your way today?', 'إيه حاجة حلوة لاحظتها في طريقك النهارده؟'),
+  (27, 'What helps you feel calm?', 'إيه اللي بيخليك تهدى؟'),
+  (28, 'What is a small thing you can do for someone tomorrow?', 'إيه حاجة صغيرة ممكن تعملها لحد بكره؟'),
+  (29, 'What made this week different from the last one?', 'إيه اللي خلّى الأسبوع ده مختلف عن اللي قبله؟'),
+  (30, 'What is a question you would love to ask everyone here?', 'إيه سؤال نفسك تسأله لكل الناس هنا؟')
+on conflict (n) do nothing;
+
+create table if not exists public.daily_prompts (
+  day          date primary key,
+  body         text not null check (length(btrim(body)) between 5 and 200),
+  body_ar      text,
+  suggested_by uuid references public.profiles(id) on delete set null,
+  created_at   timestamptz not null default now()
+);
+alter table public.daily_prompts enable row level security;
+drop policy if exists "daily prompts: today and before" on public.daily_prompts;
+create policy "daily prompts: today and before" on public.daily_prompts for select to authenticated using (day <= current_date or public.owner_ok());
+
+create or replace function public.today_prompt()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select coalesce(
+    (select jsonb_build_object('day', d.day, 'body', d.body, 'body_ar', d.body_ar,
+                               'by', (select name from public.profiles where id = d.suggested_by))
+       from public.daily_prompts d where d.day = current_date),
+    (select jsonb_build_object('day', current_date, 'body', p.body, 'body_ar', p.body_ar, 'by', null)
+       from public.prompt_pool p
+      where p.n = 1 + ((current_date - date '2026-01-01') % greatest(1, (select count(*) from public.prompt_pool))::int)));
+$$;
+grant execute on function public.today_prompt() to authenticated;
+
+-- ── answers ──
+create table if not exists public.reflections (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid not null references public.profiles(id) on delete cascade,
+  day        date not null default current_date,
+  prompt     text not null,
+  body       text not null check (length(btrim(body)) between 1 and 500),
+  mood       smallint check (mood between 1 and 5),
+  created_at timestamptz not null default now(),
+  unique (user_id, day)
+);
+alter table public.reflections enable row level security;
+drop policy if exists "reflections: your own" on public.reflections;
+create policy "reflections: your own" on public.reflections for select using (auth.uid() = user_id);
+drop policy if exists "reflections: remove your own" on public.reflections;
+create policy "reflections: remove your own" on public.reflections for delete using (auth.uid() = user_id);
+-- no insert or update policy: answering goes through reflect()
+
+create or replace function public.reflect(p_body text, p_mood int)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); q jsonb;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  if length(btrim(coalesce(p_body, ''))) = 0 then return jsonb_build_object('ok', false, 'reason', 'empty'); end if;
+  if length(p_body) > 500 then return jsonb_build_object('ok', false, 'reason', 'long'); end if;
+  if public.is_heavy_text(p_body) then return jsonb_build_object('ok', false, 'reason', 'light_mood'); end if;
+  q := public.today_prompt();
+  insert into public.reflections (user_id, day, prompt, body, mood)
+  values (me, current_date, coalesce(q->>'body', ''), btrim(p_body), case when p_mood between 1 and 5 then p_mood end)
+  on conflict (user_id, day) do update set body = excluded.body, mood = excluded.mood;
+  return jsonb_build_object('ok', true);
+end;
+$$;
+revoke execute on function public.reflect(text, int) from public, anon;
+grant execute on function public.reflect(text, int) to authenticated;
+
+-- today's page: the question, yours, and — only once you answered — everyone's
+create or replace function public.reflection_today()
+returns jsonb language sql stable security definer set search_path = public as $$
+  with mine as (select r.* from public.reflections r where r.user_id = auth.uid() and r.day = current_date)
+  select jsonb_build_object(
+    'prompt', public.today_prompt(),
+    'mine', (select jsonb_build_object('body', body, 'mood', mood) from mine),
+    'count', (select count(*) from public.reflections r where r.day = current_date),
+    'answers', case when exists (select 1 from mine) then (
+       select coalesce(jsonb_agg(jsonb_build_object('id', r.id, 'body', r.body, 'mood', r.mood, 'at', r.created_at,
+                                                    'name', p.name, 'avatar', p.avatar_url, 'user_id', r.user_id)
+                                 order by r.created_at desc), '[]'::jsonb)
+         from (select * from public.reflections where day = current_date and user_id <> auth.uid()
+                 and created_at > now() - interval '24 hours' order by created_at desc limit 100) r
+         join public.profiles p on p.id = r.user_id
+        where not exists (select 1 from public.user_blocks b where (b.blocker_id = auth.uid() and b.blocked_id = r.user_id)
+                                                        or (b.blocker_id = r.user_id and b.blocked_id = auth.uid())))
+     end);
+$$;
+grant execute on function public.reflection_today() to authenticated;
+
+create or replace function public.my_journey()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select coalesce(jsonb_agg(jsonb_build_object('day', day, 'prompt', prompt, 'body', body, 'mood', mood) order by day desc), '[]'::jsonb)
+    from (select * from public.reflections where user_id = auth.uid() order by day desc limit 400) r;
+$$;
+grant execute on function public.my_journey() to authenticated;
+
+-- ── members suggest a question ──
+create table if not exists public.prompt_submissions (
+  id            uuid primary key default gen_random_uuid(),
+  user_id       uuid not null references public.profiles(id) on delete cascade,
+  body          text not null check (length(btrim(body)) between 10 and 200),
+  status        text not null default 'pending' check (status in ('pending','approved','rejected')),
+  scheduled_for date,
+  created_at    timestamptz not null default now(),
+  decided_at    timestamptz,
+  decided_by    uuid references public.profiles(id) on delete set null
+);
+create index if not exists prompt_submissions_status_idx on public.prompt_submissions (status, created_at);
+alter table public.prompt_submissions enable row level security;
+drop policy if exists "prompt suggestions: your own, or the Studio" on public.prompt_submissions;
+create policy "prompt suggestions: your own, or the Studio" on public.prompt_submissions for select using (auth.uid() = user_id or public.owner_ok());
+
+-- who may suggest: 14 days of reflections, or 3 hangouts really shown up to
+create or replace function public.my_prompt_access()
+returns jsonb language sql stable security definer set search_path = public as $$
+  with d as (select count(distinct day) as days from public.reflections where user_id = auth.uid()),
+       c as (select count(*) as checkins from public.green_joins where user_id = auth.uid() and checked_in_at is not null)
+  select jsonb_build_object('days', d.days, 'checkins', c.checkins, 'need_days', 14, 'need_checkins', 3,
+                            'eligible', d.days >= 14 or c.checkins >= 3,
+                            'pending', (select count(*) from public.prompt_submissions where user_id = auth.uid() and status = 'pending'))
+    from d, c;
+$$;
+grant execute on function public.my_prompt_access() to authenticated;
+
+create or replace function public.submit_prompt(p_body text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); a jsonb;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  a := public.my_prompt_access();
+  if not coalesce((a->>'eligible')::boolean, false) then return jsonb_build_object('ok', false, 'reason', 'not_yet'); end if;
+  if length(btrim(coalesce(p_body, ''))) < 10 or length(p_body) > 200 then return jsonb_build_object('ok', false, 'reason', 'length'); end if;
+  if public.is_heavy_text(p_body) then return jsonb_build_object('ok', false, 'reason', 'light_mood'); end if;
+  if exists (select 1 from public.prompt_submissions where user_id = me and (status = 'pending' or created_at > now() - interval '7 days')) then
+    return jsonb_build_object('ok', false, 'reason', 'one_a_week');
+  end if;
+  insert into public.prompt_submissions (user_id, body) values (me, btrim(p_body));
+  return jsonb_build_object('ok', true);
+end;
+$$;
+revoke execute on function public.submit_prompt(text) from public, anon;
+grant execute on function public.submit_prompt(text) to authenticated;
+
+-- ── the Studio's side ──
+create or replace function public.owner_prompts()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select case when not public.owner_ok() then null else jsonb_build_object(
+    'pending', (select coalesce(jsonb_agg(jsonb_build_object('id', s.id, 'body', s.body, 'at', s.created_at, 'name', p.name) order by s.created_at), '[]'::jsonb)
+                  from public.prompt_submissions s join public.profiles p on p.id = s.user_id where s.status = 'pending'),
+    'upcoming', (select coalesce(jsonb_agg(jsonb_build_object('day', d.day, 'body', d.body, 'by', (select name from public.profiles where id = d.suggested_by)) order by d.day), '[]'::jsonb)
+                   from public.daily_prompts d where d.day >= current_date and d.day < current_date + 60)) end;
+$$;
+revoke execute on function public.owner_prompts() from public, anon;
+grant execute on function public.owner_prompts() to authenticated;
+
+create or replace function public.owner_schedule_prompt(p_day date, p_body text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  if not public.owner_ok() then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
+  if p_day is null or p_day < current_date then return jsonb_build_object('ok', false, 'reason', 'day'); end if;
+  if length(btrim(coalesce(p_body, ''))) < 5 or length(p_body) > 200 then return jsonb_build_object('ok', false, 'reason', 'length'); end if;
+  insert into public.daily_prompts (day, body) values (p_day, btrim(p_body))
+  on conflict (day) do update set body = excluded.body, suggested_by = null;
+  return jsonb_build_object('ok', true);
+end;
+$$;
+revoke execute on function public.owner_schedule_prompt(date, text) from public, anon;
+grant execute on function public.owner_schedule_prompt(date, text) to authenticated;
+
+create or replace function public.owner_decide_prompt(p_id uuid, p_approve boolean, p_day date)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare s public.prompt_submissions%rowtype; d date;
+begin
+  if not public.owner_ok() then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
+  select * into s from public.prompt_submissions where id = p_id and status = 'pending' for update;
+  if not found then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
+  if not coalesce(p_approve, false) then
+    update public.prompt_submissions set status = 'rejected', decided_at = now(), decided_by = auth.uid() where id = p_id;
+    return jsonb_build_object('ok', true, 'status', 'rejected');
+  end if;
+  -- the day asked for, or the first free day from tomorrow
+  d := coalesce(p_day, (select min(x)::date from generate_series(current_date + 1, current_date + 120, interval '1 day') x
+                         where not exists (select 1 from public.daily_prompts where day = x::date)));
+  if d is null or d < current_date then return jsonb_build_object('ok', false, 'reason', 'day'); end if;
+  insert into public.daily_prompts (day, body, suggested_by) values (d, s.body, s.user_id)
+  on conflict (day) do update set body = excluded.body, suggested_by = excluded.suggested_by;
+  update public.prompt_submissions set status = 'approved', scheduled_for = d, decided_at = now(), decided_by = auth.uid() where id = p_id;
+  return jsonb_build_object('ok', true, 'status', 'approved', 'day', d);
+end;
+$$;
+revoke execute on function public.owner_decide_prompt(uuid, boolean, date) from public, anon;
+grant execute on function public.owner_decide_prompt(uuid, boolean, date) to authenticated;
+
+notify pgrst, 'reload schema';
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة

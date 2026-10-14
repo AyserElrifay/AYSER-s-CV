@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { View, Text, FlatList, Pressable, Image, Animated, Easing, ActivityIndicator } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
@@ -33,6 +33,8 @@ import { takeLaunchTarget, onPushOpen } from '../lib/push';
 import { GoOutRail } from '../components/GoOutRail';
 import { PlaceRail } from '../components/PlaceRail';
 import { lazyOverlay } from '../lib/lazyScreen';
+import { readGate, addSeconds, markSeenAll, budgetSeconds } from '../lib/feedGate';
+import { myVolunteering } from '../services/green';
 
 /* ─── THE FEED FIRST, THE REST WHEN YOU REACH FOR IT ─────────────────
    Everything below opens over the feed and none of it is on screen
@@ -53,6 +55,7 @@ const WhatsOnSheet = lazyOverlay(() => import('../components/WhatsOnSheet').then
 const CaptureModal = lazyOverlay(() => import('../components/CaptureModal').then((m) => ({ default: m.CaptureModal })));
 const CommentsSheet = lazyOverlay(() => import('../components/CommentsSheet').then((m) => ({ default: m.CommentsSheet })));
 const ComposeModal = lazyOverlay(() => import('../components/ComposeModal').then((m) => ({ default: m.ComposeModal })));
+const ReflectionPane = lazyOverlay(() => import('../components/ReflectionPane').then((m) => ({ default: m.ReflectionPane })));
 const LikersSheet = lazyOverlay(() => import('../components/LikersSheet').then((m) => ({ default: m.LikersSheet })));
 const MagicFlowModal = lazyOverlay(() => import('../components/MagicFlowModal').then((m) => ({ default: m.MagicFlowModal })));
 const NotificationsSheet = lazyOverlay(() => import('../components/NotificationsSheet').then((m) => ({ default: m.NotificationsSheet })));
@@ -111,6 +114,38 @@ export const HomeScreen = () => {
   const { user } = useAuth();
   const { t, rtl } = useLang();
   const { posts, refreshing, refresh, prependPost, removePost, patchPost, loadError, settled } = useFeed();
+
+  /* ── TWO TABS, AND A FEED WITH A DAILY WINDOW ───────────────────────
+     Moments: photos and videos (src/lib/actionFeed.js). Reflection: one
+     question a day (ReflectionPane). The Moments feed is open for a
+     few minutes a day and closes once you reach its end — see
+     src/lib/feedGate.js. Volunteers get a little more time. */
+  const [homeTab, setHomeTab] = useState(() => { try { return localStorage.getItem('mm.homeTab') === 'reflect' ? 'reflect' : 'moments'; } catch (e) { return 'moments'; } });
+  const pickTab = (k) => { tapLight(); setHomeTab(k); try { localStorage.setItem('mm.homeTab', k); } catch (e) {} };
+  const focused = useIsFocused();
+  const [volunteer, setVolunteer] = useState(false);
+  const [gate, setGate] = useState(readGate);
+  const finishedNow = useRef(false);   // reached the end in THIS visit: show the end, close next time
+  useEffect(() => {
+    if (!user) return;
+    myVolunteering().then((r) => {
+      const month = Date.now() - 30 * 864e5;
+      setVolunteer(!!(r && Array.isArray(r.list) && r.list.some((g) => new Date(g.at).getTime() > month)));
+    }).catch(() => {});
+  }, [user]);
+  useEffect(() => {
+    if (!focused || homeTab !== 'moments') return undefined;
+    const id = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+      setGate(addSeconds(5));
+    }, 5000);
+    return () => clearInterval(id);
+  }, [focused, homeTab]);
+  useEffect(() => { if (focused) { finishedNow.current = false; setGate(readGate()); } }, [focused]);
+  const budget = budgetSeconds(volunteer);
+  const feedClosed = !!user && (gate.used >= budget || (gate.done && !finishedNow.current));
+  const shown = homeTab === 'moments' && !feedClosed ? posts : [];
+  const onEnd = () => { if (homeTab === 'moments' && posts.length && !gate.done) { finishedNow.current = true; setGate(markSeenAll()); } };
 
   /* ── TAP HOME AGAIN: BACK TO THE TOP, AND FRESH ──────────────────────
      Ayser: "لما أنزل لآخر الصفحة وأدوس على البيت تاني يعمل refresh
@@ -501,8 +536,10 @@ export const HomeScreen = () => {
         ref={listRef}
         onScroll={(e) => { scrollY.current = e.nativeEvent.contentOffset.y; }}
         scrollEventThrottle={64}
-        data={posts}
+        data={shown}
         keyExtractor={(p) => p.id}
+        onEndReached={onEnd}
+        onEndReachedThreshold={0.05}
         refreshing={refreshing}
         onRefresh={refresh}
         showsVerticalScrollIndicator={false}
@@ -537,23 +574,51 @@ export const HomeScreen = () => {
               </View>
             </View>
 
-            {widgets.length ? <HomeWidgets ids={widgets} /> : null}
+            {/* Moments · Reflection */}
+            <View style={{ flexDirection: 'row', marginTop: 16, backgroundColor: C.glass, borderRadius: 999, padding: 4, borderWidth: 1, borderColor: C.line }}>
+              {[['moments', t('hm_moments')], ['reflect', t('hm_reflect')]].map(([k, label]) => (
+                <Pressable key={k} onPress={() => pickTab(k)} accessibilityRole="tab" accessibilityState={{ selected: homeTab === k }} style={{ flex: 1 }}>
+                  <View style={{ borderRadius: 999, paddingVertical: 9, alignItems: 'center', backgroundColor: homeTab === k ? C.text : 'transparent' }}>
+                    <Text style={{ color: homeTab === k ? C.bg : C.dim, fontSize: 14, fontWeight: '800' }}>{label}</Text>
+                  </View>
+                </Pressable>
+              ))}
+            </View>
 
-            <StoriesBar
+            {homeTab === 'reflect' ? <View style={{ marginTop: 18 }}><ReflectionPane user={user} /></View> : null}
+
+            {homeTab === 'moments' && widgets.length ? <HomeWidgets ids={widgets} /> : null}
+
+            {homeTab === 'moments' ? <StoriesBar
               stories={stories}
               onOpenStory={setStoryIndex}
               onAddStory={() => setComposing('story')}
-            />
+            /> : null}
 
             {/* real evenings and real plans with real photos — the reason to go (src/components/GoOutRail.js) */}
-            {user ? (
+            {user && homeTab === 'moments' ? (
               <GoOutRail
                 onFind={() => goToTab('TOGETHER')}
                 onOpenPlan={(g) => { if (g.lat != null && g.lng != null) showOnMap({ lat: g.lat, lng: g.lng }); else goToTab('TOGETHER'); }}
               />
             ) : null}
             {/* places worth going to, in real photos (src/components/PlaceRail.js) */}
-            <PlaceRail />
+            {homeTab === 'moments' ? <PlaceRail /> : null}
+
+            {/* the day's window is over: a kind line, and the way out */}
+            {homeTab === 'moments' && feedClosed ? (
+              <View style={{ alignItems: 'center', borderRadius: 24, paddingVertical: 30, paddingHorizontal: 22, marginTop: 18, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line }}>
+                <Text style={{ fontSize: 34 }}>🌿</Text>
+                <Text style={{ color: C.text, fontSize: 19, fontWeight: '900', textAlign: 'center', marginTop: 8 }}>{t('fg_title')}</Text>
+                <Text style={{ color: C.dim, fontSize: 14.5, lineHeight: 21, textAlign: 'center', marginTop: 6 }}>{t('fg_body')}</Text>
+                <Pressable onPress={() => { tapLight(); goToTab('TOGETHER'); }} accessibilityRole="button" style={{ marginTop: 16, backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 20, paddingVertical: 11 }}>
+                  <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '900' }}>{t('feed_end_cta')}</Text>
+                </Pressable>
+                <Pressable onPress={() => pickTab('reflect')} accessibilityRole="button" style={{ marginTop: 12 }}>
+                  <Text style={{ color: C.dim, fontSize: 13.5, fontWeight: '700' }}>{t('fg_reflect')}</Text>
+                </Pressable>
+              </View>
+            ) : null}
           </View>
         }
         renderItem={({ item }) => {
@@ -591,7 +656,7 @@ export const HomeScreen = () => {
           );
         }}
         /* the feed ends: at most thirty, then the week near you */
-        ListFooterComponent={posts.length ? (
+        ListFooterComponent={shown.length ? (
           <View style={{ alignItems: 'center', paddingVertical: 26 }}>
             <Text style={{ fontSize: 26 }}>🌿</Text>
             <Text style={{ color: C.text, fontSize: 15.5, fontWeight: '900', marginTop: 6 }}>{t('feed_end_t')}</Text>
@@ -601,7 +666,7 @@ export const HomeScreen = () => {
             </Pressable>
           </View>
         ) : null}
-        ListEmptyComponent={
+        ListEmptyComponent={homeTab !== 'moments' || feedClosed ? null : (
           /* Still loading and nothing has arrived yet: show the shape of
              the feed, not the words "no moments yet". Those words are a
              statement of fact, and until the first load has answered we
@@ -641,7 +706,7 @@ export const HomeScreen = () => {
               </Text>
             </View>
           ) : null
-        }
+        )}
       />
 
       {/* ── EVERYTHING BELOW ARRIVES WHEN IT IS OPENED ────────────── */}

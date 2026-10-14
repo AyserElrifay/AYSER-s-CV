@@ -27,6 +27,7 @@ import { recent, clearCrashes, asText } from '../lib/crashLog';
 import { SheetHandle } from './SheetHandle';
 import { OffersTab } from './OffersTab';
 import { PartnersTab } from './PartnersTab';
+import { PromptsTab } from './PromptsTab';
 import { PeopleTab } from './PeopleTab';
 import { useSheetBack } from '../hooks/useSheetBack';
 
@@ -48,6 +49,7 @@ const TABS = [
   { k: 'highlights', label: 'Highlights', icon: 'film-outline' },
   { k: 'offers', label: 'Trips & deals', icon: 'airplane-outline' },
   { k: 'partners', label: 'Partners', icon: 'storefront-outline' },
+  { k: 'prompts', label: 'Reflection', icon: 'chatbox-ellipses-outline' },
   { k: 'venues', label: 'Venues', icon: 'business-outline' },
   { k: 'verify', label: 'Verify', icon: 'shield-checkmark-outline' },
   { k: 'music', label: 'Music', icon: 'musical-notes-outline' },
@@ -843,6 +845,7 @@ export const AdminPanel = ({ onClose, access = { owner: true } }) => {
           {tab === 'highlights' && owner ? <HighlightsTab userId={user && user.id} /> : null}
           {tab === 'offers' && owner ? <OffersTab userId={user && user.id} /> : null}
           {tab === 'partners' && owner ? <PartnersTab /> : null}
+          {tab === 'prompts' && owner ? <PromptsTab /> : null}
           {tab === 'people' ? <PeopleTab /> : null}
           {tab === 'activity' && owner ? (
             act == null ? <Empty t="Run the latest SQL (part 26) to see the team's activity here." /> : (

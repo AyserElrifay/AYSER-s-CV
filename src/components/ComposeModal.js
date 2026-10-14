@@ -36,6 +36,10 @@ const MODES = [
   { id: 'travel', label: 'Travel', emoji: '🧳' },
 ];
 
+/* no blank "what's on your mind?": a small, kind question instead,
+   a different one each day (Ayser's spec: guided positivity) */
+const DAILY_PH = ['ph_q1', 'ph_q2', 'ph_q3', 'ph_q4', 'ph_q5', 'ph_q6', 'ph_q7'];
+
 export const ComposeModal = ({ initialMode = 'post', initialCaption = '', initialPlace = null, onClose, onPosted, onPostedStory, onOpenStudio }) => {
   /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
   useSheetBack(onClose);
@@ -100,6 +104,10 @@ export const ComposeModal = ({ initialMode = 'post', initialCaption = '', initia
      every moment is a good one */
   const intent = 'hangout';
   const [imageUri, setImageUri] = useState(null);
+  /* text-only posts are few (free 2 a month, Plus 4 a week): the box
+     says how many are left before anybody writes one */
+  const [textLeft, setTextLeft] = useState(null);
+  React.useEffect(() => { import('../services/reflection').then((m) => m.myTextLeft()).then((r) => { if (r && r.cap != null) setTextLeft(r); }).catch(() => {}); }, []);
   const [imageMime, setImageMime] = useState('image/jpeg');
   const [textBg, setTextBg] = useState('plain');
   const [sound, setSound] = useState(null);
@@ -280,7 +288,8 @@ export const ComposeModal = ({ initialMode = 'post', initialCaption = '', initia
     } catch (e) {
       /* the database keeps light moments few and kind (light_post_guard) */
       const m = String((e && e.message) || '');
-      if (/light_limit:(\d+)/.test(m)) setError(t('lt_limit').replace('{n}', /light_limit:(\d+)/.exec(m)[1]));
+      if (/text_limit:(\d+):(week|month)/.test(m)) { const x = /text_limit:(\d+):(week|month)/.exec(m); setError(t('tx_limit_' + x[2]).replace('{n}', x[1])); }
+      else if (/light_limit:(\d+)/.test(m)) setError(t('lt_limit').replace('{n}', /light_limit:(\d+)/.exec(m)[1]));
       else if (/light_mood/.test(m)) setError(t('lt_mood'));
       else setError('Could not share. Try again.');
     } finally {
@@ -431,7 +440,7 @@ export const ComposeModal = ({ initialMode = 'post', initialCaption = '', initia
               placeholder={isStory ? 'Say something (optional)…'
                 : isReel ? 'Describe your reel…'
                 : isTravel ? 'Who you are, what you\u2019re into, and what you\u2019d love to do there…'
-                : "What's your moment?"}
+                : t(DAILY_PH[new Date().getDate() % DAILY_PH.length])}
               placeholderTextColor={imageUri || isStory || textBg === 'plain' ? C.faint : TEXT_BGS[textBg].text + '99'}
               value={caption}
               onChangeText={setCaption}
@@ -547,6 +556,11 @@ export const ComposeModal = ({ initialMode = 'post', initialCaption = '', initia
               thinks it was deleted */}
           {!isStory && !isTravel && outing === false ? (
             <Text style={{ color: C.faint, fontSize: 12.5, lineHeight: 17, marginTop: 8 }}>{t('cmp_outing_no_note')}</Text>
+          ) : null}
+          {!isStory && !isTravel && !imageUri && textLeft ? (
+            <Text style={{ color: Math.max(0, textLeft.cap - textLeft.used) ? C.dim : C.coral, fontSize: 12.5, fontWeight: '700', marginTop: 6 }}>
+              {t('tx_left_' + textLeft.period).replace('{n}', String(Math.max(0, textLeft.cap - textLeft.used))).replace('{cap}', String(textLeft.cap))}
+            </Text>
           ) : null}
           {!isStory && !isTravel && outing && !fromPlace && (myPlans.length || nearPlaces.length) ? (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ marginTop: 10 }}>
