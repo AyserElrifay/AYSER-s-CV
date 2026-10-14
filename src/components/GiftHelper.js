@@ -15,6 +15,7 @@ import { lazyOverlay } from '../lib/lazyScreen';
    Papyrus suggests a few ideas, and below, real places to find gifts
    (Out in Cairo, by name and area, with directions). Nothing leaves the
    phone until "Ask Papyrus". */
+const FlowersSheet = lazyOverlay(() => import('./FlowersSheet').then((m) => ({ default: m.FlowersSheet })));
 const PlusSheet = lazyOverlay(() => import('./PlusSheet').then((m) => ({ default: m.PlusSheet })));
 const WHO = ['mom', 'dad', 'partner', 'friend', 'sibling', 'child', 'colleague'];
 const WHEN = ['birthday', 'anniversary', 'thanks', 'justbecause'];
@@ -41,6 +42,7 @@ export const GiftHelper = ({ onClose, name }) => {
   const [reply, setReply] = useState(null);
   const [err, setErr] = useState(null);
   const [plus, setPlus] = useState(false);
+  const [flowers, setFlowers] = useState(false);
   const head = { color: C.faint, fontSize: 11.5, fontWeight: '900', letterSpacing: 1, marginTop: 18, marginBottom: 8 };
   const shops = SPOTS.filter((s) => s.kind === 'gifts');
 
@@ -93,6 +95,17 @@ export const GiftHelper = ({ onClose, name }) => {
             </View>
           ) : null}
 
+          {/* flowers, delivered by a partner florist */}
+          <Pressable onPress={() => { tapLight(); setFlowers(true); }} accessibilityRole="button" style={{ marginTop: 18 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 18, backgroundColor: '#FFE4EC', padding: 14 }}>
+              <Text style={{ fontSize: 28, marginEnd: 12 }}>🌹</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: '#9D174D', fontSize: 15.5, fontWeight: '900' }}>{t('fl_title')}</Text>
+                <Text style={{ color: '#9D174D', fontSize: 12.5, marginTop: 1, opacity: 0.8 }}>{t('fl_row_sub')}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color="#9D174D" />
+            </View>
+          </Pressable>
           <Text style={head}>{t('gh_where').toUpperCase()}</Text>
           {shops.map((s) => (
             <Pressable key={s.id} onPress={() => { tapLight(); try { Linking.openURL(directionsUrl(s)); } catch (e) {} }} accessibilityRole="link"
@@ -107,6 +120,7 @@ export const GiftHelper = ({ onClose, name }) => {
           ))}
         </ScrollView>
       </View>
+      {flowers ? <FlowersSheet toName={name || ''} onClose={() => setFlowers(false)} /> : null}
       {plus ? <PlusSheet why="papyrus" onClose={() => setPlus(false)} /> : null}
     </Modal>
   );

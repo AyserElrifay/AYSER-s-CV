@@ -24,3 +24,10 @@ export const ownerPartnerSet = (id, status, note) => act('owner_partner_set', { 
 /* an accepted partner's own page (RUN_ME.sql "ACCOUNT TYPES … ACCEPTED VENUES") */
 export const myVenue = () => act('my_venue');
 export const venueSave = (about, photos, price, currency) => act('venue_save', { p_about: about || null, p_photos: photos || [], p_price: price, p_currency: currency || null });
+
+/* things a partner sells and delivers — bouquets first (RUN_ME.sql "ORDER IT THROUGH MOMENTS") */
+export const orderItems = async (kind) => { const r = await act('order_items', { p_kind: kind || null }); return Array.isArray(r) ? r : []; };
+export const orderPlace = (p) => act('order_place', { p });
+export const myOrders = () => act('my_orders');
+export const orderSetStatus = (id, status) => act('order_set_status', { p_id: id, p_status: status });
+export const partnerItemSave = (it) => act('partner_item_save', { p_id: it.id || null, p_name: it.name, p_about: it.about || null, p_price: it.price, p_photo: it.photo || null, p_active: it.active !== false });

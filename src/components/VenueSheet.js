@@ -5,7 +5,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { C } from '../constants/theme';
 import { useLang } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
-import { myVenue, venueSave } from '../services/partners';
+import { myVenue, venueSave, partnerItemSave, myOrders, orderSetStatus, orderItems } from '../services/partners';
 import { uploadPlanPhoto } from '../lib/storage';
 import { useSheetBack } from '../hooks/useSheetBack';
 import { tapLight, tapSuccess } from '../utils/feedback';
@@ -24,6 +24,71 @@ const pick = () => new Promise((resolve) => {
   document.body.appendChild(input); input.click();
   return undefined;
 });
+
+/* what this partner sells and delivers (bouquets), and the orders to send out */
+const NEXT = { new: 'accepted', accepted: 'on_the_way', on_the_way: 'delivered' };
+const Selling = ({ t, userId }) => {
+  const [items, setItems] = useState([]);
+  const [orders, setOrders] = useState([]);
+  const [n, setN] = useState({ name: '', price: '', photo: null });
+  const [busy, setBusy] = useState(false);
+  const load = () => {
+    orderItems(null).then((r) => setItems((r || []).filter((x) => x.mine))).catch(() => {});
+    myOrders().then((r) => setOrders((r && r.to_deliver) || [])).catch(() => {});
+  };
+  useEffect(load, []);
+  const addPhoto = async () => {
+    tapLight(); const f = await pick(); if (!f) return;
+    setBusy(true); try { const url = await uploadPlanPhoto(userId, f); setN((x) => ({ ...x, photo: url })); } catch (e) {} setBusy(false);
+  };
+  const add = async () => {
+    if (!n.name.trim() || !(Number(n.price) >= 0) || !n.price) return;
+    setBusy(true);
+    const r = await partnerItemSave({ name: n.name.trim(), price: Number(n.price), photo: n.photo });
+    setBusy(false);
+    if (r && r.ok) { tapSuccess(); setN({ name: '', price: '', photo: null }); load(); }
+  };
+  const move = async (o) => { const to = NEXT[o.status]; if (!to) return; tapLight(); const r = await orderSetStatus(o.id, to); if (r && r.ok) load(); };
+  const head = { color: C.faint, fontSize: 11.5, fontWeight: '900', letterSpacing: 1, marginTop: 24, marginBottom: 8 };
+  return (
+    <View>
+      <Text style={head}>{t('vn_orders').toUpperCase()}</Text>
+      {!orders.length ? <Text style={{ color: C.dim, fontSize: 13.5 }}>{t('vn_orders_none')}</Text> : orders.map((o) => (
+        <View key={o.id} style={{ borderRadius: 16, borderWidth: 1, borderColor: C.line, backgroundColor: C.glass, padding: 12, marginBottom: 8 }}>
+          <Text style={{ color: C.text, fontSize: 15, fontWeight: '900' }}>{'🌹 ' + o.item + ' → ' + o.to_name}</Text>
+          <Text style={{ color: C.dim, fontSize: 13, marginTop: 3 }}>{o.deliver_on + ' · ' + o.to_phone}</Text>
+          <Text style={{ color: C.dim, fontSize: 13, marginTop: 2 }}>{o.address + (o.area ? ' · ' + o.area : '')}</Text>
+          {o.card ? <Text style={{ color: C.text, fontSize: 13, fontStyle: 'italic', marginTop: 4 }}>{'“' + o.card + '”'}</Text> : null}
+          <Text style={{ color: C.faint, fontSize: 12, marginTop: 4 }}>{o.code + ' · ' + t('vn_cod').replace('{total}', o.price + ' ' + o.currency)}</Text>
+          {NEXT[o.status] ? (
+            <Pressable onPress={() => move(o)} accessibilityRole="button" style={{ marginTop: 10, alignSelf: 'flex-start' }}>
+              <View style={{ borderRadius: 999, backgroundColor: C.purple, paddingHorizontal: 16, paddingVertical: 8 }}>
+                <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '900' }}>{t('vn_to_' + NEXT[o.status])}</Text>
+              </View>
+            </Pressable>
+          ) : null}
+        </View>
+      ))}
+
+      <Text style={head}>{t('vn_items').toUpperCase()}</Text>
+      {items.map((it) => (
+        <Text key={it.id} style={{ color: C.text, fontSize: 14, marginBottom: 6 }}>{'💐 ' + it.name + ' · ' + it.price + ' ' + it.currency}</Text>
+      ))}
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
+        <Pressable onPress={addPhoto} accessibilityRole="button" style={{ width: 56, height: 56, borderRadius: 12, borderWidth: 1.5, borderStyle: 'dashed', borderColor: C.line, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', marginEnd: 10 }}>
+          {n.photo ? <Image source={{ uri: n.photo }} style={{ width: 56, height: 56 }} /> : busy ? <ActivityIndicator color={C.dim} /> : <Ionicons name="camera-outline" size={20} color={C.dim} />}
+        </Pressable>
+        <TextInput value={n.name} onChangeText={(v) => setN((x) => ({ ...x, name: v }))} maxLength={80} placeholder={t('vn_item_name')} placeholderTextColor={C.faint}
+          style={{ flex: 1, color: C.text, fontSize: 14.5, borderWidth: 1, borderColor: C.line, borderRadius: 12, padding: 10, outlineStyle: 'none' }} />
+        <TextInput value={n.price} onChangeText={(v) => setN((x) => ({ ...x, price: v.replace(/[^0-9.]/g, '') }))} keyboardType="decimal-pad" placeholder={t('vn_item_price')} placeholderTextColor={C.faint}
+          style={{ width: 80, marginStart: 8, color: C.text, fontSize: 14.5, borderWidth: 1, borderColor: C.line, borderRadius: 12, padding: 10, outlineStyle: 'none' }} />
+      </View>
+      <Pressable onPress={add} accessibilityRole="button" style={{ marginTop: 10, alignSelf: 'flex-start' }}>
+        <Text style={{ color: C.purple, fontSize: 14.5, fontWeight: '900' }}>{'＋ ' + t('vn_item_add')}</Text>
+      </Pressable>
+    </View>
+  );
+};
 
 export const VenueSheet = ({ onClose }) => {
   useSheetBack(onClose);
@@ -105,6 +170,7 @@ export const VenueSheet = ({ onClose }) => {
                 </View>
               </Pressable>
               {msg ? <Text style={{ color: C.green, fontSize: 13.5, textAlign: 'center', marginTop: 10 }}>{msg}</Text> : null}
+              <Selling t={t} userId={user && user.id} />
             </>
           )}
         </ScrollView>

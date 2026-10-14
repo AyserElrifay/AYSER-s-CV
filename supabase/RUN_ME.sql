@@ -14954,6 +14954,174 @@ $$;
 notify pgrst, 'reload schema';
 
 -- ═══════════════════════════════════════════════════════════════════
+--  ORDER IT THROUGH MOMENTS · FLOWERS FIRST
+--
+--  Ayser: "في supplier، بس الناس ممكن تطلبه من خلالنا، والـ supplier
+--  مكانه في مصر الجديدة وبيبعته بـ scooter". A partner (an accepted
+--  venue) lists things people can order — bouquets first — with a name,
+--  a price and a photo. Somebody orders one for someone: who it is for,
+--  their phone and address in Cairo, the day, a card. They pay on
+--  delivery for now (online payments are coming soon). The partner sees
+--  their own orders and moves them along (accepted → on the way →
+--  delivered); the order also lands in the team's sheet. The address
+--  and phone are seen only by the person ordering, that partner and
+--  the owner.
+--  Safe to re-run.
+-- ═══════════════════════════════════════════════════════════════════
+create table if not exists public.partner_items (
+  id         uuid primary key default gen_random_uuid(),
+  venue_id   uuid not null references public.partner_venues(id) on delete cascade,
+  kind       text not null default 'flowers',
+  name       text not null check (char_length(name) between 2 and 80),
+  about      text check (about is null or char_length(about) <= 300),
+  price      numeric(10,2) not null check (price >= 0),
+  currency   text not null default 'EGP',
+  photo      text check (photo is null or photo ~ '^https://'),
+  active     boolean not null default true,
+  created_at timestamptz not null default now()
+);
+alter table public.partner_items enable row level security;
+drop policy if exists "items: anyone signed in reads the active ones" on public.partner_items;
+create policy "items: anyone signed in reads the active ones" on public.partner_items for select to authenticated using (active);
+
+create table if not exists public.partner_orders (
+  id            uuid primary key default gen_random_uuid(),
+  code          text not null unique,
+  item_id       uuid not null references public.partner_items(id) on delete restrict,
+  venue_id      uuid not null references public.partner_venues(id) on delete cascade,
+  user_id       uuid not null references public.profiles(id) on delete cascade,
+  to_name       text not null check (char_length(to_name) between 1 and 60),
+  to_phone      text not null check (to_phone ~ '^[+0-9 ()-]{6,24}$'),
+  address       text not null check (char_length(address) between 5 and 300),
+  area          text check (area is null or char_length(area) <= 60),
+  deliver_on    date not null,
+  card          text check (card is null or char_length(card) <= 240),
+  from_phone    text check (from_phone is null or from_phone ~ '^[+0-9 ()-]{6,24}$'),
+  price         numeric(10,2) not null,
+  currency      text not null,
+  pay_mode      text not null default 'cash_on_delivery',
+  status        text not null default 'new' check (status in ('new','accepted','on_the_way','delivered','cancelled')),
+  commission_pct numeric(5,2) not null,
+  created_at    timestamptz not null default now()
+);
+alter table public.partner_orders enable row level security;
+-- no policies: read and written only through the functions below
+
+create or replace function public.partner_item_save(p_id uuid, p_name text, p_about text, p_price numeric, p_photo text, p_active boolean)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare v public.partner_venues%rowtype; nid uuid;
+begin
+  select * into v from public.partner_venues where user_id = auth.uid();
+  if not found then return jsonb_build_object('ok', false, 'reason', 'not_partner'); end if;
+  if p_photo is not null and p_photo !~ '^https://' then return jsonb_build_object('ok', false, 'reason', 'photo'); end if;
+  if p_id is null then
+    insert into public.partner_items (venue_id, name, about, price, currency, photo, active)
+    values (v.id, btrim(p_name), nullif(btrim(coalesce(p_about, '')), ''), p_price, v.currency, p_photo, coalesce(p_active, true))
+    returning id into nid;
+  else
+    update public.partner_items set name = btrim(p_name), about = nullif(btrim(coalesce(p_about, '')), ''), price = p_price, photo = p_photo, active = coalesce(p_active, true)
+     where id = p_id and venue_id = v.id returning id into nid;
+  end if;
+  return jsonb_build_object('ok', nid is not null, 'id', nid);
+end;
+$$;
+revoke execute on function public.partner_item_save(uuid, text, text, numeric, text, boolean) from public, anon;
+grant execute on function public.partner_item_save(uuid, text, text, numeric, text, boolean) to authenticated;
+
+create or replace function public.order_items(p_kind text)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select coalesce(jsonb_agg(jsonb_build_object('id', i.id, 'name', i.name, 'about', i.about, 'price', i.price, 'currency', i.currency,
+           'photo', i.photo, 'by', v.name, 'area', v.city, 'mine', v.user_id = auth.uid()) order by i.price), '[]'::jsonb)
+    from public.partner_items i join public.partner_venues v on v.id = i.venue_id
+   where i.active and i.kind = coalesce(p_kind, i.kind);
+$$;
+revoke execute on function public.order_items(text) from public, anon;
+grant execute on function public.order_items(text) to authenticated;
+
+create or replace function public.order_place(p jsonb)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); it public.partner_items%rowtype; v public.partner_venues%rowtype; c text; d date;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  select * into it from public.partner_items where id = (p ->> 'item')::uuid and active;
+  if not found then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
+  select * into v from public.partner_venues where id = it.venue_id;
+  d := coalesce((p ->> 'deliver_on')::date, current_date);
+  if d < current_date or d > current_date + 60 then return jsonb_build_object('ok', false, 'reason', 'date'); end if;
+  if (select count(*) from public.partner_orders where user_id = me and created_at > now() - interval '1 day') >= 8 then
+    return jsonb_build_object('ok', false, 'reason', 'slow_down');
+  end if;
+  c := 'MO-' || upper(substr(md5(gen_random_uuid()::text), 1, 6));
+  insert into public.partner_orders (code, item_id, venue_id, user_id, to_name, to_phone, address, area, deliver_on, card, from_phone, price, currency, commission_pct)
+  values (c, it.id, it.venue_id, me, left(btrim(p ->> 'to_name'), 60), btrim(p ->> 'to_phone'), left(btrim(p ->> 'address'), 300),
+          nullif(left(btrim(coalesce(p ->> 'area', '')), 60), ''), d, nullif(left(btrim(coalesce(p ->> 'card', '')), 240), ''),
+          nullif(btrim(coalesce(p ->> 'from_phone', '')), ''), it.price, it.currency, v.commission_pct);
+  insert into public.notifications (user_id, actor_id, kind, body) values (v.user_id, me, 'food_order', '🌹 ' || it.name || ' · ' || c);
+  return jsonb_build_object('ok', true, 'code', c, 'total', it.price, 'currency', it.currency);
+exception when check_violation then
+  return jsonb_build_object('ok', false, 'reason', 'details');
+end;
+$$;
+revoke execute on function public.order_place(jsonb) from public, anon;
+grant execute on function public.order_place(jsonb) to authenticated;
+
+-- your own orders, and — for a partner — the orders to deliver
+create or replace function public.my_orders()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select jsonb_build_object(
+    'mine', coalesce((select jsonb_agg(jsonb_build_object('code', o.code, 'item', i.name, 'to_name', o.to_name, 'deliver_on', o.deliver_on, 'status', o.status, 'price', o.price, 'currency', o.currency) order by o.created_at desc)
+                        from public.partner_orders o join public.partner_items i on i.id = o.item_id where o.user_id = auth.uid()), '[]'::jsonb),
+    'to_deliver', coalesce((select jsonb_agg(jsonb_build_object('id', o.id, 'code', o.code, 'item', i.name, 'to_name', o.to_name, 'to_phone', o.to_phone, 'address', o.address, 'area', o.area,
+                        'deliver_on', o.deliver_on, 'card', o.card, 'from_phone', o.from_phone, 'status', o.status, 'price', o.price, 'currency', o.currency) order by o.deliver_on, o.created_at)
+                        from public.partner_orders o join public.partner_items i on i.id = o.item_id join public.partner_venues v on v.id = o.venue_id
+                       where v.user_id = auth.uid() and o.status not in ('delivered', 'cancelled')), '[]'::jsonb));
+$$;
+revoke execute on function public.my_orders() from public, anon;
+grant execute on function public.my_orders() to authenticated;
+
+create or replace function public.order_set_status(p_id uuid, p_status text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare o public.partner_orders%rowtype;
+begin
+  if p_status not in ('accepted','on_the_way','delivered','cancelled') then return jsonb_build_object('ok', false, 'reason', 'bad'); end if;
+  select o2.* into o from public.partner_orders o2 join public.partner_venues v on v.id = o2.venue_id where o2.id = p_id and (v.user_id = auth.uid() or public.owner_ok());
+  if not found then return jsonb_build_object('ok', false, 'reason', 'not_yours'); end if;
+  update public.partner_orders set status = p_status where id = p_id;
+  insert into public.notifications (user_id, actor_id, kind, body) values (o.user_id, auth.uid(), 'food_status', '🌹 ' || o.code || ' · ' || replace(p_status, '_', ' '));
+  return jsonb_build_object('ok', true);
+end;
+$$;
+revoke execute on function public.order_set_status(uuid, text) from public, anon;
+grant execute on function public.order_set_status(uuid, text) to authenticated;
+
+-- every order in the team sheet too
+create or replace function public.order_to_sheet() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare hook text; body jsonb;
+begin
+  select value #>> '{}' into hook from public.app_settings where key = 'bookings_sheet_hook';
+  if hook is null or hook !~ '^https://script\.google\.com/' then return new; end if;
+  if tg_op = 'UPDATE' and new.status is not distinct from old.status then return new; end if;
+  body := jsonb_build_object('code', new.code, 'trip', '🌹 ' || (select name from public.partner_items where id = new.item_id),
+    'name', (select name from public.profiles where id = new.user_id) || ' → ' || new.to_name,
+    'people', 1, 'total', new.price, 'currency', new.currency, 'pay', new.pay_mode, 'status', new.status,
+    'note', new.deliver_on::text || ' · ' || coalesce(new.area, '') || ' · ' || coalesce(new.card, ''), 'photo_ok', false,
+    'booked_at', new.created_at, 'event', lower(tg_op));
+  begin
+    execute 'select net.http_post(url := $1, body := $2, headers := ''{"Content-Type":"application/json"}''::jsonb)' using hook, body;
+  exception when others then null;
+  end;
+  return new;
+end;
+$$;
+revoke execute on function public.order_to_sheet() from public, anon, authenticated;
+drop trigger if exists partner_orders_to_sheet on public.partner_orders;
+create trigger partner_orders_to_sheet after insert or update on public.partner_orders
+  for each row execute function public.order_to_sheet();
+
+notify pgrst, 'reload schema';
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة
