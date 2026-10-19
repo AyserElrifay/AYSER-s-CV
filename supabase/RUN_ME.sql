@@ -17451,6 +17451,21 @@ update public.offers set photos = case id
  where exists (select 1 from unnest(photos) u where u like '%media/offers/0ffe%');
 
 -- ═══════════════════════════════════════════════════════════════════
+--  CAMPING IN THE WESTERN DESERT
+--  Ayser: "Camping ممكن تعمل رحله في مصر صحراء غربيه". The desert trip
+--  was already there; it now says what it is — a night under the stars —
+--  with the White and the Black Desert. No dates, no price: those come
+--  from the organiser when it opens. Idempotent.
+-- ═══════════════════════════════════════════════════════════════════
+update public.offers
+   set title = 'Camping in the White Desert', title_ar = 'تخييم في الصحرا البيضا',
+       photos = '{media/place-white-desert.jpg,media/offer-desert.jpg,media/place-black-desert.jpg}',
+       summary = coalesce(summary, 'A night under the stars in the Western Desert: the white chalk rocks of the White Desert and the hills of the Black Desert. Dates and price come when the organiser opens it.'),
+       summary_ar = coalesce(summary_ar, 'ليلة تحت النجوم في الصحرا الغربية: صخور الصحرا البيضا وتلال الصحرا السودا. المواعيد والسعر هتنزل أول ما المنظّم يفتحها.'),
+       updated_at = now()
+ where id = '0ffe0000-0000-4000-8000-00000000000e';
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة
