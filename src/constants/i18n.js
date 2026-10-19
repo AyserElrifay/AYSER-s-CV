@@ -1380,6 +1380,7 @@ export const STRINGS = {
     bk_kind_deal: "Deal",
     bk_kind_stay: "Stay",
     bk_kind_experience: "Experience",
+    bk_kind_gift: "🎁 Gifts",
     bk_kind_table: "Table",
     bk_empty: "Nothing to book here yet. Trips and deals are added after we check them — come back soon.",
     bk_plus_title: "You're enjoying the paid plan, free — as a thank-you",

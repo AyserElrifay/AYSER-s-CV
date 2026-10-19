@@ -42,7 +42,7 @@ const Soon = ({ t }) => (
        allows), and a total that is a preview: the database prices it.
    And "My bookings", with each booking's code and honest status. */
 
-const KINDS = [null, 'reflection', 'workshop', 'trip', 'deal', 'stay', 'experience'];
+const KINDS = [null, 'reflection', 'workshop', 'trip', 'deal', 'stay', 'experience', 'gift'];
 /* 'reflection' is a kind of trip, not a kind of offer: it is the track */
 const isKind = (o, k) => (k === 'reflection' || k === 'workshop' ? o.track === k : o.kind === k);
 const TOPIC_EMOJI = { writing: '✍️', poetry: '📜', dance: '💃', music: '🎸', singing: '🎤', art: '🎨', languages: '💬', kids: '🧸' };

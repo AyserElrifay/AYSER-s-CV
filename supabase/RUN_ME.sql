@@ -17348,6 +17348,26 @@ create trigger push_on_notification_again after update of created_at on public.n
 notify pgrst, 'reload schema';
 
 -- ═══════════════════════════════════════════════════════════════════
+--  GIFTS · THE MOMENTS NOTEBOOK FIRST
+--
+--  Ayser: a Moments notebook ("for the days worth keeping") and, after
+--  it, the things people here make — crochet, pullovers. A gift is an
+--  offer like a trip: the team sets the price in the Studio and it is
+--  paid through the same checkout. Until the price is set it is "coming
+--  soon" and people can only say "I want one" (reserve) — nobody pays
+--  for a notebook that does not exist yet.
+-- ═══════════════════════════════════════════════════════════════════
+alter table public.offers drop constraint if exists offers_kind_check;
+alter table public.offers add constraint offers_kind_check check (kind in ('trip','deal','stay','table','experience','gift'));
+
+insert into public.offers (id, kind, status, operator, title, title_ar, city, country, photos, price, currency, pay_modes, summary, summary_ar)
+values ('0ffe0000-0000-4000-8000-0000000000c1', 'gift', 'soon', 'Moments', 'The Moments Notebook', 'دفتر Moments', 'Cairo', 'EG',
+  array['media/gift-notebook.jpg'], 0, 'EGP', '{reserve}',
+  'For the days worth keeping. A cloth notebook with a ribbon and lined pages, to write the moments you lived instead of posting them.',
+  'للأيام اللي تستاهل تفضل. دفتر بغلاف قماش وشريطة وورق مسطّر، تكتب فيه اللحظات اللي عشتها بدل ما تنزّلها.')
+on conflict (id) do nothing;
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة

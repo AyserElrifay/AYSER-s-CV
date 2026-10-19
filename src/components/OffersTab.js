@@ -17,7 +17,7 @@ import { appLink, shareLink } from '../utils/share';
 
 const lines = (s) => String(s || '').split('\n').map((x) => x.trim()).filter(Boolean);
 const joinL = (a) => (Array.isArray(a) ? a.join('\n') : '');
-const KINDS = ['trip', 'deal', 'stay', 'experience', 'table'];
+const KINDS = ['trip', 'deal', 'stay', 'experience', 'table', 'gift'];
 const MODES = ['reserve', 'at_venue', 'online'];
 
 const Field = ({ label, value, onChange, multi, ph, num }) => (
