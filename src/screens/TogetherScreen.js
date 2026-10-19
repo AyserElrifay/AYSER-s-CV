@@ -463,12 +463,6 @@ export const TogetherScreen = () => {
     try { return d.date.toLocaleDateString(lang === 'ar' ? 'ar-EG' : lang, long ? { weekday: 'long', day: 'numeric', month: 'short' } : { weekday: 'short' }); }
     catch (e) { return d.key; }
   };
-  /* "in 2 hours" says more than "18:30" when it is today */
-  const soon = (iso) => {
-    const m = Math.round((new Date(iso).getTime() - Date.now()) / 60000);
-    if (!(m > 0) || m >= 12 * 60) return hour(iso);
-    return m < 60 ? t('tg_in_min').replace('{n}', String(m)) : t('tg_in_h').replace('{n}', String(Math.round(m / 60)));
-  };
   const hour = (iso) => {
     try { return new Date(iso).toLocaleTimeString(lang === 'ar' ? 'ar-EG' : lang, { hour: '2-digit', minute: '2-digit' }); }
     catch (e) { return ''; }
@@ -655,7 +649,7 @@ export const TogetherScreen = () => {
                         <PlanHead g={g}>
                           <Text numberOfLines={2} style={{ color: C.text, fontSize: 15.5, fontWeight: '900', lineHeight: 20 }}>{titleFor(g.title, lang)}</Text>
                           <Text numberOfLines={1} style={{ color: C.faint, fontSize: 12.5, fontWeight: '700', marginTop: 3 }}>
-                            {soon(g.starts_at)}{g.place_name ? ' · ' + g.place_name : g.city ? ' · ' + g.city : ''}
+                            {hour(g.starts_at)}{g.place_name ? ' · ' + g.place_name : g.city ? ' · ' + g.city : ''}
                           </Text>
                           {g.host_role ? <View style={{ marginTop: 5 }}><HostBadge role={g.host_role} small /></View> : null}
                           {g.age_min != null || g.age_max != null ? (
@@ -728,7 +722,7 @@ export const TogetherScreen = () => {
                                 : (g.im_going ? '✓ ' : '') + (Number(g.going) || 0) + ' ' + t('green_going')}
                             </Text>
                           </View>
-                          {expanded && (g.im_going || mine) ? (
+                          {g.im_going || mine ? (
                             /* notes to the others on it, sealed until it ends (CapsuleSheet) */
                             <Pressable onPress={() => { tapLight(); setSheet({ capsule: g }); }}
                               hitSlop={6} accessibilityRole="button" accessibilityLabel={t('tk_title')} style={{ marginEnd: 8 }}>
@@ -737,7 +731,7 @@ export const TogetherScreen = () => {
                               </View>
                             </Pressable>
                           ) : null}
-                          {expanded && (g.im_going || mine) && g.squad_id && !g.blind ? (
+                          {(g.im_going || mine) && g.squad_id && !g.blind ? (
                             /* the plan's own group chat — "I'm at the gate" */
                             <Pressable onPress={() => { tapLight(); openChat({ id: g.squad_id, name: titleFor(g.title, lang), emoji: lookOf(g.kind).emoji }); goToTab('CHATS'); }}
                               hitSlop={6} accessibilityRole="button" accessibilityLabel={t('tg_chat')} style={{ marginEnd: 8 }}>
@@ -752,15 +746,6 @@ export const TogetherScreen = () => {
                             <Pressable onPress={() => checkIn(g)} disabled={!!busy[g.id]} accessibilityRole="button">
                               <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 15, paddingVertical: 8, opacity: busy[g.id] ? 0.6 : 1 }}>
                                 <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '900' }}>{t('xp_im_here').replace('{n}', String(g.xp || 30))}</Text>
-                              </View>
-                            </Pressable>
-                          ) : (g.im_going || mine) && !expanded ? (
-                            /* Ayser: few people on the app yet, so "invite everyone" on
-                               the app reaches nobody. The one action is to share it
-                               OUT — WhatsApp, Instagram — where the people are */
-                            <Pressable onPress={() => { tapLight(); shareLink({ url: appLink({ tab: 'TOGETHER', invite: uid }), title: titleFor(g.title, lang), text: titleFor(g.title, lang) + ' · ' + soon(g.starts_at) + (g.place_name ? ' · ' + g.place_name : '') }); }} hitSlop={6} accessibilityRole="button">
-                              <View style={{ backgroundColor: C.text, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8 }}>
-                                <Text style={{ color: C.bg, fontSize: 12.5, fontWeight: '900' }}>{t(mine ? 'bk_share' : 'tg_bring')}</Text>
                               </View>
                             </Pressable>
                           ) : mine ? (
@@ -785,7 +770,7 @@ export const TogetherScreen = () => {
                             )
                           )}
                         </View>
-                        {expanded && sent && sent.id === g.id ? (
+                        {sent && sent.id === g.id ? (
                           <Text style={{ color: C.green, fontSize: 12, fontWeight: '800', marginTop: 8 }}>{t('green_sent_to')} {sent.n}</Text>
                         ) : null}
                         {checkMsg && checkMsg.id === g.id ? (
