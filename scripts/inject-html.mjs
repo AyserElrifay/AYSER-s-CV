@@ -11,8 +11,10 @@ const file = path.join(process.cwd(), dist, 'index.html');
 let html = fs.readFileSync(file, 'utf8');
 
 const BASE = 'https://therealmoments.com/';
-const TITLE = "Moments — Don't scroll it. Live it.";
-const DESC = 'The social super-app: live world map, real mates, moments & reels, deals, and curated adventures.';
+/* what Google shows: the name people type ("Moments", "The Real Moments",
+   "مومنتس") in the title, and one honest sentence of what it is */
+const TITLE = "Moments — The Real Moments · go out, meet real people";
+const DESC = 'Moments (The Real Moments · مومنتس) is a calm app for real life: plans near you, real people to go with, trips, workshops and Green Minds clean-ups. Don\'t scroll it. Live it.';
 
 // Responsive framing so ONE build fits both screens:
 //  • Phone  → the app fills the whole screen (dynamic viewport height so
@@ -109,6 +111,17 @@ const tags = `
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Moments" />
   <meta name="description" content="${DESC}" />
+  <meta name="robots" content="index, follow, max-image-preview:large" />
+  <link rel="canonical" href="${BASE}" />
+  <meta name="application-name" content="Moments" />
+  <script type="application/ld+json">${JSON.stringify({
+    '@context': 'https://schema.org',
+    '@graph': [
+      { '@type': 'Organization', '@id': BASE + '#org', name: 'Moments', alternateName: ['The Real Moments', 'therealmoments', 'مومنتس'], url: BASE, logo: BASE + 'icon-512.png', email: 'ayser@therealmoments.com', founder: { '@type': 'Person', name: 'Ayser Elrifay' } },
+      { '@type': 'WebSite', '@id': BASE + '#site', name: 'Moments', alternateName: 'The Real Moments', url: BASE, publisher: { '@id': BASE + '#org' }, inLanguage: ['en', 'ar'] },
+      { '@type': 'WebApplication', name: 'Moments', url: BASE, applicationCategory: 'SocialNetworkingApplication', operatingSystem: 'Web, iOS, Android', description: DESC, offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' } },
+    ],
+  })}</script>
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="Moments" />
   <meta property="og:title" content="${TITLE}" />
@@ -204,6 +217,15 @@ const kiteIntro = `
 const moveHome = `<script>(function(){try{var h=location.hostname;if(/\\.github\\.io$/i.test(h)){location.replace('https://therealmoments.com/'+location.search+location.hash);}}catch(e){}})();</script>`;
 html = html.replace(/<head([^>]*)>/, (m) => m + moveHome);
 html = html.replace(/<body([^>]*)>/, (m) => m + kiteIntro);
+/* Without JavaScript (and for a crawler that reads before it renders)
+   the page said only "You need to enable JavaScript". Now it says what
+   Moments is, in English and Arabic, with a link to the company page. */
+html = html.replace(/<noscript>[\s\S]*?<\/noscript>/, `<noscript>
+      <h1>Moments — The Real Moments</h1>
+      <p>${DESC}</p>
+      <p>مومنتس — أبلكيشن للحياة الحقيقية: خطط قريبة منك، ناس حقيقيين تخرج معاهم، رحلات وورش.</p>
+      <p><a href="/company/">About Moments</a> · ayser@therealmoments.com</p>
+    </noscript>`);
 fs.writeFileSync(file, html);
 console.log('index.html patched: PWA + OG tags');
 
@@ -329,3 +351,4 @@ console.log('index.html patched: PWA + OG tags');
   fs.writeFileSync(file, page);
   console.log('content security policy: ' + hashes.length + ' inline scripts allowed by hash');
 }
+
