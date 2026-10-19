@@ -2390,6 +2390,8 @@ export const STRINGS = {
     ms_start: "Start {what} near you",
     ms_start_sub: "Nothing planned yet — be the first, it takes a minute",
     ch_people: 'YOUR PEOPLE',
+    pf_more: 'More',
+    pf_less: 'Less',
     lens_all: 'Everything',
     lens_places: 'Places to go',
     lens_people: 'People',

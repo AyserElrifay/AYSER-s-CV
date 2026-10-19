@@ -189,7 +189,8 @@ export const ProfileScreen = () => {
   const { isDark } = useTheme();
   const [settings, setSettings] = useState(false);
   const [tab, setTab] = useState('grid');
-  const [menu, setMenu] = useState(false);            // the ☰ sheet
+  const [menu, setMenu] = useState(false);
+  const [menuMore, setMenuMore] = useState(false);            // the ☰ sheet
   const [accountType, setAccountType] = useState('public'); // public|private|professional|artist|musician
   const [artistGenre, setArtistGenre] = useState('');
   const [verifStatus, setVerifStatus] = useState(null); // null|pending|approved|rejected
@@ -1143,6 +1144,26 @@ export const ProfileScreen = () => {
             <SheetBack onClose={() => setMenu(false)} />
             <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 18 }}>
 
+            <MenuRow icon="create-outline" label={t('edit_space')} onPress={() => setEditOpen(true)} />
+            <MenuRow icon="happy-outline" label={t('your_avatar')} onPress={() => { setMenu(false); setAvatarBuilderOpen(true); }} />
+            <MenuRow icon="sparkles-outline" label="Moments Plus" onPress={() => { setMenu(false); setPlusOpen(true); }} />
+            {accountType === 'partner' ? <MenuRow icon="business-outline" label={t('vn_menu')} onPress={() => { setMenu(false); setVenueOpen(true); }} /> : null}
+            <MenuRow icon="chatbubble-ellipses-outline" label={t('send_feedback')} onPress={() => { setMenu(false); setFbOpen(true); }} />
+            {/* Ayser, Jobs-simple: the four things people come here for;
+                everything else waits one tap away, under "More" */}
+            <Pressable onPress={() => { tapSelection(); setMenuMore((v) => !v); }} accessibilityRole="button" style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 4 }}>
+              <Text style={{ color: C.dim, fontSize: 14.5, fontWeight: '700', flex: 1 }}>{t(menuMore ? 'pf_less' : 'pf_more')}</Text>
+              <Ionicons name={menuMore ? 'chevron-up' : 'chevron-down'} size={16} color={C.faint} />
+            </Pressable>
+            {menuMore ? (
+              <>
+            <MenuRow icon="star-outline" label={t('close_friends')} onPress={() => { setMenu(false); setCloseOpen(true); }} />
+            <MenuRow icon="mail-outline" label={t('tk_title')} onPress={() => { setMenu(false); setCapsOpen(true); }} />
+            <MenuRow icon="library-outline" label={t('lb_title')} onPress={() => { setMenu(false); setLibOpen(true); }} />
+            <MenuRow icon="ribbon-outline" label={t('vh_title')} onPress={() => { setMenu(false); setCertOpen(true); }} />
+            <MenuRow icon="school-outline" label={t('ta_title')} onPress={() => { setMenu(false); setTeachOpen(true); }} />
+            <MenuRow icon="flag-outline" label={t('org_host')} onPress={() => { setMenu(false); setHostOpen(true); }} />
+                <View style={{ height: 10 }} />
             {/* account type switch — includes Artist & Musician creator types */}
             <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', letterSpacing: 1, marginBottom: 8, marginTop: 4 }}>{t('account_type')}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ marginBottom: 10 }}>
@@ -1210,17 +1231,8 @@ export const ProfileScreen = () => {
                 only from a private ?studio=1 link (src/utils/studioLink.js),
                 so an admin console never sits in anyone's settings menu. */}
             {/* everyone: send feedback into the owner's Studio */}
-            <MenuRow icon="create-outline" label={t('edit_space')} onPress={() => setEditOpen(true)} />
-            <MenuRow icon="happy-outline" label={t('your_avatar')} onPress={() => { setMenu(false); setAvatarBuilderOpen(true); }} />
-            <MenuRow icon="star-outline" label={t('close_friends')} onPress={() => { setMenu(false); setCloseOpen(true); }} />
-            <MenuRow icon="sparkles-outline" label="Moments Plus" onPress={() => { setMenu(false); setPlusOpen(true); }} />
-            {accountType === 'partner' ? <MenuRow icon="business-outline" label={t('vn_menu')} onPress={() => { setMenu(false); setVenueOpen(true); }} /> : null}
-            <MenuRow icon="mail-outline" label={t('tk_title')} onPress={() => { setMenu(false); setCapsOpen(true); }} />
-            <MenuRow icon="library-outline" label={t('lb_title')} onPress={() => { setMenu(false); setLibOpen(true); }} />
-            <MenuRow icon="school-outline" label={t('ta_title')} onPress={() => { setMenu(false); setTeachOpen(true); }} />
-            <MenuRow icon="ribbon-outline" label={t('vh_title')} onPress={() => { setMenu(false); setCertOpen(true); }} />
-            <MenuRow icon="flag-outline" label={t('org_host')} onPress={() => { setMenu(false); setHostOpen(true); }} />
-            <MenuRow icon="chatbubble-ellipses-outline" label={t('send_feedback')} onPress={() => { setMenu(false); setFbOpen(true); }} />
+              </>
+            ) : null}
 
             {/* category — shows next to your name on professional accounts */}
             {accountType === 'professional' ? (
