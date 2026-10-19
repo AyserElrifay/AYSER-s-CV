@@ -1138,13 +1138,14 @@ export const ProfileScreen = () => {
       {/* ☰ — creator & account tools, Instagram style */}
       {menu ? (
         <Pressable onPress={() => setMenu(false)} style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end' }}>
-          <Pressable onPress={() => {}} style={{ backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, paddingBottom: insets.bottom + 18, paddingHorizontal: 16 }}>
+          <Pressable onPress={() => {}} style={{ maxHeight: '86%', backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, paddingHorizontal: 16 }}>
             <SheetHandle onClose={() => setMenu(false)} />
             <SheetBack onClose={() => setMenu(false)} />
+            <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 18 }}>
 
             {/* account type switch — includes Artist & Musician creator types */}
             <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', letterSpacing: 1, marginBottom: 8, marginTop: 4 }}>{t('account_type')}</Text>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ marginBottom: 10 }}>
               {/* Ayser: types that mean something on Moments. 'partner' is given
                   by the Moments team when a place is accepted — not picked here */}
               {(accountType === 'partner' ? [{ k: 'partner', e: '🏨' }] : []).concat([
@@ -1157,15 +1158,15 @@ export const ProfileScreen = () => {
                     if (accountType === 'partner' || k === 'partner') return;
                     tapSelection(); setAccountType(k);
                     if (SUPABASE_READY && user) updateProfile(user.id, { account_type: k }).catch(() => {});
-                  }} style={{ width: '31.5%', marginRight: '2.75%', marginBottom: 8 }}>
-                    <View style={{ backgroundColor: on ? C.purple : C.glass, borderWidth: 1, borderColor: on ? C.purple : C.line, borderRadius: 12, paddingVertical: 10, alignItems: 'center' }}>
-                      <Text style={{ fontSize: 15 }}>{e}</Text>
-                      <Text style={{ color: on ? '#FFF' : C.dim, fontSize: 11, fontWeight: '800', marginTop: 3 }}>{t('at_' + k)}</Text>
+                  }} style={{ marginEnd: 8 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: on ? C.text : C.glass, borderWidth: 1, borderColor: on ? C.text : C.line, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8 }}>
+                      <Text style={{ fontSize: 13 }}>{e}</Text>
+                      <Text style={{ color: on ? C.bg : C.dim, fontSize: 12.5, fontWeight: '800', marginStart: 6 }}>{t('at_' + k)}</Text>
                     </View>
                   </Pressable>
                 );
               })}
-            </View>
+            </ScrollView>
 
             {/* artist/musician: genre + real, owner-reviewed verification */}
             {accountType === 'artist' || accountType === 'musician' ? (
@@ -1209,13 +1210,17 @@ export const ProfileScreen = () => {
                 only from a private ?studio=1 link (src/utils/studioLink.js),
                 so an admin console never sits in anyone's settings menu. */}
             {/* everyone: send feedback into the owner's Studio */}
-            <MenuRow icon="sparkles-outline" label="Moments Plus" sub={t('px_menu_sub')} onPress={() => { setMenu(false); setPlusOpen(true); }} />
-            {accountType === 'partner' ? <MenuRow icon="business-outline" label={t('vn_menu')} sub={t('vn_menu_sub')} onPress={() => { setMenu(false); setVenueOpen(true); }} /> : null}
-            <MenuRow icon="mail-outline" label={t('tk_title')} sub={t('tk_menu_sub')} onPress={() => { setMenu(false); setCapsOpen(true); }} />
-            <MenuRow icon="library-outline" label={t('lb_title')} sub={t('lb_menu_sub')} onPress={() => { setMenu(false); setLibOpen(true); }} />
-            <MenuRow icon="school-outline" label={t('ta_title')} sub={t('ta_menu_sub')} onPress={() => { setMenu(false); setTeachOpen(true); }} />
-            <MenuRow icon="ribbon-outline" label={t('vh_title')} sub={t('vh_menu_sub')} onPress={() => { setMenu(false); setCertOpen(true); }} />
-            <MenuRow icon="chatbubble-ellipses-outline" label={t('send_feedback')} sub={t('fb_menu_sub')} onPress={() => { setMenu(false); setFbOpen(true); }} />
+            <MenuRow icon="create-outline" label={t('edit_space')} onPress={() => setEditOpen(true)} />
+            <MenuRow icon="happy-outline" label={t('your_avatar')} onPress={() => { setMenu(false); setAvatarBuilderOpen(true); }} />
+            <MenuRow icon="star-outline" label={t('close_friends')} onPress={() => { setMenu(false); setCloseOpen(true); }} />
+            <MenuRow icon="sparkles-outline" label="Moments Plus" onPress={() => { setMenu(false); setPlusOpen(true); }} />
+            {accountType === 'partner' ? <MenuRow icon="business-outline" label={t('vn_menu')} onPress={() => { setMenu(false); setVenueOpen(true); }} /> : null}
+            <MenuRow icon="mail-outline" label={t('tk_title')} onPress={() => { setMenu(false); setCapsOpen(true); }} />
+            <MenuRow icon="library-outline" label={t('lb_title')} onPress={() => { setMenu(false); setLibOpen(true); }} />
+            <MenuRow icon="school-outline" label={t('ta_title')} onPress={() => { setMenu(false); setTeachOpen(true); }} />
+            <MenuRow icon="ribbon-outline" label={t('vh_title')} onPress={() => { setMenu(false); setCertOpen(true); }} />
+            <MenuRow icon="flag-outline" label={t('org_host')} onPress={() => { setMenu(false); setHostOpen(true); }} />
+            <MenuRow icon="chatbubble-ellipses-outline" label={t('send_feedback')} onPress={() => { setMenu(false); setFbOpen(true); }} />
 
             {/* category — shows next to your name on professional accounts */}
             {accountType === 'professional' ? (
@@ -1234,16 +1239,13 @@ export const ProfileScreen = () => {
             ) : null}
 
             {accountType === 'professional' ? (
-              <MenuRow icon="stats-chart-outline" label={t('professional_dashboard')} sub="Reach, stars & what's working" onPress={() => { setMenu(false); setDash(true); }} />
+              <MenuRow icon="stats-chart-outline" label={t('professional_dashboard')} onPress={() => { setMenu(false); setDash(true); }} />
             ) : null}
             {/* Organisations reach people the way everybody else does: by
                 hosting something on the map — a live room, a small event.
                 There are no adverts and no pages that only post at people.
                 (The old "Create a Page" said "Live" and made nothing.) */}
-            <MenuRow icon="flag-outline" label={t('org_host')} sub={t('org_host_sub')} onPress={() => { setMenu(false); setHostOpen(true); }} />
-            <MenuRow icon="star-outline" label={t('close_friends')} sub="Share some moments with your inner circle" onPress={() => { setMenu(false); setCloseOpen(true); }} />
-            <MenuRow icon="happy-outline" label={t('your_avatar')} sub={t('mr_avatar_sub')} onPress={() => { setMenu(false); setAvatarBuilderOpen(true); }} />
-            <MenuRow icon="create-outline" label={t('edit_space')} sub={t('mr_edit_sub')} onPress={() => setEditOpen(true)} />
+            </ScrollView>
           </Pressable>
         </Pressable>
       ) : null}
