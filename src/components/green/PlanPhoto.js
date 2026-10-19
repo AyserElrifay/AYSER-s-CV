@@ -289,7 +289,7 @@ export const PlaceCredit = ({ g, t }) => {
    opens on it, full width; without one it keeps the drawn tile beside
    the title, exactly as before. A Commons photo carries its credit on
    the picture itself, which its licence asks for. */
-export const PlanHead = ({ g, children, compact }) => {
+export const PlanHead = ({ g, children, slim, title, sub }) => {
   const { t } = useLang();
   /* members' photos arrive a moment after the list; the card redraws once */
   const [, setMp] = useState(memberPhotosReady());
@@ -303,16 +303,26 @@ export const PlanHead = ({ g, children, compact }) => {
   const stock = !url ? stockOf(g) : null;
   /* keyed by its pictures: when members' photos arrive the album starts
      again on the first one, instead of the browser holding the old one in view */
-  /* compact: one small square beside the words, so a week of plans
-     reads as a list instead of a long scroll of big pictures */
-  if (compact) {
+  /* slim: a short picture the width of the card, the name and the time
+     written on it — half the height of the big one, still a photo */
+  if (slim) {
     const p0 = stock && stock.pics[0];
     const pic = url || (p0 && (p0.url || publicMedia(p0.img)));
     return (
-      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-        {pic ? <Image source={{ uri: pic }} style={{ width: 64, height: 64, borderRadius: 14, backgroundColor: C.glassHi }} />
-          : <LinearGradient colors={[look.from, look.to]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ width: 64, height: 64, borderRadius: 14, alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 28 }}>{look.emoji}</Text></LinearGradient>}
-        <View style={{ flex: 1, minWidth: 0, marginStart: 12 }}>{children}</View>
+      <View>
+        <View style={{ height: 118, borderRadius: 16, overflow: 'hidden', marginBottom: 10 }}>
+          {pic ? <Image source={{ uri: pic }} style={{ position: 'absolute', width: '100%', height: '100%' }} />
+            : <LinearGradient colors={[look.from, look.to]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ position: 'absolute', width: '100%', height: '100%' }} />}
+          <LinearGradient colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.72)']} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 80 }} />
+          <View style={{ position: 'absolute', top: 8, left: 8, backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 10, paddingHorizontal: 6, paddingVertical: 2 }}>
+            <Text style={{ fontSize: 15 }}>{look.emoji}</Text>
+          </View>
+          <View style={{ position: 'absolute', left: 12, right: 12, bottom: 10 }}>
+            <Text numberOfLines={1} style={{ color: '#FFF', fontSize: 16.5, fontWeight: '900' }}>{title}</Text>
+            {sub ? <Text numberOfLines={1} style={{ color: 'rgba(255,255,255,0.85)', fontSize: 12.5, fontWeight: '700', marginTop: 2 }}>{sub}</Text> : null}
+          </View>
+        </View>
+        {children}
       </View>
     );
   }

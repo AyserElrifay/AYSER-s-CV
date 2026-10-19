@@ -638,11 +638,11 @@ export const TogetherScreen = () => {
                   return (
                     <Pressable key={g.id} onPress={() => { tapLight(); setOpen(expanded ? null : g.id); }}>
                       <View style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: g.kind === 'cleanup' ? 'rgba(16,185,129,0.55)' : g.audience === 'women' ? '#F9A8D4' : C.line, borderWidth: g.audience === 'women' && !g.im_going ? 1.5 : 1, borderRadius: 22, padding: 12, marginBottom: 10 }}>
-                        <PlanHead g={g}>
-                          <Text numberOfLines={2} style={{ color: C.text, fontSize: 15.5, fontWeight: '900', lineHeight: 20 }}>{titleFor(g.title, lang)}</Text>
-                          <Text numberOfLines={1} style={{ color: C.faint, fontSize: 12.5, fontWeight: '700', marginTop: 3 }}>
+                        <PlanHead g={g} slim={!expanded} title={titleFor(g.title, lang)} sub={hour(g.starts_at) + (g.place_name ? ' · ' + g.place_name : g.city ? ' · ' + g.city : '')}>
+                          {expanded ? <Text numberOfLines={2} style={{ color: C.text, fontSize: 15.5, fontWeight: '900', lineHeight: 20 }}>{titleFor(g.title, lang)}</Text> : null}
+                          {expanded ? <Text numberOfLines={1} style={{ color: C.faint, fontSize: 12.5, fontWeight: '700', marginTop: 3 }}>
                             {hour(g.starts_at)}{g.place_name ? ' · ' + g.place_name : g.city ? ' · ' + g.city : ''}
-                          </Text>
+                          </Text> : null}
                           {g.host_role ? <View style={{ marginTop: 5 }}><HostBadge role={g.host_role} small /></View> : null}
                           {g.age_min != null || g.age_max != null ? (
                             <View style={{ alignSelf: 'flex-start', marginTop: 6, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3, backgroundColor: '#FEF3C7' }}>
