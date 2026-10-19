@@ -81,7 +81,8 @@ export const SettleSheet = ({ onClose, myCode, onSwap, onPapers }) => {
           {/* 3 · everyday life, situation by situation */}
           <Head>{t('st_customs')}</Head>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ marginTop: 10 }}>
-            {SETTLE.map((c) => (
+            {/* yours first, then Egypt, then the rest by name — 28 places in one row */}
+            {[...SETTLE].sort((a, b) => (Number(b.code === myCode) - Number(a.code === myCode)) || (Number(b.code === 'EG') - Number(a.code === 'EG')) || (ar ? a.nameAr.localeCompare(b.nameAr, 'ar') : a.name.localeCompare(b.name))).map((c) => (
               <Pressable key={c.code} onPress={() => { tapSelection(); setCode(c.code); }} accessibilityRole="tab" accessibilityState={{ selected: code === c.code }}
                 style={{ marginEnd: 8, borderRadius: 999, borderWidth: 1, borderColor: code === c.code ? C.text : C.line, backgroundColor: code === c.code ? C.text : 'transparent', paddingHorizontal: 14, paddingVertical: 8 }}>
                 <Text style={{ color: code === c.code ? C.bg : C.text, fontSize: 14, fontWeight: '800' }}>{c.flag + ' ' + (ar ? c.nameAr : c.name)}</Text>
