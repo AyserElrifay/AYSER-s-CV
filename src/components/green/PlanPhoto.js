@@ -289,7 +289,7 @@ export const PlaceCredit = ({ g, t }) => {
    opens on it, full width; without one it keeps the drawn tile beside
    the title, exactly as before. A Commons photo carries its credit on
    the picture itself, which its licence asks for. */
-export const PlanHead = ({ g, children }) => {
+export const PlanHead = ({ g, children, compact }) => {
   const { t } = useLang();
   /* members' photos arrive a moment after the list; the card redraws once */
   const [, setMp] = useState(memberPhotosReady());
@@ -303,6 +303,18 @@ export const PlanHead = ({ g, children }) => {
   const stock = !url ? stockOf(g) : null;
   /* keyed by its pictures: when members' photos arrive the album starts
      again on the first one, instead of the browser holding the old one in view */
+  /* compact: one small square beside the words, so a week of plans
+     reads as a list instead of a long scroll of big pictures */
+  if (compact) {
+    const pic = url || (stock && stock.pics[0] && stock.pics[0].img);
+    return (
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        {pic ? <Image source={{ uri: pic }} style={{ width: 64, height: 64, borderRadius: 14, backgroundColor: C.glassHi }} />
+          : <LinearGradient colors={[look.from, look.to]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ width: 64, height: 64, borderRadius: 14, alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 28 }}>{look.emoji}</Text></LinearGradient>}
+        <View style={{ flex: 1, minWidth: 0, marginStart: 12 }}>{children}</View>
+      </View>
+    );
+  }
   if (stock) return <StockHead key={stock.pics.map((p) => p.img).join('|')} stock={stock} look={look} t={t}>{children}</StockHead>;
   if (!url) {
     /* no real photo of this place: a bright cover in the activity's own
