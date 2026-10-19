@@ -50,7 +50,7 @@ const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
 const get = async (url, opts = {}, tries = 3) => {
   for (let i = 0; i < tries; i++) {
     const headers = Object.assign({ 'User-Agent': UA, Accept: '*/*' }, opts.headers || {});
-    const r = await fetch(url, Object.assign({}, opts, { headers }));
+    const r = await fetch(url, Object.assign({ signal: AbortSignal.timeout(30000) }, opts, { headers }));
     if (r.ok) return r;
     if ((r.status === 429 || r.status === 503) && i < tries - 1) { await sleep(2500 * (i + 1)); continue; }
     throw new Error(r.status + ' ' + url.slice(0, 90));

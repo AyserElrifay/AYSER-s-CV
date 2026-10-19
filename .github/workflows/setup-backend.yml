@@ -216,6 +216,7 @@ jobs:
         run: node scripts/import-egypt-photos.mjs
 
       - name: Find photos for the trips that have none
+        timeout-minutes: 12
         # only trips with no photo at all; a Studio photo is never touched
         if: ${{ inputs.run_sql }}
         continue-on-error: true
