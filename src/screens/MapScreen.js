@@ -426,7 +426,7 @@ export const MapScreen = () => {
   const hasPanel = lens === 'all' || lens === 'activities' || lens === 'people';
   const panelUp = hasPanel && panelOpen;
   const aboveBottom = lens === 'people' ? PEOPLE_PANEL_PEEK + 12
-    : hasPanel ? MAP_PANEL_PEEK + (lens === 'activities' ? MAP_PANEL_CHIPS : 0) + 12 : lens === 'places' ? 252 : 196;   // places: room for "See all … in photos"
+    : hasPanel ? MAP_PANEL_PEEK + (lens === 'activities' ? MAP_PANEL_CHIPS : 0) + 12 : lens === 'places' ? 76 : lens === 'trips' ? 196 : 24;   // places: just above "See all … in photos"
   const joinFromMap = async (g) => {
     if (joiningG[g.id]) return;
     tapLight();
@@ -1152,84 +1152,9 @@ export const MapScreen = () => {
             <Text style={{ color: C.bg, fontSize: 14.5, fontWeight: '900', marginStart: 8 }}>{t('pf_open').replace('{n}', String(DESTINATIONS.length))}</Text>
           </View>
         </Pressable>
-        <View style={{ flexDirection: 'row', marginLeft: 16, marginBottom: 8 }}>
-          {[{ k: 'book', label: '📅 Book' }, { k: 'deals', label: '🧳 ' + t('bk_tile') }].map((o) => (
-            <Pressable key={o.k} onPress={() => { tapSelection(); setRail(o.k); }}>
-              <View style={{ backgroundColor: rail === o.k ? C.purple : C.float, borderWidth: 1, borderColor: rail === o.k ? C.purple : C.line, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 7, marginRight: 8 }}>
-                <Text style={{ color: rail === o.k ? '#FFF' : C.dim, fontSize: 12, fontWeight: '800' }}>{o.label}</Text>
-              </View>
-            </Pressable>
-          ))}
-        </View>
-        <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
-          {rail === 'deals' ? (
-            offers.length ? offers.map((o) => (
-              <Pressable key={o.id} onPress={() => { tapLight(); setTripsOpen(true); }}>
-                <Glass tint={C.float} style={{ width: 236, padding: 10, marginRight: 12 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    {o.photos && o.photos[0] ? <Image source={{ uri: photoUrl(o.photos[0]) }} style={{ width: 48, height: 48, borderRadius: 10, marginRight: 10, backgroundColor: C.glassHi }} /> : null}
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ color: C.text, fontSize: 13, fontWeight: '800' }} numberOfLines={1}>{lang === 'ar' && o.title_ar ? o.title_ar : o.title}</Text>
-                      <Text style={{ color: C.dim, fontSize: 11, marginTop: 1 }} numberOfLines={1}>{t('bk_kind_' + o.kind) + (o.city ? ' · ' + o.city : '')}</Text>
-                      <Text style={{ color: C.text, fontSize: 12.5, fontWeight: '900', marginTop: 3 }}>{money(o.plus && o.member_price != null ? o.member_price : o.price, o.currency, lang)}</Text>
-                    </View>
-                  </View>
-                </Glass>
-              </Pressable>
-            )) : (
-              <Pressable onPress={() => { tapLight(); setTripsOpen(true); }}>
-                <Glass tint={C.float} style={{ width: 236, padding: 14, marginRight: 12 }}>
-                  <Text style={{ color: C.text, fontSize: 13, fontWeight: '800' }}>{'🧳 ' + t('bk_title')}</Text>
-                  <Text style={{ color: C.dim, fontSize: 11.5, marginTop: 4 }} numberOfLines={3}>{t('bk_empty')}</Text>
-                </Glass>
-              </Pressable>
-            )
-          ) : (
-            <>
-              {venues.length ? venues.map((b) => (
-                <Glass key={b.id} tint={C.float} style={{ width: 232, padding: 13, marginRight: 12 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <Text style={{ fontSize: 22, marginRight: 9 }}>{b.emoji}</Text>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ color: C.text, fontSize: 13, fontWeight: '800' }} numberOfLines={1}>{b.name}</Text>
-                      {b.sub ? <Text style={{ color: C.dim, fontSize: 10.5, marginTop: 1 }} numberOfLines={1}>{b.sub}</Text> : null}
-                    </View>
-                  </View>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10 }}>
-                    <Text style={{ color: C.text, fontSize: 13, fontWeight: '900', flex: 1 }}>{b.price || ''}</Text>
-                    {booked[b.id] ? (
-                      <View style={{ backgroundColor: C.greenSoft, borderWidth: 1, borderColor: 'rgba(16,185,129,0.45)', borderRadius: 999, paddingHorizontal: 13, paddingVertical: 6 }}>
-                        <Text style={{ color: C.green, fontSize: 11.5, fontWeight: '900' }}>{t('requested_tick')}</Text>
-                      </View>
-                    ) : (
-                      <Pressable onPress={() => bookVenue(b)}>
-                        <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 15, paddingVertical: 6 }}>
-                          <Text style={{ color: '#FFF', fontSize: 11.5, fontWeight: '900' }}>{t('book')}</Text>
-                        </View>
-                      </Pressable>
-                    )}
-                  </View>
-                </Glass>
-              )) : (
-                <Glass tint={C.float} style={{ width: 232, padding: 16, marginRight: 12, alignItems: 'center' }}>
-                  <Text style={{ fontSize: 22 }}>📅</Text>
-                  <Text style={{ color: C.text, fontSize: 13, fontWeight: '800', marginTop: 6, textAlign: 'center' }}>{t('no_venues_yet')}</Text>
-                  <Text style={{ color: C.faint, fontSize: 11, marginTop: 3, textAlign: 'center' }}>{t('own_place_cta')}</Text>
-                </Glass>
-              )}
-              <Pressable onPress={() => { tapLight(); openPartnerPage('place'); }}>
-                <Glass tint="rgba(124,58,237,0.08)" border="rgba(124,58,237,0.35)" style={{ width: 200, padding: 13, marginRight: 12, alignItems: 'center', justifyContent: 'center' }}>
-                  <Text style={{ fontSize: 24 }}>🤝</Text>
-                  <Text style={{ color: C.text, fontSize: 13, fontWeight: '800', marginTop: 6, textAlign: 'center' }}>{t('own_a_place')}</Text>
-                  <Text style={{ color: C.dim, fontSize: 10.5, marginTop: 3, textAlign: 'center' }}>{t('own_a_place_hint')}</Text>
-                  <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 6, marginTop: 9 }}>
-                    <Text style={{ color: '#FFF', fontSize: 11, fontWeight: '900' }}>{t('partner_with_us')}</Text>
-                  </View>
-                </Glass>
-              </Pressable>
-            </>
-          )}
-        </ScrollView>
+        {/* Ayser: "في طريقة أوضح؟" — the Book / Trips rail and its cards
+            are gone from the map: venues were empty, trips live in
+            Together, partnering lives in the menu. The map is the map. */}
       </View>
       ) : null}
 
