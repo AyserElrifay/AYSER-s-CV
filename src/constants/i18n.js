@@ -2389,7 +2389,6 @@ export const STRINGS = {
     md_own_add: "Put these in my day",
     ms_start: "Start {what} near you",
     ms_start_sub: "Nothing planned yet — be the first, it takes a minute",
-    ch_people: 'YOUR PEOPLE',
     pf_more: 'More',
     pf_less: 'Less',
     tg_in_min: 'in {n} min',
