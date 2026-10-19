@@ -17475,6 +17475,23 @@ update public.offers set video = 'media/offer-siwa.mp4'
    and video is null;
 
 -- ═══════════════════════════════════════════════════════════════════
+--  TRIPS · AYSER'S OWN PHOTOS
+--  The photos he took on these trips: Shali and the oasis for Siwa, the
+--  Black Desert, the night sky and the campfire for the desert camp,
+--  the sea and the corniche for Alexandria. Places, not faces. Only
+--  while a trip still has the photos we put on it (never over the
+--  organiser's own). Idempotent.
+-- ═══════════════════════════════════════════════════════════════════
+update public.offers set photos = '{media/place-shali.jpg,media/trip-siwa-3.jpg,media/trip-siwa-4.jpg,media/trip-siwa-2.jpg,media/trip-siwa-1.jpg}'
+ where id = '0ffe0000-0000-4000-8000-000000000003' and (photos = '{}' or photos[1] like 'media/%') and cardinality(photos) < 5;
+update public.offers set photos = '{media/place-shali-fort.jpg,media/trip-siwa-2.jpg,media/trip-siwa-3.jpg,media/trip-siwa-1.jpg}'
+ where id = '0ffe0000-0000-4000-8000-0000000000a1' and (photos = '{}' or photos[1] like 'media/%') and cardinality(photos) < 4;
+update public.offers set photos = '{media/place-white-desert.jpg,media/trip-desert-1.jpg,media/trip-desert-2.jpg,media/trip-desert-3.jpg,media/offer-desert.jpg}'
+ where id = '0ffe0000-0000-4000-8000-00000000000e' and (photos = '{}' or photos[1] like 'media/%') and cardinality(photos) < 5;
+update public.offers set photos = '{media/offer-alex.jpg,media/trip-alex-1.jpg,media/trip-alex-2.jpg}'
+ where id = '0ffe0000-0000-4000-8000-000000000006' and (photos = '{}' or photos[1] like 'media/%') and cardinality(photos) < 3;
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة
