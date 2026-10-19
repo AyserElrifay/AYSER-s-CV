@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, Modal, Pressable, ScrollView, ActivityIndicator, Animated, TextInput } from 'react-native';
+import { View, Text, Modal, Pressable, ScrollView, ActivityIndicator, Animated, TextInput, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { C } from '../constants/theme';
@@ -308,7 +308,7 @@ function todayItems(a, t, now = new Date(), extra = []) {
   });
   if (muslim(a)) {
     const p = prayerTimes(now, a.at.lat, a.at.lng);
-    [['fajr', '🌅'], ['dhuhr', '☀️'], ['asr', '🌤️'], ['maghrib', '🌇'], ['isha', '🌙']].forEach(([k, e]) => out.push({ id: k, emoji: e, label: '🕌 ' + t('md_' + k), at: p[k], end: new Date(p[k].getTime() + 15 * 60000) }));
+    [['fajr', '🌅'], ['dhuhr', '☀️'], ['asr', '🌤️'], ['maghrib', '🌇'], ['isha', '🌙']].forEach(([k, e]) => out.push({ id: k, emoji: e, label: t('md_' + k), at: p[k], end: new Date(p[k].getTime() + 15 * 60000) }));
   }
   if (faithOf(a) === 'christian' && a.church && a.church.day === today) {
     const h = CHURCH[a.church.slot || 'm'];
@@ -626,39 +626,33 @@ export const MyDay = ({ onClose }) => {
                 );
               })()}
 
-              {/* ── THE PLAN — the next three things, ticked like a list on the
-                  lock screen; the dates that matter on top when they are near ── */}
-              <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '900', letterSpacing: 1, marginTop: 18, marginBottom: 8 }}>{t('md_plan').toUpperCase()}</Text>
-              <View style={{ borderRadius: 20, borderWidth: 1, borderColor: C.line, backgroundColor: C.glass, paddingHorizontal: 14, paddingVertical: 6 }}>
-                {nudges.concat(items.filter((x) => x.end.getTime() > now && done.indexOf(x.id) < 0 && x.id !== 'sleep').slice(0, 3)).map((x, i, arr) => {
+              {/* ── THE PLAN ──
+                  Ayser: "دوشه اوي — إحنا شركة بساطة وشياكة". It was the same
+                  list twice (three things in a card, then the whole day again
+                  as a stack of boxes, each with two emojis). Now it is one
+                  list: time, name, a quiet circle — hairlines between, no
+                  boxes, no icons. The next three by default; "the whole day"
+                  opens the rest in the same list, what has passed greyed. */}
+              <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '900', letterSpacing: 1, marginTop: 22, marginBottom: 4 }}>{t('md_plan').toUpperCase()}</Text>
+              <View>
+                {(showAll ? items : nudges.concat(items.filter((x) => x.end.getTime() > now && done.indexOf(x.id) < 0 && x.id !== 'sleep').slice(0, 3))).map((x, i, arr) => {
                   const isDone = done.indexOf(x.id) >= 0;
+                  const past = !isDone && x.end && x.end.getTime() <= now;
+                  const isNow = nowItem && nowItem.id === x.id;
                   return (
-                    <Pressable key={x.id} onPress={() => toggle(x.id)} accessibilityRole="checkbox" accessibilityState={{ checked: isDone }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: i < arr.length - 1 ? 1 : 0, borderBottomColor: C.line, opacity: isDone ? 0.5 : 1 }}>
-                        <Ionicons name={isDone ? 'checkbox' : 'square-outline'} size={22} color={isDone ? C.green : C.faint} />
-                        <Text style={{ color: C.text, fontSize: 15, fontWeight: '700', flex: 1, marginStart: 10, textDecorationLine: isDone ? 'line-through' : 'none' }} numberOfLines={1}>{x.emoji + ' ' + x.label}</Text>
-                        {x.at ? <Text style={{ color: C.dim, fontSize: 13, fontWeight: '800', fontVariant: ['tabular-nums'], marginStart: 8 }}>{hm(x.at.getHours(), x.at.getMinutes())}</Text> : null}
+                    <Pressable key={x.id} onPress={() => toggle(x.id)} accessibilityRole="checkbox" accessibilityState={{ checked: isDone }} accessibilityLabel={x.label}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 13, borderBottomWidth: i < arr.length - 1 ? StyleSheet.hairlineWidth : 0, borderBottomColor: C.line, opacity: isDone || past ? 0.4 : 1 }}>
+                        <Text style={{ color: isNow ? C.purple : C.dim, fontSize: 13.5, fontWeight: '700', width: 52, fontVariant: ['tabular-nums'] }}>{x.at ? hm(x.at.getHours(), x.at.getMinutes()) : ''}</Text>
+                        <Text style={{ color: C.text, fontSize: 15.5, fontWeight: isNow ? '800' : '600', flex: 1, textDecorationLine: isDone ? 'line-through' : 'none' }} numberOfLines={1}>{x.label}</Text>
+                        <Ionicons name={isDone ? 'checkmark-circle' : 'ellipse-outline'} size={22} color={isDone ? C.green : C.faint} />
                       </View>
                     </Pressable>
                   );
                 })}
-                <Pressable onPress={() => { tapLight(); setShowAll((v) => !v); }} accessibilityRole="button" style={{ paddingVertical: 10 }}>
-                  <Text style={{ color: C.purple, fontSize: 13.5, fontWeight: '900' }}>{showAll ? t('md_hide_day') : t('md_see_day')}</Text>
+                <Pressable onPress={() => { tapLight(); setShowAll((v) => !v); }} accessibilityRole="button" style={{ paddingVertical: 12 }}>
+                  <Text style={{ color: C.dim, fontSize: 13.5, fontWeight: '800' }}>{showAll ? t('md_hide_day') : t('md_see_day')}</Text>
                 </Pressable>
               </View>
-              {showAll ? items.map((x) => {
-                const isDone = done.indexOf(x.id) >= 0;
-                return (
-                  <Pressable key={x.id} onPress={() => toggle(x.id)} accessibilityRole="checkbox" accessibilityState={{ checked: isDone }} style={{ marginTop: 6 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 14, borderWidth: 1, borderColor: C.line, backgroundColor: C.glass, paddingVertical: 10, paddingHorizontal: 12, opacity: isDone ? 0.55 : 1 }}>
-                      <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '900', width: 50, fontVariant: ['tabular-nums'] }}>{hm(x.at.getHours(), x.at.getMinutes())}</Text>
-                      <Text style={{ fontSize: 16, marginEnd: 8 }}>{x.emoji}</Text>
-                      <Text style={{ color: C.text, fontSize: 14, fontWeight: '700', flex: 1, textDecorationLine: isDone ? 'line-through' : 'none' }} numberOfLines={1}>{x.label}</Text>
-                      <Ionicons name={isDone ? 'checkmark-circle' : 'ellipse-outline'} size={20} color={isDone ? C.green : C.faint} />
-                    </View>
-                  </Pressable>
-                );
-              }) : null}
 
               {/* ── FOUR DOORS: focus, your compass, the dates that matter, your diary ── */}
               <View style={{ flexDirection: 'row', marginTop: 14 }}>
