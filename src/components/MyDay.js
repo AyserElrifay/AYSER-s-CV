@@ -94,6 +94,9 @@ const has = (a, kind) => (kind === 'uni' ? a.role === 'student' || a.role === 'b
 const faithOf = (a) => a.faith || (a.pray === true ? 'muslim' : a.pray === false ? 'none' : null);
 const muslim = (a) => faithOf(a) === 'muslim' && !!a.at;
 
+/* every question there can be, in the order they are asked */
+const ORDER = ['role', 'uni', 'work', 'faith', 'church', 'loc', 'grow', 'sleep'];
+
 /* the questions, in order; some only follow from an earlier answer */
 const steps = (a) => {
   const s = ['role'];
@@ -398,7 +401,9 @@ export const MyDay = ({ onClose }) => {
   const { t, lang } = useLang();
   const [a, setA] = useState(() => read() || {});
   const [setup, setSetup] = useState(() => !(read() && read().ready));
-  const [step, setStep] = useState(0);
+  /* half-way through the questions and the app closed (or the phone
+     needed the memory): it opens again on the question you were on */
+  const [step, setStep] = useState(() => { const r = read(); const l = steps(r || {}); const i = r && r.next ? l.indexOf(r.next) : -1; return i > 0 ? i : 0; });
   const [done, setDone] = useState(readDone);
   const [locBusy, setLocBusy] = useState(false);
   const [calNote, setCalNote] = useState(null);
@@ -427,10 +432,15 @@ export const MyDay = ({ onClose }) => {
     if (patch.faith === 'muslim' && !a.at) { const f = lastFix(); if (f) patch = { ...patch, at: { lat: f.lat, lng: f.lng } }; }
     const next = { ...a, ...patch };
     setA(next);
+    /* An answer can take its own question away — telling us where you are
+       removes "where are you?", skipping it sets no faith — and looking
+       this question up in the new list then found nothing and sent
+       everybody back to question one. So: the next question is the first
+       one still asked that comes after this one. */
     const l = steps(next);
-    const i = l.indexOf(cur);
-    if (i >= l.length - 1) { const fin = { ...next, ready: true }; write(fin); setA(fin); setSetup(false); setStep(0); tapSuccess(); }
-    else setStep(i + 1);
+    const after = l.find((q) => ORDER.indexOf(q) > ORDER.indexOf(cur));
+    if (!after) { const fin = { ...next, ready: true, next: undefined }; write(fin); setA(fin); setSetup(false); setStep(0); tapSuccess(); }
+    else { write({ ...next, ready: !!a.ready, next: after }); setStep(l.indexOf(after)); }
   };
   const useLocation = async () => {
     setLocBusy(true);
