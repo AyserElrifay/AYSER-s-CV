@@ -17318,6 +17318,16 @@ update public.offers set photos = '{media/place-shali.jpg}'
 update public.offers set photos = '{media/place-shali-fort.jpg}'
  where id = '0ffe0000-0000-4000-8000-0000000000a1' and ('media/offer-siwa.jpg' = any(photos) or photos = '{}');
 
+-- ── TRIPS WITH A PHOTO OF THEIR OWN ──
+-- Ayser: a card with only a flag looks terrible. The two trips we have
+-- real photos of in the app get them now; the rest are filled from
+-- public-domain photos by scripts/import-offer-photos.mjs on the next
+-- setup run. Only empty trips — a Studio photo is never replaced.
+update public.offers set photos = '{media/place-ee-tallinn.jpg,media/place-ee-toompea-view.jpg}'
+ where id = '0ffe0000-0000-4000-8000-000000000011' and photos = '{}';
+update public.offers set photos = '{media/place-eg-giza-complex.jpg,media/place-gem.jpg,media/place-eg-khafre.jpg}'
+ where id = '0ffe0000-0000-4000-8000-00000000000f' and photos = '{}';
+
 -- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --

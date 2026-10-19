@@ -215,6 +215,15 @@ jobs:
           DRY_RUN: ${{ inputs.photos_dry_run && '1' || '0' }}
         run: node scripts/import-egypt-photos.mjs
 
+      - name: Find photos for the trips that have none
+        # only trips with no photo at all; a Studio photo is never touched
+        if: ${{ inputs.run_sql }}
+        continue-on-error: true
+        env:
+          PROJECT_REF: ${{ inputs.project_ref }}
+          DRY_RUN: ${{ inputs.photos_dry_run && '1' || '0' }}
+        run: node scripts/import-offer-photos.mjs
+
       - name: Install the Supabase CLI
         if: ${{ inputs.deploy_function }}
         uses: supabase/setup-cli@v1
