@@ -1,5 +1,5 @@
-import React, { useState, useRef, useCallback } from 'react';
-import { View, Text, Modal, ScrollView, Pressable, PanResponder, Platform } from 'react-native';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
+import { View, Text, Modal, ScrollView, Pressable, PanResponder, Platform, Animated, Easing, AccessibilityInfo } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { C, R } from '../constants/theme';
@@ -95,6 +95,53 @@ const WearRow = ({ label, options, field, dna, onPick, crop }) => (
     </ScrollView>
   </View>
 );
+
+/* ─── ALIVE, LIKE A TOY YOU REMEMBER ─────────────────────────────────
+   Ayser: more animation, the kind that takes people back to being
+   kids. The figure breathes and bobs a little while it waits, sways as
+   if looking around, and when you change anything it hops — a happy
+   little jump with a wobble, like a character trying on a new jacket.
+   All of it is the native driver (transforms), so the canvas is not
+   redrawn for any of it; with Reduce Motion on, it simply stands. */
+const Alive = ({ change, children }) => {
+  const idle = useRef(new Animated.Value(0)).current;
+  const hop = useRef(new Animated.Value(0)).current;
+  const [still, setStill] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    try { AccessibilityInfo.isReduceMotionEnabled().then((r) => { if (alive) setStill(!!r); }).catch(() => {}); } catch (e) {}
+    return () => { alive = false; };
+  }, []);
+  useEffect(() => {
+    if (still) return undefined;
+    const loop = Animated.loop(Animated.sequence([
+      Animated.timing(idle, { toValue: 1, duration: 1400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      Animated.timing(idle, { toValue: 0, duration: 1400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+    ]));
+    loop.start();
+    return () => loop.stop();
+  }, [still]); // eslint-disable-line react-hooks/exhaustive-deps
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) { first.current = false; return; }
+    if (still) return;
+    hop.setValue(0);
+    Animated.sequence([
+      Animated.timing(hop, { toValue: 1, duration: 160, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+      Animated.spring(hop, { toValue: 0, friction: 3.5, tension: 140, useNativeDriver: true }),
+    ]).start();
+  }, [change]); // eslint-disable-line react-hooks/exhaustive-deps
+  const y = Animated.add(idle.interpolate({ inputRange: [0, 1], outputRange: [0, -4] }), hop.interpolate({ inputRange: [0, 1], outputRange: [0, -18] }));
+  const breathe = idle.interpolate({ inputRange: [0, 1], outputRange: [1, 1.018] });
+  const squash = hop.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 0.96, 1.04] });
+  const sway = idle.interpolate({ inputRange: [0, 1], outputRange: ['-1.2deg', '1.2deg'] });
+  const wobble = hop.interpolate({ inputRange: [0, 0.5, 1], outputRange: ['0deg', '-4deg', '3deg'] });
+  return (
+    <Animated.View style={{ transform: [{ translateY: y }, { rotate: sway }, { rotate: wobble }, { scaleY: Animated.multiply(breathe, squash) }] }}>
+      {children}
+    </Animated.View>
+  );
+};
 
 export const AvatarBuilderSheet = ({ initialDna, onClose, onSaved }) => {
   /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
@@ -193,7 +240,7 @@ export const AvatarBuilderSheet = ({ initialDna, onClose, onSaved }) => {
         {/* the live figure — drag it to turn it right round */}
         <View style={{ alignItems: 'center', paddingTop: 10 }}>
           <View {...pan.panHandlers} style={{ alignItems: 'center' }}>
-            <CharacterCanvas dna={dna} width={124} turn={turn} />
+            <Alive change={serializeLook(dna)}><CharacterCanvas dna={dna} width={124} turn={turn} /></Alive>
           </View>
 
           <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>

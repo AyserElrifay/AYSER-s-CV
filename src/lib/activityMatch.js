@@ -5,7 +5,7 @@
    first (a sunset walk is a walk); where it happens — the beach, a
    church, a rooftop — only when nothing else matched. */
 export const ACTIVITIES = [
-  { id: 'animals', emoji: '🐾', re: /animal|shelter|rescue|strays?\b|\bpets?\b|حيوان|قطط|كلاب|ملجأ|ملجا|🐾|🐶|🐱/i },
+  { id: 'animals', emoji: '🐾', re: /animal|shelter|rescue|strays?\b|\bpets?\b|\bdogs?\b|\bcats?\b|حيوان|قطط|قطة|كلاب|كلبك|ملجأ|ملجا|🐾|🐶|🐱/i },
   { id: 'cleanup', emoji: '🧹', re: /clean|litter|pick-?up|trash|garbage|تنضيف|تنظيف|نضافة|نظافة|زبال|🧹/i },
   { id: 'school', emoji: '🏫', re: /schools?\b|awareness|مدرس|مدارس|توعي|نشر ثقافة|نشر الثقافة|🏫/i },
   { id: 'kids', emoji: '👧', re: /orphan|\bkids\b|children|child care|أيتام|ايتام|اطفال|أطفال/i },
@@ -18,6 +18,7 @@ export const ACTIVITIES = [
   { id: 'padel', emoji: '🎾', re: /padel|(^|[^ت])بادل|tennis|تنس|🎾/i },
   { id: 'football', emoji: '⚽', re: /foot|soccer|pitch|five-a-side|كورة|كوره|ملعب|خماسي|⚽/i },
   { id: 'crochet', emoji: '🧶', re: /crochet|knit|yarn|كروشيه|كروشية|تريكو|🧶/i },
+  { id: 'photo', emoji: '📷', re: /photo ?(walk|session|shoot)|portraits?|تصوير|فوتو ?سيشن|📷|📸/i },
   { id: 'sketch', emoji: '🎨', re: /sketch|draw|رسم(?!ي)|اسكتش|✏️|🎨|\bart\b/i },
   { id: 'walk', emoji: '🥾', re: /walk|hike|hiking|trail|stroll|مشي|تمشي|مشوار|🥾|🚶/i },
   { id: 'swim', emoji: '🏊', re: /swim|pool|سباح|حمام سباحة|🏊/i },

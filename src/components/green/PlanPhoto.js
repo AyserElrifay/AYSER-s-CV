@@ -27,7 +27,7 @@ const clip = (pre, k) => Array.from({ length: k }, (_, i) => ({ img: pre + (i + 
 const STOCK = [
   /* Ayser asked for these two under volunteering; their pictures come
      when he sends them — until then they keep their drawn cover */
-  { id: 'animals', re: RE_OF.animals, files: [] },
+  { id: 'animals', re: RE_OF.animals, files: [{ img: 'welcome-cat.jpg' }] },
   { id: 'cleanup', re: RE_OF.cleanup, files: [] },
   { id: 'school', re: RE_OF.school, files: [{ img: 'act-talk-2.jpg' }, { img: 'act-talk-1.jpg' }, { img: 'act-kids-2.jpg' }] },
   { id: 'kids', re: RE_OF.kids, files: [{ img: 'reel-kids.jpg', clip: 'reel-kids.mp4' }].concat(clip('act-kids-v', 1).concat([{ img: 'sport-football-1.jpg' }], [1, 2, 3, 4, 5].map((k) => ({ img: 'act-kids-' + k + (k === 1 || k === 3 ? 'w' : '') + '.jpg' })))) },

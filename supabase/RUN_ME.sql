@@ -17368,6 +17368,37 @@ values ('0ffe0000-0000-4000-8000-0000000000c1', 'gift', 'soon', 'Moments', 'The 
 on conflict (id) do nothing;
 
 -- ═══════════════════════════════════════════════════════════════════
+--  PEOPLE WITH DOGS AND CATS · AND A PHOTO WALK
+--
+--  Ayser: activities for pet owners — walking together, a birthday for
+--  the dog — and photo sessions. Ideas, like every spark: nobody is
+--  going until somebody starts one. Kind "walk" / "art" so they sit with
+--  the walks and the art the app already knows.
+-- ═══════════════════════════════════════════════════════════════════
+insert into public.green_sparks (kind, country, title_ar, title_en, about_ar, about_en, minutes, people, sort)
+select * from (values
+ ('walk',null,'تمشية الكلاب سوا','A dog walk together',
+  'اتقابلوا الصبح بدري في جنينة أو كورنيش واسع، كل واحد وكلبه بالطوق، مشي ساعة بهدوء والكلاب تتعرف على بعض. هاتوا مية وأكياس.',
+  'Meet early in a park or a wide corniche, every dog on a lead, an easy hour of walking while the dogs get to know each other. Bring water and bags.',60,'3–12',60),
+ ('walk',null,'عيد ميلاد كلبك','A birthday for your dog',
+  'جنينة فيها مساحة، كيكة مخصوص للكلاب (من غير شوكولاتة)، ألعاب بسيطة وصور جماعية. اسألوا الأول لو الكلاب بتحب الزحمة.',
+  'A park with room, a dog-safe cake (never chocolate), a few simple games and a group photo. Ask first whether the dogs are fine with a crowd.',90,'3–15',61),
+ ('circle',null,'قعدة أصحاب القطط','A cat people meetup',
+  'كافيه بيرحّب بالحيوانات أو بيت حد: نصايح أكل وتطعيم، صور القطط على الموبايل، والقطط تفضل في البيت مرتاحة إلا لو المكان مناسب.',
+  'A pet-friendly café or someone''s home: food and vaccine tips, cat photos on phones — the cats stay home unless the place suits them.',90,'3–10',62),
+ ('project',null,'يوم في ملجأ حيوانات','A morning at an animal shelter',
+  'بالتنسيق مع ملجأ معروف بس: تنضيف، تمشية، أكل، وصور كويسة للحيوانات اللي محتاجة بيت عشان تتبنى أسرع.',
+  'Only with a known shelter that agrees: cleaning, walking, feeding — and good photos of the animals waiting for a home, so they are adopted sooner.',150,'3–10',63),
+ ('art',null,'جولة تصوير','A photo walk',
+  'مسار واحد في المدينة، كل واحد بكاميرته أو موبايله، كل ربع ساعة موضوع (ظل، ألوان، ناس بإذنهم)، وفي الآخر كل واحد يختار أحسن تلات صور.',
+  'One route through the city, a camera or a phone each, a theme every fifteen minutes (shadows, colour, people — with their yes), then everyone picks their best three.',120,'3–12',64),
+ ('art',null,'جلسة تصوير بورتريه لبعض','Portraits of each other',
+  'ضوء الغروب في جنينة أو على الكورنيش: كل اتنين يصوروا بعض بورتريه، وتبادلوا الصور. محدش بيتصور غير لو موافق.',
+  'Sunset light in a park or on the corniche: in pairs, take each other''s portraits and swap the photos. Nobody is photographed without saying yes.',90,'2–10',65)
+) v(kind, country, title_ar, title_en, about_ar, about_en, minutes, people, sort)
+where not exists (select 1 from public.green_sparks s where s.title_en = v.title_en);
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة

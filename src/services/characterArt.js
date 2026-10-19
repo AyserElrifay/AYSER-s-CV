@@ -150,6 +150,38 @@ export const CULTURES = [
     look: { top: 'boubou', topColor: '#065F46', bottom: '', shoes: 'sandals', shoeColor: '#7C5E3C', outer: '', hat: 'kufi', hatColor: '#F5B301' },
   },
   {
+    id: 'nubia', label: 'Nubia', emoji: '🇪🇬',
+    look: { top: 'galabeya', topColor: '#FFFFFF', bottom: '', shoes: 'sandals', shoeColor: '#7C5E3C', outer: '', hat: 'kufi', hatColor: '#F5E9D8' },
+  },
+  {
+    id: 'anatolia', label: 'Anatolia', emoji: '🇹🇷',
+    look: { top: 'embroidered', topColor: '#FFFFFF', bottom: 'wide', bottomColor: '#1E3A5F', shoes: 'loafers', shoeColor: '#B91C1C', outer: '', hat: '' },
+  },
+  {
+    id: 'hungary', label: 'Hungary', emoji: '🇭🇺',
+    look: { top: 'embroidered', topColor: '#FFFFFF', bottom: 'skirt', bottomColor: '#B91C1C', shoes: 'boots', shoeColor: '#111827', outer: '', hat: '' },
+  },
+  {
+    id: 'czech', label: 'Moravia', emoji: '🇨🇿',
+    look: { top: 'embroidered', topColor: '#FFFFFF', bottom: 'skirt', bottomColor: '#2E5A88', shoes: 'boots', shoeColor: '#111827', outer: '', hat: '' },
+  },
+  {
+    id: 'estonia', label: 'Estonia', emoji: '🇪🇪',
+    look: { top: 'blouse', topColor: '#FFFFFF', bottom: 'skirt', bottomColor: '#065F46', shoes: 'loafers', shoeColor: '#111827', outer: '', hat: '' },
+  },
+  {
+    id: 'dutch', label: 'Netherlands', emoji: '🇳🇱',
+    look: { top: 'blouse', topColor: '#2E5A88', bottom: 'skirt', bottomColor: '#111827', shoes: 'loafers', shoeColor: '#F5E9D8', outer: '', hat: '' },
+  },
+  {
+    id: 'slavic', label: 'Slavic', emoji: '🇷🇺',
+    look: { top: 'embroidered', topColor: '#FFFFFF', bottom: 'skirt', bottomColor: '#B91C1C', shoes: 'boots', shoeColor: '#7C5E3C', outer: '', hat: '' },
+  },
+  {
+    id: 'china', label: 'China', emoji: '🇨🇳',
+    look: { top: 'dress', topColor: '#B91C1C', bottom: '', shoes: 'heels', shoeColor: '#111827', outer: '', hat: '' },
+  },
+  {
     id: 'andes', label: 'Andes', emoji: '🇵🇪',
     look: { top: 'poncho', topColor: '#B91C1C', bottom: 'skirt', bottomColor: '#1F2937', shoes: 'loafers', shoeColor: '#7C5E3C', outer: '', hat: 'bowler', hatColor: '#111827' },
   },
