@@ -128,7 +128,7 @@ export const Welcome = ({ onStart, onSignIn }) => {
           <View style={{ width: 320, height: 320, marginTop: 18 }}><Earth /></View>
         </View>
 
-        <Animated.View style={{ paddingHorizontal: 28, paddingBottom: insets.bottom + 26, opacity: rise, transform: [{ translateY: rise.interpolate({ inputRange: [0, 1], outputRange: [16, 0] }) }] }}>
+        <Animated.View style={{ paddingHorizontal: 28, paddingBottom: insets.bottom + 26, width: '100%', maxWidth: 480, alignSelf: 'center', opacity: rise, transform: [{ translateY: rise.interpolate({ inputRange: [0, 1], outputRange: [16, 0] }) }] }}>
           <Pressable onPress={() => { tapLight(); onStart(); }} accessibilityRole="button"
             style={{ backgroundColor: '#FFF', borderRadius: 999, paddingVertical: 17, alignItems: 'center' }}>
             <Text style={{ color: '#000', fontSize: 17, fontWeight: '700' }}>{t('welcome_start')}</Text>

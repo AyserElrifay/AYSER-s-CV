@@ -304,7 +304,7 @@ export const AuthScreen = ({ recovery = false, onDone }) => {
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: C.bg }}>
-      <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 20 }} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 20, width: '100%', maxWidth: 480, alignSelf: 'center' }} keyboardShouldPersistTaps="handled">
         {/* ── THE LANGUAGE, BEFORE ANYTHING ELSE ──────────────────
             The phone's own language is used on a first visit, so most
             people never need this. But a guess is a guess: somebody on

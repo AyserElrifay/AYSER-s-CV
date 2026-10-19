@@ -145,7 +145,12 @@ export const TabNavigator = () => {
       // a shift reads as movement, which is what the finger did.
       animation: 'shift',
       tabBarPosition: sidebar ? 'left' : 'bottom',
+      /* a full-width window keeps each screen at a reading width, centred;
+         the map is the one screen that should use all of it */
+      sceneStyle: sidebar && route.name !== 'MAP' ? { backgroundColor: C.bg, paddingHorizontal: Math.max(0, Math.round((width - 224 - 860) / 2)) } : undefined,
       tabBarActiveTintColor: C.purple,
+      // the sidebar's chosen row: a soft tint, so the purple word stays readable on it
+      tabBarActiveBackgroundColor: sidebar ? C.purpleSoft : 'transparent',
       tabBarInactiveTintColor: C.faint,
       tabBarLabelPosition: sidebar ? 'beside-icon' : 'below-icon',
       tabBarStyle: sidebar

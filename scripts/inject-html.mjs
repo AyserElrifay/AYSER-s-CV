@@ -23,21 +23,15 @@ const DESC = 'Moments (The Real Moments · مومنتس) is a calm app for real 
 //    soft backdrop instead of being stretched across a wide window.
 const responsiveCss = `
   <style>
-    html, body { margin: 0; height: 100%; background: #0b1020; }
+    html, body { margin: 0; height: 100%; background: #0B0B0E; }
+    @media (prefers-color-scheme: light) { html, body { background: #F9F9F6; } }
     /* dynamic viewport height fixes the mobile URL-bar aspect crop */
     #root { width: 100%; height: 100vh; height: 100dvh; overflow: hidden; }
-    /* Laptop / desktop → a wide app shell (left sidebar + content),
-       inspired by the VK / Facebook desktop layout, centred on a soft
-       backdrop instead of a stretched full-bleed page. */
-    @media (min-width: 820px) {
-      body { background: radial-gradient(1400px 900px at 50% -10%, #241b46 0%, #0b1020 60%); }
-      #root {
-        width: min(1180px, 96vw); height: 94vh; max-height: 900px;
-        margin: max(0px, calc((100vh - 900px) / 2)) auto 0;
-        border-radius: 20px; overflow: hidden;
-        box-shadow: 0 30px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.06);
-      }
-    }
+    /* Laptop / desktop: the whole window. It used to sit in a framed box
+       in the middle of a dark backdrop, which on a laptop screen looked
+       like a page that had not finished loading ("ليه الشاشة مش كاملة").
+       Now the app fills the window; the sidebar sits on the left and each
+       screen keeps a comfortable reading width (TabNavigator sceneStyle). */
   </style>
 `;
 
