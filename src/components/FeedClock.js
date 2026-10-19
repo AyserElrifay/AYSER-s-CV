@@ -4,6 +4,8 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { C } from '../constants/theme';
 import { useLang } from '../context/LanguageContext';
 import { readGate, TASKS, untilTomorrow } from '../lib/feedGate';
+import { buildIcs, openIcs } from '../lib/ics';
+import { tapLight } from '../utils/feedback';
 
 /* ─── THE FEED'S CLOCK, ALWAYS IN VIEW ────────────────────────────────
    Ayser: "قلّه فاضل قد إيه … وخلّي في تايمر شغّال — وإنت فاتح، فاضل قد
@@ -20,7 +22,8 @@ export const FeedClock = ({ budget, running }) => {
   useEffect(() => { const id = setInterval(() => tick((n) => n + 1), 1000); return () => clearInterval(id); }, []);
   const g = readGate();
   /* the gate is written every five seconds; between writes, count on */
-  const since = running && g.at ? Math.min(5, (Date.now() - g.at) / 1000) : 0;
+  /* only while time is really being counted: the last write is recent */
+  const since = running && g.at && Date.now() - g.at < 5500 ? (Date.now() - g.at) / 1000 : 0;
   const left = budget - g.used - since;
   const low = left < 120;
   return (
@@ -41,11 +44,25 @@ export const FeedReopen = ({ onReflect, onPlans }) => {
   const g = readGate();
   const u = untilTomorrow();
   const go = { reflect: onReflect, plan: onPlans };
+  const [asked, setAsked] = useState(false);
+  const remind = () => {
+    tapLight();
+    const at = new Date(); at.setHours(24, 0, 30, 0);
+    try { openIcs(buildIcs([{ uid: 'feed-' + at.toISOString().slice(0, 10), title: t('fg_remind_title'), start: at, minutes: 5, alarm: 0 }]), 'moments-reopens.ics'); setAsked(true); } catch (e) {}
+  };
   return (
     <View style={{ alignSelf: 'stretch', marginTop: 16 }}>
       <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '800', textAlign: 'center' }}>
         {'🌙 ' + t('fg_reopens').replace('{h}', String(u.h)).replace('{m}', String(u.m))}
       </Text>
+      {/* the countdown runs with the app closed; the phone's own calendar
+          rings when it is over (the same .ics My day uses) */}
+      <Pressable onPress={remind} accessibilityRole="button" style={{ alignSelf: 'center', marginTop: 10 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, borderWidth: 1, borderColor: C.line, paddingHorizontal: 14, paddingVertical: 8 }}>
+          <Ionicons name={asked ? 'checkmark' : 'notifications-outline'} size={15} color={asked ? C.green : C.text} />
+          <Text style={{ color: asked ? C.green : C.text, fontSize: 13.5, fontWeight: '800', marginStart: 6 }}>{t(asked ? 'fg_remind_done' : 'fg_remind')}</Text>
+        </View>
+      </Pressable>
       {TASKS.some((x) => g.earned.indexOf(x.key) < 0) ? (
         <View style={{ marginTop: 14, borderRadius: 16, padding: 12, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line }}>
           <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '900', letterSpacing: 1, marginBottom: 6 }}>{t('fg_tasks').toUpperCase()}</Text>

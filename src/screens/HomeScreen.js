@@ -134,10 +134,17 @@ export const HomeScreen = () => {
       setVolunteer(!!(r && Array.isArray(r.list) && r.list.some((g) => new Date(g.at).getTime() > month)));
     }).catch(() => {});
   }, [user]);
+  /* only time really spent in the feed is counted: Ayser — "وقتي بيخلص
+     وأنا برّه الفيد، أنا مستخدمتهوش". Five seconds count only if you
+     scrolled or touched the feed in the last twenty; Home left open on
+     the table, a sheet on top of it, or the closed card count nothing. */
+  const lastActive = useRef(0);
+  const touched = () => { lastActive.current = Date.now(); };
   useEffect(() => {
     if (!focused || homeTab !== 'moments') return undefined;
     const id = setInterval(() => {
       if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+      if (Date.now() - lastActive.current > 20000) return;
       setGate(addSeconds(5));
     }, 5000);
     return () => clearInterval(id);
@@ -145,7 +152,9 @@ export const HomeScreen = () => {
   useEffect(() => { if (focused) { finishedNow.current = false; setGate(readGate()); } }, [focused]);
   useEffect(() => onGate(setGate), []);   // a task done elsewhere: more time, at once
   const budget = budgetSeconds(volunteer, gate);
-  const feedClosed = !!user && (gate.used >= budget || (gate.done && !finishedNow.current));
+  /* closes on time alone; reaching the end of the day's moments shows
+     the end card under them, it does not lock the feed with time left */
+  const feedClosed = !!user && gate.used >= budget;
   const shown = homeTab === 'moments' && !feedClosed ? posts : [];
   const onEnd = () => { if (homeTab === 'moments' && posts.length && !gate.done) { finishedNow.current = true; setGate(markSeenAll()); } };
 
@@ -536,7 +545,8 @@ export const HomeScreen = () => {
       </Animated.View>
       <FlatList keyboardShouldPersistTaps="handled"
         ref={listRef}
-        onScroll={(e) => { scrollY.current = e.nativeEvent.contentOffset.y; }}
+        onScroll={(e) => { scrollY.current = e.nativeEvent.contentOffset.y; touched(); }}
+        onTouchStart={touched}
         scrollEventThrottle={64}
         data={shown}
         keyExtractor={(p) => p.id}
@@ -616,8 +626,8 @@ export const HomeScreen = () => {
             {homeTab === 'moments' && feedClosed ? (
               <View style={{ alignItems: 'center', borderRadius: 24, paddingVertical: 30, paddingHorizontal: 22, marginTop: 18, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line }}>
                 <Text style={{ fontSize: 34 }}>🌿</Text>
-                <Text style={{ color: C.text, fontSize: 19, fontWeight: '900', textAlign: 'center', marginTop: 8 }}>{t('fg_title')}</Text>
-                <Text style={{ color: C.dim, fontSize: 14.5, lineHeight: 21, textAlign: 'center', marginTop: 6 }}>{t('fg_body')}</Text>
+                <Text style={{ color: C.text, fontSize: 19, fontWeight: '900', textAlign: 'center', marginTop: 8 }}>{t('fg_time_title')}</Text>
+                <Text style={{ color: C.dim, fontSize: 14.5, lineHeight: 21, textAlign: 'center', marginTop: 6 }}>{t('fg_time_body')}</Text>
                 <Pressable onPress={() => { tapLight(); goToTab('TOGETHER'); }} accessibilityRole="button" style={{ marginTop: 16, backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 20, paddingVertical: 11 }}>
                   <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '900' }}>{t('feed_end_cta')}</Text>
                 </Pressable>
