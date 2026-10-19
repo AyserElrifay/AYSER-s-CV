@@ -2394,6 +2394,8 @@ export const STRINGS = {
     tg_mate_and: '{name} + {n} going',
     tg_bring: 'Bring someone',
     bk_notify: "Tell me when it's out",
+    sp_branches: '{n} branches',
+    sp_plan_short: 'Plan',
     lens_all: 'Everything',
     lens_places: 'Places to go',
     lens_people: 'People',

@@ -19,6 +19,9 @@ const GoNowSheet = lazyOverlay(() => import('./GoNowSheet').then((m) => ({ defau
 /* Out in Cairo (src/constants/spots.js): real places by name and area —
    directions open the maps app on the place's own name, and a plan
    there is one tap. No guessed pins, no borrowed photos. */
+/* the same name twice is one place with branches */
+const brands = (list) => { const m = new Map(); list.forEach((s) => { if (!m.has(s.name)) m.set(s.name, []); m.get(s.name).push(s); }); return [...m.values()]; };
+
 const Spots = ({ t, onPlan }) => {
   const [kind, setKind] = useState('cafe');
   const list = SPOTS.filter((s) => s.kind === kind);
@@ -36,29 +39,68 @@ const Spots = ({ t, onPlan }) => {
           </Pressable>
         ))}
       </ScrollView>
-      {list.map((s) => (
-        <View key={s.id} style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 18, borderWidth: 1, borderColor: C.line, backgroundColor: C.glass, padding: 12, marginBottom: 8 }}>
-          <LinearGradient colors={tintOf(s.id)} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ width: 48, height: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginEnd: 12 }}>
-            <Text style={{ fontSize: 22 }}>{k.emoji}</Text>
-          </LinearGradient>
-          <View style={{ flex: 1 }}>
-            <Text style={{ color: C.text, fontSize: 15, fontWeight: '900' }} numberOfLines={1}>{s.name}</Text>
-            <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 1 }} numberOfLines={1}>{t('sp_w_' + s.what)}</Text>
-            <Text style={{ color: C.faint, fontSize: 12, marginTop: 1 }} numberOfLines={1}>{'📍 ' + s.area}</Text>
+      {/* a place that joined as a partner opens big — its own photo, logo
+          and words (photos/logo/about only ever come from the place) */}
+      {list.filter((s) => s.photos && s.photos.length).map((s) => (
+        <View key={s.id} style={{ borderRadius: 22, borderWidth: 1, borderColor: C.line, backgroundColor: C.glass, overflow: 'hidden', marginBottom: 12 }}>
+          <Image source={{ uri: publicMedia(s.photos[0]) }} style={{ height: 150, backgroundColor: C.glassHi }} />
+          <View style={{ padding: 14 }}>
+            {s.logo ? <Image source={{ uri: publicMedia(s.logo) }} style={{ width: 54, height: 54, borderRadius: 16, marginTop: -41, borderWidth: 3, borderColor: C.bg2, backgroundColor: C.bg2 }} /> : null}
+            <Text style={{ color: C.text, fontSize: 17, fontWeight: '900', marginTop: 8 }}>{s.name}</Text>
+            <Text style={{ color: C.dim, fontSize: 13, marginTop: 2 }}>{t('sp_w_' + s.what) + ' · ' + s.area}</Text>
+            {s.about ? <Text style={{ color: C.text, fontSize: 14, lineHeight: 20, marginTop: 8 }}>{s.about}</Text> : null}
+            <View style={{ flexDirection: 'row', marginTop: 12 }}>
+              <Pressable onPress={() => { tapLight(); try { Linking.openURL(directionsUrl(s)); } catch (e) {} }} accessibilityRole="link" style={{ flex: 1, marginEnd: 8 }}>
+                <View style={{ borderRadius: 999, borderWidth: 1.5, borderColor: C.line, paddingVertical: 11, alignItems: 'center' }}><Text style={{ color: C.text, fontSize: 14, fontWeight: '900' }}>{'➤ ' + t('sp_directions')}</Text></View>
+              </Pressable>
+              <Pressable onPress={() => { tapLight(); onPlan(s); }} accessibilityRole="button" style={{ flex: 1 }}>
+                <View style={{ borderRadius: 999, backgroundColor: C.purple, paddingVertical: 11, alignItems: 'center' }}><Text style={{ color: '#FFF', fontSize: 14, fontWeight: '900' }}>{t('sp_plan')}</Text></View>
+              </Pressable>
+            </View>
           </View>
-          <Pressable onPress={() => { tapLight(); try { Linking.openURL(directionsUrl(s)); } catch (e) {} }} accessibilityRole="link" accessibilityLabel={t('sp_directions')} hitSlop={6} style={{ marginStart: 6 }}>
-            <View style={{ width: 38, height: 38, borderRadius: 19, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name="navigate-outline" size={17} color={C.text} />
-            </View>
-          </Pressable>
-          <Pressable onPress={() => { tapLight(); onPlan(s); }} accessibilityRole="button" hitSlop={6} style={{ marginStart: 6 }}>
-            <View style={{ borderRadius: 999, backgroundColor: C.purple, paddingHorizontal: 12, paddingVertical: 9 }}>
-              <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '900' }}>{t('sp_plan')}</Text>
-            </View>
-          </Pressable>
         </View>
       ))}
-      <Pressable onPress={() => { tapLight(); openPartner('place'); }} accessibilityRole="button" style={{ marginTop: 2 }}>
+      {/* the rest: one quiet list; a chain is one row with its branches */}
+      <View style={{ borderRadius: 20, borderWidth: 1, borderColor: C.line, backgroundColor: C.glass, overflow: 'hidden' }}>
+        {brands(list.filter((s) => !(s.photos && s.photos.length))).map((g, gi) => {
+          const s = g[0];
+          const ini = s.name.replace(/[^A-Za-z0-9 ]/g, '').split(' ').filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || k.emoji;
+          return (
+            <View key={s.id} style={{ flexDirection: 'row', alignItems: 'center', padding: 12, borderTopWidth: gi ? 1 : 0, borderTopColor: C.line }}>
+              <LinearGradient colors={tintOf(s.id)} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ width: 46, height: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginEnd: 12 }}>
+                <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '900' }}>{ini}</Text>
+              </LinearGradient>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={{ color: C.text, fontSize: 15, fontWeight: '900' }} numberOfLines={1}>{s.name}</Text>
+                <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 1 }} numberOfLines={1}>{t('sp_w_' + s.what) + ' · ' + (g.length > 1 ? t('sp_branches').replace('{n}', String(g.length)) : s.area)}</Text>
+                {g.length > 1 ? (
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 6 }}>
+                    {g.map((b) => (
+                      <Pressable key={b.id} onPress={() => { tapLight(); try { Linking.openURL(directionsUrl(b)); } catch (e) {} }} accessibilityRole="link" accessibilityLabel={t('sp_directions') + ' ' + b.area}
+                        style={{ borderRadius: 999, backgroundColor: C.glassHi, paddingHorizontal: 9, paddingVertical: 4, marginEnd: 6, marginBottom: 4 }}>
+                        <Text style={{ color: C.text, fontSize: 12, fontWeight: '700' }}>{'📍 ' + b.area.split(',')[0]}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                ) : null}
+              </View>
+              {g.length === 1 ? (
+                <Pressable onPress={() => { tapLight(); try { Linking.openURL(directionsUrl(s)); } catch (e) {} }} accessibilityRole="link" accessibilityLabel={t('sp_directions')} hitSlop={6} style={{ marginStart: 6 }}>
+                  <View style={{ width: 36, height: 36, borderRadius: 18, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center' }}>
+                    <Ionicons name="navigate-outline" size={16} color={C.text} />
+                  </View>
+                </Pressable>
+              ) : null}
+              <Pressable onPress={() => { tapLight(); onPlan(s); }} accessibilityRole="button" hitSlop={6} style={{ marginStart: 6 }}>
+                <View style={{ borderRadius: 999, backgroundColor: C.purple, paddingHorizontal: 14, paddingVertical: 8 }}>
+                  <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '900' }}>{t('sp_plan_short')}</Text>
+                </View>
+              </Pressable>
+            </View>
+          );
+        })}
+      </View>
+      <Pressable onPress={() => { tapLight(); openPartner('place'); }} accessibilityRole="button" style={{ marginTop: 10 }}>
         <Text style={{ color: C.purple, fontSize: 13, fontWeight: '800' }}>{t('sp_claim')}</Text>
       </Pressable>
     </View>
