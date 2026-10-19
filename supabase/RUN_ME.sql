@@ -15944,6 +15944,15 @@ language sql stable security definer set search_path = public as $$
              (select count(*) from public.green_joins j where j.gathering_id = g.id) as going,
              (select count(*) from public.green_joins j join my_mates mm on mm.mate_id = j.user_id
                where j.gathering_id = g.id) as mates_going,
+             -- up to three of YOUR mates who are going, first name and photo:
+             -- never strangers' faces, never on a blind meet
+             case when coalesce(g.blind, false) then '[]'::jsonb else
+               (select coalesce(jsonb_agg(jsonb_build_object('id', f.id, 'name', split_part(coalesce(f.name, ''), ' ', 1), 'avatar', f.avatar_url)), '[]'::jsonb)
+                  from (select p2.id, p2.name, p2.avatar_url
+                          from public.green_joins j join my_mates mm on mm.mate_id = j.user_id
+                          join public.profiles p2 on p2.id = j.user_id
+                         where j.gathering_id = g.id order by j.joined_at limit 3) f)
+             end as mate_faces,
              exists (select 1 from public.green_joins j
                       where j.gathering_id = g.id and j.user_id = auth.uid()) as im_going,
              exists (select 1 from public.green_joins j
