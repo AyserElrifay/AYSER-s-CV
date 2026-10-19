@@ -754,10 +754,13 @@ export const TogetherScreen = () => {
                                 <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '900' }}>{t('xp_im_here').replace('{n}', String(g.xp || 30))}</Text>
                               </View>
                             </Pressable>
-                          ) : g.im_going && !mine && !expanded ? (
+                          ) : (g.im_going || mine) && !expanded ? (
+                            /* Ayser: few people on the app yet, so "invite everyone" on
+                               the app reaches nobody. The one action is to share it
+                               OUT — WhatsApp, Instagram — where the people are */
                             <Pressable onPress={() => { tapLight(); shareLink({ url: appLink({ tab: 'TOGETHER', invite: uid }), title: titleFor(g.title, lang), text: titleFor(g.title, lang) + ' · ' + soon(g.starts_at) + (g.place_name ? ' · ' + g.place_name : '') }); }} hitSlop={6} accessibilityRole="button">
                               <View style={{ backgroundColor: C.text, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8 }}>
-                                <Text style={{ color: C.bg, fontSize: 12.5, fontWeight: '900' }}>{t('tg_bring')}</Text>
+                                <Text style={{ color: C.bg, fontSize: 12.5, fontWeight: '900' }}>{t(mine ? 'bk_share' : 'tg_bring')}</Text>
                               </View>
                             </Pressable>
                           ) : mine ? (
@@ -782,7 +785,7 @@ export const TogetherScreen = () => {
                             )
                           )}
                         </View>
-                        {sent && sent.id === g.id ? (
+                        {expanded && sent && sent.id === g.id ? (
                           <Text style={{ color: C.green, fontSize: 12, fontWeight: '800', marginTop: 8 }}>{t('green_sent_to')} {sent.n}</Text>
                         ) : null}
                         {checkMsg && checkMsg.id === g.id ? (
