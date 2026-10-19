@@ -35,7 +35,7 @@ import { isSaving, DEFAULT_DATA_MODE } from '../lib/dataSaver';
 import { getPrefs } from '../services/prefs';
 import { openPartner } from '../lib/partnerLink';
 import { HostBadge } from '../components/HostCard';
-import { PlanHead, PastPhotos, ideaPhoto, ideaClip } from '../components/green/PlanPhoto';
+import { PlanHead, PastPhotos, ideaPhoto, ideaPics, ideaClip } from '../components/green/PlanPhoto';
 import { greenPic } from '../components/green/GreenCards';
 import { isGreen } from '../lib/greenKinds';
 import { ReportSheet } from '../components/ReportSheet';
@@ -221,7 +221,15 @@ const ideaKey = (g) => ((activityOf(String(g.title || '') + ' ' + String(g.kind 
 const IdeasElsewhere = ({ ideas, t, lang, onStart }) => {
   if (!ideas.length) return null;
   const moving = Platform.OS === 'web' && !isSaving((getPrefs() || {}).dataSaver || DEFAULT_DATA_MODE);
-  const clipIds = ideas.filter((g) => ideaClip(g)).slice(0, 2).map((g) => g.id);
+  /* never the same clip or the same photo twice on the rail */
+  const seenClip = new Set(); const clipIds = [];
+  ideas.forEach((g) => { const c = ideaClip(g); if (c && clipIds.length < 2 && !seenClip.has(g.kind)) { seenClip.add(g.kind); clipIds.push(g.id); } });
+  const usedPic = new Set();
+  const picFor = (g) => {
+    const p = ideaPics(g).find((u) => !usedPic.has(u)) || ideaPhoto(g);
+    if (p) usedPic.add(p);
+    return p;
+  };
   return (
     <View style={{ marginTop: 6, marginBottom: 16 }}>
       <Text style={{ color: C.text, fontSize: 17, fontWeight: '900' }}>{'🌍 ' + t('id_title')}</Text>
@@ -229,7 +237,7 @@ const IdeasElsewhere = ({ ideas, t, lang, onStart }) => {
       <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         {ideas.map((g) => {
           const look = lookOf(g.kind);
-          const pic = ideaPhoto(g) || (isGreen(g) ? greenPic([g.title, g.about].join(' '), g.id) : null);
+          const pic = picFor(g) || (isGreen(g) ? greenPic([g.title, g.about].join(' '), g.id) : null);
           /* the first two cards with a clip of their activity move; the
              rest stay stills, so the rail stays light */
           const clip = moving && clipIds.indexOf(g.id) >= 0 ? ideaClip(g) : null;
