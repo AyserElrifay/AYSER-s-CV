@@ -249,7 +249,18 @@ export const MapScreen = () => {
   /* ── real GPS: your pin exists only where YOU really are.
      Honest either way — when the browser blocks or fails the lookup,
      the map SAYS so instead of silently staying on the globe. ── */
-  const locateMe = useCallback(async () => {
+  /* The locate button: "it hangs and does nothing". It did two wrong
+     things — it waited up to 35 seconds for a perfect GPS lock with a
+     spinner, and when it already knew where you were it never moved the
+     map, so the tap looked dead. Now it flies to where you are at once
+     (the live position it is already following), then refines quietly;
+     a fresh fix waits at most a few seconds. */
+  const locatedRef = useRef(false);
+  const locateMe = useCallback(async (fly = true) => {
+    if (fly && locatedRef.current && myCoordsRef.current) {
+      const c = myCoordsRef.current;
+      setMapFocus({ lat: c.latitude, lng: c.longitude, zoom: 15, ts: Date.now() });
+    }
     setLocating(true);
     const granted = await requestLocationPermission();
     setHasLocationPerm(granted);
@@ -259,8 +270,9 @@ export const MapScreen = () => {
       const coords = await getCurrentCoords();
       if (coords) {
         setMyCoords(coords); myCoordsRef.current = coords;
-        setLocated(true);
-      } else {
+        setLocated(true); locatedRef.current = true;
+        if (fly) setMapFocus({ lat: coords.latitude, lng: coords.longitude, zoom: 15, ts: Date.now() });
+      } else if (!locatedRef.current) {
         note('📍 Couldn’t get a GPS fix — check your browser’s location permission and try again.');
       }
     }
@@ -268,7 +280,7 @@ export const MapScreen = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => { if (!showLocationGate) locateMe(); }, [locateMe, showLocationGate]);
+  useEffect(() => { if (!showLocationGate) locateMe(false); }, [locateMe, showLocationGate]);
 
   const acceptLocationGate = () => {
     tapMedium();

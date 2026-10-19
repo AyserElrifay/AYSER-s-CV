@@ -26,19 +26,26 @@ export function getCurrentCoords() {
   return new Promise((resolve) => {
     if (Platform.OS === 'web') {
       if (typeof navigator === 'undefined' || !navigator.geolocation) return resolve(null);
-      const ok = (pos) => resolve({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
       // Two-stage fix: try a precise GPS lock first; if that times out or
       // fails (common indoors / on desktop Wi-Fi), fall back to a faster,
       // lower-accuracy network fix with a longer window and accept a
       // recently-cached position. Only give up if BOTH fail.
+      // never more than a few seconds of waiting: 6s for a precise fix,
+      // then 6s for a network one; a "no" from the person ends it at once
+      let done = false;
+      const finish = (v) => { if (!done) { done = true; resolve(v); } };
+      setTimeout(() => finish(null), 13000);
       navigator.geolocation.getCurrentPosition(
-        ok,
-        () => navigator.geolocation.getCurrentPosition(
-          ok,
-          () => resolve(null),
-          { enableHighAccuracy: false, timeout: 25000, maximumAge: 600000 }
-        ),
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
+        (pos) => finish({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
+        (err) => {
+          if (err && err.code === 1) return finish(null);           // denied: asking again will not help
+          navigator.geolocation.getCurrentPosition(
+            (pos) => finish({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
+            () => finish(null),
+            { enableHighAccuracy: false, timeout: 6000, maximumAge: 600000 }
+          );
+        },
+        { enableHighAccuracy: true, timeout: 6000, maximumAge: 60000 }
       );
       return;
     }
