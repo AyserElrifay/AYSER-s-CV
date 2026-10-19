@@ -36,3 +36,33 @@ export const activityOf = (text) => {
   const s = String(text || '');
   return ACTIVITIES.find((a) => a.re.test(s)) || null;
 };
+
+/* ─── WHAT SOMEBODY MEANT, TYPOS AND ALL ─────────────────────────────
+   "corchet", "crohet", "kroshe": the map's search should still find
+   crochet. Every word an activity is known by (taken from its own
+   pattern) is compared with what was typed, allowing a letter or two
+   to be wrong, swapped or missing. */
+const WORDS = ACTIVITIES.map((a) => ({ a, words: a.re.source.replace(/\\b|\\s|\?|\(|\)|\[|\]|\{|\}|\.|\*|\+|\^|\$/g, ' ').split('|').map((w) => w.replace(/[^\p{L}]/gu, '').toLowerCase()).filter((w) => w.length >= 3) }));
+const dist = (a, b) => {
+  const m = a.length, n = b.length; if (Math.abs(m - n) > 2) return 9;
+  const d = Array.from({ length: m + 1 }, (_, i) => [i].concat(Array(n).fill(0)));
+  for (let j = 1; j <= n; j++) d[0][j] = j;
+  for (let i = 1; i <= m; i++) for (let j = 1; j <= n; j++) {
+    d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1);
+  }
+  return d[m][n];
+};
+export const activityFor = (typed) => {
+  const q = String(typed || '').trim().toLowerCase();
+  if (q.length < 3) return null;
+  const exact = activityOf(q);
+  if (exact) return exact;
+  let best = null; let bestD = 9;
+  WORDS.forEach(({ a, words }) => words.forEach((w) => {
+    const d = dist(q, w.slice(0, Math.max(q.length, Math.min(w.length, q.length + 2))));
+    const allow = q.length >= 6 ? 2 : 1;
+    if (d <= allow && d < bestD) { best = a; bestD = d; }
+  }));
+  return best;
+};

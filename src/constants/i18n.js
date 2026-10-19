@@ -2387,6 +2387,8 @@ export const STRINGS = {
     md_own_default: "A time for myself",
     md_own_no_time: "Add a time, like 7:30 or 19:00, and Papyrus will place it.",
     md_own_add: "Put these in my day",
+    ms_start: "Start {what} near you",
+    ms_start_sub: "Nothing planned yet — be the first, it takes a minute",
     lens_all: 'Everything',
     lens_places: 'Places to go',
     lens_people: 'People',

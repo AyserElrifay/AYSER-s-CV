@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { View, Text, ScrollView, Pressable, Modal, TextInput, Platform, Image, Linking, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, Pressable, Modal, TextInput, Platform, Image, Linking, ActivityIndicator, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -11,6 +11,7 @@ import { MAP_PEOPLE, CAMPFIRES, BOOKINGS } from '../constants/mockData'; // demo
 import { MapView, Marker, MAPS_READY } from '../utils/maps';
 import { takeMapTarget, onMapTarget } from '../lib/mapBus';
 import { listGatherings, keptGatherings, joinGathering, bardiMatchMe } from '../services/green';
+import { activityFor } from '../lib/activityMatch';
 import { activityPin, lookOf, titleFor, whenFor } from '../lib/activityPins';
 import { rankPeople, rankPlans } from '../lib/recommend';
 import { getProfile } from '../services/profiles';
@@ -187,6 +188,7 @@ export const MapScreen = () => {
   const [gatherings, setGatherings] = useState(() => keptGatherings(null) || []);
   const [gatheringsReady, setGatheringsReady] = useState(() => !SUPABASE_READY || keptGatherings(null) != null);    // this week's real things to join
   const [greenOpen, setGreenOpen] = useState(false);
+  const [startWhat, setStartWhat] = useState(null);   // a plan started from the search: { kind, title }
   const [goNow, setGoNow] = useState(false);
   const [view, setView] = useState(null);          // what the map is showing, for "in this area"
   const [actKind, setActKind] = useState(null);    // the kind chips on Things to join
@@ -714,13 +716,25 @@ export const MapScreen = () => {
         out.push({ id: 'sf_' + c.id, kind: 'fire', name: c.title, sub: 'Live campfire · ' + ((c.host && c.host.name) || 'someone') + ' hosting', emoji: '🔥', lat: c.coords && c.coords.latitude, lng: c.coords && c.coords.longitude, src: c });
       }
     });
+    /* plans and things to do: "crochet" (or "corchet") finds the
+       crochet plans this week, and offers to start one if there are none */
+    const act = activityFor(q);
+    (gatherings || []).forEach((g) => {
+      const text = [g.title, g.about, g.kind].join(' ');
+      const hit = text.toLowerCase().includes(q) || (act && act.re.test(text));
+      if (!hit || new Date(g.starts_at).getTime() < Date.now() - 3600000) return;
+      let when = '';
+      try { when = new Date(g.starts_at).toLocaleDateString(undefined, { weekday: 'short' }) + ' ' + new Date(g.starts_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }); } catch (e) {}
+      out.unshift({ id: 'sg_' + g.id, kind: 'plan', name: g.title, sub: [when, g.place_name || g.city].filter(Boolean).join(' · '), emoji: (act && act.emoji) || '🤝', lat: g.lat != null ? Number(g.lat) : null, lng: g.lng != null ? Number(g.lng) : null, src: g });
+    });
+    if (act) { const label = act.id.charAt(0).toUpperCase() + act.id.slice(1); out.push({ id: 'ss_' + act.id, kind: 'start', name: t('ms_start').replace('{what}', act.emoji + ' ' + label), sub: t('ms_start_sub'), emoji: '＋', title: label, src: act }); }
     venues.forEach((v) => {
       if ((v.name || '').toLowerCase().includes(q)) {
         out.push({ id: 'sv_' + v.id, kind: 'venue', name: v.name, sub: v.sub || 'Bookable on Moments', emoji: v.emoji || '📍', lat: v.lat, lng: v.lng, src: v });
       }
     });
     return out.slice(0, 12);
-  }, [mapQ, realPlaces, nearbyPeople, campfires, venues]);
+  }, [mapQ, realPlaces, nearbyPeople, campfires, venues, gatherings]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const pickSearchResult = (r) => {
     tapLight();
@@ -730,6 +744,8 @@ export const MapScreen = () => {
     else if (r.kind === 'place') setPlaceOpen(r.src);
     else if (r.kind === 'person') setProfileUser(r.src);
     else if (r.kind === 'venue') { setRail('book'); setBookingVenue(r.src); }
+    else if (r.kind === 'plan') setGreenOpen(true);
+    else if (r.kind === 'start') setStartWhat({ kind: 'circle', title: r.title });
     // 'fire' and 'geo' just fly there — the pin is already on the map
   };
 
@@ -940,26 +956,24 @@ export const MapScreen = () => {
         <View
           style={{
             flexDirection: 'row', alignItems: 'center',
-            backgroundColor: C.float, borderWidth: 1, borderColor: C.line,
-            borderRadius: 999, paddingHorizontal: 16, paddingVertical: Platform.OS === 'ios' ? 12 : 4,
+            backgroundColor: C.float, borderWidth: StyleSheet.hairlineWidth, borderColor: C.line,
+            borderRadius: 999, paddingHorizontal: 14, height: 40,
           }}
         >
-          <Ionicons name="search" size={16} color={C.dim} />
+          <Ionicons name="search" size={15} color={C.faint} />
           <TextInput
             placeholder={t('search_places_placeholder')}
             placeholderTextColor={C.faint}
             value={mapQ}
             onChangeText={setMapQ}
             autoCapitalize="none"
-            style={{ color: C.text, marginLeft: 10, flex: 1, fontSize: 13.5 }}
+            style={{ color: C.text, marginLeft: 8, flex: 1, fontSize: 14, height: 40, outlineStyle: 'none' }}
           />
           {mapQ ? (
             <Pressable onPress={() => setMapQ('')} hitSlop={8} accessibilityLabel={t('close')} accessibilityRole="button">
               <Ionicons name="close-circle" size={16} color={C.faint} />
             </Pressable>
-          ) : (
-            <Text style={{ fontSize: 15 }}>🧿</Text>
-          )}
+          ) : null}
         </View>
         {mapQ.trim() ? (
           <View style={{ backgroundColor: C.float, borderWidth: 1, borderColor: C.line, borderRadius: 18, marginTop: 8, maxHeight: 340, overflow: 'hidden' }}>
@@ -2250,6 +2264,7 @@ export const MapScreen = () => {
 
       {profileUser ? <ProfileModal user={profileUser} onClose={() => setProfileUser(null)} /> : null}
       {greenOpen ? <GreenSheet onClose={() => setGreenOpen(false)} /> : null}
+      {startWhat ? <GreenSheet startNow prefill={startWhat} onClose={() => { setStartWhat(null); listGatherings(null).then(setGatherings).catch(() => {}); }} /> : null}
       {composeAt ? (
         <ComposeModal initialMode="post" initialPlace={composeAt}
           onClose={() => setComposeAt(null)}
