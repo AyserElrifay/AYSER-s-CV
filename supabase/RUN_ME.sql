@@ -17435,6 +17435,22 @@ select * from (values
 where not exists (select 1 from public.green_sparks s where s.title_en = v.title_en and coalesce(s.country,'') = coalesce(v.country,''));
 
 -- ═══════════════════════════════════════════════════════════════════
+--  TRIPS · NO MORE OLD POSTCARDS
+--  Ayser: "ودي بجد صوره لكاياك في النيل؟!" — the photos found on Commons
+--  were public domain because they were a hundred years old: a felucca
+--  in 1880 on a kayak trip. They all go. A trip gets one of our own
+--  photos where we really have the place; the rest keep the drawn cover
+--  until the organiser adds theirs. Idempotent.
+-- ═══════════════════════════════════════════════════════════════════
+update public.offers set photos = case id
+    when '0ffe0000-0000-4000-8000-000000000009' then '{media/welcome-nile.jpg}'::text[]
+    when '0ffe0000-0000-4000-8000-00000000000f' then '{media/place-eg-giza-complex.jpg,media/place-gem.jpg}'::text[]
+    when '0ffe0000-0000-4000-8000-000000000011' then '{media/place-ee-tallinn.jpg,media/place-ee-toompea-view.jpg}'::text[]
+    when '0ffe0000-0000-4000-8000-00000000000a' then '{media/mario-ferrata-w.jpg,media/mario-ropes-w.jpg}'::text[]
+    else '{}'::text[] end
+ where exists (select 1 from unnest(photos) u where u like '%media/offers/0ffe%');
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة

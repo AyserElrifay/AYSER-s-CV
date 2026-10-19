@@ -212,7 +212,13 @@ const Offer = ({ o, t, lang, onBack, onBooked, user, onNeedSignIn }) => {
             <View style={{ width, height: 340, backgroundColor: '#000' }}><HighlightVideo uri={photoUrl(o.video)} poster={photos[0]} /></View>
           ) : photos.length ? (
             <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-              {photos.map((u, i) => <Image key={i} source={{ uri: u }} style={{ width, height: 300, backgroundColor: C.glassHi }} />)}
+              {photos.map((u, i) => (
+                /* the whole picture, never cropped: the same photo, blurred, fills the sides */
+                <View key={i} style={{ width, height: 300 + insets.top, paddingTop: insets.top, backgroundColor: '#000' }}>
+                  <Image source={{ uri: u }} blurRadius={24} style={{ position: 'absolute', width, height: 300 + insets.top, opacity: 0.6 }} />
+                  <Image source={{ uri: u }} resizeMode="contain" style={{ width, height: 300 }} />
+                </View>
+              ))}
             </ScrollView>
           ) : <Cover kind={o.kind} h={260} flag={flagOf(o.country).trim()} />}
           <Pressable onPress={() => { tapLight(); onBack(); }} accessibilityRole="button" accessibilityLabel={t('close')}
@@ -323,7 +329,7 @@ const Offer = ({ o, t, lang, onBack, onBooked, user, onNeedSignIn }) => {
           ) : null}
           <Pressable onPress={toggleWant} disabled={busy} accessibilityRole="button" accessibilityState={{ selected: want.on }} style={{ marginTop: 10 }}>
             <View style={{ borderRadius: 999, paddingVertical: 15, alignItems: 'center', backgroundColor: want.on ? 'transparent' : C.purple, borderWidth: 1.5, borderColor: C.purple }}>
-              {busy ? <ActivityIndicator color={want.on ? C.purple : '#FFF'} /> : <Text style={{ color: want.on ? C.purple : '#FFF', fontSize: 16, fontWeight: '900' }}>{want.on ? '✓ ' + t('bk_wanted') : t('bk_want')}</Text>}
+              {busy ? <ActivityIndicator color={want.on ? C.purple : '#FFF'} /> : <Text style={{ color: want.on ? C.purple : '#FFF', fontSize: 16, fontWeight: '900' }}>{want.on ? '✓ ' + t('bk_wanted') : t(o.kind === 'gift' ? 'bk_notify' : 'bk_want')}</Text>}
             </View>
           </Pressable>
         </View>
@@ -388,7 +394,7 @@ export const TripsSheet = ({ onClose, country, openOn, focus, onNeedSignIn }) =>
   }, [country, user]);
   useEffect(() => { load(); }, [load]);
 
-  const shown = useMemo(() => (offers || []).filter((o) => (!kind || isKind(o, kind)) && (!region || o.country === region)), [offers, kind, region]);
+  const shown = useMemo(() => (offers || []).filter((o) => (kind ? isKind(o, kind) : o.kind !== 'gift') && (!region || o.country === region)), [offers, kind, region]);
   /* Ayser: "ليه أوروبا كده، فين الدول" — every country that has a trip,
      by its own flag and name; Egypt first, then the most trips first */
   const regionsHere = useMemo(() => {
