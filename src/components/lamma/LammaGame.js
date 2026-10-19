@@ -387,7 +387,7 @@ export const LammaGame = ({ roomId, joinCode, packId, isHost: initialHost, onExi
     <View style={{ flex: 1, backgroundColor: C.bg, paddingTop: insets.top + 8 }}>
       {/* header */}
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 10 }}>
-        <Pressable onPress={() => { tapLight(); onExit && onExit(); }} hitSlop={10}>
+        <Pressable onPress={() => { tapLight(); onExit && onExit(); }} hitSlop={10} accessibilityLabel={t('close')} accessibilityRole="button">
           <Ionicons name="chevron-down" size={26} color={C.text} />
         </Pressable>
         <Text style={{ color: C.text, fontSize: 17, fontWeight: '900', marginStart: 10, flex: 1 }}>

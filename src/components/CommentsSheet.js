@@ -288,7 +288,7 @@ export const CommentsSheet = ({ post, onClose }) => {
           {replyTo ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.purpleSoft, paddingHorizontal: 18, paddingVertical: 7 }}>
               <Text style={{ color: C.purple, fontSize: 11.5, fontWeight: '800', flex: 1 }}>↩︎ {t('cm_replying_to')} {replyTo.name}</Text>
-              <Pressable onPress={() => setReplyTo(null)} hitSlop={8}><Ionicons name="close" size={15} color={C.purple} /></Pressable>
+              <Pressable accessibilityLabel={t('close')} accessibilityRole="button" onPress={() => setReplyTo(null)} hitSlop={8}><Ionicons name="close" size={15} color={C.purple} /></Pressable>
             </View>
           ) : null}
           {sendErr ? (

@@ -180,7 +180,7 @@ export const KitchenSheet = ({ onClose, startTab = 'food' }) => {
     <Modal visible transparent={false} animationType="slide" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: C.bg, paddingTop: insets.top + 6 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 6 }}>
-          <Pressable onPress={() => { tapLight(); onClose && onClose(); }} hitSlop={12}>
+          <Pressable onPress={() => { tapLight(); onClose && onClose(); }} hitSlop={12} accessibilityLabel={t('close')} accessibilityRole="button">
             <Ionicons name="chevron-down" size={26} color={C.text} />
           </Pressable>
           <Text style={{ color: C.text, fontSize: 22, fontWeight: '900', marginStart: 10 }}>{t('food_title')}</Text>
@@ -293,7 +293,7 @@ export const KitchenSheet = ({ onClose, startTab = 'food' }) => {
         <Modal visible transparent animationType="slide" onRequestClose={() => setOrdering(null)}>
           <View style={{ flex: 1, backgroundColor: C.bg, paddingTop: insets.top + 8 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 8 }}>
-              <Pressable onPress={() => setOrdering(null)} hitSlop={10}><Ionicons name="close" size={25} color={C.text} /></Pressable>
+              <Pressable accessibilityLabel={t('close')} accessibilityRole="button" onPress={() => setOrdering(null)} hitSlop={10}><Ionicons name="close" size={25} color={C.text} /></Pressable>
               <Text style={{ color: C.text, fontSize: 17, fontWeight: '900', marginStart: 12, flex: 1, minWidth: 0 }} numberOfLines={1}>{ordering.dish.title}</Text>
             </View>
             <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 30 }}>
@@ -337,7 +337,7 @@ export const KitchenSheet = ({ onClose, startTab = 'food' }) => {
         <Modal visible transparent animationType="slide" onRequestClose={() => setEditK(null)}>
           <View style={{ flex: 1, backgroundColor: C.bg, paddingTop: insets.top + 8 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 8 }}>
-              <Pressable onPress={() => setEditK(null)} hitSlop={10}><Ionicons name="close" size={25} color={C.text} /></Pressable>
+              <Pressable accessibilityLabel={t('close')} accessibilityRole="button" onPress={() => setEditK(null)} hitSlop={10}><Ionicons name="close" size={25} color={C.text} /></Pressable>
               <Text style={{ color: C.text, fontSize: 17, fontWeight: '900', marginStart: 12 }}>{t('food_your_kitchen')}</Text>
             </View>
             <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 30 }}>
@@ -366,7 +366,7 @@ export const KitchenSheet = ({ onClose, startTab = 'food' }) => {
         <Modal visible transparent animationType="slide" onRequestClose={() => setEditD(null)}>
           <View style={{ flex: 1, backgroundColor: C.bg, paddingTop: insets.top + 8 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 8 }}>
-              <Pressable onPress={() => setEditD(null)} hitSlop={10}><Ionicons name="close" size={25} color={C.text} /></Pressable>
+              <Pressable accessibilityLabel={t('close')} accessibilityRole="button" onPress={() => setEditD(null)} hitSlop={10}><Ionicons name="close" size={25} color={C.text} /></Pressable>
               <Text style={{ color: C.text, fontSize: 17, fontWeight: '900', marginStart: 12 }}>{t('food_add_dish')}</Text>
             </View>
             <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 30 }}>

@@ -770,7 +770,7 @@ export const HomeScreen = () => {
       {myProfileOpen ? (
       <Modal visible animationType="slide" onRequestClose={() => setMyProfileOpen(false)}>
         <View style={{ flex: 1, backgroundColor: C.bg }}>
-          <Pressable onPress={() => setMyProfileOpen(false)} hitSlop={10} style={{ position: 'absolute', top: insets.top + 12, left: 14, zIndex: 20, width: 38, height: 38, borderRadius: 19, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center' }}>
+          <Pressable onPress={() => setMyProfileOpen(false)} hitSlop={10} style={{ position: 'absolute', top: insets.top + 12, left: 14, zIndex: 20, width: 38, height: 38, borderRadius: 19, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center' }} accessibilityLabel={t('back')} accessibilityRole="button">
             <Ionicons name="chevron-back" size={22} color={C.text} />
           </Pressable>
           <ProfileScreen />

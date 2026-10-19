@@ -269,7 +269,7 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
             <Ionicons name="remove-circle-outline" size={19} color={C.dim} />
           </Pressable>
         ) : (
-          <Pressable onPress={() => { tapLight(); setPicker(track); }} hitSlop={8} style={{ paddingHorizontal: 6 }}>
+          <Pressable onPress={() => { tapLight(); setPicker(track); }} hitSlop={8} style={{ paddingHorizontal: 6 }} accessibilityLabel={t('add')} accessibilityRole="button">
             <Ionicons name="add" size={20} color={C.dim} />
           </Pressable>
         )}
@@ -549,7 +549,7 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
         <Modal visible transparent animationType="slide" onRequestClose={() => setOpenList(null)}>
           <View style={{ flex: 1, backgroundColor: C.bg, paddingTop: insets.top + 10 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingBottom: 10 }}>
-              <Pressable onPress={() => setOpenList(null)} hitSlop={10}><Ionicons name="chevron-back" size={22} color={C.text} /></Pressable>
+              <Pressable accessibilityLabel={t('back')} accessibilityRole="button" onPress={() => setOpenList(null)} hitSlop={10}><Ionicons name="chevron-back" size={22} color={C.text} /></Pressable>
               <Text style={{ color: C.text, fontSize: 17, fontWeight: '900', marginLeft: 10, flex: 1 }}>{openList.emoji} {openList.name}</Text>
               <Pressable onPress={() => { setSheetFor(openList); }} hitSlop={8}>
                 <Ionicons name="ellipsis-horizontal" size={20} color={C.dim} />

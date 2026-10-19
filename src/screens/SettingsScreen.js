@@ -202,7 +202,7 @@ export const SettingsScreen = ({ onClose }) => {
     <View style={{ flex: 1, backgroundColor: C.bg }}>
       {/* header */}
       <View style={{ paddingTop: insets.top + 8, paddingHorizontal: 16, paddingBottom: 12, flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: C.line }}>
-        <Pressable onPress={() => { tapLight(); onClose(); }} hitSlop={10} style={{ marginRight: 6 }}>
+        <Pressable onPress={() => { tapLight(); onClose(); }} hitSlop={10} style={{ marginRight: 6 }} accessibilityLabel={t('back')} accessibilityRole="button">
           <Ionicons name="chevron-back" size={26} color={C.text} />
         </Pressable>
         <Text style={{ color: C.text, fontSize: 20, fontWeight: '900' }}>{t('settings')}</Text>
@@ -250,11 +250,11 @@ export const SettingsScreen = ({ onClose }) => {
                 style={{ flex: 1, color: C.text, fontSize: 15, fontWeight: '800', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginRight: 8 }}
               />
               <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', borderWidth: 1, borderColor: C.line, borderRadius: 12 }}>
-                <Pressable onPress={() => { tapSelection(); setSplitPeople(String(Math.max(1, (parseInt(splitPeople, 10) || 1) - 1))); }} style={{ paddingHorizontal: 12, paddingVertical: 10 }}>
+                <Pressable onPress={() => { tapSelection(); setSplitPeople(String(Math.max(1, (parseInt(splitPeople, 10) || 1) - 1))); }} style={{ paddingHorizontal: 12, paddingVertical: 10 }} accessibilityLabel={t('remove')} accessibilityRole="button">
                   <Ionicons name="remove" size={16} color={C.purple} />
                 </Pressable>
                 <Text style={{ color: C.text, fontSize: 15, fontWeight: '800', minWidth: 22, textAlign: 'center' }}>{splitPeople}</Text>
-                <Pressable onPress={() => { tapSelection(); setSplitPeople(String((parseInt(splitPeople, 10) || 1) + 1)); }} style={{ paddingHorizontal: 12, paddingVertical: 10 }}>
+                <Pressable onPress={() => { tapSelection(); setSplitPeople(String((parseInt(splitPeople, 10) || 1) + 1)); }} style={{ paddingHorizontal: 12, paddingVertical: 10 }} accessibilityLabel={t('add')} accessibilityRole="button">
                   <Ionicons name="add" size={16} color={C.purple} />
                 </Pressable>
               </View>

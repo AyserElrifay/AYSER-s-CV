@@ -189,7 +189,7 @@ export const ProgrammesSheet = ({ onClose, onOpenGroup }) => {
             start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
             style={{ paddingTop: insets.top + 14, paddingHorizontal: 16, paddingBottom: 22,
                      borderBottomStartRadius: 26, borderBottomEndRadius: 26 }}>
-            <Pressable onPress={() => { tapLight(); onClose && onClose(); }} hitSlop={12} style={{ alignSelf: 'flex-start' }}>
+            <Pressable onPress={() => { tapLight(); onClose && onClose(); }} hitSlop={12} style={{ alignSelf: 'flex-start' }} accessibilityLabel={t('close')} accessibilityRole="button">
               <Ionicons name="chevron-down" size={26} color="#FFF" />
             </Pressable>
             <Text style={{ color: '#FFF', fontSize: 28, fontWeight: '900', marginTop: 12 }}>
@@ -218,7 +218,7 @@ export const ProgrammesSheet = ({ onClose, onOpenGroup }) => {
                 style={{ flex: 1, minWidth: 0, paddingVertical: 11, marginStart: 9, color: C.text, fontSize: 14.5, fontWeight: '700' }}
               />
               {q ? (
-                <Pressable onPress={() => setQ('')} hitSlop={8}>
+                <Pressable onPress={() => setQ('')} hitSlop={8} accessibilityLabel={t('close')} accessibilityRole="button">
                   <Ionicons name="close-circle" size={17} color={C.faint} />
                 </Pressable>
               ) : null}

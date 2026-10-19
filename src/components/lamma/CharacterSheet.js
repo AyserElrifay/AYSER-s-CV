@@ -136,7 +136,7 @@ export const CharacterSheet = ({ roomId, packId, nickname, initial, onClose, onS
     <Modal visible transparent={false} animationType="slide" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: C.bg, paddingTop: insets.top }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12 }}>
-          <Pressable onPress={() => { tapLight(); onClose && onClose(); }} hitSlop={12}>
+          <Pressable onPress={() => { tapLight(); onClose && onClose(); }} hitSlop={12} accessibilityLabel={t('close')} accessibilityRole="button">
             <Ionicons name="chevron-down" size={26} color={C.text} />
           </Pressable>
           <Text style={{ color: C.text, fontSize: 17, fontWeight: '900', marginStart: 12, flex: 1, minWidth: 0 }}>

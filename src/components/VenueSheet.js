@@ -150,7 +150,7 @@ export const VenueSheet = ({ onClose }) => {
                   </View>
                 ))}
                 {photos.length < 12 ? (
-                  <Pressable onPress={add} accessibilityRole="button" style={{ width: 96, height: 96, borderRadius: 14, borderWidth: 1.5, borderStyle: 'dashed', borderColor: C.line, alignItems: 'center', justifyContent: 'center' }}>
+                  <Pressable onPress={add} accessibilityRole="button" style={{ width: 96, height: 96, borderRadius: 14, borderWidth: 1.5, borderStyle: 'dashed', borderColor: C.line, alignItems: 'center', justifyContent: 'center' }} accessibilityLabel={t('add')}>
                     {busy ? <ActivityIndicator color={C.dim} /> : <Ionicons name="add" size={28} color={C.dim} />}
                   </Pressable>
                 ) : null}

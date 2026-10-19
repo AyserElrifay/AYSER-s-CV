@@ -13,8 +13,8 @@ const LIGHT = {
   line: 'rgba(26,26,26,0.08)',         // hairline borders
   purple: '#7C3AED',
   purpleSoft: 'rgba(124,58,237,0.09)',
-  green: '#10B981',
-  greenSoft: 'rgba(16,185,129,0.10)',
+  green: '#047857',                    // 5.5:1 with white text on it, and as text on the canvas
+  greenSoft: 'rgba(4,120,87,0.10)',
   blue: '#3B82F6',
   blueSoft: 'rgba(59,130,246,0.09)',
   coral: '#F43F5E',
@@ -23,7 +23,7 @@ const LIGHT = {
   goldSoft: 'rgba(245,179,1,0.12)',
   text: '#1A1A1A',                     // charcoal ink
   dim: 'rgba(26,26,26,0.60)',
-  faint: 'rgba(26,26,26,0.38)',
+  faint: 'rgba(26,26,26,0.52)',       // 3.5:1 — hints stay quiet but readable
   ink: '#FFFFFF',                      // label color on neon buttons
   /* Panels that float ON TOP of the map/photos. These used to be
      hardcoded white, which meant white text on white in dark mode —
@@ -43,8 +43,8 @@ const DARK = {
   line: 'rgba(255,255,255,0.07)',      // hairline borders
   purple: '#7C5CFF',                   // the accent — buttons, active chips
   purpleSoft: 'rgba(124,92,255,0.18)',
-  green: '#34D399',
-  greenSoft: 'rgba(52,211,153,0.16)',
+  green: '#059669',                    // readable as text on black and under a white label
+  greenSoft: 'rgba(5,150,105,0.18)',
   blue: '#60A5FA',
   blueSoft: 'rgba(96,165,250,0.16)',
   coral: '#FB7185',
@@ -53,7 +53,7 @@ const DARK = {
   goldSoft: 'rgba(245,179,1,0.18)',
   text: '#F3F4F6',                     // near-white ink
   dim: 'rgba(243,244,246,0.64)',
-  faint: 'rgba(243,244,246,0.40)',
+  faint: 'rgba(243,244,246,0.48)',    // 4.6:1 on the canvas
   ink: '#FFFFFF',
   float: 'rgba(28,28,34,0.94)',
   floatSolid: '#1B1B21',

@@ -532,7 +532,7 @@ export const SearchModal = ({ onClose, onOpenProfile, onOpenTopics, onOpenTag })
               style={{ color: C.text, marginLeft: 10, flex: 1, fontSize: 14.5 }}
             />
             {query ? (
-              <Pressable onPress={() => setQuery('')}><Ionicons name="close-circle" size={16} color={C.faint} /></Pressable>
+              <Pressable accessibilityLabel={t('close')} accessibilityRole="button" onPress={() => setQuery('')}><Ionicons name="close-circle" size={16} color={C.faint} /></Pressable>
             ) : null}
           </View>
           <Pressable onPress={onClose} style={{ marginLeft: 12 }}>

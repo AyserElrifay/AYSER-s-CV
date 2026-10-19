@@ -347,7 +347,7 @@ export const StoryViewer = ({ stories, groups, startGroup = 0, startIndex = 0, o
                     </View>
                   </Pressable>
                 ) : (
-                  <Pressable onPress={() => setConfirmDel(true)} hitSlop={10} style={{ marginRight: 14 }}>
+                  <Pressable onPress={() => setConfirmDel(true)} hitSlop={10} style={{ marginRight: 14 }} accessibilityLabel={t('delete')} accessibilityRole="button">
                     <Ionicons name="trash-outline" size={22} color="#FFF" />
                   </Pressable>
                 )
@@ -366,7 +366,7 @@ export const StoryViewer = ({ stories, groups, startGroup = 0, startIndex = 0, o
               >
                 <Ionicons name={storySound ? 'volume-high' : 'volume-mute'} size={21} color="#FFF" />
               </Pressable>
-              <Pressable onPress={() => onShare && onShare(story)} hitSlop={10} style={{ marginRight: 14 }}>
+              <Pressable onPress={() => onShare && onShare(story)} hitSlop={10} style={{ marginRight: 14 }} accessibilityLabel={t('send')} accessibilityRole="button">
                 <Ionicons name="paper-plane-outline" size={22} color="#FFF" />
               </Pressable>
               <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button" accessibilityLabel={t('close')}>
@@ -508,7 +508,7 @@ export const StoryViewer = ({ stories, groups, startGroup = 0, startIndex = 0, o
                                 <Text style={{ color: 'rgba(255,255,255,0.92)', fontSize: 13, lineHeight: 18, marginTop: 2 }}>{c.body}</Text>
                               </View>
                               {canRemove ? (
-                                <Pressable onPress={() => removeComment(c)} hitSlop={8}>
+                                <Pressable onPress={() => removeComment(c)} hitSlop={8} accessibilityLabel={t('close')} accessibilityRole="button">
                                   <Ionicons name="close" size={14} color="rgba(255,255,255,0.5)" />
                                 </Pressable>
                               ) : null}

@@ -117,7 +117,7 @@ const WallPost = ({ post, me, onLike, onRemove, onShare, t }) => {
           </Text>
         </View>
         {post.can_remove ? (
-          <Pressable onPress={() => { tapLight(); onRemove(post); }} hitSlop={10}>
+          <Pressable onPress={() => { tapLight(); onRemove(post); }} hitSlop={10} accessibilityLabel={t('delete')} accessibilityRole="button">
             <Ionicons name="trash-outline" size={16} color={C.faint} />
           </Pressable>
         ) : null}
@@ -165,7 +165,7 @@ const WallPost = ({ post, me, onLike, onRemove, onShare, t }) => {
                 <Text style={{ color: C.text, fontSize: 13, lineHeight: 18, marginTop: 1 }}>{c.body}</Text>
               </View>
               {me && c.author_id === me.id ? (
-                <Pressable onPress={() => drop(c)} hitSlop={10}>
+                <Pressable onPress={() => drop(c)} hitSlop={10} accessibilityLabel={t('close')} accessibilityRole="button">
                   <Ionicons name="close" size={14} color={C.faint} />
                 </Pressable>
               ) : null}
@@ -730,7 +730,7 @@ export const GroupPage = ({ groupId, focusPostId, onClose, onChanged }) => {
                               <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '900' }}>{t('gp_let_in')}</Text>
                             </View>
                           </Pressable>
-                          <Pressable onPress={() => admin(removeMember, p.id)} hitSlop={8}>
+                          <Pressable onPress={() => admin(removeMember, p.id)} hitSlop={8} accessibilityLabel={t('close')} accessibilityRole="button">
                             <Ionicons name="close" size={17} color={C.faint} />
                           </Pressable>
                         </View>

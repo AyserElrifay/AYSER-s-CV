@@ -153,7 +153,7 @@ export const GameHub = ({ onClose, focusPack = null }) => {
             style={{ paddingTop: insets.top + 10, paddingBottom: 26, paddingHorizontal: 18,
                      borderBottomLeftRadius: 28, borderBottomRightRadius: 28 }}
           >
-            <Pressable onPress={() => { tapLight(); onClose && onClose(); }} hitSlop={12} style={{ alignSelf: 'flex-start' }}>
+            <Pressable onPress={() => { tapLight(); onClose && onClose(); }} hitSlop={12} style={{ alignSelf: 'flex-start' }} accessibilityLabel={t('close')} accessibilityRole="button">
               <Ionicons name="chevron-down" size={26} color="#FFF" />
             </Pressable>
 

@@ -1113,7 +1113,7 @@ export const ChatsScreen = () => {
             <Text style={{ color: C.text, fontSize: 15, fontWeight: '900' }}>
               {inviteSquad.emoji} {t('ch_invite_to')} {inviteSquad.name}
             </Text>
-            <Pressable onPress={() => setInviteSquad(null)} hitSlop={8}><Ionicons name="close" size={18} color={C.dim} /></Pressable>
+            <Pressable accessibilityLabel={t('close')} accessibilityRole="button" onPress={() => setInviteSquad(null)} hitSlop={8}><Ionicons name="close" size={18} color={C.dim} /></Pressable>
           </View>
           {inviteErr ? <Text style={{ color: C.coral, fontSize: 11.5, paddingHorizontal: 18, marginBottom: 6 }}>{inviteErr}</Text> : null}
           <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 14, paddingBottom: 12 }}>

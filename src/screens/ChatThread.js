@@ -508,7 +508,7 @@ export const ChatThread = ({ chat, group, onClose }) => {
       <View style={{ flex: 1, backgroundColor: C.bg }}>
         {/* header */}
         <View style={{ paddingTop: insets.top + 8, paddingBottom: 10, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: C.line, backgroundColor: '#FFF' }}>
-          <Pressable onPress={() => { tapLight(); onClose(); }} hitSlop={10} style={{ marginRight: 4 }}>
+          <Pressable onPress={() => { tapLight(); onClose(); }} hitSlop={10} style={{ marginRight: 4 }} accessibilityLabel={t('back')} accessibilityRole="button">
             <Ionicons name="chevron-back" size={28} color={C.text} />
           </Pressable>
           {group ? (
@@ -1072,7 +1072,7 @@ export const ChatThread = ({ chat, group, onClose }) => {
             ) : (
               <Image source={{ uri: viewMoment.mediaUrl }} style={{ width: '100%', height: '80%' }} resizeMode="contain" />
             )}
-            <Pressable onPress={() => setViewMoment(null)} style={{ position: 'absolute', top: insets.top + 14, right: 18 }} hitSlop={12}>
+            <Pressable onPress={() => setViewMoment(null)} style={{ position: 'absolute', top: insets.top + 14, right: 18 }} hitSlop={12} accessibilityLabel={t('close')} accessibilityRole="button">
               <Ionicons name="close" size={30} color="#FFF" />
             </Pressable>
             <Pressable onPress={() => saveSnap(viewMoment.mediaUrl, viewMoment.mediaKind)} style={{ position: 'absolute', bottom: insets.bottom + 26, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 999, paddingHorizontal: 20, paddingVertical: 11 }} hitSlop={8}>
@@ -1103,11 +1103,11 @@ export const ChatThread = ({ chat, group, onClose }) => {
                 <View style={{ flex: 1, marginRight: 8 }}>
                   <Text style={{ color: C.dim, fontSize: 12, fontWeight: '700', marginBottom: 6 }}>{t('people_count')}</Text>
                   <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', borderWidth: 1, borderColor: C.line, borderRadius: 14 }}>
-                    <Pressable onPress={() => { tapLight(); setSplitPeople(String(Math.max(1, (parseInt(splitPeople, 10) || 1) - 1))); }} style={{ paddingHorizontal: 14, paddingVertical: 12 }}>
+                    <Pressable onPress={() => { tapLight(); setSplitPeople(String(Math.max(1, (parseInt(splitPeople, 10) || 1) - 1))); }} style={{ paddingHorizontal: 14, paddingVertical: 12 }} accessibilityLabel={t('remove')} accessibilityRole="button">
                       <Ionicons name="remove" size={18} color={C.purple} />
                     </Pressable>
                     <Text style={{ flex: 1, textAlign: 'center', color: C.text, fontSize: 17, fontWeight: '800' }}>{splitPeople}</Text>
-                    <Pressable onPress={() => { tapLight(); setSplitPeople(String((parseInt(splitPeople, 10) || 1) + 1)); }} style={{ paddingHorizontal: 14, paddingVertical: 12 }}>
+                    <Pressable onPress={() => { tapLight(); setSplitPeople(String((parseInt(splitPeople, 10) || 1) + 1)); }} style={{ paddingHorizontal: 14, paddingVertical: 12 }} accessibilityLabel={t('add')} accessibilityRole="button">
                       <Ionicons name="add" size={18} color={C.purple} />
                     </Pressable>
                   </View>

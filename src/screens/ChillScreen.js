@@ -384,7 +384,7 @@ export const ChillScreen = () => {
             ) : null}
           </View>
           <View style={{ position: 'absolute', top: insets.top + 12, left: 16, right: 16, flexDirection: 'row', alignItems: 'center' }}>
-            <Pressable onPress={() => { tapLight(); setPlayer(null); }} hitSlop={10}>
+            <Pressable onPress={() => { tapLight(); setPlayer(null); }} hitSlop={10} accessibilityLabel={t('close')} accessibilityRole="button">
               <Ionicons name="close" size={30} color="#FFF" />
             </Pressable>
             <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '800', marginLeft: 12, flex: 1 }} numberOfLines={1}>{player.title}</Text>

@@ -746,7 +746,7 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
             </Pressable>
           ) : null}
           {/* Share — a real link your friends can open */}
-          <Pressable onPress={() => { tapLight(); onShare && onShare(post); }} hitSlop={8}>
+          <Pressable onPress={() => { tapLight(); onShare && onShare(post); }} hitSlop={8} accessibilityLabel={t('send')} accessibilityRole="button">
             <Ionicons name="paper-plane-outline" size={19} color={C.dim} />
           </Pressable>
 

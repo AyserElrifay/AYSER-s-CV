@@ -2666,13 +2666,13 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
                   ].map((row) => (
                     <View key={row.label} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
                       <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '700', width: 110 }}>{row.label}</Text>
-                      <Pressable onPress={() => { tapLight(); row.set(Math.max(row.min, Math.round((row.val - row.step) * 100) / 100)); }} hitSlop={8} style={{ width: 34, height: 30, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.16)', alignItems: 'center', justifyContent: 'center' }}>
+                      <Pressable onPress={() => { tapLight(); row.set(Math.max(row.min, Math.round((row.val - row.step) * 100) / 100)); }} hitSlop={8} style={{ width: 34, height: 30, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.16)', alignItems: 'center', justifyContent: 'center' }} accessibilityLabel={t('remove')} accessibilityRole="button">
                         <Ionicons name="remove" size={16} color="#FFF" />
                       </Pressable>
                       <View style={{ flex: 1, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.2)', marginHorizontal: 8, overflow: 'hidden' }}>
                         <View style={{ height: 4, backgroundColor: C.gold, width: (((row.val - row.min) / (row.max - row.min)) * 100) + '%' }} />
                       </View>
-                      <Pressable onPress={() => { tapLight(); row.set(Math.min(row.max, Math.round((row.val + row.step) * 100) / 100)); }} hitSlop={8} style={{ width: 34, height: 30, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.16)', alignItems: 'center', justifyContent: 'center' }}>
+                      <Pressable onPress={() => { tapLight(); row.set(Math.min(row.max, Math.round((row.val + row.step) * 100) / 100)); }} hitSlop={8} style={{ width: 34, height: 30, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.16)', alignItems: 'center', justifyContent: 'center' }} accessibilityLabel={t('add')} accessibilityRole="button">
                         <Ionicons name="add" size={16} color="#FFF" />
                       </Pressable>
                     </View>

@@ -954,7 +954,7 @@ export const MapScreen = () => {
             style={{ color: C.text, marginLeft: 10, flex: 1, fontSize: 13.5 }}
           />
           {mapQ ? (
-            <Pressable onPress={() => setMapQ('')} hitSlop={8}>
+            <Pressable onPress={() => setMapQ('')} hitSlop={8} accessibilityLabel={t('close')} accessibilityRole="button">
               <Ionicons name="close-circle" size={16} color={C.faint} />
             </Pressable>
           ) : (
