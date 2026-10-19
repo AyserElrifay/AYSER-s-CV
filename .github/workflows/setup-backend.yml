@@ -269,6 +269,8 @@ jobs:
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
           R2_EPHEMERAL_BUCKET: ${{ secrets.R2_EPHEMERAL_BUCKET }}
           R2_PUBLIC_URL: ${{ secrets.R2_PUBLIC_URL }}
+          CF_TURN_KEY_ID: ${{ secrets.CF_TURN_KEY_ID }}
+          CF_TURN_API_TOKEN: ${{ secrets.CF_TURN_API_TOKEN }}
         run: |
           set -euo pipefail
           supabase functions deploy push --project-ref "$REF" --no-verify-jwt
@@ -294,6 +296,14 @@ jobs:
             echo "R2 keys set for r2-presign."
           else
             echo "R2 not connected yet — add R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY (and R2_PUBLIC_URL) as repository secrets."
+          fi
+          # a relay for calls on mobile data (signed-in only; Cloudflare TURN key)
+          supabase functions deploy turn --project-ref "$REF"
+          if [ -n "${CF_TURN_KEY_ID:-}" ] && [ -n "${CF_TURN_API_TOKEN:-}" ]; then
+            supabase secrets set --project-ref "$REF" CF_TURN_KEY_ID="$CF_TURN_KEY_ID" CF_TURN_API_TOKEN="$CF_TURN_API_TOKEN" >/dev/null
+            echo "TURN key set for calls."
+          else
+            echo "::warning::Calls have no relay yet — add CF_TURN_KEY_ID and CF_TURN_API_TOKEN as repository secrets (Cloudflare → Realtime → TURN)."
           fi
           if supabase secrets list --project-ref "$REF" 2>/dev/null | grep -q VAPID_PRIVATE_KEY; then
             echo "VAPID keys already set — kept."

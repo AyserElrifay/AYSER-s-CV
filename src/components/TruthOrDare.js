@@ -79,7 +79,7 @@ export const TruthOrDare = ({ players, onRemove }) => {
       ) : null}
 
       {prompt ? (
-        <View style={{ backgroundColor: '#FFF', borderRadius: 14, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: C.line }}>
+        <View style={{ backgroundColor: C.glass, borderRadius: 14, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: C.line }}>
           <Text style={{ color: pick === 'truth' ? C.blue : C.coral, fontSize: 11, fontWeight: '900', letterSpacing: 1, marginBottom: 5 }}>
             {pick === 'truth' ? 'TRUTH' : 'DARE'}
           </Text>

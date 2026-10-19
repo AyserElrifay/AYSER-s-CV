@@ -17146,6 +17146,70 @@ grant execute on function public.view_once_burn(uuid) to authenticated;
 notify pgrst, 'reload schema';
 
 -- ═══════════════════════════════════════════════════════════════════
+--  CALLS · THE PHONE RINGS EVEN WITH MOMENTS CLOSED
+--
+--  Ayser: "Calls are not working — no notification". A call only rang
+--  inside an open app; the one notification ("Missed call") came 30s
+--  later, and a second missed call from the same person was folded into
+--  the old row, so no push went out at all. call_ring writes a fresh
+--  'call' notification the moment somebody calls — that is what the
+--  push trigger sends ("Ayser is calling you"). Only between two people
+--  who already share a chat, never when either blocked the other, and
+--  at most once every 20 seconds per pair.
+-- ═══════════════════════════════════════════════════════════════════
+create or replace function public.call_ring(p_to uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid();
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  if p_to is null or p_to = me then return jsonb_build_object('ok', false, 'reason', 'who'); end if;
+  if exists (select 1 from public.user_blocks where (blocker_id = me and blocked_id = p_to) or (blocker_id = p_to and blocked_id = me)) then
+    return jsonb_build_object('ok', false, 'reason', 'blocked');
+  end if;
+  if not exists (select 1 from public.dm_participants a join public.dm_participants b on b.thread_id = a.thread_id
+                  where a.user_id = me and b.user_id = p_to) then
+    return jsonb_build_object('ok', false, 'reason', 'no_chat');
+  end if;
+  if exists (select 1 from public.notifications where user_id = p_to and actor_id = me and kind = 'call'
+               and post_id is null and created_at > now() - interval '20 seconds') then
+    return jsonb_build_object('ok', true);
+  end if;
+  delete from public.notifications where user_id = p_to and actor_id = me and kind = 'call' and post_id is null;
+  insert into public.notifications (user_id, actor_id, kind, body) values (p_to, me, 'call', 'Calling');
+  return jsonb_build_object('ok', true);
+end $$;
+revoke all on function public.call_ring(uuid) from public, anon;
+grant execute on function public.call_ring(uuid) to authenticated;
+
+notify pgrst, 'reload schema';
+
+-- ═══════════════════════════════════════════════════════════════════
+--  GREEN MINDS · THE GOOD IT HAS DONE, COUNTED
+--
+--  Ayser: make Green Minds visible as work that matters. Only what
+--  really happened: gatherings in the last 30 days that somebody
+--  actually checked in at, the people who checked in, the countries —
+--  and for you, how many times you showed up. Zero stays zero.
+-- ═══════════════════════════════════════════════════════════════════
+create or replace function public.green_impact() returns jsonb
+language sql stable security definer set search_path = public as $$
+  select jsonb_build_object(
+    'held', (select count(distinct g.id) from public.green_gatherings g join public.green_joins j on j.gathering_id = g.id
+              where j.checked_in_at is not null and g.starts_at > now() - interval '30 days'),
+    'people', (select count(distinct j.user_id) from public.green_joins j join public.green_gatherings g on g.id = j.gathering_id
+                where j.checked_in_at is not null and g.starts_at > now() - interval '30 days'),
+    'countries', (select count(distinct g.country) from public.green_gatherings g join public.green_joins j on j.gathering_id = g.id
+                   where j.checked_in_at is not null and g.starts_at > now() - interval '30 days'),
+    'mine', case when auth.uid() is null then 0 else
+              (select count(*) from public.green_joins where user_id = auth.uid() and checked_in_at is not null) end
+  );
+$$;
+revoke all on function public.green_impact() from public;
+grant execute on function public.green_impact() to anon, authenticated;
+
+notify pgrst, 'reload schema';
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة

@@ -117,15 +117,15 @@ export const BookingSheet = ({ venue, onClose }) => {
             <>
               <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', letterSpacing: 1, marginBottom: 8 }}>YOUR RESERVATION</Text>
               <TextInput placeholder="Your full name" placeholderTextColor={C.faint} value={bName} onChangeText={setBName}
-                style={{ color: C.text, fontSize: 13, backgroundColor: '#FFF', borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 8 }} />
+                style={{ color: C.text, fontSize: 13, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 8 }} />
               <View style={{ flexDirection: 'row', marginBottom: 8 }}>
                 <TextInput placeholder="Phone (WhatsApp)" placeholderTextColor={C.faint} value={bPhone} onChangeText={setBPhone} keyboardType="phone-pad"
-                  style={{ flex: 1, color: C.text, fontSize: 13, backgroundColor: '#FFF', borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginRight: 8 }} />
+                  style={{ flex: 1, color: C.text, fontSize: 13, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginRight: 8 }} />
                 <TextInput placeholder="People" placeholderTextColor={C.faint} value={bPeople} onChangeText={setBPeople} keyboardType="number-pad" maxLength={2}
-                  style={{ width: 78, color: C.text, fontSize: 13, backgroundColor: '#FFF', borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10 }} />
+                  style={{ width: 78, color: C.text, fontSize: 13, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10 }} />
               </View>
               <TextInput placeholder="When? (e.g. Fri 8PM)" placeholderTextColor={C.faint} value={bDate} onChangeText={setBDate}
-                style={{ color: C.text, fontSize: 13, backgroundColor: '#FFF', borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 12 }} />
+                style={{ color: C.text, fontSize: 13, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 12 }} />
 
               <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', letterSpacing: 1, marginBottom: 8 }}>PAYMENT METHOD</Text>
               {PAY_PROVIDERS.map((p) => {

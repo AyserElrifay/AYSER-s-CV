@@ -1097,7 +1097,7 @@ export const ChatThread = ({ chat, group, onClose }) => {
               <TextInput
                 placeholder="e.g. 800" placeholderTextColor={C.faint} value={splitTotal} onChangeText={setSplitTotal}
                 keyboardType="decimal-pad"
-                style={{ color: C.text, fontSize: 20, fontWeight: '800', backgroundColor: '#FFF', borderWidth: 1, borderColor: C.line, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 12 }}
+                style={{ color: C.text, fontSize: 20, fontWeight: '800', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 12 }}
               />
               <View style={{ flexDirection: 'row', marginBottom: 14 }}>
                 <View style={{ flex: 1, marginRight: 8 }}>
@@ -1117,7 +1117,7 @@ export const ChatThread = ({ chat, group, onClose }) => {
                   <TextInput
                     placeholder="0" placeholderTextColor={C.faint} value={splitTip} onChangeText={setSplitTip}
                     keyboardType="number-pad"
-                    style={{ color: C.text, fontSize: 17, fontWeight: '800', textAlign: 'center', backgroundColor: '#FFF', borderWidth: 1, borderColor: C.line, borderRadius: 14, paddingVertical: 12 }}
+                    style={{ color: C.text, fontSize: 17, fontWeight: '800', textAlign: 'center', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 14, paddingVertical: 12 }}
                   />
                 </View>
               </View>

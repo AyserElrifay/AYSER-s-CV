@@ -5,7 +5,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { C } from '../constants/theme';
 import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-import { RTC_CONFIG, ringUser, joinCall, logMissedCall } from '../services/calls';
+import { getRtcConfig, ringUser, joinCall, logMissedCall } from '../services/calls';
 import { CallGames } from './CallGames';
 import { tapMedium, tapLight, tapSuccess } from '../utils/feedback';
 import { startRingback } from '../utils/sfx';
@@ -113,7 +113,8 @@ export const CallScreen = ({ peer, video, incoming = false, callId: incomingCall
       if (localRef.current && cam) { localRef.current.srcObject = stream; localRef.current.play().catch(() => {}); }
 
       // 2 — peer connection
-      const pc = new RTCPeerConnection(RTC_CONFIG);
+      const pc = new RTCPeerConnection(await getRtcConfig());
+      if (cancelled) { try { pc.close(); } catch (e) {} stream.getTracks().forEach((t) => t.stop()); return; }
       pcRef.current = pc;
       stream.getTracks().forEach((t) => pc.addTrack(t, stream));
       const remote = new MediaStream();
@@ -129,6 +130,7 @@ export const CallScreen = ({ peer, video, incoming = false, callId: incomingCall
       };
 
       // 3 — signaling channel for this call
+      const iceHeld = [];
       const ch = joinCall(callId, {
         accept: async () => {
           // callee picked up → caller makes the offer (guard against the
@@ -144,17 +146,25 @@ export const CallScreen = ({ peer, video, incoming = false, callId: incomingCall
           } catch (e) { setState('failed'); }
         },
         decline: () => { endedRef.current = true; setState('noanswer'); cleanup(); },
+        /* The other side's network routes (ICE) arrive right behind its
+           offer/answer — often while that is still being applied. A
+           route added before then was thrown away, and with the routes
+           gone the call sat on "Connecting…" for good. Hold them until
+           the description is in, then add them all. */
         signal: async (p) => {
           try {
             if (p.sdp) {
               await pc.setRemoteDescription(p.sdp);
+              const held = iceHeld.splice(0);
+              for (const c of held) await pc.addIceCandidate(c).catch(() => {});
               if (p.sdp.type === 'offer') {
                 const answer = await pc.createAnswer();
                 await pc.setLocalDescription(answer);
                 ch.send('signal', { sdp: pc.localDescription });
               }
             } else if (p.ice) {
-              await pc.addIceCandidate(p.ice).catch(() => {});
+              if (!pc.remoteDescription) iceHeld.push(p.ice);
+              else await pc.addIceCandidate(p.ice).catch(() => {});
             }
           } catch (e) {}
         },

@@ -4,7 +4,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { cachedPoster, derivePoster, posterTint } from '../lib/poster';
-import { GreenMark } from '../components/green/GreenMark';
 import { C, R } from '../constants/theme';
 import { AV_NEUTRAL, PLAY_GAMES } from '../constants/mockData';
 import { SUPABASE_READY } from '../lib/supabase';
@@ -22,12 +21,12 @@ import { ScreenHeader } from '../components/ScreenHeader';
 import { SectionHeader } from '../components/SectionHeader';
 import { Shortcut, ShortcutRow } from '../components/Shortcut';
 import { FilmSheet } from '../components/FilmSheet';
-import { BooksShelf } from '../components/BooksShelf';
 import { GameHub } from '../components/lamma/GameHub';
 /* lazy here as well as in Notifications: one plain import anywhere puts
    the whole sheet back into everybody's first download */
 const KitchenSheet = lazyOverlay(() => import('../components/KitchenSheet').then((m) => ({ default: m.KitchenSheet })));
 const GreenSheet = lazyOverlay(() => import('../components/green/GreenSheet').then((m) => ({ default: m.GreenSheet })));
+const LibrarySheet = lazyOverlay(() => import('../components/LibrarySheet').then((m) => ({ default: m.LibrarySheet })));
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
 import { useNavigation } from '@react-navigation/native';
 import { trackPlayer } from '../lib/videoSound';
@@ -161,7 +160,6 @@ export const ChillScreen = () => {
   const [shooting, setShooting] = useState(false);
   const [game, setGame] = useState(null); // a launched game
   const [lammaOpen, setLammaOpen] = useState(false);
-  const [greenOpen, setGreenOpen] = useState(false);
   const [focusPack, setFocusPack] = useState(null);   // a pack to open the shelf on
   /* The heritage room. Six real places and their customs have been in
      this app all along, locked inside two arcade games — which is why
@@ -289,7 +287,6 @@ export const ChillScreen = () => {
           button that opens the place where you can go get some. */}
       <ShortcutRow>
         {/* home-cooked food from a neighbour's kitchen — see KitchenSheet */}
-        <Shortcut icon={<GreenMark size={26} />} label={t('green_title')} onPress={() => { tapLight(); sfxPop(); setGreenOpen(true); }} />
         <Shortcut emoji="🏛" label={t('culture_title')} onPress={() => { tapLight(); sfxPop(); setCultureOpen(true); }} />
         <Shortcut emoji="🌍" label={t('country_title')} onPress={() => { tapLight(); sfxPop(); setCountryOpen(true); }} />
         <Shortcut emoji="📚" label={t('read_word')} onPress={() => { tapLight(); sfxPop(); setBooksOpen(true); }} />
@@ -364,22 +361,8 @@ export const ChillScreen = () => {
     {/* "Watch together": the ordinary start-one form, filled in with the film */}
     {movieNight ? <GreenSheet startNow homeCountry={region || (me && me.country) || 'EG'} prefill={movieNight} onClose={() => setMovieNight(null)} /> : null}
 
-    {/* The shelf, opened on purpose rather than sat in the way */}
-    {booksOpen ? (
-      <Modal visible transparent={false} animationType="slide" onRequestClose={() => setBooksOpen(false)}>
-        <View style={{ flex: 1, backgroundColor: C.bg }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingTop: 54, paddingBottom: 8 }}>
-            <Text style={{ color: C.text, fontSize: 20, fontWeight: '900', flex: 1 }}>{t('sec_read')}</Text>
-            <Pressable onPress={() => { tapLight(); setBooksOpen(false); }} hitSlop={10}>
-              <Ionicons name="close" size={24} color={C.dim} />
-            </Pressable>
-          </View>
-          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 14, paddingBottom: 40 }}>
-            <BooksShelf />
-          </ScrollView>
-        </View>
-      </Modal>
-    ) : null}
+    {/* Books: the one Library (the same one Profile opens) — there used to be two */}
+    {booksOpen ? <LibrarySheet onClose={() => setBooksOpen(false)} /> : null}
 
 
     {/* video player — real playback, with a comments button */}
@@ -451,12 +434,6 @@ export const ChillScreen = () => {
     {cultureOpen ? <CultureSheet onClose={() => setCultureOpen(false)} /> : null}
     {countryOpen ? <CountrySheet onClose={() => setCountryOpen(false)} /> : null}
     {foodOpen ? <KitchenSheet onClose={() => setFoodOpen(false)} /> : null}
-    {greenOpen ? (
-      <GreenSheet
-        onClose={() => setGreenOpen(false)}
-        onPlay={(packId) => { setGreenOpen(false); setFocusPack(packId); setLammaOpen(true); }}
-      />
-    ) : null}
     </>
   );
 };

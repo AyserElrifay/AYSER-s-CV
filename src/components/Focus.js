@@ -157,7 +157,7 @@ export const Focus = ({ onClose }) => {
             <View style={{ flexDirection: 'row', justifyContent: 'center', marginBottom: 14 }}>
               {LENGTHS.map(([w, r], i) => (
                 <Pressable key={w} onPress={() => { tapSelection(); if (i > 0 && !plus) setPlusSheet(true); else setLen(i); }} style={{ marginHorizontal: 4 }}>
-                  <View style={{ borderRadius: 16, borderWidth: 1.5, borderColor: len === i ? C.purple : C.line, backgroundColor: '#FFF', paddingHorizontal: 14, paddingVertical: 8, alignItems: 'center' }}>
+                  <View style={{ borderRadius: 16, borderWidth: 1.5, borderColor: len === i ? C.purple : C.line, backgroundColor: C.glass, paddingHorizontal: 14, paddingVertical: 8, alignItems: 'center' }}>
                     <Text style={{ color: C.text, fontSize: 16, fontWeight: '900' }}>{t('md_min').replace('{n}', String(w)) + (i > 0 && !plus ? ' ✦' : '')}</Text>
                     <Text style={{ color: C.dim, fontSize: 11.5, fontWeight: '700' }}>{'+ ' + t('fo_rest').replace('{n}', String(r))}</Text>
                   </View>
@@ -178,7 +178,7 @@ export const Focus = ({ onClose }) => {
               </View>
             </Pressable>
             <Pressable onPress={stop} accessibilityRole="button" style={{ flex: 1 }}>
-              <View style={{ borderRadius: 999, borderWidth: 1.5, borderColor: C.line, backgroundColor: '#FFF', paddingVertical: 16, alignItems: 'center' }}>
+              <View style={{ borderRadius: 999, borderWidth: 1.5, borderColor: C.line, backgroundColor: C.glass, paddingVertical: 16, alignItems: 'center' }}>
                 <Text style={{ color: C.dim, fontSize: 16, fontWeight: '800' }}>{t('fo_stop')}</Text>
               </View>
             </Pressable>

@@ -9,8 +9,8 @@ import { supabase } from '../lib/supabase';
      two browsers, negotiated over a per-call channel 'call_<callId>'.
    · Missed calls: a genuine notification row via the notify_call RPC.
 
-   STUN only (Google's public server) — most networks connect fine; when
-   a strict NAT blocks it, the call honestly fails instead of faking. */
+   STUN plus a TURN relay (getRtcConfig) — when nothing can connect,
+   the call honestly fails instead of faking. */
 
 /* STUN tells each side what its public address is. That is enough on
    most home networks and on nothing else: behind a strict NAT — mobile
@@ -35,6 +35,23 @@ export const RTC_CONFIG = {
   iceCandidatePoolSize: 4,
 };
 
+/* The relay that works: a short-lived Cloudflare TURN address from our
+   own server (supabase/functions/turn). Fetched once, kept for a few
+   hours; without it the call falls back to the list above. */
+let iceCache = null;
+export async function getRtcConfig() {
+  if (iceCache && iceCache.until > Date.now()) return iceCache.config;
+  try {
+    const { data, error } = await supabase.functions.invoke('turn', { body: {} });
+    if (!error && data && Array.isArray(data.iceServers) && data.iceServers.length) {
+      const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }].concat(data.iceServers), iceCandidatePoolSize: 4 };
+      iceCache = { config, until: Date.now() + 6 * 3600 * 1000 };
+      return config;
+    }
+  } catch (e) {}
+  return RTC_CONFIG;
+}
+
 /* ── incoming-ring listener (mounted once, app-wide) ── */
 export function subscribeIncomingCalls(myId, onEvent) {
   const ch = supabase.channel('ring_' + myId, { config: { broadcast: { self: false } } });
@@ -52,12 +69,18 @@ export async function ringUser(peerId, payload) {
     setTimeout(resolve, 4000); // never hang forever on a bad network
   });
   await ch.send({ type: 'broadcast', event: 'ring', payload });
+  /* the phone rings even with Moments closed: a real push ("… is calling
+     you"), and the ring goes out again every few seconds so a phone that
+     opens Moments from that push still catches the call */
+  supabase.rpc('call_ring', { p_to: peerId }).then(() => {}, () => {});
+  const again = setInterval(() => { ch.send({ type: 'broadcast', event: 'ring', payload }).catch(() => {}); }, 3000);
   return {
     cancel: async () => {
+      clearInterval(again);
       try { await ch.send({ type: 'broadcast', event: 'cancel', payload: { callId: payload.callId } }); } catch (e) {}
       try { supabase.removeChannel(ch); } catch (e) {}
     },
-    dispose: () => { try { supabase.removeChannel(ch); } catch (e) {} },
+    dispose: () => { clearInterval(again); try { supabase.removeChannel(ch); } catch (e) {} },
   };
 }
 

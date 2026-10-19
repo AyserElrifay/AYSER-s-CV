@@ -45,7 +45,7 @@ export const WouldYouRather = ({ onRemove }) => {
         const pct = i === 0 ? split : 100 - split;
         return (
           <Pressable key={i} onPress={() => { if (pick === null) { tapSelection(); sfxSuccess(); setPick(i); } }} style={{ marginBottom: 9 }}>
-            <View style={{ backgroundColor: '#FFF', borderWidth: 1.5, borderColor: chosen ? C.blue : C.line, borderRadius: 14, padding: 13, overflow: 'hidden' }}>
+            <View style={{ backgroundColor: C.glass, borderWidth: 1.5, borderColor: chosen ? C.blue : C.line, borderRadius: 14, padding: 13, overflow: 'hidden' }}>
               {pick !== null ? (
                 <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: pct + '%', backgroundColor: chosen ? C.blueSoft : 'rgba(17,24,39,0.04)' }} />
               ) : null}

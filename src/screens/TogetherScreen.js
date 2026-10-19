@@ -8,7 +8,7 @@ import { C } from '../constants/theme';
 import { useLang } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { SUPABASE_READY } from '../lib/supabase';
-import { listGatherings, joinGathering, announceGathering, checkInAt, setGatheringPhoto, removeGatheringPhoto, topCreators, followCreator, keptGatherings, myUnrated, rateGathering, listSparks } from '../services/green';
+import { listGatherings, joinGathering, announceGathering, checkInAt, setGatheringPhoto, removeGatheringPhoto, topCreators, followCreator, keptGatherings, myUnrated, rateGathering, listSparks, greenImpact } from '../services/green';
 import { COUNTRY_LIST } from '../constants/countries';
 import { remember, recall } from '../lib/offline';
 import { uploadPlanPhoto } from '../lib/storage';
@@ -120,14 +120,53 @@ const Section = ({ children }) => (
 );
 
 /* the rooms around the week, each in its own colour */
-const Tile = ({ emoji, label, from, to, onPress }) => (
-  <Pressable onPress={() => { tapLight(); onPress(); }} style={{ width: '48.5%', marginBottom: 10 }} accessibilityRole="button">
+const Tile = ({ emoji, label, from, to, onPress, wide }) => (
+  <Pressable onPress={() => { tapLight(); onPress(); }} style={{ width: wide ? '100%' : '48.5%', marginBottom: 10 }} accessibilityRole="button">
     <View style={{ borderRadius: 20, paddingVertical: 16, paddingHorizontal: 8, alignItems: 'center', minHeight: 84, flexDirection: 'row', justifyContent: 'center', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line }}>
       <Text style={{ fontSize: 26 }}>{emoji}</Text>
       <Text style={{ color: C.text, fontSize: 12.5, fontWeight: '800', marginStart: 10 }} numberOfLines={2}>{label}</Text>
     </View>
   </Pressable>
 );
+
+/* ── GREEN MINDS, ONE DOOR ──
+   Ayser: it showed up in several places and nobody could see it does
+   any good. Now it is here only, as the one wide card, with what it has
+   really done this month (green_impact): gatherings people checked in
+   at, the people, the countries, and how many times you came. Nothing
+   counted yet → the card says so plainly and asks you to start one. */
+const GreenDoor = ({ t, onPress }) => {
+  const [n, setN] = useState(null);
+  useEffect(() => { greenImpact().then((r) => { if (r && typeof r.held === 'number') setN(r); }); }, []);
+  const stat = (v, k) => (
+    <View style={{ flex: 1, alignItems: 'center' }}>
+      <Text style={{ color: '#FFF', fontSize: 22, fontWeight: '900' }}>{String(v)}</Text>
+      <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 11.5, fontWeight: '700', marginTop: 1, textAlign: 'center' }} numberOfLines={1}>{t(k)}</Text>
+    </View>
+  );
+  return (
+    <Pressable onPress={() => { tapLight(); onPress(); }} accessibilityRole="button" style={{ marginBottom: 10 }}>
+      <LinearGradient colors={['#047857', '#10B981']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: 20, padding: 16 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Text style={{ fontSize: 24 }}>🌿</Text>
+          <View style={{ flex: 1, marginStart: 10 }}>
+            <Text style={{ color: '#FFF', fontSize: 16.5, fontWeight: '900' }}>{t('green_title')}</Text>
+            <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: 12.5, marginTop: 2 }} numberOfLines={2}>{t('gm_hero')}</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="#FFF" />
+        </View>
+        {n && n.held > 0 ? (
+          <View style={{ flexDirection: 'row', marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.25)' }}>
+            {stat(n.held, 'gi_held')}{stat(n.people, 'gi_people')}{stat(n.countries, 'gi_countries')}{n.mine > 0 ? stat(n.mine, 'gi_mine') : null}
+          </View>
+        ) : n ? (
+          <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '700', marginTop: 12 }}>{t('gi_none')}</Text>
+        ) : null}
+        {n && n.held > 0 ? <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 11, marginTop: 8 }}>{t('gi_note')}</Text> : null}
+      </LinearGradient>
+    </Pressable>
+  );
+};
 
 const JoinPill = ({ going, busy, onPress, t }) => (
   <Pressable onPress={onPress} disabled={busy} hitSlop={6} accessibilityRole="button">
@@ -820,11 +859,11 @@ export const TogetherScreen = () => {
             have their own doors above and in the tabs; the papers live
             inside Settling in; exchanges live in Chats. */}
         <Section>{t('tg_more')}</Section>
+        <GreenDoor t={t} onPress={() => setSheet('green')} />
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
           <Tile emoji="🧳" label={t('bk_tile')} from="#7C3AED" to="#F5B301" onPress={() => setSheet({ trips: 'browse' })} />
-          <Tile emoji="🌿" label={t('green_title')} from="#10B981" to="#84CC16" onPress={() => setSheet('green')} />
           <Tile emoji="🤝" label={t('st_title')} from="#F59E0B" to="#EF4444" onPress={() => setSheet('settle')} />
-          <Tile emoji="🎲" label={t('tg_play')} from="#A855F7" to="#EC4899" onPress={() => nav.navigate('CHILL')} />
+          <Tile wide emoji="🎲" label={t('tg_play')} from="#A855F7" to="#EC4899" onPress={() => nav.navigate('CHILL')} />
         </View>
 
         {/* ── bring your people ── one line; the details are in Rewards */}

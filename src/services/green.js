@@ -75,6 +75,9 @@ async function askGatherings(country) {
 }
 
 /* Tell everybody who is not already coming. Only the host may, once. */
+/* what Green Minds has really done in the last 30 days (green_impact) */
+export const greenImpact = () => rpc('green_impact', {});
+
 export const announceGathering = (id) => rpc('green_announce', { p_id: id });
 
 /* The ideas. Read straight from the table — there is nothing private

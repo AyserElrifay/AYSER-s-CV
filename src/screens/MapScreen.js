@@ -1846,7 +1846,7 @@ export const MapScreen = () => {
                   placeholderTextColor={C.faint}
                   value={vName}
                   onChangeText={setVName}
-                  style={{ color: C.text, fontSize: 13, backgroundColor: '#FFF', borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginTop: 12 }}
+                  style={{ color: C.text, fontSize: 13, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginTop: 12 }}
                 />
                 <View style={{ flexDirection: 'row', marginTop: 9 }}>
                   {VENUE_KINDS.map((k) => (
@@ -1862,14 +1862,14 @@ export const MapScreen = () => {
                   placeholderTextColor={C.faint}
                   value={vSub}
                   onChangeText={setVSub}
-                  style={{ color: C.text, fontSize: 13, backgroundColor: '#FFF', borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginTop: 9 }}
+                  style={{ color: C.text, fontSize: 13, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginTop: 9 }}
                 />
                 <TextInput
                   placeholder={t('venue_price_placeholder')}
                   placeholderTextColor={C.faint}
                   value={vPrice}
                   onChangeText={setVPrice}
-                  style={{ color: C.text, fontSize: 13, backgroundColor: '#FFF', borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginTop: 9 }}
+                  style={{ color: C.text, fontSize: 13, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginTop: 9 }}
                 />
 
                 <Pressable onPress={submitVenue} style={{ marginTop: 14 }}>

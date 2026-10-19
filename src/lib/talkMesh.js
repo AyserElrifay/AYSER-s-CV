@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { RTC_CONFIG } from '../services/calls';
+import { getRtcConfig } from '../services/calls';
 import { shouldOffer } from './talkClock';
 
 /* ─── A TALK ROOM'S AUDIO ─────────────────────────────────────────────
@@ -26,6 +26,7 @@ export async function joinMesh({ roomId, me, onPeople, onError }) {
     });
   } catch (e) { onError && onError('mic'); return null; }
 
+  const rtc = await getRtcConfig();
   const pcs = new Map();          // peerId → { pc, audio, pending: [] }
   let muted = false;
   let closed = false;
@@ -45,7 +46,7 @@ export async function joinMesh({ roomId, me, onPeople, onError }) {
 
   const make = (peerId) => {
     if (pcs.has(peerId)) return pcs.get(peerId);
-    const pc = new RTCPeerConnection(RTC_CONFIG);
+    const pc = new RTCPeerConnection(rtc);
     const audio = document.createElement('audio');
     audio.autoplay = true; audio.setAttribute('playsinline', '');
     audio.style.display = 'none';
