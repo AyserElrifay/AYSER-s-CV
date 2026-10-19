@@ -638,7 +638,7 @@ export const TogetherScreen = () => {
                   return (
                     <Pressable key={g.id} onPress={() => { tapLight(); setOpen(expanded ? null : g.id); }}>
                       <View style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: g.kind === 'cleanup' ? 'rgba(16,185,129,0.55)' : g.audience === 'women' ? '#F9A8D4' : C.line, borderWidth: g.audience === 'women' && !g.im_going ? 1.5 : 1, borderRadius: 22, padding: 12, marginBottom: 10 }}>
-                        <PlanHead g={g} compact={!expanded}>
+                        <PlanHead g={g}>
                           <Text numberOfLines={2} style={{ color: C.text, fontSize: 15.5, fontWeight: '900', lineHeight: 20 }}>{titleFor(g.title, lang)}</Text>
                           <Text numberOfLines={1} style={{ color: C.faint, fontSize: 12.5, fontWeight: '700', marginTop: 3 }}>
                             {hour(g.starts_at)}{g.place_name ? ' · ' + g.place_name : g.city ? ' · ' + g.city : ''}

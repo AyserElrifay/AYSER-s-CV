@@ -306,7 +306,8 @@ export const PlanHead = ({ g, children, compact }) => {
   /* compact: one small square beside the words, so a week of plans
      reads as a list instead of a long scroll of big pictures */
   if (compact) {
-    const pic = url || (stock && stock.pics[0] && stock.pics[0].img);
+    const p0 = stock && stock.pics[0];
+    const pic = url || (p0 && (p0.url || publicMedia(p0.img)));
     return (
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
         {pic ? <Image source={{ uri: pic }} style={{ width: 64, height: 64, borderRadius: 14, backgroundColor: C.glassHi }} />
