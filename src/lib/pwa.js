@@ -47,11 +47,17 @@ export function initPwa() {
          update, and nothing needs to happen. */
       let hadController = !!navigator.serviceWorker.controller;
       let reloaded = false;
+      /* …and never under somebody's finger. A new version used to reload
+         the open app the moment it arrived — in the middle of a scroll, a
+         message, a form ("الموقع بيعمل reload، مش سلس"). Now it waits:
+         the reload happens while the app is out of sight (you switched
+         away, locked the phone), so you come back to the new version
+         without ever watching it restart. */
+      const reloadNow = () => { if (reloaded) return; reloaded = true; window.location.reload(); };
       navigator.serviceWorker.addEventListener('controllerchange', () => {
         if (!hadController) { hadController = true; return; }
-        if (reloaded) return;
-        reloaded = true;
-        window.location.reload();
+        if (document.visibilityState === 'hidden') { reloadNow(); return; }
+        document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') reloadNow(); });
       });
       window.addEventListener('load', () => {
         navigator.serviceWorker.register(base + 'sw.js', { scope: base }).then((reg) => {

@@ -139,19 +139,27 @@ export const HomeScreen = () => {
      scrolled or touched the feed in the last twenty; Home left open on
      the table, a sheet on top of it, or the closed card count nothing. */
   const lastActive = useRef(0);
+  const budgetRef = useRef(Infinity);
   const touched = () => { lastActive.current = Date.now(); };
   useEffect(() => {
     if (!focused || homeTab !== 'moments') return undefined;
     const id = setInterval(() => {
       if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
       if (Date.now() - lastActive.current > 20000) return;
-      setGate(addSeconds(5));
+      /* written every five seconds, but the screen is only told when it
+         changes something it shows — the time running out. Telling it
+         every five seconds re-drew the whole feed under a scrolling
+         finger, which is what made it stutter; the clock reads the
+         count for itself (FeedClock). */
+      const g = addSeconds(5);
+      if (g.used >= budgetRef.current) setGate(g);
     }, 5000);
     return () => clearInterval(id);
   }, [focused, homeTab]);
   useEffect(() => { if (focused) { finishedNow.current = false; setGate(readGate()); } }, [focused]);
   useEffect(() => onGate(setGate), []);   // a task done elsewhere: more time, at once
   const budget = budgetSeconds(volunteer, gate);
+  budgetRef.current = budget;
   /* closes on time alone; reaching the end of the day's moments shows
      the end card under them, it does not lock the feed with time left */
   const feedClosed = !!user && gate.used >= budget;
