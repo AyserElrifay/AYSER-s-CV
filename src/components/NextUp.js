@@ -12,6 +12,7 @@ import { greenPic } from './green/GreenCards';
 import { isGreen } from '../lib/greenKinds';
 import { lookOf, titleFor } from '../lib/activityPins';
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
+import { appLink, shareLink } from '../utils/share';
 
 /* ─── HOME OPENS ON ONE THING ─────────────────────────────────────────
    The Steve Jobs note: Moments does a lot, and somebody opening it for
@@ -76,6 +77,18 @@ export const NextUp = ({ user, onOpen, onStart }) => {
     setBusy(false);
   };
 
+  /* you said yes — the warmest next step is somebody coming with you */
+  const [asked, setAsked] = useState(false);
+  const bringFriend = async () => {
+    tapLight();
+    const r = await shareLink({
+      url: appLink({ tab: 'TOGETHER', invite: user && user.id }),
+      title: titleFor(g.title, lang),
+      text: t('nu_share_text').replace('{plan}', titleFor(g.title, lang)).replace('{when}', whenLine(g, lang, t)),
+    });
+    if (r && r !== 'unsupported') setAsked(true);
+  };
+
   const streak = weeks > 0 ? (
     <Text style={{ color: C.dim, fontSize: 13, fontWeight: '800', marginTop: 10 }}>
       {'🔥 ' + t(weeks === 1 ? 'nu_weeks_1' : 'nu_weeks').replace('{n}', String(weeks))}
@@ -111,20 +124,30 @@ export const NextUp = ({ user, onOpen, onStart }) => {
             : <LinearGradient colors={[look.from, look.to]} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 80 }}>{look.emoji}</Text></LinearGradient>}
           <LinearGradient colors={['rgba(0,0,0,0.35)', 'rgba(0,0,0,0)', 'rgba(0,0,0,0.8)']} locations={[0, 0.3, 1]} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }} />
           <Text style={{ position: 'absolute', top: 14, left: 16, color: '#FFF', fontSize: 12, fontWeight: '900', letterSpacing: 1.2 }}>{t('nu_kicker').toUpperCase()}</Text>
+          {g.im_going ? (
+            <View style={{ position: 'absolute', top: 10, right: 12, flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.35)', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 }}>
+              <Ionicons name="checkmark-circle" size={14} color="#FFF" />
+              <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '800', marginStart: 4 }}>{t('nu_going')}</Text>
+            </View>
+          ) : null}
           <View style={{ position: 'absolute', left: 16, right: 16, bottom: 16 }}>
             <Text style={{ color: '#FFF', fontSize: 24, fontWeight: '900', letterSpacing: -0.4 }} numberOfLines={2}>{titleFor(g.title, lang)}</Text>
             <Text style={{ color: 'rgba(255,255,255,0.92)', fontSize: 14, fontWeight: '700', marginTop: 4 }} numberOfLines={1}>
               {[whenLine(g, lang, t), g.place_name || g.city].filter(Boolean).join(' · ')}
             </Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
-              <Text style={{ flex: 1, color: 'rgba(255,255,255,0.9)', fontSize: 13, fontWeight: '800' }}>
-                {n > 0 ? t('gm_join_them').replace('{n}', String(n)) : t('gm_first')}
+              <Text style={{ flex: 1, color: 'rgba(255,255,255,0.9)', fontSize: 13, fontWeight: '800', marginEnd: 10 }} numberOfLines={2}>
+                {g.im_going
+                  ? (n > 1 ? t('nu_you_and').replace('{n}', String(n - 1)) : t('nu_first_in'))
+                  : n > 0 ? t('gm_join_them').replace('{n}', String(n)) : t('gm_first')}
               </Text>
               {g.im_going ? (
-                <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.22)', borderRadius: 999, paddingHorizontal: 16, paddingVertical: 10 }}>
-                  <Ionicons name="checkmark" size={16} color="#FFF" />
-                  <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '900', marginStart: 4 }}>{t('nu_going')}</Text>
-                </View>
+                <Pressable onPress={bringFriend} accessibilityRole="button" hitSlop={6}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', borderRadius: 999, paddingHorizontal: 16, paddingVertical: 10 }}>
+                    <Ionicons name={asked ? 'checkmark' : 'person-add-outline'} size={16} color="#1A1A1A" />
+                    <Text style={{ color: '#1A1A1A', fontSize: 14, fontWeight: '900', marginStart: 6 }}>{t(asked ? 'nu_asked' : 'nu_bring')}</Text>
+                  </View>
+                </Pressable>
               ) : (
                 <Pressable onPress={user ? join : () => onOpen(g)} disabled={busy} accessibilityRole="button" hitSlop={6}>
                   <View style={{ backgroundColor: '#FFF', borderRadius: 999, paddingHorizontal: 20, paddingVertical: 11, opacity: busy ? 0.6 : 1 }}>

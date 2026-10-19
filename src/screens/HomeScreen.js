@@ -563,7 +563,7 @@ export const HomeScreen = () => {
                 <Pressable onLongPress={() => { tapSuccess(); setPersonalise(true); }} delayLongPress={600} style={{ outlineStyle: "none" }} accessibilityRole="image" accessibilityLabel="Moments" accessibilityHint={t('pz_title')}>
                   <Wordmark height={46} style={{ marginLeft: -4, marginBottom: -2 }} />
                 </Pressable>
-                <Greeting />
+                <Greeting name={(user && myProfile && myProfile.name) || ''} />
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <Pressable testID="btn-notifs" accessibilityRole="button" accessibilityLabel={t('notifications')} onPress={() => { tapLight(); setNotifOpen(true); setUnread(0); }} style={[headerBtn(), { marginRight: 10 }]}>

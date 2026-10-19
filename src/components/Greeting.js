@@ -15,25 +15,31 @@ const G = {
 };
 const ORDER = ['en', 'ar', 'es', 'fr', 'it', 'pt', 'nl', 'ro', 'ru', 'tr', 'cs', 'et', 'hi', 'ja', 'ko', 'zh'];
 
-export const Greeting = () => {
+export const Greeting = ({ name }) => {
   const { lang } = useLang();
   const h = new Date().getHours();
   const set = G[h < 12 ? 'morning' : h < 17 ? 'day' : 'evening'];
   const list = [lang, ...ORDER.filter((l) => l !== lang)].filter((l) => set[l]);
+  const first = String(name || '').trim().split(/\s+/)[0] || '';
   const [i, setI] = useState(0);
   const fade = useRef(new Animated.Value(1)).current;
+  const tick = useRef(false);
   useEffect(() => {
     const id = setInterval(() => {
+      if (i === 0 && !tick.current) { tick.current = true; return; }   // your own hello stays twice as long
+      tick.current = false;
       Animated.timing(fade, { toValue: 0, duration: 250, useNativeDriver: true }).start(() => {
         setI((x) => (x + 1) % list.length);
         Animated.timing(fade, { toValue: 1, duration: 250, useNativeDriver: true }).start();
       });
     }, 2600);
     return () => clearInterval(id);
-  }, [list.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [list.length, i]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <Animated.View style={{ opacity: fade }}>
-      <Text style={{ color: C.dim, fontSize: 12.5, fontWeight: '700', marginTop: 2 }}>{set[list[i]] + ' 👋'}</Text>
+      <Text style={{ color: i === 0 ? C.text : C.dim, fontSize: 14, fontWeight: '700', marginTop: 2 }} numberOfLines={1}>
+        {set[list[i]] + (i === 0 && first ? (list[0] === 'ar' ? ' يا ' : ', ') + first : '') + ' 👋'}
+      </Text>
     </Animated.View>
   );
 };

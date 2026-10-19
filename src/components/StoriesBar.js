@@ -62,6 +62,24 @@ const StoryCard = ({ s, onPress, label }) => {
 /* Moments rail — stories with sounds. Tap to watch, + to add yours. */
 export const StoriesBar = ({ stories, onOpenStory, onAddStory }) => {
   const { t } = useLang();
+  /* nobody has shared anything today: not a tall empty box beside a
+     blank space — one calm line that asks how today feels */
+  if (!stories || !stories.length) {
+    return (
+      <Pressable testID="add-story" onPress={onAddStory} accessibilityRole="button" accessibilityLabel={t('your_vibe_label')} style={{ marginTop: 14 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 18, padding: 12 }}>
+          <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center' }}>
+            <Ionicons name="add" size={22} color={C.purple} />
+          </View>
+          <View style={{ flex: 1, minWidth: 0, marginStart: 12 }}>
+            <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '800' }}>{t('sb_today_title')}</Text>
+            <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 2 }} numberOfLines={1}>{t('sb_today_sub')}</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={C.faint} />
+        </View>
+      </Pressable>
+    );
+  }
   return (
     <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 14 }} contentContainerStyle={{ paddingRight: 8 }}>
       <Pressable testID="add-story" onPress={onAddStory} accessibilityRole="button" accessibilityLabel={t('your_vibe_label')} style={{ marginEnd: 10 }}>
