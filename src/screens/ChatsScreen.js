@@ -536,29 +536,6 @@ export const ChatsScreen = () => {
         {'● ' + t('ch_online_n').replace('{n}', String(myMates.filter((m) => isOnline(m.id)).length))}
       </Text>
     ) : null}
-    {SUPABASE_READY ? (
-      <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 18, marginHorizontal: -16 }} contentContainerStyle={{ paddingHorizontal: 16 }}>
-        <Pressable onPress={inviteFriends} accessibilityRole="button" accessibilityLabel={t('ch_add_friends')} style={{ alignItems: 'center', marginEnd: 14, width: 64 }}>
-          <View style={{ width: 60, height: 60, borderRadius: 30, borderWidth: 1.5, borderStyle: 'dashed', borderColor: C.dim, alignItems: 'center', justifyContent: 'center' }}>
-            <Ionicons name="add" size={26} color={C.text} />
-          </View>
-          <Text style={{ color: C.dim, fontSize: 11.5, fontWeight: '600', marginTop: 6 }} numberOfLines={1}>{t('ch_add_friends')}</Text>
-        </Pressable>
-        {[...myMates].sort((a, b) => Number(isOnline(b.id)) - Number(isOnline(a.id))).map((m) => (
-          <Pressable key={m.id} onPress={() => { tapLight(); setThread({ chat: { user: { id: m.id, name: m.name || 'Explorer', avatar: m.avatar_url || AV_NEUTRAL } }, group: false }); }}
-            accessibilityRole="button" accessibilityLabel={(m.name || '') + (isOnline(m.id) ? ', ' + t('ch_online') : '')}
-            style={{ alignItems: 'center', marginEnd: 14, width: 64 }}>
-            <View>
-              {m.avatar_url ? <Image source={{ uri: m.avatar_url }} style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: C.glassHi }} />
-                : <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: colorFor(m.id), alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: '#FFF', fontSize: 22, fontWeight: '800' }}>{initialOf(m.name || '')}</Text></View>}
-              {isOnline(m.id) ? <View style={{ position: 'absolute', bottom: 1, right: 1, width: 15, height: 15, borderRadius: 8, backgroundColor: C.green, borderWidth: 2.5, borderColor: C.bg }} /> : null}
-            </View>
-            <Text style={{ color: C.text, fontSize: 11.5, fontWeight: '600', marginTop: 6 }} numberOfLines={1}>{(m.name || 'Explorer').split(' ')[0]}</Text>
-            {isOnline(m.id) ? <Text style={{ color: C.green, fontSize: 10, fontWeight: '800', marginTop: 1 }}>{t('ch_online')}</Text> : null}
-          </Pressable>
-        ))}
-      </ScrollView>
-    ) : null}
     {inviteNote ? <Text style={{ color: C.faint, fontSize: 12, marginTop: -10, marginBottom: 12 }}>{inviteNote}</Text> : null}
 
     {/* ── THE ONE NUDGE ── a mate you have not talked to in a week,
@@ -686,6 +663,44 @@ export const ChatsScreen = () => {
       </ChatBox>
       </>
     ) : null}
+
+    {/* ── YOUR PEOPLE ── mates you have no conversation with yet, as
+        plain rows under the conversations (the way WhatsApp lists
+        contacts), online first; the last row brings more of them in */}
+    {SUPABASE_READY && user ? (() => {
+      const talked = {}; dms.forEach((d) => { if (d.user.id) talked[d.user.id] = 1; });
+      const rest = [...myMates].filter((m) => m && m.id && !talked[m.id]).sort((a, b) => Number(isOnline(b.id)) - Number(isOnline(a.id)));
+      return (
+        <>
+          <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '800', letterSpacing: 1.1, marginTop: 18, marginBottom: 8 }}>{t('ch_people')}</Text>
+          <ChatBox>
+            {rest.map((m) => (
+              <Pressable key={m.id} onPress={() => { tapLight(); setThread({ chat: { user: { id: m.id, name: m.name || 'Explorer', avatar: m.avatar_url || AV_NEUTRAL } }, group: false }); }}
+                accessibilityRole="button" accessibilityLabel={(m.name || '') + (isOnline(m.id) ? ', ' + t('ch_online') : '')}
+                style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: C.line }}>
+                <View>
+                  {m.avatar_url ? <Image source={{ uri: m.avatar_url }} style={{ width: 50, height: 50, borderRadius: 25, backgroundColor: C.glassHi }} />
+                    : <View style={{ width: 50, height: 50, borderRadius: 25, backgroundColor: colorFor(m.id), alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: '#FFF', fontSize: 19, fontWeight: '800' }}>{initialOf(m.name || '')}</Text></View>}
+                  {isOnline(m.id) ? <View style={{ position: 'absolute', bottom: 0, right: 0, width: 14, height: 14, borderRadius: 7, backgroundColor: C.green, borderWidth: 2.5, borderColor: C.glass }} /> : null}
+                </View>
+                <View style={{ flex: 1, minWidth: 0, marginStart: 12 }}>
+                  <Text style={{ color: C.text, fontSize: 15.5, fontWeight: '600' }} numberOfLines={1}>{m.name || 'Explorer'}</Text>
+                  <Text style={{ color: isOnline(m.id) ? C.green : C.dim, fontSize: 13.5, marginTop: 3 }} numberOfLines={1}>{isOnline(m.id) ? t('ch_online') : t('ch_say_hi')}</Text>
+                </View>
+                <Ionicons name="chatbubble-outline" size={18} color={C.faint} />
+              </Pressable>
+            ))}
+            <Pressable onPress={inviteFriends} accessibilityRole="button" accessibilityLabel={t('ch_add_friends')}
+              style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14 }}>
+              <View style={{ width: 50, height: 50, borderRadius: 25, borderWidth: 1.5, borderStyle: 'dashed', borderColor: C.dim, alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="person-add-outline" size={20} color={C.text} />
+              </View>
+              <Text style={{ color: C.text, fontSize: 15.5, fontWeight: '600', marginStart: 12 }}>{t('ch_add_friends')}</Text>
+            </Pressable>
+          </ChatBox>
+        </>
+      );
+    })() : null}
 
     {/* ── NOTHING HERE YET ─────────────────────────────────────────────
         One invitation, not three apologies. An empty inbox used to be
