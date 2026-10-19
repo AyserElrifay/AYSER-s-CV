@@ -190,6 +190,16 @@ export const ideaPhoto = (g) => {
   return p ? p.url || publicMedia(p.img) : null;
 };
 
+/* every photo of it — the plan's own first; then the activity's sharp
+   photos, never the small video stills (reel-*: 640px) — for a card
+   that turns through them */
+export const ideaPics = (g) => {
+  const own = planPhotoOf(g);
+  const st = stockOf(g);
+  const stock = st ? st.pics.filter((p) => p.img && !/^reel-/.test(p.img) && !p.clip).map((p) => p.url || publicMedia(p.img)) : [];
+  return (own ? [own] : []).concat(stock).filter((u, i, a) => u && a.indexOf(u) === i).slice(0, 5);
+};
+
 /* and its clip, when the activity has one: { clip, still } */
 export const ideaClip = (g) => {
   if (planPhotoOf(g)) return null;

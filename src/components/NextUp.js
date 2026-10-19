@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Pressable, Image } from 'react-native';
+import { View, Text, Pressable, Image, Animated, Easing } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { C } from '../constants/theme';
@@ -7,7 +7,7 @@ import { useLang } from '../context/LanguageContext';
 import { supabase, SUPABASE_READY } from '../lib/supabase';
 import { listGatherings, keptGatherings, joinGathering } from '../services/green';
 import { lastFix } from '../services/squadAdmin';
-import { ideaPhoto } from './green/PlanPhoto';
+import { ideaPhoto, ideaPics } from './green/PlanPhoto';
 import { greenPic } from './green/GreenCards';
 import { isGreen } from '../lib/greenKinds';
 import { lookOf, titleFor } from '../lib/activityPins';
@@ -50,6 +50,38 @@ const whenLine = (g, lang, t) => {
   let time = '';
   try { time = d.toLocaleTimeString(loc, { hour: 'numeric', minute: '2-digit' }); } catch (e) {}
   return day + ' · ' + time;
+};
+
+/* ─── THE PHOTOS, TURNING SLOWLY ──────────────────────────────────────
+   Ayser: not one photo — several, or a video. The activity's videos are
+   small (640px) and look soft on a big card, so: its sharp photos, one
+   after another, each easing in a little closer as it shows (the slow
+   push of a film, not a slideshow click) and fading into the next. */
+const SLIDE_MS = 5000;
+const Slides = ({ pics }) => {
+  const [i, setI] = useState(0);
+  const fade = React.useRef(new Animated.Value(1)).current;
+  const zoom = React.useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    zoom.setValue(0);
+    Animated.timing(zoom, { toValue: 1, duration: SLIDE_MS + 900, easing: Easing.linear, useNativeDriver: true }).start();
+    if (pics.length < 2) return undefined;
+    const id = setTimeout(() => {
+      Animated.timing(fade, { toValue: 0, duration: 450, useNativeDriver: true }).start(() => {
+        setI((n) => (n + 1) % pics.length);
+        Animated.timing(fade, { toValue: 1, duration: 650, useNativeDriver: true }).start();
+      });
+    }, SLIDE_MS);
+    return () => clearTimeout(id);
+  }, [i, pics.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  const scale = zoom.interpolate({ inputRange: [0, 1], outputRange: [1, 1.07] });
+  return (
+    <Animated.View style={{ position: 'absolute', width: '100%', height: '100%', opacity: fade, transform: [{ scale }] }}>
+      <Image source={{ uri: pics[i] }} style={{ width: '100%', height: '100%' }} resizeMode="cover" accessibilityIgnoresInvertColors />
+      {/* the next one, already on its way, so the fade never shows a gap */}
+      {pics.length > 1 ? <Image source={{ uri: pics[(i + 1) % pics.length] }} style={{ width: 1, height: 1, opacity: 0, position: 'absolute' }} /> : null}
+    </Animated.View>
+  );
 };
 
 export const NextUp = ({ user, onOpen, onStart }) => {
@@ -114,13 +146,14 @@ export const NextUp = ({ user, onOpen, onStart }) => {
   }
 
   const look = lookOf(g.kind);
-  const pic = ideaPhoto(g) || (isGreen(g) ? greenPic([g.title, g.place_name].join(' '), g.id) : null);
+  const pics = ideaPics(g);
+  const pic = pics[0] || ideaPhoto(g) || (isGreen(g) ? greenPic([g.title, g.place_name].join(' '), g.id) : null);
   const n = Number(g.going) || 0;
   return (
     <View style={{ marginTop: 16 }}>
       <Pressable onPress={() => { tapLight(); onOpen(g); }} accessibilityRole="button" accessibilityLabel={titleFor(g.title, lang)}>
         <View style={{ height: 260, borderRadius: 26, overflow: 'hidden', backgroundColor: look.from }}>
-          {pic ? <Image source={{ uri: pic }} style={{ position: 'absolute', width: '100%', height: '100%' }} accessibilityIgnoresInvertColors />
+          {pics.length > 1 ? <Slides pics={pics} /> : pic ? <Image source={{ uri: pic }} style={{ position: 'absolute', width: '100%', height: '100%' }} accessibilityIgnoresInvertColors />
             : <LinearGradient colors={[look.from, look.to]} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 80 }}>{look.emoji}</Text></LinearGradient>}
           <LinearGradient colors={['rgba(0,0,0,0.35)', 'rgba(0,0,0,0)', 'rgba(0,0,0,0.8)']} locations={[0, 0.3, 1]} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }} />
           <Text style={{ position: 'absolute', top: 14, left: 16, color: '#FFF', fontSize: 12, fontWeight: '900', letterSpacing: 1.2 }}>{t('nu_kicker').toUpperCase()}</Text>
