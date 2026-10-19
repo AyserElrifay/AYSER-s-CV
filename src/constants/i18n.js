@@ -729,9 +729,6 @@ export const STRINGS = {
     join_the_moment: 'JOIN THE MOMENT 🙌',
     requested_tick: 'Requested ✓',
     book: 'Book',
-    own_a_place: 'Own a place?',
-    own_a_place_hint: 'Get on the Moments map — people book you from here',
-    partner_with_us: 'Partner with us',
     girls_only: 'Girls only',
     girls_only_hint: 'Only people whose own profile says girl can join. That\'s checked by the database, not by us.',
     trip_what_placeholder: 'What\'s the trip? e.g. Fayoum sandboarding',
@@ -2706,7 +2703,7 @@ export const STRINGS = {
     link_copied: 'Link copied — send it anywhere 🔗', moment_gone: 'That moment is gone or private', story_gone: 'That story has expired or is gone', profile_gone: 'That profile isn’t available',
     // Map
     search_places_placeholder: 'Search places to go, people, anywhere on Earth…', no_campfires_yet: 'No live campfires yet',
-    be_first_host: 'Be the first to host one', no_venues_yet: 'No venues yet', own_place_cta: 'Own a place? Get listed →',
+    be_first_host: 'Be the first to host one',  
     location_gate_title: 'Moments wants to know your location', location_gate_body: "To show plans and people near you. Your browser asks once more after this.", turn_on_location: 'Turn on location', maybe_later: 'Maybe later',
     send_sos_q: 'Send SOS?', send_sos_now: 'SEND SOS NOW', sos_live: 'Your SOS pin is live', nearby_people: 'Nearby people 📍', no_one_nearby: 'No one nearby yet',
     whats_up_q: 'What are you up to?', go_invisible: 'Go invisible (hide my activity)', pin_it_here: 'Pin it here 💬', manage_campfire: 'Manage campfire 🔥', put_place_on_moments: 'Put your place on Moments 🤝', apply_2min: 'Apply — takes 2 minutes', leave_feedback: 'Leave feedback ⭐', keep_typing: 'Keep typing…', searching_world: 'Searching the real world… nothing yet 🌍', drop_note: 'Drop a note 💬',

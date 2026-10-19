@@ -308,10 +308,18 @@ export const PlanHead = ({ g, children, slim, title, sub }) => {
   if (slim) {
     const p0 = stock && stock.pics[0];
     const pic = url || (p0 && (p0.url || publicMedia(p0.img)));
+    /* the activity's own clip comes back, playing silently: the whole
+       clip in the middle, the same picture blurred behind it */
+    const clip = !url && p0 && p0.clip && Platform.OS === 'web' && !isSaving((getPrefs() || {}).dataSaver) ? publicMedia(p0.clip) : null;
     return (
       <View>
-        <View style={{ height: 118, borderRadius: 16, overflow: 'hidden', marginBottom: 10 }}>
-          {pic ? <Image source={{ uri: pic }} style={{ position: 'absolute', width: '100%', height: '100%' }} />
+        <View style={{ height: 118, borderRadius: 16, overflow: 'hidden', marginBottom: 10, backgroundColor: '#000' }}>
+          {clip ? (
+            <>
+              <Image source={{ uri: pic }} blurRadius={20} style={{ position: 'absolute', width: '100%', height: '100%' }} />
+              <video src={clip} autoPlay muted loop playsInline style={{ position: 'absolute', width: '100%', height: '100%', objectFit: 'contain' }} />
+            </>
+          ) : pic ? <Image source={{ uri: pic }} style={{ position: 'absolute', width: '100%', height: '100%' }} />
             : <LinearGradient colors={[look.from, look.to]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ position: 'absolute', width: '100%', height: '100%' }} />}
           <LinearGradient colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.72)']} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 80 }} />
           <View style={{ position: 'absolute', top: 8, left: 8, backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 10, paddingHorizontal: 6, paddingVertical: 2 }}>
