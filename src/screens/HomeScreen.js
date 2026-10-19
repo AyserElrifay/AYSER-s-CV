@@ -475,8 +475,7 @@ export const HomeScreen = () => {
 
   const openReel = (post) => {
     recordSignal('watch', post);
-    const idx = Math.max(0, reels.findIndex((r) => r.id === post.id));
-    setReelStart(idx);
+    /* the card opens its own player now (PostCard) — this only counts the watch */
   };
 
   /* Delete one of YOUR moments — instant in the UI, real in the DB. */

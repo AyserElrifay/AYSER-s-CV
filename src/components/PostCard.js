@@ -53,6 +53,7 @@ const TravelGroupButton = ({ post, mine, t }) => {
   );
 };
 const PostLink = lazyOverlay(() => import('./PostLink').then((m) => ({ default: m.PostLink })));
+const ReelsViewer = lazyOverlay(() => import('./ReelsViewer').then((m) => ({ default: m.ReelsViewer })));
 
 /* Chips sit on photos, so they stay dark with light text for contrast. */
 const typeChip = (post) => {
@@ -314,6 +315,7 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
   const removeLaugh = () => { tapLight(); onRemoveLaugh && onRemoveLaugh(); };
 
   const totalLaughs = (post.laughs || 0) + (laughed ? 1 : 0);
+  const [viewing, setViewing] = useState(false);
   const handleMediaTap = () => {
     const now = Date.now();
     if (now - lastTap.current < 300) {
@@ -326,8 +328,11 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
         .start(() => setBursting(false));
     } else {
       lastTap.current = now;
-      if (post.type === 'reel' && onOpenReel) {
-        singleTimer.current = setTimeout(() => { singleTimer.current = null; onOpenReel(post); }, 320);
+      /* every video opens its player here, whichever screen the card is
+         on — it used to be reels only, and only where the screen passed a
+         handler, so a feed video was a picture you could not play */
+      if (isVideoPost(post) && post.media) {
+        singleTimer.current = setTimeout(() => { singleTimer.current = null; onOpenReel && onOpenReel(post); setViewing(true); }, 320);
       }
     }
   };
@@ -478,6 +483,17 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
             </Pressable>
           )}
         </View>
+      ) : null}
+
+      {viewing ? (
+        <ReelsViewer
+          reels={[{ ...post, kind: 'video' }]}
+          startIndex={0}
+          vibes={vibed ? { [post.id]: true } : {}}
+          onVibe={() => onVibe && onVibe()}
+          onComment={() => { setViewing(false); onComment && onComment(post); }}
+          onClose={() => setViewing(false)}
+        />
       ) : null}
 
       {coverOpen ? (
