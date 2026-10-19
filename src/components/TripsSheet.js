@@ -49,12 +49,10 @@ const TOPIC_EMOJI = { writing: '✍️', poetry: '📜', dance: '💃', music: '
 /* the line above a title: what it is */
 const kindLabel = (o, t) => (o.track === 'reflection' ? '🌙 ' + t('rt_badge') : o.track === 'workshop' ? (TOPIC_EMOJI[o.topic] || '🎓') + ' ' + t('ws_badge') + (o.topic ? ' · ' + t('ws_' + o.topic) : '') : t('bk_kind_' + o.kind));
 
-/* where a trip is — Egypt or Europe, side by side and in the order the
-   database gives them, so neither side is the "main" one */
-const EUROPE = new Set(['EE', 'RO', 'IT', 'CZ', 'DE', 'FR', 'ES', 'PT', 'GR', 'AT', 'NL', 'BE', 'PL', 'HU', 'HR', 'SK', 'SI', 'LV', 'LT', 'FI', 'SE', 'DK', 'NO', 'IE', 'CH', 'BG', 'MT', 'CY', 'LU', 'IS', 'GB']);
-const regionOf = (o) => (o.country === 'EG' ? 'eg' : EUROPE.has(o.country) ? 'eu' : 'other');
 /* "7h", or "2 days" from a day up */
 const hoursLabel = (h, t) => { const n = Number(h); return n >= 24 ? t('bk_days').replace('{n}', String(Math.round(n / 24))) : t('bk_hours').replace('{n}', String(n)); };
+/* a country's name in the reader's language (the browser knows them all) */
+const countryName = (cc, lang) => { try { return new Intl.DisplayNames([lang || 'en'], { type: 'region' }).of(cc) || cc; } catch (e) { return cc; } };
 const flagOf = (cc) => (cc && /^[A-Z]{2}$/.test(cc) ? String.fromCodePoint(...cc.split('').map((c) => 0x1F1E6 + c.charCodeAt(0) - 65)) + ' ' : '');
 
 const when = (iso, lang) => {
@@ -390,8 +388,14 @@ export const TripsSheet = ({ onClose, country, openOn, focus, onNeedSignIn }) =>
   }, [country, user]);
   useEffect(() => { load(); }, [load]);
 
-  const shown = useMemo(() => (offers || []).filter((o) => (!kind || isKind(o, kind)) && (!region || regionOf(o) === region)), [offers, kind, region]);
-  const regionsHere = useMemo(() => ['eg', 'eu'].filter((r) => (offers || []).some((o) => regionOf(o) === r)), [offers]);
+  const shown = useMemo(() => (offers || []).filter((o) => (!kind || isKind(o, kind)) && (!region || o.country === region)), [offers, kind, region]);
+  /* Ayser: "ليه أوروبا كده، فين الدول" — every country that has a trip,
+     by its own flag and name; Egypt first, then the most trips first */
+  const regionsHere = useMemo(() => {
+    const n = {};
+    (offers || []).forEach((o) => { if (o.country) n[o.country] = (n[o.country] || 0) + 1; });
+    return Object.keys(n).sort((a, b) => (a === 'EG' ? -1 : b === 'EG' ? 1 : n[b] - n[a] || a.localeCompare(b)));
+  }, [offers]);
   const kindsHere = useMemo(() => KINDS.filter((k) => !k || (offers || []).some((o) => isKind(o, k))), [offers]);
 
   // cancelling asks once more — a single stray tap must not undo a trip
@@ -455,26 +459,27 @@ export const TripsSheet = ({ onClose, country, openOn, focus, onNeedSignIn }) =>
 
             {tab === 'browse' ? (
               <>
-                {/* travel buddies: a real night on a trip bus, softly blurred
-                    (Ayser asked for a light touch) */}
-                <View style={{ height: 180, borderRadius: 22, overflow: 'hidden', backgroundColor: '#1A1A1A', marginBottom: 14 }}>
-                  <HighlightVideo uri={publicMedia('travel-buddies.mp4')} poster={publicMedia('travel-buddies.jpg')} />
-                  <LinearGradient colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.7)']} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 110 }} />
-                  <View style={{ position: 'absolute', left: 14, right: 14, bottom: 12 }}>
-                    <Text style={{ color: '#FFF', fontSize: 20, fontWeight: '900' }}>{'🚌 ' + t('bk_buddies')}</Text>
-                    <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13, fontWeight: '700', marginTop: 2 }}>{t('bk_buddies_sub')}</Text>
+                {/* travel buddies: Ayser — the bus video was low resolution
+                    (432px) and looked soft. One sharp photo of Dahab instead,
+                    nothing over it but the words. */}
+                <View style={{ height: 190, borderRadius: 22, overflow: 'hidden', backgroundColor: '#0E2A3A', marginBottom: 14 }}>
+                  <Image source={{ uri: publicMedia('welcome-dahab.jpg') }} style={{ position: 'absolute', width: '100%', height: '100%' }} resizeMode="cover" accessibilityIgnoresInvertColors />
+                  <LinearGradient colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.62)']} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 120 }} />
+                  <View style={{ position: 'absolute', left: 16, right: 16, bottom: 14 }}>
+                    <Text style={{ color: '#FFF', fontSize: 21, fontWeight: '900', letterSpacing: -0.3 }}>{t('bk_buddies')}</Text>
+                    <Text style={{ color: 'rgba(255,255,255,0.88)', fontSize: 13.5, fontWeight: '600', marginTop: 3 }}>{t('bk_buddies_sub')}</Text>
                   </View>
                 </View>
                 <PlusCard plus={plus} t={t} lang={lang} />
                 {regionsHere.length > 1 ? (
-                  <View style={{ flexDirection: 'row', marginBottom: 10 }}>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ marginBottom: 10 }}>
                     {[null].concat(regionsHere).map((r) => (
                       <Pressable key={r || 'all'} onPress={() => { tapSelection(); setRegion(r); }} accessibilityRole="tab" accessibilityState={{ selected: region === r }}
                         style={{ marginEnd: 8, borderRadius: 999, borderWidth: 1, borderColor: region === r ? C.text : C.line, backgroundColor: region === r ? C.text : 'transparent', paddingHorizontal: 14, paddingVertical: 7 }}>
-                        <Text style={{ color: region === r ? C.bg : C.text, fontSize: 13.5, fontWeight: '800' }}>{r ? t('bk_region_' + r) : t('bk_everywhere')}</Text>
+                        <Text style={{ color: region === r ? C.bg : C.text, fontSize: 13.5, fontWeight: '800' }}>{r ? flagOf(r) + countryName(r, lang) : t('bk_everywhere')}</Text>
                       </Pressable>
                     ))}
-                  </View>
+                  </ScrollView>
                 ) : null}
                 {kindsHere.length > 2 ? (
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ marginBottom: 12 }}>

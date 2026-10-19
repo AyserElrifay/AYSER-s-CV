@@ -17309,6 +17309,15 @@ $$;
 
 notify pgrst, 'reload schema';
 
+-- ── SIWA, WITHOUT THE PICTURE WITH WORDS ON IT ──
+-- Ayser did not like the Siwa photo (a word painted across it) and it
+-- was the same on both Siwa trips. Each trip now has its own view of
+-- Shali, Siwa's old town; a photo the team sets in the Studio is kept.
+update public.offers set photos = '{media/place-shali.jpg}'
+ where id = '0ffe0000-0000-4000-8000-000000000003' and 'media/offer-siwa.jpg' = any(photos);
+update public.offers set photos = '{media/place-shali-fort.jpg}'
+ where id = '0ffe0000-0000-4000-8000-0000000000a1' and ('media/offer-siwa.jpg' = any(photos) or photos = '{}');
+
 -- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
