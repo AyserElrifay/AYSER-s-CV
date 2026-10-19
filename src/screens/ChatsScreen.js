@@ -44,6 +44,7 @@ import { takeChat, onOpenChat } from '../lib/chatBus';
 import { splitChats, inbox, quietFriend } from '../lib/chatList';
 import { getOrCreateDmThread, sendMessage } from '../services/messages';
 import { appLink, shareLink, shareNote } from '../utils/share';
+import { PushRow } from '../components/PushRow';
 import { isNeedUnlock } from '../lib/unlockBus';
 import { lookOf, titleFor, whenFor } from '../lib/activityPins';
 const ProgrammesSheet = lazyOverlay(() => import('../components/green/ProgrammesSheet').then((m) => ({ default: m.ProgrammesSheet })));
@@ -523,6 +524,10 @@ export const ChatsScreen = () => {
         entertainment tab, where it always belonged.
 
         What is left on this screen: the people you are talking to. */}
+
+    {/* messages that reach the phone with Moments closed — the one thing
+        a messenger has to do; quiet, and gone once it is on */}
+    {SUPABASE_READY && user ? <View style={{ marginBottom: 10 }}><PushRow compact /></View> : null}
 
     {/* ── YOUR PEOPLE ── the faces first, online ones in front; the
         first circle brings more of them in (an invite link) */}

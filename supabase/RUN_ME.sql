@@ -17329,6 +17329,25 @@ update public.offers set photos = '{media/place-eg-giza-complex.jpg,media/place-
  where id = '0ffe0000-0000-4000-8000-00000000000f' and photos = '{}';
 
 -- ═══════════════════════════════════════════════════════════════════
+--  EVERY MESSAGE REACHES THE PHONE, NOT ONLY THE FIRST
+--
+--  Ayser wants Moments' notifications to be something people can rely
+--  on instead of WhatsApp. They could not: notify() folds a second
+--  message from the same person into their existing row (an UPDATE,
+--  so the list shows one line per person), and the push went out only
+--  on INSERT. From the second message on, nothing reached the phone.
+--  Now a row that comes back to life — newer time, unread again — is
+--  pushed too. The phone shows it under the same tag, so one person
+--  writing five times is one line that buzzes, not five.
+-- ═══════════════════════════════════════════════════════════════════
+drop trigger if exists push_on_notification_again on public.notifications;
+create trigger push_on_notification_again after update of created_at on public.notifications
+  for each row when (new.created_at > old.created_at and new.read = false)
+  execute function public.push_on_notification();
+
+notify pgrst, 'reload schema';
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة

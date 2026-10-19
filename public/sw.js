@@ -20,7 +20,7 @@
    there `caches` is undefined, and touching it would throw inside
    respondWith and make the page fail to open. */
 
-const CACHE = 'moments-v6';
+const CACHE = 'moments-v7';
 // CacheStorage isn't available everywhere (Safari private mode, some
 // in-app browsers). Detect once; when absent we simply never cache.
 const HAS_CACHES = (typeof caches !== 'undefined');
@@ -192,7 +192,9 @@ self.addEventListener('push', (e) => {
       icon: base + 'icon-192.png',
       badge: base + 'favicon-32.png',
       tag: d.id || d.kind || 'moments',
-      data: { url: base + (d.kind === 'plan_soon' || d.kind === 'green_invite' || d.kind === 'creator_plan' ? '?tab=TOGETHER' : '?notifications=1') },
+      // the same person writing again replaces their line — and buzzes again, like a messenger
+      renotify: true,
+      data: { url: base + (d.kind === 'plan_soon' || d.kind === 'green_invite' || d.kind === 'creator_plan' ? '?tab=TOGETHER' : d.kind === 'message' || d.kind === 'call' ? '?tab=CHATS' : '?notifications=1') },
     });
   })());
 });
