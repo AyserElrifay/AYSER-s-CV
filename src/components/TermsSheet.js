@@ -11,7 +11,7 @@ import { useSheetBack } from '../hooks/useSheetBack';
    protects the app owner. Plain, honest, readable. Update SUPPORT_EMAIL
    / the DMCA agent line with your real details before launch. */
 
-const SUPPORT_EMAIL = 'ayseryourlifecoach@gmail.com';
+const SUPPORT_EMAIL = 'ayser@therealmoments.com';
 
 const H = ({ children }) => (
   <Text style={{ color: C.text, fontSize: 15, fontWeight: '900', marginTop: 20, marginBottom: 6 }}>{children}</Text>

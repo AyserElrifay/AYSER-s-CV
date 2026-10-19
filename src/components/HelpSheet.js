@@ -9,7 +9,7 @@ import { tapLight, tapSelection } from '../utils/feedback';
 import { setupNotice } from '../lib/plumbing';
 import { useSheetBack } from '../hooks/useSheetBack';
 
-const SUPPORT_EMAIL = 'ayseryourlifecoach@gmail.com';
+const SUPPORT_EMAIL = 'ayser@therealmoments.com';
 
 /* Real Help & Support — articles come straight from the database (the
    owner edits them in Moments Studio), grouped by category, searchable,
