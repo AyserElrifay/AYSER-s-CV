@@ -72,18 +72,20 @@ const PlanCard = ({ g, lang, t, onOpen, onJoin, joining }) => (
   </Pressable>
 );
 
-export const GoOutRail = ({ onFind, onOpenPlan }) => {
+/* showHighlights: the owner's evening video now lives in Trips as its
+   welcome (src/components/TripsWelcome.js); Home keeps only the plans */
+export const GoOutRail = ({ onFind, onOpenPlan, showHighlights = true }) => {
   const { t, lang } = useLang();
   /* opens on what was here last time, then brought up to date — the
      rail never pops into a Home that was already laid out without it */
   const upcoming = (rows) => { const now = Date.now(); return (rows || []).filter((g) => planPhotoOf(g) && new Date(g.starts_at).getTime() > now).slice(0, 8); };
-  const [hls, setHls] = useState(() => recall('highlights') || []);
+  const [hls, setHls] = useState(() => (showHighlights ? recall('highlights') || [] : []));
   const cardW = Math.min(420, Dimensions.get('window').width - 56);
   const [plans, setPlans] = useState(() => upcoming(keptGatherings(null)));
   const [joining, setJoining] = useState({});
   useEffect(() => {
     let alive = true;
-    fetchHighlights().then((h) => { if (alive) { setHls(h); remember('highlights', h); } });
+    if (showHighlights) fetchHighlights().then((h) => { if (alive) { setHls(h); remember('highlights', h); } });
     listGatherings(null).then((rows) => {
       if (!alive) return;
       setPlans(upcoming(rows));

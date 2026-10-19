@@ -517,6 +517,11 @@ export const ChatsScreen = () => {
 
     {/* ── YOUR PEOPLE ── the faces first, online ones in front; the
         first circle brings more of them in (an invite link) */}
+    {SUPABASE_READY && myMates.some((m) => isOnline(m.id)) ? (
+      <Text style={{ color: C.green, fontSize: 12.5, fontWeight: '900', marginBottom: 8 }}>
+        {'● ' + t('ch_online_n').replace('{n}', String(myMates.filter((m) => isOnline(m.id)).length))}
+      </Text>
+    ) : null}
     {SUPABASE_READY ? (
       <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 18, marginHorizontal: -16 }} contentContainerStyle={{ paddingHorizontal: 16 }}>
         <Pressable onPress={inviteFriends} accessibilityRole="button" accessibilityLabel={t('ch_add_friends')} style={{ alignItems: 'center', marginEnd: 14, width: 64 }}>
@@ -535,6 +540,7 @@ export const ChatsScreen = () => {
               {isOnline(m.id) ? <View style={{ position: 'absolute', bottom: 1, right: 1, width: 15, height: 15, borderRadius: 8, backgroundColor: C.green, borderWidth: 2.5, borderColor: C.bg }} /> : null}
             </View>
             <Text style={{ color: C.text, fontSize: 11.5, fontWeight: '600', marginTop: 6 }} numberOfLines={1}>{(m.name || 'Explorer').split(' ')[0]}</Text>
+            {isOnline(m.id) ? <Text style={{ color: C.green, fontSize: 10, fontWeight: '800', marginTop: 1 }}>{t('ch_online')}</Text> : null}
           </Pressable>
         ))}
       </ScrollView>

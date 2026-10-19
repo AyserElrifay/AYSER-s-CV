@@ -614,6 +614,7 @@ export const HomeScreen = () => {
             {/* real evenings and real plans with real photos — the reason to go (src/components/GoOutRail.js) */}
             {user && homeTab === 'moments' ? (
               <GoOutRail
+                showHighlights={false}
                 onFind={() => goToTab('TOGETHER')}
                 onOpenPlan={(g) => { if (g.lat != null && g.lng != null) showOnMap({ lat: g.lat, lng: g.lng }); else goToTab('TOGETHER'); }}
               />

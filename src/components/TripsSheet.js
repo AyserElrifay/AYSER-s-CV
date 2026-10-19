@@ -14,6 +14,7 @@ import { useSheetBack } from '../hooks/useSheetBack';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { HighlightVideo } from './GoOutRail';
+import { TripsWelcome, seenTripsWelcome } from './TripsWelcome';
 import { lazyOverlay } from '../lib/lazyScreen';
 import { publicMedia } from '../lib/publicMedia';
 
@@ -368,6 +369,7 @@ export const TripsSheet = ({ onClose, country, openOn, focus, onNeedSignIn }) =>
   const [tab, setTab] = useState(openOn === 'mine' ? 'mine' : 'browse');
   const [kind, setKind] = useState(null);
   const [teach, setTeach] = useState(false);
+  const [welcome, setWelcome] = useState(() => !focus && !seenTripsWelcome());
   const [offers, setOffers] = useState(() => recall('offers.' + (country || 'all')));
   const [mine, setMine] = useState(null);
   const [plus, setPlus] = useState(null);
@@ -598,6 +600,7 @@ export const TripsSheet = ({ onClose, country, openOn, focus, onNeedSignIn }) =>
         )}
       </View>
       {teach ? <TeacherApplySheet onClose={() => setTeach(false)} /> : null}
+      {welcome ? <TripsWelcome onDone={() => setWelcome(false)} /> : null}
       {capsule ? <CapsuleSheet kind="trip" id={capsule.offer.id} title={capsule.offer.title} onClose={() => setCapsule(null)} /> : null}
     </Modal>
   );
