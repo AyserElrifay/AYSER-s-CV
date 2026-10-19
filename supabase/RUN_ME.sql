@@ -17466,6 +17466,15 @@ update public.offers
  where id = '0ffe0000-0000-4000-8000-00000000000e';
 
 -- ═══════════════════════════════════════════════════════════════════
+--  SIWA · AYSER'S OWN VIDEO
+--  "أنا كنت رافع فيديوهات وسفريات قديمة استخدمها" — the Siwa video he
+--  sent goes on both Siwa trips. Only where no video is set. Idempotent.
+-- ═══════════════════════════════════════════════════════════════════
+update public.offers set video = 'media/offer-siwa.mp4'
+ where id in ('0ffe0000-0000-4000-8000-000000000003', '0ffe0000-0000-4000-8000-0000000000a1')
+   and video is null;
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة
