@@ -17399,6 +17399,33 @@ select * from (values
 where not exists (select 1 from public.green_sparks s where s.title_en = v.title_en);
 
 -- ═══════════════════════════════════════════════════════════════════
+--  VOLUNTEERING · AWARENESS ABOUT DRUGS, IN SCHOOLS
+--
+--  Ayser: volunteering to spread awareness about drugs in schools. Done
+--  the way that actually helps young people: with the school's yes and
+--  with a trained person or a known organisation leading, about choices
+--  and pressure rather than fear, never naming or shaming anybody, and
+--  always ending with where to ask for help. Kind "project" — the
+--  school activity already knows the word "awareness".
+-- ═══════════════════════════════════════════════════════════════════
+insert into public.green_sparks (kind, country, title_ar, title_en, about_ar, about_en, minutes, people, sort)
+select * from (values
+ ('project','EG','توعية عن المخدرات في مدرسة','Drug awareness at a school',
+  'بموافقة المدرسة بس، ومع حد متدرّب أو جمعية معروفة هو اللي بيقود: كلام عن الضغط والاختيارات مش عن التخويف، أسئلة الطلبة من غير أسماء، ومحدش بيتفضح. في الآخر رقم المساعدة 16023 (مجاني وسري).',
+  'Only with the school''s yes, and led by a trained person or a known organisation: about pressure and choices, not fear; students'' questions asked without names; nobody is shamed. End with the free, confidential helpline 16023.',90,'2–6',70),
+ ('project',null,'توعية عن المخدرات في مدرسة','Drug awareness at a school',
+  'بموافقة المدرسة ومع حد متدرّب أو جمعية معروفة: كلام عن الضغط والاختيارات مش عن التخويف، أسئلة من غير أسماء، وفي الآخر خط المساعدة المحلي.',
+  'With the school''s agreement and a trained person or a known organisation leading: pressure and choices rather than fear, questions without names, and the local helpline at the end.',90,'2–6',71),
+ ('circle',null,'قعدة لأولياء الأمور','An evening for parents',
+  'بالتعاون مع المدرسة: إزاي تتكلم مع ابنك أو بنتك عن المخدرات من غير خناق، العلامات اللي تاخد بالك منها، وفين تلاقي مساعدة. مع متخصص.',
+  'With the school: how to talk to your son or daughter about drugs without a fight, the signs worth noticing, and where to find help — with a specialist.',90,'2–6',72),
+ ('sport',null,'يوم رياضة للطلبة','A sports afternoon for students',
+  'بعد المدرسة، بموافقتها: كورة، جري، ألعاب فرق. وقت حلو مع ناس كويسة هو أحسن وقاية — من غير محاضرات.',
+  'After school, with its agreement: football, races, team games. A good afternoon with good people protects more than any lecture.',120,'4–12',73)
+) v(kind, country, title_ar, title_en, about_ar, about_en, minutes, people, sort)
+where not exists (select 1 from public.green_sparks s where s.title_en = v.title_en and coalesce(s.country,'') = coalesce(v.country,''));
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة

@@ -7,7 +7,7 @@
 export const ACTIVITIES = [
   { id: 'animals', emoji: '🐾', re: /animal|shelter|rescue|strays?\b|\bpets?\b|\bdogs?\b|\bcats?\b|حيوان|قطط|قطة|كلاب|كلبك|ملجأ|ملجا|🐾|🐶|🐱/i },
   { id: 'cleanup', emoji: '🧹', re: /clean|litter|pick-?up|trash|garbage|تنضيف|تنظيف|نضافة|نظافة|زبال|🧹/i },
-  { id: 'school', emoji: '🏫', re: /schools?\b|awareness|مدرس|مدارس|توعي|نشر ثقافة|نشر الثقافة|🏫/i },
+  { id: 'school', emoji: '🏫', re: /schools?\b|awareness|parents|مدرس|مدارس|توعي|مخدرات|أولياء الأمور|اولياء الامور|نشر ثقافة|نشر الثقافة|🏫/i },
   { id: 'kids', emoji: '👧', re: /orphan|\bkids\b|children|child care|أيتام|ايتام|اطفال|أطفال/i },
   { id: 'volunteer', emoji: '🤝', re: /volunteer|charity|donat|food bank|تطوع|متطوع|خيري|تبرع/i },
   { id: 'talk', emoji: '💬', re: /language|exchange|conversation|\bspeak|english|\bcircle\b|لغات|لغة|لغه|تبادل|محادث|دردش|كلام|💬/i },
