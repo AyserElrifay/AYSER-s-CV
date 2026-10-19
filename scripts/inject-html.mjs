@@ -13,8 +13,9 @@ let html = fs.readFileSync(file, 'utf8');
 const BASE = 'https://therealmoments.com/';
 /* what Google shows: the name people type ("Moments", "The Real Moments",
    "مومنتس") in the title, and one honest sentence of what it is */
-const TITLE = "Moments — The Real Moments · go out, meet real people";
-const DESC = 'Moments (The Real Moments · مومنتس) is a calm app for real life: plans near you, real people to go with, trips, workshops and Green Minds clean-ups. Don\'t scroll it. Live it.';
+const TITLE = "Moments app — meet people, gatherings & hangouts near you | The Real Moments";
+const DESC = 'Moments app (The Real Moments · مومنتس) is a social community app for real life: gatherings and hangouts near you, Moments people to go out with, trips, workshops and Green Minds clean-ups. Don\'t scroll it. Live it.';
+const KEYWORDS = 'Moments, Moments app, The Real Moments, therealmoments, Moments people, gathering, gatherings, community, community app, social, social app, hangouts, hangout app, meet people, make friends, things to do, events near me, Cairo, Egypt, Europe, مومنتس, خروجات, ناس, تجمعات';
 
 // Responsive framing so ONE build fits both screens:
 //  • Phone  → the app fills the whole screen (dynamic viewport height so
@@ -105,6 +106,7 @@ const tags = `
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Moments" />
   <meta name="description" content="${DESC}" />
+  <meta name="keywords" content="${KEYWORDS}" />
   <meta name="robots" content="index, follow, max-image-preview:large" />
   <link rel="canonical" href="${BASE}" />
   <meta name="application-name" content="Moments" />
@@ -113,7 +115,7 @@ const tags = `
     '@graph': [
       { '@type': 'Organization', '@id': BASE + '#org', name: 'Moments', alternateName: ['The Real Moments', 'therealmoments', 'مومنتس'], url: BASE, logo: BASE + 'icon-512.png', email: 'ayser@therealmoments.com', founder: { '@type': 'Person', name: 'Ayser Elrifay' } },
       { '@type': 'WebSite', '@id': BASE + '#site', name: 'Moments', alternateName: 'The Real Moments', url: BASE, publisher: { '@id': BASE + '#org' }, inLanguage: ['en', 'ar'] },
-      { '@type': 'WebApplication', name: 'Moments', url: BASE, applicationCategory: 'SocialNetworkingApplication', operatingSystem: 'Web, iOS, Android', description: DESC, offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' } },
+      { '@type': 'WebApplication', name: 'Moments', url: BASE, applicationCategory: 'SocialNetworkingApplication', operatingSystem: 'Web, iOS, Android', description: DESC, keywords: KEYWORDS, offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' } },
     ],
   })}</script>
   <meta property="og:type" content="website" />
@@ -217,7 +219,8 @@ html = html.replace(/<body([^>]*)>/, (m) => m + kiteIntro);
 html = html.replace(/<noscript>[\s\S]*?<\/noscript>/, `<noscript>
       <h1>Moments — The Real Moments</h1>
       <p>${DESC}</p>
-      <p>مومنتس — أبلكيشن للحياة الحقيقية: خطط قريبة منك، ناس حقيقيين تخرج معاهم، رحلات وورش.</p>
+      <p>Moments is where people find a gathering or a hangout near them and go — a community for meeting real people, not scrolling. Moments people walk, play, clean up a park, travel and learn together.</p>
+      <p>مومنتس — أبلكيشن للحياة الحقيقية: خروجات وتجمعات قريبة منك، ناس حقيقيين تخرج معاهم، رحلات وورش.</p>
       <p><a href="/company/">About Moments</a> · ayser@therealmoments.com</p>
     </noscript>`);
 fs.writeFileSync(file, html);

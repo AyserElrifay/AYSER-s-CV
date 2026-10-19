@@ -95,7 +95,7 @@ const faithOf = (a) => a.faith || (a.pray === true ? 'muslim' : a.pray === false
 const muslim = (a) => faithOf(a) === 'muslim' && !!a.at;
 
 /* every question there can be, in the order they are asked */
-const ORDER = ['role', 'uni', 'work', 'faith', 'church', 'loc', 'grow', 'sleep'];
+const ORDER = ['role', 'uni', 'work', 'faith', 'church', 'own', 'loc', 'grow', 'sleep'];
 
 /* the questions, in order; some only follow from an earlier answer */
 const steps = (a) => {
@@ -104,6 +104,7 @@ const steps = (a) => {
   if (has(a, 'work')) s.push('work');
   s.push('faith');
   if (faithOf(a) === 'christian') s.push('church');
+  if (faithOf(a) === 'own') s.push('own');
   if (faithOf(a) === 'muslim' && !a.at) s.push('loc');
   s.push('grow');
   s.push('sleep');
@@ -196,6 +197,60 @@ const Hours = ({ kind, value, onDone, t, lang }) => {
       <Pressable disabled={!v.days.length} onPress={() => onDone(v)} accessibilityRole="button" style={{ marginTop: 14 }}>
         <View style={{ borderRadius: 999, backgroundColor: v.days.length ? C.purple : C.glassHi, paddingVertical: 15, alignItems: 'center' }}>
           <Text style={{ color: v.days.length ? '#FFF' : C.faint, fontSize: 16, fontWeight: '900' }}>{t('md_continue')}</Text>
+        </View>
+      </Pressable>
+    </View>
+  );
+};
+
+/* ─── YOUR OWN PRACTICE, IN YOUR OWN WORDS ──────────────────────────
+   Ayser: "طب افرض واحد هندوسي… أو ملهوش دين — زرار adjust with
+   Papyrus". Nobody should have to find their belief in a list of two.
+   You say it the way you would to a friend — "puja at 6:30 and 19:00",
+   "meditation 21:00", "Shabbat candles 18:10" — and Papyrus reads the
+   times out of it and puts each one in your day. It stays on this
+   phone, like everything else in My day. */
+const TIME_RE = /(\d{1,2})(?:[:.٫](\d{2}))?\s*(am|pm|a\.m\.|p\.m\.|ص|م|صباحا|مساء|مساءً)?/gi;
+const AR_DIGITS = (x) => String(x || '').replace(/[٠-٩]/g, (d) => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
+export const readPractice = (text) => {
+  const raw = AR_DIGITS(text).slice(0, 300);
+  const out = [];
+  raw.split(/[,،;·\n]+|\s+(?:and|و|then|ثم)\s+/i).forEach((part) => {
+    let label = part.replace(TIME_RE, ' ').replace(/\b(at|around|by|on|every day|daily)\b|الساعة|كل يوم|يوميا/gi, ' ').replace(/\s+/g, ' ').trim();
+    let m; TIME_RE.lastIndex = 0;
+    while ((m = TIME_RE.exec(part)) && out.length < 6) {
+      let h = parseInt(m[1], 10); const mi = m[2] ? parseInt(m[2], 10) : 0; const ap = (m[3] || '').toLowerCase();
+      if (!m[2] && !ap) continue;                       // a bare number is not a time
+      if (/^(pm|p\.m\.|م|مساء|مساءً)$/.test(ap) && h < 12) h += 12;
+      if (/^(am|a\.m\.|ص|صباحا)$/.test(ap) && h === 12) h = 0;
+      if (h > 23 || mi > 59) continue;
+      out.push({ label: label || (out[out.length - 1] || {}).label || '', h, m: mi });
+    }
+  });
+  return out;
+};
+
+const Practice = ({ value, onDone, t }) => {
+  const [text, setText] = useState((value && value.text) || '');
+  const found = readPractice(text);
+  return (
+    <View>
+      <Text style={{ color: C.dim, fontSize: 14, lineHeight: 20, marginBottom: 10 }}>{t('md_own_hint')}</Text>
+      <TextInput value={text} onChangeText={setText} maxLength={300} multiline placeholder={t('md_own_ph')} placeholderTextColor={C.faint}
+        style={{ color: C.text, fontSize: 15.5, minHeight: 84, textAlignVertical: 'top', borderWidth: 1, borderColor: C.line, borderRadius: 16, padding: 14, backgroundColor: C.glass, outlineStyle: 'none' }} />
+      {found.length ? (
+        <View style={{ marginTop: 12 }}>
+          <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '900', letterSpacing: 1, marginBottom: 6 }}>{t('md_own_papyrus').toUpperCase()}</Text>
+          {found.map((x, i) => (
+            <Text key={i} style={{ color: C.text, fontSize: 15, fontWeight: '600', paddingVertical: 4 }}>
+              <Text style={{ color: C.dim, fontVariant: ['tabular-nums'] }}>{hm(x.h, x.m) + '   '}</Text>{x.label || t('md_own_default')}
+            </Text>
+          ))}
+        </View>
+      ) : text.trim() ? <Text style={{ color: C.dim, fontSize: 13, marginTop: 10 }}>{t('md_own_no_time')}</Text> : null}
+      <Pressable onPress={() => onDone({ text: text.trim(), times: found })} accessibilityRole="button" style={{ marginTop: 16 }}>
+        <View style={{ borderRadius: 999, backgroundColor: C.purple, paddingVertical: 15, alignItems: 'center' }}>
+          <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '900' }}>{found.length ? t('md_own_add') : t('md_continue')}</Text>
         </View>
       </Pressable>
     </View>
@@ -317,6 +372,9 @@ function todayItems(a, t, now = new Date(), extra = []) {
     const h = CHURCH[a.church.slot || 'm'];
     out.push({ id: 'church', emoji: '⛪', label: t('md_church') + ' · ' + hm(h[0], h[1]) + '–' + hm(h[2], h[3]), at: at(now, h[0], h[1]), end: at(now, h[2], h[3]) });
   }
+  if (faithOf(a) === 'own' && a.practice && Array.isArray(a.practice.times)) {
+    a.practice.times.forEach((x, i) => out.push({ id: 'own:' + i, emoji: '🕯️', label: x.label || t('md_own_default'), at: at(now, x.h, x.m), end: at(now, x.h, x.m + 20) }));
+  }
   const bed = at(now, sl.bed[0], sl.bed[1]);
   if (sl.bed[0] < 12) bed.setDate(bed.getDate() + 1);       // after midnight is still tonight
   const wind = new Date(bed.getTime() - 30 * 60000);
@@ -371,6 +429,9 @@ function calendarEvents(a, t) {
   if (faithOf(a) === 'christian' && a.church) {
     const h = CHURCH[a.church.slot || 'm'];
     ev.push({ uid: 'church', title: '⛪ ' + t('md_church'), start: firstOn([a.church.day], h[0], h[1]), minutes: (h[2] * 60 + h[3]) - (h[0] * 60 + h[1]), days: [a.church.day], alarm: 30 });
+  }
+  if (faithOf(a) === 'own' && a.practice && Array.isArray(a.practice.times)) {
+    a.practice.times.forEach((x, i) => ev.push({ uid: 'own-' + i, title: '🕯️ ' + (x.label || t('md_own_default')), start: at(tomorrow, x.h, x.m), minutes: 20, days: 'daily', alarm: 0 }));
   }
   // the four parts of a day, where they fall on a usual working day
   let day = tomorrow;
@@ -530,7 +591,12 @@ export const MyDay = ({ onClose }) => {
               <Q n={step + 1} of={list.length} title={t('md_q_faith')}>
                 <Choice emoji="🕌" title={t('md_faith_muslim')} on={faithOf(a) === 'muslim'} onPress={() => answer({ faith: 'muslim', pray: undefined })} />
                 <Choice emoji="⛪" title={t('md_faith_christian')} on={faithOf(a) === 'christian'} onPress={() => answer({ faith: 'christian', pray: undefined })} />
+                <Choice emoji="✍️" title={t('md_faith_own')} sub={t('md_faith_own_sub')} on={faithOf(a) === 'own'} onPress={() => answer({ faith: 'own', pray: undefined })} />
                 <Choice emoji="➖" title={t('md_faith_none')} on={faithOf(a) === 'none'} onPress={() => answer({ faith: 'none', pray: undefined })} />
+              </Q>
+            ) : cur === 'own' ? (
+              <Q n={step + 1} of={list.length} title={t('md_q_own')}>
+                <Practice value={a.practice} t={t} onDone={(v) => answer({ practice: v })} />
               </Q>
             ) : cur === 'church' ? (
               <Q n={step + 1} of={list.length} title={t('md_q_church')}>
