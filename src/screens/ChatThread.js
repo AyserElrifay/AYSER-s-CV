@@ -507,7 +507,7 @@ export const ChatThread = ({ chat, group, onClose }) => {
     <Modal visible transparent={false} animationType="slide" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: C.bg }}>
         {/* header */}
-        <View style={{ paddingTop: insets.top + 8, paddingBottom: 10, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: C.line, backgroundColor: '#FFF' }}>
+        <View style={{ paddingTop: insets.top + 8, paddingBottom: 10, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: C.line, backgroundColor: C.bg2 }}>
           <Pressable onPress={() => { tapLight(); onClose(); }} hitSlop={10} style={{ marginRight: 4 }} accessibilityLabel={t('back')} accessibilityRole="button">
             <Ionicons name="chevron-back" size={28} color={C.text} />
           </Pressable>
@@ -712,7 +712,7 @@ export const ChatThread = ({ chat, group, onClose }) => {
                         else translateMsg({ id: m.id, body: m.text });
                       }}
                       delayLongPress={320}
-                      style={{ backgroundColor: mine ? C.purple : '#FFF', borderWidth: mine ? 0 : 1, borderColor: C.line, borderRadius: 18, borderBottomRightRadius: mine ? 5 : 18, borderBottomLeftRadius: mine ? 18 : 5, paddingHorizontal: 14, paddingVertical: 9 }}
+                      style={{ backgroundColor: mine ? C.purple : C.glass, borderWidth: mine ? 0 : 1, borderColor: C.line, borderRadius: 18, borderBottomRightRadius: mine ? 5 : 18, borderBottomLeftRadius: mine ? 18 : 5, paddingHorizontal: 14, paddingVertical: 9 }}
                     >
                       <Text style={{ color: mine ? '#FFF' : C.text, fontSize: 14.5, lineHeight: 20 }}>{m.text}</Text>
                       {tr[m.id] ? (
@@ -790,7 +790,7 @@ export const ChatThread = ({ chat, group, onClose }) => {
 
           {/* disappearing-messages picker */}
           {ttlOpen ? (
-            <View style={{ position: 'absolute', top: 4, right: 12, backgroundColor: '#FFF', borderRadius: 16, borderWidth: 1, borderColor: C.line, padding: 6, zIndex: 20, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 14, shadowOffset: { width: 0, height: 6 } }}>
+            <View style={{ position: 'absolute', top: 4, right: 12, backgroundColor: C.bg2, borderRadius: 16, borderWidth: 1, borderColor: C.line, padding: 6, zIndex: 20, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 14, shadowOffset: { width: 0, height: 6 } }}>
               <Text style={{ color: C.faint, fontSize: 10.5, fontWeight: '800', letterSpacing: 1, paddingHorizontal: 12, paddingTop: 8, paddingBottom: 4 }}>{t('disappearing_messages')}</Text>
               {TTL_OPTIONS.map((o) => (
                 <Pressable key={String(o.h)} onPress={() => pickTtl(o.h)}>
@@ -808,7 +808,7 @@ export const ChatThread = ({ chat, group, onClose }) => {
 
           {/* games menu */}
           {menu ? (
-            <View style={{ position: 'absolute', bottom: 70, left: 12, right: 12, maxHeight: 400, backgroundColor: '#FFF', borderRadius: 16, borderWidth: 1, borderColor: C.line, padding: 6, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 14, shadowOffset: { width: 0, height: 6 } }}>
+            <View style={{ position: 'absolute', bottom: 70, left: 12, right: 12, maxHeight: 400, backgroundColor: C.bg2, borderRadius: 16, borderWidth: 1, borderColor: C.line, padding: 6, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 14, shadowOffset: { width: 0, height: 6 } }}>
               <ScrollView keyboardShouldPersistTaps="handled">
               {/* Two people, one board — a real invite the other side
                   accepts, and a game that survives closing the app. */}
@@ -1102,7 +1102,7 @@ export const ChatThread = ({ chat, group, onClose }) => {
               <View style={{ flexDirection: 'row', marginBottom: 14 }}>
                 <View style={{ flex: 1, marginRight: 8 }}>
                   <Text style={{ color: C.dim, fontSize: 12, fontWeight: '700', marginBottom: 6 }}>{t('people_count')}</Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', borderWidth: 1, borderColor: C.line, borderRadius: 14 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 14 }}>
                     <Pressable onPress={() => { tapLight(); setSplitPeople(String(Math.max(1, (parseInt(splitPeople, 10) || 1) - 1))); }} style={{ paddingHorizontal: 14, paddingVertical: 12 }} accessibilityLabel={t('remove')} accessibilityRole="button">
                       <Ionicons name="remove" size={18} color={C.purple} />
                     </Pressable>
