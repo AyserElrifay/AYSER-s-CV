@@ -17210,6 +17210,106 @@ grant execute on function public.green_impact() to anon, authenticated;
 notify pgrst, 'reload schema';
 
 -- ═══════════════════════════════════════════════════════════════════
+--  MOMENTS IS NOT A RELIGIOUS APP
+--
+--  Ayser: "مش عايزه يتقلب ابلكشن ديني او مصيده للجماعات الارهابيه".
+--  Moments is about going out, people and calm — for everybody, whatever
+--  they believe. So: no religious leaders as trip roles (a sheikh or a
+--  priest was a role a trip could be led under — that is gone; any
+--  already saved become plain "Host"), and the reflection trips no
+--  longer promise "time with God", only quiet time anyone can use.
+--  Nobody recruits through a trip: every leader is checked by the team
+--  in person, and "Extremism or recruiting" is a report reason that goes
+--  straight to the team.
+-- ═══════════════════════════════════════════════════════════════════
+update public.offer_leaders set role = 'other' where role in ('imam','priest');
+alter table public.offer_leaders drop constraint if exists offer_leaders_role_check;
+alter table public.offer_leaders add constraint offer_leaders_role_check
+  check (role in ('psychologist','coach','trainer','founder','guide','teacher','other'));
+
+update public.offers
+   set conditions    = array_remove(conditions, 'Optional time for reflection with God — in your own faith, your own way, or simply quiet'),
+       conditions_ar = array_remove(conditions_ar, 'وقت اختياري للتأمل مع ربنا — في دينك وبطريقتك، أو سكوت بس'),
+       faith_time    = false
+ where id in ('0ffe0000-0000-4000-8000-0000000000a1','0ffe0000-0000-4000-8000-0000000000a2',
+              '0ffe0000-0000-4000-8000-0000000000a3','0ffe0000-0000-4000-8000-0000000000a4');
+
+notify pgrst, 'reload schema';
+
+-- ── extremism or recruiting: a report reason of its own, worst-first ──
+create or replace function public.report_harassment(p_user uuid, p_dm uuid, p_squad uuid, p_reason text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); rid uuid; snap jsonb;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  if p_user is null or p_user = me then return jsonb_build_object('ok', false, 'reason', 'bad_user'); end if;
+  if (p_dm is null) = (p_squad is null) then return jsonb_build_object('ok', false, 'reason', 'bad_thread'); end if;
+  if p_reason not in ('threat', 'harassment', 'sexual', 'hate', 'extremism', 'other') then return jsonb_build_object('ok', false, 'reason', 'bad_reason'); end if;
+  if p_dm is not null and not (public.is_dm_participant(p_dm, me) and public.is_dm_participant(p_dm, p_user)) then
+    return jsonb_build_object('ok', false, 'reason', 'not_in_thread');
+  end if;
+  if p_squad is not null and not (
+       exists (select 1 from public.squad_members where squad_id = p_squad and user_id = me)
+   and exists (select 1 from public.squad_members where squad_id = p_squad and user_id = p_user)) then
+    return jsonb_build_object('ok', false, 'reason', 'not_in_thread');
+  end if;
+
+  -- protected first: blocked, whatever happens next
+  insert into public.user_blocks (blocker_id, blocked_id) values (me, p_user) on conflict do nothing;
+
+  -- the same report twice in a day is one report
+  select id into rid from public.safety_reports
+   where reporter_id = me and reported_id = p_user and status = 'open' and created_at > now() - interval '1 day'
+   limit 1;
+  if rid is not null then return jsonb_build_object('ok', true, 'id', rid, 'again', true); end if;
+
+  select coalesce(jsonb_agg(jsonb_build_object('body', m.body, 'kind', m.kind, 'media', m.media_url is not null, 'at', m.created_at) order by m.created_at), '[]'::jsonb)
+    into snap
+    from (select body, kind, media_url, created_at from public.messages
+           where user_id = p_user
+             and ((p_dm is not null and dm_thread_id = p_dm) or (p_squad is not null and squad_id = p_squad))
+           order by created_at desc limit 5) m;
+
+  insert into public.safety_reports (reporter_id, reported_id, dm_thread_id, squad_id, reason, messages)
+  values (me, p_user, p_dm, p_squad, p_reason, snap)
+  returning id into rid;
+  perform public.safety_tell_owners(me, 'report');
+  return jsonb_build_object('ok', true, 'id', rid, 'count', jsonb_array_length(snap));
+end;
+$$;
+
+create or replace function public.safety_set_ai(p_id uuid, p_verdict text, p_reason text)
+returns void language sql security definer set search_path = public as $$
+  update public.safety_reports
+     set ai_verdict = case when p_verdict in ('threat','violence','extremism','harassment','sexual','hate','none','unsure') then p_verdict else 'unsure' end,
+         ai_reason = left(coalesce(p_reason, ''), 300), ai_at = now()
+   where id = p_id and ai_at is null;
+$$;
+
+create or replace function public.safety_queue()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select case when not public.studio_can('safety') then '{}'::jsonb else jsonb_build_object(
+    'reports', coalesce((
+      select jsonb_agg(jsonb_build_object(
+        'id', r.id, 'reason', r.reason, 'messages', r.messages, 'at', r.created_at,
+        'ai_verdict', r.ai_verdict, 'ai_reason', r.ai_reason,
+        'reported_id', r.reported_id, 'reported_name', rp.name, 'reported_avatar', rp.avatar_url,
+        'reporter_name', fp.name, 'strikes', coalesce(st.strikes, 0))
+        order by case r.ai_verdict when 'threat' then 0 when 'extremism' then 0 when 'violence' then 1 when 'sexual' then 2 when 'harassment' then 3 when 'hate' then 3 when 'unsure' then 4 when 'none' then 6 else 5 end, r.created_at)
+      from public.safety_reports r
+      join public.profiles rp on rp.id = r.reported_id
+      left join public.profiles fp on fp.id = r.reporter_id
+      left join public.safety_standing st on st.user_id = r.reported_id
+      where r.status = 'open'), '[]'::jsonb),
+    'coach', coalesce((
+      select jsonb_agg(jsonb_build_object('user_id', s.user_id, 'name', p.name, 'avatar', p.avatar_url, 'strikes', s.strikes, 'asked_at', s.coach_asked_at) order by s.coach_asked_at nulls last)
+      from public.safety_standing s join public.profiles p on p.id = s.user_id
+      where s.state = 'coach'), '[]'::jsonb)) end;
+$$;
+
+notify pgrst, 'reload schema';
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة

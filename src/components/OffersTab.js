@@ -135,7 +135,7 @@ const Party = ({ offer, onClose }) => {
 
 /* who leads this trip — name, role, one line of what qualifies them;
    shown on the trip only after "credentials checked" is ticked */
-const ROLES = [['teacher', 'Teacher'], ['psychologist', 'Psychologist'], ['coach', 'Coach'], ['trainer', 'Trainer'], ['imam', 'Sheikh / Imam'], ['priest', 'Priest'], ['founder', 'Founder'], ['guide', 'Guide'], ['other', 'Host']];
+const ROLES = [['teacher', 'Teacher'], ['psychologist', 'Psychologist'], ['coach', 'Coach'], ['trainer', 'Trainer'], ['founder', 'Founder'], ['guide', 'Guide'], ['other', 'Host']];
 const blankLeader = () => ({ id: '', name: '', role: 'psychologist', credential: '', credential_ar: '', photo: '', verified: false });
 const LeadersEditor = ({ offerId }) => {
   const [list, setList] = useState(null);
@@ -342,7 +342,7 @@ export const OffersTab = ({ userId }) => {
         <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '800', letterSpacing: 0.8, marginTop: 12 }}>REFLECTION TRIP</Text>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
           <Btn label={(form.track === 'reflection' ? '✓ ' : '') + '🌙 Reflection trip'} solid={form.track === 'reflection'} onPress={() => set('track')(form.track === 'reflection' ? '' : 'reflection')} />
-          <Btn label={(form.faith_time ? '✓ ' : '') + '🕊️ Optional time with God'} solid={form.faith_time} onPress={() => set('faith_time')(!form.faith_time)} />
+          <Btn label={(form.faith_time ? '✓ ' : '') + '🕊️ Optional quiet time'} solid={form.faith_time} onPress={() => set('faith_time')(!form.faith_time)} />
           <Btn label={(form.track === 'workshop' ? '✓ ' : '') + '🎓 Workshop'} solid={form.track === 'workshop'} onPress={() => set('track')(form.track === 'workshop' ? '' : 'workshop')} />
         </View>
         {form.track === 'workshop' ? (

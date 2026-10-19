@@ -12,7 +12,7 @@ import { supabase } from '../lib/supabase';
    coach. Two: the account is closed. That is enforced by the database,
    not by these screens. */
 
-export const REPORT_KINDS = ['threat', 'harassment', 'sexual', 'hate', 'other'];
+export const REPORT_KINDS = ['threat', 'harassment', 'sexual', 'hate', 'extremism', 'other'];
 
 export async function reportInChat({ userId, dmThreadId, squadId, reason }) {
   const { data, error } = await supabase.rpc('report_harassment', {

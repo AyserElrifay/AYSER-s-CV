@@ -34,7 +34,7 @@ const cors = {
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } });
 
-const VERDICTS = ['threat', 'violence', 'harassment', 'sexual', 'hate', 'none', 'unsure'];
+const VERDICTS = ['threat', 'violence', 'extremism', 'harassment', 'sexual', 'hate', 'none', 'unsure'];
 
 const SYSTEM = `You review reports on Moments, an app where people meet in real life.
 Someone reported another person in a chat. You get that person's last messages (up to five), oldest first, and the reason the reporter chose.
@@ -43,6 +43,7 @@ Messages may be in Egyptian Arabic, Arabic, English or any other language, inclu
 Choose one verdict:
 - threat: says they will hurt, find, expose or blackmail the person, or someone close to them
 - violence: describes, glorifies or pushes violence, or self-harm encouragement
+- extremism: recruiting into, praising or spreading the message of an extremist or terrorist group, or pushing someone toward one
 - sexual: unwanted sexual remarks, requests or pressure
 - harassment: insults, degrading or obsessive messages, pressure after being told to stop
 - hate: attacks someone for religion, origin, gender, sexuality or disability

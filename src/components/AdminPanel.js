@@ -402,7 +402,7 @@ const TeamTab = () => {
    messages themselves. A strike is given here, by a person — never by
    Papyrus alone. */
 const VERDICT = {
-  threat: ['⚠️ Threat', '#DC2626'], violence: ['⚠️ Violence', '#DC2626'], sexual: ['🔞 Sexual', '#DB2777'],
+  threat: ['⚠️ Threat', '#DC2626'], violence: ['⚠️ Violence', '#DC2626'], extremism: ['🛑 Extremism', '#DC2626'], sexual: ['🔞 Sexual', '#DB2777'],
   harassment: ['🚫 Harassment', '#EA580C'], hate: ['✋ Hate', '#EA580C'], unsure: ['❔ Unsure', '#6B7280'], none: ['✓ Nothing found', '#16A34A'],
 };
 const SafetyReport = ({ r, onDone }) => {

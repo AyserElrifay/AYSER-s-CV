@@ -25,6 +25,7 @@ const KINDS = [
   { k: 'harassment', emoji: '🚫' },
   { k: 'sexual', emoji: '🔞' },
   { k: 'hate', emoji: '✋' },
+  { k: 'extremism', emoji: '🛑' },
   { k: 'other', emoji: '💬' },
 ];
 

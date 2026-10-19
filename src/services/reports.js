@@ -11,6 +11,7 @@ export const REPORT_REASONS = [
   { code: 'abuse', label: '🚫 Abuse or harassment', hint: 'Bullying, threats or hate' },
   { code: 'sexual', label: '🔞 Sexual or explicit', hint: 'Nudity or sexual content' },
   { code: 'violence', label: '⚠️ Violence or danger', hint: 'Violent or dangerous content' },
+  { code: 'extremism', label: '🛑 Extremism or recruiting', hint: 'Pulling people into an extremist group, or praising terror' },
   { code: 'spam', label: '📣 Spam or scam', hint: 'Fake, misleading or spammy' },
   { code: 'other', label: '✋ Something else', hint: 'Tell us what’s wrong' },
 ];
