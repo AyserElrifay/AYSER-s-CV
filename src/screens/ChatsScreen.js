@@ -429,6 +429,15 @@ export const ChatsScreen = () => {
       setHelloErr(isNeedUnlock(e) ? t('vc_why_dm') : t('lamma_offline'));
     } finally { setHelloBusy(null); }
   };
+  /* the two quietest conversations that went still five days ago or more */
+  const quietIds = dms.filter((d) => d.lastAt && !d.unread && d.user.id && !(nudge && nudge.mate.id === d.user.id) && Date.now() - new Date(d.lastAt).getTime() >= 5 * 86400000)
+    .sort((a, b) => new Date(a.lastAt) - new Date(b.lastAt)).slice(0, 2).map((d) => d.threadId);
+  const weekPlan = split.coming[0];
+  const pickUpLines = [
+    weekPlan ? t('ch_pick_plan').replace('{plan}', titleFor(weekPlan.name, lang)) : null,
+    t('ch_pick_how'),
+    t('ch_pick_coffee'),
+  ].filter(Boolean);
   const inviteFriends = async () => {
     tapLight();
     const r = await shareLink({ url: appLink({ invite: user && user.id }), title: 'Moments', text: t('inv_text') });
@@ -603,6 +612,8 @@ export const ChatsScreen = () => {
     {/* ── EVERY CONVERSATION, NEWEST FIRST ── people and your groups
         together; what was said last, and who said it */}
     {(dms.length || split.groups.length) ? (
+      <>
+      <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '800', letterSpacing: 1.1, marginBottom: 8 }}>{t('ch_conversations')}</Text>
       <ChatBox>
         {inbox(dms, split.groups).map((r, ri, all) => {
           const lastRow = ri === all.length - 1;
@@ -613,6 +624,13 @@ export const ChatsScreen = () => {
           const mine = (isDm ? it.lastFrom : it.lastFrom) && user && (isDm ? it.lastFrom : it.lastFrom) === user.id;
           const preview = isDm ? (it.fresh ? t('ch_say_hi') : it.last) : (it.last || '');
           const when = isDm ? it.time : timeAgo(it.lastAt);
+          /* Ayser: the people you already talked to should make it easy
+             to talk again. A conversation quiet for five days or more —
+             and the first two such only, so the list stays a list — gets
+             one quiet line of ways back in, each sent in one tap: this
+             week's plan if there is one, a "how have you been", a coffee. */
+          const quietDays = isDm && it.lastAt && !unread ? Math.floor((Date.now() - new Date(it.lastAt).getTime()) / 86400000) : 0;
+          const pickUp = quietDays >= 5 && it.user.id && quietIds.indexOf(it.threadId) >= 0;
           return (
             <Pressable key={r.key}
               onPress={() => { tapLight(); if (isDm) { markThreadSeen(it.threadId); setThread({ chat: it, group: false }); } else { markThreadSeen('sq' + it.id); setThread({ chat: { ...it, name }, group: true }); } }}
@@ -638,6 +656,20 @@ export const ChatsScreen = () => {
                     {(mine ? t('ch_you_prefix') + ' ' : '') + preview}
                   </Text>
                 ) : null}
+                {pickUp ? (
+                  <>
+                    <Text style={{ color: C.faint, fontSize: 12, marginTop: 8 }}>{t(quietDays >= 14 ? 'ch_quiet_weeks' : 'ch_quiet_days').replace('{n}', String(quietDays >= 14 ? Math.floor(quietDays / 7) : quietDays))}</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ marginTop: 6 }}>
+                      {pickUpLines.map((line) => (
+                        <Pressable key={line} disabled={!!helloBusy} accessibilityRole="button" accessibilityLabel={line}
+                          onPress={() => { markThreadSeen(it.threadId); sayHello({ id: it.user.id, name: it.user.name, avatar_url: it.user.avatar }, line); }}
+                          style={{ borderWidth: 1, borderColor: C.line, backgroundColor: C.bg, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7, marginEnd: 6, opacity: helloBusy === it.user.id ? 0.5 : 1 }}>
+                          <Text style={{ color: C.text, fontSize: 13, fontWeight: '600' }} numberOfLines={1}>{line}</Text>
+                        </Pressable>
+                      ))}
+                    </ScrollView>
+                  </>
+                ) : null}
               </View>
               <View style={{ alignItems: 'flex-end', marginStart: 10 }}>
                 {when ? <Text style={{ color: unread ? C.purple : C.faint, fontSize: 11.5, fontWeight: unread ? '800' : '500' }}>{when}</Text> : null}
@@ -647,6 +679,7 @@ export const ChatsScreen = () => {
           );
         })}
       </ChatBox>
+      </>
     ) : null}
 
     {/* ── NOTHING HERE YET ─────────────────────────────────────────────
