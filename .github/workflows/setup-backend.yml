@@ -240,7 +240,7 @@ jobs:
         if: ${{ inputs.deploy_function }}
         uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 2.118.0   # pinned: "latest" asks the GitHub API and can hit its rate limit
 
       - name: Deploy bardi-chat
         id: deploy
