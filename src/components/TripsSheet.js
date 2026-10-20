@@ -14,6 +14,25 @@ import { useSheetBack } from '../hooks/useSheetBack';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { HighlightVideo } from './GoOutRail';
+import { fetchHighlights } from '../services/appHighlights';
+
+/* Travel buddies: Ayser's own clips taking turns — the campfire, the
+   bus dancing, the Dahab evening (his highlight from the Studio) and
+   the painting night. One plays at a time; every few seconds the next. */
+const BUDDY_CLIPS = [['buddies-fire.mp4', 'buddies-fire.jpg'], ['buddies-bus.mp4', 'buddies-bus.jpg'], ['painting-night.mp4', 'painting-night.jpg']];
+const BuddiesReel = () => {
+  const [clips, setClips] = useState(() => BUDDY_CLIPS.map(([v, p]) => ({ uri: publicMedia(v), poster: publicMedia(p) })));
+  const [at, setAt] = useState(0);
+  useEffect(() => {
+    fetchHighlights().then((hs) => {
+      const v = (hs || []).find((h) => h.kind === 'video' && h.media_url);
+      if (v) setClips((c) => { const n = [...c]; n.splice(2, 0, { uri: v.media_url, poster: v.poster_url || null }); return n; });
+    }).catch(() => {});
+  }, []);
+  useEffect(() => { const id = setInterval(() => setAt((i) => i + 1), 6000); return () => clearInterval(id); }, []);
+  const c = clips[at % clips.length];
+  return <HighlightVideo key={c.uri} uri={c.uri} poster={c.poster} />;
+};
 import { TripsWelcome, seenTripsWelcome } from './TripsWelcome';
 import { lazyOverlay } from '../lib/lazyScreen';
 import { publicMedia } from '../lib/publicMedia';
@@ -472,7 +491,7 @@ export const TripsSheet = ({ onClose, country, openOn, focus, onNeedSignIn, only
                     bus clip was 432px and soft). Silent, looping; the photo
                     while it loads or when saving data. */}
                 {only ? null : <View style={{ height: 190, borderRadius: 22, overflow: 'hidden', backgroundColor: '#0E2A3A', marginBottom: 14 }}>
-                  <HighlightVideo uri={publicMedia('buddies-fire.mp4')} poster={publicMedia('buddies-fire.jpg')} />
+                  <BuddiesReel />
                   <LinearGradient colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.62)']} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 120 }} />
                   <View style={{ position: 'absolute', left: 16, right: 16, bottom: 14 }}>
                     <Text style={{ color: '#FFF', fontSize: 21, fontWeight: '900', letterSpacing: -0.3 }}>{t('bk_buddies')}</Text>
