@@ -17820,6 +17820,18 @@ on conflict (id) do nothing;
 notify pgrst, 'reload schema';
 
 -- ═══════════════════════════════════════════════════════════════════
+--  WORKSHOPS · THE SONG ONES GET THEIR OWN PICTURES
+--  Ayser sent them: sheet music and a coffee for songwriting (the book
+--  beside it cropped out), two guitars against a wall for the jam night.
+--  Only while the photo is still the one these started with, so a real
+--  teacher's own photos are never replaced. Idempotent.
+-- ═══════════════════════════════════════════════════════════════════
+update public.offers set photos = '{media/ws-songwriting.jpg}'::text[]
+ where id = '0ffe0000-0000-4000-8000-0000000000b7' and photos = '{media/reel-music.jpg}'::text[];
+update public.offers set photos = '{media/ws-jam.jpg}'::text[]
+ where id = '0ffe0000-0000-4000-8000-0000000000b9' and photos = '{media/act-music-v1.jpg}'::text[];
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة
