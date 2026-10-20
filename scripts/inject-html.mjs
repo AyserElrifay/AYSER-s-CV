@@ -15,6 +15,11 @@ const BASE = 'https://therealmoments.com/';
    "مومنتس") in the title, and one honest sentence of what it is */
 const TITLE = "Moments app — meet people, gatherings & hangouts near you | The Real Moments";
 const DESC = 'Moments app (The Real Moments · مومنتس) is a social community app for real life: gatherings and hangouts near you, Moments people to go out with, trips, workshops and Green Minds clean-ups. Don\'t scroll it. Live it.';
+/* what WhatsApp, iMessage and the rest show when the link is shared —
+   short, like the first card Ayser liked; the long TITLE/DESC above are
+   for search engines */
+const SHARE_TITLE = "Moments — Don't scroll it. Live it.";
+const SHARE_DESC = 'Meet people, join gatherings and go out together near you — real plans, real people.';
 const KEYWORDS = 'Moments, Moments app, The Real Moments, therealmoments, Moments people, gathering, gatherings, community, community app, social, social app, hangouts, hangout app, meet people, make friends, things to do, events near me, Cairo, Egypt, Europe, مومنتس, خروجات, ناس, تجمعات';
 
 // Responsive framing so ONE build fits both screens:
@@ -120,15 +125,15 @@ const tags = `
   })}</script>
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="Moments" />
-  <meta property="og:title" content="${TITLE}" />
-  <meta property="og:description" content="${DESC}" />
+  <meta property="og:title" content="${SHARE_TITLE}" />
+  <meta property="og:description" content="${SHARE_DESC}" />
   <meta property="og:url" content="${BASE}" />
   <meta property="og:image" content="${BASE}og-image.png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="${TITLE}" />
-  <meta name="twitter:description" content="${DESC}" />
+  <meta name="twitter:title" content="${SHARE_TITLE}" />
+  <meta name="twitter:description" content="${SHARE_DESC}" />
   <meta name="twitter:image" content="${BASE}og-image.png" />
 `;
 
