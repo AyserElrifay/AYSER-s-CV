@@ -97,18 +97,30 @@ export const GameRunner = ({ opponent = null, onClose, matchId = null, isHost = 
   /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
   useSheetBack(onClose);
   const { user } = useAuth();
-  /* you, as yourself: the photo on your profile; the cartoon only until
-     you have put one there */
+  /* Ayser: you run as the cartoon you built (Your Moments Avatar), and so
+     does the other one; a photo only until somebody has built one */
   const [myPhoto, setMyPhoto] = useState(null);
+  const [myDna, setMyDna] = useState(null);
+  const [foeDna, setFoeDna] = useState(null);
   useEffect(() => {
     if (!user) return undefined;
     let alive = true;
     const meta = user.user_metadata && user.user_metadata.avatar_url;
     if (meta && /^https:\/\//.test(meta)) setMyPhoto(meta);
-    getProfile(user.id).then((r) => { if (alive && r && r.avatar_url && /^https:\/\//.test(r.avatar_url) && r.avatar_url !== AV_NEUTRAL) setMyPhoto(r.avatar_url); }).catch(() => {});
+    getProfile(user.id).then((r) => {
+      if (!alive || !r) return;
+      if (r.avatar_dna) setMyDna(r.avatar_dna);
+      if (r.avatar_url && /^https:\/\//.test(r.avatar_url) && r.avatar_url !== AV_NEUTRAL) setMyPhoto(r.avatar_url);
+    }).catch(() => {});
     return () => { alive = false; };
   }, [user]);
-  const meAvatar = user ? myPhoto || buildAvatarUrl(user.id, user.avatar_dna) : null;
+  useEffect(() => {
+    if (!opponent || !opponent.id) return undefined;
+    let alive = true;
+    getProfile(opponent.id).then((r) => { if (alive && r && r.avatar_dna) setFoeDna(r.avatar_dna); }).catch(() => {});
+    return () => { alive = false; };
+  }, [opponent && opponent.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const meAvatar = user ? (myDna ? buildAvatarUrl(user.id, myDna) : myPhoto || buildAvatarUrl(user.id, user.avatar_dna)) : null;
   const [world, setWorld] = useState(false);
   const [seek, setSeek] = useState(null); // null | 'looking' | 'nobody' | 'sign_in' | { matchId, isHost, opponent }
   const seekTimer = useRef(null);
@@ -471,10 +483,10 @@ export const GameRunner = ({ opponent = null, onClose, matchId = null, isHost = 
      stranger who doesn't exist is worse than chasing nothing, so solo
      now chases YOUR OWN ghost: your avatar, your record. A real
      opponent is only ever a real account, passed in from a real duel. */
-  const foe = opponent || {
+  const foe = opponent ? (foeDna ? { ...opponent, avatar: buildAvatarUrl(opponent.id, foeDna) } : opponent) : {
     id: null,
     name: 'Your record',
-    avatar: buildAvatarUrl((user && user.id) || 'me'),
+    avatar: meAvatar || buildAvatarUrl((user && user.id) || 'me'),
     ghost: true,
   };
   const oppFirst = foe.ghost ? 'your record' : String(foe.name || 'Mate').split(' ')[0];
