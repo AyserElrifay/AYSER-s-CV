@@ -62,7 +62,7 @@ export async function finishMatch(matchId, { hostScore, guestScore, winnerId }) 
    channel between the two browsers. */
 export function subscribeMatchLive(matchId, handlers) {
   const ch = supabase.channel('match_' + matchId, { config: { broadcast: { self: false } } });
-  ['ready', 'start', 'score', 'finished'].forEach((ev) => {
+  ['ready', 'start', 'score', 'pos', 'finished'].forEach((ev) => {
     ch.on('broadcast', { event: ev }, ({ payload }) => { const h = handlers[ev]; if (h) h(payload || {}); });
   });
   ch.subscribe();

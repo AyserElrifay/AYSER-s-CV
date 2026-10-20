@@ -137,6 +137,7 @@ export const GameRunner = ({ opponent = null, onClose, matchId = null, isHost = 
   const [peerReady, setPeerReady] = useState(false);
   const [countdown, setCountdown] = useState(null);
   const [peerScore, setPeerScore] = useState(0);
+  const [peerLane, setPeerLane] = useState(1);   // where the other runner really is, live
   const [myFinal, setMyFinal] = useState(null);
   const [peerFinal, setPeerFinal] = useState(null);
   const [duelLeft, setDuelLeft] = useState(DUEL_MS / 1000);
@@ -305,11 +306,24 @@ export const GameRunner = ({ opponent = null, onClose, matchId = null, isHost = 
         tapLight();
         laneRef.current = n;
         switchAt.current = Date.now();
+        /* both runners on both phones: my lane goes to the other one at once */
+        if (isMultiplayer && liveRef.current) liveRef.current.send('pos', { who: user && user.id, lane: n });
         Animated.spring(laneAnim, { toValue: n, useNativeDriver: true, tension: 120, friction: 9 }).start();
       }
       return n;
     });
   };
+
+  /* the other phone sees my score climb as I run, not only at the end —
+     that is what moves me up and down their track */
+  const lastSent = useRef(0);
+  useEffect(() => {
+    if (!isMultiplayer || mpPhase !== 'racing' || !liveRef.current) return;
+    const now = Date.now();
+    if (now - lastSent.current < 350) return;
+    lastSent.current = now;
+    liveRef.current.send('score', { who: user && user.id, score, lane: laneRef.current });
+  }, [score, mpPhase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── REAL multiplayer — live duel over Supabase Realtime broadcast ──
   const tryResolveDuel = (mine, peer) => {
@@ -372,7 +386,8 @@ export const GameRunner = ({ opponent = null, onClose, matchId = null, isHost = 
     const live = subscribeMatchLive(matchId, {
       ready: ({ who }) => { if (who !== (user && user.id)) { peerReadyRef.current = true; setPeerReady(true); maybeStart(); } },
       start: ({ startAt }) => { if (!isHost) beginCountdown(startAt); },
-      score: ({ who, score: s }) => { if (who !== (user && user.id)) setPeerScore(s); },
+      score: ({ who, score: s, lane: l }) => { if (who !== (user && user.id)) { setPeerScore(s); if (l != null) setPeerLane(l); } },
+      pos: ({ who, lane: l }) => { if (who !== (user && user.id) && l != null) setPeerLane(l); },
       finished: ({ who, score: s }) => {
         if (who === (user && user.id)) return;
         peerFinalRef.current = s;
@@ -511,7 +526,7 @@ export const GameRunner = ({ opponent = null, onClose, matchId = null, isHost = 
           {/* the mate you're chasing — practice/solo mode only (a real
               duel shows their LIVE score in the corner instead) */}
           {track.h > 0 && (isMultiplayer ? mpPhase === 'racing' : phase === 'playing') ? (
-            <View pointerEvents="none" style={{ position: 'absolute', top: foeY, left: track.w / 2 - 18, alignItems: 'center', zIndex: 3 }}>
+            <View pointerEvents="none" style={{ position: 'absolute', top: foeY, left: (isMultiplayer ? laneX(peerLane) : track.w / 2) - 18, alignItems: 'center', zIndex: 3 }}>
               <Runner uri={foe.avatar} size={36} stride={stride} ring={foe.ghost ? 'rgba(255,255,255,0.6)' : '#F472B6'} dim={foe.ghost} />
               <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 10, fontWeight: '800', marginTop: 1 }} numberOfLines={1}>{foe.ghost ? (gamesAr() ? 'رقمك' : 'your record') : oppFirst}</Text>
             </View>
