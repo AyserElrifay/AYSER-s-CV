@@ -45,7 +45,7 @@ export const PlacePhoto = ({ place, height = 180 }) => {
   useEffect(() => {
     let alive = true;
     setPhoto(null);
-    if (place && !own) placePhoto({ name: place.name, lat: place.lat, lng: place.lng }).then((p) => { if (alive) setPhoto(p); }).catch(() => {});
+    if (place && !own) placePhoto({ name: place.name, lat: place.lat, lng: place.lng, area: place.area }).then((p) => { if (alive) setPhoto(p); }).catch(() => {});
     return () => { alive = false; };
   }, [place && place.name, place && place.lat, place && place.lng, own]);
   if (own) {

@@ -134,7 +134,7 @@ const CardPhoto = ({ place, h }) => {
   useEffect(() => {
     if (own) return undefined;
     let alive = true;
-    placePhoto({ name: place.name, lat: place.lat, lng: place.lng }).then((p) => { if (alive && p && /^https:\/\//.test(p.url)) setPhoto(p); }).catch(() => {});
+    placePhoto({ name: place.name, lat: place.lat, lng: place.lng, area: place.area }).then((p) => { if (alive && p && /^https:\/\//.test(p.url)) setPhoto(p); }).catch(() => {});
     return () => { alive = false; };
   }, [place.id]);
   const uri = own || (photo && photo.url);
@@ -154,7 +154,7 @@ const Credit = ({ place, t }) => {
   useEffect(() => {
     if (place.photo) return undefined;
     let alive = true;
-    placePhoto({ name: place.name, lat: place.lat, lng: place.lng }).then((p) => { if (alive) setPhoto(p); }).catch(() => {});
+    placePhoto({ name: place.name, lat: place.lat, lng: place.lng, area: place.area }).then((p) => { if (alive) setPhoto(p); }).catch(() => {});
     return () => { alive = false; };
   }, [place.id]);
   if (place.photo && place.credit) return <Text style={{ position: 'absolute', bottom: 4, right: 8, color: 'rgba(255,255,255,0.45)', fontSize: 7 }}>{t('photo_from').replace('{who}', place.credit)}</Text>;

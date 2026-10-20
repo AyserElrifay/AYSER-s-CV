@@ -63,7 +63,7 @@ export function creditOf(meta) {
 
 /* v2: a month of "no photo" kept under the old rule must not hide the
    name search from a phone that asked before it existed */
-const KEY = 'moments.commons3.';
+const KEY = 'moments.commons4.';
 const MONTH = 30 * 24 * 3600 * 1000;
 const recall = (k) => { try { const v = JSON.parse(localStorage.getItem(KEY + k) || 'null'); return v && Date.now() - v.at < MONTH ? v : null; } catch (e) { return null; } };
 const keep = (k, photo) => { try { localStorage.setItem(KEY + k, JSON.stringify({ at: Date.now(), photo })); } catch (e) {} };
@@ -97,7 +97,7 @@ export function nameQueries(name) {
   const out = [];
   const add = (q) => { q = String(q || '').trim(); if (q && words(q).length && !out.includes(q)) out.push(q); };
   add(name);
-  const parts = String(name || '').split(/[,·–—]/).map((x) => x.trim()).filter(Boolean);
+  const parts = String(name || '').replace(/\(.*?\)/g, ' ').split(/[,·–—&]| and /).map((x) => x.trim()).filter(Boolean);
   parts.forEach(add);
   parts.forEach((part) => add(part.split(/\s+/).filter((w) => !GENERIC.has(w.toLowerCase())).join(' ')));
   return out;
@@ -140,7 +140,7 @@ export function isNearPlace(page, lat, lng) {
 }
 
 /* { url, page, artist, license, title } or null */
-export async function placePhoto({ name, lat, lng }) {
+export async function placePhoto({ name, lat, lng, area }) {
   if (!name) return null;
   const hasSpot = lat != null && lng != null;
   const k = name + '|' + (hasSpot ? Number(lat).toFixed(3) + '|' + Number(lng).toFixed(3) : '-');
@@ -158,7 +158,11 @@ export async function placePhoto({ name, lat, lng }) {
       if (page) { const photo = await commonsCredit(page); if (photo) { keep(k, photo); return photo; } }
     }
   }
-  for (const q of nameQueries(name)) {
+  /* its own name first; then — Ayser: "ما تسبش حاجة من غير صور" — the
+     area it is in ("Siwa Salt Lakes" shows Siwa), near the same spot,
+     so it is never a photo of somewhere else */
+  const qs = nameQueries(name).map((q) => [q, 1]).concat(area ? nameQueries(area).map((q) => [q, 0]) : []);
+  for (const [q, own] of qs) {
     const j = await getJSON('https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*'
       + '&generator=search&gsrsearch=' + encodeURIComponent(q) + '&gsrlimit=6'
       + '&prop=pageimages%7Ccoordinates&piprop=thumbnail%7Cname&pithumbsize=900&pilicense=free&colimit=6');
@@ -166,7 +170,7 @@ export async function placePhoto({ name, lat, lng }) {
     reached = true;
     /* and it must be the same KIND of place: a search for "Al-Azhar"
        (park stripped) must not settle on Al-Azhar University */
-    const kinds = String(name).toLowerCase().split(/[^a-z]+/).filter((w) => GENERIC.has(w) && !['central', 'main', 'nile'].includes(w));
+    const kinds = own ? String(name).toLowerCase().split(/[^a-z]+/).filter((w) => GENERIC.has(w) && !['central', 'main', 'nile'].includes(w)) : [];
     const page = pickPage(q, toPages(j).filter((pg) => isNearPlace(pg, hasSpot ? lat : null, hasSpot ? lng : null)
       && kinds.every((w) => String(pg.title).toLowerCase().indexOf(w) >= 0)));
     if (!page) continue;
