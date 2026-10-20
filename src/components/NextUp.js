@@ -30,13 +30,16 @@ const km = (a, b) => {
   return 12742 * Math.asin(Math.sqrt(h));
 };
 
+/* the next few near you, one of each — Ayser: "هي ليه كورة بس" — the
+   card turns between them; the ones you said yes to come first */
 const pick = (rows) => {
   const now = Date.now();
   const fix = lastFix();
-  const soon = (rows || []).filter((g) => new Date(g.starts_at).getTime() > now - 30 * 60000)
-    .sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at));
-  if (!fix) return soon[0] || null;
-  return soon.find((g) => g.lat != null && g.lng != null && km(fix, { lat: Number(g.lat), lng: Number(g.lng) }) <= NEAR_KM) || null;
+  const seen = {};
+  return (rows || []).filter((g) => new Date(g.starts_at).getTime() > now - 30 * 60000
+      && (!fix || (g.lat != null && km(fix, { lat: +g.lat, lng: +g.lng }) <= NEAR_KM)))
+    .sort((a, b) => (b.im_going ? 1 : 0) - (a.im_going ? 1 : 0) || new Date(a.starts_at) - new Date(b.starts_at))
+    .filter((g) => !seen[g.title] && (seen[g.title] = 1)).slice(0, 5);
 };
 
 const whenLine = (g, lang, t) => {
@@ -86,13 +89,17 @@ const Slides = ({ pics }) => {
 
 export const NextUp = ({ user, onOpen, onStart }) => {
   const { t, lang } = useLang();
-  const [g, setG] = useState(() => pick(keptGatherings(null)));
+  const [all, setAll] = useState(() => pick(keptGatherings(null)));
+  const [at, setAt] = useState(0);
+  useEffect(() => { if (all.length < 2) return undefined; const id = setInterval(() => setAt((i) => i + 1), 7000); return () => clearInterval(id); }, [all.length]);
+  const g = all[at % all.length] || null;
+  const setG = (x) => setAll((l) => l.map((y) => (y.id === x.id ? x : y)));
   const [ready, setReady] = useState(() => !!keptGatherings(null));
   const [weeks, setWeeks] = useState(0);
   const [busy, setBusy] = useState(false);
   useEffect(() => {
     let alive = true;
-    listGatherings(null).then((rows) => { if (alive) { setG(pick(rows)); setReady(true); } }).catch(() => { if (alive) setReady(true); });
+    listGatherings(null).then((rows) => { if (alive) { setAll(pick(rows)); setReady(true); } }).catch(() => { if (alive) setReady(true); });
     if (SUPABASE_READY && user) {
       supabase.rpc('my_out_weeks').then(({ data }) => { if (alive && data) setWeeks(Number(data.weeks) || 0); }).catch(() => {});
     }
@@ -153,7 +160,7 @@ export const NextUp = ({ user, onOpen, onStart }) => {
     <View style={{ marginTop: 16 }}>
       <Pressable onPress={() => { tapLight(); onOpen(g); }} accessibilityRole="button" accessibilityLabel={titleFor(g.title, lang)}>
         <View style={{ height: 260, borderRadius: 26, overflow: 'hidden', backgroundColor: look.from }}>
-          {pics.length > 1 ? <Slides pics={pics} /> : pic ? <Image source={{ uri: pic }} style={{ position: 'absolute', width: '100%', height: '100%' }} accessibilityIgnoresInvertColors />
+          {pics.length > 1 ? <Slides key={g.id} pics={pics} /> : pic ? <Image source={{ uri: pic }} style={{ position: 'absolute', width: '100%', height: '100%' }} accessibilityIgnoresInvertColors />
             : <LinearGradient colors={[look.from, look.to]} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 80 }}>{look.emoji}</Text></LinearGradient>}
           <LinearGradient colors={['rgba(0,0,0,0.35)', 'rgba(0,0,0,0)', 'rgba(0,0,0,0.8)']} locations={[0, 0.3, 1]} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }} />
           <Text style={{ position: 'absolute', top: 14, left: 16, color: '#FFF', fontSize: 12, fontWeight: '900', letterSpacing: 1.2 }}>{t('nu_kicker').toUpperCase()}</Text>
