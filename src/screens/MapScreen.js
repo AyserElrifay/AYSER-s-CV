@@ -29,6 +29,7 @@ import { fetchLiveVenues, applyAsVenue } from '../services/venues';
 import { buildAvatarUrl, buildStandingUrl } from '../services/avatarBuilder';
 import { fetchNearbyPlaces } from '../services/places';
 import { DESTINATIONS } from '../constants/destinations';
+import { publicMedia } from '../lib/publicMedia';
 import { openPartner as openPartnerPage } from '../lib/partnerLink';
 import { openTrip } from '../lib/tripLink';
 import { fetchDestReviews, addDestReview } from '../services/destinations';
@@ -426,7 +427,21 @@ export const MapScreen = () => {
   const hasPanel = lens === 'all' || lens === 'activities' || lens === 'people';
   const panelUp = hasPanel && panelOpen;
   const aboveBottom = lens === 'people' ? PEOPLE_PANEL_PEEK + 12
-    : hasPanel ? MAP_PANEL_PEEK + (lens === 'activities' ? MAP_PANEL_CHIPS : 0) + 12 : lens === 'places' ? 76 : lens === 'trips' ? 196 : 24;   // places: just above "See all … in photos"
+    : hasPanel ? MAP_PANEL_PEEK + (lens === 'activities' ? MAP_PANEL_CHIPS : 0) + 12 : lens === 'places' ? 196 : lens === 'trips' ? 196 : 24;   // places: just above "See all … in photos"
+  /* ── WHAT'S AROUND ── the places nearest to you (or to Cairo, before a
+     fix), for the Places rail; and when Places opens, the map pulls back
+     far enough to show the nearest few as real pins */
+  const around = useMemo(() => {
+    const at = myCoords || { latitude: 30.0444, longitude: 31.2357 };
+    return DESTINATIONS.map((d) => ({ d, k: kmBetween(at, { latitude: d.lat, longitude: d.lng }) })).sort((a, b) => a.k - b.k).slice(0, 12);
+  }, [myCoords]);
+  useEffect(() => {
+    if (lens !== 'places' || !around.length) return;
+    const r = Math.max(2, (around[Math.min(5, around.length - 1)] || around[0]).k);
+    const at = myCoords || { latitude: 30.0444, longitude: 31.2357 };
+    const zoom = Math.max(4, Math.min(14, Math.floor(Math.log2((156543 * Math.cos(at.latitude * Math.PI / 180) * 170) / (r * 1000)))));
+    setMapFocus({ lat: at.latitude, lng: at.longitude, zoom, ts: Date.now() });
+  }, [lens]); // eslint-disable-line react-hooks/exhaustive-deps
   const joinFromMap = async (g) => {
     if (joiningG[g.id]) return;
     tapLight();
@@ -1146,12 +1161,32 @@ export const MapScreen = () => {
       ) : null}
       {lens === 'places' ? (
       <View style={{ position: 'absolute', bottom: 14, left: 0, right: 0 }}>
-        <Pressable onPress={() => { tapLight(); setFeedOpen(true); }} accessibilityRole="button" style={{ marginHorizontal: 16, marginBottom: 10 }}>
-          <View style={{ backgroundColor: C.text, borderRadius: 999, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-            <Ionicons name="images-outline" size={17} color={C.bg} />
-            <Text style={{ color: C.bg, fontSize: 14.5, fontWeight: '900', marginStart: 8 }}>{t('pf_open').replace('{n}', String(DESTINATIONS.length))}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginBottom: 8 }}>
+          <View style={{ backgroundColor: C.floatSolid, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 }}>
+            <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '900' }}>{'🧭 ' + t('mp_around')}</Text>
           </View>
-        </Pressable>
+          <View style={{ flex: 1 }} />
+          <Pressable onPress={() => { tapLight(); setFeedOpen(true); }} accessibilityRole="button" hitSlop={6}>
+            <View style={{ backgroundColor: C.text, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 7, flexDirection: 'row', alignItems: 'center' }}>
+              <Ionicons name="images-outline" size={14} color={C.bg} />
+              <Text style={{ color: C.bg, fontSize: 12.5, fontWeight: '900', marginStart: 6 }}>{t('mp_see_all').replace('{n}', String(DESTINATIONS.length))}</Text>
+            </View>
+          </Pressable>
+        </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 16 }}>
+          {around.map(({ d, k }) => (
+            <Pressable key={d.id} onPress={() => { tapLight(); setMapFocus({ lat: d.lat, lng: d.lng, zoom: 14, ts: Date.now() }); openDest(d); }} accessibilityRole="button" accessibilityLabel={d.name}
+              style={{ width: 150, height: 120, marginEnd: 10, borderRadius: 18, overflow: 'hidden', backgroundColor: C.floatSolid, borderWidth: 1, borderColor: C.line }}>
+              {d.photo ? <Image source={{ uri: publicMedia(d.photo) }} style={{ position: 'absolute', width: 150, height: 120 }} />
+                : <View style={{ position: 'absolute', width: 150, height: 120, alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 40 }}>{d.emoji}</Text></View>}
+              <LinearGradient colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.75)']} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 70 }} />
+              <View style={{ position: 'absolute', top: 7, right: 7, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 999, paddingHorizontal: 7, paddingVertical: 2 }}>
+                <Text style={{ color: '#FFF', fontSize: 11, fontWeight: '800' }}>{k < 10 ? k.toFixed(1) + ' km' : Math.round(k) + ' km'}</Text>
+              </View>
+              <Text style={{ position: 'absolute', left: 9, right: 9, bottom: 8, color: '#FFF', fontSize: 13, fontWeight: '900' }} numberOfLines={2}>{d.emoji + ' ' + d.name}</Text>
+            </Pressable>
+          ))}
+        </ScrollView>
         {/* Ayser: "في طريقة أوضح؟" — the Book / Trips rail and its cards
             are gone from the map: venues were empty, trips live in
             Together, partnering lives in the menu. The map is the map. */}

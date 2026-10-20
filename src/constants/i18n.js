@@ -2393,6 +2393,8 @@ export const STRINGS = {
     bk_notify: 'Notify me',
     sp_branches: '{n} branches',
     sp_plan_short: 'Plan',
+    mp_around: "What's around",
+    mp_see_all: 'All {n}',
     lens_all: 'Everything',
     lens_places: 'Places to go',
     lens_people: 'People',
