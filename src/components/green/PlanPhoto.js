@@ -61,6 +61,7 @@ const STOCK = [
    list starts on photo 1, the next on photo 4, and so on — so two plans
    side by side never open on the same one */
 const order = new Map();
+const OURS = new Set(['opera']);
 const stockOf = (g) => {
   const s = String((g && g.title) || '') + ' ' + String((g && g.kind) || '');
   const hit = STOCK.find((x) => (x.files.length || memberPhotosFor(x.id).length) && x.re.test(s));
@@ -296,11 +297,16 @@ export const PlanHead = ({ g, children, slim, title, sub }) => {
   useEffect(() => { loadMemberPhotos(); return onMemberPhotos(() => setMp(true)); }, []);
   const place = usePlacePhoto(g);
   const own = planPhotoOf(g);
-  const url = own || (place && safe(place.url));
+  /* Ayser: "الأوبرا ليها صور أحلى" — where we have his own photos and
+     clip of the activity (the opera), they beat a Commons photo of the
+     building */
+  const mine = !own ? stockOf(g) : null;
+  const ours = mine && OURS.has(mine.id) ? mine : null;
+  const url = own || (ours ? null : place && safe(place.url));
   const look = lookOf(g && g.kind);
   /* a football, sketching, padel, walk, swimming, beach, reading or coffee plan with
      no photo of its own: a real photo of the activity (Pexels, credited) — the game, not this game */
-  const stock = !url ? stockOf(g) : null;
+  const stock = ours || (!url ? mine : null);
   /* keyed by its pictures: when members' photos arrive the album starts
      again on the first one, instead of the browser holding the old one in view */
   /* slim: a short picture the width of the card, the name and the time
