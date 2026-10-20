@@ -33,7 +33,15 @@ const BuddiesReel = () => {
   }, []);
   useEffect(() => { const id = setInterval(() => setAt((i) => i + 1), 6000); return () => clearInterval(id); }, []);
   const c = clips[at % clips.length];
-  return <HighlightVideo key={c.uri} uri={c.uri} poster={c.poster} />;
+  /* the clips are filmed upright and the banner is wide: the whole clip,
+     never cropped (Ayser: "الكروب غلط، الناس مش باينة"), with its own
+     picture, blurred, filling the sides */
+  return (
+    <>
+      {c.poster ? <Image source={{ uri: c.poster }} blurRadius={22} resizeMode="cover" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, opacity: 0.7 }} /> : null}
+      <HighlightVideo key={c.uri} uri={c.uri} poster={c.poster} fit="contain" />
+    </>
+  );
 };
 import { TripsWelcome, seenTripsWelcome } from './TripsWelcome';
 import { lazyOverlay } from '../lib/lazyScreen';
@@ -492,7 +500,7 @@ export const TripsSheet = ({ onClose, country, openOn, focus, onNeedSignIn, only
                     clip of a group singing round a campfire at night (the old
                     bus clip was 432px and soft). Silent, looping; the photo
                     while it loads or when saving data. */}
-                {only ? null : <View style={{ height: 190, borderRadius: 22, overflow: 'hidden', backgroundColor: '#0E2A3A', marginBottom: 14 }}>
+                {only ? null : <View style={{ height: 250, borderRadius: 22, overflow: 'hidden', backgroundColor: '#0E2A3A', marginBottom: 14 }}>
                   <BuddiesReel />
                   <LinearGradient colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.62)']} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 120 }} />
                   <View style={{ position: 'absolute', left: 16, right: 16, bottom: 14 }}>

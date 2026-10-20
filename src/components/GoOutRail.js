@@ -27,7 +27,7 @@ import { tapLight, tapSuccess } from '../utils/feedback';
        up to look like more than it is.
    If there is neither, this draws nothing. */
 
-export const HighlightVideo = ({ uri, poster }) => {
+export const HighlightVideo = ({ uri, poster, fit }) => {
   const ref = useRef(null);
   const holder = useRef(null);
   /* plays only while it is on the screen, and never on data saver */
@@ -43,7 +43,7 @@ export const HighlightVideo = ({ uri, poster }) => {
   return (
     <View ref={holder} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
       <video ref={ref} src={poster ? uri : uri + '#t=0.1'} poster={poster || undefined} muted loop playsInline preload="metadata" tabIndex={-1}
-        style={{ width: '100%', height: '100%', objectFit: 'cover', pointerEvents: 'none' }} />
+        style={{ width: '100%', height: '100%', objectFit: fit || 'cover', pointerEvents: 'none' }} />
     </View>
   );
 };
