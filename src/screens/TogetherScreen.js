@@ -19,6 +19,7 @@ import { PushRow } from '../components/PushRow';
 import { talkRoomsNear } from '../services/talkRooms';
 import { fmt, remaining, offsetFrom } from '../lib/talkClock';
 import { appLink, shareLink, shareNote } from '../utils/share';
+import { listOffers, photoUrl } from '../services/offers';
 import { fetchWhatsOn } from '../services/whatson';
 import { joinCampfire } from '../services/campfires';
 import { joinGroup } from '../services/groups';
@@ -217,6 +218,28 @@ const ideaTitle = (title) => {
   return cut.length >= 3 ? cut : s;
 };
 const ideaKey = (g) => ((activityOf(String(g.title || '') + ' ' + String(g.kind || '')) || {}).id) || 'k:' + String(g.kind || '') + ':' + String(g.title || '').toLowerCase();
+
+const Workshops = ({ t, lang, onOpen }) => {
+  const [list, setList] = useState(null);
+  useEffect(() => { let alive = true; listOffers(null, null).then((r) => { if (alive) setList((r || []).filter((o) => o.track === 'workshop')); }).catch(() => {}); return () => { alive = false; }; }, []);
+  if (!list || !list.length) return null;
+  return (
+    <View style={{ marginBottom: 16 }}>
+      <Text style={{ color: C.text, fontSize: 17, fontWeight: '900', marginBottom: 10 }}>{t('bk_kind_workshop')}</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        {list.map((o) => (
+          <Pressable key={o.id} onPress={() => { tapLight(); onOpen(o); }} accessibilityRole="button" style={{ width: 210, marginEnd: 10, borderRadius: 20, overflow: 'hidden', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line }}>
+            {o.photos && o.photos[0] ? <Image source={{ uri: photoUrl(o.photos[0]) }} style={{ width: '100%', height: 110, backgroundColor: C.glassHi }} /> : <View style={{ height: 110, backgroundColor: C.purpleSoft }} />}
+            <View style={{ padding: 12 }}>
+              <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '900' }} numberOfLines={2}>{lang === 'ar' && o.title_ar ? o.title_ar : o.title}</Text>
+              <Text style={{ color: C.faint, fontSize: 12, fontWeight: '700', marginTop: 4 }} numberOfLines={1}>{'📍 ' + (o.city || '') + (o.status === 'soon' ? ' · ' + t('bk_soon') : '')}</Text>
+            </View>
+          </Pressable>
+        ))}
+      </ScrollView>
+    </View>
+  );
+};
 
 const IdeasElsewhere = ({ ideas, t, lang, onStart }) => {
   if (!ideas.length) return null;
@@ -886,6 +909,10 @@ export const TogetherScreen = () => {
             onStart={(g) => { tapMedium(); setSheet({ start: { kind: g.kind, title: ideaTitle(titleFor(g.title, lang)), about: g.about || '', minutes: g.minutes, audience: g.audience && g.audience !== 'all' ? g.audience : undefined } }); }} />
         ) : null}
 
+        {/* ── workshops ── Ayser: they are activities, so they sit with the
+            activities — writing, poetry, dance, music, kids */}
+        <Workshops t={t} lang={lang} onOpen={(o) => setSheet({ trips: 'browse', only: 'workshop', focus: o.id })} />
+
         {/* ── circles near you ── groups people started at places nearby */}
         {uid ? <CirclesNear /> : null}
 
@@ -898,8 +925,7 @@ export const TogetherScreen = () => {
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
           <Tile emoji="🧳" label={t('bk_tile')} from="#7C3AED" to="#F5B301" onPress={() => setSheet({ trips: 'browse' })} />
           <Tile emoji="🤝" label={t('st_title')} from="#F59E0B" to="#EF4444" onPress={() => setSheet('settle')} />
-          <Tile emoji="🎓" label={t('bk_kind_workshop').replace(/^\S+\s/, '')} from="#0EA5E9" to="#6366F1" onPress={() => setSheet({ trips: 'browse', only: 'workshop' })} />
-          <Tile emoji="🎲" label={t('tg_play')} from="#A855F7" to="#EC4899" onPress={() => nav.navigate('CHILL')} />
+          <Tile wide emoji="🎲" label={t('tg_play')} from="#A855F7" to="#EC4899" onPress={() => nav.navigate('CHILL')} />
         </View>
 
         {/* ── bring your people ── one line; the details are in Rewards */}
@@ -928,7 +954,7 @@ export const TogetherScreen = () => {
       {sheet === 'start' ? <GreenSheet startNow homeCountry={myCode} onClose={() => { setSheet(null); load(); }} /> : null}
       {sheet && sheet.start ? <GreenSheet startNow prefill={sheet.start} homeCountry={myCode} onClose={() => { setSheet(null); load(); }} /> : null}
       {sheet && sheet.capsule ? <CapsuleSheet kind="plan" id={sheet.capsule.id} title={titleFor(sheet.capsule.title, lang)} onClose={() => setSheet(null)} /> : null}
-      {sheet && sheet.trips ? <TripsSheet openOn={sheet.trips} only={sheet.only} onClose={() => setSheet(null)} /> : null}
+      {sheet && sheet.trips ? <TripsSheet openOn={sheet.trips} only={sheet.only} focus={sheet.focus} onClose={() => setSheet(null)} /> : null}
       {sheet === 'settle' ? <SettleSheet myCode={myCode} onClose={() => setSheet(null)} onSwap={(p) => setSheet({ start: p })} onPapers={isEuCode(myCode) ? () => setSheet('landing') : null} /> : null}
       {reportingPhoto ? <ReportSheet contentType="plan_photo" contentId={reportingPhoto.id} contentLabel={reportingPhoto.label} onClose={() => setReportingPhoto(null)} /> : null}
       {sheet === 'green' ? <GreenSheet homeCountry={myCode} onClose={() => { setSheet(null); load(); }} /> : null}
