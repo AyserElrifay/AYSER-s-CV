@@ -17560,6 +17560,74 @@ select * from (values
 where not exists (select 1 from public.green_sparks s where s.title_en = v.title_en and s.country is not distinct from v.country);
 
 -- ═══════════════════════════════════════════════════════════════════
+--  CALLS · ONLY A REAL CALLER CAN RING YOU
+--  Ayser: "هل المكالمات بترن بجد و نتوفيكشن و أمان؟". The ring itself
+--  travels over a Realtime broadcast, and the name and photo on it were
+--  whatever the caller's phone said — anybody signed in could ring
+--  anybody, under any name. Now the server is the witness: call_ring
+--  (between two people who share a chat, nobody blocked) writes the
+--  call's id into the 'call' notification, and the ringing phone asks
+--  call_check before it rings — no row, no ring, and the name and photo
+--  come from the caller's real profile. A missed call can only be
+--  logged by the person who really rang, on that same row: no more
+--  "Missed call" spam to strangers.
+-- ═══════════════════════════════════════════════════════════════════
+drop function if exists public.call_ring(uuid, text);
+create or replace function public.call_ring(p_to uuid, p_call text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid();
+begin
+  if me is null or p_to is null or p_to = me then return jsonb_build_object('ok', false, 'reason', 'auth'); end if;
+  if p_call is null or p_call !~ '^[A-Za-z0-9_-]{6,80}$' then return jsonb_build_object('ok', false, 'reason', 'call'); end if;
+  if exists (select 1 from public.user_blocks where (blocker_id = me and blocked_id = p_to) or (blocker_id = p_to and blocked_id = me)) then
+    return jsonb_build_object('ok', false, 'reason', 'blocked');
+  end if;
+  if not exists (select 1 from public.dm_participants a join public.dm_participants b on b.thread_id = a.thread_id
+                  where a.user_id = me and b.user_id = p_to) then
+    return jsonb_build_object('ok', false, 'reason', 'no_chat');
+  end if;
+  -- at most a fresh ring (and a push) every 20 seconds per pair; a retry
+  -- of the same call just keeps its row
+  if exists (select 1 from public.notifications where user_id = p_to and actor_id = me and kind = 'call'
+               and post_id is null and created_at > now() - interval '20 seconds') then
+    update public.notifications set body = 'Calling|' || p_call
+     where user_id = p_to and actor_id = me and kind = 'call' and post_id is null;
+    return jsonb_build_object('ok', true);
+  end if;
+  delete from public.notifications where user_id = p_to and actor_id = me and kind = 'call' and post_id is null;
+  insert into public.notifications (user_id, actor_id, kind, body) values (p_to, me, 'call', 'Calling|' || p_call);
+  return jsonb_build_object('ok', true);
+end $$;
+revoke all on function public.call_ring(uuid, text) from public, anon;
+grant execute on function public.call_ring(uuid, text) to authenticated;
+-- the old one took no call id, so it could not vouch for a ring
+drop function if exists public.call_ring(uuid);
+
+/* the ringing phone: is this really a call to me, from them, right now? */
+create or replace function public.call_check(p_from uuid, p_call text)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select jsonb_build_object('id', p.id, 'name', p.name, 'avatar', p.avatar_url)
+    from public.notifications n join public.profiles p on p.id = n.actor_id
+   where auth.uid() is not null and n.user_id = auth.uid() and n.actor_id = p_from and n.kind = 'call'
+     and n.post_id is null and n.body = 'Calling|' || p_call and n.created_at > now() - interval '90 seconds'
+   limit 1;
+$$;
+revoke all on function public.call_check(uuid, text) from public, anon;
+grant execute on function public.call_check(uuid, text) to authenticated;
+
+/* a missed call: only the one who rang, only on the row of that ring */
+create or replace function public.notify_call(recipient uuid, actor uuid)
+returns void language sql security definer set search_path = public as $$
+  update public.notifications set body = 'Missed call', read = false
+   where auth.uid() is not null and user_id = recipient and actor_id = auth.uid() and kind = 'call'
+     and post_id is null and body like 'Calling|%' and created_at > now() - interval '3 minutes';
+$$;
+revoke execute on function public.notify_call(uuid, uuid) from public, anon;
+grant execute on function public.notify_call(uuid, uuid) to authenticated;
+
+notify pgrst, 'reload schema';
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة

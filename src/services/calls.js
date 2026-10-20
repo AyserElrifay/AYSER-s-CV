@@ -12,28 +12,10 @@ import { supabase } from '../lib/supabase';
    STUN plus a TURN relay (getRtcConfig) — when nothing can connect,
    the call honestly fails instead of faking. */
 
-/* STUN tells each side what its public address is. That is enough on
-   most home networks and on nothing else: behind a strict NAT — mobile
-   data, a company wifi, most of Egypt's carriers — the two browsers
-   never find a route and the call sits "connecting" with no audio.
-
-   A TURN relay is what fixes that, and it is the difference between a
-   call that works for some people and one that works. openrelay is a
-   free public TURN service; set EXPO_PUBLIC_TURN_URL/USER/PASS to
-   point at your own when the traffic justifies paying for one. */
-const TURN_URL = process.env.EXPO_PUBLIC_TURN_URL || 'turn:openrelay.metered.ca:80';
-const TURN_USER = process.env.EXPO_PUBLIC_TURN_USER || 'openrelayproject';
-const TURN_PASS = process.env.EXPO_PUBLIC_TURN_PASS || 'openrelayproject';
-
-export const RTC_CONFIG = {
-  iceServers: [
-    { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' },
-    { urls: TURN_URL, username: TURN_USER, credential: TURN_PASS },
-    { urls: TURN_URL.replace(':80', ':443'), username: TURN_USER, credential: TURN_PASS },
-  ],
-  iceCandidatePoolSize: 4,
-};
+/* STUN alone is the fallback: it works on most home networks and on
+   nothing else (mobile data, company wifi). The relay that makes calls
+   work everywhere is our own Cloudflare TURN, below. */
+export const RTC_CONFIG = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }], iceCandidatePoolSize: 4 };
 
 /* The relay that works: a short-lived Cloudflare TURN address from our
    own server (supabase/functions/turn). Fetched once, kept for a few
@@ -55,7 +37,16 @@ export async function getRtcConfig() {
 /* ── incoming-ring listener (mounted once, app-wide) ── */
 export function subscribeIncomingCalls(myId, onEvent) {
   const ch = supabase.channel('ring_' + myId, { config: { broadcast: { self: false } } });
-  ch.on('broadcast', { event: 'ring' }, ({ payload }) => onEvent({ type: 'ring', ...payload }));
+  /* a ring counts only if the server saw this call: the name and photo
+     are the caller's real ones, never what the broadcast claimed */
+  const seen = {};
+  ch.on('broadcast', { event: 'ring' }, async ({ payload }) => {
+    const p = payload || {}, id = p.callId;
+    if (!id || seen[id]) return;
+    seen[id] = 1;
+    const { data: who } = await supabase.rpc('call_check', { p_from: (p.from || {}).id, p_call: id }).then((r) => r, () => ({}));
+    if (who) onEvent({ type: 'ring', callId: id, video: !!p.video, from: who }); else delete seen[id];
+  });
   ch.on('broadcast', { event: 'cancel' }, ({ payload }) => onEvent({ type: 'cancel', ...payload }));
   ch.subscribe();
   return () => { try { supabase.removeChannel(ch); } catch (e) {} };
@@ -68,11 +59,14 @@ export async function ringUser(peerId, payload) {
     ch.subscribe((status) => { if (status === 'SUBSCRIBED') resolve(); });
     setTimeout(resolve, 4000); // never hang forever on a bad network
   });
+  /* the server first: it writes the call down (that is the push, "…
+     is calling you", which rings a phone with Moments closed) and it is
+     what the other phone checks before it rings at all — call_check */
+  const { data: ok } = await supabase.rpc('call_ring', { p_to: peerId, p_call: payload.callId });
+  if (!ok || !ok.ok) { supabase.removeChannel(ch); throw new Error('ring'); }
   await ch.send({ type: 'broadcast', event: 'ring', payload });
-  /* the phone rings even with Moments closed: a real push ("… is calling
-     you"), and the ring goes out again every few seconds so a phone that
-     opens Moments from that push still catches the call */
-  supabase.rpc('call_ring', { p_to: peerId }).then(() => {}, () => {});
+  /* again every few seconds, so a phone that opens Moments from the
+     push still catches the call */
   const again = setInterval(() => { ch.send({ type: 'broadcast', event: 'ring', payload }).catch(() => {}); }, 3000);
   return {
     cancel: async () => {

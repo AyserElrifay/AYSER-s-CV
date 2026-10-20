@@ -193,6 +193,27 @@ jobs:
           if [ "$code" != "200" ]; then head -c 800 /tmp/auth.out; echo; echo "::error::Auth settings were not saved."; exit 1; fi
           echo "allow list now: $(jq -r '.uri_allow_list' /tmp/auth.out)"
 
+      # The Studio's Face ID / fingerprint is a WebAuthn second factor,
+      # and Supabase keeps it switched off until the project turns it on
+      # ("Face ID / fingerprint is not switched on for this project yet").
+      # The authenticator-app code stays on: it is the way back if the
+      # phone is lost. Never fails the run.
+      - name: Switch on Face ID / fingerprint for the Studio
+        continue-on-error: true
+        run: |
+          set -uo pipefail
+          api="https://api.supabase.com/v1/projects/$REF/config/auth"
+          body='{"mfa_totp_enroll_enabled":true,"mfa_totp_verify_enabled":true,"mfa_web_authn_enroll_enabled":true,"mfa_web_authn_verify_enabled":true}'
+          code=$(curl -sS -o /tmp/mfa.out -w '%{http_code}' -X PATCH "$api" \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H 'Content-Type: application/json' --data "$body")
+          echo "HTTP $code"
+          if [ "$code" = "200" ] && [ "$(jq -r '.mfa_web_authn_verify_enabled // empty' /tmp/mfa.out)" = "true" ]; then
+            echo "Face ID / fingerprint is on for the Studio."
+          else
+            head -c 600 /tmp/mfa.out; echo
+            echo "::warning::Face ID / fingerprint could not be switched on — the code still works."
+          fi
+
       # The runner has the open internet the app's own sandbox does not,
       # so the catalogue is filled here rather than by someone sitting in
       # the app pressing a button. The script refuses anything published

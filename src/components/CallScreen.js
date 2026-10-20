@@ -190,11 +190,10 @@ export const CallScreen = ({ peer, video, incoming = false, callId: incomingCall
         beginConnecting();
       } else {
         // 4 — actually ring their device
-        ringRef.current = await ringUser(peer.id, {
-          callId,
-          video: !!cam,
-          from: { id: user.id, name: user.name || 'Someone', avatar: user.avatar_url || null },
-        });
+        /* the server says no (no chat between you, or a block): it does not ring */
+        try {
+          ringRef.current = await ringUser(peer.id, { callId, video: !!cam, from: { id: user.id } });
+        } catch (e) { if (!cancelled) setState('failed'); return; }
         /* Nobody picked up in 30s → stop ringing them and leave a REAL
            missed-call notification. If they DID pick up (offer sent),
            this is not a missed call — connecting has its own deadline. */
