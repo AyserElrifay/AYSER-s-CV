@@ -26,7 +26,12 @@ async function clearStale() {
   for (const f of stale) { try { await supabase.auth.mfa.unenroll({ factorId: f.id }); } catch (e) {} }
 }
 
-export const passkeySupported = () => typeof window !== 'undefined' && !!window.PublicKeyCredential;
+/* Supabase's hosted projects refuse WebAuthn MFA for now ("Enabling of
+   MFA with WebAuthn not currently supported" — setup-backend tries it
+   on every run). Until they allow it the button is not shown at all;
+   flip PASSKEYS_ON when the setup log says "Face ID … is on". */
+const PASSKEYS_ON = false;
+export const passkeySupported = () => PASSKEYS_ON && typeof window !== 'undefined' && !!window.PublicKeyCredential;
 
 export async function addPasskey() {
   await clearStale();
