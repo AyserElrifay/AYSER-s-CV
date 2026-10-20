@@ -17,9 +17,10 @@ import { HighlightVideo } from './GoOutRail';
 import { fetchHighlights } from '../services/appHighlights';
 
 /* Travel buddies: Ayser's own clips taking turns — the campfire, the
-   bus dancing, the Dahab evening (his highlight from the Studio) and
-   the painting night. One plays at a time; every few seconds the next. */
-const BUDDY_CLIPS = [['buddies-fire.mp4', 'buddies-fire.jpg'], ['buddies-bus.mp4', 'buddies-bus.jpg'], ['painting-night.mp4', 'painting-night.jpg']];
+   bus dancing (the night one, blurred, back first — Ayser: "رجعو"),
+   the Dahab evening (his highlight from the Studio) and the painting
+   night. One plays at a time; every few seconds the next. */
+const BUDDY_CLIPS = [['travel-buddies.mp4', 'travel-buddies.jpg'], ['buddies-fire.mp4', 'buddies-fire.jpg'], ['buddies-bus.mp4', 'buddies-bus.jpg'], ['painting-night.mp4', 'painting-night.jpg']];
 const BuddiesReel = () => {
   const [clips, setClips] = useState(() => BUDDY_CLIPS.map(([v, p]) => ({ uri: publicMedia(v), poster: publicMedia(p) })));
   const [at, setAt] = useState(0);
