@@ -26,6 +26,7 @@ import { sendMessage } from '../services/messages';
 import { tapLight, tapSuccess } from '../utils/feedback';
 import { useStable } from '../hooks/useStable';
 import { recent, clearCrashes, asText } from '../lib/crashLog';
+import { ownerProblems, setProblem } from '../lib/problems';
 import { SheetHandle } from './SheetHandle';
 import { OffersTab } from './OffersTab';
 import { PartnersTab } from './PartnersTab';
@@ -557,7 +558,70 @@ const HostReview = ({ h, onDone }) => {
   );
 };
 
-export const AdminPanel = ({ onClose, access = { owner: true } }) => {
+/* what to do about a problem, by where it happened */
+const FIX = {
+  setup: 'The database is missing a step. Run "Set up backend" in GitHub Actions (with run_sql), then mark fixed.',
+  i18n: 'A word is missing in a language. Tell Claude the key; people see nothing in its place meanwhile.',
+  chat: 'Messages failed. Open the detail; usually a database change — run "Set up backend".',
+  capture: 'Posting a photo or video failed. Check storage (R2/Supabase) is set up.',
+  story: 'A story failed to load or post.',
+  map: 'The map failed to load places.',
+  music: 'Music failed to load.',
+  media: 'The media library failed.',
+  permission: 'A database rule refused something it should allow. Send Claude the message.',
+  query: 'A database query is wrong (often after a change). Send Claude the message.',
+};
+const Quiet = ({ t }) => <Text style={{ color: C.faint, fontSize: 13, textAlign: 'center', paddingVertical: 24 }}>{t}</Text>;
+const fixFor = (area) => FIX[area] || 'A screen failed. Send Claude the message and detail below.';
+
+const Problems = () => {
+  const [list, setList] = useState(null);
+  const [err, setErr] = useState(false);
+  const [showFixed, setShowFixed] = useState(false);
+  const load = () => ownerProblems().then((l) => { setList(l); setErr(false); }).catch(() => { setErr(true); setList([]); });
+  useEffect(() => { load(); }, []);
+  const act = async (id, status) => {
+    tapLight();
+    setList((q) => (status === 'delete' ? q.filter((x) => x.id !== id) : q.map((x) => (x.id === id ? { ...x, status } : x))));
+    try { await setProblem(id, status); } catch (e) { load(); }
+  };
+  if (list == null) return <ActivityIndicator color={C.purple} style={{ marginTop: 20 }} />;
+  if (err) return <Quiet t='Run "Set up backend" (with run_sql) to collect problems from every phone here.' />;
+  const open = list.filter((p) => p.status !== 'fixed');
+  const fixed = list.filter((p) => p.status === 'fixed');
+  const card = (p) => (
+    <View key={p.id} style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: p.status === 'fixed' ? C.line : C.purple, borderRadius: 14, padding: 12, marginBottom: 9, opacity: p.status === 'fixed' ? 0.6 : 1 }}>
+      <Text style={{ color: C.faint, fontSize: 10, fontWeight: '900', letterSpacing: 0.8 }}>
+        {String(p.area).toUpperCase()} · {p.count}× · {p.users} {p.users === 1 ? 'person' : 'people'} · last {String(p.last_at).replace('T', ' ').slice(5, 16)}
+      </Text>
+      <Text selectable style={{ color: C.text, fontSize: 12.5, fontWeight: '800', marginTop: 5 }}>{p.message}</Text>
+      <Text style={{ color: C.dim, fontSize: 11.5, lineHeight: 16, marginTop: 5 }}>How to fix: {fixFor(p.area)}</Text>
+      {p.detail ? <Text selectable style={{ color: C.faint, fontSize: 9.5, marginTop: 5, lineHeight: 13 }} numberOfLines={4}>{p.code ? '[' + p.code + '] ' : ''}{p.detail}</Text> : null}
+      <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 8 }}>
+        <Pressable onPress={() => act(p.id, 'delete')} hitSlop={8} style={{ marginRight: 16 }} accessibilityRole="button" accessibilityLabel="Delete">
+          <Text style={{ color: C.dim, fontSize: 12.5, fontWeight: '800' }}>Delete</Text>
+        </Pressable>
+        <Pressable onPress={() => act(p.id, p.status === 'fixed' ? 'open' : 'fixed')} hitSlop={8} accessibilityRole="button" accessibilityLabel={p.status === 'fixed' ? 'Reopen' : 'Mark fixed'}>
+          <Text style={{ color: p.status === 'fixed' ? C.text : C.green, fontSize: 12.5, fontWeight: '900' }}>{p.status === 'fixed' ? 'Reopen' : 'Mark fixed ✓'}</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+  return (
+    <>
+      <Text style={{ color: C.faint, fontSize: 10.5, fontWeight: '900', letterSpacing: 0.9, marginBottom: 8 }}>FROM EVERY PHONE · {open.length} OPEN</Text>
+      {open.length ? open.map(card) : <Quiet t="No open problems. People see a calm message when something fails; it lands here." />}
+      {fixed.length ? (
+        <Pressable onPress={() => setShowFixed((v) => !v)} hitSlop={8} style={{ marginTop: 4, marginBottom: 6 }}>
+          <Text style={{ color: C.dim, fontSize: 12.5, fontWeight: '800' }}>{showFixed ? 'Hide' : 'Show'} fixed ({fixed.length})</Text>
+        </Pressable>
+      ) : null}
+      {showFixed ? fixed.map(card) : null}
+    </>
+  );
+};
+
+export const AdminPanel = ({ onClose, access = { owner: true }, initialTab = null }) => {
   const tabs = TABS.filter((t) => canOpen(access, t));
   const { lang } = useLang();
   const owner = !!access.owner;
@@ -565,7 +629,7 @@ export const AdminPanel = ({ onClose, access = { owner: true } }) => {
   useSheetBack(onClose);
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const [tab, setTab] = useState(() => (tabs[0] ? tabs[0].k : 'safety'));
+  const [tab, setTab] = useState(() => (initialTab && tabs.some((x) => x.k === initialTab) ? initialTab : tabs[0] ? tabs[0].k : 'safety'));
   const [stats, setStats] = useState(null);
   const [reports, setReports] = useState(null);
   const [verifs, setVerifs] = useState(null);
@@ -954,9 +1018,12 @@ export const AdminPanel = ({ onClose, access = { owner: true } }) => {
             hosts.map((h) => <HostReview key={h.user_id} h={h} onDone={(id) => setHosts((q) => q.filter((x) => x.user_id !== id))} />)
           ) : null}
 
-          {/* what failed on THIS phone — kept on the device (src/lib/crashLog.js) */}
+          {/* what failed on anybody's phone (src/lib/problems.js), then on THIS
+              phone — kept on the device (src/lib/crashLog.js) */}
           {tab === 'errors' ? (
             <>
+              <Problems />
+              <Text style={{ color: C.faint, fontSize: 10.5, fontWeight: '900', letterSpacing: 0.9, marginTop: 18, marginBottom: 8 }}>ON THIS PHONE</Text>
               <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginBottom: 10 }}>
                 <Pressable onPress={() => { try { if (typeof navigator !== 'undefined' && navigator.clipboard) navigator.clipboard.writeText(asText()); } catch (e) {} tapSuccess(); }} hitSlop={8} style={{ marginRight: 16 }}>
                   <Text style={{ color: C.text, fontSize: 13, fontWeight: '800' }}>Copy all</Text>

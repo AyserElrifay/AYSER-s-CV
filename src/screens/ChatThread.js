@@ -133,7 +133,8 @@ export const ChatThread = ({ chat, group, onClose }) => {
     if (/does not exist|schema cache|get_or_create_dm_thread/i.test(m)) {
       return setupNotice('Messages need one more step: run supabase/RUN_ME.sql in the Supabase SQL Editor.');
     }
-    return m || 'Could not send — try again.';
+    // never the raw error: that went to the Studio with note() above
+    return t('gc_failed');
   };
   // real "last active" for the person you're chatting with
   const [peerActive, setPeerActive] = useState(null); // ISO string | null

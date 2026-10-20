@@ -15,6 +15,8 @@
    account, because the person who can act on "TypeError: undefined is
    not an object (evaluating 'x.name')" is the one building the app. */
 
+import { reportProblem } from './problems';
+
 const KEY = 'mm_crashes_v1';
 const MAX = 12;
 
@@ -55,6 +57,8 @@ export function note(where, err, extra) {
   arr.unshift(entry);
   write(arr);
   if (typeof console !== 'undefined' && console.warn) console.warn('[' + entry.where + '] ' + entry.msg);
+  // and to the Studio, where it can be fixed (src/lib/problems.js)
+  reportProblem(entry.where, err, entry.extra || entry.stack.split('\n')[1]);
   return entry;
 }
 

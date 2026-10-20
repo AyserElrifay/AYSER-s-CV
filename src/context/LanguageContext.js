@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { reportProblem } from '../lib/problems';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { STRINGS, LANGS } from '../constants/i18n';
@@ -193,7 +194,14 @@ export const LanguageProvider = ({ children }) => {
     AsyncStorage.setItem(KEY, l).catch(() => {});
   };
 
-  const t = (key) => (loaded[lang] && loaded[lang][key]) || STRINGS.en[key] || key;
+  /* A word missing in every language is a bug, not something to print:
+     the person sees nothing odd, and the key goes to the Studio. */
+  const t = (key) => {
+    const v = (loaded[lang] && loaded[lang][key]) || STRINGS.en[key];
+    if (v) return v;
+    if (typeof key === 'string' && /^[a-z][a-z0-9_]*$/.test(key) && !/_many$/.test(key)) { reportProblem('i18n', 'missing key: ' + key); return ''; }
+    return key;
+  };
   labelT = t;
   langCur = lang;
   const meta = LANGS.find((l) => l.code === lang) || LANGS[0];

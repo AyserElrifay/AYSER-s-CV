@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { reportProblem } from '../lib/problems';
 import { View, Text, Modal, Pressable, Image, TextInput, ScrollView, Platform, PanResponder } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -1971,7 +1972,7 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
           ? setupNotice('Upload blocked by storage permissions — run the latest supabase/RUN_ME.sql to fix the media policies.')
           : /load failed|failed to fetch|network/i.test(m)
           ? 'The upload didn\'t reach the server — check your connection and tap share again (large videos need a steady signal).'
-          : (m || t('cap_err_share'))
+          : (reportProblem('capture', e), t('cap_err_share'))
       );
       /* The friendly sentence above hides the only thing that can
          actually diagnose this. The owner gets the real words. */

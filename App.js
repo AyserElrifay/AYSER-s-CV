@@ -44,7 +44,7 @@ import { IncomingCallGate } from './src/components/IncomingCallGate';
 import { WhatsNew } from './src/components/WhatsNew';
 import { isOwner } from './src/services/music';
 import { myStudio } from './src/services/team';
-import { studioRequested, stripStudioParam } from './src/utils/studioLink';
+import { studioRequested, stripStudioParam, studioTab } from './src/utils/studioLink';
 import { initPwa } from './src/lib/pwa';
 import { Boundary } from './src/components/Boundary';
 import { InstallPrompt } from './src/components/InstallPrompt';
@@ -94,6 +94,7 @@ const StudioGate = () => {
   /* null | { lock: identity } | { access } — always what the SERVER said */
   const [st, setSt] = React.useState(null);
   const opened = React.useRef(0);
+  const firstTab = React.useRef(null);
   const look = React.useCallback(async (force) => {
     /* asked up to three times: a token being refreshed, a dropped
        request, must not read as "no" */
@@ -116,6 +117,7 @@ const StudioGate = () => {
   }, [user]);
   React.useEffect(() => {
     if (!user || !studioRequested()) return undefined;
+    firstTab.current = studioTab();
     stripStudioParam();
     look(true);   // the lock every time the Studio is opened
     return undefined;
@@ -136,7 +138,7 @@ const StudioGate = () => {
   if (!st) return null;
   if (st.problem) return <StudioProblem why={st.problem} email={user && user.email} onRetry={() => { setSt(null); look(true); }} onClose={() => setSt(null)} />;
   if (st.lock) return <StudioLock identity={st.lock} onUnlocked={() => look(false)} onClose={() => setSt(null)} />;
-  return <AdminPanel access={st.access} onClose={() => setSt(null)} />;
+  return <AdminPanel access={st.access} initialTab={firstTab.current} onClose={() => setSt(null)} />;
 };
 
 const Root = () => {

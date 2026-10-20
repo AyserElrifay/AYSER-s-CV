@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { reportProblem } from '../lib/problems';
 import { View, Text, ScrollView, Pressable, Modal, TextInput, Platform, Image, Linking, ActivityIndicator, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -786,7 +787,7 @@ export const MapScreen = () => {
     const m = (e && e.message) || '';
     return /does not exist|schema cache|get_or_create/i.test(m)
       ? setupNotice('One step left: run supabase/RUN_ME.sql to turn this on.')
-      : (m || 'Something went wrong — try again.');
+      : (reportProblem('map', e), 'Something went wrong — try again.');
   };
 
   /* ── Meet up 🤝 — sends a REAL invite (DM) and draws a route line on

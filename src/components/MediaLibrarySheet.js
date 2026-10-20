@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { reportProblem } from '../lib/problems';
 import { View, Text, Modal, Pressable, ScrollView, Image, ActivityIndicator, Platform, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -142,7 +143,8 @@ export const MediaLibrarySheet = ({ onPick, onClose, only = null, inline = false
       setRows((list) => [row].concat(list || []));
     } catch (e) {
       const m = (e && e.message) || '';
-      setErr(/cancelled/i.test(m) ? null : (m || 'That upload did not go through — try again.'));
+      if (!/cancelled/i.test(m)) reportProblem('library', e);
+      setErr(/cancelled/i.test(m) ? null : 'That upload did not go through — try again.');
     } finally { setBusy(null); setPct(0); setSqueeze(null); abortRef.current = null; }
   };
 

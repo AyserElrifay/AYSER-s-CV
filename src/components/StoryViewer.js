@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { reportProblem } from '../lib/problems';
 import { View, Text, Modal, Pressable, ImageBackground, Animated, Image, Dimensions, Platform, TextInput, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -34,7 +35,8 @@ const explainStory = (e) => {
   }
   if (/row-level security|violates row-level/i.test(m)) return 'Comments are off for this story.';
   if (/JWT|auth/i.test(m)) return 'Sign in again and try that once more.';
-  return m || 'That did not go through — try again.';
+  reportProblem('story', e);
+  return 'That did not go through — try again.';
 };
 
 /* Time-ago for the viewers list ("3m", "2h") — short, no library. */

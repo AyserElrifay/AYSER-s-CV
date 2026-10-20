@@ -17869,19 +17869,21 @@ create table if not exists public.squad_games (
 );
 create index if not exists squad_games_squad on public.squad_games (squad_id, created_at desc);
 create table if not exists public.squad_game_moves (
+  id         uuid primary key default gen_random_uuid(),
   game_id    uuid not null references public.squad_games(id) on delete cascade,
   user_id    uuid not null references public.profiles(id) on delete cascade,
   slot       text not null default '',
   move       jsonb not null,
   created_at timestamptz not null default now(),
-  primary key (game_id, user_id, slot)
+  unique (game_id, user_id, slot)
 );
 -- "we met this week": two of you saying so is a week of the group's streak
 create table if not exists public.squad_meets (
+  id       uuid primary key default gen_random_uuid(),
   squad_id uuid not null references public.squads(id) on delete cascade,
   user_id  uuid not null references public.profiles(id) on delete cascade,
   week     date not null,
-  primary key (squad_id, user_id, week)
+  unique (squad_id, user_id, week)
 );
 alter table public.squad_games enable row level security;
 alter table public.squad_game_moves enable row level security;
@@ -18718,11 +18720,12 @@ create table if not exists public.opening_moves (
   updated_at timestamptz not null default now()
 );
 create table if not exists public.message_reactions (
+  id         uuid primary key default gen_random_uuid(),
   message_id uuid not null references public.messages(id) on delete cascade,
   user_id    uuid not null references public.profiles(id) on delete cascade,
   emoji      text not null check (emoji in ('❤️','😂','👍','🔥','😮','🙏')),
   created_at timestamptz not null default now(),
-  primary key (message_id, user_id)
+  unique (message_id, user_id)
 );
 alter table public.opening_moves enable row level security;
 alter table public.message_reactions enable row level security;
@@ -18855,6 +18858,130 @@ select * from (values
   '{"pt":"Desenhar azulejos"}'::jsonb,'{"pt":"Escolha uma rua de fachadas de azulejo, e cada um desenha um azulejo com todos os detalhes."}'::jsonb)
 ) v(kind, country, title_ar, title_en, about_ar, about_en, minutes, people, sort, title_i18n, about_i18n)
 where not exists (select 1 from public.green_sparks s where s.title_en = v.title_en);
+
+notify pgrst, 'reload schema';
+
+-- ═══════════════════════════════════════════════════════════════════
+--  ONE LINK BETWEEN MESSAGES AND PEOPLE
+--  A table whose primary key is made of a message and a person reads to
+--  the API as a second road from messages to profiles, and then every
+--  chat query that asks for "the person who wrote this" is refused as
+--  ambiguous — that is what stopped messages sending on 20 October.
+--  message_reactions, squad_game_moves and squad_meets get their own id
+--  as the key; the pair stays unique, so nothing else changes.
+--  Safe to re-run.
+-- ═══════════════════════════════════════════════════════════════════
+do $do$
+declare t text; pk text; cols text;
+begin
+  foreach t in array array['message_reactions','squad_game_moves','squad_meets'] loop
+    select c.conname into pk from pg_constraint c where c.conrelid = ('public.' || t)::regclass and c.contype = 'p';
+    -- already keyed by its own id: nothing to do
+    if pk is not null and exists (select 1 from pg_constraint c join pg_attribute a on a.attrelid = c.conrelid and a.attnum = any (c.conkey)
+                                   where c.conname = pk and c.conrelid = ('public.' || t)::regclass and a.attname = 'id') then
+      continue;
+    end if;
+    cols := case t when 'message_reactions' then 'message_id, user_id' when 'squad_game_moves' then 'game_id, user_id, slot' else 'squad_id, user_id, week' end;
+    if pk is not null then execute format('alter table public.%I drop constraint %I', t, pk); end if;
+    execute format('alter table public.%I add column if not exists id uuid not null default gen_random_uuid()', t);
+    execute format('alter table public.%I add primary key (id)', t);
+    if not exists (select 1 from pg_constraint where conrelid = ('public.' || t)::regclass and contype = 'u') then
+      execute format('alter table public.%I add unique (%s)', t, cols);
+    end if;
+  end loop;
+end $do$;
+
+notify pgrst, 'reload schema';
+
+-- ═══════════════════════════════════════════════════════════════════
+--  PROBLEMS GO TO THE STUDIO, NOT TO PEOPLE
+--  Ayser: "إزاي تبان مشاكل للناس؟ أي مشكلة تجيلي إشعار في الستوديو".
+--  When something fails on anybody's phone, the phone sends one line
+--  here (report_problem): where, what, the error code. The same problem
+--  is one row with a count, not a flood. A new one — or one marked
+--  fixed that comes back — tells the owner with a notification, at most
+--  20 a day. The person only ever sees a friendly sentence.
+--  Nobody can read this table but the owner, through owner_problems.
+--  Safe to re-run.
+-- ═══════════════════════════════════════════════════════════════════
+create table if not exists public.app_problems (
+  id          uuid primary key default gen_random_uuid(),
+  fingerprint text not null unique,
+  area        text not null,
+  message     text not null,
+  code        text,
+  detail      text,
+  count       int not null default 1,
+  users       int not null default 1,
+  last_user   uuid,
+  first_at    timestamptz not null default now(),
+  last_at     timestamptz not null default now(),
+  status      text not null default 'open' check (status in ('open','fixed'))
+);
+create index if not exists app_problems_open on public.app_problems (status, last_at desc);
+alter table public.app_problems enable row level security;
+revoke all on public.app_problems from anon, authenticated;
+
+do $do$ begin
+  alter table public.notifications drop constraint if exists notifications_kind_check;
+  alter table public.notifications add constraint notifications_kind_check
+    check (kind in ('vibe','laugh','comment','mate_request','mate_accept','message','call','tag','repost','green_invite','food_order','food_status','bardi_match','plan_soon','venue_decision','xp_award','safety','creator_plan','booking','trip_open','team_reply','biz_request','biz_reply','app_problem'))
+    not valid;
+exception when others then raise notice 'notifications kind constraint skipped: %', sqlerrm;
+end $do$;
+
+create or replace function public.report_problem(p_area text, p_message text, p_code text, p_detail text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); a text := left(btrim(coalesce(p_area, '?')), 40); m text := left(btrim(coalesce(p_message, '')), 300);
+  fp text; pr public.app_problems%rowtype; fresh boolean := false; o record;
+begin
+  if m = '' then return jsonb_build_object('ok', false); end if;
+  -- the same problem from a thousand phones is one problem
+  fp := md5(a || '|' || regexp_replace(lower(m), '[0-9a-f]{8}-[0-9a-f-]{27}|[0-9]+', '#', 'g'));
+  select * into pr from public.app_problems where fingerprint = fp;
+  if not found then
+    -- a flood of brand-new problems is cut off rather than stored
+    if (select count(*) from public.app_problems where first_at > now() - interval '1 hour') >= 200 then
+      return jsonb_build_object('ok', false, 'reason', 'busy');
+    end if;
+    insert into public.app_problems (fingerprint, area, message, code, detail, last_user)
+    values (fp, a, m, left(p_code, 40), left(p_detail, 800), me) returning * into pr;
+    fresh := true;
+  else
+    update public.app_problems set count = count + 1, last_at = now(),
+      users = users + case when last_user is distinct from me then 1 else 0 end, last_user = me,
+      status = 'open', detail = coalesce(left(p_detail, 800), detail)
+     where id = pr.id;
+    fresh := pr.status = 'fixed';
+  end if;
+  if fresh and (select count(*) from public.notifications where kind = 'app_problem' and created_at > now() - interval '1 day') < 20 then
+    for o in select p.id from public.app_owners ao join auth.users u on lower(u.email) = lower(ao.email) join public.profiles p on p.id = u.id loop
+      insert into public.notifications (user_id, actor_id, kind, body) values (o.id, o.id, 'app_problem', left(a || ' · ' || m, 140));
+    end loop;
+  end if;
+  return jsonb_build_object('ok', true);
+end $$;
+
+create or replace function public.owner_problems()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select case when not public.is_app_owner() then '[]'::jsonb else coalesce((
+    select jsonb_agg(to_jsonb(x) - 'fingerprint' - 'last_user' order by (x.status = 'open') desc, x.last_at desc)
+      from (select * from public.app_problems order by last_at desc limit 200) x), '[]'::jsonb) end;
+$$;
+
+create or replace function public.owner_problem_set(p_id uuid, p_status text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_app_owner() then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
+  if p_status = 'delete' then delete from public.app_problems where id = p_id; return jsonb_build_object('ok', true); end if;
+  if p_status not in ('open','fixed') then return jsonb_build_object('ok', false, 'reason', 'status'); end if;
+  update public.app_problems set status = p_status where id = p_id;
+  return jsonb_build_object('ok', found);
+end $$;
+
+revoke all on function public.report_problem(text, text, text, text), public.owner_problems(), public.owner_problem_set(uuid, text) from public;
+grant execute on function public.report_problem(text, text, text, text) to anon, authenticated;
+grant execute on function public.owner_problems(), public.owner_problem_set(uuid, text) to authenticated;
 
 notify pgrst, 'reload schema';
 

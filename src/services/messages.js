@@ -41,7 +41,7 @@ export async function getOrCreateDmThread(otherUserId, myId) {
 export async function fetchMessages({ squadId, dmThreadId }) {
   let q = supabase
     .from('messages')
-    .select('*, user:profiles(name, handle, avatar_url)')
+    .select('*, user:profiles!messages_user_id_fkey(name, handle, avatar_url)')
     .order('created_at', { ascending: true })
     .limit(200);
   q = squadId ? q.eq('squad_id', squadId) : q.eq('dm_thread_id', dmThreadId);
@@ -54,7 +54,7 @@ export async function sendMessage({ squadId, dmThreadId, userId, body }) {
   const { data, error } = await supabase
     .from('messages')
     .insert({ squad_id: squadId || null, dm_thread_id: dmThreadId || null, user_id: userId, body })
-    .select('*, user:profiles(name, handle, avatar_url)')
+    .select('*, user:profiles!messages_user_id_fkey(name, handle, avatar_url)')
     .single();
   if (error) throw error;
   return data;
@@ -73,12 +73,12 @@ export async function sendMoment({ squadId, dmThreadId, userId, mediaUrl, mediaK
     body, media_url: mediaUrl, media_kind: mediaKind || 'photo', kind: 'moment',
   };
   let res = await supabase.from('messages').insert(full)
-    .select('*, user:profiles(name, handle, avatar_url)').single();
+    .select('*, user:profiles!messages_user_id_fkey(name, handle, avatar_url)').single();
   // DB without the moment columns yet → send the caption as a normal message
   if (res.error && /media_url|media_kind|'kind'|column/i.test(res.error.message || '')) {
     res = await supabase.from('messages')
       .insert({ squad_id: squadId || null, dm_thread_id: dmThreadId || null, user_id: userId, body })
-      .select('*, user:profiles(name, handle, avatar_url)').single();
+      .select('*, user:profiles!messages_user_id_fkey(name, handle, avatar_url)').single();
   }
   if (res.error) throw res.error;
   return res.data;
@@ -91,7 +91,7 @@ export async function sendGameInvite({ dmThreadId, userId, matchId }) {
   const { data, error } = await supabase
     .from('messages')
     .insert({ dm_thread_id: dmThreadId, user_id: userId, body: '🏃 Catch Your Mate — invite sent', kind: 'game_invite', game_match_id: matchId })
-    .select('*, user:profiles(name, handle, avatar_url)')
+    .select('*, user:profiles!messages_user_id_fkey(name, handle, avatar_url)')
     .single();
   if (error) throw error;
   return data;
@@ -399,12 +399,12 @@ export async function noteScreenshot({ dmThreadId, squadId, userId }) {
   if (!userId || (!dmThreadId && !squadId)) return null;
   const row = { user_id: userId, body: '📸 took a screenshot', kind: 'screenshot' };
   if (dmThreadId) row.dm_thread_id = dmThreadId; else row.squad_id = squadId;
-  let res = await supabase.from('messages').insert(row).select('*, user:profiles(name, handle, avatar_url)').single();
+  let res = await supabase.from('messages').insert(row).select('*, user:profiles!messages_user_id_fkey(name, handle, avatar_url)').single();
   if (res.error && /'kind'|column/i.test(res.error.message || '')) {
     // older database without the kind column — send it as plain text so
     // the other person still finds out
     delete row.kind;
-    res = await supabase.from('messages').insert(row).select('*, user:profiles(name, handle, avatar_url)').single();
+    res = await supabase.from('messages').insert(row).select('*, user:profiles!messages_user_id_fkey(name, handle, avatar_url)').single();
   }
   if (res.error) return null;
   return res.data;

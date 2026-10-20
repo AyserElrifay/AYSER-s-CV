@@ -1,3 +1,5 @@
+import { reportProblem } from './problems';
+
 /* ─── WHAT WENT WRONG, IN WORDS A PERSON USES ────────────────────────
    Postgres and PostgREST write for whoever is on call, not for whoever
    is holding the phone. "Could not find the table 'public.posts' in the
@@ -19,7 +21,9 @@
 export function explain(e) {
   const msg = String((e && (e.message || e.hint)) || '');
   const code = e && e.code;
-  if (code === '42P01' || code === 'PGRST205' || /does not exist|schema cache|could not find/i.test(msg)) return 'setup';
-  if (code === '42501' || /row-level security|policy|permission denied/i.test(msg)) return 'permission';
+  /* the first two are ours to fix, so the Studio hears about them */
+  if (code === '42P01' || code === 'PGRST205' || /does not exist|schema cache|could not find/i.test(msg)) { reportProblem('setup', e); return 'setup'; }
+  if (code === '42501' || /row-level security|policy|permission denied/i.test(msg)) { reportProblem('permission', e); return 'permission'; }
+  if (/more than one relationship|PGRST20[01]|violates|syntax error|invalid input/i.test(msg + ' ' + (code || ''))) reportProblem('query', e);
   return 'offline';
 }

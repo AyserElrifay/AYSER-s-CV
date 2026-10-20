@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { reportProblem } from '../lib/problems';
 import { View, Text, Pressable, ScrollView, TextInput, ActivityIndicator, Modal } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -158,7 +159,7 @@ export const MusicHubSheet = ({ onPick, onClose }) => {
           });
           setMine((m) => [row, ...m]);
           say('Recorded — only you can see it until you post with it');
-        } catch (e) { say((e && e.message) || 'Could not save that sound'); }
+        } catch (e) { reportProblem('music', e); say('Could not save that sound'); }
         finally { setUpBusy(false); }
       };
       rec.start();

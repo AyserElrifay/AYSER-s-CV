@@ -19,6 +19,18 @@ export function studioRequested() {
   } catch (e) { return false; }
 }
 
+/* ?studio=errors opens the Studio on that tab (the problem notification) */
+export function studioTab() {
+  try {
+    const v = new URLSearchParams(window.location.search).get(PARAM);
+    return v && /^[a-z]+$/.test(v) ? v : null;
+  } catch (e) { return null; }
+}
+
+export function openStudio(tab) {
+  try { window.location.assign(window.location.pathname + '?' + PARAM + '=' + (tab || '1')); } catch (e) {}
+}
+
 export function stripStudioParam() {
   try {
     if (typeof window === 'undefined' || !window.history || !window.history.replaceState) return;

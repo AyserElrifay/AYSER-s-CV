@@ -28,6 +28,7 @@ import { goToTab } from '../lib/mapBus';
 import { kept, keep } from '../lib/kept';
 import { openTrip } from '../lib/tripLink';
 import { groupNotifs, namesLine } from '../lib/notifGroups';
+import { openStudio } from '../utils/studioLink';
 const BizHub = lazyOverlay(() => import('./biz').then((m) => ({ default: m.BizHub })));
 const GoNowSheet = lazyOverlay(() => import('./GoNowSheet').then((m) => ({ default: m.GoNowSheet })));
 const CommentsSheet = lazyOverlay(() => import('./CommentsSheet').then((m) => ({ default: m.CommentsSheet })));
@@ -178,6 +179,7 @@ export const NotificationsSheet = ({ onClose }) => {
     if (n.kind === 'bardi_match') { const m = readMatch(n.body); if (m) { tapSelection(); setGoNowFrom(m); } return; }
     if (n.kind === 'food_order') { tapSelection(); setFoodTab('kitchen'); return; }
     if (n.kind === 'biz_request') { tapSelection(); setBizOpen(true); return; }
+    if (n.kind === 'app_problem') { tapSelection(); openStudio('errors'); return; }
     if (n.kind === 'food_status') { tapSelection(); setFoodTab('orders'); return; }
     if (n.kind === 'mate_request' || n.kind === 'mate_accept' || n.kind === 'call') {
       tapSelection(); setProfileUser(actorProfile(n)); return;
@@ -303,15 +305,15 @@ export const NotificationsSheet = ({ onClose }) => {
               <Image source={{ uri: g.actors[0].avatar_url || AV_NEUTRAL }} style={{ position: 'absolute', bottom: 0, left: 0, width: 32, height: 32, borderRadius: 16, borderWidth: 2, borderColor: C.bg2, backgroundColor: C.glassHi }} />
             </>
           ) : (
-            n.kind === 'trip_open' || n.kind === 'team_reply' ? (
-              <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: n.kind === 'team_reply' ? C.purpleSoft : C.glassHi, alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 22 }}>{n.kind === 'team_reply' ? '💬' : '🧳'}</Text></View>
+            n.kind === 'trip_open' || n.kind === 'team_reply' || n.kind === 'app_problem' ? (
+              <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: n.kind === 'trip_open' ? C.glassHi : C.purpleSoft, alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 22 }}>{n.kind === 'team_reply' ? '💬' : n.kind === 'app_problem' ? '🛠️' : '🧳'}</Text></View>
             ) : <Image source={{ uri: (n.actor && n.actor.avatar_url) || AV_NEUTRAL }} style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: C.glassHi }} />
           )}
           {!(g ? g.read : n.read) ? <View style={{ position: 'absolute', top: -1, right: -1, width: 11, height: 11, borderRadius: 6, backgroundColor: C.purple, borderWidth: 2, borderColor: C.bg2 }} /> : null}
         </View>
         <View style={{ flex: 1, minWidth: 0, marginLeft: 12 }}>
           <Text style={{ color: C.text, fontSize: 14.5, lineHeight: 20 }} numberOfLines={3}>
-            <Text style={{ fontWeight: '800' }}>{g ? namesLine(g.actors, words) : ((n.kind === 'safety' && n.body !== 'report' && n.body !== 'coach') || n.kind === 'trip_open' || n.kind === 'team_reply') ? 'Moments' : ((n.actor && n.actor.name) || words.someone)}</Text>
+            <Text style={{ fontWeight: '800' }}>{g ? namesLine(g.actors, words) : ((n.kind === 'safety' && n.body !== 'report' && n.body !== 'coach') || n.kind === 'trip_open' || n.kind === 'team_reply' || n.kind === 'app_problem') ? 'Moments' : ((n.actor && n.actor.name) || words.someone)}</Text>
             {' '}<Text style={{ color: C.dim }}>{verbOf(t, n.kind, g && g.actors.length > 1)}</Text>
             {'  '}<Text style={{ color: C.faint, fontSize: 12 }}>{timeAgo(n.created_at)}</Text>
           </Text>
@@ -323,6 +325,9 @@ export const NotificationsSheet = ({ onClose }) => {
           ) : null}
           {n.kind === 'safety' && n.body ? (
             <Text style={{ color: C.text, fontSize: 13, fontWeight: '700', marginTop: 2 }} numberOfLines={3}>{t('notif_safety_' + n.body)}</Text>
+          ) : null}
+          {n.kind === 'app_problem' && n.body ? (
+            <Text style={{ color: C.text, fontSize: 13, lineHeight: 18, marginTop: 2 }} numberOfLines={3}>{n.body}</Text>
           ) : null}
           {n.kind === 'team_reply' && n.body ? (
             <Text style={{ color: C.text, fontSize: 13.5, lineHeight: 19, marginTop: 3 }} numberOfLines={8}>{n.body}</Text>

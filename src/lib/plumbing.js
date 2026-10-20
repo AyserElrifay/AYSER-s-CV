@@ -1,4 +1,5 @@
 import { STRINGS } from '../constants/i18n';
+import { reportProblem } from './problems';
 
 /* ─── THE APP'S PLUMBING IS NOT FOR THE PEOPLE USING IT ───────────────
    Fifteen screens were telling whoever was holding the phone to "run
@@ -42,8 +43,12 @@ const tr = (key) => (STRINGS[lang] && STRINGS[lang][key]) || STRINGS.en[key] || 
    out. Everyone else gets `plain` when a screen has a better sentence
    for its own situation ("Groups aren't switched on yet"), and the
    general one otherwise. */
-export const setupNotice = (ownerHint, plain) =>
-  (viewerIsOwner && ownerHint ? ownerHint : (plain || tr('load_err_setup')));
+export const setupNotice = (ownerHint, plain) => {
+  // the instruction goes to the Studio as a problem; the screen, even
+  // the owner's, only ever says the friendly thing (src/lib/problems.js)
+  if (ownerHint) reportProblem('setup', ownerHint);
+  return plain || tr('load_err_setup');
+};
 
 /* True only for Ayser. For the rare screen that wants to show a whole
    extra panel rather than swap one sentence. */
