@@ -18,7 +18,7 @@ import { fetchHighlights } from '../services/appHighlights';
 
 /* Travel buddies: Ayser's own clips taking turns — the campfire, the
    bus dancing (the night one, blurred, back first — Ayser: "رجعو"),
-   the girls on the bus (blurred too: faces need consent),
+   the girls on the bus (as they are — Ayser: "من غير بلور"),
    the Dahab evening (his highlight from the Studio) and the painting
    night. One plays at a time; every few seconds the next. */
 const BUDDY_CLIPS = [['travel-buddies.mp4', 'travel-buddies.jpg'], ['buddies-fire.mp4', 'buddies-fire.jpg'], ['buddies-bus.mp4', 'buddies-bus.jpg'], ['painting-night.mp4', 'painting-night.jpg']];
