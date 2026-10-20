@@ -17657,6 +17657,24 @@ grant execute on function public.studio_dm(uuid) to authenticated;
 notify pgrst, 'reload schema';
 
 -- ═══════════════════════════════════════════════════════════════════
+--  WORKSHOPS · MAKE A SONG
+--  Ayser: "اعمل song workshop — record مثلاً أو writing أو jamming".
+--  Three music workshops beside the guitar chords: write a song, record
+--  it, or just play together. 'soon' like the others — no date, no
+--  teacher and nobody said to be going until a real one is set up in
+--  the Studio. Safe to re-run.
+-- ═══════════════════════════════════════════════════════════════════
+insert into public.offers (id, kind, status, track, topic, ages, title, title_ar, city, country, summary, summary_ar,
+  conditions, conditions_ar, photos, price, currency, pay_modes)
+values
+('0ffe0000-0000-4000-8000-0000000000b7','experience','soon','workshop','music',null,'Songwriting · write your first song','كتابة الأغاني · اكتب أول أغنية ليك','Cairo','EG','A small circle, a melody, and a few lines about something real. Leave with a verse and a chorus of your own — no experience needed.','قعدة صغيرة، ولحن، وكام سطر عن حاجة حقيقية. وتمشي ومعاك كوبليه وكورس بتوعك — من غير أي خبرة.','{}','{}','{media/reel-music.jpg}',0,'EGP','{reserve}'),
+('0ffe0000-0000-4000-8000-0000000000b8','experience','soon','workshop','music',null,'Record your song · a studio evening','سجّل أغنيتك · ليلة في الاستوديو','Cairo','EG','A real studio, a mic and someone who knows the desk. Sing or play one song and take the recording home.','استوديو حقيقي، ومايك، وحد فاهم في التسجيل. غنّي أو اعزف أغنية واحدة وخد التسجيل معاك.','{}','{}','{media/act-music-v1.jpg}',0,'EGP','{reserve}'),
+('0ffe0000-0000-4000-8000-0000000000b9','experience','soon','workshop','music',null,'Jam night · bring what you play','ليلة جامينج · هات اللي بتعزفه','Cairo','EG','Guitar, darbuka, keys or just your voice. One loose song at a time, everyone joins in, nobody has to be good.','جيتار، طبلة، كيبورد أو صوتك بس. أغنية ورا أغنية من غير ترتيب، والكل يدخل، ومحدش لازم يكون شاطر.','{}','{}','{media/act-music-v1.jpg}',0,'EGP','{reserve}')
+on conflict (id) do nothing;
+
+notify pgrst, 'reload schema';
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة
