@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, Pressable, Animated, PanResponder } from 'react-native';
+import { View, Text, Pressable, Animated, PanResponder, Image, Platform } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { C } from '../../constants/theme';
@@ -7,6 +7,7 @@ import { worldBoard, skyKey } from '../../services/squadGames';
 import { gw, fill } from './words';
 import { WorldSheet } from './WorldSheet';
 import { tapLight, tapSuccess } from '../../utils/feedback';
+import { publicMedia } from '../../lib/publicMedia';
 
 const KNOB = 46;
 const PAD = 4;
@@ -43,11 +44,11 @@ const SlideIn = ({ label, rtl, onDone }) => {
       onLayout={(e) => setW(e.nativeEvent.layout.width)}
       accessible accessibilityRole="button" accessibilityLabel={label}
       accessibilityActions={[{ name: 'activate' }]} onAccessibilityAction={() => onDone()}
-      style={{ direction: 'ltr', height: KNOB + PAD * 2, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.18)', justifyContent: 'center', marginTop: 16, overflow: 'hidden' }}
+      style={{ direction: 'ltr', height: KNOB + PAD * 2, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.16)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)', justifyContent: 'center', marginTop: 14, overflow: 'hidden', ...(Platform.OS === 'web' ? { backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)' } : null) }}
     >
-      <Animated.Text numberOfLines={1} style={{ opacity: textFade, color: '#FFF', fontSize: 14, fontWeight: '800', textAlign: 'center', paddingHorizontal: KNOB + PAD * 2 }}>{label}</Animated.Text>
+      <Animated.Text numberOfLines={1} style={{ opacity: textFade, color: '#FFF', fontSize: 14, fontWeight: '700', letterSpacing: 0.2, textAlign: 'center', paddingHorizontal: KNOB + PAD * 2 }}>{label}</Animated.Text>
       <Animated.View {...pan.panHandlers} style={{ position: 'absolute', top: PAD, [rtl ? 'right' : 'left']: PAD, width: KNOB, height: KNOB, borderRadius: KNOB / 2, backgroundColor: '#FFF', alignItems: 'center', justifyContent: 'center', transform: [{ translateX: Animated.multiply(x, dir) }], cursor: 'grab' }}>
-        <Ionicons name={rtl ? 'arrow-back' : 'arrow-forward'} size={22} color="#E8590C" />
+        <Ionicons name={rtl ? 'arrow-back' : 'arrow-forward'} size={20} color="#141414" />
       </Animated.View>
     </View>
   );
@@ -58,27 +59,49 @@ const SlideIn = ({ label, rtl, onDone }) => {
    many places it has reached so far — real photos, real count, and an
    honest "be the first" while it is empty. Slide to join; once your
    photo is in, the card just says so. */
+// welcome-sunset.jpg is 522×900; its horizon is 42% down
+const SUN_RATIO = 900 / 522;
+const SUN_HORIZON = 0.42;
+const H = 244;
+// a breath of shadow under the words, so they read on a bright sky
+const SOFT = { textShadowColor: 'rgba(0,0,0,0.28)', textShadowRadius: 10, textShadowOffset: { width: 0, height: 1 } };
+
 export const WorldCard = ({ userId, lang, city }) => {
   const [b, setB] = useState(null);
   const [open, setOpen] = useState(false);
   const T = (k) => gw(lang, k);
   useEffect(() => { worldBoard(skyKey(), 1).then((r) => r && r.ok && setB(r)); }, [open]);
   const mine = !!(b && b.mine);
+  const [w, setW] = useState(0);
+  const shared = b && b.entries && b.entries[0] && b.entries[0].photo;
   return (
     <>
-      {/* one sunset, one line, one action */}
-      <LinearGradient colors={['#FF9A3C', '#F0506E', '#8B3FD9']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ marginTop: 16, borderRadius: 24, padding: 18 }}>
-        <Pressable onPress={() => { tapLight(); setOpen(true); }} accessibilityRole="button" style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={{ color: '#FFF', fontSize: 19, fontWeight: '900', letterSpacing: -0.3 }}>{mine ? T('slid') : T('world_card')}</Text>
-            <Text style={{ color: 'rgba(255,255,255,0.86)', fontSize: 13, fontWeight: '600', marginTop: 3 }} numberOfLines={1}>
-              {b && b.count ? fill(T('entries'), { n: b.count, c: b.countries }) : T('world_card_s')}
-            </Text>
-          </View>
-          {mine ? <Ionicons name={lang === 'ar' ? 'chevron-back' : 'chevron-forward'} size={22} color="#FFF" /> : null}
-        </Pressable>
-        {!mine ? <SlideIn label={T('slide')} rtl={lang === 'ar'} onDone={() => setOpen(true)} /> : null}
-      </LinearGradient>
+      {/* a real sky — the latest one somebody shared today, or ours —
+          a quiet fade so the words read, one line, one action */}
+      <View onLayout={(e) => setW(e.nativeEvent.layout.width)} style={{ marginTop: 16, height: H, borderRadius: 24, overflow: 'hidden', backgroundColor: '#2A1E1A' }}>
+        {shared ? (
+          <Image source={{ uri: shared }} resizeMode="cover" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
+        ) : w ? (
+          /* our own sunset: tall, so it is framed by hand — the sky fills
+             the card and the horizon sits low, under the words */
+          <Image source={{ uri: publicMedia('welcome-sunset.jpg') }} resizeMode="cover"
+            style={{ position: 'absolute', left: 0, width: w, height: w * SUN_RATIO, top: -(w * SUN_RATIO * SUN_HORIZON - H * 0.56) }} />
+        ) : null}
+        <LinearGradient colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.18)', 'rgba(0,0,0,0.6)']} locations={[0, 0.5, 1]}
+          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'flex-end', paddingHorizontal: 18, paddingBottom: 18 }}>
+          <Pressable onPress={() => { tapLight(); setOpen(true); }} accessibilityRole="button" style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={[{ color: 'rgba(255,255,255,0.85)', fontSize: 11.5, fontWeight: '800', letterSpacing: lang === 'ar' ? 0 : 1.6 }, SOFT]}>{T('gh_k').toUpperCase()}</Text>
+              <Text style={[{ color: '#FFF', fontSize: 26, fontWeight: '800', letterSpacing: -0.6, marginTop: 2 }, SOFT]}>{mine ? T('slid') : T('gh_t')}</Text>
+              <Text style={[{ color: 'rgba(255,255,255,0.88)', fontSize: 13.5, fontWeight: '500', marginTop: 3 }, SOFT]} numberOfLines={1}>
+                {b && b.count ? fill(T('entries'), { n: b.count, c: b.countries }) : T('world_card_s')}
+              </Text>
+            </View>
+            {mine ? <Ionicons name={lang === 'ar' ? 'chevron-back' : 'chevron-forward'} size={22} color="#FFF" /> : null}
+          </Pressable>
+          {!mine ? <SlideIn label={T('slide')} rtl={lang === 'ar'} onDone={() => setOpen(true)} /> : null}
+        </LinearGradient>
+      </View>
       {open ? <WorldSheet userId={userId} lang={lang} city={city} onClose={() => setOpen(false)} /> : null}
     </>
   );
