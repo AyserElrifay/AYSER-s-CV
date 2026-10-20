@@ -51,6 +51,8 @@ const STOCK = [
   { id: 'walk', re: RE_OF.walk, files: [{ img: 'reel-walk.jpg', clip: 'reel-walk.mp4' }].concat(n('act-walk-', 5).concat(clip('act-walk-v', 1))) },
   { id: 'swim', re: RE_OF.swim, files: [{ img: 'reel-swim.jpg', clip: 'reel-swim.mp4' }].concat(n('act-swim-', 2)) },
   { id: 'read', re: RE_OF.read, files: [{ img: 'reel-read.jpg', clip: 'reel-read.mp4' }].concat(n('act-read-', 6)) },
+  /* eating together: a drawn cover until real food photos come */
+  { id: 'eat', re: RE_OF.eat, files: [] },
   { id: 'coffee', re: RE_OF.coffee, files: [{ img: 'reel-coffee.jpg', clip: 'reel-coffee.mp4' }].concat(n('act-coffee-', 3).concat(clip('act-coffee-v', 2))) },
   { id: 'movie', re: RE_OF.movie, files: [{ img: 'reel-movie.jpg', clip: 'reel-movie.mp4' }].concat(clip('act-movie-v', 1).map((x) => ({ ...x, own: true }))) },
   { id: 'beach', re: RE_OF.beach, files: [{ img: 'reel-beach.jpg', clip: 'reel-beach.mp4' }].concat(n('act-beach-', 1).concat(clip('act-beach-v', 2))) },

@@ -84,7 +84,7 @@ const StartTalkSheet = lazyOverlay(() => import('../components/TalkRoom').then((
    they can leave quietly. Four steps a plan, by what kind of plan it
    is, with the real clock times worked out from when it starts and how
    long it runs. The host's own words (`about`) still come first. */
-const PROGRAM = { walk: 'walk', run: 'walk', cleanup: 'walk', circle: 'circle', sport: 'sport', art: 'art', culture: 'culture', movie: 'culture' };
+const PROGRAM = { walk: 'walk', run: 'walk', cleanup: 'walk', circle: 'circle', sport: 'sport', art: 'art', culture: 'culture', movie: 'culture', eat: 'circle' };
 const PlanProgram = ({ g, t, hour }) => {
   const key = PROGRAM[g.kind] || 'any';
   const start = new Date(g.starts_at).getTime();

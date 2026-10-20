@@ -75,7 +75,7 @@ is('where-to-watch data is credited', /JustWatch/.test(read('src/constants/i18n.
 console.log('\nthe database and the import');
 const sql = read('supabase/RUN_ME.sql');
 const imp = read('scripts/import-films.mjs');
-is('movie night is a kind of plan', /'focus','movie'\]/.test(sql) && /p_kind = any\(public\.green_kinds\(\)\)/.test(sql), true);
+is('movie night is a kind of plan', /green_kinds\(\)[\s\S]{0,160}'movie'/.test(sql) && /p_kind = any\(public\.green_kinds\(\)\)/.test(sql), true);
 is('nobody can write a review any more', /drop policy if exists "write your own review"\s+on public\.film_reviews;\s*\ndrop policy if exists "change your own review" on public\.film_reviews;/.test(sql.slice(sql.lastIndexOf('FILMS · WATCH TOGETHER'))), true);
 is('films know where they stream', /add column if not exists regions\s+text\[\]/.test(sql) && /add column if not exists providers jsonb/.test(sql), true);
 is('the import asks each of the 29 countries', /for \(const region of FILM_REGIONS\)/.test(imp) && /watch_region: region/.test(imp), true);

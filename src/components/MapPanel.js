@@ -45,8 +45,8 @@ import { AV_NEUTRAL } from '../constants/mockData';
 /* the photo a person put on their profile; the cartoon only when they have none */
 export const faceOf = (p) => (p.avatar && p.avatar !== AV_NEUTRAL ? p.avatar : p.cartoonAvatar || p.avatar);
 
-const KINDS = [null, 'walk', 'run', 'coffee', 'focus', 'sport', 'culture', 'movie', 'circle', 'art', 'cleanup'];
-const kindLabel = (t, k) => (k ? t(k === 'focus' ? 'gn_focus' : k === 'run' ? 'gn_run' : k === 'coffee' ? 'gn_coffee' : k === 'movie' ? 'gn_movie' : 'green_kind_' + k) : t('lens_all'));
+const KINDS = [null, 'walk', 'run', 'coffee', 'eat', 'focus', 'sport', 'culture', 'movie', 'circle', 'art', 'cleanup'];
+const kindLabel = (t, k) => (k ? t(k === 'focus' ? 'gn_focus' : k === 'run' ? 'gn_run' : k === 'coffee' ? 'gn_coffee' : k === 'movie' ? 'gn_movie' : k === 'eat' ? 'gn_eat' : 'green_kind_' + k) : t('lens_all'));
 
 export const MapPanel = ({
   t, lang, user, plans, people, open, onOpen, joining, onJoin, onFocus, onGoNow, onPerson,

@@ -23,6 +23,7 @@ export const ACTIVITIES = [
   { id: 'walk', emoji: '🥾', re: /walk|hike|hiking|trail|stroll|مشي|تمشي|مشوار|🥾|🚶/i },
   { id: 'swim', emoji: '🏊', re: /swim|pool|سباح|حمام سباحة|🏊/i },
   { id: 'read', emoji: '📚', re: /\bread|\bbook|library|كتاب|قراء|مكتب[ةه]|📚|📖|\bfocus\b/i },
+  { id: 'eat', emoji: '🍽️', re: /dinner|lunch|breakfast|brunch|\beat\b|potluck|picnic|koshar|falafel|food tour|عشا|غدا|فطار|فطور|أكلة|اكلة|نتغدى|نتعشى|نفطر|كشري|فول|🍽|🥘|🍲/i },
   { id: 'coffee', emoji: '☕', re: /coffee|caf[eé]|espresso|latte|قهو|كافيه|☕/i },
   { id: 'movie', emoji: '🍿', re: /movie|cinema|film|سينما|فيلم|افلام|أفلام|🍿|🎬/i },
   { id: 'beach', emoji: '🏖️', re: /beach|\bsea\b|seaside|شاطئ|بحر|🏖|🌊/i },

@@ -57,6 +57,7 @@ import { GreenHero, PlanCard, IdeaCard } from './GreenCards';
 const KINDS = [
   { id: 'walk',    icon: 'walk',            key: 'green_kind_walk' },
   { id: 'coffee',  icon: 'coffee-outline',  key: 'gn_coffee' },
+  { id: 'eat',     icon: 'silverware-fork-knife', key: 'gn_eat' },
   { id: 'run',     icon: 'run',             key: 'gn_run' },
   { id: 'sport',   icon: 'soccer',          key: 'green_kind_sport' },
   { id: 'culture', icon: 'drama-masks',     key: 'green_kind_culture' },
@@ -91,7 +92,7 @@ const GREEN = '#1F7A5A';
 const GREEN_SOFT = 'rgba(31,122,90,0.10)';
 
 /* a clean-up kind with a title that says football is a football plan */
-const BY_ACTIVITY = { football: 'sport', padel: 'sport', climb: 'sport', swim: 'sport', match: 'sport', walk: 'walk', coffee: 'coffee', movie: 'movie', opera: 'culture', music: 'culture', sketch: 'art', crochet: 'art', photo: 'art', read: 'focus', talk: 'circle' };
+const BY_ACTIVITY = { football: 'sport', padel: 'sport', climb: 'sport', swim: 'sport', match: 'sport', walk: 'walk', coffee: 'coffee', eat: 'eat', movie: 'movie', opera: 'culture', music: 'culture', sketch: 'art', crochet: 'art', photo: 'art', read: 'focus', talk: 'circle' };
 const kindFor = (form) => {
   if (GREEN_KINDS.indexOf(form.kind) < 0) return form.kind;
   const g = { kind: form.kind, title: form.title, about: form.about };

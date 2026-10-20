@@ -6,11 +6,14 @@ import { C } from '../constants/theme';
 import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { getRtcConfig, ringUser, joinCall, logMissedCall } from '../services/calls';
-import { CallGames } from './CallGames';
+import { lazyOverlay } from '../lib/lazyScreen';
 import { tapMedium, tapLight, tapSuccess } from '../utils/feedback';
 import { startRingback } from '../utils/sfx';
 import { useStable } from '../hooks/useStable';
 import { useSheetBack } from '../hooks/useSheetBack';
+
+// the games are only fetched when somebody opens them during a call
+const CallGames = lazyOverlay(() => import('./CallGames').then((m) => ({ default: m.CallGames })));
 
 /* ─── REAL calls ───
    The other person's device actually RINGS (Supabase Realtime broadcast

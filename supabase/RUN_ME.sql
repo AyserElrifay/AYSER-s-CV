@@ -10147,7 +10147,7 @@ drop policy if exists "change your own review" on public.film_reviews;
 -- the kinds of plan, in one place, so a new one is one line
 create or replace function public.green_kinds()
 returns text[] language sql immutable as $$
-  select array['cleanup','circle','art','project','culture','walk','sport','run','coffee','focus','movie'];
+  select array['cleanup','circle','art','project','culture','walk','sport','run','coffee','focus','movie','eat'];
 $$;
 
 do $$ begin
@@ -18998,6 +18998,7 @@ begin
   if to_regclass('public.green_gatherings') is null then return; end if;
   update public.green_gatherings g set kind = case
       when g.title ~* '(foot|soccer|padel|tennis|basket|volley|swim|climb|كور|ملعب|بادل|سباح)' then 'sport'
+      when g.title ~* '(dinner|lunch|breakfast|brunch|potluck|\meat\M|عشا|غدا|فطار|فطور|كشري)' then 'eat'
       when g.title ~* '(coffee|caf[eé]|قهو|كافيه)' then 'coffee'
       when g.title ~* '(movie|cinema|film|سينما|فيلم)' then 'movie'
       when g.title ~* '(opera|ballet|theat|concert|أوبرا|اوبرا|مسرح)' then 'culture'
@@ -19007,7 +19008,7 @@ begin
       else g.kind end
    where g.kind = 'cleanup'
      and not (coalesce(g.title, '') ~* good)
-     and g.title ~* '(foot|soccer|padel|tennis|basket|volley|swim|climb|كور|ملعب|بادل|سباح|coffee|caf[eé]|قهو|كافيه|movie|cinema|film|سينما|فيلم|opera|ballet|theat|concert|أوبرا|اوبرا|مسرح|sketch|draw|paint|crochet|رسم|كروشيه|run\M|running|جري|walk|hike|مشي)';
+     and g.title ~* '(dinner|lunch|breakfast|brunch|potluck|\meat\M|عشا|غدا|فطار|فطور|كشري|foot|soccer|padel|tennis|basket|volley|swim|climb|كور|ملعب|بادل|سباح|coffee|caf[eé]|قهو|كافيه|movie|cinema|film|سينما|فيلم|opera|ballet|theat|concert|أوبرا|اوبرا|مسرح|sketch|draw|paint|crochet|رسم|كروشيه|run\M|running|جري|walk|hike|مشي)';
 end $$;
 
 
@@ -19161,6 +19162,24 @@ do $do$ begin
   perform cron.schedule('daily-lines', '2 * * * *', 'select public.send_daily_lines()');
 exception when others then raise notice 'daily-lines schedule skipped: %', sqlerrm;
 end $do$;
+
+-- ════════════════════════════════════════════════════════════════════
+-- EAT TOGETHER
+-- Ayser: "زوّد eat together". A plan kind of its own ('eat', in
+-- green_kinds above) and a few ideas to start from. Ideas, never plans:
+-- nobody is said to be going. Everybody pays for their own plate unless
+-- the host says otherwise. Safe to re-run.
+-- ════════════════════════════════════════════════════════════════════
+insert into public.green_sparks (kind, country, title_ar, title_en, about_ar, about_en, minutes, people, sort)
+select * from (values
+ ('eat',null,'عشا مع ناس جديدة','Dinner with new people','ترابيزة واحدة في مطعم بسيط، وكل واحد يدفع طبقه. أحلى طريقة تعرف بيها ناس.','One table at a simple place, everyone pays for their own plate. The easiest way to meet people.',120,'4–8',300),
+ ('eat',null,'كل واحد يجيب طبق','Potluck in the park','كل واحد يجيب حاجة عملها أو اشتراها، ونقعد على الأرض ناكل ونتكلم.','Everyone brings one thing they made or bought; we sit on the grass, eat and talk.',120,'5–15',301),
+ ('eat',null,'أكلة من بلدك','A dish from where you''re from','كل واحد يجيب أكلة من بلده أو من بيتهم ويحكي حكايتها.','Everyone brings a dish from their country or their family, and the story behind it.',120,'4–12',302),
+ ('eat',null,'فطار بدري سوا','An early breakfast together','قبل الشغل أو الجامعة: فطار بسيط وقهوة، ونبدأ اليوم مع ناس.','Before work or class: a simple breakfast and coffee, and the day starts with people.',60,'3–8',303),
+ ('eat','EG','كشري بعد الشغل','Koshary after work','أطباق كشري في مكان شعبي، وكلام كتير. أرخص وأحلى عشا في القاهرة.','Bowls of koshary at a local spot and a lot of talking. The best cheap dinner in Cairo.',75,'3–10',304),
+ ('eat','EG','فول وطعمية الصبح','Foul and ta''meya in the morning','عربية فول على الناصية، عيش سخن، ويوم الجمعة يبدأ صح.','A foul cart on the corner, warm bread, and Friday starts right.',60,'3–8',305)
+) v(kind, country, title_ar, title_en, about_ar, about_en, minutes, people, sort)
+where not exists (select 1 from public.green_sparks s where s.title_en = v.title_en and s.country is not distinct from v.country);
 
 -- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT

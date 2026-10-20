@@ -23,6 +23,7 @@ export const ACTIVITY_LOOK = {
   project: { emoji: '🔨', from: '#6366F1', to: '#8B5CF6' },
   run:     { emoji: '🏃', from: '#EF4444', to: '#F97316' },
   coffee:  { emoji: '☕', from: '#B45309', to: '#F59E0B' },
+  eat:     { emoji: '🍽️', from: '#EA580C', to: '#FACC15' },
   focus:   { emoji: '📚', from: '#0EA5E9', to: '#6366F1' },
   movie:   { emoji: '🍿', from: '#DC2626', to: '#F59E0B' },
 };

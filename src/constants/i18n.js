@@ -1048,6 +1048,7 @@ export const STRINGS = {
     map_people_one: "1 person around you",
     map_globe_hint: "Pinch or tap the planet to come down",
     gn_movie: "Movie",
+    gn_eat: "Eat together",
     film_for_you: "Films for you",
     film_for_you_sub: "Picked from what you love. Better watched together.",
     film_watch_together: "Watch together",

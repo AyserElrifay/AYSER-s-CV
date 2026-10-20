@@ -77,6 +77,7 @@ const KIND_LOVES = {
   cleanup: /volunt|green|nature|eco|clean|garden|بيئة/i,
   project: /volunt|build|make|garden|project/i,
   movie: /film|movie|cinema|سينما|فيلم/i,
+  eat: /food|cook|eat|dinner|lunch|أكل|اكل|طبخ/i,
 };
 export const lovesKind = (hobbies, kind) => !!(KIND_LOVES[kind] && KIND_LOVES[kind].test(String(hobbies || '')));
 
