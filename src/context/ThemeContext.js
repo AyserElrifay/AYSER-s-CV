@@ -43,15 +43,28 @@ function systemIsDark() {
   }
 }
 
+const storedNow = () => {
+  try {
+    if (Platform.OS === 'web' && typeof window !== 'undefined' && window.localStorage) {
+      const v = window.localStorage.getItem(KEY);
+      if (v === 'dark' || v === 'light' || v === 'auto') return v;
+    }
+  } catch (e) {}
+  return 'auto';
+};
 const resolve = (pref) => (pref === 'auto' ? (systemIsDark() ? 'dark' : 'light') : pref);
 
 export const ThemeProvider = ({ children }) => {
   /* Resolved once, synchronously, before the first paint. Reading the
      stored preference is async, so a phone already in dark mode would
      otherwise flash a white app for as long as AsyncStorage takes. */
-  const [pref, setPref] = useState('auto');
+  /* On the web the stored choice is in localStorage, readable right now —
+     waiting for it used to paint the app in the phone's colours first and
+     then rebuild it in the chosen ones (Ayser: "الصفحات بتلود مرتين، مرة
+     بشكل قديم ومرة بشكل جديد"). */
+  const [pref, setPref] = useState(storedNow);
   const [mode, setMode] = useState(() => {
-    const m = resolve('auto');
+    const m = resolve(storedNow());
     if (m === 'dark') applyThemeMode('dark');
     return m;
   });
@@ -85,7 +98,11 @@ export const ThemeProvider = ({ children }) => {
 
   useEffect(() => {
     const onAccount = (s) => {
-      if (s && (s.theme === 'dark' || s.theme === 'light' || s.theme === 'auto')) applyPref(s.theme, false);
+      if (s && (s.theme === 'dark' || s.theme === 'light' || s.theme === 'auto')) {
+        applyPref(s.theme, false);
+        // kept on this phone too, so the next open is already right
+        AsyncStorage.setItem(KEY, s.theme).catch(() => {});
+      }
     };
     const stop = subscribeAccountSettings(onAccount);
     onAccount(cachedAccountSettings());

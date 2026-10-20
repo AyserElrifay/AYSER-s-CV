@@ -29,8 +29,10 @@ const KEYWORDS = 'Moments, Moments app, The Real Moments, therealmoments, Moment
 //    soft backdrop instead of being stretched across a wide window.
 const responsiveCss = `
   <style>
-    html, body { margin: 0; height: 100%; background: #0B0B0E; }
+    html, body { margin: 0; height: 100%; background: #121215; }
     @media (prefers-color-scheme: light) { html, body { background: #F9F9F6; } }
+    html.mm-dark, html.mm-dark body { background: #121215; }
+    html.mm-light, html.mm-light body { background: #F9F9F6; }
     /* dynamic viewport height fixes the mobile URL-bar aspect crop */
     #root { width: 100%; height: 100vh; height: 100dvh; overflow: hidden; }
     /* Laptop / desktop: the whole window. It used to sit in a framed box
@@ -155,6 +157,11 @@ if (html.includes('<title>')) {
   html = html.replace(/<title>[^<]*<\/title>/, `<title>${TITLE}</title>`);
 } else {
   html = html.replace('</head>', `<title>${TITLE}</title></head>`);
+}
+/* the colour you chose, before the first paint — not the phone's and then
+   yours a moment later (Ayser: "بتلود مرتين، مرة بشكل قديم") */
+if (!html.includes('mm-dark')) {
+  html = html.replace('</head>', `<script>(function(){try{var t=localStorage.getItem('moments.theme');if(t==='dark'||t==='light')document.documentElement.className+=' mm-'+t;}catch(e){}})();</script></head>`);
 }
 if (!html.includes('tap-highlight-color')) {
   /* the feel of the whole app, in one place: smooth text, no grey flash
