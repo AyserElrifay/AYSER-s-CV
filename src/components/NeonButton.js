@@ -2,14 +2,12 @@ import React from 'react';
 import { Text, Pressable, Animated } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { C, R } from '../constants/theme';
-import { usePulse } from '../hooks/usePulse';
 
 /* The signature control — refined for the light theme.
    A soft gradient fill with a gentle top sheen and a tasteful colored
    shadow (a quiet glow, not a loud halo). The label breathes slightly. */
-export const NeonButton = ({ label, onPress, color = C.green, style, small, icon }) => {
-  const p = usePulse(2200);
-  const sheen = p.interpolate({ inputRange: [0, 1], outputRange: [0.14, 0.26] });
+export const NeonButton = ({ label, onPress, color = C.purple, style, small, icon }) => {
+  const sheen = 0.12;   // still, not breathing: a button that pulses forever tires the eye
 
   return (
     <Pressable onPress={onPress} style={[{ alignSelf: 'stretch' }, style]}>
@@ -48,7 +46,7 @@ export const NeonButton = ({ label, onPress, color = C.green, style, small, icon
               }}
             />
             {icon ? <Text style={{ fontSize: small ? 13 : 16, marginRight: 8 }}>{icon}</Text> : null}
-            <Text style={{ color: C.ink, fontSize: small ? 12 : 15, fontWeight: '900', letterSpacing: 1.4 }}>
+            <Text style={{ color: C.ink, fontSize: small ? 12 : 15, fontWeight: '800', letterSpacing: 0.2 }}>
               {label}
             </Text>
           </LinearGradient>

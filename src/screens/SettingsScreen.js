@@ -249,7 +249,7 @@ export const SettingsScreen = ({ onClose }) => {
                 keyboardType="decimal-pad"
                 style={{ flex: 1, color: C.text, fontSize: 15, fontWeight: '800', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginRight: 8 }}
               />
-              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', borderWidth: 1, borderColor: C.line, borderRadius: 12 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12 }}>
                 <Pressable onPress={() => { tapSelection(); setSplitPeople(String(Math.max(1, (parseInt(splitPeople, 10) || 1) - 1))); }} style={{ paddingHorizontal: 12, paddingVertical: 10 }} accessibilityLabel={t('remove')} accessibilityRole="button">
                   <Ionicons name="remove" size={16} color={C.purple} />
                 </Pressable>

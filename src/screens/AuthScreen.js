@@ -409,7 +409,7 @@ export const AuthScreen = ({ recovery = false, onDone }) => {
               />
               {error ? <Text style={{ color: C.coral, fontSize: 12, textAlign: 'center', marginBottom: 10 }}>{error}</Text> : null}
               {notice ? <Text style={{ color: C.green, fontSize: 12, textAlign: 'center', marginBottom: 10 }}>{notice}</Text> : null}
-              <NeonButton label={busy ? t('auth_sending') : t('auth_send_reset') + ' ⚡'} onPress={busy ? undefined : sendEmailReset} style={{ marginBottom: 12 }} />
+              <NeonButton label={busy ? t('auth_sending') : t('auth_send_reset')} onPress={busy ? undefined : sendEmailReset} style={{ marginBottom: 12 }} />
 
               <GhostButton small label={t('auth_back_signin')} onPress={() => { setMode('signin'); setError(null); setNotice(null); }} />
             </Glass>
@@ -453,7 +453,7 @@ export const AuthScreen = ({ recovery = false, onDone }) => {
               ) : null}
 
               <NeonButton
-                label={busy ? t('auth_one_moment') : (mode === 'signup' ? t('auth_create_btn') : t('auth_signin_btn')) + ' ⚡'}
+                label={busy ? t('auth_one_moment') : (mode === 'signup' ? t('auth_create_btn') : t('auth_signin_btn'))}
                 onPress={busy ? undefined : submit}
                 style={{ marginBottom: 12 }}
               />
