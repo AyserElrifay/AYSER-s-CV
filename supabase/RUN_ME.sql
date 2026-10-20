@@ -17501,6 +17501,15 @@ update public.offers set video = 'media/offer-marsa-turtle.mp4'
  where id = '0ffe0000-0000-4000-8000-000000000004' and (video is null or video = 'media/offer-marsa.mp4');
 
 -- ═══════════════════════════════════════════════════════════════════
+--  WADI EL RAYAN · NOT SOMEWHERE ELSE
+--  Ayser: "ده مش وادي الريان" — the photo on the Wadi El Rayan day was a
+--  camp in Sinai. It comes off; the trip keeps its drawn cover until a
+--  real photo of Wadi El Rayan is added. Idempotent.
+-- ═══════════════════════════════════════════════════════════════════
+update public.offers set photos = '{}'
+ where id = '0ffe0000-0000-4000-8000-0000000000a3' and photos = '{media/desert-trip.jpg}';
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة
