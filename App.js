@@ -55,6 +55,7 @@ import { lazyOverlay } from './src/lib/lazyScreen';
    nobody else's phone ever downloads it */
 const StudioLock = lazyOverlay(() => import('./src/components/StudioLock').then((m) => ({ default: m.StudioLock })));
 const PlusSheet = lazyOverlay(() => import('./src/components/PlusSheet').then((m) => ({ default: m.PlusSheet })));
+const FirstTour = lazyOverlay(() => import('./src/components/FirstTour').then((m) => ({ default: m.FirstTour })));
 /* the server refused a join because it needs Plus (src/services/green.js) */
 const PlusGate = () => {
   const [open, setOpen] = React.useState(false);
@@ -67,7 +68,7 @@ const PlusGate = () => {
 };
 const AdminPanel = lazyOverlay(() => import('./src/components/AdminPanel').then((m) => ({ default: m.AdminPanel })));
 import { Splash } from './src/components/Splash';
-import { GestureTour, tourSeen } from './src/components/GestureTour';
+import { tourSeen } from './src/components/GestureTour';
 import { installCrashLog, setDiagnostics } from './src/lib/crashLog';
 import { warmMap } from './src/lib/leaflet';
 
@@ -208,7 +209,8 @@ const Root = () => {
       <TripLinkGate signedIn />
       {/* the partner page, from a link or from inside (src/lib/partnerLink.js) */}
       <PartnerLinkGate />
-      {tour ? <GestureTour onClose={() => setTour(false)} /> : null}
+      {/* the first time inside: six story cards (src/components/FirstTour.js) */}
+      {tour ? <FirstTour onClose={() => setTour(false)} /> : null}
       {/* after a strike: over everything (src/components/SafetyHold.js) */}
       <SafetyHold />
       <PlusGate />

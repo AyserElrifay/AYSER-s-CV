@@ -18700,6 +18700,94 @@ drop policy if exists "venues: anyone signed in reads" on public.partner_venues;
 notify pgrst, 'reload schema';
 
 -- ═══════════════════════════════════════════════════════════════════
+--  CHAT · OPENING MOVES AND REACTIONS
+--  Ayser: "ادرس bumble والشات فيه وحط عليه". Two things that work
+--  there, in our words:
+--    Opening moves — up to three questions you choose for your profile.
+--      Somebody new opening a chat with you sees them first and answers
+--      one, so nobody has to invent "hey" and nobody gets a bare "hi".
+--    Reactions — one emoji on a message, from the six below, shown
+--      under it. One per person per message; tap again to take it off.
+--  Both only through the functions: a reaction is allowed only to
+--  somebody who can read that message (the same chat or group).
+--  Safe to re-run.
+-- ═══════════════════════════════════════════════════════════════════
+create table if not exists public.opening_moves (
+  user_id    uuid primary key references public.profiles(id) on delete cascade,
+  moves      text[] not null default '{}',
+  updated_at timestamptz not null default now()
+);
+create table if not exists public.message_reactions (
+  message_id uuid not null references public.messages(id) on delete cascade,
+  user_id    uuid not null references public.profiles(id) on delete cascade,
+  emoji      text not null check (emoji in ('❤️','😂','👍','🔥','😮','🙏')),
+  created_at timestamptz not null default now(),
+  primary key (message_id, user_id)
+);
+alter table public.opening_moves enable row level security;
+alter table public.message_reactions enable row level security;
+revoke all on public.opening_moves, public.message_reactions from anon, authenticated;
+
+create or replace function public.set_opening_moves(p_moves text[])
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); m text[];
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  m := coalesce((select array_agg(left(btrim(x), 120)) from unnest(coalesce(p_moves, '{}')) x where btrim(x) <> ''), '{}');
+  if coalesce(array_length(m, 1), 0) > 3 then return jsonb_build_object('ok', false, 'reason', 'three'); end if;
+  insert into public.opening_moves (user_id, moves) values (me, m)
+  on conflict (user_id) do update set moves = excluded.moves, updated_at = now();
+  return jsonb_build_object('ok', true, 'moves', to_jsonb(m));
+end $$;
+
+-- anybody's, unless one of you blocked the other
+create or replace function public.opening_moves_of(p_user uuid)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select coalesce((select to_jsonb(o.moves) from public.opening_moves o where o.user_id = p_user
+     and not exists (select 1 from public.user_blocks b where (b.blocker_id = auth.uid() and b.blocked_id = p_user) or (b.blocker_id = p_user and b.blocked_id = auth.uid()))), '[]'::jsonb);
+$$;
+
+create or replace function public.can_read_message(p_msg uuid, uid uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.messages m where m.id = p_msg and (
+    (m.squad_id is not null and public.is_squad_member(m.squad_id, uid))
+    or (m.dm_thread_id is not null and exists (select 1 from public.dm_participants p where p.thread_id = m.dm_thread_id and p.user_id = uid))));
+$$;
+
+create or replace function public.react(p_msg uuid, p_emoji text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid();
+begin
+  if me is null or not public.can_read_message(p_msg, me) then return jsonb_build_object('ok', false, 'reason', 'not_yours'); end if;
+  if p_emoji is null or exists (select 1 from public.message_reactions where message_id = p_msg and user_id = me and emoji = p_emoji) then
+    delete from public.message_reactions where message_id = p_msg and user_id = me;
+    return jsonb_build_object('ok', true, 'on', false);
+  end if;
+  if p_emoji not in ('❤️','😂','👍','🔥','😮','🙏') then return jsonb_build_object('ok', false, 'reason', 'emoji'); end if;
+  insert into public.message_reactions (message_id, user_id, emoji) values (p_msg, me, p_emoji)
+  on conflict (message_id, user_id) do update set emoji = excluded.emoji, created_at = now();
+  return jsonb_build_object('ok', true, 'on', true);
+end $$;
+
+-- the reactions on the messages a screen is showing, grouped
+create or replace function public.reactions_for(p_ids uuid[])
+returns jsonb language sql stable security definer set search_path = public as $$
+  select coalesce(jsonb_object_agg(x.message_id, x.r), '{}'::jsonb) from (
+    select r.message_id, jsonb_agg(jsonb_build_object('e', r.emoji, 'me', r.user_id = auth.uid())) r
+      from public.message_reactions r
+     where r.message_id = any (coalesce(p_ids, '{}'))
+       and public.can_read_message(r.message_id, auth.uid())
+     group by r.message_id) x;
+$$;
+
+revoke all on function public.set_opening_moves(text[]), public.opening_moves_of(uuid), public.react(uuid, text),
+  public.reactions_for(uuid[]), public.can_read_message(uuid, uuid) from public, anon;
+grant execute on function public.set_opening_moves(text[]), public.opening_moves_of(uuid), public.react(uuid, text),
+  public.reactions_for(uuid[]) to authenticated;
+
+notify pgrst, 'reload schema';
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة

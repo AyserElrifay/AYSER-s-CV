@@ -45,6 +45,7 @@ import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
+import { openingMovesOf, setOpeningMoves } from '../services/chatExtras';
 import { getProfile, updateProfile, requestVerification, myVerificationStatus, fetchPendingVerifications, decideVerification } from '../services/profiles';
 import { isOwner } from '../services/music';
 import { uploadCapture, toggleVibe as persistVibe, toggleLaugh as persistLaugh, toggleRepost as persistRepost, fetchEngagement } from '../services/social';
@@ -238,6 +239,7 @@ export const ProfileScreen = () => {
   const [editName, setEditName] = useState('');
   const [editBio, setEditBio] = useState('');
   const [editIntent, setEditIntent] = useState('');
+  const [editMoves, setEditMoves] = useState(['', '', '']);   // opening moves: up to three questions
   const [editHandle, setEditHandle] = useState('');
   const [editAvatar, setEditAvatar] = useState(null); // new avatar url after upload
   const [avatarBusy, setAvatarBusy] = useState(false);
@@ -380,6 +382,7 @@ export const ProfileScreen = () => {
       setEditName(p.name || '');
       setEditBio(p.bio || '');
       setEditIntent(p.intent || '');
+      openingMovesOf(user.id).then((m) => { const a = Array.isArray(m) ? m : []; setEditMoves([a[0] || '', a[1] || '', a[2] || '']); });
       setEditHandle(p.handle || '');
       setEditFlag(p.country_flag || '');
       setEditHobbies(p.hobbies ? String(p.hobbies).split(',').map((h) => h.trim()).filter(Boolean) : []);
@@ -441,6 +444,7 @@ export const ProfileScreen = () => {
         account_type: accountType,
         artist_genre: (accountType === 'artist' || accountType === 'musician') ? (artistGenre.trim() || null) : null,
       });
+      await setOpeningMoves(editMoves.map((x) => x.trim()).filter(Boolean));
       tapSuccess(); sfxSuccess();
       setSavedEdit(true);
       setEditErr(null);
@@ -1011,6 +1015,16 @@ export const ProfileScreen = () => {
               onChangeText={setEditIntent}
               style={{ color: C.text, fontSize: 14, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 11, marginBottom: 12 }}
             />
+
+            {/* opening moves: questions somebody new answers to start a chat */}
+            <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', letterSpacing: 1, marginBottom: 4 }}>{t('om_title').toUpperCase()}</Text>
+            <Text style={{ color: C.dim, fontSize: 12, marginBottom: 8, lineHeight: 17 }}>{t('om_hint')}</Text>
+            {editMoves.map((m, i) => (
+              <TextInput key={i} placeholder={i === 0 ? t('om_ph') : '…'} placeholderTextColor={C.faint} value={m} maxLength={120}
+                onChangeText={(x) => setEditMoves((a) => a.map((y, k) => (k === i ? x : y)))}
+                style={{ color: C.text, fontSize: 14, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 13, paddingVertical: 11, marginBottom: 8 }} />
+            ))}
+            <View style={{ height: 6 }} />
 
             {/* a few simple, optional "about you" fields — all can stay blank */}
             <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', letterSpacing: 1, marginBottom: 8 }}>{t('about_you')}</Text>

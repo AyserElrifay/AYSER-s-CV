@@ -22,6 +22,7 @@ import { getMateStatus } from '../services/mates';
 import { useScreenshotWatch } from '../hooks/useScreenshotWatch';
 import { StreakBadge } from '../components/StreakBadge';
 import { getProfile } from '../services/profiles';
+import { openingMovesOf, react, reactionsFor, REACTIONS } from '../services/chatExtras';
 import { TruthOrDare } from '../components/TruthOrDare';
 import { WouldYouRather } from '../components/WouldYouRather';
 import { shouldNudge, nudgeGame } from '../lib/bardi';
@@ -248,6 +249,10 @@ export const ChatThread = ({ chat, group, onClose }) => {
     send(text);
   };
   const [menu, setMenu] = useState(false);
+  /* from Bumble, in our words: the other person's opening moves, and
+     one emoji under a message (services/chatExtras.js) */
+  const [peerMoves, setPeerMoves] = useState([]);
+  const [reacts, setReacts] = useState({});   // { [messageId]: [{ e, me }] }
   const [gamesOn, setGamesOn] = useState(null);   // 'games' | 'twin' | 'world' | 'party'
   const [planOf, setPlanOf] = useState(null);     // a game's plan, on its way to the map
   const [call, setCall] = useState(null); // {video:bool}
@@ -347,6 +352,28 @@ export const ChatThread = ({ chat, group, onClose }) => {
   // and they have actually exchanged (number, milestone badge, and an
   // ⏳ warning when you both still need to send today or lose it).
   const streak = (!group && peer && peer.id) ? streakInfo(msgs, user && user.id, peer.id) : { n: 0 };
+
+  useEffect(() => {
+    if (!isReal || group || !peer || !peer.id) return undefined;
+    let alive = true;
+    openingMovesOf(peer.id).then((m) => { if (alive && Array.isArray(m)) setPeerMoves(m); });
+    return () => { alive = false; };
+  }, [isReal, group, peer && peer.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const realIds = isReal ? msgs.map((m) => m.id).filter((id) => REAL_ID.test(String(id))).slice(-120) : [];
+  const idsKey = realIds.length + ':' + (realIds[realIds.length - 1] || '');
+  const loadReacts = () => { if (realIds.length) reactionsFor(realIds).then((r) => r && typeof r === 'object' && setReacts(r)); };
+  useEffect(() => { const h = setTimeout(loadReacts, 400); return () => clearTimeout(h); }, [idsKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  const doReact = async (m, e) => {
+    tapLight();
+    // seen at once; the server's answer follows
+    setReacts((r) => {
+      const list = (r[m.id] || []).filter((x) => !x.me);
+      const had = (r[m.id] || []).some((x) => x.me && x.e === e);
+      return { ...r, [m.id]: had ? list : list.concat({ e, me: true }) };
+    });
+    await react(m.id, e);
+    loadReacts();
+  };
 
   // ── Moments in chat: shoot a snap and send it right here ──
   const [momentOpen, setMomentOpen] = useState(false);
@@ -595,6 +622,21 @@ export const ChatThread = ({ chat, group, onClose }) => {
                 <Text style={{ color: C.faint, fontSize: 12.5, marginTop: 4, textAlign: 'center', lineHeight: 18 }}>
                   {t('break_the_ice')}
                 </Text>
+                {peerMoves.length ? (
+                  <View style={{ alignSelf: 'stretch', marginTop: 16 }}>
+                    <Text style={{ color: C.faint, fontSize: 11, fontWeight: '900', letterSpacing: 0.8, textAlign: 'center', marginBottom: 6 }}>
+                      {t('om_theirs').replace('{name}', ((peer && peer.name) || '').split(' ')[0]).toUpperCase()}
+                    </Text>
+                    {peerMoves.map((q) => (
+                      <Pressable key={q} onPress={() => { tapLight(); setDraft('↪ ' + q + ' — '); }} accessibilityRole="button" style={{ marginTop: 8 }}>
+                        <View style={{ borderRadius: 16, borderWidth: 1, borderColor: C.line, backgroundColor: C.glass, paddingHorizontal: 14, paddingVertical: 12, flexDirection: 'row', alignItems: 'center' }}>
+                          <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '800', flex: 1 }}>{q}</Text>
+                          <Ionicons name="arrow-undo-outline" size={16} color={C.purple} />
+                        </View>
+                      </Pressable>
+                    ))}
+                  </View>
+                ) : null}
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', marginTop: 14 }}>
                   {['👋 Hey!', 'أهلاً 👋', '✨ Hi — nice to meet you', '🌱 What are you up to?'].map((t) => (
                     <Pressable
@@ -748,7 +790,7 @@ export const ChatThread = ({ chat, group, onClose }) => {
                     <Pressable
                       onLongPress={() => {
                         /* in a group, a moderator (or the sender) gets a choice; otherwise it translates */
-                        if (group && isReal && (mine || rankOf(myRole) >= 2) && !String(m.id).startsWith('x')) { tapLight(); setMsgMenu(m); }
+                        if (isReal && !String(m.id).startsWith('x')) { tapLight(); setMsgMenu(m); }
                         else translateMsg({ id: m.id, body: m.text });
                       }}
                       delayLongPress={320}
@@ -765,6 +807,15 @@ export const ChatThread = ({ chat, group, onClose }) => {
                       ) : null}
                     </Pressable>
                     )}
+                    {(reacts[m.id] || []).length ? (
+                      <View style={{ flexDirection: 'row', alignSelf: mine ? 'flex-end' : 'flex-start', marginTop: -6, marginHorizontal: 8, backgroundColor: C.bg2, borderRadius: 999, borderWidth: 1, borderColor: C.line, paddingHorizontal: 6, paddingVertical: 2 }}>
+                        {Object.entries((reacts[m.id] || []).reduce((a, x) => { a[x.e] = (a[x.e] || 0) + 1; return a; }, {})).map(([e, n]) => (
+                          <Pressable key={e} onPress={() => doReact(m, e)} accessibilityRole="button" accessibilityLabel={e}>
+                            <Text style={{ fontSize: 13, marginHorizontal: 2 }}>{e + (n > 1 ? ' ' + n : '')}</Text>
+                          </Pressable>
+                        ))}
+                      </View>
+                    ) : null}
                   </View>
                 </View>
               );
@@ -1064,16 +1115,28 @@ export const ChatThread = ({ chat, group, onClose }) => {
           <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end' }} onPress={() => setMsgMenu(null)}>
             <View style={{ backgroundColor: C.bg2, borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 16, paddingBottom: insets.bottom + 16 }}>
               <Text style={{ color: C.dim, fontSize: 13.5, marginBottom: 8 }} numberOfLines={2}>{msgMenu.text}</Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8 }}>
+                {REACTIONS.map((e) => {
+                  const on = (reacts[msgMenu.id] || []).some((x) => x.me && x.e === e);
+                  return (
+                    <Pressable key={e} onPress={() => { const m = msgMenu; setMsgMenu(null); doReact(m, e); }} accessibilityRole="button" accessibilityLabel={e}>
+                      <View style={{ width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? C.purpleSoft : C.glassHi }}>
+                        <Text style={{ fontSize: 24 }}>{e}</Text>
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </View>
               <Pressable onPress={() => { const m = msgMenu; setMsgMenu(null); translateMsg({ id: m.id, body: m.text }); }} style={{ paddingVertical: 12 }}>
                 <Text style={{ color: C.text, fontSize: 15.5, fontWeight: '700' }}>{t('gc_translate')}</Text>
               </Pressable>
-              <Pressable onPress={async () => {
+              {group && (msgMenu.from === 'me' || rankOf(myRole) >= 2) ? <Pressable onPress={async () => {
                 const m = msgMenu; setMsgMenu(null);
                 const r = await squadDeleteMessage(m.id);
                 if (r && r.ok) setMsgs((ms) => ms.filter((x) => x.id !== m.id));
               }} style={{ paddingVertical: 12 }}>
                 <Text style={{ color: '#E11D48', fontSize: 15.5, fontWeight: '800' }}>{t('gc_delete_msg')}</Text>
-              </Pressable>
+              </Pressable> : null}
             </View>
           </Pressable>
         </Modal>
