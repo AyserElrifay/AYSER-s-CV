@@ -1492,6 +1492,10 @@ function drawHairFront(c, d, T, g) {
      that it reads as a swimming cap, which is exactly how it looked
      before. `lift` is how tall the style stands, `hang` how far down
      the sides it comes. */
+  /* the hairline: up off the brows and swept to one side, like a part.
+     Straight across at the brows it was a bowl cut — the single biggest
+     reason the faces read East Asian (Ayser: "ملامحه شكلها صيني") */
+  const HL_R = cy - ry * 0.62, HL_L = cy - ry * 0.86;
   const cap = (lift, hang) => {
     const out = 1.09;                      // the hair's own thickness
     c.beginPath();
@@ -1501,7 +1505,7 @@ function drawHairFront(c, d, T, g) {
       skullX + rx * (out + 0.06), cy - ry * (1.10 + lift),
       skullX + rx * out, cy + ry * 0.10 + hang
     );
-    c.bezierCurveTo(skullX + rx * 0.88, cy - ry * 0.36, skullX - rx * 0.88, cy - ry * 0.36, skullX - rx * out, cy + ry * 0.10 + hang);
+    c.bezierCurveTo(skullX + rx * 0.88, HL_R, skullX - rx * 0.70, HL_L, skullX - rx * out, cy + ry * 0.10 + hang);
     c.closePath();
     c.fill();
     // a darker underside where the hair meets the forehead gives it depth
@@ -1509,12 +1513,12 @@ function drawHairFront(c, d, T, g) {
     c.beginPath();
     c.moveTo(skullX - rx * out, cy + ry * 0.10 + hang);
     c.bezierCurveTo(skullX - rx * (out + 0.06), cy - ry * (1.10 + lift), skullX + rx * (out + 0.06), cy - ry * (1.10 + lift), skullX + rx * out, cy + ry * 0.10 + hang);
-    c.bezierCurveTo(skullX + rx * 0.88, cy - ry * 0.36, skullX - rx * 0.88, cy - ry * 0.36, skullX - rx * out, cy + ry * 0.10 + hang);
+    c.bezierCurveTo(skullX + rx * 0.88, HL_R, skullX - rx * 0.70, HL_L, skullX - rx * out, cy + ry * 0.10 + hang);
     c.closePath();
     c.clip();
     c.fillStyle = rgba('#000000', 0.18);
     c.beginPath();
-    c.ellipse(skullX, cy - ry * 0.30, rx * 0.94, ry * 0.22, 0, 0, Math.PI);
+    c.ellipse(skullX, cy - ry * 0.50, rx * 0.94, ry * 0.20, 0, 0, Math.PI);
     c.fill();
     c.restore();
     c.fillStyle = volume(c, skullX - rx * 1.3, skullX + rx * 1.3, col);
