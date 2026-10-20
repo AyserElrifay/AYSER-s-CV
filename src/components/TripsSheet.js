@@ -16,36 +16,62 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { HighlightVideo } from './GoOutRail';
 import { fetchHighlights } from '../services/appHighlights';
 
-/* Travel buddies: Ayser's own clips taking turns — the campfire, the
-   bus dancing (the night one, blurred, back first — Ayser: "رجعو"),
-   the girls on the bus (as they are — Ayser: "من غير بلور"),
-   the Dahab evening (his highlight from the Studio) and the painting
-   night. One plays at a time; every few seconds the next. */
-const BUDDY_CLIPS = [['travel-buddies.mp4', 'travel-buddies.jpg'], ['buddies-fire.mp4', 'buddies-fire.jpg'], ['buddies-bus.mp4', 'buddies-bus.jpg'], ['painting-night.mp4', 'painting-night.jpg']];
+/* Travel buddies: Ayser's own clips taking turns — the bus dancing
+   at night (blurred), the campfire, the girls on the bus, the Dahab
+   evening (his highlight from the Studio) and the painting night.
+   Ayser: "ليه عامل زوم أوت، والكلام اللي على الفيديو باين، والفصلة ما
+   بين كل فيديو وفيديو وحشة". So each clip is its own wide cut, framed on
+   the people, below the words burned into the original (public/media/
+   wide-*.mp4); and they are all on the card at once, stacked: the next
+   one loads while this one plays, and the change is a slow cross-fade,
+   never a blank. */
+const BUDDY_CLIPS = ['wide-bus-night', 'wide-fire', 'wide-bus', 'wide-painting'].map((n) => ({ uri: publicMedia(n + '.mp4'), poster: publicMedia(n + '.jpg') }));
 const BuddiesReel = () => {
-  const [clips, setClips] = useState(() => BUDDY_CLIPS.map(([v, p]) => ({ uri: publicMedia(v), poster: publicMedia(p) })));
+  const [clips, setClips] = useState(BUDDY_CLIPS);
   const [at, setAt] = useState(0);
+  const refs = React.useRef([]);
+  const holder = React.useRef(null);
+  const [seen, setSeen] = useState(true);
   useEffect(() => {
     fetchHighlights().then((hs) => {
       const v = (hs || []).find((h) => h.kind === 'video' && h.media_url);
-      if (v) setClips((c) => { const n = [...c]; n.splice(2, 0, { uri: v.media_url, poster: v.poster_url || null }); return n; });
+      if (v) setClips((c) => { const n = [...c]; n.splice(2, 0, { uri: v.media_url, poster: v.poster_url || null, tall: true }); return n; });
     }).catch(() => {});
   }, []);
-  useEffect(() => { const id = setInterval(() => setAt((i) => i + 1), 6000); return () => clearInterval(id); }, []);
-  const c = clips[at % clips.length];
-  /* the clips are filmed upright and the banner is wide: the whole clip,
-     never cropped (Ayser: "الكروب غلط، الناس مش باينة"), with its own
-     picture, blurred, filling the sides */
+  useEffect(() => {
+    const el = holder.current;
+    if (!el || typeof IntersectionObserver === 'undefined') return undefined;
+    const io = new IntersectionObserver(([e]) => setSeen(e.isIntersecting), { threshold: 0.4 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  useEffect(() => { const id = setInterval(() => setAt((i) => i + 1), 6500); return () => clearInterval(id); }, []);
+  const cur = at % clips.length;
+  const saving = isSaving((getPrefs() || {}).dataSaver);   // data saver: the pictures, still, no video
+  useEffect(() => {
+    refs.current.forEach((v, i) => {
+      if (!v) return;
+      if (i === cur && seen && !saving) { try { v.currentTime = 0; } catch (e) {} v.play().catch(() => {}); } else v.pause();
+    });
+  }, [cur, seen, clips.length, saving]);
   return (
-    <>
-      {c.poster ? <Image source={{ uri: c.poster }} blurRadius={22} resizeMode="cover" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, opacity: 0.7 }} /> : null}
-      <HighlightVideo key={c.uri} uri={c.uri} poster={c.poster} fit="contain" />
-    </>
+    <View ref={holder} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
+      {clips.map((c, i) => {
+        const near = i === cur || i === (cur + 1) % clips.length;
+        return (
+          <video key={c.uri} ref={(el) => { refs.current[i] = el; }} src={c.uri} poster={c.poster || undefined} muted loop playsInline
+            preload={saving ? 'none' : near ? 'auto' : 'metadata'} tabIndex={-1}
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: c.tall ? 'center 42%' : 'center', opacity: i === cur ? 1 : 0, transition: 'opacity 900ms ease', pointerEvents: 'none' }} />
+        );
+      })}
+    </View>
   );
 };
 import { TripsWelcome, seenTripsWelcome } from './TripsWelcome';
 import { lazyOverlay } from '../lib/lazyScreen';
 import { publicMedia } from '../lib/publicMedia';
+import { getPrefs } from '../services/prefs';
+import { isSaving } from '../lib/dataSaver';
 
 const COVER = { trip: ['#0EA5E9', '#7C3AED', '🧳'], stay: ['#F59E0B', '#EF4444', '🏨'], experience: ['#10B981', '#0EA5E9', '🧗'], deal: ['#EC4899', '#F59E0B', '🎟️'], table: ['#F97316', '#EF4444', '🍽️'] };
 const Cover = ({ kind, h, flag }) => { const c = COVER[kind] || COVER.trip; return (
