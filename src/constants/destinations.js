@@ -1018,4 +1018,10 @@ export const DESTINATIONS = [
   { id: 'ph_onuk', photo: 'place-ph-onuk.jpg', video: 'place-ph-onuk.mp4', country: 'Philippines', flag: '🇵🇭', emoji: '🏝️', name: 'Onuk Island', area: 'Balabac, Palawan',
     lat: 7.9850, lng: 117.1500, tags: ['Swim', 'Calm'],
     desc: 'A tiny island in the far south of Palawan, ringed by white sand and water clear enough to see the reef from the boat.' },
+  { id: 'eg_fayoum_paraglide', photo: 'place-eg-fayoum-paraglide.jpg', video: 'place-eg-fayoum-paraglide.mp4', country: 'Egypt', flag: '🇪🇬', emoji: '🪂', name: 'Tandem paragliding', area: 'Fayoum',
+    lat: 29.4700, lng: 30.6000, tags: ['Adrenaline', 'Photo'],
+    desc: 'Tandem flights with an instructor over the hills of Fayoum, a couple of hours from Cairo. No experience needed — you sit, they fly.' },
+  { id: 'mv_island', photo: 'place-mv-island.jpg', video: 'place-mv-island.mp4', country: 'Maldives', flag: '🇲🇻', emoji: '🏝️', name: 'Maldives atolls', area: 'Maldives',
+    lat: 3.2028, lng: 73.2207, tags: ['Swim', 'Calm'],
+    desc: 'Small green islands ringed by reef and shallow turquoise lagoons — snorkelling straight from the beach.' },
 ];
