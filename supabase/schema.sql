@@ -6,6 +6,15 @@
 -- ─────────────────────────────────────────────────────────────
 
 -- ── PROFILES · one row per auth user ─────────────────────────
+-- ── NEW TABLES STILL REACH THE APP (Supabase, from 30 Oct 2026) ──────
+-- Supabase stops granting the Data API on new tables in "public" by
+-- itself. This keeps what it used to do, for every table this file (or
+-- a fresh project) creates from here on: the same grants as before,
+-- with row-level security deciding who sees what. Tables that are
+-- meant to be closed revoke these again right after they are created.
+alter default privileges in schema public grant select, insert, update, delete on tables to anon, authenticated, service_role;
+alter default privileges in schema public grant usage, select on sequences to anon, authenticated, service_role;
+
 create table if not exists public.profiles (
   id         uuid primary key references auth.users(id) on delete cascade,
   name       text,

@@ -6,6 +6,15 @@
 --  this file → Run. Green check = done.
 -- ═══════════════════════════════════════════════════════════════════
 
+-- ── NEW TABLES STILL REACH THE APP (Supabase, from 30 Oct 2026) ──────
+-- Supabase stops granting the Data API on new tables in "public" by
+-- itself. This keeps what it used to do, for every table this file (or
+-- a fresh project) creates from here on: the same grants as before,
+-- with row-level security deciding who sees what. Tables that are
+-- meant to be closed revoke these again right after they are created.
+alter default privileges in schema public grant select, insert, update, delete on tables to anon, authenticated, service_role;
+alter default privileges in schema public grant usage, select on sequences to anon, authenticated, service_role;
+
 -- ════════════════════════════════════════════════════════════════
 --  MOMENTS · schema v8 — MATES (friends) + owner delete policies
 --  Run AFTER schema.sql … schema_v7_music.sql. Idempotent.
