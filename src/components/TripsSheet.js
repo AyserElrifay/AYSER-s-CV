@@ -365,15 +365,16 @@ const Offer = ({ o, t, lang, onBack, onBooked, user, onNeedSignIn }) => {
   );
 };
 
-export const TripsSheet = ({ onClose, country, openOn, focus, onNeedSignIn }) => {
+export const TripsSheet = ({ onClose, country, openOn, focus, onNeedSignIn, only }) => {
   useSheetBack(onClose);
   const insets = useSafeAreaInsets();
   const { t, lang } = useLang();
   const { user } = useAuth();
   const [tab, setTab] = useState(openOn === 'mine' ? 'mine' : 'browse');
-  const [kind, setKind] = useState(null);
+  /* only='workshop': opened from Together as the workshops, not as trips */
+  const [kind, setKind] = useState(only || null);
   const [teach, setTeach] = useState(false);
-  const [welcome, setWelcome] = useState(() => !focus && !seenTripsWelcome());
+  const [welcome, setWelcome] = useState(() => !focus && !only && !seenTripsWelcome());
   const [offers, setOffers] = useState(() => recall('offers.' + (country || 'all')));
   const [mine, setMine] = useState(null);
   const [plus, setPlus] = useState(null);
@@ -394,7 +395,7 @@ export const TripsSheet = ({ onClose, country, openOn, focus, onNeedSignIn }) =>
   }, [country, user]);
   useEffect(() => { load(); }, [load]);
 
-  const shown = useMemo(() => (offers || []).filter((o) => (kind ? isKind(o, kind) : o.kind !== 'gift') && (!region || o.country === region)), [offers, kind, region]);
+  const shown = useMemo(() => (offers || []).filter((o) => (kind ? isKind(o, kind) : o.kind !== 'gift' && o.track !== 'workshop') && (!region || o.country === region)), [offers, kind, region]);
   /* Ayser: "ليه أوروبا كده، فين الدول" — every country that has a trip,
      by its own flag and name; Egypt first, then the most trips first */
   const regionsHere = useMemo(() => {
@@ -402,7 +403,8 @@ export const TripsSheet = ({ onClose, country, openOn, focus, onNeedSignIn }) =>
     (offers || []).forEach((o) => { if (o.country) n[o.country] = (n[o.country] || 0) + 1; });
     return Object.keys(n).sort((a, b) => (a === 'EG' ? -1 : b === 'EG' ? 1 : n[b] - n[a] || a.localeCompare(b)));
   }, [offers]);
-  const kindsHere = useMemo(() => KINDS.filter((k) => !k || (offers || []).some((o) => isKind(o, k))), [offers]);
+  /* workshops are activities, not trips: they live in Together, not in this row */
+  const kindsHere = useMemo(() => (only ? [] : KINDS.filter((k) => k !== 'workshop' && (!k || (offers || []).some((o) => isKind(o, k))))), [offers, only]);
 
   // cancelling asks once more — a single stray tap must not undo a trip
   const [sure, setSure] = useState(null);
@@ -450,8 +452,8 @@ export const TripsSheet = ({ onClose, country, openOn, focus, onNeedSignIn }) =>
             <Pressable onPress={() => { tapLight(); onClose && onClose(); }} hitSlop={12} accessibilityRole="button" accessibilityLabel={t('close')} style={{ alignSelf: 'flex-start' }}>
               <Ionicons name="chevron-down" size={26} color={C.text} />
             </Pressable>
-            <Text style={{ color: C.text, fontSize: 28, fontWeight: '900', letterSpacing: -0.4, marginTop: 8 }}>{'🧳 ' + t('bk_title')}</Text>
-            <Text style={{ color: C.dim, fontSize: 14, lineHeight: 20, marginTop: 4 }}>{t('bk_sub')}</Text>
+            <Text style={{ color: C.text, fontSize: 28, fontWeight: '900', letterSpacing: -0.4, marginTop: 8 }}>{only ? t('bk_kind_' + only) : '🧳 ' + t('bk_title')}</Text>
+            {only ? null : <Text style={{ color: C.dim, fontSize: 14, lineHeight: 20, marginTop: 4 }}>{t('bk_sub')}</Text>}
 
             <View style={{ flexDirection: 'row', marginTop: 14, marginBottom: 14, backgroundColor: C.glass, borderRadius: 999, padding: 4, borderWidth: 1, borderColor: C.line }}>
               {['browse', 'mine'].map((k) => (
@@ -468,14 +470,14 @@ export const TripsSheet = ({ onClose, country, openOn, focus, onNeedSignIn }) =>
                 {/* travel buddies: Ayser — the bus video was low resolution
                     (432px) and looked soft. One sharp photo of Dahab instead,
                     nothing over it but the words. */}
-                <View style={{ height: 190, borderRadius: 22, overflow: 'hidden', backgroundColor: '#0E2A3A', marginBottom: 14 }}>
+                {only ? null : <View style={{ height: 190, borderRadius: 22, overflow: 'hidden', backgroundColor: '#0E2A3A', marginBottom: 14 }}>
                   <Image source={{ uri: publicMedia('welcome-dahab.jpg') }} style={{ position: 'absolute', width: '100%', height: '100%' }} resizeMode="cover" accessibilityIgnoresInvertColors />
                   <LinearGradient colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.62)']} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 120 }} />
                   <View style={{ position: 'absolute', left: 16, right: 16, bottom: 14 }}>
                     <Text style={{ color: '#FFF', fontSize: 21, fontWeight: '900', letterSpacing: -0.3 }}>{t('bk_buddies')}</Text>
                     <Text style={{ color: 'rgba(255,255,255,0.88)', fontSize: 13.5, fontWeight: '600', marginTop: 3 }}>{t('bk_buddies_sub')}</Text>
                   </View>
-                </View>
+                </View>}
                 <PlusCard plus={plus} t={t} lang={lang} />
                 {regionsHere.length > 1 ? (
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ marginBottom: 10 }}>

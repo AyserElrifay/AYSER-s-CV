@@ -894,7 +894,8 @@ export const TogetherScreen = () => {
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
           <Tile emoji="🧳" label={t('bk_tile')} from="#7C3AED" to="#F5B301" onPress={() => setSheet({ trips: 'browse' })} />
           <Tile emoji="🤝" label={t('st_title')} from="#F59E0B" to="#EF4444" onPress={() => setSheet('settle')} />
-          <Tile wide emoji="🎲" label={t('tg_play')} from="#A855F7" to="#EC4899" onPress={() => nav.navigate('CHILL')} />
+          <Tile emoji="🎓" label={t('bk_kind_workshop').replace(/^\S+\s/, '')} from="#0EA5E9" to="#6366F1" onPress={() => setSheet({ trips: 'browse', only: 'workshop' })} />
+          <Tile emoji="🎲" label={t('tg_play')} from="#A855F7" to="#EC4899" onPress={() => nav.navigate('CHILL')} />
         </View>
 
         {/* ── bring your people ── one line; the details are in Rewards */}
@@ -923,7 +924,7 @@ export const TogetherScreen = () => {
       {sheet === 'start' ? <GreenSheet startNow homeCountry={myCode} onClose={() => { setSheet(null); load(); }} /> : null}
       {sheet && sheet.start ? <GreenSheet startNow prefill={sheet.start} homeCountry={myCode} onClose={() => { setSheet(null); load(); }} /> : null}
       {sheet && sheet.capsule ? <CapsuleSheet kind="plan" id={sheet.capsule.id} title={titleFor(sheet.capsule.title, lang)} onClose={() => setSheet(null)} /> : null}
-      {sheet && sheet.trips ? <TripsSheet openOn={sheet.trips} onClose={() => setSheet(null)} /> : null}
+      {sheet && sheet.trips ? <TripsSheet openOn={sheet.trips} only={sheet.only} onClose={() => setSheet(null)} /> : null}
       {sheet === 'settle' ? <SettleSheet myCode={myCode} onClose={() => setSheet(null)} onSwap={(p) => setSheet({ start: p })} onPapers={isEuCode(myCode) ? () => setSheet('landing') : null} /> : null}
       {reportingPhoto ? <ReportSheet contentType="plan_photo" contentId={reportingPhoto.id} contentLabel={reportingPhoto.label} onClose={() => setReportingPhoto(null)} /> : null}
       {sheet === 'green' ? <GreenSheet homeCountry={myCode} onClose={() => { setSheet(null); load(); }} /> : null}
