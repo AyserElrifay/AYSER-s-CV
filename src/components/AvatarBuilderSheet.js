@@ -425,6 +425,21 @@ export const AvatarBuilderSheet = ({ initialDna, onClose, onSaved }) => {
 
           {tab === 'style' ? (
             <>
+              {/* how you are drawn: our cartoon, or coloured in and cut out of paper */}
+              <Text style={{ color: C.faint, fontSize: 11, fontWeight: '900', letterSpacing: 0.8, marginBottom: 10 }}>LOOK</Text>
+              <View style={{ flexDirection: 'row', marginBottom: 18 }}>
+                {[['', '✨', 'Cartoon'], ['paper', '🖍️', 'Paper cut-out']].map(([id, e, label]) => {
+                  const on = (dna.art || '') === id;
+                  return (
+                    <Pressable key={id || 'toon'} onPress={() => { tapSelection(); set('art')(id); }} accessibilityRole="radio" accessibilityState={{ selected: on }} style={{ marginRight: 8 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: on ? C.purple : C.glass, borderWidth: 1, borderColor: on ? C.purple : C.line, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 10 }}>
+                        <Text style={{ fontSize: 15, marginRight: 6 }}>{e}</Text>
+                        <Text style={{ color: on ? '#FFF' : C.text, fontSize: 13, fontWeight: '800' }}>{label}</Text>
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </View>
               <ColorRow label="BACKGROUND" colors={BG_COLORS} value={dna.bg} onPick={set('bg')} />
               <Text style={{ color: C.faint, fontSize: 11, fontWeight: '900', letterSpacing: 0.8, marginBottom: 10 }}>HERITAGE — wear where you're from</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>

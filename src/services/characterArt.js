@@ -221,6 +221,7 @@ export const DEFAULT_LOOK = {
   shoes: 'sneakers', shoeColor: '#F4F4F5',
   outer: '', outerColor: '#111827',
   hat: '', hatColor: '#111827',
+  art: '',      // '' = the cartoon, 'paper' = a hand-coloured paper cut-out
 };
 
 /* The look travels in the same DNA string as the face, so one field on
@@ -378,7 +379,66 @@ const facing = (T) => Math.max(0, T.ct);
 
 /* ── THE CHARACTER ─────────────────────────────────────────────────
    Draws into a 100 × 160 box at (ox, oy), scaled to (w, h). */
+/* ── THE PAPER CUT-OUT LOOK ─────────────────────────────────────────
+   Ayser liked hand-drawn paper dolls: a figure coloured in marker, cut
+   out with a white paper edge round it, standing on the table. Ours is
+   the same character, drawn by us, finished that way: a thin ink line,
+   the white paper margin with its little shadow, and the streaks a
+   marker leaves. Kept per drawing, so a list of avatars stays cheap. */
+const PAPER = new Map();
+const sheet = (W, H) => { const k = document.createElement('canvas'); k.width = W; k.height = H; return k; };
+function paperize(c, w, key, draw) {
+  const W = c.canvas.width, H = c.canvas.height;
+  const T = c.getTransform ? c.getTransform() : { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
+  const k = key + '|' + W + 'x' + H + '|' + [T.a, T.b, T.c, T.d, T.e, T.f].map((x) => Math.round(x * 100)).join(',');
+  let out = PAPER.get(k);
+  if (!out) {
+    const fig = sheet(W, H), fx = fig.getContext('2d');
+    fx.setTransform(T.a, T.b, T.c, T.d, T.e, T.f);
+    draw(fx);
+    const px = Math.hypot(T.a, T.b) * w;            // the figure's width on screen
+    const ring = (r, col) => {                       // the figure, grown by r, in one colour
+      const t = sheet(W, H), tx = t.getContext('2d');
+      for (let i = 0; i < 16; i++) { const a = (i / 16) * Math.PI * 2; tx.drawImage(fig, Math.cos(a) * r, Math.sin(a) * r); }
+      tx.globalCompositeOperation = 'source-in'; tx.fillStyle = col; tx.fillRect(0, 0, W, H);
+      return t;
+    };
+    out = sheet(W, H);
+    const ox = out.getContext('2d');
+    ox.save();
+    ox.shadowColor = 'rgba(0,0,0,0.28)'; ox.shadowBlur = Math.max(2, px * 0.03); ox.shadowOffsetY = Math.max(1, px * 0.012);
+    ox.drawImage(ring(Math.max(2, px * 0.045), '#FBFAF6'), 0, 0);
+    ox.restore();
+    ox.drawImage(ring(Math.max(1, px * 0.011), '#2B2420'), 0, 0);
+    // marker streaks, only on the figure
+    const tex = sheet(W, H), tx = tex.getContext('2d');
+    tx.drawImage(fig, 0, 0);
+    tx.globalCompositeOperation = 'source-atop';
+    const step = Math.max(2, px * 0.022);
+    tx.lineWidth = Math.max(0.6, px * 0.007);
+    for (let x = -H, i = 0; x < W; x += step, i++) {
+      tx.strokeStyle = i % 3 === 0 ? 'rgba(255,255,255,0.16)' : i % 3 === 1 ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.07)';
+      tx.beginPath(); tx.moveTo(x, 0); tx.lineTo(x + H * 0.08, H); tx.stroke();
+    }
+    tx.fillStyle = 'rgba(255,236,214,0.10)'; tx.fillRect(0, 0, W, H);   // paper warms every colour a little
+    ox.drawImage(tex, 0, 0);
+    if (PAPER.size > 24) PAPER.delete(PAPER.keys().next().value);
+    PAPER.set(k, out);
+  }
+  c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.drawImage(out, 0, 0); c.restore();
+}
+
 export function drawCharacter(c, ox, oy, w, h, dnaIn, opts) {
+  const d = parseLook(dnaIn);
+  if (d.art === 'paper' && typeof document !== 'undefined' && c.canvas) {
+    const o = { ...(opts || {}), shadow: false };   // the paper's own shadow stands in for the ground's
+    // a little smaller inside its frame, so the paper margin is never cut off
+    return paperize(c, w, JSON.stringify([d, ox, oy, w, h, o.turn || 0]), (x) => drawFigure(x, ox + w * 0.05, oy + h * 0.04, w * 0.9, h * 0.9, d, o));
+  }
+  return drawFigure(c, ox, oy, w, h, d, opts);
+}
+
+function drawFigure(c, ox, oy, w, h, dnaIn, opts) {
   const o = opts || {};
   const d = parseLook(dnaIn);
   const T = turnOf(o.turn);
