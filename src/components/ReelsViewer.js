@@ -216,6 +216,9 @@ export const ReelsViewer = ({ reels, startIndex = 0, vibes, onVibe, onComment, o
             ref={(el) => {
               if (!el || el.__wired) return;
               el.__wired = true;
+              /* a wide video (a YouTube-style clip) is shown whole, not cut
+                 into a tall reel */
+              el.onloadedmetadata = () => { if (el.videoWidth > el.videoHeight) el.style.objectFit = 'contain'; };
               videosRef.current.set(item.id, el);
               trackPlayer(el);
               // the first one on screen is the one that plays
@@ -345,7 +348,7 @@ export const ReelsViewer = ({ reels, startIndex = 0, vibes, onVibe, onComment, o
         />
         {/* header */}
         <View style={{ position: 'absolute', top: insets.top + 10, left: 16, right: 16, flexDirection: 'row', alignItems: 'center' }}>
-          <Text style={{ color: '#FFF', fontSize: 17, fontWeight: '900', letterSpacing: 2, flex: 1 }}>REELS ✦</Text>
+          <Text style={{ color: '#FFF', fontSize: 17, fontWeight: '900', letterSpacing: 2, flex: 1 }}>{reels.length === 1 && reels[0].type !== 'reel' ? '' : 'REELS ✦'}</Text>
           <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button" accessibilityLabel={t('close')}>
             <Ionicons name="close" size={28} color="#FFF" />
           </Pressable>

@@ -66,7 +66,6 @@ const HomeWidgets = lazyOverlay(() => import('../components/MyDay').then((m) => 
 /* the widgets somebody picked (src/components/Personalise.js); none = nothing loads */
 const readWidgets = () => { try { const v = JSON.parse(localStorage.getItem('mm.widgets') || '[]'); return Array.isArray(v) ? v : []; } catch (e) { return []; } };
 const GreenSheet = lazyOverlay(() => import('../components/green/GreenSheet').then((m) => ({ default: m.GreenSheet })));
-const ReelsViewer = lazyOverlay(() => import('../components/ReelsViewer').then((m) => ({ default: m.ReelsViewer })));
 const ReportSheet = lazyOverlay(() => import('../components/ReportSheet').then((m) => ({ default: m.ReportSheet })));
 const SearchModal = lazyOverlay(() => import('../components/SearchModal').then((m) => ({ default: m.SearchModal })));
 const StoryViewer = lazyOverlay(() => import('../components/StoryViewer').then((m) => ({ default: m.StoryViewer })));
@@ -248,7 +247,6 @@ export const HomeScreen = () => {
   const [composing, setComposing] = useState(null); // null | 'post' | 'reel' | 'story'
   const [searching, setSearching] = useState(false);
   const [storyIndex, setStoryIndex] = useState(null);
-  const [reelStart, setReelStart] = useState(null);
   const [myProfileOpen, setMyProfileOpen] = useState(false); // one profile everywhere
   const [personalise, setPersonalise] = useState(false);     // hold the logo: app icon and widgets
   const [widgets, setWidgets] = useState(readWidgets);
@@ -444,7 +442,6 @@ export const HomeScreen = () => {
     () => storyGroups.map((g) => ({ ...g.items[g.items.length - 1], user: g.user, count: g.items.length })),
     [storyGroups]
   );
-  const reels = useMemo(() => posts.filter((p) => p.type === 'reel'), [posts]);
 
   // refresh your header avatar when you come back from the profile
   useEffect(() => {
@@ -912,19 +909,6 @@ export const HomeScreen = () => {
           startNow
           prefill={{ place: hangoutAt.place || '', lat: hangoutAt.coords ? hangoutAt.coords.latitude : null, lng: hangoutAt.coords ? hangoutAt.coords.longitude : null }}
           onClose={() => setHangoutAt(null)}
-        />
-      ) : null}
-      {reelStart !== null && reels[reelStart] ? (
-        /* one clip, full screen — never a swipe into the next one */
-        <ReelsViewer
-          reels={[reels[reelStart]]}
-          startIndex={0}
-          vibes={vibes}
-          onVibe={onVibe}
-          onComment={(p) => { setReelStart(null); openComments(p); }}
-          onClose={() => setReelStart(null)}
-          onDeleted={(id) => removePost(id)}
-          onEdited={(id, fields) => patchPost(id, fields)}
         />
       ) : null}
     </View>

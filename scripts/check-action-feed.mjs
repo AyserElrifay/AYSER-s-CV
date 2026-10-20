@@ -37,7 +37,7 @@ is('no adverts are mixed in', !/injectAds|fetchFeedAds/.test(feed), true);
 is('a new moment needs a place', /feed_need_place/.test(read('src/components/ComposeModal.js')), true);
 is('an ordinary moment is not turned into a pitch (no "make a plan here" under every post)', /onHangoutHere\(post\)/.test(read('src/components/PostCard.js')), false);
 is('the feed has an end, and it points out of the feed', /ListFooterComponent=/.test(read('src/screens/HomeScreen.js')) && /goToTab\('TOGETHER'\)/.test(read('src/screens/HomeScreen.js')), true);
-is('a clip opens alone, never swiping into the next', /reels=\{\[reels\[reelStart\]\]\}/.test(read('src/screens/HomeScreen.js')), true);
+is('a clip opens alone, never swiping into the next', /reels=\{\[\{ \.\.\.post, kind: 'video' \}\]\}/.test(read('src/components/PostCard.js')), true);
 is('no reel or long-video mode in the camera', /\['story'\]\.map\(\(m\)/.test(read('src/components/CaptureModal.js')), true);
 
 if (bad) { console.log('\n' + bad + ' wrong.'); process.exit(1); }
