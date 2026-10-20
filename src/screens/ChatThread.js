@@ -48,6 +48,14 @@ import { SheetHandle, SheetBack } from '../components/SheetHandle';
 const OnceViewer = lazyOverlay(() => import('../components/OnceViewer').then((m) => ({ default: m.OnceViewer })));
 const GameRunner = lazyOverlay(() => import('../components/GameRunner').then((m) => ({ default: m.GameRunner })));
 const CaptureModal = lazyOverlay(() => import('../components/CaptureModal').then((m) => ({ default: m.CaptureModal })));
+/* group games: the card lives in the thread, the rest opens from the games button */
+const games = (k) => lazyOverlay(() => import('../components/games').then((m) => ({ default: m[k] })));
+const GroupGameCard = games('GroupGameCard');
+const GroupGamesSheet = games('GroupGamesSheet');
+const TwinSheet = games('TwinSheet');
+const WorldSheet = games('WorldSheet');
+const PartyGames = games('PartyGames');
+const GreenSheet = lazyOverlay(() => import('../components/green/GreenSheet').then((m) => ({ default: m.GreenSheet })));
 
 /* ─── A conversation — kept deliberately simple and warm, the kind of
    place you want to hang out in. Call & video in the header, and games
@@ -55,6 +63,17 @@ const CaptureModal = lazyOverlay(() => import('../components/CaptureModal').then
 
 /* No scripted messages — a conversation starts empty and fills with
    REAL messages only. A brand-new chat should look brand new. */
+
+const MENU_WORDS = {
+  en: { group: 'Group games', group_s: 'Plan Roulette, Bingo, Guess the spot…', table: 'At the table', table_s: 'Questions, The outsider, Act it out…' },
+  ar: { group: 'ألعاب الجروب', group_s: 'عجلة الخروجات، بينجو، المكان ده فين…', table: 'على الترابيزة', table_s: 'أسئلة، الغريب، مثّلها…' },
+  fr: { group: 'Jeux de groupe', table: 'À table' }, es: { group: 'Juegos de grupo', table: 'En la mesa' },
+  it: { group: 'Giochi di gruppo', table: 'A tavola' }, pt: { group: 'Jogos de grupo', table: 'À mesa' }, nl: { group: 'Groepsspellen', table: 'Aan tafel' },
+  tr: { group: 'Grup oyunları', table: 'Masada' }, ru: { group: 'Игры группы', table: 'За столом' }, ro: { group: 'Jocuri de grup', table: 'La masă' },
+  cs: { group: 'Skupinové hry', table: 'U stolu' }, et: { group: 'Grupimängud', table: 'Laua taga' }, hi: { group: 'ग्रुप गेम्स', table: 'टेबल पर' },
+  ja: { group: 'グループゲーム', table: 'テーブルで' }, ko: { group: '그룹 게임', table: '테이블에서' }, zh: { group: '群组游戏', table: '在桌边' },
+};
+const gwShort = (lang, k) => (MENU_WORDS[lang] && MENU_WORDS[lang][k]) || MENU_WORDS.en[k];
 
 export const ChatThread = ({ chat, group, onClose }) => {
   const insets = useSafeAreaInsets();
@@ -229,6 +248,8 @@ export const ChatThread = ({ chat, group, onClose }) => {
     send(text);
   };
   const [menu, setMenu] = useState(false);
+  const [gamesOn, setGamesOn] = useState(null);   // 'games' | 'twin' | 'world' | 'party'
+  const [planOf, setPlanOf] = useState(null);     // a game's plan, on its way to the map
   const [call, setCall] = useState(null); // {video:bool}
   const scroller = useRef(null);
 
@@ -314,6 +335,7 @@ export const ChatThread = ({ chat, group, onClose }) => {
     mediaUrl: row.media_url || null,
     mediaKind: row.media_kind || null,
     gameMatchId: row.game_match_id || null,
+    squadGameId: row.squad_game_id || null,
     onceOpenedAt: row.once_opened_at || null,
     from: row.user_id === user.id
       ? 'me'
@@ -592,6 +614,24 @@ export const ChatThread = ({ chat, group, onClose }) => {
               /* A screenshot notice belongs to the thread, not to
                  either person — so it reads as a line across the middle
                  rather than a bubble somebody "said". */
+              /* a group game is played right here, in its own card */
+              if (m.kind === 'squad_game' && m.squadGameId && group && isReal) {
+                return (
+                  <View key={m.id} style={{ alignItems: mine ? 'flex-end' : 'flex-start', marginBottom: 12 }}>
+                    {!mine ? <Text style={{ color: C.faint, fontSize: 10.5, marginBottom: 3, marginLeft: 4 }}>{m.from.name}</Text> : null}
+                    <GroupGameCard gameId={m.squadGameId} squadId={chat.id} meId={user.id} lang={lang} onMakePlan={setPlanOf} />
+                  </View>
+                );
+              }
+              if (m.kind === 'twin' && group) {
+                return (
+                  <Pressable key={m.id} onPress={() => { tapLight(); setGamesOn('twin'); }} accessibilityRole="button" style={{ alignItems: 'center', marginVertical: 10 }}>
+                    <View style={{ borderRadius: 999, backgroundColor: C.purpleSoft, paddingHorizontal: 16, paddingVertical: 9 }}>
+                      <Text style={{ color: C.purple, fontSize: 13, fontWeight: '900', textAlign: 'center' }}>{m.text}</Text>
+                    </View>
+                  </Pressable>
+                );
+              }
               if (m.kind === 'screenshot') {
                 return (
                   <View key={m.id} style={{ alignItems: 'center', marginVertical: 8 }}>
@@ -810,6 +850,31 @@ export const ChatThread = ({ chat, group, onClose }) => {
           {menu ? (
             <View style={{ position: 'absolute', bottom: 70, left: 12, right: 12, maxHeight: 400, backgroundColor: C.bg2, borderRadius: 16, borderWidth: 1, borderColor: C.line, padding: 6, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 14, shadowOffset: { width: 0, height: 6 } }}>
               <ScrollView keyboardShouldPersistTaps="handled">
+              {/* the group's games, its twin across the world, and the table games */}
+              {group && isReal ? (
+                <>
+                  <Pressable onPress={() => { tapLight(); setMenu(false); setGamesOn('games'); }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 11 }}>
+                      <Text style={{ fontSize: 20 }}>🎡</Text>
+                      <View style={{ marginLeft: 10, flex: 1 }}>
+                        <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>{gwShort(lang, 'group')}</Text>
+                        <Text style={{ color: C.faint, fontSize: 11 }} numberOfLines={1}>{gwShort(lang, 'group_s')}</Text>
+                      </View>
+                    </View>
+                  </Pressable>
+                  <View style={{ height: 1, backgroundColor: C.line, marginHorizontal: 10 }} />
+                </>
+              ) : null}
+              <Pressable onPress={() => { tapLight(); setMenu(false); setGamesOn('party'); }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 11 }}>
+                  <Text style={{ fontSize: 20 }}>🃏</Text>
+                  <View style={{ marginLeft: 10, flex: 1 }}>
+                    <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>{gwShort(lang, 'table')}</Text>
+                    <Text style={{ color: C.faint, fontSize: 11 }} numberOfLines={1}>{gwShort(lang, 'table_s')}</Text>
+                  </View>
+                </View>
+              </Pressable>
+              <View style={{ height: 1, backgroundColor: C.line, marginHorizontal: 10 }} />
               {/* Two people, one board — a real invite the other side
                   accepts, and a game that survives closing the app. */}
               {isReal && !group ? (
@@ -981,6 +1046,15 @@ export const ChatThread = ({ chat, group, onClose }) => {
         </KeyboardAvoidingView>
       </View>
 
+      {gamesOn === 'games' ? (
+        <GroupGamesSheet squadId={chat.id} userId={user.id} lang={lang}
+          onOpen={(k) => setGamesOn(k)}
+          onClose={(sent) => { setGamesOn(null); if (sent) setTimeout(() => scroller.current && scroller.current.scrollToEnd({ animated: true }), 300); }} />
+      ) : null}
+      {gamesOn === 'twin' ? <TwinSheet squadId={chat.id} userId={user.id} lang={lang} onClose={() => setGamesOn(null)} /> : null}
+      {gamesOn === 'world' ? <WorldSheet userId={user.id} lang={lang} onClose={() => setGamesOn(null)} /> : null}
+      {gamesOn === 'party' ? <PartyGames lang={lang} onClose={() => setGamesOn(null)} /> : null}
+      {planOf ? <GreenSheet startNow prefill={planOf} onClose={() => setPlanOf(null)} /> : null}
       {infoOpen ? (
         <GroupInfoSheet squadId={chat.id} onClose={() => { setInfoOpen(false); refreshGroup(); }}
           onChanged={refreshGroup} onLeft={() => { setInfoOpen(false); onClose(); }} />

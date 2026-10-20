@@ -59,6 +59,7 @@ const ComposeModal = lazyOverlay(() => import('../components/ComposeModal').then
 const ReflectionPane = lazyOverlay(() => import('../components/ReflectionPane').then((m) => ({ default: m.ReflectionPane })));
 const LikersSheet = lazyOverlay(() => import('../components/LikersSheet').then((m) => ({ default: m.LikersSheet })));
 const MagicFlowModal = lazyOverlay(() => import('../components/MagicFlowModal').then((m) => ({ default: m.MagicFlowModal })));
+const WorldCard = lazyOverlay(() => import('../components/games').then((m) => ({ default: m.WorldCard })));
 const NotificationsSheet = lazyOverlay(() => import('../components/NotificationsSheet').then((m) => ({ default: m.NotificationsSheet })));
 const ProfileModal = lazyOverlay(() => import('../components/ProfileModal').then((m) => ({ default: m.ProfileModal })));
 const Personalise = lazyOverlay(() => import('../components/Personalise').then((m) => ({ default: m.Personalise })));
@@ -112,7 +113,7 @@ const headerBtn = () => ({
 export const HomeScreen = () => {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { t, rtl } = useLang();
+  const { t, rtl, lang } = useLang();
   const { posts, refreshing, refresh, prependPost, removePost, patchPost, loadError, settled } = useFeed();
 
   /* ── TWO TABS, AND A FEED WITH A DAILY WINDOW ───────────────────────
@@ -620,6 +621,9 @@ export const HomeScreen = () => {
                 onOpenPlan={(g) => { if (g.lat != null && g.lng != null) showOnMap({ lat: g.lat, lng: g.lng }); else goToTab('TOGETHER'); }}
               />
             ) : null}
+
+            {/* tonight's sky from everywhere (src/components/games/WorldCard.js) */}
+            {user && SUPABASE_READY && homeTab === 'moments' ? <WorldCard userId={user.id} lang={lang} city={myProfile && myProfile.city} /> : null}
 
             {/* the minutes left today, ticking */}
             {user && homeTab === 'moments' && !feedClosed ? <FeedClock budget={budget} running={focused} /> : null}

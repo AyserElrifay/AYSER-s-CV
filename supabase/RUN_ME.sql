@@ -17832,6 +17832,498 @@ update public.offers set photos = '{media/ws-jam.jpg}'::text[]
  where id = '0ffe0000-0000-4000-8000-0000000000b9' and photos = '{media/act-music-v1.jpg}'::text[];
 
 -- ═══════════════════════════════════════════════════════════════════
+--  GROUP GAMES · PLAYED TOGETHER, ENDING IN A REAL OUTING
+--  Ayser: "اعمل ألعاب الجروبز عشان يجربوا يلعبوا مع بعض ويستخدموا
+--  مومنتس". One game row a whole group shares, one move per person,
+--  and every game ends in something to do: a plan, a place, a week met.
+--    roulette  a plan idea; three "I'm in" and it can go on the map
+--    likely    "most likely to…" — the most votes picks the next outing
+--    bingo     nine things to do together this week, ticked by whoever did them
+--    spot      a close-up photo of a place; guess where it is
+--    truths    two true things and one thing I want to do; guess which
+--  The answer of spot and truths waits in `secret`, which nobody can
+--  read: only sgame_state shows it, and only once the game is over.
+--  Every table here is closed; all of it goes through the functions.
+--  Safe to re-run.
+-- ═══════════════════════════════════════════════════════════════════
+create table if not exists public.squad_games (
+  id         uuid primary key default gen_random_uuid(),
+  squad_id   uuid not null references public.squads(id) on delete cascade,
+  kind       text not null check (kind in ('roulette','likely','bingo','spot','truths')),
+  data       jsonb not null default '{}'::jsonb,
+  secret     jsonb,
+  result     jsonb,
+  status     text not null default 'open' check (status in ('open','done')),
+  week       date,
+  started_by uuid references public.profiles(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+create index if not exists squad_games_squad on public.squad_games (squad_id, created_at desc);
+create table if not exists public.squad_game_moves (
+  game_id    uuid not null references public.squad_games(id) on delete cascade,
+  user_id    uuid not null references public.profiles(id) on delete cascade,
+  slot       text not null default '',
+  move       jsonb not null,
+  created_at timestamptz not null default now(),
+  primary key (game_id, user_id, slot)
+);
+-- "we met this week": two of you saying so is a week of the group's streak
+create table if not exists public.squad_meets (
+  squad_id uuid not null references public.squads(id) on delete cascade,
+  user_id  uuid not null references public.profiles(id) on delete cascade,
+  week     date not null,
+  primary key (squad_id, user_id, week)
+);
+alter table public.squad_games enable row level security;
+alter table public.squad_game_moves enable row level security;
+alter table public.squad_meets enable row level security;
+revoke all on public.squad_games, public.squad_game_moves, public.squad_meets from anon, authenticated;
+
+alter table public.messages add column if not exists squad_game_id uuid references public.squad_games(id) on delete set null;
+
+-- the same guess written two ways is the same guess
+create or replace function public.sg_norm(t text)
+returns text language sql immutable as $$
+  select btrim(regexp_replace(translate(lower(coalesce(t, '')), 'أإآةى', 'اااهي'), '[^[:alnum:]]+', ' ', 'g'));
+$$;
+
+-- a short line of text, or null; never longer than n
+create or replace function public.sg_line(j jsonb, k text, n int)
+returns text language sql immutable as $$
+  select nullif(left(btrim(coalesce(j ->> k, '')), n), '');
+$$;
+
+create or replace function public.sgame_start(p_squad uuid, p_kind text, p_data jsonb, p_secret jsonb)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); d jsonb := '{}'::jsonb; s jsonb; g uuid; wk date := date_trunc('week', now())::date;
+  names jsonb := '{"roulette":"🎡 Plan Roulette","likely":"🗳️ Most likely to…","bingo":"🎯 Moments Bingo","spot":"📍 Guess the spot","truths":"🤞 Two truths & a plan"}';
+  cells jsonb; lines jsonb; x text; i int;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  if not public.is_squad_member(p_squad, me) then return jsonb_build_object('ok', false, 'reason', 'not_member'); end if;
+  if (select count(*) from public.squad_games where squad_id = p_squad and created_at > now() - interval '1 day') >= 20 then
+    return jsonb_build_object('ok', false, 'reason', 'slow_down');
+  end if;
+  p_data := coalesce(p_data, '{}'::jsonb);
+  if p_kind = 'roulette' then
+    if public.sg_line(p_data, 'title', 80) is null then return jsonb_build_object('ok', false, 'reason', 'empty'); end if;
+    d := jsonb_build_object('title', public.sg_line(p_data, 'title', 80), 'about', public.sg_line(p_data, 'about', 200),
+      'emoji', coalesce(public.sg_line(p_data, 'emoji', 8), '✨'), 'kind', coalesce(public.sg_line(p_data, 'kind', 20), 'coffee'),
+      'hour', least(23, greatest(0, coalesce((p_data ->> 'hour')::int, 18))), 'need', 3);
+  elsif p_kind = 'likely' then
+    if public.sg_line(p_data, 'q', 140) is null then return jsonb_build_object('ok', false, 'reason', 'empty'); end if;
+    d := jsonb_build_object('q', public.sg_line(p_data, 'q', 140));
+  elsif p_kind = 'bingo' then
+    -- one card a week per group: asking again opens this week's card
+    select id into g from public.squad_games where squad_id = p_squad and kind = 'bingo' and week = wk limit 1;
+    if g is not null then return jsonb_build_object('ok', true, 'id', g, 'again', true); end if;
+    cells := p_data -> 'cells';
+    if jsonb_typeof(cells) <> 'array' or jsonb_array_length(cells) <> 9 then return jsonb_build_object('ok', false, 'reason', 'empty'); end if;
+    d := jsonb_build_object('cells', (select jsonb_agg(left(btrim(v), 60)) from jsonb_array_elements_text(cells) v));
+  elsif p_kind = 'spot' then
+    x := public.sg_line(p_data, 'photo', 600);
+    if x is null or x !~ '^https://' then return jsonb_build_object('ok', false, 'reason', 'photo'); end if;
+    if public.sg_line(p_secret, 'answer', 60) is null then return jsonb_build_object('ok', false, 'reason', 'empty'); end if;
+    d := jsonb_build_object('photo', x, 'hint', public.sg_line(p_data, 'hint', 80));
+    s := jsonb_build_object('answer', public.sg_line(p_secret, 'answer', 60));
+  elsif p_kind = 'truths' then
+    lines := p_data -> 'lines';
+    if jsonb_typeof(lines) <> 'array' or jsonb_array_length(lines) <> 3 then return jsonb_build_object('ok', false, 'reason', 'empty'); end if;
+    for i in 0..2 loop
+      if nullif(btrim(lines ->> i), '') is null then return jsonb_build_object('ok', false, 'reason', 'empty'); end if;
+    end loop;
+    i := (p_secret ->> 'plan')::int;
+    if i is null or i not between 0 and 2 then return jsonb_build_object('ok', false, 'reason', 'empty'); end if;
+    d := jsonb_build_object('lines', (select jsonb_agg(left(btrim(v), 120)) from jsonb_array_elements_text(lines) v));
+    s := jsonb_build_object('plan', i);
+  else
+    return jsonb_build_object('ok', false, 'reason', 'kind');
+  end if;
+  insert into public.squad_games (squad_id, kind, data, secret, week, started_by)
+  values (p_squad, p_kind, d, s, case when p_kind = 'bingo' then wk end, me) returning id into g;
+  insert into public.messages (squad_id, user_id, body, kind, squad_game_id)
+  values (p_squad, me, names ->> p_kind, 'squad_game', g);
+  return jsonb_build_object('ok', true, 'id', g);
+end $$;
+
+create or replace function public.sgame_move(p_game uuid, p_slot text, p_move jsonb)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); gm public.squad_games%rowtype; v_slot text := coalesce(p_slot, ''); n int; guess text; ans text;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  select * into gm from public.squad_games where id = p_game;
+  if not found or not public.is_squad_member(gm.squad_id, me) then return jsonb_build_object('ok', false, 'reason', 'not_member'); end if;
+  if gm.status <> 'open' then return jsonb_build_object('ok', false, 'reason', 'over'); end if;
+  if p_move is null then
+    delete from public.squad_game_moves where game_id = p_game and user_id = me and squad_game_moves.slot = v_slot;
+    return jsonb_build_object('ok', true);
+  end if;
+  if gm.kind = 'roulette' then
+    insert into public.squad_game_moves (game_id, user_id, slot, move) values (p_game, me, '', jsonb_build_object('in', coalesce((p_move ->> 'in')::boolean, false)))
+    on conflict (game_id, user_id, slot) do update set move = excluded.move, created_at = now();
+  elsif gm.kind = 'likely' then
+    if (p_move ->> 'vote') is null or not public.is_squad_member(gm.squad_id, (p_move ->> 'vote')::uuid) then
+      return jsonb_build_object('ok', false, 'reason', 'who');
+    end if;
+    insert into public.squad_game_moves (game_id, user_id, slot, move) values (p_game, me, '', jsonb_build_object('vote', p_move ->> 'vote'))
+    on conflict (game_id, user_id, slot) do update set move = excluded.move, created_at = now();
+  elsif gm.kind = 'bingo' then
+    if v_slot !~ '^[0-8]$' then return jsonb_build_object('ok', false, 'reason', 'slot'); end if;
+    insert into public.squad_game_moves (game_id, user_id, slot, move) values (p_game, me, v_slot, jsonb_build_object('done', true))
+    on conflict (game_id, user_id, slot) do nothing;
+  elsif gm.kind = 'spot' then
+    if gm.started_by = me then return jsonb_build_object('ok', false, 'reason', 'yours'); end if;
+    guess := left(btrim(coalesce(p_move ->> 'guess', '')), 60);
+    if guess = '' then return jsonb_build_object('ok', false, 'reason', 'empty'); end if;
+    select coalesce((move ->> 'n')::int, 0) into n from public.squad_game_moves where game_id = p_game and user_id = me and squad_game_moves.slot = '';
+    if coalesce(n, 0) >= 5 then return jsonb_build_object('ok', false, 'reason', 'no_more'); end if;
+    insert into public.squad_game_moves (game_id, user_id, slot, move) values (p_game, me, '', jsonb_build_object('guess', guess, 'n', coalesce(n, 0) + 1))
+    on conflict (game_id, user_id, slot) do update set move = excluded.move, created_at = now();
+    ans := public.sg_norm(gm.secret ->> 'answer'); guess := public.sg_norm(guess);
+    if guess <> '' and (guess = ans or (length(guess) >= 4 and position(guess in ans) > 0) or (length(ans) >= 4 and position(ans in guess) > 0)) then
+      update public.squad_games set status = 'done', result = jsonb_build_object('by', me) where id = p_game;
+      return jsonb_build_object('ok', true, 'right', true);
+    end if;
+    return jsonb_build_object('ok', true, 'right', false, 'left', 4 - coalesce(n, 0));
+  elsif gm.kind = 'truths' then
+    if gm.started_by = me then return jsonb_build_object('ok', false, 'reason', 'yours'); end if;
+    if coalesce((p_move ->> 'pick')::int, -1) not between 0 and 2 then return jsonb_build_object('ok', false, 'reason', 'slot'); end if;
+    insert into public.squad_game_moves (game_id, user_id, slot, move) values (p_game, me, '', jsonb_build_object('pick', (p_move ->> 'pick')::int))
+    on conflict (game_id, user_id, slot) do update set move = excluded.move, created_at = now();
+  end if;
+  return jsonb_build_object('ok', true);
+end $$;
+
+-- the one who started it, or an admin, closes a game and shows the answer
+create or replace function public.sgame_reveal(p_game uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); gm public.squad_games%rowtype; top uuid;
+begin
+  select * into gm from public.squad_games where id = p_game;
+  if not found or me is null or not public.is_squad_member(gm.squad_id, me) then return jsonb_build_object('ok', false, 'reason', 'not_member'); end if;
+  if gm.started_by is distinct from me and public.squad_rank(public.squad_role(gm.squad_id, me)) < 3 then
+    return jsonb_build_object('ok', false, 'reason', 'not_yours');
+  end if;
+  if gm.kind = 'likely' then
+    select (move ->> 'vote')::uuid into top from public.squad_game_moves where game_id = p_game
+     group by move ->> 'vote' order by count(*) desc, min(created_at) limit 1;
+    update public.squad_games set status = 'done', result = jsonb_build_object('top', top) where id = p_game;
+  else
+    update public.squad_games set status = 'done', result = coalesce(result, '{}'::jsonb) where id = p_game;
+  end if;
+  return jsonb_build_object('ok', true);
+end $$;
+
+create or replace function public.sgame_state(p_game uuid)
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare me uuid := auth.uid(); gm public.squad_games%rowtype;
+begin
+  select * into gm from public.squad_games where id = p_game;
+  if not found or me is null or not public.is_squad_member(gm.squad_id, me) then return jsonb_build_object('ok', false, 'reason', 'not_member'); end if;
+  return jsonb_build_object('ok', true, 'id', gm.id, 'kind', gm.kind, 'data', gm.data, 'status', gm.status,
+    'result', gm.result, 'mine', gm.started_by = me, 'week', gm.week,
+    'admin', public.squad_rank(public.squad_role(gm.squad_id, me)) >= 3,
+    -- the answer only once it is over
+    'secret', case when gm.status = 'done' then gm.secret end,
+    'starter', (select jsonb_build_object('id', p.id, 'name', split_part(coalesce(p.name, ''), ' ', 1), 'avatar', p.avatar_url)
+                  from public.profiles p where p.id = gm.started_by),
+    'members', (select coalesce(jsonb_agg(jsonb_build_object('id', p.id, 'name', split_part(coalesce(p.name, ''), ' ', 1), 'avatar', p.avatar_url) order by sm.joined_at), '[]'::jsonb)
+                  from public.squad_members sm join public.profiles p on p.id = sm.user_id
+                 where sm.squad_id = gm.squad_id and coalesce(sm.accepted, true)),
+    -- truths picks stay hidden until the end; everything else is open
+    'moves', (select coalesce(jsonb_agg(jsonb_build_object('user', m.user_id, 'slot', m.slot,
+                 'move', case when gm.kind = 'truths' and gm.status = 'open' and m.user_id <> me then '{}'::jsonb
+                              when gm.kind = 'spot' and gm.status = 'open' and m.user_id <> me then jsonb_build_object('n', m.move -> 'n')
+                              else m.move end) order by m.created_at), '[]'::jsonb)
+                from public.squad_game_moves m where m.game_id = gm.id));
+end $$;
+
+-- the group's weeks in a row: a week counts when two of you said "we met"
+create or replace function public.squad_streak(p_squad uuid)
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare me uuid := auth.uid(); wk date := date_trunc('week', now())::date; n int := 0; w date;
+begin
+  if me is null or not public.is_squad_member(p_squad, me) then return jsonb_build_object('ok', false, 'reason', 'not_member'); end if;
+  -- this week still counts as alive before anybody has said so
+  w := case when (select count(*) from public.squad_meets where squad_id = p_squad and week = wk) >= 2 then wk else wk - 7 end;
+  while (select count(*) from public.squad_meets where squad_id = p_squad and week = w) >= 2 loop
+    n := n + 1; w := w - 7;
+  end loop;
+  return jsonb_build_object('ok', true, 'weeks', n,
+    'this_week', (select count(*) from public.squad_meets where squad_id = p_squad and week = wk),
+    'me', exists (select 1 from public.squad_meets where squad_id = p_squad and week = wk and user_id = me));
+end $$;
+
+create or replace function public.squad_met(p_squad uuid, p_on boolean)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); wk date := date_trunc('week', now())::date;
+begin
+  if me is null or not public.is_squad_member(p_squad, me) then return jsonb_build_object('ok', false, 'reason', 'not_member'); end if;
+  if p_on then insert into public.squad_meets (squad_id, user_id, week) values (p_squad, me, wk) on conflict do nothing;
+  else delete from public.squad_meets where squad_id = p_squad and user_id = me and week = wk; end if;
+  return public.squad_streak(p_squad);
+end $$;
+
+-- ═══════════════════════════════════════════════════════════════════
+--  TWIN GROUPS · ONE GROUP HERE, ONE ACROSS THE WORLD, FOUR WEEKS
+--  Ayser: "افكار جلوبل وعابره للقرات تخليهم يتعلقوا". An admin of a
+--  group of three or more asks for a twin; the first waiting group from
+--  another country is its twin for four weeks. Each week both do the
+--  same small thing and post it on one shared board.
+--  Group to group only: first names, no profiles, no private messages.
+--  An admin on either side can end it. Safe to re-run.
+-- ═══════════════════════════════════════════════════════════════════
+create table if not exists public.squad_twins (
+  id         uuid primary key default gen_random_uuid(),
+  a          uuid not null references public.squads(id) on delete cascade,
+  b          uuid not null references public.squads(id) on delete cascade,
+  a_country  text, b_country text,
+  started_at timestamptz not null default now(),
+  ended_at   timestamptz,
+  check (a <> b)
+);
+create table if not exists public.twin_queue (
+  squad_id  uuid primary key references public.squads(id) on delete cascade,
+  country   text not null,
+  asked_by  uuid references public.profiles(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+create table if not exists public.twin_posts (
+  id         uuid primary key default gen_random_uuid(),
+  twin_id    uuid not null references public.squad_twins(id) on delete cascade,
+  squad_id   uuid not null references public.squads(id) on delete cascade,
+  user_id    uuid not null references public.profiles(id) on delete cascade,
+  week       int not null check (week between 1 and 4),
+  body       text check (char_length(body) <= 300),
+  photo      text,
+  created_at timestamptz not null default now()
+);
+alter table public.squad_twins enable row level security;
+alter table public.twin_queue enable row level security;
+alter table public.twin_posts enable row level security;
+revoke all on public.squad_twins, public.twin_queue, public.twin_posts from anon, authenticated;
+
+create or replace function public.twin_of(p_squad uuid)
+returns public.squad_twins language sql stable security definer set search_path = public as $$
+  select * from public.squad_twins where (a = p_squad or b = p_squad) and ended_at is null
+     and started_at > now() - interval '28 days' order by started_at desc limit 1;
+$$;
+
+create or replace function public.twin_ask(p_squad uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); cc text; q public.twin_queue%rowtype; tw uuid; other_admin uuid;
+begin
+  if me is null or public.squad_rank(public.squad_role(p_squad, me)) < 3 then return jsonb_build_object('ok', false, 'reason', 'admins'); end if;
+  if (select count(*) from public.squad_members where squad_id = p_squad and coalesce(accepted, true)) < 3 then
+    return jsonb_build_object('ok', false, 'reason', 'small');
+  end if;
+  if (public.twin_of(p_squad)).id is not null then return jsonb_build_object('ok', true, 'state', 'twinned'); end if;
+  -- the group's country is where most of its people are
+  select upper(p.country) into cc from public.squad_members m join public.profiles p on p.id = m.user_id
+   where m.squad_id = p_squad and coalesce(m.accepted, true) and length(coalesce(p.country, '')) = 2
+   group by upper(p.country) order by count(*) desc limit 1;
+  if cc is null then return jsonb_build_object('ok', false, 'reason', 'no_country'); end if;
+  select * into q from public.twin_queue where country <> cc and squad_id <> p_squad
+     and (public.twin_of(squad_id)).id is null order by created_at limit 1 for update skip locked;
+  if not found then
+    insert into public.twin_queue (squad_id, country, asked_by) values (p_squad, cc, me)
+    on conflict (squad_id) do update set country = excluded.country;
+    return jsonb_build_object('ok', true, 'state', 'waiting');
+  end if;
+  delete from public.twin_queue where squad_id in (q.squad_id, p_squad);
+  insert into public.squad_twins (a, b, a_country, b_country) values (q.squad_id, p_squad, q.country, cc) returning id into tw;
+  other_admin := coalesce(q.asked_by, (select user_id from public.squad_members where squad_id = q.squad_id order by public.squad_rank(role) desc limit 1));
+  insert into public.messages (squad_id, user_id, body, kind) values
+    (p_squad, me, '🌍 Your twin group is here — four weeks, the same small thing each week. Open Twin group.', 'twin'),
+    (q.squad_id, other_admin, '🌍 Your twin group is here — four weeks, the same small thing each week. Open Twin group.', 'twin');
+  return jsonb_build_object('ok', true, 'state', 'twinned');
+end $$;
+
+create or replace function public.twin_cancel(p_squad uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid();
+begin
+  if me is null or public.squad_rank(public.squad_role(p_squad, me)) < 3 then return jsonb_build_object('ok', false, 'reason', 'admins'); end if;
+  delete from public.twin_queue where squad_id = p_squad;
+  update public.squad_twins set ended_at = now() where (a = p_squad or b = p_squad) and ended_at is null;
+  return jsonb_build_object('ok', true);
+end $$;
+
+create or replace function public.twin_state(p_squad uuid)
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare me uuid := auth.uid(); tw public.squad_twins%rowtype; other uuid; wk int;
+begin
+  if me is null or not public.is_squad_member(p_squad, me) then return jsonb_build_object('ok', false, 'reason', 'not_member'); end if;
+  tw := public.twin_of(p_squad);
+  if tw.id is null then
+    return jsonb_build_object('ok', true, 'state', case when exists (select 1 from public.twin_queue where squad_id = p_squad) then 'waiting' else 'none' end,
+      'admin', public.squad_rank(public.squad_role(p_squad, me)) >= 3);
+  end if;
+  other := case when tw.a = p_squad then tw.b else tw.a end;
+  wk := least(4, floor(extract(epoch from now() - tw.started_at) / 604800)::int + 1);
+  return jsonb_build_object('ok', true, 'state', 'twinned', 'week', wk,
+    'admin', public.squad_rank(public.squad_role(p_squad, me)) >= 3,
+    'ends', tw.started_at + interval '28 days',
+    'twin', (select jsonb_build_object('name', s.name, 'emoji', s.emoji,
+               'country', case when tw.a = p_squad then tw.b_country else tw.a_country end,
+               'people', (select count(*) from public.squad_members where squad_id = s.id and coalesce(accepted, true)))
+               from public.squads s where s.id = other),
+    'posts', (select coalesce(jsonb_agg(jsonb_build_object('id', t.id, 'week', t.week, 'body', t.body, 'photo', t.photo,
+                 'ours', t.squad_id = p_squad, 'mine', t.user_id = me, 'at', t.created_at,
+                 'name', split_part(coalesce(p.name, ''), ' ', 1), 'avatar', p.avatar_url, 'flag', p.country_flag) order by t.created_at desc), '[]'::jsonb)
+               from public.twin_posts t join public.profiles p on p.id = t.user_id where t.twin_id = tw.id));
+end $$;
+
+create or replace function public.twin_post(p_squad uuid, p_body text, p_photo text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); tw public.squad_twins%rowtype; wk int; b text := nullif(left(btrim(coalesce(p_body, '')), 300), '');
+  ph text := nullif(btrim(coalesce(p_photo, '')), '');
+begin
+  if me is null or not public.is_squad_member(p_squad, me) then return jsonb_build_object('ok', false, 'reason', 'not_member'); end if;
+  tw := public.twin_of(p_squad);
+  if tw.id is null then return jsonb_build_object('ok', false, 'reason', 'no_twin'); end if;
+  if b is null and ph is null then return jsonb_build_object('ok', false, 'reason', 'empty'); end if;
+  if ph is not null and ph !~ '^https://' then return jsonb_build_object('ok', false, 'reason', 'photo'); end if;
+  wk := least(4, floor(extract(epoch from now() - tw.started_at) / 604800)::int + 1);
+  if (select count(*) from public.twin_posts where twin_id = tw.id and user_id = me and week = wk) >= 3 then
+    return jsonb_build_object('ok', false, 'reason', 'slow_down');
+  end if;
+  insert into public.twin_posts (twin_id, squad_id, user_id, week, body, photo) values (tw.id, p_squad, me, wk, b, ph);
+  return jsonb_build_object('ok', true);
+end $$;
+
+-- your own post, or anything on the board if you run either group
+create or replace function public.twin_remove(p_post uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); t public.twin_posts%rowtype; tw public.squad_twins%rowtype;
+begin
+  select * into t from public.twin_posts where id = p_post;
+  if not found then return jsonb_build_object('ok', true); end if;
+  select * into tw from public.squad_twins where id = t.twin_id;
+  if t.user_id = me or public.squad_rank(public.squad_role(tw.a, me)) >= 3 or public.squad_rank(public.squad_role(tw.b, me)) >= 3 then
+    delete from public.twin_posts where id = p_post;
+    return jsonb_build_object('ok', true);
+  end if;
+  return jsonb_build_object('ok', false, 'reason', 'not_yours');
+end $$;
+
+-- ═══════════════════════════════════════════════════════════════════
+--  ONE WORLD · THE SAME THING, EVERYWHERE, ON THE SAME DAY
+--  Golden hour: one sunset photo a day, from wherever you are; the
+--  strip goes round the world as the sun does. The dish of the month:
+--  everybody cooks the same thing and shows it. The long walk: the
+--  kilometres people walked, added up and drawn on a map from Cairo
+--  onwards — what each person typed, said so on the screen, at most
+--  30 km a day. Only real entries; zero shows as zero.
+--  Safe to re-run.
+-- ═══════════════════════════════════════════════════════════════════
+create table if not exists public.world_entries (
+  id         uuid primary key default gen_random_uuid(),
+  challenge  text not null check (challenge ~ '^(sky-\d{4}-\d{2}-\d{2}|dish-\d{4}-\d{2})$'),
+  user_id    uuid not null references public.profiles(id) on delete cascade,
+  city       text check (char_length(city) <= 60),
+  country    text check (char_length(country) <= 2),
+  photo      text not null check (photo ~ '^https://'),
+  body       text check (char_length(body) <= 140),
+  created_at timestamptz not null default now(),
+  unique (challenge, user_id)
+);
+create index if not exists world_entries_ch on public.world_entries (challenge, created_at desc);
+create table if not exists public.world_walk (
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  day     date not null,
+  km      numeric(5,1) not null check (km > 0 and km <= 30),
+  primary key (user_id, day)
+);
+alter table public.world_entries enable row level security;
+alter table public.world_walk enable row level security;
+revoke all on public.world_entries, public.world_walk from anon, authenticated;
+
+create or replace function public.world_enter(p_challenge text, p_photo text, p_body text, p_city text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); d date; cc text;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  if coalesce(p_photo, '') !~ '^https://' then return jsonb_build_object('ok', false, 'reason', 'photo'); end if;
+  -- only today's sky (a day either side, for time zones) and this month's dish
+  if p_challenge ~ '^sky-\d{4}-\d{2}-\d{2}$' then
+    d := substr(p_challenge, 5)::date;
+    if d < current_date - 1 or d > current_date + 1 then return jsonb_build_object('ok', false, 'reason', 'day'); end if;
+  elsif p_challenge ~ '^dish-\d{4}-\d{2}$' then
+    if p_challenge <> 'dish-' || to_char(now(), 'YYYY-MM') then return jsonb_build_object('ok', false, 'reason', 'day'); end if;
+  else
+    return jsonb_build_object('ok', false, 'reason', 'kind');
+  end if;
+  select upper(country) into cc from public.profiles where id = me;
+  insert into public.world_entries (challenge, user_id, city, country, photo, body)
+  values (p_challenge, me, nullif(left(btrim(coalesce(p_city, '')), 60), ''), case when length(coalesce(cc, '')) = 2 then cc end,
+          btrim(p_photo), nullif(left(btrim(coalesce(p_body, '')), 140), ''))
+  on conflict (challenge, user_id) do update set photo = excluded.photo, body = excluded.body, city = excluded.city, created_at = now();
+  return jsonb_build_object('ok', true);
+end $$;
+
+create or replace function public.world_leave(p_id uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  delete from public.world_entries where id = p_id and (user_id = auth.uid() or public.studio_can('safety'));
+  return jsonb_build_object('ok', true);
+end $$;
+
+create or replace function public.world_board(p_challenge text, p_limit int)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select jsonb_build_object('ok', true,
+    'count', (select count(*) from public.world_entries where challenge = p_challenge),
+    'countries', (select count(distinct country) from public.world_entries where challenge = p_challenge and country is not null),
+    'mine', (select id from public.world_entries where challenge = p_challenge and user_id = auth.uid()),
+    'entries', (select coalesce(jsonb_agg(x order by x ->> 'at'), '[]'::jsonb) from (
+        select jsonb_build_object('id', e.id, 'photo', e.photo, 'body', e.body, 'city', e.city, 'country', e.country,
+          'flag', p.country_flag, 'name', split_part(coalesce(p.name, ''), ' ', 1), 'avatar', p.avatar_url,
+          'mine', e.user_id = auth.uid(), 'at', e.created_at) x
+          from public.world_entries e join public.profiles p on p.id = e.user_id
+         where e.challenge = p_challenge
+           and not exists (select 1 from public.user_blocks b where (b.blocker_id = auth.uid() and b.blocked_id = e.user_id) or (b.blocker_id = e.user_id and b.blocked_id = auth.uid()))
+         order by e.created_at desc limit least(greatest(coalesce(p_limit, 60), 1), 200)) t));
+$$;
+
+create or replace function public.world_walk_add(p_day date, p_km numeric)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid();
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  if p_day is null or p_day < current_date - 2 or p_day > current_date + 1 then return jsonb_build_object('ok', false, 'reason', 'day'); end if;
+  if p_km is null or p_km <= 0 then
+    delete from public.world_walk where user_id = me and day = p_day;
+  else
+    insert into public.world_walk (user_id, day, km) values (me, p_day, least(round(p_km, 1), 30))
+    on conflict (user_id, day) do update set km = excluded.km;
+  end if;
+  return public.world_walk_total();
+end $$;
+
+create or replace function public.world_walk_total()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select jsonb_build_object('ok', true,
+    'km', coalesce((select sum(km) from public.world_walk), 0),
+    'people', (select count(distinct user_id) from public.world_walk),
+    'countries', (select count(distinct upper(p.country)) from public.world_walk w join public.profiles p on p.id = w.user_id where length(coalesce(p.country, '')) = 2),
+    'mine', coalesce((select sum(km) from public.world_walk where user_id = auth.uid()), 0),
+    'today', (select km from public.world_walk where user_id = auth.uid() and day = current_date));
+$$;
+
+revoke all on function public.sgame_start(uuid, text, jsonb, jsonb), public.sgame_move(uuid, text, jsonb), public.sgame_reveal(uuid),
+  public.sgame_state(uuid), public.squad_streak(uuid), public.squad_met(uuid, boolean),
+  public.twin_ask(uuid), public.twin_cancel(uuid), public.twin_state(uuid), public.twin_post(uuid, text, text), public.twin_remove(uuid), public.twin_of(uuid),
+  public.world_enter(text, text, text, text), public.world_leave(uuid), public.world_board(text, int),
+  public.world_walk_add(date, numeric), public.world_walk_total() from public, anon;
+grant execute on function public.sgame_start(uuid, text, jsonb, jsonb), public.sgame_move(uuid, text, jsonb), public.sgame_reveal(uuid),
+  public.sgame_state(uuid), public.squad_streak(uuid), public.squad_met(uuid, boolean),
+  public.twin_ask(uuid), public.twin_cancel(uuid), public.twin_state(uuid), public.twin_post(uuid, text, text), public.twin_remove(uuid),
+  public.world_enter(text, text, text, text), public.world_leave(uuid), public.world_board(text, int),
+  public.world_walk_add(date, numeric), public.world_walk_total() to authenticated;
+
+notify pgrst, 'reload schema';
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة
