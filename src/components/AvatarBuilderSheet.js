@@ -158,6 +158,16 @@ export const AvatarBuilderSheet = ({ initialDna, onClose, onSaved }) => {
   const [err, setErr] = useState(null);
 
   const set = (k) => (v) => setDna((d) => ({ ...d, [k]: v }));
+  /* Ayser: "المفروض يبقى في بنت كمان". Choosing a girl turns the face
+     into one too — longer hair, no beard — and a boy gets short hair
+     back; everything else they picked stays */
+  const SHORT_HAIR = ['buzz', 'short', 'waves', 'fade', 'mohawk', 'quiff', 'bald'];
+  const LONG_HAIR = ['long', 'wavyLong', 'ponytail', 'pigtails', 'braids', 'bun', 'bob', 'bangs', 'hijab'];
+  const chooseBuild = (b) => setDna((d) => ({
+    ...d, build: b,
+    ...(b === 'f' ? { beard: '', hair: SHORT_HAIR.includes(d.hair) ? 'long' : d.hair, top: d.top === 'jersey' ? 'blouse' : d.top }
+      : { hair: LONG_HAIR.includes(d.hair) ? 'short' : d.hair, top: ['blouse', 'dress', 'crop'].includes(d.top) ? 'tee' : d.top }),
+  }));
 
   /* Drag the figure to walk around it. 150px of travel is a full
      half-turn, which is about the distance a thumb covers comfortably
@@ -293,7 +303,7 @@ export const AvatarBuilderSheet = ({ initialDna, onClose, onSaved }) => {
                 {BUILDS.map((b) => {
                   const on = dna.build === b.id;
                   return (
-                    <Pressable key={b.id} onPress={() => { tapSelection(); set('build')(b.id); }} style={{ flex: 1, marginRight: 8 }}>
+                    <Pressable key={b.id} onPress={() => { tapSelection(); chooseBuild(b.id); }} style={{ flex: 1, marginRight: 8 }}>
                       <View style={{
                         alignItems: 'center', paddingVertical: 12, borderRadius: 16,
                         backgroundColor: on ? C.purple : C.glass,
