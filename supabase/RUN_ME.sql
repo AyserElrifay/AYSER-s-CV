@@ -19181,6 +19181,87 @@ select * from (values
 ) v(kind, country, title_ar, title_en, about_ar, about_en, minutes, people, sort)
 where not exists (select 1 from public.green_sparks s where s.title_en = v.title_en and s.country is not distinct from v.country);
 
+-- ════════════════════════════════════════════════════════════════════
+-- DON'T EAT ALONE
+-- Ayser: "بدل ما آكل لوحدي، آكل مع حد قريب مني". Going out now
+-- (green_go_now) learns 'eat': you say where and when, you are on the
+-- map, and the people within 5 km who said "tell me when someone near
+-- me wants to eat" (profiles.eat_ok — off until they turn it on) get
+-- one notification. Everybody eats, so hobbies can't be the test: only
+-- people who asked are told. Up to 8 at the table, a public place, and
+-- everyone pays for their own plate.
+-- ════════════════════════════════════════════════════════════════════
+alter table public.profiles add column if not exists eat_ok boolean not null default false;
+
+create or replace function public.set_eat_ok(p_on boolean)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  if auth.uid() is null then return jsonb_build_object('ok', false); end if;
+  update public.profiles set eat_ok = coalesce(p_on, false) where id = auth.uid();
+  return jsonb_build_object('ok', true, 'on', coalesce(p_on, false));
+end;
+$$;
+grant execute on function public.set_eat_ok(boolean) to authenticated;
+
+create or replace function public.go_now_words(p_kind text)
+returns text[] language sql immutable as $$
+  select case p_kind
+    when 'run'    then array['run','jog','marathon','جري','running','běh','jooks']
+    when 'walk'   then array['walk','hik','trek','مشي','تمشية','hiking','procház','matk']
+    when 'coffee' then array['coffee','café','cafe','قهوة','káva','kohv']
+    when 'focus'  then array['study','work','focus','read','مذاكرة','قراءة','studi','õpp']
+    when 'sport'  then array['football','soccer','sport','كورة','fotbal','jalgpall']
+    when 'eat'    then array['food','foodie','cook','أكل','اكل','طبخ']
+    else array[p_kind] end;
+$$;
+
+create or replace function public.green_go_now(
+  p_kind text, p_title text, p_lat double precision, p_lng double precision,
+  p_in_minutes int, p_minutes int, p_country text, p_place text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare
+  me uuid := auth.uid();
+  r  jsonb;
+  gid uuid;
+  sent int := 0;
+  words text[];
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  if p_lat is null or p_lng is null then return jsonb_build_object('ok', false, 'reason', 'no_location'); end if;
+  if coalesce(p_in_minutes, 0) < 0 or coalesce(p_in_minutes, 0) > 720 then
+    return jsonb_build_object('ok', false, 'reason', 'bad_time');
+  end if;
+  -- a meal needs a place people can find, and a public one
+  if p_kind = 'eat' and coalesce(length(btrim(p_place)), 0) < 2 then
+    return jsonb_build_object('ok', false, 'reason', 'no_place');
+  end if;
+  -- a small hangout by definition: capped at 8, so nobody needs to unlock it
+  r := public.green_create(p_kind, p_title, null, p_country, null, p_place, p_lat, p_lng,
+         now() + make_interval(mins => coalesce(p_in_minutes, 0)), coalesce(p_minutes, 60), 8, null);
+  if not coalesce((r->>'ok')::boolean, false) then return r; end if;
+  gid := (r->>'id')::uuid;
+  words := public.go_now_words(p_kind);
+
+  insert into public.notifications (user_id, actor_id, kind, body, gathering_id)
+  select distinct l.user_id, me, 'green_invite', btrim(p_title), gid
+    from public.live_locations l
+    join public.profiles p on p.id = l.user_id
+   where l.user_id <> me
+     -- somebody who asked to hear about meals is found from a little further back
+     and l.updated_at > now() - case when p_kind = 'eat' and p.eat_ok then interval '12 hours' else interval '2 hours' end
+     and 2 * 6371 * asin(sqrt(power(sin(radians(l.lat - p_lat) / 2), 2)
+           + cos(radians(p_lat)) * cos(radians(l.lat)) * power(sin(radians(l.lng - p_lng) / 2), 2))) <= 5
+     and case when p_kind = 'eat' then p.eat_ok
+              else exists (select 1 from unnest(words) w where lower(coalesce(p.hobbies, '')) like '%' || w || '%') end
+     and not exists (select 1 from public.user_blocks b where (b.blocker_id = me and b.blocked_id = l.user_id) or (b.blocker_id = l.user_id and b.blocked_id = me))
+   limit 50;
+  get diagnostics sent = row_count;
+  update public.green_gatherings set announced_at = now() where id = gid and sent > 0;
+  return jsonb_build_object('ok', true, 'id', gid, 'told', sent);
+end;
+$$;
+grant execute on function public.green_go_now(text, text, double precision, double precision, int, int, text, text) to authenticated;
+
 -- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --

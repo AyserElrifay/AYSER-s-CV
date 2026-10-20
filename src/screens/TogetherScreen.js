@@ -620,6 +620,21 @@ export const TogetherScreen = () => {
           </View>
         </Pressable>
 
+        {/* ── don't eat alone ── the same, for a meal: where, when, and
+            the people near you who asked to hear about it */}
+        <Pressable onPress={() => { tapMedium(); setSheet('eatnow'); }} accessibilityRole="button" style={{ marginTop: -4, marginBottom: 14 }}>
+          <View style={{ borderRadius: 22, paddingVertical: 13, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line }}>
+            <View style={{ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: C.goldSoft }}>
+              <Ionicons name="restaurant-outline" size={18} color={C.gold} />
+            </View>
+            <View style={{ flex: 1, minWidth: 0, marginStart: 12 }}>
+              <Text style={{ color: C.text, fontSize: 15, fontWeight: '900' }}>{t('eat_cta')}</Text>
+              <Text style={{ color: C.dim, fontSize: 12.5, fontWeight: '600', marginTop: 1 }} numberOfLines={2}>{t('eat_cta_sub')}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={C.faint} />
+          </View>
+        </Pressable>
+
         <RateLast t={t} lang={lang} />
         {askPush ? <View style={{ marginBottom: 14 }}><PushRow ask onDone={() => setAskPush(false)} /></View> : null}
 
@@ -959,6 +974,7 @@ export const TogetherScreen = () => {
 
       {sheet === 'places' ? <BizDirectory lang={lang} city={null} onClose={() => setSheet(null)} /> : null}
       {sheet === 'gonow' ? <GoNowSheet onClose={() => { setSheet(null); load(); }} /> : null}
+      {sheet === 'eatnow' ? <GoNowSheet initialKind="eat" onClose={() => { setSheet(null); load(); }} /> : null}
       {sheet === 'talk' ? <StartTalkSheet country={myCode} onClose={() => setSheet(null)} onStarted={(id) => { setSheet(null); setTalkId(id); }} /> : null}
       {talkId ? <TalkRoomSheet roomId={talkId} onClose={() => { setTalkId(null); load(); }} /> : null}
       {sheet === 'start' ? <GreenSheet startNow homeCountry={myCode} onClose={() => { setSheet(null); load(); }} /> : null}

@@ -6,6 +6,7 @@ import { C } from '../constants/theme';
 import { useLang } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { goNow } from '../services/green';
+import { supabase } from '../lib/supabase';
 import { getProfile } from '../services/profiles';
 import { getCurrentCoords } from '../utils/location';
 import { flagToIso } from '../lib/together';
@@ -30,6 +31,7 @@ const KINDS = [
   { id: 'walk', key: 'gn_walk' },
   { id: 'run', key: 'gn_run' },
   { id: 'coffee', key: 'gn_coffee' },
+  { id: 'eat', key: 'gn_eat' },
   { id: 'focus', key: 'gn_focus' },
   { id: 'sport', key: 'gn_sport' },
 ];
@@ -47,15 +49,18 @@ export const GoNowSheet = ({ onClose, initialKind, initialTitle, initialPlace })
   const [country, setCountry] = useState(null);
   const [state, setState] = useState(null);     // null | 'busy' | { told, id, lat, lng } | { err }
   const [more, setMore] = useState(!!initialTitle);   // note and place, folded away
+  const [eatOk, setEatOk] = useState(false);          // "tell me when someone near me wants to eat"
 
   useEffect(() => {
     if (!user) return;
-    getProfile(user.id).then((p) => setCountry(flagToIso(p && p.country_flag))).catch(() => {});
+    getProfile(user.id).then((p) => { setCountry(flagToIso(p && p.country_flag)); setEatOk(!!(p && p.eat_ok)); }).catch(() => {});
   }, [user && user.id]);
 
   const go = async () => {
     if (state === 'busy') return;
     tapMedium();
+    // a meal needs a place people can find
+    if (kind === 'eat' && place.trim().length < 2) { setMore(true); setState({ err: 'no_place' }); return; }
     setState('busy');
     const at = await getCurrentCoords();
     if (!at) { setState({ err: 'no_location' }); return; }
@@ -103,7 +108,7 @@ export const GoNowSheet = ({ onClose, initialKind, initialTitle, initialPlace })
                 {KINDS.map((k) => {
                   const on = kind === k.id; const l = lookOf(k.id);
                   return (
-                    <Pressable key={k.id} onPress={() => { tapLight(); setKind(k.id); }} accessibilityRole="radio" accessibilityState={{ checked: on }} accessibilityLabel={t(k.key)} style={{ alignItems: 'center', width: '19%' }}>
+                    <Pressable key={k.id} onPress={() => { tapLight(); setKind(k.id); }} accessibilityRole="radio" accessibilityState={{ checked: on }} accessibilityLabel={t(k.key)} style={{ alignItems: 'center', width: '15.5%' }}>
                       <View style={{ width: '100%', aspectRatio: 1, maxWidth: 64, borderRadius: 18, alignItems: 'center', justifyContent: 'center',
                         backgroundColor: on ? C.purple : C.glassHi }}>
                         <Text style={{ fontSize: 26 }}>{l.emoji}</Text>
@@ -128,12 +133,12 @@ export const GoNowSheet = ({ onClose, initialKind, initialTitle, initialPlace })
                 })}
               </View>
 
-              {/* details — folded */}
-              {more ? (
+              {/* details — folded; a meal shows the place at once (it is required) */}
+              {more || kind === 'eat' ? (
                 <View style={{ marginTop: 18 }}>
                   <TextInput value={title} onChangeText={setTitle} placeholder={t('gn_title_' + kind)} placeholderTextColor={C.faint}
                     style={{ borderBottomWidth: 1, borderBottomColor: C.line, color: C.text, paddingVertical: 12, fontSize: 16 }} />
-                  <TextInput value={place} onChangeText={setPlace} placeholder={t('gn_place')} placeholderTextColor={C.faint}
+                  <TextInput value={place} onChangeText={setPlace} placeholder={kind === 'eat' ? t('gn_place_eat') : t('gn_place')} placeholderTextColor={C.faint}
                     style={{ borderBottomWidth: 1, borderBottomColor: C.line, color: C.text, paddingVertical: 12, fontSize: 16 }} />
                 </View>
               ) : (
@@ -142,9 +147,20 @@ export const GoNowSheet = ({ onClose, initialKind, initialTitle, initialPlace })
                 </Pressable>
               )}
 
+              {kind === 'eat' ? (
+                <>
+                  <Text style={{ color: C.faint, fontSize: 12.5, marginTop: 10 }}>{t('gn_eat_note')}</Text>
+                  <Pressable onPress={() => { tapLight(); const v = !eatOk; setEatOk(v); supabase.rpc('set_eat_ok', { p_on: v }).then(() => {}, () => setEatOk(!v)); }}
+                    accessibilityRole="checkbox" accessibilityState={{ checked: eatOk }} style={{ flexDirection: 'row', alignItems: 'center', marginTop: 14 }}>
+                    <Ionicons name={eatOk ? 'checkbox' : 'square-outline'} size={22} color={eatOk ? C.purple : C.dim} />
+                    <Text style={{ flex: 1, color: C.text, fontSize: 14, fontWeight: '600', marginStart: 10 }}>{t('eat_ok_line')}</Text>
+                  </Pressable>
+                </>
+              ) : null}
+
               {state && state.err ? (
                 <Text style={{ color: C.coral, fontSize: 13.5, fontWeight: '700', marginTop: 14 }}>
-                  {state.err === 'no_location' ? t('gn_err_loc') : t('lamma_offline')}
+                  {state.err === 'no_location' ? t('gn_err_loc') : state.err === 'no_place' ? t('gn_err_place') : t('lamma_offline')}
                 </Text>
               ) : null}
 
