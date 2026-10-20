@@ -467,11 +467,12 @@ export const TripsSheet = ({ onClose, country, openOn, focus, onNeedSignIn, only
 
             {tab === 'browse' ? (
               <>
-                {/* travel buddies: Ayser — the bus video was low resolution
-                    (432px) and looked soft. One sharp photo of Dahab instead,
-                    nothing over it but the words. */}
+                {/* travel buddies: Ayser wanted a video again — his own sharp
+                    clip of a group singing round a campfire at night (the old
+                    bus clip was 432px and soft). Silent, looping; the photo
+                    while it loads or when saving data. */}
                 {only ? null : <View style={{ height: 190, borderRadius: 22, overflow: 'hidden', backgroundColor: '#0E2A3A', marginBottom: 14 }}>
-                  <Image source={{ uri: publicMedia('welcome-dahab.jpg') }} style={{ position: 'absolute', width: '100%', height: '100%' }} resizeMode="cover" accessibilityIgnoresInvertColors />
+                  <HighlightVideo uri={publicMedia('buddies-fire.mp4')} poster={publicMedia('buddies-fire.jpg')} />
                   <LinearGradient colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.62)']} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 120 }} />
                   <View style={{ position: 'absolute', left: 16, right: 16, bottom: 14 }}>
                     <Text style={{ color: '#FFF', fontSize: 21, fontWeight: '900', letterSpacing: -0.3 }}>{t('bk_buddies')}</Text>
