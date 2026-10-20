@@ -27,6 +27,7 @@ export const LANGS = [
   { code: 'cs', label: 'Czech', native: 'Čeština', flag: '🇨🇿', rtl: false },
   { code: 'et', label: 'Estonian', native: 'Eesti', flag: '🇪🇪', rtl: false },
   { code: 'hi', label: 'Hindi', native: 'हिन्दी', flag: '🇮🇳', rtl: false },
+  { code: 'uk', label: 'Ukrainian', native: 'Українська', flag: '🇺🇦', rtl: false },
 ];
 
 /* ─── WHY ONLY ENGLISH IS IN HERE ────────────────────────────────────

@@ -18788,6 +18788,77 @@ grant execute on function public.set_opening_moves(text[]), public.opening_moves
 notify pgrst, 'reload schema';
 
 -- ═══════════════════════════════════════════════════════════════════
+--  IDEAS FOR BRAZIL AND MORE FOR PORTUGAL
+--  Ayser: "اعمل البرازيل والبرتغال في الأبلكيشن وخلّي فيه خروجات
+--  وأكتيفيتيز". Ideas, not plans: nobody is going until somebody starts
+--  one. Portuguese titles ride in title_i18n so a phone set to
+--  Portuguese reads them in Portuguese. Safe to re-run: an idea already
+--  there by its English title is left alone.
+-- ═══════════════════════════════════════════════════════════════════
+insert into public.green_sparks (kind, country, title_ar, title_en, about_ar, about_en, minutes, people, sort, title_i18n, about_i18n)
+select * from (values
+ ('walk','BR','الغروب من فوق صخرة','Sunset from a rock',
+  'في ريو اسمها Arpoador، وفي كل مدينة على البحر فيه صخرة زيها. اوصلوا قبل الغروب بنص ساعة؛ الناس بتسقّف لما الشمس تنزل.',
+  'In Rio it is Arpoador, and every coastal city has a rock like it. Get there half an hour before sunset; people clap when the sun goes down.',60,'2–15',70,
+  '{"pt":"Pôr do sol na pedra"}'::jsonb,'{"pt":"No Rio é o Arpoador, e toda cidade do litoral tem uma pedra assim. Chegue meia hora antes; o pessoal aplaude quando o sol se põe."}'::jsonb),
+ ('sport','BR','فولي على الشط','Beach volleyball, any level',
+  'شبكة على الشط الصبح بدري قبل الحر. الفرق بتتقسم بالقرعة، ومحدش بيقعد برّه.',
+  'A net on the beach early, before the heat. Teams drawn at random, and nobody sits out.',90,'4–12',71,
+  '{"pt":"Vôlei de praia, todos os níveis"}'::jsonb,'{"pt":"Uma rede na praia cedo, antes do calor. Times sorteados, e ninguém fica de fora."}'::jsonb),
+ ('culture','BR','ليلة سامبا أو فورّو','A samba or forró night',
+  'روحوا مكان فيه مزيكا لايف، واتفقوا إن كل واحد يتعلم خطوة واحدة من حد مايعرفوش.',
+  'Go somewhere with live music, and agree that each of you learns one step from someone you do not know.',150,'3–12',72,
+  '{"pt":"Noite de samba ou forró"}'::jsonb,'{"pt":"Vá a um lugar com música ao vivo e combine: cada um aprende um passo com alguém que não conhece."}'::jsonb),
+ ('coffee','BR','فطار في السوق','Breakfast at the market',
+  'سوق مدينتكم الصبح: عصير طازة، pão de queijo، وكل واحد يجرّب فاكهة أول مرة يشوفها.',
+  'Your city market in the morning: fresh juice, pão de queijo, and everyone tries a fruit they have never seen.',75,'2–10',73,
+  '{"pt":"Café da manhã no mercado"}'::jsonb,'{"pt":"O mercado da cidade de manhã: suco fresco, pão de queijo, e cada um prova uma fruta que nunca viu."}'::jsonb),
+ ('walk','BR','هايك لحد شلال','A hike to a waterfall',
+  'اختاروا مسار معروف في الغابة الأطلنطية لحد شلال. معاكم مية ونعل كويس، ومحدش يعوم لوحده.',
+  'Choose a known trail in the Atlantic Forest to a waterfall. Water and good shoes, and nobody swims alone.',240,'3–10',74,
+  '{"pt":"Trilha até uma cachoeira"}'::jsonb,'{"pt":"Escolha uma trilha conhecida na Mata Atlântica até uma cachoeira. Água, bom calçado, e ninguém nada sozinho."}'::jsonb),
+ ('cleanup','BR','ساعة على الشط','An hour on the beach',
+  'ساعة الصبح بدري، أكياس منفصلة للبلاستيك، وبعدها ماية جوز هند سوا.',
+  'One early-morning hour, separate bags for plastic, then coconut water together.',60,'3–15',75,
+  '{"pt":"Uma hora na praia"}'::jsonb,'{"pt":"Uma hora cedinho, sacos separados para plástico, e depois água de coco juntos."}'::jsonb),
+ ('art','BR','مشي جرافيتي','A street-art walk',
+  'في ساو باولو اسمها Beco do Batman، وفي أغلب المدن فيه حيطان زيها. كل واحد يختار جرافيتي ويقول ليه.',
+  'In São Paulo it is Beco do Batman, and most cities have walls like it. Each of you picks one piece and says why.',90,'2–10',76,
+  '{"pt":"Passeio de arte de rua"}'::jsonb,'{"pt":"Em São Paulo é o Beco do Batman, e quase toda cidade tem muros assim. Cada um escolhe uma obra e diz por quê."}'::jsonb),
+ ('circle','BR','روودا تبادل لغات','A language-swap roda',
+  'اقعدوا في دايرة: نص الوقت بورتغيزي ونص الوقت بلغة تانية. كل واحد يعلّم كلمة واحدة.',
+  'Sit in a circle: half the time in Portuguese, half in another language. Everyone teaches one word.',90,'4–14',77,
+  '{"pt":"Roda de troca de idiomas"}'::jsonb,'{"pt":"Sentem em roda: metade do tempo em português, metade em outra língua. Cada um ensina uma palavra."}'::jsonb),
+ ('coffee','PT','قهوة وباستيل دي ناتا','Coffee and a pastel de nata',
+  'بيكا (إسبريسو) وباستيل دي ناتا سخن في محل صغير، وكل واحد يحكي عن أول أسبوع ليه في المدينة.',
+  'A bica and a warm pastel de nata in a small pastelaria, and everyone tells the story of their first week in the city.',60,'2–8',78,
+  '{"pt":"Café e pastel de nata"}'::jsonb,'{"pt":"Uma bica e um pastel de nata quentinho numa pastelaria pequena, e cada um conta a sua primeira semana na cidade."}'::jsonb),
+ ('culture','PT','ليلة فادو','A fado evening',
+  'بيت فادو صغير في ألفاما أو موراريا. اقعدوا ساكتين وقت الغنا — دي القاعدة هناك.',
+  'A small fado house in Alfama or Mouraria. Stay quiet while they sing — that is the rule there.',150,'2–8',79,
+  '{"pt":"Noite de fado"}'::jsonb,'{"pt":"Uma casa de fado pequena em Alfama ou na Mouraria. Silêncio enquanto cantam — é a regra."}'::jsonb),
+ ('sport','PT','حصة سيرف للمبتدئين','A beginners’ surf lesson',
+  'مدرسة سيرف في كاشكايش أو إريسيرا، حصة للمبتدئين مع مدرب. وبعدها أكل سمك على الشط.',
+  'A surf school in Cascais or Ericeira, a beginners’ lesson with a coach, then grilled fish by the beach.',180,'2–8',80,
+  '{"pt":"Aula de surf para iniciantes"}'::jsonb,'{"pt":"Uma escola de surf em Cascais ou na Ericeira, aula para iniciantes com instrutor, e depois peixe grelhado na praia."}'::jsonb),
+ ('walk','PT','مشي في سينترا','A walk in Sintra',
+  'قطر من لشبونة، ومشي في الغابة لحد قصر Pena. ابدأوا بدري قبل الزحمة.',
+  'The train from Lisbon, then a forest walk up to Pena Palace. Start early, before the crowds.',300,'2–10',81,
+  '{"pt":"Caminhada em Sintra"}'::jsonb,'{"pt":"O comboio de Lisboa, e depois uma caminhada pela floresta até à Pena. Comece cedo, antes da multidão."}'::jsonb),
+ ('circle','PT','تبادل لغات لطلبة إيراسموس','An Erasmus language swap',
+  'طلبة إيراسموس وناس من المدينة: ساعة بورتغيزي وساعة بلغاتكم، على قهوة.',
+  'Erasmus students and people from the city: an hour of Portuguese and an hour of your languages, over coffee.',120,'4–16',82,
+  '{"pt":"Troca de línguas Erasmus"}'::jsonb,'{"pt":"Estudantes Erasmus e gente da cidade: uma hora de português e uma hora das vossas línguas, com café."}'::jsonb),
+ ('art','PT','ارسم بلاط أزوليجو','Sketch the azulejos',
+  'اختاروا شارع فيه بيوت عليها بلاط أزرق، وكل واحد يرسم بلاطة واحدة بتفاصيلها.',
+  'Pick a street of tiled façades, and each of you draws one tile in full detail.',75,'2–8',83,
+  '{"pt":"Desenhar azulejos"}'::jsonb,'{"pt":"Escolha uma rua de fachadas de azulejo, e cada um desenha um azulejo com todos os detalhes."}'::jsonb)
+) v(kind, country, title_ar, title_en, about_ar, about_en, minutes, people, sort, title_i18n, about_i18n)
+where not exists (select 1 from public.green_sparks s where s.title_en = v.title_en);
+
+notify pgrst, 'reload schema';
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة

@@ -14,6 +14,7 @@ export const ROOM_CODES = new Map([
   ['France', 'FR'],
   ['Germany', 'DE'],
   ['Portugal', 'PT'],
+  ['Brazil', 'BR'],
   ['Netherlands', 'NL'],
   ['Romania', 'RO'],
   ['Poland', 'PL'],

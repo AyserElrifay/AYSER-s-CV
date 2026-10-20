@@ -72,7 +72,7 @@ const MENU_WORDS = {
   it: { group: 'Giochi di gruppo', table: 'A tavola' }, pt: { group: 'Jogos de grupo', table: 'À mesa' }, nl: { group: 'Groepsspellen', table: 'Aan tafel' },
   tr: { group: 'Grup oyunları', table: 'Masada' }, ru: { group: 'Игры группы', table: 'За столом' }, ro: { group: 'Jocuri de grup', table: 'La masă' },
   cs: { group: 'Skupinové hry', table: 'U stolu' }, et: { group: 'Grupimängud', table: 'Laua taga' }, hi: { group: 'ग्रुप गेम्स', table: 'टेबल पर' },
-  ja: { group: 'グループゲーム', table: 'テーブルで' }, ko: { group: '그룹 게임', table: '테이블에서' }, zh: { group: '群组游戏', table: '在桌边' },
+  ja: { group: 'グループゲーム', table: 'テーブルで' }, uk: { group: 'Ігри групи', table: 'За столом' }, ko: { group: '그룹 게임', table: '테이블에서' }, zh: { group: '群组游戏', table: '在桌边' },
 };
 const gwShort = (lang, k) => (MENU_WORDS[lang] && MENU_WORDS[lang][k]) || MENU_WORDS.en[k];
 
