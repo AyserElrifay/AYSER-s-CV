@@ -21,6 +21,8 @@ import { fetchHelpArticles, createHelpArticle, updateHelpArticle, deleteHelpArti
 import { checkDatabase } from '../services/dbReadiness';
 import { fetchBardiConfig, saveBardiConfig, fetchBardiKnowledge, addBardiKnowledge, deleteBardiKnowledge, invalidateBardiBrain } from '../services/bardiOwner';
 import { AV_NEUTRAL } from '../constants/mockData';
+import { supabase } from '../lib/supabase';
+import { sendMessage } from '../services/messages';
 import { tapLight, tapSuccess } from '../utils/feedback';
 import { useStable } from '../hooks/useStable';
 import { recent, clearCrashes, asText } from '../lib/crashLog';
@@ -451,6 +453,53 @@ const SafetyReport = ({ r, onDone }) => {
 /* One guide or host asking for the badge: the document and the selfie
    side by side, through links that expire in ten minutes. Decided here,
    and only here — then both photos are deleted (decideHost). */
+/* ── TALK TO THEM BEFORE YES OR NO ─────────────────────────────────────
+   A short message from the card itself (studio_dm opens the chat); they
+   answer in Chats, and the answer is in yours. */
+const ASK = 'Hi from the Moments team 👋 We are looking at your request — ';
+const MessageThem = ({ userId }) => {
+  const { user } = useAuth();
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState(ASK);
+  const [state, setState] = useState(null);   // null | 'busy' | 'sent' | 'err'
+  const send = async () => {
+    const body = text.trim();
+    if (!body || state === 'busy') return;
+    setState('busy');
+    try {
+      const { data: t, error } = await supabase.rpc('studio_dm', { p_user: userId });
+      if (error || !t) throw error || new Error('dm');
+      await sendMessage({ dmThreadId: t, userId: user.id, body });
+      tapSuccess(); setState('sent'); setText(ASK); setOpen(false);
+    } catch (e) { setState('err'); }
+  };
+  if (!open) {
+    return (
+      <Pressable onPress={() => { tapLight(); setOpen(true); setState(null); }} style={{ alignSelf: 'flex-start', marginTop: 8 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, borderWidth: 1, borderColor: C.line, paddingHorizontal: 12, paddingVertical: 7 }}>
+          <Ionicons name={state === 'sent' ? 'checkmark' : 'chatbubble-ellipses-outline'} size={14} color={state === 'sent' ? C.green : C.text} />
+          <Text style={{ color: state === 'sent' ? C.green : C.text, fontSize: 12.5, fontWeight: '800', marginLeft: 6 }}>{state === 'sent' ? 'Sent — their answer comes to your Chats' : 'Message them'}</Text>
+        </View>
+      </Pressable>
+    );
+  }
+  return (
+    <View style={{ marginTop: 8 }}>
+      <TextInput value={text} onChangeText={setText} multiline autoFocus placeholderTextColor={C.faint}
+        style={{ color: C.text, fontSize: 14, minHeight: 70, borderWidth: 1, borderColor: C.line, borderRadius: 12, padding: 10, backgroundColor: C.bg2, textAlignVertical: 'top' }} />
+      <View style={{ flexDirection: 'row', marginTop: 8, alignItems: 'center' }}>
+        <Pressable onPress={() => setOpen(false)} style={{ marginRight: 14 }}><Text style={{ color: C.dim, fontSize: 13, fontWeight: '800' }}>Cancel</Text></Pressable>
+        <Pressable onPress={send} disabled={state === 'busy'}>
+          <View style={{ borderRadius: 999, backgroundColor: C.purple, paddingHorizontal: 14, paddingVertical: 8 }}>
+            {state === 'busy' ? <ActivityIndicator color="#FFF" /> : <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '900' }}>Send</Text>}
+          </View>
+        </Pressable>
+        {state === 'err' ? <Text style={{ color: C.coral, fontSize: 12.5, fontWeight: '700', marginLeft: 10 }}>Not sent — run the latest SQL, then try again</Text> : null}
+      </View>
+    </View>
+  );
+};
+
 const HostReview = ({ h, onDone }) => {
   const [doc, setDoc] = useState(null);
   const [selfie, setSelfie] = useState(null);
@@ -494,6 +543,7 @@ const HostReview = ({ h, onDone }) => {
         {pic(selfie, 'Selfie')}
       </View>
       <Text style={{ color: C.faint, fontSize: 11, marginTop: 6 }}>Signed: {h.terms_version || '—'} · The face, name and photo on the card must match.</Text>
+      <MessageThem userId={h.user_id} />
       <BardiAdvice kind="host" refId={h.user_id} />
       <View style={{ flexDirection: 'row', marginTop: 10, opacity: busy ? 0.5 : 1 }}>
         <Pressable onPress={() => decide(false)} disabled={busy} style={{ marginRight: 8 }}>
@@ -832,6 +882,7 @@ export const AdminPanel = ({ onClose, access = { owner: true } }) => {
                   {[v.kind, v.sub, v.owner && v.owner.name, v.owner && v.owner.email].filter(Boolean).join(' · ')}
                 </Text>
                 {v.lat != null ? <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 2 }}>{Number(v.lat).toFixed(4) + ', ' + Number(v.lng).toFixed(4)}</Text> : null}
+                {v.owner && v.owner.id ? <MessageThem userId={v.owner.id} /> : null}
                 <BardiAdvice kind="venue" refId={v.id} />
                 <View style={{ flexDirection: 'row', marginTop: 10 }}>
                   <Pressable onPress={async () => { tapLight(); await decideVenue(v.id, false).catch(() => {}); setVenues((q) => q.filter((x) => x.id !== v.id)); }} style={{ marginRight: 8 }}>

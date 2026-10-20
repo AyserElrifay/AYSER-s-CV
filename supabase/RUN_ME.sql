@@ -17628,6 +17628,35 @@ grant execute on function public.notify_call(uuid, uuid) to authenticated;
 notify pgrst, 'reload schema';
 
 -- ═══════════════════════════════════════════════════════════════════
+--  STUDIO · TALK TO WHOEVER IS WAITING
+--  Ayser: "فين الأورجنايزرز اللي نقبلهم ونتواصل معاهم عشان العملية تبقى
+--  أسهل". A guide, a host or an organisation waiting for a yes can be
+--  messaged straight from their card in the Studio — a normal chat, so
+--  they answer from Chats like anybody else. Only someone who may decide
+--  on them (studio_can), and only to somebody who really asked.
+-- ═══════════════════════════════════════════════════════════════════
+create or replace function public.studio_dm(p_user uuid)
+returns uuid language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); t uuid;
+begin
+  if me is null or p_user is null or p_user = me then raise exception 'who'; end if;
+  if not ((public.studio_can('verify') and exists (select 1 from public.verification_requests where user_id = p_user))
+          or (public.is_app_owner() and exists (select 1 from public.venues where owner_id = p_user))) then
+    raise exception 'not_owner';
+  end if;
+  select a.thread_id into t from public.dm_participants a join public.dm_participants b on b.thread_id = a.thread_id
+   where a.user_id = me and b.user_id = p_user limit 1;
+  if t is not null then return t; end if;
+  insert into public.dm_threads default values returning id into t;
+  insert into public.dm_participants (thread_id, user_id) values (t, me), (t, p_user);
+  return t;
+end $$;
+revoke all on function public.studio_dm(uuid) from public, anon;
+grant execute on function public.studio_dm(uuid) to authenticated;
+
+notify pgrst, 'reload schema';
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة
