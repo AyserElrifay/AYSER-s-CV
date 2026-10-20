@@ -21,6 +21,9 @@ const Btn = ({ label, onPress, color }) => (
   </Pressable>
 );
 
+/* the kind a business said it is (see components/biz/words.js) */
+const BIZ_EMOJI = { cafe: '☕', restaurant: '🍽️', shop: '🛍️', hotel: '🏨', hostel: '🛏️', home: '🏡', activity: '🧗', org: '🌱', host: '🧭' };
+
 export const PartnersTab = () => {
   const [rows, setRows] = useState(null);
   const [filter, setFilter] = useState('open');
@@ -42,7 +45,7 @@ export const PartnersTab = () => {
         : shown.map((x) => (
           <View key={x.id} style={{ borderWidth: 1, borderColor: C.line, borderRadius: 16, padding: 13, marginTop: 12 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Text style={{ color: C.text, fontSize: 15.5, fontWeight: '900', flex: 1 }} numberOfLines={1}>{(x.kind === 'place' ? '📍 ' : '🧭 ') + x.brand}</Text>
+              <Text style={{ color: C.text, fontSize: 15.5, fontWeight: '900', flex: 1 }} numberOfLines={1}>{(BIZ_EMOJI[x.biz_type] || (x.kind === 'place' ? '📍' : '🧭')) + ' ' + x.brand + (x.biz_type ? ' · ' + x.biz_type : '')}</Text>
               <Text style={{ color: COLOR[x.status], fontSize: 12, fontWeight: '900' }}>{x.status.toUpperCase()}</Text>
             </View>
             <Text style={{ color: C.dim, fontSize: 13, marginTop: 3 }}>{[x.name, x.city, new Date(x.created_at).toLocaleDateString()].filter(Boolean).join(' · ')}</Text>

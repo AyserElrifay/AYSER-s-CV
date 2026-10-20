@@ -27,7 +27,7 @@ const pick = () => new Promise((resolve) => {
 
 /* what this partner sells and delivers (bouquets), and the orders to send out */
 const NEXT = { new: 'accepted', accepted: 'on_the_way', on_the_way: 'delivered' };
-const Selling = ({ t, userId }) => {
+export const Selling = ({ t, userId }) => {
   const [items, setItems] = useState([]);
   const [orders, setOrders] = useState([]);
   const [n, setN] = useState({ name: '', price: '', photo: null });

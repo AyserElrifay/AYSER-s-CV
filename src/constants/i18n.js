@@ -1631,6 +1631,8 @@ export const STRINGS = {
     ic_papyrus: "Papyrus",
     ic_paper: "Paper",
     nt_v_team_reply: "answered your message",
+    nt_v_biz_request: "sent a request to your place",
+    nt_v_biz_reply: "— your request was answered",
     fb_kind_idea: "Idea",
     fb_kind_bug: "Problem",
     fb_kind_love: "Love it",

@@ -41,6 +41,7 @@ import { greenPic } from '../components/green/GreenCards';
 import { isGreen } from '../lib/greenKinds';
 import { ReportSheet } from '../components/ReportSheet';
 import { CirclesNear } from '../components/CirclesNear';
+const BizDirectory = lazyOverlay(() => import('../components/biz').then((m) => ({ default: m.BizDirectory })));
 const TripsSheet = lazyOverlay(() => import('../components/TripsSheet').then((m) => ({ default: m.TripsSheet })));
 const SettleSheet = lazyOverlay(() => import('../components/SettleSheet').then((m) => ({ default: m.SettleSheet })));
 const RewardsSheet = lazyOverlay(() => import('../components/RewardsSheet').then((m) => ({ default: m.RewardsSheet })));
@@ -938,6 +939,14 @@ export const TogetherScreen = () => {
             </View>
           </Pressable>
         ) : null}
+        {/* ── places that welcome groups (src/components/biz) ── */}
+        <Pressable onPress={() => { tapLight(); setSheet('places'); }} accessibilityRole="button" style={{ marginTop: 10 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: C.line, borderRadius: 18, padding: 14, backgroundColor: C.glass }}>
+            <Text style={{ fontSize: 20, marginEnd: 10 }}>📍</Text>
+            <Text style={{ color: C.text, fontSize: 14, fontWeight: '800', flex: 1 }} numberOfLines={2}>{lang === 'ar' ? 'أماكن على Moments: كافيهات، مطاعم، إقامة، أنشطة' : 'Places on Moments: cafés, restaurants, stays, activities'}</Text>
+            <Ionicons name="chevron-forward" size={17} color={C.dim} />
+          </View>
+        </Pressable>
         {/* ── own a place, or run trips? ── the partner page (PartnerSheet) */}
         <Pressable onPress={() => { tapLight(); openPartner('place'); }} accessibilityRole="button" style={{ marginTop: 10 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: C.line, borderRadius: 18, padding: 14 }}>
@@ -948,6 +957,7 @@ export const TogetherScreen = () => {
         </Pressable>
       </ScrollView>
 
+      {sheet === 'places' ? <BizDirectory lang={lang} city={null} onClose={() => setSheet(null)} /> : null}
       {sheet === 'gonow' ? <GoNowSheet onClose={() => { setSheet(null); load(); }} /> : null}
       {sheet === 'talk' ? <StartTalkSheet country={myCode} onClose={() => setSheet(null)} onStarted={(id) => { setSheet(null); setTalkId(id); }} /> : null}
       {talkId ? <TalkRoomSheet roomId={talkId} onClose={() => { setTalkId(null); load(); }} /> : null}

@@ -77,7 +77,7 @@ import { SheetHandle, SheetBack } from '../components/SheetHandle';
 const GreenSheet = lazyOverlay(() => import('../components/green/GreenSheet').then((m) => ({ default: m.GreenSheet })));
 const CommentsSheet = lazyOverlay(() => import('../components/CommentsSheet').then((m) => ({ default: m.CommentsSheet })));
 const ReelsViewer = lazyOverlay(() => import('../components/ReelsViewer').then((m) => ({ default: m.ReelsViewer })));
-const VenueSheet = lazyOverlay(() => import('../components/VenueSheet').then((m) => ({ default: m.VenueSheet })));
+const BizHub = lazyOverlay(() => import('../components/biz').then((m) => ({ default: m.BizHub })));
 const VolunteerCert = lazyOverlay(() => import('../components/VolunteerCert').then((m) => ({ default: m.VolunteerCert })));
 const CapsuleSheet = lazyOverlay(() => import('../components/CapsuleSheet').then((m) => ({ default: m.CapsuleSheet })));
 const TeacherApplySheet = lazyOverlay(() => import('../components/TeacherApplySheet').then((m) => ({ default: m.TeacherApplySheet })));
@@ -185,7 +185,7 @@ export const ProfileScreen = () => {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   // `t` was used by the share toast without ever being taken out of here
-  const { rtl, t } = useLang();
+  const { rtl, t, lang } = useLang();
   const { isDark } = useTheme();
   const [settings, setSettings] = useState(false);
   const [tab, setTab] = useState('grid');
@@ -1482,7 +1482,7 @@ export const ProfileScreen = () => {
       {libOpen ? <LibrarySheet onClose={() => setLibOpen(false)} /> : null}
       {teachOpen ? <TeacherApplySheet onClose={() => setTeachOpen(false)} /> : null}
       {capsOpen ? <CapsuleSheet onClose={() => setCapsOpen(false)} /> : null}
-      {venueOpen ? <VenueSheet onClose={() => setVenueOpen(false)} /> : null}
+      {venueOpen ? <BizHub lang={lang} onClose={() => setVenueOpen(false)} /> : null}
       {rewardsOpen ? <RewardsSheet onClose={() => setRewardsOpen(false)} onStartPlan={() => { setRewardsOpen(false); setHostOpen(true); }} /> : null}
       {matesOpen ? <MatesSheet onClose={() => { setMatesOpen(false); reload(); }} /> : null}
       {avatarBuilderOpen ? (

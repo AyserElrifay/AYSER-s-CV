@@ -28,6 +28,7 @@ import { goToTab } from '../lib/mapBus';
 import { kept, keep } from '../lib/kept';
 import { openTrip } from '../lib/tripLink';
 import { groupNotifs, namesLine } from '../lib/notifGroups';
+const BizHub = lazyOverlay(() => import('./biz').then((m) => ({ default: m.BizHub })));
 const GoNowSheet = lazyOverlay(() => import('./GoNowSheet').then((m) => ({ default: m.GoNowSheet })));
 const CommentsSheet = lazyOverlay(() => import('./CommentsSheet').then((m) => ({ default: m.CommentsSheet })));
 const ReelsViewer = lazyOverlay(() => import('./ReelsViewer').then((m) => ({ default: m.ReelsViewer })));
@@ -84,6 +85,7 @@ export const NotificationsSheet = ({ onClose }) => {
   useSheetBack(onClose);
   const { t, lang } = useLang();
   const insets = useSafeAreaInsets();
+  const [bizOpen, setBizOpen] = useState(false);
   const { user } = useAuth();
   const [items, setItems] = useState(() => kept('notifs.' + (user ? user.id : '')));   // last time's, at once
   const [accepted, setAccepted] = useState({});
@@ -175,6 +177,7 @@ export const NotificationsSheet = ({ onClose }) => {
     if (n.kind === 'message') { tapSelection(); onClose(); goToTab('CHATS'); return; }
     if (n.kind === 'bardi_match') { const m = readMatch(n.body); if (m) { tapSelection(); setGoNowFrom(m); } return; }
     if (n.kind === 'food_order') { tapSelection(); setFoodTab('kitchen'); return; }
+    if (n.kind === 'biz_request') { tapSelection(); setBizOpen(true); return; }
     if (n.kind === 'food_status') { tapSelection(); setFoodTab('orders'); return; }
     if (n.kind === 'mate_request' || n.kind === 'mate_accept' || n.kind === 'call') {
       tapSelection(); setProfileUser(actorProfile(n)); return;
@@ -312,7 +315,7 @@ export const NotificationsSheet = ({ onClose }) => {
             {' '}<Text style={{ color: C.dim }}>{verbOf(t, n.kind, g && g.actors.length > 1)}</Text>
             {'  '}<Text style={{ color: C.faint, fontSize: 12 }}>{timeAgo(n.created_at)}</Text>
           </Text>
-          {(n.kind === 'green_invite' || n.kind === 'creator_plan' || n.kind === 'booking' || n.kind === 'food_order' || n.kind === 'food_status' || n.kind === 'venue_decision') && n.body ? (
+          {(n.kind === 'green_invite' || n.kind === 'creator_plan' || n.kind === 'booking' || n.kind === 'food_order' || n.kind === 'food_status' || n.kind === 'venue_decision' || n.kind === 'biz_request' || n.kind === 'biz_reply') && n.body ? (
             <Text style={{ color: C.text, fontSize: 13, fontWeight: '700', marginTop: 2 }} numberOfLines={2}>{n.body === 'host_ok' || n.body === 'host_no' || n.body === 'partner_ok' ? t('notif_' + n.body) : n.body}</Text>
           ) : null}
           {n.kind === 'trip_open' && n.body ? (
@@ -440,6 +443,7 @@ export const NotificationsSheet = ({ onClose }) => {
       {/* tap targets */}
       {profileUser ? <ProfileModal user={profileUser} onClose={() => setProfileUser(null)} /> : null}
       {greenOpen ? <GreenSheet onClose={() => setGreenOpen(false)} /> : null}
+      {bizOpen ? <BizHub lang={lang} onClose={() => setBizOpen(false)} /> : null}
       {goNowFrom ? (
         <GoNowSheet initialKind={goNowFrom.kind}
           initialTitle={goNowFrom.focus ? t('bardi_session_title') + (goNowFrom.venue ? ' · ' + goNowFrom.venue : '') : goNowFrom.what}

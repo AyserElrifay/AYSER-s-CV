@@ -9,6 +9,10 @@ import { partnerApply } from '../services/partners';
 import { appLink, shareLink, shareNote } from '../utils/share';
 import { tapLight, tapMedium, tapSelection, tapSuccess } from '../utils/feedback';
 import { useSheetBack } from '../hooks/useSheetBack';
+import { lazyOverlay } from '../lib/lazyScreen';
+/* the nine kinds of business, and the host check, load with the business screens */
+const BizTypes = lazyOverlay(() => import('./biz').then((m) => ({ default: m.BizTypes })));
+const HostApplySheet = lazyOverlay(() => import('./HostApplySheet').then((m) => ({ default: m.HostApplySheet })));
 
 /* ─── PARTNER WITH MOMENTS ─────────────────────────────────────────────
    Ayser sent Hype's partner page: "خد من خبرتهم". What it gets right
@@ -22,10 +26,6 @@ import { useSheetBack } from '../hooks/useSheetBack';
    a café owner would catch us on. Every line below is something the
    app actually does today. */
 
-const KINDS = {
-  place: { icon: 'location-outline', list: ['pt_place_1', 'pt_place_2', 'pt_place_3', 'pt_place_4', 'pt_place_5'] },
-  experience: { icon: 'compass-outline', list: ['pt_exp_1', 'pt_exp_2', 'pt_exp_3', 'pt_exp_4', 'pt_exp_5'] },
-};
 const WHY = [
   ['map-outline', 'pt_why_pin'],
   ['people-outline', 'pt_why_groups'],
@@ -47,8 +47,10 @@ const Field = ({ label, value, onChange, ph, kb, multi, max }) => (
 export const PartnerSheet = ({ onClose, first }) => {
   useSheetBack(onClose);
   const insets = useSafeAreaInsets();
-  const { t } = useLang();
-  const [kind, setKind] = useState(first === 'experience' ? 'experience' : 'place');
+  const { t, lang } = useLang();
+  const [biz, setBiz] = useState(first === 'experience' ? 'activity' : 'cafe');
+  const kind = ['activity', 'org', 'host'].includes(biz) ? 'experience' : 'place';
+  const [hostOpen, setHostOpen] = useState(false);
   const [f, setF] = useState({ name: '', brand: '', email: '', phone: '', city: '', about: '' });
   const set = (k) => (v) => setF((x) => ({ ...x, [k]: v }));
   const [busy, setBusy] = useState(false);
@@ -61,7 +63,7 @@ export const PartnerSheet = ({ onClose, first }) => {
     if (busy) return;
     if (!ready) { setErr(t('pt_err_fill')); return; }
     tapMedium(); setBusy(true); setErr(null);
-    const r = await partnerApply({ kind, ...f });
+    const r = await partnerApply({ kind, biz_type: biz, ...f });
     setBusy(false);
     if (r && r.ok) { tapSuccess(); setDone(true); return; }
     const why = r && r.reason;
@@ -112,31 +114,11 @@ export const PartnerSheet = ({ onClose, first }) => {
               </View>
             ))}
 
-            {/* two ways to partner */}
-            <Text style={{ color: C.faint, fontSize: 12, fontWeight: '900', letterSpacing: 1.2, marginTop: 26 }}>{t('pt_two_ways').toUpperCase()}</Text>
-            <View style={{ flexDirection: 'row', marginTop: 10 }}>
-              {['place', 'experience'].map((k, i) => (
-                <Pressable key={k} onPress={() => { tapSelection(); setKind(k); }} accessibilityRole="radio" accessibilityState={{ selected: kind === k }}
-                  style={{ flex: 1, marginEnd: i === 0 ? 10 : 0 }}>
-                  <View style={{ borderRadius: 18, borderWidth: 1.5, borderColor: kind === k ? C.purple : C.line, backgroundColor: kind === k ? 'rgba(124,58,237,0.08)' : C.glass, padding: 14, minHeight: 92 }}>
-                    <Ionicons name={KINDS[k].icon} size={22} color={kind === k ? C.purple : C.dim} />
-                    <Text style={{ color: C.text, fontSize: 15.5, fontWeight: '900', marginTop: 8 }}>{t('pt_kind_' + k)}</Text>
-                    <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 2 }}>{t('pt_kind_' + k + '_sub')}</Text>
-                  </View>
-                </Pressable>
-              ))}
-            </View>
-            <View style={{ marginTop: 12 }}>
-              {KINDS[kind].list.map((k) => (
-                <View key={k} style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
-                  <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: C.gold, marginEnd: 10 }} />
-                  <Text style={{ color: C.text, fontSize: 14 }}>{t(k)}</Text>
-                </View>
-              ))}
-            </View>
+            {/* nine kinds — each sees what it gets */}
+            <BizTypes lang={lang} value={biz} onPick={setBiz} onHost={() => { tapLight(); setHostOpen(true); }} />
 
             {/* the form */}
-            <View style={{ marginTop: 24, borderRadius: 22, borderWidth: 1, borderColor: C.line, backgroundColor: C.bg2 || C.glass, padding: 16 }}>
+            {biz === 'host' ? null : <View style={{ marginTop: 24, borderRadius: 22, borderWidth: 1, borderColor: C.line, backgroundColor: C.bg2 || C.glass, padding: 16 }}>
               {done ? (
                 <View style={{ alignItems: 'center', paddingVertical: 18 }}>
                   <Text style={{ fontSize: 40 }}>🎉</Text>
@@ -169,10 +151,11 @@ export const PartnerSheet = ({ onClose, first }) => {
                   <Text style={{ color: C.faint, fontSize: 12, lineHeight: 17, marginTop: 10, textAlign: 'center' }}>{t('pt_privacy')}</Text>
                 </>
               )}
-            </View>
+            </View>}
           </View>
         </ScrollView>
       </View>
+      {hostOpen ? <HostApplySheet onClose={() => setHostOpen(false)} /> : null}
     </Modal>
   );
 };

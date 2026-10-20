@@ -18324,6 +18324,373 @@ grant execute on function public.sgame_start(uuid, text, jsonb, jsonb), public.s
 notify pgrst, 'reload schema';
 
 -- ═══════════════════════════════════════════════════════════════════
+--  BUSINESSES ON MOMENTS · NINE KINDS, ONE PLACE TO RUN THEM
+--  Ayser: "اشتغل على واجهة المحلات والهوستس والهوستيلز والفنادق وأماكن
+--  الأنشطة والأورجنايزيشن والمطاعم والكافيهات والـ Airbnb". A partner
+--  says what it is (biz_type) and gets the tools that kind needs:
+--    cafe, restaurant   Moments Table: quiet hours, a group perk,
+--                       guests checking in with the staff code, stamps
+--    shop               the same check-in and stamps; things to order
+--    hotel, hostel,
+--    home               stays: price a night, beds, what's included,
+--                       and stay requests the place accepts or declines
+--    activity           a place to do something: check-ins, group requests
+--    org                an organisation: it reaches people with plans
+--    host               a person who hosts: verified through Hosts
+--  A visit only counts when somebody at the counter gives the 4-digit
+--  code — one a day per person per place — so "guests Moments brought"
+--  is a number the café can trust. Nothing is charged: the bill line
+--  shows what the agreed fee would come to, and says billing has not
+--  started. Safe to re-run.
+-- ═══════════════════════════════════════════════════════════════════
+alter table public.partner_applications add column if not exists biz_type text;
+alter table public.partner_venues add column if not exists biz_type   text;
+alter table public.partner_venues add column if not exists phone      text check (phone is null or phone ~ '^[+0-9 ()-]{6,24}$');
+alter table public.partner_venues add column if not exists address    text check (address is null or char_length(address) <= 200);
+alter table public.partner_venues add column if not exists lat        double precision;
+alter table public.partner_venues add column if not exists lng        double precision;
+alter table public.partner_venues add column if not exists hours      text check (hours is null or char_length(hours) <= 120);
+alter table public.partner_venues add column if not exists details    jsonb not null default '{}'::jsonb;
+alter table public.partner_venues add column if not exists quiet      text check (quiet is null or char_length(quiet) <= 80);
+alter table public.partner_venues add column if not exists perk       text check (perk is null or char_length(perk) <= 120);
+alter table public.partner_venues add column if not exists staff_code text;
+alter table public.partner_venues add column if not exists listed     boolean not null default false;
+
+create or replace function public.biz_type_ok(t text)
+returns boolean language sql immutable as $$
+  select t in ('cafe','restaurant','shop','hotel','hostel','home','activity','org','host');
+$$;
+
+create or replace function public.partner_apply(p jsonb)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare k text := lower(trim(coalesce(p->>'kind', '')));
+        bt text := nullif(lower(trim(coalesce(p->>'biz_type', ''))), '');
+        n text := trim(coalesce(p->>'name', ''));
+        b text := trim(coalesce(p->>'brand', ''));
+        e text := nullif(lower(trim(coalesce(p->>'email', ''))), '');
+        ph text := nullif(trim(coalesce(p->>'phone', '')), '');
+        c text := nullif(trim(coalesce(p->>'city', '')), '');
+        a text := nullif(trim(coalesce(p->>'about', '')), '');
+begin
+  if bt is not null and not public.biz_type_ok(bt) then return jsonb_build_object('ok', false, 'reason', 'kind'); end if;
+  if k = '' and bt is not null then k := case when bt in ('activity','org','host') then 'experience' else 'place' end; end if;
+  if k not in ('place','experience') then return jsonb_build_object('ok', false, 'reason', 'kind'); end if;
+  if char_length(n) < 2 or char_length(b) < 2 then return jsonb_build_object('ok', false, 'reason', 'name'); end if;
+  if e is null and ph is null then return jsonb_build_object('ok', false, 'reason', 'contact'); end if;
+  if e is not null and e !~* '^[^@\s]+@[^@\s]+\.[^@\s]+$' then return jsonb_build_object('ok', false, 'reason', 'email'); end if;
+  if ph is not null and ph !~ '^[+0-9 ()-]{6,24}$' then return jsonb_build_object('ok', false, 'reason', 'phone'); end if;
+  if exists (select 1 from public.partner_applications x
+              where lower(x.brand) = lower(b) and coalesce(x.email, x.phone) = coalesce(e, ph)
+                and x.created_at > now() - interval '1 day') then
+    return jsonb_build_object('ok', true, 'again', true);
+  end if;
+  if (select count(*) from public.partner_applications where created_at > now() - interval '1 hour') >= 60 then
+    return jsonb_build_object('ok', false, 'reason', 'busy');
+  end if;
+  insert into public.partner_applications (kind, biz_type, name, brand, email, phone, city, about, user_id)
+  values (k, bt, left(n, 80), left(b, 100), e, ph, left(c, 60), left(a, 1000), auth.uid());
+  return jsonb_build_object('ok', true);
+end $$;
+revoke all on function public.partner_apply(jsonb) from public;
+grant execute on function public.partner_apply(jsonb) to anon, authenticated;
+
+create or replace function public.biz_code() returns text language sql volatile as $$
+  select lpad((floor(random() * 10000))::int::text, 4, '0');
+$$;
+
+-- accepted: the place is made, with its kind and a counter code
+create or replace function public.partner_on_accept() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if new.status = 'accepted' and old.status is distinct from 'accepted' and new.user_id is not null then
+    insert into public.partner_venues (user_id, application_id, name, kind, biz_type, city, about, phone, staff_code)
+    values (new.user_id, new.id, new.brand, new.kind, new.biz_type, new.city, new.about, new.phone, public.biz_code())
+    on conflict (user_id) do update set biz_type = coalesce(public.partner_venues.biz_type, excluded.biz_type);
+    perform set_config('moments.partner_ok', '1', true);
+    update public.profiles set account_type = 'partner' where id = new.user_id;
+    insert into public.notifications (user_id, actor_id, kind, body) values (new.user_id, new.user_id, 'venue_decision', 'partner_ok');
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.partner_on_accept() from public, anon, authenticated;
+update public.partner_venues set staff_code = public.biz_code() where staff_code is null;
+
+create table if not exists public.biz_visits (
+  id       uuid primary key default gen_random_uuid(),
+  venue_id uuid not null references public.partner_venues(id) on delete cascade,
+  user_id  uuid not null references public.profiles(id) on delete cascade,
+  day      date not null default current_date,
+  at       timestamptz not null default now(),
+  unique (venue_id, user_id, day)
+);
+create index if not exists biz_visits_venue on public.biz_visits (venue_id, at desc);
+create table if not exists public.biz_redeems (
+  id       uuid primary key default gen_random_uuid(),
+  venue_id uuid not null references public.partner_venues(id) on delete cascade,
+  user_id  uuid not null references public.profiles(id) on delete cascade,
+  at       timestamptz not null default now()
+);
+create table if not exists public.biz_requests (
+  id         uuid primary key default gen_random_uuid(),
+  venue_id   uuid not null references public.partner_venues(id) on delete cascade,
+  user_id    uuid not null references public.profiles(id) on delete cascade,
+  kind       text not null check (kind in ('stay','table','group')),
+  day_from   date not null,
+  day_to     date,
+  people     int not null check (people between 1 and 60),
+  note       text check (note is null or char_length(note) <= 400),
+  reply      text check (reply is null or char_length(reply) <= 400),
+  status     text not null default 'new' check (status in ('new','accepted','declined','cancelled')),
+  created_at timestamptz not null default now()
+);
+create index if not exists biz_requests_venue on public.biz_requests (venue_id, created_at desc);
+-- wrong counter codes, so 4 digits can't be guessed by trying them all
+create table if not exists public.biz_tries (
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  at      timestamptz not null default now()
+);
+create index if not exists biz_tries_user on public.biz_tries (user_id, at desc);
+alter table public.biz_tries enable row level security;
+revoke all on public.biz_tries from anon, authenticated;
+alter table public.biz_visits enable row level security;
+alter table public.biz_redeems enable row level security;
+alter table public.biz_requests enable row level security;
+revoke all on public.biz_visits, public.biz_redeems, public.biz_requests from anon, authenticated;
+
+do $do$ begin
+  alter table public.notifications drop constraint if exists notifications_kind_check;
+  alter table public.notifications add constraint notifications_kind_check
+    check (kind in ('vibe','laugh','comment','mate_request','mate_accept','message','call','tag','repost','green_invite','food_order','food_status','bardi_match','plan_soon','venue_decision','xp_award','safety','creator_plan','booking','trip_open','team_reply','biz_request','biz_reply'))
+    not valid;
+exception when others then raise notice 'notifications kind constraint skipped: %', sqlerrm;
+end $do$;
+
+-- what the owner may change about their own place
+create or replace function public.biz_save(p jsonb)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare v public.partner_venues%rowtype; v_photos text[]; d jsonb := coalesce(p -> 'details', '{}'::jsonb); bt text;
+begin
+  select * into v from public.partner_venues where user_id = auth.uid();
+  if not found then return jsonb_build_object('ok', false, 'reason', 'not_partner'); end if;
+  v_photos := coalesce((select array_agg(x) from jsonb_array_elements_text(coalesce(p -> 'photos', '[]'::jsonb)) x), '{}');
+  if exists (select 1 from unnest(v_photos) u where u !~ '^https://') or coalesce(array_length(v_photos, 1), 0) > 12 then
+    return jsonb_build_object('ok', false, 'reason', 'photos');
+  end if;
+  if jsonb_typeof(d) <> 'object' or length(d::text) > 2000 then return jsonb_build_object('ok', false, 'reason', 'details'); end if;
+  if (p ->> 'phone') is not null and btrim(p ->> 'phone') <> '' and btrim(p ->> 'phone') !~ '^[+0-9 ()-]{6,24}$' then
+    return jsonb_build_object('ok', false, 'reason', 'phone');
+  end if;
+  if (p ->> 'price_from') is not null and ((p ->> 'price_from')::numeric < 0 or (p ->> 'price_from')::numeric > 1000000) then
+    return jsonb_build_object('ok', false, 'reason', 'price');
+  end if;
+  bt := nullif(lower(btrim(coalesce(p ->> 'biz_type', ''))), '');
+  if bt is not null and not public.biz_type_ok(bt) then bt := null; end if;
+  update public.partner_venues set
+    biz_type = coalesce(bt, biz_type),
+    about    = nullif(left(btrim(coalesce(p ->> 'about', '')), 1200), ''),
+    photos   = v_photos,
+    price_from = nullif(p ->> 'price_from', '')::numeric,
+    phone    = nullif(btrim(coalesce(p ->> 'phone', '')), ''),
+    address  = nullif(left(btrim(coalesce(p ->> 'address', '')), 200), ''),
+    city     = coalesce(nullif(left(btrim(coalesce(p ->> 'city', '')), 60), ''), city),
+    lat      = case when (p ->> 'lat') ~ '^-?[0-9.]+$' and abs((p ->> 'lat')::float) <= 90 then (p ->> 'lat')::float else lat end,
+    lng      = case when (p ->> 'lng') ~ '^-?[0-9.]+$' and abs((p ->> 'lng')::float) <= 180 then (p ->> 'lng')::float else lng end,
+    hours    = nullif(left(btrim(coalesce(p ->> 'hours', '')), 120), ''),
+    quiet    = nullif(left(btrim(coalesce(p ->> 'quiet', '')), 80), ''),
+    perk     = nullif(left(btrim(coalesce(p ->> 'perk', '')), 120), ''),
+    details  = d,
+    listed   = coalesce((p ->> 'listed')::boolean, listed),
+    updated_at = now()
+  where id = v.id;
+  return jsonb_build_object('ok', true);
+end $$;
+
+create or replace function public.biz_new_code()
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare c text := public.biz_code();
+begin
+  update public.partner_venues set staff_code = c, updated_at = now() where user_id = auth.uid();
+  if not found then return jsonb_build_object('ok', false, 'reason', 'not_partner'); end if;
+  return jsonb_build_object('ok', true, 'code', c);
+end $$;
+
+-- the owner's numbers: only real check-ins, never estimates
+create or replace function public.biz_stats()
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare v public.partner_venues%rowtype; fee numeric := 20; free int := 50; life int; before_month int; month int;
+begin
+  select * into v from public.partner_venues where user_id = auth.uid();
+  if not found then return jsonb_build_object('ok', false, 'reason', 'not_partner'); end if;
+  select coalesce((value #>> '{}')::numeric, 20) into fee from public.app_settings where key = 'biz_guest_fee';
+  fee := coalesce(fee, 20);
+  life := (select count(*) from public.biz_visits where venue_id = v.id);
+  month := (select count(*) from public.biz_visits where venue_id = v.id and at >= date_trunc('month', now()));
+  before_month := life - month;
+  return jsonb_build_object('ok', true,
+    'today', (select count(*) from public.biz_visits where venue_id = v.id and day = current_date),
+    'week',  (select count(*) from public.biz_visits where venue_id = v.id and at > now() - interval '7 days'),
+    'month', month, 'all', life,
+    'people', (select count(distinct user_id) from public.biz_visits where venue_id = v.id),
+    'back',   (select count(*) from (select user_id from public.biz_visits where venue_id = v.id group by user_id having count(*) > 1) x),
+    'rewards', (select count(*) from public.biz_redeems where venue_id = v.id),
+    'free_left', greatest(0, free - life),
+    'fee', fee,
+    -- what this month would come to, after the first 50 guests ever
+    'month_bill', greatest(0, month - greatest(0, free - before_month)) * fee,
+    'requests_new', (select count(*) from public.biz_requests where venue_id = v.id and status = 'new'),
+    'recent', (select coalesce(jsonb_agg(x order by x ->> 'at' desc), '[]'::jsonb) from (
+        select jsonb_build_object('name', split_part(coalesce(p.name, ''), ' ', 1), 'avatar', p.avatar_url, 'at', b.at,
+               'visits', (select count(*) from public.biz_visits b2 where b2.venue_id = v.id and b2.user_id = b.user_id)) x
+          from public.biz_visits b join public.profiles p on p.id = b.user_id
+         where b.venue_id = v.id order by b.at desc limit 12) t));
+end $$;
+
+-- a guest at the counter: the staff tell them the 4-digit code
+create or replace function public.biz_checkin(p_venue uuid, p_code text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); v public.partner_venues%rowtype; n int; r int;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  select * into v from public.partner_venues where id = p_venue and listed;
+  if not found then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
+  if v.user_id = me then return jsonb_build_object('ok', false, 'reason', 'yours'); end if;
+  -- six wrong codes in an hour and the counter stops listening for a while
+  if (select count(*) from public.biz_tries where user_id = me and at > now() - interval '1 hour') >= 6 then
+    return jsonb_build_object('ok', false, 'reason', 'slow_down');
+  end if;
+  if coalesce(btrim(p_code), '') <> coalesce(v.staff_code, '-') then
+    insert into public.biz_tries (user_id) values (me);
+    delete from public.biz_tries where at < now() - interval '1 day';
+    return jsonb_build_object('ok', false, 'reason', 'code');
+  end if;
+  insert into public.biz_visits (venue_id, user_id) values (v.id, me) on conflict (venue_id, user_id, day) do nothing;
+  n := (select count(*) from public.biz_visits where venue_id = v.id and user_id = me);
+  r := (select count(*) from public.biz_redeems where venue_id = v.id and user_id = me);
+  return jsonb_build_object('ok', true, 'visits', n, 'stamps', n - r * 5, 'perk', v.perk);
+end $$;
+
+-- five stamps: the staff code again, and the reward is used
+create or replace function public.biz_redeem(p_venue uuid, p_code text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); v public.partner_venues%rowtype; n int; r int;
+begin
+  select * into v from public.partner_venues where id = p_venue and listed;
+  if not found or me is null then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
+  if (select count(*) from public.biz_tries where user_id = me and at > now() - interval '1 hour') >= 6 then
+    return jsonb_build_object('ok', false, 'reason', 'slow_down');
+  end if;
+  if coalesce(btrim(p_code), '') <> coalesce(v.staff_code, '-') then
+    insert into public.biz_tries (user_id) values (me);
+    return jsonb_build_object('ok', false, 'reason', 'code');
+  end if;
+  n := (select count(*) from public.biz_visits where venue_id = v.id and user_id = me);
+  r := (select count(*) from public.biz_redeems where venue_id = v.id and user_id = me);
+  if n - r * 5 < 5 then return jsonb_build_object('ok', false, 'reason', 'not_yet'); end if;
+  insert into public.biz_redeems (venue_id, user_id) values (v.id, me);
+  return jsonb_build_object('ok', true, 'stamps', n - (r + 1) * 5);
+end $$;
+
+create or replace function public.biz_card(v public.partner_venues)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select jsonb_build_object('id', v.id, 'name', v.name, 'type', coalesce(v.biz_type, case when v.kind = 'experience' then 'activity' else 'cafe' end),
+    'city', v.city, 'about', v.about, 'photos', to_jsonb(v.photos), 'price_from', v.price_from, 'currency', v.currency,
+    'address', v.address, 'lat', v.lat, 'lng', v.lng, 'hours', v.hours, 'quiet', v.quiet, 'perk', v.perk, 'details', v.details,
+    'guests', (select count(distinct user_id) from public.biz_visits b where b.venue_id = v.id));
+$$;
+
+create or replace function public.biz_directory(p_type text, p_city text)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select coalesce(jsonb_agg(public.biz_card(v) order by (v.city ilike coalesce(p_city, '')) desc, v.updated_at desc), '[]'::jsonb)
+    from (select * from public.partner_venues v where v.listed
+            and (p_type is null or coalesce(v.biz_type, case when v.kind = 'experience' then 'activity' else 'cafe' end) = p_type)
+          limit 120) v;
+$$;
+
+create or replace function public.biz_page(p_id uuid)
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare v public.partner_venues%rowtype; me uuid := auth.uid(); n int; r int;
+begin
+  select * into v from public.partner_venues where id = p_id and (listed or user_id = me);
+  if not found then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
+  n := (select count(*) from public.biz_visits where venue_id = v.id and user_id = me);
+  r := (select count(*) from public.biz_redeems where venue_id = v.id and user_id = me);
+  return public.biz_card(v) || jsonb_build_object('ok', true, 'phone', v.phone, 'mine', v.user_id = me,
+    'my_visits', n, 'my_stamps', n - r * 5, 'here_today', exists (select 1 from public.biz_visits where venue_id = v.id and user_id = me and day = current_date),
+    'my_requests', (select coalesce(jsonb_agg(jsonb_build_object('id', q.id, 'kind', q.kind, 'from', q.day_from, 'to', q.day_to, 'people', q.people,
+                     'status', q.status, 'reply', q.reply) order by q.created_at desc), '[]'::jsonb)
+                      from public.biz_requests q where q.venue_id = v.id and q.user_id = me and q.created_at > now() - interval '60 days'));
+end $$;
+
+create or replace function public.biz_request(p jsonb)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); v public.partner_venues%rowtype; k text := p ->> 'kind'; a date; b date; ppl int;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  select * into v from public.partner_venues where id = (p ->> 'venue')::uuid and listed;
+  if not found then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
+  if k not in ('stay','table','group') then return jsonb_build_object('ok', false, 'reason', 'kind'); end if;
+  a := (p ->> 'from')::date; b := nullif(p ->> 'to', '')::date; ppl := coalesce((p ->> 'people')::int, 0);
+  if a is null or a < current_date or a > current_date + 365 then return jsonb_build_object('ok', false, 'reason', 'date'); end if;
+  if b is not null and (b < a or b > a + 60) then return jsonb_build_object('ok', false, 'reason', 'date'); end if;
+  if ppl < 1 or ppl > 60 then return jsonb_build_object('ok', false, 'reason', 'people'); end if;
+  if (select count(*) from public.biz_requests where user_id = me and created_at > now() - interval '1 day') >= 6 then
+    return jsonb_build_object('ok', false, 'reason', 'slow_down');
+  end if;
+  insert into public.biz_requests (venue_id, user_id, kind, day_from, day_to, people, note)
+  values (v.id, me, k, a, b, ppl, nullif(left(btrim(coalesce(p ->> 'note', '')), 400), ''));
+  insert into public.notifications (user_id, actor_id, kind, body) values (v.user_id, me, 'biz_request', v.name);
+  return jsonb_build_object('ok', true);
+end $$;
+
+create or replace function public.biz_requests_in()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select coalesce(jsonb_agg(jsonb_build_object('id', q.id, 'kind', q.kind, 'from', q.day_from, 'to', q.day_to, 'people', q.people,
+           'note', q.note, 'reply', q.reply, 'status', q.status, 'at', q.created_at,
+           'name', split_part(coalesce(p.name, ''), ' ', 1), 'avatar', p.avatar_url) order by (q.status = 'new') desc, q.created_at desc), '[]'::jsonb)
+    from public.biz_requests q join public.partner_venues v on v.id = q.venue_id join public.profiles p on p.id = q.user_id
+   where v.user_id = auth.uid() and q.created_at > now() - interval '90 days';
+$$;
+
+create or replace function public.biz_answer(p_id uuid, p_status text, p_reply text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare q public.biz_requests%rowtype; vn text;
+begin
+  if p_status not in ('accepted','declined') then return jsonb_build_object('ok', false, 'reason', 'status'); end if;
+  select q2.* into q from public.biz_requests q2 join public.partner_venues v on v.id = q2.venue_id where q2.id = p_id and v.user_id = auth.uid();
+  if not found then return jsonb_build_object('ok', false, 'reason', 'not_yours'); end if;
+  update public.biz_requests set status = p_status, reply = nullif(left(btrim(coalesce(p_reply, '')), 400), '') where id = p_id;
+  select name into vn from public.partner_venues where id = q.venue_id;
+  insert into public.notifications (user_id, actor_id, kind, body) values (q.user_id, q.user_id, 'biz_reply', vn || ' · ' || p_status);
+  return jsonb_build_object('ok', true);
+end $$;
+
+create or replace function public.biz_cancel(p_id uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  update public.biz_requests set status = 'cancelled' where id = p_id and user_id = auth.uid() and status in ('new','accepted');
+  return jsonb_build_object('ok', found);
+end $$;
+
+-- my_venue now carries the counter code and the new fields (owner only)
+create or replace function public.my_venue()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select coalesce((select to_jsonb(v) from public.partner_venues v where v.user_id = auth.uid()), 'null'::jsonb);
+$$;
+
+revoke all on function public.biz_save(jsonb), public.biz_new_code(), public.biz_stats(), public.biz_checkin(uuid, text), public.biz_redeem(uuid, text),
+  public.biz_directory(text, text), public.biz_page(uuid), public.biz_request(jsonb), public.biz_requests_in(), public.biz_answer(uuid, text, text),
+  public.biz_cancel(uuid), public.biz_card(public.partner_venues), public.biz_code() from public, anon;
+grant execute on function public.biz_save(jsonb), public.biz_new_code(), public.biz_stats(), public.biz_checkin(uuid, text), public.biz_redeem(uuid, text),
+  public.biz_directory(text, text), public.biz_page(uuid), public.biz_request(jsonb), public.biz_requests_in(), public.biz_answer(uuid, text, text),
+  public.biz_cancel(uuid) to authenticated;
+-- the counter code and the phone are read only through the functions
+-- above; the table itself is closed to direct reads
+drop policy if exists "venues: anyone signed in reads" on public.partner_venues;
+
+notify pgrst, 'reload schema';
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة
