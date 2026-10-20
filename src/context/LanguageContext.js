@@ -142,8 +142,29 @@ async function loadLanguage(code, onFresh) {
   return dict;
 }
 
+/* The language, and its words, before the first paint. Starting in
+   English and switching a moment later re-drew every screen (and, for
+   Arabic, flipped it right-to-left) — the "loads twice" Ayser saw. On the
+   web both the choice and the last copy of its words sit in
+   localStorage, readable right now. */
+function startLang() {
+  let code = null;
+  try {
+    if (Platform.OS === 'web' && typeof window !== 'undefined' && window.localStorage) {
+      const v = window.localStorage.getItem(KEY);
+      if (v && LANGS.some((l) => l.code === v)) code = v;
+      if (!code) code = deviceLang();
+      if (code && code !== 'en' && !loaded[code]) {
+        const kept = JSON.parse(window.localStorage.getItem(CACHE_PREFIX + code) || 'null');
+        if (kept && typeof kept === 'object') loaded[code] = kept;
+      }
+    }
+  } catch (e) {}
+  return code || 'en';
+}
+
 export const LanguageProvider = ({ children }) => {
-  const [lang, setLangState] = useState('en');
+  const [lang, setLangState] = useState(startLang);
   /* Bumped when a language finishes arriving, purely so the tree
      re-renders with the new words. */
   const [, setReady] = useState(0);
