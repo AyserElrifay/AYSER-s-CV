@@ -17510,6 +17510,56 @@ update public.offers set photos = '{}'
  where id = '0ffe0000-0000-4000-8000-0000000000a3' and photos = '{media/desert-trip.jpg}';
 
 -- ═══════════════════════════════════════════════════════════════════
+--  THE SAME WEEK EVERYWHERE · IDEAS FOR EVERY EU COUNTRY AND MOROCCO
+--  Ayser: "زي ما في مصر الاكتفيتز دي موجودة، في باقي الـ27 دولة أوروبية
+--  والمغرب — كل واحد على حسب فاتح Moments منين". The everyday things
+--  Cairo has every week — football, sketching, a language circle, a
+--  sunset walk, live music — as ideas anywhere, and two of their own for
+--  every country that had none. Ideas, never plans: nobody is said to
+--  be going. Safe to re-run: an idea already there by title is left.
+-- ═══════════════════════════════════════════════════════════════════
+insert into public.green_sparks (kind, country, title_ar, title_en, about_ar, about_en, minutes, people, sort)
+select * from (values
+ ('sport',null,'كورة في الجنينة','Football in the park','فريقين، كورة واحدة، ومن غير ضغط. اللي عنده كورة يجيبها، والباقي يجي يلعب.','Two teams, one ball, no pressure. Whoever has a ball brings it; everyone else just comes to play.',90,'8–14',200),
+ ('art',null,'رسم جنب المية','Sketching by the water','ورق وقلم وقعدة هادية جنب نهر أو بحيرة أو بحر. خطوطك مش لازم تبقى مظبوطة.','Paper, pencils and a quiet spot by a river, a lake or the sea. Your lines do not need to be perfect.',90,'2–8',201),
+ ('circle',null,'دايرة تبادل لغات','Language exchange circle','كل واحد يتكلم شوية بلغته وشوية بلغة بيتعلمها. اتكلم قليل، اضحك كتير.','Everyone speaks a little of their own language and a little of one they are learning. Speak a little, laugh a lot.',90,'4–12',202),
+ ('walk',null,'تمشية الغروب','A sunset walk','مشي هادي قبل الغروب بنص ساعة، وكلام حلو على الطريق.','An easy walk starting half an hour before sunset, with good talk on the way.',75,'2–12',203),
+ ('culture',null,'ليلة مزيكا حية','A night of live music','حفلة أوبرا أو جاز أو مزيكا محلية — كل واحد يشتري تذكرته، ونتقابل قبلها بنص ساعة.','An opera, a jazz night or local live music — everyone buys their own ticket, and we meet half an hour before.',150,'2–10',204),
+ ('walk','AT','مشي في فيينا وودز','A walk in the Vienna Woods','مسار سهل في غابة فيينا، وقعدة في آخره.','An easy trail in the Vienna Woods, and a sit-down at the end.',150,'3–10',210),
+ ('culture','AT','قهوة في كافيه قديم','Coffee in an old coffee house','كافيه من القهاوي القديمة، جريدة، وكلام على مهل.','One of the old coffee houses, a newspaper, and slow talk.',90,'2–6',211),
+ ('walk','BE','مشي في البلد القديمة','An old-town walk','مشي في الشوارع القديمة، وكل واحد يختار مبنى ويحكي عنه.','A walk through the old streets; each person picks a building and tells its story.',90,'3–10',212),
+ ('art','BE','رسم في ميدان','Sketch a square','اقعدوا في ميدان ساعة، وكل واحد يرسمه من ناحية.','Sit in one square for an hour, each drawing it from a different side.',75,'2–8',213),
+ ('walk','BG','هايك في فيتوشا','A hike on Vitosha','مسار متعلّم عليه على جبل فيتوشا، ومعاكم مية وجاكيت.','A marked trail on Vitosha mountain; bring water and a jacket.',240,'3–10',214),
+ ('cleanup','BG','تنضيف جنينة','A park clean-up','ساعة الصبح في جنينة قريبة، وأكياس منفصلة.','One morning hour in a nearby park, with separate bags.',60,'3–12',215),
+ ('sport','HR','عوم الصبح في البحر','A morning swim in the sea','عوم بدري قبل الزحمة، وفطار بسيط بعده.','An early swim before the crowds, and a simple breakfast after.',90,'2–10',216),
+ ('cleanup','HR','تنضيف خليج صغير','A small-bay clean-up','خليج صغير، ساعة، وعوم بعدها كمكافأة.','A small bay, one hour, and a swim after as the reward.',90,'3–10',217),
+ ('walk','CY','مشي في جبال ترودوس','A walk in the Troodos','مسار في جبال ترودوس، أبرد من الساحل في الصيف.','A trail in the Troodos mountains, cooler than the coast in summer.',180,'3–10',218),
+ ('sport','CY','عوم عند الغروب','A sunset swim','شط هادي، عوم قبل الغروب، وقعدة على الرملة.','A quiet beach, a swim before sunset, and time on the sand.',90,'2–10',219),
+ ('walk','DK','لفة بالعجل','A bike ride together','لفة هادية بالعجل على مسارات المدينة، ووقفة على قهوة.','An easy ride along the city bike paths, with a stop for coffee.',90,'2–10',220),
+ ('sport','DK','غطسة في المية الباردة','A cold-water dip','غطسة سريعة في البحر أو الميناء، وبعدها حاجة سخنة.','A quick dip in the sea or the harbour baths, then something warm.',45,'2–8',221),
+ ('walk','FI','مشي في الغابة','A forest walk','مسار في غابة قريبة، وقعدة على صخرة في الآخر.','A trail in a nearby forest, ending on a rock by a lake.',120,'2–10',222),
+ ('circle','FI','ساونا وكلام','Sauna and talk','ساونا عامة، والكلام على مهل بعدها.','A public sauna, and slow talk afterwards.',120,'2–8',223),
+ ('walk','IE','مشي على الساحل','A coastal walk','مسار على الجروف أو الساحل، ومعاكم جاكيت للمطر.','A cliff or coastal path; bring a rain jacket.',150,'3–10',224),
+ ('culture','IE','سيشن مزيكا تقليدية','A traditional music session','بار فيه سيشن مزيكا تقليدية، نسمع ونتكلم.','A pub with a traditional music session — listen and talk.',120,'2–10',225),
+ ('walk','LV','مشي على ممشى المستنقع','A bog boardwalk walk','ممشى خشب فوق مستنقع، وبرج مراقبة في الآخر.','A wooden boardwalk across a bog, with a lookout tower at the end.',120,'2–10',226),
+ ('cleanup','LV','تنضيف شط البلطيق','A Baltic beach clean-up','ساعة على الشط، أكياس، وصورة للي جمعتوه.','One hour on the shore, bags, and a photo of what you gathered.',60,'3–12',227),
+ ('walk','LT','مشي حوالين بحيرة','A walk around a lake','لفة حوالين بحيرة قريبة، ووقفة عند الشط.','A loop around a nearby lake, with a stop on the shore.',120,'2–10',228),
+ ('art','LT','رسم في البلد القديمة','Sketching in the old town','اقعدوا في شارع قديم، وكل واحد يرسم عشر تفاصيل.','Sit in an old street; everyone sketches ten details.',90,'2–8',229),
+ ('walk','LU','مشي في الوادي','A walk in the valley','مسار في الوادي تحت المدينة القديمة.','A path through the valley below the old town.',90,'2–10',230),
+ ('circle','LU','دايرة لغات','A many-languages circle','بلد بتتكلم كذا لغة — كل واحد يعلّم الباقيين كلمتين.','A country of several languages — everyone teaches the others two words.',90,'4–12',231),
+ ('sport','MT','عوم في خليج','A swim in a bay','خليج صخري، عوم، وقعدة على الصخر.','A rocky bay, a swim, and time on the rocks.',90,'2–10',232),
+ ('walk','MT','مشي على الجروف','A clifftop walk','مسار على الجروف قبل الغروب.','A clifftop path before sunset.',90,'2–10',233),
+ ('walk','SK','هايك في التاترا','A hike in the Tatras','مسار متعلّم عليه، ومعاكم مية وجاكيت — الجو بيتغير بسرعة.','A marked trail; bring water and a jacket — the weather turns fast.',300,'3–10',234),
+ ('culture','SK','مشي في القلعة','A castle walk','مشي لحد قلعة قريبة، وحد يحكي حكايتها.','A walk up to a nearby castle, with someone telling its story.',120,'2–10',235),
+ ('walk','SI','مشي حوالين بحيرة بليد أو بوهينج','A walk round Bled or Bohinj','لفة حوالين البحيرة، ووقفة على الشط.','A loop around the lake, with a stop on the shore.',120,'2–10',236),
+ ('walk','SI','هايك في الجبال','A mountain hike','مسار متعلّم عليه، وكوخ جبلي في الآخر.','A marked trail ending at a mountain hut.',300,'3–10',237),
+ ('circle','SE','فيكا','Fika','قهوة وحاجة حلوة، وكلام على مهل.','Coffee, something sweet, and slow talk.',60,'2–8',238),
+ ('walk','SE','مشي في الغابة','A forest walk','مسار في غابة قريبة، ووقفة جنب بحيرة.','A trail in a nearby forest, with a stop by a lake.',120,'2–10',239),
+ ('cleanup','PL','تنضيف جنينة','A park clean-up','ساعة الصبح في جنينة قريبة.','One morning hour in a nearby park.',60,'3–12',240)
+) v(kind, country, title_ar, title_en, about_ar, about_en, minutes, people, sort)
+where not exists (select 1 from public.green_sparks s where s.title_en = v.title_en and s.country is not distinct from v.country);
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة

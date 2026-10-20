@@ -434,18 +434,22 @@ export const TogetherScreen = () => {
         /* Few real plans anywhere yet: the starter ideas for your own
            country fill the rail (RUN_ME.sql "IDEAS FOR EVERY COUNTRY").
            They say where they are for, never that anybody is going. */
-        if (ideas.length < 4) {
+        /* and wherever Moments is opened with nothing on near you yet —
+           Prague, Rabat, Lisbon — your own country's ideas come first,
+           then the everyday ones, before anything from another city */
+        if (ideas.length < 4 || !here.length) {
           listSparks(myCode).then((sp) => {
             if (!alive) return;
             const name = (COUNTRY_LIST.find((c) => c.code === myCode) || {}).name || (lang === 'ar' ? 'مدينتك' : 'your city');
             const extra = (sp || []).filter((x) => !seen.has(ideaKey({ kind: x.kind, title: x.title_en })))
-              .slice(0, 8 - ideas.length)
+              .sort((a, b) => Number(b.country === myCode) - Number(a.country === myCode))
+              .slice(0, here.length ? 8 - ideas.length : 10)
               .map((x) => ({
                 id: 'sp_' + x.id, kind: x.kind, title: x.title_en + ' · ' + x.title_ar,
                 about: lang === 'ar' ? x.about_ar || x.about_en : x.about_en || x.about_ar,
                 minutes: x.minutes, country: x.country ? (COUNTRY_LIST.find((c) => c.code === x.country) || {}).name || x.country : name,
               }));
-            if (extra.length) setElsewhere(ideas.concat(extra));
+            if (extra.length) setElsewhere(here.length ? ideas.concat(extra) : extra.concat(ideas).slice(0, 14));
           }).catch(() => {});
         }
       } else { setRows(gs || []); setElsewhere([]); }
