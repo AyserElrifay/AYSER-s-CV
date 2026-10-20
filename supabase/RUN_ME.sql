@@ -17492,6 +17492,15 @@ update public.offers set photos = '{media/offer-alex.jpg,media/trip-alex-1.jpg,m
  where id = '0ffe0000-0000-4000-8000-000000000006' and (photos = '{}' or photos[1] like 'media/%') and cardinality(photos) < 3;
 
 -- ═══════════════════════════════════════════════════════════════════
+--  MARSA ALAM · THE TURTLES
+--  Ayser's own clip of sea turtles off Marsa Alam replaces the short
+--  beach clip on the Marsa Alam trip — only while the trip still has
+--  ours. Idempotent.
+-- ═══════════════════════════════════════════════════════════════════
+update public.offers set video = 'media/offer-marsa-turtle.mp4'
+ where id = '0ffe0000-0000-4000-8000-000000000004' and (video is null or video = 'media/offer-marsa.mp4');
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة
