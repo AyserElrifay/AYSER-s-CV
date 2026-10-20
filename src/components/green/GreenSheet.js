@@ -25,6 +25,7 @@ import { GreenMark } from './GreenMark';
 import { StartForm } from './StartForm';
 import { titleFor } from '../../lib/activityPins';
 import { isGreen, GREEN_KINDS } from '../../lib/greenKinds';
+import { activityOf } from '../../lib/activityMatch';
 import { GreenHero, PlanCard, IdeaCard } from './GreenCards';
 
 /* ─── أخضر · GREEN MINDS ──────────────────────────────────────────────
@@ -89,6 +90,15 @@ const flagOf = (code) => String.fromCodePoint(...String(code).toUpperCase().spli
 const GREEN = '#1F7A5A';
 const GREEN_SOFT = 'rgba(31,122,90,0.10)';
 
+/* a clean-up kind with a title that says football is a football plan */
+const BY_ACTIVITY = { football: 'sport', padel: 'sport', climb: 'sport', swim: 'sport', match: 'sport', walk: 'walk', coffee: 'coffee', movie: 'movie', opera: 'culture', music: 'culture', sketch: 'art', crochet: 'art', photo: 'art', read: 'focus', talk: 'circle' };
+const kindFor = (form) => {
+  if (GREEN_KINDS.indexOf(form.kind) < 0) return form.kind;
+  const g = { kind: form.kind, title: form.title, about: form.about };
+  if (isGreen(g)) return form.kind;
+  const a = activityOf((form.title || '') + ' ' + (form.about || ''));
+  return (a && BY_ACTIVITY[a.id]) || form.kind;
+};
 const kindOf = (id) => KINDS.find((k) => k.id === id) || KINDS[0];
 
 /* A day and an hour, in the reader's own language, from the browser's
@@ -231,7 +241,7 @@ export const GreenSheet = ({ onClose, onPlay, startNow, homeCountry, openOn, pre
     if (busy || !form) return;
     setBusy(true);
     const r = await createGathering({
-      kind: form.kind,
+      kind: kindFor(form),
       // nobody has to name it: an unnamed plan is called what it is
       title: (form.title || '').trim() || t(kindOf(form.kind).key),
       about: form.about,
@@ -276,7 +286,7 @@ export const GreenSheet = ({ onClose, onPlay, startNow, homeCountry, openOn, pre
     /* a prefill may bring the whole plan — "Watch together" brings the
        film as the title and what to watch it on (FilmSheet.js) */
     setForm({
-      kind: spark ? spark.kind : (prefill ? prefill.kind || 'coffee' : startNow ? 'walk' : 'cleanup'),
+      kind: spark ? spark.kind : (prefill ? prefill.kind || 'coffee' : startNow ? 'walk' : 'circle'),
       title: spark ? sparkText(spark, lang, 'title') : (prefill && prefill.title) || '',
       about: spark ? sparkText(spark, lang, 'about') : (prefill && prefill.about) || '',
       country: (spark && spark.country) || country || homeCountry || 'EG',

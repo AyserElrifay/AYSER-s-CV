@@ -14,5 +14,9 @@ is('a culture swap', isGreen({ kind: 'circle', title: 'Culture swap · newcomers
 is('volunteering at the food bank', isGreen({ kind: 'project', title_en: 'Volunteer: packing food boxes at the Egyptian Food Bank' }), true);
 is('a school visit', isGreen({ kind: 'project', title_en: 'A school visit: arts or science track?' }), true);
 is('a self-development circle', isGreen({ kind: 'circle', title_en: 'A self-development circle · every Saturday' }), false);
+is('football saved as a clean-up by mistake', isGreen({ kind: 'cleanup', title: 'Football in the park' }), false);
+is('a charity afternoon', isGreen({ kind: 'circle', title: 'Charity afternoon: sorting donations' }), true);
+is('helping people, in Arabic', isGreen({ kind: 'walk', title: 'يوم تطوع نساعد فيه الناس' }), true);
+is('a blood drive', isGreen({ kind: 'culture', title: 'Blood drive at the club' }), true);
 console.log(bad ? `\n${bad} wrong.` : '\nGreen Minds is about the places we share, not every plan.');
 process.exit(bad ? 1 : 0);

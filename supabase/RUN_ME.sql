@@ -18985,6 +18985,32 @@ grant execute on function public.owner_problems(), public.owner_problem_set(uuid
 
 notify pgrst, 'reload schema';
 
+-- ════════════════════════════════════════════════════════════════════
+-- A FOOTBALL MATCH IS NOT A CLEAN-UP
+-- Plans started without picking a kind were saved as 'cleanup', so they
+-- showed the green "doing good" line and earned clean-up points. Those
+-- whose own title says what they really are get that kind back. Safe to
+-- run again: a real clean-up or volunteering plan is left alone.
+-- ════════════════════════════════════════════════════════════════════
+do $$
+declare good text := 'clean|litter|pick-?up|plant|tree|recycl|compost|garden|plastic|repair|volunteer|charity|donat|blood drive|food bank|crescent|orphan|school|shelter|rescue|animal|تطوع|تبرع|خيري|تنضيف|تنظيف|نضاف|نظاف|زبال|شجر|زرع|أيتام|ايتام|مدرس|ملجأ';
+begin
+  if to_regclass('public.green_gatherings') is null then return; end if;
+  update public.green_gatherings g set kind = case
+      when g.title ~* '(foot|soccer|padel|tennis|basket|volley|swim|climb|كور|ملعب|بادل|سباح)' then 'sport'
+      when g.title ~* '(coffee|caf[eé]|قهو|كافيه)' then 'coffee'
+      when g.title ~* '(movie|cinema|film|سينما|فيلم)' then 'movie'
+      when g.title ~* '(opera|ballet|theat|concert|أوبرا|اوبرا|مسرح)' then 'culture'
+      when g.title ~* '(sketch|draw|paint|crochet|رسم|كروشيه)' then 'art'
+      when g.title ~* '(run\M|running|جري)' then 'run'
+      when g.title ~* '(walk|hike|مشي)' then 'walk'
+      else g.kind end
+   where g.kind = 'cleanup'
+     and not (coalesce(g.title, '') ~* good)
+     and g.title ~* '(foot|soccer|padel|tennis|basket|volley|swim|climb|كور|ملعب|بادل|سباح|coffee|caf[eé]|قهو|كافيه|movie|cinema|film|سينما|فيلم|opera|ballet|theat|concert|أوبرا|اوبرا|مسرح|sketch|draw|paint|crochet|رسم|كروشيه|run\M|running|جري|walk|hike|مشي)';
+end $$;
+
+
 -- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --

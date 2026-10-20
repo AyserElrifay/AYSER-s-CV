@@ -26,7 +26,6 @@ import { sendMessage } from '../services/messages';
 import { tapLight, tapSuccess } from '../utils/feedback';
 import { useStable } from '../hooks/useStable';
 import { recent, clearCrashes, asText } from '../lib/crashLog';
-import { ownerProblems, setProblem } from '../lib/problems';
 import { SheetHandle } from './SheetHandle';
 import { OffersTab } from './OffersTab';
 import { PartnersTab } from './PartnersTab';
@@ -571,6 +570,13 @@ const FIX = {
   permission: 'A database rule refused something it should allow. Send Claude the message.',
   query: 'A database query is wrong (often after a change). Send Claude the message.',
 };
+/* problems from every phone (src/lib/problems.js sends them) */
+const ownerProblems = async () => {
+  const { data, error } = await supabase.rpc('owner_problems');
+  if (error) throw error;
+  return Array.isArray(data) ? data : [];
+};
+const setProblem = (id, status) => supabase.rpc('owner_problem_set', { p_id: id, p_status: status });
 const Quiet = ({ t }) => <Text style={{ color: C.faint, fontSize: 13, textAlign: 'center', paddingVertical: 24 }}>{t}</Text>;
 const fixFor = (area) => FIX[area] || 'A screen failed. Send Claude the message and detail below.';
 

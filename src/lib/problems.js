@@ -27,10 +27,3 @@ export function reportProblem(area, err, detail) {
     supabase.rpc('report_problem', { p_area: String(area || '?').slice(0, 40), p_message: msg, p_code: code, p_detail: extra }).then(() => {}, () => {});
   } catch (e) { /* reporting must never be the thing that breaks */ }
 }
-
-export const ownerProblems = async () => {
-  const { data, error } = await supabase.rpc('owner_problems');
-  if (error) throw error;
-  return Array.isArray(data) ? data : [];
-};
-export const setProblem = (id, status) => supabase.rpc('owner_problem_set', { p_id: id, p_status: status });
