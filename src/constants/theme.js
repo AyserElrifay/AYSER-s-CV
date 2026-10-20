@@ -36,9 +36,9 @@ const DARK = {
   /* A true night palette: near-black canvas, rows that sit ON it rather
      than in bright boxes, hairline dividers instead of outlines, and one
      confident violet doing the accent work. */
-  bg: '#0B0B0E',                       // near-black canvas
-  bg2: '#141417',                      // sheets & bars
-  glass: '#18181C',                    // cards, barely lifted off the canvas
+  bg: '#121215',                       // deep charcoal, not black: pure black under white text glares (Ayser: "مريحة للعين")
+  bg2: '#19191D',                      // sheets & bars
+  glass: '#1D1D22',                    // cards, barely lifted off the canvas
   glassHi: 'rgba(255,255,255,0.06)',   // subtle pressed / track fill
   line: 'rgba(255,255,255,0.07)',      // hairline borders
   purple: '#7C5CFF',                   // the accent — buttons, active chips
@@ -51,9 +51,9 @@ const DARK = {
   coralSoft: 'rgba(251,113,133,0.16)',
   gold: '#F5B301',
   goldSoft: 'rgba(245,179,1,0.18)',
-  text: '#F3F4F6',                     // near-white ink
-  dim: 'rgba(243,244,246,0.64)',
-  faint: 'rgba(243,244,246,0.48)',    // 4.6:1 on the canvas
+  text: '#E9E9EC',                     // soft white ink — easier on the eyes at night
+  dim: 'rgba(233,233,236,0.66)',
+  faint: 'rgba(233,233,236,0.52)',    // ~4.5:1 on the canvas
   ink: '#FFFFFF',
   float: 'rgba(28,28,34,0.94)',
   floatSolid: '#1B1B21',

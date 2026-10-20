@@ -156,6 +156,18 @@ if (html.includes('<title>')) {
 } else {
   html = html.replace('</head>', `<title>${TITLE}</title></head>`);
 }
+if (!html.includes('tap-highlight-color')) {
+  /* the feel of the whole app, in one place: smooth text, no grey flash
+     on every tap, scrolling that glides, no zoom-on-focus jump, and far
+     less motion for people who asked their phone for less */
+  html = html.replace('</head>', `<style>
+  html, body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+  * { -webkit-tap-highlight-color: transparent; }
+  div { -webkit-overflow-scrolling: touch; }
+  ::selection { background: rgba(124,92,255,0.28); }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; } }
+</style></head>`);
+}
 
 /* ─── THE STAR THAT BECOMES A KITE ───────────────────────────────────
    Ayser: the Moments star turning into a kite the moment the app opens.
