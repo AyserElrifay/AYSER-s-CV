@@ -805,8 +805,8 @@ export const TogetherScreen = () => {
                         ) : null}
                         {other && other.id === g.id ? (
                           <View style={{ marginTop: 10, borderRadius: 16, padding: 12, backgroundColor: g.audience === 'women' ? '#FDF2F8' : '#EFF6FF' }}>
-                            <Text style={{ color: C.text, fontSize: 14, fontWeight: '900' }}>{t(g.audience === 'women' ? 'au_only_ladies' : 'au_only_guys')}</Text>
-                            <Text style={{ color: C.dim, fontSize: 13, marginTop: 2, lineHeight: 18 }}>{t('au_start_like')}</Text>
+                            <Text style={{ color: '#1A1A1A', fontSize: 14, fontWeight: '900' }}>{t(g.audience === 'women' ? 'au_only_ladies' : 'au_only_guys')}</Text>
+                            <Text style={{ color: '#5C5C58', fontSize: 13, marginTop: 2, lineHeight: 18 }}>{t('au_start_like')}</Text>
                             <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 10 }}>
                               {myGender === 'm' || myGender === 'f' ? (
                                 <Pressable onPress={() => startLike(g, myGender === 'm' ? 'men' : 'women')} accessibilityRole="button" style={{ marginEnd: 8, marginBottom: 6 }}>
