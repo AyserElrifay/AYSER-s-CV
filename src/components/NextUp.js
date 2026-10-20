@@ -13,6 +13,7 @@ import { isGreen } from '../lib/greenKinds';
 import { lookOf, titleFor } from '../lib/activityPins';
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
 import { appLink, shareLink } from '../utils/share';
+import { buildIcs, openIcs } from '../lib/ics';
 
 /* ─── HOME OPENS ON ONE THING ─────────────────────────────────────────
    The Steve Jobs note: Moments does a lot, and somebody opening it for
@@ -53,6 +54,13 @@ const whenLine = (g, lang, t) => {
   let time = '';
   try { time = d.toLocaleTimeString(loc, { hour: 'numeric', minute: '2-digit' }); } catch (e) {}
   return day + ' · ' + time;
+};
+
+/* today, still to come: "In 2h 15m" says more than a clock time */
+const leftLine = (g, t) => {
+  const d = new Date(g.starts_at), m = Math.round((d - Date.now()) / 60000);
+  if (m <= 0 || d.toDateString() !== new Date().toDateString()) return null;
+  return t('nu_in').replace('{t}', (m >= 60 ? t('nu_h').replace('{n}', String(Math.floor(m / 60))) + ' ' : '') + t('nu_m').replace('{n}', String(m % 60)));
 };
 
 /* ─── THE PHOTOS, TURNING SLOWLY ──────────────────────────────────────
@@ -128,6 +136,16 @@ export const NextUp = ({ user, onOpen, onStart }) => {
     if (r && r !== 'unsupported') setAsked(true);
   };
 
+  /* the phone's own calendar rings it, half an hour before (or at the time if it is sooner) */
+  const [reminded, setReminded] = useState({});
+  const remind = () => {
+    tapLight();
+    const start = new Date(g.starts_at);
+    if (openIcs(buildIcs([{ uid: 'plan-' + g.id, title: titleFor(g.title, lang) + (g.place_name ? ' · ' + g.place_name : ''), start, minutes: 90, alarm: start - Date.now() > 40 * 60000 ? 30 : 0 }]), 'moments-plan.ics')) { tapSuccess(); setReminded((r) => ({ ...r, [g.id]: 1 })); }
+  };
+  const [, tick] = useState(0);
+  useEffect(() => { const id = setInterval(() => tick((n) => n + 1), 30000); return () => clearInterval(id); }, []);
+
   const streak = weeks > 0 ? (
     <Text style={{ color: C.dim, fontSize: 13, fontWeight: '800', marginTop: 10 }}>
       {'🔥 ' + t(weeks === 1 ? 'nu_weeks_1' : 'nu_weeks').replace('{n}', String(weeks))}
@@ -164,16 +182,25 @@ export const NextUp = ({ user, onOpen, onStart }) => {
             : <LinearGradient colors={[look.from, look.to]} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 80 }}>{look.emoji}</Text></LinearGradient>}
           <LinearGradient colors={['rgba(0,0,0,0.35)', 'rgba(0,0,0,0)', 'rgba(0,0,0,0.8)']} locations={[0, 0.3, 1]} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }} />
           <Text style={{ position: 'absolute', top: 14, left: 16, color: '#FFF', fontSize: 12, fontWeight: '900', letterSpacing: 1.2 }}>{t('nu_kicker').toUpperCase()}</Text>
-          {g.im_going ? (
-            <View style={{ position: 'absolute', top: 10, right: 12, flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.35)', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 }}>
-              <Ionicons name="checkmark-circle" size={14} color="#FFF" />
-              <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '800', marginStart: 4 }}>{t('nu_going')}</Text>
-            </View>
-          ) : null}
+          <View style={{ position: 'absolute', top: 10, right: 12, flexDirection: 'row', alignItems: 'center' }}>
+            {/* a reminder, one tap, into the phone's calendar */}
+            <Pressable onPress={remind} accessibilityRole="button" accessibilityLabel={t(reminded[g.id] ? 'nu_reminded' : 'nu_remind')} hitSlop={6}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.35)', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5, marginEnd: 6 }}>
+                <Ionicons name={reminded[g.id] ? 'notifications' : 'notifications-outline'} size={14} color="#FFF" />
+                <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '800', marginStart: 4 }}>{t(reminded[g.id] ? 'nu_reminded' : 'nu_remind')}</Text>
+              </View>
+            </Pressable>
+            {g.im_going ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.35)', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 }}>
+                <Ionicons name="checkmark-circle" size={14} color="#FFF" />
+                <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '800', marginStart: 4 }}>{t('nu_going')}</Text>
+              </View>
+            ) : null}
+          </View>
           <View style={{ position: 'absolute', left: 16, right: 16, bottom: 16 }}>
             <Text style={{ color: '#FFF', fontSize: 24, fontWeight: '900', letterSpacing: -0.4 }} numberOfLines={2}>{titleFor(g.title, lang)}</Text>
             <Text style={{ color: 'rgba(255,255,255,0.92)', fontSize: 14, fontWeight: '700', marginTop: 4 }} numberOfLines={1}>
-              {[whenLine(g, lang, t), g.place_name || g.city].filter(Boolean).join(' · ')}
+              {[leftLine(g, t) || whenLine(g, lang, t), g.place_name || g.city].filter(Boolean).join(' · ')}
             </Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
               <Text style={{ flex: 1, color: 'rgba(255,255,255,0.9)', fontSize: 13, fontWeight: '800', marginEnd: 10 }} numberOfLines={2}>
