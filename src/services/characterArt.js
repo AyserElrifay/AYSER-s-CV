@@ -1222,20 +1222,30 @@ function drawFace(c, d, T, g) {
       c.beginPath(); c.arc(x, eyeY + 1, 2.8 * sq, Math.PI * 1.15, Math.PI * 1.85); c.stroke();
       return;
     }
+    /* Ayser: "ملامحه شكلها صيني". A flat line for closed eyes and a
+       narrow almond for open ones read East Asian; ours are rounder,
+       with a lined upper lid — closed eyes are a soft curve with lashes */
+    const lash = d.build === 'f';
     if (d.eyes === 'sleepy' || (d.eyes === 'wink' && side > 0)) {
-      c.strokeStyle = '#2A1F18'; c.lineWidth = 1.4; c.lineCap = 'round';
-      c.beginPath(); c.moveTo(x - 2.6 * sq, eyeY); c.lineTo(x + 2.6 * sq, eyeY); c.stroke();
+      c.strokeStyle = '#2A1F18'; c.lineWidth = 1.5; c.lineCap = 'round';
+      c.beginPath(); c.moveTo(x - 2.9 * sq, eyeY - 0.6); c.quadraticCurveTo(x, eyeY + 2.2, x + 2.9 * sq, eyeY - 0.6); c.stroke();
+      c.lineWidth = 0.9;
+      [-0.55, 0.15, 0.85].slice(lash ? 0 : 2).forEach((k) => {
+        const lx = x + k * 2.9 * sq * side, ly = eyeY + (1 - k * k) * 1.1;
+        c.beginPath(); c.moveTo(lx, ly); c.lineTo(lx + side * 0.7, ly + 1.2); c.stroke();
+      });
       return;
     }
-    // white
+    // white — rounder than an almond
+    const eh = d.eyes === 'wide' ? 3.7 : 3.15;
     c.fillStyle = '#FFFFFF';
-    ell(c, x, eyeY, wOpen, d.eyes === 'wide' ? 3.4 : 2.7); c.fill();
+    ell(c, x, eyeY, wOpen * 1.06, eh); c.fill();
     // the iris drifts with the turn, because eyes stay pointed at you
     const iris = x + (d.eyes === 'side' ? 1.1 : 0) - T.st * 0.7;
     c.fillStyle = d.eyeColor || '#3B2A1A';
-    ell(c, iris, eyeY + 0.2, 1.75 * sq + 0.3, 1.95); c.fill();
+    ell(c, iris, eyeY + 0.25, 1.95 * sq + 0.35, 2.3); c.fill();
     c.fillStyle = '#120C08';
-    ell(c, iris, eyeY + 0.2, 0.85 * sq + 0.2, 0.95); c.fill();
+    ell(c, iris, eyeY + 0.25, 0.95 * sq + 0.2, 1.05); c.fill();
     c.fillStyle = 'rgba(255,255,255,0.9)';       // catchlight — the eye stops being a dot
     ell(c, iris - 0.6, eyeY - 0.8, 0.55, 0.6); c.fill();
     if (d.eyes === 'stars') {
@@ -1243,9 +1253,13 @@ function drawFace(c, d, T, g) {
       c.font = '900 5px system-ui, sans-serif'; c.textAlign = 'center';
       c.fillText('★', iris, eyeY + 2);
     }
-    // upper lid shadow
-    c.strokeStyle = 'rgba(0,0,0,0.35)'; c.lineWidth = 0.9;
-    c.beginPath(); c.arc(x, eyeY, wOpen, Math.PI * 1.08, Math.PI * 1.92); c.stroke();
+    // the upper lid, lined like kohl — darker and with a flick for lashes
+    c.strokeStyle = lash ? '#1A120C' : 'rgba(26,18,12,0.75)'; c.lineWidth = lash ? 1.25 : 1.0; c.lineCap = 'round';
+    c.beginPath(); c.ellipse(x, eyeY, wOpen * 1.06, eh, 0, Math.PI * 1.04, Math.PI * 1.96); c.stroke();
+    if (lash) { const ex = x + side * wOpen * 1.06; c.beginPath(); c.moveTo(ex, eyeY - 0.4); c.lineTo(ex + side * 1.1, eyeY - 1.5); c.stroke(); }
+    // a soft lower lid
+    c.strokeStyle = 'rgba(26,18,12,0.22)'; c.lineWidth = 0.6;
+    c.beginPath(); c.ellipse(x, eyeY, wOpen * 1.02, eh * 0.96, 0, Math.PI * 0.15, Math.PI * 0.85); c.stroke();
   };
   eye(-1); eye(1);
 
@@ -1257,7 +1271,7 @@ function drawFace(c, d, T, g) {
     const tilt = d.brows === 'angry' ? side * 1.1 : d.brows === 'raised' ? -side * 0.5 : 0;
     c.strokeStyle = shade(g.hairCol || '#2A1F18', -0.25);
     c.strokeStyle = '#2E2018';
-    c.lineWidth = d.brows === 'thin' ? 1.0 : d.brows === 'bushy' ? 2.4 : 1.6;
+    c.lineWidth = d.brows === 'thin' ? 1.1 : d.brows === 'bushy' ? 2.7 : 2.0;   // fuller brows, like ours
     c.lineCap = 'round';
     c.beginPath();
     c.moveTo(x - 2.8 * sq, browY + lift + tilt);
@@ -1279,10 +1293,15 @@ function drawFace(c, d, T, g) {
     c.lineTo(nx + 1.2 * sq, cy + ry * 0.30);
     c.lineTo(nx - 0.8 * sq, cy + ry * 0.30);
   } else {
-    c.moveTo(nx - 1.4 * sq, cy + ry * 0.28);
-    c.quadraticCurveTo(nx, cy + ry * 0.34, nx + 1.4 * sq, cy + ry * 0.28);
+    c.moveTo(nx - 1.6 * sq, cy + ry * 0.28);
+    c.quadraticCurveTo(nx, cy + ry * 0.35, nx + 1.6 * sq, cy + ry * 0.28);
   }
   c.stroke();
+  // the bridge, on the shaded side: a nose with a shape, not just a tip
+  if (d.nose !== 'wide') {
+    c.strokeStyle = rgba(shade(skin, -0.4), 0.45); c.lineWidth = 0.9;
+    c.beginPath(); c.moveTo(nx + 0.9 * sq, cy + ry * 0.04); c.quadraticCurveTo(nx + 1.5 * sq, cy + ry * 0.18, nx + 1.6 * sq, cy + ry * 0.27); c.stroke();
+  }
 
 }
 
