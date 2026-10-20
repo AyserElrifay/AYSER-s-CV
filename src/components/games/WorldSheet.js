@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, Modal, Pressable, ScrollView, TextInput, Image, ActivityIndicator } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, Text, Modal, Pressable, ScrollView, TextInput, Image, ActivityIndicator, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as ImagePicker from 'expo-image-picker';
@@ -18,40 +18,166 @@ import { useSheetBack } from '../../hooks/useSheetBack';
 
 const TABS = ['sky', 'dish', 'walk'];
 
-const Board = ({ ch, userId, lang, T, city, intro }) => {
+/* five looks, the same CSS the main camera uses (CaptureModal.js) —
+   seen live on the camera and baked into the pixels that are shared */
+const LOOKS = [
+  { id: 'f_none', css: 'none' },
+  { id: 'f_golden', css: 'sepia(0.34) saturate(1.45) brightness(1.06) hue-rotate(-8deg)' },
+  { id: 'f_warm', css: 'sepia(0.30) saturate(1.5) contrast(1.06) brightness(1.02)' },
+  { id: 'f_night', css: 'brightness(0.86) contrast(1.18) saturate(1.1) hue-rotate(-14deg)' },
+  { id: 'f_mono', css: 'grayscale(1) contrast(1.12)' },
+];
+const WEB = Platform.OS === 'web' && typeof document !== 'undefined';
+
+/* draw a video frame or a picked photo through the look, as a jpeg Blob
+   (handed to the upload as it is: Safari can't always fetch its own blob: urls) */
+const bake = (src, w, h, css) => new Promise((resolve) => {
+  const max = 1440; const k = Math.min(1, max / Math.max(w, h));
+  const cv = document.createElement('canvas'); cv.width = Math.round(w * k); cv.height = Math.round(h * k);
+  const g = cv.getContext('2d'); g.filter = css === 'none' ? 'none' : css; g.drawImage(src, 0, 0, cv.width, cv.height);
+  cv.toBlob((b) => resolve(b || null), 'image/jpeg', 0.86);
+});
+
+/* ─── THE CAMERA IS THE SCREEN ────────────────────────────────────────
+   Ayser: "سهّل الدنيا … خلي الكاميرا شغالة بفلاتر في الحتت الفاضية".
+   One frame, five looks under it, one shutter. Tap the frame and the
+   camera opens (asked only then, never on arrival). After the shot:
+   the picture, an optional line, Share. The city comes from the
+   profile — nobody types it. */
+const Shot = ({ T, busy, onShare }) => {
+  const [live, setLive] = useState(false);
+  const [shot, setShot] = useState(null);     // { uri, w, h, el }
+  const [look, setLook] = useState(LOOKS[0]);
+  const [cap, setCap] = useState('');
+  const [camErr, setCamErr] = useState(false);
+  const vid = useRef(null);
+  const stream = useRef(null);
+  const stop = () => { try { if (stream.current) stream.current.getTracks().forEach((t) => t.stop()); } catch (e) {} stream.current = null; setLive(false); };
+  useEffect(() => stop, []);
+
+  const open = async () => {
+    tapLight(); setCamErr(false);
+    if (!WEB) return pick(true);
+    try {
+      const st = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false });
+      stream.current = st; setLive(true);
+      setTimeout(() => { if (vid.current) { vid.current.srcObject = st; vid.current.play().catch(() => {}); } }, 0);
+    } catch (e) { setCamErr(true); }
+  };
+  const snap = () => {
+    const v = vid.current; if (!v || !v.videoWidth) return;
+    tapSuccess();
+    const cv = document.createElement('canvas'); cv.width = v.videoWidth; cv.height = v.videoHeight;
+    cv.getContext('2d').drawImage(v, 0, 0);
+    setShot({ uri: cv.toDataURL('image/jpeg', 0.92), w: v.videoWidth, h: v.videoHeight, el: cv });
+    stop();
+  };
+  const pick = async (camera) => {
+    try {
+      const fn = camera ? ImagePicker.launchCameraAsync : ImagePicker.launchImageLibraryAsync;
+      const res = await fn({ mediaTypes: ['images'], quality: 0.85 });
+      if (res.canceled || !res.assets || !res.assets[0]) return;
+      const a = res.assets[0];
+      stop();
+      if (WEB) {
+        const im = new window.Image();
+        im.onload = () => setShot({ uri: a.uri, w: im.naturalWidth, h: im.naturalHeight, el: im });
+        im.src = a.uri;
+      } else setShot({ uri: a.uri, w: a.width, h: a.height, el: null });
+    } catch (e) { setCamErr(true); }
+  };
+  const share = async () => {
+    if (!shot || busy) return;
+    const uri = WEB && shot.el ? (await bake(shot.el, shot.w, shot.h, look.css)) || shot.uri : shot.uri;
+    const ok = await onShare(uri, cap.trim());
+    if (ok) { setShot(null); setCap(''); setLook(LOOKS[0]); }
+  };
+  const filt = WEB && look.css !== 'none' ? { filter: look.css } : null;
+
+  return (
+    <View style={{ marginTop: 14 }}>
+      <View style={{ borderRadius: 24, overflow: 'hidden', backgroundColor: '#0B0B0F', aspectRatio: 4 / 5, width: '100%' }}>
+        {shot ? (
+          <Image source={{ uri: shot.uri }} style={[{ width: '100%', height: '100%' }, filt]} resizeMode="cover" />
+        ) : live && WEB ? (
+          React.createElement('video', { ref: vid, autoPlay: true, muted: true, playsInline: true, style: { width: '100%', height: '100%', objectFit: 'cover', filter: look.css } })
+        ) : (
+          <Pressable onPress={open} accessibilityRole="button" accessibilityLabel={T('shoot_tap')} style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <View style={{ width: 72, height: 72, borderRadius: 36, borderWidth: 2, borderColor: 'rgba(255,255,255,0.85)', alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="camera-outline" size={30} color="#FFF" />
+            </View>
+            <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 14, fontWeight: '700', marginTop: 14 }}>{camErr ? T('cam_no') : T('shoot_tap')}</Text>
+          </Pressable>
+        )}
+      </View>
+
+      {/* the looks */}
+      <ScrollView horizontal keyboardShouldPersistTaps="handled" showsHorizontalScrollIndicator={false} style={{ marginTop: 12 }} contentContainerStyle={{ paddingEnd: 8 }}>
+        {LOOKS.map((l) => (
+          <Pressable key={l.id} onPress={() => { tapSelection(); setLook(l); }} accessibilityRole="button" accessibilityState={{ selected: look.id === l.id }} style={{ marginEnd: 8 }}>
+            <View style={{ borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8, backgroundColor: look.id === l.id ? C.text : C.glass, borderWidth: 1, borderColor: look.id === l.id ? C.text : C.line }}>
+              <Text style={{ color: look.id === l.id ? C.bg : C.text, fontSize: 13, fontWeight: '800' }}>{T(l.id)}</Text>
+            </View>
+          </Pressable>
+        ))}
+      </ScrollView>
+
+      {shot ? (
+        <>
+          <TextInput value={cap} onChangeText={setCap} maxLength={140} placeholder={T('caption_ph')} placeholderTextColor={C.faint}
+            style={{ color: C.text, fontSize: 15, borderWidth: 1, borderColor: C.line, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 11, backgroundColor: C.glass, marginTop: 12 }} />
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
+            <Pressable onPress={() => { tapLight(); setShot(null); }} hitSlop={8} accessibilityRole="button" style={{ paddingHorizontal: 6, paddingVertical: 12, marginEnd: 14 }}>
+              <Text style={{ color: C.dim, fontSize: 15, fontWeight: '800' }}>{T('retake')}</Text>
+            </Pressable>
+            <Pressable onPress={share} disabled={busy} accessibilityRole="button" style={{ flex: 1 }}>
+              <View style={{ borderRadius: 999, paddingVertical: 14, alignItems: 'center', backgroundColor: C.purple }}>
+                {busy ? <ActivityIndicator color="#FFF" /> : <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '900' }}>{T('share')}</Text>}
+              </View>
+            </Pressable>
+          </View>
+        </>
+      ) : (
+        /* library · shutter · (balance) */
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 14, paddingHorizontal: 12 }}>
+          <Pressable onPress={() => { tapLight(); pick(false); }} hitSlop={10} accessibilityRole="button" accessibilityLabel={T('library')}
+            style={{ width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line }}>
+            <Ionicons name="images-outline" size={20} color={C.text} />
+          </Pressable>
+          <Pressable onPress={live ? snap : open} accessibilityRole="button" accessibilityLabel={live ? T('photo') : T('shoot_tap')}
+            style={{ width: 74, height: 74, borderRadius: 37, borderWidth: 4, borderColor: C.text, alignItems: 'center', justifyContent: 'center' }}>
+            <View style={{ width: 58, height: 58, borderRadius: 29, backgroundColor: live ? C.text : C.purple }} />
+          </Pressable>
+          <View style={{ width: 46 }} />
+        </View>
+      )}
+      <Text style={{ color: C.faint, fontSize: 12, marginTop: 10, textAlign: 'center' }}>{T('no_faces')}</Text>
+    </View>
+  );
+};
+
+const Board = ({ ch, userId, T, city, intro }) => {
   const [b, setB] = useState(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
-  const [cap, setCap] = useState('');
-  const [where, setWhere] = useState(city || '');
   const load = () => worldBoard(ch, 80).then((r) => { if (r && r.ok) setB(r); else setErr(T(r && r.reason === 'setup' ? 'setup' : 'err')); });
   useEffect(() => { load(); }, [ch]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const add = async () => {
+  const onShare = async (uri, cap) => {
+    setBusy(true); setErr(null);
     try {
-      const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [4, 5], quality: 0.7 });
-      if (res.canceled || !res.assets || !res.assets[0]) return;
-      setBusy(true); setErr(null);
-      const url = await uploadPhoto(userId, res.assets[0].uri);
-      const r = await worldEnter(ch, url, cap.trim(), where.trim());
-      if (r && r.ok) { tapSuccess(); setCap(''); load(); } else setErr(T('err'));
-    } catch (e) { setErr(T('photo_err')); } finally { setBusy(false); }
+      const url = await uploadPhoto(userId, uri);
+      const r = await worldEnter(ch, url, cap, city || '');
+      if (r && r.ok) { tapSuccess(); load(); return true; }
+      setErr(T('err')); return false;
+    } catch (e) { setErr(T('photo_err')); return false; } finally { setBusy(false); }
   };
 
   return (
     <>
       {intro}
-      <TextInput value={where} onChangeText={setWhere} maxLength={60} placeholder={T('city_ph')} placeholderTextColor={C.faint}
-        style={{ color: C.text, fontSize: 15, borderWidth: 1, borderColor: C.line, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10, backgroundColor: C.glass, marginTop: 12 }} />
-      <TextInput value={cap} onChangeText={setCap} maxLength={140} placeholder={T('caption_ph')} placeholderTextColor={C.faint}
-        style={{ color: C.text, fontSize: 15, borderWidth: 1, borderColor: C.line, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10, backgroundColor: C.glass, marginTop: 8 }} />
-      <Pressable onPress={add} disabled={busy} accessibilityRole="button" style={{ marginTop: 12 }}>
-        <View style={{ borderRadius: 999, paddingVertical: 14, alignItems: 'center', backgroundColor: C.purple, flexDirection: 'row', justifyContent: 'center' }}>
-          {busy ? <ActivityIndicator color="#FFF" /> : <><Ionicons name="camera" size={17} color="#FFF" style={{ marginEnd: 8 }} /><Text style={{ color: '#FFF', fontSize: 15, fontWeight: '900' }}>{T(b && b.mine ? 'again' : 'photo')}</Text></>}
-        </View>
-      </Pressable>
-      <Text style={{ color: C.faint, fontSize: 12, marginTop: 6 }}>{T('no_faces')}</Text>
-      {err ? <Text style={{ color: C.coral, fontSize: 13, fontWeight: '700', marginTop: 8 }}>{err}</Text> : null}
+      <Shot T={T} busy={busy} onShare={onShare} />
+      {err ? <Text style={{ color: C.coral, fontSize: 13, fontWeight: '700', marginTop: 8, textAlign: 'center' }}>{err}</Text> : null}
 
       {!b ? (err ? null : <ActivityIndicator color={C.purple} style={{ marginTop: 24 }} />) : (
         <>
@@ -149,25 +275,25 @@ export const WorldSheet = ({ userId, lang, city, start, onClose }) => {
     <Modal visible animationType="slide" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: C.bg }}>
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingTop: insets.top + 8, paddingHorizontal: 18, paddingBottom: insets.bottom + 40 }}>
-          <Pressable onPress={onClose} hitSlop={12} accessibilityRole="button" accessibilityLabel={T('close')}>
-            <Ionicons name="chevron-down" size={26} color={C.text} />
+          <Pressable onPress={onClose} hitSlop={12} accessibilityRole="button" accessibilityLabel={T('close')} style={{ alignSelf: 'flex-start', outlineStyle: 'none' }}>
+            <Ionicons name="close" size={26} color={C.text} />
           </Pressable>
-          <Text style={{ color: C.text, fontSize: 28, fontWeight: '900', letterSpacing: -0.4, marginTop: 8 }}>{'🌍 ' + T('world')}</Text>
+          <Text style={{ color: C.text, fontSize: 28, fontWeight: '900', letterSpacing: -0.4, marginTop: 8 }}>{T('world')}</Text>
           <Text style={{ color: C.dim, fontSize: 14, marginTop: 4 }}>{T('world_s')}</Text>
           <View style={{ flexDirection: 'row', marginTop: 16, backgroundColor: C.glassHi, borderRadius: 999, padding: 4 }}>
             {TABS.map((k) => (
               <Pressable key={k} onPress={() => { tapSelection(); setTab(k); }} accessibilityRole="tab" accessibilityState={{ selected: tab === k }} style={{ flex: 1 }}>
                 <View style={{ borderRadius: 999, paddingVertical: 9, alignItems: 'center', backgroundColor: tab === k ? C.glass : 'transparent' }}>
-                  <Text style={{ color: tab === k ? C.text : C.dim, fontSize: 13, fontWeight: '900' }} numberOfLines={1}>{({ sky: '🌅 ', dish: '🍲 ', walk: '🚶 ' })[k] + T(k + '_t')}</Text>
+                  <Text style={{ color: tab === k ? C.text : C.dim, fontSize: 13, fontWeight: '900' }} numberOfLines={1}>{T(k + '_t')}</Text>
                 </View>
               </Pressable>
             ))}
           </View>
-          {tab === 'sky' ? <Board key="sky" ch={skyKey()} userId={userId} lang={lang} T={T} city={city} intro={<Text style={{ color: C.dim, fontSize: 14, marginTop: 14, lineHeight: 20 }}>{T('sky_s')}</Text>} /> : null}
+          {tab === 'sky' ? <Board key="sky" ch={skyKey()} userId={userId} T={T} city={city} intro={<Text style={{ color: C.dim, fontSize: 14, marginTop: 14, lineHeight: 20 }}>{T('sky_s')}</Text>} /> : null}
           {tab === 'dish' ? (
-            <Board key="dish" ch={dishKey()} userId={userId} lang={lang} T={T} city={city} intro={(
+            <Board key="dish" ch={dishKey()} userId={userId} T={T} city={city} intro={(
               <View style={{ borderRadius: 18, padding: 14, backgroundColor: C.goldSoft, marginTop: 14 }}>
-                <Text style={{ color: C.text, fontSize: 18, fontWeight: '900' }}>{'🍲 ' + (lang === 'ar' ? dish[1] : dish[0])}</Text>
+                <Text style={{ color: C.text, fontSize: 18, fontWeight: '900' }}>{lang === 'ar' ? dish[1] : dish[0]}</Text>
                 <Text style={{ color: C.dim, fontSize: 13.5, marginTop: 4, lineHeight: 19 }}>{T('dish_s')}</Text>
               </View>
             )} />
