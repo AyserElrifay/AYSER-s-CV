@@ -17675,6 +17675,151 @@ on conflict (id) do nothing;
 notify pgrst, 'reload schema';
 
 -- ═══════════════════════════════════════════════════════════════════
+--  HABITS TOGETHER · A STREAK YOU KEEP WITH FRIENDS
+--  Ayser: "Habit together (streaks, code to join together)". One habit
+--  ("read 10 pages", "walk 20 minutes"), a six-letter code to share, up
+--  to twelve people on it. Each of them ticks it once a day and sees who
+--  else did; each keeps a streak of days in a row. Only members see a
+--  habit; everything goes through the functions below (no table is
+--  readable directly). The day is the phone's own date, sent by it, and
+--  only today or yesterday can be ticked.
+-- ═══════════════════════════════════════════════════════════════════
+create table if not exists public.habits (
+  id         uuid primary key default gen_random_uuid(),
+  name       text not null check (char_length(name) between 1 and 60),
+  emoji      text not null default '🔥' check (char_length(emoji) <= 8),
+  code       text not null unique,
+  created_by uuid references public.profiles(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+create table if not exists public.habit_members (
+  habit_id  uuid not null references public.habits(id) on delete cascade,
+  user_id   uuid not null references public.profiles(id) on delete cascade,
+  joined_at timestamptz not null default now(),
+  primary key (habit_id, user_id)
+);
+create table if not exists public.habit_checks (
+  habit_id uuid not null,
+  user_id  uuid not null,
+  day      date not null,
+  primary key (habit_id, user_id, day),
+  foreign key (habit_id, user_id) references public.habit_members(habit_id, user_id) on delete cascade
+);
+alter table public.habits enable row level security;
+alter table public.habit_members enable row level security;
+alter table public.habit_checks enable row level security;
+revoke all on public.habits, public.habit_members, public.habit_checks from anon, authenticated;
+
+/* days in a row up to p_today — or up to yesterday, while today is not ticked yet */
+create or replace function public.habit_streak(p_habit uuid, p_user uuid, p_today date)
+returns int language sql stable security definer set search_path = public as $$
+  with s as (select case when exists (select 1 from public.habit_checks where habit_id = p_habit and user_id = p_user and day = p_today)
+                         then p_today else p_today - 1 end as d),
+       g as (select (select d from s) - c.day as off, row_number() over (order by c.day desc) - 1 as rn
+               from public.habit_checks c where c.habit_id = p_habit and c.user_id = p_user and c.day <= (select d from s))
+  select count(*)::int from g where off = rn;
+$$;
+revoke all on function public.habit_streak(uuid, uuid, date) from public, anon, authenticated;
+
+create or replace function public.habit_create(p_name text, p_emoji text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); c text; hid uuid; n int := 0;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  if coalesce(btrim(p_name), '') = '' then return jsonb_build_object('ok', false, 'reason', 'name'); end if;
+  if (select count(*) from public.habit_members where user_id = me) >= 10 then return jsonb_build_object('ok', false, 'reason', 'too_many'); end if;
+  loop
+    c := (select string_agg(substr('ABCDEFGHJKLMNPQRSTUVWXYZ23456789', 1 + floor(random() * 32)::int, 1), '') from generate_series(1, 6));
+    exit when not exists (select 1 from public.habits where code = c);
+    n := n + 1; if n > 20 then return jsonb_build_object('ok', false, 'reason', 'code'); end if;
+  end loop;
+  insert into public.habits (name, emoji, code, created_by)
+  values (left(btrim(p_name), 60), coalesce(nullif(left(btrim(coalesce(p_emoji, '')), 8), ''), '🔥'), c, me) returning id into hid;
+  insert into public.habit_members (habit_id, user_id) values (hid, me);
+  return jsonb_build_object('ok', true, 'id', hid, 'code', c);
+end $$;
+
+create or replace function public.habit_join(p_code text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); h public.habits%rowtype;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  select * into h from public.habits where code = upper(btrim(coalesce(p_code, '')));
+  if not found then return jsonb_build_object('ok', false, 'reason', 'no_code'); end if;
+  if exists (select 1 from public.habit_members where habit_id = h.id and user_id = me) then return jsonb_build_object('ok', true, 'id', h.id); end if;
+  if (select count(*) from public.habit_members where habit_id = h.id) >= 12 then return jsonb_build_object('ok', false, 'reason', 'full'); end if;
+  if (select count(*) from public.habit_members where user_id = me) >= 10 then return jsonb_build_object('ok', false, 'reason', 'too_many'); end if;
+  insert into public.habit_members (habit_id, user_id) values (h.id, me);
+  return jsonb_build_object('ok', true, 'id', h.id);
+end $$;
+
+create or replace function public.habit_check(p_habit uuid, p_day date, p_on boolean)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid();
+begin
+  if me is null or not exists (select 1 from public.habit_members where habit_id = p_habit and user_id = me) then
+    return jsonb_build_object('ok', false, 'reason', 'not_member');
+  end if;
+  -- the phone's own date: within a day of the server's, either side (time zones)
+  if p_day is null or p_day < current_date - 2 or p_day > current_date + 1 then return jsonb_build_object('ok', false, 'reason', 'day'); end if;
+  if p_on then insert into public.habit_checks (habit_id, user_id, day) values (p_habit, me, p_day) on conflict do nothing;
+  else delete from public.habit_checks where habit_id = p_habit and user_id = me and day = p_day; end if;
+  return jsonb_build_object('ok', true, 'streak', public.habit_streak(p_habit, me, p_day));
+end $$;
+
+create or replace function public.habit_leave(p_habit uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  delete from public.habit_members where habit_id = p_habit and user_id = auth.uid();
+  delete from public.habits h where h.id = p_habit and not exists (select 1 from public.habit_members m where m.habit_id = h.id);
+  return jsonb_build_object('ok', true);
+end $$;
+
+create or replace function public.my_habits(p_today date)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select coalesce(jsonb_agg(jsonb_build_object(
+      'id', h.id, 'name', h.name, 'emoji', h.emoji, 'code', h.code,
+      'members', (select coalesce(jsonb_agg(jsonb_build_object(
+                    'id', p.id, 'name', split_part(coalesce(p.name, ''), ' ', 1), 'avatar', p.avatar_url, 'me', p.id = auth.uid(),
+                    'done', exists (select 1 from public.habit_checks c where c.habit_id = h.id and c.user_id = m.user_id and c.day = p_today),
+                    'streak', public.habit_streak(h.id, m.user_id, p_today)) order by m.joined_at), '[]'::jsonb)
+                  from public.habit_members m join public.profiles p on p.id = m.user_id where m.habit_id = h.id))
+      order by mine.joined_at), '[]'::jsonb)
+    from public.habit_members mine join public.habits h on h.id = mine.habit_id
+   where mine.user_id = auth.uid();
+$$;
+
+revoke all on function public.habit_create(text, text), public.habit_join(text), public.habit_check(uuid, date, boolean),
+  public.habit_leave(uuid), public.my_habits(date) from public, anon;
+grant execute on function public.habit_create(text, text), public.habit_join(text), public.habit_check(uuid, date, boolean),
+  public.habit_leave(uuid), public.my_habits(date) to authenticated;
+
+notify pgrst, 'reload schema';
+
+-- ═══════════════════════════════════════════════════════════════════
+--  GIFTS · WHAT PEOPLE HERE MAKE BY HAND
+--  Ayser: "خلّي في فورس عمل التريكو — الناس دي يبيعوا ويشتروا من Moments
+--  gifts، مثلاً pullover". Two gifts beside the notebook: crochet pieces
+--  and a hand-knitted pullover, made by makers on Moments. 'soon' like
+--  the notebook — nobody pays until a real maker and a real price are
+--  set in the Studio; people can only say "Notify me". Each one tells a
+--  maker how to sell here. Safe to re-run.
+-- ═══════════════════════════════════════════════════════════════════
+insert into public.offers (id, kind, status, operator, title, title_ar, city, country, photos, price, currency, pay_modes, summary, summary_ar)
+values
+('0ffe0000-0000-4000-8000-0000000000c2', 'gift', 'soon', 'Makers on Moments', 'Handmade crochet', 'كروشيه هاند ميد', 'Cairo', 'EG',
+  array['media/act-crochet-1.jpg','media/act-crochet-2.jpg','media/act-crochet-3.jpg'], 0, 'EGP', '{reserve}',
+  'Bags, flowers, little animals and blankets, crocheted by hand by people on Moments. Do you crochet? Tell us from Feedback in your profile and sell your pieces here.',
+  'شنط وورد وعرايس صغيرة وبطاطين، معمولة كروشيه بإيد ناس على Moments. بتعمل كروشيه؟ قولنا من Feedback في البروفايل وبيع شغلك هنا.'),
+('0ffe0000-0000-4000-8000-0000000000c3', 'gift', 'soon', 'Makers on Moments', 'A hand-knitted pullover', 'بلوفر تريكو بالإيد', 'Cairo', 'EG',
+  array['media/act-crochet-v2.jpg','media/act-crochet-v3.jpg'], 0, 'EGP', '{reserve}',
+  'Knitted to order in your colours by a maker on Moments — warm, slow and one of a kind. Do you knit? Tell us from Feedback in your profile.',
+  'بيتعمل مخصوص بألوانك على إيد حد على Moments — دافي، وعلى مهله، ومفيش زيه. بتعمل تريكو؟ قولنا من Feedback في البروفايل.')
+on conflict (id) do nothing;
+
+notify pgrst, 'reload schema';
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة

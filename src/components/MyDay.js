@@ -9,6 +9,8 @@ import { Focus } from './Focus';
 import { Compass, GROW, growLabel, growEmoji, readCompass, KEY as COMPASS_KEY } from './Compass';
 import { Dates, readDates, dateNudges, yearly, nextOf } from './Dates';
 import { Diary } from './Diary';
+import { VisionBoard, visionBlocks } from './VisionBoard';
+import { HabitsTogether, hs } from './HabitsTogether';
 import { prayerTimes } from '../lib/prayerTimes';
 import { buildIcs, openIcs } from '../lib/ics';
 import { lastFix } from '../services/squadAdmin';
@@ -382,7 +384,7 @@ function todayItems(a, t, now = new Date(), extra = []) {
   const w2 = new Date(bed); w2.setHours(sl.wake[0], sl.wake[1], 0, 0); if (w2 <= bed) w2.setDate(w2.getDate() + 1);
   out.push({ id: 'sleep', emoji: '😴', label: t('md_sleep'), at: bed, end: w2 });
   // the rest of life, in the gaps that are left
-  out.push(...placeBalance(out, wake.getTime() + 20 * 60000, wind.getTime(), now, t, growBlocks(a, t)));
+  out.push(...placeBalance(out, wake.getTime() + 20 * 60000, wind.getTime(), now, t, growBlocks(a, t).concat(visionBlocks())));
   out.forEach((x) => { if (!x.end) x.end = new Date(x.at.getTime() + 20 * 60000); });
   return out.sort((x, y) => x.at - y.at);
 }
@@ -479,7 +481,7 @@ export const MyDay = ({ onClose }) => {
   const [draft, setDraft] = useState('');
   const [allNotes, setAllNotes] = useState(false);
   const [skip, setSkip] = useState(0);
-  const [sheet, setSheet] = useState(null);          // 'focus' | 'compass' | 'dates' | 'diary'
+  const [sheet, setSheet] = useState(null);          // 'habits' | 'focus' | 'compass' | 'dates' | 'diary'
   const [ver, setVer] = useState(0);                 // the compass or the dates changed: the day is worked out again
   const closeSheet = () => { setSheet(null); setVer((v) => v + 1); };
   const [remind, setRemind] = useState(() => { try { return localStorage.getItem(REMIND) === '1'; } catch (e) { return false; } });
@@ -702,6 +704,9 @@ export const MyDay = ({ onClose }) => {
                 );
               })()}
 
+              {/* the dreams on top of the day, and Papyrus's one step for each */}
+              <VisionBoard t={t} lang={lang} onPick={() => setSheet('compass')} onChanged={() => setVer((v) => v + 1)} />
+
               {/* ── THE PLAN ──
                   Ayser: "دوشه اوي — إحنا شركة بساطة وشياكة". It was the same
                   list twice (three things in a card, then the whole day again
@@ -730,13 +735,13 @@ export const MyDay = ({ onClose }) => {
                 </Pressable>
               </View>
 
-              {/* ── FOUR DOORS: focus, your compass, the dates that matter, your diary ── */}
+              {/* ── FIVE DOORS: habits with friends, focus, your compass, the dates that matter, your diary ── */}
               <View style={{ flexDirection: 'row', marginTop: 14 }}>
-                {[['focus', '🪁'], ['compass', '🧭'], ['dates', '🎂'], ['diary', '📓']].map(([k, e], i) => (
-                  <Pressable key={k} onPress={() => { tapLight(); setSheet(k); }} accessibilityRole="button" style={{ flex: 1, marginEnd: i < 3 ? 8 : 0 }}>
+                {[['habits', '🔥'], ['focus', '🪁'], ['compass', '🧭'], ['dates', '🎂'], ['diary', '📓']].map(([k, e], i) => (
+                  <Pressable key={k} onPress={() => { tapLight(); setSheet(k); }} accessibilityRole="button" style={{ flex: 1, marginEnd: i < 4 ? 6 : 0 }}>
                     <View style={{ borderRadius: 18, borderWidth: 1, borderColor: C.line, backgroundColor: C.glass, paddingVertical: 12, alignItems: 'center' }}>
                       <Text style={{ fontSize: 24 }}>{e}</Text>
-                      <Text style={{ color: C.text, fontSize: 12, fontWeight: '800', marginTop: 4 }} numberOfLines={1}>{t('md_door_' + k)}</Text>
+                      <Text style={{ color: C.text, fontSize: 11.5, fontWeight: '800', marginTop: 4 }} numberOfLines={1}>{k === 'habits' ? hs(lang, 'door') : t('md_door_' + k)}</Text>
                     </View>
                   </Pressable>
                 ))}
@@ -845,6 +850,7 @@ export const MyDay = ({ onClose }) => {
           )}
         </ScrollView>
       </View>
+      {sheet === 'habits' ? <HabitsTogether onClose={closeSheet} lang={lang} /> : null}
       {sheet === 'focus' ? <Focus onClose={closeSheet} /> : null}
       {sheet === 'compass' ? <Compass onClose={closeSheet} faith={faithOf(a)} /> : null}
       {sheet === 'dates' ? <Dates onClose={closeSheet} /> : null}
