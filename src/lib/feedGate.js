@@ -11,7 +11,7 @@
    (Ayser: "لو حد بيتطوع كتير نفتحله وقت زيادة شوية صغيرين"). */
 
 const KEY = 'mm.feedgate.v1';
-export const FEED_MINUTES = 15;
+export const FEED_MINUTES = 10;   // Ayser: "قلل وقت الفيد في اليوم"
 export const VOLUNTEER_BONUS_MINUTES = 5;
 
 const today = () => {
