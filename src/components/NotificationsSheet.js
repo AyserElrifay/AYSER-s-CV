@@ -5,7 +5,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { C, R } from '../constants/theme';
 import { useLang } from '../context/LanguageContext';
 import { AV_NEUTRAL } from '../constants/mockData';
-import { SUPABASE_READY } from '../lib/supabase';
+import { SUPABASE_READY, supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { fetchMyNotifications, markAllRead, clearMyNotifications, pruneOldNotifications } from '../services/notifications';
 import { fetchPost } from '../services/posts';
@@ -57,6 +57,26 @@ const FILTERS = [
   { k: 'people', label: 'nt_f_people', kinds: ['mate_request', 'mate_accept', 'message', 'call'] },
   { k: 'moments', label: 'nt_f_moments', kinds: ['vibe', 'laugh', 'repost', 'tag', 'comment'] },
 ];
+
+/* the morning or night line (RUN_ME.sql "A GOOD WORD"): body is
+   en¦ar¦by_en¦by_ar; Arabic readers get the Arabic, everybody else the
+   English. One tap stops them. */
+const DailyLine = ({ body, lang, t }) => {
+  const [off, setOff] = useState(false);
+  const p = String(body).split('¦');
+  const ar = lang === 'ar';
+  const text = (ar ? p[1] : p[0]) || p[0];
+  const by = ar ? p[3] : p[2];
+  return (
+    <View style={{ marginTop: 3 }}>
+      <Text style={{ color: C.text, fontSize: 14, lineHeight: 21, fontWeight: '700' }}>{text}</Text>
+      {by ? <Text style={{ color: C.faint, fontSize: 12, marginTop: 2 }}>{'— ' + by}</Text> : null}
+      <Pressable hitSlop={8} accessibilityRole="button" disabled={off} onPress={() => { tapSelection(); setOff(true); supabase.rpc('set_daily_lines', { p_on: false }).then(() => {}, () => setOff(false)); }} style={{ marginTop: 6, alignSelf: 'flex-start' }}>
+        <Text style={{ color: C.faint, fontSize: 12, fontWeight: '700', textDecorationLine: off ? 'none' : 'underline' }}>{off ? t('dl_stopped') : t('dl_stop')}</Text>
+      </Pressable>
+    </View>
+  );
+};
 
 /* the verb, in the reader's language, with no emoji: one per kind, and
    a plural for the kinds that merge several people into one line */
@@ -305,15 +325,15 @@ export const NotificationsSheet = ({ onClose }) => {
               <Image source={{ uri: g.actors[0].avatar_url || AV_NEUTRAL }} style={{ position: 'absolute', bottom: 0, left: 0, width: 32, height: 32, borderRadius: 16, borderWidth: 2, borderColor: C.bg2, backgroundColor: C.glassHi }} />
             </>
           ) : (
-            n.kind === 'trip_open' || n.kind === 'team_reply' || n.kind === 'app_problem' ? (
-              <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: n.kind === 'trip_open' ? C.glassHi : C.purpleSoft, alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 22 }}>{n.kind === 'team_reply' ? '💬' : n.kind === 'app_problem' ? '🛠️' : '🧳'}</Text></View>
+            n.kind === 'trip_open' || n.kind === 'team_reply' || n.kind === 'app_problem' || n.kind === 'daily_line' ? (
+              <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: n.kind === 'trip_open' ? C.glassHi : n.kind === 'daily_line' ? C.goldSoft : C.purpleSoft, alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 22 }}>{n.kind === 'team_reply' ? '💬' : n.kind === 'app_problem' ? '🛠️' : n.kind === 'daily_line' ? (new Date(n.created_at).getHours() < 15 ? '☀️' : '🌙') : '🧳'}</Text></View>
             ) : <Image source={{ uri: (n.actor && n.actor.avatar_url) || AV_NEUTRAL }} style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: C.glassHi }} />
           )}
           {!(g ? g.read : n.read) ? <View style={{ position: 'absolute', top: -1, right: -1, width: 11, height: 11, borderRadius: 6, backgroundColor: C.purple, borderWidth: 2, borderColor: C.bg2 }} /> : null}
         </View>
         <View style={{ flex: 1, minWidth: 0, marginLeft: 12 }}>
           <Text style={{ color: C.text, fontSize: 14.5, lineHeight: 20 }} numberOfLines={3}>
-            <Text style={{ fontWeight: '800' }}>{g ? namesLine(g.actors, words) : ((n.kind === 'safety' && n.body !== 'report' && n.body !== 'coach') || n.kind === 'trip_open' || n.kind === 'team_reply' || n.kind === 'app_problem') ? 'Moments' : ((n.actor && n.actor.name) || words.someone)}</Text>
+            <Text style={{ fontWeight: '800' }}>{g ? namesLine(g.actors, words) : ((n.kind === 'safety' && n.body !== 'report' && n.body !== 'coach') || n.kind === 'trip_open' || n.kind === 'team_reply' || n.kind === 'app_problem' || n.kind === 'daily_line') ? 'Moments' : ((n.actor && n.actor.name) || words.someone)}</Text>
             {' '}<Text style={{ color: C.dim }}>{verbOf(t, n.kind, g && g.actors.length > 1)}</Text>
             {'  '}<Text style={{ color: C.faint, fontSize: 12 }}>{timeAgo(n.created_at)}</Text>
           </Text>
@@ -326,6 +346,7 @@ export const NotificationsSheet = ({ onClose }) => {
           {n.kind === 'safety' && n.body ? (
             <Text style={{ color: C.text, fontSize: 13, fontWeight: '700', marginTop: 2 }} numberOfLines={3}>{t('notif_safety_' + n.body)}</Text>
           ) : null}
+          {n.kind === 'daily_line' && n.body ? <DailyLine body={n.body} lang={lang} t={t} /> : null}
           {n.kind === 'app_problem' && n.body ? (
             <Text style={{ color: C.text, fontSize: 13, lineHeight: 18, marginTop: 2 }} numberOfLines={3}>{n.body}</Text>
           ) : null}

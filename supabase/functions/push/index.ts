@@ -75,14 +75,26 @@ Deno.serve(async (req) => {
     title = (parts.length > 1 ? parts.slice(1).join('|') : n.kind === 'green_invite' || n.kind === 'creator_plan' ? String(n.body) : '').slice(0, 80);
   }
 
+  /* the good word of the morning or night is the same public line for
+     everybody, so the line itself goes to the lock screen: Arabic for
+     Arabic, English for the rest (body: en¦ar¦by_en¦by_ar) */
+  const daily = n.kind === 'daily_line' ? String(n.body || '').split('¦') : null;
+  const lineFor = (lang: string) => {
+    if (!daily) return title;
+    const ar = lang === 'ar';
+    const text = (ar ? daily[1] : daily[0]) || daily[0] || '';
+    const by = (ar ? daily[3] : daily[2]) || '';
+    return (text + (by ? ' — ' + by : '')).slice(0, 220);
+  };
+
   let sent = 0;
   for (const s of subs) {
-    const payload = JSON.stringify({ id: n.id, kind: n.kind, actor, title, lang: s.lang || 'en', body: n.kind === 'bardi_match' ? n.body : '' });
+    const payload = JSON.stringify({ id: n.id, kind: n.kind, actor, title: lineFor(s.lang || 'en'), lang: s.lang || 'en', body: n.kind === 'bardi_match' ? n.body : '' });
     try {
       await webpush.sendNotification(
         { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
         payload,
-        { TTL: n.kind === 'plan_soon' ? 3600 : 6 * 3600, urgency: n.kind === 'message' || n.kind === 'call' || n.kind === 'plan_soon' ? 'high' : 'normal' },
+        { TTL: n.kind === 'plan_soon' ? 3600 : n.kind === 'daily_line' ? 3 * 3600 : 6 * 3600, urgency: n.kind === 'message' || n.kind === 'call' || n.kind === 'plan_soon' ? 'high' : 'normal' },
       );
       sent++;
     } catch (e) {

@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useRef } from 'react';
 import { SUPABASE_READY, storedSessionNow } from '../lib/supabase';
 import * as auth from '../services/auth';
-import { ensureMyProfile, touchLastActive } from '../services/profiles';
+import { ensureMyProfile, touchLastActive, saveMyTz } from '../services/profiles';
 import { askFounderWelcome } from '../services/founder';
 import { loadAccountSettings, forgetAccountSettings } from '../services/accountSettings';
 import { isOwner } from '../services/music';
@@ -130,7 +130,7 @@ export const AuthProvider = ({ children }) => {
      Asked a few seconds in, so the profile and the language are there. */
   useEffect(() => {
     if (!SUPABASE_READY || !uid) return undefined;
-    const h = setTimeout(() => { askFounderWelcome(uid).catch(() => {}); }, 6000);
+    const h = setTimeout(() => { askFounderWelcome(uid).catch(() => {}); saveMyTz(); }, 6000);
     return () => clearTimeout(h);
   }, [uid]);
 

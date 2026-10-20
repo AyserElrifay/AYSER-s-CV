@@ -19011,6 +19011,157 @@ begin
 end $$;
 
 
+-- ════════════════════════════════════════════════════════════════════
+-- A GOOD WORD, MORNING AND NIGHT
+-- Ayser: "رسالة كل يوم مرة الصبح ومرة بالليل … بيت شعر، حكمة، طاقة
+-- بوزتيف". At 8 in the morning and 9 at night, where each person is,
+-- one line: a verse, a saying, or a small nudge from Moments. Everybody
+-- gets the same line on the same day, so it is something to talk about.
+-- Real lines only, with who said them; our own nudges carry no name.
+-- Anybody can stop them (set_daily_lines), and nobody gets one twice.
+-- ════════════════════════════════════════════════════════════════════
+alter table public.profiles add column if not exists tz text;
+alter table public.profiles add column if not exists daily_lines boolean not null default true;
+
+create table if not exists public.daily_lines (
+  id     serial primary key,
+  slot   text not null check (slot in ('morning','evening')),
+  kind   text not null check (kind in ('poem','wisdom','nudge')),
+  en     text not null,
+  ar     text not null,
+  by_en  text,
+  by_ar  text,
+  live   boolean not null default true,
+  unique (slot, en)
+);
+alter table public.daily_lines enable row level security;
+revoke all on public.daily_lines from anon, authenticated;
+
+create table if not exists public.daily_line_sent (
+  id      uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  day     date not null,
+  slot    text not null,
+  unique (user_id, day, slot)
+);
+alter table public.daily_line_sent enable row level security;
+revoke all on public.daily_line_sent from anon, authenticated;
+
+insert into public.daily_lines (slot, kind, en, ar, by_en, by_ar) values
+ ('morning','poem','Whoever fears climbing the mountains lives forever among the hollows.','ومن يتهيّب صعودَ الجبال ... يعِشْ أبدَ الدهر بين الحُفَر','Abu al-Qasim al-Shabbi','أبو القاسم الشابي'),
+ ('morning','poem','When you set out after something worth it, don''t settle for less than the stars.','إذا غامرتَ في شرفٍ مَرومٍ ... فلا تقنعْ بما دون النجومِ','Al-Mutanabbi','المتنبي'),
+ ('morning','poem','Resolve comes in the measure of those who resolve.','على قدرِ أهلِ العزمِ تأتي العزائمُ ... وتأتي على قدرِ الكرامِ المكارمُ','Al-Mutanabbi','المتنبي'),
+ ('morning','poem','Wishing never got anyone what they wanted; the world is taken by effort.','وما نيلُ المطالبِ بالتمنّي ... ولكن تُؤخذُ الدنيا غِلابا','Ahmed Shawqi','أحمد شوقي'),
+ ('morning','poem','Be beautiful, and you will see the world beautiful.','أيّهذا الشاكي وما بك داءٌ ... كن جميلاً ترَ الوجودَ جميلا','Elia Abu Madi','إيليا أبو ماضي'),
+ ('morning','wisdom','Faith is the bird that feels the light and sings when the dawn is still dark.','الإيمان هو العصفور اللي بيحسّ بالنور ويغنّي والفجر لسه ضلمة.','Rabindranath Tagore','طاغور'),
+ ('morning','wisdom','The journey of a thousand miles begins with a single step.','رحلة الألف ميل تبدأ بخطوة.','Lao Tzu','لاو تسو'),
+ ('morning','wisdom','Fall seven times, stand up eight.','اقع سبع مرات، وقوم التامنة.','Japanese proverb','مثل ياباني'),
+ ('morning','wisdom','Follow your heart as long as you live.','اتبع قلبك ما دمت حيًّا.','Ptahhotep, ancient Egypt','بتاح حتب، مصر القديمة'),
+ ('morning','wisdom','If you want to go fast, go alone. If you want to go far, go together.','لو عايز توصل بسرعة امشي لوحدك، ولو عايز توصل بعيد امشوا سوا.','Proverb','مثل'),
+ ('morning','wisdom','One hand can''t clap.','إيد لوحدها ما تسقّفش.','Egyptian proverb','مثل مصري'),
+ ('morning','wisdom','Alone we can do so little; together we can do so much.','لوحدنا نقدر على حاجات قليلة، وسوا نقدر على كتير.','Helen Keller','هيلين كيلر'),
+ ('morning','wisdom','Work is love made visible.','الشغل هو الحب لمّا يبان.','Khalil Gibran','جبران خليل جبران'),
+ ('morning','nudge','Good morning. Say yes to one small plan today.','صباح الخير. قول آه لخطة صغيرة النهارده.',null,null),
+ ('morning','nudge','Step outside for ten minutes before you check anything.','اخرج عشر دقايق قبل ما تفتح أي حاجة.',null,null),
+ ('morning','nudge','Message someone you miss. A short one is enough.','ابعت لحد واحشك. رسالة قصيرة كفاية.',null,null),
+ ('morning','nudge','Be the reason someone smiles today.','خليك السبب إن حد يضحك النهارده.',null,null),
+ ('evening','poem','Let the days do as they will, and be at peace with what is decided.','دعِ الأيامَ تفعلُ ما تشاءُ ... وطِبْ نفساً إذا حكمَ القضاءُ','Al-Shafi''i','الإمام الشافعي'),
+ ('evening','poem','It tightened, and when its rings were tightest, it opened — and I thought it never would.','ضاقتْ فلمّا استحكمتْ حلقاتُها ... فُرِجتْ وكنتُ أظنُّها لا تُفرَجُ','Al-Shafi''i','الإمام الشافعي'),
+ ('evening','poem','On this earth there is what makes life worth living.','على هذه الأرضِ ما يستحقُّ الحياة','Mahmoud Darwish','محمود درويش'),
+ ('evening','poem','Give me the flute and sing, for singing is the secret of being.','أعطني النايَ وغنِّ ... فالغِنا سرُّ الوجود','Khalil Gibran','جبران خليل جبران'),
+ ('evening','poem','The best companion, at any time, is a book.','وخيرُ جليسٍ في الزمانِ كتابُ','Al-Mutanabbi','المتنبي'),
+ ('evening','poem','Hope is the thing with feathers that perches in the soul.','الأمل حاجة بريش، بتقعد جوّه الروح.','Emily Dickinson','إميلي ديكنسون'),
+ ('evening','wisdom','We know what we are, but know not what we may be.','إحنا عارفين إحنا مين، بس مش عارفين ممكن نبقى إيه.','William Shakespeare','شكسبير'),
+ ('evening','wisdom','Very little is needed to make a happy life; it is all within yourself.','الحياة السعيدة محتاجة حاجات قليلة جدًا، وكلها جوّاك.','Marcus Aurelius','ماركوس أوريليوس'),
+ ('evening','wisdom','The earth delights to feel your bare feet, and the winds long to play with your hair.','الأرض بتفرح لما تحس برجليك الحافية، والهوا مشتاق يلعب في شعرك.','Khalil Gibran','جبران خليل جبران'),
+ ('evening','wisdom','Whoever saves one life, it is as if they saved all of humanity.','مَن أحيا نفسًا فكأنّما أحيا الناسَ جميعًا.','A teaching shared by the Talmud and the Quran','معنى في التلمود والقرآن'),
+ ('evening','wisdom','The neighbour before the house.','الجار قبل الدار.','Arabic proverb','مثل عربي'),
+ ('evening','nudge','What was the best minute of today? Keep it.','إيه أحلى دقيقة في يومك؟ احتفظ بيها.',null,null),
+ ('evening','nudge','You did enough today. Rest well.','إنت عملت كفاية النهارده. نام كويس.',null,null),
+ ('evening','nudge','Thank one person before you sleep.','اشكر حد واحد قبل ما تنام.',null,null),
+ ('evening','nudge','Tomorrow is a good day to see someone in person.','بكرة يوم حلو تشوف فيه حد وش لوش.',null,null)
+on conflict (slot, en) do update set ar = excluded.ar, by_en = excluded.by_en, by_ar = excluded.by_ar, kind = excluded.kind;
+
+do $do$ begin
+  alter table public.notifications drop constraint if exists notifications_kind_check;
+  alter table public.notifications add constraint notifications_kind_check
+    check (kind in ('vibe','laugh','comment','mate_request','mate_accept','message','call','tag','repost','green_invite','food_order','food_status','bardi_match','plan_soon','venue_decision','xp_award','safety','creator_plan','booking','trip_open','team_reply','biz_request','biz_reply','app_problem','daily_line'))
+    not valid;
+exception when others then raise notice 'notifications kind constraint skipped: %', sqlerrm;
+end $do$;
+
+/* the phone says where it is; only a real zone name is kept */
+create or replace function public.set_my_tz(p_tz text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  if auth.uid() is null then return jsonb_build_object('ok', false); end if;
+  if p_tz is null or not exists (select 1 from pg_timezone_names where name = p_tz) then return jsonb_build_object('ok', false, 'reason', 'tz'); end if;
+  update public.profiles set tz = p_tz where id = auth.uid() and tz is distinct from p_tz;
+  return jsonb_build_object('ok', true);
+end;
+$$;
+grant execute on function public.set_my_tz(text) to authenticated;
+
+create or replace function public.set_daily_lines(p_on boolean)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  if auth.uid() is null then return jsonb_build_object('ok', false); end if;
+  update public.profiles set daily_lines = coalesce(p_on, true) where id = auth.uid();
+  return jsonb_build_object('ok', true, 'on', coalesce(p_on, true));
+end;
+$$;
+grant execute on function public.set_daily_lines(boolean) to authenticated;
+
+/* Every hour: whoever it is 8 in the morning or 9 at night for. The
+   line of the day is the same for everybody (by the date), so two
+   friends can talk about it. Body: en¦ar¦by_en¦by_ar — the reader's
+   language is picked on the phone. */
+create or replace function public.send_daily_lines()
+returns int language plpgsql security definer set search_path = public as $$
+declare n int := 0; s text; l record; c int; d date;
+begin
+  for s in select unnest(array['morning','evening']) loop
+    select count(*) into c from public.daily_lines where slot = s and live;
+    if c = 0 then continue; end if;
+    with who as (
+      select p.id, (now() at time zone coalesce(p.tz, 'Africa/Cairo'))::date as day
+        from public.profiles p
+       where p.daily_lines
+         and extract(hour from now() at time zone coalesce(p.tz, 'Africa/Cairo')) = case when s = 'morning' then 8 else 21 end
+    ), fresh as (
+      insert into public.daily_line_sent (user_id, day, slot)
+      select w.id, w.day, s from who w
+      on conflict (user_id, day, slot) do nothing
+      returning user_id, day
+    ), pick as (
+      select f.user_id, x.*
+        from fresh f
+        cross join lateral (
+          select dl.en, dl.ar, dl.by_en, dl.by_ar from public.daily_lines dl
+           where dl.slot = s and dl.live
+           order by dl.id offset ((f.day - date '2026-01-01') % c) limit 1) x
+    ), ins as (
+      insert into public.notifications (user_id, actor_id, kind, body)
+      select user_id, user_id, 'daily_line',
+             left(en || '¦' || ar || '¦' || coalesce(by_en, '') || '¦' || coalesce(by_ar, ''), 900)
+        from pick
+      returning 1
+    )
+    select n + count(*) into n from ins;
+  end loop;
+  delete from public.daily_line_sent where day < current_date - 3;
+  return n;
+end;
+$$;
+revoke all on function public.send_daily_lines() from public, anon, authenticated;
+
+do $do$ begin
+  create extension if not exists pg_cron;
+  perform cron.unschedule(jobid) from cron.job where jobname = 'daily-lines';
+  perform cron.schedule('daily-lines', '2 * * * *', 'select public.send_daily_lines()');
+exception when others then raise notice 'daily-lines schedule skipped: %', sqlerrm;
+end $do$;
+
 -- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --

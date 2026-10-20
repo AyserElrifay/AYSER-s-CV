@@ -135,3 +135,12 @@ export async function decideVenue(id, approve) {
   if (error) throw error;
   return data;
 }
+
+/* where the phone is, so the morning and night lines (RUN_ME.sql, "A
+   GOOD WORD, MORNING AND NIGHT") arrive at 8 and 9 there */
+export function saveMyTz() {
+  try {
+    const z = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (z) supabase.rpc('set_my_tz', { p_tz: z }).then(() => {}, () => {});
+  } catch (e) { /* an old browser: Cairo time it is */ }
+}
