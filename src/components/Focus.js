@@ -50,6 +50,11 @@ const Sky = ({ frac, resting }) => {
       h('path', { d: 'M0,30 C-8,38 8,45 0,53 C-8,61 6,67 -2,75', stroke: '#F5B301', strokeWidth: 2, fill: 'none', strokeLinecap: 'round' })));
 };
 
+/* the sky behind Focus is always light, in dark mode too: so are its words
+   and buttons (theme colours turned them white on white — Ayser: "زراير مش
+   واضحة") */
+const INK = '#1A1A1A', DIM = '#5C5C58', FAINT = '#8A8A84', LINE = 'rgba(26,26,26,0.14)';
+
 export const Focus = ({ onClose }) => {
   useSheetBack(onClose);
   const insets = useSafeAreaInsets();
@@ -123,10 +128,12 @@ export const Focus = ({ onClose }) => {
       <View style={{ flex: 1, backgroundColor: bg, paddingTop: insets.top + 8, paddingBottom: insets.bottom + 18, paddingHorizontal: 20 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <Pressable onPress={() => { if (phase !== 'ready') setFocus(null).catch(() => {}); onClose(); }} hitSlop={12} accessibilityRole="button" accessibilityLabel={t('close')}>
-            <Ionicons name="chevron-down" size={26} color={C.text} />
+            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#FFF', borderWidth: 1, borderColor: LINE, alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="chevron-down" size={24} color={INK} />
+            </View>
           </Pressable>
           <View style={{ flex: 1 }} />
-          <Text style={{ color: C.dim, fontSize: 13, fontWeight: '800' }}>
+          <Text style={{ color: DIM, fontSize: 13, fontWeight: '800' }}>
             {'🌟 '.repeat(Math.min(today.rounds, 8)).trim() || ' '}{today.min ? '  ' + t('fo_today').replace('{n}', String(today.min)) : ''}
           </Text>
         </View>
@@ -134,10 +141,10 @@ export const Focus = ({ onClose }) => {
         <Text style={{ color: phase === 'break' ? C.green : C.purple, fontSize: 12, fontWeight: '900', letterSpacing: 1.4, textAlign: 'center', marginTop: 10 }}>
           {(phase === 'break' ? t('fo_break') : t(kind === 'studying' ? 'bd_kind_studying' : 'bd_kind_deep_work')).toUpperCase()}
         </Text>
-        <Text style={{ color: C.text, fontSize: 64, fontWeight: '900', textAlign: 'center', letterSpacing: -1, fontVariant: ['tabular-nums'] }}>
+        <Text style={{ color: INK, fontSize: 64, fontWeight: '900', textAlign: 'center', letterSpacing: -1, fontVariant: ['tabular-nums'] }}>
           {mmss(phase === 'ready' ? work * 60000 : left)}
         </Text>
-        {phase === 'break' ? <Text style={{ color: C.dim, fontSize: 15, textAlign: 'center', fontWeight: '700' }}>{t('fo_break_sub')}</Text> : null}
+        {phase === 'break' ? <Text style={{ color: DIM, fontSize: 15, textAlign: 'center', fontWeight: '700' }}>{t('fo_break_sub')}</Text> : null}
 
         <View style={{ flex: 1, marginVertical: 8 }}>
           <Sky frac={frac} resting={phase !== 'work' || pausedLeft != null} />
@@ -148,8 +155,8 @@ export const Focus = ({ onClose }) => {
             <View style={{ flexDirection: 'row', justifyContent: 'center', marginBottom: 10 }}>
               {['studying', 'deep_work'].map((k) => (
                 <Pressable key={k} onPress={() => { tapSelection(); setKind(k); }} style={{ marginHorizontal: 4 }}>
-                  <View style={{ borderRadius: 999, borderWidth: 1.5, borderColor: kind === k ? C.purple : C.line, backgroundColor: kind === k ? C.purple : '#FFF', paddingHorizontal: 14, paddingVertical: 9 }}>
-                    <Text style={{ color: kind === k ? '#FFF' : C.text, fontSize: 14, fontWeight: '800' }}>{k === 'studying' ? '📚 ' + t('bd_kind_studying') : '💻 ' + t('bd_kind_deep_work')}</Text>
+                  <View style={{ borderRadius: 999, borderWidth: 1.5, borderColor: kind === k ? C.purple : LINE, backgroundColor: kind === k ? C.purple : '#FFF', paddingHorizontal: 14, paddingVertical: 9 }}>
+                    <Text style={{ color: kind === k ? '#FFF' : INK, fontSize: 14, fontWeight: '800' }}>{k === 'studying' ? '📚 ' + t('bd_kind_studying') : '💻 ' + t('bd_kind_deep_work')}</Text>
                   </View>
                 </Pressable>
               ))}
@@ -157,9 +164,9 @@ export const Focus = ({ onClose }) => {
             <View style={{ flexDirection: 'row', justifyContent: 'center', marginBottom: 14 }}>
               {LENGTHS.map(([w, r], i) => (
                 <Pressable key={w} onPress={() => { tapSelection(); if (i > 0 && !plus) setPlusSheet(true); else setLen(i); }} style={{ marginHorizontal: 4 }}>
-                  <View style={{ borderRadius: 16, borderWidth: 1.5, borderColor: len === i ? C.purple : C.line, backgroundColor: C.glass, paddingHorizontal: 14, paddingVertical: 8, alignItems: 'center' }}>
-                    <Text style={{ color: C.text, fontSize: 16, fontWeight: '900' }}>{t('md_min').replace('{n}', String(w)) + (i > 0 && !plus ? ' ✦' : '')}</Text>
-                    <Text style={{ color: C.dim, fontSize: 11.5, fontWeight: '700' }}>{'+ ' + t('fo_rest').replace('{n}', String(r))}</Text>
+                  <View style={{ borderRadius: 16, borderWidth: 1.5, borderColor: len === i ? C.purple : LINE, backgroundColor: '#FFF', paddingHorizontal: 14, paddingVertical: 8, alignItems: 'center' }}>
+                    <Text style={{ color: INK, fontSize: 16, fontWeight: '900' }}>{t('md_min').replace('{n}', String(w)) + (i > 0 && !plus ? ' ✦' : '')}</Text>
+                    <Text style={{ color: DIM, fontSize: 11.5, fontWeight: '700' }}>{'+ ' + t('fo_rest').replace('{n}', String(r))}</Text>
                   </View>
                 </Pressable>
               ))}
@@ -178,13 +185,13 @@ export const Focus = ({ onClose }) => {
               </View>
             </Pressable>
             <Pressable onPress={stop} accessibilityRole="button" style={{ flex: 1 }}>
-              <View style={{ borderRadius: 999, borderWidth: 1.5, borderColor: C.line, backgroundColor: C.glass, paddingVertical: 16, alignItems: 'center' }}>
-                <Text style={{ color: C.dim, fontSize: 16, fontWeight: '800' }}>{t('fo_stop')}</Text>
+              <View style={{ borderRadius: 999, borderWidth: 1.5, borderColor: LINE, backgroundColor: '#FFF', paddingVertical: 16, alignItems: 'center' }}>
+                <Text style={{ color: DIM, fontSize: 16, fontWeight: '800' }}>{t('fo_stop')}</Text>
               </View>
             </Pressable>
           </View>
         )}
-        <Text style={{ color: C.faint, fontSize: 12, textAlign: 'center', marginTop: 10 }}>{t('fo_shared')}</Text>
+        <Text style={{ color: FAINT, fontSize: 12, textAlign: 'center', marginTop: 10 }}>{t('fo_shared')}</Text>
       </View>
       {plusSheet ? <PlusSheet why="focus" onClose={() => { setPlusSheet(false); getPlus(true).then((r) => setPlus(!!(r && r.plus))); }} /> : null}
     </Modal>
