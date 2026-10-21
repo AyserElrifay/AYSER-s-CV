@@ -56,6 +56,8 @@ const load = (factory, tries = 3) =>
    the message and the button instead. A piece arriving successfully
    clears the mark, so the next deploy is allowed its one reload too. */
 const RELOAD_MARK = 'moments.chunkreload';
+// what a piece that never arrived looks like (index.html's loader, and browsers' own words)
+const MISSING = /could not load|chunk|fetch|module script|load failed|network/i;
 
 const reloadOnce = () => {
   try {
@@ -148,8 +150,14 @@ const lazy = (factory, Fallback, inPlace) => {
       get().then(
         (m) => { clearReloadMark(); if (alive) setLoaded(() => m.default); },
         (e) => {
-          // an out-of-date page is worth one reload before giving up
-          if (reloadOnce()) return;
+          /* Only a piece that never ARRIVED is an out-of-date page, worth
+             one reload. A piece that arrived and then broke while starting
+             is a bug: reloading only hid it — Ayser saw Places "close the
+             app and open it again from the start", every time, because
+             opening another sheet cleared the once-only mark. That kind
+             now says so in place and reaches the Studio. */
+          if (MISSING.test(String((e && e.message) || e || '')) && reloadOnce()) return;
+          import('./problems').then((m) => m.reportProblem('lazy', e), () => {});
           if (alive) setFailed(e || new Error('This part could not be loaded'));
         },
       );

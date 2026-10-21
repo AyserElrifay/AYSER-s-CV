@@ -15,6 +15,8 @@ import { fetchFilms } from '../services/films';
 import { tapLight } from '../utils/feedback';
 import { useSheetBack } from '../hooks/useSheetBack';
 import { SheetHandle } from './SheetHandle';
+import { CountryFly } from './CountryFly';
+import { WORLD } from '../constants/worldGeo';
 
 /* ─── THE COUNTRY ROOM ───────────────────────────────────────────────
    One country at a time: the words you will need in your first week,
@@ -63,50 +65,36 @@ const GROUPS = ['first', 'eat', 'go', 'help'];
    half of these are folk etymologies that people repeat, and passing
    one off as settled fact is the same failure as inventing a price. */
 const Greeting = ({ h, ar, t }) => {
+  // the word and how to say it, always; the story behind it on a tap
+  const [open, setOpen] = useState(false);
   if (!h) return null;
   return (
-    <View style={{
-      backgroundColor: C.glass, borderWidth: 1, borderColor: C.gold,
-      borderRadius: 16, padding: 15, marginBottom: 16,
-    }}>
-      <Text style={{ color: C.faint, fontSize: 10.5, fontWeight: '800', letterSpacing: 1 }}>
-        {t('country_hello')}
-      </Text>
-      <Text style={{ color: C.text, fontSize: 26, fontWeight: '900', marginTop: 6 }}>{h.native}</Text>
-      <Text style={{ color: C.gold, fontSize: 13, marginTop: 3 }}>{h.how}</Text>
-      <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 9, lineHeight: 19 }}>
-        {ar ? (h.meansAr || h.means) : h.means}
-      </Text>
-      {h.bye ? (
-        <View style={{ marginTop: 13, paddingTop: 12, borderTopWidth: 1, borderTopColor: C.line }}>
-          <Text style={{ color: C.faint, fontSize: 10.5, fontWeight: '800', letterSpacing: 1 }}>
-            {t('country_bye')}
-          </Text>
-          <Text style={{ color: C.text, fontSize: 18, fontWeight: '800', marginTop: 5 }}>{h.bye.native}</Text>
-          <Text style={{ color: C.gold, fontSize: 12.5, marginTop: 2 }}>{h.bye.how}</Text>
-          <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 7, lineHeight: 19 }}>
-            {ar ? (h.bye.meansAr || h.bye.means) : h.bye.means}
-          </Text>
+    <Pressable onPress={() => { tapLight(); setOpen((o) => !o); }} accessibilityRole="button" accessibilityState={{ expanded: open }} style={{ outlineStyle: 'none' }}>
+      <View style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.gold, borderRadius: 18, padding: 15, marginBottom: 16 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={{ color: C.faint, fontSize: 10.5, fontWeight: '800', letterSpacing: 1 }}>{t('country_hello')}</Text>
+            <Text style={{ color: C.text, fontSize: 28, fontWeight: '900', marginTop: 4 }}>{h.native}</Text>
+            <Text style={{ color: C.gold, fontSize: 13.5, fontWeight: '700', marginTop: 1 }}>{h.how}</Text>
+          </View>
+          {h.bye ? (
+            <View style={{ alignItems: 'flex-end', marginStart: 10, maxWidth: '45%' }}>
+              <Text style={{ color: C.faint, fontSize: 10.5, fontWeight: '800', letterSpacing: 1, textAlign: 'right' }} numberOfLines={1}>{t('country_bye')}</Text>
+              <Text style={{ color: C.text, fontSize: 16, fontWeight: '800', marginTop: 4 }}>{h.bye.native}</Text>
+              <Text style={{ color: C.gold, fontSize: 12, marginTop: 1 }}>{h.bye.how}</Text>
+            </View>
+          ) : null}
         </View>
-      ) : null}
-    </View>
+        <Text style={{ color: C.dim, fontSize: 13, marginTop: 10, lineHeight: 19 }} numberOfLines={open ? undefined : 1}>
+          {ar ? (h.meansAr || h.means) : h.means}
+        </Text>
+        {open && h.bye ? (
+          <Text style={{ color: C.dim, fontSize: 13, marginTop: 8, lineHeight: 19 }}>{ar ? (h.bye.meansAr || h.bye.means) : h.bye.means}</Text>
+        ) : null}
+      </View>
+    </Pressable>
   );
 };
-
-/* The few words that are not survival but courtesy — the ones somebody
-   says back to you with a completely different face. `when` is the
-   part that makes them usable: knowing "eline sağlık" is useless
-   without knowing you say it to whoever cooked. */
-const WarmWord = ({ w, ar }) => (
-  <Card>
-    <Text style={{ color: C.text, fontSize: 16, fontWeight: '800' }}>{w.native}</Text>
-    <Text style={{ color: C.gold, fontSize: 12.5, marginTop: 3 }}>{w.how}</Text>
-    <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 5, lineHeight: 18 }}>{ar ? w.ar : w.en}</Text>
-    <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 6 }}>
-      {'\u2192 '}{ar ? (w.whenAr || w.when) : w.when}
-    </Text>
-  </Card>
-);
 
 const Label = ({ children, style }) => (
   <Text style={[{ color: C.faint, fontSize: 11, fontWeight: '800', letterSpacing: 1, marginBottom: 8 }, style]}>
@@ -134,20 +122,58 @@ const Phrase = ({ p, ar }) => (
   </Card>
 );
 
-const Dish = ({ d, ar }) => (
-  <Card>
-    <Text style={{ color: C.text, fontSize: 15, fontWeight: '800' }}>{ar ? (d.nameAr || d.name) : d.name}</Text>
-    {ar && d.nameAr ? <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 1 }}>{d.name}</Text> : null}
-    <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 6, lineHeight: 19 }}>{ar ? (d.whatAr || d.what) : d.what}</Text>
-  </Card>
-);
+/* ── ONE IDEA A CARD ── the name first, on the left, where the eye
+   starts (people read a screen in an F: across the top, down the left);
+   two lines of the rest, and a tap for the whole of it. Nobody has to
+   wade through a paragraph to find the one thing they came for. */
+const Fold = ({ title, sub, body }) => {
+  const [open, setOpen] = useState(false);
+  return (
+    <Pressable onPress={() => { tapLight(); setOpen((o) => !o); }} accessibilityRole="button" accessibilityState={{ expanded: open }} style={{ outlineStyle: 'none' }}>
+      <Card>
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={{ color: C.text, fontSize: 15.5, fontWeight: '900', lineHeight: 21 }}>{title}</Text>
+            {sub ? <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 1 }}>{sub}</Text> : null}
+          </View>
+          <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={16} color={C.faint} style={{ marginStart: 8, marginTop: 3 }} />
+        </View>
+        <Text style={{ color: C.dim, fontSize: 13.5, marginTop: 6, lineHeight: 20 }} numberOfLines={open ? undefined : 2}>{body}</Text>
+      </Card>
+    </Pressable>
+  );
+};
+const Dish = ({ d, ar }) => <Fold title={ar ? (d.nameAr || d.name) : d.name} sub={ar && d.nameAr ? d.name : null} body={ar ? (d.whatAr || d.what) : d.what} />;
+const Custom = ({ k, ar }) => <Fold title={ar ? (k.titleAr || k.title) : k.title} body={ar ? (k.bodyAr || k.body) : k.body} />;
 
-const Custom = ({ k, ar }) => (
-  <Card>
-    <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '800', lineHeight: 20 }}>{ar ? (k.titleAr || k.title) : k.title}</Text>
-    <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 6, lineHeight: 19 }}>{ar ? (k.bodyAr || k.body) : k.body}</Text>
-  </Card>
-);
+/* ── THE DECK ── the phrases as cards you flip: the word first, and you
+   try to remember what it means before you tap. Recalling beats
+   re-reading (it is how flash cards work, and why), and one card at a
+   time is something a tired or scattered mind can still do. */
+const FlipCard = ({ p, ar, w }) => {
+  const [back, setBack] = useState(false);
+  return (
+    <Pressable onPress={() => { tapLight(); setBack((b) => !b); }} accessibilityRole="button" accessibilityHint="flip" style={{ width: w, marginEnd: 10, outlineStyle: 'none' }}>
+      <View style={{ height: 150, borderRadius: 20, padding: 16, justifyContent: 'space-between', backgroundColor: back ? C.text : C.glass, borderWidth: 1, borderColor: back ? C.text : C.line }}>
+        {!back ? (
+          <>
+            <View>
+              <Text style={{ color: C.text, fontSize: 22, fontWeight: '900', lineHeight: 28 }} numberOfLines={2}>{p.native}</Text>
+              <Text style={{ color: C.gold, fontSize: 13, fontWeight: '700', marginTop: 4 }} numberOfLines={1}>{p.how}</Text>
+            </View>
+            <Ionicons name="sync-outline" size={16} color={C.faint} />
+          </>
+        ) : (
+          <>
+            <Text style={{ color: C.bg, fontSize: 19, fontWeight: '900', lineHeight: 25 }} numberOfLines={3}>{ar ? p.ar : p.en}</Text>
+            {p.when ? <Text style={{ color: C.bg, opacity: 0.7, fontSize: 12.5 }} numberOfLines={2}>{'\u2192 ' + (ar ? (p.whenAr || p.when) : p.when)}</Text> : <Text style={{ color: C.bg, opacity: 0.6, fontSize: 12.5 }} numberOfLines={1}>{p.native}</Text>}
+          </>
+        )}
+      </View>
+    </Pressable>
+  );
+};
+
 
 
 /* ─── THE SCENE ──────────────────────────────────────────────────────
@@ -418,7 +444,16 @@ export const CountrySheet = ({ startCode, onClose }) => {
   /* Not every country has a scene yet, so the tab is not always there.
      Switching from one that has it to one that does not would have left
      you looking at a tab that no longer exists, and an empty screen. */
-  useEffect(() => { if (tab === 'story' && !hasStory(code)) setTab('say'); }, [code, tab]);
+  const [allOpen, setAllOpen] = useState(false);
+  const [sceneOpen, setSceneOpen] = useState(false);
+  useEffect(() => { setAllOpen(false); setSceneOpen(false); }, [code]);
+  // where it is, for the map: the label point of the country
+  const spot = useMemo(() => {
+    const alias = { Czechia: 'Czech Republic', 'Türkiye': 'Turkey' };
+    const w = WORLD.find((x) => x.n === (alias[room.name] || room.name));
+    return w ? w.p : null;
+  }, [room.name]);
+  const deck = useMemo(() => [...(room.warm || []), ...(room.say || [])], [room]);
 
   /* Films are only fetched when somebody actually opens that tab, and
      only once per country — this room is mostly read offline material
@@ -436,7 +471,6 @@ export const CountrySheet = ({ startCode, onClose }) => {
 
   const TABS = [
     { k: 'say',   label: t('country_tab_say') },
-    ...(hasStory(room.code) ? [{ k: 'story', label: t('country_tab_story') }] : []),
     { k: 'eat',   label: t('country_tab_eat') },
     { k: 'know',  label: t('country_tab_know') },
     { k: 'watch', label: t('country_tab_watch') },
@@ -484,14 +518,13 @@ export const CountrySheet = ({ startCode, onClose }) => {
           })}
         </ScrollView>
 
-        <View style={{ paddingHorizontal: 16, paddingTop: 14 }}>
-          <Text style={{ color: C.text, fontSize: 20, fontWeight: '900' }}>
-            {ar ? room.nameAr : room.name} {flagOf(room.code)}
-          </Text>
-          <Text style={{ color: C.faint, fontSize: 12.5, marginTop: 2 }}>
-            {ar ? room.langAr : room.lang}
-          </Text>
-
+        <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
+          {spot ? (
+            <CountryFly key={room.code} lng={spot[0]} lat={spot[1]} height={150}
+              title={(ar ? room.nameAr : room.name) + ' ' + flagOf(room.code)} sub={ar ? room.langAr : room.lang} />
+          ) : (
+            <Text style={{ color: C.text, fontSize: 22, fontWeight: '900' }}>{(ar ? room.nameAr : room.name) + ' ' + flagOf(room.code)}</Text>
+          )}
           <View style={{ flexDirection: 'row', marginTop: 12, marginBottom: 4 }}>
             {TABS.map((x) => {
               const on = x.k === tab;
@@ -509,37 +542,44 @@ export const CountrySheet = ({ startCode, onClose }) => {
           {tab === 'say' ? (
             <>
               <Greeting h={room.hello} ar={ar} t={t} />
-              {room.warm && room.warm.length ? (
-                <View style={{ marginBottom: 10 }}>
-                  <Label>{t('country_g_warm')}</Label>
-                  {room.warm.map((w, i) => <WarmWord key={'w' + i} w={w} ar={ar} />)}
-                </View>
+              {/* the deck: one phrase at a time, flip to check */}
+              <Label>{t('country_deck').replace('{n}', String(deck.length))}</Label>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" snapToInterval={240} decelerationRate="fast" style={{ marginHorizontal: -16, marginBottom: 18 }} contentContainerStyle={{ paddingHorizontal: 16 }}>
+                {deck.map((p, i) => <FlipCard key={room.code + i} p={p} ar={ar} w={230} />)}
+              </ScrollView>
+              {/* everything, as a list — only when asked for */}
+              <Pressable onPress={() => { tapLight(); setAllOpen((o) => !o); }} accessibilityRole="button" accessibilityState={{ expanded: allOpen }} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, outlineStyle: 'none' }}>
+                <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '900', flex: 1 }}>{t('country_all')}</Text>
+                <Ionicons name={allOpen ? 'chevron-up' : 'chevron-down'} size={17} color={C.faint} />
+              </Pressable>
+              {allOpen ? (
+                <>
+                  {GROUPS.map((g) => {
+                    const rows = room.say.filter((p) => p.g === g);
+                    if (!rows.length) return null;
+                    return (
+                      <View key={g} style={{ marginBottom: 10 }}>
+                        <Label>{t('country_g_' + g)}</Label>
+                        {rows.map((p, i) => <Phrase key={g + i} p={p} ar={ar} />)}
+                      </View>
+                    );
+                  })}
+                  <Text style={{ color: C.faint, fontSize: 11.5, lineHeight: 17, marginBottom: 6 }}>{t('country_how_note')}</Text>
+                </>
               ) : null}
-              {GROUPS.map((g) => {
-                const rows = room.say.filter((p) => p.g === g);
-                if (!rows.length) return null;
-                return (
-                  <View key={g} style={{ marginBottom: 10 }}>
-                    <Label>{t('country_g_' + g)}</Label>
-                    {rows.map((p, i) => <Phrase key={g + i} p={p} ar={ar} />)}
-                  </View>
-                );
-              })}
-              <Text style={{ color: C.faint, fontSize: 11.5, lineHeight: 17, marginTop: 4 }}>
-                {t('country_how_note')}
-              </Text>
+              {/* a real moment to practise, folded until wanted */}
+              {hasStory(room.code) ? (
+                <>
+                  <Pressable onPress={() => { tapLight(); setSceneOpen((o) => !o); }} accessibilityRole="button" accessibilityState={{ expanded: sceneOpen }} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderTopWidth: 1, borderTopColor: C.line, outlineStyle: 'none' }}>
+                    <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '900', flex: 1 }}>{t('country_tab_story')}</Text>
+                    <Ionicons name={sceneOpen ? 'chevron-up' : 'chevron-down'} size={17} color={C.faint} />
+                  </Pressable>
+                  {sceneOpen ? (COUNTRY_STORIES[room.code] || []).map((sc) => (
+                    <View key={sc.id} style={{ marginBottom: 24, marginTop: 6 }}><Scene scene={sc} ar={ar} t={t} /></View>
+                  )) : null}
+                </>
+              ) : null}
               <TalkToSomeone room={room} ar={ar} t={t} />
-              <LearnProperly ar={ar} t={t} />
-            </>
-          ) : null}
-
-          {tab === 'story' ? (
-            <>
-              {(COUNTRY_STORIES[room.code] || []).map((sc) => (
-                <View key={sc.id} style={{ marginBottom: 24 }}>
-                  <Scene scene={sc} ar={ar} t={t} />
-                </View>
-              ))}
               <LearnProperly ar={ar} t={t} />
             </>
           ) : null}

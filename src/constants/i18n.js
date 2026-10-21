@@ -198,6 +198,7 @@ export const STRINGS = {
     country_title: 'Countries',
     country_sub: 'The words, the food and the things nobody writes down — country by country',
     country_tab_say: 'Say it',
+    country_deck: "{n} CARDS \u00b7 TAP ONE TO FLIP", country_all: "All the phrases",
     country_tab_eat: 'Eat',
     country_tab_know: 'Know',
     country_tab_watch: 'Watch & hear',
