@@ -1,0 +1,464 @@
+<!doctype html>
+<html lang="ar">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Moments — Stop scrolling. Start arriving.</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;500;700;800&display=swap" rel="stylesheet">
+<style>
+/* ─── THE MOMENTS REEL ────────────────────────────────────────────────
+   A 60-second keynote that plays by itself, like a film. Ayser: sell a
+   feeling, not buttons — and build it from Moments' own UI.
+
+   Everything on screen is computed from one number, the time t. Nothing
+   is a CSS transition, so the same t always draws the same frame: that
+   is what lets scripts/record-showcase.mjs step through it frame by
+   frame and write an .mp4 that matches the page exactly.
+
+   ?ratio=916 (9:16, default) or ?ratio=169 (16:9). Hidden controls live
+   at the very top edge: hover there (or press F to switch the shape, R
+   to replay). The Replay button disappears the moment the film plays.
+   ?record=1 is for the recorder: no controls, no clock of its own. */
+@font-face { font-family: 'MomentsArabic'; font-weight: 300 700; font-display: block;
+  src: url(../fonts/readex-arabic.woff2) format('woff2');
+  unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+200C-200E, U+FB50-FDFF, U+FE70-FEFC; }
+:root { --ink: #050505; --white: #F4F2ED; --dim: rgba(244,242,237,.56); --purple: #7C3AED; --gold: #F5B301; --green: #10B981; --coral: #F43F5E }
+* { box-sizing: border-box; margin: 0; padding: 0 }
+html, body { height: 100%; background: #000; overflow: hidden }
+body { font-family: 'MomentsArabic', 'Inter', 'Helvetica Neue', Arial, sans-serif; color: var(--white); -webkit-font-smoothing: antialiased; text-rendering: geometricPrecision }
+#stage { position: absolute; left: 50%; top: 50%; width: 1080px; height: 1920px; background: var(--ink); overflow: hidden; transform-origin: 0 0 }
+#stage.wide { width: 1920px; height: 1080px }
+.layer { position: absolute; inset: 0; pointer-events: none }
+.center { display: flex; align-items: center; justify-content: center }
+.line { position: absolute; left: 7%; right: 7%; top: 50%; text-align: center; direction: rtl; font-weight: 600; line-height: 1.32; text-wrap: balance; will-change: transform, opacity, filter }
+.line .soft { color: var(--dim); font-weight: 400; display: block; margin-top: .25em; font-size: .78em }
+#chaos { opacity: 0 }
+.feedcol { position: absolute; top: 0; width: 22%; will-change: transform }
+.fcard { border-radius: 26px; background: #121214; margin-bottom: 28px; padding: 22px; border: 1px solid #1C1C20 }
+.fcard .ph { height: 230px; border-radius: 18px; background: linear-gradient(135deg, #1D1D22, #26262D) }
+.fcard .row { display: flex; align-items: center; gap: 14px; margin-top: 16px }
+.fcard .av { width: 44px; height: 44px; border-radius: 50%; background: #2A2A31 }
+.fcard .bar { height: 14px; border-radius: 7px; background: #24242A; flex: 1 }
+.ping { position: absolute; padding: 18px 26px; border-radius: 22px; background: rgba(30,30,34,.92); border: 1px solid #2B2B31; font-size: 30px; font-weight: 500; direction: rtl; display: flex; align-items: center; gap: 14px; color: #CFCBC3; will-change: transform, opacity }
+.ping i { width: 16px; height: 16px; border-radius: 50%; background: var(--coral); display: block }
+#cage { position: absolute; left: 50%; top: 50%; border: 2px solid rgba(244,242,237,.22); border-radius: 90px; will-change: transform, opacity }
+#glow { position: absolute; left: 50%; top: 50%; width: 1400px; height: 1400px; margin: -700px 0 0 -700px; border-radius: 50%; background: radial-gradient(closest-side, rgba(245,179,1,.42), rgba(124,58,237,.22) 45%, rgba(5,5,5,0) 72%); will-change: transform, opacity }
+#mark { position: absolute; left: 50%; top: 50%; width: 220px; height: 220px; margin: -150px 0 0 -110px; border-radius: 52px; will-change: transform, opacity; box-shadow: 0 30px 120px rgba(245,179,1,.25) }
+#word { position: absolute; left: 50%; top: 50%; width: 400px; margin: 70px 0 0 -200px; will-change: opacity, transform }
+/* the app's own UI, at the app's own scale (×2 for the stage) */
+.cam { position: absolute; left: 50%; top: 50%; width: 760px; transform-style: preserve-3d; will-change: transform }
+.persp { position: absolute; inset: 0; perspective: 2200px; perspective-origin: 50% 45% }
+.ui { direction: rtl; background: #141318; border: 1px solid #25232C; border-radius: 44px; padding: 34px 36px; color: var(--white) }
+.kick { font-size: 22px; font-weight: 600; color: rgba(244,242,237,.5); letter-spacing: 0 }
+.hcard { overflow: hidden; padding: 0 }
+.hcard .band { height: 12px; display: flex }
+.hcard .band b { flex: 1 }
+.hcard .in { padding: 30px 36px 34px }
+.hcard h3 { font-size: 44px; font-weight: 700; margin-top: 8px }
+.hcard .sub { font-size: 24px; color: rgba(244,242,237,.5); margin-top: 2px }
+.hcard p { font-size: 27px; line-height: 1.6; color: rgba(244,242,237,.86); margin-top: 18px }
+.room { margin-top: 30px }
+.room h3 { font-size: 40px; font-weight: 700; margin-top: 6px }
+.clock { font-family: 'Inter', sans-serif; font-weight: 300; font-size: 150px; letter-spacing: -6px; line-height: 1; margin-top: 26px; direction: ltr; text-align: right; font-variant-numeric: tabular-nums }
+.room .note { font-size: 24px; color: rgba(244,242,237,.55); margin-top: 8px }
+.chips { display: flex; gap: 14px; margin-top: 28px; flex-wrap: wrap }
+.chip { display: flex; align-items: center; gap: 12px; border: 1.5px solid #34313C; border-radius: 999px; padding: 14px 22px; font-size: 25px; font-weight: 600 }
+.chip svg { width: 26px; height: 26px }
+.wave { display: flex; align-items: center; gap: 5px; height: 34px }
+.wave span { width: 6px; border-radius: 3px; background: var(--white); display: block }
+.dotav { width: 34px; height: 34px; border-radius: 50%; background: #2C2A33 }
+#map { position: absolute; left: 50%; top: 50%; width: 2400px; height: 2400px; margin: -1200px 0 0 -1200px; will-change: transform, opacity }
+.pin { position: absolute; width: 30px; height: 30px; margin: -15px 0 0 -15px; border-radius: 50%; background: #9A93AE; box-shadow: 0 0 0 8px rgba(154,147,174,.15); will-change: transform, opacity }
+.pin.main { width: 74px; height: 74px; margin: -74px 0 0 -37px; border-radius: 50% 50% 50% 0; transform-origin: 50% 100%; background: var(--purple); box-shadow: 0 18px 50px rgba(124,58,237,.6) }
+.pin.main::after { content: ''; position: absolute; left: 50%; top: 50%; width: 22px; height: 22px; margin: -11px 0 0 -11px; border-radius: 50%; background: var(--gold) }
+.place { position: absolute; left: 50%; width: 760px; margin-left: -380px; padding: 0; overflow: hidden; will-change: transform, opacity }
+.place img { width: 100%; height: 360px; object-fit: cover; display: block }
+.place .in { padding: 32px 38px 38px }
+.place h3 { font-size: 46px; font-weight: 700 }
+.place .sub { font-size: 25px; color: rgba(244,242,237,.5); margin-top: 4px }
+.deal { margin-top: 26px; border-radius: 30px; background: rgba(245,179,1,.12); padding: 28px 32px }
+.deal .big { font-size: 96px; font-weight: 700; line-height: 1.1; margin-top: 8px }
+.deal .when { font-size: 30px; font-weight: 600; margin-top: 6px; color: rgba(244,242,237,.9) }
+.now { display: flex; align-items: center; gap: 10px; font-size: 26px; color: var(--green); font-weight: 600 }
+.now i { width: 16px; height: 16px; border-radius: 50%; background: var(--green); display: block }
+.screen { position: absolute; left: 50%; top: 50%; width: 760px; height: 1400px; margin: -700px 0 0 -380px; border-radius: 80px; background: #141318; border: 1px solid #25232C; overflow: hidden; direction: rtl; will-change: transform, filter }
+.screen .top { padding: 70px 44px 0 }
+.screen h3 { font-size: 52px; font-weight: 700; margin-top: 10px }
+.screen .sub { font-size: 26px; color: rgba(244,242,237,.5); margin-top: 6px }
+.stamps { display: flex; gap: 16px; margin-top: 44px }
+.stamps b { flex: 1; height: 92px; border-radius: 24px; background: #1E1C25; border: 1.5px dashed #3A3644; display: block }
+.stamps b.on { background: rgba(245,179,1,.18); border: 1.5px solid rgba(245,179,1,.5) }
+#btn { position: absolute; left: 44px; right: 44px; bottom: 120px; height: 140px; border-radius: 999px; background: var(--purple); display: flex; align-items: center; justify-content: center; font-size: 44px; font-weight: 700; color: #fff; will-change: transform; box-shadow: 0 24px 80px rgba(124,58,237,.45) }
+#btn span { position: absolute; will-change: opacity, transform }
+.ring { position: absolute; left: 50%; top: 50%; border-radius: 50%; border: 3px solid rgba(255,255,255,.7); will-change: transform, opacity }
+#touch { position: absolute; width: 120px; height: 120px; border-radius: 50%; background: rgba(255,255,255,.22); border: 2px solid rgba(255,255,255,.5); will-change: transform, opacity }
+#warm { position: absolute; left: 50%; top: 50%; width: 3200px; height: 3200px; margin: -1600px 0 0 -1600px; border-radius: 50%; background: radial-gradient(closest-side, #FFF6E2 0%, #FFD98A 22%, rgba(245,179,1,.55) 48%, rgba(5,5,5,0) 74%); will-change: transform, opacity }
+.end { position: absolute; left: 0; right: 0; top: 50%; text-align: center }
+.end .m { font-family: 'Inter', sans-serif; font-weight: 800; letter-spacing: -4px; will-change: opacity, transform }
+.end .a { direction: rtl; font-weight: 500; margin-top: 34px; will-change: opacity, transform }
+.end .e { font-family: 'Inter', sans-serif; font-weight: 300; color: var(--dim); margin-top: 18px; letter-spacing: .5px; will-change: opacity, transform }
+/* the hidden controls: invisible until the pointer reaches the top edge */
+#ctl { position: fixed; top: 0; left: 0; right: 0; height: 64px; z-index: 9; display: flex; justify-content: center; align-items: center; gap: 10px; opacity: 0; transition: opacity .25s }
+#ctl:hover, #ctl.show { opacity: 1 }
+#ctl button { font: 600 13px Inter, sans-serif; color: #EDEAE3; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.14); border-radius: 999px; padding: 8px 16px; cursor: pointer }
+#replay { position: fixed; left: 50%; bottom: 7%; transform: translateX(-50%); z-index: 9; font: 600 15px Inter, sans-serif; color: #EDEAE3; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.16); border-radius: 999px; padding: 12px 26px; cursor: pointer; display: none }
+body.rec #ctl, body.rec #replay { display: none !important }
+</style>
+</head>
+<body>
+<div id="stage">
+  <!-- I · the crisis -->
+  <div class="layer" id="chaos"></div>
+  <div class="layer" id="pings"></div>
+  <div id="cage"></div>
+  <div class="line" id="l1">ملايين البشر حولك..<span class="soft">ومع ذلك، لم نشعر بالوحدة أكثر من اليوم.</span></div>
+  <div class="line" id="l2">تطبيقات تعدك بالتواصل..<span class="soft">لكنها تحبسك خلف الشاشة.</span></div>
+  <!-- II · the turn -->
+  <div class="line" id="l3">ماذا لو كانت مهمة التكنولوجيا الوحيدة..<span class="soft" style="color:var(--white);font-weight:600;font-size:1em">هي أن تخرجك للحياة؟</span></div>
+  <div id="glow"></div>
+  <img id="mark" src="mark.png" alt="">
+  <img id="word" src="wordmark-white.png" alt="Moments">
+  <!-- III · 1 — hear the place before you go -->
+  <div class="line" id="l4">افهم ثقافة المكان..<span class="soft">واسمع نبضه قبل أن تخطو إليه.</span></div>
+  <div class="persp" id="p1"><div class="cam" id="cam1">
+    <div class="ui hcard">
+      <div class="band"><b style="background:#2B1055"></b><b style="background:#7A3B7A"></b><b style="background:#E5813F"></b><b style="background:#FFC978"></b></div>
+      <div class="in">
+        <div class="kick">التراث والعادات</div>
+        <h3>الهرم الأكبر</h3>
+        <div class="sub">الجيزة · مصر</div>
+        <p><span style="color:rgba(244,242,237,.5);font-size:22px;display:block;margin-bottom:6px">العادة</span>محدش بيسيب بيت مصري من غير ما ياكل أو يشرب حاجة. لما تقول "متشكر أنا كويس" ده بداية الكلام، مش نهايته.</p>
+      </div>
+    </div>
+    <div class="ui room" id="room">
+      <div class="kick">غرفة كلام</div>
+      <h3>سلام سريع قبل ما نتقابل</h3>
+      <div class="clock" id="clock">14:58</div>
+      <div class="note">بتخلص في ميعادها. مفيش تمديد.</div>
+      <div class="chips">
+        <div class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="#F4F2ED" stroke-width="2"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>أنت<div class="wave" id="wave"></div></div>
+        <div class="chip"><span class="dotav"></span><svg viewBox="0 0 24 24" fill="none" stroke="#8C8896" stroke-width="2"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></div>
+        <div class="chip"><span class="dotav" style="background:#3A2F4F"></span><svg viewBox="0 0 24 24" fill="none" stroke="#8C8896" stroke-width="2"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></div>
+      </div>
+    </div>
+  </div></div>
+  <div id="morph" style="position:absolute;left:50%;top:50%;width:40px;height:40px;margin:-20px 0 0 -20px;border-radius:50%;background:var(--purple);opacity:0"></div>
+  <!-- III · 2 — places with a soul, in their quiet hours -->
+  <div class="line" id="l5">أماكن منتقاة بعناية..<span class="soft">تنتظرك في أوقاتها الهادئة.</span></div>
+  <div class="persp" id="p2"><div id="map"></div>
+    <div class="ui place" id="place">
+      <img src="cafe.jpg" alt="">
+      <div class="in">
+        <h3>مقهى على الناصية</h3>
+        <div class="sub">كافيه · مكان للتوضيح</div>
+        <div class="deal">
+          <span class="now" id="now"><i id="nowdot"></i>شغّال دلوقتي</span><div class="big">خصم ٢٠٪</div>
+          <div class="when">الأحد–الأربع · ٣ – ٦ م</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- III · 3 — one tap, and the screen's job is done -->
+  <div class="line" id="l6">ضغطة واحدة..<span class="soft">وينتهي دور الشاشة.</span></div>
+  <div class="persp" id="p3"><div class="screen" id="screen">
+    <div class="top">
+      <div class="kick">☕ كافيه</div>
+      <h3>مقهى على الناصية</h3>
+      <div class="sub">٤ من ٥ أختام</div>
+      <div class="stamps"><b class="on"></b><b class="on"></b><b class="on"></b><b class="on"></b><b id="st5"></b></div>
+    </div>
+    <div id="btn"><span id="b1">اعمل check-in</span><span id="b2" style="opacity:0">اتسجّلت ✓</span></div>
+    <div id="touch"></div>
+    <div id="rings"></div>
+  </div></div>
+  <div id="warm"></div>
+  <!-- IV · the close -->
+  <div class="end" id="end">
+    <div class="m" id="e1">Moments.</div>
+    <div class="a" id="e2">توقف عن التمرير. ابدأ بالحضور.</div>
+    <div class="e" id="e3">Stop scrolling. Start arriving.</div>
+  </div>
+</div>
+<div id="ctl"><button id="shape">9:16 ⇄ 16:9</button><button id="again2">Replay</button></div>
+<button id="replay">Replay ↺</button>
+<script>
+(function () {
+  var Q = new URLSearchParams(location.search);
+  var REC = Q.get('record') === '1';
+  var WIDE = Q.get('ratio') === '169';
+  var DUR = 60;
+  var $ = function (id) { return document.getElementById(id); };
+  var stage = $('stage');
+  if (REC) document.body.classList.add('rec');
+
+  /* ── time ── */
+  var clamp = function (x, a, b) { return Math.max(a, Math.min(b, x)); };
+  var lerp = function (a, b, p) { return a + (b - a) * p; };
+  var prog = function (t, a, b) { return clamp((t - a) / (b - a), 0, 1); };
+  var eio = function (p) { return p < .5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2; };
+  var eout = function (p) { return 1 - Math.pow(1 - p, 3); };
+  /* a real spring (damped harmonic oscillator), seconds since it was let go */
+  var spring = function (s, f, z) {
+    if (s <= 0) return 0;
+    f = f || 1.6; z = z == null ? 0.62 : z;
+    var w = 2 * Math.PI * f, wd = w * Math.sqrt(1 - z * z);
+    return 1 - Math.exp(-z * w * s) * (Math.cos(wd * s) + (z * w / wd) * Math.sin(wd * s));
+  };
+  /* in over [a, a+i], out over [b, b+o] */
+  var fio = function (t, a, i, b, o) { return Math.min(prog(t, a, a + i), 1 - prog(t, b, b + o)); };
+  var hash = function (n) { var x = Math.sin(n * 127.1) * 43758.5453; return x - Math.floor(x); };
+
+  /* a statement arrives out of a soft blur and leaves the same way */
+  var say = function (el, t, a, b) {
+    var pin = prog(t, a, a + 1.5), pout = prog(t, b, b + 0.9);
+    var o = eout(pin) * (1 - eio(pout));
+    el.style.opacity = o;
+    el.style.filter = 'blur(' + ((1 - eout(pin)) * 14 + eio(pout) * 10).toFixed(2) + 'px)';
+    el.style.transform = 'translateY(calc(-50% + ' + ((1 - eout(pin)) * 26 - eio(pout) * 14).toFixed(1) + 'px)) scale(' + (1 + (1 - eout(pin)) * 0.02).toFixed(4) + ')';
+  };
+
+  /* ── the shape of the stage ── */
+  var W, H, U;
+  var layout = function () {
+    stage.classList.toggle('wide', WIDE);
+    W = WIDE ? 1920 : 1080; H = WIDE ? 1080 : 1920; U = Math.min(W, H) / 100;
+    var lines = document.querySelectorAll('.line');
+    for (var i = 0; i < lines.length; i++) lines[i].style.fontSize = (WIDE ? 7.4 : 8.6) * U + 'px';
+    $('e1').style.fontSize = (WIDE ? 17 : 15) * U + 'px';
+    $('e2').style.fontSize = (WIDE ? 5.2 : 6) * U + 'px';
+    $('e3').style.fontSize = (WIDE ? 3 : 3.6) * U + 'px';
+    var sc = Math.min(innerWidth / W, innerHeight / H);
+    stage.style.transform = 'scale(' + sc + ') translate(-50%, -50%)';
+    if (REC) stage.style.transform = 'translate(-50%, -50%)';
+    $('shape').textContent = WIDE ? '16:9 → 9:16' : '9:16 → 16:9';
+  };
+
+  /* ── I · an endless feed, built once ── */
+  var cols = [];
+  (function () {
+    var host = $('chaos');
+    for (var c = 0; c < 5; c++) {
+      var col = document.createElement('div'); col.className = 'feedcol';
+      col.style.left = (c * 21 - 4) + '%';
+      for (var k = 0; k < 14; k++) {
+        var card = document.createElement('div'); card.className = 'fcard';
+        card.innerHTML = '<div class="ph" style="height:' + (160 + hash(c * 31 + k) * 220 | 0) + 'px"></div><div class="row"><div class="av"></div><div class="bar"></div></div><div class="row"><div class="bar" style="max-width:60%"></div></div>';
+        col.appendChild(card);
+      }
+      host.appendChild(col); cols.push(col);
+    }
+    var ph = $('pings');
+    var words = ['رسالة جديدة', '٩٩+ إشعار', 'حد شاف قصتك', 'متابعة جديدة', 'فاتك ١٢ حاجة', 'لايك جديد'];
+    for (var j = 0; j < 16; j++) {
+      var p = document.createElement('div'); p.className = 'ping';
+      p.innerHTML = '<i></i>' + words[j % words.length];
+      p.dataset.at = (0.6 + j * 0.24 + hash(j) * 0.12).toFixed(3);
+      p.dataset.x = (6 + hash(j + 9) * 58).toFixed(1); p.dataset.y = (j % 2 ? 6 + hash(j + 21) * 22 : 70 + hash(j + 21) * 22).toFixed(1);
+      ph.appendChild(p);
+    }
+    var wave = $('wave');
+    for (var b = 0; b < 7; b++) wave.appendChild(document.createElement('span'));
+    // the map: streets, a river, parks — drawn here, nobody's map data
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2400 2400" width="2400" height="2400"><rect width="2400" height="2400" fill="#0C0C10"/>';
+    for (var q = 0; q < 9; q++) svg += '<rect x="' + (hash(q + 3) * 2100 | 0) + '" y="' + (hash(q + 41) * 2100 | 0) + '" width="' + (160 + hash(q) * 240 | 0) + '" height="' + (120 + hash(q + 7) * 200 | 0) + '" rx="40" fill="#0F2018"/>';
+    svg += '<path d="M -50 1500 C 500 1350, 800 1650, 1250 1420 S 1950 1150, 2450 1250" stroke="#16122E" stroke-width="150" fill="none"/>';
+    for (var r = 0; r < 26; r++) { var y = r * 100 + hash(r) * 40, a = (hash(r + 5) - .5) * 18; svg += '<line x1="-100" y1="' + y + '" x2="2500" y2="' + (y + a * 20) + '" stroke="#1A1A21" stroke-width="' + (r % 5 ? 6 : 16) + '"/>'; }
+    for (var s2 = 0; s2 < 26; s2++) { var x = s2 * 100 + hash(s2 + 70) * 40, a2 = (hash(s2 + 9) - .5) * 18; svg += '<line x1="' + x + '" y1="-100" x2="' + (x + a2 * 20) + '" y2="2500" stroke="#1A1A21" stroke-width="' + (s2 % 4 ? 6 : 16) + '"/>'; }
+    svg += '</svg>';
+    var map = $('map'); map.innerHTML = svg;
+    var spots = [[1080, 1010], [1330, 1150], [960, 1300], [1420, 930], [1180, 1380], [880, 1080], [1500, 1260]];
+    spots.forEach(function (sp, i) { var d = document.createElement('div'); d.className = 'pin'; d.style.left = sp[0] + 'px'; d.style.top = sp[1] + 'px'; d.dataset.i = i; map.appendChild(d); });
+    var main = document.createElement('div'); main.className = 'pin main'; main.id = 'mainpin'; main.style.left = '1200px'; main.style.top = '1200px'; map.appendChild(main);
+    var rings = $('rings');
+    for (var g = 0; g < 3; g++) { var rg = document.createElement('div'); rg.className = 'ring'; rings.appendChild(rg); }
+  })();
+
+  var hide = function (el) { el.style.opacity = 0; };
+
+  /* ── one frame of the film, for time t ── */
+  var render = function (t) {
+    /* I · THE CRISIS (0–10) — the feed rushes, notifications pile up… then nothing */
+    var chaosOn = t > 0.3 && t < 4.75;
+    var ch = $('chaos');
+    ch.style.opacity = chaosOn ? (0.55 * prog(t, 0.3, 1.4)) : 0;
+    if (chaosOn) {
+      var speed = 140 * t + 260 * t * t;           // it keeps getting faster
+      cols.forEach(function (c, i) {
+        var off = (speed * (0.8 + i * 0.13)) % 1400;
+        c.style.transform = 'translateY(' + (-off + (i % 2 ? -300 : 0)) + 'px)';
+        c.style.filter = 'blur(' + (1 + t * 1.2).toFixed(1) + 'px)';
+      });
+    }
+    var pings = $('pings').children;
+    for (var i = 0; i < pings.length; i++) {
+      var p = pings[i], at = +p.dataset.at, s = t - at;
+      if (!chaosOn || s < 0) { p.style.opacity = 0; continue; }
+      var sp = spring(s, 2.4, 0.5);
+      p.style.opacity = Math.min(1, s * 6) * (1 - prog(s, 1.4, 1.8)) * 0.95;
+      p.style.left = p.dataset.x + '%'; p.style.top = p.dataset.y + '%';
+      p.style.transform = 'scale(' + (0.7 + 0.3 * sp).toFixed(3) + ') translateY(' + ((1 - sp) * 30).toFixed(1) + 'px)';
+    }
+    say($('l1'), t, 0.9, 4.75);
+    say($('l2'), t, 6.0, 9.1);
+    // the cage: a phone's outline closing in around the sentence
+    var cg = $('cage'), cs = spring(t - 6.6, 0.7, 0.85);
+    var cw = WIDE ? 1500 : 940, chh = WIDE ? 640 : 1100;
+    cg.style.width = cw + 'px'; cg.style.height = chh + 'px';
+    cg.style.marginLeft = -cw / 2 + 'px'; cg.style.marginTop = -chh / 2 + 'px';
+    cg.style.opacity = t > 6.6 ? fio(t, 6.6, 0.8, 9.1, 0.9) : 0;
+    cg.style.transform = 'scale(' + lerp(1.9, 1, cs).toFixed(4) + ')';
+
+    /* II · THE TURN (10–20) — a question, then the mark in warm light */
+    say($('l3'), t, 11.0, 14.6);
+    var lg = spring(t - 15.9, 0.9, 0.7);
+    var lgOut = eio(prog(t, 19.1, 20));
+    $('glow').style.opacity = (t > 15.6 ? Math.min(1, (t - 15.6) / 1.6) : 0) * (1 - lgOut);
+    $('glow').style.transform = 'scale(' + (0.55 + 0.45 * lg + Math.sin(t * 1.4) * 0.015).toFixed(4) + ')';
+    $('mark').style.opacity = (t > 15.9 ? eout(prog(t, 15.9, 16.9)) : 0) * (1 - lgOut);
+    $('mark').style.transform = 'scale(' + (0.86 + 0.14 * lg).toFixed(4) + ') translateY(' + (-lgOut * 20) + 'px)';
+    $('mark').style.filter = 'blur(' + ((1 - eout(prog(t, 15.9, 16.9))) * 10).toFixed(1) + 'px)';
+    $('word').style.opacity = (t > 16.8 ? eout(prog(t, 16.8, 18)) : 0) * (1 - lgOut);
+    $('word').style.transform = 'translateY(' + ((1 - eout(prog(t, 16.8, 18))) * 18) + 'px)';
+
+    /* III · 1 (20–30) — culture, and a room you can hear, that ends on time */
+    say($('l4'), t, 20.2, 23.0);
+    var on1 = t > 23.3 && t < 30.4;
+    var p1 = $('p1');
+    p1.style.opacity = on1 ? fio(t, 23.3, 0.9, 29.4, 0.8) : 0;
+    if (on1) {
+      var push = spring(t - 23.3, 0.32, 0.9);         // the camera leans in
+      var pan = eio(prog(t, 26.2, 28.0));             // …and slides down to the room
+      var sc1 = (WIDE ? 0.92 : 1.12) * lerp(0.94, 1.22, push);
+      var ty = lerp(WIDE ? 120 : 260, WIDE ? -330 : -260, pan);
+      $('cam1').style.transform = 'translate(-50%, -50%) translateY(' + ty.toFixed(1) + 'px) scale(' + sc1.toFixed(4) + ') rotateX(' + lerp(16, 6, push).toFixed(2) + 'deg) rotateY(' + lerp(-18, -7, push).toFixed(2) + 'deg) rotateZ(' + lerp(-2.2, -0.6, push).toFixed(2) + 'deg)';
+      // the clock counts down for real: a room is a moment, not a chat forever
+      var left = Math.max(0, 898 - Math.floor(Math.max(0, t - 23.3) * 1.0));
+      $('clock').textContent = Math.floor(left / 60) + ':' + String(left % 60).padStart(2, '0');
+      var bars = $('wave').children;
+      for (var b = 0; b < bars.length; b++) {
+        var v = 0.25 + 0.75 * Math.abs(Math.sin(t * 7.3 + b * 0.9) * Math.sin(t * 3.1 + b * 1.7));
+        bars[b].style.height = (8 + v * 26).toFixed(1) + 'px';
+      }
+      $('room').style.boxShadow = '0 0 ' + (60 + 40 * pan) + 'px rgba(124,58,237,' + (0.12 + 0.28 * pan).toFixed(2) + ')';
+    }
+    // the room folds into a single point… that becomes a place on the map
+    var mo = $('morph');
+    var mIn = prog(t, 29.5, 30.3), mOut = prog(t, 30.4, 31.0);
+    mo.style.opacity = t > 29.5 && t < 31.0 ? Math.min(eout(mIn), 1 - eio(mOut)) : 0;
+    mo.style.transform = 'scale(' + lerp(18, 1, eout(mIn)).toFixed(3) + ')';
+    mo.style.boxShadow = '0 0 ' + (40 + Math.sin(t * 4) * 12).toFixed(0) + 'px rgba(124,58,237,.8)';
+
+    /* III · 2 (30–40) — a map in perspective, a place that waits for you */
+    say($('l5'), t, 31.0, 33.2);
+    var on2 = t > 33.4 && t < 40.4;
+    $('p2').style.opacity = on2 ? fio(t, 33.4, 0.8, 39.4, 0.9) : 0;
+    if (on2) {
+      var fly = eio(prog(t, 33.4, 40));
+      $('map').style.transform = 'rotateX(' + lerp(58, 50, fly).toFixed(2) + 'deg) rotateZ(' + lerp(-14, -6, fly).toFixed(2) + 'deg) scale(' + lerp(0.9, 1.25, fly).toFixed(3) + ') translateY(' + lerp(120, -40, fly).toFixed(1) + 'px)';
+      var pins = $('map').querySelectorAll('.pin:not(.main)');
+      for (var k = 0; k < pins.length; k++) {
+        var ps = spring(t - 33.9 - k * 0.12, 2, 0.45);
+        pins[k].style.opacity = Math.min(1, Math.max(0, (t - 33.9 - k * 0.12) * 5));
+        pins[k].style.transform = 'scale(' + ps.toFixed(3) + ')';
+      }
+      var mp = spring(t - 34.4, 1.6, 0.42);
+      $('mainpin').style.opacity = t > 34.4 ? 1 : 0;
+      $('mainpin').style.transform = 'translateY(' + ((1 - mp) * -140).toFixed(1) + 'px) rotate(-45deg) scale(' + (0.6 + 0.4 * mp).toFixed(3) + ')';
+      // the place rises out of the pin
+      var pl = spring(t - 35.1, 0.9, 0.78);
+      var near = eio(prog(t, 37.0, 39.6));          // and the camera goes in on the deal
+      var base = WIDE ? 0.68 : 1.02;
+      $('place').style.top = (WIDE ? 44 : 50) + '%';
+      $('place').style.opacity = t > 35.1 ? Math.min(1, (t - 35.1) * 3) : 0;
+      $('place').style.transform = 'translateY(' + ((1 - pl) * 420 - (WIDE ? 380 : 520) + near * (WIDE ? -230 : -300)).toFixed(1) + 'px) scale(' + (base * lerp(1, 1.42, near)).toFixed(4) + ') rotateX(' + lerp(10, 3, pl).toFixed(2) + 'deg) rotateY(' + lerp(12, 4, near).toFixed(2) + 'deg)';
+      var beat = (Math.sin(t * 5.2) + 1) / 2;
+      $('nowdot').style.boxShadow = '0 0 0 ' + (beat * 12).toFixed(1) + 'px rgba(16,185,129,' + (0.35 - beat * 0.3).toFixed(2) + ')';
+    }
+
+    /* III · 3 (40–50) — one press, a ripple, and the screen gives way to warm light */
+    say($('l6'), t, 40.3, 43.0);
+    var on3 = t > 43.3 && t < 50.6;
+    $('p3').style.opacity = on3 ? Math.min(1, (t - 43.3) / 0.9) : 0;
+    if (on3) {
+      var lean = spring(t - 43.3, 0.35, 0.92);
+      var close = eio(prog(t, 43.6, 45.0));
+      var sc3 = (WIDE ? 0.66 : 1.0) * lerp(1, 1.5, close);
+      var press = t > 45.05 ? spring(t - 45.05, 3.2, 0.32) : 0;   // the press, and the spring back
+      var down = t > 44.85 && t < 45.05 ? prog(t, 44.85, 45.05) : 0;
+      var btnS = 1 - 0.07 * down - (t > 45.05 ? 0.07 * (1 - press) : 0);
+      $('screen').style.transform = 'translateY(' + (lerp(0, WIDE ? -520 : -600, close)).toFixed(1) + 'px) scale(' + sc3.toFixed(4) + ') rotateX(' + lerp(18, 9, lean).toFixed(2) + 'deg) rotateY(' + lerp(14, 6, lean).toFixed(2) + 'deg) rotateZ(' + lerp(2, 0.5, lean).toFixed(2) + 'deg)';
+      var dim = prog(t, 46.4, 48.8);
+      $('screen').style.filter = 'brightness(' + (1 - 0.85 * eio(dim)).toFixed(3) + ')';
+      $('btn').style.transform = 'scale(' + btnS.toFixed(4) + ')';
+      $('btn').style.boxShadow = '0 24px ' + (80 + 60 * (t > 45.05 ? 1 - prog(t, 45.05, 46.2) : 0)).toFixed(0) + 'px rgba(124,58,237,.55)';
+      $('b1').style.opacity = 1 - prog(t, 45.2, 45.5);
+      $('b2').style.opacity = prog(t, 45.3, 45.7);
+      $('b2').style.transform = 'scale(' + (0.9 + 0.1 * spring(t - 45.3, 2, 0.5)).toFixed(3) + ')';
+      $('st5').className = t > 45.4 ? 'on' : '';
+      $('st5').style.transform = 'scale(' + (t > 45.4 ? 0.8 + 0.2 * spring(t - 45.4, 2.4, 0.4) : 1).toFixed(3) + ')';
+      // the finger
+      var tc = $('touch');
+      tc.style.left = '320px'; tc.style.top = (1400 - 120 - 70 - 60) + 'px';
+      tc.style.opacity = t > 44.5 && t < 45.6 ? Math.min(prog(t, 44.5, 44.8), 1 - prog(t, 45.3, 45.6)) : 0;
+      tc.style.transform = 'scale(' + (1 - 0.18 * down - (t > 45.05 ? 0.18 * (1 - press) : 0)).toFixed(3) + ')';
+      // the ripple — a haptic you can see
+      var rs = $('rings').children;
+      for (var r = 0; r < rs.length; r++) {
+        var rt = t - 45.05 - r * 0.16, rp = prog(rt, 0, 1.3);
+        var d = 140 + eout(rp) * 900;
+        rs[r].style.width = d + 'px'; rs[r].style.height = d + 'px';
+        rs[r].style.marginLeft = -d / 2 + 'px'; rs[r].style.marginTop = -d / 2 + 'px';
+        rs[r].style.left = '380px'; rs[r].style.top = (1400 - 120 - 70) + 'px';
+        rs[r].style.opacity = rt > 0 ? (1 - rp) * 0.8 : 0;
+      }
+    }
+    // the light that takes the screen's place
+    var wl = $('warm');
+    var wIn = prog(t, 46.6, 49.2), wOut = prog(t, 49.6, 51.0);
+    wl.style.opacity = t > 46.6 && t < 51 ? eio(wIn) * (1 - eio(wOut)) : 0;
+    wl.style.transform = 'scale(' + lerp(0.05, 1.15, eout(wIn)).toFixed(4) + ')';
+    wl.style.top = (WIDE ? 62 : 66) + '%';
+
+    /* IV · THE CLOSE (50–60) */
+    var e1 = eout(prog(t, 51.2, 52.6)), e2 = eout(prog(t, 52.7, 54.1)), e3 = eout(prog(t, 53.8, 55.2));
+    var endOut = 0;
+    $('end').style.transform = 'translateY(-50%)';
+    $('e1').style.opacity = e1 * (1 - endOut); $('e1').style.transform = 'translateY(' + ((1 - e1) * 24) + 'px)'; $('e1').style.filter = 'blur(' + ((1 - e1) * 12).toFixed(1) + 'px)';
+    $('e2').style.opacity = e2; $('e2').style.transform = 'translateY(' + ((1 - e2) * 18) + 'px)';
+    $('e3').style.opacity = e3; $('e3').style.transform = 'translateY(' + ((1 - e3) * 14) + 'px)';
+  };
+
+  /* ── playing it ── */
+  var t0 = null, raf = 0;
+  var replayBtn = $('replay');
+  var loop = function (now) {
+    if (t0 == null) t0 = now;
+    var t = (now - t0) / 1000;
+    render(Math.min(t, DUR));
+    if (t < DUR) raf = requestAnimationFrame(loop);
+    else replayBtn.style.display = 'block';     // only once it is over
+  };
+  var play = function () {
+    cancelAnimationFrame(raf); t0 = null;
+    replayBtn.style.display = 'none';           // gone the moment it plays
+    raf = requestAnimationFrame(loop);
+  };
+  replayBtn.onclick = play; $('again2').onclick = play;
+  $('shape').onclick = function () { WIDE = !WIDE; layout(); render(0); play(); };
+  addEventListener('keydown', function (e) {
+    if (e.key === 'f' || e.key === 'F') $('shape').onclick();
+    if (e.key === 'r' || e.key === 'R') play();
+  });
+  addEventListener('resize', layout);
+
+  layout(); render(0);
+  /* the recorder drives the clock itself */
+  window.__seek = function (t) { render(t); };
+  window.__ready = function () { return document.fonts.ready.then(function () { return true; }); };
+  if (!REC) document.fonts.ready.then(function () { setTimeout(play, 500); });
+})();
+</script>
+</body>
+</html>
