@@ -54,6 +54,15 @@ import { Micro } from '../components/Micro';
 import { NeonButton } from '../components/NeonButton';
 import { TravelSheet } from '../components/TravelSheet';
 import { ROOM_CODES } from '../constants/countryRoomIndex';
+
+/* the canvas colour at an opacity — a hex from the theme, or the
+   Liquid theme's rgba */
+const fadeTo = (c, a) => {
+  const m = /^#([0-9a-f]{6})$/i.exec(c);
+  if (m) { const n = parseInt(m[1], 16); return 'rgba(' + (n >> 16) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')'; }
+  return String(c).replace(/rgba?\(([^,]+),([^,]+),([^,)]+)(,[^)]*)?\)/, 'rgba($1,$2,$3,' + a + ')');
+};
+
 const LandingSheet = lazyOverlay(() => import('../components/LandingSheet').then((mod) => ({ default: mod.LandingSheet })));
 const CircleSheet = lazyOverlay(() => import('../components/CircleSheet').then((mod) => ({ default: mod.CircleSheet })));
 const TripsSheet = lazyOverlay(() => import('../components/TripsSheet').then((mod) => ({ default: mod.TripsSheet })));
@@ -979,13 +988,19 @@ export const MapScreen = () => {
 
   const overlays = (
     <View pointerEvents="box-none" style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, zIndex: 10 }}>
-      {/* floating glass search */}
+      {/* ── A QUIET TOP ──────────────────────────────────────────────
+          Ayser circled it: the street names showed through the search
+          bar and the chips, and ran under the clock. The map now fades
+          out under the top, and what floats on it is solid. */}
+      <LinearGradient pointerEvents="none" colors={[fadeTo(C.bg, 1), fadeTo(C.bg, 0.9), fadeTo(C.bg, 0)]} locations={[0, 0.55, 1]}
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, height: insets.top + 120 }} />
       <View style={{ position: 'absolute', top: insets.top + 12, left: 16, right: 16 }}>
         <View
           style={{
             flexDirection: 'row', alignItems: 'center',
-            backgroundColor: C.float, borderWidth: StyleSheet.hairlineWidth, borderColor: C.line,
-            borderRadius: 999, paddingHorizontal: 14, height: 40,
+            backgroundColor: C.floatSolid, borderWidth: StyleSheet.hairlineWidth, borderColor: C.line,
+            borderRadius: 999, paddingHorizontal: 14, height: 44,
+            shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 12, shadowOffset: { width: 0, height: 3 }, elevation: 3,
           }}
         >
           <Ionicons name="search" size={15} color={C.faint} />
@@ -995,7 +1010,7 @@ export const MapScreen = () => {
             value={mapQ}
             onChangeText={setMapQ}
             autoCapitalize="none"
-            style={{ color: C.text, marginLeft: 8, flex: 1, fontSize: 14, height: 40, outlineStyle: 'none' }}
+            style={{ color: C.text, marginLeft: 8, flex: 1, minWidth: 0, fontSize: 15, height: 44, outlineStyle: 'none' }}
           />
           {mapQ ? (
             <Pressable onPress={() => setMapQ('')} hitSlop={8} accessibilityLabel={t('close')} accessibilityRole="button">
@@ -1049,15 +1064,13 @@ export const MapScreen = () => {
                 <Pressable key={o.k} onPress={() => { tapSelection(); setLens(o.k); setPanelOpen(false); if (o.k !== 'trips') setNewTrip(null); }}>
                   <View style={{
                     flexDirection: 'row', alignItems: 'center',
-                    backgroundColor: on ? C.text : C.float,
-                    borderWidth: 1, borderColor: on ? C.text : C.line,
-                    borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7, marginRight: 7,
+                    /* words only: six emojis and six counts made a row
+                       of noise ("Everything 361" told nobody anything) */
+                    backgroundColor: on ? C.text : C.floatSolid,
+                    borderWidth: StyleSheet.hairlineWidth, borderColor: on ? C.text : C.line,
+                    borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8, marginRight: 8,
                   }}>
-                    <Text style={{ fontSize: 12.5, marginRight: 5 }}>{o.emoji}</Text>
-                    <Text style={{ color: on ? C.bg : C.dim, fontSize: 12, fontWeight: on ? '900' : '800' }}>{o.label}</Text>
-                    {o.n ? (
-                      <Text style={{ color: on ? C.bg : C.faint, opacity: on ? 0.7 : 1, fontSize: 11, fontWeight: '800', marginLeft: 5 }}>{o.n}</Text>
-                    ) : null}
+                    <Text style={{ color: on ? C.bg : C.dim, fontSize: 13, fontWeight: on ? '800' : '700' }}>{o.label}</Text>
                   </View>
                 </Pressable>
               );
