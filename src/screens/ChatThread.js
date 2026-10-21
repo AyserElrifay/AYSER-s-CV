@@ -609,6 +609,40 @@ export const ChatThread = ({ chat, group, onClose }) => {
           ) : null}
         </View>
 
+        {/* ── THE DAY'S PHOTOS ── a plan's chat, once the plan has begun:
+            every photo anybody shared here, in one strip under the name —
+            the album WhatsApp makes you scroll for. Never a once-only one
+            (those are for one pair of eyes). After it ends, one button to
+            add yours. */}
+        {group && chat.plan && Date.now() >= Date.parse(chat.plan.starts_at) ? (() => {
+          const shots = msgs.filter((m) => m.mediaUrl && m.kind !== 'once' && m.mediaKind !== 'video');
+          const over = Date.now() > Date.parse(chat.plan.starts_at) + (Number(chat.plan.minutes) || 120) * 60000;
+          const mineIn = shots.some((m) => m.userId === (user && user.id));
+          if (!shots.length && !over) return null;
+          return (
+            <View style={{ paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.line, backgroundColor: C.bg2 }}>
+              <Text style={{ color: C.faint, fontSize: 11, fontWeight: '900', letterSpacing: 1, marginHorizontal: 14, marginBottom: 8 }}>
+                {(shots.length ? t('alb_title').replace('{n}', String(shots.length)) : t('alb_none')).toUpperCase()}
+              </Text>
+              <ScrollView horizontal keyboardShouldPersistTaps="handled" showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 12 }}>
+                {over && !mineIn && isReal ? (
+                  <Pressable onPress={() => { tapMedium(); setMomentOpen(true); }} accessibilityRole="button" style={{ marginEnd: 6 }}>
+                    <View style={{ width: 64, height: 64, borderRadius: 12, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center' }}>
+                      <Ionicons name="add" size={24} color={C.purple} />
+                      <Text style={{ color: C.purple, fontSize: 10.5, fontWeight: '800' }}>{t('alb_add')}</Text>
+                    </View>
+                  </Pressable>
+                ) : null}
+                {shots.map((m) => (
+                  <Pressable key={m.id} onPress={() => { tapLight(); setViewMoment({ mediaUrl: m.mediaUrl, mediaKind: m.mediaKind }); }} accessibilityRole="imagebutton" style={{ marginEnd: 6 }}>
+                    <Image source={{ uri: m.mediaUrl }} style={{ width: 64, height: 64, borderRadius: 12, backgroundColor: C.glassHi }} />
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </View>
+          );
+        })() : null}
+
         {group && pinned ? (
           <Pressable onPress={() => { tapLight(); setInfoOpen(true); }} style={{ flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 14, paddingVertical: 9, backgroundColor: C.purpleSoft, borderBottomWidth: 1, borderBottomColor: C.line }}>
             <Text style={{ fontSize: 14, marginEnd: 8 }}>📌</Text>
