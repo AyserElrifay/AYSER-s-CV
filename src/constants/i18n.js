@@ -1653,6 +1653,7 @@ export const STRINGS = {
     ic_paper: "Paper",
     nt_v_team_reply: "answered your message",
     nt_v_app_problem: "noticed a problem in the app",
+    nt_v_partner_watch: "found {n} partner places that need a look", push_partner_watch: "{n} partner places need a look",
     nt_v_daily_line: "sent you a good word",
     dl_stop: "Stop these",
     dl_stopped: "Stopped. You won’t get these any more.",

@@ -19086,7 +19086,7 @@ on conflict (slot, en) do update set ar = excluded.ar, by_en = excluded.by_en, b
 do $do$ begin
   alter table public.notifications drop constraint if exists notifications_kind_check;
   alter table public.notifications add constraint notifications_kind_check
-    check (kind in ('vibe','laugh','comment','mate_request','mate_accept','message','call','tag','repost','green_invite','food_order','food_status','bardi_match','plan_soon','venue_decision','xp_award','safety','creator_plan','booking','trip_open','team_reply','biz_request','biz_reply','app_problem','daily_line'))
+    check (kind in ('vibe','laugh','comment','mate_request','mate_accept','message','call','tag','repost','green_invite','food_order','food_status','bardi_match','plan_soon','venue_decision','xp_award','safety','creator_plan','booking','trip_open','team_reply','biz_request','biz_reply','app_problem','daily_line','partner_watch'))
     not valid;
 exception when others then raise notice 'notifications kind constraint skipped: %', sqlerrm;
 end $do$;
@@ -19536,9 +19536,9 @@ grant execute on function public.green_feel(uuid, int, int, int) to authenticate
 --    empty     the page is shown on Moments with no photos or no hours
 --  Owner only. Nothing here touches the place; it is for us to look.
 -- ════════════════════════════════════════════════════════════════════
-create or replace function public.owner_partner_flags()
+create or replace function public.partner_flags_all()
 returns jsonb language sql stable security definer set search_path = public as $$
-  select case when not public.is_app_owner() then '[]'::jsonb else coalesce((
+  select coalesce((
     select jsonb_agg(jsonb_build_object('id', v.id, 'name', v.name, 'city', v.city, 'country', v.country, 'flags', f.flags) order by jsonb_array_length(f.flags) desc, v.name)
       from public.partner_venues v
       cross join lateral (
@@ -19561,10 +19561,48 @@ returns jsonb language sql stable security definer set search_path = public as $
            where v.listed and (coalesce(array_length(v.photos, 1), 0) = 0 or v.hours is null)
         ) z
       ) f
-     where jsonb_array_length(f.flags) > 0), '[]'::jsonb) end;
+     where jsonb_array_length(f.flags) > 0), '[]'::jsonb);
+$$;
+-- the list itself, for the owner's screen and the weekly job — nobody calls it directly
+revoke all on function public.partner_flags_all() from public, anon, authenticated;
+
+create or replace function public.owner_partner_flags()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select case when not public.is_app_owner() then '[]'::jsonb else public.partner_flags_all() end;
 $$;
 revoke execute on function public.owner_partner_flags() from public, anon;
 grant execute on function public.owner_partner_flags() to authenticated;
+
+-- once a week, Sunday morning: one line to the owners, and only when some
+-- place needs a look. A quiet week sends nothing.
+do $do$ begin
+  alter table public.notifications drop constraint if exists notifications_kind_check;
+  alter table public.notifications add constraint notifications_kind_check
+    check (kind in ('vibe','laugh','comment','mate_request','mate_accept','message','call','tag','repost','green_invite','food_order','food_status','bardi_match','plan_soon','venue_decision','xp_award','safety','creator_plan','booking','trip_open','team_reply','biz_request','biz_reply','app_problem','daily_line','partner_watch'))
+    not valid;
+exception when others then raise notice 'notifications kind constraint skipped: %', sqlerrm;
+end $do$;
+
+create or replace function public.send_partner_watch()
+returns int language plpgsql security definer set search_path = public as $$
+declare n int := jsonb_array_length(public.partner_flags_all()); k int := 0; o record;
+begin
+  if n = 0 then return 0; end if;
+  for o in select p.id from public.app_owners ao join auth.users u on lower(u.email) = lower(ao.email) join public.profiles p on p.id = u.id loop
+    insert into public.notifications (user_id, actor_id, kind, body) values (o.id, o.id, 'partner_watch', n::text);
+    k := k + 1;
+  end loop;
+  return k;
+end;
+$$;
+revoke all on function public.send_partner_watch() from public, anon, authenticated;
+
+do $do$ begin
+  create extension if not exists pg_cron;
+  perform cron.unschedule(jobid) from cron.job where jobname = 'partner-watch';
+  perform cron.schedule('partner-watch', '7 7 * * 0', 'select public.send_partner_watch()');
+exception when others then raise notice 'partner-watch schedule skipped: %', sqlerrm;
+end $do$;
 
 -- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
