@@ -87,14 +87,16 @@ const Greeting = ({ h, ar, t }) => {
         <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={{ color: C.faint, fontSize: 10.5, fontWeight: '800', letterSpacing: 1 }}>{t('country_hello')}</Text>
-            <Text style={{ color: C.text, fontSize: 28, fontWeight: '900', marginTop: 4 }}>{h.native}</Text>
-            <Text style={{ color: C.gold, fontSize: 13.5, fontWeight: '700', marginTop: 1 }}>{h.how}</Text>
+            <Text style={{ color: C.text, fontSize: 28, fontWeight: '900', marginTop: 4, textAlign: ar ? 'right' : 'left' }}>{h.native}</Text>
+            {/* a Latin line inside an Arabic layout keeps to its own side,
+                or it runs into the goodbye next to it */}
+            <Text style={{ color: C.gold, fontSize: 13.5, fontWeight: '700', marginTop: 1, textAlign: ar ? 'right' : 'left' }} numberOfLines={1}>{h.how}</Text>
           </View>
           {h.bye ? (
             <View style={{ alignItems: 'flex-end', marginStart: 10, maxWidth: '45%' }}>
               <Text style={{ color: C.faint, fontSize: 10.5, fontWeight: '800', letterSpacing: 1, textAlign: 'right' }} numberOfLines={1}>{t('country_bye')}</Text>
-              <Text style={{ color: C.text, fontSize: 16, fontWeight: '800', marginTop: 4 }}>{h.bye.native}</Text>
-              <Text style={{ color: C.gold, fontSize: 12, marginTop: 1 }}>{h.bye.how}</Text>
+              <Text style={{ color: C.text, fontSize: 16, fontWeight: '800', marginTop: 4, textAlign: ar ? 'left' : 'right' }}>{h.bye.native}</Text>
+              <Text style={{ color: C.gold, fontSize: 12, marginTop: 1, textAlign: ar ? 'left' : 'right' }} numberOfLines={1}>{h.bye.how}</Text>
             </View>
           ) : null}
         </View>

@@ -260,9 +260,9 @@ const Today = ({ v, lang, onPlan, onCode }) => {
       <Label>{B('recent')}</Label>
       {s && s.recent && s.recent.length ? s.recent.map((x, i) => (
         <View key={i} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: C.line }}>
-          <Image source={{ uri: x.avatar || AV_NEUTRAL }} style={{ width: 30, height: 30, borderRadius: 15, marginEnd: 10 }} />
-          <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '800', flex: 1 }}>{x.name || '—'}</Text>
-          <Text style={{ color: C.faint, fontSize: 12 }}>{'×' + x.visits + ' · ' + new Date(x.at).toLocaleDateString()}</Text>
+          <Image source={{ uri: x.avatar || AV_NEUTRAL }} style={{ width: 30, height: 30, borderRadius: 15, marginHorizontal: 10 }} />
+          <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '800', flex: 1, textAlign: lang === 'ar' ? 'right' : 'left' }} numberOfLines={1}>{x.name || '—'}</Text>
+          <Text style={{ color: C.faint, fontSize: 12, marginStart: 10 }}>{'×' + x.visits + ' · ' + new Date(x.at).toLocaleDateString()}</Text>
         </View>
       )) : <Text style={{ color: C.dim, fontSize: 13.5 }}>{s ? B('recent_none') : '…'}</Text>}
       <View style={{ borderRadius: 20, padding: 16, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, marginTop: 20 }}>
