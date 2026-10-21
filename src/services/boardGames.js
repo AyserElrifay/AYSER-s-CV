@@ -29,7 +29,7 @@ export const GAMES = [
   },
   {
     id: 'four',
-    title: 'Connect Four',
+    title: 'Four in a Row',   // not the trademarked name
     emoji: '🔴',
     blurb: 'Drop a disc, get four in a line — across, down or diagonal.',
     players: 2,
