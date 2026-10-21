@@ -40,12 +40,18 @@ export function useSwipeToCamera({ direction = 'down', onTrigger, atTop, enabled
           if (atTop && !atTop()) return false;
           return g.dy > 26 && g.dy > Math.abs(g.dx) * 3;
         }
-        // inwards from the near edge
+        // inwards from the near edge. Where the finger STARTED, not
+        // where it is now: a quick flick is already past 60px by its
+        // first move event, so asking where it is now let every fast
+        // swipe through — only a slow drag ever opened the camera.
+        // (g.x0 is only filled in once the gesture is ours, so the start
+        // is where it is minus how far it came.)
+        const from = g.moveX - g.dx;
         if (fromRight) {
           const w = Dimensions.get('window').width;
-          return g.moveX > w - 60 && g.dx < -26 && -g.dx > Math.abs(g.dy) * 3;
+          return from > w - 60 && g.dx < -26 && -g.dx > Math.abs(g.dy) * 3;
         }
-        return g.moveX < 60 && g.dx > 26 && g.dx > Math.abs(g.dy) * 3;
+        return from < 60 && g.dx > 26 && g.dx > Math.abs(g.dy) * 3;
       },
       onPanResponderGrant: () => { fired.current = false; },
       onPanResponderMove: (_e, g) => {
