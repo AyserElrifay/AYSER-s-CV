@@ -1,54 +1,56 @@
 import React, { useState } from 'react';
 import { tNow } from '../context/LanguageContext';
-import { View, Text, Modal, Pressable, ScrollView, TextInput, StyleSheet } from 'react-native';
+import { View, Text, Modal, Pressable, ScrollView, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { C, R } from '../constants/theme';
 import { tapLight, tapSelection } from '../utils/feedback';
 import { useSheetBack } from '../hooks/useSheetBack';
 import { SheetHandle } from './SheetHandle';
 
 /* ── THE EFFECTS DRAWER ─────────────────────────────────────────────
-   Everything the camera can do to a frame, in one place you pull up
-   from the bottom: the lenses, the colour looks, the overlays and the
-   games. Categories across the top, a grid underneath, and the thing
-   you're wearing right now marked so you always know what's on.
+   Ayser: "حاسسها زحمة أوي ومش عملية". It was tabs, a search box and a
+   wall of big cards. Now: four rows you can read at a glance — faces,
+   looks, fun, games — each a line of small circles you slide sideways,
+   the one you are wearing ringed in gold. No search: nobody types the
+   name of a beard. */
 
-   Nothing in here is downloaded or licensed — every lens and every
-   look is drawn or computed by us. */
-
-const TABS = [
-  { k: 'you', label: 'For You', icon: 'sparkles' },
-  { k: 'faces', label: 'Faces', icon: 'happy-outline' },
-  { k: 'colour', label: 'Colour', icon: 'color-palette-outline' },
-  { k: 'fun', label: 'Fun', icon: 'flash-outline' },
-  { k: 'games', label: 'Games', icon: 'game-controller-outline' },
-];
-
-/* One square in the grid — a big emoji or a swatch, its name under it,
-   and a ring when it's the one you're wearing. */
-const Cell = ({ label, glyph, tint, on, onPress, sub }) => (
-  <Pressable onPress={onPress} style={{ width: '25%', padding: 5 }}>
+const Dot = ({ label, glyph, tint, on, onPress }) => (
+  <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ selected: on }} style={{ width: 72, alignItems: 'center', outlineStyle: 'none' }}>
     <View style={{
-      aspectRatio: 0.82, borderRadius: 16, overflow: 'hidden',
-      borderWidth: on ? 2.5 : 1, borderColor: on ? C.gold : 'rgba(255,255,255,0.18)',
+      width: 58, height: 58, borderRadius: 29, overflow: 'hidden',
+      borderWidth: on ? 2.5 : 0, borderColor: C.gold,
       alignItems: 'center', justifyContent: 'center',
-      backgroundColor: 'rgba(255,255,255,0.08)',
+      backgroundColor: 'rgba(255,255,255,0.10)',
     }}>
-      {tint ? (
-        <LinearGradient colors={tint} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
-      ) : null}
-      <Text style={{ fontSize: 28 }}>{glyph}</Text>
-      {sub ? <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 9, marginTop: 3 }}>{sub}</Text> : null}
+      {tint ? <LinearGradient colors={tint} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} /> : null}
+      <Text style={{ fontSize: 26 }}>{glyph}</Text>
     </View>
-    <Text numberOfLines={1} style={{ color: on ? C.gold : 'rgba(255,255,255,0.85)', fontSize: 10.5, fontWeight: on ? '900' : '700', textAlign: 'center', marginTop: 4 }}>
-      {label}
-    </Text>
+    <Text numberOfLines={1} style={{ color: on ? C.gold : 'rgba(255,255,255,0.7)', fontSize: 10.5, fontWeight: on ? '900' : '600', marginTop: 5, maxWidth: 68 }}>{label}</Text>
   </Pressable>
 );
+
+const Row = ({ title, children }) => (
+  <View style={{ marginTop: 14 }}>
+    <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, fontWeight: '900', letterSpacing: 1.2, marginStart: 18, marginBottom: 8 }}>{title.toUpperCase()}</Text>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 10 }}>
+      {children}
+    </ScrollView>
+  </View>
+);
+
+/* each look shows its own colour, not the same purple for all */
+const LOOK_TINT = {
+  vivid: ['#FF5F6D', '#FFC371'], warm: ['#F7971E', '#FFD200'], cool: ['#2193B0', '#6DD5ED'],
+  retro: ['#C79081', '#DFA579'], bw: ['#1F1F1F', '#9A9A9A'], dream: ['#C471F5', '#FA71CD'],
+  noir: ['#000000', '#3A3A3A'], sun: ['#F9D423', '#FF8C42'], golden: ['#F2994A', '#F2C94C'],
+  tan: ['#B5651D', '#E0A96D'], film: ['#8E6E53', '#C9B79C'], vhs: ['#3A1C71', '#D76D77'],
+  mint: ['#43C6AC', '#B8F5D0'], rose: ['#F4C4F3', '#FC67FA'], candy: ['#FF9A9E', '#FAD0C4'],
+  moody: ['#2C3E50', '#4CA1AF'], night: ['#0F2027', '#2C5364'], ice: ['#C9E8F7', '#7FB8DA'],
+  faded: ['#BDB6A8', '#E7E1D5'], punch: ['#FF0844', '#FFB199'], sepia: ['#704214', '#C8A27A'],
+  invert: ['#00F5D4', '#7B2FF7'],
+};
 
 export const EffectsSheet = ({
   lenses = [], filters = [], effects = [], games = [],
@@ -59,41 +61,8 @@ export const EffectsSheet = ({
   /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
   useSheetBack(onClose);
   const insets = useSafeAreaInsets();
-  const [tab, setTab] = useState('you');
-  const [q, setQ] = useState('');
-
-  const term = q.trim().toLowerCase();
-  const match = (s) => !term || String(s || '').toLowerCase().includes(term);
-
-  /* "For You" is not a recommendation engine pretending to know you —
-     it is a hand-picked front page of the best of each kind. Saying so
-     is better than implying a model we don't have. */
-  const forYou = [
-    ...lenses.slice(0, 8).map((l) => ({ kind: 'lens', item: l })),
-    ...filters.filter((f) => f.id !== 'none').slice(0, 8).map((f) => ({ kind: 'filter', item: f })),
-    ...effects.filter((e) => e.id !== 'none').slice(0, 4).map((e) => ({ kind: 'effect', item: e })),
-  ];
-
-  const rows =
-    tab === 'faces' ? lenses.filter((l) => match(l.label)).map((l) => ({ kind: 'lens', item: l }))
-    : tab === 'colour' ? filters.filter((f) => f.id !== 'none' && match(f.label)).map((f) => ({ kind: 'filter', item: f }))
-    : tab === 'fun' ? effects.filter((e) => e.id !== 'none' && match(e.label)).map((e) => ({ kind: 'effect', item: e }))
-    : tab === 'games' ? games.filter((g) => match(g.title)).map((g) => ({ kind: 'game', item: g }))
-    : forYou.filter((x) => match(x.item.label || x.item.title));
-
-  const pick = (row) => {
-    tapSelection();
-    if (row.kind === 'lens') onPickLens && onPickLens(row.item);
-    else if (row.kind === 'filter') onPickFilter && onPickFilter(row.item);
-    else if (row.kind === 'effect') onPickEffect && onPickEffect(row.item);
-    else if (row.kind === 'game') onPickGame && onPickGame(row.item);
-  };
-
-  const isOn = (row) =>
-    row.kind === 'lens' ? lensId === row.item.id
-    : row.kind === 'filter' ? filterId === row.item.id
-    : row.kind === 'effect' ? effectId === row.item.id
-    : gameId === row.item.id;
+  const anyOn = lensId || (filterId && filterId !== 'none') || (effectId && effectId !== 'none') || gameId;
+  const go = (fn, item) => { tapSelection(); fn && fn(item); };
 
   /* `inline` renders this as an overlay in place rather than a second
      Modal — a modal inside a modal lays out against the parent's
@@ -103,65 +72,43 @@ export const EffectsSheet = ({
     <View style={inline ? [StyleSheet.absoluteFill, { justifyContent: 'flex-end', zIndex: 60 }] : { flex: 1, justifyContent: 'flex-end' }}>
       <Pressable style={{ flex: 1 }} onPress={onClose} />
       <View style={{
-        height: '74%', backgroundColor: 'rgba(12,10,22,0.98)',
+        backgroundColor: 'rgba(12,10,22,0.97)',
         borderTopLeftRadius: R + 10, borderTopRightRadius: R + 10,
-        borderTopWidth: 1, borderColor: 'rgba(255,255,255,0.18)',
-        paddingBottom: insets.bottom,
+        paddingBottom: insets.bottom + 14,
       }}>
         <SheetHandle onClose={onClose} tint="rgba(255,255,255,0.3)" />
-
-        {/* categories, the way a camera drawer does it */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingTop: 8 }}>
-          <Pressable onPress={onClose} hitSlop={10} style={{ paddingHorizontal: 6 }} accessibilityRole="button" accessibilityLabel={tNow('close')}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, paddingTop: 4 }}>
+          <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button" accessibilityLabel={tNow('close')} style={{ outlineStyle: 'none' }}>
             <Ionicons name="chevron-down" size={22} color="rgba(255,255,255,0.8)" />
           </Pressable>
-          <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ alignItems: 'center' }}>
-            {TABS.map((t) => (
-              <Pressable key={t.k} onPress={() => { tapLight(); setTab(t.k); }} style={{ alignItems: 'center', marginHorizontal: 11 }}>
-                <Ionicons name={t.icon} size={17} color={tab === t.k ? '#FFF' : 'rgba(255,255,255,0.45)'} />
-                <Text style={{ color: tab === t.k ? '#FFF' : 'rgba(255,255,255,0.45)', fontSize: 12.5, fontWeight: tab === t.k ? '900' : '700', marginTop: 3 }}>
-                  {t.label}
-                </Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-        </View>
-
-        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.10)', borderRadius: 999, marginHorizontal: 14, marginTop: 10, paddingHorizontal: 13 }}>
-          <Ionicons name="search" size={14} color="rgba(255,255,255,0.55)" />
-          <TextInput
-            value={q} onChangeText={setQ}
-            placeholder="Search effects" placeholderTextColor="rgba(255,255,255,0.45)"
-            style={{ flex: 1, color: '#FFF', fontSize: 13.5, paddingVertical: 9, marginLeft: 8 }}
-          />
-          {lensId || (filterId && filterId !== 'none') || (effectId && effectId !== 'none') || gameId ? (
-            <Pressable onPress={() => { tapLight(); onClear && onClear(); }} hitSlop={8}>
-              <Text style={{ color: C.gold, fontSize: 12, fontWeight: '900' }}>Clear</Text>
+          {anyOn ? (
+            <Pressable onPress={() => { tapLight(); onClear && onClear(); }} hitSlop={10} accessibilityRole="button" style={{ outlineStyle: 'none' }}>
+              <Text style={{ color: C.gold, fontSize: 13, fontWeight: '900' }}>{tNow('fx_clear')}</Text>
             </Pressable>
           ) : null}
         </View>
-
-        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 9, paddingTop: 12, paddingBottom: 30 }}>
-          {rows.length ? rows.map((row, i) => (
-            <Cell
-              key={row.kind + (row.item.id || i)}
-              label={row.item.label || row.item.title}
-              glyph={row.item.emoji || '✨'}
-              tint={row.kind === 'filter' ? ['rgba(124,58,237,0.35)', 'rgba(236,72,153,0.35)'] : null}
-              sub={row.kind === 'game' ? 'game' : null}
-              on={isOn(row)}
-              onPress={() => pick(row)}
-            />
-          )) : (
-            <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, textAlign: 'center', width: '100%', paddingVertical: 40 }}>
-              Nothing here by that name.
-            </Text>
-          )}
+        <ScrollView style={{ maxHeight: 460 }} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 6 }}>
+          {lenses.length ? (
+            <Row title={tNow('fx_faces')}>
+              {lenses.map((l) => <Dot key={l.id} label={l.label} glyph={l.emoji} on={lensId === l.id} onPress={() => go(onPickLens, l)} />)}
+            </Row>
+          ) : null}
+          {filters.length ? (
+            <Row title={tNow('fx_looks')}>
+              {filters.filter((f) => f.id !== 'none').map((f) => <Dot key={f.id} label={f.label} glyph="" tint={LOOK_TINT[f.id] || ['#7C3AED', '#EC4899']} on={filterId === f.id} onPress={() => go(onPickFilter, f)} />)}
+            </Row>
+          ) : null}
+          {effects.length ? (
+            <Row title={tNow('fx_fun')}>
+              {effects.filter((e) => e.id !== 'none').map((e) => <Dot key={e.id} label={e.label} glyph={e.emoji} on={effectId === e.id} onPress={() => go(onPickEffect, e)} />)}
+            </Row>
+          ) : null}
+          {games.length ? (
+            <Row title={tNow('fx_games')}>
+              {games.map((g) => <Dot key={g.id} label={g.title} glyph={g.emoji || '🎮'} on={gameId === g.id} onPress={() => go(onPickGame, g)} />)}
+            </Row>
+          ) : null}
         </ScrollView>
-
-        <Text style={{ color: 'rgba(255,255,255,0.35)', fontSize: 10, textAlign: 'center', paddingHorizontal: 30, paddingBottom: 8 }}>
-          Every lens and look here is drawn or computed by us — nothing downloaded, nothing licensed.
-        </Text>
       </View>
     </View>
   );
