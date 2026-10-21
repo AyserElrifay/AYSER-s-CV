@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { lazyOverlay } from '../lib/lazyScreen';
-import { pendingTrip, takeTrip, onTrip } from '../lib/tripLink';
+import { pendingTrip, takeTrip, onTrip, onInvite, takeInvite } from '../lib/tripLink';
 
 const TripsSheet = lazyOverlay(() => import('./TripsSheet').then((m) => ({ default: m.TripsSheet })));
+const TripInvite = lazyOverlay(() => import('./TripInvite').then((m) => ({ default: m.TripInvite })));
 
 /* ─── OPENS A TRIP FROM ANYWHERE ───────────────────────────────────────
    A shared link (…/?trip=<id>) or a "it's open now" notification. It
@@ -19,4 +20,12 @@ export const TripLinkGate = ({ signedIn }) => {
     <TripsSheet focus={id} onClose={close}
       onNeedSignIn={signedIn ? undefined : () => setId(null) /* still pending: reopens once signed in */} />
   );
+};
+
+/* the invitation a booking brings, over whatever is on screen */
+export const TripInviteGate = () => {
+  const [id, setId] = useState(null);
+  useEffect(() => onInvite(setId), []);
+  if (!id) return null;
+  return <TripInvite bookingId={id} onClose={() => { takeInvite(); setId(null); }} />;
 };

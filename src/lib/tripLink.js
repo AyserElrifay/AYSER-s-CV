@@ -28,3 +28,18 @@ export function openTrip(id) {
   listeners.forEach((fn) => { try { fn(id); } catch (e) {} });
 }
 export function onTrip(fn) { listeners.add(fn); return () => listeners.delete(fn); }
+
+/* ─── A TRIP INVITATION, FROM ANYWHERE ── the notification a confirmed
+   booking sends (RUN_ME.sql, "THE INVITATION"), the booking screen and My
+   bookings all open it with openInvite(bookingId); TripInviteGate, in
+   components/TripLinkGate.js, draws it. Kept in this file because a tiny
+   module of its own costs more in the first download than it holds. */
+let invitePending = null;
+const inviteListeners = new Set();
+export function openInvite(id) {
+  if (!id) return;
+  invitePending = String(id);
+  inviteListeners.forEach((fn) => { try { fn(invitePending); } catch (e) {} });
+}
+export function takeInvite() { const v = invitePending; invitePending = null; return v; }
+export function onInvite(fn) { inviteListeners.add(fn); return () => inviteListeners.delete(fn); }

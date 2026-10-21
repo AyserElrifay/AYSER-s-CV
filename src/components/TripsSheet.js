@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { listOffers, bookOffer, bookingPhotoOk, cancelBooking, restoreBooking, hideBooking, myBookings, myPlus, offerWant, photoUrl, money } from '../services/offers';
 import { appLink, shareLink, shareNote } from '../utils/share';
 import { payBooking } from '../services/payments';
+import { openInvite } from '../lib/tripLink';
 import { remember, recall } from '../lib/offline';
 import { tapLight, tapMedium, tapSelection, tapSuccess } from '../utils/feedback';
 import { useSheetBack } from '../hooks/useSheetBack';
@@ -229,6 +230,9 @@ const Offer = ({ o, t, lang, onBack, onBooked, user, onNeedSignIn }) => {
     tapSuccess();
     if (photoOk && r.id) bookingPhotoOk(r.id, true).catch(() => {});
     setDone(r);
+    // booked and confirmed (to pay there, or reserved): the invitation, now.
+    // Paying online, it comes once the payment is through (a notification).
+    if (r.status && r.status !== 'pending' && r.id) setTimeout(() => openInvite(r.id), 700);
     if (r.status === 'pending') {
       const p = await payBooking(r.id);
       if (!p.ok) setErr(t('bk_err_pay'));
@@ -637,6 +641,11 @@ export const TripsSheet = ({ onClose, country, openOn, focus, onNeedSignIn, only
                     {b.status === 'reserved' || b.status === 'paid' || b.status === 'attended' ? (
                       <Pressable onPress={() => { tapLight(); setCapsule(b); }} accessibilityRole="button" style={{ marginTop: 10, alignSelf: 'flex-start' }}>
                         <Text style={{ color: C.purple, fontSize: 14, fontWeight: '900' }}>{'✉️ ' + t('tk_trip_link')}</Text>
+                      </Pressable>
+                    ) : null}
+                    {b.status === 'reserved' || b.status === 'paid' ? (
+                      <Pressable onPress={() => { tapLight(); openInvite(b.id); }} accessibilityRole="button" style={{ marginTop: 8, alignSelf: 'flex-start' }}>
+                        <Text style={{ color: C.purple, fontSize: 14, fontWeight: '900' }}>{'🎟 ' + t('inv_open')}</Text>
                       </Pressable>
                     ) : null}
                     {b.status === 'pending' || b.status === 'reserved' || b.status === 'paid' ? (

@@ -33,7 +33,7 @@ import { primeFeed } from './src/hooks/useFeed';
 import { pendingInvite, clearInvite } from './src/lib/invite';
 import { pendingChatLink } from './src/lib/chatLink';
 import { JoinChatSheet } from './src/components/JoinChatSheet';
-import { TripLinkGate } from './src/components/TripLinkGate';
+import { TripLinkGate, TripInviteGate } from './src/components/TripLinkGate';
 import { PartnerLinkGate } from './src/components/PartnerLinkGate';
 import { BizLinkGate } from './src/components/BizLinkGate';
 import { pendingPartner } from './src/lib/partnerLink';
@@ -210,6 +210,7 @@ const Root = () => {
       <JoinChatSheet />
       {/* a shared trip, or a trip that just opened (src/lib/tripLink.js) */}
       <TripLinkGate signedIn />
+      <TripInviteGate />
       {/* the partner page, from a link or from inside (src/lib/partnerLink.js) */}
       <PartnerLinkGate />
       <BizLinkGate />

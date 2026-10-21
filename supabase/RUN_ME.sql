@@ -19721,6 +19721,56 @@ revoke all on function public.biz_card(public.partner_venues) from public, anon,
 revoke all on function public.biz_checkin(uuid, text) from public, anon;
 grant execute on function public.biz_checkin(uuid, text) to authenticated;
 
+-- ════════════════════════════════════════════════════════════════════
+--  THE INVITATION
+--  Ayser: "اللي يشتري الرحلة يجيله invitation". The moment a booking is
+--  confirmed — paid online, or reserved to pay there — its owner gets a
+--  notification, and the app opens it as an invitation: the trip's own
+--  photo, its name, its date, a way to put it in the calendar and a way
+--  to bring a friend. Once per booking: a booking that goes paid →
+--  cancelled → restored does not send it twice. Safe to re-run.
+-- ════════════════════════════════════════════════════════════════════
+do $do$ begin
+  alter table public.notifications drop constraint if exists notifications_kind_check;
+  alter table public.notifications add constraint notifications_kind_check
+    check (kind in ('vibe','laugh','comment','mate_request','mate_accept','message','call','tag','repost','green_invite','food_order','food_status','bardi_match','plan_soon','venue_decision','xp_award','safety','creator_plan','booking','trip_open','team_reply','biz_request','biz_reply','app_problem','daily_line','partner_watch','trip_invite'))
+    not valid;
+exception when others then raise notice 'notifications kind constraint skipped: %', sqlerrm;
+end $do$;
+
+create or replace function public.booking_invite()
+returns trigger language plpgsql security definer set search_path = public as $$
+declare o public.offers%rowtype;
+begin
+  if new.status not in ('paid', 'reserved') then return new; end if;
+  if tg_op = 'UPDATE' and old.status in ('paid', 'reserved', 'attended') then return new; end if;
+  if exists (select 1 from public.notifications where user_id = new.user_id and kind = 'trip_invite' and body like new.id::text || '|%') then return new; end if;
+  select * into o from public.offers where id = new.offer_id;
+  insert into public.notifications (user_id, actor_id, kind, body)
+  values (new.user_id, new.user_id, 'trip_invite', new.id::text || '|' || left(coalesce(o.title, ''), 80));
+  return new;
+exception when others then return new;   -- an invitation must never stop a booking
+end $$;
+revoke all on function public.booking_invite() from public, anon, authenticated;
+
+drop trigger if exists bookings_invite on public.bookings;
+create trigger bookings_invite after insert or update of status on public.bookings
+  for each row execute function public.booking_invite();
+
+-- my bookings, now with when it ends, for the calendar
+create or replace function public.my_bookings()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select coalesce(jsonb_agg(jsonb_build_object(
+           'id', b.id, 'code', b.code, 'qty', b.qty, 'total', b.total, 'currency', b.currency,
+           'status', b.status, 'cancelled_by', b.cancelled_by, 'pay_mode', b.pay_mode, 'plus', b.plus_applied, 'created_at', b.created_at,
+           'offer', jsonb_build_object('id', o.id, 'title', o.title, 'title_ar', o.title_ar, 'kind', o.kind,
+                                       'photo', o.photos[1], 'starts_at', o.starts_at, 'ends_at', o.ends_at, 'duration_hours', o.duration_hours, 'city', o.city,
+                                       'free_cancel_hours', o.free_cancel_hours))
+         order by b.created_at desc), '[]'::jsonb)
+    from public.bookings b join public.offers o on o.id = b.offer_id
+   where b.user_id = auth.uid() and b.hidden_at is null and (b.status <> 'pending' or b.created_at > now() - interval '30 minutes');
+$$;
+
 -- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
