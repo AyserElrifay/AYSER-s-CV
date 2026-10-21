@@ -38,7 +38,8 @@ is('a new moment needs a place', /feed_need_place/.test(read('src/components/Com
 is('an ordinary moment is not turned into a pitch (no "make a plan here" under every post)', /onHangoutHere\(post\)/.test(read('src/components/PostCard.js')), false);
 is('the feed has an end, and it points out of the feed', /ListFooterComponent=/.test(read('src/screens/HomeScreen.js')) && /goToTab\('TOGETHER'\)/.test(read('src/screens/HomeScreen.js')), true);
 is('a clip opens alone, never swiping into the next', /reels=\{\[\{ \.\.\.post, kind: 'video' \}\]\}/.test(read('src/components/PostCard.js')), true);
-is('no reel or long-video mode in the camera', /\['story'\]\.map\(\(m\)/.test(read('src/components/CaptureModal.js')), true);
+// PHOTO, and on an iPhone a VIDEO that hands over to the phone's camera — never a reel or long-video mode
+is('no reel or long-video mode in the camera', /\[\['photo', t\('cap_photo'\)\]\]/.test(read('src/components/CaptureModal.js')) && !/setMode\('(reel|video)'\)|\['story', 'reel'/.test(read('src/components/CaptureModal.js')), true);
 
 if (bad) { console.log('\n' + bad + ' wrong.'); process.exit(1); }
 console.log('\nEvery moment in the feed is somewhere you could go, and the feed ends.');

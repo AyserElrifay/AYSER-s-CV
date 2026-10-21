@@ -772,6 +772,9 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
     setOnMap(true);
   };
   const [camError, setCamError] = useState(null);
+  // the shutter's blink: the screen goes white for a moment, the way a
+  // camera tells you it took the picture
+  const [blink, setBlink] = useState(false);
   /* The camera frame's own size. Everything about a lens is measured in
      it, so the preview and the posted file are the same picture. */
   const [frameSize, setFrameSize] = useState({ w: 1280, h: 720 });
@@ -1081,6 +1084,7 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
   const takePhoto = () => {
     if (!videoRef.current) return;
     tapMedium(); sfxPop();
+    setBlink(true); setTimeout(() => setBlink(false), 110);
     const v = videoRef.current;
     // Keep the phone camera's real resolution (up to a 2160px long side) so
     // photos look native-sharp; q0.92 keeps them crisp at a sane file size.
@@ -2261,12 +2265,14 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
             your own face, the way a camera app does it. */}
         {!shot && isWeb ? (
           <View style={{ position: 'absolute', right: 12, top: insets.top + 64, alignItems: 'center' }}>
+            {/* Two, not five. Flip lives by the shutter, where a phone's
+                camera keeps it; games were a second door into the same
+                effects drawer; the frame switch was a setting, not a
+                button. Effects opens the quick strip of lenses, which
+                has the way into everything else. */}
             {[
-              { k: 'flip', icon: 'camera-reverse-outline', on: false, press: flip },
-              { k: 'fit', icon: 'scan-outline', on: fit === 'wide', press: () => { tapLight(); setFit((f) => (f === 'wide' ? 'fill' : 'wide')); } },
               { k: 'sound', icon: 'musical-notes-outline', on: !!sound, press: () => { tapLight(); setHubOpen(true); } },
-              { k: 'fx', icon: 'sparkles-outline', on: !!lens || (filterId && filterId !== 'none') || effectId !== 'none', press: () => { tapLight(); setEffectsOpen(true); } },
-              { k: 'games', icon: 'game-controller-outline', on: !!reelGame, press: () => { tapLight(); setEffectsOpen(true); } },
+              { k: 'fx', icon: 'sparkles-outline', on: lensRailOpen || !!lens || (filterId && filterId !== 'none') || effectId !== 'none' || !!reelGame, press: () => { tapLight(); setLensRailOpen((v) => !v); } },
             ].map((b) => (
               <Pressable key={b.k} onPress={b.press} hitSlop={8} style={{ marginBottom: 12 }}>
                 <View style={{
@@ -2280,6 +2286,8 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
             ))}
           </View>
         ) : null}
+
+        {blink ? <View pointerEvents="none" style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(255,255,255,0.85)' }} /> : null}
 
         {camError ? (
           /* a sentence that asks for the camera needs a button that does:
@@ -2479,23 +2487,6 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
               </ScrollView>
               ) : null}
 
-              {/* One tap to the lenses, and one tap back. This is the
-                  only thing standing between the viewfinder and the
-                  whole effects drawer. */}
-              <Pressable onPress={() => { tapLight(); setLensRailOpen((v) => !v); }} style={{ alignSelf: 'center', marginBottom: 10 }}>
-                <View style={{
-                  width: 46, height: 46, borderRadius: 23,
-                  backgroundColor: lensRailOpen ? '#FFF' : 'rgba(0,0,0,0.45)',
-                  borderWidth: 1, borderColor: lensRailOpen ? '#FFF' : 'rgba(255,255,255,0.45)',
-                  alignItems: 'center', justifyContent: 'center',
-                }}>
-                  <Ionicons name={lensRailOpen ? 'chevron-down' : 'happy-outline'} size={22} color={lensRailOpen ? '#111' : '#FFF'} />
-                  {lens && !lensRailOpen ? (
-                    <View style={{ position: 'absolute', top: 4, right: 4, width: 9, height: 9, borderRadius: 5, backgroundColor: C.gold, borderWidth: 1.5, borderColor: 'rgba(0,0,0,0.5)' }} />
-                  ) : null}
-                </View>
-              </Pressable>
-
               {/* what you're wearing right now, in one line */}
               {sound ? (
                 <Pressable onPress={() => { tapLight(); setHubOpen(true); }} style={{ alignSelf: 'center', marginBottom: 10 }}>
@@ -2527,23 +2518,19 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
                         ) : null}
                       </View>
                     </Pressable>
-                    {isWebKit ? (
-                      <Pressable onPress={() => { tapLight(); recordWithPhone(); }} hitSlop={8} style={{ marginLeft: 34 }}>
-                        <View style={{ width: 46, height: 46, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.16)', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.5)', alignItems: 'center', justifyContent: 'center' }}>
-                          <Ionicons name="videocam-outline" size={22} color="#FFF" />
-                        </View>
-                      </Pressable>
-                    ) : (
-                      <View style={{ width: 46, marginLeft: 34 }} />
-                    )}
+                    <Pressable onPress={flip} hitSlop={8} style={{ marginLeft: 34 }} accessibilityRole="button" accessibilityLabel="Flip camera">
+                      <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: 'rgba(255,255,255,0.16)', alignItems: 'center', justifyContent: 'center' }}>
+                        <Ionicons name="camera-reverse-outline" size={23} color="#FFF" />
+                      </View>
+                    </Pressable>
                   </View>
-                  <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 11.5, fontWeight: '700', marginTop: 10 }}>
-                    {isWebKit
-                      ? t('cap_hint_webkit')
-                      : recording
-                        ? (locked ? t('cap_locked') : t('cap_slide_lock'))
-                        : t('cap_hint_hold')}
-                  </Text>
+                  {/* words only while they are needed: recording, or (where
+                      holding records) the one hint a first-timer needs */}
+                  {recording || !isWebKit ? (
+                    <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11.5, fontWeight: '700', marginTop: 10 }}>
+                      {recording ? (locked ? t('cap_locked') : t('cap_slide_lock')) : t('cap_hint_hold')}
+                    </Text>
+                  ) : null}
                   {recording ? (
                     <View style={{ height: 4, width: 160, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.25)', marginTop: 8, overflow: 'hidden' }}>
                       <View style={{ height: 4, width: 160 * recPct, backgroundColor: C.coral }} />
@@ -2579,14 +2566,12 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
                 </View>
               ) : (
               <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
-                {/* stories only: reels and long videos were removed — Moments is
-                    not a place to scroll, it is a way out of the house */}
-                {['story'].map((m) => (
-                  <Pressable key={m} onPress={() => { tapLight(); setMode(m); }} style={{ marginHorizontal: 12 }}>
-                    <Text style={{ color: mode === m ? '#FFF' : 'rgba(255,255,255,0.5)', fontSize: 13.5, fontWeight: '900', letterSpacing: 1.2, textTransform: 'uppercase' }}>
-                      {m === 'story' ? t('cap_m_story') : m === 'reel' ? t('cap_m_reel') : t('cap_m_video')}
-                    </Text>
-                    {mode === m ? <View style={{ height: 3, borderRadius: 2, backgroundColor: C.gold, marginTop: 5 }} /> : null}
+                {/* PHOTO · VIDEO, the way a camera says it. On an iPhone the
+                    browser cannot record a clip that plays back, so VIDEO
+                    hands over to the phone's own camera and comes back */}
+                {[['photo', t('cap_photo')]].concat(isWebKit ? [['video', t('cap_video')]] : []).map(([k, label]) => (
+                  <Pressable key={k} onPress={() => { tapLight(); if (k === 'video') recordWithPhone(); }} hitSlop={8} style={{ marginHorizontal: 14 }} accessibilityRole="button">
+                    <Text style={{ color: k === 'photo' ? C.gold : 'rgba(255,255,255,0.75)', fontSize: 13, fontWeight: '800', letterSpacing: 1.6 }}>{label.toUpperCase()}</Text>
                   </Pressable>
                 ))}
               </View>

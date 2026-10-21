@@ -191,7 +191,7 @@ const Root = () => {
   }
   if (recovering) return <AuthScreen recovery onDone={() => setRecovering(false)} />;
   // a trip somebody sent opens over sign-in: looking needs no account
-  if (!isAuthenticated) return <><AuthScreen /><TripLinkGate /><PartnerLinkGate /></>;
+  if (!isAuthenticated) return <><AuthScreen /><TripLinkGate /><PartnerLinkGate /><BizLinkGate demoOnly /></>;
   // the mini-player floats above the navigator, so music keeps playing as
   // you move between tabs. `key={gen}` forces a full remount when dark
   // mode toggles, so every already-mounted screen re-reads the new colors.

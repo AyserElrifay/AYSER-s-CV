@@ -6,6 +6,10 @@
    address bar is cleaned. */
 const KEY = 'moments.openBiz';
 let pending = false;
+/* …/?business=demo: the same portal with sample data, no account
+   needed, nothing sent anywhere — to try it, or to show a café owner
+   before they apply. Said at the top of every screen. */
+let demo = false;
 
 (function readOnce() {
   try {
@@ -13,17 +17,19 @@ let pending = false;
     const q = new URLSearchParams(window.location.search);
     if (q.get('business') != null) {
       pending = true;
-      try { window.sessionStorage.setItem(KEY, '1'); } catch (e) {}
+      demo = q.get('business') === 'demo';
+      try { window.sessionStorage.setItem(KEY, demo ? 'demo' : '1'); } catch (e) {}
       q.delete('business');
       const rest = q.toString();
       window.history.replaceState(null, '', window.location.pathname + (rest ? '?' + rest : '') + window.location.hash);
     } else {
-      try { pending = window.sessionStorage.getItem(KEY) === '1'; } catch (e) {}
+      try { const k = window.sessionStorage.getItem(KEY); pending = k === '1' || k === 'demo'; demo = k === 'demo'; } catch (e) {}
     }
   } catch (e) { /* the link simply does nothing */ }
 }());
 
 export function pendingBiz() { return pending; }
+export function isBizDemo() { return demo; }
 
 /* ─── A PLACE, FROM A QR ── …/?place=<id> opens that place's page;
    &c=<token> (the counter's QR) checks you in when you arrive there.
@@ -53,4 +59,4 @@ export function placeLink(id, code) {
   try { if (typeof window !== 'undefined' && window.location && /^https?:/.test(window.location.origin)) base = window.location.origin + window.location.pathname; } catch (e) {}
   return base + '?place=' + id + (code ? '&c=' + code : '');
 }
-export function takeBiz() { pending = false; try { window.sessionStorage.removeItem(KEY); } catch (e) {} }
+export function takeBiz() { pending = false; demo = false; try { window.sessionStorage.removeItem(KEY); } catch (e) {} }

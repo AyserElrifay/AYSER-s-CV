@@ -8,7 +8,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useLang } from '../../context/LanguageContext';
 import { myPlace, savePlace, newCounterCode, placeStats, requestsIn, answerRequest, liveToken } from '../../services/biz';
 import { Qr, printTableCard } from './Qr';
-import { placeLink } from '../../lib/bizLink';
+import { placeLink, isBizDemo } from '../../lib/bizLink';
 import { uploadPlanPhoto } from '../../lib/storage';
 import { Selling } from '../VenueSheet';
 import { lazyOverlay } from '../../lib/lazyScreen';
@@ -128,7 +128,7 @@ const Today = ({ v, lang, onPlan, onCode }) => {
       <View style={{ borderRadius: 20, padding: 16, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, marginTop: 20 }}>
         <Text style={{ color: C.text, fontSize: 16, fontWeight: '900' }}>{'📍 ' + B('plan_here')}</Text>
         <Text style={{ color: C.dim, fontSize: 13, marginTop: 4, marginBottom: 12, lineHeight: 18 }}>{B('plan_here_s')}</Text>
-        <Btn label={B('plan_here')} onPress={() => { tapLight(); onPlan(); }} />
+        {isBizDemo() ? <Text style={{ color: C.faint, fontSize: 13, textAlign: 'center' }}>{B('demo_plan')}</Text> : <Btn label={B('plan_here')} onPress={() => { tapLight(); onPlan(); }} />}
       </View>
     </>
   );
@@ -153,6 +153,7 @@ const PageEditor = ({ v, lang, userId, onSaved }) => {
     if (photos.length >= 12) return;
     tapLight(); const file = await pickFile(); if (!file) return;
     setBusy(true);
+    if (isBizDemo()) { try { setPhotos((p) => p.concat(URL.createObjectURL(file))); } catch (e) {} return; }
     try { const url = await uploadPlanPhoto(userId, file); setPhotos((p) => p.concat(url)); } catch (e) { setMsg(B('failed')); }
     setBusy(false);
   };
@@ -303,6 +304,11 @@ export const BizHub = ({ onClose, lang }) => {
           <Pressable onPress={onClose} hitSlop={12} accessibilityRole="button" accessibilityLabel="Close">
             <Ionicons name="chevron-down" size={26} color={C.text} />
           </Pressable>
+          {isBizDemo() ? (
+            <View style={{ marginTop: 10, borderRadius: 14, paddingVertical: 10, paddingHorizontal: 14, backgroundColor: C.purpleSoft }}>
+              <Text style={{ color: C.purple, fontSize: 13, fontWeight: '800', lineHeight: 18 }}>{B('demo_bar')}</Text>
+            </View>
+          ) : null}
           {v === undefined ? <ActivityIndicator color={C.purple} style={{ marginTop: 40 }} /> : !v ? (
             <View style={{ alignItems: 'center' }}>
               <Text style={{ color: C.dim, fontSize: 14.5, marginTop: 30, textAlign: 'center', lineHeight: 21 }}>{B('none_mine')}</Text>
