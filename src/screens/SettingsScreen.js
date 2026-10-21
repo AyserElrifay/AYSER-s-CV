@@ -212,131 +212,6 @@ export const SettingsScreen = ({ onClose }) => {
         contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: insets.bottom + 40 }}
         showsVerticalScrollIndicator={false}
       >
-        {/* ── WALLET (Moment Bank) ── */}
-        <Micro color={C.faint}>{t('wallet')}</Micro>
-        <LinearGradient
-          colors={['#8B5CF6', '#5B21B6', '#2A0F63']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={{ borderRadius: R, padding: 18, marginTop: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)' }}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Micro color="rgba(255,255,255,0.75)">{t('referral_earnings')}</Micro>
-            <Ionicons name="trending-up-outline" size={16} color="rgba(255,255,255,0.75)" />
-          </View>
-          <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginTop: 14 }}>
-            <Text style={{ color: '#fff', fontSize: 36, fontWeight: '900', letterSpacing: 0.5 }}>
-              {referrals == null ? '—' : referrals}
-            </Text>
-            <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 14, fontWeight: '800', marginLeft: 8, marginBottom: 6 }}>
-              referral{referrals === 1 ? '' : 's'}
-            </Text>
-          </View>
-          <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12.5, marginTop: 4 }}>
-            {t('referral_hint')}
-          </Text>
-          <View style={{ flexDirection: 'row', marginTop: 18 }}>
-            <NeonButton small label={t('split_a_bill_caps')} icon="➗" style={{ flex: 1 }} onPress={openSplit} />
-          </View>
-        </LinearGradient>
-
-        {split ? (
-          <Glass tint={C.greenSoft} border="rgba(16,185,129,0.45)" style={{ padding: 14, marginTop: 12 }}>
-            <Micro color={C.green}>{t('split_for_real')}</Micro>
-            <View style={{ flexDirection: 'row', marginTop: 12 }}>
-              <TextInput
-                placeholder={t('total_placeholder')} placeholderTextColor={C.faint} value={splitTotal} onChangeText={setSplitTotal}
-                keyboardType="decimal-pad"
-                style={{ flex: 1, color: C.text, fontSize: 15, fontWeight: '800', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginRight: 8 }}
-              />
-              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12 }}>
-                <Pressable onPress={() => { tapSelection(); setSplitPeople(String(Math.max(1, (parseInt(splitPeople, 10) || 1) - 1))); }} style={{ paddingHorizontal: 12, paddingVertical: 10 }} accessibilityLabel={t('remove')} accessibilityRole="button">
-                  <Ionicons name="remove" size={16} color={C.purple} />
-                </Pressable>
-                <Text style={{ color: C.text, fontSize: 15, fontWeight: '800', minWidth: 22, textAlign: 'center' }}>{splitPeople}</Text>
-                <Pressable onPress={() => { tapSelection(); setSplitPeople(String((parseInt(splitPeople, 10) || 1) + 1)); }} style={{ paddingHorizontal: 12, paddingVertical: 10 }} accessibilityLabel={t('add')} accessibilityRole="button">
-                  <Ionicons name="add" size={16} color={C.purple} />
-                </Pressable>
-              </View>
-            </View>
-            {splitPer.total > 0 ? (
-              <Text style={{ color: C.text, fontSize: 14, fontWeight: '900', marginTop: 10, textAlign: 'center' }}>
-                = {(Math.round(splitPer.per * 100) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} each
-              </Text>
-            ) : null}
-
-            <Micro color={C.dim} style={{ marginTop: 12 }}>{t('send_to_a_mate')}</Micro>
-            {splitMates === null ? (
-              <Text style={{ color: C.faint, fontSize: 12, paddingVertical: 10 }}>{t('loading_mates')}</Text>
-            ) : splitMates.length ? (
-              <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
-                {splitMates.map((m) => (
-                  <Pressable key={m.id} onPress={() => sendSplitTo(m)} disabled={splitBusy || !(splitPer.total > 0)} style={{ alignItems: 'center', marginRight: 12, width: 62, opacity: splitPer.total > 0 ? 1 : 0.45 }}>
-                    <Image source={{ uri: m.avatar_url || AV_NEUTRAL }} style={{ width: 46, height: 46, borderRadius: 23, borderWidth: 2, borderColor: C.green }} />
-                    <Text style={{ color: C.dim, fontSize: 10.5, fontWeight: '700', marginTop: 4 }} numberOfLines={1}>{(m.name || 'Mate').split(' ')[0]}</Text>
-                  </Pressable>
-                ))}
-              </ScrollView>
-            ) : (
-              <Text style={{ color: C.faint, fontSize: 12, paddingVertical: 10 }}>
-                {t('no_mates_yet')}
-              </Text>
-            )}
-            {splitNote ? (
-              <Text style={{ color: /✓/.test(splitNote) ? C.green : C.coral, fontSize: 12, fontWeight: '700', marginTop: 10 }}>{splitNote}</Text>
-            ) : null}
-          </Glass>
-        ) : null}
-
-        {/* ── EARNINGS BY PARTNER — real clicks, real money trail ── */}
-        {breakdown.length ? (
-          <>
-            <SectionHeader title={t('earnings_by_partner')} style={{ marginTop: 22 }} />
-            <Glass style={{ paddingHorizontal: 14, paddingVertical: 4 }}>
-              {breakdown.map((b, i) => (
-                <View key={b.partner} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderTopWidth: i === 0 ? 0 : StyleSheet.hairlineWidth, borderTopColor: C.line }}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800', textTransform: 'capitalize' }}>{b.partner}</Text>
-                    <Text style={{ color: C.faint, fontSize: 11, marginTop: 2 }}>{t('commission_label')} {b.rate}</Text>
-                  </View>
-                  <Text style={{ color: C.text, fontSize: 14, fontWeight: '900', marginRight: 10 }}>{b.clicks} click{b.clicks === 1 ? '' : 's'}</Text>
-                  <View style={{ backgroundColor: b.active ? C.greenSoft : 'rgba(245,179,1,0.12)', borderWidth: 1, borderColor: b.active ? 'rgba(16,185,129,0.4)' : 'rgba(245,179,1,0.45)', borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3 }}>
-                    <Text style={{ color: b.active ? C.green : '#8A6400', fontSize: 9.5, fontWeight: '900' }}>{b.active ? 'EARNING' : 'TAG PENDING'}</Text>
-                  </View>
-                </View>
-              ))}
-            </Glass>
-            <Text style={{ color: C.faint, fontSize: 11, marginTop: 8, lineHeight: 16 }}>
-              {t('tag_pending_hint')}
-            </Text>
-          </>
-        ) : null}
-
-        <SectionHeader title={t('recent_activity')} style={{ marginTop: 22 }} />
-        <Glass style={{ paddingHorizontal: 14, paddingVertical: 4 }}>
-          {tx.length === 0 ? (
-            <Text style={{ color: C.faint, fontSize: 12.5, textAlign: 'center', paddingVertical: 18, lineHeight: 18 }}>
-              {t('no_activity')}
-            </Text>
-          ) : null}
-          {tx.map((t, i) => (
-            <View
-              key={t.id}
-              style={{
-                flexDirection: 'row', alignItems: 'center', paddingVertical: 12,
-                borderTopWidth: i === 0 ? 0 : StyleSheet.hairlineWidth, borderTopColor: C.line,
-              }}
-            >
-              <Text style={{ fontSize: 19, marginRight: 12 }}>{t.icon}</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '700' }}>{t.label}</Text>
-                <Text style={{ color: C.faint, fontSize: 11, marginTop: 2 }}>{t.sub}</Text>
-              </View>
-              <Text style={{ color: t.pos ? C.green : C.text, fontSize: 14, fontWeight: '900' }}>{t.amount} $M</Text>
-            </View>
-          ))}
-        </Glass>
-
         {/* ── PREFERENCES — real, persisted toggles ── */}
         <SectionHeader title={t('preferences')} style={{ marginTop: 26 }} />
         <Glass style={{ paddingHorizontal: 12, paddingVertical: 2 }}>
@@ -465,11 +340,6 @@ export const SettingsScreen = ({ onClose }) => {
               <Toggle on={!!prefs[row.key]} onToggle={() => flip(row.key)} />
             </View>
           ))}
-        </Glass>
-
-        {/* ── SUPPORT ── */}
-        <SectionHeader title={t('support')} style={{ marginTop: 26 }} />
-        <Glass style={{ paddingHorizontal: 12, paddingVertical: 2 }}>
           {/* How long messages live. This one deletes things, so it says
               so plainly and shows what is actually in force — a timer
               you can't see is a timer you'll be surprised by. It follows
@@ -513,6 +383,11 @@ export const SettingsScreen = ({ onClose }) => {
               {t('ttl_default_hint')}
             </Text>
           </View>
+        </Glass>
+
+        {/* ── SUPPORT ── */}
+        <SectionHeader title={t('support')} style={{ marginTop: 26 }} />
+        <Glass style={{ paddingHorizontal: 12, paddingVertical: 2 }}>
 
           {/* The crash log lives in the Studio now (owner only, opened by
               a private link) — nothing owner-only sits in Settings, where
@@ -593,6 +468,9 @@ export const SettingsScreen = ({ onClose }) => {
                 </View>
               </Pressable>
             </View>
+            {/* the details only once you are in — off, it is one line */}
+            {visible ? (
+            <>
             <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', marginBottom: 7 }}>{t('i_speak')}</Text>
             <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
               {LANGUAGES.map((l) => {
@@ -639,6 +517,8 @@ export const SettingsScreen = ({ onClose }) => {
                 <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900' }}>{savedExchange ? 'Saved ✓' : 'Save'}</Text>
               </View>
             </Pressable>
+            </>
+            ) : null}
             {exchangeErr ? <Text style={{ color: C.coral, fontSize: 11.5, textAlign: 'center', marginTop: 8 }}>{exchangeErr}</Text> : null}
           </Glass>
         ) : (
@@ -646,6 +526,133 @@ export const SettingsScreen = ({ onClose }) => {
             <Text style={{ color: C.faint, fontSize: 12, textAlign: 'center' }}>{t('exchange_offline')}</Text>
           </Glass>
         )}
+
+        {/* ── WALLET ── near the end, beside the account: Settings opens on
+            how the app behaves for you, not on a card that says 0 */}
+        <View style={{ marginTop: 26 }}><Micro color={C.faint}>{t('wallet')}</Micro></View>
+        <LinearGradient
+          colors={['#8B5CF6', '#5B21B6', '#2A0F63']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={{ borderRadius: R, padding: 18, marginTop: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)' }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Micro color="rgba(255,255,255,0.75)">{t('referral_earnings')}</Micro>
+            <Ionicons name="trending-up-outline" size={16} color="rgba(255,255,255,0.75)" />
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginTop: 14 }}>
+            <Text style={{ color: '#fff', fontSize: 36, fontWeight: '900', letterSpacing: 0.5 }}>
+              {referrals == null ? '—' : referrals}
+            </Text>
+            <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 14, fontWeight: '800', marginLeft: 8, marginBottom: 6 }}>
+              referral{referrals === 1 ? '' : 's'}
+            </Text>
+          </View>
+          <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12.5, marginTop: 4 }}>
+            {t('referral_hint')}
+          </Text>
+          <View style={{ flexDirection: 'row', marginTop: 18 }}>
+            <NeonButton small label={t('split_a_bill_caps')} icon="➗" style={{ flex: 1 }} onPress={openSplit} />
+          </View>
+        </LinearGradient>
+
+        {split ? (
+          <Glass tint={C.greenSoft} border="rgba(16,185,129,0.45)" style={{ padding: 14, marginTop: 12 }}>
+            <Micro color={C.green}>{t('split_for_real')}</Micro>
+            <View style={{ flexDirection: 'row', marginTop: 12 }}>
+              <TextInput
+                placeholder={t('total_placeholder')} placeholderTextColor={C.faint} value={splitTotal} onChangeText={setSplitTotal}
+                keyboardType="decimal-pad"
+                style={{ flex: 1, color: C.text, fontSize: 15, fontWeight: '800', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginRight: 8 }}
+              />
+              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 12 }}>
+                <Pressable onPress={() => { tapSelection(); setSplitPeople(String(Math.max(1, (parseInt(splitPeople, 10) || 1) - 1))); }} style={{ paddingHorizontal: 12, paddingVertical: 10 }} accessibilityLabel={t('remove')} accessibilityRole="button">
+                  <Ionicons name="remove" size={16} color={C.purple} />
+                </Pressable>
+                <Text style={{ color: C.text, fontSize: 15, fontWeight: '800', minWidth: 22, textAlign: 'center' }}>{splitPeople}</Text>
+                <Pressable onPress={() => { tapSelection(); setSplitPeople(String((parseInt(splitPeople, 10) || 1) + 1)); }} style={{ paddingHorizontal: 12, paddingVertical: 10 }} accessibilityLabel={t('add')} accessibilityRole="button">
+                  <Ionicons name="add" size={16} color={C.purple} />
+                </Pressable>
+              </View>
+            </View>
+            {splitPer.total > 0 ? (
+              <Text style={{ color: C.text, fontSize: 14, fontWeight: '900', marginTop: 10, textAlign: 'center' }}>
+                = {(Math.round(splitPer.per * 100) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} each
+              </Text>
+            ) : null}
+
+            <Micro color={C.dim} style={{ marginTop: 12 }}>{t('send_to_a_mate')}</Micro>
+            {splitMates === null ? (
+              <Text style={{ color: C.faint, fontSize: 12, paddingVertical: 10 }}>{t('loading_mates')}</Text>
+            ) : splitMates.length ? (
+              <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
+                {splitMates.map((m) => (
+                  <Pressable key={m.id} onPress={() => sendSplitTo(m)} disabled={splitBusy || !(splitPer.total > 0)} style={{ alignItems: 'center', marginRight: 12, width: 62, opacity: splitPer.total > 0 ? 1 : 0.45 }}>
+                    <Image source={{ uri: m.avatar_url || AV_NEUTRAL }} style={{ width: 46, height: 46, borderRadius: 23, borderWidth: 2, borderColor: C.green }} />
+                    <Text style={{ color: C.dim, fontSize: 10.5, fontWeight: '700', marginTop: 4 }} numberOfLines={1}>{(m.name || 'Mate').split(' ')[0]}</Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            ) : (
+              <Text style={{ color: C.faint, fontSize: 12, paddingVertical: 10 }}>
+                {t('no_mates_yet')}
+              </Text>
+            )}
+            {splitNote ? (
+              <Text style={{ color: /✓/.test(splitNote) ? C.green : C.coral, fontSize: 12, fontWeight: '700', marginTop: 10 }}>{splitNote}</Text>
+            ) : null}
+          </Glass>
+        ) : null}
+
+        {/* ── EARNINGS BY PARTNER — real clicks, real money trail ── */}
+        {breakdown.length ? (
+          <>
+            <SectionHeader title={t('earnings_by_partner')} style={{ marginTop: 22 }} />
+            <Glass style={{ paddingHorizontal: 14, paddingVertical: 4 }}>
+              {breakdown.map((b, i) => (
+                <View key={b.partner} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderTopWidth: i === 0 ? 0 : StyleSheet.hairlineWidth, borderTopColor: C.line }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800', textTransform: 'capitalize' }}>{b.partner}</Text>
+                    <Text style={{ color: C.faint, fontSize: 11, marginTop: 2 }}>{t('commission_label')} {b.rate}</Text>
+                  </View>
+                  <Text style={{ color: C.text, fontSize: 14, fontWeight: '900', marginRight: 10 }}>{b.clicks} click{b.clicks === 1 ? '' : 's'}</Text>
+                  <View style={{ backgroundColor: b.active ? C.greenSoft : 'rgba(245,179,1,0.12)', borderWidth: 1, borderColor: b.active ? 'rgba(16,185,129,0.4)' : 'rgba(245,179,1,0.45)', borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3 }}>
+                    <Text style={{ color: b.active ? C.green : '#8A6400', fontSize: 9.5, fontWeight: '900' }}>{b.active ? 'EARNING' : 'TAG PENDING'}</Text>
+                  </View>
+                </View>
+              ))}
+            </Glass>
+            <Text style={{ color: C.faint, fontSize: 11, marginTop: 8, lineHeight: 16 }}>
+              {t('tag_pending_hint')}
+            </Text>
+          </>
+        ) : null}
+
+        {/* recent activity: only when there is some — an empty box that
+            says "nothing here" is not a section */}
+        {tx.length ? (
+        <>
+        <SectionHeader title={t('recent_activity')} style={{ marginTop: 22 }} />
+        <Glass style={{ paddingHorizontal: 14, paddingVertical: 4 }}>
+          {tx.map((t, i) => (
+            <View
+              key={t.id}
+              style={{
+                flexDirection: 'row', alignItems: 'center', paddingVertical: 12,
+                borderTopWidth: i === 0 ? 0 : StyleSheet.hairlineWidth, borderTopColor: C.line,
+              }}
+            >
+              <Text style={{ fontSize: 19, marginRight: 12 }}>{t.icon}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '700' }}>{t.label}</Text>
+                <Text style={{ color: C.faint, fontSize: 11, marginTop: 2 }}>{t.sub}</Text>
+              </View>
+              <Text style={{ color: t.pos ? C.green : C.text, fontSize: 14, fontWeight: '900' }}>{t.amount} $M</Text>
+            </View>
+          ))}
+        </Glass>
+        </>
+        ) : null}
 
         {/* Bardi is no longer a chat you open. It works quietly inside the
            app instead: a nudge in a quiet conversation, the care check,
