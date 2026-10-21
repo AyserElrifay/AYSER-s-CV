@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { publicMedia } from '../lib/publicMedia';
 import { C } from '../constants/theme';
 import { useLang } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
@@ -44,6 +45,9 @@ import { ReportSheet } from '../components/ReportSheet';
 import { CirclesNear } from '../components/CirclesNear';
 const BizDirectory = lazyOverlay(() => import('../components/biz').then((m) => ({ default: m.BizDirectory })));
 const TripsSheet = lazyOverlay(() => import('../components/TripsSheet').then((m) => ({ default: m.TripsSheet })));
+const ExploreSheet = lazyOverlay(() => import('../components/ExploreSheet').then((m) => ({ default: m.ExploreSheet })));
+const CountrySheet = lazyOverlay(() => import('../components/CountrySheet').then((m) => ({ default: m.CountrySheet })));
+const CultureSheet = lazyOverlay(() => import('../components/CultureSheet').then((m) => ({ default: m.CultureSheet })));
 const SettleSheet = lazyOverlay(() => import('../components/SettleSheet').then((m) => ({ default: m.SettleSheet })));
 const RewardsSheet = lazyOverlay(() => import('../components/RewardsSheet').then((m) => ({ default: m.RewardsSheet })));
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
@@ -929,12 +933,27 @@ export const TogetherScreen = () => {
             inside Settling in; exchanges live in Chats. */}
         <Section>{t('tg_more')}</Section>
         <GreenDoor t={t} onPress={() => setSheet('green')} />
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginTop: 2 }}>
-          <Tile icon="airplane-outline" label={t('bk_tile')} onPress={() => setSheet({ trips: 'browse' })} />
-          <Tile icon="location-outline" label={t('tg_places')} onPress={() => setSheet('places')} />
-          <Tile icon="home-outline" label={t('st_title')} onPress={() => setSheet('settle')} />
-          <Tile icon="game-controller-outline" label={t('tg_play')} onPress={() => nav.navigate('CHILL')} />
-        </View>
+        {/* Explore: places, trips, countries, customs and settling in —
+            five doors that were in three rooms, now one, with a picture */}
+        <Pressable onPress={() => { tapLight(); setSheet('explore'); }} accessibilityRole="button" accessibilityLabel={t('ex_title')}
+          style={({ pressed }) => ({ marginTop: 2, transform: [{ scale: pressed ? 0.985 : 1 }] })}>
+          <View style={{ height: 128, borderRadius: 22, overflow: 'hidden', backgroundColor: C.glassHi }}>
+            <Image source={{ uri: publicMedia('trip-siwa-3.jpg') }} style={{ position: 'absolute', width: '100%', height: '100%' }} resizeMode="cover" accessibilityIgnoresInvertColors />
+            <LinearGradient colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.7)']} locations={[0.3, 1]} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }} />
+            <View style={{ position: 'absolute', left: 16, right: 16, bottom: 14 }}>
+              <Text style={{ color: '#FFF', fontSize: 21, fontWeight: '900' }}>{t('ex_title')}</Text>
+              <Text style={{ color: 'rgba(255,255,255,0.88)', fontSize: 13.5, fontWeight: '600', marginTop: 2 }} numberOfLines={1}>{t('ex_door')}</Text>
+            </View>
+          </View>
+        </Pressable>
+        {/* trips live inside Explore now; play is the one other door */}
+        <Pressable onPress={() => { tapLight(); nav.navigate('CHILL'); }} accessibilityRole="button" accessibilityLabel={t('tg_play')} style={{ marginTop: 10 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 18, paddingVertical: 15, paddingHorizontal: 16, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line }}>
+            <Ionicons name="game-controller-outline" size={21} color={C.text} />
+            <Text style={{ flex: 1, color: C.text, fontSize: 15, fontWeight: '800', marginStart: 12 }}>{t('tg_play')}</Text>
+            <Ionicons name={rtl ? 'chevron-back' : 'chevron-forward'} size={16} color={C.dim} />
+          </View>
+        </Pressable>
 
         {/* ── bring your people ── one quiet line; the details are in Rewards */}
         {uid ? (
@@ -955,6 +974,9 @@ export const TogetherScreen = () => {
         </Pressable>
       </ScrollView>
 
+      {sheet === 'explore' ? <ExploreSheet onClose={() => setSheet(null)} onPick={(k) => setSheet(k === 'trips' ? { trips: 'browse' } : k)} /> : null}
+      {sheet === 'countries' ? <CountrySheet onClose={() => setSheet(null)} /> : null}
+      {sheet === 'heritage' ? <CultureSheet onClose={() => setSheet(null)} /> : null}
       {sheet === 'places' ? <BizDirectory lang={lang} city={null} onClose={() => setSheet(null)} /> : null}
       {sheet === 'gonow' ? <GoNowSheet onClose={() => { setSheet(null); load(); }} /> : null}
       {sheet === 'talk' ? <StartTalkSheet country={myCode} onClose={() => setSheet(null)} onStarted={(id) => { setSheet(null); setTalkId(id); }} /> : null}

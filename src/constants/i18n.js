@@ -780,6 +780,7 @@ export const STRINGS = {
     tg_see_everywhere: "See what's on everywhere",
     tg_more: "MORE TO DO TOGETHER",
     tg_places: "Places",
+    ex_title: "Explore", ex_door: "Places, trips, countries, customs", ex_sub: "Where to go, near you and beyond", ex_places_s: "Caf\u00e9s and spots that welcome groups", ex_trips_s: "Weekends away, with people", ex_countries_s: "What to know about where you are", ex_heritage_s: "The customs behind the places", ex_settle_s: "New in town? The first steps",
     tg_play: "Play & chill",
     first_title: "Your first plans",
     first_sub: "Real things on near you this week. Tap Join and the host knows you're coming.",

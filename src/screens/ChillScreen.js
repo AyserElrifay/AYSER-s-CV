@@ -14,7 +14,6 @@ import { openPartner } from '../services/broker';
 import { fetchVideos, deletePost } from '../services/posts';
 import { fetchFilms, watchOptions } from '../services/films';
 import { pickFilms, regionOf } from '../lib/filmPicks';
-import { CultureSheet } from '../components/CultureSheet';
 import { Glass } from '../components/Glass';
 import { Page } from '../components/Page';
 import { ScreenHeader } from '../components/ScreenHeader';
@@ -50,7 +49,6 @@ const CommentsSheet = lazyOverlay(() => import('../components/CommentsSheet').th
    waits through to see the feed. It arrives when the room is opened. */
 /* Tapping whoever posted a video should open them. It did nothing. */
 const ProfileModal = lazyOverlay(() => import('../components/ProfileModal').then((m) => ({ default: m.ProfileModal })));
-const CountrySheet = lazyOverlay(() => import('../components/CountrySheet').then((m) => ({ default: m.CountrySheet })));
 
 /* ────────────── TAB 4 · CHILL — WATCH & UNWIND ──────────────
    Long-form videos (YouTube-style, real uploads of type 'vod') up top,
@@ -165,9 +163,7 @@ export const ChillScreen = () => {
      this app all along, locked inside two arcade games — which is why
      nobody knew the app kept any heritage at all. See
      components/CultureSheet.js. */
-  const [cultureOpen, setCultureOpen] = useState(false);
   const [foodOpen, setFoodOpen] = useState(false);
-  const [countryOpen, setCountryOpen] = useState(false);
   const [videoAuthor, setVideoAuthor] = useState(null);   // whose video you tapped
 
   // Every real, playable game — surfaced here so they're actually findable
@@ -287,8 +283,8 @@ export const ChillScreen = () => {
           button that opens the place where you can go get some. */}
       <ShortcutRow>
         {/* home-cooked food from a neighbour's kitchen — see KitchenSheet */}
-        <Shortcut emoji="🏛" label={t('culture_title')} onPress={() => { tapLight(); sfxPop(); setCultureOpen(true); }} />
-        <Shortcut emoji="🌍" label={t('country_title')} onPress={() => { tapLight(); sfxPop(); setCountryOpen(true); }} />
+        {/* countries and customs moved to Explore (Together), beside the
+            places and trips they are about */}
         <Shortcut emoji="📚" label={t('read_word')} onPress={() => { tapLight(); sfxPop(); setBooksOpen(true); }} />
       </ShortcutRow>
 
@@ -431,8 +427,6 @@ export const ChillScreen = () => {
         sheets stacked with the back button between them. */}
     {lammaOpen ? <GameHub onClose={() => { setLammaOpen(false); setFocusPack(null); }} focusPack={focusPack} /> : null}
     {videoAuthor ? <ProfileModal user={videoAuthor} onClose={() => setVideoAuthor(null)} /> : null}
-    {cultureOpen ? <CultureSheet onClose={() => setCultureOpen(false)} /> : null}
-    {countryOpen ? <CountrySheet onClose={() => setCountryOpen(false)} /> : null}
     {foodOpen ? <KitchenSheet onClose={() => setFoodOpen(false)} /> : null}
     </>
   );
