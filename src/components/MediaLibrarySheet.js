@@ -72,7 +72,7 @@ export const MediaLibrarySheet = ({ onPick, onClose, only = null, inline = false
     setErr(null);
     const file = await pickFile(accept, capture);
     if (!file) return;
-    setBusy(label);
+    setBusy(label || 'file');
     setPct(0);
     const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
     abortRef.current = ctrl;
@@ -159,59 +159,77 @@ export const MediaLibrarySheet = ({ onPick, onClose, only = null, inline = false
   };
 
   const shown = (rows || []).filter((r) => !only || r.kind === only);
+  const { lang } = useLang();
+
+  /* ── LIKE A CAMERA ROLL, NOT A FILE MANAGER ─────────────────────────
+     Ayser: "خلّي شكل الـgallery بسيط، عملي، حلو ومشجّع — أحلى من سناب".
+     Dark like the camera it opens from; the pictures edge to edge, three
+     across, under the month they were added; the first square is the
+     one way to add more (photo or video, one picker). No two big
+     buttons, no sizes, no "used 2×". Hold a picture to take it out. */
+  const months = [];
+  shown.forEach((r) => {
+    const d = new Date(r.created_at || Date.now());
+    let name = '';
+    try { name = d.toLocaleDateString(lang === 'ar' ? 'ar-EG' : lang, { month: 'long', year: 'numeric' }); } catch (e) { name = d.toDateString(); }
+    const last = months[months.length - 1];
+    if (last && last.name === name) last.items.push(r); else months.push({ name, items: [r] });
+  });
+  const accept = only === 'video' ? 'video/*' : only === 'photo' ? 'image/*' : 'image/*,video/*';
+  const DARK = '#0B0A10';
+  const tile = (r) => (
+    <Pressable
+      key={r.id}
+      onPress={() => { tapSelection(); onPick && onPick(r); }}
+      onLongPress={() => { tapLight(); setConfirmDel(r); }}
+      accessibilityRole="button"
+      style={({ pressed }) => ({ width: '33.333%', padding: 1, opacity: pressed ? 0.75 : 1, outlineStyle: 'none' })}
+    >
+      <View style={{ aspectRatio: 0.8, backgroundColor: '#1A1922', overflow: 'hidden', borderRadius: 3 }}>
+        {r.kind === 'video' ? (
+          Platform.OS === 'web' ? <video src={r.url} muted playsInline preload="metadata" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : null
+        ) : (
+          <Image source={{ uri: r.url }} style={{ width: '100%', height: '100%' }} />
+        )}
+        {r.kind === 'video' ? (
+          <View style={{ position: 'absolute', bottom: 6, left: 6 }}>
+            <Ionicons name="play" size={14} color="#FFF" style={{ textShadowColor: 'rgba(0,0,0,0.6)', textShadowRadius: 4 }} />
+          </View>
+        ) : null}
+      </View>
+    </Pressable>
+  );
+  const addTile = () => (
+    <Pressable onPress={() => add(accept, null)} disabled={!!busy} accessibilityRole="button" accessibilityLabel={t('ml_add')}
+      style={{ width: '33.333%', padding: 1, outlineStyle: 'none' }}>
+      <View style={{ aspectRatio: 0.8, borderRadius: 3, backgroundColor: '#17161F', alignItems: 'center', justifyContent: 'center' }}>
+        <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: C.purple, alignItems: 'center', justifyContent: 'center', opacity: busy ? 0.5 : 1 }}>
+          <Ionicons name="add" size={26} color="#FFF" />
+        </View>
+        <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, fontWeight: '800', marginTop: 8 }}>{t('ml_add')}</Text>
+      </View>
+    </Pressable>
+  );
 
   const body = (
-      <View style={inline ? [StyleSheet.absoluteFill, { backgroundColor: C.bg, zIndex: 60 }] : { flex: 1, backgroundColor: C.bg }}>
-        <View style={{ paddingTop: insets.top + 10, paddingHorizontal: 16, paddingBottom: 8, flexDirection: 'row', alignItems: 'center' }}>
-          <Pressable onPress={onClose} hitSlop={10} style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center' }} accessibilityRole="button" accessibilityLabel={t('close')}>
-            <Ionicons name="close" size={19} color={C.text} />
+      <View style={inline ? [StyleSheet.absoluteFill, { backgroundColor: DARK, zIndex: 60 }] : { flex: 1, backgroundColor: DARK }}>
+        <View style={{ paddingTop: insets.top + 10, paddingHorizontal: 14, paddingBottom: 10, flexDirection: 'row', alignItems: 'center' }}>
+          <Pressable onPress={onClose} hitSlop={10} style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.10)', alignItems: 'center', justifyContent: 'center', outlineStyle: 'none' }} accessibilityRole="button" accessibilityLabel={t('close')}>
+            <Ionicons name="close" size={22} color="#FFF" />
           </Pressable>
-          <View style={{ flex: 1, alignItems: 'center' }}>
-            <Text style={{ color: C.text, fontSize: 16.5, fontWeight: '900' }}>{t('ml_title')}</Text>
-            <Text style={{ color: C.faint, fontSize: 11, marginTop: 1 }}>{t('ml_sub')}</Text>
-          </View>
-          <View style={{ width: 38 }} />
+          <Text style={{ flex: 1, textAlign: 'center', color: '#FFF', fontSize: 17, fontWeight: '900' }}>{t('ml_title')}</Text>
+          <View style={{ width: 40 }} />
         </View>
 
-        {/* add something, now, while you have signal */}
-        <View style={{ flexDirection: 'row', paddingHorizontal: 16, marginTop: 6 }}>
-          <Pressable onPress={() => add('video/*', 'video')} disabled={!!busy} style={{ flex: 1, marginRight: 8 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: C.purple, borderRadius: 14, paddingVertical: 13, opacity: busy ? 0.5 : 1 }}>
-              <Ionicons name="videocam" size={17} color="#FFF" />
-              <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '900', marginLeft: 7 }}>
-                {busy === 'video' ? 'Uploading…' : 'Add video'}
-              </Text>
-            </View>
-          </Pressable>
-          <Pressable onPress={() => add('image/*', 'photo')} disabled={!!busy} style={{ flex: 1 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 14, paddingVertical: 13, opacity: busy ? 0.5 : 1 }}>
-              <Ionicons name="image-outline" size={17} color={C.text} />
-              <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '900', marginLeft: 7 }}>
-                {busy === 'photo' ? 'Uploading…' : 'Add photo'}
-              </Text>
-            </View>
-          </Pressable>
-        </View>
-
-        {/* A bar that moves, because a spinner cannot tell you the
-            difference between slow and stuck — and that is exactly what
-            a stalled upload looked like. */}
+        {/* a bar that moves: slow and stuck look different */}
         {busy ? (
-          <View style={{ marginTop: 14, paddingHorizontal: 4 }}>
-            <View style={{ height: 6, borderRadius: 3, backgroundColor: C.glassHi, overflow: 'hidden' }}>
-              <View style={{
-                width: Math.max(4, Math.round((squeeze != null ? squeeze : pct) * 100)) + '%',
-                height: '100%', borderRadius: 3,
-                backgroundColor: squeeze != null ? C.green : C.purple,
-              }} />
+          <View style={{ paddingHorizontal: 16, paddingBottom: 10 }}>
+            <View style={{ height: 3, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.12)', overflow: 'hidden' }}>
+              <View style={{ width: Math.max(4, Math.round((squeeze != null ? squeeze : pct) * 100)) + '%', height: '100%', backgroundColor: squeeze != null ? C.green : C.purple }} />
             </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
-              <Text style={{ color: C.faint, fontSize: 12, flex: 1 }}>
-                {squeeze != null
-                  ? 'Shrinking it so it fits — ' + Math.round(squeeze * 100) + '%. This runs at real speed, so a long clip takes about as long as it is.'
-                  : pct > 0
-                    ? Math.round(pct * 100) + '% sent — you can leave this open'
-                    : 'Starting the upload…'}
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 7 }}>
+              <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12, flex: 1 }}>
+                {squeeze != null ? t('ml_shrinking').replace('{n}', String(Math.round(squeeze * 100))) : t('ml_sending').replace('{n}', String(Math.round(pct * 100)))}
               </Text>
               <Pressable onPress={cancelUpload} hitSlop={8}>
                 <Text style={{ color: C.coral, fontSize: 12, fontWeight: '900' }}>{t('cancel')}</Text>
@@ -219,69 +237,54 @@ export const MediaLibrarySheet = ({ onPick, onClose, only = null, inline = false
             </View>
           </View>
         ) : null}
-
-        {err ? (
-          <Text style={{ color: C.coral, fontSize: 12.5, textAlign: 'center', marginTop: 12, paddingHorizontal: 26, lineHeight: 18 }}>{err}</Text>
-        ) : null}
+        {err ? <Text style={{ color: C.coral, fontSize: 12.5, textAlign: 'center', marginBottom: 10, paddingHorizontal: 26 }}>{err}</Text> : null}
 
         {!SUPABASE_READY || !user ? (
-          <Text style={{ color: C.faint, fontSize: 13, textAlign: 'center', paddingHorizontal: 40, paddingVertical: 40, lineHeight: 20 }}>
-            {t('ml_signin')}
-          </Text>
+          <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13.5, textAlign: 'center', paddingHorizontal: 40, paddingVertical: 40, lineHeight: 20 }}>{t('ml_signin')}</Text>
         ) : rows === null ? (
-          <ActivityIndicator color={C.purple} style={{ marginTop: 40 }} />
+          <ActivityIndicator color="#FFF" style={{ marginTop: 40 }} />
         ) : shown.length ? (
-          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 12, paddingTop: 14, paddingBottom: insets.bottom + 30 }}>
-            {shown.map((r) => (
-              <Pressable
-                key={r.id}
-                onPress={() => { tapSelection(); onPick && onPick(r); }}
-                onLongPress={() => { tapLight(); setConfirmDel(r); }}
-                style={{ width: '33.33%', padding: 4 }}
-              >
-                <View style={{ aspectRatio: 1, borderRadius: 12, overflow: 'hidden', backgroundColor: C.glassHi, borderWidth: 1, borderColor: C.line }}>
-                  {r.kind === 'video' ? (
-                    Platform.OS === 'web' ? (
-                      <video src={r.url} muted playsInline preload="metadata" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    ) : null
-                  ) : (
-                    <Image source={{ uri: r.url }} style={{ width: '100%', height: '100%' }} />
-                  )}
-                  {r.kind === 'video' ? (
-                    <View style={{ position: 'absolute', top: 6, right: 6, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 999, paddingHorizontal: 6, paddingVertical: 2, flexDirection: 'row', alignItems: 'center' }}>
-                      <Ionicons name="play" size={9} color="#FFF" />
-                      <Text style={{ color: '#FFF', fontSize: 9, fontWeight: '800', marginLeft: 3 }}>{mb(r.bytes)}</Text>
-                    </View>
-                  ) : null}
-                  {r.used_count ? (
-                    <View style={{ position: 'absolute', bottom: 5, left: 5, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 999, paddingHorizontal: 6, paddingVertical: 1 }}>
-                      <Text style={{ color: '#FFF', fontSize: 9, fontWeight: '800' }}>used {r.used_count}×</Text>
-                    </View>
-                  ) : null}
+          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: insets.bottom + 30 }}>
+            {months.map((m, i) => (
+              <View key={m.name}>
+                <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '900', paddingHorizontal: 14, paddingTop: i ? 18 : 4, paddingBottom: 8 }}>{m.name}</Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 1 }}>
+                  {i === 0 ? addTile() : null}
+                  {m.items.map(tile)}
                 </View>
-              </Pressable>
+              </View>
             ))}
+            <Text style={{ color: 'rgba(255,255,255,0.35)', fontSize: 11.5, textAlign: 'center', marginTop: 18 }}>{t('ml_private')}</Text>
           </ScrollView>
         ) : (
-          <View style={{ alignItems: 'center', paddingHorizontal: 44, paddingVertical: 46 }}>
-            <Text style={{ fontSize: 34 }}>📂</Text>
-            <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '800', marginTop: 10, textAlign: 'center' }}>{t('ml_empty_t')}</Text>
-            <Text style={{ color: C.faint, fontSize: 12.5, marginTop: 6, textAlign: 'center', lineHeight: 19 }}>
-              {t('ml_empty_b')}
-            </Text>
+          /* empty: an invitation, not a folder icon */
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40, paddingBottom: 80 }}>
+            <View style={{ flexDirection: 'row', marginBottom: 22 }}>
+              {['-8deg', '0deg', '8deg'].map((rot, k) => (
+                <View key={rot} style={{ width: 70, height: 88, borderRadius: 10, marginHorizontal: -8, backgroundColor: k === 1 ? '#2A2838' : '#1F1E2A', borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', transform: [{ rotate: rot }, { translateY: k === 1 ? -6 : 0 }], alignItems: 'center', justifyContent: 'center' }}>
+                  {k === 1 ? <Ionicons name="images-outline" size={26} color="rgba(255,255,255,0.8)" /> : null}
+                </View>
+              ))}
+            </View>
+            <Text style={{ color: '#FFF', fontSize: 19, fontWeight: '900', textAlign: 'center' }}>{t('ml_empty_t2')}</Text>
+            <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 14, marginTop: 8, textAlign: 'center', lineHeight: 20 }}>{t('ml_empty_b2')}</Text>
+            <Pressable onPress={() => add(accept, null)} disabled={!!busy} accessibilityRole="button" style={{ marginTop: 22, outlineStyle: 'none' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', borderRadius: 999, paddingHorizontal: 22, paddingVertical: 13, opacity: busy ? 0.5 : 1 }}>
+                <Ionicons name="add" size={19} color="#111" />
+                <Text style={{ color: '#111', fontSize: 15, fontWeight: '900', marginStart: 6 }}>{t('ml_add_phone')}</Text>
+              </View>
+            </Pressable>
           </View>
         )}
 
         {confirmDel ? (
-          <View style={{ position: 'absolute', left: 18, right: 18, bottom: insets.bottom + 18, backgroundColor: C.float, borderRadius: R, borderWidth: 1, borderColor: C.line, padding: 14, flexDirection: 'row', alignItems: 'center' }}>
-            <Text style={{ color: C.text, fontSize: 13, fontWeight: '700', flex: 1 }}>
-              {t('ml_remove_q')}
-            </Text>
-            <Pressable onPress={() => drop(confirmDel)} style={{ marginRight: 14 }}>
-              <Text style={{ color: C.coral, fontSize: 13, fontWeight: '900' }}>{t('remove')}</Text>
+          <View style={{ position: 'absolute', left: 14, right: 14, bottom: insets.bottom + 16, backgroundColor: '#1F1E2A', borderRadius: R, padding: 14, flexDirection: 'row', alignItems: 'center' }}>
+            <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '700', flex: 1 }}>{t('ml_remove_q')}</Text>
+            <Pressable onPress={() => drop(confirmDel)} style={{ marginRight: 16 }}>
+              <Text style={{ color: C.coral, fontSize: 13.5, fontWeight: '900' }}>{t('remove')}</Text>
             </Pressable>
             <Pressable onPress={() => setConfirmDel(null)}>
-              <Text style={{ color: C.dim, fontSize: 13, fontWeight: '800' }}>{t('keep_word')}</Text>
+              <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13.5, fontWeight: '800' }}>{t('keep_word')}</Text>
             </Pressable>
           </View>
         ) : null}

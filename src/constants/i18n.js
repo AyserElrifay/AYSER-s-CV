@@ -2543,6 +2543,7 @@ export const STRINGS = {
     ml_empty_t: "Nothing in here yet",
     ml_empty_b: "Add a clip now, while you have signal. Posting it later is instant, because the upload already happened.",
     ml_remove_q: "Take this out of your library?",
+    ml_add: "Add", ml_add_phone: "Add from your phone", ml_empty_t2: "Your best shots, ready when you are", ml_empty_b2: "Add photos and clips now, while you have signal \u2014 posting them later is instant.", ml_private: "Only you can see your library.", ml_sending: "{n}% sent \u2014 you can leave this open", ml_shrinking: "Making it smaller so it fits \u2014 {n}%",
     lazy_failed_t: "That part didn't load",
     lazy_failed_b: "It needs the network for a moment. Nothing was lost.",
     close: "Close",
