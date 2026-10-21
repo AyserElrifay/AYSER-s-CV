@@ -87,7 +87,7 @@ const Greeting = ({ h, ar, t }) => {
         <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={{ color: C.faint, fontSize: 10.5, fontWeight: '800', letterSpacing: 1 }}>{t('country_hello')}</Text>
-            <Text style={{ color: C.text, fontSize: 28, fontWeight: '900', marginTop: 4, textAlign: ar ? 'right' : 'left' }}>{h.native}</Text>
+            <Text style={{ color: C.text, fontSize: 28, lineHeight: 40, fontWeight: '900', marginTop: 4, textAlign: ar ? 'right' : 'left' }}>{h.native}</Text>
             {/* a Latin line inside an Arabic layout keeps to its own side,
                 or it runs into the goodbye next to it */}
             <Text style={{ color: C.gold, fontSize: 13.5, fontWeight: '700', marginTop: 1, textAlign: ar ? 'right' : 'left' }} numberOfLines={1}>{h.how}</Text>
@@ -198,7 +198,7 @@ const HeritageCard = ({ h, ar, t, startOpen }) => {
 const FlipCard = ({ p, ar, w }) => {
   const [back, setBack] = useState(false);
   return (
-    <Pressable onPress={() => { tapLight(); setBack((b) => !b); }} accessibilityRole="button" accessibilityHint="flip" style={{ width: w, marginEnd: 10, outlineStyle: 'none' }}>
+    <Pressable onPress={() => { tapLight(); setBack((b) => !b); }} accessibilityRole="button" accessibilityHint="flip" style={{ width: w, marginEnd: w === '100%' ? 0 : 10, outlineStyle: 'none' }}>
       <View style={{ height: 150, borderRadius: 20, padding: 16, justifyContent: 'space-between', backgroundColor: back ? C.text : C.glass, borderWidth: 1, borderColor: back ? C.text : C.line }}>
         {!back ? (
           <>
@@ -591,6 +591,19 @@ export const CountrySheet = ({ startCode, onClose }) => {
           {tab === 'say' ? (
             <>
               <Greeting h={room.hello} ar={ar} t={t} />
+              {/* ── ONE A DAY ── a different card each day, the same one all day
+                  (by the phone's own date): a small reason to come back
+                  tomorrow, never a streak to lose */}
+              {deck.length ? (() => {
+                const day = Math.floor((Date.now() - new Date().getTimezoneOffset() * 60000) / 86400000);
+                const seed = room.code.charCodeAt(0) + room.code.charCodeAt(1);
+                return (
+                  <View style={{ marginBottom: 18 }}>
+                    <Label style={{ color: C.gold }}>{t('country_today')}</Label>
+                    <FlipCard key={room.code + day} p={deck[(day + seed) % deck.length]} ar={ar} w="100%" />
+                  </View>
+                );
+              })() : null}
               {/* the deck: one phrase at a time, flip to check */}
               <Label>{t('country_deck').replace('{n}', String(deck.length))}</Label>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" snapToInterval={240} decelerationRate="fast" style={{ marginHorizontal: -16, marginBottom: 18 }} contentContainerStyle={{ paddingHorizontal: 16 }}>
