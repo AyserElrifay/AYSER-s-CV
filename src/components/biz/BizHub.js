@@ -14,6 +14,8 @@ const GreenSheet = lazyOverlay(() => import('../green/GreenSheet').then((m) => (
 import { bw, fill, TYPES, typeOf, tname, INCLUDES } from './words';
 import { tapLight, tapSelection, tapSuccess } from '../../utils/feedback';
 import { useSheetBack } from '../../hooks/useSheetBack';
+import { COUNTRY_LIST } from '../../constants/countries';
+import { openPartner } from '../../lib/partnerLink';
 
 /* ─── YOUR BUSINESS ON MOMENTS (accepted partners) ────────────────────
    One screen for every kind of partner, with what that kind needs:
@@ -269,11 +271,26 @@ export const BizHub = ({ onClose, lang }) => {
             <Ionicons name="chevron-down" size={26} color={C.text} />
           </Pressable>
           {v === undefined ? <ActivityIndicator color={C.purple} style={{ marginTop: 40 }} /> : !v ? (
-            <Text style={{ color: C.dim, fontSize: 14.5, marginTop: 30, textAlign: 'center', lineHeight: 21 }}>{B('none_mine')}</Text>
+            <View style={{ alignItems: 'center' }}>
+              <Text style={{ color: C.dim, fontSize: 14.5, marginTop: 30, textAlign: 'center', lineHeight: 21 }}>{B('none_mine')}</Text>
+              {/* not a partner yet: the way in is the partner page */}
+              <Pressable onPress={() => { tapLight(); onClose(); openPartner('place'); }} accessibilityRole="button" style={{ marginTop: 18 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, backgroundColor: C.purple, paddingVertical: 12, paddingHorizontal: 20 }}>
+                  <Ionicons name="storefront-outline" size={17} color="#FFF" />
+                  <Text style={{ color: '#FFF', fontSize: 14.5, fontWeight: '900', marginStart: 8 }}>{t('pt_together_line')}</Text>
+                </View>
+              </Pressable>
+            </View>
           ) : (
             <>
               <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '900', letterSpacing: 1, marginTop: 8 }}>{(ty.e + ' ' + tname(lang, ty)).toUpperCase()}</Text>
               <Text style={{ color: C.text, fontSize: 28, fontWeight: '900', letterSpacing: -0.4, marginTop: 2 }} numberOfLines={2}>{v.name}</Text>
+              {/* where it is: the country, with its flag, and the city */}
+              {v.country || v.city ? (
+                <Text style={{ color: C.dim, fontSize: 14, fontWeight: '700', marginTop: 4 }}>
+                  {[(COUNTRY_LIST.find((x) => x.code === v.country) || {}).flag, (COUNTRY_LIST.find((x) => x.code === v.country) || {}).name, v.city].filter(Boolean).join(' ')}
+                </Text>
+              ) : null}
               {/* one switch: is my page on Moments yet */}
               <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 18, padding: 14, marginTop: 14, backgroundColor: v.listed ? C.greenSoft : C.glass, borderWidth: 1, borderColor: v.listed ? C.green : C.line }}>
                 <View style={{ flex: 1, marginEnd: 10 }}>

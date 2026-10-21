@@ -10,6 +10,7 @@ import { appLink, shareLink, shareNote } from '../utils/share';
 import { tapLight, tapMedium, tapSelection, tapSuccess } from '../utils/feedback';
 import { useSheetBack } from '../hooks/useSheetBack';
 import { lazyOverlay } from '../lib/lazyScreen';
+import { COUNTRY_LIST } from '../constants/countries';
 /* the nine kinds of business, and the host check, load with the business screens */
 const BizTypes = lazyOverlay(() => import('./biz').then((m) => ({ default: m.BizTypes })));
 const HostApplySheet = lazyOverlay(() => import('./HostApplySheet').then((m) => ({ default: m.HostApplySheet })));
@@ -34,6 +35,50 @@ const WHY = [
   ['cash-outline', 'pt_why_money'],
 ];
 
+/* the country this phone is probably in: its language region (ar-EG),
+   then its time zone; nothing found → nothing picked, and the server
+   reads it from the phone number instead */
+const TZ = { 'Africa/Cairo': 'EG', 'Europe/Lisbon': 'PT', 'Europe/Madrid': 'ES', 'Europe/Paris': 'FR', 'Europe/Rome': 'IT', 'Europe/Berlin': 'DE', 'Europe/Bucharest': 'RO', 'Europe/Chisinau': 'MD', 'Europe/Tallinn': 'EE', 'Europe/Budapest': 'HU', 'Europe/Prague': 'CZ', 'Europe/London': 'GB', 'Asia/Riyadh': 'SA', 'Asia/Dubai': 'AE', 'Africa/Casablanca': 'MA', 'America/Sao_Paulo': 'BR', 'Europe/Kyiv': 'UA', 'Europe/Kiev': 'UA', 'Europe/Athens': 'GR', 'Europe/Amsterdam': 'NL', 'Europe/Warsaw': 'PL', 'Europe/Vienna': 'AT' };
+const has = (c) => COUNTRY_LIST.some((x) => x.code === c);
+export function guessCountry() {
+  try {
+    const langs = (typeof navigator !== 'undefined' && (navigator.languages || [navigator.language])) || [];
+    for (const l of langs) { const m = /-([A-Za-z]{2})$/.exec(String(l || '')); if (m && has(m[1].toUpperCase())) return m[1].toUpperCase(); }
+    const z = TZ[Intl.DateTimeFormat().resolvedOptions().timeZone];
+    if (z && has(z)) return z;
+  } catch (e) {}
+  return '';
+}
+
+/* country: the guess, shown with its flag; tap to change it from the list */
+const CountryField = ({ label, value, onChange, ph }) => {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState('');
+  const cur = COUNTRY_LIST.find((x) => x.code === value);
+  const list = COUNTRY_LIST.filter((x) => !q.trim() || x.name.toLowerCase().includes(q.trim().toLowerCase())).slice(0, 8);
+  return (
+    <View style={{ marginTop: 12 }}>
+      <Text style={{ color: C.dim, fontSize: 12.5, fontWeight: '800', marginBottom: 6 }}>{label}</Text>
+      <Pressable onPress={() => { tapSelection(); setOpen((v) => !v); }} accessibilityRole="button"
+        style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: C.line, borderRadius: 14, paddingHorizontal: 13, paddingVertical: 12, backgroundColor: C.glass }}>
+        <Text style={{ flex: 1, color: cur ? C.text : C.faint, fontSize: 15 }}>{cur ? cur.flag + '  ' + cur.name : ph}</Text>
+        <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={18} color={C.dim} />
+      </Pressable>
+      {open ? (
+        <View style={{ borderWidth: 1, borderColor: C.line, borderRadius: 14, marginTop: 6, backgroundColor: C.glass, overflow: 'hidden' }}>
+          <TextInput value={q} onChangeText={setQ} placeholder={ph} placeholderTextColor={C.faint} autoFocus
+            style={{ color: C.text, fontSize: 15, paddingHorizontal: 13, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.line }} />
+          {list.map((x) => (
+            <Pressable key={x.code} onPress={() => { tapSelection(); onChange(x.code); setOpen(false); setQ(''); }} style={{ paddingHorizontal: 13, paddingVertical: 10 }}>
+              <Text style={{ color: C.text, fontSize: 14.5 }}>{x.flag + '  ' + x.name}</Text>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
+    </View>
+  );
+};
+
 const Field = ({ label, value, onChange, ph, kb, multi, max }) => (
   <View style={{ marginTop: 14 }}>
     <Text style={{ color: C.dim, fontSize: 13, fontWeight: '800', marginBottom: 6 }}>{label}</Text>
@@ -51,7 +96,7 @@ export const PartnerSheet = ({ onClose, first }) => {
   const [biz, setBiz] = useState(first === 'experience' ? 'activity' : 'cafe');
   const kind = ['activity', 'org', 'host'].includes(biz) ? 'experience' : 'place';
   const [hostOpen, setHostOpen] = useState(false);
-  const [f, setF] = useState({ name: '', brand: '', email: '', phone: '', city: '', about: '' });
+  const [f, setF] = useState(() => ({ name: '', brand: '', email: '', phone: '', city: '', about: '', country: guessCountry() }));
   const set = (k) => (v) => setF((x) => ({ ...x, [k]: v }));
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
@@ -135,6 +180,7 @@ export const PartnerSheet = ({ onClose, first }) => {
                   <Field label={t(kind === 'place' ? 'pt_f_brand_place' : 'pt_f_brand_exp')} value={f.brand} onChange={set('brand')} />
                   <Field label={t('pt_f_phone')} value={f.phone} onChange={set('phone')} kb="phone-pad" ph="+20 …" max={24} />
                   <Field label={t('pt_f_email')} value={f.email} onChange={set('email')} kb="email-address" ph="you@example.com" />
+                  <CountryField label={t('pt_f_country')} value={f.country} onChange={set('country')} ph={t('pt_f_country_ph')} />
                   <Field label={t('pt_f_city')} value={f.city} onChange={set('city')} max={60} />
                   <Field label={t('pt_f_about')} value={f.about} onChange={set('about')} ph={t(kind === 'place' ? 'pt_f_about_ph_place' : 'pt_f_about_ph_exp')} multi max={1000} />
                   {err ? <Text style={{ color: '#E11D48', fontSize: 13.5, marginTop: 12 }}>{err}</Text> : null}

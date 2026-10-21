@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, Pressable, ActivityIndicator, Linking } from 'react-native';
 import { C } from '../constants/theme';
 import { ownerPartnerApps, ownerPartnerSet } from '../services/partners';
+import { COUNTRY_LIST } from '../constants/countries';
 import { appLink, shareLink } from '../utils/share';
 
 /* ─── STUDIO · PARTNERS ────────────────────────────────────────────────
@@ -22,6 +23,8 @@ const Btn = ({ label, onPress, color }) => (
 );
 
 /* the kind a business said it is (see components/biz/words.js) */
+// which country, with its flag (partner_applications.country)
+const countryOf = (code) => { const c = COUNTRY_LIST.find((x) => x.code === code); return c ? c.flag + ' ' + c.name : code ? code : 'Country unknown'; };
 const BIZ_EMOJI = { cafe: '☕', restaurant: '🍽️', shop: '🛍️', hotel: '🏨', hostel: '🛏️', home: '🏡', activity: '🧗', org: '🌱', host: '🧭' };
 
 export const PartnersTab = () => {
@@ -48,7 +51,7 @@ export const PartnersTab = () => {
               <Text style={{ color: C.text, fontSize: 15.5, fontWeight: '900', flex: 1 }} numberOfLines={1}>{(BIZ_EMOJI[x.biz_type] || (x.kind === 'place' ? '📍' : '🧭')) + ' ' + x.brand + (x.biz_type ? ' · ' + x.biz_type : '')}</Text>
               <Text style={{ color: COLOR[x.status], fontSize: 12, fontWeight: '900' }}>{x.status.toUpperCase()}</Text>
             </View>
-            <Text style={{ color: C.dim, fontSize: 13, marginTop: 3 }}>{[x.name, x.city, new Date(x.created_at).toLocaleDateString()].filter(Boolean).join(' · ')}</Text>
+            <Text style={{ color: C.dim, fontSize: 13, marginTop: 3 }}>{[countryOf(x.country), x.city, x.name, new Date(x.created_at).toLocaleDateString()].filter(Boolean).join(' · ')}</Text>
             {x.about ? <Text selectable style={{ color: C.text, fontSize: 13.5, lineHeight: 19, marginTop: 6 }}>{x.about}</Text> : null}
             <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
               {x.phone ? <Btn label={'📞 ' + x.phone} onPress={() => Linking.openURL('tel:' + x.phone).catch(() => {})} /> : null}

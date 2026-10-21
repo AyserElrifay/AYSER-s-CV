@@ -1466,6 +1466,8 @@ export const STRINGS = {
     pt_f_phone: "Phone / WhatsApp",
     pt_f_email: "Email",
     pt_f_city: "City",
+    pt_f_country: "Country",
+    pt_f_country_ph: "Search for a country",
     pt_f_about: "Tell us about it",
     pt_f_about_ph_place: "What kind of place, where, what makes it special…",
     pt_f_about_ph_exp: "What you organise, how often, for how many people…",

@@ -19339,6 +19339,94 @@ $$;
 revoke all on function public.world_walk_rank(text) from public, anon;
 grant execute on function public.world_walk_rank(text) to authenticated;
 
+-- ════════════════════════════════════════════════════════════════════
+-- WHICH COUNTRY A BUSINESS IS IN
+-- Ayser: "عايزك تعرّفني هو من أي بلد". Every application and every place
+-- keeps its country (ISO code): picked on the partner page — guessed
+-- from the phone, changeable — or, when nobody picked, read from the
+-- phone number's prefix. The Studio and the portal show it with its flag.
+-- ════════════════════════════════════════════════════════════════════
+alter table public.partner_applications add column if not exists country text check (country is null or country ~ '^[A-Z]{2}$');
+alter table public.partner_venues add column if not exists country text check (country is null or country ~ '^[A-Z]{2}$');
+
+create or replace function public.country_of_phone(p text)
+returns text language sql immutable as $$
+  select case
+    when d like '20%' then 'EG' when d like '966%' then 'SA' when d like '971%' then 'AE' when d like '974%' then 'QA'
+    when d like '965%' then 'KW' when d like '973%' then 'BH' when d like '968%' then 'OM' when d like '962%' then 'JO'
+    when d like '961%' then 'LB' when d like '212%' then 'MA' when d like '213%' then 'DZ' when d like '216%' then 'TN'
+    when d like '218%' then 'LY' when d like '249%' then 'SD' when d like '351%' then 'PT' when d like '353%' then 'IE'
+    when d like '352%' then 'LU' when d like '356%' then 'MT' when d like '357%' then 'CY' when d like '358%' then 'FI'
+    when d like '359%' then 'BG' when d like '370%' then 'LT' when d like '371%' then 'LV' when d like '372%' then 'EE'
+    when d like '373%' then 'MD' when d like '380%' then 'UA' when d like '381%' then 'RS' when d like '382%' then 'ME'
+    when d like '385%' then 'HR' when d like '386%' then 'SI' when d like '387%' then 'BA' when d like '389%' then 'MK'
+    when d like '355%' then 'AL' when d like '420%' then 'CZ' when d like '421%' then 'SK' when d like '423%' then 'LI'
+    when d like '30%' then 'GR' when d like '31%' then 'NL' when d like '32%' then 'BE' when d like '33%' then 'FR'
+    when d like '34%' then 'ES' when d like '36%' then 'HU' when d like '39%' then 'IT' when d like '40%' then 'RO'
+    when d like '41%' then 'CH' when d like '43%' then 'AT' when d like '44%' then 'GB' when d like '45%' then 'DK'
+    when d like '46%' then 'SE' when d like '47%' then 'NO' when d like '48%' then 'PL' when d like '49%' then 'DE'
+    when d like '90%' then 'TR' when d like '91%' then 'IN' when d like '55%' then 'BR' when d like '60%' then 'MY'
+    when d like '62%' then 'ID' when d like '1%' then 'US'
+    else null end
+  from (select regexp_replace(case when btrim(coalesce(p, '')) like '+%' or btrim(coalesce(p, '')) like '00%' then regexp_replace(btrim(p), '^(\+|00)', '') else '' end, '[^0-9]', '', 'g') as d) x;
+$$;
+
+-- what was sent before there was a country: read from the phone
+update public.partner_applications set country = public.country_of_phone(phone) where country is null and phone is not null and public.country_of_phone(phone) is not null;
+update public.partner_venues v set country = a.country from public.partner_applications a where v.country is null and v.application_id = a.id and a.country is not null;
+
+create or replace function public.partner_apply(p jsonb)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare k text := lower(trim(coalesce(p->>'kind', '')));
+        bt text := nullif(lower(trim(coalesce(p->>'biz_type', ''))), '');
+        n text := trim(coalesce(p->>'name', ''));
+        b text := trim(coalesce(p->>'brand', ''));
+        e text := nullif(lower(trim(coalesce(p->>'email', ''))), '');
+        ph text := nullif(trim(coalesce(p->>'phone', '')), '');
+        c text := nullif(trim(coalesce(p->>'city', '')), '');
+        a text := nullif(trim(coalesce(p->>'about', '')), '');
+        cc text := upper(nullif(trim(coalesce(p->>'country', '')), ''));
+begin
+  if bt is not null and not public.biz_type_ok(bt) then return jsonb_build_object('ok', false, 'reason', 'kind'); end if;
+  if k = '' and bt is not null then k := case when bt in ('activity','org','host') then 'experience' else 'place' end; end if;
+  if k not in ('place','experience') then return jsonb_build_object('ok', false, 'reason', 'kind'); end if;
+  if char_length(n) < 2 or char_length(b) < 2 then return jsonb_build_object('ok', false, 'reason', 'name'); end if;
+  if e is null and ph is null then return jsonb_build_object('ok', false, 'reason', 'contact'); end if;
+  if e is not null and e !~* '^[^@\s]+@[^@\s]+\.[^@\s]+$' then return jsonb_build_object('ok', false, 'reason', 'email'); end if;
+  if ph is not null and ph !~ '^[+0-9 ()-]{6,24}$' then return jsonb_build_object('ok', false, 'reason', 'phone'); end if;
+  if exists (select 1 from public.partner_applications x
+              where lower(x.brand) = lower(b) and coalesce(x.email, x.phone) = coalesce(e, ph)
+                and x.created_at > now() - interval '1 day') then
+    return jsonb_build_object('ok', true, 'again', true);
+  end if;
+  if (select count(*) from public.partner_applications where created_at > now() - interval '1 hour') >= 60 then
+    return jsonb_build_object('ok', false, 'reason', 'busy');
+  end if;
+  if cc is not null and cc !~ '^[A-Z]{2}$' then cc := null; end if;
+  insert into public.partner_applications (kind, biz_type, name, brand, email, phone, city, about, user_id, country)
+  values (k, bt, left(n, 80), left(b, 100), e, ph, left(c, 60), left(a, 1000), auth.uid(), coalesce(cc, public.country_of_phone(ph)));
+  return jsonb_build_object('ok', true);
+end $$;
+revoke all on function public.partner_apply(jsonb) from public;
+grant execute on function public.partner_apply(jsonb) to anon, authenticated;
+
+create or replace function public.partner_on_accept() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if new.status = 'accepted' and old.status is distinct from 'accepted' and new.user_id is not null then
+    insert into public.partner_venues (user_id, application_id, name, kind, biz_type, city, about, phone, staff_code, country)
+    values (new.user_id, new.id, new.brand, new.kind, new.biz_type, new.city, new.about, new.phone, public.biz_code(), new.country)
+    on conflict (user_id) do update set biz_type = coalesce(public.partner_venues.biz_type, excluded.biz_type),
+      country = coalesce(public.partner_venues.country, excluded.country);
+    perform set_config('moments.partner_ok', '1', true);
+    update public.profiles set account_type = 'partner' where id = new.user_id;
+    insert into public.notifications (user_id, actor_id, kind, body) values (new.user_id, new.user_id, 'venue_decision', 'partner_ok');
+  end if;
+  return new;
+end;
+$$;
+revoke execute on function public.partner_on_accept() from public, anon, authenticated;
+
 -- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
