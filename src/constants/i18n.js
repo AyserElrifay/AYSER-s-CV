@@ -2289,7 +2289,7 @@ export const STRINGS = {
     ch_pick_plan: "Coming to {plan}?",
     ch_pick_how: "How have you been?",
     ch_pick_coffee: "Coffee this week?",
-    nu_first_in: "You're the first one in — bring a friend?",
+    nu_first_in: "You're the first one going.",
     nu_you_and: "You and {n} more are going",
     nu_bring: "Bring a friend",
     nu_asked: "Invite sent",

@@ -592,13 +592,14 @@ export const HomeScreen = () => {
             <NextUp user={user} onStart={() => goToTab('TOGETHER')}
               onOpen={(g) => { if (g.lat != null && g.lng != null) showOnMap({ lat: g.lat, lng: g.lng }); else goToTab('TOGETHER'); }} />
 
-            {/* Moments · Reflection */}
-            <View style={{ flexDirection: 'row', marginTop: 16, backgroundColor: C.glass, borderRadius: 999, padding: 4, borderWidth: 1, borderColor: C.line }}>
+            {/* Moments · Reflection — two words, not a black bar: after
+                the photo above, a heavy switch was the loudest thing on
+                the screen, and it is only a way of choosing what to read */}
+            <View style={{ flexDirection: 'row', marginTop: 22 }} accessibilityRole="tablist">
               {[['moments', t('hm_moments')], ['reflect', t('hm_reflect')]].map(([k, label]) => (
-                <Pressable key={k} onPress={() => pickTab(k)} accessibilityRole="tab" accessibilityState={{ selected: homeTab === k }} style={{ flex: 1 }}>
-                  <View style={{ borderRadius: 999, paddingVertical: 9, alignItems: 'center', backgroundColor: homeTab === k ? C.text : 'transparent' }}>
-                    <Text style={{ color: homeTab === k ? C.bg : C.dim, fontSize: 14, fontWeight: '800' }}>{label}</Text>
-                  </View>
+                <Pressable key={k} onPress={() => pickTab(k)} accessibilityRole="tab" accessibilityState={{ selected: homeTab === k }} hitSlop={8} style={{ marginEnd: 22 }}>
+                  <Text style={{ color: homeTab === k ? C.text : C.faint, fontSize: 19, fontWeight: '900', letterSpacing: -0.3 }}>{label}</Text>
+                  <View style={{ height: 3, width: 18, borderRadius: 2, marginTop: 5, backgroundColor: homeTab === k ? C.purple : 'transparent' }} />
                 </Pressable>
               ))}
             </View>

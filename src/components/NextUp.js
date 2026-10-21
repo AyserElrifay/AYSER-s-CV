@@ -183,19 +183,15 @@ export const NextUp = ({ user, onOpen, onStart }) => {
           <LinearGradient colors={['rgba(0,0,0,0.35)', 'rgba(0,0,0,0)', 'rgba(0,0,0,0.8)']} locations={[0, 0.3, 1]} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }} />
           <Text style={{ position: 'absolute', top: 14, left: 16, color: '#FFF', fontSize: 12, fontWeight: '900', letterSpacing: 1.2 }}>{t('nu_kicker').toUpperCase()}</Text>
           <View style={{ position: 'absolute', top: 10, right: 12, flexDirection: 'row', alignItems: 'center' }}>
-            {/* a reminder, one tap, into the phone's calendar */}
-            <Pressable onPress={remind} accessibilityRole="button" accessibilityLabel={t(reminded[g.id] ? 'nu_reminded' : 'nu_remind')} hitSlop={6}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.35)', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5, marginEnd: 6 }}>
-                <Ionicons name={reminded[g.id] ? 'notifications' : 'notifications-outline'} size={14} color="#FFF" />
-                <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '800', marginStart: 4 }}>{t(reminded[g.id] ? 'nu_reminded' : 'nu_remind')}</Text>
+            {/* a reminder, one tap, into the phone's calendar. A bell and
+                nothing else: "You're going" said again what the line at
+                the bottom already says, and two pills up here fought the
+                title for the eye */}
+            <Pressable onPress={remind} accessibilityRole="button" accessibilityLabel={t(reminded[g.id] ? 'nu_reminded' : 'nu_remind')} hitSlop={8}>
+              <View style={{ width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.32)' }}>
+                <Ionicons name={reminded[g.id] ? 'notifications' : 'notifications-outline'} size={16} color="#FFF" />
               </View>
             </Pressable>
-            {g.im_going ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.35)', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 }}>
-                <Ionicons name="checkmark-circle" size={14} color="#FFF" />
-                <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '800', marginStart: 4 }}>{t('nu_going')}</Text>
-              </View>
-            ) : null}
           </View>
           <View style={{ position: 'absolute', left: 16, right: 16, bottom: 16 }}>
             <Text style={{ color: '#FFF', fontSize: 24, fontWeight: '900', letterSpacing: -0.4 }} numberOfLines={2}>{titleFor(g.title, lang)}</Text>
