@@ -871,7 +871,7 @@ export const ChatThread = ({ chat, group, onClose }) => {
             return (
               /* quiet: one line, no animation, one accent button */
               <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, borderTopWidth: 1, borderTopColor: C.line, backgroundColor: C.bg }}>
-                <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', letterSpacing: 1, marginEnd: 10 }}>BARDI</Text>
+                <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', letterSpacing: 1, marginEnd: 10 }}>{t('bd_name').toUpperCase()}</Text>
                 <Text style={{ color: C.text, fontSize: 13.5, flex: 1, minWidth: 0 }} numberOfLines={2}>{t((nudgeWhy === 'new' ? 'bardi_new_' : 'bardi_quiet_') + game)}</Text>
                 {/* one tap: the invitation goes to them, and the game opens */}
                 <Pressable onPress={() => { tapLight(); dismiss(); send(t('bardi_invite_' + game)); if (game === 'tod') setTodOn(true); else setWyrOn(true); setTimeout(() => scroller.current && scroller.current.scrollToEnd({ animated: true }), 80); }}

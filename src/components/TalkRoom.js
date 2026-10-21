@@ -129,7 +129,7 @@ export const TalkRoomSheet = ({ roomId, onClose }) => {
     }
     return (
       <View style={{ borderWidth: 1, borderColor: C.line, backgroundColor: C.glass, borderRadius: 18, padding: 16, marginTop: 22 }}>
-        <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', letterSpacing: 1.2 }}>BARDI</Text>
+        <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', letterSpacing: 1.2 }}>{t('bd_name').toUpperCase()}</Text>
         <Text style={{ color: C.text, fontSize: 16, fontWeight: '700', lineHeight: 22, marginTop: 6 }}>{line}</Text>
         {cta ? (
           <Pressable onPress={cta.go} disabled={busy} accessibilityRole="button"

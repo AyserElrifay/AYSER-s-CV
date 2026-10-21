@@ -817,7 +817,7 @@ export const STRINGS = {
     gn_cta: "Going out now?",
     gn_cta_sub: "Walk, run, coffee — show up on the map and anyone nearby can join.",
     gn_cta_short: "Go out now",
-    vc_kicker: "BARDI",
+    vc_kicker: "PAPYRUS",
     vc_title: "Two quick questions",
     vc_why: "This opens messaging new people and hosting bigger plans.",
     vc_why_dm: "Messaging someone you haven't met yet opens after this check, or after you've joined one hangout.",
