@@ -31,11 +31,13 @@ export const CirclesNear = () => {
     const r = await createCircle({ name: t('ci_saturday'), about: t('ci_saturday_about'), lat: fix && fix.lat, lng: fix && fix.lng, isPublic: true });
     if (r && r.ok) { tapSuccess(); open({ id: r.id, name: t('ci_saturday') }); }
   };
-  if (list == null) return null;
+  /* nothing near: no section at all. An empty box under the week's empty
+     box was the page apologising twice. */
+  if (list == null || !list.length) return null;
 
   return (
     <View style={{ marginTop: 18 }}>
-      <Text style={{ color: C.text, fontSize: 16, fontWeight: '900', marginBottom: 10 }}>{'⭕ ' + t('ci_near')}</Text>
+      <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '900', letterSpacing: 1.1, marginBottom: 10 }}>{t('ci_near').toUpperCase()}</Text>
       {list.length ? (
         <ScrollView horizontal keyboardShouldPersistTaps="handled" showsHorizontalScrollIndicator={false}>
           {list.map((c) => (

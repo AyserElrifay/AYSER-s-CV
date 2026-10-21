@@ -5,6 +5,7 @@ import { useNavigation } from '@react-navigation/native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { publicMedia } from '../lib/publicMedia';
+import { moodOfToday } from '../lib/mood';
 import { C } from '../constants/theme';
 import { useLang } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
@@ -643,20 +644,27 @@ export const TogetherScreen = () => {
         {rows === null ? (
           <ActivityIndicator color={C.purple} style={{ marginVertical: 40 }} />
         ) : rows.length === 0 ? (
-          <View style={{ borderRadius: 24, padding: 22, alignItems: 'center', marginTop: 4, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line }}>
-            <Text style={{ fontSize: 40 }}>🌱</Text>
-            <Text style={{ color: C.text, fontSize: 17, fontWeight: '900', textAlign: 'center', marginTop: 8 }}>{t('tg_empty_t')}</Text>
-            <Text style={{ color: C.dim, fontSize: 13.5, textAlign: 'center', lineHeight: 20, marginTop: 6 }}>{t('tg_empty_b')}</Text>
-            <Pressable onPress={() => { tapMedium(); setSheet('start'); }} style={{ marginTop: 16 }}>
-              <View style={{ borderRadius: 999, paddingHorizontal: 24, paddingVertical: 13, backgroundColor: C.purple }}>
-                <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '900' }}>{t('tg_start')}</Text>
+          /* nothing this week: a picture of people out together, not a
+             seedling emoji on a grey box — the same open door as Home */
+          <View style={{ height: 290, borderRadius: 24, overflow: 'hidden', marginTop: 4, backgroundColor: C.glassHi }}>
+            <Image source={{ uri: publicMedia(moodOfToday(1)) }} style={{ position: 'absolute', width: '100%', height: '100%' }} resizeMode="cover" accessibilityIgnoresInvertColors />
+            <LinearGradient colors={['rgba(0,0,0,0.05)', 'rgba(0,0,0,0.82)']} locations={[0.2, 1]} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }} />
+            <View style={{ position: 'absolute', left: 18, right: 18, bottom: 18 }}>
+              <Text style={{ color: '#FFF', fontSize: 22, fontWeight: '900', letterSpacing: -0.3 }}>{t('tg_empty_t')}</Text>
+              <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: 14, lineHeight: 19, marginTop: 5 }}>{t('nu_empty_s')}</Text>
+              <View style={{ alignItems: 'flex-start', marginTop: 14 }}>
+                <Pressable onPress={() => { tapMedium(); setSheet('start'); }} accessibilityRole="button">
+                  <View style={{ borderRadius: 999, paddingHorizontal: 20, paddingVertical: 11, backgroundColor: '#FFF' }}>
+                    <Text style={{ color: '#1A1A1A', fontSize: 14.5, fontWeight: '900' }}>{t('tg_start')}</Text>
+                  </View>
+                </Pressable>
+                {scope === 'near' ? (
+                  <Pressable onPress={() => { tapLight(); setScope('all'); }} accessibilityRole="button" style={{ marginTop: 12 }} hitSlop={8}>
+                    <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '800', textDecorationLine: 'underline' }}>{t('tg_see_everywhere')}</Text>
+                  </Pressable>
+                ) : null}
               </View>
-            </Pressable>
-            {scope === 'near' ? (
-              <Pressable onPress={() => { tapLight(); setScope('all'); }} style={{ marginTop: 12 }}>
-                <Text style={{ color: C.purple, fontSize: 13, fontWeight: '900' }}>{t('tg_see_everywhere')}</Text>
-              </Pressable>
-            ) : null}
+            </View>
           </View>
         ) : (
           <>
