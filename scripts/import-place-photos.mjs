@@ -33,7 +33,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { DESTINATIONS } from '../src/constants/destinations.js';
-import { pickPage, nameQueries, isNearPlace, creditOf } from '../src/lib/commonsPhoto.js';
+import { pickPage, nameQueries, isNearPlace, creditOf, isPhoto } from '../src/lib/commonsPhoto.js';
 
 const DRY = process.env.DRY_RUN === '1';
 const LIMIT = Number(process.env.LIMIT) || Infinity;
@@ -65,7 +65,16 @@ const toPages = (j) => Object.values((j && j.query && j.query.pages) || {}).map(
 
 const WP = 'https://en.wikipedia.org/w/api.php?action=query&format=json&prop=coordinates%7Cpageimages&piprop=thumbnail%7Cname&pithumbsize=720';
 
+/* names that are not the article's title — see scripts/place-titles.json */
+const TITLES = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'scripts', 'place-titles.json'), 'utf8'));
+
 async function findPage(d) {
+  // the article we named for it, if it truly stands there
+  if (TITLES[d.id]) {
+    const j = await getJSON(WP + '&redirects=1&titles=' + encodeURIComponent(TITLES[d.id]) + '&codistancefrompoint=' + d.lat + '%7C' + d.lng);
+    const p = toPages(j).find((x) => x && x.thumbnail && x.pageimage && isPhoto(x.pageimage) && isNearPlace(x, d.lat, d.lng));
+    if (p) return p;
+  }
   // the article standing at that spot
   const near = await getJSON(WP + '&generator=geosearch&ggslimit=20&ggsradius=2000&ggscoord=' + d.lat + '%7C' + d.lng + '&codistancefrompoint=' + d.lat + '%7C' + d.lng);
   let page = pickPage(d.name, toPages(near));
