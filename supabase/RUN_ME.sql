@@ -19262,6 +19262,48 @@ end;
 $$;
 grant execute on function public.green_go_now(text, text, double precision, double precision, int, int, text, text) to authenticated;
 
+-- ════════════════════════════════════════════════════════════════════
+-- SOMETHING NEW EVERY DAY
+-- One World gets a challenge a day and three a week
+-- (src/components/games/challenges.js picks them by date; the same for
+-- everybody). The server only checks that the key is today's — a day
+-- either side, for time zones — or this ISO week's, a week either side.
+-- The old sky-/dish- keys still work for what is already there.
+-- ════════════════════════════════════════════════════════════════════
+do $do$ begin
+  alter table public.world_entries drop constraint if exists world_entries_challenge_check;
+  alter table public.world_entries add constraint world_entries_challenge_check
+    check (challenge ~ '^(sky-\d{4}-\d{2}-\d{2}|dish-\d{4}-\d{2}|day-\d{4}-\d{2}-\d{2}|wk-\d{4}-\d{2}-[1-3])$');
+exception when others then raise notice 'world_entries challenge check skipped: %', sqlerrm;
+end $do$;
+
+create or replace function public.world_enter(p_challenge text, p_photo text, p_body text, p_city text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); d date; cc text; wk text;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  if coalesce(p_photo, '') !~ '^https://' then return jsonb_build_object('ok', false, 'reason', 'photo'); end if;
+  if p_challenge ~ '^(sky|day)-\d{4}-\d{2}-\d{2}$' then
+    d := substr(p_challenge, 5)::date;
+    if d < current_date - 1 or d > current_date + 1 then return jsonb_build_object('ok', false, 'reason', 'day'); end if;
+  elsif p_challenge ~ '^wk-\d{4}-\d{2}-[1-3]$' then
+    wk := substr(p_challenge, 4, 7);
+    if wk not in (to_char(current_date - 7, 'IYYY-IW'), to_char(current_date, 'IYYY-IW'), to_char(current_date + 7, 'IYYY-IW')) then
+      return jsonb_build_object('ok', false, 'reason', 'day');
+    end if;
+  elsif p_challenge ~ '^dish-\d{4}-\d{2}$' then
+    if p_challenge <> 'dish-' || to_char(now(), 'YYYY-MM') then return jsonb_build_object('ok', false, 'reason', 'day'); end if;
+  else
+    return jsonb_build_object('ok', false, 'reason', 'kind');
+  end if;
+  select upper(country) into cc from public.profiles where id = me;
+  insert into public.world_entries (challenge, user_id, city, country, photo, body)
+  values (p_challenge, me, nullif(left(btrim(coalesce(p_city, '')), 60), ''), case when length(coalesce(cc, '')) = 2 then cc end,
+          btrim(p_photo), nullif(left(btrim(coalesce(p_body, '')), 140), ''))
+  on conflict (challenge, user_id) do update set photo = excluded.photo, body = excluded.body, city = excluded.city, created_at = now();
+  return jsonb_build_object('ok', true);
+end $$;
+
 -- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --

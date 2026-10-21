@@ -3,8 +3,10 @@ import { View, Text, Pressable, Animated, PanResponder, Image, Platform } from '
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { C } from '../../constants/theme';
-import { worldBoard, skyKey } from '../../services/squadGames';
-import { gw, fill } from './words';
+import { worldBoard } from '../../services/squadGames';
+import { todayChallenge } from './challenges';
+import { kindLabel } from './WorldSheet';
+import { gw, fill, say } from './words';
 import { WorldSheet } from './WorldSheet';
 import { tapLight, tapSuccess } from '../../utils/feedback';
 import { publicMedia } from '../../lib/publicMedia';
@@ -70,7 +72,8 @@ export const WorldCard = ({ userId, lang, city }) => {
   const [b, setB] = useState(null);
   const [open, setOpen] = useState(false);
   const T = (k) => gw(lang, k);
-  useEffect(() => { worldBoard(skyKey(), 1).then((r) => r && r.ok && setB(r)); }, [open]);
+  const today = todayChallenge();
+  useEffect(() => { worldBoard(today.key, 1).then((r) => r && r.ok && setB(r)); }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
   const mine = !!(b && b.mine);
   const [w, setW] = useState(0);
   const shared = b && b.entries && b.entries[0] && b.entries[0].photo;
@@ -81,6 +84,8 @@ export const WorldCard = ({ userId, lang, city }) => {
       <View onLayout={(e) => setW(e.nativeEvent.layout.width)} style={{ marginTop: 16, height: H, borderRadius: 24, overflow: 'hidden', backgroundColor: '#2A1E1A' }}>
         {shared ? (
           <Image source={{ uri: shared }} resizeMode="cover" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
+        ) : w && today.img !== 'welcome-sunset.jpg' ? (
+          <Image source={{ uri: publicMedia(today.img) }} resizeMode="cover" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
         ) : w ? (
           /* our own sunset: tall, so it is framed by hand — the sky fills
              the card and the horizon sits low, under the words */
@@ -91,10 +96,10 @@ export const WorldCard = ({ userId, lang, city }) => {
           style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'flex-end', paddingHorizontal: 18, paddingBottom: 18 }}>
           <Pressable onPress={() => { tapLight(); setOpen(true); }} accessibilityRole="button" style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
             <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={[{ color: 'rgba(255,255,255,0.85)', fontSize: 11.5, fontWeight: '800', letterSpacing: lang === 'ar' ? 0 : 1.6 }, SOFT]}>{T('gh_k').toUpperCase()}</Text>
-              <Text style={[{ color: '#FFF', fontSize: 26, fontWeight: '800', letterSpacing: -0.6, marginTop: 2 }, SOFT]}>{mine ? T('slid') : T('gh_t')}</Text>
+              <Text style={[{ color: 'rgba(255,255,255,0.85)', fontSize: 11.5, fontWeight: '800', letterSpacing: lang === 'ar' ? 0 : 1.6 }, SOFT]}>{(T('today_k') + ' · ' + kindLabel(lang, today.c)).toUpperCase()}</Text>
+              <Text style={[{ color: '#FFF', fontSize: 26, fontWeight: '800', letterSpacing: -0.6, marginTop: 2 }, SOFT]}>{mine ? T('slid_d') : say(lang, today)}</Text>
               <Text style={[{ color: 'rgba(255,255,255,0.88)', fontSize: 13.5, fontWeight: '500', marginTop: 3 }, SOFT]} numberOfLines={1}>
-                {b && b.count ? fill(T('entries'), { n: b.count, c: b.countries }) : T('world_card_s')}
+                {b && b.count ? fill(T('entries'), { n: b.count, c: b.countries }) : say(lang, { en: today.s_en, ar: today.s_ar })}
               </Text>
             </View>
             {mine ? <Ionicons name={lang === 'ar' ? 'chevron-back' : 'chevron-forward'} size={22} color="#FFF" /> : null}

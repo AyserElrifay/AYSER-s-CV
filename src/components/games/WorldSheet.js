@@ -5,8 +5,9 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import * as ImagePicker from 'expo-image-picker';
 import { C } from '../../constants/theme';
 import { AV_NEUTRAL } from '../../constants/mockData';
-import { worldBoard, worldEnter, worldLeave, walkTotal, walkAdd, uploadPhoto, skyKey, dishKey } from '../../services/squadGames';
-import { gw, fill, say, DISHES, WALK_STOPS } from './words';
+import { worldBoard, worldEnter, worldLeave, walkTotal, walkAdd, uploadPhoto } from '../../services/squadGames';
+import { todayChallenge, weekChallenges } from './challenges';
+import { gw, fill, say, WALK_STOPS } from './words';
 import { tapLight, tapSelection, tapSuccess } from '../../utils/feedback';
 import { useSheetBack } from '../../hooks/useSheetBack';
 
@@ -16,7 +17,29 @@ import { useSheetBack } from '../../hooks/useSheetBack';
    the month, and the kilometres everybody walked added up on the road
    from Cairo. Real entries only — an empty strip says nobody yet. */
 
-const TABS = ['sky', 'dish', 'walk'];
+const TABS = ['today', 'week', 'walk'];
+
+/* what kind of challenge it is, said small above it */
+const KIND = {
+  sky: ['Sky', 'السما'], food: ['Food', 'أكل'], city: ['Your city', 'مدينتك'], detail: ['Up close', 'من قريب'],
+  nature: ['Nature', 'طبيعة'], kind: ['A kindness', 'حاجة طيبة'], colour: ['Colour', 'لون'],
+  cook: ['Cook', 'اطبخ'], go: ['Go', 'روح'], together: ['Together', 'سوا'],
+};
+export const kindLabel = (lang, c) => (KIND[c] ? KIND[c][lang === 'ar' ? 1 : 0] : '');
+const WEEK_SUB = {
+  cook: ['Everybody cooks this, this week. Show yours.', 'الكل بيطبخ ده الأسبوع ده. ورّينا بتاعك.'],
+  go: ['Go this week. One photo from there.', 'روح الأسبوع ده، وصورة واحدة من هناك.'],
+  together: ['With people, this week. Hands and backs are fine; faces only with their OK.', 'مع ناس الأسبوع ده. الإيدين والضهر ماشي، والوشوش بإذنهم.'],
+};
+
+/* the challenge itself: what kind, what, and one line */
+const Head = ({ ch, lang, sub }) => (
+  <View style={{ marginTop: 18 }}>
+    <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '800', letterSpacing: lang === 'ar' ? 0 : 1.4 }}>{kindLabel(lang, ch.c).toUpperCase()}</Text>
+    <Text style={{ color: C.text, fontSize: 24, fontWeight: '800', letterSpacing: -0.4, marginTop: 2 }}>{say(lang, ch)}</Text>
+    <Text style={{ color: C.dim, fontSize: 14, marginTop: 4, lineHeight: 20 }}>{sub}</Text>
+  </View>
+);
 
 /* five looks, the same CSS the main camera uses (CaptureModal.js) —
    seen live on the camera and baked into the pixels that are shared */
@@ -264,13 +287,35 @@ const Walk = ({ lang, T }) => {
   );
 };
 
+const Week = ({ userId, lang, T, city }) => {
+  const list = weekChallenges();
+  const [pick, setPick] = useState(0);
+  const ch = list[pick];
+  return (
+    <>
+      {/* the three of this week, side by side; one is open below */}
+      <View style={{ flexDirection: 'row', marginTop: 16, marginHorizontal: -4 }}>
+        {list.map((x, i) => (
+          <Pressable key={x.key} onPress={() => { tapSelection(); setPick(i); }} accessibilityRole="tab" accessibilityState={{ selected: pick === i }} style={{ flex: 1, paddingHorizontal: 4 }}>
+            <View style={{ borderRadius: 16, padding: 12, minHeight: 92, backgroundColor: pick === i ? C.text : C.glass, borderWidth: 1, borderColor: pick === i ? C.text : C.line }}>
+              <Text style={{ color: pick === i ? C.bg : C.faint, fontSize: 10.5, fontWeight: '800', letterSpacing: lang === 'ar' ? 0 : 1.2 }}>{kindLabel(lang, x.c).toUpperCase()}</Text>
+              <Text style={{ color: pick === i ? C.bg : C.text, fontSize: 13.5, fontWeight: '800', marginTop: 4, lineHeight: 18 }} numberOfLines={3}>{say(lang, x)}</Text>
+            </View>
+          </Pressable>
+        ))}
+      </View>
+      <Board key={ch.key} ch={ch.key} userId={userId} T={T} city={city}
+        intro={<Head ch={ch} lang={lang} sub={WEEK_SUB[ch.c][lang === 'ar' ? 1 : 0]} />} />
+    </>
+  );
+};
+
 export const WorldSheet = ({ userId, lang, city, start, onClose }) => {
   useSheetBack(onClose);
   const insets = useSafeAreaInsets();
   const T = (k) => gw(lang, k);
-  const [tab, setTab] = useState(start && TABS.includes(start) ? start : 'sky');
-  const now = new Date();
-  const dish = DISHES[now.getUTCMonth()];
+  const [tab, setTab] = useState(start && TABS.includes(start) ? start : 'today');
+  const today = todayChallenge();
   return (
     <Modal visible animationType="slide" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: C.bg }}>
@@ -284,20 +329,13 @@ export const WorldSheet = ({ userId, lang, city, start, onClose }) => {
             {TABS.map((k) => (
               <Pressable key={k} onPress={() => { tapSelection(); setTab(k); }} accessibilityRole="tab" accessibilityState={{ selected: tab === k }} style={{ flex: 1 }}>
                 <View style={{ borderRadius: 999, paddingVertical: 9, alignItems: 'center', backgroundColor: tab === k ? C.glass : 'transparent' }}>
-                  <Text style={{ color: tab === k ? C.text : C.dim, fontSize: 13, fontWeight: '900' }} numberOfLines={1}>{T(k + '_t')}</Text>
+                  <Text style={{ color: tab === k ? C.text : C.dim, fontSize: 13, fontWeight: '900' }} numberOfLines={1}>{T(k === 'walk' ? 'walk_t' : 'tab_' + k)}</Text>
                 </View>
               </Pressable>
             ))}
           </View>
-          {tab === 'sky' ? <Board key="sky" ch={skyKey()} userId={userId} T={T} city={city} intro={<Text style={{ color: C.dim, fontSize: 14, marginTop: 14, lineHeight: 20 }}>{T('sky_s')}</Text>} /> : null}
-          {tab === 'dish' ? (
-            <Board key="dish" ch={dishKey()} userId={userId} T={T} city={city} intro={(
-              <View style={{ borderRadius: 18, padding: 14, backgroundColor: C.goldSoft, marginTop: 14 }}>
-                <Text style={{ color: C.text, fontSize: 18, fontWeight: '900' }}>{lang === 'ar' ? dish[1] : dish[0]}</Text>
-                <Text style={{ color: C.dim, fontSize: 13.5, marginTop: 4, lineHeight: 19 }}>{T('dish_s')}</Text>
-              </View>
-            )} />
-          ) : null}
+          {tab === 'today' ? <Board key="today" ch={today.key} userId={userId} T={T} city={city} intro={<Head ch={today} lang={lang} sub={say(lang, { en: today.s_en, ar: today.s_ar })} />} /> : null}
+          {tab === 'week' ? <Week userId={userId} lang={lang} T={T} city={city} /> : null}
           {tab === 'walk' ? <Walk lang={lang} T={T} /> : null}
         </ScrollView>
       </View>
