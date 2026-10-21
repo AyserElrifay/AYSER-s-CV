@@ -17,6 +17,19 @@ import { useSheetBack } from '../hooks/useSheetBack';
 import { SheetHandle } from './SheetHandle';
 import { CountryFly } from './CountryFly';
 import { WORLD } from '../constants/worldGeo';
+import { PLACES } from './worldCulture';
+
+/* ── ONE COUNTRY, ONE PAGE ── Ayser: "حد يفتح بروفيل دولة كامل من غير ما
+   يقعد يلف في الأبلكيشن". Heritage used to be a room of its own, two taps
+   away; now each place's monument and its custom sit inside its
+   country, under Know. The three places that have no country room yet
+   (Jordan, India, Japan) still get their page — the map and the
+   heritage — rather than disappearing. */
+const PLACE_CODE = { Egypt: 'EG', Jordan: 'JO', Morocco: 'MA', Italy: 'IT', India: 'IN', Japan: 'JP' };
+const heritageOf = (code) => PLACES.find((p) => PLACE_CODE[p.country] === code) || null;
+const ROOMS = COUNTRY_ROOMS.concat(PLACES
+  .filter((p) => PLACE_CODE[p.country] && !COUNTRY_ROOMS.some((c) => c.code === PLACE_CODE[p.country]))
+  .map((p) => ({ code: PLACE_CODE[p.country], name: p.country, nameAr: p.countryAr, lang: '', langAr: '', say: [], warm: [], eat: [], know: [], hear: [], hello: null, heritageOnly: true })));
 
 /* ─── THE COUNTRY ROOM ───────────────────────────────────────────────
    One country at a time: the words you will need in your first week,
@@ -145,6 +158,36 @@ const Fold = ({ title, sub, body }) => {
 };
 const Dish = ({ d, ar }) => <Fold title={ar ? (d.nameAr || d.name) : d.name} sub={ar && d.nameAr ? d.name : null} body={ar ? (d.whatAr || d.what) : d.what} />;
 const Custom = ({ k, ar }) => <Fold title={ar ? (k.titleAr || k.title) : k.title} body={ar ? (k.bodyAr || k.body) : k.body} />;
+
+/* the monument and the custom, as one card: the place's own colours in
+   a thin band, the name first, the custom on a tap */
+const HeritageCard = ({ h, ar, t, startOpen }) => {
+  const [open, setOpen] = useState(!!startOpen);
+  return (
+    <Pressable onPress={() => { tapLight(); setOpen((o) => !o); }} accessibilityRole="button" accessibilityState={{ expanded: open }} style={{ outlineStyle: 'none' }}>
+      <View style={{ borderRadius: 18, overflow: 'hidden', borderWidth: 1, borderColor: C.line, backgroundColor: C.glass, marginBottom: 12 }}>
+        <View style={{ height: 6, flexDirection: 'row' }}>{h.sky.map((c, i) => <View key={i} style={{ flex: 1, backgroundColor: c }} />)}</View>
+        <View style={{ padding: 14 }}>
+          <Text style={{ color: C.faint, fontSize: 10.5, fontWeight: '900', letterSpacing: 1 }}>{t('culture_title').toUpperCase()}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginTop: 4 }}>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={{ color: C.text, fontSize: 17, fontWeight: '900' }}>{ar ? (h.siteAr || h.site) : h.site}</Text>
+              <Text style={{ color: C.faint, fontSize: 12, marginTop: 1 }}>{ar ? (h.cityAr || h.city) : h.city}</Text>
+            </View>
+            <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={16} color={C.faint} style={{ marginStart: 8, marginTop: 3 }} />
+          </View>
+          <Text style={{ color: C.dim, fontSize: 13.5, lineHeight: 20, marginTop: 8 }} numberOfLines={open ? undefined : 2}>{ar ? (h.factAr || h.fact) : h.fact}</Text>
+          {open ? (
+            <>
+              <Text style={{ color: C.faint, fontSize: 10.5, fontWeight: '900', letterSpacing: 1, marginTop: 12 }}>{t('culture_the_custom')}</Text>
+              <Text style={{ color: C.text, fontSize: 14, lineHeight: 21, marginTop: 4 }}>{ar ? (h.customAr || h.custom) : h.custom}</Text>
+            </>
+          ) : null}
+        </View>
+      </View>
+    </Pressable>
+  );
+};
 
 /* ── THE DECK ── the phrases as cards you flip: the word first, and you
    try to remember what it means before you tap. Recalling beats
@@ -417,10 +460,10 @@ export const CountrySheet = ({ startCode, onClose }) => {
   const { lang, t } = useLang();
   const ar = lang === 'ar';
   const [code, setCode] = useState(
-    () => (COUNTRY_ROOMS.some((c) => c.code === startCode) ? startCode : COUNTRY_ROOMS[0].code)
+    () => (ROOMS.some((c) => c.code === startCode) ? startCode : ROOMS[0].code)
   );
   const [tab, setTab] = useState('say');
-  const room = useMemo(() => COUNTRY_ROOMS.find((c) => c.code === code) || COUNTRY_ROOMS[0], [code]);
+  const room = useMemo(() => ROOMS.find((c) => c.code === code) || ROOMS[0], [code]);
 
   /* "اكتب باللغات الي user عايز يتعلمها" — the room cannot write in a
      language it does not know you want. It knows now: whatever you set
@@ -437,10 +480,12 @@ export const CountrySheet = ({ startCode, onClose }) => {
   }, [me]);
   const ordered = useMemo(() => {
     const want = String(myLearning || '').toLowerCase();
-    if (!want) return COUNTRY_ROOMS;
-    const hit = (c) => want.includes(c.lang.toLowerCase()) || c.lang.toLowerCase().includes(want);
-    return [...COUNTRY_ROOMS].sort((a, b) => (hit(b) ? 1 : 0) - (hit(a) ? 1 : 0));
-  }, [myLearning]);
+    // the country you are in comes first, so the page you need is the first one
+    const here = (c) => (c.code === startCode ? 1 : 0);
+    if (!want) return [...ROOMS].sort((a, b) => here(b) - here(a));
+    const hit = (c) => !!c.lang && (want.includes(c.lang.toLowerCase()) || c.lang.toLowerCase().includes(want));
+    return [...ROOMS].sort((a, b) => here(b) - here(a) || (hit(b) ? 1 : 0) - (hit(a) ? 1 : 0));
+  }, [myLearning, startCode]);
   /* Not every country has a scene yet, so the tab is not always there.
      Switching from one that has it to one that does not would have left
      you looking at a tab that no longer exists, and an empty screen. */
@@ -454,6 +499,8 @@ export const CountrySheet = ({ startCode, onClose }) => {
     return w ? w.p : null;
   }, [room.name]);
   const deck = useMemo(() => [...(room.warm || []), ...(room.say || [])], [room]);
+  const heritage = heritageOf(room.code);
+  useEffect(() => { if (room.heritageOnly && tab !== 'know') setTab('know'); }, [room, tab]);
 
   /* Films are only fetched when somebody actually opens that tab, and
      only once per country — this room is mostly read offline material
@@ -469,7 +516,7 @@ export const CountrySheet = ({ startCode, onClose }) => {
     return () => { alive = false; };
   }, [tab, code, films, room.filmLang]);
 
-  const TABS = [
+  const TABS = room.heritageOnly ? [{ k: 'know', label: t('country_tab_know') }] : [
     { k: 'say',   label: t('country_tab_say') },
     { k: 'eat',   label: t('country_tab_eat') },
     { k: 'know',  label: t('country_tab_know') },
@@ -484,7 +531,7 @@ export const CountrySheet = ({ startCode, onClose }) => {
         onPress={() => {}}
         style={{
           backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24,
-          paddingTop: 10, paddingBottom: insets.bottom + 20, maxHeight: '92%',
+          paddingTop: 10, paddingBottom: insets.bottom + 20, height: '92%',
         }}>
         <SheetHandle onClose={onClose} />
 
@@ -521,7 +568,7 @@ export const CountrySheet = ({ startCode, onClose }) => {
         <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
           {spot ? (
             <CountryFly key={room.code} lng={spot[0]} lat={spot[1]} height={150}
-              title={(ar ? room.nameAr : room.name) + ' ' + flagOf(room.code)} sub={ar ? room.langAr : room.lang} />
+              title={(ar ? room.nameAr : room.name) + ' ' + flagOf(room.code)} sub={room.heritageOnly && heritage ? (ar ? heritage.siteAr || heritage.site : heritage.site) : (ar ? room.langAr : room.lang)} />
           ) : (
             <Text style={{ color: C.text, fontSize: 22, fontWeight: '900' }}>{(ar ? room.nameAr : room.name) + ' ' + flagOf(room.code)}</Text>
           )}
@@ -585,6 +632,7 @@ export const CountrySheet = ({ startCode, onClose }) => {
           ) : null}
 
           {tab === 'eat' ? room.eat.map((d, i) => <Dish key={i} d={d} ar={ar} />) : null}
+          {tab === 'know' && heritage ? <HeritageCard key={room.code} h={heritage} ar={ar} t={t} startOpen={room.heritageOnly} /> : null}
           {tab === 'know' ? room.know.map((k, i) => <Custom key={i} k={k} ar={ar} />) : null}
 
           {tab === 'watch' ? (

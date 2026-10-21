@@ -48,7 +48,6 @@ const BizDirectory = lazyOverlay(() => import('../components/biz').then((m) => (
 const TripsSheet = lazyOverlay(() => import('../components/TripsSheet').then((m) => ({ default: m.TripsSheet })));
 const ExploreSheet = lazyOverlay(() => import('../components/ExploreSheet').then((m) => ({ default: m.ExploreSheet })));
 const CountrySheet = lazyOverlay(() => import('../components/CountrySheet').then((m) => ({ default: m.CountrySheet })));
-const CultureSheet = lazyOverlay(() => import('../components/CultureSheet').then((m) => ({ default: m.CultureSheet })));
 const SettleSheet = lazyOverlay(() => import('../components/SettleSheet').then((m) => ({ default: m.SettleSheet })));
 const RewardsSheet = lazyOverlay(() => import('../components/RewardsSheet').then((m) => ({ default: m.RewardsSheet })));
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
@@ -985,8 +984,7 @@ export const TogetherScreen = () => {
       </ScrollView>
 
       {sheet === 'explore' ? <ExploreSheet onClose={() => setSheet(null)} onPick={(k) => setSheet(k === 'trips' ? { trips: 'browse' } : k)} /> : null}
-      {sheet === 'countries' ? <CountrySheet onClose={() => setSheet(null)} /> : null}
-      {sheet === 'heritage' ? <CultureSheet onClose={() => setSheet(null)} /> : null}
+      {sheet === 'countries' ? <CountrySheet startCode={myCode} onClose={() => setSheet(null)} /> : null}
       {sheet === 'places' ? <BizDirectory lang={lang} city={null} onClose={() => setSheet(null)} /> : null}
       {sheet === 'gonow' ? <GoNowSheet onClose={() => { setSheet(null); load(); }} /> : null}
       {sheet === 'talk' ? <StartTalkSheet country={myCode} onClose={() => setSheet(null)} onStarted={(id) => { setSheet(null); setTalkId(id); }} /> : null}

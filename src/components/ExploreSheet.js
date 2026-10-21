@@ -17,12 +17,13 @@ import { useSheetBack } from '../hooks/useSheetBack';
    Now one door, and behind it one column of photographs — where to go
    near you, where to go for the weekend, the country you are in, its
    customs, and the first steps if you just arrived. Each card opens the
-   screen it always opened; only the way in changed. */
+   screen it always opened; only the way in changed.
+   Heritage then went inside Countries: one page per country, with its
+   monument and its customs, instead of two doors to the same place. */
 const CARDS = [
   { k: 'places', img: 'trip-alex-1.jpg', t: 'tg_places', s: 'ex_places_s' },
   { k: 'trips', img: 'offer-desert.jpg', t: 'bk_tile', s: 'ex_trips_s' },
   { k: 'countries', img: 'earth-spin.jpg', t: 'country_title', s: 'ex_countries_s' },
-  { k: 'heritage', img: 'trip-siwa-1.jpg', t: 'culture_title', s: 'ex_heritage_s' },
   { k: 'settle', img: 'intro-people.jpg', t: 'st_title', s: 'ex_settle_s' },
 ];
 
