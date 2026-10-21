@@ -22,6 +22,8 @@ const demoRpc = (name, args) => {
   if (name === 'biz_save') { Object.assign(demoPlace, args.p, { updated_at: 'demo' + Date.now() }); return { ok: true }; }
   if (name === 'biz_new_code') { demoPlace.staff_code = String(1000 + Math.floor(Math.random() * 9000)); return { ok: true, code: demoPlace.staff_code }; }
   if (name === 'biz_stats') return demoStats;
+  if (name === 'biz_set_deal') { demoPlace.deal = args.p && !args.p.off ? { ...args.p } : null; return { ok: true, deal: demoPlace.deal }; }
+  if (name === 'biz_deal_stats') return { ok: true, deal: demoPlace.deal || null, now: false, month: 0 };
   if (name === 'biz_requests_in') return demoReqs.map((q) => ({ ...q }));
   if (name === 'biz_answer') { const q = demoReqs.find((x) => x.id === args.p_id); if (q) { q.status = args.p_status; q.reply = args.p_reply; } return { ok: true }; }
   if (name === 'biz_live_token') return { ok: true, token: Math.floor(Date.now() / 60000).toString(16).slice(-8).padStart(8, '0'), seconds: 60 - new Date().getSeconds() };
@@ -45,6 +47,8 @@ export const myPlace = () => rpc('my_venue');
 export const savePlace = (p) => rpc('biz_save', { p });
 export const newCounterCode = () => rpc('biz_new_code');
 export const placeStats = () => rpc('biz_stats');
+export const setDeal = (p) => rpc('biz_set_deal', { p });
+export const dealStats = () => rpc('biz_deal_stats');
 export const requestsIn = async () => { const r = await rpc('biz_requests_in'); return Array.isArray(r) ? r : []; };
 export const answerRequest = (id, status, reply) => rpc('biz_answer', { p_id: id, p_status: status, p_reply: reply || null });
 

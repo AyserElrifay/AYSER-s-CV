@@ -6,14 +6,14 @@ import { C } from '../../constants/theme';
 import { AV_NEUTRAL } from '../../constants/mockData';
 import { useAuth } from '../../context/AuthContext';
 import { useLang } from '../../context/LanguageContext';
-import { myPlace, savePlace, newCounterCode, placeStats, requestsIn, answerRequest, liveToken } from '../../services/biz';
+import { myPlace, savePlace, newCounterCode, placeStats, requestsIn, answerRequest, liveToken, setDeal, dealStats } from '../../services/biz';
 import { Qr, printTableCard } from './Qr';
 import { placeLink, isBizDemo } from '../../lib/bizLink';
 import { uploadPlanPhoto } from '../../lib/storage';
 import { Selling } from '../VenueSheet';
 import { lazyOverlay } from '../../lib/lazyScreen';
 const GreenSheet = lazyOverlay(() => import('../green/GreenSheet').then((m) => ({ default: m.GreenSheet })));
-import { bw, fill, TYPES, typeOf, tname, INCLUDES } from './words';
+import { bw, fill, dealLine, TYPES, typeOf, tname, INCLUDES } from './words';
 import { tapLight, tapSelection, tapSuccess } from '../../utils/feedback';
 import { useSheetBack } from '../../hooks/useSheetBack';
 import { COUNTRY_LIST } from '../../constants/countries';
@@ -89,6 +89,100 @@ const CounterQr = ({ v, B }) => {
   );
 };
 
+/* ── THE QUIET-HOURS DEAL ── a discount for the hours a place wants
+   filled (supabase/RUN_ME.sql, "THE QUIET-HOURS DEAL"). The hours are
+   read in this phone's time zone, which is the place's. */
+const PCTS = [10, 15, 20, 25, 30, 40, 50];
+const HHMM = /^([01][0-9]|2[0-3]):[0-5][0-9]$/;
+const pad = (t) => { const m = String(t || '').trim().match(/^(\d{1,2})(?::(\d{2}))?$/); return m ? String(m[1]).padStart(2, '0') + ':' + (m[2] || '00') : String(t || '').trim(); };
+const dayName = (lang, n) => { try { return new Date(2024, 0, 7 + n).toLocaleDateString(lang === 'ar' ? 'ar-EG' : lang, { weekday: 'short' }); } catch (e) { return String(n); } };
+const Chip = ({ on, label, onPress }) => (
+  <Pressable onPress={onPress} accessibilityRole="button" accessibilityState={{ selected: on }} style={{ marginEnd: 6, marginBottom: 6 }}>
+    <View style={{ borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8, backgroundColor: on ? C.text : C.glassHi }}>
+      <Text style={{ color: on ? C.bg : C.text, fontSize: 13, fontWeight: '800' }}>{label}</Text>
+    </View>
+  </Pressable>
+);
+
+const DealCard = ({ lang }) => {
+  const B = (k) => bw(lang, k);
+  const [s, setS] = useState(null);
+  const [edit, setEdit] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+  const load = () => dealStats().then((r) => setS(r && r.ok ? r : { ok: false }));
+  useEffect(() => { load(); }, []);
+  if (!s || !s.ok) return null;
+  const d = s.deal;
+  const save = async (p) => {
+    setBusy(true); setErr(null);
+    const r = await setDeal(p);
+    setBusy(false);
+    if (r && r.ok) { tapSuccess(); setEdit(null); load(); } else setErr(B(r && r.reason === 'bad' ? 'deal_bad' : 'failed'));
+  };
+  const start = () => {
+    tapLight(); setErr(null);
+    setEdit(d ? { pct: d.pct, days: d.days.slice(), from: d.from, to: d.to } : { pct: 20, days: [0, 1, 2, 3], from: '15:00', to: '18:00' });
+  };
+  const toggleDay = (n) => setEdit((e) => ({ ...e, days: e.days.includes(n) ? e.days.filter((x) => x !== n) : e.days.concat(n).sort() }));
+  const submit = () => {
+    const from = pad(edit.from); const to = pad(edit.to);
+    if (!edit.days.length || !HHMM.test(from) || !HHMM.test(to) || from >= to) { setErr(B('deal_bad')); return; }
+    let tz = 'Africa/Cairo';
+    try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || tz; } catch (e) { /* keep Cairo */ }
+    save({ pct: edit.pct, days: edit.days, from, to, tz });
+  };
+  return (
+    <View style={{ borderRadius: 20, padding: 16, backgroundColor: C.goldSoft, marginTop: 16 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <Text style={{ color: C.text, fontSize: 16, fontWeight: '900', flex: 1 }}>{'🏷️ ' + B('deal')}</Text>
+        {d && s.now ? (
+          <View style={{ borderRadius: 999, backgroundColor: C.green, paddingHorizontal: 10, paddingVertical: 4 }}>
+            <Text style={{ color: '#FFF', fontSize: 11.5, fontWeight: '900' }}>{B('deal_now')}</Text>
+          </View>
+        ) : null}
+      </View>
+      {!edit ? (
+        <>
+          <Text style={{ color: d ? C.text : C.dim, fontSize: d ? 14.5 : 13, fontWeight: d ? '800' : '400', marginTop: 4, lineHeight: 19 }}>{d ? dealLine(lang, d) : B('deal_s')}</Text>
+          {d ? <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 4 }}>{fill(B('deal_month'), { n: s.month || 0 })}</Text> : null}
+          <Text style={{ color: C.faint, fontSize: 12, marginTop: 8, lineHeight: 17 }}>{B('deal_how')}</Text>
+          <View style={{ flexDirection: 'row', marginTop: 12 }}>
+            <Btn small label={B(d ? 'deal_edit' : 'deal_set')} onPress={start} />
+            {d ? <View style={{ marginStart: 8 }}><Btn small ghost busy={busy} label={B('deal_off')} onPress={() => { tapLight(); save({ off: true }); }} /></View> : null}
+          </View>
+        </>
+      ) : (
+        <>
+          <Label>{B('deal_pct')}</Label>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+            {PCTS.map((n) => <Chip key={n} on={edit.pct === n} label={n + '%'} onPress={() => { tapSelection(); setEdit((e) => ({ ...e, pct: n })); }} />)}
+          </View>
+          <Label>{B('deal_days')}</Label>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+            {[0, 1, 2, 3, 4, 5, 6].map((n) => <Chip key={n} on={edit.days.includes(n)} label={dayName(lang, n)} onPress={() => { tapSelection(); toggleDay(n); }} />)}
+          </View>
+          <View style={{ flexDirection: 'row' }}>
+            <View style={{ flex: 1, marginEnd: 8 }}>
+              <Label>{B('deal_from')}</Label>
+              <Input value={edit.from} onChange={(x) => setEdit((e) => ({ ...e, from: x }))} ph={B('deal_time_ph')} max={5} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Label>{B('deal_to')}</Label>
+              <Input value={edit.to} onChange={(x) => setEdit((e) => ({ ...e, to: x }))} ph="18:00" max={5} />
+            </View>
+          </View>
+          {err ? <Text style={{ color: C.red || '#E11D48', fontSize: 13, marginTop: 8 }}>{err}</Text> : null}
+          <View style={{ flexDirection: 'row', marginTop: 14 }}>
+            <Btn small busy={busy} label={B('save')} onPress={() => { tapLight(); submit(); }} />
+            <View style={{ marginStart: 8 }}><Btn small ghost label={B('cancel')} onPress={() => { tapLight(); setEdit(null); setErr(null); }} /></View>
+          </View>
+        </>
+      )}
+    </View>
+  );
+};
+
 const Today = ({ v, lang, onPlan, onCode }) => {
   const B = (k) => bw(lang, k);
   const [s, setS] = useState(null);
@@ -112,6 +206,7 @@ const Today = ({ v, lang, onPlan, onCode }) => {
         <Stat n={s && s.today} label={B('st_today')} /><Stat n={s && s.week} label={B('st_week')} /><Stat n={s && s.month} label={B('st_month')} />
         <Stat n={s && s.people} label={B('st_people')} /><Stat n={s && s.back} label={B('st_back')} /><Stat n={s && s.rewards} label={B('st_rewards')} />
       </View>
+      {ty.counter ? <DealCard lang={lang} /> : null}
       {s && ty.counter ? (
         <Text style={{ color: C.dim, fontSize: 12.5, lineHeight: 18, marginTop: 10 }}>
           {fill(B('bill'), { left: s.free_left, fee: Number(s.fee), sum: Number(s.month_bill).toLocaleString() })}

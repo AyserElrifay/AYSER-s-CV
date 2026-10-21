@@ -19604,6 +19604,123 @@ do $do$ begin
 exception when others then raise notice 'partner-watch schedule skipped: %', sqlerrm;
 end $do$;
 
+-- ════════════════════════════════════════════════════════════════════
+--  THE QUIET-HOURS DEAL
+--  Ayser: the restaurants' slow hours, filled. A café or restaurant
+--  picks the days and the hours it wants filled and a discount for them
+--  (5–50%); people see it on the place's page and in the list, with
+--  "on now" while it runs. The discount is given at the table — Moments
+--  never touches the bill. A guest who checks in during those hours is a
+--  guest like any other, at the same fee (Ayser's call: we earn from the
+--  guests a deal brings, not from a bigger cut); the visit is marked so
+--  the place can see how many the deal brought. Every rule is here, on
+--  the server: only the place's own account sets it, the hours are read
+--  in the place's own time zone. Safe to re-run.
+-- ════════════════════════════════════════════════════════════════════
+alter table public.partner_venues add column if not exists deal jsonb;
+alter table public.biz_visits add column if not exists deal boolean not null default false;
+
+-- a deal as the client sent it → the clean one, or null when anything is off
+create or replace function public.biz_deal_clean(d jsonb)
+returns jsonb language plpgsql stable set search_path = public as $$
+declare pct int; days int[]; f text; t text; tz text;
+begin
+  if d is null or jsonb_typeof(d) <> 'object' then return null; end if;
+  if coalesce(d ->> 'pct', '') !~ '^[0-9]{1,2}$' then return null; end if;
+  pct := (d ->> 'pct')::int;
+  if pct < 5 or pct > 50 then return null; end if;
+  if jsonb_typeof(d -> 'days') is distinct from 'array' then return null; end if;
+  select array_agg(distinct x::int order by x::int) into days
+    from jsonb_array_elements_text(d -> 'days') x where x ~ '^[0-6]$';
+  if days is null then return null; end if;
+  f := d ->> 'from'; t := d ->> 'to';
+  if coalesce(f, '') !~ '^([01][0-9]|2[0-3]):[0-5][0-9]$' or coalesce(t, '') !~ '^([01][0-9]|2[0-3]):[0-5][0-9]$' or f >= t then return null; end if;
+  tz := coalesce(nullif(btrim(d ->> 'tz'), ''), 'Africa/Cairo');
+  if not exists (select 1 from pg_timezone_names where name = tz) then tz := 'Africa/Cairo'; end if;
+  return jsonb_build_object('pct', pct, 'days', to_jsonb(days), 'from', f, 'to', t, 'tz', tz);
+end $$;
+
+-- is it running right now, in the place's own time
+create or replace function public.biz_deal_now(d jsonb)
+returns boolean language sql stable set search_path = public as $$
+  select coalesce(d is not null
+    and extract(dow from (now() at time zone (d ->> 'tz')))::int in (select x::int from jsonb_array_elements_text(d -> 'days') x)
+    and to_char(now() at time zone (d ->> 'tz'), 'HH24:MI') >= (d ->> 'from')
+    and to_char(now() at time zone (d ->> 'tz'), 'HH24:MI') <  (d ->> 'to'), false);
+$$;
+
+create or replace function public.biz_set_deal(p jsonb)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare v public.partner_venues%rowtype; d jsonb;
+begin
+  select * into v from public.partner_venues where user_id = auth.uid();
+  if not found then return jsonb_build_object('ok', false, 'reason', 'not_partner'); end if;
+  if p is null or coalesce((p ->> 'off')::boolean, false) then
+    update public.partner_venues set deal = null, updated_at = now() where id = v.id;
+    return jsonb_build_object('ok', true, 'deal', null);
+  end if;
+  d := public.biz_deal_clean(p);
+  if d is null then return jsonb_build_object('ok', false, 'reason', 'bad'); end if;
+  update public.partner_venues set deal = d, updated_at = now() where id = v.id;
+  return jsonb_build_object('ok', true, 'deal', d);
+end $$;
+
+-- how many guests this month came during the deal — real check-ins only
+create or replace function public.biz_deal_stats()
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare v public.partner_venues%rowtype;
+begin
+  select * into v from public.partner_venues where user_id = auth.uid();
+  if not found then return jsonb_build_object('ok', false, 'reason', 'not_partner'); end if;
+  return jsonb_build_object('ok', true, 'deal', v.deal, 'now', public.biz_deal_now(v.deal),
+    'month', (select count(*) from public.biz_visits where venue_id = v.id and deal and at >= date_trunc('month', now())));
+end $$;
+
+-- the public card, now with the deal and whether it is on
+create or replace function public.biz_card(v public.partner_venues)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select jsonb_build_object('id', v.id, 'name', v.name, 'type', coalesce(v.biz_type, case when v.kind = 'experience' then 'activity' else 'cafe' end),
+    'city', v.city, 'about', v.about, 'photos', to_jsonb(v.photos), 'price_from', v.price_from, 'currency', v.currency,
+    'address', v.address, 'lat', v.lat, 'lng', v.lng, 'hours', v.hours, 'quiet', v.quiet, 'perk', v.perk, 'details', v.details,
+    'deal', v.deal, 'deal_now', public.biz_deal_now(v.deal),
+    'guests', (select count(distinct user_id) from public.biz_visits b where b.venue_id = v.id));
+$$;
+
+-- check-in, as before, marking a visit made while the deal runs
+create or replace function public.biz_checkin(p_venue uuid, p_code text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); v public.partner_venues%rowtype; n int; r int; on_deal boolean;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  select * into v from public.partner_venues where id = p_venue and listed;
+  if not found then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
+  if v.user_id = me then return jsonb_build_object('ok', false, 'reason', 'yours'); end if;
+  -- six wrong codes in an hour and the counter stops listening for a while
+  if (select count(*) from public.biz_tries where user_id = me and at > now() - interval '1 hour') >= 6 then
+    return jsonb_build_object('ok', false, 'reason', 'slow_down');
+  end if;
+  -- the 4-digit code the staff say, or the counter QR of this minute or the last one
+  if coalesce(btrim(p_code), '') <> coalesce(v.staff_code, '-')
+     and lower(coalesce(btrim(p_code), '')) not in (public.biz_token(v.id, v.staff_code, 0), public.biz_token(v.id, v.staff_code, 1)) then
+    insert into public.biz_tries (user_id) values (me);
+    delete from public.biz_tries where at < now() - interval '1 day';
+    return jsonb_build_object('ok', false, 'reason', 'code');
+  end if;
+  on_deal := public.biz_deal_now(v.deal);
+  insert into public.biz_visits (venue_id, user_id, deal) values (v.id, me, on_deal) on conflict (venue_id, user_id, day) do nothing;
+  n := (select count(*) from public.biz_visits where venue_id = v.id and user_id = me);
+  r := (select count(*) from public.biz_redeems where venue_id = v.id and user_id = me);
+  return jsonb_build_object('ok', true, 'visits', n, 'stamps', n - r * 5, 'perk', v.perk,
+    'deal', case when on_deal then (v.deal ->> 'pct')::int end);
+end $$;
+
+revoke all on function public.biz_deal_clean(jsonb), public.biz_deal_now(jsonb) from public, anon, authenticated;
+revoke all on function public.biz_set_deal(jsonb), public.biz_deal_stats() from public, anon;
+grant execute on function public.biz_set_deal(jsonb), public.biz_deal_stats() to authenticated;
+revoke all on function public.biz_card(public.partner_venues) from public, anon, authenticated;
+revoke all on function public.biz_checkin(uuid, text) from public, anon;
+grant execute on function public.biz_checkin(uuid, text) to authenticated;
+
 -- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --

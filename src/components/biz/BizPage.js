@@ -6,7 +6,7 @@ import { C } from '../../constants/theme';
 import { placePage, checkIn, redeem, askPlace, cancelAsk, directory } from '../../services/biz';
 import { lazyOverlay } from '../../lib/lazyScreen';
 const GreenSheet = lazyOverlay(() => import('../green/GreenSheet').then((m) => ({ default: m.GreenSheet })));
-import { bw, fill, typeOf, tname, INCLUDES, TYPES } from './words';
+import { bw, dealLine, fill, typeOf, tname, INCLUDES, TYPES } from './words';
 import { tapLight, tapSelection, tapSuccess } from '../../utils/feedback';
 import { useSheetBack } from '../../hooks/useSheetBack';
 
@@ -40,7 +40,7 @@ export const BizPage = ({ id, lang, onClose, autoCode }) => {
     setBusy(true); setMsg(null);
     const r = await fn();
     setBusy(false);
-    if (r && r.ok) { tapSuccess(); setMsg({ ok: true, t: ok }); load(); return true; }
+    if (r && r.ok) { tapSuccess(); setMsg({ ok: true, t: typeof ok === 'function' ? ok(r) : ok }); load(); return true; }
     setMsg({ ok: false, t: B(ERR[r && r.reason] || 'e_err') });
     return false;
   };
@@ -50,7 +50,7 @@ export const BizPage = ({ id, lang, onClose, autoCode }) => {
   useEffect(() => {
     if (!autoCode || autoDone.current || !p || p.gone) return;
     autoDone.current = true;
-    run(() => checkIn(p.id, autoCode), B('checked'));
+    run(() => checkIn(p.id, autoCode), (r) => (r.deal ? fill(B('deal_got'), { pct: r.deal }) : B('checked')));
   }, [p && p.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!p) return <Modal visible onRequestClose={onClose}><View style={{ flex: 1, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator color={C.purple} /><Pressable onPress={onClose} style={{ marginTop: 20 }} accessibilityRole="button" accessibilityLabel="Close"><Ionicons name="close" size={26} color={C.text} /></Pressable></View></Modal>;
@@ -92,6 +92,18 @@ export const BizPage = ({ id, lang, onClose, autoCode }) => {
                   ))}
               </View>
 
+              {/* the quiet-hours deal: what, when, and whether it runs now */}
+              {p.deal && p.deal.pct ? (
+                <View style={{ borderRadius: 20, padding: 14, backgroundColor: C.goldSoft, marginTop: 10, flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={{ color: C.text, fontSize: 15, fontWeight: '900', flex: 1, lineHeight: 21 }}>{'🏷️ ' + dealLine(lang, p.deal)}</Text>
+                  {p.deal_now ? (
+                    <View style={{ borderRadius: 999, backgroundColor: C.green, paddingHorizontal: 10, paddingVertical: 4, marginStart: 8 }}>
+                      <Text style={{ color: '#FFF', fontSize: 11.5, fontWeight: '900' }}>{B('deal_now')}</Text>
+                    </View>
+                  ) : null}
+                </View>
+              ) : null}
+
               {/* Moments Table: the group perk and the quiet hours */}
               {p.perk || p.quiet ? (
                 <View style={{ borderRadius: 20, padding: 14, backgroundColor: C.goldSoft, marginTop: 10 }}>
@@ -120,7 +132,7 @@ export const BizPage = ({ id, lang, onClose, autoCode }) => {
                         <TextInput value={code} onChangeText={(x) => setCode(x.replace(/[^0-9]/g, '').slice(0, 4))} keyboardType="number-pad" placeholder={B('code_ph')} placeholderTextColor={C.faint}
                           style={{ flex: 1, minWidth: 0, color: C.text, fontSize: 18, fontWeight: '900', letterSpacing: code ? 6 : 0, borderWidth: 1, borderColor: C.line, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10, backgroundColor: C.bg, outlineStyle: 'none' }} />
                         <Pressable disabled={busy || code.length !== 4} accessibilityRole="button" style={{ marginStart: 10, flexShrink: 0 }}
-                          onPress={() => run(() => (stamps >= 5 ? redeem(p.id, code) : checkIn(p.id, code)), stamps >= 5 ? '🎁' : B('checked')).then((ok) => ok && setCode(''))}>
+                          onPress={() => run(() => (stamps >= 5 ? redeem(p.id, code) : checkIn(p.id, code)), stamps >= 5 ? '🎁' : (r) => (r.deal ? fill(B('deal_got'), { pct: r.deal }) : B('checked'))).then((ok) => ok && setCode(''))}>
                           <View style={{ borderRadius: 999, paddingVertical: 12, paddingHorizontal: 20, backgroundColor: C.purple, opacity: busy || code.length !== 4 ? 0.5 : 1 }}>
                             <Text style={{ color: '#FFF', fontSize: 14.5, fontWeight: '900' }}>{stamps >= 5 ? B('redeem') : B('check_in')}</Text>
                           </View>
@@ -256,6 +268,7 @@ export const BizDirectory = ({ lang, city, onClose }) => {
                   <View style={{ padding: 13 }}>
                     <Text style={{ color: C.faint, fontSize: 11, fontWeight: '900', letterSpacing: 0.8 }}>{(ty.e + ' ' + tname(lang, ty) + (v.city ? ' · ' + v.city : '')).toUpperCase()}</Text>
                     <Text style={{ color: C.text, fontSize: 17, fontWeight: '900', marginTop: 3 }}>{v.name}</Text>
+                    {v.deal && v.deal.pct ? <Text style={{ color: v.deal_now ? C.green : C.text, fontSize: 13, fontWeight: '800', marginTop: 4 }} numberOfLines={1}>{'🏷️ ' + dealLine(lang, v.deal) + (v.deal_now ? ' · ' + B('deal_now') : '')}</Text> : null}
                     {v.perk ? <Text style={{ color: C.text, fontSize: 13, marginTop: 4 }} numberOfLines={1}>{'🎁 ' + v.perk}</Text> : null}
                     <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 3 }}>
                       {[v.price_from != null ? Number(v.price_from).toLocaleString() + ' ' + (v.currency || '') : null, v.guests ? fill(B('guests'), { n: v.guests }) : null].filter(Boolean).join(' · ')}
