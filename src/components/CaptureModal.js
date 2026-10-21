@@ -2282,8 +2282,15 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
         ) : null}
 
         {camError ? (
-          <View style={{ position: 'absolute', top: insets.top + 60, left: 24, right: 24, backgroundColor: 'rgba(0,0,0,0.75)', borderRadius: 14, padding: 14 }}>
-            <Text style={{ color: '#FFF', fontSize: 13, textAlign: 'center' }}>{camError}</Text>
+          /* a sentence that asks for the camera needs a button that does:
+             Safari will only ask again from a tap, so "Allow camera
+             access" on its own left a black screen and nothing to press */
+          <View style={{ position: 'absolute', top: insets.top + 60, left: 24, right: 24, alignItems: 'center' }}>
+            <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '700', textAlign: 'center' }}>{camError}</Text>
+            <Pressable onPress={() => { tapLight(); startStream(); }} accessibilityRole="button" hitSlop={8}
+              style={{ marginTop: 14, backgroundColor: '#FFF', borderRadius: 999, paddingHorizontal: 20, paddingVertical: 11 }}>
+              <Text style={{ color: '#111', fontSize: 14, fontWeight: '900' }}>{t('cap_cam_on')}</Text>
+            </Pressable>
           </View>
         ) : null}
 
@@ -2522,8 +2529,8 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
                     </Pressable>
                     {isWebKit ? (
                       <Pressable onPress={() => { tapLight(); recordWithPhone(); }} hitSlop={8} style={{ marginLeft: 34 }}>
-                        <View style={{ width: 46, height: 46, borderRadius: 14, backgroundColor: C.coral, alignItems: 'center', justifyContent: 'center' }}>
-                          <Ionicons name="videocam" size={22} color="#FFF" />
+                        <View style={{ width: 46, height: 46, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.16)', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.5)', alignItems: 'center', justifyContent: 'center' }}>
+                          <Ionicons name="videocam-outline" size={22} color="#FFF" />
                         </View>
                       </Pressable>
                     ) : (
@@ -2537,11 +2544,6 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
                         ? (locked ? t('cap_locked') : t('cap_slide_lock'))
                         : t('cap_hint_hold')}
                   </Text>
-                  {isWebKit ? (
-                    <Text style={{ color: 'rgba(255,255,255,0.55)', fontSize: 10.5, marginTop: 5, textAlign: 'center', paddingHorizontal: 24, lineHeight: 15 }}>
-                      {t('cap_camera_app_hint')}
-                    </Text>
-                  ) : null}
                   {recording ? (
                     <View style={{ height: 4, width: 160, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.25)', marginTop: 8, overflow: 'hidden' }}>
                       <View style={{ height: 4, width: 160 * recPct, backgroundColor: C.coral }} />
@@ -2566,9 +2568,11 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
               {/* mode switch — hidden when sending a Moment into a chat */}
               {sendMode ? (
                 <View style={{ alignItems: 'center' }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(244,63,94,0.9)', borderRadius: 999, paddingHorizontal: 16, paddingVertical: 8 }}>
-                    <Text style={{ fontSize: 14 }}>🔥</Text>
-                    <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '900', marginLeft: 6 }}>
+                  {/* where it goes, said quietly: a red pill here looked like a
+                      button and was not one, and fought the shutter */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6 }}>
+                    <Text style={{ fontSize: 13 }}>🔥</Text>
+                    <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: 13, fontWeight: '800', marginLeft: 6 }}>
                       {t('moment_one')}{sendToName ? ' → ' + sendToName : ''}
                     </Text>
                   </View>
