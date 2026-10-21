@@ -983,7 +983,11 @@ export const TogetherScreen = () => {
         </Pressable>
       </ScrollView>
 
-      {sheet === 'explore' ? <ExploreSheet onClose={() => setSheet(null)} onPick={(k) => setSheet(k === 'trips' ? { trips: 'browse' } : k)} /> : null}
+      {/* Explore closes completely before the next screen opens. Closing
+          one full-screen window and opening another in the same instant
+          is the likeliest reason Places restarted the app on an iPhone
+          (Countries, a sheet and not a window, never did). */}
+      {sheet === 'explore' ? <ExploreSheet onClose={() => setSheet(null)} onPick={(k) => { setSheet(null); setTimeout(() => setSheet(k === 'trips' ? { trips: 'browse' } : k), 380); }} /> : null}
       {sheet === 'countries' ? <CountrySheet startCode={myCode} onClose={() => setSheet(null)} /> : null}
       {sheet === 'places' ? <BizDirectory lang={lang} city={null} onClose={() => setSheet(null)} /> : null}
       {sheet === 'gonow' ? <GoNowSheet onClose={() => { setSheet(null); load(); }} /> : null}
