@@ -22,6 +22,7 @@ export const answerRequest = (id, status, reply) => rpc('biz_answer', { p_id: id
 
 export const directory = async (type, city) => { const r = await rpc('biz_directory', { p_type: type || null, p_city: city || null }); return Array.isArray(r) ? r : []; };
 export const placePage = (id) => rpc('biz_page', { p_id: id });
+export const liveToken = () => rpc('biz_live_token');
 export const checkIn = (id, code) => rpc('biz_checkin', { p_venue: id, p_code: code });
 export const redeem = (id, code) => rpc('biz_redeem', { p_venue: id, p_code: code });
 export const askPlace = (p) => rpc('biz_request', { p });

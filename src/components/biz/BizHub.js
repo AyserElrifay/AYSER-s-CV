@@ -6,7 +6,9 @@ import { C } from '../../constants/theme';
 import { AV_NEUTRAL } from '../../constants/mockData';
 import { useAuth } from '../../context/AuthContext';
 import { useLang } from '../../context/LanguageContext';
-import { myPlace, savePlace, newCounterCode, placeStats, requestsIn, answerRequest } from '../../services/biz';
+import { myPlace, savePlace, newCounterCode, placeStats, requestsIn, answerRequest, liveToken } from '../../services/biz';
+import { Qr, printTableCard } from './Qr';
+import { placeLink } from '../../lib/bizLink';
 import { uploadPlanPhoto } from '../../lib/storage';
 import { Selling } from '../VenueSheet';
 import { lazyOverlay } from '../../lib/lazyScreen';
@@ -57,6 +59,36 @@ const Btn = ({ label, onPress, ghost, busy, small }) => (
   </Pressable>
 );
 
+/* ─── SCAN TO CHECK IN ── the counter's QR, a new one every minute
+   (biz_live_token): the customer scans and is checked in. A photo of it
+   is useless a minute later. And a card to print for the tables, which
+   opens the place and asks for the staff's code. */
+const CounterQr = ({ v, B }) => {
+  const [tk, setTk] = useState(null);
+  useEffect(() => {
+    let alive = true; let t = null;
+    const get = () => liveToken().then((r) => {
+      if (!alive) return;
+      if (r && r.ok) { setTk(r.token); t = setTimeout(get, Math.max(5, Number(r.seconds) || 30) * 1000 + 500); }
+      else t = setTimeout(get, 15000);
+    });
+    get();
+    return () => { alive = false; if (t) clearTimeout(t); };
+  }, []);
+  return (
+    <View style={{ borderRadius: 22, padding: 18, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, marginTop: 12, alignItems: 'center' }}>
+      <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '900', letterSpacing: 1 }}>{B('qr_title').toUpperCase()}</Text>
+      <View style={{ marginTop: 12, padding: 10, borderRadius: 18, backgroundColor: '#FFF' }}>
+        {tk ? <Qr value={placeLink(v.id, tk)} size={200} /> : <View style={{ width: 200, height: 200, alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator color={C.purple} /></View>}
+      </View>
+      <Text style={{ color: C.dim, fontSize: 13, textAlign: 'center', marginTop: 10, lineHeight: 18 }}>{B('qr_s')}</Text>
+      <View style={{ marginTop: 12 }}>
+        <Btn small ghost label={B('qr_print')} onPress={() => { tapLight(); printTableCard({ name: v.name, link: placeLink(v.id), line: B('qr_card'), sub: B('qr_card_s') }); }} />
+      </View>
+    </View>
+  );
+};
+
 const Today = ({ v, lang, onPlan, onCode }) => {
   const B = (k) => bw(lang, k);
   const [s, setS] = useState(null);
@@ -75,6 +107,7 @@ const Today = ({ v, lang, onPlan, onCode }) => {
           </View>
         </View>
       ) : null}
+      {ty.counter ? <CounterQr v={v} B={B} /> : null}
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -4, marginTop: 12 }}>
         <Stat n={s && s.today} label={B('st_today')} /><Stat n={s && s.week} label={B('st_week')} /><Stat n={s && s.month} label={B('st_month')} />
         <Stat n={s && s.people} label={B('st_people')} /><Stat n={s && s.back} label={B('st_back')} /><Stat n={s && s.rewards} label={B('st_rewards')} />

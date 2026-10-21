@@ -19427,6 +19427,57 @@ end;
 $$;
 revoke execute on function public.partner_on_accept() from public, anon, authenticated;
 
+-- ════════════════════════════════════════════════════════════════════
+-- SCAN TO CHECK IN
+-- Ayser: "الـ QR code اللي المطعم بيخلّي الزباين تعمله". The counter shows
+-- a QR that changes every minute (biz_live_token, the owner only); a
+-- customer scans it and is checked in — nothing to type. A photo of it
+-- is useless a minute later, so nobody checks in from home. The printed
+-- card on the table opens the place, and asks for the staff's code.
+-- ════════════════════════════════════════════════════════════════════
+create or replace function public.biz_token(p_venue uuid, p_code text, p_back int)
+returns text language sql stable as $$
+  select left(md5(p_venue::text || ':' || coalesce(p_code, '') || ':' || (floor(extract(epoch from now()) / 60)::bigint - coalesce(p_back, 0))::text), 8);
+$$;
+revoke all on function public.biz_token(uuid, text, int) from public, anon, authenticated;
+
+create or replace function public.biz_live_token()
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare v public.partner_venues%rowtype;
+begin
+  select * into v from public.partner_venues where user_id = auth.uid();
+  if not found or v.staff_code is null then return jsonb_build_object('ok', false); end if;
+  return jsonb_build_object('ok', true, 'id', v.id, 'token', public.biz_token(v.id, v.staff_code, 0),
+    'seconds', 60 - (floor(extract(epoch from now()))::bigint % 60));
+end $$;
+revoke all on function public.biz_live_token() from public, anon;
+grant execute on function public.biz_live_token() to authenticated;
+
+create or replace function public.biz_checkin(p_venue uuid, p_code text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); v public.partner_venues%rowtype; n int; r int;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  select * into v from public.partner_venues where id = p_venue and listed;
+  if not found then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
+  if v.user_id = me then return jsonb_build_object('ok', false, 'reason', 'yours'); end if;
+  -- six wrong codes in an hour and the counter stops listening for a while
+  if (select count(*) from public.biz_tries where user_id = me and at > now() - interval '1 hour') >= 6 then
+    return jsonb_build_object('ok', false, 'reason', 'slow_down');
+  end if;
+  -- the 4-digit code the staff say, or the counter QR of this minute or the last one
+  if coalesce(btrim(p_code), '') <> coalesce(v.staff_code, '-')
+     and lower(coalesce(btrim(p_code), '')) not in (public.biz_token(v.id, v.staff_code, 0), public.biz_token(v.id, v.staff_code, 1)) then
+    insert into public.biz_tries (user_id) values (me);
+    delete from public.biz_tries where at < now() - interval '1 day';
+    return jsonb_build_object('ok', false, 'reason', 'code');
+  end if;
+  insert into public.biz_visits (venue_id, user_id) values (v.id, me) on conflict (venue_id, user_id, day) do nothing;
+  n := (select count(*) from public.biz_visits where venue_id = v.id and user_id = me);
+  r := (select count(*) from public.biz_redeems where venue_id = v.id and user_id = me);
+  return jsonb_build_object('ok', true, 'visits', n, 'stamps', n - r * 5, 'perk', v.perk);
+end $$;
+
 -- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --

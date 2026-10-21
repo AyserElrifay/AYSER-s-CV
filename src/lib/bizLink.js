@@ -24,4 +24,33 @@ let pending = false;
 }());
 
 export function pendingBiz() { return pending; }
+
+/* ─── A PLACE, FROM A QR ── …/?place=<id> opens that place's page;
+   &c=<token> (the counter's QR) checks you in when you arrive there.
+   Kept for this tab through a sign-in, like the portal link. */
+const PKEY = 'moments.openPlace';
+let place = null;
+(function readPlace() {
+  try {
+    if (typeof window === 'undefined' || !window.location) return;
+    const q = new URLSearchParams(window.location.search);
+    const id = q.get('place');
+    if (id && /^[0-9a-f-]{36}$/i.test(id)) {
+      place = { id, code: (q.get('c') || '').replace(/[^0-9a-f]/gi, '').slice(0, 8) || null };
+      try { window.sessionStorage.setItem(PKEY, JSON.stringify(place)); } catch (e) {}
+      q.delete('place'); q.delete('c');
+      const rest = q.toString();
+      window.history.replaceState(null, '', window.location.pathname + (rest ? '?' + rest : '') + window.location.hash);
+    } else {
+      try { place = JSON.parse(window.sessionStorage.getItem(PKEY) || 'null'); } catch (e) {}
+    }
+  } catch (e) {}
+}());
+export function pendingPlace() { return place; }
+export function takePlace() { place = null; try { window.sessionStorage.removeItem(PKEY); } catch (e) {} }
+export function placeLink(id, code) {
+  let base = 'https://therealmoments.com/';
+  try { if (typeof window !== 'undefined' && window.location && /^https?:/.test(window.location.origin)) base = window.location.origin + window.location.pathname; } catch (e) {}
+  return base + '?place=' + id + (code ? '&c=' + code : '');
+}
 export function takeBiz() { pending = false; try { window.sessionStorage.removeItem(KEY); } catch (e) {} }

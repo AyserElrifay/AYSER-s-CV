@@ -5,6 +5,7 @@
 
 const W = {
   en: {
+    qr_title: 'Scan to check in', qr_s: 'Show this at your counter. Guests scan it and they are checked in. It changes every minute, so a photo of it is useless later.', qr_print: 'Print a card for your tables', qr_card: 'Scan to check in', qr_card_s: 'Open your camera, scan, and collect your stamp on Moments.',
     biz: 'Moments for business', biz_s: 'Cafés, restaurants, shops, stays, activities, organisations and hosts — each gets the tools its kind needs.',
     pick: 'What are you?', apply: 'Apply', for_you: 'What you get',
     places: 'Places on Moments', places_s: 'Real places that welcome groups from Moments.', all: 'All', none: 'No places here yet.', guests: '{n} guests checked in',
@@ -42,6 +43,7 @@ const W = {
     host_go: 'Hosts are verified with an ID first.', host_btn: 'Verify me as a host',
   },
   ar: {
+    qr_title: 'امسح وسجّل حضورك', qr_s: 'اعرضه عند الكاشير. الضيف يمسحه ويتسجّل حضوره على طول. بيتغيّر كل دقيقة، فصورته مش هتنفع بعدين.', qr_print: 'اطبع كارت للترابيزات', qr_card: 'امسح وسجّل حضورك', qr_card_s: 'افتح الكاميرا، امسح، وخد ختمك على Moments.',
     biz: 'Moments للبيزنس', biz_s: 'كافيهات، مطاعم، محلات، أماكن إقامة، أنشطة، منظمات، وهوستس — كل نوع بياخد الأدوات اللي محتاجها.',
     pick: 'إنت إيه؟', apply: 'قدّم', for_you: 'هتاخد إيه',
     places: 'أماكن على Moments', places_s: 'أماكن حقيقية بترحّب بالجروبات من Moments.', all: 'الكل', none: 'لسه مفيش أماكن هنا.', guests: '{n} ضيف عمل check-in',

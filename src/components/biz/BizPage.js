@@ -19,7 +19,7 @@ import { useSheetBack } from '../../hooks/useSheetBack';
 const ERR = { code: 'e_code', slow_down: 'e_slow', yours: 'e_yours', date: 'e_date', setup: 'e_setup', offline: 'e_offline', not_yet: 'not_yet' };
 const iso = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 
-export const BizPage = ({ id, lang, onClose }) => {
+export const BizPage = ({ id, lang, onClose, autoCode }) => {
   useSheetBack(onClose);
   const insets = useSafeAreaInsets();
   const B = (k) => bw(lang, k);
@@ -44,6 +44,14 @@ export const BizPage = ({ id, lang, onClose }) => {
     setMsg({ ok: false, t: B(ERR[r && r.reason] || 'e_err') });
     return false;
   };
+
+  /* scanned the counter's QR: checked in as soon as the page is here */
+  const autoDone = React.useRef(false);
+  useEffect(() => {
+    if (!autoCode || autoDone.current || !p || p.gone) return;
+    autoDone.current = true;
+    run(() => checkIn(p.id, autoCode), B('checked'));
+  }, [p && p.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!p) return <Modal visible onRequestClose={onClose}><View style={{ flex: 1, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator color={C.purple} /><Pressable onPress={onClose} style={{ marginTop: 20 }} accessibilityRole="button" accessibilityLabel="Close"><Ionicons name="close" size={26} color={C.text} /></Pressable></View></Modal>;
   const ty = typeOf(p.type);
