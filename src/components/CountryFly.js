@@ -97,42 +97,56 @@ const drawGlobe = (ctx, w, h, lng0, lat0, R, alpha, dark) => {
 };
 const ease = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
 
-const Globe = ({ lng, lat, W, H, still, onDive }) => {
+/* Turns to the country, then waits for the street map: it dives in only
+   once a tile of it has actually arrived. With no map (no signal, or the
+   tile server down) it stays as it is — the Earth, the country facing
+   you, the pin on it — rather than diving into an empty dark box. */
+const Globe = ({ lng, lat, W, H, still, ready, kick, onDive }) => {
   const ref = useRef(null);
   const [gone, setGone] = useState(false);
+  const st = useRef({ turned: false, diving: false });
+  const draw = useRef(null);
   useEffect(() => {
     let raf = 0; let off = false;
     const dpr = (typeof window !== 'undefined' && window.devicePixelRatio) || 1;
     const c = ref.current;
-    if (!c || !c.getContext) { setGone(true); onDive(); return undefined; }
+    if (!c || !c.getContext) return undefined;
     c.width = W * dpr; c.height = H * dpr;
     const ctx = c.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const dark = !!(typeof document !== 'undefined' && document.documentElement && /mm-dark/.test(document.documentElement.className));
     const r0 = H * 0.42;
     const TURN = 1500, DIVE = 650;
-    loadLand().then(() => {
-      if (off) return;
-      if (still) { setGone(true); onDive(); return; }
+    st.current = { turned: false, diving: false };
+    draw.current = () => {
+      if (off || st.current.diving) return;
+      st.current.diving = true; onDive();
+      if (still) { setGone(true); return; }
       const t0 = performance.now();
-      let dived = false;
       const frame = (now) => {
         if (off) return;
-        const e = now - t0;
-        const a = ease(Math.min(1, e / TURN));
-        const lng0 = lng - 110 * (1 - a), lat0 = 12 + (lat - 12) * a;
-        let R = r0, alpha = 1;
-        if (e > TURN) {
-          if (!dived) { dived = true; onDive(); }
-          const d = Math.min(1, (e - TURN) / DIVE);
-          R = r0 * (1 + 9 * d * d); alpha = 1 - d;
-        }
-        drawGlobe(ctx, W, H, lng0, lat0, R, alpha, dark);
-        if (e < TURN + DIVE) raf = requestAnimationFrame(frame); else setGone(true);
+        const d = Math.min(1, (now - t0) / DIVE);
+        drawGlobe(ctx, W, H, lng, lat, r0 * (1 + 9 * d * d), 1 - d, dark);
+        if (d < 1) raf = requestAnimationFrame(frame); else setGone(true);
+      };
+      raf = requestAnimationFrame(frame);
+    };
+    loadLand().then(() => {
+      if (off) return;
+      const settle = () => { st.current.turned = true; drawGlobe(ctx, W, H, lng, lat, r0, 1, dark); if (ready.current) draw.current(); };
+      if (still) { settle(); return; }
+      const t0 = performance.now();
+      const frame = (now) => {
+        if (off) return;
+        const a = ease(Math.min(1, (now - t0) / TURN));
+        drawGlobe(ctx, W, H, lng - 110 * (1 - a), 12 + (lat - 12) * a, r0, 1, dark);
+        if (a < 1) raf = requestAnimationFrame(frame); else settle();
       };
       raf = requestAnimationFrame(frame);
     });
     return () => { off = true; cancelAnimationFrame(raf); };
   }, [lng, lat]); // eslint-disable-line react-hooks/exhaustive-deps
+  // the map arrived after the globe had already turned: dive now
+  kick.current = () => { if (st.current.turned && draw.current) draw.current(); };
   if (gone) return null;
   return React.createElement('canvas', { ref, style: { position: 'absolute', left: 0, top: 0, width: W, height: H, pointerEvents: 'none' } });
 };
@@ -145,7 +159,15 @@ export const CountryFly = ({ lng, lat, title, sub, height = 190 }) => {
   // pull its whole module into the app's first download)
   let still = false;
   try { still = !!(typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (e) { /* move */ }
-  useEffect(() => { t.setValue(0); pin.setValue(0); }, [lng, lat]); // eslint-disable-line react-hooks/exhaustive-deps
+  const ready = useRef(false);
+  const kick = useRef(null);
+  useEffect(() => { t.setValue(0); pin.setValue(0); ready.current = false; }, [lng, lat]); // eslint-disable-line react-hooks/exhaustive-deps
+  const tileIn = () => { if (ready.current) return; ready.current = true; if (kick.current) kick.current(); };
+  // no map after the turn: the pin lands on the globe itself
+  useEffect(() => {
+    const id = setTimeout(() => { if (!ready.current) { Animated.spring(pin, { toValue: 1, friction: 5, tension: 120, useNativeDriver: true }).start(); } }, still ? 0 : 1900);
+    return () => clearTimeout(id);
+  }, [lng, lat]); // eslint-disable-line react-hooks/exhaustive-deps
   // the globe has turned and is diving in: the street map arrives under it
   const dive = () => {
     if (still) { t.setValue(1); pin.setValue(1); return; }
@@ -164,9 +186,9 @@ export const CountryFly = ({ lng, lat, title, sub, height = 190 }) => {
     <View style={{ height: H, borderRadius: 22, overflow: 'hidden', backgroundColor: '#100C22', alignItems: 'center' }}>
       <View style={{ width: W, height: H }}>
         <Animated.View style={{ position: 'absolute', width: W, height: H, opacity: nFade, transform: [{ scale: nScale }] }}>
-          {near.map((x) => <Image key={x.key} source={{ uri: x.url }} style={{ position: 'absolute', left: x.left, top: x.top, width: TILE, height: TILE }} />)}
+          {near.map((x) => <Image key={x.key} source={{ uri: x.url }} onLoad={tileIn} style={{ position: 'absolute', left: x.left, top: x.top, width: TILE, height: TILE }} />)}
         </Animated.View>
-        <Globe lng={lng} lat={lat} W={W} H={H} still={still} onDive={dive} />
+        <Globe lng={lng} lat={lat} W={W} H={H} still={still} ready={ready} kick={kick} onDive={dive} />
         <Animated.View pointerEvents="none" style={{ position: 'absolute', left: W / 2 - 17, top: H / 2 - 32, opacity: pin, transform: [{ translateY: pinY }] }}>
           <Ionicons name="location" size={34} color={C.coral || '#F43F5E'} />
         </Animated.View>
