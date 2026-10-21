@@ -718,7 +718,7 @@ export const STRINGS = {
     hours_left: '{n}h left',
     split_total_of: 'total {total} ÷ {n}',
     // Chat thread
-    say_hello: 'Say hello',
+    say_hello: 'Say hello', hello_1: 'Hey!', hello_2: 'Hi — nice to meet you', hello_3: 'What are you up to?',
     break_the_ice: 'Nothing here yet — break the ice.',
     open_the_board: 'Open the board',
     declined: 'Declined',

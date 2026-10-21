@@ -80,6 +80,7 @@ export const ChatThread = ({ chat, group, onClose }) => {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { lang, t } = useLang();   // translate into whatever the app is set to
+  const [moreOpen, setMoreOpen] = useState(false);
   const peer = group ? null : chat.user;
   const title0 = group ? chat.name : peer.name;
   const avatarUri = group ? null : peer.avatar;
@@ -157,6 +158,8 @@ export const ChatThread = ({ chat, group, onClose }) => {
     if (min < 3) return '🟢 Active now';
     if (min < 60) return 'Active ' + min + 'm ago';
     if (min < 24 * 60) return 'Active ' + Math.round(min / 60) + 'h ago';
+    // after a week "Active 88d ago" only discourages; say nothing
+    if (min > 7 * 24 * 60) return '';
     return 'Active ' + Math.round(min / (60 * 24)) + 'd ago';
   })();
 
@@ -582,27 +585,25 @@ export const ChatThread = ({ chat, group, onClose }) => {
               {ttl > 0 ? '⏳ Disappear after ' + ((TTL_OPTIONS.find((o) => o.h === ttl) || {}).label || '').replace(' · default', '') : activeLabel}
             </Text>
           </View>
-          {!group && isReal ? (
-            <Pressable onPress={() => { tapLight(); setTtlOpen((v) => !v); }} hitSlop={8} style={{ marginRight: 10 }}>
-              <Ionicons name="timer-outline" size={22} color={ttl ? C.purple : C.dim} />
-            </Pressable>
-          ) : null}
           {group && isReal ? (
             <Pressable onPress={() => { tapLight(); setInfoOpen(true); }} hitSlop={8} accessibilityRole="button" accessibilityLabel={t('gc_info')} style={{ marginRight: 10 }}>
               <Ionicons name="people-outline" size={23} color={C.text} />
             </Pressable>
           ) : null}
+          {/* call, video, and one "more" — the timer and the shield were
+              two grey glyphs nobody could read; they live behind it now,
+              with their names. Purple is kept for Send. */}
+          <Pressable onPress={() => { tapMedium(); setCall({ video: false }); }} hitSlop={8} style={{ marginHorizontal: 8 }} accessibilityRole="button">
+            <Ionicons name="call-outline" size={23} color={C.text} />
+          </Pressable>
+          <Pressable onPress={() => { tapMedium(); setCall({ video: true }); }} hitSlop={8} style={{ marginHorizontal: 8 }} accessibilityRole="button">
+            <Ionicons name="videocam-outline" size={25} color={C.text} />
+          </Pressable>
           {isReal ? (
-            <Pressable onPress={() => { tapLight(); setReportOpen(true); }} hitSlop={8} accessibilityRole="button" accessibilityLabel={t('hr_title')} style={{ marginRight: 4 }}>
-              <Ionicons name="shield-outline" size={22} color={C.dim} />
+            <Pressable onPress={() => { tapLight(); setTtlOpen(false); setMoreOpen((v) => !v); }} hitSlop={8} style={{ marginStart: 6 }} accessibilityRole="button" accessibilityLabel="More">
+              <Ionicons name="ellipsis-horizontal-circle-outline" size={24} color={ttl ? C.purple : C.text} />
             </Pressable>
           ) : null}
-          <Pressable onPress={() => { tapMedium(); setCall({ video: false }); }} hitSlop={8} style={{ marginHorizontal: 10 }}>
-            <Ionicons name="call-outline" size={23} color={C.purple} />
-          </Pressable>
-          <Pressable onPress={() => { tapMedium(); setCall({ video: true }); }} hitSlop={8}>
-            <Ionicons name="videocam-outline" size={25} color={C.purple} />
-          </Pressable>
         </View>
 
         {group && pinned ? (
@@ -617,10 +618,12 @@ export const ChatThread = ({ chat, group, onClose }) => {
                 sends the easy one, so nobody sits staring at a blank box
                 deciding how to start. */}
             {!visibleMsgs.length ? (
-              <View style={{ alignItems: 'center', paddingTop: 40 }}>
-                <Text style={{ fontSize: 34 }}>👋</Text>
-                <Text style={{ color: C.text, fontSize: 15, fontWeight: '900', marginTop: 10 }}>{t('say_hello')}</Text>
-                <Text style={{ color: C.faint, fontSize: 12.5, marginTop: 4, textAlign: 'center', lineHeight: 18 }}>
+              <View style={{ alignItems: 'center', paddingTop: 48 }}>
+                {/* their face, not an emoji: you are writing to a person */}
+                {group ? <Text style={{ fontSize: 40 }}>{chat.emoji}</Text>
+                  : <Image source={{ uri: avatarUri }} style={{ width: 84, height: 84, borderRadius: 42, backgroundColor: C.glassHi }} />}
+                <Text style={{ color: C.text, fontSize: 19, fontWeight: '900', marginTop: 12 }} numberOfLines={1}>{(group && groupName) || title0}</Text>
+                <Text style={{ color: C.faint, fontSize: 13.5, marginTop: 4, textAlign: 'center', lineHeight: 19 }}>
                   {t('break_the_ice')}
                 </Text>
                 {peerMoves.length ? (
@@ -639,13 +642,15 @@ export const ChatThread = ({ chat, group, onClose }) => {
                   </View>
                 ) : null}
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', marginTop: 14 }}>
-                  {['👋 Hey!', 'أهلاً 👋', '✨ Hi — nice to meet you', '🌱 What are you up to?'].map((t) => (
+                  {/* three easy first lines, in your own language */}
+                  {[t('hello_1'), t('hello_2'), t('hello_3')].map((line) => (
                     <Pressable
-                      key={t}
-                      onPress={() => { tapLight(); send(t); }}
-                      style={{ backgroundColor: C.purpleSoft, borderWidth: 1, borderColor: 'rgba(124,58,237,0.28)', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9, margin: 4 }}
+                      key={line}
+                      onPress={() => { tapLight(); send(line); }}
+                      accessibilityRole="button"
+                      style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 10, margin: 4 }}
                     >
-                      <Text style={{ color: C.purple, fontSize: 13, fontWeight: '800' }}>{t}</Text>
+                      <Text style={{ color: C.text, fontSize: 14, fontWeight: '700' }}>{line}</Text>
                     </Pressable>
                   ))}
                 </View>
@@ -880,6 +885,23 @@ export const ChatThread = ({ chat, group, onClose }) => {
             );
           })() : null}
 
+          {/* the thread's "more": disappearing messages, and safety */}
+          {moreOpen ? (
+            <View style={{ position: 'absolute', top: 4, right: 12, backgroundColor: C.bg2, borderRadius: 16, borderWidth: 1, borderColor: C.line, padding: 6, zIndex: 21, minWidth: 220, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 14, shadowOffset: { width: 0, height: 6 } }}>
+              {[
+                !group ? { k: 'ttl', icon: 'timer-outline', label: t('disappearing_messages'), go: () => setTtlOpen(true) } : null,
+                { k: 'safe', icon: 'shield-outline', label: t('hr_title'), go: () => setReportOpen(true) },
+              ].filter(Boolean).map((o) => (
+                <Pressable key={o.k} onPress={() => { tapLight(); setMoreOpen(false); o.go(); }} accessibilityRole="button">
+                  <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 12 }}>
+                    <Ionicons name={o.icon} size={19} color={C.text} />
+                    <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '700', marginStart: 10 }}>{o.label}</Text>
+                  </View>
+                </Pressable>
+              ))}
+            </View>
+          ) : null}
+
           {/* disappearing-messages picker */}
           {ttlOpen ? (
             <View style={{ position: 'absolute', top: 4, right: 12, backgroundColor: C.bg2, borderRadius: 16, borderWidth: 1, borderColor: C.line, padding: 6, zIndex: 20, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 14, shadowOffset: { width: 0, height: 6 } }}>
@@ -1083,15 +1105,17 @@ export const ChatThread = ({ chat, group, onClose }) => {
                 value={draft}
                 onChangeText={setDraft}
                 onSubmitEditing={send}
-                style={{ flex: 1, color: C.text, fontSize: 14.5 }}
+                // minWidth/width 0: without them a browser sizes the box to its
+                // placeholder and pushes the emoji button onto Send
+                style={{ flex: 1, minWidth: 0, width: 0, color: C.text, fontSize: 14.5, outlineStyle: 'none' }}
               />
               <Pressable onPress={() => { tapLight(); setStickersOpen(true); }} hitSlop={8}>
                 <Ionicons name="happy-outline" size={20} color={C.purple} />
               </Pressable>
             </View>
             <Pressable onPress={send} hitSlop={8} style={{ marginLeft: 8 }}>
-              <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: C.purple, alignItems: 'center', justifyContent: 'center' }}>
-                <Ionicons name="send" size={17} color="#FFF" style={{ marginLeft: -1 }} />
+              <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: draft.trim() ? C.purple : C.glassHi, alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="arrow-up" size={20} color={draft.trim() ? '#FFF' : C.faint} />
               </View>
             </Pressable>
           </View>
