@@ -19771,6 +19771,123 @@ returns jsonb language sql stable security definer set search_path = public as $
    where b.user_id = auth.uid() and b.hidden_at is null and (b.status <> 'pending' or b.created_at > now() - interval '30 minutes');
 $$;
 
+-- ════════════════════════════════════════════════════════════════════
+--  THE TRIP THAT COMES BACK
+--  Ayser: Dahab × Saint Catherine runs on the last Thursday of every
+--  month. A trip can repeat — every week, or on the same weekday at the
+--  end of each month. When one leaves, the next one opens by itself:
+--  same page, same price, fresh seats. Times stay Cairo times.
+-- ════════════════════════════════════════════════════════════════════
+alter table public.offers add column if not exists repeat text;
+do $do$ begin
+  alter table public.offers add constraint offers_repeat_check check (repeat is null or repeat in ('weekly','month_last'));
+exception when duplicate_object then null;
+end $do$;
+
+create or replace function public.offer_next_start(p_at timestamptz, p_repeat text)
+returns timestamptz language plpgsql immutable set search_path = public as $$
+declare l timestamp := p_at at time zone 'Africa/Cairo'; d date;
+begin
+  if p_repeat = 'weekly' then return (l + interval '7 days') at time zone 'Africa/Cairo'; end if;
+  if p_repeat = 'month_last' then
+    d := (date_trunc('month', l) + interval '2 months' - interval '1 day')::date;
+    d := d - ((extract(dow from d)::int - extract(dow from l)::int + 7) % 7);
+    return (d + l::time) at time zone 'Africa/Cairo';
+  end if;
+  return null;
+end;
+$$;
+
+create or replace function public.offer_set_repeat(p_id uuid, p_repeat text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  if not public.owner_ok() then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
+  if p_repeat is not null and p_repeat not in ('weekly','month_last') then return jsonb_build_object('ok', false, 'reason', 'invalid'); end if;
+  update public.offers set repeat = p_repeat, updated_at = now() where id = p_id;
+  return jsonb_build_object('ok', found);
+end;
+$$;
+revoke execute on function public.offer_set_repeat(uuid, text) from public, anon;
+grant execute on function public.offer_set_repeat(uuid, text) to authenticated;
+
+-- Once a repeating trip has left, open the next one and hand the repeat on.
+create or replace function public.offers_roll()
+returns int language plpgsql security definer set search_path = public as $$
+declare o public.offers; nxt timestamptz; k int := 0; nid uuid;
+begin
+  for o in select * from public.offers where status = 'live' and repeat is not null and starts_at is not null and starts_at <= now() for update skip locked loop
+    nxt := public.offer_next_start(o.starts_at, o.repeat);
+    while nxt <= now() loop nxt := public.offer_next_start(nxt, o.repeat); end loop;
+    nid := gen_random_uuid();
+    insert into public.offers
+      select (jsonb_populate_record(o, jsonb_build_object(
+        'id', nid, 'starts_at', nxt,
+        'ends_at', case when o.ends_at is null then null else nxt + (o.ends_at - o.starts_at) end,
+        'created_at', now(), 'updated_at', now()))).*;
+    insert into public.offer_leaders (offer_id, name, role, credential, credential_ar, photo, profile_id, verified, sort)
+      select nid, name, role, credential, credential_ar, photo, profile_id, verified, sort from public.offer_leaders where offer_id = o.id;
+    update public.offers set repeat = null, updated_at = now() where id = o.id;
+    k := k + 1;
+  end loop;
+  return k;
+end;
+$$;
+revoke all on function public.offers_roll() from public, anon, authenticated;
+
+do $do$ begin
+  create extension if not exists pg_cron;
+  perform cron.unschedule(jobid) from cron.job where jobname = 'offers-roll';
+  perform cron.schedule('offers-roll', '11 * * * *', 'select public.offers_roll()');
+exception when others then raise notice 'offers-roll schedule skipped: %', sqlerrm;
+end $do$;
+
+-- Dahab × Saint Catherine — Moments runs it. Saved as a draft: the owner
+-- checks the meeting time and the seats in Studio, then publishes.
+insert into public.offers (kind, status, operator, title, title_ar, summary, summary_ar, city, country, lat, lng, photos,
+  itinerary, itinerary_ar, includes, includes_ar, excludes, excludes_ar, good_to_know, good_to_know_ar,
+  price, currency, starts_at, ends_at, pay_modes, repeat)
+select 'trip', 'draft', 'Moments', 'Dahab × Saint Catherine', 'دهب × سانت كاترين',
+  'Two days in South Sinai: the sea in Dahab, then the sunrise from the top of Mount Saint Catherine.',
+  'يومين في جنوب سينا: البحر في دهب، وبعدين شروق الشمس من فوق جبل سانت كاترين.',
+  'Dahab', 'EG', 28.4936, 34.5133,
+  array['https://therealmoments.com/media/welcome-dahab.jpg','https://therealmoments.com/media/welcome-catherine.jpg','https://therealmoments.com/media/places/eg_st_catherine.jpg'],
+  array['Thursday night: leave Cairo from Abdel Moneim Riad',
+        'Friday in Dahab: the Three Pools — sea and mountains together',
+        'Snorkelling over the coral reef',
+        'Beach buggy safari (optional, paid separately)',
+        'A Bedouin evening in Jebel El Tawlat',
+        'Free time on the Dahab promenade',
+        'At night: start the climb of Mount Saint Catherine',
+        'Sunrise from the summit, time for photos',
+        'Saint Catherine''s Monastery, the church, Moses'' Well and the Burning Bush — subject to visiting hours',
+        'Saturday morning: head back, arrive in Cairo at night'],
+  array['الخميس بليل: التحرك من القاهرة من عبد المنعم رياض',
+        'الجمعة في دهب: الثري بولز — البحر والجبال مع بعض',
+        'سنوركلينج فوق الشعاب المرجانية',
+        'سفاري بيتش باجي (اختياري بتكلفة إضافية)',
+        'سهرة بدوية في جبل الطويلات',
+        'جولة حرة في الممشى السياحي بدهب',
+        'بليل: بداية صعود جبل سانت كاترين',
+        'شروق الشمس من فوق القمة، ووقت للتصوير',
+        'دير سانت كاترين والكنيسة وبئر موسى والشجرة المعلقة — حسب مواعيد الزيارة',
+        'السبت الصبح: الرجوع، والوصول القاهرة بليل'],
+  array['Return transport','The full programme','Three Pools entry','Saint Catherine Protectorate tickets','A Bedouin guide','A Moments host with the group'],
+  array['الانتقالات ذهابًا وعودة','برنامج الرحلة','دخول منطقة الثري بولز','تذاكر دخول محمية سانت كاترين','الدليل البدوي','مشرف من Moments'],
+  array['Lunch','Snorkelling gear','Diving','Beach buggy safari','Any other activity with its own fee'],
+  array['وجبة الغداء','أدوات السنوركلينج','الغطس','سفاري البيتش باجي','أي أنشطة إضافية برسوم منفصلة'],
+  array['Bring: ID, sportswear, good walking shoes, a torch, a power bank, water and snacks',
+        'The summit is very cold at night, especially November to March — bring a heavy jacket, a hat and gloves',
+        'Children under 6 go free without their own bus seat; from 7 they pay the full price'],
+  array['هات معاك: إثبات شخصية، لبس رياضي، حذاء مريح للمشي، كشاف، باور بانك، ميه وسناكس',
+        'القمة ساقعة جدًا بليل، خصوصًا من نوفمبر لمارس — هات جاكيت تقيل وكوفية وجوانتي',
+        'الأطفال تحت ٦ سنين مجانًا من غير كرسي في الأتوبيس، ومن ٧ سنين بسعر الفرد كامل'],
+  850, 'EGP',
+  timestamp '2026-10-29 23:00' at time zone 'Africa/Cairo',
+  timestamp '2026-10-31 22:00' at time zone 'Africa/Cairo',
+  '{reserve}', 'month_last'
+where not exists (select 1 from public.offers where title = 'Dahab × Saint Catherine');
+
+
 -- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --

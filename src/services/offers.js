@@ -64,6 +64,7 @@ export const offerSetVideo = (id, video) => act('offer_set_video', { p_id: id, p
 /* "I want to go" on a coming-soon trip — one row per person; the
    database counts and, when the trip opens, tells everybody who asked */
 export const offerWant = (id, on) => act('offer_want', { p_offer: id, p_on: on !== false });
+export const offerSetRepeat = (id, repeat) => act('offer_set_repeat', { p_id: id, p_repeat: repeat || null });
 export const offerSetDuration = (id, hours) => act('offer_set_duration', { p_id: id, p_hours: hours == null || !isFinite(hours) ? null : hours });
 
 /* ── who leads a trip (RUN_ME.sql "WHO LEADS A TRIP") — the team adds

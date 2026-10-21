@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable, TextInput, Image, ActivityIndicator, Animated, Easing } from 'react-native';
 import { C } from '../constants/theme';
 import {
-  ownerOffers, offerSave, offerSetVideo, offerSetDuration, offerSetStatus, ownerBookings, ownerMarkBooking, ownerSetSetting, appSettings, photoUrl, money, ownerLeaders, ownerSaveLeader, ownerDeleteLeader } from '../services/offers';
+  ownerOffers, offerSave, offerSetVideo, offerSetDuration, offerSetRepeat, offerSetStatus, ownerBookings, ownerMarkBooking, ownerSetSetting, appSettings, photoUrl, money, ownerLeaders, ownerSaveLeader, ownerDeleteLeader } from '../services/offers';
 import { uploadPlanPhoto } from '../lib/storage';
 import { tapLight, tapSuccess } from '../utils/feedback';
 import { appLink, shareLink } from '../utils/share';
@@ -187,7 +187,7 @@ const toForm = (o) => ({
   seats: o.seats == null ? '' : String(o.seats), pay_modes: o.pay_modes || ['reserve'],
   free_cancel_hours: o.free_cancel_hours == null ? '' : String(o.free_cancel_hours),
   commission_pct: o.commission_pct == null ? '' : String(o.commission_pct),
-  track: o.track || '', faith_time: !!o.faith_time, topic: o.topic || '', ages: o.ages || '',
+  repeat: o.repeat || '', track: o.track || '', faith_time: !!o.faith_time, topic: o.topic || '', ages: o.ages || '',
   conditions: joinL(o.conditions), conditions_ar: joinL(o.conditions_ar),
 });
 const fromForm = (f) => {
@@ -230,7 +230,7 @@ export const OffersTab = ({ userId }) => {
     setBusy(true); setMsg(null);
     const r = await offerSave(fromForm(form));
     setBusy(false);
-    if (r && r.ok) { await offerSetVideo(r.id, form.video); await offerSetDuration(r.id, form.duration ? Number(String(form.duration).replace(',', '.')) : null); tapSuccess(); setForm((f) => ({ ...f, id: r.id })); setMsg('Saved.'); load(); }
+    if (r && r.ok) { await offerSetVideo(r.id, form.video); await offerSetDuration(r.id, form.duration ? Number(String(form.duration).replace(',', '.')) : null); await offerSetRepeat(r.id, form.repeat); tapSuccess(); setForm((f) => ({ ...f, id: r.id })); setMsg('Saved.'); load(); }
     else setMsg('Not saved: ' + ((r && (r.detail || r.reason)) || 'error'));
   };
   const status = async (o, s) => {
@@ -334,6 +334,10 @@ export const OffersTab = ({ userId }) => {
           <View style={{ flex: 1, marginEnd: 8 }}><Field label="Starts (YYYY-MM-DD HH:MM)" value={form.starts_at} onChange={set('starts_at')} /></View>
           <View style={{ flex: 1 }}><Field label="Ends" value={form.ends_at} onChange={set('ends_at')} /></View>
         </View>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+          {[['', 'Once'], ['weekly', '↻ Every week'], ['month_last', '↻ Last of the month']].map(([k, label]) => <Btn key={k || 'once'} label={(form.repeat === k ? '✓ ' : '') + label} solid={form.repeat === k} onPress={() => set('repeat')(k)} />)}
+        </View>
+        {form.repeat ? <Text style={{ color: C.dim, fontSize: 12.5, marginBottom: 4 }}>When this one leaves, the next opens by itself — {form.repeat === 'weekly' ? 'same day next week' : 'same weekday, at the end of next month'}, same time, fresh seats.</Text> : null}
         <View style={{ flexDirection: 'row' }}>
           <View style={{ flex: 1, marginEnd: 8 }}><Field label="Seats (empty = no limit)" value={form.seats} onChange={set('seats')} num /></View>
           <View style={{ flex: 1, marginEnd: 8 }}><Field label="Free cancel (hours before)" value={form.free_cancel_hours} onChange={set('free_cancel_hours')} num /></View>
