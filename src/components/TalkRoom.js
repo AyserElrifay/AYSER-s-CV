@@ -23,6 +23,22 @@ import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
    See supabase/RUN_ME.sql ("TALK ROOMS") for the rules, which live in
    the database, and src/lib/talkMesh.js for the audio. */
 
+/* the bars beside a name: that voice, now — still when it is quiet */
+const Voice = ({ mesh, id, color }) => {
+  const [v, setV] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => { const m = mesh.current; setV(m && m.level ? m.level(id) : 0); }, 80);
+    return () => clearInterval(t);
+  }, [mesh, id]);
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', height: 14, marginStart: 6 }} accessibilityElementsHidden importantForAccessibility="no">
+      {[0.55, 1, 0.75, 0.4].map((k, i) => (
+        <View key={i} style={{ width: 3, borderRadius: 2, marginStart: i ? 2 : 0, backgroundColor: color, height: 3 + Math.round(11 * Math.min(1, v * k * 1.6)) }} />
+      ))}
+    </View>
+  );
+};
+
 export const TalkRoomSheet = ({ roomId, onClose }) => {
   useSheetBack(onClose);
   const insets = useSafeAreaInsets();
@@ -195,6 +211,7 @@ export const TalkRoomSheet = ({ roomId, onClose }) => {
                     <View key={p.id} style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: C.line, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7, marginEnd: 8, marginBottom: 8 }}>
                       <Ionicons name={p.muted ? 'mic-off-outline' : 'mic-outline'} size={14} color={p.muted ? C.faint : C.text} />
                       <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '700', marginStart: 6 }}>{p.id === user.id ? t('tr_you') : (p.name || '—')}</Text>
+                      {!p.muted ? <Voice mesh={mesh} id={p.id} color={C.text} /> : null}
                     </View>
                   ))}
                 </View>

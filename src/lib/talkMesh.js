@@ -26,6 +26,25 @@ export async function joinMesh({ roomId, me, onPeople, onError }) {
     });
   } catch (e) { onError && onError('mic'); return null; }
 
+  /* ── WHO IS SPEAKING ── each voice's loudness, read here on the phone
+     from the sound already playing (Web Audio). Nothing is recorded or
+     sent; it only moves the small bars beside a name. */
+  let actx = null;
+  const ears = new Map();          // id → { an, buf, src }
+  const listen = (id, stream) => {
+    if (ears.has(id) || !stream) return;
+    try {
+      actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+      if (actx.state === 'suspended') actx.resume().catch(() => {});
+      const src = actx.createMediaStreamSource(stream);
+      const an = actx.createAnalyser(); an.fftSize = 256; an.smoothingTimeConstant = 0.6;
+      src.connect(an);
+      ears.set(id, { an, buf: new Uint8Array(an.fftSize), src });
+    } catch (e) { /* no levels on this phone: the room works the same */ }
+  };
+  const unlisten = (id) => { const e = ears.get(id); if (e) { try { e.src.disconnect(); } catch (x) {} ears.delete(id); } };
+  listen(me.id, local);
+
   const rtc = await getRtcConfig();
   const pcs = new Map();          // peerId → { pc, audio, pending: [] }
   let muted = false;
@@ -41,6 +60,7 @@ export async function joinMesh({ roomId, me, onPeople, onError }) {
     if (!p) return;
     try { p.pc.close(); } catch (e) {}
     try { p.audio.srcObject = null; p.audio.remove(); } catch (e) {}
+    unlisten(peerId);
     pcs.delete(peerId);
   };
 
@@ -55,7 +75,7 @@ export async function joinMesh({ roomId, me, onPeople, onError }) {
     pcs.set(peerId, p);
     local.getTracks().forEach((tr) => pc.addTrack(tr, local));
     pc.onicecandidate = (e) => { if (e.candidate) signal(peerId, { ice: e.candidate.toJSON ? e.candidate.toJSON() : e.candidate }); };
-    pc.ontrack = (e) => { audio.srcObject = e.streams[0]; audio.play().catch(() => {}); };
+    pc.ontrack = (e) => { audio.srcObject = e.streams[0]; audio.play().catch(() => {}); listen(peerId, e.streams[0]); };
     pc.onconnectionstatechange = () => { if (pc.connectionState === 'failed') drop(peerId); };
     return p;
   };
@@ -107,6 +127,16 @@ export async function joinMesh({ roomId, me, onPeople, onError }) {
   });
 
   return {
+    /* 0 … 1: how loud this person is right now */
+    level: (id) => {
+      if (id === me.id && muted) return 0;
+      const e = ears.get(id);
+      if (!e) return 0;
+      e.an.getByteTimeDomainData(e.buf);
+      let sum = 0;
+      for (let i = 0; i < e.buf.length; i++) { const v = (e.buf[i] - 128) / 128; sum += v * v; }
+      return Math.min(1, Math.sqrt(sum / e.buf.length) * 5);
+    },
     setMuted: (m) => {
       muted = !!m;
       local.getAudioTracks().forEach((tr) => { tr.enabled = !muted; });
@@ -117,6 +147,8 @@ export async function joinMesh({ roomId, me, onPeople, onError }) {
       closed = true;
       [...pcs.keys()].forEach(drop);
       local.getTracks().forEach((tr) => tr.stop());
+      [...ears.keys()].forEach(unlisten);
+      if (actx) actx.close().catch(() => {});
       try { ch.untrack(); } catch (e) {}
       try { supabase.removeChannel(ch); } catch (e) {}
     },
