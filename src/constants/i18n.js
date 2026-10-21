@@ -2593,7 +2593,7 @@ export const STRINGS = {
     send_sos_q: 'Send SOS?', send_sos_now: 'SEND SOS NOW', sos_live: 'Your SOS pin is live', nearby_people: 'Nearby people 📍', no_one_nearby: 'No one nearby yet',
     whats_up_q: 'What are you up to?', go_invisible: 'Go invisible (hide my activity)', pin_it_here: 'Pin it here 💬', manage_campfire: 'Manage campfire 🔥', put_place_on_moments: 'Put your place on Moments 🤝', apply_2min: 'Apply — takes 2 minutes', leave_feedback: 'Leave feedback ⭐', keep_typing: 'Keep typing…', searching_world: 'Searching the real world… nothing yet 🌍', drop_note: 'Drop a note 💬',
     directions_label: '🧭 Directions', // Chats
-    chats_title: 'Chats 💬', 
+    chats_title: 'Chats', 
     join_exchange: 'Join the exchange', create_squad: 'Create squad 🏕️', close_x: '✕ Close', youre_open_exchange: 'You\'re open for exchange ✓', saving_dots: 'Saving…', saved_live_exchange: 'Saved ✓ — you\'re live on the exchange', 
     no_mates_yet: 'No mates yet',
     wants_to_be_mate: 'wants to be your mate', accept_mate: 'Accept 🤝', mates_check: 'Mates ✓', added_check: 'Added ✓', add_plus: 'Add ＋', i_speak_placeholder: 'I speak… (e.g. Arabic)', save_my_languages: 'Save my languages', search_people_placeholder: 'Search people to message…', invite_mates_hint: 'Add mates first — then invite them into your squad.',

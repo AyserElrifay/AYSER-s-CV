@@ -78,6 +78,10 @@ const DailyLine = ({ body, lang, t }) => {
   );
 };
 
+/* notices Moments itself sends: the name on them is Moments, never the
+   reader's own (they are stored with the reader as the actor) */
+const SYSTEM_KINDS = new Set(['daily_line', 'app_problem', 'team_reply', 'trip_open', 'plan_soon', 'xp_award']);
+
 /* the verb, in the reader's language, with no emoji: one per kind, and
    a plural for the kinds that merge several people into one line */
 const verbOf = (t, kind, many) => {
@@ -325,15 +329,15 @@ export const NotificationsSheet = ({ onClose }) => {
               <Image source={{ uri: g.actors[0].avatar_url || AV_NEUTRAL }} style={{ position: 'absolute', bottom: 0, left: 0, width: 32, height: 32, borderRadius: 16, borderWidth: 2, borderColor: C.bg2, backgroundColor: C.glassHi }} />
             </>
           ) : (
-            n.kind === 'trip_open' || n.kind === 'team_reply' || n.kind === 'app_problem' || n.kind === 'daily_line' ? (
-              <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: n.kind === 'trip_open' ? C.glassHi : n.kind === 'daily_line' ? C.goldSoft : C.purpleSoft, alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 22 }}>{n.kind === 'team_reply' ? '💬' : n.kind === 'app_problem' ? '🛠️' : n.kind === 'daily_line' ? (new Date(n.created_at).getHours() < 15 ? '☀️' : '🌙') : '🧳'}</Text></View>
+            SYSTEM_KINDS.has(n.kind) ? (
+              <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: n.kind === 'trip_open' ? C.glassHi : n.kind === 'daily_line' ? C.goldSoft : C.purpleSoft, alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 22 }}>{n.kind === 'team_reply' ? '💬' : n.kind === 'app_problem' ? '🛠️' : n.kind === 'daily_line' ? (new Date(n.created_at).getHours() < 15 ? '☀️' : '🌙') : n.kind === 'plan_soon' ? '⏰' : n.kind === 'xp_award' ? '⭐' : '🧳'}</Text></View>
             ) : <Image source={{ uri: (n.actor && n.actor.avatar_url) || AV_NEUTRAL }} style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: C.glassHi }} />
           )}
           {!(g ? g.read : n.read) ? <View style={{ position: 'absolute', top: -1, right: -1, width: 11, height: 11, borderRadius: 6, backgroundColor: C.purple, borderWidth: 2, borderColor: C.bg2 }} /> : null}
         </View>
         <View style={{ flex: 1, minWidth: 0, marginLeft: 12 }}>
           <Text style={{ color: C.text, fontSize: 14.5, lineHeight: 20 }} numberOfLines={3}>
-            <Text style={{ fontWeight: '800' }}>{g ? namesLine(g.actors, words) : ((n.kind === 'safety' && n.body !== 'report' && n.body !== 'coach') || n.kind === 'trip_open' || n.kind === 'team_reply' || n.kind === 'app_problem' || n.kind === 'daily_line') ? 'Moments' : ((n.actor && n.actor.name) || words.someone)}</Text>
+            <Text style={{ fontWeight: '800' }}>{g && !SYSTEM_KINDS.has(n.kind) ? namesLine(g.actors, words) : ((n.kind === 'safety' && n.body !== 'report' && n.body !== 'coach') || SYSTEM_KINDS.has(n.kind)) ? 'Moments' : ((n.actor && n.actor.name) || words.someone)}</Text>
             {' '}<Text style={{ color: C.dim }}>{verbOf(t, n.kind, g && g.actors.length > 1)}</Text>
             {'  '}<Text style={{ color: C.faint, fontSize: 12 }}>{timeAgo(n.created_at)}</Text>
           </Text>

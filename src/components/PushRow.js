@@ -9,12 +9,18 @@ import { tapLight, tapSuccess } from '../utils/feedback';
 /* One row that says what is true about notifications on this phone and
    offers the one thing that can be done about it. `ask` is the version
    shown once after joining a plan: a question, with "Not now". */
+/* the quiet line can be put away for two weeks — it was the first thing
+   on Chats and in the notifications every single time */
+const HIDE = 'moments.pushRowHidden';
+const hiddenNow = () => { try { return Date.now() - Number(localStorage.getItem(HIDE) || 0) < 14 * 864e5; } catch (e) { return false; } };
+
 export const PushRow = ({ ask, onDone, compact }) => {
   const { t, lang } = useLang();
   const [state, setState] = useState(null);     // pushState() | 'busy' | 'not_ready'
   useEffect(() => { let alive = true; pushState().then((s) => { if (alive) setState(s); }); return () => { alive = false; }; }, []);
 
-  if (state === null || state === 'no') return null;
+  const [hidden, setHidden] = useState(() => (compact ? hiddenNow() : false));
+  if (state === null || state === 'no' || hidden) return null;
   if (ask && state === 'on') return null;
 
   const turnOn = async () => {
@@ -45,6 +51,9 @@ export const PushRow = ({ ask, onDone, compact }) => {
             <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800', textDecorationLine: 'underline' }}>{t('pr_turn_on')}</Text>
           </Pressable>
         ) : null}
+        <Pressable onPress={() => { tapLight(); try { localStorage.setItem(HIDE, String(Date.now())); } catch (e) {} setHidden(true); }} hitSlop={10} accessibilityRole="button" accessibilityLabel={t('pr_not_now')} style={{ marginStart: 12 }}>
+          <Ionicons name="close" size={16} color={C.faint} />
+        </Pressable>
       </View>
     );
   }

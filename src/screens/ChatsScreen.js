@@ -540,7 +540,10 @@ export const ChatsScreen = () => {
         ones online first with the small green dot. Once you have talked,
         the person moves down into the conversations. The first circle
         brings more people in (an invite link). */}
-    {SUPABASE_READY && user ? (
+    {/* only when there are faces to show: an empty row with one dashed
+        circle was a shelf with nothing on it (inviting stays in the
+        empty state and behind the pencil) */}
+    {SUPABASE_READY && user && myMates.some((m) => m && m.id && !dms.some((d) => d.user.id === m.id)) ? (
       <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 18, marginHorizontal: -16 }} contentContainerStyle={{ paddingHorizontal: 16 }}>
         <Pressable onPress={inviteFriends} accessibilityRole="button" accessibilityLabel={t('ch_add_friends')} style={{ alignItems: 'center', marginEnd: 14, width: 64 }}>
           <View style={{ width: 60, height: 60, borderRadius: 30, borderWidth: 1.5, borderStyle: 'dashed', borderColor: C.dim, alignItems: 'center', justifyContent: 'center' }}>
@@ -621,7 +624,6 @@ export const ChatsScreen = () => {
         together; what was said last, and who said it */}
     {(dms.length || split.groups.length) ? (
       <>
-      <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '800', letterSpacing: 1.1, marginBottom: 8 }}>{t('ch_conversations')}</Text>
       <ChatBox>
         {inbox(dms, split.groups).map((r, ri, all) => {
           const lastRow = ri === all.length - 1;
@@ -680,7 +682,7 @@ export const ChatsScreen = () => {
                 ) : null}
               </View>
               <View style={{ alignItems: 'flex-end', marginStart: 10 }}>
-                {when ? <Text style={{ color: unread ? C.purple : C.faint, fontSize: 11.5, fontWeight: unread ? '800' : '500' }}>{when}</Text> : null}
+                {when ? <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '500' }}>{when}</Text> : null}
                 {unread ? <View style={{ marginTop: 7, width: 9, height: 9, borderRadius: 5, backgroundColor: C.purple }} /> : null}
               </View>
             </Pressable>

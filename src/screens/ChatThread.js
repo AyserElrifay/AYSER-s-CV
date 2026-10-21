@@ -1063,16 +1063,16 @@ export const ChatThread = ({ chat, group, onClose }) => {
           <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingTop: 8, paddingBottom: insets.bottom + 8, borderTopWidth: 1, borderTopColor: C.line, backgroundColor: C.bg2 }}>
             {threadOpen ? (
               <Pressable onPress={() => { tapLight(); setMenu((v) => !v); }} hitSlop={8} style={{ marginRight: 8 }}>
-                <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: menu ? C.purple : C.purpleSoft, alignItems: 'center', justifyContent: 'center' }}>
-                  <Ionicons name={menu ? 'close' : 'game-controller'} size={19} color={menu ? '#FFF' : C.purple} />
+                <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: menu ? C.text : C.glassHi, alignItems: 'center', justifyContent: 'center' }}>
+                  <Ionicons name={menu ? 'close' : 'game-controller-outline'} size={19} color={menu ? C.bg : C.text} />
                 </View>
               </Pressable>
             ) : null}
             {/* shoot a Moment — a Snapchat-style snap, straight into the chat */}
             {threadOpen ? (
               <Pressable onPress={() => { tapMedium(); setMomentOpen(true); }} hitSlop={8} style={{ marginRight: 8 }}>
-                <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: C.coralSoft, alignItems: 'center', justifyContent: 'center' }}>
-                  <Ionicons name="camera" size={19} color={C.coral} />
+                <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: C.glassHi, alignItems: 'center', justifyContent: 'center' }}>
+                  <Ionicons name="camera-outline" size={19} color={C.text} />
                 </View>
               </Pressable>
             ) : null}
