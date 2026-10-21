@@ -33,6 +33,8 @@ import { OnlineDot } from '../components/OnlineDot';
 import { translateText } from '../services/bardi';
 import { useLang } from '../context/LanguageContext';
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
+import { checkInAt } from '../services/green';
+import { getCurrentCoords } from '../utils/location';
 import { LinearGradient } from 'expo-linear-gradient';
 import { sfxPop } from '../utils/sfx';
 import { note } from '../lib/crashLog';
@@ -81,6 +83,7 @@ export const ChatThread = ({ chat, group, onClose }) => {
   const { user } = useAuth();
   const { lang, t } = useLang();   // translate into whatever the app is set to
   const [moreOpen, setMoreOpen] = useState(false);
+  const [otw, setOtw] = useState(null);   // what the plan bar last did: 'here' | 'far' | null
   const peer = group ? null : chat.user;
   const title0 = group ? chat.name : peer.name;
   const avatarUri = group ? null : peer.avatar;
@@ -1081,6 +1084,48 @@ export const ChatThread = ({ chat, group, onClose }) => {
                   </View>
                 </Pressable>
               </View>
+            </View>
+          ) : null}
+
+          {/* ── ON THE DAY ── a plan's chat, from three hours before until it
+              ends: the three things everybody types on the way, one tap
+              each. "I'm here" also checks you in at the place (green_check_in
+              — within 300 m, the server decides), which is what the stars
+              and the stamp count. WhatsApp cannot do this; it is the reason
+              to be talking here. */}
+          {group && isReal && chat.plan && !chat.plan.cancelled_at && (() => {
+            const start = Date.parse(chat.plan.starts_at);
+            const end = start + (Number(chat.plan.minutes) || 120) * 60000;
+            const now = Date.now();
+            if (!Number.isFinite(start) || now < start - 3 * 3600000 || now > end) return false;
+            return true;
+          })() ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingTop: 8, backgroundColor: C.bg2, borderTopWidth: 1, borderTopColor: C.line }}>
+              {otw ? (
+                <Text style={{ flex: 1, color: otw === 'here' ? C.green : C.dim, fontSize: 13, fontWeight: '800', paddingVertical: 8 }}>{otw === 'here' ? '✓ ' + t('otw_checked') : t('otw_far')}</Text>
+              ) : [
+                { k: 'on', icon: 'walk-outline', label: t('otw_on'), msg: t('otw_on_msg') },
+                { k: 'late', icon: 'time-outline', label: t('otw_late'), msg: t('otw_late_msg') },
+                { k: 'here', icon: 'location-outline', label: t('otw_here'), msg: t('otw_here_msg') },
+              ].map((b) => (
+                <Pressable key={b.k} accessibilityRole="button" style={{ flex: 1, marginHorizontal: 3 }}
+                  onPress={async () => {
+                    tapLight();
+                    send(b.msg);
+                    if (b.k !== 'here' || !chat.plan.id) return;
+                    const at = await getCurrentCoords();
+                    if (!at) return;   // no location: the message alone still went
+                    const r = await checkInAt(chat.plan.id, at.latitude, at.longitude);
+                    // say "not close enough" only when that is the reason
+                    if (r && r.ok) { tapSuccess(); setOtw('here'); } else if (r && r.reason === 'too_far') setOtw('far'); else return;
+                    setTimeout(() => setOtw(null), 6000);
+                  }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderRadius: 999, borderWidth: 1, borderColor: C.line, backgroundColor: C.glass, paddingVertical: 8 }}>
+                    <Ionicons name={b.icon} size={15} color={C.text} />
+                    <Text style={{ color: C.text, fontSize: 13, fontWeight: '800', marginStart: 5 }} numberOfLines={1}>{b.label}</Text>
+                  </View>
+                </Pressable>
+              ))}
             </View>
           ) : null}
 

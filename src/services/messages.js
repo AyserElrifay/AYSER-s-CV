@@ -308,7 +308,7 @@ export async function fetchMySquads(userId) {
   if (squads.length) {
     try {
       const { data: gs } = await supabase.from('green_gatherings')
-        .select('squad_id, kind, starts_at, minutes, place_name, cancelled_at')
+        .select('id, squad_id, kind, starts_at, minutes, place_name, cancelled_at')
         .in('squad_id', squads.map((x) => x.id));
       const by = {};
       (gs || []).forEach((g) => { by[g.squad_id] = g; });

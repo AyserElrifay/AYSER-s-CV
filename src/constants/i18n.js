@@ -718,6 +718,7 @@ export const STRINGS = {
     hours_left: '{n}h left',
     split_total_of: 'total {total} ÷ {n}',
     // Chat thread
+    otw_on: "On my way", otw_late: "Running late", otw_here: "I'm here", otw_on_msg: "\ud83d\udeb6 On my way", otw_late_msg: "\u23f1 Running a little late \u2014 see you soon", otw_here_msg: "\ud83d\udccd I\u2019m here", otw_checked: "Checked in at the place", otw_far: "Not close enough to check in yet \u2014 the others know you\u2019re here",
     say_hello: 'Say hello', hello_1: 'Hey!', hello_2: 'Hi — nice to meet you', hello_3: 'What are you up to?',
     break_the_ice: 'Nothing here yet — break the ice.',
     open_the_board: 'Open the board',
