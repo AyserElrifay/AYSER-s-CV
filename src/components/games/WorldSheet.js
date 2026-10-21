@@ -8,6 +8,7 @@ import { AV_NEUTRAL } from '../../constants/mockData';
 import { worldBoard, worldEnter, worldLeave, walkTotal, walkAdd, walkRank, uploadPhoto } from '../../services/squadGames';
 import { todayChallenge, weekChallenges } from './challenges';
 import { gw, fill, say, WALK_STOPS } from './words';
+import { sayCh, useChallengeWords } from './challengeWords';
 import { tapLight, tapSelection, tapSuccess } from '../../utils/feedback';
 import { useSheetBack } from '../../hooks/useSheetBack';
 
@@ -25,7 +26,7 @@ const KIND = {
   nature: ['Nature', 'طبيعة'], kind: ['A kindness', 'حاجة طيبة'], colour: ['Colour', 'لون'],
   cook: ['Cook', 'اطبخ'], go: ['Go', 'روح'], together: ['Together', 'سوا'],
 };
-export const kindLabel = (lang, c) => (KIND[c] ? KIND[c][lang === 'ar' ? 1 : 0] : '');
+export const kindLabel = (lang, c) => (KIND[c] ? sayCh(lang, { en: KIND[c][0], ar: KIND[c][1] }) : '');
 const WEEK_SUB = {
   cook: ['Everybody cooks this, this week. Show yours.', 'الكل بيطبخ ده الأسبوع ده. ورّينا بتاعك.'],
   go: ['Go this week. One photo from there.', 'روح الأسبوع ده، وصورة واحدة من هناك.'],
@@ -36,7 +37,7 @@ const WEEK_SUB = {
 const Head = ({ ch, lang, sub }) => (
   <View style={{ marginTop: 18 }}>
     <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '800', letterSpacing: lang === 'ar' ? 0 : 1.4 }}>{kindLabel(lang, ch.c).toUpperCase()}</Text>
-    <Text style={{ color: C.text, fontSize: 24, fontWeight: '800', letterSpacing: -0.4, marginTop: 2 }}>{say(lang, ch)}</Text>
+    <Text style={{ color: C.text, fontSize: 24, fontWeight: '800', letterSpacing: -0.4, marginTop: 2 }}>{sayCh(lang, ch)}</Text>
     <Text style={{ color: C.dim, fontSize: 14, marginTop: 4, lineHeight: 20 }}>{sub}</Text>
   </View>
 );
@@ -365,18 +366,19 @@ const Week = ({ userId, lang, T, city }) => {
           <Pressable key={x.key} onPress={() => { tapSelection(); setPick(i); }} accessibilityRole="tab" accessibilityState={{ selected: pick === i }} style={{ flex: 1, paddingHorizontal: 4 }}>
             <View style={{ borderRadius: 16, padding: 12, minHeight: 92, backgroundColor: pick === i ? C.text : C.glass, borderWidth: 1, borderColor: pick === i ? C.text : C.line }}>
               <Text style={{ color: pick === i ? C.bg : C.faint, fontSize: 10.5, fontWeight: '800', letterSpacing: lang === 'ar' ? 0 : 1.2 }}>{kindLabel(lang, x.c).toUpperCase()}</Text>
-              <Text style={{ color: pick === i ? C.bg : C.text, fontSize: 13.5, fontWeight: '800', marginTop: 4, lineHeight: 18 }} numberOfLines={3}>{say(lang, x)}</Text>
+              <Text style={{ color: pick === i ? C.bg : C.text, fontSize: 13.5, fontWeight: '800', marginTop: 4, lineHeight: 18 }} numberOfLines={3}>{sayCh(lang, x)}</Text>
             </View>
           </Pressable>
         ))}
       </View>
       <Board key={ch.key} ch={ch.key} userId={userId} T={T} city={city}
-        intro={<Head ch={ch} lang={lang} sub={WEEK_SUB[ch.c][lang === 'ar' ? 1 : 0]} />} />
+        intro={<Head ch={ch} lang={lang} sub={sayCh(lang, { en: WEEK_SUB[ch.c][0], ar: WEEK_SUB[ch.c][1] })} />} />
     </>
   );
 };
 
 export const WorldSheet = ({ userId, lang, city, start, onClose }) => {
+  useChallengeWords(lang);
   useSheetBack(onClose);
   const insets = useSafeAreaInsets();
   const T = (k) => gw(lang, k);
@@ -402,7 +404,7 @@ export const WorldSheet = ({ userId, lang, city, start, onClose }) => {
               </Pressable>
             ))}
           </View>
-          {tab === 'today' ? <Board key="today" ch={today.key} userId={userId} T={T} city={city} intro={<Head ch={today} lang={lang} sub={say(lang, { en: today.s_en, ar: today.s_ar })} />} /> : null}
+          {tab === 'today' ? <Board key="today" ch={today.key} userId={userId} T={T} city={city} intro={<Head ch={today} lang={lang} sub={sayCh(lang, { en: today.s_en, ar: today.s_ar })} />} /> : null}
           {tab === 'week' ? <Week userId={userId} lang={lang} T={T} city={city} /> : null}
           {tab === 'walk' ? <Walk lang={lang} T={T} /> : null}
         </ScrollView>

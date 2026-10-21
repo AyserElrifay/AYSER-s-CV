@@ -20,7 +20,7 @@
    there `caches` is undefined, and touching it would throw inside
    respondWith and make the page fail to open. */
 
-const CACHE = 'moments-v71';
+const CACHE = 'moments-v72';
 // CacheStorage isn't available everywhere (Safari private mode, some
 // in-app browsers). Detect once; when absent we simply never cache.
 const HAS_CACHES = (typeof caches !== 'undefined');
@@ -124,7 +124,7 @@ self.addEventListener('fetch', (e) => {
   }
   // The page, any other JS, and the language files → asked of the server
   // every time (fresh the moment a version ships), kept for offline.
-  if (e.request.mode === 'navigate' || /\.js$/.test(url.pathname) || /\/_expo\//.test(url.pathname) || /\/i18n\/[a-z]+\.json$/.test(url.pathname)) {
+  if (e.request.mode === 'navigate' || /\.js$/.test(url.pathname) || /\/_expo\//.test(url.pathname) || /\/i18n\/(challenges\/)?[a-z]+\.json$/.test(url.pathname)) {
     e.respondWith(networkFirst(e.request));
     /* a new page may mean a new version: keep its code for offline too
        (at most every ten minutes; precache only fetches what is missing) */

@@ -6,7 +6,8 @@ import { C } from '../../constants/theme';
 import { worldBoard } from '../../services/squadGames';
 import { todayChallenge } from './challenges';
 import { kindLabel } from './WorldSheet';
-import { gw, fill, say } from './words';
+import { gw, fill } from './words';
+import { sayCh, useChallengeWords } from './challengeWords';
 import { WorldSheet } from './WorldSheet';
 import { tapLight, tapSuccess } from '../../utils/feedback';
 import { publicMedia } from '../../lib/publicMedia';
@@ -69,6 +70,7 @@ const H = 244;
 const SOFT = { textShadowColor: 'rgba(0,0,0,0.28)', textShadowRadius: 10, textShadowOffset: { width: 0, height: 1 } };
 
 export const WorldCard = ({ userId, lang, city }) => {
+  useChallengeWords(lang);
   const [b, setB] = useState(null);
   const [open, setOpen] = useState(false);
   const T = (k) => gw(lang, k);
@@ -97,9 +99,9 @@ export const WorldCard = ({ userId, lang, city }) => {
           <Pressable onPress={() => { tapLight(); setOpen(true); }} accessibilityRole="button" style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
             <View style={{ flex: 1, minWidth: 0 }}>
               <Text style={[{ color: 'rgba(255,255,255,0.85)', fontSize: 11.5, fontWeight: '800', letterSpacing: lang === 'ar' ? 0 : 1.6 }, SOFT]}>{(T('today_k') + ' · ' + kindLabel(lang, today.c)).toUpperCase()}</Text>
-              <Text style={[{ color: '#FFF', fontSize: 26, fontWeight: '800', letterSpacing: -0.6, marginTop: 2 }, SOFT]}>{mine ? T('slid_d') : say(lang, today)}</Text>
+              <Text style={[{ color: '#FFF', fontSize: 26, fontWeight: '800', letterSpacing: -0.6, marginTop: 2 }, SOFT]}>{mine ? T('slid_d') : sayCh(lang, today)}</Text>
               <Text style={[{ color: 'rgba(255,255,255,0.88)', fontSize: 13.5, fontWeight: '500', marginTop: 3 }, SOFT]} numberOfLines={1}>
-                {b && b.count ? fill(T('entries'), { n: b.count, c: b.countries }) : say(lang, { en: today.s_en, ar: today.s_ar })}
+                {b && b.count ? fill(T('entries'), { n: b.count, c: b.countries }) : sayCh(lang, { en: today.s_en, ar: today.s_ar })}
               </Text>
             </View>
             {mine ? <Ionicons name={lang === 'ar' ? 'chevron-back' : 'chevron-forward'} size={22} color="#FFF" /> : null}
