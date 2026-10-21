@@ -78,13 +78,25 @@ const Shot = ({ T, busy, onShare }) => {
   const stop = () => { try { if (stream.current) stream.current.getTracks().forEach((t) => t.stop()); } catch (e) {} stream.current = null; setLive(false); };
   useEffect(() => stop, []);
 
+  /* The camera, handed to the <video> the moment it exists. It used to be
+     handed over on the next tick — before React had drawn the box — so on
+     an iPhone the camera was on (the red light) and the box stayed black. */
+  const attach = (el) => {
+    vid.current = el;
+    if (!el || !stream.current) return;
+    if (el.srcObject !== stream.current) {
+      el.muted = true; el.setAttribute('playsinline', ''); el.setAttribute('muted', '');
+      el.srcObject = stream.current;
+    }
+    const p = el.play && el.play(); if (p && p.catch) p.catch(() => {});
+  };
   const open = async () => {
     tapLight(); setCamErr(false);
     if (!WEB) return pick(true);
     try {
       const st = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false });
       stream.current = st; setLive(true);
-      setTimeout(() => { if (vid.current) { vid.current.srcObject = st; vid.current.play().catch(() => {}); } }, 0);
+      attach(vid.current);   // if the box is already there; otherwise it takes it when it appears
     } catch (e) { setCamErr(true); }
   };
   const snap = () => {
@@ -123,7 +135,7 @@ const Shot = ({ T, busy, onShare }) => {
         {shot ? (
           <Image source={{ uri: shot.uri }} style={[{ width: '100%', height: '100%' }, filt]} resizeMode="cover" />
         ) : live && WEB ? (
-          React.createElement('video', { ref: vid, autoPlay: true, muted: true, playsInline: true, style: { width: '100%', height: '100%', objectFit: 'cover', filter: look.css } })
+          React.createElement('video', { ref: attach, autoPlay: true, muted: true, playsInline: true, style: { width: '100%', height: '100%', objectFit: 'cover', filter: look.css } })
         ) : (
           <Pressable onPress={open} accessibilityRole="button" accessibilityLabel={T('shoot_tap')} style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
             <View style={{ width: 72, height: 72, borderRadius: 36, borderWidth: 2, borderColor: 'rgba(255,255,255,0.85)', alignItems: 'center', justifyContent: 'center' }}>
@@ -373,6 +385,8 @@ export const WorldSheet = ({ userId, lang, city, start, onClose }) => {
   return (
     <Modal visible animationType="slide" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: C.bg }}>
+        {/* the clock and the notch stay clear: what scrolls goes under this */}
+        <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: insets.top, backgroundColor: C.bg, zIndex: 5 }} />
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingTop: insets.top + 8, paddingHorizontal: 18, paddingBottom: insets.bottom + 40 }}>
           <Pressable onPress={onClose} hitSlop={12} accessibilityRole="button" accessibilityLabel={T('close')} style={{ alignSelf: 'flex-start', outlineStyle: 'none' }}>
             <Ionicons name="close" size={26} color={C.text} />
