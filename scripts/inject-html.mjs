@@ -353,7 +353,9 @@ console.log('index.html patched: PWA + OG tags');
   });
   const csp = [
     "default-src 'self'",
-    "script-src 'self' https://unpkg.com " + [...new Set(hashes)].join(' '),
+    // 'wasm-unsafe-eval' lets WebAssembly compile (the face model, src/lib/faceMesh.js)
+    // and nothing else: plain eval and new Function stay forbidden
+    "script-src 'self' 'wasm-unsafe-eval' https://unpkg.com " + [...new Set(hashes)].join(' '),
     "style-src 'self' 'unsafe-inline' https://unpkg.com",
     "img-src 'self' data: blob: https:",
     "media-src 'self' data: blob: https:",

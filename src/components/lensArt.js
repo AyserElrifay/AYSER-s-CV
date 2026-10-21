@@ -548,6 +548,20 @@ const FACE_OF_BOX = 1.20;
 
 export function placeOnFace(lensId, face) {
   if (!LENS_BY_ID[lensId] || !face) return null;
+  /* From the face's own points (src/lib/faceMesh.js): its real middle
+     and width, the head's tilt (r), how far it is turned (kx: the art
+     narrows as the face does), and how tall the face is for its width
+     (ky: a beard reaches the chin on a long face as on a round one). */
+  if (face.mesh) {
+    return {
+      x: Math.max(0.02, Math.min(0.98, face.x)),
+      y: Math.max(0.02, Math.min(0.98, face.y)),
+      s: Math.max(0.06, Math.min(1.4, face.width)),
+      r: face.roll,
+      kx: Math.max(0.55, Math.cos(face.yaw)),
+      ky: Math.max(0.8, Math.min(1.4, face.ky || 1)),
+    };
+  }
   return {
     x: Math.max(0.02, Math.min(0.98, face.x)),
     y: Math.max(0.02, Math.min(0.98, face.y)),
@@ -568,7 +582,17 @@ export function drawLens(c, w, h, place, t) {
      against the frame's height, so measuring the art the same way keeps
      one unit from end to end whatever shape the frame is. */
   const s = Math.max(24, place.s * h);
+  const px = place.x * w, py = place.y * h;
   c.save();
-  try { lens.draw(c, place.x * w, place.y * h, s, t || 0); } catch (e) {}
+  try {
+    // tilt and turn with the head, around the middle of the face
+    if (place.r || (place.kx && place.kx !== 1) || (place.ky && place.ky !== 1)) {
+      c.translate(px, py);
+      if (place.r) c.rotate(place.r);
+      c.scale(place.kx || 1, place.ky || 1);
+      c.translate(-px, -py);
+    }
+    lens.draw(c, px, py, s, t || 0);
+  } catch (e) {}
   c.restore();
 }

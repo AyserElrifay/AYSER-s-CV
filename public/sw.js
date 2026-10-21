@@ -20,7 +20,7 @@
    there `caches` is undefined, and touching it would throw inside
    respondWith and make the page fail to open. */
 
-const CACHE = 'moments-v50';
+const CACHE = 'moments-v51';
 // CacheStorage isn't available everywhere (Safari private mode, some
 // in-app browsers). Detect once; when absent we simply never cache.
 const HAS_CACHES = (typeof caches !== 'undefined');
@@ -34,7 +34,7 @@ self.addEventListener('activate', (e) => {
   e.waitUntil((async () => {
     try {
       const keys = await caches.keys();
-      await Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)));
+      await Promise.all(keys.filter((k) => k !== CACHE && k !== FACE_CACHE).map((k) => caches.delete(k)));
     } catch (err) { /* ignore */ }
     await self.clients.claim();
     await precache();
@@ -76,7 +76,7 @@ async function networkFirst(request) {
       ? await fetch(request.url, { cache: 'no-cache', credentials: 'same-origin' })
       : await fetch(request, { cache: 'no-cache' });
     if (HAS_CACHES && fresh && fresh.ok) {
-      try { const c = await caches.open(CACHE); c.put(request, fresh.clone()); } catch (e) {}
+      try { const c = await caches.open(name || CACHE); c.put(request, fresh.clone()); } catch (e) {}
     }
     return fresh;
   } catch (err) {
@@ -92,7 +92,9 @@ async function networkFirst(request) {
   }
 }
 
-async function cacheFirst(request) {
+/* the face model outlives releases: it only changes when its file names do */
+const FACE_CACHE = 'moments-face-0.10.21';
+async function cacheFirst(request, name) {
   if (HAS_CACHES) {
     try { const cached = await caches.match(request); if (cached) return cached; } catch (e) {}
   }
@@ -112,6 +114,12 @@ self.addEventListener('fetch', (e) => {
   // kept here can never be out of date → straight from the phone.
   if (/\/_expo\/static\/.*-[0-9a-f]{16,}\.(js|css)$/.test(url.pathname)) {
     e.respondWith(cacheFirst(e.request));
+    return;
+  }
+  // The face model and its runtime (src/lib/faceMesh.js): 13 MB fetched
+  // once, the first time somebody picks a lens → kept on the phone.
+  if (/\/mediapipe\//.test(url.pathname)) {
+    e.respondWith(cacheFirst(e.request, FACE_CACHE));
     return;
   }
   // The page, any other JS, and the language files → asked of the server

@@ -33,6 +33,7 @@ import { EffectsSheet } from './EffectsSheet';
 import { SoundTrimmer } from './SoundTrimmer';
 import { clipUrl, parseClip, holdToClip, DEFAULT_LEN } from '../lib/soundClip';
 import { loadFaceDetector, findFace, makeFaceTracker } from '../lib/faceDetect';
+import { loadFaceMesh, meshReady, readFace, makeMeshTracker, mirrorFace } from '../lib/faceMesh';
 import { note } from '../lib/crashLog';
 import { isOwner } from '../services/music';
 import { LENSES, drawLens, placeOnFace } from './lensArt';
@@ -1245,6 +1246,7 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
      than one that never helped. Picking a lens again starts it over. */
   const [faceTracking, setFaceTracking] = useState(true);
   const trackerRef = useRef(null);
+  const meshTrackerRef = useRef(null);
   const lensKindRef = useRef(null);
 
   useEffect(() => {
@@ -1253,12 +1255,32 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
     let timer = null;
     if (!trackerRef.current) trackerRef.current = makeFaceTracker({ ease: 0.35, holdMs: 800 });
 
+    /* the face's own points, when they have arrived (src/lib/faceMesh.js);
+       the cascade keeps the lens on the face until then, or for good if
+       they never do */
+    if (!meshTrackerRef.current) meshTrackerRef.current = makeMeshTracker();
+    loadFaceMesh();
     (async () => {
       const ok = await loadFaceDetector();
-      if (!ok || stopped) return;          // no cascade → the drag still works
+      if (stopped) return;
       const tick = () => {
         if (stopped) return;
         const el = videoRef.current;
+        if (el && el.videoWidth && meshReady()) {
+          const m = meshTrackerRef.current.push(readFace(el));
+          if (m) {
+            const seen = facing === 'user' ? mirrorFace(m) : m;
+            setFrameSize((f) => (f.w === el.videoWidth && f.h === el.videoHeight ? f : { w: el.videoWidth, h: el.videoHeight }));
+            setLens((cur) => {
+              if (!cur) return cur;
+              const placed = placeOnFace(cur.id, seen);
+              return placed ? { ...cur, ...placed } : cur;
+            });
+          }
+          timer = setTimeout(tick, 60);
+          return;
+        }
+        if (!ok) { timer = setTimeout(tick, 300); return; }   // no cascade: wait for the points
         if (el && el.videoWidth) {
           const raw = findFace(el);
           const f = trackerRef.current.push(raw);
@@ -2241,7 +2263,9 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
         ) : null}
 
         {/* ── top bar ── */}
-        <View style={{ position: 'absolute', top: insets.top + 12, left: 16, right: 16, flexDirection: 'row', alignItems: 'center' }}>
+        {/* above the lens layer, which covers the whole frame to be dragged:
+            beneath it, ✕ could not be pressed while a lens was on */}
+        <View style={{ position: 'absolute', top: insets.top + 12, left: 16, right: 16, flexDirection: 'row', alignItems: 'center', zIndex: 40, elevation: 40 }}>
           {/* ONE LINE ACROSS THE TOP: close on one side, sound and effects
               on the other, all the same round glass — and at the bottom
               library · shutter · flip. Two rows, mirrored, nothing else. */}
@@ -2433,7 +2457,7 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
                       key={l.id}
                       onPress={() => {
                         tapMedium(); sfxPop();
-                        lensKindRef.current = l.kind; if (trackerRef.current) trackerRef.current.reset(); setFaceTracking(true); setLens(on ? null : { id: l.id, x: 0.5, y: l.kind === 'wear' ? 0.45 : 0.5, s: 0.30 });
+                        lensKindRef.current = l.kind; if (trackerRef.current) trackerRef.current.reset(); if (meshTrackerRef.current) meshTrackerRef.current.reset(); setFaceTracking(true); setLens(on ? null : { id: l.id, x: 0.5, y: l.kind === 'wear' ? 0.45 : 0.5, s: 0.30 });
                       }}
                     >
                       <View style={{ alignItems: 'center', marginRight: 10 }}>
@@ -2988,7 +3012,7 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
             filterId={filterId}
             effectId={effectId}
             gameId={reelGame && reelGame.id}
-            onPickLens={(l) => { sfxPop(); lensKindRef.current = l.kind; if (trackerRef.current) trackerRef.current.reset(); setFaceTracking(true); setLens({ id: l.id, x: 0.5, y: l.kind === 'wear' ? 0.45 : 0.5, s: 0.30 }); setEffectsOpen(false); }}
+            onPickLens={(l) => { sfxPop(); lensKindRef.current = l.kind; if (trackerRef.current) trackerRef.current.reset(); if (meshTrackerRef.current) meshTrackerRef.current.reset(); setFaceTracking(true); setLens({ id: l.id, x: 0.5, y: l.kind === 'wear' ? 0.45 : 0.5, s: 0.30 }); setEffectsOpen(false); }}
             onPickFilter={(f) => { setFilterId(f.id); setEffectsOpen(false); }}
             onPickEffect={(e) => { pickEffect(e.id); setEffectsOpen(false); }}
             onPickGame={(g) => { pickReelGame(g); setEffectsOpen(false); }}
