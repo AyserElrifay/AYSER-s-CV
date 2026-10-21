@@ -15,7 +15,7 @@
        never taken)
      · a photograph, not a logo or a map
 
-   The picture is copied into public/media/places/<id>.jpg at 960px, and
+   The picture is copied into public/media/places/<id>.jpg at 720px, and
    who took it and under which licence goes into
    public/media/places/credits.json, which the place sheet shows on the
    photo. The ids that have one are written to
@@ -63,7 +63,7 @@ const toPages = (j) => Object.values((j && j.query && j.query.pages) || {}).map(
   lon: p.coordinates && p.coordinates[0] ? p.coordinates[0].lon : null,
 }));
 
-const WP = 'https://en.wikipedia.org/w/api.php?action=query&format=json&prop=coordinates%7Cpageimages&piprop=thumbnail%7Cname&pithumbsize=960';
+const WP = 'https://en.wikipedia.org/w/api.php?action=query&format=json&prop=coordinates%7Cpageimages&piprop=thumbnail%7Cname&pithumbsize=720';
 
 async function findPage(d) {
   // the article standing at that spot
@@ -83,7 +83,7 @@ async function findPage(d) {
 
 async function commonsFile(page) {
   const file = 'File:' + page.pageimage;
-  const j = await getJSON('https://commons.wikimedia.org/w/api.php?action=query&format=json&prop=imageinfo&iiprop=extmetadata%7Curl&iiurlwidth=960'
+  const j = await getJSON('https://commons.wikimedia.org/w/api.php?action=query&format=json&prop=imageinfo&iiprop=extmetadata%7Curl&iiurlwidth=720'
     + '&iiextmetadatafilter=Artist%7CLicenseShortName&titles=' + encodeURIComponent(file));
   const p = j && j.query && Object.values(j.query.pages || {})[0];
   const im = p && p.imageinfo && p.imageinfo[0];
