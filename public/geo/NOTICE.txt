@@ -1,0 +1,1 @@
+land.json — coastlines from Natural Earth (public domain), via world-atlas 2.0.2 (ISC), simplified to 0.1°.

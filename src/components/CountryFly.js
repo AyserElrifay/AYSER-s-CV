@@ -1,10 +1,15 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Image, Animated, Easing } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { C } from '../constants/theme';
 
-/* ─── THE COUNTRY, FOUND ON THE MAP ───────────────────────────────────
+/* ─── THE COUNTRY, FOUND ON THE EARTH, THEN ON THE MAP ────────────────
+   Ayser: "أنيميشن بكوكب الأرض". It opens on the Earth — a plain globe
+   in our own colours, drawn here from Natural Earth's coastlines
+   (public domain, public/geo/land.json) — turning until the country
+   faces you; then it dives in and the street map takes over.
+   ── earlier note ──
    Ayser: "نبتدي بأنيميشن بمكانه على الخريطة". The room opens on the
    whole world and flies in to where the country is, a pin landing on
    it — a second and a half, and you know where you are before you read
@@ -42,49 +47,126 @@ const tilesAt = (lng, lat, z, W, H) => {
   return out;
 };
 
+/* ── THE GLOBE ── an orthographic projection by hand, on a canvas: no
+   library, and nothing drawn that is not real coastline. A point behind
+   the horizon is laid on the rim, which is all the clipping a small
+   globe needs. */
+let LAND = null;
+let landAsk = null;
+const loadLand = () => {
+  if (LAND) return Promise.resolve(LAND);
+  if (!landAsk) {
+    let base = '/';
+    try { if (typeof document !== 'undefined' && document.baseURI) base = document.baseURI; } catch (e) { /* root */ }
+    landAsk = fetch(String(base).replace(/[^/]*$/, '') + 'geo/land.json').then((r) => r.json()).then((j) => { LAND = j; return j; }).catch(() => null);
+  }
+  return landAsk;
+};
+const RAD = Math.PI / 180;
+const drawGlobe = (ctx, w, h, lng0, lat0, R, alpha, dark) => {
+  ctx.clearRect(0, 0, w, h);
+  if (alpha <= 0) return;
+  ctx.globalAlpha = alpha;
+  const cx = w / 2, cy = h / 2;
+  const sp0 = Math.sin(lat0 * RAD), cp0 = Math.cos(lat0 * RAD);
+  // the sea: a soft lit sphere
+  const g = ctx.createRadialGradient(cx - R * 0.35, cy - R * 0.4, R * 0.1, cx, cy, R);
+  g.addColorStop(0, dark ? '#4B3A8C' : '#8E7CF0'); g.addColorStop(1, dark ? '#1A1240' : '#4C33C9');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.fill();
+  // the land
+  ctx.fillStyle = dark ? '#E9DDC2' : '#FBF3E2';
+  (LAND || []).forEach((ring) => {
+    let seen = false;
+    ctx.beginPath();
+    for (let i = 0; i < ring.length; i++) {
+      const l = (ring[i][0] - lng0) * RAD, f = ring[i][1] * RAD;
+      const cf = Math.cos(f), sf = Math.sin(f), cl = Math.cos(l);
+      let x = cf * Math.sin(l), y = cp0 * sf - sp0 * cf * cl;
+      const front = sp0 * sf + cp0 * cf * cl;
+      if (front > 0) seen = true;
+      else { const m = Math.hypot(x, y) || 1; x /= m; y /= m; }
+      const px = cx + x * R, py = cy - y * R;
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    if (seen) { ctx.closePath(); ctx.fill(); }
+  });
+  // a thin rim of light
+  ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.stroke();
+  ctx.globalAlpha = 1;
+};
+const ease = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+
+const Globe = ({ lng, lat, W, H, still, onDive }) => {
+  const ref = useRef(null);
+  const [gone, setGone] = useState(false);
+  useEffect(() => {
+    let raf = 0; let off = false;
+    const dpr = (typeof window !== 'undefined' && window.devicePixelRatio) || 1;
+    const c = ref.current;
+    if (!c || !c.getContext) { setGone(true); onDive(); return undefined; }
+    c.width = W * dpr; c.height = H * dpr;
+    const ctx = c.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const dark = !!(typeof document !== 'undefined' && document.documentElement && /mm-dark/.test(document.documentElement.className));
+    const r0 = H * 0.42;
+    const TURN = 1500, DIVE = 650;
+    loadLand().then(() => {
+      if (off) return;
+      if (still) { setGone(true); onDive(); return; }
+      const t0 = performance.now();
+      let dived = false;
+      const frame = (now) => {
+        if (off) return;
+        const e = now - t0;
+        const a = ease(Math.min(1, e / TURN));
+        const lng0 = lng - 110 * (1 - a), lat0 = 12 + (lat - 12) * a;
+        let R = r0, alpha = 1;
+        if (e > TURN) {
+          if (!dived) { dived = true; onDive(); }
+          const d = Math.min(1, (e - TURN) / DIVE);
+          R = r0 * (1 + 9 * d * d); alpha = 1 - d;
+        }
+        drawGlobe(ctx, W, H, lng0, lat0, R, alpha, dark);
+        if (e < TURN + DIVE) raf = requestAnimationFrame(frame); else setGone(true);
+      };
+      raf = requestAnimationFrame(frame);
+    });
+    return () => { off = true; cancelAnimationFrame(raf); };
+  }, [lng, lat]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (gone) return null;
+  return React.createElement('canvas', { ref, style: { position: 'absolute', left: 0, top: 0, width: W, height: H, pointerEvents: 'none' } });
+};
+
 export const CountryFly = ({ lng, lat, title, sub, height = 190 }) => {
   const W = 400, H = height;
   const t = useRef(new Animated.Value(0)).current;
   const pin = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    let off = false;
-    t.setValue(0); pin.setValue(0);
-    const run = (still) => {
-      if (off) return;
-      if (still) { t.setValue(1); pin.setValue(1); return; }
-      Animated.sequence([
-        Animated.delay(250),
-        Animated.timing(t, { toValue: 1, duration: 1300, easing: Easing.inOut(Easing.cubic), useNativeDriver: true }),
-        Animated.spring(pin, { toValue: 1, friction: 5, tension: 120, useNativeDriver: true }),
-      ]).start();
-    };
-    // Reduce Motion, asked of the browser itself (AccessibilityInfo would
-    // pull its whole module into the app's first download)
-    let still = false;
-    try { still = !!(typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (e) { /* move */ }
-    run(still);
-    return () => { off = true; };
-  }, [lng, lat]); // eslint-disable-line react-hooks/exhaustive-deps
-
+  // Reduce Motion, asked of the browser itself (AccessibilityInfo would
+  // pull its whole module into the app's first download)
+  let still = false;
+  try { still = !!(typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (e) { /* move */ }
+  useEffect(() => { t.setValue(0); pin.setValue(0); }, [lng, lat]); // eslint-disable-line react-hooks/exhaustive-deps
+  // the globe has turned and is diving in: the street map arrives under it
+  const dive = () => {
+    if (still) { t.setValue(1); pin.setValue(1); return; }
+    Animated.sequence([
+      Animated.timing(t, { toValue: 1, duration: 650, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+      Animated.spring(pin, { toValue: 1, friction: 5, tension: 120, useNativeDriver: true }),
+    ]).start();
+  };
   if (lng == null || lat == null) return null;
-  const world = tilesAt(lng, lat, 2, W, H);
   const near = tilesAt(lng, lat, 5, W, H);
-  // zoom 2 → 5 is ×8: the world layer grows to meet the country layer
-  const wScale = t.interpolate({ inputRange: [0, 1], outputRange: [1, 8] });
-  const wFade = t.interpolate({ inputRange: [0, 0.6, 1], outputRange: [1, 1, 0] });
-  const nScale = t.interpolate({ inputRange: [0, 1], outputRange: [0.125, 1] });
-  const nFade = t.interpolate({ inputRange: [0, 0.45, 1], outputRange: [0, 0.2, 1] });
+  const nScale = t.interpolate({ inputRange: [0, 1], outputRange: [0.35, 1] });
+  const nFade = t;
   const pinY = pin.interpolate({ inputRange: [0, 1], outputRange: [-40, 0] });
 
   return (
-    <View style={{ height: H, borderRadius: 22, overflow: 'hidden', backgroundColor: '#AAD3DF', alignItems: 'center' }}>
+    <View style={{ height: H, borderRadius: 22, overflow: 'hidden', backgroundColor: '#100C22', alignItems: 'center' }}>
       <View style={{ width: W, height: H }}>
         <Animated.View style={{ position: 'absolute', width: W, height: H, opacity: nFade, transform: [{ scale: nScale }] }}>
           {near.map((x) => <Image key={x.key} source={{ uri: x.url }} style={{ position: 'absolute', left: x.left, top: x.top, width: TILE, height: TILE }} />)}
         </Animated.View>
-        <Animated.View pointerEvents="none" style={{ position: 'absolute', width: W, height: H, opacity: wFade, transform: [{ scale: wScale }] }}>
-          {world.map((x) => <Image key={x.key} source={{ uri: x.url }} style={{ position: 'absolute', left: x.left, top: x.top, width: TILE, height: TILE }} />)}
-        </Animated.View>
+        <Globe lng={lng} lat={lat} W={W} H={H} still={still} onDive={dive} />
         <Animated.View pointerEvents="none" style={{ position: 'absolute', left: W / 2 - 17, top: H / 2 - 32, opacity: pin, transform: [{ translateY: pinY }] }}>
           <Ionicons name="location" size={34} color={C.coral || '#F43F5E'} />
         </Animated.View>
