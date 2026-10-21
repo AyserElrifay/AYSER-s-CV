@@ -35,6 +35,7 @@ import { pendingChatLink } from './src/lib/chatLink';
 import { JoinChatSheet } from './src/components/JoinChatSheet';
 import { TripLinkGate } from './src/components/TripLinkGate';
 import { PartnerLinkGate } from './src/components/PartnerLinkGate';
+import { BizLinkGate } from './src/components/BizLinkGate';
 import { pendingPartner } from './src/lib/partnerLink';
 import { pendingTrip } from './src/lib/tripLink';
 import { claimInvite } from './src/services/green';
@@ -211,6 +212,7 @@ const Root = () => {
       <TripLinkGate signedIn />
       {/* the partner page, from a link or from inside (src/lib/partnerLink.js) */}
       <PartnerLinkGate />
+      <BizLinkGate />
       {/* the first time inside: six story cards (src/components/FirstTour.js) */}
       {tour ? <FirstTour onClose={() => setTour(false)} /> : null}
       {/* after a strike: over everything (src/components/SafetyHold.js) */}
