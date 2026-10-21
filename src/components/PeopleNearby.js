@@ -22,7 +22,7 @@ const ProfileModal = lazyOverlay(() => import('./ProfileModal').then((m) => ({ d
 const NEAR_KM = 5;
 const LIVE_MS = 30 * 60 * 1000;
 
-export const PeopleNearby = () => {
+export const PeopleNearby = ({ bare = false }) => {
   const { t, lang } = useLang();
   const { user } = useAuth();
   const [on, setOn] = useState(false);
@@ -69,7 +69,8 @@ export const PeopleNearby = () => {
   if (!user) return null;
   const km = (v) => (v < 1 ? Math.max(100, Math.round(v * 10) * 100) + ' m' : (Math.round(v * 10) / 10) + ' km');
   return (
-    <View style={{ marginTop: -4, marginBottom: 14, borderRadius: 22, backgroundColor: C.glass, borderWidth: 1, borderColor: on ? C.purple : C.line, overflow: 'hidden' }}>
+    // `bare`: the second half of the "right now" card on Together, so no frame of its own
+    <View style={bare ? null : { marginTop: -4, marginBottom: 14, borderRadius: 22, backgroundColor: C.glass, borderWidth: 1, borderColor: on ? C.purple : C.line, overflow: 'hidden' }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 13, paddingHorizontal: 16 }}>
         <View style={{ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? C.purple : C.glassHi }}>
           <Ionicons name="people-outline" size={18} color={on ? '#FFF' : C.text} />

@@ -613,23 +613,25 @@ export const TogetherScreen = () => {
           </Pressable>
         </View>
 
-        {/* ── going out now? ── the fastest way into the week: one tap
-            and you are on the map for anyone nearby to join */}
-        <Pressable onPress={() => { tapMedium(); setSheet('gonow'); }} accessibilityRole="button" style={{ marginBottom: 14 }}>
-          <View style={{ borderRadius: 22, padding: 16, flexDirection: 'row', alignItems: 'center', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line }}>
-            <Text style={{ fontSize: 30 }}>🏃</Text>
-            <View style={{ flex: 1, minWidth: 0, marginStart: 12 }}>
-              <Text style={{ color: C.text, fontSize: 17, fontWeight: '900' }}>{t('gn_cta')}</Text>
-              <Text style={{ color: C.dim, fontSize: 13, fontWeight: '600', marginTop: 2 }}>{t('gn_cta_sub')}</Text>
+        {/* ── RIGHT NOW ── one card, two rows: put yourself on the map with
+            something to join, and see who else is around. They were two
+            cards about the same moment. */}
+        <View style={{ borderRadius: 22, marginBottom: 14, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, overflow: 'hidden' }}>
+          <Pressable onPress={() => { tapMedium(); setSheet('gonow'); }} accessibilityRole="button">
+            <View style={{ padding: 16, flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={{ fontSize: 30 }}>🏃</Text>
+              <View style={{ flex: 1, minWidth: 0, marginStart: 12 }}>
+                <Text style={{ color: C.text, fontSize: 17, fontWeight: '900' }}>{t('gn_cta')}</Text>
+                <Text style={{ color: C.dim, fontSize: 13, fontWeight: '600', marginTop: 2 }}>{t('gn_cta_sub')}</Text>
+              </View>
+              <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: C.purple, alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name={'arrow-forward'} size={18} color="#FFF" />
+              </View>
             </View>
-            <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: C.purple, alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name={'arrow-forward'} size={18} color="#FFF" />
-            </View>
-          </View>
-        </Pressable>
-
-        {/* ── people nearby ── one switch: be seen by, and see, who is around (src/components/PeopleNearby.js) */}
-        <PeopleNearby />
+          </Pressable>
+          <View style={{ height: 1, backgroundColor: C.line, marginHorizontal: 16 }} />
+          <PeopleNearby bare />
+        </View>
 
         <RateLast t={t} lang={lang} />
         {askPush ? <View style={{ marginBottom: 14 }}><PushRow ask onDone={() => setAskPush(false)} /></View> : null}
