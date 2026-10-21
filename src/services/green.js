@@ -175,6 +175,8 @@ export const cancelGathering = (id) => rpc('green_cancel', { p_id: id });
 /* how it went: only somebody who checked in, after it ended (green_rate) */
 export const myUnrated = () => rpc('my_unrated', {});
 export const rateGathering = (id, stars, note) => rpc('green_rate', { p_id: id, p_stars: stars, p_note: note || null });
+/* after a plan: how it felt (the stars), the people and the place, 1–3 (green_feel) */
+export const feelGathering = (id, feel, people, place) => rpc('green_feel', { p_id: id, p_feel: feel, p_people: people, p_place: place });
 export const myOrganiser = () => rpc('my_organiser', {});
 export const myVolunteering = () => rpc('my_volunteering', {});
 /* girls only, guys only or everyone — the server checks the host's own profile */

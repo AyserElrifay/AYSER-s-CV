@@ -19478,6 +19478,53 @@ begin
   return jsonb_build_object('ok', true, 'visits', n, 'stamps', n - r * 5, 'perk', v.perk);
 end $$;
 
+-- ════════════════════════════════════════════════════════════════════
+--  AFTER A PLAN · HOW WAS IT, THE PEOPLE, THE PLACE
+--  Ayser: "بعد كل خروجة يطلعلك حاجة تقول فيها إحساسك وبالناس وبالمكان،
+--  سريع بسيط أوي". Three taps. The feeling is the plan's stars (the
+--  organiser's record already counts those); the people and the place
+--  are 1 · 2 · 3 and stay private — they are for us to learn which
+--  places and plans bring people back, never shown on anyone's page.
+--  The same rules as green_rate: only someone who checked in, not the
+--  host, after it ended and within 14 days.
+-- ════════════════════════════════════════════════════════════════════
+alter table public.green_ratings add column if not exists people smallint;
+alter table public.green_ratings add column if not exists place smallint;
+do $$ begin
+  alter table public.green_ratings add constraint green_ratings_people_ck check (people is null or people between 1 and 3);
+exception when duplicate_object then null; end $$;
+do $$ begin
+  alter table public.green_ratings add constraint green_ratings_place_ck check (place is null or place between 1 and 3);
+exception when duplicate_object then null; end $$;
+
+create or replace function public.green_feel(p_id uuid, p_feel int, p_people int, p_place int)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); g public.green_gatherings%rowtype;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  if p_feel is null or p_feel < 1 or p_feel > 5
+     or (p_people is not null and (p_people < 1 or p_people > 3))
+     or (p_place is not null and (p_place < 1 or p_place > 3)) then
+    return jsonb_build_object('ok', false, 'reason', 'bad');
+  end if;
+  select * into g from public.green_gatherings where id = p_id;
+  if not found or g.host_id = me then return jsonb_build_object('ok', false, 'reason', 'not_yours_to_rate'); end if;
+  if not exists (select 1 from public.green_joins where gathering_id = p_id and user_id = me and checked_in_at is not null) then
+    return jsonb_build_object('ok', false, 'reason', 'not_there');
+  end if;
+  if public.green_ends_at(g) > now() or public.green_ends_at(g) < now() - interval '14 days' then
+    return jsonb_build_object('ok', false, 'reason', 'not_now');
+  end if;
+  insert into public.green_ratings (gathering_id, user_id, stars, people, place)
+  values (p_id, me, p_feel, p_people, p_place)
+  on conflict (gathering_id, user_id) do update
+    set stars = excluded.stars, people = coalesce(excluded.people, green_ratings.people), place = coalesce(excluded.place, green_ratings.place);
+  return jsonb_build_object('ok', true);
+end;
+$$;
+revoke execute on function public.green_feel(uuid, int, int, int) from public, anon;
+grant execute on function public.green_feel(uuid, int, int, int) to authenticated;
+
 -- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --

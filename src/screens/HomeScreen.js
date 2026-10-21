@@ -35,7 +35,7 @@ import { NextUp } from '../components/NextUp';
 import { lazyOverlay } from '../lib/lazyScreen';
 import { readGate, addSeconds, markSeenAll, budgetSeconds, onGate } from '../lib/feedGate';
 import { FeedClock, FeedReopen } from '../components/FeedClock';
-import { myVolunteering } from '../services/green';
+import { myVolunteering, myUnrated } from '../services/green';
 
 /* ─── THE FEED FIRST, THE REST WHEN YOU REACH FOR IT ─────────────────
    Everything below opens over the feed and none of it is on screen
@@ -59,6 +59,7 @@ const ComposeModal = lazyOverlay(() => import('../components/ComposeModal').then
 const ReflectionPane = lazyOverlay(() => import('../components/ReflectionPane').then((m) => ({ default: m.ReflectionPane })));
 const LikersSheet = lazyOverlay(() => import('../components/LikersSheet').then((m) => ({ default: m.LikersSheet })));
 const MagicFlowModal = lazyOverlay(() => import('../components/MagicFlowModal').then((m) => ({ default: m.MagicFlowModal })));
+const AfterOuting = lazyOverlay(() => import('../components/AfterOuting').then((m) => ({ default: m.AfterOuting })));
 const WorldCard = lazyOverlay(() => import('../components/games').then((m) => ({ default: m.WorldCard })));
 const NotificationsSheet = lazyOverlay(() => import('../components/NotificationsSheet').then((m) => ({ default: m.NotificationsSheet })));
 const ProfileModal = lazyOverlay(() => import('../components/ProfileModal').then((m) => ({ default: m.ProfileModal })));
@@ -243,6 +244,17 @@ export const HomeScreen = () => {
   const [profileUser, setProfileUser] = useState(null);
   const [commentsPost, setCommentsPost] = useState(null);
   const [composing, setComposing] = useState(null); // null | 'post' | 'reel' | 'story'
+  /* after a plan you went to: how was it (src/components/AfterOuting.js) */
+  const [after, setAfter] = useState(null);
+  useEffect(() => {
+    if (!user || !SUPABASE_READY) return undefined;
+    const tm = setTimeout(() => myUnrated().then((r) => {
+      let skipped = false;
+      try { skipped = !!(r && r.id) && localStorage.getItem('mm.after.skip.' + r.id) === '1'; } catch (e) {}
+      if (r && r.id && !skipped) setAfter(r);
+    }).catch(() => {}), 2500);
+    return () => clearTimeout(tm);
+  }, [user && user.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const [searching, setSearching] = useState(false);
   const [storyIndex, setStoryIndex] = useState(null);
   const [myProfileOpen, setMyProfileOpen] = useState(false); // one profile everywhere
@@ -847,6 +859,7 @@ export const HomeScreen = () => {
           </View>
         </View>
       ) : null}
+      {after ? <AfterOuting g={after} onClose={() => setAfter(null)} /> : null}
       {composing === 'post' ? (
         <ComposeModal
           initialMode="post"

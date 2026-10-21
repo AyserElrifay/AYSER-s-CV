@@ -14,6 +14,8 @@ import { lookOf, titleFor } from '../lib/activityPins';
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
 import { appLink, shareLink } from '../utils/share';
 import { buildIcs, openIcs } from '../lib/ics';
+import { publicMedia } from '../lib/publicMedia';
+import { moodOfToday } from '../lib/mood';
 
 /* ─── HOME OPENS ON ONE THING ─────────────────────────────────────────
    The Steve Jobs note: Moments does a lot, and somebody opening it for
@@ -41,6 +43,21 @@ const pick = (rows) => {
       && (!fix || (g.lat != null && km(fix, { lat: +g.lat, lng: +g.lng }) <= NEAR_KM)))
     .sort((a, b) => (b.im_going ? 1 : 0) - (a.im_going ? 1 : 0) || new Date(a.starts_at) - new Date(b.starts_at))
     .filter((g) => !seen[g.title] && (seen[g.title] = 1)).slice(0, 5);
+};
+
+/* nothing within NEAR_KM: the closest one still to come, wherever it is,
+   so the card can say "the nearest is 120 km away" rather than nothing */
+const nearestFar = (rows) => {
+  const fix = lastFix();
+  if (!fix) return null;
+  const now = Date.now();
+  let best = null;
+  (rows || []).forEach((g) => {
+    if (g.lat == null || new Date(g.starts_at).getTime() < now) return;
+    const d = km(fix, { lat: +g.lat, lng: +g.lng });
+    if (d > NEAR_KM && (!best || d < best.d)) best = { g, d };
+  });
+  return best;
 };
 
 const whenLine = (g, lang, t) => {
@@ -104,10 +121,11 @@ export const NextUp = ({ user, onOpen, onStart }) => {
   const setG = (x) => setAll((l) => l.map((y) => (y.id === x.id ? x : y)));
   const [ready, setReady] = useState(() => !!keptGatherings(null));
   const [weeks, setWeeks] = useState(0);
+  const [far, setFar] = useState(null);   // nothing near: the nearest one further away, if any
   const [busy, setBusy] = useState(false);
   useEffect(() => {
     let alive = true;
-    listGatherings(null).then((rows) => { if (alive) { setAll(pick(rows)); setReady(true); } }).catch(() => { if (alive) setReady(true); });
+    listGatherings(null).then((rows) => { if (alive) { setAll(pick(rows)); setFar(nearestFar(rows)); setReady(true); } }).catch(() => { if (alive) setReady(true); });
     if (SUPABASE_READY && user) {
       supabase.rpc('my_out_weeks').then(({ data }) => { if (alive && data) setWeeks(Number(data.weeks) || 0); }).catch(() => {});
     }
@@ -153,18 +171,37 @@ export const NextUp = ({ user, onOpen, onStart }) => {
   ) : null;
 
   if (!ready) return null;
+  /* ── NOTHING NEAR YOU ── never a closed door. Ayser: "ما نقفلش الباب
+     في وش الناس". Photos of people out together, turning slowly; one
+     button to start the first one here; and, when there is one, the
+     nearest plan further away — a real one, with how far it is. */
   if (!g) {
+    const pics = [0, 1, 2].map((o) => publicMedia(moodOfToday(o)));
     return (
       <View style={{ marginTop: 16 }}>
-        <Pressable onPress={() => { tapLight(); onStart(); }} accessibilityRole="button">
-          <View style={{ borderRadius: 24, padding: 20, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line }}>
-            <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '900', letterSpacing: 1.2 }}>{t('nu_kicker').toUpperCase()}</Text>
-            <Text style={{ color: C.text, fontSize: 20, fontWeight: '900', marginTop: 6 }}>{t('nu_none')}</Text>
-            <View style={{ alignSelf: 'flex-start', marginTop: 14, backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 18, paddingVertical: 11 }}>
-              <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '900' }}>{t('nu_start')}</Text>
+        <View style={{ height: 260, borderRadius: 26, overflow: 'hidden', backgroundColor: C.glassHi }}>
+          <Slides pics={pics} />
+          <LinearGradient colors={['rgba(0,0,0,0.35)', 'rgba(0,0,0,0)', 'rgba(0,0,0,0.82)']} locations={[0, 0.3, 1]} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }} />
+          <Text style={{ position: 'absolute', top: 14, left: 16, color: '#FFF', fontSize: 12, fontWeight: '900', letterSpacing: 1.2 }}>{t('nu_kicker').toUpperCase()}</Text>
+          <View style={{ position: 'absolute', left: 16, right: 16, bottom: 16 }}>
+            <Text style={{ color: '#FFF', fontSize: 24, fontWeight: '900', letterSpacing: -0.4 }}>{t('nu_empty_t')}</Text>
+            <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: 14, fontWeight: '700', marginTop: 4, lineHeight: 19 }}>{t('nu_empty_s')}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
+              <Pressable onPress={() => { tapLight(); onStart(); }} accessibilityRole="button" hitSlop={6}>
+                <View style={{ backgroundColor: '#FFF', borderRadius: 999, paddingHorizontal: 20, paddingVertical: 11 }}>
+                  <Text style={{ color: '#1A1A1A', fontSize: 14.5, fontWeight: '900' }}>{t('nu_start')}</Text>
+                </View>
+              </Pressable>
+              {far ? (
+                <Pressable onPress={() => { tapLight(); onOpen(far.g); }} accessibilityRole="button" hitSlop={6} style={{ flex: 1, marginStart: 12 }}>
+                  <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '800' }} numberOfLines={2}>
+                    {t('nu_nearest').replace('{title}', titleFor(far.g.title, lang)).replace('{km}', String(Math.round(far.d)))}
+                  </Text>
+                </Pressable>
+              ) : null}
             </View>
           </View>
-        </Pressable>
+        </View>
         {streak}
       </View>
     );

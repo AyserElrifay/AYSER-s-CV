@@ -2242,8 +2242,13 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
 
         {/* ── top bar ── */}
         <View style={{ position: 'absolute', top: insets.top + 12, left: 16, right: 16, flexDirection: 'row', alignItems: 'center' }}>
-          <Pressable onPress={() => { tapLight(); shot ? setShot(null) : onClose(); }} hitSlop={10}>
-            <Ionicons name={shot ? 'arrow-back' : 'close'} size={30} color="#FFF" />
+          {/* ONE LINE ACROSS THE TOP: close on one side, sound and effects
+              on the other, all the same round glass — and at the bottom
+              library · shutter · flip. Two rows, mirrored, nothing else. */}
+          <Pressable onPress={() => { tapLight(); shot ? setShot(null) : onClose(); }} hitSlop={10} accessibilityRole="button" accessibilityLabel="Close">
+            <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(0,0,0,0.38)', alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name={shot ? 'arrow-back' : 'close'} size={24} color="#FFF" />
+            </View>
           </Pressable>
           <View style={{ flex: 1 }} />
           {recording ? (
@@ -2257,35 +2262,22 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
             </View>
           ) : null}
           <View style={{ flex: 1 }} />
-          <View style={{ width: 28 }} />
+          {!shot && isWeb ? (
+            <View style={{ flexDirection: 'row' }}>
+              {[
+                { k: 'sound', icon: 'musical-notes-outline', on: !!sound, press: () => { tapLight(); setHubOpen(true); } },
+                { k: 'fx', icon: 'sparkles-outline', on: lensRailOpen || !!lens || (filterId && filterId !== 'none') || effectId !== 'none' || !!reelGame, press: () => { tapLight(); setLensRailOpen((v) => !v); } },
+              ].map((b) => (
+                <Pressable key={b.k} onPress={b.press} hitSlop={8} style={{ marginStart: 10 }} accessibilityRole="button">
+                  <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: b.on ? C.purple : 'rgba(0,0,0,0.38)', alignItems: 'center', justifyContent: 'center' }}>
+                    <Ionicons name={b.icon} size={20} color="#FFF" />
+                  </View>
+                </Pressable>
+              ))}
+            </View>
+          ) : <View style={{ width: 44 }} />}
         </View>
 
-        {/* THE RIGHT-HAND RAIL — flip, frame, music, effects, games.
-            One column of round buttons down the edge, out of the way of
-            your own face, the way a camera app does it. */}
-        {!shot && isWeb ? (
-          <View style={{ position: 'absolute', right: 12, top: insets.top + 64, alignItems: 'center' }}>
-            {/* Two, not five. Flip lives by the shutter, where a phone's
-                camera keeps it; games were a second door into the same
-                effects drawer; the frame switch was a setting, not a
-                button. Effects opens the quick strip of lenses, which
-                has the way into everything else. */}
-            {[
-              { k: 'sound', icon: 'musical-notes-outline', on: !!sound, press: () => { tapLight(); setHubOpen(true); } },
-              { k: 'fx', icon: 'sparkles-outline', on: lensRailOpen || !!lens || (filterId && filterId !== 'none') || effectId !== 'none' || !!reelGame, press: () => { tapLight(); setLensRailOpen((v) => !v); } },
-            ].map((b) => (
-              <Pressable key={b.k} onPress={b.press} hitSlop={8} style={{ marginBottom: 12 }}>
-                <View style={{
-                  width: 42, height: 42, borderRadius: 21,
-                  backgroundColor: b.on ? C.purple : 'rgba(0,0,0,0.42)',
-                  alignItems: 'center', justifyContent: 'center',
-                }}>
-                  <Ionicons name={b.icon} size={19} color="#FFF" />
-                </View>
-              </Pressable>
-            ))}
-          </View>
-        ) : null}
 
         {blink ? <View pointerEvents="none" style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'rgba(255,255,255,0.85)' }} /> : null}
 
@@ -2504,8 +2496,8 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
                 <View style={{ alignItems: 'center', marginBottom: 14 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <Pressable onPress={() => { tapLight(); setLibraryOpen(true); }} hitSlop={8} style={{ marginRight: 34 }}>
-                      <View style={{ width: 46, height: 46, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.16)', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.5)', alignItems: 'center', justifyContent: 'center' }}>
-                        <Ionicons name="albums-outline" size={22} color="#FFF" />
+                      <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: 'rgba(255,255,255,0.16)', alignItems: 'center', justifyContent: 'center' }}>
+                        <Ionicons name="images-outline" size={23} color="#FFF" />
                       </View>
                     </Pressable>
                     <Pressable onPressIn={onShutterDown} onPressOut={onShutterUp} disabled={!!camError}>
@@ -2519,16 +2511,16 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
                       </View>
                     </Pressable>
                     <Pressable onPress={flip} hitSlop={8} style={{ marginLeft: 34 }} accessibilityRole="button" accessibilityLabel="Flip camera">
-                      <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: 'rgba(255,255,255,0.16)', alignItems: 'center', justifyContent: 'center' }}>
-                        <Ionicons name="camera-reverse-outline" size={23} color="#FFF" />
+                      <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: 'rgba(255,255,255,0.16)', alignItems: 'center', justifyContent: 'center' }}>
+                        <Ionicons name="camera-reverse-outline" size={24} color="#FFF" />
                       </View>
                     </Pressable>
                   </View>
                   {/* words only while they are needed: recording, or (where
                       holding records) the one hint a first-timer needs */}
-                  {recording || !isWebKit ? (
+                  {recording ? (
                     <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11.5, fontWeight: '700', marginTop: 10 }}>
-                      {recording ? (locked ? t('cap_locked') : t('cap_slide_lock')) : t('cap_hint_hold')}
+                      {locked ? t('cap_locked') : t('cap_slide_lock')}
                     </Text>
                   ) : null}
                   {recording ? (
@@ -2569,8 +2561,14 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
                 {/* PHOTO · VIDEO, the way a camera says it. On an iPhone the
                     browser cannot record a clip that plays back, so VIDEO
                     hands over to the phone's own camera and comes back */}
-                {[['photo', t('cap_photo')]].concat(isWebKit ? [['video', t('cap_video')]] : []).map(([k, label]) => (
-                  <Pressable key={k} onPress={() => { tapLight(); if (k === 'video') recordWithPhone(); }} hitSlop={8} style={{ marginHorizontal: 14 }} accessibilityRole="button">
+                {[['photo', t('cap_photo')], ['video', t('cap_video')]].map(([k, label]) => (
+                  <Pressable key={k} onPress={() => {
+                    tapLight();
+                    if (k !== 'video') return;
+                    // elsewhere holding the shutter records: VIDEO says so, once, in the middle
+                    if (isWebKit) recordWithPhone();
+                    else { setFilterFlash(t('cap_hold_rec')); clearTimeout(flashTimer.current); flashTimer.current = setTimeout(() => setFilterFlash(null), 2200); }
+                  }} hitSlop={8} style={{ marginHorizontal: 14 }} accessibilityRole="button">
                     <Text style={{ color: k === 'photo' ? C.gold : 'rgba(255,255,255,0.75)', fontSize: 13, fontWeight: '800', letterSpacing: 1.6 }}>{label.toUpperCase()}</Text>
                   </Pressable>
                 ))}
