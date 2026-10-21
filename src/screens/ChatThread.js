@@ -613,7 +613,10 @@ export const ChatThread = ({ chat, group, onClose }) => {
           </Pressable>
         ) : null}
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <ScrollView keyboardShouldPersistTaps="handled" ref={scroller} contentContainerStyle={{ padding: 14, paddingBottom: 20 }} showsVerticalScrollIndicator={false}>
+          {/* a few messages sit by the box you type in, where your eyes are —
+              not at the top of an empty screen (the newest is always the
+              one nearest your thumb) */}
+          <ScrollView keyboardShouldPersistTaps="handled" ref={scroller} contentContainerStyle={visibleMsgs.length ? { padding: 14, paddingBottom: 20, flexGrow: 1, justifyContent: 'flex-end' } : { padding: 14, paddingBottom: 20 }} showsVerticalScrollIndicator={false}>
             {/* An empty thread is the hardest message to write. One tap
                 sends the easy one, so nobody sits staring at a blank box
                 deciding how to start. */}
