@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet, TextInput, Image, Modal } from 'react-native';
+import { View, Text, ScrollView, Pressable, StyleSheet, TextInput, Image, Modal, Switch, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -64,7 +64,7 @@ export const SettingsScreen = ({ onClose }) => {
   const insets = useSafeAreaInsets();
   const { signOut, isDemo, user } = useAuth();
   const { t, lang, setLang, langs, meta } = useLang();
-  const { isDark, pref, setThemePref } = useTheme();
+  const { isDark, pref, setThemePref, liquid, setLiquid } = useTheme();
   // Real mode starts with NO activity — only things that truly happened
   // (real splits you shared) get added. The sample rows are demo-only.
   const [tx, setTx] = useState(SUPABASE_READY ? [] : INITIAL_TX);
@@ -391,6 +391,17 @@ export const SettingsScreen = ({ onClose }) => {
                 );
               })}
             </View>
+            {/* Liquid Glass — a new look to try, off unless turned on (src/lib/liquid.js) */}
+            {Platform.OS === 'web' ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 14 }}>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>{t('lq_title')}</Text>
+                  <Text style={{ color: C.faint, fontSize: 12, marginTop: 2, lineHeight: 16 }}>{t('lq_sub')}</Text>
+                </View>
+                <Switch value={!!liquid} onValueChange={(v) => { tapSelection(); setLiquid(v); }} accessibilityLabel={t('lq_title')}
+                  trackColor={{ false: C.glassHi, true: C.purple }} thumbColor="#FFF" ios_backgroundColor={C.glassHi} />
+              </View>
+            ) : null}
           </View>
 
           {/* ── DATA SAVER ────────────────────────────────────────────

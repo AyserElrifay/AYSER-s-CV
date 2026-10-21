@@ -3,6 +3,7 @@ import { Platform, Appearance } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { C, applyThemeMode } from '../constants/theme';
 import { subscribeAccountSettings, cachedAccountSettings, saveThemePref } from '../services/accountSettings';
+import { liquidStored, keepLiquid, liquidCss } from '../lib/liquid';
 
 /* Real dark mode. `C` is one shared, mutable object every screen reads
    straight from at render time (see theme.js) — so switching here just
@@ -24,7 +25,7 @@ import { subscribeAccountSettings, cachedAccountSettings, saveThemePref } from '
 
 const Ctx = createContext(null);
 export const useTheme = () => useContext(Ctx) || fallback;
-const fallback = { mode: 'light', pref: 'auto', isDark: false, gen: 0, toggleTheme: () => {}, setThemePref: () => {} };
+const fallback = { mode: 'light', pref: 'auto', isDark: false, gen: 0, liquid: false, toggleTheme: () => {}, setThemePref: () => {}, setLiquid: () => {} };
 
 const KEY = 'moments.theme';
 
@@ -63,9 +64,12 @@ export const ThemeProvider = ({ children }) => {
      then rebuild it in the chosen ones (Ayser: "الصفحات بتلود مرتين، مرة
      بشكل قديم ومرة بشكل جديد"). */
   const [pref, setPref] = useState(storedNow);
+  const [liquid, setLiquidState] = useState(liquidStored);
   const [mode, setMode] = useState(() => {
     const m = resolve(storedNow());
-    if (m === 'dark') applyThemeMode('dark');
+    const lq = liquidStored();
+    if (m === 'dark' || lq) applyThemeMode(m, lq);
+    liquidCss(lq, m === 'dark');
     return m;
   });
   const [gen, setGen] = useState(0);
@@ -74,7 +78,8 @@ export const ThemeProvider = ({ children }) => {
     const next = resolve(nextPref);
     setPref(nextPref);
     if (next !== mode) {
-      applyThemeMode(next);
+      applyThemeMode(next, liquid);
+      liquidCss(liquid, next === 'dark');
       setMode(next);
       setGen((g) => g + 1);
     }
@@ -146,9 +151,17 @@ export const ThemeProvider = ({ children }) => {
      of what's on screen. */
   const toggleTheme = () => applyPref(mode === 'dark' ? 'light' : 'dark', true);
   const setThemePref = (p) => applyPref(p === 'auto' || p === 'dark' ? p : 'light', true);
+  /* Liquid Glass: tried on this phone, off by default (src/lib/liquid.js) */
+  const setLiquid = (on) => {
+    keepLiquid(!!on);
+    setLiquidState(!!on);
+    applyThemeMode(mode, !!on);
+    liquidCss(!!on, mode === 'dark');
+    setGen((g) => g + 1);
+  };
 
   return (
-    <Ctx.Provider value={{ mode, pref, isDark: mode === 'dark', gen, toggleTheme, setThemePref }}>
+    <Ctx.Provider value={{ mode, pref, isDark: mode === 'dark', gen, liquid, toggleTheme, setThemePref, setLiquid }}>
       {children}
     </Ctx.Provider>
   );

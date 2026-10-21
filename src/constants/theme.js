@@ -1,3 +1,4 @@
+import { LIQUID } from '../lib/liquid';
 /* ────────────────────────── DESIGN TOKENS ─────────────────────────
    Bright & airy by default: white cards on a soft cloud-gray canvas,
    generous whitespace, and the neon accents kept for moments of
@@ -68,8 +69,10 @@ const DARK = {
    the mutating + persists the choice + forces that re-render. */
 export const C = Object.assign({}, LIGHT);
 
-export function applyThemeMode(mode) {
+export function applyThemeMode(mode, liquid) {
   Object.assign(C, mode === 'dark' ? DARK : LIGHT);
+  // Liquid Glass (src/lib/liquid.js), only for someone trying it
+  if (liquid) Object.assign(C, LIQUID[mode === 'dark' ? 'dark' : 'light']);
 }
 
 export const R = 20; // house border-radius
