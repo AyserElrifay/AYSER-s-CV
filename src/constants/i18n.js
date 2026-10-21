@@ -2398,7 +2398,7 @@ export const STRINGS = {
     cap_orig_sound: "Original sound",
     cap_your_rec: "Your recording",
     cap_err_cam: "Allow camera access to shoot \ud83c\udfa5",
-    cap_cam_on: 'Turn on camera', cap_photo: 'Photo', cap_video: 'Video', cap_hold_rec: 'Hold the shutter to record',
+    cap_cam_on: 'Turn on camera', cap_photo: 'Photo', cap_video: 'Video', cap_hold_rec: 'Hold the shutter to record', cap_cam_why: 'Only while this screen is open.',
     cap_err_novideo: "Video recording is not supported in this browser",
     cap_err_nopic: "This clip has no picture \u2014 try recording it again.",
     cap_err_camopen: "Could not open the camera \u2014 try the gallery button.",

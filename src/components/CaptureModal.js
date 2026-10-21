@@ -2245,7 +2245,7 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
           {/* ONE LINE ACROSS THE TOP: close on one side, sound and effects
               on the other, all the same round glass — and at the bottom
               library · shutter · flip. Two rows, mirrored, nothing else. */}
-          <Pressable onPress={() => { tapLight(); shot ? setShot(null) : onClose(); }} hitSlop={10} accessibilityRole="button" accessibilityLabel="Close">
+          <Pressable onPress={() => { tapLight(); shot ? setShot(null) : onClose(); }} hitSlop={10} accessibilityRole="button" accessibilityLabel="Close" style={{ outlineStyle: 'none' }}>
             <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(0,0,0,0.38)', alignItems: 'center', justifyContent: 'center' }}>
               <Ionicons name={shot ? 'arrow-back' : 'close'} size={24} color="#FFF" />
             </View>
@@ -2285,12 +2285,19 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
           /* a sentence that asks for the camera needs a button that does:
              Safari will only ask again from a tap, so "Allow camera
              access" on its own left a black screen and nothing to press */
-          <View style={{ position: 'absolute', top: insets.top + 60, left: 24, right: 24, alignItems: 'center' }}>
-            <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '700', textAlign: 'center' }}>{camError}</Text>
-            <Pressable onPress={() => { tapLight(); startStream(); }} accessibilityRole="button" hitSlop={8}
-              style={{ marginTop: 14, backgroundColor: '#FFF', borderRadius: 999, paddingHorizontal: 20, paddingVertical: 11 }}>
-              <Text style={{ color: '#111', fontSize: 14, fontWeight: '900' }}>{t('cap_cam_on')}</Text>
+          /* In the middle of the dark, like a lens cap: one button and one
+             quiet line saying when the camera is used — not an error in
+             a corner with an emoji */
+          <View pointerEvents="box-none" style={{ position: 'absolute', top: 0, bottom: 0, left: 32, right: 32, alignItems: 'center', justifyContent: 'center' }}>
+            <Pressable onPress={() => { tapLight(); startStream(); }} accessibilityRole="button" accessibilityLabel={t('cap_cam_on')} hitSlop={8} style={{ alignItems: 'center', outlineStyle: 'none' }}>
+              <View style={{ width: 88, height: 88, borderRadius: 44, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.35)', alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="camera-outline" size={34} color="#FFF" />
+              </View>
+              <View style={{ marginTop: 18, backgroundColor: '#FFF', borderRadius: 999, paddingHorizontal: 22, paddingVertical: 12 }}>
+                <Text style={{ color: '#111', fontSize: 15, fontWeight: '900' }}>{t('cap_cam_on')}</Text>
+              </View>
             </Pressable>
+            <Text style={{ color: 'rgba(255,255,255,0.55)', fontSize: 13, textAlign: 'center', marginTop: 12 }}>{t('cap_cam_why')}</Text>
           </View>
         ) : null}
 
@@ -2500,7 +2507,8 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
                         <Ionicons name="images-outline" size={23} color="#FFF" />
                       </View>
                     </Pressable>
-                    <Pressable onPressIn={onShutterDown} onPressOut={onShutterUp} disabled={!!camError}>
+                    <Pressable onPressIn={onShutterDown} onPressOut={onShutterUp} disabled={!!camError} accessibilityRole="button"
+                      style={({ pressed }) => ({ transform: [{ scale: pressed ? 0.9 : 1 }], opacity: camError ? 0.35 : 1, outlineStyle: 'none' })}>
                       <View style={{ width: 82, height: 82, borderRadius: 41, borderWidth: 5, borderColor: recording ? C.coral : '#FFF', alignItems: 'center', justifyContent: 'center' }}>
                         <View style={{ width: recording ? 34 : 62, height: recording ? 34 : 62, borderRadius: recording ? 9 : 31, backgroundColor: recording ? C.coral : '#FFF' }} />
                         {locked ? (
