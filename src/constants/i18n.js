@@ -777,6 +777,7 @@ export const STRINGS = {
     tg_start: "Start something",
     tg_see_everywhere: "See what's on everywhere",
     tg_more: "MORE TO DO TOGETHER",
+    tg_places: "Places",
     tg_play: "Play & chill",
     first_title: "Your first plans",
     first_sub: "Real things on near you this week. Tap Join and the host knows you're coming.",

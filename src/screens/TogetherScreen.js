@@ -122,11 +122,12 @@ const Section = ({ children }) => (
 );
 
 /* the rooms around the week, each in its own colour */
-const Tile = ({ emoji, label, from, to, onPress, wide }) => (
-  <Pressable onPress={() => { tapLight(); onPress(); }} style={{ width: wide ? '100%' : '48.5%', marginBottom: 10 }} accessibilityRole="button">
-    <View style={{ borderRadius: 20, paddingVertical: 16, paddingHorizontal: 8, alignItems: 'center', minHeight: 84, flexDirection: 'row', justifyContent: 'center', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line }}>
-      <Text style={{ fontSize: 26 }}>{emoji}</Text>
-      <Text style={{ color: C.text, fontSize: 12.5, fontWeight: '800', marginStart: 10 }} numberOfLines={2}>{label}</Text>
+/* four doors, one shape: a line icon and a word — the same for all */
+const Tile = ({ icon, label, onPress }) => (
+  <Pressable onPress={() => { tapLight(); onPress(); }} style={{ width: '48.5%', marginBottom: 10 }} accessibilityRole="button" accessibilityLabel={label}>
+    <View style={{ borderRadius: 20, padding: 16, minHeight: 96, justifyContent: 'space-between', alignItems: 'flex-start', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line }}>
+      <Ionicons name={icon} size={22} color={C.text} />
+      <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '800', marginTop: 14 }} numberOfLines={1}>{label}</Text>
     </View>
   </Pressable>
 );
@@ -347,6 +348,7 @@ export const TogetherScreen = () => {
   const insets = useSafeAreaInsets();
   const nav = useNavigation();
   const { t, lang } = useLang();
+  const rtl = lang === 'ar';
   const { user } = useAuth();
   /* the four tiles' sheets, fetched in a quiet moment once this tab is
      up, so the first tap opens one at once instead of waiting for it to
@@ -938,37 +940,26 @@ export const TogetherScreen = () => {
             inside Settling in; exchanges live in Chats. */}
         <Section>{t('tg_more')}</Section>
         <GreenDoor t={t} onPress={() => setSheet('green')} />
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
-          <Tile emoji="🧳" label={t('bk_tile')} from="#7C3AED" to="#F5B301" onPress={() => setSheet({ trips: 'browse' })} />
-          <Tile emoji="🤝" label={t('st_title')} from="#F59E0B" to="#EF4444" onPress={() => setSheet('settle')} />
-          <Tile wide emoji="🎲" label={t('tg_play')} from="#A855F7" to="#EC4899" onPress={() => nav.navigate('CHILL')} />
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginTop: 2 }}>
+          <Tile icon="airplane-outline" label={t('bk_tile')} onPress={() => setSheet({ trips: 'browse' })} />
+          <Tile icon="location-outline" label={t('tg_places')} onPress={() => setSheet('places')} />
+          <Tile icon="home-outline" label={t('st_title')} onPress={() => setSheet('settle')} />
+          <Tile icon="game-controller-outline" label={t('tg_play')} onPress={() => nav.navigate('CHILL')} />
         </View>
 
-        {/* ── bring your people ── one line; the details are in Rewards */}
+        {/* ── bring your people ── one quiet line; the details are in Rewards */}
         {uid ? (
-          <Pressable onPress={() => { tapLight(); setSheet({ rewards: 'invite' }); }} accessibilityRole="button" style={{ marginTop: 12 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.goldSoft, borderWidth: 1, borderColor: C.gold, borderRadius: 18, padding: 14 }}>
-              <Text style={{ fontSize: 20, marginEnd: 10 }}>🎁</Text>
-              <Text style={{ color: C.text, fontSize: 14, fontWeight: '800', flex: 1 }} numberOfLines={2}>{t('rw_inv_plus')}</Text>
-              <Ionicons name="chevron-forward" size={17} color={C.dim} />
+          <Pressable onPress={() => { tapLight(); setSheet({ rewards: 'invite' }); }} accessibilityRole="button" style={{ marginTop: 6 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.goldSoft, borderRadius: 18, paddingVertical: 13, paddingHorizontal: 16 }}>
+              <Ionicons name="gift-outline" size={19} color={C.gold} />
+              <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '700', flex: 1, marginStart: 12 }} numberOfLines={2}>{t('rw_inv_plus')}</Text>
+              <Ionicons name={rtl ? 'chevron-back' : 'chevron-forward'} size={16} color={C.dim} />
             </View>
           </Pressable>
         ) : null}
-        {/* ── places that welcome groups (src/components/biz) ── */}
-        <Pressable onPress={() => { tapLight(); setSheet('places'); }} accessibilityRole="button" style={{ marginTop: 10 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: C.line, borderRadius: 18, padding: 14, backgroundColor: C.glass }}>
-            <Text style={{ fontSize: 20, marginEnd: 10 }}>📍</Text>
-            <Text style={{ color: C.text, fontSize: 14, fontWeight: '800', flex: 1 }} numberOfLines={2}>{lang === 'ar' ? 'أماكن على Moments: كافيهات، مطاعم، إقامة، أنشطة' : 'Places on Moments: cafés, restaurants, stays, activities'}</Text>
-            <Ionicons name="chevron-forward" size={17} color={C.dim} />
-          </View>
-        </Pressable>
-        {/* ── own a place, or run trips? ── the partner page (PartnerSheet) */}
-        <Pressable onPress={() => { tapLight(); openPartner('place'); }} accessibilityRole="button" style={{ marginTop: 10 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: C.line, borderRadius: 18, padding: 14 }}>
-            <Text style={{ fontSize: 20, marginEnd: 10 }}>🤝</Text>
-            <Text style={{ color: C.text, fontSize: 14, fontWeight: '800', flex: 1 }} numberOfLines={2}>{t('pt_together_line')}</Text>
-            <Ionicons name="chevron-forward" size={17} color={C.dim} />
-          </View>
+        {/* ── own a place, or run trips? ── a line of text, not another card (PartnerSheet) */}
+        <Pressable onPress={() => { tapLight(); openPartner('place'); }} accessibilityRole="button" hitSlop={8} style={{ marginTop: 18, marginBottom: 8, alignSelf: 'center' }}>
+          <Text style={{ color: C.dim, fontSize: 13, fontWeight: '600', textAlign: 'center' }}>{t('pt_together_line') + (rtl ? ' ←' : ' →')}</Text>
         </Pressable>
       </ScrollView>
 
