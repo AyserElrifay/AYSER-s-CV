@@ -25,8 +25,6 @@ const monthYear = (iso, lang) => {
   try { return new Date(iso).toLocaleDateString(lang === 'ar' ? 'ar-EG' : lang, { month: 'short', year: 'numeric' }); }
   catch (e) { return ''; }
 };
-/* a passport number from the account id: stable, meaningless, fun */
-const passNo = (id) => String(id || '').replace(/[^a-f0-9]/gi, '').slice(0, 8).toUpperCase().replace(/(.{4})/, '$1 ');
 
 const STAMP = ['#64748B', '#10B981', '#0EA5E9', '#7C3AED', '#F59E0B', '#E11D48'];
 
@@ -52,7 +50,9 @@ export const Passport = ({ profile, name, avatar, verified, own, onPhoto, onEdit
     <View style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 24, padding: 18, overflow: 'hidden' }}>
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
         <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', letterSpacing: 1.6, flex: 1 }}>MOMENTS · {t('pp_local_pass')}</Text>
-        {p.id ? <Text style={{ color: C.faint, fontSize: 11, fontWeight: '700', letterSpacing: 1, fontVariant: ['tabular-nums'] }}>{passNo(p.id)}</Text> : null}
+        {/* there was a "passport number" here, cut from the account id. It read
+            as "AAAA AAAA", meant nothing, and handed out a piece of the id;
+            "since" below already says what a number would. */}
       </View>
 
       <View style={{ flexDirection: 'row', marginTop: 14 }}>
