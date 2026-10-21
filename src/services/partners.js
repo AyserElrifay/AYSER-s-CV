@@ -15,6 +15,11 @@ const act = async (name, args) => {
 };
 
 export const partnerApply = (p) => act('partner_apply', { p });
+/* the places where something looks wrong — owner only (owner_partner_flags) */
+export const ownerPartnerFlags = async () => {
+  if (!SUPABASE_READY) return [];
+  try { const { data, error } = await supabase.rpc('owner_partner_flags'); return error || !Array.isArray(data) ? [] : data; } catch (e) { return []; }
+};
 export async function ownerPartnerApps() {
   const r = await act('owner_partner_apps');
   return Array.isArray(r) ? r : null;

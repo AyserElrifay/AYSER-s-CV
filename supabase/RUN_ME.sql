@@ -19525,6 +19525,47 @@ $$;
 revoke execute on function public.green_feel(uuid, int, int, int) from public, anon;
 grant execute on function public.green_feel(uuid, int, int, int) to authenticated;
 
+-- ════════════════════════════════════════════════════════════════════
+--  STUDIO · PARTNERS THAT NEED A LOOK
+--  Ayser: "هتحكم فيهم أو تراقبهم إزاي من غير ما تعطّل شغلهم أو يبقى
+--  الموضوع ممل". Not a dashboard of every place — only the ones where
+--  something looks wrong, each with the one reason:
+--    spike     today's check-ins are 5× the usual, and at least 10
+--    regulars  3+ people checked in 4+ days this week (stamps farmed?)
+--    waiting   group requests left unanswered over a day
+--    empty     the page is shown on Moments with no photos or no hours
+--  Owner only. Nothing here touches the place; it is for us to look.
+-- ════════════════════════════════════════════════════════════════════
+create or replace function public.owner_partner_flags()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select case when not public.is_app_owner() then '[]'::jsonb else coalesce((
+    select jsonb_agg(jsonb_build_object('id', v.id, 'name', v.name, 'city', v.city, 'country', v.country, 'flags', f.flags) order by jsonb_array_length(f.flags) desc, v.name)
+      from public.partner_venues v
+      cross join lateral (
+        select coalesce(jsonb_agg(x), '[]'::jsonb) as flags from (
+          select jsonb_build_object('k', 'spike', 'n', t.today) as x
+            from (select (select count(*) from public.biz_visits b where b.venue_id = v.id and b.day = current_date) as today,
+                         (select count(*) from public.biz_visits b where b.venue_id = v.id and b.day between current_date - 28 and current_date - 1) / 28.0 as avg) t
+           where t.today >= 10 and t.today > 5 * greatest(t.avg, 1)
+          union all
+          select jsonb_build_object('k', 'regulars', 'n', r.n)
+            from (select count(*) as n from (select b.user_id from public.biz_visits b
+                    where b.venue_id = v.id and b.day > current_date - 7 group by b.user_id having count(*) >= 4) q) r
+           where r.n >= 3
+          union all
+          select jsonb_build_object('k', 'waiting', 'n', w.n)
+            from (select count(*) as n from public.biz_requests q where q.venue_id = v.id and q.status = 'new' and q.created_at < now() - interval '24 hours') w
+           where w.n > 0
+          union all
+          select jsonb_build_object('k', 'empty', 'n', 0)
+           where v.listed and (coalesce(array_length(v.photos, 1), 0) = 0 or v.hours is null)
+        ) z
+      ) f
+     where jsonb_array_length(f.flags) > 0), '[]'::jsonb) end;
+$$;
+revoke execute on function public.owner_partner_flags() from public, anon;
+grant execute on function public.owner_partner_flags() to authenticated;
+
 -- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --

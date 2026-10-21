@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, Pressable, ActivityIndicator, Linking } from 'react-native';
 import { C } from '../constants/theme';
-import { ownerPartnerApps, ownerPartnerSet } from '../services/partners';
+import { ownerPartnerApps, ownerPartnerSet, ownerPartnerFlags } from '../services/partners';
 import { COUNTRY_LIST } from '../constants/countries';
 import { appLink, shareLink } from '../utils/share';
 
@@ -27,6 +27,34 @@ const Btn = ({ label, onPress, color }) => (
 const countryOf = (code) => { const c = COUNTRY_LIST.find((x) => x.code === code); return c ? c.flag + ' ' + c.name : code ? code : 'Country unknown'; };
 const BIZ_EMOJI = { cafe: '☕', restaurant: '🍽️', shop: '🛍️', hotel: '🏨', hostel: '🛏️', home: '🏡', activity: '🧗', org: '🌱', host: '🧭' };
 
+/* ── NEEDS A LOOK ── Ayser: watch them without getting in their way or
+   making it a chore. Only the places where something looks wrong, each
+   with its reason in a line; when nothing does, one quiet line says so. */
+const WHY = {
+  spike: (n) => n + ' check-ins today — five times the usual',
+  regulars: (n) => n + ' people checked in 4+ days this week — stamps being farmed?',
+  waiting: (n) => n + (n === 1 ? ' group request' : ' group requests') + ' unanswered for over a day',
+  empty: () => 'Shown on Moments with no photos or no opening hours',
+};
+const NeedsALook = () => {
+  const [rows, setRows] = useState(null);
+  useEffect(() => { ownerPartnerFlags().then(setRows); }, []);
+  if (rows == null) return null;
+  if (!rows.length) return <Text style={{ color: '#16A34A', fontSize: 13.5, fontWeight: '800', marginBottom: 14 }}>✓ Every place looks fine.</Text>;
+  return (
+    <View style={{ marginBottom: 18 }}>
+      <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '900', letterSpacing: 1, marginBottom: 6 }}>{'NEEDS A LOOK · ' + rows.length}</Text>
+      {rows.map((v) => (
+        <View key={v.id} style={{ borderRadius: 16, padding: 13, marginTop: 8, borderWidth: 1, borderColor: '#D97706', backgroundColor: 'rgba(217,119,6,0.06)' }}>
+          <Text style={{ color: C.text, fontSize: 15, fontWeight: '900' }} numberOfLines={1}>{v.name}</Text>
+          <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 1 }}>{[v.country ? countryOf(v.country) : null, v.city].filter(Boolean).join(' · ')}</Text>
+          {(v.flags || []).map((f) => <Text key={f.k} style={{ color: C.text, fontSize: 13.5, marginTop: 6 }}>{'• ' + (WHY[f.k] ? WHY[f.k](f.n) : f.k)}</Text>)}
+        </View>
+      ))}
+    </View>
+  );
+};
+
 export const PartnersTab = () => {
   const [rows, setRows] = useState(null);
   const [filter, setFilter] = useState('open');
@@ -36,6 +64,7 @@ export const PartnersTab = () => {
   const shown = (rows || []).filter((x) => (filter === 'open' ? x.status === 'new' || x.status === 'talking' : x.status === filter));
   return (
     <View>
+      <NeedsALook />
       <Text style={{ color: C.dim, fontSize: 13, lineHeight: 19 }}>
         Places and experiences that applied on the partner page. Send the page to a venue with the button below — it opens without an account.
       </Text>
