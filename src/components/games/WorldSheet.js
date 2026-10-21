@@ -5,7 +5,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import * as ImagePicker from 'expo-image-picker';
 import { C } from '../../constants/theme';
 import { AV_NEUTRAL } from '../../constants/mockData';
-import { worldBoard, worldEnter, worldLeave, walkTotal, walkAdd, uploadPhoto } from '../../services/squadGames';
+import { worldBoard, worldEnter, worldLeave, walkTotal, walkAdd, walkRank, uploadPhoto } from '../../services/squadGames';
 import { todayChallenge, weekChallenges } from './challenges';
 import { gw, fill, say, WALK_STOPS } from './words';
 import { tapLight, tapSelection, tapSuccess } from '../../utils/feedback';
@@ -232,10 +232,63 @@ const Board = ({ ch, userId, T, city, intro }) => {
   );
 };
 
+/* ─── WHO WALKED THE MOST, THIS WEEK ── (RUN_ME.sql "WHO WALKED THE MOST") */
+const Rank = ({ T, tick }) => {
+  const [scope, setScope] = useState('all');
+  const [r, setR] = useState(null);
+  useEffect(() => { let alive = true; setR(null); walkRank(scope).then((x) => { if (alive) setR(x && x.ok ? x : { people: [], countries: [] }); }); return () => { alive = false; }; }, [scope, tick]);
+  const km = (v) => (Math.round(Number(v) * 10) / 10).toLocaleString() + ' km';
+  return (
+    <View style={{ marginTop: 26 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <Text style={{ flex: 1, color: C.text, fontSize: 18, fontWeight: '800' }}>{T('rk_title')}</Text>
+        <View style={{ flexDirection: 'row', backgroundColor: C.glassHi, borderRadius: 999, padding: 3 }}>
+          {['all', 'mates'].map((k) => (
+            <Pressable key={k} onPress={() => { tapSelection(); setScope(k); }} accessibilityRole="tab" accessibilityState={{ selected: scope === k }}>
+              <View style={{ borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6, backgroundColor: scope === k ? C.glass : 'transparent' }}>
+                <Text style={{ color: scope === k ? C.text : C.dim, fontSize: 12.5, fontWeight: '800' }}>{T(k === 'all' ? 'rk_all' : 'rk_mates')}</Text>
+              </View>
+            </Pressable>
+          ))}
+        </View>
+      </View>
+      {r && r.me ? <Text style={{ color: C.dim, fontSize: 13, marginTop: 6 }}>{fill(T('rk_you'), { r: r.me.r, n: r.me.of })}</Text> : null}
+      {!r ? <ActivityIndicator color={C.purple} style={{ marginTop: 18 }} /> : !r.people.length ? (
+        <Text style={{ color: C.dim, fontSize: 14, marginTop: 12 }}>{T('rk_none')}</Text>
+      ) : (
+        <View style={{ marginTop: 10, borderRadius: 18, borderWidth: 1, borderColor: C.line, backgroundColor: C.glass, overflow: 'hidden' }}>
+          {r.people.map((p, i) => (
+            <View key={i} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 11, paddingHorizontal: 14, borderTopWidth: i ? 1 : 0, borderTopColor: C.line, backgroundColor: p.me ? C.purpleSoft : 'transparent' }}>
+              <Text style={{ width: 26, color: p.r <= 3 ? C.text : C.faint, fontSize: 15, fontWeight: '900' }}>{p.r}</Text>
+              <Image source={{ uri: p.avatar || AV_NEUTRAL }} style={{ width: 30, height: 30, borderRadius: 15, marginEnd: 10, backgroundColor: C.glassHi }} />
+              <Text style={{ flex: 1, color: C.text, fontSize: 14.5, fontWeight: p.me ? '900' : '700' }} numberOfLines={1}>{(p.name || '—') + (p.flag ? '  ' + p.flag : '')}</Text>
+              <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>{km(p.km)}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+      {r && r.countries && r.countries.length > 1 ? (
+        <>
+          <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '900', letterSpacing: 1, marginTop: 18 }}>{T('rk_countries').toUpperCase()}</Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 8 }}>
+            {r.countries.map((c, i) => (
+              <View key={c.cc} style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7, marginEnd: 8, marginBottom: 8, backgroundColor: i === 0 ? C.text : C.glass, borderWidth: 1, borderColor: i === 0 ? C.text : C.line }}>
+                <Text style={{ fontSize: 14 }}>{c.flag || c.cc}</Text>
+                <Text style={{ color: i === 0 ? C.bg : C.text, fontSize: 13, fontWeight: '800', marginStart: 6 }}>{km(c.km)}</Text>
+              </View>
+            ))}
+          </View>
+        </>
+      ) : null}
+    </View>
+  );
+};
+
 const Walk = ({ lang, T }) => {
   const [w, setW] = useState(null);
   const [km, setKm] = useState('');
   const [err, setErr] = useState(null);
+  const [tick, setTick] = useState(0);
   useEffect(() => { walkTotal().then((r) => { if (r && r.ok) { setW(r); if (r.today) setKm(String(r.today)); } else setErr(T(r && r.reason === 'setup' ? 'setup' : 'err')); }); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const total = w ? Number(w.km) || 0 : 0;
   const end = WALK_STOPS[WALK_STOPS.length - 1].km;
@@ -248,7 +301,7 @@ const Walk = ({ lang, T }) => {
     const n = Math.min(30, Math.max(0, parseFloat(String(km).replace(',', '.')) || 0));
     tapSelection();
     const r = await walkAdd(n);
-    if (r && r.ok) { tapSuccess(); setW(r); setErr(null); } else setErr(T('err'));
+    if (r && r.ok) { tapSuccess(); setW(r); setErr(null); setTick((x) => x + 1); } else setErr(T('err'));
   };
   return (
     <>
@@ -272,7 +325,7 @@ const Walk = ({ lang, T }) => {
           <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '900', letterSpacing: 1, marginTop: 20 }}>{T('walk_today').toUpperCase()}</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
             <TextInput value={km} onChangeText={setKm} keyboardType="decimal-pad" maxLength={4} placeholder="0" placeholderTextColor={C.faint}
-              style={{ flex: 1, color: C.text, fontSize: 18, fontWeight: '800', borderWidth: 1, borderColor: C.line, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10, backgroundColor: C.glass }} />
+              style={{ flex: 1, minWidth: 0, width: 0, color: C.text, fontSize: 18, fontWeight: '800', borderWidth: 1, borderColor: C.line, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10, backgroundColor: C.glass }} />
             <Pressable onPress={save} accessibilityRole="button" style={{ marginStart: 10 }}>
               <View style={{ borderRadius: 999, paddingVertical: 12, paddingHorizontal: 24, backgroundColor: C.purple }}>
                 <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '900' }}>{T('done')}</Text>
@@ -281,6 +334,7 @@ const Walk = ({ lang, T }) => {
           </View>
           <Text style={{ color: C.dim, fontSize: 13, marginTop: 8 }}>{fill(T('walk_mine'), { km: Number(w.mine || 0).toLocaleString() })}</Text>
           {err ? <Text style={{ color: C.coral, fontSize: 13, marginTop: 8 }}>{err}</Text> : null}
+          <Rank T={T} tick={tick} />
         </>
       )}
     </>

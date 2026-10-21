@@ -19304,6 +19304,41 @@ begin
   return jsonb_build_object('ok', true);
 end $$;
 
+-- ════════════════════════════════════════════════════════════════════
+-- WHO WALKED THE MOST
+-- Ayser: "خلّي في رانكنج". The long walk gets a weekly table (Monday to
+-- Sunday): the ten who walked the most — first name, picture and flag,
+-- nothing else — the countries, and where you stand. 'mates' shows
+-- only you and your mates. Real kilometres only; blocked people never
+-- see each other.
+-- ════════════════════════════════════════════════════════════════════
+create or replace function public.world_walk_rank(p_scope text default 'all')
+returns jsonb language sql stable security definer set search_path = public as $$
+  with wk as (select date_trunc('week', current_date)::date as d0),
+  pool as (
+    select w.user_id, sum(w.km) as km
+      from public.world_walk w, wk
+     where w.day >= wk.d0 and w.day < wk.d0 + 7
+       and (coalesce(p_scope, 'all') <> 'mates' or w.user_id = auth.uid() or exists (
+             select 1 from public.mates m where m.status = 'accepted'
+                and ((m.requester_id = auth.uid() and m.addressee_id = w.user_id) or (m.addressee_id = auth.uid() and m.requester_id = w.user_id))))
+       and not exists (select 1 from public.user_blocks b where (b.blocker_id = auth.uid() and b.blocked_id = w.user_id) or (b.blocker_id = w.user_id and b.blocked_id = auth.uid()))
+     group by w.user_id
+  ),
+  ranked as (select user_id, km, rank() over (order by km desc) as r from pool)
+  select jsonb_build_object('ok', true,
+    'people', coalesce((select jsonb_agg(jsonb_build_object('r', x.r, 'km', x.km, 'me', x.user_id = auth.uid(),
+                 'name', split_part(coalesce(p.name, ''), ' ', 1), 'avatar', p.avatar_url, 'flag', p.country_flag) order by x.r, x.km desc)
+               from (select * from ranked order by r limit 10) x join public.profiles p on p.id = x.user_id), '[]'::jsonb),
+    'countries', coalesce((select jsonb_agg(jsonb_build_object('cc', c.cc, 'flag', c.flag, 'km', c.km, 'people', c.n) order by c.km desc)
+               from (select upper(p.country) as cc, max(p.country_flag) as flag, sum(x.km) as km, count(*) as n
+                       from pool x join public.profiles p on p.id = x.user_id
+                      where length(coalesce(p.country, '')) = 2 group by upper(p.country) order by sum(x.km) desc limit 8) c), '[]'::jsonb),
+    'me', (select jsonb_build_object('r', r, 'km', km, 'of', (select count(*) from ranked)) from ranked where user_id = auth.uid()));
+$$;
+revoke all on function public.world_walk_rank(text) from public, anon;
+grant execute on function public.world_walk_rank(text) to authenticated;
+
 -- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --

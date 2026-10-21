@@ -38,6 +38,7 @@ export const worldBoard = (key, limit) => rpc('world_board', { p_challenge: key,
 export const worldEnter = (key, photo, body, city) => rpc('world_enter', { p_challenge: key, p_photo: photo, p_body: body || null, p_city: city || null });
 export const worldLeave = (id) => rpc('world_leave', { p_id: id });
 export const walkTotal = () => rpc('world_walk_total', {});
+export const walkRank = (scope) => rpc('world_walk_rank', { p_scope: scope || 'all' });
 export const walkAdd = (km) => rpc('world_walk_add', { p_day: localDay(), p_km: km });
 
 /* A photo from the phone, uploaded; the server only takes https links. */
