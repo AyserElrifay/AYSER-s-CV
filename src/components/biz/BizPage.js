@@ -9,6 +9,8 @@ const GreenSheet = lazyOverlay(() => import('../green/GreenSheet').then((m) => (
 import { bw, dealLine, dealWhen, fill, typeOf, tname, INCLUDES, TYPES } from './words';
 import { tapLight, tapSelection, tapSuccess } from '../../utils/feedback';
 import { useSheetBack } from '../../hooks/useSheetBack';
+import { publicMedia } from '../../lib/publicMedia';
+import { openPartner } from '../../lib/partnerLink';
 
 /* ─── A PLACE ON MOMENTS, AS PEOPLE SEE IT ────────────────────────────
    Photos, a few lines, what the place's kind needs you to know, and the
@@ -262,7 +264,30 @@ export const BizDirectory = ({ lang, city, onClose }) => {
             ))}
           </ScrollView>
           {list == null ? <ActivityIndicator color={C.purple} style={{ marginTop: 30 }} /> : !list.length ? (
-            <Text style={{ color: C.dim, fontSize: 14, marginTop: 24, textAlign: 'center' }}>{B('none')}</Text>
+            /* no places yet: not a closed door — a photo, and the one thing
+               anybody can do about it: send the link to a place they love */
+            <View style={{ marginTop: 18, borderRadius: 24, overflow: 'hidden', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line }}>
+              <Image source={{ uri: publicMedia('act-coffee-2.jpg') }} style={{ width: '100%', height: 190 }} resizeMode="cover" />
+              <View style={{ padding: 18 }}>
+                <Text style={{ color: C.text, fontSize: 19, fontWeight: '900' }}>{B('none_t')}</Text>
+                <Text style={{ color: C.dim, fontSize: 14, lineHeight: 20, marginTop: 4 }}>{B('none_s')}</Text>
+                <Pressable onPress={async () => {
+                  tapLight();
+                  const url = 'https://therealmoments.com/?partner=place';
+                  try {
+                    if (typeof navigator !== 'undefined' && navigator.share) { await navigator.share({ text: B('invite_text'), url }); return; }
+                    if (typeof navigator !== 'undefined' && navigator.clipboard) { await navigator.clipboard.writeText(B('invite_text') + ' ' + url); tapSuccess(); }
+                  } catch (e) { /* closed the share sheet */ }
+                }} accessibilityRole="button" style={{ marginTop: 16 }}>
+                  <View style={{ borderRadius: 999, backgroundColor: C.purple, paddingVertical: 13, alignItems: 'center' }}>
+                    <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '900' }}>{B('invite')}</Text>
+                  </View>
+                </Pressable>
+                <Pressable onPress={() => { tapLight(); onClose(); openPartner('place'); }} accessibilityRole="button" style={{ marginTop: 12, alignSelf: 'center' }}>
+                  <Text style={{ color: C.dim, fontSize: 13.5, fontWeight: '800' }}>{B('have_place')}</Text>
+                </Pressable>
+              </View>
+            </View>
           ) : list.map((v) => {
             const ty = typeOf(v.type);
             return (
