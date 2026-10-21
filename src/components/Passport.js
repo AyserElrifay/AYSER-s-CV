@@ -30,7 +30,7 @@ const passNo = (id) => String(id || '').replace(/[^a-f0-9]/gi, '').slice(0, 8).t
 
 const STAMP = ['#64748B', '#10B981', '#0EA5E9', '#7C3AED', '#F59E0B', '#E11D48'];
 
-export const Passport = ({ profile, name, avatar, verified, own, onPhoto, onEdit, mates, onMates }) => {
+export const Passport = ({ profile, name, avatar, verified, own, onPhoto, onEdit, mates, onMates, onStamp }) => {
   const { t, lang } = useLang();
   const p = profile || {};
   const lv = levelOf(p.community_xp);
@@ -83,13 +83,17 @@ export const Passport = ({ profile, name, avatar, verified, own, onPhoto, onEdit
         </View>
       </View>
 
-      {/* the level, stamped on like a visa */}
-      <View pointerEvents="none" style={{ position: 'absolute', top: 40, right: 14, width: 88, height: 88, borderRadius: 44, borderWidth: 2.5, borderColor: tone, alignItems: 'center', justifyContent: 'center', transform: [{ rotate: '-12deg' }], opacity: 0.9 }}>
+      {/* the level, stamped on like a visa — on your own pass, it opens
+          your rewards: that is where the points are spent */}
+      <Pressable onPress={onStamp} disabled={!onStamp} accessibilityRole={onStamp ? 'button' : undefined} accessibilityLabel={onStamp ? t('rw_open') : undefined} hitSlop={6}
+        style={{ position: 'absolute', top: 40, right: 14, outlineStyle: 'none' }}>
+      <View pointerEvents="none" style={{ width: 88, height: 88, borderRadius: 44, borderWidth: 2.5, borderColor: tone, alignItems: 'center', justifyContent: 'center', transform: [{ rotate: '-12deg' }], opacity: 0.9 }}>
         <View style={{ position: 'absolute', top: 4, left: 4, right: 4, bottom: 4, borderRadius: 40, borderWidth: 1, borderColor: tone }} />
         <Text style={{ color: tone, fontSize: t('xp_lvl_' + lv.key).length > 7 ? 8.5 : 10.5, fontWeight: '900', letterSpacing: 0.4, maxWidth: 70, textAlign: 'center' }} numberOfLines={1}>{t('xp_lvl_' + lv.key).toUpperCase()}</Text>
         <Text style={{ color: tone, fontSize: 16, fontWeight: '900', marginTop: 1, fontVariant: ['tabular-nums'] }}>{lv.xp.toLocaleString()}</Text>
         <Text style={{ color: tone, fontSize: 9.5, fontWeight: '900', letterSpacing: 1.2 }}>XP</Text>
       </View>
+      </Pressable>
 
       {p.bio || own ? (
         <Pressable onPress={own ? () => onEdit && onEdit('bio') : undefined} disabled={!own} style={{ marginTop: 14 }}>

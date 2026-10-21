@@ -486,7 +486,7 @@ export const STRINGS = {
     cap_camera_app_hint: 'Video records in your camera app — Safari’s own recorder makes a file it can’t play back.',
     cap_longform: 'Long-form · or hold the shutter to record',
     moment_one: 'Moment',
-    edit: 'Edit',
+    edit: 'Edit', sp_share: 'Share',
     reset: 'Reset',
     cap_poll_ask: 'Ask a question…',
     cap_opt_a: 'Option A',

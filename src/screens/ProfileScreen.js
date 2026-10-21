@@ -749,43 +749,18 @@ export const ProfileScreen = () => {
             onEdit={(focus) => openEditor(focus)}
             mates={SUPABASE_READY ? mates : undefined}
             onMates={() => setMatesOpen(true)}
+            onStamp={SUPABASE_READY && user ? () => { tapLight(); setRewardsOpen(true); } : undefined}
           />
           {myProfile ? <HostCard profile={myProfile} /> : null}
-          {/* actions — right under who you are, where every profile keeps
-              them; the third one brings your friends in (your invite link) */}
+          {/* ── ONE ROW ── Ayser: "راجع ترتيب الأبلكيشن، بلاش زحمة". Two rows of
+              five buttons became one of three: edit, share, your day.
+              Rewards open from the XP stamp on the pass (where the points
+              are), and inviting friends lives in Rewards and on Together. */}
           <View style={{ flexDirection: 'row', marginTop: 14 }}>
-            <GhostButton small label={t('edit_space')} onPress={() => openEditor()} style={{ flex: 1, marginRight: 8 }} />
-            <GhostButton small label={t('share_profile')} onPress={doShareProfile} style={{ flex: 1, marginRight: 8 }} />
-            <Pressable onPress={inviteFriends} accessibilityRole="button" accessibilityLabel={t('ch_add_friends')} style={{ width: 44 }}>
-              <View style={{ borderRadius: R - 4, borderWidth: 1, borderColor: C.line, backgroundColor: C.glass, paddingVertical: 10, alignItems: 'center' }}>
-                <Ionicons name="person-add-outline" size={16} color={C.text} />
-              </View>
-            </Pressable>
+            <GhostButton small label={t('edit')} onPress={() => openEditor()} style={{ flex: 1, marginRight: 8 }} />
+            <GhostButton small label={t('sp_share')} onPress={doShareProfile} style={{ flex: 1, marginRight: 8 }} />
+            {user ? <GhostButton small label={t('sp_today')} onPress={() => { tapLight(); setDumpOpen(true); }} style={{ flex: 1 }} /> : null}
           </View>
-          {inviteNote ? <Text style={{ color: C.faint, fontSize: 12, marginTop: 6 }}>{inviteNote}</Text> : null}
-          {/* ── TWO SMALL DOORS, NOT TWO BIG CARDS ────────────────────
-              Ayser: "بسيط، سهل، مريح نفسيًا، مش زحمة". Rewards (loyalty,
-              invites, creators) and Bardi's "one thing today" used to be
-              two full cards stacked under the pass. They are one row of
-              two tiles now; each opens what it used to show. */}
-          {user ? (
-            <View style={{ flexDirection: 'row', marginTop: 10 }}>
-              {SUPABASE_READY ? (
-                <Pressable onPress={() => { tapLight(); setRewardsOpen(true); }} accessibilityRole="button" style={{ flex: 1, marginRight: 8 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: R - 4, borderWidth: 1, borderColor: C.gold, backgroundColor: C.goldSoft, paddingVertical: 11, paddingHorizontal: 12 }}>
-                    <Ionicons name="gift-outline" size={17} color={C.text} />
-                    <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '900', marginStart: 8, flex: 1 }} numberOfLines={1}>{t('rw_open')}</Text>
-                  </View>
-                </Pressable>
-              ) : null}
-              <Pressable onPress={() => { tapLight(); setDumpOpen(true); }} accessibilityRole="button" style={{ flex: 1 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: R - 4, borderWidth: 1, borderColor: C.line, backgroundColor: C.glass, paddingVertical: 11, paddingHorizontal: 12 }}>
-                  <Text style={{ fontSize: 15 }}>🗓️</Text>
-                  <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '900', marginStart: 8, flex: 1 }} numberOfLines={1}>{t('sp_today')}</Text>
-                </View>
-              </Pressable>
-            </View>
-          ) : null}
           {SUPABASE_READY && user ? <ShowedUp userId={user.id} own /> : null}
 
           {/* badges */}
