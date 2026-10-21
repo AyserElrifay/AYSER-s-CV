@@ -38,6 +38,21 @@ const Gallery = ({ place, height }) => {
   );
 };
 
+/* the credits for the copied Commons photos, fetched once when a place
+   with one is first opened (kept out of the first download) */
+let creditsP = null;
+const credits = () => (creditsP = creditsP || fetch(publicMedia('places/credits.json')).then((r) => (r.ok ? r.json() : {})).catch(() => ({})));
+const CommonsCredit = ({ id, t }) => {
+  const [c, setC] = useState(null);
+  useEffect(() => { let alive = true; credits().then((all) => { if (alive) setC(all[id] || null); }); return () => { alive = false; }; }, [id]);
+  if (!c) return null;
+  return (
+    <Pressable onPress={() => { try { Linking.openURL(c.p); } catch (e) {} }} accessibilityRole="link" style={{ marginTop: 5 }}>
+      <Text style={{ color: C.faint, fontSize: 10.5 }} numberOfLines={1}>{t('photo_credit').replace('{who}', c.a || t('photo_someone')).replace('{license}', c.l)}</Text>
+    </Pressable>
+  );
+};
+
 export const PlacePhoto = ({ place, height = 180 }) => {
   const { t } = useLang();
   const [photo, setPhoto] = useState(null);
@@ -62,6 +77,8 @@ export const PlacePhoto = ({ place, height = 180 }) => {
             <Image source={{ uri: own }} accessibilityLabel={place.name} style={{ width: '100%', height, borderRadius: 16, backgroundColor: C.glassHi }} />
           )
         )}
+        {/* a Commons photo copied for this place: who took it, and the licence */}
+        {place.commons ? <CommonsCredit id={place.id} t={t} /> : null}
         {/* a free-licence photo says where it came from */}
         {place.credit ? <Text style={{ color: C.faint, fontSize: 8, opacity: 0.6, marginTop: 4 }} numberOfLines={1}>{t('photo_from').replace('{who}', place.credit)}</Text> : null}
       </View>

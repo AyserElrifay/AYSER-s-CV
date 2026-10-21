@@ -1,0 +1,54 @@
+name: Find photos for places
+
+# Copies a freely licensed, credited Wikimedia Commons photo for every
+# place in src/constants/destinations.js that has none of its own
+# (scripts/import-place-photos.mjs), and commits them to main.
+# Run it from the Actions tab whenever new places are added.
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Look and report, write nothing'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: place-photos
+  cancel-in-progress: false
+
+jobs:
+  photos:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Find the photos
+        env:
+          DRY_RUN: ${{ inputs.dry_run && '1' || '' }}
+        run: node scripts/import-place-photos.mjs
+      - name: Commit them
+        if: ${{ !inputs.dry_run }}
+        run: |
+          set -e
+          git config user.name "moments-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add public/media/places src/constants/placePhotoIds.js
+          if git diff --cached --quiet; then echo "nothing new"; exit 0; fi
+          git commit -m "Places: freely licensed Commons photos, credited"
+          git push origin HEAD:main
+      # a push made with the workflow's own token does not start other
+      # workflows, so the site is rebuilt by asking for it
+      - name: Rebuild the site
+        if: ${{ !inputs.dry_run }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run deploy-web.yml --ref main
