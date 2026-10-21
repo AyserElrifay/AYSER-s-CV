@@ -668,6 +668,16 @@ export const ProfileScreen = () => {
   ].filter(Boolean);
   const badges = SUPABASE_READY ? realBadges : BADGES;
 
+  const profileTabs = [
+    { key: 'grid', icon: 'grid-outline', on: true },
+    { key: 'posts', icon: 'chatbox-ellipses-outline', on: gridItems.some((m) => m.text) },
+    { key: 'reels', icon: 'play-outline', on: gridItems.some((m) => m.kind === 'reel') },
+    { key: 'reposts', icon: 'repeat-outline', on: repostedMoments.length > 0 },
+    { key: 'tagged', icon: 'pricetag-outline', on: taggedMoments.length > 0 },
+  ].filter((x) => x.on);
+  // a tab that emptied (a repost undone, a tag removed) falls back to the moments
+  useEffect(() => { if (!profileTabs.some((x) => x.key === tab)) setTab('grid'); }, [profileTabs.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
       <ScrollView keyboardShouldPersistTaps="handled"
@@ -794,21 +804,19 @@ export const ProfileScreen = () => {
           </ScrollView>
         ) : null}
 
-        {/* tab strip */}
+        {/* tab strip — only the tabs with something in them. Five icons
+            over five empty pages was a new profile's first sight; with
+            only moments, there is no strip at all, just the moments. */}
+        {profileTabs.length > 1 ? (
         <View style={{ flexDirection: 'row', marginTop: 18, borderTopWidth: 1, borderTopColor: C.line }}>
-          {[
-            { key: 'grid', icon: 'grid-outline' },
-            { key: 'posts', icon: 'chatbox-ellipses-outline' },
-            { key: 'reels', icon: 'play-outline' },
-            { key: 'reposts', icon: 'repeat-outline' },
-            { key: 'tagged', icon: 'pricetag-outline' },
-          ].map((t) => (
+          {profileTabs.map((t) => (
             <Pressable key={t.key} onPress={() => { tapSelection(); setTab(t.key); }} style={{ flex: 1, alignItems: 'center', paddingVertical: 12 }}>
               <Ionicons name={t.icon} size={22} color={tab === t.key ? C.text : C.faint} />
               {tab === t.key ? <View style={{ height: 2, width: '60%', backgroundColor: C.text, marginTop: 10, position: 'absolute', bottom: -1 }} /> : null}
             </Pressable>
           ))}
         </View>
+        ) : <View style={{ height: 1, backgroundColor: C.line, marginTop: 18 }} />}
 
         {/* grid */}
         {tab === 'tagged' || tab === 'reposts' ? (
