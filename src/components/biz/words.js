@@ -43,11 +43,11 @@ const W = {
     none_mine: 'Your place appears here once the Moments team accepts your application.',
     host_go: 'Hosts are verified with an ID first.', host_btn: 'Verify me as a host',
     // the quiet-hours deal
-    deal: 'Quiet-hours deal', deal_s: 'A discount for the hours you want filled. People see it on your page and in the list, with “on now” while it runs.',
-    deal_how: 'You give the discount at the table — Moments never touches the bill. A guest during the deal counts like any guest, at the same fee.',
+    deal: 'Quiet-hours deal', deal_s: 'Fill your slow hours: a discount people see on your page.',
+    deal_how: 'You give it at the table. Same fee per guest.',
     deal_set: 'Set a deal', deal_edit: 'Change', deal_off: 'Turn off', deal_pct: 'Discount', deal_days: 'Days', deal_from: 'From', deal_to: 'To',
-    deal_time_ph: '15:00', deal_bad: 'Pick the days, and a start before the end (e.g. 15:00 to 18:00).', deal_daily: 'Every day',
-    deal_now: 'On now', deal_month: '{n} guests came during the deal this month', deal_here: '{pct}% off here', deal_got: 'Checked in ✓ — your {pct}% is on. Show this to the staff.',
+    deal_time_ph: '15:00', deal_bad: 'Pick at least one day.', deal_daily: 'Every day',
+    deal_now: 'On now', deal_month: '{n} guests came during the deal this month', deal_here: '{pct}% off', deal_preview: 'What guests see', deal_month_s: '{n} came during it this month', deal_got: 'Checked in ✓ — your {pct}% is on. Show this to the staff.',
   },
   ar: {
     demo_bar: 'تجربة · بيانات مثال. مفيش حاجة هنا حقيقية، ومفيش حاجة بتتحفظ.', demo_plan: 'في البورتال الحقيقي ده بيحط خطة في مكانك على الخريطة.',
@@ -83,22 +83,35 @@ const W = {
     e_code: 'الكود ده مش صح.', e_slow: 'محاولات كتير — استنى شوية.', e_yours: 'ده مكانك إنت.', e_date: 'راجع التواريخ.', e_err: 'ماحصلش — جرّب تاني', e_setup: 'محتاجة خطوة كمان على السيرفر.', e_offline: 'إنت أوفلاين.', not_yet: 'لسه مكملتش 5 أختام.',
     none_mine: 'صفحة مكانك هتظهر هنا أول ما فريق Moments يقبل طلبك.',
     host_go: 'الهوستس بيتوثّقوا ببطاقة الأول.', host_btn: 'وثّقني كهوست',
-    deal: 'عرض الأوقات الهادية', deal_s: 'خصم للساعات اللي عايز تملاها. الناس بتشوفه في صفحتك وفي القائمة، ومكتوب "شغّال دلوقتي" وهو شغّال.',
-    deal_how: 'الخصم بتدّيه إنت على الترابيزة — Moments مالهاش دعوة بالحساب. الضيف وقت العرض بيتحسب زي أي ضيف، بنفس الرسوم.',
+    deal: 'عرض الأوقات الهادية', deal_s: 'املا ساعاتك الهادية: خصم الناس بتشوفه في صفحتك.',
+    deal_how: 'بتدّيه إنت على الترابيزة. نفس الرسوم للضيف.',
     deal_set: 'اعمل عرض', deal_edit: 'غيّر', deal_off: 'وقّف العرض', deal_pct: 'الخصم', deal_days: 'الأيام', deal_from: 'من', deal_to: 'لحد',
-    deal_time_ph: '15:00', deal_bad: 'اختار الأيام، ووقت بداية قبل النهاية (مثلاً 15:00 لحد 18:00).', deal_daily: 'كل يوم',
-    deal_now: 'شغّال دلوقتي', deal_month: '{n} ضيف جم وقت العرض الشهر ده', deal_here: 'خصم {pct}% هنا', deal_got: 'اتسجّل حضورك ✓ — خصمك {pct}% شغّال. ورّي ده للي بيخدموك.',
+    deal_time_ph: '15:00', deal_bad: 'اختار يوم واحد على الأقل.', deal_daily: 'كل يوم',
+    deal_now: 'شغّال دلوقتي', deal_month: '{n} ضيف جم وقت العرض الشهر ده', deal_here: 'خصم {pct}%', deal_preview: 'الزباين هيشوفوه كده', deal_month_s: '{n} جم وقته الشهر ده', deal_got: 'اتسجّل حضورك ✓ — خصمك {pct}% شغّال. ورّي ده للي بيخدموك.',
   },
 };
 
 export const bw = (lang, k) => (W[lang] && W[lang][k]) || W.en[k] || k;
-/* "20% off · Sun, Mon · 15:00–18:00", in the reader's own day names */
-export const dealLine = (lang, d) => {
-  if (!d || !d.pct) return '';
-  const days = (d.days || []).length >= 7 ? bw(lang, 'deal_daily')
-    : (d.days || []).map((n) => { try { return new Date(2024, 0, 7 + n).toLocaleDateString(lang === 'ar' ? 'ar-EG' : lang, { weekday: 'short' }); } catch (e) { return String(n); } }).join(lang === 'ar' ? '، ' : ', ');
-  return fill(bw(lang, 'deal_here'), { pct: d.pct }) + ' · ' + days + ' · ' + d.from + '–' + d.to;
+/* the deal, the way a guest reads it: the days as one run where they
+   run on (Sun–Wed), the hours in the reader's own clock (3–6 PM) */
+const loc = (lang) => (lang === 'ar' ? 'ar-EG' : lang || 'en');
+export const dealDay = (lang, n) => { try { return new Date(2024, 0, 7 + n).toLocaleDateString(loc(lang), { weekday: 'short' }); } catch (e) { return String(n); } };
+export const dealHour = (lang, t) => {
+  const [h, m] = String(t || '0:0').split(':').map(Number);
+  try { return new Date(2024, 0, 1, h, m).toLocaleTimeString(loc(lang), m ? { hour: 'numeric', minute: '2-digit' } : { hour: 'numeric' }); } catch (e) { return t; }
 };
+export const dealWhen = (lang, d) => {
+  const ds = (d.days || []).slice().sort();
+  let days;
+  if (ds.length >= 7) days = bw(lang, 'deal_daily');
+  else {
+    const runs = [];
+    ds.forEach((n) => { const r = runs[runs.length - 1]; if (r && n === r[1] + 1) r[1] = n; else runs.push([n, n]); });
+    days = runs.map(([a, z]) => (z - a >= 2 ? dealDay(lang, a) + '–' + dealDay(lang, z) : a === z ? dealDay(lang, a) : dealDay(lang, a) + (lang === 'ar' ? '، ' : ', ') + dealDay(lang, z))).join(lang === 'ar' ? '، ' : ', ');
+  }
+  return days + ' · ' + dealHour(lang, d.from) + ' – ' + dealHour(lang, d.to);
+};
+export const dealLine = (lang, d) => (d && d.pct ? fill(bw(lang, 'deal_here'), { pct: d.pct }) + ' · ' + dealWhen(lang, d) : '');
 export const fill = (s, o) => Object.keys(o).reduce((a, k) => a.split('{' + k + '}').join(String(o[k])), s);
 
 /* the nine kinds — what each one gets, and which fields its page has */

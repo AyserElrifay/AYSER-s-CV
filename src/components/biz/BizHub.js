@@ -13,7 +13,7 @@ import { uploadPlanPhoto } from '../../lib/storage';
 import { Selling } from '../VenueSheet';
 import { lazyOverlay } from '../../lib/lazyScreen';
 const GreenSheet = lazyOverlay(() => import('../green/GreenSheet').then((m) => ({ default: m.GreenSheet })));
-import { bw, fill, dealLine, TYPES, typeOf, tname, INCLUDES } from './words';
+import { bw, fill, dealLine, dealWhen, dealDay, dealHour, TYPES, typeOf, tname, INCLUDES } from './words';
 import { tapLight, tapSelection, tapSuccess } from '../../utils/feedback';
 import { useSheetBack } from '../../hooks/useSheetBack';
 import { COUNTRY_LIST } from '../../constants/countries';
@@ -90,95 +90,140 @@ const CounterQr = ({ v, B }) => {
 };
 
 /* ── THE QUIET-HOURS DEAL ── a discount for the hours a place wants
-   filled (supabase/RUN_ME.sql, "THE QUIET-HOURS DEAL"). The hours are
-   read in this phone's time zone, which is the place's. */
-const PCTS = [10, 15, 20, 25, 30, 40, 50];
-const HHMM = /^([01][0-9]|2[0-3]):[0-5][0-9]$/;
-const pad = (t) => { const m = String(t || '').trim().match(/^(\d{1,2})(?::(\d{2}))?$/); return m ? String(m[1]).padStart(2, '0') + ':' + (m[2] || '00') : String(t || '').trim(); };
-const dayName = (lang, n) => { try { return new Date(2024, 0, 7 + n).toLocaleDateString(lang === 'ar' ? 'ar-EG' : lang, { weekday: 'short' }); } catch (e) { return String(n); } };
-const Chip = ({ on, label, onPress }) => (
-  <Pressable onPress={onPress} accessibilityRole="button" accessibilityState={{ selected: on }} style={{ marginEnd: 6, marginBottom: 6 }}>
-    <View style={{ borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8, backgroundColor: on ? C.text : C.glassHi }}>
-      <Text style={{ color: on ? C.bg : C.text, fontSize: 13, fontWeight: '800' }}>{label}</Text>
+   filled (supabase/RUN_ME.sql, "THE QUIET-HOURS DEAL"). Ayser: "simple,
+   chic, practical". One switch, one number, one window — nothing to
+   type, nothing to get wrong — and the line a guest will read, shown
+   while it is set. The hours are read in this phone's time zone, which
+   is the place's. */
+const PCTS = [10, 20, 30];
+const hh = (h) => String(h).padStart(2, '0') + ':00';
+const hOf = (t) => Number(String(t || '0').split(':')[0]);
+
+const Stepper = ({ label, value, onLess, onMore }) => (
+  <View style={{ flex: 1, alignItems: 'center' }}>
+    <Text style={{ color: C.faint, fontSize: 11, fontWeight: '900', letterSpacing: 1 }}>{label.toUpperCase()}</Text>
+    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
+      <Pressable onPress={onLess} hitSlop={8} accessibilityRole="button" accessibilityLabel="−" style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: C.glass, alignItems: 'center', justifyContent: 'center' }}>
+        <Ionicons name="remove" size={18} color={C.text} />
+      </Pressable>
+      <Text style={{ color: C.text, fontSize: 17, fontWeight: '900', minWidth: 74, textAlign: 'center' }}>{value}</Text>
+      <Pressable onPress={onMore} hitSlop={8} accessibilityRole="button" accessibilityLabel="+" style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: C.glass, alignItems: 'center', justifyContent: 'center' }}>
+        <Ionicons name="add" size={18} color={C.text} />
+      </Pressable>
     </View>
-  </Pressable>
+  </View>
 );
 
 const DealCard = ({ lang }) => {
   const B = (k) => bw(lang, k);
   const [s, setS] = useState(null);
   const [edit, setEdit] = useState(null);
+  const [last, setLast] = useState(null);
   const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState(null);
-  const load = () => dealStats().then((r) => setS(r && r.ok ? r : { ok: false }));
+  const [err, setErr] = useState(false);
+  const load = () => dealStats().then((r) => { setS(r && r.ok ? r : { ok: false }); if (r && r.deal) setLast(r.deal); });
   useEffect(() => { load(); }, []);
   if (!s || !s.ok) return null;
   const d = s.deal;
   const save = async (p) => {
-    setBusy(true); setErr(null);
+    setBusy(true); setErr(false);
     const r = await setDeal(p);
     setBusy(false);
-    if (r && r.ok) { tapSuccess(); setEdit(null); load(); } else setErr(B(r && r.reason === 'bad' ? 'deal_bad' : 'failed'));
+    if (r && r.ok) { tapSuccess(); setEdit(null); load(); } else setErr(true);
   };
-  const start = () => {
-    tapLight(); setErr(null);
-    setEdit(d ? { pct: d.pct, days: d.days.slice(), from: d.from, to: d.to } : { pct: 20, days: [0, 1, 2, 3], from: '15:00', to: '18:00' });
+  const open = () => {
+    tapLight(); setErr(false);
+    const x = d || last;
+    setEdit(x ? { pct: PCTS.includes(x.pct) ? x.pct : 20, days: x.days.slice(), from: hOf(x.from), to: hOf(x.to) } : { pct: 20, days: [0, 1, 2, 3], from: 15, to: 18 });
   };
-  const toggleDay = (n) => setEdit((e) => ({ ...e, days: e.days.includes(n) ? e.days.filter((x) => x !== n) : e.days.concat(n).sort() }));
+  const flip = (on) => { if (on) open(); else if (d) { tapLight(); save({ off: true }); } else setEdit(null); };
+  const step = (k, by) => setEdit((e) => {
+    tapSelection();
+    const n = { ...e, [k]: Math.max(6, Math.min(23, e[k] + by)) };
+    if (n.from >= n.to) { if (k === 'from') n.to = Math.min(23, n.from + 1); else n.from = Math.max(6, n.to - 1); }
+    return n.from < n.to ? n : e;
+  });
+  const draft = edit ? { pct: edit.pct, days: edit.days, from: hh(edit.from), to: hh(edit.to) } : null;
   const submit = () => {
-    const from = pad(edit.from); const to = pad(edit.to);
-    if (!edit.days.length || !HHMM.test(from) || !HHMM.test(to) || from >= to) { setErr(B('deal_bad')); return; }
+    if (!edit.days.length) { setErr(true); return; }
     let tz = 'Africa/Cairo';
     try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || tz; } catch (e) { /* keep Cairo */ }
-    save({ pct: edit.pct, days: edit.days, from, to, tz });
+    tapLight(); save({ ...draft, tz });
   };
   return (
-    <View style={{ borderRadius: 20, padding: 16, backgroundColor: C.goldSoft, marginTop: 16 }}>
+    <View style={{ borderRadius: 22, padding: 16, backgroundColor: C.goldSoft, marginTop: 16 }}>
+      {/* one switch */}
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-        <Text style={{ color: C.text, fontSize: 16, fontWeight: '900', flex: 1 }}>{'🏷️ ' + B('deal')}</Text>
-        {d && s.now ? (
-          <View style={{ borderRadius: 999, backgroundColor: C.green, paddingHorizontal: 10, paddingVertical: 4 }}>
-            <Text style={{ color: '#FFF', fontSize: 11.5, fontWeight: '900' }}>{B('deal_now')}</Text>
-          </View>
-        ) : null}
+        <View style={{ flex: 1, marginEnd: 10 }}>
+          <Text style={{ color: C.text, fontSize: 16, fontWeight: '900' }}>{B('deal')}</Text>
+          {!d && !edit ? <Text style={{ color: C.dim, fontSize: 13, marginTop: 2 }}>{B('deal_s')}</Text> : null}
+        </View>
+        <Switch value={!!(d || edit)} onValueChange={flip} disabled={busy} accessibilityLabel={B('deal')} />
       </View>
-      {!edit ? (
-        <>
-          <Text style={{ color: d ? C.text : C.dim, fontSize: d ? 14.5 : 13, fontWeight: d ? '800' : '400', marginTop: 4, lineHeight: 19 }}>{d ? dealLine(lang, d) : B('deal_s')}</Text>
-          {d ? <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 4 }}>{fill(B('deal_month'), { n: s.month || 0 })}</Text> : null}
-          <Text style={{ color: C.faint, fontSize: 12, marginTop: 8, lineHeight: 17 }}>{B('deal_how')}</Text>
-          <View style={{ flexDirection: 'row', marginTop: 12 }}>
-            <Btn small label={B(d ? 'deal_edit' : 'deal_set')} onPress={start} />
-            {d ? <View style={{ marginStart: 8 }}><Btn small ghost busy={busy} label={B('deal_off')} onPress={() => { tapLight(); save({ off: true }); }} /></View> : null}
+
+      {/* set: the deal as guests read it — tap to change */}
+      {d && !edit ? (
+        <Pressable onPress={open} accessibilityRole="button" accessibilityLabel={B('deal_edit')} style={{ marginTop: 12 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Text style={{ color: C.text, fontSize: 30, fontWeight: '900', letterSpacing: -0.6 }}>{fill(B('deal_here'), { pct: d.pct })}</Text>
+            {s.now ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginStart: 10 }}>
+                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: C.green, marginEnd: 5 }} />
+                <Text style={{ color: C.green, fontSize: 12.5, fontWeight: '900' }}>{B('deal_now')}</Text>
+              </View>
+            ) : null}
+            <View style={{ flex: 1 }} />
+            <Ionicons name={lang === 'ar' ? 'chevron-back' : 'chevron-forward'} size={18} color={C.faint} />
           </View>
-        </>
-      ) : (
-        <>
-          <Label>{B('deal_pct')}</Label>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-            {PCTS.map((n) => <Chip key={n} on={edit.pct === n} label={n + '%'} onPress={() => { tapSelection(); setEdit((e) => ({ ...e, pct: n })); }} />)}
+          <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '700', marginTop: 2 }}>{dealWhen(lang, d)}</Text>
+          <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 8 }}>{fill(B('deal_month_s'), { n: s.month || 0 }) + ' · ' + B('deal_how')}</Text>
+        </Pressable>
+      ) : null}
+
+      {/* changing it: one number, the days, the hours */}
+      {edit ? (
+        <View style={{ marginTop: 14 }}>
+          <View style={{ flexDirection: 'row', backgroundColor: C.glass, borderRadius: 999, padding: 4 }}>
+            {PCTS.map((n) => (
+              <Pressable key={n} onPress={() => { tapSelection(); setEdit((e) => ({ ...e, pct: n })); }} accessibilityRole="button" accessibilityState={{ selected: edit.pct === n }} style={{ flex: 1 }}>
+                <View style={{ borderRadius: 999, paddingVertical: 9, alignItems: 'center', backgroundColor: edit.pct === n ? C.text : 'transparent' }}>
+                  <Text style={{ color: edit.pct === n ? C.bg : C.text, fontSize: 15, fontWeight: '900' }}>{n + '%'}</Text>
+                </View>
+              </Pressable>
+            ))}
           </View>
-          <Label>{B('deal_days')}</Label>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-            {[0, 1, 2, 3, 4, 5, 6].map((n) => <Chip key={n} on={edit.days.includes(n)} label={dayName(lang, n)} onPress={() => { tapSelection(); toggleDay(n); }} />)}
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 14 }}>
+            {[0, 1, 2, 3, 4, 5, 6].map((n) => {
+              const on = edit.days.includes(n);
+              return (
+                <Pressable key={n} onPress={() => { tapSelection(); setErr(false); setEdit((e) => ({ ...e, days: on ? e.days.filter((x) => x !== n) : e.days.concat(n).sort() })); }} accessibilityRole="button" accessibilityLabel={dealDay(lang, n)} accessibilityState={{ selected: on }}>
+                  <View style={{ width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? C.text : C.glass }}>
+                    <Text style={{ color: on ? C.bg : C.dim, fontSize: 12, fontWeight: '900' }}>{dealDay(lang, n).slice(0, lang === 'ar' ? 3 : 2)}</Text>
+                  </View>
+                </Pressable>
+              );
+            })}
           </View>
-          <View style={{ flexDirection: 'row' }}>
-            <View style={{ flex: 1, marginEnd: 8 }}>
-              <Label>{B('deal_from')}</Label>
-              <Input value={edit.from} onChange={(x) => setEdit((e) => ({ ...e, from: x }))} ph={B('deal_time_ph')} max={5} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Label>{B('deal_to')}</Label>
-              <Input value={edit.to} onChange={(x) => setEdit((e) => ({ ...e, to: x }))} ph="18:00" max={5} />
-            </View>
+          <View style={{ flexDirection: 'row', marginTop: 16 }}>
+            <Stepper label={B('deal_from')} value={dealHour(lang, hh(edit.from))} onLess={() => step('from', -1)} onMore={() => step('from', 1)} />
+            <Stepper label={B('deal_to')} value={dealHour(lang, hh(edit.to))} onLess={() => step('to', -1)} onMore={() => step('to', 1)} />
           </View>
-          {err ? <Text style={{ color: C.red || '#E11D48', fontSize: 13, marginTop: 8 }}>{err}</Text> : null}
-          <View style={{ flexDirection: 'row', marginTop: 14 }}>
-            <Btn small busy={busy} label={B('save')} onPress={() => { tapLight(); submit(); }} />
-            <View style={{ marginStart: 8 }}><Btn small ghost label={B('cancel')} onPress={() => { tapLight(); setEdit(null); setErr(null); }} /></View>
+          {/* what guests will read */}
+          <View style={{ borderRadius: 14, backgroundColor: C.glass, paddingVertical: 10, paddingHorizontal: 12, marginTop: 16 }}>
+            <Text style={{ color: C.faint, fontSize: 10.5, fontWeight: '900', letterSpacing: 1 }}>{B('deal_preview').toUpperCase()}</Text>
+            <Text style={{ color: edit.days.length ? C.text : C.faint, fontSize: 14, fontWeight: '800', marginTop: 3 }}>{edit.days.length ? '🏷️ ' + dealLine(lang, draft) : B('deal_days')}</Text>
           </View>
-        </>
-      )}
+          {err ? <Text style={{ color: C.red || '#E11D48', fontSize: 12.5, marginTop: 8 }}>{B(edit.days.length ? 'failed' : 'deal_bad')}</Text> : null}
+          <View style={{ marginTop: 14 }}>
+            <Btn busy={busy} label={B('save')} onPress={submit} />
+          </View>
+          {d ? (
+            <Pressable onPress={() => { tapLight(); setEdit(null); setErr(false); }} accessibilityRole="button" style={{ alignSelf: 'center', marginTop: 10 }}>
+              <Text style={{ color: C.dim, fontSize: 13.5, fontWeight: '800' }}>{B('cancel')}</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      ) : null}
     </View>
   );
 };

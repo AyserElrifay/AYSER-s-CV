@@ -6,7 +6,7 @@ import { C } from '../../constants/theme';
 import { placePage, checkIn, redeem, askPlace, cancelAsk, directory } from '../../services/biz';
 import { lazyOverlay } from '../../lib/lazyScreen';
 const GreenSheet = lazyOverlay(() => import('../green/GreenSheet').then((m) => ({ default: m.GreenSheet })));
-import { bw, dealLine, fill, typeOf, tname, INCLUDES, TYPES } from './words';
+import { bw, dealLine, dealWhen, fill, typeOf, tname, INCLUDES, TYPES } from './words';
 import { tapLight, tapSelection, tapSuccess } from '../../utils/feedback';
 import { useSheetBack } from '../../hooks/useSheetBack';
 
@@ -94,13 +94,17 @@ export const BizPage = ({ id, lang, onClose, autoCode }) => {
 
               {/* the quiet-hours deal: what, when, and whether it runs now */}
               {p.deal && p.deal.pct ? (
-                <View style={{ borderRadius: 20, padding: 14, backgroundColor: C.goldSoft, marginTop: 10, flexDirection: 'row', alignItems: 'center' }}>
-                  <Text style={{ color: C.text, fontSize: 15, fontWeight: '900', flex: 1, lineHeight: 21 }}>{'🏷️ ' + dealLine(lang, p.deal)}</Text>
-                  {p.deal_now ? (
-                    <View style={{ borderRadius: 999, backgroundColor: C.green, paddingHorizontal: 10, paddingVertical: 4, marginStart: 8 }}>
-                      <Text style={{ color: '#FFF', fontSize: 11.5, fontWeight: '900' }}>{B('deal_now')}</Text>
-                    </View>
-                  ) : null}
+                <View style={{ borderRadius: 20, paddingVertical: 14, paddingHorizontal: 16, backgroundColor: C.goldSoft, marginTop: 10 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Text style={{ color: C.text, fontSize: 26, fontWeight: '900', letterSpacing: -0.5 }}>{fill(B('deal_here'), { pct: p.deal.pct })}</Text>
+                    {p.deal_now ? (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', marginStart: 10 }}>
+                        <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: C.green, marginEnd: 5 }} />
+                        <Text style={{ color: C.green, fontSize: 12.5, fontWeight: '900' }}>{B('deal_now')}</Text>
+                      </View>
+                    ) : null}
+                  </View>
+                  <Text style={{ color: C.text, fontSize: 14, fontWeight: '700', marginTop: 2 }}>{dealWhen(lang, p.deal)}</Text>
                 </View>
               ) : null}
 
