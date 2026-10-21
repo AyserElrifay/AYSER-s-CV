@@ -43,6 +43,7 @@ import { setupNotice } from '../lib/plumbing';
 
 /* Fetched when it is opened, not when the app starts. */
 import { lazyOverlay } from '../lib/lazyScreen';
+import { fetchPhotos, savePhotos } from '../lib/savePhotos';
 import { squadPeople, squadDeleteMessage, rankOf } from '../services/squadAdmin';
 const GroupInfoSheet = lazyOverlay(() => import('../components/GroupInfoSheet').then((m) => ({ default: m.GroupInfoSheet })));
 import { SheetHandle, SheetBack } from '../components/SheetHandle';
@@ -83,7 +84,8 @@ export const ChatThread = ({ chat, group, onClose }) => {
   const { user } = useAuth();
   const { lang, t } = useLang();   // translate into whatever the app is set to
   const [moreOpen, setMoreOpen] = useState(false);
-  const [otw, setOtw] = useState(null);   // what the plan bar last did: 'here' | 'far' | null
+  const [otw, setOtw] = useState(null);
+  const [albSave, setAlbSave] = useState(null);   // the day's photos: null | 'getting' | File[] (ready) | 'saved'   // what the plan bar last did: 'here' | 'far' | null
   const peer = group ? null : chat.user;
   const title0 = group ? chat.name : peer.name;
   const avatarUri = group ? null : peer.avatar;
@@ -621,9 +623,39 @@ export const ChatThread = ({ chat, group, onClose }) => {
           if (!shots.length && !over) return null;
           return (
             <View style={{ paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.line, backgroundColor: C.bg2 }}>
-              <Text style={{ color: C.faint, fontSize: 11, fontWeight: '900', letterSpacing: 1, marginHorizontal: 14, marginBottom: 8 }}>
-                {(shots.length ? t('alb_title').replace('{n}', String(shots.length)) : t('alb_none')).toUpperCase()}
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginHorizontal: 14, marginBottom: 8 }}>
+                <Text style={{ color: C.faint, fontSize: 11, fontWeight: '900', letterSpacing: 1 }}>
+                  {(shots.length ? t('alb_title').replace('{n}', String(shots.length)) : t('alb_none')).toUpperCase()}
+                </Text>
+                {/* everybody's photos to your phone, in one go */}
+                {shots.length >= 2 ? (
+                  <Pressable
+                    disabled={albSave === 'getting'}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    onPress={async () => {
+                      tapLight();
+                      const urls = shots.map((m) => m.mediaUrl);
+                      if (Array.isArray(albSave)) {
+                        const ok = await savePhotos(albSave, urls);
+                        if (ok) setAlbSave('saved');
+                        return;
+                      }
+                      setAlbSave('getting');
+                      const files = await fetchPhotos(urls);
+                      if (files.length && typeof navigator !== 'undefined' && navigator.canShare) { setAlbSave(files); return; }
+                      await savePhotos(files, urls);
+                      setAlbSave('saved');
+                    }}
+                    style={{ outlineStyle: 'none' }}>
+                    <Text style={{ color: albSave === 'saved' ? C.faint : C.purple, fontSize: 12, fontWeight: '800' }}>
+                      {albSave === 'getting' ? t('alb_getting')
+                        : Array.isArray(albSave) ? t('alb_ready').replace('{n}', String(albSave.length))
+                        : albSave === 'saved' ? t('alb_saved') : t('alb_save')}
+                    </Text>
+                  </Pressable>
+                ) : null}
+              </View>
               <ScrollView horizontal keyboardShouldPersistTaps="handled" showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 12 }}>
                 {over && !mineIn && isReal ? (
                   <Pressable onPress={() => { tapMedium(); setMomentOpen(true); }} accessibilityRole="button" style={{ marginEnd: 6 }}>
