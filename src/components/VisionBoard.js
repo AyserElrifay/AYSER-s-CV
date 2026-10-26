@@ -4,6 +4,9 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { C } from '../constants/theme';
 import { readCompass } from './Compass';
 import { tapLight, tapSuccess } from '../utils/feedback';
+// it travels with My day, which only loads when somebody opens it
+import { PrintBoard } from './PrintBoard';
+const PRINT_WORD = { en: 'Print it', ar: 'اطبعها', cs: 'Vytisknout', es: 'Imprimir', et: 'Prindi', fr: 'Imprimer', hi: 'प्रिंट करो', it: 'Stampa', ja: '印刷する', ko: '인쇄하기', nl: 'Afdrukken', pt: 'Imprimir', ro: 'Tipărește', ru: 'Напечатать', tr: 'Bastır', uk: 'Надрукувати', zh: '打印' };
 
 /* ─── THE VISION BOARD, ON TOP OF YOUR DAY ───────────────────────────
    Ayser: "Vision board on Papyrus تبقى باينة في الـ todo list، ويبقى
@@ -114,6 +117,7 @@ export const VisionBoard = ({ t, lang, onPick, onChanged }) => {
   const dreams = dreamsOf(c);
   const [added, setAdded] = useState(() => rd(ADD(), []).map((x) => x && x.id));
   const [, bump] = useState(0);
+  const [printing, setPrinting] = useState(false);
   const add = (id) => {
     if (added.indexOf(id) >= 0) return;
     tapSuccess();
@@ -131,7 +135,19 @@ export const VisionBoard = ({ t, lang, onPick, onChanged }) => {
 
   return (
     <View style={{ marginTop: 18 }}>
-      <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '900', letterSpacing: 1 }}>{('🌠 ' + vs(lang, 'title')).toUpperCase()}</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <Text style={{ flex: 1, color: C.faint, fontSize: 11.5, fontWeight: '900', letterSpacing: 1 }}>{('🌠 ' + vs(lang, 'title')).toUpperCase()}</Text>
+        {dreams.length ? (
+          <Pressable onPress={() => { tapLight(); setPrinting(true); }} accessibilityRole="button" hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Ionicons name="print-outline" size={15} color={C.purple} />
+            <Text style={{ color: C.purple, fontSize: 13, fontWeight: '800', marginHorizontal: 5 }}>{PRINT_WORD[lang] || PRINT_WORD.en}</Text>
+          </Pressable>
+        ) : null}
+      </View>
+      {printing ? (
+        <PrintBoard lang={lang} onClose={() => setPrinting(false)}
+          dreams={dreams.map((id) => ({ id, label: id === 'own' ? c.dream : t('cp_d_' + id), photo: photoOf(id), emoji: EMOJI[id] || '✨' }))} />
+      ) : null}
       {!dreams.length ? (
         <Pressable onPress={() => { tapLight(); onPick(); }} accessibilityRole="button" style={{ marginTop: 8 }}>
           <View style={{ borderRadius: 18, borderWidth: 1, borderStyle: 'dashed', borderColor: C.line, padding: 16, alignItems: 'center' }}>

@@ -232,7 +232,7 @@ const Offer = ({ o, t, lang, onBack, onBooked, user, onNeedSignIn }) => {
     setDone(r);
     // booked and confirmed (to pay there, or reserved): the invitation, now.
     // Paying online, it comes once the payment is through (a notification).
-    if (r.status && r.status !== 'pending' && r.id) setTimeout(() => openInvite(r.id), 700);
+    if (r.status && r.status !== 'pending' && r.id && o.kind !== 'gift') setTimeout(() => openInvite(r.id), 700);
     if (r.status === 'pending') {
       const p = await payBooking(r.id);
       if (!p.ok) setErr(t('bk_err_pay'));
@@ -643,7 +643,7 @@ export const TripsSheet = ({ onClose, country, openOn, focus, onNeedSignIn, only
                         <Text style={{ color: C.purple, fontSize: 14, fontWeight: '900' }}>{'✉️ ' + t('tk_trip_link')}</Text>
                       </Pressable>
                     ) : null}
-                    {b.status === 'reserved' || b.status === 'paid' ? (
+                    {(b.status === 'reserved' || b.status === 'paid') && !(b.offer && b.offer.kind === 'gift') ? (
                       <Pressable onPress={() => { tapLight(); openInvite(b.id); }} accessibilityRole="button" style={{ marginTop: 8, alignSelf: 'flex-start' }}>
                         <Text style={{ color: C.purple, fontSize: 14, fontWeight: '900' }}>{'🎟 ' + t('inv_open')}</Text>
                       </Pressable>

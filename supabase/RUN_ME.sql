@@ -19746,6 +19746,7 @@ begin
   if tg_op = 'UPDATE' and old.status in ('paid', 'reserved', 'attended') then return new; end if;
   if exists (select 1 from public.notifications where user_id = new.user_id and kind = 'trip_invite' and body like new.id::text || '|%') then return new; end if;
   select * into o from public.offers where id = new.offer_id;
+  if o.kind = 'gift' then return new; end if;   -- a thing you ordered is not a place you are going
   insert into public.notifications (user_id, actor_id, kind, body)
   values (new.user_id, new.user_id, 'trip_invite', new.id::text || '|' || left(coalesce(o.title, ''), 80));
   return new;
@@ -19887,6 +19888,22 @@ select 'trip', 'draft', 'Moments', 'Dahab × Saint Catherine', 'دهب × سان
   '{reserve}', 'month_last'
 where not exists (select 1 from public.offers where title = 'Dahab × Saint Catherine');
 
+
+-- ════════════════════════════════════════════════════════════════════
+--  YOUR VISION BOARD, PRINTED
+--  Ayser: people design their vision board in Moments, buy it, and it
+--  comes to them. The poster is made on the phone (PrintBoard.js) and
+--  saving it is free. The print is a gift like the notebook: "coming"
+--  until the team has a printer and sets the price in the Studio; then
+--  it is ordered through the same checkout, the poster and the delivery
+--  details travelling in the order's note.
+-- ════════════════════════════════════════════════════════════════════
+insert into public.offers (id, kind, status, operator, title, title_ar, city, country, photos, price, currency, pay_modes, summary, summary_ar)
+values ('0ffe0000-0000-4000-8000-0000000000c4', 'gift', 'soon', 'Moments', 'Your vision board, printed', 'لوحة أحلامك مطبوعة', 'Cairo', 'EG',
+  '{}', 0, 'EGP', '{reserve}',
+  'The board you made in My day, printed A3 on thick paper and brought to your door.',
+  'اللوحة اللي عملتها في يومي، مطبوعة A3 على ورق تقيل وتوصلك لحد البيت.')
+on conflict (id) do nothing;
 
 -- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT

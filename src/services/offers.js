@@ -27,7 +27,8 @@ const act = async (name, args) => {
    public/media ("media/welcome-dahab.jpg") */
 export const photoUrl = (p) => (!p ? null : /^https?:|^data:|^blob:/.test(p) ? p : publicMedia(String(p).replace(/^\/?media\//, '')));
 
-export const listOffers = async (kind, country) => { const r = await call('list_offers', { p_kind: kind || null, p_country: country || null }); return Array.isArray(r) ? r : []; };
+// the printed vision board is ordered from My day (PrintBoard.js), with the poster — never from a list
+export const listOffers = async (kind, country) => { const r = await call('list_offers', { p_kind: kind || null, p_country: country || null }); return Array.isArray(r) ? r.filter((o) => kind || !/c4$/.test(o.id)) : []; };
 export const bookOffer = (offerId, qty, mode, note) => act('book_offer', { p_offer: offerId, p_qty: qty, p_mode: mode, p_note: note || null });
 export const cancelBooking = (id) => act('cancel_booking', { p_id: id });
 export const restoreBooking = (id) => act('restore_booking', { p_id: id });
