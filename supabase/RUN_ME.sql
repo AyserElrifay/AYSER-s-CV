@@ -19905,6 +19905,54 @@ values ('0ffe0000-0000-4000-8000-0000000000c4', 'gift', 'soon', 'Moments', 'Your
   'اللوحة اللي عملتها في يومي، مطبوعة A3 على ورق تقيل وتوصلك لحد البيت.')
 on conflict (id) do nothing;
 
+-- ════════════════════════════════════════════════════════════════════
+--  NEIGHBOURS
+--  Ayser: "نيبورز كومباني … زي جروب العمارة: الناس تتعرف على بعض وتطمن
+--  إن ولادهم ليهم صحاب في بيئة ومبادئ كويسة · وخروجات الأسرة · وتمرين
+--  وتكوين الأطفال والشباب". Anyone close by may join (his choice), so a
+--  neighbours circle is an open circle with a place, found only within
+--  3 km of where you are — never from across the city, never without a
+--  place. Children have no accounts: their parents are the members, and
+--  sign them up for things. Safe to re-run.
+-- ════════════════════════════════════════════════════════════════════
+do $do$ begin
+  alter table public.squads drop constraint if exists squads_topic_check;
+  alter table public.squads add constraint squads_topic_check check (topic is null or topic in ('friends','growth','language','neighbours'));
+exception when others then raise notice 'squads topic constraint skipped: %', sqlerrm;
+end $do$;
+
+create or replace function public.topic_circles(p_topic text, p_lat double precision, p_lng double precision)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select coalesce(jsonb_agg(x order by (x->>'km') is null, (x->>'km')::numeric, (x->>'members')::int desc), '[]'::jsonb) from (
+    select jsonb_build_object('id', s.id, 'name', s.name, 'emoji', s.emoji, 'about', s.about, 'place_name', s.place_name,
+             'km', case when p_lat is null or s.lat is null then null
+                        else round(public.km_between(p_lat, p_lng, s.lat, s.lng)::numeric, 1) end,
+             'members', (select count(*) from public.squad_members m where m.squad_id = s.id and coalesce(m.accepted, true)),
+             'mine', public.is_squad_member(s.id, auth.uid())) x
+      from public.squads s
+     where s.open and s.topic = p_topic
+       and case when p_topic = 'neighbours'
+                then p_lat is not null and s.lat is not null and public.km_between(p_lat, p_lng, s.lat, s.lng) <= 3
+                else p_lat is null or s.lat is null or public.km_between(p_lat, p_lng, s.lat, s.lng) <= 50 end
+     limit 40) q;
+$$;
+grant execute on function public.topic_circles(text, double precision, double precision) to authenticated;
+
+create or replace function public.create_topic_circle(p_topic text, p_name text, p_about text, p_lat double precision, p_lng double precision)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare r jsonb;
+begin
+  if p_topic not in ('friends','growth','language','neighbours') then return jsonb_build_object('ok', false, 'reason', 'topic'); end if;
+  if p_topic = 'neighbours' and (p_lat is null or p_lng is null) then return jsonb_build_object('ok', false, 'reason', 'where'); end if;
+  r := public.create_circle(p_name, p_about, p_lat, p_lng, null, true);
+  if coalesce((r->>'ok')::boolean, false) then
+    update public.squads set topic = p_topic, emoji = case when p_topic = 'neighbours' then '🏘️' else emoji end where id = (r->>'id')::uuid;
+  end if;
+  return r;
+end $$;
+revoke all on function public.create_topic_circle(text, text, text, double precision, double precision) from public, anon;
+grant execute on function public.create_topic_circle(text, text, text, double precision, double precision) to authenticated;
+
 -- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --

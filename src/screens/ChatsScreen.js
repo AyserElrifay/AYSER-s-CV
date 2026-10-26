@@ -24,7 +24,7 @@ import { Page } from '../components/Page';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { SectionHeader } from '../components/SectionHeader';
 import { Shortcut, ShortcutRow } from '../components/Shortcut';
-import { TopicCircles, TOPICS } from '../components/TopicCircles';
+import { TopicCircles, TOPICS, nbWord } from '../components/TopicCircles';
 import { StreakBadge } from '../components/StreakBadge';
 import { Tick } from '../components/Tick';
 import { sendMoment } from '../services/messages';
@@ -1226,8 +1226,8 @@ export const ChatsScreen = () => {
             <ShortcutRow style={{ paddingHorizontal: 12, marginBottom: 14 }}>
               {/* one "exchange" only: study abroad is the programmes; the
                   language partners live inside "Learn a language" */}
-              {SUPABASE_READY ? ['friends', 'growth', 'language'].map((k) => (
-                <Shortcut key={k} emoji={TOPICS[k].emoji} label={t('tc_btn_' + k)} onPress={() => { tapLight(); setComposing(false); setTopic(k); }} />
+              {SUPABASE_READY ? ['friends', 'neighbours', 'growth', 'language'].map((k) => (
+                <Shortcut key={k} emoji={TOPICS[k].emoji} label={k === 'neighbours' ? nbWord(lang, 'btn') : t('tc_btn_' + k)} onPress={() => { tapLight(); setComposing(false); setTopic(k); }} />
               )) : null}
               <Shortcut emoji="🎒" label={t('tc_btn_study')} onPress={() => { tapLight(); setComposing(false); setProgOpen(true); }} />
               {owner ? <Shortcut emoji="🌿" label={t('green_album')} onPress={() => { tapLight(); setComposing(false); setAlbumOpen(true); }} /> : null}
