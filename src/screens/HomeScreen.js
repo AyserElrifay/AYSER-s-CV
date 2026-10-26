@@ -780,7 +780,7 @@ export const HomeScreen = () => {
           }}
         />
       ) : null}
-      {profileUser ? <ProfileModal user={profileUser} openMessage={profileUser.__offerHelp ? t('intent_help_msg') : undefined} onClose={() => setProfileUser(null)} /> : null}
+      {profileUser ? <ProfileModal user={profileUser} onClose={() => setProfileUser(null)} /> : null}
       {/* Your avatar opens the ONE real profile — same as the SPACE tab.
           Guarded by the flag as well as by `visible`, so the profile
           page is not even asked for until you open it. */}

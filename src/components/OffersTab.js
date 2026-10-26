@@ -2,10 +2,14 @@ import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable, TextInput, Image, ActivityIndicator, Animated, Easing } from 'react-native';
 import { C } from '../constants/theme';
 import {
-  ownerOffers, offerSave, offerSetVideo, offerSetDuration, offerSetRepeat, offerSetLevel, offerSetStatus, ownerBookings, ownerMarkBooking, ownerSetSetting, appSettings, photoUrl, money, ownerLeaders, ownerSaveLeader, ownerDeleteLeader } from '../services/offers';
+  ownerOffers, offerSave, offerSetVideo, offerSetDuration, offerSetRepeat, offerSetLevel, offerSetOnline, offerSetStatus, ownerBookings, ownerMarkBooking, ownerSetSetting, appSettings, photoUrl, money, ownerLeaders, ownerSaveLeader, ownerDeleteLeader } from '../services/offers';
 import { uploadPlanPhoto } from '../lib/storage';
 import { tapLight, tapSuccess } from '../utils/feedback';
 import { appLink, shareLink } from '../utils/share';
+import { lazyOverlay } from '../lib/lazyScreen';
+
+// the event page, as its host sees it: write the pin, open or end the workshop room
+const EventRoom = lazyOverlay(() => import('./EventRoom').then((m) => ({ default: m.EventRoom })));
 
 /* ─── STUDIO · TRIPS & DEALS ───────────────────────────────────────────
    The owner's desk for what people can book: write an offer (or finish
@@ -187,7 +191,7 @@ const toForm = (o) => ({
   seats: o.seats == null ? '' : String(o.seats), pay_modes: o.pay_modes || ['reserve'],
   free_cancel_hours: o.free_cancel_hours == null ? '' : String(o.free_cancel_hours),
   commission_pct: o.commission_pct == null ? '' : String(o.commission_pct),
-  repeat: o.repeat || '', level: o.level ? String(o.level) : '', track: o.track || '', faith_time: !!o.faith_time, topic: o.topic || '', ages: o.ages || '',
+  repeat: o.repeat || '', online: !!o.online, level: o.level ? String(o.level) : '', track: o.track || '', faith_time: !!o.faith_time, topic: o.topic || '', ages: o.ages || '',
   conditions: joinL(o.conditions), conditions_ar: joinL(o.conditions_ar),
 });
 const fromForm = (f) => {
@@ -209,6 +213,7 @@ export const OffersTab = ({ userId }) => {
   const [msg, setMsg] = useState(null);
   const [busy, setBusy] = useState(false);
   const [bookingsOf, setBookingsOf] = useState(null);   // { offer, rows }
+  const [hostOf, setHostOf] = useState(null);           // the offer whose event page is open
   const [freeUntil, setFreeUntil] = useState('');
   const [priceM, setPriceM] = useState(''); const [priceY, setPriceY] = useState(''); const [priceC, setPriceC] = useState('EGP');
   const [party, setParty] = useState(null);             // the offer just published
@@ -231,7 +236,7 @@ export const OffersTab = ({ userId }) => {
     setBusy(true); setMsg(null);
     const r = await offerSave(fromForm(form));
     setBusy(false);
-    if (r && r.ok) { await offerSetVideo(r.id, form.video); await offerSetDuration(r.id, form.duration ? Number(String(form.duration).replace(',', '.')) : null); await offerSetRepeat(r.id, form.repeat); await offerSetLevel(r.id, form.level ? Number(form.level) : null); tapSuccess(); setForm((f) => ({ ...f, id: r.id })); setMsg('Saved.'); load(); }
+    if (r && r.ok) { await offerSetVideo(r.id, form.video); await offerSetDuration(r.id, form.duration ? Number(String(form.duration).replace(',', '.')) : null); await offerSetRepeat(r.id, form.repeat); await offerSetLevel(r.id, form.level ? Number(form.level) : null); await offerSetOnline(r.id, form.online); tapSuccess(); setForm((f) => ({ ...f, id: r.id })); setMsg('Saved.'); load(); }
     else setMsg('Not saved: ' + ((r && (r.detail || r.reason)) || 'error'));
   };
   const status = async (o, s) => {
@@ -272,6 +277,8 @@ export const OffersTab = ({ userId }) => {
       <View>
         <Btn label="‹ Back" onPress={() => setBookingsOf(null)} />
         <Text style={{ color: C.text, fontSize: 17, fontWeight: '900', marginTop: 10 }}>{bookingsOf.offer.title}</Text>
+        <Btn label={bookingsOf.offer.online ? '📌 Event page — pin, open or end the room' : '📌 Event page — pin the meeting point'} solid onPress={() => setHostOf(bookingsOf.offer.id)} />
+        {hostOf ? <EventRoom kind="offer" id={hostOf} lang="en" onClose={() => setHostOf(null)} /> : null}
         {rows == null ? <ActivityIndicator color={C.dim} style={{ marginTop: 20 }} /> : !rows.length ? <Text style={{ color: C.dim, marginTop: 12 }}>No bookings yet.</Text> : rows.map((b) => (
           <View key={b.id} style={{ borderWidth: 1, borderColor: C.line, borderRadius: 14, padding: 12, marginTop: 10 }}>
             <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '800' }}>{b.code + ' · ' + (b.name || '') + ' · ' + b.qty + ' ppl'}</Text>
@@ -338,6 +345,12 @@ export const OffersTab = ({ userId }) => {
         <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
           {[['', 'Once'], ['weekly', '↻ Every week'], ['month_last', '↻ Last of the month']].map(([k, label]) => <Btn key={k || 'once'} label={(form.repeat === k ? '✓ ' : '') + label} solid={form.repeat === k} onPress={() => set('repeat')(k)} />)}
         </View>
+        <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '800', letterSpacing: 0.8, marginTop: 10 }}>WHERE IT HAPPENS</Text>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+          <Btn label={(!form.online ? '✓ ' : '') + 'In person'} solid={!form.online} onPress={() => set('online')(false)} />
+          <Btn label={(form.online ? '✓ ' : '') + 'Online (call room)'} solid={form.online} onPress={() => set('online')(true)} />
+        </View>
+        <Text style={{ color: C.dim, fontSize: 12.5, marginBottom: 4 }}>{form.online ? 'The room opens 15 minutes before the start, for people who paid. You (or a verified leader with an account) end it from the event page — everyone is out at once.' : 'People going get a short chat that opens 30 minutes before the start and turns read-only at the end. Pin the meeting point from the event page.'}</Text>
         <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '800', letterSpacing: 0.8, marginTop: 10 }}>LEARNING JOURNEY LEVEL</Text>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
           {['', '1', '2', '3', '4'].map((k) => <Btn key={k || 'none'} label={(form.level === k ? '✓ ' : '') + (k ? 'Level ' + k : 'Not on the path')} solid={form.level === k} onPress={() => set('level')(k)} />)}

@@ -281,8 +281,6 @@ export const ComposeModal = ({ initialMode = 'post', initialCaption = '', initia
         return;
       }
       tapSuccess();
-      /* you posted a trip: you are in that destination's travellers group */
-      if (isTravel && place.trim()) import('../services/squadAdmin').then((m) => m.travelGroupJoin(place.trim())).catch(() => {});
       onPosted(card);
       onClose();
     } catch (e) {

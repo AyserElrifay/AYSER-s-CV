@@ -19,11 +19,9 @@ const sql = read('supabase/RUN_ME.sql');
 const part = sql.slice(sql.indexOf('SAFETY · REPORT, BLOCK, STRIKES'));
 const fn = read('supabase/functions/safety-review/index.ts');
 const sheet = read('src/components/ChatReportSheet.js');
-const thread = read('src/screens/ChatThread.js');
 const admin = read('src/components/AdminPanel.js');
 const en = read('src/constants/i18n.js');
 
-is('the report button is in the chat header', /setReportOpen\(true\)/.test(thread) && /<ChatReportSheet/.test(thread), true);
 is('there is a confirmation step before anything is sent', /setStep\('confirm'\)/.test(sheet) && /step === 'confirm'/.test(sheet) && /onPress=\{report\}/.test(sheet), true);
 is('both people must really be in that chat', /is_dm_participant\(p_dm, me\) and public\.is_dm_participant\(p_dm, p_user\)/.test(part), true);
 is('the reporter is blocked from them at once', /insert into public\.user_blocks \(blocker_id, blocked_id\) values \(me, p_user\)/.test(part), true);

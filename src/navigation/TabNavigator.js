@@ -7,7 +7,6 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { C } from '../constants/theme';
 import { SUPABASE_READY } from '../lib/supabase';
 import { useLang } from '../context/LanguageContext';
-import { SQUADS, DMS } from '../constants/mockData';
 import { HomeScreen } from '../screens/HomeScreen';
 import { Boundary } from '../components/Boundary';
 import { SwipeTabs } from './SwipeTabs';
@@ -42,7 +41,6 @@ const UnlockHost = () => {
 const MapScreen = lazyScreen(() => import('../screens/MapScreen').then((m) => ({ default: m.MapScreen })));
 const TogetherScreen = lazyScreen(() => import('../screens/TogetherScreen').then((m) => ({ default: m.TogetherScreen })));
 const ChillScreen = lazyScreen(() => import('../screens/ChillScreen').then((m) => ({ default: m.ChillScreen })));
-const ChatsScreen = lazyScreen(() => import('../screens/ChatsScreen').then((m) => ({ default: m.ChatsScreen })));
 const ProfileScreen = lazyScreen(() => import('../screens/ProfileScreen').then((m) => ({ default: m.ProfileScreen })));
 
 /* Each tab renders inside its own boundary. If one screen throws, that
@@ -71,7 +69,6 @@ const HomeTab = guarded(HomeScreen, 'Home');
 const MapTab = guarded(MapScreen, 'Map');
 const ChillTab = guarded(ChillScreen, 'Chill');
 const TogetherTab = guarded(TogetherScreen, 'Together');
-const ChatsTab = guarded(ChatsScreen, 'Chats');
 const ProfileTab = guarded(ProfileScreen, 'Profile');
 
 /* ─────────────────────── NAVIGATION SHELL ─────────────────────── */
@@ -84,7 +81,6 @@ const TAB_ICONS = {
   MAP: { lib: 'ion', on: 'map', off: 'map-outline' },
   CHILL: { lib: 'mci', on: 'popcorn', off: 'popcorn' },
   TOGETHER: { lib: 'ion', on: 'people', off: 'people-outline' },
-  CHATS: { lib: 'ion', on: 'chatbubbles', off: 'chatbubbles-outline' },
   SPACE: { lib: 'ion', on: 'person', off: 'person-outline' },
 };
 
@@ -95,12 +91,6 @@ const renderTabIcon = (routeName, focused, color) => {
   return <Ionicons name={name} size={21} color={color} />;
 };
 
-/* Demo-mode only: the sample chats carry sample unread counts. In real
-   mode there is NO badge unless it reflects something true — a made-up
-   number on the tab bar is exactly the kind of fake we don't do. */
-const UNREAD_TOTAL = SUPABASE_READY
-  ? undefined
-  : SQUADS.reduce((n, s) => n + s.unread, 0) + DMS.reduce((n, d) => n + d.unread, 0);
 
 // A function, not a frozen object — `C`'s values get mutated in place
 // when dark mode toggles, so this must be re-read at render time, not
@@ -118,14 +108,14 @@ export const buildNavTheme = () => ({
 });
 
 const TAB_LABEL_KEY = {
-  HOME: 'tab_home', MAP: 'tab_map', CHILL: 'tab_chill', TOGETHER: 'tab_together', CHATS: 'tab_chats', SPACE: 'tab_space',
+  HOME: 'tab_home', MAP: 'tab_map', CHILL: 'tab_chill', TOGETHER: 'tab_together', SPACE: 'tab_space',
 };
 
 export const TabNavigator = () => {
   /* the other tabs, fetched in a quiet moment after the feed is up —
      see preloadTabs. Not in data saver. */
   React.useEffect(() => preloadTabs(
-    [TogetherScreen, MapScreen, ChatsScreen, ProfileScreen, ChillScreen],
+    [TogetherScreen, MapScreen, ProfileScreen, ChillScreen],
     { saving: isSaving(getPrefs().dataSaver || DEFAULT_DATA_MODE) },
   ), []);
   const { t } = useLang();
@@ -183,14 +173,6 @@ export const TabNavigator = () => {
     <Tab.Screen name="HOME" component={HomeTab} />
     <Tab.Screen name="MAP" component={MapTab} />
     <Tab.Screen name="TOGETHER" component={TogetherTab} />
-    <Tab.Screen
-      name="CHATS"
-      component={ChatsTab}
-      options={{
-        tabBarBadge: UNREAD_TOTAL,
-        tabBarBadgeStyle: { backgroundColor: C.coral, color: '#fff', fontSize: 10, fontWeight: '900' },
-      }}
-    />
     <Tab.Screen name="SPACE" component={ProfileTab} />
     {/* Not on the bar: five is what a tab bar holds, and this is not
         what Moments is. It opens from Together, with a way back.

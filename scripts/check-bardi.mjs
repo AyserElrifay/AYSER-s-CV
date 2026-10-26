@@ -43,8 +43,6 @@ is('running becomes a run', readMatch('3|running').kind, 'run');
 is('fewer than two others is nothing', readMatch('1|coffee'), null);
 is('body doubling: studying near a real venue', readMatch('3|studying|Diwan Bookstore'), { count: 3, what: 'studying', kind: 'focus', focus: true, venue: 'Diwan Bookstore' });
 is('body doubling without a venue still offers a session', readMatch('2|deep_work').venue, null);
-const threadSrc = read('src/screens/ChatThread.js');
-is('tapping the game master sends the invitation, not just a local game', /send\(t\('bardi_invite_' \+ game\)\)/.test(threadSrc), true);
 is('no Bardi chat service is left', fs.existsSync('src/services/bardiChat.js') || fs.existsSync('src/services/bardiLocal.js'), false);
 is('the old Bardi chat table takes nothing new', /drop policy if exists "bardi_chat_own_insert" on public\.bardi_chats;\s*drop policy if exists "bardi_chat_own_update"/.test(read('supabase/RUN_ME.sql')), true);
 is('nonsense is nothing', readMatch('hello'), null);
@@ -55,11 +53,6 @@ is('only a hobby you both wrote yourselves', /p2\.id = u/.test(bm), true);
 
 console.log('\nthe concierge: two questions, not four');
 is('two questions on the screen', (read('src/components/VibeCheckSheet.js').match(/\{ q: 'vc_q/g) || []).length, 2);
-
-console.log('\nquiet, not flashy');
-const thread = threadSrc;
-const nudge = thread.slice(thread.indexOf('{nudgeWhy ? ('), thread.indexOf('{nudgeWhy ? (') + 2500);
-is('the nudge has no animation', !/Animated|useNativeDriver|LinearGradient/.test(nudge), true);
 
 if (bad) { console.log('\n' + bad + ' wrong.'); process.exit(1); }
 console.log('\nBardi stays out of the way and only steps in to get people together.');

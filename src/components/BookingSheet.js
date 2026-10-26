@@ -8,7 +8,6 @@ import { SUPABASE_READY } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { PAY_PROVIDERS, startCheckout, PLATFORM_FEE } from '../services/payments';
 import { createVenueBooking } from '../services/venues';
-import { getOrCreateDmThread, sendMessage } from '../services/messages';
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
 import { sfxSuccess } from '../utils/sfx';
 import { setupNotice } from '../lib/plumbing';
@@ -43,13 +42,7 @@ export const BookingSheet = ({ venue, onClose }) => {
   const amount = priceToNumber(venue.price);
   const fee = Number((amount * PLATFORM_FEE).toFixed(2));
 
-  const requestToOwner = async () => {
-    if (!SUPABASE_READY || !user || !venue.owner_id) return;
-    try {
-      const threadId = await getOrCreateDmThread(venue.owner_id, user && user.id);
-      await sendMessage({ dmThreadId: threadId, userId: user.id, body: 'Booking request: ' + venue.name + (venue.sub ? ' — ' + venue.sub : '') + (venue.price ? ' (' + venue.price + ')' : '') });
-    } catch (e) {}
-  };
+
 
   const pay = async () => {
     if (busy) return;
@@ -74,7 +67,6 @@ export const BookingSheet = ({ venue, onClose }) => {
         }
       }
       // 2) Also land it in the owner's DMs, then take payment.
-      await requestToOwner();
       if (amount > 0) {
         const res = await startCheckout(provider, { amount, currency: 'EGP', kind: 'booking', refId: venue.id, description: 'Booking · ' + venue.name });
         if (res.configured) { tapSuccess(); sfxSuccess(); onClose(); return; }

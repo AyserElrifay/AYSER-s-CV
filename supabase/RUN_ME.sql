@@ -20192,6 +20192,282 @@ $$;
 revoke execute on function public.owner_set_setting(text, jsonb) from public, anon;
 grant execute on function public.owner_set_setting(text, jsonb) to authenticated;
 
+-- ════════════════════════════════════════════════════════════════════
+--  NO ENDLESS CHAT · SUBSCRIBE, BOOK A SEAT, MEET IN REAL LIFE
+--  Ayser, for the sprint: private messages and open group chats are
+--  gone. What stays is what gets people to the same table:
+--    · every booked event has a read-only HOST PIN — where to go, the
+--      table number, the exact spot — written by its host or the team;
+--    · an offline event (a booked trip or experience, or a plan people
+--      joined) has a short coordination chat for the people going: it
+--      opens 30 minutes before the start and turns read-only at the end;
+--    · an online workshop has its call room (the same Cloudflare-relayed
+--      audio as the talk rooms): it opens 15 minutes before the start,
+--      only for people who paid, and closes — everyone out — the moment
+--      the host ends it.
+--  Old messages are kept, untouched, and simply no longer shown; no new
+--  private or open-group message is accepted, whatever sends it. Every
+--  rule below is the database's, not the app's. Safe to re-run.
+-- ════════════════════════════════════════════════════════════════════
+alter table public.offers add column if not exists online boolean not null default false;
+alter table public.offers add column if not exists squad_id uuid references public.squads(id) on delete set null;
+alter table public.offers add column if not exists room_ended_at timestamptz;
+alter table public.offers add column if not exists host_pin text;
+alter table public.offers add column if not exists host_pin_at timestamptz;
+alter table public.green_gatherings add column if not exists host_pin text;
+alter table public.green_gatherings add column if not exists host_pin_at timestamptz;
+
+-- when an event's chat may be written in: [opens, closes]
+create or replace function public.event_window(sq uuid)
+returns table (opens timestamptz, closes timestamptz)
+language sql stable security definer set search_path = public as $$
+  select * from (
+    select g.starts_at - interval '30 minutes', g.starts_at + make_interval(mins => coalesce(g.minutes, 180))
+      from public.green_gatherings g where g.squad_id = sq and g.cancelled_at is null
+    union all
+    select o.starts_at - interval '30 minutes', coalesce(o.ends_at, o.starts_at + coalesce(o.duration_hours, 3) * interval '1 hour')
+      from public.offers o where o.squad_id = sq and o.starts_at is not null and not o.online
+  ) w limit 1;
+$$;
+revoke all on function public.event_window(uuid) from public, anon, authenticated;
+
+-- the gate: a message that is not inside an open event window is not written
+create or replace function public.messages_gate()
+returns trigger language plpgsql security definer set search_path = public as $$
+declare w record;
+begin
+  if new.dm_thread_id is not null then return null; end if;          -- private messages: closed
+  select * into w from public.event_window(new.squad_id);
+  if not found or now() < w.opens or now() > w.closes then return null; end if;
+  return new;
+end $$;
+revoke all on function public.messages_gate() from public, anon, authenticated;
+drop trigger if exists messages_gate on public.messages;
+create trigger messages_gate before insert on public.messages
+  for each row execute function public.messages_gate();
+
+-- a booked offline offer has its people's chat: booking puts you in, cancelling takes you out
+create or replace function public.booking_room()
+returns trigger language plpgsql security definer set search_path = public as $$
+declare o public.offers%rowtype; sq uuid;
+begin
+  select * into o from public.offers where id = new.offer_id;
+  if not found or o.online or o.kind = 'gift' or o.starts_at is null then return new; end if;
+  if new.status in ('reserved', 'paid', 'attended') then
+    sq := o.squad_id;
+    if sq is null then
+      insert into public.squads (name, emoji) values (left(o.title, 80), '🎟') returning id into sq;
+      update public.offers set squad_id = sq where id = o.id;
+    end if;
+    insert into public.squad_members (squad_id, user_id) values (sq, new.user_id) on conflict do nothing;
+  elsif new.status in ('cancelled', 'refunded') and o.squad_id is not null then
+    delete from public.squad_members where squad_id = o.squad_id and user_id = new.user_id
+       and not exists (select 1 from public.bookings b where b.offer_id = o.id and b.user_id = new.user_id
+                         and b.id <> new.id and b.status in ('reserved','paid','attended'));
+  end if;
+  return new;
+exception when others then return new;   -- a chat must never stop a booking
+end $$;
+revoke all on function public.booking_room() from public, anon, authenticated;
+drop trigger if exists bookings_room on public.bookings;
+create trigger bookings_room after insert or update of status on public.bookings
+  for each row execute function public.booking_room();
+
+do $do$ begin
+  alter table public.notifications drop constraint if exists notifications_kind_check;
+  alter table public.notifications add constraint notifications_kind_check
+    check (kind in ('vibe','laugh','comment','mate_request','mate_accept','message','call','tag','repost','green_invite','food_order','food_status','bardi_match','plan_soon','venue_decision','xp_award','safety','creator_plan','booking','trip_open','team_reply','biz_request','biz_reply','app_problem','daily_line','partner_watch','trip_invite','level_up','event_update'))
+    not valid;
+exception when others then raise notice 'notifications kind constraint skipped: %', sqlerrm;
+end $do$;
+
+-- who hosts an offer: the team, or one of its verified leaders who has an account
+create or replace function public.offer_host(p_offer uuid, u uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select u is not null and (
+    exists (select 1 from public.profiles where id = u) and public.is_app_owner()
+    or exists (select 1 from public.offer_leaders l where l.offer_id = p_offer and l.profile_id = u and l.verified));
+$$;
+revoke all on function public.offer_host(uuid, uuid) from public, anon, authenticated;
+
+-- the event page: the pin, the seats, the chat window, the call — for the people going and the host
+create or replace function public.event_room(p_kind text, p_id uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); o public.offers%rowtype; g public.green_gatherings%rowtype;
+        going boolean; paid boolean; host boolean; opens timestamptz; closes timestamptz; sq uuid;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  if p_kind = 'offer' then
+    select * into o from public.offers where id = p_id;
+    if not found then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
+    going := exists (select 1 from public.bookings b where b.offer_id = o.id and b.user_id = me and b.status in ('reserved','paid','attended'));
+    paid  := exists (select 1 from public.bookings b where b.offer_id = o.id and b.user_id = me and b.status in ('paid','attended'));
+    host  := public.offer_host(o.id, me);
+    if not going and not host then return jsonb_build_object('ok', false, 'reason', 'not_in'); end if;
+    closes := coalesce(o.ends_at, o.starts_at + coalesce(o.duration_hours, 3) * interval '1 hour');
+    sq := o.squad_id;
+    if host and not o.online and sq is not null then
+      insert into public.squad_members (squad_id, user_id) values (sq, me) on conflict do nothing;
+    end if;
+    return jsonb_build_object('ok', true, 'kind', 'offer', 'id', o.id, 'title', o.title, 'title_ar', o.title_ar,
+      'starts_at', o.starts_at, 'closes_at', closes, 'now', now(), 'online', o.online, 'is_host', host,
+      'pin', o.host_pin, 'pin_at', o.host_pin_at,
+      'taken', public.offer_seats_taken(o.id), 'total', o.seats,
+      'chat', case when o.online or sq is null then null else jsonb_build_object('squad_id', sq,
+                'opens_at', o.starts_at - interval '30 minutes', 'closes_at', closes,
+                'open', now() between o.starts_at - interval '30 minutes' and closes) end,
+      'call', case when not o.online then null else jsonb_build_object(
+                'opens_at', o.starts_at - interval '15 minutes', 'ended', o.room_ended_at is not null,
+                'can_join', (paid or host) and o.room_ended_at is null and now() >= o.starts_at - interval '15 minutes'
+                            and now() < closes + interval '30 minutes') end);
+  elsif p_kind = 'gathering' then
+    select * into g from public.green_gatherings where id = p_id;
+    if not found then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
+    going := exists (select 1 from public.green_joins j where j.gathering_id = g.id and j.user_id = me);
+    host  := g.host_id = me;
+    if not going and not host then return jsonb_build_object('ok', false, 'reason', 'not_in'); end if;
+    opens := g.starts_at - interval '30 minutes';
+    closes := g.starts_at + make_interval(mins => coalesce(g.minutes, 180));
+    return jsonb_build_object('ok', true, 'kind', 'gathering', 'id', g.id, 'title', g.title,
+      'starts_at', g.starts_at, 'closes_at', closes, 'now', now(), 'online', false, 'is_host', host,
+      'pin', g.host_pin, 'pin_at', g.host_pin_at,
+      'taken', (select count(*) from public.green_joins j where j.gathering_id = g.id), 'total', g.capacity,
+      'chat', case when g.squad_id is null or g.cancelled_at is not null then null else jsonb_build_object('squad_id', g.squad_id,
+                'opens_at', opens, 'closes_at', closes, 'open', now() between opens and closes) end,
+      'call', null);
+  end if;
+  return jsonb_build_object('ok', false, 'reason', 'kind');
+end $$;
+revoke execute on function public.event_room(text, uuid) from public, anon;
+grant execute on function public.event_room(text, uuid) to authenticated;
+
+-- the host writes the pin; everyone going hears about it once
+create or replace function public.event_pin(p_kind text, p_id uuid, p_text text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); txt text := nullif(btrim(coalesce(p_text, '')), ''); ttl text;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  if txt is not null and length(txt) > 500 then return jsonb_build_object('ok', false, 'reason', 'long'); end if;
+  if p_kind = 'offer' then
+    if not public.offer_host(p_id, me) then return jsonb_build_object('ok', false, 'reason', 'not_host'); end if;
+    update public.offers set host_pin = txt, host_pin_at = now() where id = p_id returning title into ttl;
+    if txt is not null then
+      insert into public.notifications (user_id, actor_id, kind, body)
+      select distinct b.user_id, me, 'event_update', p_id::text || '|' || left(ttl, 80)
+        from public.bookings b where b.offer_id = p_id and b.status in ('reserved','paid') and b.user_id <> me;
+    end if;
+  elsif p_kind = 'gathering' then
+    update public.green_gatherings set host_pin = txt, host_pin_at = now() where id = p_id and host_id = me returning title into ttl;
+    if not found then return jsonb_build_object('ok', false, 'reason', 'not_host'); end if;
+    if txt is not null then
+      insert into public.notifications (user_id, actor_id, kind, body)
+      select j.user_id, me, 'event_update', p_id::text || '|' || left(ttl, 80)
+        from public.green_joins j where j.gathering_id = p_id and j.user_id <> me;
+    end if;
+  else
+    return jsonb_build_object('ok', false, 'reason', 'kind');
+  end if;
+  return jsonb_build_object('ok', true);
+end $$;
+revoke execute on function public.event_pin(text, uuid, text) from public, anon;
+grant execute on function public.event_pin(text, uuid, text) to authenticated;
+
+-- ── the online workshop's room ──
+create table if not exists public.class_room_members (
+  offer_id  uuid not null references public.offers(id) on delete cascade,
+  user_id   uuid not null references public.profiles(id) on delete cascade,
+  joined_at timestamptz not null default now(),
+  left_at   timestamptz,
+  primary key (offer_id, user_id)
+);
+alter table public.class_room_members enable row level security;   -- read only through the functions below
+
+create or replace function public.class_room_open(o public.offers)
+returns boolean language sql stable as $$
+  select o.online and o.room_ended_at is null and o.starts_at is not null
+     and now() >= o.starts_at - interval '15 minutes'
+     and now() < coalesce(o.ends_at, o.starts_at + coalesce(o.duration_hours, 3) * interval '1 hour') + interval '30 minutes';
+$$;
+
+create or replace function public.class_room_join(p_offer uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); o public.offers%rowtype; host boolean;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  select * into o from public.offers where id = p_offer;
+  if not found or not o.online then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
+  host := public.offer_host(o.id, me);
+  if not host and not exists (select 1 from public.bookings b where b.offer_id = o.id and b.user_id = me and b.status in ('paid','attended')) then
+    return jsonb_build_object('ok', false, 'reason', 'not_paid');
+  end if;
+  if o.room_ended_at is not null then return jsonb_build_object('ok', false, 'reason', 'ended'); end if;
+  if not public.class_room_open(o) then return jsonb_build_object('ok', false, 'reason', 'not_yet', 'opens_at', o.starts_at - interval '15 minutes'); end if;
+  insert into public.class_room_members (offer_id, user_id) values (o.id, me)
+  on conflict (offer_id, user_id) do update set left_at = null, joined_at = now();
+  return jsonb_build_object('ok', true, 'id', o.id, 'title', o.title, 'title_ar', o.title_ar, 'is_host', host, 'now', now());
+end $$;
+revoke execute on function public.class_room_join(uuid) from public, anon;
+grant execute on function public.class_room_join(uuid) to authenticated;
+
+create or replace function public.class_room_leave(p_offer uuid)
+returns jsonb language sql security definer set search_path = public as $$
+  update public.class_room_members set left_at = now() where offer_id = p_offer and user_id = auth.uid() and left_at is null;
+  select jsonb_build_object('ok', true);
+$$;
+revoke execute on function public.class_room_leave(uuid) from public, anon;
+grant execute on function public.class_room_leave(uuid) to authenticated;
+
+-- the host ends it: closed for good, and everyone is out
+create or replace function public.class_room_end(p_offer uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  if not public.offer_host(p_offer, auth.uid()) then return jsonb_build_object('ok', false, 'reason', 'not_host'); end if;
+  update public.offers set room_ended_at = now() where id = p_offer and online and room_ended_at is null;
+  update public.class_room_members set left_at = now() where offer_id = p_offer and left_at is null;
+  return jsonb_build_object('ok', true);
+end $$;
+revoke execute on function public.class_room_end(uuid) from public, anon;
+grant execute on function public.class_room_end(uuid) to authenticated;
+
+-- asked every few seconds from inside the room: still open, still yours?
+create or replace function public.class_room_state(p_offer uuid)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select jsonb_build_object('open', public.class_room_open(o)
+           and exists (select 1 from public.class_room_members m where m.offer_id = o.id and m.user_id = auth.uid() and m.left_at is null))
+    from public.offers o where o.id = p_offer;
+$$;
+revoke execute on function public.class_room_state(uuid) from public, anon;
+grant execute on function public.class_room_state(uuid) to authenticated;
+
+-- the Studio marks a workshop as online
+create or replace function public.offer_set_online(p_id uuid, p_online boolean)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  if not public.owner_ok() then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
+  update public.offers set online = coalesce(p_online, false), updated_at = now() where id = p_id;
+  return jsonb_build_object('ok', found);
+end $$;
+revoke execute on function public.offer_set_online(uuid, boolean) from public, anon;
+grant execute on function public.offer_set_online(uuid, boolean) to authenticated;
+
+-- only the people in an open room may be on its wire
+do $do$
+begin
+  drop policy if exists "class room members read" on realtime.messages;
+  create policy "class room members read" on realtime.messages for select to authenticated
+    using (realtime.topic() like 'class:%' and exists (
+      select 1 from public.class_room_members m join public.offers o on o.id = m.offer_id
+       where 'class:' || o.id::text = realtime.topic() and m.user_id = auth.uid() and m.left_at is null
+         and public.class_room_open(o)));
+  drop policy if exists "class room members write" on realtime.messages;
+  create policy "class room members write" on realtime.messages for insert to authenticated
+    with check (realtime.topic() like 'class:%' and exists (
+      select 1 from public.class_room_members m join public.offers o on o.id = m.offer_id
+       where 'class:' || o.id::text = realtime.topic() and m.user_id = auth.uid() and m.left_at is null
+         and public.class_room_open(o)));
+exception when others then raise notice 'class room realtime policies skipped: %', sqlerrm;
+end $do$;
+
 -- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --

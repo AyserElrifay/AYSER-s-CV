@@ -152,6 +152,9 @@ jobs:
       # tabs, and Reels/Chill kept with a way back.
       - name: Check the Together tab
         run: node scripts/check-together.mjs
+      # No endless chat: no DMs or open groups; event chats and workshop rooms open and close on time.
+      - name: Check there is no endless chat
+        run: node scripts/check-no-chat.mjs
       # An icon-only button must have a name a screen reader can say.
       - name: Check every icon button has a name
         run: node scripts/check-a11y.mjs
@@ -170,9 +173,6 @@ jobs:
       # Talk rooms: anchored, time-boxed, small, ending in a real meetup.
       - name: Check talk rooms
         run: node scripts/check-talk-rooms.mjs
-      # Chats: coming plans first, last week's folded away.
-      - name: Check the chats list
-        run: node scripts/check-chat-list.mjs
       # Every security hole found so far, kept shut.
       - name: Check security
         run: node scripts/check-security.mjs

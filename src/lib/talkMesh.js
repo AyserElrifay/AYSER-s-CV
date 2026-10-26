@@ -18,7 +18,7 @@ import { shouldOffer } from './talkClock';
    released, the channel left. The room screen calls it when the clock
    reaches zero. */
 
-export async function joinMesh({ roomId, me, onPeople, onError }) {
+export async function joinMesh({ roomId, topic, me, onPeople, onError }) {
   let local;
   try {
     local = await navigator.mediaDevices.getUserMedia({
@@ -50,7 +50,8 @@ export async function joinMesh({ roomId, me, onPeople, onError }) {
   let muted = false;
   let closed = false;
 
-  const ch = supabase.channel('talk:' + roomId, {
+  // a talk room is talk:<id>; an online workshop's room is class:<offer id> (same rules, its own policy)
+  const ch = supabase.channel(topic || 'talk:' + roomId, {
     config: { private: true, broadcast: { self: false }, presence: { key: me.id } },
   });
   const signal = (to, data) => ch.send({ type: 'broadcast', event: 'signal', payload: { to, from: me.id, ...data } }).catch(() => {});

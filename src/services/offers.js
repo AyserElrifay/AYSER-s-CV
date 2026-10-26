@@ -65,6 +65,7 @@ export const offerSetVideo = (id, video) => act('offer_set_video', { p_id: id, p
 /* "I want to go" on a coming-soon trip — one row per person; the
    database counts and, when the trip opens, tells everybody who asked */
 export const offerWant = (id, on) => act('offer_want', { p_offer: id, p_on: on !== false });
+export const offerSetOnline = (id, on) => act('offer_set_online', { p_id: id, p_online: !!on });
 export const offerSetLevel = (id, level) => act('offer_set_level', { p_id: id, p_level: level || null });
 export const myJourney = () => call('my_journey');
 export const journeyBook = (offerId, ref) => act('journey_book', { p_offer: offerId, p_ref: ref });

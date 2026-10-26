@@ -20,7 +20,7 @@
    there `caches` is undefined, and touching it would throw inside
    respondWith and make the page fail to open. */
 
-const CACHE = 'moments-v87';
+const CACHE = 'moments-v88';
 // CacheStorage isn't available everywhere (Safari private mode, some
 // in-app browsers). Detect once; when absent we simply never cache.
 const HAS_CACHES = (typeof caches !== 'undefined');
@@ -165,6 +165,7 @@ const PUSH_EN = {
   push_partner_watch: '{n} partner places need a look',
   push_trip_invite: 'Your invitation is ready 🎟',
   push_level_up: 'Your next level is open 🧭',
+  push_event_update: 'Where to meet is updated 📌',
   bardi_focus: '{n} people near you are {what} right now — focus together?',
   bardi_focus_at: '{n} people near you are {what} right now — a session at {venue}?',
   bd_kind_studying: 'Studying',

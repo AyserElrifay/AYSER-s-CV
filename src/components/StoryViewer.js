@@ -15,7 +15,6 @@ import {
   recordStoryView, fetchStoryViewers, reactToStory, fetchMyStoryReaction,
   fetchStoryComments, addStoryComment, deleteStoryComment, setStoryComments,
 } from '../services/stories';
-import { getOrCreateDmThread, sendMessage } from '../services/messages';
 import { tapLight, tapSuccess } from '../utils/feedback';
 import { sfxPop, sfxSuccess } from '../utils/sfx';
 import { holdToClip } from '../lib/soundClip';
@@ -81,8 +80,6 @@ export const StoryViewer = ({ stories, groups, startGroup = 0, startIndex = 0, o
   const items = (groupList[groupIndex] && groupList[groupIndex].items) || [];
   const [index, setIndex] = useState(startIndex);
   const [paused, setPaused] = useState(false);
-  const [reply, setReply] = useState('');
-  const [sent, setSent] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
   const [storySound, setStorySound] = useState(soundOn);
   const storyVideos = useRef([]);
@@ -116,7 +113,7 @@ export const StoryViewer = ({ stories, groups, startGroup = 0, startIndex = 0, o
   const canRemoveAny = isOwner(user);
 
   useEffect(() => {
-    setConfirmDel(false); setReply(''); setSent(false); setPoll(null);
+    setConfirmDel(false); setPoll(null);
     setMyReaction(null); setReactSent(false); setViewers(null); setViewersOpen(false);
     if (!story || !SUPABASE_READY || !user) return;
     if (story.stickerType === 'poll') {
@@ -182,21 +179,7 @@ export const StoryViewer = ({ stories, groups, startGroup = 0, startIndex = 0, o
     try { await castPollVote(story.id, user.id, choice); } catch (e) {}
   };
 
-  const sendReply = async (asAnswer) => {
-    const body = reply.trim();
-    if (!body || !SUPABASE_READY || !user || isMine) return;
-    tapLight(); sfxPop();
-    try {
-      const threadId = await getOrCreateDmThread(story.user.id, user && user.id);
-      const prefix = asAnswer && story.stickerData && story.stickerData.question
-        ? 'Answered "' + story.stickerData.question + '": '
-        : 'Replied to your story: ';
-      await sendMessage({ dmThreadId: threadId, userId: user.id, body: prefix + body });
-      setReply('');
-      setSent(true);
-      setTimeout(() => setSent(false), 1600);
-    } catch (e) {}
-  };
+
 
   const sendReaction = async (emoji) => {
     if (!SUPABASE_READY || !user || isMine) return;
@@ -215,11 +198,6 @@ export const StoryViewer = ({ stories, groups, startGroup = 0, startIndex = 0, o
       setStoryErr(explainStory(e));
       return;
     }
-    try {
-      // and it lands in the owner's DMs too, so it's a real notification
-      const threadId = await getOrCreateDmThread(story.user.id, user && user.id);
-      await sendMessage({ dmThreadId: threadId, userId: user.id, body: 'Reacted to your story: ' + emoji });
-    } catch (e) { /* the reaction itself is saved; the DM ping is a bonus */ }
   };
 
   /* Post a comment — it's saved, and everyone watching sees it. */
@@ -423,24 +401,10 @@ export const StoryViewer = ({ stories, groups, startGroup = 0, startIndex = 0, o
             {story.stickerType === 'question' && story.stickerData ? (
               <View style={{ marginTop: 10, backgroundColor: 'rgba(255,255,255,0.14)', borderRadius: 16, padding: 13, borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)' }}>
                 <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '800', marginBottom: 8 }}>❓ {story.stickerData.question}</Text>
-                {!isMine ? (
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <TextInput
-                      placeholder={t('sv_answer_ph')} placeholderTextColor="rgba(255,255,255,0.55)"
-                      value={reply} onChangeText={setReply}
-                      onFocus={() => setPaused(true)} onBlur={() => setPaused(false)}
-                      style={{ flex: 1, color: '#FFF', fontSize: 13.5, backgroundColor: 'rgba(0,0,0,0.35)', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9, marginRight: 8 }}
-                    />
-                    <Pressable onPress={() => sendReply(true)} hitSlop={8}>
-                      <Ionicons name={sent ? 'checkmark-circle' : 'arrow-up-circle'} size={30} color={sent ? '#10B981' : '#FFF'} />
-                    </Pressable>
-                  </View>
-                ) : null}
               </View>
             ) : null}
 
-            {/* quick-react "sticker" — one tap, lands in the owner's DMs
-                as a real notification, same as a reply */}
+            {/* quick-react "sticker" — one tap, saved on the story */}
             {!isMine && SUPABASE_READY ? (
               <View style={{ flexDirection: 'row', marginTop: 4, marginBottom: 4 }}>
                 {REACT_EMOJIS.map((e) => (
@@ -543,21 +507,6 @@ export const StoryViewer = ({ stories, groups, startGroup = 0, startIndex = 0, o
               </View>
             ) : null}
 
-            {/* reply — always available, unless it's your own story or
-                the question sticker's answer box already covers it */}
-            {!isMine && story.stickerType !== 'question' ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
-                <TextInput
-                  placeholder={t('sv_reply_ph')} placeholderTextColor="rgba(255,255,255,0.55)"
-                  value={reply} onChangeText={setReply}
-                  onFocus={() => setPaused(true)} onBlur={() => setPaused(false)}
-                  style={{ flex: 1, color: '#FFF', fontSize: 13.5, backgroundColor: 'rgba(255,255,255,0.16)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)', borderRadius: 999, paddingHorizontal: 15, paddingVertical: 10, marginRight: 8 }}
-                />
-                <Pressable onPress={() => sendReply(false)} hitSlop={8}>
-                  <Ionicons name={sent ? 'checkmark-circle' : 'send'} size={26} color={sent ? '#10B981' : '#FFF'} />
-                </Pressable>
-              </View>
-            ) : null}
 
             {/* owner: real "who watched" — count pill opens the list */}
             {isMine && SUPABASE_READY && viewers ? (

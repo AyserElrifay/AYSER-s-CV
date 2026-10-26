@@ -31,8 +31,6 @@ import { PresenceProvider } from './src/context/PresenceContext';
 import { AuthScreen } from './src/screens/AuthScreen';
 import { primeFeed } from './src/hooks/useFeed';
 import { pendingInvite, clearInvite } from './src/lib/invite';
-import { pendingChatLink } from './src/lib/chatLink';
-import { JoinChatSheet } from './src/components/JoinChatSheet';
 import { TripLinkGate, TripInviteGate } from './src/components/TripLinkGate';
 import { PartnerLinkGate } from './src/components/PartnerLinkGate';
 import { BizLinkGate } from './src/components/BizLinkGate';
@@ -177,8 +175,8 @@ const Root = () => {
      feel like an ad rather than a hand. */
   const [tour, setTour] = React.useState(false);
   React.useEffect(() => {
-    // not on top of a group invitation (JoinChatSheet): one thing at a time
-    if (!isAuthenticated || tourSeen() || pendingChatLink() || pendingTrip() || pendingPartner()) return undefined;
+    // not on top of a trip or partner link: one thing at a time
+    if (!isAuthenticated || tourSeen() || pendingTrip() || pendingPartner()) return undefined;
     const t = setTimeout(() => setTour(true), 1400);
     return () => clearTimeout(t);
   }, [isAuthenticated]);
@@ -206,8 +204,6 @@ const Root = () => {
       <WhatsNew />
       <StudioGate />
       <InstallPrompt />
-      {/* arrived through a group chat's invite link (src/lib/chatLink.js) */}
-      <JoinChatSheet />
       {/* a shared trip, or a trip that just opened (src/lib/tripLink.js) */}
       <TripLinkGate signedIn />
       <TripInviteGate />

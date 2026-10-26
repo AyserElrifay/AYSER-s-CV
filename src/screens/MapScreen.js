@@ -37,7 +37,6 @@ import { fetchDestReviews, addDestReview } from '../services/destinations';
 import { fetchMomentPins } from '../services/posts';
 import { requestTrip } from '../services/trips';
 import { fetchTrips, hostTrip, joinTrip, leaveTrip, cancelTrip } from '../services/tripPlans';
-import { getOrCreateDmThread, sendMessage } from '../services/messages';
 import { dropNote, fetchActiveNotes, deleteNote, updateNote } from '../services/mapNotes';
 import { fetchStoryPins } from '../services/stories';
 import { WORLD_EVENTS } from '../constants/events';
@@ -64,7 +63,6 @@ const fadeTo = (c, a) => {
 };
 
 const LandingSheet = lazyOverlay(() => import('../components/LandingSheet').then((mod) => ({ default: mod.LandingSheet })));
-const CircleSheet = lazyOverlay(() => import('../components/CircleSheet').then((mod) => ({ default: mod.CircleSheet })));
 const TripsSheet = lazyOverlay(() => import('../components/TripsSheet').then((mod) => ({ default: mod.TripsSheet })));
 const PlacesFeed = lazyOverlay(() => import('../components/PlacesFeed').then((mod) => ({ default: mod.PlacesFeed })));
 /* The country room — what to say, what to eat and what nobody writes
@@ -187,11 +185,9 @@ export const MapScreen = () => {
   const [planErr, setPlanErr] = useState(null);
   const [newTrip, setNewTrip] = useState(null);  // the "start a trip" form
   const [myDoing, setMyDoing] = useState(null);  // your activity badge
-  const [waved, setWaved] = useState({});
   const [partnerSent, setPartnerSent] = useState(false);
   const [offers, setOffers] = useState([]);       // trips & deals people can book through Moments
   const [tripsOpen, setTripsOpen] = useState(false);
-  const [circleAt, setCircleAt] = useState(null);   // a place someone is starting a circle at
   const [dropTitle, setDropTitle] = useState('');
   const [noteHours, setNoteHours] = useState(24);       // chosen duration
   const [realNotes, setRealNotes] = useState([]);       // pinned comments
@@ -814,29 +810,8 @@ export const MapScreen = () => {
     const distTxt = km != null ? (km < 1 ? Math.round(km * 1000) + ' m' : km.toFixed(1) + ' km') : null;
     setRouteTo({ lat: p.coords.latitude, lng: p.coords.longitude, ts: Date.now() });
     closeSheet();
-    if (!SUPABASE_READY || !user) { note('🤝 ' + (distTxt ? distTxt + ' · ~' + mins + ' min' : p.name)); return; }
-    try {
-      const threadId = await getOrCreateDmThread(p.id, user && user.id);
-      await sendMessage({ dmThreadId: threadId, userId: user.id, body: distTxt ? '🤝 Meet up? I’m ' + distTxt + ' away (~' + mins + ' min) — heading your way!' : '🤝 Meet up? I’m nearby — heading your way!' });
-      sfxPop();
-      note('🤝 Invite sent to ' + (p.name || '').split(' ')[0] + ' · ' + distTxt + ' · ~' + mins + ' min');
-    } catch (e) {
-      note('🤝 ' + explainMap(e));
-    }
-  };
-
-  /* ── Wave → a real DM. "Waved ✓" appears ONLY when it truly sent. ── */
-  const wave = async (person) => {
-    tapLight();
-    if (!SUPABASE_READY || !user) { setWaved((w) => ({ ...w, [person.id]: true })); return; }
-    try {
-      const threadId = await getOrCreateDmThread(person.id, user && user.id);
-      await sendMessage({ dmThreadId: threadId, userId: user.id, body: '👋' });
-      sfxPop();
-      setWaved((w) => ({ ...w, [person.id]: true }));
-    } catch (e) {
-      note('👋 ' + explainMap(e));
-    }
+    // the route, not a message: no endless chatting — you walk over
+    note('🤝 ' + (distTxt ? distTxt + ' · ~' + mins + ' min' : p.name));
   };
 
   /* ── Book → open the pay-and-earn booking sheet (commission flows) ── */
@@ -963,11 +938,6 @@ export const MapScreen = () => {
       await joinCampfire(c.id, user.id);
       tapSuccess(); sfxSuccess();
       setJoinedFires((j) => ({ ...j, [c.id]: true }));
-      // the hello to the host is best-effort — the join itself is done
-      try {
-        const threadId = await getOrCreateDmThread(c.hostId, user && user.id);
-        await sendMessage({ dmThreadId: threadId, userId: user.id, body: 'I’m in for “' + c.title + '”! 🙌' });
-      } catch (e2) {}
     } catch (e) {
       note('🔥 ' + explainMap(e));
     }
@@ -1583,14 +1553,9 @@ export const MapScreen = () => {
                         <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 2 }}>{personWhere(p, t)}</Text>
                       </View>
                     </Pressable>
-                    <Pressable onPress={() => meetUp(p)} style={{ marginRight: 7 }}>
+                    <Pressable onPress={() => meetUp(p)}>
                       <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8 }}>
                         <Text style={{ color: '#FFF', fontSize: 12, fontWeight: '900' }}>{t('meet_up')}</Text>
-                      </View>
-                    </Pressable>
-                    <Pressable onPress={() => wave(p)}>
-                      <View style={{ backgroundColor: waved[p.id] ? C.greenSoft : C.purpleSoft, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8 }}>
-                        <Text style={{ color: waved[p.id] ? C.green : C.purple, fontSize: 12, fontWeight: '900' }}>{waved[p.id] ? '✓' : '👋'}</Text>
                       </View>
                     </Pressable>
                   </View>
@@ -1906,12 +1871,6 @@ export const MapScreen = () => {
               </View>
             </View>
             <View style={{ flexDirection: 'row', marginTop: 16 }}>
-              {/* a group for this place, to send to friends inside Moments or not */}
-              <Pressable onPress={() => { tapLight(); setCircleAt({ name: placeOpen.name, lat: placeOpen.lat, lng: placeOpen.lng }); }} style={{ flex: 1, marginRight: 10 }}>
-                <View style={{ backgroundColor: C.purple, borderRadius: 14, paddingVertical: 13, alignItems: 'center' }}>
-                  <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '900' }}>{'⭕ ' + t('ci_here')}</Text>
-                </View>
-              </Pressable>
               <Pressable onPress={() => directionsTo(placeOpen)} style={{ flex: 1 }}>
                 <View style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 14, paddingVertical: 13, alignItems: 'center' }}>
                   <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800' }}>{t('directions_label')}</Text>
@@ -2257,7 +2216,6 @@ export const MapScreen = () => {
           onPosted={() => { setComposeAt(null); fetchMomentPins().then(setMomentPins).catch(() => {}); }}
           onPostedStory={() => setComposeAt(null)} />
       ) : null}
-      {circleAt ? <CircleSheet place={circleAt} onClose={() => setCircleAt(null)} /> : null}
       {tripsOpen ? <TripsSheet onClose={() => setTripsOpen(false)} /> : null}
       {goNow ? <GoNowSheet onClose={() => { setGoNow(false); listGatherings(null).then(setGatherings).catch(() => {}); }} /> : null}
       {bookingVenue ? <BookingSheet venue={bookingVenue} onClose={() => { setBooked((x) => ({ ...x, [bookingVenue.id]: true })); setBookingVenue(null); }} /> : null}

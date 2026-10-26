@@ -20,38 +20,9 @@ import { videoPolicy, DEFAULT_DATA_MODE } from '../lib/dataSaver';
 import { cachedPoster, derivePoster, posterTint, forgetPoster } from '../lib/poster';
 import { getPrefs, subscribePrefs } from '../services/prefs';
 import { CoverSheet } from './CoverSheet';
-import { getOrCreateDmThread, sendMessage } from '../services/messages';
 import { useAuth } from '../context/AuthContext';
 import { lazyOverlay } from '../lib/lazyScreen';
 /* the line under a post that leads to a real plan, trip or places — fetched only once the feed is up */
-/* a travel plan opens the group of everyone going to the same place */
-const TravelGroupButton = ({ post, mine, t }) => {
-  const [busy, setBusy] = useState(false);
-  const go = async () => {
-    if (busy) return;
-    tapLight(); setBusy(true);
-    try {
-      const m = await import('../services/squadAdmin');
-      const r = await m.travelGroupJoin(post.place);
-      if (r && r.ok) {
-        tapSuccess();
-        const c = await import('../lib/chatBus');
-        c.openChat({ id: r.squad_id, name: r.name, emoji: r.emoji });
-        goToTab('CHATS');
-      }
-    } catch (e) {}
-    setBusy(false);
-  };
-  return (
-    <Pressable onPress={go} accessibilityRole="button" style={{ marginTop: 12 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: C.purple, borderRadius: 999, paddingVertical: 11, paddingHorizontal: 14, opacity: busy ? 0.6 : 1 }}>
-        <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '900' }} numberOfLines={1}>
-          {'✈️ ' + t(mine ? 'tv_open' : 'tv_join').replace('{place}', post.place)}
-        </Text>
-      </View>
-    </Pressable>
-  );
-};
 const PostLink = lazyOverlay(() => import('./PostLink').then((m) => ({ default: m.PostLink })));
 const ReelsViewer = lazyOverlay(() => import('./ReelsViewer').then((m) => ({ default: m.ReelsViewer })));
 
@@ -219,27 +190,6 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
      message box at the bottom. */
   const plan = post.plan && typeof post.plan === 'object' ? post.plan : null;
   const { user: me } = useAuth();
-  const [chatOpen, setChatOpen] = useState(false);
-  const [chatText, setChatText] = useState('');
-  const [chatBusy, setChatBusy] = useState(false);
-  const [chatSent, setChatSent] = useState(false);
-  const [chatErr, setChatErr] = useState(null);
-
-  const sendToTraveller = async () => {
-    const body = chatText.trim();
-    const to = post.user && post.user.id;
-    if (!body || !to || !me || chatBusy) return;
-    setChatBusy(true); setChatErr(null);
-    try {
-      const threadId = await getOrCreateDmThread(to, me.id);
-      await sendMessage({ dmThreadId: threadId, userId: me.id, body });
-      tapSuccess();
-      setChatText(''); setChatSent(true);
-      setTimeout(() => { setChatSent(false); setChatOpen(false); }, 1500);
-    } catch (e) {
-      setChatErr('Could not send that — try again.');
-    } finally { setChatBusy(false); }
-  };
   const [reported, setReported] = useState(false);
   /* the picture people see before a video plays — see CoverSheet */
   const [coverOpen, setCoverOpen] = useState(false);
@@ -639,49 +589,6 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
             </View>
           ) : null}
 
-          {/* Your own plan doesn't need a button to message yourself. */}
-          {!isMine && me && post.user && post.user.id ? (
-            chatOpen ? (
-              <View style={{ marginTop: 14, backgroundColor: C.bg, borderWidth: 1, borderColor: C.line, borderRadius: 16, padding: 12 }}>
-                <Text style={{ color: C.dim, fontSize: 11.5, fontWeight: '800' }}>
-                  {'Message ' + ((post.user && post.user.name) || 'them')}
-                </Text>
-                <TextInput
-                  value={chatText}
-                  onChangeText={setChatText}
-                  placeholder={t('say_hello_placeholder')}
-                  placeholderTextColor={C.faint}
-                  multiline
-                  editable={!chatBusy}
-                  style={{ color: C.text, fontSize: 14, minHeight: 54, marginTop: 8, textAlignVertical: 'top' }}
-                />
-                {chatErr ? <Text style={{ color: C.coral, fontSize: 12, marginTop: 4 }}>{chatErr}</Text> : null}
-                <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginTop: 8 }}>
-                  {chatSent ? (
-                    <Text style={{ color: C.green, fontSize: 12.5, fontWeight: '800' }}>{t('sent_in_chats')}</Text>
-                  ) : (
-                    <>
-                      <Pressable onPress={() => { tapLight(); setChatOpen(false); }} style={{ marginRight: 12 }}>
-                        <Text style={{ color: C.dim, fontSize: 13, fontWeight: '700', paddingVertical: 6 }}>{t('cancel')}</Text>
-                      </Pressable>
-                      <Pressable onPress={sendToTraveller} disabled={chatBusy || !chatText.trim()}>
-                        <View style={{ backgroundColor: C.green, borderRadius: 999, paddingHorizontal: 18, paddingVertical: 9, opacity: chatBusy || !chatText.trim() ? 0.5 : 1 }}>
-                          <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '900' }}>{chatBusy ? 'Sending…' : 'Send'}</Text>
-                        </View>
-                      </Pressable>
-                    </>
-                  )}
-                </View>
-              </View>
-            ) : (
-              <Pressable onPress={() => { tapLight(); setChatOpen(true); }} style={{ marginTop: 14 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: C.green, borderRadius: 999, paddingVertical: 14 }}>
-                  <Ionicons name="chatbubbles-outline" size={17} color="#FFF" />
-                  <Text style={{ color: '#FFF', fontSize: 14.5, fontWeight: '900', marginLeft: 8 }}>{t('open_chat')}</Text>
-                </View>
-              </Pressable>
-            )
-          ) : null}
         </View>
       ) : null}
 
@@ -826,8 +733,7 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
               <Text style={{ color: C.purple, fontSize: 13.5, fontWeight: '900' }}>{'🤝 ' + t('pc_join_next')}</Text>
             </View>
           </Pressable>
-        ) : post.type === 'travel' && post.place ? <TravelGroupButton post={post} mine={isMine} t={t} />
-          : !post.sponsored && !post.joinable && !isMine ? <PostLink post={post} t={t} lang={lang} /> : null}
+        ) : !post.sponsored && !post.joinable && !isMine ? <PostLink post={post} t={t} lang={lang} /> : null}
 
         {/* "Make a plan here" used to sit under every post with a place —
             a button on a photo of somebody's sunset turned every moment

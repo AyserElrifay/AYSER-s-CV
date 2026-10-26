@@ -14,8 +14,6 @@ import { useLang } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
 import { getProfile, updateProfile } from '../services/profiles';
 import { countMyReferrals, fetchMyReferralBreakdown } from '../services/broker';
-import { fetchMyMates } from '../services/mates';
-import { getOrCreateDmThread, sendMessage } from '../services/messages';
 import { AV_NEUTRAL } from '../constants/mockData';
 import { getPrefs, setPref, subscribePrefs } from '../services/prefs';
 import { DATA_MODES, DEFAULT_DATA_MODE } from '../lib/dataSaver';
@@ -72,9 +70,7 @@ export const SettingsScreen = ({ onClose }) => {
   const [split, setSplit] = useState(false);
   const [splitTotal, setSplitTotal] = useState('');
   const [splitPeople, setSplitPeople] = useState('2');
-  const [splitBusy, setSplitBusy] = useState(false);
   const [splitNote, setSplitNote] = useState(null);
-  const [splitMates, setSplitMates] = useState(null); // your real mates to share with
   const splitPer = (() => {
     const total = parseFloat(splitTotal) || 0;
     const ppl = Math.max(1, parseInt(splitPeople, 10) || 1);
@@ -163,40 +159,9 @@ export const SettingsScreen = ({ onClose }) => {
     tapLight();
     setSplit((s) => !s);
     setSplitNote(null);
-    if (SUPABASE_READY && user && splitMates === null) {
-      fetchMyMates(user.id).then(setSplitMates).catch(() => setSplitMates([]));
-    }
   };
 
-  /* Share the split with a real mate — a REAL DM lands in their chat,
-     and only then does a REAL activity row appear here. */
-  const sendSplitTo = async (mate) => {
-    if (splitBusy || !(splitPer.total > 0)) return;
-    if (!SUPABASE_READY || !user) { setSplitNote('Sign in to send a split.'); return; }
-    setSplitBusy(true);
-    setSplitNote(null);
-    const money = (n) => (Math.round(n * 100) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    try {
-      const threadId = await getOrCreateDmThread(mate.id, user && user.id);
-      await sendMessage({
-        dmThreadId: threadId, userId: user.id,
-        body: '🧾 Bill split — total ' + money(splitPer.total) + ' ÷ ' + splitPer.ppl + ' = ' + money(splitPer.per) + ' each. Your share: ' + money(splitPer.per),
-      });
-      tapSuccess(); sfxSuccess();
-      setTx((prev) => [
-        { id: 't' + Date.now(), icon: '🧾', label: 'Split sent to ' + (mate.name || 'a mate'), sub: money(splitPer.total) + ' ÷ ' + splitPer.ppl + ' people', amount: money(splitPer.per), pos: true },
-        ...prev,
-      ]);
-      setSplitNote('Sent to ' + (mate.name || 'your mate') + ' ✓ — it landed in your chat.');
-      setSplitTotal('');
-    } catch (e) {
-      setSplitNote(/does not exist|schema cache|recursion/i.test(e.message || '')
-        ? setupNotice('Chat needs one more step: run supabase/RUN_ME.sql first.')
-        : 'Could not send — try again.');
-    } finally {
-      setSplitBusy(false);
-    }
-  };
+
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
@@ -581,23 +546,6 @@ export const SettingsScreen = ({ onClose }) => {
               </Text>
             ) : null}
 
-            <Micro color={C.dim} style={{ marginTop: 12 }}>{t('send_to_a_mate')}</Micro>
-            {splitMates === null ? (
-              <Text style={{ color: C.faint, fontSize: 12, paddingVertical: 10 }}>{t('loading_mates')}</Text>
-            ) : splitMates.length ? (
-              <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
-                {splitMates.map((m) => (
-                  <Pressable key={m.id} onPress={() => sendSplitTo(m)} disabled={splitBusy || !(splitPer.total > 0)} style={{ alignItems: 'center', marginRight: 12, width: 62, opacity: splitPer.total > 0 ? 1 : 0.45 }}>
-                    <Image source={{ uri: m.avatar_url || AV_NEUTRAL }} style={{ width: 46, height: 46, borderRadius: 23, borderWidth: 2, borderColor: C.green }} />
-                    <Text style={{ color: C.dim, fontSize: 10.5, fontWeight: '700', marginTop: 4 }} numberOfLines={1}>{(m.name || 'Mate').split(' ')[0]}</Text>
-                  </Pressable>
-                ))}
-              </ScrollView>
-            ) : (
-              <Text style={{ color: C.faint, fontSize: 12, paddingVertical: 10 }}>
-                {t('no_mates_yet')}
-              </Text>
-            )}
             {splitNote ? (
               <Text style={{ color: /✓/.test(splitNote) ? C.green : C.coral, fontSize: 12, fontWeight: '700', marginTop: 10 }}>{splitNote}</Text>
             ) : null}

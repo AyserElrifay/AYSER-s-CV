@@ -33,7 +33,6 @@ import { activityOf } from '../lib/activityMatch';
 import { lastFix } from '../services/squadAdmin';
 import { flagToIso, groupByDay } from '../lib/together';
 import { showOnMap, goToTab } from '../lib/mapBus';
-import { openChat } from '../lib/chatBus';
 import { lazyOverlay, preloadTabs } from '../lib/lazyScreen';
 import { isSaving, DEFAULT_DATA_MODE } from '../lib/dataSaver';
 import { getPrefs } from '../services/prefs';
@@ -43,9 +42,9 @@ import { PlanHead, PastPhotos, ideaPhoto, ideaPics, ideaClip } from '../componen
 import { greenPic } from '../components/green/GreenCards';
 import { isGreen } from '../lib/greenKinds';
 import { ReportSheet } from '../components/ReportSheet';
-import { CirclesNear } from '../components/CirclesNear';
 import { JourneyCard, JourneyMap } from '../components/JourneyMap';
 const BizDirectory = lazyOverlay(() => import('../components/biz').then((m) => ({ default: m.BizDirectory })));
+const EventRoom = lazyOverlay(() => import('../components/EventRoom').then((m) => ({ default: m.EventRoom })));
 const TripsSheet = lazyOverlay(() => import('../components/TripsSheet').then((m) => ({ default: m.TripsSheet })));
 const ExploreSheet = lazyOverlay(() => import('../components/ExploreSheet').then((m) => ({ default: m.ExploreSheet })));
 const CountrySheet = lazyOverlay(() => import('../components/CountrySheet').then((m) => ({ default: m.CountrySheet })));
@@ -376,6 +375,7 @@ export const TogetherScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [sheet, setSheet] = useState(null);
   const [journey, setJourney] = useState(false);
+  const [eventOf, setEventOf] = useState(null);   // a joined plan whose event page is open
   const [creators, setCreators] = useState(() => recall('creators.' + (readCode() || 'all')) || []);     // hosts people really came to (top_creators)
   const [shareMsg, setShareMsg] = useState(null);
   const [askPush, setAskPush] = useState(false);
@@ -780,12 +780,12 @@ export const TogetherScreen = () => {
                               </View>
                             </Pressable>
                           ) : null}
-                          {(g.im_going || mine) && g.squad_id && !g.blind ? (
-                            /* the plan's own group chat — "I'm at the gate" */
-                            <Pressable onPress={() => { tapLight(); openChat({ id: g.squad_id, name: titleFor(g.title, lang), emoji: lookOf(g.kind).emoji }); goToTab('CHATS'); }}
+                          {(g.im_going || mine) && !g.blind ? (
+                            /* the plan's page: the host's pin, who is going, and a short chat that opens 30 minutes before (EventRoom) */
+                            <Pressable onPress={() => { tapLight(); setEventOf(g.id); }}
                               hitSlop={6} accessibilityRole="button" accessibilityLabel={t('tg_chat')} style={{ marginEnd: 8 }}>
                               <View style={{ width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: C.line }}>
-                                <Ionicons name="chatbubbles-outline" size={17} color={C.text} />
+                                <Ionicons name="pin-outline" size={17} color={C.text} />
                               </View>
                             </Pressable>
                           ) : null}
@@ -936,10 +936,9 @@ export const TogetherScreen = () => {
         {/* the learning journey: one level at a time (JourneyMap.js) */}
         {uid ? <JourneyCard lang={lang} onOpen={() => setJourney(true)} /> : null}
         {journey ? <JourneyMap lang={lang} onClose={() => setJourney(false)} /> : null}
+        {eventOf ? <EventRoom kind="gathering" id={eventOf} lang={lang} onClose={() => setEventOf(null)} /> : null}
         <Workshops t={t} lang={lang} onOpen={(o) => setSheet({ trips: 'browse', only: 'workshop', focus: o.id })} />
 
-        {/* ── circles near you ── groups people started at places nearby */}
-        {uid ? <CirclesNear /> : null}
 
         {/* ── more ── Ayser: "يبقي مترابط و سهل و الfeatures مش كتير". Nine
             tiles became four: the map, Go out now and talk rooms already

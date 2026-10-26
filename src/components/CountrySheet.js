@@ -18,7 +18,6 @@ import { SheetHandle } from './SheetHandle';
 import { CountryFly } from './CountryFly';
 import { WORLD } from '../constants/worldGeo';
 import { PLACES } from './worldCulture';
-import { VISITS, VISIT_HEAD } from '../constants/familyVisits';
 
 /* ── ONE COUNTRY, ONE PAGE ── Ayser: "حد يفتح بروفيل دولة كامل من غير ما
    يقعد يلف في الأبلكيشن". Heritage used to be a room of its own, two taps
@@ -650,13 +649,6 @@ export const CountrySheet = ({ startCode, onClose }) => {
           {tab === 'eat' ? room.eat.map((d, i) => <Dish key={i} d={d} ar={ar} />) : null}
           {tab === 'know' && heritage ? <HeritageCard key={room.code} h={heritage} ar={ar} t={t} startOpen={room.heritageOnly} /> : null}
           {tab === 'know' ? room.know.map((k, i) => <Custom key={i} k={k} ar={ar} />) : null}
-          {/* when your mother, your sister, your wife or your friends come over */}
-          {tab === 'know' && VISITS[room.code] ? (
-            <>
-              <Label style={{ marginTop: 14 }}>{'👨‍👩‍👧 ' + (VISIT_HEAD[lang] || VISIT_HEAD.en)}</Label>
-              {VISITS[room.code].map((k, i) => <Custom key={'v' + i} k={k} ar={ar} />)}
-            </>
-          ) : null}
 
           {tab === 'watch' ? (
             <>

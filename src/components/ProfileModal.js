@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, ScrollView, Pressable, Image, Modal, Dimensions, TextInput, Platform } from 'react-native';
+import { View, Text, ScrollView, Pressable, Image, Modal, Dimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -16,7 +16,6 @@ import { fetchTaggedPosts } from '../services/tags';
 import { getProfile } from '../services/profiles';
 import { fetchUserStories } from '../services/stories';
 import { getMateStatus, mateUp, countMates } from '../services/mates';
-import { getOrCreateDmThread, sendMessage } from '../services/messages';
 import { HighlightsRail } from './Highlights';
 import { Glass } from './Glass';
 import { Chip } from './Chip';
@@ -35,7 +34,7 @@ import { sharePost, shareNote } from '../utils/share';
    profile), so importing it statically here would be a require cycle —
    resolve it lazily at render time instead. */
 const getCommentsSheet = () => require('./CommentsSheet').CommentsSheet;
-import { sfxPop, sfxSuccess } from '../utils/sfx';
+import { sfxSuccess } from '../utils/sfx';
 import { setupNotice } from '../lib/plumbing';
 import { useSheetBack } from '../hooks/useSheetBack';
 import { fetchMyBlocks, unblockPerson } from '../services/standing';
@@ -51,7 +50,7 @@ const CELL = (W - 48) / 3;
 
 const isVideoUri = (u) => typeof u === 'string' && /\.(webm|mp4|mov|m4v)(\?|$)/i.test(u);
 
-export const ProfileModal = ({ user, onClose, openMessage }) => {
+export const ProfileModal = ({ user, onClose }) => {
   /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
   useSheetBack(onClose);
   const insets = useSafeAreaInsets();
@@ -64,9 +63,6 @@ export const ProfileModal = ({ user, onClose, openMessage }) => {
   const [mates, setMates] = useState(null);         // real mate count
   const [mateState, setMateState] = useState('none'); // none|requested|incoming|mates
   // "Offer help" on a heads-up opens straight onto a message to them
-  const [msgOpen, setMsgOpen] = useState(!!openMessage);
-  const [msgText, setMsgText] = useState(typeof openMessage === 'string' ? openMessage : '');
-  const [msgSent, setMsgSent] = useState(false);
   const [tab, setTab] = useState('grid');   // grid | reel | repost | tag
   const [taggedPosts, setTaggedPosts] = useState([]);   // moments they're in
   const [repostedPosts, setRepostedPosts] = useState([]); // moments they passed on
@@ -221,22 +217,7 @@ export const ProfileModal = ({ user, onClose, openMessage }) => {
     } finally { setBusy(false); }
   };
 
-  const doSend = async () => {
-    const body = msgText.trim();
-    if (!body || !real || isMe || busy) return;
-    setActionErr(null);
-    setBusy(true);
-    try {
-      const threadId = await getOrCreateDmThread(user.id, me && me.id);
-      await sendMessage({ dmThreadId: threadId, userId: me.id, body });
-      tapLight(); sfxPop();
-      setMsgText('');
-      setMsgSent(true);
-      setTimeout(() => { setMsgSent(false); setMsgOpen(false); }, 1400);
-    } catch (e) {
-      setActionErr(isNeedUnlock(e) ? t('vc_why_dm') : explain(e));
-    } finally { setBusy(false); }
-  };
+
 
   const mateLabel =
     mateState === 'mates' ? 'Mates ✓'
@@ -297,7 +278,7 @@ export const ProfileModal = ({ user, onClose, openMessage }) => {
             {/* actions — real friend request + real DM */}
             {!isMe ? (
               <View style={{ flexDirection: 'row', marginTop: 14 }}>
-                <Pressable onPress={doMateUp} style={{ flex: 1, marginRight: 10 }}>
+                <Pressable onPress={doMateUp} style={{ flex: 1 }}>
                   <View style={{
                     borderRadius: 14, paddingVertical: 13, alignItems: 'center',
                     backgroundColor: mateState === 'mates' ? C.greenSoft : C.purple,
@@ -308,38 +289,9 @@ export const ProfileModal = ({ user, onClose, openMessage }) => {
                     </Text>
                   </View>
                 </Pressable>
-                <Pressable onPress={() => { tapLight(); setMsgOpen((o) => !o); }} style={{ width: 118 }}>
-                  <View style={{ borderRadius: 14, paddingVertical: 13, alignItems: 'center', backgroundColor: C.glass, borderWidth: 1, borderColor: C.line }}>
-                    <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '800' }}>{t('pm_message')}</Text>
-                  </View>
-                </Pressable>
               </View>
             ) : null}
 
-            {/* inline composer — say hi without leaving the profile */}
-            {msgOpen && !isMe ? (
-              <Glass style={{ padding: 10, marginTop: 10, flexDirection: 'row', alignItems: 'center' }}>
-                <TextInput
-                  placeholder={real ? t('say_something_nice') : t('msg_offline_placeholder')}
-                  placeholderTextColor={C.faint}
-                  value={msgText}
-                  onChangeText={setMsgText}
-                  onSubmitEditing={doSend}
-                  returnKeyType="send"
-                  style={{ flex: 1, color: C.text, fontSize: 13.5, paddingVertical: Platform.OS === 'ios' ? 8 : 6, paddingHorizontal: 6 }}
-                />
-                <Pressable onPress={doSend} hitSlop={8} accessibilityRole="button" accessibilityLabel={t('send')}>
-                  <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: msgSent ? C.green : msgText.trim() ? C.purple : C.glassHi, alignItems: 'center', justifyContent: 'center' }}>
-                    <Ionicons name={msgSent ? 'checkmark' : 'arrow-up'} size={18} color={msgSent || msgText.trim() ? '#FFF' : C.faint} />
-                  </View>
-                </Pressable>
-              </Glass>
-            ) : null}
-            {msgSent ? (
-              <Text style={{ color: C.green, fontSize: 12, fontWeight: '800', textAlign: 'center', marginTop: 8 }}>
-                {t('pm_sent')}
-              </Text>
-            ) : null}
             {busy ? (
               <Text style={{ color: C.faint, fontSize: 12, textAlign: 'center', marginTop: 8 }}>{t('pm_working')}</Text>
             ) : null}

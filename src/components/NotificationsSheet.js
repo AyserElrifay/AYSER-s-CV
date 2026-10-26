@@ -80,7 +80,7 @@ const DailyLine = ({ body, lang, t }) => {
 
 /* notices Moments itself sends: the name on them is Moments, never the
    reader's own (they are stored with the reader as the actor) */
-const SYSTEM_KINDS = new Set(['daily_line', 'app_problem', 'partner_watch', 'team_reply', 'trip_open', 'plan_soon', 'xp_award', 'trip_invite', 'level_up']);
+const SYSTEM_KINDS = new Set(['daily_line', 'app_problem', 'partner_watch', 'team_reply', 'trip_open', 'plan_soon', 'xp_award', 'trip_invite', 'level_up', 'event_update']);
 
 /* the verb, in the reader's language, with no emoji: one per kind, and
    a plural for the kinds that merge several people into one line */
@@ -200,7 +200,6 @@ export const NotificationsSheet = ({ onClose }) => {
     if (n.kind === 'plan_soon' || n.kind === 'creator_plan') { tapSelection(); onClose(); goToTab('TOGETHER'); return; }
     if (n.kind === 'trip_open') { tapSelection(); onClose(); openTrip(String(n.body || '').split('|')[0]); return; }
     if (n.kind === 'trip_invite') { tapSelection(); onClose(); openInvite(String(n.body || '').split('|')[0]); return; }
-    if (n.kind === 'message') { tapSelection(); onClose(); goToTab('CHATS'); return; }
     if (n.kind === 'bardi_match') { const m = readMatch(n.body); if (m) { tapSelection(); setGoNowFrom(m); } return; }
     if (n.kind === 'food_order') { tapSelection(); setFoodTab('kitchen'); return; }
     if (n.kind === 'biz_request') { tapSelection(); setBizOpen(true); return; }
@@ -332,7 +331,7 @@ export const NotificationsSheet = ({ onClose }) => {
             </>
           ) : (
             SYSTEM_KINDS.has(n.kind) ? (
-              <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: n.kind === 'trip_open' ? C.glassHi : n.kind === 'daily_line' ? C.goldSoft : C.purpleSoft, alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 22 }}>{n.kind === 'team_reply' ? '💬' : n.kind === 'app_problem' ? '🛠️' : n.kind === 'partner_watch' ? '🏪' : n.kind === 'daily_line' ? (new Date(n.created_at).getHours() < 15 ? '☀️' : '🌙') : n.kind === 'plan_soon' ? '⏰' : n.kind === 'xp_award' ? '⭐' : n.kind === 'trip_invite' ? '🎟' : n.kind === 'level_up' ? '🧭' : '🧳'}</Text></View>
+              <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: n.kind === 'trip_open' ? C.glassHi : n.kind === 'daily_line' ? C.goldSoft : C.purpleSoft, alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 22 }}>{n.kind === 'team_reply' ? '💬' : n.kind === 'app_problem' ? '🛠️' : n.kind === 'partner_watch' ? '🏪' : n.kind === 'daily_line' ? (new Date(n.created_at).getHours() < 15 ? '☀️' : '🌙') : n.kind === 'plan_soon' ? '⏰' : n.kind === 'xp_award' ? '⭐' : n.kind === 'trip_invite' ? '🎟' : n.kind === 'level_up' ? '🧭' : n.kind === 'event_update' ? '📌' : '🧳'}</Text></View>
             ) : <Image source={{ uri: (n.actor && n.actor.avatar_url) || AV_NEUTRAL }} style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: C.glassHi }} />
           )}
           {!(g ? g.read : n.read) ? <View style={{ position: 'absolute', top: -1, right: -1, width: 11, height: 11, borderRadius: 6, backgroundColor: C.purple, borderWidth: 2, borderColor: C.bg2 }} /> : null}

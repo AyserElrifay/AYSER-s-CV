@@ -118,6 +118,11 @@ const when = (iso, lang) => {
 };
 const pick = (o, field, lang) => (lang === 'ar' && o[field + '_ar'] && (Array.isArray(o[field + '_ar']) ? o[field + '_ar'].length : true) ? o[field + '_ar'] : o[field]);
 
+// the booked event's own page: the host's pin, the seats, the short chat or the workshop room
+const EventRoom = lazyOverlay(() => import('./EventRoom').then((m) => ({ default: m.EventRoom })));
+// how full it is, said the way that makes people move: 8/10 spots taken
+const SPOTS = { en: '{n}/{t} spots taken', ar: '{n}/{t} أماكن اتحجزت', cs: '{n}/{t} míst obsazeno', es: '{n}/{t} plazas ocupadas', et: '{n}/{t} kohta täis', fr: '{n}/{t} places prises', hi: '{n}/{t} सीटें भर गईं', it: '{n}/{t} posti presi', ja: '{t}席中{n}席うまっています', ko: '{t}자리 중 {n}자리 마감', nl: '{n}/{t} plekken bezet', pt: '{n}/{t} lugares ocupados', ro: '{n}/{t} locuri ocupate', ru: 'Занято {n} из {t} мест', tr: '{t} yerden {n} tanesi doldu', uk: 'Зайнято {n} з {t} місць', zh: '已订 {n}/{t} 个名额' };
+const EVENT_PAGE = { en: 'Event page · where to meet', ar: 'صفحة الخروجة · مكان التجمّع', cs: 'Stránka akce · kde se sejít', es: 'Página del plan · dónde vernos', et: 'Ürituse leht · kus kohtuda', fr: 'Page de l’événement · où se retrouver', hi: 'इवेंट पेज · कहाँ मिलना है', it: 'Pagina dell’evento · dove trovarsi', ja: 'イベントページ · 集合場所', ko: '이벤트 페이지 · 만나는 곳', nl: 'Eventpagina · waar we afspreken', pt: 'Página do evento · onde nos encontramos', ro: 'Pagina evenimentului · unde ne vedem', ru: 'Страница события · где встречаемся', tr: 'Etkinlik sayfası · buluşma yeri', uk: 'Сторінка події · де зустрічаємося', zh: '活动页 · 集合地点' };
 const CapsuleSheet = lazyOverlay(() => import('./CapsuleSheet').then((m) => ({ default: m.CapsuleSheet })));
 const TeacherApplySheet = lazyOverlay(() => import('./TeacherApplySheet').then((m) => ({ default: m.TeacherApplySheet })));
 const PlusSheet = lazyOverlay(() => import('./PlusSheet').then((m) => ({ default: m.PlusSheet })));
@@ -308,7 +313,14 @@ const Offer = ({ o, t, lang, onBack, onBooked, user, onNeedSignIn }) => {
             </Text>
           ) : null}
           <View style={{ marginTop: 12 }}>{o.status === 'soon' ? <Soon t={t} /> : <Price o={o} t={t} lang={lang} big />}</View>
-          {o.seats_left != null ? (
+          {o.seats_left != null && o.seats ? (
+            <View style={{ marginTop: 8 }}>
+              <Text style={{ color: full ? '#E11D48' : C.text, fontSize: 13.5, fontWeight: '800' }}>{full ? t('bk_full') : (SPOTS[lang] || SPOTS.en).replace('{n}', String(o.seats - o.seats_left)).replace('{t}', String(o.seats))}</Text>
+              <View style={{ height: 6, borderRadius: 3, backgroundColor: C.glassHi, marginTop: 6, overflow: 'hidden' }}>
+                <View style={{ height: 6, borderRadius: 3, width: Math.round(((o.seats - o.seats_left) / o.seats) * 100) + '%', backgroundColor: o.seats_left / o.seats <= 0.2 ? '#E11D48' : C.purple }} />
+              </View>
+            </View>
+          ) : o.seats_left != null ? (
             <Text style={{ color: full ? '#E11D48' : C.dim, fontSize: 13, fontWeight: '800', marginTop: 6 }}>{full ? t('bk_full') : t('bk_seats_left').replace('{n}', String(o.seats_left))}</Text>
           ) : null}
           {pick(o, 'summary', lang) ? <Text style={{ color: C.text, fontSize: 15, lineHeight: 22, marginTop: 14 }}>{pick(o, 'summary', lang)}</Text> : null}
@@ -468,6 +480,7 @@ export const TripsSheet = ({ onClose, country, openOn, focus, onNeedSignIn, only
   // cancelling asks once more — a single stray tap must not undo a trip
   const [sure, setSure] = useState(null);
   const [capsule, setCapsule] = useState(null);   // notes for the people on this trip
+  const [eventOf, setEventOf] = useState(null);   // the booked offer whose event page is open
   const [bkMsg, setBkMsg] = useState(null);
   const cancel = async (b) => {
     if (sure !== b.id) { tapLight(); setSure(b.id); setBkMsg(null); return; }
@@ -643,6 +656,11 @@ export const TripsSheet = ({ onClose, country, openOn, focus, onNeedSignIn, only
                         <Text style={{ color: C.purple, fontSize: 14, fontWeight: '900' }}>{'✉️ ' + t('tk_trip_link')}</Text>
                       </Pressable>
                     ) : null}
+                    {(b.status === 'reserved' || b.status === 'paid' || b.status === 'attended') && b.offer && b.offer.kind !== 'gift' ? (
+                      <Pressable onPress={() => { tapLight(); setEventOf(b.offer.id); }} accessibilityRole="button" style={{ marginTop: 10, alignSelf: 'flex-start' }}>
+                        <Text style={{ color: C.purple, fontSize: 14, fontWeight: '900' }}>{'📌 ' + (EVENT_PAGE[lang] || EVENT_PAGE.en)}</Text>
+                      </Pressable>
+                    ) : null}
                     {(b.status === 'reserved' || b.status === 'paid') && !(b.offer && b.offer.kind === 'gift') ? (
                       <Pressable onPress={() => { tapLight(); openInvite(b.id); }} accessibilityRole="button" style={{ marginTop: 8, alignSelf: 'flex-start' }}>
                         <Text style={{ color: C.purple, fontSize: 14, fontWeight: '900' }}>{'🎟 ' + t('inv_open')}</Text>
@@ -679,6 +697,7 @@ export const TripsSheet = ({ onClose, country, openOn, focus, onNeedSignIn, only
       </View>
       {teach ? <TeacherApplySheet onClose={() => setTeach(false)} /> : null}
       {welcome ? <TripsWelcome onDone={() => setWelcome(false)} /> : null}
+      {eventOf ? <EventRoom kind="offer" id={eventOf} lang={lang} onClose={() => setEventOf(null)} /> : null}
       {capsule ? <CapsuleSheet kind="trip" id={capsule.offer.id} title={capsule.offer.title} onClose={() => setCapsule(null)} /> : null}
     </Modal>
   );
