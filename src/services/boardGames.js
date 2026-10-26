@@ -43,12 +43,41 @@ export const GAMES = [
   },
   {
     id: 'race',
-    title: 'Four Home',
+    title: 'Ludo',
     emoji: '🏠',
     blurb: 'Get all four pieces home. No dice — you pick the move.',
     players: 2,
   },
 ];
+
+/* ── the words a game card says, in every language the app speaks ──
+   Names first (xo · four · snakes · race · catch), then the handful of
+   states a card can be in. {n} is the other person's first name. */
+const GW = {
+  en: ['XO', 'Four in a Row', 'Snakes & Ladders', 'Ludo', 'Catch Your Mate', 'Play', 'Not now', 'Waiting for {n}', '{n} wants to play', 'Your game with {n}', 'You won 🏆', '{n} won', "It's a draw", 'Not this time', 'Play with {n}', 'Your turn'],
+  ar: ['إكس أو', 'أربعة في صف', 'السلم والثعبان', 'لودو', 'امسك صاحبك', 'العب', 'مش دلوقتي', 'في انتظار {n}', 'دعوة لعب من {n}', 'لعبتك مع {n}', 'كسبت 🏆', 'الفوز لـ{n}', 'تعادل', 'مش المرة دي', 'العب مع {n}', 'دورك'],
+  cs: ['Piškvorky', 'Čtyři v řadě', 'Hadi a žebříky', 'Ludo', 'Chyť kamaráda', 'Hrát', 'Teď ne', 'Čeká se na {n}', '{n} chce hrát', 'Tvoje hra s {n}', 'Vyhrál/a jsi 🏆', '{n} vyhrál/a', 'Remíza', 'Tentokrát ne', 'Hrát s {n}', 'Jsi na tahu'],
+  es: ['Tres en raya', 'Cuatro en raya', 'Serpientes y escaleras', 'Ludo', 'Atrapa a tu amigo', 'Jugar', 'Ahora no', 'Esperando a {n}', '{n} quiere jugar', 'Tu partida con {n}', 'Ganaste 🏆', 'Ganó {n}', 'Empate', 'Esta vez no', 'Jugar con {n}', 'Tu turno'],
+  et: ['Trips-traps-trull', 'Neli ritta', 'Maod ja redelid', 'Ludo', 'Püüa sõber', 'Mängi', 'Mitte praegu', 'Ootan: {n}', '{n} tahab mängida', 'Sinu mäng: {n}', 'Võitsid 🏆', '{n} võitis', 'Viik', 'Seekord mitte', 'Mängi: {n}', 'Sinu käik'],
+  fr: ['Morpion', 'Quatre à la suite', 'Serpents et échelles', 'Ludo', 'Attrape ton pote', 'Jouer', 'Pas maintenant', 'En attente de {n}', '{n} veut jouer', 'Ta partie avec {n}', 'Gagné 🏆', '{n} a gagné', 'Égalité', 'Pas cette fois', 'Jouer avec {n}', 'À toi'],
+  hi: ['ज़ीरो-काटा', 'चार एक कतार में', 'साँप-सीढ़ी', 'लूडो', 'दोस्त को पकड़ो', 'खेलो', 'अभी नहीं', '{n} का इंतज़ार', '{n} खेलना चाहते हैं', '{n} के साथ आपका खेल', 'आप जीते 🏆', '{n} जीते', 'बराबरी', 'इस बार नहीं', '{n} के साथ खेलो', 'आपकी बारी'],
+  it: ['Tris', 'Quattro in fila', 'Scale e serpenti', 'Ludo', "Acchiappa l'amico", 'Gioca', 'Non ora', 'Aspettando {n}', '{n} vuole giocare', 'La tua partita con {n}', 'Hai vinto 🏆', 'Ha vinto {n}', 'Pareggio', 'Non stavolta', 'Gioca con {n}', 'Tocca a te'],
+  ja: ['まるばつ', '四目並べ', 'へびとはしご', 'ルド', '友だちをつかまえろ', 'あそぶ', 'またこんど', '{n}を待っています', '{n}があそびたいって', '{n}とのゲーム', 'かち 🏆', '{n}のかち', 'ひきわけ', '今回はなし', '{n}とあそぶ', 'あなたの番'],
+  ko: ['틱택토', '사목', '뱀과 사다리', '루도', '친구 잡기', '하기', '나중에', '{n} 기다리는 중', '{n}님이 같이 하고 싶어해요', '{n}님과의 게임', '이겼어요 🏆', '{n}님 승리', '무승부', '이번엔 안 해요', '{n}님과 하기', '내 차례'],
+  nl: ['Boter-kaas-en-eieren', 'Vier op een rij', 'Slangen en ladders', 'Ludo', 'Vang je maat', 'Spelen', 'Nu niet', 'Wachten op {n}', '{n} wil spelen', 'Jouw spel met {n}', 'Gewonnen 🏆', '{n} won', 'Gelijkspel', 'Deze keer niet', 'Speel met {n}', 'Jouw beurt'],
+  pt: ['Jogo da velha', 'Quatro em linha', 'Cobras e escadas', 'Ludo', 'Apanha o amigo', 'Jogar', 'Agora não', 'À espera de {n}', '{n} quer jogar', 'O teu jogo com {n}', 'Ganhaste 🏆', '{n} ganhou', 'Empate', 'Desta vez não', 'Jogar com {n}', 'A tua vez'],
+  ro: ['X și 0', 'Patru în linie', 'Șerpi și scări', 'Ludo', 'Prinde-ți prietenul', 'Joacă', 'Nu acum', 'Îl aștepți pe {n}', '{n} vrea să joace', 'Jocul tău cu {n}', 'Ai câștigat 🏆', 'A câștigat {n}', 'Egalitate', 'Nu de data asta', 'Joacă cu {n}', 'E rândul tău'],
+  ru: ['Крестики-нолики', 'Четыре в ряд', 'Змеи и лестницы', 'Лудо', 'Поймай друга', 'Играть', 'Не сейчас', 'Ждём: {n}', '{n} хочет сыграть', 'Ваша игра с {n}', 'Вы выиграли 🏆', '{n} выиграл(а)', 'Ничья', 'Не в этот раз', 'Сыграть с {n}', 'Ваш ход'],
+  tr: ['XOX', 'Dört Sıra', 'Yılanlar ve Merdivenler', 'Ludo', 'Arkadaşını Yakala', 'Oyna', 'Şimdi değil', '{n} bekleniyor', '{n} oynamak istiyor', '{n} ile oyunun', 'Kazandın 🏆', '{n} kazandı', 'Berabere', 'Bu sefer değil', '{n} ile oyna', 'Sıra sende'],
+  uk: ['Хрестики-нулики', 'Чотири в ряд', 'Змії та драбини', 'Лудо', 'Злови друга', 'Грати', 'Не зараз', 'Чекаємо: {n}', '{n} хоче пограти', 'Ваша гра з {n}', 'Ви виграли 🏆', '{n} виграв(ла)', 'Нічия', 'Не цього разу', 'Пограти з {n}', 'Ваш хід'],
+  zh: ['井字棋', '四子棋', '蛇梯棋', '飞行棋', '抓住好友', '开始', '下次吧', '等待{n}', '{n}想和你玩', '你和{n}的对局', '你赢了 🏆', '{n}赢了', '平局', '这次不玩', '和{n}玩', '轮到你'],
+};
+const GW_KEYS = ['xo', 'four', 'snakes', 'race', 'catch', 'play', 'notnow', 'wait', 'wants', 'live', 'won', 'theywon', 'draw', 'declined', 'playwith', 'yourturn'];
+export const gameWord = (lang, key, name) => {
+  const i = GW_KEYS.indexOf(key);
+  const row = GW[lang] || GW.en;
+  return String((row && row[i]) || GW.en[i] || '').replace('{n}', name || '');
+};
 
 export const gameById = (id) => GAMES.find((g) => g.id === id) || null;
 export const isBoardGame = (kind) => !!gameById(kind);

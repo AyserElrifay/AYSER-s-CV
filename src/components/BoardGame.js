@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { tNow } from '../context/LanguageContext';
+import { tNow, langNow } from '../context/LanguageContext';
 import { View, Text, Modal, Pressable, ScrollView, Image, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -8,7 +8,7 @@ import { C, R } from '../constants/theme';
 import { useAuth } from '../context/AuthContext';
 import { buildAvatarUrl } from '../services/avatarBuilder';
 import { fetchMatch, openBoard, pushMove, subscribeBoard, subscribeMatchLive } from '../services/games';
-import { newBoard, applyMove, handFor, gameById, BOARD_META, raceRingIndex } from '../services/boardGames';
+import { newBoard, applyMove, handFor, gameById, BOARD_META, raceRingIndex, gameWord } from '../services/boardGames';
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
 import { sfxPop, sfxSuccess } from '../utils/sfx';
 import { useSheetBack } from '../hooks/useSheetBack';
@@ -389,7 +389,7 @@ export const BoardGame = ({ matchId, kind, isHost, opponent, onClose, onRematch 
           </Pressable>
           <View style={{ flex: 1, alignItems: 'center' }}>
             <Text style={{ color: '#FFF', fontSize: 15.5, fontWeight: '900', letterSpacing: 1 }}>
-              {(game && game.title) || 'Game'} {(game && game.emoji) || ''}
+              {gameWord(langNow(), kind)} {(game && game.emoji) || ''}
             </Text>
           </View>
           <View style={{ width: 26 }} />
@@ -411,11 +411,11 @@ export const BoardGame = ({ matchId, kind, isHost, opponent, onClose, onRematch 
         <View style={{ alignItems: 'center', marginTop: 10, marginBottom: 6 }}>
           {done ? (
             <Pill tone={iWon ? C.green : done.winnerSeat === 0 ? C.dim : C.coral} on>
-              {done.winnerSeat === 0 ? 'A draw 🤝' : iWon ? 'You won 🎉' : oppName.split(' ')[0] + ' won'}
+              {done.winnerSeat === 0 ? gameWord(langNow(), 'draw') : iWon ? gameWord(langNow(), 'won') : gameWord(langNow(), 'theywon', oppName.split(' ')[0])}
             </Pill>
           ) : (
             <Pill tone={C.purple} on={myTurn}>
-              {myTurn ? 'Your turn' : 'Waiting for ' + oppName.split(' ')[0] + '…'}
+              {myTurn ? gameWord(langNow(), 'yourturn') : gameWord(langNow(), 'wait', oppName.split(' ')[0])}
             </Pill>
           )}
         </View>

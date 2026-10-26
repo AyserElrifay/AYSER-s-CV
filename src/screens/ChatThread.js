@@ -28,7 +28,7 @@ import { WouldYouRather } from '../components/WouldYouRather';
 import { shouldNudge, nudgeGame } from '../lib/bardi';
 import { CallScreen } from '../components/CallScreen';
 import { BoardGame } from '../components/BoardGame';
-import { GAMES as BOARD_GAMES, gameById, isBoardGame } from '../services/boardGames';
+import { GAMES as BOARD_GAMES, gameById, isBoardGame, gameWord } from '../services/boardGames';
 import { OnlineDot } from '../components/OnlineDot';
 import { translateText } from '../services/bardi';
 import { useLang } from '../context/LanguageContext';
@@ -778,45 +778,44 @@ export const ChatThread = ({ chat, group, onClose }) => {
                         const myResult = match && match.status === 'done'
                           ? (match.winner_id == null ? 'tie' : match.winner_id === user.id ? 'won' : 'lost')
                           : null;
+                        /* one quiet card, the app's own colours: what it
+                           is, where it stands, and at most one thing to do */
+                        const who = ((peer && peer.name) || '').split(' ')[0];
+                        const name = gameWord(lang, gmeta ? gkind : 'catch');
+                        const open = () => setActiveMatch({ matchId: m.gameMatchId, kind: gkind, isHost: mine, opponent: { id: peer.id, name: peer.name, avatar: peer.avatar } });
+                        const line = status === 'declined' ? gameWord(lang, 'declined')
+                          : status === 'done' ? (myResult === 'won' ? gameWord(lang, 'won') : myResult === 'lost' ? gameWord(lang, 'theywon', who) : gameWord(lang, 'draw'))
+                          : status === 'active' ? gameWord(lang, 'live', who)
+                          : mine ? gameWord(lang, 'wait', who) : gameWord(lang, 'wants', who);
+                        const invited = status === 'pending' && !mine;
+                        const canOpen = status === 'active' || (status === 'pending' && mine);
                         return (
-                          <View style={{ backgroundColor: '#0D2B5E', borderRadius: 18, padding: 14, minWidth: 210 }}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                              <Text style={{ fontSize: 20, marginRight: 8 }}>{gmeta ? gmeta.emoji : '🏃'}</Text>
-                              <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '900', flex: 1 }}>{gmeta ? gmeta.title : 'Catch Your Mate'}</Text>
-                            </View>
-                            {status === 'active' && isBoardGame(gkind) && !mine ? (
-                              <Pressable onPress={() => setActiveMatch({ matchId: m.gameMatchId, kind: gkind, isHost: false, opponent: { id: peer.id, name: peer.name, avatar: peer.avatar } })}>
-                                <View style={{ backgroundColor: C.gold, borderRadius: 999, paddingVertical: 8, alignItems: 'center' }}>
-                                  <Text style={{ color: '#081226', fontSize: 12.5, fontWeight: '900' }}>{t('open_the_board')}</Text>
+                          <Pressable onPress={canOpen ? () => { tapLight(); open(); } : undefined} disabled={!canOpen} accessibilityRole={canOpen ? 'button' : undefined}>
+                            <View style={{ width: 240, backgroundColor: C.glass, borderRadius: 20, borderWidth: 1, borderColor: C.line, padding: 12 }}>
+                              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                <View style={{ width: 46, height: 46, borderRadius: 14, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center' }}>
+                                  <Text style={{ fontSize: 24 }}>{gmeta ? gmeta.emoji : '🏃'}</Text>
                                 </View>
-                              </Pressable>
-                            ) : status === 'declined' ? (
-                              <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12, fontWeight: '700' }}>{t('declined')}</Text>
-                            ) : status === 'done' ? (
-                              <Text style={{ color: myResult === 'won' ? C.gold : '#FFF', fontSize: 12.5, fontWeight: '800' }}>
-                                {myResult === 'won' ? '🏆 You won this duel' : myResult === 'lost' ? '😅 You lost this one' : '🤝 It was a tie'}
-                              </Text>
-                            ) : mine ? (
-                              <Pressable onPress={() => setActiveMatch({ matchId: m.gameMatchId, kind: gkind, isHost: true, opponent: { id: peer.id, name: peer.name, avatar: peer.avatar } })}>
-                                <View style={{ backgroundColor: C.gold, borderRadius: 999, paddingVertical: 8, alignItems: 'center' }}>
-                                  <Text style={{ color: '#081226', fontSize: 12.5, fontWeight: '900' }}>{status === 'active' ? 'Open' : 'Waiting…'}</Text>
+                                <View style={{ flex: 1, minWidth: 0, marginHorizontal: 11 }}>
+                                  <Text style={{ color: C.text, fontSize: 15.5, fontWeight: '800' }} numberOfLines={1}>{name}</Text>
+                                  <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 2 }} numberOfLines={1}>{line}</Text>
                                 </View>
-                              </Pressable>
-                            ) : (
-                              <View style={{ flexDirection: 'row' }}>
-                                <Pressable onPress={() => joinMatch(m.gameMatchId, gkind)} style={{ flex: 1, marginRight: 8 }}>
-                                  <View style={{ backgroundColor: C.gold, borderRadius: 999, paddingVertical: 8, alignItems: 'center' }}>
-                                    <Text style={{ color: '#081226', fontSize: 12.5, fontWeight: '900' }}>{t('join')}</Text>
-                                  </View>
-                                </Pressable>
-                                <Pressable onPress={() => declineMatch(m.gameMatchId)} style={{ flex: 1 }}>
-                                  <View style={{ backgroundColor: 'rgba(255,255,255,0.14)', borderRadius: 999, paddingVertical: 8, alignItems: 'center' }}>
-                                    <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '900' }}>{t('decline')}</Text>
-                                  </View>
-                                </Pressable>
+                                {canOpen ? <Ionicons name="chevron-forward" size={18} color={C.faint} style={{ transform: [{ scaleX: lang === 'ar' ? -1 : 1 }] }} /> : null}
                               </View>
-                            )}
-                          </View>
+                              {invited ? (
+                                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
+                                  <Pressable onPress={() => { tapLight(); joinMatch(m.gameMatchId, gkind); }} accessibilityRole="button" style={{ flex: 1 }}>
+                                    <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingVertical: 10, alignItems: 'center' }}>
+                                      <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '800' }}>{gameWord(lang, 'play')}</Text>
+                                    </View>
+                                  </Pressable>
+                                  <Pressable onPress={() => declineMatch(m.gameMatchId)} accessibilityRole="button" hitSlop={8} style={{ paddingHorizontal: 14 }}>
+                                    <Text style={{ color: C.dim, fontSize: 13.5, fontWeight: '700' }}>{gameWord(lang, 'notnow')}</Text>
+                                  </Pressable>
+                                </View>
+                              ) : null}
+                            </View>
+                          </Pressable>
                         );
                       })()
                     ) : m.kind === 'once' ? (
@@ -996,13 +995,33 @@ export const ChatThread = ({ chat, group, onClose }) => {
           {menu ? (
             <View style={{ position: 'absolute', bottom: 70, left: 12, right: 12, maxHeight: 400, backgroundColor: C.bg2, borderRadius: 16, borderWidth: 1, borderColor: C.line, padding: 6, shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 14, shadowOffset: { width: 0, height: 6 } }}>
               <ScrollView keyboardShouldPersistTaps="handled">
+              {/* two people, one board: the games as five faces, one tap each —
+                  the invite goes to them and the card waits in the chat */}
+              {isReal && !group ? (
+                <View style={{ paddingTop: 8, paddingBottom: 6 }}>
+                  <Text style={{ color: C.faint, fontSize: 12, fontWeight: '700', paddingHorizontal: 12, marginBottom: 8 }} numberOfLines={1}>
+                    {gameWord(lang, 'playwith', ((peer && peer.name) || '').split(' ')[0])}
+                  </Text>
+                  <View style={{ flexDirection: 'row', paddingHorizontal: 4 }}>
+                    {[...BOARD_GAMES.map((g) => [g.id, g.emoji]), ['catch', '🏃']].map(([id, emoji]) => (
+                      <Pressable key={id} onPress={() => { tapLight(); setMenu(false); inviteToMatch(id); }} accessibilityRole="button" style={{ flex: 1, alignItems: 'center', paddingHorizontal: 2 }}>
+                        <View style={{ width: 52, height: 52, borderRadius: 16, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center' }}>
+                          <Text style={{ fontSize: 26 }}>{emoji}</Text>
+                        </View>
+                        <Text style={{ color: C.text, fontSize: 11, fontWeight: '700', marginTop: 6, textAlign: 'center' }} numberOfLines={2}>{gameWord(lang, id)}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                  <View style={{ height: 1, backgroundColor: C.line, marginHorizontal: 10, marginTop: 10 }} />
+                </View>
+              ) : null}
               {/* the group's games, its twin across the world, and the table games */}
               {group && isReal ? (
                 <>
                   <Pressable onPress={() => { tapLight(); setMenu(false); setGamesOn('games'); }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 11 }}>
                       <Text style={{ fontSize: 20 }}>🎡</Text>
-                      <View style={{ marginLeft: 10, flex: 1 }}>
+                      <View style={{ marginHorizontal: 10, flex: 1 }}>
                         <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>{gwShort(lang, 'group')}</Text>
                         <Text style={{ color: C.faint, fontSize: 11 }} numberOfLines={1}>{gwShort(lang, 'group_s')}</Text>
                       </View>
@@ -1014,7 +1033,7 @@ export const ChatThread = ({ chat, group, onClose }) => {
               <Pressable onPress={() => { tapLight(); setMenu(false); setGamesOn('party'); }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 11 }}>
                   <Text style={{ fontSize: 20 }}>🃏</Text>
-                  <View style={{ marginLeft: 10, flex: 1 }}>
+                  <View style={{ marginHorizontal: 10, flex: 1 }}>
                     <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>{gwShort(lang, 'table')}</Text>
                     <Text style={{ color: C.faint, fontSize: 11 }} numberOfLines={1}>{gwShort(lang, 'table_s')}</Text>
                   </View>
@@ -1023,32 +1042,10 @@ export const ChatThread = ({ chat, group, onClose }) => {
               <View style={{ height: 1, backgroundColor: C.line, marginHorizontal: 10 }} />
               {/* Two people, one board — a real invite the other side
                   accepts, and a game that survives closing the app. */}
-              {isReal && !group ? (
-                <>
-                  <Text style={{ color: C.faint, fontSize: 10, fontWeight: '900', letterSpacing: 0.8, paddingHorizontal: 12, paddingTop: 6, paddingBottom: 4 }}>
-                    {t('play_together')}
-                  </Text>
-                  {BOARD_GAMES.map((g) => (
-                    <Pressable key={g.id} onPress={() => { tapLight(); setMenu(false); inviteToMatch(g.id); }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 11 }}>
-                        <Text style={{ fontSize: 20 }}>{g.emoji}</Text>
-                        <View style={{ marginLeft: 10, flex: 1 }}>
-                          <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>{g.title}</Text>
-                          <Text style={{ color: C.faint, fontSize: 11 }} numberOfLines={1}>{g.blurb}</Text>
-                        </View>
-                      </View>
-                    </Pressable>
-                  ))}
-                  <View style={{ height: 1, backgroundColor: C.line, marginHorizontal: 10, marginVertical: 4 }} />
-                  <Text style={{ color: C.faint, fontSize: 10, fontWeight: '900', letterSpacing: 0.8, paddingHorizontal: 12, paddingBottom: 4 }}>
-                    {t('on_your_own_turn')}
-                  </Text>
-                </>
-              ) : null}
               <Pressable onPress={() => { tapLight(); setMenu(false); setTodOn(true); setTimeout(() => scroller.current && scroller.current.scrollToEnd({ animated: true }), 80); }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 11 }}>
                   <Text style={{ fontSize: 20 }}>🎲</Text>
-                  <View style={{ marginLeft: 10 }}>
+                  <View style={{ marginHorizontal: 10 }}>
                     <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>{t('tod_title')}</Text>
                     <Text style={{ color: C.faint, fontSize: 11 }}>{t('tod_hint')}</Text>
                   </View>
@@ -1058,7 +1055,7 @@ export const ChatThread = ({ chat, group, onClose }) => {
               <Pressable onPress={() => { tapLight(); setMenu(false); setWyrOn(true); setTimeout(() => scroller.current && scroller.current.scrollToEnd({ animated: true }), 80); }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 11 }}>
                   <Text style={{ fontSize: 20 }}>🤔</Text>
-                  <View style={{ marginLeft: 10 }}>
+                  <View style={{ marginHorizontal: 10 }}>
                     <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>{t('wyr_title')}</Text>
                     <Text style={{ color: C.faint, fontSize: 11 }}>{t('wyr_hint')}</Text>
                   </View>
@@ -1068,26 +1065,12 @@ export const ChatThread = ({ chat, group, onClose }) => {
               <Pressable onPress={() => { tapLight(); setMenu(false); setSplitOn(true); }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 11 }}>
                   <Text style={{ fontSize: 20 }}>🧾</Text>
-                  <View style={{ marginLeft: 10 }}>
+                  <View style={{ marginHorizontal: 10 }}>
                     <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>{t('split_bill')}</Text>
                     <Text style={{ color: C.faint, fontSize: 11 }}>{t('split_bill_hint')}</Text>
                   </View>
                 </View>
               </Pressable>
-              {!group && isReal ? (
-                <>
-                  <View style={{ height: 1, backgroundColor: C.line, marginHorizontal: 10 }} />
-                  <Pressable onPress={() => { setMenu(false); inviteToMatch('catch'); }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 11 }}>
-                      <Text style={{ fontSize: 20 }}>🏃</Text>
-                      <View style={{ marginLeft: 10 }}>
-                        <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }}>{t('duel_title')}</Text>
-                        <Text style={{ color: C.faint, fontSize: 11 }}>{t('duel_hint')}</Text>
-                      </View>
-                    </View>
-                  </Pressable>
-                </>
-              ) : null}
               </ScrollView>
             </View>
           ) : null}

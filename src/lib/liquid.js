@@ -37,12 +37,15 @@ export function liquidCss(on, dark) {
   if (!on) { if (el) el.remove(); return; }
   const L = LIQUID[dark ? 'dark' : 'light'];
   const edge = dark ? 'inset 0 1px 0 rgba(255,255,255,0.10), 0 10px 30px rgba(0,0,0,0.35)' : 'inset 0 1px 0 rgba(255,255,255,0.75), 0 10px 30px rgba(40,20,80,0.08)';
+  /* the canvas is the wash itself, never see-through: a screen opened over
+     another (a chat over the chat list) sat on the modal's white and came
+     out flat grey */
   const css = `
 html, body { background: ${WASH[dark ? 'dark' : 'light']} fixed !important; }
 div[style*="background-color: ${L.glass}"], div[style*="background-color: ${L.glassHi}"] {
   -webkit-backdrop-filter: blur(22px) saturate(175%); backdrop-filter: blur(22px) saturate(175%); box-shadow: ${edge};
 }
-div[style*="background-color: ${L.bg}"] { -webkit-backdrop-filter: blur(34px) saturate(160%); backdrop-filter: blur(34px) saturate(160%); }`;
+div[style*="background-color: ${L.bg}"] { background: ${WASH[dark ? 'dark' : 'light']} fixed !important; }`;
   if (!el) { el = document.createElement('style'); el.id = 'mm-liquid'; document.head.appendChild(el); }
   el.textContent = css;
 }
