@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable, TextInput, Image, ActivityIndicator, Animated, Easing } from 'react-native';
 import { C } from '../constants/theme';
 import {
-  ownerOffers, offerSave, offerSetVideo, offerSetDuration, offerSetRepeat, offerSetStatus, ownerBookings, ownerMarkBooking, ownerSetSetting, appSettings, photoUrl, money, ownerLeaders, ownerSaveLeader, ownerDeleteLeader } from '../services/offers';
+  ownerOffers, offerSave, offerSetVideo, offerSetDuration, offerSetRepeat, offerSetLevel, offerSetStatus, ownerBookings, ownerMarkBooking, ownerSetSetting, appSettings, photoUrl, money, ownerLeaders, ownerSaveLeader, ownerDeleteLeader } from '../services/offers';
 import { uploadPlanPhoto } from '../lib/storage';
 import { tapLight, tapSuccess } from '../utils/feedback';
 import { appLink, shareLink } from '../utils/share';
@@ -187,7 +187,7 @@ const toForm = (o) => ({
   seats: o.seats == null ? '' : String(o.seats), pay_modes: o.pay_modes || ['reserve'],
   free_cancel_hours: o.free_cancel_hours == null ? '' : String(o.free_cancel_hours),
   commission_pct: o.commission_pct == null ? '' : String(o.commission_pct),
-  repeat: o.repeat || '', track: o.track || '', faith_time: !!o.faith_time, topic: o.topic || '', ages: o.ages || '',
+  repeat: o.repeat || '', level: o.level ? String(o.level) : '', track: o.track || '', faith_time: !!o.faith_time, topic: o.topic || '', ages: o.ages || '',
   conditions: joinL(o.conditions), conditions_ar: joinL(o.conditions_ar),
 });
 const fromForm = (f) => {
@@ -213,11 +213,12 @@ export const OffersTab = ({ userId }) => {
   const [priceM, setPriceM] = useState(''); const [priceY, setPriceY] = useState(''); const [priceC, setPriceC] = useState('EGP');
   const [party, setParty] = useState(null);             // the offer just published
   const [hook, setHook] = useState('');
+  const [instapay, setInstapay] = useState(''); const [vodafone, setVodafone] = useState('');
 
   const load = () => {
     ownerOffers().then((r) => setList(r == null ? false : r));
     appSettings().then((s) => {
-      setSettings(s); setHook(s.bookings_sheet_hook && s.bookings_sheet_hook !== 'null' ? String(s.bookings_sheet_hook).replace(/^"|"$/g, '') : ''); const v = s.plus_free_until; setFreeUntil(v && v !== 'null' ? String(v).slice(0, 10) : '');
+      setSettings(s); setHook(s.bookings_sheet_hook && s.bookings_sheet_hook !== 'null' ? String(s.bookings_sheet_hook).replace(/^"|"$/g, '') : ''); const lp = s.local_pay && typeof s.local_pay === 'object' ? s.local_pay : null; setInstapay((lp && lp.instapay) || ''); setVodafone((lp && lp.vodafone) || ''); const v = s.plus_free_until; setFreeUntil(v && v !== 'null' ? String(v).slice(0, 10) : '');
       const pr = s.plus_price && typeof s.plus_price === 'object' ? s.plus_price : null;
       setPriceM(pr ? String(pr.month) : ''); setPriceY(pr ? String(pr.year) : ''); setPriceC(pr ? pr.currency : 'EGP');
     });
@@ -230,7 +231,7 @@ export const OffersTab = ({ userId }) => {
     setBusy(true); setMsg(null);
     const r = await offerSave(fromForm(form));
     setBusy(false);
-    if (r && r.ok) { await offerSetVideo(r.id, form.video); await offerSetDuration(r.id, form.duration ? Number(String(form.duration).replace(',', '.')) : null); await offerSetRepeat(r.id, form.repeat); tapSuccess(); setForm((f) => ({ ...f, id: r.id })); setMsg('Saved.'); load(); }
+    if (r && r.ok) { await offerSetVideo(r.id, form.video); await offerSetDuration(r.id, form.duration ? Number(String(form.duration).replace(',', '.')) : null); await offerSetRepeat(r.id, form.repeat); await offerSetLevel(r.id, form.level ? Number(form.level) : null); tapSuccess(); setForm((f) => ({ ...f, id: r.id })); setMsg('Saved.'); load(); }
     else setMsg('Not saved: ' + ((r && (r.detail || r.reason)) || 'error'));
   };
   const status = async (o, s) => {
@@ -279,7 +280,7 @@ export const OffersTab = ({ userId }) => {
             {b.note ? <Text style={{ color: C.text, fontSize: 13, marginTop: 4, fontStyle: 'italic' }}>{'“' + b.note + '”'}</Text> : null}
             <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
               {b.status === 'reserved' ? <Btn label="Payment received" solid onPress={() => mark(b, 'paid')} /> : null}
-              {b.status === 'paid' ? <Btn label="They came" onPress={() => mark(b, 'attended')} /> : null}
+              {b.status === 'paid' ? <Btn label={bookingsOf.offer.level ? 'Completed — opens level ' + (bookingsOf.offer.level + 1) : 'They came'} onPress={() => mark(b, 'attended')} /> : null}
               {b.status === 'refund_requested' ? <Btn label="Refund sent" onPress={() => mark(b, 'refunded')} /> : null}
               {b.status === 'reserved' ? <Btn label={sureCancel === b.id ? 'Yes, cancel their booking' : 'Cancel'} danger onPress={() => mark(b, 'cancelled')} /> : null}
               {sureCancel === b.id ? <Btn label="Keep it" onPress={() => setSureCancel(null)} /> : null}
@@ -337,6 +338,11 @@ export const OffersTab = ({ userId }) => {
         <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
           {[['', 'Once'], ['weekly', '↻ Every week'], ['month_last', '↻ Last of the month']].map(([k, label]) => <Btn key={k || 'once'} label={(form.repeat === k ? '✓ ' : '') + label} solid={form.repeat === k} onPress={() => set('repeat')(k)} />)}
         </View>
+        <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '800', letterSpacing: 0.8, marginTop: 10 }}>LEARNING JOURNEY LEVEL</Text>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+          {['', '1', '2', '3', '4'].map((k) => <Btn key={k || 'none'} label={(form.level === k ? '✓ ' : '') + (k ? 'Level ' + k : 'Not on the path')} solid={form.level === k} onPress={() => set('level')(k)} />)}
+        </View>
+        {form.level ? <Text style={{ color: C.dim, fontSize: 12.5, marginBottom: 4 }}>Only people at level {form.level} or above can book it, paying by InstaPay / Vodafone Cash with a reference. Marking someone “Completed” opens the next level for them.</Text> : null}
         {form.repeat ? <Text style={{ color: C.dim, fontSize: 12.5, marginBottom: 4 }}>When this one leaves, the next opens by itself — {form.repeat === 'weekly' ? 'same day next week' : 'same weekday, at the end of next month'}, same time, fresh seats.</Text> : null}
         <View style={{ flexDirection: 'row' }}>
           <View style={{ flex: 1, marginEnd: 8 }}><Field label="Seats (empty = no limit)" value={form.seats} onChange={set('seats')} num /></View>
@@ -389,6 +395,11 @@ export const OffersTab = ({ userId }) => {
         <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 3 }}>Free for everyone until the date below (empty = open-ended). Nobody is charged automatically when it ends.</Text>
         <Field label="Free until (YYYY-MM-DD)" value={freeUntil} onChange={setFreeUntil} ph="empty = no end date yet" />
         <Btn label="Save Plus date" onPress={async () => { const v = freeUntil.trim() ? new Date(freeUntil.trim() + 'T23:59:00').toISOString() : null; const r = await ownerSetSetting('plus_free_until', v); setMsg(r && r.ok ? 'Plus date saved.' : 'Could not save.'); load(); }} />
+        <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '900', marginTop: 14 }}>Workshop payments (learning journey)</Text>
+        <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 3 }}>Where people send a workshop ticket. They give the transfer’s reference when they book; you check it, then press “Payment received”.</Text>
+        <Field label="InstaPay address" value={instapay} onChange={setInstapay} ph="name@instapay" />
+        <Field label="Vodafone Cash number" value={vodafone} onChange={setVodafone} ph="010…" />
+        <Btn label="Save payment details" onPress={async () => { const v = instapay.trim() || vodafone.trim() ? { instapay: instapay.trim(), vodafone: vodafone.trim() } : null; const r = await ownerSetSetting('local_pay', v); setMsg(r && r.ok ? 'Payment details saved.' : 'Could not save — check the number.'); load(); }} />
         <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '900', marginTop: 14 }}>Plus price</Text>
         <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 3 }}>Saving a price ends the free period for everyone: from then on Plus is what people buy (invite and reward days are kept). Clear both to make it free again.</Text>
         <Field label="Per month" value={priceM} onChange={setPriceM} ph="e.g. the monthly price" />

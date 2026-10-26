@@ -256,11 +256,23 @@ jobs:
         env:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          LEMONSQUEEZY_API_KEY: ${{ secrets.LEMONSQUEEZY_API_KEY }}
+          LEMONSQUEEZY_STORE_ID: ${{ secrets.LEMONSQUEEZY_STORE_ID }}
+          LEMONSQUEEZY_VARIANT_ID: ${{ secrets.LEMONSQUEEZY_VARIANT_ID }}
+          LEMONSQUEEZY_WEBHOOK_SECRET: ${{ secrets.LEMONSQUEEZY_WEBHOOK_SECRET }}
           SITE_ORIGIN: ${{ inputs.site_origin }}
         run: |
           set -euo pipefail
           supabase secrets set --project-ref "$REF" "ALLOWED_ORIGIN=$SITE_ORIGIN" > /dev/null
           echo "ALLOWED_ORIGIN set to $SITE_ORIGIN"
+          # Moments Plus through Lemon Squeezy — all four or none (ls-checkout says not_configured until then)
+          if [ -n "${LEMONSQUEEZY_API_KEY:-}" ] && [ -n "${LEMONSQUEEZY_STORE_ID:-}" ] && [ -n "${LEMONSQUEEZY_VARIANT_ID:-}" ] && [ -n "${LEMONSQUEEZY_WEBHOOK_SECRET:-}" ]; then
+            supabase secrets set --project-ref "$REF" "LEMONSQUEEZY_API_KEY=$LEMONSQUEEZY_API_KEY" "LEMONSQUEEZY_STORE_ID=$LEMONSQUEEZY_STORE_ID" \
+              "LEMONSQUEEZY_VARIANT_ID=$LEMONSQUEEZY_VARIANT_ID" "LEMONSQUEEZY_WEBHOOK_SECRET=$LEMONSQUEEZY_WEBHOOK_SECRET" > /dev/null
+            echo "Lemon Squeezy secrets set."
+          else
+            echo "::warning::Lemon Squeezy secrets incomplete — Plus monthly falls back to Paymob until all four exist."
+          fi
           if [ -n "${ANTHROPIC_API_KEY:-}" ]; then
             supabase secrets set --project-ref "$REF" "ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY" > /dev/null
             echo "ANTHROPIC_API_KEY set."
@@ -306,6 +318,9 @@ jobs:
           # bookings: checkout reads the price from the database; the webhook is signed by Paymob (PAYMOB_* secrets)
           supabase functions deploy create-checkout --project-ref "$REF"
           supabase functions deploy paymob-webhook --project-ref "$REF" --no-verify-jwt
+          # Plus monthly: Lemon Squeezy checkout (session required) and its signed webhook (no session)
+          supabase functions deploy ls-checkout --project-ref "$REF"
+          supabase functions deploy ls-webhook --project-ref "$REF" --no-verify-jwt
           # media straight to Cloudflare R2 and view-once messages (signed-in only; R2_* secrets)
           supabase functions deploy r2-presign --project-ref "$REF"
           # the R2 keys live only as function secrets; set here when the repository has them

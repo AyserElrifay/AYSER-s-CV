@@ -23,6 +23,12 @@ export const PAY_PROVIDERS = [
 // Moments' platform commission on booking payments (10–20%, per the broker model)
 export const PLATFORM_FEE = 0.15;
 
+// open a hosted checkout (or a customer portal) in place of the app
+const go = (url) => {
+  if (typeof window !== 'undefined' && window.location) window.location.assign(url);
+  else Linking.openURL(url).catch(() => {});
+};
+
 /* Venue boosts and the old venue booking asked the server to charge an
    amount the phone chose. That is gone: an amount comes from the
    database or not at all. They say "not connected" until they are
@@ -43,8 +49,7 @@ export async function payBooking(bookingId) {
       return { ok: false, reason: status === 503 ? 'not_configured' : status === 409 ? 'not_payable' : 'gateway' };
     }
     if (!data || !data.checkoutUrl) return { ok: false, reason: 'gateway' };
-    if (typeof window !== 'undefined' && window.location) window.location.assign(data.checkoutUrl);
-    else Linking.openURL(data.checkoutUrl).catch(() => {});
+    go(data.checkoutUrl);
     return { ok: true };
   } catch (e) {
     return { ok: false, reason: 'offline' };
@@ -55,6 +60,14 @@ export async function payBooking(bookingId) {
    owner's price, and Paymob's signed webhook adds the days. */
 export async function buyPlus(plan) {
   if (!SUPABASE_READY) return { ok: false, reason: 'offline' };
+  /* monthly is a real subscription through Lemon Squeezy (functions/ls-checkout);
+     until its keys exist it answers 503 and the Paymob month below is used */
+  if (plan === 'month') {
+    try {
+      const { data, error } = await supabase.functions.invoke('ls-checkout', { body: {} });
+      if (!error && data && (data.checkoutUrl || data.portalUrl)) { go(data.checkoutUrl || data.portalUrl); return { ok: true }; }
+    } catch (e) { /* fall through to Paymob */ }
+  }
   try {
     const { data, error } = await supabase.functions.invoke('create-checkout', { body: { plan } });
     if (error) {
@@ -62,8 +75,7 @@ export async function buyPlus(plan) {
       return { ok: false, reason: status === 503 ? 'not_configured' : status === 409 ? 'not_ready' : 'gateway' };
     }
     if (!data || !data.checkoutUrl) return { ok: false, reason: 'gateway' };
-    if (typeof window !== 'undefined' && window.location) window.location.assign(data.checkoutUrl);
-    else Linking.openURL(data.checkoutUrl).catch(() => {});
+    go(data.checkoutUrl);
     return { ok: true };
   } catch (e) {
     return { ok: false, reason: 'offline' };

@@ -1660,6 +1660,8 @@ export const STRINGS = {
     inv_share: "Come with me: {title}",
     nt_v_trip_invite: "your invitation to {title} is ready",
     push_trip_invite: "Your invitation is ready 🎟",
+    nt_v_level_up: "level {n} of your journey is open — your next step is waiting",
+    push_level_up: "Your next level is open 🧭",
     nt_v_daily_line: "sent you a good word",
     dl_stop: "Stop these",
     dl_stopped: "Stopped. You won’t get these any more.",

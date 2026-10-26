@@ -44,6 +44,7 @@ import { greenPic } from '../components/green/GreenCards';
 import { isGreen } from '../lib/greenKinds';
 import { ReportSheet } from '../components/ReportSheet';
 import { CirclesNear } from '../components/CirclesNear';
+import { JourneyCard, JourneyMap } from '../components/JourneyMap';
 const BizDirectory = lazyOverlay(() => import('../components/biz').then((m) => ({ default: m.BizDirectory })));
 const TripsSheet = lazyOverlay(() => import('../components/TripsSheet').then((m) => ({ default: m.TripsSheet })));
 const ExploreSheet = lazyOverlay(() => import('../components/ExploreSheet').then((m) => ({ default: m.ExploreSheet })));
@@ -228,7 +229,7 @@ const ideaKey = (g) => ((activityOf(String(g.title || '') + ' ' + String(g.kind 
 
 const Workshops = ({ t, lang, onOpen }) => {
   const [list, setList] = useState(null);
-  useEffect(() => { let alive = true; listOffers(null, null).then((r) => { if (alive) setList((r || []).filter((o) => o.track === 'workshop')); }).catch(() => {}); return () => { alive = false; }; }, []);
+  useEffect(() => { let alive = true; listOffers(null, null).then((r) => { if (alive) setList((r || []).filter((o) => o.track === 'workshop' && !o.level)); }).catch(() => {}); return () => { alive = false; }; }, []);
   if (!list || !list.length) return null;
   return (
     <View style={{ marginBottom: 16 }}>
@@ -374,6 +375,7 @@ export const TogetherScreen = () => {
   const [sent, setSent] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [sheet, setSheet] = useState(null);
+  const [journey, setJourney] = useState(false);
   const [creators, setCreators] = useState(() => recall('creators.' + (readCode() || 'all')) || []);     // hosts people really came to (top_creators)
   const [shareMsg, setShareMsg] = useState(null);
   const [askPush, setAskPush] = useState(false);
@@ -931,6 +933,9 @@ export const TogetherScreen = () => {
 
         {/* ── workshops ── Ayser: they are activities, so they sit with the
             activities — writing, poetry, dance, music, kids */}
+        {/* the learning journey: one level at a time (JourneyMap.js) */}
+        {uid ? <JourneyCard lang={lang} onOpen={() => setJourney(true)} /> : null}
+        {journey ? <JourneyMap lang={lang} onClose={() => setJourney(false)} /> : null}
         <Workshops t={t} lang={lang} onOpen={(o) => setSheet({ trips: 'browse', only: 'workshop', focus: o.id })} />
 
         {/* ── circles near you ── groups people started at places nearby */}

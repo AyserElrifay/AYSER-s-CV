@@ -23,6 +23,9 @@ import { appLink, shareLink, shareNote } from '../utils/share';
 const GIVES = ['help', 'crew', 'perks', 'future'];
 const PERKS = [['join', '🤝'], ['light', '💬'], ['papyrus', '🌾'], ['focus', '🪁'], ['trips', '🧳'], ['icons', '🎨'], ['widgets', '🧩']];
 
+// a monthly Lemon Squeezy subscription is managed — or cancelled — in its own customer portal
+const MANAGE = { en: 'Manage or cancel', ar: 'تعديل أو إلغاء الاشتراك', cs: 'Spravovat nebo zrušit', es: 'Gestionar o cancelar', et: 'Halda või tühista', fr: 'Gérer ou résilier', hi: 'बदलें या रद्द करें', it: 'Gestisci o annulla', ja: '管理・解約', ko: '관리 또는 해지', nl: 'Beheren of opzeggen', pt: 'Gerir ou cancelar', ro: 'Gestionează sau anulează', ru: 'Управлять или отменить', tr: 'Yönet veya iptal et', uk: 'Керувати або скасувати', zh: '管理或取消' };
+
 const money = (n, cur, lang) => {
   try { return new Intl.NumberFormat(lang === 'ar' ? 'ar-EG' : lang || 'en', { style: 'currency', currency: cur, maximumFractionDigits: 0 }).format(n); } catch (e) { return n + ' ' + cur; }
 };
@@ -113,6 +116,11 @@ export const PlusSheet = ({ onClose, why }) => {
         ) : p.plus && !p.founding ? (
           <Text style={{ color: C.gold, fontSize: 15, fontWeight: '900', textAlign: 'center', marginTop: 16 }}>
             {until ? t('px_you_until').replace('{date}', until.toLocaleDateString(lang === 'ar' ? 'ar-EG' : lang, { day: 'numeric', month: 'long', year: 'numeric' })) : t('px_you')}
+            {p.member && p.member.source === 'lemonsqueezy' ? (
+              <Text onPress={() => { tapLight(); buyPlus('month'); }} accessibilityRole="link" style={{ color: '#C9C9D1', fontSize: 13, fontWeight: '700', textDecorationLine: 'underline' }}>
+                {'\n' + (MANAGE[lang] || MANAGE.en)}
+              </Text>
+            ) : null}
           </Text>
         ) : p.founding ? (
           <Text style={{ color: C.gold, fontSize: 14.5, fontWeight: '800', textAlign: 'center', marginTop: 16 }}>{t('px_founding')}</Text>

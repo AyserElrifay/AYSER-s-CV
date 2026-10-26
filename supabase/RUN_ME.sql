@@ -19953,6 +19953,245 @@ end $$;
 revoke all on function public.create_topic_circle(text, text, text, double precision, double precision) from public, anon;
 grant execute on function public.create_topic_circle(text, text, text, double precision, double precision) to authenticated;
 
+-- ════════════════════════════════════════════════════════════════════
+--  MOMENTS PLUS · A MONTHLY SUBSCRIPTION THROUGH LEMON SQUEEZY
+--  Ayser: the 60-day sprint — Plus is the one subscription, monthly,
+--  through Lemon Squeezy. The checkout is made on the server
+--  (functions/ls-checkout) with the person's id inside it; Lemon Squeezy
+--  tells us what happened through a signed webhook (functions/
+--  ls-webhook), which calls ls_apply below with the service key. Being
+--  subscribed is the same thing as before: an active row in
+--  plus_members, so is_plus() — what the app already asks — answers
+--  for it. Nothing here is callable from the app. Safe to re-run.
+-- ════════════════════════════════════════════════════════════════════
+create table if not exists public.plus_subscriptions (
+  user_id         uuid primary key references public.profiles(id) on delete cascade,
+  provider        text not null default 'lemonsqueezy',
+  subscription_id text not null unique,
+  customer_id     text,
+  variant_id      text,
+  status          text not null,          -- Lemon Squeezy's own word: active, on_trial, past_due, cancelled, expired …
+  renews_at       timestamptz,
+  ends_at         timestamptz,
+  portal_url      text,
+  event_at        timestamptz,            -- the provider's updated_at: an older event never overwrites a newer one
+  updated_at      timestamptz not null default now()
+);
+alter table public.plus_subscriptions enable row level security;
+drop policy if exists "subscriptions: see your own" on public.plus_subscriptions;
+create policy "subscriptions: see your own" on public.plus_subscriptions for select to authenticated using (auth.uid() = user_id);
+
+-- one event from the webhook. Service key only.
+create or replace function public.ls_apply(p jsonb)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare uid uuid; st text; until_ts timestamptz; ev timestamptz; cur public.plus_subscriptions%rowtype;
+begin
+  begin uid := (p ->> 'user_id')::uuid; exception when others then return jsonb_build_object('ok', false, 'reason', 'user'); end;
+  if uid is null or not exists (select 1 from public.profiles where id = uid) then return jsonb_build_object('ok', false, 'reason', 'user'); end if;
+  if coalesce(p ->> 'subscription_id', '') = '' then return jsonb_build_object('ok', false, 'reason', 'subscription'); end if;
+  st := lower(coalesce(p ->> 'status', ''));
+  ev := coalesce(nullif(p ->> 'event_at', '')::timestamptz, now());
+
+  select * into cur from public.plus_subscriptions where user_id = uid;
+  if found and cur.subscription_id = p ->> 'subscription_id' and cur.event_at is not null and cur.event_at > ev then
+    return jsonb_build_object('ok', true, 'skipped', 'older');
+  end if;
+
+  insert into public.plus_subscriptions as x (user_id, subscription_id, customer_id, variant_id, status, renews_at, ends_at, portal_url, event_at, updated_at)
+  values (uid, p ->> 'subscription_id', p ->> 'customer_id', p ->> 'variant_id', st,
+          nullif(p ->> 'renews_at', '')::timestamptz, nullif(p ->> 'ends_at', '')::timestamptz, nullif(p ->> 'portal_url', ''), ev, now())
+  on conflict (user_id) do update set subscription_id = excluded.subscription_id, customer_id = excluded.customer_id,
+    variant_id = excluded.variant_id, status = excluded.status, renews_at = excluded.renews_at, ends_at = excluded.ends_at,
+    portal_url = coalesce(excluded.portal_url, x.portal_url), event_at = excluded.event_at, updated_at = now();
+
+  -- paying (or a card being retried) keeps Plus until the next renewal plus three days' grace;
+  -- cancelled keeps it until the end of what was paid; anything else ends it now
+  if st in ('active', 'on_trial', 'past_due') then
+    until_ts := coalesce(nullif(p ->> 'renews_at', '')::timestamptz, now() + interval '31 days') + interval '3 days';
+  elsif st = 'cancelled' then
+    until_ts := coalesce(nullif(p ->> 'ends_at', '')::timestamptz, now());
+  else
+    until_ts := now();
+  end if;
+
+  insert into public.plus_members as m (user_id, status, until, source)
+  values (uid, case when until_ts > now() then 'active' else 'expired' end, until_ts, 'lemonsqueezy')
+  on conflict (user_id) do update set
+    status = case when excluded.until > now() then 'active' else 'expired' end,
+    until  = case when m.source <> 'lemonsqueezy' and m.status = 'active' and m.until is not null and m.until > excluded.until
+                  then m.until else excluded.until end,      -- a year already paid another way is never cut short
+    source = 'lemonsqueezy';
+  return jsonb_build_object('ok', true, 'until', until_ts);
+end $$;
+revoke all on function public.ls_apply(jsonb) from public, anon, authenticated;
+
+
+-- ════════════════════════════════════════════════════════════════════
+--  THE LEARNING JOURNEY · ONE LEVEL AT A TIME
+--  Ayser: the 60-day sprint — workshops as one straight path, Level 1 →
+--  2 → 3 → 4, one clear next step. Everyone starts at level 1. You can
+--  see every level, but you can only book workshops at your level or
+--  below; the next one opens when the team marks you as having finished
+--  (attended) a workshop at your level. Each workshop has its own
+--  ticket, paid locally — InstaPay or Vodafone Cash — with the transfer's
+--  reference given at booking and checked by the team (Lemon Squeezy is
+--  only for the Plus subscription). Plus and levels are separate: the
+--  social side of Moments is never behind a level. Safe to re-run.
+-- ════════════════════════════════════════════════════════════════════
+alter table public.profiles add column if not exists current_level int not null default 1;
+do $do$ begin
+  alter table public.profiles add constraint profiles_current_level_check check (current_level between 1 and 20);
+exception when duplicate_object then null;
+end $do$;
+alter table public.offers add column if not exists level int;
+do $do$ begin
+  alter table public.offers add constraint offers_level_check check (level is null or level between 1 and 20);
+exception when duplicate_object then null;
+end $do$;
+
+-- nobody moves their own level: only the level-up below may (it says so for one statement)
+create or replace function public.keep_level()
+returns trigger language plpgsql set search_path = public as $$
+begin
+  if new.current_level is distinct from old.current_level and coalesce(current_setting('moments.level_ok', true), '') <> '1' then
+    new.current_level := old.current_level;
+  end if;
+  return new;
+end $$;
+drop trigger if exists profiles_keep_level on public.profiles;
+create trigger profiles_keep_level before update of current_level on public.profiles
+  for each row execute function public.keep_level();
+
+-- a workshop above your level cannot be booked, whichever door is used
+create or replace function public.booking_level_gate()
+returns trigger language plpgsql security definer set search_path = public as $$
+declare need int; have int;
+begin
+  select level into need from public.offers where id = new.offer_id;
+  if need is null then return new; end if;
+  select current_level into have from public.profiles where id = new.user_id;
+  if coalesce(have, 1) < need then raise exception 'level_locked' using errcode = 'P0001'; end if;
+  return new;
+end $$;
+revoke all on function public.booking_level_gate() from public, anon, authenticated;
+drop trigger if exists bookings_level_gate on public.bookings;
+create trigger bookings_level_gate before insert on public.bookings
+  for each row execute function public.booking_level_gate();
+
+do $do$ begin
+  alter table public.notifications drop constraint if exists notifications_kind_check;
+  alter table public.notifications add constraint notifications_kind_check
+    check (kind in ('vibe','laugh','comment','mate_request','mate_accept','message','call','tag','repost','green_invite','food_order','food_status','bardi_match','plan_soon','venue_decision','xp_award','safety','creator_plan','booking','trip_open','team_reply','biz_request','biz_reply','app_problem','daily_line','partner_watch','trip_invite','level_up'))
+    not valid;
+exception when others then raise notice 'notifications kind constraint skipped: %', sqlerrm;
+end $do$;
+
+-- finishing a workshop at your level opens the next one — once
+create or replace function public.booking_level_up()
+returns trigger language plpgsql security definer set search_path = public as $$
+declare need int; have int;
+begin
+  if new.status <> 'attended' or old.status = 'attended' then return new; end if;
+  select level into need from public.offers where id = new.offer_id;
+  if need is null then return new; end if;
+  select current_level into have from public.profiles where id = new.user_id;
+  if have is null or have <> need or have >= 20 then return new; end if;
+  perform set_config('moments.level_ok', '1', true);
+  update public.profiles set current_level = have + 1 where id = new.user_id;
+  perform set_config('moments.level_ok', '', true);
+  insert into public.notifications (user_id, actor_id, kind, body) values (new.user_id, new.user_id, 'level_up', (have + 1)::text);
+  return new;
+end $$;
+revoke all on function public.booking_level_up() from public, anon, authenticated;
+drop trigger if exists bookings_level_up on public.bookings;
+create trigger bookings_level_up after update of status on public.bookings
+  for each row execute function public.booking_level_up();
+
+-- the map: your level, every level's workshops, where each of yours stands, and how to pay
+create or replace function public.my_journey()
+returns jsonb language sql stable security definer set search_path = public as $$
+  with me as (select coalesce((select current_level from public.profiles where id = auth.uid()), 1) as lvl),
+  w as (
+    select o.level, jsonb_agg(jsonb_build_object(
+             'id', o.id, 'title', o.title, 'title_ar', o.title_ar, 'price', o.price, 'currency', o.currency,
+             'starts_at', o.starts_at, 'city', o.city, 'photo', o.photos[1], 'status', o.status,
+             'seats_left', case when o.seats is null then null else greatest(0, o.seats - public.offer_seats_taken(o.id)) end,
+             'mine', (select b.status from public.bookings b where b.offer_id = o.id and b.user_id = auth.uid()
+                        and b.status in ('reserved','paid','attended') order by b.created_at desc limit 1))
+           order by o.starts_at nulls last) as list
+      from public.offers o
+     where o.level is not null and o.status in ('live','soon')
+     group by o.level)
+  select jsonb_build_object(
+    'level', (select lvl from me),
+    'top', greatest(4, coalesce((select max(level) from w), 0)),
+    'levels', coalesce((select jsonb_object_agg(level::text, list) from w), '{}'::jsonb),
+    'pay', (select value from public.app_settings where key = 'local_pay'));
+$$;
+revoke execute on function public.my_journey() from public, anon;
+grant execute on function public.my_journey() to authenticated;
+
+-- book a workshop on the path: the reference of the InstaPay / Vodafone Cash transfer travels with it
+create or replace function public.journey_book(p_offer uuid, p_ref text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare need int; have int; ref text := btrim(coalesce(p_ref, ''));
+begin
+  if auth.uid() is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  select level into need from public.offers where id = p_offer;
+  if need is null then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
+  select current_level into have from public.profiles where id = auth.uid();
+  if coalesce(have, 1) < need then return jsonb_build_object('ok', false, 'reason', 'locked'); end if;
+  if length(ref) not between 4 and 60 then return jsonb_build_object('ok', false, 'reason', 'ref'); end if;
+  return public.book_offer(p_offer, 1, 'reserve', 'PAY REF: ' || ref);
+end $$;
+revoke execute on function public.journey_book(uuid, text) from public, anon;
+grant execute on function public.journey_book(uuid, text) to authenticated;
+
+-- the Studio puts a workshop on the path
+create or replace function public.offer_set_level(p_id uuid, p_level int)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  if not public.owner_ok() then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
+  if p_level is not null and p_level not between 1 and 20 then return jsonb_build_object('ok', false, 'reason', 'level'); end if;
+  update public.offers set level = p_level,
+         pay_modes = case when p_level is not null and not ('reserve' = any(pay_modes)) then pay_modes || '{reserve}'::text[] else pay_modes end,
+         updated_at = now()
+   where id = p_id;
+  return jsonb_build_object('ok', found);
+end $$;
+revoke execute on function public.offer_set_level(uuid, int) from public, anon;
+grant execute on function public.offer_set_level(uuid, int) to authenticated;
+
+-- and where the money goes: the InstaPay address and the Vodafone Cash number, shown on the map
+create or replace function public.owner_set_setting(p_key text, p_value jsonb)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  if not public.owner_ok() then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
+  if p_key not in ('plus_free_until', 'payments_online', 'plus_price', 'plus_prices', 'bookings_sheet_hook', 'local_pay') then return jsonb_build_object('ok', false, 'reason', 'key'); end if;
+  if p_key = 'plus_price' and p_value is not null and p_value <> 'null'::jsonb and not (
+       jsonb_typeof(p_value -> 'month') = 'number' and (p_value ->> 'month')::numeric > 0
+   and jsonb_typeof(p_value -> 'year') = 'number' and (p_value ->> 'year')::numeric > 0
+   and coalesce(p_value ->> 'currency', '') ~ '^[A-Z]{3}$') then
+    return jsonb_build_object('ok', false, 'reason', 'price');
+  end if;
+  if p_key = 'bookings_sheet_hook' and p_value is not null and p_value <> 'null'::jsonb and (p_value #>> '{}') !~ '^https://script\.google\.com/' then
+    return jsonb_build_object('ok', false, 'reason', 'url');
+  end if;
+  if p_key = 'local_pay' and p_value is not null and p_value <> 'null'::jsonb and not (
+       jsonb_typeof(p_value) = 'object'
+   and length(coalesce(p_value ->> 'instapay', '')) <= 60 and length(coalesce(p_value ->> 'vodafone', '')) <= 20
+   and coalesce(p_value ->> 'vodafone', '') ~ '^[0-9 +]*$'
+   and (coalesce(p_value ->> 'instapay', '') <> '' or coalesce(p_value ->> 'vodafone', '') <> '')) then
+    return jsonb_build_object('ok', false, 'reason', 'pay');
+  end if;
+  insert into public.app_settings (key, value, updated_at) values (p_key, p_value, now())
+  on conflict (key) do update set value = excluded.value, updated_at = now();
+  return jsonb_build_object('ok', true);
+end;
+$$;
+revoke execute on function public.owner_set_setting(text, jsonb) from public, anon;
+grant execute on function public.owner_set_setting(text, jsonb) to authenticated;
+
 -- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
