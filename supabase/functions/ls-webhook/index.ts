@@ -17,6 +17,10 @@
 //  the same way: its status, its renewal date, its end date
 //  (ls_apply in RUN_ME.sql decides what that means for Plus).
 //
+//  Which tier it is comes from the variant: LEMONSQUEEZY_VIP_VARIANT_ID
+//  is VIP, anything else is Basic — so a plan change made in the
+//  customer portal moves the tier too.
+//
 //  Secret: LEMONSQUEEZY_WEBHOOK_SECRET.  Deploy with --no-verify-jwt.
 // ═══════════════════════════════════════════════════════════════════
 import { createClient } from 'npm:@supabase/supabase-js@2.45.4';
@@ -73,6 +77,7 @@ Deno.serve(async (req) => {
     subscription_id: subscriptionId,
     customer_id: s.customer_id != null ? String(s.customer_id) : null,
     variant_id: s.variant_id != null ? String(s.variant_id) : null,
+    tier: s.variant_id != null && String(s.variant_id) === String(Deno.env.get('LEMONSQUEEZY_VIP_VARIANT_ID') || '') ? 'vip' : 'basic',
     status: s.status || null,
     renews_at: s.renews_at || null,
     ends_at: s.ends_at || null,

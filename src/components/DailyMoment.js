@@ -13,7 +13,7 @@ import { tapLight, tapMedium, tapSuccess, tapSelection } from '../utils/feedback
    culture poll, a quick English twist. BeReal's rule: you answer first,
    and only then you see what your buddies and everybody else said, with
    one-tap reactions. A reply to somebody's answer is the one way to
-   start talking to a member you have not met (Moments Plus, and the
+   start talking to a member you have not met (Moments VIP, and the
    server lets only that first line through until they answer). */
 
 const BuddiesSheet = lazyOverlay(() => import('./LiveKit').then((m) => ({ default: m.BuddiesSheet })));

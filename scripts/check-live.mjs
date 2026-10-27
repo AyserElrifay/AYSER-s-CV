@@ -39,10 +39,10 @@ is('vibe badges never say who gave them', /alter table public\.vibe_badges enabl
 console.log('\nevery day');
 is('the Daily Moment opens after you answer', /'answers', case when mine\.id is null then null/.test(live), true);
 
-console.log('\nMoments Plus');
+console.log('\nmembership');
 is('a meetup seat is Plus (no free joins)', /if g\.host_id <> me and not public\.is_plus\(me\)\s+and not exists \(select 1 from public\.green_joins where gathering_id = p_id and user_id = me\) then/.test(live), true);
-is('a lounge is Plus, ten people at most', /lounge_join[\s\S]+not public\.is_plus\(me\)[\s\S]+>= 10 then/.test(live), true);
-is('the lounge call is only for people in it', /realtime\.topic\(\) like 'lounge:%' and public\.is_plus\(auth\.uid\(\)\)/.test(live), true);
+is('a lounge is VIP, ten people at most', /lounge_join[\s\S]+not public\.is_vip\(me\)[\s\S]+>= 10 then/.test(live), true);
+is('the lounge call is only for VIP people in it', /realtime\.topic\(\) like 'lounge:%' and public\.is_vip\(auth\.uid\(\)\)/.test(live), true);
 is('no dating words anywhere in the new screens', ['ActivitiesHub', 'BuddiesSheet', 'DailyMoment', 'LoungesSheet'].filter((f) => /\b(dating|date night|match ?making|soulmate|crush)\b/i.test(fs.readFileSync('src/components/' + f + '.js', 'utf8'))), []);
 
 if (bad) { console.log('\n' + bad + ' wrong.'); process.exit(1); }

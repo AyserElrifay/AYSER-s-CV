@@ -11,7 +11,7 @@ const rpc = async (fn, args) => {
   try { const { data, error } = await supabase.rpc(fn, args || {}); return error ? null : data; } catch (e) { return null; }
 };
 export const needPlus = (r, why) => {
-  if (r && r.ok === false && r.reason === 'plus') {
+  if (r && r.ok === false && (r.reason === 'plus' || r.reason === 'vip')) {
     try { window.dispatchEvent(new CustomEvent('mm-need-plus', { detail: why || 'join' })); } catch (e) {}
     return true;
   }

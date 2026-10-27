@@ -259,6 +259,7 @@ jobs:
           LEMONSQUEEZY_API_KEY: ${{ secrets.LEMONSQUEEZY_API_KEY }}
           LEMONSQUEEZY_STORE_ID: ${{ secrets.LEMONSQUEEZY_STORE_ID }}
           LEMONSQUEEZY_VARIANT_ID: ${{ secrets.LEMONSQUEEZY_VARIANT_ID }}
+          LEMONSQUEEZY_VIP_VARIANT_ID: ${{ secrets.LEMONSQUEEZY_VIP_VARIANT_ID }}
           LEMONSQUEEZY_WEBHOOK_SECRET: ${{ secrets.LEMONSQUEEZY_WEBHOOK_SECRET }}
           SITE_ORIGIN: ${{ inputs.site_origin }}
         run: |
@@ -270,6 +271,13 @@ jobs:
             supabase secrets set --project-ref "$REF" "LEMONSQUEEZY_API_KEY=$LEMONSQUEEZY_API_KEY" "LEMONSQUEEZY_STORE_ID=$LEMONSQUEEZY_STORE_ID" \
               "LEMONSQUEEZY_VARIANT_ID=$LEMONSQUEEZY_VARIANT_ID" "LEMONSQUEEZY_WEBHOOK_SECRET=$LEMONSQUEEZY_WEBHOOK_SECRET" > /dev/null
             echo "Lemon Squeezy secrets set."
+            # the VIP variant (199 EGP): without it, Become VIP says payments are coming
+            if [ -n "${LEMONSQUEEZY_VIP_VARIANT_ID:-}" ]; then
+              supabase secrets set --project-ref "$REF" "LEMONSQUEEZY_VIP_VARIANT_ID=$LEMONSQUEEZY_VIP_VARIANT_ID" > /dev/null
+              echo "Lemon Squeezy VIP variant set."
+            else
+              echo "::warning::No LEMONSQUEEZY_VIP_VARIANT_ID secret — Become VIP is not on sale yet."
+            fi
           else
             echo "::warning::Lemon Squeezy secrets incomplete — Plus monthly falls back to Paymob until all four exist."
           fi

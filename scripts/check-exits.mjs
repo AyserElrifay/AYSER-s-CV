@@ -24,6 +24,8 @@ const OWN_EXIT = {
   'src/components/FirstTour.js': /\{w\[12\]\}[\s\S]*close\(true\)[\s\S]*\{w\[14\]\}/,
   'src/components/IncomingCallGate.js': /onPress=\{decline\}/,
   'src/components/WhatsNew.js': /onPress=\{close\}/,
+  /* the members' gateway: Sign out when it is the gate, Not now when it is a sheet */
+  'src/components/Membership.js': /onSignOut\(\)[\s\S]*w\(lang, 'notNow'\)/,
   /* after a plan: "Not now" under the one button, and a tap outside */
   'src/components/AfterOuting.js': /onPress=\{later\}[\s\S]*later\(\); \}\}[\s\S]*t\('not_now'\)/,
   /* the intro: Skip goes to the last page, whose two buttons both leave */

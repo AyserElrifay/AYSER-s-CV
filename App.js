@@ -24,6 +24,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { C } from './src/constants/theme';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
+import { myMembership } from './src/services/membership';
 import { LanguageProvider } from './src/context/LanguageContext';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { PlayerProvider } from './src/context/PlayerContext';
@@ -53,18 +54,37 @@ import { lazyOverlay } from './src/lib/lazyScreen';
 /* the Studio's code is fetched only once the owner check has passed —
    nobody else's phone ever downloads it */
 const StudioLock = lazyOverlay(() => import('./src/components/StudioLock').then((m) => ({ default: m.StudioLock })));
-const PlusSheet = lazyOverlay(() => import('./src/components/PlusSheet').then((m) => ({ default: m.PlusSheet })));
 const FirstTour = lazyOverlay(() => import('./src/components/FirstTour').then((m) => ({ default: m.FirstTour })));
-/* the server refused a join because it needs Plus (src/services/green.js) */
-const PlusGate = () => {
-  const [open, setOpen] = React.useState(false);
+/* ── MEMBERS ONLY ── (RUN_ME.sql, "TWO TIERS"). Signed in without a
+   membership, the gateway is the only thing on screen, the app blurred
+   behind it. A member who reaches for a VIP door (messages, a lounge, a
+   full profile, the last seats) gets the VIP sheet; any other "you need
+   a membership" answer opens the plans. The pieces are fetched only
+   when somebody needs them. */
+const PricingGate = lazyOverlay(() => import('./src/components/Membership').then((m) => ({ default: m.PricingGate })));
+const VipSheet = lazyOverlay(() => import('./src/components/Membership').then((m) => ({ default: m.VipSheet })));
+const VIP_DOORS = ['vip', 'chat', 'lounge', 'profile', 'vip_seat'];
+const MemberGate = () => {
+  const { signOut } = useAuth();
+  const [m, setM] = React.useState(null);
+  const [ask, setAsk] = React.useState(null);
   React.useEffect(() => {
-    // which door asked: a meetup seat, a chat, a lounge (detail), or a join
-    const on = (e) => setOpen((e && e.detail) || 'join');
-    try { window.addEventListener('mm-need-plus', on); } catch (e) {}
-    return () => { try { window.removeEventListener('mm-need-plus', on); } catch (e) {} };
+    let alive = true;
+    const load = () => myMembership().then((x) => { if (alive && x) setM(x); });
+    load();
+    // back from Lemon Squeezy: the webhook switches the tier on within seconds
+    let n = 0; let poll = null;
+    try { if (/plus=thanks/.test(window.location.search)) poll = setInterval(() => { load(); if (++n > 12) clearInterval(poll); }, 5000); } catch (e) {}
+    const seen = () => { try { if (document.visibilityState === 'visible') load(); } catch (e) {} };
+    const on = (e) => { setAsk((e && e.detail) || 'member'); load(); };
+    try { document.addEventListener('visibilitychange', seen); window.addEventListener('mm-need-plus', on); } catch (e) {}
+    return () => { alive = false; if (poll) clearInterval(poll); try { document.removeEventListener('visibilitychange', seen); window.removeEventListener('mm-need-plus', on); } catch (e) {} };
   }, []);
-  return open ? <PlusSheet why={typeof open === 'string' ? open : 'join'} onClose={() => setOpen(false)} /> : null;
+  if (m && m.gate && m.tier === 'FREE') return <PricingGate m={m} hard onSignOut={signOut} />;
+  if (!ask) return null;
+  if (VIP_DOORS.includes(ask) && (!m || m.tier !== 'VIP')) return <VipSheet m={m} onClose={() => setAsk(null)} />;
+  if (!VIP_DOORS.includes(ask)) return <PricingGate m={m} onClose={() => setAsk(null)} />;
+  return null;
 };
 const AdminPanel = lazyOverlay(() => import('./src/components/AdminPanel').then((m) => ({ default: m.AdminPanel })));
 import { Splash } from './src/components/Splash';
@@ -215,7 +235,7 @@ const Root = () => {
       {tour ? <FirstTour onClose={() => setTour(false)} /> : null}
       {/* after a strike: over everything (src/components/SafetyHold.js) */}
       <SafetyHold />
-      <PlusGate />
+      <MemberGate />
     </View>
   );
 };

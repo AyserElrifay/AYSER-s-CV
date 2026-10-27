@@ -27,6 +27,7 @@ import { LikersSheet } from './LikersSheet';
 import { ReelsViewer } from './ReelsViewer';
 import { StoryViewer } from './StoryViewer';
 import { tapLight, tapSuccess, tapSelection } from '../utils/feedback';
+import { myMembership, askUpgrade } from '../services/membership';
 import { toggleVibe as persistVibe, toggleLaugh as persistLaugh, toggleRepost as persistRepost, fetchEngagement } from '../services/social';
 import { sharePost, shareNote } from '../utils/share';
 
@@ -50,6 +51,9 @@ const CELL = (W - 48) / 3;
 
 const isVideoUri = (u) => typeof u === 'string' && /\.(webm|mp4|mov|m4v)(\?|$)/i.test(u);
 
+// the line on a profile a Basic member opens
+const VIP_PROFILE = { en: 'Full profiles are part of Moments VIP', ar: 'البروفايل الكامل جزء من Moments VIP', cs: 'Celé profily jsou součástí Moments VIP', es: 'Los perfiles completos son parte de Moments VIP', et: 'Täisprofiilid on Moments VIP-i osa', fr: 'Les profils complets font partie de Moments VIP', hi: 'पूरी प्रोफ़ाइल Moments VIP का हिस्सा है', it: 'I profili completi fanno parte di Moments VIP', ja: 'プロフィールの全体表示は Moments VIP の機能です', ko: '전체 프로필은 Moments VIP 기능이에요', nl: 'Volledige profielen horen bij Moments VIP', pt: 'Os perfis completos fazem parte do Moments VIP', ro: 'Profilurile complete fac parte din Moments VIP', ru: 'Полные профили — часть Moments VIP', tr: 'Tam profiller Moments VIP’in parçası', uk: 'Повні профілі — частина Moments VIP', zh: '完整个人资料是 Moments VIP 的功能' };
+
 export const ProfileModal = ({ user, onClose }) => {
   /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
   useSheetBack(onClose);
@@ -58,7 +62,7 @@ export const ProfileModal = ({ user, onClose }) => {
   const [theirStories, setTheirStories] = useState([]);
   const [storyOpen, setStoryOpen] = useState(false);
   const { user: me } = useAuth();
-  const { rtl, t } = useLang();
+  const { rtl, t, lang } = useLang();
   const [posts, setPosts] = useState(null);         // their real moments
   const [mates, setMates] = useState(null);         // real mate count
   const [mateState, setMateState] = useState('none'); // none|requested|incoming|mates
@@ -143,7 +147,17 @@ export const ProfileModal = ({ user, onClose }) => {
      stories already refuses these rows to anyone who isn't an accepted
      mate, so the screen only has to say so. */
   const isPrivate = !!(fullProfile && fullProfile.account_type === 'private');
-  const locked = isPrivate && !isMe && mateState !== 'mates';
+  /* a full profile is VIP (RUN_ME.sql, "TWO TIERS"): a Basic member sees
+     the face, the name and the passport, and the door to VIP */
+  const [vipOk, setVipOk] = useState(null);
+  useEffect(() => {
+    if (!real || isMe) return undefined;
+    let alive = true;
+    myMembership().then((m) => { if (alive) setVipOk(!m || m.tier === 'VIP'); });
+    return () => { alive = false; };
+  }, [real, isMe]);
+  const vipLocked = vipOk === false;
+  const locked = (isPrivate && !isMe && mateState !== 'mates') || vipLocked;
 
   const load = useCallback(async () => {
     if (!real) { setPosts([]); setMates(0); return; }
@@ -301,6 +315,14 @@ export const ProfileModal = ({ user, onClose }) => {
               </Text>
             ) : null}
 
+            {vipLocked ? (
+              <Pressable onPress={() => { tapLight(); askUpgrade('profile'); }} accessibilityRole="button" style={{ marginTop: 18 }}>
+                <View style={{ borderRadius: 20, borderWidth: 1, borderColor: C.purple, padding: 18, flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={{ color: C.text, fontSize: 15, fontWeight: '600', flex: 1 }}>{'🔒 ' + (VIP_PROFILE[lang] || VIP_PROFILE.en)}</Text>
+                  <Text style={{ color: C.purple, fontSize: 14, fontWeight: '700' }}>VIP ›</Text>
+                </View>
+              </Pressable>
+            ) : null}
             {/* the stories they kept — the same rail your own space has */}
             {!locked ? <HighlightsRail userId={user.id} isMine={!!isMe} /> : null}
 
@@ -321,7 +343,7 @@ export const ProfileModal = ({ user, onClose }) => {
             </View>
             {posts == null ? (
               <Text style={{ color: C.faint, fontSize: 12.5, textAlign: 'center', paddingVertical: 20 }}>{t('pm_loading')}</Text>
-            ) : locked ? (
+            ) : vipLocked ? null : locked ? (
               /* A private account with nothing shared is not the same as
                  an empty one, and pretending otherwise is a small lie.
                  The database already refuses to hand these rows over —

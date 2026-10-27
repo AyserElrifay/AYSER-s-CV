@@ -35,7 +35,7 @@ const gate = live.slice(live.indexOf('create or replace function public.messages
 console.log('\nthe database closes the door, whatever sends the message');
 is('every new message passes the gate', /create trigger messages_gate before insert on public\.messages/.test(live), true);
 is('a private message is written only when it is earned', /if length\(coalesce\(new\.body, ''\)\) > 500 or not public\.dm_can_send\(new\.dm_thread_id, new\.user_id\) then return null/.test(gate), true);
-is('earned = Plus, not blocked, and buddies or a prompt-first opener', /not public\.is_plus\(u\) or public\.blocked_between\(u, o\)/.test(live) && /if public\.are_buddies\(u, o\) then return true/.test(live), true);
+is('earned = VIP, not blocked, and buddies or a prompt-first opener', /not public\.is_vip\(u\) or public\.blocked_between\(u, o\)/.test(live) && /if public\.are_buddies\(u, o\) then return true/.test(live), true);
 is('an opener needs a Daily Moment answer or an icebreaker card', /reason', 'prompt'/.test(live), true);
 is('and the sender waits for an answer', /or exists \(select 1 from public\.messages m where m\.dm_thread_id = t and m\.user_id = op\.to_id\)/.test(live), true);
 is('an event chat opens 30 minutes before', /starts_at - interval '30 minutes'/.test(part), true);

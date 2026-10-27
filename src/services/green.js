@@ -132,7 +132,10 @@ export async function joinGathering(id, going) {
   const r = await rpc('green_join', { p_id: id, p_going: !!going });
   /* joining somebody's hangout needs Plus: the server said no, so the
      Plus screen opens (PlusGate in App.js) */
-  if (r && !r.ok && r.reason === 'plus') { try { window.dispatchEvent(new Event('mm-need-plus')); } catch (e) {} }
+  // no membership: the plans; the last seats of a meetup are VIP's (RUN_ME.sql, "TWO TIERS")
+  if (r && !r.ok && (r.reason === 'plus' || r.reason === 'vip_seat')) {
+    try { window.dispatchEvent(new CustomEvent('mm-need-plus', { detail: r.reason === 'vip_seat' ? 'vip_seat' : 'member' })); } catch (e) {}
+  }
   /* saying yes to a plan is one of today's small things (src/lib/feedGate.js) */
   if (r && r.ok && going) earnBonus('plan');
   if (r && !r.ok && r.reason === 'offline' && SUPABASE_READY) {

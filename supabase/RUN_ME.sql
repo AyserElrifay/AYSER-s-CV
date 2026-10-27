@@ -20469,6 +20469,138 @@ exception when others then raise notice 'class room realtime policies skipped: %
 end $do$;
 
 -- ═══════════════════════════════════════════════════════════════════
+--  TWO TIERS · A PRIVATE, MEMBERS-ONLY MOMENTS
+--  Ayser: Moments is no longer free. Every account is one of three:
+--    FREE  — signed up, not a member: the app shows the "Welcome to the
+--            club" gateway and nothing else;
+--    BASIC — 99 EGP a month (Lemon Squeezy): the feed, the Global Track
+--            journey, booking offline café meetups;
+--    VIP   — 199 EGP a month: everything in Basic, plus messages
+--            (buddies, Daily Moment replies, icebreakers), the Live
+--            Language Lounges, and priority booking (the last two seats
+--            of a meetup are kept for VIP).
+--  The tier is a column on the membership row; Lemon Squeezy's webhook
+--  sets it from the variant that was bought (ls-webhook knows which
+--  variant is which). is_plus() keeps its meaning — "a paying member" —
+--  so every Plus door that already exists is now a Basic door; is_vip()
+--  is the new one. Until payments are switched on (payments_online) the
+--  gateway cannot sell anything, so everyone stays a member, exactly as
+--  before. New accounts no longer get a free week. The owner is always
+--  VIP. Safe to re-run.
+-- ═══════════════════════════════════════════════════════════════════
+alter table public.plus_members add column if not exists tier text not null default 'vip';
+do $do$ begin
+  alter table public.plus_members add constraint plus_members_tier_check check (tier in ('basic','vip'));
+exception when duplicate_object then null;
+end $do$;
+alter table public.plus_subscriptions add column if not exists tier text;
+
+-- the prices the gateway shows; the price charged is the variant's in Lemon Squeezy — keep them the same
+insert into public.app_settings (key, value) values ('tier_prices', '{"basic": 99, "vip": 199, "currency": "EGP"}'::jsonb)
+on conflict (key) do nothing;
+
+create or replace function public.payments_on()
+returns boolean language sql stable security definer set search_path = public as $$
+  select coalesce((select value = 'true'::jsonb from public.app_settings where key = 'payments_online'), false);
+$$;
+
+-- FREE · BASIC · VIP
+create or replace function public.member_tier(u uuid)
+returns text language sql stable security definer set search_path = public as $$
+  select case
+    when u is null then 'FREE'
+    when u = auth.uid() and public.is_app_owner() then 'VIP'
+    when not public.payments_on() then 'VIP'                       -- nothing to buy yet: everyone is in, as before
+    when exists (select 1 from public.plus_members m where m.user_id = u and m.status = 'active'
+                   and (m.until is null or m.until > now()) and m.tier = 'vip') then 'VIP'
+    when exists (select 1 from public.plus_members m where m.user_id = u and m.status = 'active'
+                   and (m.until is null or m.until > now())) then 'BASIC'
+    when public.plus_price() is null and exists (select 1 from public.app_settings s where s.key = 'plus_free_until'
+              and (s.value is null or s.value = 'null'::jsonb or (s.value #>> '{}')::timestamptz > now())) then 'VIP'
+    else 'FREE' end;
+$$;
+revoke all on function public.member_tier(uuid) from public, anon, authenticated;
+
+-- "a paying member" (Basic or VIP) — every existing Plus door asks this
+create or replace function public.is_plus(u uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select public.member_tier(u) in ('BASIC','VIP');
+$$;
+create or replace function public.is_vip(u uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select public.member_tier(u) = 'VIP';
+$$;
+revoke all on function public.is_vip(uuid) from public, anon, authenticated;
+
+-- what the app needs to draw the gateway and the VIP doors
+create or replace function public.my_membership()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select jsonb_build_object(
+    'tier', public.member_tier(auth.uid()),
+    'gate', public.payments_on(),
+    'prices', (select value from public.app_settings where key = 'tier_prices'),
+    'source', (select source from public.plus_members where user_id = auth.uid()),
+    'until', (select until from public.plus_members where user_id = auth.uid() and status = 'active'),
+    'manage', (select portal_url from public.plus_subscriptions where user_id = auth.uid()
+                and status in ('active','on_trial','past_due','cancelled')));
+$$;
+revoke execute on function public.my_membership() from public, anon;
+grant execute on function public.my_membership() to authenticated;
+
+-- no free week for new accounts any more (a week already given runs out on its own)
+create or replace function public.trial_on_signup() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  return new;
+end;
+$$;
+revoke execute on function public.trial_on_signup() from public, anon, authenticated;
+
+-- the webhook, again: the same rules, and now the tier that was bought
+create or replace function public.ls_apply(p jsonb)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare uid uuid; st text; until_ts timestamptz; ev timestamptz; cur public.plus_subscriptions%rowtype;
+        t text := case when lower(coalesce(p ->> 'tier', '')) = 'vip' then 'vip' else 'basic' end;
+begin
+  begin uid := (p ->> 'user_id')::uuid; exception when others then return jsonb_build_object('ok', false, 'reason', 'user'); end;
+  if uid is null or not exists (select 1 from public.profiles where id = uid) then return jsonb_build_object('ok', false, 'reason', 'user'); end if;
+  if coalesce(p ->> 'subscription_id', '') = '' then return jsonb_build_object('ok', false, 'reason', 'subscription'); end if;
+  st := lower(coalesce(p ->> 'status', ''));
+  ev := coalesce(nullif(p ->> 'event_at', '')::timestamptz, now());
+
+  select * into cur from public.plus_subscriptions where user_id = uid;
+  if found and cur.subscription_id = p ->> 'subscription_id' and cur.event_at is not null and cur.event_at > ev then
+    return jsonb_build_object('ok', true, 'skipped', 'older');
+  end if;
+
+  insert into public.plus_subscriptions as x (user_id, subscription_id, customer_id, variant_id, tier, status, renews_at, ends_at, portal_url, event_at, updated_at)
+  values (uid, p ->> 'subscription_id', p ->> 'customer_id', p ->> 'variant_id', t, st,
+          nullif(p ->> 'renews_at', '')::timestamptz, nullif(p ->> 'ends_at', '')::timestamptz, nullif(p ->> 'portal_url', ''), ev, now())
+  on conflict (user_id) do update set subscription_id = excluded.subscription_id, customer_id = excluded.customer_id,
+    variant_id = excluded.variant_id, tier = excluded.tier, status = excluded.status, renews_at = excluded.renews_at, ends_at = excluded.ends_at,
+    portal_url = coalesce(excluded.portal_url, x.portal_url), event_at = excluded.event_at, updated_at = now();
+
+  if st in ('active', 'on_trial', 'past_due') then
+    until_ts := coalesce(nullif(p ->> 'renews_at', '')::timestamptz, now() + interval '31 days') + interval '3 days';
+  elsif st = 'cancelled' then
+    until_ts := coalesce(nullif(p ->> 'ends_at', '')::timestamptz, now());
+  else
+    until_ts := now();
+  end if;
+
+  insert into public.plus_members as m (user_id, status, until, source, tier)
+  values (uid, case when until_ts > now() then 'active' else 'expired' end, until_ts, 'lemonsqueezy', t)
+  on conflict (user_id) do update set
+    status = case when excluded.until > now() then 'active' else 'expired' end,
+    until  = case when m.source <> 'lemonsqueezy' and m.status = 'active' and m.until is not null and m.until > excluded.until
+                  then m.until else excluded.until end,
+    tier   = excluded.tier,
+    source = 'lemonsqueezy';
+  return jsonb_build_object('ok', true, 'until', until_ts, 'tier', t);
+end $$;
+revoke all on function public.ls_apply(jsonb) from public, anon, authenticated;
+
+-- ═══════════════════════════════════════════════════════════════════
 --  LIVE ACTIVITIES · EARNED CONNECTIONS · PLUS FOR NETWORKING
 --  Ayser, for the next sprint, in four parts. Every rule below is the
 --  database's; the app only asks.
@@ -20490,8 +20622,9 @@ end $do$;
 --     and is then read-only, kept in the passport.
 --  3. EVERY DAY. The Daily Moment: one question or poll; answer first,
 --     then read the others, buddies first, with one-tap reactions.
---  4. PLUS. Joining other people's meetups, the Live Language Lounges
---     and every private message need Moments Plus (the paywall rule).
+--  4. PLUS. Joining other people's meetups needs a membership (Basic);
+--     the Live Language Lounges and every private message need VIP
+--     ("TWO TIERS", just above).
 --     A private message is only ever: between Buddies, or a first
 --     message that replies to the person's Daily Moment answer or opens
 --     with an icebreaker card — and then nothing more from the sender
@@ -21014,7 +21147,7 @@ create or replace function public.dm_can_send(t uuid, u uuid)
 returns boolean language plpgsql stable security definer set search_path = public as $$
 declare o uuid := public.dm_other(t, u); op public.dm_openers%rowtype;
 begin
-  if o is null or not public.is_plus(u) or public.blocked_between(u, o) then return false; end if;
+  if o is null or not public.is_vip(u) or public.blocked_between(u, o) then return false; end if;
   if public.are_buddies(u, o) then return true; end if;
   select * into op from public.dm_openers where thread_id = t;
   if not found then return false; end if;
@@ -21039,7 +21172,7 @@ begin
     insert into public.dm_threads default values returning id into t;
     insert into public.dm_participants (thread_id, user_id, accepted) values (t, me, true), (t, p_other, true);
   end if;
-  return jsonb_build_object('ok', true, 'thread_id', t, 'plus', public.is_plus(me));
+  return jsonb_build_object('ok', true, 'thread_id', t, 'plus', public.is_vip(me));
 end $$;
 revoke execute on function public.buddy_thread(uuid) from public, anon;
 grant execute on function public.buddy_thread(uuid) to authenticated;
@@ -21051,8 +21184,8 @@ returns jsonb language plpgsql security definer set search_path = public as $$
 declare me uuid := auth.uid(); t uuid; txt text := btrim(coalesce(p_body, ''));
 begin
   if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
-  if not public.is_plus(me) then return jsonb_build_object('ok', false, 'reason', 'plus'); end if;
-  if p_to is null or p_to = me or not public.is_plus(p_to) then return jsonb_build_object('ok', false, 'reason', 'not_member'); end if;
+  if not public.is_vip(me) then return jsonb_build_object('ok', false, 'reason', 'vip'); end if;
+  if p_to is null or p_to = me or not public.is_vip(p_to) then return jsonb_build_object('ok', false, 'reason', 'not_member'); end if;
   if public.blocked_between(me, p_to) then return jsonb_build_object('ok', false, 'reason', 'blocked'); end if;
   if length(txt) < 2 or length(txt) > 500 then return jsonb_build_object('ok', false, 'reason', 'shape'); end if;
   if p_answer is not null then
@@ -21088,7 +21221,7 @@ begin
   o := public.dm_other(p_thread, me);
   select * into op from public.dm_openers where thread_id = p_thread;
   return jsonb_build_object('ok', true, 'other', (select jsonb_build_object('id', p.id, 'name', p.name, 'avatar_url', p.avatar_url) from public.profiles p where p.id = o),
-    'buddy', public.are_buddies(me, o), 'plus', public.is_plus(me), 'can_send', public.dm_can_send(p_thread, me),
+    'buddy', public.are_buddies(me, o), 'plus', public.is_vip(me), 'can_send', public.dm_can_send(p_thread, me),
     'opener', case when op.thread_id is null then null else jsonb_build_object('from_me', op.from_id = me, 'card', op.card,
       'answer', (select jsonb_build_object('body', a.body, 'choice', a.choice, 'day', a.day) from public.moment_answers a where a.id = op.daily_answer)) end);
 end $$;
@@ -21328,7 +21461,7 @@ revoke all on function public.moment_today() from public, anon, authenticated;
 
 create or replace function public.daily_moment()
 returns jsonb language plpgsql stable security definer set search_path = public as $$
-declare me uuid := auth.uid(); q public.moment_pool; mine public.moment_answers%rowtype; plus_ boolean := public.is_plus(me);
+declare me uuid := auth.uid(); q public.moment_pool; mine public.moment_answers%rowtype; plus_ boolean := public.is_vip(me);
 begin
   if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
   q := public.moment_today();
@@ -21345,7 +21478,7 @@ begin
       select coalesce(jsonb_agg(jsonb_build_object('id', a.id, 'choice', a.choice, 'body', a.body,
                'user', jsonb_build_object('id', p.id, 'name', p.name, 'avatar_url', p.avatar_url),
                'buddy', public.are_buddies(me, a.user_id), 'me', a.user_id = me,
-               'can_reply', plus_ and a.user_id <> me and not public.are_buddies(me, a.user_id) and public.is_plus(a.user_id),
+               'can_reply', plus_ and a.user_id <> me and not public.are_buddies(me, a.user_id) and public.is_vip(a.user_id),
                'reactions', (select coalesce(jsonb_object_agg(r.emoji, r.n), '{}'::jsonb) from (
                    select emoji, count(*) n from public.moment_reactions where answer_id = a.id group by emoji) r),
                'my_reaction', (select emoji from public.moment_reactions where answer_id = a.id and user_id = me))
@@ -21434,6 +21567,11 @@ begin
       ) then
         return jsonb_build_object('ok', false, 'reason', 'full');
       end if;
+      -- priority booking: the last two seats of a meetup (of six or more) are kept for VIP
+      if g.capacity >= 6 and n >= g.capacity - 2 and g.host_id <> me and not public.is_vip(me)
+         and not exists (select 1 from public.green_joins where gathering_id = p_id and user_id = me) then
+        return jsonb_build_object('ok', false, 'reason', 'vip_seat');
+      end if;
     end if;
     insert into public.green_joins (gathering_id, user_id) values (p_id, me) on conflict do nothing;
   else
@@ -21491,7 +21629,7 @@ revoke all on function public.lounge_here(text, uuid) from public, anon, authent
 -- the list everybody may see (Preview Mode): what is on and how many are in
 create or replace function public.lounges_list()
 returns jsonb language sql stable security definer set search_path = public as $$
-  select jsonb_build_object('plus', public.is_plus(auth.uid()), 'lounges', coalesce(jsonb_agg(jsonb_build_object(
+  select jsonb_build_object('plus', public.is_vip(auth.uid()), 'lounges', coalesce(jsonb_agg(jsonb_build_object(
       'id', l.id, 'emoji', l.emoji, 'title', l.title, 'title_ar', l.title_ar, 'about', l.about, 'about_ar', l.about_ar,
       'live', (select count(*) from public.lounge_members m where m.lounge_id = l.id and m.seen_at > now() - interval '45 seconds'),
       'cap', 10) order by l.sort), '[]'::jsonb))
@@ -21512,7 +21650,7 @@ returns jsonb language sql stable security definer set search_path = public as $
                           where lm.lounge_id = p_id and lm.at > now() - interval '6 hours'
                             and not public.blocked_between(auth.uid(), lm.user_id)
                           order by lm.at desc limit 50) x))
-   where public.is_plus(auth.uid()) and public.lounge_here(p_id, auth.uid());
+   where public.is_vip(auth.uid()) and public.lounge_here(p_id, auth.uid());
 $$;
 revoke execute on function public.lounge_room(text) from public, anon;
 grant execute on function public.lounge_room(text) to authenticated;
@@ -21524,7 +21662,7 @@ declare me uuid := auth.uid();
 begin
   if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
   if not exists (select 1 from public.lounges where id = p_id) then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
-  if not public.is_plus(me) then return jsonb_build_object('ok', false, 'reason', 'plus'); end if;
+  if not public.is_vip(me) then return jsonb_build_object('ok', false, 'reason', 'vip'); end if;
   if not public.lounge_here(p_id, me)
      and (select count(*) from public.lounge_members m where m.lounge_id = p_id and m.seen_at > now() - interval '45 seconds') >= 10 then
     return jsonb_build_object('ok', false, 'reason', 'full');
@@ -21548,7 +21686,7 @@ create or replace function public.lounge_say(p_id text, p_body text)
 returns jsonb language plpgsql security definer set search_path = public as $$
 declare me uuid := auth.uid(); txt text := btrim(coalesce(p_body, ''));
 begin
-  if not public.is_plus(me) then return jsonb_build_object('ok', false, 'reason', 'plus'); end if;
+  if not public.is_vip(me) then return jsonb_build_object('ok', false, 'reason', 'vip'); end if;
   if not public.lounge_here(p_id, me) then return jsonb_build_object('ok', false, 'reason', 'not_in'); end if;
   if length(txt) < 1 or length(txt) > 300 then return jsonb_build_object('ok', false, 'reason', 'shape'); end if;
   if exists (select 1 from public.lounge_messages where user_id = me and at > now() - interval '2 seconds') then
@@ -21565,11 +21703,11 @@ do $do$
 begin
   drop policy if exists "lounge members read" on realtime.messages;
   create policy "lounge members read" on realtime.messages for select to authenticated
-    using (realtime.topic() like 'lounge:%' and public.is_plus(auth.uid())
+    using (realtime.topic() like 'lounge:%' and public.is_vip(auth.uid())
            and public.lounge_here(substr(realtime.topic(), 8), auth.uid()));
   drop policy if exists "lounge members write" on realtime.messages;
   create policy "lounge members write" on realtime.messages for insert to authenticated
-    with check (realtime.topic() like 'lounge:%' and public.is_plus(auth.uid())
+    with check (realtime.topic() like 'lounge:%' and public.is_vip(auth.uid())
            and public.lounge_here(substr(realtime.topic(), 8), auth.uid()));
 exception when others then raise notice 'lounge realtime policies skipped: %', sqlerrm;
 end $do$;

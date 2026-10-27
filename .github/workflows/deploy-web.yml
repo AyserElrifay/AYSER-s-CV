@@ -157,6 +157,8 @@ jobs:
         run: node scripts/check-no-chat.mjs
       - name: Live activities, buddies, daily moment, lounges
         run: node scripts/check-live.mjs
+      - name: Members only, two tiers
+        run: node scripts/check-members.mjs
       # An icon-only button must have a name a screen reader can say.
       - name: Check every icon button has a name
         run: node scripts/check-a11y.mjs

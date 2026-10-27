@@ -58,6 +58,26 @@ export async function payBooking(bookingId) {
 
 /* ── MOMENTS PLUS ── the app names the plan; the server reads the
    owner's price, and Paymob's signed webhook adds the days. */
+/* Moments Basic or VIP, monthly, through Lemon Squeezy (functions/ls-checkout).
+   A new member goes to the checkout; a member changing tier has their one
+   subscription moved (the webhook switches the tier on); a member asking
+   for the tier they have gets the portal to manage it. */
+export async function buyTier(tier) {
+  if (!SUPABASE_READY) return { ok: false, reason: 'offline' };
+  try {
+    const { data, error } = await supabase.functions.invoke('ls-checkout', { body: { tier: tier === 'vip' ? 'vip' : 'basic' } });
+    if (error) {
+      const status = error.context && error.context.status;
+      return { ok: false, reason: status === 503 ? 'not_configured' : 'gateway' };
+    }
+    if (data && data.changed) return { ok: true, changed: true };
+    if (data && (data.checkoutUrl || data.portalUrl)) { go(data.checkoutUrl || data.portalUrl); return { ok: true }; }
+    return { ok: false, reason: 'gateway' };
+  } catch (e) {
+    return { ok: false, reason: 'offline' };
+  }
+}
+
 export async function buyPlus(plan) {
   if (!SUPABASE_READY) return { ok: false, reason: 'offline' };
   /* monthly is a real subscription through Lemon Squeezy (functions/ls-checkout);
