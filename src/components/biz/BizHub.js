@@ -335,9 +335,9 @@ const Today = ({ v, lang, onPlan, onCode }) => {
         </View>
       )) : <Text style={{ color: C.dim, fontSize: 13.5 }}>{s ? B('recent_none') : '…'}</Text>}
       <View style={{ borderRadius: 20, padding: 16, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, marginTop: 20 }}>
-        <Text style={{ color: C.text, fontSize: 16, fontWeight: '900' }}>{'📍 ' + B('plan_here')}</Text>
-        <Text style={{ color: C.dim, fontSize: 13, marginTop: 4, marginBottom: 12, lineHeight: 18 }}>{B('plan_here_s')}</Text>
-        {isBizDemo() ? <Text style={{ color: C.faint, fontSize: 13, textAlign: 'center' }}>{B('demo_plan')}</Text> : <Btn label={B('plan_here')} onPress={() => { tapLight(); onPlan(); }} />}
+        <Text style={{ color: C.text, fontSize: 16, fontWeight: '900' }}>{v.biz_type === 'restaurant' ? '🍽️ ' + B('lunch') : '📍 ' + B('plan_here')}</Text>
+        <Text style={{ color: C.dim, fontSize: 13, marginTop: 4, marginBottom: 12, lineHeight: 18 }}>{v.biz_type === 'restaurant' ? B('lunch_s') : B('plan_here_s')}</Text>
+        {isBizDemo() ? <Text style={{ color: C.faint, fontSize: 13, textAlign: 'center' }}>{B('demo_plan')}</Text> : <Btn label={v.biz_type === 'restaurant' ? B('lunch') : B('plan_here')} onPress={() => { tapLight(); onPlan(); }} />}
       </View>
     </>
   );
@@ -576,7 +576,7 @@ export const BizHub = ({ onClose, lang }) => {
           )}
         </ScrollView>
       </View>
-      {plan && v ? <GreenSheet startNow prefill={{ kind: v.biz_type === 'org' ? 'project' : 'coffee', title: '', place: v.name + (v.address ? ' · ' + v.address : ''), lat: v.lat, lng: v.lng }} onClose={() => setPlan(false)} /> : null}
+      {plan && v ? <GreenSheet startNow prefill={{ kind: v.biz_type === 'org' ? 'project' : v.biz_type === 'restaurant' ? 'eat' : 'coffee', title: v.biz_type === 'restaurant' ? B('lunch') : '', place: v.name + (v.address ? ' · ' + v.address : ''), lat: v.lat, lng: v.lng }} onClose={() => setPlan(false)} /> : null}
     </Modal>
   );
 };

@@ -5,6 +5,7 @@
 
 const W = {
   en: {
+    lunch: 'Lunch together', lunch_s: 'A table for people who’d rather not eat alone — on the map, anyone near can join.',
     tables: 'Your tables', tables_s: 'Plans at your place. At the table, open the check-in QR — guests scan it and get a Moments Passport stamp.', tables_none: 'No plans at your place in the next two weeks. Host one below.', show_qr: 'Check-in QR', going_n: '{n} going', stamped_n: '{n} stamped',
     voucher: 'Redeem a Moments voucher', voucher_s: 'Five stamps earn a guest a free coffee or 20% off. Type the code on their screen.', voucher_ph: 'Code', voucher_go: 'Redeem', voucher_ok: 'Redeemed for {n} ✓', voucher_used: 'Already used.', voucher_bad: 'Not a valid voucher.', voucher_exp: 'This voucher has expired.',
     demo_bar: 'Demo · sample data. Nothing here is real, and nothing is saved.', demo_plan: 'In the real portal this puts a plan here on the map.',
@@ -53,6 +54,7 @@ const W = {
     deal_now: 'On now', deal_month: '{n} guests came during the deal this month', deal_here: '{pct}% off', deal_preview: 'What guests see', deal_month_s: '{n} came during it this month', deal_got: 'Checked in ✓ — your {pct}% is on. Show this to the staff.',
   },
   ar: {
+    lunch: 'يلا نتغدى سوا', lunch_s: 'ترابيزة للي مش حابب ياكل لوحده — على الخريطة، وأي حد قريب ينضم.',
     tables: 'قعداتك', tables_s: 'الخروجات اللي عندك في المكان. على الترابيزة افتح QR الحضور — الضيوف يمسحوه وياخدوا ختم في جواز Moments.', tables_none: 'مفيش خروجات عندك في الأسبوعين الجايين. اعمل واحدة تحت.', show_qr: 'QR الحضور', going_n: '{n} رايحين', stamped_n: '{n} اتختموا',
     voucher: 'استخدم قسيمة Moments', voucher_s: 'خمس أختام بتدّي الضيف قهوة ببلاش أو خصم ٢٠٪. اكتب الكود اللي على شاشته.', voucher_ph: 'الكود', voucher_go: 'استخدم', voucher_ok: 'اتستخدمت لـ {n} ✓', voucher_used: 'اتستخدمت قبل كده.', voucher_bad: 'القسيمة دي مش صحيحة.', voucher_exp: 'القسيمة دي خلصت.',
     demo_bar: 'تجربة · بيانات مثال. مفيش حاجة هنا حقيقية، ومفيش حاجة بتتحفظ.', demo_plan: 'في البورتال الحقيقي ده بيحط خطة في مكانك على الخريطة.',

@@ -88,6 +88,13 @@ const Icebreaker = ({ person, lang, onDone }) => {
   );
 };
 
+/* alone in the room: say so, and that it is live */
+const FIRST = { en: 'You’re the first one here. Stay — the room lights up the moment someone walks in.', ar: 'انت أول واحد هنا. خليك — الأوضة هتنوّر أول ما حد يدخل.',
+  cs: 'Jsi tu první. Zůstaň — místnost ožije, jakmile někdo přijde.', es: 'Eres el primero aquí. Quédate: la sala se enciende en cuanto entra alguien.', et: 'Sa oled siin esimene. Jää — ruum ärkab kohe, kui keegi sisse astub.',
+  fr: 'Tu es le premier ici. Reste — la salle s’allume dès que quelqu’un entre.', hi: 'आप यहाँ पहले हैं। रुकिए — कोई आते ही कमरा जगमगा उठेगा।', it: 'Sei il primo qui. Resta: la stanza si accende appena entra qualcuno.',
+  ja: 'あなたが最初です。そのまま待って — 誰かが入るとすぐにルームが動き出します。', ko: '당신이 첫 번째예요. 기다려 주세요 — 누군가 들어오면 바로 방이 살아나요.', nl: 'Je bent hier de eerste. Blijf — de ruimte gaat aan zodra iemand binnenkomt.',
+  pt: 'És o primeiro aqui. Fica — a sala acende assim que alguém entrar.', ro: 'Ești primul aici. Rămâi — camera se aprinde imediat ce intră cineva.', ru: 'Ты здесь первый. Останься — комната оживёт, как только кто-то зайдёт.',
+  tr: 'Burada ilk sensin. Kal — biri girdiği anda oda canlanır.', uk: 'Ти тут перший. Залишайся — кімната оживе, щойно хтось зайде.', zh: '你是第一个来的。留下吧 — 有人进来，房间就会亮起来。' };
 const Lounge = ({ lounge, lang, onOut }) => {
   const { user } = useAuth();
   const [room, setRoom] = useState(null);
@@ -127,45 +134,58 @@ const Lounge = ({ lounge, lang, onOut }) => {
   };
 
   if (!room) return <ActivityIndicator color={C.purple} style={{ marginTop: 40 }} />;
+  /* Keynote, not a form: one stage, centred — the flag, the name, who is
+     in, and one round button for the voice. */
+  const alone = room.people.length <= 1;
   return (
     <View style={{ flex: 1 }}>
-      <ScrollView ref={scroll} onContentSizeChange={() => scroll.current && scroll.current.scrollToEnd({ animated: false })} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, paddingTop: 4 }}>
-        <Text style={{ color: C.text, fontSize: 26, fontWeight: '700', letterSpacing: -0.6 }}>{lounge.emoji + '  ' + title(lounge, lang)}</Text>
-        <Text style={[{ color: C.dim, fontSize: 13.5, marginTop: 4 }, NUM]}>{w(lang, 'live', { n: room.people.length })}</Text>
+      <ScrollView ref={scroll} onContentSizeChange={() => scroll.current && scroll.current.scrollToEnd({ animated: false })} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 22, paddingTop: 8 }}>
+        <View style={{ alignItems: 'center', paddingTop: 12 }}>
+          <Text style={{ fontSize: 56 }}>{lounge.emoji}</Text>
+          <Text style={{ color: C.text, fontSize: 32, fontWeight: '800', letterSpacing: -1, marginTop: 10, textAlign: 'center' }}>{title(lounge, lang)}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
+            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#22C55E', marginEnd: 7 }} />
+            <Text style={[{ color: C.dim, fontSize: 14.5 }, NUM]}>{w(lang, 'live', { n: room.people.length })}</Text>
+          </View>
 
-        {/* the voice: one button, then mute and leave */}
-        <View style={{ flexDirection: 'row', marginTop: 16 }}>
+          {/* who is in: faces on the stage */}
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', marginTop: 26 }}>
+            {room.people.map((p) => (
+              <Pressable key={p.id} onPress={() => (p.id === user.id || p.buddy ? null : (tapLight(), setIce(p)))} accessibilityRole="button" style={{ alignItems: 'center', width: 84, marginHorizontal: 6, marginBottom: 14 }}>
+                <View style={{ borderRadius: 40, borderWidth: 2.5, borderColor: voice && p.id === user.id ? C.purple : 'transparent', padding: 3 }}>
+                  <Face uri={p.avatar_url} name={p.name} size={66} />
+                </View>
+                <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '600', marginTop: 6 }} numberOfLines={1}>{p.name}</Text>
+              </Pressable>
+            ))}
+          </View>
+          {alone ? <Text style={{ color: C.dim, fontSize: 15, lineHeight: 22, textAlign: 'center', maxWidth: 320, marginTop: 2 }}>{FIRST[lang] || FIRST.en}</Text> : null}
+
+          {/* the voice: one round button; inside, mute and leave */}
           {voice ? (
-            <>
-              <Pressable onPress={() => { tapLight(); const m = !muted; setMuted(m); if (mesh.current) mesh.current.setMuted(m); }} accessibilityRole="button" style={{ flex: 1, marginEnd: 8 }}>
-                <View style={{ borderRadius: 999, paddingVertical: 13, alignItems: 'center', borderWidth: 1, borderColor: C.purple }}>
-                  <Text style={{ color: C.purple, fontSize: 15, fontWeight: '600' }}>{w(lang, muted ? 'unmute' : 'mute')}</Text>
+            <View style={{ flexDirection: 'row', marginTop: 26 }}>
+              <Pressable onPress={() => { tapLight(); const m = !muted; setMuted(m); if (mesh.current) mesh.current.setMuted(m); }} accessibilityRole="button" accessibilityLabel={w(lang, muted ? 'unmute' : 'mute')} style={{ alignItems: 'center', marginHorizontal: 18 }}>
+                <View style={{ width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center', backgroundColor: muted ? C.glassHi : C.purple }}>
+                  <Ionicons name={muted ? 'mic-off' : 'mic'} size={30} color={muted ? C.text : '#FFF'} />
                 </View>
+                <Text style={{ color: C.dim, fontSize: 13, marginTop: 8 }}>{w(lang, muted ? 'unmute' : 'mute')}</Text>
               </Pressable>
-              <Pressable onPress={() => { tapLight(); if (mesh.current) { mesh.current.close(); mesh.current = null; } setVoice(false); }} accessibilityRole="button" style={{ flex: 1 }}>
-                <View style={{ borderRadius: 999, paddingVertical: 13, alignItems: 'center', backgroundColor: C.text }}>
-                  <Text style={{ color: C.bg, fontSize: 15, fontWeight: '600' }}>{w(lang, 'leave')}</Text>
+              <Pressable onPress={() => { tapLight(); if (mesh.current) { mesh.current.close(); mesh.current = null; } setVoice(false); }} accessibilityRole="button" accessibilityLabel={w(lang, 'leave')} style={{ alignItems: 'center', marginHorizontal: 18 }}>
+                <View style={{ width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center', backgroundColor: '#EF4444' }}>
+                  <Ionicons name="call" size={28} color="#FFF" style={{ transform: [{ rotate: '135deg' }] }} />
                 </View>
+                <Text style={{ color: C.dim, fontSize: 13, marginTop: 8 }}>{w(lang, 'leave')}</Text>
               </Pressable>
-            </>
+            </View>
           ) : (
-            <Pressable onPress={talk} accessibilityRole="button" style={{ flex: 1 }}>
-              <View style={{ borderRadius: 999, paddingVertical: 14, alignItems: 'center', backgroundColor: C.purple }}>
-                <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '600' }}>{'🎙  ' + w(lang, 'voice')}</Text>
+            <Pressable onPress={talk} accessibilityRole="button" accessibilityLabel={w(lang, 'voice')} style={{ alignItems: 'center', marginTop: 26 }}>
+              <View style={{ width: 84, height: 84, borderRadius: 42, alignItems: 'center', justifyContent: 'center', backgroundColor: C.purple }}>
+                <Ionicons name="mic" size={36} color="#FFF" />
               </View>
+              <Text style={{ color: C.text, fontSize: 15, fontWeight: '700', marginTop: 10 }}>{w(lang, 'voice')}</Text>
             </Pressable>
           )}
         </View>
-
-        <Text style={{ color: C.dim, fontSize: 12, fontWeight: '600', letterSpacing: 0.4, marginTop: 20 }}>{w(lang, 'here').toUpperCase()}</Text>
-        <ScrollView horizontal keyboardShouldPersistTaps="handled" showsHorizontalScrollIndicator={false} style={{ marginTop: 10 }}>
-          {room.people.map((p) => (
-            <Pressable key={p.id} onPress={() => (p.id === user.id || p.buddy ? null : (tapLight(), setIce(p)))} accessibilityRole="button" style={{ alignItems: 'center', width: 64, marginEnd: 8 }}>
-              <Face uri={p.avatar_url} name={p.name} size={48} />
-              <Text style={{ color: C.text, fontSize: 12, marginTop: 4 }} numberOfLines={1}>{p.name}</Text>
-            </Pressable>
-          ))}
-        </ScrollView>
         {ice ? <Icebreaker person={ice} lang={lang} onDone={() => setIce(null)} /> : null}
 
         <View style={{ marginTop: 16 }}>

@@ -210,7 +210,7 @@ export const BizPage = ({ id, lang, onClose, autoCode }) => {
               {/* plan something here, find it, call it */}
               <View style={{ flexDirection: 'row', marginTop: 18, flexWrap: 'wrap' }}>
                 <Pressable onPress={() => { tapLight(); setPlan(true); }} accessibilityRole="button" style={{ marginEnd: 8, marginBottom: 8 }}>
-                  <View style={{ borderRadius: 999, paddingVertical: 10, paddingHorizontal: 16, backgroundColor: C.purpleSoft }}><Text style={{ color: C.purple, fontSize: 13.5, fontWeight: '900' }}>{'✨ ' + B('plan_with')}</Text></View>
+                  <View style={{ borderRadius: 999, paddingVertical: 10, paddingHorizontal: 16, backgroundColor: C.purpleSoft }}><Text style={{ color: C.purple, fontSize: 13.5, fontWeight: '900' }}>{p.biz_type === 'restaurant' ? '🍽️ ' + B('lunch') : '✨ ' + B('plan_with')}</Text></View>
                 </Pressable>
                 {p.lat != null || p.address ? (
                   <Pressable onPress={() => { tapLight(); Linking.openURL(p.lat != null ? 'https://www.google.com/maps/search/?api=1&query=' + p.lat + ',' + p.lng : 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(p.name + ' ' + (p.address || '') + ' ' + (p.city || ''))); }} accessibilityRole="link" style={{ marginEnd: 8, marginBottom: 8 }}>
@@ -232,7 +232,7 @@ export const BizPage = ({ id, lang, onClose, autoCode }) => {
           )}
         </ScrollView>
       </View>
-      {plan && p ? <GreenSheet startNow prefill={{ kind: 'coffee', title: '', place: p.name + (p.address ? ' · ' + p.address : ''), lat: p.lat, lng: p.lng }} onClose={() => setPlan(false)} /> : null}
+      {plan && p ? <GreenSheet startNow prefill={{ kind: p.biz_type === 'restaurant' ? 'eat' : 'coffee', title: p.biz_type === 'restaurant' ? B('lunch') : '', place: p.name + (p.address ? ' · ' + p.address : ''), lat: p.lat, lng: p.lng }} onClose={() => setPlan(false)} /> : null}
     </Modal>
   );
 };

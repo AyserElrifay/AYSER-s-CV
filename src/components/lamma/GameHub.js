@@ -12,7 +12,6 @@ import { explain } from '../../lib/explain';
 import { fetchPacks, packTitle, createRoom, joinRoom, advance } from '../../services/lamma';
 import { getProfile } from '../../services/profiles';
 import { CHANNELS } from './channels';
-import { packFlags } from './languages';
 import { flagOf } from '../../constants/countries';
 import { LammaGame } from './LammaGame';
 import { tapLight, tapMedium } from '../../utils/feedback';
@@ -258,63 +257,34 @@ export const GameHub = ({ onClose, focusPack = null }) => {
                 {t('lamma_no_packs')}
               </Text>
             ) : (
-              /* Two to a row, each in its own colour. A list of grey rows
-                 is a menu; this is a shelf you pick from. */
+              /* Two to a row, one colour. Ayser: "Lemon Squeezy and Steve
+                 Jobs" — four bright colours and two buttons a card read as
+                 noise. Now: the flag (or the Moments spark), the name, one
+                 line, one violet button; the lobby for friends is a quiet
+                 link under it. */
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
-                {packs.map((p, i) => {
-                  const ch = packColour(i);
+                {packs.map((p) => {
+                  const about = lang === 'ar' ? p.description_ar : p.description_en;
                   return (
-                    <View key={p.id} style={{ width: '48.5%', marginBottom: 13 }}>
-                      <View style={{
-                        backgroundColor: ch.soft, borderWidth: 1.5, borderColor: ch.color,
-                        borderRadius: 20, padding: 14, minHeight: 158, justifyContent: 'space-between',
-                      }}>
+                    <View key={p.id} style={{ width: '48.5%', marginBottom: 12 }}>
+                      <View style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, borderRadius: 24, padding: 16, minHeight: 196, justifyContent: 'space-between' }}>
                         <View>
-                          <View style={{
-                            width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center',
-                            backgroundColor: ch.color,
-                          }}>
-                            <MaterialCommunityIcons name={ch.icon} size={20} color="#FFF" />
-                          </View>
-                          <Text style={{ color: C.text, fontSize: 15.5, fontWeight: '900', marginTop: 10 }} numberOfLines={2}>
-                            {(p.country ? flagOf(p.country) + ' ' : '') + packTitle(p, lang)}
-                          </Text>
-                          {(lang === 'ar' ? p.description_ar : p.description_en) ? (
-                            <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 4, lineHeight: 16 }} numberOfLines={2}>
-                              {lang === 'ar' ? p.description_ar : p.description_en}
-                            </Text>
-                          ) : null}
-                          {/* The languages this pack is really written in.
-                              A picker nobody knows about is a picker
-                              nobody uses, and a flag is read across a
-                              room faster than any sentence about it.
-                              Packs that make no claim show nothing. */}
-                          {packFlags(p).length > 1 ? (
-                            <Text style={{ fontSize: 12, marginTop: 7, letterSpacing: 1 }} numberOfLines={1}>
-                              {packFlags(p).join(' ')}
-                            </Text>
-                          ) : null}
+                          {p.country ? <Text style={{ fontSize: 30 }}>{flagOf(p.country)}</Text> : (
+                            <View style={{ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: C.purple }}>
+                              <Text style={{ color: C.sun, fontSize: 17, fontWeight: '900' }}>✦</Text>
+                            </View>
+                          )}
+                          <Text style={{ color: C.text, fontSize: 16.5, fontWeight: '800', letterSpacing: -0.3, marginTop: 10 }} numberOfLines={2}>{packTitle(p, lang)}</Text>
+                          {about ? <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 4, lineHeight: 17 }} numberOfLines={2}>{about}</Text> : null}
                         </View>
-                        <View style={{ marginTop: 12 }}>
-                          <Pressable onPress={() => start(p, false)} disabled={busy}>
-                            <View style={{
-                              backgroundColor: ch.color, borderRadius: 999,
-                              paddingVertical: 9, paddingHorizontal: 6, alignItems: 'center',
-                            }}>
-                              <Text numberOfLines={1} style={{ color: '#FFF', fontSize: 12.5, fontWeight: '900' }}>
-                                {t('lamma_create')}
-                              </Text>
+                        <View style={{ marginTop: 14 }}>
+                          <Pressable onPress={() => start(p, true)} disabled={busy} accessibilityRole="button">
+                            <View style={{ backgroundColor: C.purple, borderRadius: 999, paddingVertical: 10, alignItems: 'center' }}>
+                              <Text numberOfLines={1} style={{ color: '#FFF', fontSize: 14, fontWeight: '700' }}>{t('lamma_start')}</Text>
                             </View>
                           </Pressable>
-                          <Pressable onPress={() => start(p, true)} disabled={busy}>
-                            <View style={{
-                              borderWidth: 1.5, borderColor: ch.color, borderRadius: 999,
-                              paddingVertical: 8, paddingHorizontal: 6, alignItems: 'center', marginTop: 7,
-                            }}>
-                              <Text numberOfLines={1} style={{ color: ch.color, fontSize: 12.5, fontWeight: '900' }}>
-                                {t('lamma_start')}
-                              </Text>
-                            </View>
+                          <Pressable onPress={() => start(p, false)} disabled={busy} accessibilityRole="button" hitSlop={6} style={{ alignSelf: 'center', marginTop: 9 }}>
+                            <Text numberOfLines={1} style={{ color: C.purple, fontSize: 13, fontWeight: '600' }}>{t('lamma_create')}</Text>
                           </Pressable>
                         </View>
                       </View>

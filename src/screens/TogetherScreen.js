@@ -18,7 +18,6 @@ import { canCheckIn } from '../lib/xp';
 import { getCurrentCoords } from '../utils/location';
 import { pushSupport, wasAsked } from '../lib/push';
 import { PushRow } from '../components/PushRow';
-import { PeopleNearby } from '../components/PeopleNearby';
 import { talkRoomsNear } from '../services/talkRooms';
 import { fmt, remaining, offsetFrom } from '../lib/talkClock';
 import { appLink, shareLink, shareNote } from '../utils/share';
@@ -670,25 +669,17 @@ export const TogetherScreen = () => {
           </Pressable>
         </View>
 
-        {/* ── RIGHT NOW ── one card, two rows: put yourself on the map with
-            something to join, and see who else is around. They were two
-            cards about the same moment. */}
-        <View style={{ borderRadius: 22, marginBottom: 14, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, overflow: 'hidden' }}>
-          <Pressable onPress={() => { tapMedium(); setSheet('gonow'); }} accessibilityRole="button">
-            <View style={{ padding: 16, flexDirection: 'row', alignItems: 'center' }}>
-              <Text style={{ fontSize: 30 }}>🏃</Text>
-              <View style={{ flex: 1, minWidth: 0, marginStart: 12 }}>
-                <Text style={{ color: C.text, fontSize: 17, fontWeight: '900' }}>{t('gn_cta')}</Text>
-                <Text style={{ color: C.dim, fontSize: 13, fontWeight: '600', marginTop: 2 }}>{t('gn_cta_sub')}</Text>
-              </View>
-              <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: C.purple, alignItems: 'center', justifyContent: 'center' }}>
-                <Ionicons name={'arrow-forward'} size={18} color="#FFF" />
-              </View>
+        {/* ── RIGHT NOW ── one line, one tap. Ayser: "زحمة أوي، بالذات الـ
+            people nearby ملهاش لازمة" — so "who is around" is gone and going
+            out now is a single row: put yourself on the map, anyone near joins. */}
+        <Pressable onPress={() => { tapMedium(); setSheet('gonow'); }} accessibilityRole="button" style={{ marginBottom: 14 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, paddingVertical: 12, paddingStart: 18, paddingEnd: 8, backgroundColor: C.purpleSoft }}>
+            <Text style={{ color: C.text, fontSize: 16, fontWeight: '800', flex: 1 }} numberOfLines={1}>{t('gn_cta')}</Text>
+            <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: C.purple, alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name={lang === 'ar' ? 'arrow-back' : 'arrow-forward'} size={17} color="#FFF" />
             </View>
-          </Pressable>
-          <View style={{ height: 1, backgroundColor: C.line, marginHorizontal: 16 }} />
-          <PeopleNearby bare />
-        </View>
+          </View>
+        </Pressable>
 
         <RateLast t={t} lang={lang} />
         {askPush ? <View style={{ marginBottom: 14 }}><PushRow ask onDone={() => setAskPush(false)} /></View> : null}

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable, TextInput, Animated, Easing } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { C, NUM } from '../constants/theme';
 import { useLang } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
@@ -45,6 +46,12 @@ const w = (lang, k, v) => {
   Object.keys(v || {}).forEach((x) => { s = s.replace('{' + x + '}', String(v[x])); });
   return s;
 };
+/* the two faces of the card */
+const FLIP = { en: ['See what everyone said', 'Your answer'], ar: ['شوف الناس قالت إيه', 'إجابتك'], cs: ['Co řekli ostatní', 'Tvoje odpověď'], es: ['Ver qué dijeron todos', 'Tu respuesta'],
+  et: ['Vaata, mida teised ütlesid', 'Sinu vastus'], fr: ['Voir ce que tout le monde a dit', 'Ta réponse'], hi: ['देखो सबने क्या कहा', 'तुम्हारा जवाब'], it: ['Guarda cosa hanno detto tutti', 'La tua risposta'],
+  ja: ['みんなの答えを見る', 'あなたの答え'], ko: ['모두의 답 보기', '내 답'], nl: ['Zie wat iedereen zei', 'Jouw antwoord'], pt: ['Ver o que todos disseram', 'A tua resposta'],
+  ro: ['Vezi ce au spus toți', 'Răspunsul tău'], ru: ['Что ответили все', 'Твой ответ'], tr: ['Herkes ne dedi, gör', 'Yanıtın'], uk: ['Що відповіли всі', 'Твоя відповідь'], zh: ['看看大家怎么说', '你的回答'] };
+const fw = (lang, i) => (FLIP[lang] || FLIP.en)[i];
 const opt = (o, lang) => (lang === 'ar' && o[1] ? o[1] : o[0]);
 
 const Bar = ({ label, pct, mine }) => {
@@ -118,6 +125,18 @@ export const DailyMoment = () => {
   const [all, setAll] = useState(false);
   const [err, setErr] = useState(null);
   const [thread, setThread] = useState(null);
+  /* Ayser: "تبقى زي كارت بتقلب". Answered, the card rests small on its
+     front — the question and your answer — and turns over to show what
+     everybody said. Answering turns it over by itself, once. */
+  const [back, setBack] = useState(false);
+  const turn = useRef(new Animated.Value(0)).current;
+  const flip = (to) => {
+    tapLight();
+    Animated.timing(turn, { toValue: 1, duration: 170, easing: Easing.in(Easing.quad), useNativeDriver: true }).start(() => {
+      setBack(to); turn.setValue(-1);
+      Animated.timing(turn, { toValue: 0, duration: 220, easing: Easing.out(Easing.quad), useNativeDriver: true }).start();
+    });
+  };
   useEffect(() => { if (user) dailyMoment().then((x) => x && x.ok && setQ(x)); }, [user]);
   if (!q) return null;
 
@@ -126,7 +145,7 @@ export const DailyMoment = () => {
     if (q.kind === 'text' && body.length < 2) return;
     tapMedium(); setErr(null);
     const x = await dailyAnswer(choice, body || null);
-    if (x && x.ok && x.answered) { tapSuccess(); setQ(x); setDraft(''); } else setErr(w(lang, 'err'));
+    if (x && x.ok && x.answered) { tapSuccess(); setQ(x); setDraft(''); setTimeout(() => flip(true), 250); } else setErr(w(lang, 'err'));
   };
   const react = async (a, e) => {
     tapSelection();
@@ -147,8 +166,11 @@ export const DailyMoment = () => {
 
   const total = q.tallies ? q.tallies.reduce((s, n) => s + n, 0) : 0;
   const shown = q.answers ? (all ? q.answers : q.answers.slice(0, 4)) : [];
+  const mineText = q.mine ? (q.mine.choice != null && q.opts ? opt(q.opts[q.mine.choice] || ['', ''], lang) : q.mine.body) : null;
+  const rot = turn.interpolate({ inputRange: [-1, 0, 1], outputRange: ['-90deg', '0deg', '90deg'] });
   return (
-    <View style={{ marginTop: 24, borderRadius: 28, borderWidth: 1, borderColor: C.line, backgroundColor: C.glass, padding: 24 }}>
+    <Animated.View style={{ marginTop: 24, borderRadius: 28, borderWidth: 1, borderColor: C.line, backgroundColor: C.glass, padding: 24,
+      transform: [{ perspective: 1200 }, { rotateY: rot }] }}>
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
         <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: C.purple, marginEnd: 8 }} />
         <Text style={{ color: C.purple, fontSize: 12, fontWeight: '700', letterSpacing: 1.2, flex: 1 }}>{w(lang, 'title').toUpperCase()}</Text>
@@ -181,6 +203,14 @@ export const DailyMoment = () => {
           )}
           <Text style={{ color: C.dim, fontSize: 13, marginTop: 12 }}>{'🔒 ' + w(lang, 'locked')}</Text>
         </>
+      ) : !back ? (
+        /* the front: your answer, quietly */
+        mineText ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
+            <Text style={{ color: C.dim, fontSize: 13.5 }}>{fw(lang, 1) + ' · '}</Text>
+            <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '600', flexShrink: 1 }} numberOfLines={1}>{mineText}</Text>
+          </View>
+        ) : null
       ) : (
         <>
           {q.kind === 'poll' && q.tallies ? (q.opts || []).map((o, i) => (
@@ -197,7 +227,15 @@ export const DailyMoment = () => {
         </>
       )}
       {err ? <Text style={{ color: C.coral, fontSize: 13, marginTop: 8 }}>{err}</Text> : null}
+      {q.answered ? (
+        <Pressable onPress={() => flip(!back)} accessibilityRole="button" hitSlop={8} style={{ alignSelf: 'flex-start', marginTop: 14 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8, backgroundColor: C.purpleSoft }}>
+            <Ionicons name="sync-outline" size={15} color={C.purple} />
+            <Text style={{ color: C.purple, fontSize: 13.5, fontWeight: '700', marginStart: 6 }}>{back ? fw(lang, 1) : fw(lang, 0)}</Text>
+          </View>
+        </Pressable>
+      ) : null}
       {thread ? <BuddiesSheet threadId={thread} onClose={() => setThread(null)} /> : null}
-    </View>
+    </Animated.View>
   );
 };
