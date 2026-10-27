@@ -22704,6 +22704,22 @@ revoke all on function public.owner_gift_list() from public, anon;
 grant execute on function public.owner_gift_list() to authenticated;
 
 -- ═══════════════════════════════════════════════════════════════════
+--  TABLE GAMES ARE FOR MEMBERS
+--  Ayser: "خلي اللعب دي تتفتح لو انت مشترك في مومنتس". Dealing a card,
+--  spinning the turn, pairing a scene, putting a card or a poll on the
+--  table all go through activity_ok — so a member of Moments+ or Moments
+--  Black runs the game, and nobody without a membership can. (While
+--  memberships are off, member_tier lets everybody in, as before.)
+-- ═══════════════════════════════════════════════════════════════════
+create or replace function public.activity_ok(p_kind text, p_id uuid, u uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select public.member_tier(u) <> 'FREE' and public.event_in(p_kind, p_id, u) and exists (
+    select 1 from public.event_meta(p_kind, p_id) m
+     where now() between m.starts_at - interval '30 minutes' and m.ends_at);
+$$;
+revoke all on function public.activity_ok(text, uuid, uuid) from public, anon, authenticated;
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة
