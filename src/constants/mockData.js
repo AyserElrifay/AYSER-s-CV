@@ -10,8 +10,8 @@ export const AV_NEUTRAL =
   'data:image/svg+xml,' +
   encodeURIComponent(
     "<svg xmlns='http://www.w3.org/2000/svg' width='96' height='96'>" +
-    "<rect width='96' height='96' rx='48' fill='#141414'/>" +
-    "<text x='48' y='63' font-size='42' text-anchor='middle' fill='#FFFFFF'>✦</text>" +
+    "<rect width='96' height='96' rx='48' fill='#7C3AED'/>" +
+    "<text x='48' y='63' font-size='42' text-anchor='middle' fill='#F5B301'>✦</text>" +
     '</svg>'
   );
 

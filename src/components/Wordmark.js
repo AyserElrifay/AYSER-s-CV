@@ -1,5 +1,6 @@
 import React from 'react';
 import { Image } from 'react-native';
+import { useTheme } from '../context/ThemeContext';
 
 /* ─── The Moments brand mark ───────────────────────────────────────
    The one true logo, rendered from the approved artwork: the lowercase
@@ -11,16 +12,18 @@ import { Image } from 'react-native';
    with the spark hovering above, so a little headroom above the text is
    by design. Pass `height` (the full art box) — width tracks the ratio. */
 
+const WORDMARK = require('../assets/brand/wordmark.png');
 const WORDMARK_WHITE = require('../assets/brand/wordmark-white.png');
 const MARK = require('../assets/brand/mark.png');
 
 const RATIO = 1036 / 420; // ≈ 2.467
 
-// one monochrome design: the white wordmark everywhere (`white` is kept for old callers)
-export function Wordmark({ height = 54, style }) {
+// white on the black design (Moments Black, and Moments+ for now)
+export function Wordmark({ height = 54, white = false, style }) {
+  const { black } = useTheme();
   return (
     <Image
-      source={WORDMARK_WHITE}
+      source={white || black ? WORDMARK_WHITE : WORDMARK}
       resizeMode="contain"
       accessibilityRole="image"
       accessibilityLabel="Moments"

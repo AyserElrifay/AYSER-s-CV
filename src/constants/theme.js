@@ -1,22 +1,67 @@
+import { LIQUID } from '../lib/liquid';
 /* ────────────────────────── DESIGN TOKENS ─────────────────────────
-   Ayser, October 2026 — one design for everybody: "Pure Monochrome Swiss
-   Minimalism". OLED black canvas, deep charcoal surfaces, crisp white
-   type, silver-grey secondary text, razor-thin #1F1F1F hairlines, and
-   the main action inverted: a solid white pill with a black label. No
-   colour, no gradients, no light/dark switch. The token NAMES stay
-   (every screen reads C.purple, C.glass…) so the whole app changed at
-   once: C.purple is the action colour, now white — one step off pure
-   (#FFFFFE) so the page stylesheet (scripts/inject-html.mjs, MONO) can
-   find every button painted with it and turn its label black.
-     canvas #000000 · surface #0A0A0A · raised #141414 · line #1F1F1F
-     text #FFFFFF · secondary #A3A3A3 · hint #737373 · action #FFFFFE   */
+   Ayser, October 2026, in two steps. First: "eliminate the AI-generated
+   template look" — Swiss grid, generous space, hairlines instead of
+   shadows, typography doing the work, no rainbow gradients. Then: "do
+   NOT make the app cold" — Moments is a youth, travel and social brand,
+   so its violet stays at the heart of it. The 80/20 rule: 80% a warm,
+   quiet canvas (a soft off-white by day, a deep plum-black at night),
+   20% bold Moments violet — the main button, the level you are on, the
+   progress bars, the game cards, the badges you earn. Emerald only for
+   "confirmed / unlocked", amber only for "2 spots left", red only for
+   an error. The token NAMES stay (every screen reads C.purple, C.glass…)
+   so the whole app changes at once.
+     canvas #FAF8F5 · surface #FFFFFF · subtle #F3F0EC · ink #17131F
+     brand  #7C3AED (Moments violet) · line rgba(23,19,31,0.08)           */
 
-const MONO = {
-  bg: '#000000', bg2: '#0A0A0A', glass: '#0A0A0A', glassHi: '#141414', line: '#1F1F1F',
-  purple: '#FFFFFE', purpleSoft: 'rgba(255,255,255,0.08)', green: '#FFFFFF', greenSoft: 'rgba(255,255,255,0.08)',
-  blue: '#FFFFFF', blueSoft: 'rgba(255,255,255,0.06)', coral: '#E5E5E5', coralSoft: 'rgba(255,255,255,0.08)',
-  gold: '#FFFFFF', sun: '#FFFFFF', goldSoft: 'rgba(255,255,255,0.08)',
-  text: '#FFFFFF', dim: '#A3A3A3', faint: '#737373', ink: '#000000', float: 'rgba(10,10,10,0.96)', floatSolid: '#0A0A0A',
+const LIGHT = {
+  bg: '#FAF8F5',                       // warm off-white canvas, like paper in the sun
+  bg2: '#FFFFFF',                      // sheets & bars
+  glass: '#FFFFFF',                    // cards: white, separated by a hairline, never a shadow
+  glassHi: '#F3F0EC',                  // the subtle secondary surface, warm not grey
+  line: 'rgba(23,19,31,0.08)',         // the only separator
+  purple: '#7C3AED',                   // Moments violet: the main action, the active path
+  purpleSoft: 'rgba(124,58,237,0.08)', // a chip, a selected row, a badge's ground
+  green: '#047857',                    // emerald: unlocked, confirmed (5.5:1 with white)
+  greenSoft: 'rgba(4,120,87,0.08)',
+  blue: '#6D28D9',                     // links read as the brand, a shade deeper
+  blueSoft: 'rgba(124,58,237,0.06)',
+  coral: '#DC2626',                    // errors only
+  coralSoft: 'rgba(220,38,38,0.07)',
+  gold: '#B45309',                     // amber: urgency (2 spots left) — 5:1 on white
+  sun: '#FFC233',                      // the star in the logo: the one accent ON violet (Lemon Squeezy's way — violet ground, white type, a yellow spark)
+  goldSoft: 'rgba(217,119,6,0.10)',
+  text: '#17131F',                     // ink with a little warmth in it
+  dim: '#6F6A75',                      // metadata: dates, places, prices (5:1)
+  faint: '#87818D',                    // hints (3.6:1)
+  ink: '#FFFFFF',                      // the label on a violet button
+  float: 'rgba(255,255,255,0.96)',
+  floatSolid: '#FFFFFF',
+};
+
+const DARK = {
+  bg: '#0F0D14',                       // a deep plum-black, warmer than pure black
+  bg2: '#16131D',                      // sheets & bars
+  glass: '#1A1722',                    // cards, one step off the canvas
+  glassHi: 'rgba(255,255,255,0.06)',
+  line: 'rgba(255,255,255,0.08)',
+  purple: '#7C3AED',                   // the same Moments violet at night (white label 5.7:1)
+  purpleSoft: 'rgba(139,92,246,0.16)',
+  green: '#059669',
+  greenSoft: 'rgba(5,150,105,0.14)',
+  blue: '#C4B5FD',
+  blueSoft: 'rgba(139,92,246,0.12)',
+  coral: '#F87171',
+  coralSoft: 'rgba(248,113,113,0.12)',
+  gold: '#F59E0B',
+  sun: '#FFC233',
+  goldSoft: 'rgba(245,158,11,0.14)',
+  text: '#F6F3FA',
+  dim: '#A9A3B2',
+  faint: '#8F889A',
+  ink: '#FFFFFF',
+  float: 'rgba(26,23,34,0.96)',
+  floatSolid: '#1A1722',
 };
 
 /* numbers that change — prices, countdowns, seats — never shuffle sideways */
@@ -27,11 +72,17 @@ export const NUM = { fontVariant: ['tabular-nums'] };
    StyleSheet.create anywhere in the app. That means we can flip the
    whole app's palette by mutating these properties in place (never
    reassigning the export) and then forcing one full re-render.
-   There is one palette now (MONO above), so nothing flips any more. */
-export const C = Object.assign({}, MONO);
+   ThemeContext (src/context/ThemeContext.js) is what actually does
+   the mutating + persists the choice + forces that re-render. */
+export const C = Object.assign({}, LIGHT);
 
-/* one palette now; kept so older callers still work */
-export function applyThemeMode() { Object.assign(C, MONO); }
+export function applyThemeMode(mode, liquid, black) {
+  Object.assign(C, mode === 'dark' ? DARK : LIGHT);
+  // Moments Black: its palette (lib/blackCss.js) as kept on this phone by lib/black.js
+  if (black) { Object.assign(C, black); return; }
+  // Liquid Glass (src/lib/liquid.js), only for someone trying it
+  if (liquid) Object.assign(C, LIQUID[mode === 'dark' ? 'dark' : 'light']);
+}
 
 export const R = 20; // house border-radius
 

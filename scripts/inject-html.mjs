@@ -27,35 +27,17 @@ const KEYWORDS = 'Moments, Moments app, The Real Moments, therealmoments, Moment
 //    the browser chrome never crops it → fixes the mobile aspect ratio).
 //  • Laptop/desktop → the app is centred in a phone-shaped frame on a
 //    soft backdrop instead of being stretched across a wide window.
-/* ─── MONO: what the palette cannot reach ────────────────────────────
-   One design for everybody (src/constants/theme.js, MONO). The main
-   action colour is a white one step off pure (#FFFFFE), and many screens
-   write a button's label in '#FFF' — white on white — so every label
-   inside a white button turns black. Colours still written straight into
-   a screen (the old violet and its shades, the yellow spark, violet
-   gradients) turn white, or charcoal with a hairline. In the page's own
-   stylesheet, so it holds from the first frame. (`:not(#mm-z)` only lifts
-   a rule above the ones before it: no element has that id.) */
-const W = 'rgb(255, 255, 254)';
-const HUES = ['rgb(124, 58, 237)', 'rgb(91, 33, 182)', 'rgb(109, 40, 217)', 'rgb(43, 16, 85)', 'rgb(255, 194, 51)'];
-const bgOf = (c) => `[style*="background-color: ${c}"]`;
-const MONO_CSS = HUES.map((c) => `
-    ${bgOf(c)} { background-color: ${W} !important; }
-    ${bgOf(c)}:not(#mm-z), ${bgOf(c)} *:not(#mm-z) { color: #000000 !important; }
-    [style*="color: ${c}"]:not(${bgOf(c)}) { color: #FFFFFF !important; }
-    [style*="border"][style*="${c}"] { border-color: #FFFFFF !important; }
-    [style*="linear-gradient"][style*="${c}"] { background-image: none !important; background-color: #0A0A0A !important; border: 1px solid #1F1F1F; }`).join('') + `
-    ${bgOf(W)}:hover { background-color: #E5E5E5 !important; }
-    ${bgOf(W)}:not(#mm-z), ${bgOf(W)} *:not(#mm-z) { color: #000000 !important; }`;
-
 const responsiveCss = `
   <style>
-    html, body { margin: 0; height: 100%; background: #000000; color-scheme: dark; }
+    html, body { margin: 0; height: 100%; background: #0F0D14; }
+    @media (prefers-color-scheme: light) { html, body { background: #FAF8F5; } }
+    html.mm-dark, html.mm-dark body { background: #0F0D14; }
+    html.mm-light, html.mm-light body { background: #FAF8F5; }
     /* the design system, where the screens cannot say it themselves:
        no drop shadows anywhere — a 1px hairline takes their place — and
        everything you can press gives a little under your finger */
-    div[style*="box-shadow"] { box-shadow: 0 0 0 1px #1F1F1F !important; }
-${MONO_CSS}
+    div[style*="box-shadow"] { box-shadow: 0 0 0 1px rgba(23,19,31,0.08) !important; }
+    html.mm-dark div[style*="box-shadow"] { box-shadow: 0 0 0 1px rgba(255,255,255,0.08) !important; }
     [role="button"] { transition: transform 200ms ease-out, opacity 200ms ease-out; }
     [role="button"]:active { transform: scale(0.98); }
     body { font-feature-settings: "cv11", "ss01"; -webkit-font-smoothing: antialiased; }
@@ -132,7 +114,8 @@ const tags = `
        slash and the manifest 404s — at which point iOS has nothing to
        read and adds a plain bookmark instead of the app. -->
   <link rel="manifest" href="/manifest.json" />
-  <meta name="theme-color" content="#000000" />
+  <meta name="theme-color" content="#FAF8F5" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#0F0D14" media="(prefers-color-scheme: dark)" />
   <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
   <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
@@ -201,9 +184,10 @@ if (!html.includes('MomentsArabic')) {
   html = html.replace('</head>', `<style>@font-face { font-family: 'MomentsArabic'; font-style: normal; font-weight: 300 700; font-display: swap; src: url(fonts/readex-arabic.woff2) format('woff2'); unicode-range: U+0600-06FF, U+0750-077F, U+0870-0891, U+0897-08E1, U+08E3-08FF, U+200C-200E, U+2010-2011, U+204F, U+2E41, U+FB50-FDFF, U+FE70-FE74, U+FE76-FEFC, U+102E0-102FB, U+10E60-10E7E, U+10EC2-10EC7, U+10EC9-10EEE, U+10EF0-10EFF, U+1EE00-1EE03, U+1EE05-1EE1F, U+1EE21-1EE22, U+1EE24, U+1EE27, U+1EE29-1EE32, U+1EE34-1EE37, U+1EE39, U+1EE3B, U+1EE42, U+1EE47, U+1EE49, U+1EE4B, U+1EE4D-1EE4F, U+1EE51-1EE52, U+1EE54, U+1EE57, U+1EE59, U+1EE5B, U+1EE5D, U+1EE5F, U+1EE61-1EE62, U+1EE64, U+1EE67-1EE6A, U+1EE6C-1EE72, U+1EE74-1EE77, U+1EE79-1EE7C, U+1EE7E, U+1EE80-1EE89, U+1EE8B-1EE9B, U+1EEA1-1EEA3, U+1EEA5-1EEA9, U+1EEAB-1EEBB, U+1EEF0-1EEF1; }</style></head>`);
 }
 
-/* one design, dark from the first paint (theme.js, MONO) */
-if (!html.includes("className+=' mm-dark'")) {
-  html = html.replace('</head>', `<script>document.documentElement.className+=' mm-dark';</script></head>`);
+/* the colour you chose, before the first paint — not the phone's and then
+   yours a moment later (Ayser: "بتلود مرتين، مرة بشكل قديم") */
+if (!html.includes('mm-dark')) {
+  html = html.replace('</head>', `<script>(function(){try{var t=localStorage.getItem('moments.theme');if(t==='dark'||t==='light')document.documentElement.className+=' mm-'+t;}catch(e){}})();</script></head>`);
 }
 if (!html.includes('tap-highlight-color')) {
   /* the feel of the whole app, in one place: smooth text, no grey flash

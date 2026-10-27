@@ -22839,6 +22839,30 @@ end $$;
 revoke execute on function public.event_arrived(text, uuid) from public, anon;
 grant execute on function public.event_arrived(text, uuid) to authenticated;
 
+-- ════════════════════════════════════════════════════════════════════
+--  THE BLACK DESIGN IS FOR MEMBERS (Ayser: Black's look, and Moments+
+--  gets it too for now as a gift to try)
+--  member_tier says VIP for everybody while nothing is for sale, so the
+--  app cannot tell a member from anybody else by it. `member` is true only
+--  for somebody who really has a membership — paid or gifted
+--  (plus_members, active, not over) — or the owner.
+-- ════════════════════════════════════════════════════════════════════
+create or replace function public.my_membership()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select jsonb_build_object(
+    'tier', public.member_tier(auth.uid()),
+    'gate', public.payments_on(),
+    'member', public.is_app_owner() or exists (select 1 from public.plus_members m where m.user_id = auth.uid()
+                and m.status = 'active' and (m.until is null or m.until > now())),
+    'prices', (select value from public.app_settings where key = 'tier_prices'),
+    'source', (select source from public.plus_members where user_id = auth.uid()),
+    'until', (select until from public.plus_members where user_id = auth.uid() and status = 'active'),
+    'manage', (select portal_url from public.plus_subscriptions where user_id = auth.uid()
+                and status in ('active','on_trial','past_due','cancelled')));
+$$;
+revoke execute on function public.my_membership() from public, anon;
+grant execute on function public.my_membership() to authenticated;
+
 -- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
