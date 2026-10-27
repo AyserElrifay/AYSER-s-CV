@@ -427,8 +427,9 @@ export const TogetherScreen = () => {
   // the VIP welcome offer's "claim" lands here, on the journey
   useEffect(() => {
     const on = () => setJourney(true);
-    try { window.addEventListener('mm-open-journey', on); } catch (e) {}
-    return () => { try { window.removeEventListener('mm-open-journey', on); } catch (e) {} };
+    const buddies = () => setMeet('buddies');   // "Open messages", after a stamp opened the 7-day pass
+    try { window.addEventListener('mm-open-journey', on); window.addEventListener('mm-open-buddies', buddies); } catch (e) {}
+    return () => { try { window.removeEventListener('mm-open-journey', on); window.removeEventListener('mm-open-buddies', buddies); } catch (e) {} };
   }, []);
   const [eventOf, setEventOf] = useState(null);   // a joined plan whose event page is open
   const [creators, setCreators] = useState(() => recall('creators.' + (readCode() || 'all')) || []);     // hosts people really came to (top_creators)

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { titleFor } from '../lib/activityPins';
-import { View, Text, Pressable, ScrollView, Modal, TextInput, ActivityIndicator } from 'react-native';
+import { View, Text, Pressable, ScrollView, Modal, TextInput, ActivityIndicator, Switch } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { C, NUM } from '../constants/theme';
@@ -12,6 +12,10 @@ import { fetchMessages, sendMessage, subscribeMessages } from '../services/messa
 import { Face } from '../ui/Face';
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
 import { useSheetBack } from '../hooks/useSheetBack';
+import { pw, leftText } from '../constants/passportWords';
+import { myPassport, setDmOpen } from '../services/passport';
+import { askUpgrade } from '../services/membership';
+import { goToTab } from '../lib/mapBus';
 
 /* ─── MOMENTS BUDDIES ─────────────────────────────────────────────────
    Earned connection, not a messaging app. Strangers can never write to
@@ -61,6 +65,8 @@ const Chat = ({ other, threadId, lang, onBack }) => {
   const [ping, setPing] = useState(null);       // null · list of my next events
   const [pinged, setPinged] = useState({});
   const [err, setErr] = useState(null);
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 60000); return () => clearInterval(t); }, []);
   const scroll = useRef(null);
 
   useEffect(() => {
@@ -122,6 +128,13 @@ const Chat = ({ other, threadId, lang, onBack }) => {
         ) : null}
       </View>
 
+      {/* a Basic member inside a pass they earned at the tables: how long it has left */}
+      {st && st.plus && !st.vip && st.pass_until && Date.parse(st.pass_until) > now ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 9, backgroundColor: C.sun }}>
+          <Text style={[{ color: '#17131F', fontSize: 13.5, fontWeight: '700' }, NUM]}>{'🔥 ' + pw(lang, 'left', { t: leftText(Date.parse(st.pass_until) - now, lang) })}</Text>
+        </View>
+      ) : null}
+
       {ping ? (
         <View style={{ padding: 16, borderBottomWidth: 1, borderColor: C.line, backgroundColor: C.purpleSoft }}>
           <Text style={{ color: C.text, fontSize: 14, fontWeight: '600' }}>{w(lang, 'pingTo', { n: person.name || '' })}</Text>
@@ -153,12 +166,23 @@ const Chat = ({ other, threadId, lang, onBack }) => {
       </ScrollView>
 
       {st && !st.plus ? (
-        <Pressable onPress={askPlus} accessibilityRole="button" style={{ margin: 16 }}>
-          <View style={{ borderRadius: 18, padding: 14, backgroundColor: C.purpleSoft, flexDirection: 'row', alignItems: 'center' }}>
-            <Text style={{ color: C.text, fontSize: 14, flex: 1 }}>{w(lang, 'plus')}</Text>
-            <Text style={{ color: C.purple, fontSize: 14, fontWeight: '600' }}>{w(lang, 'seePlus') + ' ›'}</Text>
+        /* locked: the pass ran out, or there never was one — two ways back in */
+        <View style={{ margin: 16, borderRadius: 26, padding: 22, backgroundColor: C.purple }}>
+          <Text style={{ color: '#FFF', fontSize: 21, fontWeight: '800', letterSpacing: -0.5 }}>{pw(lang, 'locked_t')}</Text>
+          <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 15, lineHeight: 21, marginTop: 6 }}>{pw(lang, 'locked_s')}</Text>
+          <View style={{ flexDirection: 'row', marginTop: 18 }}>
+            <Pressable onPress={() => { tapLight(); askUpgrade('vip'); }} accessibilityRole="button" style={{ flex: 1, marginEnd: 8 }}>
+              <View style={{ borderRadius: 999, paddingVertical: 13, alignItems: 'center', backgroundColor: C.sun }}>
+                <Text style={{ color: '#17131F', fontSize: 15, fontWeight: '700' }}>{pw(lang, 'go_vip')}</Text>
+              </View>
+            </Pressable>
+            <Pressable onPress={() => { tapLight(); goToTab('TOGETHER'); try { window.dispatchEvent(new CustomEvent('mm-close-buddies')); } catch (e) {} }} accessibilityRole="button" style={{ flex: 1 }}>
+              <View style={{ borderRadius: 999, paddingVertical: 13, alignItems: 'center', borderWidth: 1.5, borderColor: '#FFF' }}>
+                <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '700' }}>{pw(lang, 'find')}</Text>
+              </View>
+            </Pressable>
           </View>
-        </Pressable>
+        </View>
       ) : st && !st.can_send ? (
         <Text style={{ color: C.dim, fontSize: 13.5, textAlign: 'center', margin: 16 }}>{w(lang, 'wait')}</Text>
       ) : (
@@ -197,7 +221,14 @@ export const BuddiesSheet = ({ onClose, threadId, other }) => {
   const [convs, setConvs] = useState([]);
   const [pass, setPass] = useState(null);
   const [open, setOpen] = useState(threadId || other ? { threadId, other } : null);
+  const [dmOn, setDmOn] = useState(null);       // the privacy switch: may new people write to me
   useSheetBack(open ? () => setOpen(null) : onClose);
+  useEffect(() => {
+    myPassport().then((p) => p && p.ok && setDmOn(p.dm_open !== false));
+    const close = () => onClose && onClose();
+    try { window.addEventListener('mm-close-buddies', close); } catch (e) {}
+    return () => { try { window.removeEventListener('mm-close-buddies', close); } catch (e) {} };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const load = () => {
     myBuddies().then((x) => setList(x || []));
@@ -220,6 +251,18 @@ export const BuddiesSheet = ({ onClose, threadId, other }) => {
             <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, paddingTop: 8, paddingBottom: 40 }}>
               <Text style={{ color: C.text, fontSize: 28, fontWeight: '700', letterSpacing: -0.7 }}>{w(lang, 'title')}</Text>
               <Text style={{ color: C.dim, fontSize: 14, lineHeight: 20, marginTop: 6 }}>{w(lang, 'sub')}</Text>
+
+              {/* who may start a conversation with me */}
+              {dmOn != null ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 20, padding: 16, marginTop: 16, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line }}>
+                  <View style={{ flex: 1, marginEnd: 12 }}>
+                    <Text style={{ color: C.text, fontSize: 15.5, fontWeight: '600' }}>{pw(lang, 'dm_open')}</Text>
+                    <Text style={{ color: C.dim, fontSize: 13, marginTop: 3, lineHeight: 18 }}>{pw(lang, 'dm_open_s')}</Text>
+                  </View>
+                  <Switch value={dmOn} accessibilityLabel={pw(lang, 'dm_open')}
+                    onValueChange={async (v) => { setDmOn(v); const r = await setDmOpen(v); if (!(r && r.ok)) setDmOn(!v); }} />
+                </View>
+              ) : null}
 
               {/* the passport: what you earned at the tables */}
               {pass ? (

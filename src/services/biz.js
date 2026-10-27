@@ -26,6 +26,8 @@ const demoRpc = (name, args) => {
   if (name === 'biz_deal_stats') return { ok: true, deal: demoPlace.deal || null, now: false, month: 0 };
   if (name === 'biz_requests_in') return demoReqs.map((q) => ({ ...q }));
   if (name === 'biz_answer') { const q = demoReqs.find((x) => x.id === args.p_id); if (q) { q.status = args.p_status; q.reply = args.p_reply; } return { ok: true }; }
+  if (name === 'venue_events') return [0, 1].map((i) => ({ kind: 'gathering', id: '00000000-0000-4000-8000-0000000000d' + (i + 1), title: i ? 'Sample · Lunch together' : 'Sample · English café table', starts_at: new Date(Date.now() + (i ? 26 : -0.3) * 3600000).toISOString(), going: i ? 4 : 6, stamped: i ? 0 : 3 }));
+  if (name === 'voucher_redeem') return /^DEMO42$/i.test(String(args.p_code || '').trim()) ? { ok: true, name: 'Sample guest 2' } : { ok: false, reason: 'code' };
   if (name === 'biz_live_token') return { ok: true, token: Math.floor(Date.now() / 60000).toString(16).slice(-8).padStart(8, '0'), seconds: 60 - new Date().getSeconds() };
   return { ok: false, reason: 'demo' };
 };
@@ -55,6 +57,9 @@ export const answerRequest = (id, status, reply) => rpc('biz_answer', { p_id: id
 export const directory = async (type, city) => { const r = await rpc('biz_directory', { p_type: type || null, p_city: city || null }); return Array.isArray(r) ? r : []; };
 export const placePage = (id) => rpc('biz_page', { p_id: id });
 export const liveToken = () => rpc('biz_live_token');
+// the Moments Passport, from the café's side: its tables (each with a live check-in QR) and the coffee vouchers it redeems
+export const venueEvents = async () => { const r = await rpc('venue_events'); return Array.isArray(r) ? r : []; };
+export const voucherRedeem = (code) => rpc('voucher_redeem', { p_code: code });
 export const checkIn = (id, code) => rpc('biz_checkin', { p_venue: id, p_code: code });
 export const redeem = (id, code) => rpc('biz_redeem', { p_venue: id, p_code: code });
 export const askPlace = (p) => rpc('biz_request', { p });

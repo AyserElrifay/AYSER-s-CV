@@ -8,3 +8,6 @@
 export { EventRoom } from './EventRoom';
 export { BuddiesSheet } from './BuddiesSheet';
 export { LoungesSheet } from './LoungesSheet';
+export { StampFlow, StampScanner, StampBook, HostQr } from './StampKit';
+// the QR drawer travels here too: the café portal asks for it from this piece, so it is never in the first download
+export { Qr, printTableCard } from './biz/Qr';

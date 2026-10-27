@@ -6,13 +6,18 @@ import { C } from '../../constants/theme';
 import { AV_NEUTRAL } from '../../constants/mockData';
 import { useAuth } from '../../context/AuthContext';
 import { useLang } from '../../context/LanguageContext';
-import { myPlace, savePlace, newCounterCode, placeStats, requestsIn, answerRequest, liveToken, setDeal, dealStats } from '../../services/biz';
-import { Qr, printTableCard } from './Qr';
+import { myPlace, savePlace, newCounterCode, placeStats, requestsIn, answerRequest, liveToken, setDeal, dealStats, venueEvents, voucherRedeem } from '../../services/biz';
 import { placeLink, isBizDemo } from '../../lib/bizLink';
 import { uploadPlanPhoto } from '../../lib/storage';
 import { Selling } from '../VenueSheet';
 import { lazyOverlay } from '../../lib/lazyScreen';
 const GreenSheet = lazyOverlay(() => import('../green/GreenSheet').then((m) => ({ default: m.GreenSheet })));
+const HostQr = lazyOverlay(() => import('../LiveKit').then((m) => ({ default: m.HostQr })));
+// the QR drawer comes with the LiveKit piece (it draws the table QR too); shared any other way it would land in the first download
+const Qr = lazyOverlay(() => import('../LiveKit').then((m) => ({ default: m.Qr })));
+let liveKit = null;   // loaded with the counter QR, so printing opens its window inside the tap (popup blockers)
+const loadLiveKit = () => import('../LiveKit').then((m) => { liveKit = m; return m; }).catch(() => null);
+const printTableCard = (o) => { if (liveKit) liveKit.printTableCard(o); else loadLiveKit().then((m) => m && m.printTableCard(o)); };
 import { bw, fill, dealLine, dealWhen, dealDay, dealHour, TYPES, typeOf, tname, INCLUDES } from './words';
 import { tapLight, tapSelection, tapSuccess } from '../../utils/feedback';
 import { useSheetBack } from '../../hooks/useSheetBack';
@@ -65,6 +70,7 @@ const Btn = ({ label, onPress, ghost, busy, small }) => (
    opens the place and asks for the staff's code. */
 const CounterQr = ({ v, B }) => {
   const [tk, setTk] = useState(null);
+  useEffect(() => { loadLiveKit(); }, []);
   useEffect(() => {
     let alive = true; let t = null;
     const get = () => liveToken().then((r) => {
@@ -228,6 +234,66 @@ const DealCard = ({ lang }) => {
   );
 };
 
+/* ── THE MOMENTS PASSPORT, FROM THE COUNTER ── the plans at this place,
+   each with the live check-in QR the guests scan for their stamp, and the
+   coffee voucher five stamps earn (RUN_ME.sql, "THE MOMENTS PASSPORT").
+   The QR, the stamps and the voucher are the server's. */
+const when = (iso, lang) => { try { return new Date(iso).toLocaleString(lang === 'ar' ? 'ar-EG' : lang, { weekday: 'short', hour: 'numeric', minute: '2-digit' }); } catch (e) { return ''; } };
+const Tables = ({ lang }) => {
+  const B = (k) => bw(lang, k);
+  const [list, setList] = useState(null);
+  const [qr, setQr] = useState(null);
+  useEffect(() => { venueEvents().then(setList); }, []);
+  return (
+    <View style={{ borderRadius: 24, padding: 20, backgroundColor: C.purple, marginTop: 16 }}>
+      <Text style={{ color: C.sun, fontSize: 12, fontWeight: '800', letterSpacing: lang === 'ar' ? 0 : 1.8 }}>{'✦ ' + B('tables').toUpperCase()}</Text>
+      <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13.5, lineHeight: 19, marginTop: 6 }}>{B('tables_s')}</Text>
+      {list == null ? <ActivityIndicator color="#FFF" style={{ marginTop: 14 }} /> : !list.length ? (
+        <Text style={{ color: '#FFF', fontSize: 14, marginTop: 14 }}>{B('tables_none')}</Text>
+      ) : list.map((e) => (
+        <View key={e.id} style={{ marginTop: 12, borderRadius: 18, padding: 14, backgroundColor: '#FFF', flexDirection: 'row', alignItems: 'center' }}>
+          <View style={{ flex: 1, marginEnd: 10 }}>
+            <Text style={{ color: '#17131F', fontSize: 15.5, fontWeight: '700' }} numberOfLines={1}>{e.title}</Text>
+            <Text style={{ color: '#6F6A75', fontSize: 12.5, marginTop: 2 }} numberOfLines={1}>{[when(e.starts_at, lang), fill(B('going_n'), { n: e.going }), fill(B('stamped_n'), { n: e.stamped })].join(' · ')}</Text>
+          </View>
+          <Pressable onPress={() => { tapLight(); setQr(e); }} accessibilityRole="button">
+            <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9, backgroundColor: C.purple }}>
+              <Ionicons name="qr-code-outline" size={15} color="#FFF" />
+              <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '700', marginStart: 6 }}>{B('show_qr')}</Text>
+            </View>
+          </Pressable>
+        </View>
+      ))}
+      {qr ? <HostQr kind={qr.kind} id={qr.id} onClose={() => { setQr(null); venueEvents().then(setList); }} /> : null}
+    </View>
+  );
+};
+const VoucherBox = ({ lang }) => {
+  const B = (k) => bw(lang, k);
+  const [code, setCode] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState(null);
+  const go = async () => {
+    if (code.trim().length < 4 || busy) return;
+    setBusy(true); setMsg(null);
+    const r = await voucherRedeem(code.trim());
+    setBusy(false);
+    if (r && r.ok) { tapSuccess(); setCode(''); setMsg({ ok: true, t: fill(B('voucher_ok'), { n: r.name || '' }) }); }
+    else setMsg({ ok: false, t: B(r && r.reason === 'used' ? 'voucher_used' : r && r.reason === 'expired' ? 'voucher_exp' : 'voucher_bad') });
+  };
+  return (
+    <View style={{ borderRadius: 22, padding: 18, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, marginTop: 12 }}>
+      <Text style={{ color: C.text, fontSize: 16, fontWeight: '800' }}>{'☕ ' + B('voucher')}</Text>
+      <Text style={{ color: C.dim, fontSize: 13, lineHeight: 18, marginTop: 4 }}>{B('voucher_s')}</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
+        <View style={{ flex: 1, marginEnd: 8 }}><Input value={code} onChange={(v) => setCode(v.toUpperCase())} ph={B('voucher_ph')} max={12} /></View>
+        <Btn small label={B('voucher_go')} busy={busy} onPress={go} />
+      </View>
+      {msg ? <Text style={{ color: msg.ok ? C.green : C.coral, fontSize: 13.5, fontWeight: '700', marginTop: 10 }}>{msg.t}</Text> : null}
+    </View>
+  );
+};
+
 const Today = ({ v, lang, onPlan, onCode }) => {
   const B = (k) => bw(lang, k);
   const [s, setS] = useState(null);
@@ -236,6 +302,8 @@ const Today = ({ v, lang, onPlan, onCode }) => {
   useEffect(() => { placeStats().then((r) => r && r.ok && setS(r)); }, []);
   return (
     <>
+      {/* tonight first: the tables at this place, each with its check-in QR */}
+      <Tables lang={lang} />
       {ty.counter ? (
         <View style={{ borderRadius: 22, padding: 18, backgroundColor: C.purpleSoft, marginTop: 16, alignItems: 'center' }}>
           <Text style={{ color: C.purple, fontSize: 11.5, fontWeight: '900', letterSpacing: 1 }}>{B('code').toUpperCase()}</Text>
@@ -257,6 +325,7 @@ const Today = ({ v, lang, onPlan, onCode }) => {
           {fill(B('bill'), { left: s.free_left, fee: Number(s.fee), sum: Number(s.month_bill).toLocaleString() })}
         </Text>
       ) : null}
+      {ty.counter ? <VoucherBox lang={lang} /> : null}
       <Label>{B('recent')}</Label>
       {s && s.recent && s.recent.length ? s.recent.map((x, i) => (
         <View key={i} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: C.line }}>

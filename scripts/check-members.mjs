@@ -50,5 +50,15 @@ is('the 30% is taken off by the server', /round\(v_total \* 0\.7\)|round\(total 
 is('back from paying, the app looks for it', /checkout=success/.test(app) && /myWelcomeOffer\(\)/.test(app), true);
 is('closed once, never shown again', /otoDone\(\); setOto\(null\); dismissWelcomeOffer\(\)/.test(app), true);
 
+console.log('\nthe Moments Passport: counted, not claimed');
+const pp = sql.slice(sql.lastIndexOf('THE MOMENTS PASSPORT · A STAMP'));
+is('the table QR is signed with a key that never leaves the database', /sha256\(convert_to\(k\.value/.test(pp) && /from public\.app_secrets k where k\.name = 'stamp_key'/.test(pp), true);
+is('a QR older than a minute and a half is refused', /w not between now_w - 2 and now_w then return jsonb_build_object\('ok', false, 'reason', 'old'\)/.test(pp), true);
+is('one stamp per table', /primary key \(user_id, kind, event_id\)/.test(pp), true);
+is('3 stamps in 30 days open a 7-day pass, for Basic only', /recent >= 3 and public\.is_plus\(u\) and not public\.is_vip\(u\)/.test(pp) && /interval '7 days'/.test(pp), true);
+is('messages ask vip_chat (VIP, or a live pass)', /not public\.vip_chat\(u\)/.test(pp) && /if not public\.vip_chat\(me\) then/.test(pp), true);
+is('somebody closed to new conversations stays closed', /and not dm_open\) then return jsonb_build_object\('ok', false, 'reason', 'closed'\)/.test(pp), true);
+is('only the event\'s host, café or owner sees the QR', /if not public\.event_runner\(p_kind, p_id, auth\.uid\(\)\) then return jsonb_build_object\('ok', false, 'reason', 'not_host'\)/.test(pp), true);
+
 if (bad) { console.log('\n' + bad + ' wrong.'); process.exit(1); }
 console.log('\nMembers only: Basic for the essentials, VIP for the full experience.');

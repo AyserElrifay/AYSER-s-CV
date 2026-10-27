@@ -6,6 +6,7 @@ import { C } from '../constants/theme';
 import { myJourney, journeyBook, money } from '../services/offers';
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
 import { myWelcomeOffer } from '../services/membership';
+import { myLevel2Offer } from '../services/passport';
 import { useSheetBack } from '../hooks/useSheetBack';
 
 /* ─── THE LEARNING JOURNEY ────────────────────────────────────────────
@@ -100,9 +101,15 @@ export const JourneyMap = ({ lang, onClose }) => {
   useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   // a new VIP's welcome 30% off a first Level 1 — journey_book takes it off; this only shows it
   const [offer, setOffer] = useState(null);
-  useEffect(() => { myWelcomeOffer().then((o) => setOffer(o && o.live ? o : null)); }, []);
-  const cost = (w, n) => (offer && n === 1 ? Math.round(Number(w.price) * (100 - (offer.pct || 30)) / 100) : w.price);
-  const shown = (w, n) => money(cost(w, n), w.currency, lang) + (offer && n === 1 && w.price ? (lang === 'ar' ? ' (خصم ٣٠٪)' : ' (−' + (offer.pct || 30) + '%)') : '');
+  // and ten passport stamps: 30% off a Level 2
+  const [l2, setL2] = useState(null);
+  useEffect(() => {
+    myWelcomeOffer().then((o) => setOffer(o && o.live ? o : null));
+    myLevel2Offer().then((o) => setL2(o && o.live ? o : null));
+  }, []);
+  const off = (n) => (n === 1 && offer) || (n === 2 && l2) || null;
+  const cost = (w, n) => (off(n) ? Math.round(Number(w.price) * (100 - (off(n).pct || 30)) / 100) : w.price);
+  const shown = (w, n) => money(cost(w, n), w.currency, lang) + (off(n) && w.price ? (lang === 'ar' ? ' (خصم ٣٠٪)' : ' (−' + (off(n).pct || 30) + '%)') : '');
 
   const pay = j && j.pay && typeof j.pay === 'object' ? j.pay : null;
   const book = async (w) => {
@@ -111,7 +118,7 @@ export const JourneyMap = ({ lang, onClose }) => {
     tapMedium(); setBusy(true); setMsg(null);
     const r = await journeyBook(w.id, ref.trim());
     setBusy(false);
-    if (r && r.ok) { tapSuccess(); setOpen(null); setRef(''); setMsg(jw(lang, 'sent')); if (r.discount) setOffer(null); load(); }
+    if (r && r.ok) { tapSuccess(); setOpen(null); setRef(''); setMsg(jw(lang, 'sent')); if (r.discount) { setOffer(null); setL2(null); } load(); }
     else setMsg(jw(lang, 'err'));
   };
 

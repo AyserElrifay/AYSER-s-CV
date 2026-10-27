@@ -12,6 +12,8 @@ import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
 import { useSheetBack } from '../hooks/useSheetBack';
 import { eventExtras, eventCheckin } from '../services/live';
 import { ActivitiesHub, AfterParty } from './ActivitiesHub';
+import { pw } from '../constants/passportWords';
+import { StampScanner, HostQr } from './StampKit';   // the same chunk (LiveKit)
 
 /* ─── THE EVENT PAGE ──────────────────────────────────────────────────
    Ayser: "No endless chatting — subscribe, book a seat, and meet in real
@@ -147,6 +149,8 @@ export const EventRoom = ({ kind, id, lang, onClose }) => {
   const [ended, setEnded] = useState(false);
   const [msg, setMsg] = useState(null);
   const [ex, setEx] = useState(null);
+  const [scan, setScan] = useState(false);
+  const [hostQr, setHostQr] = useState(false);
 
   const load = () => {
     eventExtras(kind, id).then((x) => setEx(x && x.ok ? x : null));
@@ -238,8 +242,27 @@ export const EventRoom = ({ kind, id, lang, onClose }) => {
               )}
             </View>
 
-            {/* at the table: check in, then play together */}
-            {ex && ex.can_checkin ? (
+            {/* at the table: the host shows the live QR; everybody else scans it — that is the check-in and the stamp */}
+            {r.is_host && !r.call && ex && (ex.phase === 'before' || ex.phase === 'live') ? (
+              <Pressable onPress={() => { tapLight(); setHostQr(true); }} accessibilityRole="button" style={{ marginTop: 20 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderRadius: 999, paddingVertical: 15, backgroundColor: C.purple }}>
+                  <Ionicons name="qr-code-outline" size={19} color="#FFF" />
+                  <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '700', marginStart: 8 }}>{pw(lang, 'host')}</Text>
+                </View>
+              </Pressable>
+            ) : null}
+            {!r.is_host && !r.call && ex && ex.can_checkin && !ex.checked_in ? (
+              <Pressable onPress={() => { tapLight(); setScan(true); }} accessibilityRole="button" style={{ marginTop: 20 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderRadius: 999, paddingVertical: 15, backgroundColor: C.purple }}>
+                  <Ionicons name="qr-code-outline" size={19} color="#FFF" />
+                  <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '700', marginStart: 8 }}>{pw(lang, 'scan')}</Text>
+                </View>
+              </Pressable>
+            ) : null}
+            {scan ? <StampScanner onClose={() => { setScan(false); load(); }} /> : null}
+            {hostQr ? <HostQr kind={kind} id={id} onClose={() => setHostQr(false)} /> : null}
+            {/* online: check in by hand, then play together */}
+            {ex && ex.can_checkin && (r.call || ex.checked_in) ? (
               ex.checked_in ? <Text style={{ color: C.green, fontSize: 14, fontWeight: '600', marginTop: 16 }}>{'✓ ' + w2(lang, 2)}</Text> : (
                 <View style={{ marginTop: 20, borderRadius: 24, padding: 20, backgroundColor: C.purpleSoft, flexDirection: 'row', alignItems: 'center' }}>
                   <Text style={{ color: C.text, fontSize: 17, fontWeight: '700', flex: 1 }}>{w2(lang, 0)}</Text>

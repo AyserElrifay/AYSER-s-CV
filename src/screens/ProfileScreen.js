@@ -86,6 +86,7 @@ const LibrarySheet = lazyOverlay(() => import('../components/LibrarySheet').then
 const PlusSheet = lazyOverlay(() => import('../components/PlusSheet').then((m) => ({ default: m.PlusSheet })));
 const MyDay = lazyOverlay(() => import('../components/MyDay').then((m) => ({ default: m.MyDay })));
 const RewardsSheet = lazyOverlay(() => import('../components/RewardsSheet').then((m) => ({ default: m.RewardsSheet })));
+const StampBook = lazyOverlay(() => import('../components/LiveKit').then((m) => ({ default: m.StampBook })));
 const LikersSheet = lazyOverlay(() => import('../components/LikersSheet').then((m) => ({ default: m.LikersSheet })));
 
 /* ─── YOUR SPACE — the profile, Facebook / Instagram / X style ───
@@ -786,6 +787,9 @@ export const ProfileScreen = () => {
           ) : null}
 
         </View>
+
+        {/* the Moments Passport: a stamp for every table you sat at (StampKit) */}
+        {SUPABASE_READY && user ? <StampBook /> : null}
 
         {/* highlights — the stories you kept. Real ones now: your own
             stories and moments, saved into circles that outlive the

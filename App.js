@@ -17,6 +17,7 @@
  */
 
 import { isRecovering, mustSetPassword } from './src/lib/recovery';
+import { takeStamp } from './src/lib/stampLink';
 import React from 'react';
 import { View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -115,6 +116,13 @@ const MemberGate = () => {
   if (VIP_DOORS.includes(ask) && (!m || m.tier !== 'VIP')) return <VipSheet m={m} onClose={() => setAsk(null)} />;
   if (!VIP_DOORS.includes(ask)) return <PricingGate m={m} onClose={() => setAsk(null)} />;
   return null;
+};
+/* ── A STAMP FROM THE TABLE'S QR ── (src/lib/stampLink.js). The phone's own
+   camera opened …/?stamp=<code>: once signed in, claim it and celebrate. */
+const StampFlow = lazyOverlay(() => import('./src/components/LiveKit').then((m) => ({ default: m.StampFlow })));
+const StampGate = () => {
+  const [code, setCode] = React.useState(() => takeStamp());
+  return code ? <StampFlow code={code} onClose={() => setCode(null)} /> : null;
 };
 const AdminPanel = lazyOverlay(() => import('./src/components/AdminPanel').then((m) => ({ default: m.AdminPanel })));
 import { Splash } from './src/components/Splash';
@@ -267,6 +275,7 @@ const Root = () => {
       {/* after a strike: over everything (src/components/SafetyHold.js) */}
       <SafetyHold />
       <MemberGate />
+      <StampGate />
     </View>
   );
 };
