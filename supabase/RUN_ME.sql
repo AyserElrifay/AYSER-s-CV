@@ -21803,7 +21803,10 @@ revoke all on function public.welcome_offer_live(uuid) from public, anon, authen
 -- what the welcome screen shows: the clock, and the next Level 1 workshop with its two prices
 create or replace function public.my_welcome_offer()
 returns jsonb language sql stable security definer set search_path = public as $$
-  select case when not public.welcome_offer_live(auth.uid()) then jsonb_build_object('live', false) else
+  -- no Level 1 workshop on sale: no 30% on nothing, the offer stays quiet
+  select case when not public.welcome_offer_live(auth.uid())
+               or not exists (select 1 from public.offers o where o.level = 1 and o.status = 'live' and (o.starts_at is null or o.starts_at > now()))
+              then jsonb_build_object('live', false) else
     jsonb_build_object('live', true, 'pct', 30, 'now', now(),
       'expires_at', (select expires_at from public.member_offers where user_id = auth.uid() and kind = 'vip_l1_30'),
       'workshop', (select jsonb_build_object('id', o.id, 'title', o.title, 'title_ar', o.title_ar, 'starts_at', o.starts_at,

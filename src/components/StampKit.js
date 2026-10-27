@@ -28,7 +28,6 @@ import { SheetHandle } from './SheetHandle';
      StampBook        the passport on your profile
      HostQr           the host's / café's screen: the live QR, who is in */
 
-const VIOLET = C.purple;
 const fmtDay = (iso, lang) => { try { return new Date(iso).toLocaleDateString(lang === 'ar' ? 'ar-EG' : lang, { day: 'numeric', month: 'short' }); } catch (e) { return ''; } };
 const initials = (s) => String(s || '·').trim().split(/\s+/).slice(0, 2).map((x) => x[0]).join('').toUpperCase();
 
@@ -80,7 +79,7 @@ export const StampFlow = ({ code, onClose, onAgain }) => {
   const toward = pp ? pp.toward_pass : null;
   return (
     <Modal visible animationType="fade" onRequestClose={onClose}>
-      <View style={{ flex: 1, backgroundColor: VIOLET }}>
+      <View style={{ flex: 1, backgroundColor: C.purple }}>
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 26, paddingTop: insets.top + 30, paddingBottom: insets.bottom + 30 }}>
           <View style={{ width: '100%', maxWidth: 420, alignItems: 'center' }}>
             {!r ? <ActivityIndicator color="#FFF" size="large" /> : !r.ok ? (
@@ -276,7 +275,7 @@ export const StampBook = () => {
   const l2 = (p.rewards || []).find((x) => x.kind === 'l2_30' && !x.used_at);
   const basic = p.tier === 'BASIC';
   return (
-    <View style={{ marginHorizontal: 16, marginTop: 20, borderRadius: 28, padding: 24, backgroundColor: VIOLET }}>
+    <View style={{ marginHorizontal: 16, marginTop: 20, borderRadius: 28, padding: 24, backgroundColor: C.purple }}>
       <Text style={{ color: C.sun, fontSize: 12.5, fontWeight: '800', letterSpacing: lang === 'ar' ? 0 : 2.2 }}>{'✦ ' + pw(lang, 'kicker')}</Text>
       <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 10 }}>
         <Text style={[{ color: '#FFF', fontSize: 34, fontWeight: '800', letterSpacing: -1 }, NUM]}>{n === 1 ? pw(lang, 'stamp1') : pw(lang, 'stamps', { n })}</Text>
@@ -318,7 +317,7 @@ export const StampBook = () => {
         <View style={{ marginTop: 20, borderRadius: 22, padding: 18, backgroundColor: '#FFF', opacity: coffee.used_at ? 0.6 : 1 }}>
           <Text style={{ color: '#17131F', fontSize: 16.5, fontWeight: '800' }}>{'☕ ' + pw(lang, 'coffee')}</Text>
           <Text style={{ color: '#6F6A75', fontSize: 13.5, marginTop: 3 }}>{coffee.used_at ? pw(lang, 'used') : pw(lang, 'coffee_s') + ' · ' + pw(lang, 'until', { d: fmtDay(coffee.expires_at, lang) })}</Text>
-          {!coffee.used_at ? <Text selectable style={[{ color: VIOLET, fontSize: 30, fontWeight: '800', letterSpacing: 6, marginTop: 10, textAlign: 'center' }, NUM]}>{coffee.code}</Text> : null}
+          {!coffee.used_at ? <Text selectable style={[{ color: C.purple, fontSize: 30, fontWeight: '800', letterSpacing: 6, marginTop: 10, textAlign: 'center' }, NUM]}>{coffee.code}</Text> : null}
         </View>
       ) : null}
       {l2 ? <Text style={{ color: '#FFF', fontSize: 14, lineHeight: 20, marginTop: 14 }}>{'🎓 ' + pw(lang, 'l2')}</Text> : null}
@@ -362,9 +361,9 @@ export const HostQr = ({ kind, id, onClose }) => {
       <View style={{ flex: 1, backgroundColor: '#FFF' }}>
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingTop: insets.top + 10, paddingHorizontal: 24, paddingBottom: insets.bottom + 30, alignItems: 'center' }}>
           <View style={{ alignSelf: 'stretch' }}><SheetHandle onClose={onClose} /></View>
-          <Text style={{ color: VIOLET, fontSize: 12.5, fontWeight: '800', letterSpacing: lang === 'ar' ? 0 : 2, marginTop: 16 }}>{'✦ ' + pw(lang, 'host').toUpperCase()}</Text>
+          <Text style={{ color: C.purple, fontSize: 12.5, fontWeight: '800', letterSpacing: lang === 'ar' ? 0 : 2, marginTop: 16 }}>{'✦ ' + pw(lang, 'host').toUpperCase()}</Text>
           <Text style={{ color: '#17131F', fontSize: 28, fontWeight: '800', letterSpacing: -0.8, marginTop: 8, textAlign: 'center' }} numberOfLines={2}>{(q && q.title) || ' '}</Text>
-          {!q ? <ActivityIndicator color={VIOLET} style={{ marginTop: 60 }} /> : !q.ok ? (
+          {!q ? <ActivityIndicator color={C.purple} style={{ marginTop: 60 }} /> : !q.ok ? (
             <Text style={{ color: '#6F6A75', fontSize: 16, marginTop: 40, textAlign: 'center' }}>{pw(lang, q.reason === 'not_yet' ? 'not_yet' : q.reason === 'over' ? 'over' : 'e_err')}</Text>
           ) : (
             <>
@@ -373,7 +372,7 @@ export const HostQr = ({ kind, id, onClose }) => {
               </View>
               {/* how long this one lives */}
               <View style={{ width: 270, height: 4, borderRadius: 2, backgroundColor: 'rgba(23,19,31,0.08)', marginTop: 16, overflow: 'hidden' }}>
-                <Animated.View style={{ height: 4, borderRadius: 2, backgroundColor: VIOLET, width: bar.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }} />
+                <Animated.View style={{ height: 4, borderRadius: 2, backgroundColor: C.purple, width: bar.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }} />
               </View>
               <Text style={{ color: '#6F6A75', fontSize: 14, lineHeight: 20, marginTop: 14, textAlign: 'center', maxWidth: 320 }}>{pw(lang, 'host_s')}</Text>
               <Text style={[{ color: '#17131F', fontSize: 22, fontWeight: '800', marginTop: 22 }, NUM]}>{pw(lang, 'stamped', { n: q.stamped || 0 })}</Text>
@@ -387,7 +386,7 @@ export const HostQr = ({ kind, id, onClose }) => {
                       <Pressable onPress={async () => { tapLight(); setBusy(g.id); await hostStamp(kind, id, g.id, true); setBusy(null); setQ((o) => ({ ...o, stamped: (o.stamped || 0) + 1, going: o.going.map((x) => (x.id === g.id ? { ...x, stamped: true } : x)) })); }}
                         disabled={busy === g.id} accessibilityRole="button">
                         <View style={{ borderRadius: 999, paddingHorizontal: 16, paddingVertical: 8, backgroundColor: 'rgba(124,58,237,0.1)' }}>
-                          <Text style={{ color: VIOLET, fontSize: 14, fontWeight: '700' }}>{pw(lang, 'stamp_hand')}</Text>
+                          <Text style={{ color: C.purple, fontSize: 14, fontWeight: '700' }}>{pw(lang, 'stamp_hand')}</Text>
                         </View>
                       </Pressable>
                     )}

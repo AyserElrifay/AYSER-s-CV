@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { View, Text, Pressable, ScrollView, Modal, Platform, ActivityIndicator, Animated, Easing } from 'react-native';
+import { View, Text, Pressable, ScrollView, Modal, Platform, ActivityIndicator, Animated, Easing, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, NUM } from '../constants/theme';
 import { useLang } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
-import { buyTier } from '../services/payments';
+import { buyTier, promoCode, setPromoCode } from '../services/payments';
 import { tapLight, tapMedium, tapSuccess, tapSelection } from '../utils/feedback';
 import { useSheetBack } from '../hooks/useSheetBack';
 import { SheetHandle } from './SheetHandle';
@@ -179,6 +179,48 @@ const useBuy = (lang, m) => {
   return { busy, note, buy };
 };
 
+/* a promo code: one quiet line that opens into a field. Lemon Squeezy
+   checks the code at the checkout and takes it off there. */
+const PROMO = {
+  en: ['Have a promo code?', 'Promo code', 'Apply', 'Code {c} — it comes off at checkout', 'Remove'],
+  ar: ['معاك كود خصم؟', 'كود الخصم', 'تمام', 'الكود {c} — هيتخصم في صفحة الدفع', 'شيله'],
+};
+const pw = (lang, i) => (PROMO[lang] || PROMO.en)[i];
+const Promo = ({ lang }) => {
+  const [code, setCode] = useState(promoCode);
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState('');
+  if (code) {
+    return (
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 16 }}>
+        <Text style={{ color: '#FFFFFF', fontSize: 13.5 }}>{pw(lang, 3).replace('{c}', code)}</Text>
+        <Pressable onPress={() => { tapLight(); setCode(setPromoCode('')); }} accessibilityRole="button" hitSlop={8} style={{ marginStart: 10 }}>
+          <Text style={{ color: '#A3A3A3', fontSize: 13.5, textDecorationLine: 'underline' }}>{pw(lang, 4)}</Text>
+        </Pressable>
+      </View>
+    );
+  }
+  if (!open) {
+    return (
+      <Pressable onPress={() => { tapLight(); setOpen(true); }} accessibilityRole="button" hitSlop={10} style={{ alignSelf: 'center', marginTop: 16 }}>
+        <Text style={{ color: '#A3A3A3', fontSize: 13.5, textDecorationLine: 'underline' }}>{pw(lang, 0)}</Text>
+      </Pressable>
+    );
+  }
+  const apply = () => { const c = setPromoCode(draft); if (c) { tapSuccess(); setCode(c); setOpen(false); } };
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 16 }}>
+      <TextInput value={draft} onChangeText={(x) => setDraft(x.toUpperCase())} placeholder={pw(lang, 1)} placeholderTextColor="#737373" autoCapitalize="characters" autoCorrect={false} maxLength={32} onSubmitEditing={apply}
+        style={{ flex: 1, color: '#FFFFFF', fontSize: 15, borderWidth: 1, borderColor: '#262626', borderRadius: 999, paddingHorizontal: 16, paddingVertical: 11, outlineStyle: 'none' }} />
+      <Pressable onPress={apply} accessibilityRole="button" style={{ marginStart: 8 }}>
+        <View style={{ borderRadius: 999, paddingHorizontal: 18, paddingVertical: 12, backgroundColor: '#FFFFFF' }}>
+          <Text style={{ color: '#000000', fontSize: 14, fontWeight: '600' }}>{pw(lang, 2)}</Text>
+        </View>
+      </Pressable>
+    </View>
+  );
+};
+
 /* the gateway: `hard` when somebody without a membership signed in (nothing else to tap),
    or a sheet for a member choosing a plan */
 export const PricingGate = ({ m, hard, onClose, onSignOut }) => {
@@ -224,6 +266,7 @@ export const PricingGate = ({ m, hard, onClose, onSignOut }) => {
           items={[[g(lang, 'b1')], [g(lang, 'b2')], [g(lang, 'b3')], [g(lang, 'b4')]]}
           cta={w(lang, 'becomeVip')} busy={busy === 'vip'} onPress={() => buy('vip', period)} current={tier === 'VIP'} />
         {note ? <Text style={{ color: '#FFF', fontSize: 14.5, textAlign: 'center', marginTop: 18 }}>{note}</Text> : null}
+        <Promo lang={lang} />
         <Pressable onPress={() => { tapLight(); setWhy(true); }} accessibilityRole="link" hitSlop={10} style={{ alignSelf: 'center', marginTop: 10 }}>
           <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '600', textDecorationLine: 'underline' }}>{w(lang, 'why')}</Text>
         </Pressable>
@@ -280,7 +323,7 @@ export const VipSheet = ({ m, onClose }) => {
           <Text style={[{ color: '#FFFFFF', fontSize: 28, fontWeight: '700', letterSpacing: -0.6 }, NUM]}>{money(pr.vip, pr.currency, lang)}</Text>
           <Text style={{ color: '#A3A3A3', fontSize: 14, marginStart: 6 }}>{per(lang, pr.vip_period, pr.currency)}</Text>
         </View>
-        <Pressable onPress={() => buy('vip')} disabled={!!busy} accessibilityRole="button" style={{ marginTop: 18 }}>
+        <Pressable onPress={() => buy('vip', pr.vip_period === 'month' ? 'month' : 'year')} disabled={!!busy} accessibilityRole="button" style={{ marginTop: 18 }}>
           <View style={{ borderRadius: 999, paddingVertical: 15, alignItems: 'center', backgroundColor: '#FFFFFF' }}>
             {busy ? <ActivityIndicator color="#000000" /> : <Text style={{ color: '#000000', fontSize: 16, fontWeight: '600' }}>{w(lang, 'becomeVip')}</Text>}
           </View>
@@ -302,23 +345,23 @@ export const VipSheet = ({ m, onClose }) => {
    out. The offer, its clock and the discount are the server's — this
    only shows them, and closing it closes it for good. */
 const OTO = {
-  en: ['Welcome to the Black Club 🥂', 'Your digital access is unlocked. Now, let’s get you offline.', 'A welcome gift', '30% OFF', 'your first Level 1 Global Track Workshop', 'Offer ends in', 'Claim 30% Off & Book Level 1', 'No thanks, I’ll explore the app first.', 'Only for new Black members, once.'],
+  en: ['Welcome to the Black Club', 'Your digital access is unlocked. Now, let’s get you offline.', 'A welcome gift', '30% OFF', 'your first Level 1 Global Track Workshop', 'Offer ends in', 'Claim 30% Off & Book Level 1', 'No thanks, I’ll explore the app first.', 'Only for new Black members, once.'],
   ar: ['أهلًا بيك\nفي مومنتس بلاك', 'التطبيق كله بقى مفتوح ليك. يلا نخرج بقى من الشاشة.', 'هدية ترحيب', 'خصم ٣٠٪', 'على أول ورشة من المستوى الأول', 'العرض بيخلص بعد', 'خد خصم ٣٠٪ واحجز المستوى الأول', 'لأ شكرًا، هتفرّج على التطبيق الأول.', 'لأعضاء Black الجداد بس، ومرة واحدة.'],
-  cs: ['Vítej ve Black klubu 🥂', 'Digitální přístup máš odemčený. Teď tě dostaneme ven.', 'Uvítací dárek', 'SLEVA 30 %', 'na tvůj první workshop Global Track, Level 1', 'Nabídka končí za', 'Získat 30 % a rezervovat Level 1', 'Ne, díky, nejdřív si projdu aplikaci.', 'Jen pro nové členy Black, jednou.'],
-  es: ['Bienvenido al Black Club 🥂', 'Tu acceso digital está desbloqueado. Ahora, salgamos de la pantalla.', 'Un regalo de bienvenida', '30% DE DESCUENTO', 'en tu primer taller Global Track de Nivel 1', 'La oferta termina en', 'Obtén el 30% y reserva el Nivel 1', 'No, gracias, primero exploraré la app.', 'Solo para nuevos miembros Black, una vez.'],
-  et: ['Tere tulemast Black-klubisse 🥂', 'Digitaalne ligipääs on avatud. Nüüd viime su päriselu juurde.', 'Tervituskingitus', '30% SOODSAMALT', 'sinu esimene Global Tracki 1. taseme töötuba', 'Pakkumine lõpeb', 'Võta 30% ja broneeri 1. tase', 'Ei, aitäh, uurin enne äppi.', 'Ainult uutele Black-liikmetele, üks kord.'],
-  fr: ['Bienvenue au Black Club 🥂', 'Ton accès numérique est débloqué. Maintenant, sortons de l’écran.', 'Un cadeau de bienvenue', '-30 %', 'sur ton premier atelier Global Track de niveau 1', 'L’offre se termine dans', 'Profiter des -30 % et réserver le niveau 1', 'Non merci, je vais d’abord explorer l’app.', 'Réservé aux nouveaux membres Black, une seule fois.'],
-  hi: ['Black क्लब में स्वागत है 🥂', 'आपका डिजिटल एक्सेस खुल गया है। अब चलिए आपको ऑफ़लाइन ले चलें।', 'स्वागत तोहफ़ा', '30% छूट', 'आपकी पहली Level 1 Global Track वर्कशॉप पर', 'ऑफ़र ख़त्म होगा', '30% छूट लें और Level 1 बुक करें', 'नहीं, धन्यवाद, पहले ऐप देखूँगा।', 'सिर्फ़ नए Black मेंबर्स के लिए, एक बार।'],
-  it: ['Benvenuto nel Black Club 🥂', 'Il tuo accesso digitale è sbloccato. Ora usciamo dallo schermo.', 'Un regalo di benvenuto', '30% DI SCONTO', 'sul tuo primo workshop Global Track di Livello 1', 'L’offerta scade tra', 'Prendi il 30% e prenota il Livello 1', 'No grazie, prima esploro l’app.', 'Solo per i nuovi membri Black, una volta.'],
-  ja: ['Black クラブへようこそ 🥂', 'デジタルのアクセスは解放されました。次はオフラインへ。', 'ウェルカムギフト', '30% OFF', '初めての Global Track レベル1 ワークショップ', '終了まで', '30%オフでレベル1を予約', 'いいえ、まずアプリを見てみます。', '新しい Black メンバー限定・一度だけ。'],
-  ko: ['Black 클럽에 오신 걸 환영해요 🥂', '디지털 접근이 열렸어요. 이제 오프라인으로 나가 볼까요.', '웰컴 선물', '30% 할인', '첫 Global Track 레벨 1 워크숍', '남은 시간', '30% 할인받고 레벨 1 예약하기', '괜찮아요, 앱부터 둘러볼게요.', '새 Black 회원만, 한 번.'],
-  nl: ['Welkom bij de Black Club 🥂', 'Je digitale toegang is ontgrendeld. Nu gaan we offline.', 'Een welkomstcadeau', '30% KORTING', 'op je eerste Global Track-workshop van Level 1', 'Aanbod eindigt over', 'Pak 30% korting en boek Level 1', 'Nee, bedankt, ik verken eerst de app.', 'Alleen voor nieuwe Black-leden, één keer.'],
-  pt: ['Bem-vindo ao Black Club 🥂', 'O teu acesso digital está desbloqueado. Agora, vamos sair do ecrã.', 'Um presente de boas-vindas', '30% DE DESCONTO', 'no teu primeiro workshop Global Track de Nível 1', 'A oferta termina em', 'Aproveita 30% e reserva o Nível 1', 'Não, obrigado, primeiro vou explorar a app.', 'Só para novos membros Black, uma vez.'],
-  ro: ['Bun venit în Black Club 🥂', 'Accesul digital e deblocat. Acum, hai să ieșim din ecran.', 'Un cadou de bun venit', '30% REDUCERE', 'la primul tău atelier Global Track de Nivel 1', 'Oferta se termină în', 'Ia 30% reducere și rezervă Nivelul 1', 'Nu, mulțumesc, explorez mai întâi aplicația.', 'Doar pentru membrii Black noi, o singură dată.'],
-  ru: ['Добро пожаловать в Black Club 🥂', 'Цифровой доступ открыт. Теперь — в офлайн.', 'Подарок в честь знакомства', 'СКИДКА 30%', 'на твой первый воркшоп Global Track уровня 1', 'Предложение закончится через', 'Взять 30% и записаться на уровень 1', 'Нет, спасибо, сначала посмотрю приложение.', 'Только для новых участников Black, один раз.'],
-  tr: ['Black Club’a hoş geldin 🥂', 'Dijital erişimin açıldı. Şimdi seni ekrandan çıkaralım.', 'Hoş geldin hediyesi', '%30 İNDİRİM', 'ilk Global Track Seviye 1 atölyende', 'Teklifin bitmesine', '%30 indirimi al ve Seviye 1’i ayırt', 'Hayır, teşekkürler, önce uygulamayı keşfedeceğim.', 'Yalnızca yeni Black üyelere, bir kez.'],
-  uk: ['Ласкаво просимо до Black Club 🥂', 'Цифровий доступ відкрито. Тепер — в офлайн.', 'Подарунок на знайомство', 'ЗНИЖКА 30%', 'на твій перший воркшоп Global Track рівня 1', 'Пропозиція закінчиться через', 'Взяти 30% і записатися на рівень 1', 'Ні, дякую, спершу подивлюся застосунок.', 'Лише для нових учасників Black, один раз.'],
-  zh: ['欢迎加入 Black 俱乐部 🥂', '你的线上权限已解锁。现在，让我们走到线下。', '欢迎礼物', '7 折', '你的第一场 Global Track 一级工作坊', '优惠剩余', '领取 7 折并预订一级', '不用了，我先逛逛应用。', '仅限新 Black 会员，仅此一次。'],
+  cs: ['Vítej ve Black klubu', 'Digitální přístup máš odemčený. Teď tě dostaneme ven.', 'Uvítací dárek', 'SLEVA 30 %', 'na tvůj první workshop Global Track, Level 1', 'Nabídka končí za', 'Získat 30 % a rezervovat Level 1', 'Ne, díky, nejdřív si projdu aplikaci.', 'Jen pro nové členy Black, jednou.'],
+  es: ['Bienvenido al Black Club', 'Tu acceso digital está desbloqueado. Ahora, salgamos de la pantalla.', 'Un regalo de bienvenida', '30% DE DESCUENTO', 'en tu primer taller Global Track de Nivel 1', 'La oferta termina en', 'Obtén el 30% y reserva el Nivel 1', 'No, gracias, primero exploraré la app.', 'Solo para nuevos miembros Black, una vez.'],
+  et: ['Tere tulemast Black-klubisse', 'Digitaalne ligipääs on avatud. Nüüd viime su päriselu juurde.', 'Tervituskingitus', '30% SOODSAMALT', 'sinu esimene Global Tracki 1. taseme töötuba', 'Pakkumine lõpeb', 'Võta 30% ja broneeri 1. tase', 'Ei, aitäh, uurin enne äppi.', 'Ainult uutele Black-liikmetele, üks kord.'],
+  fr: ['Bienvenue au Black Club', 'Ton accès numérique est débloqué. Maintenant, sortons de l’écran.', 'Un cadeau de bienvenue', '-30 %', 'sur ton premier atelier Global Track de niveau 1', 'L’offre se termine dans', 'Profiter des -30 % et réserver le niveau 1', 'Non merci, je vais d’abord explorer l’app.', 'Réservé aux nouveaux membres Black, une seule fois.'],
+  hi: ['Black क्लब में स्वागत है', 'आपका डिजिटल एक्सेस खुल गया है। अब चलिए आपको ऑफ़लाइन ले चलें।', 'स्वागत तोहफ़ा', '30% छूट', 'आपकी पहली Level 1 Global Track वर्कशॉप पर', 'ऑफ़र ख़त्म होगा', '30% छूट लें और Level 1 बुक करें', 'नहीं, धन्यवाद, पहले ऐप देखूँगा।', 'सिर्फ़ नए Black मेंबर्स के लिए, एक बार।'],
+  it: ['Benvenuto nel Black Club', 'Il tuo accesso digitale è sbloccato. Ora usciamo dallo schermo.', 'Un regalo di benvenuto', '30% DI SCONTO', 'sul tuo primo workshop Global Track di Livello 1', 'L’offerta scade tra', 'Prendi il 30% e prenota il Livello 1', 'No grazie, prima esploro l’app.', 'Solo per i nuovi membri Black, una volta.'],
+  ja: ['Black クラブへようこそ', 'デジタルのアクセスは解放されました。次はオフラインへ。', 'ウェルカムギフト', '30% OFF', '初めての Global Track レベル1 ワークショップ', '終了まで', '30%オフでレベル1を予約', 'いいえ、まずアプリを見てみます。', '新しい Black メンバー限定・一度だけ。'],
+  ko: ['Black 클럽에 오신 걸 환영해요', '디지털 접근이 열렸어요. 이제 오프라인으로 나가 볼까요.', '웰컴 선물', '30% 할인', '첫 Global Track 레벨 1 워크숍', '남은 시간', '30% 할인받고 레벨 1 예약하기', '괜찮아요, 앱부터 둘러볼게요.', '새 Black 회원만, 한 번.'],
+  nl: ['Welkom bij de Black Club', 'Je digitale toegang is ontgrendeld. Nu gaan we offline.', 'Een welkomstcadeau', '30% KORTING', 'op je eerste Global Track-workshop van Level 1', 'Aanbod eindigt over', 'Pak 30% korting en boek Level 1', 'Nee, bedankt, ik verken eerst de app.', 'Alleen voor nieuwe Black-leden, één keer.'],
+  pt: ['Bem-vindo ao Black Club', 'O teu acesso digital está desbloqueado. Agora, vamos sair do ecrã.', 'Um presente de boas-vindas', '30% DE DESCONTO', 'no teu primeiro workshop Global Track de Nível 1', 'A oferta termina em', 'Aproveita 30% e reserva o Nível 1', 'Não, obrigado, primeiro vou explorar a app.', 'Só para novos membros Black, uma vez.'],
+  ro: ['Bun venit în Black Club', 'Accesul digital e deblocat. Acum, hai să ieșim din ecran.', 'Un cadou de bun venit', '30% REDUCERE', 'la primul tău atelier Global Track de Nivel 1', 'Oferta se termină în', 'Ia 30% reducere și rezervă Nivelul 1', 'Nu, mulțumesc, explorez mai întâi aplicația.', 'Doar pentru membrii Black noi, o singură dată.'],
+  ru: ['Добро пожаловать в Black Club', 'Цифровой доступ открыт. Теперь — в офлайн.', 'Подарок в честь знакомства', 'СКИДКА 30%', 'на твой первый воркшоп Global Track уровня 1', 'Предложение закончится через', 'Взять 30% и записаться на уровень 1', 'Нет, спасибо, сначала посмотрю приложение.', 'Только для новых участников Black, один раз.'],
+  tr: ['Black Club’a hoş geldin', 'Dijital erişimin açıldı. Şimdi seni ekrandan çıkaralım.', 'Hoş geldin hediyesi', '%30 İNDİRİM', 'ilk Global Track Seviye 1 atölyende', 'Teklifin bitmesine', '%30 indirimi al ve Seviye 1’i ayırt', 'Hayır, teşekkürler, önce uygulamayı keşfedeceğim.', 'Yalnızca yeni Black üyelere, bir kez.'],
+  uk: ['Ласкаво просимо до Black Club', 'Цифровий доступ відкрито. Тепер — в офлайн.', 'Подарунок на знайомство', 'ЗНИЖКА 30%', 'на твій перший воркшоп Global Track рівня 1', 'Пропозиція закінчиться через', 'Взяти 30% і записатися на рівень 1', 'Ні, дякую, спершу подивлюся застосунок.', 'Лише для нових учасників Black, один раз.'],
+  zh: ['欢迎加入 Black 俱乐部', '你的线上权限已解锁。现在，让我们走到线下。', '欢迎礼物', '7 折', '你的第一场 Global Track 一级工作坊', '优惠剩余', '领取 7 折并预订一级', '不用了，我先逛逛应用。', '仅限新 Black 会员，仅此一次。'],
 };
 const OK = ['title', 'hook', 'gift', 'off', 'first', 'ends', 'cta', 'no', 'once'];
 const ow = (lang, k) => { const i = OK.indexOf(k); return (OTO[lang] || OTO.en)[i] || OTO.en[i] || ''; };

@@ -12,7 +12,6 @@ import { placeLink, isBizDemo } from '../../lib/bizLink';
 import { uploadPlanPhoto } from '../../lib/storage';
 import { Selling } from '../VenueSheet';
 import { lazyOverlay } from '../../lib/lazyScreen';
-const GreenSheet = lazyOverlay(() => import('../green/GreenSheet').then((m) => ({ default: m.GreenSheet })));
 const HostQr = lazyOverlay(() => import('../LiveKit').then((m) => ({ default: m.HostQr })));
 // the QR drawer comes with the LiveKit piece (it draws the table QR too); shared any other way it would land in the first download
 const Qr = lazyOverlay(() => import('../LiveKit').then((m) => ({ default: m.Qr })));
@@ -51,14 +50,6 @@ const Input = ({ value, onChange, ph, multi, kb, max }) => (
   <TextInput value={value} onChangeText={onChange} placeholder={ph} placeholderTextColor={C.faint} multiline={!!multi} keyboardType={kb || 'default'} maxLength={max || 120}
     style={{ color: C.text, fontSize: 15, borderWidth: 1, borderColor: C.line, borderRadius: 14, paddingHorizontal: 13, paddingVertical: 11, backgroundColor: C.glass, minHeight: multi ? 90 : undefined, textAlignVertical: multi ? 'top' : 'center', outlineStyle: 'none' }} />
 );
-const Stat = ({ n, label }) => (
-  <View style={{ width: '33.33%', padding: 4 }}>
-    <View style={{ borderRadius: 16, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, paddingVertical: 12, alignItems: 'center' }}>
-      <Text style={{ color: C.text, fontSize: 22, fontWeight: '900' }}>{n == null ? '—' : String(n)}</Text>
-      <Text style={{ color: C.dim, fontSize: 11.5, fontWeight: '700', marginTop: 2 }} numberOfLines={1}>{label}</Text>
-    </View>
-  </View>
-);
 const Btn = ({ label, onPress, ghost, busy, small }) => (
   <Pressable onPress={onPress} disabled={busy} accessibilityRole="button">
     <View style={{ borderRadius: 999, paddingVertical: small ? 9 : 14, paddingHorizontal: small ? 16 : 0, alignItems: 'center', backgroundColor: ghost ? C.glassHi : C.purple, opacity: busy ? 0.6 : 1 }}>
@@ -85,10 +76,9 @@ const CounterQr = ({ v, B }) => {
     return () => { alive = false; if (t) clearTimeout(t); };
   }, []);
   return (
-    <View style={{ borderRadius: 22, padding: 18, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, marginTop: 12, alignItems: 'center' }}>
-      <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '900', letterSpacing: 1 }}>{B('qr_title').toUpperCase()}</Text>
-      <View style={{ marginTop: 12, padding: 10, borderRadius: 18, backgroundColor: '#FFF' }}>
-        {tk ? <Qr value={placeLink(v.id, tk)} size={200} /> : <View style={{ width: 200, height: 200, alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator color={C.purple} /></View>}
+    <View style={{ alignItems: 'center', marginTop: 14 }}>
+      <View style={{ padding: 10, borderRadius: 18, backgroundColor: '#FFF' }}>
+        {tk ? <Qr value={placeLink(v.id, tk)} size={200} /> : <View style={{ width: 200, height: 200, alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator color="#000" /></View>}
       </View>
       <Text style={{ color: C.dim, fontSize: 13, textAlign: 'center', marginTop: 10, lineHeight: 18 }}>{B('qr_s')}</Text>
       <View style={{ marginTop: 12 }}>
@@ -220,7 +210,7 @@ const DealCard = ({ lang }) => {
           {/* what guests will read */}
           <View style={{ borderRadius: 14, backgroundColor: C.glass, paddingVertical: 10, paddingHorizontal: 12, marginTop: 16 }}>
             <Text style={{ color: C.faint, fontSize: 10.5, fontWeight: '900', letterSpacing: 1 }}>{B('deal_preview').toUpperCase()}</Text>
-            <Text style={{ color: edit.days.length ? C.text : C.faint, fontSize: 14, fontWeight: '800', marginTop: 3 }}>{edit.days.length ? '🏷️ ' + dealLine(lang, draft) : B('deal_days')}</Text>
+            <Text style={{ color: edit.days.length ? C.text : C.faint, fontSize: 14, fontWeight: '800', marginTop: 3 }}>{edit.days.length ? dealLine(lang, draft) : B('deal_days')}</Text>
           </View>
           {err ? <Text style={{ color: C.red || '#E11D48', fontSize: 12.5, marginTop: 8 }}>{B(edit.days.length ? 'failed' : 'deal_bad')}</Text> : null}
           <View style={{ marginTop: 14 }}>
@@ -247,24 +237,18 @@ const Tables = ({ lang }) => {
   const [list, setList] = useState(null);
   const [qr, setQr] = useState(null);
   useEffect(() => { venueEvents().then(setList); }, []);
+  // nothing booked here: the card waits until there is
+  if (!list || !list.length) return null;
   return (
-    <View style={{ borderRadius: 24, padding: 20, backgroundColor: C.purple, marginTop: 16 }}>
-      <Text style={{ color: C.sun, fontSize: 12, fontWeight: '800', letterSpacing: lang === 'ar' ? 0 : 1.8 }}>{'✦ ' + B('tables').toUpperCase()}</Text>
-      <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13.5, lineHeight: 19, marginTop: 6 }}>{B('tables_s')}</Text>
-      {list == null ? <ActivityIndicator color="#FFF" style={{ marginTop: 14 }} /> : !list.length ? (
-        <Text style={{ color: '#FFF', fontSize: 14, marginTop: 14 }}>{B('tables_none')}</Text>
-      ) : list.map((e) => (
-        <View key={e.id} style={{ marginTop: 12, borderRadius: 18, padding: 14, backgroundColor: '#FFF', flexDirection: 'row', alignItems: 'center' }}>
+    <View style={{ borderRadius: 22, padding: 18, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, marginTop: 12 }}>
+      <Text style={{ color: C.text, fontSize: 16, fontWeight: '800' }}>{B('tables')}</Text>
+      {list.map((e) => (
+        <View key={e.id} style={{ marginTop: 12, flexDirection: 'row', alignItems: 'center' }}>
           <View style={{ flex: 1, marginEnd: 10 }}>
-            <Text style={{ color: '#17131F', fontSize: 15.5, fontWeight: '700' }} numberOfLines={1}>{e.title}</Text>
-            <Text style={{ color: '#6F6A75', fontSize: 12.5, marginTop: 2 }} numberOfLines={1}>{[when(e.starts_at, lang), fill(B('going_n'), { n: e.going }), fill(B('stamped_n'), { n: e.stamped })].join(' · ')}</Text>
+            <Text style={{ color: C.text, fontSize: 15, fontWeight: '700' }} numberOfLines={1}>{e.title}</Text>
+            <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 2 }} numberOfLines={1}>{[when(e.starts_at, lang), fill(B('going_n'), { n: e.going }), fill(B('stamped_n'), { n: e.stamped })].join(' · ')}</Text>
           </View>
-          <Pressable onPress={() => { tapLight(); setQr(e); }} accessibilityRole="button">
-            <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9, backgroundColor: C.purple }}>
-              <Ionicons name="qr-code-outline" size={15} color="#FFF" />
-              <Text style={{ color: '#FFF', fontSize: 13.5, fontWeight: '700', marginStart: 6 }}>{B('show_qr')}</Text>
-            </View>
-          </Pressable>
+          <Btn small label={B('show_qr')} onPress={() => { tapLight(); setQr(e); }} />
         </View>
       ))}
       {qr ? <HostQr kind={qr.kind} id={qr.id} onClose={() => { setQr(null); venueEvents().then(setList); }} /> : null}
@@ -285,8 +269,8 @@ const VoucherBox = ({ lang }) => {
     else setMsg({ ok: false, t: B(r && r.reason === 'used' ? 'voucher_used' : r && r.reason === 'expired' ? 'voucher_exp' : 'voucher_bad') });
   };
   return (
-    <View style={{ borderRadius: 22, padding: 18, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, marginTop: 12 }}>
-      <Text style={{ color: C.text, fontSize: 16, fontWeight: '800' }}>{'☕ ' + B('voucher')}</Text>
+    <View style={{ marginTop: 18, paddingTop: 16, borderTopWidth: 1, borderTopColor: C.line }}>
+      <Text style={{ color: C.text, fontSize: 15, fontWeight: '800' }}>{B('voucher')}</Text>
       <Text style={{ color: C.dim, fontSize: 13, lineHeight: 18, marginTop: 4 }}>{B('voucher_s')}</Text>
       <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
         <View style={{ flex: 1, marginEnd: 8 }}><Input value={code} onChange={(v) => setCode(v.toUpperCase())} ph={B('voucher_ph')} max={12} /></View>
@@ -297,51 +281,111 @@ const VoucherBox = ({ lang }) => {
   );
 };
 
-const Today = ({ v, lang, onPlan, onCode }) => {
+/* ── TODAY ── Ayser: "simpler, no crowding, count the customers, and when
+   a customer does something, make it show". One big number, three small
+   ones, and a live line on top: it asks again every 20 seconds while the
+   dashboard is open and lights up when somebody checks in or a request
+   comes in. */
+const Today = ({ v, lang, onCode, onRequests }) => {
   const B = (k) => bw(lang, k);
   const [s, setS] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [showQr, setShowQr] = useState(false);
+  const [live, setLive] = useState(null);
+  const seen = React.useRef(null);
   const ty = typeOf(v.biz_type);
-  useEffect(() => { placeStats().then((r) => r && r.ok && setS(r)); }, []);
+  useEffect(() => {
+    let alive = true;
+    const get = () => placeStats().then((r) => {
+      if (!alive || !(r && r.ok)) return;
+      const last = r.recent && r.recent[0] ? r.recent[0].at : null;
+      if (seen.current && last && last !== seen.current.last && r.today > seen.current.today) {
+        tapSuccess();
+        const name = r.recent[0].name;
+        setLive({ t: name ? fill(B('live_in'), { n: name }) : B('live_in1'), at: Date.now() });
+      }
+      seen.current = { last, today: r.today };
+      setS(r);
+    });
+    get();
+    const iv = setInterval(get, 20000);
+    return () => { alive = false; clearInterval(iv); };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // the arrival line stays a minute, then the screen is quiet again
+  useEffect(() => { if (!live) return undefined; const t = setTimeout(() => setLive(null), 60000); return () => clearTimeout(t); }, [live]);
+  const reqs = s ? Number(s.requests_new) || 0 : 0;
+  const small = (n, k) => (
+    <View style={{ flex: 1, alignItems: 'center' }}>
+      <Text style={{ color: C.text, fontSize: 22, fontWeight: '800' }}>{n == null ? '—' : String(n)}</Text>
+      <Text style={{ color: C.dim, fontSize: 12, marginTop: 2 }} numberOfLines={1}>{B(k)}</Text>
+    </View>
+  );
   return (
     <>
-      {/* tonight first: the tables at this place, each with its check-in QR */}
-      <Tables lang={lang} />
+      {/* what just happened, big enough to see from the counter */}
+      {live ? (
+        <Pressable onPress={() => setLive(null)} accessibilityRole="alert" style={{ marginTop: 16 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 20, paddingVertical: 16, paddingHorizontal: 18, backgroundColor: C.text }}>
+            <Ionicons name="person-add" size={22} color={C.bg} />
+            <Text style={{ color: C.bg, fontSize: 17, fontWeight: '800', marginStart: 12, flex: 1 }}>{live.t}</Text>
+          </View>
+        </Pressable>
+      ) : null}
+      {reqs > 0 && ty.ask ? (
+        <Pressable onPress={() => { tapLight(); onRequests(); }} accessibilityRole="button" style={{ marginTop: 12 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 20, paddingVertical: 16, paddingHorizontal: 18, borderWidth: 2, borderColor: C.text }}>
+            <Ionicons name="notifications" size={20} color={C.text} />
+            <Text style={{ color: C.text, fontSize: 15.5, fontWeight: '800', marginStart: 12, flex: 1 }}>{reqs === 1 ? B('live_req') : fill(B('live_reqs'), { n: reqs })}</Text>
+            <Ionicons name={lang === 'ar' ? 'chevron-back' : 'chevron-forward'} size={18} color={C.text} />
+          </View>
+        </Pressable>
+      ) : null}
+
+      {/* the number */}
+      <View style={{ borderRadius: 24, paddingVertical: 24, paddingHorizontal: 18, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, marginTop: 16, alignItems: 'center' }}>
+        <Text style={{ color: C.dim, fontSize: 14, fontWeight: '700' }}>{B('cust_today')}</Text>
+        <Text style={{ color: C.text, fontSize: 64, fontWeight: '800', letterSpacing: -2, marginTop: 2 }}>{s ? String(s.today) : '—'}</Text>
+        <View style={{ flexDirection: 'row', alignSelf: 'stretch', marginTop: 14, paddingTop: 14, borderTopWidth: 1, borderTopColor: C.line }}>
+          {small(s && s.week, 'cust_week')}{small(s && s.month, 'cust_month')}{small(s && s.back, 'cust_back')}
+        </View>
+        {s && s.people ? <Text style={{ color: C.faint, fontSize: 12.5, marginTop: 12, textAlign: 'center' }}>{fill(B('cust_all'), { n: s.people })}</Text> : null}
+      </View>
+
+      {/* the counter: the code, the QR when asked for, a voucher */}
       {ty.counter ? (
-        <View style={{ borderRadius: 22, padding: 18, backgroundColor: C.purpleSoft, marginTop: 16, alignItems: 'center' }}>
-          <Text style={{ color: C.purple, fontSize: 11.5, fontWeight: '900', letterSpacing: 1 }}>{B('code').toUpperCase()}</Text>
-          <Text selectable style={{ color: C.text, fontSize: 48, fontWeight: '900', letterSpacing: 10, marginTop: 4 }}>{v.staff_code || '····'}</Text>
-          <Text style={{ color: C.dim, fontSize: 13, textAlign: 'center', marginTop: 4, lineHeight: 18 }}>{B('code_s')}</Text>
-          <View style={{ marginTop: 12 }}>
+        <View style={{ borderRadius: 24, padding: 18, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, marginTop: 12 }}>
+          <Text style={{ color: C.text, fontSize: 16, fontWeight: '800' }}>{B('at_counter')}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10 }}>
+            <View style={{ flex: 1 }}>
+              <Text selectable style={{ color: C.text, fontSize: 40, fontWeight: '800', letterSpacing: 8 }}>{v.staff_code || '····'}</Text>
+              <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 2 }}>{B('code')}</Text>
+            </View>
             <Btn small ghost busy={busy} label={B('code_new')} onPress={async () => { tapLight(); setBusy(true); const r = await newCounterCode(); setBusy(false); if (r && r.ok) onCode(r.code); }} />
           </View>
+          <View style={{ marginTop: 14 }}>
+            <Btn small ghost label={B(showQr ? 'hide_qr' : 'show_qr2')} onPress={() => { tapLight(); setShowQr((x) => !x); }} />
+          </View>
+          {showQr ? <CounterQr v={v} B={B} /> : null}
+          <VoucherBox lang={lang} />
         </View>
       ) : null}
-      {ty.counter ? <CounterQr v={v} B={B} /> : null}
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -4, marginTop: 12 }}>
-        <Stat n={s && s.today} label={B('st_today')} /><Stat n={s && s.week} label={B('st_week')} /><Stat n={s && s.month} label={B('st_month')} />
-        <Stat n={s && s.people} label={B('st_people')} /><Stat n={s && s.back} label={B('st_back')} /><Stat n={s && s.rewards} label={B('st_rewards')} />
-      </View>
+
+      <Tables lang={lang} />
       {ty.counter ? <DealCard lang={lang} /> : null}
+
+      <Label>{B('recent')}</Label>
+      {s && s.recent && s.recent.length ? s.recent.slice(0, 6).map((x, i) => (
+        <View key={i} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: C.line }}>
+          <Image source={{ uri: x.avatar || AV_NEUTRAL }} style={{ width: 30, height: 30, borderRadius: 15, marginEnd: 10 }} />
+          <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '700', flex: 1, textAlign: lang === 'ar' ? 'right' : 'left' }} numberOfLines={1}>{x.name || '—'}</Text>
+          <Text style={{ color: C.faint, fontSize: 12, marginStart: 10 }}>{'×' + x.visits + ' · ' + new Date(x.at).toLocaleDateString(lang === 'ar' ? 'ar-EG' : lang)}</Text>
+        </View>
+      )) : <Text style={{ color: C.dim, fontSize: 13.5 }}>{s ? B('recent_none') : '…'}</Text>}
       {s && ty.counter ? (
-        <Text style={{ color: C.dim, fontSize: 12.5, lineHeight: 18, marginTop: 10 }}>
+        <Text style={{ color: C.faint, fontSize: 12, lineHeight: 17, marginTop: 16 }}>
           {fill(B('bill'), { left: s.free_left, fee: Number(s.fee), sum: Number(s.month_bill).toLocaleString() })}
         </Text>
       ) : null}
-      {ty.counter ? <VoucherBox lang={lang} /> : null}
-      <Label>{B('recent')}</Label>
-      {s && s.recent && s.recent.length ? s.recent.map((x, i) => (
-        <View key={i} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: C.line }}>
-          <Image source={{ uri: x.avatar || AV_NEUTRAL }} style={{ width: 30, height: 30, borderRadius: 15, marginHorizontal: 10 }} />
-          <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '800', flex: 1, textAlign: lang === 'ar' ? 'right' : 'left' }} numberOfLines={1}>{x.name || '—'}</Text>
-          <Text style={{ color: C.faint, fontSize: 12, marginStart: 10 }}>{'×' + x.visits + ' · ' + new Date(x.at).toLocaleDateString()}</Text>
-        </View>
-      )) : <Text style={{ color: C.dim, fontSize: 13.5 }}>{s ? B('recent_none') : '…'}</Text>}
-      <View style={{ borderRadius: 20, padding: 16, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, marginTop: 20 }}>
-        <Text style={{ color: C.text, fontSize: 16, fontWeight: '900' }}>{v.biz_type === 'restaurant' ? '🍽️ ' + B('lunch') : '📍 ' + B('plan_here')}</Text>
-        <Text style={{ color: C.dim, fontSize: 13, marginTop: 4, marginBottom: 12, lineHeight: 18 }}>{v.biz_type === 'restaurant' ? B('lunch_s') : B('plan_here_s')}</Text>
-        {isBizDemo() ? <Text style={{ color: C.faint, fontSize: 13, textAlign: 'center' }}>{B('demo_plan')}</Text> : <Btn label={v.biz_type === 'restaurant' ? B('lunch') : B('plan_here')} onPress={() => { tapLight(); onPlan(); }} />}
-      </View>
     </>
   );
 };
@@ -435,19 +479,19 @@ const PageEditor = ({ v, lang, userId, onSaved }) => {
       {has('hours') ? <><Label>{B('hours')}</Label><Input value={f.hours} onChange={set('hours')} ph={B('hours_ph')} /></> : null}
       {has('table') ? (
         <View style={{ borderRadius: 20, padding: 14, backgroundColor: C.goldSoft, marginTop: 20 }}>
-          <Text style={{ color: C.text, fontSize: 16, fontWeight: '900' }}>{'🪑 ' + B('table')}</Text>
+          <Text style={{ color: C.text, fontSize: 16, fontWeight: '900' }}>{B('table')}</Text>
           <Text style={{ color: C.dim, fontSize: 13, marginTop: 2, marginBottom: 8 }}>{B('table_s')}</Text>
           <Input value={f.quiet} onChange={set('quiet')} ph={B('quiet_ph')} max={80} />
           <View style={{ height: 8 }} />
           <Input value={f.perk} onChange={set('perk')} ph={B('perk_ph')} max={120} />
-          <Text style={{ color: C.dim, fontSize: 12, marginTop: 8 }}>{'⭐ ' + B('stamps_s')}</Text>
+          <Text style={{ color: C.dim, fontSize: 12, marginTop: 8 }}>{B('stamps_s')}</Text>
         </View>
       ) : has('perk') ? <><Label>{B('perk')}</Label><Input value={f.perk} onChange={set('perk')} ph={B('perk_ph')} max={120} /></> : null}
       <Label>{B('phone')}</Label><Input value={f.phone} onChange={set('phone')} ph="+20…" kb="phone-pad" max={24} />
       <Label>{B('city')}</Label><Input value={f.city} onChange={set('city')} max={60} />
       <Label>{B('address')}</Label><Input value={f.address} onChange={set('address')} max={200} />
       <Pressable onPress={pin} accessibilityRole="button" style={{ marginTop: 10, alignSelf: 'flex-start' }}>
-        <Text style={{ color: f.lat != null ? C.green : C.purple, fontSize: 14, fontWeight: '900' }}>{f.lat != null ? B('pinned') : '📍 ' + B('pin')}</Text>
+        <Text style={{ color: f.lat != null ? C.green : C.purple, fontSize: 14, fontWeight: '900' }}>{f.lat != null ? B('pinned') : B('pin')}</Text>
       </Pressable>
       <View style={{ marginTop: 22 }}><Btn label={B('save')} busy={busy} onPress={save} /></View>
       {msg ? <Text style={{ color: msg === B('saved') ? C.green : C.coral, fontSize: 13.5, textAlign: 'center', marginTop: 10 }}>{msg}</Text> : null}
@@ -511,7 +555,6 @@ export const BizHub = ({ onClose: closeHub, lang }) => {
   const B = (k) => bw(lang, k);
   const [v, setV] = useState(undefined);
   const [tab, setTab] = useState('today');
-  const [plan, setPlan] = useState(false);
   const [listing, setListing] = useState(false);
   const load = () => myPlace().then((r) => setV(r && r.id ? r : null));
   useEffect(() => { load(); }, []);
@@ -559,7 +602,7 @@ export const BizHub = ({ onClose: closeHub, lang }) => {
             </View>
           ) : (
             <>
-              <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '900', letterSpacing: 1, marginTop: 8 }}>{(ty.e + ' ' + tname(lang, ty)).toUpperCase()}</Text>
+              <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '900', letterSpacing: 1, marginTop: 8 }}>{tname(lang, ty).toUpperCase()}</Text>
               <Text style={{ color: C.text, fontSize: 28, fontWeight: '900', letterSpacing: -0.4, marginTop: 2 }} numberOfLines={2}>{v.name}</Text>
               {/* where it is: the country, with its flag, and the city */}
               {v.country || v.city ? (
@@ -581,7 +624,7 @@ export const BizHub = ({ onClose: closeHub, lang }) => {
                   {TYPES.filter((x) => !x.host).map((x) => (
                     <Pressable key={x.k} onPress={async () => { tapSelection(); const r = await savePlace({ ...v, photos: v.photos || [], details: v.details || {}, biz_type: x.k }); if (r && r.ok) load(); }} style={{ marginEnd: 6 }} accessibilityRole="button">
                       <View style={{ borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8, borderWidth: 1, borderColor: C.line, backgroundColor: C.glass }}>
-                        <Text style={{ color: C.text, fontSize: 13, fontWeight: '800' }}>{x.e + ' ' + tname(lang, x)}</Text>
+                        <Text style={{ color: C.text, fontSize: 13, fontWeight: '800' }}>{tname(lang, x)}</Text>
                       </View>
                     </Pressable>
                   ))}
@@ -596,7 +639,7 @@ export const BizHub = ({ onClose: closeHub, lang }) => {
                   </Pressable>
                 ))}
               </View>
-              {tab === 'today' ? <Today v={v} lang={lang} onPlan={() => setPlan(true)} onCode={(c) => setV((o) => ({ ...o, staff_code: c }))} /> : null}
+              {tab === 'today' ? <Today v={v} lang={lang} onRequests={() => setTab('req')} onCode={(c) => setV((o) => ({ ...o, staff_code: c }))} /> : null}
               {tab === 'page' ? <PageEditor key={v.updated_at} v={v} lang={lang} userId={user && user.id} onSaved={load} /> : null}
               {tab === 'req' ? <Requests lang={lang} /> : null}
               {tab === 'orders' ? <Selling t={t} userId={user && user.id} /> : null}
@@ -605,7 +648,6 @@ export const BizHub = ({ onClose: closeHub, lang }) => {
           <MailLine to={MAIL.partners} subject="Moments for business" />
         </ScrollView>
       </View>
-      {plan && v ? <GreenSheet startNow prefill={{ kind: v.biz_type === 'org' ? 'project' : v.biz_type === 'restaurant' ? 'eat' : 'coffee', title: v.biz_type === 'restaurant' ? B('lunch') : '', place: v.name + (v.address ? ' · ' + v.address : ''), lat: v.lat, lng: v.lng }} onClose={() => setPlan(false)} /> : null}
     </Modal>
   );
 };

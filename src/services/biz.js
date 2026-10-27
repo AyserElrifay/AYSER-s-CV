@@ -10,7 +10,7 @@ const demoPlace = {
   country: 'EG', city: 'Cairo', address: '', staff_code: '4821', photos: [], details: {}, about: '', updated_at: 'demo',
 };
 const demoStats = {
-  ok: true, today: 3, week: 17, month: 52, people: 41, back: 9, rewards: 2, free_left: 0, fee: 20, month_bill: 40,
+  ok: true, today: 3, week: 17, month: 52, people: 41, back: 9, rewards: 2, free_left: 0, fee: 20, month_bill: 40, requests_new: 1,
   recent: [1, 2, 3, 4].map((i) => ({ name: 'Sample guest ' + i, avatar: null, visits: 5 - i, at: new Date(Date.now() - i * DAY / 3).toISOString() })),
 };
 const demoReqs = [

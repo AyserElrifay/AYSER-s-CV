@@ -68,6 +68,36 @@ const LS_BUY = {
   vip: { month: null, year: 'https://therealmoments.lemonsqueezy.com/checkout/buy/e2e45438-a064-41a7-93e5-8a1eda55f7a1' },
 };
 
+/* ── PROMO CODES ── made in Lemon Squeezy (Store → Discounts); the app
+   only carries one to the checkout, where Lemon Squeezy checks it and
+   takes it off. It comes from a link (…/?code=FRIENDS20) or is typed on
+   the pricing page, and is kept for this tab. */
+const PKEY = 'moments.promo';
+let promo = '';
+const clean = (c) => String(c || '').trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '').slice(0, 32);
+(function readPromo() {
+  try {
+    if (typeof window === 'undefined' || !window.location) return;
+    const q = new URLSearchParams(window.location.search);
+    const c = clean(q.get('code') || q.get('promo'));
+    if (c) {
+      promo = c;
+      try { window.sessionStorage.setItem(PKEY, c); } catch (e) {}
+      q.delete('code'); q.delete('promo');
+      const rest = q.toString();
+      window.history.replaceState(null, '', window.location.pathname + (rest ? '?' + rest : '') + window.location.hash);
+    } else {
+      try { promo = clean(window.sessionStorage.getItem(PKEY)); } catch (e) {}
+    }
+  } catch (e) { /* no code */ }
+}());
+export const promoCode = () => promo;
+export const setPromoCode = (c) => {
+  promo = clean(c);
+  try { if (promo) window.sessionStorage.setItem(PKEY, promo); else window.sessionStorage.removeItem(PKEY); } catch (e) {}
+  return promo;
+};
+
 /* Moments+ or Black, monthly or yearly, through Lemon Squeezy.
    Somebody not yet subscribed goes straight to that plan's checkout link,
    carrying their account id (checkout[custom][user_id]) so the signed
@@ -83,17 +113,19 @@ export async function buyTier(tier, member, period) {
       const u = data && data.user;
       if (!u) return { ok: false, reason: 'signed_out' };
       const q = '?checkout[custom][user_id]=' + encodeURIComponent(u.id)
-        + (u.email ? '&checkout[email]=' + encodeURIComponent(u.email) : '');
+        + (u.email ? '&checkout[email]=' + encodeURIComponent(u.email) : '')
+        + (promo ? '&checkout[discount_code]=' + encodeURIComponent(promo) : '');
       const link = LS_BUY[t][period === 'year' ? 'year' : 'month'];
-      if (!link) return { ok: false, reason: 'not_configured' };
-      go(link + q);
-      return { ok: true };
+      if (link) { go(link + q); return { ok: true }; }
+      /* no published link for this period yet: a monthly plan can still be
+         made by functions/ls-checkout from its variant id, when that is set */
+      if (period === 'year') return { ok: false, reason: 'not_configured' };
     } catch (e) {
       return { ok: false, reason: 'offline' };
     }
   }
   try {
-    const { data, error } = await supabase.functions.invoke('ls-checkout', { body: { tier: t } });
+    const { data, error } = await supabase.functions.invoke('ls-checkout', { body: { tier: t, code: promo || undefined } });
     if (error) {
       const status = error.context && error.context.status;
       return { ok: false, reason: status === 503 ? 'not_configured' : 'gateway' };

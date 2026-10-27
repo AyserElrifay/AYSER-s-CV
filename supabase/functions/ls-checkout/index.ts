@@ -1,8 +1,8 @@
 // ═══════════════════════════════════════════════════════════════════
 //  ls-checkout — a Lemon Squeezy checkout for Moments Basic or VIP
 //
-//  The app sends its session and which tier: { tier: 'basic' | 'vip' }
-//  (nothing else). The checkout is created here, with the store's
+//  The app sends its session, which tier and maybe a promo code:
+//  { tier: 'basic' | 'vip', code? }. The checkout is created here, with the store's
 //  secret key, for that tier's monthly variant, and the
 //  person's id goes inside it as custom data — so when Lemon Squeezy's
 //  signed webhook (ls-webhook) comes back, it says exactly whose Plus
@@ -40,7 +40,12 @@ Deno.serve(async (req) => {
   const KEY = Deno.env.get('LEMONSQUEEZY_API_KEY');
   const STORE = Deno.env.get('LEMONSQUEEZY_STORE_ID');
   let tier = 'basic';
-  try { const b = await req.json(); if (b && b.tier === 'vip') tier = 'vip'; } catch { /* no body: Basic */ }
+  let code = '';   // a promo code made in Lemon Squeezy; Lemon Squeezy checks it
+  try {
+    const b = await req.json();
+    if (b && b.tier === 'vip') tier = 'vip';
+    if (b && typeof b.code === 'string') code = b.code.trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '').slice(0, 32);
+  } catch { /* no body: Basic */ }
   const VARIANT = Deno.env.get(tier === 'vip' ? 'LEMONSQUEEZY_VIP_VARIANT_ID' : 'LEMONSQUEEZY_VARIANT_ID');
   if (!KEY || !STORE || !VARIANT || !Deno.env.get('LEMONSQUEEZY_WEBHOOK_SECRET')) return json(503, { error: 'not_configured' });
 
@@ -70,7 +75,7 @@ Deno.serve(async (req) => {
       data: {
         type: 'checkouts',
         attributes: {
-          checkout_data: { email: user.email || undefined, custom: { user_id: user.id, tier } },
+          checkout_data: { email: user.email || undefined, discount_code: code || undefined, custom: { user_id: user.id, tier } },
           product_options: { redirect_url: ORIGIN + '/?plus=thanks' },
         },
         relationships: {

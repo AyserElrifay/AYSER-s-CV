@@ -5,6 +5,10 @@
 
 const W = {
   en: {
+    // the simple Today: one number, one live line
+    cust_today: 'Customers today', cust_week: 'This week', cust_month: 'This month', cust_back: 'Came back', cust_all: '{n} different people have come so far',
+    live_in: '{n} just checked in', live_in1: 'A customer just checked in', live_req: 'New request waiting — tap to answer', live_reqs: '{n} new requests waiting — tap to answer',
+    at_counter: 'At the counter', show_qr2: 'Show the check-in QR', hide_qr: 'Hide the QR',
     lunch: 'Lunch together', lunch_s: 'A table for people who’d rather not eat alone — on the map, anyone near can join.',
     tables: 'Your tables', tables_s: 'Plans at your place. At the table, open the check-in QR — guests scan it and get a Moments Passport stamp.', tables_none: 'No plans at your place in the next two weeks. Host one below.', show_qr: 'Check-in QR', going_n: '{n} going', stamped_n: '{n} stamped',
     voucher: 'Redeem a Moments voucher', voucher_s: 'Five stamps earn a guest a free coffee or 20% off. Type the code on their screen.', voucher_ph: 'Code', voucher_go: 'Redeem', voucher_ok: 'Redeemed for {n} ✓', voucher_used: 'Already used.', voucher_bad: 'Not a valid voucher.', voucher_exp: 'This voucher has expired.',
@@ -54,6 +58,9 @@ const W = {
     deal_now: 'On now', deal_month: '{n} guests came during the deal this month', deal_here: '{pct}% off', deal_preview: 'What guests see', deal_month_s: '{n} came during it this month', deal_got: 'Checked in ✓ — your {pct}% is on. Show this to the staff.',
   },
   ar: {
+    cust_today: 'زباين النهارده', cust_week: 'الأسبوع ده', cust_month: 'الشهر ده', cust_back: 'رجعوا تاني', cust_all: '{n} شخص مختلف جه لحد دلوقتي',
+    live_in: '{n} لسه واصل دلوقتي', live_in1: 'زبون لسه واصل دلوقتي', live_req: 'فيه طلب جديد مستنيك — دوس عشان ترد', live_reqs: 'فيه {n} طلبات جديدة مستنياك — دوس عشان ترد',
+    at_counter: 'عند الكاشير', show_qr2: 'اعرض الـ QR بتاع الدخول', hide_qr: 'اخفي الـ QR',
     lunch: 'يلا نتغدى سوا', lunch_s: 'ترابيزة للي مش حابب ياكل لوحده — على الخريطة، وأي حد قريب ينضم.',
     tables: 'قعداتك', tables_s: 'الخروجات اللي عندك في المكان. على الترابيزة افتح QR الحضور — الضيوف يمسحوه وياخدوا ختم في جواز Moments.', tables_none: 'مفيش خروجات عندك في الأسبوعين الجايين. اعمل واحدة تحت.', show_qr: 'QR الحضور', going_n: '{n} رايحين', stamped_n: '{n} اتختموا',
     voucher: 'استخدم قسيمة Moments', voucher_s: 'خمس أختام بتدّي الضيف قهوة ببلاش أو خصم ٢٠٪. اكتب الكود اللي على شاشته.', voucher_ph: 'الكود', voucher_go: 'استخدم', voucher_ok: 'اتستخدمت لـ {n} ✓', voucher_used: 'اتستخدمت قبل كده.', voucher_bad: 'القسيمة دي مش صحيحة.', voucher_exp: 'القسيمة دي خلصت.',
@@ -68,7 +75,7 @@ const W = {
     code: 'كود الكاشير', code_s: 'الضيف بيكتبه عندك عشان يعمل check-in. غيّره وقت ما تحب — موجود على شاشتك إنت بس.', code_new: 'كود جديد',
     st_today: 'النهارده', st_week: '7 أيام', st_month: 'الشهر ده', st_people: 'ضيوف', st_back: 'رجعوا تاني', st_rewards: 'مكافآت اتدّت',
     bill: 'أول 50 ضيف ببلاش (فاضل {left}). بعدهم الرسوم {fee} جنيه للضيف — الشهر ده كانت هتبقى {sum} جنيه. الفوترة لسه مابدأتش: مفيش أي فلوس بتتخصم.',
-    recent: 'آخر check-ins', recent_none: 'لسه مفيش. حط كود الكاشير جنب الكاشير.',
+    recent: 'آخر زباين وصلوا', recent_none: 'لسه مفيش. حط كود الكاشير جنب الكاشير.',
     plan_here: 'اعمل خطة عندك', plan_here_s: 'طريقتك توصل للناس: خطة على الخريطة يقدروا ينضموا لها.',
     photos: 'الصور', about: 'عن المكان', about_ph: 'إيه اللي يخلي مكانك حلو تيجي له مع صحابك؟',
     phone: 'تليفون / واتساب', address: 'العنوان', city: 'المدينة', hours: 'مواعيد الشغل', hours_ph: 'مثلاً: كل يوم 9 الصبح – 1 بالليل',
