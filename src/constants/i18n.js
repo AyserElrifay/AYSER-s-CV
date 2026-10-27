@@ -1585,6 +1585,7 @@ export const STRINGS = {
     md_from_app: "On Moments today",
     md_add_day: "Add",
     md_notes: "Notes",
+    md_streak: "{n} days in a row you finished something.",
     md_note_ph: "Leave yourself a note…",
     md_note_add: "Add note",
     md_note_clear: "Clear note",

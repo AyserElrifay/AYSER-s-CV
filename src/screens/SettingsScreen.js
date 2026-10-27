@@ -36,6 +36,10 @@ const LANGUAGES = [
   { c: 'Romanian', f: '🇷🇴' }, { c: 'Persian', f: '🇮🇷' }, { c: 'Urdu', f: '🇵🇰' },
 ];
 const LEVELS = ['Beginner', 'A2', 'B1', 'B2', 'Fluent'];
+// a stored language name, said in the reader's own language (no flags: one quiet monochrome line)
+const CODE = { Arabic: 'ar', English: 'en', French: 'fr', Spanish: 'es', German: 'de', Italian: 'it', Portuguese: 'pt', Turkish: 'tr', Russian: 'ru',
+  Chinese: 'zh', Japanese: 'ja', Korean: 'ko', Hindi: 'hi', Dutch: 'nl', Greek: 'el', Romanian: 'ro', Persian: 'fa', Urdu: 'ur' };
+const langName = (name, ui) => { try { return new Intl.DisplayNames([ui || 'en'], { type: 'language' }).of(CODE[name] || name) || name; } catch (e) { return name; } };
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
 import { sfxSuccess } from '../utils/sfx';
 import { setupNotice } from '../lib/plumbing';
@@ -113,6 +117,7 @@ export const SettingsScreen = ({ onClose }) => {
   const [level, setLevel] = useState('');
   const [visible, setVisible] = useState(false);
   const [savedExchange, setSavedExchange] = useState(false);
+  const [editLangs, setEditLangs] = useState(false);   // the pickers open only to change them
   const [exchangeErr, setExchangeErr] = useState(null);
   const [goal, setGoal] = useState(null);
 
@@ -437,8 +442,17 @@ export const SettingsScreen = ({ onClose }) => {
                 </View>
               </Pressable>
             </View>
-            {/* the details only once you are in — off, it is one line */}
-            {visible ? (
+            {/* the details only once you are in — off, it is one line; set, it is one line too */}
+            {visible && speaks && learning && !editLangs ? (
+              <Pressable onPress={() => { tapLight(); setEditLangs(true); }} accessibilityRole="button">
+                <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 4 }}>
+                  <Text style={{ color: C.text, fontSize: 15, fontWeight: '600', flex: 1 }} numberOfLines={2}>
+                    {langName(speaks, lang) + '  →  ' + langName(learning, lang) + (level ? ' · ' + level : '')}
+                  </Text>
+                  <Text style={{ color: C.dim, fontSize: 13.5, fontWeight: '600' }}>{t('edit')}</Text>
+                </View>
+              </Pressable>
+            ) : visible ? (
             <>
             <Text style={{ color: C.faint, fontSize: 11, fontWeight: '800', marginBottom: 7 }}>{t('i_speak')}</Text>
             <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
@@ -447,8 +461,7 @@ export const SettingsScreen = ({ onClose }) => {
                 return (
                   <Pressable key={l.c} onPress={() => setSpeaks(on ? '' : l.c)}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: on ? C.purple : C.bg, borderWidth: 1, borderColor: on ? C.purple : C.line, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8, marginRight: 8 }}>
-                      <Text style={{ fontSize: 14 }}>{l.f}</Text>
-                      <Text style={{ color: on ? '#FFF' : C.text, fontSize: 12.5, fontWeight: '800', marginLeft: 5 }}>{l.c}</Text>
+                      <Text style={{ color: on ? '#FFF' : C.text, fontSize: 13, fontWeight: '700' }}>{langName(l.c, lang)}</Text>
                     </View>
                   </Pressable>
                 );
@@ -461,8 +474,7 @@ export const SettingsScreen = ({ onClose }) => {
                 return (
                   <Pressable key={l.c} onPress={() => setLearning(on ? '' : l.c)}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: on ? C.green : C.bg, borderWidth: 1, borderColor: on ? C.green : C.line, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8, marginRight: 8 }}>
-                      <Text style={{ fontSize: 14 }}>{l.f}</Text>
-                      <Text style={{ color: on ? '#FFF' : C.text, fontSize: 12.5, fontWeight: '800', marginLeft: 5 }}>{l.c}</Text>
+                      <Text style={{ color: on ? '#FFF' : C.text, fontSize: 13, fontWeight: '700' }}>{langName(l.c, lang)}</Text>
                     </View>
                   </Pressable>
                 );
@@ -482,9 +494,9 @@ export const SettingsScreen = ({ onClose }) => {
               })}
             </View>
             {SUPABASE_READY && user ? <GoalPicker userId={user.id} value={goal} /> : null}
-            <Pressable onPress={() => saveExchange(visible)}>
+            <Pressable onPress={() => { saveExchange(visible); if (speaks && learning) setEditLangs(false); }}>
               <View style={{ backgroundColor: C.purple, borderRadius: 12, paddingVertical: 11, alignItems: 'center' }}>
-                <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900' }}>{savedExchange ? 'Saved ✓' : 'Save'}</Text>
+                <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900' }}>{savedExchange ? '✓ ' + t('save') : t('save')}</Text>
               </View>
             </Pressable>
             </>

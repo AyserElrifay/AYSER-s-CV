@@ -5,12 +5,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { C } from '../constants/theme';
 import { useLang, tNow } from '../context/LanguageContext';
-import { BrainDump } from './BrainDump';
 import { Focus } from './Focus';
 import { Compass, GROW, growLabel, growEmoji, readCompass, KEY as COMPASS_KEY } from './Compass';
 import { Dates, readDates, dateNudges, yearly, nextOf } from './Dates';
 import { Diary } from './Diary';
-import { VisionBoard, visionBlocks } from './VisionBoard';
+import { VisionBoard, visionBlocks, vs } from './VisionBoard';
 import { HabitsTogether, hs } from './HabitsTogether';
 import { prayerTimes } from '../lib/prayerTimes';
 import { buildIcs, openIcs } from '../lib/ics';
@@ -521,6 +520,14 @@ export const MyDay = ({ onClose }) => {
   useEffect(() => { const i = setInterval(() => setNow(Date.now()), 30000); return () => clearInterval(i); }, []);
   const [later, setLater] = useState({});          // id -> until (ms): "not now" for a while
   const [showAll, setShowAll] = useState(false);
+  const [showVision, setShowVision] = useState(false);
+  // days in a row, up to yesterday or today, with at least one thing done (kept on this phone)
+  const streak = useMemo(() => {
+    let n = 0; const d = new Date();
+    if (!(rd('mm.myday.done.' + dayKey(d), []) || []).length) d.setDate(d.getDate() - 1);
+    for (let i = 0; i < 60; i++) { if ((rd('mm.myday.done.' + dayKey(d), []) || []).length) { n += 1; d.setDate(d.getDate() - 1); } else break; }
+    return n;
+  }, [done]);
   const open = (x) => done.indexOf(x.id) < 0 && !(later[x.id] && later[x.id] > now);
   const nowItem = items.find((x) => x.at.getTime() <= now && now < x.end.getTime() && open(x));
   const nextItem = items.find((x) => x.at.getTime() > now && open(x) && x !== nowItem);
@@ -573,7 +580,7 @@ export const MyDay = ({ onClose }) => {
             <View style={{ flex: 1 }} />
             {!setup ? <Pressable onPress={() => { tapLight(); setSetup(true); setStep(0); }} accessibilityRole="button"><Text style={{ color: C.dim, fontSize: 13.5, fontWeight: '800' }}>{t('md_change')}</Text></Pressable> : null}
           </View>
-          <Text style={{ color: C.text, fontSize: 28, fontWeight: '900', letterSpacing: -0.4, marginTop: 8 }}>{'🗓️ ' + t('md_title')}</Text>
+          <Text style={{ color: C.text, fontSize: 28, fontWeight: '900', letterSpacing: -0.4, marginTop: 8 }}>{t('md_title')}</Text>
           <Text style={{ color: C.dim, fontSize: 14, marginTop: 4, marginBottom: 20 }}>{t('md_sub')}</Text>
 
           {setup ? (
@@ -648,14 +655,13 @@ export const MyDay = ({ onClose }) => {
                   <Animated.View style={{ transform: [{ scale: pop }], borderRadius: 26, padding: 18, backgroundColor: free ? C.glass : C.purpleSoft, borderWidth: 1.5, borderColor: free ? C.line : C.purple }}>
                     <Text style={{ color: free ? C.dim : C.purple, fontSize: 12, fontWeight: '900', letterSpacing: 1.2 }}>{(free ? t('md_free') : t('md_now')).toUpperCase()}</Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
-                      <Text style={{ fontSize: 40, marginEnd: 12 }}>{free ? '🌿' : x.emoji}</Text>
                       <View style={{ flex: 1 }}>
                         <Text style={{ color: C.text, fontSize: 22, fontWeight: '900', letterSpacing: -0.3 }} numberOfLines={2}>{free ? (endMs ? t('md_free_for').replace('{t}', span(endMs - now, t)) : t('md_free_rest')) : x.label}</Text>
                         {!free ? <Text style={{ color: C.dim, fontSize: 14, fontWeight: '700', marginTop: 2 }}>{t('md_left').replace('{t}', span(endMs - now, t))}</Text> : null}
                       </View>
                     </View>
                     {endMs ? (
-                      <View style={{ height: 10, borderRadius: 5, backgroundColor: 'rgba(124,58,237,0.12)', marginTop: 14, overflow: 'hidden' }}>
+                      <View style={{ height: 10, borderRadius: 5, backgroundColor: C.line, marginTop: 14, overflow: 'hidden' }}>
                         <View style={{ width: Math.round((1 - frac) * 100) + '%', height: 10, borderRadius: 5, backgroundColor: free ? C.green : C.purple }} />
                       </View>
                     ) : null}
@@ -676,7 +682,6 @@ export const MyDay = ({ onClose }) => {
                     {free ? (
                       ideaArea ? (
                         <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: C.line }}>
-                          <Text style={{ fontSize: 24, marginEnd: 10 }}>{ideaArea.emoji}</Text>
                           <View style={{ flex: 1 }}>
                             <Text style={{ color: C.faint, fontSize: 11, fontWeight: '900', letterSpacing: 1 }}>{t('md_bal_' + ideaArea.id).toUpperCase()}</Text>
                             <Text style={{ color: C.text, fontSize: 15, fontWeight: '800', marginTop: 1 }}>{t('md_idea_' + ideaArea.id + '_' + ideaN)}</Text>
@@ -698,155 +703,87 @@ export const MyDay = ({ onClose }) => {
                     ) : null}
                     {nextItem ? (
                       <Text style={{ color: C.dim, fontSize: 13.5, fontWeight: '700', marginTop: 12 }}>
-                        {t('md_then').replace('{what}', nextItem.emoji + ' ' + nextItem.label).replace('{t}', span(nextItem.at.getTime() - now, t))}
+                        {t('md_then').replace('{what}', nextItem.label).replace('{t}', span(nextItem.at.getTime() - now, t))}
                       </Text>
                     ) : null}
                   </Animated.View>
                 );
               })()}
 
-              {/* the dreams on top of the day, and Papyrus's one step for each */}
-              <VisionBoard t={t} lang={lang} onPick={() => setSheet('compass')} onChanged={() => setVer((v) => v + 1)} />
-
-              {/* ── THE PLAN ──
-                  Ayser: "دوشه اوي — إحنا شركة بساطة وشياكة". It was the same
-                  list twice (three things in a card, then the whole day again
-                  as a stack of boxes, each with two emojis). Now it is one
-                  list: time, name, a quiet circle — hairlines between, no
-                  boxes, no icons. The next three by default; "the whole day"
-                  opens the rest in the same list, what has passed greyed. */}
-              <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '900', letterSpacing: 1, marginTop: 22, marginBottom: 4 }}>{t('md_plan').toUpperCase()}</Text>
+              {/* ── STEVE JOBS' MY DAY (Ayser: "خد رأي ستيف جوبز… خليها مش رخمة") ──
+                  Focus is saying no. Three things only: what is happening NOW
+                  (the card above), TODAY — three things, a tap strikes one
+                  through — and private NOTES. One quiet line says how many days
+                  in a row something got done. Everything else the day used to
+                  show (the vision board, the five doors, the balance, the
+                  calendar, reminders) is one tap away in a single line of
+                  words at the bottom, not on the page. */}
+              <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '800', letterSpacing: lang === 'ar' ? 0 : 1, marginTop: 24, marginBottom: 4 }}>{t('md_today').toUpperCase()}</Text>
               <View>
-                {(showAll ? items : nudges.concat(items.filter((x) => x.end.getTime() > now && done.indexOf(x.id) < 0 && x.id !== 'sleep').slice(0, 3))).map((x, i, arr) => {
+                {(showAll ? items : nudges.concat(items.filter((x) => x.end.getTime() > now && x.id !== 'sleep')).slice(0, 3)).map((x, i, arr) => {
                   const isDone = done.indexOf(x.id) >= 0;
                   const past = !isDone && x.end && x.end.getTime() <= now;
                   const isNow = nowItem && nowItem.id === x.id;
                   return (
                     <Pressable key={x.id} onPress={() => toggle(x.id)} accessibilityRole="checkbox" accessibilityState={{ checked: isDone }} accessibilityLabel={x.label}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 13, borderBottomWidth: i < arr.length - 1 ? StyleSheet.hairlineWidth : 0, borderBottomColor: C.line, opacity: isDone || past ? 0.4 : 1 }}>
-                        <Text style={{ color: isNow ? C.purple : C.dim, fontSize: 13.5, fontWeight: '700', width: 52, fontVariant: ['tabular-nums'] }}>{x.at ? hm(x.at.getHours(), x.at.getMinutes()) : ''}</Text>
-                        <Text style={{ color: C.text, fontSize: 15.5, fontWeight: isNow ? '800' : '600', flex: 1, textDecorationLine: isDone ? 'line-through' : 'none' }} numberOfLines={1}>{x.label}</Text>
-                        <Ionicons name={isDone ? 'checkmark-circle' : 'ellipse-outline'} size={22} color={isDone ? C.green : C.faint} />
+                      <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: i < arr.length - 1 ? StyleSheet.hairlineWidth : 0, borderBottomColor: C.line, opacity: isDone ? 0.3 : past ? 0.5 : 1 }}>
+                        <Text style={{ color: C.dim, fontSize: 13.5, fontWeight: '600', width: 52, fontVariant: ['tabular-nums'] }}>{x.at ? hm(x.at.getHours(), x.at.getMinutes()) : ''}</Text>
+                        <Text style={{ color: C.text, fontSize: 16, fontWeight: isNow ? '700' : '500', flex: 1, textDecorationLine: isDone ? 'line-through' : 'none' }} numberOfLines={1}>{x.label}</Text>
+                        <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 1.5, borderColor: isDone ? C.text : C.faint, backgroundColor: isDone ? C.text : 'transparent' }} />
                       </View>
                     </Pressable>
                   );
                 })}
-                <Pressable onPress={() => { tapLight(); setShowAll((v) => !v); }} accessibilityRole="button" style={{ paddingVertical: 12 }}>
-                  <Text style={{ color: C.dim, fontSize: 13.5, fontWeight: '800' }}>{showAll ? t('md_hide_day') : t('md_see_day')}</Text>
+                <Pressable onPress={() => { tapLight(); setShowAll((v) => !v); }} accessibilityRole="button" style={{ paddingVertical: 10 }}>
+                  <Text style={{ color: C.dim, fontSize: 13.5, fontWeight: '600' }}>{showAll ? t('md_hide_day') : t('md_see_day')}</Text>
                 </Pressable>
               </View>
 
-              {/* ── FIVE DOORS: habits with friends, focus, your compass, the dates that matter, your diary ── */}
-              <View style={{ flexDirection: 'row', marginTop: 14 }}>
-                {[['habits', '🔥'], ['focus', '🪁'], ['compass', '🧭'], ['dates', '🎂'], ['diary', '📓']].map(([k, e], i) => (
-                  <Pressable key={k} onPress={() => { tapLight(); setSheet(k); }} accessibilityRole="button" style={{ flex: 1, marginEnd: i < 4 ? 6 : 0 }}>
-                    <View style={{ borderRadius: 18, borderWidth: 1, borderColor: C.line, backgroundColor: C.glass, paddingVertical: 12, alignItems: 'center' }}>
-                      <Text style={{ fontSize: 24 }}>{e}</Text>
-                      <Text style={{ color: C.text, fontSize: 11.5, fontWeight: '800', marginTop: 4 }} numberOfLines={1}>{k === 'habits' ? hs(lang, 'door') : t('md_door_' + k)}</Text>
-                    </View>
-                  </Pressable>
-                ))}
-              </View>
-
-              {/* the four parts of a day, each a tap */}
-              <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '900', letterSpacing: 1, marginTop: 18, marginBottom: 8 }}>{t('md_bal_title').toUpperCase()}</Text>
-              <View style={{ flexDirection: 'row' }}>
-                {BALANCE.map((b, i) => {
-                  const on = done.indexOf('bal:' + b.id) >= 0;
-                  return (
-                    <Pressable key={b.id} onPress={() => toggle('bal:' + b.id)} accessibilityRole="checkbox" accessibilityState={{ checked: on }} accessibilityLabel={t('md_bal_' + b.id)} style={{ flex: 1, marginEnd: i < BALANCE.length - 1 ? 8 : 0 }}>
-                      <View style={{ borderRadius: 16, borderWidth: 1, borderColor: on ? C.green : C.line, backgroundColor: on ? C.greenSoft : C.glass, paddingVertical: 10, alignItems: 'center' }}>
-                        <Text style={{ fontSize: 20 }}>{on ? '✓' : b.emoji}</Text>
-                        <Text style={{ color: on ? C.green : C.dim, fontSize: 11.5, fontWeight: '800', marginTop: 3 }} numberOfLines={1}>{t('md_bal_' + b.id)}</Text>
-                      </View>
-                    </Pressable>
-                  );
-                })}
-              </View>
-
-              {/* something on Moments today, for the free time — one tap puts it in your day */}
-              {!nowItem && offers.length ? (
-                <View style={{ marginTop: 16 }}>
-                  <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '900', letterSpacing: 1, marginBottom: 8 }}>{t('md_from_app').toUpperCase()}</Text>
-                  {offers.map((g) => {
-                    const s = new Date(g.starts_at);
-                    return (
-                      <View key={g.id} style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 16, borderWidth: 1, borderColor: C.line, backgroundColor: C.glass, padding: 12, marginBottom: 8 }}>
-                        <Pressable onPress={() => { tapLight(); onClose(); goToTab('TOGETHER'); }} accessibilityRole="button" style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>
-                          <Text style={{ fontSize: 20, marginEnd: 10 }}>{g.emoji || '🤝'}</Text>
-                          <View style={{ flex: 1 }}>
-                            <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '800' }} numberOfLines={1}>{titleFor(g.title, lang)}</Text>
-                            <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 1 }} numberOfLines={1}>{hm(s.getHours(), s.getMinutes()) + (g.place_name ? ' · ' + g.place_name : '')}</Text>
-                          </View>
-                        </Pressable>
-                        <Pressable onPress={() => addPlan(g)} accessibilityRole="button" hitSlop={6} style={{ marginStart: 8 }}>
-                          <View style={{ borderRadius: 999, borderWidth: 1, borderColor: C.purple, paddingHorizontal: 12, paddingVertical: 7 }}>
-                            <Text style={{ color: C.purple, fontSize: 12.5, fontWeight: '900' }}>{'＋ ' + t('md_add_day')}</Text>
-                          </View>
-                        </Pressable>
-                      </View>
-                    );
-                  })}
-                </View>
-              ) : null}
-
-              {/* free time is Papyrus's: the one thing worth doing with it */}
-              {!nowItem ? (
-                <View style={{ marginTop: 16 }}>
-                  <BrainDump />
-                </View>
-              ) : null}
-
-              {/* notes to yourself: one line, kept until you clear them */}
-              <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '900', letterSpacing: 1, marginTop: 18, marginBottom: 8 }}>{'📝 ' + t('md_notes').toUpperCase()}</Text>
+              {/* private notes: one line, kept until you clear them */}
+              <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '800', letterSpacing: lang === 'ar' ? 0 : 1, marginTop: 18, marginBottom: 8 }}>{t('md_notes').toUpperCase()}</Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 16, borderWidth: 1, borderColor: C.line, backgroundColor: C.glass, paddingStart: 14, paddingEnd: 6 }}>
                 <TextInput value={draft} onChangeText={setDraft} onSubmitEditing={addNote} returnKeyType="done" blurOnSubmit={false} maxLength={200}
                   placeholder={t('md_note_ph')} placeholderTextColor={C.faint}
-                  style={{ flex: 1, color: C.text, fontSize: 14.5, paddingVertical: 12, outlineStyle: 'none' }} />
+                  style={{ flex: 1, color: C.text, fontSize: 15, paddingVertical: 12, outlineStyle: 'none', textAlign: lang === 'ar' ? 'right' : 'left' }} />
                 {draft.trim() ? (
                   <Pressable onPress={addNote} accessibilityRole="button" accessibilityLabel={t('md_note_add')} hitSlop={8}>
-                    <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: C.purple, alignItems: 'center', justifyContent: 'center' }}>
-                      <Ionicons name="arrow-up" size={17} color="#FFF" />
+                    <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: C.text, alignItems: 'center', justifyContent: 'center' }}>
+                      <Ionicons name="arrow-up" size={17} color={C.bg} />
                     </View>
                   </Pressable>
                 ) : null}
               </View>
               {(allNotes ? notes : notes.slice(0, 3)).map((n) => (
-                <View key={n.id} style={{ flexDirection: 'row', alignItems: 'flex-start', borderRadius: 14, backgroundColor: '#FFF6D6', paddingVertical: 10, paddingHorizontal: 12, marginTop: 6 }}>
-                  <Text style={{ color: '#4A3B12', fontSize: 14, lineHeight: 20, flex: 1 }}>{n.text}</Text>
+                <View key={n.id} style={{ flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 11, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.line }}>
+                  <Text style={{ color: C.text, fontSize: 15, lineHeight: 21, flex: 1 }}>{n.text}</Text>
                   <Pressable onPress={() => dropNote(n.id)} accessibilityRole="button" accessibilityLabel={t('md_note_clear')} hitSlop={10} style={{ marginStart: 8, marginTop: 2 }}>
-                    <Ionicons name="close" size={16} color="#8A7535" />
+                    <Ionicons name="close" size={16} color={C.faint} />
                   </Pressable>
                 </View>
               ))}
               {notes.length > 3 ? (
                 <Pressable onPress={() => { tapLight(); setAllNotes((v) => !v); }} accessibilityRole="button" style={{ marginTop: 6 }}>
-                  <Text style={{ color: C.dim, fontSize: 12.5, fontWeight: '800' }}>{allNotes ? t('md_hide_day') : t('md_note_more').replace('{n}', String(notes.length - 3))}</Text>
+                  <Text style={{ color: C.dim, fontSize: 12.5, fontWeight: '600' }}>{allNotes ? t('md_hide_day') : t('md_note_more').replace('{n}', String(notes.length - 3))}</Text>
                 </Pressable>
               ) : null}
 
-              {muslim(a) ? <Text style={{ color: C.faint, fontSize: 12, lineHeight: 17, marginTop: 4 }}>{t('md_pray_note')}</Text> : null}
+              {/* the micro-streak: one quiet line, only once it means something */}
+              {streak >= 2 ? <Text style={{ color: C.dim, fontSize: 13.5, lineHeight: 19, marginTop: 18 }}>{t('md_streak').replace('{n}', String(streak))}</Text> : null}
 
-              <Pressable onPress={toCalendar} accessibilityRole="button" style={{ marginTop: 18 }}>
-                <View style={{ borderRadius: 999, backgroundColor: C.purple, paddingVertical: 15, alignItems: 'center', flexDirection: 'row', justifyContent: 'center' }}>
-                  <Ionicons name="alarm-outline" size={19} color="#FFF" />
-                  <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '900', marginStart: 8 }}>{t('md_cal')}</Text>
-                </View>
-              </Pressable>
-              <Text style={{ color: C.dim, fontSize: 12.5, lineHeight: 18, marginTop: 8, textAlign: 'center' }}>{calNote || t('md_cal_sub')}</Text>
-              {muslim(a) ? <Text style={{ color: C.faint, fontSize: 12, lineHeight: 17, marginTop: 6, textAlign: 'center' }}>{t('md_cal_refresh')}</Text> : null}
-
-              {/* reminders while Moments is open — the calendar rings even when it is closed */}
-              <Pressable onPress={flipRemind} accessibilityRole="switch" accessibilityState={{ checked: remind }} style={{ marginTop: 16 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 16, borderWidth: 1, borderColor: remind ? C.purple : C.line, backgroundColor: remind ? C.purpleSoft : C.glass, padding: 13 }}>
-                  <Text style={{ fontSize: 20, marginEnd: 10 }}>🔔</Text>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '800' }}>{t('md_remind')}</Text>
-                    <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 1 }}>{t('md_remind_sub')}</Text>
-                  </View>
-                  <Ionicons name={remind ? 'toggle' : 'toggle-outline'} size={30} color={remind ? C.purple : C.faint} />
-                </View>
-              </Pressable>
+              {/* everything else, one line of words */}
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 26, paddingTop: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.line }}>
+                {[['vision', vs(lang, 'title')], ['habits', hs(lang, 'door')], ['focus', t('md_door_focus')], ['compass', t('md_door_compass')], ['dates', t('md_door_dates')], ['diary', t('md_door_diary')], ['cal', t('md_cal')]].map(([k, label]) => (
+                  <Pressable key={k} onPress={() => { tapLight(); if (k === 'vision') setShowVision((v) => !v); else if (k === 'cal') toCalendar(); else setSheet(k); }} accessibilityRole="button" hitSlop={4} style={{ marginEnd: 16, marginBottom: 10 }}>
+                    <Text style={{ color: k === 'vision' && showVision ? C.text : C.dim, fontSize: 13.5, fontWeight: '600' }}>{label}</Text>
+                  </Pressable>
+                ))}
+                <Pressable onPress={flipRemind} accessibilityRole="switch" accessibilityState={{ checked: remind }} hitSlop={4} style={{ marginEnd: 16, marginBottom: 10 }}>
+                  <Text style={{ color: remind ? C.text : C.dim, fontSize: 13.5, fontWeight: '600' }}>{(remind ? '● ' : '○ ') + t('md_remind')}</Text>
+                </Pressable>
+              </View>
+              {calNote ? <Text style={{ color: C.dim, fontSize: 12.5, lineHeight: 18, marginTop: 4 }}>{calNote}</Text> : null}
+              {showVision ? <VisionBoard t={t} lang={lang} onPick={() => setSheet('compass')} onChanged={() => setVer((v) => v + 1)} /> : null}
+              {muslim(a) ? <Text style={{ color: C.faint, fontSize: 12, lineHeight: 17, marginTop: 10 }}>{t('md_pray_note')}</Text> : null}
             </View>
           )}
         </ScrollView>
