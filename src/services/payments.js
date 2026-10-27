@@ -63,8 +63,8 @@ export async function payBooking(bookingId) {
    anybody is given is decided by ls-webhook from what was really paid
    for, never by which button was pressed. */
 const LS_BUY = {
-  basic: 'https://therealmoments.lemonsqueezy.com/checkout/buy/b8ff2989-2a19-4439-886e-336526bd5460',
-  vip: 'https://therealmoments.lemonsqueezy.com/checkout/buy/f208fa1d-084e-4633-ad2d-334f7554193f',
+  basic: 'https://therealmoments.lemonsqueezy.com/checkout/buy/b837520d-74c4-4ca1-83a0-7dc8c9b65ef5',
+  vip: 'https://therealmoments.lemonsqueezy.com/checkout/buy/7a877c29-1427-4e0a-92d7-10ec9e28451f',
 };
 
 /* Moments Basic or VIP, monthly, through Lemon Squeezy.
