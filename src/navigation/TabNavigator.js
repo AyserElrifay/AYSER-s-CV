@@ -123,7 +123,7 @@ const PillBar = ({ state, navigation, t }) => {
   const insets = useSafeAreaInsets();
   const glass = Platform.OS === 'web' ? { backdropFilter: 'blur(20px) saturate(1.4)', WebkitBackdropFilter: 'blur(20px) saturate(1.4)' } : null;
   return (
-    <View style={{ backgroundColor: C.bg, paddingHorizontal: 14, paddingTop: 6, paddingBottom: Math.max(insets.bottom - 12, 10), alignItems: 'center' }}>
+    <View style={{ backgroundColor: C.bg, paddingHorizontal: 14, paddingTop: 6, paddingBottom: Math.max(insets.bottom - 18, 8), alignItems: 'center' }}>
       <View accessibilityRole="tablist" style={[{ flexDirection: 'row', width: '100%', maxWidth: 460, height: 62, borderRadius: 31, padding: 5,
         backgroundColor: C.float, borderWidth: 1, borderColor: C.line }, glass]}>
         {state.routes.map((route, i) => {
