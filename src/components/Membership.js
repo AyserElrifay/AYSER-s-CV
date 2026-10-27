@@ -50,44 +50,52 @@ const money = (n, cur, lang) => {
 };
 const blur = Platform.OS === 'web' ? { backdropFilter: 'blur(18px)', WebkitBackdropFilter: 'blur(18px)' } : null;
 
-const Check = ({ label, strong, onBrand }) => (
+const Check = ({ label, strong, onBrand, ink }) => (
   <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginTop: 10 }}>
-    <Text style={{ color: onBrand ? C.purple : C.text, fontSize: 15, fontWeight: '700', width: 18, textAlign: 'center', marginEnd: 10 }}>✓</Text>
-    <Text style={{ color: C.text, fontSize: 15, lineHeight: 21, fontWeight: strong ? '700' : '400', flex: 1 }}>{label}</Text>
+    <Text style={{ color: onBrand ? C.purple : (ink || C.text), fontSize: 15, fontWeight: '700', width: 18, textAlign: 'center', marginEnd: 10 }}>✓</Text>
+    <Text style={{ color: ink || C.text, fontSize: 15, lineHeight: 21, fontWeight: strong ? '700' : '400', flex: 1 }}>{label}</Text>
   </View>
 );
 
+/* the gateway's own page is Moments violet, like a brand's front door
+   (Lemon Squeezy's way: violet ground, white type, a yellow spark), so
+   the plan cards on it are always white paper with ink, day or night */
+const PAPER = { ground: '#FFFFFF', ink: '#17131F', muted: '#6F6A75', line: 'rgba(23,19,31,0.10)' };
+
 /* one plan: the name small, the promise large, the price in figures, one button */
-const Plan = ({ lang, name, tag, price, cur, items, cta, onPress, busy, vip, current }) => (
-  <View style={{ marginTop: 16, borderRadius: 24, padding: 24, backgroundColor: C.glass, borderWidth: vip ? 2 : 1, borderColor: vip ? C.purple : C.line }}>
+const Plan = ({ lang, name, tag, price, cur, items, cta, onPress, busy, vip, current, paper }) => {
+  const P = paper ? PAPER : { ground: C.glass, ink: C.text, muted: C.dim, line: C.line };
+  return (
+  <View style={{ marginTop: 18, borderRadius: 28, padding: 26, backgroundColor: P.ground, borderWidth: vip ? (paper ? 3 : 2) : (paper ? 0 : 1), borderColor: vip ? (paper ? C.sun : C.purple) : P.line }}>
     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-      <Text style={{ color: vip ? C.purple : C.dim, fontSize: 12, fontWeight: '700', letterSpacing: 1.2 }}>{name.toUpperCase()}</Text>
+      <Text style={{ color: vip ? C.purple : P.muted, fontSize: 12, fontWeight: '800', letterSpacing: 1.4 }}>{name.toUpperCase()}</Text>
       <View style={{ flex: 1, minWidth: 12 }} />
       {vip ? (
-        <View style={{ borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, backgroundColor: C.purple }}>
-          <Text style={{ color: '#FFF', fontSize: 11.5, fontWeight: '700' }}>{w(lang, 'rec')}</Text>
+        <View style={{ borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5, backgroundColor: paper ? C.sun : C.purple }}>
+          <Text style={{ color: paper ? '#17131F' : '#FFF', fontSize: 11.5, fontWeight: '800' }}>{w(lang, 'rec')}</Text>
         </View>
       ) : null}
     </View>
-    <Text style={{ color: C.text, fontSize: 24, fontWeight: '700', letterSpacing: -0.6, marginTop: 8 }}>{tag}</Text>
-    <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 12 }}>
-      <Text style={[{ color: C.text, fontSize: 36, fontWeight: '700', letterSpacing: -1 }, NUM]}>{money(price, cur, lang)}</Text>
-      <Text style={{ color: C.dim, fontSize: 15, marginStart: 6 }}>{w(lang, 'perMonth')}</Text>
+    <Text style={{ color: P.ink, fontSize: 26, fontWeight: '700', letterSpacing: -0.7, marginTop: 10 }}>{tag}</Text>
+    <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 14 }}>
+      <Text style={[{ color: P.ink, fontSize: 40, fontWeight: '700', letterSpacing: -1.2 }, NUM]}>{money(price, cur, lang)}</Text>
+      <Text style={{ color: P.muted, fontSize: 15, marginStart: 6 }}>{w(lang, 'perMonth')}</Text>
     </View>
-    <View style={{ marginTop: 8 }}>
-      {items.map(([label, strong]) => <Check key={label} label={label} strong={strong} onBrand={vip} />)}
+    <View style={{ marginTop: 10 }}>
+      {items.map(([label, strong]) => <Check key={label} label={label} strong={strong} onBrand={vip} ink={P.ink} />)}
     </View>
     {current ? (
       <Text style={{ color: C.green, fontSize: 15, fontWeight: '600', textAlign: 'center', marginTop: 22 }}>{'✓ ' + w(lang, 'current')}</Text>
     ) : (
-      <Pressable onPress={onPress} disabled={busy} accessibilityRole="button" style={{ marginTop: 22 }}>
-        <View style={{ borderRadius: 999, paddingVertical: 15, alignItems: 'center', backgroundColor: vip ? C.purple : 'transparent', borderWidth: vip ? 0 : 1.5, borderColor: C.text }}>
-          {busy ? <ActivityIndicator color={vip ? '#FFF' : C.text} /> : <Text style={{ color: vip ? '#FFF' : C.text, fontSize: 16, fontWeight: '600' }}>{cta}</Text>}
+      <Pressable onPress={onPress} disabled={busy} accessibilityRole="button" style={{ marginTop: 24 }}>
+        <View style={{ borderRadius: 999, paddingVertical: 16, alignItems: 'center', backgroundColor: vip ? C.purple : 'transparent', borderWidth: vip ? 0 : 1.5, borderColor: P.ink }}>
+          {busy ? <ActivityIndicator color={vip ? '#FFF' : P.ink} /> : <Text style={{ color: vip ? '#FFF' : P.ink, fontSize: 16.5, fontWeight: '600' }}>{cta}</Text>}
         </View>
       </Pressable>
     )}
   </View>
-);
+  );
+};
 
 /* "Why are we charging?" — three honest reasons, nothing more */
 const WhySheet = ({ lang, onClose }) => {
@@ -143,33 +151,33 @@ export const PricingGate = ({ m, hard, onClose, onSignOut }) => {
   const tier = m ? m.tier : 'FREE';
 
   const page = (
-    <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 20, paddingTop: insets.top + 36, paddingBottom: insets.bottom + 36, alignItems: 'center' }}>
+    <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 22, paddingTop: insets.top + 44, paddingBottom: insets.bottom + 44, alignItems: 'center' }}>
       <View style={{ width: '100%', maxWidth: 480 }}>
-        <Text style={{ color: C.purple, fontSize: 13, fontWeight: '800', letterSpacing: 2.4 }}>MOMENTS</Text>
-        <Text style={{ color: C.text, fontSize: 34, fontWeight: '700', letterSpacing: -1.1, lineHeight: 39, marginTop: 14 }}>{w(lang, 'hero')}</Text>
-        <Text style={{ color: C.dim, fontSize: 16, lineHeight: 24, marginTop: 14 }}>{w(lang, 'sub')}</Text>
+        <Text style={{ color: C.sun, fontSize: 13, fontWeight: '800', letterSpacing: 2.6 }}>✦ MOMENTS</Text>
+        <Text style={{ color: '#FFF', fontSize: 38, fontWeight: '700', letterSpacing: -1.3, lineHeight: 43, marginTop: 18 }}>{w(lang, 'hero')}</Text>
+        <Text style={{ color: 'rgba(255,255,255,0.82)', fontSize: 16.5, lineHeight: 25, marginTop: 16, marginBottom: 14 }}>{w(lang, 'sub')}</Text>
 
         {/* Basic, then VIP — the plan we recommend carries the one colour */}
         <Plan lang={lang} name={w(lang, 'basic')} tag={w(lang, 'basicTag')} price={pr.basic} cur={pr.currency}
           items={[[w(lang, 'f1')], [w(lang, 'f2')], [w(lang, 'f3')]]}
-          cta={w(lang, 'joinBasic')} busy={busy === 'basic'} onPress={() => buy('basic')} current={tier === 'BASIC'} />
+          cta={w(lang, 'joinBasic')} busy={busy === 'basic'} onPress={() => buy('basic')} current={tier === 'BASIC'} paper />
 
         <Plan lang={lang} vip name={w(lang, 'vip')} tag={w(lang, 'vipTag')} price={pr.vip} cur={pr.currency}
           items={[[w(lang, 'v1')], [w(lang, 'v2'), true], [w(lang, 'v3'), true], [w(lang, 'v4')]]}
-          cta={w(lang, 'becomeVip')} busy={busy === 'vip'} onPress={() => buy('vip')} current={tier === 'VIP'} />
-        {note ? <Text style={{ color: C.dim, fontSize: 14, textAlign: 'center', marginTop: 16 }}>{note}</Text> : null}
-        <Text style={{ color: C.faint, fontSize: 13, textAlign: 'center', marginTop: 18 }}>{w(lang, 'cancel')}</Text>
+          cta={w(lang, 'becomeVip')} busy={busy === 'vip'} onPress={() => buy('vip')} current={tier === 'VIP'} paper />
+        {note ? <Text style={{ color: '#FFF', fontSize: 14.5, textAlign: 'center', marginTop: 18 }}>{note}</Text> : null}
+        <Text style={{ color: 'rgba(255,255,255,0.72)', fontSize: 13.5, textAlign: 'center', marginTop: 24 }}>{w(lang, 'cancel')}</Text>
         <Pressable onPress={() => { tapLight(); setWhy(true); }} accessibilityRole="link" hitSlop={10} style={{ alignSelf: 'center', marginTop: 10 }}>
-          <Text style={{ color: C.dim, fontSize: 13, textDecorationLine: 'underline' }}>{w(lang, 'why')}</Text>
+          <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '600', textDecorationLine: 'underline' }}>{w(lang, 'why')}</Text>
         </Pressable>
         {hard && onSignOut ? (
-          <Pressable onPress={() => { tapLight(); onSignOut(); }} accessibilityRole="button" hitSlop={10} style={{ alignSelf: 'center', marginTop: 22 }}>
-            <Text style={{ color: C.faint, fontSize: 13 }}>{w(lang, 'signOut')}</Text>
+          <Pressable onPress={() => { tapLight(); onSignOut(); }} accessibilityRole="button" hitSlop={10} style={{ alignSelf: 'center', marginTop: 26 }}>
+            <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13.5 }}>{w(lang, 'signOut')}</Text>
           </Pressable>
         ) : null}
         {!hard && onClose ? (
-          <Pressable onPress={onClose} accessibilityRole="button" hitSlop={10} style={{ alignSelf: 'center', marginTop: 22 }}>
-            <Text style={{ color: C.faint, fontSize: 13 }}>{w(lang, 'notNow')}</Text>
+          <Pressable onPress={onClose} accessibilityRole="button" hitSlop={10} style={{ alignSelf: 'center', marginTop: 26 }}>
+            <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13.5 }}>{w(lang, 'notNow')}</Text>
           </Pressable>
         ) : null}
       </View>
@@ -181,14 +189,14 @@ export const PricingGate = ({ m, hard, onClose, onSignOut }) => {
     // over everything, the app blurred behind it; there is nothing else to tap
     return (
       <View style={[{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9000,
-        backgroundColor: Platform.OS !== 'web' ? C.bg : isDark ? 'rgba(15,13,20,0.84)' : 'rgba(250,248,245,0.82)' }, blur]} accessibilityViewIsModal>
+        backgroundColor: Platform.OS !== 'web' ? C.purple : isDark ? 'rgba(91,33,182,0.97)' : 'rgba(124,58,237,0.97)' }, blur]} accessibilityViewIsModal>
         {page}
       </View>
     );
   }
   return (
     <Modal visible transparent={false} animationType="slide" onRequestClose={onClose}>
-      <View style={{ flex: 1, backgroundColor: C.bg }}>{page}</View>
+      <View style={{ flex: 1, backgroundColor: C.purple }}>{page}</View>
     </Modal>
   );
 };

@@ -148,7 +148,7 @@ export const DailyMoment = () => {
   const total = q.tallies ? q.tallies.reduce((s, n) => s + n, 0) : 0;
   const shown = q.answers ? (all ? q.answers : q.answers.slice(0, 4)) : [];
   return (
-    <View style={{ marginTop: 18, borderRadius: 24, borderWidth: 1, borderColor: C.line, backgroundColor: C.glass, padding: 20 }}>
+    <View style={{ marginTop: 24, borderRadius: 28, borderWidth: 1, borderColor: C.line, backgroundColor: C.glass, padding: 24 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
         <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: C.purple, marginEnd: 8 }} />
         <Text style={{ color: C.purple, fontSize: 12, fontWeight: '700', letterSpacing: 1.2, flex: 1 }}>{w(lang, 'title').toUpperCase()}</Text>

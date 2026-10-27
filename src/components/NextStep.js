@@ -79,30 +79,31 @@ export const NextStep = () => {
   const cta = isBooking ? w(lang, 3) : o ? w(lang, 5, { p: money(o.price, o.currency, lang) }) : w(lang, 6);
 
   return (
-    <View style={{ marginTop: 18 }}>
+    <View style={{ marginTop: 24 }}>
       <Pressable onPress={() => { tapLight(); if (isBooking) setOpen('event'); else goToTab('TOGETHER'); }} accessibilityRole="button" accessibilityLabel={title}>
-        <View style={{ backgroundColor: C.glass, borderRadius: 24, borderWidth: 1, borderColor: C.line, padding: 24 }}>
-          <Text style={{ color: C.dim, fontSize: 12, fontWeight: '600', letterSpacing: 0.4 }}>{w(lang, 0)}</Text>
-          <Text style={{ color: C.text, fontSize: 26, fontWeight: '700', letterSpacing: -0.6, lineHeight: 31, marginTop: 8 }} numberOfLines={2}>{title}</Text>
-          {meta ? <Text style={[{ color: C.dim, fontSize: 14, marginTop: 6 }, NUM]} numberOfLines={1}>{meta}</Text> : null}
+        {/* the one violet surface on Home: your own next step — white type, the logo's yellow as the only accent */}
+        <View style={{ backgroundColor: C.purple, borderRadius: 28, paddingHorizontal: 26, paddingVertical: 28 }}>
+          <Text style={{ color: C.sun, fontSize: 12, fontWeight: '800', letterSpacing: 1.6 }}>{w(lang, 0).toUpperCase()}</Text>
+          <Text style={{ color: '#FFF', fontSize: 30, fontWeight: '700', letterSpacing: -0.9, lineHeight: 35, marginTop: 12 }} numberOfLines={3}>{title}</Text>
+          {meta ? <Text style={[{ color: 'rgba(255,255,255,0.78)', fontSize: 15, marginTop: 10 }, NUM]} numberOfLines={1}>{meta}</Text> : null}
 
           {/* the one state that matters, and only that */}
           {isBooking ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 14 }}>
-              <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: step.b.status === 'paid' ? C.green : C.gold }} />
-              <Text style={{ color: C.dim, fontSize: 13, marginStart: 8 }}>{w(lang, step.b.status === 'paid' ? 1 : 2)}</Text>
+              <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: step.b.status === 'paid' ? '#6EE7B7' : C.sun }} />
+              <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 14, marginStart: 8 }}>{w(lang, step.b.status === 'paid' ? 1 : 2)}</Text>
             </View>
           ) : (
             <View style={{ marginTop: 16 }}>
-              {o ? <Text style={[{ color: C.dim, fontSize: 13 }, NUM]}>{w(lang, 4, { n: step.j.level, t: step.j.top })}</Text> : null}
-              <View style={{ height: 3, borderRadius: 2, backgroundColor: C.glassHi, marginTop: 8, overflow: 'hidden' }}>
-                <View style={{ height: 3, borderRadius: 2, backgroundColor: C.text, width: Math.round(((step.j.level - 1) / Math.max(1, step.j.top)) * 100) + '%' }} />
+              {o ? <Text style={[{ color: 'rgba(255,255,255,0.85)', fontSize: 14 }, NUM]}>{w(lang, 4, { n: step.j.level, t: step.j.top })}</Text> : null}
+              <View style={{ height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.22)', marginTop: 10, overflow: 'hidden' }}>
+                <View style={{ height: 4, borderRadius: 2, backgroundColor: C.sun, width: Math.round(((step.j.level - 1) / Math.max(1, step.j.top)) * 100) + '%' }} />
               </View>
             </View>
           )}
 
-          <View style={{ alignSelf: 'flex-start', marginTop: 20, backgroundColor: C.purple, borderRadius: 999, paddingHorizontal: 20, paddingVertical: 12 }}>
-            <Text style={[{ color: '#FFF', fontSize: 15, fontWeight: '600' }, NUM]}>{cta}</Text>
+          <View style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', marginTop: 24, backgroundColor: '#FFF', borderRadius: 999, paddingHorizontal: 22, paddingVertical: 14 }}>
+            <Text style={[{ color: '#17131F', fontSize: 16, fontWeight: '600' }, NUM]}>{cta + (lang === 'ar' ? '  ←' : '  →')}</Text>
           </View>
         </View>
       </Pressable>

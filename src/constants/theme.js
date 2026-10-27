@@ -29,6 +29,7 @@ const LIGHT = {
   coral: '#DC2626',                    // errors only
   coralSoft: 'rgba(220,38,38,0.07)',
   gold: '#B45309',                     // amber: urgency (2 spots left) — 5:1 on white
+  sun: '#FFC233',                      // the star in the logo: the one accent ON violet (Lemon Squeezy's way — violet ground, white type, a yellow spark)
   goldSoft: 'rgba(217,119,6,0.10)',
   text: '#17131F',                     // ink with a little warmth in it
   dim: '#6F6A75',                      // metadata: dates, places, prices (5:1)
@@ -53,6 +54,7 @@ const DARK = {
   coral: '#F87171',
   coralSoft: 'rgba(248,113,113,0.12)',
   gold: '#F59E0B',
+  sun: '#FFC233',
   goldSoft: 'rgba(245,158,11,0.14)',
   text: '#F6F3FA',
   dim: '#A9A3B2',
