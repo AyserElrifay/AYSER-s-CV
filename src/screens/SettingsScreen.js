@@ -51,7 +51,7 @@ const HostApplySheet = lazyOverlay(() => import('../components/HostApplySheet').
 const Toggle = ({ on, onToggle }) => (
   <Pressable onPress={onToggle} hitSlop={6}>
     <View style={{ width: 46, height: 27, borderRadius: 14, backgroundColor: on ? C.purple : C.glassHi, padding: 3, justifyContent: 'center' }}>
-      <View style={{ width: 21, height: 21, borderRadius: 11, backgroundColor: '#FFF', marginLeft: on ? 19 : 0 }} />
+      <View style={{ width: 21, height: 21, borderRadius: 11, backgroundColor: on ? C.ink : '#FFF', marginLeft: on ? 19 : 0 }} />
     </View>
   </Pressable>
 );
@@ -433,7 +433,7 @@ export const SettingsScreen = ({ onClose }) => {
               </View>
               <Pressable onPress={() => { const n = !visible; setVisible(n); saveExchange(n); }}>
                 <View style={{ width: 46, height: 27, borderRadius: 14, backgroundColor: visible ? C.purple : C.glassHi, padding: 3, justifyContent: 'center' }}>
-                  <View style={{ width: 21, height: 21, borderRadius: 11, backgroundColor: '#FFF', marginLeft: visible ? 19 : 0 }} />
+                  <View style={{ width: 21, height: 21, borderRadius: 11, backgroundColor: visible ? C.ink : '#FFF', marginLeft: visible ? 19 : 0 }} />
                 </View>
               </Pressable>
             </View>

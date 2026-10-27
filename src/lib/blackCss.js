@@ -15,6 +15,11 @@ export const BLACK = {
 };
 
 const W = 'rgb(255, 255, 254)';
+/* a selected chip, a switch or a card painted with any of the palette's
+   whites (or the light grey) gets black writing, while anything dark
+   inside one keeps white */
+const LIGHT = [W, 'rgb(255, 255, 255)', 'rgb(229, 229, 229)'];
+const DARK = ['rgb(0, 0, 0)', 'rgb(10, 10, 10)', 'rgb(20, 20, 20)'];
 const HUES = ['rgb(124, 58, 237)', 'rgb(91, 33, 182)', 'rgb(109, 40, 217)', 'rgb(43, 16, 85)', 'rgb(255, 194, 51)'];
 
 export function paintBlack() {
@@ -27,7 +32,8 @@ ${bg(c)}:not(#mm-z), ${bg(c)} *:not(#mm-z) { color: #000000 !important; }
 [style*="border"][style*="${c}"] { border-color: #FFFFFF !important; }
 [style*="linear-gradient"][style*="${c}"] { background-image: none !important; background-color: #0A0A0A !important; border: 1px solid #262626; }`).join('') + `
 ${bg(W)}:hover { background-color: #E5E5E5 !important; }
-${bg(W)}:not(#mm-z), ${bg(W)} *:not(#mm-z) { color: #000000 !important; }
+${LIGHT.map((c) => `${bg(c)}:not(#mm-z), ${bg(c)} *:not(#mm-z)`).join(', ')} { color: #000000 !important; }
+${LIGHT.map((c) => DARK.map((d) => `${bg(c)} ${bg(d)}:not(#mm-z):not(#mm-y), ${bg(c)} ${bg(d)} *:not(#mm-z):not(#mm-y)`).join(', ')).join(', ')} { color: #FFFFFF !important; }
 html, body { background-color: #000000 !important; }`;
   if (!el) { el = document.createElement('style'); el.id = 'mm-black'; document.head.appendChild(el); }
   el.textContent = css;

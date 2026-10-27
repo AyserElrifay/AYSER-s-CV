@@ -111,7 +111,7 @@ export const SoundSheet = ({ postId, onClose, onUseSound, onOpenPost }) => {
                       <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 2 }}>{t('sound_allow_hint')}</Text>
                     </View>
                     <View style={{ width: 46, height: 27, borderRadius: 14, backgroundColor: reuse ? C.green : C.glassHi, padding: 3, justifyContent: 'center' }}>
-                      <View style={{ width: 21, height: 21, borderRadius: 11, backgroundColor: '#FFF', marginLeft: reuse ? 19 : 0 }} />
+                      <View style={{ width: 21, height: 21, borderRadius: 11, backgroundColor: reuse ? C.ink : '#FFF', marginLeft: reuse ? 19 : 0 }} />
                     </View>
                   </View>
                 </Pressable>

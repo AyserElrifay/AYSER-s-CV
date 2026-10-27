@@ -2953,7 +2953,7 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
                       <Text numberOfLines={1} style={{ color: 'rgba(255,255,255,0.62)', fontSize: 10.5, marginTop: 1 }}>{t('sound_allow_hint')}</Text>
                     </View>
                     <View style={{ width: 42, height: 25, borderRadius: 13, backgroundColor: soundReuse ? C.green : 'rgba(255,255,255,0.22)', padding: 3, justifyContent: 'center' }}>
-                      <View style={{ width: 19, height: 19, borderRadius: 10, backgroundColor: '#FFF', marginLeft: soundReuse ? 17 : 0 }} />
+                      <View style={{ width: 19, height: 19, borderRadius: 10, backgroundColor: soundReuse ? C.ink : '#FFF', marginLeft: soundReuse ? 17 : 0 }} />
                     </View>
                   </View>
                 </Pressable>
