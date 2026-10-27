@@ -26,10 +26,12 @@ export const FeedClock = ({ budget, running }) => {
   const since = running && g.at && Date.now() - g.at < 5500 ? (Date.now() - g.at) / 1000 : 0;
   const left = budget - g.used - since;
   const low = left < 120;
+  /* quiet metadata beside the Moments tab it belongs to, not a card of
+     its own in the middle of the feed; amber only in the last two minutes */
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'center', marginTop: 12, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 7, backgroundColor: low ? 'rgba(225,29,72,0.10)' : C.glass, borderWidth: 1, borderColor: low ? 'rgba(225,29,72,0.35)' : C.line }}>
-      <Ionicons name="hourglass-outline" size={14} color={low ? '#E11D48' : C.dim} />
-      <Text style={{ color: low ? '#E11D48' : C.dim, fontSize: 13, fontWeight: '800', marginStart: 6, fontVariant: ['tabular-nums'] }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center' }} accessibilityRole="timer">
+      <Ionicons name="hourglass-outline" size={13} color={low ? C.gold : C.faint} />
+      <Text style={{ color: low ? C.gold : C.dim, fontSize: 13, fontWeight: '600', marginStart: 5, fontVariant: ['tabular-nums'] }}>
         {t('fg_left').replace('{t}', mmss(left))}
       </Text>
     </View>

@@ -166,6 +166,7 @@ export const TabNavigator = () => {
   // left sidebar — the VK / Facebook desktop shell — with icon + label
   // rows; on phones it stays the familiar bottom bar.
   const sidebar = Platform.OS === 'web' && width >= 820;
+  const insets = useSafeAreaInsets();
   return (
   <>
   <UnlockHost />
@@ -223,6 +224,8 @@ export const TabNavigator = () => {
         is the opposite of getting people out of the house. */}
     <Tab.Screen name="CHILL" component={ChillTab} options={HIDDEN} />
   </Tab.Navigator>
+  {/* behind the phone's clock: the page's own colour, so the feed does not scroll up under the time */}
+  {insets.top > 0 ? <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: insets.top, backgroundColor: C.bg, opacity: 0.94 }} /> : null}
   <OfflineBar />
   </>
   );

@@ -614,13 +614,16 @@ export const HomeScreen = () => {
             {/* Moments · Reflection — two words, not a black bar: after
                 the photo above, a heavy switch was the loudest thing on
                 the screen, and it is only a way of choosing what to read */}
-            <View style={{ flexDirection: 'row', marginTop: 22 }} accessibilityRole="tablist">
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 22 }} accessibilityRole="tablist">
               {[['moments', t('hm_moments')], ['reflect', t('hm_reflect')]].map(([k, label]) => (
                 <Pressable key={k} onPress={() => pickTab(k)} accessibilityRole="tab" accessibilityState={{ selected: homeTab === k }} hitSlop={8} style={{ marginEnd: 22 }}>
                   <Text style={{ color: homeTab === k ? C.text : C.faint, fontSize: 19, fontWeight: '900', letterSpacing: -0.3 }}>{label}</Text>
                   <View style={{ height: 3, width: 18, borderRadius: 2, marginTop: 5, backgroundColor: homeTab === k ? C.purple : 'transparent' }} />
                 </Pressable>
               ))}
+              {/* the minutes left today, ticking — part of the Moments tab, on its line */}
+              <View style={{ flex: 1 }} />
+              {user && homeTab === 'moments' && !feedClosed ? <View style={{ paddingBottom: 8 }}><FeedClock budget={budget} running={focused} /></View> : null}
             </View>
 
             {homeTab === 'reflect' ? <View style={{ marginTop: 18 }}><ReflectionPane user={user} /></View> : null}
@@ -644,9 +647,6 @@ export const HomeScreen = () => {
 
             {/* tonight's sky from everywhere (src/components/games/WorldCard.js) */}
             {user && SUPABASE_READY && homeTab === 'moments' ? <WorldCard userId={user.id} lang={lang} city={myProfile && myProfile.city} /> : null}
-
-            {/* the minutes left today, ticking */}
-            {user && homeTab === 'moments' && !feedClosed ? <FeedClock budget={budget} running={focused} /> : null}
 
             {/* the day's window is over: a kind line, and the way out */}
             {homeTab === 'moments' && feedClosed ? (
