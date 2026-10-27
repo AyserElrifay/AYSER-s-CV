@@ -67,25 +67,49 @@ const Hello = () => {
   );
 };
 
-/* The Earth: a 12-second loop rendered from NASA's Blue Marble (public
-   domain), centred on Egypt and Europe and turning the way the real one
-   does — served from our own site, so it plays at once and offline,
-   with no 3-D library to fetch. Its first frame is the still under it. */
+/* The Earth, turning. Ayser: the play button over the globe made it look
+   like a video ad — it was a video, and an iPhone that won't autoplay (Low
+   Power Mode, data saver) puts Safari's own play button on it. So there is
+   no video any more: NASA's Blue Marble (public domain) as a flat map,
+   sliding inside a circle the way the real Earth turns, west to east,
+   with light from the upper left, a dark limb and a thin blue atmosphere.
+   Starts on Egypt and Europe. Nothing to press; it simply turns. With
+   "reduce motion" on, it stands still. */
+let earthStyle = false;
+const POLE = -22;   // px: Antarctica and the Arctic mostly out of the circle
+const ensureEarthStyle = (size) => {
+  if (earthStyle || typeof document === 'undefined') return;
+  earthStyle = true;
+  const w = Math.round(size * 2.3);                                 // the map a little larger: the poles trimmed
+  const start = -Math.round(w / 2 + (w / 2) * (30 / 180) - size / 2);   // 30°E (Egypt) in the middle
+  const el = document.createElement('style');
+  el.textContent = '@keyframes mm-earth-turn{from{background-position:' + start + 'px ' + POLE + 'px}to{background-position:' + (start + w) + 'px ' + POLE + 'px}}';
+  document.head.appendChild(el);
+};
 const Earth = () => {
   const reduce = Platform.OS === 'web' && typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const breathe = useRef(new Animated.Value(0)).current;
+  const size = 300;
   useEffect(() => {
     Animated.timing(breathe, { toValue: 1, duration: 1400, easing: Easing.out(Easing.cubic), useNativeDriver: Platform.OS !== 'web' }).start();
   }, []);
-  const size = 320;
+  if (Platform.OS === 'web') ensureEarthStyle(size);
+  const w = Math.round(size * 2.3);
+  const start = -Math.round(w / 2 + (w / 2) * (30 / 180) - size / 2);
   return (
     <Animated.View pointerEvents="none" style={{ width: size, height: size,
       opacity: breathe, transform: [{ scale: breathe.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1] }) }] }}>
-      <Image source={{ uri: publicMedia('earth-spin.jpg') }} style={{ position: 'absolute', width: size, height: size }} />
-      {Platform.OS === 'web' && !reduce ? (
-        <video src={publicMedia('earth-spin.mp4')} poster={publicMedia('earth-spin.jpg')} autoPlay muted loop playsInline preload="auto"
-          style={{ position: 'absolute', width: size, height: size, objectFit: 'cover', display: 'block' }} />
-      ) : null}
+      {Platform.OS === 'web' ? (
+        <div style={{ position: 'absolute', width: size, height: size, borderRadius: '50%', overflow: 'hidden',
+          backgroundImage: 'url(' + publicMedia('earth-map.jpg') + ')', backgroundSize: w + 'px ' + Math.round(w / 2) + 'px', backgroundRepeat: 'repeat-x',
+          backgroundPosition: start + 'px ' + POLE + 'px', animation: reduce ? 'none' : 'mm-earth-turn 120s linear infinite',
+          boxShadow: '0 0 70px rgba(80,140,255,0.38), 0 0 18px rgba(120,170,255,0.35)' }}>
+          {/* the sphere: light from the upper left, the night side and the limb in shadow */}
+          <div style={{ position: 'absolute', inset: 0, borderRadius: '50%',
+            background: 'radial-gradient(circle at 34% 30%, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0) 38%), radial-gradient(circle at 50% 50%, rgba(0,0,0,0) 52%, rgba(0,0,0,0.35) 74%, rgba(0,0,0,0.85) 100%), linear-gradient(105deg, rgba(0,0,0,0) 55%, rgba(0,0,10,0.55) 100%)' }} />
+          <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', boxShadow: 'inset 0 0 24px rgba(140,190,255,0.45)' }} />
+        </div>
+      ) : <Image source={{ uri: publicMedia('earth-spin.jpg') }} style={{ position: 'absolute', width: size, height: size, borderRadius: size / 2 }} />}
     </Animated.View>
   );
 };

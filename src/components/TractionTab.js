@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, Pressable, ActivityIndicator, Platform } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { C, NUM } from '../constants/theme';
-import { tractionMetrics } from '../services/scale';
+import { tractionMetrics } from '../services/traction';
 import { tapLight, tapSuccess } from '../utils/feedback';
 
 /* ─── TRACTION & SAAS METRICS (owner only) ────────────────────────────

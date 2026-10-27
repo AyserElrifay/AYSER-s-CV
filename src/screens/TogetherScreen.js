@@ -61,7 +61,7 @@ const LoungesSheet = lazyOverlay(() => import('../components/LiveKit').then((m) 
 const BuddiesSheet = lazyOverlay(() => import('../components/LiveKit').then((m) => ({ default: m.BuddiesSheet })));
 const CityHubSheet = lazyOverlay(() => import('../components/LiveKit').then((m) => ({ default: m.CityHubSheet })));
 import { MatchBadge, OfficialBadge } from '../ui/MatchBadge';
-import { tableSignals } from '../services/scale';
+import { tableSignals } from '../services/tableSignals';
 const TalkRoomSheet = lazyOverlay(() => import('../components/TalkRoom').then((m) => ({ default: m.TalkRoomSheet })));
 const StartTalkSheet = lazyOverlay(() => import('../components/TalkRoom').then((m) => ({ default: m.StartTalkSheet })));
 
