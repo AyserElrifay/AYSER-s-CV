@@ -313,6 +313,21 @@ jobs:
       # neither shows up in a diff. So the number is checked.
       - name: Check the first download has not crept back up
         run: node scripts/check-first-download.mjs dist
+      # Moments for Android (build-android.yml) lives on the android-latest
+      # release; the site serves it at /android/moments.apk, with the key
+      # file that lets the app open the site without a browser bar
+      - name: Bring in the Android app
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p dist/android dist/.well-known
+          if gh release download android-latest --repo "$GITHUB_REPOSITORY" -p moments.apk -p assetlinks.json -D "$RUNNER_TEMP/apk" 2>/dev/null; then
+            cp "$RUNNER_TEMP/apk/moments.apk" dist/android/moments.apk
+            cp "$RUNNER_TEMP/apk/assetlinks.json" dist/.well-known/assetlinks.json
+            ls -l dist/android/moments.apk
+          else
+            echo "::notice::No Android build yet — run 'Build Moments for Android'."
+          fi
       - name: Disable Jekyll (keep _expo folder)
         run: touch dist/.nojekyll
       - uses: actions/configure-pages@v5

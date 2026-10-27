@@ -1,0 +1,46 @@
+/* Moments for Android: a Trusted Web Activity — therealmoments.com, full
+   screen, from the Moments icon. The app itself is the website, so every
+   release of the site is already in it; this only changes when the icon,
+   the name or the address does. Built and signed by
+   .github/workflows/build-android.yml. */
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.therealmoments.app'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'com.therealmoments.app'
+        minSdk 21
+        targetSdk 34
+        versionCode Integer.parseInt(System.getenv('VERSION_CODE') ?: '1')
+        versionName System.getenv('VERSION_NAME') ?: '1.0'
+    }
+
+    signingConfigs {
+        release {
+            storeFile file(System.getenv('KS_PATH') ?: 'missing.jks')
+            storePassword System.getenv('KS_PASS')
+            keyAlias 'moments'
+            keyPassword System.getenv('KS_PASS')
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.release
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.5.0'
+}
