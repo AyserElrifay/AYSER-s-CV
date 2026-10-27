@@ -445,7 +445,7 @@ export const TogetherScreen = () => {
   }, [rows]);
   const [journey, setJourney] = useState(false);
   const [meet, setMeet] = useState(null);   // 'lounges' | 'buddies'
-  // the VIP welcome offer's "claim" lands here, on the journey
+  // the Premium welcome offer's "claim" lands here, on the journey
   useEffect(() => {
     const on = () => setJourney(true);
     const buddies = () => setMeet('buddies');   // "Open messages", after a stamp opened the 7-day pass

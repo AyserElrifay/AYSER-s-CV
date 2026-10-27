@@ -99,7 +99,7 @@ export const JourneyMap = ({ lang, onClose }) => {
     }
   }).catch(() => setJ(false));
   useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  // a new VIP's welcome 30% off a first Level 1 — journey_book takes it off; this only shows it
+  // a new Premium's welcome 30% off a first Level 1 — journey_book takes it off; this only shows it
   const [offer, setOffer] = useState(null);
   // and ten passport stamps: 30% off a Level 2
   const [l2, setL2] = useState(null);

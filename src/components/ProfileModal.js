@@ -52,7 +52,7 @@ const CELL = (W - 48) / 3;
 const isVideoUri = (u) => typeof u === 'string' && /\.(webm|mp4|mov|m4v)(\?|$)/i.test(u);
 
 // the line on a profile a Basic member opens
-const VIP_PROFILE = { en: 'Full profiles are part of Moments VIP', ar: 'البروفايل الكامل جزء من Moments VIP', cs: 'Celé profily jsou součástí Moments VIP', es: 'Los perfiles completos son parte de Moments VIP', et: 'Täisprofiilid on Moments VIP-i osa', fr: 'Les profils complets font partie de Moments VIP', hi: 'पूरी प्रोफ़ाइल Moments VIP का हिस्सा है', it: 'I profili completi fanno parte di Moments VIP', ja: 'プロフィールの全体表示は Moments VIP の機能です', ko: '전체 프로필은 Moments VIP 기능이에요', nl: 'Volledige profielen horen bij Moments VIP', pt: 'Os perfis completos fazem parte do Moments VIP', ro: 'Profilurile complete fac parte din Moments VIP', ru: 'Полные профили — часть Moments VIP', tr: 'Tam profiller Moments VIP’in parçası', uk: 'Повні профілі — частина Moments VIP', zh: '完整个人资料是 Moments VIP 的功能' };
+const VIP_PROFILE = { en: 'Full profiles are part of Moments Premium', ar: 'البروفايل الكامل جزء من Moments Premium', cs: 'Celé profily jsou součástí Moments Premium', es: 'Los perfiles completos son parte de Moments Premium', et: 'Täisprofiilid on Moments Premium-i osa', fr: 'Les profils complets font partie de Moments Premium', hi: 'पूरी प्रोफ़ाइल Moments Premium का हिस्सा है', it: 'I profili completi fanno parte di Moments Premium', ja: 'プロフィールの全体表示は Moments Premium の機能です', ko: '전체 프로필은 Moments Premium 기능이에요', nl: 'Volledige profielen horen bij Moments Premium', pt: 'Os perfis completos fazem parte do Moments Premium', ro: 'Profilurile complete fac parte din Moments Premium', ru: 'Полные профили — часть Moments Premium', tr: 'Tam profiller Moments Premium’un parçası', uk: 'Повні профілі — частина Moments Premium', zh: '完整个人资料是 Moments Premium 的功能' };
 
 export const ProfileModal = ({ user, onClose }) => {
   /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
@@ -147,8 +147,8 @@ export const ProfileModal = ({ user, onClose }) => {
      stories already refuses these rows to anyone who isn't an accepted
      mate, so the screen only has to say so. */
   const isPrivate = !!(fullProfile && fullProfile.account_type === 'private');
-  /* a full profile is VIP (RUN_ME.sql, "TWO TIERS"): a Basic member sees
-     the face, the name and the passport, and the door to VIP */
+  /* a full profile is Premium (RUN_ME.sql, "TWO TIERS"): a Basic member sees
+     the face, the name and the passport, and the door to Premium */
   const [vipOk, setVipOk] = useState(null);
   useEffect(() => {
     if (!real || isMe) return undefined;
@@ -319,7 +319,7 @@ export const ProfileModal = ({ user, onClose }) => {
               <Pressable onPress={() => { tapLight(); askUpgrade('profile'); }} accessibilityRole="button" style={{ marginTop: 18 }}>
                 <View style={{ borderRadius: 20, borderWidth: 1, borderColor: C.purple, padding: 18, flexDirection: 'row', alignItems: 'center' }}>
                   <Text style={{ color: C.text, fontSize: 15, fontWeight: '600', flex: 1 }}>{'🔒 ' + (VIP_PROFILE[lang] || VIP_PROFILE.en)}</Text>
-                  <Text style={{ color: C.purple, fontSize: 14, fontWeight: '700' }}>VIP ›</Text>
+                  <Text style={{ color: C.purple, fontSize: 14, fontWeight: '700' }}>Premium ›</Text>
                 </View>
               </Pressable>
             ) : null}
