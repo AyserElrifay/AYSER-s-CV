@@ -83,28 +83,45 @@ const Clock = ({ endsAt, skew, total, lang }) => {
   );
 };
 
-/* a card that turns over when a new one is dealt */
-const FlipCard = ({ flipKey, kicker, text, children }) => {
+/* a card that turns over when a new one is dealt — drawn like the printed
+   Moments deck (Ayser: "خلي في لعب زي كده ديجيتال في الخروجة"): the mark and
+   the section on top, the card big in the middle with the other language
+   under it, the number and the wordmark at the bottom */
+const MARK = { warm: '●', deep: '◆', global: '▲', role: '■', poll: '✦' };
+const FlipCard = ({ flipKey, kicker, text, sub, mark, count, children }) => {
   const turn = useRef(new Animated.Value(1)).current;
-  const [shown, setShown] = useState({ kicker, text });
+  const [shown, setShown] = useState({ kicker, text, sub, mark, count });
   useEffect(() => {
     Animated.timing(turn, { toValue: 0, duration: 160, easing: Easing.in(Easing.quad), useNativeDriver: ND }).start(() => {
-      setShown({ kicker, text });
+      setShown({ kicker, text, sub, mark, count });
       Animated.timing(turn, { toValue: 1, duration: 220, easing: Easing.out(Easing.back(1.4)), useNativeDriver: ND }).start();
     });
   }, [flipKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const rotateY = turn.interpolate({ inputRange: [0, 1], outputRange: ['90deg', '0deg'] });
   return (
     <Animated.View style={{ transform: [{ perspective: 900 }, { rotateY }], marginTop: 12 }}>
-      <View style={{ borderRadius: 24, padding: 24, minHeight: 190, backgroundColor: C.purple, justifyContent: 'space-between' }}>
-        <Text style={{ color: 'rgba(255,255,255,0.72)', fontSize: 12, fontWeight: '700', letterSpacing: 1.2 }}>{(shown.kicker || '').toUpperCase()}</Text>
-        <Text style={{ color: '#FFF', fontSize: 22, fontWeight: '700', letterSpacing: -0.4, lineHeight: 29, marginTop: 14 }}>{shown.text}</Text>
-        <Text style={{ color: 'rgba(255,255,255,0.55)', fontSize: 11, fontWeight: '700', letterSpacing: 2, marginTop: 16 }}>MOMENTS</Text>
+      <View style={{ alignSelf: 'center', width: '100%', maxWidth: 340, aspectRatio: 63 / 88, borderRadius: 18, padding: 22, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Text style={{ color: C.purple, fontSize: 11.5, fontWeight: '700', letterSpacing: 1.2, flex: 1 }} numberOfLines={1}>{((shown.mark ? shown.mark + '  ' : '') + (shown.kicker || '')).toUpperCase()}</Text>
+        </View>
+        <View style={{ flex: 1, justifyContent: 'center' }}>
+          <Text style={{ color: C.text, fontSize: 24, fontWeight: '700', letterSpacing: -0.3, lineHeight: 33 }}>{shown.text}</Text>
+          {shown.sub ? <Text style={{ color: C.dim, fontSize: 14.5, lineHeight: 21, marginTop: 12 }}>{shown.sub}</Text> : null}
+        </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Text style={{ color: C.purple, fontSize: 12, fontWeight: '800', letterSpacing: 0.4 }}>✦ moments</Text>
+          <View style={{ flex: 1 }} />
+          {shown.count ? <Text style={[{ color: C.faint, fontSize: 11.5, fontWeight: '600' }, NUM]}>{shown.count}</Text> : null}
+        </View>
       </View>
       {children}
     </Animated.View>
   );
 };
+/* the other language under the card, as on the printed deck: Arabic under
+   English and English under Arabic; other languages read the English */
+const otherSide = (pair, lang) => (lang === 'ar' ? pair[0] : lang === 'en' && pair[1] && pair[1] !== pair[0] ? pair[1] : null);
+const nOf = (i, n) => String(i + 1).padStart(2, '0') + ' / ' + n;
 
 /* whose turn: a name that lands with a little bounce */
 const Turn = ({ turn, lang }) => {
@@ -294,7 +311,10 @@ export const ActivitiesHub = ({ kind, id, lang }) => {
                 {['warm', 'deep', 'global'].map((c) => <Pill key={c} label={w(lang, c)} on={st.mode === 'deck' && st.cat === c} onPress={() => act(() => activityDeal(kind, id, c))} />)}
               </View>
               {st.mode === 'deck' && DECK[st.cat] ? (
-                <FlipCard flipKey={st.cat + ':' + st.card} kicker={w(lang, st.cat)} text={cardText(DECK[st.cat][st.card] || DECK[st.cat][0], lang)}>
+                <FlipCard flipKey={st.cat + ':' + st.card} kicker={w(lang, st.cat)} mark={MARK[st.cat]}
+                  text={cardText(DECK[st.cat][st.card] || DECK[st.cat][0], lang)}
+                  sub={st.cat === 'global' ? null : otherSide(DECK[st.cat][st.card] || DECK[st.cat][0], lang)}
+                  count={nOf(st.card || 0, DECK[st.cat].length)}>
                   {st.cat === 'global' && st.ends_at ? <Clock endsAt={st.ends_at} skew={skew.current} total={60} lang={lang} /> : null}
                 </FlipCard>
               ) : (
@@ -324,8 +344,10 @@ export const ActivitiesHub = ({ kind, id, lang }) => {
           {tab === 'role' ? (
             <>
               {st.mode === 'roleplay' && st.pair && SCENES[st.scene] ? (
-                <FlipCard flipKey={'r' + st.scene + (st.pair || []).map((p) => p.id).join()} kicker={(st.pair || []).map((p) => p.name).join('  ⇄  ')} text={cardText([SCENES[st.scene][0][0], SCENES[st.scene][1][0]], lang)}>
-                  <Text style={{ color: C.dim, fontSize: 14, lineHeight: 20, marginTop: 10 }}>{cardText([SCENES[st.scene][0][1], SCENES[st.scene][1][1]], lang)}</Text>
+                <FlipCard flipKey={'r' + st.scene + (st.pair || []).map((p) => p.id).join()} mark={MARK.role} kicker={(st.pair || []).map((p) => p.name).join('  ⇄  ')}
+                  text={cardText([SCENES[st.scene][0][0], SCENES[st.scene][1][0]], lang)}
+                  sub={cardText([SCENES[st.scene][0][1], SCENES[st.scene][1][1]], lang)}
+                  count={nOf(st.scene, SCENES.length)}>
                   {st.ends_at ? <Clock endsAt={st.ends_at} skew={skew.current} total={90} lang={lang} /> : null}
                 </FlipCard>
               ) : null}
