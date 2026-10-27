@@ -23,6 +23,7 @@ import { getPrefs, subscribePrefs } from '../services/prefs';
 import { CoverSheet } from './CoverSheet';
 import { useAuth } from '../context/AuthContext';
 import { lazyOverlay } from '../lib/lazyScreen';
+import { usePremium } from '../lib/premium';
 /* the line under a post that leads to a real plan, trip or places — fetched only once the feed is up */
 const PostLink = lazyOverlay(() => import('./PostLink').then((m) => ({ default: m.PostLink })));
 const ReelsViewer = lazyOverlay(() => import('./ReelsViewer').then((m) => ({ default: m.ReelsViewer })));
@@ -165,6 +166,7 @@ const Backdrop = ({ post, style, children }) => {
 };
 
 export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onLaugh: onLaughProp, onRemoveLaugh, isMine, onDelete, onEdit, onShare, onJoin, onVibe, onComment, onOpenProfile, onOpenReel, onOpenLikers, onOpenLaughers, onReport, onOpenTag, onSetCover, onHangoutHere, onOfferHelp }) => {
+  const premium = usePremium(post.user && post.user.id);   // the ✦ of a Moments+ or Black member
   // Moments are captured at an enforced 4:5 crop (ComposeModal) — sizing
   // the card by aspect ratio, not a fixed height, means the feed shows
   // exactly what was cropped, no extra cover-crop surprise.
@@ -344,6 +346,7 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
                 {post.user.name}{post.user.flag ? ' ' + post.user.flag : ''}
               </Text>
               {post.user.verified ? <Tick /> : null}
+              {premium ? <Text style={{ color: C.text, fontSize: 12, marginLeft: 5 }} accessibilityLabel="Moments+">✦</Text> : null}
             </View>
             {post.sponsored ? (
               <Text style={{ color: C.faint, fontSize: 12, marginTop: 2 }}>Sponsored</Text>

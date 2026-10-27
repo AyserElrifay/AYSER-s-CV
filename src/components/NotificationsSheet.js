@@ -56,7 +56,7 @@ const timeAgo = (ts) => {
 
 const FILTERS = [
   { k: 'all', label: 'nt_f_all', kinds: null },
-  { k: 'people', label: 'nt_f_people', kinds: ['mate_request', 'mate_accept', 'message', 'call', 'buddy', 'buddy_ping'] },
+  { k: 'people', label: 'nt_f_people', kinds: ['mate_request', 'mate_accept', 'message', 'call', 'buddy', 'buddy_ping', 'spark'] },
   { k: 'moments', label: 'nt_f_moments', kinds: ['vibe', 'laugh', 'repost', 'tag', 'comment'] },
 ];
 
@@ -201,7 +201,7 @@ export const NotificationsSheet = ({ onClose }) => {
     /* an invitation opens the week it is in, where Join is one tap */
     if (n.kind === 'green_invite') { tapSelection(); setGreenOpen(true); return; }
     // a new buddy, or a message from one: the Buddies page, where the chat is
-    if (n.kind === 'buddy' || n.kind === 'message') { tapSelection(); setBuddiesOpen(true); return; }
+    if (n.kind === 'buddy' || n.kind === 'message' || n.kind === 'spark') { tapSelection(); setBuddiesOpen(true); return; }
     // a buddy's invitation to their table: the trip page, or the plans of the week
     if (n.kind === 'buddy_ping') {
       tapSelection(); onClose();

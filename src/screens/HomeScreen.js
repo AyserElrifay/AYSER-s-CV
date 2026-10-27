@@ -55,6 +55,7 @@ import { myVolunteering, myUnrated } from '../services/green';
    place. Opened, not loaded with the feed. */
 /* A shared group link has to open the group. GroupPage is a Modal, so
    it can live here as well as in Search. */
+const BuddiesSheet = lazyOverlay(() => import('../components/LiveKit').then((m) => ({ default: m.BuddiesSheet })));
 const GroupPage = lazyOverlay(() => import('../components/GroupPage').then((mod) => ({ default: mod.GroupPage })));
 const WhatsOnSheet = lazyOverlay(() => import('../components/WhatsOnSheet').then((mod) => ({ default: mod.WhatsOnSheet })));
 const CaptureModal = lazyOverlay(() => import('../components/CaptureModal').then((m) => ({ default: m.CaptureModal })));
@@ -271,6 +272,7 @@ export const HomeScreen = () => {
     return () => window.removeEventListener('mm-widgets', f);
   }, []);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [chatsOpen, setChatsOpen] = useState(false);   // Chats: buddies, Mutual Sparks, the Midnight Table
   /* a tapped phone notification lands here: the list, or the tab it is about */
   useEffect(() => {
     const go = (tg) => { if (!tg) return; if (tg.notifications) setNotifOpen(true); else if (tg.tab) goToTab(tg.tab); };
@@ -587,6 +589,9 @@ export const HomeScreen = () => {
                 <Greeting name={(user && myProfile && myProfile.name) || ''} />
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Pressable testID="btn-chats" accessibilityRole="button" accessibilityLabel={t('chats_title')} onPress={() => { tapLight(); setChatsOpen(true); }} style={[headerBtn(), { marginRight: 10 }]}>
+                  <Ionicons name="chatbubble-outline" size={17} color={C.text} />
+                </Pressable>
                 <Pressable testID="btn-notifs" accessibilityRole="button" accessibilityLabel={t('notifications')} onPress={() => { tapLight(); setNotifOpen(true); setUnread(0); }} style={[headerBtn(), { marginRight: 10 }]}>
                   <Ionicons name={unread ? 'notifications' : 'notifications-outline'} size={17} color={unread ? C.purple : C.text} />
                   {unread ? (
@@ -812,6 +817,7 @@ export const HomeScreen = () => {
       ) : null}
       {commentsPost ? <CommentsSheet post={commentsPost} onClose={() => setCommentsPost(null)} /> : null}
       {notifOpen ? <NotificationsSheet onClose={() => setNotifOpen(false)} /> : null}
+      {chatsOpen ? <BuddiesSheet onClose={() => setChatsOpen(false)} /> : null}
       {likersPost ? (
         <LikersSheet
           post={likersPost} kind={likersKind}

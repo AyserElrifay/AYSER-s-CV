@@ -102,15 +102,12 @@ const Plan = ({ lang, name, tag, price, cur, period, items, cta, onPress, busy, 
   const sp = (v) => (lang === 'ar' ? 0 : v);   // spacing pulls Arabic letters apart
   return (
   <View style={[{ marginTop: 18, borderRadius: 24, padding: 26, backgroundColor: P.ground, borderWidth: 1, borderColor: vip ? '#FFFFFF' : P.line }, blur, vip ? glow : null]}>
-    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-      <Text style={{ color: vip ? '#FFFFFF' : P.muted, fontSize: 12, fontWeight: '800', letterSpacing: sp(1.6) }}>{name.toUpperCase()}</Text>
-      <View style={{ flex: 1, minWidth: 12 }} />
-      {badge ? (
-        <View style={{ borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5, backgroundColor: '#FFFFFF', flexShrink: 1 }}>
-          <Text style={{ color: '#000000', fontSize: 10.5, fontWeight: '800', letterSpacing: sp(0.6) }} numberOfLines={1}>{badge}</Text>
-        </View>
-      ) : null}
-    </View>
+    {badge ? (
+      <View style={{ alignSelf: 'flex-start', borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5, backgroundColor: '#FFFFFF', marginBottom: 12 }}>
+        <Text style={{ color: '#000000', fontSize: 10.5, fontWeight: '800', letterSpacing: sp(0.6) }}>{badge}</Text>
+      </View>
+    ) : null}
+    <Text style={{ color: vip ? '#FFFFFF' : P.muted, fontSize: 12, fontWeight: '800', letterSpacing: sp(1.6) }}>{name.toUpperCase()}</Text>
     <Text style={{ color: P.ink, fontSize: 26, fontWeight: '700', letterSpacing: sp(-0.7), marginTop: 10 }}>{tag}</Text>
     <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 14 }}>
       <Text style={[{ color: P.ink, fontSize: 40, fontWeight: '700', letterSpacing: sp(-1.2) }, NUM]}>{money(price, cur, lang)}</Text>

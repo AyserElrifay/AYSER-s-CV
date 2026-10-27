@@ -24,8 +24,6 @@ import { AvatarRing } from './AvatarRing';
 import { SectionHeader } from './SectionHeader';
 import { PostCard } from './PostCard';
 import { LikersSheet } from './LikersSheet';
-import { ReelsViewer } from './ReelsViewer';
-import { StoryViewer } from './StoryViewer';
 import { tapLight, tapSuccess, tapSelection } from '../utils/feedback';
 import { myMembership, askUpgrade } from '../services/membership';
 import { toggleVibe as persistVibe, toggleLaugh as persistLaugh, toggleRepost as persistRepost, fetchEngagement } from '../services/social';
@@ -39,6 +37,10 @@ import { sfxSuccess } from '../utils/sfx';
 import { setupNotice } from '../lib/plumbing';
 import { useSheetBack } from '../hooks/useSheetBack';
 import { fetchMyBlocks, unblockPerson } from '../services/standing';
+import { lazyOverlay } from '../lib/lazyScreen';
+// opened only on a tap: fetched then, not with the first download
+const ReelsViewer = lazyOverlay(() => import('./ReelsViewer').then((m) => ({ default: m.ReelsViewer })));
+const StoryViewer = lazyOverlay(() => import('./StoryViewer').then((m) => ({ default: m.StoryViewer })));
 
 const { width: W } = Dimensions.get('window');
 const CELL = (W - 48) / 3;

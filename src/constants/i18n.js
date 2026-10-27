@@ -1640,6 +1640,8 @@ export const STRINGS = {
     push_level_up: "Your next level is open 🧭",
     nt_v_event_update: "updated where to meet for {title}",
     nt_v_arrived: "has arrived at {title}",
+    nt_v_spark: "and you sparked at the Midnight Table — say hi",
+    chats_title: "Chats",
     push_event_update: "Where to meet is updated 📌",
     nt_v_buddy: "is your Moments Buddy now — you both tapped Connect after {n}",
     push_buddy: "{name} is your Moments Buddy now 🤝",

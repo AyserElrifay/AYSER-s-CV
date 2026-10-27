@@ -22863,6 +22863,275 @@ $$;
 revoke execute on function public.my_membership() from public, anon;
 grant execute on function public.my_membership() to authenticated;
 
+-- ════════════════════════════════════════════════════════════════════
+--  FREEMIUM · THE MIDNIGHT TABLE · TABLE BUDDIES FROM THE QR
+--  (Ayser, October 2026: "Freemium Gated")
+--  · Everybody uses Moments. FREE cannot start a private chat: it can
+--    answer one a Moments+ or Black member started. Moments+ and Black
+--    start chats with their Table Buddies and Mutual Sparks.
+--  · The Midnight Table: every evening at 8 a few people chosen by
+--    language and Global Track goal, with no name and no photo — only
+--    what they speak and learn, their goal, their tags and an
+--    icebreaker. Both tap Spark → a Mutual Spark: names and photos
+--    show, and a chat opens. FREE has one Spark a day; members, as many
+--    as they like. Picks travel as an opaque key, never as an account
+--    id, so the blind part cannot be looked up.
+--  · Scanning the host's QR at a table makes everybody checked in at
+--    that table Table Buddies, at once (it used to need both to tap
+--    Connect afterwards).
+--  · premium_of(): who wears the ✦ — a real paid or gifted membership,
+--    or the owner.
+--  Safe to re-run.
+-- ════════════════════════════════════════════════════════════════════
+
+create or replace function public.is_member_real(u uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select u is not null and (
+    exists (select 1 from public.plus_members m where m.user_id = u and m.status = 'active' and (m.until is null or m.until > now()))
+    or exists (select 1 from auth.users x join public.app_owners o on lower(o.email) = lower(x.email) where x.id = u));
+$$;
+revoke all on function public.is_member_real(uuid) from public, anon, authenticated;
+
+-- may `u` start chats: Moments+ or Black
+create or replace function public.is_premium(u uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select public.member_tier(u) <> 'FREE';
+$$;
+revoke all on function public.is_premium(uuid) from public, anon, authenticated;
+
+create or replace function public.premium_of(p_ids uuid[])
+returns uuid[] language sql stable security definer set search_path = public as $$
+  select coalesce(array_agg(i), '{}') from unnest(coalesce(p_ids, '{}')) i where public.is_member_real(i);
+$$;
+revoke execute on function public.premium_of(uuid[]) from public, anon;
+grant execute on function public.premium_of(uuid[]) to authenticated;
+
+-- ── Mutual Sparks ──
+create table if not exists public.mutual_sparks (
+  a     uuid not null references public.profiles(id) on delete cascade,
+  b     uuid not null references public.profiles(id) on delete cascade,
+  since timestamptz not null default now(),
+  primary key (a, b),
+  check (a < b)
+);
+alter table public.mutual_sparks enable row level security;   -- through the functions below only
+
+create or replace function public.are_sparks(x uuid, y uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select x is not null and y is not null and exists (select 1 from public.mutual_sparks where a = least(x, y) and b = greatest(x, y));
+$$;
+revoke all on function public.are_sparks(uuid, uuid) from public, anon, authenticated;
+
+-- may `u` write in thread `t` now
+create or replace function public.dm_can_send(t uuid, u uuid)
+returns boolean language plpgsql stable security definer set search_path = public as $$
+declare o uuid := public.dm_other(t, u); op public.dm_openers%rowtype;
+begin
+  if o is null or public.blocked_between(u, o) then return false; end if;
+  -- FREE answers; it never starts
+  if not public.is_premium(u) then
+    return exists (select 1 from public.messages m where m.dm_thread_id = t and m.user_id = o);
+  end if;
+  if public.are_buddies(u, o) or public.are_sparks(u, o) then return true; end if;
+  if not public.vip_chat(u) then return false; end if;
+  select * into op from public.dm_openers where thread_id = t;
+  if not found then return false; end if;
+  if op.to_id = u then return true; end if;
+  if op.from_id = u then
+    return not exists (select 1 from public.messages m where m.dm_thread_id = t)
+        or exists (select 1 from public.messages m where m.dm_thread_id = t and m.user_id = op.to_id);
+  end if;
+  return false;
+end $$;
+revoke all on function public.dm_can_send(uuid, uuid) from public, anon, authenticated;
+
+-- the thread with a buddy or a Mutual Spark (made on first use)
+create or replace function public.buddy_thread(p_other uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); t uuid;
+begin
+  if not (public.are_buddies(me, p_other) or public.are_sparks(me, p_other)) then return jsonb_build_object('ok', false, 'reason', 'not_buddies'); end if;
+  if public.blocked_between(me, p_other) then return jsonb_build_object('ok', false, 'reason', 'blocked'); end if;
+  select p1.thread_id into t from public.dm_participants p1 join public.dm_participants p2 on p2.thread_id = p1.thread_id
+   where p1.user_id = me and p2.user_id = p_other limit 1;
+  if t is null then
+    insert into public.dm_threads default values returning id into t;
+    insert into public.dm_participants (thread_id, user_id, accepted) values (t, me, true), (t, p_other, true);
+  end if;
+  return jsonb_build_object('ok', true, 'thread_id', t, 'plus', public.dm_can_send(t, me) or public.is_premium(me), 'pass_until', public.pass_until(me));
+end $$;
+revoke execute on function public.buddy_thread(uuid) from public, anon;
+grant execute on function public.buddy_thread(uuid) to authenticated;
+
+-- the thread's own answer: `plus` = may write here now, or could by upgrading
+create or replace function public.dm_state(p_thread uuid)
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare me uuid := auth.uid(); o uuid; op public.dm_openers%rowtype; bud boolean; cs boolean;
+begin
+  if not public.is_dm_participant(p_thread, me) then return jsonb_build_object('ok', false, 'reason', 'not_in'); end if;
+  o := public.dm_other(p_thread, me);
+  bud := public.are_buddies(me, o);
+  cs := public.dm_can_send(p_thread, me);
+  select * into op from public.dm_openers where thread_id = p_thread;
+  return jsonb_build_object('ok', true, 'other', (select jsonb_build_object('id', p.id, 'name', p.name, 'avatar_url', p.avatar_url) from public.profiles p where p.id = o),
+    'buddy', bud, 'spark', public.are_sparks(me, o), 'premium', public.is_premium(me), 'other_premium', public.is_member_real(o),
+    'plus', cs or public.is_premium(me), 'vip', public.is_vip(me),
+    'pass_until', public.pass_until(me), 'can_send', cs,
+    'opener', case when op.thread_id is null then null else jsonb_build_object('from_me', op.from_id = me, 'card', op.card,
+      'answer', (select jsonb_build_object('body', a.body, 'choice', a.choice, 'day', a.day) from public.moment_answers a where a.id = op.daily_answer)) end);
+end $$;
+revoke execute on function public.dm_state(uuid) from public, anon;
+grant execute on function public.dm_state(uuid) to authenticated;
+
+-- ── Table Buddies the moment the host's QR is scanned ──
+create or replace function public.checkin_buddies() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  insert into public.buddies (a, b, kind, event_id)
+  select least(new.user_id, c.user_id), greatest(new.user_id, c.user_id), new.kind, new.event_id
+    from public.event_checkins c
+   where c.kind = new.kind and c.event_id = new.event_id and c.user_id <> new.user_id
+     and not public.blocked_between(new.user_id, c.user_id)
+  on conflict do nothing;
+  return new;
+end $$;
+drop trigger if exists checkin_buddies on public.event_checkins;
+create trigger checkin_buddies after insert on public.event_checkins for each row execute function public.checkin_buddies();
+
+-- ── the Midnight Table ──
+create table if not exists public.midnight_picks (
+  day     date not null,
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  pick_id uuid not null references public.profiles(id) on delete cascade,
+  primary key (day, user_id, pick_id),
+  check (user_id <> pick_id)
+);
+create table if not exists public.midnight_sparks (
+  day     date not null,
+  from_id uuid not null references public.profiles(id) on delete cascade,
+  to_id   uuid not null references public.profiles(id) on delete cascade,
+  at      timestamptz not null default now(),
+  primary key (day, from_id, to_id)
+);
+alter table public.midnight_picks enable row level security;
+alter table public.midnight_sparks enable row level security;
+create index if not exists midnight_sparks_to on public.midnight_sparks (to_id, from_id);
+
+-- the table's day turns at 8 in the evening, in the caller's time zone
+create or replace function public.midnight_day(p_tz text)
+returns date language sql stable set search_path = public as $$
+  select ((now() at time zone coalesce((select name from pg_timezone_names where name = p_tz), 'Africa/Cairo')) - interval '20 hours')::date;
+$$;
+
+create or replace function public.midnight_key(d date, u uuid, p uuid)
+returns text language sql immutable as $$ select md5(d::text || ':' || u::text || ':' || p::text); $$;
+
+create or replace function public.midnight_table(p_tz text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); d date; tz text; mine public.profiles%rowtype; n int; c record; prem boolean;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  tz := coalesce((select name from pg_timezone_names where name = p_tz), 'Africa/Cairo');
+  d := public.midnight_day(tz);
+  select * into mine from public.profiles where id = me;
+  select count(*) into n from public.midnight_picks where day = d and user_id = me;
+  if n < 4 then
+    for c in
+      select p.id from public.profiles p
+       where p.id <> me and p.name is not null and coalesce(p.last_active_at, now()) > now() - interval '30 days'
+         and not public.blocked_between(me, p.id) and not public.are_sparks(me, p.id)
+         and not exists (select 1 from public.midnight_picks x where x.day = d and x.user_id = me and x.pick_id = p.id)
+         and (select count(*) from public.midnight_picks y where y.day = d and y.user_id = p.id) < 6
+       order by (case when p.speaks_language is not null and p.speaks_language = mine.learning_language then 2 else 0 end
+               + case when p.learning_language is not null and p.learning_language = mine.speaks_language then 2 else 0 end
+               + case when p.track_goal is not null and p.track_goal = mine.track_goal then 1 else 0 end) desc,
+                md5(d::text || p.id::text || me::text)
+       limit 4 - n
+    loop
+      insert into public.midnight_picks (day, user_id, pick_id) values (d, me, c.id), (d, c.id, me) on conflict do nothing;
+    end loop;
+  end if;
+  prem := public.is_premium(me);
+  return jsonb_build_object('ok', true, 'day', d,
+    'next_at', ((d + 1)::timestamp + interval '20 hours') at time zone tz,
+    'premium', prem,
+    'left', case when prem then null else greatest(0, 1 - (select count(*) from public.midnight_sparks s where s.day = d and s.from_id = me)) end,
+    'picks', (select coalesce(jsonb_agg(jsonb_build_object(
+        'key', public.midnight_key(d, me, k.pick_id),
+        'speaks', p.speaks_language, 'learning', p.learning_language, 'level', p.learning_level,
+        'goal', p.track_goal, 'tags', left(coalesce(p.hobbies, ''), 120),
+        'vibes', (select coalesce(jsonb_agg(v.badge), '[]'::jsonb) from (select badge from public.vibe_badges where receiver = p.id group by badge order by count(*) desc limit 3) v),
+        'card', abs(('x' || substr(md5(d::text || p.id::text), 1, 6))::bit(24)::int) % greatest(public.activity_size('warm'), 1),
+        'sparked', exists (select 1 from public.midnight_sparks s where s.from_id = me and s.to_id = p.id and s.day >= d - 1),
+        'mutual', public.are_sparks(me, p.id),
+        'premium', public.is_member_real(p.id),
+        'who', case when public.are_sparks(me, p.id) then jsonb_build_object('id', p.id, 'name', p.name, 'avatar_url', p.avatar_url) end)
+        order by public.midnight_key(d, me, k.pick_id)), '[]'::jsonb)
+      from public.midnight_picks k join public.profiles p on p.id = k.pick_id
+     where k.day = d and k.user_id = me and not public.blocked_between(me, p.id)));
+end $$;
+revoke execute on function public.midnight_table(text) from public, anon;
+grant execute on function public.midnight_table(text) to authenticated;
+
+create or replace function public.midnight_spark(p_key text, p_tz text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); d date; o uuid; t uuid; mutual boolean := false;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  d := public.midnight_day(p_tz);
+  select k.pick_id into o from public.midnight_picks k where k.day = d and k.user_id = me and public.midnight_key(d, me, k.pick_id) = p_key;
+  if o is null then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
+  if public.blocked_between(me, o) then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
+  if exists (select 1 from public.midnight_sparks where day = d and from_id = me and to_id = o) then
+    return jsonb_build_object('ok', true, 'mutual', public.are_sparks(me, o));
+  end if;
+  -- FREE: one Spark a day
+  if not public.is_premium(me) and exists (select 1 from public.midnight_sparks where day = d and from_id = me) then
+    return jsonb_build_object('ok', false, 'reason', 'quota');
+  end if;
+  insert into public.midnight_sparks (day, from_id, to_id) values (d, me, o) on conflict do nothing;
+  if exists (select 1 from public.midnight_sparks where from_id = o and to_id = me and day >= d - 1) and not public.are_sparks(me, o) then
+    insert into public.mutual_sparks (a, b) values (least(me, o), greatest(me, o)) on conflict do nothing;
+    insert into public.dm_threads default values returning id into t;
+    insert into public.dm_participants (thread_id, user_id, accepted) values (t, me, true), (t, o, true);
+    perform public.notify(o, me, 'spark', null, null);
+    perform public.notify(me, o, 'spark', null, null);
+    mutual := true;
+  end if;
+  return jsonb_build_object('ok', true, 'mutual', mutual or public.are_sparks(me, o), 'thread_id', t,
+    'who', case when mutual or public.are_sparks(me, o) then (select jsonb_build_object('id', p.id, 'name', p.name, 'avatar_url', p.avatar_url) from public.profiles p where p.id = o) end);
+end $$;
+revoke execute on function public.midnight_spark(text, text) from public, anon;
+grant execute on function public.midnight_spark(text, text) to authenticated;
+
+-- every chat I am in, with whom, and whether I may write (the Chats list)
+create or replace function public.my_chats()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select coalesce(jsonb_agg(x order by x->>'at' desc nulls last), '[]'::jsonb) from (
+    select jsonb_build_object('thread_id', a.thread_id,
+      'other', jsonb_build_object('id', p.id, 'name', p.name, 'avatar_url', p.avatar_url),
+      'premium', public.is_member_real(p.id),
+      'buddy', public.are_buddies(auth.uid(), p.id), 'spark', public.are_sparks(auth.uid(), p.id),
+      'last', (select left(m.body, 80) from public.messages m where m.dm_thread_id = a.thread_id order by m.created_at desc limit 1),
+      'at', (select max(m.created_at) from public.messages m where m.dm_thread_id = a.thread_id)) x
+      from public.dm_participants a
+      join public.dm_participants b on b.thread_id = a.thread_id and b.user_id <> a.user_id
+      join public.profiles p on p.id = b.user_id
+     where a.user_id = auth.uid() and not public.blocked_between(auth.uid(), p.id)
+       and (public.are_buddies(auth.uid(), p.id) or public.are_sparks(auth.uid(), p.id)
+            or exists (select 1 from public.messages m where m.dm_thread_id = a.thread_id))) s;
+$$;
+revoke execute on function public.my_chats() from public, anon;
+grant execute on function public.my_chats() to authenticated;
+
+do $do$ begin
+  alter table public.notifications drop constraint if exists notifications_kind_check;
+  alter table public.notifications add constraint notifications_kind_check
+    check (kind in ('vibe','laugh','comment','mate_request','mate_accept','message','call','tag','repost','green_invite','food_order','food_status','bardi_match','plan_soon','venue_decision','xp_award','safety','creator_plan','booking','trip_open','team_reply','biz_request','biz_reply','app_problem','daily_line','partner_watch','trip_invite','level_up','event_update','buddy','buddy_ping','arrived','spark'))
+    not valid;
+exception when others then raise notice 'notifications kind constraint skipped: %', sqlerrm;
+end $do$;
+
 -- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --

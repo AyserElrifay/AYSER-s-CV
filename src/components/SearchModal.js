@@ -13,7 +13,6 @@ import { searchProfiles } from '../services/social';
 import { searchPosts, fetchTravelPlans } from '../services/posts';
 import { planWhen, upForLabel } from '../constants/travel';
 import { fetchGroups, createGroup, joinGroup, leaveGroup, explainGroups } from '../services/groups';
-import { GroupPage } from './GroupPage';
 import { fetchTrending, trendWhy, logSearch } from '../services/trending';
 import { Chip } from './Chip';
 import { Tick } from './Tick';
@@ -27,6 +26,7 @@ import { setupNotice } from '../lib/plumbing';
 /* Fetched when it is opened, not when the app starts. */
 import { lazyOverlay } from '../lib/lazyScreen';
 import { useSheetBack } from '../hooks/useSheetBack';
+const GroupPage = lazyOverlay(() => import('./GroupPage').then((m) => ({ default: m.GroupPage })));
 const GameRunner = lazyOverlay(() => import('./GameRunner').then((m) => ({ default: m.GameRunner })));
 const RooftopRush = lazyOverlay(() => import('./RooftopRush').then((m) => ({ default: m.RooftopRush })));
 const RockPaperScissors = lazyOverlay(() => import('./RockPaperScissors').then((m) => ({ default: m.RockPaperScissors })));
