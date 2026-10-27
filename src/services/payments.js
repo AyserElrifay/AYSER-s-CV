@@ -65,7 +65,7 @@ export async function payBooking(bookingId) {
    link is not in yet answers "payments open very soon". */
 const LS_BUY = {
   basic: { month: 'https://therealmoments.lemonsqueezy.com/checkout/buy/b837520d-74c4-4ca1-83a0-7dc8c9b65ef5', year: null },
-  vip: { month: null, year: 'https://therealmoments.lemonsqueezy.com/checkout/buy/5e90c5a0-6cc8-480b-bc4c-54c8c9d23c5b' },
+  vip: { month: null, year: 'https://therealmoments.lemonsqueezy.com/checkout/buy/e2e45438-a064-41a7-93e5-8a1eda55f7a1' },
 };
 
 /* Moments+ or Black, monthly or yearly, through Lemon Squeezy.

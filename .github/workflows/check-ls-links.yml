@@ -1,0 +1,36 @@
+name: Check the store's checkout links
+
+# Opens every Lemon Squeezy checkout link the app uses (and any passed in
+# by hand) and prints which product, plan and price each one really sells,
+# so a link is never put on the wrong button by guessing. The links are
+# public; nothing secret is used.
+
+on:
+  workflow_dispatch:
+    inputs:
+      extra:
+        description: 'More checkout links to look at, separated by spaces'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: What each link sells
+        env:
+          EXTRA: ${{ inputs.extra }}
+        run: |
+          links=$(grep -oE 'https://therealmoments\.lemonsqueezy\.com/checkout/buy/[0-9a-f-]+' src/services/payments.js)
+          for u in $links $EXTRA; do
+            html=$(curl -sL --max-time 30 -A 'Mozilla/5.0' "$u" || true)
+            name=$(printf '%s' "$html" | grep -oE '<title>[^<]*' | head -1 | sed 's/<title>//')
+            what=$(printf '%s' "$html" | grep -oE '"(product_name|variant_name|name|interval|price_formatted|formatted_price)":"?[^",}]{1,60}' | sort -u | head -12 | tr '\n' ' ')
+            echo "### ${u##*/}" >> "$GITHUB_STEP_SUMMARY"
+            echo "title: ${name:-?}  ·  ${what:-nothing readable}" >> "$GITHUB_STEP_SUMMARY"
+            echo "$u → ${name:-?} | ${what:-nothing readable}"
+          done
