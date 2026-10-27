@@ -66,11 +66,20 @@ is('App asks whether somebody is recovering', /isRecovering\(\)/.test(app), true
 /* The gate order is the whole point: setting the session signs them in,
    so an isAuthenticated check placed first would send somebody who
    still does not know their password straight past the form. */
-const recAt = app.indexOf('if (recovering)');
+const recAt = app.indexOf('if (recovering');
 const authAt = app.indexOf('if (!isAuthenticated)');
 is('and it checks that BEFORE the signed-in gate', recAt > -1 && recAt < authAt, true);
 
-const scr = fs.readFileSync('src/screens/AuthScreen.js', 'utf8');
+/* A reset session is a real session, and it is stored. Closing the tab
+   before saving, or tapping back, must never land in the account. */
+const scr2 = fs.readFileSync('src/screens/AuthScreen.js', 'utf8');
+is('a stored reset session still shows only the new-password screen', /isAuthenticated && mustSetPassword\(\)\)\) return <AuthScreen recovery/.test(app), true);
+is('the link marks the reset before the session exists', /markMustSetPassword\(\);\s*setSessionFromTokens/.test(scr2), true);
+is('the phone code marks it too', /markMustSetPassword\(\);\s*try \{\s*await verifyPhoneOtp/.test(scr2), true);
+is('only a saved password clears it', /await updatePassword\(newPass\);\s*clearMustSetPassword\(\)/.test(scr2), true);
+is('giving up signs out', /clearMustSetPassword\(\); clearRecovery\(\); endSession\(\)/.test(scr2), true);
+
+const scr = scr2;
 is('the screen takes the recovery flag', /AuthScreen = \(\{ recovery/.test(scr), true);
 is('it trades the token for a session first', /setSessionFromTokens/.test(scr), true);
 is('it offers the new-password field', /auth_recovery_title/.test(scr), true);

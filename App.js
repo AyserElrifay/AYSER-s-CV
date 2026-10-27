@@ -16,7 +16,7 @@
  * ─────────────────────────────────────────────────────────────
  */
 
-import { isRecovering } from './src/lib/recovery';
+import { isRecovering, mustSetPassword } from './src/lib/recovery';
 import React from 'react';
 import { View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
@@ -238,7 +238,8 @@ const Root = () => {
   if (loading || !splashDone) {
     return <Splash ready={!loading} onDone={() => setSplashDone(true)} />;
   }
-  if (recovering) return <AuthScreen recovery onDone={() => setRecovering(false)} />;
+  // a reset session opens only the new-password screen, even after the tab was closed (src/lib/recovery.js)
+  if (recovering || (isAuthenticated && mustSetPassword())) return <AuthScreen recovery onDone={() => setRecovering(false)} />;
   // a trip somebody sent opens over sign-in: looking needs no account
   if (!isAuthenticated) return <><AuthScreen /><TripLinkGate /><PartnerLinkGate /><BizLinkGate demoOnly /></>;
   // the mini-player floats above the navigator, so music keeps playing as

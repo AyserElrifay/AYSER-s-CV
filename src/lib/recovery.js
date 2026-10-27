@@ -79,9 +79,23 @@ if (found) stripUrl();
 
 let state = found;
 
+/* ─── A RESET IS NOT A SIGN-IN ── Ayser: "لما حد بيعمل فورجت للباسورد
+   بيشغل الأكاونت لوحده من غير حتى ما نغير باسورد". The reset link and the
+   phone code both make a real session — that is how the new password
+   gets saved. But the session is stored, so closing the tab before
+   saving, or going back, landed in the account with the old password
+   never changed. So the moment a reset session exists we remember it on
+   this phone, and until a new password is saved the app shows only the
+   new-password screen. Signing in normally (the person knows their
+   password after all) or cancelling — which signs out — clears it. */
+const MUST = 'mm.mustSetPassword';
+export function mustSetPassword() { try { return !!localStorage.getItem(MUST); } catch (e) { return false; } }
+export function markMustSetPassword() { try { localStorage.setItem(MUST, '1'); } catch (e) {} }
+export function clearMustSetPassword() { try { localStorage.removeItem(MUST); } catch (e) {} }
+
 /* True while somebody is coming back from a reset link and has not yet
    chosen a new password. The gate in App.js reads this. */
-export function isRecovering() { return !!state; }
+export function isRecovering() { return !!state || mustSetPassword(); }
 
 /* The message to show if the link was expired or already used. */
 export function recoveryError() { return state ? state.error : null; }

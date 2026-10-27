@@ -5,8 +5,8 @@ import { C, R } from '../constants/theme';
 import { useAuth } from '../context/AuthContext';
 import { updateProfile } from '../services/profiles';
 import { setIntent } from '../services/algorithm';
-import { resetPasswordByEmail, sendPhoneOtp, verifyPhoneOtp, updatePassword, setSessionFromTokens } from '../services/auth';
-import { recoveryTokens, recoveryError, clearRecovery } from '../lib/recovery';
+import { resetPasswordByEmail, sendPhoneOtp, verifyPhoneOtp, updatePassword, setSessionFromTokens, signOut as endSession } from '../services/auth';
+import { recoveryTokens, recoveryError, clearRecovery, mustSetPassword, markMustSetPassword, clearMustSetPassword } from '../lib/recovery';
 import { COUNTRY_LIST } from '../constants/countries';
 import { GhostButton } from '../components/GhostButton';
 import { Glass } from '../components/Glass';
@@ -110,8 +110,11 @@ export const AuthScreen = ({ recovery = false, onDone }) => {
   useEffect(() => {
     if (!recovery || linkDead) return;
     const tk = recoveryTokens();
+    // back after closing the tab mid-reset: the session is already live, only the password is missing
+    if (!tk && mustSetPassword()) { setLinkReady(true); return; }
     if (!tk) { setLinkDead(t('auth_recovery_expired')); return; }
     let alive = true;
+    markMustSetPassword();
     setSessionFromTokens(tk)
       .then(() => { if (alive) setLinkReady(true); })
       .catch(() => { if (alive) setLinkDead(t('auth_recovery_expired')); });
@@ -154,11 +157,14 @@ export const AuthScreen = ({ recovery = false, onDone }) => {
     setError(null); setNotice(null);
     if (!otp.trim()) { setError(t('auth_err_code_first')); return; }
     setBusy(true);
+    // the code signs in: until the new password is saved, that is all it opens
+    markMustSetPassword();
     try {
       await verifyPhoneOtp(phone.trim(), otp.trim());
       setOtpVerified(true);
       setNotice(t('auth_ok_verified'));
     } catch (e) {
+      clearMustSetPassword();
       setError(t('auth_err_code_wrong'));
     } finally { setBusy(false); }
   };
@@ -169,6 +175,7 @@ export const AuthScreen = ({ recovery = false, onDone }) => {
     setBusy(true);
     try {
       await updatePassword(newPass);
+      clearMustSetPassword();
       setNotice(t('auth_ok_pass_updated'));
       // The session is already live — from the OTP verify, or from the
       // tokens the email link arrived with. Releasing the gate lands
@@ -211,6 +218,7 @@ export const AuthScreen = ({ recovery = false, onDone }) => {
         setStep(1);
       } else {
         await signIn(email.trim(), password); // session change unmounts this screen
+        clearMustSetPassword();
       }
     } catch (e) {
       finishOnboarding();
@@ -376,6 +384,9 @@ export const AuthScreen = ({ recovery = false, onDone }) => {
                     onPress={busy ? undefined : saveNewPassword}
                     style={{ marginTop: 12 }}
                   />
+                  {/* not now: a reset that is given up on signs out — it never opens the account */}
+                  <GhostButton small label={t('auth_back_signin')} style={{ marginTop: 10 }}
+                    onPress={() => { clearMustSetPassword(); clearRecovery(); endSession().catch(() => {}).then(() => { if (onDone) onDone(); }); }} />
                 </>
               )}
               {error ? <Text style={{ color: C.coral, fontSize: 12.5, marginTop: 12 }}>{error}</Text> : null}
