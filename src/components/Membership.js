@@ -249,7 +249,7 @@ export const VipSheet = ({ m, onClose }) => {
    only shows them, and closing it closes it for good. */
 const OTO = {
   en: ['Welcome to the VIP Club 🥂', 'Your digital access is unlocked. Now, let’s get you offline.', 'A welcome gift', '30% OFF', 'your first Level 1 Global Track Workshop', 'Offer ends in', 'Claim 30% Off & Book Level 1', 'No thanks, I’ll explore the app first.', 'Only for new VIP members, once.'],
-  ar: ['أهلًا بيك في نادي VIP 🥂', 'التطبيق كله بقى مفتوح ليك. يلا نخرج بقى من الشاشة.', 'هدية ترحيب', 'خصم ٣٠٪', 'على أول ورشة Level 1 في Global Track', 'العرض بيخلص بعد', 'خد خصم ٣٠٪ واحجز Level 1', 'لأ شكرًا، هتفرّج على التطبيق الأول.', 'لأعضاء VIP الجداد بس، مرة واحدة.'],
+  ar: ['أهلًا بيك\nفي نادي VIP\u00A0🥂', 'التطبيق كله بقى مفتوح ليك. يلا نخرج بقى من الشاشة.', 'هدية ترحيب', 'خصم ٣٠٪', 'على أول ورشة من المستوى الأول', 'العرض بيخلص بعد', 'خد خصم ٣٠٪ واحجز المستوى الأول', 'لأ شكرًا، هتفرّج على التطبيق الأول.', 'لأعضاء VIP الجداد بس، ومرة واحدة.'],
   cs: ['Vítej ve VIP klubu 🥂', 'Digitální přístup máš odemčený. Teď tě dostaneme ven.', 'Uvítací dárek', 'SLEVA 30 %', 'na tvůj první workshop Global Track, Level 1', 'Nabídka končí za', 'Získat 30 % a rezervovat Level 1', 'Ne, díky, nejdřív si projdu aplikaci.', 'Jen pro nové členy VIP, jednou.'],
   es: ['Bienvenido al VIP Club 🥂', 'Tu acceso digital está desbloqueado. Ahora, salgamos de la pantalla.', 'Un regalo de bienvenida', '30% DE DESCUENTO', 'en tu primer taller Global Track de Nivel 1', 'La oferta termina en', 'Obtén el 30% y reserva el Nivel 1', 'No, gracias, primero exploraré la app.', 'Solo para nuevos miembros VIP, una vez.'],
   et: ['Tere tulemast VIP-klubisse 🥂', 'Digitaalne ligipääs on avatud. Nüüd viime su päriselu juurde.', 'Tervituskingitus', '30% SOODSAMALT', 'sinu esimene Global Tracki 1. taseme töötuba', 'Pakkumine lõpeb', 'Võta 30% ja broneeri 1. tase', 'Ei, aitäh, uurin enne äppi.', 'Ainult uutele VIP-liikmetele, üks kord.'],
@@ -270,6 +270,7 @@ const OK = ['title', 'hook', 'gift', 'off', 'first', 'ends', 'cta', 'no', 'once'
 const ow = (lang, k) => { const i = OK.indexOf(k); return (OTO[lang] || OTO.en)[i] || OTO.en[i] || ''; };
 
 const two = (n) => (n < 10 ? '0' : '') + n;
+const AR_DIGITS = (t) => t.replace(/\d/g, (d) => '٠١٢٣٤٥٦٧٨٩'[d]);
 const hms = (ms) => { const s = Math.max(0, Math.floor(ms / 1000)); return two(Math.floor(s / 3600)) + ':' + two(Math.floor((s % 3600) / 60)) + ':' + two(s % 60); };
 
 // a handful of brand-colour flecks that drift down once, then are gone
@@ -323,8 +324,8 @@ export const WelcomeOTO = ({ offer, onClaim, onClose }) => {
       {FLECKS.map((f, i) => <Fleck key={i} f={f} />)}
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24, paddingTop: insets.top + 40, paddingBottom: insets.bottom + 32, alignItems: 'center' }}>
         <View style={{ width: '100%', maxWidth: 440 }}>
-          <Text style={{ color: C.purple, fontSize: 12.5, fontWeight: '800', letterSpacing: 2.4, textAlign: 'center' }}>MOMENTS VIP</Text>
-          <Text style={{ color: C.text, fontSize: 34, fontWeight: '700', letterSpacing: -1.1, lineHeight: 40, marginTop: 14, textAlign: 'center' }}>{ow(lang, 'title')}</Text>
+          <Text style={{ color: C.purple, fontSize: 12.5, fontWeight: '800', letterSpacing: lang === 'ar' ? 0 : 2.4, textAlign: 'center' }}>{lang === 'ar' ? 'عضوية VIP' : 'MOMENTS VIP'}</Text>
+          <Text style={{ color: C.text, fontSize: lang === 'ar' ? 32 : 34, fontWeight: '700', letterSpacing: lang === 'ar' ? 0 : -1.1, lineHeight: lang === 'ar' ? 50 : 40, marginTop: 14, textAlign: 'center' }}>{ow(lang, 'title')}</Text>
           <Text style={{ color: C.dim, fontSize: 17, lineHeight: 25, marginTop: 12, textAlign: 'center' }}>{ow(lang, 'hook')}</Text>
 
           {/* the offer: one pane of glass */}
@@ -337,14 +338,15 @@ export const WelcomeOTO = ({ offer, onClaim, onClose }) => {
                 <Text style={{ color: C.text, fontSize: 15, fontWeight: '600', textAlign: 'center' }} numberOfLines={2}>{wsTitle}</Text>
                 {ws.price != null ? (
                   <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 6 }}>
-                    <Text style={[{ color: C.faint, fontSize: 15, textDecorationLine: 'line-through', marginEnd: 8 }, NUM]}>{money(ws.price, ws.currency, lang)}</Text>
+                    <Text style={[{ color: C.faint, fontSize: 15, textDecorationLine: 'line-through' }, NUM]}>{money(ws.price, ws.currency, lang)}</Text>
+                    <View style={{ width: 12 }} />
                     <Text style={[{ color: C.text, fontSize: 22, fontWeight: '700' }, NUM]}>{money(ws.price_after, ws.currency, lang)}</Text>
                   </View>
                 ) : null}
               </View>
             ) : null}
             <Text style={{ color: C.dim, fontSize: 13, textAlign: 'center', marginTop: 20 }}>{ow(lang, 'ends')}</Text>
-            <Text style={[{ color: C.text, fontSize: 30, fontWeight: '600', letterSpacing: 1, textAlign: 'center', marginTop: 4, writingDirection: 'ltr' }, NUM]} accessibilityLiveRegion="polite">{hms(left)}</Text>
+            <Text style={[{ color: C.text, fontSize: 30, fontWeight: '600', letterSpacing: 1, textAlign: 'center', marginTop: 4, writingDirection: 'ltr' }, NUM]} accessibilityLiveRegion="polite">{lang === 'ar' ? AR_DIGITS(hms(left)) : hms(left)}</Text>
           </View>
 
           <Animated.View style={{ marginTop: 26, transform: [{ scale: breathe.interpolate({ inputRange: [0, 1], outputRange: [1, 1.035] }) }] }}>

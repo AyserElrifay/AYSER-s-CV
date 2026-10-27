@@ -43,7 +43,9 @@ const K = ['title', 'sub', 'level', 'here', 'locked', 'done', 'none', 'book', 'p
 export const jw = (lang, k, vars) => {
   const row = S[lang] || S.en; const i = K.indexOf(k);
   let s = row[i] || S.en[i] || '';
-  Object.keys(vars || {}).forEach((v) => { s = s.replace('{' + v + '}', String(vars[v])); });
+  // Arabic reads its own digits, like the prices beside them
+  const num = (x) => (lang === 'ar' ? String(x).replace(/\d/g, (d) => '٠١٢٣٤٥٦٧٨٩'[d]) : String(x));
+  Object.keys(vars || {}).forEach((v) => { s = s.replace('{' + v + '}', num(vars[v])); });
   return s;
 };
 
@@ -100,7 +102,7 @@ export const JourneyMap = ({ lang, onClose }) => {
   const [offer, setOffer] = useState(null);
   useEffect(() => { myWelcomeOffer().then((o) => setOffer(o && o.live ? o : null)); }, []);
   const cost = (w, n) => (offer && n === 1 ? Math.round(Number(w.price) * (100 - (offer.pct || 30)) / 100) : w.price);
-  const shown = (w, n) => money(cost(w, n), w.currency, lang) + (offer && n === 1 && w.price ? ' (−' + (offer.pct || 30) + '%)' : '');
+  const shown = (w, n) => money(cost(w, n), w.currency, lang) + (offer && n === 1 && w.price ? (lang === 'ar' ? ' (خصم ٣٠٪)' : ' (−' + (offer.pct || 30) + '%)') : '');
 
   const pay = j && j.pay && typeof j.pay === 'object' ? j.pay : null;
   const book = async (w) => {
@@ -156,7 +158,7 @@ export const JourneyMap = ({ lang, onClose }) => {
                           backgroundColor: done ? C.green : here ? C.purple : C.glassHi, marginTop: here ? 0 : 4 }}>
                           {done ? <Ionicons name="checkmark" size={16} color="#FFF" />
                             : locked ? <Ionicons name="lock-closed" size={13} color={C.faint} />
-                            : <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '900' }}>{n}</Text>}
+                            : <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '900' }}>{lang === 'ar' ? '٠١٢٣٤٥٦٧٨٩'[n] || n : n}</Text>}
                         </View>
                         {idx < levels.length - 1 ? <View style={{ flex: 1, width: 2, minHeight: 24, backgroundColor: done ? C.green : C.line, marginVertical: 4 }} /> : null}
                       </View>
@@ -179,7 +181,7 @@ export const JourneyMap = ({ lang, onClose }) => {
                           <View key={w.id} style={{ marginTop: 10, borderRadius: 18, borderWidth: 1, borderColor: C.line, backgroundColor: C.glass, padding: 14 }}>
                             <Text style={{ color: C.text, fontSize: 15.5, fontWeight: '800' }} numberOfLines={2}>{title(w)}</Text>
                             <Text style={{ color: C.dim, fontSize: 13, marginTop: 3 }} numberOfLines={1}>
-                              {[when(w.starts_at, lang), w.city, shown(w, n)].filter(Boolean).join(' · ')}
+                              {[when(w.starts_at, lang), w.city, money(cost(w, n), w.currency, lang)].filter(Boolean).join(' · ')}
                             </Text>
                             {here && w.status === 'live' ? (
                               w.mine === 'paid' || w.mine === 'attended' ? <Text style={{ color: C.green, fontSize: 14, fontWeight: '800', marginTop: 10 }}>{jw(lang, 'paid')}</Text>
