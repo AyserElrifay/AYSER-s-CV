@@ -114,6 +114,44 @@ const Earth = () => {
   );
 };
 
+/* ── TWO AFTERNOONS OUT ── Ayser sent two clips (Cairo downtown and a
+   vintage market) by @khaledelnagar9, who agreed to them being here.
+   They are not Moments outings, so they are not called that: they show
+   the kind of afternoon the app is for, with the maker's name on them.
+   No sound, no controls; the still shows until the clip is really
+   playing, so a phone that won't autoplay (Low Power Mode) shows a
+   picture, never Safari's play button. */
+const CLIPS = [
+  { k: 'hang', en: 'An afternoon downtown', ar: 'عصرية في وسط البلد' },
+  { k: 'shop', en: 'A vintage market', ar: 'سوق الحاجات القديمة' },
+];
+const Clip = ({ c, lang, w }) => {
+  const [on, setOn] = useState(false);
+  const h = Math.round(w * 16 / 9);
+  return (
+    <View style={{ width: w, marginHorizontal: 6 }}>
+      <View style={{ width: w, height: h, borderRadius: 22, overflow: 'hidden', backgroundColor: '#111' }}>
+        <Image source={{ uri: publicMedia('welcome-' + c.k + '.jpg') }} style={{ position: 'absolute', width: w, height: h }} />
+        {Platform.OS === 'web' ? (
+          <video src={publicMedia('welcome-' + c.k + '.mp4')} muted autoPlay loop playsInline preload="auto" disablePictureInPicture
+            onPlaying={() => setOn(true)} aria-hidden="true"
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: on ? 1 : 0, transition: 'opacity 400ms', pointerEvents: 'none' }} />
+        ) : null}
+      </View>
+      <Text style={{ color: '#FFFFFF', fontSize: 14, fontWeight: '600', marginTop: 10, textAlign: 'center' }} numberOfLines={1}>{lang === 'ar' ? c.ar : c.en}</Text>
+    </View>
+  );
+};
+const Clips = ({ lang }) => {
+  const w = Math.min(150, Math.floor((Math.min(typeof window !== 'undefined' ? window.innerWidth : 360, 480) - 68) / 2));
+  return (
+    <View style={{ alignItems: 'center' }}>
+      <View style={{ flexDirection: 'row' }}>{CLIPS.map((c) => <Clip key={c.k} c={c} lang={lang} w={w} />)}</View>
+      <Text style={{ color: 'rgba(255,255,255,0.45)', fontSize: 11.5, marginTop: 10 }}>{(lang === 'ar' ? 'فيديو: ' : 'Video: ') + '\u2066@khaledelnagar9\u2069'}</Text>
+    </View>
+  );
+};
+
 /* "As simple as Steve Jobs would make it": black, the Earth, hello,
    one button. Everything else waits until after "Get started". */
 export const Welcome = ({ onStart, onSignIn }) => {
@@ -149,7 +187,8 @@ export const Welcome = ({ onStart, onSignIn }) => {
 
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <View style={{ height: 70, justifyContent: 'center' }}><Hello /></View>
-          <View style={{ width: 320, height: 320, marginTop: 18 }}><Earth /></View>
+          {/* two real afternoons out, where the Earth used to turn */}
+          <View style={{ marginTop: 18 }}><Clips lang={lang} /></View>
         </View>
 
         <Animated.View style={{ paddingHorizontal: 28, paddingBottom: insets.bottom + 26, width: '100%', maxWidth: 480, alignSelf: 'center', opacity: rise, transform: [{ translateY: rise.interpolate({ inputRange: [0, 1], outputRange: [16, 0] }) }] }}>
