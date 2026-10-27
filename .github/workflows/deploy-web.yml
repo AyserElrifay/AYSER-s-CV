@@ -60,6 +60,10 @@ jobs:
       # exist only in English and Arabic without anybody noticing.
       - name: Check every language says everything
         run: node scripts/check-i18n.mjs
+      # A Moments+ payment opens Moments+ and a Black payment opens Black,
+      # whatever the products are renamed to.
+      - name: Check each plan opens what was paid for
+        run: node scripts/check-ls-plans.mjs
       # A reel is three minutes; a long-form video is not. The cap was
       # applied to both, so anything longer was re-encoded in real time
       # and cut — or refused with a reel's message. Catching that used

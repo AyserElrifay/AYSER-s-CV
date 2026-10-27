@@ -41,7 +41,12 @@ const same = (a: string, b: string) => {
   return d === 0;
 };
 
-// Ayser's four plans: Basic and Premium, each monthly or yearly
+// which plan was bought: Moments Black (vip) or Moments+ (basic) — scripts/check-ls-plans.mjs
+const tierOf = (s: any, vipVariant?: string) =>
+  (s.variant_id != null && String(s.variant_id) === String(vipVariant || '-'))
+  || /\b(vip|premium|black)\b/i.test(String(s.product_name || '') + ' ' + String(s.variant_name || '')) ? 'vip' : 'basic';
+
+// Ayser's four plans: Moments+ and Moments Black, each monthly or yearly
 const periodOf = (s: any) => {
   if (/\b(annual|annually|year|yearly)\b/i.test(String(s.product_name || '') + ' ' + String(s.variant_name || ''))) return 'year';
   const a = Date.parse(s.created_at || ''), b = Date.parse(s.renews_at || '');
@@ -89,8 +94,7 @@ Deno.serve(async (req) => {
     subscription_id: subscriptionId,
     customer_id: s.customer_id != null ? String(s.customer_id) : null,
     variant_id: s.variant_id != null ? String(s.variant_id) : null,
-    tier: (s.variant_id != null && String(s.variant_id) === String(Deno.env.get('LEMONSQUEEZY_VIP_VARIANT_ID') || '-'))
-      || /\b(vip|premium|black)\b/i.test(String(s.product_name || '') + ' ' + String(s.variant_name || '')) ? 'vip' : 'basic',
+    tier: tierOf(s, Deno.env.get('LEMONSQUEEZY_VIP_VARIANT_ID')),
     period: periodOf(s),
     status: s.status || null,
     renews_at: s.renews_at || null,
