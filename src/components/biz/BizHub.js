@@ -21,6 +21,8 @@ const printTableCard = (o) => { if (liveKit) liveKit.printTableCard(o); else loa
 import { bw, fill, dealLine, dealWhen, dealDay, dealHour, TYPES, typeOf, tname, INCLUDES } from './words';
 import { tapLight, tapSelection, tapSuccess } from '../../utils/feedback';
 import { useSheetBack } from '../../hooks/useSheetBack';
+import { MailLine } from '../MailLine';
+import { MAIL } from '../../constants/contacts';
 import { COUNTRY_LIST } from '../../constants/countries';
 import { openPartner } from '../../lib/partnerLink';
 
@@ -574,6 +576,7 @@ export const BizHub = ({ onClose, lang }) => {
               {tab === 'orders' ? <Selling t={t} userId={user && user.id} /> : null}
             </>
           )}
+          <MailLine to={MAIL.partners} subject="Moments for business" />
         </ScrollView>
       </View>
       {plan && v ? <GreenSheet startNow prefill={{ kind: v.biz_type === 'org' ? 'project' : v.biz_type === 'restaurant' ? 'eat' : 'coffee', title: v.biz_type === 'restaurant' ? B('lunch') : '', place: v.name + (v.address ? ' · ' + v.address : ''), lat: v.lat, lng: v.lng }} onClose={() => setPlan(false)} /> : null}

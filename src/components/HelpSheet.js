@@ -7,9 +7,10 @@ import { SUPABASE_READY } from '../lib/supabase';
 import { fetchHelpArticles } from '../services/help';
 import { tapLight, tapSelection } from '../utils/feedback';
 import { setupNotice } from '../lib/plumbing';
+import { MAIL } from '../constants/contacts';
 import { useSheetBack } from '../hooks/useSheetBack';
 
-const SUPPORT_EMAIL = 'ayser@therealmoments.com';
+const SUPPORT_EMAIL = MAIL.support;
 
 /* Real Help & Support — articles come straight from the database (the
    owner edits them in Moments Studio), grouped by category, searchable,

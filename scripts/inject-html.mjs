@@ -133,7 +133,7 @@ const tags = `
   <script type="application/ld+json">${JSON.stringify({
     '@context': 'https://schema.org',
     '@graph': [
-      { '@type': 'Organization', '@id': BASE + '#org', name: 'Moments', alternateName: ['The Real Moments', 'therealmoments', 'مومنتس'], url: BASE, logo: BASE + 'icon-512.png', email: 'ayser@therealmoments.com', founder: { '@type': 'Person', name: 'Ayser Elrifay' } },
+      { '@type': 'Organization', '@id': BASE + '#org', name: 'Moments', alternateName: ['The Real Moments', 'therealmoments', 'مومنتس'], url: BASE, logo: BASE + 'icon-512.png', email: 'team@therealmoments.com', contactPoint: [{ '@type': 'ContactPoint', contactType: 'customer support', email: 'support@therealmoments.com' }, { '@type': 'ContactPoint', contactType: 'partnerships', email: 'partners@therealmoments.com' }, { '@type': 'ContactPoint', contactType: 'community', email: 'community@therealmoments.com' }], founder: { '@type': 'Person', name: 'Ayser Elrifay' } },
       { '@type': 'WebSite', '@id': BASE + '#site', name: 'Moments', alternateName: 'The Real Moments', url: BASE, publisher: { '@id': BASE + '#org' }, inLanguage: ['en', 'ar'] },
       { '@type': 'WebApplication', name: 'Moments', url: BASE, applicationCategory: 'SocialNetworkingApplication', operatingSystem: 'Web, iOS, Android', description: DESC, keywords: KEYWORDS, offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' } },
     ],
@@ -271,7 +271,7 @@ html = html.replace(/<noscript>[\s\S]*?<\/noscript>/, `<noscript>
       <p>${DESC}</p>
       <p>Moments is where people find a gathering or a hangout near them and go — a community for meeting real people, not scrolling. Moments people walk, play, clean up a park, travel and learn together.</p>
       <p>مومنتس — أبلكيشن للحياة الحقيقية: خروجات وتجمعات قريبة منك، ناس حقيقيين تخرج معاهم، رحلات وورش.</p>
-      <p><a href="/company/">About Moments</a> · ayser@therealmoments.com</p>
+      <p><a href="/company/">About Moments</a> · support@therealmoments.com · partners@therealmoments.com</p>
     </noscript>`);
 fs.writeFileSync(file, html);
 console.log('index.html patched: PWA + OG tags');

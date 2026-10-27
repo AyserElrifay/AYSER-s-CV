@@ -149,6 +149,11 @@ jobs:
           APP_URL: ${{ inputs.app_url }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           SMTP_SENDER: ${{ secrets.SMTP_SENDER }}
+          # the account emails (sign-up, reset, sign-in link) come from the
+          # team mailbox on Zoho: its app password is the only secret needed
+          AUTH_SMTP_PASS: ${{ secrets.AUTH_SMTP_PASS }}
+          AUTH_SMTP_USER: ${{ secrets.AUTH_SMTP_USER }}
+          AUTH_SMTP_HOST: ${{ secrets.AUTH_SMTP_HOST }}
         run: |
           set -euo pipefail
           api="https://api.supabase.com/v1/projects/$REF/config/auth"
@@ -163,10 +168,28 @@ jobs:
           if [ -z "$site" ] || echo "$site" | grep -q 'localhost'; then
             body=$(echo "$body" | jq --arg s "$APP_URL" '. + {site_url: $s}')
           fi
-          if [ -n "${RESEND_API_KEY:-}" ] && [ -n "${SMTP_SENDER:-}" ]; then
-            body=$(echo "$body" | jq --arg k "$RESEND_API_KEY" --arg f "$SMTP_SENDER" \
+          # Who sends the account emails. Every address has its job
+          # (src/constants/contacts.js): these come from team@.
+          #   AUTH_SMTP_PASS set  → Zoho, as team@therealmoments.com (or AUTH_SMTP_USER)
+          #   RESEND_API_KEY set  → Resend, as team@ (or SMTP_SENDER)
+          #   neither, but SMTP already set by hand in Supabase → kept as it is
+          have_smtp=$(jq -r '.smtp_host // ""' /tmp/auth.json)
+          mail=""
+          if [ -n "${AUTH_SMTP_PASS:-}" ]; then
+            u="${AUTH_SMTP_USER:-team@therealmoments.com}"
+            body=$(echo "$body" | jq --arg h "${AUTH_SMTP_HOST:-smtp.zoho.com}" --arg u "$u" --arg p "$AUTH_SMTP_PASS" \
+              '. + {smtp_host: $h, smtp_port: "465", smtp_user: $u, smtp_pass: $p, smtp_admin_email: $u, smtp_sender_name: "Moments", rate_limit_email_sent: 100}')
+            echo "SMTP: Zoho, from $u."; mail=1
+          elif [ -n "${RESEND_API_KEY:-}" ]; then
+            body=$(echo "$body" | jq --arg k "$RESEND_API_KEY" --arg f "${SMTP_SENDER:-team@therealmoments.com}" \
               '. + {smtp_host: "smtp.resend.com", smtp_port: "465", smtp_user: "resend", smtp_pass: $k, smtp_admin_email: $f, smtp_sender_name: "Moments", rate_limit_email_sent: 100}')
-            echo "SMTP: Resend will send the emails."
+            echo "SMTP: Resend will send the emails."; mail=1
+          elif [ -n "$have_smtp" ]; then
+            # set by hand in the dashboard: keep the server and the address, only the name says Moments
+            body=$(echo "$body" | jq '. + {smtp_sender_name: "Moments"}')
+            echo "SMTP: kept as set in Supabase ($have_smtp, from $(jq -r '.smtp_admin_email // "?"' /tmp/auth.json))."; mail=1
+          fi
+          if [ -n "$mail" ]; then
             # Our own emails: the Moments name, Arabic and English, our
             # button — never the word Supabase (supabase/templates/*.html).
             # Custom templates need custom SMTP, so they go in here.
@@ -185,7 +208,7 @@ jobs:
               }')
             echo "Email templates: Moments (no Supabase branding)."
           else
-            echo "::notice::No RESEND_API_KEY / SMTP_SENDER secret — emails still go through Supabase's built-in test mailer (a few per hour)."
+            echo "::notice::No SMTP set — emails still go through Supabase's built-in test mailer (a few per hour). Add AUTH_SMTP_PASS (the team@ app password from Zoho) to send from team@therealmoments.com."
           fi
           code=$(curl -sS -o /tmp/auth.out -w '%{http_code}' -X PATCH "$api" \
             -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H 'Content-Type: application/json' --data "$body")

@@ -7,6 +7,8 @@ import { useLang } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { teacherApply, myTeacherApplication } from '../services/offers';
 import { useSheetBack } from '../hooks/useSheetBack';
+import { MailLine } from './MailLine';
+import { MAIL } from '../constants/contacts';
 import { tapLight, tapMedium, tapSuccess, tapSelection } from '../utils/feedback';
 
 /* ─── TEACH A WORKSHOP ON MOMENTS ─────────────────────────────────────
@@ -114,6 +116,7 @@ export const TeacherApplySheet = ({ onClose }) => {
               </Pressable>
             </View>
           )}
+          <MailLine to={MAIL.community} subject="Teaching on Moments" />
         </ScrollView>
       </View>
     </Modal>

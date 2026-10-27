@@ -7,6 +7,8 @@ import { useLang } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { reportInChat, blockPerson } from '../services/standing';
 import { useSheetBack } from '../hooks/useSheetBack';
+import { MailLine } from './MailLine';
+import { MAIL } from '../constants/contacts';
 import { tapLight, tapSuccess } from '../utils/feedback';
 import { AV_NEUTRAL } from '../constants/mockData';
 
@@ -154,6 +156,7 @@ export const ChatReportSheet = ({ people, dmThreadId, squadId, onClose, onBlocke
           ) : null}
 
           {err ? <Text style={{ color: C.coral, fontSize: 13, fontWeight: '700', marginTop: 12, textAlign: 'center' }}>{err}</Text> : null}
+          <MailLine to={MAIL.community} subject="A safety report" />
         </ScrollView>
       </View>
     </Modal>

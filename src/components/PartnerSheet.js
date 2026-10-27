@@ -9,6 +9,8 @@ import { partnerApply } from '../services/partners';
 import { appLink, shareLink, shareNote } from '../utils/share';
 import { tapLight, tapMedium, tapSelection, tapSuccess } from '../utils/feedback';
 import { useSheetBack } from '../hooks/useSheetBack';
+import { MailLine } from './MailLine';
+import { MAIL } from '../constants/contacts';
 import { lazyOverlay } from '../lib/lazyScreen';
 import { COUNTRY_LIST } from '../constants/countries';
 /* the nine kinds of business, and the host check, load with the business screens */
@@ -199,6 +201,7 @@ export const PartnerSheet = ({ onClose, first }) => {
               )}
             </View>}
           </View>
+          <MailLine to={MAIL.partners} subject="Moments partners" />
         </ScrollView>
       </View>
       {hostOpen ? <HostApplySheet onClose={() => setHostOpen(false)} /> : null}

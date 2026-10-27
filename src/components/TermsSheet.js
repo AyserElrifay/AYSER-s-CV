@@ -4,6 +4,7 @@ import { View, Text, Modal, Pressable, ScrollView, Linking } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { C } from '../constants/theme';
+import { MAIL } from '../constants/contacts';
 import { useSheetBack } from '../hooks/useSheetBack';
 
 /* The legal document — Terms of Use, the content-ownership rule that
@@ -11,7 +12,7 @@ import { useSheetBack } from '../hooks/useSheetBack';
    protects the app owner. Plain, honest, readable. Update SUPPORT_EMAIL
    / the DMCA agent line with your real details before launch. */
 
-const SUPPORT_EMAIL = 'ayser@therealmoments.com';
+const SUPPORT_EMAIL = MAIL.support;
 
 const H = ({ children }) => (
   <Text style={{ color: C.text, fontSize: 15, fontWeight: '900', marginTop: 20, marginBottom: 6 }}>{children}</Text>
