@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, Pressable, ScrollView, Modal, Platform, ActivityIndicator } from 'react-native';
+import { View, Text, Pressable, ScrollView, Modal, Platform, ActivityIndicator, Animated, Easing } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, NUM } from '../constants/theme';
 import { useLang } from '../context/LanguageContext';
@@ -43,6 +43,9 @@ const S = {
   zh: ['欢迎来到全新的 Moments。重质量，不重喧闹。', '为了让社区保持安全、真实，并专注于真正的成长，Moments 现在是仅限会员的私密平台。没有假账号，没有垃圾信息——只有真实的人、真实的语言和真实的聚会。', 'Moments Basic', '核心功能。', '浏览社交动态', '预订线下咖啡馆聚会', '查看 Global Track 旅程', '加入 Basic', 'Moments VIP', '完整体验。', 'Basic 的全部内容', '解锁私信', '24/7 实时语言休息室', '聚会优先预订', '成为 VIP', '推荐', '/ 月', '为什么收费？', 'Moments 为什么收费', '本地社区管理员——迎接并照顾每一场聚会的真实的人。', '让 Moments 运转的服务器、语音房间和安全工具。', '把骚扰者挡在门外。付费会员从一开始就挡住假账号和垃圾信息。', '明白了', '支付很快开放——感谢你的等待。', '没有成功，再试一次。', '退出登录', '你的方案', '好了——你的方案马上就会更新。', '升级到 Moments VIP', '解锁私信和语言房间。', '以后再说', '随时可以取消。'],
 };
 const K = ['hero', 'sub', 'basic', 'basicTag', 'f1', 'f2', 'f3', 'joinBasic', 'vip', 'vipTag', 'v1', 'v2', 'v3', 'v4', 'becomeVip', 'rec', 'perMonth', 'why', 'whyTitle', 'w1', 'w2', 'w3', 'gotIt', 'soon', 'err', 'signOut', 'current', 'changed', 'vipTitle', 'vipSub', 'notNow', 'cancel'];
+/* VIP is paid by the year when the owner says so (tier_prices.vip_period) */
+const PER_YEAR = { en: '/ year', ar: '/ سنة', cs: '/ rok', es: '/ año', et: '/ aastas', fr: '/ an', hi: '/ साल', it: '/ anno', ja: '/ 年', ko: '/ 년', nl: '/ jaar', pt: '/ ano', ro: '/ an', ru: '/ год', tr: '/ yıl', uk: '/ рік', zh: '/ 年' };
+const per = (lang, period) => (period === 'year' ? PER_YEAR[lang] || PER_YEAR.en : w(lang, 'perMonth'));
 const w = (lang, k) => { const i = K.indexOf(k); return (S[lang] || S.en)[i] || S.en[i] || ''; };
 
 const money = (n, cur, lang) => {
@@ -63,7 +66,7 @@ const Check = ({ label, strong, onBrand, ink }) => (
 const PAPER = { ground: '#FFFFFF', ink: '#17131F', muted: '#6F6A75', line: 'rgba(23,19,31,0.10)' };
 
 /* one plan: the name small, the promise large, the price in figures, one button */
-const Plan = ({ lang, name, tag, price, cur, items, cta, onPress, busy, vip, current, paper }) => {
+const Plan = ({ lang, name, tag, price, cur, period, items, cta, onPress, busy, vip, current, paper }) => {
   const P = paper ? PAPER : { ground: C.glass, ink: C.text, muted: C.dim, line: C.line };
   return (
   <View style={{ marginTop: 18, borderRadius: 28, padding: 26, backgroundColor: P.ground, borderWidth: vip ? (paper ? 3 : 2) : (paper ? 0 : 1), borderColor: vip ? (paper ? C.sun : C.purple) : P.line }}>
@@ -79,7 +82,7 @@ const Plan = ({ lang, name, tag, price, cur, items, cta, onPress, busy, vip, cur
     <Text style={{ color: P.ink, fontSize: 26, fontWeight: '700', letterSpacing: -0.7, marginTop: 10 }}>{tag}</Text>
     <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 14 }}>
       <Text style={[{ color: P.ink, fontSize: 40, fontWeight: '700', letterSpacing: -1.2 }, NUM]}>{money(price, cur, lang)}</Text>
-      <Text style={{ color: P.muted, fontSize: 15, marginStart: 6 }}>{w(lang, 'perMonth')}</Text>
+      <Text style={{ color: P.muted, fontSize: 15, marginStart: 6 }}>{per(lang, period)}</Text>
     </View>
     <View style={{ marginTop: 10 }}>
       {items.map(([label, strong]) => <Check key={label} label={label} strong={strong} onBrand={vip} ink={P.ink} />)}
@@ -147,7 +150,7 @@ export const PricingGate = ({ m, hard, onClose, onSignOut }) => {
   const insets = useSafeAreaInsets();
   const [why, setWhy] = useState(false);
   const { busy, note, buy } = useBuy(lang, m);
-  const pr = (m && m.prices) || { basic: 118, vip: 199, currency: 'EGP' };
+  const pr = (m && m.prices) || { basic: 118, vip: 1300, vip_period: 'year', currency: 'EGP' };
   const tier = m ? m.tier : 'FREE';
 
   const page = (
@@ -162,7 +165,7 @@ export const PricingGate = ({ m, hard, onClose, onSignOut }) => {
           items={[[w(lang, 'f1')], [w(lang, 'f2')], [w(lang, 'f3')]]}
           cta={w(lang, 'joinBasic')} busy={busy === 'basic'} onPress={() => buy('basic')} current={tier === 'BASIC'} paper />
 
-        <Plan lang={lang} vip name={w(lang, 'vip')} tag={w(lang, 'vipTag')} price={pr.vip} cur={pr.currency}
+        <Plan lang={lang} vip name={w(lang, 'vip')} tag={w(lang, 'vipTag')} price={pr.vip} cur={pr.currency} period={pr.vip_period}
           items={[[w(lang, 'v1')], [w(lang, 'v2'), true], [w(lang, 'v3'), true], [w(lang, 'v4')]]}
           cta={w(lang, 'becomeVip')} busy={busy === 'vip'} onPress={() => buy('vip')} current={tier === 'VIP'} paper />
         {note ? <Text style={{ color: '#FFF', fontSize: 14.5, textAlign: 'center', marginTop: 18 }}>{note}</Text> : null}
@@ -207,7 +210,7 @@ export const VipSheet = ({ m, onClose }) => {
   const { lang } = useLang();
   const insets = useSafeAreaInsets();
   const { busy, note, buy } = useBuy(lang, m);
-  const pr = (m && m.prices) || { vip: 199, currency: 'EGP' };
+  const pr = (m && m.prices) || { vip: 1300, vip_period: 'year', currency: 'EGP' };
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={{ flex: 1, backgroundColor: 'rgba(15,13,20,0.4)' }} onPress={onClose} accessibilityLabel={w(lang, 'notNow')} />
@@ -221,7 +224,7 @@ export const VipSheet = ({ m, onClose }) => {
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 18 }}>
           <Text style={[{ color: C.text, fontSize: 28, fontWeight: '700', letterSpacing: -0.6 }, NUM]}>{money(pr.vip, pr.currency, lang)}</Text>
-          <Text style={{ color: C.dim, fontSize: 14, marginStart: 6 }}>{w(lang, 'perMonth')}</Text>
+          <Text style={{ color: C.dim, fontSize: 14, marginStart: 6 }}>{per(lang, pr.vip_period)}</Text>
         </View>
         <Pressable onPress={() => buy('vip')} disabled={!!busy} accessibilityRole="button" style={{ marginTop: 18 }}>
           <View style={{ borderRadius: 999, paddingVertical: 15, alignItems: 'center', backgroundColor: C.purple }}>
@@ -234,5 +237,129 @@ export const VipSheet = ({ m, onClose }) => {
         </Pressable>
       </View>
     </Modal>
+  );
+};
+
+/* ─── WELCOME TO THE VIP CLUB ────────────────────────────────────────
+   Ayser: the moment somebody comes back from paying for VIP, once. The
+   app has just become theirs; this turns that into a first evening out:
+   30% off a first Level 1 workshop, for 24 hours. Warm canvas, one glass
+   card, the clock in figures, one button that breathes, and a quiet way
+   out. The offer, its clock and the discount are the server's — this
+   only shows them, and closing it closes it for good. */
+const OTO = {
+  en: ['Welcome to the VIP Club 🥂', 'Your digital access is unlocked. Now, let’s get you offline.', 'A welcome gift', '30% OFF', 'your first Level 1 Global Track Workshop', 'Offer ends in', 'Claim 30% Off & Book Level 1', 'No thanks, I’ll explore the app first.', 'Only for new VIP members, once.'],
+  ar: ['أهلًا بيك في نادي VIP 🥂', 'التطبيق كله بقى مفتوح ليك. يلا نخرج بقى من الشاشة.', 'هدية ترحيب', 'خصم ٣٠٪', 'على أول ورشة Level 1 في Global Track', 'العرض بيخلص بعد', 'خد خصم ٣٠٪ واحجز Level 1', 'لأ شكرًا، هتفرّج على التطبيق الأول.', 'لأعضاء VIP الجداد بس، مرة واحدة.'],
+  cs: ['Vítej ve VIP klubu 🥂', 'Digitální přístup máš odemčený. Teď tě dostaneme ven.', 'Uvítací dárek', 'SLEVA 30 %', 'na tvůj první workshop Global Track, Level 1', 'Nabídka končí za', 'Získat 30 % a rezervovat Level 1', 'Ne, díky, nejdřív si projdu aplikaci.', 'Jen pro nové členy VIP, jednou.'],
+  es: ['Bienvenido al VIP Club 🥂', 'Tu acceso digital está desbloqueado. Ahora, salgamos de la pantalla.', 'Un regalo de bienvenida', '30% DE DESCUENTO', 'en tu primer taller Global Track de Nivel 1', 'La oferta termina en', 'Obtén el 30% y reserva el Nivel 1', 'No, gracias, primero exploraré la app.', 'Solo para nuevos miembros VIP, una vez.'],
+  et: ['Tere tulemast VIP-klubisse 🥂', 'Digitaalne ligipääs on avatud. Nüüd viime su päriselu juurde.', 'Tervituskingitus', '30% SOODSAMALT', 'sinu esimene Global Tracki 1. taseme töötuba', 'Pakkumine lõpeb', 'Võta 30% ja broneeri 1. tase', 'Ei, aitäh, uurin enne äppi.', 'Ainult uutele VIP-liikmetele, üks kord.'],
+  fr: ['Bienvenue au VIP Club 🥂', 'Ton accès numérique est débloqué. Maintenant, sortons de l’écran.', 'Un cadeau de bienvenue', '-30 %', 'sur ton premier atelier Global Track de niveau 1', 'L’offre se termine dans', 'Profiter des -30 % et réserver le niveau 1', 'Non merci, je vais d’abord explorer l’app.', 'Réservé aux nouveaux membres VIP, une seule fois.'],
+  hi: ['VIP क्लब में स्वागत है 🥂', 'आपका डिजिटल एक्सेस खुल गया है। अब चलिए आपको ऑफ़लाइन ले चलें।', 'स्वागत तोहफ़ा', '30% छूट', 'आपकी पहली Level 1 Global Track वर्कशॉप पर', 'ऑफ़र ख़त्म होगा', '30% छूट लें और Level 1 बुक करें', 'नहीं, धन्यवाद, पहले ऐप देखूँगा।', 'सिर्फ़ नए VIP मेंबर्स के लिए, एक बार।'],
+  it: ['Benvenuto nel VIP Club 🥂', 'Il tuo accesso digitale è sbloccato. Ora usciamo dallo schermo.', 'Un regalo di benvenuto', '30% DI SCONTO', 'sul tuo primo workshop Global Track di Livello 1', 'L’offerta scade tra', 'Prendi il 30% e prenota il Livello 1', 'No grazie, prima esploro l’app.', 'Solo per i nuovi membri VIP, una volta.'],
+  ja: ['VIP クラブへようこそ 🥂', 'デジタルのアクセスは解放されました。次はオフラインへ。', 'ウェルカムギフト', '30% OFF', '初めての Global Track レベル1 ワークショップ', '終了まで', '30%オフでレベル1を予約', 'いいえ、まずアプリを見てみます。', '新しい VIP メンバー限定・一度だけ。'],
+  ko: ['VIP 클럽에 오신 걸 환영해요 🥂', '디지털 접근이 열렸어요. 이제 오프라인으로 나가 볼까요.', '웰컴 선물', '30% 할인', '첫 Global Track 레벨 1 워크숍', '남은 시간', '30% 할인받고 레벨 1 예약하기', '괜찮아요, 앱부터 둘러볼게요.', '새 VIP 회원만, 한 번.'],
+  nl: ['Welkom bij de VIP Club 🥂', 'Je digitale toegang is ontgrendeld. Nu gaan we offline.', 'Een welkomstcadeau', '30% KORTING', 'op je eerste Global Track-workshop van Level 1', 'Aanbod eindigt over', 'Pak 30% korting en boek Level 1', 'Nee, bedankt, ik verken eerst de app.', 'Alleen voor nieuwe VIP-leden, één keer.'],
+  pt: ['Bem-vindo ao VIP Club 🥂', 'O teu acesso digital está desbloqueado. Agora, vamos sair do ecrã.', 'Um presente de boas-vindas', '30% DE DESCONTO', 'no teu primeiro workshop Global Track de Nível 1', 'A oferta termina em', 'Aproveita 30% e reserva o Nível 1', 'Não, obrigado, primeiro vou explorar a app.', 'Só para novos membros VIP, uma vez.'],
+  ro: ['Bun venit în VIP Club 🥂', 'Accesul digital e deblocat. Acum, hai să ieșim din ecran.', 'Un cadou de bun venit', '30% REDUCERE', 'la primul tău atelier Global Track de Nivel 1', 'Oferta se termină în', 'Ia 30% reducere și rezervă Nivelul 1', 'Nu, mulțumesc, explorez mai întâi aplicația.', 'Doar pentru membrii VIP noi, o singură dată.'],
+  ru: ['Добро пожаловать в VIP Club 🥂', 'Цифровой доступ открыт. Теперь — в офлайн.', 'Подарок в честь знакомства', 'СКИДКА 30%', 'на твой первый воркшоп Global Track уровня 1', 'Предложение закончится через', 'Взять 30% и записаться на уровень 1', 'Нет, спасибо, сначала посмотрю приложение.', 'Только для новых участников VIP, один раз.'],
+  tr: ['VIP Club’a hoş geldin 🥂', 'Dijital erişimin açıldı. Şimdi seni ekrandan çıkaralım.', 'Hoş geldin hediyesi', '%30 İNDİRİM', 'ilk Global Track Seviye 1 atölyende', 'Teklifin bitmesine', '%30 indirimi al ve Seviye 1’i ayırt', 'Hayır, teşekkürler, önce uygulamayı keşfedeceğim.', 'Yalnızca yeni VIP üyelere, bir kez.'],
+  uk: ['Ласкаво просимо до VIP Club 🥂', 'Цифровий доступ відкрито. Тепер — в офлайн.', 'Подарунок на знайомство', 'ЗНИЖКА 30%', 'на твій перший воркшоп Global Track рівня 1', 'Пропозиція закінчиться через', 'Взяти 30% і записатися на рівень 1', 'Ні, дякую, спершу подивлюся застосунок.', 'Лише для нових учасників VIP, один раз.'],
+  zh: ['欢迎加入 VIP 俱乐部 🥂', '你的线上权限已解锁。现在，让我们走到线下。', '欢迎礼物', '7 折', '你的第一场 Global Track 一级工作坊', '优惠剩余', '领取 7 折并预订一级', '不用了，我先逛逛应用。', '仅限新 VIP 会员，仅此一次。'],
+};
+const OK = ['title', 'hook', 'gift', 'off', 'first', 'ends', 'cta', 'no', 'once'];
+const ow = (lang, k) => { const i = OK.indexOf(k); return (OTO[lang] || OTO.en)[i] || OTO.en[i] || ''; };
+
+const two = (n) => (n < 10 ? '0' : '') + n;
+const hms = (ms) => { const s = Math.max(0, Math.floor(ms / 1000)); return two(Math.floor(s / 3600)) + ':' + two(Math.floor((s % 3600) / 60)) + ':' + two(s % 60); };
+
+// a handful of brand-colour flecks that drift down once, then are gone
+const FLECKS = Array.from({ length: 14 }, (_, i) => ({ x: (i * 37) % 100, d: (i % 5) * 140, s: 6 + (i % 3) * 2, c: i % 3 === 0 ? C.sun : C.purple }));
+const Fleck = ({ f }) => {
+  const v = React.useRef(new Animated.Value(0)).current;
+  React.useEffect(() => { Animated.timing(v, { toValue: 1, duration: 2600, delay: f.d, easing: Easing.out(Easing.quad), useNativeDriver: true }).start(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <Animated.View pointerEvents="none" style={{ position: 'absolute', top: -20, left: f.x + '%', width: f.s, height: f.s, borderRadius: f.s / 2, backgroundColor: f.c,
+      opacity: v.interpolate({ inputRange: [0, 0.15, 0.8, 1], outputRange: [0, 0.9, 0.6, 0] }),
+      transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [0, 420] }) }, { rotate: v.interpolate({ inputRange: [0, 1], outputRange: ['0deg', (f.x % 2 ? 200 : -200) + 'deg'] }) }] }} />
+  );
+};
+
+/* `offer` is my_welcome_offer(): { live, pct, now, expires_at, workshop } */
+export const WelcomeOTO = ({ offer, onClaim, onClose }) => {
+  useSheetBack(onClose);
+  const { lang } = useLang();
+  const { isDark } = useTheme();
+  const insets = useSafeAreaInsets();
+  // the server's clock, not the phone's: skew is how far apart they are
+  const skew = React.useMemo(() => { const t = Date.parse(offer && offer.now); return isNaN(t) ? 0 : t - Date.now(); }, [offer]);
+  const end = Date.parse(offer && offer.expires_at) || 0;
+  const [left, setLeft] = useState(() => end - (Date.now() + skew));
+  React.useEffect(() => {
+    const id = setInterval(() => { const l = end - (Date.now() + skew); setLeft(l); if (l <= 0) { clearInterval(id); onClose && onClose(); } }, 1000);
+    return () => clearInterval(id);
+  }, [end, skew]); // eslint-disable-line react-hooks/exhaustive-deps
+  const breathe = React.useRef(new Animated.Value(0)).current;
+  React.useEffect(() => {
+    tapSuccess();
+    const loop = Animated.loop(Animated.sequence([
+      Animated.timing(breathe, { toValue: 1, duration: 1100, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+      Animated.timing(breathe, { toValue: 0, duration: 1100, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+    ]));
+    loop.start();
+    return () => loop.stop();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const ws = offer && offer.workshop;
+  const wsTitle = ws ? ((lang === 'ar' && ws.title_ar) || ws.title) : null;
+  const glow = Platform.OS === 'web'
+    ? { backgroundImage: 'radial-gradient(90% 55% at 50% 0%, ' + (isDark ? 'rgba(124,58,237,0.32)' : 'rgba(124,58,237,0.16)') + ', transparent 70%)' }
+    : null;
+  const glass = Platform.OS === 'web'
+    ? { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.62)', backdropFilter: 'blur(24px) saturate(1.4)', WebkitBackdropFilter: 'blur(24px) saturate(1.4)' }
+    : { backgroundColor: C.glass };
+
+  return (
+    <View style={[{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9100, backgroundColor: C.bg }, glow]} accessibilityViewIsModal>
+      {FLECKS.map((f, i) => <Fleck key={i} f={f} />)}
+      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24, paddingTop: insets.top + 40, paddingBottom: insets.bottom + 32, alignItems: 'center' }}>
+        <View style={{ width: '100%', maxWidth: 440 }}>
+          <Text style={{ color: C.purple, fontSize: 12.5, fontWeight: '800', letterSpacing: 2.4, textAlign: 'center' }}>MOMENTS VIP</Text>
+          <Text style={{ color: C.text, fontSize: 34, fontWeight: '700', letterSpacing: -1.1, lineHeight: 40, marginTop: 14, textAlign: 'center' }}>{ow(lang, 'title')}</Text>
+          <Text style={{ color: C.dim, fontSize: 17, lineHeight: 25, marginTop: 12, textAlign: 'center' }}>{ow(lang, 'hook')}</Text>
+
+          {/* the offer: one pane of glass */}
+          <View style={[{ marginTop: 32, borderRadius: 28, padding: 26, borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(124,58,237,0.16)' }, glass]}>
+            <Text style={{ color: C.gold, fontSize: 12, fontWeight: '800', letterSpacing: 1.6, textAlign: 'center' }}>{ow(lang, 'gift').toUpperCase()}</Text>
+            <Text style={[{ color: C.purple, fontSize: lang === 'ar' ? 46 : 52, lineHeight: lang === 'ar' ? 92 : 64, fontWeight: '800', letterSpacing: lang === 'ar' ? 0 : -1.8, textAlign: 'center', marginTop: 4 }, NUM]}>{ow(lang, 'off')}</Text>
+            <Text style={{ color: C.text, fontSize: 16.5, lineHeight: 23, textAlign: 'center', marginTop: 2 }}>{ow(lang, 'first')}</Text>
+            {ws ? (
+              <View style={{ marginTop: 18, paddingTop: 16, borderTopWidth: 1, borderTopColor: C.line, alignItems: 'center' }}>
+                <Text style={{ color: C.text, fontSize: 15, fontWeight: '600', textAlign: 'center' }} numberOfLines={2}>{wsTitle}</Text>
+                {ws.price != null ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 6 }}>
+                    <Text style={[{ color: C.faint, fontSize: 15, textDecorationLine: 'line-through', marginEnd: 8 }, NUM]}>{money(ws.price, ws.currency, lang)}</Text>
+                    <Text style={[{ color: C.text, fontSize: 22, fontWeight: '700' }, NUM]}>{money(ws.price_after, ws.currency, lang)}</Text>
+                  </View>
+                ) : null}
+              </View>
+            ) : null}
+            <Text style={{ color: C.dim, fontSize: 13, textAlign: 'center', marginTop: 20 }}>{ow(lang, 'ends')}</Text>
+            <Text style={[{ color: C.text, fontSize: 30, fontWeight: '600', letterSpacing: 1, textAlign: 'center', marginTop: 4, writingDirection: 'ltr' }, NUM]} accessibilityLiveRegion="polite">{hms(left)}</Text>
+          </View>
+
+          <Animated.View style={{ marginTop: 26, transform: [{ scale: breathe.interpolate({ inputRange: [0, 1], outputRange: [1, 1.035] }) }] }}>
+            <Pressable onPress={() => { tapMedium(); onClaim && onClaim(); }} accessibilityRole="button">
+              <View style={{ borderRadius: 999, paddingVertical: 18, paddingHorizontal: 20, alignItems: 'center', backgroundColor: C.purple }}>
+                <Text style={{ color: '#FFF', fontSize: 16.5, fontWeight: '700', textAlign: 'center' }}>{ow(lang, 'cta')}</Text>
+              </View>
+            </Pressable>
+          </Animated.View>
+          <Pressable onPress={() => { tapLight(); onClose && onClose(); }} accessibilityRole="button" hitSlop={10} style={{ alignSelf: 'center', marginTop: 18 }}>
+            <Text style={{ color: C.dim, fontSize: 14.5, textAlign: 'center' }}>{ow(lang, 'no')}</Text>
+          </Pressable>
+          <Text style={{ color: C.faint, fontSize: 12, textAlign: 'center', marginTop: 22 }}>{ow(lang, 'once')}</Text>
+        </View>
+      </ScrollView>
+    </View>
   );
 };

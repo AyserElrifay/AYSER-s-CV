@@ -14,3 +14,15 @@ export async function myMembership() {
 export const askUpgrade = (why) => {
   try { window.dispatchEvent(new CustomEvent('mm-need-plus', { detail: why || 'member' })); } catch (e) {}
 };
+
+/* the welcome offer a new VIP gets once, for 24 hours (RUN_ME.sql,
+   "VIP IS 1300 A YEAR · AND A WELCOME OFFER, ONCE"): 30% off a first
+   Level 1 workshop. The discount itself is taken off by journey_book. */
+export async function myWelcomeOffer() {
+  if (!SUPABASE_READY) return null;
+  try { const { data, error } = await supabase.rpc('my_welcome_offer'); return error ? null : data; } catch (e) { return null; }
+}
+export async function dismissWelcomeOffer() {
+  if (!SUPABASE_READY) return null;
+  try { const { data, error } = await supabase.rpc('welcome_offer_dismiss'); return error ? null : data; } catch (e) { return null; }
+}

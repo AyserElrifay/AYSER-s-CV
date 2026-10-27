@@ -42,5 +42,13 @@ is('VIP doors open the VIP sheet', /VIP_DOORS = \['vip', 'chat', 'lounge', 'prof
 is('the gateway says why, and lets you sign out', /'Why are we charging\?'/.test(gate) && /onSignOut\(\)/.test(gate), true);
 is('the last two seats of a meetup are VIP’s', /'reason', 'vip_seat'/.test(sql), true);
 
+console.log('\nthe VIP welcome offer, once');
+const oto = sql.slice(sql.lastIndexOf('VIP IS 1300 A YEAR'));
+is('VIP is 1300 a year', /"vip": 1300, "vip_period": "year"/.test(oto), true);
+is('only the webhook makes the offer, once, for 24 hours', /source = 'lemonsqueezy'[\s\S]+interval '24 hours'[\s\S]+on conflict do nothing/.test(oto), true);
+is('the 30% is taken off by the server', /round\(v_total \* 0\.7\)|round\(total \* 0\.7\)|\* 0\.7/.test(oto.slice(oto.indexOf('function public.journey_book'))), true);
+is('back from paying, the app looks for it', /checkout=success/.test(app) && /myWelcomeOffer\(\)/.test(app), true);
+is('closed once, never shown again', /otoDone\(\); setOto\(null\); dismissWelcomeOffer\(\)/.test(app), true);
+
 if (bad) { console.log('\n' + bad + ' wrong.'); process.exit(1); }
 console.log('\nMembers only: Basic for the essentials, VIP for the full experience.');

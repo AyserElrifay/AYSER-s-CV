@@ -20475,7 +20475,7 @@ end $do$;
 --            club" gateway and nothing else;
 --    BASIC — 118 EGP a month (Lemon Squeezy): the feed, the Global Track
 --            journey, booking offline café meetups;
---    VIP   — 199 EGP a month: everything in Basic, plus messages
+--    VIP   — 1300 EGP a year: everything in Basic, plus messages
 --            (buddies, Daily Moment replies, icebreakers), the Live
 --            Language Lounges, and priority booking (the last two seats
 --            of a meetup are kept for VIP).
@@ -21745,6 +21745,107 @@ begin
   return new;
 end;
 $$;
+
+notify pgrst, 'reload schema';
+
+-- ═══════════════════════════════════════════════════════════════════
+--  VIP IS 1300 A YEAR · AND A WELCOME OFFER, ONCE
+--  Ayser: VIP is locked at 1300 EGP a year. Right after somebody
+--  becomes VIP through Lemon Squeezy, they get one offer, once: 30% off
+--  their first Level 1 Global Track workshop, for 24 hours. The offer
+--  is the server's — made when the webhook turns VIP on, with its own
+--  clock — so the app only shows it: the discount is applied when the
+--  workshop is booked (journey_book), "No thanks" ends it for good, and
+--  after 24 hours it is simply gone. Safe to re-run.
+-- ═══════════════════════════════════════════════════════════════════
+update public.app_settings set value = value || '{"vip": 1300, "vip_period": "year"}'::jsonb
+ where key = 'tier_prices' and (value ->> 'vip') = '199';
+
+create table if not exists public.member_offers (
+  user_id      uuid not null references public.profiles(id) on delete cascade,
+  kind         text not null check (kind in ('vip_l1_30')),
+  created_at   timestamptz not null default now(),
+  expires_at   timestamptz not null,
+  dismissed_at timestamptz,
+  used_at      timestamptz,
+  booking_id   uuid,
+  primary key (user_id, kind)
+);
+alter table public.member_offers enable row level security;   -- read only through the functions below
+
+-- becoming VIP through Lemon Squeezy, the first time: the offer, with 24 hours on it
+create or replace function public.vip_welcome_offer() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if new.tier = 'vip' and new.status = 'active' and new.source = 'lemonsqueezy'
+     and (tg_op = 'INSERT' or old.tier is distinct from 'vip' or old.status is distinct from 'active' or old.source is distinct from 'lemonsqueezy') then
+    insert into public.member_offers (user_id, kind, expires_at) values (new.user_id, 'vip_l1_30', now() + interval '24 hours')
+    on conflict do nothing;
+  end if;
+  return new;
+exception when others then return new;   -- an offer must never stop a membership
+end $$;
+revoke all on function public.vip_welcome_offer() from public, anon, authenticated;
+drop trigger if exists plus_members_vip_welcome on public.plus_members;
+create trigger plus_members_vip_welcome after insert or update of tier, status, source on public.plus_members
+  for each row execute function public.vip_welcome_offer();
+
+-- the offer is alive: not used, not refused, inside its 24 hours, and no Level 1 booked yet
+create or replace function public.welcome_offer_live(u uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.member_offers m where m.user_id = u and m.kind = 'vip_l1_30'
+                   and m.used_at is null and m.dismissed_at is null and m.expires_at > now())
+     and not exists (select 1 from public.bookings b join public.offers o on o.id = b.offer_id
+                      where b.user_id = u and o.level = 1 and b.status in ('reserved','paid','attended'));
+$$;
+revoke all on function public.welcome_offer_live(uuid) from public, anon, authenticated;
+
+-- what the welcome screen shows: the clock, and the next Level 1 workshop with its two prices
+create or replace function public.my_welcome_offer()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select case when not public.welcome_offer_live(auth.uid()) then jsonb_build_object('live', false) else
+    jsonb_build_object('live', true, 'pct', 30, 'now', now(),
+      'expires_at', (select expires_at from public.member_offers where user_id = auth.uid() and kind = 'vip_l1_30'),
+      'workshop', (select jsonb_build_object('id', o.id, 'title', o.title, 'title_ar', o.title_ar, 'starts_at', o.starts_at,
+                          'price', o.price, 'price_after', round(o.price * 0.7), 'currency', o.currency)
+                     from public.offers o where o.level = 1 and o.status = 'live' and (o.starts_at is null or o.starts_at > now())
+                    order by o.starts_at nulls last limit 1)) end;
+$$;
+revoke execute on function public.my_welcome_offer() from public, anon;
+grant execute on function public.my_welcome_offer() to authenticated;
+
+-- "No thanks": gone for good
+create or replace function public.welcome_offer_dismiss()
+returns jsonb language sql security definer set search_path = public as $$
+  update public.member_offers set dismissed_at = now()
+   where user_id = auth.uid() and kind = 'vip_l1_30' and dismissed_at is null and used_at is null;
+  select jsonb_build_object('ok', true);
+$$;
+revoke execute on function public.welcome_offer_dismiss() from public, anon;
+grant execute on function public.welcome_offer_dismiss() to authenticated;
+
+-- booking a workshop on the path, again: the welcome 30% comes off a first Level 1, once
+create or replace function public.journey_book(p_offer uuid, p_ref text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare need int; have int; ref text := btrim(coalesce(p_ref, '')); r jsonb; live boolean; t numeric;
+begin
+  if auth.uid() is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  select level into need from public.offers where id = p_offer;
+  if need is null then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
+  select current_level into have from public.profiles where id = auth.uid();
+  if coalesce(have, 1) < need then return jsonb_build_object('ok', false, 'reason', 'locked'); end if;
+  if length(ref) not between 4 and 60 then return jsonb_build_object('ok', false, 'reason', 'ref'); end if;
+  live := need = 1 and public.welcome_offer_live(auth.uid());
+  r := public.book_offer(p_offer, 1, 'reserve', 'PAY REF: ' || ref || case when live then ' · VIP WELCOME −30%' else '' end);
+  if live and coalesce((r ->> 'ok')::boolean, false) then
+    update public.bookings set total = round(total * 0.7) where id = (r ->> 'id')::uuid returning total into t;
+    update public.member_offers set used_at = now(), booking_id = (r ->> 'id')::uuid where user_id = auth.uid() and kind = 'vip_l1_30';
+    r := r || jsonb_build_object('total', t, 'discount', 30);
+  end if;
+  return r;
+end $$;
+revoke execute on function public.journey_book(uuid, text) from public, anon;
+grant execute on function public.journey_book(uuid, text) to authenticated;
 
 notify pgrst, 'reload schema';
 

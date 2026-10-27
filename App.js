@@ -24,7 +24,8 @@ import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { C } from './src/constants/theme';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
-import { myMembership } from './src/services/membership';
+import { myMembership, myWelcomeOffer, dismissWelcomeOffer } from './src/services/membership';
+import { goToTab } from './src/lib/mapBus';
 import { LanguageProvider } from './src/context/LanguageContext';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { PlayerProvider } from './src/context/PlayerContext';
@@ -63,24 +64,53 @@ const FirstTour = lazyOverlay(() => import('./src/components/FirstTour').then((m
    when somebody needs them. */
 const PricingGate = lazyOverlay(() => import('./src/components/Membership').then((m) => ({ default: m.PricingGate })));
 const VipSheet = lazyOverlay(() => import('./src/components/Membership').then((m) => ({ default: m.VipSheet })));
+const WelcomeOTO = lazyOverlay(() => import('./src/components/Membership').then((m) => ({ default: m.WelcomeOTO })));
 const VIP_DOORS = ['vip', 'chat', 'lounge', 'profile', 'vip_seat'];
+/* the VIP welcome offer is shown once on this phone, ever: after "no thanks",
+   after claiming, or once its 24 hours are up */
+const OTO_SEEN = 'mm.oto.seen';
+const otoSeen = () => { try { return !!localStorage.getItem(OTO_SEEN); } catch (e) { return false; } };
+const otoDone = () => { try { localStorage.setItem(OTO_SEEN, '1'); } catch (e) {} };
 const MemberGate = () => {
   const { signOut } = useAuth();
   const [m, setM] = React.useState(null);
   const [ask, setAsk] = React.useState(null);
+  const [oto, setOto] = React.useState(null);
   React.useEffect(() => {
     let alive = true;
-    const load = () => myMembership().then((x) => { if (alive && x) setM(x); });
+    // back from paying (?checkout=success, or the older ?plus=thanks): the
+    // webhook switches the tier on — and makes the welcome offer — within seconds
+    let back = false;
+    try { back = /[?&](checkout=success|plus=thanks)/.test(window.location.search); } catch (e) {}
+    if (back) {
+      try { const u = new URL(window.location.href); u.searchParams.delete('checkout'); u.searchParams.delete('plus'); window.history.replaceState(null, '', u.pathname + u.search + u.hash); } catch (e) {}
+    }
+    const load = () => myMembership().then((x) => {
+      if (!alive || !x) return;
+      setM(x);
+      // a VIP with a live offer sees it once; asked only when it can matter
+      if (x.tier === 'VIP' && !otoSeen() && (back || x.source === 'lemonsqueezy')) {
+        myWelcomeOffer().then((o) => { if (alive && o && o.live && !otoSeen()) { setOto(o); if (poll) clearInterval(poll); } });
+      }
+    });
     load();
-    // back from Lemon Squeezy: the webhook switches the tier on within seconds
     let n = 0; let poll = null;
-    try { if (/plus=thanks/.test(window.location.search)) poll = setInterval(() => { load(); if (++n > 12) clearInterval(poll); }, 5000); } catch (e) {}
+    if (back) poll = setInterval(() => { load(); if (++n > 12) clearInterval(poll); }, 5000);
     const seen = () => { try { if (document.visibilityState === 'visible') load(); } catch (e) {} };
     const on = (e) => { setAsk((e && e.detail) || 'member'); load(); };
     try { document.addEventListener('visibilitychange', seen); window.addEventListener('mm-need-plus', on); } catch (e) {}
     return () => { alive = false; if (poll) clearInterval(poll); try { document.removeEventListener('visibilitychange', seen); window.removeEventListener('mm-need-plus', on); } catch (e) {} };
   }, []);
   if (m && m.gate && m.tier === 'FREE') return <PricingGate m={m} hard onSignOut={signOut} />;
+  if (oto) {
+    const close = () => { otoDone(); setOto(null); dismissWelcomeOffer(); };
+    // claiming opens the journey at Level 1, where the 30% is already taken off
+    const claim = () => {
+      otoDone(); setOto(null); goToTab('TOGETHER');
+      setTimeout(() => { try { window.dispatchEvent(new CustomEvent('mm-open-journey')); } catch (e) {} }, 350);
+    };
+    return <WelcomeOTO offer={oto} onClaim={claim} onClose={close} />;
+  }
   if (!ask) return null;
   if (VIP_DOORS.includes(ask) && (!m || m.tier !== 'VIP')) return <VipSheet m={m} onClose={() => setAsk(null)} />;
   if (!VIP_DOORS.includes(ask)) return <PricingGate m={m} onClose={() => setAsk(null)} />;

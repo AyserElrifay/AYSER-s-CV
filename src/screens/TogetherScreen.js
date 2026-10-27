@@ -424,6 +424,12 @@ export const TogetherScreen = () => {
   const [sheet, setSheet] = useState(null);
   const [journey, setJourney] = useState(false);
   const [meet, setMeet] = useState(null);   // 'lounges' | 'buddies'
+  // the VIP welcome offer's "claim" lands here, on the journey
+  useEffect(() => {
+    const on = () => setJourney(true);
+    try { window.addEventListener('mm-open-journey', on); } catch (e) {}
+    return () => { try { window.removeEventListener('mm-open-journey', on); } catch (e) {} };
+  }, []);
   const [eventOf, setEventOf] = useState(null);   // a joined plan whose event page is open
   const [creators, setCreators] = useState(() => recall('creators.' + (readCode() || 'all')) || []);     // hosts people really came to (top_creators)
   const [shareMsg, setShareMsg] = useState(null);

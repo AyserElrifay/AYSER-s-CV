@@ -5,6 +5,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { C } from '../constants/theme';
 import { myJourney, journeyBook, money } from '../services/offers';
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
+import { myWelcomeOffer } from '../services/membership';
 import { useSheetBack } from '../hooks/useSheetBack';
 
 /* ─── THE LEARNING JOURNEY ────────────────────────────────────────────
@@ -95,6 +96,11 @@ export const JourneyMap = ({ lang, onClose }) => {
     }
   }).catch(() => setJ(false));
   useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // a new VIP's welcome 30% off a first Level 1 — journey_book takes it off; this only shows it
+  const [offer, setOffer] = useState(null);
+  useEffect(() => { myWelcomeOffer().then((o) => setOffer(o && o.live ? o : null)); }, []);
+  const cost = (w, n) => (offer && n === 1 ? Math.round(Number(w.price) * (100 - (offer.pct || 30)) / 100) : w.price);
+  const shown = (w, n) => money(cost(w, n), w.currency, lang) + (offer && n === 1 && w.price ? ' (−' + (offer.pct || 30) + '%)' : '');
 
   const pay = j && j.pay && typeof j.pay === 'object' ? j.pay : null;
   const book = async (w) => {
@@ -103,7 +109,7 @@ export const JourneyMap = ({ lang, onClose }) => {
     tapMedium(); setBusy(true); setMsg(null);
     const r = await journeyBook(w.id, ref.trim());
     setBusy(false);
-    if (r && r.ok) { tapSuccess(); setOpen(null); setRef(''); setMsg(jw(lang, 'sent')); load(); }
+    if (r && r.ok) { tapSuccess(); setOpen(null); setRef(''); setMsg(jw(lang, 'sent')); if (r.discount) setOffer(null); load(); }
     else setMsg(jw(lang, 'err'));
   };
 
@@ -173,7 +179,7 @@ export const JourneyMap = ({ lang, onClose }) => {
                           <View key={w.id} style={{ marginTop: 10, borderRadius: 18, borderWidth: 1, borderColor: C.line, backgroundColor: C.glass, padding: 14 }}>
                             <Text style={{ color: C.text, fontSize: 15.5, fontWeight: '800' }} numberOfLines={2}>{title(w)}</Text>
                             <Text style={{ color: C.dim, fontSize: 13, marginTop: 3 }} numberOfLines={1}>
-                              {[when(w.starts_at, lang), w.city, money(w.price, w.currency, lang)].filter(Boolean).join(' · ')}
+                              {[when(w.starts_at, lang), w.city, shown(w, n)].filter(Boolean).join(' · ')}
                             </Text>
                             {here && w.status === 'live' ? (
                               w.mine === 'paid' || w.mine === 'attended' ? <Text style={{ color: C.green, fontSize: 14, fontWeight: '800', marginTop: 10 }}>{jw(lang, 'paid')}</Text>
@@ -182,7 +188,7 @@ export const JourneyMap = ({ lang, onClose }) => {
                                 <View style={{ marginTop: 10 }}>
                                   {pay ? (
                                     <>
-                                      <Text style={{ color: C.text, fontSize: 13.5, lineHeight: 19 }}>{jw(lang, 'pay', { p: money(w.price, w.currency, lang) })}</Text>
+                                      <Text style={{ color: C.text, fontSize: 13.5, lineHeight: 19 }}>{jw(lang, 'pay', { p: money(cost(w, n), w.currency, lang) })}</Text>
                                       {pay.instapay ? <Text selectable style={{ color: C.text, fontSize: 15, fontWeight: '800', marginTop: 8 }}>{'InstaPay · ' + pay.instapay}</Text> : null}
                                       {pay.vodafone ? <Text selectable style={{ color: C.text, fontSize: 15, fontWeight: '800', marginTop: 4 }}>{'Vodafone Cash · ' + pay.vodafone}</Text> : null}
                                       <TextInput value={ref} onChangeText={setRef} placeholder={jw(lang, 'ref')} placeholderTextColor={C.faint} maxLength={60} autoCapitalize="characters"
@@ -198,7 +204,7 @@ export const JourneyMap = ({ lang, onClose }) => {
                               ) : (
                                 <Pressable onPress={() => { tapLight(); setMsg(null); setRef(''); setOpen(w.id); }} accessibilityRole="button" style={{ marginTop: 12 }}>
                                   <View style={{ borderRadius: 999, paddingVertical: 12, alignItems: 'center', backgroundColor: C.purple }}>
-                                    <Text style={{ color: '#FFF', fontSize: 14.5, fontWeight: '800' }}>{jw(lang, 'book', { p: money(w.price, w.currency, lang) })}</Text>
+                                    <Text style={{ color: '#FFF', fontSize: 14.5, fontWeight: '800' }}>{jw(lang, 'book', { p: shown(w, n) })}</Text>
                                   </View>
                                 </Pressable>
                               )
