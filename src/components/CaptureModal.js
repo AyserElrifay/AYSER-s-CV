@@ -7,7 +7,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import * as ImagePicker from 'expo-image-picker';
 import { C } from '../constants/theme';
-import { SOUNDS, ME, AV_NEUTRAL } from '../constants/mockData';
+import { ME, AV_NEUTRAL } from '../constants/mockData';
 import { SUPABASE_READY, supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LanguageContext';
@@ -16,22 +16,19 @@ import { createStory } from '../services/stories';
 import { uploadCapture, uploadMedia } from '../services/social';
 import { compressImage, MAX_UPLOAD_BYTES, uploadEphemeral } from '../lib/storage';
 import { compressVideo, probeVideo, videoPlan, REEL_MAX_SECONDS } from '../lib/videoCompress';
-import { fetchTracks, incrementTrackUse, publishSound } from '../services/music';
+import { incrementTrackUse, publishSound } from '../services/music';
 /* Both called, neither imported — the same bug as the two sheets below,
    and on the same journey: markUsed runs when you post something you
    picked from your library, fetchTopics whenever a shot needs tag
    ideas. */
 import { markUsed } from '../services/library';
 import { fetchTopics } from '../services/topics';
-import { MusicHubSheet } from './MusicHubSheet';
 /* Both of these were rendered without ever being imported. Nothing
    catches that until the branch runs, so the app built clean, booted
    clean, and blew up the moment you opened the library or the effects
    drawer — "Can't find variable: MediaLibrarySheet". */
 import { MediaLibrarySheet } from './MediaLibrarySheet';
 import { EffectsSheet } from './EffectsSheet';
-import { SoundTrimmer } from './SoundTrimmer';
-import { clipUrl, parseClip, holdToClip, DEFAULT_LEN } from '../lib/soundClip';
 import { loadFaceDetector, findFace, makeFaceTracker } from '../lib/faceDetect';
 import { loadFaceMesh, meshReady, readFace, makeMeshTracker, mirrorFace } from '../lib/faceMesh';
 import { note } from '../lib/crashLog';
@@ -791,7 +788,6 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
   // real bytes-sent, so "Sending…" can say how far it has got instead
   // of sitting there looking identical to a stalled upload
   const [upPct, setUpPct] = useState(0);
-  const [hubOpen, setHubOpen] = useState(false);
 
   // ── effects + game filters (previewed live, baked on share) ──
   const [effectId, setEffectId] = useState('none');
@@ -928,7 +924,6 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
     if (warmth !== 0) edits.push('sepia(' + Math.min(0.6, Math.abs(warmth) / 40).toFixed(2) + ')' + (warmth < 0 ? ' hue-rotate(180deg)' : ''));
     return [base, ...edits].filter(Boolean).join(' ') || 'none';
   })();
-  const [realTracks, setRealTracks] = useState([]); // real playable Hub tracks
 
   // story-only interactive stickers — poll or ask-a-question
   const [stickerType, setStickerType] = useState(null); // null | 'poll' | 'question'
@@ -936,56 +931,6 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
   const [pollA, setPollA] = useState('');
   const [pollB, setPollB] = useState('');
   const [askQ, setAskQ] = useState('');
-
-  // Real mode: the rail shows REAL tracks (playable audio_url from the
-  // Indie Hub) — never made-up artist names.
-  useEffect(() => {
-    if (!SUPABASE_READY) return;
-    fetchTracks()
-      .then((rows) => setRealTracks((rows || []).slice(0, 10).map((t) => ({
-        id: t.id, title: t.title, artist: t.artist || t.genre_shape || 'indie', emoji: t.cover_emoji || '🎵',
-        audio_url: t.audio_url, attribution: t.attribution || null, license: t.license || null,
-      }))))
-      .catch(() => {});
-  }, []);
-
-  const railSounds = SUPABASE_READY
-    ? [...realTracks, { id: 'orig', title: t('cap_orig_sound'), artist: t('cap_your_rec'), emoji: '🎤' }]
-    : SOUNDS;
-
-  /* ── hear a sound BEFORE you post it: picking a track with a real
-     audio file starts a live preview; unpicking (or leaving) stops it ── */
-  const previewRef = useRef(null);
-  const chooseSound = (s, wasOn) => {
-    tapLight(); sfxPop();
-    if (previewRef.current) { previewRef.current.pause(); previewRef.current = null; }
-    if (wasOn) { setSound(null); return; }
-    /* A story is about fifteen seconds long, so fifteen seconds of the
-       song is what it gets — from the top until you say otherwise. The
-       scissors on the chip moves that window anywhere in the track. */
-    const picked = s && s.audio_url && !parseClip(s.audio_url)
-      ? { ...s, audio_url: clipUrl(s.audio_url, 0, DEFAULT_LEN) }
-      : s;
-    setSound(picked);
-    if (isWeb && picked && picked.audio_url) {
-      try {
-        const a = new window.Audio(picked.audio_url);
-        a.loop = true; a.volume = 0.85;
-        a.play().catch(() => {});
-        holdToClip(a);
-        previewRef.current = a;
-      } catch (e) {}
-    }
-  };
-
-  /* Which part of it. Opened from the chosen chip. */
-  const [trimming, setTrimming] = useState(null);
-  const openTrim = (s) => {
-    tapLight();
-    if (previewRef.current) { try { previewRef.current.pause(); } catch (e) {} previewRef.current = null; }
-    setTrimming(s);
-  };
-  useEffect(() => () => { if (previewRef.current) previewRef.current.pause(); }, []);
 
   const videoRef = useRef(null);
   const streamRef = useRef(null);
@@ -2032,54 +1977,6 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
   // never leave a preview singing after the sheet closes
   useEffect(() => () => { if (soundPreviewRef.current) { try { soundPreviewRef.current.pause(); } catch (e) {} } }, []);
 
-  const soundRail = (
-    <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 14, marginBottom: 16 }}>
-      <Pressable onPress={() => { tapLight(); setHubOpen(true); }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(124,58,237,0.9)', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7, marginRight: 8 }}>
-          <Text style={{ fontSize: 13 }}>🎧</Text>
-          <Text style={{ color: '#FFF', fontSize: 11.5, fontWeight: '900', marginLeft: 5 }}>{t('music_hub_full')}</Text>
-        </View>
-      </Pressable>
-      {railSounds.map((s) => {
-        const on = sound && sound.id === s.id;
-        return (
-          <View key={s.id} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: on ? '#FFF' : 'rgba(255,255,255,0.16)', borderWidth: 1, borderColor: on ? '#FFF' : 'rgba(255,255,255,0.35)', borderRadius: 999, paddingLeft: 6, paddingRight: 12, paddingVertical: 6, marginRight: 8 }}>
-            {/* hear it first */}
-            <Pressable onPress={() => togglePreview(s)} hitSlop={8} style={{ marginRight: 6 }}>
-              <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: on ? 'rgba(124,58,237,0.16)' : 'rgba(255,255,255,0.22)', alignItems: 'center', justifyContent: 'center' }}>
-                <Ionicons
-                  name={previewId === s.id ? 'pause' : 'play'}
-                  size={12}
-                  color={on ? C.purple : '#FFF'}
-                  style={{ marginLeft: previewId === s.id ? 0 : 1 }}
-                />
-              </View>
-            </Pressable>
-            <Pressable onPress={() => chooseSound(s, on)} style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Text style={{ fontSize: 13 }}>{s.emoji}</Text>
-              <Text style={{ color: on ? C.text : '#FFF', fontSize: 11.5, fontWeight: '800', marginLeft: 5 }} numberOfLines={1}>
-                {s.title}
-              </Text>
-              {on ? <Ionicons name="checkmark" size={13} color={C.purple} style={{ marginLeft: 4 }} /> : null}
-            </Pressable>
-            {/* which fifteen seconds — only worth offering on a track
-                with a real file behind it */}
-            {on && s.audio_url ? (
-              <Pressable onPress={() => openTrim(sound || s)} hitSlop={8} style={{ marginLeft: 7 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Ionicons name="cut-outline" size={13} color={C.purple} />
-                  <Text style={{ color: C.purple, fontSize: 11, fontWeight: '900', marginLeft: 3 }}>
-                    {(() => { const cl = parseClip(sound && sound.audio_url); return (cl && cl.len ? Math.round(cl.len) : DEFAULT_LEN) + 's'; })()}
-                  </Text>
-                </View>
-              </Pressable>
-            ) : null}
-          </View>
-        );
-      })}
-    </ScrollView>
-  );
-
   return (
     <Modal visible transparent={false} animationType="slide" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: '#000' }}>
@@ -2289,7 +2186,6 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
           {!shot && isWeb ? (
             <View style={{ flexDirection: 'row' }}>
               {[
-                { k: 'sound', icon: 'musical-notes-outline', on: !!sound, press: () => { tapLight(); setHubOpen(true); } },
                 { k: 'fx', icon: 'sparkles-outline', on: lensRailOpen || !!lens || (filterId && filterId !== 'none') || effectId !== 'none' || !!reelGame, press: () => { tapLight(); setLensRailOpen((v) => !v); } },
               ].map((b) => (
                 <Pressable key={b.k} onPress={b.press} hitSlop={8} style={{ marginStart: 10 }} accessibilityRole="button">
@@ -2512,7 +2408,7 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
 
               {/* what you're wearing right now, in one line */}
               {sound ? (
-                <Pressable onPress={() => { tapLight(); setHubOpen(true); }} style={{ alignSelf: 'center', marginBottom: 10 }}>
+                <Pressable style={{ alignSelf: 'center', marginBottom: 10 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 }}>
                     <Ionicons name="musical-notes" size={13} color="#FFF" />
                     <Text style={{ color: '#FFF', fontSize: 11.5, fontWeight: '800', marginLeft: 6 }} numberOfLines={1}>
@@ -2703,7 +2599,6 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
                 </View>
               ) : null}
 
-              {mode !== 'video' && panel === 'sound' ? soundRail : null}
               {/* ── the tool rail ─────────────────────────────────
                   Four buttons instead of four open drawers. The dot
                   means there is something in there already, so a
@@ -2712,7 +2607,6 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
                 <View style={{ flexDirection: 'row', justifyContent: 'center', paddingHorizontal: 16, marginBottom: 12 }}>
                   {[
                     { k: 'looks', icon: 'color-wand-outline', label: 'Looks', set: filterId !== 'none' || effectId !== 'none' || !!lens },
-                    { k: 'sound', icon: 'musical-notes-outline', label: 'Sound', set: !!sound },
                     { k: 'tags', icon: 'pricetag-outline', label: 'Tags', set: tags.length > 0 },
                     { k: 'place', icon: 'location-outline', label: 'Place', set: !!onMap },
                   ].map((b) => {
@@ -2984,15 +2878,6 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
             </View>
           )}
         </View>
-
-        {hubOpen ? <MusicHubSheet onPick={(t) => chooseSound(t, false)} onClose={() => setHubOpen(false)} /> : null}
-        {trimming ? (
-          <SoundTrimmer
-            sound={trimming}
-            onDone={(s) => { setSound(s); setTrimming(null); }}
-            onClose={() => setTrimming(null)}
-          />
-        ) : null}
 
         {/* everything you've already uploaded — pick one and posting is
             instant, because the file is already up there */}

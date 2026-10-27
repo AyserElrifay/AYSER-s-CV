@@ -41,7 +41,6 @@ import { pendingPartner } from './src/lib/partnerLink';
 import { pendingTrip } from './src/lib/tripLink';
 import { claimInvite } from './src/services/green';
 import { TabNavigator, buildNavTheme } from './src/navigation/TabNavigator';
-import { MiniPlayer } from './src/components/MiniPlayer';
 import { IncomingCallGate } from './src/components/IncomingCallGate';
 import { WhatsNew } from './src/components/WhatsNew';
 import { isOwner } from './src/services/music';
@@ -267,7 +266,6 @@ const Root = () => {
       <NavigationContainer theme={buildNavTheme()}>
         <TabNavigator />
       </NavigationContainer>
-      <MiniPlayer />
       <IncomingCallGate />
       <WhatsNew />
       <StudioGate />

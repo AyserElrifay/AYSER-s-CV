@@ -16,7 +16,6 @@ import { useLang } from '../context/LanguageContext';
 import { fetchFeedback, markFeedbackSeen, replyFeedback } from '../services/feedback';
 import { fetchStudioStats } from '../services/feedback';
 import { fetchPendingVerifications, decideVerification, fetchPendingVenues, decideVenue } from '../services/profiles';
-import { fetchTracks, setTrackApproval, harvestFreeMusic, harvestPublicDomainClassics, clearImportedTracks, countImportedTracks } from '../services/music';
 import { fetchHelpArticles, createHelpArticle, updateHelpArticle, deleteHelpArticle } from '../services/help';
 import { checkDatabase } from '../services/dbReadiness';
 import { fetchBardiConfig, saveBardiConfig, fetchBardiKnowledge, addBardiKnowledge, deleteBardiKnowledge, invalidateBardiBrain } from '../services/bardiOwner';
@@ -38,7 +37,7 @@ import { useSheetBack } from '../hooks/useSheetBack';
 
 /* ─── MOMENTS STUDIO · the owner's control panel ──────────────────────
    One place to run everything: live stats, the report queue, verification
-   requests, music approvals and user feedback — all real data, owner-only.
+   requests and user feedback — all real data, owner-only.
    Papyrus is built in: one tap summarises what needs attention. */
 
 /* area: which team role may open it (studio_can in RUN_ME.sql). No
@@ -60,7 +59,6 @@ const TABS = [
   { k: 'teachers', label: 'Teachers', icon: 'school-outline' },
   { k: 'venues', label: 'Venues', icon: 'business-outline' },
   { k: 'verify', label: 'Verify', icon: 'shield-checkmark-outline' },
-  { k: 'music', label: 'Music', icon: 'musical-notes-outline' },
   { k: 'feedback', label: 'Feedback', icon: 'chatbubbles-outline' },
   { k: 'help', label: 'Help', icon: 'help-circle-outline' },
   { k: 'bardi', label: 'Papyrus', icon: 'sparkles-outline' },
@@ -567,7 +565,6 @@ const FIX = {
   capture: 'Posting a photo or video failed. Check storage (R2/Supabase) is set up.',
   story: 'A story failed to load or post.',
   map: 'The map failed to load places.',
-  music: 'Music failed to load.',
   media: 'The media library failed.',
   permission: 'A database rule refused something it should allow. Send Claude the message.',
   query: 'A database query is wrong (often after a change). Send Claude the message.',
@@ -649,12 +646,6 @@ export const AdminPanel = ({ onClose, access = { owner: true }, initialTab = nul
   const [safetyErr, setSafetyErr] = useState(null);
   const [hostErr, setHostErr] = useState(null);
   const [crashes, setCrashes] = useState(() => { try { return recent(); } catch (e) { return []; } });
-  const [music, setMusic] = useState(null);
-  const [importing, setImporting] = useState(null);
-  const [imported, setImported] = useState(0);
-  const [importErr, setImportErr] = useState(null);
-  const [wipeArmed, setWipeArmed] = useState(false);
-  const [wipeCount, setWipeCount] = useState(0);
   const [feedback, setFeedback] = useState(null);
   const [fbReply, setFbReply] = useState({});      // id -> draft answer
   const [fbSending, setFbSending] = useState(null);
@@ -691,7 +682,6 @@ export const AdminPanel = ({ onClose, access = { owner: true }, initialTab = nul
     if (tab === 'safety' && safety == null) fetchSafetyQueue().then(setSafety).catch(() => { setSafety({ reports: [], coach: [] }); setSafetyErr(true); });
     if (tab === 'hosts' && hosts == null) fetchPendingHosts().then(setHosts).catch(() => { setHosts([]); setHostErr(true); });
     if (tab === 'verify' && verifs == null) fetchPendingVerifications().then(setVerifs).catch(() => setVerifs([]));
-    if (tab === 'music' && music == null) fetchTracks({ all: true, meId: user && user.id }).then((rows) => setMusic((rows || []).filter((t) => !t.is_approved && !t.is_official))).catch(() => setMusic([]));
     if (tab === 'feedback' && feedback == null) fetchFeedback().then(setFeedback).catch(() => setFeedback([]));
     if (tab === 'help' && help == null) fetchHelpArticles().then(setHelp).catch(() => setHelp([]));
     if (tab === 'db' && dbRows == null) checkDatabase().then(setDbRows).catch(() => setDbRows([]));
@@ -1072,102 +1062,6 @@ export const AdminPanel = ({ onClose, access = { owner: true }, initialTab = nul
             ))
           ) : null}
 
-          {tab === 'music' ? (
-            <>
-              {/* The catalogue tools live here, not in the listener's
-                  Music screen. Importing pulls only CC0, Creative
-                  Commons, or recordings old enough to be out of
-                  copyright — the year filter on the classics import is
-                  what keeps that promise honest. */}
-              <View style={{ backgroundColor: C.bg2, borderWidth: 1, borderColor: C.line, borderRadius: 14, padding: 12, marginBottom: 14 }}>
-                <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '900' }}>Grow the library</Text>
-                <Text style={{ color: C.faint, fontSize: 11.5, lineHeight: 17, marginTop: 3 }}>
-                  Everything imported is free to use. Credit is stored either way.
-                </Text>
-                <View style={{ flexDirection: 'row', marginTop: 10 }}>
-                  <Pressable
-                    disabled={!!importing}
-                    onPress={async () => {
-                      setImporting('cc'); setImported(0);
-                      try { const n = await harvestFreeMusic(user && user.id, setImported); setImported(n); }
-                      catch (e) { setImportErr(e && e.message); }
-                      finally { setImporting(null); }
-                    }}
-                    style={{ flex: 1, marginRight: 8, backgroundColor: C.purple, borderRadius: 999, paddingVertical: 10, alignItems: 'center', opacity: importing ? 0.5 : 1 }}
-                  >
-                    <Text style={{ color: '#FFF', fontSize: 12.5, fontWeight: '900' }}>
-                      {importing === 'cc' ? 'Importing…' : 'Creative Commons'}
-                    </Text>
-                  </Pressable>
-                  <Pressable
-                    disabled={!!importing}
-                    onPress={async () => {
-                      setImporting('pd'); setImported(0);
-                      try { const n = await harvestPublicDomainClassics(user && user.id, setImported); setImported(n); }
-                      catch (e) { setImportErr(e && e.message); }
-                      finally { setImporting(null); }
-                    }}
-                    style={{ flex: 1, backgroundColor: C.glassHi, borderRadius: 999, paddingVertical: 10, alignItems: 'center', opacity: importing ? 0.5 : 1 }}
-                  >
-                    <Text style={{ color: C.text, fontSize: 12.5, fontWeight: '900' }}>
-                      {importing === 'pd' ? 'Importing…' : '📻 Pre-1929 classics'}
-                    </Text>
-                  </Pressable>
-                </View>
-                {importing || imported ? (
-                  <Text style={{ color: C.dim, fontSize: 11.5, marginTop: 8 }}>{imported} added so far</Text>
-                ) : null}
-                {importErr ? (
-                  <Text style={{ color: C.coral, fontSize: 11.5, marginTop: 6 }}>{importErr}</Text>
-                ) : null}
-
-                {/* Undoing an import has to be as easy as making one.
-                    Two taps, and the first one says the number out loud
-                    so nothing large happens by accident. */}
-                <Pressable
-                  onPress={async () => {
-                    if (!wipeArmed) {
-                      const n = await countImportedTracks(user && user.id).catch(() => 0);
-                      setWipeCount(n); setWipeArmed(true);
-                      setTimeout(() => setWipeArmed(false), 6000);
-                      return;
-                    }
-                    setWipeArmed(false);
-                    try {
-                      const n = await clearImportedTracks(user && user.id);
-                      setImported(0); setImportErr(null);
-                      setMusic(null);
-                      setWipeCount(-n);
-                    } catch (e) { setImportErr(e && e.message); }
-                  }}
-                  style={{ marginTop: 10, borderWidth: 1, borderColor: wipeArmed ? C.coral : C.line, borderRadius: 999, paddingVertical: 9, alignItems: 'center' }}
-                >
-                  <Text style={{ color: wipeArmed ? C.coral : C.dim, fontSize: 12, fontWeight: '900' }}>
-                    {wipeArmed
-                      ? 'Tap again to remove ' + wipeCount + ' imported tracks'
-                      : wipeCount < 0 ? 'Removed ' + (-wipeCount) : 'Remove everything I imported'}
-                  </Text>
-                </Pressable>
-              </View>
-            {music == null ? <ActivityIndicator color={C.purple} style={{ marginTop: 30 }} /> :
-            music.length === 0 ? <Empty t="No tracks waiting for approval" /> :
-            music.map((t) => (
-              <View key={t.id} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.line }}>
-                <Text style={{ fontSize: 22, marginRight: 10 }}>{t.cover_emoji || '🎵'}</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }} numberOfLines={1}>{t.title}</Text>
-                  <Text style={{ color: C.faint, fontSize: 11 }} numberOfLines={1}>{t.artist || 'unknown'}{t.license ? ' · ' + t.license : ''}</Text>
-                </View>
-                <Pressable onPress={async () => { await setTrackApproval(t.id, false).catch(() => {}); setMusic((l) => l.filter((x) => x.id !== t.id)); }} style={{ marginRight: 8 }}>
-                  <View style={{ borderRadius: 999, borderWidth: 1, borderColor: C.line, paddingHorizontal: 12, paddingVertical: 7 }}><Text style={{ color: C.dim, fontSize: 12, fontWeight: '800' }}>Reject</Text></View>
-                </Pressable>
-                <Pressable onPress={async () => { await setTrackApproval(t.id, true); tapSuccess(); setMusic((l) => l.filter((x) => x.id !== t.id)); }}>
-                  <View style={{ borderRadius: 999, backgroundColor: C.green, paddingHorizontal: 13, paddingVertical: 7 }}><Text style={{ color: '#FFF', fontSize: 12, fontWeight: '900' }}>Approve</Text></View>
-                </Pressable>
-              </View>
-            ))}
-            </>
-          ) : null}
 
           {tab === 'feedback' ? (
             feedback == null ? <ActivityIndicator color={C.purple} style={{ marginTop: 30 }} /> :
