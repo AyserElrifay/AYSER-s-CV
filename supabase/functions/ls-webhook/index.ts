@@ -17,9 +17,12 @@
 //  the same way: its status, its renewal date, its end date
 //  (ls_apply in RUN_ME.sql decides what that means for Plus).
 //
-//  Which tier it is comes from the variant: LEMONSQUEEZY_VIP_VARIANT_ID
-//  is VIP, anything else is Basic — so a plan change made in the
-//  customer portal moves the tier too.
+//  Which tier it is comes from what was bought, as Lemon Squeezy's signed
+//  event says it: the variant LEMONSQUEEZY_VIP_VARIANT_ID, or a product
+//  or variant whose name says "VIP", is VIP; anything else is Basic. The
+//  checkout link's custom data only says WHO — never which tier — so
+//  nobody can buy Basic and be given VIP. A plan change in the customer
+//  portal moves the tier too.
 //
 //  Secret: LEMONSQUEEZY_WEBHOOK_SECRET.  Deploy with --no-verify-jwt.
 // ═══════════════════════════════════════════════════════════════════
@@ -77,7 +80,8 @@ Deno.serve(async (req) => {
     subscription_id: subscriptionId,
     customer_id: s.customer_id != null ? String(s.customer_id) : null,
     variant_id: s.variant_id != null ? String(s.variant_id) : null,
-    tier: s.variant_id != null && String(s.variant_id) === String(Deno.env.get('LEMONSQUEEZY_VIP_VARIANT_ID') || '') ? 'vip' : 'basic',
+    tier: (s.variant_id != null && String(s.variant_id) === String(Deno.env.get('LEMONSQUEEZY_VIP_VARIANT_ID') || '-'))
+      || /\bvip\b/i.test(String(s.product_name || '') + ' ' + String(s.variant_name || '')) ? 'vip' : 'basic',
     status: s.status || null,
     renews_at: s.renews_at || null,
     ends_at: s.ends_at || null,

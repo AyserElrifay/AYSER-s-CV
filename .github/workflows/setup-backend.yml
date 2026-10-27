@@ -266,21 +266,17 @@ jobs:
           set -euo pipefail
           supabase secrets set --project-ref "$REF" "ALLOWED_ORIGIN=$SITE_ORIGIN" > /dev/null
           echo "ALLOWED_ORIGIN set to $SITE_ORIGIN"
-          # Moments Plus through Lemon Squeezy — all four or none (ls-checkout says not_configured until then)
-          if [ -n "${LEMONSQUEEZY_API_KEY:-}" ] && [ -n "${LEMONSQUEEZY_STORE_ID:-}" ] && [ -n "${LEMONSQUEEZY_VARIANT_ID:-}" ] && [ -n "${LEMONSQUEEZY_WEBHOOK_SECRET:-}" ]; then
-            supabase secrets set --project-ref "$REF" "LEMONSQUEEZY_API_KEY=$LEMONSQUEEZY_API_KEY" "LEMONSQUEEZY_STORE_ID=$LEMONSQUEEZY_STORE_ID" \
-              "LEMONSQUEEZY_VARIANT_ID=$LEMONSQUEEZY_VARIANT_ID" "LEMONSQUEEZY_WEBHOOK_SECRET=$LEMONSQUEEZY_WEBHOOK_SECRET" > /dev/null
-            echo "Lemon Squeezy secrets set."
-            # the VIP variant (199 EGP): without it, Become VIP says payments are coming
-            if [ -n "${LEMONSQUEEZY_VIP_VARIANT_ID:-}" ]; then
-              supabase secrets set --project-ref "$REF" "LEMONSQUEEZY_VIP_VARIANT_ID=$LEMONSQUEEZY_VIP_VARIANT_ID" > /dev/null
-              echo "Lemon Squeezy VIP variant set."
+          # Moments Basic / VIP through Lemon Squeezy — each secret on its own. The checkout
+          # links need none of them; the webhook needs only its signing secret.
+          for k in LEMONSQUEEZY_WEBHOOK_SECRET LEMONSQUEEZY_API_KEY LEMONSQUEEZY_STORE_ID LEMONSQUEEZY_VARIANT_ID LEMONSQUEEZY_VIP_VARIANT_ID; do
+            v="${!k:-}"
+            if [ -n "$v" ]; then
+              supabase secrets set --project-ref "$REF" "$k=$v" > /dev/null
+              echo "$k set."
             else
-              echo "::warning::No LEMONSQUEEZY_VIP_VARIANT_ID secret — Become VIP is not on sale yet."
+              echo "::warning::No $k secret."
             fi
-          else
-            echo "::warning::Lemon Squeezy secrets incomplete — Plus monthly falls back to Paymob until all four exist."
-          fi
+          done
           if [ -n "${ANTHROPIC_API_KEY:-}" ]; then
             supabase secrets set --project-ref "$REF" "ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY" > /dev/null
             echo "ANTHROPIC_API_KEY set."

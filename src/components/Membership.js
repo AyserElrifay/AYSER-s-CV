@@ -115,13 +115,13 @@ const WhySheet = ({ lang, onClose }) => {
   );
 };
 
-const useBuy = (lang) => {
+const useBuy = (lang, m) => {
   const [busy, setBusy] = useState(null);
   const [note, setNote] = useState(null);
   const buy = async (tier) => {
     if (busy) return;
     tapMedium(); setBusy(tier); setNote(null);
-    const r = await buyTier(tier);
+    const r = await buyTier(tier, m);
     setBusy(null);
     if (r.ok && r.changed) { tapSuccess(); setNote(w(lang, 'changed')); }
     else if (!r.ok) setNote(w(lang, r.reason === 'not_configured' ? 'soon' : 'err'));
@@ -138,7 +138,7 @@ export const PricingGate = ({ m, hard, onClose, onSignOut }) => {
   const { isDark } = useTheme();
   const insets = useSafeAreaInsets();
   const [why, setWhy] = useState(false);
-  const { busy, note, buy } = useBuy(lang);
+  const { busy, note, buy } = useBuy(lang, m);
   const pr = (m && m.prices) || { basic: 99, vip: 199, currency: 'EGP' };
   const tier = m ? m.tier : 'FREE';
 
@@ -198,7 +198,7 @@ export const VipSheet = ({ m, onClose }) => {
   useSheetBack(onClose);
   const { lang } = useLang();
   const insets = useSafeAreaInsets();
-  const { busy, note, buy } = useBuy(lang);
+  const { busy, note, buy } = useBuy(lang, m);
   const pr = (m && m.prices) || { vip: 199, currency: 'EGP' };
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>

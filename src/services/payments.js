@@ -58,14 +58,39 @@ export async function payBooking(bookingId) {
 
 /* ── MOMENTS PLUS ── the app names the plan; the server reads the
    owner's price, and Paymob's signed webhook adds the days. */
-/* Moments Basic or VIP, monthly, through Lemon Squeezy (functions/ls-checkout).
-   A new member goes to the checkout; a member changing tier has their one
-   subscription moved (the webhook switches the tier on); a member asking
-   for the tier they have gets the portal to manage it. */
-export async function buyTier(tier) {
+/* The store's two published checkout links (Lemon Squeezy → Products →
+   Share). Public by design — a link only opens the checkout; what
+   anybody is given is decided by ls-webhook from what was really paid
+   for, never by which button was pressed. */
+const LS_BUY = {
+  basic: 'https://therealmoments.lemonsqueezy.com/checkout/buy/b8ff2989-2a19-4439-886e-336526bd5460',
+  vip: 'https://therealmoments.lemonsqueezy.com/checkout/buy/f208fa1d-084e-4633-ad2d-334f7554193f',
+};
+
+/* Moments Basic or VIP, monthly, through Lemon Squeezy.
+   Somebody not yet subscribed goes straight to that plan's checkout link,
+   carrying their account id (checkout[custom][user_id]) so the signed
+   webhook knows whose membership it is. Somebody already subscribed goes
+   through functions/ls-checkout: a change of tier moves their one
+   subscription (never a second one), the same tier opens the portal. */
+export async function buyTier(tier, member) {
   if (!SUPABASE_READY) return { ok: false, reason: 'offline' };
+  const t = tier === 'vip' ? 'vip' : 'basic';
+  if (!(member && member.manage)) {
+    try {
+      const { data } = await supabase.auth.getUser();
+      const u = data && data.user;
+      if (!u) return { ok: false, reason: 'signed_out' };
+      const q = '?checkout[custom][user_id]=' + encodeURIComponent(u.id)
+        + (u.email ? '&checkout[email]=' + encodeURIComponent(u.email) : '');
+      go(LS_BUY[t] + q);
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, reason: 'offline' };
+    }
+  }
   try {
-    const { data, error } = await supabase.functions.invoke('ls-checkout', { body: { tier: tier === 'vip' ? 'vip' : 'basic' } });
+    const { data, error } = await supabase.functions.invoke('ls-checkout', { body: { tier: t } });
     if (error) {
       const status = error.context && error.context.status;
       return { ok: false, reason: status === 503 ? 'not_configured' : 'gateway' };
