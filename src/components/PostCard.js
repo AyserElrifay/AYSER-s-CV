@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
+import { videosAround, getVideoQueue } from '../lib/videoQueue';
 import { View, Text, Pressable, Image, ImageBackground, Animated, Easing, TextInput, Platform } from 'react-native';
 import { LinearGradient } from '../ui/Gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -435,16 +436,21 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
         </View>
       ) : null}
 
-      {viewing ? (
-        <ReelsViewer
-          reels={[{ ...post, kind: 'video' }]}
-          startIndex={0}
-          vibes={vibed ? { [post.id]: true } : {}}
-          onVibe={() => onVibe && onVibe()}
-          onComment={() => { setViewing(false); onComment && onComment(post); }}
-          onClose={() => setViewing(false)}
-        />
-      ) : null}
+      {/* the video, and the feed's other videos above and below it — swipe like Reels */}
+      {viewing ? (() => {
+        const around = videosAround(post);
+        const q = getVideoQueue();
+        return (
+          <ReelsViewer
+            reels={around.reels.map((r) => ({ ...r, kind: 'video' }))}
+            startIndex={around.index}
+            vibes={around.mine ? (vibed ? { [post.id]: true } : {}) : { ...q.vibes, [post.id]: !!vibed }}
+            onVibe={(item) => { if (!item || item.id === post.id) { if (onVibe) onVibe(); } else if (q.onVibe) q.onVibe(item); }}
+            onComment={(item) => { setViewing(false); if (onComment) onComment(item && item.id !== post.id ? item : post); }}
+            onClose={() => setViewing(false)}
+          />
+        );
+      })() : null}
 
       {coverOpen ? (
         <CoverSheet

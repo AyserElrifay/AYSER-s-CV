@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { TextInput } from 'react-native';
 import { looksPlayable, watchForBlankVideo } from '../lib/videoCheck';
-import { View, Text, Modal, Pressable, ImageBackground, FlatList, Dimensions, Image, Platform } from 'react-native';
+import { View, Text, Modal, Pressable, ImageBackground, FlatList, Image, Platform, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from '../ui/Gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -22,7 +22,6 @@ import { getPrefs, subscribePrefs } from '../services/prefs';
 import { useSheetBack } from '../hooks/useSheetBack';
 import { SheetHandle } from './SheetHandle';
 
-const { height: H } = Dimensions.get('window');
 
 /* TikTok-style full-screen reels: swipe up for the next one, action
    rail on the right, sound tag at the bottom. */
@@ -40,6 +39,8 @@ export const ReelsViewer = ({ reels, startIndex = 0, vibes, onVibe, onComment, o
   const reelPreload = isSaving(dataMode) ? 'metadata' : 'auto';
 
   const { t } = useLang();
+  // the real screen height, read live — fixed at load it came out short on an installed iPhone app (a white band at the bottom)
+  const { height: H } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [report, setReport] = useState(null);

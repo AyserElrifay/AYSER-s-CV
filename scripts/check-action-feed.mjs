@@ -37,7 +37,10 @@ is('no adverts are mixed in', !/injectAds|fetchFeedAds/.test(feed), true);
 is('a new moment needs a place', /feed_need_place/.test(read('src/components/ComposeModal.js')), true);
 is('an ordinary moment is not turned into a pitch (no "make a plan here" under every post)', /onHangoutHere\(post\)/.test(read('src/components/PostCard.js')), false);
 is('the feed has an end, and it points out of the feed', /ListFooterComponent=/.test(read('src/screens/HomeScreen.js')) && /goToTab\('TOGETHER'\)/.test(read('src/screens/HomeScreen.js')), true);
-is('a clip opens alone, never swiping into the next', /reels=\{\[\{ \.\.\.post, kind: 'video' \}\]\}/.test(read('src/components/PostCard.js')), true);
+/* Ayser, later: "خليني لما افتح فديو اقدر اقلب عادي". A clip opened from the
+   feed swipes to the feed's OTHER videos — the ones already in the
+   thirty — and stops there: never an endless reel from somewhere else. */
+is('a clip swipes only through the feed\'s own videos, which end', /videosAround\(post\)/.test(read('src/components/PostCard.js')) && /queue\.posts\.filter\(isVideoPost\)/.test(read('src/lib/videoQueue.js')) && /setVideoQueue\(shown/.test(read('src/screens/HomeScreen.js')), true);
 // PHOTO, and on an iPhone a VIDEO that hands over to the phone's camera — never a reel or long-video mode
 is('no reel or long-video mode in the camera', /\[\['photo', t\('cap_photo'\)\], \['video', t\('cap_video'\)\]\]/.test(read('src/components/CaptureModal.js')) && !/setMode\('(reel|video)'\)|\['story', 'reel'/.test(read('src/components/CaptureModal.js')), true);
 

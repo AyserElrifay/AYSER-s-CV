@@ -32,6 +32,7 @@ import { goToTab, showOnMap } from '../lib/mapBus';
 import { takeLaunchTarget, onPushOpen } from '../lib/push';
 import { GoOutRail } from '../components/GoOutRail';
 import { NextUp } from '../components/NextUp';
+import { setVideoQueue } from '../lib/videoQueue';
 import { lazyOverlay } from '../lib/lazyScreen';
 // the two things at the top of Home, fetched after the feed: your next step, and today's question
 const NextStep = lazyOverlay(() => import('../components/NextStep').then((m) => ({ default: m.NextStep })));
@@ -165,6 +166,8 @@ export const HomeScreen = () => {
      the end card under them, it does not lock the feed with time left */
   const feedClosed = !!user && gate.used >= budget;
   const shown = homeTab === 'moments' && !feedClosed ? posts : [];
+  // a video opened from the feed can be swiped to the next one (src/lib/videoQueue.js)
+  setVideoQueue(shown, vibes, (item) => onVibe(item));
   const onEnd = () => { if (homeTab === 'moments' && posts.length && !gate.done) { finishedNow.current = true; setGate(markSeenAll()); } };
 
   /* ── TAP HOME AGAIN: BACK TO THE TOP, AND FRESH ──────────────────────
@@ -684,7 +687,7 @@ export const HomeScreen = () => {
               onShare={onShare}
               onJoin={setMagicPost}
               onVibe={() => onVibe(item)}
-              onComment={() => openComments(item)}
+              onComment={(p) => openComments(p && p.id ? p : item)}
               onOpenProfile={setProfileUser}
               onOpenReel={openReel}
               onHangoutHere={(p) => setHangoutAt(p)}
