@@ -38,8 +38,10 @@ is('the webhook says monthly or yearly', /period: periodOf\(s\)/.test(hook), tru
 is('changing tier moves the one subscription, never a second', /method: 'PATCH'[\s\S]+variant_id: Number\(VARIANT\)/.test(checkout), true);
 
 console.log('\nthe doors');
-is('signed in and FREE: the gateway, over everything', /m\.gate && m\.tier === 'FREE'\) return <PricingGate m=\{m\} hard/.test(app), true);
-is('VIP doors open the VIP sheet', /VIP_DOORS = \['vip', 'chat', 'lounge', 'profile', 'vip_seat'\]/.test(app), true);
+// Freemium (Ayser, October 2026): a free account comes in; the plans open at a locked door
+is('signed in and FREE: in the app, no wall', !/return <PricingGate m=\{m\} hard/.test(app), true);
+is('a locked door opens the plans', /if \(!VIP_DOORS\.includes\(ask\)\) return <PricingGate m=\{m\} onClose=/.test(app), true);
+is('Black-only doors open the Black sheet; chat is Moments+ too', /VIP_DOORS = \['vip', 'lounge', 'profile', 'vip_seat'\]/.test(app), true);
 is('the gateway says why, and lets you sign out', /'Why are we charging\?'/.test(gate) && /onSignOut\(\)/.test(gate), true);
 is('the last two seats of a meetup are VIP’s', /'reason', 'vip_seat'/.test(sql), true);
 
