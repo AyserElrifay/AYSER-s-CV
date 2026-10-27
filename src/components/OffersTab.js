@@ -9,6 +9,7 @@ import { appLink, shareLink } from '../utils/share';
 import { lazyOverlay } from '../lib/lazyScreen';
 import { searchProfiles } from '../services/social';
 import { giftMembership, endGift, giftList } from '../services/gifts';
+import { ownerDrops, ownerDropSave } from '../services/mvp';
 
 // the event page, as its host sees it: write the pin, open or end the workshop room
 const EventRoom = lazyOverlay(() => import('./LiveKit').then((m) => ({ default: m.EventRoom })));
@@ -211,6 +212,74 @@ const fromForm = (f) => {
 /* ── a gifted membership ── Ayser: "ادّيني أنا وعوض يوسف وسهيلة free لمدة ٣ شهور".
    Find the member, pick the plan and the months, Gift: they are in at once,
    nothing to pay, nothing renewing (RUN_ME.sql, "GIFTED MEMBERSHIPS"). */
+/* ── WEEKLY DROPS (the final MVP) ── the only offline tables: two or three a
+   week, made here. The neighbourhood, time, vibe and seats are public; the
+   café and its map link are kept for confirmed seats, 12 hours before.
+   Times are Cairo time. */
+const cairoIso = (local) => {
+  // "2026-11-05 20:00" in Cairo → an instant (Cairo is UTC+2, or +3 in summer time)
+  const m = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{1,2}):(\d{2})$/.exec(String(local || '').trim());
+  if (!m) return null;
+  const guess = Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]);
+  const off = (d) => { const p = new Intl.DateTimeFormat('en', { timeZone: 'Africa/Cairo', hour12: false, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).formatToParts(new Date(d)).reduce((a, x) => ({ ...a, [x.type]: x.value }), {});
+    return Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour % 24, +p.minute) - d; };
+  return new Date(guess - off(guess)).toISOString();
+};
+const cairoLocal = (iso) => {
+  try { const p = new Intl.DateTimeFormat('en', { timeZone: 'Africa/Cairo', hour12: false, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).formatToParts(new Date(iso)).reduce((a, x) => ({ ...a, [x.type]: x.value }), {});
+    return p.year + '-' + p.month + '-' + p.day + ' ' + (+p.hour % 24 + '').padStart(2, '0') + ':' + p.minute; } catch (e) { return ''; }
+};
+const DROP0 = { title: '', title_ar: '', neighborhood: '', neighborhood_ar: '', vibe: 'English · Coffee', vibe_ar: 'إنجليزي · قهوة', city: 'Cairo', when: '', seats: '6', venue_name: '', map_url: '' };
+const DropsBox = () => {
+  const [list, setList] = useState([]);
+  const [f, setF] = useState(null);
+  const [note, setNote] = useState(null);
+  const load = () => ownerDrops().then((r) => setList(Array.isArray(r) ? r : []));
+  useEffect(() => { load(); }, []);
+  const set = (k) => (v) => setF((x) => ({ ...x, [k]: v }));
+  const save = async () => {
+    const at = cairoIso(f.when);
+    if (!at) { setNote('Time as 2026-11-05 20:00 (Cairo).'); return; }
+    const r = await ownerDropSave({ id: f.id || null, title: f.title || ('The ' + f.neighborhood + ' Table'), title_ar: f.title_ar, neighborhood: f.neighborhood,
+      neighborhood_ar: f.neighborhood_ar, vibe: f.vibe, vibe_ar: f.vibe_ar, city: f.city, starts_at: at, seats: f.seats, venue_name: f.venue_name, map_url: f.map_url, status: f.status });
+    if (r && r.ok) { tapSuccess(); setNote('Saved — it is on Home now.'); setF(null); load(); }
+    else setNote(r && r.reason === 'incomplete' ? 'The neighbourhood and the time are needed.' : 'Could not save — owner only.');
+  };
+  return (
+    <View style={{ borderWidth: 1, borderColor: C.line, borderRadius: 14, padding: 12, marginTop: 12 }}>
+      <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '900' }}>Weekly Drops</Text>
+      <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 3 }}>The only offline tables. Home shows the next three. The café stays hidden until 12 hours before, and only for confirmed seats.</Text>
+      {f ? (
+        <>
+          <Field label="Neighbourhood" value={f.neighborhood} onChange={set('neighborhood')} ph="Zamalek" />
+          <Field label="Neighbourhood · Arabic" value={f.neighborhood_ar} onChange={set('neighborhood_ar')} ph="الزمالك" />
+          <Field label="When (Cairo time)" value={f.when} onChange={set('when')} ph="2026-11-05 20:00" />
+          <Field label="Seats" value={f.seats} onChange={set('seats')} ph="6" />
+          <Field label="Vibe" value={f.vibe} onChange={set('vibe')} ph="English · Coffee" />
+          <Field label="Vibe · Arabic" value={f.vibe_ar} onChange={set('vibe_ar')} ph="إنجليزي · قهوة" />
+          <Field label="Title (Studio only)" value={f.title} onChange={set('title')} ph="The Zamalek Table" />
+          <Field label="City" value={f.city} onChange={set('city')} ph="Cairo" />
+          <Field label="Café (hidden until 12h before)" value={f.venue_name} onChange={set('venue_name')} ph="Café name" />
+          <Field label="Map link (https://…)" value={f.map_url} onChange={set('map_url')} ph="https://maps.app.goo.gl/…" />
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+            <Btn label="Save drop" solid onPress={save} />
+            {f.id ? <Btn label={f.status === 'closed' ? 'Open again' : 'Close it'} onPress={() => setF((x) => ({ ...x, status: x.status === 'closed' ? 'live' : 'closed' }))} /> : null}
+            <Btn label="Cancel" onPress={() => setF(null)} />
+          </View>
+        </>
+      ) : <Btn label="New drop" solid onPress={() => { setNote(null); setF({ ...DROP0 }); }} />}
+      {note ? <Text style={{ color: C.green, fontSize: 13, marginTop: 8 }}>{note}</Text> : null}
+      {list.map((d) => (
+        <Pressable key={d.id} onPress={() => { tapLight(); setNote(null); setF({ ...DROP0, ...d, when: cairoLocal(d.starts_at), seats: String(d.seats || 6), venue_name: d.venue_name || '', map_url: d.map_url || '' }); }} accessibilityRole="button">
+          <Text style={{ color: C.text, fontSize: 13.5, paddingVertical: 7 }}>
+            {(d.neighborhood || '—') + ' · ' + cairoLocal(d.starts_at) + ' · ' + (d.taken || 0) + '/' + (d.seats || 6) + (d.waiting ? ' · ' + d.waiting + ' waiting' : '') + (d.status !== 'live' ? ' · ' + d.status : '') + (d.venue_name ? '' : ' · no café yet')}
+          </Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+};
+
 const GiftBox = () => {
   const [q, setQ] = useState('');
   const [found, setFound] = useState([]);
@@ -501,6 +570,7 @@ export const OffersTab = ({ userId }) => {
         <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 3 }}>This is also the membership gate: on, everybody without Moments+ or Moments Black meets the plans. Turn on only once a test payment came back as a membership.</Text>
         <Btn label={online ? 'Turn off' : 'Turn on'} danger={online} onPress={async () => { const r = await ownerSetSetting('payments_online', !online); setMsg(r && r.ok ? 'Saved.' : 'Could not save.'); load(); }} />
       </View>
+      <DropsBox />
       <GiftBox />
       {msg ? <Text style={{ color: C.green, fontSize: 13.5, marginTop: 10 }}>{msg}</Text> : null}
       {party ? <Party offer={party} onClose={() => setParty(null)} /> : null}

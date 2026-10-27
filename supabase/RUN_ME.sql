@@ -23132,6 +23132,453 @@ do $do$ begin
 exception when others then raise notice 'notifications kind constraint skipped: %', sqlerrm;
 end $do$;
 
+-- ════════════════════════════════════════════════════════════════════
+--  THE FINAL MVP (Ayser, October 2026): "Freemium to browse, paid to act"
+--  · WEEKLY DROPS — the only offline tables: two or three a week, made in
+--    the Studio. Public: the neighbourhood, the time, the vibe and the seat
+--    counter. The café and its map pin are kept in drop_venues (no policy:
+--    nobody reads it directly) and shown only to a confirmed seat, from 12
+--    hours before. A seat is claimed with one tap by Moments+ / Black; a
+--    free account sees the plans. Full → the waitlist.
+--  · QUOTAS a month (Cairo): Moments+ 2 Drops (one upcoming at a time,
+--    until its QR check-in) and 4 Circles; Black 4 Drops (several ahead)
+--    and Circles without a cap.
+--  · LANGUAGE CIRCLES — instead of rooms open all week: every week the
+--    community votes between two times (Thursday 9 pm, Friday 8 pm, Cairo);
+--    voting closes 24 hours before the first; the winner opens for 30
+--    minutes, pg_cron tells everybody the moment it opens, and the people
+--    in it become Table Buddies.
+--  · CHAT only between Table Buddies (same table QR, or the same Circle);
+--    no other first message. A free account answers a member's message.
+--  · Plans are made by the Moments team only (the Studio), never by users.
+--  Safe to re-run.
+-- ════════════════════════════════════════════════════════════════════
+
+alter table public.offers add column if not exists is_drop boolean not null default false;
+alter table public.offers add column if not exists neighborhood text;
+alter table public.offers add column if not exists neighborhood_ar text;
+alter table public.offers add column if not exists vibe text;
+alter table public.offers add column if not exists vibe_ar text;
+
+create table if not exists public.drop_venues (
+  offer_id uuid primary key references public.offers(id) on delete cascade,
+  name     text,
+  map_url  text check (map_url is null or map_url ~* '^https://')
+);
+alter table public.drop_venues enable row level security;     -- no policy: through the functions below only
+
+create table if not exists public.drop_waitlist (
+  offer_id uuid not null references public.offers(id) on delete cascade,
+  user_id  uuid not null references public.profiles(id) on delete cascade,
+  at       timestamptz not null default now(),
+  primary key (offer_id, user_id)
+);
+alter table public.drop_waitlist enable row level security;
+
+create or replace function public.cairo_month()
+returns timestamptz language sql stable as $$
+  select (date_trunc('month', now() at time zone 'Africa/Cairo')) at time zone 'Africa/Cairo';
+$$;
+
+-- what a member has left this month
+create or replace function public.quota_of(u uuid)
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare tier text := public.member_tier(u); used int; active int; circles int;
+begin
+  select count(*) into used from public.bookings b join public.offers o on o.id = b.offer_id
+   where b.user_id = u and o.is_drop and b.status in ('paid','attended') and b.created_at >= public.cairo_month();
+  select count(*) into active from public.bookings b join public.offers o on o.id = b.offer_id
+   where b.user_id = u and o.is_drop and b.status = 'paid'
+     and coalesce(o.ends_at, o.starts_at + interval '3 hours') > now();
+  select count(*) into circles from public.circle_joins j where j.user_id = u and j.at >= public.cairo_month();
+  return jsonb_build_object('tier', tier,
+    'drops_used', used, 'drops_cap', case tier when 'VIP' then 4 when 'BASIC' then 2 else 0 end,
+    'active', active, 'active_cap', case tier when 'BASIC' then 1 else null end,
+    'circles_used', circles, 'circles_cap', case tier when 'BASIC' then 4 when 'VIP' then null else 0 end);
+end $$;
+revoke all on function public.quota_of(uuid) from public, anon, authenticated;
+
+create or replace function public.my_quota()
+returns jsonb language sql stable security definer set search_path = public as $$ select public.quota_of(auth.uid()); $$;
+revoke execute on function public.my_quota() from public, anon;
+grant execute on function public.my_quota() to authenticated;
+
+-- the week's drops, as anybody may see them
+create or replace function public.drops_list()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select coalesce(jsonb_agg(x order by x->>'starts_at'), '[]'::jsonb) from (
+    select jsonb_build_object('id', o.id, 'title', o.title, 'title_ar', o.title_ar,
+      'neighborhood', o.neighborhood, 'neighborhood_ar', o.neighborhood_ar, 'city', o.city,
+      'vibe', o.vibe, 'vibe_ar', o.vibe_ar, 'starts_at', o.starts_at,
+      'seats', o.seats, 'taken', public.offer_seats_taken(o.id),
+      'mine', exists (select 1 from public.bookings b where b.offer_id = o.id and b.user_id = auth.uid() and b.status in ('paid','attended')),
+      'waiting', exists (select 1 from public.drop_waitlist w where w.offer_id = o.id and w.user_id = auth.uid()),
+      'reveal_at', o.starts_at - interval '12 hours',
+      'venue', case when now() >= o.starts_at - interval '12 hours'
+                     and exists (select 1 from public.bookings b where b.offer_id = o.id and b.user_id = auth.uid() and b.status in ('paid','attended'))
+                    then (select jsonb_build_object('name', v.name, 'map_url', v.map_url) from public.drop_venues v where v.offer_id = o.id) end) x
+      from public.offers o
+     where o.is_drop and o.status = 'live' and o.starts_at > now() - interval '3 hours'
+     order by o.starts_at limit 3) s;
+$$;
+revoke execute on function public.drops_list() from public, anon;
+grant execute on function public.drops_list() to authenticated;
+
+create or replace function public.drop_claim(p_id uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); o public.offers%rowtype; q jsonb; tries int := 0;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  select * into o from public.offers where id = p_id and is_drop and status = 'live' for update;
+  if not found or o.starts_at <= now() then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
+  if exists (select 1 from public.bookings b where b.offer_id = o.id and b.user_id = me and b.status in ('paid','attended')) then
+    return jsonb_build_object('ok', true, 'already', true, 'quota', public.quota_of(me));
+  end if;
+  if public.member_tier(me) = 'FREE' then return jsonb_build_object('ok', false, 'reason', 'plus'); end if;
+  if o.seats is not null and public.offer_seats_taken(o.id) >= o.seats then return jsonb_build_object('ok', false, 'reason', 'full'); end if;
+  q := public.quota_of(me);
+  if (q->>'drops_used')::int >= (q->>'drops_cap')::int then return jsonb_build_object('ok', false, 'reason', 'quota', 'quota', q); end if;
+  if q->>'active_cap' is not null and (q->>'active')::int >= (q->>'active_cap')::int then return jsonb_build_object('ok', false, 'reason', 'active', 'quota', q); end if;
+  loop
+    begin
+      -- a seat comes with the membership: nothing to pay, so it is 'paid' at 0 and the QR check-in makes it 'attended'
+      insert into public.bookings (code, offer_id, user_id, qty, unit_price, plus_applied, total, currency, pay_mode, status, commission_pct, moments_share, partner_share)
+      values (public.booking_code(), o.id, me, 1, 0, true, 0, coalesce(o.currency, 'EGP'), 'reserve', 'paid', 0, 0, 0);
+      exit;
+    exception when unique_violation then tries := tries + 1; if tries > 5 then raise; end if;
+    end;
+  end loop;
+  delete from public.drop_waitlist where offer_id = o.id and user_id = me;
+  return jsonb_build_object('ok', true, 'taken', public.offer_seats_taken(o.id), 'seats', o.seats, 'quota', public.quota_of(me));
+end $$;
+revoke execute on function public.drop_claim(uuid) from public, anon;
+grant execute on function public.drop_claim(uuid) to authenticated;
+
+create or replace function public.drop_wait(p_id uuid, p_on boolean)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid();
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  if public.member_tier(me) = 'FREE' then return jsonb_build_object('ok', false, 'reason', 'plus'); end if;
+  if not exists (select 1 from public.offers where id = p_id and is_drop and status = 'live' and starts_at > now()) then
+    return jsonb_build_object('ok', false, 'reason', 'gone');
+  end if;
+  if coalesce(p_on, true) then insert into public.drop_waitlist (offer_id, user_id) values (p_id, me) on conflict do nothing;
+  else delete from public.drop_waitlist where offer_id = p_id and user_id = me; end if;
+  return jsonb_build_object('ok', true, 'waiting', coalesce(p_on, true));
+end $$;
+revoke execute on function public.drop_wait(uuid, boolean) from public, anon;
+grant execute on function public.drop_wait(uuid, boolean) to authenticated;
+
+-- giving a seat back: the first on the waitlist hears of it
+create or replace function public.drop_cancel(p_id uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); n int; w uuid; o public.offers%rowtype;
+begin
+  select * into o from public.offers where id = p_id and is_drop;
+  if not found or o.starts_at <= now() then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
+  update public.bookings set status = 'cancelled', cancelled_at = now()
+   where offer_id = p_id and user_id = me and status = 'paid';
+  get diagnostics n = row_count;
+  if n = 0 then return jsonb_build_object('ok', false, 'reason', 'not_in'); end if;
+  select user_id into w from public.drop_waitlist where offer_id = p_id order by at limit 1;
+  if w is not null then perform public.notify(w, me, 'event_update', null, p_id::text || '|' || left(o.title, 80)); end if;
+  return jsonb_build_object('ok', true, 'quota', public.quota_of(me));
+end $$;
+revoke execute on function public.drop_cancel(uuid) from public, anon;
+grant execute on function public.drop_cancel(uuid) to authenticated;
+
+-- the Studio: make or change a drop (owner only)
+create or replace function public.owner_drop_save(p jsonb)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare oid uuid := nullif(p ->> 'id', '')::uuid;
+begin
+  if not public.owner_ok() then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
+  if coalesce(trim(p ->> 'title'), '') = '' or (p ->> 'starts_at') is null or coalesce(trim(p ->> 'neighborhood'), '') = '' then
+    return jsonb_build_object('ok', false, 'reason', 'incomplete');
+  end if;
+  if oid is null then
+    insert into public.offers (kind, title, price, created_by, status, is_drop, pay_modes)
+    values ('table', p ->> 'title', 0, auth.uid(), 'live', true, '{reserve}') returning id into oid;
+  end if;
+  update public.offers set
+    title = p ->> 'title', title_ar = nullif(p ->> 'title_ar', ''),
+    neighborhood = trim(p ->> 'neighborhood'), neighborhood_ar = nullif(trim(p ->> 'neighborhood_ar'), ''),
+    vibe = nullif(trim(p ->> 'vibe'), ''), vibe_ar = nullif(trim(p ->> 'vibe_ar'), ''),
+    city = nullif(trim(p ->> 'city'), ''), country = coalesce(nullif(upper(p ->> 'country'), ''), 'EG'),
+    starts_at = (p ->> 'starts_at')::timestamptz,
+    ends_at = (p ->> 'starts_at')::timestamptz + interval '2 hours',
+    seats = coalesce(nullif(p ->> 'seats', '')::int, 6),
+    status = coalesce(nullif(p ->> 'status', ''), status), is_drop = true, updated_at = now()
+  where id = oid;
+  insert into public.drop_venues (offer_id, name, map_url) values (oid, nullif(trim(p ->> 'venue_name'), ''), nullif(trim(p ->> 'map_url'), ''))
+  on conflict (offer_id) do update set name = excluded.name, map_url = excluded.map_url;
+  return jsonb_build_object('ok', true, 'id', oid);
+end $$;
+revoke execute on function public.owner_drop_save(jsonb) from public, anon;
+grant execute on function public.owner_drop_save(jsonb) to authenticated;
+
+create or replace function public.owner_drops()
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+begin
+  if not public.owner_ok() then return '[]'::jsonb; end if;
+  return (select coalesce(jsonb_agg(jsonb_build_object('id', o.id, 'title', o.title, 'title_ar', o.title_ar, 'neighborhood', o.neighborhood,
+      'neighborhood_ar', o.neighborhood_ar, 'vibe', o.vibe, 'vibe_ar', o.vibe_ar, 'city', o.city, 'starts_at', o.starts_at, 'seats', o.seats,
+      'status', o.status, 'taken', public.offer_seats_taken(o.id),
+      'waiting', (select count(*) from public.drop_waitlist w where w.offer_id = o.id),
+      'venue_name', v.name, 'map_url', v.map_url) order by o.starts_at desc), '[]'::jsonb)
+    from public.offers o left join public.drop_venues v on v.offer_id = o.id
+   where o.is_drop and o.starts_at > now() - interval '30 days');
+end $$;
+revoke execute on function public.owner_drops() from public, anon;
+grant execute on function public.owner_drops() to authenticated;
+
+-- ── the Language Circles ──
+create table if not exists public.circle_polls (
+  id        uuid primary key default gen_random_uuid(),
+  lang      text not null default 'en',
+  week      date not null,
+  slots     timestamptz[] not null,
+  closes_at timestamptz not null,
+  announced boolean not null default false,
+  unique (lang, week)
+);
+create table if not exists public.circle_votes (
+  poll_id uuid not null references public.circle_polls(id) on delete cascade,
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  slot    int not null check (slot between 0 and 2),
+  at      timestamptz not null default now(),
+  primary key (poll_id, user_id)
+);
+create table if not exists public.circle_joins (
+  poll_id uuid not null references public.circle_polls(id) on delete cascade,
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  at      timestamptz not null default now(),
+  primary key (poll_id, user_id)
+);
+alter table public.circle_polls enable row level security;
+alter table public.circle_votes enable row level security;
+alter table public.circle_joins enable row level security;
+
+-- the week's poll (made when first asked): Thursday 9 pm and Friday 8 pm, Cairo
+create or replace function public.circle_poll_for(p_lang text, p_week date)
+returns public.circle_polls language plpgsql security definer set search_path = public as $$
+declare r public.circle_polls%rowtype; a timestamptz; b timestamptz;
+begin
+  select * into r from public.circle_polls where lang = p_lang and week = p_week;
+  if found then return r; end if;
+  a := (p_week + 3 + time '21:00') at time zone 'Africa/Cairo';
+  b := (p_week + 4 + time '20:00') at time zone 'Africa/Cairo';
+  insert into public.circle_polls (lang, week, slots, closes_at) values (p_lang, p_week, array[a, b], a - interval '24 hours')
+  on conflict (lang, week) do nothing;
+  select * into r from public.circle_polls where lang = p_lang and week = p_week;
+  return r;
+end $$;
+revoke all on function public.circle_poll_for(text, date) from public, anon, authenticated;
+
+create or replace function public.circle_winner(p public.circle_polls)
+returns timestamptz language sql stable security definer set search_path = public as $$
+  select p.slots[1 + coalesce((select v.slot from public.circle_votes v where v.poll_id = p.id
+                                group by v.slot order by count(*) desc, v.slot limit 1), 0)];
+$$;
+revoke all on function public.circle_winner(public.circle_polls) from public, anon, authenticated;
+
+create or replace function public.circle_now(p_lang text default 'en')
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); lg text := coalesce(nullif(p_lang, ''), 'en'); wk date; p public.circle_polls%rowtype; win timestamptz;
+        total int; st text;
+begin
+  wk := date_trunc('week', now() at time zone 'Africa/Cairo')::date;
+  p := public.circle_poll_for(lg, wk);
+  win := case when now() >= p.closes_at then public.circle_winner(p) end;
+  -- this week's circle is over (or both times passed): next week's vote
+  if (win is not null and now() > win + interval '30 minutes') or now() > p.slots[array_length(p.slots, 1)] + interval '30 minutes' then
+    p := public.circle_poll_for(lg, wk + 7);
+    win := case when now() >= p.closes_at then public.circle_winner(p) end;
+  end if;
+  select count(*) into total from public.circle_votes where poll_id = p.id;
+  st := case when now() < p.closes_at then 'voting' when now() < win then 'countdown' when now() < win + interval '30 minutes' then 'open' else 'ended' end;
+  return jsonb_build_object('ok', true, 'id', p.id, 'lang', p.lang, 'state', st, 'now', now(), 'closes_at', p.closes_at,
+    'opens_at', win, 'ends_at', win + interval '30 minutes', 'total', total,
+    'options', (select jsonb_agg(jsonb_build_object('at', s.at, 'votes', (select count(*) from public.circle_votes v where v.poll_id = p.id and v.slot = s.i - 1)) order by s.i)
+                  from unnest(p.slots) with ordinality s(at, i)),
+    'my_vote', (select slot from public.circle_votes where poll_id = p.id and user_id = me),
+    'entered', exists (select 1 from public.circle_joins where poll_id = p.id and user_id = me),
+    'people', (select count(*) from public.circle_joins where poll_id = p.id),
+    'quota', case when me is null then null else public.quota_of(me) end);
+end $$;
+revoke execute on function public.circle_now(text) from public, anon;
+grant execute on function public.circle_now(text) to authenticated;
+
+create or replace function public.circle_vote(p_poll uuid, p_slot int)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); p public.circle_polls%rowtype;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  select * into p from public.circle_polls where id = p_poll;
+  if not found or now() >= p.closes_at then return jsonb_build_object('ok', false, 'reason', 'closed'); end if;
+  if p_slot is null or p_slot < 0 or p_slot >= array_length(p.slots, 1) then return jsonb_build_object('ok', false, 'reason', 'shape'); end if;
+  insert into public.circle_votes (poll_id, user_id, slot) values (p_poll, me, p_slot)
+  on conflict (poll_id, user_id) do update set slot = excluded.slot, at = now();
+  return jsonb_build_object('ok', true);
+end $$;
+revoke execute on function public.circle_vote(uuid, int) from public, anon;
+grant execute on function public.circle_vote(uuid, int) to authenticated;
+
+-- entering the open circle: a member with circles left; everybody in it becomes Table Buddies
+create or replace function public.circle_enter(p_poll uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); p public.circle_polls%rowtype; win timestamptz; q jsonb;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  select * into p from public.circle_polls where id = p_poll;
+  if not found then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
+  win := public.circle_winner(p);
+  if now() < p.closes_at or now() < win or now() >= win + interval '30 minutes' then return jsonb_build_object('ok', false, 'reason', 'not_open', 'opens_at', win); end if;
+  if not exists (select 1 from public.circle_joins where poll_id = p_poll and user_id = me) then
+    if public.member_tier(me) = 'FREE' then return jsonb_build_object('ok', false, 'reason', 'plus'); end if;
+    q := public.quota_of(me);
+    if q->>'circles_cap' is not null and (q->>'circles_used')::int >= (q->>'circles_cap')::int then
+      return jsonb_build_object('ok', false, 'reason', 'quota', 'quota', q);
+    end if;
+    insert into public.circle_joins (poll_id, user_id) values (p_poll, me) on conflict do nothing;
+    insert into public.buddies (a, b, kind, event_id)
+    select least(me, j.user_id), greatest(me, j.user_id), 'circle', p_poll from public.circle_joins j
+     where j.poll_id = p_poll and j.user_id <> me and not public.blocked_between(me, j.user_id)
+    on conflict do nothing;
+  end if;
+  return jsonb_build_object('ok', true, 'topic', 'circle:' || p_poll, 'ends_at', win + interval '30 minutes', 'now', now(),
+    'people', (select coalesce(jsonb_agg(jsonb_build_object('id', pr.id, 'name', pr.name, 'avatar_url', pr.avatar_url)), '[]'::jsonb)
+                 from public.circle_joins j join public.profiles pr on pr.id = j.user_id where j.poll_id = p_poll));
+end $$;
+revoke execute on function public.circle_enter(uuid) from public, anon;
+grant execute on function public.circle_enter(uuid) to authenticated;
+
+create or replace function public.circle_here(p_topic text, u uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.circle_joins j join public.circle_polls p on p.id = j.poll_id
+                  where j.user_id = u and p.id::text = p_topic
+                    and now() < public.circle_winner(p) + interval '31 minutes');
+$$;
+revoke all on function public.circle_here(text, uuid) from public, anon;
+grant execute on function public.circle_here(text, uuid) to authenticated;
+
+do $do$ begin
+  drop policy if exists "circle members read" on realtime.messages;
+  create policy "circle members read" on realtime.messages for select to authenticated
+    using (realtime.topic() like 'circle:%' and public.circle_here(substr(realtime.topic(), 8), auth.uid()));
+  drop policy if exists "circle members write" on realtime.messages;
+  create policy "circle members write" on realtime.messages for insert to authenticated
+    with check (realtime.topic() like 'circle:%' and public.circle_here(substr(realtime.topic(), 8), auth.uid()));
+exception when others then raise notice 'circle realtime policies skipped: %', sqlerrm;
+end $do$;
+
+-- the minute a circle opens, everybody who can be told is told (pg_cron, every minute)
+create or replace function public.circle_tick()
+returns void language plpgsql security definer set search_path = public as $$
+declare p public.circle_polls%rowtype; win timestamptz; team uuid;
+begin
+  select x.id into team from auth.users x join public.app_owners o on lower(o.email) = lower(x.email)
+   join public.profiles pr on pr.id = x.id limit 1;
+  for p in select * from public.circle_polls where not announced and closes_at <= now() and week >= current_date - 14 loop
+    win := public.circle_winner(p);
+    if now() >= win and now() < win + interval '30 minutes' then
+      update public.circle_polls set announced = true where id = p.id;
+      if team is not null then
+        insert into public.notifications (user_id, actor_id, kind, body)
+        select s.user_id, team, 'circle_open', p.lang from (select distinct user_id from public.push_subscriptions) s
+         where s.user_id <> team;
+      end if;
+    end if;
+  end loop;
+end $$;
+revoke all on function public.circle_tick() from public, anon, authenticated;
+do $do$ begin
+  create extension if not exists pg_cron;
+  perform cron.unschedule(jobid) from cron.job where jobname = 'circle-tick';
+  perform cron.schedule('circle-tick', '* * * * *', 'select public.circle_tick()');
+exception when others then raise notice 'circle-tick not scheduled: %', sqlerrm;
+end $do$;
+
+do $do$ begin
+  alter table public.notifications drop constraint if exists notifications_kind_check;
+  alter table public.notifications add constraint notifications_kind_check
+    check (kind in ('vibe','laugh','comment','mate_request','mate_accept','message','call','tag','repost','green_invite','food_order','food_status','bardi_match','plan_soon','venue_decision','xp_award','safety','creator_plan','booking','trip_open','team_reply','biz_request','biz_reply','app_problem','daily_line','partner_watch','trip_invite','level_up','event_update','buddy','buddy_ping','arrived','spark','circle_open'))
+    not valid;
+exception when others then raise notice 'notifications kind constraint skipped: %', sqlerrm;
+end $do$;
+
+create or replace function public.push_on_notification()
+returns trigger language plpgsql security definer set search_path = public as $$
+declare v_url text; v_hook text;
+begin
+  if new.kind not in ('message','call','mate_request','mate_accept','comment','tag','green_invite','bardi_match','plan_soon','food_order','food_status','venue_decision','trip_open','team_reply','level_up','event_update','buddy','buddy_ping','arrived','spark','circle_open') then
+    return new;
+  end if;
+  if not exists (select 1 from public.push_subscriptions where user_id = new.user_id) then return new; end if;
+  select value into v_url from public.app_secrets where name = 'push_url';
+  select value into v_hook from public.app_secrets where name = 'push_hook';
+  begin
+    perform net.http_post(
+      url := v_url,
+      body := jsonb_build_object('id', new.id),
+      headers := jsonb_build_object('Content-Type', 'application/json', 'x-push-hook', v_hook)
+    );
+  exception when others then null;
+  end;
+  return new;
+end;
+$$;
+
+-- ── chat: Table Buddies only (the table's QR, or the same Circle) ──
+create or replace function public.dm_can_send(t uuid, u uuid)
+returns boolean language plpgsql stable security definer set search_path = public as $$
+declare o uuid := public.dm_other(t, u);
+begin
+  if o is null or public.blocked_between(u, o) or not public.are_buddies(u, o) then return false; end if;
+  if public.is_premium(u) then return true; end if;
+  -- a free account answers a member who wrote first
+  return exists (select 1 from public.messages m where m.dm_thread_id = t and m.user_id = o);
+end $$;
+revoke all on function public.dm_can_send(uuid, uuid) from public, anon, authenticated;
+
+create or replace function public.buddy_thread(p_other uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); t uuid;
+begin
+  if not public.are_buddies(me, p_other) then return jsonb_build_object('ok', false, 'reason', 'not_buddies'); end if;
+  if public.blocked_between(me, p_other) then return jsonb_build_object('ok', false, 'reason', 'blocked'); end if;
+  select p1.thread_id into t from public.dm_participants p1 join public.dm_participants p2 on p2.thread_id = p1.thread_id
+   where p1.user_id = me and p2.user_id = p_other limit 1;
+  if t is null then
+    insert into public.dm_threads default values returning id into t;
+    insert into public.dm_participants (thread_id, user_id, accepted) values (t, me, true), (t, p_other, true);
+  end if;
+  return jsonb_build_object('ok', true, 'thread_id', t, 'plus', public.dm_can_send(t, me) or public.is_premium(me), 'pass_until', public.pass_until(me));
+end $$;
+revoke execute on function public.buddy_thread(uuid) from public, anon;
+grant execute on function public.buddy_thread(uuid) to authenticated;
+
+-- no first message to a stranger any more
+create or replace function public.dm_open(p_to uuid, p_answer uuid, p_card int, p_body text)
+returns jsonb language sql security definer set search_path = public as $$
+  select jsonb_build_object('ok', false, 'reason', 'buddies_only');
+$$;
+revoke execute on function public.dm_open(uuid, uuid, int, text) from public, anon;
+grant execute on function public.dm_open(uuid, uuid, int, text) to authenticated;
+
+-- ── plans are the team's: users do not make public plans ──
+create or replace function public.gatherings_team_only() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if auth.uid() is not null and not public.is_app_owner() then
+    raise exception 'drops_only' using errcode = 'P0001';
+  end if;
+  return new;
+end $$;
+drop trigger if exists gatherings_team_only on public.green_gatherings;
+create trigger gatherings_team_only before insert on public.green_gatherings for each row execute function public.gatherings_team_only();
+
 -- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --

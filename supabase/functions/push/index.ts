@@ -94,7 +94,7 @@ Deno.serve(async (req) => {
       await webpush.sendNotification(
         { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
         payload,
-        { TTL: n.kind === 'plan_soon' ? 3600 : n.kind === 'daily_line' ? 3 * 3600 : 6 * 3600, urgency: n.kind === 'message' || n.kind === 'call' || n.kind === 'plan_soon' ? 'high' : 'normal' },
+        { TTL: n.kind === 'circle_open' ? 1800 : n.kind === 'plan_soon' ? 3600 : n.kind === 'daily_line' ? 3 * 3600 : 6 * 3600, urgency: n.kind === 'message' || n.kind === 'call' || n.kind === 'plan_soon' || n.kind === 'circle_open' ? 'high' : 'normal' },
       );
       sent++;
     } catch (e) {

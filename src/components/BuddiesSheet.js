@@ -57,6 +57,7 @@ const w = (lang, k, v) => {
   Object.keys(v || {}).forEach((x) => { s = s.replace('{' + x + '}', String(v[x])); });
   return s;
 };
+const MIDNIGHT = (() => { try { return /[?&]midnight\b/.test(window.location.search); } catch (e) { return false; } })();
 const askPlus = () => needPlus({ ok: false, reason: 'plus' }, 'chat');
 
 /* ── the micro-chat: a buddy (other) or a prompt-first thread (threadId) ── */
@@ -277,8 +278,8 @@ export const BuddiesSheet = ({ onClose, threadId, other }) => {
               <Text style={{ color: C.text, fontSize: 28, fontWeight: '700', letterSpacing: lang === 'ar' ? 0 : -0.7 }}>{mw(lang, 'chats')}</Text>
               <Text style={{ color: C.dim, fontSize: 14, lineHeight: 20, marginTop: 6 }}>{w(lang, 'sub')}</Text>
 
-              {/* the Midnight Table: tonight's blind picks */}
-              <Pressable onPress={() => { tapLight(); setMt(true); }} accessibilityRole="button" style={{ marginTop: 16 }}>
+              {/* the Midnight Table: paused for the final MVP (chat is earned at a table or a Circle) — ?midnight brings it back to look at */}
+              {MIDNIGHT ? <Pressable onPress={() => { tapLight(); setMt(true); }} accessibilityRole="button" style={{ marginTop: 16 }}>
                 {({ pressed }) => (
                   <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 20, padding: 18, backgroundColor: pressed ? C.glassHi : C.glass, borderWidth: 1, borderColor: C.text }}>
                     <Text style={{ color: C.text, fontSize: 22, marginEnd: 14 }}>✦</Text>
@@ -289,7 +290,7 @@ export const BuddiesSheet = ({ onClose, threadId, other }) => {
                     <Ionicons name={lang === 'ar' ? 'chevron-back' : 'chevron-forward'} size={18} color={C.dim} />
                   </View>
                 )}
-              </Pressable>
+              </Pressable> : null}
 
               {sparks.length ? (
                 <View style={{ marginTop: 20 }}>

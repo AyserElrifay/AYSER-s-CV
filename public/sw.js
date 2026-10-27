@@ -168,6 +168,7 @@ const PUSH_EN = {
   push_event_update: 'Where to meet is updated 📌',
   push_buddy: '{name} is your Moments Buddy now 🤝',
   push_buddy_ping: '{name} invites you to their table: {title}',
+  push_circle_open: 'The English Circle is open — 30 minutes only.',
   bardi_focus: '{n} people near you are {what} right now — focus together?',
   bardi_focus_at: '{n} people near you are {what} right now — a session at {venue}?',
   bd_kind_studying: 'Studying',
@@ -209,7 +210,7 @@ self.addEventListener('push', (e) => {
       tag: d.id || d.kind || 'moments',
       // the same person writing again replaces their line — and buzzes again, like a messenger
       renotify: true,
-      data: { url: base + (d.kind === 'plan_soon' || d.kind === 'green_invite' || d.kind === 'creator_plan' ? '?tab=TOGETHER' : d.kind === 'message' || d.kind === 'call' ? '?tab=CHATS' : '?notifications=1') },
+      data: { url: base + (d.kind === 'circle_open' ? '' : d.kind === 'plan_soon' || d.kind === 'green_invite' || d.kind === 'creator_plan' ? '?tab=TOGETHER' : d.kind === 'message' || d.kind === 'call' ? '?tab=CHATS' : '?notifications=1') },
     });
   })());
 });

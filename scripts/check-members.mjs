@@ -42,7 +42,7 @@ console.log('\nthe doors');
 is('signed in and FREE: in the app, no wall', !/return <PricingGate m=\{m\} hard/.test(app), true);
 is('a locked door opens the plans', /if \(!VIP_DOORS\.includes\(ask\)\) return <PricingGate m=\{m\} onClose=/.test(app), true);
 is('Black-only doors open the Black sheet; chat is Moments+ too', /VIP_DOORS = \['vip', 'lounge', 'profile', 'vip_seat'\]/.test(app), true);
-is('the gateway says why, and lets you sign out', /'Why are we charging\?'/.test(gate) && /onSignOut\(\)/.test(gate), true);
+is('the gateway says why, and lets you sign out', /['"]Why are we charging\?['"]/.test(gate) && /onSignOut\(\)/.test(gate), true);
 is('the last two seats of a meetup are VIP’s', /'reason', 'vip_seat'/.test(sql), true);
 
 console.log('\nthe VIP welcome offer, once');

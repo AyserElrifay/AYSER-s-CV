@@ -84,6 +84,7 @@ const CapsuleSheet = lazyOverlay(() => import('../components/CapsuleSheet').then
 const TeacherApplySheet = lazyOverlay(() => import('../components/TeacherApplySheet').then((m) => ({ default: m.TeacherApplySheet })));
 const LibrarySheet = lazyOverlay(() => import('../components/LibrarySheet').then((m) => ({ default: m.LibrarySheet })));
 const PlusSheet = lazyOverlay(() => import('../components/PlusSheet').then((m) => ({ default: m.PlusSheet })));
+const QuotaLine = lazyOverlay(() => import('../components/WeeklyDrops').then((m) => ({ default: m.QuotaLine })));
 const MyDay = lazyOverlay(() => import('../components/MyDay').then((m) => ({ default: m.MyDay })));
 const RewardsSheet = lazyOverlay(() => import('../components/RewardsSheet').then((m) => ({ default: m.RewardsSheet })));
 const StampBook = lazyOverlay(() => import('../components/LiveKit').then((m) => ({ default: m.StampBook })));
@@ -772,6 +773,8 @@ export const ProfileScreen = () => {
             <GhostButton small label={t('sp_share')} onPress={doShareProfile} style={{ flex: 1, marginRight: 8 }} />
             {user ? <GhostButton small label={t('sp_today')} onPress={() => { tapLight(); setDumpOpen(true); }} style={{ flex: 1 }} /> : null}
           </View>
+          {/* what is left of this month's Drops and Circles (members) */}
+          {SUPABASE_READY && user ? <QuotaLine style={{ marginTop: 14 }} /> : null}
           {SUPABASE_READY && user ? <ShowedUp userId={user.id} own /> : null}
 
           {/* badges */}

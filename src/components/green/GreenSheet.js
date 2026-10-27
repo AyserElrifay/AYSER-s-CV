@@ -8,6 +8,8 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { C } from '../../constants/theme';
 import { useLang } from '../../context/LanguageContext';
 import { useAuth } from '../../context/AuthContext';
+import { goToTab } from '../../lib/mapBus';
+import { isOwner } from '../../services/music';
 import { SUPABASE_READY } from '../../lib/supabase';
 import { explain } from '../../lib/explain';
 import {
@@ -134,7 +136,32 @@ const Chip = ({ on, children, onPress }) => (
    renamed on a whim, and an id is neither. */
 export const GREEN_PACK = 'ffff6666-0000-4000-8000-000000000001';
 
-export const GreenSheet = ({ onClose, onPlay, startNow, homeCountry, openOn, prefill }) => {
+/* the final MVP: plans are the Moments team's (RUN_ME.sql refuses anybody
+   else), so making one opens a single line pointing at the week's Drops */
+const TeamOnly = ({ onClose }) => {
+  const { t } = useLang();
+  useSheetBack(onClose);
+  return (
+    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable onPress={onClose} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 24 }}>
+        <View style={{ borderRadius: 24, borderWidth: 1, borderColor: C.line, backgroundColor: C.bg, padding: 24 }}>
+          <Text style={{ color: C.text, fontSize: 17, lineHeight: 25 }}>{t('team_only')}</Text>
+          <Pressable onPress={() => { onClose(); goToTab('HOME'); }} accessibilityRole="button" style={{ marginTop: 18 }}>
+            <View style={{ borderRadius: 999, paddingVertical: 14, alignItems: 'center', backgroundColor: C.text }}>
+              <Text style={{ color: C.bg, fontSize: 15.5, fontWeight: '700' }}>{t('see_drops')}</Text>
+            </View>
+          </Pressable>
+        </View>
+      </Pressable>
+    </Modal>
+  );
+};
+export const GreenSheet = (props) => {
+  const { user } = useAuth();
+  if ((props.startNow || props.prefill) && !isOwner(user)) return <TeamOnly onClose={props.onClose} />;
+  return <GreenSheetFull {...props} />;
+};
+const GreenSheetFull = ({ onClose, onPlay, startNow, homeCountry, openOn, prefill }) => {
   /* the phone's own back closes this, the same as everything else;
      see src/lib/sheetBack.js */
   useSheetBack(onClose);

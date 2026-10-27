@@ -22,6 +22,7 @@ import { talkRoomsNear } from '../services/talkRooms';
 import { fmt, remaining, offsetFrom } from '../lib/talkClock';
 import { appLink, shareLink, shareNote } from '../utils/share';
 import { takePlan } from '../lib/tripLink';
+import { isOwner } from '../services/music';
 import { listOffers, photoUrl } from '../services/offers';
 import { fetchWhatsOn } from '../services/whatson';
 import { joinCampfire } from '../services/campfires';
@@ -271,7 +272,7 @@ const MeetRows = ({ lang, onLounges, onBuddies }) => {
   );
   return (
     <View style={{ marginTop: 22, borderRadius: 24, borderWidth: 1, borderColor: C.line, backgroundColor: C.glass, paddingHorizontal: 18 }}>
-      {row('🎙', m[0], m[1], onLounges)}
+      {onLounges ? row('🎙', m[0], m[1], onLounges) : null}
       {row('🤝', m[2], m[3], onBuddies, true)}
     </View>
   );
@@ -712,11 +713,14 @@ export const TogetherScreen = () => {
             </Pressable>
             <Text style={{ color: C.text, fontSize: 30, fontWeight: '900', marginTop: 6 }}>{t('tg_title')}</Text>
           </View>
+{/* making a plan is the team's now (the final MVP: Weekly Drops) */}
+          {isOwner(user) ? (
           <Pressable onPress={() => { tapMedium(); setSheet('start'); }} accessibilityRole="button" accessibilityLabel={t('tg_start')} hitSlop={8}>
             <View style={{ width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: C.text }}>
               <Ionicons name="add" size={26} color={C.text} />
             </View>
           </Pressable>
+          ) : null}
         </View>
 
         {/* ── RIGHT NOW ── one line, one tap. Ayser: "زحمة أوي، بالذات الـ
@@ -752,7 +756,7 @@ export const TogetherScreen = () => {
             <View style={{ position: 'absolute', left: 18, right: 18, bottom: 18 }}>
               <Text style={{ color: '#FFF', fontSize: 22, fontWeight: '900', letterSpacing: -0.3 }}>{t('tg_empty_t')}</Text>
               <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: 14, lineHeight: 19, marginTop: 5 }}>{t('nu_empty_s')}</Text>
-              <View style={{ alignItems: 'flex-start', marginTop: 14 }}>
+              <View style={{ alignItems: 'flex-start', marginTop: 14, display: isOwner(user) ? 'flex' : 'none' }}>
                 <Pressable onPress={() => { tapMedium(); setSheet('start'); }} accessibilityRole="button">
                   <View style={{ borderRadius: 999, paddingHorizontal: 20, paddingVertical: 11, backgroundColor: '#FFF' }}>
                     <Text style={{ color: '#1A1A1A', fontSize: 14.5, fontWeight: '900' }}>{t('tg_start')}</Text>
@@ -1050,7 +1054,8 @@ export const TogetherScreen = () => {
           setHubPick(false); setHub(h); setScope('near'); setDay(null);
           try { if (h) localStorage.setItem('mm.hub', JSON.stringify(h)); else localStorage.removeItem('mm.hub'); } catch (e) {}
         }} /> : null}
-        {uid ? <MeetRows lang={lang} onLounges={() => setMeet('lounges')} onBuddies={() => setMeet('buddies')} /> : null}
+        {/* the rooms open all week gave way to the voted 30-minute Circle (Home) */}
+        {uid ? <MeetRows lang={lang} onBuddies={() => setMeet('buddies')} /> : null}
         {meet === 'lounges' ? <LoungesSheet onClose={() => setMeet(null)} /> : null}
         {meet === 'buddies' ? <BuddiesSheet onClose={() => setMeet(null)} /> : null}
         {eventOf ? <EventRoom kind="gathering" id={eventOf} lang={lang} onClose={() => setEventOf(null)} /> : null}
