@@ -150,7 +150,7 @@ export const PricingGate = ({ m, hard, onClose, onSignOut }) => {
   const insets = useSafeAreaInsets();
   const [why, setWhy] = useState(false);
   const { busy, note, buy } = useBuy(lang, m);
-  const pr = (m && m.prices) || { basic: 118, vip: 1300, vip_period: 'year', currency: 'EGP' };
+  const pr = (m && m.prices) || { basic: 129, basic_year: 990, vip_month: 249, vip: 1300, vip_period: 'year', currency: 'EGP' };
   const tier = m ? m.tier : 'FREE';
 
   const page = (
@@ -210,7 +210,7 @@ export const VipSheet = ({ m, onClose }) => {
   const { lang } = useLang();
   const insets = useSafeAreaInsets();
   const { busy, note, buy } = useBuy(lang, m);
-  const pr = (m && m.prices) || { vip: 1300, vip_period: 'year', currency: 'EGP' };
+  const pr = (m && m.prices) || { vip: 1300, vip_month: 249, vip_period: 'year', currency: 'EGP' };
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={{ flex: 1, backgroundColor: 'rgba(15,13,20,0.4)' }} onPress={onClose} accessibilityLabel={w(lang, 'notNow')} />

@@ -22548,11 +22548,17 @@ begin
   select value into pr from public.app_settings where key = 'tier_prices';
   basic := coalesce((pr ->> 'basic')::numeric, 0); vip := coalesce((pr ->> 'vip')::numeric, 0);
   vip_month := case when pr ->> 'vip_period' = 'year' then vip / 12 else vip end;
-  select count(*) filter (where tier = 'basic'), count(*) filter (where tier = 'vip') into nb, nv
-    from public.plus_members where status = 'active' and (until is null or until > now()) and source = 'lemonsqueezy';
+  select count(*) filter (where m.tier = 'basic'), count(*) filter (where m.tier = 'vip'),
+         -- a yearly plan is a twelfth of its price a month; a plan from before the period was kept is
+         -- Basic monthly or Premium yearly, the only two there were
+         coalesce(sum(case when m.tier = 'vip'
+                then case when coalesce(x.period, 'year') = 'year' then vip / 12 else coalesce((pr ->> 'vip_month')::numeric, vip) end
+                else case when x.period = 'year' then coalesce((pr ->> 'basic_year')::numeric, basic * 12) / 12 else basic end end), 0)
+    into nb, nv, mrr
+    from public.plus_members m left join public.plus_subscriptions x on x.user_id = m.user_id
+   where m.status = 'active' and (m.until is null or m.until > now()) and m.source = 'lemonsqueezy';
   select count(*) into comp from public.plus_members where status = 'active' and (until is null or until > now()) and coalesce(source, '') <> 'lemonsqueezy';
   select count(*), count(*) filter (where created_at > now() - interval '30 days') into signups, s30 from public.profiles;
-  mrr := nb * basic + nv * vip_month;
   return jsonb_build_object('ok', true, 'at', now(), 'currency', coalesce(pr ->> 'currency', 'EGP'),
     'revenue', jsonb_build_object('mrr', round(mrr), 'arr', round(mrr * 12), 'basic', nb, 'vip', nv, 'comped', comp,
                  'basic_price', basic, 'vip_price', vip, 'vip_period', coalesce(pr ->> 'vip_period', 'month')),
@@ -22581,6 +22587,66 @@ grant execute on function public.traction_metrics() to authenticated;
 
 notify pgrst, 'reload schema';
 -- END · MOMENTS AT SCALE
+
+-- ═══════════════════════════════════════════════════════════════════
+--  FOUR PLANS · BASIC AND PREMIUM, MONTHLY OR YEARLY
+--  Ayser: "Basic 129 · Premium 249 · Basic annual 990 · Premium annual
+--  1300" — the four products in Lemon Squeezy. "Premium" is the paid
+--  tier the database calls 'vip'. The webhook now says whether a
+--  subscription is paid by the month or by the year, and the
+--  Traction numbers count a yearly plan as a twelfth of it a month.
+--  Safe to re-run: the prices are set once, and a price the owner
+--  changes later is left alone.
+-- ═══════════════════════════════════════════════════════════════════
+alter table public.plus_subscriptions add column if not exists period text;
+update public.app_settings
+   set value = value || '{"basic": 129, "basic_year": 990, "vip_month": 249, "vip": 1300, "vip_period": "year"}'::jsonb
+ where key = 'tier_prices' and not (value ? 'basic_year');
+
+-- the webhook, once more: the same rules, and now monthly or yearly
+create or replace function public.ls_apply(p jsonb)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare uid uuid; st text; until_ts timestamptz; ev timestamptz; cur public.plus_subscriptions%rowtype;
+        t text := case when lower(coalesce(p ->> 'tier', '')) = 'vip' then 'vip' else 'basic' end;
+begin
+  begin uid := (p ->> 'user_id')::uuid; exception when others then return jsonb_build_object('ok', false, 'reason', 'user'); end;
+  if uid is null or not exists (select 1 from public.profiles where id = uid) then return jsonb_build_object('ok', false, 'reason', 'user'); end if;
+  if coalesce(p ->> 'subscription_id', '') = '' then return jsonb_build_object('ok', false, 'reason', 'subscription'); end if;
+  st := lower(coalesce(p ->> 'status', ''));
+  ev := coalesce(nullif(p ->> 'event_at', '')::timestamptz, now());
+
+  select * into cur from public.plus_subscriptions where user_id = uid;
+  if found and cur.subscription_id = p ->> 'subscription_id' and cur.event_at is not null and cur.event_at > ev then
+    return jsonb_build_object('ok', true, 'skipped', 'older');
+  end if;
+
+  insert into public.plus_subscriptions as x (user_id, subscription_id, customer_id, variant_id, tier, period, status, renews_at, ends_at, portal_url, event_at, updated_at)
+  values (uid, p ->> 'subscription_id', p ->> 'customer_id', p ->> 'variant_id', t,
+          case when p ->> 'period' = 'year' then 'year' else 'month' end, st,
+          nullif(p ->> 'renews_at', '')::timestamptz, nullif(p ->> 'ends_at', '')::timestamptz, nullif(p ->> 'portal_url', ''), ev, now())
+  on conflict (user_id) do update set subscription_id = excluded.subscription_id, customer_id = excluded.customer_id,
+    variant_id = excluded.variant_id, tier = excluded.tier, period = excluded.period, status = excluded.status, renews_at = excluded.renews_at, ends_at = excluded.ends_at,
+    portal_url = coalesce(excluded.portal_url, x.portal_url), event_at = excluded.event_at, updated_at = now();
+
+  if st in ('active', 'on_trial', 'past_due') then
+    until_ts := coalesce(nullif(p ->> 'renews_at', '')::timestamptz, now() + interval '31 days') + interval '3 days';
+  elsif st = 'cancelled' then
+    until_ts := coalesce(nullif(p ->> 'ends_at', '')::timestamptz, now());
+  else
+    until_ts := now();
+  end if;
+
+  insert into public.plus_members as m (user_id, status, until, source, tier)
+  values (uid, case when until_ts > now() then 'active' else 'expired' end, until_ts, 'lemonsqueezy', t)
+  on conflict (user_id) do update set
+    status = case when excluded.until > now() then 'active' else 'expired' end,
+    until  = case when m.source <> 'lemonsqueezy' and m.status = 'active' and m.until is not null and m.until > excluded.until
+                  then m.until else excluded.until end,
+    tier   = excluded.tier,
+    source = 'lemonsqueezy';
+  return jsonb_build_object('ok', true, 'until', until_ts, 'tier', t);
+end $$;
+revoke all on function public.ls_apply(jsonb) from public, anon, authenticated;
 
 -- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT

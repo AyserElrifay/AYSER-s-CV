@@ -19,7 +19,9 @@
 //
 //  Which tier it is comes from what was bought, as Lemon Squeezy's signed
 //  event says it: the variant LEMONSQUEEZY_VIP_VARIANT_ID, or a product
-//  or variant whose name says "VIP", is VIP; anything else is Basic. The
+//  or variant whose name says "VIP" or "Premium", is VIP (Premium); anything
+//  else is Basic. Monthly or yearly: a name that says "Annual"/"Year", or
+//  else a first renewal more than two months after the start. The
 //  checkout link's custom data only says WHO — never which tier — so
 //  nobody can buy Basic and be given VIP. A plan change in the customer
 //  portal moves the tier too.
@@ -37,6 +39,13 @@ const same = (a: string, b: string) => {
   if (a.length !== b.length) return false;
   let d = 0; for (let i = 0; i < a.length; i++) d |= a.charCodeAt(i) ^ b.charCodeAt(i);
   return d === 0;
+};
+
+// Ayser's four plans: Basic and Premium, each monthly or yearly
+const periodOf = (s: any) => {
+  if (/\b(annual|annually|year|yearly)\b/i.test(String(s.product_name || '') + ' ' + String(s.variant_name || ''))) return 'year';
+  const a = Date.parse(s.created_at || ''), b = Date.parse(s.renews_at || '');
+  return a && b && b - a > 62 * 864e5 ? 'year' : 'month';
 };
 
 Deno.serve(async (req) => {
@@ -81,7 +90,8 @@ Deno.serve(async (req) => {
     customer_id: s.customer_id != null ? String(s.customer_id) : null,
     variant_id: s.variant_id != null ? String(s.variant_id) : null,
     tier: (s.variant_id != null && String(s.variant_id) === String(Deno.env.get('LEMONSQUEEZY_VIP_VARIANT_ID') || '-'))
-      || /\bvip\b/i.test(String(s.product_name || '') + ' ' + String(s.variant_name || '')) ? 'vip' : 'basic',
+      || /\b(vip|premium)\b/i.test(String(s.product_name || '') + ' ' + String(s.variant_name || '')) ? 'vip' : 'basic',
+    period: periodOf(s),
     status: s.status || null,
     renews_at: s.renews_at || null,
     ends_at: s.ends_at || null,
