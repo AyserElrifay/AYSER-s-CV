@@ -81,3 +81,9 @@ export async function giftIdeas({ who, age, loves, budget, occasion, city }, lan
     + '\nGive me 4 short, thoughtful ideas — at least one experience we could do together and one handmade or personal idea. For each: the idea, one line on why it fits them, and the kind of shop that sells it. Do not invent shop names. Keep it short and warm.';
   return ask({ messages: [{ role: 'user', content }], language: lang });
 }
+
+/* ── A SMALL JOB ── one narrow brief on the server (e.g. 'icebreakers'),
+   no persona and no memory; null when Papyrus cannot answer right now. */
+export async function bardiTask(task, content, lang = 'en') {
+  try { return await ask({ messages: [{ role: 'user', content: String(content || '').slice(0, 3000) }], language: lang, task }); } catch (e) { return null; }
+}

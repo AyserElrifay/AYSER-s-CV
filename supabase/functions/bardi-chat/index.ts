@@ -49,6 +49,18 @@ const LANG_NAMES: Record<string, string> = {
 // The Bardi persona — the same brain the Bardi web app uses. Kept as
 // plain replies here (no trailing MEMORY/EVENT/MAP/PLAN tags) so the
 // Moments chat renders clean answers with no stray machine lines.
+// Three icebreakers for one table, from who is at it in aggregate (languages
+// learned and spoken, Global Track goals, shared hobbies, countries) — never
+// a name. A job, not a conversation: no persona, no memory.
+function icebreakerSystem(lang: string): string {
+  return [
+    `Write exactly three short icebreaker questions in ${lang} for a small group meeting at a café table to practise languages and make friends.`,
+    "The user message is a JSON summary of the group: languages being learned and spoken, travel/Global Track goals, shared hobbies, countries.",
+    "Make each question specific to that group (its languages, goals and hobbies), easy to answer out loud, warm and inclusive. Never romantic, never political or religious, never personal data.",
+    "Output ONLY the three questions, one per line, no numbering, no quotes, nothing else.",
+  ].join("\n");
+}
+
 function translatorSystem(target: string): string {
   return [
     `You are a translation engine, not an assistant. Translate the user message into ${target}.`,
@@ -325,13 +337,15 @@ Deno.serve(async (req: Request) => {
     let system: string;
     if (task === "translate") {
       system = translatorSystem(LANG_NAMES[String(body.target || "")] ? LANG_NAMES[String(body.target)] : (LANG_NAMES[language] || "English"));
+    } else if (task === "icebreakers") {
+      system = icebreakerSystem(LANG_NAMES[language] || "English");
     } else {
       // talking with Papyrus is Moments Plus; translating stays free for everyone
       if (!(await isPlus(uid))) return json(CORS, 402, { error: "plus" });
       const [b, memory] = await Promise.all([ownerBrain(), memoryOf(uid)]);
       system = bardiSystem({ language, profile: body.profile, memory, instructions: b.instructions, knowledge: b.knowledge });
     }
-    const trimmed = messages.slice(task === "translate" ? -1 : -24).map((m: any) => ({
+    const trimmed = messages.slice(task === "translate" || task === "icebreakers" ? -1 : -24).map((m: any) => ({
       role: m && m.role === "assistant" ? "assistant" : "user",
       content: String((m && m.content) || "").slice(0, 4000),
     }));

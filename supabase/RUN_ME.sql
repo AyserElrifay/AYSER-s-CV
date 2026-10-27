@@ -22299,6 +22299,289 @@ grant execute on function public.my_level2_offer() to authenticated;
 notify pgrst, 'reload schema';
 -- END · THE MOMENTS PASSPORT
 
+
+-- ═══════════════════════════════════════════════════════════════════
+--  MOMENTS AT SCALE · MATCHING · CERTIFIED HOSTS · CITY HUBS · TRACTION
+--  Ayser, for the Startup Visa committee: Moments runs itself in any
+--  city — nobody at Moments creates a table, checks anybody in or
+--  counts anything by hand. Four pieces, all computed here:
+--
+--  1. VIBE MATCH. A score, 0–99, between two people from what is really
+--     on their profiles and in their record: the language one learns
+--     and the other speaks (and their levels), the Global Track goal,
+--     the hobbies they share, and the badges and stamps earned at real
+--     tables. No signal at all → no score (never a made-up number).
+--     A table's score is the best few matches among the people going;
+--     a lounge's is its language against yours.
+--  2. CERTIFIED HOSTS. 5+ passport stamps, a partner venue, or a host
+--     the owner verified: every plan they start is an Official Moments
+--     Table — with its check-in QR and the card deck from the first
+--     minute (already automatic), and the badge. Decided here on
+--     insert; the app cannot set it.
+--  3. CITY HUBS. The cities Moments lives in, each with its tables in
+--     the next two weeks — counted, never claimed.
+--  4. TRACTION. For the owner only: MRR and ARR from the Lemon Squeezy
+--     memberships (gifts and founding seats counted apart, never as
+--     revenue), paid conversion, 30-day cohort retention, QR check-ins
+--     a month, active hosts and cities.
+--  Safe to re-run.
+-- ═══════════════════════════════════════════════════════════════════
+
+-- ── 1 · the goal on the Global Track ──
+alter table public.profiles add column if not exists track_goal text;
+do $$ begin
+  alter table public.profiles drop constraint if exists profiles_track_goal_ck;
+  alter table public.profiles add constraint profiles_track_goal_ck
+    check (track_goal is null or track_goal in ('youth_exchange','digital_nomad','study_abroad','work_abroad','travel'));
+end $$;
+
+-- the level a profile says, as a number (Settings offers Beginner · A2 · B1 · B2 · Fluent)
+create or replace function public.lang_level(t text)
+returns int language sql immutable as $$
+  select case lower(btrim(coalesce(t, '')))
+    when 'a1' then 1 when 'beginner' then 1 when 'a2' then 2 when 'elementary' then 2
+    when 'b1' then 3 when 'intermediate' then 3 when 'b2' then 4 when 'advanced' then 4
+    when 'c1' then 5 when 'c2' then 5 when 'fluent' then 5 when 'native' then 5 else null end;
+$$;
+
+create or replace function public.speaks_it(spoken text, lang text)
+returns boolean language sql immutable as $$
+  select coalesce(btrim(lang), '') <> '' and position(lower(btrim(lang)) in lower(coalesce(spoken, ''))) > 0;
+$$;
+
+create or replace function public.hobby_set(h text)
+returns text[] language sql immutable as $$
+  select coalesce(array_agg(distinct lower(btrim(x))) filter (where btrim(x) <> ''), '{}') from unnest(string_to_array(coalesce(h, ''), ',')) x;
+$$;
+
+-- the score between a and b. Points, out of 90:
+--   language  b speaks what a learns 25 · learning the same one 10 (+5 within a level) · a speaks what b learns 10
+--   goal      the same Global Track goal 25 (both set, different: 8)
+--   record    b's vibe badges, up to 10 · b's stamps ×2, up to 10
+--   interests shared hobbies ×5, up to 15
+create or replace function public.vibe_match(a uuid, b uuid)
+returns int language plpgsql stable security definer set search_path = public as $$
+declare pa public.profiles%rowtype; pb public.profiles%rowtype; s int := 0; sig int := 0; la int; lb int; n int;
+begin
+  if a is null or b is null or a = b then return null; end if;
+  select * into pa from public.profiles where id = a; if not found then return null; end if;
+  select * into pb from public.profiles where id = b; if not found then return null; end if;
+  if pa.learning_language is not null and public.speaks_it(pb.speaks_language, pa.learning_language) then s := s + 25; sig := sig + 1; end if;
+  if pa.learning_language is not null and lower(pa.learning_language) = lower(coalesce(pb.learning_language, '')) then
+    s := s + 10; sig := sig + 1;
+    la := public.lang_level(pa.learning_level); lb := public.lang_level(pb.learning_level);
+    if la is not null and lb is not null and abs(la - lb) <= 1 then s := s + 5; end if;
+  end if;
+  if pb.learning_language is not null and public.speaks_it(pa.speaks_language, pb.learning_language) then s := s + 10; sig := sig + 1; end if;
+  if pa.track_goal is not null and pb.track_goal is not null then
+    s := s + case when pa.track_goal = pb.track_goal then 25 else 8 end; sig := sig + 1;
+  end if;
+  n := (select count(*) from public.vibe_badges where receiver = b);
+  if n > 0 then s := s + least(n, 10); sig := sig + 1; end if;
+  n := (select count(*) from public.passport_stamps where user_id = b);
+  if n > 0 then s := s + least(n, 5) * 2; sig := sig + 1; end if;
+  n := (select count(*) from unnest(public.hobby_set(pa.hobbies)) x where x = any (public.hobby_set(pb.hobbies)));
+  if n > 0 then s := s + least(n, 3) * 5; sig := sig + 1; end if;
+  if sig = 0 then return null; end if;
+  return least(99, round(s * 100.0 / 90))::int;
+end $$;
+revoke all on function public.vibe_match(uuid, uuid) from public, anon, authenticated;
+
+-- for the app: my score with each of these people (buddies, faces in a lounge)
+create or replace function public.vibe_matches(p_users uuid[])
+returns jsonb language sql stable security definer set search_path = public as $$
+  select coalesce(jsonb_object_agg(u, m), '{}'::jsonb) from (
+    select u, public.vibe_match(auth.uid(), u) m from unnest(p_users[1:80]) u
+     where not public.blocked_between(auth.uid(), u)) x where m is not null;
+$$;
+revoke execute on function public.vibe_matches(uuid[]) from public, anon;
+grant execute on function public.vibe_matches(uuid[]) to authenticated;
+
+-- ── 2 · certified hosts and official tables ──
+alter table public.green_gatherings add column if not exists official boolean not null default false;
+
+create or replace function public.host_certified(u uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select u is not null and (
+    (select count(*) from public.passport_stamps where user_id = u) >= 5
+    or exists (select 1 from public.partner_venues where user_id = u)
+    or exists (select 1 from public.profiles where id = u and (host_verified_at is not null or teacher_verified_at is not null)));
+$$;
+revoke all on function public.host_certified(uuid) from public, anon, authenticated;
+
+create or replace function public.green_official() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if tg_op = 'INSERT' then new.official := public.host_certified(new.host_id);
+  else new.official := old.official; end if;   -- nobody turns a plan official afterwards
+  return new;
+end $$;
+revoke all on function public.green_official() from public, anon, authenticated;
+drop trigger if exists green_gatherings_official on public.green_gatherings;
+create trigger green_gatherings_official before insert or update of official on public.green_gatherings
+  for each row execute function public.green_official();
+
+create or replace function public.host_status()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select jsonb_build_object('ok', auth.uid() is not null,
+    'certified', public.host_certified(auth.uid()),
+    'stamps', (select count(*) from public.passport_stamps where user_id = auth.uid()),
+    'need', 5,
+    'venue', exists (select 1 from public.partner_venues where user_id = auth.uid()),
+    'hosted', (select count(*) from public.green_gatherings where host_id = auth.uid() and official and cancelled_at is null));
+$$;
+revoke execute on function public.host_status() from public, anon;
+grant execute on function public.host_status() to authenticated;
+
+-- a table's signals for the list: official, and my match with the people going
+-- (the best three among them; a table in the language I learn counts too)
+create or replace function public.table_signals(p_ids uuid[])
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare res jsonb := '{}'::jsonb; g record; me public.profiles%rowtype; top numeric; hit boolean; sc int;
+begin
+  if auth.uid() is null then return res; end if;
+  select * into me from public.profiles where id = auth.uid();
+  for g in select id, official, language, host_id from public.green_gatherings where id = any (p_ids[1:80]) loop
+    select avg(v) into top from (
+      select v from (select public.vibe_match(auth.uid(), p) v
+                       from (select j.user_id p from public.green_joins j where j.gathering_id = g.id union select g.host_id) ppl
+                      where p <> auth.uid() and not public.blocked_between(auth.uid(), p)) y
+       where v is not null order by v desc limit 3) z;
+    hit := me.learning_language is not null and public.speaks_it(g.language, me.learning_language);
+    sc := case when top is not null then least(99, round(top) + case when hit then 8 else 0 end) when hit then 72 else null end;
+    res := res || jsonb_build_object(g.id::text, jsonb_build_object('official', g.official, 'match', sc));
+  end loop;
+  return res;
+end $$;
+revoke execute on function public.table_signals(uuid[]) from public, anon;
+grant execute on function public.table_signals(uuid[]) to authenticated;
+
+-- the lounges: each one's language against mine, and the countries in it right now
+alter table public.lounges add column if not exists language text;
+update public.lounges set language = case id when 'english' then 'English' when 'spanish' then 'Spanish' when 'german' then 'German'
+  when 'french' then 'French' when 'arabic' then 'Arabic' when 'italian' then 'Italian' else language end where language is null;
+create or replace function public.lounge_signals()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select coalesce(jsonb_object_agg(l.id, jsonb_build_object(
+    'match', case
+      when me.learning_language is not null and lower(me.learning_language) = lower(coalesce(l.language, '')) then
+        least(99, 80 + coalesce((select round(avg(v) / 5) from (select public.vibe_match(auth.uid(), h.user_id) v from public.lounge_members h
+                                   where h.lounge_id = l.id and h.seen_at > now() - interval '1 minute' and h.user_id <> auth.uid()) z where v is not null), 0))
+      when l.id = 'travel' and me.track_goal is not null then 78
+      when l.language is not null and public.speaks_it(me.speaks_language, l.language) then 60
+      else null end,
+    'flags', (select coalesce(jsonb_agg(distinct p.country_flag) filter (where p.country_flag is not null), '[]'::jsonb)
+                from public.lounge_members h join public.profiles p on p.id = h.user_id
+               where h.lounge_id = l.id and h.seen_at > now() - interval '1 minute'))), '{}'::jsonb)
+    from public.lounges l left join public.profiles me on me.id = auth.uid();
+$$;
+revoke execute on function public.lounge_signals() from public, anon;
+grant execute on function public.lounge_signals() to authenticated;
+
+-- who is at a table, in aggregate only (no names) — what the icebreakers are written for
+create or replace function public.table_profile(p_kind text, p_id uuid)
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare ids uuid[];
+begin
+  if not (public.event_going(p_kind, p_id, auth.uid()) or public.event_runner(p_kind, p_id, auth.uid())) then
+    return jsonb_build_object('ok', false, 'reason', 'not_in');
+  end if;
+  ids := case p_kind
+    when 'gathering' then array(select j.user_id from public.green_joins j where j.gathering_id = p_id union select host_id from public.green_gatherings where id = p_id)
+    else array(select b.user_id from public.bookings b where b.offer_id = p_id and b.status in ('reserved','paid','attended')) end;
+  return jsonb_build_object('ok', true, 'people', coalesce(array_length(ids, 1), 0),
+    'learning', (select coalesce(jsonb_object_agg(k, n), '{}'::jsonb) from (select learning_language k, count(*) n from public.profiles where id = any (ids) and learning_language is not null group by 1) x),
+    'speaking', (select coalesce(jsonb_object_agg(k, n), '{}'::jsonb) from (select btrim(s) k, count(*) n from public.profiles, unnest(string_to_array(coalesce(speaks_language, ''), ',')) s where id = any (ids) and btrim(s) <> '' group by 1) x),
+    'goals', (select coalesce(jsonb_object_agg(k, n), '{}'::jsonb) from (select track_goal k, count(*) n from public.profiles where id = any (ids) and track_goal is not null group by 1) x),
+    'hobbies', (select coalesce(jsonb_agg(k), '[]'::jsonb) from (select h k from public.profiles, unnest(public.hobby_set(hobbies)) h where id = any (ids) group by h order by count(*) desc limit 5) x),
+    'countries', (select coalesce(jsonb_agg(distinct country), '[]'::jsonb) from public.profiles where id = any (ids) and country is not null));
+end $$;
+revoke execute on function public.table_profile(text, uuid) from public, anon;
+grant execute on function public.table_profile(text, uuid) to authenticated;
+
+-- ── 3 · city hubs ──
+create table if not exists public.city_hubs (
+  id      text primary key,
+  name    text not null,
+  name_ar text,
+  country text not null,
+  flag    text not null,
+  lat     double precision not null,
+  lng     double precision not null,
+  sort    int not null default 100
+);
+alter table public.city_hubs enable row level security;
+insert into public.city_hubs (id, name, name_ar, country, flag, lat, lng, sort) values
+  ('cairo', 'Cairo', 'القاهرة', 'EG', '🇪🇬', 30.0444, 31.2357, 1),
+  ('alexandria', 'Alexandria', 'إسكندرية', 'EG', '🇪🇬', 31.2001, 29.9187, 2),
+  ('tallinn', 'Tallinn', 'تالين', 'EE', '🇪🇪', 59.4370, 24.7536, 3),
+  ('timisoara', 'Timișoara', 'تيميشوارا', 'RO', '🇷🇴', 45.7489, 21.2087, 4),
+  ('budapest', 'Budapest', 'بودابست', 'HU', '🇭🇺', 47.4979, 19.0402, 5),
+  ('berlin', 'Berlin', 'برلين', 'DE', '🇩🇪', 52.5200, 13.4050, 6),
+  ('prague', 'Prague', 'براج', 'CZ', '🇨🇿', 50.0755, 14.4378, 7),
+  ('lisbon', 'Lisbon', 'لشبونة', 'PT', '🇵🇹', 38.7223, -9.1393, 8),
+  ('madrid', 'Madrid', 'مدريد', 'ES', '🇪🇸', 40.4168, -3.7038, 9),
+  ('chisinau', 'Chișinău', 'كيشيناو', 'MD', '🇲🇩', 47.0105, 28.8638, 10)
+on conflict (id) do nothing;
+
+-- distances: public.km_between ("WHERE PEOPLE ARE")
+
+create or replace function public.city_hubs_list()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select coalesce(jsonb_agg(jsonb_build_object('id', c.id, 'name', c.name, 'name_ar', c.name_ar, 'country', c.country, 'flag', c.flag, 'lat', c.lat, 'lng', c.lng,
+    'tables', (select count(*) from public.green_gatherings g
+                where g.cancelled_at is null and g.starts_at > now() and g.starts_at < now() + interval '14 days'
+                  and ((g.lat is not null and g.lng is not null and public.km_between(c.lat, c.lng, g.lat, g.lng) <= 40)
+                       or (g.lat is null and lower(coalesce(g.city, '')) = lower(c.name)))))
+    order by c.sort), '[]'::jsonb)
+    from public.city_hubs c;
+$$;
+revoke execute on function public.city_hubs_list() from public;
+grant execute on function public.city_hubs_list() to anon, authenticated;
+
+-- ── 4 · traction, for the owner ──
+create or replace function public.traction_metrics()
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare pr jsonb; basic numeric; vip numeric; vip_month numeric; nb int; nv int; comp int; signups int; s30 int; mrr numeric;
+begin
+  if not public.is_app_owner() then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
+  select value into pr from public.app_settings where key = 'tier_prices';
+  basic := coalesce((pr ->> 'basic')::numeric, 0); vip := coalesce((pr ->> 'vip')::numeric, 0);
+  vip_month := case when pr ->> 'vip_period' = 'year' then vip / 12 else vip end;
+  select count(*) filter (where tier = 'basic'), count(*) filter (where tier = 'vip') into nb, nv
+    from public.plus_members where status = 'active' and (until is null or until > now()) and source = 'lemonsqueezy';
+  select count(*) into comp from public.plus_members where status = 'active' and (until is null or until > now()) and coalesce(source, '') <> 'lemonsqueezy';
+  select count(*), count(*) filter (where created_at > now() - interval '30 days') into signups, s30 from public.profiles;
+  mrr := nb * basic + nv * vip_month;
+  return jsonb_build_object('ok', true, 'at', now(), 'currency', coalesce(pr ->> 'currency', 'EGP'),
+    'revenue', jsonb_build_object('mrr', round(mrr), 'arr', round(mrr * 12), 'basic', nb, 'vip', nv, 'comped', comp,
+                 'basic_price', basic, 'vip_price', vip, 'vip_period', coalesce(pr ->> 'vip_period', 'month')),
+    'growth', jsonb_build_object('signups', signups, 'signups_30d', s30, 'paid', nb + nv,
+                 'conversion_pct', case when signups > 0 then round((nb + nv) * 1000.0 / signups) / 10 else 0 end),
+    -- a cohort is the month somebody joined; retained = seen again 30+ days after joining
+    'cohorts', (select coalesce(jsonb_agg(jsonb_build_object('month', to_char(m, 'YYYY-MM'), 'joined', joined, 'retained', kept,
+                   'pct', case when joined > 0 then round(kept * 1000.0 / joined) / 10 else 0 end, 'complete', m + interval '2 months' <= now()) order by m), '[]'::jsonb)
+                  from (select date_trunc('month', created_at) m, count(*) joined,
+                               count(*) filter (where last_active_at >= created_at + interval '30 days') kept
+                          from public.profiles where created_at > date_trunc('month', now()) - interval '5 months' group by 1) c),
+    'offline', (select coalesce(jsonb_agg(jsonb_build_object('month', to_char(m, 'YYYY-MM'), 'qr', qr, 'by_hand', hand, 'people', ppl,
+                   'per_person', case when ppl > 0 then round((qr + hand) * 10.0 / ppl) / 10 else 0 end) order by m), '[]'::jsonb)
+                  from (select date_trunc('month', at) m, count(*) filter (where not by_host) qr, count(*) filter (where by_host) hand, count(distinct user_id) ppl
+                          from public.passport_stamps where at > date_trunc('month', now()) - interval '5 months' group by 1) s),
+    'network', jsonb_build_object(
+        'active_hosts_30d', (select count(distinct host_id) from public.green_gatherings where cancelled_at is null and starts_at between now() - interval '30 days' and now() + interval '30 days'),
+        'certified_hosts', (select count(*) from public.profiles p where public.host_certified(p.id)),
+        'official_tables_30d', (select count(*) from public.green_gatherings where official and cancelled_at is null and starts_at > now() - interval '30 days'),
+        'cities_30d', (select count(distinct lower(coalesce(nullif(btrim(city), ''), country))) from public.green_gatherings where cancelled_at is null and starts_at > now() - interval '30 days'),
+        'countries_30d', (select count(distinct country) from public.green_gatherings where cancelled_at is null and starts_at > now() - interval '30 days'),
+        'partner_venues', (select count(*) from public.partner_venues where listed)));
+end $$;
+revoke execute on function public.traction_metrics() from public, anon;
+grant execute on function public.traction_metrics() to authenticated;
+
+notify pgrst, 'reload schema';
+-- END · MOMENTS AT SCALE
+
 -- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --

@@ -29,6 +29,7 @@ import { recent, clearCrashes, asText } from '../lib/crashLog';
 import { SheetHandle } from './SheetHandle';
 import { OffersTab } from './OffersTab';
 import { PartnersTab } from './PartnersTab';
+import { TractionTab } from './TractionTab';
 import { PromptsTab } from './PromptsTab';
 import { RewardsTab } from './RewardsTab';
 import { TeachersTab } from './TeachersTab';
@@ -44,6 +45,7 @@ import { useSheetBack } from '../hooks/useSheetBack';
    area means the owner only. The server enforces this on every call;
    hiding a tab is only so nobody is shown a door that will not open. */
 const TABS = [
+  { k: 'traction', label: 'Traction', icon: 'trending-up-outline' },
   { k: 'people', label: 'People', icon: 'person-circle-outline', area: 'safety' },
   { k: 'safety', label: 'Safety', icon: 'shield-outline', area: 'safety' },
   { k: 'reports', label: 'Reports', icon: 'flag-outline', area: 'safety' },
@@ -970,6 +972,7 @@ export const AdminPanel = ({ onClose, access = { owner: true }, initialTab = nul
           {tab === 'highlights' && owner ? <HighlightsTab userId={user && user.id} /> : null}
           {tab === 'offers' && owner ? <OffersTab userId={user && user.id} /> : null}
           {tab === 'partners' && owner ? <PartnersTab /> : null}
+          {tab === 'traction' && owner ? <TractionTab /> : null}
           {tab === 'prompts' && owner ? <PromptsTab /> : null}
           {tab === 'rewards' && owner ? <RewardsTab /> : null}
           {tab === 'teachers' && owner ? <TeachersTab /> : null}

@@ -43,6 +43,8 @@ import { setupNotice } from '../lib/plumbing';
 /* Fetched when it is opened, not when the app starts. */
 import { lazyOverlay } from '../lib/lazyScreen';
 import { SheetHandle, SheetBack } from '../components/SheetHandle';
+// my Global Track goal — it feeds the Vibe Match (ScaleKit, in the LiveKit piece)
+const GoalPicker = lazyOverlay(() => import('../components/LiveKit').then((m) => ({ default: m.GoalPicker })));
 const HostApplySheet = lazyOverlay(() => import('../components/HostApplySheet').then((m) => ({ default: m.HostApplySheet })));
 
 /* A real, persisted on/off switch. */
@@ -112,6 +114,7 @@ export const SettingsScreen = ({ onClose }) => {
   const [visible, setVisible] = useState(false);
   const [savedExchange, setSavedExchange] = useState(false);
   const [exchangeErr, setExchangeErr] = useState(null);
+  const [goal, setGoal] = useState(null);
 
   useEffect(() => {
     if (!SUPABASE_READY || !user) return;
@@ -120,6 +123,7 @@ export const SettingsScreen = ({ onClose }) => {
       setLearning(p.learning_language || '');
       setLevel(p.learning_level || '');
       setVisible(!!p.learning_visible);
+      setGoal(p.track_goal || null);
     }).catch(() => {});
   }, [user]);
 
@@ -477,6 +481,7 @@ export const SettingsScreen = ({ onClose }) => {
                 );
               })}
             </View>
+            {SUPABASE_READY && user ? <GoalPicker userId={user.id} value={goal} /> : null}
             <Pressable onPress={() => saveExchange(visible)}>
               <View style={{ backgroundColor: C.purple, borderRadius: 12, paddingVertical: 11, alignItems: 'center' }}>
                 <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '900' }}>{savedExchange ? 'Saved ✓' : 'Save'}</Text>

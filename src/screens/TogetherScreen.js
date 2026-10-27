@@ -59,6 +59,9 @@ const GroupPage = lazyOverlay(() => import('../components/GroupPage').then((m) =
 const CapsuleSheet = lazyOverlay(() => import('../components/CapsuleSheet').then((m) => ({ default: m.CapsuleSheet })));
 const LoungesSheet = lazyOverlay(() => import('../components/LiveKit').then((m) => ({ default: m.LoungesSheet })));
 const BuddiesSheet = lazyOverlay(() => import('../components/LiveKit').then((m) => ({ default: m.BuddiesSheet })));
+const CityHubSheet = lazyOverlay(() => import('../components/LiveKit').then((m) => ({ default: m.CityHubSheet })));
+import { MatchBadge, OfficialBadge } from '../ui/MatchBadge';
+import { tableSignals } from '../services/scale';
 const TalkRoomSheet = lazyOverlay(() => import('../components/TalkRoom').then((m) => ({ default: m.TalkRoomSheet })));
 const StartTalkSheet = lazyOverlay(() => import('../components/TalkRoom').then((m) => ({ default: m.StartTalkSheet })));
 
@@ -410,6 +413,11 @@ export const TogetherScreen = () => {
   const [myCode, setMyCode] = useState(readCode);   // the country on your profile, as a code
   const [codeKnown, setCodeKnown] = useState(() => readCode() != null || !SUPABASE_READY);
   const [scope, setScope] = useState('near');       // 'near' | 'all'
+  /* the city hub: Near me, or one of the cities Moments lives in (RUN_ME.sql
+     "MOMENTS AT SCALE"). A hub stands in for where you are: its centre and its country. */
+  const [hub, setHub] = useState(() => { try { return JSON.parse(localStorage.getItem('mm.hub') || 'null'); } catch (e) { return null; } });
+  const [hubPick, setHubPick] = useState(false);
+  const [sig, setSig] = useState({});               // per table: official, my Vibe Match
   const [fix] = useState(lastFix);                  // where Moments was opened (the map's last fix)
   const [elsewhere, setElsewhere] = useState([]);   // plans away from you, offered as ideas
   const [rows, setRows] = useState(() => keptGatherings(readCode()));  // the week as last seen; null = still asking
@@ -421,6 +429,20 @@ export const TogetherScreen = () => {
   const [sent, setSent] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [sheet, setSheet] = useState(null);
+  /* "Host an official table", from the passport: straight to starting one */
+  useEffect(() => {
+    const host = () => setSheet('start');
+    try { window.addEventListener('mm-host-table', host); } catch (e) {}
+    return () => { try { window.removeEventListener('mm-host-table', host); } catch (e) {} };
+  }, []);
+  // official tables and my Vibe Match with the people going — one ask for the whole week
+  useEffect(() => {
+    const ids = (rows || []).map((g) => g.id).filter((id) => /^[0-9a-f-]{36}$/i.test(String(id)));
+    if (!ids.length) return undefined;
+    let alive = true;
+    tableSignals(ids).then((x) => { if (alive && x) setSig(x); });
+    return () => { alive = false; };
+  }, [rows]);
   const [journey, setJourney] = useState(false);
   const [meet, setMeet] = useState(null);   // 'lounges' | 'buddies'
   // the VIP welcome offer's "claim" lands here, on the journey
@@ -503,7 +525,9 @@ export const TogetherScreen = () => {
       /* near: what is around you; the rest becomes ideas (one per activity) */
       if (scope === 'near') {
         const all = gs || [];
-        const near0 = all.filter((g) => isNear(g, fix, myCode));
+        const at = hub ? { lat: hub.lat, lng: hub.lng } : fix;
+        const code = hub ? hub.country : myCode;
+        const near0 = all.filter((g) => isNear(g, at, code));
         /* a plan with no pin is near when it is in a city you already
            have pinned plans from — "Sketching by the Nile, in Cairo" is
            not an idea from another city to somebody in Cairo */
@@ -526,7 +550,7 @@ export const TogetherScreen = () => {
            Prague, Rabat, Lisbon — your own country's ideas come first,
            then the everyday ones, before anything from another city */
         if (ideas.length < 4 || !here.length) {
-          listSparks(myCode).then((sp) => {
+          listSparks(hub ? hub.country : myCode).then((sp) => {
             if (!alive) return;
             const name = (COUNTRY_LIST.find((c) => c.code === myCode) || {}).name || (lang === 'ar' ? 'مدينتك' : 'your city');
             const extra = (sp || []).filter((x) => !seen.has(ideaKey({ kind: x.kind, title: x.title_en })))
@@ -545,7 +569,7 @@ export const TogetherScreen = () => {
       setRefreshing(false);
     });
     return () => { alive = false; };
-  }, [country, uid, scope, codeKnown, fix, myCode, lang]);
+  }, [country, uid, scope, codeKnown, fix, myCode, lang, hub]);
   useEffect(() => load(), [load]);
 
   const days = useMemo(() => groupByDay(aud ? (rows || []).filter((g) => (g.audience || 'all') === aud) : rows), [rows, aud]);
@@ -659,8 +683,14 @@ export const TogetherScreen = () => {
         {/* ── header ── */}
         <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginBottom: 14 }}>
           <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={{ color: C.dim, fontSize: 11.5, fontWeight: '900', letterSpacing: 1.4 }}>{t('tg_kicker')}</Text>
-            <Text style={{ color: C.text, fontSize: 30, fontWeight: '900', marginTop: 4 }}>{t('tg_title')}</Text>
+            {/* the city hub: tap to choose Cairo, Tallinn, Timișoara, Budapest, Berlin… */}
+            <Pressable onPress={() => { tapLight(); setHubPick(true); }} accessibilityRole="button" hitSlop={8} style={{ alignSelf: 'flex-start' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5, backgroundColor: C.purpleSoft }}>
+                <Text style={{ color: C.purple, fontSize: 13, fontWeight: '800' }} numberOfLines={1}>{hub ? hub.flag + ' ' + (lang === 'ar' && hub.name_ar ? hub.name_ar : hub.name) : '📍 ' + t('tg_near_me')}</Text>
+                <Ionicons name="chevron-down" size={14} color={C.purple} style={{ marginStart: 4 }} />
+              </View>
+            </Pressable>
+            <Text style={{ color: C.text, fontSize: 30, fontWeight: '900', marginTop: 6 }}>{t('tg_title')}</Text>
           </View>
           <Pressable onPress={() => { tapMedium(); setSheet('start'); }} accessibilityRole="button" accessibilityLabel={t('tg_start')} hitSlop={8}>
             <View style={{ width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: C.text }}>
@@ -686,7 +716,7 @@ export const TogetherScreen = () => {
 
         {/* ── where ── */}
         <View style={{ flexDirection: 'row', marginBottom: 12 }}>
-          <Pill on={scope === 'near'} label={(fix ? '📍' : myFlag) + ' ' + t('tg_near_me')} onPress={() => { tapLight(); setScope('near'); setDay(null); }} />
+          <Pill on={scope === 'near'} label={hub ? hub.flag + ' ' + (lang === 'ar' && hub.name_ar ? hub.name_ar : hub.name) : (fix ? '📍' : myFlag) + ' ' + t('tg_near_me')} onPress={() => { tapLight(); setScope('near'); setDay(null); }} />
           <Pill on={scope === 'all'} label={'🌍 ' + t('tg_everywhere')} onPress={() => { tapLight(); setScope('all'); setDay(null); }} />
         </View>
 
@@ -747,6 +777,12 @@ export const TogetherScreen = () => {
                           <Text numberOfLines={1} style={{ color: C.faint, fontSize: 12.5, fontWeight: '700', marginTop: 3 }}>
                             {hour(g.starts_at)}{g.place_name ? ' · ' + g.place_name : g.city ? ' · ' + g.city : ''}
                           </Text>
+                          {sig[g.id] && (sig[g.id].official || sig[g.id].match >= 60) ? (
+                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 6 }}>
+                              {sig[g.id].official ? <OfficialBadge lang={lang} style={{ marginEnd: 6, marginBottom: 4 }} /> : null}
+                              <MatchBadge score={sig[g.id].match} lang={lang} style={{ marginBottom: 4 }} />
+                            </View>
+                          ) : null}
                           {g.host_role ? <View style={{ marginTop: 5 }}><HostBadge role={g.host_role} small /></View> : null}
                           {g.age_min != null || g.age_max != null ? (
                             <View style={{ alignSelf: 'flex-start', marginTop: 6, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3, backgroundColor: '#FEF3C7' }}>
@@ -983,6 +1019,10 @@ export const TogetherScreen = () => {
         {/* the learning journey: one level at a time (JourneyMap.js) */}
         {uid ? <JourneyCard lang={lang} onOpen={() => setJourney(true)} /> : null}
         {journey ? <JourneyMap lang={lang} onClose={() => setJourney(false)} /> : null}
+        {hubPick ? <CityHubSheet current={hub} onClose={() => setHubPick(false)} onPick={(h) => {
+          setHubPick(false); setHub(h); setScope('near'); setDay(null);
+          try { if (h) localStorage.setItem('mm.hub', JSON.stringify(h)); else localStorage.removeItem('mm.hub'); } catch (e) {}
+        }} /> : null}
         {uid ? <MeetRows lang={lang} onLounges={() => setMeet('lounges')} onBuddies={() => setMeet('buddies')} /> : null}
         {meet === 'lounges' ? <LoungesSheet onClose={() => setMeet(null)} /> : null}
         {meet === 'buddies' ? <BuddiesSheet onClose={() => setMeet(null)} /> : null}

@@ -11,6 +11,8 @@ import { joinMesh } from '../lib/talkMesh';
 import { Face } from '../ui/Face';
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
 import { useSheetBack } from '../hooks/useSheetBack';
+import { MatchBadge } from '../ui/MatchBadge';
+import { loungeSignals } from '../services/scale';
 
 /* ─── LIVE LANGUAGE & CULTURE LOUNGES ─────────────────────────────────
    Always open, from home: topic rooms to practise speaking before you
@@ -222,7 +224,8 @@ export const LoungesSheet = ({ onClose }) => {
   const [note, setNote] = useState(null);
   useSheetBack(inside ? () => setInside(null) : onClose);
 
-  const load = () => loungesList().then((x) => setList(x || { lounges: [] }));
+  const [sig, setSig] = useState({});   // per lounge: my Vibe Match, and the flags of who is in it now
+  const load = () => { loungesList().then((x) => setList(x || { lounges: [] })); loungeSignals().then((x) => x && setSig(x)); };
   useEffect(() => { load(); const h = setInterval(load, 20000); return () => clearInterval(h); }, []);
   const go = (l) => {
     tapMedium(); setNote(null);
@@ -250,10 +253,13 @@ export const LoungesSheet = ({ onClose }) => {
                   <View style={{ flex: 1 }}>
                     <Text style={{ color: C.text, fontSize: 16.5, fontWeight: '600' }}>{title(l, lang)}</Text>
                     <Text style={{ color: C.dim, fontSize: 13, marginTop: 2 }} numberOfLines={1}>{lang === 'ar' && l.about_ar ? l.about_ar : l.about}</Text>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', marginTop: 6 }}>
                       <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: l.live ? C.green : C.line, marginEnd: 6 }} />
                       <Text style={[{ color: l.live ? C.green : C.faint, fontSize: 12.5, fontWeight: '600' }, NUM]}>{w(lang, 'live', { n: l.live })}</Text>
+                      {/* one room for every country: the flags of who is in it right now */}
+                      {sig[l.id] && sig[l.id].flags && sig[l.id].flags.length ? <Text style={{ fontSize: 12.5, marginStart: 6, letterSpacing: 1 }}>{sig[l.id].flags.slice(0, 6).join('')}</Text> : null}
                     </View>
+                    <MatchBadge score={sig[l.id] && sig[l.id].match} lang={lang} style={{ marginTop: 7 }} />
                   </View>
                   {!list.plus ? <Text style={{ color: C.purple, fontSize: 12, fontWeight: '700' }}>{'🔒 ' + w(lang, 'plus')}</Text> : <Ionicons name="chevron-forward" size={18} color={C.faint} />}
                 </View>

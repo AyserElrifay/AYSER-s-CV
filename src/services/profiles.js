@@ -29,7 +29,7 @@ export async function ensureMyProfile(user) {
    setup yet as well as on one that has. */
 export const PUBLIC_PROFILE = 'id, name, handle, emoji, avatar_url, avatar_dna, bio, intent, verified, country, country_flag, city, hobbies, account_type, artist_genre, last_active_at';
 const PROFILE_PAGE = PUBLIC_PROFILE + ', cover_url, cover_kind, cover_lat, cover_lng, cover_place, age, occupation, education, '
-  + 'speaks_language, learning_language, learning_level, learning_visible, host_role, host_verified_at, guide_langs, guide_areas, guide_since, guide_about, '
+  + 'speaks_language, learning_language, learning_level, learning_visible, track_goal, host_role, host_verified_at, guide_langs, guide_areas, guide_since, guide_about, '
   + 'community_xp, community_events, visited_countries, travel_love, created_at';
 
 /* the database not set up for the new way yet: a column or a function it does not have */

@@ -60,5 +60,15 @@ is('messages ask vip_chat (VIP, or a live pass)', /not public\.vip_chat\(u\)/.te
 is('somebody closed to new conversations stays closed', /and not dm_open\) then return jsonb_build_object\('ok', false, 'reason', 'closed'\)/.test(pp), true);
 is('only the event\'s host, café or owner sees the QR', /if not public\.event_runner\(p_kind, p_id, auth\.uid\(\)\) then return jsonb_build_object\('ok', false, 'reason', 'not_host'\)/.test(pp), true);
 
+console.log('\nMoments at scale: matching, certified hosts, cities, traction');
+const sc = sql.slice(sql.lastIndexOf('MOMENTS AT SCALE · MATCHING'));
+is('no signal, no score — never a made-up match', /if sig = 0 then return null; end if;/.test(sc), true);
+is('an official table is decided on insert, and cannot be set afterwards', /if tg_op = 'INSERT' then new\.official := public\.host_certified\(new\.host_id\);\s*else new\.official := old\.official; end if;/.test(sc), true);
+is('certified: 5 stamps, a partner venue, or verified by the owner', /from public\.passport_stamps where user_id = u\) >= 5/.test(sc), true);
+is('the table summary is for the people at the table, and has no names', /if not \(public\.event_going\(p_kind, p_id, auth\.uid\(\)\) or public\.event_runner/.test(sc) && !/'name'/.test(sc.slice(sc.indexOf('function public.table_profile'), sc.indexOf('-- ── 3 · city hubs'))), true);
+is('traction is the owner\'s only', /if not public\.is_app_owner\(\) then return jsonb_build_object\('ok', false, 'reason', 'not_owner'\)/.test(sc), true);
+is('MRR counts Lemon Squeezy memberships only, gifts apart', /source = 'lemonsqueezy';[\s\S]{0,200}coalesce\(source, ''\) <> 'lemonsqueezy'/.test(sc), true);
+is('a match badge only when the score is high enough to mean something', /MATCH_MIN = 60/.test(read('src/ui/MatchBadge.js')), true);
+
 if (bad) { console.log('\n' + bad + ' wrong.'); process.exit(1); }
 console.log('\nMembers only: Basic for the essentials, VIP for the full experience.');

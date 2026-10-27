@@ -14,6 +14,7 @@ import { eventExtras, eventCheckin } from '../services/live';
 import { ActivitiesHub, AfterParty } from './ActivitiesHub';
 import { pw } from '../constants/passportWords';
 import { StampScanner, HostQr } from './StampKit';   // the same chunk (LiveKit)
+import { TableIcebreakers } from './ScaleKit';
 
 /* ─── THE EVENT PAGE ──────────────────────────────────────────────────
    Ayser: "No endless chatting — subscribe, book a seat, and meet in real
@@ -274,6 +275,8 @@ export const EventRoom = ({ kind, id, lang, onClose }) => {
                 </View>
               )
             ) : null}
+            {/* three questions written for who is at this table (ScaleKit) */}
+            {!r.call && ex && (ex.phase === 'before' || ex.phase === 'live') ? <TableIcebreakers kind={kind} id={id} /> : null}
             {ex && (ex.phase === 'before' || ex.phase === 'live') ? <ActivitiesHub kind={kind} id={id} lang={lang} /> : null}
             {ex && ex.checked_in && ex.phase !== 'before' ? <AfterParty kind={kind} id={id} lang={lang} /> : null}
 

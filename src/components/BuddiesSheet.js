@@ -16,6 +16,8 @@ import { pw, leftText } from '../constants/passportWords';
 import { myPassport, setDmOpen } from '../services/passport';
 import { askUpgrade } from '../services/membership';
 import { goToTab } from '../lib/mapBus';
+import { MatchBadge } from '../ui/MatchBadge';
+import { vibeMatches } from '../services/scale';
 
 /* ─── MOMENTS BUDDIES ─────────────────────────────────────────────────
    Earned connection, not a messaging app. Strangers can never write to
@@ -201,13 +203,14 @@ const Chat = ({ other, threadId, lang, onBack }) => {
   );
 };
 
-const Row = ({ person, last, onPress }) => (
+const Row = ({ person, last, onPress, match, lang }) => (
   <Pressable onPress={onPress} accessibilityRole="button">
     <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12 }}>
       <Face uri={person.avatar_url} name={person.name} size={44} />
       <View style={{ flex: 1, marginStart: 12 }}>
         <Text style={{ color: C.text, fontSize: 16, fontWeight: '600' }} numberOfLines={1}>{person.name}</Text>
         {last ? <Text style={{ color: C.dim, fontSize: 13.5, marginTop: 2 }} numberOfLines={1}>{last}</Text> : null}
+        <MatchBadge score={match} lang={lang} style={{ marginTop: 5 }} />
       </View>
       <Ionicons name="chevron-forward" size={18} color={C.faint} />
     </View>
@@ -221,7 +224,8 @@ export const BuddiesSheet = ({ onClose, threadId, other }) => {
   const [convs, setConvs] = useState([]);
   const [pass, setPass] = useState(null);
   const [open, setOpen] = useState(threadId || other ? { threadId, other } : null);
-  const [dmOn, setDmOn] = useState(null);       // the privacy switch: may new people write to me
+  const [dmOn, setDmOn] = useState(null);
+  const [match, setMatch] = useState({});       // my Vibe Match with each buddy (the server's)       // the privacy switch: may new people write to me
   useSheetBack(open ? () => setOpen(null) : onClose);
   useEffect(() => {
     myPassport().then((p) => p && p.ok && setDmOn(p.dm_open !== false));
@@ -231,7 +235,7 @@ export const BuddiesSheet = ({ onClose, threadId, other }) => {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const load = () => {
-    myBuddies().then((x) => setList(x || []));
+    myBuddies().then((x) => { setList(x || []); vibeMatches((x || []).map((b) => b.id)).then((m) => m && setMatch(m)); });
     myConversations().then((x) => setConvs(x || []));
     passport(null).then(setPass);
   };
@@ -294,7 +298,7 @@ export const BuddiesSheet = ({ onClose, threadId, other }) => {
                 <Text style={{ color: C.dim, fontSize: 14.5, lineHeight: 21, marginTop: 24 }}>{w(lang, 'empty')}</Text>
               ) : (
                 <View style={{ marginTop: 16 }}>
-                  {list.map((b) => <Row key={b.id} person={b} last={b.last ? b.last.body : null} onPress={() => { tapLight(); setOpen({ other: b }); }} />)}
+                  {list.map((b) => <Row key={b.id} person={b} match={match[b.id]} lang={lang} last={b.last ? b.last.body : null} onPress={() => { tapLight(); setOpen({ other: b }); }} />)}
                 </View>
               )}
 

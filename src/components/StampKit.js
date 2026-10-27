@@ -9,6 +9,7 @@ import { myPassport, stampClaim, eventQr, hostStamp, stampLink, codeOf } from '.
 import { askUpgrade } from '../services/membership';
 import { goToTab } from '../lib/mapBus';
 import { Qr } from './biz/Qr';
+import { HostCard } from './ScaleKit';
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
 import { useSheetBack } from '../hooks/useSheetBack';
 import { SheetHandle } from './SheetHandle';
@@ -321,6 +322,8 @@ export const StampBook = () => {
         </View>
       ) : null}
       {l2 ? <Text style={{ color: '#FFF', fontSize: 14, lineHeight: 20, marginTop: 14 }}>{'🎓 ' + pw(lang, 'l2')}</Text> : null}
+      {/* 5 stamps also make a Certified Host: every table they start is official (ScaleKit) */}
+      <HostCard onHost={() => { goToTab('TOGETHER'); setTimeout(() => { try { window.dispatchEvent(new CustomEvent('mm-host-table')); } catch (e) {} }, 350); }} />
 
       <Pressable onPress={() => { tapLight(); setScan(true); }} accessibilityRole="button" style={{ marginTop: 22 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderRadius: 999, paddingVertical: 15, backgroundColor: '#FFF' }}>
