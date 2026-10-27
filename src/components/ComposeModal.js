@@ -337,10 +337,10 @@ export const ComposeModal = ({ initialMode = 'post', initialCaption = '', initia
               }}
               style={{
                 flex: 1, alignItems: 'center', paddingVertical: 9, borderRadius: 999,
-                backgroundColor: mode === m.id ? '#FFFFFF' : 'transparent',
+                backgroundColor: mode === m.id ? C.purple : 'transparent',
               }}
             >
-              <Text style={{ color: mode === m.id ? C.text : C.dim, fontSize: 13, fontWeight: '800' }}>
+              <Text style={{ color: mode === m.id ? '#FFF' : C.dim, fontSize: 13, fontWeight: '800' }}>
                 {m.emoji} {m.label}
               </Text>
             </Pressable>
@@ -429,10 +429,12 @@ export const ComposeModal = ({ initialMode = 'post', initialCaption = '', initia
 
           {/* caption canvas */}
           <LinearGradient
-            colors={imageUri || isStory ? ['transparent', 'transparent'] : TEXT_BGS[textBg].colors}
+            /* "plain" is the page's own card colour, so the words stay readable by day and by night */
+            colors={imageUri || isStory ? ['transparent', 'transparent'] : textBg === 'plain' ? [C.glass, C.glass] : TEXT_BGS[textBg].colors}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
-            style={{ borderRadius: R - 4, paddingHorizontal: textBg === 'plain' || imageUri || isStory ? 4 : 16, paddingVertical: textBg === 'plain' || imageUri || isStory ? 0 : 20 }}
+            style={{ borderRadius: R - 4, paddingHorizontal: imageUri || isStory ? 4 : 16, paddingVertical: imageUri || isStory ? 0 : 14,
+              borderWidth: !imageUri && !isStory && textBg === 'plain' ? 1 : 0, borderColor: C.line }}
           >
             <TextInput
               placeholder={isStory ? 'Say something (optional)…'
@@ -647,7 +649,7 @@ export const ComposeModal = ({ initialMode = 'post', initialCaption = '', initia
           <NeonButton
             label={shareLabel}
             icon="⚡"
-            color={isStory ? C.purple : C.green}
+            color={C.purple}
             style={{ marginTop: 22, opacity: canShare ? 1 : 0.45 }}
             onPress={busy ? undefined : share}
           />

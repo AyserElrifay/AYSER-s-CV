@@ -140,13 +140,15 @@ export const ThemeProvider = ({ children }) => {
     document.documentElement.classList.toggle('mm-dark', mode === 'dark');
     document.documentElement.classList.toggle('mm-light', mode !== 'dark');
     if (document.body) document.body.style.backgroundColor = C.bg;
-    let meta = document.querySelector('meta[name="theme-color"]');
-    if (!meta) {
-      meta = document.createElement('meta');
+    // the browser's own bar is the page, not a purple band — every theme-color tag (light and dark) follows the app
+    const metas = document.querySelectorAll('meta[name="theme-color"]');
+    if (!metas.length) {
+      const meta = document.createElement('meta');
       meta.name = 'theme-color';
+      meta.content = C.bg;
       document.head.appendChild(meta);
     }
-    meta.content = C.bg2;
+    metas.forEach((m) => { m.content = C.bg; });
   }, [mode]);
 
   /* Kept for anything still calling it: a toggle is a deliberate

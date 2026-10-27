@@ -110,7 +110,8 @@ const tags = `
        slash and the manifest 404s — at which point iOS has nothing to
        read and adds a plain bookmark instead of the app. -->
   <link rel="manifest" href="/manifest.json" />
-  <meta name="theme-color" content="#7C3AED" />
+  <meta name="theme-color" content="#FAF8F5" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#0F0D14" media="(prefers-color-scheme: dark)" />
   <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
   <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />

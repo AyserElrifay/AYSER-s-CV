@@ -1,5 +1,6 @@
 import React from 'react';
-import { Platform, useWindowDimensions } from 'react-native';
+import { Platform, useWindowDimensions, View, Text, Pressable } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DefaultTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -16,6 +17,7 @@ import { getPrefs } from '../services/prefs';
 import { onUnlockRequest } from '../lib/unlockBus';
 import { goToTab } from '../lib/mapBus';
 import { OfflineBar } from '../components/OfflineBar';
+import { tapSelection } from '../utils/feedback';
 
 const VibeCheckSheet = lazyOverlay(() => import('../components/VibeCheckSheet').then((m) => ({ default: m.VibeCheckSheet })));
 
@@ -107,6 +109,46 @@ export const buildNavTheme = () => ({
   },
 });
 
+/* ─── THE FLOATING TAB BAR ────────────────────────────────────────────
+   Ayser, with Telegram's bar as the picture: not a strip glued to the
+   bottom with a fixed height (on an iPhone that fought the home
+   indicator — a dead band under the icons, the labels squeezed out),
+   but one rounded capsule floating just above the home indicator, the
+   page's own colour around it, the tab you are on lit in Moments violet.
+   It keeps its place in the layout (screens end above it), so nothing
+   on the map or in a sheet hides behind it. */
+const titleCase = (s) => (s && s === s.toUpperCase() && s !== s.toLowerCase()
+  ? s.charAt(0) + s.slice(1).toLocaleLowerCase() : s);
+const PillBar = ({ state, navigation, t }) => {
+  const insets = useSafeAreaInsets();
+  const glass = Platform.OS === 'web' ? { backdropFilter: 'blur(20px) saturate(1.4)', WebkitBackdropFilter: 'blur(20px) saturate(1.4)' } : null;
+  return (
+    <View style={{ backgroundColor: C.bg, paddingHorizontal: 14, paddingTop: 6, paddingBottom: Math.max(insets.bottom - 12, 10), alignItems: 'center' }}>
+      <View accessibilityRole="tablist" style={[{ flexDirection: 'row', width: '100%', maxWidth: 460, height: 62, borderRadius: 31, padding: 5,
+        backgroundColor: C.float, borderWidth: 1, borderColor: C.line }, glass]}>
+        {state.routes.map((route, i) => {
+          if (route.name === 'CHILL') return null;
+          const focused = state.index === i;
+          const color = focused ? C.purple : C.dim;
+          const press = () => {
+            const e = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
+            if (!focused && !e.defaultPrevented) { tapSelection(); navigation.navigate(route.name); }
+          };
+          return (
+            <Pressable key={route.key} onPress={press} accessibilityRole="tab" accessibilityState={{ selected: focused }}
+              accessibilityLabel={titleCase(t(TAB_LABEL_KEY[route.name]))} testID={'tab-' + route.name} style={{ flex: 1 }}>
+              <View style={{ flex: 1, borderRadius: 26, alignItems: 'center', justifyContent: 'center', backgroundColor: focused ? C.purpleSoft : 'transparent' }}>
+                {renderTabIcon(route.name, focused, color)}
+                <Text style={{ color, fontSize: 10.5, fontWeight: focused ? '700' : '500', marginTop: 2 }} numberOfLines={1}>{titleCase(t(TAB_LABEL_KEY[route.name]))}</Text>
+              </View>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+};
+
 const TAB_LABEL_KEY = {
   HOME: 'tab_home', MAP: 'tab_map', CHILL: 'tab_chill', TOGETHER: 'tab_together', SPACE: 'tab_space',
 };
@@ -129,6 +171,7 @@ export const TabNavigator = () => {
   <UnlockHost />
   <Tab.Navigator
     backBehavior="history"
+    tabBar={sidebar ? undefined : (props) => <PillBar {...props} t={t} />}
     screenOptions={({ route }) => ({
       headerShown: false,
       // A cut between tabs reads as a glitch when a finger caused it;
