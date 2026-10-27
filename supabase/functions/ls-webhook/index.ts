@@ -19,7 +19,7 @@
 //
 //  Which tier it is comes from what was bought, as Lemon Squeezy's signed
 //  event says it: the variant LEMONSQUEEZY_VIP_VARIANT_ID, or a product
-//  or variant whose name says "VIP" or "Premium", is VIP (Premium); anything
+//  or variant whose name says "VIP", "Premium" or "Black", is VIP (Moments Black); anything
 //  else is Basic. Monthly or yearly: a name that says "Annual"/"Year", or
 //  else a first renewal more than two months after the start. The
 //  checkout link's custom data only says WHO — never which tier — so
@@ -90,7 +90,7 @@ Deno.serve(async (req) => {
     customer_id: s.customer_id != null ? String(s.customer_id) : null,
     variant_id: s.variant_id != null ? String(s.variant_id) : null,
     tier: (s.variant_id != null && String(s.variant_id) === String(Deno.env.get('LEMONSQUEEZY_VIP_VARIANT_ID') || '-'))
-      || /\b(vip|premium)\b/i.test(String(s.product_name || '') + ' ' + String(s.variant_name || '')) ? 'vip' : 'basic',
+      || /\b(vip|premium|black)\b/i.test(String(s.product_name || '') + ' ' + String(s.variant_name || '')) ? 'vip' : 'basic',
     period: periodOf(s),
     status: s.status || null,
     renews_at: s.renews_at || null,

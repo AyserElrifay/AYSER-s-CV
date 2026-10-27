@@ -7,6 +7,8 @@ import { uploadPlanPhoto } from '../lib/storage';
 import { tapLight, tapSuccess } from '../utils/feedback';
 import { appLink, shareLink } from '../utils/share';
 import { lazyOverlay } from '../lib/lazyScreen';
+import { searchProfiles } from '../services/social';
+import { giftMembership, endGift, giftList } from '../services/gifts';
 
 // the event page, as its host sees it: write the pin, open or end the workshop room
 const EventRoom = lazyOverlay(() => import('./LiveKit').then((m) => ({ default: m.EventRoom })));
@@ -204,6 +206,69 @@ const fromForm = (f) => {
     conditions: lines(f.conditions), conditions_ar: lines(f.conditions_ar),
     starts_at: time(f.starts_at), ends_at: time(f.ends_at),
   };
+};
+
+/* ── a gifted membership ── Ayser: "ادّيني أنا وعوض يوسف وسهيلة free لمدة ٣ شهور".
+   Find the member, pick the plan and the months, Gift: they are in at once,
+   nothing to pay, nothing renewing (RUN_ME.sql, "GIFTED MEMBERSHIPS"). */
+const GiftBox = () => {
+  const [q, setQ] = useState('');
+  const [found, setFound] = useState([]);
+  const [who, setWho] = useState(null);
+  const [tier, setTier] = useState('vip');
+  const [months, setMonths] = useState(3);
+  const [gifts, setGifts] = useState([]);
+  const [note, setNote] = useState(null);
+  const loadGifts = () => giftList().then((r) => setGifts((r && r.gifts) || []));
+  useEffect(() => { loadGifts(); }, []);
+  useEffect(() => {
+    if (q.trim().length < 2) { setFound([]); return undefined; }
+    const t = setTimeout(() => { searchProfiles(q).then((r) => setFound(r || [])).catch(() => setFound([])); }, 300);
+    return () => clearTimeout(t);
+  }, [q]);
+  const give = async () => {
+    if (!who) return;
+    const r = await giftMembership(who.id, tier, months * 30);
+    if (r && r.ok) { tapSuccess(); setNote((who.name || 'They') + ' have ' + (tier === 'vip' ? 'Moments Black' : 'Moments+') + ' until ' + new Date(r.until).toDateString() + '.'); setWho(null); setQ(''); loadGifts(); }
+    else setNote(r && r.reason === 'paying' ? 'They already pay for longer than that.' : 'Could not gift — owner only.');
+  };
+  return (
+    <View style={{ borderWidth: 1, borderColor: C.line, borderRadius: 14, padding: 12, marginTop: 12 }}>
+      <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '900' }}>Gift a membership</Text>
+      <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 3 }}>Free, for the months you choose. Nothing is charged and nothing renews; Traction counts it apart from revenue.</Text>
+      {who ? (
+        <Text style={{ color: C.text, fontSize: 14, fontWeight: '700', marginTop: 10 }}>{'→ ' + (who.name || '') + (who.handle ? '  @' + who.handle : '')}</Text>
+      ) : (
+        <>
+          <Field label="Find the member (name or @handle)" value={q} onChange={setQ} ph="e.g. Awad" />
+          {found.slice(0, 6).map((p) => (
+            <Pressable key={p.id} onPress={() => { tapLight(); setWho(p); setFound([]); }} accessibilityRole="button">
+              <Text style={{ color: C.text, fontSize: 14, paddingVertical: 7 }}>{(p.name || '—') + (p.handle ? '  @' + p.handle : '') + (p.city ? '  · ' + p.city : '')}</Text>
+            </Pressable>
+          ))}
+        </>
+      )}
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 4 }}>
+        <Btn label="Moments Black" solid={tier === 'vip'} onPress={() => setTier('vip')} />
+        <Btn label="Moments+" solid={tier === 'basic'} onPress={() => setTier('basic')} />
+      </View>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+        {[1, 3, 6, 12].map((n) => <Btn key={n} label={n + (n === 1 ? ' month' : ' months')} solid={months === n} onPress={() => setMonths(n)} />)}
+      </View>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+        <Btn label="Gift" solid onPress={give} disabled={!who} />
+        {who ? <Btn label="Someone else" onPress={() => setWho(null)} /> : null}
+      </View>
+      {note ? <Text style={{ color: C.green, fontSize: 13, marginTop: 8 }}>{note}</Text> : null}
+      {gifts.length ? <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '800', letterSpacing: 0.8, marginTop: 12 }}>GIFTED NOW</Text> : null}
+      {gifts.map((g) => (
+        <View key={g.user_id} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6 }}>
+          <Text style={{ color: C.text, fontSize: 13.5, flex: 1 }}>{(g.name || '—') + ' · ' + (g.tier === 'vip' ? 'Black' : 'Moments+') + ' · until ' + new Date(g.until).toDateString()}</Text>
+          <Btn label="End" danger onPress={async () => { await endGift(g.user_id); loadGifts(); }} />
+        </View>
+      ))}
+    </View>
+  );
 };
 
 export const OffersTab = ({ userId }) => {
@@ -433,9 +498,10 @@ export const OffersTab = ({ userId }) => {
           const r = await ownerSetSetting('bookings_sheet_hook', v); setMsg(r && r.ok ? 'Saved.' : 'Could not save.'); load();
         }} />
         <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '900', marginTop: 14 }}>{'Online payments: ' + (online ? 'ON' : 'OFF')}</Text>
-        <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 3 }}>Turn on only after the Paymob keys are set and a test payment went through.</Text>
+        <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 3 }}>This is also the membership gate: on, everybody without Moments+ or Moments Black meets the plans. Turn on only once a test payment came back as a membership.</Text>
         <Btn label={online ? 'Turn off' : 'Turn on'} danger={online} onPress={async () => { const r = await ownerSetSetting('payments_online', !online); setMsg(r && r.ok ? 'Saved.' : 'Could not save.'); load(); }} />
       </View>
+      <GiftBox />
       {msg ? <Text style={{ color: C.green, fontSize: 13.5, marginTop: 10 }}>{msg}</Text> : null}
       {party ? <Party offer={party} onClose={() => setParty(null)} /> : null}
 

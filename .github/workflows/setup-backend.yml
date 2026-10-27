@@ -66,6 +66,10 @@ on:
         description: 'Photographs: look and report, write nothing'
         type: boolean
         default: false
+      open_memberships:
+        description: 'Turn memberships on (only if the Lemon Squeezy webhook is ready)'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -391,6 +395,28 @@ jobs:
       # does. The browser sends an Origin header and a preflight first,
       # so a plain curl can pass while every real user still fails on
       # CORS. Both are checked here.
+      # Turning memberships on puts everybody without one in front of the
+      # plans, so it is only done when a payment can actually come back as a
+      # membership: ls-webhook must answer an unsigned call with 401
+      # ("signature" — its secret is set), not 503 ("not configured").
+      - name: Turn memberships on
+        if: ${{ inputs.open_memberships }}
+        run: |
+          set -uo pipefail
+          code=$(curl -sS -o /tmp/ls.out -w '%{http_code}' -m 30 -X POST "https://$REF.supabase.co/functions/v1/ls-webhook" -d '{}' || echo 000)
+          echo "ls-webhook, unsigned → HTTP $code: $(head -c 100 /tmp/ls.out)"
+          if [ "$code" != "401" ]; then
+            echo "::error::Memberships stay OFF: the Lemon Squeezy webhook is not ready (503 = no LEMONSQUEEZY_WEBHOOK_SECRET). A payment would not become a membership."
+            exit 1
+          fi
+          q="insert into public.app_settings (key, value) values ('payments_online', 'true'::jsonb) on conflict (key) do update set value = 'true'::jsonb; select public.payments_on() as memberships_on;"
+          jq -n --arg q "$q" '{query: $q}' > /tmp/on.json
+          code=$(curl -sS -o /tmp/on.out -w '%{http_code}' -X POST "https://api.supabase.com/v1/projects/$REF/database/query" \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H 'Content-Type: application/json' --data-binary @/tmp/on.json)
+          echo "HTTP $code"; head -c 300 /tmp/on.out; echo
+          [ "$code" = "200" ] || [ "$code" = "201" ] || { echo "::error::Could not switch memberships on."; exit 1; }
+          echo "Memberships are ON."
+
       - name: Ask Bardi the way the app does
         if: ${{ inputs.deploy_function }}
         env:

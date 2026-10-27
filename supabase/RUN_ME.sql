@@ -22649,6 +22649,61 @@ end $$;
 revoke all on function public.ls_apply(jsonb) from public, anon, authenticated;
 
 -- ═══════════════════════════════════════════════════════════════════
+--  GIFTED MEMBERSHIPS · THE OWNER GIVES MOMENTS+ OR MOMENTS BLACK
+--  Ayser: "ادّيني أنا وعوض يوسف وسهيلة free لمدة ٣ شهور". From the
+--  Studio (Offers → Gift a membership) the owner picks a member, the
+--  plan and the months; the member is in at once, with nothing to pay
+--  and nothing renewing. A gift is source 'gift': Traction counts it
+--  apart, never as revenue, and the Lemon Squeezy welcome offer is not
+--  made for it. A paid subscription that runs longer keeps its own
+--  date (ls_apply). Owner only, checked here. Safe to re-run.
+-- ═══════════════════════════════════════════════════════════════════
+create or replace function public.owner_gift_membership(p_user uuid, p_tier text, p_days int)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare t text := case when lower(coalesce(p_tier, '')) in ('vip', 'black') then 'vip' else 'basic' end;
+        cur public.plus_members%rowtype; base timestamptz; u timestamptz;
+begin
+  if not public.is_app_owner() then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
+  if p_user is null or not exists (select 1 from public.profiles where id = p_user) then return jsonb_build_object('ok', false, 'reason', 'user'); end if;
+  if p_days is null or p_days < 1 or p_days > 730 then return jsonb_build_object('ok', false, 'reason', 'days'); end if;
+  select * into cur from public.plus_members where user_id = p_user;
+  -- a running gift is extended; anything else starts today
+  base := case when found and cur.source = 'gift' and cur.status = 'active' and cur.until > now() then cur.until else now() end;
+  u := base + make_interval(days => p_days);
+  if found and cur.source = 'lemonsqueezy' and cur.status = 'active' and (cur.until is null or cur.until > u) then
+    return jsonb_build_object('ok', false, 'reason', 'paying');   -- already paying for longer: nothing to give
+  end if;
+  insert into public.plus_members as m (user_id, status, until, source, tier)
+  values (p_user, 'active', u, 'gift', t)
+  on conflict (user_id) do update set status = 'active', until = u, source = 'gift', tier = t;
+  return jsonb_build_object('ok', true, 'until', u, 'tier', t);
+end $$;
+revoke all on function public.owner_gift_membership(uuid, text, int) from public, anon;
+grant execute on function public.owner_gift_membership(uuid, text, int) to authenticated;
+
+create or replace function public.owner_gift_end(p_user uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_app_owner() then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
+  update public.plus_members set status = 'expired', until = now() where user_id = p_user and source = 'gift';
+  return jsonb_build_object('ok', found);
+end $$;
+revoke all on function public.owner_gift_end(uuid) from public, anon;
+grant execute on function public.owner_gift_end(uuid) to authenticated;
+
+create or replace function public.owner_gift_list()
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+begin
+  if not public.is_app_owner() then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
+  return jsonb_build_object('ok', true, 'gifts', coalesce((
+    select jsonb_agg(jsonb_build_object('user_id', m.user_id, 'name', p.name, 'handle', p.handle, 'tier', m.tier, 'until', m.until) order by m.until)
+      from public.plus_members m join public.profiles p on p.id = m.user_id
+     where m.source = 'gift' and m.status = 'active' and m.until > now()), '[]'::jsonb));
+end $$;
+revoke all on function public.owner_gift_list() from public, anon;
+grant execute on function public.owner_gift_list() to authenticated;
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة

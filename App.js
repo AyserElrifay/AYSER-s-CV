@@ -90,8 +90,9 @@ const MemberGate = () => {
     const load = () => myMembership().then((x) => {
       if (!alive || !x) return;
       setM(x);
-      // Moments Black members see the app in black and white (lib/black.js)
-      setBlack(x.tier === 'VIP');
+      // Moments Black members see the app in black and white (lib/black.js) — only
+      // once memberships are on: before that the server lets everybody in as VIP
+      setBlack(x.tier === 'VIP' && !!x.gate);
       // a VIP with a live offer sees it once; asked only when it can matter
       if (x.tier === 'VIP' && !otoSeen() && (back || x.source === 'lemonsqueezy')) {
         myWelcomeOffer().then((o) => { if (alive && o && o.live && !otoSeen()) { setOto(o); if (poll) clearInterval(poll); } });

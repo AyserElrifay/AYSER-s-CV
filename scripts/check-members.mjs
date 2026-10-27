@@ -33,7 +33,7 @@ is('the webhook reads the VIP variant', /LEMONSQUEEZY_VIP_VARIANT_ID[\s\S]+\? 'v
 is('ls_apply writes the tier it was told', /tier\s+= excluded\.tier,/.test(tiers), true);
 is('checkout sells the tier asked for', /tier === 'vip' \? 'LEMONSQUEEZY_VIP_VARIANT_ID' : 'LEMONSQUEEZY_VARIANT_ID'/.test(checkout), true);
 is('a checkout link carries who, never which tier', /checkout\[custom\]\[user_id\]/.test(read('src/services/payments.js')) && !/checkout\[custom\]\[tier\]/.test(read('src/services/payments.js')), true);
-is('the webhook also knows VIP by the product name (VIP or Premium)', /\\b\(vip\|premium\)\\b\/i\.test\(String\(s\.product_name/.test(hook), true);
+is('the webhook also knows VIP by the product name (VIP or Premium)', /\\b\(vip\|premium\|black\)\\b\/i\.test\(String\(s\.product_name/.test(hook), true);
 is('the webhook says monthly or yearly', /period: periodOf\(s\)/.test(hook), true);
 is('changing tier moves the one subscription, never a second', /method: 'PATCH'[\s\S]+variant_id: Number\(VARIANT\)/.test(checkout), true);
 

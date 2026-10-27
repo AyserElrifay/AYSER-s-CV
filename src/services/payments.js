@@ -64,7 +64,7 @@ export async function payBooking(bookingId) {
    for, never by which button was pressed. */
 const LS_BUY = {
   basic: 'https://therealmoments.lemonsqueezy.com/checkout/buy/b837520d-74c4-4ca1-83a0-7dc8c9b65ef5',
-  vip: 'https://therealmoments.lemonsqueezy.com/checkout/buy/7a877c29-1427-4e0a-92d7-10ec9e28451f',
+  vip: 'https://therealmoments.lemonsqueezy.com/checkout/buy/5e90c5a0-6cc8-480b-bc4c-54c8c9d23c5b',
 };
 
 /* Moments+ or Black, monthly, through Lemon Squeezy.
