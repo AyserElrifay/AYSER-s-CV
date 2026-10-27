@@ -140,12 +140,6 @@ const tags = `
   <script>(function(){try{var IC=['night','nile','sunset','papyrus','paper'],qi=new URLSearchParams(location.search).get('icon');if(qi==='classic')localStorage.removeItem('mm.icon');else if(IC.indexOf(qi)>=0)localStorage.setItem('mm.icon',qi);var mi=localStorage.getItem('mm.icon');if(IC.indexOf(mi)>=0){var q=function(s){return document.querySelectorAll(s)};q('link[rel=manifest]')[0].href='/icons/manifest-'+mi+'.json';q('link[rel=apple-touch-icon]')[0].href='/icons/'+mi+'-180.png';q('link[rel=icon]').forEach(function(l){l.href='/icons/'+mi+'-192.png'})}}catch(e){}})()</script>
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <!-- iPhone home-screen app: on some iOS versions the page stops one status
-       bar short of the bottom of the screen, and the tab bar floats over an
-       empty band ("ليه في مساحة فاضية تحت"). If the window is shorter than the
-       screen by about a status bar, the app is stretched down to the edge.
-       In the browser, or where iOS gets it right, the gap is 0 and nothing moves. -->
-  <script>(function(){try{if(!(navigator.standalone||matchMedia('(display-mode: standalone)').matches))return;var fit=function(){var r=document.getElementById('root');if(!r)return;var g=innerHeight>innerWidth?screen.height-innerHeight:0;r.style.bottom=(g>0&&g<80?-g:0)+'px'};addEventListener('resize',fit);addEventListener('orientationchange',function(){setTimeout(fit,300)});document.addEventListener('DOMContentLoaded',fit);setTimeout(fit,0)}catch(e){}})()</script>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Moments" />
   <meta name="description" content="${DESC}" />
