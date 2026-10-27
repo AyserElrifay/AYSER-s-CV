@@ -3,7 +3,7 @@ import { TextInput } from 'react-native';
 import { looksPlayable, watchForBlankVideo } from '../lib/videoCheck';
 import { View, Text, Modal, Pressable, ImageBackground, FlatList, Dimensions, Image, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
+import { LinearGradient } from '../ui/Gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useLang } from '../context/LanguageContext';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';

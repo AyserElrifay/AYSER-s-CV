@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, Image, Pressable, ScrollView, Platform } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { LinearGradient } from '../../ui/Gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { lazyOverlay } from '../../lib/lazyScreen';
 import { C } from '../../constants/theme';

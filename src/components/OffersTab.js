@@ -9,7 +9,7 @@ import { appLink, shareLink } from '../utils/share';
 import { lazyOverlay } from '../lib/lazyScreen';
 
 // the event page, as its host sees it: write the pin, open or end the workshop room
-const EventRoom = lazyOverlay(() => import('./EventRoom').then((m) => ({ default: m.EventRoom })));
+const EventRoom = lazyOverlay(() => import('./LiveKit').then((m) => ({ default: m.EventRoom })));
 
 /* ─── STUDIO · TRIPS & DEALS ───────────────────────────────────────────
    The owner's desk for what people can book: write an offer (or finish

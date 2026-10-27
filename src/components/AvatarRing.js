@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, Image } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { LinearGradient } from '../ui/Gradient';
 import { C } from '../constants/theme';
 
 export const AvatarRing = ({ uri, size = 62, live }) => (

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Text, Pressable, Animated } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { LinearGradient } from '../ui/Gradient';
 import { C, R } from '../constants/theme';
 
 /* The signature control — refined for the light theme.

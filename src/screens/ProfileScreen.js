@@ -22,7 +22,7 @@ function resizeSquare(uri, size) {
     } catch (e) { resolve(null); }
   });
 }
-import { LinearGradient } from 'expo-linear-gradient';
+import { LinearGradient } from '../ui/Gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import * as ImagePicker from 'expo-image-picker';

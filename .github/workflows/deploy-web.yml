@@ -155,6 +155,8 @@ jobs:
       # No endless chat: no DMs or open groups; event chats and workshop rooms open and close on time.
       - name: Check there is no endless chat
         run: node scripts/check-no-chat.mjs
+      - name: Live activities, buddies, daily moment, lounges
+        run: node scripts/check-live.mjs
       # An icon-only button must have a name a screen reader can say.
       - name: Check every icon button has a name
         run: node scripts/check-a11y.mjs

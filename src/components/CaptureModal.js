@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { reportProblem } from '../lib/problems';
 import { View, Text, Modal, Pressable, Image, TextInput, ScrollView, Platform, PanResponder } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
+import { LinearGradient } from '../ui/Gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import * as ImagePicker from 'expo-image-picker';

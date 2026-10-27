@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { View, Text, Pressable, Image, ImageBackground, Animated, Easing, TextInput, Platform } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { LinearGradient } from '../ui/Gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { C, R, TEXT_BGS } from '../constants/theme';
@@ -34,7 +34,7 @@ const typeChip = (post) => {
      src/lib/clock.js — the length is real now, and when there isn't one
      the chip is simply "▶ WATCH". */
   if (post.type === 'vod') return { label: watchLabel(post.durationSec), tint: 'rgba(17,24,39,0.65)', color: '#FFF' };
-  if (post.plan) return { label: 'TRAVEL PLAN 🧳', tint: 'rgba(16,185,129,0.9)', color: '#FFF' };
+  if (post.plan) return { label: 'TRAVEL PLAN 🧳', tint: 'rgba(124,58,237,0.9)', color: '#FFF' };
   return { label: 'MOMENT', tint: 'rgba(17,24,39,0.65)', color: 'rgba(255,255,255,0.85)' };
 };
 

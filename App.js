@@ -59,11 +59,12 @@ const FirstTour = lazyOverlay(() => import('./src/components/FirstTour').then((m
 const PlusGate = () => {
   const [open, setOpen] = React.useState(false);
   React.useEffect(() => {
-    const on = () => setOpen(true);
+    // which door asked: a meetup seat, a chat, a lounge (detail), or a join
+    const on = (e) => setOpen((e && e.detail) || 'join');
     try { window.addEventListener('mm-need-plus', on); } catch (e) {}
     return () => { try { window.removeEventListener('mm-need-plus', on); } catch (e) {} };
   }, []);
-  return open ? <PlusSheet why="join" onClose={() => setOpen(false)} /> : null;
+  return open ? <PlusSheet why={typeof open === 'string' ? open : 'join'} onClose={() => setOpen(false)} /> : null;
 };
 const AdminPanel = lazyOverlay(() => import('./src/components/AdminPanel').then((m) => ({ default: m.AdminPanel })));
 import { Splash } from './src/components/Splash';

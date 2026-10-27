@@ -33,6 +33,9 @@ import { takeLaunchTarget, onPushOpen } from '../lib/push';
 import { GoOutRail } from '../components/GoOutRail';
 import { NextUp } from '../components/NextUp';
 import { lazyOverlay } from '../lib/lazyScreen';
+// the two things at the top of Home, fetched after the feed: your next step, and today's question
+const NextStep = lazyOverlay(() => import('../components/NextStep').then((m) => ({ default: m.NextStep })));
+const DailyMoment = lazyOverlay(() => import('../components/DailyMoment').then((m) => ({ default: m.DailyMoment })));
 import { readGate, addSeconds, markSeenAll, budgetSeconds, onGate } from '../lib/feedGate';
 import { FeedClock, FeedReopen } from '../components/FeedClock';
 import { myVolunteering, myUnrated } from '../services/green';
@@ -599,6 +602,10 @@ export const HomeScreen = () => {
                 </Pressable>
               </View>
             </View>
+
+            {/* yours first: the seat you booked or the level you are on, then the Daily Moment */}
+            {user ? <NextStep /> : null}
+            {user ? <DailyMoment /> : null}
 
             {/* the first thing: the next real plan near you, and one button */}
             <NextUp user={user} onStart={() => goToTab('TOGETHER')}

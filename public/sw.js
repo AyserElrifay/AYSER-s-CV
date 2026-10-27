@@ -166,6 +166,8 @@ const PUSH_EN = {
   push_trip_invite: 'Your invitation is ready 🎟',
   push_level_up: 'Your next level is open 🧭',
   push_event_update: 'Where to meet is updated 📌',
+  push_buddy: '{name} is your Moments Buddy now 🤝',
+  push_buddy_ping: '{name} invites you to their table: {title}',
   bardi_focus: '{n} people near you are {what} right now — focus together?',
   bardi_focus_at: '{n} people near you are {what} right now — a session at {venue}?',
   bd_kind_studying: 'Studying',

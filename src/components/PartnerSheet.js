@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, Modal, Pressable, ScrollView, TextInput, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { LinearGradient } from 'expo-linear-gradient';
+import { LinearGradient } from '../ui/Gradient';
 import { C } from '../constants/theme';
 import { useLang } from '../context/LanguageContext';
 import { partnerApply } from '../services/partners';

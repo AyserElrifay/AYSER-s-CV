@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable, ScrollView, Animated } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { LinearGradient } from '../ui/Gradient';
 import { C } from '../constants/theme';
 import { useLang } from '../context/LanguageContext';
 import { photoPlaces } from '../lib/placePoints';

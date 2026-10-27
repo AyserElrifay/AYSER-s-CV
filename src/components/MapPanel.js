@@ -7,7 +7,7 @@ import { whyText } from '../lib/recommend';
 import { HostBadge } from './HostCard';
 import { PlanThumb } from './green/PlanPhoto';
 import { tapLight, tapSelection } from '../utils/feedback';
-import { LinearGradient } from 'expo-linear-gradient';
+import { LinearGradient } from '../ui/Gradient';
 import { publicMedia } from '../lib/publicMedia';
 import { moodOfToday } from '../lib/mood';
 

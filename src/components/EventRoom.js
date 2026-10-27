@@ -2,13 +2,15 @@ import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable, ScrollView, Modal, TextInput, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { C } from '../constants/theme';
+import { C, NUM } from '../constants/theme';
 import { useAuth } from '../context/AuthContext';
 import { eventRoom, eventPin, classRoomJoin, classRoomLeave, classRoomEnd, classRoomState } from '../services/eventRooms';
 import { fetchMessages, sendMessage, subscribeMessages } from '../services/messages';
 import { joinMesh } from '../lib/talkMesh';
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
 import { useSheetBack } from '../hooks/useSheetBack';
+import { eventExtras, eventCheckin } from '../services/live';
+import { ActivitiesHub, AfterParty } from './ActivitiesHub';
 
 /* ─── THE EVENT PAGE ──────────────────────────────────────────────────
    Ayser: "No endless chatting — subscribe, book a seat, and meet in real
@@ -21,7 +23,36 @@ import { useSheetBack } from '../hooks/useSheetBack';
        start for people who paid, and the moment the host ends it,
        everyone is out.
    The times and the doors are the server's (RUN_ME.sql, "NO ENDLESS
-   CHAT"); this page shows them and asks again every few seconds. */
+   CHAT"); this page shows them and asks again every few seconds.
+
+   Then, Ayser's second step: the page is also where the table plays.
+   People check in when they are there; the Live Activities (the card
+   deck, two truths & a lie, roleplay) are for them; when it is over,
+   Keep in touch and Vibe Badges, and the chat becomes a 24-hour Memory
+   Capsule for short notes before it is archived, read-only, in the
+   passport ("LIVE ACTIVITIES" in RUN_ME.sql). */
+
+// check-in · checked in · the capsule · archived · seats left
+const S2 = {
+  en: ['Here already?', 'Check in', 'You are checked in.', 'Memory Capsule — open for 24 hours. Leave a short note.', 'Archived in your passport. Read-only now.', '{n} left', 'A short note…'],
+  ar: ['وصلت؟', 'اعمل تشيك إن', 'عملت تشيك إن.', 'كبسولة الذكريات — مفتوحة ٢٤ ساعة. سيب كلمة صغيرة.', 'اتحفظت في الباسبور بتاعك. للقراية بس دلوقتي.', 'فاضل {n}', 'كلمة صغيرة…'],
+  cs: ['Už jsi tady?', 'Přihlásit se', 'Jsi přihlášen/a.', 'Kapsle vzpomínek — otevřená 24 hodin. Nech krátký vzkaz.', 'Uloženo v pasu. Teď jen ke čtení.', 'Zbývá {n}', 'Krátký vzkaz…'],
+  es: ['¿Ya estás aquí?', 'Hacer check-in', 'Ya hiciste check-in.', 'Cápsula de recuerdos: abierta 24 horas. Deja una nota corta.', 'Archivado en tu pasaporte. Solo lectura.', 'Quedan {n}', 'Una nota corta…'],
+  et: ['Juba kohal?', 'Registreeru', 'Oled registreerunud.', 'Mälestuste kapsel — avatud 24 tundi. Jäta lühike märkus.', 'Arhiveeritud sinu passi. Nüüd ainult lugemiseks.', '{n} alles', 'Lühike märkus…'],
+  fr: ['Déjà là ?', 'Faire mon check-in', 'Check-in fait.', 'Capsule souvenir — ouverte 24 heures. Laisse un petit mot.', 'Archivé dans ton passeport. Lecture seule.', 'Plus que {n}', 'Un petit mot…'],
+  hi: ['पहुँच गए?', 'चेक-इन करो', 'तुम्हारा चेक-इन हो गया।', 'मेमोरी कैप्सूल — 24 घंटे खुला। एक छोटा नोट छोड़ो।', 'तुम्हारे पासपोर्ट में सेव। अब सिर्फ़ पढ़ने के लिए।', '{n} बाकी', 'एक छोटा नोट…'],
+  it: ['Già qui?', 'Fai check-in', 'Check-in fatto.', 'Capsula dei ricordi: aperta 24 ore. Lascia una nota breve.', 'Archiviato nel tuo passaporto. Solo lettura.', 'Ne restano {n}', 'Una nota breve…'],
+  ja: ['もう着いた？', 'チェックイン', 'チェックイン済みです。', 'メモリーカプセル — 24時間オープン。ひとことどうぞ。', 'パスポートに保存されました。読むだけです。', '残り{n}', 'ひとこと…'],
+  ko: ['벌써 왔어요?', '체크인', '체크인했어요.', '메모리 캡슐 — 24시간 열려 있어요. 짧은 메모를 남겨 주세요.', '패스포트에 보관됐어요. 이제 읽기만 돼요.', '{n}자리 남음', '짧은 메모…'],
+  nl: ['Al hier?', 'Inchecken', 'Je bent ingecheckt.', 'Herinneringscapsule — 24 uur open. Laat een kort berichtje achter.', 'Gearchiveerd in je paspoort. Nu alleen lezen.', 'Nog {n}', 'Een kort berichtje…'],
+  pt: ['Já chegaste?', 'Fazer check-in', 'Check-in feito.', 'Cápsula de memórias — aberta 24 horas. Deixa uma nota curta.', 'Arquivado no teu passaporte. Só leitura.', 'Faltam {n}', 'Uma nota curta…'],
+  ro: ['Ai ajuns deja?', 'Fă check-in', 'Ai făcut check-in.', 'Capsula amintirilor — deschisă 24 de ore. Lasă o notă scurtă.', 'Arhivat în pașaportul tău. Doar citire.', 'Mai sunt {n}', 'O notă scurtă…'],
+  ru: ['Уже на месте?', 'Отметиться', 'Ты отметился(-ась).', 'Капсула памяти — открыта 24 часа. Оставь короткую заметку.', 'Сохранено в паспорте. Теперь только чтение.', 'Осталось {n}', 'Короткая заметка…'],
+  tr: ['Geldin mi?', 'Giriş yap', 'Giriş yaptın.', 'Anı kapsülü — 24 saat açık. Kısa bir not bırak.', 'Pasaportunda arşivlendi. Artık yalnızca okunur.', '{n} yer kaldı', 'Kısa bir not…'],
+  uk: ['Вже на місці?', 'Відмітитися', 'Ти відмітився(-лася).', 'Капсула спогадів — відкрита 24 години. Залиш коротку нотатку.', 'Збережено в паспорті. Тепер лише читання.', 'Залишилось {n}', 'Коротка нотатка…'],
+  zh: ['已经到了？', '签到', '你已签到。', '回忆胶囊——开放 24 小时，留一句话吧。', '已存入你的护照，现在只能阅读。', '还剩 {n} 个', '留一句话…'],
+};
+const w2 = (lang, i, v) => String(((S2[lang] || S2.en)[i]) || S2.en[i]).replace('{n}', v == null ? '' : String(v));
 
 const S = {
   en: ['{n}/{t} spots taken', '{n} going', 'From the host', 'The host will pin where to meet here.', 'Arrival details — table, exact spot, what to look for', 'Pin it', 'The people going', 'Opens 30 minutes before the start, to find each other.', 'It is over — the chat stays here to read.', 'Write to the group…', 'Workshop room', 'Opens 15 minutes before the start.', 'Join the room', 'The host ended the workshop.', 'The room is for people who paid.', 'Leave', 'End the workshop for everyone', 'Mute', 'Unmute', '{n} in the room', 'Allow the microphone to join.', 'It did not go through. Try again.'],
@@ -114,8 +145,13 @@ export const EventRoom = ({ kind, id, lang, onClose }) => {
   const [inCall, setInCall] = useState(false);
   const [ended, setEnded] = useState(false);
   const [msg, setMsg] = useState(null);
+  const [ex, setEx] = useState(null);
 
-  const load = () => eventRoom(kind, id).then((x) => { setR(x || { ok: false }); if (x && x.ok && x.is_host) setPin((p) => p || x.pin || ''); });
+  const load = () => {
+    eventExtras(kind, id).then((x) => setEx(x && x.ok ? x : null));
+    return eventRoom(kind, id).then((x) => { setR(x || { ok: false }); if (x && x.ok && x.is_host) setPin((p) => p || x.pin || ''); });
+  };
+  const checkin = async () => { tapMedium(); const x = await eventCheckin(kind, id); if (x && x.ok) { tapSuccess(); load(); } else setMsg(w(lang, 'err')); };
   useEffect(() => { load(); const h = setInterval(load, 30000); return () => clearInterval(h); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // the people-going chat: read whenever there is one; new lines arrive live
@@ -141,7 +177,10 @@ export const EventRoom = ({ kind, id, lang, onClose }) => {
   };
 
   const now = r && r.ok ? Date.now() : 0;
-  const chatState = r && r.ok && r.chat ? (r.chat.open ? 'open' : now < new Date(r.chat.opens_at).getTime() ? 'soon' : 'over') : null;
+  // the chat: soon · open · the 24-hour capsule (short notes) · archived
+  const chatState = r && r.ok && r.chat ? (r.chat.open ? 'open' : now < new Date(r.chat.opens_at).getTime() ? 'soon'
+    : ex && ex.phase === 'capsule' ? 'capsule' : 'over') : null;
+  const left = r && r.ok && r.total ? Math.max(0, r.total - r.taken) : null;
   const title = r && r.ok ? (lang === 'ar' && r.title_ar ? r.title_ar : r.title) : '';
 
   return (
@@ -156,24 +195,33 @@ export const EventRoom = ({ kind, id, lang, onClose }) => {
           <Text style={{ color: C.dim, fontSize: 14, margin: 24 }}>{w(lang, 'err')}</Text>
         ) : (
           <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, paddingTop: 6, paddingBottom: insets.bottom + 40 }}>
-            <Text style={{ color: C.text, fontSize: 26, fontWeight: '900' }}>{title}</Text>
-            <Text style={{ color: C.dim, fontSize: 14, marginTop: 4 }}>{when(r.starts_at, lang)}</Text>
+            <Text style={{ color: C.text, fontSize: 28, fontWeight: '700', letterSpacing: -0.7, lineHeight: 33 }}>{title}</Text>
+            <Text style={[{ color: C.dim, fontSize: 14, marginTop: 6 }, NUM]}>{when(r.starts_at, lang)}</Text>
 
             {/* how full it is */}
             <View style={{ marginTop: 14 }}>
-              <Text style={{ color: C.text, fontSize: 15, fontWeight: '800' }}>
-                {r.total ? w(lang, 'spots', { n: r.taken, t: r.total }) : w(lang, 'going', { n: r.taken })}
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={[{ color: C.text, fontSize: 15, fontWeight: '600', flex: 1 }, NUM]}>
+                  {r.total ? w(lang, 'spots', { n: r.taken, t: r.total }) : w(lang, 'going', { n: r.taken })}
+                </Text>
+                {/* amber only when it matters: two seats or fewer */}
+                {left != null && left > 0 && left <= 2 ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: C.gold, marginEnd: 6 }} />
+                    <Text style={[{ color: C.gold, fontSize: 13, fontWeight: '600' }, NUM]}>{w2(lang, 5, left)}</Text>
+                  </View>
+                ) : null}
+              </View>
               {r.total ? (
-                <View style={{ height: 8, borderRadius: 4, backgroundColor: C.glassHi, marginTop: 8, overflow: 'hidden' }}>
-                  <View style={{ height: 8, borderRadius: 4, width: Math.min(100, Math.round((r.taken / r.total) * 100)) + '%', backgroundColor: r.taken / r.total >= 0.8 ? C.coral : C.purple }} />
+                <View style={{ height: 4, borderRadius: 2, backgroundColor: C.glassHi, marginTop: 10, overflow: 'hidden' }}>
+                  <View style={{ height: 4, borderRadius: 2, width: Math.min(100, Math.round((r.taken / r.total) * 100)) + '%', backgroundColor: C.purple }} />
                 </View>
               ) : null}
             </View>
 
             {/* the host's pin: read-only, except for the host */}
-            <View style={{ marginTop: 18, borderRadius: 18, borderWidth: 1, borderColor: C.line, backgroundColor: C.glass, padding: 16 }}>
-              <Text style={{ color: C.faint, fontSize: 12, fontWeight: '800', letterSpacing: 0.6 }}>{'📌 ' + w(lang, 'pin')}</Text>
+            <View style={{ marginTop: 20, borderRadius: 24, borderWidth: 1, borderColor: C.line, backgroundColor: C.glass, padding: 20 }}>
+              <Text style={{ color: C.dim, fontSize: 12, fontWeight: '600', letterSpacing: 0.4 }}>{w(lang, 'pin')}</Text>
               {r.is_host ? (
                 <>
                   <TextInput value={pin} onChangeText={setPin} placeholder={w(lang, 'pinPh')} placeholderTextColor={C.faint} multiline maxLength={500}
@@ -189,10 +237,26 @@ export const EventRoom = ({ kind, id, lang, onClose }) => {
               )}
             </View>
 
+            {/* at the table: check in, then play together */}
+            {ex && ex.can_checkin ? (
+              ex.checked_in ? <Text style={{ color: C.green, fontSize: 14, fontWeight: '600', marginTop: 16 }}>{'✓ ' + w2(lang, 2)}</Text> : (
+                <View style={{ marginTop: 20, borderRadius: 24, padding: 20, backgroundColor: C.purpleSoft, flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={{ color: C.text, fontSize: 17, fontWeight: '700', flex: 1 }}>{w2(lang, 0)}</Text>
+                  <Pressable onPress={checkin} accessibilityRole="button">
+                    <View style={{ borderRadius: 999, paddingHorizontal: 18, paddingVertical: 11, backgroundColor: C.purple }}>
+                      <Text style={{ color: '#FFF', fontSize: 15, fontWeight: '600' }}>{w2(lang, 1)}</Text>
+                    </View>
+                  </Pressable>
+                </View>
+              )
+            ) : null}
+            {ex && (ex.phase === 'before' || ex.phase === 'live') ? <ActivitiesHub kind={kind} id={id} lang={lang} /> : null}
+            {ex && ex.checked_in && ex.phase !== 'before' ? <AfterParty kind={kind} id={id} lang={lang} /> : null}
+
             {/* online: the workshop's room */}
             {r.call ? (
               <View style={{ marginTop: 18 }}>
-                <Text style={{ color: C.text, fontSize: 17, fontWeight: '900' }}>{'🎧 ' + w(lang, 'call')}</Text>
+                <Text style={{ color: C.text, fontSize: 20, fontWeight: '700', letterSpacing: -0.4 }}>{w(lang, 'call')}</Text>
                 {ended || r.call.ended ? <Text style={{ color: C.dim, fontSize: 14, marginTop: 6 }}>{w(lang, 'callEnded')}</Text>
                   : inCall ? <ClassRoom lang={lang} room={{ id: r.id, is_host: r.is_host }} onOut={(over) => { setInCall(false); if (over) setEnded(true); load(); }} />
                   : r.call.can_join ? (
@@ -208,18 +272,19 @@ export const EventRoom = ({ kind, id, lang, onClose }) => {
             {/* offline: the people going, briefly */}
             {chatState ? (
               <View style={{ marginTop: 18 }}>
-                <Text style={{ color: C.text, fontSize: 17, fontWeight: '900' }}>{'💬 ' + w(lang, 'chat')}</Text>
+                <Text style={{ color: C.text, fontSize: 20, fontWeight: '700', letterSpacing: -0.4 }}>{w(lang, 'chat')}</Text>
                 {chatState === 'soon' ? <Text style={{ color: C.dim, fontSize: 14, marginTop: 6 }}>{w(lang, 'chatSoon')}</Text> : null}
-                {chatState === 'over' ? <Text style={{ color: C.dim, fontSize: 14, marginTop: 6 }}>{w(lang, 'chatOver')}</Text> : null}
+                {chatState === 'capsule' ? <Text style={{ color: C.purple, fontSize: 14, marginTop: 6 }}>{w2(lang, 3)}</Text> : null}
+                {chatState === 'over' ? <Text style={{ color: C.dim, fontSize: 14, marginTop: 6 }}>{ex && ex.phase === 'archived' ? w2(lang, 4) : w(lang, 'chatOver')}</Text> : null}
                 {msgs.map((m) => (
                   <View key={m.id} style={{ marginTop: 8, alignSelf: m.user_id === user.id ? 'flex-end' : 'flex-start', maxWidth: '84%', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: m.user_id === user.id ? C.purple : C.glass, borderWidth: m.user_id === user.id ? 0 : 1, borderColor: C.line }}>
                     {m.user_id !== user.id && m.user ? <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '700' }}>{m.user.name}</Text> : null}
                     <Text style={{ color: m.user_id === user.id ? '#FFF' : C.text, fontSize: 14.5 }}>{m.body}</Text>
                   </View>
                 ))}
-                {chatState === 'open' ? (
+                {chatState === 'open' || chatState === 'capsule' ? (
                   <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
-                    <TextInput value={draft} onChangeText={setDraft} placeholder={w(lang, 'say')} placeholderTextColor={C.faint} maxLength={500} onSubmitEditing={send}
+                    <TextInput value={draft} onChangeText={setDraft} placeholder={chatState === 'capsule' ? w2(lang, 6) : w(lang, 'say')} placeholderTextColor={C.faint} maxLength={chatState === 'capsule' ? 280 : 500} onSubmitEditing={send}
                       style={{ flex: 1, color: C.text, fontSize: 15, borderWidth: 1, borderColor: C.line, borderRadius: 22, paddingHorizontal: 14, paddingVertical: 10, textAlign: lang === 'ar' ? 'right' : 'left' }} />
                     <Pressable onPress={send} accessibilityRole="button" accessibilityLabel="send" style={{ marginStart: 8 }}>
                       <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: C.purple, alignItems: 'center', justifyContent: 'center' }}>

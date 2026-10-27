@@ -3,7 +3,7 @@ import { reportProblem } from '../lib/problems';
 import { View, Text, ScrollView, Pressable, Modal, TextInput, Platform, Image, Linking, ActivityIndicator, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { LinearGradient } from 'expo-linear-gradient';
+import { LinearGradient } from '../ui/Gradient';
 import { C, DARK_MAP } from '../constants/theme';
 import { useTheme } from '../context/ThemeContext';
 import { ME, DOING_OPTIONS, av, AV_NEUTRAL } from '../constants/mockData';

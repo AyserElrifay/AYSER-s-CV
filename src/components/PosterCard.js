@@ -1,6 +1,6 @@
 import React from 'react';
 import { Text, ImageBackground } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { LinearGradient } from '../ui/Gradient';
 import { C } from '../constants/theme';
 import { Chip } from './Chip';
 

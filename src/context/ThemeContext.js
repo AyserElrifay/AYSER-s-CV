@@ -136,6 +136,9 @@ export const ThemeProvider = ({ children }) => {
   useEffect(() => {
     if (Platform.OS !== 'web' || typeof document === 'undefined') return;
     document.documentElement.style.backgroundColor = C.bg;
+    // the page's own CSS (hairlines in place of shadows) follows the mode too
+    document.documentElement.classList.toggle('mm-dark', mode === 'dark');
+    document.documentElement.classList.toggle('mm-light', mode !== 'dark');
     if (document.body) document.body.style.backgroundColor = C.bg;
     let meta = document.querySelector('meta[name="theme-color"]');
     if (!meta) {

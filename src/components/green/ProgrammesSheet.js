@@ -3,7 +3,7 @@ import { View, Text, Pressable, ScrollView, Modal, TextInput, ActivityIndicator 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { LinearGradient } from 'expo-linear-gradient';
+import { LinearGradient } from '../../ui/Gradient';
 import { C } from '../../constants/theme';
 import { useLang } from '../../context/LanguageContext';
 import { useAuth } from '../../context/AuthContext';

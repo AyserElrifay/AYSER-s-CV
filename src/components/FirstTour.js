@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable, Modal, Image, Animated, Easing, Platform, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
+import { LinearGradient } from '../ui/Gradient';
 import { useLang } from '../context/LanguageContext';
 import { publicMedia } from '../lib/publicMedia';
 import { goToTab } from '../lib/mapBus';

@@ -20469,6 +20469,1145 @@ exception when others then raise notice 'class room realtime policies skipped: %
 end $do$;
 
 -- ═══════════════════════════════════════════════════════════════════
+--  LIVE ACTIVITIES · EARNED CONNECTIONS · PLUS FOR NETWORKING
+--  Ayser, for the next sprint, in four parts. Every rule below is the
+--  database's; the app only asks.
+--
+--  1. AT THE TABLE. People going to an event CHECK IN when they are
+--     there (from 30 minutes before to the end). Checked-in people
+--     share one game state the whole table sees: the Moments Card Deck
+--     (Warm-up · Deep Moments · Global Twist with a 60-second clock),
+--     "Spin the turn" (the server picks whose turn it is, fairly),
+--     Two Truths & a Lie and table polls (one vote each; the result is
+--     shown once you have voted), Roleplay Roulette (two people, one
+--     travel scenario, 90 seconds). Card TEXT lives in the app; the
+--     server only deals indexes, so the counts here and in
+--     src/constants/activityDeck.js must match (check-live.mjs).
+--  2. AFTER. Vibe Badges, anonymous: the person gets the count, never
+--     who gave it. "Keep in touch": two checked-in people who both tap
+--     Connect within 48 hours of the end become Moments Buddies. The
+--     event's chat becomes a 24-hour MEMORY CAPSULE (short notes only)
+--     and is then read-only, kept in the passport.
+--  3. EVERY DAY. The Daily Moment: one question or poll; answer first,
+--     then read the others, buddies first, with one-tap reactions.
+--  4. PLUS. Joining other people's meetups, the Live Language Lounges
+--     and every private message need Moments Plus (the paywall rule).
+--     A private message is only ever: between Buddies, or a first
+--     message that replies to the person's Daily Moment answer or opens
+--     with an icebreaker card — and then nothing more from the sender
+--     until the other person answers. No cold "hi". Language practice
+--     and travel buddies, never dating.
+--  Safe to re-run.
+-- ═══════════════════════════════════════════════════════════════════
+
+-- ── an event, whichever kind it is ──
+create or replace function public.event_meta(p_kind text, p_id uuid)
+returns table (starts_at timestamptz, ends_at timestamptz, title text, online boolean)
+language sql stable security definer set search_path = public as $$
+  select o.starts_at, coalesce(o.ends_at, o.starts_at + coalesce(o.duration_hours, 3) * interval '1 hour'), o.title, o.online
+    from public.offers o where p_kind = 'offer' and o.id = p_id and o.starts_at is not null and o.kind <> 'gift'
+  union all
+  select g.starts_at, g.starts_at + make_interval(mins => coalesce(g.minutes, 180)), g.title, false
+    from public.green_gatherings g where p_kind = 'gathering' and g.id = p_id and g.cancelled_at is null;
+$$;
+revoke all on function public.event_meta(text, uuid) from public, anon, authenticated;
+
+create or replace function public.event_going(p_kind text, p_id uuid, u uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select u is not null and (
+    (p_kind = 'offer' and (exists (select 1 from public.bookings b where b.offer_id = p_id and b.user_id = u and b.status in ('reserved','paid','attended'))
+                            or public.offer_host(p_id, u)))
+    or (p_kind = 'gathering' and (exists (select 1 from public.green_joins j where j.gathering_id = p_id and j.user_id = u)
+                            or exists (select 1 from public.green_gatherings g where g.id = p_id and g.host_id = u))));
+$$;
+revoke all on function public.event_going(text, uuid, uuid) from public, anon, authenticated;
+
+-- ── 1 · checking in ──
+create table if not exists public.event_checkins (
+  kind     text not null check (kind in ('offer','gathering')),
+  event_id uuid not null,
+  user_id  uuid not null references public.profiles(id) on delete cascade,
+  at       timestamptz not null default now(),
+  primary key (kind, event_id, user_id)
+);
+alter table public.event_checkins enable row level security;   -- read only through the functions below
+
+create or replace function public.event_in(p_kind text, p_id uuid, u uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.event_checkins c where c.kind = p_kind and c.event_id = p_id and c.user_id = u);
+$$;
+revoke all on function public.event_in(text, uuid, uuid) from public, anon, authenticated;
+
+create or replace function public.event_checkin(p_kind text, p_id uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); m record;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  select * into m from public.event_meta(p_kind, p_id);
+  if not found then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
+  if not public.event_going(p_kind, p_id, me) then return jsonb_build_object('ok', false, 'reason', 'not_in'); end if;
+  if now() < m.starts_at - interval '30 minutes' then return jsonb_build_object('ok', false, 'reason', 'not_yet', 'opens_at', m.starts_at - interval '30 minutes'); end if;
+  if now() > m.ends_at then return jsonb_build_object('ok', false, 'reason', 'over'); end if;
+  insert into public.event_checkins (kind, event_id, user_id) values (p_kind, p_id, me) on conflict do nothing;
+  return jsonb_build_object('ok', true);
+end $$;
+revoke execute on function public.event_checkin(text, uuid) from public, anon;
+grant execute on function public.event_checkin(text, uuid) to authenticated;
+
+-- the people at the table: checked in, with a name and a face
+create or replace function public.event_people(p_kind text, p_id uuid)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select coalesce(jsonb_agg(jsonb_build_object('id', p.id, 'name', p.name, 'avatar_url', p.avatar_url) order by c.at), '[]'::jsonb)
+    from public.event_checkins c join public.profiles p on p.id = c.user_id
+   where c.kind = p_kind and c.event_id = p_id;
+$$;
+revoke all on function public.event_people(text, uuid) from public, anon, authenticated;
+
+-- ── the shared game state ──
+create table if not exists public.event_activity (
+  kind       text not null,
+  event_id   uuid not null,
+  state      jsonb not null default '{}'::jsonb,
+  rev        int not null default 0,
+  updated_at timestamptz not null default now(),
+  updated_by uuid references public.profiles(id) on delete set null,
+  primary key (kind, event_id)
+);
+alter table public.event_activity enable row level security;
+
+-- how many cards of each kind the app holds (src/constants/activityDeck.js)
+create or replace function public.activity_size(p_what text)
+returns int language sql immutable as $$
+  select case p_what when 'warm' then 20 when 'deep' then 20 when 'global' then 20
+                     when 'roleplay' then 16 when 'poll' then 12 else 0 end;
+$$;
+
+-- who may move the game: checked in, from 30 minutes before to the end
+create or replace function public.activity_ok(p_kind text, p_id uuid, u uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select public.event_in(p_kind, p_id, u) and exists (
+    select 1 from public.event_meta(p_kind, p_id) m
+     where now() between m.starts_at - interval '30 minutes' and m.ends_at);
+$$;
+revoke all on function public.activity_ok(text, uuid, uuid) from public, anon, authenticated;
+
+create or replace function public.activity_put(p_kind text, p_id uuid, p_patch jsonb)
+returns void language sql security definer set search_path = public as $$
+  insert into public.event_activity (kind, event_id, state, rev, updated_by)
+  values (p_kind, p_id, p_patch, 1, auth.uid())
+  on conflict (kind, event_id) do update
+    set state = public.event_activity.state || excluded.state, rev = public.event_activity.rev + 1,
+        updated_at = now(), updated_by = auth.uid();
+$$;
+revoke all on function public.activity_put(text, uuid, jsonb) from public, anon, authenticated;
+
+-- a random index of 0..n-1 that is not in `used` (and a fresh round when every card was seen)
+create or replace function public.activity_pick(n int, used jsonb)
+returns int language plpgsql volatile as $$
+declare free int[];
+begin
+  select array_agg(i) into free from generate_series(0, n - 1) i
+   where not coalesce(used, '[]'::jsonb) @> to_jsonb(i);
+  if free is null then return floor(random() * n)::int; end if;
+  return free[1 + floor(random() * array_length(free, 1))::int];
+end $$;
+
+create or replace function public.activity_get(p_kind text, p_id uuid)
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare me uuid := auth.uid(); m record; a public.event_activity%rowtype; phase text;
+begin
+  if not public.event_going(p_kind, p_id, me) then return jsonb_build_object('ok', false, 'reason', 'not_in'); end if;
+  select * into m from public.event_meta(p_kind, p_id);
+  if not found then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
+  phase := case when now() < m.starts_at - interval '30 minutes' then 'before'
+                when now() <= m.ends_at then 'live'
+                when now() <= m.ends_at + interval '48 hours' then 'after'
+                else 'closed' end;
+  select * into a from public.event_activity where kind = p_kind and event_id = p_id;
+  return jsonb_build_object('ok', true, 'now', now(), 'phase', phase,
+    'starts_at', m.starts_at, 'ends_at', m.ends_at,
+    'checked_in', public.event_in(p_kind, p_id, me),
+    'people', public.event_people(p_kind, p_id),
+    'state', coalesce(a.state, '{}'::jsonb), 'rev', coalesce(a.rev, 0),
+    'truths', (select count(*) from public.event_truths t where t.kind = p_kind and t.event_id = p_id),
+    'my_truth', exists (select 1 from public.event_truths t where t.kind = p_kind and t.event_id = p_id and t.user_id = me));
+end $$;
+revoke execute on function public.activity_get(text, uuid) from public, anon;
+grant execute on function public.activity_get(text, uuid) to authenticated;
+
+-- the deck: a card from one of the three piles; Global Twist has a 60-second clock
+create or replace function public.activity_deal(p_kind text, p_id uuid, p_cat text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare st jsonb; used jsonb; c int;
+begin
+  if p_cat not in ('warm','deep','global') then return jsonb_build_object('ok', false, 'reason', 'cat'); end if;
+  if not public.activity_ok(p_kind, p_id, auth.uid()) then return jsonb_build_object('ok', false, 'reason', 'not_live'); end if;
+  select state into st from public.event_activity where kind = p_kind and event_id = p_id;
+  used := coalesce(st -> 'used' -> p_cat, '[]'::jsonb);
+  if jsonb_array_length(used) >= public.activity_size(p_cat) then used := '[]'::jsonb; end if;
+  c := public.activity_pick(public.activity_size(p_cat), used);
+  perform public.activity_put(p_kind, p_id, jsonb_build_object(
+    'mode', 'deck', 'cat', p_cat, 'card', c,
+    'used', coalesce(st -> 'used', '{}'::jsonb) || jsonb_build_object(p_cat, used || to_jsonb(c)),
+    'ends_at', case when p_cat = 'global' then to_jsonb(now() + interval '60 seconds') else 'null'::jsonb end));
+  return public.activity_get(p_kind, p_id);
+end $$;
+revoke execute on function public.activity_deal(text, uuid, text) from public, anon;
+grant execute on function public.activity_deal(text, uuid, text) to authenticated;
+
+-- spin the turn: somebody at the table, chosen by the server, not by the phone that asked
+create or replace function public.activity_spin(p_kind text, p_id uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare st jsonb; who record;
+begin
+  if not public.activity_ok(p_kind, p_id, auth.uid()) then return jsonb_build_object('ok', false, 'reason', 'not_live'); end if;
+  select state into st from public.event_activity where kind = p_kind and event_id = p_id;
+  select p.id, p.name into who
+    from public.event_checkins c join public.profiles p on p.id = c.user_id
+   where c.kind = p_kind and c.event_id = p_id
+     and (p.id::text is distinct from (st -> 'turn' ->> 'id')
+          or (select count(*) from public.event_checkins x where x.kind = p_kind and x.event_id = p_id) = 1)
+   order by random() limit 1;
+  if not found then return jsonb_build_object('ok', false, 'reason', 'nobody'); end if;
+  perform public.activity_put(p_kind, p_id, jsonb_build_object('turn', jsonb_build_object('id', who.id, 'name', who.name, 'at', now())));
+  return public.activity_get(p_kind, p_id);
+end $$;
+revoke execute on function public.activity_spin(text, uuid) from public, anon;
+grant execute on function public.activity_spin(text, uuid) to authenticated;
+
+-- roleplay roulette: two people, one scenario, 90 seconds
+create or replace function public.activity_pair(p_kind text, p_id uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare st jsonb; pair jsonb; used jsonb; c int;
+begin
+  if not public.activity_ok(p_kind, p_id, auth.uid()) then return jsonb_build_object('ok', false, 'reason', 'not_live'); end if;
+  select coalesce(jsonb_agg(jsonb_build_object('id', x.id, 'name', x.name)), '[]'::jsonb) into pair from (
+    select p.id, p.name from public.event_checkins c join public.profiles p on p.id = c.user_id
+     where c.kind = p_kind and c.event_id = p_id order by random() limit 2) x;
+  if jsonb_array_length(pair) < 2 then return jsonb_build_object('ok', false, 'reason', 'need_two'); end if;
+  select state into st from public.event_activity where kind = p_kind and event_id = p_id;
+  used := coalesce(st -> 'used' -> 'roleplay', '[]'::jsonb);
+  if jsonb_array_length(used) >= public.activity_size('roleplay') then used := '[]'::jsonb; end if;
+  c := public.activity_pick(public.activity_size('roleplay'), used);
+  perform public.activity_put(p_kind, p_id, jsonb_build_object(
+    'mode', 'roleplay', 'scene', c, 'pair', pair,
+    'used', coalesce(st -> 'used', '{}'::jsonb) || jsonb_build_object('roleplay', used || to_jsonb(c)),
+    'ends_at', to_jsonb(now() + interval '90 seconds')));
+  return public.activity_get(p_kind, p_id);
+end $$;
+revoke execute on function public.activity_pair(text, uuid) from public, anon;
+grant execute on function public.activity_pair(text, uuid) to authenticated;
+
+-- ── two truths and a lie ──
+create table if not exists public.event_truths (
+  id         uuid primary key default gen_random_uuid(),
+  kind       text not null,
+  event_id   uuid not null,
+  user_id    uuid not null references public.profiles(id) on delete cascade,
+  s1 text not null check (length(btrim(s1)) between 2 and 120),
+  s2 text not null check (length(btrim(s2)) between 2 and 120),
+  s3 text not null check (length(btrim(s3)) between 2 and 120),
+  lie        smallint not null check (lie between 1 and 3),
+  created_at timestamptz not null default now(),
+  unique (kind, event_id, user_id)
+);
+alter table public.event_truths enable row level security;
+create table if not exists public.event_truth_votes (
+  truth_id uuid not null references public.event_truths(id) on delete cascade,
+  voter    uuid not null references public.profiles(id) on delete cascade,
+  pick     smallint not null check (pick between 1 and 3),
+  at       timestamptz not null default now(),
+  primary key (truth_id, voter)
+);
+alter table public.event_truth_votes enable row level security;
+
+-- before or during: write your three (you can change them until the end)
+create or replace function public.truths_submit(p_kind text, p_id uuid, p_s1 text, p_s2 text, p_s3 text, p_lie int)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); m record;
+begin
+  if not public.event_going(p_kind, p_id, me) then return jsonb_build_object('ok', false, 'reason', 'not_in'); end if;
+  select * into m from public.event_meta(p_kind, p_id);
+  if not found or now() > m.ends_at then return jsonb_build_object('ok', false, 'reason', 'over'); end if;
+  if p_lie not between 1 and 3 or least(length(btrim(coalesce(p_s1, ''))), length(btrim(coalesce(p_s2, ''))), length(btrim(coalesce(p_s3, '')))) < 2
+     or greatest(length(p_s1), length(p_s2), length(p_s3)) > 120 then
+    return jsonb_build_object('ok', false, 'reason', 'shape');
+  end if;
+  insert into public.event_truths (kind, event_id, user_id, s1, s2, s3, lie)
+  values (p_kind, p_id, me, btrim(p_s1), btrim(p_s2), btrim(p_s3), p_lie)
+  on conflict (kind, event_id, user_id) do update set s1 = excluded.s1, s2 = excluded.s2, s3 = excluded.s3, lie = excluded.lie
+  where not exists (select 1 from public.event_truth_votes v where v.truth_id = public.event_truths.id);   -- votes in: it stays as it was
+  return jsonb_build_object('ok', true);
+end $$;
+revoke execute on function public.truths_submit(text, uuid, text, text, text, int) from public, anon;
+grant execute on function public.truths_submit(text, uuid, text, text, text, int) to authenticated;
+
+-- one card, as you may see it: the answer and the bars only once you voted (or it is yours)
+create or replace function public.truth_card(p_truth uuid)
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare me uuid := auth.uid(); t public.event_truths%rowtype; mine smallint; open_ boolean;
+begin
+  select * into t from public.event_truths where id = p_truth;
+  if not found or not public.event_going(t.kind, t.event_id, me) then return jsonb_build_object('ok', false, 'reason', 'not_in'); end if;
+  select pick into mine from public.event_truth_votes where truth_id = t.id and voter = me;
+  open_ := mine is not null or t.user_id = me;
+  return jsonb_build_object('ok', true, 'id', t.id, 'by', (select name from public.profiles where id = t.user_id),
+    'by_id', t.user_id, 'mine', t.user_id = me, 's', jsonb_build_array(t.s1, t.s2, t.s3), 'my_pick', mine,
+    'lie', case when open_ then t.lie end,
+    'votes', case when open_ then (select jsonb_build_array(count(*) filter (where pick = 1), count(*) filter (where pick = 2), count(*) filter (where pick = 3))
+                                     from public.event_truth_votes where truth_id = t.id) end);
+end $$;
+revoke execute on function public.truth_card(uuid) from public, anon;
+grant execute on function public.truth_card(uuid) to authenticated;
+
+-- put somebody's card on every screen at the table
+create or replace function public.activity_truth(p_kind text, p_id uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare st jsonb; shown jsonb; tid uuid;
+begin
+  if not public.activity_ok(p_kind, p_id, auth.uid()) then return jsonb_build_object('ok', false, 'reason', 'not_live'); end if;
+  select state into st from public.event_activity where kind = p_kind and event_id = p_id;
+  shown := coalesce(st -> 'shown', '[]'::jsonb);
+  select id into tid from public.event_truths t where t.kind = p_kind and t.event_id = p_id
+     and not shown @> to_jsonb(t.id::text) order by random() limit 1;
+  if tid is null then
+    shown := '[]'::jsonb;
+    select id into tid from public.event_truths t where t.kind = p_kind and t.event_id = p_id order by random() limit 1;
+  end if;
+  if tid is null then return jsonb_build_object('ok', false, 'reason', 'none'); end if;
+  perform public.activity_put(p_kind, p_id, jsonb_build_object('mode', 'truths', 'truth', tid, 'shown', shown || to_jsonb(tid::text), 'ends_at', 'null'::jsonb));
+  return public.activity_get(p_kind, p_id);
+end $$;
+revoke execute on function public.activity_truth(text, uuid) from public, anon;
+grant execute on function public.activity_truth(text, uuid) to authenticated;
+
+-- one vote, and no changing it after the bars are out
+create or replace function public.truth_vote(p_truth uuid, p_pick int)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); t public.event_truths%rowtype;
+begin
+  select * into t from public.event_truths where id = p_truth;
+  if not found or not public.event_going(t.kind, t.event_id, me) then return jsonb_build_object('ok', false, 'reason', 'not_in'); end if;
+  if t.user_id = me then return jsonb_build_object('ok', false, 'reason', 'yours'); end if;
+  if p_pick not between 1 and 3 then return jsonb_build_object('ok', false, 'reason', 'pick'); end if;
+  insert into public.event_truth_votes (truth_id, voter, pick) values (t.id, me, p_pick) on conflict do nothing;
+  return public.truth_card(t.id);
+end $$;
+revoke execute on function public.truth_vote(uuid, int) from public, anon;
+grant execute on function public.truth_vote(uuid, int) to authenticated;
+
+-- ── table polls: "most likely to solo-travel next month" — you vote for somebody at the table ──
+create table if not exists public.event_poll_votes (
+  kind     text not null,
+  event_id uuid not null,
+  poll     int not null,
+  voter    uuid not null references public.profiles(id) on delete cascade,
+  target   uuid not null references public.profiles(id) on delete cascade,
+  at       timestamptz not null default now(),
+  primary key (kind, event_id, poll, voter),
+  check (voter <> target)
+);
+alter table public.event_poll_votes enable row level security;
+
+create or replace function public.poll_result(p_kind text, p_id uuid, p_poll int)
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare me uuid := auth.uid(); mine uuid;
+begin
+  if not public.event_going(p_kind, p_id, me) then return jsonb_build_object('ok', false, 'reason', 'not_in'); end if;
+  select target into mine from public.event_poll_votes where kind = p_kind and event_id = p_id and poll = p_poll and voter = me;
+  return jsonb_build_object('ok', true, 'poll', p_poll, 'my_vote', mine,
+    'total', (select count(*) from public.event_poll_votes where kind = p_kind and event_id = p_id and poll = p_poll),
+    'top', case when mine is null then null else (
+      select coalesce(jsonb_agg(jsonb_build_object('id', x.target, 'name', x.name, 'n', x.n) order by x.n desc, x.name), '[]'::jsonb) from (
+        select v.target, p.name, count(*) n from public.event_poll_votes v join public.profiles p on p.id = v.target
+         where v.kind = p_kind and v.event_id = p_id and v.poll = p_poll group by v.target, p.name order by n desc limit 5) x) end);
+end $$;
+revoke execute on function public.poll_result(text, uuid, int) from public, anon;
+grant execute on function public.poll_result(text, uuid, int) to authenticated;
+
+create or replace function public.activity_poll(p_kind text, p_id uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare st jsonb; used jsonb; c int;
+begin
+  if not public.activity_ok(p_kind, p_id, auth.uid()) then return jsonb_build_object('ok', false, 'reason', 'not_live'); end if;
+  select state into st from public.event_activity where kind = p_kind and event_id = p_id;
+  used := coalesce(st -> 'used' -> 'poll', '[]'::jsonb);
+  if jsonb_array_length(used) >= public.activity_size('poll') then used := '[]'::jsonb; end if;
+  c := public.activity_pick(public.activity_size('poll'), used);
+  perform public.activity_put(p_kind, p_id, jsonb_build_object('mode', 'poll', 'poll', c,
+    'used', coalesce(st -> 'used', '{}'::jsonb) || jsonb_build_object('poll', used || to_jsonb(c)), 'ends_at', 'null'::jsonb));
+  return public.activity_get(p_kind, p_id);
+end $$;
+revoke execute on function public.activity_poll(text, uuid) from public, anon;
+grant execute on function public.activity_poll(text, uuid) to authenticated;
+
+create or replace function public.poll_vote(p_kind text, p_id uuid, p_poll int, p_target uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid();
+begin
+  if not public.event_in(p_kind, p_id, me) then return jsonb_build_object('ok', false, 'reason', 'not_in'); end if;
+  if p_poll not between 0 and public.activity_size('poll') - 1 then return jsonb_build_object('ok', false, 'reason', 'poll'); end if;
+  if p_target = me or not public.event_in(p_kind, p_id, p_target) then return jsonb_build_object('ok', false, 'reason', 'target'); end if;
+  if not exists (select 1 from public.event_meta(p_kind, p_id) m where now() <= m.ends_at + interval '24 hours') then
+    return jsonb_build_object('ok', false, 'reason', 'over');
+  end if;
+  insert into public.event_poll_votes (kind, event_id, poll, voter, target) values (p_kind, p_id, p_poll, me, p_target) on conflict do nothing;
+  return public.poll_result(p_kind, p_id, p_poll);
+end $$;
+revoke execute on function public.poll_vote(text, uuid, int, uuid) from public, anon;
+grant execute on function public.poll_vote(text, uuid, int, uuid) to authenticated;
+
+-- ── 2 · vibe badges: anonymous, positive, one tap ──
+create table if not exists public.vibe_badges (
+  kind     text not null,
+  event_id uuid not null,
+  giver    uuid not null references public.profiles(id) on delete cascade,
+  receiver uuid not null references public.profiles(id) on delete cascade,
+  badge    text not null check (badge in ('storyteller','english','energy','listener','explorer','kind')),
+  at       timestamptz not null default now(),
+  primary key (kind, event_id, giver, receiver, badge),
+  check (giver <> receiver)
+);
+alter table public.vibe_badges enable row level security;   -- nobody reads who gave what
+
+-- the "after" window: from the last 30 minutes to 48 hours after the end
+create or replace function public.event_after(p_kind text, p_id uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.event_meta(p_kind, p_id) m
+                  where now() between m.ends_at - interval '30 minutes' and m.ends_at + interval '48 hours');
+$$;
+revoke all on function public.event_after(text, uuid) from public, anon, authenticated;
+
+create or replace function public.vibe_give(p_kind text, p_id uuid, p_to uuid, p_badge text, p_on boolean)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid();
+begin
+  if not public.event_in(p_kind, p_id, me) or not public.event_in(p_kind, p_id, p_to) or p_to = me then
+    return jsonb_build_object('ok', false, 'reason', 'not_in');
+  end if;
+  if not public.event_after(p_kind, p_id) then return jsonb_build_object('ok', false, 'reason', 'not_now'); end if;
+  if p_badge not in ('storyteller','english','energy','listener','explorer','kind') then return jsonb_build_object('ok', false, 'reason', 'badge'); end if;
+  if coalesce(p_on, true) then
+    insert into public.vibe_badges (kind, event_id, giver, receiver, badge) values (p_kind, p_id, me, p_to, p_badge) on conflict do nothing;
+  else
+    delete from public.vibe_badges where kind = p_kind and event_id = p_id and giver = me and receiver = p_to and badge = p_badge;
+  end if;
+  return jsonb_build_object('ok', true);
+end $$;
+revoke execute on function public.vibe_give(text, uuid, uuid, text, boolean) from public, anon;
+grant execute on function public.vibe_give(text, uuid, uuid, text, boolean) to authenticated;
+
+-- ── buddies: both tap Connect within 48 hours, or nothing ──
+create table if not exists public.buddy_taps (
+  kind     text not null,
+  event_id uuid not null,
+  from_id  uuid not null references public.profiles(id) on delete cascade,
+  to_id    uuid not null references public.profiles(id) on delete cascade,
+  at       timestamptz not null default now(),
+  primary key (kind, event_id, from_id, to_id),
+  check (from_id <> to_id)
+);
+alter table public.buddy_taps enable row level security;
+create table if not exists public.buddies (
+  a        uuid not null references public.profiles(id) on delete cascade,
+  b        uuid not null references public.profiles(id) on delete cascade,
+  since    timestamptz not null default now(),
+  kind     text,
+  event_id uuid,
+  primary key (a, b),
+  check (a < b)
+);
+alter table public.buddies enable row level security;
+
+create or replace function public.are_buddies(x uuid, y uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select x is not null and y is not null and exists (select 1 from public.buddies where a = least(x, y) and b = greatest(x, y));
+$$;
+revoke all on function public.are_buddies(uuid, uuid) from public, anon, authenticated;
+
+create or replace function public.blocked_between(x uuid, y uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.user_blocks where (blocker_id = x and blocked_id = y) or (blocker_id = y and blocked_id = x));
+$$;
+revoke all on function public.blocked_between(uuid, uuid) from public, anon, authenticated;
+
+create or replace function public.keep_in_touch(p_kind text, p_id uuid)
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare me uuid := auth.uid(); m record;
+begin
+  if not public.event_in(p_kind, p_id, me) then return jsonb_build_object('ok', false, 'reason', 'not_in'); end if;
+  select * into m from public.event_meta(p_kind, p_id);
+  if not found then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
+  return jsonb_build_object('ok', true, 'now', now(), 'opens_at', m.ends_at, 'closes_at', m.ends_at + interval '48 hours',
+    'vibes_open', now() between m.ends_at - interval '30 minutes' and m.ends_at + interval '48 hours',
+    'people', (select coalesce(jsonb_agg(jsonb_build_object('id', p.id, 'name', p.name, 'avatar_url', p.avatar_url,
+        'tapped', exists (select 1 from public.buddy_taps t where t.kind = p_kind and t.event_id = p_id and t.from_id = me and t.to_id = p.id),
+        'buddy', public.are_buddies(me, p.id),
+        'vibes', (select coalesce(jsonb_agg(v.badge), '[]'::jsonb) from public.vibe_badges v
+                   where v.kind = p_kind and v.event_id = p_id and v.giver = me and v.receiver = p.id)) order by c.at), '[]'::jsonb)
+      from public.event_checkins c join public.profiles p on p.id = c.user_id
+     where c.kind = p_kind and c.event_id = p_id and c.user_id <> me and not public.blocked_between(me, c.user_id)));
+end $$;
+revoke execute on function public.keep_in_touch(text, uuid) from public, anon;
+grant execute on function public.keep_in_touch(text, uuid) to authenticated;
+
+create or replace function public.buddy_tap(p_kind text, p_id uuid, p_to uuid, p_on boolean)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); m record; mutual boolean := false;
+begin
+  if p_to = me or not public.event_in(p_kind, p_id, me) or not public.event_in(p_kind, p_id, p_to) then
+    return jsonb_build_object('ok', false, 'reason', 'not_in');
+  end if;
+  select * into m from public.event_meta(p_kind, p_id);
+  if not found or now() < m.ends_at or now() > m.ends_at + interval '48 hours' then
+    return jsonb_build_object('ok', false, 'reason', 'not_now');
+  end if;
+  if public.blocked_between(me, p_to) then return jsonb_build_object('ok', false, 'reason', 'blocked'); end if;
+  if not coalesce(p_on, true) then
+    delete from public.buddy_taps where kind = p_kind and event_id = p_id and from_id = me and to_id = p_to;
+    return jsonb_build_object('ok', true, 'buddy', public.are_buddies(me, p_to));
+  end if;
+  insert into public.buddy_taps (kind, event_id, from_id, to_id) values (p_kind, p_id, me, p_to) on conflict do nothing;
+  if exists (select 1 from public.buddy_taps where kind = p_kind and event_id = p_id and from_id = p_to and to_id = me)
+     and not public.are_buddies(me, p_to) then
+    insert into public.buddies (a, b, kind, event_id) values (least(me, p_to), greatest(me, p_to), p_kind, p_id) on conflict do nothing;
+    perform public.notify(p_to, me, 'buddy', null, left(m.title, 80));
+    perform public.notify(me, p_to, 'buddy', null, left(m.title, 80));
+    mutual := true;
+  end if;
+  return jsonb_build_object('ok', true, 'buddy', public.are_buddies(me, p_to), 'new', mutual);
+end $$;
+revoke execute on function public.buddy_tap(text, uuid, uuid, boolean) from public, anon;
+grant execute on function public.buddy_tap(text, uuid, uuid, boolean) to authenticated;
+
+create or replace function public.buddy_remove(p_other uuid)
+returns jsonb language sql security definer set search_path = public as $$
+  delete from public.buddies where a = least(auth.uid(), p_other) and b = greatest(auth.uid(), p_other);
+  select jsonb_build_object('ok', true);
+$$;
+revoke execute on function public.buddy_remove(uuid) from public, anon;
+grant execute on function public.buddy_remove(uuid) to authenticated;
+
+-- ── private messages: earned, short, and Plus ──
+create table if not exists public.dm_openers (
+  thread_id    uuid primary key references public.dm_threads(id) on delete cascade,
+  from_id      uuid not null references public.profiles(id) on delete cascade,
+  to_id        uuid not null references public.profiles(id) on delete cascade,
+  daily_answer uuid,
+  card         int,
+  at           timestamptz not null default now()
+);
+alter table public.dm_openers enable row level security;
+drop policy if exists "openers: the two people" on public.dm_openers;
+create policy "openers: the two people" on public.dm_openers for select to authenticated
+  using (auth.uid() in (from_id, to_id));
+
+create or replace function public.dm_other(t uuid, me uuid)
+returns uuid language sql stable security definer set search_path = public as $$
+  select user_id from public.dm_participants where thread_id = t and user_id <> me limit 1;
+$$;
+revoke all on function public.dm_other(uuid, uuid) from public, anon, authenticated;
+
+-- may `u` write in thread `t` now? Plus, not blocked, and: buddies — or the
+-- opening line of an opener, or its answer, or the talk after an answer
+create or replace function public.dm_can_send(t uuid, u uuid)
+returns boolean language plpgsql stable security definer set search_path = public as $$
+declare o uuid := public.dm_other(t, u); op public.dm_openers%rowtype;
+begin
+  if o is null or not public.is_plus(u) or public.blocked_between(u, o) then return false; end if;
+  if public.are_buddies(u, o) then return true; end if;
+  select * into op from public.dm_openers where thread_id = t;
+  if not found then return false; end if;
+  if op.to_id = u then return true; end if;                                         -- they answer
+  if op.from_id = u then
+    return not exists (select 1 from public.messages m where m.dm_thread_id = t)      -- the opening line
+        or exists (select 1 from public.messages m where m.dm_thread_id = t and m.user_id = op.to_id);   -- after an answer
+  end if;
+  return false;
+end $$;
+revoke all on function public.dm_can_send(uuid, uuid) from public, anon, authenticated;
+
+-- the thread with a buddy (made on first use; buddies only)
+create or replace function public.buddy_thread(p_other uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); t uuid;
+begin
+  if not public.are_buddies(me, p_other) then return jsonb_build_object('ok', false, 'reason', 'not_buddies'); end if;
+  select p1.thread_id into t from public.dm_participants p1 join public.dm_participants p2 on p2.thread_id = p1.thread_id
+   where p1.user_id = me and p2.user_id = p_other limit 1;
+  if t is null then
+    insert into public.dm_threads default values returning id into t;
+    insert into public.dm_participants (thread_id, user_id, accepted) values (t, me, true), (t, p_other, true);
+  end if;
+  return jsonb_build_object('ok', true, 'thread_id', t, 'plus', public.is_plus(me));
+end $$;
+revoke execute on function public.buddy_thread(uuid) from public, anon;
+grant execute on function public.buddy_thread(uuid) to authenticated;
+
+-- prompt-first: the first message to somebody new replies to their Daily
+-- Moment answer, or opens with one of the icebreaker cards
+create or replace function public.dm_open(p_to uuid, p_answer uuid, p_card int, p_body text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); t uuid; txt text := btrim(coalesce(p_body, ''));
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  if not public.is_plus(me) then return jsonb_build_object('ok', false, 'reason', 'plus'); end if;
+  if p_to is null or p_to = me or not public.is_plus(p_to) then return jsonb_build_object('ok', false, 'reason', 'not_member'); end if;
+  if public.blocked_between(me, p_to) then return jsonb_build_object('ok', false, 'reason', 'blocked'); end if;
+  if length(txt) < 2 or length(txt) > 500 then return jsonb_build_object('ok', false, 'reason', 'shape'); end if;
+  if p_answer is not null then
+    if not exists (select 1 from public.moment_answers a where a.id = p_answer and a.user_id = p_to and a.day >= current_date - 2) then
+      return jsonb_build_object('ok', false, 'reason', 'prompt');
+    end if;
+  elsif p_card is null or p_card not between 0 and public.activity_size('warm') - 1 then
+    return jsonb_build_object('ok', false, 'reason', 'prompt');
+  end if;
+  select p1.thread_id into t from public.dm_participants p1 join public.dm_participants p2 on p2.thread_id = p1.thread_id
+   where p1.user_id = me and p2.user_id = p_to limit 1;
+  if t is null then
+    if (select count(*) from public.dm_openers where from_id = me and at > now() - interval '1 day') >= 10 then
+      return jsonb_build_object('ok', false, 'reason', 'limit');
+    end if;
+    insert into public.dm_threads default values returning id into t;
+    insert into public.dm_participants (thread_id, user_id, accepted, invited_by) values (t, me, true, null), (t, p_to, false, me);
+    insert into public.dm_openers (thread_id, from_id, to_id, daily_answer, card) values (t, me, p_to, p_answer, p_card);
+  end if;
+  if not public.dm_can_send(t, me) then return jsonb_build_object('ok', false, 'reason', 'waiting', 'thread_id', t); end if;
+  insert into public.messages (dm_thread_id, user_id, body) values (t, me, txt);
+  return jsonb_build_object('ok', true, 'thread_id', t);
+end $$;
+revoke execute on function public.dm_open(uuid, uuid, int, text) from public, anon;
+grant execute on function public.dm_open(uuid, uuid, int, text) to authenticated;
+
+-- one thread, as the app shows it: who, how it started, may I write now
+create or replace function public.dm_state(p_thread uuid)
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare me uuid := auth.uid(); o uuid; op public.dm_openers%rowtype;
+begin
+  if not public.is_dm_participant(p_thread, me) then return jsonb_build_object('ok', false, 'reason', 'not_in'); end if;
+  o := public.dm_other(p_thread, me);
+  select * into op from public.dm_openers where thread_id = p_thread;
+  return jsonb_build_object('ok', true, 'other', (select jsonb_build_object('id', p.id, 'name', p.name, 'avatar_url', p.avatar_url) from public.profiles p where p.id = o),
+    'buddy', public.are_buddies(me, o), 'plus', public.is_plus(me), 'can_send', public.dm_can_send(p_thread, me),
+    'opener', case when op.thread_id is null then null else jsonb_build_object('from_me', op.from_id = me, 'card', op.card,
+      'answer', (select jsonb_build_object('body', a.body, 'choice', a.choice, 'day', a.day) from public.moment_answers a where a.id = op.daily_answer)) end);
+end $$;
+revoke execute on function public.dm_state(uuid) from public, anon;
+grant execute on function public.dm_state(uuid) to authenticated;
+
+-- the conversations that started from a Daily Moment or an icebreaker (buddies are listed by my_buddies)
+create or replace function public.my_conversations()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select coalesce(jsonb_agg(x order by x.at desc), '[]'::jsonb) from (
+    select o.thread_id, coalesce(l.created_at, o.at) at, o.from_id = auth.uid() as from_me,
+           jsonb_build_object('id', p.id, 'name', p.name, 'avatar_url', p.avatar_url) other,
+           (select jsonb_build_object('body', left(l.body, 80), 'mine', l.user_id = auth.uid())) last,
+           public.dm_can_send(o.thread_id, auth.uid()) can_send
+      from public.dm_openers o
+      join public.profiles p on p.id = case when o.from_id = auth.uid() then o.to_id else o.from_id end
+      left join lateral (select m.body, m.user_id, m.created_at from public.messages m where m.dm_thread_id = o.thread_id
+                          order by m.created_at desc limit 1) l on true
+     where auth.uid() in (o.from_id, o.to_id) and not public.are_buddies(o.from_id, o.to_id)
+       and not public.blocked_between(o.from_id, o.to_id)
+     limit 50) x;
+$$;
+revoke execute on function public.my_conversations() from public, anon;
+grant execute on function public.my_conversations() to authenticated;
+
+-- ── the memory capsule: the event chat stays open 24 hours after the end, for short notes ──
+create or replace function public.event_capsule_window(sq uuid)
+returns table (opens timestamptz, ends timestamptz, closes timestamptz)
+language sql stable security definer set search_path = public as $$
+  select * from (
+    select g.starts_at - interval '30 minutes', g.starts_at + make_interval(mins => coalesce(g.minutes, 180)),
+           g.starts_at + make_interval(mins => coalesce(g.minutes, 180)) + interval '24 hours'
+      from public.green_gatherings g where g.squad_id = sq and g.cancelled_at is null
+    union all
+    select o.starts_at - interval '30 minutes', coalesce(o.ends_at, o.starts_at + coalesce(o.duration_hours, 3) * interval '1 hour'),
+           coalesce(o.ends_at, o.starts_at + coalesce(o.duration_hours, 3) * interval '1 hour') + interval '24 hours'
+      from public.offers o where o.squad_id = sq and o.starts_at is not null and not o.online
+  ) w limit 1;
+$$;
+revoke all on function public.event_capsule_window(uuid) from public, anon, authenticated;
+
+-- the gate, again: event chats in their window (short notes in the capsule), private messages only when earned
+create or replace function public.messages_gate()
+returns trigger language plpgsql security definer set search_path = public as $$
+declare w record;
+begin
+  if new.dm_thread_id is not null then
+    if length(coalesce(new.body, '')) > 500 or not public.dm_can_send(new.dm_thread_id, new.user_id) then return null; end if;
+    -- answering an opener is accepting it
+    update public.dm_participants set accepted = true
+     where thread_id = new.dm_thread_id and user_id = new.user_id and accepted is distinct from true;
+    return new;
+  end if;
+  select * into w from public.event_capsule_window(new.squad_id);
+  if not found or now() < w.opens then return null; end if;
+  if now() > w.closes then return null; end if;                          -- archived: read-only for ever
+  if now() > w.ends and length(coalesce(new.body, '')) > 280 then return null; end if;   -- the capsule: a short note
+  return new;
+end $$;
+revoke all on function public.messages_gate() from public, anon, authenticated;
+drop trigger if exists messages_gate on public.messages;
+create trigger messages_gate before insert on public.messages
+  for each row execute function public.messages_gate();
+
+-- the older "three lines until they accept" guard steps aside for these
+-- threads: the gate above already allows exactly one line before an answer
+create or replace function public.dm_guard() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare sent_count int;
+begin
+  if new.dm_thread_id is null then return new; end if;
+  if exists (select 1 from public.dm_openers where thread_id = new.dm_thread_id)
+     or public.are_buddies(new.user_id, public.dm_other(new.dm_thread_id, new.user_id)) then
+    return new;
+  end if;
+  if public.dm_is_open(new.dm_thread_id) then return new; end if;
+  if new.media_url is not null or new.kind in ('moment', 'game_invite') then
+    raise exception 'Photos and games only after they accept your request.' using errcode = 'check_violation';
+  end if;
+  select count(*) into sent_count from public.messages where dm_thread_id = new.dm_thread_id and user_id = new.user_id;
+  if sent_count >= 3 then
+    raise exception 'Wait until they accept before sending more.' using errcode = 'check_violation';
+  end if;
+  return new;
+end $$;
+
+-- what the event page adds to event_room(): the capsule, the check-in
+create or replace function public.event_extras(p_kind text, p_id uuid)
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare me uuid := auth.uid(); m record;
+begin
+  if not public.event_going(p_kind, p_id, me) then return jsonb_build_object('ok', false, 'reason', 'not_in'); end if;
+  select * into m from public.event_meta(p_kind, p_id);
+  if not found then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
+  return jsonb_build_object('ok', true, 'now', now(), 'starts_at', m.starts_at, 'ends_at', m.ends_at,
+    'capsule_until', m.ends_at + interval '24 hours',
+    'phase', case when now() < m.starts_at - interval '30 minutes' then 'before' when now() <= m.ends_at then 'live'
+                  when now() <= m.ends_at + interval '24 hours' then 'capsule' else 'archived' end,
+    'checked_in', public.event_in(p_kind, p_id, me),
+    'can_checkin', now() between m.starts_at - interval '30 minutes' and m.ends_at);
+end $$;
+revoke execute on function public.event_extras(text, uuid) from public, anon;
+grant execute on function public.event_extras(text, uuid) to authenticated;
+
+-- ── ping to join: invite a buddy to the next table you booked ──
+create table if not exists public.buddy_pings (
+  from_id  uuid not null references public.profiles(id) on delete cascade,
+  to_id    uuid not null references public.profiles(id) on delete cascade,
+  kind     text not null,
+  event_id uuid not null,
+  at       timestamptz not null default now(),
+  primary key (from_id, to_id, kind, event_id)
+);
+alter table public.buddy_pings enable row level security;
+
+create or replace function public.my_next_events()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select coalesce(jsonb_agg(x order by x.starts_at), '[]'::jsonb) from (
+    select 'offer' kind, o.id, o.title, o.title_ar, o.starts_at from public.offers o
+     where o.starts_at > now() and o.kind <> 'gift'
+       and exists (select 1 from public.bookings b where b.offer_id = o.id and b.user_id = auth.uid() and b.status in ('reserved','paid'))
+    union all
+    select 'gathering', g.id, g.title, null, g.starts_at from public.green_gatherings g
+     where g.starts_at > now() and g.cancelled_at is null
+       and (g.host_id = auth.uid() or exists (select 1 from public.green_joins j where j.gathering_id = g.id and j.user_id = auth.uid()))
+     order by 5 limit 10) x;
+$$;
+revoke execute on function public.my_next_events() from public, anon;
+grant execute on function public.my_next_events() to authenticated;
+
+create or replace function public.buddy_ping(p_to uuid, p_kind text, p_id uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); m record;
+begin
+  if not public.are_buddies(me, p_to) then return jsonb_build_object('ok', false, 'reason', 'not_buddies'); end if;
+  if not public.event_going(p_kind, p_id, me) then return jsonb_build_object('ok', false, 'reason', 'not_in'); end if;
+  select * into m from public.event_meta(p_kind, p_id);
+  if not found or m.starts_at <= now() then return jsonb_build_object('ok', false, 'reason', 'over'); end if;
+  if public.event_going(p_kind, p_id, p_to) then return jsonb_build_object('ok', false, 'reason', 'going'); end if;
+  insert into public.buddy_pings (from_id, to_id, kind, event_id) values (me, p_to, p_kind, p_id) on conflict do nothing;
+  if not found then return jsonb_build_object('ok', true, 'again', true); end if;
+  insert into public.notifications (user_id, actor_id, kind, body)
+  values (p_to, me, 'buddy_ping', p_kind || ':' || p_id::text || '|' || left(m.title, 80));
+  return jsonb_build_object('ok', true);
+end $$;
+revoke execute on function public.buddy_ping(uuid, text, uuid) from public, anon;
+grant execute on function public.buddy_ping(uuid, text, uuid) to authenticated;
+
+create or replace function public.my_buddies()
+returns jsonb language sql stable security definer set search_path = public as $$
+  with mine as (
+    select case when b.a = auth.uid() then b.b else b.a end other, b.since from public.buddies b
+     where auth.uid() in (b.a, b.b))
+  select coalesce(jsonb_agg(jsonb_build_object('id', p.id, 'name', p.name, 'handle', p.handle, 'avatar_url', p.avatar_url, 'since', m.since,
+           'last', (select jsonb_build_object('body', left(x.body, 80), 'at', x.created_at, 'mine', x.user_id = auth.uid())
+                      from public.messages x join public.dm_participants a on a.thread_id = x.dm_thread_id and a.user_id = auth.uid()
+                      join public.dm_participants c on c.thread_id = x.dm_thread_id and c.user_id = p.id
+                     order by x.created_at desc limit 1)) order by m.since desc), '[]'::jsonb)
+    from mine m join public.profiles p on p.id = m.other
+   where not public.blocked_between(auth.uid(), p.id);
+$$;
+revoke execute on function public.my_buddies() from public, anon;
+grant execute on function public.my_buddies() to authenticated;
+
+-- the passport: badges (counts only — never who) and the capsules you were part of
+create or replace function public.passport(p_user uuid)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select jsonb_build_object(
+    'vibes', (select coalesce(jsonb_object_agg(badge, n), '{}'::jsonb) from (
+               select badge, count(*) n from public.vibe_badges where receiver = coalesce(p_user, auth.uid()) group by badge) v),
+    'buddies', (select count(*) from public.buddies where coalesce(p_user, auth.uid()) in (a, b)),
+    'capsules', case when coalesce(p_user, auth.uid()) <> auth.uid() then null else (
+      select coalesce(jsonb_agg(jsonb_build_object('kind', c.kind, 'id', c.event_id, 'title', m.title, 'starts_at', m.starts_at) order by m.starts_at desc), '[]'::jsonb)
+        from public.event_checkins c cross join lateral public.event_meta(c.kind, c.event_id) m
+       where c.user_id = auth.uid() and m.ends_at < now()) end);
+$$;
+revoke execute on function public.passport(uuid) from public, anon;
+grant execute on function public.passport(uuid) to authenticated;
+
+-- ── 3 · the daily moment ──
+create table if not exists public.moment_pool (
+  n     int primary key,
+  kind  text not null check (kind in ('poll','text')),
+  q     text not null,
+  q_ar  text,
+  opts  jsonb                     -- [[en, ar], …] for a poll
+);
+alter table public.moment_pool enable row level security;
+insert into public.moment_pool (n, kind, q, q_ar, opts) values
+  (1,  'poll', 'Free flight tomorrow, one condition: you leave in 3 hours. Where?', 'تذكرة طيران ببلاش بكره، بشرط تسافر كمان ٣ ساعات. على فين؟', '[["Tokyo","طوكيو"],["Lisbon","لشبونة"],["Cape Town","كيب تاون"],["Siwa","سيوة"]]'),
+  (2,  'poll', 'Hostel dorm with 8 strangers or a tiny private room for 3× the price?', 'أوضة هوستل مع ٨ غُرب ولا أوضة صغيرة لوحدك بـ٣ أضعاف السعر؟', '[["Dorm, more stories","الهوستل، حكايات أكتر"],["Private, sleep matters","لوحدي، النوم أهم"]]'),
+  (3,  'text', 'Teach us one word from your language that English does not have.', 'علّمنا كلمة من لغتك مالهاش مقابل في الإنجليزي.', null),
+  (4,  'poll', 'The best way to really know a city:', 'أحسن طريقة تعرف بيها مدينة بجد:', '[["Its street food","أكل الشارع"],["Getting lost on foot","إنك تتوه ماشي"],["A local friend","صاحب من هناك"],["Its night","ليلها"]]'),
+  (5,  'text', 'In 60 seconds, in English: describe your street to someone who has never been to your country.', 'في ٦٠ ثانية، بالإنجليزي: اوصف شارعك لحد عمره ما زار بلدك.', null),
+  (6,  'poll', 'Travelling with friends: one plan for everybody, or everybody does their thing and we meet for dinner?', 'سفر مع الصحاب: خطة واحدة للكل، ولا كل واحد يعمل اللي هو عايزه ونتقابل على العشا؟', '[["One plan","خطة واحدة"],["Meet for dinner","نتقابل على العشا"]]'),
+  (7,  'text', 'What is a custom from home that surprised a foreign friend?', 'إيه عادة من بلدك فاجأت صاحب أجنبي؟', null),
+  (8,  'poll', 'You have one weekend and 1,000 EGP. You pick:', 'معاك ويك إند واحد و١٠٠٠ جنيه. هتختار:', '[["Desert camping","تخييم في الصحرا"],["A beach bus trip","رحلة بحر بالأتوبيس"],["A new café every day","كافيه جديد كل يوم"],["A workshop","ورشة"]]'),
+  (9,  'text', 'Which phrase do you wish you had known on your first trip abroad?', 'إيه الجملة اللي كان نفسك تعرفها في أول سفرية برّه؟', null),
+  (10, 'poll', 'Ordering in a language you barely speak: you…', 'بتطلب أكل بلغة بالعافية بتعرفها: إنت…', '[["Try anyway","أجرّب برضه"],["Point at pictures","أشاور على الصور"],["Use the translator","أستخدم الترجمة"],["Let a friend order","صاحبي يطلب"]]'),
+  (11, 'text', 'One place in your city a visitor must see that is not in any guidebook.', 'مكان واحد في مدينتك لازم الزائر يشوفه ومش موجود في أي دليل.', null),
+  (12, 'poll', 'Sunrise hike or sunset on a rooftop?', 'طلعة جبل مع الشروق ولا غروب على سطح؟', '[["Sunrise hike","الشروق على الجبل"],["Rooftop sunset","الغروب على السطح"]]'),
+  (13, 'text', 'Your best "lost in translation" story — go.', 'احكي أحلى موقف "اتلخبطت في الترجمة" حصلك.', null),
+  (14, 'poll', 'Which language would you learn this year if it took no effort?', 'لو مفيش أي مجهود، هتتعلم أنهي لغة السنة دي؟', '[["Spanish","إسباني"],["German","ألماني"],["Japanese","ياباني"],["Korean","كوري"]]'),
+  (15, 'text', 'Describe the smell of your favourite place in one sentence.', 'اوصف ريحة مكانك المفضل في جملة واحدة.', null),
+  (16, 'poll', 'Packing for a week: you are…', 'بتجهز شنطة لأسبوع: إنت…', '[["One backpack","شنطة ضهر واحدة"],["Two suitcases, just in case","شنطتين، احتياطي"]]'),
+  (17, 'text', 'What is a song that instantly takes you to another country?', 'إيه أغنية بتاخدك فورًا لبلد تانية؟', null),
+  (18, 'poll', 'Visa interview tomorrow. What scares you most?', 'عندك مقابلة فيزا بكره. إيه أكتر حاجة قلقاك؟', '[["The questions","الأسئلة"],["Speaking English","إني أتكلم إنجليزي"],["The papers","الورق"],["Nothing, I''m ready","ولا حاجة، أنا جاهز"]]'),
+  (19, 'text', 'Teach us how to say "nice to meet you" in a language you know.', 'علّمنا نقول "اتشرفت بمعرفتك" بلغة إنت عارفها.', null),
+  (20, 'poll', 'A stranger at your table speaks only Spanish. You:', 'حد غريب على ترابيزتك بيتكلم إسباني بس. إنت:', '[["Use my 5 words","أستخدم الـ٥ كلمات اللي أعرفهم"],["Draw and point","أرسم وأشاور"],["Find a translator","أدوّر على مترجم"],["Teach Arabic back","أعلّمه عربي"]]'),
+  (21, 'text', 'Where did you feel the most at home, far from home?', 'فين حسيت إنك في بيتك وإنت بعيد عن بيتك؟', null)
+on conflict (n) do nothing;
+
+create table if not exists public.moment_answers (
+  id         uuid primary key default gen_random_uuid(),
+  day        date not null default current_date,
+  user_id    uuid not null references public.profiles(id) on delete cascade,
+  choice     smallint,
+  body       text check (body is null or length(body) <= 140),
+  created_at timestamptz not null default now(),
+  unique (day, user_id)
+);
+alter table public.moment_answers enable row level security;
+create table if not exists public.moment_reactions (
+  answer_id uuid not null references public.moment_answers(id) on delete cascade,
+  user_id   uuid not null references public.profiles(id) on delete cascade,
+  emoji     text not null check (emoji in ('🔥','😂','❤️','🤯','👏')),
+  primary key (answer_id, user_id)
+);
+alter table public.moment_reactions enable row level security;
+
+create or replace function public.moment_today()
+returns public.moment_pool language sql stable security definer set search_path = public as $$
+  select * from public.moment_pool
+   where n = 1 + ((current_date - date '2026-01-01') % greatest(1, (select count(*) from public.moment_pool))::int);
+$$;
+revoke all on function public.moment_today() from public, anon, authenticated;
+
+create or replace function public.daily_moment()
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare me uuid := auth.uid(); q public.moment_pool; mine public.moment_answers%rowtype; plus_ boolean := public.is_plus(me);
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  q := public.moment_today();
+  select * into mine from public.moment_answers where day = current_date and user_id = me;
+  return jsonb_build_object('ok', true, 'day', current_date, 'n', q.n, 'kind', q.kind, 'q', q.q, 'q_ar', q.q_ar, 'opts', q.opts,
+    'count', (select count(*) from public.moment_answers where day = current_date),
+    'answered', mine.id is not null,
+    'mine', case when mine.id is null then null else jsonb_build_object('id', mine.id, 'choice', mine.choice, 'body', mine.body) end,
+    'tallies', case when mine.id is null or q.kind <> 'poll' then null else (
+      select jsonb_agg((select count(*) from public.moment_answers a where a.day = current_date and a.choice = i) order by i)
+        from generate_series(0, jsonb_array_length(q.opts) - 1) i) end,
+    -- locked until you answered: then buddies first, then everybody
+    'answers', case when mine.id is null then null else (
+      select coalesce(jsonb_agg(jsonb_build_object('id', a.id, 'choice', a.choice, 'body', a.body,
+               'user', jsonb_build_object('id', p.id, 'name', p.name, 'avatar_url', p.avatar_url),
+               'buddy', public.are_buddies(me, a.user_id), 'me', a.user_id = me,
+               'can_reply', plus_ and a.user_id <> me and not public.are_buddies(me, a.user_id) and public.is_plus(a.user_id),
+               'reactions', (select coalesce(jsonb_object_agg(r.emoji, r.n), '{}'::jsonb) from (
+                   select emoji, count(*) n from public.moment_reactions where answer_id = a.id group by emoji) r),
+               'my_reaction', (select emoji from public.moment_reactions where answer_id = a.id and user_id = me))
+             order by (a.user_id = me) desc, public.are_buddies(me, a.user_id) desc, a.created_at desc), '[]'::jsonb)
+        from (select * from public.moment_answers x where x.day = current_date and not public.blocked_between(me, x.user_id)
+               order by (x.user_id = me) desc, public.are_buddies(me, x.user_id) desc, x.created_at desc limit 60) a
+        join public.profiles p on p.id = a.user_id) end);
+end $$;
+revoke execute on function public.daily_moment() from public, anon;
+grant execute on function public.daily_moment() to authenticated;
+
+create or replace function public.daily_moment_answer(p_choice int, p_body text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); q public.moment_pool := public.moment_today(); txt text := nullif(btrim(coalesce(p_body, '')), '');
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  if txt is not null and (length(txt) > 140 or public.is_heavy_text(txt)) then return jsonb_build_object('ok', false, 'reason', 'shape'); end if;
+  if q.kind = 'poll' and (p_choice is null or p_choice not between 0 and jsonb_array_length(q.opts) - 1) then
+    return jsonb_build_object('ok', false, 'reason', 'shape');
+  end if;
+  if q.kind = 'text' and (txt is null or length(txt) < 2) then return jsonb_build_object('ok', false, 'reason', 'shape'); end if;
+  insert into public.moment_answers (user_id, choice, body) values (me, case when q.kind = 'poll' then p_choice end, txt)
+  on conflict (day, user_id) do nothing;
+  return public.daily_moment();
+end $$;
+revoke execute on function public.daily_moment_answer(int, text) from public, anon;
+grant execute on function public.daily_moment_answer(int, text) to authenticated;
+
+create or replace function public.daily_moment_react(p_answer uuid, p_emoji text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid();
+begin
+  if not exists (select 1 from public.moment_answers where day = current_date and user_id = me) then
+    return jsonb_build_object('ok', false, 'reason', 'answer_first');
+  end if;
+  if not exists (select 1 from public.moment_answers where id = p_answer and day = current_date) then
+    return jsonb_build_object('ok', false, 'reason', 'gone');
+  end if;
+  if p_emoji is null then
+    delete from public.moment_reactions where answer_id = p_answer and user_id = me;
+  elsif p_emoji in ('🔥','😂','❤️','🤯','👏') then
+    insert into public.moment_reactions (answer_id, user_id, emoji) values (p_answer, me, p_emoji)
+    on conflict (answer_id, user_id) do update set emoji = excluded.emoji;
+  else
+    return jsonb_build_object('ok', false, 'reason', 'emoji');
+  end if;
+  return jsonb_build_object('ok', true);
+end $$;
+revoke execute on function public.daily_moment_react(uuid, text) from public, anon;
+grant execute on function public.daily_moment_react(uuid, text) to authenticated;
+
+-- ── 4 · the paywall: joining other people's meetups is Plus (the host, and anyone already in, is never turned away) ──
+create or replace function public.green_join(p_id uuid, p_going boolean)
+returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare
+  me uuid := auth.uid();
+  g  public.green_gatherings%rowtype;
+  n  int;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  select * into g from public.green_gatherings where id = p_id;
+  if not found then return jsonb_build_object('ok', false, 'reason', 'no_gathering'); end if;
+  if g.cancelled_at is not null then return jsonb_build_object('ok', false, 'reason', 'cancelled'); end if;
+
+  if coalesce(p_going, true) then
+    -- free members preview; booking a seat at somebody else's meetup is Moments Plus
+    if g.host_id <> me and not public.is_plus(me)
+       and not exists (select 1 from public.green_joins where gathering_id = p_id and user_id = me) then
+      return jsonb_build_object('ok', false, 'reason', 'plus');
+    end if;
+    -- girls only / guys only, read from the profile, never from the app
+    if coalesce(g.audience, 'all') <> 'all' and g.host_id <> me then
+      if coalesce((select gender from public.profiles where id = me), '') = '' then
+        return jsonb_build_object('ok', false, 'reason', 'audience_gender');
+      elsif g.audience = 'women' and (select gender from public.profiles where id = me) <> 'f' then
+        return jsonb_build_object('ok', false, 'reason', 'audience_women');
+      elsif g.audience = 'men' and (select gender from public.profiles where id = me) <> 'm' then
+        return jsonb_build_object('ok', false, 'reason', 'audience_men');
+      end if;
+    end if;
+    if g.capacity is not null then
+      select count(*) into n from public.green_joins where gathering_id = p_id;
+      if n >= g.capacity and not exists (
+        select 1 from public.green_joins where gathering_id = p_id and user_id = me
+      ) then
+        return jsonb_build_object('ok', false, 'reason', 'full');
+      end if;
+    end if;
+    insert into public.green_joins (gathering_id, user_id) values (p_id, me) on conflict do nothing;
+  else
+    delete from public.green_joins where gathering_id = p_id and user_id = me;
+  end if;
+
+  select count(*) into n from public.green_joins where gathering_id = p_id;
+  return jsonb_build_object('ok', true, 'going', n, 'im_going', coalesce(p_going, true));
+end;
+$$;
+
+-- ── the live language & culture lounges ──
+create table if not exists public.lounges (
+  id       text primary key,
+  emoji    text not null,
+  title    text not null,
+  title_ar text,
+  about    text,
+  about_ar text,
+  sort     int not null default 0
+);
+alter table public.lounges enable row level security;
+insert into public.lounges (id, emoji, title, title_ar, about, about_ar, sort) values
+  ('english', '🇬🇧', 'English Casual Practice', 'إنجليزي · ممارسة عادية', 'Everyday English, no teacher, no judging.', 'إنجليزي كل يوم، من غير مدرّس ومن غير أحكام.', 1),
+  ('travel',  '✈️', 'Travel & Visas Talk', 'سفر وفيزا', 'Routes, visas, budgets — from people who went.', 'طرق وفيزا وميزانيات — من ناس سافرت.', 2),
+  ('spanish', '🇪🇸', 'Spanish Beginners', 'إسباني للمبتدئين', 'Hola to your first real conversation.', 'من "أولا" لأول محادثة حقيقية.', 3),
+  ('german',  '🇩🇪', 'German Beginners', 'ألماني للمبتدئين', 'Slow German, lots of patience.', 'ألماني على مهله، وصبر كتير.', 4),
+  ('culture', '🌍', 'Culture Exchange', 'تبادل ثقافات', 'Your city, their city, food, music, customs.', 'مدينتك ومدينتهم، أكل ومزيكا وعادات.', 5)
+on conflict (id) do nothing;
+
+create table if not exists public.lounge_members (
+  lounge_id text not null references public.lounges(id) on delete cascade,
+  user_id   uuid not null references public.profiles(id) on delete cascade,
+  seen_at   timestamptz not null default now(),
+  primary key (lounge_id, user_id)
+);
+alter table public.lounge_members enable row level security;
+create table if not exists public.lounge_messages (
+  id        uuid primary key default gen_random_uuid(),
+  lounge_id text not null references public.lounges(id) on delete cascade,
+  user_id   uuid not null references public.profiles(id) on delete cascade,
+  body      text not null check (length(btrim(body)) between 1 and 300),
+  at        timestamptz not null default now()
+);
+create index if not exists lounge_messages_at on public.lounge_messages (lounge_id, at desc);
+alter table public.lounge_messages enable row level security;
+
+-- in the room = seen in the last 45 seconds (the app says "still here" every 15)
+create or replace function public.lounge_here(l text, u uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.lounge_members m where m.lounge_id = l and m.user_id = u and m.seen_at > now() - interval '45 seconds');
+$$;
+revoke all on function public.lounge_here(text, uuid) from public, anon, authenticated;
+
+-- the list everybody may see (Preview Mode): what is on and how many are in
+create or replace function public.lounges_list()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select jsonb_build_object('plus', public.is_plus(auth.uid()), 'lounges', coalesce(jsonb_agg(jsonb_build_object(
+      'id', l.id, 'emoji', l.emoji, 'title', l.title, 'title_ar', l.title_ar, 'about', l.about, 'about_ar', l.about_ar,
+      'live', (select count(*) from public.lounge_members m where m.lounge_id = l.id and m.seen_at > now() - interval '45 seconds'),
+      'cap', 10) order by l.sort), '[]'::jsonb))
+    from public.lounges l;
+$$;
+revoke execute on function public.lounges_list() from public, anon;
+grant execute on function public.lounges_list() to authenticated;
+
+create or replace function public.lounge_room(p_id text)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select jsonb_build_object('ok', true, 'now', now(),
+    'people', (select coalesce(jsonb_agg(jsonb_build_object('id', p.id, 'name', p.name, 'avatar_url', p.avatar_url,
+                 'buddy', public.are_buddies(auth.uid(), p.id)) order by m.seen_at), '[]'::jsonb)
+                 from public.lounge_members m join public.profiles p on p.id = m.user_id
+                where m.lounge_id = p_id and m.seen_at > now() - interval '45 seconds'),
+    'messages', (select coalesce(jsonb_agg(jsonb_build_object('id', x.id, 'body', x.body, 'at', x.at, 'user_id', x.user_id, 'name', x.name) order by x.at), '[]'::jsonb)
+                   from (select lm.id, lm.body, lm.at, lm.user_id, p.name from public.lounge_messages lm join public.profiles p on p.id = lm.user_id
+                          where lm.lounge_id = p_id and lm.at > now() - interval '6 hours'
+                            and not public.blocked_between(auth.uid(), lm.user_id)
+                          order by lm.at desc limit 50) x))
+   where public.is_plus(auth.uid()) and public.lounge_here(p_id, auth.uid());
+$$;
+revoke execute on function public.lounge_room(text) from public, anon;
+grant execute on function public.lounge_room(text) to authenticated;
+
+-- coming in, and "still here": Plus, and ten people at most (the call is a mesh)
+create or replace function public.lounge_join(p_id text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid();
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  if not exists (select 1 from public.lounges where id = p_id) then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
+  if not public.is_plus(me) then return jsonb_build_object('ok', false, 'reason', 'plus'); end if;
+  if not public.lounge_here(p_id, me)
+     and (select count(*) from public.lounge_members m where m.lounge_id = p_id and m.seen_at > now() - interval '45 seconds') >= 10 then
+    return jsonb_build_object('ok', false, 'reason', 'full');
+  end if;
+  insert into public.lounge_members (lounge_id, user_id) values (p_id, me)
+  on conflict (lounge_id, user_id) do update set seen_at = now();
+  return public.lounge_room(p_id);
+end $$;
+revoke execute on function public.lounge_join(text) from public, anon;
+grant execute on function public.lounge_join(text) to authenticated;
+
+create or replace function public.lounge_leave(p_id text)
+returns jsonb language sql security definer set search_path = public as $$
+  delete from public.lounge_members where lounge_id = p_id and user_id = auth.uid();
+  select jsonb_build_object('ok', true);
+$$;
+revoke execute on function public.lounge_leave(text) from public, anon;
+grant execute on function public.lounge_leave(text) to authenticated;
+
+create or replace function public.lounge_say(p_id text, p_body text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); txt text := btrim(coalesce(p_body, ''));
+begin
+  if not public.is_plus(me) then return jsonb_build_object('ok', false, 'reason', 'plus'); end if;
+  if not public.lounge_here(p_id, me) then return jsonb_build_object('ok', false, 'reason', 'not_in'); end if;
+  if length(txt) < 1 or length(txt) > 300 then return jsonb_build_object('ok', false, 'reason', 'shape'); end if;
+  if exists (select 1 from public.lounge_messages where user_id = me and at > now() - interval '2 seconds') then
+    return jsonb_build_object('ok', false, 'reason', 'slow');
+  end if;
+  insert into public.lounge_messages (lounge_id, user_id, body) values (p_id, me, txt);
+  return jsonb_build_object('ok', true);
+end $$;
+revoke execute on function public.lounge_say(text, text) from public, anon;
+grant execute on function public.lounge_say(text, text) to authenticated;
+
+-- only people in a lounge (and on Plus) may be on its call
+do $do$
+begin
+  drop policy if exists "lounge members read" on realtime.messages;
+  create policy "lounge members read" on realtime.messages for select to authenticated
+    using (realtime.topic() like 'lounge:%' and public.is_plus(auth.uid())
+           and public.lounge_here(substr(realtime.topic(), 8), auth.uid()));
+  drop policy if exists "lounge members write" on realtime.messages;
+  create policy "lounge members write" on realtime.messages for insert to authenticated
+    with check (realtime.topic() like 'lounge:%' and public.is_plus(auth.uid())
+           and public.lounge_here(substr(realtime.topic(), 8), auth.uid()));
+exception when others then raise notice 'lounge realtime policies skipped: %', sqlerrm;
+end $do$;
+
+-- the new things that can reach you
+do $do$ begin
+  alter table public.notifications drop constraint if exists notifications_kind_check;
+  alter table public.notifications add constraint notifications_kind_check
+    check (kind in ('vibe','laugh','comment','mate_request','mate_accept','message','call','tag','repost','green_invite','food_order','food_status','bardi_match','plan_soon','venue_decision','xp_award','safety','creator_plan','booking','trip_open','team_reply','biz_request','biz_reply','app_problem','daily_line','partner_watch','trip_invite','level_up','event_update','buddy','buddy_ping'))
+    not valid;
+exception when others then raise notice 'notifications kind constraint skipped: %', sqlerrm;
+end $do$;
+
+create or replace function public.push_on_notification()
+returns trigger language plpgsql security definer set search_path = public as $$
+declare v_url text; v_hook text;
+begin
+  if new.kind not in ('message','call','mate_request','mate_accept','comment','tag','green_invite','bardi_match','plan_soon','food_order','food_status','venue_decision','trip_open','team_reply','level_up','event_update','buddy','buddy_ping') then
+    return new;
+  end if;
+  if not exists (select 1 from public.push_subscriptions where user_id = new.user_id) then return new; end if;
+  select value into v_url from public.app_secrets where name = 'push_url';
+  select value into v_hook from public.app_secrets where name = 'push_hook';
+  begin
+    perform net.http_post(
+      url := v_url,
+      body := jsonb_build_object('id', new.id),
+      headers := jsonb_build_object('Content-Type', 'application/json', 'x-push-hook', v_hook)
+    );
+  exception when others then null;
+  end;
+  return new;
+end;
+$$;
+
+notify pgrst, 'reload schema';
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة

@@ -3,7 +3,7 @@ import { View, Text, Pressable, ScrollView, ActivityIndicator, RefreshControl, T
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { LinearGradient } from 'expo-linear-gradient';
+import { LinearGradient } from '../ui/Gradient';
 import { publicMedia } from '../lib/publicMedia';
 import { moodOfToday } from '../lib/mood';
 import { C } from '../constants/theme';
@@ -44,7 +44,7 @@ import { isGreen } from '../lib/greenKinds';
 import { ReportSheet } from '../components/ReportSheet';
 import { JourneyCard, JourneyMap } from '../components/JourneyMap';
 const BizDirectory = lazyOverlay(() => import('../components/biz').then((m) => ({ default: m.BizDirectory })));
-const EventRoom = lazyOverlay(() => import('../components/EventRoom').then((m) => ({ default: m.EventRoom })));
+const EventRoom = lazyOverlay(() => import('../components/LiveKit').then((m) => ({ default: m.EventRoom })));
 const TripsSheet = lazyOverlay(() => import('../components/TripsSheet').then((m) => ({ default: m.TripsSheet })));
 const ExploreSheet = lazyOverlay(() => import('../components/ExploreSheet').then((m) => ({ default: m.ExploreSheet })));
 const CountrySheet = lazyOverlay(() => import('../components/CountrySheet').then((m) => ({ default: m.CountrySheet })));
@@ -58,6 +58,8 @@ const LandingSheet = lazyOverlay(() => import('../components/LandingSheet').then
 const GoNowSheet = lazyOverlay(() => import('../components/GoNowSheet').then((m) => ({ default: m.GoNowSheet })));
 const GroupPage = lazyOverlay(() => import('../components/GroupPage').then((m) => ({ default: m.GroupPage })));
 const CapsuleSheet = lazyOverlay(() => import('../components/CapsuleSheet').then((m) => ({ default: m.CapsuleSheet })));
+const LoungesSheet = lazyOverlay(() => import('../components/LiveKit').then((m) => ({ default: m.LoungesSheet })));
+const BuddiesSheet = lazyOverlay(() => import('../components/LiveKit').then((m) => ({ default: m.BuddiesSheet })));
 const TalkRoomSheet = lazyOverlay(() => import('../components/TalkRoom').then((m) => ({ default: m.TalkRoomSheet })));
 const StartTalkSheet = lazyOverlay(() => import('../components/TalkRoom').then((m) => ({ default: m.StartTalkSheet })));
 
@@ -226,6 +228,52 @@ const ideaTitle = (title) => {
 };
 const ideaKey = (g) => ((activityOf(String(g.title || '') + ' ' + String(g.kind || '')) || {}).id) || 'k:' + String(g.kind || '') + ':' + String(g.title || '').toLowerCase();
 
+/* ── practise and keep in touch ── the two doors between weekends: the
+   Live Language Lounges (Plus; everyone sees what is on) and the
+   buddies you met at a table and both chose to keep */
+const MEET = {
+  en: ['Live Language Lounges', 'Practise speaking, any time', 'Moments Buddies', 'People you met and kept'],
+  ar: ['غرف اللغات المباشرة', 'اتمرّن تتكلم في أي وقت', 'Moments Buddies', 'ناس قابلتهم وفضلتوا على تواصل'],
+  cs: ['Živé jazykové lounge', 'Procvičuj mluvení kdykoli', 'Moments Buddies', 'Lidé, které jsi potkal/a a nechal/a si'],
+  es: ['Salas de idiomas en vivo', 'Practica cuando quieras', 'Moments Buddies', 'Gente que conociste y conservas'],
+  et: ['Keelelounge’id otse', 'Harjuta rääkimist millal tahes', 'Moments Buddies', 'Inimesed, keda kohtasid ja hoidsid'],
+  fr: ['Salons de langues en direct', 'Pratique quand tu veux', 'Moments Buddies', 'Les gens rencontrés et gardés'],
+  hi: ['लाइव लैंग्वेज लाउंज', 'कभी भी बोलने की प्रैक्टिस', 'Moments Buddies', 'जिनसे मिले और जुड़े रहे'],
+  it: ['Lounge di lingue dal vivo', 'Fai pratica quando vuoi', 'Moments Buddies', 'Le persone conosciute e tenute'],
+  ja: ['ライブ語学ラウンジ', 'いつでも話す練習', 'Moments Buddies', '出会ってつながった人'],
+  ko: ['라이브 언어 라운지', '언제든 말하기 연습', 'Moments Buddies', '만나서 계속 연락하는 사람들'],
+  nl: ['Live taallounges', 'Oefen wanneer je wilt', 'Moments Buddies', 'Mensen die je ontmoette en hield'],
+  pt: ['Salas de línguas ao vivo', 'Pratica quando quiseres', 'Moments Buddies', 'Pessoas que conheceste e mantiveste'],
+  ro: ['Lounge-uri de limbi live', 'Exersează oricând', 'Moments Buddies', 'Oameni cunoscuți și păstrați'],
+  ru: ['Языковые лаунджи', 'Тренируй речь когда угодно', 'Moments Buddies', 'Те, с кем вы познакомились и остались'],
+  tr: ['Canlı dil salonları', 'İstediğin zaman pratik yap', 'Moments Buddies', 'Tanıştığın ve tuttuğun kişiler'],
+  uk: ['Мовні лаунжі наживо', 'Тренуй мовлення будь-коли', 'Moments Buddies', 'Ті, з ким познайомився й лишився'],
+  zh: ['实时语言休息室', '随时练习口语', 'Moments Buddies', '认识并保持联系的人'],
+};
+const MeetRows = ({ lang, onLounges, onBuddies }) => {
+  const m = MEET[lang] || MEET.en;
+  const row = (emoji, title, sub, onPress, last) => (
+    <Pressable onPress={() => { tapLight(); onPress(); }} accessibilityRole="button">
+      <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 16, borderBottomWidth: last ? 0 : 1, borderColor: C.line }}>
+        <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: C.purpleSoft, alignItems: 'center', justifyContent: 'center', marginEnd: 14 }}>
+          <Text style={{ fontSize: 22 }}>{emoji}</Text>
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={{ color: C.text, fontSize: 16, fontWeight: '600', letterSpacing: -0.2 }}>{title}</Text>
+          <Text style={{ color: C.dim, fontSize: 13, marginTop: 2 }}>{sub}</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={C.faint} />
+      </View>
+    </Pressable>
+  );
+  return (
+    <View style={{ marginTop: 22, borderRadius: 24, borderWidth: 1, borderColor: C.line, backgroundColor: C.glass, paddingHorizontal: 18 }}>
+      {row('🎙', m[0], m[1], onLounges)}
+      {row('🤝', m[2], m[3], onBuddies, true)}
+    </View>
+  );
+};
+
 const Workshops = ({ t, lang, onOpen }) => {
   const [list, setList] = useState(null);
   useEffect(() => { let alive = true; listOffers(null, null).then((r) => { if (alive) setList((r || []).filter((o) => o.track === 'workshop' && !o.level)); }).catch(() => {}); return () => { alive = false; }; }, []);
@@ -375,6 +423,7 @@ export const TogetherScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [sheet, setSheet] = useState(null);
   const [journey, setJourney] = useState(false);
+  const [meet, setMeet] = useState(null);   // 'lounges' | 'buddies'
   const [eventOf, setEventOf] = useState(null);   // a joined plan whose event page is open
   const [creators, setCreators] = useState(() => recall('creators.' + (readCode() || 'all')) || []);     // hosts people really came to (top_creators)
   const [shareMsg, setShareMsg] = useState(null);
@@ -936,6 +985,9 @@ export const TogetherScreen = () => {
         {/* the learning journey: one level at a time (JourneyMap.js) */}
         {uid ? <JourneyCard lang={lang} onOpen={() => setJourney(true)} /> : null}
         {journey ? <JourneyMap lang={lang} onClose={() => setJourney(false)} /> : null}
+        {uid ? <MeetRows lang={lang} onLounges={() => setMeet('lounges')} onBuddies={() => setMeet('buddies')} /> : null}
+        {meet === 'lounges' ? <LoungesSheet onClose={() => setMeet(null)} /> : null}
+        {meet === 'buddies' ? <BuddiesSheet onClose={() => setMeet(null)} /> : null}
         {eventOf ? <EventRoom kind="gathering" id={eventOf} lang={lang} onClose={() => setEventOf(null)} /> : null}
         <Workshops t={t} lang={lang} onOpen={(o) => setSheet({ trips: 'browse', only: 'workshop', focus: o.id })} />
 

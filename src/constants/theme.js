@@ -1,64 +1,69 @@
 import { LIQUID } from '../lib/liquid';
 /* ────────────────────────── DESIGN TOKENS ─────────────────────────
-   Bright & airy by default: white cards on a soft cloud-gray canvas,
-   generous whitespace, and the neon accents kept for moments of
-   delight. A real dark mode (deep charcoal canvas, brightened accents
-   for contrast) is available too — see ThemeContext.
-   Purple #7C3AED · Green #10B981 · Blue #3B82F6 · Coral #F43F5E     */
+   Ayser, October 2026, in two steps. First: "eliminate the AI-generated
+   template look" — Swiss grid, generous space, hairlines instead of
+   shadows, typography doing the work, no rainbow gradients. Then: "do
+   NOT make the app cold" — Moments is a youth, travel and social brand,
+   so its violet stays at the heart of it. The 80/20 rule: 80% a warm,
+   quiet canvas (a soft off-white by day, a deep plum-black at night),
+   20% bold Moments violet — the main button, the level you are on, the
+   progress bars, the game cards, the badges you earn. Emerald only for
+   "confirmed / unlocked", amber only for "2 spots left", red only for
+   an error. The token NAMES stay (every screen reads C.purple, C.glass…)
+   so the whole app changes at once.
+     canvas #FAF8F5 · surface #FFFFFF · subtle #F3F0EC · ink #17131F
+     brand  #7C3AED (Moments violet) · line rgba(23,19,31,0.08)           */
 
 const LIGHT = {
-  bg: '#F9F9F6',                       // warm off-white canvas — quiet, not clinical
+  bg: '#FAF8F5',                       // warm off-white canvas, like paper in the sun
   bg2: '#FFFFFF',                      // sheets & bars
-  glass: '#FFFFFF',                    // cards are clean white
-  glassHi: 'rgba(26,26,26,0.05)',      // subtle pressed / track fill
-  line: 'rgba(26,26,26,0.08)',         // hairline borders
-  purple: '#7C3AED',
-  purpleSoft: 'rgba(124,58,237,0.09)',
-  green: '#047857',                    // 5.5:1 with white text on it, and as text on the canvas
-  greenSoft: 'rgba(4,120,87,0.10)',
-  blue: '#3B82F6',
-  blueSoft: 'rgba(59,130,246,0.09)',
-  coral: '#F43F5E',
-  coralSoft: 'rgba(244,63,94,0.09)',
-  gold: '#F5B301',                     // the signature Star reaction
-  goldSoft: 'rgba(245,179,1,0.12)',
-  text: '#1A1A1A',                     // charcoal ink
-  dim: 'rgba(26,26,26,0.60)',
-  faint: 'rgba(26,26,26,0.52)',       // 3.5:1 — hints stay quiet but readable
-  ink: '#FFFFFF',                      // label color on neon buttons
-  /* Panels that float ON TOP of the map/photos. These used to be
-     hardcoded white, which meant white text on white in dark mode —
-     nothing on the map was readable. They follow the theme now. */
-  float: 'rgba(255,255,255,0.94)',
+  glass: '#FFFFFF',                    // cards: white, separated by a hairline, never a shadow
+  glassHi: '#F3F0EC',                  // the subtle secondary surface, warm not grey
+  line: 'rgba(23,19,31,0.08)',         // the only separator
+  purple: '#7C3AED',                   // Moments violet: the main action, the active path
+  purpleSoft: 'rgba(124,58,237,0.08)', // a chip, a selected row, a badge's ground
+  green: '#047857',                    // emerald: unlocked, confirmed (5.5:1 with white)
+  greenSoft: 'rgba(4,120,87,0.08)',
+  blue: '#6D28D9',                     // links read as the brand, a shade deeper
+  blueSoft: 'rgba(124,58,237,0.06)',
+  coral: '#DC2626',                    // errors only
+  coralSoft: 'rgba(220,38,38,0.07)',
+  gold: '#B45309',                     // amber: urgency (2 spots left) — 5:1 on white
+  goldSoft: 'rgba(217,119,6,0.10)',
+  text: '#17131F',                     // ink with a little warmth in it
+  dim: '#6F6A75',                      // metadata: dates, places, prices (5:1)
+  faint: '#87818D',                    // hints (3.6:1)
+  ink: '#FFFFFF',                      // the label on a violet button
+  float: 'rgba(255,255,255,0.96)',
   floatSolid: '#FFFFFF',
 };
 
 const DARK = {
-  /* A true night palette: near-black canvas, rows that sit ON it rather
-     than in bright boxes, hairline dividers instead of outlines, and one
-     confident violet doing the accent work. */
-  bg: '#121215',                       // deep charcoal, not black: pure black under white text glares (Ayser: "مريحة للعين")
-  bg2: '#19191D',                      // sheets & bars
-  glass: '#1D1D22',                    // cards, barely lifted off the canvas
-  glassHi: 'rgba(255,255,255,0.06)',   // subtle pressed / track fill
-  line: 'rgba(255,255,255,0.07)',      // hairline borders
-  purple: '#7C5CFF',                   // the accent — buttons, active chips
-  purpleSoft: 'rgba(124,92,255,0.18)',
-  green: '#059669',                    // readable as text on black and under a white label
-  greenSoft: 'rgba(5,150,105,0.18)',
-  blue: '#60A5FA',
-  blueSoft: 'rgba(96,165,250,0.16)',
-  coral: '#FB7185',
-  coralSoft: 'rgba(251,113,133,0.16)',
-  gold: '#F5B301',
-  goldSoft: 'rgba(245,179,1,0.18)',
-  text: '#E9E9EC',                     // soft white ink — easier on the eyes at night
-  dim: 'rgba(233,233,236,0.66)',
-  faint: 'rgba(233,233,236,0.52)',    // ~4.5:1 on the canvas
+  bg: '#0F0D14',                       // a deep plum-black, warmer than pure black
+  bg2: '#16131D',                      // sheets & bars
+  glass: '#1A1722',                    // cards, one step off the canvas
+  glassHi: 'rgba(255,255,255,0.06)',
+  line: 'rgba(255,255,255,0.08)',
+  purple: '#7C3AED',                   // the same Moments violet at night (white label 5.7:1)
+  purpleSoft: 'rgba(139,92,246,0.16)',
+  green: '#059669',
+  greenSoft: 'rgba(5,150,105,0.14)',
+  blue: '#C4B5FD',
+  blueSoft: 'rgba(139,92,246,0.12)',
+  coral: '#F87171',
+  coralSoft: 'rgba(248,113,113,0.12)',
+  gold: '#F59E0B',
+  goldSoft: 'rgba(245,158,11,0.14)',
+  text: '#F6F3FA',
+  dim: '#A9A3B2',
+  faint: '#8F889A',
   ink: '#FFFFFF',
-  float: 'rgba(28,28,34,0.94)',
-  floatSolid: '#1B1B21',
+  float: 'rgba(26,23,34,0.96)',
+  floatSolid: '#1A1722',
 };
+
+/* numbers that change — prices, countdowns, seats — never shuffle sideways */
+export const NUM = { fontVariant: ['tabular-nums'] };
 
 /* `C` is a SINGLE shared object — every screen imports this same
    reference and reads `C.bg` etc. straight in its render, with no

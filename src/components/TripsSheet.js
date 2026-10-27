@@ -12,7 +12,7 @@ import { openInvite } from '../lib/tripLink';
 import { remember, recall } from '../lib/offline';
 import { tapLight, tapMedium, tapSelection, tapSuccess } from '../utils/feedback';
 import { useSheetBack } from '../hooks/useSheetBack';
-import { LinearGradient } from 'expo-linear-gradient';
+import { LinearGradient } from '../ui/Gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { HighlightVideo } from './GoOutRail';
 import { fetchHighlights } from '../services/appHighlights';
@@ -119,7 +119,7 @@ const when = (iso, lang) => {
 const pick = (o, field, lang) => (lang === 'ar' && o[field + '_ar'] && (Array.isArray(o[field + '_ar']) ? o[field + '_ar'].length : true) ? o[field + '_ar'] : o[field]);
 
 // the booked event's own page: the host's pin, the seats, the short chat or the workshop room
-const EventRoom = lazyOverlay(() => import('./EventRoom').then((m) => ({ default: m.EventRoom })));
+const EventRoom = lazyOverlay(() => import('./LiveKit').then((m) => ({ default: m.EventRoom })));
 // how full it is, said the way that makes people move: 8/10 spots taken
 const SPOTS = { en: '{n}/{t} spots taken', ar: '{n}/{t} أماكن اتحجزت', cs: '{n}/{t} míst obsazeno', es: '{n}/{t} plazas ocupadas', et: '{n}/{t} kohta täis', fr: '{n}/{t} places prises', hi: '{n}/{t} सीटें भर गईं', it: '{n}/{t} posti presi', ja: '{t}席中{n}席うまっています', ko: '{t}자리 중 {n}자리 마감', nl: '{n}/{t} plekken bezet', pt: '{n}/{t} lugares ocupados', ro: '{n}/{t} locuri ocupate', ru: 'Занято {n} из {t} мест', tr: '{t} yerden {n} tanesi doldu', uk: 'Зайнято {n} з {t} місць', zh: '已订 {n}/{t} 个名额' };
 const EVENT_PAGE = { en: 'Event page · where to meet', ar: 'صفحة الخروجة · مكان التجمّع', cs: 'Stránka akce · kde se sejít', es: 'Página del plan · dónde vernos', et: 'Ürituse leht · kus kohtuda', fr: 'Page de l’événement · où se retrouver', hi: 'इवेंट पेज · कहाँ मिलना है', it: 'Pagina dell’evento · dove trovarsi', ja: 'イベントページ · 集合場所', ko: '이벤트 페이지 · 만나는 곳', nl: 'Eventpagina · waar we afspreken', pt: 'Página do evento · onde nos encontramos', ro: 'Pagina evenimentului · unde ne vedem', ru: 'Страница события · где встречаемся', tr: 'Etkinlik sayfası · buluşma yeri', uk: 'Сторінка події · де зустрічаємося', zh: '活动页 · 集合地点' };

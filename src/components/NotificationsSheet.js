@@ -36,6 +36,7 @@ const ReelsViewer = lazyOverlay(() => import('./ReelsViewer').then((m) => ({ def
 const LikersSheet = lazyOverlay(() => import('./LikersSheet').then((m) => ({ default: m.LikersSheet })));
 const ProfileModal = lazyOverlay(() => import('./ProfileModal').then((m) => ({ default: m.ProfileModal })));
 const KitchenSheet = lazyOverlay(() => import('./KitchenSheet').then((m) => ({ default: m.KitchenSheet })));
+const BuddiesSheet = lazyOverlay(() => import('./LiveKit').then((m) => ({ default: m.BuddiesSheet })));
 const GreenSheet = lazyOverlay(() => import('./green/GreenSheet').then((m) => ({ default: m.GreenSheet })));
 
 /* The activity inbox — every star, laugh, comment and mate event on YOUR
@@ -54,7 +55,7 @@ const timeAgo = (ts) => {
 
 const FILTERS = [
   { k: 'all', label: 'nt_f_all', kinds: null },
-  { k: 'people', label: 'nt_f_people', kinds: ['mate_request', 'mate_accept', 'message', 'call'] },
+  { k: 'people', label: 'nt_f_people', kinds: ['mate_request', 'mate_accept', 'message', 'call', 'buddy', 'buddy_ping'] },
   { k: 'moments', label: 'nt_f_moments', kinds: ['vibe', 'laugh', 'repost', 'tag', 'comment'] },
 ];
 
@@ -120,6 +121,7 @@ export const NotificationsSheet = ({ onClose }) => {
   // tap targets
   const [profileUser, setProfileUser] = useState(null);
   const [greenOpen, setGreenOpen] = useState(false);   // a green invite, tapped
+  const [buddiesOpen, setBuddiesOpen] = useState(false);
   const [goNowFrom, setGoNowFrom] = useState(null);    // Bardi's "make it a hangout"
   const [foodTab, setFoodTab] = useState(null);       // a food notification, tapped
   const [viewPost, setViewPost] = useState(null);
@@ -197,6 +199,15 @@ export const NotificationsSheet = ({ onClose }) => {
   const openNotif = async (n) => {
     /* an invitation opens the week it is in, where Join is one tap */
     if (n.kind === 'green_invite') { tapSelection(); setGreenOpen(true); return; }
+    // a new buddy, or a message from one: the Buddies page, where the chat is
+    if (n.kind === 'buddy' || n.kind === 'message') { tapSelection(); setBuddiesOpen(true); return; }
+    // a buddy's invitation to their table: the trip page, or the plans of the week
+    if (n.kind === 'buddy_ping') {
+      tapSelection(); onClose();
+      const [k, id] = String(n.body || '').split('|')[0].split(':');
+      if (k === 'offer' && id) openTrip(id); else goToTab('TOGETHER');
+      return;
+    }
     if (n.kind === 'plan_soon' || n.kind === 'creator_plan') { tapSelection(); onClose(); goToTab('TOGETHER'); return; }
     if (n.kind === 'trip_open') { tapSelection(); onClose(); openTrip(String(n.body || '').split('|')[0]); return; }
     if (n.kind === 'trip_invite') { tapSelection(); onClose(); openInvite(String(n.body || '').split('|')[0]); return; }
@@ -474,6 +485,7 @@ export const NotificationsSheet = ({ onClose }) => {
       {/* tap targets */}
       {profileUser ? <ProfileModal user={profileUser} onClose={() => setProfileUser(null)} /> : null}
       {greenOpen ? <GreenSheet onClose={() => setGreenOpen(false)} /> : null}
+      {buddiesOpen ? <BuddiesSheet onClose={() => setBuddiesOpen(false)} /> : null}
       {bizOpen ? <BizHub lang={lang} onClose={() => setBizOpen(false)} /> : null}
       {goNowFrom ? (
         <GoNowSheet initialKind={goNowFrom.kind}

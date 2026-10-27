@@ -155,7 +155,7 @@ export const JourneyMap = ({ lang, onClose }) => {
                         {idx < levels.length - 1 ? <View style={{ flex: 1, width: 2, minHeight: 24, backgroundColor: done ? C.green : C.line, marginVertical: 4 }} /> : null}
                       </View>
 
-                      <View style={{ flex: 1, minWidth: 0, marginStart: 12, paddingBottom: 22, opacity: locked ? 0.55 : 1 }}>
+                      <View style={{ flex: 1, minWidth: 0, marginStart: 12, paddingBottom: 22, opacity: locked ? 0.5 : 1 }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', minHeight: 36 }}>
                           <Text style={{ color: C.text, fontSize: here ? 19 : 16, fontWeight: '900' }}>{jw(lang, 'level', { n })}</Text>
                           {here ? (

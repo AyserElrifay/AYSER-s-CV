@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable, Animated, PanResponder, Image, Platform } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { LinearGradient } from 'expo-linear-gradient';
+import { LinearGradient } from '../../ui/Gradient';
 import { C } from '../../constants/theme';
 import { worldBoard } from '../../services/squadGames';
 import { todayChallenge } from './challenges';

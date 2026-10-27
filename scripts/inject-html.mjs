@@ -29,10 +29,18 @@ const KEYWORDS = 'Moments, Moments app, The Real Moments, therealmoments, Moment
 //    soft backdrop instead of being stretched across a wide window.
 const responsiveCss = `
   <style>
-    html, body { margin: 0; height: 100%; background: #121215; }
-    @media (prefers-color-scheme: light) { html, body { background: #F9F9F6; } }
-    html.mm-dark, html.mm-dark body { background: #121215; }
-    html.mm-light, html.mm-light body { background: #F9F9F6; }
+    html, body { margin: 0; height: 100%; background: #0F0D14; }
+    @media (prefers-color-scheme: light) { html, body { background: #FAF8F5; } }
+    html.mm-dark, html.mm-dark body { background: #0F0D14; }
+    html.mm-light, html.mm-light body { background: #FAF8F5; }
+    /* the design system, where the screens cannot say it themselves:
+       no drop shadows anywhere — a 1px hairline takes their place — and
+       everything you can press gives a little under your finger */
+    div[style*="box-shadow"] { box-shadow: 0 0 0 1px rgba(23,19,31,0.08) !important; }
+    html.mm-dark div[style*="box-shadow"] { box-shadow: 0 0 0 1px rgba(255,255,255,0.08) !important; }
+    [role="button"] { transition: transform 200ms ease-out, opacity 200ms ease-out; }
+    [role="button"]:active { transform: scale(0.98); }
+    body { font-feature-settings: "cv11", "ss01"; -webkit-font-smoothing: antialiased; }
     /* dynamic viewport height fixes the mobile URL-bar aspect crop */
     #root { width: 100%; height: 100vh; height: 100dvh; overflow: hidden; }
     /* Laptop / desktop: the whole window. It used to sit in a framed box
