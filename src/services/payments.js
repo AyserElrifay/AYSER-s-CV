@@ -58,22 +58,23 @@ export async function payBooking(bookingId) {
 
 /* ── MOMENTS PLUS ── the app names the plan; the server reads the
    owner's price, and Paymob's signed webhook adds the days. */
-/* The store's two published checkout links (Lemon Squeezy → Products →
-   Share). Public by design — a link only opens the checkout; what
-   anybody is given is decided by ls-webhook from what was really paid
-   for, never by which button was pressed. */
+/* The store's published checkout links (Lemon Squeezy → Products →
+   Share), one per plan and period. Public by design — a link only opens
+   the checkout; what anybody is given is decided by ls-webhook from what
+   was really paid for, never by which button was pressed. A period whose
+   link is not in yet answers "payments open very soon". */
 const LS_BUY = {
-  basic: 'https://therealmoments.lemonsqueezy.com/checkout/buy/b837520d-74c4-4ca1-83a0-7dc8c9b65ef5',
-  vip: 'https://therealmoments.lemonsqueezy.com/checkout/buy/5e90c5a0-6cc8-480b-bc4c-54c8c9d23c5b',
+  basic: { month: 'https://therealmoments.lemonsqueezy.com/checkout/buy/b837520d-74c4-4ca1-83a0-7dc8c9b65ef5', year: null },
+  vip: { month: null, year: 'https://therealmoments.lemonsqueezy.com/checkout/buy/5e90c5a0-6cc8-480b-bc4c-54c8c9d23c5b' },
 };
 
-/* Moments+ or Black, monthly, through Lemon Squeezy.
+/* Moments+ or Black, monthly or yearly, through Lemon Squeezy.
    Somebody not yet subscribed goes straight to that plan's checkout link,
    carrying their account id (checkout[custom][user_id]) so the signed
    webhook knows whose membership it is. Somebody already subscribed goes
    through functions/ls-checkout: a change of tier moves their one
    subscription (never a second one), the same tier opens the portal. */
-export async function buyTier(tier, member) {
+export async function buyTier(tier, member, period) {
   if (!SUPABASE_READY) return { ok: false, reason: 'offline' };
   const t = tier === 'vip' ? 'vip' : 'basic';
   if (!(member && member.manage)) {
@@ -83,7 +84,9 @@ export async function buyTier(tier, member) {
       if (!u) return { ok: false, reason: 'signed_out' };
       const q = '?checkout[custom][user_id]=' + encodeURIComponent(u.id)
         + (u.email ? '&checkout[email]=' + encodeURIComponent(u.email) : '');
-      go(LS_BUY[t] + q);
+      const link = LS_BUY[t][period === 'year' ? 'year' : 'month'];
+      if (!link) return { ok: false, reason: 'not_configured' };
+      go(link + q);
       return { ok: true };
     } catch (e) {
       return { ok: false, reason: 'offline' };

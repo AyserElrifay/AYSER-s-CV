@@ -11,16 +11,16 @@ import { Image } from 'react-native';
    with the spark hovering above, so a little headroom above the text is
    by design. Pass `height` (the full art box) — width tracks the ratio. */
 
-const WORDMARK = require('../assets/brand/wordmark.png');
 const WORDMARK_WHITE = require('../assets/brand/wordmark-white.png');
 const MARK = require('../assets/brand/mark.png');
 
 const RATIO = 1036 / 420; // ≈ 2.467
 
-export function Wordmark({ height = 54, white = false, style }) {
+// one monochrome design: the white wordmark everywhere (`white` is kept for old callers)
+export function Wordmark({ height = 54, style }) {
   return (
     <Image
-      source={white ? WORDMARK_WHITE : WORDMARK}
+      source={WORDMARK_WHITE}
       resizeMode="contain"
       accessibilityRole="image"
       accessibilityLabel="Moments"

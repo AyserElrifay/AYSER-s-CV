@@ -135,19 +135,19 @@ export const Intro = ({ onStart, onSignIn }) => {
               <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
                 {SLIDES.map((_, k) => (
                   <Pressable key={k} onPress={() => go(k)} accessibilityRole="button" accessibilityLabel={String(k + 1)} hitSlop={6}
-                    style={{ width: k === i ? 26 : 8, height: 8, borderRadius: 4, backgroundColor: k === i ? '#A78BFA' : 'rgba(255,255,255,0.35)', marginEnd: 7 }} />
+                    style={{ width: k === i ? 26 : 8, height: 8, borderRadius: 4, backgroundColor: k === i ? '#FFFFFF' : 'rgba(255,255,255,0.35)', marginEnd: 7 }} />
                 ))}
               </View>
               <Pressable onPress={() => { tapLight(); go(i + 1); }} accessibilityRole="button" accessibilityLabel={t('in_next')}
-                style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: '#7C3AED', alignItems: 'center', justifyContent: 'center' }}>
-                <Ionicons name={rtl ? "arrow-back" : "arrow-forward"} size={26} color="#fff" />
+                style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name={rtl ? "arrow-back" : "arrow-forward"} size={26} color="#000" />
               </Pressable>
             </View>
           ) : (
             <>
               <Pressable onPress={() => finish(onStart)} accessibilityRole="button"
-                style={{ backgroundColor: '#7C3AED', borderRadius: 999, paddingVertical: 17, alignItems: 'center' }}>
-                <Text style={{ color: '#fff', fontSize: 17, fontWeight: '900' }}>{t('welcome_start')}</Text>
+                style={{ backgroundColor: '#FFFFFF', borderRadius: 999, paddingVertical: 17, alignItems: 'center' }}>
+                <Text style={{ color: '#000', fontSize: 17, fontWeight: '900' }}>{t('welcome_start')}</Text>
               </Pressable>
               <Pressable onPress={() => finish(onSignIn)} accessibilityRole="button"
                 style={{ borderRadius: 999, paddingVertical: 15, alignItems: 'center', marginTop: 10, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.3)' }}>

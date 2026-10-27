@@ -20314,8 +20314,8 @@ begin
       'pin', o.host_pin, 'pin_at', o.host_pin_at,
       'taken', public.offer_seats_taken(o.id), 'total', o.seats,
       'chat', case when o.online or sq is null then null else jsonb_build_object('squad_id', sq,
-                'opens_at', o.starts_at - interval '30 minutes', 'closes_at', closes,
-                'open', now() between o.starts_at - interval '30 minutes' and closes) end,
+                'opens_at', o.starts_at - interval '2 hours', 'closes_at', closes,
+                'open', now() between o.starts_at - interval '2 hours' and closes) end,
       'call', case when not o.online then null else jsonb_build_object(
                 'opens_at', o.starts_at - interval '15 minutes', 'ended', o.room_ended_at is not null,
                 'can_join', (paid or host) and o.room_ended_at is null and now() >= o.starts_at - interval '15 minutes'
@@ -20326,7 +20326,7 @@ begin
     going := exists (select 1 from public.green_joins j where j.gathering_id = g.id and j.user_id = me);
     host  := g.host_id = me;
     if not going and not host then return jsonb_build_object('ok', false, 'reason', 'not_in'); end if;
-    opens := g.starts_at - interval '30 minutes';
+    opens := g.starts_at - interval '2 hours';
     closes := g.starts_at + make_interval(mins => coalesce(g.minutes, 180));
     return jsonb_build_object('ok', true, 'kind', 'gathering', 'id', g.id, 'title', g.title,
       'starts_at', g.starts_at, 'closes_at', closes, 'now', now(), 'online', false, 'is_host', host,
@@ -21255,11 +21255,11 @@ create or replace function public.event_capsule_window(sq uuid)
 returns table (opens timestamptz, ends timestamptz, closes timestamptz)
 language sql stable security definer set search_path = public as $$
   select * from (
-    select g.starts_at - interval '30 minutes', g.starts_at + make_interval(mins => coalesce(g.minutes, 180)),
+    select g.starts_at - interval '2 hours', g.starts_at + make_interval(mins => coalesce(g.minutes, 180)),
            g.starts_at + make_interval(mins => coalesce(g.minutes, 180)) + interval '24 hours'
       from public.green_gatherings g where g.squad_id = sq and g.cancelled_at is null
     union all
-    select o.starts_at - interval '30 minutes', coalesce(o.ends_at, o.starts_at + coalesce(o.duration_hours, 3) * interval '1 hour'),
+    select o.starts_at - interval '2 hours', coalesce(o.ends_at, o.starts_at + coalesce(o.duration_hours, 3) * interval '1 hour'),
            coalesce(o.ends_at, o.starts_at + coalesce(o.duration_hours, 3) * interval '1 hour') + interval '24 hours'
       from public.offers o where o.squad_id = sq and o.starts_at is not null and not o.online
   ) w limit 1;
@@ -22718,6 +22718,126 @@ returns boolean language sql stable security definer set search_path = public as
      where now() between m.starts_at - interval '30 minutes' and m.ends_at);
 $$;
 revoke all on function public.activity_ok(text, uuid, uuid) from public, anon, authenticated;
+
+-- ═══════════════════════════════════════════════════════════════════
+--  THE UNIFIED MOMENTS · PHASE 1 (Ayser's architecture, October 2026)
+--  · Prices: Moments+ 129 a month or 990 a year; Moments Black 299 a
+--    month or 1,300 a year.
+--  · Table Buddies write to each other on Moments+ already; open
+--    messages to people you have not sat with stay Moments Black (or a
+--    pass earned with 3 stamps). The privacy switch still closes the door
+--    to new people — buddies keep theirs.
+--  · A table's chat opens 2 hours before the start (event_room and
+--    event_capsule_window above), and "Ping table — I've arrived" tells
+--    everybody going, once per person per table.
+--  Safe to re-run.
+-- ═══════════════════════════════════════════════════════════════════
+update public.app_settings set value = value || '{"vip_month": 299}'::jsonb
+ where key = 'tier_prices' and (value ->> 'vip_month') = '249';
+
+create or replace function public.dm_can_send(t uuid, u uuid)
+returns boolean language plpgsql stable security definer set search_path = public as $$
+declare o uuid := public.dm_other(t, u); op public.dm_openers%rowtype;
+begin
+  if o is null or public.blocked_between(u, o) then return false; end if;
+  -- Table Buddies: any member (Moments+ or Black)
+  if public.are_buddies(u, o) then return public.member_tier(u) <> 'FREE'; end if;
+  if not public.vip_chat(u) then return false; end if;
+  select * into op from public.dm_openers where thread_id = t;
+  if not found then return false; end if;
+  if op.to_id = u then return true; end if;                                         -- they answer
+  if op.from_id = u then
+    return not exists (select 1 from public.messages m where m.dm_thread_id = t)      -- the opening line
+        or exists (select 1 from public.messages m where m.dm_thread_id = t and m.user_id = op.to_id);   -- after an answer
+  end if;
+  return false;
+end $$;
+revoke all on function public.dm_can_send(uuid, uuid) from public, anon, authenticated;
+
+create or replace function public.buddy_thread(p_other uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); t uuid;
+begin
+  if not public.are_buddies(me, p_other) then return jsonb_build_object('ok', false, 'reason', 'not_buddies'); end if;
+  select p1.thread_id into t from public.dm_participants p1 join public.dm_participants p2 on p2.thread_id = p1.thread_id
+   where p1.user_id = me and p2.user_id = p_other limit 1;
+  if t is null then
+    insert into public.dm_threads default values returning id into t;
+    insert into public.dm_participants (thread_id, user_id, accepted) values (t, me, true), (t, p_other, true);
+  end if;
+  -- 'plus' here means "may write in this thread": every member may write to a buddy
+  return jsonb_build_object('ok', true, 'thread_id', t, 'plus', public.member_tier(me) <> 'FREE', 'pass_until', public.pass_until(me));
+end $$;
+revoke execute on function public.buddy_thread(uuid) from public, anon;
+grant execute on function public.buddy_thread(uuid) to authenticated;
+
+-- the thread's own answer to "may I write here": a buddy thread is open on Moments+
+create or replace function public.dm_state(p_thread uuid)
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare me uuid := auth.uid(); o uuid; op public.dm_openers%rowtype; bud boolean;
+begin
+  if not public.is_dm_participant(p_thread, me) then return jsonb_build_object('ok', false, 'reason', 'not_in'); end if;
+  o := public.dm_other(p_thread, me);
+  bud := public.are_buddies(me, o);
+  select * into op from public.dm_openers where thread_id = p_thread;
+  return jsonb_build_object('ok', true, 'other', (select jsonb_build_object('id', p.id, 'name', p.name, 'avatar_url', p.avatar_url) from public.profiles p where p.id = o),
+    'buddy', bud, 'plus', public.vip_chat(me) or (bud and public.member_tier(me) <> 'FREE'), 'vip', public.is_vip(me),
+    'pass_until', public.pass_until(me), 'can_send', public.dm_can_send(p_thread, me),
+    'opener', case when op.thread_id is null then null else jsonb_build_object('from_me', op.from_id = me, 'card', op.card,
+      'answer', (select jsonb_build_object('body', a.body, 'choice', a.choice, 'day', a.day) from public.moment_answers a where a.id = op.daily_answer)) end);
+end $$;
+revoke execute on function public.dm_state(uuid) from public, anon;
+grant execute on function public.dm_state(uuid) to authenticated;
+
+-- "Ping table — I've arrived": once per person per table, from 2 hours before to the end
+create table if not exists public.event_arrivals (
+  kind     text not null check (kind in ('offer','gathering')),
+  event_id uuid not null,
+  user_id  uuid not null references public.profiles(id) on delete cascade,
+  at       timestamptz not null default now(),
+  primary key (kind, event_id, user_id)
+);
+alter table public.event_arrivals enable row level security;   -- through the functions below only
+
+do $do$ begin
+  alter table public.notifications drop constraint if exists notifications_kind_check;
+  alter table public.notifications add constraint notifications_kind_check
+    check (kind in ('vibe','laugh','comment','mate_request','mate_accept','message','call','tag','repost','green_invite','food_order','food_status','bardi_match','plan_soon','venue_decision','xp_award','safety','creator_plan','booking','trip_open','team_reply','biz_request','biz_reply','app_problem','daily_line','partner_watch','trip_invite','level_up','event_update','buddy','buddy_ping','arrived'))
+    not valid;
+exception when others then raise notice 'notifications kind constraint skipped: %', sqlerrm;
+end $do$;
+
+create or replace function public.event_arrivals_list(p_kind text, p_id uuid)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select coalesce(jsonb_agg(jsonb_build_object('id', a.user_id, 'name', p.name, 'at', a.at) order by a.at), '[]'::jsonb)
+    from public.event_arrivals a join public.profiles p on p.id = a.user_id
+   where a.kind = p_kind and a.event_id = p_id and public.event_going(p_kind, p_id, auth.uid());
+$$;
+revoke execute on function public.event_arrivals_list(text, uuid) from public, anon;
+grant execute on function public.event_arrivals_list(text, uuid) to authenticated;
+
+create or replace function public.event_arrived(p_kind text, p_id uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); m record; n int;
+begin
+  if not public.event_going(p_kind, p_id, me) then return jsonb_build_object('ok', false, 'reason', 'not_in'); end if;
+  select * into m from public.event_meta(p_kind, p_id);
+  if not found or m.online then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
+  if now() < m.starts_at - interval '2 hours' or now() > m.ends_at then return jsonb_build_object('ok', false, 'reason', 'not_now'); end if;
+  insert into public.event_arrivals (kind, event_id, user_id) values (p_kind, p_id, me) on conflict do nothing;
+  get diagnostics n = row_count;
+  if n > 0 then
+    insert into public.notifications (user_id, actor_id, kind, body)
+    select x.u, me, 'arrived', p_id::text || '|' || left(m.title, 80)
+      from (select b.user_id u from public.bookings b where p_kind = 'offer' and b.offer_id = p_id and b.status in ('reserved','paid','attended')
+            union select j.user_id from public.green_joins j where p_kind = 'gathering' and j.gathering_id = p_id
+            union select g.host_id from public.green_gatherings g where p_kind = 'gathering' and g.id = p_id) x
+     where x.u is not null and x.u <> me and not public.blocked_between(me, x.u);
+  end if;
+  return jsonb_build_object('ok', true, 'new', n > 0, 'arrived', public.event_arrivals_list(p_kind, p_id));
+end $$;
+revoke execute on function public.event_arrived(text, uuid) from public, anon;
+grant execute on function public.event_arrived(text, uuid) to authenticated;
 
 -- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT

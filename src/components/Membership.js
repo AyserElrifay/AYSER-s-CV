@@ -5,7 +5,7 @@ import { C, NUM } from '../constants/theme';
 import { useLang } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
 import { buyTier } from '../services/payments';
-import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
+import { tapLight, tapMedium, tapSuccess, tapSelection } from '../utils/feedback';
 import { useSheetBack } from '../hooks/useSheetBack';
 import { SheetHandle } from './SheetHandle';
 
@@ -48,6 +48,31 @@ const PER_YEAR = { en: '/ year', ar: '/ سنة', cs: '/ rok', es: '/ año', et: 
 const per = (lang, period) => (period === 'year' ? PER_YEAR[lang] || PER_YEAR.en : w(lang, 'perMonth'));
 const w = (lang, k) => { const i = K.indexOf(k); return (S[lang] || S.en)[i] || S.en[i] || ''; };
 
+/* the two-card gate (Ayser, the unified architecture): Moments+ is the plan
+   we point at, Moments Black the anchor beside it; monthly or yearly */
+const G = {
+  en: ['Monthly', 'Yearly', 'MOST POPULAR • BEST VALUE', 'Less than 1 coffee a week', 'Feed access', 'Café & restaurant table bookings', 'Global Track, Levels 1–4', 'Table Buddy messages', '3 event QR stamps unlock 7 days of open networking', 'Everything in Moments+', '24/7 open messages, no stamps needed', 'Unlimited live language audio lounges', 'Priority seats at curated tables', 'Instant access • Cancel in 1 tap • Verified community', 'Save {n}%'],
+  ar: ['شهري', 'سنوي', 'الأكثر طلبًا • أحسن قيمة', 'أقل من فنجان قهوة في الأسبوع', 'الفيد', 'حجز ترابيزات الكافيهات والمطاعم', 'Global Track من المستوى ١ لـ ٤', 'رسايل Table Buddies', '٣ أختام QR من الخروجات تفتحلك أسبوع تواصل مفتوح', 'كل اللي في Moments+‎', 'رسايل مفتوحة ٢٤/٧ من غير أختام', 'غرف لغات صوتية مباشرة بلا حدود', 'أولوية في أماكن الترابيزات المختارة', 'دخول فوري • إلغاء بضغطة • مجتمع موثّق', 'وفّر {n}٪'],
+  cs: ['Měsíčně', 'Ročně', 'NEJOBLÍBENĚJŠÍ • NEJLEPŠÍ HODNOTA', 'Méně než jedna káva týdně', 'Přístup k feedu', 'Rezervace stolů v kavárnách a restauracích', 'Global Track, úrovně 1–4', 'Zprávy s Table Buddies', '3 QR razítka z akcí odemknou 7 dní otevřeného networkingu', 'Vše z Moments+', 'Otevřené zprávy 24/7 bez razítek', 'Neomezené živé jazykové místnosti', 'Přednostní místa u vybraných stolů', 'Okamžitý přístup • Zrušení jedním klepnutím • Ověřená komunita', 'Ušetři {n} %'],
+  es: ['Mensual', 'Anual', 'EL MÁS POPULAR • MEJOR VALOR', 'Menos que un café a la semana', 'Acceso al feed', 'Reservas de mesa en cafés y restaurantes', 'Global Track, niveles 1–4', 'Mensajes con Table Buddies', '3 sellos QR de eventos desbloquean 7 días de networking abierto', 'Todo lo de Moments+', 'Mensajes abiertos 24/7, sin sellos', 'Salas de idiomas en vivo ilimitadas', 'Prioridad en mesas seleccionadas', 'Acceso inmediato • Cancela en 1 toque • Comunidad verificada', 'Ahorra {n} %'],
+  et: ['Kuu', 'Aasta', 'POPULAARSEIM • PARIM VÄÄRTUS', 'Vähem kui üks kohv nädalas', 'Ligipääs voole', 'Laudade broneerimine kohvikutes ja restoranides', 'Global Track, tasemed 1–4', 'Table Buddies sõnumid', '3 ürituse QR-templit avavad 7 päeva avatud suhtlust', 'Kõik Moments+ võimalused', 'Avatud sõnumid 24/7, templeid pole vaja', 'Piiramatud otse keeletoad', 'Eelisistekohad valitud laudades', 'Kohe ligipääs • Tühista ühe puudutusega • Kontrollitud kogukond', 'Säästa {n}%'],
+  fr: ['Mensuel', 'Annuel', 'LE PLUS POPULAIRE • MEILLEURE VALEUR', 'Moins d’un café par semaine', 'Accès au fil', 'Réservation de tables en cafés et restaurants', 'Global Track, niveaux 1–4', 'Messages avec les Table Buddies', '3 tampons QR d’événements débloquent 7 jours de networking ouvert', 'Tout Moments+', 'Messages ouverts 24h/24, sans tampons', 'Salons de langues en direct illimités', 'Places prioritaires aux tables choisies', 'Accès immédiat • Résiliation en 1 geste • Communauté vérifiée', 'Économise {n} %'],
+  hi: ['मासिक', 'सालाना', 'सबसे लोकप्रिय • बेस्ट वैल्यू', 'हफ़्ते में एक कॉफ़ी से कम', 'फ़ीड', 'कैफ़े और रेस्टोरेंट टेबल बुकिंग', 'Global Track, लेवल 1–4', 'Table Buddies के मैसेज', 'इवेंट के 3 QR स्टैम्प से 7 दिन खुली नेटवर्किंग', 'Moments+ का सब कुछ', '24/7 खुले मैसेज, स्टैम्प की ज़रूरत नहीं', 'अनलिमिटेड लाइव भाषा ऑडियो लाउंज', 'चुनी हुई टेबल पर प्राथमिकता', 'तुरंत एक्सेस • 1 टैप में कैंसल • वेरिफ़ाइड कम्युनिटी', '{n}% बचाओ'],
+  it: ['Mensile', 'Annuale', 'IL PIÙ SCELTO • MIGLIOR VALORE', 'Meno di un caffè a settimana', 'Accesso al feed', 'Prenotazione tavoli in caffè e ristoranti', 'Global Track, livelli 1–4', 'Messaggi con i Table Buddies', '3 timbri QR agli eventi sbloccano 7 giorni di networking aperto', 'Tutto di Moments+', 'Messaggi aperti 24/7, senza timbri', 'Lounge di lingue dal vivo illimitate', 'Posti prioritari ai tavoli scelti', 'Accesso immediato • Disdici con 1 tocco • Community verificata', 'Risparmi il {n}%'],
+  ja: ['月額', '年額', '一番人気 • ベストバリュー', '週にコーヒー1杯より安い', 'フィード', 'カフェ・レストランのテーブル予約', 'Global Track レベル1〜4', 'テーブルバディとのメッセージ', 'イベントのQRスタンプ3つで7日間オープンネットワーキング', 'Moments+ のすべて', '24時間オープンメッセージ（スタンプ不要）', 'ライブ語学ラウンジ無制限', '厳選テーブルの優先席', 'すぐに使える • 1タップで解約 • 認証済みコミュニティ', '{n}%お得'],
+  ko: ['월간', '연간', '가장 인기 • 최고의 가치', '일주일에 커피 한 잔보다 저렴', '피드 이용', '카페·레스토랑 테이블 예약', 'Global Track 레벨 1–4', '테이블 버디 메시지', '이벤트 QR 스탬프 3개로 7일간 오픈 네트워킹', 'Moments+의 모든 것', '24시간 오픈 메시지, 스탬프 불필요', '라이브 언어 오디오 라운지 무제한', '엄선된 테이블 우선 좌석', '즉시 이용 • 탭 한 번으로 해지 • 인증된 커뮤니티', '{n}% 절약'],
+  nl: ['Maandelijks', 'Jaarlijks', 'MEEST GEKOZEN • BESTE WAARDE', 'Minder dan één koffie per week', 'Toegang tot de feed', 'Tafels boeken in cafés en restaurants', 'Global Track, niveau 1–4', 'Berichten met Table Buddies', '3 QR-stempels van events geven 7 dagen open netwerken', 'Alles van Moments+', '24/7 open berichten, geen stempels nodig', 'Onbeperkt live taallounges', 'Voorrang aan geselecteerde tafels', 'Direct toegang • Opzeggen in 1 tik • Geverifieerde community', 'Bespaar {n}%'],
+  pt: ['Mensal', 'Anual', 'O MAIS POPULAR • MELHOR VALOR', 'Menos de um café por semana', 'Acesso ao feed', 'Reservas de mesa em cafés e restaurantes', 'Global Track, níveis 1–4', 'Mensagens com Table Buddies', '3 selos QR de eventos desbloqueiam 7 dias de networking aberto', 'Tudo do Moments+', 'Mensagens abertas 24/7, sem selos', 'Salas de línguas ao vivo ilimitadas', 'Prioridade nas mesas escolhidas', 'Acesso imediato • Cancela num toque • Comunidade verificada', 'Poupa {n}%'],
+  ro: ['Lunar', 'Anual', 'CEL MAI ALES • CEA MAI BUNĂ VALOARE', 'Mai puțin de o cafea pe săptămână', 'Acces la feed', 'Rezervări la mese în cafenele și restaurante', 'Global Track, nivelurile 1–4', 'Mesaje cu Table Buddies', '3 ștampile QR de la evenimente deblochează 7 zile de networking deschis', 'Tot ce are Moments+', 'Mesaje deschise 24/7, fără ștampile', 'Lounge-uri de limbi live nelimitate', 'Locuri prioritare la mesele alese', 'Acces imediat • Anulezi dintr-o atingere • Comunitate verificată', 'Economisești {n}%'],
+  ru: ['Ежемесячно', 'Ежегодно', 'САМЫЙ ПОПУЛЯРНЫЙ • ЛУЧШАЯ ЦЕНА', 'Меньше чашки кофе в неделю', 'Доступ к ленте', 'Бронь столов в кафе и ресторанах', 'Global Track, уровни 1–4', 'Сообщения с Table Buddies', '3 QR-штампа с встреч открывают 7 дней открытого общения', 'Всё из Moments+', 'Открытые сообщения 24/7 без штампов', 'Безлимитные живые языковые лаунджи', 'Приоритетные места за избранными столами', 'Мгновенный доступ • Отмена в 1 касание • Проверенное сообщество', 'Экономия {n}%'],
+  tr: ['Aylık', 'Yıllık', 'EN POPÜLER • EN İYİ DEĞER', 'Haftada bir kahveden az', 'Akışa erişim', 'Kafe ve restoran masa rezervasyonu', 'Global Track, seviye 1–4', 'Table Buddy mesajları', 'Etkinliklerden 3 QR damgası 7 gün açık networking açar', 'Moments+’taki her şey', '7/24 açık mesaj, damga gerekmez', 'Sınırsız canlı dil ses salonları', 'Seçkin masalarda öncelikli yer', 'Anında erişim • Tek dokunuşla iptal • Doğrulanmış topluluk', '%{n} tasarruf'],
+  uk: ['Щомісяця', 'Щороку', 'НАЙПОПУЛЯРНІШИЙ • НАЙКРАЩА ЦІНА', 'Менше за чашку кави на тиждень', 'Доступ до стрічки', 'Бронювання столів у кав’ярнях і ресторанах', 'Global Track, рівні 1–4', 'Повідомлення з Table Buddies', '3 QR-штампи з подій відкривають 7 днів відкритого спілкування', 'Усе з Moments+', 'Відкриті повідомлення 24/7 без штампів', 'Безлімітні живі мовні лаунжі', 'Пріоритетні місця за обраними столами', 'Миттєвий доступ • Скасування в 1 дотик • Перевірена спільнота', 'Економія {n}%'],
+  zh: ['按月', '按年', '最受欢迎 • 最超值', '每周不到一杯咖啡', '动态访问', '咖啡馆和餐厅订桌', 'Global Track 1–4 级', 'Table Buddies 私信', '集齐活动的 3 个 QR 印章，解锁 7 天开放社交', 'Moments+ 的全部内容', '24/7 开放私信，无需印章', '无限畅聊实时语言语音室', '精选餐桌优先入座', '即刻开通 • 一键取消 • 认证社区', '省 {n}%'],
+};
+const GK = ['month', 'year', 'pop', 'coffee', 'p1', 'p2', 'p3', 'p4', 'p5', 'b1', 'b2', 'b3', 'b4', 'foot', 'save'];
+const g = (lang, k, n) => { const i = GK.indexOf(k); return ((G[lang] || G.en)[i] || G.en[i] || '').replace('{n}', n == null ? '' : n); };
+
+
 const money = (n, cur, lang) => {
   try { return new Intl.NumberFormat(lang === 'ar' ? 'ar-EG' : lang || 'en', { style: 'currency', currency: cur || 'EGP', maximumFractionDigits: 0 }).format(n); } catch (e) { return n + ' ' + (cur || 'EGP'); }
 };
@@ -69,16 +94,16 @@ const MONO = { ground: 'rgba(10,10,10,0.78)', ink: '#FFFFFF', muted: '#A3A3A3', 
 const glow = Platform.OS === 'web' ? { boxShadow: '0 0 0 1px #FFFFFF, 0 0 28px rgba(255,255,255,0.22)' } : null;
 
 /* one plan: the name small, the promise large, the price in figures, one button */
-const Plan = ({ lang, name, tag, price, cur, period, items, cta, onPress, busy, vip, current }) => {
+const Plan = ({ lang, name, tag, price, cur, period, items, cta, onPress, busy, vip, current, badge, sub }) => {
   const P = MONO;
   return (
   <View style={[{ marginTop: 18, borderRadius: 24, padding: 26, backgroundColor: P.ground, borderWidth: 1, borderColor: vip ? '#FFFFFF' : P.line }, blur, vip ? glow : null]}>
     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
       <Text style={{ color: vip ? '#FFFFFF' : P.muted, fontSize: 12, fontWeight: '800', letterSpacing: 1.6 }}>{name.toUpperCase()}</Text>
       <View style={{ flex: 1, minWidth: 12 }} />
-      {vip ? (
-        <View style={{ borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5, backgroundColor: '#FFFFFF' }}>
-          <Text style={{ color: '#000000', fontSize: 11, fontWeight: '800', letterSpacing: 0.6 }}>{w(lang, 'rec').toUpperCase()}</Text>
+      {badge ? (
+        <View style={{ borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5, backgroundColor: '#FFFFFF', flexShrink: 1 }}>
+          <Text style={{ color: '#000000', fontSize: 10.5, fontWeight: '800', letterSpacing: 0.6 }} numberOfLines={1}>{badge}</Text>
         </View>
       ) : null}
     </View>
@@ -87,6 +112,7 @@ const Plan = ({ lang, name, tag, price, cur, period, items, cta, onPress, busy, 
       <Text style={[{ color: P.ink, fontSize: 40, fontWeight: '700', letterSpacing: -1.2 }, NUM]}>{money(price, cur, lang)}</Text>
       <Text style={{ color: P.muted, fontSize: 15, marginStart: 6 }}>{per(lang, period)}</Text>
     </View>
+    {sub ? <Text style={{ color: P.muted, fontSize: 13.5, marginTop: 4 }}>{sub}</Text> : null}
     <View style={{ marginTop: 10, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.10)', paddingTop: 4 }}>
       {items.map(([label, strong]) => <Check key={label} label={label} strong={strong} ink={P.ink} mark="#FFFFFF" />)}
     </View>
@@ -134,10 +160,10 @@ const WhySheet = ({ lang, onClose }) => {
 const useBuy = (lang, m) => {
   const [busy, setBusy] = useState(null);
   const [note, setNote] = useState(null);
-  const buy = async (tier) => {
+  const buy = async (tier, period) => {
     if (busy) return;
     tapMedium(); setBusy(tier); setNote(null);
-    const r = await buyTier(tier, m);
+    const r = await buyTier(tier, m, period);
     setBusy(null);
     if (r.ok && r.changed) { tapSuccess(); setNote(w(lang, 'changed')); }
     else if (!r.ok) setNote(w(lang, r.reason === 'not_configured' ? 'soon' : 'err'));
@@ -154,8 +180,13 @@ export const PricingGate = ({ m, hard, onClose, onSignOut }) => {
   const insets = useSafeAreaInsets();
   const [why, setWhy] = useState(false);
   const { busy, note, buy } = useBuy(lang, m);
-  const pr = (m && m.prices) || { basic: 129, basic_year: 990, vip_month: 249, vip: 1300, vip_period: 'year', currency: 'EGP' };
+  const pr = (m && m.prices) || { basic: 129, basic_year: 990, vip_month: 299, vip: 1300, vip_period: 'year', currency: 'EGP' };
   const tier = m ? m.tier : 'FREE';
+  const [period, setPeriod] = useState('month');
+  const yearly = period === 'year';
+  // what a year saves against twelve months, worked out from the prices
+  const saveOf = (mo, yr) => (mo > 0 && yr > 0 ? Math.max(0, Math.round((1 - yr / (mo * 12)) * 100)) : 0);
+  const saveP = saveOf(pr.basic || 129, pr.basic_year || 990), saveB = saveOf(pr.vip_month || 299, pr.vip || 1300);
 
   const page = (
     <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 22, paddingTop: insets.top + 44, paddingBottom: insets.bottom + 44, alignItems: 'center' }}>
@@ -164,16 +195,28 @@ export const PricingGate = ({ m, hard, onClose, onSignOut }) => {
         <Text style={{ color: '#FFF', fontSize: 38, fontWeight: '700', letterSpacing: -1.3, lineHeight: 43, marginTop: 18 }}>{w(lang, 'hero')}</Text>
         <Text style={{ color: '#A3A3A3', fontSize: 16.5, lineHeight: 25, marginTop: 16, marginBottom: 14 }}>{w(lang, 'sub')}</Text>
 
-        {/* Moments+, then Black — the plan we recommend carries the one colour */}
-        <Plan lang={lang} name={w(lang, 'basic')} tag={w(lang, 'basicTag')} price={pr.basic} cur={pr.currency}
-          items={[[w(lang, 'f1')], [w(lang, 'f2')], [w(lang, 'f3')]]}
-          cta={w(lang, 'joinBasic')} busy={busy === 'basic'} onPress={() => buy('basic')} current={tier === 'BASIC'} />
-
-        <Plan lang={lang} vip name={w(lang, 'vip')} tag={w(lang, 'vipTag')} price={pr.vip} cur={pr.currency} period={pr.vip_period}
-          items={[[w(lang, 'v1')], [w(lang, 'v2'), true], [w(lang, 'v3'), true], [w(lang, 'v4')]]}
-          cta={w(lang, 'becomeVip')} busy={busy === 'vip'} onPress={() => buy('vip')} current={tier === 'VIP'} />
+        {/* monthly or yearly, then Moments+ (the one we point at) beside Black (the anchor) */}
+        <View style={{ flexDirection: 'row', alignSelf: 'center', marginTop: 6, borderRadius: 999, borderWidth: 1, borderColor: '#1F1F1F', padding: 4 }} accessibilityRole="tablist">
+          {['month', 'year'].map((k) => (
+            <Pressable key={k} onPress={() => { tapSelection(); setPeriod(k); }} accessibilityRole="tab" accessibilityState={{ selected: period === k }}>
+              <View style={{ borderRadius: 999, paddingHorizontal: 18, paddingVertical: 8, backgroundColor: period === k ? '#FFFFFF' : 'transparent' }}>
+                <Text style={{ color: period === k ? '#000000' : '#A3A3A3', fontSize: 13.5, fontWeight: '700' }}>{g(lang, k)}</Text>
+              </View>
+            </Pressable>
+          ))}
+        </View>
+        <Plan lang={lang} vip badge={g(lang, 'pop')} name={w(lang, 'basic')} tag={w(lang, 'basicTag')}
+          price={yearly ? pr.basic_year || 990 : pr.basic || 129} cur={pr.currency} period={period}
+          sub={g(lang, 'coffee') + (yearly ? '  ·  ' + g(lang, 'save', saveP) : '')}
+          items={[[g(lang, 'p1')], [g(lang, 'p2')], [g(lang, 'p3')], [g(lang, 'p4'), true], [g(lang, 'p5')]]}
+          cta={w(lang, 'joinBasic')} busy={busy === 'basic'} onPress={() => buy('basic', period)} current={tier === 'BASIC'} />
+        <Plan lang={lang} name={w(lang, 'vip')} tag={w(lang, 'vipTag')}
+          price={yearly ? pr.vip || 1300 : pr.vip_month || 299} cur={pr.currency} period={period}
+          sub={yearly ? g(lang, 'save', saveB) : null}
+          items={[[g(lang, 'b1')], [g(lang, 'b2'), true], [g(lang, 'b3')], [g(lang, 'b4')]]}
+          cta={w(lang, 'becomeVip')} busy={busy === 'vip'} onPress={() => buy('vip', period)} current={tier === 'VIP'} />
         {note ? <Text style={{ color: '#FFF', fontSize: 14.5, textAlign: 'center', marginTop: 18 }}>{note}</Text> : null}
-        <Text style={{ color: '#A3A3A3', fontSize: 13.5, textAlign: 'center', marginTop: 24 }}>{w(lang, 'cancel')}</Text>
+        <Text style={{ color: '#A3A3A3', fontSize: 13, textAlign: 'center', marginTop: 24, letterSpacing: 0.2 }}>{g(lang, 'foot')}</Text>
         <Pressable onPress={() => { tapLight(); setWhy(true); }} accessibilityRole="link" hitSlop={10} style={{ alignSelf: 'center', marginTop: 10 }}>
           <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '600', textDecorationLine: 'underline' }}>{w(lang, 'why')}</Text>
         </Pressable>
@@ -214,7 +257,7 @@ export const VipSheet = ({ m, onClose }) => {
   const { lang } = useLang();
   const insets = useSafeAreaInsets();
   const { busy, note, buy } = useBuy(lang, m);
-  const pr = (m && m.prices) || { vip: 1300, vip_month: 249, vip_period: 'year', currency: 'EGP' };
+  const pr = (m && m.prices) || { vip: 1300, vip_month: 299, vip_period: 'year', currency: 'EGP' };
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={{ flex: 1, backgroundColor: 'rgba(15,13,20,0.4)' }} onPress={onClose} accessibilityLabel={w(lang, 'notNow')} />

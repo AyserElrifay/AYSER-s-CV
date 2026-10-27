@@ -15,3 +15,6 @@ export const classRoomJoin = (offerId) => rpc('class_room_join', { p_offer: offe
 export const classRoomLeave = (offerId) => rpc('class_room_leave', { p_offer: offerId });
 export const classRoomEnd = (offerId) => rpc('class_room_end', { p_offer: offerId });
 export const classRoomState = (offerId) => rpc('class_room_state', { p_offer: offerId });
+// "Ping table — I've arrived": once per person, tells everybody going (RUN_ME.sql, "THE UNIFIED MOMENTS · PHASE 1")
+export const eventArrived = (kind, id) => rpc('event_arrived', { p_kind: kind, p_id: id });
+export const eventArrivals = (kind, id) => rpc('event_arrivals_list', { p_kind: kind, p_id: id });

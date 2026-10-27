@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { C, NUM } from '../constants/theme';
 import { useAuth } from '../context/AuthContext';
-import { eventRoom, eventPin, classRoomJoin, classRoomLeave, classRoomEnd, classRoomState } from '../services/eventRooms';
+import { eventRoom, eventArrived, eventArrivals, eventPin, classRoomJoin, classRoomLeave, classRoomEnd, classRoomState } from '../services/eventRooms';
 import { fetchMessages, sendMessage, subscribeMessages } from '../services/messages';
 import { joinMesh } from '../lib/talkMesh';
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
@@ -57,25 +57,47 @@ const S2 = {
   zh: ['已经到了？', '签到', '你已签到。', '回忆胶囊——开放 24 小时，留一句话吧。', '已存入你的护照，现在只能阅读。', '还剩 {n} 个', '留一句话…'],
 };
 const w2 = (lang, i, v) => String(((S2[lang] || S2.en)[i]) || S2.en[i]).replace('{n}', v == null ? '' : String(v));
+/* "Ping table — I've arrived" (RUN_ME.sql, "THE UNIFIED MOMENTS · PHASE 1"): one tap, the
+   people going hear it once; then who is already here */
+const S3 = {
+  en: ['Ping table — I’ve arrived', 'The table knows you’re here', 'Here: {n}'],
+  ar: ['بلّغ الترابيزة — أنا وصلت', 'الترابيزة عرفت إنك وصلت', 'وصلوا: {n}'],
+  cs: ['Dát vědět stolu — jsem tu', 'Stůl ví, že jsi tu', 'Tady: {n}'],
+  es: ['Avisar a la mesa — he llegado', 'La mesa sabe que estás aquí', 'Aquí: {n}'],
+  et: ['Anna lauale teada — olen kohal', 'Laud teab, et oled kohal', 'Kohal: {n}'],
+  fr: ['Prévenir la table — je suis arrivé·e', 'La table sait que tu es là', 'Ici : {n}'],
+  hi: ['टेबल को बताओ — मैं पहुँच गया', 'टेबल को पता है कि तुम आ गए', 'यहाँ: {n}'],
+  it: ['Avvisa il tavolo — sono arrivato/a', 'Il tavolo sa che sei qui', 'Qui: {n}'],
+  ja: ['テーブルに通知 — 到着しました', '到着をテーブルに伝えました', '到着: {n}'],
+  ko: ['테이블에 알리기 — 도착했어요', '테이블이 도착을 알았어요', '도착: {n}'],
+  nl: ['Laat de tafel weten — ik ben er', 'De tafel weet dat je er bent', 'Hier: {n}'],
+  pt: ['Avisar a mesa — cheguei', 'A mesa sabe que chegaste', 'Cá: {n}'],
+  ro: ['Anunță masa — am ajuns', 'Masa știe că ai ajuns', 'Aici: {n}'],
+  ru: ['Сообщить столу — я на месте', 'Стол знает, что ты на месте', 'Уже здесь: {n}'],
+  tr: ['Masaya haber ver — geldim', 'Masa geldiğini biliyor', 'Burada: {n}'],
+  uk: ['Повідомити стіл — я на місці', 'Стіл знає, що ти на місці', 'Уже тут: {n}'],
+  zh: ['通知这桌 — 我到了', '这桌已经知道你到了', '已到: {n}'],
+};
+const w3 = (lang, i, v) => String(((S3[lang] || S3.en)[i]) || S3.en[i]).replace('{n}', v == null ? '' : String(v));
 
 const S = {
-  en: ['{n}/{t} spots taken', '{n} going', 'From the host', 'The host will pin where to meet here.', 'Arrival details — table, exact spot, what to look for', 'Pin it', 'The people going', 'Opens 30 minutes before the start, to find each other.', 'It is over — the chat stays here to read.', 'Write to the group…', 'Workshop room', 'Opens 15 minutes before the start.', 'Join the room', 'The host ended the workshop.', 'The room is for people who paid.', 'Leave', 'End the workshop for everyone', 'Mute', 'Unmute', '{n} in the room', 'Allow the microphone to join.', 'It did not go through. Try again.'],
-  ar: ['{n}/{t} أماكن اتحجزت', '{n} رايحين', 'من المنظّم', 'المنظّم هيثبّت هنا مكان التجمّع.', 'تفاصيل الوصول — رقم الترابيزة، المكان بالظبط، تدوّروا على إيه', 'ثبّتها', 'اللي رايحين', 'بيفتح قبل البداية بنص ساعة، عشان تلاقوا بعض.', 'الخروجة خلصت — الشات فاضل للقراية بس.', 'اكتب للجروب…', 'غرفة الورشة', 'بتفتح قبل الميعاد بربع ساعة.', 'ادخل الغرفة', 'المنظّم قفل الورشة.', 'الغرفة للي دفعوا بس.', 'اخرج', 'اقفل الورشة للكل', 'كتم', 'فك الكتم', '{n} في الغرفة', 'اسمح للمايك عشان تدخل.', 'ماتبعتش. جرّب تاني.'],
-  cs: ['{n}/{t} míst obsazeno', '{n} jde', 'Od pořadatele', 'Pořadatel sem připne, kde se sejít.', 'Jak dorazit — stůl, přesné místo, co hledat', 'Připnout', 'Kdo jde', 'Otevře se 30 minut před začátkem, abyste se našli.', 'Je po všem — chat zůstává ke čtení.', 'Napiš skupině…', 'Místnost workshopu', 'Otevře se 15 minut před začátkem.', 'Vstoupit', 'Pořadatel workshop ukončil.', 'Místnost je pro ty, kdo zaplatili.', 'Odejít', 'Ukončit workshop pro všechny', 'Ztlumit', 'Zapnout zvuk', '{n} v místnosti', 'Povol mikrofon, abys mohl/a vstoupit.', 'Nepodařilo se. Zkus to znovu.'],
-  es: ['{n}/{t} plazas ocupadas', '{n} van', 'Del anfitrión', 'El anfitrión fijará aquí dónde encontrarse.', 'Cómo llegar: mesa, lugar exacto, qué buscar', 'Fijar', 'Los que van', 'Se abre 30 minutos antes para encontraros.', 'Ya terminó: el chat queda para leer.', 'Escribe al grupo…', 'Sala del taller', 'Se abre 15 minutos antes.', 'Entrar a la sala', 'El anfitrión terminó el taller.', 'La sala es para quienes pagaron.', 'Salir', 'Terminar el taller para todos', 'Silenciar', 'Activar', '{n} en la sala', 'Permite el micrófono para entrar.', 'No se envió. Inténtalo de nuevo.'],
-  et: ['{n}/{t} kohta täis', '{n} tuleb', 'Korraldajalt', 'Korraldaja kinnitab siia kohtumispaiga.', 'Kuidas jõuda — laud, täpne koht, mida otsida', 'Kinnita', 'Kes tulevad', 'Avaneb 30 minutit enne algust, et üksteist leida.', 'Läbi — vestlus jääb lugemiseks.', 'Kirjuta grupile…', 'Töötoa ruum', 'Avaneb 15 minutit enne algust.', 'Sisene', 'Korraldaja lõpetas töötoa.', 'Ruum on neile, kes maksid.', 'Lahku', 'Lõpeta töötuba kõigile', 'Vaigista', 'Heli sisse', '{n} ruumis', 'Luba mikrofon, et siseneda.', 'Ei läinud läbi. Proovi uuesti.'],
-  fr: ['{n}/{t} places prises', '{n} y vont', 'De l’hôte', 'L’hôte épinglera ici où se retrouver.', 'Pour arriver — table, endroit exact, quoi chercher', 'Épingler', 'Ceux qui y vont', 'S’ouvre 30 minutes avant le début, pour se retrouver.', 'C’est fini — le chat reste à lire.', 'Écris au groupe…', 'Salle de l’atelier', 'S’ouvre 15 minutes avant le début.', 'Entrer', 'L’hôte a terminé l’atelier.', 'La salle est pour ceux qui ont payé.', 'Quitter', 'Terminer l’atelier pour tous', 'Couper le micro', 'Réactiver', '{n} dans la salle', 'Autorise le micro pour entrer.', 'Ça n’est pas passé. Réessaie.'],
-  hi: ['{n}/{t} सीटें भर गईं', '{n} जा रहे हैं', 'होस्ट से', 'होस्ट यहाँ मिलने की जगह पिन करेंगे।', 'पहुँचने की जानकारी — टेबल, सही जगह, क्या ढूँढें', 'पिन करो', 'जो जा रहे हैं', 'शुरू होने से 30 मिनट पहले खुलता है, ताकि एक-दूसरे को ढूँढ सको।', 'ख़त्म हो गया — चैट सिर्फ़ पढ़ने के लिए है।', 'ग्रुप को लिखो…', 'वर्कशॉप रूम', 'शुरू होने से 15 मिनट पहले खुलेगा।', 'रूम में आओ', 'होस्ट ने वर्कशॉप ख़त्म कर दी।', 'रूम सिर्फ़ पैसे देने वालों के लिए है।', 'निकलो', 'सबके लिए वर्कशॉप ख़त्म करो', 'म्यूट', 'अनम्यूट', 'रूम में {n}', 'आने के लिए माइक की अनुमति दो।', 'नहीं गया। फिर कोशिश करो।'],
-  it: ['{n}/{t} posti presi', '{n} ci vanno', 'Dall’host', 'L’host fisserà qui dove trovarsi.', 'Come arrivare — tavolo, punto esatto, cosa cercare', 'Fissa', 'Chi va', 'Si apre 30 minuti prima dell’inizio, per trovarvi.', 'È finita — la chat resta da leggere.', 'Scrivi al gruppo…', 'Stanza del workshop', 'Si apre 15 minuti prima dell’inizio.', 'Entra nella stanza', 'L’host ha chiuso il workshop.', 'La stanza è per chi ha pagato.', 'Esci', 'Chiudi il workshop per tutti', 'Muto', 'Riattiva', '{n} nella stanza', 'Consenti il microfono per entrare.', 'Non è andato. Riprova.'],
-  ja: ['{t}席中{n}席うまっています', '{n}人参加', 'ホストから', '集合場所はホストがここに固定します。', '到着の案内 — テーブル番号、正確な場所、目印', '固定する', '参加する人', '開始30分前に開きます。お互いを見つけるために。', '終了しました — チャットは読むだけです。', 'グループに書く…', 'ワークショップルーム', '開始15分前に開きます。', 'ルームに入る', 'ホストがワークショップを終了しました。', 'ルームは支払い済みの人だけです。', '退出', '全員のワークショップを終了', 'ミュート', 'ミュート解除', 'ルームに{n}人', '入るにはマイクを許可してください。', '送れませんでした。もう一度どうぞ。'],
-  ko: ['{t}자리 중 {n}자리 마감', '{n}명 참여', '호스트 안내', '호스트가 여기에 만날 곳을 고정할 거예요.', '도착 안내 — 테이블, 정확한 위치, 찾을 표시', '고정', '가는 사람들', '시작 30분 전에 열려요. 서로 찾을 수 있게.', '끝났어요 — 채팅은 읽기만 돼요.', '그룹에 쓰기…', '워크숍 방', '시작 15분 전에 열려요.', '방 들어가기', '호스트가 워크숍을 끝냈어요.', '방은 결제한 사람만 들어올 수 있어요.', '나가기', '모두의 워크숍 끝내기', '음소거', '음소거 해제', '방에 {n}명', '들어가려면 마이크를 허용해 주세요.', '전송되지 않았어요. 다시 해 주세요.'],
-  nl: ['{n}/{t} plekken bezet', '{n} gaan', 'Van de host', 'De host pint hier waar jullie afspreken.', 'Hoe je er komt — tafel, exacte plek, waar je op let', 'Vastzetten', 'Wie er gaan', 'Gaat 30 minuten voor de start open, om elkaar te vinden.', 'Het is voorbij — de chat blijft om te lezen.', 'Schrijf naar de groep…', 'Workshopruimte', 'Gaat 15 minuten voor de start open.', 'Naar binnen', 'De host heeft de workshop beëindigd.', 'De ruimte is voor wie betaald heeft.', 'Verlaten', 'Workshop voor iedereen beëindigen', 'Dempen', 'Geluid aan', '{n} in de ruimte', 'Sta de microfoon toe om binnen te komen.', 'Het lukte niet. Probeer opnieuw.'],
-  pt: ['{n}/{t} lugares ocupados', '{n} vão', 'Do anfitrião', 'O anfitrião vai fixar aqui onde se encontram.', 'Como chegar — mesa, sítio exato, o que procurar', 'Fixar', 'Quem vai', 'Abre 30 minutos antes do início, para se encontrarem.', 'Acabou — o chat fica para ler.', 'Escreve ao grupo…', 'Sala do workshop', 'Abre 15 minutos antes do início.', 'Entrar na sala', 'O anfitrião terminou o workshop.', 'A sala é para quem pagou.', 'Sair', 'Terminar o workshop para todos', 'Silenciar', 'Ativar som', '{n} na sala', 'Permite o microfone para entrar.', 'Não foi. Tenta outra vez.'],
-  ro: ['{n}/{t} locuri ocupate', '{n} merg', 'De la gazdă', 'Gazda va fixa aici locul de întâlnire.', 'Cum ajungi — masa, locul exact, ce să cauți', 'Fixează', 'Cine merge', 'Se deschide cu 30 de minute înainte, ca să vă găsiți.', 'S-a terminat — chatul rămâne de citit.', 'Scrie grupului…', 'Camera atelierului', 'Se deschide cu 15 minute înainte.', 'Intră în cameră', 'Gazda a încheiat atelierul.', 'Camera e pentru cei care au plătit.', 'Ieși', 'Încheie atelierul pentru toți', 'Mut', 'Pornește sunetul', '{n} în cameră', 'Permite microfonul ca să intri.', 'Nu a mers. Încearcă din nou.'],
-  ru: ['Занято {n} из {t} мест', 'Идут {n}', 'От организатора', 'Организатор закрепит здесь место встречи.', 'Как добраться — столик, точное место, что искать', 'Закрепить', 'Кто идёт', 'Откроется за 30 минут до начала, чтобы найти друг друга.', 'Всё прошло — чат остаётся для чтения.', 'Написать группе…', 'Комната мастер-класса', 'Откроется за 15 минут до начала.', 'Войти в комнату', 'Организатор завершил мастер-класс.', 'Комната для тех, кто оплатил.', 'Выйти', 'Завершить для всех', 'Выкл. звук', 'Вкл. звук', '{n} в комнате', 'Разреши микрофон, чтобы войти.', 'Не отправилось. Попробуй ещё раз.'],
-  tr: ['{t} yerden {n} tanesi doldu', '{n} kişi gidiyor', 'Ev sahibinden', 'Buluşma yerini ev sahibi buraya sabitleyecek.', 'Varış bilgisi — masa, tam yer, neye bakmalı', 'Sabitle', 'Gidenler', 'Başlamadan 30 dakika önce açılır, birbirinizi bulmak için.', 'Bitti — sohbet okumak için kalıyor.', 'Gruba yaz…', 'Atölye odası', 'Başlamadan 15 dakika önce açılır.', 'Odaya gir', 'Ev sahibi atölyeyi bitirdi.', 'Oda ödeme yapanlar için.', 'Çık', 'Atölyeyi herkes için bitir', 'Sessize al', 'Sesi aç', 'Odada {n} kişi', 'Girmek için mikrofona izin ver.', 'Gitmedi. Tekrar dene.'],
-  uk: ['Зайнято {n} з {t} місць', 'Ідуть {n}', 'Від організатора', 'Організатор закріпить тут місце зустрічі.', 'Як дістатися — столик, точне місце, що шукати', 'Закріпити', 'Хто йде', 'Відкриється за 30 хвилин до початку, щоб знайти одне одного.', 'Все минуло — чат лишається для читання.', 'Написати групі…', 'Кімната майстер-класу', 'Відкриється за 15 хвилин до початку.', 'Увійти в кімнату', 'Організатор завершив майстер-клас.', 'Кімната для тих, хто оплатив.', 'Вийти', 'Завершити для всіх', 'Вимкн. звук', 'Увімкн. звук', '{n} у кімнаті', 'Дозволь мікрофон, щоб увійти.', 'Не вийшло. Спробуй ще раз.'],
-  zh: ['已订 {n}/{t} 个名额', '{n} 人参加', '来自主持人', '主持人会在这里置顶集合地点。', '到达信息——桌号、确切位置、找什么标志', '置顶', '参加的人', '开始前 30 分钟开放，方便你们找到彼此。', '已经结束——聊天仅供阅读。', '在群里说点什么…', '工作坊房间', '开始前 15 分钟开放。', '进入房间', '主持人已结束工作坊。', '房间只对已付款的人开放。', '离开', '为所有人结束工作坊', '静音', '取消静音', '房间里有 {n} 人', '允许使用麦克风才能进入。', '没有发送成功，再试一次。'],
+  en: ['{n}/{t} spots taken', '{n} going', 'From the host', 'The host will pin where to meet here.', 'Arrival details — table, exact spot, what to look for', 'Pin it', 'The people going', 'Opens 2 hours before the start, to find each other.', 'It is over — the chat stays here to read.', 'Write to the group…', 'Workshop room', 'Opens 15 minutes before the start.', 'Join the room', 'The host ended the workshop.', 'The room is for people who paid.', 'Leave', 'End the workshop for everyone', 'Mute', 'Unmute', '{n} in the room', 'Allow the microphone to join.', 'It did not go through. Try again.'],
+  ar: ['{n}/{t} أماكن اتحجزت', '{n} رايحين', 'من المنظّم', 'المنظّم هيثبّت هنا مكان التجمّع.', 'تفاصيل الوصول — رقم الترابيزة، المكان بالظبط، تدوّروا على إيه', 'ثبّتها', 'اللي رايحين', 'بيفتح قبل البداية بساعتين، عشان تلاقوا بعض.', 'الخروجة خلصت — الشات فاضل للقراية بس.', 'اكتب للجروب…', 'غرفة الورشة', 'بتفتح قبل الميعاد بربع ساعة.', 'ادخل الغرفة', 'المنظّم قفل الورشة.', 'الغرفة للي دفعوا بس.', 'اخرج', 'اقفل الورشة للكل', 'كتم', 'فك الكتم', '{n} في الغرفة', 'اسمح للمايك عشان تدخل.', 'ماتبعتش. جرّب تاني.'],
+  cs: ['{n}/{t} míst obsazeno', '{n} jde', 'Od pořadatele', 'Pořadatel sem připne, kde se sejít.', 'Jak dorazit — stůl, přesné místo, co hledat', 'Připnout', 'Kdo jde', 'Otevře se 2 hodiny před začátkem, abyste se našli.', 'Je po všem — chat zůstává ke čtení.', 'Napiš skupině…', 'Místnost workshopu', 'Otevře se 15 minut před začátkem.', 'Vstoupit', 'Pořadatel workshop ukončil.', 'Místnost je pro ty, kdo zaplatili.', 'Odejít', 'Ukončit workshop pro všechny', 'Ztlumit', 'Zapnout zvuk', '{n} v místnosti', 'Povol mikrofon, abys mohl/a vstoupit.', 'Nepodařilo se. Zkus to znovu.'],
+  es: ['{n}/{t} plazas ocupadas', '{n} van', 'Del anfitrión', 'El anfitrión fijará aquí dónde encontrarse.', 'Cómo llegar: mesa, lugar exacto, qué buscar', 'Fijar', 'Los que van', 'Se abre 2 horas antes para encontraros.', 'Ya terminó: el chat queda para leer.', 'Escribe al grupo…', 'Sala del taller', 'Se abre 15 minutos antes.', 'Entrar a la sala', 'El anfitrión terminó el taller.', 'La sala es para quienes pagaron.', 'Salir', 'Terminar el taller para todos', 'Silenciar', 'Activar', '{n} en la sala', 'Permite el micrófono para entrar.', 'No se envió. Inténtalo de nuevo.'],
+  et: ['{n}/{t} kohta täis', '{n} tuleb', 'Korraldajalt', 'Korraldaja kinnitab siia kohtumispaiga.', 'Kuidas jõuda — laud, täpne koht, mida otsida', 'Kinnita', 'Kes tulevad', 'Avaneb 2 tundi enne algust, et üksteist leida.', 'Läbi — vestlus jääb lugemiseks.', 'Kirjuta grupile…', 'Töötoa ruum', 'Avaneb 15 minutit enne algust.', 'Sisene', 'Korraldaja lõpetas töötoa.', 'Ruum on neile, kes maksid.', 'Lahku', 'Lõpeta töötuba kõigile', 'Vaigista', 'Heli sisse', '{n} ruumis', 'Luba mikrofon, et siseneda.', 'Ei läinud läbi. Proovi uuesti.'],
+  fr: ['{n}/{t} places prises', '{n} y vont', 'De l’hôte', 'L’hôte épinglera ici où se retrouver.', 'Pour arriver — table, endroit exact, quoi chercher', 'Épingler', 'Ceux qui y vont', 'S’ouvre 2 heures avant le début, pour se retrouver.', 'C’est fini — le chat reste à lire.', 'Écris au groupe…', 'Salle de l’atelier', 'S’ouvre 15 minutes avant le début.', 'Entrer', 'L’hôte a terminé l’atelier.', 'La salle est pour ceux qui ont payé.', 'Quitter', 'Terminer l’atelier pour tous', 'Couper le micro', 'Réactiver', '{n} dans la salle', 'Autorise le micro pour entrer.', 'Ça n’est pas passé. Réessaie.'],
+  hi: ['{n}/{t} सीटें भर गईं', '{n} जा रहे हैं', 'होस्ट से', 'होस्ट यहाँ मिलने की जगह पिन करेंगे।', 'पहुँचने की जानकारी — टेबल, सही जगह, क्या ढूँढें', 'पिन करो', 'जो जा रहे हैं', 'शुरू होने से 2 घंटे पहले खुलता है, ताकि एक-दूसरे को ढूँढ सको।', 'ख़त्म हो गया — चैट सिर्फ़ पढ़ने के लिए है।', 'ग्रुप को लिखो…', 'वर्कशॉप रूम', 'शुरू होने से 15 मिनट पहले खुलेगा।', 'रूम में आओ', 'होस्ट ने वर्कशॉप ख़त्म कर दी।', 'रूम सिर्फ़ पैसे देने वालों के लिए है।', 'निकलो', 'सबके लिए वर्कशॉप ख़त्म करो', 'म्यूट', 'अनम्यूट', 'रूम में {n}', 'आने के लिए माइक की अनुमति दो।', 'नहीं गया। फिर कोशिश करो।'],
+  it: ['{n}/{t} posti presi', '{n} ci vanno', 'Dall’host', 'L’host fisserà qui dove trovarsi.', 'Come arrivare — tavolo, punto esatto, cosa cercare', 'Fissa', 'Chi va', 'Si apre 2 ore prima dell’inizio, per trovarvi.', 'È finita — la chat resta da leggere.', 'Scrivi al gruppo…', 'Stanza del workshop', 'Si apre 15 minuti prima dell’inizio.', 'Entra nella stanza', 'L’host ha chiuso il workshop.', 'La stanza è per chi ha pagato.', 'Esci', 'Chiudi il workshop per tutti', 'Muto', 'Riattiva', '{n} nella stanza', 'Consenti il microfono per entrare.', 'Non è andato. Riprova.'],
+  ja: ['{t}席中{n}席うまっています', '{n}人参加', 'ホストから', '集合場所はホストがここに固定します。', '到着の案内 — テーブル番号、正確な場所、目印', '固定する', '参加する人', '開始2時間前に開きます。お互いを見つけるために。', '終了しました — チャットは読むだけです。', 'グループに書く…', 'ワークショップルーム', '開始15分前に開きます。', 'ルームに入る', 'ホストがワークショップを終了しました。', 'ルームは支払い済みの人だけです。', '退出', '全員のワークショップを終了', 'ミュート', 'ミュート解除', 'ルームに{n}人', '入るにはマイクを許可してください。', '送れませんでした。もう一度どうぞ。'],
+  ko: ['{t}자리 중 {n}자리 마감', '{n}명 참여', '호스트 안내', '호스트가 여기에 만날 곳을 고정할 거예요.', '도착 안내 — 테이블, 정확한 위치, 찾을 표시', '고정', '가는 사람들', '시작 2시간 전에 열려요. 서로 찾을 수 있게.', '끝났어요 — 채팅은 읽기만 돼요.', '그룹에 쓰기…', '워크숍 방', '시작 15분 전에 열려요.', '방 들어가기', '호스트가 워크숍을 끝냈어요.', '방은 결제한 사람만 들어올 수 있어요.', '나가기', '모두의 워크숍 끝내기', '음소거', '음소거 해제', '방에 {n}명', '들어가려면 마이크를 허용해 주세요.', '전송되지 않았어요. 다시 해 주세요.'],
+  nl: ['{n}/{t} plekken bezet', '{n} gaan', 'Van de host', 'De host pint hier waar jullie afspreken.', 'Hoe je er komt — tafel, exacte plek, waar je op let', 'Vastzetten', 'Wie er gaan', 'Gaat 2 uur voor de start open, om elkaar te vinden.', 'Het is voorbij — de chat blijft om te lezen.', 'Schrijf naar de groep…', 'Workshopruimte', 'Gaat 15 minuten voor de start open.', 'Naar binnen', 'De host heeft de workshop beëindigd.', 'De ruimte is voor wie betaald heeft.', 'Verlaten', 'Workshop voor iedereen beëindigen', 'Dempen', 'Geluid aan', '{n} in de ruimte', 'Sta de microfoon toe om binnen te komen.', 'Het lukte niet. Probeer opnieuw.'],
+  pt: ['{n}/{t} lugares ocupados', '{n} vão', 'Do anfitrião', 'O anfitrião vai fixar aqui onde se encontram.', 'Como chegar — mesa, sítio exato, o que procurar', 'Fixar', 'Quem vai', 'Abre 2 horas antes do início, para se encontrarem.', 'Acabou — o chat fica para ler.', 'Escreve ao grupo…', 'Sala do workshop', 'Abre 15 minutos antes do início.', 'Entrar na sala', 'O anfitrião terminou o workshop.', 'A sala é para quem pagou.', 'Sair', 'Terminar o workshop para todos', 'Silenciar', 'Ativar som', '{n} na sala', 'Permite o microfone para entrar.', 'Não foi. Tenta outra vez.'],
+  ro: ['{n}/{t} locuri ocupate', '{n} merg', 'De la gazdă', 'Gazda va fixa aici locul de întâlnire.', 'Cum ajungi — masa, locul exact, ce să cauți', 'Fixează', 'Cine merge', 'Se deschide cu 2 ore înainte, ca să vă găsiți.', 'S-a terminat — chatul rămâne de citit.', 'Scrie grupului…', 'Camera atelierului', 'Se deschide cu 15 minute înainte.', 'Intră în cameră', 'Gazda a încheiat atelierul.', 'Camera e pentru cei care au plătit.', 'Ieși', 'Încheie atelierul pentru toți', 'Mut', 'Pornește sunetul', '{n} în cameră', 'Permite microfonul ca să intri.', 'Nu a mers. Încearcă din nou.'],
+  ru: ['Занято {n} из {t} мест', 'Идут {n}', 'От организатора', 'Организатор закрепит здесь место встречи.', 'Как добраться — столик, точное место, что искать', 'Закрепить', 'Кто идёт', 'Откроется за 2 часа до начала, чтобы найти друг друга.', 'Всё прошло — чат остаётся для чтения.', 'Написать группе…', 'Комната мастер-класса', 'Откроется за 15 минут до начала.', 'Войти в комнату', 'Организатор завершил мастер-класс.', 'Комната для тех, кто оплатил.', 'Выйти', 'Завершить для всех', 'Выкл. звук', 'Вкл. звук', '{n} в комнате', 'Разреши микрофон, чтобы войти.', 'Не отправилось. Попробуй ещё раз.'],
+  tr: ['{t} yerden {n} tanesi doldu', '{n} kişi gidiyor', 'Ev sahibinden', 'Buluşma yerini ev sahibi buraya sabitleyecek.', 'Varış bilgisi — masa, tam yer, neye bakmalı', 'Sabitle', 'Gidenler', 'Başlamadan 2 saat önce açılır, birbirinizi bulmak için.', 'Bitti — sohbet okumak için kalıyor.', 'Gruba yaz…', 'Atölye odası', 'Başlamadan 15 dakika önce açılır.', 'Odaya gir', 'Ev sahibi atölyeyi bitirdi.', 'Oda ödeme yapanlar için.', 'Çık', 'Atölyeyi herkes için bitir', 'Sessize al', 'Sesi aç', 'Odada {n} kişi', 'Girmek için mikrofona izin ver.', 'Gitmedi. Tekrar dene.'],
+  uk: ['Зайнято {n} з {t} місць', 'Ідуть {n}', 'Від організатора', 'Організатор закріпить тут місце зустрічі.', 'Як дістатися — столик, точне місце, що шукати', 'Закріпити', 'Хто йде', 'Відкриється за 2 години до початку, щоб знайти одне одного.', 'Все минуло — чат лишається для читання.', 'Написати групі…', 'Кімната майстер-класу', 'Відкриється за 15 хвилин до початку.', 'Увійти в кімнату', 'Організатор завершив майстер-клас.', 'Кімната для тих, хто оплатив.', 'Вийти', 'Завершити для всіх', 'Вимкн. звук', 'Увімкн. звук', '{n} у кімнаті', 'Дозволь мікрофон, щоб увійти.', 'Не вийшло. Спробуй ще раз.'],
+  zh: ['已订 {n}/{t} 个名额', '{n} 人参加', '来自主持人', '主持人会在这里置顶集合地点。', '到达信息——桌号、确切位置、找什么标志', '置顶', '参加的人', '开始前 2 小时开放，方便你们找到彼此。', '已经结束——聊天仅供阅读。', '在群里说点什么…', '工作坊房间', '开始前 15 分钟开放。', '进入房间', '主持人已结束工作坊。', '房间只对已付款的人开放。', '离开', '为所有人结束工作坊', '静音', '取消静音', '房间里有 {n} 人', '允许使用麦克风才能进入。', '没有发送成功，再试一次。'],
 };
 const K = ['spots', 'going', 'pin', 'pinEmpty', 'pinPh', 'pinSave', 'chat', 'chatSoon', 'chatOver', 'say', 'call', 'callSoon', 'callJoin', 'callEnded', 'callPaid', 'leave', 'end', 'mute', 'unmute', 'here', 'mic', 'err'];
 const w = (lang, k, v) => {
@@ -152,9 +174,12 @@ export const EventRoom = ({ kind, id, lang, onClose }) => {
   const [ex, setEx] = useState(null);
   const [scan, setScan] = useState(false);
   const [hostQr, setHostQr] = useState(false);
+  const [here, setHere] = useState(null);         // who pinged "I've arrived"
+  const [pinged, setPinged] = useState(false);
 
   const load = () => {
     eventExtras(kind, id).then((x) => setEx(x && x.ok ? x : null));
+    eventArrivals(kind, id).then((x) => { if (Array.isArray(x)) { setHere(x); if (user && x.some((p) => p.id === user.id)) setPinged(true); } });
     return eventRoom(kind, id).then((x) => { setR(x || { ok: false }); if (x && x.ok && x.is_host) setPin((p) => p || x.pin || ''); });
   };
   const checkin = async () => { tapMedium(); const x = await eventCheckin(kind, id); if (x && x.ok) { tapSuccess(); load(); } else setMsg(w(lang, 'err')); };
@@ -175,6 +200,11 @@ export const EventRoom = ({ kind, id, lang, onClose }) => {
     tapLight(); setDraft('');
     try { const row = await sendMessage({ squadId: sq, userId: user.id, body }); setMsgs((m) => (m.some((x) => x.id === row.id) ? m : m.concat(row))); }
     catch (e) { setMsg(w(lang, 'err')); setDraft(body); load(); }
+  };
+  const arrive = async () => {
+    tapMedium();
+    const x = await eventArrived(kind, id);
+    if (x && x.ok) { tapSuccess(); setPinged(true); setHere(x.arrived || []); } else setMsg(w(lang, 'err'));
   };
   const savePin = async () => {
     tapMedium();
@@ -293,6 +323,24 @@ export const EventRoom = ({ kind, id, lang, onClose }) => {
                       </View>
                     </Pressable>
                   ) : <Text style={{ color: C.dim, fontSize: 14, marginTop: 6 }}>{Date.now() < new Date(r.call.opens_at).getTime() ? w(lang, 'callSoon') : w(lang, 'callPaid')}</Text>}
+              </View>
+            ) : null}
+
+            {/* "Ping table — I've arrived": while the table's chat is open (2 hours before → the end) */}
+            {chatState === 'open' && !r.online ? (
+              <View style={{ marginTop: 18 }}>
+                {pinged ? (
+                  <Text style={{ color: C.text, fontSize: 15, fontWeight: '700' }}>{'✓ ' + w3(lang, 1)}</Text>
+                ) : (
+                  <Pressable onPress={arrive} accessibilityRole="button">
+                    {({ pressed }) => (
+                      <View style={{ borderRadius: 999, paddingVertical: 15, alignItems: 'center', backgroundColor: C.purple, opacity: pressed ? 0.85 : 1 }}>
+                        <Text style={{ color: C.ink, fontSize: 15.5, fontWeight: '700' }}>{w3(lang, 0)}</Text>
+                      </View>
+                    )}
+                  </Pressable>
+                )}
+                {here && here.length ? <Text style={{ color: C.dim, fontSize: 13.5, marginTop: 8 }} numberOfLines={2}>{w3(lang, 2, here.map((p) => p.name).filter(Boolean).join(' · '))}</Text> : null}
               </View>
             ) : null}
 

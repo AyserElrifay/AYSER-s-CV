@@ -136,8 +136,8 @@ export const FirstTour = ({ onClose }) => {
           {i === last ? (
             <View style={{ marginTop: 26 }}>
               <Pressable onPress={() => { tapMedium(); close(true); }} accessibilityRole="button">
-                <View style={{ borderRadius: 999, backgroundColor: '#7C3AED', paddingVertical: 16, alignItems: 'center' }}>
-                  <Text style={{ color: '#FFF', fontSize: 16.5, fontWeight: '900' }}>{w[13]}</Text>
+                <View style={{ borderRadius: 999, backgroundColor: '#FFFFFF', paddingVertical: 16, alignItems: 'center' }}>
+                  <Text style={{ color: '#000', fontSize: 16.5, fontWeight: '900' }}>{w[13]}</Text>
                 </View>
               </Pressable>
               <Pressable onPress={() => { tapLight(); close(false); }} accessibilityRole="button" style={{ marginTop: 12, alignItems: 'center' }}>
