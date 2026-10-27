@@ -21,12 +21,12 @@ export const blackStored = () => {
 export const keepBlack = (pal) => {
   try { if (pal) window.localStorage.setItem(KEY, JSON.stringify(pal)); else window.localStorage.removeItem(KEY); } catch (e) {}
 };
-export const loadBlack = () => import('./blackCss').then((m) => m.BLACK);
+export const loadBlack = (variant) => import('./blackCss').then((m) => (variant === 'white' ? m.WHITE : m.BLACK));
 
 /* the stylesheet itself (blackCss.js) comes in its own small file, fetched
    only when somebody is Black: the first download stays the size it was */
 export const blackCss = (on) => {
   if (Platform.OS !== 'web' || typeof document === 'undefined') return;
   if (!on) { const el = document.getElementById('mm-black'); if (el) el.remove(); return; }
-  import('./blackCss').then((m) => m.paintBlack()).catch(() => {});
+  import('./blackCss').then((m) => m.paintBlack(on === 'white' ? 'white' : 'black')).catch(() => {});
 };

@@ -6,6 +6,7 @@ import { C } from '../../constants/theme';
 import { AV_NEUTRAL } from '../../constants/mockData';
 import { useAuth } from '../../context/AuthContext';
 import { useLang } from '../../context/LanguageContext';
+import { useTheme } from '../../context/ThemeContext';
 import { myPlace, savePlace, newCounterCode, placeStats, requestsIn, answerRequest, liveToken, setDeal, dealStats, venueEvents, voucherRedeem } from '../../services/biz';
 import { placeLink, isBizDemo } from '../../lib/bizLink';
 import { uploadPlanPhoto } from '../../lib/storage';
@@ -488,8 +489,22 @@ const Requests = ({ lang }) => {
   ));
 };
 
-export const BizHub = ({ onClose, lang }) => {
+/* the dashboard's own look (Ayser: two versions of the Black branding):
+   black, or the same turned over to white — kept on this phone, and let
+   go when the dashboard closes */
+const LOOK = 'mm.bizlook';
+const lookStored = () => { try { return window.localStorage.getItem(LOOK) === 'white' ? 'white' : 'black'; } catch (e) { return 'black'; } };
+
+export const BizHub = ({ onClose: closeHub, lang }) => {
+  const { setLook } = useTheme();
+  const [look, setLookHere] = useState(lookStored);
+  useEffect(() => { setLook(look); }, [look]); // eslint-disable-line react-hooks/exhaustive-deps
+  /* the look is handed back on closing — not on unmounting: a new look
+     redraws the whole app, which mounts this again, and handing it back
+     then would flip the look forever */
+  const onClose = () => { setLook(null); if (closeHub) closeHub(); };
   useSheetBack(onClose);
+  const pickLook = (v) => { tapSelection(); setLookHere(v); try { window.localStorage.setItem(LOOK, v); } catch (e) {} };
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { t } = useLang();
@@ -512,9 +527,20 @@ export const BizHub = ({ onClose, lang }) => {
     <Modal visible animationType="slide" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: C.bg }}>
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingTop: insets.top + 8, paddingHorizontal: 18, paddingBottom: insets.bottom + 40 }}>
-          <Pressable onPress={onClose} hitSlop={12} accessibilityRole="button" accessibilityLabel="Close">
-            <Ionicons name="chevron-down" size={26} color={C.text} />
-          </Pressable>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Pressable onPress={onClose} hitSlop={12} accessibilityRole="button" accessibilityLabel="Close">
+              <Ionicons name="chevron-down" size={26} color={C.text} />
+            </Pressable>
+            <View style={{ flex: 1 }} />
+            {/* black or white: two circles, no words */}
+            {['black', 'white'].map((v) => (
+              <Pressable key={v} onPress={() => pickLook(v)} accessibilityRole="button" accessibilityLabel={v} accessibilityState={{ selected: look === v }} hitSlop={6} style={{ marginStart: 10 }}>
+                <View style={{ width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', borderWidth: look === v ? 2 : 1, borderColor: look === v ? C.text : C.line }}>
+                  <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: v === 'black' ? '#000000' : '#FFFFFF', borderWidth: 1, borderColor: '#737373' }} />
+                </View>
+              </Pressable>
+            ))}
+          </View>
           {isBizDemo() ? (
             <View style={{ marginTop: 10, borderRadius: 14, paddingVertical: 10, paddingHorizontal: 14, backgroundColor: C.purpleSoft }}>
               <Text style={{ color: C.purple, fontSize: 13, fontWeight: '800', lineHeight: 18 }}>{B('demo_bar')}</Text>

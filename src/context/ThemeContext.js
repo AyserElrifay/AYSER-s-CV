@@ -26,7 +26,7 @@ import { blackStored, keepBlack, blackCss, loadBlack } from '../lib/black';
 
 const Ctx = createContext(null);
 export const useTheme = () => useContext(Ctx) || fallback;
-const fallback = { mode: 'light', pref: 'auto', isDark: false, gen: 0, liquid: false, black: false, toggleTheme: () => {}, setThemePref: () => {}, setLiquid: () => {}, setBlack: () => {} };
+const fallback = { mode: 'light', pref: 'auto', isDark: false, gen: 0, liquid: false, black: false, look: null, toggleTheme: () => {}, setThemePref: () => {}, setLiquid: () => {}, setBlack: () => {}, setLook: () => {} };
 
 const KEY = 'moments.theme';
 
@@ -69,6 +69,7 @@ export const ThemeProvider = ({ children }) => {
   // Moments Black members: pure black and white, whatever the mode (lib/black.js)
   const [black, setBlackState] = useState(() => !!blackStored());
   const blackNow = useRef(black);   // read by setBlack, which callers may hold from an older render
+  const [look, setLookState] = useState(() => (black ? 'black' : null));   // 'black' · 'white' (a screen's own) · null
   const [mode, setMode] = useState(() => {
     const m = resolve(storedNow());
     const lq = liquidStored(), bl = blackStored();
@@ -142,8 +143,9 @@ export const ThemeProvider = ({ children }) => {
     if (Platform.OS !== 'web' || typeof document === 'undefined') return;
     document.documentElement.style.backgroundColor = C.bg;
     // the page's own CSS (hairlines in place of shadows) follows the mode too
-    document.documentElement.classList.toggle('mm-dark', mode === 'dark' || black);
-    document.documentElement.classList.toggle('mm-light', mode !== 'dark' && !black);
+    const dark = look === 'white' ? false : mode === 'dark' || black;
+    document.documentElement.classList.toggle('mm-dark', dark);
+    document.documentElement.classList.toggle('mm-light', !dark);
     if (document.body) document.body.style.backgroundColor = C.bg;
     // the browser's own bar is the page, not a purple band — every theme-color tag (light and dark) follows the app
     const metas = document.querySelectorAll('meta[name="theme-color"]');
@@ -154,7 +156,7 @@ export const ThemeProvider = ({ children }) => {
       document.head.appendChild(meta);
     }
     metas.forEach((m) => { m.content = C.bg; });
-  }, [mode, black]);
+  }, [mode, black, look]);
 
   /* Kept for anything still calling it: a toggle is a deliberate
      choice, so it stops following the phone and lands on the opposite
@@ -169,25 +171,35 @@ export const ThemeProvider = ({ children }) => {
     liquidCss(!!on && !black, mode === 'dark');
     setGen((g) => g + 1);
   };
-  /* the membership says Moments Black (App.js, MemberGate) — or no longer does */
-  const setBlack = (on) => {
-    if (!!on === blackNow.current) return;
-    blackNow.current = !!on;
+  /* the membership says Moments Black (App.js, MemberGate) — or no longer does.
+     A screen may also ask for a look of its own while it is open (setLook:
+     the café dashboard's black or white), which wins until it lets go. */
+  const member = useRef(black);
+  const over = useRef(null);
+  const shown = useRef(black ? 'black' : null);
+  const relook = () => {
+    const want = over.current || (member.current ? 'black' : null);
+    if (want === shown.current) return;
+    shown.current = want;
     const paint = (pal) => {
-      if (blackNow.current !== !!pal) return;          // changed again while the palette was on its way
-      keepBlack(pal);
-      setBlackState(!!pal);
+      if (shown.current !== want) return;              // changed again while the palette was on its way
+      if (!over.current) keepBlack(pal);               // only the membership's look is kept for the next open
+      blackNow.current = !!pal;
+      setBlackState(want === 'black');
+      setLookState(want);
       applyThemeMode(mode, liquid, pal);
       liquidCss(liquid && !pal, mode === 'dark');
-      blackCss(!!pal);
+      blackCss(want);
       setGen((g) => g + 1);
     };
-    if (on) loadBlack().then(paint).catch(() => { blackNow.current = false; });
+    if (want) loadBlack(want).then(paint).catch(() => { shown.current = null; });
     else paint(null);
   };
+  const setBlack = (on) => { member.current = !!on; relook(); };
+  const setLook = (v) => { over.current = v === 'black' || v === 'white' ? v : null; relook(); };
 
   return (
-    <Ctx.Provider value={{ mode, pref, isDark: mode === 'dark' || black, gen, liquid, black, toggleTheme, setThemePref, setLiquid, setBlack }}>
+    <Ctx.Provider value={{ mode, pref, isDark: look === 'white' ? false : mode === 'dark' || black, gen, liquid, black, look, toggleTheme, setThemePref, setLiquid, setBlack, setLook }}>
       {children}
     </Ctx.Provider>
   );

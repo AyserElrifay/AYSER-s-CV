@@ -43,3 +43,22 @@ export function openInvite(id) {
 }
 export function takeInvite() { const v = invitePending; invitePending = null; return v; }
 export function onInvite(fn) { inviteListeners.add(fn); return () => inviteListeners.delete(fn); }
+
+/* ─── AN OUTING SOMEBODY SENT YOU ── …/?plan=<id>, from the share button on
+   a plan's card (TogetherScreen). Read once as the app starts; once signed
+   in, Together opens with that plan first and marked. */
+let planPending = null;
+(function readPlan() {
+  try {
+    if (typeof window === 'undefined' || !window.location) return;
+    const q = new URLSearchParams(window.location.search);
+    const id = q.get('plan');
+    if (!id) return;
+    if (UUID.test(id)) planPending = id;
+    q.delete('plan');
+    const rest = q.toString();
+    window.history.replaceState(null, '', window.location.pathname + (rest ? '?' + rest : '') + window.location.hash);
+  } catch (e) { /* the link simply does nothing */ }
+}());
+export function pendingPlan() { return planPending; }
+export function takePlan() { const id = planPending; planPending = null; return id; }

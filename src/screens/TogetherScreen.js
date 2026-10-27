@@ -21,6 +21,7 @@ import { PushRow } from '../components/PushRow';
 import { talkRoomsNear } from '../services/talkRooms';
 import { fmt, remaining, offsetFrom } from '../lib/talkClock';
 import { appLink, shareLink, shareNote } from '../utils/share';
+import { takePlan } from '../lib/tripLink';
 import { listOffers, photoUrl } from '../services/offers';
 import { fetchWhatsOn } from '../services/whatson';
 import { joinCampfire } from '../services/campfires';
@@ -423,6 +424,7 @@ export const TogetherScreen = () => {
   const [rows, setRows] = useState(() => keptGatherings(readCode()));  // the week as last seen; null = still asking
   const [on, setOn] = useState(() => recall('whatson') || null);  // fetchWhatsOn: now / soon / groups
   const [day, setDay] = useState(null);
+  const [focus] = useState(() => takePlan());   // a plan somebody sent (…/?plan=<id>), shown on its day and marked
   const [aud, setAud] = useState(null);   // null = all · 'all' = mixed · 'women' · 'men'
   const [open, setOpen] = useState(null);
   const [busy, setBusy] = useState({});
@@ -572,6 +574,15 @@ export const TogetherScreen = () => {
   }, [country, uid, scope, codeKnown, fix, myCode, lang, hub]);
   useEffect(() => load(), [load]);
 
+  // the shared plan: open on its day, its card open
+  useEffect(() => {
+    if (!focus || !rows) return;
+    const g = rows.find((x) => x.id === focus);
+    if (!g) return;
+    const d = groupByDay([g])[0];
+    if (d) setDay(d.key);
+    setOpen(focus);
+  }, [focus, !!rows]); // eslint-disable-line react-hooks/exhaustive-deps
   const days = useMemo(() => groupByDay(aud ? (rows || []).filter((g) => (g.audience || 'all') === aud) : rows), [rows, aud]);
   const dayLabel = (d, long) => {
     if (d.offset === 0) return t('green_today');
@@ -633,8 +644,17 @@ export const TogetherScreen = () => {
     else setCheckMsg({ id: g.id, text: r && r.reason === 'too_far' ? t('xp_err_far') : r && r.reason === 'no_location' ? t('gn_err_loc') : t('lamma_offline') });
   };
 
+  /* a plan's own link, for anybody outside Moments too (WhatsApp, Instagram…):
+     …/?plan=<id> opens Together with that plan first (lib/tripLink) */
+  const sharePlan = (g) => {
+    tapLight();
+    const when = g.starts_at ? new Date(g.starts_at).toLocaleString(lang === 'ar' ? 'ar-EG' : lang, { weekday: 'short', hour: 'numeric', minute: '2-digit' }) : '';
+    shareLink({ url: appLink({ plan: g.id }), title: 'Moments', text: titleFor(g.title, lang) + (when ? ' · ' + when : '') + (g.place_name ? ' · ' + g.place_name : '') });
+  };
+  // "Invite everyone": the members nearby are told in the app, and the phone's share sheet opens with the plan's link
   const invite = async (g) => {
     tapMedium();
+    sharePlan(g);
     const r = await announceGathering(g.id);
     if (r && r.ok) { tapSuccess(); setSent({ id: g.id, n: r.sent }); load(); }
   };
@@ -771,7 +791,7 @@ export const TogetherScreen = () => {
                   const expanded = open === g.id;
                   return (
                     <Pressable key={g.id} onPress={() => { tapLight(); setOpen(expanded ? null : g.id); }}>
-                      <View style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: isGreen(g) ? 'rgba(16,185,129,0.55)' : g.audience === 'women' ? '#F9A8D4' : C.line, borderWidth: g.audience === 'women' && !g.im_going ? 1.5 : 1, borderRadius: 22, padding: 12, marginBottom: 10 }}>
+                      <View style={{ backgroundColor: C.glass, borderWidth: 1, borderColor: g.id === focus ? C.text : isGreen(g) ? 'rgba(16,185,129,0.55)' : g.audience === 'women' ? '#F9A8D4' : C.line, borderWidth: g.id === focus ? 2 : g.audience === 'women' && !g.im_going ? 1.5 : 1, borderRadius: 22, padding: 12, marginBottom: 10 }}>
                         <PlanHead g={g}>
                           <Text numberOfLines={2} style={{ color: C.text, fontSize: 15.5, fontWeight: '900', lineHeight: 20 }}>{titleFor(g.title, lang)}</Text>
                           <Text numberOfLines={1} style={{ color: C.faint, fontSize: 12.5, fontWeight: '700', marginTop: 3 }}>
@@ -854,6 +874,13 @@ export const TogetherScreen = () => {
                                 : (g.im_going ? '✓ ' : '') + (Number(g.going) || 0) + ' ' + t('green_going')}
                             </Text>
                           </View>
+                          {!g.blind && !(mine && !g.announced_at) ? (
+                            <Pressable onPress={() => sharePlan(g)} hitSlop={6} accessibilityRole="button" accessibilityLabel="share" style={{ marginEnd: 8 }}>
+                              <View style={{ width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: C.line }}>
+                                <Ionicons name="share-outline" size={17} color={C.text} />
+                              </View>
+                            </Pressable>
+                          ) : null}
                           {g.im_going || mine ? (
                             /* notes to the others on it, sealed until it ends (CapsuleSheet) */
                             <Pressable onPress={() => { tapLight(); setSheet({ capsule: g }); }}

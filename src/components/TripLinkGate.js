@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { lazyOverlay } from '../lib/lazyScreen';
-import { pendingTrip, takeTrip, onTrip, onInvite, takeInvite } from '../lib/tripLink';
+import { pendingTrip, takeTrip, onTrip, onInvite, takeInvite, pendingPlan } from '../lib/tripLink';
+import { goToTab } from '../lib/mapBus';
 
 const TripsSheet = lazyOverlay(() => import('./TripsSheet').then((m) => ({ default: m.TripsSheet })));
 const TripInvite = lazyOverlay(() => import('./TripInvite').then((m) => ({ default: m.TripInvite })));
@@ -14,6 +15,8 @@ const TripInvite = lazyOverlay(() => import('./TripInvite').then((m) => ({ defau
 export const TripLinkGate = ({ signedIn }) => {
   const [id, setId] = useState(() => pendingTrip());
   useEffect(() => onTrip(setId), []);
+  // a shared outing (…/?plan=<id>): once signed in, Together opens, with that plan first
+  useEffect(() => { if (signedIn && pendingPlan()) { const t = setTimeout(() => goToTab('TOGETHER'), 400); return () => clearTimeout(t); } return undefined; }, [signedIn]);
   if (!id) return null;
   const close = () => { takeTrip(); setId(null); };
   return (
