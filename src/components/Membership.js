@@ -147,7 +147,7 @@ export const PricingGate = ({ m, hard, onClose, onSignOut }) => {
   const insets = useSafeAreaInsets();
   const [why, setWhy] = useState(false);
   const { busy, note, buy } = useBuy(lang, m);
-  const pr = (m && m.prices) || { basic: 99, vip: 199, currency: 'EGP' };
+  const pr = (m && m.prices) || { basic: 118, vip: 199, currency: 'EGP' };
   const tier = m ? m.tier : 'FREE';
 
   const page = (

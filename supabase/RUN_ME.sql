@@ -20473,7 +20473,7 @@ end $do$;
 --  Ayser: Moments is no longer free. Every account is one of three:
 --    FREE  — signed up, not a member: the app shows the "Welcome to the
 --            club" gateway and nothing else;
---    BASIC — 99 EGP a month (Lemon Squeezy): the feed, the Global Track
+--    BASIC — 118 EGP a month (Lemon Squeezy): the feed, the Global Track
 --            journey, booking offline café meetups;
 --    VIP   — 199 EGP a month: everything in Basic, plus messages
 --            (buddies, Daily Moment replies, icebreakers), the Live
@@ -20496,8 +20496,11 @@ end $do$;
 alter table public.plus_subscriptions add column if not exists tier text;
 
 -- the prices the gateway shows; the price charged is the variant's in Lemon Squeezy — keep them the same
-insert into public.app_settings (key, value) values ('tier_prices', '{"basic": 99, "vip": 199, "currency": "EGP"}'::jsonb)
+insert into public.app_settings (key, value) values ('tier_prices', '{"basic": 118, "vip": 199, "currency": "EGP"}'::jsonb)
 on conflict (key) do nothing;
+-- Ayser: "لا خليها ١١٨" — Basic is 118 (the first default was 99; only that default is moved)
+update public.app_settings set value = value || '{"basic": 118}'::jsonb
+ where key = 'tier_prices' and (value ->> 'basic') = '99';
 
 create or replace function public.payments_on()
 returns boolean language sql stable security definer set search_path = public as $$
