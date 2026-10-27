@@ -166,8 +166,6 @@ export const HomeScreen = () => {
      the end card under them, it does not lock the feed with time left */
   const feedClosed = !!user && gate.used >= budget;
   const shown = homeTab === 'moments' && !feedClosed ? posts : [];
-  // a video opened from the feed can be swiped to the next one (src/lib/videoQueue.js)
-  setVideoQueue(shown, vibes, (item) => onVibe(item));
   const onEnd = () => { if (homeTab === 'moments' && posts.length && !gate.done) { finishedNow.current = true; setGate(markSeenAll()); } };
 
   /* ── TAP HOME AGAIN: BACK TO THE TOP, AND FRESH ──────────────────────
@@ -480,6 +478,9 @@ export const HomeScreen = () => {
       toggleVibe(post.id, user.id, next).catch(() => {});
     }
   };
+  // a video opened from the feed can be swiped to the next one (src/lib/videoQueue.js) —
+  // set here, after the stars and onVibe exist (above them it threw: Home did not open)
+  setVideoQueue(shown, vibes, (item) => onVibe(item));
 
   const openComments = (post) => {
     recordSignal('comment', post);
@@ -648,8 +649,6 @@ export const HomeScreen = () => {
               />
             ) : null}
 
-            {/* tonight's sky from everywhere (src/components/games/WorldCard.js) */}
-            {user && SUPABASE_READY && homeTab === 'moments' ? <WorldCard userId={user.id} lang={lang} city={myProfile && myProfile.city} /> : null}
 
             {/* the day's window is over: a kind line, and the way out */}
             {homeTab === 'moments' && feedClosed ? (
@@ -700,7 +699,11 @@ export const HomeScreen = () => {
           );
         }}
         /* the feed ends: at most thirty, then the week near you */
-        ListFooterComponent={shown.length ? (
+        ListFooterComponent={homeTab !== 'moments' || feedClosed ? null : (
+          <View>
+          {/* today's little challenge — after the posts, small (src/components/games/WorldCard.js) */}
+          {user && SUPABASE_READY ? <WorldCard userId={user.id} lang={lang} city={myProfile && myProfile.city} /> : null}
+          {shown.length ? (
           <View style={{ alignItems: 'center', paddingVertical: 26 }}>
             <Text style={{ fontSize: 26 }}>🌿</Text>
             <Text style={{ color: C.text, fontSize: 15.5, fontWeight: '900', marginTop: 6 }}>{t('feed_end_t')}</Text>
@@ -709,7 +712,9 @@ export const HomeScreen = () => {
               <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '900' }}>{t('feed_end_cta')}</Text>
             </Pressable>
           </View>
-        ) : null}
+          ) : null}
+          </View>
+        )}
         ListEmptyComponent={homeTab !== 'moments' || feedClosed ? null : (
           /* Still loading and nothing has arrived yet: show the shape of
              the feed, not the words "no moments yet". Those words are a
