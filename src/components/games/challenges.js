@@ -22,6 +22,23 @@ export const LOOK = {
   cook: 'welcome-breakfast.jpg', go: 'welcome-catherine.jpg', together: 'welcome-tea.jpg',
 };
 
+/* Ayser: "اي علاقه الصوره" — the Dahab sea stood next to "Something
+   yellow". Until somebody shares today's photo, the card now shows what
+   the challenge is about: the colour itself on colour days, and a plain
+   icon for the other kinds — never somebody else's picture. */
+export const SWATCH = {
+  'Something yellow': ['#FFD60A'], 'Something orange': ['#FF8A00'], 'Something purple': ['#7C3AED'],
+  'Something blue': ['#2F80ED'], 'Something red': ['#E5484D'], 'Something green': ['#30A46C'],
+  'Something pink': ['#FF6FB5'], 'Something white': ['#FFFFFF'], Gold: ['#D4A017', '#F5D76E'],
+  'Black and white': ['#17131F', '#FFFFFF'], 'Only two colours': ['#7C3AED', '#FFC233'],
+  'Every colour': ['#E5484D', '#FF8A00', '#FFD60A', '#30A46C', '#2F80ED', '#7C3AED'],
+};
+export const ICON = {
+  sky: 'partly-sunny-outline', food: 'restaurant-outline', city: 'business-outline', detail: 'search-outline',
+  nature: 'leaf-outline', kind: 'heart-outline', colour: 'color-palette-outline',
+  cook: 'flame-outline', go: 'walk-outline', together: 'people-outline',
+};
+
 export const DAILY = [
   { c: 'sky', en: "Golden hour", ar: "ساعة الغروب", s_en: "One photo of the sky tonight, wherever you are.", s_ar: "صورة للسما النهارده بالليل، من أي حتة." },
   { c: 'food', en: "Breakfast as it is", ar: "الفطار زي ما هو", s_en: "No styling. Just the real plate.", s_ar: "من غير ترتيب، الطبق الحقيقي." },

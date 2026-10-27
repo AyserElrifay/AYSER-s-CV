@@ -27,7 +27,7 @@ const KIND = {
   cook: ['Cook', 'اطبخ'], go: ['Go', 'روح'], together: ['Together', 'سوا'],
 };
 export const kindLabel = (lang, c) => (KIND[c] ? sayCh(lang, { en: KIND[c][0], ar: KIND[c][1] }) : '');
-const WEEK_SUB = {
+export const WEEK_SUB = {
   cook: ['Everybody cooks this, this week. Show yours.', 'الكل بيطبخ ده الأسبوع ده. ورّينا بتاعك.'],
   go: ['Go this week. One photo from there.', 'روح الأسبوع ده، وصورة واحدة من هناك.'],
   together: ['With people, this week. Hands and backs are fine; faces only with their OK.', 'مع ناس الأسبوع ده. الإيدين والضهر ماشي، والوشوش بإذنهم.'],
@@ -354,9 +354,9 @@ const Walk = ({ lang, T }) => {
   );
 };
 
-const Week = ({ userId, lang, T, city }) => {
+const Week = ({ userId, lang, T, city, first }) => {
   const list = weekChallenges();
-  const [pick, setPick] = useState(0);
+  const [pick, setPick] = useState(first > 0 && first < list.length ? first : 0);
   const ch = list[pick];
   return (
     <>
@@ -377,7 +377,7 @@ const Week = ({ userId, lang, T, city }) => {
   );
 };
 
-export const WorldSheet = ({ userId, lang, city, start, onClose }) => {
+export const WorldSheet = ({ userId, lang, city, start, pick, onClose }) => {
   useChallengeWords(lang);
   useSheetBack(onClose);
   const insets = useSafeAreaInsets();
@@ -405,7 +405,7 @@ export const WorldSheet = ({ userId, lang, city, start, onClose }) => {
             ))}
           </View>
           {tab === 'today' ? <Board key="today" ch={today.key} userId={userId} T={T} city={city} intro={<Head ch={today} lang={lang} sub={sayCh(lang, { en: today.s_en, ar: today.s_ar })} />} /> : null}
-          {tab === 'week' ? <Week userId={userId} lang={lang} T={T} city={city} /> : null}
+          {tab === 'week' ? <Week userId={userId} lang={lang} T={T} city={city} first={pick} /> : null}
           {tab === 'walk' ? <Walk lang={lang} T={T} /> : null}
         </ScrollView>
       </View>
