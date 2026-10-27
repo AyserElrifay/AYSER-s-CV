@@ -33,6 +33,19 @@ const clock = (ms, lang) => {
 const when = (iso, lang) => {
   try { return new Date(iso).toLocaleString(lang === 'ar' ? 'ar-EG' : lang, { weekday: 'long', hour: 'numeric', minute: '2-digit' }); } catch (e) { return ''; }
 };
+// "20h", "2d 4h", "35 min" — a countdown to read, not to watch
+const rel = (ms, lang) => {
+  const m = Math.max(1, Math.round(ms / 60000));
+  const ar = lang === 'ar';
+  if (m < 60) return m + (ar ? ' دقيقة' : ' min');
+  const h = Math.round(m / 60);
+  if (h < 24) return h + (ar ? ' ساعة' : 'h');
+  const d = Math.floor(h / 24), r = h % 24;
+  return d + (ar ? ' يوم' : 'd') + (r ? (ar ? ' و' + r + ' ساعة' : ' ' + r + 'h') : '');
+};
+const short = (iso, lang) => {
+  try { return new Date(iso).toLocaleString(lang === 'ar' ? 'ar-EG' : lang, { weekday: 'short', hour: 'numeric', minute: '2-digit' }); } catch (e) { return ''; }
+};
 const useTick = (ms) => { const [k, n] = useState(0); useEffect(() => { const t = setInterval(() => n((x) => x + 1), ms); return () => clearInterval(t); }, [ms]); return k; };
 
 const Card = ({ children, style }) => (
@@ -153,6 +166,7 @@ export const CircleCard = ({ onShowDrops }) => {
   const [room, setRoom] = useState(null);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState(null);
+  const [editing, setEditing] = useState(false);
   const skew = useRef(0);
   const load = () => circleNow('en').then((x) => { if (x && x.ok) { skew.current = Date.parse(x.now) - Date.now(); setC(x); } });
   useEffect(() => { load(); const t = setInterval(load, 60000); return () => clearInterval(t); }, []);
@@ -165,7 +179,6 @@ export const CircleCard = ({ onShowDrops }) => {
   }, [tick, next]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!c) return null;
   const now = Date.now() + skew.current;
-  const total = (c.options || []).reduce((s, o) => s + (o.votes || 0), 0);
 
   const vote = async (i) => {
     tapLight();
@@ -183,35 +196,41 @@ export const CircleCard = ({ onShowDrops }) => {
   };
 
   return (
-    <Card>
-      {c.state === 'voting' ? (
+    <Card style={{ padding: 16 }}>
+      {c.state === 'voting' && (c.my_vote == null || editing) ? (
         <>
-          <Text style={{ color: C.text, fontSize: 19, fontWeight: '700', lineHeight: 25 }}>{mv(lang, 'cQ')}</Text>
-          {(c.options || []).map((o, i) => {
-            const pct = total ? Math.round((o.votes / total) * 100) : 0;
-            const mine = c.my_vote === i;
-            return (
-              <Pressable key={o.at} onPress={() => vote(i)} accessibilityRole="radio" accessibilityState={{ checked: mine }} style={{ marginTop: 12 }}>
-                <View style={{ borderRadius: 14, borderWidth: 1, borderColor: mine ? C.text : C.line, overflow: 'hidden' }}>
-                  <View style={{ position: 'absolute', top: 0, bottom: 0, start: 0, width: pct + '%', backgroundColor: C.text, opacity: 0.12 }} />
-                  <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 13 }}>
-                    <Text style={{ color: C.text, fontSize: 15, fontWeight: mine ? '700' : '500', flex: 1 }}>{when(o.at, lang)}</Text>
-                    {c.my_vote != null ? <Text style={[{ color: C.text, fontSize: 14, fontWeight: '600' }, NUM]}>{pct + '%'}</Text> : null}
+          <Small>{mv(lang, 'cName').toUpperCase()}</Small>
+          <Text style={{ color: C.dim, fontSize: 13.5, marginTop: 4 }}>{mv(lang, 'cPick')}</Text>
+          <View style={{ flexDirection: 'row', marginTop: 12, marginHorizontal: -4 }}>
+            {(c.options || []).map((o, i) => {
+              const mine = c.my_vote === i;
+              return (
+                <Pressable key={o.at} onPress={() => { setEditing(false); vote(i); }} accessibilityRole="radio" accessibilityState={{ checked: mine }} style={{ flex: 1, marginHorizontal: 4 }}>
+                  <View style={{ borderRadius: 999, borderWidth: 1, borderColor: mine ? C.text : C.line, backgroundColor: mine ? C.text : 'transparent', paddingVertical: 11, alignItems: 'center' }}>
+                    <Text style={{ color: mine ? C.bg : C.text, fontSize: 14, fontWeight: '600' }} numberOfLines={1}>{short(o.at, lang)}</Text>
                   </View>
-                </View>
-              </Pressable>
-            );
-          })}
-          <Text style={[{ color: C.dim, fontSize: 12.5, marginTop: 12 }, NUM]}>
-            {mv(lang, 'cVotes', { n: total }) + (c.my_vote != null ? '  ·  ' + mv(lang, 'cVoted', { t: clock(Date.parse(c.closes_at) - now, lang) }) : '')}
-          </Text>
+                </Pressable>
+              );
+            })}
+          </View>
         </>
+      ) : c.state === 'voting' ? (
+        /* voted: one line, and a way to change it */
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: C.text, fontSize: 15, fontWeight: '700' }}>{mv(lang, 'cName')}</Text>
+            <Text style={[{ color: C.dim, fontSize: 13, marginTop: 3 }, NUM]} numberOfLines={1}>{mv(lang, 'cMine') + ' · ' + short(c.options[c.my_vote].at, lang)}</Text>
+            <Text style={[{ color: C.faint, fontSize: 12, marginTop: 2 }, NUM]} numberOfLines={1}>{mv(lang, 'cRes', { t: rel(Date.parse(c.closes_at) - now, lang) })}</Text>
+          </View>
+          <Pressable onPress={() => { tapLight(); setEditing(true); }} accessibilityRole="button" hitSlop={10}>
+            <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '600', textDecorationLine: 'underline' }}>{mv(lang, 'cChange')}</Text>
+          </Pressable>
+        </View>
       ) : c.state === 'countdown' ? (
-        <>
-          <Small>{mv(lang, 'cOpens').toUpperCase()}</Small>
-          <Text style={[{ color: C.text, fontSize: 40, fontWeight: '300', letterSpacing: 1, marginTop: 8 }, NUM]}>{clock(Date.parse(c.opens_at) - now, lang)}</Text>
-          <Text style={{ color: C.dim, fontSize: 14, marginTop: 6 }}>{when(c.opens_at, lang) + ' · ' + mv(lang, 'cLeft30')}</Text>
-        </>
+        <View>
+          <Text style={{ color: C.text, fontSize: 15, fontWeight: '700' }}>{mv(lang, 'cName')}</Text>
+          <Text style={[{ color: C.dim, fontSize: 13, marginTop: 3 }, NUM]}>{mv(lang, 'cIn', { d: short(c.opens_at, lang), t: rel(Date.parse(c.opens_at) - now, lang) })}</Text>
+        </View>
       ) : c.state === 'open' ? (
         <>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -339,21 +358,12 @@ export const DropsSection = () => {
   const [list, setList] = useState(null);
   const load = () => dropsList().then((x) => setList(Array.isArray(x) ? x : []));
   useEffect(() => { load(); }, []);
-  if (list == null) return null;
+  // no Drops this week: nothing on Home, rather than a line saying so
+  if (!list || !list.length) return null;
   return (
     <View style={{ marginTop: 22 }}>
       <Small>{mv(lang, 'drops').toUpperCase()}</Small>
-      {list.length ? list.map((d) => <DropCard key={d.id} d={d} lang={lang} onChanged={load} />) : (
-        <Text style={{ color: C.dim, fontSize: 14.5, marginTop: 10 }}>{mv(lang, 'empty')}</Text>
-      )}
+      {list.map((d) => <DropCard key={d.id} d={d} lang={lang} onChanged={load} />)}
     </View>
   );
 };
-
-/* the two, on Home: the circle first, then the tables */
-export const MvpHome = () => (
-  <View>
-    <CircleCard />
-    <DropsSection />
-  </View>
-);

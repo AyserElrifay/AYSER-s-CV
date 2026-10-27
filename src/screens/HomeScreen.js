@@ -36,7 +36,8 @@ import { setVideoQueue } from '../lib/videoQueue';
 import { lazyOverlay } from '../lib/lazyScreen';
 // the two things at the top of Home, fetched after the feed: your next step, and today's question
 // the final MVP: the week's Language Circle and Drops (components/WeeklyDrops)
-const MvpHome = lazyOverlay(() => import('../components/WeeklyDrops').then((m) => ({ default: m.MvpHome })));
+const DropsSection = lazyOverlay(() => import('../components/WeeklyDrops').then((m) => ({ default: m.DropsSection })));
+const CircleCard = lazyOverlay(() => import('../components/WeeklyDrops').then((m) => ({ default: m.CircleCard })));
 const NextStep = lazyOverlay(() => import('../components/NextStep').then((m) => ({ default: m.NextStep })));
 const DailyMoment = lazyOverlay(() => import('../components/DailyMoment').then((m) => ({ default: m.DailyMoment })));
 import { readGate, addSeconds, markSeenAll, budgetSeconds, onGate } from '../lib/feedGate';
@@ -616,8 +617,10 @@ export const HomeScreen = () => {
 
             {/* yours first: the seat you booked or the level you are on, then the Daily Moment */}
             {user ? <NextStep /> : null}
-            {user ? <View style={{ paddingHorizontal: 16 }}><MvpHome /></View> : null}
+            {/* the week's Drops, only when there are some; the Circle, small, after the Daily Moment */}
+            {user ? <View style={{ paddingHorizontal: 16 }}><DropsSection /></View> : null}
             {user ? <DailyMoment /> : null}
+            {user ? <CircleCard /> : null}
 
             {/* the first thing: the next real plan near you, and one button */}
             <NextUp user={user} onStart={() => goToTab('TOGETHER')}
