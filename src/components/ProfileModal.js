@@ -51,8 +51,8 @@ const CELL = (W - 48) / 3;
 
 const isVideoUri = (u) => typeof u === 'string' && /\.(webm|mp4|mov|m4v)(\?|$)/i.test(u);
 
-// the line on a profile a Basic member opens
-const VIP_PROFILE = { en: 'Full profiles are part of Moments Premium', ar: 'البروفايل الكامل جزء من Moments Premium', cs: 'Celé profily jsou součástí Moments Premium', es: 'Los perfiles completos son parte de Moments Premium', et: 'Täisprofiilid on Moments Premium-i osa', fr: 'Les profils complets font partie de Moments Premium', hi: 'पूरी प्रोफ़ाइल Moments Premium का हिस्सा है', it: 'I profili completi fanno parte di Moments Premium', ja: 'プロフィールの全体表示は Moments Premium の機能です', ko: '전체 프로필은 Moments Premium 기능이에요', nl: 'Volledige profielen horen bij Moments Premium', pt: 'Os perfis completos fazem parte do Moments Premium', ro: 'Profilurile complete fac parte din Moments Premium', ru: 'Полные профили — часть Moments Premium', tr: 'Tam profiller Moments Premium’un parçası', uk: 'Повні профілі — частина Moments Premium', zh: '完整个人资料是 Moments Premium 的功能' };
+// the line on a profile a Moments+ member opens
+const VIP_PROFILE = { en: 'Full profiles are part of Moments Black', ar: 'البروفايل الكامل جزء من Moments Black', cs: 'Celé profily jsou součástí Moments Black', es: 'Los perfiles completos son parte de Moments Black', et: 'Täisprofiilid on Moments Black-i osa', fr: 'Les profils complets font partie de Moments Black', hi: 'पूरी प्रोफ़ाइल Moments Black का हिस्सा है', it: 'I profili completi fanno parte di Moments Black', ja: 'プロフィールの全体表示は Moments Black の機能です', ko: '전체 프로필은 Moments Black 기능이에요', nl: 'Volledige profielen horen bij Moments Black', pt: 'Os perfis completos fazem parte do Moments Black', ro: 'Profilurile complete fac parte din Moments Black', ru: 'Полные профили — часть Moments Black', tr: 'Tam profiller Moments Black’un parçası', uk: 'Повні профілі — частина Moments Black', zh: '完整个人资料是 Moments Black 的功能' };
 
 export const ProfileModal = ({ user, onClose }) => {
   /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
@@ -147,8 +147,8 @@ export const ProfileModal = ({ user, onClose }) => {
      stories already refuses these rows to anyone who isn't an accepted
      mate, so the screen only has to say so. */
   const isPrivate = !!(fullProfile && fullProfile.account_type === 'private');
-  /* a full profile is Premium (RUN_ME.sql, "TWO TIERS"): a Basic member sees
-     the face, the name and the passport, and the door to Premium */
+  /* a full profile is Black (RUN_ME.sql, "TWO TIERS"): a Moments+ member sees
+     the face, the name and the passport, and the door to Black */
   const [vipOk, setVipOk] = useState(null);
   useEffect(() => {
     if (!real || isMe) return undefined;
@@ -319,7 +319,7 @@ export const ProfileModal = ({ user, onClose }) => {
               <Pressable onPress={() => { tapLight(); askUpgrade('profile'); }} accessibilityRole="button" style={{ marginTop: 18 }}>
                 <View style={{ borderRadius: 20, borderWidth: 1, borderColor: C.purple, padding: 18, flexDirection: 'row', alignItems: 'center' }}>
                   <Text style={{ color: C.text, fontSize: 15, fontWeight: '600', flex: 1 }}>{'🔒 ' + (VIP_PROFILE[lang] || VIP_PROFILE.en)}</Text>
-                  <Text style={{ color: C.purple, fontSize: 14, fontWeight: '700' }}>Premium ›</Text>
+                  <Text style={{ color: C.purple, fontSize: 14, fontWeight: '700' }}>Black ›</Text>
                 </View>
               </Pressable>
             ) : null}

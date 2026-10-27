@@ -1,9 +1,10 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { Platform, Appearance } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { C, applyThemeMode } from '../constants/theme';
 import { subscribeAccountSettings, cachedAccountSettings, saveThemePref } from '../services/accountSettings';
 import { liquidStored, keepLiquid, liquidCss } from '../lib/liquid';
+import { blackStored, keepBlack, blackCss, loadBlack } from '../lib/black';
 
 /* Real dark mode. `C` is one shared, mutable object every screen reads
    straight from at render time (see theme.js) — so switching here just
@@ -25,7 +26,7 @@ import { liquidStored, keepLiquid, liquidCss } from '../lib/liquid';
 
 const Ctx = createContext(null);
 export const useTheme = () => useContext(Ctx) || fallback;
-const fallback = { mode: 'light', pref: 'auto', isDark: false, gen: 0, liquid: false, toggleTheme: () => {}, setThemePref: () => {}, setLiquid: () => {} };
+const fallback = { mode: 'light', pref: 'auto', isDark: false, gen: 0, liquid: false, black: false, toggleTheme: () => {}, setThemePref: () => {}, setLiquid: () => {}, setBlack: () => {} };
 
 const KEY = 'moments.theme';
 
@@ -65,11 +66,15 @@ export const ThemeProvider = ({ children }) => {
      بشكل قديم ومرة بشكل جديد"). */
   const [pref, setPref] = useState(storedNow);
   const [liquid, setLiquidState] = useState(liquidStored);
+  // Moments Black members: pure black and white, whatever the mode (lib/black.js)
+  const [black, setBlackState] = useState(() => !!blackStored());
+  const blackNow = useRef(black);   // read by setBlack, which callers may hold from an older render
   const [mode, setMode] = useState(() => {
     const m = resolve(storedNow());
-    const lq = liquidStored();
-    if (m === 'dark' || lq) applyThemeMode(m, lq);
-    liquidCss(lq, m === 'dark');
+    const lq = liquidStored(), bl = blackStored();
+    if (m === 'dark' || lq || bl) applyThemeMode(m, lq, bl);
+    liquidCss(lq && !bl, m === 'dark');
+    blackCss(!!bl);
     return m;
   });
   const [gen, setGen] = useState(0);
@@ -78,7 +83,7 @@ export const ThemeProvider = ({ children }) => {
     const next = resolve(nextPref);
     setPref(nextPref);
     if (next !== mode) {
-      applyThemeMode(next, liquid);
+      applyThemeMode(next, liquid, black && blackStored());
       liquidCss(liquid, next === 'dark');
       setMode(next);
       setGen((g) => g + 1);
@@ -137,8 +142,8 @@ export const ThemeProvider = ({ children }) => {
     if (Platform.OS !== 'web' || typeof document === 'undefined') return;
     document.documentElement.style.backgroundColor = C.bg;
     // the page's own CSS (hairlines in place of shadows) follows the mode too
-    document.documentElement.classList.toggle('mm-dark', mode === 'dark');
-    document.documentElement.classList.toggle('mm-light', mode !== 'dark');
+    document.documentElement.classList.toggle('mm-dark', mode === 'dark' || black);
+    document.documentElement.classList.toggle('mm-light', mode !== 'dark' && !black);
     if (document.body) document.body.style.backgroundColor = C.bg;
     // the browser's own bar is the page, not a purple band — every theme-color tag (light and dark) follows the app
     const metas = document.querySelectorAll('meta[name="theme-color"]');
@@ -149,7 +154,7 @@ export const ThemeProvider = ({ children }) => {
       document.head.appendChild(meta);
     }
     metas.forEach((m) => { m.content = C.bg; });
-  }, [mode]);
+  }, [mode, black]);
 
   /* Kept for anything still calling it: a toggle is a deliberate
      choice, so it stops following the phone and lands on the opposite
@@ -160,13 +165,29 @@ export const ThemeProvider = ({ children }) => {
   const setLiquid = (on) => {
     keepLiquid(!!on);
     setLiquidState(!!on);
-    applyThemeMode(mode, !!on);
-    liquidCss(!!on, mode === 'dark');
+    applyThemeMode(mode, !!on, black && blackStored());
+    liquidCss(!!on && !black, mode === 'dark');
     setGen((g) => g + 1);
+  };
+  /* the membership says Moments Black (App.js, MemberGate) — or no longer does */
+  const setBlack = (on) => {
+    if (!!on === blackNow.current) return;
+    blackNow.current = !!on;
+    const paint = (pal) => {
+      if (blackNow.current !== !!pal) return;          // changed again while the palette was on its way
+      keepBlack(pal);
+      setBlackState(!!pal);
+      applyThemeMode(mode, liquid, pal);
+      liquidCss(liquid && !pal, mode === 'dark');
+      blackCss(!!pal);
+      setGen((g) => g + 1);
+    };
+    if (on) loadBlack().then(paint).catch(() => { blackNow.current = false; });
+    else paint(null);
   };
 
   return (
-    <Ctx.Provider value={{ mode, pref, isDark: mode === 'dark', gen, liquid, toggleTheme, setThemePref, setLiquid }}>
+    <Ctx.Provider value={{ mode, pref, isDark: mode === 'dark' || black, gen, liquid, black, toggleTheme, setThemePref, setLiquid, setBlack }}>
       {children}
     </Ctx.Provider>
   );

@@ -15,7 +15,7 @@ import { lazyOverlay } from '../lib/lazyScreen';
 /* ─── MAKE MOMENTS YOURS (MOMENTS PLUS) ───────────────────────────────
    Opened by holding the Moments logo on Home. Two things only: the app
    icon (src/lib/appIcon.js) and which small widgets sit at the top of
-   Home (HomeWidgets in src/components/MyDay.js). Both are Moments Plus;
+   Home (HomeWidgets in src/components/MyDay.js). Both are Moments+;
    whether somebody has it is the server's answer (my_plus), not ours. */
 const PlusSheet = lazyOverlay(() => import('./PlusSheet').then((m) => ({ default: m.PlusSheet })));
 const WIDGETS = [

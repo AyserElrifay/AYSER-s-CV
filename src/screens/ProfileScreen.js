@@ -1147,7 +1147,7 @@ export const ProfileScreen = () => {
 
             <MenuRow icon="create-outline" label={t('edit_space')} onPress={() => setEditOpen(true)} />
             <MenuRow icon="happy-outline" label={t('your_avatar')} onPress={() => { setMenu(false); setAvatarBuilderOpen(true); }} />
-            <MenuRow icon="sparkles-outline" label="Moments Plus" onPress={() => { setMenu(false); setPlusOpen(true); }} />
+            <MenuRow icon="sparkles-outline" label="Moments+" onPress={() => { setMenu(false); setPlusOpen(true); }} />
             {accountType === 'partner' ? <MenuRow icon="business-outline" label={t('vn_menu')} onPress={() => { setMenu(false); setVenueOpen(true); }} /> : null}
             <MenuRow icon="chatbubble-ellipses-outline" label={t('send_feedback')} onPress={() => { setMenu(false); setFbOpen(true); }} />
             {/* Ayser, Jobs-simple: the four things people come here for;

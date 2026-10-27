@@ -1,7 +1,7 @@
 import { supabase, SUPABASE_READY } from '../lib/supabase';
 
 /* ── WHO IS A MEMBER ── (RUN_ME.sql, "TWO TIERS")
-   FREE · BASIC · Premium, answered by the server. `gate` is whether the
+   FREE · BASIC · Black, answered by the server. `gate` is whether the
    gateway is on at all: until payments are switched on there is
    nothing to buy, so nobody is stopped. */
 export async function myMembership() {
@@ -15,8 +15,8 @@ export const askUpgrade = (why) => {
   try { window.dispatchEvent(new CustomEvent('mm-need-plus', { detail: why || 'member' })); } catch (e) {}
 };
 
-/* the welcome offer a new Premium gets once, for 24 hours (RUN_ME.sql,
-   "Premium IS 1300 A YEAR · AND A WELCOME OFFER, ONCE"): 30% off a first
+/* the welcome offer a new Black gets once, for 24 hours (RUN_ME.sql,
+   "Black IS 1300 A YEAR · AND A WELCOME OFFER, ONCE"): 30% off a first
    Level 1 workshop. The discount itself is taken off by journey_book. */
 export async function myWelcomeOffer() {
   if (!SUPABASE_READY) return null;

@@ -132,7 +132,7 @@ export async function joinGathering(id, going) {
   const r = await rpc('green_join', { p_id: id, p_going: !!going });
   /* joining somebody's hangout needs Plus: the server said no, so the
      Plus screen opens (PlusGate in App.js) */
-  // no membership: the plans; the last seats of a meetup are Premium's (RUN_ME.sql, "TWO TIERS")
+  // no membership: the plans; the last seats of a meetup are Black's (RUN_ME.sql, "TWO TIERS")
   if (r && !r.ok && (r.reason === 'plus' || r.reason === 'vip_seat')) {
     try { window.dispatchEvent(new CustomEvent('mm-need-plus', { detail: r.reason === 'vip_seat' ? 'vip_seat' : 'member' })); } catch (e) {}
   }

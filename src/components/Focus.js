@@ -67,7 +67,7 @@ export const Focus = ({ onClose }) => {
   const [now, setNow] = useState(Date.now());
   const [today, setToday] = useState(() => rd()[dayKey()] || { min: 0, rounds: 0 });
   const lock = useRef(null);
-  // the long rounds (50 and 90 minutes) are Moments Plus
+  // the long rounds (50 and 90 minutes) are Moments+
   const [plus, setPlus] = useState(false);
   const [plusSheet, setPlusSheet] = useState(false);
   useEffect(() => { getPlus().then((r) => setPlus(!!(r && r.plus))); }, []);

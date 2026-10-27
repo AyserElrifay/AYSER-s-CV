@@ -404,7 +404,7 @@ export const OffersTab = ({ userId }) => {
       <Btn label="＋ New offer" solid onPress={() => { tapLight(); setMsg(null); setForm(toForm({})); }} />
 
       <View style={{ borderWidth: 1, borderColor: C.line, borderRadius: 14, padding: 12, marginTop: 12 }}>
-        <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '900' }}>Moments Plus</Text>
+        <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '900' }}>Moments+</Text>
         <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 3 }}>Free for everyone until the date below (empty = open-ended). Nobody is charged automatically when it ends.</Text>
         <Field label="Free until (YYYY-MM-DD)" value={freeUntil} onChange={setFreeUntil} ph="empty = no end date yet" />
         <Btn label="Save Plus date" onPress={async () => { const v = freeUntil.trim() ? new Date(freeUntil.trim() + 'T23:59:00').toISOString() : null; const r = await ownerSetSetting('plus_free_until', v); setMsg(r && r.ok ? 'Plus date saved.' : 'Could not save.'); load(); }} />

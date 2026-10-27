@@ -17,7 +17,7 @@ import { SheetHandle } from './SheetHandle';
 /* ─── THE MOMENTS PASSPORT ────────────────────────────────────────────
    Ayser: attendance is counted, not claimed — a stamp for every table
    you really sat at, and the stamps open things: 3 in 30 days, a week of
-   messages (Basic); 5, a coffee at a partner café; 10, 30% off Level 2.
+   messages (Moments+); 5, a coffee at a partner café; 10, 30% off Level 2.
    The look is the gateway's — Moments violet as the ground, white type,
    one yellow spark — and every screen does one thing. The QR's
    signature, its 30-second life and every reward are the server's
@@ -289,7 +289,7 @@ export const StampBook = () => {
           <Text style={{ color: '#17131F', fontSize: 13.5, fontWeight: '700' }}>{'🔥 ' + pw(lang, 'pass_on', { t: leftText(passLeft, lang) })}</Text>
         </View>
       ) : basic ? (
-        /* a Basic member: three blank stamps toward the next week of messages */
+        /* a Moments+ member: three blank stamps toward the next week of messages */
         <View style={{ marginTop: 16 }}>
           <View style={{ flexDirection: 'row' }}>
             {[0, 1, 2].map((k) => (

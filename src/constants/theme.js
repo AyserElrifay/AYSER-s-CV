@@ -76,8 +76,10 @@ export const NUM = { fontVariant: ['tabular-nums'] };
    the mutating + persists the choice + forces that re-render. */
 export const C = Object.assign({}, LIGHT);
 
-export function applyThemeMode(mode, liquid) {
+export function applyThemeMode(mode, liquid, black) {
   Object.assign(C, mode === 'dark' ? DARK : LIGHT);
+  // Moments Black: its palette (lib/blackCss.js) as kept on this phone by lib/black.js
+  if (black) { Object.assign(C, black); return; }
   // Liquid Glass (src/lib/liquid.js), only for someone trying it
   if (liquid) Object.assign(C, LIQUID[mode === 'dark' ? 'dark' : 'light']);
 }

@@ -50,7 +50,7 @@ const toCsv = (m) => {
   const r = m.revenue, g = m.growth, n = m.network;
   L.push('Moments traction,' + m.at);
   L.push('metric,value');
-  L.push('MRR (' + m.currency + '),' + r.mrr, 'ARR (' + m.currency + '),' + r.arr, 'Paying Basic,' + r.basic, 'Paying Premium,' + r.vip, 'Comped (not revenue),' + r.comped);
+  L.push('MRR (' + m.currency + '),' + r.mrr, 'ARR (' + m.currency + '),' + r.arr, 'Paying Moments+,' + r.basic, 'Paying Black,' + r.vip, 'Comped (not revenue),' + r.comped);
   L.push('Sign-ups,' + g.signups, 'Sign-ups last 30 days,' + g.signups_30d, 'Paying members,' + g.paid, 'Paid conversion %,' + g.conversion_pct);
   L.push('Active hosts (±30 days),' + n.active_hosts_30d, 'Certified hosts,' + n.certified_hosts, 'Official tables (30 days),' + n.official_tables_30d,
     'Cities (30 days),' + n.cities_30d, 'Countries (30 days),' + n.countries_30d, 'Partner venues,' + n.partner_venues);
@@ -100,8 +100,8 @@ export const TractionTab = () => {
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -5 }}>
         <Big accent label="MRR" value={money(r.mrr, m.currency)} sub={'ARR ' + money(r.arr, m.currency)} />
         <Big label="Paid conversion" value={g.conversion_pct + '%'} sub={g.paid + ' paying of ' + g.signups} />
-        <Big label="Basic" value={String(r.basic)} sub={money(r.basic_price, m.currency) + ' / month'} />
-        <Big label="Premium" value={String(r.vip)} sub={money(r.vip_price, m.currency) + ' / ' + (r.vip_period === 'year' ? 'year' : 'month')} />
+        <Big label="Moments+" value={String(r.basic)} sub={money(r.basic_price, m.currency) + ' / month'} />
+        <Big label="Black" value={String(r.vip)} sub={money(r.vip_price, m.currency) + ' / ' + (r.vip_period === 'year' ? 'year' : 'month')} />
       </View>
       {r.comped ? <Text style={[{ color: C.dim, fontSize: 12.5, marginTop: 6 }, NUM]}>{r.comped + ' comped members (gifts, founding seats) — not counted as revenue.'}</Text> : null}
 

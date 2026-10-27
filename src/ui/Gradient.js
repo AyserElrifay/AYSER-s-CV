@@ -1,5 +1,6 @@
 import React from 'react';
 import { LinearGradient as Base } from 'expo-linear-gradient';
+import { C } from '../constants/theme';
 
 /* ─── ONE COLOUR, NOT A RAINBOW ───────────────────────────────────────
    The design system (theme.js): a warm canvas and one brand colour, no
@@ -39,6 +40,8 @@ export const toBrand = (c) => {
   const d = max - min;
   const s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1));
   if (s < 0.12) return c;                        // a grey, a black, a white: as it was
+  // Moments Black (its C.purple is #FFFFFE): no hue at all, the same lightness in grey
+  if (C.purple === '#FFFFFE') { const g = Math.round(255 * l); return 'rgba(' + g + ',' + g + ',' + g + ',' + a + ')'; }
   const sat = Math.min(s, 0.75);
   // HSL back to RGB at the brand's hue
   const k = (n) => (n + BRAND_HUE / 30) % 12;

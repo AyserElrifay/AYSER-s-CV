@@ -67,7 +67,7 @@ const LS_BUY = {
   vip: 'https://therealmoments.lemonsqueezy.com/checkout/buy/7a877c29-1427-4e0a-92d7-10ec9e28451f',
 };
 
-/* Moments Basic or Premium, monthly, through Lemon Squeezy.
+/* Moments+ or Black, monthly, through Lemon Squeezy.
    Somebody not yet subscribed goes straight to that plan's checkout link,
    carrying their account id (checkout[custom][user_id]) so the signed
    webhook knows whose membership it is. Somebody already subscribed goes

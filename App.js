@@ -77,6 +77,7 @@ const MemberGate = () => {
   const [m, setM] = React.useState(null);
   const [ask, setAsk] = React.useState(null);
   const [oto, setOto] = React.useState(null);
+  const { setBlack } = useTheme();
   React.useEffect(() => {
     let alive = true;
     // back from paying (?checkout=success, or the older ?plus=thanks): the
@@ -89,6 +90,8 @@ const MemberGate = () => {
     const load = () => myMembership().then((x) => {
       if (!alive || !x) return;
       setM(x);
+      // Moments Black members see the app in black and white (lib/black.js)
+      setBlack(x.tier === 'VIP');
       // a VIP with a live offer sees it once; asked only when it can matter
       if (x.tier === 'VIP' && !otoSeen() && (back || x.source === 'lemonsqueezy')) {
         myWelcomeOffer().then((o) => { if (alive && o && o.live && !otoSeen()) { setOto(o); if (poll) clearInterval(poll); } });
