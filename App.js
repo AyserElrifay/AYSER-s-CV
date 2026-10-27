@@ -66,14 +66,15 @@ const FirstTour = lazyOverlay(() => import('./src/components/FirstTour').then((m
 const PricingGate = lazyOverlay(() => import('./src/components/Membership').then((m) => ({ default: m.PricingGate })));
 const VipSheet = lazyOverlay(() => import('./src/components/Membership').then((m) => ({ default: m.VipSheet })));
 const WelcomeOTO = lazyOverlay(() => import('./src/components/Membership').then((m) => ({ default: m.WelcomeOTO })));
-const VIP_DOORS = ['vip', 'chat', 'lounge', 'profile', 'vip_seat'];
+// Freemium: everybody comes in; a door a free account cannot open shows the
+// two plans (or Black's own sheet for what only Black opens)
+const VIP_DOORS = ['vip', 'lounge', 'profile', 'vip_seat'];
 /* the VIP welcome offer is shown once on this phone, ever: after "no thanks",
    after claiming, or once its 24 hours are up */
 const OTO_SEEN = 'mm.oto.seen';
 const otoSeen = () => { try { return !!localStorage.getItem(OTO_SEEN); } catch (e) { return false; } };
 const otoDone = () => { try { localStorage.setItem(OTO_SEEN, '1'); } catch (e) {} };
 const MemberGate = () => {
-  const { signOut } = useAuth();
   const [m, setM] = React.useState(null);
   const [ask, setAsk] = React.useState(null);
   const [oto, setOto] = React.useState(null);
@@ -84,6 +85,8 @@ const MemberGate = () => {
     // webhook switches the tier on — and makes the welcome offer — within seconds
     let back = false;
     try { back = /[?&](checkout=success|plus=thanks)/.test(window.location.search); } catch (e) {}
+    // ?paywall shows the plans to anybody (the owner too) — to look at it
+    try { if (/[?&]paywall\b/.test(window.location.search)) setAsk('member'); } catch (e) {}
     if (back) {
       try { const u = new URL(window.location.href); u.searchParams.delete('checkout'); u.searchParams.delete('plus'); window.history.replaceState(null, '', u.pathname + u.search + u.hash); } catch (e) {}
     }
@@ -108,7 +111,6 @@ const MemberGate = () => {
     try { document.addEventListener('visibilitychange', seen); window.addEventListener('mm-need-plus', on); } catch (e) {}
     return () => { alive = false; if (poll) clearInterval(poll); try { document.removeEventListener('visibilitychange', seen); window.removeEventListener('mm-need-plus', on); } catch (e) {} };
   }, []);
-  if (m && m.gate && m.tier === 'FREE') return <PricingGate m={m} hard onSignOut={signOut} />;
   if (oto) {
     const close = () => { otoDone(); setOto(null); dismissWelcomeOffer(); };
     // claiming opens the journey at Level 1, where the 30% is already taken off
