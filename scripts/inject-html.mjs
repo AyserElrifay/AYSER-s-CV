@@ -41,8 +41,12 @@ const responsiveCss = `
     [role="button"] { transition: transform 200ms ease-out, opacity 200ms ease-out; }
     [role="button"]:active { transform: scale(0.98); }
     body { font-feature-settings: "cv11", "ss01"; -webkit-font-smoothing: antialiased; }
-    /* dynamic viewport height fixes the mobile URL-bar aspect crop */
-    #root { width: 100%; height: 100vh; height: 100dvh; overflow: hidden; }
+    /* the app is pinned to the four edges of the screen. A height of
+       100dvh fixed the URL-bar crop in the browser, but on an iPhone
+       home-screen app it came out one status bar short of the screen —
+       a black band under the tab bar ("بدل السواد الي تحتيها ده"). The
+       edges themselves are always right, in the browser and installed. */
+    #root { position: fixed; top: 0; right: 0; bottom: 0; left: 0; width: auto; height: auto; overflow: hidden; }
     /* Laptop / desktop: the whole window. It used to sit in a framed box
        in the middle of a dark backdrop, which on a laptop screen looked
        like a page that had not finished loading ("ليه الشاشة مش كاملة").
