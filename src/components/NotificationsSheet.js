@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { titleFor } from '../lib/activityPins';
 import { View, Text, Modal, ScrollView, Pressable, Image, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -350,7 +351,7 @@ export const NotificationsSheet = ({ onClose }) => {
         <View style={{ flex: 1, minWidth: 0, marginLeft: 12 }}>
           <Text style={{ color: C.text, fontSize: 14.5, lineHeight: 20 }} numberOfLines={3}>
             <Text style={{ fontWeight: '800' }}>{g && !SYSTEM_KINDS.has(n.kind) ? namesLine(g.actors, words) : ((n.kind === 'safety' && n.body !== 'report' && n.body !== 'coach') || SYSTEM_KINDS.has(n.kind)) ? 'Moments' : ((n.actor && n.actor.name) || words.someone)}</Text>
-            {' '}<Text style={{ color: C.dim }}>{verbOf(t, n.kind, g && g.actors.length > 1).replace('{n}', String(n.body || '')).replace('{title}', String(n.body || '').split('|').slice(1).join('|'))}</Text>
+            {' '}<Text style={{ color: C.dim }}>{verbOf(t, n.kind, g && g.actors.length > 1).replace('{n}', titleFor(String(n.body || ''), lang)).replace('{title}', titleFor(String(n.body || '').split('|').slice(1).join('|'), lang))}</Text>
             {'  '}<Text style={{ color: C.faint, fontSize: 12 }}>{timeAgo(n.created_at)}</Text>
           </Text>
           {(n.kind === 'green_invite' || n.kind === 'creator_plan' || n.kind === 'booking' || n.kind === 'food_order' || n.kind === 'food_status' || n.kind === 'venue_decision' || n.kind === 'biz_request' || n.kind === 'biz_reply') && n.body ? (

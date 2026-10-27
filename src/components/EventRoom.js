@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { titleFor } from '../lib/activityPins';
 import { View, Text, Pressable, ScrollView, Modal, TextInput, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -181,7 +182,7 @@ export const EventRoom = ({ kind, id, lang, onClose }) => {
   const chatState = r && r.ok && r.chat ? (r.chat.open ? 'open' : now < new Date(r.chat.opens_at).getTime() ? 'soon'
     : ex && ex.phase === 'capsule' ? 'capsule' : 'over') : null;
   const left = r && r.ok && r.total ? Math.max(0, r.total - r.taken) : null;
-  const title = r && r.ok ? (lang === 'ar' && r.title_ar ? r.title_ar : r.title) : '';
+  const title = r && r.ok ? (lang === 'ar' && r.title_ar ? r.title_ar : titleFor(r.title, lang)) : '';
 
   return (
     <Modal visible transparent={false} animationType="slide" onRequestClose={onClose}>

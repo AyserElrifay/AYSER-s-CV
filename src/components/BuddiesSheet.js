@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { titleFor } from '../lib/activityPins';
 import { View, Text, Pressable, ScrollView, Modal, TextInput, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -129,7 +130,7 @@ const Chat = ({ other, threadId, lang, onBack }) => {
             <Pressable key={e.kind + e.id} onPress={() => (pinged[e.id] ? null : doPing(e))} accessibilityRole="button" style={{ marginTop: 8 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 14, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line, padding: 12 }}>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '600' }} numberOfLines={1}>{lang === 'ar' && e.title_ar ? e.title_ar : e.title}</Text>
+                  <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '600' }} numberOfLines={1}>{lang === 'ar' && e.title_ar ? e.title_ar : titleFor(e.title, lang)}</Text>
                   <Text style={[{ color: C.dim, fontSize: 12.5, marginTop: 2 }, NUM]}>{new Date(e.starts_at).toLocaleString(lang === 'ar' ? 'ar-EG' : lang, { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</Text>
                 </View>
                 <Text style={{ color: pinged[e.id] ? C.green : C.purple, fontSize: 13.5, fontWeight: '600' }}>{pinged[e.id] ? w(lang, 'pinged') : '→'}</Text>
@@ -266,7 +267,7 @@ export const BuddiesSheet = ({ onClose, threadId, other }) => {
                   <Text style={{ color: C.dim, fontSize: 12, fontWeight: '600', letterSpacing: 0.4 }}>{w(lang, 'mem').toUpperCase()}</Text>
                   {pass.capsules.slice(0, 12).map((c) => (
                     <View key={c.kind + c.id} style={{ flexDirection: 'row', paddingVertical: 10, borderBottomWidth: 1, borderColor: C.line }}>
-                      <Text style={{ color: C.text, fontSize: 15, flex: 1 }} numberOfLines={1}>{c.title}</Text>
+                      <Text style={{ color: C.text, fontSize: 15, flex: 1 }} numberOfLines={1}>{titleFor(c.title, lang)}</Text>
                       <Text style={[{ color: C.dim, fontSize: 13 }, NUM]}>{new Date(c.starts_at).toLocaleDateString(lang === 'ar' ? 'ar-EG' : lang, { day: 'numeric', month: 'short' })}</Text>
                     </View>
                   ))}

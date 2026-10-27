@@ -192,7 +192,7 @@ export const WhatsOnSheet = ({ coords, onClose, onOpenGroup, onOpenMoment, onOpe
                     <Row key={c.id}>
                       <Avatar uri={c.hostAvatar} emoji="🔥" />
                       <View style={{ flex: 1, minWidth: 0, marginStart: 11 }}>
-                        <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }} numberOfLines={1}>{c.title}</Text>
+                        <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }} numberOfLines={1}>{titleFor(c.title, lang)}</Text>
                         <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 2 }} numberOfLines={1}>
                           {[c.host, c.topic, km(c.km)].filter(Boolean).join(' · ')}
                         </Text>
@@ -215,7 +215,7 @@ export const WhatsOnSheet = ({ coords, onClose, onOpenGroup, onOpenMoment, onOpe
                     <Row key={p.id} onPress={onOpenMoment ? () => onOpenMoment(p.id) : undefined}>
                       <Avatar uri={p.hostAvatar} emoji="✨" />
                       <View style={{ flex: 1, minWidth: 0, marginStart: 11 }}>
-                        <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }} numberOfLines={1}>{p.title}</Text>
+                        <Text style={{ color: C.text, fontSize: 14, fontWeight: '800' }} numberOfLines={1}>{titleFor(p.title, lang)}</Text>
                         <Text style={{ color: C.faint, fontSize: 11.5, marginTop: 2 }} numberOfLines={1}>
                           {[whenText(p.when), p.place, km(p.km)].filter(Boolean).join(' · ')}
                         </Text>

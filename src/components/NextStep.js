@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { titleFor } from '../lib/activityPins';
 import { View, Text, Pressable } from 'react-native';
 import { C, NUM } from '../constants/theme';
 import { useLang } from '../context/LanguageContext';
@@ -73,7 +74,7 @@ export const NextStep = () => {
   if (!step) return null;
   const isBooking = step.kind === 'booking';
   const o = isBooking ? step.b.offer : step.w;
-  const title = isBooking || o ? (lang === 'ar' && o.title_ar ? o.title_ar : o.title) : w(lang, 4, { n: step.j.level, t: step.j.top });
+  const title = isBooking || o ? (lang === 'ar' && o.title_ar ? o.title_ar : titleFor(o.title, lang)) : w(lang, 4, { n: step.j.level, t: step.j.top });
   const meta = o ? [when(o.starts_at, lang), o.city].filter(Boolean).join(' · ') : '';
   const cta = isBooking ? w(lang, 3) : o ? w(lang, 5, { p: money(o.price, o.currency, lang) }) : w(lang, 6);
 

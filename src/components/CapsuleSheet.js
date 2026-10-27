@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { titleFor } from '../lib/activityPins';
 import { View, Text, Modal, Pressable, ScrollView, TextInput, Image, ActivityIndicator, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -103,7 +104,7 @@ export const CapsuleSheet = ({ kind, id, title, onClose }) => {
                   <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 18, padding: 16, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line }}>
                     <Text style={{ fontSize: 24 }}>{Number(e.waiting) ? '🔒' : '💌'}</Text>
                     <View style={{ flex: 1, marginStart: 12 }}>
-                      <Text style={{ color: C.text, fontSize: 15.5, fontWeight: '800' }} numberOfLines={1}>{e.title}</Text>
+                      <Text style={{ color: C.text, fontSize: 15.5, fontWeight: '800' }} numberOfLines={1}>{titleFor(e.title, lang)}</Text>
                       <Text style={{ color: C.dim, fontSize: 13, marginTop: 2 }}>{Number(e.waiting) ? t('tk_waiting').replace('{n}', String(e.waiting)) : t('tk_open_n').replace('{n}', String(e.open))}</Text>
                     </View>
                     {Number(e.unread) ? <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: C.purple }} /> : null}
@@ -115,7 +116,7 @@ export const CapsuleSheet = ({ kind, id, title, onClose }) => {
             <View style={{ marginTop: 12 }}>
               {/* what this is, said plainly — then why it is not open yet */}
               <Text style={{ color: C.text, fontSize: 30, fontWeight: '800' }}>{'✉️ ' + t('tk_title')}</Text>
-              {ev.title ? <Text style={{ color: C.dim, fontSize: 15, fontWeight: '700', marginTop: 4 }}>{ev.title}</Text> : null}
+              {ev.title ? <Text style={{ color: C.dim, fontSize: 15, fontWeight: '700', marginTop: 4 }}>{titleFor(ev.title, lang)}</Text> : null}
               <Text style={{ color: C.text, fontSize: 15.5, lineHeight: 23, marginTop: 14 }}>{t('tk_explain')}</Text>
               <View style={{ marginTop: 18, borderRadius: 16, padding: 14, backgroundColor: C.glass, borderWidth: 1, borderColor: C.line }}>
                 <Text style={{ color: C.dim, fontSize: 14, lineHeight: 20 }}>{t(v.reason === 'not_on_it' ? 'tk_not_on_it' : 'tk_soon')}</Text>
@@ -124,7 +125,7 @@ export const CapsuleSheet = ({ kind, id, title, onClose }) => {
           ) : (
             <>
               <Text style={{ color: C.faint, fontSize: 12, fontWeight: '800', letterSpacing: 1.2, marginTop: 12 }}>{t('tk_title').toUpperCase()}</Text>
-              <Text style={{ color: C.text, fontSize: 26, fontWeight: '800', marginTop: 4 }}>{v.title}</Text>
+              <Text style={{ color: C.text, fontSize: 26, fontWeight: '800', marginTop: 4 }}>{titleFor(v.title, lang)}</Text>
               <Text style={{ color: C.dim, fontSize: 14, lineHeight: 20, marginTop: 6 }}>{t('tk_sub').replace('{when}', when(v.opens_at || v.ends_at, lang))}</Text>
               {v.blind && v.me ? (
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 14, borderRadius: 18, padding: 14, backgroundColor: '#F5F3FF', borderWidth: 1, borderColor: '#DDD6FE' }}>

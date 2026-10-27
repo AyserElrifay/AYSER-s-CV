@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { titleFor } from '../lib/activityPins';
 import { View, Text, Modal, Pressable, ScrollView, ActivityIndicator, Animated, TextInput, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -774,7 +775,7 @@ export const MyDay = ({ onClose }) => {
                         <Pressable onPress={() => { tapLight(); onClose(); goToTab('TOGETHER'); }} accessibilityRole="button" style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>
                           <Text style={{ fontSize: 20, marginEnd: 10 }}>{g.emoji || '🤝'}</Text>
                           <View style={{ flex: 1 }}>
-                            <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '800' }} numberOfLines={1}>{g.title}</Text>
+                            <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '800' }} numberOfLines={1}>{titleFor(g.title, lang)}</Text>
                             <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 1 }} numberOfLines={1}>{hm(s.getHours(), s.getMinutes()) + (g.place_name ? ' · ' + g.place_name : '')}</Text>
                           </View>
                         </Pressable>
@@ -916,7 +917,7 @@ const Tile = ({ emoji, title, sub, onPress }) => (
 );
 
 export const HomeWidgets = ({ ids }) => {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const [open, setOpen] = useState(false);
   const [now, setNow] = useState(Date.now());
   useEffect(() => { const i = setInterval(() => setNow(Date.now()), 30000); return () => clearInterval(i); }, []);
@@ -953,7 +954,7 @@ export const HomeWidgets = ({ ids }) => {
     if (id === 'plan') {
       const g = (keptGatherings(null) || []).filter((r) => r.im_going && new Date(r.starts_at).getTime() > now - 3600000).sort((p, q) => new Date(p.starts_at) - new Date(q.starts_at))[0];
       return g
-        ? <Tile key={id} emoji={g.emoji || '🤝'} title={g.title} sub={t('wg_in').replace('{t}', span(Math.max(0, new Date(g.starts_at).getTime() - now), t))} onPress={() => show(id)} />
+        ? <Tile key={id} emoji={g.emoji || '🤝'} title={titleFor(g.title, lang)} sub={t('wg_in').replace('{t}', span(Math.max(0, new Date(g.starts_at).getTime() - now), t))} onPress={() => show(id)} />
         : <Tile key={id} emoji="🤝" title={t('wg_plan')} sub={t('wg_find_plan')} onPress={() => show(id)} />;
     }
     if (id === 'note') {
