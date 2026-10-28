@@ -13,6 +13,11 @@ export const dropsList = () => rpc('drops_list');
 export const dropClaim = (id) => rpc('drop_claim', { p_id: id });
 export const dropWait = (id, on) => rpc('drop_wait', { p_id: id, p_on: on !== false });
 export const dropCancel = (id) => rpc('drop_cancel', { p_id: id });
+// a trip is applied for, not booked (RUN_ME.sql, "ROAM IS MEMBERS-ONLY")
+export const tripWithdraw = (id) => rpc('trip_withdraw', { p_id: id });
+export const ownerDropLevel = (id, level) => rpc('owner_drop_level', { p_id: id, p_level: level ? Number(level) : null });
+export const ownerTripApplications = () => rpc('owner_trip_applications');
+export const ownerTripDecide = (offer, user, select) => rpc('owner_trip_decide', { p_offer: offer, p_user: user, p_select: !!select });
 export const myQuota = () => rpc('my_quota');
 export const circleNow = (lang) => rpc('circle_now', { p_lang: lang || 'en' });
 export const circleVote = (poll, slot) => rpc('circle_vote', { p_poll: poll, p_slot: slot });

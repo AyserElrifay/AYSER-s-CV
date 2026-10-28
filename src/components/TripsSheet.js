@@ -158,14 +158,12 @@ const Price = ({ o, t, lang, big }) => {
   return (
     <View>
       <View style={{ flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap' }}>
-        <Text style={{ color: C.text, fontSize: big ? 22 : 16, fontWeight: '900', textDecorationLine: plusPrice && o.plus ? 'line-through' : 'none', opacity: plusPrice && o.plus ? 0.5 : 1 }}>
-          {money(o.price, o.currency, lang)}
+        {/* one price, never two (Ayser: access, not a discount): the one this person pays */}
+        <Text style={{ color: C.text, fontSize: big ? 22 : 16, fontWeight: '900' }}>
+          {money(plusPrice && o.plus ? o.member_price : o.price, o.currency, lang)}
         </Text>
         {o.price_usd ? <Text style={{ color: C.dim, fontSize: big ? 14 : 12.5, marginStart: 6 }}>{'≈ $' + Number(o.price_usd)}</Text> : null}
       </View>
-      {plusPrice ? (
-        <Text style={{ color: '#8A6400', fontSize: big ? 15 : 13, fontWeight: '900', marginTop: 2 }}>{'✦ ' + t('bk_plus_price') + ' ' + money(o.member_price, o.currency, lang)}</Text>
-      ) : null}
     </View>
   );
 };

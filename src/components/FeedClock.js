@@ -50,6 +50,22 @@ export const FeedClock = ({ budget, running }) => {
   );
 };
 
+/* a razor-thin line under the Moments tab: today's time, running down
+   (Ayser: "a sleek progress bar … urgency to post and view before midnight") */
+export const FeedBar = ({ budget, running }) => {
+  const [, tick] = useState(0);
+  useEffect(() => { const id = setInterval(() => tick((n) => n + 1), 3000); return () => clearInterval(id); }, []);
+  if (!isFinite(budget) || budget <= 0) return null;
+  const g = readGate();
+  const since = running && g.at && Date.now() - g.at < 5500 ? (Date.now() - g.at) / 1000 : 0;
+  const frac = Math.max(0, Math.min(1, (budget - g.used - since) / budget));
+  return (
+    <View style={{ height: 2, borderRadius: 1, backgroundColor: C.line, overflow: 'hidden', marginTop: 4 }} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      <View style={{ height: 2, width: Math.round(frac * 1000) / 10 + '%', backgroundColor: frac < 0.2 ? C.gold : C.text }} />
+    </View>
+  );
+};
+
 /* under the closed feed: when it opens, and how to earn a little more */
 export const FeedReopen = ({ onReflect, onPlans }) => {
   const { t, lang } = useLang();

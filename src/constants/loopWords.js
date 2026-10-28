@@ -68,3 +68,12 @@ export const todaysPrompt = (lang, d = new Date()) => {
   const day = Math.floor((d - start) / 86400000);
   return list[day % list.length];
 };
+
+/* a moment made for a prompt starts with the prompt itself (CaptureModal
+   writes "prompt — your words"); the feed shows the two apart */
+export const splitPrompt = (caption) => {
+  const c = String(caption || '');
+  const all = W.en.pp_prompts.concat(W.ar.pp_prompts);
+  const p = all.find((x) => c === x || c.indexOf(x + ' — ') === 0);
+  return p ? { prompt: p, rest: c.slice(p.length).replace(/^ — /, '').trim() } : null;
+};

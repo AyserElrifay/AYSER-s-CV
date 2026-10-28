@@ -10,7 +10,7 @@ import { appLink, shareLink } from '../utils/share';
 import { lazyOverlay } from '../lib/lazyScreen';
 import { searchProfiles } from '../services/social';
 import { giftMembership, endGift, giftList } from '../services/gifts';
-import { ownerDrops, ownerDropSave } from '../services/mvp';
+import { ownerDrops, ownerDropSave, ownerDropLevel } from '../services/mvp';
 
 // the event page, as its host sees it: write the pin, open or end the workshop room
 const EventRoom = lazyOverlay(() => import('./LiveKit').then((m) => ({ default: m.EventRoom })));
@@ -230,7 +230,7 @@ const cairoLocal = (iso) => {
   try { const p = new Intl.DateTimeFormat('en', { timeZone: 'Africa/Cairo', hour12: false, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).formatToParts(new Date(iso)).reduce((a, x) => ({ ...a, [x.type]: x.value }), {});
     return p.year + '-' + p.month + '-' + p.day + ' ' + (+p.hour % 24 + '').padStart(2, '0') + ':' + p.minute; } catch (e) { return ''; }
 };
-const DROP0 = { title: '', title_ar: '', neighborhood: '', neighborhood_ar: '', vibe: 'English · Coffee', vibe_ar: 'إنجليزي · قهوة', city: 'Cairo', when: '', seats: '6', venue_name: '', map_url: '', category: 'tables', price: '', member_price: '', video_url: '' };
+const DROP0 = { title: '', title_ar: '', neighborhood: '', neighborhood_ar: '', vibe: 'English · Coffee', vibe_ar: 'إنجليزي · قهوة', city: 'Cairo', when: '', seats: '6', venue_name: '', map_url: '', category: 'tables', price: '', min_level: '', video_url: '' };
 const DropsBox = () => {
   const [list, setList] = useState([]);
   const [f, setF] = useState(null);
@@ -243,7 +243,8 @@ const DropsBox = () => {
     if (!at) { setNote('Time as 2026-11-05 20:00 (Cairo).'); return; }
     const r = await ownerDropSave({ id: f.id || null, title: f.title || ('The ' + f.neighborhood + ' Table'), title_ar: f.title_ar, neighborhood: f.neighborhood,
       neighborhood_ar: f.neighborhood_ar, vibe: f.vibe, vibe_ar: f.vibe_ar, city: f.city, starts_at: at, seats: f.seats, venue_name: f.venue_name, map_url: f.map_url, status: f.status,
-      category: f.category || 'tables', price: f.price, member_price: f.member_price, video_url: f.video_url });
+      category: f.category || 'tables', price: f.price, member_price: null, video_url: f.video_url });
+    if (r && r.ok && f.category === 'roam') await ownerDropLevel(r.id, f.min_level || null);   // members-only trips: the level to apply
     if (r && r.ok) { tapSuccess(); setNote('Saved — it is on Home now.'); setF(null); load(); }
     else setNote(r && r.reason === 'incomplete' ? 'The neighbourhood and the time are needed.' : r && r.reason === 'video' ? 'The video link has to start with https://' : 'Could not save — owner only.');
   };
@@ -271,8 +272,8 @@ const DropsBox = () => {
           <Field label="Map link (https://…)" value={f.map_url} onChange={set('map_url')} ph="https://maps.app.goo.gl/…" />
           {f.category === 'roam' ? (
             <>
-              <Field label="Ticket price (EGP)" value={f.price} onChange={set('price')} ph="3000" />
-              <Field label="Moments+ member price (EGP)" value={f.member_price} onChange={set('member_price')} ph="2400" />
+              <Field label="Trip price (EGP) — one price, members apply" value={f.price} onChange={set('price')} ph="3000" />
+              <Field label="Moments Level needed to apply (2–4, empty = any member)" value={f.min_level} onChange={set('min_level')} ph="3" />
             </>
           ) : null}
           <Field label="5-second video of a past evening (https://…mp4, optional)" value={f.video_url} onChange={set('video_url')} ph="https://…/clip.mp4" />
@@ -287,7 +288,7 @@ const DropsBox = () => {
       ) : <Btn label="New drop" solid onPress={() => { setNote(null); setF({ ...DROP0 }); }} />}
       {note ? <Text style={{ color: C.green, fontSize: 13, marginTop: 8 }}>{note}</Text> : null}
       {list.map((d) => (
-        <Pressable key={d.id} onPress={() => { tapLight(); setNote(null); setF({ ...DROP0, ...d, when: cairoLocal(d.starts_at), seats: String(d.seats || 6), venue_name: d.venue_name || '', map_url: d.map_url || '', category: d.category || 'tables', price: d.price != null ? String(d.price) : '', member_price: d.member_price != null ? String(d.member_price) : '', video_url: d.video_url || '' }); }} accessibilityRole="button">
+        <Pressable key={d.id} onPress={() => { tapLight(); setNote(null); setF({ ...DROP0, ...d, when: cairoLocal(d.starts_at), seats: String(d.seats || 6), venue_name: d.venue_name || '', map_url: d.map_url || '', category: d.category || 'tables', price: d.price != null ? String(d.price) : '', min_level: d.min_level != null ? String(d.min_level) : '', video_url: d.video_url || '' }); }} accessibilityRole="button">
           <Text style={{ color: C.text, fontSize: 13.5, paddingVertical: 7 }}>
             {'[' + (d.category || 'tables').toUpperCase() + '] ' + (d.neighborhood || '—') + ' · ' + cairoLocal(d.starts_at) + ' · ' + (d.taken || 0) + '/' + (d.seats || 6) + (d.waiting ? ' · ' + d.waiting + ' waiting' : '') + (d.status !== 'live' ? ' · ' + d.status : '') + (d.venue_name ? '' : ' · no café yet')}
           </Text>

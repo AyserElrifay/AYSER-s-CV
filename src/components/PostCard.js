@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { videosAround, getVideoQueue } from '../lib/videoQueue';
 import { addSeconds } from '../lib/feedGate';
+import { splitPrompt } from '../constants/loopWords';
 import { View, Text, Pressable, Image, ImageBackground, Animated, Easing, TextInput, Platform } from 'react-native';
 import { LinearGradient } from '../ui/Gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -239,6 +240,7 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
 
   const CAP_LIMIT = 180;
   const fullCap = post.caption || '';
+  const promptOf = splitPrompt(post.caption);
   const capLong = fullCap.length > CAP_LIMIT;
   const teaserCap = capExpanded || !capLong ? fullCap : fullCap.slice(0, CAP_LIMIT).replace(/\s+\S*$/, '') + '… ';
   const saveEdit = async () => {
@@ -523,9 +525,17 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
             ) : null}
             {plan ? <View /> : (
             <LinearGradient colors={['transparent', 'rgba(0,0,0,0.82)']} style={{ padding: 14, paddingTop: 44 }}>
+              {/* a moment for the day's prompt: the prompt small and spaced, like a magazine's kicker, then the words */}
+              {promptOf ? (
+                <Text style={{ color: 'rgba(255,255,255,0.72)', fontSize: 11, fontWeight: '700', letterSpacing: lang === 'ar' ? 0 : 1.6, marginBottom: promptOf.rest ? 6 : 0 }} numberOfLines={2}>
+                  {lang === 'ar' ? promptOf.prompt : promptOf.prompt.toUpperCase()}
+                </Text>
+              ) : null}
+              {!promptOf || promptOf.rest ? (
               <Text style={{ color: '#FFF', fontSize: 14.5, lineHeight: 21, fontWeight: '500' }} numberOfLines={capExpanded ? undefined : 3}>
-                {withTags(post.caption, '#C4B5FD')}
+                {withTags(promptOf ? promptOf.rest : post.caption, '#C4B5FD')}
               </Text>
+              ) : null}
               {translating || translated ? (
                 <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13.5, lineHeight: 20, marginTop: 6, fontStyle: 'italic' }}>
                   {translating ? '…' : translated === '__failed__' ? 'Could not translate right now.' : translated}

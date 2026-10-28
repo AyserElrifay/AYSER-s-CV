@@ -7,6 +7,7 @@ import { promoSave, promoList, promoOff, promoToCheckout, members, giftMembershi
 import { setStanding } from '../services/studioPeople';
 import { safetyList, safetyPhotoUrl, safetyDecide } from '../services/mvp';
 import { studioGlobalList, studioGlobalContacted } from '../services/loop';
+import { ownerTripApplications, ownerTripDecide } from '../services/mvp';
 
 /* ─── THE OWNER'S MEMBERS DESK ────────────────────────────────────────
    Ayser: promo codes made here, with the discount she chooses, and
@@ -244,6 +245,7 @@ export const SafetyChecksTab = () => {
         : !r.ok ? <Text style={{ color: C.dim, fontSize: 13 }}>Owner or the verify team only — unlock the Studio again.</Text>
         : !r.people.length ? <Text style={{ color: C.dim, fontSize: 13.5 }}>Nobody is waiting.</Text>
         : r.people.map((p) => <CheckRow key={p.user_id} p={p} onDone={load} />)}
+      <TripApplications />
       <GlobalReady />
     </View>
   );
@@ -274,6 +276,43 @@ const GlobalReady = () => {
                 style={{ borderWidth: 1, borderColor: C.text, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 }}>
                 <Text style={{ color: C.text, fontSize: 12.5, fontWeight: '700' }}>Mark contacted</Text>
               </Pressable>
+            )}
+          </View>
+        ))}
+    </View>
+  );
+};
+
+/* Members who applied for a Roam trip (RUN_ME.sql, "ROAM IS MEMBERS-ONLY").
+   Select holds their seat at the trip's price; decline says no. */
+const TripApplications = () => {
+  const [r, setR] = useState(null);
+  const [busy, setBusy] = useState(null);
+  const load = () => ownerTripApplications().then(setR);
+  useEffect(() => { load(); }, []);
+  const decide = async (x, yes) => { tapLight(); setBusy(x.offer_id + x.user_id); await ownerTripDecide(x.offer_id, x.user_id, yes); setBusy(null); load(); };
+  return (
+    <View style={{ marginTop: 26 }}>
+      <Head sub="Members who applied for a trip. Select holds a seat at the trip's price (paid before the trip); decline frees their name.">Trip applications</Head>
+      {r == null ? <ActivityIndicator color={C.text} style={{ marginTop: 20 }} />
+        : !r.ok ? <Text style={{ color: C.dim, fontSize: 13 }}>Owner only.</Text>
+        : !r.rows.length ? <Text style={{ color: C.dim, fontSize: 13.5 }}>Nobody yet.</Text>
+        : r.rows.map((x) => (
+          <View key={x.offer_id + x.user_id} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.line }}>
+            <Image source={{ uri: x.avatar_url || AV_NEUTRAL }} style={{ width: 36, height: 36, borderRadius: 18 }} />
+            <View style={{ flex: 1, marginStart: 10 }}>
+              <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '700' }}>{(x.name || 'Member') + (x.handle ? '  @' + x.handle : '')}</Text>
+              <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 2 }}>{x.title + ' · level ' + x.level + ' · ' + (x.tier === 'VIP' ? 'Black' : 'Moments+') + ' · ' + x.taken + '/' + (x.seats || '—') + ' seats'}</Text>
+            </View>
+            {x.status === 'selected' ? <Text style={{ color: C.faint, fontSize: 12.5 }}>Selected</Text> : (
+              <>
+                <Pressable disabled={!!busy} onPress={() => decide(x, true)} accessibilityRole="button" style={{ backgroundColor: C.text, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6, marginEnd: 6 }}>
+                  <Text style={{ color: C.bg, fontSize: 12.5, fontWeight: '700' }}>Select</Text>
+                </Pressable>
+                <Pressable disabled={!!busy} onPress={() => decide(x, false)} accessibilityRole="button" style={{ borderWidth: 1, borderColor: C.text, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 }}>
+                  <Text style={{ color: C.text, fontSize: 12.5, fontWeight: '700' }}>Decline</Text>
+                </Pressable>
+              </>
             )}
           </View>
         ))}

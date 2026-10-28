@@ -37,7 +37,10 @@ const StreetHop = lazyOverlay(() => import('./StreetHop').then((m) => ({ default
 /* Discover — people, groups, posts and what's trending (X / Facebook style).
    One search box, a tab row, and results that filter as you type. */
 
-const TABS = ['Top', 'People', 'Travel', 'Groups', 'Posts', 'Play'];
+/* Ayser, October 2026: "take Steve Jobs' view, take the clutter out" —
+   three things to find: people, groups, moments. No trends counted off
+   an empty fortnight, no old travel plans, no games. */
+const TABS = ['People', 'Groups', 'Posts'];
 
 const fromProfileRow = (row) => ({
   id: row.id,
@@ -372,7 +375,7 @@ export const SearchModal = ({ onClose, onOpenProfile, onOpenTopics, onOpenTag })
   const { user } = useAuth();
   const { t } = useLang();
   const [query, setQuery] = useState('');
-  const [tab, setTab] = useState('Top');
+  const [tab, setTab] = useState('People');
   const [remote, setRemote] = useState(null);
   const [game, setGame] = useState(null);
   const [realGroups, setRealGroups] = useState(null);

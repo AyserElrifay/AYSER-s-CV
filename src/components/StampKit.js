@@ -13,6 +13,7 @@ import { HostCard } from './ScaleKit';
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
 import { useSheetBack } from '../hooks/useSheetBack';
 import { SheetHandle } from './SheetHandle';
+import { publicMedia } from '../lib/publicMedia';
 
 /* ─── THE MOMENTS PASSPORT ────────────────────────────────────────────
    Ayser: attendance is counted, not claimed — a stamp for every table
@@ -45,6 +46,20 @@ const Stamp = ({ s, lang, size = 64, i = 0 }) => (
 
 /* ── the claim, and the moment after ── */
 const ERR = { old: 'e_old', code: 'e_code', closed: 'e_closed', not_in: 'e_not_in', plus: 'e_plus', yours: 'e_yours', slow_down: 'e_slow', gone: 'e_code' };
+/* ─── THE TABLE UNLOCK ────────────────────────────────────────────────
+   Ayser, October 2026: the moment you scan the table's QR is the one
+   people screenshot — pure black, one champagne-gold star turning and
+   breathing, the same rising swell the app opens with, then "Table
+   unlocked". The words travel with this screen. */
+const UNLOCK = {
+  en: { t: 'Table unlocked', s: 'You are checked in. The people at this table are your Table Buddies now, and your chat stays open.' },
+  ar: { t: 'الترابيزة اتفتحت', s: 'سجّلت حضورك. الناس اللي على الترابيزة دي بقوا أصحاب ترابيزتك، والشات معاهم بيفضل مفتوح.' },
+};
+const GOLD = '#D9C08C';
+const unlockSound = () => {
+  try { const a = new window.Audio(publicMedia('open.mp3')); a.volume = 0.6; a.play().catch(() => {}); } catch (e) { /* no sound is fine */ }
+};
+
 export const StampFlow = ({ code, onClose, onAgain }) => {
   useSheetBack(onClose);
   const { lang } = useLang();
@@ -53,6 +68,17 @@ export const StampFlow = ({ code, onClose, onAgain }) => {
   const [pp, setPp] = useState(null);
   const thud = useRef(new Animated.Value(0)).current;
   const rise = useRef(new Animated.Value(0)).current;
+  const spin = useRef(new Animated.Value(0)).current;
+  const breathe = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const a = Animated.loop(Animated.timing(spin, { toValue: 1, duration: 9000, easing: Easing.linear, useNativeDriver: true }));
+    const b = Animated.loop(Animated.sequence([
+      Animated.timing(breathe, { toValue: 1, duration: 1400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+      Animated.timing(breathe, { toValue: 0, duration: 1400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+    ]));
+    a.start(); b.start();
+    return () => { a.stop(); b.stop(); };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     let alive = true;
     stampClaim(code).then((x) => {
@@ -68,6 +94,7 @@ export const StampFlow = ({ code, onClose, onAgain }) => {
           Animated.timing(rise, { toValue: 1, duration: 520, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
         ]).start();
         setTimeout(() => { tapSuccess(); }, 400);
+        unlockSound();
         if (res.rewards && res.rewards.length) setTimeout(() => tapSuccess(), 1100);
       } else { tapMedium(); if (res.reason === 'plus') askUpgrade('member'); }
     });
@@ -79,7 +106,7 @@ export const StampFlow = ({ code, onClose, onAgain }) => {
   const toward = pp ? pp.toward_pass : null;
   return (
     <Modal visible animationType="fade" onRequestClose={onClose}>
-      <View style={{ flex: 1, backgroundColor: C.purple }}>
+      <View style={{ flex: 1, backgroundColor: '#000000' }}>
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 26, paddingTop: insets.top + 30, paddingBottom: insets.bottom + 30 }}>
           <View style={{ width: '100%', maxWidth: 420, alignItems: 'center' }}>
             {!r ? <ActivityIndicator color="#FFF" size="large" /> : !r.ok ? (
@@ -96,26 +123,25 @@ export const StampFlow = ({ code, onClose, onAgain }) => {
               </>
             ) : (
               <>
-                {/* the stamp */}
-                <Animated.View style={{ opacity: thud, transform: [{ scale: thud.interpolate({ inputRange: [0, 1], outputRange: [2.4, 1] }) }, { rotate: '-10deg' }] }}>
-                  <View style={{ width: 196, height: 196, borderRadius: 98, borderWidth: 3, borderColor: C.sun, alignItems: 'center', justifyContent: 'center' }}>
-                    <View style={{ width: 172, height: 172, borderRadius: 86, borderWidth: 2, borderStyle: 'dashed', borderColor: 'rgba(255,255,255,0.8)', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18 }}>
-                      <Text style={{ fontSize: 46 }}>✈️</Text>
-                      <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '800', letterSpacing: 1.6, marginTop: 6, textAlign: 'center' }} numberOfLines={2}>{String(r.place || 'MOMENTS').toUpperCase()}</Text>
-                      <Text style={[{ color: C.sun, fontSize: 13, fontWeight: '700', marginTop: 4 }, NUM]}>{fmtDay(new Date().toISOString(), lang)}</Text>
-                    </View>
-                  </View>
+                {/* the star: turning slowly, breathing, a soft gold glow */}
+                <Animated.View style={{ opacity: thud, transform: [{ scale: thud.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] }) }] }}>
+                  <Animated.View style={{ alignItems: 'center', justifyContent: 'center', width: 220, height: 220,
+                    transform: [{ rotate: spin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }) }, { scale: breathe.interpolate({ inputRange: [0, 1], outputRange: [0.94, 1.06] }) }] }}>
+                    <Text style={[{ color: GOLD, fontSize: 132, lineHeight: 150 }, Platform.OS === 'web' ? { textShadow: '0 0 28px rgba(217,192,140,0.55), 0 0 64px rgba(217,192,140,0.25)' } : null]}>✦</Text>
+                  </Animated.View>
                 </Animated.View>
                 <Animated.View style={{ alignItems: 'center', opacity: rise, transform: [{ translateY: rise.interpolate({ inputRange: [0, 1], outputRange: [24, 0] }) }] }}>
-                  <Text style={{ color: '#FFF', fontSize: 34, fontWeight: '800', letterSpacing: -1, marginTop: 30, textAlign: 'center' }}>{pw(lang, 'got')}</Text>
-                  <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 17, marginTop: 8, textAlign: 'center', lineHeight: 24 }}>{pw(lang, 'attended', { e: r.title || '' })}</Text>
+                  <Text style={{ color: GOLD, fontSize: 12, fontWeight: '700', letterSpacing: lang === 'ar' ? 0 : 3, marginTop: 18 }}>{String(r.place || 'MOMENTS').toUpperCase() + '  ·  ' + fmtDay(new Date().toISOString(), lang)}</Text>
+                  <Text style={{ color: '#FFF', fontSize: 34, fontWeight: '700', letterSpacing: lang === 'ar' ? 0 : -1, marginTop: 14, textAlign: 'center' }}>{(UNLOCK[lang] || UNLOCK.en).t}</Text>
+                  <Text style={{ color: 'rgba(255,255,255,0.72)', fontSize: 16, marginTop: 10, textAlign: 'center', lineHeight: 24 }}>{(UNLOCK[lang] || UNLOCK.en).s}</Text>
+                  {r.title ? <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, marginTop: 8, textAlign: 'center' }}>{pw(lang, 'attended', { e: r.title })}</Text> : null}
 
                   {/* toward the pass: three rings, Apple Fitness-like */}
                   {toward != null && !pass && pp && pp.tier !== 'VIP' ? (
                     <View style={{ alignItems: 'center', marginTop: 26 }}>
                       <View style={{ flexDirection: 'row' }}>
                         {[0, 1, 2].map((k) => (
-                          <View key={k} style={{ width: 22, height: 22, borderRadius: 11, marginHorizontal: 6, borderWidth: 2.5, borderColor: k < toward ? C.sun : 'rgba(255,255,255,0.35)', backgroundColor: k < toward ? C.sun : 'transparent' }} />
+                          <View key={k} style={{ width: 22, height: 22, borderRadius: 11, marginHorizontal: 6, borderWidth: 2.5, borderColor: k < toward ? GOLD : 'rgba(255,255,255,0.3)', backgroundColor: k < toward ? GOLD : 'transparent' }} />
                         ))}
                       </View>
                       {toward < 3 ? <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 14, marginTop: 10, textAlign: 'center' }}>{pw(lang, 'toward', { n: 3 - toward })}</Text> : null}
@@ -124,9 +150,9 @@ export const StampFlow = ({ code, onClose, onAgain }) => {
 
                   {/* what it opened */}
                   {rewards.map((x) => (
-                    <View key={x.kind} style={{ alignSelf: 'stretch', marginTop: 18, borderRadius: 24, padding: 20, backgroundColor: '#FFF' }}>
-                      <Text style={{ color: '#17131F', fontSize: 20, fontWeight: '800', letterSpacing: -0.4 }}>{x.kind === 'pass' ? '🔥 ' + pw(lang, 'pass_t') : x.kind === 'coffee_5' ? '☕ ' + pw(lang, 'coffee_t') : '🎓 ' + pw(lang, 'l2_t')}</Text>
-                      <Text style={{ color: '#6F6A75', fontSize: 15, marginTop: 4, lineHeight: 21 }}>{x.kind === 'pass' ? pw(lang, 'pass_s') : x.kind === 'coffee_5' ? pw(lang, 'coffee_s') : pw(lang, 'l2')}</Text>
+                    <View key={x.kind} style={{ alignSelf: 'stretch', marginTop: 18, borderRadius: 20, padding: 18, borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)' }}>
+                      <Text style={{ color: '#FFF', fontSize: 18, fontWeight: '700' }}>{x.kind === 'pass' ? pw(lang, 'pass_t') : x.kind === 'coffee_5' ? pw(lang, 'coffee_t') : pw(lang, 'l2_t')}</Text>
+                      <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 14.5, marginTop: 4, lineHeight: 21 }}>{x.kind === 'pass' ? pw(lang, 'pass_s') : x.kind === 'coffee_5' ? pw(lang, 'coffee_s') : pw(lang, 'l2')}</Text>
                     </View>
                   ))}
                 </Animated.View>
@@ -136,7 +162,7 @@ export const StampFlow = ({ code, onClose, onAgain }) => {
               <View style={{ alignSelf: 'stretch', marginTop: 30 }}>
                 {pass ? (
                   <Pressable onPress={() => { tapLight(); onClose(); goToTab('TOGETHER'); setTimeout(() => { try { window.dispatchEvent(new CustomEvent('mm-open-buddies')); } catch (e) {} }, 350); }} accessibilityRole="button" style={{ marginBottom: 12 }}>
-                    <View style={{ borderRadius: 999, paddingVertical: 16, alignItems: 'center', backgroundColor: C.sun }}>
+                    <View style={{ borderRadius: 999, paddingVertical: 16, alignItems: 'center', backgroundColor: GOLD }}>
                       <Text style={{ color: '#17131F', fontSize: 16.5, fontWeight: '700' }}>{pw(lang, 'open_msgs')}</Text>
                     </View>
                   </Pressable>

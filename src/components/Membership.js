@@ -49,10 +49,16 @@ const PER_YEAR = { en: '/ year', ar: '/ سنة', cs: '/ rok', es: '/ año', et: 
 const per = (lang, period, cur) => (lang === 'ar' && (cur || 'EGP') === 'EGP' ? 'جنيه ' : '') + (period === 'year' ? PER_YEAR[lang] || PER_YEAR.en : w(lang, 'perMonth'));
 const w = (lang, k) => { const i = K.indexOf(k); return (S[lang] || S.en)[i] || S.en[i] || ''; };
 
+/* Ayser, October 2026: members pay for access, not for a lower price */
+const GT_ACCESS = {
+  en: '✦ Exclusive Global Track Access|Members-only travel expeditions, cultural retreats and support with Erasmus+ applications.',
+  ar: '✦ دخول حصري للمسار العالمي|رحلات واستكشافات للأعضاء بس، وخلوات ثقافية، ومساعدة في التقديم على Erasmus+.',
+};
+
 /* the two-card gate (Ayser, the unified architecture): Moments+ is the plan
    we point at, Moments Black the anchor beside it; monthly or yearly */
 const G = {
-  en: ["Monthly", "Yearly", "MOST POPULAR • BEST VALUE", "Billed monthly • Cancel in one tap", "Billed yearly • Cancel in one tap", "Curated Offline Drops|Reserve your seat at weekly Thursday tables (2 a month).", "Weekly Language Circles|30-minute live audio sessions, timed by community vote.", "Table Buddy Messaging|Private, distraction-free chat with the people you meet.", "My Day & Private Notes|Your minimalist daily focus canvas.", "Verified Member Badge (✦)|Full access to the curated community feed.", "Everything in Moments+", "4 Offline Drops a month|Book several weeks ahead.", "Unlimited Language Circles", "More than one table booked|No waiting to check in first.", "100% First-Table Guarantee • Cancel in 1 tap", "Save {n}%", "Become a Member", "Explore the app first (read-only)"],
+  en: ["Monthly", "Yearly", "MOST POPULAR", "Billed monthly • Cancel in one tap", "Billed yearly • Cancel in one tap", "Curated Offline Drops|Reserve your seat at weekly Thursday tables (2 a month).", "Weekly Language Circles|30-minute live audio sessions, timed by community vote.", "Table Buddy Messaging|Private, distraction-free chat with the people you meet.", "My Day & Private Notes|Your minimalist daily focus canvas.", "Verified Member Badge (✦)|Full access to the curated community feed.", "Everything in Moments+", "4 Offline Drops a month|Book several weeks ahead.", "Unlimited Language Circles", "More than one table booked|No waiting to check in first.", "100% First-Table Guarantee • Cancel in 1 tap", "Save {n}%", "Become a Member", "Explore the app first (read-only)"],
   ar: ["شهري", "سنوي", "الأكثر طلبًا", "بيتحاسب كل شهر • تلغي بضغطة", "بيتحاسب كل سنة • تلغي بضغطة", "قعدات مختارة|احجز كرسيك في قعدات الخميس كل أسبوع (٢ في الشهر).", "دواير لغات كل أسبوع|نص ساعة صوت مباشر، ومعادها بتصويت الأعضاء.", "رسايل أصحاب الترابيزة|شات خاص وهادي مع الناس اللي قابلتهم.", "يومي وملاحظاتي|مساحة بسيطة تركز فيها على يومك.", "علامة العضو (✦)|دخول كامل لفيد المجتمع.", "كل اللي في مومنتس بلس", "٤ قعدات في الشهر|واحجز كذا أسبوع قدام.", "دواير لغات من غير حد", "أكتر من حجز في نفس الوقت|من غير ما تستنى تحضر الأول.", "ضمان ١٠٠٪ لأول قعدة • تلغي بضغطة", "وفّر {n}٪", "انضم للعضوية", "اتفرج على التطبيق الأول (قراءة بس)"],
   cs: ["Měsíčně", "Ročně", "NEJOBLÍBENĚJŠÍ • NEJLEPŠÍ HODNOTA", "Účtováno měsíčně • Zrušení jedním klepnutím", "Účtováno ročně • Zrušení jedním klepnutím", "Vybrané offline Drops|Rezervuj si místo u čtvrtečních stolů (2 měsíčně).", "Týdenní jazykové Circles|30minutová živá audio setkání, čas volí komunita.", "Zprávy s Table Buddies|Soukromý chat bez rušení s lidmi, které potkáš.", "Můj den a soukromé poznámky|Tvé minimalistické plátno pro každodenní soustředění.", "Ověřený odznak člena (✦)|Plný přístup do kurátorského feedu komunity.", "Vše z Moments+", "4 offline Drops měsíčně|Rezervuj i několik týdnů dopředu.", "Neomezené jazykové Circles", "Více stolů najednou|Bez čekání na odbavení.", "100% záruka prvního stolu • Zrušení jedním klepnutím", "Ušetři {n} %", "Stát se členem", "Nejdřív si prohlédnout aplikaci (jen čtení)"],
   es: ["Mensual", "Anual", "EL MÁS POPULAR • MEJOR VALOR", "Facturación mensual • Cancela con un toque", "Facturación anual • Cancela con un toque", "Drops presenciales seleccionados|Reserva tu silla en las mesas de los jueves (2 al mes).", "Circles de idiomas semanales|Sesiones de audio en vivo de 30 minutos, a la hora que vota la comunidad.", "Mensajes con Table Buddies|Chat privado y sin distracciones con la gente que conoces.", "Mi día y notas privadas|Tu lienzo minimalista para enfocarte cada día.", "Insignia de miembro verificado (✦)|Acceso completo al feed curado de la comunidad.", "Todo lo de Moments+", "4 Drops presenciales al mes|Reserva con varias semanas de antelación.", "Circles de idiomas ilimitados", "Más de una mesa reservada|Sin esperar a hacer check-in.", "Garantía 100% en tu primera mesa • Cancela con 1 toque", "Ahorra {n} %", "Hazte miembro", "Explora la app primero (solo lectura)"],
@@ -262,9 +268,6 @@ export const PricingGate = ({ m, hard, onClose, onSignOut }) => {
   const tier = m ? m.tier : 'FREE';
   const [period, setPeriod] = useState('month');
   const yearly = period === 'year';
-  // what a year saves against twelve months, worked out from the prices
-  const saveOf = (mo, yr) => (mo > 0 && yr > 0 ? Math.max(0, Math.round((1 - yr / (mo * 12)) * 100)) : 0);
-  const saveP = saveOf(pr.basic || 129, pr.basic_year || 990), saveB = saveOf(pr.vip_month || 299, pr.vip || 1300);
 
   const page = (
     <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 22, paddingTop: insets.top + 44, paddingBottom: insets.bottom + 44, alignItems: 'center' }}>
@@ -285,12 +288,12 @@ export const PricingGate = ({ m, hard, onClose, onSignOut }) => {
         </View>
         <Plan lang={lang} vip badge={g(lang, 'pop')} name={w(lang, 'basic')} tag={w(lang, 'basicTag')}
           price={yearly ? pr.basic_year || 990 : pr.basic || 129} cur={pr.currency} period={period}
-          sub={g(lang, yearly ? 'billedY' : 'billedM') + (yearly ? '  ·  ' + g(lang, 'save', saveP) : '')}
-          items={[[g(lang, 'p1')], [g(lang, 'p2')], [g(lang, 'p3')], [g(lang, 'p4')], [g(lang, 'p5')]]}
+          sub={g(lang, yearly ? 'billedY' : 'billedM')}
+          items={[[GT_ACCESS[lang] || GT_ACCESS.en], [g(lang, 'p1')], [g(lang, 'p2')], [g(lang, 'p3')], [g(lang, 'p4')], [g(lang, 'p5')]]}
           cta={g(lang, 'become')} under={g(lang, 'guar')} busy={busy === 'basic'} onPress={() => buy('basic', period)} current={tier === 'BASIC'} />
         <Plan lang={lang} name={w(lang, 'vip')} tag={w(lang, 'vipTag')}
           price={yearly ? pr.vip || 1300 : pr.vip_month || 299} cur={pr.currency} period={period}
-          sub={g(lang, yearly ? 'billedY' : 'billedM') + (yearly ? '  ·  ' + g(lang, 'save', saveB) : '')}
+          sub={g(lang, yearly ? 'billedY' : 'billedM')}
           items={[[g(lang, 'b1')], [g(lang, 'b2')], [g(lang, 'b3')], [g(lang, 'b4')]]}
           cta={w(lang, 'becomeVip')} busy={busy === 'vip'} onPress={() => buy('vip', period)} current={tier === 'VIP'} />
         {note ? <Text style={{ color: '#FFF', fontSize: 14.5, textAlign: 'center', marginTop: 18 }}>{note}</Text> : null}

@@ -6,7 +6,7 @@ import { C, NUM } from '../constants/theme';
 import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LanguageContext';
 import { mv } from '../constants/mvpWords';
-import { dropsList, dropClaim, dropWait, dropCancel, myQuota, circleNow, circleVote, circleEnter } from '../services/mvp';
+import { dropsList, dropClaim, dropWait, dropCancel, tripWithdraw, myQuota, circleNow, circleVote, circleEnter } from '../services/mvp';
 import { askUpgrade, askSafety } from '../services/membership';
 import { isSaving } from '../lib/dataSaver';
 import { getPrefs } from '../services/prefs';
@@ -14,6 +14,7 @@ import { joinMesh } from '../lib/talkMesh';
 import { lazyOverlay } from '../lib/lazyScreen';
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
 import { dropClip } from '../lib/mediaFit';
+import { readPlan } from '../lib/feedGate';
 import { useSheetBack } from '../hooks/useSheetBack';
 
 const EventRoom = lazyOverlay(() => import('./LiveKit').then((m) => ({ default: m.EventRoom })));
@@ -310,6 +311,7 @@ const DropCard = ({ d, lang, onChanged }) => {
   const [note, setNote] = useState(null);
   const [done, setDone] = useState(null);       // the confirmation, with what is left this month
   const [room, setRoom] = useState(false);
+  const [why, setWhy] = useState(false);          // a trip's level, explained
   const seats = d.seats || 6;
   const taken = Math.min(seats, d.taken || 0);
   const full = taken >= seats;
@@ -320,8 +322,10 @@ const DropCard = ({ d, lang, onChanged }) => {
     tapMedium(); setBusy(true); setNote(null);
     const r = await dropClaim(d.id);
     setBusy(false);
+    if (r && r.ok && r.applied) { tapSuccess(); onChanged(); return; }
     if (r && r.ok) { tapSuccess(); setDone({ ...(r.quota || {}), to_pay: r.to_pay, currency: r.currency }); onChanged(); return; }
     const why = r && r.reason;
+    if (why === 'level') { setNote(mv(lang, 'needLevel', { l: r.need })); setWhy(true); return; }
     if (why === 'verify') { askSafety(); return; }
     if (why === 'plus') { askUpgrade('member'); return; }
     setNote(why === 'quota' ? mv(lang, 'quotaOut') : why === 'active' ? mv(lang, 'active') : null);
@@ -346,11 +350,22 @@ const DropCard = ({ d, lang, onChanged }) => {
       {vibe ? <Small style={{ marginTop: 8 }}>{vibe.toUpperCase()}</Small> : null}
       <Text style={{ color: C.text, fontSize: 24, fontWeight: '700', letterSpacing: lang === 'ar' ? 0 : -0.5, marginTop: 8 }}>{place}</Text>
       <Text style={{ color: C.text, fontSize: 15, marginTop: 4 }}>{when(d.starts_at, lang)}</Text>
-      {/* a trip: the ticket, and what a member pays */}
-      {cat === 'roam' && (d.price || d.member_price) ? (
-        <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 10, flexWrap: 'wrap' }}>
-          {d.price ? <Text style={[{ color: d.member_price ? C.dim : C.text, fontSize: 14, textDecorationLine: d.member_price ? 'line-through' : 'none', marginEnd: 10 }, NUM]}>{mv(lang, 'pTicket', { p: money(d.price, d.currency, lang) })}</Text> : null}
-          {d.member_price ? <Text style={[{ color: C.text, fontSize: 15, fontWeight: '700' }, NUM]}>{mv(lang, 'pMember', { p: money(d.member_price, d.currency, lang) })}</Text> : null}
+      {/* a trip (Ayser: the velvet rope, not a discount): one price, and who it is for */}
+      {cat === 'roam' ? (
+        <View style={{ marginTop: 12 }}>
+          <View style={{ alignSelf: 'flex-start', borderWidth: 1, borderColor: C.text, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 5 }}>
+            <Text style={{ color: C.text, fontSize: 11.5, fontWeight: '700', letterSpacing: lang === 'ar' ? 0 : 1 }}>
+              {(d.min_level ? mv(lang, 'mOnlyLvl', { n: seats, l: d.min_level }) : mv(lang, 'mOnly', { n: seats })).toUpperCase()}
+            </Text>
+          </View>
+          {d.price ? <Text style={[{ color: C.text, fontSize: 15, fontWeight: '600', marginTop: 10 }, NUM]}>{money(d.price, d.currency, lang)}</Text> : null}
+          {d.min_level ? (
+            <Pressable onPress={() => { tapLight(); setWhy((v) => !v); }} accessibilityRole="button" hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
+              <Text style={{ color: C.dim, fontSize: 13 }}>{mv(lang, 'needLevel', { l: d.min_level })}</Text>
+              <Ionicons name="information-circle-outline" size={15} color={C.dim} style={{ marginStart: 6 }} />
+            </Pressable>
+          ) : null}
+          {why ? <Text style={{ color: C.dim, fontSize: 12.5, lineHeight: 18, marginTop: 6 }}>{mv(lang, 'levelWhy')}</Text> : null}
         </View>
       ) : null}
       {cat === 'impact' ? <Text style={{ color: C.dim, fontSize: 13, marginTop: 8, lineHeight: 18 }}>{mv(lang, 'impactNote')}</Text> : null}
@@ -368,7 +383,7 @@ const DropCard = ({ d, lang, onChanged }) => {
             </Pressable>
           ) : null}
         </View>
-      ) : (
+      ) : cat === 'roam' ? null : (
         <View style={{ marginTop: 12, flexDirection: 'row', alignItems: 'center' }}>
           <Ionicons name="lock-closed-outline" size={13} color={C.dim} />
           <Text style={{ color: C.dim, fontSize: 13, marginStart: 6 }}>{mv(lang, 'reveal')}</Text>
@@ -381,6 +396,17 @@ const DropCard = ({ d, lang, onChanged }) => {
             <Text style={{ color: C.dim, fontSize: 12.5 }}>{mv(lang, 'give')}</Text>
           </Pressable>
         </>
+      ) : cat === 'roam' && d.applied === 'pending' ? (
+        <>
+          <Text style={{ color: C.text, fontSize: 14, marginTop: 14, lineHeight: 20 }}>{mv(lang, 'applied')}</Text>
+          <Pressable onPress={async () => { tapLight(); setBusy(true); await tripWithdraw(d.id); setBusy(false); onChanged(); }} disabled={busy} accessibilityRole="button" style={{ marginTop: 10, alignSelf: 'center' }}>
+            <Text style={{ color: C.dim, fontSize: 12.5 }}>{mv(lang, 'withdraw')}</Text>
+          </Pressable>
+        </>
+      ) : cat === 'roam' && readPlan().tier === 'FREE' ? (
+        <Btn label={mv(lang, 'unlockApply')} onPress={() => { tapLight(); askUpgrade('member'); }} />
+      ) : cat === 'roam' ? (
+        <Btn label={mv(lang, 'applySel')} onPress={claim} busy={busy} />
       ) : full ? (
         <Btn label={mv(lang, d.waiting ? 'waiting' : 'wait')} solid={false} onPress={wait} busy={busy} />
       ) : (

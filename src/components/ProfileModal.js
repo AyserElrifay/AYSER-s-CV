@@ -157,7 +157,9 @@ export const ProfileModal = ({ user, onClose }) => {
     myMembership().then((m) => { if (alive) setVipOk(!m || m.tier === 'VIP'); });
     return () => { alive = false; };
   }, [real, isMe]);
-  const vipLocked = vipOk === false;
+  /* Ayser, October 2026: people you really met (Mates) see each other's
+     moments free; a stranger's full profile stays part of Black */
+  const vipLocked = vipOk === false && mateState !== 'mates';
   const locked = (isPrivate && !isMe && mateState !== 'mates') || vipLocked;
 
   const load = useCallback(async () => {
@@ -319,7 +321,7 @@ export const ProfileModal = ({ user, onClose }) => {
             {vipLocked ? (
               <Pressable onPress={() => { tapLight(); askUpgrade('profile'); }} accessibilityRole="button" style={{ marginTop: 18 }}>
                 <View style={{ borderRadius: 20, borderWidth: 1, borderColor: C.purple, padding: 18, flexDirection: 'row', alignItems: 'center' }}>
-                  <Text style={{ color: C.text, fontSize: 15, fontWeight: '600', flex: 1 }}>{'🔒 ' + (VIP_PROFILE[lang] || VIP_PROFILE.en)}</Text>
+                  <Text style={{ color: C.text, fontSize: 15, fontWeight: '600', flex: 1 }}>{VIP_PROFILE[lang] || VIP_PROFILE.en}</Text>
                   <Text style={{ color: C.purple, fontSize: 14, fontWeight: '700' }}>Black ›</Text>
                 </View>
               </Pressable>

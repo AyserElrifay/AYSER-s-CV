@@ -42,7 +42,7 @@ const DailyMoment = lazyOverlay(() => import('../components/DailyMoment').then((
 import { readGate, addSeconds, markSeenAll, budgetSeconds, onGate, readPlan, writePlan } from '../lib/feedGate';
 import { myMembership } from '../services/membership';
 import { myMomentsLevel, chatUnread, markChatsSeen } from '../services/loop';
-import { FeedClock, FeedReopen } from '../components/FeedClock';
+import { FeedClock, FeedReopen, FeedBar } from '../components/FeedClock';
 import { myVolunteering, myUnrated } from '../services/green';
 
 /* ─── THE FEED FIRST, THE REST WHEN YOU REACH FOR IT ─────────────────
@@ -654,6 +654,8 @@ export const HomeScreen = () => {
               <View style={{ flex: 1 }} />
               {user && homeTab === 'moments' && !feedClosed ? <View style={{ paddingBottom: 8 }}><FeedClock budget={budget} running={focused} /></View> : null}
             </View>
+
+            {user && homeTab === 'moments' && !feedClosed ? <FeedBar budget={budget} running={focused} /> : null}
 
             {homeTab === 'reflect' ? <View style={{ marginTop: 18 }}><ReflectionPane user={user} /></View> : null}
 

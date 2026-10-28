@@ -24040,7 +24040,7 @@ begin
   return (select coalesce(jsonb_agg(jsonb_build_object('id', o.id, 'title', o.title, 'title_ar', o.title_ar, 'neighborhood', o.neighborhood,
       'neighborhood_ar', o.neighborhood_ar, 'vibe', o.vibe, 'vibe_ar', o.vibe_ar, 'city', o.city, 'starts_at', o.starts_at, 'seats', o.seats,
       'status', o.status, 'taken', public.offer_seats_taken(o.id), 'category', o.drop_category,
-      'price', nullif(o.price, 0), 'member_price', o.member_price, 'video_url', o.video_url,
+      'price', nullif(o.price, 0), 'member_price', o.member_price, 'video_url', o.video_url, 'min_level', o.min_level,
       'waiting', (select count(*) from public.drop_waitlist w where w.offer_id = o.id),
       'venue_name', v.name, 'map_url', v.map_url) order by o.starts_at desc), '[]'::jsonb)
     from public.offers o left join public.drop_venues v on v.offer_id = o.id
@@ -24360,6 +24360,174 @@ begin
   perform cron.schedule('tidy-up', '23 3 * * *', 'select public.tidy_up()');
 exception when others then raise notice 'pg_cron skipped: %', sqlerrm;
 end $do$;
+
+notify pgrst, 'reload schema';
+
+-- ════════════════════════════════════════════════════════════════════
+--  ROAM IS MEMBERS-ONLY · APPLY FOR SELECTION, BY LEVEL
+--  (Ayser, October 2026: "the velvet rope, not a discount")
+--  · A trip shows one price — the price. No member price is taken any
+--    more (the column stays, unused, so nothing old breaks).
+--  · Only Moments+ and Black may apply; a trip can ask for a Moments
+--    Level (offers.min_level). Applying is not booking: it puts you on
+--    the list (trip_applications), and the team selects. Selecting holds
+--    a seat at the trip's price ('reserved', paid before the trip).
+--  · Tables, Culture and Impact work as before.
+--  Safe to re-run.
+-- ════════════════════════════════════════════════════════════════════
+
+alter table public.offers add column if not exists min_level int;
+
+create table if not exists public.trip_applications (
+  offer_id uuid not null references public.offers(id) on delete cascade,
+  user_id  uuid not null references public.profiles(id) on delete cascade,
+  level    int not null default 1,
+  status   text not null default 'pending' check (status in ('pending','selected','declined','withdrawn')),
+  at       timestamptz not null default now(),
+  decided_at timestamptz,
+  primary key (offer_id, user_id)
+);
+alter table public.trip_applications enable row level security;
+revoke all on public.trip_applications from anon, authenticated;
+
+create or replace function public.drops_list()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select coalesce(jsonb_agg(x order by x->>'starts_at'), '[]'::jsonb) from (
+    select jsonb_build_object('id', o.id, 'title', o.title, 'title_ar', o.title_ar, 'category', o.drop_category,
+      'neighborhood', o.neighborhood, 'neighborhood_ar', o.neighborhood_ar, 'city', o.city,
+      'vibe', o.vibe, 'vibe_ar', o.vibe_ar, 'starts_at', o.starts_at,
+      'price', nullif(o.price, 0), 'currency', coalesce(o.currency, 'EGP'), 'video_url', o.video_url,
+      'min_level', o.min_level,
+      'applied', (select a.status from public.trip_applications a where a.offer_id = o.id and a.user_id = auth.uid() and a.status <> 'withdrawn'),
+      'seats', o.seats, 'taken', public.offer_seats_taken(o.id),
+      'mine', exists (select 1 from public.bookings b where b.offer_id = o.id and b.user_id = auth.uid() and b.status in ('reserved','paid','attended')),
+      'waiting', exists (select 1 from public.drop_waitlist w where w.offer_id = o.id and w.user_id = auth.uid()),
+      'reveal_at', o.starts_at - interval '12 hours',
+      'venue', case when now() >= o.starts_at - interval '12 hours'
+                     and exists (select 1 from public.bookings b where b.offer_id = o.id and b.user_id = auth.uid() and b.status in ('reserved','paid','attended'))
+                    then (select jsonb_build_object('name', v.name, 'map_url', v.map_url) from public.drop_venues v where v.offer_id = o.id) end) x
+      from public.offers o
+     where o.is_drop and o.status = 'live' and o.starts_at > now() - interval '3 hours'
+     order by o.starts_at limit 12) s;
+$$;
+revoke execute on function public.drops_list() from public, anon;
+grant execute on function public.drops_list() to authenticated;
+
+create or replace function public.drop_claim(p_id uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); o public.offers%rowtype; q jsonb; tries int := 0; impact boolean; prem boolean; lvl int;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  select * into o from public.offers where id = p_id and is_drop and status = 'live' for update;
+  if not found or o.starts_at <= now() then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
+  if exists (select 1 from public.bookings b where b.offer_id = o.id and b.user_id = me and b.status in ('reserved','paid','attended')) then
+    return jsonb_build_object('ok', true, 'already', true, 'quota', public.quota_of(me));
+  end if;
+  if not public.is_verified(me) then return jsonb_build_object('ok', false, 'reason', 'verify'); end if;
+  impact := o.drop_category = 'impact';
+  prem := public.member_tier(me) <> 'FREE';
+  if not impact and not prem then return jsonb_build_object('ok', false, 'reason', 'plus'); end if;
+
+  -- a trip: members apply, by level, and the team selects
+  if o.drop_category = 'roam' then
+    lvl := (public.moments_level_of(me)->>'level')::int;
+    if o.min_level is not null and lvl < o.min_level then
+      return jsonb_build_object('ok', false, 'reason', 'level', 'need', o.min_level, 'level', lvl);
+    end if;
+    insert into public.trip_applications (offer_id, user_id, level) values (o.id, me, lvl)
+    on conflict (offer_id, user_id) do update set status = 'pending', level = excluded.level, at = now(), decided_at = null
+      where public.trip_applications.status in ('withdrawn');
+    return jsonb_build_object('ok', true, 'applied', true);
+  end if;
+
+  if o.seats is not null and public.offer_seats_taken(o.id) >= o.seats then return jsonb_build_object('ok', false, 'reason', 'full'); end if;
+  q := public.quota_of(me);
+  if not impact then
+    if (q->>'drops_used')::int >= (q->>'drops_cap')::int then return jsonb_build_object('ok', false, 'reason', 'quota', 'quota', q); end if;
+    if q->>'active_cap' is not null and (q->>'active')::int >= (q->>'active_cap')::int then return jsonb_build_object('ok', false, 'reason', 'active', 'quota', q); end if;
+  end if;
+  loop
+    begin
+      insert into public.bookings (code, offer_id, user_id, qty, unit_price, plus_applied, total, currency, pay_mode, status, commission_pct, moments_share, partner_share)
+      values (public.booking_code(), o.id, me, 1, 0, prem, 0, coalesce(o.currency, 'EGP'), 'reserve', 'paid', 0, 0, 0);
+      exit;
+    exception when unique_violation then tries := tries + 1; if tries > 5 then raise; end if;
+    end;
+  end loop;
+  delete from public.drop_waitlist where offer_id = o.id and user_id = me;
+  return jsonb_build_object('ok', true, 'taken', public.offer_seats_taken(o.id), 'seats', o.seats, 'quota', public.quota_of(me));
+end $$;
+revoke execute on function public.drop_claim(uuid) from public, anon;
+grant execute on function public.drop_claim(uuid) to authenticated;
+
+-- withdraw an application (the same "give back" button)
+create or replace function public.trip_withdraw(p_id uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  update public.trip_applications set status = 'withdrawn', decided_at = now()
+   where offer_id = p_id and user_id = auth.uid() and status = 'pending';
+  return jsonb_build_object('ok', found);
+end $$;
+revoke execute on function public.trip_withdraw(uuid) from public, anon;
+grant execute on function public.trip_withdraw(uuid) to authenticated;
+
+-- the Studio: the level a trip asks for
+create or replace function public.owner_drop_level(p_id uuid, p_level int)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  if not public.owner_ok() then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
+  update public.offers set min_level = case when p_level between 2 and 4 then p_level end where id = p_id and is_drop;
+  return jsonb_build_object('ok', found);
+end $$;
+revoke execute on function public.owner_drop_level(uuid, int) from public, anon;
+grant execute on function public.owner_drop_level(uuid, int) to authenticated;
+
+-- the Studio: who applied to which trip
+create or replace function public.owner_trip_applications()
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+begin
+  if not public.owner_ok() then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
+  return jsonb_build_object('ok', true, 'rows', (select coalesce(jsonb_agg(jsonb_build_object(
+      'offer_id', a.offer_id, 'title', o.title, 'starts_at', o.starts_at, 'seats', o.seats, 'taken', public.offer_seats_taken(o.id),
+      'price', nullif(o.price, 0), 'currency', coalesce(o.currency, 'EGP'),
+      'user_id', a.user_id, 'name', p.name, 'handle', p.handle, 'avatar_url', p.avatar_url, 'level', a.level,
+      'tier', public.member_tier(a.user_id), 'status', a.status, 'at', a.at) order by o.starts_at, a.at), '[]'::jsonb)
+    from public.trip_applications a join public.offers o on o.id = a.offer_id join public.profiles p on p.id = a.user_id
+   where a.status in ('pending','selected') and o.starts_at > now()));
+end $$;
+revoke execute on function public.owner_trip_applications() from public, anon;
+grant execute on function public.owner_trip_applications() to authenticated;
+
+-- select: hold a seat at the trip's price; decline: say no
+create or replace function public.owner_trip_decide(p_offer uuid, p_user uuid, p_select boolean)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare o public.offers%rowtype; tries int := 0;
+begin
+  if not public.owner_ok() then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
+  select * into o from public.offers where id = p_offer for update;
+  if not found then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
+  if not exists (select 1 from public.trip_applications where offer_id = p_offer and user_id = p_user and status = 'pending') then
+    return jsonb_build_object('ok', false, 'reason', 'not_pending');
+  end if;
+  if not coalesce(p_select, false) then
+    update public.trip_applications set status = 'declined', decided_at = now() where offer_id = p_offer and user_id = p_user;
+    return jsonb_build_object('ok', true, 'status', 'declined');
+  end if;
+  if o.seats is not null and public.offer_seats_taken(o.id) >= o.seats then return jsonb_build_object('ok', false, 'reason', 'full'); end if;
+  loop
+    begin
+      insert into public.bookings (code, offer_id, user_id, qty, unit_price, plus_applied, total, currency, pay_mode, status, commission_pct, moments_share, partner_share)
+      values (public.booking_code(), o.id, p_user, 1, coalesce(nullif(o.price, 0), 0), true, coalesce(nullif(o.price, 0), 0), coalesce(o.currency, 'EGP'), 'reserve',
+              case when coalesce(o.price, 0) > 0 then 'reserved' else 'paid' end, 0, 0, 0);
+      exit;
+    exception when unique_violation then tries := tries + 1; if tries > 5 then raise; end if;
+    end;
+  end loop;
+  update public.trip_applications set status = 'selected', decided_at = now() where offer_id = p_offer and user_id = p_user;
+  return jsonb_build_object('ok', true, 'status', 'selected');
+end $$;
+revoke execute on function public.owner_trip_decide(uuid, uuid, boolean) from public, anon;
+grant execute on function public.owner_trip_decide(uuid, uuid, boolean) to authenticated;
 
 notify pgrst, 'reload schema';
 
