@@ -16,7 +16,6 @@ import { fetchTaggedPosts } from '../services/tags';
 import { getProfile } from '../services/profiles';
 import { fetchUserStories } from '../services/stories';
 import { getMateStatus, mateUp, countMates } from '../services/mates';
-import { HighlightsRail } from './Highlights';
 import { Glass } from './Glass';
 import { Chip } from './Chip';
 import { Tick } from './Tick';
@@ -325,8 +324,6 @@ export const ProfileModal = ({ user, onClose }) => {
                 </View>
               </Pressable>
             ) : null}
-            {/* the stories they kept — the same rail your own space has */}
-            {!locked ? <HighlightsRail userId={user.id} isMine={!!isMe} /> : null}
 
             {/* their REAL moments — same grid as your own profile */}
             {/* the same tab row your own space has, so a profile looks

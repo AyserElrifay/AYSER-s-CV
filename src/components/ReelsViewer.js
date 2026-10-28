@@ -343,13 +343,16 @@ export const ReelsViewer = ({ reels, startIndex = 0, vibes, onVibe, onComment, o
           getItemLayout={(_, i) => ({ length: H, offset: H * i, index: i })}
           showsVerticalScrollIndicator={false}
           snapToInterval={H}
+          /* the browser has to be told this list scrolls, or the next
+             clip is there but no swipe reaches it */
+          style={Platform.OS === 'web' ? { flex: 1, overflowY: 'scroll', overscrollBehavior: 'contain' } : { flex: 1 }}
           decelerationRate="fast"
           onViewableItemsChanged={onViewable.current}
           viewabilityConfig={viewCfg.current}
         />
         {/* header */}
         <View style={{ position: 'absolute', top: insets.top + 10, left: 16, right: 16, flexDirection: 'row', alignItems: 'center' }}>
-          <Text style={{ color: '#FFF', fontSize: 17, fontWeight: '900', letterSpacing: 2, flex: 1 }}>{reels.length === 1 && reels[0].type !== 'reel' ? '' : 'REELS ✦'}</Text>
+          <View style={{ flex: 1 }} />
           <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button" accessibilityLabel={t('close')}>
             <Ionicons name="close" size={28} color="#FFF" />
           </Pressable>

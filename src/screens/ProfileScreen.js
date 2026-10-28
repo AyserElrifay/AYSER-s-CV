@@ -28,7 +28,7 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import * as ImagePicker from 'expo-image-picker';
 import { C, R, TEXT_BGS } from '../constants/theme';
 import { cachedPoster, derivePoster, posterTint } from '../lib/poster';
-import { ME, HIGHLIGHTS, MY_MOMENTS, BADGES, av, AV_NEUTRAL } from '../constants/mockData'; // demo-mode fallback only
+import { ME, MY_MOMENTS, BADGES, av, AV_NEUTRAL } from '../constants/mockData'; // demo-mode fallback only
 import { COUNTRY_LIST } from '../constants/countries';
 import { Passport, ShowedUp } from '../components/Passport';
 import { HostCard } from '../components/HostCard';
@@ -55,7 +55,6 @@ import { countMyCampfires } from '../services/campfires';
 import { countMates } from '../services/mates';
 import { AvatarBuilderSheet } from '../components/AvatarBuilderSheet';
 import { GhostButton } from '../components/GhostButton';
-import { HighlightsRail } from '../components/Highlights';
 import { MatesSheet } from '../components/MatesSheet';
 import { PostCard } from '../components/PostCard';
 import { Tick } from '../components/Tick';
@@ -796,23 +795,6 @@ export const ProfileScreen = () => {
 
         {/* the Moments Passport: a stamp for every table you sat at (StampKit) */}
         {SUPABASE_READY && user ? <StampBook /> : null}
-
-        {/* highlights — the stories you kept. Real ones now: your own
-            stories and moments, saved into circles that outlive the
-            24 hours a story gets. */}
-        {SUPABASE_READY && user ? <HighlightsRail userId={user.id} isMine /> : null}
-        {!SUPABASE_READY ? (
-          <ScrollView keyboardShouldPersistTaps="handled" horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, marginTop: 20 }}>
-            {HIGHLIGHTS.map((h) => (
-              <Pressable key={h.id} onPress={tapSelection} style={{ alignItems: 'center', marginRight: 16 }}>
-                <View style={{ width: 62, height: 62, borderRadius: 31, borderWidth: 1.5, borderColor: C.line, padding: 3 }}>
-                  <Image source={{ uri: h.cover }} style={{ width: '100%', height: '100%', borderRadius: 28 }} />
-                </View>
-                <Text style={{ color: C.dim, fontSize: 11.5, marginTop: 5, fontWeight: '600' }}>{h.label}</Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-        ) : null}
 
         {/* tab strip — only the tabs with something in them. Five icons
             over five empty pages was a new profile's first sight; with

@@ -25,7 +25,9 @@ is('your own moment with no place still stays in your feed', actionFeed([{ id: 1
 is('an advert is not', isActionPost({ sponsored: true, place: 'Mall' }), false);
 is('a photo or a video is in the feed again', actionFeed([{ id: 1, userId: 'x', type: 'reel', media: 'https://x/v.mp4' }, { id: 2, userId: 'x', media: 'https://x/p.jpg' }], 'me').length, 2);
 is('an advert with a photo is still not', isVisualPost({ sponsored: true, media: 'x' }), false);
-is('no clip plays by itself in the feed', /autoplay: false/.test(read('src/components/PostCard.js')), true);
+// Ayser, October 2026: clips play by themselves, silent — but the data
+// saver and "less motion" still keep them still (videoPolicy decides)
+is('a clip plays by itself only as videoPolicy allows', /const policy = videoPolicy\(mode,/.test(read('src/components/PostCard.js')) && !/autoplay: true/.test(read('src/components/PostCard.js')), true);
 is('something to join says join', actionOf({ joinable: true, place: 'x' }), 'join');
 is('a place says make a plan here', actionOf({ place: 'x' }), 'hangout');
 is('the feed stops at thirty', actionFeed(Array.from({ length: 50 }, (_, i) => ({ id: i, place: 'p' }))).length, FEED_MAX);

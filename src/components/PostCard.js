@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { videosAround, getVideoQueue } from '../lib/videoQueue';
+import { addSeconds } from '../lib/feedGate';
 import { View, Text, Pressable, Image, ImageBackground, Animated, Easing, TextInput, Platform } from 'react-native';
 import { LinearGradient } from '../ui/Gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -83,9 +84,10 @@ const VideoBackdrop = ({ post, style, children }) => {
   const reduced = Platform.OS === 'web' && typeof window !== 'undefined' && window.matchMedia
     ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
     : false;
-  /* Ayser's spec: no video plays by itself in the feed — a clip waits,
-     still, until somebody taps it, which keeps the feed calm */
-  const policy = { ...videoPolicy(mode, { hasPoster: !!poster, reducedMotion: reduced }), autoplay: false };
+  /* Ayser, October 2026: a clip plays by itself, silent, once it is
+     really on screen — videoPolicy still keeps it still on data saver
+     and for people who asked their phone for less motion */
+  const policy = videoPolicy(mode, { hasPoster: !!poster, reducedMotion: reduced });
 
   useEffect(() => {
     if (!policy.autoplay || typeof IntersectionObserver === 'undefined') return undefined;
@@ -268,6 +270,13 @@ export const PostCard = ({ post, joined, vibed, laughed, reposted, onRepost, onL
 
   const totalLaughs = (post.laughs || 0) + (laughed ? 1 : 0);
   const [viewing, setViewing] = useState(false);
+  /* watching the feed's videos one after another is still the feed:
+     it counts on today's clock (src/lib/feedGate.js), five seconds at a time */
+  useEffect(() => {
+    if (!viewing || videosAround(post).mine) return undefined;
+    const id = setInterval(() => { if (typeof document === 'undefined' || document.visibilityState !== 'hidden') addSeconds(5); }, 5000);
+    return () => clearInterval(id);
+  }, [viewing]); // eslint-disable-line react-hooks/exhaustive-deps
   const handleMediaTap = () => {
     const now = Date.now();
     if (now - lastTap.current < 300) {
