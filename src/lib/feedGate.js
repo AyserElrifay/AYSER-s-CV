@@ -25,7 +25,31 @@ const today = () => {
 export const TASKS = [
   { key: 'reflect', minutes: 5 },   // answered today's question
   { key: 'plan', minutes: 10 },     // said "I'm going" to a plan
+  { key: 'todo', minutes: 15 },     // ticked a thing off My day
+  { key: 'checkin', minutes: 30 },  // scanned the QR at a real table, circle or event
 ];
+
+/* ─── WHO GETS HOW LONG ───────────────────────────────────────────────
+   Ayser, October 2026 ("Earn your time"): Moments Basic keeps the short
+   daily window; Moments+ gets a longer one; Moments Black — and anybody
+   who has reached Moments Level 4 by really going out — has no clock at
+   all. The tier and the level come from the server (my_membership,
+   my_moments_level); they are kept here so the clock is right the moment
+   Home opens, before either has answered. */
+export const PLUS_MINUTES = 30;
+export const OPEN_LEVEL = 4;
+const PLAN = 'mm.feedplan.v1';
+export function readPlan() {
+  try { const v = JSON.parse(localStorage.getItem(PLAN) || 'null'); if (v) return { tier: v.tier || 'FREE', level: Number(v.level) || 1 }; } catch (e) {}
+  return { tier: 'FREE', level: 1 };
+}
+export function writePlan(p) {
+  const v = { ...readPlan(), ...p };
+  try { localStorage.setItem(PLAN, JSON.stringify(v)); } catch (e) {}
+  listeners.forEach((fn) => { try { fn(readGate()); } catch (e) {} });
+  return v;
+}
+export const isUnlimited = (p) => !!p && (p.tier === 'VIP' || (Number(p.level) || 1) >= OPEN_LEVEL);
 
 export function readGate() {
   try {
@@ -47,6 +71,8 @@ export function earnBonus(key) {
   g.earned = g.earned.concat(key); g.bonus += task.minutes * 60; g.done = false;
   writeGate(g);
   listeners.forEach((fn) => { try { fn(g); } catch (e) {} });
+  /* said out loud wherever you are: "+15m added to your Moments Feed" (components/BonusToast.js) */
+  if (!isUnlimited(readPlan())) { try { window.dispatchEvent(new CustomEvent('mm-feed-bonus', { detail: { key, minutes: task.minutes } })); } catch (e) {} }
   return g;
 }
 /* "9h 12m" until the feed opens again — at midnight, the phone's own */
@@ -57,4 +83,8 @@ export const untilTomorrow = () => {
 };
 export function addSeconds(sec) { const g = readGate(); g.used += sec; writeGate(g); return g; }
 export function markSeenAll() { const g = readGate(); g.done = true; writeGate(g); return g; }
-export const budgetSeconds = (volunteer, g) => (FEED_MINUTES + (volunteer ? VOLUNTEER_BONUS_MINUTES : 0)) * 60 + ((g && g.bonus) || 0);
+export const budgetSeconds = (volunteer, g, plan) => {
+  if (isUnlimited(plan)) return Infinity;
+  const base = plan && plan.tier === 'BASIC' ? PLUS_MINUTES : FEED_MINUTES;
+  return (base + (volunteer ? VOLUNTEER_BONUS_MINUTES : 0)) * 60 + ((g && g.bonus) || 0);
+};

@@ -6,6 +6,7 @@ import { tapLight, tapSuccess, tapSelection } from '../utils/feedback';
 import { promoSave, promoList, promoOff, promoToCheckout, members, giftMembership, endGift, stopRenewing } from '../services/gifts';
 import { setStanding } from '../services/studioPeople';
 import { safetyList, safetyPhotoUrl, safetyDecide } from '../services/mvp';
+import { studioGlobalList, studioGlobalContacted } from '../services/loop';
 
 /* ─── THE OWNER'S MEMBERS DESK ────────────────────────────────────────
    Ayser: promo codes made here, with the discount she chooses, and
@@ -243,6 +244,39 @@ export const SafetyChecksTab = () => {
         : !r.ok ? <Text style={{ color: C.dim, fontSize: 13 }}>Owner or the verify team only — unlock the Studio again.</Text>
         : !r.people.length ? <Text style={{ color: C.dim, fontSize: 13.5 }}>Nobody is waiting.</Text>
         : r.people.map((p) => <CheckRow key={p.user_id} p={p} onDone={load} />)}
+      <GlobalReady />
+    </View>
+  );
+};
+
+/* Level 3 and 4 members who said which programme they are ready for
+   (RUN_ME.sql, global_apply). Contact them yourself; mark it here. */
+const GK = { exchange: 'Erasmus+ youth exchange', volunteer: 'International volunteering', travel: 'Partner travel programme' };
+const GlobalReady = () => {
+  const [r, setR] = useState(null);
+  const load = () => studioGlobalList().then(setR);
+  useEffect(() => { load(); }, []);
+  return (
+    <View style={{ marginTop: 26 }}>
+      <Head sub="Members at level 3 or 4 who told the team which programme they are ready for. Reach out yourself, then mark them contacted.">Global Track · ready to go</Head>
+      {r == null ? <ActivityIndicator color={C.text} style={{ marginTop: 20 }} />
+        : !r.ok ? <Text style={{ color: C.dim, fontSize: 13 }}>Owner or the verify team only.</Text>
+        : !r.rows.length ? <Text style={{ color: C.dim, fontSize: 13.5 }}>Nobody yet.</Text>
+        : r.rows.map((x) => (
+          <View key={x.user_id + x.kind} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.line }}>
+            <Image source={{ uri: x.avatar_url || AV_NEUTRAL }} style={{ width: 36, height: 36, borderRadius: 18 }} />
+            <View style={{ flex: 1, marginStart: 10 }}>
+              <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '700' }}>{(x.name || 'Member') + (x.handle ? '  @' + x.handle : '')}</Text>
+              <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 2 }}>{GK[x.kind] + ' · level ' + x.level + ' · ' + new Date(x.at).toLocaleDateString()}</Text>
+            </View>
+            {x.contacted_at ? <Text style={{ color: C.faint, fontSize: 12.5 }}>Contacted</Text> : (
+              <Pressable onPress={() => { tapLight(); studioGlobalContacted(x.user_id, x.kind).then(load); }} accessibilityRole="button"
+                style={{ borderWidth: 1, borderColor: C.text, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 }}>
+                <Text style={{ color: C.text, fontSize: 12.5, fontWeight: '700' }}>Mark contacted</Text>
+              </Pressable>
+            )}
+          </View>
+        ))}
     </View>
   );
 };

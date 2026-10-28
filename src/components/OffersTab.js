@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { isAdventure } from '../lib/mediaFit';
 import { View, Text, Pressable, TextInput, Image, ActivityIndicator, Animated, Easing } from 'react-native';
 import { C } from '../constants/theme';
 import {
@@ -275,6 +276,8 @@ const DropsBox = () => {
             </>
           ) : null}
           <Field label="5-second video of a past evening (https://…mp4, optional)" value={f.video_url} onChange={set('video_url')} ph="https://…/clip.mp4" />
+          {/* local Drops play city evenings only; adventure clips are for Roam (src/lib/mediaFit.js) */}
+          {f.category !== 'roam' && isAdventure(f.video_url) ? <Text style={{ color: C.text, fontSize: 12.5, marginTop: 4 }}>This looks like an adventure clip. Tables, Culture and Impact show a city clip instead; adventure clips are for Roam.</Text> : null}
           <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
             <Btn label="Save drop" solid onPress={save} />
             {f.id ? <Btn label={f.status === 'closed' ? 'Open again' : 'Close it'} onPress={() => setF((x) => ({ ...x, status: x.status === 'closed' ? 'live' : 'closed' }))} /> : null}

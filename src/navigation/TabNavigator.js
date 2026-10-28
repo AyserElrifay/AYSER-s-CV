@@ -17,6 +17,7 @@ import { getPrefs } from '../services/prefs';
 import { onUnlockRequest } from '../lib/unlockBus';
 import { goToTab } from '../lib/mapBus';
 import { OfflineBar } from '../components/OfflineBar';
+import { BonusToast } from '../components/BonusToast';
 import { tapSelection } from '../utils/feedback';
 
 const VibeCheckSheet = lazyOverlay(() => import('../components/VibeCheckSheet').then((m) => ({ default: m.VibeCheckSheet })));
@@ -227,6 +228,7 @@ export const TabNavigator = () => {
   {/* behind the phone's clock: the page's own colour, so the feed does not scroll up under the time */}
   {insets.top > 0 ? <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: insets.top, backgroundColor: C.bg, opacity: 0.94 }} /> : null}
   <OfflineBar />
+  <BonusToast />
   </>
   );
 };

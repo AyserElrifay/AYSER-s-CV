@@ -58,6 +58,9 @@ const ProgrammesSheet = lazyOverlay(() => import('../components/green/Programmes
 const LandingSheet = lazyOverlay(() => import('../components/LandingSheet').then((m) => ({ default: m.LandingSheet })));
 const GoNowSheet = lazyOverlay(() => import('../components/GoNowSheet').then((m) => ({ default: m.GoNowSheet })));
 const GroupPage = lazyOverlay(() => import('../components/GroupPage').then((m) => ({ default: m.GroupPage })));
+const DropsSection = lazyOverlay(() => import('../components/WeeklyDrops').then((m) => ({ default: m.DropsSection })));
+const CircleCard = lazyOverlay(() => import('../components/WeeklyDrops').then((m) => ({ default: m.CircleCard })));
+const GlobalTrack = lazyOverlay(() => import('../components/GlobalTrack').then((m) => ({ default: m.GlobalTrack })));
 const CapsuleSheet = lazyOverlay(() => import('../components/CapsuleSheet').then((m) => ({ default: m.CapsuleSheet })));
 const LoungesSheet = lazyOverlay(() => import('../components/LiveKit').then((m) => ({ default: m.LoungesSheet })));
 const BuddiesSheet = lazyOverlay(() => import('../components/LiveKit').then((m) => ({ default: m.BuddiesSheet })));
@@ -737,6 +740,13 @@ export const TogetherScreen = () => {
 
         <RateLast t={t} lang={lang} />
         {askPush ? <View style={{ marginBottom: 14 }}><PushRow ask onDone={() => setAskPush(false)} /></View> : null}
+
+        {/* ── the hub (Ayser, October 2026): the week's Drops — Tables, Culture,
+            Impact days, Roam — then the English Circle, then the Global Track */}
+        {uid ? <DropsSection max={6} /> : null}
+        {uid ? <CircleCard /> : null}
+        {uid ? <GlobalTrack /> : null}
+        <View style={{ height: 18 }} />
 
         {/* ── where ── */}
         <View style={{ flexDirection: 'row', marginBottom: 12 }}>

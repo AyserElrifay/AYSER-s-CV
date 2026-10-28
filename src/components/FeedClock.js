@@ -3,7 +3,10 @@ import { View, Text, Pressable } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { C } from '../constants/theme';
 import { useLang } from '../context/LanguageContext';
-import { readGate, TASKS, untilTomorrow } from '../lib/feedGate';
+import { readGate, TASKS, untilTomorrow, readPlan, isUnlimited, PLUS_MINUTES } from '../lib/feedGate';
+import { lw } from '../constants/loopWords';
+import { goToTab } from '../lib/mapBus';
+import { askUpgrade } from '../services/membership';
 import { buildIcs, openIcs } from '../lib/ics';
 import { tapLight } from '../utils/feedback';
 
@@ -17,10 +20,19 @@ import { tapLight } from '../utils/feedback';
 const mmss = (sec) => { const s = Math.max(0, Math.round(sec)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
 
 export const FeedClock = ({ budget, running }) => {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const [, tick] = useState(0);
   useEffect(() => { const id = setInterval(() => tick((n) => n + 1), 1000); return () => clearInterval(id); }, []);
   const g = readGate();
+  /* Black and Level 4: no clock to show, only that there is none */
+  if (!isFinite(budget)) {
+    return (
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <Ionicons name="infinite-outline" size={14} color={C.faint} />
+        <Text style={{ color: C.dim, fontSize: 13, fontWeight: '600', marginStart: 5 }}>{lw(lang, 'fg_unlimited')}</Text>
+      </View>
+    );
+  }
   /* the gate is written every five seconds; between writes, count on */
   /* only while time is really being counted: the last write is recent */
   const since = running && g.at && Date.now() - g.at < 5500 ? (Date.now() - g.at) / 1000 : 0;
@@ -40,12 +52,14 @@ export const FeedClock = ({ budget, running }) => {
 
 /* under the closed feed: when it opens, and how to earn a little more */
 export const FeedReopen = ({ onReflect, onPlans }) => {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const [, tick] = useState(0);
   useEffect(() => { const id = setInterval(() => tick((n) => n + 1), 30000); return () => clearInterval(id); }, []);
   const g = readGate();
   const u = untilTomorrow();
-  const go = { reflect: onReflect, plan: onPlans };
+  const go = { reflect: onReflect, plan: onPlans, todo: () => { tapLight(); goToTab('SPACE'); }, checkin: () => { tapLight(); goToTab('TOGETHER'); } };
+  const label = (k) => (k === 'todo' || k === 'checkin' ? lw(lang, 'fg_task_' + k) : t('fg_task_' + k));
+  const plan = readPlan();
   const [asked, setAsked] = useState(false);
   const remind = () => {
     tapLight();
@@ -74,11 +88,20 @@ export const FeedReopen = ({ onReflect, onPlans }) => {
               <Pressable key={x.key} onPress={done ? undefined : go[x.key]} disabled={done} accessibilityRole="button"
                 style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 7 }}>
                 <Ionicons name={done ? 'checkmark-circle' : 'ellipse-outline'} size={20} color={done ? C.green : C.dim} />
-                <Text style={{ flex: 1, color: done ? C.faint : C.text, fontSize: 14, fontWeight: '700', marginStart: 8, textDecorationLine: done ? 'line-through' : 'none' }}>{t('fg_task_' + x.key)}</Text>
+                <Text style={{ flex: 1, color: done ? C.faint : C.text, fontSize: 14, fontWeight: '700', marginStart: 8, textDecorationLine: done ? 'line-through' : 'none' }}>{label(x.key)}</Text>
                 <Text style={{ color: C.purple, fontSize: 13, fontWeight: '900' }}>{'+' + x.minutes + ' min'}</Text>
               </Pressable>
             );
           })}
+        </View>
+      ) : null}
+      {/* or more time every day: Moments+ a longer window, Black none at all */}
+      {plan.tier !== 'VIP' && !isUnlimited(plan) ? (
+        <View style={{ marginTop: 12, alignItems: 'center' }}>
+          <Text style={{ color: C.dim, fontSize: 13, lineHeight: 19, textAlign: 'center' }}>{lw(lang, 'fg_more', { m: PLUS_MINUTES })}</Text>
+          <Pressable onPress={() => { tapLight(); askUpgrade('member'); }} accessibilityRole="button" hitSlop={8} style={{ marginTop: 8 }}>
+            <Text style={{ color: C.purple, fontSize: 13.5, fontWeight: '800' }}>{lw(lang, 'fg_more_cta')}</Text>
+          </Pressable>
         </View>
       ) : null}
     </View>

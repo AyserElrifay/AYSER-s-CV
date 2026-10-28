@@ -160,7 +160,7 @@ export async function fetchShowedUp(userId) {
 }
 
 /* "I'm here" — the database checks the time and the 300 m (green_check_in) */
-export const checkInAt = (id, lat, lng) => rpc('green_check_in', { p_id: id, p_lat: lat, p_lng: lng });
+export const checkInAt = (id, lat, lng) => rpc('green_check_in', { p_id: id, p_lat: lat, p_lng: lng }).then((r) => { if (r && r.ok) earnBonus('checkin'); return r; });
 
 /* send whatever waited; called at start and whenever the phone is back */
 export function flushOutbox() {

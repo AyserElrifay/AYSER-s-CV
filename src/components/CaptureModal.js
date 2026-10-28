@@ -716,7 +716,7 @@ const ArcadeLayer = ({ startRef }) => {
   );
 };
 
-export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClose, onPosted, onPostedStory, sendMode = false, sendToName, onMoment, viewOnce = false }) => {
+export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClose, onPosted, onPostedStory, sendMode = false, sendToName, onMoment, viewOnce = false, prompt = null }) => {
   /* the phone's own back gesture closes this — see src/lib/sheetBack.js */
   useSheetBack(onClose);
   const insets = useSafeAreaInsets();
@@ -1545,7 +1545,9 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
   /* The caption that actually gets posted: what you wrote, plus any tag
      you picked that isn't already in it. */
   const finalCaption = () => {
-    const base = caption.trim();
+    /* a moment for the day's prompt says which prompt it answers */
+    const own = caption.trim();
+    const base = prompt ? (own ? prompt + ' — ' + own : prompt) : own;
     const extra = tags.filter((t) => !new RegExp('(^|\\s)' + t + '(\\s|$)', 'i').test(base));
     return (base + (extra.length ? (base ? ' ' : '') + extra.join(' ') : '')).trim();
   };
@@ -1955,28 +1957,6 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
 
   const recPct = Math.min(1, recMs / MAX_VIDEO_MS);
 
-  /* TikTok-style sound rail — shown while shooting AND on the preview,
-     so an uploaded gallery photo can get a song too. */
-  /* Listen before you commit. Choosing a sound for a reel used to be a
-     guess from a title — now each chip has its own play button and the
-     track previews right there, without being attached to anything. */
-  const soundPreviewRef = React.useRef(null);
-  const [previewId, setPreviewId] = useState(null);
-
-  const togglePreview = (s) => {
-    if (!isWeb || !s || !s.audio_url) return;
-    tapLight();
-    let a = soundPreviewRef.current;
-    if (!a) { a = soundPreviewRef.current = new Audio(); a.onended = () => setPreviewId(null); }
-    if (previewId === s.id) { a.pause(); setPreviewId(null); return; }
-    a.src = s.audio_url;
-    a.currentTime = 0;
-    a.play().then(() => setPreviewId(s.id)).catch(() => setPreviewId(null));
-  };
-
-  // never leave a preview singing after the sheet closes
-  useEffect(() => () => { if (soundPreviewRef.current) { try { soundPreviewRef.current.pause(); } catch (e) {} } }, []);
-
   return (
     <Modal visible transparent={false} animationType="slide" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: '#000' }}>
@@ -2180,6 +2160,11 @@ export const CaptureModal = ({ initialMode = 'story', initialSound = null, onClo
                   ? (recMs / 1000).toFixed(1) + 's'
                   : Math.floor(recMs / 60000) + ':' + String(Math.floor((recMs % 60000) / 1000)).padStart(2, '0')}
               </Text>
+            </View>
+          ) : prompt ? (
+            /* the day's photo prompt this moment answers, in view the whole time */
+            <View style={{ flexShrink: 1, maxWidth: '70%', backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 7 }}>
+              <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '700', textAlign: 'center' }} numberOfLines={2}>{prompt}</Text>
             </View>
           ) : null}
           <View style={{ flex: 1 }} />

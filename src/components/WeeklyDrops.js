@@ -13,6 +13,7 @@ import { getPrefs } from '../services/prefs';
 import { joinMesh } from '../lib/talkMesh';
 import { lazyOverlay } from '../lib/lazyScreen';
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
+import { dropClip } from '../lib/mediaFit';
 import { useSheetBack } from '../hooks/useSheetBack';
 
 const EventRoom = lazyOverlay(() => import('./LiveKit').then((m) => ({ default: m.EventRoom })));
@@ -339,7 +340,7 @@ const DropCard = ({ d, lang, onChanged }) => {
   const cat = CATS.includes(d.category) ? d.category : 'tables';
   return (
     <Card style={{ overflow: 'hidden' }}>
-      <LoopVideo uri={d.video_url} />
+      <LoopVideo uri={dropClip(d)} />
       {/* the kind, crisp and small, top-left: [ CULTURE ] */}
       <Text style={{ color: C.text, fontSize: 11, fontWeight: '700', letterSpacing: lang === 'ar' ? 0 : 1.6 }}>{'[ ' + catWord(lang, cat).toUpperCase() + ' ]'}</Text>
       {vibe ? <Small style={{ marginTop: 8 }}>{vibe.toUpperCase()}</Small> : null}

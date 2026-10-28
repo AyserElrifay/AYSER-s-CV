@@ -85,6 +85,7 @@ const TeacherApplySheet = lazyOverlay(() => import('../components/TeacherApplySh
 const LibrarySheet = lazyOverlay(() => import('../components/LibrarySheet').then((m) => ({ default: m.LibrarySheet })));
 const PlusSheet = lazyOverlay(() => import('../components/PlusSheet').then((m) => ({ default: m.PlusSheet })));
 const QuotaLine = lazyOverlay(() => import('../components/WeeklyDrops').then((m) => ({ default: m.QuotaLine })));
+const GlobalTrack = lazyOverlay(() => import('../components/GlobalTrack').then((m) => ({ default: m.GlobalTrack })));
 const MyDay = lazyOverlay(() => import('../components/MyDay').then((m) => ({ default: m.MyDay })));
 const RewardsSheet = lazyOverlay(() => import('../components/RewardsSheet').then((m) => ({ default: m.RewardsSheet })));
 const StampBook = lazyOverlay(() => import('../components/LiveKit').then((m) => ({ default: m.StampBook })));
@@ -773,6 +774,8 @@ export const ProfileScreen = () => {
             <GhostButton small label={t('sp_share')} onPress={doShareProfile} style={{ flex: 1, marginRight: 8 }} />
             {user ? <GhostButton small label={t('sp_today')} onPress={() => { tapLight(); setDumpOpen(true); }} style={{ flex: 1 }} /> : null}
           </View>
+          {/* your Moments Level, one line; the whole Global Track is on Together */}
+          {SUPABASE_READY && user ? <GlobalTrack compact /> : null}
           {/* what is left of this month's Drops and Circles (members) */}
           {SUPABASE_READY && user ? <QuotaLine style={{ marginTop: 14 }} /> : null}
           {SUPABASE_READY && user ? <ShowedUp userId={user.id} own /> : null}

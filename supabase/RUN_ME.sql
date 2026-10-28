@@ -24143,6 +24143,123 @@ grant execute on function public.daily_moment() to authenticated;
 
 notify pgrst, 'reload schema';
 
+-- ════════════════════════════════════════════════════════════════════
+--  THE DAILY LOOP · MOMENTS LEVELS 1–4 · THE GLOBAL TRACK · CHATS UNREAD
+--  (Ayser, October 2026: "Do & earn, level up for the world")
+--  · moments_level_of(u): the level is earned by going out, counted
+--    from real records only — English Circles joined (circle_joins),
+--    Culture and Table Drops checked in at (passport_stamps on a drop),
+--    local volunteering days checked in at (Impact Drops). A workshop
+--    level already reached (profiles.current_level) is never taken away.
+--        Level 2 · 1 circle, 1 drop
+--        Level 3 · 3 circles, 3 drops, 2 volunteering days
+--        Level 4 · 6 circles, 5 drops, 3 volunteering days
+--    Levels 3 and 4 are the Global Citizen Certificate: a record kept
+--    by Moments, not a certificate from anybody else.
+--  · global_interest: at level 3 or 4 a member tells the team which
+--    programme they are ready for (Erasmus+ youth exchange,
+--    international volunteering, a partner travel programme). The team
+--    reads the list in the Studio and contacts them; nothing is promised.
+--  · chat_unread(since): messages to you in your private chats since you
+--    last opened Chats — the badge on the header's chat icon.
+--  Safe to re-run.
+-- ════════════════════════════════════════════════════════════════════
+
+create or replace function public.moments_level_of(u uuid)
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare c int; d int; i int; w int; lvl int;
+begin
+  select count(*) into c from public.circle_joins where user_id = u;
+  select count(*) filter (where o.drop_category in ('tables','culture')),
+         count(*) filter (where o.drop_category = 'impact')
+    into d, i
+    from public.passport_stamps s join public.offers o on o.id = s.event_id
+   where s.user_id = u and s.kind = 'offer' and o.is_drop;
+  select least(4, greatest(1, coalesce(current_level, 1))) into w from public.profiles where id = u;
+  lvl := case when c >= 6 and d >= 5 and i >= 3 then 4
+              when c >= 3 and d >= 3 and i >= 2 then 3
+              when c >= 1 and d >= 1 then 2 else 1 end;
+  lvl := greatest(lvl, coalesce(w, 1));
+  return jsonb_build_object('ok', true, 'level', lvl, 'circles', c, 'drops', d, 'impact', i,
+    'next', case lvl when 1 then jsonb_build_object('level', 2, 'circles', 1, 'drops', 1, 'impact', 0)
+                     when 2 then jsonb_build_object('level', 3, 'circles', 3, 'drops', 3, 'impact', 2)
+                     when 3 then jsonb_build_object('level', 4, 'circles', 6, 'drops', 5, 'impact', 3)
+                     else null end);
+end $$;
+revoke all on function public.moments_level_of(uuid) from public, anon, authenticated;
+
+create table if not exists public.global_interest (
+  user_id    uuid not null references public.profiles(id) on delete cascade,
+  kind       text not null check (kind in ('exchange','volunteer','travel')),
+  level      int not null,
+  created_at timestamptz not null default now(),
+  contacted_at timestamptz,
+  primary key (user_id, kind)
+);
+alter table public.global_interest enable row level security;   -- through the functions below only
+revoke all on public.global_interest from anon, authenticated;
+
+create or replace function public.my_moments_level()
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare me uuid := auth.uid();
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  return public.moments_level_of(me) || jsonb_build_object('asked',
+    (select coalesce(jsonb_agg(kind), '[]'::jsonb) from public.global_interest where user_id = me));
+end $$;
+revoke execute on function public.my_moments_level() from public, anon;
+grant execute on function public.my_moments_level() to authenticated;
+
+create or replace function public.global_apply(p_kind text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); lvl int;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  if p_kind not in ('exchange','volunteer','travel') then return jsonb_build_object('ok', false, 'reason', 'kind'); end if;
+  lvl := (public.moments_level_of(me)->>'level')::int;
+  if lvl < 3 then return jsonb_build_object('ok', false, 'reason', 'level', 'level', lvl); end if;
+  insert into public.global_interest (user_id, kind, level) values (me, p_kind, lvl)
+  on conflict (user_id, kind) do update set level = excluded.level;
+  return jsonb_build_object('ok', true);
+end $$;
+revoke execute on function public.global_apply(text) from public, anon;
+grant execute on function public.global_apply(text) to authenticated;
+
+-- the Studio's list: who is ready, for what, at which level
+create or replace function public.studio_global_list()
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+begin
+  if not (public.is_app_owner() or public.studio_can('verify')) then return jsonb_build_object('ok', false, 'reason', 'not_team'); end if;
+  return jsonb_build_object('ok', true, 'rows', (select coalesce(jsonb_agg(jsonb_build_object(
+      'user_id', g.user_id, 'name', p.name, 'handle', p.handle, 'avatar_url', p.avatar_url, 'kind', g.kind,
+      'level', g.level, 'at', g.created_at, 'contacted_at', g.contacted_at) order by g.contacted_at nulls first, g.created_at desc), '[]'::jsonb)
+    from public.global_interest g join public.profiles p on p.id = g.user_id));
+end $$;
+revoke execute on function public.studio_global_list() from public, anon;
+grant execute on function public.studio_global_list() to authenticated;
+
+create or replace function public.studio_global_contacted(p_user uuid, p_kind text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  if not (public.is_app_owner() or public.studio_can('verify')) then return jsonb_build_object('ok', false, 'reason', 'not_team'); end if;
+  update public.global_interest set contacted_at = now() where user_id = p_user and kind = p_kind;
+  return jsonb_build_object('ok', found);
+end $$;
+revoke execute on function public.studio_global_contacted(uuid, text) from public, anon;
+grant execute on function public.studio_global_contacted(uuid, text) to authenticated;
+
+create or replace function public.chat_unread(p_since timestamptz)
+returns int language sql stable security definer set search_path = public as $$
+  select least(99, count(*))::int from public.messages m
+   where m.dm_thread_id in (select thread_id from public.dm_participants where user_id = auth.uid())
+     and m.user_id <> auth.uid()
+     and m.created_at > coalesce(p_since, now() - interval '7 days');
+$$;
+revoke execute on function public.chat_unread(timestamptz) from public, anon;
+grant execute on function public.chat_unread(timestamptz) to authenticated;
+
+notify pgrst, 'reload schema';
+
 -- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --

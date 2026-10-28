@@ -10,11 +10,14 @@ import { useSheetBack } from '../hooks/useSheetBack';
 import { markTourSeen } from './GestureTour';
 
 /* ─── THREE STEPS, THE FIRST TIME INSIDE ──────────────────────────────
-   Ayser: teach the app in three slides, like Instagram stories, each on
-   a short looping video of a real evening:
-     1 · Share today's Moment — answer the daily question, find your people
-     2 · Claim a weekly Drop — a seat at a Thursday table or a Circle
-     3 · Meet & unlock — scan the table's QR, and the chat stays
+   Ayser, October 2026: the loop, in three slides like Instagram stories,
+   each on a short looping video of a real day:
+     1 · Snap & connect — the day's photo prompt and the Daily Question,
+         before the feed's clock runs out
+     2 · Do & earn — My day tasks and real check-ins add feed time;
+         Moments+ adds more every day
+     3 · Level up for the world — English Circles, Cairo outings and
+         local volunteering, towards Erasmus+ and travel abroad
    A bar at the top fills while each plays; a tap on the right goes on,
    on the left goes back; Skip is always there. Seen once. Its words live
    here so they load only with it. */
@@ -25,20 +28,20 @@ const markSeen = () => { try { localStorage.setItem(FIRST_TOUR, '1'); } catch (e
 
 const L = {
   en: [
-    ['1. Share Today’s Moment', 'Answer the daily question to find people on your wavelength.'],
-    ['2. Claim a Weekly Drop', 'Book a seat at a curated Thursday table or Language Circle.'],
-    ['3. Meet & Unlock', 'Scan the table QR code in real life to unlock permanent Table Buddy chat.'],
+    ['1. Snap & Connect', 'Share the day’s photo prompt (the sky, your food, your day) and answer the Daily Question before your feed timer runs out.'],
+    ['2. Do & Earn', 'Finish tasks in My day or check in at a real outing to add minutes to your feed. Moments+ gives you more time every day.'],
+    ['3. Level Up for the World', 'Join English Circles, Cairo outings and local volunteering to level up, and get ready for Erasmus+ youth exchanges and travel abroad.'],
     'Skip', 'Next', 'Let’s go',
   ],
   ar: [
-    ['١. شارك لحظة النهارده', 'جاوب على سؤال اليوم عشان تلاقي ناس شبهك.'],
-    ['٢. احجز كرسي في Drop الأسبوع', 'احجز مكانك في ترابيزة الخميس أو دايرة اللغة.'],
-    ['٣. اتقابلوا وافتحوا الشات', 'امسح كود الـ QR بتاع الترابيزة في الحقيقة، والشات مع اللي قعدوا معاك يفضل مفتوح على طول.'],
+    ['١. صوّر واتعرّف', 'شارك صورة النهارده (السما، أكلك، يومك) وجاوب على سؤال اليوم قبل ما وقت الفيد يخلص.'],
+    ['٢. اعمل واكسب', 'خلّص مهامك في يومي أو سجّل حضورك في خروجة حقيقية وهيتضافلك دقايق في الفيد. ومومنتس+ بيديك وقت أكتر كل يوم.'],
+    ['٣. اطلع مستوى للعالم', 'انضم لدواير الإنجليزي وخروجات القاهرة وأيام التطوّع عشان تطلع مستوى، وتجهّز نفسك لتبادل شباب Erasmus+ والسفر برّه.'],
     'تخطي', 'التالي', 'يلا بينا',
   ],
 };
-// short real evenings, looping: coffee, a table, the bus home
-const CLIPS = ['act-coffee-v1', 'welcome-hang', 'buddies-bus'];
+// a real day: coffee and a photo, an evening out, a trip together
+const CLIPS = ['act-coffee-v1', 'welcome-hang', 'desert-trip'];
 const SLIDE_MS = 6500;
 
 export const FirstTour = ({ onClose }) => {

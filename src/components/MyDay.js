@@ -17,6 +17,7 @@ import { buildIcs, openIcs } from '../lib/ics';
 import { lastFix } from '../services/squadAdmin';
 import { keptGatherings, listGatherings } from '../services/green';
 import { goToTab } from '../lib/mapBus';
+import { earnBonus } from '../lib/feedGate';
 import { getCurrentCoords } from '../utils/location';
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
 import { useSheetBack } from '../hooks/useSheetBack';
@@ -535,7 +536,7 @@ export const MyDay = ({ onClose }) => {
   const toggle = (id) => {
     tapLight();
     const n = done.indexOf(id) >= 0 ? done.filter((x) => x !== id) : done.concat(id);
-    if (n.length > done.length) { tapSuccess(); celebrate(); }
+    if (n.length > done.length) { tapSuccess(); celebrate(); earnBonus('todo'); }   // more feed time today (src/lib/feedGate.js)
     setDone(n);
     try { localStorage.setItem(doneKey(), JSON.stringify(n)); } catch (e) {}
   };

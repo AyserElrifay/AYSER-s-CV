@@ -1,4 +1,5 @@
 import { supabase, SUPABASE_READY } from '../lib/supabase';
+import { earnBonus } from '../lib/feedGate';
 import { isBizDemo } from '../lib/bizLink';
 
 /* ── THE MOMENTS PASSPORT ── (RUN_ME.sql, "THE MOMENTS PASSPORT").
@@ -10,7 +11,8 @@ const rpc = async (fn, args) => {
 };
 
 export const myPassport = () => rpc('my_passport');
-export const stampClaim = (code) => rpc('stamp_claim', { p_code: code });
+/* a stamp is a real check-in: +30 minutes on today's feed (src/lib/feedGate.js) */
+export const stampClaim = (code) => rpc('stamp_claim', { p_code: code }).then((r) => { if (r && r.ok) earnBonus('checkin'); return r; });
 // the business demo (…/?business=demo): a sample QR and sample guests, nothing sent anywhere
 const demoQr = () => ({ ok: true, title: 'Sample · English café table', code: 'g.00000000-0000-4000-8000-0000000000d1.' + Math.floor(Date.now() / 30000) + '.sampledemo00',
   seconds: 30 - (Math.floor(Date.now() / 1000) % 30), stamped: 3,

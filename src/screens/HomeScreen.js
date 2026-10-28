@@ -24,7 +24,8 @@ import { countUnread, subscribeNotifications } from '../services/notifications';
 import { sfxNotify } from '../utils/sfx';
 import { Glass } from '../components/Glass';
 import { PostCard } from '../components/PostCard';
-import { StoriesBar } from '../components/StoriesBar';
+import { PhotoPrompt } from '../components/PhotoPrompt';
+import { todaysPrompt } from '../constants/loopWords';
 import { Wordmark } from '../components/Wordmark';
 import { Greeting } from '../components/Greeting';
 import { Modal } from 'react-native';
@@ -36,11 +37,11 @@ import { setVideoQueue } from '../lib/videoQueue';
 import { lazyOverlay } from '../lib/lazyScreen';
 // the two things at the top of Home, fetched after the feed: your next step, and today's question
 // the final MVP: the week's Language Circle and Drops (components/WeeklyDrops)
-const DropsSection = lazyOverlay(() => import('../components/WeeklyDrops').then((m) => ({ default: m.DropsSection })));
-const CircleCard = lazyOverlay(() => import('../components/WeeklyDrops').then((m) => ({ default: m.CircleCard })));
 const NextStep = lazyOverlay(() => import('../components/NextStep').then((m) => ({ default: m.NextStep })));
 const DailyMoment = lazyOverlay(() => import('../components/DailyMoment').then((m) => ({ default: m.DailyMoment })));
-import { readGate, addSeconds, markSeenAll, budgetSeconds, onGate } from '../lib/feedGate';
+import { readGate, addSeconds, markSeenAll, budgetSeconds, onGate, readPlan, writePlan } from '../lib/feedGate';
+import { myMembership } from '../services/membership';
+import { myMomentsLevel, chatUnread, markChatsSeen } from '../services/loop';
 import { FeedClock, FeedReopen } from '../components/FeedClock';
 import { myVolunteering, myUnrated } from '../services/green';
 
@@ -165,7 +166,15 @@ export const HomeScreen = () => {
   }, [focused, homeTab]);
   useEffect(() => { if (focused) { finishedNow.current = false; setGate(readGate()); } }, [focused]);
   useEffect(() => onGate(setGate), []);   // a task done elsewhere: more time, at once
-  const budget = budgetSeconds(volunteer, gate);
+  /* Moments+ has a longer window; Black and Level 4 have none (src/lib/feedGate.js) */
+  const [plan, setPlan] = useState(readPlan);
+  useEffect(() => onGate(() => setPlan(readPlan())), []);
+  useEffect(() => {
+    if (!user) return;
+    myMembership().then((m) => { if (m && m.tier) setPlan(writePlan({ tier: m.tier })); });
+    myMomentsLevel().then((r) => { if (r && r.level) setPlan(writePlan({ level: r.level })); });
+  }, [user]);
+  const budget = budgetSeconds(volunteer, gate, plan);
   /* closes on time alone; reaching the end of the day's moments shows
      the end card under them, it does not lock the feed with time left */
   const feedClosed = !!user && gate.used >= budget;
@@ -252,6 +261,8 @@ export const HomeScreen = () => {
   const [profileUser, setProfileUser] = useState(null);
   const [commentsPost, setCommentsPost] = useState(null);
   const [composing, setComposing] = useState(null); // null | 'post' | 'reel' | 'story'
+  const [snapPrompt, setSnapPrompt] = useState(null);   // the day's photo prompt the camera is answering
+  const snap = (pr) => { setSnapPrompt(pr); setComposing('reel'); };
   /* after a plan you went to: how was it (src/components/AfterOuting.js) */
   const [after, setAfter] = useState(null);
   useEffect(() => {
@@ -275,7 +286,9 @@ export const HomeScreen = () => {
     return () => window.removeEventListener('mm-widgets', f);
   }, []);
   const [notifOpen, setNotifOpen] = useState(false);
-  const [chatsOpen, setChatsOpen] = useState(false);   // Chats: buddies, Mutual Sparks, the Midnight Table
+  const [chatsOpen, setChatsOpen] = useState(false);
+  const [chatNew, setChatNew] = useState(0);   // messages to you since you last opened Chats
+  useEffect(() => { if (focused && user) chatUnread().then(setChatNew); }, [focused, user, chatsOpen]);   // Chats: buddies, Mutual Sparks, the Midnight Table
   /* a tapped phone notification lands here: the list, or the tab it is about */
   useEffect(() => {
     const go = (tg) => { if (!tg) return; if (tg.notifications) setNotifOpen(true); else if (tg.tab) goToTab(tg.tab); };
@@ -558,7 +571,7 @@ export const HomeScreen = () => {
   const edgeSwipe = useSwipeToCamera({
     direction: 'right',
     fromRight: rtl,
-    onTrigger: () => setComposing('story'),
+    onTrigger: () => snap(todaysPrompt(lang)),
   });
 
   return (
@@ -592,9 +605,6 @@ export const HomeScreen = () => {
                 <Greeting name={(user && myProfile && myProfile.name) || ''} />
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Pressable testID="btn-chats" accessibilityRole="button" accessibilityLabel={t('chats_title')} onPress={() => { tapLight(); setChatsOpen(true); }} style={[headerBtn(), { marginRight: 10 }]}>
-                  <Ionicons name="chatbubble-outline" size={17} color={C.text} />
-                </Pressable>
                 <Pressable testID="btn-notifs" accessibilityRole="button" accessibilityLabel={t('notifications')} onPress={() => { tapLight(); setNotifOpen(true); setUnread(0); }} style={[headerBtn(), { marginRight: 10 }]}>
                   <Ionicons name={unread ? 'notifications' : 'notifications-outline'} size={17} color={unread ? C.purple : C.text} />
                   {unread ? (
@@ -606,8 +616,14 @@ export const HomeScreen = () => {
                 <Pressable testID="btn-search" accessibilityRole="button" accessibilityLabel={t('search')} onPress={() => setSearching(true)} style={[headerBtn(), { marginRight: 10 }]}>
                   <Ionicons name="search" size={17} color={C.text} />
                 </Pressable>
-                <Pressable testID="btn-compose" accessibilityRole="button" accessibilityLabel={t('whats_your_moment')} onPress={() => setComposing('post')} style={[headerBtn(), { marginRight: 10 }]}>
-                  <Ionicons name="add" size={20} color={C.text} />
+                {/* Chats where the + was: posting starts from today's prompt in the feed */}
+                <Pressable testID="btn-chats" accessibilityRole="button" accessibilityLabel={t('chats_title')} onPress={() => { tapLight(); setChatsOpen(true); markChatsSeen(); setChatNew(0); }} style={[headerBtn(), { marginRight: 10 }]}>
+                  <Ionicons name={chatNew ? 'chatbubble' : 'chatbubble-outline'} size={17} color={chatNew ? C.purple : C.text} />
+                  {chatNew ? (
+                    <View style={{ position: 'absolute', top: -4, right: -4, minWidth: 17, height: 17, borderRadius: 9, backgroundColor: C.coral, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: 1.5, borderColor: C.bg }}>
+                      <Text style={{ color: '#FFF', fontSize: 9.5, fontWeight: '900' }}>{chatNew > 9 ? '9+' : chatNew}</Text>
+                    </View>
+                  ) : null}
                 </Pressable>
                 <Pressable testID="btn-profile" accessibilityRole="button" accessibilityLabel={me.name || t('tab_space')} onPress={() => { tapLight(); setMyProfileOpen(true); }}>
                   <Image source={{ uri: me.avatar }} style={{ width: 38, height: 38, borderRadius: 19, borderWidth: 1.5, borderColor: C.purple }} />
@@ -617,10 +633,8 @@ export const HomeScreen = () => {
 
             {/* yours first: the seat you booked or the level you are on, then the Daily Moment */}
             {user ? <NextStep /> : null}
-            {/* the week's Drops, only when there are some; the Circle, small, after the Daily Moment */}
-            {user ? <View style={{ paddingHorizontal: 16 }}><DropsSection /></View> : null}
+            {/* the Daily Moment; Drops and the English Circle live in Together now — one place each */}
             {user ? <DailyMoment /> : null}
-            {user ? <CircleCard /> : null}
 
             {/* the first thing: the next real plan near you, and one button */}
             <NextUp user={user} onStart={() => goToTab('TOGETHER')}
@@ -645,11 +659,8 @@ export const HomeScreen = () => {
 
             {homeTab === 'moments' && widgets.length ? <HomeWidgets ids={widgets} /> : null}
 
-            {homeTab === 'moments' ? <StoriesBar
-              stories={stories}
-              onOpenStory={setStoryIndex}
-              onAddStory={() => setComposing('story')}
-            /> : null}
+            {/* the camera opens from the day's prompt, in Moments and in Reflection */}
+            {user ? <PhotoPrompt onShare={snap} /> : null}
 
             {/* real evenings and real plans with real photos — the reason to go (src/components/GoOutRail.js) */}
             {user && homeTab === 'moments' ? (
@@ -901,7 +912,8 @@ export const HomeScreen = () => {
            sounds picked right on the capture screen */
         <CaptureModal
           initialMode={composing}
-          onClose={() => setComposing(null)}
+          prompt={snapPrompt}
+          onClose={() => { setComposing(null); setSnapPrompt(null); }}
           onPosted={prependPost}
           onPostedStory={(s) => setMyStories((prev) => [s, ...prev])}
         />

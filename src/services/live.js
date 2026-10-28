@@ -1,4 +1,5 @@
 import { supabase, SUPABASE_READY } from '../lib/supabase';
+import { earnBonus } from '../lib/feedGate';
 
 /* ── LIVE ACTIVITIES · BUDDIES · DAILY MOMENT · LOUNGES ──
    (RUN_ME.sql, "LIVE ACTIVITIES · EARNED CONNECTIONS · PLUS FOR
@@ -20,7 +21,7 @@ export const needPlus = (r, why) => {
 
 // at the table
 export const eventExtras = (kind, id) => rpc('event_extras', { p_kind: kind, p_id: id });
-export const eventCheckin = (kind, id) => rpc('event_checkin', { p_kind: kind, p_id: id });
+export const eventCheckin = (kind, id) => rpc('event_checkin', { p_kind: kind, p_id: id }).then((r) => { if (r && r.ok) earnBonus('checkin'); return r; });
 export const activityGet = (kind, id) => rpc('activity_get', { p_kind: kind, p_id: id });
 export const activityDeal = (kind, id, cat) => rpc('activity_deal', { p_kind: kind, p_id: id, p_cat: cat });
 export const activitySpin = (kind, id) => rpc('activity_spin', { p_kind: kind, p_id: id });
