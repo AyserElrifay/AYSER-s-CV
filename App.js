@@ -127,6 +127,17 @@ const MemberGate = () => {
 /* ── A STAMP FROM THE TABLE'S QR ── (src/lib/stampLink.js). The phone's own
    camera opened …/?stamp=<code>: once signed in, claim it and celebrate. */
 const StampFlow = lazyOverlay(() => import('./src/components/LiveKit').then((m) => ({ default: m.StampFlow })));
+/* ── THE SAFETY CHECK ── any screen asks with askSafety() (services/membership) */
+const SafetyCheck = lazyOverlay(() => import('./src/components/SafetyCheck').then((m) => ({ default: m.SafetyCheck })));
+const SafetyGate = () => {
+  const [open, setOpen] = React.useState(false);
+  React.useEffect(() => {
+    const on = () => setOpen(true);
+    try { window.addEventListener('mm-need-safety', on); } catch (e) {}
+    return () => { try { window.removeEventListener('mm-need-safety', on); } catch (e) {} };
+  }, []);
+  return open ? <SafetyCheck onClose={() => setOpen(false)} /> : null;
+};
 const StampGate = () => {
   const [code, setCode] = React.useState(() => takeStamp());
   return code ? <StampFlow code={code} onClose={() => setCode(null)} /> : null;
@@ -281,6 +292,7 @@ const Root = () => {
       {/* after a strike: over everything (src/components/SafetyHold.js) */}
       <SafetyHold />
       <MemberGate />
+      <SafetyGate />
       <StampGate />
     </View>
   );

@@ -23741,6 +23741,409 @@ grant execute on function public.owner_members(text, text, int) to authenticated
 notify pgrst, 'reload schema';
 
 -- ═══════════════════════════════════════════════════════════════════
+--  FOUR PILLARS · SAFETY CHECK · THE 14-DAY FOUNDING PASS
+--  Ayser (October 2026): Moments as a youth movement, without a new
+--  architecture — the same admin-made Drops, in four kinds:
+--    tables  coffee and language meetups
+--    culture exchange nights, art walks, local exploring
+--    impact  volunteering, clean-ups, social good — free for any
+--            checked account and never counted against a quota
+--    roam    weekend trips and camping, with a ticket price and a
+--            Moments+ member price
+--  A one-time safety check (a live selfie, or an ID / university card,
+--  and an optional Instagram/LinkedIn) before booking a Drop or starting
+--  a chat. The photo is kept only until somebody in the Studio decides;
+--  then the app deletes it and only "checked" is remembered.
+--  For 14 days after the check, people who answered the Daily Moment may
+--  write to each other's answers (the founding pass) — after that, Table
+--  Buddies or Moments+ keep the conversations. Safe to re-run.
+-- ═══════════════════════════════════════════════════════════════════
+alter table public.offers add column if not exists drop_category text not null default 'tables';
+do $$ begin
+  if not exists (select 1 from pg_constraint where conname = 'offers_drop_category_check') then
+    alter table public.offers add constraint offers_drop_category_check check (drop_category in ('tables', 'culture', 'impact', 'roam'));
+  end if;
+end $$;
+alter table public.offers add column if not exists member_price numeric check (member_price is null or member_price >= 0);
+alter table public.offers add column if not exists video_url text check (video_url is null or video_url ~* '^https://');
+
+alter table public.profiles add column if not exists is_verified boolean not null default false;
+alter table public.profiles add column if not exists verified_at timestamptz;
+
+-- nobody makes themselves checked: only the functions below set it
+create or replace function public.profiles_keep_verified() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if auth.uid() is not null and current_setting('moments.verify_ok', true) is distinct from '1' then
+    new.is_verified := old.is_verified; new.verified_at := old.verified_at;
+  end if;
+  return new;
+end $$;
+drop trigger if exists profiles_keep_verified on public.profiles;
+create trigger profiles_keep_verified before update of is_verified, verified_at on public.profiles
+  for each row execute function public.profiles_keep_verified();
+
+-- checked: the owner and the Studio team count as checked
+create or replace function public.is_verified(u uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select u is not null and (
+    exists (select 1 from public.profiles p where p.id = u and p.is_verified)
+    or exists (select 1 from public.team_members m where m.user_id = u and m.disabled_at is null)
+    or exists (select 1 from auth.users x where x.id = u and lower(x.email) = 'ayseryourlifecoach@gmail.com'));
+$$;
+revoke all on function public.is_verified(uuid) from public, anon, authenticated;
+
+create table if not exists public.safety_checks (
+  user_id    uuid primary key references public.profiles(id) on delete cascade,
+  kind       text not null check (kind in ('selfie', 'id')),
+  photo_path text,                         -- verification/<user>/safety-… ; emptied once decided
+  handle     text check (handle is null or length(handle) <= 120),
+  status     text not null default 'pending' check (status in ('pending', 'approved', 'rejected')),
+  created_at timestamptz not null default now(),
+  decided_at timestamptz
+);
+alter table public.safety_checks enable row level security;   -- through the functions below only
+
+create or replace function public.safety_submit(p_kind text, p_path text, p_handle text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid();
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  if public.is_verified(me) then return jsonb_build_object('ok', true, 'status', 'approved'); end if;
+  if p_kind not in ('selfie', 'id') then return jsonb_build_object('ok', false, 'reason', 'kind'); end if;
+  -- the photo must be in the asker's own folder of the private bucket
+  if p_path is null or split_part(p_path, '/', 1) <> me::text or p_path !~ '^[0-9a-f-]+/safety-[0-9]+\.(jpg|webp)$' then
+    return jsonb_build_object('ok', false, 'reason', 'photo');
+  end if;
+  insert into public.safety_checks as s (user_id, kind, photo_path, handle, status, created_at, decided_at)
+  values (me, p_kind, p_path, nullif(left(btrim(coalesce(p_handle, '')), 120), ''), 'pending', now(), null)
+  on conflict (user_id) do update set kind = excluded.kind, photo_path = excluded.photo_path, handle = excluded.handle,
+    status = 'pending', created_at = now(), decided_at = null;
+  return jsonb_build_object('ok', true, 'status', 'pending');
+end $$;
+revoke all on function public.safety_submit(text, text, text) from public, anon;
+grant execute on function public.safety_submit(text, text, text) to authenticated;
+
+-- the 14 days of open chat that start with the check
+create or replace function public.founding_until(u uuid)
+returns timestamptz language sql stable security definer set search_path = public as $$
+  select case when p.verified_at is not null then p.verified_at + interval '14 days' end from public.profiles p where p.id = u;
+$$;
+revoke all on function public.founding_until(uuid) from public, anon, authenticated;
+
+create or replace function public.my_safety()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select jsonb_build_object('verified', public.is_verified(auth.uid()),
+    'status', (select s.status from public.safety_checks s where s.user_id = auth.uid()),
+    'pass_until', public.founding_until(auth.uid()));
+$$;
+
+revoke all on function public.my_safety() from public, anon;
+grant execute on function public.my_safety() to authenticated;
+
+-- the Studio: who is waiting, and the decision (owner or the 'verify' team)
+create or replace function public.studio_safety_list()
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+begin
+  if not public.studio_can('verify') then return jsonb_build_object('ok', false, 'reason', 'not_allowed'); end if;
+  return jsonb_build_object('ok', true, 'people', coalesce((
+    select jsonb_agg(jsonb_build_object('user_id', s.user_id, 'kind', s.kind, 'photo_path', s.photo_path, 'handle', s.handle,
+             'at', s.created_at, 'name', p.name, 'avatar_url', p.avatar_url, 'city', p.city) order by s.created_at)
+      from public.safety_checks s join public.profiles p on p.id = s.user_id where s.status = 'pending'), '[]'::jsonb));
+end $$;
+revoke all on function public.studio_safety_list() from public, anon;
+grant execute on function public.studio_safety_list() to authenticated;
+
+-- yes or no; either way the answer names the photo for the app to delete, and the row forgets it
+create or replace function public.studio_safety_decide(p_user uuid, p_ok boolean)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare pth text;
+begin
+  if not public.studio_can('verify') then return jsonb_build_object('ok', false, 'reason', 'not_allowed'); end if;
+  select photo_path into pth from public.safety_checks where user_id = p_user and status = 'pending' for update;
+  if not found then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
+  update public.safety_checks set status = case when p_ok then 'approved' else 'rejected' end, decided_at = now(), photo_path = null
+   where user_id = p_user;
+  if p_ok then
+    perform set_config('moments.verify_ok', '1', true);
+    update public.profiles set is_verified = true, verified_at = coalesce(verified_at, now()) where id = p_user;
+  end if;
+  perform public.studio_log_add(case when p_ok then 'checked a member' else 'turned down a safety check' end,
+                                (select name from public.profiles where id = p_user));
+  return jsonb_build_object('ok', true, 'delete_path', pth);
+end $$;
+revoke all on function public.studio_safety_decide(uuid, boolean) from public, anon;
+grant execute on function public.studio_safety_decide(uuid, boolean) to authenticated;
+
+-- the Studio's verify team may see and delete these photos too
+drop policy if exists "verification docs: you and the owner" on storage.objects;
+create policy "verification docs: you and the owner" on storage.objects for select to authenticated
+  using (bucket_id = 'verification' and ((storage.foldername(name))[1] = auth.uid()::text or public.is_app_owner() or public.studio_can('verify')));
+drop policy if exists "verification docs: removed by you or the owner" on storage.objects;
+create policy "verification docs: removed by you or the owner" on storage.objects for delete to authenticated
+  using (bucket_id = 'verification' and ((storage.foldername(name))[1] = auth.uid()::text or public.is_app_owner() or public.studio_can('verify')));
+
+-- ── the quota: Impact is never counted ──
+create or replace function public.quota_of(u uuid)
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare tier text := public.member_tier(u); used int; active int; circles int;
+begin
+  select count(*) into used from public.bookings b join public.offers o on o.id = b.offer_id
+   where b.user_id = u and o.is_drop and o.drop_category <> 'impact' and b.status in ('reserved','paid','attended') and b.created_at >= public.cairo_month();
+  select count(*) into active from public.bookings b join public.offers o on o.id = b.offer_id
+   where b.user_id = u and o.is_drop and o.drop_category <> 'impact' and b.status in ('reserved','paid')
+     and coalesce(o.ends_at, o.starts_at + interval '3 hours') > now();
+  select count(*) into circles from public.circle_joins j where j.user_id = u and j.at >= public.cairo_month();
+  return jsonb_build_object('tier', tier,
+    'drops_used', used, 'drops_cap', case tier when 'VIP' then 4 when 'BASIC' then 2 else 0 end,
+    'active', active, 'active_cap', case tier when 'BASIC' then 1 else null end,
+    'circles_used', circles, 'circles_cap', case tier when 'BASIC' then 4 when 'VIP' then null else 0 end);
+end $$;
+revoke all on function public.quota_of(uuid) from public, anon, authenticated;
+
+-- ── the Drops, with their kind, prices and short video ──
+create or replace function public.drops_list()
+returns jsonb language sql stable security definer set search_path = public as $$
+  select coalesce(jsonb_agg(x order by x->>'starts_at'), '[]'::jsonb) from (
+    select jsonb_build_object('id', o.id, 'title', o.title, 'title_ar', o.title_ar, 'category', o.drop_category,
+      'neighborhood', o.neighborhood, 'neighborhood_ar', o.neighborhood_ar, 'city', o.city,
+      'vibe', o.vibe, 'vibe_ar', o.vibe_ar, 'starts_at', o.starts_at,
+      'price', nullif(o.price, 0), 'member_price', o.member_price, 'currency', coalesce(o.currency, 'EGP'), 'video_url', o.video_url,
+      'seats', o.seats, 'taken', public.offer_seats_taken(o.id),
+      'mine', exists (select 1 from public.bookings b where b.offer_id = o.id and b.user_id = auth.uid() and b.status in ('reserved','paid','attended')),
+      'waiting', exists (select 1 from public.drop_waitlist w where w.offer_id = o.id and w.user_id = auth.uid()),
+      'reveal_at', o.starts_at - interval '12 hours',
+      'venue', case when now() >= o.starts_at - interval '12 hours'
+                     and exists (select 1 from public.bookings b where b.offer_id = o.id and b.user_id = auth.uid() and b.status in ('reserved','paid','attended'))
+                    then (select jsonb_build_object('name', v.name, 'map_url', v.map_url) from public.drop_venues v where v.offer_id = o.id) end) x
+      from public.offers o
+     where o.is_drop and o.status = 'live' and o.starts_at > now() - interval '3 hours'
+     order by o.starts_at limit 12) s;
+$$;
+revoke execute on function public.drops_list() from public, anon;
+grant execute on function public.drops_list() to authenticated;
+
+create or replace function public.drop_claim(p_id uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); o public.offers%rowtype; q jsonb; tries int := 0; impact boolean; tot numeric; prem boolean;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  select * into o from public.offers where id = p_id and is_drop and status = 'live' for update;
+  if not found or o.starts_at <= now() then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
+  if exists (select 1 from public.bookings b where b.offer_id = o.id and b.user_id = me and b.status in ('reserved','paid','attended')) then
+    return jsonb_build_object('ok', true, 'already', true, 'quota', public.quota_of(me));
+  end if;
+  if not public.is_verified(me) then return jsonb_build_object('ok', false, 'reason', 'verify'); end if;
+  impact := o.drop_category = 'impact';
+  prem := public.member_tier(me) <> 'FREE';
+  -- volunteering is open to every checked account; the rest is for members
+  if not impact and not prem then return jsonb_build_object('ok', false, 'reason', 'plus'); end if;
+  if o.seats is not null and public.offer_seats_taken(o.id) >= o.seats then return jsonb_build_object('ok', false, 'reason', 'full'); end if;
+  q := public.quota_of(me);
+  if not impact then
+    if (q->>'drops_used')::int >= (q->>'drops_cap')::int then return jsonb_build_object('ok', false, 'reason', 'quota', 'quota', q); end if;
+    if q->>'active_cap' is not null and (q->>'active')::int >= (q->>'active_cap')::int then return jsonb_build_object('ok', false, 'reason', 'active', 'quota', q); end if;
+  end if;
+  -- a trip has a price: the member price for members, held as 'reserved' until it is paid
+  tot := case when o.drop_category = 'roam' then coalesce(case when prem then o.member_price end, nullif(o.price, 0), 0) else 0 end;
+  loop
+    begin
+      insert into public.bookings (code, offer_id, user_id, qty, unit_price, plus_applied, total, currency, pay_mode, status, commission_pct, moments_share, partner_share)
+      values (public.booking_code(), o.id, me, 1, tot, prem, tot, coalesce(o.currency, 'EGP'), 'reserve', case when tot > 0 then 'reserved' else 'paid' end, 0, 0, 0);
+      exit;
+    exception when unique_violation then tries := tries + 1; if tries > 5 then raise; end if;
+    end;
+  end loop;
+  delete from public.drop_waitlist where offer_id = o.id and user_id = me;
+  return jsonb_build_object('ok', true, 'taken', public.offer_seats_taken(o.id), 'seats', o.seats, 'quota', public.quota_of(me),
+    'to_pay', case when tot > 0 then tot end, 'currency', coalesce(o.currency, 'EGP'));
+end $$;
+revoke execute on function public.drop_claim(uuid) from public, anon;
+grant execute on function public.drop_claim(uuid) to authenticated;
+
+-- the waitlist: Impact is open to every checked account too
+create or replace function public.drop_wait(p_id uuid, p_on boolean)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); cat text;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  select drop_category into cat from public.offers where id = p_id and is_drop and status = 'live' and starts_at > now();
+  if cat is null then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
+  if not public.is_verified(me) then return jsonb_build_object('ok', false, 'reason', 'verify'); end if;
+  if cat <> 'impact' and public.member_tier(me) = 'FREE' then return jsonb_build_object('ok', false, 'reason', 'plus'); end if;
+  if coalesce(p_on, true) then insert into public.drop_waitlist (offer_id, user_id) values (p_id, me) on conflict do nothing;
+  else delete from public.drop_waitlist where offer_id = p_id and user_id = me; end if;
+  return jsonb_build_object('ok', true, 'waiting', coalesce(p_on, true));
+end $$;
+revoke execute on function public.drop_wait(uuid, boolean) from public, anon;
+grant execute on function public.drop_wait(uuid, boolean) to authenticated;
+
+create or replace function public.drop_cancel(p_id uuid)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); n int; w uuid; o public.offers%rowtype;
+begin
+  select * into o from public.offers where id = p_id and is_drop;
+  if not found or o.starts_at <= now() then return jsonb_build_object('ok', false, 'reason', 'gone'); end if;
+  update public.bookings set status = 'cancelled', cancelled_at = now()
+   where offer_id = p_id and user_id = me and status in ('reserved', 'paid');
+  get diagnostics n = row_count;
+  if n = 0 then return jsonb_build_object('ok', false, 'reason', 'not_in'); end if;
+  select user_id into w from public.drop_waitlist where offer_id = p_id order by at limit 1;
+  if w is not null then perform public.notify(w, me, 'event_update', null, p_id::text || '|' || left(o.title, 80)); end if;
+  return jsonb_build_object('ok', true, 'quota', public.quota_of(me));
+end $$;
+revoke execute on function public.drop_cancel(uuid) from public, anon;
+grant execute on function public.drop_cancel(uuid) to authenticated;
+
+-- the Studio: the kind, the two prices and the video, as well as the rest
+create or replace function public.owner_drop_save(p jsonb)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare oid uuid := nullif(p ->> 'id', '')::uuid; cat text := lower(coalesce(nullif(p ->> 'category', ''), 'tables'));
+begin
+  if not public.owner_ok() then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
+  if coalesce(trim(p ->> 'title'), '') = '' or (p ->> 'starts_at') is null or coalesce(trim(p ->> 'neighborhood'), '') = '' then
+    return jsonb_build_object('ok', false, 'reason', 'incomplete');
+  end if;
+  if cat not in ('tables', 'culture', 'impact', 'roam') then cat := 'tables'; end if;
+  if nullif(trim(p ->> 'video_url'), '') is not null and trim(p ->> 'video_url') !~* '^https://' then
+    return jsonb_build_object('ok', false, 'reason', 'video');
+  end if;
+  if oid is null then
+    insert into public.offers (kind, title, price, created_by, status, is_drop, pay_modes)
+    values ('table', p ->> 'title', 0, auth.uid(), 'live', true, '{reserve}') returning id into oid;
+  end if;
+  update public.offers set
+    title = p ->> 'title', title_ar = nullif(p ->> 'title_ar', ''),
+    neighborhood = trim(p ->> 'neighborhood'), neighborhood_ar = nullif(trim(p ->> 'neighborhood_ar'), ''),
+    vibe = nullif(trim(p ->> 'vibe'), ''), vibe_ar = nullif(trim(p ->> 'vibe_ar'), ''),
+    city = nullif(trim(p ->> 'city'), ''), country = coalesce(nullif(upper(p ->> 'country'), ''), 'EG'),
+    starts_at = (p ->> 'starts_at')::timestamptz,
+    ends_at = (p ->> 'starts_at')::timestamptz + case when cat = 'roam' then interval '2 days' else interval '2 hours' end,
+    seats = coalesce(nullif(p ->> 'seats', '')::int, 6),
+    drop_category = cat,
+    price = case when cat = 'roam' then coalesce(nullif(p ->> 'price', '')::numeric, 0) else 0 end,
+    member_price = case when cat = 'roam' then nullif(p ->> 'member_price', '')::numeric end,
+    video_url = nullif(trim(p ->> 'video_url'), ''),
+    status = coalesce(nullif(p ->> 'status', ''), status), is_drop = true, updated_at = now()
+  where id = oid;
+  insert into public.drop_venues (offer_id, name, map_url) values (oid, nullif(trim(p ->> 'venue_name'), ''), nullif(trim(p ->> 'map_url'), ''))
+  on conflict (offer_id) do update set name = excluded.name, map_url = excluded.map_url;
+  return jsonb_build_object('ok', true, 'id', oid);
+end $$;
+revoke execute on function public.owner_drop_save(jsonb) from public, anon;
+grant execute on function public.owner_drop_save(jsonb) to authenticated;
+
+create or replace function public.owner_drops()
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+begin
+  if not public.owner_ok() then return '[]'::jsonb; end if;
+  return (select coalesce(jsonb_agg(jsonb_build_object('id', o.id, 'title', o.title, 'title_ar', o.title_ar, 'neighborhood', o.neighborhood,
+      'neighborhood_ar', o.neighborhood_ar, 'vibe', o.vibe, 'vibe_ar', o.vibe_ar, 'city', o.city, 'starts_at', o.starts_at, 'seats', o.seats,
+      'status', o.status, 'taken', public.offer_seats_taken(o.id), 'category', o.drop_category,
+      'price', nullif(o.price, 0), 'member_price', o.member_price, 'video_url', o.video_url,
+      'waiting', (select count(*) from public.drop_waitlist w where w.offer_id = o.id),
+      'venue_name', v.name, 'map_url', v.map_url) order by o.starts_at desc), '[]'::jsonb)
+    from public.offers o left join public.drop_venues v on v.offer_id = o.id
+   where o.is_drop and o.starts_at > now() - interval '30 days');
+end $$;
+revoke execute on function public.owner_drops() from public, anon;
+grant execute on function public.owner_drops() to authenticated;
+
+-- ── chat: Table Buddies, or a Daily Moment conversation inside the founding pass ──
+create or replace function public.in_founding(u uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select coalesce(public.founding_until(u) > now(), false);
+$$;
+revoke all on function public.in_founding(uuid) from public, anon, authenticated;
+
+create or replace function public.dm_can_send(t uuid, u uuid)
+returns boolean language plpgsql stable security definer set search_path = public as $$
+declare o uuid := public.dm_other(t, u);
+begin
+  if o is null or public.blocked_between(u, o) then return false; end if;
+  if public.are_buddies(u, o) then
+    if public.is_premium(u) then return true; end if;
+    return exists (select 1 from public.messages m where m.dm_thread_id = t and m.user_id = o);
+  end if;
+  -- not buddies: only a conversation that began on a Daily Moment answer, between checked people,
+  -- while the writer's founding pass runs — or for a member, who keeps it
+  if not exists (select 1 from public.dm_openers op where op.thread_id = t and op.daily_answer is not null) then return false; end if;
+  if not public.is_verified(u) then return false; end if;
+  return public.in_founding(u) or public.is_premium(u);
+end $$;
+revoke all on function public.dm_can_send(uuid, uuid) from public, anon, authenticated;
+
+-- starting one: on somebody's Daily Moment answer, after answering one yourself
+create or replace function public.dm_open(p_to uuid, p_answer uuid, p_card int, p_body text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); t uuid; txt text := btrim(coalesce(p_body, ''));
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  if not public.is_verified(me) then return jsonb_build_object('ok', false, 'reason', 'verify'); end if;
+  if p_answer is null then return jsonb_build_object('ok', false, 'reason', 'buddies_only'); end if;
+  if not (public.in_founding(me) or public.is_premium(me)) then return jsonb_build_object('ok', false, 'reason', 'pass_over'); end if;
+  if p_to is null or p_to = me then return jsonb_build_object('ok', false, 'reason', 'not_member'); end if;
+  if public.blocked_between(me, p_to) then return jsonb_build_object('ok', false, 'reason', 'blocked'); end if;
+  if length(txt) < 2 or length(txt) > 500 then return jsonb_build_object('ok', false, 'reason', 'shape'); end if;
+  if not exists (select 1 from public.moment_answers a where a.id = p_answer and a.user_id = p_to and a.day >= current_date - 2) then
+    return jsonb_build_object('ok', false, 'reason', 'prompt');
+  end if;
+  if not exists (select 1 from public.moment_answers a where a.user_id = me and a.day >= current_date - 2) then
+    return jsonb_build_object('ok', false, 'reason', 'answer_first');
+  end if;
+  select p1.thread_id into t from public.dm_participants p1 join public.dm_participants p2 on p2.thread_id = p1.thread_id
+   where p1.user_id = me and p2.user_id = p_to limit 1;
+  if t is null then
+    if (select count(*) from public.dm_openers where from_id = me and at > now() - interval '1 day') >= 10 then
+      return jsonb_build_object('ok', false, 'reason', 'limit');
+    end if;
+    insert into public.dm_threads default values returning id into t;
+    insert into public.dm_participants (thread_id, user_id, accepted, invited_by) values (t, me, true, null), (t, p_to, true, me);
+    insert into public.dm_openers (thread_id, from_id, to_id, daily_answer, card) values (t, me, p_to, p_answer, null);
+  end if;
+  if not public.dm_can_send(t, me) then return jsonb_build_object('ok', false, 'reason', 'waiting', 'thread_id', t); end if;
+  insert into public.messages (dm_thread_id, user_id, body) values (t, me, txt);
+  return jsonb_build_object('ok', true, 'thread_id', t);
+end $$;
+revoke execute on function public.dm_open(uuid, uuid, int, text) from public, anon;
+grant execute on function public.dm_open(uuid, uuid, int, text) to authenticated;
+
+-- the Daily Moment: a reply under somebody's answer is how a founding-pass chat starts;
+-- whether it may start is dm_open's to say (checked, inside the 14 days, or a member)
+create or replace function public.daily_moment()
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare me uuid := auth.uid(); q public.moment_pool; mine public.moment_answers%rowtype;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  q := public.moment_today();
+  select * into mine from public.moment_answers where day = current_date and user_id = me;
+  return jsonb_build_object('ok', true, 'day', current_date, 'n', q.n, 'kind', q.kind, 'q', q.q, 'q_ar', q.q_ar, 'opts', q.opts,
+    'count', (select count(*) from public.moment_answers where day = current_date),
+    'answered', mine.id is not null,
+    'pass_until', public.founding_until(me), 'verified', public.is_verified(me),
+    'mine', case when mine.id is null then null else jsonb_build_object('id', mine.id, 'choice', mine.choice, 'body', mine.body) end,
+    'tallies', case when mine.id is null or q.kind <> 'poll' then null else (
+      select jsonb_agg((select count(*) from public.moment_answers a where a.day = current_date and a.choice = i) order by i)
+        from generate_series(0, jsonb_array_length(q.opts) - 1) i) end,
+    'answers', case when mine.id is null then null else (
+      select coalesce(jsonb_agg(jsonb_build_object('id', a.id, 'choice', a.choice, 'body', a.body,
+               'user', jsonb_build_object('id', p.id, 'name', p.name, 'avatar_url', p.avatar_url),
+               'buddy', public.are_buddies(me, a.user_id), 'me', a.user_id = me,
+               'can_reply', a.user_id <> me and not public.are_buddies(me, a.user_id) and coalesce(p.dm_open, true),
+               'reactions', (select coalesce(jsonb_object_agg(r.emoji, r.n), '{}'::jsonb) from (
+                   select emoji, count(*) n from public.moment_reactions where answer_id = a.id group by emoji) r),
+               'my_reaction', (select emoji from public.moment_reactions where answer_id = a.id and user_id = me))
+             order by (a.user_id = me) desc, public.are_buddies(me, a.user_id) desc, a.created_at desc), '[]'::jsonb)
+        from (select * from public.moment_answers x where x.day = current_date and not public.blocked_between(me, x.user_id)
+               order by (x.user_id = me) desc, public.are_buddies(me, x.user_id) desc, x.created_at desc limit 60) a
+        join public.profiles p on p.id = a.user_id) end);
+end $$;
+revoke execute on function public.daily_moment() from public, anon;
+grant execute on function public.daily_moment() to authenticated;
+
+notify pgrst, 'reload schema';
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة

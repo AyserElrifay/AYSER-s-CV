@@ -5,6 +5,13 @@ import { C, NUM } from '../constants/theme';
 import { useLang } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { dailyMoment, dailyAnswer, dailyReact, dmOpen } from '../services/live';
+import { askSafety, askUpgrade } from '../services/membership';
+
+// the founding pass, in two lines (kept here: the MVP words live in their own chunk)
+const PASS = {
+  en: { over: 'Your 14 open days are over. Meet at a table, or join Moments+ to keep writing.', first: 'Answer today’s Daily Moment first.' },
+  ar: { over: 'الـ ١٤ يوم المفتوحين خلصوا. اتقابلوا على ترابيزة، أو اشترك في مومنتس+ عشان تكمّلوا كلام.', first: 'جاوب على لحظة النهارده الأول.' },
+};
 import { lazyOverlay } from '../lib/lazyScreen';
 import { Face } from '../ui/Face';
 import { tapLight, tapMedium, tapSuccess, tapSelection } from '../utils/feedback';
@@ -158,10 +165,17 @@ export const DailyMoment = () => {
     }) }));
     await dailyReact(a.id, e);
   };
+  /* a reply starts a chat: checked people, inside the 14-day founding pass
+     (or members). Each "not yet" says what to do (RUN_ME.sql, dm_open) */
   const reply = async (a, body) => {
     tapMedium();
     const r = await dmOpen({ to: a.user.id, answerId: a.id, body });
-    if (r && r.ok) { tapSuccess(); setThread(r.thread_id); } else if (!(r && r.reason === 'plus')) setErr(w(lang, 'err'));
+    if (r && r.ok) { tapSuccess(); setThread(r.thread_id); return; }
+    const why = r && r.reason;
+    if (why === 'verify') { askSafety(); return; }
+    if (why === 'pass_over') { setErr(PASS[lang === 'ar' ? 'ar' : 'en'].over); askUpgrade('member'); return; }
+    if (why === 'answer_first') { setErr(PASS[lang === 'ar' ? 'ar' : 'en'].first); return; }
+    if (why !== 'plus') setErr(w(lang, 'err'));
   };
 
   const total = q.tallies ? q.tallies.reduce((s, n) => s + n, 0) : 0;

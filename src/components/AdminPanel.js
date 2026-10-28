@@ -33,7 +33,7 @@ import { PromptsTab } from './PromptsTab';
 import { RewardsTab } from './RewardsTab';
 import { TeachersTab } from './TeachersTab';
 import { PeopleTab } from './PeopleTab';
-import { MembersTab } from './MembersTab';
+import { MembersTab, SafetyChecksTab } from './MembersTab';
 import { useSheetBack } from '../hooks/useSheetBack';
 
 /* ─── MOMENTS STUDIO · the owner's control panel ──────────────────────
@@ -47,6 +47,7 @@ import { useSheetBack } from '../hooks/useSheetBack';
 const TABS = [
   { k: 'traction', label: 'Traction', icon: 'trending-up-outline' },
   { k: 'members', label: 'Members', icon: 'card-outline', owner: true },
+  { k: 'checks', label: 'Safety checks', icon: 'shield-half-outline', area: 'verify' },
   { k: 'people', label: 'People', icon: 'person-circle-outline', area: 'safety' },
   { k: 'safety', label: 'Safety', icon: 'shield-outline', area: 'safety' },
   { k: 'reports', label: 'Reports', icon: 'flag-outline', area: 'safety' },
@@ -977,6 +978,7 @@ export const AdminPanel = ({ onClose, access = { owner: true }, initialTab = nul
           {tab === 'teachers' && owner ? <TeachersTab /> : null}
           {tab === 'people' ? <PeopleTab /> : null}
           {tab === 'members' && owner ? <MembersTab /> : null}
+          {tab === 'checks' ? <SafetyChecksTab /> : null}
           {tab === 'activity' && owner ? (
             act == null ? <Empty t="Run the latest SQL (part 26) to see the team's activity here." /> : (
               <>

@@ -2295,6 +2295,7 @@ export const STRINGS = {
     ch_pick_how: "How have you been?",
     ch_pick_coffee: "Coffee this week?",
     nu_first_in: "You're the first one going.",
+    nu_seats: "{n}/{m} seats claimed \u00b7 {l} spots left",
     nu_you_and: "You and {n} more are going",
     nu_bring: "Bring a friend",
     nu_asked: "Invite sent",

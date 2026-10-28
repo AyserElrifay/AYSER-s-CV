@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Pressable, Image, Animated, Easing } from 'react-native';
+import { View, Text, Pressable, Image, Animated, Easing, Platform } from 'react-native';
 import { LinearGradient } from '../ui/Gradient';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { C } from '../constants/theme';
@@ -7,7 +7,9 @@ import { useLang } from '../context/LanguageContext';
 import { supabase, SUPABASE_READY } from '../lib/supabase';
 import { listGatherings, keptGatherings, joinGathering } from '../services/green';
 import { lastFix } from '../services/squadAdmin';
-import { ideaPhoto, ideaPics } from './green/PlanPhoto';
+import { ideaPhoto, ideaPics, ideaClip } from './green/PlanPhoto';
+import { isSaving } from '../lib/dataSaver';
+import { getPrefs } from '../services/prefs';
 import { greenPic } from './green/GreenCards';
 import { isGreen } from '../lib/greenKinds';
 import { lookOf, titleFor } from '../lib/activityPins';
@@ -211,12 +213,22 @@ export const NextUp = ({ user, onOpen, onStart }) => {
   const pics = ideaPics(g);
   const pic = pics[0] || ideaPhoto(g) || (isGreen(g) ? greenPic([g.title, g.place_name].join(' '), g.id) : null);
   const n = Number(g.going) || 0;
+  // Ayser: scarcity, not "you're the first one going" — seats taken and left, when the plan has a size
+  const cap = Number(g.capacity) || 0;
+  const seatsLine = cap ? t('nu_seats').replace('{n}', String(Math.min(n, cap))).replace('{m}', String(cap)).replace('{l}', String(Math.max(0, cap - n))) : null;
+  // five seconds of a real evening of this kind, silent, on a loop — never on data saver
+  const clip = Platform.OS === 'web' && !isSaving((getPrefs() || {}).dataSaver) ? ideaClip(g) : null;
   return (
     <View style={{ marginTop: 16 }}>
       <Pressable onPress={() => { tapLight(); onOpen(g); }} accessibilityRole="button" accessibilityLabel={titleFor(g.title, lang)}>
         <View style={{ height: 260, borderRadius: 26, overflow: 'hidden', backgroundColor: look.from }}>
           {pics.length > 1 ? <Slides key={g.id} pics={pics} /> : pic ? <Image source={{ uri: pic }} style={{ position: 'absolute', width: '100%', height: '100%' }} accessibilityIgnoresInvertColors />
             : <LinearGradient colors={[look.from, look.to]} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 80 }}>{look.emoji}</Text></LinearGradient>}
+          {clip ? (
+            <video src={clip.clip} poster={clip.still} muted autoPlay loop playsInline preload="metadata" aria-hidden="true"
+              onTimeUpdate={(e) => { const v = e.currentTarget; if (v.currentTime > 5) v.currentTime = 0; }}
+              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', pointerEvents: 'none' }} />
+          ) : null}
           <LinearGradient colors={['rgba(0,0,0,0.35)', 'rgba(0,0,0,0)', 'rgba(0,0,0,0.8)']} locations={[0, 0.3, 1]} style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 }} />
           <Text style={{ position: 'absolute', top: 14, left: 16, color: '#FFF', fontSize: 12, fontWeight: '900', letterSpacing: 1.2 }}>{t('nu_kicker').toUpperCase()}</Text>
           <View style={{ position: 'absolute', top: 10, right: 12, flexDirection: 'row', alignItems: 'center' }}>
@@ -237,9 +249,9 @@ export const NextUp = ({ user, onOpen, onStart }) => {
             </Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12 }}>
               <Text style={{ flex: 1, color: 'rgba(255,255,255,0.9)', fontSize: 13, fontWeight: '800', marginEnd: 10 }} numberOfLines={2}>
-                {g.im_going
+                {seatsLine || (g.im_going
                   ? (n > 1 ? t('nu_you_and').replace('{n}', String(n - 1)) : t('nu_first_in'))
-                  : n > 0 ? t('gm_join_them').replace('{n}', String(n)) : t('gm_first')}
+                  : n > 0 ? t('gm_join_them').replace('{n}', String(n)) : t('gm_first'))}
               </Text>
               {g.im_going ? (
                 <Pressable onPress={bringFriend} accessibilityRole="button" hitSlop={6}>

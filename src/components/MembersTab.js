@@ -5,6 +5,7 @@ import { AV_NEUTRAL } from '../constants/mockData';
 import { tapLight, tapSuccess, tapSelection } from '../utils/feedback';
 import { promoSave, promoList, promoOff, promoToCheckout, members, giftMembership, endGift, stopRenewing } from '../services/gifts';
 import { setStanding } from '../services/studioPeople';
+import { safetyList, safetyPhotoUrl, safetyDecide } from '../services/mvp';
 
 /* ─── THE OWNER'S MEMBERS DESK ────────────────────────────────────────
    Ayser: promo codes made here, with the discount she chooses, and
@@ -204,3 +205,44 @@ export const MembersTab = () => (
     <Everybody />
   </View>
 );
+
+/* ── SAFETY CHECKS ── the photo each person sent (a live selfie or a
+   card), shown for five minutes from the private bucket; Approve or Turn
+   down, and the photo is deleted at once (zero storage). Owner or the
+   Studio's verify team (RUN_ME.sql, studio_safety_decide). */
+const CheckRow = ({ p, onDone }) => {
+  const [url, setUrl] = useState(null);
+  const [busy, setBusy] = useState(null);
+  useEffect(() => { if (p.photo_path) safetyPhotoUrl(p.photo_path).then(setUrl); }, [p.photo_path]);
+  const decide = async (ok) => { setBusy(ok ? 'y' : 'n'); const r = await safetyDecide(p.user_id, ok); setBusy(null); if (r && r.ok) { tapSuccess(); onDone(); } };
+  return (
+    <View style={{ flexDirection: 'row', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: C.line }}>
+      {url ? <Image source={{ uri: url }} style={{ width: 96, height: 128, borderRadius: 12, backgroundColor: C.glassHi, marginEnd: 12 }} />
+        : <View style={{ width: 96, height: 128, borderRadius: 12, backgroundColor: C.glassHi, marginEnd: 12 }} />}
+      <View style={{ flex: 1 }}>
+        <Text style={{ color: C.text, fontSize: 15, fontWeight: '700' }}>{p.name || '—'}</Text>
+        <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 2 }}>{(p.kind === 'selfie' ? 'Live selfie' : 'ID / university card') + (p.city ? ' · ' + p.city : '')}</Text>
+        {p.handle ? <Text style={{ color: C.text, fontSize: 13, marginTop: 4 }} selectable>{p.handle}</Text> : null}
+        {p.avatar_url ? <Image source={{ uri: p.avatar_url }} style={{ width: 36, height: 36, borderRadius: 18, marginTop: 8 }} /> : null}
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+          <Act label="Approve" strong busy={busy === 'y'} onPress={() => decide(true)} />
+          <Act label="Turn down" busy={busy === 'n'} onPress={() => decide(false)} />
+        </View>
+      </View>
+    </View>
+  );
+};
+export const SafetyChecksTab = () => {
+  const [r, setR] = useState(null);
+  const load = () => safetyList().then(setR);
+  useEffect(() => { load(); }, []);
+  return (
+    <View>
+      <Head sub="One check per person, before they book a Drop or start a chat. Compare the photo with their profile; the photo is deleted the moment you decide, either way.">Safety checks</Head>
+      {r == null ? <ActivityIndicator color={C.text} style={{ marginTop: 20 }} />
+        : !r.ok ? <Text style={{ color: C.dim, fontSize: 13 }}>Owner or the verify team only — unlock the Studio again.</Text>
+        : !r.people.length ? <Text style={{ color: C.dim, fontSize: 13.5 }}>Nobody is waiting.</Text>
+        : r.people.map((p) => <CheckRow key={p.user_id} p={p} onDone={load} />)}
+    </View>
+  );
+};

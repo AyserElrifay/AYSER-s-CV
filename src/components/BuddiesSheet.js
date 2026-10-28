@@ -7,7 +7,7 @@ import { C, NUM } from '../constants/theme';
 import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LanguageContext';
 import { DECK, BADGES, badgeName, cardText } from '../constants/activityDeck';
-import { myBuddies, myConversations, buddyThread, dmState, buddyPing, myNextEvents, passport, needPlus } from '../services/live';
+import { myBuddies, myConversations, buddyThread, dmState, buddyPing, myNextEvents, passport, needPlus, mySafety } from '../services/live';
 import { fetchMessages, sendMessage, subscribeMessages } from '../services/messages';
 import { Face } from '../ui/Face';
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
@@ -56,6 +56,11 @@ const w = (lang, k, v) => {
   let s = (S[lang] || S.en)[i] || S.en[i] || '';
   Object.keys(v || {}).forEach((x) => { s = s.replace('{' + x + '}', String(v[x])); });
   return s;
+};
+/* the founding pass banner (Ayser's words) */
+const FOUNDING = {
+  en: 'Founding access: open chat with Daily Moment people is unlocked for {n} more days. Meet at a table or upgrade to Moments+ to keep your connections permanently.',
+  ar: 'وصول المؤسسين: الشات مع ناس اللحظة اليومية مفتوح لمدة {n} يوم كمان. اتقابلوا على ترابيزة أو اشترك في مومنتس+ عشان تفضلوا على تواصل على طول.',
 };
 const MIDNIGHT = (() => { try { return /[?&]midnight\b/.test(window.location.search); } catch (e) { return false; } })();
 const askPlus = () => needPlus({ ok: false, reason: 'plus' }, 'chat');
@@ -237,6 +242,7 @@ export const BuddiesSheet = ({ onClose, threadId, other }) => {
   const [sparks, setSparks] = useState([]);     // Mutual Sparks that are not Table Buddies
   const [prem, setPrem] = useState({});         // who wears the ✦
   const [match, setMatch] = useState({});       // my Vibe Match with each buddy (the server's)       // the privacy switch: may new people write to me
+  const [safe, setSafe] = useState(null);
   useSheetBack(open ? () => setOpen(null) : mt ? () => setMt(false) : onClose);
   useEffect(() => {
     myPassport().then((p) => p && p.ok && setDmOn(p.dm_open !== false));
@@ -258,10 +264,13 @@ export const BuddiesSheet = ({ onClose, threadId, other }) => {
       premiumOf(all.map((c) => c.other && c.other.id)).then((p) => setPrem((q) => ({ ...q, ...p })));
     });
     passport(null).then(setPass);
+    mySafety().then((x) => setSafe(x || null));
   };
   useEffect(() => { load(); }, []);
 
   const vibes = pass && pass.vibes ? BADGES.filter(([b]) => pass.vibes[b]) : [];
+  // the founding pass: days left of open chat with Daily Moment people
+  const passLeft = safe && safe.pass_until ? Math.ceil((Date.parse(safe.pass_until) - Date.now()) / 86400000) : 0;
   return (
     <Modal visible transparent={false} animationType="slide" onRequestClose={() => (open ? setOpen(null) : mt ? setMt(false) : onClose())}>
       <View style={{ flex: 1, backgroundColor: C.bg, paddingTop: insets.top, paddingBottom: insets.bottom }}>
@@ -277,6 +286,11 @@ export const BuddiesSheet = ({ onClose, threadId, other }) => {
             <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 20, paddingTop: 8, paddingBottom: 40 }}>
               <Text style={{ color: C.text, fontSize: 28, fontWeight: '700', letterSpacing: lang === 'ar' ? 0 : -0.7 }}>{mw(lang, 'chats')}</Text>
               <Text style={{ color: C.dim, fontSize: 14, lineHeight: 20, marginTop: 6 }}>{w(lang, 'sub')}</Text>
+              {passLeft > 0 ? (
+                <View style={{ marginTop: 14, borderRadius: 16, borderWidth: 1, borderColor: C.line, paddingVertical: 12, paddingHorizontal: 14 }}>
+                  <Text style={{ color: C.text, fontSize: 13.5, lineHeight: 19 }}>{FOUNDING[lang === 'ar' ? 'ar' : 'en'].replace('{n}', String(passLeft))}</Text>
+                </View>
+              ) : null}
 
               {/* the Midnight Table: paused for the final MVP (chat is earned at a table or a Circle) — ?midnight brings it back to look at */}
               {MIDNIGHT ? <Pressable onPress={() => { tapLight(); setMt(true); }} accessibilityRole="button" style={{ marginTop: 16 }}>

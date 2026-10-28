@@ -52,6 +52,9 @@ export const dmOpen = async ({ to, answerId, card, body }) => {
   return r;
 };
 
+// the safety check and the 14-day founding pass (RUN_ME.sql, "FOUR PILLARS")
+export const mySafety = () => rpc('my_safety');
+
 // every day
 export const dailyMoment = () => rpc('daily_moment');
 export const dailyAnswer = (choice, body) => rpc('daily_moment_answer', { p_choice: choice == null ? null : choice, p_body: body || null });

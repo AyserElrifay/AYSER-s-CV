@@ -229,7 +229,7 @@ const cairoLocal = (iso) => {
   try { const p = new Intl.DateTimeFormat('en', { timeZone: 'Africa/Cairo', hour12: false, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).formatToParts(new Date(iso)).reduce((a, x) => ({ ...a, [x.type]: x.value }), {});
     return p.year + '-' + p.month + '-' + p.day + ' ' + (+p.hour % 24 + '').padStart(2, '0') + ':' + p.minute; } catch (e) { return ''; }
 };
-const DROP0 = { title: '', title_ar: '', neighborhood: '', neighborhood_ar: '', vibe: 'English · Coffee', vibe_ar: 'إنجليزي · قهوة', city: 'Cairo', when: '', seats: '6', venue_name: '', map_url: '' };
+const DROP0 = { title: '', title_ar: '', neighborhood: '', neighborhood_ar: '', vibe: 'English · Coffee', vibe_ar: 'إنجليزي · قهوة', city: 'Cairo', when: '', seats: '6', venue_name: '', map_url: '', category: 'tables', price: '', member_price: '', video_url: '' };
 const DropsBox = () => {
   const [list, setList] = useState([]);
   const [f, setF] = useState(null);
@@ -241,9 +241,10 @@ const DropsBox = () => {
     const at = cairoIso(f.when);
     if (!at) { setNote('Time as 2026-11-05 20:00 (Cairo).'); return; }
     const r = await ownerDropSave({ id: f.id || null, title: f.title || ('The ' + f.neighborhood + ' Table'), title_ar: f.title_ar, neighborhood: f.neighborhood,
-      neighborhood_ar: f.neighborhood_ar, vibe: f.vibe, vibe_ar: f.vibe_ar, city: f.city, starts_at: at, seats: f.seats, venue_name: f.venue_name, map_url: f.map_url, status: f.status });
+      neighborhood_ar: f.neighborhood_ar, vibe: f.vibe, vibe_ar: f.vibe_ar, city: f.city, starts_at: at, seats: f.seats, venue_name: f.venue_name, map_url: f.map_url, status: f.status,
+      category: f.category || 'tables', price: f.price, member_price: f.member_price, video_url: f.video_url });
     if (r && r.ok) { tapSuccess(); setNote('Saved — it is on Home now.'); setF(null); load(); }
-    else setNote(r && r.reason === 'incomplete' ? 'The neighbourhood and the time are needed.' : 'Could not save — owner only.');
+    else setNote(r && r.reason === 'incomplete' ? 'The neighbourhood and the time are needed.' : r && r.reason === 'video' ? 'The video link has to start with https://' : 'Could not save — owner only.');
   };
   return (
     <View style={{ borderWidth: 1, borderColor: C.line, borderRadius: 14, padding: 12, marginTop: 12 }}>
@@ -251,6 +252,12 @@ const DropsBox = () => {
       <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 3 }}>The only offline tables. Home shows the next three. The café stays hidden until 12 hours before, and only for confirmed seats.</Text>
       {f ? (
         <>
+          {/* the four pillars: Tables · Culture · Impact (free for any checked account, not counted) · Roam (trips, two prices) */}
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 8 }}>
+            {[['tables', 'Tables'], ['culture', 'Culture'], ['impact', 'Impact'], ['roam', 'Roam']].map(([k, label]) => (
+              <Btn key={k} label={label} solid={(f.category || 'tables') === k} onPress={() => setF((x) => ({ ...x, category: k }))} />
+            ))}
+          </View>
           <Field label="Neighbourhood" value={f.neighborhood} onChange={set('neighborhood')} ph="Zamalek" />
           <Field label="Neighbourhood · Arabic" value={f.neighborhood_ar} onChange={set('neighborhood_ar')} ph="الزمالك" />
           <Field label="When (Cairo time)" value={f.when} onChange={set('when')} ph="2026-11-05 20:00" />
@@ -261,6 +268,13 @@ const DropsBox = () => {
           <Field label="City" value={f.city} onChange={set('city')} ph="Cairo" />
           <Field label="Café (hidden until 12h before)" value={f.venue_name} onChange={set('venue_name')} ph="Café name" />
           <Field label="Map link (https://…)" value={f.map_url} onChange={set('map_url')} ph="https://maps.app.goo.gl/…" />
+          {f.category === 'roam' ? (
+            <>
+              <Field label="Ticket price (EGP)" value={f.price} onChange={set('price')} ph="3000" />
+              <Field label="Moments+ member price (EGP)" value={f.member_price} onChange={set('member_price')} ph="2400" />
+            </>
+          ) : null}
+          <Field label="5-second video of a past evening (https://…mp4, optional)" value={f.video_url} onChange={set('video_url')} ph="https://…/clip.mp4" />
           <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
             <Btn label="Save drop" solid onPress={save} />
             {f.id ? <Btn label={f.status === 'closed' ? 'Open again' : 'Close it'} onPress={() => setF((x) => ({ ...x, status: x.status === 'closed' ? 'live' : 'closed' }))} /> : null}
@@ -270,9 +284,9 @@ const DropsBox = () => {
       ) : <Btn label="New drop" solid onPress={() => { setNote(null); setF({ ...DROP0 }); }} />}
       {note ? <Text style={{ color: C.green, fontSize: 13, marginTop: 8 }}>{note}</Text> : null}
       {list.map((d) => (
-        <Pressable key={d.id} onPress={() => { tapLight(); setNote(null); setF({ ...DROP0, ...d, when: cairoLocal(d.starts_at), seats: String(d.seats || 6), venue_name: d.venue_name || '', map_url: d.map_url || '' }); }} accessibilityRole="button">
+        <Pressable key={d.id} onPress={() => { tapLight(); setNote(null); setF({ ...DROP0, ...d, when: cairoLocal(d.starts_at), seats: String(d.seats || 6), venue_name: d.venue_name || '', map_url: d.map_url || '', category: d.category || 'tables', price: d.price != null ? String(d.price) : '', member_price: d.member_price != null ? String(d.member_price) : '', video_url: d.video_url || '' }); }} accessibilityRole="button">
           <Text style={{ color: C.text, fontSize: 13.5, paddingVertical: 7 }}>
-            {(d.neighborhood || '—') + ' · ' + cairoLocal(d.starts_at) + ' · ' + (d.taken || 0) + '/' + (d.seats || 6) + (d.waiting ? ' · ' + d.waiting + ' waiting' : '') + (d.status !== 'live' ? ' · ' + d.status : '') + (d.venue_name ? '' : ' · no café yet')}
+            {'[' + (d.category || 'tables').toUpperCase() + '] ' + (d.neighborhood || '—') + ' · ' + cairoLocal(d.starts_at) + ' · ' + (d.taken || 0) + '/' + (d.seats || 6) + (d.waiting ? ' · ' + d.waiting + ' waiting' : '') + (d.status !== 'live' ? ' · ' + d.status : '') + (d.venue_name ? '' : ' · no café yet')}
           </Text>
         </Pressable>
       ))}

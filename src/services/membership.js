@@ -15,6 +15,11 @@ export const askUpgrade = (why) => {
   try { window.dispatchEvent(new CustomEvent('mm-need-plus', { detail: why || 'member' })); } catch (e) {}
 };
 
+/* the one-time safety check before booking or chatting (components/SafetyCheck.js) */
+export const askSafety = () => {
+  try { window.dispatchEvent(new CustomEvent('mm-need-safety')); } catch (e) {}
+};
+
 /* the welcome offer a new Black gets once, for 24 hours (RUN_ME.sql,
    "Black IS 1300 A YEAR · AND A WELCOME OFFER, ONCE"): 30% off a first
    Level 1 workshop. The discount itself is taken off by journey_book. */

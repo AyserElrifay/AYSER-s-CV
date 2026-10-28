@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, Pressable, Modal, ActivityIndicator, Linking } from 'react-native';
+import { View, Text, Pressable, Modal, ActivityIndicator, Linking, Platform, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { C, NUM } from '../constants/theme';
@@ -7,7 +7,9 @@ import { useAuth } from '../context/AuthContext';
 import { useLang } from '../context/LanguageContext';
 import { mv } from '../constants/mvpWords';
 import { dropsList, dropClaim, dropWait, dropCancel, myQuota, circleNow, circleVote, circleEnter } from '../services/mvp';
-import { askUpgrade } from '../services/membership';
+import { askUpgrade, askSafety } from '../services/membership';
+import { isSaving } from '../lib/dataSaver';
+import { getPrefs } from '../services/prefs';
 import { joinMesh } from '../lib/talkMesh';
 import { lazyOverlay } from '../lib/lazyScreen';
 import { tapLight, tapMedium, tapSuccess } from '../utils/feedback';
@@ -270,12 +272,35 @@ const Confirmed = ({ q, place, at, lang, onClose }) => {
           <Text style={{ color: C.text, fontSize: 26, fontWeight: '700', marginTop: 10 }}>{place}</Text>
           <Text style={{ color: C.text, fontSize: 15, marginTop: 4 }}>{when(at, lang)}</Text>
           <Text style={{ color: C.dim, fontSize: 13.5, marginTop: 10 }}>{mv(lang, 'reveal')}</Text>
+          {q && q.to_pay ? <Text style={[{ color: C.text, fontSize: 14, fontWeight: '600', marginTop: 8 }, NUM]}>{mv(lang, 'toPay', { p: money(q.to_pay, q.currency, lang) })}</Text> : null}
           <View style={{ height: 1, backgroundColor: C.line, marginVertical: 16 }} />
           <QuotaLine q={q} />
           <Btn label={mv(lang, 'ok')} onPress={onClose} />
         </View>
       </Pressable>
     </Modal>
+  );
+};
+
+/* ── THE FOUR PILLARS ── (RUN_ME.sql, "FOUR PILLARS") one kind per Drop */
+const CATS = ['tables', 'culture', 'impact', 'roam'];
+const catWord = (lang, c) => mv(lang, 'cat' + c.charAt(0).toUpperCase() + c.slice(1));
+const money = (n, cur, lang) => {
+  if (n == null) return '';
+  const v = Math.round(Number(n)).toLocaleString('en');
+  return lang === 'ar' && (cur || 'EGP') === 'EGP' ? v + ' جنيه' : (cur || 'EGP') + ' ' + v;
+};
+
+/* five seconds of a past evening, silent, round and round — never on data
+   saver, and a still (or nothing) until it really plays */
+const LoopVideo = ({ uri }) => {
+  const [on, setOn] = useState(false);
+  if (Platform.OS !== 'web' || !uri || isSaving((getPrefs() || {}).dataSaver)) return null;
+  return (
+    <video src={uri} muted autoPlay loop playsInline preload="metadata" aria-hidden="true"
+      onPlaying={() => setOn(true)}
+      onTimeUpdate={(e) => { const v = e.currentTarget; if (v.currentTime > 5) v.currentTime = 0; }}
+      style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', opacity: on ? 0.55 : 0, transition: 'opacity 500ms', pointerEvents: 'none' }} />
   );
 };
 
@@ -294,8 +319,9 @@ const DropCard = ({ d, lang, onChanged }) => {
     tapMedium(); setBusy(true); setNote(null);
     const r = await dropClaim(d.id);
     setBusy(false);
-    if (r && r.ok) { tapSuccess(); setDone(r.quota || {}); onChanged(); return; }
+    if (r && r.ok) { tapSuccess(); setDone({ ...(r.quota || {}), to_pay: r.to_pay, currency: r.currency }); onChanged(); return; }
     const why = r && r.reason;
+    if (why === 'verify') { askSafety(); return; }
     if (why === 'plus') { askUpgrade('member'); return; }
     setNote(why === 'quota' ? mv(lang, 'quotaOut') : why === 'active' ? mv(lang, 'active') : null);
     if (why === 'full') onChanged();
@@ -304,16 +330,29 @@ const DropCard = ({ d, lang, onChanged }) => {
     tapLight(); setBusy(true);
     const r = await dropWait(d.id, !d.waiting);
     setBusy(false);
+    if (r && r.reason === 'verify') { askSafety(); return; }
     if (r && r.reason === 'plus') { askUpgrade('member'); return; }
     onChanged();
   };
   const giveBack = async () => { tapLight(); setBusy(true); await dropCancel(d.id); setBusy(false); onChanged(); };
 
+  const cat = CATS.includes(d.category) ? d.category : 'tables';
   return (
-    <Card>
-      {vibe ? <Small>{vibe.toUpperCase()}</Small> : null}
-      <Text style={{ color: C.text, fontSize: 24, fontWeight: '700', letterSpacing: lang === 'ar' ? 0 : -0.5, marginTop: vibe ? 8 : 0 }}>{place}</Text>
+    <Card style={{ overflow: 'hidden' }}>
+      <LoopVideo uri={d.video_url} />
+      {/* the kind, crisp and small, top-left: [ CULTURE ] */}
+      <Text style={{ color: C.text, fontSize: 11, fontWeight: '700', letterSpacing: lang === 'ar' ? 0 : 1.6 }}>{'[ ' + catWord(lang, cat).toUpperCase() + ' ]'}</Text>
+      {vibe ? <Small style={{ marginTop: 8 }}>{vibe.toUpperCase()}</Small> : null}
+      <Text style={{ color: C.text, fontSize: 24, fontWeight: '700', letterSpacing: lang === 'ar' ? 0 : -0.5, marginTop: 8 }}>{place}</Text>
       <Text style={{ color: C.text, fontSize: 15, marginTop: 4 }}>{when(d.starts_at, lang)}</Text>
+      {/* a trip: the ticket, and what a member pays */}
+      {cat === 'roam' && (d.price || d.member_price) ? (
+        <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 10, flexWrap: 'wrap' }}>
+          {d.price ? <Text style={[{ color: d.member_price ? C.dim : C.text, fontSize: 14, textDecorationLine: d.member_price ? 'line-through' : 'none', marginEnd: 10 }, NUM]}>{mv(lang, 'pTicket', { p: money(d.price, d.currency, lang) })}</Text> : null}
+          {d.member_price ? <Text style={[{ color: C.text, fontSize: 15, fontWeight: '700' }, NUM]}>{mv(lang, 'pMember', { p: money(d.member_price, d.currency, lang) })}</Text> : null}
+        </View>
+      ) : null}
+      {cat === 'impact' ? <Text style={{ color: C.dim, fontSize: 13, marginTop: 8, lineHeight: 18 }}>{mv(lang, 'impactNote')}</Text> : null}
       <Seats taken={taken} seats={seats} />
       <Text style={[{ color: C.text, fontSize: 13.5, fontWeight: '600', marginTop: 10 }, NUM]}>
         {mv(lang, 'claimed', { n: taken, m: seats }) + '  —  ' + (full ? mv(lang, 'full') : mv(lang, 'left', { n: seats - taken }))}
@@ -353,17 +392,33 @@ const DropCard = ({ d, lang, onChanged }) => {
   );
 };
 
-export const DropsSection = () => {
+export const DropsSection = ({ max = 3 }) => {
   const { lang } = useLang();
   const [list, setList] = useState(null);
+  const [cat, setCat] = useState('all');
   const load = () => dropsList().then((x) => setList(Array.isArray(x) ? x : []));
   useEffect(() => { load(); }, []);
   // no Drops this week: nothing on Home, rather than a line saying so
   if (!list || !list.length) return null;
+  const shown = list.filter((d) => cat === 'all' || (d.category || 'tables') === cat).slice(0, max);
   return (
     <View style={{ marginTop: 22 }}>
       <Small>{mv(lang, 'drops').toUpperCase()}</Small>
-      {list.map((d) => <DropCard key={d.id} d={d} lang={lang} onChanged={load} />)}
+      {/* the four pillars: All · Tables · Culture · Impact · Roam */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ marginTop: 10 }}>
+        {['all'].concat(CATS).map((k) => {
+          const on = cat === k;
+          return (
+            <Pressable key={k} onPress={() => { tapLight(); setCat(k); }} accessibilityRole="tab" accessibilityState={{ selected: on }} style={{ marginEnd: 6 }}>
+              <View style={{ borderRadius: 999, borderWidth: 1, borderColor: on ? C.text : C.line, backgroundColor: on ? C.text : 'transparent', paddingHorizontal: 14, paddingVertical: 7 }}>
+                <Text style={{ color: on ? C.bg : C.text, fontSize: 13, fontWeight: '600' }}>{k === 'all' ? mv(lang, 'catAll') : catWord(lang, k)}</Text>
+              </View>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+      {shown.length ? shown.map((d) => <DropCard key={d.id} d={d} lang={lang} onChanged={load} />)
+        : <Text style={{ color: C.dim, fontSize: 14, marginTop: 14 }}>{mv(lang, 'empty')}</Text>}
     </View>
   );
 };

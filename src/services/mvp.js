@@ -21,3 +21,34 @@ export const circleEnter = (poll) => rpc('circle_enter', { p_poll: poll });
 // the Studio (owner only, checked by the database)
 export const ownerDrops = () => rpc('owner_drops');
 export const ownerDropSave = (p) => rpc('owner_drop_save', { p });
+
+/* ── THE SAFETY CHECK (RUN_ME.sql, "FOUR PILLARS · SAFETY CHECK") ──
+   One photo — a live selfie or an ID / university card — into the
+   private 'verification' bucket, in the person's own folder. The Studio
+   decides, and the photo is deleted then (zero storage). */
+export const mySafety = () => rpc('my_safety');
+export async function sendSafetyCheck(kind, blob, handle) {
+  if (!SUPABASE_READY) return { ok: false, reason: 'offline' };
+  try {
+    const { data } = await supabase.auth.getUser();
+    const u = data && data.user;
+    if (!u) return { ok: false, reason: 'signed_out' };
+    const path = u.id + '/safety-' + Date.now() + '.jpg';
+    const up = await supabase.storage.from('verification').upload(path, blob, { contentType: 'image/jpeg', upsert: false });
+    if (up.error) return { ok: false, reason: 'upload' };
+    const r = await rpc('safety_submit', { p_kind: kind, p_path: path, p_handle: handle || null });
+    if (!(r && r.ok)) { await supabase.storage.from('verification').remove([path]).catch(() => {}); }
+    return r || { ok: false, reason: 'server' };
+  } catch (e) { return { ok: false, reason: 'offline' }; }
+}
+// the Studio
+export const safetyList = () => rpc('studio_safety_list');
+export async function safetyPhotoUrl(path) {
+  try { const { data } = await supabase.storage.from('verification').createSignedUrl(path, 300); return data && data.signedUrl; } catch (e) { return null; }
+}
+export async function safetyDecide(userId, ok) {
+  const r = await rpc('studio_safety_decide', { p_user: userId, p_ok: !!ok });
+  // the decision is made: the photo goes now
+  if (r && r.ok && r.delete_path) { try { await supabase.storage.from('verification').remove([r.delete_path]); } catch (e) {} }
+  return r;
+}
