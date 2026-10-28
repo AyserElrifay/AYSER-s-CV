@@ -139,6 +139,18 @@ export const Welcome = ({ onStart, onSignIn }) => {
   useEffect(() => {
     Animated.timing(rise, { toValue: 1, duration: 1100, delay: 900, easing: Easing.out(Easing.cubic), useNativeDriver: Platform.OS !== 'web' }).start();
   }, []);
+  /* black to the very edge: on an iPhone the strip under the page (by the
+     home bar) is the page's own colour, which was the light app colour */
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') return undefined;
+    const els = [document.documentElement, document.body];
+    const was = els.map((e) => e.style.backgroundColor);
+    const meta = document.querySelector('meta[name="theme-color"]');
+    const wasMeta = meta && meta.getAttribute('content');
+    els.forEach((e) => { e.style.backgroundColor = '#000'; });
+    if (meta) meta.setAttribute('content', '#000000');
+    return () => { els.forEach((e, i) => { e.style.backgroundColor = was[i]; }); if (meta && wasMeta) meta.setAttribute('content', wasMeta); };
+  }, []);
   const cur = LANGS.find((l) => l.code === lang) || LANGS[0];
   return (
     <Modal visible animationType="none" transparent={false} onRequestClose={onSignIn}>
