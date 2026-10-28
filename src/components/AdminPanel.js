@@ -33,6 +33,7 @@ import { PromptsTab } from './PromptsTab';
 import { RewardsTab } from './RewardsTab';
 import { TeachersTab } from './TeachersTab';
 import { PeopleTab } from './PeopleTab';
+import { MembersTab } from './MembersTab';
 import { useSheetBack } from '../hooks/useSheetBack';
 
 /* ─── MOMENTS STUDIO · the owner's control panel ──────────────────────
@@ -45,6 +46,7 @@ import { useSheetBack } from '../hooks/useSheetBack';
    hiding a tab is only so nobody is shown a door that will not open. */
 const TABS = [
   { k: 'traction', label: 'Traction', icon: 'trending-up-outline' },
+  { k: 'members', label: 'Members', icon: 'card-outline', owner: true },
   { k: 'people', label: 'People', icon: 'person-circle-outline', area: 'safety' },
   { k: 'safety', label: 'Safety', icon: 'shield-outline', area: 'safety' },
   { k: 'reports', label: 'Reports', icon: 'flag-outline', area: 'safety' },
@@ -239,7 +241,14 @@ const HighlightsTab = ({ userId }) => {
       const url = await uploadMediaSmart(userId, URL.createObjectURL(file), ext, file.type || (isVideo ? 'video/mp4' : 'image/jpeg'));
       await addHighlight({ mediaUrl: url, kind: isVideo ? 'video' : 'photo', caption, everyoneAgreed: agreed });
       tapSuccess(); setFile(null); setCaption(''); setAgreed(false); setMsg('Live on Home.'); load();
-    } catch (e) { setMsg(/consent/.test(e.message) ? 'Tick the box first.' : 'Could not publish — try again.'); }
+    } catch (e) {
+      // say what really went wrong: "try again" hid a too-big file, a format, or a missing setting
+      const why = String((e && e.message) || '');
+      setMsg(/consent/.test(why) ? 'Tick the box first.'
+        : /not_owner/.test(why) ? 'Only the owner account can put things on Home.'
+        : /too large|limit is/i.test(why) ? why
+        : 'Could not publish: ' + (why || 'unknown') + '. If it is an iPhone .mov, export it as MP4 (or record in "Most Compatible") and try again.');
+    }
     setBusy(false);
   };
   if (list === false) return <Text style={{ color: C.faint, fontSize: 13, textAlign: 'center', paddingVertical: 40 }}>Run the latest SQL (part 27) to add Home highlights.</Text>;
@@ -967,6 +976,7 @@ export const AdminPanel = ({ onClose, access = { owner: true }, initialTab = nul
           {tab === 'rewards' && owner ? <RewardsTab /> : null}
           {tab === 'teachers' && owner ? <TeachersTab /> : null}
           {tab === 'people' ? <PeopleTab /> : null}
+          {tab === 'members' && owner ? <MembersTab /> : null}
           {tab === 'activity' && owner ? (
             act == null ? <Empty t="Run the latest SQL (part 26) to see the team's activity here." /> : (
               <>

@@ -332,6 +332,8 @@ jobs:
           # Plus monthly: Lemon Squeezy checkout (session required) and its signed webhook (no session)
           supabase functions deploy ls-checkout --project-ref "$REF"
           supabase functions deploy ls-webhook --project-ref "$REF" --no-verify-jwt
+          # the Studio's % promo codes and "stop renewing" (owner session only; same Lemon Squeezy secrets)
+          supabase functions deploy owner-billing --project-ref "$REF"
           # media straight to Cloudflare R2 and view-once messages (signed-in only; R2_* secrets)
           supabase functions deploy r2-presign --project-ref "$REF"
           # the R2 keys live only as function secrets; set here when the repository has them

@@ -6,6 +6,7 @@ import { C } from '../constants/theme';
 import { useLang } from '../context/LanguageContext';
 import { tapSelection, tapSuccess } from '../utils/feedback';
 import { useSheetBack } from '../hooks/useSheetBack';
+import { Glyph } from '../ui/Glyph';
 
 /* ─── THE COMPASS: WHAT YOU CARE ABOUT, AND WHERE YOU WANT TO GROW ────
    Ayser: "خلي الناس تختار values وgoals وأحلام وهوايات — حتى لو نفسها
@@ -14,8 +15,8 @@ import { useSheetBack } from '../hooks/useSheetBack';
 
    All by tapping; one line of your own if you want it. Each place you
    want to grow becomes one small, daily slot in My day (placed in a
-   real gap, like the rest of life): closer to God is Quran for a Muslim,
-   the Bible for a Christian, quiet reflection for anyone else. The
+   real gap, like the rest of life). No faith items: Moments is not a
+   religious app. The
    compass stays on this phone; Papyrus only sees it when you talk to
    it from your diary. */
 
@@ -25,7 +26,6 @@ const save = (v) => { try { localStorage.setItem(KEY, JSON.stringify(v)); } catc
 
 /* where to grow → the small daily thing it becomes (minutes) */
 export const GROW = [
-  { id: 'faith', emoji: '🤲', min: 15 },
   { id: 'learn', emoji: '📚', min: 20 },
   { id: 'body', emoji: '💪', min: 30 },
   { id: 'love', emoji: '📞', min: 10 },
@@ -34,21 +34,19 @@ export const GROW = [
   { id: 'calm', emoji: '🌬️', min: 5 },
   { id: 'create', emoji: '🎨', min: 20 },
 ];
-/* the daily thing for "closer to God" depends on the faith somebody chose */
-export const growLabel = (g, faith, t) => (g.id === 'faith'
-  ? t(faith === 'muslim' ? 'cp_do_faith_m' : faith === 'christian' ? 'cp_do_faith_c' : 'cp_do_faith_n')
-  : t('cp_do_' + g.id));
-export const growEmoji = (g, faith) => (g.id === 'faith' ? (faith === 'muslim' ? '📖' : faith === 'christian' ? '✝️' : '🕯️') : g.emoji);
+/* Moments is not a religious app (Ayser): no faith slot, value or dream */
+export const growLabel = (g, faith, t) => t('cp_do_' + g.id);
+export const growEmoji = (g) => g.emoji;
 
-const VALUES = [['family', '👨‍👩‍👧'], ['faith', '🤲'], ['health', '🌿'], ['kindness', '🤝'], ['honesty', '🪞'], ['freedom', '🕊️'], ['growth', '🌱'], ['adventure', '🧭'], ['love', '❤️'], ['peace', '☮️']];
-const DREAMS = [['family', '👨‍👩‍👧‍👦'], ['travel', '✈️'], ['home', '🏡'], ['business', '🚀'], ['degree', '🎓'], ['fit', '💪'], ['language', '🗣️'], ['give', '🤲']];
+const VALUES = [['family', '👨‍👩‍👧'], ['health', '🌿'], ['kindness', '🤝'], ['honesty', '🪞'], ['freedom', '🕊️'], ['growth', '🌱'], ['adventure', '🧭'], ['love', '❤️'], ['peace', '☮️']];
+const DREAMS = [['family', '👨‍👩‍👧‍👦'], ['travel', '✈️'], ['home', '🏡'], ['business', '🚀'], ['degree', '🎓'], ['fit', '💪'], ['language', '🗣️'], ['give', '🎁']];
 const HOBBIES = [['reading', '📖'], ['football', '⚽'], ['gym', '🏋️'], ['music', '🎵'], ['art', '🎨'], ['cooking', '🍳'], ['gaming', '🎮'], ['hiking', '🥾'], ['photo', '📷'], ['coffee', '☕']];
 
 const Chip = ({ emoji, label, on, onPress }) => (
   <Pressable onPress={onPress} accessibilityRole="checkbox" accessibilityState={{ checked: !!on }} style={{ marginEnd: 6, marginBottom: 8 }}>
-    <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, borderWidth: 1.5, borderColor: on ? C.purple : C.line, backgroundColor: on ? C.purpleSoft : C.glass, paddingHorizontal: 12, paddingVertical: 9 }}>
-      <Text style={{ fontSize: 15, marginEnd: 6 }}>{emoji}</Text>
-      <Text style={{ color: C.text, fontSize: 14, fontWeight: on ? '900' : '700' }}>{label}</Text>
+    <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 999, borderWidth: 1, borderColor: on ? C.text : C.line, backgroundColor: on ? C.text : 'transparent', paddingHorizontal: 13, paddingVertical: 9 }}>
+      <Glyph e={emoji} size={15} color={on ? C.bg : C.dim} style={{ marginEnd: 7 }} />
+      <Text style={{ color: on ? C.bg : C.text, fontSize: 14, fontWeight: '600' }}>{label}</Text>
     </View>
   </Pressable>
 );
@@ -84,16 +82,19 @@ export const Compass = ({ onClose, faith }) => {
           <Pressable onPress={onClose} hitSlop={12} accessibilityRole="button" accessibilityLabel={t('close')}>
             <Ionicons name="chevron-down" size={26} color={C.text} />
           </Pressable>
-          <Text style={{ color: C.text, fontSize: 28, fontWeight: '900', letterSpacing: -0.4, marginTop: 8 }}>{'🧭 ' + t('cp_title')}</Text>
+          <Text style={{ color: C.text, fontSize: 28, fontWeight: '900', letterSpacing: -0.4, marginTop: 8 }}>{t('cp_title')}</Text>
           <Text style={{ color: C.dim, fontSize: 14, marginTop: 4 }}>{t('cp_sub')}</Text>
 
           <Section title={t('cp_grow_q')} sub={t('cp_grow_sub')}>
             {GROW.map((g) => <Chip key={g.id} emoji={g.emoji} label={t('cp_grow_' + g.id)} on={on('grow', g.id)} onPress={() => flip('grow', g.id, 3)} />)}
           </Section>
           {(c.grow || []).length ? (
-            <View style={{ marginTop: 2, borderRadius: 16, backgroundColor: C.purpleSoft, padding: 12 }}>
+            <View style={{ marginTop: 2, borderRadius: 16, borderWidth: 1, borderColor: C.line, padding: 12 }}>
               {(c.grow || []).map((id) => { const g = GROW.find((x) => x.id === id); return g ? (
-                <Text key={id} style={{ color: C.text, fontSize: 13.5, fontWeight: '700', marginBottom: 2 }}>{growEmoji(g, faith) + '  ' + growLabel(g, faith, t) + ' · ' + t('md_min').replace('{n}', String(g.min))}</Text>
+                <View key={id} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                  <Glyph e={g.emoji} size={14} color={C.dim} style={{ marginEnd: 8 }} />
+                  <Text style={{ color: C.text, fontSize: 13.5, fontWeight: '600' }}>{growLabel(g, faith, t) + ' · ' + t('md_min').replace('{n}', String(g.min))}</Text>
+                </View>
               ) : null; })}
               <Text style={{ color: C.dim, fontSize: 12, marginTop: 4 }}>{t('cp_grow_note')}</Text>
             </View>
@@ -114,8 +115,8 @@ export const Compass = ({ onClose, faith }) => {
           </Section>
 
           <Pressable onPress={() => { tapSuccess(); onClose(); }} accessibilityRole="button" style={{ marginTop: 22 }}>
-            <View style={{ borderRadius: 999, backgroundColor: C.purple, paddingVertical: 15, alignItems: 'center' }}>
-              <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '900' }}>{t('md_continue')}</Text>
+            <View style={{ borderRadius: 999, backgroundColor: C.text, paddingVertical: 15, alignItems: 'center' }}>
+              <Text style={{ color: C.bg, fontSize: 16, fontWeight: '700' }}>{t('md_continue')}</Text>
             </View>
           </Pressable>
           <Text style={{ color: C.faint, fontSize: 12, textAlign: 'center', marginTop: 10 }}>{t('cp_private')}</Text>

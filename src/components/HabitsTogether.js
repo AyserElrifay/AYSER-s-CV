@@ -8,6 +8,7 @@ import { myHabits, createHabit, joinHabit, checkHabit, leaveHabit } from '../ser
 import { shareLink, appLink } from '../utils/share';
 import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
 import { useSheetBack } from '../hooks/useSheetBack';
+import { Glyph } from '../ui/Glyph';
 
 /* ─── HABITS TOGETHER ─────────────────────────────────────────────────
    Ayser: "Habit together (streaks, code to join together)". One small
@@ -38,7 +39,8 @@ const S = {
 };
 export const hs = (lang, k) => ((S[lang] && S[lang][k]) || S.en[k]);
 
-const EMOJIS = ['🔥', '📖', '🏃', '💧', '🧘', '🗣️', '🎸', '🙏', '🥗', '😴'];
+// kept as emoji keys (old habits have them), drawn as outline icons (ui/Glyph)
+const EMOJIS = ['🔥', '📖', '🏃', '💧', '🧘', '🗣️', '🎸', '🥗', '😴', '✍️'];
 const reasonOf = (r) => (r && r.reason && S.en[r.reason] ? r.reason : 'err');
 
 const Card = ({ h, lang, onTick, onLeave }) => {
@@ -48,11 +50,13 @@ const Card = ({ h, lang, onTick, onLeave }) => {
   return (
     <View style={{ borderRadius: 20, borderWidth: 1, borderColor: me.done ? C.green : C.line, backgroundColor: C.glass, padding: 14, marginTop: 12 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-        <Text style={{ fontSize: 28, marginEnd: 10 }}>{h.emoji || '🔥'}</Text>
+        <View style={{ width: 40, height: 40, borderRadius: 20, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center', marginEnd: 10 }}>
+          <Glyph e={h.emoji || '🔥'} size={20} color={C.text} />
+        </View>
         <View style={{ flex: 1 }}>
           <Text style={{ color: C.text, fontSize: 16.5, fontWeight: '900' }} numberOfLines={2}>{h.name}</Text>
           <Text style={{ color: streak ? '#E8590C' : C.dim, fontSize: 13, fontWeight: '800', marginTop: 2 }}>
-            {streak > 1 ? '🔥 ' + hs(lang, 'days').replace('{n}', String(streak)) : streak === 1 ? '🔥 ' + hs(lang, 'day1') : hs(lang, 'none')}
+            {streak > 1 ? hs(lang, 'days').replace('{n}', String(streak)) : streak === 1 ? hs(lang, 'day1') : hs(lang, 'none')}
           </Text>
         </View>
       </View>
@@ -122,7 +126,7 @@ export const HabitsTogether = ({ onClose, lang }) => {
           <Pressable onPress={onClose} hitSlop={12} accessibilityRole="button" accessibilityLabel="Close">
             <Ionicons name="chevron-down" size={26} color={C.text} />
           </Pressable>
-          <Text style={{ color: C.text, fontSize: 28, fontWeight: '900', letterSpacing: -0.4, marginTop: 8 }}>{'🔥 ' + hs(lang, 'title')}</Text>
+          <Text style={{ color: C.text, fontSize: 28, fontWeight: '900', letterSpacing: -0.4, marginTop: 8 }}>{hs(lang, 'title')}</Text>
           <Text style={{ color: C.dim, fontSize: 14, marginTop: 4, lineHeight: 20 }}>{hs(lang, 'sub')}</Text>
 
           {list == null ? <ActivityIndicator color={C.purple} style={{ marginTop: 30 }} />
@@ -136,8 +140,8 @@ export const HabitsTogether = ({ onClose, lang }) => {
           <ScrollView horizontal keyboardShouldPersistTaps="handled" showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
             {EMOJIS.map((e) => (
               <Pressable key={e} onPress={() => { tapSelection(); setEmoji(e); }} accessibilityRole="radio" accessibilityState={{ selected: emoji === e }} style={{ marginEnd: 6 }}>
-                <View style={{ width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: emoji === e ? C.purple : C.line, backgroundColor: emoji === e ? C.purpleSoft : C.glass }}>
-                  <Text style={{ fontSize: 20 }}>{e}</Text>
+                <View style={{ width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: emoji === e ? C.text : C.line, backgroundColor: emoji === e ? C.text : 'transparent' }}>
+                  <Glyph e={e} size={19} color={emoji === e ? C.bg : C.dim} />
                 </View>
               </Pressable>
             ))}
@@ -146,8 +150,8 @@ export const HabitsTogether = ({ onClose, lang }) => {
             <TextInput value={name} onChangeText={setName} maxLength={60} placeholder={hs(lang, 'namePh')} placeholderTextColor={C.faint}
               style={{ flex: 1, color: C.text, fontSize: 15, borderRadius: 16, borderWidth: 1, borderColor: C.line, backgroundColor: C.glass, paddingHorizontal: 14, paddingVertical: 12, outlineStyle: 'none' }} />
             <Pressable onPress={async () => { if (name.trim() && await run('new', () => createHabit(name.trim(), emoji))) setName(''); }} disabled={!name.trim() || !!busy} accessibilityRole="button" style={{ marginStart: 8 }}>
-              <View style={{ borderRadius: 999, backgroundColor: name.trim() ? C.purple : C.glassHi, paddingHorizontal: 18, paddingVertical: 13 }}>
-                {busy === 'new' ? <ActivityIndicator color="#FFF" /> : <Text style={{ color: '#FFF', fontSize: 14.5, fontWeight: '900' }}>{hs(lang, 'start')}</Text>}
+              <View style={{ borderRadius: 999, backgroundColor: name.trim() ? C.text : C.glassHi, paddingHorizontal: 18, paddingVertical: 13 }}>
+                {busy === 'new' ? <ActivityIndicator color={C.bg} /> : <Text style={{ color: name.trim() ? C.bg : C.dim, fontSize: 14.5, fontWeight: '700' }}>{hs(lang, 'start')}</Text>}
               </View>
             </Pressable>
           </View>

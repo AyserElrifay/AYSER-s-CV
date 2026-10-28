@@ -5,6 +5,7 @@ import { C, NUM } from '../constants/theme';
 import { useLang } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
 import { buyTier, promoCode, setPromoCode } from '../services/payments';
+import { promoRedeem } from '../services/gifts';
 import { tapLight, tapMedium, tapSuccess, tapSelection } from '../utils/feedback';
 import { useSheetBack } from '../hooks/useSheetBack';
 import { SheetHandle } from './SheetHandle';
@@ -182,14 +183,17 @@ const useBuy = (lang, m) => {
 /* a promo code: one quiet line that opens into a field. Lemon Squeezy
    checks the code at the checkout and takes it off there. */
 const PROMO = {
-  en: ['Have a promo code?', 'Promo code', 'Apply', 'Code {c} — it comes off at checkout', 'Remove'],
-  ar: ['معاك كود خصم؟', 'كود الخصم', 'تمام', 'الكود {c} — هيتخصم في صفحة الدفع', 'شيله'],
+  en: ['Have a promo code?', 'Promo code', 'Apply', 'Code {c} — it comes off at checkout', 'Remove', '{t} is yours until {d}.', 'You already used this code.', 'This code has ended.', 'You already pay for longer than this.', 'This code is all used up.'],
+  ar: ['معاك كود خصم؟', 'كود الخصم', 'تمام', 'الكود {c} — هيتخصم في صفحة الدفع', 'شيله', '{t} بقى عندك لحد {d}.', 'انت استخدمت الكود ده قبل كده.', 'الكود ده خلص.', 'انت دافع لمدة أطول من كده.', 'الكود ده اتستخدم بالكامل.'],
 };
 const pw = (lang, i) => (PROMO[lang] || PROMO.en)[i];
 const Promo = ({ lang }) => {
   const [code, setCode] = useState(promoCode);
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState('');
+  const [msg, setMsg] = useState(null);
+  const [busy, setBusy] = useState(false);
+  if (msg) return <Text style={{ color: '#FFFFFF', fontSize: 14, textAlign: 'center', marginTop: 16, lineHeight: 20 }}>{msg}</Text>;
   if (code) {
     return (
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 16 }}>
@@ -207,7 +211,31 @@ const Promo = ({ lang }) => {
       </Pressable>
     );
   }
-  const apply = () => { const c = setPromoCode(draft); if (c) { tapSuccess(); setCode(c); setOpen(false); } };
+  /* a free-days code is taken here and now; a % code (or one made in
+     Lemon Squeezy itself) goes with them to the checkout */
+  const apply = async () => {
+    const c = draft.trim().toUpperCase();
+    if (!c || busy) return;
+    setBusy(true);
+    const r = await promoRedeem(c);
+    setBusy(false);
+    if (r && r.ok) {
+      tapSuccess();
+      const d = new Date(r.until).toLocaleDateString(lang === 'ar' ? 'ar-EG' : lang, { day: 'numeric', month: 'long' });
+      setMsg(pw(lang, 5).replace('{t}', r.tier === 'vip' ? 'Moments Black' : 'Moments+').replace('{d}', d));
+      setTimeout(() => { try { window.location.reload(); } catch (e) {} }, 2200);
+      return;
+    }
+    const why = r && r.reason;
+    if (why === 'used' || why === 'expired' || why === 'paying' || why === 'full') {
+      setDraft(''); setOpen(false);
+      setMsg(pw(lang, { used: 6, expired: 7, paying: 8, full: 9 }[why]));
+      setTimeout(() => setMsg(null), 3500);
+      return;
+    }
+    const kept = setPromoCode(c);
+    if (kept) { tapSuccess(); setCode(kept); setOpen(false); }
+  };
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 16 }}>
       <TextInput value={draft} onChangeText={(x) => setDraft(x.toUpperCase())} placeholder={pw(lang, 1)} placeholderTextColor="#737373" autoCapitalize="characters" autoCorrect={false} maxLength={32} onSubmitEditing={apply}
@@ -308,6 +336,9 @@ export const VipSheet = ({ m, onClose }) => {
   const insets = useSafeAreaInsets();
   const { busy, note, buy } = useBuy(lang, m);
   const pr = (m && m.prices) || { vip: 1300, vip_month: 299, vip_period: 'year', currency: 'EGP' };
+  // monthly or yearly, as on the pricing page (Ayser: "مش فيه أوبشن الشهر")
+  const [period, setPeriod] = useState('month');
+  const price = period === 'year' ? pr.vip || 1300 : pr.vip_month || 299;
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={{ flex: 1, backgroundColor: 'rgba(15,13,20,0.4)' }} onPress={onClose} accessibilityLabel={w(lang, 'notNow')} />
@@ -315,20 +346,31 @@ export const VipSheet = ({ m, onClose }) => {
         <View style={{ alignItems: 'center', marginTop: -8, marginBottom: 10 }}><SheetHandle onClose={onClose} /></View>
         <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '800', letterSpacing: lang === 'ar' ? 0 : 1.6 }}>{lang === 'ar' ? 'مومنتس بلاك' : 'MOMENTS BLACK'}</Text>
         <Text style={{ color: '#FFFFFF', fontSize: 28, fontWeight: '700', letterSpacing: lang === 'ar' ? 0 : -0.8, lineHeight: lang === 'ar' ? 40 : 33, marginTop: 8 }}>{w(lang, 'vipTitle')}</Text>
-        <Text style={{ color: '#A3A3A3', fontSize: 16, marginTop: 6 }}>{w(lang, 'vipSub')}</Text>
+        <Text style={{ color: '#A3A3A3', fontSize: 16, marginTop: 6 }}>{g(lang, 'b1')}</Text>
         <View style={{ marginTop: 10 }}>
-          {['v2', 'v3', 'v4'].map((k) => <Check key={k} label={w(lang, k)} ink="#FFFFFF" mark="#FFFFFF" />)}
+          {/* what Black really adds today — the same lines as the pricing page */}
+          {['b2', 'b3', 'b4'].map((k) => <Check key={k} label={g(lang, k)} ink="#FFFFFF" mark="#FFFFFF" />)}
         </View>
-        <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 18 }}>
-          <Text style={[{ color: '#FFFFFF', fontSize: 28, fontWeight: '700', letterSpacing: -0.6 }, NUM]}>{money(pr.vip, pr.currency, lang)}</Text>
-          <Text style={{ color: '#A3A3A3', fontSize: 14, marginStart: 6 }}>{per(lang, pr.vip_period, pr.currency)}</Text>
+        <View style={{ flexDirection: 'row', alignSelf: 'flex-start', marginTop: 18, borderRadius: 999, borderWidth: 1, borderColor: '#262626', padding: 3 }} accessibilityRole="tablist">
+          {['month', 'year'].map((k) => (
+            <Pressable key={k} onPress={() => { tapSelection(); setPeriod(k); }} accessibilityRole="tab" accessibilityState={{ selected: period === k }}>
+              <View style={{ borderRadius: 999, paddingHorizontal: 16, paddingVertical: 7, backgroundColor: period === k ? '#FFFFFF' : 'transparent' }}>
+                <Text style={{ color: period === k ? '#000000' : '#A3A3A3', fontSize: 13, fontWeight: '700' }}>{g(lang, k)}</Text>
+              </View>
+            </Pressable>
+          ))}
         </View>
-        <Pressable onPress={() => buy('vip', pr.vip_period === 'month' ? 'month' : 'year')} disabled={!!busy} accessibilityRole="button" style={{ marginTop: 18 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 14 }}>
+          <Text style={[{ color: '#FFFFFF', fontSize: 28, fontWeight: '700', letterSpacing: -0.6 }, NUM]}>{money(price, pr.currency, lang)}</Text>
+          <Text style={{ color: '#A3A3A3', fontSize: 14, marginStart: 6 }}>{per(lang, period, pr.currency)}</Text>
+        </View>
+        <Pressable onPress={() => buy('vip', period)} disabled={!!busy} accessibilityRole="button" style={{ marginTop: 18 }}>
           <View style={{ borderRadius: 999, paddingVertical: 15, alignItems: 'center', backgroundColor: '#FFFFFF' }}>
             {busy ? <ActivityIndicator color="#000000" /> : <Text style={{ color: '#000000', fontSize: 16, fontWeight: '600' }}>{w(lang, 'becomeVip')}</Text>}
           </View>
         </Pressable>
         {note ? <Text style={{ color: '#A3A3A3', fontSize: 14, textAlign: 'center', marginTop: 12 }}>{note}</Text> : null}
+        <Promo lang={lang} />
         <Pressable onPress={onClose} accessibilityRole="button" hitSlop={10} style={{ alignSelf: 'center', marginTop: 14 }}>
           <Text style={{ color: '#737373', fontSize: 14 }}>{w(lang, 'notNow')}</Text>
         </Pressable>

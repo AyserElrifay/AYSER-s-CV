@@ -23583,6 +23583,164 @@ drop trigger if exists gatherings_team_only on public.green_gatherings;
 create trigger gatherings_team_only before insert on public.green_gatherings for each row execute function public.gatherings_team_only();
 
 -- ═══════════════════════════════════════════════════════════════════
+--  THE OWNER'S MEMBERS DESK · PROMO CODES · EVERYBODY, FILTERED
+--  Ayser: "فين برومو كود … عايز أولّد برومو كودز بنسبة الديسكاونت من
+--  الستوديو … ليه ما يطلعليش كل اليوزرز بفلاتر عشان لو عايز أعمل عرض
+--  أو أبعت اشتراك جيفت أو أقفل أكونت حد أو أرجّعله فلوسه".
+--  Two kinds of code, one box for the member to type it in:
+--    · days    — X days of Moments+ or Black, nothing to pay, taken in
+--                the app (promo_redeem). Counted apart from revenue.
+--    · percent — X% off at the Lemon Squeezy checkout; the code is made
+--                in Lemon Squeezy too (functions/owner-billing), and
+--                Lemon Squeezy checks it when they pay.
+--  And the list of everybody, filtered by plan, with the owner's actions.
+--  Owner only, checked here. Safe to re-run.
+-- ═══════════════════════════════════════════════════════════════════
+create table if not exists public.promo_codes (
+  code           text primary key check (code ~ '^[A-Z0-9_-]{3,32}$'),
+  kind           text not null check (kind in ('days', 'percent')),
+  tier           text check (tier in ('basic', 'vip')),
+  days           int check (days between 1 and 365),
+  pct            int check (pct between 1 and 100),
+  max_uses       int check (max_uses is null or max_uses > 0),
+  uses           int not null default 0,
+  expires_at     timestamptz,
+  for_user       uuid references public.profiles(id) on delete cascade,
+  ls_discount_id text,
+  note           text,
+  active         boolean not null default true,
+  created_by     uuid,
+  created_at     timestamptz not null default now()
+);
+alter table public.promo_codes enable row level security;   -- only through the functions below
+create table if not exists public.promo_redemptions (
+  code    text not null references public.promo_codes(code) on delete cascade,
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  at      timestamptz not null default now(),
+  primary key (code, user_id)
+);
+alter table public.promo_redemptions enable row level security;
+
+-- make or change a code; an empty code gets one made up (8 letters and figures)
+create or replace function public.owner_promo_save(p jsonb)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare c text := upper(regexp_replace(coalesce(p ->> 'code', ''), '[^A-Za-z0-9_-]', '', 'g'));
+        k text := case when p ->> 'kind' = 'percent' then 'percent' else 'days' end;
+        t text := case when lower(coalesce(p ->> 'tier', '')) in ('vip', 'black') then 'vip' else 'basic' end;
+        d int := nullif(p ->> 'days', '')::int; pc int := nullif(p ->> 'pct', '')::int;
+        mx int := nullif(p ->> 'max_uses', '')::int; ex timestamptz := nullif(p ->> 'expires_at', '')::timestamptz;
+        fu uuid := nullif(p ->> 'for_user', '')::uuid;
+begin
+  if not public.is_app_owner() then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
+  if c = '' then c := upper(substr(md5(gen_random_uuid()::text), 1, 8)); end if;
+  if c !~ '^[A-Z0-9_-]{3,32}$' then return jsonb_build_object('ok', false, 'reason', 'code'); end if;
+  if k = 'days' and (d is null or d not between 1 and 365) then return jsonb_build_object('ok', false, 'reason', 'days'); end if;
+  if k = 'percent' and (pc is null or pc not between 1 and 100) then return jsonb_build_object('ok', false, 'reason', 'pct'); end if;
+  if exists (select 1 from public.promo_codes where code = c) and not coalesce((p ->> 'update')::boolean, false) then
+    return jsonb_build_object('ok', false, 'reason', 'taken');
+  end if;
+  insert into public.promo_codes as x (code, kind, tier, days, pct, max_uses, expires_at, for_user, note, created_by)
+  values (c, k, case when k = 'days' then t end, case when k = 'days' then d end, case when k = 'percent' then pc end,
+          mx, ex, fu, nullif(left(btrim(coalesce(p ->> 'note', '')), 140), ''), auth.uid())
+  on conflict (code) do update set max_uses = excluded.max_uses, expires_at = excluded.expires_at, note = excluded.note, active = true;
+  perform public.studio_log_add('made a promo code', c);
+  return jsonb_build_object('ok', true, 'code', c, 'kind', k);
+end $$;
+revoke all on function public.owner_promo_save(jsonb) from public, anon;
+grant execute on function public.owner_promo_save(jsonb) to authenticated;
+
+create or replace function public.owner_promo_list()
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+begin
+  if not public.is_app_owner() then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
+  return jsonb_build_object('ok', true, 'codes', coalesce((
+    select jsonb_agg(jsonb_build_object('code', c.code, 'kind', c.kind, 'tier', c.tier, 'days', c.days, 'pct', c.pct,
+             'max_uses', c.max_uses, 'uses', c.uses, 'expires_at', c.expires_at, 'active', c.active, 'note', c.note,
+             'in_ls', c.ls_discount_id is not null, 'for_name', p.name) order by c.created_at desc)
+      from public.promo_codes c left join public.profiles p on p.id = c.for_user), '[]'::jsonb));
+end $$;
+revoke all on function public.owner_promo_list() from public, anon;
+grant execute on function public.owner_promo_list() to authenticated;
+
+create or replace function public.owner_promo_off(p_code text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_app_owner() then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
+  update public.promo_codes set active = false where code = upper(p_code);
+  return jsonb_build_object('ok', found);
+end $$;
+revoke all on function public.owner_promo_off(text) from public, anon;
+grant execute on function public.owner_promo_off(text) to authenticated;
+
+-- a member types a code: free days come straight in; a % code is for the checkout
+create or replace function public.promo_redeem(p_code text)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); c public.promo_codes%rowtype; cur public.plus_members%rowtype; base timestamptz; u timestamptz;
+begin
+  if me is null then return jsonb_build_object('ok', false, 'reason', 'signed_out'); end if;
+  select * into c from public.promo_codes where code = upper(btrim(coalesce(p_code, ''))) for update;
+  if not found or not c.active then return jsonb_build_object('ok', false, 'reason', 'unknown'); end if;
+  if c.expires_at is not null and c.expires_at < now() then return jsonb_build_object('ok', false, 'reason', 'expired'); end if;
+  if c.for_user is not null and c.for_user <> me then return jsonb_build_object('ok', false, 'reason', 'unknown'); end if;
+  if c.kind = 'percent' then return jsonb_build_object('ok', false, 'reason', 'checkout', 'pct', c.pct); end if;
+  if exists (select 1 from public.promo_redemptions where code = c.code and user_id = me) then return jsonb_build_object('ok', false, 'reason', 'used'); end if;
+  if c.max_uses is not null and c.uses >= c.max_uses then return jsonb_build_object('ok', false, 'reason', 'full'); end if;
+  select * into cur from public.plus_members where user_id = me;
+  base := case when found and cur.status = 'active' and cur.source in ('gift', 'promo') and cur.until > now() then cur.until else now() end;
+  u := base + make_interval(days => c.days);
+  if found and cur.source = 'lemonsqueezy' and cur.status = 'active' and (cur.until is null or cur.until > u) then
+    return jsonb_build_object('ok', false, 'reason', 'paying');
+  end if;
+  insert into public.plus_members as m (user_id, status, until, source, tier)
+  values (me, 'active', u, 'promo', c.tier)
+  on conflict (user_id) do update set status = 'active', until = u, source = 'promo', tier = c.tier;
+  insert into public.promo_redemptions (code, user_id) values (c.code, me);
+  update public.promo_codes set uses = uses + 1 where code = c.code;
+  return jsonb_build_object('ok', true, 'tier', c.tier, 'until', u, 'days', c.days);
+end $$;
+revoke all on function public.promo_redeem(text) from public, anon;
+grant execute on function public.promo_redeem(text) to authenticated;
+
+-- everybody, filtered: all · free · plus · black · paying · gift · closed
+create or replace function public.owner_members(p_filter text, p_q text, p_offset int)
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare f text := coalesce(nullif(p_filter, ''), 'all'); q text := nullif(btrim(coalesce(p_q, '')), '');
+begin
+  if not public.is_app_owner() then return jsonb_build_object('ok', false, 'reason', 'not_owner'); end if;
+  return (with base as (
+    select p.id, p.name, p.handle, p.avatar_url, p.city, p.created_at, u.email,
+           public.member_tier(p.id) as tier, m.source, m.until, st.state as standing, s.status as sub_status, s.subscription_id
+      from public.profiles p
+      left join auth.users u on u.id = p.id
+      left join public.plus_members m on m.user_id = p.id and m.status = 'active' and (m.until is null or m.until > now())
+      left join public.safety_standing st on st.user_id = p.id
+      left join public.plus_subscriptions s on s.user_id = p.id
+  ), picked as (
+    select * from base b
+     where (q is null or b.name ilike '%' || q || '%' or b.handle ilike '%' || q || '%' or b.email ilike '%' || q || '%' or b.city ilike '%' || q || '%')
+       and case f when 'free' then b.tier = 'FREE'
+                  when 'plus' then b.tier = 'BASIC'
+                  when 'black' then b.tier = 'VIP'
+                  when 'paying' then b.source = 'lemonsqueezy'
+                  when 'gift' then b.source in ('gift', 'promo')
+                  when 'closed' then b.standing = 'closed'
+                  else true end
+  )
+  select jsonb_build_object('ok', true,
+    'counts', (select jsonb_build_object('all', count(*), 'free', count(*) filter (where tier = 'FREE'),
+                 'plus', count(*) filter (where tier = 'BASIC'), 'black', count(*) filter (where tier = 'VIP'),
+                 'paying', count(*) filter (where source = 'lemonsqueezy'), 'gift', count(*) filter (where source in ('gift', 'promo')),
+                 'closed', count(*) filter (where standing = 'closed')) from base),
+    'total', (select count(*) from picked),
+    'people', coalesce((select jsonb_agg(to_jsonb(x) - 'subscription_id' || jsonb_build_object('has_sub', x.subscription_id is not null) order by x.created_at desc)
+                          from (select * from picked order by created_at desc offset greatest(0, coalesce(p_offset, 0)) limit 50) x), '[]'::jsonb)));
+end $$;
+revoke all on function public.owner_members(text, text, int) from public, anon;
+grant execute on function public.owner_members(text, text, int) to authenticated;
+
+notify pgrst, 'reload schema';
+
+-- ═══════════════════════════════════════════════════════════════════
 --  SECURITY · WHAT ANYBODY CAN READ, AND WHO CAN CHANGE WHAT
 --
 --  Ayser: "خلي الأبلكيشن آمن جدًا … متخليش الـ users يوصلوا لأي معلومة

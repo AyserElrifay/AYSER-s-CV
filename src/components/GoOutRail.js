@@ -11,6 +11,16 @@ import { titleFor, whenFor } from '../lib/activityPins';
 import { getPrefs } from '../services/prefs';
 import { isSaving } from '../lib/dataSaver';
 import { tapLight, tapSuccess } from '../utils/feedback';
+import { publicMedia } from '../lib/publicMedia';
+
+/* Two afternoons out that Ayser chose, by @khaledelnagar9 (he agreed to
+   them being in the app). They are not Moments evenings, so they are not
+   called that: "an afternoon out", with his name on them. */
+const BY = '@khaledelnagar9';
+const IDEAS = ['hang', 'shop'].map((k) => ({
+  id: 'idea-' + k, idea: true, kind: 'video', key: 'hl_' + k,
+  media_url: publicMedia('welcome-' + k + '.mp4'), poster_url: publicMedia('welcome-' + k + '.jpg'),
+}));
 
 /* ─── MAKE PEOPLE WANT TO GO OUT ──────────────────────────────────────
    Ayser: "استخدم صور أو فيديوهات عشان تحمّس الناس تخرج … والأهم
@@ -72,8 +82,9 @@ const PlanCard = ({ g, lang, t, onOpen, onJoin, joining }) => (
   </Pressable>
 );
 
-/* showHighlights: the owner's evening video now lives in Trips as its
-   welcome (src/components/TripsWelcome.js); Home keeps only the plans */
+/* showHighlights: the owner's real evenings (also the Trips welcome,
+   src/components/TripsWelcome.js) and the two afternoons out, above the
+   plans — Ayser: the videos belong inside the app, to get people out */
 export const GoOutRail = ({ onFind, onOpenPlan, showHighlights = true }) => {
   const { t, lang } = useLang();
   /* opens on what was here last time, then brought up to date — the
@@ -109,8 +120,10 @@ export const GoOutRail = ({ onFind, onOpenPlan, showHighlights = true }) => {
         {hl.kind === 'video' ? <HighlightVideo uri={hl.media_url} poster={hl.poster_url} /> : <Image source={{ uri: hl.media_url }} style={{ width: '100%', height: '100%' }} />}
         <LinearGradient colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.7)']} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 140 }} />
         <View style={{ position: 'absolute', left: 16, right: 16, bottom: 14 }}>
-          <Text style={{ color: '#FFF', fontSize: 19, fontWeight: '900', letterSpacing: -0.3 }}>{t('hl_title')}</Text>
-          {hl.caption ? <Text style={{ color: 'rgba(255,255,255,0.88)', fontSize: 13, marginTop: 3 }} numberOfLines={2}>{hl.caption}</Text> : null}
+          <Text style={{ color: '#FFF', fontSize: 19, fontWeight: '900', letterSpacing: -0.3 }}>{t(hl.idea ? 'hl_idea' : 'hl_title')}</Text>
+          {hl.idea ? <Text style={{ color: 'rgba(255,255,255,0.88)', fontSize: 13, marginTop: 3 }} numberOfLines={1}>{t(hl.key)}</Text>
+            : hl.caption ? <Text style={{ color: 'rgba(255,255,255,0.88)', fontSize: 13, marginTop: 3 }} numberOfLines={2}>{hl.caption}</Text> : null}
+          {hl.idea ? <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11, marginTop: 2 }}>{t('hl_by').replace('{n}', '\u2066' + BY + '\u2069')}</Text> : null}
           <View style={{ alignSelf: 'flex-start', marginTop: 10, backgroundColor: '#FFF', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8 }}>
             <Text style={{ color: '#1A1A1A', fontSize: 13, fontWeight: '900' }}>{t('hl_cta')}</Text>
           </View>
@@ -119,10 +132,12 @@ export const GoOutRail = ({ onFind, onOpenPlan, showHighlights = true }) => {
     </Pressable>
   );
 
-  if (!hls.length && !plans.length) return null;
+  // the owner's real evenings first, then the two afternoons out
+  const shown = showHighlights ? hls.concat(IDEAS) : hls;
+  if (!shown.length && !plans.length) return null;
   return (
     <View style={{ marginTop: 16 }}>
-      {hls.length ? (
+      {shown.length ? (
         /* ── WHY THERE WAS A BLANK HOLE ON HOME ──────────────────────
            Ayser's Home had an empty band, 230 high, under "Your vibe".
            One evening was live, and a single card was given width
@@ -130,16 +145,16 @@ export const GoOutRail = ({ onFind, onOpenPlan, showHighlights = true }) => {
            wide as what is in it, so 100% of it is nothing. The card
            kept its height and lost its width. One card now sits in an
            ordinary View that is the full width; two or more swipe. */
-        hls.length > 1 ? (
+        shown.length > 1 ? (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled"
             snapToInterval={cardW + 10} decelerationRate="fast">
-            {hls.map((hl) => <View key={hl.id} style={{ width: cardW, marginEnd: 10 }}>{renderHighlight(hl)}</View>)}
+            {shown.map((hl) => <View key={hl.id} style={{ width: cardW, marginEnd: 10 }}>{renderHighlight(hl)}</View>)}
           </ScrollView>
-        ) : renderHighlight(hls[0])
+        ) : renderHighlight(shown[0])
       ) : null}
       {plans.length ? (
         <>
-          <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '900', letterSpacing: 1, marginTop: hls.length ? 18 : 0, marginBottom: 10 }}>{t('gr_title').toUpperCase()}</Text>
+          <Text style={{ color: C.faint, fontSize: 11.5, fontWeight: '900', letterSpacing: 1, marginTop: shown.length ? 18 : 0, marginBottom: 10 }}>{t('gr_title').toUpperCase()}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             {plans.map((g) => <PlanCard key={g.id} g={g} lang={lang} t={t} onOpen={onOpenPlan} onJoin={join} joining={joining[g.id]} />)}
           </ScrollView>

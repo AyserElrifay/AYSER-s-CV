@@ -6,6 +6,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { C } from '../constants/theme';
 import { useLang, tNow } from '../context/LanguageContext';
 import { Focus } from './Focus';
+import { Glyph } from '../ui/Glyph';
 import { Compass, GROW, growLabel, growEmoji, readCompass, KEY as COMPASS_KEY } from './Compass';
 import { Dates, readDates, dateNudges, yearly, nextOf } from './Dates';
 import { Diary } from './Diary';
@@ -92,8 +93,9 @@ const blockOf = (a, kind) => {
   return { days: DAYS[a.days || 'sun'] || DAYS.sun, s: [h[0], h[1]], e: [h[2], h[3]] };
 };
 const has = (a, kind) => (kind === 'uni' ? a.role === 'student' || a.role === 'both' : a.role === 'work' || a.role === 'both');
-/* faith, for whoever has one: the five prayers, or church, or nothing */
-const faithOf = (a) => a.faith || (a.pray === true ? 'muslim' : a.pray === false ? 'none' : null);
+/* Moments is not a religious app (Ayser): no prayers, church or practice
+   in the day any more, whatever an older setup on this phone says */
+const faithOf = () => 'none';
 const muslim = (a) => faithOf(a) === 'muslim' && !!a.at;
 
 /* every question there can be, in the order they are asked */
@@ -104,10 +106,6 @@ const steps = (a) => {
   const s = ['role'];
   if (has(a, 'uni')) s.push('uni');
   if (has(a, 'work')) s.push('work');
-  s.push('faith');
-  if (faithOf(a) === 'christian') s.push('church');
-  if (faithOf(a) === 'own') s.push('own');
-  if (faithOf(a) === 'muslim' && !a.at) s.push('loc');
   s.push('grow');
   s.push('sleep');
   return s;
@@ -115,13 +113,13 @@ const steps = (a) => {
 
 const Choice = ({ emoji, title, sub, on, onPress }) => (
   <Pressable onPress={onPress} accessibilityRole="radio" accessibilityState={{ selected: !!on }} style={{ marginBottom: 10 }}>
-    <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 20, borderWidth: 1.5, borderColor: on ? C.purple : C.line, backgroundColor: on ? C.purpleSoft : C.glass, paddingVertical: 16, paddingHorizontal: 16 }}>
-      <Text style={{ fontSize: 26, marginEnd: 14 }}>{emoji}</Text>
+    <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 20, borderWidth: 1, borderColor: on ? C.text : C.line, backgroundColor: C.glass, paddingVertical: 16, paddingHorizontal: 16 }}>
+      <Glyph e={emoji} size={22} color={on ? C.text : C.dim} style={{ marginEnd: 14 }} />
       <View style={{ flex: 1 }}>
         <Text style={{ color: C.text, fontSize: 17, fontWeight: '900' }}>{title}</Text>
         {sub ? <Text style={{ color: C.dim, fontSize: 13.5, marginTop: 2 }}>{sub}</Text> : null}
       </View>
-      {on ? <Ionicons name="checkmark-circle" size={22} color={C.purple} /> : null}
+      {on ? <Ionicons name="checkmark-circle" size={22} color={C.text} /> : null}
     </View>
   </Pressable>
 );
@@ -292,11 +290,11 @@ const GrowStep = ({ t, faith, onDone }) => {
     <View>
       <Text style={{ color: C.dim, fontSize: 14, marginTop: -8, marginBottom: 14 }}>{t('cp_grow_sub')}</Text>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-        {GROW.map((g) => <Chip key={g.id} label={g.emoji + ' ' + t('cp_grow_' + g.id)} on={pick.indexOf(g.id) >= 0} onPress={() => flip(g.id)} />)}
+        {GROW.map((g) => <Chip key={g.id} label={t('cp_grow_' + g.id)} on={pick.indexOf(g.id) >= 0} onPress={() => flip(g.id)} />)}
       </View>
       {pick.length ? (
         <View style={{ marginTop: 6, borderRadius: 16, backgroundColor: C.purpleSoft, padding: 12 }}>
-          {pick.map((id) => { const g = GROW.find((x) => x.id === id); return <Text key={id} style={{ color: C.text, fontSize: 13.5, fontWeight: '700' }}>{growEmoji(g, faith) + '  ' + growLabel(g, faith, t) + ' · ' + t('md_min').replace('{n}', String(g.min))}</Text>; })}
+          {pick.map((id) => { const g = GROW.find((x) => x.id === id); return <Text key={id} style={{ color: C.text, fontSize: 13.5, fontWeight: '700' }}>{growLabel(g, faith, t) + ' · ' + t('md_min').replace('{n}', String(g.min))}</Text>; })}
         </View>
       ) : null}
       <Pressable onPress={() => onDone(pick)} accessibilityRole="button" style={{ marginTop: 14 }}>
@@ -419,21 +417,21 @@ function calendarEvents(a, t) {
   const ev = [];
   const sl = SLEEP[a.sleep || 'regular'];
   const tomorrow = new Date(now); tomorrow.setDate(now.getDate() + 1);
-  ev.push({ uid: 'wake', title: '⏰ ' + t('md_wake'), start: at(tomorrow, sl.wake[0], sl.wake[1]), minutes: 10, days: 'daily', alarm: 0 });
+  ev.push({ uid: 'wake', title: t('md_wake'), start: at(tomorrow, sl.wake[0], sl.wake[1]), minutes: 10, days: 'daily', alarm: 0 });
   const bed = at(tomorrow, sl.bed[0], sl.bed[1]); if (sl.bed[0] < 12) bed.setDate(bed.getDate() + 1);
-  ev.push({ uid: 'wind', title: '📵 ' + t('md_wind'), start: new Date(bed.getTime() - 30 * 60000), minutes: 30, days: 'daily', alarm: 0 });
+  ev.push({ uid: 'wind', title: t('md_wind'), start: new Date(bed.getTime() - 30 * 60000), minutes: 30, days: 'daily', alarm: 0 });
   ['uni', 'work'].forEach((kind) => {
     if (!has(a, kind)) return;
     const b = blockOf(a, kind);
     if (!b.days.length) return;
-    ev.push({ uid: kind, title: (kind === 'uni' ? '🎓 ' : '💼 ') + t('md_' + kind), start: firstOn(b.days, b.s[0], b.s[1]), minutes: (b.e[0] * 60 + b.e[1]) - (b.s[0] * 60 + b.s[1]), days: b.days, alarm: 30 });
+    ev.push({ uid: kind, title: t('md_' + kind), start: firstOn(b.days, b.s[0], b.s[1]), minutes: (b.e[0] * 60 + b.e[1]) - (b.s[0] * 60 + b.s[1]), days: b.days, alarm: 30 });
   });
   if (faithOf(a) === 'christian' && a.church) {
     const h = CHURCH[a.church.slot || 'm'];
-    ev.push({ uid: 'church', title: '⛪ ' + t('md_church'), start: firstOn([a.church.day], h[0], h[1]), minutes: (h[2] * 60 + h[3]) - (h[0] * 60 + h[1]), days: [a.church.day], alarm: 30 });
+    ev.push({ uid: 'church', title: t('md_church'), start: firstOn([a.church.day], h[0], h[1]), minutes: (h[2] * 60 + h[3]) - (h[0] * 60 + h[1]), days: [a.church.day], alarm: 30 });
   }
   if (faithOf(a) === 'own' && a.practice && Array.isArray(a.practice.times)) {
-    a.practice.times.forEach((x, i) => ev.push({ uid: 'own-' + i, title: '🕯️ ' + (x.label || t('md_own_default')), start: at(tomorrow, x.h, x.m), minutes: 20, days: 'daily', alarm: 0 }));
+    a.practice.times.forEach((x, i) => ev.push({ uid: 'own-' + i, title: (x.label || t('md_own_default')), start: at(tomorrow, x.h, x.m), minutes: 20, days: 'daily', alarm: 0 }));
   }
   // the four parts of a day, where they fall on a usual working day
   let day = tomorrow;
@@ -442,7 +440,7 @@ function calendarEvents(a, t) {
     if (['uni', 'work'].some((k) => has(a, k) && blockOf(a, k).days.indexOf(JS_DAY[d.getDay()]) >= 0)) { day = d; break; }
   }
   todayItems(a, t, day).filter((x) => x.balance).forEach((x) => {
-    ev.push({ uid: x.id.replace(':', '-'), title: x.emoji + ' ' + x.label, start: at(tomorrow, x.at.getHours(), x.at.getMinutes()), minutes: Math.round((x.end - x.at) / 60000), days: 'daily', alarm: 0 });
+    ev.push({ uid: x.id.replace(':', '-'), title: x.label, start: at(tomorrow, x.at.getHours(), x.at.getMinutes()), minutes: Math.round((x.end - x.at) / 60000), days: 'daily', alarm: 0 });
   });
   if (muslim(a)) {
     const p = prayerTimes(tomorrow, a.at.lat, a.at.lng);
@@ -814,7 +812,7 @@ export function scheduleReminders(tIn) {
   const now = Date.now();
   const show = (x) => {
     try {
-      const title = x.emoji + ' ' + x.label;
+      const title = x.label;
       if (navigator.serviceWorker && navigator.serviceWorker.ready) navigator.serviceWorker.ready.then((r) => r.showNotification(title, { tag: 'mm-day-' + x.id, icon: '/icon-192.png' })).catch(() => {});
       else new window.Notification(title); // eslint-disable-line no-new
     } catch (e) {}
@@ -846,7 +844,7 @@ const nextPrayer = (a, now) => {
 const Tile = ({ emoji, title, sub, onPress }) => (
   <Pressable onPress={onPress} accessibilityRole="button" style={{ width: '48.5%', marginBottom: 8 }}>
     <View style={{ borderRadius: 18, borderWidth: 1, borderColor: C.line, backgroundColor: C.glass, padding: 12, minHeight: 74 }}>
-      <Text style={{ fontSize: 18 }}>{emoji}</Text>
+      <Glyph e={emoji} size={18} color={C.dim} />
       <Text style={{ color: C.text, fontSize: 14, fontWeight: '900', marginTop: 4 }} numberOfLines={1}>{title}</Text>
       {sub ? <Text style={{ color: C.dim, fontSize: 12, fontWeight: '700', marginTop: 1 }} numberOfLines={1}>{sub}</Text> : null}
     </View>
@@ -874,20 +872,15 @@ export const HomeWidgets = ({ ids }) => {
             {next3.length ? next3.map((y) => (
               <View key={y.id} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 3 }}>
                 <Ionicons name="square-outline" size={17} color={C.faint} />
-                <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '700', flex: 1, marginStart: 8 }} numberOfLines={1}>{y.emoji + ' ' + y.label}</Text>
+                <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '700', flex: 1, marginStart: 8 }} numberOfLines={1}>{y.label}</Text>
                 {y.at ? <Text style={{ color: C.dim, fontSize: 12.5, fontWeight: '800', fontVariant: ['tabular-nums'] }}>{hm(y.at.getHours(), y.at.getMinutes())}</Text> : null}
               </View>
-            )) : <Text style={{ color: C.dim, fontSize: 14, fontWeight: '700' }}>{'🌿 ' + t('md_free_rest')}</Text>}
+            )) : <Text style={{ color: C.dim, fontSize: 14, fontWeight: '700' }}>{t('md_free_rest')}</Text>}
           </View>
         </Pressable>
       );
     }
-    if (id === 'prayer') {
-      const p = nextPrayer(a, now);
-      return p
-        ? <Tile key={id} emoji="🕌" title={t('md_' + p.k) + ' · ' + hm(p.at.getHours(), p.at.getMinutes())} sub={t('wg_in').replace('{t}', span(p.at.getTime() - now, t))} onPress={() => show(id)} />
-        : <Tile key={id} emoji="🕌" title={t('wg_prayer')} sub={t('wg_setup')} onPress={() => show(id)} />;
-    }
+    if (id === 'prayer') return null;   // no prayer widget: not a religious app
     if (id === 'plan') {
       const g = (keptGatherings(null) || []).filter((r) => r.im_going && new Date(r.starts_at).getTime() > now - 3600000).sort((p, q) => new Date(p.starts_at) - new Date(q.starts_at))[0];
       return g

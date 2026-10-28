@@ -11,6 +11,7 @@ import { tapLight, tapSelection, tapSuccess } from '../utils/feedback';
 import { useSheetBack } from '../hooks/useSheetBack';
 import { SheetHandle } from './SheetHandle';
 import { lazyOverlay } from '../lib/lazyScreen';
+import { Glyph } from '../ui/Glyph';
 
 /* ─── MAKE MOMENTS YOURS (MOMENTS PLUS) ───────────────────────────────
    Opened by holding the Moments logo on Home. Two things only: the app
@@ -20,7 +21,6 @@ import { lazyOverlay } from '../lib/lazyScreen';
 const PlusSheet = lazyOverlay(() => import('./PlusSheet').then((m) => ({ default: m.PlusSheet })));
 const WIDGETS = [
   { id: 'now', emoji: '🗓️' },
-  { id: 'prayer', emoji: '🕌' },
   { id: 'plan', emoji: '🤝' },
   { id: 'note', emoji: '📝' },
 ];
@@ -115,7 +115,7 @@ export const Personalise = ({ onClose }) => {
             return (
               <Pressable key={w.id} onPress={() => flip(w.id)} accessibilityRole="checkbox" accessibilityState={{ checked: on }} style={{ marginBottom: 8 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 16, borderWidth: 1, borderColor: on ? C.purple : C.line, backgroundColor: on ? C.purpleSoft : C.glass, padding: 12 }}>
-                  <Text style={{ fontSize: 20, marginEnd: 12 }}>{w.emoji}</Text>
+                  <Glyph e={w.emoji} size={20} color={C.dim} style={{ marginEnd: 12 }} />
                   <View style={{ flex: 1 }}>
                     <Text style={{ color: C.text, fontSize: 14.5, fontWeight: '800' }}>{t('wg_' + w.id + '_name')}</Text>
                     <Text style={{ color: C.dim, fontSize: 12.5, marginTop: 1 }}>{t('wg_' + w.id + '_sub')}</Text>
